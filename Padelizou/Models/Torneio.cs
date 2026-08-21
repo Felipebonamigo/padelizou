@@ -150,11 +150,31 @@ public partial class Torneio
     // grava esse valor nas linhas antigas. Ver Services/FormatoDaPartida, que é quem
     // traduz isto em teto de placar e em "já dá pra encerrar?".
     public string ContagemDeGames { get; set; } = Padelizou.Services.ContagemDeGamesDoTorneio.Ate;
+    // O clube PRINCIPAL do torneio — o que o organizador escolheu na criação, o que aparece no
+    // cartaz e o que responde por toda quadra que não disse outro (ver `Quadra.ClubeId`).
+    // Continua obrigatório e continua sendo um só: torneio de duas sedes tem uma sede-sede.
     public int ClubeId { get; set; }
     // Propriedade de navegação: só tem valor em consulta que fez Include. `null!` é o combinado
     // do EF pra isso — quem usa sem Include recebe nulo, e é assim mesmo.
     public Clube Clube { get; set; } = null!;
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
+
+    // QUANTO TEMPO PRA ATRAVESSAR A CIDADE (21/08/2026), no torneio de mais de um clube.
+    //
+    // Um jogador pode disputar duas categorias, e num torneio de duas sedes essas categorias
+    // podem estar em clubes diferentes. Sem esta folga, a grade marcaria o jogo dele no clube B
+    // pra logo depois do jogo dele no clube A: no papel cabe, na vida não.
+    //
+    // ⚠️ É folga MOLE, e isso é decisão do Felipe: a prioridade declarada do torneio é
+    // "nenhuma quadra fica sem jogo até o final". Quando respeitar a folga significaria deixar
+    // uma quadra vaga, a grade marca assim mesmo e o organizador acerta na mão — ver
+    // Services/GradeDeJogos.Encaixar. Vale só entre CLUBES: dois jogos seguidos no mesmo clube
+    // continuam separados apenas pela duração da partida, como sempre.
+    //
+    // 30 minutos porque é o que separa dois clubes da mesma cidade; quem tem sede longe
+    // aumenta na tela. Zero desliga a regra. A migration precisa escrever `defaultValue: 30`
+    // à mão — coluna int nova nasce 0 no banco, e o padrão em C# só vale pra objeto novo.
+    public int MinutosParaTrocarDeClube { get; set; } = 30;
 
     // Torneio SEM hora marcada: os jogos nascem numa ORDEM e vão pra quadra conforme ela
     // vaga, chamados pela Mesa de Controle. É como roda a maioria dos internos de clube —

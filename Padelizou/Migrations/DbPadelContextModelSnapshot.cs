@@ -709,6 +709,9 @@ namespace Padelizou.Migrations
                     b.Property<int?>("ClassificadosPorGrupo")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ClubeId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -747,6 +750,8 @@ namespace Padelizou.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__Categori__3214EC079FE58FF8");
+
+                    b.HasIndex("ClubeId");
 
                     b.HasIndex("TorneioId");
 
@@ -2936,6 +2941,9 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ClubeId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2944,6 +2952,8 @@ namespace Padelizou.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ClubeId");
 
                     b.HasIndex("TorneioId");
 
@@ -3386,6 +3396,9 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("LocalTorneio")
                         .HasColumnType("text");
+
+                    b.Property<int>("MinutosParaTrocarDeClube")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ModoComissao")
                         .IsRequired()
@@ -4219,11 +4232,17 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.Categoria", b =>
                 {
+                    b.HasOne("Padelizou.Models.Clube", "Clube")
+                        .WithMany()
+                        .HasForeignKey("ClubeId");
+
                     b.HasOne("Padelizou.Models.Torneio", "Torneio")
                         .WithMany("Categorias")
                         .HasForeignKey("TorneioId")
                         .IsRequired()
                         .HasConstraintName("FK__Categoria__Torne__5165187F");
+
+                    b.Navigation("Clube");
 
                     b.Navigation("Torneio");
                 });
@@ -5050,11 +5069,17 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.Quadra", b =>
                 {
+                    b.HasOne("Padelizou.Models.Clube", "Clube")
+                        .WithMany()
+                        .HasForeignKey("ClubeId");
+
                     b.HasOne("Padelizou.Models.Torneio", "Torneio")
                         .WithMany()
                         .HasForeignKey("TorneioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Clube");
 
                     b.Navigation("Torneio");
                 });

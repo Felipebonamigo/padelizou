@@ -35,6 +35,10 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.LocalTorneio),
         nameof(Torneio.QuantidadeQuadras),
         nameof(Torneio.TempoPrevistoPartidaMinutos),
+        // A folga pra atravessar a cidade viaja junto pelo mesmo motivo do clube e da
+        // quantidade de quadras: a 2ª edição do torneio acontece nos mesmos lugares, e a
+        // distância entre eles não mudou. Ver Services/SedesDoTorneio.
+        nameof(Torneio.MinutosParaTrocarDeClube),
         nameof(Torneio.SemHorarioPrevisto),
         nameof(Torneio.HoraInicioDoDia),
         nameof(Torneio.HoraInicioDiasSeguintes),

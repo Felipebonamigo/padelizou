@@ -56,7 +56,10 @@ public class DescansoNaGradeTests
             for (int q = 0; q < quadras; q++)
                 horarios.Add(inicio.AddMinutes(20 * i));
 
-        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+        // ⚠️ 20, batendo com o espaçamento da grade montada logo acima. Desde 21/08/2026 o
+        // Encaixar compara SOBREPOSIÇÃO, não instante exato: passar 50 aqui faria vagas de 20
+        // em 20 minutos se cruzarem entre si, e o teste passaria a medir outra coisa.
+        GradeDeJogos.Encaixar(jogos, horarios, 20, ocupantes);
         return (jogos, ocupantes);
     }
 

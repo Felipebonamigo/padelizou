@@ -392,11 +392,18 @@ namespace Padelizou.Controllers
         }
 
         // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria (a
-        // dupla de menor Id, já que a ordem de inscrição segue a ordem de criação) — e AVISA.
+        // inscrição de menor Id, já que a ordem de inscrição segue a ordem de criação) — e AVISA.
         //
         // Sem o aviso, ser promovido era um segredo entre o sistema e o banco: a dupla saía da
         // espera e só descobria olhando a página por conta própria. Quem entra na lista de
         // espera justamente não fica olhando.
+        //
+        // ⚠️ CHECA InscricoesAmericanas TAMBÉM (achado de 21/08/2026). Até então só olhava
+        // Duplas — numa categoria de Americano a fila de espera nunca era chamada: quem
+        // esperava, esperava pra sempre, mesmo com vaga aberta. Uma categoria só tem um dos
+        // dois tipos (o Formato do torneio decide), então checar Duplas primeiro e cair pra
+        // InscricoesAmericanas quando não achar ninguém é seguro — nunca promove dos dois ao
+        // mesmo tempo por engano.
         private async Task PromoverDaListaDeEsperaAsync(int categoriaId, Torneio torneio)
         {
             var proximaDaFila = await _context.Duplas
@@ -404,25 +411,42 @@ namespace Padelizou.Controllers
                 .OrderBy(d => d.Id)
                 .FirstOrDefaultAsync();
 
-            if (proximaDaFila == null) return;
+            if (proximaDaFila != null)
+            {
+                proximaDaFila.EmListaDeEspera = false;
+                await _context.SaveChangesAsync();
 
-            proximaDaFila.EmListaDeEspera = false;
+                var promovidos = new[] { proximaDaFila.Jogador1Id, proximaDaFila.Jogador2Id }
+                    .Where(i => i != null).Select(i => i!.Value).ToList();
+
+                await AvisarPromocaoAsync(promovidos, torneio);
+                return;
+            }
+
+            var proximaAmericana = await _context.InscricoesAmericanas
+                .Where(i => i.CategoriaId == categoriaId && i.EmListaDeEspera)
+                .OrderBy(i => i.Id)
+                .FirstOrDefaultAsync();
+
+            if (proximaAmericana == null) return;
+
+            proximaAmericana.EmListaDeEspera = false;
             await _context.SaveChangesAsync();
 
-            var promovidos = new[] { proximaDaFila.Jogador1Id, proximaDaFila.Jogador2Id }
-                .Where(i => i != null).Select(i => i!.Value).ToList();
+            await AvisarPromocaoAsync(new[] { proximaAmericana.JogadorId }, torneio);
+        }
 
-            // Mesmo evento que o da desistência com pagamento, e por isso o mesmo alcance: a
-            // vaga abrir por estorno ou por desistência direta é diferença nossa, não de quem
-            // estava na fila esperando. ⚠️ O gêmeo mora em PagamentoInscricaoService — mexeu
-            // aqui, mexe lá.
-            //
-            // Fora do WhatsApp desde 21/08/2026, com o resto da família de torneio (ver
-            // Services/EncerramentoDaPartida).
+        // Mesmo evento que o da desistência com pagamento, e por isso o mesmo alcance: a
+        // vaga abrir por estorno ou por desistência direta é diferença nossa, não de quem
+        // estava na fila esperando. ⚠️ O gêmeo mora em PagamentoInscricaoService — mexeu
+        // aqui, mexe lá.
+        //
+        // Fora do WhatsApp desde 21/08/2026, com o resto da família de torneio (ver
+        // Services/EncerramentoDaPartida).
+        private async Task AvisarPromocaoAsync(IEnumerable<int> promovidos, Torneio torneio) =>
             await AvisarAsync(promovidos, "Abriu vaga — vocês estão dentro!",
                 $"Alguém desistiu de {torneio.Nome} e vocês saíram da lista de espera. Boa sorte!",
                 torneio.Id, AlcanceDoAviso.SoApp);
-        }
 
         // Push falha calado (quem não instalou o app não recebe nada), então o aviso que
         // importa vai também por e-mail — é o que a maioria tem.

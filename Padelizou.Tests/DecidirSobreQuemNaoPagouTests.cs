@@ -122,6 +122,38 @@ public class DecidirSobreQuemNaoPagouTests
         Assert.False(ctx.Duplas.Find(naEspera.Id)!.EmListaDeEspera);
     }
 
+    // Achado da análise de sistema de 21/08/2026: a varredura em lote de não-pagos removia
+    // InscricaoAmericana sem chamar a lista de espera nenhuma vez — a vaga abria e ninguém
+    // era promovido.
+    [Fact]
+    public async Task Remover_promove_a_lista_de_espera_de_uma_categoria_de_americano_tambem()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torneio = new Torneio { Nome = "Americano de Teste", Codigo = "AME1", Status = "Inscrições Abertas", Formato = "Americano" };
+        ctx.Torneios.Add(torneio);
+        var organizador = new Jogador { Nome = "Organizador", Cpf = "99900000098" };
+        ctx.Jogadores.Add(organizador);
+        var categoria = new Categoria { Nome = "Mista", Codigo = "MIX1", Torneio = torneio };
+        ctx.Categorias.Add(categoria);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = organizador.Id });
+
+        var devendo = new Jogador { Nome = "Devendo", Cpf = "99900000097" };
+        var naEspera = new Jogador { Nome = "Na espera", Cpf = "99900000096" };
+        ctx.Jogadores.AddRange(devendo, naEspera);
+        ctx.SaveChanges();
+
+        var inscricaoDevendo = new InscricaoAmericana { CategoriaId = categoria.Id, JogadorId = devendo.Id, Pago = false };
+        var inscricaoEspera = new InscricaoAmericana { CategoriaId = categoria.Id, JogadorId = naEspera.Id, EmListaDeEspera = true };
+        ctx.InscricoesAmericanas.AddRange(inscricaoDevendo, inscricaoEspera);
+        ctx.SaveChanges();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
+        await controller.RemoverNaoPagos(torneio.Id, Array.Empty<int>(), new[] { inscricaoDevendo.Id });
+
+        Assert.False(ctx.InscricoesAmericanas.Find(inscricaoEspera.Id)!.EmListaDeEspera);
+    }
+
     [Fact]
     public async Task Depois_de_encerradas_as_inscricoes_a_remocao_e_RECUSADA()
     {

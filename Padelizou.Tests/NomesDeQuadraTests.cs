@@ -62,7 +62,7 @@ public class NomesDeQuadraTests
             .Select(i => new Partida { Dupla1Id = i * 10, Dupla2Id = i * 10 + 1 })
             .ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, nomes, null);
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, nomes, null);
 
         Assert.All(jogos, j => Assert.False(string.IsNullOrEmpty(j.NomeQuadra)));
         Assert.Equal(5, jogos.Select(j => j.NomeQuadra).Distinct().Count());

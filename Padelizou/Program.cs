@@ -62,8 +62,9 @@ builder.Services.Configure<RegistroResultadosSettings>(builder.Configuration.Get
 builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSection("PlanoProfessor"));
 builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
-// Nasce VAZIO: produção sem patrocinador configurado não mostra a faixa do rodapé.
-// Ver Services/PatrocinadoresSettings pro porquê do rodapé e de como o dev liga.
+// Os patrocinadores em cartaz estão no CÓDIGO e valem em todo ambiente; esta seção existe
+// pra substituí-los sem deploy (trocar um logo no ar, ou apagar a faixa) — ver
+// Services/PatrocinadoresSettings.
 builder.Services.Configure<PatrocinadoresSettings>(builder.Configuration.GetSection("Patrocinadores"));
 // Nasce SEM restrição: lista vazia = todo mundo recebe, que é o comportamento da produção.
 // Quem restringe é o dev, com `Entrega__SoPara__0=...` no systemd — ver Services/EntregaSettings
@@ -572,9 +573,21 @@ app.MapMethods("/healthz", new[] { "GET", "HEAD" }, async (DbPadelContext db) =>
 {
     try
     {
-        return await db.Database.CanConnectAsync()
-            ? Results.Text("ok")
-            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        if (!await db.Database.CanConnectAsync())
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        // Fecha o buraco de 07/08/2026: o Migrate() do startup roda dentro de um try/catch que
+        // só loga e deixa o app subir mesmo assim (linha ~482 acima) — então um snapshot em
+        // desacordo com o modelo faz o EF recusar o Migrate() INTEIRO, e o app fica no ar com
+        // colunas que o banco não tem. Sem checar aqui, /healthz via 200 (o banco RESPONDE,
+        // só está com o schema errado) e o rollback automático do deploy.sh nunca disparava —
+        // três deploys passaram assim, verdes, naquele dia. Agora migration pendente é 503, e
+        // o mesmo rollback que já existe pra "app não sobe" passa a cobrir "app subiu torto".
+        var pendentes = await db.Database.GetPendingMigrationsAsync();
+        if (pendentes.Any())
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        return Results.Text("ok");
     }
     catch
     {

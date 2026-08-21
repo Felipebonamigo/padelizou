@@ -295,11 +295,15 @@ public class EncerramentoDaPartida
             var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas);
             if (proxima == null) return;
 
+            // O clube da quadra, pro aviso não mandar quem está no clube A correr pra uma quadra
+            // do clube B. Torneio de uma sede só devolve o mapa vazio e o texto não muda.
+            var sedes = await SedesDoTorneio.CarregarAsync(_context, terminada.TorneioId.Value);
+
             foreach (var jogadorId in AvisosDoDiaDeJogo.JogadoresDa(proxima))
             {
                 await _push.EnviarParaJogadorAsync(jogadorId,
                     "Seu jogo é o próximo!",
-                    AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
+                    AvisosDoDiaDeJogo.CorpoDoProximo(proxima, sedes),
                     // ⚠️ SAIU DO WHATSAPP EM 21/08/2026, por decisão do Felipe, junto com o
                     // resto da família de torneio (chaves, cancelamento, vaga na lista de
                     // espera). Era o maior volume do canal de longe — 4 mensagens por partida,

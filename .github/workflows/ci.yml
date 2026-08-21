@@ -29,6 +29,19 @@ jobs:
       - name: Compilar (Release)
         run: dotnet build Padelizou.slnx -c Release --no-restore
 
+      # STATUS.md de 07/08/2026: um snapshot em desacordo com o modelo compila e passa pela
+      # suíte (que usa banco em memória) — só estoura no Migrate() do startup, em produção. A
+      # regra "conferir com has-pending-model-changes antes de commitar" morava só na memória
+      # do projeto; agora falha o build se alguém esquecer. Não precisa de banco: compara o
+      # modelo COMPILADO contra o snapshot commitado.
+      - name: Conferir migration pendente (modelo x snapshot)
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.10
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations has-pending-model-changes \
+            --project Padelizou/Padelizou.csproj --startup-project Padelizou/Padelizou.csproj \
+            --configuration Release
+
       - name: Rodar os testes
         # O relatório .trx existe só pro passo seguinte. Sem cano (`| tee`) de propósito:
         # com cano, quem devolve o código de saída é o tee, e uma suíte VERMELHA passaria

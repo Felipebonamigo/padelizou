@@ -37,6 +37,10 @@ namespace Padelizou.Controllers
             // O torneio inteiro porque a Mesa monta o limite de games de CADA jogo a partir
             // da fase dele (Services/FormatoDaPartida) — grupo até 4, final até 6.
             ViewBag.Torneio = await _context.Torneios.FindAsync(id);
+            // Onde cada jogo está acontecendo. A Mesa é a tela de quem chama pra quadra: num
+            // torneio de dois clubes, sem isto o mesário vê os jogos do outro prédio misturados
+            // aos dele. Ver Services/LugarDoJogo.
+            ViewData[LugarDoJogo.ChaveNaTela] = await SedesDoTorneio.CarregarAsync(_context, id);
             return View(partidasEmAndamento);
         }
 
@@ -230,6 +234,14 @@ namespace Padelizou.Controllers
         // Agora finalizar SIGNIFICA "encerra com o que estou vendo": o placar recebido é
         // gravado antes de decidir o vencedor. Nulo (tela antiga em cache, Mesa, fila offline)
         // mantém o comportamento de sempre — usa o que está no banco.
+        //
+        // ⚠️ Era a única ação de placar sem [HttpPost]/[Authorize] — respondia a GET e escapava
+        // do carimbo antifalsificação global (que só vale para POST/PUT/PATCH/DELETE). E o
+        // "partida.TorneioId != null" na checagem de baixo deixava passar sem autorização
+        // nenhuma qualquer partida com TorneioId nulo — hoje nunca acontece (toda Partida nasce
+        // de um torneio), mas a checagem tinha que RECUSAR esse caso, não pulá-lo.
+        [HttpPost]
+        [Authorize]
         public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null,
             int? games1 = null, int? games2 = null)
         {
@@ -239,7 +251,8 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla2)
                 .FirstOrDefaultAsync(p => p.Id == partidaId);
 
-            if (partida != null && partida.TorneioId != null && !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
+            if (partida != null && (partida.TorneioId == null
+                || !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)))
             {
                 return Forbid();
             }

@@ -1029,6 +1029,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     }
 
     // Abriu vaga: a primeira da fila entra (menor Id = quem chegou antes) e é avisada.
+    //
+    // ⚠️ CHECA InscricoesAmericanas TAMBÉM (achado de 21/08/2026). Até então só olhava
+    // Duplas — um estorno numa categoria de Americano nunca chamava a fila de espera dela,
+    // mesmo com a vaga já aberta. Uma categoria só tem um dos dois tipos (o Formato do
+    // torneio decide), então checar Duplas primeiro e cair pra InscricoesAmericanas quando
+    // não achar ninguém é seguro.
     private async Task ChamarDaListaDeEsperaAsync(int categoriaId, Torneio? torneio)
     {
         var proxima = await _context.Duplas
@@ -1036,16 +1042,34 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             .OrderBy(d => d.Id)
             .FirstOrDefaultAsync();
 
-        if (proxima == null) return;
+        List<int> promovidos;
 
-        proxima.EmListaDeEspera = false;
-        await _context.SaveChangesAsync();
+        if (proxima != null)
+        {
+            proxima.EmListaDeEspera = false;
+            await _context.SaveChangesAsync();
+            promovidos = new[] { proxima.Jogador1Id, proxima.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+        }
+        else
+        {
+            var proximaAmericana = await _context.InscricoesAmericanas
+                .Where(i => i.CategoriaId == categoriaId && i.EmListaDeEspera)
+                .OrderBy(i => i.Id)
+                .FirstOrDefaultAsync();
 
-        foreach (var id in new[] { proxima.Jogador1Id, proxima.Jogador2Id }.Where(i => i != null))
+            if (proximaAmericana == null) return;
+
+            proximaAmericana.EmListaDeEspera = false;
+            await _context.SaveChangesAsync();
+            promovidos = new List<int> { proximaAmericana.JogadorId };
+        }
+
+        foreach (var id in promovidos)
         {
             try
             {
-                await _push.EnviarParaJogadorAsync(id!.Value, "Abriu vaga — vocês estão dentro!",
+                await _push.EnviarParaJogadorAsync(id, "Abriu vaga — vocês estão dentro!",
                     $"Alguém saiu de {torneio?.Nome ?? "um torneio"} e vocês saíram da lista de espera. Boa sorte!",
                     // Virou jogo de verdade pra quem estava esperando, e tem prazo: quem não
                     // ficar sabendo a tempo perde a vaga que acabou de ganhar.

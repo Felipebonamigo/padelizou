@@ -294,7 +294,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Index">
-                                    <i class="bi bi-trophy"></i> Torneio
+                                    <i class="bi bi-trophy"></i> Torneios
                                 </a>
                             </li>
                             if (souProfessor)
@@ -314,7 +314,7 @@
                             }
                             <li class="nav-item">
                                 <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
-                                    <i class="bi bi-calendar-plus"></i> Aula
+                                    <i class="bi bi-calendar-plus"></i> Aulas
                                 </a>
                             </li>
                             @* Três coisas que eram itens soltos e disputavam espaço no topo. São o mesmo
@@ -499,12 +499,12 @@
 
     <footer class="pdz-footer">
         <div class="container">
-            @* Patrocinadores do site, quando existirem (ver Services/PatrocinadoresSettings —
-               a lista nasce vazia e produção não mostra nada; o ambiente de teste mostra o
-               embutido). Rodapé, e não topo: estão em TODA página sem disputar atenção com o
-               conteúdo, e a faixa cresce pro lado quando vierem outros. *@
+            @* Patrocinadores do site (ver Services/PatrocinadoresSettings — quem está em
+               cartaz mora lá, e o systemd pode substituir a lista sem deploy). Rodapé, e não
+               topo: estão em TODA página sem disputar atenção com o conteúdo, e a faixa
+               cresce pro lado quando vierem outros. *@
             @{
-                var patrocinadores = PatrocinadoresOpcoes.Value.ParaExibir(beta.AmbienteDeTeste);
+                var patrocinadores = PatrocinadoresOpcoes.Value.ParaExibir();
             }
             @if (patrocinadores.Count > 0)
             {

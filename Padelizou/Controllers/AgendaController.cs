@@ -354,6 +354,7 @@ namespace padelizou.Controllers
                         p.NomeQuadra,
                         p.Fase,
                         CategoriaNome = p.Categoria.Nome,
+                        TorneioId = p.Categoria.TorneioId,
                         TorneioLocal = p.Categoria.Torneio.LocalTorneio,
                         DuracaoMinutos = p.Categoria.Torneio.TempoPrevistoPartidaMinutos,
                         // Nomes separados, montados na memória logo abaixo: quem se inscreveu
@@ -370,13 +371,37 @@ namespace padelizou.Controllers
                 static string Dupla(string jogador1, string? jogador2) =>
                     string.IsNullOrWhiteSpace(jogador2) ? jogador1 : $"{jogador1}/{jogador2}";
 
+                // ⚠️ O LOCAL DO .ICS ERA A COLAGEM MAIS PERIGOSA DO SISTEMA (consertado em
+                // 21/08/2026): ele juntava a QUADRA certa com o `LocalTorneio`, que é o nome do
+                // clube PRINCIPAL. Num torneio de duas sedes isso produzia "Quadra 2 — Clube A"
+                // pra um jogo no Clube B — e esse texto vai pro Google/Apple Calendar, alimenta a
+                // navegação e ninguém volta pra conferir. Com sede, o clube certo vem da quadra.
+                //
+                // Um mapa por torneio, num laço: quem tem jogo futuro tem jogo em um ou dois
+                // torneios, então são uma ou duas consultas.
+                var sedesPorTorneio = new Dictionary<int, SedesDoTorneio>();
+                foreach (var torneioId in partidas.Select(p => p.TorneioId).Distinct())
+                    sedesPorTorneio[torneioId] = await SedesDoTorneio.CarregarAsync(_context, torneioId);
+
+                string? LocalDaPartida(int torneioId, string? nomeQuadra, string? localDoTorneio)
+                {
+                    var sedes = sedesPorTorneio.GetValueOrDefault(torneioId);
+
+                    // Com mais de uma sede, o clube da QUADRA é a verdade e o do torneio não
+                    // entra: repetir "Clube A" ao lado de "Quadra 2 — Clube B" é o próprio bug.
+                    if (sedes is { MaisDeUmClube: true })
+                        return LugarDoJogo.EmTextoCorrido(sedes, nomeQuadra) ?? localDoTorneio;
+
+                    return nomeQuadra != null ? $"{nomeQuadra} — {localDoTorneio}" : localDoTorneio;
+                }
+
                 eventos.AddRange(partidas.Select(p => new IcsEvent(
                     Uid: $"padelizou-partida-{p.Id}@padelizou.com.br",
                     Inicio: p.HorarioPrevisto!.Value,
                     Fim: p.HorarioPrevisto.Value.AddMinutes(p.DuracaoMinutos),
                     DiaInteiro: false,
                     Resumo: $"Partida: {Dupla(p.D1J1, p.D1J2)} x {Dupla(p.D2J1, p.D2J2)}",
-                    Local: p.NomeQuadra != null ? $"{p.NomeQuadra} — {p.TorneioLocal}" : p.TorneioLocal,
+                    Local: LocalDaPartida(p.TorneioId, p.NomeQuadra, p.TorneioLocal),
                     Descricao: $"{p.Fase} — {p.CategoriaNome}")));
             }
 

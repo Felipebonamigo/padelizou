@@ -317,7 +317,7 @@
                                 <span>
                                     @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
                                     {
-                                        <i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra <text>· </text>
+                                        <i class="bi bi-geo-alt-fill"></i> @LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra) <text>· </text>
                                     }
                                     @jogo.Categoria.Nome · @jogo.Fase
                                 </span>
@@ -614,7 +614,7 @@
                             {
                                 <option value="@candidato.Id" data-jogo-id="@candidato.Id">
                                     @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
-                                    @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {candidato.NomeQuadra}")
+                                    @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra)}")
                                     · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
                                     (@candidato.Categoria.Nome)
                                 </option>

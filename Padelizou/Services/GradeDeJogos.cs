@@ -127,20 +127,99 @@ public static class GradeDeJogos
     // ordem da fila que existe aqui: quando o primeiro jogo livre só caberia tomando a quadra
     // reservada de outra categoria, quem entra na vaga é um jogo da categoria dona dela, se
     // houver algum esperando.
+    // ⚠️ `duracaoMinutos` NÃO TEM VALOR PADRÃO, de propósito (21/08/2026). Ele é o que
+    // transforma "mesmo minuto" em "se cruzam no relógio" — ver o comentário de `ocupados`
+    // logo abaixo. Um default faria os três chamadores compilarem calados com uma duração
+    // inventada, e o erro seria uma janela de conflito do tamanho errado: invisível.
+    //
+    // `janelasProibidasPorDupla` é o impedimento de horário PAGO na inscrição (ver
+    // Services/JanelasDeImpedimento) — até 21/08/2026 cobrado e nunca lido por aqui. Dupla
+    // ausente do mapa (ou o mapa inteiro ausente) não tem restrição nenhuma, como sempre foi.
+    //
+    // `sedes` é o torneio que acontece em MAIS DE UM CLUBE (Services/SedesDoTorneio). Omitida —
+    // que é o caso de todo torneio até hoje — nada aqui muda de comportamento. Com ela entram
+    // duas regras de naturezas opostas, e a diferença entre as duas é o assunto deste método:
+    //   • ONDE A CATEGORIA JOGA é trava DURA. A 4ª não recebe quadra do outro clube nem com o
+    //     horário lotado, porque o jogador não se teletransporta. Note que isso é o CONTRÁRIO
+    //     da quadra preferida logo acima, que cede no degrau 3.
+    //   • A FOLGA PRA TROCAR DE CLUBE é MOLE. Ela evita marcar o jogo do sujeito no clube B
+    //     encostado no jogo dele no clube A — mas cede assim que respeitá-la deixaria uma
+    //     quadra vazia, porque a prioridade declarada do torneio é nenhuma quadra parar.
     public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
+        int duracaoMinutos,
         IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null,
         IReadOnlyList<string>? quadras = null,
         IReadOnlyList<Partida>? jaMarcados = null,
-        IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null)
+        IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasProibidasPorDupla = null,
+        SedesDoTorneio? sedes = null)
     {
+        var sede = sedes ?? SedesDoTorneio.Nenhuma;
+
         int[] Ocupantes(int duplaId) =>
             ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
                 ? pessoas
                 : new[] { -duplaId };
 
+        // ⚠️ MESMA NORMALIZAÇÃO DO `Horarios` (0 vira 50), e ela é OBRIGATÓRIA aqui: o
+        // TorneiosController.Americano monta a grade com `tempoPartida` (que já cai pra 50) mas
+        // chegou a passar o `TempoPrevistoPartidaMinutos` cru pra cá. Num torneio com o tempo
+        // zerado, as vagas nasciam de 50 em 50 e a janela de conflito era de 1 minuto — o
+        // detector voltava a ser "instante exato", em silêncio, exatamente o bug que este
+        // método passou a resolver.
+        var duracao = TimeSpan.FromMinutes(duracaoMinutos > 0 ? duracaoMinutos : 50);
+
+        // ⚠️ A AGENDA É POR OCUPANTE, E A COLISÃO É POR INTERVALO — as duas eram por INSTANTE
+        // EXATO (`Dictionary<DateTime, HashSet<int>>`) até 21/08/2026, e isso era um bug vivo
+        // em torneio de um clube só:
+        //
+        // O "refazer grade" do meio do torneio parte de `DateTime.Now` (ver
+        // TorneiosController.Chaves.AberturaDoRecalculo). Aperte às 20h13 e os jogos novos
+        // nascem em 20:13, 21:03…, enquanto os que já estavam marcados seguem em 20:00, 20:50.
+        // Duas grades desalinhadas — e o dicionário por instante NUNCA cruzava as duas. Dava
+        // pra chamar a mesma pessoa pras 20:13 com o jogo dela das 20:00 ainda em quadra, e pra
+        // pôr dois jogos na mesma quadra a 20 minutos de distância. Nada reclamava.
+        //
+        // Consertar só a pessoa e deixar a quadra no instante seria conserto pela metade: o
+        // agendamento âncora por CATEGORIA (RoboDoChaveamento) já desalinha categorias entre si
+        // dentro do mesmo torneio.
+        //
+        // ⚠️ A agenda da PESSOA guarda também ONDE ela joga (21/08/2026, torneio de mais de um
+        // clube). Sem o lugar é impossível responder "ela acabou de jogar no outro clube?", que
+        // é a única pergunta que a folga de deslocamento faz. A da QUADRA continua só com o
+        // relógio: o nome da quadra é único no torneio, então ele já É o lugar.
+        var ocupados = new Dictionary<int, List<(DateTime Quando, int? Clube)>>();  // pessoa -> quando e onde
+        var ocupadas = new Dictionary<string, List<DateTime>>();                    // quadra -> quando está tomada
+
+        bool Cruza(List<DateTime> quando, DateTime horario) =>
+            quando.Any(h => (h - horario).Duration() < duracao);
+
+        bool CruzaComAPessoa(List<(DateTime Quando, int? Clube)> agenda, DateTime horario) =>
+            agenda.Any(j => (j.Quando - horario).Duration() < duracao);
+
+        void Anotar<TChave, TQuando>(Dictionary<TChave, List<TQuando>> agenda, TChave chave, TQuando quando)
+            where TChave : notnull
+        {
+            if (!agenda.TryGetValue(chave, out var lista)) agenda[chave] = lista = new List<TQuando>();
+            lista.Add(quando);
+        }
+
+        // Em que clube este jogo acontece. A CATEGORIA responde primeiro porque ela é a decisão
+        // do organizador ("a 4ª joga no Batata") e vale mesmo pro jogo que ainda não ganhou
+        // quadra; a quadra responde depois, pros jogos já marcados. Null = não dá pra saber, e
+        // aí nenhuma folga de deslocamento se aplica — inventar um clube seria pior que não ter.
+        int? OndeJoga(Partida p) =>
+            sede.ClubeDaCategoria(p.CategoriaId) ?? sede.ClubeDaQuadra(p.NomeQuadra);
+
+        // A folga só existe entre clubes DIFERENTES e ambos conhecidos. Dois jogos seguidos no
+        // mesmo clube continuam separados só pela duração da partida, como sempre foram.
+        var folga = sede.FolgaParaTrocarDeClube;
+        bool PrecisaAtravessarACidade(List<(DateTime Quando, int? Clube)> agenda, DateTime horario, int? clube) =>
+            folga > TimeSpan.Zero && clube != null
+            && agenda.Any(j => j.Clube != null && j.Clube != clube
+                            && (j.Quando - horario).Duration() < duracao + folga);
+
         var fila = new List<Partida>(jogos);
-        var ocupados = new Dictionary<DateTime, HashSet<int>>();
-        var ocupadasNoHorario = new Dictionary<DateTime, HashSet<string>>();
 
         // A preferência de quadra, pronta pra ser consultada jogo a jogo. `comDono` é o que
         // distingue quadra neutra de quadra que alguém pediu — ver PreferenciaDeQuadra.
@@ -152,24 +231,48 @@ public static class GradeDeJogos
         {
             if (marcado.HorarioPrevisto is not DateTime quando) continue;
 
-            if (!ocupados.TryGetValue(quando, out var quemJa))
-                ocupados[quando] = quemJa = new HashSet<int>();
-            foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) quemJa.Add(pessoa);
-            foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) quemJa.Add(pessoa);
+            var ondeEle = OndeJoga(marcado);
+            foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
+            foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
 
             if (string.IsNullOrEmpty(marcado.NomeQuadra)) continue;
-            if (!ocupadasNoHorario.TryGetValue(quando, out var nomes))
-                ocupadasNoHorario[quando] = nomes = new HashSet<string>();
-            nomes.Add(marcado.NomeQuadra!);
+            Anotar(ocupadas, marcado.NomeQuadra!, quando);
         }
+
+        // Sai do laço porque não muda de horário pra horário — e porque agora ele é consultado
+        // duas vezes por vaga, e não uma.
+        bool temQuadraCadastrada = quadras is { Count: > 0 };
 
         for (int i = 0; i < horarios.Count; i++)
         {
             if (fila.Count == 0) break;
 
             var horario = horarios[i];
-            if (!ocupados.TryGetValue(horario, out var quem))
-                ocupados[horario] = quem = new HashSet<int>();
+
+            // As quadras ainda livres NESTE horário. Só interessam quando o torneio cadastrou
+            // quadra; sem cadastro a grade marca hora e não nomeia lugar, como sempre fez.
+            //
+            // ⚠️ ISTO SUBIU PRA ANTES DA ESCOLHA DO JOGO (21/08/2026). Antes vinha depois, e
+            // podia: sem clubes, "sobrou quadra?" tinha a MESMA resposta pra qualquer jogo da
+            // fila. Com o torneio em dois clubes deixou de ter — a quadra que sobrou pode ser
+            // do outro clube, inútil pra este jogo e perfeita pra um que está mais atrás. Quem
+            // escolhe o jogo sem olhar isso deixa a quadra parada, que é justamente o que o
+            // organizador não aceita.
+            List<string> livresAgora = new();
+            if (temQuadraCadastrada)
+            {
+                livresAgora = quadras!
+                    .Where(q => !(ocupadas.TryGetValue(q, out var quando) && Cruza(quando, horario)))
+                    .ToList();
+            }
+
+            // As quadras que ESTE jogo pode usar: as livres, cortadas pelo clube da categoria.
+            // Corte DURO — ver o comentário do método. Torneio de um clube só devolve a lista
+            // inteira, sem alocar nada.
+            List<string> LivresPara(Partida p) =>
+                sede.QuadrasDe(p.CategoriaId) is { } daSede
+                    ? livresAgora.Where(daSede.Contains).ToList()
+                    : livresAgora;
 
             // A ÚNICA coisa impossível na vida real é a mesma PESSOA em duas quadras ao mesmo
             // tempo. Fases diferentes dividindo o horário é normal e desejável: a final de uma
@@ -177,32 +280,72 @@ public static class GradeDeJogos
             // diferentes — e proibir isso só espalharia a grade e atrasaria o encerramento.
             // Dentro de UMA categoria a impossibilidade já é estrutural: a folga entre fases
             // (AberturaDaProximaFase) nunca deixa a final encostar na semifinal que a decide.
-            bool Livre(Partida p) =>
-                !Ocupantes(p.Dupla1Id).Any(quem.Contains) && !Ocupantes(p.Dupla2Id).Any(quem.Contains);
+            bool OcupadaAgora(int pessoa) =>
+                ocupados.TryGetValue(pessoa, out var agenda) && CruzaComAPessoa(agenda, horario);
 
-            var jogo = fila.FirstOrDefault(Livre);
+            // A janela é MEIO ABERTA ([Inicio, Fim)): o corte de sábado passa de "ImpedimentoManha"
+            // pra "ImpedimentoTarde" exatamente no meio-dia, e um jogo marcado ÀS 12h00 precisa
+            // cair num dos dois lados, nunca nos dois.
+            bool DentroDeJanelaProibida(int duplaId) =>
+                janelasProibidasPorDupla != null
+                && janelasProibidasPorDupla.TryGetValue(duplaId, out var janelas)
+                && janelas.Any(j => horario >= j.Inicio && horario < j.Fim);
+
+            bool Livre(Partida p) =>
+                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id);
+
+            // Existe quadra do clube CERTO livre pra este jogo? Torneio sem quadra cadastrada
+            // responde sempre sim: lá a grade marca hora e não nomeia lugar.
+            bool TemOndeJogar(Partida p) => !temQuadraCadastrada || LivresPara(p).Count > 0;
+
+            // Ninguém deste jogo teria que atravessar a cidade correndo. Vale só quando o
+            // torneio tem mais de um clube E o organizador pediu folga; nos outros casos é
+            // sempre verdade e o degrau some.
+            bool SemCorreria(Partida p)
+            {
+                if (folga <= TimeSpan.Zero) return true;
+                if (OndeJoga(p) is not { } clube) return true;
+
+                bool Correria(int pessoa) =>
+                    ocupados.TryGetValue(pessoa, out var agenda)
+                    && PrecisaAtravessarACidade(agenda, horario, clube);
+
+                return !Ocupantes(p.Dupla1Id).Any(Correria) && !Ocupantes(p.Dupla2Id).Any(Correria);
+            }
+
+            // O jogo IDEAL pra esta vaga: ninguém repetido, ninguém atravessando a cidade
+            // correndo, e quadra livre no clube certo.
+            //
+            // ⚠️ `FirstOrDefault` VARRE A FILA INTEIRA, e é isso que faz a folga entre clubes
+            // não custar quadra: o jogo que teria que correr é PRETERIDO, não a vaga. Quem entra
+            // é o próximo da fila que serve — de outra categoria, do outro clube, tanto faz.
+            var jogo = fila.FirstOrDefault(p => Livre(p) && SemCorreria(p) && TemOndeJogar(p));
 
             if (jogo == null)
             {
-                // Nada cabe sem repetir gente. Deixa a quadra vaga e tenta no próximo
-                // horário — a menos que as vagas que sobram sejam contadas: aí não há mais
-                // pra onde empurrar, e um conflito é melhor que um jogo sem horário.
+                // NADA serve nesta vaga. Deixa vazia e tenta no próximo horário — a menos que as
+                // vagas que sobram sejam contadas: aí não há mais pra onde empurrar, e um jogo
+                // ruim é melhor que um jogo sem horário.
+                //
+                // ⚠️ ESTA CONTA É A REGRA DE NEGÓCIO INTEIRA. Enquanto sobra grade, a grade
+                // ESPERA — a folga entre clubes segura o jogo por um horário ou dois e ele entra
+                // adiante. Quando acaba a folga da grade, tudo cede, e cede NESTA ORDEM: primeiro
+                // a folga entre clubes (o organizador resolve na hora com o sujeito), depois a
+                // quadra do clube certo, e por último a regra de não repetir gente. A alternativa
+                // — deixar quadra parada até o fim do dia — é a única que o organizador não
+                // aceita, e foi ele quem disse.
+                //
+                // ⚠️ Cair até aqui SEM QUADRA é a mudança de comportamento de 21/08/2026 ao
+                // contrário: com quadra cadastrada e nenhuma livre, a vaga é pulada em vez de o
+                // jogo nascer com hora e sem quadra (o incidente do Interno de 05/08/2026). Só o
+                // aperto de fila desfaz isso.
                 int vagasRestantes = horarios.Count - i - 1;
                 if (vagasRestantes >= fila.Count) continue;
-                jogo = fila[0];
-            }
 
-            // As quadras ainda livres NESTE horário. Só interessam quando o torneio cadastrou
-            // quadra; sem cadastro a grade marca hora e não nomeia lugar, como sempre fez.
-            List<string> livresAgora = new();
-            HashSet<string>? nomes = null;
-
-            if (quadras is { Count: > 0 })
-            {
-                if (!ocupadasNoHorario.TryGetValue(horario, out nomes))
-                    ocupadasNoHorario[horario] = nomes = new HashSet<string>();
-
-                livresAgora = quadras.Where(q => !nomes.Contains(q)).ToList();
+                jogo = fila.FirstOrDefault(p => Livre(p) && TemOndeJogar(p))
+                    ?? fila.FirstOrDefault(Livre)
+                    ?? fila[0];
             }
 
             // A ÚNICA quebra da ordem da fila que existe aqui, e só quando há preferência
@@ -212,11 +355,11 @@ public static class GradeDeJogos
             //
             // Nada disso empurra jogo pra fora: o preterido continua no topo da fila e pega a
             // vaga seguinte, que é o mesmo horário na outra quadra ou o horário seguinte.
-            if (comDono.Count > 0 && livresAgora.Count > 0
+            if (comDono.Count > 0 && LivresPara(jogo).Count > 0
                 && PreferenciaDeQuadra.TomariaQuadraDeOutro(
-                       PreferenciaDeQuadra.Escolher(livresAgora, Preferidas(jogo), comDono),
+                       PreferenciaDeQuadra.Escolher(LivresPara(jogo), Preferidas(jogo), comDono),
                        Preferidas(jogo), comDono)
-                && fila.FirstOrDefault(p => Livre(p) && Preferidas(p).Any(livresAgora.Contains)) is { } dono)
+                && fila.FirstOrDefault(p => Livre(p) && Preferidas(p).Any(LivresPara(p).Contains)) is { } dono)
             {
                 jogo = dono;
             }
@@ -229,15 +372,16 @@ public static class GradeDeJogos
             // ter jogo marcado de outra fase: aí a primeira quadra está ocupada e contar
             // posição daria o mesmo nome duas vezes. Torneio sem quadra cadastrada segue sem
             // nome: inventar "Quadra 1" onde o clube chama de "Central" seria pior.
-            if (nomes != null
-                && PreferenciaDeQuadra.Escolher(livresAgora, Preferidas(jogo), comDono) is { } livre)
+            if (temQuadraCadastrada
+                && PreferenciaDeQuadra.Escolher(LivresPara(jogo), Preferidas(jogo), comDono) is { } livre)
             {
                 jogo.NomeQuadra = livre;
-                nomes.Add(livre);
+                Anotar(ocupadas, livre, horario);
             }
 
-            foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);
-            foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) quem.Add(pessoa);
+            var onde = OndeJoga(jogo);
+            foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) Anotar(ocupados, pessoa, (horario, onde));
+            foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) Anotar(ocupados, pessoa, (horario, onde));
             fila.Remove(jogo);
         }
     }
