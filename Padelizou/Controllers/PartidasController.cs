@@ -305,13 +305,15 @@ namespace Padelizou.Controllers
             EncerramentoPorWo.Registrar(partida, duplaQueNaoCompareceuId,
                 FormatoDaPartida.De(partida.Categoria?.Torneio, partida.Fase));
 
+            bool woTardioTrocouVencedor = !acabouDeTerminar && partida.VencedorId != vencedorAntes;
+
             // W.O. TARDIO NA FINAL que troca o vencedor: o terceiro caminho que re-coroa
             // (junto do ControlePlacar e do reabrir), e o único que ainda deixava o
             // EX-campeão com o bônus de campanha no extrato. Mesma receita: desfaz aqui
             // (regra única em PadelimetroService.DesfazerCampanhaAsync), o SaveChanges
             // logo abaixo grava, e o gancho do CoroarCampeao no encerramento reaplica
             // com o carimbo certo.
-            if (!acabouDeTerminar && partida.Fase == "Final" && partida.VencedorId != vencedorAntes)
+            if (woTardioTrocouVencedor && partida.Fase == "Final")
             {
                 await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
             }
@@ -327,6 +329,47 @@ namespace Padelizou.Controllers
             {
                 var perdedor = await _context.Duplas.FindAsync(perdedorId);
                 if (perdedor != null) perdedor.UltimaFase = partida.Fase;
+
+                // W.O. TARDIO que troca o vencedor: o resultado ORIGINAL já tinha carimbado
+                // alguém como perdedor desta fase (a linha acima, na primeira vez). Se esse
+                // alguém é agora o novo VENCEDOR, o carimbo velho fica mentindo — "eliminado
+                // aqui" numa dupla que continua viva. Mesmo ajuste que ControlePlacar já faz
+                // ao corrigir placar de jogo finalizado (ver `novoDono` logo abaixo neste
+                // arquivo). Achado de 21/08/2026: até então só o ramo do ControlePlacar
+                // corrigia isso — o W.O. tardio deixava o carimbo velho de pé.
+                if (woTardioTrocouVencedor)
+                {
+                    var novoVencedor = await _context.Duplas.FindAsync(partida.VencedorId);
+                    if (novoVencedor != null && novoVencedor.UltimaFase == partida.Fase)
+                        novoVencedor.UltimaFase = "Grupos";
+                }
+            }
+
+            // W.O. TARDIO EM FASE NÃO-FINAL que troca o vencedor: a fase seguinte desta
+            // categoria nasceu do vencedor ERRADO (o encerramento normal, mais abaixo, já
+            // avança quem ganhou — mas quem já tinha avançado antes, com o resultado velho,
+            // continua marcado pra jogar). Mesma receita do ControlePlacar (linhas ~634-651
+            // deste arquivo): se a fase seguinte ainda não começou, refaz sozinho; se já
+            // começou, avisa em vez de mexer sozinho num jogo em andamento. Achado de
+            // 21/08/2026 — até então só a correção de placar tinha este cuidado; o W.O.
+            // tardio deixava a fase seguinte com a dupla errada, em silêncio.
+            bool faseSeguinteRefeita = false;
+            string? avisoDaFaseSeguinte = null;
+            if (woTardioTrocouVencedor && partida.Fase != "Final")
+            {
+                var daCategoria = await _context.Partidas
+                    .Where(p => p.CategoriaId == partida.CategoriaId).ToListAsync();
+                var depois = DesfazerDoJogo.GeradosDepois(partida, daCategoria);
+
+                if (depois.Count > 0 && depois.All(p => p.Status == "Agendada"))
+                {
+                    _context.Partidas.RemoveRange(depois);
+                    faseSeguinteRefeita = true;
+                }
+                else if (depois.Count > 0)
+                {
+                    avisoDaFaseSeguinte = "A fase seguinte já começou e NÃO foi refeita — confira o chaveamento à mão.";
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -340,9 +383,16 @@ namespace Padelizou.Controllers
             }
 
             var faltou = await _context.Duplas.FindAsync(duplaQueNaoCompareceuId);
-            TempData["Sucesso"] = $"W.O. registrado no jogo {partida.Codigo}: "
+            var mensagemBase = $"W.O. registrado no jogo {partida.Codigo}: "
                 + $"{faltou?.NomeDeExibicao ?? "a dupla"} não compareceu. "
                 + "O resultado vale pra chave e pra classificação, e NÃO mexe no Padelímetro de ninguém.";
+
+            if (avisoDaFaseSeguinte != null)
+                TempData["Erro"] = $"{mensagemBase} {avisoDaFaseSeguinte}";
+            else
+                TempData["Sucesso"] = faseSeguinteRefeita
+                    ? $"{mensagemBase} O vencedor mudou e a fase seguinte foi refeita com a dupla certa."
+                    : mensagemBase;
 
             return partida.TorneioId.HasValue
                 ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
