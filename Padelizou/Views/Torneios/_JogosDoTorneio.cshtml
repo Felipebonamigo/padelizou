@@ -333,6 +333,12 @@
                                 // Quase todo jogo é 1 set até 9 games, então o games é o placar em
                                 // destaque. O set só aparece quando o jogo de fato virou 2 sets.
                                 bool mostrarSets = (jogo.SetsDupla1 ?? 0) > 0 || (jogo.SetsDupla2 ?? 0) > 0;
+
+                                // O teto de games DESTE jogo, calculado pelo servidor (ver
+                                // CarregarViewBagJogosAsync). O 99 de reserva só entra em cena
+                                // se o torneio sumiu do ViewBag — nunca é o limite de verdade.
+                                var tetosDoJogo = (ViewBag.TetoDeGames as Dictionary<int, (int Lado1, int Lado2)>)
+                                    ?.GetValueOrDefault(jogo.Id) ?? (Lado1: 99, Lado2: 99);
                             }
                             @* A bolinha do saque: no padel, saber de quem é o saque é metade
                                da leitura do jogo pra quem chega no meio de um game. Quem
@@ -365,7 +371,7 @@
                                             <button type="button" class="pdz-live-passo" data-passo="-1"
                                                     aria-label="Menos um game">−</button>
                                             <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
-                                                   name="games1" value="@(jogo.GamesDupla1 ?? 0)" min="0" max="99"
+                                                   name="games1" value="@(jogo.GamesDupla1 ?? 0)" min="0" max="@tetosDoJogo.Lado1"
                                                    form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla1.NomeDeExibicao" />
                                             <button type="button" class="pdz-live-passo" data-passo="1"
                                                     aria-label="Mais um game">+</button>
@@ -403,7 +409,7 @@
                                             <button type="button" class="pdz-live-passo" data-passo="-1"
                                                     aria-label="Menos um game">−</button>
                                             <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
-                                                   name="games2" value="@(jogo.GamesDupla2 ?? 0)" min="0" max="99"
+                                                   name="games2" value="@(jogo.GamesDupla2 ?? 0)" min="0" max="@tetosDoJogo.Lado2"
                                                    form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla2.NomeDeExibicao" />
                                             <button type="button" class="pdz-live-passo" data-passo="1"
                                                     aria-label="Mais um game">+</button>

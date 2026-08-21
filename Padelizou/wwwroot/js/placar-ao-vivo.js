@@ -64,9 +64,18 @@
             if (!card) return;
 
             var campos = card.querySelectorAll(".pdz-live-input");
+            var tetos = [linha.teto1, linha.teto2];
             [linha.games1, linha.games2].forEach(function (valor, i) {
                 var campo = campos[i];
-                if (!campo || campo === document.activeElement) return;
+                if (!campo) return;
+
+                // ⚠️ O TETO É ATUALIZADO MESMO COM O CAMPO EM FOCO, ao contrário do valor: o
+                // valor não se mexe embaixo do dedo de quem está digitando, mas o limite não é
+                // digitação — é regra, e ela muda com o placar (num jogo até 4, o 3x3 estende
+                // pra 5). Deixar o `max` velho aqui travaria o "+" no game do desempate.
+                if (typeof tetos[i] === "number") campo.setAttribute("max", tetos[i]);
+
+                if (campo === document.activeElement) return;
                 if (String(valor) !== campo.value) campo.value = valor;
             });
         });
@@ -150,10 +159,22 @@
 
         var novo = atual + parseInt(botao.getAttribute("data-passo"), 10);
 
-        // O teto de verdade é do servidor (a fase manda: jogo até 4 não chega a 9). Aqui é só
-        // pra não mandar número negativo nem absurdo.
+        // ⚠️ O TETO VEM DO `max` DO CAMPO, e o `max` vem do SERVIDOR — nunca de uma conta feita
+        // aqui (21/08/2026). Antes era `99` cravado, e num torneio até 9 dava pra ficar
+        // apertando "+" até 99: o servidor cortava no salvar, mas a tela passava segundos
+        // exibindo um placar que não existe — e é por ela que o organizador decide se o jogo
+        // acabou.
+        //
+        // A régua NÃO é reescrita aqui, de propósito: ela tem soma × "até", o desempate do
+        // "vencer por dois" e teto por lado (Services/FormatoDaPartida). Copiar isso pro
+        // JavaScript é exatamente como o `limiteGames: 9` cravado sobreviveu tanto tempo.
+        // O `max` é reescrito a cada resposta (ver aplicarPlacarDoServidor), porque o teto MUDA
+        // com o placar: num jogo até 4, o 3x3 estende o limite pra 5.
+        var teto = parseInt(campo.getAttribute("max"), 10);
+        if (isNaN(teto)) teto = 99;
+
         if (novo < 0) novo = 0;
-        if (novo > 99) novo = 99;
+        if (novo > teto) novo = teto;
         if (novo === atual) return;
 
         campo.value = novo;

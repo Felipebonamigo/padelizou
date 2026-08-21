@@ -2542,14 +2542,28 @@ button, a, input, select { touch-action: manipulation; }
    porque quem digita no balcão está de pé, com o celular numa mão — campo pequeno aqui é
    erro de digitação com a quadra esperando. */
 .pdz-live-input {
-    width: 2.4em;
+    width: 2.2em;
     text-align: center;
     background: var(--pdz-surface);
-    color: inherit;
+
+    /* ⚠️ `color: inherit` NÃO SERVE AQUI, e era o motivo de o placar ficar ruim de ler
+       (Felipe, 21/08/2026). O pai (.pdz-live-placar) é branco a 55% de opacidade — cinza de
+       propósito, porque LÁ o número é decoração ao lado dos nomes. Dentro da caixinha ele
+       deixa de ser decoração: é o número que o organizador lê de pé, no balcão, com a quadra
+       rolando, e é o que ele vai editar. Herdar os 55% apagava justamente o que precisa ser
+       lido. O verde de quem está ganhando continua vindo do pai, pela regra logo abaixo. */
+    color: #fff;
+
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.1;
     border: 1px solid var(--pdz-border);
     border-radius: 8px;
     padding: .05em .15em;
 }
+
+/* Quem está ganhando continua verde — agora com a cor CHEIA, não a 55% do pai. */
+.pdz-live-placar-ganhando .pdz-live-input { color: var(--pdz-lime); }
 
 .pdz-live-input:focus {
     outline: 2px solid var(--pdz-accent, #a3e635);

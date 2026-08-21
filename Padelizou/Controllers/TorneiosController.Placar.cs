@@ -174,15 +174,31 @@ namespace Padelizou.Controllers
                 // O placar de CADA jogo como ele ficou gravado — inclusive o dos que não
                 // mudaram e o dos que saíram do ar no meio (aí a tela para de oferecer o
                 // número de um jogo que já acabou).
+                // ⚠️ O TETO VIAJA JUNTO COM O PLACAR (21/08/2026), e é ele que impede a tela de
+                // deixar marcar 12 num jogo até 9. O botão "+" NÃO pode calcular o limite
+                // sozinho: a régua tem soma × "até", o desempate do "vencer por dois" e teto
+                // POR LADO — reescrever isso em JavaScript seria a segunda cópia da regra, que
+                // é exatamente como o `limiteGames: 9` cravado no JS sobreviveu tanto tempo.
+                // O servidor calcula (FormatoDaPartida, uma régua só) e a tela só obedece.
+                //
+                // E vem A CADA resposta porque o teto MUDA com o placar: num jogo até 4, o
+                // 3x3 estende o limite pra 5.
                 return Json(new
                 {
                     salvos = mexidos,
-                    placares = doTorneio.Select(p => new
+                    placares = doTorneio.Select(p =>
                     {
-                        partidaId = p.Id,
-                        games1 = p.GamesDupla1 ?? 0,
-                        games2 = p.GamesDupla2 ?? 0,
-                        aoVivo = p.Status == "AoVivo",
+                        var f = FormatoDaPartida.De(torneio, p.Fase);
+                        int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
+                        return new
+                        {
+                            partidaId = p.Id,
+                            games1 = g1,
+                            games2 = g2,
+                            teto1 = FormatoDaPartida.TetoDoLado(f, g1, g2),
+                            teto2 = FormatoDaPartida.TetoDoLado(f, g2, g1),
+                            aoVivo = p.Status == "AoVivo",
+                        };
                     }),
                 });
             }

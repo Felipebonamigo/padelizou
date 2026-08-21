@@ -1159,6 +1159,26 @@ namespace Padelizou.Controllers
             // ao lado de Ao Vivo, que é onde o pessoal já está olhando.
             var torneioDaTela = await _context.Torneios.FindAsync(torneioId);
 
+            // O TETO DE GAMES DE CADA JOGO AO VIVO, calculado aqui e entregue pronto pra tela
+            // (21/08/2026, pedido do Felipe: "está permitindo marcar mais do que 9 num torneio
+            // que é até 9"). O `max` do input era 99 cravado.
+            //
+            // ⚠️ O CÁLCULO NÃO PODE IR PRA VIEW nem pro JavaScript: a régua tem soma × "até",
+            // o desempate do "vencer por dois" e teto POR LADO (Services/FormatoDaPartida) —
+            // é a régua que existe justamente porque o `limiteGames: 9` já viveu cravado no JS.
+            // Aqui só se PERGUNTA a ela. O servidor continua sendo a palavra final no POST.
+            var tetos = new Dictionary<int, (int Lado1, int Lado2)>();
+            if (torneioDaTela != null)
+            {
+                foreach (var p in (List<Partida>)ViewBag.AoVivo)
+                {
+                    var f = FormatoDaPartida.De(torneioDaTela, p.Fase);
+                    int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
+                    tetos[p.Id] = (FormatoDaPartida.TetoDoLado(f, g1, g2), FormatoDaPartida.TetoDoLado(f, g2, g1));
+                }
+            }
+            ViewBag.TetoDeGames = tetos;
+
             // Quem organiza vê os botões de mexer no jogo ("colocar no ar", editar placar).
             // Fica FORA do if do Americano de propósito: nasceu lá dentro, quando só o
             // desempate precisava dele, e o resultado era que num torneio de duplas — a
