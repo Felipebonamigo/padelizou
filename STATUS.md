@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/08/2026** — 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
+> Última atualização: **21/08/2026** — 🔗 **AUDITORIA DE SUPPLY CHAIN: METADE DO QUE IA PRO SERVIDOR NÃO TINHA RAZÃO DE ESTAR LÁ.**
+>
+> 🔎 **O pedido foi uma auditoria de cadeia de suprimentos** — CVE, abandono, publicador, script de instalação, dependências diretas e a árvore inteira. Saída em `SUPPLY-CHAIN.md` (12 achados, com comando de reprodução) e `supply-chain-findings.json`. A árvore tem **150 pacotes** (19 diretos, 131 transitivos) e **nenhuma CVE conhecida**. O problema não era vulnerabilidade — era quantidade.
+>
+> 📦 **O `Microsoft.VisualStudio.Web.CodeGeneration.Design` estava sem `PrivateAssets=all`**, ao contrário do `EntityFrameworkCore.Tools` três linhas acima, que já estava certo. Sem essa marcação, um pacote de ferramenta de mesa vira dependência de RUNTIME e viaja inteiro pro VPS: **o compilador Roslyn (12 DLLs), o MSBuild, o cliente NuGet completo (9 DLLs), um Razor de .NET 6 — fora de suporte desde nov/2024 — e o `System.Data.DataSetExtensions` de 2018**, mais o Humanizer com 50 pastas de idioma. Nada disso aparece em uma linha de código: o grep por `CodeGeneration`/`Scaffolding` acha só a própria linha do `.csproj`. **66 DLLs publicadas viraram 20, e 96 itens saíram do pacote.** `NuGet.Packaging` e `NuGet.Protocol` — dependência DIRETA do app, sem nenhum uso — saíram junto.
+>
+> 🎯 **E não é faxina.** Cada uma dessas DLLs roda com os privilégios do app: Postgres, tokens do Google, chaves do Asaas. Roslyn + MSBuild + cliente NuGet num servidor web não é só superfície, é ferramental — compilar e rodar código novo e baixar pacote sem sair do processo. A diferença entre um invasor que precisa trazer as ferramentas e um que já encontra tudo instalado.
+>
+> 🕳️ **O achado que não dá pra corrigir, só saber: `Portable.BouncyCastle` 1.9.0**, biblioteca de cripto de out/2021 que chega pelo `WebPush`. É a última versão que vai existir — o projeto renomeou o pacote pra `BouncyCastle.Cryptography` na 2.0 — e **advisory é indexado por ID de pacote**. Testei o mecanismo: no MESMO restore, o audit dispara 3× `NU1902` no `BouncyCastle.Cryptography` 2.2.1 e **zero** no `Portable.BouncyCastle` 1.9.0, que é um build mais VELHO da mesma biblioteca. Esse pacote é invisível pra qualquer relatório de vulnerabilidade, hoje e daqui a cinco anos. **Exposição real é baixa** (as duas chamadas usam ECDSA P-256 e ECDH sobre dado que o próprio app gera; os 3 advisories são de RSA, Ed25519 e parse de certificado — nada que o código toque), mas o `--vulnerable` limpo não quer dizer o que parece.
+>
+> 💾 **Sobram 427 MB de binário nativo pra 17 plataformas que o VPS nunca vai executar** (Windows x86/x64/arm64, macOS, riscv64, loongarch64, Android). `dotnet publish -r linux-x64 --self-contained false` derruba o pacote de **493 MB pra 66 MB** e o `tar.gz` de 158 MB pra 24 MB — medido aqui, com o `libSkiaSharp.so` no lugar e os 3 arquivos que o `deploy.sh` exige presentes. ⚠️ **NÃO APLICADO: muda o layout dos assets nativos, e a regra 3 manda passar pelo `dev` primeiro.** De brinde resolve a retenção de 3 releases (com 66 MB por build, 10 releases cabem em 660 MB — hoje 3 ocupam 1,6 GB por ambiente).
+>
+> 🧪 **4.784 testes, 0 falhas (3 novos em `FerramentaDeDesenvolvimentoNaoVaiProServidorTests`).** O principal lê o `deps.json` — a verdade do que o .NET CARREGA, não do que o `.csproj` pediu — e quebra se ferramenta voltar ao grafo de runtime. **Conferido que ficam VERMELHOS com o `.csproj` de antes**: os três acusam, e o primeiro lista as 31 DLLs intrusas pelo nome. Teste de regressão que passa antes e depois não vale nada.
+>
+> 📋 **O resto está descrito com a correção pronta e NÃO aplicado**: o CI não reprova por CVE (o audit está ligado em `mode=all`, nível `low`, mas sai como warning no meio do log do restore — mesma história do `has-pending-model-changes` antes de virar passo); sem `packages.lock.json`, as 131 transitivas não estão fixadas em lugar nenhum e o CI resolve na hora; actions em tag móvel (`@v4` é ponteiro, não conteúdo, e o job `publicar` tem `contents: write`); o `deploy.sh` instala o tar.gz do release sem conferir hash — o healthcheck não pega isso, pacote adulterado responde 200 igual; e o job `testes`, que roda em `pull_request`, não declara `permissions`.
+>
+> ⚠️ **A política de rede da sessão bloqueou `api.osv.dev`, `api.github.com/advisories` e a busca do nuget.org (403).** Não contornei. Então a checagem de CVE se apoia numa base só — justamente a que tem o ponto cego acima — e o publicador saiu do nuspec assinado em cache, não dos owners do site. Rodar um `osv-scanner` de uma máquina com saída livre fecha a lacuna.
+>
+> Antes, em 20/08: 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
 >
 > 🗣️ **O relato veio com print:** *"aqui está confuso, para registrar o jogo, lá em cima tem uma data e abaixo outra"*. E estava mesmo — resumo em **26 ago.**, aviso amarelo falando do jogo de **26/08** e o campo **Data do jogo** já em **19 de ago.**: três lugares falando de data e nenhuma pista de qual seria gravada.
 >
