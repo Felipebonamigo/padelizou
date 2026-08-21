@@ -120,7 +120,10 @@ public class JogoDaSemanaEClubeTests
 
         var deNovo = await servico.ObterOuCriarSessaoAsync(grupo, null);
 
-        Assert.Contains(deNovo.Confirmacoes, c => c.JogadorId == novato.Id && c.Status == "Pendente");
+        // ⚠️ `Presumido`, e não mais "Pendente" (21/08/2026): entrar na panelinha É entrar no
+        // combinado de toda terça, então quem chega antes do jogo já entra DENTRO. A intenção
+        // original do teste não mudou — ele ganha linha e passa a ter o que responder.
+        Assert.Contains(deNovo.Confirmacoes, c => c.JogadorId == novato.Id && c.Status == PresencaNaSessao.Presumido);
         // E não duplica a de quem já estava lá.
         Assert.Equal(5, deNovo.Confirmacoes.Count);
     }

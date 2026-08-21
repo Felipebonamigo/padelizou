@@ -5,9 +5,12 @@
     var grupo = (GrupoPrivado)ViewBag.Grupo;
     bool ehAdmin = ViewBag.EhAdmin == true;
     bool souMembro = ViewBag.SouMembro == true;
-    var confirmados = (List<ConfirmacaoSessao>)ViewBag.Confirmados;
+    // ⚠️ OS NOMES MUDARAM em 21/08/2026, e a troca é intencional: um `confirmados` cheio de
+    // gente que não confirmou nada seria a próxima divergência calada. Ver PresencaNaSessao.
+    var naLista = (List<ConfirmacaoSessao>)ViewBag.NaLista;              // Confirmado + Presumido
+    int confirmaram = (int)ViewBag.Confirmaram;                          // só quem apertou o botão
     var naoVao = (List<ConfirmacaoSessao>)ViewBag.NaoVao;
-    var pendentes = (List<ConfirmacaoSessao>)ViewBag.Pendentes;
+    var faltaResponder = (List<ConfirmacaoSessao>)ViewBag.FaltaResponder;
     var minhaConfirmacao = (ConfirmacaoSessao?)ViewBag.MinhaConfirmacao;
     var mensalidades = (List<MensalidadeGrupo>)ViewBag.Mensalidades;
     var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
@@ -36,7 +39,13 @@
                 {
                     <text> — @grupo.Clube.Nome</text>
                 }
-                — <strong>@confirmados.Count/@grupo.VagasMaximas</strong> vagas confirmadas
+                — <strong>@naLista.Count na lista</strong>, @confirmaram confirmaram@(naoVao.Any() ? $" · {naoVao.Count} fora" : "")
+            </p>
+            @* ⚠️ A FRASE QUE EXPLICA O NÚMERO. Desde 21/08/2026 silêncio conta como presença, e
+               é este número que alguém olha pra reservar quadra — sem esta linha ele parece
+               "9 pessoas se comprometeram", que é exatamente o que ele NÃO é. *@
+            <p class="small text-body-secondary mb-0">
+                Todo mundo da panelinha já entra na lista — <strong>confirmaram</strong> é quem apertou "Vou jogar".
             </p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
@@ -108,29 +117,56 @@
        na hora. Amarrar a existência do bloco à confirmação já deixou membro sem como responder. *@
     @if (minhaConfirmacao != null || souMembro)
     {
-        var meuStatus = minhaConfirmacao?.Status ?? "Pendente";
+        var meuStatus = minhaConfirmacao?.Status ?? PresencaNaSessao.Presumido;
         var meuLado = minhaConfirmacao?.Lado;
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <h6 class="fw-bold mb-3">Sua presença</h6>
-                @if (meuStatus == "Pendente")
-                {
-                    <p class="small text-muted">
-                        @(minhaConfirmacao?.Avulso == true
-                            ? "Você foi convidado pra esse jogo — confirma se vai?"
-                            : "Você ainda não respondeu esse jogo.")
-                    </p>
-                }
+                @* ⚠️ A FRASE NUNCA SOME, e cada estado tem a sua. Antes ela só aparecia pra quem
+                   não tinha respondido; com a presunção, a maioria das pessoas NUNCA vai
+                   responder — e ficaria olhando dois botões sem saber em qual dos dois ela já
+                   está. A tela também não pode dizer que você respondeu quando quem respondeu
+                   por você foi quem administra (ver PresencaNaSessao.TiradoPeloAdmin). *@
+                <p class="small text-muted">
+                    @if (meuStatus == PresencaNaSessao.Presumido)
+                    {
+                        <text>Você já está na lista deste jogo — não precisa confirmar. Se não puder ir, avise agora.</text>
+                    }
+                    else if (meuStatus == PresencaNaSessao.Confirmado)
+                    {
+                        <text>Você confirmou presença. Dá pra mudar até a hora do jogo.</text>
+                    }
+                    else if (meuStatus == PresencaNaSessao.NaoVai && minhaConfirmacao != null && PresencaNaSessao.TiradoPeloAdmin(minhaConfirmacao))
+                    {
+                        <text>Quem administra te tirou da lista desta semana. Se você vai, aperte "Vou jogar".</text>
+                    }
+                    else if (meuStatus == PresencaNaSessao.NaoVai)
+                    {
+                        <text>Você avisou que não vai. Se mudar de ideia, é só apertar "Vou jogar" — você não volta pra lista sozinho.</text>
+                    }
+                    else if (minhaConfirmacao?.Avulso == true)
+                    {
+                        <text>Você foi convidado pra esse jogo — confirma se vai?</text>
+                    }
+                    else
+                    {
+                        <text>Você ainda não respondeu esse jogo.</text>
+                    }
+                </p>
                 <form asp-controller="Grupos" asp-action="ConfirmarPresenca" method="post" class="d-flex gap-2 align-items-center flex-wrap">
                     <input type="hidden" name="sessaoId" value="@Model.Id" />
                     <select name="lado" class="form-select form-select-sm w-auto">
                         <option value="Esquerda" selected="@(meuLado == "Esquerda")">Esquerda</option>
                         <option value="Direita" selected="@(meuLado == "Direita")">Direita</option>
                     </select>
-                    <button type="submit" name="vou" value="true" class="btn btn-sm rounded-pill @(meuStatus == "Confirmado" ? "btn-success" : "btn-outline-success")">
+                    @* Sólido só pra quem APERTOU o botão: quem está presumido não confirmou nada,
+                       e pintar o verde cheio pra ele apagaria a diferença que o resto da tela
+                       inteira existe pra mostrar. Presumido deixa os dois em outline, e o peso
+                       visual sobra pro "Não vou" — a única ação que ele precisa achar. *@
+                    <button type="submit" name="vou" value="true" class="btn btn-sm rounded-pill @(meuStatus == PresencaNaSessao.Confirmado ? "btn-success" : "btn-outline-success")">
                         <i class="bi bi-check-circle"></i> Vou jogar
                     </button>
-                    <button type="submit" name="vou" value="false" class="btn btn-sm rounded-pill @(meuStatus == "NaoVai" ? "btn-danger" : "btn-outline-danger")">
+                    <button type="submit" name="vou" value="false" class="btn btn-sm rounded-pill @(meuStatus == PresencaNaSessao.NaoVai ? "btn-danger" : "btn-outline-danger")">
                         Não vou dessa vez
                     </button>
                 </form>
@@ -188,7 +224,8 @@
                 @if (ehAdmin && sorteio == null)
                 {
                     <p class="small text-body-secondary mb-0 mt-2">
-                        Sorteia entre os <strong>@confirmados.Count confirmados</strong>, evitando repetir
+                        Sorteia entre os <strong>@naLista.Count da lista</strong>
+                        (@(naLista.Count - confirmaram) ainda não responderam), evitando repetir
                         as parcerias das últimas 8 semanas. Pode clicar quantas vezes quiser — nada é gravado.
                     </p>
                 }
@@ -248,13 +285,12 @@
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="fw-bold text-success mb-3"><i class="bi bi-check-circle"></i> Confirmados (@confirmados.Count)</h6>
-                    @if (confirmados.Any())
+                    <h6 class="fw-bold text-success mb-3"><i class="bi bi-check-circle"></i> Na lista (@naLista.Count)</h6>
+                    @if (naLista.Any())
                     {
                         <ul class="list-group list-group-flush">
-                            @foreach (var c in confirmados)
+                            @foreach (var c in naLista)
                             {
-                                var pago = mensalidades.Any(m => m.JogadorId == c.JogadorId && m.Pago);
                                 <li class="list-group-item px-0">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                                         <span>
@@ -267,29 +303,40 @@
                                             {
                                                 <span class="badge bg-info-subtle text-dark">convidado</span>
                                             }
+                                            @* ⚠️ UM SELO POR PESSOA, e ele é o que sobrou da diferença
+                                               entre "disse que vai" e "não disse nada". Sem ele, em um
+                                               mês a lista inteira é presumida e ninguém mais sabe. *@
+                                            @if (c.Status == PresencaNaSessao.Confirmado)
+                                            {
+                                                <span class="badge bg-success-subtle text-success-emphasis" title="Apertou 'Vou jogar'">confirmou</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border" title="Está na lista por ser da panelinha — não respondeu">no automático</span>
+                                            }
                                         </span>
+                                        @* Sem este botão o admin não tem o que fazer com quem está na
+                                           lista no automático e ele SABE que não vai: o sorteio das
+                                           19h05 montaria dupla pra quem está em casa. *@
+                                        @if (ehAdmin)
+                                        {
+                                            <form asp-controller="Grupos" asp-action="TirarDoJogo" method="post" class="d-inline">
+                                                <input type="hidden" name="sessaoId" value="@Model.Id" />
+                                                <input type="hidden" name="jogadorId" value="@c.JogadorId" />
+                                                <button type="submit" class="btn btn-sm btn-link text-muted p-0"
+                                                        title="Tirar da lista desta semana">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        }
                                     </div>
-                                    @if (!c.Avulso && ehAdmin)
-                                    {
-                                        <form asp-controller="Grupos" asp-action="MarcarPagamento" method="post" class="mt-1">
-                                            <input type="hidden" name="grupoId" value="@grupo.Id" />
-                                            <input type="hidden" name="jogadorId" value="@c.JogadorId" />
-                                            <input type="hidden" name="ano" value="@Model.DataHora.Year" />
-                                            <input type="hidden" name="mes" value="@Model.DataHora.Month" />
-                                            <input type="hidden" name="data" value="@Model.DataHora.ToString("s")" />
-                                            <input type="hidden" name="pago" value="@(!pago).ToString().ToLower()" />
-                                            <button type="submit" class="btn btn-sm @(pago ? "btn-success" : "btn-outline-secondary")">
-                                                @(pago ? "Mensalidade paga ✓" : "Marcar mensalidade paga")
-                                            </button>
-                                        </form>
-                                    }
                                 </li>
                             }
                         </ul>
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Ninguém confirmou ainda.</p>
+                        <p class="text-muted small mb-0">Ninguém na lista — a panelinha inteira avisou que não vai.</p>
                     }
                 </div>
             </div>
@@ -298,11 +345,14 @@
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="fw-bold text-warning mb-3"><i class="bi bi-hourglass-split"></i> Aguardando resposta (@pendentes.Count)</h6>
-                    @if (pendentes.Any())
+                    <h6 class="fw-bold text-warning mb-3"><i class="bi bi-hourglass-split"></i> Falta responder (@faltaResponder.Count)</h6>
+                    <small class="text-body-secondary d-block mb-2">
+                        Convidados de fora e quem entrou na panelinha depois do jogo começar.
+                    </small>
+                    @if (faltaResponder.Any())
                     {
                         <ul class="list-group list-group-flush">
-                            @foreach (var c in pendentes)
+                            @foreach (var c in faltaResponder)
                             {
                                 <li class="list-group-item px-0">
                                     @c.Jogador.ComoChamar
@@ -316,7 +366,10 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Todo mundo já respondeu.</p>
+                        @* ⚠️ "Todo mundo já respondeu" seria a mentira mais direta da tela agora:
+                           ela apareceria justamente quando NINGUÉM respondeu — a panelinha inteira
+                           está na lista no automático. *@
+                        <p class="text-muted small mb-0">Nenhum convite em aberto.</p>
                     }
                 </div>
             </div>
@@ -331,7 +384,19 @@
                         <ul class="list-group list-group-flush">
                             @foreach (var c in naoVao)
                             {
-                                <li class="list-group-item px-0 text-muted">@c.Jogador.ComoChamar</li>
+                                <li class="list-group-item px-0 text-muted">
+                                    @c.Jogador.ComoChamar
+                                    @if (c.Avulso)
+                                    {
+                                        <span class="badge bg-info-subtle text-dark">convidado</span>
+                                    }
+                                    @* Quem foi tirado pelo admin não "avisou" nada — ver
+                                       PresencaNaSessao.TiradoPeloAdmin. *@
+                                    @if (PresencaNaSessao.TiradoPeloAdmin(c))
+                                    {
+                                        <span class="badge bg-light text-muted border">tirado da lista</span>
+                                    }
+                                </li>
                             }
                         </ul>
                     }
@@ -343,6 +408,41 @@
             </div>
         </div>
     </div>
+
+    @* ══ MENSALIDADES ══════════════════════════════════════════════════════════════════════
+       ⚠️ SAIU DE DENTRO DO BALDE DE PRESENÇA em 21/08/2026, e não foi arrumação: enquanto o
+       botão morava lá, ele listava só quem tinha CONFIRMADO — ou seja, o mensalista que nunca
+       aperta o botão NUNCA PODIA SER MARCADO COMO PAGO. Isso era um bug real antes mesmo da
+       presunção. E com ela seria pior no outro sentido: a panelinha inteira apareceria na tela
+       de dinheiro toda semana. Presença e mensalidade são perguntas diferentes; a lista aqui é
+       o roster do grupo (ViewBag.Ranking, já carregado), não quem vai jogar. *@
+    @if (ehAdmin && grupo.ValorMensalidade != null)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                    <i class="bi bi-cash-coin"></i> Mensalidades de @Model.DataHora.ToString("MM/yyyy")
+                </h6>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var membro in ranking.OrderBy(r => r.Jogador.Nome))
+                    {
+                        var pago = mensalidades.Any(m => m.JogadorId == membro.JogadorId && m.Pago);
+                        <form asp-controller="Grupos" asp-action="MarcarPagamento" method="post">
+                            <input type="hidden" name="grupoId" value="@grupo.Id" />
+                            <input type="hidden" name="jogadorId" value="@membro.JogadorId" />
+                            <input type="hidden" name="ano" value="@Model.DataHora.Year" />
+                            <input type="hidden" name="mes" value="@Model.DataHora.Month" />
+                            <input type="hidden" name="data" value="@Model.DataHora.ToString("s")" />
+                            <input type="hidden" name="pago" value="@(!pago).ToString().ToLower()" />
+                            <button type="submit" class="btn btn-sm rounded-pill @(pago ? "btn-success" : "btn-outline-secondary")">
+                                @membro.Jogador.ComoChamar @(pago ? "✓" : "")
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 
     <div class="row">
         <div class="col-md-6 mb-4">

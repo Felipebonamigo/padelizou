@@ -247,20 +247,36 @@ else
                                 </span>
                                 <small class="text-muted">
                                     @QuandoFala(g.DataHora)@(g.Clube != null ? $" · {g.Clube}" : "")
-                                    @if (g.Confirmados > 0)
+                                    @* ⚠️ "na lista", e não "confirmados", e sem a fração de vagas:
+                                       desde 21/08/2026 silêncio conta como presença, e é deste
+                                       card que sai o clique de quem vai reservar quadra. Quando
+                                       ninguém confirmou, a frase diz — senão o número parece
+                                       gente que se comprometeu, que é exatamente o que ele não é. *@
+                                    @if (g.NaLista > 0)
                                     {
-                                        <text> · @g.Confirmados/@g.Vagas confirmados</text>
+                                        <text> · @g.NaLista na lista</text>
+                                        @if (g.Confirmaram == 0)
+                                        {
+                                            <text> · ninguém confirmou</text>
+                                        }
                                     }
                                 </small>
                             </div>
-                            @* O selo é o recado: enquanto estiver "Confirmar", falta você responder. *@
-                            @if (g.MeuStatus == "Confirmado")
+                            @* O selo é o recado. O amarelo "Confirmar" sobrou pro CONVIDADO, que é
+                               quem de fato ainda precisa responder — o membro já está na lista. *@
+                            @if (g.MeuStatus == PresencaNaSessao.Confirmado)
                             {
                                 <span class="badge rounded-pill bg-success text-nowrap">Você vai</span>
                             }
-                            else if (g.MeuStatus == "NaoVai")
+                            else if (g.MeuStatus == PresencaNaSessao.NaoVai)
                             {
                                 <span class="badge rounded-pill bg-secondary text-nowrap">Você não vai</span>
+                            }
+                            else if (g.MeuStatus == PresencaNaSessao.Presumido)
+                            {
+                                @* Diferente do verde sólido de propósito: estar na lista sem ter
+                                   respondido não é a mesma coisa que ter dito que vai. *@
+                                <span class="badge rounded-pill bg-success-subtle text-success-emphasis text-nowrap">Na lista</span>
                             }
                             else
                             {

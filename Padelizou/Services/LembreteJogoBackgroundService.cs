@@ -4,9 +4,18 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// Não existia nenhum job de background no projeto — este é o primeiro. Roda periodicamente e manda,
-// via Z-API, um lembrete de WhatsApp pros mensalistas que ainda não confirmaram presença no jogo
-// fixo da semana, quando faltam menos de 24h e o organizador ativou a opção em Configuracoes.
+// Não existia nenhum job de background no projeto — este é o primeiro. Roda periodicamente e
+// avisa, pelo app, TODO MUNDO QUE ESTÁ NA LISTA do jogo fixo da semana quando faltam menos de
+// 24h e o dono ativou a opção em Configuracoes.
+//
+// ⚠️ ELE MUDOU DE PAPEL EM 21/08/2026. Antes cobrava confirmação de quem não tinha respondido;
+// com a presença presumida, quem não respondeu JÁ ESTÁ dentro — o aviso deixou de perguntar e
+// passou a informar, oferecendo a saída. Ver Services/AvisoDoJogoDaSemana.
+//
+// ⚠️ E ELE CONTINUA LENDO `grupo.EnviarLembrete24h`. Não tirar essa flag do Where lá em cima:
+// `ProcessarGrupoAsync` chama `ObterOuCriarSessaoAsync` ANTES da checagem de janela, e pedir a
+// sessão CRIA — sem a flag, o timer escalaria a panelinha inteira de todo grupo do sistema pra
+// dentro da lista, a cada 15 minutos, sem nenhum humano na frente.
 public class LembreteJogoBackgroundService : BackgroundService
 {
     private static readonly TimeSpan IntervaloTick = TimeSpan.FromMinutes(15);
@@ -71,35 +80,53 @@ public class LembreteJogoBackgroundService : BackgroundService
             return; // fora da janela de 24h (cedo demais ou o jogo já começou/passou)
         }
 
-        var pendentes = sessao.Confirmacoes
-            .Where(c => !c.Avulso && c.LembreteEnviadoEm == null
-                     && c.Jogador.AceitaConvitesJogo && !string.IsNullOrEmpty(c.Jogador.Celular))
+        // ⚠️ TRÊS FILTROS MUDARAM EM 21/08/2026, e dois deles já estavam errados antes:
+        //
+        //   • `Status != NaoVai` — NÃO EXISTIA. O job mandava "confirma presença" até pra quem
+        //     tinha acabado de apertar "Não vou". Já era bug, e a presunção só deixa mais visível.
+        //   • SAIU `Celular` — resto da era do WhatsApp. O aviso sai por push/caixa/e-mail desde
+        //     09/08, então quem não tem celular cadastrado era CONTADO como avisado e nunca
+        //     recebia nada.
+        //   • SAIU `AceitaConvitesJogo`, ENTROU `NotificarAvisoJogo` — aquela é a chave de
+        //     "estranhos podem me chamar pra jogar", não tem nada a ver com o jogo fixo da
+        //     própria panelinha. Esta é a preferência certa, e mantém um opt-out de verdade.
+        //   • ENTROU `ExcluidoEm == null` — cinto e suspensório: conta anonimizada não recebe.
+        var aAvisar = sessao.Confirmacoes
+            .Where(c => !c.Avulso
+                     && c.LembreteEnviadoEm == null
+                     && c.Status != PresencaNaSessao.NaoVai
+                     && c.Jogador.ExcluidoEm == null
+                     && c.Jogador.NotificarAvisoJogo)
             .ToList();
 
-        foreach (var confirmacao in pendentes)
+        foreach (var confirmacao in aAvisar)
         {
+            bool confirmou = confirmacao.Status == PresencaNaSessao.Confirmado;
+
             // Um aviso só, por um caminho só. Até 04/08/2026 este lembrete mandava WhatsApp
             // DIRETO e depois chamava o push — que, desde que o fan-out entrou, também manda
             // WhatsApp. Resultado: a mesma pessoa recebia a mesma coisa duas vezes, e mensagem
             // repetida é o que faz alguém apertar "bloquear" (e "denunciar" logo em seguida).
             await pushService.EnviarParaJogadorAsync(
                 confirmacao.JogadorId,
-                "Jogo em 24h!",
-                $"Confirma presença no jogo fixo dia {sessao.DataHora:dd/MM 'às' HH:mm}"
-                  + (grupo.Clube != null ? $" em {grupo.Clube.Nome}." : "."),
-                // Fora do WhatsApp por decisão do Felipe (09/08/2026): o jogo fixo é o mesmo
-                // dia e a mesma hora toda semana, e quem está no grupo já sabe que ele existe.
-                // Cobrar confirmação por mensagem é o aviso que mais parece cobrança — e
-                // ainda sai pra TODO o grupo de uma vez, que é a forma de rajada que já custou
-                // o número uma vez.
-                "/Agenda");
+                AvisoDoJogoDaSemana.Titulo(confirmou),
+                AvisoDoJogoDaSemana.Corpo(confirmou, grupo.Nome, sessao.DataHora, grupo.Clube?.Nome),
+                // ⚠️ CAI NA TELA DA SEMANA, e não em /Agenda: a Agenda lista só os JogosSemanais
+                // JÁ REGISTRADOS, ou seja, o aviso caía numa página SEM o botão de sair. Um aviso
+                // que pede pra avisar e leva pra tela errada não é aviso.
+                //
+                // Fora do WhatsApp por decisão do Felipe (09/08/2026): o jogo fixo é o mesmo dia
+                // e a mesma hora toda semana, e quem está no grupo já sabe que ele existe. Mais
+                // ainda agora, que ele sai pra TODA a lista e não só pra quem não respondeu — é
+                // a forma de rajada que já custou o número uma vez.
+                $"/Grupos/Semana?grupoId={grupo.Id}&data={sessao.DataHora:s}");
 
             // Marcado como enviado por ter sido DESPACHADO, não entregue: a fila entrega
             // depois, e insistir a cada passada transformaria um lembrete em perseguição.
             confirmacao.LembreteEnviadoEm = agora;
         }
 
-        if (pendentes.Any())
+        if (aAvisar.Any())
         {
             await context.SaveChangesAsync(stoppingToken);
         }

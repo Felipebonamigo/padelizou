@@ -1,4 +1,5 @@
 using Padelizou.Models;
+using Padelizou.Services;
 
 namespace Padelizou.ViewModels;
 
@@ -161,20 +162,31 @@ public class CompromissoVM
 }
 
 // Jogo fixo de uma panelinha na semana corrente. A sessão é criada sob demanda (só quando
-// alguém abre a tela da semana), então aqui ela pode ainda não existir — daí SessaoId nulo,
-// status "Pendente" e contagem zerada: o atalho leva pra tela, que cria na hora.
+// alguém abre a tela da semana), então aqui ela pode ainda não existir — e a contagem vem
+// zerada: o atalho leva pra tela, que cria na hora.
+//
+// ⚠️ O DEFAULT DE `MeuStatus` É `Presumido`, e não "Pendente" (21/08/2026). Este é justamente o
+// ramo em que a sessão AINDA NÃO EXISTE — e ela vai nascer com o membro presumido. Se a Home
+// dissesse "Pendente" aqui, o mesmo jogo mostraria "Confirmar" ou "Na lista" dependendo de
+// alguém já ter aberto a tela da semana antes: a Home se contradiria consigo mesma.
+//
+// ⚠️ `Respondi` foi APAGADO junto. Era código morto (zero consumidores) e, com o default novo,
+// passaria a devolver `true` pra todo mundo — a próxima cópia da regra a discordar das outras.
 public class JogoDaSemanaVM
 {
     public int GrupoId { get; set; }
     public string Grupo { get; set; } = "";
     public DateTime DataHora { get; set; }
     public string? Clube { get; set; }
-    public string MeuStatus { get; set; } = "Pendente"; // Pendente / Confirmado / NaoVai
-    public int Confirmados { get; set; }
+    public string MeuStatus { get; set; } = PresencaNaSessao.Presumido;
+
+    // Quem conta pra reservar quadra (confirmado + presumido) e, separado, quem apertou o botão.
+    // Os dois números porque "8 na lista" e "8 confirmaram" deixaram de ser a mesma frase.
+    public int NaLista { get; set; }
+    public int Confirmaram { get; set; }
+
     public int Vagas { get; set; }
     public bool Convidado { get; set; } // não é membro da panelinha, foi chamado pra este jogo
-
-    public bool Respondi => MeuStatus != "Pendente";
 }
 
 public class MeuTorneioVM

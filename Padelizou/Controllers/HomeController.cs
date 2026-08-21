@@ -295,7 +295,14 @@ namespace Padelizou.Controllers
                     c.Sessao.Grupo.VagasMaximas,
                     MeuStatus = c.Status,
                     c.Avulso,
-                    Confirmados = c.Sessao.Confirmacoes.Count(x => x.Status == "Confirmado"),
+                    // ⚠️ DUAS CONTAGENS DESDE 21/08/2026, e esta é a única query do projeto que
+                    // muda de FORMA por causa da presença presumida — subquery dentro de projeção
+                    // do EF. As constantes de PresencaNaSessao são `const`, então entram literais
+                    // na árvore de expressão e o Npgsql traduz. Teste InMemory verde NÃO prova
+                    // isso: abrir a Home no navegador contra o Postgres é parte do "pronto".
+                    NaLista = c.Sessao.Confirmacoes.Count(x =>
+                        x.Status == PresencaNaSessao.Confirmado || x.Status == PresencaNaSessao.Presumido),
+                    Confirmaram = c.Sessao.Confirmacoes.Count(x => x.Status == PresencaNaSessao.Confirmado),
                 })
                 .ToListAsync();
 
@@ -308,7 +315,8 @@ namespace Padelizou.Controllers
                     DataHora = s.DataHora,
                     Clube = s.Clube,
                     MeuStatus = s.MeuStatus,
-                    Confirmados = s.Confirmados,
+                    NaLista = s.NaLista,
+                    Confirmaram = s.Confirmaram,
                     Vagas = s.VagasMaximas,
                     Convidado = s.Avulso,
                 };

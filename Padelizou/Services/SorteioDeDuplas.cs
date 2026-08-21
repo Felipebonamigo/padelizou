@@ -26,9 +26,14 @@ namespace Padelizou.Services;
 // torneio e do cartão — quinto uso, régua compartilhada, nenhuma cópia nova.
 public static class SorteioDeDuplas
 {
-    // Um confirmado da semana, com o lado JÁ resolvido (ver LadoNaQuadra.Efetivo: o lado da
+    // Alguém da LISTA da semana, com o lado JÁ resolvido (ver LadoNaQuadra.Efetivo: o lado da
     // confirmação quando existe, senão o do perfil).
-    public record Candidato(int JogadorId, string Nome, string Lado);
+    //
+    // ⚠️ `Confirmou` NÃO TEM VALOR PADRÃO, de propósito (21/08/2026). Desde a presença presumida
+    // a lista tem dois tipos de gente, e um default faria toda construção existente compilar em
+    // silêncio afirmando que todo mundo confirmou. Sem default, o compilador aponta cada lugar
+    // que precisa decidir — quebra barulhenta é o ponto.
+    public record Candidato(int JogadorId, string Nome, string Lado, bool Confirmou);
 
     // `ForaDoLadoDele` marca quem foi deslocado — a tela precisa dizer isso pessoa a pessoa,
     // senão o jogador chega na quadra e descobre na hora.
@@ -53,7 +58,17 @@ public static class SorteioDeDuplas
         var avisos = new List<string>();
 
         if (confirmados.Count < 2)
-            return new Resultado([], ["Precisa de pelo menos 2 confirmados pra sortear uma dupla."], []);
+            return new Resultado([], ["Precisa de pelo menos 2 pessoas na lista pra sortear uma dupla."], []);
+
+        // ⚠️ QUEM ESTÁ NO AUTOMÁTICO PRECISA APARECER AQUI. Desde a presença presumida, a lista
+        // pode ser composta INTEIRA por gente que nunca soube que o jogo existe — e o sorteio é
+        // a única coisa do sistema que ninguém consegue provar que saiu errada olhando a tela.
+        // Sem este aviso, o admin sorteia nove, aparecem quatro, e ele não faz ideia do porquê.
+        var noAutomatico = confirmados.Count(c => !c.Confirmou);
+        if (noAutomatico > 0)
+        {
+            avisos.Add($"{noAutomatico} de {confirmados.Count} não responderam — estão na lista no automático.");
+        }
 
         // Embaralhar ANTES de qualquer coisa: é o que faz duas rodadas do botão com o mesmo
         // grupo darem resultados diferentes. Sem isto o desempate cairia sempre na ordem da
@@ -68,7 +83,9 @@ public static class SorteioDeDuplas
             var deFora = baralho[^1];
             baralho.RemoveAt(baralho.Count - 1);
             sobraram.Add(deFora.Nome);
-            avisos.Add($"{deFora.Nome} ficou de fora do sorteio — o número de confirmados é ímpar.");
+            // "na lista" e não "confirmados": com a presunção, esta frase pode nomear alguém que
+            // nunca respondeu nada — dizer que ela confirmou seria mentira sobre uma pessoa.
+            avisos.Add($"{deFora.Nome} ficou de fora do sorteio — o número de jogadores na lista é ímpar.");
         }
 
         int duplas = baralho.Count / 2;

@@ -20,9 +20,14 @@ public partial class GrupoPrivado
     public decimal? ValorAvulso { get; set; }
     public int VagasMaximas { get; set; } = 4;
 
-    // Se true, o LembreteJogoBackgroundService manda um WhatsApp automático (via Z-API) pros
-    // mensalistas que ainda não confirmaram, 24h antes do horário fixo.
-    public bool EnviarLembrete24h { get; set; } = false;
+    // Se true, o LembreteJogoBackgroundService avisa PELO APP (push + caixa de avisos + e-mail;
+    // não é WhatsApp desde 09/08/2026) todo mundo que está na lista, 24h antes do horário fixo.
+    //
+    // ⚠️ Nasce `true` só pra grupos NOVOS, desde 21/08/2026: com a presença presumida o aviso
+    // deixou de ser cobrança e virou a única chance de quem não vai avisar a tempo. Os grupos
+    // que JÁ existem não foram ligados em massa — isso seria uma rajada de push pra base
+    // inteira num deploy, disfarçada de melhoria. Quem quiser, liga em Configurações.
+    public bool EnviarLembrete24h { get; set; } = true;
 
     // Relacionamento com o Jogador (Admin)
     public virtual Jogador Administrador { get; set; } = null!;

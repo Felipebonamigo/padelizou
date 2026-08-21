@@ -10,9 +10,12 @@ namespace Padelizou.Tests;
 // lado permite é que se sorteia evitando parceria repetida.
 public class SorteioDeDuplasTests
 {
-    private static SorteioDeDuplas.Candidato Direita(int id) => new(id, $"Destro {id}", LadoNaQuadra.Direita);
-    private static SorteioDeDuplas.Candidato Esquerda(int id) => new(id, $"Canhoto {id}", LadoNaQuadra.Esquerda);
-    private static SorteioDeDuplas.Candidato Ambos(int id) => new(id, $"Coringa {id}", LadoNaQuadra.Ambos);
+    // `confirmou: true` por padrão porque estes testes são sobre LADO e PARCERIA, não sobre
+    // presença — e `Confirmou` não tem default no record (ver SorteioDeDuplas.Candidato) de
+    // propósito: o compilador obriga cada chamador a decidir em vez de herdar uma mentira.
+    private static SorteioDeDuplas.Candidato Direita(int id, bool confirmou = true) => new(id, $"Destro {id}", LadoNaQuadra.Direita, confirmou);
+    private static SorteioDeDuplas.Candidato Esquerda(int id, bool confirmou = true) => new(id, $"Canhoto {id}", LadoNaQuadra.Esquerda, confirmou);
+    private static SorteioDeDuplas.Candidato Ambos(int id, bool confirmou = true) => new(id, $"Coringa {id}", LadoNaQuadra.Ambos, confirmou);
 
     private static readonly Dictionary<(int, int), int> SemHistorico = new();
 
@@ -161,7 +164,7 @@ public class SorteioDeDuplasTests
     [Fact]
     public void Sementes_diferentes_dao_duplas_diferentes()
     {
-        var gente = Enumerable.Range(1, 8).Select(Ambos).ToList();
+        var gente = Enumerable.Range(1, 8).Select(id => Ambos(id)).ToList();
 
         var resultados = Enumerable.Range(1, 12)
             .Select(s => string.Join("|", Sortear(gente, semente: s)

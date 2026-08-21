@@ -297,11 +297,16 @@ namespace padelizou.Controllers
             // confirmar no app tem que aparecer na lista igual, senão o jogo não consegue ser
             // lançado por causa de um RSVP. A lista de escolha continua sendo todo mundo
             // (ParticipantesParaResultadoAsync); confirmar só empurra pra cima.
+            // ⚠️ AQUI É `Confirmado` SOZINHO, e NÃO `EstaNaLista` — a exceção da presunção
+            // (21/08/2026). Esta lista só ORDENA: com o presumido incluído, a panelinha inteira
+            // subiria junta, o realce degeneraria em ordem alfabética e todo nome ganharia o ✓.
+            // A pergunta certa nesta tela é a única que o status novo sabe responder: quem
+            // apertou o botão.
             var diaDoJogo = ViewBag.DataSugerida as DateTime? ?? DateTime.Today;
             ViewBag.Confirmados = (await _context.ConfirmacoesSessao
                 .Where(c => c.Sessao.GrupoId == grupoId
                          && c.Sessao.DataHora.Date == diaDoJogo.Date
-                         && c.Status == "Confirmado")
+                         && c.Status == PresencaNaSessao.Confirmado)
                 .Select(c => c.JogadorId)
                 .ToListAsync())
                 .ToHashSet();
@@ -612,11 +617,29 @@ namespace padelizou.Controllers
                 return RedirectToAction("Detalhes", new { id = grupoId });
             }
 
-            var sessao = await _sessaoGrupoService.ObterOuCriarSessaoAsync(grupo, data);
-
+            // ⚠️ A CHECAGEM DE QUEM PODE VER VEM ANTES DE PEDIR A SESSÃO, e a ordem mudou em
+            // 21/08/2026 por um motivo que não existia antes: PEDIR CRIA. Enquanto o membro
+            // nascia "Pendente", qualquer conta logada digitando `?grupoId=X` materializava um
+            // roster feio e inócuo. Com a presunção, o mesmo clique passa a GRAVAR a afirmação
+            // "a panelinha inteira vai jogar" num grupo que não é dela. Quem não é membro só
+            // procura a sessão que JÁ existe — nunca cria.
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
-            var souConvidado = sessao.Confirmacoes.Any(c => c.JogadorId == userId);
-            if (!souMembro && !souConvidado) return RedirectToAction("Index");
+
+            SessaoGrupo? sessao;
+            if (souMembro)
+            {
+                sessao = await _sessaoGrupoService.ObterOuCriarSessaoAsync(grupo, data);
+            }
+            else
+            {
+                var quando = data ?? SessaoGrupoService.ProximaOcorrencia(grupo.DiaSemanaFixo.Value, grupo.HorarioFixo.Value);
+                sessao = await _context.SessoesGrupo
+                    .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
+                    .FirstOrDefaultAsync(s => s.GrupoId == grupoId && s.DataHora == quando);
+
+                var souConvidado = sessao?.Confirmacoes.Any(c => c.JogadorId == userId) ?? false;
+                if (!souConvidado) return RedirectToAction("Index");
+            }
 
             var mensalidades = await _context.MensalidadesGrupo
                 .Where(m => m.GrupoId == grupoId && m.Ano == sessao.DataHora.Year && m.Mes == sessao.DataHora.Month)
@@ -642,9 +665,16 @@ namespace padelizou.Controllers
             ViewBag.Grupo = grupo;
             ViewBag.EhAdmin = grupo.AdministradorId == userId;
             ViewBag.SouMembro = souMembro;
-            ViewBag.Confirmados = sessao.Confirmacoes.Where(c => c.Status == "Confirmado").OrderBy(c => c.Jogador.Nome).ToList();
-            ViewBag.NaoVao = sessao.Confirmacoes.Where(c => c.Status == "NaoVai").OrderBy(c => c.Jogador.Nome).ToList();
-            ViewBag.Pendentes = sessao.Confirmacoes.Where(c => c.Status == "Pendente").OrderBy(c => c.Jogador.Nome).ToList();
+            // ⚠️ OS NOMES MUDARAM DE PROPÓSITO (21/08/2026). `ViewBag.Confirmados` cheio de gente
+            // que não confirmou nada seria a próxima divergência calada — renomear é a única
+            // trava que existe num ViewBag. "Na lista" = quem conta pra reservar quadra;
+            // "Confirmaram" = quem apertou o botão. São duas perguntas, e as duas têm resposta.
+            ViewBag.NaLista = sessao.Confirmacoes.Where(PresencaNaSessao.EstaNaLista).OrderBy(c => c.Jogador.Nome).ToList();
+            ViewBag.Confirmaram = sessao.Confirmacoes.Count(c => c.Status == PresencaNaSessao.Confirmado);
+            ViewBag.NaoVao = sessao.Confirmacoes.Where(c => c.Status == PresencaNaSessao.NaoVai).OrderBy(c => c.Jogador.Nome).ToList();
+            // Sobrou pra três moradores: convidado de fora, quem entrou na panelinha depois do
+            // jogo começar, e linha legada de antes da presunção.
+            ViewBag.FaltaResponder = sessao.Confirmacoes.Where(c => c.Status == PresencaNaSessao.Pendente).OrderBy(c => c.Jogador.Nome).ToList();
             ViewBag.MinhaConfirmacao = sessao.Confirmacoes.FirstOrDefault(c => c.JogadorId == userId);
             ViewBag.Mensalidades = mensalidades;
             ViewBag.Ranking = ranking;
@@ -689,13 +719,57 @@ namespace padelizou.Controllers
                 _context.ConfirmacoesSessao.Add(confirmacao);
             }
 
-            confirmacao.Status = vou ? "Confirmado" : "NaoVai";
+            // ⚠️ ESTE MÉTODO JÁ IMPLEMENTA O "depois disso, somente aceitando" e não precisou de
+            // uma linha: quem apertou "Não vou" vira NaoVai e só sai de lá apertando "Vou jogar",
+            // porque `AdicionarMembrosQueFaltamAsync` só cria linha que NÃO existe. E quem volta
+            // volta como `Confirmado` — nunca como presumido, que é o certo: ele respondeu.
+            confirmacao.Status = vou ? PresencaNaSessao.Confirmado : PresencaNaSessao.NaoVai;
             if (!string.IsNullOrWhiteSpace(lado)) confirmacao.Lado = lado;
             confirmacao.RespondidoEm = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = vou ? "Presença confirmada!" : "Ok, marcamos que você não vai dessa vez.";
+            return RedirectToAction("Semana", new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") });
+        }
+
+        // O ADMIN TIRA ALGUÉM DA LISTA DESTA SEMANA (21/08/2026).
+        //
+        // Nasceu junto com a presença presumida e por causa dela: antes, quem não ia
+        // simplesmente nunca confirmava e ficava fora da conta sozinho. Agora ele está DENTRO
+        // até dizer o contrário — e se não disser, o sorteio das 19h05 monta dupla pra quem está
+        // em casa. Sem este botão o admin não tem o que fazer.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TirarDoJogo(int sessaoId, int jogadorId)
+        {
+            var userId = ObterUserId();
+
+            var sessao = await _context.SessoesGrupo
+                .Include(s => s.Grupo)
+                .FirstOrDefaultAsync(s => s.Id == sessaoId);
+            if (sessao == null) return NotFound();
+
+            // Só quem administra a panelinha — tirar gente da lista dos outros não é de membro.
+            if (sessao.Grupo.AdministradorId != userId) return Forbid();
+
+            var confirmacao = await _context.ConfirmacoesSessao
+                .Include(c => c.Jogador)
+                .FirstOrDefaultAsync(c => c.SessaoId == sessaoId && c.JogadorId == jogadorId);
+            if (confirmacao == null) return NotFound();
+
+            confirmacao.Status = PresencaNaSessao.NaoVai;
+
+            // ⚠️ `RespondidoEm` FICA NULO DE PROPÓSITO. Quem disse que não vai foi o admin, não
+            // ela — e `NaoVai + RespondidoEm == null` era um par inalcançável até aqui (só o
+            // ConfirmarPresenca escrevia NaoVai, e ele sempre carimba a data). É esse par que
+            // impede a tela de dizer "avisou que não ia" sobre quem não avisou nada.
+            confirmacao.RespondidoEm = null;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"{confirmacao.Jogador.ComoChamar} saiu da lista desta semana. "
+                                + "Se for jogar, ele mesmo aperta \"Vou jogar\".";
             return RedirectToAction("Semana", new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") });
         }
 
@@ -727,17 +801,21 @@ namespace padelizou.Controllers
             // do perfil, mas quem foi convidado de fora — ou é membro de antes de o campo
             // existir — vem com nulo. Nulo aqui não é "tanto faz": é "não escolheu nesta tela",
             // e aí vale o perfil. Mesma régua da inscrição de torneio.
+            // Sorteia entre quem está NA LISTA — presumido e confirmado. Só o confirmado seria
+            // sortear entre duas pessoas numa panelinha de nove, agora que ninguém mais precisa
+            // apertar botão pra estar dentro.
             var candidatos = sessao.Confirmacoes
-                .Where(c => c.Status == "Confirmado")
+                .Where(PresencaNaSessao.EstaNaLista)
                 .Select(c => new SorteioDeDuplas.Candidato(
                     c.JogadorId,
                     c.Jogador.ComoChamar,
-                    LadoNaQuadra.Efetivo(c.Lado, c.Jogador.LadoQuadra)))
+                    LadoNaQuadra.Efetivo(c.Lado, c.Jogador.LadoQuadra),
+                    c.Status == PresencaNaSessao.Confirmado))
                 .ToList();
 
             if (candidatos.Count < 2)
             {
-                TempData["Erro"] = "Precisa de pelo menos 2 confirmados pra sortear as duplas.";
+                TempData["Erro"] = "Precisa de pelo menos 2 pessoas na lista pra sortear as duplas.";
                 return RedirectToAction("Semana", voltarPara);
             }
 

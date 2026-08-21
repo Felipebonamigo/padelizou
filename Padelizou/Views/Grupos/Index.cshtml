@@ -35,13 +35,20 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                         <span>
                             <strong>@convite.Sessao.Grupo.Nome</strong> · @convite.Sessao.DataHora.ToString("dd/MM 'às' HH:mm")
-                            @if (convite.Status == "Confirmado")
+                            @* Esta lista é só de CONVITE avulso (ver GruposController.Index), então
+                               "Presumido" quase não aparece aqui — mas a régua é a mesma e mora em
+                               PresencaNaSessao, pra esta não virar a cópia que discorda das outras. *@
+                            @if (convite.Status == PresencaNaSessao.Confirmado)
                             {
                                 <span class="badge rounded-pill bg-success">Você vai</span>
                             }
-                            else if (convite.Status == "NaoVai")
+                            else if (convite.Status == PresencaNaSessao.NaoVai)
                             {
                                 <span class="badge rounded-pill bg-secondary">Você não vai</span>
+                            }
+                            else if (convite.Status == PresencaNaSessao.Presumido)
+                            {
+                                <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Na lista</span>
                             }
                             else
                             {
@@ -49,7 +56,7 @@
                             }
                         </span>
                         <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@convite.Sessao.GrupoId" asp-route-data="@convite.Sessao.DataHora.ToString("s")" class="btn btn-sm btn-padel rounded-pill">
-                            @(convite.Status == "Pendente" ? "Ver e responder" : "Ver o jogo")
+                            @(convite.Status == PresencaNaSessao.Pendente ? "Ver e responder" : "Ver o jogo")
                         </a>
                     </div>
                 }
