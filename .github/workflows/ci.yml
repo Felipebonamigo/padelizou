@@ -73,6 +73,71 @@ jobs:
           echo "$quebrados" | while IFS= read -r teste; do echo "::error::TESTE VERMELHO: $teste"; done
           exit 0
 
+      # Este passo vem DEPOIS do "Dizer QUAL teste caiu", e a ordem importa: aquele roda em
+      # `if: failure()`, então um portão de CVE antes dele faria o job anunciar "a suíte falhou
+      # mas nenhum teste aparece como Failed" — mensagem falsa pra uma falha que não é de teste.
+      # Aqui no fim: suíte vermelha para o job antes daqui, e suíte verde deixa este rodar.
+      # Auditoria de supply chain de 21/08/2026. O audit do NuGet já vinha LIGADO e bem
+      # configurado — NuGetAudit=true, NuGetAuditMode=all (cobre as transitivas),
+      # NuGetAuditLevel=low — só que ele sai como WARNING no meio do log do restore, e
+      # ninguém lê log de restore. Uma CVE nova em qualquer um dos pacotes entrava em
+      # produção sem nada ficar vermelho.
+      #
+      # É a mesma história do passo de migration pendente aqui em cima: a regra morava na
+      # memória do projeto até virar falha de build.
+      #
+      # A leitura é do JSON, e não do texto da tabela: texto de ferramenta muda de forma
+      # entre versões do SDK, e um grep que para de casar vira um portão que aprova tudo
+      # calado — pior que portão nenhum.
+      #
+      # ⚠️ Se um dia isto travar por um advisory que não te alcança (transitiva de teste,
+      # caminho de código que você não usa), a saída NÃO é apagar o passo: é
+      # <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-..." /> no .csproj,
+      # com um comentário dizendo POR QUE aquele não alcança. Suprimir um é uma decisão;
+      # desligar o portão é perder o aviso de todos.
+      - name: Conferir vulnerabilidade nos pacotes
+        shell: bash
+        run: |
+          dotnet list Padelizou.slnx package --vulnerable --include-transitive \
+            --format json > "${RUNNER_TEMP:-/tmp}/vulneraveis.json"
+          python3 - <<'FIM'
+          import json, os, sys
+
+          relatorio = json.load(open(os.environ.get("RUNNER_TEMP", "/tmp") + "/vulneraveis.json"))
+
+          # Restore quebrado devolve {"problems": [...]} e NENHUM "projects". Ler isso como
+          # "zero vulnerabilidade" e seguir verde e a falha silenciosa classica de portao:
+          # o dia em que ele parar de funcionar, ele APROVA tudo em vez de avisar. Aconteceu
+          # ao testar este proprio passo, antes de commitar.
+          problemas = [x for x in relatorio.get("problems") or [] if x.get("level") == "error"]
+          if problemas or "projects" not in relatorio:
+              for x in problemas:
+                  print(f'::error::Nao deu pra auditar os pacotes: {x.get("text")}')
+              if not problemas:
+                  print("::error::A auditoria nao devolveu lista de projetos — resultado nao confiavel.")
+              sys.exit(1)
+
+          achados = []
+          for projeto in relatorio.get("projects", []):
+              nome = projeto["path"].split("/")[-1]
+              for fw in projeto.get("frameworks") or []:
+                  for chave in ("topLevelPackages", "transitivePackages"):
+                      for pacote in fw.get(chave) or []:
+                          for v in pacote.get("vulnerabilities") or []:
+                              achados.append(
+                                  f'{pacote["id"]} {pacote["resolvedVersion"]} ({nome}, '
+                                  f'{"direta" if chave == "topLevelPackages" else "transitiva"}) '
+                                  f'— {v["severity"]} — {v["advisoryurl"]}')
+
+          # ::error:: vira ANOTACAO, que se le sem abrir o log inteiro — mesma razao do
+          # passo que diz qual teste caiu: dá pra entender a falha pelo celular.
+          for a in achados:
+              print(f"::error::PACOTE VULNERAVEL: {a}")
+
+          print(f"{len(achados)} vulnerabilidade(s) conhecida(s) na arvore.")
+          sys.exit(1 if achados else 0)
+          FIM
+
   # Se os testes passaram no main, gera o pacote pronto pra deploy e anexa
   # num release "build-N-sha". O VPS só instala pacotes daqui — ou seja,
   # é impossível publicar código que não passou nos testes.
@@ -92,8 +157,20 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # -r linux-x64: sem isso o publish leva binario nativo do SkiaSharp pra 18
+      # plataformas — Windows x86/x64/arm64, macOS, riscv64, loongarch64, Android — e o VPS
+      # roda UMA. Eram 427 MB dos 493 MB do pacote em blob nativo que aquele servidor nunca
+      # vai executar: codigo que roda direto, nao e IL, e nenhuma ferramenta do .NET
+      # inspeciona. Com o RID o pacote cai pra 66 MB e o tar.gz pra 24 MB.
+      #
+      # --self-contained false mantem o deploy como sempre foi: o .NET vem do servidor, o
+      # pacote leva so o app. O systemd continua subindo com `dotnet Padelizou.dll`, e o
+      # libSkiaSharp.so passa a ficar na raiz do pacote em vez de runtimes/linux-x64/native
+      # — que e onde o host do .NET procura primeiro.
       - name: Publicar (Release)
-        run: dotnet publish Padelizou/Padelizou.csproj -c Release -o publish
+        run: |
+          dotnet publish Padelizou/Padelizou.csproj -c Release \
+            -r linux-x64 --self-contained false -o publish
 
       - name: Compactar
         run: tar -czf padelizou.tar.gz -C publish .
