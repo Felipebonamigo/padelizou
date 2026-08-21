@@ -6,7 +6,7 @@ Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite
 | Arquivo aqui | Onde fica no servidor | Quando roda |
 |---|---|---|
 | `deploy.sh` · `rollback.sh` | `/opt/padelizou-deploy/` | sob demanda |
-| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos) |
+| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos + config do servidor) |
 | `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 UTC — cópia FORA do servidor |
 | `backup-meio-dia.sh` · `cron-backup-meio-dia` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **16h UTC** — só o banco, direto pro cofre |
 
