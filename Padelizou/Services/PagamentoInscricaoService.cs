@@ -1049,7 +1049,11 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                     $"Alguém saiu de {torneio?.Nome ?? "um torneio"} e vocês saíram da lista de espera. Boa sorte!",
                     // Virou jogo de verdade pra quem estava esperando, e tem prazo: quem não
                     // ficar sabendo a tempo perde a vaga que acabou de ganhar.
-                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null, AlcanceDoAviso.AppEWhatsApp);
+                    //
+                    // ⚠️ Fora do WhatsApp desde 21/08/2026 (ver Services/EncerramentoDaPartida).
+                    // O gêmeo deste aviso mora em TorneiosController.Inscricoes, no caminho da
+                    // desistência sem pagamento — os dois têm que dizer a mesma coisa.
+                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null, AlcanceDoAviso.SoApp);
             }
             catch (Exception ex)
             {

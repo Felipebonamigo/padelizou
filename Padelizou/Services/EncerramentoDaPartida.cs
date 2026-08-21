@@ -300,10 +300,16 @@ public class EncerramentoDaPartida
                 await _push.EnviarParaJogadorAsync(jogadorId,
                     "Seu jogo é o próximo!",
                     AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
-                    // O aviso mais importante do sistema: a pessoa está no clube, o jogo é
-                    // agora, e ela não vai abrir e-mail. Se um só aviso valesse o WhatsApp,
-                    // seria este.
-                    url, AlcanceDoAviso.AppEWhatsApp);
+                    // ⚠️ SAIU DO WHATSAPP EM 21/08/2026, por decisão do Felipe, junto com o
+                    // resto da família de torneio (chaves, cancelamento, vaga na lista de
+                    // espera). Era o maior volume do canal de longe — 4 mensagens por partida,
+                    // ~350 num torneio de 100 —, e volume é o que resta de risco depois que
+                    // ritmo e consentimento foram resolvidos.
+                    //
+                    // O aviso continua sendo o mais urgente do sistema, e é por isso que ele
+                    // NÃO virou `AppSemEmail`: quem está no clube pode não ter o app, e aí o
+                    // e-mail é o único caminho que sobra.
+                    url, AlcanceDoAviso.SoApp);
             }
 
             proxima.AvisoProximoEnviadoEm = DateTime.Now;

@@ -6,21 +6,24 @@ namespace Padelizou.Services;
 // (7–16s) e mata a RAJADA. Espaçamento não limita TOTAL, e foi essa fresta que sobrou do
 // conserto de 04/08/2026 — a rajada morreu, o volume não.
 //
-// ⚠️ OS NÚMEROS SAEM DA PLANILHA DO PRODUTO, NÃO DE PRÁTICA GENÉRICA DE ANTI-SPAM. A primeira
-// versão disto (60/hora, 300/dia) foi dimensionada só pelo risco de ban e **estava errada**: um
-// torneio de 100 participantes manda ~450 mensagens no dia, e só o aviso de "chaves saíram" são
-// 100 de uma vez — o teto de 60/hora cortava 40 avisos logo na primeira ação do dia, e o mais
-// importante deles ("seu jogo é o próximo") ia junto.
+// ⚠️ OS NÚMEROS SAEM DA PLANILHA DO PRODUTO, NÃO DE PRÁTICA GENÉRICA DE ANTI-SPAM — e a
+// planilha MUDOU EM 21/08/2026, quando a família de torneio inteira saiu do canal por decisão
+// do Felipe (chaves, "seu jogo é o próximo", cancelamento, vaga na lista de espera).
 //
-// A conta, medida no código que dispara (`AlcanceDoAviso.AppEWhatsApp`), pra 100 participantes:
+// Era ela que dimensionava este teto. A conta antiga, pra um torneio de 100 participantes:
 //
 //   chaves saíram ....... 1 por JOGADOR ............................. 100 (de uma vez)
 //   seu jogo é o próximo  4 por partida × ~88 partidas ............... ~350
-//   lembrete de 24h ..... 1 por jogador com jogo ..................... 100 (na véspera)
 //
-// Daí 250/hora (o `WHATSAPP.md` põe a zona de risco em ~500/h, então isto é metade dela, com
-// folga sobre o pico real de ~150) e 1.200/dia (quase 3× um torneio cheio). O teto não existe
-// pra apertar o uso normal: existe pra um laço infinito não torrar o número numa madrugada.
+// Hoje NADA DISSO passa por aqui. O que sobrou (ver `AlcanceDoAviso.AppEWhatsApp` no código
+// que dispara) é aula e desafio — mensagem de UM pra UM, disparada por gesto humano, algumas
+// dezenas por dia no pior caso —, mais o "pagamento pendente".
+//
+// ⚠️ OS TETOS FICARAM ONDE ESTAVAM (250/hora, 1.200/dia) e agora sobram MUITO sobre o uso
+// real. É de propósito, e não é preguiça: o teto nunca existiu pra apertar o uso normal, e sim
+// pra um laço infinito não torrar o número numa madrugada. Baixá-los agora só criaria a chance
+// de cortar aviso de verdade no dia em que um caso novo entrar no canal. Se um dia o volume
+// voltar a encostar neles, o vigia avisa aos 80% (`PorcentoParaAvisar`) antes de barrar.
 public static class TetoDoWhatsApp
 {
     public const int PorHora = 250;
