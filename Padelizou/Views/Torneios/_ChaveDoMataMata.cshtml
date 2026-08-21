@@ -132,7 +132,7 @@
                                 }
                                 @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
                                 {
-                                    <span class="pdz-chave-quadra">@jogo.NomeQuadra</span>
+                                    <span class="pdz-chave-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra)</span>
                                 }
                             </div>
                             <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">

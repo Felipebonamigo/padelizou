@@ -92,7 +92,11 @@ namespace Padelizou.Controllers
             var quadraNovaDaAntiga = new Dictionary<int, Quadra>();
             foreach (var q in quadrasOriginais)
             {
-                var quadraNova = new Quadra { TorneioId = novo.Id, Nome = q.Nome };
+                // O CLUBE DA QUADRA viaja junto: a 2ª edição do torneio acontece nos mesmos
+                // lugares. Sem isto, duplicar um torneio de duas sedes devolveria um torneio de
+                // uma sede só — com os NOMES de quadra ainda dizendo "Nata" e "Batata", que é a
+                // pior forma de errar: parece certo na tela e a grade mistura tudo.
+                var quadraNova = new Quadra { TorneioId = novo.Id, Nome = q.Nome, ClubeId = q.ClubeId };
                 _context.Quadras.Add(quadraNova);
                 quadraNovaDaAntiga[q.Id] = quadraNova;
             }
@@ -119,6 +123,9 @@ namespace Padelizou.Controllers
                     QuantidadeTimes = c.QuantidadeTimes,
                     QuantidadeGrupos = c.QuantidadeGrupos,
                     ClassificadosPorGrupo = c.ClassificadosPorGrupo,
+                    // Em que clube a categoria joga — o par do `ClubeId` da quadra logo acima.
+                    // Os dois viajam ou nenhum viaja: metade da divisão é pior que nenhuma.
+                    ClubeId = c.ClubeId,
                 };
                 _context.Categorias.Add(categoriaNova);
                 categoriaNovaDaAntiga[c.Id] = categoriaNova;

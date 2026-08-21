@@ -156,7 +156,7 @@
             <span class="pdz-jl-etiqueta pdz-jl-fase">@faseNaTela</span>
             @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
             {
-                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra</span>
+                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra)</span>
             }
             @* W.O.: sem este selo o jogo aparece como um 6x0 comum, e quem varre a lista
                depois não tem como saber que ninguém entrou em quadra — o placar é o mesmo

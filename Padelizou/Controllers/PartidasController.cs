@@ -139,6 +139,12 @@ namespace Padelizou.Controllers
                 .OrderBy(q => q.Nome)
                 .ToListAsync();
 
+            // Com mais de um clube, o seletor de quadra é agrupado por clube — sem isso o
+            // organizador move o jogo pro outro prédio com um clique. Ver Services/LugarDoJogo.
+            ViewData[LugarDoJogo.ChaveNaTela] = partida.TorneioId is int comSede
+                ? await SedesDoTorneio.CarregarAsync(_context, comSede)
+                : SedesDoTorneio.Nenhuma;
+
             // O link da câmera é da QUADRA: escolher a quadra já traz o link dela, e o jogo
             // que nasceu depois do "usar este link em todos os próximos" para de chegar sem
             // transmissão. Ver Services/TransmissaoDaQuadra.

@@ -303,7 +303,8 @@ namespace Padelizou.Controllers
             EncaixarNasLevas(torneio, jogosPraAgendar, deChaveDireta,
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
                 quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
-                janelas: JanelasDeImpedimento.PorDupla(torneio));
+                janelas: JanelasDeImpedimento.PorDupla(torneio),
+                sedes: await SedesAsync(torneio.Id));
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
@@ -352,7 +353,10 @@ namespace Padelizou.Controllers
             // Ver Services/PreferenciaDeQuadra.
             IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
             // O impedimento de horário PAGO na inscrição. Ver Services/JanelasDeImpedimento.
-            IReadOnlyDictionary<int, (DateTime, DateTime)[]>? janelas = null)
+            IReadOnlyDictionary<int, (DateTime, DateTime)[]>? janelas = null,
+            // O torneio em mais de um clube. Nulo — o caso de quase todos — deixa tudo como era.
+            // Ver Services/SedesDoTorneio.
+            SedesDoTorneio? sedes = null)
         {
             var abre = aPartirDe ?? torneio.AberturaDaGrade;
             var intocados = jaMarcados ?? Array.Empty<Partida>();
@@ -410,7 +414,7 @@ namespace Padelizou.Controllers
                 var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
-                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas);
+                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes);
 
                 jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
             }
@@ -524,7 +528,8 @@ namespace Padelizou.Controllers
                 OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(id),
                 AberturaDoRecalculo(torneio, intocados), intocados,
                 await QuadrasPreferidasAsync(id),
-                JanelasDeImpedimento.PorDupla(torneio));
+                JanelasDeImpedimento.PorDupla(torneio),
+                await SedesAsync(id));
 
             await _context.SaveChangesAsync();
 
@@ -814,6 +819,10 @@ namespace Padelizou.Controllers
         // A quadra preferida de cada categoria (Services/PreferenciaDeQuadra).
         private Task<Dictionary<int, string[]>> QuadrasPreferidasAsync(int torneioId) =>
             Robo.QuadrasPreferidasAsync(torneioId);
+
+        // O torneio em mais de um clube (Services/SedesDoTorneio).
+        private Task<SedesDoTorneio> SedesAsync(int torneioId) =>
+            Robo.SedesAsync(torneioId);
 
         // Hora e quadra da rodada nova (Services/RoboDoChaveamento.AgendarNaGradeAsync).
         private Task AgendarNaGradeAsync(List<Partida> jogos, int? torneioId) =>

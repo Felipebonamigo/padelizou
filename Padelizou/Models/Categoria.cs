@@ -27,6 +27,28 @@ public partial class Categoria
     // atingido vai pra lista de espera (Dupla.EmListaDeEspera).
     public int? LimiteDuplas { get; set; }
 
+    // ---- EM QUE CLUBE ESTA CATEGORIA JOGA (21/08/2026) ----
+    //
+    // Existe pro torneio que acontece em MAIS DE UM CLUBE. É assim que esses torneios se
+    // organizam na prática: cada categoria fica inteira num clube, pra ninguém passar o dia
+    // indo e voltando. Nulo — o caso de todo torneio de uma sede só — quer dizer "joga em
+    // qualquer quadra do torneio", que é exatamente como sempre funcionou.
+    //
+    // ⚠️ Preenchida, ela é uma trava DURA na grade: a categoria não recebe quadra de outro
+    // clube nem quando o horário lota. É o OPOSTO da `QuadraDaCategoria` (a quadra PREFERIDA),
+    // que cede a quadra quando aperta — ver o degrau 3 de Services/PreferenciaDeQuadra. As
+    // duas não podiam compartilhar mecanismo: preferir a central e não conseguir custa uma
+    // quadra pior; "preferir" o clube certo e não conseguir manda o jogador pro outro lado da
+    // cidade no meio do torneio.
+    //
+    // ⚠️ Categoria apontando pra clube SEM QUADRA no torneio não trava nada: a grade trata
+    // como "sem sede" e marca em qualquer quadra. É de propósito — o organizador ainda apaga
+    // quadra depois do sorteio sem trava nenhuma (TorneiosController.Criacao, ação Editar), e
+    // o preço de uma sede que evaporou não pode ser a categoria inteira ficar sem horário.
+    // Ver Services/SedesDoTorneio.
+    public int? ClubeId { get; set; }
+    public virtual Clube? Clube { get; set; }
+
     // Qual categoria do Ranking RS esta aqui representa (100 a 116 — ver
     // Services/CategoriaDoRankingRs). Null = esta categoria NÃO é validada contra o ranking,
     // e esse é o padrão.

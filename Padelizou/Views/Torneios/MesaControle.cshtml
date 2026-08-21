@@ -22,8 +22,20 @@
             {
                 <div class="col-md-6 col-lg-4 mb-4" id="cartao_@partida.Id">
                     <div class="card shadow border-0" style="border-top: 5px solid red;">
+                        @* ONDE ESTE JOGO ESTÁ ACONTECENDO (21/08/2026).
+                           A Mesa é a tela de quem CHAMA pra quadra, e até aqui ela não dizia
+                           quadra nenhuma — o mesário sabia porque estava vendo de onde estava.
+                           Com o torneio em dois clubes isso desmorona: o mesário do Batata via
+                           os jogos do Nata misturados aos dele, sem nenhuma marca. Ver
+                           Services/LugarDoJogo. *@
                         <div class="card-header bg-white text-center fw-bold text-danger">
                             <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
+                            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), partida.NomeQuadra) is { } ondeJoga)
+                            {
+                                <span class="d-block small fw-normal text-muted">
+                                    <i class="bi bi-geo-alt-fill"></i> @ondeJoga
+                                </span>
+                            }
                         </div>
                         <div class="card-body p-2">
 

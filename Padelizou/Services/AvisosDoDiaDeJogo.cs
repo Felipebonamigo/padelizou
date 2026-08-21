@@ -50,10 +50,17 @@ public static class AvisosDoDiaDeJogo
         return ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
     }
 
-    public static string CorpoDoProximo(Partida partida) =>
-        string.IsNullOrWhiteSpace(partida.NomeQuadra)
-            ? "A quadra vagou — seu jogo é o próximo. Fique por perto."
-            : $"A {partida.NomeQuadra} vagou — seu jogo é o próximo. Fique por perto.";
+    // ⚠️ ESTE AVISO MANDA A PESSOA SE LEVANTAR E ANDAR, então ele precisa dizer PRA ONDE.
+    //
+    // Até 21/08/2026 ele citava só a quadra, e bastava — o torneio era num lugar só. Num torneio
+    // de duas sedes, "A Quadra 2 vagou, fique por perto" é instrução ativamente errada pra quem
+    // está no clube errado: perto do quê? Com sede, o clube entra no texto. Sai por app, e-mail
+    // e WhatsApp de uma vez (ver Services/EncerramentoDaPartida), então errar aqui erra em três
+    // canais ao mesmo tempo.
+    public static string CorpoDoProximo(Partida partida, SedesDoTorneio? sedes = null) =>
+        LugarDoJogo.EmTextoCorrido(sedes, partida.NomeQuadra) is { } onde
+            ? $"A {onde} vagou — seu jogo é o próximo. Fique por perto."
+            : "A quadra vagou — seu jogo é o próximo. Fique por perto.";
 
     // "Chaves publicadas": o valor está em dizer QUANDO a pessoa joga, não que existe uma
     // tabela em algum lugar. Sem horário, o aviso genérico ainda serve de chamado.

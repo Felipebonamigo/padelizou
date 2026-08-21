@@ -2682,7 +2682,75 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label fw-bold small">Nome de cada Quadra</label>
-                                    <div id="editCamposNomesQuadras" class="row g-2" data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'></div>
+                                    @* `data-sedes-atuais` anda em PAR com `data-nomes-atuais`, na
+                                       mesma ordem (por Id) — é a mesma amarração posicional que o
+                                       POST usa. Vazio na posição = quadra do clube principal. *@
+                                    <div id="editCamposNomesQuadras" class="row g-2"
+                                         data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'
+                                         data-sedes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.ClubeId?.ToString() ?? "") ?? Enumerable.Empty<string>()))'></div>
+                                </div>
+
+                                @* ── O TORNEIO EM MAIS DE UM CLUBE ──────────────────────
+                                   A mesma escolha da criação, editável depois — e aqui ela
+                                   costuma aparecer justamente porque a segunda sede foi
+                                   combinada em cima da hora.
+
+                                   ⚠️ `sedesInformadas` existe pelo mesmo motivo do
+                                   `quadrasPreferidasInformadas` logo abaixo, e aqui doeria
+                                   mais: sem a marca, salvar a gestão numa aba antiga apagaria
+                                   as sedes de um torneio em andamento, e a próxima grade
+                                   espalharia as categorias pelos dois clubes sem avisar. *@
+                                <div class="col-12">
+                                    <input type="hidden" name="sedesInformadas" value="true" />
+                                    <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt);"
+                                         id="pdzEditSedes"
+                                         data-clubes='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(((ViewBag.CatalogoClubes as List<Padelizou.Models.Clube>) ?? new()).Select(c => new { id = c.Id, nome = c.Nome })))'
+                                         data-principal="@Model.ClubeId"
+                                         data-principal-nome="@((ViewBag.ClubeDoTorneio as Padelizou.Models.Clube)?.Nome ?? Model.LocalTorneio ?? "Clube do torneio")"
+                                         data-outras='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Where(q => q.ClubeId != null && q.ClubeId != Model.ClubeId).Select(q => q.ClubeId!.Value).Distinct() ?? Enumerable.Empty<int>()))'
+                                         data-categorias='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Categorias.OrderBy(c => c.Id).Select(c => new { id = c.Id, nome = c.Nome, clube = c.ClubeId?.ToString() ?? "" })))'>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="chkEditMaisDeUmClube"
+                                                   style="transform: scale(1.2); margin-right: 10px;"
+                                                   onchange="pdzEditAlternarSedes()">
+                                            <label class="form-check-label fw-bold small" for="chkEditMaisDeUmClube" style="color: var(--pdz-ink);">
+                                                <i class="bi bi-geo-alt-fill"></i> Este torneio acontece em mais de um clube
+                                            </label>
+                                        </div>
+
+                                        <div id="pdzEditBlocoSedes" style="display:none;" class="mt-3">
+                                            <label class="form-label small fw-bold mb-1">Os outros clubes deste torneio</label>
+                                            <div id="pdzEditListaDeSedes" class="d-flex flex-column gap-2"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="pdzEditAdicionarSede()">
+                                                <i class="bi bi-plus-lg"></i> Adicionar clube
+                                            </button>
+
+                                            <div class="mt-3" style="max-width: 300px;">
+                                                <label class="form-label small fw-bold mb-1" for="editMinutosParaTrocarDeClube">
+                                                    Tempo pra ir de um clube ao outro (min)
+                                                </label>
+                                                <input type="number" min="0" max="240" class="form-control form-control-sm"
+                                                       id="editMinutosParaTrocarDeClube" name="minutosParaTrocarDeClube"
+                                                       value="@Model.MinutosParaTrocarDeClube" />
+                                                <small class="text-muted d-block mt-1">
+                                                    Folga entre os jogos de quem disputa duas categorias em clubes
+                                                    diferentes. Ela CEDE quando respeitá-la deixaria uma quadra vazia.
+                                                    Zero desliga.
+                                                </small>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <label class="form-label small fw-bold mb-1">Em que clube cada categoria joga</label>
+                                                <p class="small text-muted mb-2">
+                                                    Trava DURA: os jogos da categoria ficam só nas quadras desse clube,
+                                                    inclusive depois do chaveamento.
+                                                    <strong>Vale a partir do próximo sorteio</strong> (ou do "refazer
+                                                    grade") — jogo que já tem quadra não muda de lugar sozinho.
+                                                </p>
+                                                <div id="pdzEditSedeDaCategoriaTabela" class="table-responsive"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 @* ── QUADRA PREFERENCIAL POR CATEGORIA ──────────────────
@@ -2722,6 +2790,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            aba velha APAGARIA a preferência inteira, calado. É a
                                            mesma armadilha do `dataFimInformada`. *@
                                         <input type="hidden" name="quadrasPreferidasInformadas" value="true" />
+                                    </details>
                                 </div>
                                 @* Os mesmos campos da criação, editáveis depois: chave Pix
                                    trocada, data que escorregou e recado que mudou são coisas
@@ -4136,7 +4205,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 }
                                                                 @if (!string.IsNullOrEmpty(jogoDoGrupo.NomeQuadra))
                                                                 {
-                                                                    <span class="pdz-grupo-jogo-quadra">@jogoDoGrupo.NomeQuadra</span>
+                                                                    <span class="pdz-grupo-jogo-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogoDoGrupo.NomeQuadra)</span>
                                                                 }
                                                             </div>
                                                             <div class="pdz-grupo-jogo-lado @(ganhou1 ? "pdz-chave-venceu" : ganhou2 ? "text-muted" : "")">
@@ -4237,7 +4306,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 <span>@quando.ToString("dd/MM HH:mm")</span>
                                                                 @if (!string.IsNullOrEmpty(previsto.Quadra))
                                                                 {
-                                                                    <span class="pdz-chave-projetada-quadra">@previsto.Quadra</span>
+                                                                    <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
                                                                 }
                                                             }
                                                             else
@@ -4338,6 +4407,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 var valoresAtuais = Array.from(container.querySelectorAll('input')).map(function (i) { return i.value; });
                 var valores = valoresAtuais.length > 0 ? valoresAtuais : nomesAtuais;
 
+                // As sedes seguem a mesma lógica dos nomes: o que está na tela manda, e só na
+                // primeira montagem vale o que veio do banco. Os dois arrays andam em par por
+                // POSIÇÃO — é a amarração que o POST usa.
+                var sedesDoBanco = JSON.parse(container.getAttribute('data-sedes-atuais') || '[]');
+                var sedesNaTela = Array.from(container.querySelectorAll('select')).map(function (s) { return s.value; });
+                var sedesValores = sedesNaTela.length > 0 ? sedesNaTela : sedesDoBanco;
+
+                var sedes = pdzEditSedesEscolhidas();
+
                 container.innerHTML = '';
                 for (var i = 0; i < quantidade; i++) {
                     var col = document.createElement('div');
@@ -4351,10 +4429,146 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     // Renomeou a quadra? A tabela de preferência tem que dizer o nome novo.
                     input.addEventListener('input', montarPreferenciaQuadraEdicao);
                     col.appendChild(input);
+
+                    // O seletor de clube é o PAR POSICIONAL do campo de nome, e por isso nasce no
+                    // mesmo laço — ver Services/SedesDoTorneio.ClubeDaQuadraNaPosicao. Só existe
+                    // com mais de uma sede: num torneio de um clube só ele seria um campo a mais
+                    // com uma opção só.
+                    if (sedes.length > 1) {
+                        var select = document.createElement('select');
+                        select.name = 'clubesQuadras';
+                        select.className = 'form-select form-select-sm mt-1';
+                        select.innerHTML = sedes.map(function (s) {
+                            return '<option value="' + (s.principal ? '' : s.id) + '">' + pdzEditEscapar(s.nome) + '</option>';
+                        }).join('');
+                        if (sedesValores[i] !== undefined) select.value = sedesValores[i];
+                        col.appendChild(select);
+                    }
+
                     container.appendChild(col);
                 }
 
                 montarPreferenciaQuadraEdicao();
+                pdzEditMontarSedeDaCategoria();
+            }
+
+            // ── O torneio em mais de um clube, na tela de gestão ──────────────────────────
+            function pdzEditEscapar(texto) {
+                var caixa = document.createElement('span');
+                caixa.textContent = texto;
+                return caixa.innerHTML;
+            }
+
+            // O clube principal mais os que o organizador acrescentou. O principal vem do banco
+            // e não muda aqui: trocar o clube do torneio é outro campo, mais acima na mesma tela.
+            function pdzEditSedesEscolhidas() {
+                var bloco = document.getElementById('pdzEditSedes');
+                if (!bloco) return [];
+
+                var chk = document.getElementById('chkEditMaisDeUmClube');
+                if (!chk || !chk.checked) return [];
+
+                var sedes = [{
+                    id: bloco.getAttribute('data-principal'),
+                    nome: bloco.getAttribute('data-principal-nome'),
+                    principal: true
+                }];
+
+                var catalogo = JSON.parse(bloco.getAttribute('data-clubes') || '[]');
+                Array.from(document.querySelectorAll('#pdzEditListaDeSedes select')).forEach(function (s) {
+                    if (!s.value) return;
+                    if (sedes.some(function (x) { return x.id === s.value; })) return;
+                    var achado = catalogo.filter(function (c) { return String(c.id) === s.value; })[0];
+                    sedes.push({ id: s.value, nome: achado ? achado.nome : s.value, principal: false });
+                });
+
+                return sedes;
+            }
+
+            function pdzEditAdicionarSede(valorInicial) {
+                var bloco = document.getElementById('pdzEditSedes');
+                var lista = document.getElementById('pdzEditListaDeSedes');
+                if (!bloco || !lista) return;
+
+                var catalogo = JSON.parse(bloco.getAttribute('data-clubes') || '[]');
+                var linha = document.createElement('div');
+                linha.className = 'd-flex gap-2 align-items-center';
+
+                var select = document.createElement('select');
+                select.name = 'clubesDoTorneio';
+                select.className = 'form-select form-select-sm';
+                select.innerHTML = '<option value="">-- Escolha o clube --</option>'
+                    + catalogo.map(function (c) {
+                        return '<option value="' + c.id + '">' + pdzEditEscapar(c.nome) + '</option>';
+                    }).join('');
+                if (valorInicial) select.value = String(valorInicial);
+                select.addEventListener('change', gerarCamposQuadraEdicao);
+
+                var tirar = document.createElement('button');
+                tirar.type = 'button';
+                tirar.className = 'btn btn-sm btn-outline-danger';
+                tirar.innerHTML = '<i class="bi bi-x-lg"></i>';
+                tirar.addEventListener('click', function () { linha.remove(); gerarCamposQuadraEdicao(); });
+
+                linha.appendChild(select);
+                linha.appendChild(tirar);
+                lista.appendChild(linha);
+            }
+
+            function pdzEditAlternarSedes() {
+                var chk = document.getElementById('chkEditMaisDeUmClube');
+                var bloco = document.getElementById('pdzEditBlocoSedes');
+                if (!chk || !bloco) return;
+
+                bloco.style.display = chk.checked ? '' : 'none';
+                if (chk.checked && document.querySelectorAll('#pdzEditListaDeSedes select').length === 0) {
+                    pdzEditAdicionarSede();
+                }
+                gerarCamposQuadraEdicao();
+            }
+
+            // Em que clube cada categoria joga. As categorias já existem e vêm com Id e com o
+            // clube que está gravado — diferente da criação, onde só havia a do catálogo.
+            function pdzEditMontarSedeDaCategoria() {
+                var bloco = document.getElementById('pdzEditSedes');
+                var alvo = document.getElementById('pdzEditSedeDaCategoriaTabela');
+                if (!bloco || !alvo) return;
+
+                // O que está na tela manda; só na primeira montagem vale o que veio do banco.
+                var escolhidas = {};
+                var naTela = alvo.querySelectorAll('select');
+                if (naTela.length > 0) {
+                    naTela.forEach(function (s) {
+                        if (s.value) escolhidas[s.value.split(':')[0]] = s.value.split(':')[1];
+                    });
+                } else {
+                    JSON.parse(bloco.getAttribute('data-categorias') || '[]')
+                        .forEach(function (c) { if (c.clube) escolhidas[c.id] = c.clube; });
+                }
+
+                var sedes = pdzEditSedesEscolhidas();
+                var categorias = JSON.parse(bloco.getAttribute('data-categorias') || '[]');
+
+                if (sedes.length < 2 || categorias.length === 0) {
+                    alvo.innerHTML = '<div class="small text-muted">'
+                        + 'Escolha o segundo clube aqui em cima pra dividir as categorias.</div>';
+                    return;
+                }
+
+                var html = '<table class="table table-sm align-middle mb-0"><tbody>';
+                categorias.forEach(function (cat) {
+                    html += '<tr><td class="small">' + pdzEditEscapar(cat.nome) + '</td><td style="width: 240px;">'
+                         + '<select name="clubesCategorias" class="form-select form-select-sm">'
+                         + '<option value="">Qualquer quadra do torneio</option>'
+                         + sedes.map(function (s) {
+                               return '<option value="' + cat.id + ':' + s.id + '"'
+                                    + (String(escolhidas[cat.id]) === String(s.id) ? ' selected' : '') + '>'
+                                    + pdzEditEscapar(s.nome) + '</option>';
+                           }).join('')
+                         + '</select></td></tr>';
+                });
+
+                alvo.innerHTML = html + '</tbody></table>';
             }
 
             // A tabela categorias × quadras da gestão. As categorias já existem (vêm com Id no
@@ -4408,7 +4622,24 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                 alvo.innerHTML = html + '</tbody></table>';
             }
-            gerarCamposQuadraEdicao();
+
+            // Torneio que JÁ tem mais de uma sede abre a seção pronta: caixa marcada e os outros
+            // clubes na lista. Sem isto o organizador abriria a gestão de um torneio de duas
+            // sedes e veria a caixa desmarcada — o que é uma mentira sobre o próprio torneio, e
+            // pior: salvar assim mandaria `clubesDoTorneio` vazio e desmancharia a divisão.
+            (function () {
+                var bloco = document.getElementById('pdzEditSedes');
+                if (bloco) {
+                    var outras = JSON.parse(bloco.getAttribute('data-outras') || '[]');
+                    if (outras.length > 0) {
+                        var chk = document.getElementById('chkEditMaisDeUmClube');
+                        if (chk) chk.checked = true;
+                        document.getElementById('pdzEditBlocoSedes').style.display = '';
+                        outras.forEach(function (clubeId) { pdzEditAdicionarSede(clubeId); });
+                    }
+                }
+                gerarCamposQuadraEdicao();
+            })();
     </script>
 </div>
 

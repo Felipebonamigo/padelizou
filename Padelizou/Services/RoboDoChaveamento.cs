@@ -468,7 +468,8 @@ public class RoboDoChaveamento
             await OcupantesPorDuplaAsync(torneioId.Value),
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
             await QuadrasPreferidasAsync(torneioId.Value),
-            await JanelasProibidasPorDuplaAsync(torneio));
+            await JanelasProibidasPorDuplaAsync(torneio),
+            await SedesAsync(torneioId.Value));
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver
@@ -478,6 +479,12 @@ public class RoboDoChaveamento
         JanelasDeImpedimento.PorDupla(torneio, await _context.Duplas
             .Where(d => d.Categoria.TorneioId == torneio.Id)
             .ToListAsync());
+
+    // O torneio em MAIS DE UM CLUBE. A régua e a consulta moram em Services/SedesDoTorneio —
+    // aqui é só o atalho pra quem já tem o robô na mão. Quase todo torneio tem uma sede só, e
+    // aí o mapa volta vazio e a grade se comporta exatamente como antes desta opção existir.
+    public Task<SedesDoTorneio> SedesAsync(int torneioId) =>
+        SedesDoTorneio.CarregarAsync(_context, torneioId);
 
     // Os nomes das quadras do torneio, na ordem — é o que transforma "a definir" em "Quadra C"
     // na tela do jogador. Torneio que não cadastrou quadra devolve lista vazia, e a grade segue

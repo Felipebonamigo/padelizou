@@ -351,6 +351,10 @@ namespace Padelizou.Controllers
                 .Include(c => c.Cidade)
                 .FirstOrDefaultAsync(c => c.Id == torneio.ClubeId);
 
+            // O torneio em mais de um clube. Vai por ViewData, e não por ViewBag, porque quem
+            // consome são as PARCIAIS COMPARTILHADAS de jogo — ver Services/LugarDoJogo.
+            ViewData[LugarDoJogo.ChaveNaTela] = await Robo.SedesAsync(torneio.Id);
+
             // MOTOR MATEMÁTICO DE CLASSIFICAÇÃO
             // 1. Puxa todas as partidas já finalizadas deste torneio
             var partidasFinalizadas = await _context.Partidas
@@ -1066,6 +1070,11 @@ namespace Padelizou.Controllers
         // pros dois lugares não divergirem.
         private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
         {
+            // As sedes ficam AQUI, e não só na ação, porque é este método que abastece as duas
+            // telas que mostram jogo (`Details` e `Jogos`) — e a etiqueta de quadra sai das
+            // mesmas parciais nas duas. Ver Services/LugarDoJogo.
+            ViewData[LugarDoJogo.ChaveNaTela] = await Robo.SedesAsync(torneioId);
+
             var query = _context.Partidas
                 .Include(p => p.Categoria)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)

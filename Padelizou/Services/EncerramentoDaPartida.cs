@@ -295,11 +295,15 @@ public class EncerramentoDaPartida
             var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas);
             if (proxima == null) return;
 
+            // O clube da quadra, pro aviso não mandar quem está no clube A correr pra uma quadra
+            // do clube B. Torneio de uma sede só devolve o mapa vazio e o texto não muda.
+            var sedes = await SedesDoTorneio.CarregarAsync(_context, terminada.TorneioId.Value);
+
             foreach (var jogadorId in AvisosDoDiaDeJogo.JogadoresDa(proxima))
             {
                 await _push.EnviarParaJogadorAsync(jogadorId,
                     "Seu jogo é o próximo!",
-                    AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
+                    AvisosDoDiaDeJogo.CorpoDoProximo(proxima, sedes),
                     // O aviso mais importante do sistema: a pessoa está no clube, o jogo é
                     // agora, e ela não vai abrir e-mail. Se um só aviso valesse o WhatsApp,
                     // seria este.
