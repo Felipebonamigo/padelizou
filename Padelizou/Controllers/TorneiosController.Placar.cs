@@ -37,6 +37,10 @@ namespace Padelizou.Controllers
             // O torneio inteiro porque a Mesa monta o limite de games de CADA jogo a partir
             // da fase dele (Services/FormatoDaPartida) — grupo até 4, final até 6.
             ViewBag.Torneio = await _context.Torneios.FindAsync(id);
+            // Onde cada jogo está acontecendo. A Mesa é a tela de quem chama pra quadra: num
+            // torneio de dois clubes, sem isto o mesário vê os jogos do outro prédio misturados
+            // aos dele. Ver Services/LugarDoJogo.
+            ViewData[LugarDoJogo.ChaveNaTela] = await SedesDoTorneio.CarregarAsync(_context, id);
             return View(partidasEmAndamento);
         }
 

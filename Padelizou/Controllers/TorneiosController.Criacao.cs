@@ -131,6 +131,10 @@ namespace Padelizou.Controllers
 
             var marcadas = new List<int>();
             var limites = new Dictionary<int, int>();
+            // Em que clube cada categoria jogava, pela chave do CATÁLOGO — a única que o
+            // formulário de criação conhece, porque as categorias deste torneio ainda não
+            // existem. Mesma tradução do limite de vagas, no mesmo laço.
+            var sedesDeCategoria = new Dictionary<int, int>();
             foreach (var categoria in categoriasDoModelo.Where(c => !c.DeTimes))
             {
                 if (categoria.Codigo == null || !idPorCodigo.TryGetValue(categoria.Codigo, out var idDoCatalogo))
@@ -138,10 +142,12 @@ namespace Padelizou.Controllers
 
                 marcadas.Add(idDoCatalogo);
                 if (categoria.LimiteDuplas is int limite) limites[idDoCatalogo] = limite;
+                if (categoria.ClubeId is int sede) sedesDeCategoria[idDoCatalogo] = sede;
             }
 
             ViewBag.CategoriasSelecionadas = marcadas.ToArray();
             ViewBag.LimitesCopiados = limites;
+            ViewBag.SedesDeCategoriaCopiadas = sedesDeCategoria;
 
             // Os nomes na ORDEM em que nasceram: é a mesma ordem em que o formulário desenha
             // os campos e a mesma que a preferência de quadra usa pra apontar.
@@ -149,6 +155,17 @@ namespace Padelizou.Controllers
                 .Where(q => q.TorneioId == modelo.Id)
                 .OrderBy(q => q.Id)
                 .Select(q => q.Nome)
+                .ToListAsync();
+
+            // ⚠️ O CLUBE DE CADA QUADRA VIAJA JUNTO COM O NOME, na mesma ordem. Sem isto,
+            // "copiar configurações" de um torneio de duas sedes devolveria um torneio de UMA —
+            // com os nomes de quadra ainda dizendo "Central Nata" e "Central Batata", que é a
+            // pior forma de errar: parece certo na tela e a grade mistura os dois clubes.
+            // Vazio na posição = quadra do clube principal.
+            ViewBag.SedesDeQuadraCopiadas = await _context.Quadras
+                .Where(q => q.TorneioId == modelo.Id)
+                .OrderBy(q => q.Id)
+                .Select(q => q.ClubeId != null ? q.ClubeId.ToString() : "")
                 .ToListAsync();
 
             if (categoriasDoModelo.FirstOrDefault(c => c.DeTimes) is { } deTimes)
@@ -342,7 +359,16 @@ namespace Padelizou.Controllers
             // A quadra preferida de cada categoria, em pares "categoriaDoCatálogo:posiçãoDa
             // Quadra" (ver Services/PreferenciaDeQuadra.Ler). Nulo = a seção ficou fechada,
             // que é o caso da maioria — e aí a grade escolhe quadra como sempre escolheu.
-            string[]? quadrasPreferidas = null)
+            string[]? quadrasPreferidas = null,
+            // ── O torneio em MAIS DE UM CLUBE (Services/SedesDoTorneio) ──
+            // `clubesDoTorneio` são as sedes ALÉM do clube principal. `clubesQuadras` é o clube
+            // de cada quadra, na mesma posição de `nomesQuadras` — os dois saem do mesmo laço de
+            // JavaScript, e é isso que garante que as posições casem. `clubesCategorias` são
+            // pares "categoriaDoCatálogo:clube". Nulos = torneio de uma sede só, o caso de todos
+            // até hoje.
+            int[]? clubesDoTorneio = null,
+            string[]? clubesQuadras = null,
+            string[]? clubesCategorias = null)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -403,9 +429,50 @@ namespace Padelizou.Controllers
             // mesmo nome fazem os três agirem sobre a errada, em silêncio. Recusado aqui pra o
             // organizador ler o motivo em vez de levar um erro do índice do banco na cara.
             if (nomesQuadras != null
-                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras) is { } quadraRepetida)
+                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras,
+                       maisDeUmClube: clubesDoTorneio is { Length: > 0 }) is { } quadraRepetida)
             {
                 return await Recusar(quadraRepetida);
+            }
+
+            // ── O torneio em mais de um clube ────────────────────────────────────────────────
+            // As sedes válidas são o clube PRINCIPAL mais as que o organizador acrescentou — e
+            // só as que EXISTEM no banco. Sede que não passa por aqui é ignorada calada: é POST
+            // desencontrado da tela, não escolha de ninguém.
+            //
+            // ⚠️ O PRINCIPAL PRECISA ENTRAR NA LISTA. Na tela, a primeira sede É o clube do
+            // torneio, e a tabela de categoria×clube manda o Id REAL dele ("3:1") — só o seletor
+            // das quadras é que manda vazio. Sem ele aqui, escolher "a 3ª joga no clube
+            // principal" era descartado calado e a categoria nascia sem sede nenhuma.
+            var sedesPermitidas = new HashSet<int>();
+            if (clubesDoTorneio is { Length: > 0 })
+            {
+                var existem = await _context.Clubes
+                    .Where(c => clubesDoTorneio.Contains(c.Id))
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                foreach (var clubeId in existem) sedesPermitidas.Add(clubeId);
+                if (sedesPermitidas.Count > 0 && torneio.ClubeId > 0) sedesPermitidas.Add(torneio.ClubeId);
+            }
+
+            var clubePorCategoriaDoCatalogo = SedesDoTorneio.LerClubePorCategoria(clubesCategorias, sedesPermitidas);
+
+            // Categoria num clube sem quadra nenhuma é recusado AQUI de propósito: a grade
+            // sobreviveria (trata como "sem sede"), e é justamente por isso que precisa de
+            // recusa — o organizador veria a tela salvar e o torneio faria o contrário calado.
+            //
+            // ⚠️ `?? ClubeId` porque quadra sem clube dito É do clube do torneio — a mesma regra
+            // que Services/SedesDoTorneio aplica. Sem isso, um torneio com todas as quadras no
+            // principal e a categoria também nele seria recusado por "clube sem quadra".
+            if (sedesPermitidas.Count > 0
+                && SedesDoTorneio.MotivoParaNaoSalvar(
+                       Enumerable.Range(0, Math.Max(1, torneio.QuantidadeQuadras))
+                           .Select(q => SedesDoTorneio.ClubeDaQuadraNaPosicao(clubesQuadras, q, sedesPermitidas)
+                                        ?? (torneio.ClubeId > 0 ? torneio.ClubeId : (int?)null)),
+                       clubePorCategoriaDoCatalogo.Values) is { } sedeSemQuadra)
+            {
+                return await Recusar(sedeSemQuadra);
             }
 
             // Preço negativo não estoura nada — e é justamente por isso que passava batido: a
@@ -604,7 +671,15 @@ namespace Padelizou.Controllers
             {
                 string? nomeInformado = nomesQuadras != null && q < nomesQuadras.Length ? nomesQuadras[q]?.Trim() : null;
                 string nomeQuadra = string.IsNullOrWhiteSpace(nomeInformado) ? $"Quadra {alfabetoQuadras[q]}" : nomeInformado;
-                var quadraNova = new Quadra { TorneioId = torneio.Id, Nome = nomeQuadra };
+                var quadraNova = new Quadra
+                {
+                    TorneioId = torneio.Id,
+                    Nome = nomeQuadra,
+                    // Nulo = no clube do torneio, que é o que toda quadra sempre foi. A posição
+                    // aqui é a MESMA de `nomesQuadras` porque os dois campos saem do mesmo laço
+                    // de JavaScript na tela — ver Services/SedesDoTorneio.
+                    ClubeId = SedesDoTorneio.ClubeDaQuadraNaPosicao(clubesQuadras, q, sedesPermitidas),
+                };
                 _context.Quadras.Add(quadraNova);
                 quadrasCriadas.Add(quadraNova);
             }
@@ -657,7 +732,14 @@ namespace Padelizou.Controllers
                             TorneioId = torneio.Id,
                             Nome = catPadrao.Nome,
                             Codigo = catPadrao.Codigo,
-                            LimiteDuplas = limite
+                            LimiteDuplas = limite,
+                            // Em que clube esta categoria joga, quando o torneio tem mais de um.
+                            // Nulo = em qualquer quadra, que é o caso de todo torneio de uma
+                            // sede só. A chave aqui é a categoria do CATÁLOGO, porque é só o que
+                            // a tela conhecia na hora de marcar — esta aqui ainda não tinha Id.
+                            ClubeId = clubePorCategoriaDoCatalogo.TryGetValue(catId, out var sedeDaCategoria)
+                                ? sedeDaCategoria
+                                : null,
                         };
 
                         // O de-para com o Ranking RS só é preenchido para quem PEDIU a conferência.
@@ -1155,6 +1237,9 @@ namespace Padelizou.Controllers
             // pagou sumiria calado.
             bool? permiteImpedimentoQuintaNoite = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
+            // A folga pra atravessar a cidade entre uma sede e outra. Nulo = campo ausente, e
+            // aí o que está gravado FICA — mesma armadilha do tempo de partida logo acima.
+            int? minutosParaTrocarDeClube = null,
             // Até quando o organizador tem a quadra. O par com `dataFimInformada` existe porque
             // aqui nulo tem DOIS sentidos: "apaguei o limite de propósito" (campo em branco) e
             // "meu formulário nem tem esse campo" (aba aberta antes deste deploy). Sem a marca,
@@ -1176,7 +1261,16 @@ namespace Padelizou.Controllers
             // pelo mesmo motivo do `dataFimInformada`: caixa desmarcada não vai no POST, então
             // sem a marca "desmarquei todas" e "minha aba nem tem esse campo" chegariam iguais —
             // e a segunda apagaria a escolha inteira, calada.
-            string[]? quadrasPreferidas = null, bool quadrasPreferidasInformadas = false)
+            string[]? quadrasPreferidas = null, bool quadrasPreferidasInformadas = false,
+            // ── O torneio em MAIS DE UM CLUBE (Services/SedesDoTorneio) ──
+            // Mesmos três campos da criação, e `sedesInformadas` pelo mesmo motivo do
+            // `quadrasPreferidasInformadas`: um `<select>` vazio e uma aba aberta antes deste
+            // deploy chegam iguais aqui, e sem a marca a segunda apagaria as sedes que alguém
+            // acabou de configurar — calada, e no meio de um torneio já sorteado.
+            int[]? clubesDoTorneio = null,
+            string[]? clubesQuadras = null,
+            string[]? clubesCategorias = null,
+            bool sedesInformadas = false)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -1194,9 +1288,44 @@ namespace Padelizou.Controllers
             // Services/NomeDeQuadraUnico: o nome é a identidade da quadra, e é por ele que a
             // grade, o link de transmissão e a troca de quadra a encontram.
             if (nomesQuadras != null
-                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras) is { } quadraRepetida)
+                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras,
+                       maisDeUmClube: sedesInformadas && clubesDoTorneio is { Length: > 0 }) is { } quadraRepetida)
             {
                 TempData["Erro"] = quadraRepetida;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // ── A SEGUNDA PORTA das sedes — a primeira é a criação ───────────────────────────
+            // Aqui as sedes só entram quando a tela DISSE que mandou o campo. Sem essa marca,
+            // qualquer POST vindo de uma aba antiga apagaria a configuração de sedes de um
+            // torneio que já está rodando.
+            var sedesPermitidas = new HashSet<int>();
+            if (sedesInformadas && clubesDoTorneio is { Length: > 0 })
+            {
+                var existem = await _context.Clubes
+                    .Where(c => clubesDoTorneio.Contains(c.Id))
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                foreach (var sedeId in existem) sedesPermitidas.Add(sedeId);
+                // O clube principal também é sede — ver o comentário gêmeo no `Create`.
+                if (sedesPermitidas.Count > 0 && torneio.ClubeId > 0) sedesPermitidas.Add(torneio.ClubeId);
+            }
+
+            // Aqui a chave é o Id da categoria DE VERDADE — diferente da criação, onde só
+            // existia a categoria do catálogo. Na edição elas já nasceram.
+            var clubePorCategoria = sedesInformadas
+                ? SedesDoTorneio.LerClubePorCategoria(clubesCategorias, sedesPermitidas)
+                : new Dictionary<int, int>();
+
+            if (sedesInformadas && sedesPermitidas.Count > 0
+                && SedesDoTorneio.MotivoParaNaoSalvar(
+                       Enumerable.Range(0, Math.Max(1, quantidadeQuadras))
+                           .Select(q => SedesDoTorneio.ClubeDaQuadraNaPosicao(clubesQuadras, q, sedesPermitidas)
+                                        ?? (torneio.ClubeId > 0 ? torneio.ClubeId : (int?)null)),
+                       clubePorCategoria.Values) is { } sedeSemQuadra)
+            {
+                TempData["Erro"] = sedeSemQuadra;
                 return RedirectToAction("Details", new { id });
             }
 
@@ -1389,6 +1518,10 @@ namespace Padelizou.Controllers
                 torneio.ContagemDeGames = contagemDeGames!;
             }
             torneio.TempoPrevistoPartidaMinutos = tempoPrevistoPartidaMinutos ?? torneio.TempoPrevistoPartidaMinutos;
+            // Negativo vira zero, e zero desliga a folga de propósito — o organizador que tem as
+            // duas sedes na mesma rua não quer buraco nenhum na grade.
+            if (minutosParaTrocarDeClube is { } folgaEntreClubes)
+                torneio.MinutosParaTrocarDeClube = Math.Max(0, folgaEntreClubes);
 
             // ⚠️ LIGAR "sem horário previsto" TEM QUE APAGAR o horário que já existe. A chave
             // só evitava marcar horário no sorteio SEGUINTE — quem sorteou antes e ligou
@@ -1569,14 +1702,23 @@ namespace Padelizou.Controllers
             {
                 string? nomeInformado = nomesQuadras != null && i < nomesQuadras.Length ? nomesQuadras[i]?.Trim() : null;
                 string nomeQuadra = string.IsNullOrWhiteSpace(nomeInformado) ? $"Quadra {alfabetoQuadras[i]}" : nomeInformado;
+
+                // O clube desta quadra, só quando a tela mandou o campo. Aba antiga não mexe no
+                // que já está gravado — apagar a sede de um torneio em andamento espalharia os
+                // jogos pelos dois clubes na próxima vez que a grade fosse refeita.
+                int? clubeDaQuadra = sedesInformadas
+                    ? SedesDoTorneio.ClubeDaQuadraNaPosicao(clubesQuadras, i, sedesPermitidas)
+                    : null;
+
                 if (i < quadrasAtuais.Count)
                 {
                     quadrasAtuais[i].Nome = nomeQuadra;
+                    if (sedesInformadas) quadrasAtuais[i].ClubeId = clubeDaQuadra;
                     quadrasPorPosicao.Add(quadrasAtuais[i]);
                 }
                 else
                 {
-                    var quadraNova = new Quadra { TorneioId = id, Nome = nomeQuadra };
+                    var quadraNova = new Quadra { TorneioId = id, Nome = nomeQuadra, ClubeId = clubeDaQuadra };
                     _context.Quadras.Add(quadraNova);
                     quadrasPorPosicao.Add(quadraNova);
                 }
@@ -1608,6 +1750,25 @@ namespace Padelizou.Controllers
                         CategoriaId = categoriaId,
                         QuadraId = quadrasPorPosicao[posicaoDaQuadra].Id,
                     });
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            // Em que clube cada categoria joga. Só quando a tela mandou o campo — o motivo é o
+            // mesmo da preferência de quadra logo acima, e aqui doeria mais: apagar a sede da
+            // categoria não a deixa sem escolha, deixa a grade livre pra mandá-la pro OUTRO
+            // clube na próxima vez que alguém refizesse a grade.
+            //
+            // ⚠️ A categoria é conferida contra ESTE torneio pelo mesmo motivo da preferência:
+            // o valor vem do navegador.
+            if (sedesInformadas)
+            {
+                var categoriasDaqui = await _context.Categorias.Where(c => c.TorneioId == id).ToListAsync();
+
+                foreach (var categoria in categoriasDaqui)
+                {
+                    categoria.ClubeId = clubePorCategoria.TryGetValue(categoria.Id, out var sede) ? sede : null;
                 }
 
                 await _context.SaveChangesAsync();

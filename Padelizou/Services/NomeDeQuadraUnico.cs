@@ -23,7 +23,14 @@ public static class NomeDeQuadraUnico
     // Compara sem diferenciar maiúscula/minúscula e ignorando espaço nas pontas: "Quadra 1" e
     // "quadra 1 " são a mesma quadra pra quem lê a tela, e deixar as duas passar entregaria o
     // mesmo problema com a aparência de estar tudo certo.
-    public static string? MotivoParaNaoSalvar(IEnumerable<string?> nomes)
+    //
+    // `maisDeUmClube` muda só a EXPLICAÇÃO, nunca a resposta. Num torneio de duas sedes o
+    // organizador cai aqui por um motivo diferente e bem mais natural — os dois clubes têm uma
+    // "Quadra 1" —, e a saída dele também é outra: pôr o clube dentro do nome. Sem essa frase a
+    // recusa soaria como capricho do sistema, e é o contrário: `Partida.NomeQuadra` é texto
+    // solto, então duas "Quadra 1" seriam a MESMA quadra pra grade, que marcaria um jogo em
+    // cada clube no mesmo horário achando que tinha dobrado a quadra.
+    public static string? MotivoParaNaoSalvar(IEnumerable<string?> nomes, bool maisDeUmClube = false)
     {
         var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -35,7 +42,10 @@ public static class NomeDeQuadraUnico
             if (!vistos.Add(limpo))
             {
                 return $"Duas quadras com o mesmo nome (\"{limpo}\"). "
-                     + "O nome é como o sistema sabe qual quadra é qual — dê nomes diferentes.";
+                     + "O nome é como o sistema sabe qual quadra é qual — dê nomes diferentes."
+                     + (maisDeUmClube
+                         ? " Com mais de um clube, ponha o clube no nome: \"Quadra 1 Nata\" e \"Quadra 1 Batata\"."
+                         : "");
             }
         }
 

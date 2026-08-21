@@ -62,12 +62,34 @@
                                     @* `data-link`: o link da câmera daquela quadra viaja na
                                        própria opção, e trocar de quadra troca o link junto
                                        (o script no fim do arquivo). *@
+                                    @* ⚠️ COM MAIS DE UM CLUBE, AGRUPADO POR CLUBE. Numa lista
+                                       plana o organizador move o jogo pro outro prédio com um
+                                       clique e nenhuma tela reclama — e mover é justamente o que
+                                       ele faz nesta tela o dia inteiro. O `<optgroup>` é o
+                                       navegador desenhando o aviso de graça. *@
+                                    var sedesDoPlacar = ViewData.Sedes();
                                     <select name="nomeQuadra" class="form-select" id="pdzQuadra">
                                         <option value="" data-link="">-- Escolha a quadra --</option>
-                                        @foreach (var quadra in quadras)
+                                        @if (sedesDoPlacar is { MaisDeUmClube: true })
                                         {
-                                            <option value="@quadra.Nome" data-link="@(linksDasQuadras.GetValueOrDefault(quadra.Nome) ?? "")"
-                                                    selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
+                                            foreach (var doClube in quadras.GroupBy(q => sedesDoPlacar.NomeDoClubeDaQuadra(q.Nome) ?? "Sem clube"))
+                                            {
+                                                <optgroup label="@doClube.Key">
+                                                    @foreach (var quadra in doClube)
+                                                    {
+                                                        <option value="@quadra.Nome" data-link="@(linksDasQuadras.GetValueOrDefault(quadra.Nome) ?? "")"
+                                                                selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
+                                                    }
+                                                </optgroup>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            foreach (var quadra in quadras)
+                                            {
+                                                <option value="@quadra.Nome" data-link="@(linksDasQuadras.GetValueOrDefault(quadra.Nome) ?? "")"
+                                                        selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
+                                            }
                                         }
                                     </select>
                                 }
