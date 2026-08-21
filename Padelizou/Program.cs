@@ -572,9 +572,21 @@ app.MapMethods("/healthz", new[] { "GET", "HEAD" }, async (DbPadelContext db) =>
 {
     try
     {
-        return await db.Database.CanConnectAsync()
-            ? Results.Text("ok")
-            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        if (!await db.Database.CanConnectAsync())
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        // Fecha o buraco de 07/08/2026: o Migrate() do startup roda dentro de um try/catch que
+        // só loga e deixa o app subir mesmo assim (linha ~482 acima) — então um snapshot em
+        // desacordo com o modelo faz o EF recusar o Migrate() INTEIRO, e o app fica no ar com
+        // colunas que o banco não tem. Sem checar aqui, /healthz via 200 (o banco RESPONDE,
+        // só está com o schema errado) e o rollback automático do deploy.sh nunca disparava —
+        // três deploys passaram assim, verdes, naquele dia. Agora migration pendente é 503, e
+        // o mesmo rollback que já existe pra "app não sobe" passa a cobrir "app subiu torto".
+        var pendentes = await db.Database.GetPendingMigrationsAsync();
+        if (pendentes.Any())
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        return Results.Text("ok");
     }
     catch
     {

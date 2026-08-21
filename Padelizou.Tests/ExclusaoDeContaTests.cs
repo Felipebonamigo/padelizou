@@ -26,6 +26,9 @@ public class ExclusaoDeContaTests
         Celular = "51999998888",
         Cidade = "Porto Alegre",
         Estado = "RS",
+        Cep = "90000-000",
+        Logradouro = "Rua Exemplo, 123",
+        Bairro = "Centro",
         Instagram = "felipebona",
         FotoPerfil = "/uploads/fotos-perfil/abc.jpg",
         SenhaHash = "hash-secreto",
@@ -54,6 +57,9 @@ public class ExclusaoDeContaTests
         Assert.Null(j.Celular);
         Assert.Null(j.Cidade);
         Assert.Null(j.Estado);
+        Assert.Null(j.Cep);
+        Assert.Null(j.Logradouro);
+        Assert.Null(j.Bairro);
         Assert.Null(j.Instagram);
         Assert.Null(j.FotoPerfil);
 
@@ -115,6 +121,62 @@ public class ExclusaoDeContaTests
         Assert.Equal(Agora, j.ExcluidoEm);
         Assert.True(j.Excluido);
         Assert.True(j.PerfilPrivado);
+    }
+
+    // ── Nenhuma coluna string nova passa sem decisão ──────────────────────────────────
+    //
+    // O buraco do endereço nasceu assim: Cep/Logradouro/Bairro entraram no modelo em
+    // 10/08/2026, esta exclusão já existia desde 28/07, e ninguém voltou aqui pra decidir.
+    // Este teste enumera TODA propriedade string gravável de Jogador por reflexão — a próxima
+    // coluna nova cai automaticamente em "nem apagada nem decidida" e QUEBRA o teste, em vez
+    // de vazar em silêncio até alguém notar (ou até um usuário perguntar por que o dado
+    // "excluído" ainda está lá).
+    //
+    // Continuam de propósito (não identificam quem saiu, ou são registro administrativo/fiscal
+    // de responsabilidade de OUTRA pessoa, não do titular que saiu):
+    //   Codigo — não usado como identificador de jogador (não é o Conquista.Codigo).
+    //   VersaoDosTermosAceita — carimbo de versão de documento, não dado da pessoa.
+    //   MolduraEscolhida, LadoQuadra, Lateralidade — preferência de uso, não identificam.
+    //   Sexo — usado pra casar categoria (Masculina/Feminina/Mista); decisão do Felipe se deve
+    //     ser tratado como dado sensível na saída (ver LGPD, art. 5º II) — hoje fica.
+    //   AsaasWalletId — identificador financeiro ligado a Pagamento (mesma razão de Pagamento
+    //     não cascatear: registro fiscal do MEI). Apagar quebraria reconciliação de split
+    //     antigo; decisão de retenção fiscal também caberia ao Felipe, não a este teste.
+    //   ApresentacaoProfessor, ExperienciaProfessor, PoliticaCancelamentoTexto — texto que o
+    //     PRÓPRIO professor escreveu sobre o próprio negócio; IsProfessor já cai pra false.
+    //   MotivoDoPedidoDeOrganizador, MotivoDaCortesia — registro administrativo do porquê de
+    //     uma decisão (concedida por outra pessoa ou sobre ela), não dado de contato do titular.
+    //   ModoComissao, PlanoProfessor — configuração/enum, não dado pessoal.
+    private static readonly HashSet<string> CamposQueDevemSumir = new()
+    {
+        "Nome", "Apelido", "Cpf", "Login", "Celular", "Cidade", "Estado",
+        "Cep", "Logradouro", "Bairro", "Email", "SenhaHash", "TokenRecuperacao",
+        "FotoPerfil", "Instagram",
+    };
+
+    private static readonly HashSet<string> CamposQueContinuamDePropostio = new()
+    {
+        "Codigo", "VersaoDosTermosAceita", "MolduraEscolhida", "LadoQuadra", "Lateralidade",
+        "Sexo", "AsaasWalletId", "ApresentacaoProfessor", "ExperienciaProfessor",
+        "PoliticaCancelamentoTexto", "MotivoDoPedidoDeOrganizador", "MotivoDaCortesia",
+        "ModoComissao", "PlanoProfessor",
+    };
+
+    [Fact]
+    public void Toda_propriedade_string_gravavel_de_jogador_tem_decisao_explicita()
+    {
+        var propriedades = typeof(Jogador).GetProperties()
+            .Where(p => p.PropertyType == typeof(string) && p.CanWrite && p.SetMethod!.IsPublic)
+            .Select(p => p.Name)
+            .ToList();
+
+        var semDecisao = propriedades
+            .Where(nome => !CamposQueDevemSumir.Contains(nome) && !CamposQueContinuamDePropostio.Contains(nome))
+            .ToList();
+
+        Assert.True(semDecisao.Count == 0,
+            "Coluna(s) nova(s) sem decisão em ExclusaoDeContaTests: " + string.Join(", ", semDecisao)
+            + ". Decida se ExclusaoDeConta.Anonimizar deve limpá-la e adicione ao conjunto certo aqui.");
     }
 
     // ── O CPF de quem saiu ────────────────────────────────────────────────────────────

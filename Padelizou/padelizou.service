@@ -1,6 +1,8 @@
 [Unit]
 Description=Padelizou - App de torneios e aulas de padel
-# O banco fica no Azure SQL (remoto) - só precisa da rede local, não de um SQL Server na mesma máquina.
+# ⚠️ TEMPLATE DESATUALIZADO: hoje o banco é Postgres LOCAL no próprio VPS (Hostinger), não
+# Azure SQL — a ConnectionString abaixo é só exemplo do formato antigo. O unit REAL que roda em
+# produção mora no VPS, fora deste repositório, e é ele que precisa da mudança de fuso abaixo.
 After=network-online.target
 Wants=network-online.target
 
@@ -16,6 +18,12 @@ User=www-data
 
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
+
+# O sistema inteiro grava e compara hora LOCAL (colunas "timestamp without time zone", modo
+# legado do Npgsql — ver Program.cs). Isso pressupõe o SO em America/Sao_Paulo, e nada no
+# provisionamento fixava essa premissa: um VPS recriado nasce em UTC por padrão, e todo "hoje"
+# (ranking da semana, vencimento de pagamento, fechamento de mês) deslocaria 3h em silêncio.
+Environment=TZ=America/Sao_Paulo
 
 Environment="ConnectionStrings__DefaultConnection=Server=tcp:SEUSERVIDOR.database.windows.net,1433;Database=DB_PADEL;User Id=SEU_LOGIN_ADMIN;Password=SENHA_FORTE_AQUI;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 Environment="EmailSettings__SmtpHost=smtp.gmail.com"

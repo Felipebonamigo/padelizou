@@ -230,6 +230,14 @@ namespace Padelizou.Controllers
         // Agora finalizar SIGNIFICA "encerra com o que estou vendo": o placar recebido é
         // gravado antes de decidir o vencedor. Nulo (tela antiga em cache, Mesa, fila offline)
         // mantém o comportamento de sempre — usa o que está no banco.
+        //
+        // ⚠️ Era a única ação de placar sem [HttpPost]/[Authorize] — respondia a GET e escapava
+        // do carimbo antifalsificação global (que só vale para POST/PUT/PATCH/DELETE). E o
+        // "partida.TorneioId != null" na checagem de baixo deixava passar sem autorização
+        // nenhuma qualquer partida com TorneioId nulo — hoje nunca acontece (toda Partida nasce
+        // de um torneio), mas a checagem tinha que RECUSAR esse caso, não pulá-lo.
+        [HttpPost]
+        [Authorize]
         public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null,
             int? games1 = null, int? games2 = null)
         {
@@ -239,7 +247,8 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla2)
                 .FirstOrDefaultAsync(p => p.Id == partidaId);
 
-            if (partida != null && partida.TorneioId != null && !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
+            if (partida != null && (partida.TorneioId == null
+                || !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)))
             {
                 return Forbid();
             }

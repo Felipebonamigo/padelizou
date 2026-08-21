@@ -165,6 +165,41 @@ em *Approve* libera. São três segundos, e é o que separa "publiquei em produ�
 > existir, o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o
 > deploy sai direto. A trava não vem do arquivo `deploy.yml`, vem daqui.
 
+### 4. O fuso do servidor precisa ser America/Sao_Paulo — e isso não é automático
+
+O sistema grava e compara hora LOCAL o tempo todo (ranking da semana, vencimento de
+pagamento, fechamento de mês do professor) — as colunas são "timestamp without time
+zone" e o app roda em modo legado do Npgsql de propósito. Isso pressupõe o SO do VPS
+em `America/Sao_Paulo`. Um VPS novo nasce em UTC, e nada no deploy corrige isso: o
+`deploy.sh` só reinicia o serviço, nunca reaplica o unit do systemd.
+
+Confira no VPS:
+
+```bash
+timedatectl status   # "Time zone" tem que ser America/Sao_Paulo
+```
+
+Se não estiver, dois passos (não precisa recriar o serviço nem fazer deploy):
+
+```bash
+timedatectl set-timezone America/Sao_Paulo
+systemctl edit padelizou   # abre um drop-in; cole as duas linhas abaixo, salve e feche
+```
+
+```ini
+[Service]
+Environment=TZ=America/Sao_Paulo
+```
+
+```bash
+systemctl daemon-reload
+systemctl restart padelizou
+```
+
+O `Padelizou/padelizou.service` deste repositório já leva `Environment=TZ=America/Sao_Paulo`
+— serve de referência pra quando o servidor for reprovisionado do zero, mas **não
+reaplica sozinho** no unit que já está rodando no VPS.
+
 ## Quando algo dá errado
 
 O job fica vermelho quando o script remoto falha, e o log traz a saída dele inteira.
