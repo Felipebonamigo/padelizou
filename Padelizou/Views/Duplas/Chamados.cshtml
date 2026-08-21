@@ -8,6 +8,10 @@
     // Quem destes está inscrito SOZINHO nesta mesma categoria: aceitar junta as duas
     // inscrições (a dele sai, a vaga é a mesma). Precisa estar dito antes do clique.
     var comInscricaoSolo = ViewBag.CandidatosComInscricaoSolo as HashSet<int> ?? new HashSet<int>();
+    // E quem destes JÁ FECHOU dupla nesta categoria: aceitar seria inscrevê-lo duas vezes, e o
+    // servidor recusa. Melhor dizer aqui do que deixar o dono descobrir apertando o botão —
+    // cobre os chamados que já estavam de pé e quem chamou e fechou dupla depois.
+    var jaFecharam = ViewBag.CandidatosQueJaFecharam as Dictionary<int, string> ?? new Dictionary<int, string>();
 }
 
 <div class="container mt-4 mb-5" style="max-width: 34rem;">
@@ -102,9 +106,21 @@
                         }
                     </div>
 
-                    @if (motivoParaNaoAceitar == null)
-                    {
-                        <div class="d-flex gap-2">
+                    @* ⚠️ ACEITAR E RECUSAR FORAM DESMEMBRADOS (21/08/2026). Os dois viviam sob o
+                       mesmo `@if`: quando o Aceitar não podia aparecer, o Recusar sumia junto — e
+                       o dono ficava sem como limpar uma linha morta da própria lista. Recusar
+                       agora aparece sempre. *@
+                    <div class="d-flex gap-2">
+                        @if (jaFecharam.TryGetValue(chamado.CandidatoId, out var parceiroDele))
+                        {
+                            <div class="alert alert-warning py-2 px-3 small mb-0 flex-grow-1">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Ele(a) já fechou dupla nesta categoria com <strong>@parceiroDele</strong> —
+                                não dá pra aceitar. Você pode recusar pra tirar da lista.
+                            </div>
+                        }
+                        else if (motivoParaNaoAceitar == null)
+                        {
                             @* Confirmação no Aceitar porque ele FECHA a dupla e derruba os
                                outros pedidos — é a ação irreversível desta tela. Recusar só
                                apaga uma linha da própria lista. *@
@@ -119,21 +135,21 @@
                                     <i class="bi bi-check-lg"></i> Aceitar
                                 </button>
                             </form>
+                        }
 
-                            <form asp-action="RecusarChamado" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                <input type="hidden" name="candidatoId" value="@chamado.CandidatoId" />
-                                @* O título diz a verdade sobre o efeito: quem recusa precisa
-                                   saber que a outra pessoa recebe um aviso — decidir sem saber
-                                   disso é decidir no escuro. *@
-                                <button type="submit" class="btn btn-outline-secondary rounded-pill px-3"
-                                        title="Recusar (ele(a) recebe um aviso de que não deu)">
-                                    Recusar
-                                </button>
-                            </form>
-                        </div>
-                    }
+                        <form asp-action="RecusarChamado" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="duplaId" value="@dupla.Id" />
+                            <input type="hidden" name="candidatoId" value="@chamado.CandidatoId" />
+                            @* O título diz a verdade sobre o efeito: quem recusa precisa
+                               saber que a outra pessoa recebe um aviso — decidir sem saber
+                               disso é decidir no escuro. *@
+                            <button type="submit" class="btn btn-outline-secondary rounded-pill px-3"
+                                    title="Recusar (ele(a) recebe um aviso de que não deu)">
+                                Recusar
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         }

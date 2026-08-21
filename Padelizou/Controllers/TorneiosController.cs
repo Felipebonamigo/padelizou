@@ -552,6 +552,28 @@ namespace Padelizou.Controllers
                     .GroupBy(c => c.DuplaId)
                     .Select(g => new { DuplaId = g.Key, Quantos = g.Count() })
                     .ToDictionaryAsync(x => x.DuplaId, x => x.Quantos);
+
+                // AS INSCRIÇÕES QUE EU CHAMEI, pra a tela oferecer "tirar pedido" (21/08/2026).
+                //
+                // ⚠️ SEM o filtro `Jogador2Id == null` que a consulta de cima usa — e isso é
+                // deliberado: é justamente o que permite tirar o pedido de uma inscrição que
+                // fechou por outro caminho. Com o filtro, aquela linha viraria zumbi, invisível
+                // pros dois lados.
+                ViewBag.ChamadosQueEuFiz = (await _context.ChamadosDoMural
+                    .Where(c => c.CandidatoId == jogadorLogadoId.Value && c.Dupla.Categoria.TorneioId == id)
+                    .Select(c => c.DuplaId)
+                    .ToListAsync()).ToHashSet();
+
+                // EM QUE CATEGORIAS DESTE TORNEIO EU JÁ ESTOU — a régua de "não dá pra se
+                // candidatar duas vezes na mesma categoria" (Services/MuralDeParceiros).
+                //
+                // ⚠️ ZERO QUERY NOVA: a consulta lá em cima já traz Categorias → Duplas →
+                // Jogador1/Jogador2 pra desenhar a grade. Perguntar isso ao banco rodaria mais
+                // uma consulta em toda abertura da página mais pesada do site, e seria tradução
+                // nova pro Postgres que o teste InMemory não prova.
+                ViewBag.MinhasInscricoesNoTorneio = torneio.Categorias
+                    .SelectMany(c => InscricaoRepetida.DasDuplasCarregadas(c.Duplas, new[] { jogadorLogadoId.Value }))
+                    .ToList();
             }
 
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será

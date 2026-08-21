@@ -13,7 +13,13 @@ public static class MuralDeParceiros
 {
     // Devolve o motivo da recusa, ou null quando o chamado pode ir. TODA a validação é do
     // servidor: a tela só esconde botão, e POST montado à mão não passa por view nenhuma.
-    public static string? MotivoParaNaoChamar(Dupla? dupla, string? statusDoTorneio, int candidatoId)
+    // ⚠️ `inscricoesDoCandidato` NÃO TEM VALOR PADRÃO, de propósito (21/08/2026). Um `= null`
+    // faria qualquer chamador esquecido compilar em silêncio e a régua abrir sozinha — o pior
+    // desfecho possível aqui. Sem default, o compilador quebra cada call site e obriga quem
+    // escreveu a dizer de onde tira o fato.
+    public static string? MotivoParaNaoChamar(
+        Dupla? dupla, string? statusDoTorneio, int candidatoId,
+        IEnumerable<InscricaoRepetida.Achado> inscricoesDoCandidato)
     {
         if (dupla == null) return "Inscrição não encontrada.";
         if (dupla.EhTime) return "Linha de time não procura parceiro.";
@@ -22,8 +28,39 @@ public static class MuralDeParceiros
         // Fechou a inscrição, fechou o mural: chamar alguém pra um torneio que não aceita
         // mais dupla é gerar conversa sem saída.
         if (statusDoTorneio != PortaDaInscricao.Aberta) return "As inscrições deste torneio já fecharam.";
+
+        // ⚠️ QUEM JÁ TEM DUPLA FECHADA NESTA CATEGORIA NÃO CHAMA (21/08/2026): ninguém joga duas
+        // vezes na mesma categoria, então o chamado não teria pra onde ir.
+        //
+        // ⚠️ MAS QUEM ESTÁ INSCRITO SOZINHO CHAMA, SIM — e isso é o produto, não uma exceção.
+        // Dois solitários fechando dupla é o caso de uso principal do mural, e o caminho de
+        // aceitar sabe juntar as duas inscrições solo (AceitarChamado passa
+        // `juntarComInscricaoSolo: true`, e FecharDuplaComAsync absorve a inscrição e leva o
+        // pagamento junto). Bloquear o solo aqui mataria o mural.
+        if (InscricaoRepetida.DuplaFechadaDe(inscricoesDoCandidato, dupla.CategoriaId, candidatoId) is { } jaFechou)
+        {
+            return $"Você já está inscrito nesta categoria com {jaFechou.NomeDoParceiro ?? "outra pessoa"}. "
+                 + "Ninguém joga duas vezes na mesma categoria — se a dupla mudou, use "
+                 + "\"Trocar parceiro\" na sua inscrição.";
+        }
+
         return null;
     }
+
+    // A MESMA verdade do método acima, na voz da tela — dita UMA vez acima da grade, e não
+    // repetida em cada card. Um julgamento, duas redações: o de cima recusa um POST montado à
+    // mão; este explica ANTES, porque botão que some calado vira pergunta no WhatsApp.
+    public static string? AvisoDeQueJaEstaNestaCategoria(
+        IEnumerable<InscricaoRepetida.Achado> inscricoesDoCandidato, int categoriaId, int candidatoId) =>
+        InscricaoRepetida.DuplaFechadaDe(inscricoesDoCandidato, categoriaId, candidatoId) is { } jaFechou
+            ? $"Você já está nesta categoria com {jaFechou.NomeDoParceiro ?? "outra pessoa"}, então não dá "
+              + "pra se candidatar a outra dupla aqui. Quer mudar? Use \"Trocar parceiro\" na sua inscrição."
+            : null;
+
+    // ── TIRAR O PEDIDO (21/08/2026) ───────────────────────────────────────────────────────
+    // As duas frases moram aqui pra a tela e o teste apontarem a mesma string.
+    public const string PedidoRetirado = "Pedido retirado. Se mudar de ideia, é só chamar de novo.";
+    public const string PedidoJaNaoEstava = "Esse pedido já não estava mais aqui.";
 
     public const string TituloDoAviso = "Alguém quer fechar dupla com você";
 

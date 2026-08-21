@@ -25,7 +25,9 @@ public static class InscricaoRepetida
         ComParceiro,    // não dá: ele já tem dupla fechada nesta categoria
     }
 
-    public record Achado(int DuplaId, int JogadorId, string NomeJogador, Situacao Situacao, string? NomeDoParceiro);
+    // ⚠️ `CategoriaId` entrou em 21/08/2026 (o mural precisa se defender de receber achados de
+    // OUTRA categoria): sem ele, uma régua que filtra por categoria não tem como conferir nada.
+    public record Achado(int CategoriaId, int DuplaId, int JogadorId, string NomeJogador, Situacao Situacao, string? NomeDoParceiro);
 
     // Todas as inscrições que os jogadores informados já têm NESTA categoria.
     // `ignorarDuplaId` existe pra troca de parceiro: a dupla que está sendo editada não
@@ -47,16 +49,45 @@ public static class InscricaoRepetida
                      && d.Id != ignorarDuplaId
                      && d.NomeTime == null
                      && (ids.Contains(d.Jogador1Id) || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
-            .Select(d => new
-            {
+            .Select(d => new Linha(
+                d.CategoriaId,
                 d.Id,
                 d.Jogador1Id,
-                Nome1 = d.Jogador1.Nome,
+                d.Jogador1.Nome,
                 d.Jogador2Id,
-                Nome2 = d.Jogador2 != null ? d.Jogador2.Nome : null,
-            })
+                d.Jogador2 != null ? d.Jogador2.Nome : null))
             .ToListAsync();
 
+        return Classificar(duplas, ids);
+    }
+
+    // A MESMA classificação, sobre duplas JÁ CARREGADAS em memória.
+    //
+    // Existe porque a tela de detalhes do torneio já traz `Categorias → Duplas → Jogador1/2`
+    // pra desenhar a grade: perguntar "em que categorias eu já estou?" com uma consulta nova
+    // rodaria em toda abertura da página mais pesada do site, e seria tradução nova pro
+    // Postgres que o teste InMemory não prova. Uma régua, dois jeitos de alimentá-la.
+    public static List<Achado> DasDuplasCarregadas(
+        IEnumerable<Dupla> duplasDaCategoria, IEnumerable<int> jogadorIds, int? ignorarDuplaId = null)
+    {
+        var ids = jogadorIds.Distinct().ToList();
+        if (ids.Count == 0) return new List<Achado>();
+
+        var linhas = duplasDaCategoria
+            .Where(d => d.Id != ignorarDuplaId
+                     && d.NomeTime == null
+                     && (ids.Contains(d.Jogador1Id) || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
+            .Select(d => new Linha(d.CategoriaId, d.Id, d.Jogador1Id, d.Jogador1?.Nome ?? "",
+                                   d.Jogador2Id, d.Jogador2?.Nome))
+            .ToList();
+
+        return Classificar(linhas, ids);
+    }
+
+    private record Linha(int CategoriaId, int DuplaId, int Jogador1Id, string Nome1, int? Jogador2Id, string? Nome2);
+
+    private static List<Achado> Classificar(IEnumerable<Linha> duplas, IReadOnlyCollection<int> ids)
+    {
         var achados = new List<Achado>();
         foreach (var d in duplas)
         {
@@ -64,18 +95,32 @@ public static class InscricaoRepetida
 
             if (ids.Contains(d.Jogador1Id))
             {
-                achados.Add(new Achado(d.Id, d.Jogador1Id, d.Nome1,
+                achados.Add(new Achado(d.CategoriaId, d.DuplaId, d.Jogador1Id, d.Nome1,
                     completa ? Situacao.ComParceiro : Situacao.Sozinho, d.Nome2));
             }
-            if (d.Jogador2Id is int j2 && ids.Contains(j2) && d.Nome2 != null)
+            // ⚠️ A GUARDA É NO `Jogador2Id`, NÃO no nome. Era `&& d.Nome2 != null`, e vinda do
+            // banco a diferença não aparecia (o JOIN sempre traz o nome). Vinda da memória, um
+            // `Jogador2` não carregado deixa `Nome2` nulo e faria quem está na CADEIRA DE
+            // PARCEIRO sumir da classificação — fail-open exatamente na metade que a régua do
+            // mural existe pra pegar.
+            if (d.Jogador2Id is int j2 && ids.Contains(j2))
             {
                 // Quem está na posição de parceiro está, por definição, numa dupla fechada.
-                achados.Add(new Achado(d.Id, j2, d.Nome2, Situacao.ComParceiro, d.Nome1));
+                achados.Add(new Achado(d.CategoriaId, d.DuplaId, j2, d.Nome2 ?? "", Situacao.ComParceiro, d.Nome1));
             }
         }
 
         return achados;
     }
+
+    // Quem já tem DUPLA FECHADA nesta categoria — a pergunta do mural (21/08/2026). Filtra por
+    // categoria E por jogador aqui dentro de propósito: passar a lista do torneio inteiro é
+    // seguro, passar só a da categoria é seguro, e passar a categoria errada não fura a régua.
+    public static Achado? DuplaFechadaDe(
+        IEnumerable<Achado> achados, int categoriaId, int jogadorId) =>
+        achados.FirstOrDefault(a => a.CategoriaId == categoriaId
+                                 && a.JogadorId == jogadorId
+                                 && a.Situacao == Situacao.ComParceiro);
 
     // O que impede de seguir sem conversa. Null = ou não há conflito, ou o conflito é do
     // tipo que se resolve juntando (ver PerguntaParaJuntar).

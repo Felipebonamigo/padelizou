@@ -65,28 +65,85 @@ public class MuralDeParceirosTests
 
     // ─────────────────────────── A REGRA PURA ───────────────────────────
 
+    // ⚠️ `CategoriaId` EXPLÍCITO nas duplas: sem ele o campo nasce 0, e um teste que deveria
+    // exercitar a régua da categoria passaria pelo motivo errado.
+    private static readonly List<InscricaoRepetida.Achado> NaoEstouInscrito = new();
+
     [Fact]
     public void So_inscricao_solo_de_torneio_aberto_recebe_chamado()
     {
-        var aberta = new Dupla { Jogador1Id = 1, Jogador2Id = null };
+        var aberta = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = null };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, NaoEstouInscrito));
 
         // A própria inscrição não se chama.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 1));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 1, NaoEstouInscrito));
 
         // Dupla completa não procura ninguém.
-        var completa = new Dupla { Jogador1Id = 1, Jogador2Id = 3 };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(completa, "Inscrições Abertas", 2));
+        var completa = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = 3 };
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(completa, "Inscrições Abertas", 2, NaoEstouInscrito));
 
         // Inscrições fechadas fecham o mural — chamar viraria conversa sem saída.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Chaves em Sorteio", 2));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Chaves em Sorteio", 2, NaoEstouInscrito));
 
         // Linha de time não tem parceiro.
-        var time = new Dupla { Jogador1Id = 1, NomeTime = "Os Fortes" };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(time, "Inscrições Abertas", 2));
+        var time = new Dupla { CategoriaId = 9, Jogador1Id = 1, NomeTime = "Os Fortes" };
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(time, "Inscrições Abertas", 2, NaoEstouInscrito));
 
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(null, "Inscrições Abertas", 2));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(null, "Inscrições Abertas", 2, NaoEstouInscrito));
+    }
+
+    // ⚠️ O PEDIDO DO FELIPE (21/08/2026): "caso esse jogador já esteja inscrito com alguma dupla
+    // nessa categoria, remova o botão dele se candidatar, porque ele não tem como se inscrever
+    // 2x na mesma categoria".
+    [Fact]
+    public void Quem_ja_tem_dupla_FECHADA_nesta_categoria_nao_chama()
+    {
+        var aberta = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = null };
+        var euJaFechei = new List<InscricaoRepetida.Achado>
+        {
+            new(CategoriaId: 9, DuplaId: 77, JogadorId: 2, NomeJogador: "Eu",
+                Situacao: InscricaoRepetida.Situacao.ComParceiro, NomeDoParceiro: "Ana"),
+        };
+
+        var motivo = MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euJaFechei);
+
+        Assert.NotNull(motivo);
+        Assert.Contains("Ana", motivo);
+        // A tela diz a mesma coisa em outra voz, ANTES de o botão sumir.
+        Assert.NotNull(MuralDeParceiros.AvisoDeQueJaEstaNestaCategoria(euJaFechei, 9, 2));
+    }
+
+    // ⚠️ E A METADE QUE NÃO PODE SER BLOQUEADA: dois solitários fechando dupla é o caso de uso
+    // PRINCIPAL do mural, e o caminho de aceitar sabe juntar as duas inscrições solo. Barrar
+    // aqui mataria o produto — este teste é o que impede o pedido (B) de ir longe demais.
+    [Fact]
+    public void Quem_esta_inscrito_SOZINHO_na_mesma_categoria_continua_podendo_chamar()
+    {
+        var aberta = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = null };
+        var euEstouSozinho = new List<InscricaoRepetida.Achado>
+        {
+            new(CategoriaId: 9, DuplaId: 77, JogadorId: 2, NomeJogador: "Eu",
+                Situacao: InscricaoRepetida.Situacao.Sozinho, NomeDoParceiro: null),
+        };
+
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euEstouSozinho));
+        Assert.Null(MuralDeParceiros.AvisoDeQueJaEstaNestaCategoria(euEstouSozinho, 9, 2));
+    }
+
+    // A régua se defende de receber achados de OUTRA categoria: a lista pode vir do torneio
+    // inteiro, e filtrar fora daqui seria a segunda cópia do filtro.
+    [Fact]
+    public void Dupla_fechada_em_OUTRA_categoria_nao_impede_o_chamado()
+    {
+        var aberta = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = null };
+        var fecheiNoutraCategoria = new List<InscricaoRepetida.Achado>
+        {
+            new(CategoriaId: 4, DuplaId: 77, JogadorId: 2, NomeJogador: "Eu",
+                Situacao: InscricaoRepetida.Situacao.ComParceiro, NomeDoParceiro: "Ana"),
+        };
+
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, fecheiNoutraCategoria));
     }
 
     // ─────────────────────────── O CAMINHO INTEIRO ───────────────────────────

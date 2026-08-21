@@ -48,6 +48,17 @@
     // inscrição — nos cards dos outros ele seria um botão de tirar gente do torneio.
     int? meuIdNaPagina = ViewBag.MeuJogadorId as int?;
 
+    // As inscrições em que EU já chamei alguém, pra alternar o botão do mural com o "tirar
+    // pedido" (21/08/2026).
+    var chamadosQueEuFiz = ViewBag.ChamadosQueEuFiz as HashSet<int> ?? new HashSet<int>();
+
+    // ⚠️ FICA ANULÁVEL DE PROPÓSITO, sem `?? new List<>()` de consolo — e o `@if` do botão exige
+    // `!= null`. ViewBag é dynamic: não há vínculo de compilação entre quem grava a chave e quem
+    // lê. Um fallback vazio faria a régua "já tem dupla nesta categoria" sumir CALADA se a chave
+    // for renomeada; sem ele, o mural inteiro some de uma vez e alguém reclama no mesmo dia.
+    var minhasInscricoes = ViewBag.MinhasInscricoesNoTorneio
+        as List<Padelizou.Services.InscricaoRepetida.Achado>;
+
     // Quem o sorteio vai deixar de fora (sem parceiro ou na lista de espera). O GerarChaves
     // sempre filtrou isso, mas em silêncio — o organizador sorteava sem saber que ia deixar
     // gente na porta. A regra é lida do mesmo lugar que o sorteio usa, senão a tela prometeria
@@ -817,6 +828,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             var duplasEspera = cat.Duplas.Where(d => d.EmListaDeEspera).OrderBy(d => d.Id).ToList();
             ViewData["CategoriaAtual"] = cat.Nome;
             <div class="categoria-inscritos-conteudo" data-categoria-id="@cat.Id" style="display: @(cat.Id == categoriaSelecionadaId ? "block" : "none");">
+                @* ⚠️ POR QUE O BOTÃO DO MURAL SUMIU, dito UMA VEZ por categoria (21/08/2026).
+                   Botão que desaparece sem explicação vira pergunta no WhatsApp; a mesma frase
+                   repetida em nove cards é o ruído que esta tela já briga pra evitar. *@
+                @if (meuIdNaPagina != null && minhasInscricoes != null
+                     && MuralDeParceiros.AvisoDeQueJaEstaNestaCategoria(minhasInscricoes, cat.Id, meuIdNaPagina.Value) is { } jaEstouAqui)
+                {
+                    <p class="text-muted small mb-2"><i class="bi bi-info-circle"></i> @jaEstouAqui</p>
+                }
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div class="d-flex gap-2 flex-wrap">
                         @* Singular certo: escrevia "1 duplas" desde sempre, e agora ficaria
@@ -993,12 +1012,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                                         @* O MURAL EM AÇÃO: "quero jogar com você", pra quem está
                                            logado e não é o dono da vaga. Só manda o recado — quem
-                                           fecha a dupla é o dono, pelo convite por link (ver
-                                           Services/MuralDeParceiros). Não aparece pra time nem
-                                           com as inscrições fechadas: o servidor recusaria, e
-                                           botão que só sabe ser recusado é armadilha de tela. *@
-                                        @if (meuIdNaPagina != null && Model.Status == "Inscrições Abertas"
-                                             && !dupla.EhTime && dupla.Jogador1Id != meuIdNaPagina)
+                                           fecha a dupla é o dono (ver Services/MuralDeParceiros).
+
+                                           ⚠️ A CONDIÇÃO SAIU DAQUI E VIROU CHAMADA AO SERVIÇO
+                                           (21/08/2026). Este `@if` era a SEGUNDA CÓPIA da régua,
+                                           com `"Inscrições Abertas"` em string crua e o
+                                           "dupla já fechou" garantido só pela posição dentro do
+                                           `else` — e foi por isso que a regra nova ("quem já tem
+                                           dupla nesta categoria não chama") não tinha onde entrar
+                                           sem nascer em dois lugares. *@
+                                        @if (meuIdNaPagina != null && minhasInscricoes != null
+                                             && MuralDeParceiros.MotivoParaNaoChamar(dupla, Model.Status, meuIdNaPagina.Value, minhasInscricoes) == null
+                                             && !chamadosQueEuFiz.Contains(dupla.Id))
                                         {
                                             <form asp-controller="Duplas" asp-action="ChamarParaDupla" method="post" class="mt-1">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
@@ -1007,6 +1032,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </button>
                                             </form>
                                         }
+                                    }
+
+                                    @* TIRAR O PEDIDO (21/08/2026): "se ele se candidatou e se
+                                       arrependeu, ele pode remover essa solicitação".
+
+                                       ⚠️ FICA FORA DO `else` de "a dupla já fechou", de propósito.
+                                       Dentro dele, o botão sumiria exatamente quando a dupla
+                                       fechasse POR OUTRO CAMINHO (troca de parceiro, que não varre
+                                       os chamados) — e a linha viraria zumbi, inalcançável pelos
+                                       dois lados: o dono também não a vê, porque a tela dele
+                                       filtra inscrição sem parceiro. *@
+                                    @if (meuIdNaPagina != null && chamadosQueEuFiz.Contains(dupla.Id))
+                                    {
+                                        <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="badge text-bg-light border fw-normal">
+                                                <i class="bi bi-hourglass-split"></i> Você chamou
+                                            </span>
+                                            <form asp-controller="Duplas" asp-action="TirarChamado" method="post" class="d-inline">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <input type="hidden" name="torneioId" value="@Model.Id" />
+                                                <button type="submit" class="btn btn-link btn-sm text-muted p-0 text-decoration-underline">
+                                                    tirar pedido
+                                                </button>
+                                            </form>
+                                        </div>
                                     }
 
                                     @* Desistir é do próprio inscrito, e só enquanto as

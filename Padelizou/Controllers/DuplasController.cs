@@ -1160,7 +1160,14 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(d => d.Id == duplaId);
 
             var torneio = dupla?.Categoria.Torneio;
-            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value)
+
+            // O que ESTE candidato já tem nesta categoria. Sem `ignorarDuplaId`: a inscrição que
+            // ele está chamando é de OUTRA pessoa, e a régua já recusa a própria logo acima.
+            var minhasInscricoes = dupla == null
+                ? new List<InscricaoRepetida.Achado>()
+                : await InscricaoRepetida.ProcurarAsync(_context, dupla.CategoriaId, new[] { candidatoId.Value });
+
+            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value, minhasInscricoes)
                 is { } motivo)
             {
                 TempData["Erro"] = motivo;
@@ -1262,10 +1269,20 @@ namespace Padelizou.Controllers
             // QUEM DESTES ESTÁ INSCRITO SOZINHO NESTA CATEGORIA. Aceitar junta as duas
             // inscrições (a dele sai), e isso precisa estar dito ANTES do clique: apagar a
             // inscrição de alguém é o tipo de efeito que ninguém descobre depois.
-            var comInscricaoSolo = InscricaoRepetida.QuePodemSerJuntadas(
-                await InscricaoRepetida.ProcurarAsync(
-                    _context, dupla.CategoriaId, chamados.Select(c => c.CandidatoId), ignorarDuplaId: dupla.Id));
-            ViewBag.CandidatosComInscricaoSolo = comInscricaoSolo.Select(a => a.JogadorId).ToHashSet();
+            var repetidas = await InscricaoRepetida.ProcurarAsync(
+                _context, dupla.CategoriaId, chamados.Select(c => c.CandidatoId), ignorarDuplaId: dupla.Id);
+
+            ViewBag.CandidatosComInscricaoSolo = InscricaoRepetida.QuePodemSerJuntadas(repetidas)
+                .Select(a => a.JogadorId).ToHashSet();
+
+            // ⚠️ A MESMA consulta já rodava e METADE do resultado era jogada fora. Quem já FECHOU
+            // dupla nesta categoria não pode ser aceito — e sem isto o dono só descobre apertando
+            // o botão e levando um erro. Cobre os chamados que já estavam de pé antes da régua
+            // nova e os que ainda vão nascer pelo caminho "chamou, e depois fechou dupla".
+            ViewBag.CandidatosQueJaFecharam = repetidas
+                .Where(a => a.Situacao == InscricaoRepetida.Situacao.ComParceiro)
+                .GroupBy(a => a.JogadorId)
+                .ToDictionary(g => g.Key, g => g.First().NomeDoParceiro ?? "outra pessoa");
 
             // Por que não dá pra aceitar (dupla já fechou, inscrição encerrada): a tela mostra
             // o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
@@ -1335,7 +1352,22 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Chamados), new { duplaId });
             }
 
-            var (juntou, pagamentoVeioJunto) = await FecharDuplaComAsync(dupla!, torneio!, candidato);
+            // ⚠️ O CANDIDATO PODE TER TIRADO O PEDIDO NESTE SEGUNDO (botão novo de 21/08/2026).
+            // O `RemoveRange` lá dentro inclui a linha que ele acabou de apagar, e o
+            // `SaveChanges` que estoura é O MESMO que grava o Jogador2Id, recalcula o valor e
+            // leva o pagamento junto. A transação faz rollback e nada corrompe — mas sem este
+            // catch o dono levaria um 500 no caminho do dinheiro.
+            int juntou;
+            bool pagamentoVeioJunto;
+            try
+            {
+                (juntou, pagamentoVeioJunto) = await FecharDuplaComAsync(dupla!, torneio!, candidato);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                TempData["Erro"] = "Esse chamado não existe mais — a pessoa retirou o pedido.";
+                return RedirectToAction(nameof(Chamados), new { duplaId });
+            }
 
             TempData["Sucesso"] = $"Dupla fechada com {candidato.ComoChamar}!"
                 + (juntou > 0 ? " A inscrição sozinha dele(a) saiu — agora é uma só." : "")
@@ -1376,10 +1408,73 @@ namespace Padelizou.Controllers
                 // Só avisa se o chamado EXISTIA: recusar duas vezes (dois toques, duas abas)
                 // não pode mandar dois avisos.
                 await AvisarRecusaAsync(dupla, candidatoId);
+
+                TempData["Sucesso"] = "Recusado. Avisamos ele(a) que não deu dessa vez.";
+            }
+            else
+            {
+                // ⚠️ A FRASE ESTAVA FORA DO `if` e mentia: dizia "avisamos ele(a)" mesmo quando
+                // não havia chamado nenhum pra recusar. Antes isso só acontecia no toque duplo
+                // do próprio dono; agora que o candidato pode TIRAR o pedido, a corrida virou
+                // rotina — ele desiste enquanto o dono recusa.
+                TempData["Erro"] = MuralDeParceiros.PedidoJaNaoEstava;
             }
 
-            TempData["Sucesso"] = "Recusado. Avisamos ele(a) que não deu dessa vez.";
             return RedirectToAction(nameof(Chamados), new { duplaId });
+        }
+
+        // TIRAR O PRÓPRIO PEDIDO (pedido do Felipe, 21/08/2026): "se ele se candidatou para
+        // jogar, e se arrependeu, ele pode remover essa solicitação".
+        //
+        // ⚠️ A AUTORIZAÇÃO É A PRÓPRIA CLÁUSULA `WHERE`: procura por (duplaId, candidatoId=eu).
+        // Buscar só por `duplaId` e comparar depois criaria um oráculo de "quem chamou quem" —
+        // que é exatamente o dado que a tela de Chamados protege com Forbid.
+        //
+        // ⚠️ NÃO AVISA O DONO. A régua dos avisos deste arquivo é "avisa quem fica ESPERANDO";
+        // tirar o pedido não deixa ninguém esperando, só encolhe a lista dele — e a lista é
+        // recalculada a cada abertura da tela.
+        //
+        // ⚠️ NÃO DEPENDE DE O TORNEIO ESTAR ABERTO, pelo mesmo motivo escrito no Recusar: com a
+        // inscrição fechada, limpar o próprio pedido é mais urgente, não menos.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TirarChamado(int duplaId, int? torneioId)
+        {
+            var candidatoId = ObterJogadorIdLogado();
+            if (candidatoId == null) return Forbid();
+
+            var chamado = await _context.ChamadosDoMural
+                .FirstOrDefaultAsync(c => c.DuplaId == duplaId && c.CandidatoId == candidatoId.Value);
+
+            if (chamado != null)
+            {
+                _context.ChamadosDoMural.Remove(chamado);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["Sucesso"] = MuralDeParceiros.PedidoRetirado;
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // O dono recusou no mesmo segundo: o delete afeta 0 linhas e o EF joga. Sem
+                    // este catch, o candidato leva um 500 num botão de desistir.
+                    TempData["Sucesso"] = MuralDeParceiros.PedidoJaNaoEstava;
+                }
+            }
+            else
+            {
+                TempData["Sucesso"] = MuralDeParceiros.PedidoJaNaoEstava;
+            }
+
+            var destino = torneioId ?? await _context.Duplas
+                .Where(d => d.Id == duplaId)
+                .Select(d => (int?)d.Categoria.TorneioId)
+                .FirstOrDefaultAsync();
+
+            return destino == null
+                ? RedirectToAction("Index", "Torneios")
+                : RedirectToAction("Details", "Torneios", new { id = destino.Value });
         }
 
         // "Não deu dessa vez", pra quem foi recusado. Mesmo alcance e mesmo cuidado do aviso
