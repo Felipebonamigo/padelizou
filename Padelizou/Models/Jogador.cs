@@ -35,6 +35,29 @@ public partial class Jogador
     public string? TokenRecuperacao { get; set; }
     public DateTime? TokenRecuperacaoExpiraEm { get; set; }
 
+    // ── O CARIMBO DA SESSÃO ────────────────────────────────────────────────────────────────
+    //
+    // Existe pra responder UMA pergunta que o cookie sozinho não responde: "os logins que já
+    // estão abertos nesta conta ainda valem?".
+    //
+    // O cookie de autenticação é auto-suficiente — ele carrega quem a pessoa é, assinado, e o
+    // servidor não guarda lista de sessão nenhuma. Isso é ótimo pra escala e péssimo pra
+    // EXPULSAR alguém: trocar a senha fechava a porta da frente e não tirava de dentro quem já
+    // tinha entrado, então um cookie roubado continuava valendo por até 90 dias (o
+    // ExpireTimeSpan deslizante do Program.cs) mesmo depois de a pessoa trocar a senha.
+    //
+    // O carimbo é o contrapeso mínimo: um valor opaco que vai DENTRO do cookie (como claim, ver
+    // IdentidadeJogador.ClaimsDe) e também fica aqui. A cada request os dois são comparados
+    // (Program.cs, OnValidatePrincipal) — trocar este valor invalida, no ato, todo cookie
+    // emitido antes. É a mesma ideia do SecurityStamp do ASP.NET Identity.
+    //
+    // ⚠️ NULO significa "nunca foi derrubado", e o cookie passa sem conferência. Não é
+    // preguiça: é o que evita deslogar a base inteira no deploy desta coluna — os cookies que
+    // já estavam na rua não têm a claim, e sem esta regra todos seriam recusados de uma vez.
+    // A partir do primeiro carimbo gravado nesta conta, a regra passa a valer pra ela, e um
+    // cookie sem a claim é justamente um cookie antigo: recusado, como tem que ser.
+    public string? CarimboDeSessao { get; set; }
+
     // ---- Exibição ----
     // Três formas, porque o contexto mudou o que é útil:
 

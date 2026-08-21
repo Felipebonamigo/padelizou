@@ -72,6 +72,10 @@ public static class IdentidadeJogador
             // `?? ""` em tudo que é anulável no modelo: `new Claim(tipo, null)` lança exceção.
             new Claim(ClaimTypes.Email, jogador.Email ?? ""),
             new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
+            // O carimbo da sessão viaja DENTRO do cookie pra poder ser conferido contra a conta
+            // a cada request (ver SessoesAbertas). É o que torna possível derrubar um login já
+            // aberto: sem ele, o cookie é auto-suficiente e ninguém consegue expulsar ninguém.
+            new Claim(SessoesAbertas.TipoDaClaim, jogador.CarimboDeSessao ?? ""),
             new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
             // ⚠️ `IsAdmin` é a credencial de EDITAR, e o assistente NÃO entra nela — é o que
             // impede um caminho de escrita de se abrir por acidente. Ver PoderesNoSistema.

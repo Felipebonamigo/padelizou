@@ -251,9 +251,16 @@ namespace padelizou.Controllers
 
             jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha!);
             RecuperacaoSenha.Consumir(jogador);
+
+            // ⚠️ DERRUBA TODO LOGIN ABERTO NESTA CONTA, e este é o caminho onde isso mais
+            // importa: quem chega aqui muitas vezes chega porque perdeu a conta. Sem esta
+            // linha, a senha nova não expulsava quem já estava dentro — o cookie dele é
+            // auto-suficiente e valeria mais 90 dias. Ver Services/SessoesAbertas.
+            SessoesAbertas.Derrubar(jogador);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "Senha alterada! Entre com a senha nova.";
+            TempData["Sucesso"] = "Senha alterada! Entre com a senha nova. "
+                + "Por segurança, os aparelhos que estavam logados nessa conta foram desconectados.";
             return RedirectToAction("Login");
         }
 
@@ -329,13 +336,25 @@ namespace padelizou.Controllers
             // muitas vezes está justamente reagindo a uma desconfiança — deixar vivo um link
             // pedido minutos antes seria manter aberta a porta que ela veio fechar.
             RecuperacaoSenha.Consumir(jogador);
+
+            // ⚠️ DERRUBA OS OUTROS APARELHOS. É o motivo mais comum de alguém trocar a senha
+            // sem ter esquecido dela — "acho que alguém entrou na minha conta" —, e sem isto a
+            // troca não resolvia nada contra quem já estava dentro: o cookie dele é
+            // auto-suficiente e valeria mais 90 dias. Ver Services/SessoesAbertas.
+            SessoesAbertas.Derrubar(jogador);
             await _context.SaveChangesAsync();
 
-            // O cookie não guarda senha (ver IdentidadeJogador.ClaimsDe), então a sessão desta
-            // pessoa segue valendo e ela NÃO é deslogada — trocar a senha e cair na tela de
-            // entrar pareceria que a troca deu errado.
+            // ...e REEMITE o cookie desta aba com o carimbo novo, logo depois. A derrubada não
+            // sabe distinguir aparelho: sem esta reemissão, a pessoa cairia na tela de entrar no
+            // instante seguinte a trocar a senha — e ser deslogado bem ali parece que a troca
+            // deu errado, que é justamente a hora de não deixar dúvida.
+            var identidade = new ClaimsIdentity(IdentidadeJogador.ClaimsDe(jogador),
+                CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(identidade), SessaoDoJogador.Propriedades());
+
             TempData["Sucesso"] = temSenha
-                ? "Senha alterada! Use a nova da próxima vez que entrar."
+                ? "Senha alterada! Você continua conectado aqui, e os outros aparelhos foram desconectados."
                 : "Senha criada! Agora dá pra entrar com ela.";
             return RedirectToAction(nameof(Perfil));
         }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -348,6 +349,45 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         // a sessão durar demais — e o sair continua ali pra quem usa aparelho emprestado.
         options.ExpireTimeSpan = TimeSpan.FromDays(90);
         options.SlidingExpiration = true;
+
+        // ── DERRUBAR UM LOGIN JÁ ABERTO ────────────────────────────────────────────────
+        //
+        // O cookie acima é AUTO-SUFICIENTE: ele carrega quem a pessoa é, assinado, e o
+        // servidor não guarda lista de sessão nenhuma. Ótimo pra escala, péssimo pra
+        // EXPULSAR alguém — junto com os 90 dias deslizantes logo acima, um cookie copiado
+        // valia três meses, renovando-se sozinho, mesmo depois de a senha ser trocada.
+        // Trocar a senha fechava a porta da frente e não tirava de dentro quem já entrou.
+        //
+        // Esta é a única conferência que roda A CADA REQUEST logado, e é de propósito que
+        // ela seja minúscula: UMA leitura de UMA coluna pela chave primária. Ver
+        // Services/SessoesAbertas pro desenho inteiro.
+        //
+        // ⚠️ Sem intervalo de validação (o `ValidationInterval` do ASP.NET Identity, que
+        // reconfere só a cada 30 min): "derrubar" que só vale daqui a meia hora não serve
+        // pro caso que fez isto existir — a conta invadida agora. O preço é a leitura por
+        // request, e ela é por índice único, na tabela mais consultada do sistema.
+        options.Events.OnValidatePrincipal = async contexto =>
+        {
+            var idNoCookie = contexto.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(idNoCookie, out var jogadorId)) return;
+
+            var db = contexto.HttpContext.RequestServices.GetRequiredService<DbPadelContext>();
+
+            // Projetado de propósito: materializar o Jogador inteiro aqui puxaria dezenas de
+            // colunas em toda página do site pra conferir uma.
+            var carimboDaConta = await db.Jogadores
+                .Where(j => j.Id == jogadorId)
+                .Select(j => j.CarimboDeSessao)
+                .FirstOrDefaultAsync();
+
+            if (SessoesAbertas.CookieAindaVale(carimboDaConta, contexto.Principal)) return;
+
+            // O cookie não vale mais. Recusar o principal não basta: sem apagar o cookie, o
+            // navegador continuaria mandando o mesmo carimbo velho em toda request, e a
+            // conta ficaria repetindo a mesma leitura pra sempre.
+            contexto.RejectPrincipal();
+            await contexto.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        };
     });
 // Add services to the container.
 //

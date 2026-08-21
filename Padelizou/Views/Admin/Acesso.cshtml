@@ -315,12 +315,38 @@
                                         pra pessoa — e senha com erro de digitação é um chamado a mais.
                                     </small>
                                     <small class="text-muted d-block mt-1">
-                                        A senha antiga para de funcionar na hora, e a pessoa recebe um
-                                        aviso no app. Peça que ela troque em <strong>Perfil &rarr; Alterar
-                                        senha</strong>: senha que passou por terceiro deixou de ser secreta.
+                                        A senha antiga para de funcionar na hora, os aparelhos logados
+                                        caem junto e a pessoa recebe um aviso no app. Peça que ela troque
+                                        em <strong>Perfil &rarr; Alterar senha</strong>: senha que passou
+                                        por terceiro deixou de ser secreta.
                                     </small>
                                 </form>
                             }
+                        </div>
+
+                        @* ── DERRUBAR OS LOGINS ABERTOS ─────────────────────────────────
+                           Botão PRÓPRIO, e não um efeito colateral do de senha: às vezes a
+                           senha está boa e o que sobrou foi uma sessão na rua (conta aberta
+                           no computador do clube, celular emprestado, aparelho vendido).
+                           Obrigar a trocar a senha pra fechar uma sessão tiraria da pessoa o
+                           acesso que ela ainda tinha, por um problema que não era a senha. *@
+                        <div class="col-12">
+                            <hr class="mt-0" />
+                            <form asp-controller="Admin" asp-action="DerrubarAcessoDoJogador" method="post"
+                                  class="d-flex flex-wrap align-items-center gap-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="jogadorId" value="@p.Id" />
+                                <button type="submit" class="btn btn-outline-danger rounded-pill px-3">
+                                    <i class="bi bi-box-arrow-right me-1"></i> Derrubar os logins abertos
+                                </button>
+                                <small class="text-muted" style="max-width: 46rem;">
+                                    Desconecta a conta em <strong>todos os aparelhos</strong>, na hora, sem
+                                    mexer na senha — ela entra de novo com a mesma. Um cookie deste site vale
+                                    até 90 dias renovando-se sozinho, então "só fechar o navegador" não
+                                    resolve. Se a suspeita é de que alguém <em>sabe</em> a senha, defina uma
+                                    nova acima: aí as duas coisas acontecem juntas.
+                                </small>
+                            </form>
                         </div>
                     </div>
                 </div>

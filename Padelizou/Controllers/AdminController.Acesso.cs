@@ -13,19 +13,21 @@ namespace padelizou.Controllers
     // produção. Nenhuma tela do painel mostrava contato — a busca de /Admin/Organizadores acha
     // pelo CPF, mas imprime só o nome.
     //
-    // ⚠️ DUAS EDIÇÕES, E O E-MAIL NÃO É UMA DELAS (21/08/2026).
+    // ⚠️ TRÊS AÇÕES, E O E-MAIL NÃO É UMA DELAS (21/08/2026).
     //
     // A tela nasceu SÓ-LEITURA de propósito, e a regra que a mantinha assim continua de pé pro
     // e-mail: trocar o e-mail de uma conta é ENTREGAR a conta, calado — quem controla o e-mail
     // pede quantos "esqueci minha senha" quiser, pra sempre, e o dono nunca fica sabendo. Esse
     // campo segue sem formulário nenhum aqui.
     //
-    // O que passou a ser editável são o LOGIN e a SENHA, e os dois são o oposto disso:
+    // O que a tela passou a fazer é trocar o LOGIN, definir uma SENHA nova e DERRUBAR os logins
+    // abertos — e as três são o oposto de um desvio silencioso:
     //
     //   · o login não é segredo — é o apelido com que a pessoa se identifica na entrada, e
     //     trocá-lo não abre porta nenhuma (a senha continua sendo a mesma);
     //   · a senha nova é BARULHENTA: no instante em que é definida, a antiga para de funcionar,
-    //     e o dono descobre no primeiro login. É o contrário de um desvio silencioso.
+    //     e o dono descobre no primeiro login;
+    //   · derrubar não dá acesso a ninguém — só TIRA, e de todo mundo ao mesmo tempo.
     //
     // De quebra, a senha aqui é a única saída do beco sem saída que a própria tela descreve —
     // tem senha, não tem e-mail, e "esqueci minha senha" não tem pra onde mandar link.
@@ -77,7 +79,7 @@ namespace padelizou.Controllers
             return View(vm);
         }
 
-        // ── AS DUAS EDIÇÕES ───────────────────────────────────────────────────────────────
+        // ── AS TRÊS AÇÕES ─────────────────────────────────────────────────────────────────
         //
         // Voltar pra ficha da pessoa, e não pra busca: o admin está no meio de um atendimento,
         // e cair na tela vazia obrigaria a procurar de novo pra conferir o que acabou de fazer.
@@ -195,12 +197,13 @@ namespace padelizou.Controllers
             // Mata qualquer link de "esqueci minha senha" que estivesse de pé nessa conta: se o
             // atendimento chegou até aqui, aquele link ou não chegou ou não era pra ela.
             //
-            // ⚠️ O QUE ISTO **NÃO** FAZ: derrubar sessão aberta. O cookie de autenticação não
-            // guarda senha nenhuma (ver IdentidadeJogador.ClaimsDe) e o sistema não tem carimbo
-            // de segurança pra invalidá-lo, então quem já estiver logado nessa conta — noutro
-            // aparelho, ou um invasor — continua logado até o cookie vencer. Trocar a senha
-            // fecha a porta da frente; não expulsa quem já está dentro.
             RecuperacaoSenha.Consumir(alvo);
+
+            // ⚠️ E DERRUBA OS LOGINS JÁ ABERTOS. Andam JUNTOS de propósito: definir uma senha
+            // nova sem derrubar o que está aberto fecharia a porta da frente sem tirar ninguém
+            // de dentro — e o caso que traz alguém a esta tela é justamente esse, a conta que
+            // outra pessoa está usando agora. Ver Services/SessoesAbertas.
+            SessoesAbertas.Derrubar(alvo);
             await _context.SaveChangesAsync();
 
             // Avisa a pessoa que a senha DELA mudou, e por quem. É o que sustenta a decisão de
@@ -221,9 +224,49 @@ namespace padelizou.Controllers
 
             _logger?.LogWarning("Admin {AdminId} definiu a senha do jogador {JogadorId}.", admin.Id, alvo.Id);
 
-            TempData["Sucesso"] = $"Senha de {NomeBonito.Formatar(alvo.Nome)} definida. "
+            TempData["Sucesso"] = $"Senha de {NomeBonito.Formatar(alvo.Nome)} definida, e os "
+                + "aparelhos que estavam logados nessa conta foram desconectados. "
                 + "Mande a senha pra ela e peça que troque em Perfil → Alterar senha: "
                 + "senha que passou por terceiro deixou de ser secreta.";
+            return VoltarParaFicha(jogadorId);
+        }
+
+        // DERRUBAR OS LOGINS ABERTOS, sem mexer na senha.
+        //
+        // É a metade de "definir uma senha nova" que às vezes é a única metade necessária: a
+        // pessoa esqueceu a conta aberta no computador do clube, emprestou o celular, vendeu o
+        // aparelho. A senha dela continua boa — o que sobra é uma sessão na rua, e um cookie
+        // deste site vale até 90 dias renovando-se sozinho.
+        //
+        // ⚠️ Separado do botão de senha DE PROPÓSITO: obrigar o admin a trocar a senha pra
+        // fechar uma sessão faria toda visita a esta tela terminar numa senha nova pra ditar no
+        // WhatsApp — e a pessoa perderia o acesso que ela ainda tinha, por causa de um problema
+        // que não era a senha.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DerrubarAcessoDoJogador(int jogadorId)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return Forbid();
+
+            var alvo = await _context.Jogadores.FindAsync(jogadorId);
+            if (alvo == null) return NotFound();
+
+            // A MESMA trava de escalada do definir-senha, pelo motivo espelhado: derrubar não
+            // dá acesso a ninguém, mas TIRA — e tirar o acesso de quem administra o sistema é
+            // decisão de quem manda no sistema, não de um administrador nomeado.
+            if (!admin.IsAdminRaiz && alvo.Id != admin.Id && PoderesNoSistema.PodeOlharTudo(alvo))
+                return VoltarParaFicha(jogadorId,
+                    "Essa conta administra o Padelizou. Só o administrador raiz derruba o acesso dela.");
+
+            SessoesAbertas.Derrubar(alvo);
+            await _context.SaveChangesAsync();
+
+            _logger?.LogWarning("Admin {AdminId} derrubou as sessões do jogador {JogadorId}.", admin.Id, alvo.Id);
+
+            TempData["Sucesso"] = $"Os logins abertos de {NomeBonito.Formatar(alvo.Nome)} caíram — "
+                + "todos, em qualquer aparelho. A senha dela NÃO mudou: é com ela mesma que ela "
+                + "entra de novo. Se a suspeita é de que alguém sabe a senha, defina uma nova aqui do lado.";
             return VoltarParaFicha(jogadorId);
         }
     }

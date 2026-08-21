@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/08/2026** — 🔑 **A SENHA GANHOU DUAS TELAS: A PESSOA TROCA A DELA SEM PRECISAR ESQUECÊ-LA, E O SUPORTE DEFINE UMA NOVA SEM ABRIR O BANCO.**
+> Última atualização: **21/08/2026** — 🔑 **A SENHA GANHOU DUAS TELAS E O SISTEMA GANHOU O BOTÃO DE EXPULSAR: TROCAR A SENHA AGORA DERRUBA QUEM JÁ ESTAVA DENTRO.**
 >
 > 🗣️ **Pedido do Felipe** (21/08), olhando a ficha do Anderson Virgili em `/Admin/Acesso`: *"mude o login do Virgili para AndersonVirgili e crie uma pagina para alterar senha"*. As duas coisas eram o mesmo buraco visto de dois lados — **login e senha nasciam no cadastro e não tinham por onde mudar depois**.
 >
@@ -17,9 +17,21 @@
 >
 > 🧪 **4.730 testes, 0 falhas (35 novos).** Entre eles, os que seguram o desenho: senha atual errada ou em branco não troca nada; a troca mata o link de recuperação pendente; o nomeado não define a senha do raiz nem do assistente; e um teste lê o código do controller pra falhar no dia em que alguém acrescentar o campo de e-mail por conveniência. `AuthController.AlterarSenha` entrou no vigia de rate limiting (`TravaDeEntradaTests`) com a justificativa escrita — conferir senha é onde se adivinha senha.
 >
-> 🕳️ **O que isto NÃO faz, escrito no código:** derrubar sessão aberta. O cookie não guarda senha e o sistema não tem carimbo de segurança — quem já estiver logado naquela conta continua logado até o cookie vencer. Trocar a senha fecha a porta da frente; não expulsa quem já está dentro.
+> 🚪 **E DERRUBAR OS LOGINS JÁ ABERTOS, que era a lacuna do bloco acima** (*"tem como derrubar o login logado desse jogador?"*). **O cookie deste site é AUTO-SUFICIENTE**: carrega quem a pessoa é, assinado, e o servidor não guarda lista de sessão nenhuma — não sabe quantos aparelhos estão logados numa conta e não teria como apagar um. Com os **90 dias deslizantes** do `ExpireTimeSpan`, um cookie copiado valia três meses **renovando-se sozinho**, mesmo depois de a senha ser trocada. Trocar a senha fechava a porta da frente e não tirava de dentro quem já entrou.
 >
-> ⏳ **Não publicado.** Sem migration: o banco não mudou. **O login do Virgili se troca na tela** — `/Admin/Acesso`, procurar por `virgili`, campo **Login** → `AndersonVirgili` → **Trocar**.
+> 🔖 **A peça é um CARIMBO** (a mesma ideia do `SecurityStamp` do ASP.NET Identity, em `Services/SessoesAbertas`): um valor opaco que fica na conta e vai **dentro do cookie**, como claim. A cada request logado os dois são comparados no `OnValidatePrincipal` do `Program.cs` — **trocar o carimbo mata, no ato, todo cookie emitido antes**, sem lista de sessão nenhuma precisar existir. O cookie recusado é apagado junto (`SignOutAsync`), senão o navegador repetiria o carimbo velho pra sempre.
+>
+> ⚠️ **Carimbo NULO é "nunca foi derrubada", e passa sem conferência — e isso não é preguiça: é o que evita DESLOGAR A BASE INTEIRA no deploy.** Os cookies que já estão na rua não têm a claim; sem essa regra, todos seriam recusados de uma vez. Depois do primeiro carimbo gravado na conta, cookie sem claim é cookie antigo — e aí é recusado, como tem que ser.
+>
+> 🔌 **Quem derruba**: o "esqueci minha senha" (o caminho onde mais importa — quem chega ali muitas vezes chega porque PERDEU a conta), a troca de senha do perfil, o definir-senha do admin, e um **botão próprio** em `/Admin/Acesso`: *"Derrubar os logins abertos"*, **sem mexer na senha**. O botão é separado de propósito — às vezes a senha está boa e o que sobrou foi uma sessão na rua (conta aberta no computador do clube, celular emprestado, aparelho vendido), e obrigar a trocar a senha pra fechar uma sessão tiraria da pessoa o acesso que ela ainda tinha.
+>
+> 🪑 **Na troca do próprio perfil, a aba atual SOBREVIVE**: derruba tudo e reemite o cookie desta aba com o carimbo novo, logo em seguida. A derrubada não sabe distinguir aparelho, e ser deslogado no instante seguinte a trocar a senha parece que a troca deu errado — justamente a hora de não deixar dúvida. A tela avisa antes: *"você continua conectado aqui, e todos os outros aparelhos são desconectados"*.
+>
+> 💸 **O preço, aceito e escrito**: **uma leitura a mais por request logado** — uma coluna, por chave primária. Sem `ValidationInterval` (o do Identity reconfere só a cada 30 min) porque "derrubar que só vale daqui a meia hora" não serve pro caso que fez isto existir: a conta invadida agora.
+>
+> 🧪 **4.744 testes, 0 falhas (48 novos no total do dia).** E **conferido no app rodando**, com Postgres local e cURL: conta sem carimbo navega normal; `UPDATE` do carimbo derruba no request seguinte (302 pra tela de entrar); trocar a senha por dentro mantém a aba atual em 200 e joga o cookie do "outro aparelho" pra tela de entrar.
+>
+> ⏳ **Não publicado.** **Tem migration**: `CarimboDeSessao`, uma coluna nova e anulável em `Jogador` (o app aplica migrations no startup). **O login do Virgili se troca na tela** — `/Admin/Acesso`, procurar por `virgili`, campo **Login** → `AndersonVirgili` → **Trocar**.
 >
 > Antes, na véspera (20/08): 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
 >
