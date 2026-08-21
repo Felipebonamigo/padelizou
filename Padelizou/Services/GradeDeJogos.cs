@@ -131,12 +131,17 @@ public static class GradeDeJogos
     // transforma "mesmo minuto" em "se cruzam no relógio" — ver o comentário de `ocupados`
     // logo abaixo. Um default faria os três chamadores compilarem calados com uma duração
     // inventada, e o erro seria uma janela de conflito do tamanho errado: invisível.
+    //
+    // `janelasProibidasPorDupla` é o impedimento de horário PAGO na inscrição (ver
+    // Services/JanelasDeImpedimento) — até 21/08/2026 cobrado e nunca lido por aqui. Dupla
+    // ausente do mapa (ou o mapa inteiro ausente) não tem restrição nenhuma, como sempre foi.
     public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
         int duracaoMinutos,
         IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null,
         IReadOnlyList<string>? quadras = null,
         IReadOnlyList<Partida>? jaMarcados = null,
-        IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null)
+        IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasProibidasPorDupla = null)
     {
         int[] Ocupantes(int duplaId) =>
             ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
@@ -211,8 +216,17 @@ public static class GradeDeJogos
             bool OcupadaAgora(int pessoa) =>
                 ocupados.TryGetValue(pessoa, out var quando) && Cruza(quando, horario);
 
+            // A janela é MEIO ABERTA ([Inicio, Fim)): o corte de sábado passa de "ImpedimentoManha"
+            // pra "ImpedimentoTarde" exatamente no meio-dia, e um jogo marcado ÀS 12h00 precisa
+            // cair num dos dois lados, nunca nos dois.
+            bool DentroDeJanelaProibida(int duplaId) =>
+                janelasProibidasPorDupla != null
+                && janelasProibidasPorDupla.TryGetValue(duplaId, out var janelas)
+                && janelas.Any(j => horario >= j.Inicio && horario < j.Fim);
+
             bool Livre(Partida p) =>
-                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora);
+                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id);
 
             var jogo = fila.FirstOrDefault(Livre);
 

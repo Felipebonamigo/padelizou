@@ -467,8 +467,17 @@ public class RoboDoChaveamento
         GradeDeJogos.Encaixar(jogos, horarios, VagasDaGrade.Duracao(torneio),
             await OcupantesPorDuplaAsync(torneioId.Value),
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
-            await QuadrasPreferidasAsync(torneioId.Value));
+            await QuadrasPreferidasAsync(torneioId.Value),
+            await JanelasProibidasPorDuplaAsync(torneio));
     }
+
+    // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver
+    // Services/JanelasDeImpedimento — `torneio` não vem com Categorias/Duplas incluído aqui
+    // (só FindAsync), então busca direto em Duplas, mesmo padrão de OcupantesPorDuplaAsync.
+    private async Task<Dictionary<int, (DateTime, DateTime)[]>> JanelasProibidasPorDuplaAsync(Torneio torneio) =>
+        JanelasDeImpedimento.PorDupla(torneio, await _context.Duplas
+            .Where(d => d.Categoria.TorneioId == torneio.Id)
+            .ToListAsync());
 
     // Os nomes das quadras do torneio, na ordem — é o que transforma "a definir" em "Quadra C"
     // na tela do jogador. Torneio que não cadastrou quadra devolve lista vazia, e a grade segue

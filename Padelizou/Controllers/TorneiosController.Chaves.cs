@@ -302,7 +302,8 @@ namespace Padelizou.Controllers
             // "Refazer grade" — duas cópias divergiriam e o torneio teria duas grades.
             EncaixarNasLevas(torneio, jogosPraAgendar, deChaveDireta,
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
-                quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id));
+                quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
+                janelas: JanelasDeImpedimento.PorDupla(torneio));
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
@@ -349,7 +350,9 @@ namespace Padelizou.Controllers
             DateTime? aPartirDe = null, IReadOnlyList<Partida>? jaMarcados = null,
             // A quadra preferida de cada categoria, quando o organizador escolheu alguma.
             // Ver Services/PreferenciaDeQuadra.
-            IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null)
+            IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
+            // O impedimento de horário PAGO na inscrição. Ver Services/JanelasDeImpedimento.
+            IReadOnlyDictionary<int, (DateTime, DateTime)[]>? janelas = null)
         {
             var abre = aPartirDe ?? torneio.AberturaDaGrade;
             var intocados = jaMarcados ?? Array.Empty<Partida>();
@@ -407,7 +410,7 @@ namespace Padelizou.Controllers
                 var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
-                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria);
+                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas);
 
                 jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
             }
@@ -520,7 +523,8 @@ namespace Padelizou.Controllers
                 torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
                 OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(id),
                 AberturaDoRecalculo(torneio, intocados), intocados,
-                await QuadrasPreferidasAsync(id));
+                await QuadrasPreferidasAsync(id),
+                JanelasDeImpedimento.PorDupla(torneio));
 
             await _context.SaveChangesAsync();
 
