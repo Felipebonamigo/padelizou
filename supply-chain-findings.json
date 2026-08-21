@@ -1,0 +1,277 @@
+{
+  "auditoria": "supply chain — Padelizou",
+  "data": "2026-08-21",
+  "commit_base": "7b0bafc2a78213aa655761df3ec10e6c1942e362",
+  "escopo": {
+    "manifestos": [
+      "Padelizou/Padelizou.csproj",
+      "Padelizou.Tests/Padelizou.Tests.csproj",
+      ".github/workflows/ci.yml",
+      ".github/workflows/deploy.yml",
+      "infra/vps/deploy.sh",
+      ".claude/hooks/session-start.sh"
+    ],
+    "pacotes_unicos_na_arvore": 150,
+    "diretos": 19,
+    "transitivos": 131
+  },
+  "resumo": {
+    "alto": 2,
+    "medio": 5,
+    "baixo": 5,
+    "corrigido_nesta_auditoria": 3
+  },
+  "limitacoes": {
+    "hosts_bloqueados_pela_politica_de_egresso": [
+      {
+        "host": "api.osv.dev",
+        "efeito": "sem cruzamento com uma segunda base de advisories (OSV)"
+      },
+      {
+        "host": "api.github.com/advisories",
+        "efeito": "não foi possível ler o texto dos 3 GHSA citados no achado SC-03"
+      },
+      {
+        "host": "azuresearch-usnc.nuget.org",
+        "efeito": "sem verificação de owners/prefixo reservado no nuget.org; publicador foi extraído do nuspec assinado em cache"
+      }
+    ],
+    "consequencia": "a checagem de CVE se apoia numa única base (a que o audit do NuGet consome). Ver SC-03: essa base tem um ponto cego demonstrado."
+  },
+  "findings": [
+    {
+      "id": "SC-01",
+      "severidade": "alto",
+      "categoria": "superficie-de-ataque/dependencia-nao-usada",
+      "titulo": "Pacote de scaffolding despeja 46 DLLs de terceiros no servidor de produção",
+      "local": "Padelizou/Padelizou.csproj:27",
+      "evidencia": {
+        "pacote": "Microsoft.VisualStudio.Web.CodeGeneration.Design 10.0.2",
+        "problema": "referenciado sem <PrivateAssets>all</PrivateAssets>, ao contrário do Microsoft.EntityFrameworkCore.Tools logo acima",
+        "uso_no_codigo": "nenhum — grep por CodeGeneration/Scaffolding em .cs/.cshtml/.razor retorna só a linha do .csproj",
+        "medido_no_dotnet_publish": {
+          "dlls_antes": 66,
+          "dlls_depois": 20,
+          "pastas_antes": 53,
+          "pastas_depois": 3,
+          "itens_removidos": 96
+        },
+        "o_que_ia_junto": [
+          "compilador Roslyn completo (Microsoft.CodeAnalysis.*, 12 DLLs)",
+          "MSBuild (Microsoft.Build, Microsoft.Build.Framework)",
+          "cliente NuGet completo (NuGet.*, 9 DLLs)",
+          "Microsoft.AspNetCore.Razor.Language 6.0.24 — .NET 6, fora de suporte desde nov/2024",
+          "System.Data.DataSetExtensions 4.5.0 — publicado em 2018",
+          "Humanizer 2.14.1 (jan/2022) + 50 pastas de satélite de idioma",
+          "Microsoft.CodeAnalysis.Elfie 1.0.0 — sem proveniência de código-fonte no nuspec"
+        ]
+      },
+      "por_que_importa": "cada uma dessas DLLs roda no VPS com os privilégios do app: credenciais do Postgres, tokens do Google, chaves do Asaas. E Roslyn + MSBuild + cliente NuGet num servidor web é, além de superfície, ferramental de pós-exploração — compilar e executar código novo e baixar pacotes sem sair do processo.",
+      "correcao": "Microsoft.VisualStudio.Web.CodeGeneration.Design REMOVIDO (não só marcado PrivateAssets); NuGet.Packaging e NuGet.Protocol removidos. Remover de vez foi necessário: as refs 7.6.0 eram um pino acidental, e sem elas a resolução transitiva caía pro NuGet 6.12.1, que tem advisory GHSA-g4vj-cjjj-v7hg (Low). O STATUS.md de 26/07 registra que o CRUD gerado por esse scaffold já tinha sido apagado.",
+      "status": "CORRIGIDO E VERIFICADO — build limpo, 4784 testes verdes, árvore do app de 150 para 43 pacotes",
+      "teste_de_regressao": "Padelizou.Tests/FerramentaDeDesenvolvimentoNaoVaiProServidorTests.cs — 3 testes; conferido que ficam vermelhos com o .csproj anterior"
+    },
+    {
+      "id": "SC-02",
+      "severidade": "alto",
+      "categoria": "superficie-de-ataque/codigo-nativo",
+      "titulo": "427 MB de binários nativos para 17 plataformas que o VPS nunca executa",
+      "local": ".github/workflows/ci.yml:96 (dotnet publish sem RID)",
+      "evidencia": {
+        "runtimes_no_pacote": "439 MB de 493 MB do publish",
+        "plataformas": [
+          "win-x86 (98 MB)",
+          "win-x64 (97 MB)",
+          "win-arm64 (92 MB)",
+          "osx (16 MB)",
+          "linux-x86",
+          "linux-arm",
+          "linux-arm64",
+          "linux-musl-*",
+          "linux-bionic-* (Android)",
+          "linux-riscv64",
+          "linux-loongarch64"
+        ],
+        "usado_de_fato": "linux-x64 (VPS Ubuntu)",
+        "origem": "meta-pacote SkiaSharp 4.150.1 traz NativeAssets.Win32 e NativeAssets.macOS por transitividade"
+      },
+      "por_que_importa": "binário nativo é a pior superfície de supply chain que existe: executa direto, não é IL, nenhuma ferramenta do .NET inspeciona o conteúdo, e o audit do NuGet não olha dentro. São 17 blobs opacos por build que não têm razão de estar no servidor.",
+      "correcao_verificada_localmente": "dotnet publish -r linux-x64 --self-contained false → 66 MB (de 493 MB); tar.gz 24 MB (de 158 MB); libSkiaSharp.so presente; os 3 arquivos que o deploy.sh exige presentes",
+      "status": "CORRIGIDO — aplicado no ci.yml. Verificado: libSkiaSharp.so carrega no layout achatado (teste de render/encode/decode/resize rodado por apphost e por 'dotnet <app>.dll'); systemd usa ExecStart=dotnet Padelizou.dll, não muda. Publicar no dev antes do prod (regra 3).",
+      "efeito_colateral_bom": "deploy.sh guarda 3 releases por ambiente por causa dos ~530 MB por build (comentário de 11/08/2026: 5,2 GB, 'quase um terço do disco'). Com 66 MB, 10 releases cabem em 660 MB.",
+      "medido": {
+        "antes_MB": 536,
+        "depois_MB": 66,
+        "targz_antes_MB": 173,
+        "targz_depois_MB": 24,
+        "dlls_antes": 66,
+        "dlls_depois": 20,
+        "plataformas_nativas_antes": 18,
+        "plataformas_nativas_depois": 0
+      }
+    },
+    {
+      "id": "SC-03",
+      "severidade": "medio",
+      "categoria": "abandono/ponto-cego-do-scanner",
+      "titulo": "Portable.BouncyCastle 1.9.0: biblioteca de cripto de 2021 que o scanner é estruturalmente incapaz de flagrar",
+      "local": "transitivo via WebPush 1.0.13 (Padelizou/Padelizou.csproj:35)",
+      "evidencia": {
+        "publicado": "2021-10-19",
+        "ultima_versao_existente": "1.9.0 — é a última que vai existir: o projeto renomeou o pacote para BouncyCastle.Cryptography na 2.0",
+        "prova_do_ponto_cego": "teste local reproduzível: um .csproj com NuGetAudit=true e AuditMode=all referenciando BouncyCastle.Cryptography 2.2.1 E Portable.BouncyCastle 1.9.0 no mesmo restore. O audit emite 3x NU1902 para o ID novo (GHSA-8xfc-gm6g-vgpv, GHSA-m44j-cfrm-g8qc, GHSA-v435-xc8x-wvr9) e ZERO para o ID antigo — que é um build mais velho da mesma biblioteca.",
+        "causa": "advisory é indexado por ID de pacote. Quem renomeia o pacote sai do índice: nenhum advisory novo jamais vai apontar para Portable.BouncyCastle.",
+        "duplicidade": "o app carrega DUAS BouncyCastle: BouncyCastle.Crypto.dll (1.9.0, via WebPush) e BouncyCastle.Cryptography.dll (2.6.2, via MailKit)",
+        "sem_saida_pelo_pacote": "WebPush 1.0.13 é de 2026-04-28 (recente, não abandonado) e ainda declara Portable.BouncyCastle 1.9.0 no grupo net10.0 do nuspec"
+      },
+      "exposicao_real": "BAIXA. As duas chamadas no código (PushNotificationService.cs:34,176 e VarreduraDeFantasmas.cs:62,77) usam VapidDetails + SendNotificationAsync: ECDSA P-256 e ECDH sobre dados que o próprio app gera, enviados a endpoints de push. Não parseia certificado de terceiro, não usa RSA nem Ed25519 — que é onde ficam os 3 advisories do ID novo.",
+      "recomendacao": "não é para corrigir hoje. É para SABER: esse pacote não vai aparecer em nenhum relatório de vulnerabilidade, nunca. Anotar como revisão manual periódica, ou trocar WebPush por VAPID nativo (System.Security.Cryptography.ECDsa assina o JWT ES256; o uso aqui é pequeno o bastante) se um dia isso incomodar."
+    },
+    {
+      "id": "SC-04",
+      "severidade": "medio",
+      "categoria": "processo/enforcement",
+      "titulo": "O CI não reprova por vulnerabilidade — o audit existe e ninguém lê",
+      "local": ".github/workflows/ci.yml",
+      "evidencia": {
+        "NuGetAudit": "true",
+        "NuGetAuditMode": "all",
+        "NuGetAuditLevel": "low",
+        "TreatWarningsAsErrors": "false",
+        "passo_de_check_no_ci": "nenhum"
+      },
+      "por_que_importa": "o audit já cobre as 131 transitivas no nível 'low' — está tudo ligado. Só que sai como warning no meio do log do restore. Uma CVE nova em qualquer um dos 150 pacotes entra em produção sem que nada fique vermelho. É o mesmo raciocínio do passo 'has-pending-model-changes' que já existe no ci.yml: a regra morava na memória do projeto até virar falha de build.",
+      "correcao": "passo novo no job 'testes': dotnet list Padelizou.slnx package --vulnerable --include-transitive, reprovando se a saída contiver 'has the following vulnerable packages'",
+      "status": "CORRIGIDO — passo 'Conferir vulnerabilidade nos pacotes' no job testes",
+      "verificacao": [
+        "arvore limpa -> passa (exit 0)",
+        "System.Net.Http 4.3.0 injetado -> reprova (exit 1) com anotacao",
+        "restore quebrado -> reprova (exit 1)"
+      ],
+      "bug_encontrado_no_proprio_gate": "a primeira versao aprovava quando o restore falhava: restore quebrado devolve {'problems':[...]} sem 'projects', e o parser lia como zero vulnerabilidade. Corrigido antes de commitar.",
+      "escape_hatch": "NuGetAuditSuppress no .csproj para um advisory especifico, com comentario — nunca apagar o passo"
+    },
+    {
+      "id": "SC-05",
+      "severidade": "medio",
+      "categoria": "integridade/reprodutibilidade",
+      "titulo": "Sem lockfile: as 131 dependências transitivas não estão fixadas em lugar nenhum",
+      "local": "Padelizou/Padelizou.csproj, Padelizou.Tests/Padelizou.Tests.csproj",
+      "evidencia": {
+        "RestorePackagesWithLockFile": "vazio",
+        "packages.lock.json": "não existe"
+      },
+      "por_que_importa": "o repositório fixa 19 versões diretas; as outras 131 o restore resolve na hora, no runner do CI. Duas execuções do mesmo commit podem produzir pacotes diferentes, e nada no repositório registra o hash do que foi baixado. É o que separa 'o CI testou o mesmo código' de 'o CI testou o mesmo código E as mesmas dependências'.",
+      "correcao": "<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile> nos dois .csproj, commitar os packages.lock.json, e usar dotnet restore --locked-mode no CI",
+      "status": "NÃO APLICADO",
+      "observacao": "gera dois arquivos novos no repositório e faz o restore falhar quando alguém muda versão sem regenerar o lock — que é exatamente o ponto."
+    },
+    {
+      "id": "SC-06",
+      "severidade": "medio",
+      "categoria": "ci/actions",
+      "titulo": "GitHub Actions presas a tag móvel, não a commit",
+      "local": ".github/workflows/ci.yml:19,22,88,91",
+      "evidencia": {
+        "actions/checkout@v4": "2 usos",
+        "actions/setup-dotnet@v4": "2 usos"
+      },
+      "por_que_importa": "tag no git é um ponteiro, não um conteúdo: quem controla o repositório da action pode reapontar v4 sem que nada aqui mude. O job 'publicar' tem contents:write e o token que cria os releases que o VPS instala — é o caminho mais curto entre uma action comprometida e o servidor.",
+      "correcao": "fixar no sha completo, com a tag em comentário: uses: actions/checkout@<sha40> # v4.2.2",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-07",
+      "severidade": "medio",
+      "categoria": "deploy/integridade",
+      "titulo": "deploy.sh instala o tar.gz do release sem conferir integridade",
+      "local": "infra/vps/deploy.sh (curl -fL ... releases/download/$TAG/padelizou.tar.gz)",
+      "por_que_importa": "o pacote vem por HTTPS do GitHub, então não é o caso de qualquer um no meio do caminho. Mas nada amarra o tar.gz ao build que o CI produziu: quem tiver contents:write no repositório (ou o token do job 'publicar') troca o asset do release e o VPS instala. O rollback automático do /healthz não pega isso — um pacote adulterado responde 200 igual.",
+      "correcao": "o ci.yml publica um .sha256 junto do tar.gz e o deploy.sh confere com sha256sum -c antes de extrair. Passo seguinte, se quiser: actions/attest-build-provenance.",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-08",
+      "severidade": "baixo",
+      "categoria": "ci/permissoes",
+      "titulo": "Job 'testes' sem bloco permissions — herda o padrão do repositório",
+      "local": ".github/workflows/ci.yml:12",
+      "evidencia": "o job 'publicar' declara permissions: contents: write (correto, escopo mínimo). O job 'testes' não declara nada.",
+      "por_que_importa": "'testes' roda em pull_request, ou seja, executa restore e build de código vindo de fora. Se o padrão do repositório for read/write, esse token está ao alcance desse build.",
+      "correcao": "permissions: contents: read no topo do ci.yml (o bloco do job 'publicar' continua sobrescrevendo pra write)",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-09",
+      "severidade": "baixo",
+      "categoria": "abandono",
+      "titulo": "xunit 2.9.3 marcado como Legacy pelo próprio nuget.org",
+      "local": "Padelizou.Tests/Padelizou.Tests.csproj",
+      "evidencia": "dotnet list package --deprecated: xunit + xunit.assert, xunit.core, xunit.extensibility.core, xunit.extensibility.execution — todos 'Legacy', alternativa xunit.v3. Última publicação da 2.9.3: 2025-01-08.",
+      "por_que_importa": "só testes, não vai pro servidor. Mas 'deprecated' no NuGet significa que correção de segurança sai na v3, não aqui.",
+      "correcao": "migração pra xunit.v3 quando houver folga — não é urgente e mexe em 4781 testes",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-10",
+      "severidade": "baixo",
+      "categoria": "configuracao",
+      "titulo": "Sem nuget.config: nenhuma trava de origem de pacote",
+      "evidencia": "não existe nuget.config no repositório; o restore usa a fonte configurada na máquina (hoje só api.nuget.org)",
+      "por_que_importa": "hoje é inofensivo porque só existe uma fonte. Vira dependency confusion no dia em que um feed privado entrar: sem package source mapping, o restore aceita o pacote de qualquer fonte que responda primeiro.",
+      "correcao": "nuget.config com <packageSources><clear/> + nuget.org e um <packageSourceMapping>",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-11",
+      "severidade": "baixo",
+      "categoria": "deploy/hardening",
+      "titulo": "Nome de arquivo previsível em /tmp durante o deploy",
+      "local": "infra/vps/deploy.sh (curl -o /tmp/padelizou-$TAG.tar.gz)",
+      "por_que_importa": "roda como root num VPS de um operador só, então é teórico. Mas /tmp é gravável por todos: um symlink pré-criado nesse caminho faz o curl escrever no alvo do link.",
+      "correcao": "PACOTE=$(mktemp /tmp/padelizou-XXXXXX.tar.gz)",
+      "status": "NÃO APLICADO"
+    },
+    {
+      "id": "SC-12",
+      "severidade": "baixo",
+      "categoria": "atualizacao",
+      "titulo": "Desatualizações sem CVE conhecida",
+      "evidencia": {
+        "producao": [
+          "QRCoder 1.6.0 → 1.8.0",
+          "Google.Apis.Auth 1.75.0 → 1.76.0",
+          "SkiaSharp 4.150.1 → 4.151.1",
+          "Microsoft.EntityFrameworkCore.Tools 10.0.10 → 10.0.11"
+        ],
+        "testes": [
+          "coverlet.collector 6.0.4 → 10.0.1 (4 majors)",
+          "Microsoft.NET.Test.Sdk 17.14.1 → 18.9.0",
+          "xunit.runner.visualstudio 3.1.4 → 4.0.0",
+          "EF InMemory/Relational 10.0.10 → 10.0.11"
+        ]
+      },
+      "observacao": "EF em produção está pinado em 10.0.10 de propósito (comentário no .csproj de testes). Subir os dois juntos ou nenhum.",
+      "status": "NÃO APLICADO"
+    }
+  ],
+  "sinais_bons": [
+    "150/150 pacotes com assinatura de repositório do nuget.org (.signature.p7s presente em todos)",
+    "141/150 pacotes declaram proveniência de código-fonte (<repository commit=...> no nuspec)",
+    "nenhuma CVE conhecida na árvore inteira pelo audit do NuGet (mode=all, level=low) — ressalva em SC-03",
+    "nenhum curl|bash, nenhum script de instalação de terceiro em CI, deploy ou hooks",
+    "publicadores concentrados: Microsoft (75), Humanizer/Mehdi Khalili+Claire Novotny (50), xunit (7), Google LLC (4) — nenhum publicador obscuro com pacote único fora dos já citados",
+    "deploy.sh: valida o input do workflow contra injeção de shell, usa flock, healthcheck com rollback automático, e o TOFU do known_hosts está documentado como escolha consciente",
+    "o hook .claude/session-start.sh instala .NET pelo repositório do Ubuntu, não por script remoto",
+    "Microsoft.EntityFrameworkCore.Tools já está corretamente marcado PrivateAssets=all — o padrão certo já existia no arquivo"
+  ],
+  "reproducao": [
+    "dotnet list Padelizou.slnx package --vulnerable --include-transitive",
+    "dotnet list Padelizou.slnx package --deprecated --include-transitive",
+    "dotnet list Padelizou.slnx package --outdated",
+    "dotnet list Padelizou.slnx package --include-transitive --format json",
+    "dotnet msbuild Padelizou/Padelizou.csproj -getProperty:NuGetAudit -getProperty:NuGetAuditMode -getProperty:NuGetAuditLevel",
+    "dotnet publish Padelizou/Padelizou.csproj -c Release -o /tmp/pub && ls /tmp/pub/*.dll | wc -l",
+    "SC-03: .csproj com NuGetAudit=true, NuGetAuditMode=all e as duas PackageReference (BouncyCastle.Cryptography 2.2.1 + Portable.BouncyCastle 1.9.0), depois dotnet restore"
+  ]
+}
