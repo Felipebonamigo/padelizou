@@ -139,6 +139,42 @@ public class PadelimetroService : IPadelimetroService
         context.HistoricosDePadelimetro.RemoveRange(campanha);
     }
 
+    // DESFAZ o Padelímetro de UMA partida: subtrai o delta de cada linha do extrato,
+    // devolve o jogo pra contagem (JogosDePadelimetro) e apaga as linhas — o extrato limpo
+    // deixa o guard de idempotência de AplicarAsync (linha 66 acima) reaplicar do zero.
+    //
+    // Extraído de ReabrirPartida em 21/08/2026, achado da análise de sistema: corrigir o
+    // placar de um jogo FINALIZADO sem passar por "Reabrir" primeiro nunca chamava isto —
+    // AplicarAsync via a linha do extrato já existente (a do placar VELHO) e não fazia
+    // nada, então o nível dos 4 jogadores continuava calculado pelo placar errado até
+    // alguém rodar o replay manual (RecalcularTudoAsync). O delta depende da MARGEM de
+    // games (Padelimetro.FatorDeGames), então mesmo uma correção que não troca o
+    // vencedor — só aperta ou alarga o placar — vale um novo cálculo.
+    //
+    // NÃO salva — mesma convenção de DesfazerCampanhaAsync: quem chama decide quando, e a
+    // reaplicação depende do RemoveRange estar SALVO antes do guard de idempotência rodar.
+    public static async Task DesfazerPartidaAsync(DbPadelContext context, int partidaId)
+    {
+        var extrato = await context.HistoricosDePadelimetro
+            .Where(h => h.PartidaId == partidaId).ToListAsync();
+        if (extrato.Count == 0) return;
+
+        var jogadores = await context.Jogadores
+            .Where(j => extrato.Select(h => h.JogadorId).Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id);
+
+        foreach (var linha in extrato)
+        {
+            if (!jogadores.TryGetValue(linha.JogadorId, out var jogador)) continue;
+
+            if (jogador.Padelimetro != null)
+                jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
+            jogador.JogosDePadelimetro = Math.Max(0, jogador.JogosDePadelimetro - 1);
+        }
+
+        context.HistoricosDePadelimetro.RemoveRange(extrato);
+    }
+
     // O núcleo do ajuste de campanha, compartilhado entre o gancho ao vivo e o replay.
     // Mexe nas entidades rastreadas e devolve quantas linhas de extrato criou — quem
     // chama decide quando salvar. A matemática e as portas da faixa moram em

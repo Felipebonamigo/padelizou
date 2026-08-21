@@ -307,6 +307,19 @@ namespace Padelizou.Controllers
 
             bool woTardioTrocouVencedor = !acabouDeTerminar && partida.VencedorId != vencedorAntes;
 
+            // ⚠️ W.O. TARDIO sobre um jogo que já tinha placar de VERDADE (achado de
+            // 21/08/2026, mesma receita da correção de placar em ControlePlacar):
+            // PadelimetroService.Conta exclui W.O. do Padelímetro (ninguém entrou em quadra),
+            // mas se este jogo já era "Finalizada" com um placar real, ele pode já ter uma
+            // linha no extrato de QUANDO FOI UM JOGO DE VERDADE. Virar W.O. agora não desfaz
+            // isso sozinho — o guard de idempotência de AplicarAsync só olha "existe linha?",
+            // então sem isto o nível dos 4 jogadores ficava com o efeito de um jogo que
+            // acabou de deixar de existir. Sem custo se nunca tinha entrado no Padelímetro.
+            if (!acabouDeTerminar)
+            {
+                await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
+            }
+
             // W.O. TARDIO NA FINAL que troca o vencedor: o terceiro caminho que re-coroa
             // (junto do ControlePlacar e do reabrir), e o único que ainda deixava o
             // EX-campeão com o bônus de campanha no extrato. Mesma receita: desfaz aqui
@@ -458,33 +471,11 @@ namespace Padelizou.Controllers
             // 4. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
             //    volta pro que era. Como o desfazer acontece minutos depois do erro, esta é a
             //    última partida aplicada e a subtração é exata; se não for, o replay do admin
-            //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync).
-            var extrato = await _context.HistoricosDePadelimetro
-                .Where(h => h.PartidaId == partida.Id).ToListAsync();
-            if (extrato.Count > 0)
-            {
-                var porJogador = await _context.Jogadores
-                    .Where(j => extrato.Select(h => h.JogadorId).Contains(j.Id))
-                    .ToDictionaryAsync(j => j.Id);
-
-                foreach (var linha in extrato)
-                {
-                    if (!porJogador.TryGetValue(linha.JogadorId, out var jogador)) continue;
-
-                    // ⚠️ Subtração de DELTA, e não NivelAntes absoluto — mesma razão da
-                    // campanha: o jogador pode ter jogado OUTRA coisa depois deste jogo
-                    // (a mista da noite), e restaurar o nível absoluto apagaria esse
-                    // ganho do número deixando a linha dele órfã no extrato. O delta é
-                    // pós-clamp, então desfaz exatamente o que este jogo aplicou; se o
-                    // nível bateu na ponta da régua em jogo POSTERIOR, o replay do admin
-                    // é a régua final, como sempre foi.
-                    if (jogador.Padelimetro != null)
-                        jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
-                    jogador.JogosDePadelimetro = Math.Max(0, jogador.JogosDePadelimetro - 1);
-                }
-
-                _context.HistoricosDePadelimetro.RemoveRange(extrato);
-            }
+            //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync). A regra
+            //    mora em PadelimetroService.DesfazerPartidaAsync — a MESMA usada pela
+            //    correção de placar sem reabrir e pelo W.O. tardio (ver os dois lá embaixo
+            //    e em RegistrarWo).
+            await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
 
             // 5. O torneio deixa de estar finalizado se era esta final que o encerrava.
             if (partida.Fase == "Final" && partida.TorneioId is int torneioId)
@@ -655,6 +646,19 @@ namespace Padelizou.Controllers
             // e a FINAL da chave geral com vencedor contradizendo o próprio placar.
             else if (status == "Finalizada" && partida.Status == "Finalizada")
             {
+                // ⚠️ O PADELÍMETRO PRECISA VOLTAR À ESTACA ZERO ANTES DE QUALQUER OUTRA COISA.
+                // Achado de 21/08/2026: até então esta correção mexia em VencedorId/UltimaFase/
+                // fase seguinte, mas nunca chamava isto — e AplicarAsync (mais abaixo, dentro
+                // do encerramento) via a linha do extrato JÁ EXISTENTE (a do placar velho) e
+                // não fazia nada, porque o guard de idempotência olha só "existe linha?", não
+                // "a linha bate com o placar de agora?". O nível dos 4 jogadores ficava
+                // calculado pelo placar ERRADO até alguém rodar o replay manual — mesmo quando
+                // o vencedor não mudou: o delta depende da MARGEM de games
+                // (Padelimetro.FatorDeGames), então apertar ou alargar o placar já é motivo
+                // pra recalcular. Sem custo se este jogo nunca entrou no Padelímetro (W.O.,
+                // torneio restrito etc.) — o método não faz nada quando não há extrato.
+                await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
+
                 var novoVencedor = QuemVenceu.Da(partida);
                 if (novoVencedor != null && novoVencedor != partida.VencedorId)
                 {

@@ -527,11 +527,15 @@ public class CampanhaNoPadelimetroServiceTests
         Assert.Equal("Campeao", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla2Id).UltimaFase);
         Assert.Equal("Final", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla1Id).UltimaFase);
 
-        // ...e a campanha foi desfeita (subtração de delta) e reaplicada com eles:
-        // A perde o bônus e fica só com o +12 do jogo invertido (que o extrato não
-        // reaplica — é a regra de sempre, o replay acerta); B ganha o bônus.
-        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
-        Assert.All(cenario.Vices, j => Assert.Equal(598, j.Padelimetro)); // 588 + 10
+        // ...e o Padelímetro acompanha os DOIS pisos: o do JOGO (achado de 21/08/2026—
+        // antes disto A ficava com o "+12" do jogo invertido pra sempre, até um replay
+        // manual; agora PadelimetroService.DesfazerPartidaAsync desfaz o extrato do jogo
+        // ANTES do encerramento reaplicar com o placar certo, e o "+12" vira "-12" porque A
+        // de fato perdeu) e o da CAMPANHA (subtração de delta e reaplicação, como sempre).
+        // A: 600 -12 (perdeu o jogo de verdade) +0 (perdeu o bônus de campeão) = 588.
+        // B: 600 +12 (ganhou o jogo de verdade) +10 (bônus de campeão) = 622.
+        Assert.All(cenario.Campeoes, j => Assert.Equal(588, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(622, j.Padelimetro));
         Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(595, j.Padelimetro));
         Assert.All(cenario.FicaramNaChave, j => Assert.Equal(590, j.Padelimetro));
 
@@ -566,10 +570,16 @@ public class CampanhaNoPadelimetroServiceTests
 
         Assert.Equal("Campeao", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla2Id).UltimaFase);
 
-        // A campanha migrou: A devolve o bônus (fica com o +12 do jogo, que virou W.O. e
-        // o replay limpa), B ganha o dela — os jogos contados de B vieram antes da final.
-        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
-        Assert.All(cenario.Vices, j => Assert.Equal(598, j.Padelimetro)); // 588 + 10
+        // O Padelímetro acompanha os DOIS pisos, igual à correção de placar (achado de
+        // 21/08/2026): o jogo virou W.O. — que não conta pro Padelímetro — então o "+12"/
+        // "-12" do jogo REAL que tinha acontecido (A vencia 6x4) precisa sumir, não só a
+        // campanha. PadelimetroService.DesfazerPartidaAsync desfaz o jogo ANTES do
+        // encerramento, e como W.O. é excluído (PadelimetroService.Conta), nada reaplica —
+        // o jogo simplesmente deixa de existir pro Padelímetro dos quatro.
+        // A: 600 +0 (jogo virou W.O., não conta) +0 (perdeu o bônus de campeão) = 600.
+        // B: 600 +0 (jogo virou W.O., não conta) +10 (bônus de campeão) = 610.
+        Assert.All(cenario.Campeoes, j => Assert.Equal(600, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(610, j.Padelimetro));
 
         var linhasDeCampeao = ctx.HistoricosDePadelimetro
             .Where(h => h.CategoriaId != null && h.Motivo.Contains("Campeão"))
