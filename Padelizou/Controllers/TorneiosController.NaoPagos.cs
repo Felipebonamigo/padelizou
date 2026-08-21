@@ -102,9 +102,20 @@ namespace Padelizou.Controllers
             if (americanas.Count > 0)
             {
                 var avisados = americanas.Select(i => i.JogadorId).ToList();
+                // As categorias afetadas, ANTES do remove — depois dele não dá mais pra
+                // perguntar "de qual categoria essa inscrição era".
+                var categoriasAfetadas = americanas.Select(i => i.CategoriaId).Distinct().ToList();
+
                 _context.InscricoesAmericanas.RemoveRange(americanas);
                 await _context.SaveChangesAsync();
                 await AvisarAsync(avisados, "Você saiu do torneio", motivo, id);
+
+                // ⚠️ Achado de 21/08/2026: até então esta varredura em lote nunca chamava a
+                // lista de espera — quem esperava vaga numa categoria de Americano continuava
+                // esperando mesmo depois de vagas terem se aberto aqui. Mesma régua da remoção
+                // individual (TirarDuplaDoTorneioAsync → PromoverDaListaDeEsperaAsync).
+                foreach (var categoriaId in categoriasAfetadas)
+                    await PromoverDaListaDeEsperaAsync(categoriaId, torneio);
             }
 
             int total = duplas.Count + americanas.Count;
