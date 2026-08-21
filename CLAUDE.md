@@ -16,11 +16,21 @@ arquivo de 3.900 linhas é regra que uma sessão com pressa pula.
    A parte do `[Authorize]` tem gate mecânico desde 21/08: `GateDeAutorizacaoDosPostsTests`
    varre o assembly e quebra se um POST novo atender sem login. **A checagem de dono continua
    sem gate** — é julgamento, e é trabalho do teste da área.
-1. **Todo defeito corrigido vira teste.**
+1. **Todo defeito corrigido vira teste — escrito ANTES da correção, e visto falhar.**
+   Rodar e confirmar que falha pelo motivo certo ("não existe", "resultado errado"), nunca
+   por typo ou config: teste que passa de primeira não prova nada, porque você nunca o viu
+   falhar. Se a correção saiu antes do teste, **apague a correção e recomece** — não adapte
+   escrevendo o teste depois, olhando pro código pronto: isso produz teste que confirma o
+   comportamento em vez de travá-lo.
 2. **Nada é publicado com teste vermelho.**
 3. **Testar em `dev` antes de produção.**
 4. **Fechou um trabalho, commit + push.**
 5. **Uma coisa de cada vez, até o fim.**
+6. **Três correções seguidas falhando: pare e questione a arquitetura.** Não tente a quarta.
+   Três tentativas erradas quase sempre significam que o problema não está onde se procura —
+   a data de 20/08 estava no Razor, não no campo; o desconto do carrinho está no recálculo,
+   não no motor. Volte pra causa raiz: reproduza, veja o que mudou, e instrumente **cada
+   fronteira** entre camadas pra achar onde o valor certo vira errado, em vez de chutar.
 
 ## Plugins deste projeto
 
@@ -36,6 +46,36 @@ projeto tem prioridade. O hook de SessionStart dele injeta um bloco `<EXTREMELY_
 a ênfase é do plugin, não uma promoção acima das regras daqui.
 
 Desinstalar: tirar `enabledPlugins` e `extraKnownMarketplaces` do `.claude/settings.json`.
+
+## Quanto cerimonial cada pedido merece
+
+O `brainstorming` do Superpowers classifica todo pedido em spike / bounded / architectural, e
+o tamanho do ritual sai daí. Sem um critério escrito, ele reclassifica o mesmo tipo de tarefa
+a cada pedido — então aqui o critério é este, e é por área de risco, não por tamanho do diff:
+
+- **architectural** (design escrito e aprovado antes de qualquer código) — qualquer coisa que
+  gere **migration**; que toque uma das quatro réguas de autorização (`EhOrganizadorAsync`,
+  `UsuarioEhOrganizadorAsync`, `PodeControlarPlacarAsync`, `PodeOperarODiaDeJogoAsync`); que
+  mexa em **dinheiro** (taxa, estorno, recebimento, comissão); que mude o contrato da **API de
+  torneios** (tem parceiro externo consumindo — ver `API-TORNEIOS.md`); ou que crie **papel de
+  acesso novo**.
+- **bounded** (duas perguntas, design de duas frases, aprovação, implementa) — mudança num
+  fluxo que já existe, sem nada da lista acima. É o caso da maioria.
+- **spike** — "dá pra fazer X?". O resultado é uma resposta, não código que fica.
+
+**O ajuste é de mão única:** complexidade que aparece no meio sobe o nível, nunca desce. Um
+`bounded` que revelou precisar de migration virou `architectural` naquele instante.
+
+## Como fechar um bloco de trabalho
+
+Termine com **um** destes, explícito, e não com um resumo em prosa — `DONE_WITH_CONCERNS` é
+informação que um parágrafo esconde:
+
+`DONE` · `DONE_WITH_CONCERNS` (feito, mas com ressalva que precisa ser lida) ·
+`NEEDS_CONTEXT` (falta uma decisão do Felipe) · `BLOCKED` (não dá pra seguir, e por quê).
+
+E antes de qualquer um deles: nenhuma alegação de "pronto", "corrigido" ou "os testes passam"
+sem ter rodado o comando **naquele mesmo turno** e lido a saída. "Deveria funcionar" não conta.
 
 ## Antes de codar
 
@@ -69,8 +109,6 @@ declare "funciona" sem rodar a suíte.
   `TorneiosController.EhOrganizadorAsync`, `DuplasController.UsuarioEhOrganizadorAsync`,
   `PartidasController.PodeControlarPlacarAsync` (mais `PodeOperarODiaDeJogoAsync` pro
   marcador). Uma dessincronia já quebrou a Mesa de Controle em 31/07.
-- **Ação que grava dado precisa de `[HttpPost]` + `[Authorize]` + checagem de dono/organizador.**
-  O Acesso Antecipado NÃO é autorização.
 - **DateTime.Now é hora LOCAL** (colunas `timestamp without time zone`, modo legado do
   Npgsql). O fuso do VPS precisa ser America/Sao_Paulo — não está garantido em lugar nenhum
   do código, só documentado em `infra/vps/README.md`.
