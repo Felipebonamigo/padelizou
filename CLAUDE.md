@@ -2,17 +2,33 @@
 
 Plataforma de torneios e aulas de padel (padelizou.com.br), operada por uma pessoa (Felipe).
 .NET 10 / ASP.NET Core MVC + PostgreSQL. **Leia isto antes de mexer em qualquer coisa** — é o
-resumo de ~30 linhas do que o STATUS.md guarda em milhares.
+resumo do que o STATUS.md guarda em milhares.
+
+## 🔒 Regras para não regredir
+
+A memória mais barata do projeto. Ficam aqui, e não no `STATUS.md`, porque este arquivo é
+lido sozinho no início de toda sessão — regra que depende de alguém achar a linha 3855 de um
+arquivo de 3.900 linhas é regra que uma sessão com pressa pula.
+
+0. **Ação que grava dado precisa de `[HttpPost]` + `[Authorize]` + checagem de dono/organizador.**
+   Dois buracos em 26/07 vieram da falta disso. O gate de Acesso Antecipado *não* é
+   autorização — ele some no dia em que o sistema abrir pro público.
+   A parte do `[Authorize]` tem gate mecânico desde 21/08: `GateDeAutorizacaoDosPostsTests`
+   varre o assembly e quebra se um POST novo atender sem login. **A checagem de dono continua
+   sem gate** — é julgamento, e é trabalho do teste da área.
+1. **Todo defeito corrigido vira teste.**
+2. **Nada é publicado com teste vermelho.**
+3. **Testar em `dev` antes de produção.**
+4. **Fechou um trabalho, commit + push.**
+5. **Uma coisa de cada vez, até o fim.**
 
 ## Antes de codar
 
-1. **Leia `STATUS.md`, seção `## 🔒 Regras para não regredir`** (perto do fim do arquivo) —
-   cinco regras curtas, a memória mais barata do projeto.
-2. **Leia o TOPO do `STATUS.md`** (as primeiras ~50 linhas) — é um diário em ordem
+1. **Leia o TOPO do `STATUS.md`** (as primeiras ~50 linhas) — é um diário em ordem
    cronológica reversa: o que foi feito por último, o que ficou pendente, o que foi
    publicado e em que build. Se o pedido tocar numa área específica, procure por ela no
    arquivo (busca de texto, não leitura linear — ele é grande).
-3. Área específica: `RANKING.md` (Padelímetro/pontuação), `ESTORNO.md`, `RECEBIMENTO.md`
+2. Área específica: `RANKING.md` (Padelímetro/pontuação), `ESTORNO.md`, `RECEBIMENTO.md`
    (pagamentos/Asaas), `WHATSAPP.md`, `EMAIL.md`, `ANDROID.md`, `PARCEIROS.md`,
    `API-TORNEIOS.md`, `AMBIENTE-LOCAL.md`, `TRABALHAR-FORA.md`, `infra/vps/README.md`
    (deploy/backup/VPS).
