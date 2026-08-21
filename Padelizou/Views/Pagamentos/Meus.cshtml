@@ -7,12 +7,20 @@
         "Confirmado" => "success",
         "Pendente" => "warning text-dark",
         "AguardandoConfirmacao" => "info text-dark",
+        // Dinheiro ENTROU mas a quadra já tinha sido tomada — precisa de ação, não é
+        // informativo como "Confirmado". Mesma cor de "algo deu errado", não a de sucesso.
+        "AguardandoEstorno" => "danger",
         "Estornado" or "Cancelado" => "danger",
         _ => "secondary"
     };
 
     // O nome interno do status do Pix direto não é frase — traduz só ele, os outros já são.
-    Func<string, string> rotuloStatus = status => status == "AguardandoConfirmacao" ? "Conferindo" : status;
+    Func<string, string> rotuloStatus = status => status switch
+    {
+        "AguardandoConfirmacao" => "Conferindo",
+        "AguardandoEstorno" => "Precisa devolver",
+        _ => status
+    };
 
     Func<string, string> rotuloTipo = tipo => tipo switch
     {
@@ -233,7 +241,7 @@
                             <td class="small">@rotuloTipo(p.Tipo)</td>
                             <td class="text-end fw-semibold">@p.ValorRepasse.ToString("C")</td>
                             <td class="text-end small text-muted">@p.Comissao.ToString("C")</td>
-                            <td><span class="badge bg-@corDoStatus(p.Status)">@p.Status</span></td>
+                            <td><span class="badge bg-@corDoStatus(p.Status)">@rotuloStatus(p.Status)</span></td>
                             <td class="text-end text-nowrap">
                                 <a asp-action="Comprovante" asp-route-id="@p.Id"
                                    class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="Comprovante">
@@ -254,6 +262,20 @@
                                                aria-label="Quanto devolver — em branco devolve tudo">
                                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
                                             Estornar
+                                        </button>
+                                    </form>
+                                }
+                                else if (p.Status == "AguardandoEstorno")
+                                {
+                                    @* Achado de 21/08/2026: dinheiro entrou, a quadra já tinha sido
+                                       tomada por outra marcação — o serviço não pôde ser entregue nem
+                                       um pouco. Sem campo de valor: aqui é sempre devolver tudo, nunca
+                                       parte (o controller já recusa parcial pra este status). *@
+                                    <form asp-action="Estornar" asp-route-id="@p.Id" method="post" class="d-inline"
+                                          onsubmit="return confirm('A quadra já foi tomada por outra marcação — devolver o valor inteiro pro jogador?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3">
+                                            Devolver
                                         </button>
                                     </form>
                                 }

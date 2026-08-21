@@ -131,6 +131,11 @@ public static class GradeDeJogos
     // transforma "mesmo minuto" em "se cruzam no relógio" — ver o comentário de `ocupados`
     // logo abaixo. Um default faria os três chamadores compilarem calados com uma duração
     // inventada, e o erro seria uma janela de conflito do tamanho errado: invisível.
+    //
+    // `janelasProibidasPorDupla` é o impedimento de horário PAGO na inscrição (ver
+    // Services/JanelasDeImpedimento) — até 21/08/2026 cobrado e nunca lido por aqui. Dupla
+    // ausente do mapa (ou o mapa inteiro ausente) não tem restrição nenhuma, como sempre foi.
+    //
     // `sedes` é o torneio que acontece em MAIS DE UM CLUBE (Services/SedesDoTorneio). Omitida —
     // que é o caso de todo torneio até hoje — nada aqui muda de comportamento. Com ela entram
     // duas regras de naturezas opostas, e a diferença entre as duas é o assunto deste método:
@@ -146,6 +151,7 @@ public static class GradeDeJogos
         IReadOnlyList<string>? quadras = null,
         IReadOnlyList<Partida>? jaMarcados = null,
         IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasProibidasPorDupla = null,
         SedesDoTorneio? sedes = null)
     {
         var sede = sedes ?? SedesDoTorneio.Nenhuma;
@@ -277,8 +283,17 @@ public static class GradeDeJogos
             bool OcupadaAgora(int pessoa) =>
                 ocupados.TryGetValue(pessoa, out var agenda) && CruzaComAPessoa(agenda, horario);
 
+            // A janela é MEIO ABERTA ([Inicio, Fim)): o corte de sábado passa de "ImpedimentoManha"
+            // pra "ImpedimentoTarde" exatamente no meio-dia, e um jogo marcado ÀS 12h00 precisa
+            // cair num dos dois lados, nunca nos dois.
+            bool DentroDeJanelaProibida(int duplaId) =>
+                janelasProibidasPorDupla != null
+                && janelasProibidasPorDupla.TryGetValue(duplaId, out var janelas)
+                && janelas.Any(j => horario >= j.Inicio && horario < j.Fim);
+
             bool Livre(Partida p) =>
-                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora);
+                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id);
 
             // Existe quadra do clube CERTO livre pra este jogo? Torneio sem quadra cadastrada
             // responde sempre sim: lá a grade marca hora e não nomeia lugar.

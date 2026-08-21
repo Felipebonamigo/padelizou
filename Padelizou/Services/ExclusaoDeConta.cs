@@ -59,6 +59,15 @@ public static class ExclusaoDeConta
         jogador.Instagram = null;
         jogador.FotoPerfil = null;
 
+        // O endereço (Cep/Logradouro/Bairro) entrou no modelo em 10/08/2026 — DEPOIS desta
+        // exclusão ter sido escrita, em 28/07 — e ficou de fora aqui. A Política de Privacidade
+        // promete "endereço" na lista do que a exclusão apaga (Home/Privacy.cshtml); sem isto
+        // a conta "anonimizada" seguia com rua e bairro gravados, que é dos dados que mais
+        // reidentificam uma pessoa.
+        jogador.Cep = null;
+        jogador.Logradouro = null;
+        jogador.Bairro = null;
+
         // Sem senha e sem token: a conta deixa de ser acessível, inclusive por "esqueci
         // minha senha" — sem isto, um link antigo no e-mail ainda abriria a porta.
         jogador.SenhaHash = null;

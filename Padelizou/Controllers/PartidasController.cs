@@ -311,13 +311,28 @@ namespace Padelizou.Controllers
             EncerramentoPorWo.Registrar(partida, duplaQueNaoCompareceuId,
                 FormatoDaPartida.De(partida.Categoria?.Torneio, partida.Fase));
 
+            bool woTardioTrocouVencedor = !acabouDeTerminar && partida.VencedorId != vencedorAntes;
+
+            // ⚠️ W.O. TARDIO sobre um jogo que já tinha placar de VERDADE (achado de
+            // 21/08/2026, mesma receita da correção de placar em ControlePlacar):
+            // PadelimetroService.Conta exclui W.O. do Padelímetro (ninguém entrou em quadra),
+            // mas se este jogo já era "Finalizada" com um placar real, ele pode já ter uma
+            // linha no extrato de QUANDO FOI UM JOGO DE VERDADE. Virar W.O. agora não desfaz
+            // isso sozinho — o guard de idempotência de AplicarAsync só olha "existe linha?",
+            // então sem isto o nível dos 4 jogadores ficava com o efeito de um jogo que
+            // acabou de deixar de existir. Sem custo se nunca tinha entrado no Padelímetro.
+            if (!acabouDeTerminar)
+            {
+                await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
+            }
+
             // W.O. TARDIO NA FINAL que troca o vencedor: o terceiro caminho que re-coroa
             // (junto do ControlePlacar e do reabrir), e o único que ainda deixava o
             // EX-campeão com o bônus de campanha no extrato. Mesma receita: desfaz aqui
             // (regra única em PadelimetroService.DesfazerCampanhaAsync), o SaveChanges
             // logo abaixo grava, e o gancho do CoroarCampeao no encerramento reaplica
             // com o carimbo certo.
-            if (!acabouDeTerminar && partida.Fase == "Final" && partida.VencedorId != vencedorAntes)
+            if (woTardioTrocouVencedor && partida.Fase == "Final")
             {
                 await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
             }
@@ -333,6 +348,47 @@ namespace Padelizou.Controllers
             {
                 var perdedor = await _context.Duplas.FindAsync(perdedorId);
                 if (perdedor != null) perdedor.UltimaFase = partida.Fase;
+
+                // W.O. TARDIO que troca o vencedor: o resultado ORIGINAL já tinha carimbado
+                // alguém como perdedor desta fase (a linha acima, na primeira vez). Se esse
+                // alguém é agora o novo VENCEDOR, o carimbo velho fica mentindo — "eliminado
+                // aqui" numa dupla que continua viva. Mesmo ajuste que ControlePlacar já faz
+                // ao corrigir placar de jogo finalizado (ver `novoDono` logo abaixo neste
+                // arquivo). Achado de 21/08/2026: até então só o ramo do ControlePlacar
+                // corrigia isso — o W.O. tardio deixava o carimbo velho de pé.
+                if (woTardioTrocouVencedor)
+                {
+                    var novoVencedor = await _context.Duplas.FindAsync(partida.VencedorId);
+                    if (novoVencedor != null && novoVencedor.UltimaFase == partida.Fase)
+                        novoVencedor.UltimaFase = "Grupos";
+                }
+            }
+
+            // W.O. TARDIO EM FASE NÃO-FINAL que troca o vencedor: a fase seguinte desta
+            // categoria nasceu do vencedor ERRADO (o encerramento normal, mais abaixo, já
+            // avança quem ganhou — mas quem já tinha avançado antes, com o resultado velho,
+            // continua marcado pra jogar). Mesma receita do ControlePlacar (linhas ~634-651
+            // deste arquivo): se a fase seguinte ainda não começou, refaz sozinho; se já
+            // começou, avisa em vez de mexer sozinho num jogo em andamento. Achado de
+            // 21/08/2026 — até então só a correção de placar tinha este cuidado; o W.O.
+            // tardio deixava a fase seguinte com a dupla errada, em silêncio.
+            bool faseSeguinteRefeita = false;
+            string? avisoDaFaseSeguinte = null;
+            if (woTardioTrocouVencedor && partida.Fase != "Final")
+            {
+                var daCategoria = await _context.Partidas
+                    .Where(p => p.CategoriaId == partida.CategoriaId).ToListAsync();
+                var depois = DesfazerDoJogo.GeradosDepois(partida, daCategoria);
+
+                if (depois.Count > 0 && depois.All(p => p.Status == "Agendada"))
+                {
+                    _context.Partidas.RemoveRange(depois);
+                    faseSeguinteRefeita = true;
+                }
+                else if (depois.Count > 0)
+                {
+                    avisoDaFaseSeguinte = "A fase seguinte já começou e NÃO foi refeita — confira o chaveamento à mão.";
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -346,9 +402,16 @@ namespace Padelizou.Controllers
             }
 
             var faltou = await _context.Duplas.FindAsync(duplaQueNaoCompareceuId);
-            TempData["Sucesso"] = $"W.O. registrado no jogo {partida.Codigo}: "
+            var mensagemBase = $"W.O. registrado no jogo {partida.Codigo}: "
                 + $"{faltou?.NomeDeExibicao ?? "a dupla"} não compareceu. "
                 + "O resultado vale pra chave e pra classificação, e NÃO mexe no Padelímetro de ninguém.";
+
+            if (avisoDaFaseSeguinte != null)
+                TempData["Erro"] = $"{mensagemBase} {avisoDaFaseSeguinte}";
+            else
+                TempData["Sucesso"] = faseSeguinteRefeita
+                    ? $"{mensagemBase} O vencedor mudou e a fase seguinte foi refeita com a dupla certa."
+                    : mensagemBase;
 
             return partida.TorneioId.HasValue
                 ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
@@ -414,33 +477,11 @@ namespace Padelizou.Controllers
             // 4. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
             //    volta pro que era. Como o desfazer acontece minutos depois do erro, esta é a
             //    última partida aplicada e a subtração é exata; se não for, o replay do admin
-            //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync).
-            var extrato = await _context.HistoricosDePadelimetro
-                .Where(h => h.PartidaId == partida.Id).ToListAsync();
-            if (extrato.Count > 0)
-            {
-                var porJogador = await _context.Jogadores
-                    .Where(j => extrato.Select(h => h.JogadorId).Contains(j.Id))
-                    .ToDictionaryAsync(j => j.Id);
-
-                foreach (var linha in extrato)
-                {
-                    if (!porJogador.TryGetValue(linha.JogadorId, out var jogador)) continue;
-
-                    // ⚠️ Subtração de DELTA, e não NivelAntes absoluto — mesma razão da
-                    // campanha: o jogador pode ter jogado OUTRA coisa depois deste jogo
-                    // (a mista da noite), e restaurar o nível absoluto apagaria esse
-                    // ganho do número deixando a linha dele órfã no extrato. O delta é
-                    // pós-clamp, então desfaz exatamente o que este jogo aplicou; se o
-                    // nível bateu na ponta da régua em jogo POSTERIOR, o replay do admin
-                    // é a régua final, como sempre foi.
-                    if (jogador.Padelimetro != null)
-                        jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
-                    jogador.JogosDePadelimetro = Math.Max(0, jogador.JogosDePadelimetro - 1);
-                }
-
-                _context.HistoricosDePadelimetro.RemoveRange(extrato);
-            }
+            //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync). A regra
+            //    mora em PadelimetroService.DesfazerPartidaAsync — a MESMA usada pela
+            //    correção de placar sem reabrir e pelo W.O. tardio (ver os dois lá embaixo
+            //    e em RegistrarWo).
+            await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
 
             // 5. O torneio deixa de estar finalizado se era esta final que o encerrava.
             if (partida.Fase == "Final" && partida.TorneioId is int torneioId)
@@ -611,6 +652,19 @@ namespace Padelizou.Controllers
             // e a FINAL da chave geral com vencedor contradizendo o próprio placar.
             else if (status == "Finalizada" && partida.Status == "Finalizada")
             {
+                // ⚠️ O PADELÍMETRO PRECISA VOLTAR À ESTACA ZERO ANTES DE QUALQUER OUTRA COISA.
+                // Achado de 21/08/2026: até então esta correção mexia em VencedorId/UltimaFase/
+                // fase seguinte, mas nunca chamava isto — e AplicarAsync (mais abaixo, dentro
+                // do encerramento) via a linha do extrato JÁ EXISTENTE (a do placar velho) e
+                // não fazia nada, porque o guard de idempotência olha só "existe linha?", não
+                // "a linha bate com o placar de agora?". O nível dos 4 jogadores ficava
+                // calculado pelo placar ERRADO até alguém rodar o replay manual — mesmo quando
+                // o vencedor não mudou: o delta depende da MARGEM de games
+                // (Padelimetro.FatorDeGames), então apertar ou alargar o placar já é motivo
+                // pra recalcular. Sem custo se este jogo nunca entrou no Padelímetro (W.O.,
+                // torneio restrito etc.) — o método não faz nada quando não há extrato.
+                await PadelimetroService.DesfazerPartidaAsync(_context, partida.Id);
+
                 var novoVencedor = QuemVenceu.Da(partida);
                 if (novoVencedor != null && novoVencedor != partida.VencedorId)
                 {

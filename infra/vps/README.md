@@ -6,7 +6,7 @@ Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite
 | Arquivo aqui | Onde fica no servidor | Quando roda |
 |---|---|---|
 | `deploy.sh` · `rollback.sh` | `/opt/padelizou-deploy/` | sob demanda |
-| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos) |
+| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos + config do servidor) |
 | `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 UTC — cópia FORA do servidor |
 | `backup-meio-dia.sh` · `cron-backup-meio-dia` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **16h UTC** — só o banco, direto pro cofre |
 
@@ -164,6 +164,41 @@ em *Approve* libera. São três segundos, e é o que separa "publiquei em produ�
 > ⚠️ **Crie o environment `prod` antes do primeiro deploy em produção.** Se ele não
 > existir, o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o
 > deploy sai direto. A trava não vem do arquivo `deploy.yml`, vem daqui.
+
+### 4. O fuso do servidor precisa ser America/Sao_Paulo — e isso não é automático
+
+O sistema grava e compara hora LOCAL o tempo todo (ranking da semana, vencimento de
+pagamento, fechamento de mês do professor) — as colunas são "timestamp without time
+zone" e o app roda em modo legado do Npgsql de propósito. Isso pressupõe o SO do VPS
+em `America/Sao_Paulo`. Um VPS novo nasce em UTC, e nada no deploy corrige isso: o
+`deploy.sh` só reinicia o serviço, nunca reaplica o unit do systemd.
+
+Confira no VPS:
+
+```bash
+timedatectl status   # "Time zone" tem que ser America/Sao_Paulo
+```
+
+Se não estiver, dois passos (não precisa recriar o serviço nem fazer deploy):
+
+```bash
+timedatectl set-timezone America/Sao_Paulo
+systemctl edit padelizou   # abre um drop-in; cole as duas linhas abaixo, salve e feche
+```
+
+```ini
+[Service]
+Environment=TZ=America/Sao_Paulo
+```
+
+```bash
+systemctl daemon-reload
+systemctl restart padelizou
+```
+
+O `Padelizou/padelizou.service` deste repositório já leva `Environment=TZ=America/Sao_Paulo`
+— serve de referência pra quando o servidor for reprovisionado do zero, mas **não
+reaplica sozinho** no unit que já está rodando no VPS.
 
 ## Quando algo dá errado
 

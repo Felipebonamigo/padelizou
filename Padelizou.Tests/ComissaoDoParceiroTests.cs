@@ -356,11 +356,50 @@ public class ComissaoDoParceiroTests
     {
         // Metade voltou: metade da comissão deixa de existir, e a parte do parceiro cai junto.
         // Sem isto, o parceiro seria pago por uma venda que foi desfeita pela metade.
+        //
+        // ⚠️ O estado é o que EstornoParcial.Aplicar de fato produz: Valor, Comissao e
+        // ValorEstornado mudam JUNTOS — nunca só ValorEstornado com Valor/Comissao intocados.
+        // Modelar só ValorEstornado (como este teste fazia até 21/08/2026) mascarava o double
+        // discount: ComissaoLiquida recalculava a proporção por cima de uma Comissao que já
+        // tinha vindo líquida, e sobre um Valor que já não era mais o original.
         var meio = Inscricao(7, torneioId: 1, comissao: 100m, Estreia, valor: 1000m);
+        meio.Valor = 500m;           // metade voltou: Valor passa a ser o que SOBROU
+        meio.Comissao = 50m;         // e a comissão já sai líquida, calculada por EstornoParcial
         meio.ValorEstornado = 500m;
 
         Assert.Equal(50m, ComissaoDoParceiro.ComissaoLiquida(meio));
         Assert.Equal(10m, ComissaoDoParceiro.Calcular("Torneio", new[] { meio }).Total);
+    }
+
+    [Fact]
+    public void Estorno_parcial_de_verdade_nao_desconta_a_comissao_duas_vezes()
+    {
+        // Regressão do achado de 21/08: chama EstornoParcial.Aplicar de VERDADE (não um estado
+        // montado à mão) e confere que ComissaoLiquida devolve exatamente o que Aplicar já
+        // calculou — nem um centavo a menos. Terço voltou (não metade — metade é o caso em
+        // que o bug antigo por coincidência ainda não zerava tudo, e escondia o problema).
+        var pagamento = Inscricao(7, torneioId: 1, comissao: 100m, Estreia, valor: 1000m);
+        pagamento.ValorRepasse = 900m;
+
+        EstornoParcial.Aplicar(pagamento, aDevolver: 300m);
+
+        // 30% voltou: a comissão de EstornoParcial já é 100 - 30 = 70, líquida.
+        Assert.Equal(70m, pagamento.Comissao);
+        Assert.Equal(70m, ComissaoDoParceiro.ComissaoLiquida(pagamento));
+    }
+
+    [Fact]
+    public void Estorno_parcial_de_mais_da_metade_nao_zera_a_comissao_que_ainda_resta()
+    {
+        // O bug antigo zerava a comissão inteira em qualquer estorno de 50% ou mais — mesmo
+        // quando a venda continuava valendo a maior parte do preço.
+        var pagamento = Inscricao(7, torneioId: 1, comissao: 100m, Estreia, valor: 1000m);
+        pagamento.ValorRepasse = 900m;
+
+        EstornoParcial.Aplicar(pagamento, aDevolver: 600m);   // 60% voltou
+
+        Assert.Equal(40m, pagamento.Comissao);
+        Assert.Equal(40m, ComissaoDoParceiro.ComissaoLiquida(pagamento));
     }
 
     [Fact]

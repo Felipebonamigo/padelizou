@@ -532,4 +532,109 @@ public class GradeDeJogosTests
 
         Assert.Equal(new DateTime(2026, 8, 16, 8, 0, 0), abertura);
     }
+
+    // ---- Encaixar: impedimento de horário PAGO na inscrição ----
+    //
+    // Até 21/08/2026 Dupla.ImpedimentoQuintaNoite/SextaNoite/SabadoManha/SabadoTarde só
+    // alimentavam preço (Torneio.TaxaPorImpedimento) e exibição — nenhum código de sorteio os
+    // lia. A dupla pagava pela flexibilidade que a janela tirava da grade, e podia ser
+    // escalada exatamente ali mesmo.
+
+    [Fact]
+    public void Dupla_com_impedimento_nao_e_escalada_dentro_da_janela_proibida()
+    {
+        var jogo = JogoEntre(1, 2);
+        var horarios = new List<DateTime>
+        {
+            new(2026, 8, 15, 8, 0, 0),    // dentro da janela proibida
+            new(2026, 8, 15, 8, 50, 0),   // fora — é aqui que o jogo tem que cair
+        };
+        var janelas = new Dictionary<int, (DateTime, DateTime)[]>
+        {
+            [1] = new[] { (new DateTime(2026, 8, 15, 0, 0, 0), new DateTime(2026, 8, 15, 8, 30, 0)) },
+        };
+
+        GradeDeJogos.Encaixar(new List<Partida> { jogo }, horarios, DuracaoDaGrade,
+            janelasProibidasPorDupla: janelas);
+
+        Assert.Equal(horarios[1], jogo.HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Impedimento_vale_pro_lado_2_da_dupla_tambem()
+    {
+        var jogo = JogoEntre(1, 2);
+        var horarios = new List<DateTime>
+        {
+            new(2026, 8, 15, 8, 0, 0),
+            new(2026, 8, 15, 8, 50, 0),
+        };
+        var janelas = new Dictionary<int, (DateTime, DateTime)[]>
+        {
+            [2] = new[] { (new DateTime(2026, 8, 15, 0, 0, 0), new DateTime(2026, 8, 15, 8, 30, 0)) },
+        };
+
+        GradeDeJogos.Encaixar(new List<Partida> { jogo }, horarios, DuracaoDaGrade,
+            janelasProibidasPorDupla: janelas);
+
+        Assert.Equal(horarios[1], jogo.HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Sem_vaga_fora_da_janela_o_impedimento_cede_em_vez_de_deixar_o_jogo_sem_hora()
+    {
+        // Mesma troca que já vale pra conflito de pessoa: um jogo sem horário nenhum é pior
+        // que um jogo marcado em cima do impedimento que ninguém mais consegue cobrir.
+        var jogo = JogoEntre(1, 2);
+        var horarios = new List<DateTime> { new(2026, 8, 15, 8, 0, 0) };
+        var janelas = new Dictionary<int, (DateTime, DateTime)[]>
+        {
+            [1] = new[] { (new DateTime(2026, 8, 15, 0, 0, 0), new DateTime(2026, 8, 16, 0, 0, 0)) },
+        };
+
+        GradeDeJogos.Encaixar(new List<Partida> { jogo }, horarios, DuracaoDaGrade,
+            janelasProibidasPorDupla: janelas);
+
+        Assert.Equal(horarios[0], jogo.HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Janela_e_meio_aberta_horario_exatamente_no_corte_nao_conta_como_proibido()
+    {
+        var jogo = JogoEntre(1, 2);
+        var meioDia = new DateTime(2026, 8, 15, 12, 0, 0);
+        var horarios = new List<DateTime> { meioDia };
+        // Janela do turno da MANHÃ termina exatamente ao meio-dia — meio-dia já é tarde.
+        var janelas = new Dictionary<int, (DateTime, DateTime)[]>
+        {
+            [1] = new[] { (new DateTime(2026, 8, 15, 8, 0, 0), meioDia) },
+        };
+
+        GradeDeJogos.Encaixar(new List<Partida> { jogo }, horarios, DuracaoDaGrade,
+            janelasProibidasPorDupla: janelas);
+
+        Assert.Equal(meioDia, jogo.HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Dupla_sem_impedimento_nenhum_nao_e_afetada_pelo_mapa_de_outra_dupla()
+    {
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4) };
+        var horarios = new List<DateTime>
+        {
+            new(2026, 8, 15, 8, 0, 0),
+            new(2026, 8, 15, 8, 50, 0),
+        };
+        var janelas = new Dictionary<int, (DateTime, DateTime)[]>
+        {
+            [1] = new[] { (new DateTime(2026, 8, 15, 0, 0, 0), new DateTime(2026, 8, 16, 0, 0, 0)) },
+        };
+
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, janelasProibidasPorDupla: janelas);
+
+        // A dupla (3,4) não tem restrição — pega a primeira vaga livre normalmente.
+        Assert.Equal(horarios[0], jogos[1].HorarioPrevisto);
+        // A (1,2) foi empurrada pra segunda vaga.
+        Assert.Equal(horarios[1], jogos[0].HorarioPrevisto);
+    }
 }

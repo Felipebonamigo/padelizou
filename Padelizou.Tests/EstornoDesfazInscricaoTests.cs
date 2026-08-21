@@ -112,6 +112,48 @@ public class EstornoDesfazInscricaoTests
             Arg.Any<AlcanceDoAviso>());
     }
 
+    // Achado da análise de sistema de 21/08/2026: ChamarDaListaDeEsperaAsync só olhava Duplas
+    // — numa categoria de Americano a fila de espera nunca era chamada, mesmo com a vaga
+    // aberta por um estorno. Mesmo teste acima, mas com InscricaoAmericana.
+    private static Pagamento PagamentoDeAmericana(InscricaoAmericana inscricao, int torneioId, int categoriaId, int jogadorId) =>
+        new()
+        {
+            Tipo = "TorneioIndividual",
+            Status = "Estornado",
+            Valor = 100m,
+            ReferenciaId = inscricao.Id,
+            DadosInscricao = JsonSerializer.Serialize(new DadosInscricaoTorneio(
+                torneioId, categoriaId, jogadorId, null, false, false, false, false, SemParceiro: false)),
+        };
+
+    [Fact]
+    public async Task A_vaga_que_abriu_numa_categoria_de_americano_tambem_chama_a_proxima_da_fila()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria) = await TorneioComCategoriaAsync(ctx);
+        var a = Jogador(ctx, "Ana", "11144477735");
+        var c = Jogador(ctx, "Caio", "33366699957");
+
+        var confirmada = new InscricaoAmericana { CategoriaId = categoria.Id, JogadorId = a.Id, Pago = true };
+        var naEspera = new InscricaoAmericana { CategoriaId = categoria.Id, JogadorId = c.Id, EmListaDeEspera = true };
+        ctx.InscricoesAmericanas.AddRange(confirmada, naEspera);
+        await ctx.SaveChangesAsync();
+
+        var pagamento = PagamentoDeAmericana(confirmada, torneio.Id, categoria.Id, a.Id);
+        ctx.Pagamentos.Add(pagamento);
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await Servico(ctx, push).DesfazerAsync(pagamento);
+
+        var promovida = await ctx.InscricoesAmericanas.FirstAsync(x => x.Id == naEspera.Id);
+        Assert.False(promovida.EmListaDeEspera);
+
+        await push.Received().EnviarParaJogadorAsync(c.Id,
+            Arg.Is<string>(t => t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Any<AlcanceDoAviso>());
+    }
+
     [Fact]
     public async Task Quem_estava_na_espera_nao_promove_ninguem_ao_sair()
     {
