@@ -75,7 +75,7 @@
                 }
                 @if (!string.IsNullOrWhiteSpace(Model.LadoQuadra))
                 {
-                    <p class="text-muted mb-3 small"><i class="bi bi-arrow-left-right"></i> Joga do lado @Model.LadoQuadra.ToLower()</p>
+                    <p class="text-muted mb-3 small"><i class="bi bi-arrow-left-right"></i> @Padelizou.Services.LadoNaQuadra.Frase(Model.LadoQuadra)</p>
                 }
                 else
                 {

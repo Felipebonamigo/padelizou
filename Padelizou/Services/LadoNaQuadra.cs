@@ -58,6 +58,23 @@ public static class LadoNaQuadra
         _ => null,
     };
 
+    // A FRASE INTEIRA, pro perfil e pra busca de jogadores.
+    //
+    // ⚠️ EXISTE PORQUE COLAR O VALOR CRU DAVA ERRO DE CONCORDÂNCIA (Felipe, 21/08/2026): as duas
+    // telas escreviam `"Joga do lado " + LadoQuadra.ToLower()` e saía "joga do lado esquerda" e
+    // "joga do lado ambos". Os valores gravados são femininos porque descrevem a QUADRA ("a
+    // esquerda da quadra"), e "lado" é masculino — o texto não podia sair de uma colagem. E
+    // "Ambos" não é lado nenhum: é os dois, e pede outra frase inteira.
+    //
+    // Mora aqui junto do resto do vocabulário de lado pelo motivo escrito no topo do arquivo:
+    // texto livre montado dentro de cada tela é como uma delas passa a discordar das outras.
+    public static string Frase(string? lado) => Normalizar(lado) switch
+    {
+        Esquerda => "Joga do lado esquerdo",
+        Direita => "Joga do lado direito",
+        _ => "Joga em ambos os lados",
+    };
+
     // As opções do seletor, na ordem em que fazem sentido pra quem está se inscrevendo.
     public static IReadOnlyList<(string Valor, string Texto)> Opcoes { get; } = new[]
     {

@@ -187,4 +187,50 @@ public class LadoDeQuemProcuraParceiroTests
         Assert.Equal(LadoNaQuadra.Esquerda, efetivo);
         Assert.Equal("Joga na esquerda", LadoNaQuadra.Rotulo(efetivo));
     }
+
+    // ═══════════ A FRASE DO PERFIL E DA BUSCA (Felipe, 21/08/2026) ═══════════
+    //
+    // O perfil e a busca colavam `"Joga do lado " + LadoQuadra.ToLower()` e saía "joga do lado
+    // esquerda" e "joga do lado ambos". Os valores gravados são femininos porque descrevem a
+    // QUADRA, e "lado" é masculino — a frase não podia sair de uma colagem. E "Ambos" não é
+    // lado nenhum: pede outra frase inteira.
+    [Theory]
+    [InlineData("Esquerda", "Joga do lado esquerdo")]
+    [InlineData("Direita", "Joga do lado direito")]
+    [InlineData("Ambos", "Joga em ambos os lados")]
+    // Passa por `Normalizar`, então grafia solta e nulo também têm resposta — e a resposta
+    // segura é a dos dois lados, igual ao resto do arquivo.
+    [InlineData("esq", "Joga do lado esquerdo")]
+    [InlineData("", "Joga em ambos os lados")]
+    [InlineData(null, "Joga em ambos os lados")]
+    public void A_frase_do_lado_concorda_em_genero(string? gravado, string esperado)
+    {
+        Assert.Equal(esperado, LadoNaQuadra.Frase(gravado));
+    }
+
+    // ⚠️ A GUARDA CONTRA A COLAGEM VOLTAR. O erro não quebra nada — a tela abre, o texto sai,
+    // e só quem lê português percebe. Nenhum teste de controller pegaria.
+    [Theory]
+    [InlineData("Views", "Auth", "Perfil.cshtml")]
+    [InlineData("Views", "Jogadores", "Buscar.cshtml")]
+    public void As_telas_usam_a_frase_pronta_e_nao_colam_o_valor_cru(params string[] caminho)
+    {
+        var tela = LerDaWeb(caminho);
+
+        Assert.Contains("LadoNaQuadra.Frase(", tela);
+        Assert.DoesNotContain("Joga do lado @", tela);
+        Assert.DoesNotContain("LadoQuadra.ToLower()", tela);
+    }
+
+    private static string LerDaWeb(params string[] caminho)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, "Padelizou", "Views")))
+                return File.ReadAllText(Path.Combine(dir.FullName, "Padelizou", Path.Combine(caminho)));
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException("Não achei a pasta do projeto web a partir de " + AppContext.BaseDirectory);
+    }
 }
