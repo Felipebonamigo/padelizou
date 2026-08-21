@@ -22,6 +22,21 @@ arquivo de 3.900 linhas é regra que uma sessão com pressa pula.
 4. **Fechou um trabalho, commit + push.**
 5. **Uma coisa de cada vez, até o fim.**
 
+## Plugins deste projeto
+
+`superpowers@claude-plugins-official` está instalado em **escopo de projeto** (`.claude/settings.json`),
+não no `~/.claude/` de ninguém — assim ele vale também nas sessões da web, que nascem de um clone
+limpo. São 14 skills de processo (brainstorming, writing-plans, systematic-debugging,
+test-driven-development, verification-before-completion e outras), ~688 tokens sempre ligados.
+O plugin vem do marketplace oficial da Anthropic, mas o código é de terceiro
+(`github.com/obra/superpowers`), fixado num SHA pelo marketplace.
+
+⚠️ **Este arquivo vence as skills dele.** É a própria regra do plugin: instrução explícita do
+projeto tem prioridade. O hook de SessionStart dele injeta um bloco `<EXTREMELY_IMPORTANT>` —
+a ênfase é do plugin, não uma promoção acima das regras daqui.
+
+Desinstalar: tirar `enabledPlugins` e `extraKnownMarketplaces` do `.claude/settings.json`.
+
 ## Antes de codar
 
 1. **Leia o TOPO do `STATUS.md`** (as primeiras ~50 linhas) — é um diário em ordem
