@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/08/2026** — 🔗 **AUDITORIA DE SUPPLY CHAIN: METADE DO QUE IA PRO SERVIDOR NÃO TINHA RAZÃO DE ESTAR LÁ.**
+> Última atualização: **21/08/2026** — 💾 **O PACOTE DE DEPLOY CAIU DE 536 MB PRA 66 MB, E O CI PASSOU A REPROVAR POR CVE.**
+>
+> 🎯 **Os dois achados ALTOS da auditoria e o portão de CVE saíram do papel.** O `tar.gz` que o CI anexa no release foi de **173 MB pra 24 MB**, e o pacote publicado de **536 MB pra 66 MB** — 66 DLLs viraram 20, e as 18 plataformas de binário nativo viraram zero.
+>
+> 💾 **SC-02, o publish preso ao `linux-x64`.** Sem RID, o `dotnet publish` levava `libSkiaSharp` pra Windows x86/x64/arm64, macOS, riscv64, loongarch64 e Android — 427 MB de blob que roda direto, não é IL, e nenhuma ferramenta do .NET inspeciona. Como SkiaSharp move upload de imagem e cartão compartilhável, não dava pra aplicar no escuro: publiquei um programa à parte com as mesmas referências, no mesmo modo, e rodei o caminho de `ImagemEnviada.cs` — desenha, encoda PNG, decodifica, redimensiona. **Funcionou pelo apphost e por `dotnet <app>.dll`, que é como o systemd sobe o Padelizou** (`ExecStart=/usr/bin/dotnet /opt/padelizou/Padelizou.dll`, sem mudança no unit). ⚠️ **Ainda assim, regra 3: publicar no `dev` antes do `prod`** — o que dava pra provar daqui está provado, o que só o servidor responde é o `/healthz` verde lá.
+>
+> 🚪 **SC-04, o portão de CVE no CI.** O audit do NuGet já vinha ligado em `mode=all`, nível `low` — só que saía como warning no log do restore. Agora é passo com falha de build, lendo o **JSON** e não a tabela de texto: forma de saída de ferramenta muda entre versões do SDK, e grep que para de casar vira portão que aprova tudo calado.
+>
+> 🕳️ **E foi exatamente isso que quase aconteceu comigo.** A primeira versão do portão **aprovava quando o restore falhava** — restore quebrado devolve `{"problems": [...]}` sem `"projects"`, e o parser lia como zero vulnerabilidade. Peguei testando o próprio passo. Os três casos ficaram conferidos: árvore limpa passa; `System.Net.Http` 4.3.0 injetado reprova com anotação nomeando pacote, versão, severidade e advisory; restore quebrado reprova. **Se um dia travar por um advisory que não te alcança, a saída é `NuGetAuditSuppress` daquele GHSA com um comentário dizendo por quê — nunca apagar o passo.**
+>
+> 🔍 **E o portão pagou o aluguel no primeiro dia**: descobriu que as refs diretas `NuGet.Packaging`/`NuGet.Protocol` **7.6.0 eram um pino acidental**. Ao removê-las (elas não eram usadas em lugar nenhum), a resolução transitiva caía pro **NuGet 6.12.1, que TEM advisory** (GHSA-g4vj-cjjj-v7hg, Low), puxado pelo mesmo pacote de scaffolding. Ou seja: marcar `PrivateAssets=all` não bastava — deixaria um cliente NuGet vulnerável no grafo pra sempre.
+>
+> 🧹 **Então o `Microsoft.VisualStudio.Web.CodeGeneration.Design` saiu de vez.** O que decidiu foi o próprio STATUS: **em 26/07 o CRUD que esse scaffold gerou já tinha sido apagado** — 9 ações e 5 views de Jogadores, ~800 linhas, e a remoção fechou uma porta sem `[Authorize]` em `/Jogadores/Delete/5`. A ferramenta ficou pra trás sozinha, um mês depois de o projeto jogar fora tudo que ela produziu. **A árvore do app foi de 150 pra 43 pacotes e o audit ficou limpo de verdade**, não pelo pino. Se um dia precisar scaffoldar de novo: `dotnet tool install -g dotnet-aspnet-codegenerator`, na máquina, não no `.csproj`.
+>
+> 🧪 **4.784 testes, 0 falhas.** O `EntityFrameworkCore.Tools` continua onde estava — o `dotnet ef` precisa dele, e o teste de `deps.json` confirma que nada dele chega ao servidor. As 20 DLLs que sobraram são todas usadas; as duas menos óbvias, `System.Management` e `System.CodeDom`, são transitivas do `Google.Apis.Auth`.
+>
+> 📦 **De brinde, a retenção do `deploy.sh` deixa de apertar o disco**: com 66 MB por build, as 3 versões guardadas por ambiente ocupam ~200 MB em vez de 1,6 GB. Se quiser voltar pra 5, agora cabe.
+>
+> Antes, no mesmo dia: 🔗 **AUDITORIA DE SUPPLY CHAIN: METADE DO QUE IA PRO SERVIDOR NÃO TINHA RAZÃO DE ESTAR LÁ.**
 >
 > 🔎 **O pedido foi uma auditoria de cadeia de suprimentos** — CVE, abandono, publicador, script de instalação, dependências diretas e a árvore inteira. Saída em `SUPPLY-CHAIN.md` (12 achados, com comando de reprodução) e `supply-chain-findings.json`. A árvore tem **150 pacotes** (19 diretos, 131 transitivos) e **nenhuma CVE conhecida**. O problema não era vulnerabilidade — era quantidade.
 >

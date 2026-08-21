@@ -19,7 +19,7 @@
     "alto": 2,
     "medio": 5,
     "baixo": 5,
-    "corrigido_nesta_auditoria": 1
+    "corrigido_nesta_auditoria": 3
   },
   "limitacoes": {
     "hosts_bloqueados_pela_politica_de_egresso": [
@@ -67,8 +67,8 @@
         ]
       },
       "por_que_importa": "cada uma dessas DLLs roda no VPS com os privilégios do app: credenciais do Postgres, tokens do Google, chaves do Asaas. E Roslyn + MSBuild + cliente NuGet num servidor web é, além de superfície, ferramental de pós-exploração — compilar e executar código novo e baixar pacotes sem sair do processo.",
-      "correcao": "PrivateAssets=all no CodeGeneration.Design; NuGet.Packaging e NuGet.Protocol removidos (zero uso no código)",
-      "status": "CORRIGIDO E VERIFICADO nesta auditoria — build Release limpo, 4781 testes verdes, pacote medido",
+      "correcao": "Microsoft.VisualStudio.Web.CodeGeneration.Design REMOVIDO (não só marcado PrivateAssets); NuGet.Packaging e NuGet.Protocol removidos. Remover de vez foi necessário: as refs 7.6.0 eram um pino acidental, e sem elas a resolução transitiva caía pro NuGet 6.12.1, que tem advisory GHSA-g4vj-cjjj-v7hg (Low). O STATUS.md de 26/07 registra que o CRUD gerado por esse scaffold já tinha sido apagado.",
+      "status": "CORRIGIDO E VERIFICADO — build limpo, 4784 testes verdes, árvore do app de 150 para 43 pacotes",
       "teste_de_regressao": "Padelizou.Tests/FerramentaDeDesenvolvimentoNaoVaiProServidorTests.cs — 3 testes; conferido que ficam vermelhos com o .csproj anterior"
     },
     {
@@ -97,8 +97,18 @@
       },
       "por_que_importa": "binário nativo é a pior superfície de supply chain que existe: executa direto, não é IL, nenhuma ferramenta do .NET inspeciona o conteúdo, e o audit do NuGet não olha dentro. São 17 blobs opacos por build que não têm razão de estar no servidor.",
       "correcao_verificada_localmente": "dotnet publish -r linux-x64 --self-contained false → 66 MB (de 493 MB); tar.gz 24 MB (de 158 MB); libSkiaSharp.so presente; os 3 arquivos que o deploy.sh exige presentes",
-      "status": "NÃO APLICADO — muda o passo de publish do CI e o layout dos assets nativos. Testar em dev antes do prod.",
-      "efeito_colateral_bom": "deploy.sh guarda 3 releases por ambiente por causa dos ~530 MB por build (comentário de 11/08/2026: 5,2 GB, 'quase um terço do disco'). Com 66 MB, 10 releases cabem em 660 MB."
+      "status": "CORRIGIDO — aplicado no ci.yml. Verificado: libSkiaSharp.so carrega no layout achatado (teste de render/encode/decode/resize rodado por apphost e por 'dotnet <app>.dll'); systemd usa ExecStart=dotnet Padelizou.dll, não muda. Publicar no dev antes do prod (regra 3).",
+      "efeito_colateral_bom": "deploy.sh guarda 3 releases por ambiente por causa dos ~530 MB por build (comentário de 11/08/2026: 5,2 GB, 'quase um terço do disco'). Com 66 MB, 10 releases cabem em 660 MB.",
+      "medido": {
+        "antes_MB": 536,
+        "depois_MB": 66,
+        "targz_antes_MB": 173,
+        "targz_depois_MB": 24,
+        "dlls_antes": 66,
+        "dlls_depois": 20,
+        "plataformas_nativas_antes": 18,
+        "plataformas_nativas_depois": 0
+      }
     },
     {
       "id": "SC-03",
@@ -132,7 +142,14 @@
       },
       "por_que_importa": "o audit já cobre as 131 transitivas no nível 'low' — está tudo ligado. Só que sai como warning no meio do log do restore. Uma CVE nova em qualquer um dos 150 pacotes entra em produção sem que nada fique vermelho. É o mesmo raciocínio do passo 'has-pending-model-changes' que já existe no ci.yml: a regra morava na memória do projeto até virar falha de build.",
       "correcao": "passo novo no job 'testes': dotnet list Padelizou.slnx package --vulnerable --include-transitive, reprovando se a saída contiver 'has the following vulnerable packages'",
-      "status": "NÃO APLICADO"
+      "status": "CORRIGIDO — passo 'Conferir vulnerabilidade nos pacotes' no job testes",
+      "verificacao": [
+        "arvore limpa -> passa (exit 0)",
+        "System.Net.Http 4.3.0 injetado -> reprova (exit 1) com anotacao",
+        "restore quebrado -> reprova (exit 1)"
+      ],
+      "bug_encontrado_no_proprio_gate": "a primeira versao aprovava quando o restore falhava: restore quebrado devolve {'problems':[...]} sem 'projects', e o parser lia como zero vulnerabilidade. Corrigido antes de commitar.",
+      "escape_hatch": "NuGetAuditSuppress no .csproj para um advisory especifico, com comentario — nunca apagar o passo"
     },
     {
       "id": "SC-05",

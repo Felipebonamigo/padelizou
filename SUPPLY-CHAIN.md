@@ -3,15 +3,18 @@
 Auditoria de 21/08/2026 sobre a árvore de dependências, o CI e o deploy.
 Máquina-legível em `supply-chain-findings.json`. Comandos de reprodução no fim.
 
-**Resumo:** a árvore tem **150 pacotes** (19 diretos, 131 transitivos) e **nenhuma CVE
-conhecida** pelo audit do NuGet. O problema não é vulnerabilidade — é **quantidade**:
-metade do que ia pro servidor não tinha razão de estar lá. Um achado já está corrigido
-e verificado; o resto está descrito com a correção pronta, sem aplicar.
+**Resumo:** a árvore tinha **150 pacotes** (19 diretos, 131 transitivos) e **nenhuma CVE
+conhecida** pelo audit do NuGet. O problema não era vulnerabilidade — era **quantidade**:
+metade do que ia pro servidor não tinha razão de estar lá.
+
+**Os dois achados ALTOS e o portão de CVE no CI estão aplicados e verificados.** O pacote
+publicado saiu de **536 MB para 66 MB** (o `tar.gz` do release, de 173 MB para 24 MB) e de
+**66 DLLs para 20**. O resto está descrito com a correção pronta, sem aplicar.
 
 | | |
 |---|---|
-| Alto | 2 (1 corrigido) |
-| Médio | 5 |
+| Alto | 2 — **os dois corrigidos** |
+| Médio | 5 — **1 corrigido** (SC-04) |
 | Baixo | 5 |
 
 ---
@@ -44,21 +47,46 @@ NuGet num servidor web não são só superfície, são *ferramental* — compila
 novo e baixar pacotes, tudo sem sair do processo. É a diferença entre um invasor que precisa
 trazer as ferramentas dele e um que já encontra tudo instalado.
 
-**Correção aplicada** (`Padelizou/Padelizou.csproj`): `PrivateAssets=all` no
-`CodeGeneration.Design`, e `NuGet.Packaging`/`NuGet.Protocol` removidos.
+**Correção aplicada** (`Padelizou/Padelizou.csproj`): o `CodeGeneration.Design` **saiu de
+vez**, junto com `NuGet.Packaging` e `NuGet.Protocol`.
+
+Sair de vez, e não só marcar `PrivateAssets=all`, foi decisão tomada depois de duas
+descobertas — as duas só apareceram porque o portão do SC-04 foi instalado e testado:
+
+1. **`STATUS.md` de 26/07 registra que o CRUD gerado por esse scaffold já tinha sido
+   apagado** — "CRUD scaffolded de Jogadores (9 ações + 5 views)", ~800 linhas, e a remoção
+   *fechou uma porta sem `[Authorize]`* em `/Jogadores/Delete/5`. A ferramenta ficou pra
+   trás sozinha, um mês depois de o projeto jogar fora tudo que ela gerou.
+2. **`NuGet.Packaging`/`NuGet.Protocol` 7.6.0 estavam funcionando como um pino acidental.**
+   Ao removê-los, a resolução transitiva caiu do 7.6.0 fixado para o **6.12.1** que o
+   scaffolding puxa — e o 6.12.1 **tem advisory** (GHSA-g4vj-cjjj-v7hg, Low). Ou seja: só
+   marcar `PrivateAssets` deixaria um cliente NuGet vulnerável no grafo de restore para
+   sempre. Removendo o scaffolding, a subárvore inteira do NuGet desaparece e o audit fica
+   limpo de verdade.
 
 | medido no `dotnet publish` | antes | depois |
 |---|---|---|
 | DLLs no pacote | 66 | **20** |
-| pastas (satélites de idioma) | 53 | **3** |
-| itens no pacote | — | **96 a menos** |
+| pastas | 53 | **2** |
+| pacotes na árvore do app | 150 | **43** |
+| audit do NuGet | limpo *(pelo pino acidental)* | **limpo de verdade** |
 
-Build Release limpo, **4781 testes verdes**, `dotnet ef migrations has-pending-model-changes`
-não é afetado (o `EntityFrameworkCore.Tools` continua onde estava).
+Build Release limpo, **4784 testes verdes**, `dotnet ef migrations has-pending-model-changes`
+não é afetado — o `EntityFrameworkCore.Tools` continua onde estava, com `PrivateAssets=all`.
+Ele ainda traz Roslyn e Humanizer pro grafo de *restore* (o `dotnet ef` precisa deles), mas
+o teste de `deps.json` confirma que nenhum chega ao servidor.
+
+As 20 DLLs que sobraram são todas usadas. As duas menos óbvias, `System.Management` e
+`System.CodeDom`, são transitivas do `Google.Apis.Auth` — escolha de dependência do Google,
+não resquício.
+
+⚠️ **Se um dia precisar do scaffolding de volta**, o caminho é reinstalar como ferramenta
+global (`dotnet tool install -g dotnet-aspnet-codegenerator`) em vez de devolver o pacote ao
+`.csproj` — assim ele fica na sua máquina, não no servidor.
 
 ---
 
-## SC-02 · ALTO · 427 MB de binários nativos para 17 plataformas que o VPS nunca executa
+## SC-02 · ALTO · 427 MB de binários nativos para 17 plataformas que o VPS nunca executa — **CORRIGIDO**
 
 Depois do SC-01 o pacote ainda tem 493 MB — e **439 MB são a pasta `runtimes/`**:
 
@@ -77,7 +105,7 @@ já declarado explicitamente pro VPS.
 nenhuma ferramenta do .NET olha dentro, e o audit do NuGet não inspeciona conteúdo. São 17
 blobs opacos por build, sem motivo.
 
-**Correção, verificada aqui mas não aplicada:**
+**Correção APLICADA** no `ci.yml`:
 
 ```diff
 - dotnet publish Padelizou/Padelizou.csproj -c Release -o publish
@@ -141,27 +169,46 @@ De quebra: o app carrega **duas** BouncyCastle ao mesmo tempo — `BouncyCastle.
 
 ---
 
-## SC-04 · MÉDIO · O CI não reprova por vulnerabilidade
+## SC-04 · MÉDIO · O CI não reprovava por vulnerabilidade — **CORRIGIDO**
 
-O audit **já está ligado e bem configurado** — `NuGetAudit=true`, `NuGetAuditMode=all`
-(cobre as 131 transitivas), `NuGetAuditLevel=low`. Só que ele emite *warning*, o
-`TreatWarningsAsErrors` é `false`, e nenhum passo do `ci.yml` checa o resultado. Uma CVE
-nova em qualquer um dos 150 pacotes entra em produção com um aviso no meio do log do
-restore.
+O audit **já estava ligado e bem configurado** — `NuGetAudit=true`, `NuGetAuditMode=all`
+(cobre as transitivas), `NuGetAuditLevel=low`. Só que ele emite *warning*, o
+`TreatWarningsAsErrors` é `false`, e nenhum passo do `ci.yml` checava o resultado. Uma CVE
+nova em qualquer pacote da árvore entrava em produção com um aviso no meio do log do
+restore. Mesma história do passo `has-pending-model-changes`: a regra morava na memória do
+projeto até virar falha de build.
 
-É o mesmo raciocínio do passo `has-pending-model-changes` que você já pôs no `ci.yml`: a
-regra morava na memória do projeto até virar falha de build.
+Passo novo no job `testes`, depois dos testes. Lê o **JSON**, não a tabela de texto — forma
+de saída de ferramenta muda entre versões do SDK, e um `grep` que para de casar vira um
+portão que aprova tudo calado.
 
-```yaml
-      - name: Conferir vulnerabilidade nos pacotes
-        run: |
-          saida=$(dotnet list Padelizou.slnx package --vulnerable --include-transitive 2>&1)
-          echo "$saida"
-          if echo "$saida" | grep -q "has the following vulnerable packages"; then
-            echo "::error::Pacote com vulnerabilidade conhecida na árvore."
-            exit 1
-          fi
+**Testado nos três casos antes de commitar**, porque portão que nunca dispara é pior que
+portão nenhum:
+
+| caso | resultado |
+|---|---|
+| árvore limpa (hoje) | passa, `exit 0` |
+| pacote vulnerável (`System.Net.Http` 4.3.0 injetado) | **reprova**, `exit 1`, com anotação nomeando pacote, versão, severidade e advisory |
+| restore quebrado | **reprova**, `exit 1` |
+
+O terceiro caso é o que quase passou batido: **a primeira versão do portão aprovava quando o
+restore falhava.** Restore quebrado devolve `{"problems": [...]}` e nenhum `"projects"`, e o
+parser lia isso como "zero vulnerabilidade". Foi pego testando o próprio passo — e é
+exatamente o modo de falha que faz um portão virar decoração. A versão que está no `ci.yml`
+falha explícito nesse caso.
+
+⚠️ **Se um dia travar por um advisory que não te alcança** (transitiva de teste, caminho de
+código que você não usa), a saída **não** é apagar o passo. É suprimir aquele advisory
+específico no `.csproj`, com um comentário dizendo por que ele não alcança:
+
+```xml
+<ItemGroup>
+  <!-- Só o parser de X, que este app não chama. Revisar em <data>. -->
+  <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-xxxx-xxxx-xxxx" />
+</ItemGroup>
 ```
+
+Suprimir um é uma decisão registrada. Desligar o portão é perder o aviso de todos.
 
 ---
 
