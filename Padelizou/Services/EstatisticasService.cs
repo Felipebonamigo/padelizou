@@ -262,7 +262,15 @@ public class EstatisticasService : IEstatisticasService
     public async Task<List<RankingCategoriaVM>> ObterRankingPorCategoriaAsync(
         string? categoriaNome = null, DateTime? ate = null, HashSet<int>? jogadoresFiltro = null, DateTime? de = null)
     {
+        // ⚠️ AsNoTracking: achado da análise de sistema de 21/08/2026. Esta consulta traz a
+        // tabela Duplas INTEIRA (sem Where nenhum) numa página PÚBLICA que o hub chama 2-3x
+        // por visita — sem isto, o EF rastreava toda entidade materializada (Dupla, Categoria,
+        // Torneio, os dois Jogador) pra detectar mudança, e nada aqui grava nenhuma delas. Não
+        // filtra em SQL (o Where que segue) de propósito: ContaNoRanking e ForaDoSorteio.FicaDeFora
+        // são C# arbitrário sobre o grafo carregado, não teriam tradução direta — mudar isso é
+        // trabalho à parte, com o cuidado de não alterar quem entra no ranking.
         var duplas = await _context.Duplas
+            .AsNoTracking()
             .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
             .Include(d => d.Jogador1)
             .Include(d => d.Jogador2)
@@ -1048,7 +1056,7 @@ public class EstatisticasService : IEstatisticasService
             else if (venci == false) resumo.Derrotas += 1;
         }
 
-        var partidas = await CarregarPartidasFinalizadasAsync();
+        var partidas = await CarregarPartidasFinalizadasAsync(jogadorId: jogadorId);
         foreach (var p in partidas)
         {
             var (minhaDupla, oppDupla) = LocalizarDuplas(p, jogadorId);
@@ -1092,7 +1100,7 @@ public class EstatisticasService : IEstatisticasService
             if (venci == true) resumo.Vitorias += 1;
         }
 
-        var partidas = await CarregarPartidasFinalizadasAsync();
+        var partidas = await CarregarPartidasFinalizadasAsync(jogadorId: jogadorId);
         foreach (var p in partidas)
         {
             var (minhaDupla, _) = LocalizarDuplas(p, jogadorId);
@@ -1669,7 +1677,17 @@ public class EstatisticasService : IEstatisticasService
             .ToDictionaryAsync(c => c.Id, c => c.Nome);
     }
 
-    private async Task<List<Partida>> CarregarPartidasFinalizadasAsync(bool incluirTorneio = false)
+    // `jogadorId`: achado da análise de sistema de 21/08/2026. ObterConfrontosAsync e
+    // ObterParceirosAsync chamavam isto SEM filtro — traziam TODA partida finalizada do
+    // sistema pra memória e só depois filtravam em C# (LocalizarDuplas) qual delas era do
+    // jogador. Custo O(história inteira do sistema) numa tela que qualquer visita ao perfil
+    // dispara — nunca esquece um torneio. Filtrado, o Where abaixo é o mesmo padrão que
+    // CarregarJogosSemanaisAsync (logo abaixo) já usa: candidatos primeiro, LocalizarDuplas
+    // continua sendo quem decide de verdade (ele também exclui dupla-TIME, que este filtro
+    // não sabe distinguir — por isso é um PRÉ-filtro, nunca mais estrito que o C# de baixo).
+    // Nulo preserva o comportamento antigo pros outros chamadores (ObterHeadToHeadAsync e o
+    // replay do Padelímetro, que precisam da história toda).
+    private async Task<List<Partida>> CarregarPartidasFinalizadasAsync(bool incluirTorneio = false, int? jogadorId = null)
     {
         var query = _context.Partidas
             .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
@@ -1681,6 +1699,13 @@ public class EstatisticasService : IEstatisticasService
         if (incluirTorneio)
         {
             query = query.Include(p => p.Categoria).ThenInclude(c => c.Torneio);
+        }
+
+        if (jogadorId is int id)
+        {
+            query = query.Where(p =>
+                p.Dupla1.Jogador1Id == id || p.Dupla1.Jogador2Id == id ||
+                p.Dupla2.Jogador1Id == id || p.Dupla2.Jogador2Id == id);
         }
 
         return await query.ToListAsync();
