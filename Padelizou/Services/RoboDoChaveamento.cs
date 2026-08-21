@@ -451,22 +451,11 @@ public class RoboDoChaveamento
         var inicio = fimDaFaseAnterior == default
             ? torneio.AberturaDaGrade
             : GradeDeJogos.AberturaDaProximaFase(fimDaFaseAnterior, torneio.HoraFimDoDia,
-                                    torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
+                                    torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
 
-        int folga = GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras);
-
-        // Vaga que já tem dono sai da lista, senão a grade ofereceria cinco quadras num
-        // horário em que três já estão jogando. Pede-se com sobra (`+ jaMarcados.Count`)
-        // justamente porque parte vai ser descontada.
-        var horarios = GradeDeJogos.Descontando(
-                GradeDeJogos.Horarios(
-                    inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                    torneio.TempoPrevistoPartidaMinutos,
-                    jogos.Count + folga + jaMarcados.Count,
-                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes),
-                jaMarcados.Select(p => p.HorarioPrevisto!.Value))
-            .Take(jogos.Count + folga)
-            .ToList();
+        // As vagas livres da grade, já descontando os jogos que têm dono. A receita mora em
+        // Services/VagasDaGrade — eram três cópias com contas diferentes até 21/08/2026.
+        var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados);
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
@@ -475,7 +464,8 @@ public class RoboDoChaveamento
         // A preferência de quadra entra aqui também, e é justamente aqui que ela mais importa:
         // as fases que este método agenda são a semi e a FINAL, que é o jogo que o organizador
         // quer na quadra boa.
-        GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value),
+        GradeDeJogos.Encaixar(jogos, horarios, VagasDaGrade.Duracao(torneio),
+            await OcupantesPorDuplaAsync(torneioId.Value),
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
             await QuadrasPreferidasAsync(torneioId.Value));
     }

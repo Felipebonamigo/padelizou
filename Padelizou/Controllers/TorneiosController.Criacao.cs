@@ -398,6 +398,16 @@ namespace Padelizou.Controllers
                 return await Recusar(nomeLongo);
             }
 
+            // ⚠️ O NOME DA QUADRA É A IDENTIDADE DELA (ver Services/NomeDeQuadraUnico): a grade,
+            // o link de transmissão e a troca de quadra acham a quadra POR NOME. Duas com o
+            // mesmo nome fazem os três agirem sobre a errada, em silêncio. Recusado aqui pra o
+            // organizador ler o motivo em vez de levar um erro do índice do banco na cara.
+            if (nomesQuadras != null
+                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras) is { } quadraRepetida)
+            {
+                return await Recusar(quadraRepetida);
+            }
+
             // Preço negativo não estoura nada — e é justamente por isso que passava batido: a
             // cobrança some (PodeCobrar exige > 0) e o torneio fica anunciando "−R$ 50,00" pra
             // quem for se inscrever. Zero continua valendo: torneio de graça existe.
@@ -1177,6 +1187,16 @@ namespace Padelizou.Controllers
             if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeTorneio, "O nome do torneio") is { } nomeLongo)
             {
                 TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // A SEGUNDA PORTA do nome de quadra — a primeira é a criação. Ver
+            // Services/NomeDeQuadraUnico: o nome é a identidade da quadra, e é por ele que a
+            // grade, o link de transmissão e a troca de quadra a encontram.
+            if (nomesQuadras != null
+                && NomeDeQuadraUnico.MotivoParaNaoSalvar(nomesQuadras) is { } quadraRepetida)
+            {
+                TempData["Erro"] = quadraRepetida;
                 return RedirectToAction("Details", new { id });
             }
 

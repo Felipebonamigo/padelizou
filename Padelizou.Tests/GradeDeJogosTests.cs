@@ -11,6 +11,12 @@ public class GradeDeJogosTests
     private static readonly DateTime Sabado8h = new(2026, 8, 15, 8, 0, 0);
     private static readonly TimeSpan Ate22h = new(22, 0, 0);
 
+    // A duração com que a maioria das grades destes testes é montada. Ela passou a importar
+    // em 21/08/2026: o Encaixar deixou de comparar horário por INSTANTE e passa a olhar
+    // SOBREPOSIÇÃO, então a janela precisa bater com o espaçamento da grade — dois testes
+    // montam grade de 12 minutos e passam 12 na mão, de propósito.
+    private const int DuracaoDaGrade = 50;
+
     private static List<DateTime> Grade(int quadras, int duracao, int quantidade,
         DateTime? inicio = null, TimeSpan? fim = null) =>
         GradeDeJogos.Horarios(inicio ?? Sabado8h, fim ?? Ate22h, quadras, duracao, quantidade).ToList();
@@ -247,7 +253,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade);
 
         // Ninguém joga duas vezes no mesmo horário.
         foreach (var grupoDeHorario in jogos.GroupBy(j => j.HorarioPrevisto))
@@ -271,7 +277,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade);
 
         Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
     }
@@ -283,7 +289,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade);
 
         Assert.Equal(horarios[0], jogos[0].HorarioPrevisto);
         Assert.Equal(horarios[1], jogos[1].HorarioPrevisto);
@@ -318,7 +324,7 @@ public class GradeDeJogosTests
         // aparecia: os jogos 1 e 2 caíam juntos e o jogador 10 era chamado em duas quadras.
         Assert.Equal(horarios[0], horarios[1]);
 
-        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, ocupantes);
 
         Assert.NotEqual(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
         // E sem buraco na grade: o jogo livre ocupou a vaga que sobrou, em vez de a grade
@@ -341,7 +347,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, ocupantes);
 
         Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
     }
@@ -358,7 +364,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, mapaSoDeDuplasComuns);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, mapaSoDeDuplasComuns);
 
         Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
     }
@@ -376,7 +382,7 @@ public class GradeDeJogosTests
         var quadras = new[] { "Quadra A", "Quadra B" };
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 0, 0), 2, 12, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, quadras);
+        GradeDeJogos.Encaixar(jogos, horarios, 12, null, quadras);
 
         Assert.All(jogos, j => Assert.NotNull(j.NomeQuadra));
         foreach (var doHorario in jogos.GroupBy(j => j.HorarioPrevisto))
@@ -394,7 +400,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 5, 20, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 0, 0), 2, 12, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios);
+        GradeDeJogos.Encaixar(jogos, horarios, 12);
 
         Assert.All(jogos, j => Assert.Null(j.NomeQuadra));
     }
@@ -414,7 +420,7 @@ public class GradeDeJogosTests
         var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
         var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, ocupantes);
 
         Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
     }
@@ -475,7 +481,7 @@ public class GradeDeJogosTests
         var horarios = GradeDeJogos.Descontando(
             GradeDeJogos.Horarios(doze, Ate22h, 3, 50, 12), new[] { doze });
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, quadras, new[] { jaMarcado });
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, null, quadras, new[] { jaMarcado });
 
         Assert.All(jogos, j => Assert.Equal(doze, j.HorarioPrevisto));
         Assert.Equal(new[] { "Quadra B", "Quadra C" }, jogos.Select(j => j.NomeQuadra));
@@ -496,7 +502,7 @@ public class GradeDeJogosTests
         var horarios = GradeDeJogos.Descontando(
             GradeDeJogos.Horarios(doze, Ate22h, 3, 50, 12), new[] { doze });
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, new[] { "Quadra A", "Quadra B", "Quadra C" },
+        GradeDeJogos.Encaixar(jogos, horarios, DuracaoDaGrade, null, new[] { "Quadra A", "Quadra B", "Quadra C" },
             new[] { jaMarcado });
 
         Assert.Equal(doze.AddMinutes(50), jogos[0].HorarioPrevisto);

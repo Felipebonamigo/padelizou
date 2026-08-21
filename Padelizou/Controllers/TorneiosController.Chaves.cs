@@ -353,57 +353,108 @@ namespace Padelizou.Controllers
         {
             var abre = aPartirDe ?? torneio.AberturaDaGrade;
             var intocados = jaMarcados ?? Array.Empty<Partida>();
-            bool NaoEsperaNinguem(Partida j) =>
-                categoriasDeChaveDireta.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
+            // ⚠️ QUEM NÃO TEM O QUE ESPERAR ENTRA NA PRIMEIRA LEVA (21/08/2026).
+            //
+            // Antes, "não espera ninguém" era só chave direta e fase de grupos. O mata-mata de
+            // uma categoria que JÁ FECHOU os grupos caía na segunda leva junto com todo o resto
+            // — e a segunda leva só começa depois que a primeira acaba. Na prática: a 4ª
+            // masculina terminou os grupos ontem, tem semifinal pronta pra entrar em quadra, e
+            // ficava atrás de TODA a fase de grupos da 2ª. Quadra vazia com jogo esperando.
+            //
+            // Uma categoria sem NENHUM jogo de grupo sendo remarcado não tem resultado pendente:
+            // ou é de chave direta (não tem grupo), ou os grupos dela já foram jogados. Ela
+            // disputa as vagas de igual pra igual com os grupos que faltam.
+            var comGrupoPendente = jogos
+                .Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase))
+                .Select(j => j.CategoriaId)
+                .ToHashSet();
 
-            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), categoriasDeChaveDireta);
-            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), categoriasDeChaveDireta);
+            var semNadaPraEsperar = new HashSet<int>(categoriasDeChaveDireta);
+            foreach (var categoriaId in jogos.Select(j => j.CategoriaId).Distinct())
+                if (!comGrupoPendente.Contains(categoriaId)) semNadaPraEsperar.Add(categoriaId);
+
+            bool NaoEsperaNinguem(Partida j) =>
+                semNadaPraEsperar.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
+
+            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), semNadaPraEsperar);
+            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), semNadaPraEsperar);
+
+            // Tudo que já tem hora e quadra e que as levas seguintes precisam enxergar pra não
+            // marcar em cima. Começa com os jogos intocados e VAI CRESCENDO a cada leva.
+            //
+            // ⚠️ ATÉ 21/08/2026 A SEGUNDA LEVA SÓ RECEBIA OS INTOCADOS — os jogos que a primeira
+            // leva acabara de marcar ficavam invisíveis pra ela. Não dava problema por acidente:
+            // a segunda leva começava depois do último jogo de grupo do torneio INTEIRO, então
+            // nunca havia o que atropelar. Com a âncora por categoria (logo abaixo) isso deixa
+            // de valer, e sem esta lista as duas levas marcariam duas partidas na mesma quadra
+            // no mesmo horário. As duas mudanças andam JUNTAS ou nenhuma das duas anda.
+            var jaEmQuadra = new List<Partida>(intocados);
 
             void Agendar(List<Partida> daLeva, DateTime inicio)
             {
                 if (daLeva.Count == 0) return;
 
-                var horarios = GradeDeJogos.Horarios(
-                    inicio,
-                    torneio.HoraFimDoDia,
-                    torneio.QuantidadeQuadras,
-                    torneio.TempoPrevistoPartidaMinutos,
-                    // Folga: sem vaga sobrando, o encaixe não teria como deixar uma quadra
-                    // vazia pra evitar chamar a mesma pessoa duas vezes. Ver GradeDeJogos.
-                    daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras)
-                        + intocados.Count,
-                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes);
+                // ⚠️ NENHUMA LEVA COMEÇA ANTES DA ABERTURA DA GRADE. Num "refazer grade" a
+                // abertura é AGORA, e a âncora de uma leva vem do fim dos grupos da categoria —
+                // que pode ser uma hora do passado quando os grupos dela já foram jogados e os
+                // que faltam não couberam na grade. Sem este piso, a grade nasceria em cima de
+                // horários que já passaram: jogo marcado pra ontem, que não aparece pra ninguém.
+                //
+                // É um piso, não o conserto de um bug observado — o caminho é de canto. Fica
+                // aqui, e não na conta da âncora, porque aqui vale pra TODA leva.
+                if (inicio < abre) inicio = abre;
 
-                // Vaga que já tem dono sai da lista: num recálculo no meio do torneio, os
-                // jogos que já rolaram e os que estão em quadra continuam ocupando as
-                // quadras deles.
-                var vagas = GradeDeJogos.Descontando(horarios,
-                        intocados.Where(p => p.HorarioPrevisto != null).Select(p => p.HorarioPrevisto!.Value))
-                    .Take(daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras))
-                    .ToList();
+                var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra);
 
-                GradeDeJogos.Encaixar(daLeva, vagas, ocupantes, quadras, intocados, quadrasPorCategoria);
+                GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
+                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria);
+
+                jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
             }
 
             Agendar(abertura, abre);
 
+            // A hora em que o mata-mata DESTA categoria pode abrir.
+            //
+            // ⚠️ POR CATEGORIA, NÃO PELO TORNEIO INTEIRO (21/08/2026). Era uma âncora só: o
+            // último jogo de grupo de QUALQUER categoria segurava o mata-mata de TODAS. Numa
+            // categoria de 8 duplas que fecha os grupos às 15h, a semifinal ficava esperando a
+            // categoria de 32 terminar às 21h — e as quadras paradas no meio, que é justamente
+            // o que o organizador não pode ter ("nenhuma quadra sem jogo até o fim do torneio").
+            //
             // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
             // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
             // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
             //
-            // Conta os jogos de grupo INTOCADOS junto: num recálculo no meio do torneio a
-            // maior parte dos grupos já rolou, e olhar só pros remarcados diria que a fase de
-            // grupos acabou cedo — o mata-mata subiria pra cima dela.
-            var fimDosGrupos = abertura.Concat(intocados)
-                .Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase) && j.HorarioPrevisto != null)
-                .Select(j => j.HorarioPrevisto!.Value)
-                .DefaultIfEmpty()
-                .Max();
+            // Conta os jogos de grupo INTOCADOS junto: num recálculo no meio do torneio a maior
+            // parte dos grupos já rolou, e olhar só pros remarcados diria que a fase de grupos
+            // acabou cedo — o mata-mata subiria pra cima dela.
+            DateTime AberturaDoMataMata(int categoriaId)
+            {
+                var fimDosGrupos = abertura.Concat(intocados)
+                    .Where(j => j.CategoriaId == categoriaId
+                             && FasesTorneio.EhFaseDeGrupos(j.Fase) && j.HorarioPrevisto != null)
+                    .Select(j => j.HorarioPrevisto!.Value)
+                    .DefaultIfEmpty()
+                    .Max();
 
-            Agendar(depoisDosGrupos, fimDosGrupos != default
-                ? GradeDeJogos.AberturaDaProximaFase(fimDosGrupos, torneio.HoraFimDoDia,
-                                        torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos)
-                : abre);
+                if (fimDosGrupos == default) return abre;
+
+                return GradeDeJogos.AberturaDaProximaFase(fimDosGrupos, torneio.HoraFimDoDia,
+                    torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
+            }
+
+            // Da categoria que libera primeiro pra que libera por último. O encaixe é guloso e
+            // pega a primeira vaga livre: marcar fora dessa ordem daria as vagas mais cedo pra
+            // quem ainda nem terminou os grupos.
+            foreach (var daCategoria in depoisDosGrupos
+                         .GroupBy(j => j.CategoriaId)
+                         .Select(g => new { Abre = AberturaDoMataMata(g.Key), Jogos = g.ToList() })
+                         .OrderBy(x => x.Abre)
+                         .ToList())
+            {
+                Agendar(OrdemDaFila(daCategoria.Jogos, semNadaPraEsperar), daCategoria.Abre);
+            }
         }
 
         // RECALCULAR OS HORÁRIOS: os mesmos confrontos, a grade refeita a partir de agora.

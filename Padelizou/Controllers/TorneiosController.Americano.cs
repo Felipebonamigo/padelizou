@@ -39,7 +39,6 @@ namespace Padelizou.Controllers
             }
 
             var rng = new Random();
-            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
             int totalPartidasGeradas = 0;
             int categoriasComGrupoFinal = 0;
             var jogosDoAmericano = new List<Partida>();
@@ -148,7 +147,7 @@ namespace Padelizou.Controllers
             // rodadas do whist já garantem jogadores distintos dentro da rodada.)
             var horariosAmericano = GradeDeJogos.Horarios(
                 dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                tempoPartida, jogosDoAmericano.Count,
+                VagasDaGrade.Duracao(torneio), jogosDoAmericano.Count,
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             for (int i = 0; i < jogosDoAmericano.Count; i++)
@@ -189,7 +188,6 @@ namespace Padelizou.Controllers
                 return RedirectToAction("TaxaPlataforma", new { id = torneioId });
             }
 
-            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
             var jogos = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias.Where(c => !c.DeTimes))
@@ -247,13 +245,15 @@ namespace Padelizou.Controllers
                 // as duplas existem antes dos jogos (no Americano individual elas nascem por
                 // jogo, e lá o encaixe posicional é o possível). A mesma pessoa nunca é
                 // chamada pra duas quadras no mesmo horário, mesmo inscrita em duas categorias.
-                int folga = GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras);
-                var horarios = GradeDeJogos.Horarios(
-                    dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                    tempoPartida, jogos.Count + folga,
-                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+                //
+                // ⚠️ A DURAÇÃO VEM DO MESMO LUGAR QUE MONTA AS VAGAS. Até 21/08/2026 as vagas
+                // usavam `tempoPartida` (que cai pra 50 quando o torneio tem o tempo zerado) e o
+                // encaixe recebia o valor CRU: num torneio com tempo 0, a grade nascia de 50 em
+                // 50 e o detector de conflito enxergava uma janela de 1 minuto — ou seja, não
+                // enxergava nada. Ver Services/VagasDaGrade.Duracao.
+                var horarios = VagasDaGrade.Montar(torneio, dataHoraInicio, jogos.Count);
 
-                GradeDeJogos.Encaixar(jogos, horarios,
+                GradeDeJogos.Encaixar(jogos, horarios, VagasDaGrade.Duracao(torneio),
                     RoboDoChaveamento.OcupantesPorDupla(torneio),
                     await QuadrasDoTorneioAsync(torneio.Id),
                     quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id));

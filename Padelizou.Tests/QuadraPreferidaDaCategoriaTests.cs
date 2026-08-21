@@ -81,7 +81,7 @@ public class QuadraPreferidaDaCategoriaTests
             Jogo(Primeira, 20, 21), Jogo(Primeira, 22, 23),
         };
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null, CentralDaPrimeira());
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null, CentralDaPrimeira());
 
         Assert.All(jogos.Where(j => j.CategoriaId == Primeira),
             j => Assert.Equal("Central", j.NomeQuadra));
@@ -99,7 +99,7 @@ public class QuadraPreferidaDaCategoriaTests
 
         var jogos = Enumerable.Range(1, 3).Select(i => Jogo(Primeira, i * 10, i * 10 + 1)).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null, CentralDaPrimeira());
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null, CentralDaPrimeira());
 
         Assert.All(jogos, j => Assert.Equal(inicio, j.HorarioPrevisto));
         Assert.Single(jogos, j => j.NomeQuadra == "Central");
@@ -120,7 +120,7 @@ public class QuadraPreferidaDaCategoriaTests
         var daPrimeira = Jogo(Primeira, 20, 21);
         var jogos = daSexta.Append(daPrimeira).ToList();
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null, CentralDaPrimeira());
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null, CentralDaPrimeira());
 
         Assert.Equal("Central", daPrimeira.NomeQuadra);
         Assert.Equal(inicio, daPrimeira.HorarioPrevisto);
@@ -140,7 +140,7 @@ public class QuadraPreferidaDaCategoriaTests
 
         var jogos = new List<Partida> { Jogo(Sexta, 10, 11), Jogo(Sexta, 12, 13), Jogo(Sexta, 14, 15) };
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null, CentralDaPrimeira());
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null, CentralDaPrimeira());
 
         Assert.All(jogos, j => Assert.Equal(inicio, j.HorarioPrevisto));
         Assert.Equal(3, jogos.Select(j => j.NomeQuadra).Distinct().Count());
@@ -158,7 +158,7 @@ public class QuadraPreferidaDaCategoriaTests
         {
             var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 3, 50, 9).ToList();
             var jogos = Enumerable.Range(1, 6).Select(i => Jogo(Sexta, i * 10, i * 10 + 1)).ToList();
-            GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null, preferencia);
+            GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null, preferencia);
             return jogos;
         }
 
@@ -188,7 +188,7 @@ public class QuadraPreferidaDaCategoriaTests
         var feminina = Jogo(3, 30, 31);
         var jogos = new List<Partida> { Jogo(Sexta, 10, 11), masculina, feminina };
 
-        GradeDeJogos.Encaixar(jogos, horarios, null, Quadras, null,
+        GradeDeJogos.Encaixar(jogos, horarios, 50, null, Quadras, null,
             new Dictionary<int, string[]> { [Primeira] = new[] { "Central" }, [3] = new[] { "Central" } });
 
         // A central é de quem chegar primeiro entre as duas donas; a outra não fica sem lugar.

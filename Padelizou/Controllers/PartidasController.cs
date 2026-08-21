@@ -489,7 +489,30 @@ namespace Padelizou.Controllers
 
             partida.GamesDupla1 = gamesDupla1;
             partida.GamesDupla2 = gamesDupla2;
-            partida.NomeQuadra = nomeQuadra;
+
+            // ⚠️ A TERCEIRA PORTA DO NOME DE QUADRA, e a mais silenciosa: aqui ele chega como
+            // TEXTO LIVRE do formulário do placar. As outras duas (criar e editar torneio) já
+            // recusam nome repetido desde 21/08/2026, mas era por AQUI que um nome fora da
+            // lista voltava — e nome fora da lista some da grade (que só conhece as
+            // cadastradas) e atrai o link de transmissão de uma quadra homônima.
+            //
+            // Mesma régua que Services/TrocaDeQuadra já aplica. Torneio sem quadra cadastrada
+            // continua aceitando texto livre, como sempre fez.
+            if (!string.IsNullOrWhiteSpace(nomeQuadra) && partida.TorneioId != null)
+            {
+                var doTorneio = await _context.Quadras
+                    .Where(q => q.TorneioId == partida.TorneioId)
+                    .Select(q => q.Nome)
+                    .ToListAsync();
+
+                if (doTorneio.Count == 0 || doTorneio.Contains(nomeQuadra))
+                    partida.NomeQuadra = nomeQuadra;
+            }
+            else
+            {
+                partida.NomeQuadra = nomeQuadra;
+            }
+
             partida.LinkTransmissao = linkTransmissao;
 
             // ⚠️ PLACAR DIGITADO AQUI DESFAZ O W.O. — a dupla apareceu e o jogo aconteceu.
