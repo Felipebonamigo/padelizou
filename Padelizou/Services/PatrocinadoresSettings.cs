@@ -9,32 +9,31 @@ namespace Padelizou.Services;
 // qualquer coisa acima do conteúdo (banner, faixa no topo) viraria a primeira coisa que o
 // sistema diz em toda tela.
 //
-// Nasce VAZIA: produção sem patrocinador configurado não mostra faixa nenhuma. Enquanto o
-// patrocínio está em teste, a lista existe só no dev — no local pelo
-// appsettings.Development.json, no dev.padelizou.com.br pelo systemd
-// (Patrocinadores__Lista__0__Nome=Paralelo, e assim por diante).
+// Os patrocinadores em cartaz estão ESCRITOS AQUI (ver ParaExibir) e valem em todo ambiente,
+// produção inclusive — patrocínio fechado é pra ser visto. Trocar, somar ou tirar sem deploy
+// continua possível pelo systemd (Patrocinadores__Lista__0__Nome=..., e assim por diante):
+// configuração preenchida substitui a lista de código inteira.
 public class PatrocinadoresSettings
 {
     public List<Patrocinador> Lista { get; set; } = new();
 
-    // O que o rodapé exibe de fato. Configuração preenchida manda sempre; sem configuração,
-    // só o AMBIENTE DE TESTE (Beta__AmbienteDeTeste=true, o dev.padelizou.com.br) mostra o
-    // Paralelo embutido abaixo.
+    // O que o rodapé exibe de fato. Configuração preenchida manda sempre; sem ela, valem os
+    // desta lista — em QUALQUER ambiente.
     //
-    // O embutido existe porque o dev não tem como ser configurado daqui: ele roda como
-    // Production (o appsettings.Development.json não vale lá) e o systemd dele só se alcança
-    // por SSH. Enquanto o patrocínio está em avaliação, o combinado é aparecer no dev e em
-    // NENHUM outro lugar — e produção sem configuração continua sem faixa, porque o fallback
-    // exige a chave que só o dev tem. Fechado o patrocínio, produção liga pelo systemd
-    // (Patrocinadores__Lista__0__...) sem esperar deploy.
-    public List<Patrocinador> ParaExibir(bool ambienteDeTeste)
+    // Já não é mais assim porque sim: até 20/08/2026 a lista abaixo só valia no dev
+    // (Beta__AmbienteDeTeste), pra nenhum logo aparecer em produção antes de contrato
+    // fechado. Fechado o contrato, a régua se inverte: quem paga pra aparecer tem que
+    // aparecer pra quem visita o site de verdade, e um patrocinador que depende de alguém
+    // lembrar de editar o systemd da produção é um patrocinador que fica invisível.
+    //
+    // O código é o lugar certo pra isso: passa por revisão, tem teste e sobe junto com o
+    // resto. O systemd continua sendo a saída de emergência — trocar um logo no ar, ou
+    // apagar a faixa, sem esperar deploy.
+    public List<Patrocinador> ParaExibir()
     {
         var configurados = Lista.FindAll(p => !string.IsNullOrWhiteSpace(p.Imagem));
         if (configurados.Count > 0)
             return configurados;
-
-        if (!ambienteDeTeste)
-            return new();
 
         return new()
         {
