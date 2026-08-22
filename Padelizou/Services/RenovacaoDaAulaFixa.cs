@@ -51,10 +51,19 @@ public static class RenovacaoDaAulaFixa
                          && a.DataHora > deOlho
                          && a.DataHora <= deOlho.AddDays(7 * (faltam + 1))
                          && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada))
-                .Select(a => new { a.DataHora, a.DuracaoMinutos })
+                .Select(a => new { a.DataHora, a.DuracaoMinutos, a.TurmaId })
                 .ToListAsync(cancellationToken);
 
-            var ocupados = vizinhas.Select(v => (v.DataHora, v.DuracaoMinutos)).ToList();
+            // Colega de TURMA não é conflito: são N séries independentes (uma RecorrenciaId
+            // por aluno — ver Models/Aula.TurmaId) que compartilham o mesmo horário DE
+            // PROPÓSITO, porque são a mesma sessão. Sem excluir quem tem o TurmaId da
+            // própria `ultima`, o renovador de um aluno enxergaria os colegas de turma como
+            // "já tem outra coisa marcada" e pularia a semana à toa — o que acontece toda vez
+            // que um deles cancela uma aula sozinho e a série dele fica um passo atrás.
+            var ocupados = vizinhas
+                .Where(v => ultima.TurmaId == null || v.TurmaId != ultima.TurmaId)
+                .Select(v => (v.DataHora, v.DuracaoMinutos))
+                .ToList();
 
             for (var i = 1; i <= faltam; i++)
             {
@@ -96,6 +105,9 @@ public static class RenovacaoDaAulaFixa
         NomeCompletoAluno = modelo.NomeCompletoAluno,
         Acompanhantes = modelo.Acompanhantes,
         QuantidadeAlunos = modelo.QuantidadeAlunos,
+        // ESTÁVEL (ver Models/Aula.TurmaId): a semana nova continua sendo a MESMA turma, não
+        // uma turma diferente que por acaso caiu no mesmo horário.
+        TurmaId = modelo.TurmaId,
         AlunoPagaQuadra = modelo.AlunoPagaQuadra,
         RecorrenciaId = modelo.RecorrenciaId,
         RecorrenciaSemFim = true,

@@ -202,4 +202,36 @@ public class PrecoDaAulaTests
         Assert.Single(mapa);
         Assert.Equal(90, mapa[PrecoDaAula.Chave(null, "Medina")]);
     }
+
+    [Fact]
+    public void Divisao_exata_da_o_mesmo_valor_pra_todo_mundo()
+    {
+        var fatias = PrecoDaAula.DivididoIgualmente(150, 3);
+
+        Assert.Equal(new[] { 50m, 50m, 50m }, fatias);
+    }
+
+    [Fact]
+    public void Divisao_que_nao_fecha_no_centavo_nao_perde_nem_sobra_dinheiro()
+    {
+        // R$100 em 3 não é 33,33 × 3 = 99,99: falta 1 centavo. Ele tem que ir pra alguém.
+        var fatias = PrecoDaAula.DivididoIgualmente(100, 3);
+
+        Assert.Equal(new[] { 33.34m, 33.33m, 33.33m }, fatias);
+        Assert.Equal(100m, fatias.Sum());
+    }
+
+    [Fact]
+    public void Divisao_por_um_aluno_devolve_o_total_inteiro()
+    {
+        Assert.Equal(new[] { 180m }, PrecoDaAula.DivididoIgualmente(180, 1));
+    }
+
+    [Fact]
+    public void Quantidade_invalida_de_alunos_nao_derruba_a_divisao()
+    {
+        // Mesma postura do resto da classe: campo fora da faixa vira o caso mais simples em
+        // vez de estourar exceção na cara do professor.
+        Assert.Equal(new[] { 60m }, PrecoDaAula.DivididoIgualmente(60, 0));
+    }
 }

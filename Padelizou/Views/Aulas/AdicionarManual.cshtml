@@ -99,48 +99,57 @@
                                 <small class="text-muted d-block mt-1" id="rotulo-tamanho">@PrecoDaAula.Rotulo(1)</small>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small" for="input-nome-aluno">Nome do aluno</label>
-                                <input type="text" name="nomeAluno" id="input-nome-aluno" class="form-control bg-light"
-                                       required maxlength="100" autocomplete="off"
-                                       placeholder="Digite pra buscar entre os seus alunos" />
-                                @* Guarda a conta do aluno escolhido. Sem isto a aula nascia
-                                   como nome solto mesmo pra quem tem cadastro — e aí o aluno
-                                   não via a própria aula no app. *@
-                                <input type="hidden" name="alunoId" id="input-aluno-id" value="" />
+                            <div id="bloco-aluno-unico">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-muted small" for="input-nome-aluno">Nome do aluno</label>
+                                    <input type="text" name="nomeAluno" id="input-nome-aluno" class="form-control bg-light"
+                                           required maxlength="100" autocomplete="off"
+                                           placeholder="Digite pra buscar entre os seus alunos" />
+                                    @* Guarda a conta do aluno escolhido. Sem isto a aula nascia
+                                       como nome solto mesmo pra quem tem cadastro — e aí o aluno
+                                       não via a própria aula no app. *@
+                                    <input type="hidden" name="alunoId" id="input-aluno-id" value="" />
 
-                                @* Atalho: os alunos dele, filtrados enquanto digita. Marcar a
-                                   aula do aluno de toda terça passa a ser um toque. *@
-                                <div id="lista-alunos" class="list-group mt-1 d-none"
-                                     style="max-height: 240px; overflow-y: auto;"></div>
+                                    @* Atalho: os alunos dele, filtrados enquanto digita. Marcar a
+                                       aula do aluno de toda terça passa a ser um toque. *@
+                                    <div id="lista-alunos" class="list-group mt-1 d-none"
+                                         style="max-height: 240px; overflow-y: auto;"></div>
 
-                                <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
-                                    <div id="aluno-escolhido" class="small d-none"></div>
-                                    @* Procurar no cadastro do site é sob demanda, nunca por
-                                       tecla: é chamada de rede, e a lista de cima já resolve
-                                       o caso comum sem sair do aparelho. *@
-                                    <button type="button" id="btn-buscar-sistema"
-                                            class="btn btn-sm btn-outline-secondary rounded-pill d-none">
-                                        <i class="bi bi-search"></i> Procurar no Padelizou
-                                    </button>
+                                    <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                                        <div id="aluno-escolhido" class="small d-none"></div>
+                                        @* Procurar no cadastro do site é sob demanda, nunca por
+                                           tecla: é chamada de rede, e a lista de cima já resolve
+                                           o caso comum sem sair do aparelho. *@
+                                        <button type="button" id="btn-buscar-sistema"
+                                                class="btn btn-sm btn-outline-secondary rounded-pill d-none">
+                                            <i class="bi bi-search"></i> Procurar no Padelizou
+                                        </button>
+                                    </div>
+
+                                    @* Aparece só quando o nome digitado bate com um acordo. É o
+                                       aviso de que o valor sugerido não é o da tabela do local. *@
+                                    <div class="form-text text-success d-none" id="aviso-preco-combinado"></div>
                                 </div>
 
-                                @* Aparece só quando o nome digitado bate com um acordo. É o
-                                   aviso de que o valor sugerido não é o da tabela do local. *@
-                                <div class="form-text text-success d-none" id="aviso-preco-combinado"></div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-muted small">
+                                        Telefone / WhatsApp <span class="fw-normal">(opcional)</span>
+                                    </label>
+                                    @* Deixou de ser obrigatório em 04/08/2026: quem marca é o
+                                       professor, e ele quase nunca tem o número do aluno na mão
+                                       na beira da quadra. *@
+                                    <input type="text" name="telefoneAluno" id="input-telefone-aluno"
+                                           class="form-control bg-light"
+                                           data-mascara="celular" inputmode="numeric" placeholder="(00) 00000-0000" />
+                                </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">
-                                    Telefone / WhatsApp <span class="fw-normal">(opcional)</span>
-                                </label>
-                                @* Deixou de ser obrigatório em 04/08/2026: quem marca é o
-                                   professor, e ele quase nunca tem o número do aluno na mão
-                                   na beira da quadra. *@
-                                <input type="text" name="telefoneAluno" id="input-telefone-aluno"
-                                       class="form-control bg-light"
-                                       data-mascara="celular" inputmode="numeric" placeholder="(00) 00000-0000" />
-                            </div>
+                            @* Turma de 2+: cada aluno com seu nome e sua cobrança (o pedido do
+                               Felipe — "cada um recebe sua cobrança individualmente"). Os blocos
+                               nascem em branco toda vez que o tamanho muda: trocar de "em trio"
+                               pra "em dupla" no meio do preenchimento não deveria arriscar mandar
+                               o nome de um aluno pro campo errado. *@
+                            <div id="blocos-turma" class="d-none mb-3"></div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Data e hora</label>
@@ -441,7 +450,94 @@
             }
 
             $selectLocal.on('change', atualizarSugestao);
-            $('input[name="quantidadeAlunos"]').on('change', atualizarSugestao);
+            $('input[name="quantidadeAlunos"]').on('change', function () {
+                atualizarSugestao();
+                renderizarBlocosDeTurma();
+            });
+
+            // ── Turma: um bloco de nome por aluno ───────────────────────────────────────
+            // "Em dupla/trio/..." deixa de ser um nome só com o resto anotado à parte — cada
+            // aluno tem o campo dele, e o servidor racha o preço da turma entre os N
+            // (PrecoDaAula.DivididoIgualmente). Trocar o tamanho reconstrói os blocos do
+            // zero: preencheu 3 e voltou pra 2, não tem "qual dos três eu descarto" — some
+            // tudo e o professor preenche de novo, que é 2 toques, não um dilema.
+            var $blocoUnico = $('#bloco-aluno-unico');
+            var $blocosTurma = $('#blocos-turma');
+
+            function blocoTurmaHtml(indice) {
+                return '<div class="mb-3 p-3 border rounded" style="background: var(--pdz-surface-alt);" data-indice="' + indice + '">'
+                    + '<label class="form-label fw-bold text-muted small">Aluno ' + (indice + 1) + '</label>'
+                    + '<input type="text" name="nomesAlunos" class="form-control bg-light nome-turma"'
+                    + ' required maxlength="100" autocomplete="off" placeholder="Digite pra buscar entre os seus alunos" />'
+                    + '<input type="hidden" name="alunoIds" class="id-turma" value="" />'
+                    + '<div class="list-group mt-1 d-none lista-turma" style="max-height: 200px; overflow-y: auto;"></div>'
+                    + '<input type="text" name="telefonesAlunos" class="form-control bg-light mt-2 telefone-turma"'
+                    + ' data-mascara="celular" inputmode="numeric" placeholder="Telefone / WhatsApp (opcional)" />'
+                    + '</div>';
+            }
+
+            function renderizarBlocosDeTurma() {
+                var quantos = parseInt($('input[name="quantidadeAlunos"]:checked').val(), 10) || 1;
+
+                if (quantos <= 1) {
+                    $blocosTurma.addClass('d-none').empty();
+                    $blocoUnico.removeClass('d-none');
+                    $inputNome.prop('required', true);
+                    return;
+                }
+
+                $blocoUnico.addClass('d-none');
+                $inputNome.prop('required', false);
+
+                var html = '';
+                for (var i = 0; i < quantos; i++) html += blocoTurmaHtml(i);
+                $blocosTurma.html(html).removeClass('d-none');
+
+                // A máscara de celular (js/mascaras.js) só varre a página no carregamento;
+                // estes campos acabaram de nascer, então precisam ser religados na mão.
+                if (window.aplicarMascarasEm) window.aplicarMascarasEm($blocosTurma[0]);
+            }
+
+            $blocosTurma.on('input', '.nome-turma', function () {
+                var $bloco = $(this).closest('[data-indice]');
+                $bloco.find('.id-turma').val('');
+                filtrarNoBloco($bloco);
+            });
+
+            $blocosTurma.on('focus', '.nome-turma', function () {
+                filtrarNoBloco($(this).closest('[data-indice]'));
+            });
+
+            function filtrarNoBloco($bloco) {
+                var $nome = $bloco.find('.nome-turma');
+                var $lista = $bloco.find('.lista-turma');
+                var termo = semAcento($nome.val());
+                if (!termo) { $lista.addClass('d-none'); return; }
+
+                var achados = MEUS_ALUNOS.filter(function (a) {
+                    return semAcento(a.nome).indexOf(termo) >= 0;
+                }).slice(0, 8);
+
+                $lista.empty();
+                if (!achados.length) { $lista.addClass('d-none'); return; }
+
+                achados.forEach(function (a) {
+                    $(linha(a)).on('click', function () {
+                        $nome.val(a.nome);
+                        $bloco.find('.id-turma').val(a.alunoId || '');
+                        var $telefone = $bloco.find('.telefone-turma');
+                        if (a.celular && !$telefone.val()) $telefone.val(a.celular);
+                        $lista.addClass('d-none');
+                    }).appendTo($lista);
+                });
+                $lista.removeClass('d-none');
+            }
+
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('.nome-turma, .lista-turma').length) {
+                    $blocosTurma.find('.lista-turma').addClass('d-none');
+                }
+            });
 
             // ── Atalho dos alunos ────────────────────────────────────────────────────────
             // O professor marca a aula PELO aluno, e antes disto redigitava nome e telefone
