@@ -176,7 +176,7 @@ public class EdicaoDeAulaTests
 
         // Sem isto a aula é corrigida no Padelizou e o Google segue com o horário velho — que
         // é onde o professor olha antes de marcar outra coisa.
-        await google.Received(1).AtualizarEventoAsync(Arg.Is<Aula>(a => a.Id == aula.Id));
+        await google.Received(1).AtualizarEventoAsync(Arg.Is<Aula>(a => a != null && a.Id == aula.Id));
     }
 
     [Fact]

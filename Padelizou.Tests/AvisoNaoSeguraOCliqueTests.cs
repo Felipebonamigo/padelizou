@@ -55,7 +55,7 @@ public class AvisoNaoSeguraOCliqueTests
         // O corpo vai como HTML e os acentos saem como entidade (`Voc&#234;s`), então o que se
         // confere é o que sobrevive à codificação: o placar e o link do jogo.
         await email.Received(1).EnviarAsync("fulano@exemplo.com", "Fulano", "Vitória!",
-            Arg.Is<string>(html => html.Contains("(9x3)")
+            Arg.Is<string>(html => html != null && html.Contains("(9x3)")
                                 && html.Contains("https://padelizou.com.br/Torneios/Details/1")));
     }
 

@@ -141,7 +141,7 @@ public class DuracaoDaAulaTests
         Assert.Equal(120, (await ctx.Aulas.SingleAsync()).DuracaoMinutos);
         // O evento tem que esticar junto: senão o professor marca outra coisa em cima do que
         // a agenda dele diz estar livre.
-        await google.Received(1).AtualizarEventoAsync(Arg.Is<Aula>(a => a.Id == aula.Id));
+        await google.Received(1).AtualizarEventoAsync(Arg.Is<Aula>(a => a != null && a.Id == aula.Id));
     }
 
     [Fact]

@@ -1,0 +1,15 @@
+<Project>
+
+  <!-- CS8602 (desreferência de referência possivelmente nula) foi de 42 avisos a ZERO em
+       22/08/2026 e virou erro no mesmo dia. É o padrão de promoção rastreada: regra nova
+       nasce como aviso, a contagem fica visível, e só quando zera é que trava a build —
+       nunca de surpresa, e a partir daí pra sempre.
+
+       Se um CS8602 novo aparecer, ele NÃO se resolve com `!`: o operador cala o compilador
+       sem mudar o risco. Ou se prova que não é nulo (guarda antes, tipo mais preciso), ou
+       se trata o nulo. Ver o commit desta mudança pros três padrões que apareceram aqui. -->
+  <PropertyGroup>
+    <WarningsAsErrors>$(WarningsAsErrors);CS8602</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

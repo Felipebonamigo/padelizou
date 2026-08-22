@@ -637,8 +637,11 @@ namespace padelizou.Controllers
                     .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
                     .FirstOrDefaultAsync(s => s.GrupoId == grupoId && s.DataHora == quando);
 
-                var souConvidado = sessao?.Confirmacoes.Any(c => c.JogadorId == userId) ?? false;
-                if (!souConvidado) return RedirectToAction("Index");
+                // Checagem direta em vez de um bool intermediário: `bool souConvidado = ...`
+                // não ensina o compilador que `sessao` deixa de ser nula aqui, e as duas
+                // leituras de `sessao.DataHora` mais abaixo viravam CS8602 por isso.
+                if (sessao is null || !sessao.Confirmacoes.Any(c => c.JogadorId == userId))
+                    return RedirectToAction("Index");
             }
 
             var mensalidades = await _context.MensalidadesGrupo

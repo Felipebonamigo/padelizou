@@ -1371,22 +1371,22 @@
                     <div class="gap-2 flex-wrap align-items-end" id="configCategoriaTimes" style="display: @(temTimesCopiado ? "flex" : "none");">
                         <div>
                             <label class="form-label small mb-0">Nome da categoria</label>
-                            <input type="text" name="nomeCategoriaTimes" value="@(temTimesCopiado ? timesCopiado.Nome : "Times")" maxlength="80"
+                            <input type="text" name="nomeCategoriaTimes" value="@(timesCopiado?.Nome ?? "Times")" maxlength="80"
                                    class="form-control form-control-sm" style="width: 160px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Quantos times</label>
-                            <input type="number" name="quantidadeTimes" min="2" max="32" value="@(temTimesCopiado && timesCopiado.Quantidade != null ? timesCopiado.Quantidade : 8)"
+                            <input type="number" name="quantidadeTimes" min="2" max="32" value="@(timesCopiado?.Quantidade ?? 8)"
                                    class="form-control form-control-sm" style="width: 100px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Quantos grupos</label>
-                            <input type="number" name="quantidadeGruposTimes" min="1" max="8" value="@(temTimesCopiado && timesCopiado.Grupos != null ? timesCopiado.Grupos : 2)"
+                            <input type="number" name="quantidadeGruposTimes" min="1" max="8" value="@(timesCopiado?.Grupos ?? 2)"
                                    class="form-control form-control-sm" style="width: 100px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Classificam por grupo</label>
-                            <input type="number" name="classificadosPorGrupoTimes" min="1" max="4" value="@(temTimesCopiado && timesCopiado.Classificados != null ? timesCopiado.Classificados : 2)"
+                            <input type="number" name="classificadosPorGrupoTimes" min="1" max="4" value="@(timesCopiado?.Classificados ?? 2)"
                                    class="form-control form-control-sm" style="width: 120px;" />
                         </div>
                     </div>

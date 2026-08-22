@@ -150,6 +150,11 @@ declare "funciona" sem rodar a suíte.
 - **DateTime.Now é hora LOCAL** (colunas `timestamp without time zone`, modo legado do
   Npgsql). O fuso do VPS precisa ser America/Sao_Paulo — não está garantido em lugar nenhum
   do código, só documentado em `infra/vps/README.md`.
+- **CS8602 é ERRO, não aviso** (`Directory.Build.props`, desde 22/08). Eram 42 avisos; foram
+  a zero e a regra subiu no mesmo dia. Um CS8602 novo **não se resolve com `!`** — o operador
+  cala o compilador sem mudar o risco. Ou se prova que não é nulo, ou se trata o nulo. E
+  atenção ao padrão que gerou 6 dos 7 de produção: um `bool` que captura `x != null` não
+  ensina nada ao compilador; a checagem tem que ser direta no ponto de uso.
 - **Migration**: gerar sempre em worktree limpo; conferir com
   `dotnet ef migrations has-pending-model-changes` antes de commitar (o CI já roda isso).
 - **Todo defeito corrigido vira teste de regressão** — é assim que a suíte foi de ~1000 pra

@@ -171,7 +171,7 @@ public class EstornoParcialTests
 
         // E o gateway recebeu os DOIS números: quanto devolver e quanto disso é do organizador.
         await asaas.Received().EstornarAsync("pay_teste", true,
-            Arg.Is<DevolucaoParcial>(d => d.Valor == 125m && d.ValorDoRepasse == 106.25m));
+            Arg.Is<DevolucaoParcial>(d => d != null && d.Valor == 125m && d.ValorDoRepasse == 106.25m));
     }
 
     [Fact]
