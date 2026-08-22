@@ -1,7 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **22/08/2026** — 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
+> Última atualização: **22/08/2026** — 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
+>
+> 🗣️ **O pedido do Felipe:** *"crie a categoria 'Lendas' para torneios"*. Duas perguntas fecharam o desenho (as duas com a opção recomendada): sem A/B/C — uma categoria só, quem entra é pela veterania, não pela força — e sem separar Masculina/Feminina — todo mundo que se qualifica joga junto.
+>
+> 🧩 **Entra no catálogo pelo mesmo caminho de sempre: `Program.cs` semeia `CategoriaPadrao` por NOME no startup, sem migration** — é dado de produção, não schema (só as duas colunas `Ativa` que já existiam de outras categorias desligadas). "Categoria Lendas", `Tipo`/`Codigo` = `LENDAS`.
+>
+> 🐛 **A pegadinha, achada ANTES de virar bug em produção:** Lendas é "fora da escada" do Padelímetro igual Casal/Mista (sem faixa, sem travar nível, seed no meio do caminho entre as duas réguas, troféu de vidro) — mas ela **não é par misto**: dois veteranos do mesmo sexo jogam juntos numa boa, diferente de Casal/Mista que exigem um homem e uma mulher. `SexoDoJogador.ExigeUmDeCada` lia direto de `FaixasDePadelimetro.ForaDaEscada` — reaproveitar isso teria feito Lendas herdar uma trava que não é dela (bloquear duas mulheres de se inscreverem juntas). Desacoplado: `ExigeUmDeCada` passa a checar `EhMista || EhCasal` na mão, não mais `ForaDaEscada` — as duas perguntas ("é fora da escada de nível" × "exige um de cada") só coincidem em Mista/Casal, e daqui pra frente uma categoria nova de qualquer um dos dois feitios entra sem arrastar a outra regra sozinha.
+>
+> 📋 **Aparece nas 3 telas que agrupam o catálogo por Tipo** (Create de torneio — na coluna da Mista, junto do Casal, mesma razão de sempre: uma quarta coluna pra um item só quebraria a grade de três —, configuração de grupo privado, criar aviso). As telas que listam sem agrupar por Tipo já mostram sozinhas, sem mudança nenhuma.
+>
+> 🧪 **4.824 testes, 0 falhas (18 novos)** — reconhecimento pelo nome, fora da escada sem travar nível, seed no meio do caminho, troféu de vidro, e o ponto central: dois homens (ou duas mulheres) entram juntos em Lendas sem barreira, ao contrário de Mista/Casal.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: nada de schema neste bloco, só dado semeado no startup.
+> Antes, no mesmo dia: 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
 >
 > 🗣️ **Começou com um link do Felipe** pro [vibe-coding-toolkit](https://github.com/soumatheusgomes/vibe-coding-toolkit) — 31 arquivos, ~7.850 linhas de método de trabalho com IA. Li inteiro e adotei o que traduz pra cá; o eixo ESLint/Biome (~1.600 linhas) é JS/TS e não serve, mas a ideia dele de **promoção rastreada** (regra nasce como aviso, vira erro quando a contagem zera) virou o burndown abaixo.
 >

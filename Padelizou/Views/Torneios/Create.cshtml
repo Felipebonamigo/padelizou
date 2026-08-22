@@ -1340,6 +1340,24 @@
                                 </div>
                             }
                         }
+
+                        @* Lendas entra na mesma coluna, pelo mesmo motivo do Casal: mais uma
+                           categoria "fora da escada" não justifica uma quarta coluna. *@
+                        @if (catalogo.Any(c => c.Tipo == "Lendas"))
+                        {
+                            <h6 class="fw-bold mb-2 mt-4 text-warning"><i class="bi bi-award-fill"></i> Lendas</h6>
+                            <p class="small text-muted mb-2">Veteranos jogando juntos — sem nível, sem separar por sexo.</p>
+                            @foreach (var cat in catalogo.Where(c => c.Tipo == "Lendas"))
+                            {
+                                <div class="form-check mb-2 d-flex align-items-center gap-2">
+                                    <div class="flex-grow-1">
+                                        <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
+                                        <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                    </div>
+                                    <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
 
