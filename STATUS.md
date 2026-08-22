@@ -1,7 +1,32 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/08/2026** — 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
+> Última atualização: **22/08/2026** — 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
+>
+> 🗣️ **O pedido do Felipe, de um print da tela "Adicionar Aula" marcada "Em trio":** *"teria que conseguir selecionar os 3 alunos aqui. Cada um recebe sua cobrança individualmente"*. Até aqui uma turma de 2/3/.../6 era **UMA linha de Aula** com um preço só e um nome só — os outros lugares eram o campo livre "Acompanhantes", sem conta, sem cobrança própria. Design fechado com duas perguntas: preço **dividido igualmente** entre os N (não um campo de preço por aluno) e a agenda mostrando **um card/evento só, com os N nomes** (não N cards idênticos pro mesmo horário).
+>
+> 🧩 **`Aula.TurmaId` (novo, `Guid?` nulo por padrão) é a peça que faz tudo se encontrar.** Cada aluno da turma continua sendo a própria linha, o próprio `AlunoId`/`NomeAlunoAvulso`, a própria ficha (`GravarFichaRapidaAsync`) e — decisivo pra "um sai, os outros continuam" — a **própria `RecorrenciaId`**: não existe RecorrenciaId de grupo. O que junta as N linhas como "isto aqui é uma sessão só" é o TurmaId, **ESTÁVEL**: nasce uma vez em `AdicionarManual` e viaja pra sempre, copiado adiante pela renovação semanal (`RenovacaoDaAulaFixa.Copiar`) — não sorteado de novo a cada semana.
+>
+> 🐛 **E foi bom ele ser estável, porque o primeiro desenho (TurmaId novo a cada semana) tinha um bug que só o teste do renovador achou:** um aluno que cancela UMA aula da própria série fica um passo atrás dos colegas — mesmo horário, semanas diferentes já criadas. Sem uma forma ESTÁVEL de reconhecer "esta aula é da mesma turma", a checagem de conflito de horário (`RenovacaoDaAulaFixa` e `HorarioOcupadoAsync`) enxergava a aula do COLEGA, no mesmo horário, como "já tem outra coisa marcada ali" — e pulava a semana à toa, achando a série cada vez mais pra trás. A exclusão por TurmaId (colega de turma nunca conta como conflito; turmas DIFERENTES no mesmo horário continuam conflitando de verdade) resolveu, e o teste que achou o bug virou regressão.
+>
+> 💰 **`PrecoDaAula.DivididoIgualmente(total, n)` racha sem perder centavo:** R$ 100 em 3 não é 33,33 × 3 — falta um centavo. Ele vai pro(s) primeiro(s) da lista, e a soma das fatias sempre bate exato com o total (é o que faz `FechamentoDoMes` continuar batendo sem precisar saber que a aula é em grupo).
+>
+> 📝 **A tela ganhou N blocos de aluno** (nome com o mesmo atalho de busca nos alunos do professor, telefone opcional) que nascem quando o professor marca dupla/trio/etc — trocar o tamanho reconstrói os blocos do zero de propósito, porque não existe "qual dos três eu descarto" ao encolher a turma. Sem usar os blocos novos (aba antiga, ou o professor não trocou de modo), o comportamento é **exatamente o de sempre**: uma linha, preço cheio da turma, o resto em "Acompanhantes".
+>
+> 📅 **Um evento só na Google Agenda pra sessão inteira** — título com todos os nomes ("Fulano, Beltrano e Cicrano"), sem convidado (a turma não tem um único e-mail; o aviso ao aluno continua pelo link de confirmação por e-mail, que já existia). As N linhas guardam o MESMO `GoogleEventId`.
+>
+> 🃏 **"Um card só" na Minha Agenda só é seguro se as ações do card valerem pra turma inteira, não só pra linha que por acaso é a representante** (`Services/AgendaDeTurma.Colapsar` agrupa por TurmaId na leitura — preço somado, nomes juntos; a fila de Pendentes e a de A Recuperar ficam de fora de propósito, são por aluno, não cards de sessão). Sem cascatear as ações, "Concluir" clicado uma vez deixaria 2 dos 3 alunos "Confirmada" pra sempre, quietos:
+> - **Concluir/Cancelar** (`AtualizarStatus`) cascadeia pros colegas de TurmaId.
+> - **Apagar** (`ExcluirAula`) apaga o grupo inteiro e remove o evento do Google **uma vez só** (as linhas compartilham o mesmo `GoogleEventId` — apagar só uma sumiria com o evento de quem ficasse).
+> - **Editar** cascadeia horário/local/duração (são da SESSÃO) — preço fica de fora, é a fatia de CADA aluno. `HorarioOcupadoAsync` ganhou o mesmo `ignorarTurmaId` do fix do renovador, pelo mesmo motivo: sem ele, mover o horário da turma esbarraria nos próprios colegas.
+>
+> 🧪 **4.806 testes, 0 falhas (25 novos)** — cobrindo a divisão de preço, a criação em turma (com validação de nome faltando), a renovação semanal com TurmaId estável (incluindo o cenário do bug do cancelamento avulso), o colapso de exibição e as quatro ações cascateando (e a de aula solo continuando isolada).
+>
+> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+>
+> 🕳️ **Limitação conhecida, documentada em código, não resolvida:** `SincronizarGoogle` (reenvio de aula que ficou fora do Google) ainda cria um evento POR LINHA — se a criação do evento único falhar inteira na hora de `AdicionarManual`, o reenvio posterior criaria N eventos separados em vez de recriar o compartilhado. Caso raro (a criação já é best-effort com retry manual via essa mesma tela) e fora do escopo deste bloco.
+>
+> Antes, na véspera (21/08): 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
 >
 > 🗣️ **A pergunta do Felipe foi de lugar, não de código:** *"qual e aonde o melhor local para colocar? pensando que nao pode poluir muito o sistema, possivelmente tenha outros patrocinadores depois"*. A resposta é o **rodapé**: patrocínio vive de estar presente em toda página, não de interromper — banner ou faixa no topo viraria a primeira coisa que o sistema diz em toda tela. O rótulo **"Patrocínio" fica ACIMA dos logos** (em linha ele disputava largura com as marcas e roubava metade da linha no celular), e a fileira quebra sozinha quando vier o terceiro.
 >
