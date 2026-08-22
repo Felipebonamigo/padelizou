@@ -294,6 +294,13 @@ namespace padelizou.Controllers
                 .Select(_ => horarios.Count > 1 || semPrazoDeVerdade ? Guid.NewGuid() : (Guid?)null)
                 .ToList();
 
+            // Uma turma inteira, uma identidade só — ESTÁVEL pra sempre (não por sessão): é o
+            // que deixa a renovação semanal (Services/RenovacaoDaAulaFixa) reconhecer "estas
+            // aulas são a mesma turma" mesmo com cada aluno tendo a própria RecorrenciaId, e
+            // por isso mesmo poder DISTINGUIR os colegas de turma (mesmo horário de propósito)
+            // de um conflito de verdade (outra coisa marcada na mesma quadra).
+            var turmaId = entradas.Count > 1 ? Guid.NewGuid() : (Guid?)null;
+
             var novasAulas = new List<Aula>();
             var grupos = new List<List<Aula>>();
             var puladas = 0;
@@ -310,9 +317,6 @@ namespace padelizou.Controllers
                     continue;
                 }
 
-                // Regenerado a cada sessão (não por RecorrenciaId): a renovação semanal cria
-                // TurmaId novo toda semana, ver Services/RenovacaoDaAulaFixa.
-                var turmaId = entradas.Count > 1 ? Guid.NewGuid() : (Guid?)null;
                 var grupo = new List<Aula>();
 
                 for (var i = 0; i < entradas.Count; i++)

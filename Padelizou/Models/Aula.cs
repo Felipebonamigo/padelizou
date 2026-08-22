@@ -52,16 +52,22 @@ public partial class Aula
     // que existia.
     public int QuantidadeAlunos { get; set; } = 1;
 
-    // A MESMA sessão de quadra, quando ela tem MAIS DE UM aluno com cobrança PRÓPRIA — cada
+    // A MESMA turma de quadra, quando ela tem MAIS DE UM aluno com cobrança PRÓPRIA — cada
     // um sua linha de Aula, seu preço (a fatia dele do valor da turma) e sua ficha, mas o
     // mesmo horário/local/duração e o MESMO evento na Google Agenda (GoogleEventId igual nas
     // linhas do grupo). Nulo é a aula de sempre: sozinha, ou em grupo com um "Acompanhantes"
     // solto sem cobrança própria (Acompanhantes e TurmaId não se excluem — o professor pode
     // ter 2 alunos com conta cobrados à parte e um terceiro "de brinde" só anotado ali).
     //
-    // Regenerado a cada semana pela renovação da série sem prazo — ver
-    // Services/RenovacaoDaAulaFixa. Não existe RecorrenciaId de grupo: cada aluno mantém a
-    // PRÓPRIA série, independente dos colegas (um sai, os outros continuam sem quebrar nada).
+    // ESTÁVEL: nasce UMA vez quando o professor cria a turma e viaja com cada série pra
+    // sempre — a renovação semanal (Services/RenovacaoDaAulaFixa) copia o mesmo valor pra
+    // frente, não sorteia um novo. Não existe RecorrenciaId de grupo: cada aluno mantém a
+    // PRÓPRIA série, independente dos colegas (um sai — ou cancela só a dele numa semana —,
+    // os outros continuam sem quebrar nada). É também por isto que precisa ser estável: sem
+    // um jeito de reconhecer "esta aula aqui é da MESMA turma", a trava de conflito de
+    // horário do renovador enxergaria os colegas de turma uns dos outros como aula
+    // concorrente no mesmo horário — e pularia a semana pensando que a quadra já tem outra
+    // coisa marcada, quando é a turma toda jogando junto.
     public Guid? TurmaId { get; set; }
 
     // Token opaco usado no link de aceitar/recusar enviado por e-mail (sem exigir login)
