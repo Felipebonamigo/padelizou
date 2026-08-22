@@ -45,6 +45,11 @@ marketplace oficial da Anthropic, com SHA fixado. Custo somado: **~3,2k tokens s
 | `claude-md-management` | `/revise-claude-md` — audita este arquivo e captura aprendizado de sessão | ~175 tok |
 | `hookify` | Cria hooks a partir de regra em `.local.md`. Os 4 hooks dele são fail-open e no-op sem regra escrita | ~292 tok |
 
+Mais um servidor MCP em `.mcp.json`: **`context7`**, doc atualizada de biblioteca. O Microsoft
+Learn MCP cobre .NET/EF Core/Npgsql; o Context7 existe pelas cinco dependências de terceiro
+daqui — QRCoder, SkiaSharp, MailKit, WebPush, Google.Apis.Calendar —, que nenhuma fonte
+oficial da Microsoft documenta. Conecta anônimo; chave gratuita só melhora o limite de taxa.
+
 ⚠️ **Este arquivo vence as skills deles.** É a própria regra do superpowers: instrução explícita
 do projeto tem prioridade. O hook de SessionStart dele injeta um bloco `<EXTREMELY_IMPORTANT>` —
 a ênfase é do plugin, não uma promoção acima das regras daqui.
@@ -103,6 +108,21 @@ de erro que evita perda de dado, e qualquer coisa que o Felipe pediu explicitame
 
 Atalho deliberado ganha comentário nomeando o teto e a saída — senão a próxima sessão lê como
 esquecimento em vez de escolha: `// atalho: consulta sem paginação; paginar acima de ~500 duplas`.
+
+## Como responder
+
+Resultado primeiro, explicação depois e curta. Sem "ótima pergunta!", sem parágrafo de
+introdução antes do fato. Se a explicação ficar maior que a coisa explicada, corte a
+explicação. Relatório ou passo a passo que o Felipe pediu vem completo — a regra é contra
+prosa não solicitada, não contra o que foi pedido.
+
+Não vale para: aviso de segurança, confirmação antes de ação irreversível, e onde encurtar
+criaria ambiguidade técnica. Número, unidade, código e texto exato de erro nunca são
+resumidos nem parafraseados.
+
+⚠️ **Esta regra precisa estar AQUI, e não só no `~/.claude/CLAUDE.md`** — sessão web nasce de
+clone limpo e não enxerga o `~/.claude/` da máquina. A versão que vivia só lá nunca esteve em
+vigor nas sessões pelo celular, que é justamente onde resposta longa incomoda mais.
 
 ## Como fechar um bloco de trabalho
 
