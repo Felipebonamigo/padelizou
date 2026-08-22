@@ -66,8 +66,8 @@ public class ConvitePraPanelinhaTests
 
         await push.Received(1).EnviarParaJogadorAsync(
             convidado.Id,
-            Arg.Is<string>(t => t.Contains("panelinha")),
-            Arg.Is<string>(c => c.Contains(grupo.Nome)),
+            Arg.Is<string>(t => t != null && t.Contains("panelinha")),
+            Arg.Is<string>(c => c != null && c.Contains(grupo.Nome)),
             Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }

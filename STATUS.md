@@ -3904,14 +3904,12 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 🔒 Regras para não regredir
-0. **Ação que grava dado precisa de `[Authorize]` E de checagem de dono/organizador.**
-   Dois buracos em 26/07 vieram da falta disso. O gate de Acesso Antecipado *não* é
-   autorização — ele some no dia em que o sistema abrir pro público.
-1. **Todo defeito corrigido vira teste.**
-2. **Nada é publicado com teste vermelho.**
-3. **Testar em `dev` antes de produção.**
-4. **Fechou um trabalho, commit + push.**
-5. **Uma coisa de cada vez, até o fim.**
+
+**Mudaram de casa em 21/08/2026 — agora vivem no `CLAUDE.md`, no topo.** Estavam aqui, na
+linha ~3855 de um arquivo de ~3.900: quem abre o projeto lê o `CLAUDE.md` inteiro sozinho e
+este aqui por busca de texto, então a regra mais importante do projeto era a que mais
+dependia de sorte pra ser lida. Não ficou cópia neste arquivo de propósito — duas listas em
+dois lugares divergem, e a que diverge calada é a que engana.
 
 ---
 

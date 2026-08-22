@@ -166,7 +166,7 @@ public class VarreduraDeInscricaoNaoPagaTests
 
         await push.Received().EnviarParaJogadorAsync(
             Arg.Any<int>(), Arg.Any<string>(),
-            Arg.Is<string>(c => c.Contains("125") && c.Contains("21/09")),
+            Arg.Is<string>(c => c != null && c.Contains("125") && c.Contains("21/09")),
             $"/Torneios/Details/{torneio.Id}", Arg.Any<AlcanceDoAviso>());
     }
 

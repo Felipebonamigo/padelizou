@@ -108,7 +108,7 @@ public class EstornoDesfazInscricaoTests
         // O canal fica em Arg.Any de propósito: o que importa aqui é que o aviso saiu, não por
         // onde. Prender o valor faz este teste quebrar toda vez que alguém mexer no alcance.
         await push.Received().EnviarParaJogadorAsync(c.Id,
-            Arg.Is<string>(t => t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Is<string>(t => t != null && t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }
 
@@ -150,7 +150,7 @@ public class EstornoDesfazInscricaoTests
         Assert.False(promovida.EmListaDeEspera);
 
         await push.Received().EnviarParaJogadorAsync(c.Id,
-            Arg.Is<string>(t => t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Is<string>(t => t != null && t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }
 

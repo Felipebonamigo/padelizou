@@ -166,7 +166,7 @@ public class MuralDeParceirosTests
         await push.Received(1).EnviarParaJogadorAsync(
             solo.Jogador1Id,
             MuralDeParceiros.TituloDoAviso,
-            Arg.Is<string>(corpo => corpo.Contains("Candidato Souza")),
+            Arg.Is<string>(corpo => corpo != null && corpo.Contains("Candidato Souza")),
             Arg.Any<string?>(),
             AlcanceDoAviso.AppSemEmail);
 

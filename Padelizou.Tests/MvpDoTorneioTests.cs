@@ -395,7 +395,7 @@ public class MvpDoTorneioTests
         await push.Received().EnviarParaJogadorAsync(
             Arg.Any<int>(),
             Arg.Any<string>(),
-            Arg.Is<string>(corpo => !corpo.Contains("melhor jogador")),
+            Arg.Is<string>(corpo => corpo != null && !corpo.Contains("melhor jogador")),
             Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }

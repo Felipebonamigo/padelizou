@@ -224,7 +224,7 @@ public class AberturaDeContaTests
 
         // Chegou ao gateway...
         await asaas.Received(1).CriarSubcontaAsync(Arg.Is<DadosDaSubconta>(
-            d => d.Endereco == "Av. Assis Brasil" && d.Bairro == "Sarandi"));
+            d => d != null && d.Endereco == "Av. Assis Brasil" && d.Bairro == "Sarandi"));
 
         // ...e não sobrou em nenhuma coluna de texto do jogador.
         var salvo = ctx.Jogadores.Find(j.Id)!;

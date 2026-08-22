@@ -189,10 +189,10 @@ public class AceitarOuRecusarChamadoTests
 
         // Quem entrou soube que entrou; o dono, que a dupla mudou.
         await push.Received(1).EnviarParaJogadorAsync(a.Id,
-            Arg.Is<string>(t => t.Contains("entrou numa dupla")),
+            Arg.Is<string>(t => t != null && t.Contains("entrou numa dupla")),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
         await push.Received(1).EnviarParaJogadorAsync(dono.Id,
-            Arg.Is<string>(t => t.Contains("Dupla atualizada")),
+            Arg.Is<string>(t => t != null && t.Contains("Dupla atualizada")),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
     }
 
@@ -307,7 +307,7 @@ public class AceitarOuRecusarChamadoTests
         // procurando"), que é a única coisa acionável que existe pra quem lê.
         await push.Received(1).EnviarParaJogadorAsync(a.Id,
             MuralDeParceiros.TituloDaRecusa,
-            Arg.Is<string>(c => c.Contains("procurando parceiro")),
+            Arg.Is<string>(c => c != null && c.Contains("procurando parceiro")),
             Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
 
         // ⚠️ E SÓ ELE: quem não foi recusado não pode receber nada.
@@ -355,7 +355,7 @@ public class AceitarOuRecusarChamadoTests
         // Quem ficou de fora recebe, uma vez.
         await push.Received(1).EnviarParaJogadorAsync(b.Id,
             MuralDeParceiros.TituloDaVagaPreenchida,
-            Arg.Is<string>(c => c.Contains("outra pessoa")),
+            Arg.Is<string>(c => c != null && c.Contains("outra pessoa")),
             Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
     }
 
@@ -496,11 +496,11 @@ public class AceitarOuRecusarChamadoTests
         // quem fechou ali — quem chamou o candidato nunca ouviu falar do dono.
         await push.Received(1).EnviarParaJogadorAsync(b.Id,
             MuralDeParceiros.TituloDaVagaPreenchida,
-            Arg.Is<string>(c => c.Contains(dono.ComoChamar)),
+            Arg.Is<string>(c => c != null && c.Contains(dono.ComoChamar)),
             Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
         await push.Received(1).EnviarParaJogadorAsync(b.Id,
             MuralDeParceiros.TituloDaVagaPreenchida,
-            Arg.Is<string>(c => c.Contains(a.ComoChamar)),
+            Arg.Is<string>(c => c != null && c.Contains(a.ComoChamar)),
             Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
 
         // E o chamado que morreu com a inscrição não fica de pé.
