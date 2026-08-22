@@ -34,18 +34,25 @@ arquivo de 3.900 linhas é regra que uma sessão com pressa pula.
 
 ## Plugins deste projeto
 
-`superpowers@claude-plugins-official` está instalado em **escopo de projeto** (`.claude/settings.json`),
-não no `~/.claude/` de ninguém — assim ele vale também nas sessões da web, que nascem de um clone
-limpo. São 14 skills de processo (brainstorming, writing-plans, systematic-debugging,
-test-driven-development, verification-before-completion e outras), ~688 tokens sempre ligados.
-O plugin vem do marketplace oficial da Anthropic, mas o código é de terceiro
-(`github.com/obra/superpowers`), fixado num SHA pelo marketplace.
+Quatro plugins em **escopo de projeto** (`.claude/settings.json`), não no `~/.claude/` de
+ninguém — assim valem também nas sessões da web, que nascem de um clone limpo. Todos do
+marketplace oficial da Anthropic, com SHA fixado. Custo somado: **~3,2k tokens sempre ligados**.
 
-⚠️ **Este arquivo vence as skills dele.** É a própria regra do plugin: instrução explícita do
-projeto tem prioridade. O hook de SessionStart dele injeta um bloco `<EXTREMELY_IMPORTANT>` —
+| Plugin | O que traz | Sempre ligado |
+|---|---|---|
+| `superpowers` | 14 skills de processo: brainstorming, writing-plans, systematic-debugging, TDD, verification-before-completion | ~688 tok |
+| `pr-review-toolkit` | 6 agentes revisores + `/review-pr`. O `silent-failure-hunter` caça defeito que falha calado | ~2.033 tok |
+| `claude-md-management` | `/revise-claude-md` — audita este arquivo e captura aprendizado de sessão | ~175 tok |
+| `hookify` | Cria hooks a partir de regra em `.local.md`. Os 4 hooks dele são fail-open e no-op sem regra escrita | ~292 tok |
+
+⚠️ **Este arquivo vence as skills deles.** É a própria regra do superpowers: instrução explícita
+do projeto tem prioridade. O hook de SessionStart dele injeta um bloco `<EXTREMELY_IMPORTANT>` —
 a ênfase é do plugin, não uma promoção acima das regras daqui.
 
-Desinstalar: tirar `enabledPlugins` e `extraKnownMarketplaces` do `.claude/settings.json`.
+⚠️ **`superpowers` é de terceiro** (`github.com/obra/superpowers`), distribuído e fixado pela
+Anthropic. Os outros três são internos ao repositório dela.
+
+Desinstalar um: tirar a linha dele de `enabledPlugins` no `.claude/settings.json`.
 
 ## Quanto cerimonial cada pedido merece
 
