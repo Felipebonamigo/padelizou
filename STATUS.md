@@ -1,7 +1,33 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **22/08/2026** — 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
+> Última atualização: **22/08/2026** — 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
+>
+> 🗣️ **Começou com um link do Felipe** pro [vibe-coding-toolkit](https://github.com/soumatheusgomes/vibe-coding-toolkit) — 31 arquivos, ~7.850 linhas de método de trabalho com IA. Li inteiro e adotei o que traduz pra cá; o eixo ESLint/Biome (~1.600 linhas) é JS/TS e não serve, mas a ideia dele de **promoção rastreada** (regra nasce como aviso, vira erro quando a contagem zera) virou o burndown abaixo.
+>
+> 🚪 **`GateDeAutorizacaoDosPostsTests` fecha a parte mecânica da Regra 0.** Varre o assembly por reflexão e quebra se um POST novo atender sem login — que é exatamente o que os dois buracos de 26/07 foram, e até hoje isso dependia só de atenção. Estado medido: **274 dos 281 POSTs exigem login**; os 7 restantes estão declarados um a um com o motivo (login/cadastro/senha, contato com antiforgery, o portão do Acesso Antecipado com trava por IP, e o webhook do Asaas com `TokenValido()`). **Nenhum buraco real encontrado** — li os 7 antes de carimbar.
+>
+> ⚠️ **O gate responde "dá pra chamar sem login?", NÃO "quem chama pode fazer isso?".** Um POST com `[Authorize]` e sem checagem de dono passa nele e continua sendo o buraco de 26/07. Fecha UMA das três condições da Regra 0; a checagem de dono é julgamento e segue sendo trabalho do teste de cada área. Está escrito no cabeçalho do arquivo pra ninguém confundir cobertura.
+>
+> 🧷 **Não é analisador Roslyn de propósito:** `TorneiosController` é partial em 17 arquivos e `[Authorize]` vive na classe E na ação, então um analisador sintático precisaria do modelo semântico pra enxergar atributo declarado noutro arquivo. Reflexão vê o conjunto efetivo de graça. O teste espelha o runtime: qualquer `[AllowAnonymous]`, no método ou na classe, conta como desprotegido — ler só o atributo da ação daria "protegido" pra endpoint que atende qualquer um. Tem canário: se a varredura parar de enxergar os controllers, os outros dois testes passariam vazios e calados.
+>
+> 🚦 **CS8602 é ERRO agora** (`Directory.Build.props`). Eram 42 avisos no build; os 37 CS8602 foram a zero e a regra subiu no mesmo dia. **O gate foi visto barrar antes de virar commit** — plantei um CS8602 deliberado e confirmei `error CS8602 / 1 Error(s)`. Gate que nunca se viu barrar nada não é gate verde, é gate não testado.
+>
+> 🔍 **Dos 37: 30 em teste (matcher do NSubstitute — nulo estourava DENTRO do matcher em vez de não casar) e 7 em produção, com 6 do mesmo padrão** — um `bool` intermediário captura a checagem de nulo (`bool temTimesCopiado = timesCopiado != null`, `souConvidado`) e o C# não correlaciona a variável booleana com o estado do objeto. Falso positivo; a correção com `?.`/`??` e `if (sessao is null || ...)` saiu **mais curta** que o original.
+>
+> 🧭 **O sétimo custou cinco rodadas, e a causa não estava na linha do aviso.** Em `Details.cshtml`, 28 linhas acima do erro, `dupla.Jogador1?.LadoQuadra` usa `?.` numa referência declarada não-anulável — isso rebaixa o estado de fluxo dela pra "possivelmente nulo" dali em diante, e é por isso que os outros três usos idênticos no mesmo arquivo NÃO avisam. Achado lendo o C# que o Razor gera (`EmitCompilerGeneratedFiles`) e com um experimento de `!` pra discriminar se o nulo era `dupla` ou `Jogador1`, depois de três leituras do template não explicarem. **Regra 6 na prática: parei de deduzir e instrumentei a fronteira.**
+>
+> 📓 **As "Regras para não regredir" saíram da linha ~3855 DESTE arquivo e foram pro topo do `CLAUDE.md`.** O `CLAUDE.md` é lido inteiro no início de toda sessão; este aqui, por busca de texto — a regra mais importante do projeto era a que mais dependia de sorte pra ser lida. Não ficou cópia aqui de propósito. A Regra 1 ganhou a ordem (**teste ANTES da correção, e visto falhar pelo motivo certo**; se a correção saiu primeiro, apaga e recomeça) e nasceu a **Regra 6** (três correções falhas: para e questiona a arquitetura).
+>
+> 🌊 **`ONDAS-PARALELAS.md`** documenta como paralelizar sem que dois agentes se atropelem. A parte que só existe aqui: **as quatro réguas de autorização são UMA tarefa**, nunca uma por arquivo — elas *passam* nas duas condições de formação de onda (arquivos disjuntos, sem dependência declarada) e mesmo assim não podem ser paralelizadas, porque a dependência é semântica. É a dessincronia de 31/07 esperando pra acontecer de novo.
+>
+> 🔌 **Configuração de agente em escopo de PROJETO** (`.claude/settings.json`): `superpowers`, `pr-review-toolkit`, `claude-md-management`, `hookify` e o MCP `context7`. Escopo de projeto e não de usuário porque **sessão da web nasce de clone limpo e não enxerga o `~/.claude/`** — sem isso, nada disso valeria pelo celular. ~3,2k tokens sempre ligados, medidos com `claude plugin details`. O hook de `SessionStart` também virou **fail-open**: era `set -euo pipefail` com `dotnet restore` sem guarda, e rede ruim derrubava a sessão de quem só queria abrir o projeto.
+>
+> 🧪 **4.809 testes, 0 falhas.** Build: 42 avisos → 5. **Sem migration.** Nenhum comportamento de produção muda, exceto um rótulo defensivo em `Details.cshtml`.
+>
+> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio, faltando copiar `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` pro environment `dev`.
+>
+> Antes, no mesmo dia: 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
 >
 > 🗣️ **O pedido do Felipe, de um print da tela "Adicionar Aula" marcada "Em trio":** *"teria que conseguir selecionar os 3 alunos aqui. Cada um recebe sua cobrança individualmente"*. Até aqui uma turma de 2/3/.../6 era **UMA linha de Aula** com um preço só e um nome só — os outros lugares eram o campo livre "Acompanhantes", sem conta, sem cobrança própria. Design fechado com duas perguntas: preço **dividido igualmente** entre os N (não um campo de preço por aluno) e a agenda mostrando **um card/evento só, com os N nomes** (não N cards idênticos pro mesmo horário).
 >
