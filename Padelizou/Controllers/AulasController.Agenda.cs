@@ -151,15 +151,47 @@ namespace padelizou.Controllers
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
             DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
             int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null,
-            int? duracaoMinutos = null, bool semPrazo = false)
+            int? duracaoMinutos = null, bool semPrazo = false,
+            List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            if (string.IsNullOrWhiteSpace(nomeAluno))
+            var quantidadeAlunosValida = PrecoDaAula.Tamanho(quantidadeAlunos);
+
+            // `nomesAlunos` só chega preenchido quando o professor usa a tela nova de "cada um
+            // sua cobrança" (ver AdicionarManual.cshtml). Sem ele, é a aula de sempre: um nome
+            // só, mesmo numa turma de 3 — os outros dois, se existirem, são "Acompanhantes",
+            // que esta ação nem vê (campo de outra tela).
+            var multiplo = quantidadeAlunosValida > 1 && nomesAlunos != null && nomesAlunos.Count > 0;
+
+            var entradas = new List<(string Nome, int? AlunoId, string? Telefone)>();
+            if (multiplo)
             {
-                TempData["Erro"] = "Informe o nome do aluno.";
-                return RedirectToAction("AdicionarManual");
+                for (var i = 0; i < quantidadeAlunosValida; i++)
+                {
+                    var nome = (i < nomesAlunos!.Count ? nomesAlunos[i] : null)?.Trim();
+                    if (string.IsNullOrWhiteSpace(nome))
+                    {
+                        TempData["Erro"] = $"Informe o nome dos {quantidadeAlunosValida} alunos dessa aula.";
+                        return RedirectToAction("AdicionarManual");
+                    }
+
+                    entradas.Add((
+                        nome!,
+                        alunoIds != null && i < alunoIds.Count ? alunoIds[i] : null,
+                        telefonesAlunos != null && i < telefonesAlunos.Count ? telefonesAlunos[i] : null));
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(nomeAluno))
+                {
+                    TempData["Erro"] = "Informe o nome do aluno.";
+                    return RedirectToAction("AdicionarManual");
+                }
+
+                entradas.Add((nomeAluno.Trim(), alunoId, telefoneAluno));
             }
 
             // O telefone deixou de ser obrigatório em 04/08/2026. Quem marca a aula é o
@@ -169,12 +201,15 @@ namespace padelizou.Controllers
 
             // As duas colunas são varchar e o Postgres recusa o que passa do tamanho — o
             // professor perderia a aula inteira num erro 500 por colar um nome comprido.
-            var textoLongo = LimitesDeTexto.Problema(nomeAluno, LimitesDeTexto.NomeDeAlunoAvulso, "O nome do aluno")
-                             ?? LimitesDeTexto.Problema(telefoneAluno, LimitesDeTexto.TelefoneDeAlunoAvulso, "O telefone");
-            if (textoLongo != null)
+            foreach (var entrada in entradas)
             {
-                TempData["Erro"] = textoLongo;
-                return RedirectToAction("AdicionarManual");
+                var textoLongo = LimitesDeTexto.Problema(entrada.Nome, LimitesDeTexto.NomeDeAlunoAvulso, "O nome do aluno")
+                                 ?? LimitesDeTexto.Problema(entrada.Telefone, LimitesDeTexto.TelefoneDeAlunoAvulso, "O telefone");
+                if (textoLongo != null)
+                {
+                    TempData["Erro"] = textoLongo;
+                    return RedirectToAction("AdicionarManual");
+                }
             }
 
             // Include obrigatório: o preço da turma sai de local.PrecosDeTurma, e sem ele
@@ -217,63 +252,98 @@ namespace padelizou.Controllers
 
             var duracao = DuracaoDaAula.Valida(duracaoMinutos);
 
-            // Série sem prazo é série mesmo com uma aula só marcada até agora: sem o id, o
-            // renovador não teria como achar a repetição pra continuar.
-            var recorrenciaId = horarios.Count > 1 || semPrazoDeVerdade ? Guid.NewGuid() : (Guid?)null;
-
             // Aluno escolhido da lista TEM conta: a aula passa a apontar pra ela, e não pra um
             // nome solto. É o que faz o aluno enxergar a aula no próprio app, receber o aviso
             // e ver o histórico — coisa que a marcação por nome nunca deu, mesmo quando a
             // pessoa estava cadastrada o tempo todo.
             //
             // O id vem do formulário, então é conferido: sem isto daria pra pendurar aula na
-            // conta de qualquer pessoa mandando outro número.
-            var alunoVinculado = alunoId is int id
-                ? await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == id)
-                : null;
+            // conta de qualquer pessoa mandando outro número. Feito pra todos de uma vez —
+            // um só round trip mesmo com N alunos na turma.
+            var idsInformados = entradas.Where(e => e.AlunoId.HasValue).Select(e => e.AlunoId!.Value).Distinct().ToList();
+            var jogadoresValidos = idsInformados.Count > 0
+                ? (await _context.Jogadores.Where(j => idsInformados.Contains(j.Id)).ToListAsync())
+                    .ToDictionary(j => j.Id)
+                : new Dictionary<int, Jogador>();
 
             // Quantos alunos e, com isso, quanto custa. O campo `preco` continua mandando
             // quando vem preenchido — a tela sugere, o professor decide. Sem ele, a conta é a
             // de Services/PrecoDaAula: tamanho da aula, e o acordo com aquele aluno na
-            // individual. Refeita aqui no servidor porque o valor que chega do formulário é o
-            // que o navegador quis mandar.
-            var alunos = PrecoDaAula.Tamanho(quantidadeAlunos);
-            var combinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
-            combinados.TryGetValue(PrecoDaAula.Chave(alunoVinculado?.Id, nomeAluno), out var combinado);
-            var precoDaAula = preco ?? PrecoDaAula.Sugerido(local, alunos, combinado > 0 ? combinado : null);
+            // individual (só existe quando a aula tem UM aluno — Sugerido já faz essa conta).
+            // Refeita aqui no servidor porque o valor que chega do formulário é o que o
+            // navegador quis mandar.
+            //
+            // Com N alunos cobrados à parte, o total da turma é rachado em N fatias que somam
+            // exatas (ver PrecoDaAula.DivididoIgualmente) — cada linha de Aula leva a sua.
+            decimal? combinadoUnico = null;
+            if (!multiplo)
+            {
+                var idUnico = entradas[0].AlunoId is int aid && jogadoresValidos.ContainsKey(aid) ? aid : (int?)null;
+                var combinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
+                combinados.TryGetValue(PrecoDaAula.Chave(idUnico, entradas[0].Nome), out var combinado);
+                combinadoUnico = combinado > 0 ? combinado : null;
+            }
+            var precoTotal = preco ?? PrecoDaAula.Sugerido(local, quantidadeAlunosValida, combinadoUnico);
+            var fatias = PrecoDaAula.DivididoIgualmente(precoTotal, entradas.Count);
+
+            // Série sem prazo é série mesmo com uma aula só marcada até agora: sem o id, o
+            // renovador não teria como achar a repetição pra continuar. Cada aluno tem a
+            // PRÓPRIA série — um sai da turma, os outros continuam sem quebrar nada (ver
+            // Models/Aula.TurmaId).
+            var recorrenciaIdsPorAluno = entradas
+                .Select(_ => horarios.Count > 1 || semPrazoDeVerdade ? Guid.NewGuid() : (Guid?)null)
+                .ToList();
 
             var novasAulas = new List<Aula>();
+            var grupos = new List<List<Aula>>();
             var puladas = 0;
 
             foreach (var horario in horarios)
             {
                 // Conflito é SOBREPOSIÇÃO, não igualdade de horário: com aula de 1h30 e 2h,
-                // comparar só o início deixava 17:00–19:00 conviver com 18:00–19:00.
+                // comparar só o início deixava 17:00–19:00 conviver com 18:00–19:00. Um
+                // conflito bloqueia a SESSÃO inteira — não dá pra criar 2 dos 3 alunos e pular
+                // o terceiro, os três jogam junto na mesma quadra.
                 if (await HorarioOcupadoAsync(professorId.Value, horario, duracao))
                 {
                     puladas++;
                     continue;
                 }
 
-                novasAulas.Add(new Aula
+                // Regenerado a cada sessão (não por RecorrenciaId): a renovação semanal cria
+                // TurmaId novo toda semana, ver Services/RenovacaoDaAulaFixa.
+                var turmaId = entradas.Count > 1 ? Guid.NewGuid() : (Guid?)null;
+                var grupo = new List<Aula>();
+
+                for (var i = 0; i < entradas.Count; i++)
                 {
-                    DuracaoMinutos = duracao,
-                    RecorrenciaSemFim = semPrazoDeVerdade,
-                    ProfessorId = professorId.Value,
-                    AlunoId = alunoVinculado?.Id,
-                    // O nome escrito fica MESMO com conta vinculada: é como o professor chama
-                    // a pessoa, e é o que ele procura depois na agenda.
-                    NomeAlunoAvulso = nomeAluno.Trim(),
-                    TelefoneAlunoAvulso = string.IsNullOrWhiteSpace(telefoneAluno) ? null : telefoneAluno.Trim(),
-                    LocalAulaId = localId,
-                    LocalAula = local,
-                    DataHora = horario,
-                    Preco = precoDaAula,
-                    QuantidadeAlunos = alunos,
-                    AlunoPagaQuadra = alunoPagaQuadra,
-                    Status = "Confirmada",
-                    RecorrenciaId = recorrenciaId
-                });
+                    var (nome, aid, tel) = entradas[i];
+                    var idResolvido = aid is int candidato && jogadoresValidos.ContainsKey(candidato) ? aid : (int?)null;
+
+                    grupo.Add(new Aula
+                    {
+                        DuracaoMinutos = duracao,
+                        RecorrenciaSemFim = semPrazoDeVerdade,
+                        ProfessorId = professorId.Value,
+                        AlunoId = idResolvido,
+                        // O nome escrito fica MESMO com conta vinculada: é como o professor chama
+                        // a pessoa, e é o que ele procura depois na agenda.
+                        NomeAlunoAvulso = nome,
+                        TelefoneAlunoAvulso = string.IsNullOrWhiteSpace(tel) ? null : tel!.Trim(),
+                        LocalAulaId = localId,
+                        LocalAula = local,
+                        DataHora = horario,
+                        Preco = fatias[i],
+                        QuantidadeAlunos = quantidadeAlunosValida,
+                        TurmaId = turmaId,
+                        AlunoPagaQuadra = alunoPagaQuadra,
+                        Status = "Confirmada",
+                        RecorrenciaId = recorrenciaIdsPorAluno[i]
+                    });
+                }
+
+                novasAulas.AddRange(grupo);
+                grupos.Add(grupo);
             }
 
             if (novasAulas.Count > 0)
@@ -281,19 +351,34 @@ namespace padelizou.Controllers
                 _context.Aulas.AddRange(novasAulas);
                 await _context.SaveChangesAsync();
 
-                foreach (var aula in novasAulas)
+                // Um evento só por SESSÃO, não por aluno: os N alunos de uma turma jogam junto
+                // na mesma quadra, e a Google Agenda do professor não precisa de 3 avisos
+                // idênticos com hora e local repetidos. Título leva todos os nomes.
+                foreach (var grupo in grupos)
                 {
                     try
                     {
-                        var eventId = await _googleCalendarService.CriarEventoAsync(aula);
+                        var representante = grupo[0];
+                        var aulaParaOEvento = grupo.Count > 1
+                            ? new Aula
+                            {
+                                ProfessorId = representante.ProfessorId,
+                                LocalAula = representante.LocalAula,
+                                DataHora = representante.DataHora,
+                                DuracaoMinutos = representante.DuracaoMinutos,
+                                NomeAlunoAvulso = NomesJuntos(grupo.Select(a => a.NomeAlunoAvulso)),
+                            }
+                            : representante;
+
+                        var eventId = await _googleCalendarService.CriarEventoAsync(aulaParaOEvento);
                         if (eventId != null)
                         {
-                            aula.GoogleEventId = eventId;
+                            foreach (var aula in grupo) aula.GoogleEventId = eventId;
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para a aula manual {AulaId}", aula.Id);
+                        _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para a aula manual {AulaId}", grupo[0].Id);
                     }
                 }
                 await _context.SaveChangesAsync();
@@ -302,14 +387,36 @@ namespace padelizou.Controllers
             // O CADASTRO RÁPIDO acontece aqui, e não numa tela à parte: o professor já digitou
             // nome e telefone pra marcar a aula, e pedir os mesmos dados de novo noutro lugar é
             // o atrito que faz ele não cadastrar ninguém (o pedido do Rafael era literalmente
-            // "coloca ali e deu"). A ficha nasce de graça, no fluxo que ele já faz.
-            await GravarFichaRapidaAsync(professorId.Value, alunoVinculado?.Id, nomeAluno, telefoneAluno);
+            // "coloca ali e deu"). A ficha nasce de graça, no fluxo que ele já faz — uma por
+            // aluno, mesmo numa turma com N.
+            foreach (var (nome, aid, tel) in entradas)
+            {
+                var idResolvido = aid is int candidato && jogadoresValidos.ContainsKey(candidato) ? aid : (int?)null;
+                await GravarFichaRapidaAsync(professorId.Value, idResolvido, nome, tel);
+            }
+
+            // O contador conta SESSÕES (o que o professor pensa como "uma aula"), não linhas
+            // no banco — uma turma de 3 que virou 3 linhas ainda é "1 aula criada" pra ele.
+            var sessoesCriadas = grupos.Count;
 
             TempData["Sucesso"] = puladas > 0
-                ? $"{novasAulas.Count} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
-                : $"{novasAulas.Count} aula(s) criada(s) com sucesso.";
+                ? $"{sessoesCriadas} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
+                : $"{sessoesCriadas} aula(s) criada(s) com sucesso.";
 
             return RedirectToAction("MinhaAgenda");
+        }
+
+        // "Fulano, Beltrano e Cicrano" — o título do evento único que a turma toda compartilha
+        // na Google Agenda (ver AdicionarManual). Vírgula entre todos, "e" só antes do último.
+        private static string NomesJuntos(IEnumerable<string?> nomes)
+        {
+            var lista = nomes.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+            return lista.Count switch
+            {
+                0 => "Aluno",
+                1 => lista[0]!,
+                _ => string.Join(", ", lista.Take(lista.Count - 1)) + " e " + lista[^1],
+            };
         }
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
