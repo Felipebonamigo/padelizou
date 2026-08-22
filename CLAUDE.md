@@ -73,6 +73,37 @@ a cada pedido — então aqui o critério é este, e é por área de risco, não
 **O ajuste é de mão única:** complexidade que aparece no meio sobe o nível, nunca desce. Um
 `bounded` que revelou precisar de migration virou `architectural` naquele instante.
 
+## Quanto código o pedido merece
+
+Antes de escrever, suba esta escada e **pare no primeiro degrau que resolve** — não continue
+subindo "por garantia". Os degraus estão escritos com o que este projeto tem, não em genérico:
+
+1. **Isso precisa existir?** Se é especulativo, pule e diga em uma linha que pulou.
+2. **Já existe algo equivalente aqui?** São 69 controllers e ~4.800 testes — reimplementar o
+   que está a dois arquivos de distância é a forma mais comum de complexidade inútil. O card
+   de marcadores reusou `_BuscaOrganizador` no modo genérico em vez de nascer de novo.
+3. **A BCL do .NET já faz?** LINQ, `decimal`, `TimeSpan`, `Uri`, `StringComparison`.
+4. **Um recurso nativo da plataforma cobre?** É o degrau mais esquecido e o que mais rende
+   aqui: **chave/índice do banco** em vez de checar duplicata em C# — a PK composta de
+   `TorneioMarcador` é o que segura o clique duplo no adicionar, sem uma linha de C# pra isso;
+   `DataAnnotations` em vez de `if` de validação à mão;
+   cascade/`Restrict` do EF em vez de apagar filho na unha; Tag Helper do Razor em vez de
+   HTML montado em string; `<input type="date">` em vez de biblioteca de calendário.
+5. **Uma dependência já instalada resolve?** QRCoder, SkiaSharp, MailKit, WebPush,
+   Google.Apis.Calendar. **Não adicione pacote novo pro que uma delas já faz.**
+6. **Cabe numa linha?** Escreva a linha.
+7. Só então: o mínimo de código novo que funciona de verdade.
+
+**A escada encurta a SOLUÇÃO, nunca a LEITURA.** Diff pequeno no lugar errado não é preguiça,
+é o segundo bug — leia o fluxo inteiro antes de escolher o degrau (ver Regra 6).
+
+**Ela nunca se aplica a:** Regra 0 (`[Authorize]` + checagem de dono nunca são simplificados),
+dinheiro (`decimal`, nunca `double`/`float`), validação em fronteira de confiança, tratamento
+de erro que evita perda de dado, e qualquer coisa que o Felipe pediu explicitamente.
+
+Atalho deliberado ganha comentário nomeando o teto e a saída — senão a próxima sessão lê como
+esquecimento em vez de escolha: `// atalho: consulta sem paginação; paginar acima de ~500 duplas`.
+
 ## Como fechar um bloco de trabalho
 
 Termine com **um** destes, explícito, e não com um resumo em prosa — `DONE_WITH_CONCERNS` é
