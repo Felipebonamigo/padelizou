@@ -34,9 +34,10 @@ arquivo de 3.900 linhas é regra que uma sessão com pressa pula.
 
 ## Plugins deste projeto
 
-Quatro plugins em **escopo de projeto** (`.claude/settings.json`), não no `~/.claude/` de
-ninguém — assim valem também nas sessões da web, que nascem de um clone limpo. Todos do
-marketplace oficial da Anthropic, com SHA fixado. Custo somado: **~3,2k tokens sempre ligados**.
+Cinco plugins em **escopo de projeto** (`.claude/settings.json`), não no `~/.claude/` de
+ninguém — assim valem também nas sessões da web, que nascem de um clone limpo. Os quatro primeiros do
+marketplace oficial da Anthropic, com SHA fixado; o `caveman` vem de marketplace próprio
+(`JuliusBrussee/caveman`), sem revisão da Anthropic. Custo somado: **~5,8k tokens sempre ligados** — o `caveman` sozinho é quase metade.
 
 | Plugin | O que traz | Sempre ligado |
 |---|---|---|
@@ -44,6 +45,16 @@ marketplace oficial da Anthropic, com SHA fixado. Custo somado: **~3,2k tokens s
 | `pr-review-toolkit` | 6 agentes revisores + `/review-pr`. O `silent-failure-hunter` caça defeito que falha calado | ~2.033 tok |
 | `claude-md-management` | `/revise-claude-md` — audita este arquivo e captura aprendizado de sessão | ~175 tok |
 | `hookify` | Cria hooks a partir de regra em `.local.md`. Os 4 hooks dele são fail-open e no-op sem regra escrita | ~292 tok |
+| `caveman` | Comprime a prosa do agente. ⚠️ Traz **21 skills e 3 agentes**, não só compressão — ver ressalva abaixo | ~2.655 tok |
+
+⚠️ **`caveman` sobrepõe processo que já existe aqui.** O toolkit o descreve como camada de
+comunicação com 4 comandos; o real são 21 skills, e várias são de processo: `investigate-first`
+duplica `superpowers:systematic-debugging`, `verify-and-stop` duplica
+`verification-before-completion`, `lean-build`/`surgical-patch` duplicam a escada de decisão
+deste arquivo, e os 3 agentes `cavecrew-*` duplicam o `pr-review-toolkit`. Dois frameworks de
+processo concorrentes fazem o agente escolher um a esmo. Está instalado por decisão do Felipe,
+em teste — se a resposta melhorar, o mérito é ambíguo entre ele e a seção "Como responder"
+daqui; se piorar, é o primeiro a sair.
 
 Mais um servidor MCP em `.mcp.json`: **`context7`**, doc atualizada de biblioteca. O Microsoft
 Learn MCP cobre .NET/EF Core/Npgsql; o Context7 existe pelas cinco dependências de terceiro
