@@ -411,17 +411,9 @@ namespace padelizou.Controllers
         }
 
         // "Fulano, Beltrano e Cicrano" — o título do evento único que a turma toda compartilha
-        // na Google Agenda (ver AdicionarManual). Vírgula entre todos, "e" só antes do último.
-        private static string NomesJuntos(IEnumerable<string?> nomes)
-        {
-            var lista = nomes.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
-            return lista.Count switch
-            {
-                0 => "Aluno",
-                1 => lista[0]!,
-                _ => string.Join(", ", lista.Take(lista.Count - 1)) + " e " + lista[^1],
-            };
-        }
+        // na Google Agenda. Mesma junção que a agenda usa pro nome no card (ver
+        // Services/AgendaDeTurma), que é onde a implementação mora.
+        private static string NomesJuntos(IEnumerable<string?> nomes) => AgendaDeTurma.NomesJuntos(nomes);
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
         [HttpGet]
@@ -476,7 +468,10 @@ namespace padelizou.Controllers
                 Inicio = inicio,
                 Fim = fim,
                 Titulo = PeriodoAgenda.Titulo(periodo, referencia),
-                NoPeriodo = noPeriodo,
+                // "Um card só, com os N nomes" — as linhas de uma mesma turma (TurmaId) viram
+                // uma representante na tela; Pendentes e ARecuperar ficam de fora de propósito,
+                // são filas por AÇÃO individual, não cards de sessão (ver Services/AgendaDeTurma).
+                NoPeriodo = AgendaDeTurma.Colapsar(noPeriodo),
                 Pendentes = pendentes,
                 ARecuperar = Reposicao.AindaSemEncaixe(aRecuperar, jaEncaixadas.ToHashSet()),
                 GoogleConectado = conectado,
@@ -609,12 +604,24 @@ namespace padelizou.Controllers
             var transicaoValida = novoStatus == PoliticaAula.Realizada || novoStatus == PoliticaAula.Cancelada;
             if (aula != null && aula.ProfessorId == userId && aula.Status == PoliticaAula.Confirmada && transicaoValida)
             {
-                aula.Status = novoStatus;
-                if (novoStatus == PoliticaAula.Realizada) aula.Compareceu = true;
-                if (novoStatus == PoliticaAula.Cancelada)
+                // A tela mostra UM card pra turma inteira (ver Models/Aula.TurmaId) — "Concluir"
+                // ou "Cancelar" nesse card precisa valer pros N alunos, senão o professor marca
+                // a turma como dada e 2 dos 3 alunos ficam "Confirmada" pra sempre, quietos.
+                var linhas = aula.TurmaId != null
+                    ? await _context.Aulas
+                        .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == userId && a.Status == PoliticaAula.Confirmada)
+                        .ToListAsync()
+                    : new List<Aula> { aula };
+
+                foreach (var linha in linhas)
                 {
-                    aula.CanceladaEm = DateTime.Now;
-                    aula.CanceladaPor = "Professor";
+                    linha.Status = novoStatus;
+                    if (novoStatus == PoliticaAula.Realizada) linha.Compareceu = true;
+                    if (novoStatus == PoliticaAula.Cancelada)
+                    {
+                        linha.CanceladaEm = DateTime.Now;
+                        linha.CanceladaPor = "Professor";
+                    }
                 }
                 await _context.SaveChangesAsync();
             }
@@ -705,8 +712,9 @@ namespace padelizou.Controllers
             // Mesma trava da marcação: dois alunos no mesmo horário é o erro que a agenda
             // existe pra evitar — e desde que a aula tem duração, a conta é de SOBREPOSIÇÃO.
             // A própria aula sai da conta: senão ela bloquearia a si mesma quando o professor
-            // mudasse só o preço.
-            if (await HorarioOcupadoAsync(professorId.Value, dataHora, duracao, aula.Id))
+            // mudasse só o preço. Os colegas de turma (mesmo TurmaId) também saem: são a MESMA
+            // sessão no mesmo horário de propósito, não uma aula concorrente.
+            if (await HorarioOcupadoAsync(professorId.Value, dataHora, duracao, aula.Id, aula.TurmaId))
             {
                 TempData["Erro"] = $"Você já tem outra aula em {dataHora:dd/MM 'às' HH:mm}.";
                 return RedirectToAction(nameof(Editar), new { id = aulaId });
@@ -729,10 +737,30 @@ namespace padelizou.Controllers
             aula.LocalAulaId = local.Id;
             aula.LocalAula = local;
             aula.Preco = preco;
+
+            // Horário/local/duração são da SESSÃO — valem pra turma inteira (ver
+            // Models/Aula.TurmaId). Preço fica de fora de propósito: é a fatia do ALUNO desta
+            // linha, os colegas mantêm a própria.
+            var colegasDeTurma = aula.TurmaId != null && mudanca.MudouOQueVaiProGoogle
+                ? await _context.Aulas
+                    .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId && a.Id != aula.Id)
+                    .ToListAsync()
+                : new List<Aula>();
+
+            foreach (var colega in colegasDeTurma)
+            {
+                colega.DataHora = dataHora;
+                colega.DuracaoMinutos = duracao;
+                colega.LocalAulaId = local.Id;
+                colega.LocalAula = local;
+            }
+
             await _context.SaveChangesAsync();
 
             // O Google só sabe de horário e local — preço não vai pro evento, e disparar um
-            // "atualizado" na agenda do aluno por causa de R$ 10 seria barulho à toa.
+            // "atualizado" na agenda do aluno por causa de R$ 10 seria barulho à toa. Os
+            // colegas de turma compartilham o MESMO evento (GoogleEventId igual em todas as
+            // linhas) — atualizar aqui já atualiza pra turma inteira, sem chamada por aluno.
             if (mudanca.MudouOQueVaiProGoogle)
             {
                 try
@@ -741,6 +769,7 @@ namespace padelizou.Controllers
                     if (eventoId != aula.GoogleEventId)
                     {
                         aula.GoogleEventId = eventoId;
+                        foreach (var colega in colegasDeTurma) colega.GoogleEventId = eventoId;
                         await _context.SaveChangesAsync();
                     }
                 }
@@ -920,14 +949,28 @@ namespace padelizou.Controllers
                 return RedirectToAction("MinhaAgenda");
             }
 
-            var avisar = ExclusaoDeAula.PrecisaAvisarAluno(aula, DateTime.Now);
-            var alunoId = aula.AlunoId;
-            var quando = aula.DataHora;
-            var ondeSeria = aula.LocalAula.Nome;
-            var eventoGoogle = aula.GoogleEventId;
+            // A tela mostra UM card pra turma inteira (ver Models/Aula.TurmaId) — "Apagar"
+            // dali precisa apagar a turma inteira. Os colegas compartilham o MESMO evento na
+            // Google Agenda (GoogleEventId igual nas N linhas): apagar só esta linha removeria
+            // o evento pra quem ficasse, e "apagado" na tela mas ainda marcado no Google pra
+            // dois terços da turma é pior que os dois problemas separados.
+            var linhas = aula.TurmaId != null
+                ? await _context.Aulas
+                    .Include(a => a.LocalAula)
+                    .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId)
+                    .ToListAsync()
+                : new List<Aula> { aula };
 
-            // As anotações caem por cascade (ver DbPadelContext) — são sobre esta aula.
-            _context.Aulas.Remove(aula);
+            var avisos = linhas
+                .Where(a => ExclusaoDeAula.PrecisaAvisarAluno(a, DateTime.Now) && a.AlunoId.HasValue)
+                .Select(a => (AlunoId: a.AlunoId!.Value, a.DataHora, Onde: a.LocalAula.Nome))
+                .ToList();
+
+            var quando = aula.DataHora;
+            var eventoGoogle = aula.GoogleEventId;   // o mesmo em todas as linhas do grupo
+
+            // As anotações caem por cascade (ver DbPadelContext) — são sobre cada aula.
+            _context.Aulas.RemoveRange(linhas);
             await _context.SaveChangesAsync();
 
             if (eventoGoogle != null)
@@ -935,13 +978,13 @@ namespace padelizou.Controllers
                 await _googleCalendarService.RemoverEventoAsync(professorId.Value, eventoGoogle);
             }
 
-            if (avisar && alunoId is int destinatario)
+            foreach (var (destinatario, quandoDele, ondeDele) in avisos)
             {
                 try
                 {
                     await _pushService.EnviarParaJogadorAsync(destinatario,
                         "Aula apagada pelo professor",
-                        $"A aula de {quando:dd/MM 'às' HH:mm} em {ondeSeria} foi apagada da agenda. "
+                        $"A aula de {quandoDele:dd/MM 'às' HH:mm} em {ondeDele} foi apagada da agenda. "
                         + "Fale com seu professor se não era pra ser.",
                         // Mesmo motivo do lado do professor: o aluno iria à quadra à toa.
                         Url.Action("MinhasAulas", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
@@ -953,9 +996,11 @@ namespace padelizou.Controllers
                 }
             }
 
-            TempData["Sucesso"] = avisar
-                ? $"Aula de {quando:dd/MM 'às' HH:mm} apagada. O aluno foi avisado."
-                : $"Aula de {quando:dd/MM 'às' HH:mm} apagada.";
+            TempData["Sucesso"] = linhas.Count > 1
+                ? $"Turma de {quando:dd/MM 'às' HH:mm} apagada ({linhas.Count} alunos)."
+                : avisos.Count > 0
+                    ? $"Aula de {quando:dd/MM 'às' HH:mm} apagada. O aluno foi avisado."
+                    : $"Aula de {quando:dd/MM 'às' HH:mm} apagada.";
 
             return RedirectToAction("MinhaAgenda");
         }
