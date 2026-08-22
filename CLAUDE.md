@@ -125,6 +125,9 @@ sem ter rodado o comando **naquele mesmo turno** e lido a saída. "Deveria funci
    (pagamentos/Asaas), `WHATSAPP.md`, `EMAIL.md`, `ANDROID.md`, `PARCEIROS.md`,
    `API-TORNEIOS.md`, `AMBIENTE-LOCAL.md`, `TRABALHAR-FORA.md`, `infra/vps/README.md`
    (deploy/backup/VPS).
+3. **Antes de paralelizar qualquer coisa**: `ONDAS-PARALELAS.md`. Duas tarefas só rodam
+   juntas se nenhuma depende da outra **e** os arquivos são disjuntos; implementador nunca
+   commita. As quatro réguas de autorização são exceção — sempre uma tarefa só.
 
 ## Rodar
 
