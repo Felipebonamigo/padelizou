@@ -52,6 +52,18 @@ public partial class Aula
     // que existia.
     public int QuantidadeAlunos { get; set; } = 1;
 
+    // A MESMA sessão de quadra, quando ela tem MAIS DE UM aluno com cobrança PRÓPRIA — cada
+    // um sua linha de Aula, seu preço (a fatia dele do valor da turma) e sua ficha, mas o
+    // mesmo horário/local/duração e o MESMO evento na Google Agenda (GoogleEventId igual nas
+    // linhas do grupo). Nulo é a aula de sempre: sozinha, ou em grupo com um "Acompanhantes"
+    // solto sem cobrança própria (Acompanhantes e TurmaId não se excluem — o professor pode
+    // ter 2 alunos com conta cobrados à parte e um terceiro "de brinde" só anotado ali).
+    //
+    // Regenerado a cada semana pela renovação da série sem prazo — ver
+    // Services/RenovacaoDaAulaFixa. Não existe RecorrenciaId de grupo: cada aluno mantém a
+    // PRÓPRIA série, independente dos colegas (um sai, os outros continuam sem quebrar nada).
+    public Guid? TurmaId { get; set; }
+
     // Token opaco usado no link de aceitar/recusar enviado por e-mail (sem exigir login)
     public Guid TokenConfirmacao { get; set; } = Guid.NewGuid();
 
