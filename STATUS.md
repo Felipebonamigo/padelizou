@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **22/08/2026** — 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
+> Última atualização: **22/08/2026** — 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
+>
+> 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
+>
+> 🧩 **O sorteio continua rodando e gravando igual** — grupos, jogos, horários, tudo pelo mesmo `GerarChaves` de sempre. O que muda é o status final: em vez de ir direto pra `"Fase de Grupos"` (já pública), ele para em **`"Chaves em Aprovação"`** (`Services/AprovacaoDeChaves`, novo). Só quando o organizador, o admin nomeado ou o admin raiz aprova (`AprovarChaves`) é que o torneio vira `"Fase de Grupos"` de verdade — e é só AÍ que o aviso "as chaves saíram" sai pros jogadores, que deixou de disparar no sorteio.
+>
+> 🔑 **Quem aprova é a MESMA régua de sempre** — `TorneiosController.EhOrganizadorAsync` (organizador desta categoria, admin raiz ou admin nomeado), sem papel de acesso novo. O assistente do sistema fica de fora de propósito: ele acompanha o resto, mas esta aprovação é decisão de quem organiza de verdade.
+>
+> 🕳️ **Achado pesquisando antes de mexer, não em produção:** esconder o BOTÃO da aba "Chaves e Grupos" não bastava — o HTML da aba saía na resposta do jeito mesmo, só invisível por CSS (tab-pane inativo). Dava pra ver o chaveamento inteiro com "exibir código-fonte" mesmo sem o botão aparecer. A ação `/Torneios/Jogos` também não tinha checagem de status nenhuma. As duas ganharam o gate de verdade — servidor, não CSS.
+>
+> ↩️ **`DesfazerSorteio` (novo):** apaga os grupos e os jogos e devolve o torneio pra `"Chaves em Sorteio"`, pronto pra sortear de novo — só enquanto a aprovação está PENDENTE. Depois de aprovada é público, tem gente vendo contra quem joga, e desfazer viraria "reorganizar o torneio por baixo de quem já se organizou" (mesmo raciocínio de `PortaDaInscricao.PorQueNaoPodeAbrir`). Recusa também se algum jogo já começou ou terminou, por segurança.
+>
+> 🛠️ **`RefazerGrade`, `TrocarQuadra` e `TrocarHorario` não precisaram de nada** — nenhum dos três checava `torneio.Status`, então já funcionavam sem mudança durante a espera. É por eles (link "Ver jogos e horários" na tela de aprovação) que dá pra ajustar hora/quadra antes de liberar, sem precisar desfazer o sorteio inteiro.
+>
+> 🧪 **4.835 testes, 0 falhas (13 novos, 2 atualizados)** — sorteio não avisa mais ninguém, aprovar libera e avisa, só organizador/admin aprova ou desfaz, desfazer limpa grupos/jogos/vínculo de dupla, desfazer recusa com jogo já começado, `/Jogos` escondido de quem não pode aprovar e visível pra quem pode.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: `Status` continua sendo texto livre, só ganhou mais um valor possível.
+>
+> Antes, no mesmo dia: 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
 >
 > 🗣️ **O pedido do Felipe:** *"crie a categoria 'Lendas' para torneios"*. Duas perguntas fecharam o desenho (as duas com a opção recomendada): sem A/B/C — uma categoria só, quem entra é pela veterania, não pela força — e sem separar Masculina/Feminina — todo mundo que se qualifica joga junto.
 >

@@ -25,7 +25,8 @@ public class SemHorarioPrevistoTests
 
         Assert.Equal(6, jogos.Count);                                  // as chaves saem normalmente
         Assert.All(jogos, j => Assert.Null(j.HorarioPrevisto));        // e nenhuma com hora
-        Assert.Equal("Fase de Grupos", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+        // Sorteado, mas ainda não aprovado (ver Services/AprovacaoDeChaves).
+        Assert.Equal(Padelizou.Services.AprovacaoDeChaves.Pendente, (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
     [Theory]
