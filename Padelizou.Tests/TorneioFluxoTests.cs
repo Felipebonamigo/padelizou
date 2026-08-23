@@ -31,7 +31,9 @@ public class TorneioFluxoTests
         Assert.Equal(6, partidas.Count);                                            // 2 grupos de 3 → 3 jogos cada
         Assert.All(partidas, p => Assert.StartsWith("Grupo ", p.Fase));
         Assert.All(partidas, p => Assert.False(string.IsNullOrEmpty(p.Codigo)));    // NOT NULL no banco
-        Assert.Equal("Fase de Grupos", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+        // Sorteado, mas ainda não aprovado (ver Services/AprovacaoDeChaves) — só vira
+        // "Fase de Grupos" de verdade depois de AprovarChaves.
+        Assert.Equal(Padelizou.Services.AprovacaoDeChaves.Pendente, (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
     // Regra do resto: total não múltiplo de 3 fecha os melhores em grupos de 2.
