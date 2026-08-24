@@ -44,14 +44,31 @@ clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis
 
 | Provedor | Leitura |
 |---|---|
-| **Nuvem Fiscal** ← começar | Cota única pra todos os docs, multi-CNPJ, tier grátis (~20–50 notas/mês) pra desenvolver e pilotar. Player mais novo: validar SLA na proposta. |
+| ~~Nuvem Fiscal~~ ❌ | **SERVIÇO DESATIVADO EM 31/07/2026** (comunicado de 22/04, 90 dias de prazo). Era a primeira recomendação deste documento e não existe mais — ver o aviso abaixo. |
+| **ACBr API** ← começar | A sucessora indicada pela própria Nuvem Fiscal, e API compatível (mesmos endpoints, escopos, payloads e retornos). Do Projeto ACBr, que é referência em componente fiscal no Brasil há anos — muito mais sólida que a antecessora. Modelo ANUAL com limite liberado desde o início, sem crédito que expira: bom pro nosso caso, em que o volume cresce a cada clube. |
 | **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. Plano B forte / provável escolha na escala. |
 | **Focus NFe** | A engrenagem do Gripo; 3.000+ municípios, município novo por R$ 199 fixo. Modelo por CNPJ tende a custar mais no nosso caso. |
 | eNotas / NFE.io | Fortes em NFS-e de infoproduto; fracas pro PDV de balcão. Descartadas por ora. |
 
+> ⚠️ **CORREÇÃO DE 24/08/2026 — a primeira recomendação deste documento morreu antes de ser
+> contratada.** A Nuvem Fiscal anunciou em 22/04/2026 a desativação do serviço, efetivada em
+> **31/07/2026**, com migração indicada para a **ACBr API**. Duas leituras:
+>
+> **(1) O risco que estava anotado se materializou** — a linha original dizia "player mais
+> novo: validar SLA na proposta". Era exatamente esse o perigo, e ele aconteceu. Bom sinal de
+> que a régua de avaliação está certa.
+>
+> **(2) Não custou nada, e é por isso que a ordem do plano importa.** A escolha do provedor
+> ficou para depois do portão dos 3 clubes; se tivéssemos integrado "para adiantar", teríamos
+> agora um trabalho a refazer. A defesa da interface `IEmissorFiscal` continua valendo — e
+> este episódio é a prova de que ela não é preciosismo.
+
 Faixa de mercado apurada (ago/2026, via busca — sites bloqueados no ambiente, **confirmar
 em proposta comercial**): entrada R$ 89–129/mês com 100–250 notas e excedente
 R$ 0,60–0,75; em volume negociado o custo por nota cai pra ~R$ 0,10–0,40.
+
+⚠️ **Preço de volume para software house NÃO é público em nenhum dos três** — é negociado
+caso a caso. Não adianta procurar: só existe em proposta comercial.
 
 ⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
 reescrever o produto.
@@ -233,8 +250,9 @@ Nada disso está visível em produção: as colunas são todas nulas e as telas 
 
 ## Próximos passos
 
-1. **Pedir as 3 propostas comerciais** (Nuvem Fiscal, PlugNotas, Focus NFe): multi-CNPJ, preço
-   por nota em volume, tier grátis, white-label, SLA e exportação dos XMLs.
+1. **Pedir as 3 propostas comerciais** (ACBr API, PlugNotas, Focus NFe): multi-CNPJ, preço
+   por nota em volume, sandbox, white-label, SLA e exportação dos XMLs. **Os e-mails já estão
+   escritos no apêndice deste documento** — é copiar, colar e enviar.
 2. **Conversa com a contadora**: NFS-e das comissões próprias (Fase 0) e o contrato do plano
    Fiscal — responsabilidade tributária e subemissão.
 3. **Escolher o clube piloto no RS** (CNPJ ME, bar ativo, gente que conhece o Felipe).
@@ -255,3 +273,82 @@ Nada disso está visível em produção: as colunas são todas nulas e as telas 
 - **Se os 3 clubes pedirem desconto**: dar **desconto de fundador com prazo** (ex.: R$ 99 nos
   3 primeiros meses do Fiscal), nunca rebaixar a tabela. Desconto expira; tabela rebaixada
   nunca mais sobe.
+
+---
+
+## Apêndice — os 3 e-mails de proposta, prontos para enviar
+
+Escritos em 24/08/2026. **É copiar, colar e mandar.** As mesmas perguntas nos três, para as
+respostas serem comparáveis lado a lado — é isso que transforma três e-mails numa decisão.
+
+⚠️ Os contatos abaixo foram apurados por busca (os sites estão bloqueados no ambiente de
+desenvolvimento). Se algum voltar, use o formulário do site — o texto serve igual.
+
+| Provedor | Canal apurado |
+|---|---|
+| **PlugNotas** (Tecnospeed) | `comercial@tecnospeed.com.br` · 0800 006 9500 · (44) 3037-9500 · 8h–18h |
+| **Focus NFe** | `contato@focusnfe.com.br` · formulário em focusnfe.com.br/contato |
+| **ACBr API** | acbr.api.br e projetoacbr.com.br/api (contato pelo site) |
+
+### Assunto
+
+> Proposta comercial — software house de gestão de clubes esportivos (multi-CNPJ)
+
+### Corpo (trocar só o nome do produto na primeira linha)
+
+```
+Olá,
+
+Sou o Felipe, da Bonamigo Systems (CNPJ 68.185.754/0001-05), desenvolvedor do Padelizou
+(padelizou.com.br) — sistema de gestão para clubes e arenas de padel e beach tennis.
+
+Estamos avaliando integrar emissão fiscal ao nosso produto e gostaria de receber uma
+proposta comercial do [PlugNotas / Focus NFe / ACBr API]. Nosso cenário:
+
+CENÁRIO
+- Multi-CNPJ: cada clube cliente é um emitente próprio (CNPJ, certificado e
+  responsabilidade tributária dele). Nós somos a software house integradora.
+- Documentos: NFS-e (aula, reserva de quadra, mensalidade) e NFC-e (bar/balcão do clube).
+  NF-e não é prioridade.
+- Volume: começamos com 1 clube piloto no RS; projeção de 15 clubes no primeiro ano e ~50
+  na escala, com média estimada de 250 notas por clube/mês.
+- Estamos em fase de escolha de fornecedor — a integração ainda não foi iniciada.
+
+PERGUNTAS
+1. Preço em multi-CNPJ: há taxa fixa por CNPJ cadastrado ou a cobrança é só por documento
+   emitido? Qual o preço por nota nas faixas de volume acima?
+2. Ambiente de testes: existe sandbox gratuito para desenvolvimento e homologação? Qual o
+   limite?
+3. NFS-e: qual a cobertura de municípios e o suporte ao Padrão Nacional? Quando o município
+   do cliente ainda não está homologado, qual o prazo e o custo?
+4. NFC-e: há contingência offline? Como funciona o cancelamento dentro do prazo legal?
+5. White-label: podemos operar a emissão de forma transparente, sem que o clube precise
+   acessar um painel de vocês?
+6. Certificado digital A1: como é o envio e o armazenamento? Nossa premissa é NÃO armazenar
+   a chave privada dos clientes do nosso lado.
+7. SLA: qual o compromisso de disponibilidade e qual o canal e horário de suporte? Nosso
+   pico de uso é sexta e sábado à noite.
+8. XMLs: em caso de encerramento de contrato, como funciona a exportação dos XMLs já
+   emitidos? (a guarda de 5 anos é obrigação do nosso cliente)
+
+Posso detalhar a parte técnica por telefone, se for mais prático.
+
+Obrigado,
+Felipe Bonamigo
+Bonamigo Systems — Padelizou
+padelizou.com.br
+```
+
+### Como comparar as respostas
+
+Só três números decidem, e nenhum deles é a mensalidade:
+
+1. **Custo por nota na faixa de 15 clubes** (~3.750 notas/mês). É ele que define a margem do
+   plano Fiscal a R$ 199.
+2. **Existe taxa por CNPJ?** Se existir, some-a ao custo por clube — é o item que mata a
+   margem em clube pequeno, e o motivo de a Focus NFe ser a terceira da lista.
+3. **Sandbox e SLA.** Sandbox ruim atrasa a Fase 2; SLA ruim vira o chamado de sábado à
+   noite que o item 2 dos riscos descreve.
+
+A pergunta 8 (XMLs) não muda o preço, mas é a que teria evitado dor se a Nuvem Fiscal já
+estivesse contratada quando anunciou o encerramento.
