@@ -24,10 +24,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
-    <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
     <!-- Só pra desenhar o QR do Pix copia e cola. PngByteQRCode não depende de System.Drawing,
          então roda igual no Windows daqui e no Linux do VPS. -->
     <PackageReference Include="QRCoder" Version="1.6.0" />
