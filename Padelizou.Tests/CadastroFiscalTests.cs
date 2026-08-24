@@ -540,6 +540,8 @@ public class CadastroFiscalTests
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = fiscalLigado }), plano),
             cep ?? TestInfra.CepQueNaoResponde(),
             new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            new MedidorDeFranquia(ctx, Options.Create(new PlanoClubeSettings())),
+            new EmissorFiscalDesligado(),
             NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext

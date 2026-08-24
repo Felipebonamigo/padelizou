@@ -14,6 +14,23 @@ public class PlanoClubeSettings
     public decimal AnuidadeGestao { get; set; } = 990m;
     public decimal AnuidadeFiscal { get; set; } = 1990m;
 
+    // ── A franquia do plano Fiscal ────────────────────────────────────────────────────────
+    // Quantos documentos por mês estão INCLUÍDOS na mensalidade, e quanto custa o que passar.
+    //
+    // Estes quatro números estavam escritos à mão dentro da tela do plano — contra a regra do
+    // topo deste arquivo, e não por descuido de estilo: a franquia é justamente o número que
+    // vai mudar. Ela foi calibrada por comparação com o concorrente (150+600 é 25% mais que os
+    // 100+500 do Gripo, ver FISCAL.md "O VEREDITO") e só se confirma com três meses de dados
+    // de um clube real. Número que nasce pra mudar não pode exigir republicar o site.
+    //
+    // ⚠️ Os dois baldes são SEPARADOS e não se compensam: sobrar cupom não paga nota de
+    // serviço. E a franquia é MENSAL e NÃO ACUMULA, inclusive no plano anual.
+    public int FranquiaNfseMensal { get; set; } = 150;
+    public int FranquiaNfceMensal { get; set; } = 600;
+
+    public decimal ExcedenteNfse { get; set; } = 0.30m;
+    public decimal ExcedenteNfce { get; set; } = 0.15m;
+
     public int DiasDeTeste { get; set; } = 15;
 
     // Dias de atraso que ainda seguram o acesso. Cortar o bar do clube no primeiro minuto de

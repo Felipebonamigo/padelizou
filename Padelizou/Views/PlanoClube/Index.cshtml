@@ -165,12 +165,12 @@
                         @* A franquia é o número que o clube compara com o concorrente — e a
                            nossa é 25% maior. Escondê-la aqui é entregar o argumento de venda
                            de graça pro outro lado (ver FISCAL.md, "O VEREDITO"). *@
-                        <li><strong>150 notas de serviço + 600 cupons</strong> por mês</li>
+                        <li><strong>@cfg.FranquiaNfseMensal notas de serviço + @cfg.FranquiaNfceMensal cupons</strong> por mês</li>
                         <li>Relatório pro contador</li>
                     </ul>
                     <div class="small text-muted mb-3">
-                        Passou da franquia? R$ 0,30 por nota de serviço e R$ 0,15 por cupom.
-                        A franquia é mensal e não acumula.
+                        Passou da franquia? @cfg.ExcedenteNfse.ToString("C") por nota de serviço e
+                        @cfg.ExcedenteNfce.ToString("C") por cupom. A franquia é mensal e não acumula.
                     </div>
                     @if (!fiscalAVenda)
                     {

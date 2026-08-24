@@ -36,16 +36,24 @@ public partial class BarController : Controller
     private readonly ModuloFiscal _fiscal;
     private readonly IConsultaDeCep _cep;
     private readonly NotasDoClube _notas;
+    private readonly MedidorDeFranquia _franquia;
+    // O primeiro consumidor do IEmissorFiscal no sistema — e por ora ele só pergunta UMA
+    // coisa: existe provedor? É o que separa "o clube não vendeu" de "o clube vendeu e nada
+    // foi emitido porque ninguém está emitindo". A tela precisa saber a diferença.
+    private readonly IEmissorFiscal _emissor;
     private readonly ILogger<BarController> _logger;
 
     public BarController(DbPadelContext context, ModuloDoBar modulo, ModuloFiscal fiscal,
-        IConsultaDeCep cep, NotasDoClube notas, ILogger<BarController> logger)
+        IConsultaDeCep cep, NotasDoClube notas, MedidorDeFranquia franquia,
+        IEmissorFiscal emissor, ILogger<BarController> logger)
     {
         _context = context;
         _modulo = modulo;
         _fiscal = fiscal;
         _cep = cep;
         _notas = notas;
+        _franquia = franquia;
+        _emissor = emissor;
         _logger = logger;
     }
 

@@ -46,6 +46,12 @@ public partial class BarController
         ViewBag.ProdutosProntos = produtos.Count(p =>
             FiscalDoProduto.FaltaParaEmitir(p.TipoFiscal, p.Ncm, p.Cfop, p.UnidadeComercial).Count == 0);
 
+        // O medidor da franquia do mês. Enquanto não há provedor, o que ele mostra é VOLUME —
+        // quantos documentos a operação geraria — e é esse número que decide se a cota do
+        // plano está certa (ver Services/FranquiaFiscal).
+        ViewBag.Franquia = await _franquia.DoMesAsync(id, DateTime.Now);
+        ViewBag.EmissorConfigurado = _emissor.Configurado;
+
         return View(clube);
     }
 

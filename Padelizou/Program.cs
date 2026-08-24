@@ -286,6 +286,9 @@ builder.Services.AddScoped<ModuloFiscal>();
 // permite medir o volume real de um clube piloto antes de assinar contrato (ver FISCAL.md).
 builder.Services.AddScoped<IEmissorFiscal, EmissorFiscalDesligado>();
 builder.Services.AddScoped<NotasDoClube>();
+// O medidor da franquia. Com o emissor desligado ele mede VOLUME (o que o clube geraria) em
+// vez de consumo (o que foi emitido) — que é o número que falta pra fechar a cota do plano.
+builder.Services.AddScoped<MedidorDeFranquia>();
 // Desafios (DESAFIOS.md): quem enxerga o módulo enquanto ele está em construção, e o
 // fechamento do placar — que precisa ser o mesmo pra quem confirma no botão e pro relógio.
 builder.Services.AddScoped<PortaDosDesafios>();

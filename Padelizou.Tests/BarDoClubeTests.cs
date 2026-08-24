@@ -127,6 +127,8 @@ public class BarDoClubeTests
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = habilitado })),
             TestInfra.CepQueNaoResponde(),
             new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            new MedidorDeFranquia(ctx, Options.Create(new PlanoClubeSettings())),
+            new EmissorFiscalDesligado(),
             NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext

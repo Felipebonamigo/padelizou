@@ -6,6 +6,8 @@
     var faltaNfse = (IReadOnlyList<string>)ViewBag.FaltaNfse;
     var produtosAtivos = (int)ViewBag.ProdutosAtivos;
     var produtosProntos = (int)ViewBag.ProdutosProntos;
+    var franquia = (MedidaDaFranquia)ViewBag.Franquia;
+    var emissorConfigurado = ViewBag.EmissorConfigurado == true;
 }
 
 <div class="container mt-4 mb-5" style="max-width: 900px;">
@@ -88,6 +90,104 @@
             </div>
         </div>
     }
+
+    @*
+        O MEDIDOR DA FRANQUIA — e o que ele mostra depende de existir provedor.
+
+        Com emissor configurado, ele responde a pergunta do clube: "quanto da minha cota já
+        foi?". Sem provedor (que é o estado de hoje), responde a NOSSA: "quantos documentos
+        este clube geraria por mês?" — o número que fecha a cota do plano. São duas leituras
+        da mesma tabela, e misturá-las seria mentir numa das duas direções: dizer que a
+        franquia foi consumida quando nada foi emitido, ou esconder o volume porque a emissão
+        ainda não existe. Ver Services/FranquiaFiscal.
+    *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-speedometer2"></i>
+                    @(emissorConfigurado ? "Franquia do mês" : "Volume do mês")
+                </h6>
+                <span class="text-muted small">@franquia.Mes.ToString("MMMM 'de' yyyy")</span>
+            </div>
+
+            @if (!emissorConfigurado)
+            {
+                <p class="text-muted small mb-3">
+                    Nenhum provedor de emissão está ligado, então <strong>nada foi emitido e a
+                    franquia não foi tocada</strong>. O que aparece abaixo é quanto este clube
+                    <em>emitiria</em> — é essa medida que define a cota do plano.
+                </p>
+            }
+
+            <div class="row g-3">
+                @foreach (var balde in new[] { franquia.Servico, franquia.Cupom })
+                {
+                    var cor = balde.Situacao switch
+                    {
+                        FranquiaFiscal.Situacao.Estourou => "danger",
+                        FranquiaFiscal.Situacao.Perto => "warning",
+                        _ => "success",
+                    };
+
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-baseline">
+                            <span class="small fw-bold">@balde.Rotulo</span>
+                            <span class="small text-muted">cota de @balde.Cota</span>
+                        </div>
+
+                        @if (emissorConfigurado)
+                        {
+                            <div class="progress mt-1" style="height: 8px;" role="progressbar"
+                                 aria-valuenow="@balde.PercentualUsado" aria-valuemin="0" aria-valuemax="100">
+                                @* A barra trava em 100% porque não existe barra de 180% —
+                                   o número ao lado é que conta o estouro por extenso. *@
+                                <div class="progress-bar bg-@cor"
+                                     style="width: @(Math.Min(balde.PercentualUsado, 100))%"></div>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                <strong>@balde.Consumidas</strong> emitidas · @balde.PercentualUsado% da cota
+                                @if (balde.Excedente > 0)
+                                {
+                                    <span class="text-danger">
+                                        · @balde.Excedente acima da franquia (@balde.ValorDoExcedente.ToString("C"))
+                                    </span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fs-4 fw-bold mt-1" style="color: var(--pdz-ink);">@balde.Volume</div>
+                            <div class="small text-muted">
+                                documento(s) que a operação gerou
+                                @if (balde.Volume > balde.Cota)
+                                {
+                                    <span class="text-warning-emphasis">
+                                        — <strong>acima da cota de @balde.Cota</strong>, a cota precisa subir ou o preço mudar
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (emissorConfigurado)
+            {
+                <div class="small text-muted mt-3 mb-0">
+                    @franquia.Recado
+                    A franquia é mensal e não acumula; os dois baldes são separados e não se compensam.
+                    @if (franquia.Servico.NaoEmitidas + franquia.Cupom.NaoEmitidas is var naEspera and > 0)
+                    {
+                        <text>
+                            <strong>@naEspera documento(s)</strong> ainda não viraram nota — estão na fila
+                            ou precisam de você.
+                        </text>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">

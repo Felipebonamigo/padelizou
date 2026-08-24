@@ -261,6 +261,8 @@ public class PacoteDoContadorTests
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = true }), plano),
             TestInfra.CepQueNaoResponde(),
             new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            new MedidorDeFranquia(ctx, Options.Create(new PlanoClubeSettings())),
+            new EmissorFiscalDesligado(),
             NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext

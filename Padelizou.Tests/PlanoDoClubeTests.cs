@@ -793,6 +793,8 @@ public class PlanoDoClubeTests
                 Options.Create(Cfg)),
             TestInfra.CepQueNaoResponde(),
             new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            new MedidorDeFranquia(ctx, Options.Create(new PlanoClubeSettings())),
+            new EmissorFiscalDesligado(),
             NullLogger<BarController>.Instance);
 
         Vestir(c, usuarioId);
