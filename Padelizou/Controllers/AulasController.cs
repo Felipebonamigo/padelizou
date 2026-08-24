@@ -212,7 +212,7 @@ namespace padelizou.Controllers
         // em memória de propósito — são as aulas de um dia, e a soma de DataHora + duração
         // dentro do SQL depende de tradução de `AddMinutes` que muda com o provedor.
         private async Task<bool> HorarioOcupadoAsync(int professorId, DateTime inicio, int duracaoMinutos,
-            int? ignorarAulaId = null)
+            int? ignorarAulaId = null, Guid? ignorarTurmaId = null)
         {
             // Janela de um dia pra cada lado: aula que começa 23h e dura 2h termina no dia seguinte.
             var de = inicio.Date.AddDays(-1);
@@ -222,7 +222,11 @@ namespace padelizou.Controllers
                 .Where(a => a.ProfessorId == professorId
                          && a.DataHora >= de && a.DataHora < ate
                          && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada)
-                         && (ignorarAulaId == null || a.Id != ignorarAulaId))
+                         && (ignorarAulaId == null || a.Id != ignorarAulaId)
+                         // Colega de TURMA não é conflito — é a mesma sessão (ver Models/Aula.TurmaId
+                         // e a mesma exclusão em Services/RenovacaoDaAulaFixa). Sem isto, editar o
+                         // horário de UM aluno de uma turma esbarraria nos próprios colegas.
+                         && (ignorarTurmaId == null || a.TurmaId != ignorarTurmaId))
                 .Select(a => new { a.DataHora, a.DuracaoMinutos })
                 .ToListAsync();
 

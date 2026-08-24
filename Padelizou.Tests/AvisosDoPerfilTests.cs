@@ -35,8 +35,8 @@ public class AvisosDoPerfilTests
 
         await push.Received(1).EnviarParaJogadorAsync(
             2,
-            Arg.Is<string>(t => t.Contains("elogio")),
-            Arg.Is<string>(c => c.Contains("Cadu") && c.Contains("Boa Bandeja")),
+            Arg.Is<string>(t => t != null && t.Contains("elogio")),
+            Arg.Is<string>(c => c != null && c.Contains("Cadu") && c.Contains("Boa Bandeja")),
             Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }
@@ -69,8 +69,8 @@ public class AvisosDoPerfilTests
 
         await push.Received(1).EnviarParaJogadorAsync(
             2,
-            Arg.Is<string>(t => t.Contains("comentário")),
-            Arg.Is<string>(c => c.Contains("Cadu") && c.Contains("Jogaço ontem")),
+            Arg.Is<string>(t => t != null && t.Contains("comentário")),
+            Arg.Is<string>(c => c != null && c.Contains("Cadu") && c.Contains("Jogaço ontem")),
             Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }
@@ -112,8 +112,8 @@ public class AvisosDoPerfilTests
 
         await push.Received(1).EnviarParaJogadorAsync(
             2,
-            Arg.Is<string>(t => t.Contains("seguidor")),
-            Arg.Is<string>(c => c.Contains("Cadu")),
+            Arg.Is<string>(t => t != null && t.Contains("seguidor")),
+            Arg.Is<string>(c => c != null && c.Contains("Cadu")),
             Arg.Any<string?>(),
             Arg.Any<AlcanceDoAviso>());
     }

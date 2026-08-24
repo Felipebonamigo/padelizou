@@ -99,6 +99,26 @@ public static class PrecoDaAula
             ? combinado
             : DoLocal(local, quantidadeAlunos);
 
+    // Racha o valor da turma em N fatias que SOMAM exatamente o total — sem sobrar nem
+    // faltar centavo por arredondamento (R$100 em 3 não é 33,33 × 3; sobra 1 centavo perdido
+    // se cada linha nascer com Math.Round direto). O centavo que não divide igual vai pros
+    // primeiros da lista — a ordem não representa nada, é só uma forma determinística de
+    // fechar a conta sem deixar sobra em lugar nenhum.
+    public static List<decimal> DivididoIgualmente(decimal total, int quantidadeAlunos)
+    {
+        var alunos = Math.Max(1, quantidadeAlunos);
+        var totalCentavos = (long)Math.Round(total * 100m, MidpointRounding.AwayFromZero);
+        var baseCentavos = totalCentavos / alunos;
+        var resto = totalCentavos % alunos;
+
+        var fatias = new List<decimal>(alunos);
+        for (var i = 0; i < alunos; i++)
+        {
+            fatias.Add((baseCentavos + (i < resto ? 1 : 0)) / 100m);
+        }
+        return fatias;
+    }
+
     // ---- Identificar o aluno ----
     // A agenda do professor tem dois tipos de aluno: o que tem conta (AlunoId) e o que ele
     // só anotou o nome (aula lançada à mão). Preço combinado precisa achar os dois, então

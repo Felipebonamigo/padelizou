@@ -100,6 +100,12 @@
                                         <option value="@cat.Id" selected="@(Model.CategoriaPadraoId == cat.Id)">@cat.Nome</option>
                                     }
                                                                 </optgroup>
+                                <optgroup label="Lendas">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Lendas"))
+                                    {
+                                        <option value="@cat.Id" selected="@(Model.CategoriaPadraoId == cat.Id)">@cat.Nome</option>
+                                    }
+                                </optgroup>
                             </select>
                             <div class="form-text">Usada pra filtrar quem pode ser convidado de fora do grupo.</div>
                         </div>

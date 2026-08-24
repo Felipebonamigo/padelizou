@@ -755,7 +755,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     }
     <!-- Aba única de Jogos (Ao Vivo/Agendadas/Finalizadas) - só depois que as inscrições fecharem.
          Abre direto em Ao Vivo se tiver jogo rolando agora, senão em Agendadas (ver _JogosDoTorneio.cshtml). -->
-    @if (torneioComecou)
+    @* Chaves pendentes de aprovação (ver Services/AprovacaoDeChaves) escondem estas duas
+       abas de quem não pode aprovar — os jogos já existem no banco, mas ainda não são
+       públicos. *@
+    @{ bool podeVerChavesPendentes = Model.Status != Padelizou.Services.AprovacaoDeChaves.Pendente || ViewBag.PodeAprovarChaves == true; }
+    @if (torneioComecou && podeVerChavesPendentes)
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold active" id="jogos-tab" data-bs-toggle="tab" data-bs-target="#jogosDoTorneio" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -763,7 +767,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
-    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado")
+    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado"
+         || (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente && ViewBag.PodeAprovarChaves == true))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="grupos-tab" data-bs-toggle="tab" data-bs-target="#grupos" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -1028,7 +1033,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <form asp-controller="Duplas" asp-action="ChamarParaDupla" method="post" class="mt-1">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3">
-                                                    <i class="bi bi-hand-index-thumb"></i> Quero jogar com @dupla.Jogador1.ComoChamar
+                                                    <i class="bi bi-hand-index-thumb"></i> Quero jogar com @(dupla.Jogador1?.ComoChamar ?? "esta dupla")
                                                 </button>
                                             </form>
                                         }
@@ -2076,6 +2081,44 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-primary fw-bold shadow-sm">
                                 <i class="bi bi-diagram-3-fill"></i> Sortear Grupos e Gerar Chaves
+                            </button>
+                        </form>
+                    }
+                    else if (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente)
+                    {
+                        @* Chaves sorteadas, esperando aprovação (ver Services/AprovacaoDeChaves).
+                           Ninguém fora de quem organiza/administra vê isto — nem os inscritos. *@
+                        <div class="alert alert-info border-info">
+                            <i class="bi bi-hourglass-split"></i>
+                            <strong>Chaves sorteadas, aguardando sua aprovação.</strong> Elas ainda não
+                            aparecem pra ninguém — nem pros inscritos. Dá uma olhada nos jogos e nos
+                            horários antes de liberar; se algo não ficou bom, dá pra sortear de novo.
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <a asp-controller="Torneios" asp-action="Jogos" asp-route-id="@Model.Id"
+                               class="btn btn-outline-primary fw-bold shadow-sm">
+                                <i class="bi bi-calendar-week"></i> Ver jogos e horários
+                            </a>
+                            <form asp-controller="Torneios" asp-action="DesfazerSorteio" method="post"
+                                  data-confirmar-titulo="Desfazer o sorteio?"
+                                  data-confirmar="Apaga os grupos e os jogos sorteados. O torneio volta pra 'Chaves em Sorteio' — dá pra sortear de novo quando quiser."
+                                  data-confirmar-ok="Desfazer"
+                                  data-confirmar-tom="perigo">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-outline-danger fw-bold shadow-sm">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Desfazer e Sortear de Novo
+                                </button>
+                            </form>
+                        </div>
+
+                        <form asp-controller="Torneios" asp-action="AprovarChaves" method="post"
+                              data-confirmar-titulo="Aprovar e liberar as chaves?"
+                              data-confirmar="As chaves ficam visíveis pra todo mundo, e os jogadores recebem o aviso de que as chaves saíram."
+                              data-confirmar-ok="Aprovar e liberar">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                                <i class="bi bi-check-circle-fill"></i> Aprovar e Liberar as Chaves
                             </button>
                         </form>
                     }
@@ -4006,14 +4049,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     }
     <!-- ABA: CHAVES E GRUPOS -->
     <div class="tab-pane fade" id="grupos" role="tabpanel">
-        @{
-            // O Americano não tem CHAVE — ele tem GRUPOS e uma classificação por games. Sem
-            // isto a aba abria vazia num torneio inteiro em andamento: o motor não cria
-            // GrupoTorneio nesse formato, então o laço das categorias lá embaixo não achava
-            // nada pra desenhar e a tela não dizia sequer por quê.
-            var americanoAqui = ViewBag.ClassificacaoAmericano
-                as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
-        }
+      @* Chave pendente de aprovação (ver Services/AprovacaoDeChaves) não pode aparecer aqui
+         pra quem não pode aprovar — esconder só o BOTÃO da aba (lá em cima) não bastaria: o
+         HTML desta aba sai no mesmo jeito na resposta, só invisível por CSS, e daria pra ver
+         com "exibir código-fonte" mesmo sem o botão. *@
+      @if (podeVerChavesPendentes)
+      {
+        // O Americano não tem CHAVE — ele tem GRUPOS e uma classificação por games. Sem
+        // isto a aba abria vazia num torneio inteiro em andamento: o motor não cria
+        // GrupoTorneio nesse formato, então o laço das categorias lá embaixo não achava
+        // nada pra desenhar e a tela não dizia sequer por quê.
+        var americanoAqui = ViewBag.ClassificacaoAmericano
+            as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
 
         @if (americanoAqui != null)
         {
@@ -4343,6 +4390,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
         </div>
         } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
+      }
+      else
+      {
+        <div class="alert alert-info border-0 shadow-sm">
+            <i class="bi bi-hourglass-split"></i>
+            As chaves deste torneio foram sorteadas e estão aguardando aprovação de quem
+            organiza. Assim que aprovarem, elas aparecem aqui pra todo mundo.
+        </div>
+      }
     </div>
     <!-- SCRIPT (Coloque no final do arquivo Details.cshtml) -->
     <script>

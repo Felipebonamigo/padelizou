@@ -49,7 +49,7 @@ public class CancelarTorneioTests
         // 3 duplas = 6 pessoas, cada uma avisada uma vez.
         await push.Received(6).EnviarParaJogadorAsync(
             Arg.Any<int>(), "Torneio cancelado",
-            Arg.Is<string>(c => c.Contains("Sem quadra")),
+            Arg.Is<string>(c => c != null && c.Contains("Sem quadra")),
             Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
     }
 

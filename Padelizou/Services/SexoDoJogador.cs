@@ -32,11 +32,12 @@ public static class SexoDoJogador
     // A categoria pede um de cada?
     //
     // ⚠️ Casa pelo NOME, e não por um campo, porque a Categoria DO TORNEIO não guarda tipo —
-    // ela copia só nome e código do catálogo. É a mesma régua que o Padelímetro já usa pra
-    // tirar as duas da escada de nível, e é por isso que ela mora lá: uma categoria nova do
-    // mesmo feitio entra num lugar só.
+    // ela copia só nome e código do catálogo. Lê `EhMista`/`EhCasal` DIRETO, e não
+    // `ForaDaEscada`: Lendas também é fora da escada de nível (não gradua A/B/C), mas não é
+    // par misto nenhum — dois veteranos do mesmo sexo jogam juntos numa boa. "Fora da escada"
+    // e "exige um de cada" são duas perguntas diferentes que só coincidem em Mista e Casal.
     public static bool ExigeUmDeCada(string? nomeCategoria) =>
-        FaixasDePadelimetro.ForaDaEscada(nomeCategoria);
+        FaixasDePadelimetro.EhMista(nomeCategoria) || FaixasDePadelimetro.EhCasal(nomeCategoria);
 
     public const string ComoInformar =
         "Abra Perfil › Editar perfil e informe o sexo — leva dez segundos.";

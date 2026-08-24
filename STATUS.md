@@ -1,7 +1,89 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/08/2026** — 💾 **O PACOTE DE DEPLOY CAIU DE 536 MB PRA 66 MB, E O CI PASSOU A REPROVAR POR CVE.**
+> Última atualização: **22/08/2026** — 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
+>
+> 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
+>
+> 🧩 **O sorteio continua rodando e gravando igual** — grupos, jogos, horários, tudo pelo mesmo `GerarChaves` de sempre. O que muda é o status final: em vez de ir direto pra `"Fase de Grupos"` (já pública), ele para em **`"Chaves em Aprovação"`** (`Services/AprovacaoDeChaves`, novo). Só quando o organizador, o admin nomeado ou o admin raiz aprova (`AprovarChaves`) é que o torneio vira `"Fase de Grupos"` de verdade — e é só AÍ que o aviso "as chaves saíram" sai pros jogadores, que deixou de disparar no sorteio.
+>
+> 🔑 **Quem aprova é a MESMA régua de sempre** — `TorneiosController.EhOrganizadorAsync` (organizador desta categoria, admin raiz ou admin nomeado), sem papel de acesso novo. O assistente do sistema fica de fora de propósito: ele acompanha o resto, mas esta aprovação é decisão de quem organiza de verdade.
+>
+> 🕳️ **Achado pesquisando antes de mexer, não em produção:** esconder o BOTÃO da aba "Chaves e Grupos" não bastava — o HTML da aba saía na resposta do jeito mesmo, só invisível por CSS (tab-pane inativo). Dava pra ver o chaveamento inteiro com "exibir código-fonte" mesmo sem o botão aparecer. A ação `/Torneios/Jogos` também não tinha checagem de status nenhuma. As duas ganharam o gate de verdade — servidor, não CSS.
+>
+> ↩️ **`DesfazerSorteio` (novo):** apaga os grupos e os jogos e devolve o torneio pra `"Chaves em Sorteio"`, pronto pra sortear de novo — só enquanto a aprovação está PENDENTE. Depois de aprovada é público, tem gente vendo contra quem joga, e desfazer viraria "reorganizar o torneio por baixo de quem já se organizou" (mesmo raciocínio de `PortaDaInscricao.PorQueNaoPodeAbrir`). Recusa também se algum jogo já começou ou terminou, por segurança.
+>
+> 🛠️ **`RefazerGrade`, `TrocarQuadra` e `TrocarHorario` não precisaram de nada** — nenhum dos três checava `torneio.Status`, então já funcionavam sem mudança durante a espera. É por eles (link "Ver jogos e horários" na tela de aprovação) que dá pra ajustar hora/quadra antes de liberar, sem precisar desfazer o sorteio inteiro.
+>
+> 🧪 **4.835 testes, 0 falhas (13 novos, 2 atualizados)** — sorteio não avisa mais ninguém, aprovar libera e avisa, só organizador/admin aprova ou desfaz, desfazer limpa grupos/jogos/vínculo de dupla, desfazer recusa com jogo já começado, `/Jogos` escondido de quem não pode aprovar e visível pra quem pode.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: `Status` continua sendo texto livre, só ganhou mais um valor possível.
+>
+> Antes, no mesmo dia: 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
+>
+> 🗣️ **O pedido do Felipe:** *"crie a categoria 'Lendas' para torneios"*. Duas perguntas fecharam o desenho (as duas com a opção recomendada): sem A/B/C — uma categoria só, quem entra é pela veterania, não pela força — e sem separar Masculina/Feminina — todo mundo que se qualifica joga junto.
+>
+> 🧩 **Entra no catálogo pelo mesmo caminho de sempre: `Program.cs` semeia `CategoriaPadrao` por NOME no startup, sem migration** — é dado de produção, não schema (só as duas colunas `Ativa` que já existiam de outras categorias desligadas). "Categoria Lendas", `Tipo`/`Codigo` = `LENDAS`.
+>
+> 🐛 **A pegadinha, achada ANTES de virar bug em produção:** Lendas é "fora da escada" do Padelímetro igual Casal/Mista (sem faixa, sem travar nível, seed no meio do caminho entre as duas réguas, troféu de vidro) — mas ela **não é par misto**: dois veteranos do mesmo sexo jogam juntos numa boa, diferente de Casal/Mista que exigem um homem e uma mulher. `SexoDoJogador.ExigeUmDeCada` lia direto de `FaixasDePadelimetro.ForaDaEscada` — reaproveitar isso teria feito Lendas herdar uma trava que não é dela (bloquear duas mulheres de se inscreverem juntas). Desacoplado: `ExigeUmDeCada` passa a checar `EhMista || EhCasal` na mão, não mais `ForaDaEscada` — as duas perguntas ("é fora da escada de nível" × "exige um de cada") só coincidem em Mista/Casal, e daqui pra frente uma categoria nova de qualquer um dos dois feitios entra sem arrastar a outra regra sozinha.
+>
+> 📋 **Aparece nas 3 telas que agrupam o catálogo por Tipo** (Create de torneio — na coluna da Mista, junto do Casal, mesma razão de sempre: uma quarta coluna pra um item só quebraria a grade de três —, configuração de grupo privado, criar aviso). As telas que listam sem agrupar por Tipo já mostram sozinhas, sem mudança nenhuma.
+>
+> 🧪 **4.824 testes, 0 falhas (18 novos)** — reconhecimento pelo nome, fora da escada sem travar nível, seed no meio do caminho, troféu de vidro, e o ponto central: dois homens (ou duas mulheres) entram juntos em Lendas sem barreira, ao contrário de Mista/Casal.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: nada de schema neste bloco, só dado semeado no startup.
+> Antes, no mesmo dia: 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
+>
+> 🗣️ **Começou com um link do Felipe** pro [vibe-coding-toolkit](https://github.com/soumatheusgomes/vibe-coding-toolkit) — 31 arquivos, ~7.850 linhas de método de trabalho com IA. Li inteiro e adotei o que traduz pra cá; o eixo ESLint/Biome (~1.600 linhas) é JS/TS e não serve, mas a ideia dele de **promoção rastreada** (regra nasce como aviso, vira erro quando a contagem zera) virou o burndown abaixo.
+>
+> 🚪 **`GateDeAutorizacaoDosPostsTests` fecha a parte mecânica da Regra 0.** Varre o assembly por reflexão e quebra se um POST novo atender sem login — que é exatamente o que os dois buracos de 26/07 foram, e até hoje isso dependia só de atenção. Estado medido: **274 dos 281 POSTs exigem login**; os 7 restantes estão declarados um a um com o motivo (login/cadastro/senha, contato com antiforgery, o portão do Acesso Antecipado com trava por IP, e o webhook do Asaas com `TokenValido()`). **Nenhum buraco real encontrado** — li os 7 antes de carimbar.
+>
+> ⚠️ **O gate responde "dá pra chamar sem login?", NÃO "quem chama pode fazer isso?".** Um POST com `[Authorize]` e sem checagem de dono passa nele e continua sendo o buraco de 26/07. Fecha UMA das três condições da Regra 0; a checagem de dono é julgamento e segue sendo trabalho do teste de cada área. Está escrito no cabeçalho do arquivo pra ninguém confundir cobertura.
+>
+> 🧷 **Não é analisador Roslyn de propósito:** `TorneiosController` é partial em 17 arquivos e `[Authorize]` vive na classe E na ação, então um analisador sintático precisaria do modelo semântico pra enxergar atributo declarado noutro arquivo. Reflexão vê o conjunto efetivo de graça. O teste espelha o runtime: qualquer `[AllowAnonymous]`, no método ou na classe, conta como desprotegido — ler só o atributo da ação daria "protegido" pra endpoint que atende qualquer um. Tem canário: se a varredura parar de enxergar os controllers, os outros dois testes passariam vazios e calados.
+>
+> 🚦 **CS8602 é ERRO agora** (`Directory.Build.props`). Eram 42 avisos no build; os 37 CS8602 foram a zero e a regra subiu no mesmo dia. **O gate foi visto barrar antes de virar commit** — plantei um CS8602 deliberado e confirmei `error CS8602 / 1 Error(s)`. Gate que nunca se viu barrar nada não é gate verde, é gate não testado.
+>
+> 🔍 **Dos 37: 30 em teste (matcher do NSubstitute — nulo estourava DENTRO do matcher em vez de não casar) e 7 em produção, com 6 do mesmo padrão** — um `bool` intermediário captura a checagem de nulo (`bool temTimesCopiado = timesCopiado != null`, `souConvidado`) e o C# não correlaciona a variável booleana com o estado do objeto. Falso positivo; a correção com `?.`/`??` e `if (sessao is null || ...)` saiu **mais curta** que o original.
+>
+> 🧭 **O sétimo custou cinco rodadas, e a causa não estava na linha do aviso.** Em `Details.cshtml`, 28 linhas acima do erro, `dupla.Jogador1?.LadoQuadra` usa `?.` numa referência declarada não-anulável — isso rebaixa o estado de fluxo dela pra "possivelmente nulo" dali em diante, e é por isso que os outros três usos idênticos no mesmo arquivo NÃO avisam. Achado lendo o C# que o Razor gera (`EmitCompilerGeneratedFiles`) e com um experimento de `!` pra discriminar se o nulo era `dupla` ou `Jogador1`, depois de três leituras do template não explicarem. **Regra 6 na prática: parei de deduzir e instrumentei a fronteira.**
+>
+> 📓 **As "Regras para não regredir" saíram da linha ~3855 DESTE arquivo e foram pro topo do `CLAUDE.md`.** O `CLAUDE.md` é lido inteiro no início de toda sessão; este aqui, por busca de texto — a regra mais importante do projeto era a que mais dependia de sorte pra ser lida. Não ficou cópia aqui de propósito. A Regra 1 ganhou a ordem (**teste ANTES da correção, e visto falhar pelo motivo certo**; se a correção saiu primeiro, apaga e recomeça) e nasceu a **Regra 6** (três correções falhas: para e questiona a arquitetura).
+>
+> 🌊 **`ONDAS-PARALELAS.md`** documenta como paralelizar sem que dois agentes se atropelem. A parte que só existe aqui: **as quatro réguas de autorização são UMA tarefa**, nunca uma por arquivo — elas *passam* nas duas condições de formação de onda (arquivos disjuntos, sem dependência declarada) e mesmo assim não podem ser paralelizadas, porque a dependência é semântica. É a dessincronia de 31/07 esperando pra acontecer de novo.
+>
+> 🔌 **Configuração de agente em escopo de PROJETO** (`.claude/settings.json`): `superpowers`, `pr-review-toolkit`, `claude-md-management`, `hookify` e o MCP `context7`. Escopo de projeto e não de usuário porque **sessão da web nasce de clone limpo e não enxerga o `~/.claude/`** — sem isso, nada disso valeria pelo celular. ~3,2k tokens sempre ligados, medidos com `claude plugin details`. O hook de `SessionStart` também virou **fail-open**: era `set -euo pipefail` com `dotnet restore` sem guarda, e rede ruim derrubava a sessão de quem só queria abrir o projeto.
+>
+> 🧪 **4.809 testes, 0 falhas.** Build: 42 avisos → 5. **Sem migration.** Nenhum comportamento de produção muda, exceto um rótulo defensivo em `Details.cshtml`.
+>
+> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio, faltando copiar `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` pro environment `dev`.
+>
+> Antes, no mesmo dia: 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
+>
+> 🗣️ **O pedido do Felipe, de um print da tela "Adicionar Aula" marcada "Em trio":** *"teria que conseguir selecionar os 3 alunos aqui. Cada um recebe sua cobrança individualmente"*. Até aqui uma turma de 2/3/.../6 era **UMA linha de Aula** com um preço só e um nome só — os outros lugares eram o campo livre "Acompanhantes", sem conta, sem cobrança própria. Design fechado com duas perguntas: preço **dividido igualmente** entre os N (não um campo de preço por aluno) e a agenda mostrando **um card/evento só, com os N nomes** (não N cards idênticos pro mesmo horário).
+>
+> 🧩 **`Aula.TurmaId` (novo, `Guid?` nulo por padrão) é a peça que faz tudo se encontrar.** Cada aluno da turma continua sendo a própria linha, o próprio `AlunoId`/`NomeAlunoAvulso`, a própria ficha (`GravarFichaRapidaAsync`) e — decisivo pra "um sai, os outros continuam" — a **própria `RecorrenciaId`**: não existe RecorrenciaId de grupo. O que junta as N linhas como "isto aqui é uma sessão só" é o TurmaId, **ESTÁVEL**: nasce uma vez em `AdicionarManual` e viaja pra sempre, copiado adiante pela renovação semanal (`RenovacaoDaAulaFixa.Copiar`) — não sorteado de novo a cada semana.
+>
+> 🐛 **E foi bom ele ser estável, porque o primeiro desenho (TurmaId novo a cada semana) tinha um bug que só o teste do renovador achou:** um aluno que cancela UMA aula da própria série fica um passo atrás dos colegas — mesmo horário, semanas diferentes já criadas. Sem uma forma ESTÁVEL de reconhecer "esta aula é da mesma turma", a checagem de conflito de horário (`RenovacaoDaAulaFixa` e `HorarioOcupadoAsync`) enxergava a aula do COLEGA, no mesmo horário, como "já tem outra coisa marcada ali" — e pulava a semana à toa, achando a série cada vez mais pra trás. A exclusão por TurmaId (colega de turma nunca conta como conflito; turmas DIFERENTES no mesmo horário continuam conflitando de verdade) resolveu, e o teste que achou o bug virou regressão.
+>
+> 💰 **`PrecoDaAula.DivididoIgualmente(total, n)` racha sem perder centavo:** R$ 100 em 3 não é 33,33 × 3 — falta um centavo. Ele vai pro(s) primeiro(s) da lista, e a soma das fatias sempre bate exato com o total (é o que faz `FechamentoDoMes` continuar batendo sem precisar saber que a aula é em grupo).
+>
+> 📝 **A tela ganhou N blocos de aluno** (nome com o mesmo atalho de busca nos alunos do professor, telefone opcional) que nascem quando o professor marca dupla/trio/etc — trocar o tamanho reconstrói os blocos do zero de propósito, porque não existe "qual dos três eu descarto" ao encolher a turma. Sem usar os blocos novos (aba antiga, ou o professor não trocou de modo), o comportamento é **exatamente o de sempre**: uma linha, preço cheio da turma, o resto em "Acompanhantes".
+>
+> 📅 **Um evento só na Google Agenda pra sessão inteira** — título com todos os nomes ("Fulano, Beltrano e Cicrano"), sem convidado (a turma não tem um único e-mail; o aviso ao aluno continua pelo link de confirmação por e-mail, que já existia). As N linhas guardam o MESMO `GoogleEventId`.
+>
+> 🃏 **"Um card só" na Minha Agenda só é seguro se as ações do card valerem pra turma inteira, não só pra linha que por acaso é a representante** (`Services/AgendaDeTurma.Colapsar` agrupa por TurmaId na leitura — preço somado, nomes juntos; a fila de Pendentes e a de A Recuperar ficam de fora de propósito, são por aluno, não cards de sessão). Sem cascatear as ações, "Concluir" clicado uma vez deixaria 2 dos 3 alunos "Confirmada" pra sempre, quietos:
+> - **Concluir/Cancelar** (`AtualizarStatus`) cascadeia pros colegas de TurmaId.
+> - **Apagar** (`ExcluirAula`) apaga o grupo inteiro e remove o evento do Google **uma vez só** (as linhas compartilham o mesmo `GoogleEventId` — apagar só uma sumiria com o evento de quem ficasse).
+> - **Editar** cascadeia horário/local/duração (são da SESSÃO) — preço fica de fora, é a fatia de CADA aluno. `HorarioOcupadoAsync` ganhou o mesmo `ignorarTurmaId` do fix do renovador, pelo mesmo motivo: sem ele, mover o horário da turma esbarraria nos próprios colegas.
+>
+> 🧪 **4.806 testes, 0 falhas (25 novos)** — cobrindo a divisão de preço, a criação em turma (com validação de nome faltando), a renovação semanal com TurmaId estável (incluindo o cenário do bug do cancelamento avulso), o colapso de exibição e as quatro ações cascateando (e a de aula solo continuando isolada).
+>
+> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+>
+> 🕳️ **Limitação conhecida, documentada em código, não resolvida:** `SincronizarGoogle` (reenvio de aula que ficou fora do Google) ainda cria um evento POR LINHA — se a criação do evento único falhar inteira na hora de `AdicionarManual`, o reenvio posterior criaria N eventos separados em vez de recriar o compartilhado. Caso raro (a criação já é best-effort com retry manual via essa mesma tela) e fora do escopo deste bloco.
+>
+> Antes, na véspera (21/08): 💾 **O PACOTE DE DEPLOY CAIU DE 536 MB PRA 66 MB, E O CI PASSOU A REPROVAR POR CVE.**
 >
 > 🎯 **Os dois achados ALTOS da auditoria e o portão de CVE saíram do papel.** O `tar.gz` que o CI anexa no release foi de **173 MB pra 24 MB**, e o pacote publicado de **536 MB pra 66 MB** — 66 DLLs viraram 20, e as 18 plataformas de binário nativo viraram zero.
 >
@@ -38,6 +120,7 @@
 > ⚠️ **A política de rede da sessão bloqueou `api.osv.dev`, `api.github.com/advisories` e a busca do nuget.org (403).** Não contornei. Então a checagem de CVE se apoia numa base só — justamente a que tem o ponto cego acima — e o publicador saiu do nuspec assinado em cache, não dos owners do site. Rodar um `osv-scanner` de uma máquina com saída livre fecha a lacuna.
 >
 > Antes, no mesmo dia: 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
+>
 >
 > 🗣️ **A pergunta do Felipe foi de lugar, não de código:** *"qual e aonde o melhor local para colocar? pensando que nao pode poluir muito o sistema, possivelmente tenha outros patrocinadores depois"*. A resposta é o **rodapé**: patrocínio vive de estar presente em toda página, não de interromper — banner ou faixa no topo viraria a primeira coisa que o sistema diz em toda tela. O rótulo **"Patrocínio" fica ACIMA dos logos** (em linha ele disputava largura com as marcas e roubava metade da linha no celular), e a fileira quebra sozinha quando vier o terceiro.
 >
@@ -3915,14 +3998,12 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 🔒 Regras para não regredir
-0. **Ação que grava dado precisa de `[Authorize]` E de checagem de dono/organizador.**
-   Dois buracos em 26/07 vieram da falta disso. O gate de Acesso Antecipado *não* é
-   autorização — ele some no dia em que o sistema abrir pro público.
-1. **Todo defeito corrigido vira teste.**
-2. **Nada é publicado com teste vermelho.**
-3. **Testar em `dev` antes de produção.**
-4. **Fechou um trabalho, commit + push.**
-5. **Uma coisa de cada vez, até o fim.**
+
+**Mudaram de casa em 21/08/2026 — agora vivem no `CLAUDE.md`, no topo.** Estavam aqui, na
+linha ~3855 de um arquivo de ~3.900: quem abre o projeto lê o `CLAUDE.md` inteiro sozinho e
+este aqui por busca de texto, então a regra mais importante do projeto era a que mais
+dependia de sorte pra ser lida. Não ficou cópia neste arquivo de propósito — duas listas em
+dois lugares divergem, e a que diverge calada é a que engana.
 
 ---
 

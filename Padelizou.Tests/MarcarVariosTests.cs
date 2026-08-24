@@ -135,7 +135,7 @@ public class MarcarVariosTests
 
         // E a cobrança foi da SOMA (2 × 80), não de um slot só.
         await pagamentos.Received(1).IniciarCobrancaQuadrasAsync(Arg.Any<Clube>(), dono,
-            Arg.Any<Jogador>(), 160m, Arg.Is<DadosMarcacaoJogoVarios>(d => d.Slots.Count == 2));
+            Arg.Any<Jogador>(), 160m, Arg.Is<DadosMarcacaoJogoVarios>(d => d != null && d.Slots.Count == 2));
     }
 
     [Fact]
