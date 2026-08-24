@@ -152,8 +152,16 @@
                         <li>Tudo do Gestão</li>
                         <li><strong>Nota de serviço (NFS-e)</strong> de aula e quadra</li>
                         <li><strong>Cupom do bar (NFC-e)</strong></li>
+                        @* A franquia é o número que o clube compara com o concorrente — e a
+                           nossa é 25% maior. Escondê-la aqui é entregar o argumento de venda
+                           de graça pro outro lado (ver FISCAL.md, "O VEREDITO"). *@
+                        <li><strong>150 notas de serviço + 600 cupons</strong> por mês</li>
                         <li>Relatório pro contador</li>
                     </ul>
+                    <div class="small text-muted mb-3">
+                        Passou da franquia? R$ 0,30 por nota de serviço e R$ 0,15 por cupom.
+                        A franquia é mensal e não acumula.
+                    </div>
                     @if (escolhido != PlanoDoClube.Fiscal)
                     {
                         <form asp-action="Escolher" method="post" class="d-grid">
