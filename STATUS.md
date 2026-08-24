@@ -102,7 +102,43 @@
 >
 > 🕳️ **Limitação conhecida, documentada em código, não resolvida:** `SincronizarGoogle` (reenvio de aula que ficou fora do Google) ainda cria um evento POR LINHA — se a criação do evento único falhar inteira na hora de `AdicionarManual`, o reenvio posterior criaria N eventos separados em vez de recriar o compartilhado. Caso raro (a criação já é best-effort com retry manual via essa mesma tela) e fora do escopo deste bloco.
 >
-> Antes, em 21/08: 💬 **O TORNEIO INTEIRO SAIU DO WHATSAPP: O CANAL FICOU SÓ COM AULA, DESAFIO E PAGAMENTO.**
+> Antes, na véspera (21/08): 💾 **O PACOTE DE DEPLOY CAIU DE 536 MB PRA 66 MB, E O CI PASSOU A REPROVAR POR CVE.**
+>
+> 🎯 **Os dois achados ALTOS da auditoria e o portão de CVE saíram do papel.** O `tar.gz` que o CI anexa no release foi de **173 MB pra 24 MB**, e o pacote publicado de **536 MB pra 66 MB** — 66 DLLs viraram 20, e as 18 plataformas de binário nativo viraram zero.
+>
+> 💾 **SC-02, o publish preso ao `linux-x64`.** Sem RID, o `dotnet publish` levava `libSkiaSharp` pra Windows x86/x64/arm64, macOS, riscv64, loongarch64 e Android — 427 MB de blob que roda direto, não é IL, e nenhuma ferramenta do .NET inspeciona. Como SkiaSharp move upload de imagem e cartão compartilhável, não dava pra aplicar no escuro: publiquei um programa à parte com as mesmas referências, no mesmo modo, e rodei o caminho de `ImagemEnviada.cs` — desenha, encoda PNG, decodifica, redimensiona. **Funcionou pelo apphost e por `dotnet <app>.dll`, que é como o systemd sobe o Padelizou** (`ExecStart=/usr/bin/dotnet /opt/padelizou/Padelizou.dll`, sem mudança no unit). ⚠️ **Ainda assim, regra 3: publicar no `dev` antes do `prod`** — o que dava pra provar daqui está provado, o que só o servidor responde é o `/healthz` verde lá.
+>
+> 🚪 **SC-04, o portão de CVE no CI.** O audit do NuGet já vinha ligado em `mode=all`, nível `low` — só que saía como warning no log do restore. Agora é passo com falha de build, lendo o **JSON** e não a tabela de texto: forma de saída de ferramenta muda entre versões do SDK, e grep que para de casar vira portão que aprova tudo calado.
+>
+> 🕳️ **E foi exatamente isso que quase aconteceu comigo.** A primeira versão do portão **aprovava quando o restore falhava** — restore quebrado devolve `{"problems": [...]}` sem `"projects"`, e o parser lia como zero vulnerabilidade. Peguei testando o próprio passo. Os três casos ficaram conferidos: árvore limpa passa; `System.Net.Http` 4.3.0 injetado reprova com anotação nomeando pacote, versão, severidade e advisory; restore quebrado reprova. **Se um dia travar por um advisory que não te alcança, a saída é `NuGetAuditSuppress` daquele GHSA com um comentário dizendo por quê — nunca apagar o passo.**
+>
+> 🔍 **E o portão pagou o aluguel no primeiro dia**: descobriu que as refs diretas `NuGet.Packaging`/`NuGet.Protocol` **7.6.0 eram um pino acidental**. Ao removê-las (elas não eram usadas em lugar nenhum), a resolução transitiva caía pro **NuGet 6.12.1, que TEM advisory** (GHSA-g4vj-cjjj-v7hg, Low), puxado pelo mesmo pacote de scaffolding. Ou seja: marcar `PrivateAssets=all` não bastava — deixaria um cliente NuGet vulnerável no grafo pra sempre.
+>
+> 🧹 **Então o `Microsoft.VisualStudio.Web.CodeGeneration.Design` saiu de vez.** O que decidiu foi o próprio STATUS: **em 26/07 o CRUD que esse scaffold gerou já tinha sido apagado** — 9 ações e 5 views de Jogadores, ~800 linhas, e a remoção fechou uma porta sem `[Authorize]` em `/Jogadores/Delete/5`. A ferramenta ficou pra trás sozinha, um mês depois de o projeto jogar fora tudo que ela produziu. **A árvore do app foi de 150 pra 43 pacotes e o audit ficou limpo de verdade**, não pelo pino. Se um dia precisar scaffoldar de novo: `dotnet tool install -g dotnet-aspnet-codegenerator`, na máquina, não no `.csproj`.
+>
+> 🧪 **4.784 testes, 0 falhas.** O `EntityFrameworkCore.Tools` continua onde estava — o `dotnet ef` precisa dele, e o teste de `deps.json` confirma que nada dele chega ao servidor. As 20 DLLs que sobraram são todas usadas; as duas menos óbvias, `System.Management` e `System.CodeDom`, são transitivas do `Google.Apis.Auth`.
+>
+> 📦 **De brinde, a retenção do `deploy.sh` deixa de apertar o disco**: com 66 MB por build, as 3 versões guardadas por ambiente ocupam ~200 MB em vez de 1,6 GB. Se quiser voltar pra 5, agora cabe.
+>
+> Antes, no mesmo dia: 🔗 **AUDITORIA DE SUPPLY CHAIN: METADE DO QUE IA PRO SERVIDOR NÃO TINHA RAZÃO DE ESTAR LÁ.**
+>
+> 🔎 **O pedido foi uma auditoria de cadeia de suprimentos** — CVE, abandono, publicador, script de instalação, dependências diretas e a árvore inteira. Saída em `SUPPLY-CHAIN.md` (12 achados, com comando de reprodução) e `supply-chain-findings.json`. A árvore tem **150 pacotes** (19 diretos, 131 transitivos) e **nenhuma CVE conhecida**. O problema não era vulnerabilidade — era quantidade.
+>
+> 📦 **O `Microsoft.VisualStudio.Web.CodeGeneration.Design` estava sem `PrivateAssets=all`**, ao contrário do `EntityFrameworkCore.Tools` três linhas acima, que já estava certo. Sem essa marcação, um pacote de ferramenta de mesa vira dependência de RUNTIME e viaja inteiro pro VPS: **o compilador Roslyn (12 DLLs), o MSBuild, o cliente NuGet completo (9 DLLs), um Razor de .NET 6 — fora de suporte desde nov/2024 — e o `System.Data.DataSetExtensions` de 2018**, mais o Humanizer com 50 pastas de idioma. Nada disso aparece em uma linha de código: o grep por `CodeGeneration`/`Scaffolding` acha só a própria linha do `.csproj`. **66 DLLs publicadas viraram 20, e 96 itens saíram do pacote.** `NuGet.Packaging` e `NuGet.Protocol` — dependência DIRETA do app, sem nenhum uso — saíram junto.
+>
+> 🎯 **E não é faxina.** Cada uma dessas DLLs roda com os privilégios do app: Postgres, tokens do Google, chaves do Asaas. Roslyn + MSBuild + cliente NuGet num servidor web não é só superfície, é ferramental — compilar e rodar código novo e baixar pacote sem sair do processo. A diferença entre um invasor que precisa trazer as ferramentas e um que já encontra tudo instalado.
+>
+> 🕳️ **O achado que não dá pra corrigir, só saber: `Portable.BouncyCastle` 1.9.0**, biblioteca de cripto de out/2021 que chega pelo `WebPush`. É a última versão que vai existir — o projeto renomeou o pacote pra `BouncyCastle.Cryptography` na 2.0 — e **advisory é indexado por ID de pacote**. Testei o mecanismo: no MESMO restore, o audit dispara 3× `NU1902` no `BouncyCastle.Cryptography` 2.2.1 e **zero** no `Portable.BouncyCastle` 1.9.0, que é um build mais VELHO da mesma biblioteca. Esse pacote é invisível pra qualquer relatório de vulnerabilidade, hoje e daqui a cinco anos. **Exposição real é baixa** (as duas chamadas usam ECDSA P-256 e ECDH sobre dado que o próprio app gera; os 3 advisories são de RSA, Ed25519 e parse de certificado — nada que o código toque), mas o `--vulnerable` limpo não quer dizer o que parece.
+>
+> 💾 **Sobram 427 MB de binário nativo pra 17 plataformas que o VPS nunca vai executar** (Windows x86/x64/arm64, macOS, riscv64, loongarch64, Android). `dotnet publish -r linux-x64 --self-contained false` derruba o pacote de **493 MB pra 66 MB** e o `tar.gz` de 158 MB pra 24 MB — medido aqui, com o `libSkiaSharp.so` no lugar e os 3 arquivos que o `deploy.sh` exige presentes. ⚠️ **NÃO APLICADO: muda o layout dos assets nativos, e a regra 3 manda passar pelo `dev` primeiro.** De brinde resolve a retenção de 3 releases (com 66 MB por build, 10 releases cabem em 660 MB — hoje 3 ocupam 1,6 GB por ambiente).
+>
+> 🧪 **4.784 testes, 0 falhas (3 novos em `FerramentaDeDesenvolvimentoNaoVaiProServidorTests`).** O principal lê o `deps.json` — a verdade do que o .NET CARREGA, não do que o `.csproj` pediu — e quebra se ferramenta voltar ao grafo de runtime. **Conferido que ficam VERMELHOS com o `.csproj` de antes**: os três acusam, e o primeiro lista as 31 DLLs intrusas pelo nome. Teste de regressão que passa antes e depois não vale nada.
+>
+> 📋 **O resto está descrito com a correção pronta e NÃO aplicado**: o CI não reprova por CVE (o audit está ligado em `mode=all`, nível `low`, mas sai como warning no meio do log do restore — mesma história do `has-pending-model-changes` antes de virar passo); sem `packages.lock.json`, as 131 transitivas não estão fixadas em lugar nenhum e o CI resolve na hora; actions em tag móvel (`@v4` é ponteiro, não conteúdo, e o job `publicar` tem `contents: write`); o `deploy.sh` instala o tar.gz do release sem conferir hash — o healthcheck não pega isso, pacote adulterado responde 200 igual; e o job `testes`, que roda em `pull_request`, não declara `permissions`.
+>
+> ⚠️ **A política de rede da sessão bloqueou `api.osv.dev`, `api.github.com/advisories` e a busca do nuget.org (403).** Não contornei. Então a checagem de CVE se apoia numa base só — justamente a que tem o ponto cego acima — e o publicador saiu do nuspec assinado em cache, não dos owners do site. Rodar um `osv-scanner` de uma máquina com saída livre fecha a lacuna.
+>
+> Antes, no mesmo dia: 💬 **O TORNEIO INTEIRO SAIU DO WHATSAPP: O CANAL FICOU SÓ COM AULA, DESAFIO E PAGAMENTO.**
 >
 > 🗣️ **Decisão do Felipe** (21/08), depois de eu levantar o que ainda usava o canal: *"corrige o WHATSAPP.md, e tira as coisas"* — e a lista veio nominal: **"Seu jogo é o próximo!"**, **"Chaves do X saíram!"**, **"Torneio cancelado"** e **"Abriu vaga — vocês estão dentro!"** (nos dois caminhos, desistência e estorno).
 >
@@ -124,7 +160,9 @@
 >
 > 🕳️ **E O ESTADO DO CHIP CONTINUA SEM CONFERÊNCIA.** A última verificação boa é a de 07/08 (`state: close`); a tentativa de 21/08 morreu nos dois erros de comando acima, então **não prova nada**. Enquanto ninguém rodar o passo 3 do `WHATSAPP.md` e ver `"connectionStatus":"open"`, a premissa é que o canal **não está enviando** — e, se estiver mesmo `close`, esta mudança não altera nada na prática hoje: ela é o desenho pra quando o chip voltar.
 >
-> Antes, no mesmo dia (21/08): 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
+>
+> Antes, no mesmo dia: 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
+>
 >
 > 🗣️ **A pergunta do Felipe foi de lugar, não de código:** *"qual e aonde o melhor local para colocar? pensando que nao pode poluir muito o sistema, possivelmente tenha outros patrocinadores depois"*. A resposta é o **rodapé**: patrocínio vive de estar presente em toda página, não de interromper — banner ou faixa no topo viraria a primeira coisa que o sistema diz em toda tela. O rótulo **"Patrocínio" fica ACIMA dos logos** (em linha ele disputava largura com as marcas e roubava metade da linha no celular), e a fileira quebra sozinha quando vier o terceiro.
 >
