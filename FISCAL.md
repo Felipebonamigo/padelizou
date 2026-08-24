@@ -196,9 +196,42 @@ pequeno"). O modelo dela é o único dos quatro desenhado para software house de
 3. **Depois do portão dos 3 clubes**: subir para 50K (R$ 2.500, R$ 0,05) — ~20 meses.
 4. **A partir de ~10 clubes**: 200K (R$ 6.000, R$ 0,03).
 
-⚠️ **A confirmar antes de comprar** (perguntar no suporte, que é incluso): **1 crédito = 1
-emissão?** Se a consulta de CNPJ/CEP ou o cancelamento também consumirem crédito, a conta muda
-— não muito, porque a folga é grande, mas o número exato precisa ser dele e não nosso.
+### A resposta da pergunta em aberto: 1 crédito = 1 REQUISIÇÃO, não 1 emissão
+
+Lido na documentação (`dev.acbr.api.br/docs`) em 24/08/2026. O consumo padrão é **1 crédito
+por requisição**; alguns endpoints isentam a primeira e cobram as seguintes; consulta de CNPJ
+custa **0,1 crédito por estabelecimento retornado**. Emissão, cancelamento, carta de correção
+e consulta são requisições — cada uma conta.
+
+⚠️ **Isso vira uma decisão de ARQUITETURA, não de compra**: se a integração ficar consultando
+o status de cada nota em laço (*polling*), o consumo dobra. Com **webhook** — o provedor avisa
+quando a nota é autorizada — fica perto de 1 crédito por venda. A diferença entre os dois
+desenhos, a 15 clubes no cenário médio, é **R$ 382 contra R$ 586 por mês**.
+
+Sensibilidade (cenário médio, 15 clubes, contra os R$ 1.177,90 da Focus):
+
+| Requisições por venda | Desenho | Custo/mês | Margem |
+|---|---|---|---|
+| 1,0× | webhook, sem polling | R$ 382,50 | **92%** |
+| 1,3× | webhook + consulta eventual | R$ 497,25 | **89%** |
+| 2,0× | polling em toda venda | R$ 586,50 | **87%** |
+
+**A conclusão é robusta**: mesmo no desenho ruim a ACBr ganha da Focus com folga. Mas o
+desenho bom vale ~R$ 200/mês a 15 clubes — e custa a mesma linha de código, desde que seja
+decidido ANTES da Fase 2. Fica registrado como requisito: **webhook, nunca polling.**
+
+### O resto do que a documentação respondeu
+
+- **Autenticação**: OAuth 2.0 `client_credentials` em `auth.acbr.api.br` (Keycloak), com
+  ambientes de Produção e Homologação separados.
+- **Escopos por documento**: o token precisa carregar o escopo `nfse` ou `nfce`. Bom para o
+  desenho do `IEmissorFiscal` — dá para pedir só o escopo que o plano do clube contratou.
+- **Operações cobertas**: emissão, cancelamento, carta de correção e manifestação do
+  destinatário. O cancelamento amarrado ao cancelamento de comanda (Fase 3) tem endpoint.
+- ⚠️ **NFS-e continua sendo município a município**: a ACBr trabalha com *providers* distintos
+  por prefeitura (WEBISS, FIORILLI, Padrão Nacional). Ou seja, o risco de cobertura municipal
+  não desaparece com a escolha do provedor — **confirmar o município do clube piloto antes de
+  prometer NFS-e a ele.**
 
 ⚠️ **A Focus continua no documento de propósito**: é o plano B se a ACBr decepcionar no
 piloto, e é a régua de negociação — preço público, previsível e provado no nicho pelo Gripo.
