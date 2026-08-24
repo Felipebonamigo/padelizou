@@ -5,6 +5,11 @@
     ViewData["Title"] = Model.Clube.Nome + " — Painel do Clube";
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
     string[] diasCurtos = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
+
+    // O selo "Gestão" nos atalhos que ADMINISTRAM a agenda — só aparece pra quem ainda não
+    // tem o plano, porque é aviso pra quem vai esbarrar na porta, não decoração pra quem já
+    // pagou. Ver ClubeGestaoController.Painel e a doutrina em Services/PlanoDoClube.
+    var temGestao = ViewBag.TemGestao == true;
 }
 
 <div class="container mt-4 mb-5">
@@ -288,6 +293,12 @@
                         <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
                             <span class="fw-semibold" style="color: var(--pdz-ink);">
                                 <i class="bi bi-grid-3x3"></i> Mapa da semana
+                                @* Ver é livre; bloquear e criar mensalista, os dois botões
+                                   desta tela, exigem o plano — daí o selo aqui também. *@
+                                @if (!temGestao)
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Gestão</span>
+                                }
                             </span>
                             <small class="d-block text-muted">Quem está em cada quadra e hora. Bloquear horário e criar mensalista.</small>
                         </a>
@@ -304,6 +315,10 @@
                         <a asp-action="Financeiro" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
                             <span class="fw-semibold" style="color: var(--pdz-ink);">
                                 <i class="bi bi-cash-coin"></i> Financeiro
+                                @if (!temGestao)
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Gestão</span>
+                                }
                             </span>
                             <small class="d-block text-muted">Receita por quadra e por dia da semana, cancelamentos e faltas.</small>
                         </a>
@@ -327,6 +342,13 @@
                                     {
                                         <span class="badge bg-dark ms-1">em construção</span>
                                     }
+                                    else if (!temGestao)
+                                    {
+                                        @* Módulo no ar, mas o Bar é plano Gestão que nem a
+                                           agenda — o selo de "em construção" já cobre o outro
+                                           caso, então este é o else. *@
+                                        <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Gestão</span>
+                                    }
                                 </span>
                                 <small class="d-block text-muted">Comandas do dia, cardápio e fechamento de caixa.</small>
                             </a>
@@ -338,6 +360,10 @@
                                     {
                                         <span class="badge bg-dark ms-1">em construção</span>
                                     }
+                                    else if (!temGestao)
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Gestão</span>
+                                    }
                                 </span>
                                 <small class="d-block text-muted">Fornecedor, aluguel, luz — e quem ficou devendo.</small>
                             </a>
@@ -345,6 +371,13 @@
                         <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
                             <span class="fw-semibold" style="color: var(--pdz-ink);">
                                 <i class="bi bi-shield-check"></i> Política de cancelamento
+                                @* A leitura da política é livre (é só o texto abaixo); SALVAR
+                                   uma nova exige o plano — o formulário mora no Mapa da
+                                   semana e passa pelo mesmo gate. *@
+                                @if (!temGestao)
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Gestão</span>
+                                }
                             </span>
                             <small class="d-block text-muted">
                                 Hoje: cancelamento até @Model.Clube.HorasMinimasCancelamento h antes;

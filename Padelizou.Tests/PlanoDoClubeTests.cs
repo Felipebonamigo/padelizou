@@ -165,18 +165,39 @@ public class PlanoDoClubeTests
     // ---------- De ponta a ponta ----------
 
     [Fact]
-    public async Task Primeira_visita_a_tela_comeca_o_relogio_do_teste()
+    public async Task Visitar_a_tela_nao_comeca_o_relogio_mas_escolher_um_plano_comeca()
     {
-        // O teste não corre desde a criação do clube: senão ele acaba antes de o dono saber
-        // que existe.
+        // ⚠️ Até 24/08/2026 era a VISITA que começava o relógio. Mudou porque a agenda passou
+        // a redirecionar pra cá gente que só clicou em "Financeiro" curiosa — visitar deixou
+        // de significar "quero testar". O teste não corre desde a criação do clube, mas
+        // também não corre por curiosidade: só quando o dono decide ESCOLHER.
         using var ctx = TestInfra.NovoContexto();
         var (clube, dono) = await SemearAsync(ctx);
         Assert.Null(clube.TesteDoClubeInicio);
 
         var c = Controller(ctx, dono.Id);
         await c.Index(clube.Id);
+        Assert.Null(ctx.Clubes.Find(clube.Id)!.TesteDoClubeInicio);
 
+        await c.Escolher(clube.Id, PlanoDoClube.Gestao);
         Assert.NotNull(ctx.Clubes.Find(clube.Id)!.TesteDoClubeInicio);
+    }
+
+    [Fact]
+    public async Task Reescolher_o_plano_nao_reinicia_o_relogio_do_teste()
+    {
+        // Trocar de Gestão pra Fiscal (ou escolher de novo o mesmo) não pode dar 15 dias
+        // novos de graça pra quem já os usou.
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+        var c = Controller(ctx, dono.Id);
+
+        await c.Escolher(clube.Id, PlanoDoClube.Gestao);
+        var inicio = ctx.Clubes.Find(clube.Id)!.TesteDoClubeInicio;
+        Assert.NotNull(inicio);
+
+        await c.Escolher(clube.Id, PlanoDoClube.Gestao);
+        Assert.Equal(inicio, ctx.Clubes.Find(clube.Id)!.TesteDoClubeInicio);
     }
 
     [Fact]

@@ -133,9 +133,11 @@ public static class PlanoDoClube
         EmAtraso     // escolheu o plano e não pagou: perdeu o acesso até quitar
     }
 
-    // O relógio do teste começa quando alguém do clube ABRE a tela do plano — não na criação
-    // do clube. Mesma razão do professor: senão o teste corre antes de a pessoa saber que
-    // existe, e ela descobre o produto no dia em que ele já acabou.
+    // O relógio do teste começa quando alguém do clube ESCOLHE um plano (PlanoClubeController.
+    // Escolher) — não na criação do clube, e não mais na simples visita à tela desde
+    // 24/08/2026 (ver o comentário longo em Escolher()). A ideia de origem continua valendo,
+    // só mudou onde a intenção fica clara: senão o teste corre antes de a pessoa decidir
+    // testar, e ela descobre o produto no dia em que ele já acabou.
     public static bool EmTeste(Clube clube, DateTime agora, PlanoClubeSettings cfg) =>
         clube.TesteDoClubeInicio != null
         && agora <= clube.TesteDoClubeInicio.Value.AddDays(cfg.DiasDeTeste);

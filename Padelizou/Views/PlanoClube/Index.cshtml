@@ -120,10 +120,17 @@
                         }
                     </h5>
                     <div class="fs-4 fw-bold mb-0">@cfg.MensalidadeGestao.ToString("C")<span class="fs-6 fw-normal text-muted">/mês</span></div>
-                    <div class="small text-muted mb-2">
+                    <div class="small text-muted mb-1">
                         ou @cfg.AnuidadeGestao.ToString("C")/ano
                         (economiza @PlanoDoClube.EconomiaDoAnual(PlanoDoClube.Gestao, cfg).ToString("C"))
                     </div>
+                    @* "Até 4 quadras" não é travado em código — nenhuma tela conta quadra pra
+                       recusar cobrança. É cláusula ESCRITA, decidida em 24/08/2026 pra
+                       preservar o direito de segmentar por porte mais tarde (arena de 8
+                       quadras cabendo no mesmo preço fixo de uma de 2 subprecificaria a
+                       grande) sem pagar o custo disso agora: nem faixa nova, nem migration,
+                       nem a manchete R$ 99 explicada em três frases pro clube pequeno. *@
+                    <div class="small text-muted mb-2 fst-italic">Para clubes de até 4 quadras.</div>
                     <ul class="small text-muted ps-3 mb-3 flex-grow-1">
                         <li>Tudo do Rede</li>
                         <li><strong>Mensalista e horário fixo</strong></li>

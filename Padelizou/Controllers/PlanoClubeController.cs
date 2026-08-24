@@ -56,15 +56,12 @@ public class PlanoClubeController : Controller
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();
 
-        // O relógio dos 15 dias começa quando alguém do clube VÊ o plano pela primeira vez —
-        // não na criação do clube. Mesma razão do professor: senão o teste corre antes de o
-        // dono saber que existe, e ele descobre o produto no dia em que já acabou.
-        if (clube.TesteDoClubeInicio == null)
-        {
-            clube.TesteDoClubeInicio = DateTime.Now;
-            await _context.SaveChangesAsync();
-        }
-
+        // ⚠️ O RELÓGIO DOS 15 DIAS NÃO COMEÇA AQUI — começa em Escolher(). Já começou nesta
+        // tela até 24/08/2026, e o motivo pra tirar foi a porta da agenda: depois que a
+        // retaguarda do mapa da semana passou a exigir plano, esta tela passou a receber
+        // visita EMPURRADA (o dono clica em "Financeiro" sem querer assinar nada agora, é
+        // redirecionado pra cá, e o teste começaria a correr sem ele ter decidido nada). Ver
+        // Escolher() pra a explicação completa.
         ViewBag.Cfg = _cfg;
         ViewBag.FiscalAVenda = _fiscal.Habilitado;
         ViewBag.Situacao = PlanoDoClube.SituacaoDe(clube, DateTime.Now, _cfg);
@@ -91,6 +88,21 @@ public class PlanoClubeController : Controller
     // Escolher o plano NÃO cobra nada — só diz o que o clube quer. A cobrança é o passo
     // seguinte, e são dois botões porque escolher e pagar são decisões diferentes: o dono
     // costuma escolher no celular e pagar depois, no computador, com o financeiro do lado.
+    //
+    // ── É AQUI QUE O RELÓGIO DOS 15 DIAS COMEÇA, E NÃO NA TELA (Index) ─────────────────────
+    // Até 24/08/2026 o relógio começava na primeira VISITA à tela do plano — e isso fazia
+    // sentido enquanto só se chegava aqui de propósito, clicando em "Bar" ou em "Fiscal" pra
+    // conhecer o produto.
+    //
+    // Deixou de fazer sentido no dia em que a retaguarda da agenda (mapa da semana, balcão,
+    // mensalista, no-show, financeiro) passou a exigir o plano Gestão: agora um clube chega
+    // nesta tela toda vez que tenta ADMINISTRAR sem ter decidido nada — clicou em
+    // "Financeiro" só pra ver, foi redirecionado, e nunca teve intenção de assinar hoje. Se o
+    // relógio corresse na visita, o teste do clube se esgotaria por curiosidade, e ele
+    // descobriria isso só quando o boleto chegasse.
+    //
+    // ESCOLHER é o primeiro ato que expressa intenção sem custar nada — por isso é ele que
+    // decide o começo, e não o clique que apenas leva até aqui.
     [HttpPost]
     public async Task<IActionResult> Escolher(int clubeId, string plano)
     {
@@ -110,6 +122,12 @@ public class PlanoClubeController : Controller
         if (clube == null) return NotFound();
 
         clube.PlanoDoClube = plano;
+
+        // Só liga a primeira vez — mesma guarda que existia na tela, só que trocada de
+        // gatilho. Reescolher o plano (ou trocar de Gestão pra Fiscal) não reinicia o teste;
+        // reiniciar aqui seria dar 15 dias novos de graça pra quem já os usou.
+        clube.TesteDoClubeInicio ??= DateTime.Now;
+
         await _context.SaveChangesAsync();
 
         TempData["Sucesso"] = $"{PlanoDoClube.RotuloDoPlano(plano)} escolhido. "

@@ -215,6 +215,13 @@ public class ClubeGestaoController : Controller
         ViewBag.MostrarBar = await _modulo.MostrarAtalhoAsync(UsuarioId());
         ViewBag.BarEmConstrucao = _modulo.EmConstrucao;
 
+        // O selo "Gestão" dos atalhos que administram: sem ele, um clube ainda na Rede só
+        // descobre que Financeiro ou o balcão do mensalista são pagos ao CLICAR e ser
+        // redirecionado — descoberta tardia é o tipo de coisa que vira reclamação. Calculado
+        // uma vez aqui porque a régua (LiberaGestao) é a mesma que decide a porta de verdade;
+        // duas contas divergiriam com o tempo.
+        ViewBag.TemGestao = PlanoDoClube.LiberaGestao(clube, DateTime.Now, _plano);
+
         // O QUE DISSERAM DO CLUBE, vindo da enquete de fim de torneio. Inclui o que foi
         // escrito sem identificação: o dono do clube é um dos três destinatários combinados
         // com quem respondeu (ver Services/EnqueteDoTorneio) — e o nome não vem junto nem
