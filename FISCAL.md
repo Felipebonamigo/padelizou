@@ -96,9 +96,10 @@ Três leituras que só apareceram com o número real na mão:
    Growth ganha, e ele cobre até **16 clubes sem um centavo de excedente**. Ou seja, entre o
    11º e o 16º clube a receita cresce e o custo NÃO se mexe — é a faixa mais lucrativa do
    plano inteiro.
-3. **O piloto cabe em R$ 113,90/mês** no Start, que dá 3 CNPJs e 300 notas: sobra espaço pro
-   clube piloto (250) **e pro CNPJ do próprio Padelizou** emitir a NFS-e das comissões da
-   Fase 0, sem excedente. Um único plano cobre as duas coisas.
+3. **O piloto caberia em R$ 128,90/mês** no Start — 3 CNPJs, e a franquia é de 100 notas
+   **por CNPJ** (não poolável): 250 notas do clube = 150 excedentes = R$ 15, que a própria
+   linha da tabela já cobra. Cabe o clube piloto e o CNPJ do Padelizou no mesmo plano.
+   (Superado pela escolha da ACBr, fica como registro da régua.)
 
 ### A segunda tabela: Cupons Fiscais (a do bar)
 
@@ -112,8 +113,13 @@ metade do preço**:
 
 ⚠️ **MAS ELA NÃO TEM NFS-e.** A lista dos planos Retail é "NFC-e, CF-e S@T e CF-e MF" — o
 documento de serviço (aula, quadra, mensalidade) não está lá. Ou seja: **precisamos dos DOIS**
-— um plano de Documentos Fiscais para a NFS-e e um Retail para a NFC-e do bar. Somar os dois
-ainda sai muito mais barato do que jogar tudo no Growth a R$ 0,12.
+— um plano de Documentos Fiscais para a NFS-e e um Retail para a NFC-e do bar.
+⚠️ *Corrigido pela auditoria de 24/08*: a regra "split sempre ganha" é falsa em volume baixo —
+o plano Documentos também emite NFC-e, e jogar tudo num plano só é mais barato até o cenário
+conservador a 15 clubes (all-in-Growth: R$ 878 contra R$ 1.177,90 do split). A regra
+verdadeira: **plano único em volume baixo; split Documentos+Cupons do cenário médio×15 pra
+cima.** Irrelevante na prática — a ACBr ganha das duas combinações — mas o número da Focus
+usado como régua tem que ser o ótimo dela, senão a comparação nos lisonjeia.
 
 ### A conta com as duas tabelas — e o achado que mudou o jogo
 
@@ -216,9 +222,14 @@ Sensibilidade (cenário médio, 15 clubes, contra os R$ 1.177,90 da Focus):
 | 1,3× | webhook + consulta eventual | R$ 497,25 | **89%** |
 | 2,0× | polling em toda venda | R$ 586,50 | **87%** |
 
-**A conclusão é robusta**: mesmo no desenho ruim a ACBr ganha da Focus com folga. Mas o
-desenho bom vale ~R$ 200/mês a 15 clubes — e custa a mesma linha de código, desde que seja
-decidido ANTES da Fase 2. Fica registrado como requisito: **webhook, nunca polling.**
+**A conclusão, qualificada pela auditoria de 24/08**: na escala, a ACBr ganha até no desenho
+ruim (a 15 clubes com pacote 200K, polling custa R$ 765 — ainda bem abaixo da Focus). Mas
+**no piloto o desenho ruim PERDE**: com o pacote 5K (R$ 0,12/crédito) e polling a 2×, o custo
+vai a R$ 204/mês — acima da melhor combinação da Focus (R$ 164,90). Ou seja, **webhook não é
+otimização, é condição necessária já na Fase 2.** E a economia do desenho bom a 15 clubes é
+~R$ 380/mês, não ~R$ 200. Requisitos gêmeos registrados: **webhook, nunca polling** e **cap
+de 3 tentativas em emissão rejeitada, com queda pra fila manual** — NCM errado num clube
+movimentado não pode virar queima de crédito em loop (rejeição também consome crédito).
 
 ### O resto do que a documentação respondeu
 
@@ -271,8 +282,12 @@ reescrever o produto.
   valor no mensalista e na `MensalidadeGrupo`, tomador na reserva de balcão.
 - **Fase 3 — NFC-e do bar (~4–6 semanas).** Emissão no fechamento da comanda (opcional por
   venda), DANFE-NFC-e térmico/browser com QR, série/numeração por clube, cancelamento
-  fiscal amarrado ao cancelamento de comanda (prazo curto, ~30 min na maioria dos estados),
-  contingência offline. Piloto em 1 clube real no RS antes de abrir estado a estado.
+  fiscal amarrado ao cancelamento de comanda (prazo curto, ~30 min na maioria dos estados).
+  ⚠️ *Promessa rebaixada em 24/08*: era "contingência offline", mas contingência offline de
+  verdade (emitir sem internet) é estruturalmente impossível via API na nuvem — em QUALQUER
+  provedor. O que se entrega é **fila de pendências + reemissão automática** (que já era a
+  regra de desenho nº 2 dos riscos); confirmar com o suporte da ACBr se existe modo EPEC no
+  serviço hospedado. Piloto em 1 clube real no RS antes de abrir estado a estado.
 - **Fase 4a — BILLING DA ASSINATURA. ✅ FEITO em 19/08/2026** (migration `AssinaturaDoClube`,
   35 testes novos). Planos Rede (grátis) / Gestão / Fiscal, com 15 dias de teste e 7 de
   carência; cobrança por Pix direto (sem taxa de gateway) ou fatura; tela do plano pro dono;
@@ -296,7 +311,7 @@ reescrever o produto.
 |---|---|---|
 | Clube Rede (atual) | R$ 0 | Torneios, ranking, reservas, rede — o motor de aquisição segue grátis. |
 | Clube Gestão | R$ 99/mês ou R$ 990/ano | Bar completo + financeiro. Margem ~100%. |
-| **Clube Fiscal** | R$ 199/mês ou R$ 1.990/ano | Gestão + NFS-e e NFC-e com franquia 100 NFS-e + 400 NFC-e/mês; excedente R$ 0,30/nota. A1 por conta do clube. |
+| **Clube Fiscal** | R$ 199/mês ou R$ 1.990/ano | Gestão + NFS-e e NFC-e com franquia **150 NFS-e + 600 NFC-e/mês**; excedente **R$ 0,30 (NFS-e) / R$ 0,15 (NFC-e)**. A1 por conta do clube. |
 
 Os preços vivem em configuração (`PlanoClube__MensalidadeGestao` e vizinhos, ver
 `Services/PlanoDoClube`) — renegociar com um clube não exige republicar o site. O anual dá
@@ -314,6 +329,97 @@ Assumindo ~250 notas/clube/mês a R$ 0,10–0,40 e plano médio R$ 200: margem b
 ⚠️ **Consequência tributária planejada**: 15 clubes = R$ 36 mil/ano de assinatura somados
 à comissão → o teto do MEI (R$ 81 mil) estoura POR DESIGN. Migração pra ME no Simples
 (~6–15,5% conforme anexo/fator R — validar com contador) entra no custo desde o dia 1.
+
+## ⚖️ O VEREDITO — a melhor proposta (24/08/2026, após revisão adversarial)
+
+A proposta inteira foi posta sob ataque por três frentes independentes: uma auditoria que
+re-derivou toda a matemática do zero em código, um advogado do diabo contra a escolha da ACBr
+(com busca de evidência real) e outro contra o desenho comercial. **Veredito das três:
+SUSTENTA COM AJUSTES.** O que segue é a proposta final — o que sobreviveu, já com as correções.
+
+### A proposta fechada
+
+| Componente | Decisão final |
+|---|---|
+| **Provedor** | **ACBr API** (Focus NFe como plano B com gatilhos de fuga definidos) |
+| **Planos** | Rede grátis · Gestão R$ 99 · **Fiscal R$ 199** (anual = 10× mensal) |
+| **Franquia do Fiscal** | **150 NFS-e + 600 NFC-e/mês** — 25% mais documentos que o Gripo (100+500) |
+| **Excedente** | **NFS-e R$ 0,30 · NFC-e R$ 0,15** (separados: são economias diferentes) |
+| **Arquitetura** | Webhook (nunca polling) + cap de 3 retries com fila manual + venda nunca trava |
+| **Compra de créditos** | 5K no piloto; **teto de ~6 meses de consumo em saldo**; 200K adiado |
+
+**A frase de venda que esses números compram**: *"150 notas de serviço + 600 cupons por
+R$ 199 — contra 100+500 por R$ 219 mais módulos à parte no Gripo. E com torneios, ranking e
+rede de jogadores que ele não tem."*
+
+### Por que a franquia mudou de 100+400 para 150+600 — o achado mais valioso do ataque
+
+O red team comercial derrubou o número antigo com uma conta simples: **o cliente típico do
+nosso próprio cenário médio nunca pagaria R$ 199 — pagaria R$ 304** (105 de excedente todo
+mês), acima da manchete de R$ 219 do Gripo. Pior: ~35% da receita modelada era excedente, ou
+seja, a âncora quebrava na primeira fatura e armava o vendedor do Gripo duas vezes ("eles dão
+400 cupons, nós 500" e "o 199 deles vira 300"). Na estrutura da ACBr — sem custo fixo, crédito
+só quando usa — dar 600 cupons em vez de 400 custa **R$ 6–12 por clube**, e o cenário
+conservador passa a caber inteiro nos R$ 199. Custa 2–3 pontos de uma margem de ~90 e fecha o
+flanco inteiro.
+
+### As margens honestas (com o pacote da fase certa, não o da escala)
+
+A auditoria pegou o quadro anterior usando preços de pacotes que a escada de compra ainda não
+tinha comprado. Números corrigidos, cenário médio, franquia nova:
+
+| Fase | Pacote ACBr | Custo/mês | Receita/mês | **Margem** |
+|---|---|---|---|---|
+| Piloto (1 clube) | 5K a R$ 0,12 | R$ 102 | R$ 229 | **55%** |
+| Portão (3 clubes) | 10–20K a R$ 0,07–0,09 | R$ 179–230 | R$ 687 | **67–74%** |
+| 15 clubes | 50K a R$ 0,05 | R$ 638 | R$ 3.435 | **81%** |
+| 50 clubes | 200K a R$ 0,03 | R$ 1.275 | R$ 11.450 | **89%** |
+
+Menos vistosas que os 92% de antes — e são as verdadeiras. A decisão não muda: a ACBr vence a
+melhor combinação da Focus em **todas** as células (1,1× a 4,3×), e o break-even exigiria
+crédito acima de R$ 0,077 — qualquer pacote ≥ 20K está muito abaixo.
+
+### As mitigações que viraram OBRIGATÓRIAS (red team ACBr)
+
+O fato central que o ataque estabeleceu: **o serviço hospedado ACBr API tem ~4 meses de vida**
+(lançado em 29/04/2026, sete dias após o comunicado de morte da Nuvem Fiscal, da qual é a
+sucessora byte-compatível — provavelmente a mesma plataforma, relançada como serviço oficial
+do Projeto ACBr). Maturidade técnica provável; histórico comercial, nenhum. Portanto:
+
+1. **Teto de exposição pré-paga: nunca manter em créditos mais que ~6 meses de consumo.**
+   Piloto com 5K (R$ 600) ok; 50K só depois de a ACBr API completar ~12 meses de operação E o
+   piloto rodar estável; **o degrau de 200K sai do plano por ora** — a economia de R$ 0,05→0,03
+   não paga o risco de crédito que o precedente Nuvem Fiscal (90 dias de aviso) demonstrou.
+2. **Contrato, não checkout**, antes de qualquer compra acima do piloto: créditos sem
+   expiração POR ESCRITO (o site oficial fala em "modelo anual" — contradição a resolver),
+   reembolso pro-rata em caso de descontinuação, aviso mínimo de 90 dias, exportação integral
+   dos XMLs, e **identificar o CNPJ da entidade operadora**.
+3. **Gatilhos objetivos de fuga pra Focus**, definidos ANTES do piloto: ex. 2 indisponibilidades
+   em horário de pico num trimestre, ou incidente sem resposta em 1 dia útil.
+4. **Monitorar a status page da ACBr por 30+ dias antes do go-live** — construir o histórico
+   de uptime que o fornecedor não tem idade pra ter. E **testar o suporte na prática**: abrir
+   um chamado real numa sexta à noite, na ACBr e na Focus, e cronometrar (nenhuma das duas
+   publica plantão de fim de semana — o desenho assíncrono continua sendo a única defesa real).
+
+### O fato regulatório que o plano ignorava: CGSN 191/2026
+
+**A partir de 01/11/2026, ME/EPP do Simples emite NFS-e obrigatoriamente pelo Emissor
+Nacional** (Resolução CGSN 191/2026, que reeditou a 189/2026 revogada). Nossos clubes-alvo são
+exatamente ME/Simples. Duas consequências: **(boa)** o risco de cobertura municipal esvazia —
+os "3.000+ municípios" da Focus deixam de ser diferencial; **(atenção)** nasce dependência
+única do SEFIN Nacional, que acumula relatos de instabilidade desde 10/08/2026 no próprio
+fórum ACBr — risco igual para todos os provedores, e mais um motivo pros requisitos de
+webhook + retry com cap + fila. O cronograma do piloto cruza 01/11/2026: confirmar no sandbox
+a emissão via Padrão Nacional pro município do piloto **antes** de prometer NFS-e.
+
+### Regras da franquia — escrever na tela e no contrato, não só decidir
+
+A franquia é **mensal e não acumula** (inclusive no plano anual); baldes de NFS-e e NFC-e são
+**separados, sem compensação**; só nota **autorizada** consome franquia; **cancelamento não
+devolve**; excedente do plano anual é faturado **mensalmente via Pix** (o billing da Fase 4a
+já cobra Pix direto). O piloto mede a **curva** mensal (dezembro/janeiro em especial), não só
+a média — franquia definitiva se confirma com 3 meses de dados, e os números vivem em
+configuração.
 
 ## Riscos — e a defesa de cada um
 
