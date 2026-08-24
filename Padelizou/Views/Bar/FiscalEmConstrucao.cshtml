@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Nota fiscal — em construção";
+}
+
+@* A tela de quem MANDA no clube e esbarrou no fiscal antes de ele existir.
+   Sai com 403 (ver BarController.Fiscal): a porta está fechada mesmo, mas por obra, não por
+   permissão — e o texto genérico do /Auth/AcessoNegado ("essa parte não é sua") seria mentira
+   pra esta pessoa. Das que fazem o dono ligar achando que perdeu acesso.
+
+   É tela própria, e não um recado carregado até a tela de acesso negado, porque recado de
+   uma requisição só morre no primeiro F5 — e recarregar é exatamente o que a pessoa faz
+   quando não entende o que aconteceu. Aqui o F5 reexecuta a ação e a resposta é a mesma.
+
+   ⚠️ NÃO É TELA DE VENDA. Nada de preço, nada de botão pro plano. Quem chegou aqui procurava
+   uma ferramenta e não achou; empurrar assinatura de um módulo que não emite nada é o erro
+   que este código já gastou dois commits pra tirar do caminho. *@
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body p-4 p-md-5">
+                    <i class="bi bi-cone-striped" style="font-size: 3rem; color: var(--padel-green);"></i>
+                    <h4 class="fw-bold mt-3" style="color: var(--pdz-ink);">Ainda não está no ar</h4>
+                    <p class="text-muted">
+                        A emissão de nota fiscal está em construção. Não é o seu acesso que
+                        falta — é a tela que ainda não existe.
+                    </p>
+                    <p class="text-muted small">
+                        Quando entrar no ar, ela aparece sozinha no menu do bar. Até lá, o
+                        relatório do bar exporta em planilha o que o contador precisa: as
+                        vendas e os itens vendidos.
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center flex-wrap mt-3">
+                        @* O caminho útil primeiro: quem veio atrás de nota fiscal veio atrás de
+                           prestar contas, e é o relatório que resolve isso hoje. *@
+                        <a asp-controller="Bar" asp-action="Relatorio" asp-route-id="@ViewBag.ClubeId"
+                           class="btn btn-padel rounded-pill px-4">
+                            <i class="bi bi-graph-up"></i> Ver o relatório do bar
+                        </a>
+                        <a asp-controller="Bar" asp-action="Index" asp-route-id="@ViewBag.ClubeId"
+                           class="btn btn-outline-secondary rounded-pill px-4">
+                            <i class="bi bi-arrow-left"></i> Voltar ao balcão
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

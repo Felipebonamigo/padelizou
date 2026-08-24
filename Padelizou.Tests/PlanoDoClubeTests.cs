@@ -480,10 +480,14 @@ public class PlanoDoClubeTests
         await ctx.SaveChangesAsync();
 
         var emObra = ControllerDoBar(ctx, dono.Id, fiscalLigado: false);
-        Assert.IsType<ForbidResult>(await emObra.Fiscal(clube.Id));
+        var recusa = await emObra.Fiscal(clube.Id);
+
+        // O que este teste guarda é o NEGATIVO: em obra, ninguém é mandado pra tela de plano.
+        Assert.IsNotType<RedirectToActionResult>(recusa);
+        Assert.Equal("FiscalEmConstrucao", Assert.IsType<ViewResult>(recusa).ViewName);
 
         var ligado = ControllerDoBar(ctx, dono.Id, fiscalLigado: true);
-        Assert.IsType<ViewResult>(await ligado.Fiscal(clube.Id));
+        Assert.Null(Assert.IsType<ViewResult>(await ligado.Fiscal(clube.Id)).ViewName);
     }
 
     [Fact]

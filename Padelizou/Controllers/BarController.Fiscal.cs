@@ -26,7 +26,7 @@ public partial class BarController
         if (acesso == AcessoAoModulo.SemPlano)
             return RedirectToAction("Index", "PlanoClube", new { id });
         if (acesso != AcessoAoModulo.Liberado)
-            return Forbid();
+            return await RecusarAsync(id);
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();
@@ -49,12 +49,31 @@ public partial class BarController
         return View(clube);
     }
 
+    // A recusa desta tela — e ela tem DUAS caras, porque tem duas causas.
+    //
+    // Pra quem não manda no clube vale o Forbid() de sempre, que cai no /Auth/AcessoNegado do
+    // site inteiro. Pra quem manda, o que faltou não foi permissão, foi a obra: esse recebe a
+    // tela que diz isso, com 403 no cabeçalho (a porta está fechada de verdade) e corpo
+    // escrito — sem corpo o UseStatusCodePages reexecutaria a página de erro por cima, como o
+    // Program.cs já registra no caso do rate limiter.
+    //
+    // Um único lugar porque as duas ações desta tela recusam pela mesma razão, e duas cópias
+    // de uma regra divergem.
+    private async Task<IActionResult> RecusarAsync(int clubeId)
+    {
+        if (!await _fiscal.SoFaltaEntrarNoArAsync(clubeId, UsuarioId())) return Forbid();
+
+        ViewBag.ClubeId = clubeId;
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        return View("FiscalEmConstrucao");
+    }
+
     [HttpPost]
     public async Task<IActionResult> SalvarFiscal(int clubeId, string? cnpj, string? razaoSocial,
         string? inscricaoEstadual, string? inscricaoMunicipal, int? regimeTributario,
         string? cep, string? logradouro, string? numeroEndereco, string? complemento, string? bairro)
     {
-        if (!await _fiscal.PodeUsarAsync(clubeId, UsuarioId())) return Forbid();
+        if (!await _fiscal.PodeUsarAsync(clubeId, UsuarioId())) return await RecusarAsync(clubeId);
 
         var clube = await _context.Clubes.FindAsync(clubeId);
         if (clube == null) return NotFound();

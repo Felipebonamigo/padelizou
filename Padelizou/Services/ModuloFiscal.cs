@@ -65,6 +65,20 @@ public class ModuloFiscal
     // Esconder o link é cortesia; a trava de verdade é o PodeUsarAsync repetido em toda ação.
     public Task<bool> MostrarAtalhoAsync(int clubeId, int? usuarioId) => PodeUsarAsync(clubeId, usuarioId);
 
+    // Verdadeiro só quando a ÚNICA coisa entre esta pessoa e a tela é o módulo não existir
+    // ainda — ou seja: ela manda no bar deste clube e entraria hoje se o interruptor
+    // estivesse ligado.
+    //
+    // Existe pra que a tela de acesso negado possa dizer "ainda não está no ar" em vez de
+    // "essa parte não é sua". A distinção não é estética: pro estranho que nunca teria acesso,
+    // "em breve" é uma promessa falsa, e ele fica esperando uma porta que não vai abrir.
+    //
+    // Repete a pergunta do bar em vez de reaproveitar a resposta do AcessoAsync porque o
+    // AcessoAoModulo não carrega a CAUSA — "sem permissão" tanto vale pro estranho quanto pra
+    // obra. Custa uma consulta a mais, e só no caminho de quem já levou recusa.
+    public async Task<bool> SoFaltaEntrarNoArAsync(int clubeId, int? usuarioId) =>
+        EmConstrucao && await _bar.AcessoAsync(clubeId, usuarioId) == AcessoAoModulo.Liberado;
+
     private Task<bool> EhAdminDoPadelizouAsync(int? usuarioId) =>
         _context.Jogadores.AnyAsync(j => j.Id == usuarioId && (j.IsAdminGeral || j.IsAdminRaiz));
 }

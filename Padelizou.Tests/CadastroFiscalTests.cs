@@ -379,11 +379,117 @@ public class CadastroFiscalTests
         using var ctx = TestInfra.NovoContexto();
         var (clube, dono) = await SemearAsync(ctx);
 
+        // Desligado, o dono não chega no CADASTRO: recebe a tela da obra, com 403.
         var c = Controller(ctx, dono.Id, fiscalLigado: false);
-        Assert.IsType<ForbidResult>(await c.Fiscal(clube.Id));
+        var emObra = Assert.IsType<ViewResult>(await c.Fiscal(clube.Id));
+        Assert.Equal("FiscalEmConstrucao", emObra.ViewName);
+        Assert.Equal(StatusCodes.Status403Forbidden, c.Response.StatusCode);
 
+        // Ligado, é o cadastro de verdade — a view padrão da ação.
         var ligado = Controller(ctx, dono.Id, fiscalLigado: true);
-        Assert.IsType<ViewResult>(await ligado.Fiscal(clube.Id));
+        var cadastro = Assert.IsType<ViewResult>(await ligado.Fiscal(clube.Id));
+        Assert.Null(cadastro.ViewName);
+    }
+
+    // ---------------------------------------------------------------------------------
+    // "Ainda não está no ar" ≠ "essa parte não é sua".
+    //
+    // A tela de acesso negado atende o site inteiro e fala em torneio, porque é de lá que
+    // vem quase toda recusa. Quem esbarra no fiscal em construção MANDA no clube: pra ele
+    // aquele texto é mentira, e das que fazem o dono ligar achando que perdeu permissão.
+    //
+    // O contrário custa igual: prometer "em breve" pra quem nunca teria acesso deixa a
+    // pessoa esperando uma porta que não vai abrir. Por isso a tela da obra só aparece
+    // quando a obra é a causa DE VERDADE.
+    // ---------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Dono_barrado_pela_obra_ve_a_tela_da_obra_com_403()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+
+        var c = Controller(ctx, dono.Id, fiscalLigado: false);
+        var r = Assert.IsType<ViewResult>(await c.Fiscal(clube.Id));
+
+        Assert.Equal("FiscalEmConstrucao", r.ViewName);
+
+        // 403 no cabeçalho: a porta está fechada mesmo. O que muda é a explicação, não o
+        // status — e o corpo escrito impede o UseStatusCodePages de trocar a tela.
+        Assert.Equal(StatusCodes.Status403Forbidden, c.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Estranho_nao_ouve_em_breve_de_uma_porta_que_nao_vai_abrir_pra_ele()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, _) = await SemearAsync(ctx);
+
+        var estranho = new Jogador { Id = 77, Nome = "Estranho", Cpf = "77" };
+        ctx.Jogadores.Add(estranho);
+        await ctx.SaveChangesAsync();
+
+        // Mesmo módulo em obra, mesma porta fechada — mas a causa dele é outra, e o texto
+        // genérico do /Auth/AcessoNegado é o certo.
+        var c = Controller(ctx, estranho.Id, fiscalLigado: false);
+
+        Assert.IsType<ForbidResult>(await c.Fiscal(clube.Id));
+    }
+
+    [Fact]
+    public async Task Com_o_fiscal_no_ar_a_recusa_volta_a_ser_so_recusa()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, _) = await SemearAsync(ctx);
+
+        var estranho = new Jogador { Id = 77, Nome = "Estranho", Cpf = "77" };
+        ctx.Jogadores.Add(estranho);
+        await ctx.SaveChangesAsync();
+
+        var c = Controller(ctx, estranho.Id, fiscalLigado: true);
+
+        Assert.IsType<ForbidResult>(await c.Fiscal(clube.Id));
+    }
+
+    [Fact]
+    public async Task O_post_do_cadastro_explica_a_obra_igual_a_tela()
+    {
+        // O formulário some junto com a tela, mas uma aba velha ainda posta. Duas recusas
+        // adjacentes com explicações diferentes é o tipo de coisa que depois lemos como bug.
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+
+        var c = Controller(ctx, dono.Id, fiscalLigado: false);
+        var r = await c.SalvarFiscal(clube.Id, "68185754000105", "Chakra Padel Ltda",
+            null, null, DadosFiscaisDoClube.SimplesNacional, null, null, null, null, null);
+
+        Assert.Equal("FiscalEmConstrucao", Assert.IsType<ViewResult>(r).ViewName);
+
+        // E não gravou nada: a explicação melhor não abriu a porta.
+        Assert.Null(ctx.Clubes.Find(clube.Id)!.RazaoSocial);
+    }
+
+    [Fact]
+    public async Task So_falta_entrar_no_ar_e_verdade_so_pra_quem_entraria_hoje()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+
+        var estranho = new Jogador { Id = 77, Nome = "Estranho", Cpf = "77" };
+        ctx.Jogadores.Add(estranho);
+        await ctx.SaveChangesAsync();
+
+        var plano = Options.Create(new PlanoClubeSettings());
+        var bar = new ModuloDoBar(ctx, Options.Create(new BarSettings { Habilitado = true }), plano);
+
+        var emObra = new ModuloFiscal(ctx, bar, Options.Create(new FiscalSettings { Habilitado = false }), plano);
+        Assert.True(await emObra.SoFaltaEntrarNoArAsync(clube.Id, dono.Id));
+        Assert.False(await emObra.SoFaltaEntrarNoArAsync(clube.Id, estranho.Id));
+
+        // Módulo no ar: não falta obra nenhuma, falta outra coisa (ou nada).
+        var noAr = new ModuloFiscal(ctx, bar, Options.Create(new FiscalSettings { Habilitado = true }), plano);
+        Assert.False(await noAr.SoFaltaEntrarNoArAsync(clube.Id, dono.Id));
+        Assert.False(await noAr.SoFaltaEntrarNoArAsync(clube.Id, estranho.Id));
     }
 
     // ---------- Apoio ----------
