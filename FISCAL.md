@@ -44,8 +44,8 @@ clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis
 
 | Provedor | Leitura |
 |---|---|
-| **Focus NFe** ← 1ª escolha | **A única com preço público que serve, e serve bem** (duas tabelas conferidas em 24/08/2026 — ver as contas abaixo). CNPJs ilimitados a partir do Growth (R$ 548, 4.000 notas) e do Retail+ (R$ 629,90, 9.000 NFC-e a R$ 0,06). É também a engrenagem do Gripo, ou seja, provada neste nicho. 3.000+ municípios; município novo por R$ 199 fixo. |
-| **ACBr API** | Sucessora indicada pela Nuvem Fiscal, API compatível (mesmos endpoints, escopos, payloads e retornos), do Projeto ACBr — referência em componente fiscal no Brasil. Emite NF-e/NFC-e, NFS-e, CT-e/MDF-e, DC-e + consulta CNPJ e CEP. Modelo anual com limite liberado desde o início. **Tem CONTA GRATUITA** (acbr.api.br) e tabela de preços em projetoacbr.com.br/api (menu "Preço") — vale conferir antes de pedir proposta. |
+| **ACBr API** ← **ESCOLHIDA** | **Ganha em todos os cenários, por 2 a 3 vezes** (tabela do console conferida em 24/08/2026 — ver a comparação abaixo). Crédito pré-pago **sem mensalidade**, **créditos que não expiram**, **CNPJs ilimitados em TODAS as faixas** e **guarda de XML inclusa** — este último resolve sozinho o risco nº 5 deste documento. Do Projeto ACBr, referência em componente fiscal no Brasil, e sucessora indicada pela Nuvem Fiscal (API compatível). Emite NF-e/NFC-e, NFS-e, CT-e/MDF-e, DC-e + consulta CNPJ e CEP. Conta gratuita com sandbox. |
+| **Focus NFe** (plano B) | A engrenagem do Gripo, provada no nicho, com preço público e previsível — e por isso é a **régua de negociação**. CNPJs ilimitados só a partir do Growth (R$ 548) e do Retail+ (R$ 629,90). Perde para a ACBr em toda a faixa que nos interessa, mas é o porto seguro se a ACBr decepcionar no piloto. 3.000+ municípios; município novo por R$ 199 fixo. |
 | **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. **Preço não publicado**: pedir proposta. |
 | ~~Nuvem Fiscal~~ ❌ | **SERVIÇO DESATIVADO EM 31/07/2026** (comunicado de 22/04, 90 dias de prazo). Era a primeira recomendação deste documento e não existe mais — ver o aviso abaixo. |
 | NFE.io | Tabela conferida: plano Base R$ 1.825/ano = R$ 152/mês para 250 notas com CNPJ ilimitado → **R$ 0,61 por nota**, contra R$ 0,14 da Focus no Growth. Quatro vezes mais cara na nossa faixa. Descartada. |
@@ -143,6 +143,65 @@ pagamos **R$ 0,06** pela NFC-e no Retail+ — cinco vezes de folga no documento 
 ⚠️ **O que o piloto tem que medir, além de funcionar**: quantas NFS-e e quantas NFC-e o clube
 emite por mês. É esse número que confirma (ou corrige) a franquia de 100+400 e o preço de
 R$ 199 — e um mês de piloto responde melhor do que qualquer estimativa daqui.
+
+## A ESCOLHA DO PROVEDOR: ACBr API (24/08/2026)
+
+Tabela do console (`console.acbr.api.br/financeiro/comprar-creditos`), crédito pré-pago:
+
+| Pacote | Preço | Por crédito | | Pacote | Preço | Por crédito |
+|---|---|---|---|---|---|---|
+| 1K | R$ 240 | R$ 0,24 | | 50K | R$ 2.500 | R$ 0,05 |
+| 2K | R$ 360 | R$ 0,18 | | 100K | R$ 4.000 | R$ 0,04 |
+| 5K | R$ 600 | R$ 0,12 | | 200K | R$ 6.000 | R$ 0,03 |
+| 10K | R$ 900 | R$ 0,09 | | 500K | R$ 11.500 | R$ 0,023 |
+| 20K | R$ 1.400 | R$ 0,07 | | 1M | R$ 20.000 | R$ 0,02 |
+
+**Sem mensalidade · créditos não expiram · sem custo adicional · CNPJs ilimitados em todas as
+faixas · guarda de XML inclusa · suporte e consultoria inclusos.**
+
+### A comparação, cenário por cenário
+
+Margem do plano Fiscal (R$ 199 + franquia 100 NFS-e/400 NFC-e, excedente R$ 0,30):
+
+| Cenário | Clubes | Volume/mês | Custo ACBr | Custo Focus | **Margem ACBr** | Margem Focus |
+|---|---|---|---|---|---|---|
+| Conservador | 3 | 1.350 | R$ 94,50 | R$ 308,60 | **85%** | 52% |
+| Conservador | 15 | 6.750 | R$ 270,00 | R$ 1.177,90 | **92%** | 63% |
+| Médio | 1 (piloto) | 850 | R$ 59,50 | R$ 193,80 | **80%** | 36% |
+| Médio | 3 (o portão) | 2.550 | R$ 127,50 | R$ 353,60 | **86%** | 61% |
+| Médio | 15 | 12.750 | R$ 382,50 | R$ 1.177,90 | **92%** | 74% |
+| Alto | 15 | 24.000 | R$ 552,00 | R$ 1.957,90 | **93%** | 75% |
+| Alto | 50 | 80.000 | R$ 1.600,00 | R$ 6.157,90 | **94%** | 77% |
+
+**A ACBr ganha em todos os doze cruzamentos, por 2 a 3 vezes.** E o motivo é estrutural, não
+promocional: ela não cobra mensalidade e não trava CNPJ ilimitado atrás de um plano caro —
+que era exatamente o critério nº 1 da nossa régua ("taxa fixa por CNPJ mata a margem em clube
+pequeno"). O modelo dela é o único dos quatro desenhado para software house de verdade.
+
+### O que muda no dia a dia
+
+- **Não há custo fixo.** Mês em que o clube não emitir, não se gasta nada — o crédito fica
+  parado esperando. Com a Focus, R$ 173,80/mês saem mesmo com o bar fechado.
+- **Vira capital de giro, não despesa.** A R$ 6.000 por 200K créditos parece muito, mas são
+  ~16 meses de 15 clubes, e o crédito não vence. O desembolso é adiantado; o custo, não.
+- **A guarda de XML vem junto** — o risco nº 5 deste documento (exportação dos XMLs, guarda de
+  5 anos) sai resolvido de fábrica em vez de virar cláusula de contrato.
+
+### Como começar, sem desembolso grande
+
+1. **Sandbox primeiro** (o console já tem o seletor Produção/Sandbox): a integração inteira da
+   Fase 2 se desenvolve sem gastar crédito nenhum.
+2. **Piloto**: comprar o pacote de **5K por R$ 600** (R$ 0,12/crédito) — dá ~6 meses de um
+   clube no cenário médio. É a compra pequena que valida antes de comprometer capital.
+3. **Depois do portão dos 3 clubes**: subir para 50K (R$ 2.500, R$ 0,05) — ~20 meses.
+4. **A partir de ~10 clubes**: 200K (R$ 6.000, R$ 0,03).
+
+⚠️ **A confirmar antes de comprar** (perguntar no suporte, que é incluso): **1 crédito = 1
+emissão?** Se a consulta de CNPJ/CEP ou o cancelamento também consumirem crédito, a conta muda
+— não muito, porque a folga é grande, mas o número exato precisa ser dele e não nosso.
+
+⚠️ **A Focus continua no documento de propósito**: é o plano B se a ACBr decepcionar no
+piloto, e é a régua de negociação — preço público, previsível e provado no nicho pelo Gripo.
 
 ⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
 reescrever o produto.
@@ -324,9 +383,12 @@ Nada disso está visível em produção: as colunas são todas nulas e as telas 
 
 ## Próximos passos
 
-1. **Pedir as 3 propostas comerciais** (ACBr API, PlugNotas, Focus NFe): multi-CNPJ, preço
-   por nota em volume, sandbox, white-label, SLA e exportação dos XMLs. **Os e-mails já estão
-   escritos no apêndice deste documento** — é copiar, colar e enviar.
+1. ✅ **Provedor escolhido: ACBr API** (24/08/2026) — ganha da Focus por 2 a 3 vezes em todos
+   os cenários, sem mensalidade e com CNPJs ilimitados em qualquer faixa. A conta gratuita já
+   está criada e o sandbox já dá pra desenvolver a Fase 2 inteira sem gastar crédito.
+   **Falta só uma pergunta ao suporte deles**: 1 crédito = 1 emissão? O e-mail do apêndice
+   serve, reduzido a essa pergunta. As propostas de PlugNotas e Focus deixam de ser urgentes
+   — a Focus fica como plano B, com preço público que já conhecemos.
 2. **Conversa com a contadora**: NFS-e das comissões próprias (Fase 0) e o contrato do plano
    Fiscal — responsabilidade tributária e subemissão.
 3. **Escolher o clube piloto no RS** (CNPJ ME, bar ativo, gente que conhece o Felipe).
@@ -350,10 +412,16 @@ Nada disso está visível em produção: as colunas são todas nulas e as telas 
 
 ---
 
-## Apêndice — os 3 e-mails de proposta, prontos para enviar
+## Apêndice — os e-mails de proposta
 
-Escritos em 24/08/2026. **É copiar, colar e mandar.** As mesmas perguntas nos três, para as
-respostas serem comparáveis lado a lado — é isso que transforma três e-mails numa decisão.
+> ⚠️ **Parcialmente superado em 24/08/2026.** Os preços da ACBr e da Focus vieram direto do
+> site e do console, e a escolha já está feita (ACBr API). Este apêndice fica por dois
+> motivos: as perguntas 2 a 8 continuam valendo como **checklist de due diligence** antes de
+> assinar, e o texto serve se algum dia for preciso reabrir a comparação — por exemplo se a
+> ACBr decepcionar no piloto.
+
+Escritos em 24/08/2026. As mesmas perguntas nos três, para as respostas serem comparáveis
+lado a lado — é isso que transforma três e-mails numa decisão.
 
 ⚠️ Os contatos abaixo foram apurados por busca (os sites estão bloqueados no ambiente de
 desenvolvimento). Se algum voltar, use o formulário do site — o texto serve igual.
