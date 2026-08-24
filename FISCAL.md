@@ -3,6 +3,10 @@
 > Escrito em 19/08/2026. Estado de partida: cobertura fiscal ZERO por decisão registrada
 > (31/07, "o clube segue emitindo nota pelo que já usa" — `BarController.cs:17-20` e STATUS.md).
 > Este documento é o plano para reverter essa decisão de forma consciente e virar receita.
+>
+> **Fases 1 e 4a já estão em código** (ver "Estado atual" no fim). A análise de riscos, com a
+> defesa de cada perigo, também está lá — é a parte a levar para a conversa com a contadora e
+> com os clubes.
 
 ## ✅ DECISÕES DO FELIPE (19/08/2026)
 
@@ -23,7 +27,7 @@
 Não construir motor fiscal próprio: contratar uma **API de emissão white-label** (o
 próprio Gripo usa a Focus NFe por trás — está nos termos "tenant-nf" deles), ligar no
 módulo de bar/comanda que **já está pronto em código**, e vender como plano de
-assinatura de clube em dois degraus — **Gestão** (R$ 99) e **Fiscal** (R$ 199–229).
+assinatura de clube em dois degraus — **Gestão** (R$ 99) e **Fiscal** (R$ 199).
 
 ## A régua (o que o Gripo faz)
 
@@ -128,21 +132,126 @@ Assumindo ~250 notas/clube/mês a R$ 0,10–0,40 e plano médio R$ 200: margem b
 à comissão → o teto do MEI (R$ 81 mil) estoura POR DESIGN. Migração pra ME no Simples
 (~6–15,5% conforme anexo/fator R — validar com contador) entra no custo desde o dia 1.
 
-## Riscos
+## Riscos — e a defesa de cada um
 
-- **É reverter decisão de produto** (31/07: "PDV fiscal é outro produto"). O custo real
-  não é código, é SUPORTE: nota rejeitada na SEFAZ às 21h de sábado vira chamado nosso.
-- NCM/alíquota errados são responsabilidade do contribuinte (clube) — contrato do plano
-  precisa dizer isso com todas as letras (contador/advogado).
-- NFC-e é homologação POR ESTADO: RS primeiro, abrir conforme cliente pagante.
-- LGPD: CPF na nota e A1 armazenado exigem cifra e política de retenção.
-- Valores de mercado não confirmados (sites bloqueados na pesquisa): nada de fixar preço
-  de plano antes das propostas comerciais.
+Listar os perigos aqui não é desaconselhar o plano: é o mapa por onde ele já foi desenhado.
+Cada linha abaixo tem uma defesa que já existe no código ou está fixada no roadmap. **O custo
+real do plano Fiscal é operacional e jurídico, não técnico** — e é por isso que ele vale
+R$ 199/mês: se emitir nota fosse fácil e sem perigo, todo sistema de quadra faria, e não seria
+diferencial de ninguém. É a chatice que constrói o fosso.
 
-## Próximos 14 dias
+### 1. Um bug nosso vira multa DELES — o perigo nº 1
 
-1. Decisão do Felipe: reverter (ou não) a decisão de 31/07. Sem isso o resto é gaveta.
-2. Proposta comercial: Nuvem Fiscal, PlugNotas e Focus NFe (multi-CNPJ, volume, white-label, SLA).
-3. Contador: migração MEI→ME, NFS-e das comissões próprias, contrato do plano Fiscal.
-4. Escolher 1 clube piloto no RS (CNPJ ME, bar ativo) e combinar o teste.
-5. Começar a Fase 1 (dados fiscais no cadastro) — não depende de provedor nem de contador.
+Não tem paralelo no resto do sistema. Padelímetro errado gera reclamação no WhatsApp; nota
+duplicada, valor errado ou cancelamento fora da janela da NFC-e (~30 min) gera **multa no CNPJ
+do clube**, e isso não se resolve com pedido de desculpas.
+
+- **Defesa**: emissão idempotente (mesma disciplina do webhook do Asaas, que já é idempotente
+  por `ReferenciaId`); **piloto único no RS por pelo menos um mês** antes do segundo clube;
+  nunca abrir NFC-e para todos de uma vez.
+
+### 2. O suporte acontece no horário em que o Felipe não trabalha
+
+Bar de clube fatura sexta e sábado à noite — exatamente quando a SEFAZ cai, o certificado
+vence e ninguém do provedor atende.
+
+- **Defesa, e é REGRA DE DESENHO da Fase 3**: **a venda nunca trava por causa da nota.** A
+  comanda fecha sempre; a nota sai de forma assíncrona e, se falhar, cai numa fila de
+  pendências para resolver na segunda. Acoplar venda e emissão transformaria o Felipe em
+  plantonista fiscal de todos os clubes.
+
+### 3. A confusão de responsabilidade
+
+Juridicamente NCM, alíquota e regime são do contribuinte (o clube). Na cabeça do cliente, "o
+sistema emitiu errado". Nossos palpites de NCM ajudam a vender e criam exposição.
+
+- **Defesa**: o sistema **sugere e nunca decide** (`FiscalDoProduto`, com o aviso na TELA e
+  não só no contrato); contrato do plano Fiscal revisado pela contadora **antes do primeiro
+  cliente pagante**; e a resposta padrão para dúvida tributária do clube é sempre "confirme
+  com o seu contador" — nós não orientamos tributação.
+
+### 4. O cliente vai pedir o que não podemos dar
+
+Mais cedo ou mais tarde um clube pergunta se dá para "emitir só metade". A emissão é opcional
+por venda de propósito (quem decide o que emite é o contribuinte), mas o Padelizou **não pode
+aconselhar nem automatizar subemissão**.
+
+- **Defesa**: cláusula explícita no contrato do plano.
+
+### 5. Dependência do provedor e o chão mudando
+
+Preço, SLA ou fim do provedor; e a reforma tributária (CBS/IBS) muda layouts de nota em fases
+nos próximos anos.
+
+- **Defesa**: interface `IEmissorFiscal` própria (trocar sem reescrever) + **exigir no
+  contrato do provedor a exportação dos XMLs** (guarda obrigatória de 5 anos é do clube). A
+  manutenção recorrente de layout é custo previsto, não surpresa.
+
+### 6. Contaminação da marca
+
+O fiscal é o módulo com maior chance de gerar ligação brava — e a raiva não mira "o módulo
+fiscal", mira "o Padelizou". Problema de nota mal resolvido pode custar o cliente de torneio
+junto.
+
+- **Defesa**: a mesma do item 1 — errar pequeno, perto e com cliente que conhece o Felipe.
+
+### 7. Riscos menores, já cobertos
+
+- **NFC-e é homologação POR ESTADO**: RS primeiro, abrir estado a estado conforme cliente
+  pagante — nunca "Brasil inteiro" de largada.
+- **LGPD**: CPF na nota exige política de retenção. ✅ O certificado A1 **não é guardado por
+  nós** (sobe direto pro provedor) — essa exposição foi eliminada no desenho da Fase 1.
+- **Franquia de notas sem medidor** (Fase 4b): um clube que emitir muito além da franquia come
+  a margem. Não é risco no piloto (volume conhecido); **não ligar o Fiscal para vários clubes
+  antes da 4b**.
+- **Valores de mercado não confirmados** (sites bloqueados na pesquisa): nada de fixar preço
+  antes das propostas comerciais.
+
+### As três defesas inegociáveis antes do primeiro cliente pagante
+
+1. Contrato revisado pela contadora (responsabilidade tributária + subemissão).
+2. Desenho assíncrono: **a venda nunca trava por causa da nota**.
+3. Piloto único no RS rodando **um mês** antes de abrir o segundo clube.
+
+### O que mudaria a recomendação
+
+- **Os 3 clubes não assinarem** → o mercado respondeu; fica a Gestão a R$ 99 (margem ~100%,
+  risco quase zero) e nada foi perdido. É para isso que o portão existe.
+- **O Felipe não querer conviver com chamado de fim de semana** → é o único custo que não se
+  configura. Aí a opção honesta é Gestão sozinha + export pro contador, sabendo que ela não
+  cobre o Gripo por inteiro.
+- **A contadora reprovar o contrato** → ela tem veto.
+
+## Estado atual (19/08/2026)
+
+✅ **Fase 1** — cadastro fiscal do clube e do cardápio (migration `CadastroFiscalDoClubeEDoProduto`).
+✅ **Fase 4a** — billing da assinatura de clube (migration `AssinaturaDoClube`).
+⏸️ **Fases 2, 3 e 4b** — travadas no portão dos 3 clubes comprometidos por escrito.
+
+Nada disso está visível em produção: as colunas são todas nulas e as telas ficam atrás de
+`Bar__Habilitado` e `Fiscal__Habilitado`.
+
+## Próximos passos
+
+1. **Pedir as 3 propostas comerciais** (Nuvem Fiscal, PlugNotas, Focus NFe): multi-CNPJ, preço
+   por nota em volume, tier grátis, white-label, SLA e exportação dos XMLs.
+2. **Conversa com a contadora**: NFS-e das comissões próprias (Fase 0) e o contrato do plano
+   Fiscal — responsabilidade tributária e subemissão.
+3. **Escolher o clube piloto no RS** (CNPJ ME, bar ativo, gente que conhece o Felipe).
+4. **Vender o plano Gestão (R$ 99)** — não depende de nada disso: o código está pronto, é
+   ligar `Bar__Habilitado` quando o piloto estiver combinado.
+5. **Buscar os 3 compromissos por escrito** do plano Fiscal. Sem eles, as Fases 2–3 não começam.
+
+### Decisões ainda abertas
+
+- **Comissão de parceiro sobre assinatura de clube**: hoje o programa paga 20%/10% sobre a
+  comissão do Padelizou, e a assinatura de clube ficou **de fora** de propósito — mudar a
+  economia dos parceiros por conta própria seria errado. Se um parceiro trouxer um clube que
+  assina R$ 199/mês, ele ganha? Decisão do Felipe (é uma linha de código).
+- **Preço por clube × por quadra**: o STATUS.md tinha âncora de R$ 59–99 **por quadra**; o
+  código foi para preço fixo por clube (mais simples de vender, é o modelo do Gripo). Para uma
+  arena de 8 quadras, R$ 199 fixo pode estar barato. Reavaliar quando aparecer a primeira
+  arena grande — o registro manual já permite cobrar diferente de quem negociar.
+- **Se os 3 clubes pedirem desconto**: dar **desconto de fundador com prazo** (ex.: R$ 99 nos
+  3 primeiros meses do Fiscal), nunca rebaixar a tabela. Desconto expira; tabela rebaixada
+  nunca mais sobe.
