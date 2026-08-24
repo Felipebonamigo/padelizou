@@ -44,11 +44,11 @@ clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis
 
 | Provedor | Leitura |
 |---|---|
+| **Focus NFe** ← 1ª escolha | **A única com preço público que serve, e serve bem** (tabela conferida em 24/08/2026 — ver a conta abaixo). O plano **Growth, R$ 548/mês, tem CNPJs ILIMITADOS e 4.000 notas**, o que cobre 16 clubes sem excedente. É também a engrenagem do Gripo, ou seja, provada neste nicho. 3.000+ municípios; município novo por R$ 199 fixo. |
+| **ACBr API** | Sucessora indicada pela Nuvem Fiscal, API compatível (mesmos endpoints, escopos, payloads e retornos), do Projeto ACBr — referência em componente fiscal no Brasil. Modelo anual com limite liberado desde o início. **Preço não publicado**: pedir proposta e comparar com a Focus. |
+| **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. **Preço não publicado**: pedir proposta. |
 | ~~Nuvem Fiscal~~ ❌ | **SERVIÇO DESATIVADO EM 31/07/2026** (comunicado de 22/04, 90 dias de prazo). Era a primeira recomendação deste documento e não existe mais — ver o aviso abaixo. |
-| **ACBr API** ← começar | A sucessora indicada pela própria Nuvem Fiscal, e API compatível (mesmos endpoints, escopos, payloads e retornos). Do Projeto ACBr, que é referência em componente fiscal no Brasil há anos — muito mais sólida que a antecessora. Modelo ANUAL com limite liberado desde o início, sem crédito que expira: bom pro nosso caso, em que o volume cresce a cada clube. |
-| **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. Plano B forte / provável escolha na escala. |
-| **Focus NFe** | A engrenagem do Gripo; 3.000+ municípios, município novo por R$ 199 fixo. Modelo por CNPJ tende a custar mais no nosso caso. |
-| eNotas / NFE.io | Fortes em NFS-e de infoproduto; fracas pro PDV de balcão. Descartadas por ora. |
+| NFE.io | Tabela conferida: plano Base R$ 1.825/ano = R$ 152/mês para 250 notas com CNPJ ilimitado → **R$ 0,61 por nota**, contra R$ 0,14 da Focus no Growth. Quatro vezes mais cara na nossa faixa. Descartada. |
 
 > ⚠️ **CORREÇÃO DE 24/08/2026 — a primeira recomendação deste documento morreu antes de ser
 > contratada.** A Nuvem Fiscal anunciou em 22/04/2026 a desativação do serviço, efetivada em
@@ -63,12 +63,47 @@ clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis
 > agora um trabalho a refazer. A defesa da interface `IEmissorFiscal` continua valendo — e
 > este episódio é a prova de que ela não é preciosismo.
 
-Faixa de mercado apurada (ago/2026, via busca — sites bloqueados no ambiente, **confirmar
-em proposta comercial**): entrada R$ 89–129/mês com 100–250 notas e excedente
-R$ 0,60–0,75; em volume negociado o custo por nota cai pra ~R$ 0,10–0,40.
+### A tabela real da Focus NFe (conferida em 24/08/2026)
 
-⚠️ **Preço de volume para software house NÃO é público em nenhum dos três** — é negociado
-caso a caso. Não adianta procurar: só existe em proposta comercial.
+| Plano | Preço | CNPJs | Notas incluídas | Nota adicional |
+|---|---|---|---|---|
+| Solo | R$ 89,90/mês | 1 | 100 | R$ 0,10 |
+| Start | R$ 113,90/mês | 3 (+R$ 37,90 por CNPJ extra) | **100 por CNPJ** | R$ 0,10 |
+| **Growth** | R$ 548,00/mês | **ilimitados** | **4.000** | R$ 0,12 |
+| Enterprise | consultar | ilimitados | acima de 50 mil notas/mês | — |
+
+Sem taxa de setup, sem fidelidade, 30 dias de teste. Emite NF-e, NFS-e, NFC-e, CT-e, MDF-e,
+NFCom e DC-e. ⚠️ **Cada nota emitida OU RECEBIDA conta como uma unidade do plano.**
+
+### A economia unitária, com números de verdade
+
+Premissa: 250 notas por clube/mês, plano Fiscal a R$ 199.
+
+| Clubes | Plano certo | Custo/mês | Custo por clube | Receita | **Margem** |
+|---|---|---|---|---|---|
+| 1 (piloto) | Start | R$ 128,90 | R$ 128,90 | R$ 199 | 35% |
+| 3 (o portão) | Start | R$ 158,90 | R$ 52,97 | R$ 597 | **73%** |
+| 10 | Start | R$ 529,20 | R$ 52,92 | R$ 1.990 | **73%** |
+| 15 | Growth | R$ 548,00 | R$ 36,53 | R$ 2.985 | **82%** |
+| 25 | Growth | R$ 818,00 | R$ 32,72 | R$ 4.975 | **84%** |
+| 50 | Growth | R$ 1.568,00 | R$ 31,36 | R$ 9.950 | **84%** |
+
+Três leituras que só apareceram com o número real na mão:
+
+1. **A estimativa de 70–90% de margem estava certa** — o real dá 73% no portão e 84% na
+   escala. A conta do plano se sustenta.
+2. **O ponto de virada é 11 clubes**: até lá o Start sai mais barato; do 11º em diante o
+   Growth ganha, e ele cobre até **16 clubes sem um centavo de excedente**. Ou seja, entre o
+   11º e o 16º clube a receita cresce e o custo NÃO se mexe — é a faixa mais lucrativa do
+   plano inteiro.
+3. **O piloto cabe em R$ 113,90/mês** no Start, que dá 3 CNPJs e 300 notas: sobra espaço pro
+   clube piloto (250) **e pro CNPJ do próprio Padelizou** emitir a NFS-e das comissões da
+   Fase 0, sem excedente. Um único plano cobre as duas coisas.
+
+⚠️ **O que ainda falta confirmar**: a página da Focus tem um seletor **"Documentos Fiscais"
+× "Cupons Fiscais"** e a tabela acima é a do primeiro. Como cupom fiscal É a NFC-e — que no
+bar é justamente o documento de maior volume e menor valor —, é possível que exista uma
+tabela própria para ela. **É a primeira pergunta a fazer**, porque muda a conta do bar.
 
 ⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
 reescrever o produto.
@@ -317,6 +352,8 @@ CENÁRIO
 PERGUNTAS
 1. Preço em multi-CNPJ: há taxa fixa por CNPJ cadastrado ou a cobrança é só por documento
    emitido? Qual o preço por nota nas faixas de volume acima?
+   (Para a Focus, que já publica a tabela: confirmar se a NFC-e do bar entra no plano
+   "Documentos Fiscais" ou tem tabela própria em "Cupons Fiscais".)
 2. Ambiente de testes: existe sandbox gratuito para desenvolvimento e homologação? Qual o
    limite?
 3. NFS-e: qual a cobertura de municípios e o suporte ao Padrão Nacional? Quando o município
@@ -344,7 +381,8 @@ padelizou.com.br
 Só três números decidem, e nenhum deles é a mensalidade:
 
 1. **Custo por nota na faixa de 15 clubes** (~3.750 notas/mês). É ele que define a margem do
-   plano Fiscal a R$ 199.
+   plano Fiscal a R$ 199. **A régua a bater é a Focus: R$ 548/mês fixo com CNPJs ilimitados,
+   ou R$ 0,14 por nota.** Proposta que não chegar perto disso está fora.
 2. **Existe taxa por CNPJ?** Se existir, some-a ao custo por clube — é o item que mata a
    margem em clube pequeno, e o motivo de a Focus NFe ser a terceira da lista.
 3. **Sandbox e SLA.** Sandbox ruim atrasa a Fase 2; SLA ruim vira o chamado de sábado à
