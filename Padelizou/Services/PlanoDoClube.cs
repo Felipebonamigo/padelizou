@@ -48,6 +48,20 @@ public static class PlanoDoClube
 
     public static bool PlanoValido(string? plano) => plano != null && Planos.Contains(plano);
 
+    // Plano EXISTE (PlanoValido) é diferente de plano ESTÁ À VENDA HOJE, e confundir os dois
+    // já custou caro numa demonstração: com `Fiscal__Habilitado=false` a tela de plano seguia
+    // oferecendo o Clube Fiscal com botão funcionando, o clube escolhia, gerava cobrança de
+    // R$ 199 — e depois batia num "essa parte não é sua", porque o módulo não existe ainda.
+    //
+    // É o mesmo princípio que o ModuloFiscal já defende do outro lado do balcão (lá: em
+    // construção nunca vira convite pra assinar). Aqui é a metade que faltava: enquanto a
+    // emissão não está de pé, o Fiscal não se escolhe nem se cobra. Cobrar por algo que não
+    // funciona não é otimismo comercial, é dinheiro que teremos que devolver.
+    //
+    // Os outros planos não dependem de interruptor nenhum: o Gestão é o bar, que já roda.
+    public static bool EstaAVenda(string? plano, bool fiscalHabilitado) =>
+        PlanoValido(plano) && (plano != Fiscal || fiscalHabilitado);
+
     public static string RotuloDoPlano(string? plano) => plano switch
     {
         Gestao => "Clube Gestão",

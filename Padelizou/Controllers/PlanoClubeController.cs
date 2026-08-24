@@ -20,13 +20,15 @@ public class PlanoClubeController : Controller
     private readonly DbPadelContext _context;
     private readonly IPagamentoInscricaoService _pagamentos;
     private readonly PlanoClubeSettings _cfg;
+    private readonly FiscalSettings _fiscal;
 
     public PlanoClubeController(DbPadelContext context, IPagamentoInscricaoService pagamentos,
-        IOptions<PlanoClubeSettings> cfg)
+        IOptions<PlanoClubeSettings> cfg, IOptions<FiscalSettings> fiscal)
     {
         _context = context;
         _pagamentos = pagamentos;
         _cfg = cfg.Value;
+        _fiscal = fiscal.Value;
     }
 
     private int MeuId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
@@ -64,6 +66,7 @@ public class PlanoClubeController : Controller
         }
 
         ViewBag.Cfg = _cfg;
+        ViewBag.FiscalAVenda = _fiscal.Habilitado;
         ViewBag.Situacao = PlanoDoClube.SituacaoDe(clube, DateTime.Now, _cfg);
         ViewBag.FimDoTeste = PlanoDoClube.FimDoTeste(clube, _cfg);
         ViewBag.CobrancaAberta = await CobrancaAbertaAsync(clube.Id);
@@ -94,6 +97,15 @@ public class PlanoClubeController : Controller
         if (!await MandaNoClubeAsync(clubeId)) return Forbid();
         if (!PlanoDoClube.PlanoValido(plano)) return BadRequest();
 
+        // Esconder o botão na tela é cortesia; a trava mora aqui. Sem ela, a página velha
+        // aberta noutra aba (ou um POST na mão) ainda escolheria um plano que não existe.
+        if (!PlanoDoClube.EstaAVenda(plano, _fiscal.Habilitado))
+        {
+            TempData["Erro"] = $"{PlanoDoClube.RotuloDoPlano(plano)} ainda não está disponível. "
+                + "Avisamos assim que a emissão de nota entrar no ar.";
+            return RedirectToAction(nameof(Index), new { id = clubeId });
+        }
+
         var clube = await _context.Clubes.FindAsync(clubeId);
         if (clube == null) return NotFound();
 
@@ -116,6 +128,17 @@ public class PlanoClubeController : Controller
         if (!PlanoDoClube.PlanoValido(clube.PlanoDoClube))
         {
             TempData["Erro"] = "Escolha um plano primeiro.";
+            return RedirectToAction(nameof(Index), new { id = clubeId });
+        }
+
+        // O plano escolhido pode ter saído do ar DEPOIS de escolhido — é o caso do clube que
+        // marcou o Fiscal e do interruptor que baixou em seguida. A vigência já paga continua
+        // valendo (ninguém perde o que comprou), mas cobrança NOVA de módulo desligado não
+        // sai: seria vender o mês seguinte de uma coisa que não vai funcionar nele.
+        if (!PlanoDoClube.EstaAVenda(clube.PlanoDoClube, _fiscal.Habilitado))
+        {
+            TempData["Erro"] = $"{PlanoDoClube.RotuloDoPlano(clube.PlanoDoClube)} está fora do ar no "
+                + "momento — não vamos cobrar por ele. Assim que voltar, você gera a cobrança aqui.";
             return RedirectToAction(nameof(Index), new { id = clubeId });
         }
 

@@ -192,6 +192,73 @@ public class PlanoDoClubeTests
         Assert.Empty(ctx.Pagamentos);
     }
 
+    // ---------------------------------------------------------------------------------
+    // O Fiscal desligado NÃO se vende.
+    //
+    // Estes quatro testes nasceram de uma demonstração: com `Fiscal__Habilitado=false` a tela
+    // de plano seguia oferecendo o Clube Fiscal com o botão funcionando. Escolher gravava o
+    // plano, Pagar gerava cobrança de R$ 199 — e o módulo, sendo em construção, devolvia um
+    // "essa parte não é sua" pra quem tinha acabado de pagar.
+    // ---------------------------------------------------------------------------------
+
+    [Fact]
+    public void Fiscal_desligado_nao_esta_a_venda_mas_a_gestao_continua()
+    {
+        Assert.False(PlanoDoClube.EstaAVenda(PlanoDoClube.Fiscal, fiscalHabilitado: false));
+        Assert.True(PlanoDoClube.EstaAVenda(PlanoDoClube.Fiscal, fiscalHabilitado: true));
+
+        // O Gestão é o bar, que já roda: o interruptor do fiscal não manda nele.
+        Assert.True(PlanoDoClube.EstaAVenda(PlanoDoClube.Gestao, fiscalHabilitado: false));
+        Assert.True(PlanoDoClube.EstaAVenda(PlanoDoClube.Gestao, fiscalHabilitado: true));
+
+        Assert.False(PlanoDoClube.EstaAVenda(null, fiscalHabilitado: true));
+    }
+
+    [Fact]
+    public async Task Escolher_o_Fiscal_desligado_avisa_e_nao_grava_o_plano()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+        var c = Controller(ctx, dono.Id, fiscalLigado: false);
+
+        await c.Escolher(clube.Id, PlanoDoClube.Fiscal);
+
+        Assert.Null(ctx.Clubes.Find(clube.Id)!.PlanoDoClube);
+        Assert.NotNull(c.TempData["Erro"]);
+    }
+
+    [Fact]
+    public async Task Com_o_Fiscal_desligado_a_Gestao_continua_sendo_escolhida()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+        var c = Controller(ctx, dono.Id, fiscalLigado: false);
+
+        await c.Escolher(clube.Id, PlanoDoClube.Gestao);
+
+        Assert.Equal(PlanoDoClube.Gestao, ctx.Clubes.Find(clube.Id)!.PlanoDoClube);
+    }
+
+    [Fact]
+    public async Task Clube_que_ja_escolheu_o_Fiscal_nao_e_cobrado_depois_que_ele_sai_do_ar()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (clube, dono) = await SemearAsync(ctx);
+
+        // Escolheu com o módulo no ar; o interruptor baixou depois.
+        clube.PlanoDoClube = PlanoDoClube.Fiscal;
+        await ctx.SaveChangesAsync();
+
+        var c = Controller(ctx, dono.Id, fiscalLigado: false);
+        await c.Pagar(clube.Id, CicloDeAssinatura.Mensal);
+
+        Assert.Empty(ctx.Pagamentos);
+        Assert.NotNull(c.TempData["Erro"]);
+
+        // E o que ele escolheu continua escolhido: não se cobra, mas também não se apaga.
+        Assert.Equal(PlanoDoClube.Fiscal, ctx.Clubes.Find(clube.Id)!.PlanoDoClube);
+    }
+
     [Fact]
     public async Task Quem_nao_manda_no_clube_nao_mexe_no_plano()
     {
@@ -703,9 +770,11 @@ public class PlanoDoClubeTests
             Options.Create(new PlanoProfessorSettings()),
             Options.Create(Cfg));
 
-    private static PlanoClubeController Controller(DbPadelContext ctx, int usuarioId)
+    private static PlanoClubeController Controller(DbPadelContext ctx, int usuarioId,
+        bool fiscalLigado = true)
     {
-        var c = new PlanoClubeController(ctx, ServicoDePagamentos(ctx), Options.Create(Cfg));
+        var c = new PlanoClubeController(ctx, ServicoDePagamentos(ctx), Options.Create(Cfg),
+            Options.Create(new FiscalSettings { Habilitado = fiscalLigado }));
         Vestir(c, usuarioId);
         return c;
     }
