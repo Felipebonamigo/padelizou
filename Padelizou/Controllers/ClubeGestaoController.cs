@@ -17,19 +17,64 @@ public class ClubeGestaoController : Controller
     private readonly DbPadelContext _context;
     private readonly IPushNotificationService _pushService;
     private readonly ModuloDoBar _modulo;
+    private readonly PlanoClubeSettings _plano;
     private readonly ILogger<ClubeGestaoController> _logger;
 
     public ClubeGestaoController(DbPadelContext context, IPushNotificationService pushService,
-        ModuloDoBar modulo, ILogger<ClubeGestaoController> logger)
+        ModuloDoBar modulo, Microsoft.Extensions.Options.IOptions<PlanoClubeSettings> plano,
+        ILogger<ClubeGestaoController> logger)
     {
         _context = context;
         _pushService = pushService;
         _modulo = modulo;
+        _plano = plano.Value;
         _logger = logger;
     }
 
     private int? UsuarioId() =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+
+    // ── A PORTA DA RETAGUARDA DA AGENDA ──────────────────────────────────────────────────
+    //
+    // Publicar quadra e horário é GRÁTIS, e continua sendo: é a vitrine, é por onde o jogador
+    // acha o clube, e cobrar por ela seria cobrar na entrada do funil — a mesma doutrina que
+    // mantém torneio e ranking abertos (ver PlanoDoClube). O jogador reservar também é grátis,
+    // e não por generosidade: o HorarioMarcacaoService calcula "vago" como a grade MENOS as
+    // reservas confirmadas. Sem a reserva gravada, a vitrine não fica menor — fica MENTIROSA,
+    // com todo horário sempre livre, e o aviso diário de horário vago viraria spam de
+    // disponibilidade inventada.
+    //
+    // O que se vende é ADMINISTRAR aquela agenda: mensalista, balcão, no-show, política de
+    // cancelamento, financeiro por quadra. Isso é o caderno do clube — e o caderno é
+    // exatamente o que a doutrina do PlanoDoClube diz que é o produto pago.
+    //
+    // ⚠️ ISTO ESTAVA ABERTO POR ACIDENTE, NÃO POR DECISÃO. Este módulo nasceu depois da frase
+    // da doutrina e nunca passou por plano nenhum: até 24/08/2026 as dez ações abaixo eram
+    // protegidas SÓ por PodeGerenciarAsync. O efeito colateral era o clube de 2 quadras sem
+    // bar não ter o que comprar — ele já tinha tudo de graça.
+    //
+    // ⚠️ E CHAMA O PlanoDoClube DIRETO, NÃO O ModuloDoBar. Parece atalho reaproveitar o
+    // AcessoAsync do bar, mas o ModuloDoBar bloqueia quem não é admin quando `Bar__Habilitado`
+    // está desligado — e a agenda NÃO está em construção, ela roda hoje. Rotear por ali faria
+    // cobrar pela agenda depender de ligar o bar.
+    //
+    // SemPlano leva à tela de assinatura e NUNCA a um 403 — e aqui isso é mais que cortesia
+    // com quem quer pagar: é a transição. Quem esbarra na porta pela primeira vez chega numa
+    // tela que COMEÇA o relógio dos 15 dias de teste; ninguém que usava a agenda ontem fica
+    // sem ela hoje.
+    private async Task<IActionResult?> BloqueioDaAgendaAsync(int clubeId)
+    {
+        // Permissão ANTES de plano, sempre. Invertido, o gate viraria um detector de clubes
+        // pagantes pra qualquer pessoa logada — mesma razão registrada no ModuloDoBar.
+        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+
+        var clube = await _context.Clubes.FirstOrDefaultAsync(c => c.Id == clubeId);
+        if (clube == null) return NotFound();
+
+        return PlanoDoClube.LiberaGestao(clube, DateTime.Now, _plano)
+            ? null
+            : RedirectToAction("Index", "PlanoClube", new { id = clubeId });
+    }
 
     // Dono ou administrador do clube.
     private async Task<bool> PodeGerenciarAsync(int clubeId)
@@ -286,7 +331,7 @@ public class ClubeGestaoController : Controller
     public async Task<IActionResult> Bloquear(int clubeId, int quadraId, DateTime dataHora,
         int duracaoMinutos, string motivo)
     {
-        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(clubeId) is { } bloqueio) return bloqueio;
 
         bool jaOcupado = await _context.MarcacoesJogo.AnyAsync(m =>
             m.QuadraClubeId == quadraId && m.DataHora == dataHora && m.Status != "Cancelada");
@@ -319,7 +364,7 @@ public class ClubeGestaoController : Controller
     {
         var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
         if (m == null || !m.EhBloqueio) return NotFound();
-        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(m.ClubeId) is { } bloqueio) return bloqueio;
 
         var (clubeId, quando) = (m.ClubeId, m.DataHora);
         _context.MarcacoesJogo.Remove(m);
@@ -337,7 +382,7 @@ public class ClubeGestaoController : Controller
     public async Task<IActionResult> MarcarBalcao(int clubeId, int quadraId, DateTime dataHora,
         string nome, string? celular, bool jaPagou = false, string? voltarPara = null)
     {
-        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(clubeId) is { } bloqueio) return bloqueio;
 
         IActionResult Voltar() => voltarPara == "Painel"
             ? RedirectToAction("Painel", new { id = clubeId })
@@ -404,7 +449,7 @@ public class ClubeGestaoController : Controller
     {
         var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
         if (m == null || m.EhBloqueio) return NotFound();
-        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(m.ClubeId) is { } bloqueio) return bloqueio;
 
         if (m.PagoEm == null)
         {
@@ -426,7 +471,7 @@ public class ClubeGestaoController : Controller
     {
         var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
         if (m == null || !ReservaDeBalcao.EhBalcao(m)) return NotFound();
-        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(m.ClubeId) is { } bloqueio) return bloqueio;
 
         m.Status = "Cancelada";
         m.CanceladaEm = DateTime.Now;
@@ -445,7 +490,7 @@ public class ClubeGestaoController : Controller
     public async Task<IActionResult> CriarMensalista(int clubeId, int quadraId, int jogadorId,
         DateTime primeiraData, int duracaoMinutos, int semanas)
     {
-        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(clubeId) is { } bloqueio) return bloqueio;
 
         semanas = Math.Clamp(semanas, 1, 52);
         var mensalidadeId = Guid.NewGuid();
@@ -498,7 +543,7 @@ public class ClubeGestaoController : Controller
     [HttpPost]
     public async Task<IActionResult> CancelarMensalista(int clubeId, Guid mensalidadeId)
     {
-        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(clubeId) is { } bloqueio) return bloqueio;
 
         // Só o que ainda não aconteceu — histórico não se apaga.
         var futuras = await _context.MarcacoesJogo
@@ -524,7 +569,7 @@ public class ClubeGestaoController : Controller
     {
         var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
         if (m == null) return NotFound();
-        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(m.ClubeId) is { } bloqueio) return bloqueio;
 
         m.Status = compareceu ? "Realizada" : "Faltou";
         m.CobrarMesmoAssim = !compareceu && cobrar;
@@ -537,7 +582,7 @@ public class ClubeGestaoController : Controller
     [HttpPost]
     public async Task<IActionResult> SalvarPolitica(int clubeId, int horasMinimas, bool cobraNoShow, string? texto)
     {
-        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+        if (await BloqueioDaAgendaAsync(clubeId) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(clubeId);
         if (clube == null) return NotFound();
@@ -556,7 +601,7 @@ public class ClubeGestaoController : Controller
     [HttpGet]
     public async Task<IActionResult> Financeiro(int id, string? periodo)
     {
-        if (!await PodeGerenciarAsync(id)) return Forbid();
+        if (await BloqueioDaAgendaAsync(id) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();

@@ -74,6 +74,7 @@ public class ReservaDeBalcaoTests
     {
         var c = new ClubeGestaoController(ctx, Substitute.For<IPushNotificationService>(),
             new Padelizou.Services.ModuloDoBar(ctx, Microsoft.Extensions.Options.Options.Create(new Padelizou.Services.BarSettings())),
+            Microsoft.Extensions.Options.Options.Create(new Padelizou.Services.PlanoClubeSettings()),
             NullLogger<ClubeGestaoController>.Instance);
         c.ControllerContext = new ControllerContext
         {
@@ -92,7 +93,16 @@ public class ReservaDeBalcaoTests
     {
         var ctx = TestInfra.NovoContexto();
         var dono = new Jogador { Id = 1, Nome = "Dono do Clube", Cpf = "1" };
-        var clube = new Clube { Id = 1, Nome = "Arena Teste", DonoId = 1 };
+        // ⚠️ COM ASSINATURA — e isto NÃO é ajuste cosmético de teste: desde 24/08/2026 a
+        // RETAGUARDA da agenda (balcão, mensalista, no-show, política, financeiro) é plano
+        // pago. Publicar horário e receber reserva seguem grátis; administrar, não. Sem o
+        // plano aqui, o clube seria mandado pra tela de assinatura antes de qualquer ação.
+        var clube = new Clube
+        {
+            Id = 1, Nome = "Arena Teste", DonoId = 1,
+            PlanoDoClube = Padelizou.Services.PlanoDoClube.Gestao,
+            AssinaturaClubePagaAte = DateTime.Now.AddMonths(1),
+        };
         var quadra = new QuadraClube { Id = 1, ClubeId = 1, Nome = "Quadra 1", Ativa = true };
         ctx.Jogadores.Add(dono);
         ctx.Clubes.Add(clube);

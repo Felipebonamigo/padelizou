@@ -42,14 +42,39 @@ public class PlanoClubeSettings
 // O plano do clube: o que ele assinou, até quando está pago, e o que isso libera.
 //
 // ── Os três degraus ───────────────────────────────────────────────────────────────────────
-//   REDE (sem plano, grátis)  → torneio, ranking, reserva de quadra, rede de jogadores.
-//   GESTÃO                    → + bar, comanda, estoque, caixa e contas do clube.
+//   REDE (sem plano, grátis)  → torneio, ranking, rede de jogadores, PUBLICAR quadras e
+//                               horários, e o jogador reservando por eles.
+//   GESTÃO                    → + ADMINISTRAR a agenda (mensalista, balcão, no-show, política
+//                               de cancelamento, financeiro por quadra) + bar, comanda,
+//                               estoque, caixa e contas do clube.
 //   FISCAL                    → + emissão de nota (NFS-e e NFC-e).
 //
 // ⚠️ A REDE CONTINUA GRÁTIS, E ISSO NÃO É GENEROSIDADE — é o motor de aquisição. O clube chega
 // pelo torneio que o organizador criou e pelos jogadores que já estão aqui; cobrar na porta
 // mataria justamente o que traz o cliente pra dentro. O que se vende é a retaguarda: o que o
 // clube já faz no caderno e na planilha.
+//
+// ⚠️ A RÉGUA DO CORTE, EM UMA FRASE: **o que o JOGADOR toca é grátis; o que o CLUBE
+// administra é o plano.** O clube publica a agenda, aparece na vitrine e recebe reservas sem
+// pagar nada — isso é o funil. Administrar aquela agenda é a retaguarda, e retaguarda é o que
+// se vende. A reserva gravada fica do lado grátis por necessidade técnica, não por bondade: o
+// HorarioMarcacaoService calcula "vago" como a grade MENOS as reservas confirmadas, então sem
+// ela a vitrine não encolhe — ela passa a mentir.
+//
+// ⚠️ DOIS EIXOS QUE **NÃO** VIRARAM PLANO, e ficam registrados pra não serem redecididos:
+//
+// 1. PUBLICAR HORÁRIO continua grátis. Cobrar por publicar é cobrar na entrada do funil, e a
+//    vitrine cheia de jogadores é o único ativo que o concorrente não copia comprando módulo.
+//
+// 2. TRAZER TORNEIO não vira plano, nem desconto, nem crédito — porque JÁ É COBRADO, e caro.
+//    O `Torneio.ModoComissao` é fixo em "Descontada" (ver Models/Torneio.cs) e nenhum
+//    controller escreve nele: a taxa sai de dentro do preço anunciado, ou seja **quem paga é o
+//    organizador**. Um torneio de 60 duplas a R$ 150 rende de R$ 450 a R$ 1.350 conforme a
+//    forma de pagamento — 4,5 a 13,6 meses de Gestão, num evento só. Somar plano em cima disso
+//    seria cobrar duas vezes pela mesma coisa. E há um segundo motivo, independente do
+//    primeiro: **o organizador frequentemente não é o clube**, então "torneio no sistema" como
+//    degrau cobraria do clube uma receita que vem de terceiro. Quem quer pagar menos já tem a
+//    válvula honesta: escolher "Externo" (5%), em que não tocamos no dinheiro.
 //
 // ⚠️ FISCAL INCLUI GESTÃO, sempre. Não existe emitir nota de uma venda que o sistema não
 // registra — vender os dois separados criaria um estado impossível de sustentar.
@@ -163,6 +188,9 @@ public static class PlanoDoClube
                 $"{RotuloDoPlano(clube.PlanoDoClube)} em dia até {clube.AssinaturaClubePagaAte:dd/MM/yyyy}.",
             Situacao.EmAtraso =>
                 "A assinatura venceu — gere a cobrança pra reabrir o bar e as contas do clube.",
-            _ => "Seu clube usa o plano gratuito: torneios, ranking e reservas."
+            // ⚠️ Não diz "reservas" solto: o clube RECEBE reserva de graça, mas administrar a
+            // agenda (mensalista, balcão, no-show) é o Gestão. A frase antiga prometia o que
+            // hoje está atrás do plano.
+            _ => "Seu clube usa o plano gratuito: torneios, ranking e a agenda publicada."
         };
 }
