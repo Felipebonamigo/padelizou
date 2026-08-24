@@ -443,6 +443,9 @@ using (var scope = app.Services.CreateScope())
         // ela é a migração CategoriaCasalDuplicada — NÃO a devolva a esta lista, ou o start
         // seguinte a recria ligada e a duplicata volta.
         ("Categoria Casais", "CASAL", "Casal", true),
+        // Veterania, sem nível: uma só, sem A/B/C e sem separar por sexo — ver
+        // Services/FaixasDePadelimetro.EhLendas.
+        ("Categoria Lendas", "LENDAS", "Lendas", true),
     };
 
     var nomesExistentes = db.CategoriasPadrao.Select(c => c.Nome).ToHashSet();

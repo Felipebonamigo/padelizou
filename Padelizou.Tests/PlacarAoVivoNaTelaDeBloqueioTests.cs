@@ -74,7 +74,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
 
         var tag = $"partida-{jogo.Id}";
         await push.Received(1).EnviarPlacarAoVivoAsync(a.Id, Arg.Any<string>(),
-            Arg.Is<string>(c => c.Contains("4") && c.Contains("3")), "/Torneios/Details/1", tag);
+            Arg.Is<string>(c => c != null && c.Contains("4") && c.Contains("3")), "/Torneios/Details/1", tag);
         await push.Received(1).EnviarPlacarAoVivoAsync(b.Id, Arg.Any<string>(), Arg.Any<string>(),
             Arg.Any<string>(), tag);
     }
@@ -114,8 +114,8 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         await new AvisoDePlacarAoVivo(ctx, push).AvisarFimEPararDeSeguirAsync(jogo.Id, "/x");
 
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
-            Arg.Is<string>(t => t.Contains("encerrado")),
-            Arg.Is<string>(c => c.Contains("9") && c.Contains("5")),
+            Arg.Is<string>(t => t != null && t.Contains("encerrado")),
+            Arg.Is<string>(c => c != null && c.Contains("9") && c.Contains("5")),
             "/x", $"partida-{jogo.Id}");
 
         Assert.False(await ctx.Set<SeguidorDePartida>().AnyAsync(s => s.PartidaId == jogo.Id));
@@ -188,7 +188,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         await controller.FinalizarPartida(jogo.Id);
 
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
-            Arg.Is<string>(t => t.Contains("encerrado")), Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<string>(t => t != null && t.Contains("encerrado")), Arg.Any<string>(), Arg.Any<string>(),
             $"partida-{jogo.Id}");
         Assert.False(await ctx.Set<SeguidorDePartida>().AnyAsync(s => s.PartidaId == jogo.Id));
     }

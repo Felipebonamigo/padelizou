@@ -84,6 +84,14 @@
         });
     }
 
+    // Pra telas que criam campo com data-mascara depois do carregamento da página (a turma
+    // de AdicionarManual.cshtml, que nasce um bloco de telefone por aluno quando o professor
+    // escolhe o tamanho) — sem isto o campo novo só ficaria digitado cru até o fim, porque
+    // `iniciar()` só varre o que já existia no DOMContentLoaded.
+    window.aplicarMascarasEm = function (container) {
+        (container || document).querySelectorAll('[data-mascara]').forEach(aplicar);
+    };
+
     function iniciar() {
         document.querySelectorAll('[data-mascara]').forEach(aplicar);
 

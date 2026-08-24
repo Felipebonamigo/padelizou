@@ -292,9 +292,11 @@ namespace Padelizou.Controllers
             if (torneio.SemHorarioPrevisto)
             {
                 _context.Partidas.AddRange(jogosPraAgendar);
-                torneio.Status = "Fase de Grupos";
+                // Sorteado e gravado, mas ainda não é público — fica esperando quem aprova
+                // (ver Services/AprovacaoDeChaves). O aviso "as chaves saíram" só sai daqui a
+                // pouco, em AprovarChaves.
+                torneio.Status = AprovacaoDeChaves.Pendente;
                 await _context.SaveChangesAsync();
-                await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
                 return RedirectToAction("Details", new { id = torneio.Id });
             }
 
@@ -308,12 +310,95 @@ namespace Padelizou.Controllers
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
+            // Sorteado e gravado, mas ainda não é público — fica esperando quem aprova (ver
+            // Services/AprovacaoDeChaves). O aviso "as chaves saíram" só sai daqui a pouco, em
+            // AprovarChaves.
+            torneio.Status = AprovacaoDeChaves.Pendente;
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // A APROVAÇÃO das chaves: o passo entre "sorteado" e "público", pedido pelo Felipe.
+        // Ninguém fora de quem organiza/administra vê nada até aqui — nem os inscritos (ver
+        // TorneiosController.cs, ação Jogos, e Details.cshtml, aba Chaves e Grupos).
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AprovarChaves(int id)
+        {
+            var torneio = await _context.Torneios.FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+            if (torneio.Status != AprovacaoDeChaves.Pendente)
+            {
+                TempData["Erro"] = "Este torneio não tem chave esperando aprovação.";
+                return RedirectToAction("Details", new { id });
+            }
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
             torneio.Status = "Fase de Grupos";
             await _context.SaveChangesAsync();
 
-            await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
+            // O aviso "as chaves saíram" nasce AQUI, não no sorteio — é agora que elas ficam
+            // de verdade visíveis pra quem joga.
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            await AvisarChavesPublicadasAsync(torneio, jogos);
 
-            return RedirectToAction("Details", new { id = torneio.Id });
+            TempData["Sucesso"] = "Chaves aprovadas — já estão visíveis pra todo mundo.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // DESFAZ o sorteio: apaga os grupos e os jogos gerados e devolve o torneio pra
+        // "Chaves em Sorteio", pronto pra sortear de novo. Só existe ENQUANTO a chave está
+        // esperando aprovação — depois de aprovada ela é pública, tem gente vendo contra quem
+        // joga, e desfazer viraria "reorganizar o torneio por baixo de quem já se organizou"
+        // (mesmo raciocínio de PortaDaInscricao.PorQueNaoPodeAbrir).
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> DesfazerSorteio(int id)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias)
+                    .ThenInclude(c => c.Duplas)
+                .Include(t => t.Categorias)
+                    .ThenInclude(c => c.GruposTorneio)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+            if (torneio.Status != AprovacaoDeChaves.Pendente)
+            {
+                TempData["Erro"] = "Este torneio não tem chave pendente de aprovação pra desfazer.";
+                return RedirectToAction("Details", new { id });
+            }
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+
+            // Ninguém deveria ter jogo em andamento ou finalizado numa chave que nem foi
+            // aprovada ainda — mas se algo escapou por outra porta, desfazer apagaria placar
+            // de verdade. Melhor recusar do que arriscar.
+            if (jogos.Any(j => j.Status != "Agendada"))
+            {
+                TempData["Erro"] = "Já tem jogo em andamento ou finalizado — não dá pra desfazer o sorteio.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Solta as duplas dos grupos ANTES de apagar os grupos — a FK não deixa apagar
+            // GrupoTorneio com Dupla ainda apontando pra ele.
+            var duplas = torneio.Categorias.SelectMany(c => c.Duplas).Where(d => d.GrupoTorneioId != null);
+            foreach (var dupla in duplas)
+            {
+                dupla.GrupoTorneioId = null;
+                dupla.Grupo = null;
+            }
+
+            var grupos = torneio.Categorias.SelectMany(c => c.GruposTorneio).ToList();
+            _context.RemoveRange(grupos);
+            _context.Partidas.RemoveRange(jogos);
+
+            torneio.Status = "Chaves em Sorteio";
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Sorteio desfeito — pode sortear de novo quando quiser.";
+            return RedirectToAction("Details", new { id });
         }
 
         // A ORDEM DA FILA É O CAMINHO CRÍTICO DO TORNEIO.

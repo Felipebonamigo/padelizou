@@ -659,6 +659,11 @@ namespace Padelizou.Controllers
             bool ehOrganizadorDeVerdade = jogadorLogadoId.HasValue
                 && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
 
+            // Quem pode ver e aprovar as chaves pendentes (ver Services/AprovacaoDeChaves) —
+            // a MESMA régua de organizador/admin, sem o assistente somado: ele acompanha o
+            // resto do sistema, mas esta aprovação é decisão de quem organiza de verdade.
+            ViewBag.PodeAprovarChaves = ehOrganizadorDeVerdade;
+
             ViewBag.PodeGerenciar = ehOrganizadorDeVerdade
                 || (jogadorLogadoId.HasValue && await PodeOlharAGestaoAsync(id, jogadorLogadoId.Value));
 
@@ -900,6 +905,16 @@ namespace Padelizou.Controllers
             // inteiro (nomes, horários, quadras) pra quem não deveria nem saber que ele existe.
             if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
                 return NotFound();
+
+            // As chaves foram sorteadas mas ainda não aprovadas (ver Services/AprovacaoDeChaves)
+            // — só quem organiza/administra enxerga os jogos por aqui. Pra todo mundo mais é
+            // como se elas não tivessem saído ainda.
+            if (torneio.Status == AprovacaoDeChaves.Pendente
+                && !await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0))
+            {
+                TempData["Erro"] = "As chaves deste torneio ainda não foram aprovadas.";
+                return RedirectToAction("Details", new { id });
+            }
 
             await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
             ViewBag.Torneio = torneio;
