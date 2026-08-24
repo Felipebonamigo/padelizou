@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 💳 **O BAR VIROU PLANO PAGO: nasceu a assinatura de clube (Rede / Gestão / Fiscal).**
+> Última atualização: **24/08/2026** — 🧾 **O PACOTE DO CONTADOR E O ESQUELETO FISCAL — as duas coisas que dava pra construir sem depender de cliente nenhum.**
+>
+> 🎯 **A pergunta do Felipe foi "então é melhor não construir agora?"** — e a resposta honesta é que o portão dos 3 clubes trava só as fases 2 e 3 (a emissão de verdade, que precisa de certificado do clube e homologação na SEFAZ). O que não depende de ninguém foi construído hoje.
+>
+> 📄 **CSV DAS VENDAS DO BAR, EM DOIS RECORTES.** "Vendas" (uma linha por comanda) é o que bate com o caixa e o extrato da maquininha; "itens" (uma linha por item, com NCM) é o detalhe que o contador pede pra separar por produto — e é **o mesmo recorte que a nota vai usar um dia**. Até agora a única saída era o contador olhar a tela e digitar. ⚠️ A tela diz com todas as letras que **não é documento fiscal**: é registro interno do que foi vendido.
+>
+> 🧹 **O FORMATO QUE O EXCEL BRASILEIRO ABRE DE PRIMEIRA VIROU UM LUGAR SÓ** (`Services/ArquivoCsv`): ponto e vírgula como separador (porque em português a vírgula é decimal), vírgula no decimal (senão o número chega como texto e não soma) e **BOM no começo** (sem ele "Comanda nº 7 do André" vira `Comanda nÂº 7 do AndrÃ©`). Estava duplicado no extrato do organizador — e nada disso é padrão CSV, é o que faz o arquivo abrir sem instrução.
+>
+> 🧱 **A CAMADA `IEmissorFiscal` NASCEU SEM PROVEDOR ATRÁS — E ISSO É O PONTO.** Interface, fila de notas (`Models/NotaFiscal`, migration `FilaDeNotasFiscais`), regras de tentativa e o **emissor DESLIGADO como registro padrão**. A fila funciona, as notas nascem Pendentes, **nada é enviado**. É o que permite **medir o volume real de um clube piloto antes de assinar contrato com provedor** — exatamente o número que falta pra confirmar a franquia do plano Fiscal.
+>
+> ⚠️ **POR QUE A INTERFACE VEIO ANTES DO PROVEDOR: porque já perdemos um.** Em 19/08 este projeto recomendava a **Nuvem Fiscal** como primeira escolha; em 24/08 descobrimos que ela foi **DESATIVADA em 31/07**. Se a integração tivesse sido escrita direto contra a API dela "pra adiantar", seria trabalho jogado fora. Não é preciosismo de arquitetura — é a defesa de um risco que se materializou.
+>
+> 🚦 **A REGRA NÚMERO UM, AGORA EM CÓDIGO: a venda NUNCA trava por causa da nota.** O enfileiramento acontece **depois** de a comanda estar salva, não lança exceção nunca, e o pior caso é uma nota que não nasce e vira log — jamais uma venda perdida. Um balcão que trava porque a SEFAZ caiu na sexta à noite não é sistema fiscal: é um sistema que fecha o bar do cliente.
+>
+> 💸 **TRÊS TENTATIVAS, E O MOTIVO É FINANCEIRO E NÃO TÉCNICO.** O provedor cobra por **requisição**, não por nota autorizada — **rejeição também consome crédito**. Um produto com NCM errado num clube movimentado tentaria pra sempre e ninguém descobriria antes da fatura. Passadas três, a nota vira problema de gente. E a distinção entre recusa **definitiva** (cadastro errado — não adianta repetir) e **temporária** (SEFAZ fora do ar) decide se tentar de novo ajuda ou só paga pra ouvir o mesmo "não".
+>
+> 🔁 **Idempotência de verdade**: a mesma comanda **nunca** vira duas notas — o balcão clica duas vezes, a página recarrega, o webhook reenvia, e continua sendo uma. Nota duplicada não é bug de tela, é problema fiscal no CNPJ do cliente.
+>
+> 🧪 **4.494 testes, 0 falhas (23 novos)**: o formato do CSV (vírgula decimal, aspas dobradas, BOM), comanda aberta e cancelada fora do arquivo, item cancelado fora do detalhe, NCM do produto e o avulso em branco, **CPF só de quem pediu nota**, período igual ao da tela inclusive com datas trocadas, o emissor desligado não emitindo nada, cortesia e comanda zerada fora da fila (nota de R$ 0 é rejeição certa), o teto de tentativas, a espera crescente e a mesma comanda não virando duas notas.
+>
+> Antes: 💳 **O BAR VIROU PLANO PAGO: nasceu a assinatura de clube (Rede / Gestão / Fiscal).**
 >
 > 🎯 **O pedido do Felipe**: *"faz o billing do plano de assinatura primeiro"* — antes do resto do fiscal. É a escolha certa: o bar, o estoque, a comanda e as contas **já estavam prontos e de graça**, atrás de uma flag. O billing é o que transforma código pronto em R$ 99/mês, e ele não depende de provedor fiscal nenhum.
 >

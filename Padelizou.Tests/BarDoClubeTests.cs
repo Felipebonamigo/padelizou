@@ -125,7 +125,9 @@ public class BarDoClubeTests
         var modulo = Modulo(ctx, habilitado);
         var c = new BarController(ctx, modulo,
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = habilitado })),
-            TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
+            TestInfra.CepQueNaoResponde(),
+            new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext
         {

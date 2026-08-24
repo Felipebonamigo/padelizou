@@ -35,15 +35,17 @@ public partial class BarController : Controller
     private readonly ModuloDoBar _modulo;
     private readonly ModuloFiscal _fiscal;
     private readonly IConsultaDeCep _cep;
+    private readonly NotasDoClube _notas;
     private readonly ILogger<BarController> _logger;
 
     public BarController(DbPadelContext context, ModuloDoBar modulo, ModuloFiscal fiscal,
-        IConsultaDeCep cep, ILogger<BarController> logger)
+        IConsultaDeCep cep, NotasDoClube notas, ILogger<BarController> logger)
     {
         _context = context;
         _modulo = modulo;
         _fiscal = fiscal;
         _cep = cep;
+        _notas = notas;
         _logger = logger;
     }
 
@@ -435,6 +437,19 @@ public partial class BarController : Controller
         comanda.FechadaPorId = UsuarioId();
 
         await _context.SaveChangesAsync();
+
+        // ⚠️ A NOTA ENTRA NA FILA DEPOIS DE A VENDA ESTAR SALVA, E NUNCA ANTES. Esta ordem é a
+        // regra número um do módulo fiscal: a comanda fecha sempre, mesmo que a nota não saia.
+        // Um balcão que trava porque a SEFAZ caiu na sexta à noite não é sistema fiscal — é um
+        // sistema que fecha o bar do cliente. O enfileiramento também não lança: o pior caso é
+        // uma nota que não nasce e vira log, nunca uma venda perdida.
+        //
+        // E só entra na fila quem tem o plano Fiscal — o clube da Gestão registra a venda e
+        // pronto, que é exatamente o que ele comprou.
+        if (await _fiscal.PodeUsarAsync(comanda.ClubeId, UsuarioId()))
+        {
+            await _notas.EnfileirarDaComandaAsync(comanda);
+        }
 
         TempData["SucessoBar"] = $"Comanda {comanda.Numero} ({comanda.NomeCliente}) fechada em {comanda.Total:C}.";
         return RedirectToAction(nameof(Index), new { id = comanda.ClubeId });

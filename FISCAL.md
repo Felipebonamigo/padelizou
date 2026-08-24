@@ -247,8 +247,12 @@ movimentado não pode virar queima de crédito em loop (rejeição também conso
 ⚠️ **A Focus continua no documento de propósito**: é o plano B se a ACBr decepcionar no
 piloto, e é a régua de negociação — preço público, previsível e provado no nicho pelo Gripo.
 
-⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
-reescrever o produto.
+✅ **`IEmissorFiscal` CONSTRUÍDA em 24/08/2026** — a interface, a fila de notas
+(`Models/NotaFiscal` + `Services/FilaDeNotas`), o emissor desligado como registro padrão e o
+enfileiramento no fechamento da comanda. **Nenhum provedor atrás dela ainda**, e é assim de
+propósito: a fila funciona, as notas nascem Pendentes e nada é enviado — o que permite **medir
+o volume real de um clube piloto antes de assinar contrato**, que é justamente o número que
+falta pra confirmar a franquia. Trocar de fornecedor passou a ser escrever uma classe.
 
 ## Pré-requisitos do clube (não são nossos)
 
@@ -299,9 +303,12 @@ reescrever o produto.
   **(3)** a cobrança aberta é do CLUBE e não de quem clicou, senão dono e sócio geram uma
   cada e pagam as duas; **(4)** "em construção" nunca vira "sem plano" — não se vende um
   Fiscal que ainda não emite.
-- **Fase 4b — pacote do contador (~1–2 semanas).** Export mensal por clube: CSV de vendas do
-  bar (hoje não existe), ZIP de XMLs, relatório de notas emitidas/canceladas/rejeitadas.
-  Medidor de franquia de notas e bloqueio suave no excedente.
+- **Fase 4b — pacote do contador. ✅ PARCIALMENTE FEITO em 24/08/2026.** Entregue: **CSV de
+  vendas do bar** em dois recortes — "vendas" (uma linha por comanda, bate com o caixa e a
+  maquininha) e "itens" (uma linha por item, com NCM, o mesmo recorte que a nota vai usar).
+  O formato que o Excel brasileiro abre de primeira virou `Services/ArquivoCsv`, compartilhado
+  com o extrato do organizador (estava duplicado). Falta: ZIP de XMLs, relatório de notas e
+  medidor de franquia — os três dependem de existir emissão.
 - **Fase 5 — TEF: adiar.** Item mais caro do catálogo do Gripo e o menos pedido em clube
   pequeno. Reavaliar quando cliente pagante pedir.
 

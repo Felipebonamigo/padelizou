@@ -82,6 +82,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<CaixaDoDia> CaixasDoDia { get; set; }
     public DbSet<LancamentoFinanceiro> LancamentosFinanceiros { get; set; }
     public DbSet<MovimentoEstoque> MovimentosEstoque { get; set; }
+
+    // A fila de notas fiscais do clube (ver Models/NotaFiscal e Services/FilaDeNotas).
+    public DbSet<NotaFiscal> NotasFiscais { get; set; }
     public DbSet<JogadorCidade> JogadorCidades { get; set; }
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }

@@ -93,7 +93,9 @@ public class EstoqueDoBarTests
         var modulo = new ModuloDoBar(ctx, Options.Create(new BarSettings { Habilitado = false }));
         var c = new BarController(ctx, modulo,
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = false })),
-            TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
+            TestInfra.CepQueNaoResponde(),
+            new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext
         {

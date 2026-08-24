@@ -280,6 +280,12 @@ builder.Services.AddExceptionHandler<CapturaDeErro>();
 // Quem pode abrir o bar e as contas do clube. Uma regra só pros dois módulos.
 builder.Services.AddScoped<ModuloDoBar>();
 builder.Services.AddScoped<ModuloFiscal>();
+
+// A camada fiscal. O emissor DESLIGADO é o registro padrão de propósito: a fila funciona, as
+// notas nascem pendentes e NADA é enviado enquanto não houver provedor contratado — o que
+// permite medir o volume real de um clube piloto antes de assinar contrato (ver FISCAL.md).
+builder.Services.AddScoped<IEmissorFiscal, EmissorFiscalDesligado>();
+builder.Services.AddScoped<NotasDoClube>();
 // Desafios (DESAFIOS.md): quem enxerga o módulo enquanto ele está em construção, e o
 // fechamento do placar — que precisa ser o mesmo pra quem confirma no botão e pro relógio.
 builder.Services.AddScoped<PortaDosDesafios>();

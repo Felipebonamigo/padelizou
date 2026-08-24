@@ -718,7 +718,9 @@ public class PlanoDoClubeTests
         var c = new BarController(ctx, modulo,
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = fiscalLigado }),
                 Options.Create(Cfg)),
-            TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
+            TestInfra.CepQueNaoResponde(),
+            new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            NullLogger<BarController>.Instance);
 
         Vestir(c, usuarioId);
         return c;

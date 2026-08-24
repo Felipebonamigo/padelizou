@@ -335,7 +335,8 @@ public class PagamentosController : Controller
             : await _context.Torneios.Where(t => idsTorneio.Contains(t.Id))
                 .ToDictionaryAsync(t => t.Id, t => t.Nome);
 
-        // Ponto e vírgula + vírgula decimal: é o que o Excel brasileiro abre certo de primeira.
+        // O formato que o Excel brasileiro abre de primeira mora em Services/ArquivoCsv — as
+        // mesmas três decisões valem pro relatório do bar, e duas cópias divergiriam.
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Data;Status;Origem;Pagador;Valor pago;Meu repasse;Comissao plataforma");
         foreach (var p in recebidos)
@@ -343,19 +344,15 @@ public class PagamentosController : Controller
             var origem = p.TorneioId != null
                 ? nomesTorneio.GetValueOrDefault(p.TorneioId.Value, "Torneio")
                 : p.Tipo == "Aula" ? "Aula" : "Aluguel de quadra";
-            var data = (p.ConfirmadoEm ?? p.CriadoEm).ToString("dd/MM/yyyy");
-            static string Campo(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
             sb.AppendLine(string.Join(";",
-                data, p.Status, Campo(origem), Campo(p.Jogador?.Nome ?? "-"),
-                p.Valor.ToString("F2").Replace('.', ','),
-                p.ValorRepasse.ToString("F2").Replace('.', ','),
-                p.Comissao.ToString("F2").Replace('.', ',')));
+                ArquivoCsv.Data(p.ConfirmadoEm ?? p.CriadoEm), p.Status,
+                ArquivoCsv.Campo(origem), ArquivoCsv.Campo(p.Jogador?.Nome ?? "-"),
+                ArquivoCsv.Dinheiro(p.Valor),
+                ArquivoCsv.Dinheiro(p.ValorRepasse),
+                ArquivoCsv.Dinheiro(p.Comissao)));
         }
 
-        // BOM pro Excel reconhecer UTF-8 (sem ele, acentos viram lixo).
-        var bytes = System.Text.Encoding.UTF8.GetPreamble()
-            .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
-        return File(bytes, "text/csv", $"extrato-padelizou-{per}-{agora:yyyyMMdd}.csv");
+        return File(ArquivoCsv.Bytes(sb), "text/csv", $"extrato-padelizou-{per}-{agora:yyyyMMdd}.csv");
     }
 
     // Comprovante de um pagamento — visível pra quem pagou, quem recebeu e o admin raiz.

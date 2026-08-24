@@ -432,7 +432,9 @@ public class CadastroFiscalTests
         var modulo = new ModuloDoBar(ctx, Options.Create(new BarSettings { Habilitado = true }), plano);
         var c = new BarController(ctx, modulo,
             new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = fiscalLigado }), plano),
-            cep ?? TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
+            cep ?? TestInfra.CepQueNaoResponde(),
+            new NotasDoClube(ctx, NullLogger<NotasDoClube>.Instance),
+            NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext
         {

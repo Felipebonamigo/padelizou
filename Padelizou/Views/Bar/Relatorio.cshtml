@@ -44,6 +44,24 @@
         </div>
     </form>
 
+    @* O pacote do contador. Fica logo abaixo do filtro de propósito: o período que ele
+       exporta é EXATAMENTE o que está na tela, e ver os dois juntos evita a dúvida de
+       "esse arquivo é do mês que eu escolhi?". *@
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+        <span class="small text-muted"><i class="bi bi-download"></i> Pro contador:</span>
+        <a asp-action="ExportarCsv" asp-route-id="@clube.Id"
+           asp-route-de="@Model.De.ToString("yyyy-MM-dd")" asp-route-ate="@Model.Ate.ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            Vendas (CSV)
+        </a>
+        <a asp-action="ExportarCsv" asp-route-id="@clube.Id" asp-route-tipo="itens"
+           asp-route-de="@Model.De.ToString("yyyy-MM-dd")" asp-route-ate="@Model.Ate.ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            Itens vendidos (CSV)
+        </a>
+        <small class="text-muted">Registro interno do que foi vendido — não é documento fiscal.</small>
+    </div>
+
     <div class="row g-2 mb-4">
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm p-3 h-100">
