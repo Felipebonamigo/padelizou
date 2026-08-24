@@ -44,8 +44,8 @@ clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis
 
 | Provedor | Leitura |
 |---|---|
-| **Focus NFe** ← 1ª escolha | **A única com preço público que serve, e serve bem** (tabela conferida em 24/08/2026 — ver a conta abaixo). O plano **Growth, R$ 548/mês, tem CNPJs ILIMITADOS e 4.000 notas**, o que cobre 16 clubes sem excedente. É também a engrenagem do Gripo, ou seja, provada neste nicho. 3.000+ municípios; município novo por R$ 199 fixo. |
-| **ACBr API** | Sucessora indicada pela Nuvem Fiscal, API compatível (mesmos endpoints, escopos, payloads e retornos), do Projeto ACBr — referência em componente fiscal no Brasil. Modelo anual com limite liberado desde o início. **Preço não publicado**: pedir proposta e comparar com a Focus. |
+| **Focus NFe** ← 1ª escolha | **A única com preço público que serve, e serve bem** (duas tabelas conferidas em 24/08/2026 — ver as contas abaixo). CNPJs ilimitados a partir do Growth (R$ 548, 4.000 notas) e do Retail+ (R$ 629,90, 9.000 NFC-e a R$ 0,06). É também a engrenagem do Gripo, ou seja, provada neste nicho. 3.000+ municípios; município novo por R$ 199 fixo. |
+| **ACBr API** | Sucessora indicada pela Nuvem Fiscal, API compatível (mesmos endpoints, escopos, payloads e retornos), do Projeto ACBr — referência em componente fiscal no Brasil. Emite NF-e/NFC-e, NFS-e, CT-e/MDF-e, DC-e + consulta CNPJ e CEP. Modelo anual com limite liberado desde o início. **Tem CONTA GRATUITA** (acbr.api.br) e tabela de preços em projetoacbr.com.br/api (menu "Preço") — vale conferir antes de pedir proposta. |
 | **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. **Preço não publicado**: pedir proposta. |
 | ~~Nuvem Fiscal~~ ❌ | **SERVIÇO DESATIVADO EM 31/07/2026** (comunicado de 22/04, 90 dias de prazo). Era a primeira recomendação deste documento e não existe mais — ver o aviso abaixo. |
 | NFE.io | Tabela conferida: plano Base R$ 1.825/ano = R$ 152/mês para 250 notas com CNPJ ilimitado → **R$ 0,61 por nota**, contra R$ 0,14 da Focus no Growth. Quatro vezes mais cara na nossa faixa. Descartada. |
@@ -100,10 +100,49 @@ Três leituras que só apareceram com o número real na mão:
    clube piloto (250) **e pro CNPJ do próprio Padelizou** emitir a NFS-e das comissões da
    Fase 0, sem excedente. Um único plano cobre as duas coisas.
 
-⚠️ **O que ainda falta confirmar**: a página da Focus tem um seletor **"Documentos Fiscais"
-× "Cupons Fiscais"** e a tabela acima é a do primeiro. Como cupom fiscal É a NFC-e — que no
-bar é justamente o documento de maior volume e menor valor —, é possível que exista uma
-tabela própria para ela. **É a primeira pergunta a fazer**, porque muda a conta do bar.
+### A segunda tabela: Cupons Fiscais (a do bar)
+
+Conferida em 24/08/2026. A suspeita estava certa — **a NFC-e tem tabela própria, e ela é a
+metade do preço**:
+
+| Plano | Preço | CNPJs | Incluído | NFC-e adicional |
+|---|---|---|---|---|
+| Retail | R$ 59,90/mês | 1 | 500 NFC-e + 100 NF-e | **R$ 0,05** |
+| **Retail+** | R$ 629,90/mês | **ilimitados** | **9.000 NFC-e** + 1.000 NF-e | **R$ 0,06** |
+
+⚠️ **MAS ELA NÃO TEM NFS-e.** A lista dos planos Retail é "NFC-e, CF-e S@T e CF-e MF" — o
+documento de serviço (aula, quadra, mensalidade) não está lá. Ou seja: **precisamos dos DOIS**
+— um plano de Documentos Fiscais para a NFS-e e um Retail para a NFC-e do bar. Somar os dois
+ainda sai muito mais barato do que jogar tudo no Growth a R$ 0,12.
+
+### A conta com as duas tabelas — e o achado que mudou o jogo
+
+⚠️ Aqui aparece a variável que passou a ser **a mais importante de todo o plano**, e não é o
+preço do provedor: **quantas notas um clube emite de verdade por mês.** A premissa antiga
+("250 notas/clube") era o total; com o bar emitindo um cupom por comanda, o número real é
+bem maior — e é o bar que domina o volume.
+
+Três cenários (NFS-e = reservas + aulas + mensalidades; NFC-e = comandas do bar), com a
+franquia do plano Fiscal em 100 NFS-e + 400 NFC-e e excedente de R$ 0,30 cobrado do clube:
+
+| Cenário (por clube/mês) | 3 clubes | 15 clubes | Planos na Focus |
+|---|---|---|---|
+| Conservador — 150 NFS-e + 300 NFC-e | 52% | **63%** | Start+Retail → Growth+Retail+ |
+| Médio — 250 NFS-e + 600 NFC-e | 61% | **74%** | Start+Retail → Growth+Retail+ |
+| Alto — 400 NFS-e + 1.200 NFC-e | 69% | **75%** | Start+Retail → Growth+Retail+ |
+
+**A FRANQUIA É O QUE SALVA O PLANO, e agora dá pra provar.** Sem ela — R$ 199 fixo com tudo
+incluso — a margem a 15 clubes cai de 74% para 60% no cenário médio e **despenca para 34% no
+cenário alto**. Com a franquia, ela fica entre 63% e 75% nos três cenários, ou seja: **o plano
+para de depender de adivinhar o volume.** Era uma decisão de produto tomada no escuro; virou
+a defesa mais importante da margem.
+
+E a franquia está bem calibrada por acidente feliz: cobramos **R$ 0,30** por nota excedente e
+pagamos **R$ 0,06** pela NFC-e no Retail+ — cinco vezes de folga no documento que mais sai.
+
+⚠️ **O que o piloto tem que medir, além de funcionar**: quantas NFS-e e quantas NFC-e o clube
+emite por mês. É esse número que confirma (ou corrige) a franquia de 100+400 e o preço de
+R$ 199 — e um mês de piloto responde melhor do que qualquer estimativa daqui.
 
 ⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
 reescrever o produto.
