@@ -373,6 +373,13 @@
             const int pxPorMinuto = 1;
             var alturaGrade = (ultimaHora - primeiraHora + 1) * 60 * pxPorMinuto;
             <div class="card border-0 shadow-sm">
+                @* ⚠️ UM WRAPPER SÓ PRA ROLAGEM, com o cabeçalho E o corpo dentro. Enquanto o
+                   `overflow-x` morava só no corpo, as duas faixas rolavam separadas: o corpo
+                   por dentro do card e o cabeçalho TRANSBORDANDO pra fora dele — os dias
+                   "QUI 27" e "SEX 28" apareciam flutuando sobre o fundo da página, e a data
+                   de cima não batia com a coluna de baixo. Defeito visto em produção, no
+                   celular (25/08/2026). *@
+                <div class="pdz-grade-rolagem">
                 <div class="pdz-grade-cabecalho">
                     <div class="pdz-grade-gutter"></div>
                     @foreach (var dia in dias)
@@ -409,6 +416,7 @@
                             }
                         </div>
                     }
+                </div>
                 </div>
             </div>
         }
@@ -608,8 +616,17 @@
            (1px por minuto), do jeito que a Google Agenda mostra — em vez de um chip de
            tamanho fixo dentro de uma hora cheia, que fazia uma aula de 30 min parecer do
            mesmo tamanho que uma de 2h e escondia o buraco livre entre uma aula e outra. */
-        .pdz-grade-cabecalho, .pdz-grade-corpo { display: flex; }
-        .pdz-grade-corpo { position: relative; overflow-x: auto; }
+        /* Quem rola é o wrapper, com as DUAS faixas dentro — ver o comentário no HTML. */
+        .pdz-grade-rolagem { overflow-x: auto; }
+
+        /* ⚠️ `width: max-content` COM `min-width: 100%`: sem o max-content as duas faixas
+           parariam na largura do card e as colunas se espremeriam; sem o min-width elas
+           encolheriam abaixo do card em tela larga, deixando um vão à direita. Juntos dão as
+           duas coisas — preenche no desktop, cresce e rola no celular — e, o que mais
+           importa aqui, dão a MESMA largura pras duas, que é o que mantém o dia alinhado
+           com a coluna dele. */
+        .pdz-grade-cabecalho, .pdz-grade-corpo { display: flex; width: max-content; min-width: 100%; }
+        .pdz-grade-corpo { position: relative; }
         .pdz-grade-gutter { flex: 0 0 56px; position: relative; }
         .pdz-grade-col-cabecalho {
             flex: 1 1 0; min-width: 96px; border-left: 1px solid var(--pdz-border, #e2e5ea);
