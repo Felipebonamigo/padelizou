@@ -15,7 +15,7 @@
 >
 > ✅ **Falsificado:** devolvendo o `datetime-local` pra tela de Editar, caem exatamente os **3** testes dela e os das outras duas seguem verdes. 26 chamadas de teste acompanharam a troca de assinatura — o alvo saiu do **compilador**, não de regex: a primeira varredura por texto pegou junto `GradeDeJogos.Encaixar` e `Reposicao.Encaixar`, que são serviços puros e não têm nada com isso.
 >
-> ⏳ **AINDA NÃO PUBLICADO.** Sem migration.
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `d698b9e` (PR #37, CI #697 verde). Deploy run **#52 → dev** e **#53 → prod**, os dois `success`. **Sem migration.** ⚠️ **As telas NÃO foram vistas renderizadas** — sem browser nesta sessão. Vale o olho do Felipe nos dois campos da tela de Editar e, principalmente, no formulário de **encaixe**: ele é uma linha compacta dentro de uma lista e foi de um campo pra dois mais o dia da semana.
 >
 >
 > Antes, no mesmo dia — 💵 **"CONCLUIR" DEIXOU DE QUERER DIZER "PAGA": O RECEBIMENTO DA AULA VIROU UM EIXO PRÓPRIO.**
