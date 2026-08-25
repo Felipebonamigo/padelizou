@@ -25,7 +25,9 @@
 >
 > 🧪 **4.994 testes, 0 falhas (40 novos), 5 avisos — os mesmos de antes.** Migration `AddPagaEmToAula`, com backfill.
 >
-> ⏳ **AINDA NÃO PUBLICADO** — sem terminal/browser pra ver a UI nesta sessão, a evidência é a suíte e a conferência da migration contra o Postgres.
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `5176a61` (PR #36, CI #695 verde). Deploy run **#50 → dev** e **#51 → prod**, os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita** (o proxy da sessão web recusa a saída, `CONNECT tunnel failed, 403`), e **as telas novas NÃO foram vistas renderizadas** — sem browser nesta sessão. Neste mesmo dia, olhar a arte pegou três defeitos que a suíte não pegou: os dois botões da folha e o botão do devedor ainda merecem um olho do Felipe.
+>
+> 🐘 **E o backfill rodou sobre os dados REAIS na subida** — foi conferido antes contra um Postgres de verdade com nove casos, mas é a primeira e única vez que ele passa pelo banco de produção. Se algum número do Financeiro parecer errado, é aqui que se olha primeiro.
 >
 >
 > Antes, no mesmo dia — 📅 **CALENDÁRIO E RELÓGIO PRA MARCAR AULA, E A GRADE DA AGENDA DE VOLTA PRA DENTRO DO CARD.**
