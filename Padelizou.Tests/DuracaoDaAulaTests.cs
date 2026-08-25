@@ -136,7 +136,7 @@ public class DuracaoDaAulaTests
         google.AtualizarEventoAsync(Arg.Any<Aula>()).Returns("evt-1");
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id, google);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, 100m, duracaoMinutos: 120);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 100m, duracaoMinutos: 120);
 
         Assert.Equal(120, (await ctx.Aulas.SingleAsync()).DuracaoMinutos);
         // O evento tem que esticar junto: senão o professor marca outra coisa em cima do que
@@ -162,7 +162,7 @@ public class DuracaoDaAulaTests
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, 130m);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 130m);
 
         var salva = await ctx.Aulas.SingleAsync();
         Assert.Equal(120, salva.DuracaoMinutos);

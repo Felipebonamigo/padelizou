@@ -599,6 +599,9 @@
        data-cep pra buscar o endereço. Sai de cena sozinho em tela que não tem o campo. *@
     <script src="~/js/cep.js" asp-append-version="true"></script>
     <script src="~/js/hora-sugerida.js" asp-append-version="true"></script>
+    @* O dia da semana embaixo do campo de data. Global, ao lado do hora-sugerida e
+       pelo mesmo motivo: são três telas de aula pedindo a mesma coisa por atributo. *@
+    <script src="~/js/dia-da-semana.js" asp-append-version="true"></script>
     @* Confirmação bonita no lugar do confirm() do navegador. Vale em TODA tela: basta o
        formulário ter data-confirmar. Ver Views/Shared/_ModalConfirmar.cshtml. *@
     <partial name="_ModalConfirmar" />

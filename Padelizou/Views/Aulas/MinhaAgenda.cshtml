@@ -263,9 +263,26 @@
 
                         <form asp-action="Encaixar" method="post" class="row g-1 align-items-end">
                             <input type="hidden" name="aulaId" value="@aula.Id" />
+                            @* ⚠️ DOIS CAMPOS, e não um `datetime-local` — mesma razão das telas de
+                               Adicionar e Editar (25/08/2026, pedido do Felipe): no Android o
+                               datetime-local abre a RODINHA, sem calendário e sem dia da semana.
+                               E aqui a pergunta É o dia da semana: "que dia você pode repor?".
+
+                               O `id` carrega o id da AULA porque este formulário se repete uma
+                               vez por aula na fila — id fixo faria a segunda linha escrever o
+                               dia da semana em cima da primeira. *@
                             <div class="col-6 col-md-4">
                                 <label class="form-label small text-muted mb-0">Quando</label>
-                                <input type="datetime-local" name="dataHora" class="form-control form-control-sm" required />
+                                <div class="row g-1">
+                                    <div class="col-7">
+                                        <input type="date" name="data" class="form-control form-control-sm"
+                                               data-dia-da-semana="dia-encaixe-@aula.Id" required />
+                                    </div>
+                                    <div class="col-5">
+                                        <input type="time" name="hora" class="form-control form-control-sm" required />
+                                    </div>
+                                </div>
+                                <div class="form-text fw-bold small" id="dia-encaixe-@aula.Id"></div>
                             </div>
                             <div class="col-6 col-md-4">
                                 <label class="form-label small text-muted mb-0">Onde</label>

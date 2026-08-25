@@ -280,7 +280,7 @@ public class FechamentoDoMesTests
 
         // A reposição cai no mês seguinte ao das aulas — o mês corrente.
         var quandoRepor = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddDays(4).AddHours(9);
-        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(faltou.Id, local.Id, quandoRepor);
+        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(faltou.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(quandoRepor), hora: DataEHoraDoFormulario.ParaCampoDeHora(quandoRepor));
 
         var reposicao = await ctx.Aulas.SingleAsync(a => a.RecuperaAulaId != null);
         reposicao.Status = PoliticaAula.Realizada;

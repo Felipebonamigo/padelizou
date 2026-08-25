@@ -181,7 +181,7 @@
                                     <div class="col-7">
                                         <input type="date" name="data" id="input-data" class="form-control bg-light"
                                                value="@(ViewBag.DataHoraSugerida is DateTime sugeridaData ? Padelizou.Services.DataEHoraDoFormulario.ParaCampoDeData(sugeridaData) : "")"
-                                               data-hora-sugerida required />
+                                               data-hora-sugerida data-dia-da-semana="dia-da-semana" required />
                                     </div>
                                     <div class="col-5">
                                         <input type="time" name="hora" id="input-hora" class="form-control bg-light"
@@ -191,7 +191,9 @@
                                 </div>
                                 @* O dia da semana POR EXTENSO, embaixo do campo: o calendário mostra ele
                                    enquanto está aberto, mas depois de fechar sobra "18/08/2026" — e é
-                                   exatamente essa a pergunta que o professor está respondendo. *@
+                                   exatamente essa a pergunta que o professor está respondendo.
+                                   Quem escreve é js/dia-da-semana.js (global) — a mesma régua das telas
+                                   de Editar e do encaixe, desde que elas passaram a ter calendário. *@
                                 <div class="form-text fw-bold" id="dia-da-semana"></div>
                             </div>
 
@@ -421,30 +423,11 @@
                 if (!indeterminado) gerarDatas();
             });
 
-            // ── O dia da semana da aula ──────────────────────────────────────────────────
-            // O calendário do celular mostra o dia da semana ENQUANTO está aberto; depois de
-            // fechar sobra "18/08/2026". E é justamente essa a pergunta que o professor está
-            // respondendo ao marcar a aula, então ela fica escrita embaixo do campo.
-            var DIAS_POR_EXTENSO = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
-                                    'quinta-feira', 'sexta-feira', 'sábado'];
-            var $diaDaSemana = $('#dia-da-semana');
-
-            function mostrarDiaDaSemana() {
-                var dia = $inputData.val();
-                if (!dia) { $diaDaSemana.text(''); return; }
-
-                // ⚠️ MONTADO POR PARTES, e não `new Date(dia)`: a string só-data é lida como
-                // UTC pelo JS e volta o DIA ANTERIOR em qualquer fuso negativo. Uma aula de
-                // terça apareceria como segunda, e o erro é mudo.
-                var partes = dia.split('-');
-                var quando = new Date(+partes[0], +partes[1] - 1, +partes[2]);
-                if (isNaN(quando)) { $diaDaSemana.text(''); return; }
-
-                $diaDaSemana.text(DIAS_POR_EXTENSO[quando.getDay()]);
-            }
-
-            $inputData.on('change', mostrarDiaDaSemana);
-            mostrarDiaDaSemana();
+            // ── O dia da semana sai daqui em 25/08/2026 ──────────────────────────────────
+            // Ele continua embaixo do campo — quem escreve agora é wwwroot/js/dia-da-semana.js,
+            // pedido pelo `data-dia-da-semana` do <input>. Foi pra lá quando as telas de Editar
+            // e de encaixe ganharam calendário: três cópias da mesma régua é como duas passam a
+            // discordar, e a discordância aqui é muda (a data errada não dá erro nenhum).
 
             // ── Quando a aula termina ────────────────────────────────────────────────────
             // O professor escolhe o começo e a duração; quem erra o encaixe na quadra é quem

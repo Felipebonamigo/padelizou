@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/08/2026** — 💵 **"CONCLUIR" DEIXOU DE QUERER DIZER "PAGA": O RECEBIMENTO DA AULA VIROU UM EIXO PRÓPRIO.**
+> Última atualização: **25/08/2026** — 📆 **AS TRÊS TELAS DE AULA PASSAM A TER CALENDÁRIO, E O DIA DA SEMANA VIRA RÉGUA ÚNICA.**
+>
+> 🗣️ **O pedido do Felipe:** *"aplica o mesmo nas telas de editar aula e encaixe"*. Eram as duas que ficaram pra trás mais cedo hoje — a de Adicionar trocou o `datetime-local` por `date` + `time`, e o PR daquele bloco declarou, por escrito, que Editar e o encaixe da Minha Agenda continuavam com a rodinha do Android.
+>
+> ⚠️ **AS DUAS ACTIONS PASSAM A RECEBER `data` E `hora` SEPARADAS**, e não um `DateTime`. Mesma fronteira de cultura: `<input type="date">` manda sempre `yyyy-MM-dd`, o app roda em pt-BR, e o binder leria "2026-09-15" como dia 15 do mês 2026 — que não existe — e cairia em `01/01/0001` **calado**. 🕳️ **Em Editar o estrago é PIOR que em Adicionar**: a aula JÁ existe e está marcada com o aluno, então a data lida errado não cria lixo novo — ela **move a aula de alguém pra um dia que ninguém combinou**. E o `Encaixar` sai **antes de tocar na aula original** quando a data não vem: ela precisa continuar na fila de reposição, que é o único lugar que lembra o professor de que deve essa aula.
+>
+> 🧩 **O DIA DA SEMANA VIROU RÉGUA COMPARTILHADA** (`wwwroot/js/dia-da-semana.js`, pedido por atributo igual ao `hora-sugerida`). Era cópia local na tela de Adicionar; com **três** telas pedindo a mesma coisa — e a do encaixe repetindo o par uma vez por aula na fila — três cópias é como duas passam a discordar. ⚠️ **E discordariam justamente no detalhe que não dá erro nenhum quando está errado:** montar a data POR PARTES, porque `new Date("2026-09-15")` é lido como UTC e volta o dia ANTERIOR em todo fuso negativo — no Brasil inteiro. 📌 No encaixe o id do alvo carrega o **id da AULA**: id fixo faria a segunda linha da fila escrever o dia da semana em cima da primeira.
+>
+> 🧪 **21 testes novos, suíte em 5.015, 0 falhas.** Nove de fronteira (junta data+hora, aceita `HH:mm:ss`, recusa vazio, recusa `15/09/2026` — o formato brasileiro que o binder engoliria — e o encaixe recusado deixa a aula na fila) e **doze de FONTE prendendo as três telas JUNTAS**: sem `datetime-local`, com `date`+`time`, com os `name` certos, e todas pedindo a régua compartilhada. São de fonte por escolha declarada — uma dessas telas voltando pra rodinha **não quebra nada**: ela abre, a aula salva, e só o professor de pé na quadra descobre.
+>
+> 🐛 **E O TESTE DE FONTE REPROVOU A SI MESMO na primeira rodada** — casava com o **comentário** que explica por que o `datetime-local` saiu. Sem tirar comentário antes de buscar, ele reprovaria exatamente a documentação que existe pra ser lida, e a saída fácil seria **apagar o comentário**, o pior conserto possível. Agora corta `@* *@` e linha que **começa** com `//` — e só isso: cortar no `//` do meio da linha levaria junto o `https://` de uma URL dentro de string.
+>
+> ✅ **Falsificado:** devolvendo o `datetime-local` pra tela de Editar, caem exatamente os **3** testes dela e os das outras duas seguem verdes. 26 chamadas de teste acompanharam a troca de assinatura — o alvo saiu do **compilador**, não de regex: a primeira varredura por texto pegou junto `GradeDeJogos.Encaixar` e `Reposicao.Encaixar`, que são serviços puros e não têm nada com isso.
+>
+> ⏳ **AINDA NÃO PUBLICADO.** Sem migration.
+>
+>
+> Antes, no mesmo dia — 💵 **"CONCLUIR" DEIXOU DE QUERER DIZER "PAGA": O RECEBIMENTO DA AULA VIROU UM EIXO PRÓPRIO.**
 >
 > 🗣️ **O pedido do Felipe**, num print da folha de detalhe da Minha Agenda: *"permita o professor colocar como aula concluída mas ainda não paga, tem alunos que pagam depois ou por mês, pense nisso"*. Mexe em **dinheiro** e gera **migration** — é `architectural`, então saiu desenho escrito (`RECEBIMENTO-DA-AULA.md`) e aprovado antes de uma linha de código, com **três decisões dele**: dois botões lado a lado, backfill preservando dívida de mensalista, e **sem** preferência escondida no perfil.
 >
@@ -25,7 +42,9 @@
 >
 > 🧪 **4.994 testes, 0 falhas (40 novos), 5 avisos — os mesmos de antes.** Migration `AddPagaEmToAula`, com backfill.
 >
-> ⏳ **AINDA NÃO PUBLICADO** — sem terminal/browser pra ver a UI nesta sessão, a evidência é a suíte e a conferência da migration contra o Postgres.
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `5176a61` (PR #36, CI #695 verde). Deploy run **#50 → dev** e **#51 → prod**, os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita** (o proxy da sessão web recusa a saída, `CONNECT tunnel failed, 403`), e **as telas novas NÃO foram vistas renderizadas** — sem browser nesta sessão. Neste mesmo dia, olhar a arte pegou três defeitos que a suíte não pegou: os dois botões da folha e o botão do devedor ainda merecem um olho do Felipe.
+>
+> 🐘 **E o backfill rodou sobre os dados REAIS na subida** — foi conferido antes contra um Postgres de verdade com nove casos, mas é a primeira e única vez que ele passa pelo banco de produção. Se algum número do Financeiro parecer errado, é aqui que se olha primeiro.
 >
 >
 > Antes, no mesmo dia — 📅 **CALENDÁRIO E RELÓGIO PRA MARCAR AULA, E A GRADE DA AGENDA DE VOLTA PRA DENTRO DO CARD.**
