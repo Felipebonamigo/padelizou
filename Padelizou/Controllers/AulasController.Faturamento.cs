@@ -125,6 +125,20 @@ namespace padelizou.Controllers
 
             fatura.Status = FechamentoDoMes.Paga;
             fatura.PagaEm = DateTime.Now;
+
+            // ⚠️ E AS AULAS DA CONTA VÃO JUNTO. Sem isto, a conta de abril diz "paga" e as oito
+            // aulas de abril continuam, cada uma, dizendo "a cobrar" no Financeiro — duas telas
+            // com duas verdades sobre o mesmo dinheiro. O carimbo é o MESMO instante da conta,
+            // e é assim que ReabrirFatura sabe depois quais foram estas.
+            //
+            // ⚠️ SÓ AS QUE AINDA NÃO ESTAVAM PAGAS. A aula que o professor acertou por fora
+            // ANTES do fechamento nem entrou nesta conta (FechamentoDoMes.EntraNaConta a exclui)
+            // — reescrever o `PagaEm` dela trocaria a data do Pix que ele registrou pela data
+            // desta baixa, e o reabrir depois apagaria um recebimento que aconteceu de verdade.
+            // Foi exatamente isto que o teste de reabrir pegou.
+            foreach (var aula in (await AulasDaContaAsync(fatura)).Where(a => a.PagaEm == null))
+                aula.PagaEm = fatura.PagaEm;
+
             await _context.SaveChangesAsync();
 
             TempData["SucessoFatura"] = $"Conta de {fatura.PagadorNome} marcada como paga.";
@@ -139,12 +153,48 @@ namespace padelizou.Controllers
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
             if (fatura == null) return NotFound();
 
+            // ⚠️ Lido ANTES de zerar: é ele que identifica as aulas que ESTA baixa carimbou.
+            // Apagar por "todas as aulas do mês" levaria junto o Pix avulso que o professor
+            // registrou por fora — aquele dinheiro entrou e não tem nada a ver com esta conta.
+            var carimbo = fatura.PagaEm;
+
             fatura.Status = FechamentoDoMes.Aberta;
             fatura.PagaEm = null;
+
+            if (carimbo != null)
+            {
+                foreach (var aula in (await AulasDaContaAsync(fatura)).Where(a => a.PagaEm == carimbo))
+                    aula.PagaEm = null;
+            }
+
             await _context.SaveChangesAsync();
 
             TempData["SucessoFatura"] = $"Conta de {fatura.PagadorNome} voltou a ficar em aberto.";
             return RedirectToAction(nameof(Faturamento), new { ano = fatura.Ano, mes = fatura.Mes });
+        }
+
+        // As aulas que esta conta cobra: mesmo professor, mesma competência, mesmo aluno.
+        //
+        // ⚠️ A identidade do aluno é a de `PrecoDaAula.Chave` (conta quando existe, nome anotado
+        // quando não) — a MESMA do cadastro e do acordo de preço. Comparar `AlunoId` na consulta
+        // deixaria de fora todo aluno avulso, que é a maioria de quem paga por mês.
+        //
+        // O filtro por chave roda em memória de propósito: são as aulas de UM mês de UM
+        // professor, e a alternativa seria repetir a régua de identidade dentro do SQL.
+        private async Task<List<Aula>> AulasDaContaAsync(FaturaDoAluno fatura)
+        {
+            var chave = PrecoDaAula.Chave(fatura.AlunoId, fatura.NomeAvulso);
+
+            var doMes = await _context.Aulas
+                .Where(a => a.ProfessorId == fatura.ProfessorId
+                            && a.DataHora.Year == fatura.Ano
+                            && a.DataHora.Month == fatura.Mes)
+                .ToListAsync();
+
+            return doMes
+                .Where(a => PrecoDaAula.Chave(a) == chave && a.RecuperaAulaId == null
+                            && (a.Status == PoliticaAula.Realizada || a.CobrarMesmoFaltando))
+                .ToList();
         }
 
         // Cancelar é para a conta que não deveria ter nascido (fechou o mês errado, aluno que

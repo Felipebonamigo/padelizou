@@ -59,6 +59,10 @@ public static class AgendaDeTurma
                 CanceladaEm = representante.CanceladaEm,
                 CanceladaPor = representante.CanceladaPor,
                 CobrarMesmoFaltando = representante.CobrarMesmoFaltando,
+                // ⚠️ NÃO é o da representante. O card mostra o preço SOMADO da sessão, então
+                // "paga" aqui afirma que a soma inteira entrou — e numa turma de três com dois
+                // pagos isso seria mentira em cima de dinheiro (ver RecebimentoDaAula.DaSessao).
+                PagaEm = RecebimentoDaAula.DaSessao(linhas),
                 AlunoPagaQuadra = representante.AlunoPagaQuadra,
                 RecuperaAulaId = representante.RecuperaAulaId,
                 RecuperaAula = representante.RecuperaAula,
