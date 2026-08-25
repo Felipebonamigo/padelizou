@@ -29,7 +29,12 @@
            class="btn btn-sm btn-outline-primary rounded-pill px-3">
             <i class="bi bi-image"></i> Card da classificação
         </a>
-        <small class="text-muted ms-2">Uma arte por grupo, pronta pra postar.</small>
+        <a asp-controller="Cartoes" asp-action="Resultados" asp-route-id="@torneio.Id"
+           asp-route-categoriaId="@((int)ViewBag.CategoriaId)"
+           class="btn btn-sm btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-list-ol"></i> Card dos resultados
+        </a>
+        <small class="text-muted ms-2">Artes prontas pra postar.</small>
     </div>
 
     <div class="row">

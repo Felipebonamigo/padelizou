@@ -1,0 +1,129 @@
+@model Padelizou.Services.DiaDeResultados
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+
+    ViewData["Title"] = $"Resultados — {Model.Categoria} - Padelizou";
+
+    var imagem = Url.Action("ResultadosImagem", "Cartoes",
+        new { id = torneio.Id, categoriaId = Model.CategoriaId, data = Model.Dia.ToString("s") });
+    var arquivo = $"resultados-{Model.Dia:yyyy-MM-dd}.png";
+
+    // Endereço ABSOLUTO pra prévia do link — relativo não serve: quem lê a meta é o servidor
+    // da Meta, de fora, sem saber qual é o nosso domínio.
+    var capa = Url.Action("ResultadosImagem", "Cartoes",
+        new { id = torneio.Id, categoriaId = Model.CategoriaId, data = Model.Dia.ToString("s") },
+        Context.Request.Scheme);
+
+    ViewData["OgTitulo"] = $"Resultados — {torneio.Nome}";
+    ViewData["Descricao"] = $"Os resultados de {Model.Dia:dd/MM} no {torneio.Nome}.";
+    if (Model.TemOQueMostrar)
+    {
+        ViewData["OgImagem"] = capa;
+    }
+
+    var ontem = Model.Dia.AddDays(-1);
+    var amanha = Model.Dia.AddDays(1);
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Classificacao" asp-route-id="@torneio.Id"
+       asp-route-categoriaId="@Model.CategoriaId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar à categoria
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-list-ol text-success"></i> Resultados do dia
+    </h2>
+    <p class="text-muted">@torneio.Nome — @Model.Categoria</p>
+
+    @* Um torneio dura mais de um dia, e quem abre isto no domingo quer o card de sábado
+       também. Os dois passos ficam sempre visíveis: esconder o "próximo dia" exigiria saber
+       quando o torneio acaba, e torneio remarcado desmentiria a conta. *@
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
+        <a asp-action="Resultados" asp-route-id="@torneio.Id" asp-route-categoriaId="@Model.CategoriaId"
+           asp-route-data="@ontem.ToString("s")" class="btn btn-sm btn-link">
+            <i class="bi bi-chevron-left"></i> @ontem.ToString("dd/MM")
+        </a>
+        <span class="fw-bold" style="color: var(--pdz-ink);">@Model.Dia.ToString("dd/MM/yyyy")</span>
+        <a asp-action="Resultados" asp-route-id="@torneio.Id" asp-route-categoriaId="@Model.CategoriaId"
+           asp-route-data="@amanha.ToString("s")" class="btn btn-sm btn-link">
+            @amanha.ToString("dd/MM") <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (!Model.TemOQueMostrar)
+    {
+        <div class="alert alert-light border rounded-4">
+            <strong>Nenhum jogo terminado neste dia.</strong>
+            <div class="small text-muted">
+                Só entra jogo encerrado — o que está em andamento fica de fora até o placar
+                fechar.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="Resultados de @Model.Dia.ToString("dd/MM")"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="Resultados — @Model.Categoria">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+
+                @if (Model.QuantosFicaramDeFora > 0)
+                {
+                    @* ⚠️ O QUE FICOU DE FORA É DITO AQUI TAMBÉM, e não só dentro da arte: quem
+                       vai postar precisa saber que o card não é a lista inteira ANTES de postar. *@
+                    <p class="small text-body-secondary text-center mb-0 mt-3">
+                        O card mostra os @Model.Jogos.Count mais recentes de @Model.Total jogos do dia.
+                    </p>
+                }
+            </div>
+        </div>
+
+        @* Os resultados em texto — a arte é pra postar, esta lista é pra conferir antes. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    @foreach (var jogo in Model.Jogos)
+                    {
+                        <li class="border-bottom py-2">
+                            <div class="small text-muted">@jogo.Fase</div>
+                            <div>
+                                <span class="@(jogo.Dupla1Venceu ? "fw-bold" : "")">@jogo.Dupla1</span>
+                                <span class="badge bg-primary rounded-pill mx-2">@jogo.Games1 x @jogo.Games2</span>
+                                <span class="@(jogo.Dupla1Venceu ? "" : "fw-bold")">@jogo.Dupla2</span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

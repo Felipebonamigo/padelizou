@@ -354,6 +354,40 @@ public class CartoesController : Controller
         return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
     }
 
+    // ───────────────────────── OS RESULTADOS DO DIA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como o cartaz, o pódio e a classificação.
+    //
+    // Sem `data`, o dia é HOJE — que é quando o organizador abre esta tela: no fim da tarde,
+    // no clube, com o dia inteiro jogado.
+    [HttpGet]
+    public async Task<IActionResult> Resultados(int id, int categoriaId, DateTime? data)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var dia = await ResultadosDoDia.DaCategoriaAsync(_context, id, categoriaId, data ?? DateTime.Now);
+        if (dia == null) return NotFound();
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(dia);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ResultadosImagem(int id, int categoriaId, DateTime? data)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var dia = await ResultadosDoDia.DaCategoriaAsync(_context, id, categoriaId, data ?? DateTime.Now);
+        if (dia == null || !dia.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDosResultados.Desenhar(dia, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"resultados-{Arquivo(dia.Categoria)}-{dia.Dia:yyyy-MM-dd}.png");
+    }
+
     // ───────────────────────── A CLASSIFICAÇÃO DOS GRUPOS ─────────────────────────
 
     // Família de DIVULGAÇÃO, como o cartaz e o pódio: mesma porta (`PodeVirarArteAsync`),
