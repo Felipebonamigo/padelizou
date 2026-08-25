@@ -32,6 +32,17 @@ public static class CartaoDoPodio
     private const float TorneioY = 1176;
     private const float LegendaY = 1236;
 
+    // ⚠️ O RÓTULO DO PRIMEIRO DEGRAU NÃO É "CAMPEÃO" FIXO, e o defeito foi visto na arte, não
+    // no código: a versão com a palavra escrita na mão saiu "CAMPEÃO" em cima de uma dupla de
+    // "4ª Categoria Feminina". A régua já existia no card de campeão (`CampeoesDoTorneio
+    // .Rotulo`, que lê o NOME da categoria e não o sexo de ninguém) — escrevê-la de novo aqui
+    // era a segunda cópia, e a segunda cópia é a que fica pra trás.
+    //
+    // `duasPessoas: true` porque o pódio é do mata-mata, onde o campeão é sempre uma DUPLA. O
+    // caso de uma pessoa só é o Americano, e ele não tem pódio aqui (ver PodioDaCategoria).
+    public static string RotuloDoCampeao(string categoria) =>
+        CampeoesDoTorneio.Rotulo(categoria, duasPessoas: true);
+
     // Os semifinalistas numa linha só, com o mesmo separador de respiro dos outros cards.
     // Nulo = não houve semifinal (categoria de 4 duplas), e a seção inteira some — rótulo em
     // cima do nada é pior que espaço vazio.
@@ -61,7 +72,7 @@ public static class CartaoDoPodio
                 CartaoCompartilhavel.Pilula(
                     canvas, CategoriaNaTela.Curto(podio.Categoria), PilulaCentroY, fontes, 40);
 
-                Degrau(canvas, fontes, "CAMPEÃO", podio.Campeao, RotuloCampeaoY, NomeCampeaoY,
+                Degrau(canvas, fontes, RotuloDoCampeao(podio.Categoria), podio.Campeao, RotuloCampeaoY, NomeCampeaoY,
                     tamanhoDoNome: 60, corDoNome: CartaoCompartilhavel.LimeClaro,
                     familiaDoNome: fontes.Forte, corDoRotulo: CartaoCompartilhavel.Lime);
 

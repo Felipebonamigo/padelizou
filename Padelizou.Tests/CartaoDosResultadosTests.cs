@@ -103,7 +103,9 @@ public class CartaoDosResultadosTests
         Assert.Equal(4, dia.Jogos[0].Games1);
         Assert.Equal(6, dia.Jogos[0].Games2);
         Assert.False(dia.Jogos[0].Dupla1Venceu);
+        Assert.True(dia.Jogos[0].Dupla2Venceu);
         Assert.True(dia.Jogos[1].Dupla1Venceu);
+        Assert.False(dia.Jogos[1].Dupla2Venceu);
     }
 
     [Fact]
@@ -266,10 +268,28 @@ public class CartaoDosResultadosTests
             Fase: i == 1 ? "Final" : "Grupo A",
             Dupla1: $"Jogador {i} da Silva  &  Parceiro {i} de Souza",
             Dupla2: $"Rival {i} Pereira  &  Colega {i} Antunes",
-            Games1: 6, Games2: i % 5, Dupla1Venceu: true)).ToList(),
+            Games1: 6, Games2: i % 5, Dupla1Venceu: true, Dupla2Venceu: false)).ToList(),
         Total: total,
         Torneio: "NATA PADEL TOUR",
         Clube: "Arena Beira Rio");
+
+    // ⚠️ "Finalizada sem VencedorId" existe no banco (correção de placar no meio do caminho),
+    // e é por isso que os dois lados são campos próprios em vez de um `bool` negado: com a
+    // negação, o card coroaria a dupla 2 num jogo que ninguém venceu.
+    [Fact]
+    public void Jogo_finalizado_sem_vencedor_nao_coroa_ninguem()
+    {
+        var jogo = new ResultadoDeJogo("Final", "Ana & Bia", "Carla & Dani", 6, 6,
+            Dupla1Venceu: false, Dupla2Venceu: false);
+
+        // E o desenho não quebra nesse estado — os dois saem sem destaque, em branco.
+        var png = CartaoDosResultados.Desenhar(
+            new DiaDeResultados(Sabado, 1, "Open Masculina", new List<ResultadoDeJogo> { jogo },
+                Total: 1, "NATA PADEL TOUR", "Arena Beira Rio"),
+            new FonteDoCartao(PastaDasFontes()), Path.GetDirectoryName(PastaDasFontes())!);
+
+        Assert.True(PixelsClaros(png) > 200);
+    }
 
     [Fact]
     public void O_card_dos_resultados_desenha_letra_de_verdade()

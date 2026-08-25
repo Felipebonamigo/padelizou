@@ -3,8 +3,13 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
+// ⚠️ OS DOIS LADOS SÃO EXPLÍCITOS, e não um `bool` só com o outro deduzido por negação: só
+// entra partida finalizada, mas "finalizada sem VencedorId" existe no banco (correção de
+// placar no meio do caminho), e a negação faria o card coroar a dupla 2 num jogo que ninguém
+// venceu. Com os dois, o card sabe também o caso "nenhum": desenha sem destaque.
 public sealed record ResultadoDeJogo(
-    string Fase, string Dupla1, string Dupla2, int Games1, int Games2, bool Dupla1Venceu);
+    string Fase, string Dupla1, string Dupla2, int Games1, int Games2,
+    bool Dupla1Venceu, bool Dupla2Venceu);
 
 public sealed record DiaDeResultados(
     DateTime Dia,
@@ -96,7 +101,8 @@ public static class ResultadosDoDia
                 // `VencedorId` ao finalizar — nunca de `games1 > games2`. As duas divergem
                 // quando um lado está sem placar, e foi assim que a tabela de um grupo
                 // apontou uma vencedora e o registro do jogo apontou outra (05/08/2026).
-                Dupla1Venceu: QuemVenceu.Da(x.Partida) == x.Partida.Dupla1Id))
+                Dupla1Venceu: QuemVenceu.Da(x.Partida) == x.Partida.Dupla1Id,
+                Dupla2Venceu: QuemVenceu.Da(x.Partida) == x.Partida.Dupla2Id))
             .ToList();
 
         return new DiaDeResultados(

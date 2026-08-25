@@ -82,13 +82,14 @@ public static class CartaoDaClassificacao
         // altura fixa, um grupo de oito empilharia linha por cima de linha, e um de três
         // deixaria metade do card vazia. O teto de 76 impede que o grupo de três vire três
         // frases gigantes soltas no meio da arte.
-        var passo = Math.Min(76f, (UltimaLinhaY - PrimeiraLinhaY) / Math.Max(1, linhas.Count - 1));
-        if (linhas.Count == 1) passo = 0;
+        float faixa = UltimaLinhaY - PrimeiraLinhaY;
+        var passo = linhas.Count == 1 ? 0 : Math.Min(76f, faixa / (linhas.Count - 1));
+        var corpo = linhas.Count == 1 ? 44f : Math.Min(44f, passo * 0.62f);
 
-        var corpo = Math.Min(44f, passo * 0.62f);
-        if (linhas.Count == 1) corpo = 44f;
-
-        var y = PrimeiraLinhaY;
+        // ⚠️ E O BLOCO FICA CENTRADO NO QUE SOBRA — defeito visto na arte, não no código: com
+        // início fixo, um grupo de três encostava no topo e deixava 170px de vão antes do
+        // rodapé, como se o card estivesse cortado.
+        var y = PrimeiraLinhaY + (faixa - passo * (linhas.Count - 1)) / 2f;
         foreach (var linha in linhas)
         {
             // Quem passa em primeiro sai em lime; o resto em branco. Uma cor de destaque só —

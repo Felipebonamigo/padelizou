@@ -140,17 +140,44 @@ public static class CartaoDaPanelinha
             CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - 200);
     }
 
+    // A faixa onde o pódio mora, entre o rótulo "RANKING DA SEMANA" e a divisória do rodapé.
+    public const float TopoDaFaixa = 830;
+    public const float BaseDaFaixa = 1130;
+
+    // O passo, o corpo e onde começa — a conta separada do desenho, pra o teste conferir sem
+    // abrir canvas.
+    //
+    // ⚠️ ESTE MÉTODO NASCEU DE OLHAR A ARTE, com a suíte verde. A primeira versão dividia a
+    // faixa pelo TETO de linhas ("assim três e oito ocupam a mesma faixa") e entregava o pior
+    // dos dois mundos: passo de 40px pra um corpo de 44 (linhas ENCOSTADAS) e 200px de buraco
+    // embaixo. Agora o passo sai da quantidade REAL, com piso de folga, e o bloco é CENTRADO
+    // no que sobra.
+    public static (int Linhas, float Passo, float Corpo, float PrimeiraLinhaY) LayoutDoPodio(int quantasLinhas)
+    {
+        int linhas = Math.Clamp(quantasLinhas, 1, MaximoDeLinhas);
+        float faixa = BaseDaFaixa - TopoDaFaixa;
+
+        // O corpo encolhe conforme a lista cresce; nunca abaixo de 26, que é o menor tamanho
+        // ainda legível num story visto de relance.
+        float corpo = Math.Clamp(faixa / linhas * 0.52f, 26f, 46f);
+
+        // A folga de 1,35 dá respiro entre as linhas; o teto impede que duas linhas fiquem em
+        // pontas opostas da faixa, com um vão no meio.
+        float passo = linhas == 1 ? 0 : Math.Clamp(faixa / (linhas - 1), corpo * 1.35f, corpo * 1.9f);
+
+        float alturaDoBloco = passo * (linhas - 1);
+        float primeira = TopoDaFaixa + (faixa - alturaDoBloco) / 2f;
+
+        return (linhas, passo, corpo, primeira);
+    }
+
     private static void Podio(SKCanvas canvas, FonteDoCartao fontes, DadosDoCardDaPanelinha dados)
     {
-        // A altura de cada linha sai do espaço disponível dividido pelo TETO, e não pela
-        // quantidade de linhas desta noite: assim três nomes e oito nomes ocupam a mesma
-        // faixa, e o card não muda de proporção conforme a semana rende mais ou menos.
-        const float primeiraLinha = 830;
-        const float alturaDaFaixa = 320;
-        var passo = alturaDaFaixa / MaximoDeLinhas;
+        if (dados.Podio.Count == 0) return;
 
-        var y = primeiraLinha;
-        foreach (var linha in dados.Podio)
+        var (_, passo, corpo, y) = LayoutDoPodio(dados.Podio.Count);
+
+        foreach (var linha in dados.Podio.Take(MaximoDeLinhas))
         {
             // O primeiro lugar em lime; o resto em branco. Uma cor só de destaque — duas
             // fariam a terceira posição competir com a primeira.
@@ -158,7 +185,7 @@ public static class CartaoDaPanelinha
 
             CartaoCompartilhavel.TextoCentralizado(
                 canvas, $"{linha.Posicao}º   {linha.Nome}   ·   {linha.Pontos} pts", y,
-                linha.Posicao == 1 ? fontes.Forte : fontes.Media, 44,
+                linha.Posicao == 1 ? fontes.Forte : fontes.Media, corpo,
                 cor, CartaoCompartilhavel.Largura - 160, tamanhoMinimo: 24);
 
             y += passo;

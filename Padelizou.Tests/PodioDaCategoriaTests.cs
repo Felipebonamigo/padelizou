@@ -277,6 +277,19 @@ public class CartaoDoPodioTests
         Assert.Null(CartaoDoPodio.LinhaDosSemifinalistas(new List<string>()));
     }
 
+    // ⚠️ ACHADO OLHANDO A ARTE, com a suíte verde: o card escrevia "CAMPEÃO" fixo, e saiu
+    // "CAMPEÃO" em cima de uma dupla de "4ª Categoria Feminina". A régua do gênero JÁ EXISTE
+    // (`CampeoesDoTorneio.Rotulo`, do card de campeão, que lê o NOME da categoria e não o
+    // sexo de ninguém) — escrever a palavra na mão aqui era a segunda cópia dela.
+    [Theory]
+    [InlineData("Open Masculina", "CAMPEÕES")]
+    [InlineData("4ª Categoria Feminina", "CAMPEÃS")]
+    [InlineData("Mista B", "CAMPEÕES")]
+    public void O_rotulo_do_primeiro_degrau_acompanha_a_categoria(string categoria, string esperado)
+    {
+        Assert.Equal(esperado, CartaoDoPodio.RotuloDoCampeao(categoria));
+    }
+
     [Fact]
     public void O_card_do_podio_desenha_letra_de_verdade()
     {

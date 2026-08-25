@@ -354,6 +354,37 @@ public class CartoesController : Controller
         return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
     }
 
+    // ───────────────────────── A CHAVE DO MATA-MATA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como os outros cards de torneio.
+    [HttpGet]
+    public async Task<IActionResult> Chave(int id, int categoriaId)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var chave = await ChaveParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        if (chave == null) return NotFound();
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(chave);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ChaveImagem(int id, int categoriaId)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var chave = await ChaveParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        if (chave == null || !chave.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDaChave.Desenhar(chave, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"chave-{Arquivo(chave.Categoria)}.png");
+    }
+
     // ───────────────────────── OS RESULTADOS DO DIA ─────────────────────────
 
     // Família de DIVULGAÇÃO, como o cartaz, o pódio e a classificação.

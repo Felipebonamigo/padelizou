@@ -155,6 +155,59 @@ public class CartaoDaPanelinhaTests
         Assert.True(CartaoDaPanelinha.TemOQueMostrar(Noite(("Ana", 3))));
     }
 
+    // ⚠️ ESTE TESTE NASCEU DE OLHAR A ARTE, não o código: a suíte estava verde e o card saía
+    // com as três linhas do pódio COLADAS (passo de 40px pra um corpo de 44) e um buraco de
+    // 200px embaixo. A primeira versão dividia a faixa pelo TETO de linhas em vez de pela
+    // quantidade real — "assim três e oito ocupam a mesma faixa" — e o resultado foi o pior
+    // dos dois mundos: apertado em cima, vazio embaixo.
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(8)]
+    public void As_linhas_do_podio_nunca_se_sobrepoem(int quantas)
+    {
+        var layout = CartaoDaPanelinha.LayoutDoPodio(quantas);
+
+        // Passo menor que o corpo é sobreposição garantida; a folga de 1,15 é o mínimo pra
+        // duas linhas de texto não se encostarem.
+        Assert.True(layout.Passo >= layout.Corpo * 1.15f,
+            $"{quantas} linhas: passo {layout.Passo} pra corpo {layout.Corpo}");
+    }
+
+    // Linha sozinha tem passo ZERO, e é o certo: não existe próxima linha pra colidir, e um
+    // passo qualquer aqui só empurraria o nome único pra fora do centro da faixa.
+    [Fact]
+    public void Uma_linha_so_nao_precisa_de_passo()
+    {
+        var layout = CartaoDaPanelinha.LayoutDoPodio(1);
+
+        Assert.Equal(0, layout.Passo);
+        Assert.Equal(
+            (CartaoDaPanelinha.TopoDaFaixa + CartaoDaPanelinha.BaseDaFaixa) / 2f,
+            layout.PrimeiraLinhaY);
+    }
+
+    // E o bloco fica CENTRADO na faixa: sem isso, três nomes ficam grudados no topo com um
+    // vão embaixo — que é exatamente como o card saiu na primeira tentativa.
+    [Fact]
+    public void O_podio_fica_centrado_na_faixa_que_tem()
+    {
+        var tres = CartaoDaPanelinha.LayoutDoPodio(3);
+        var oito = CartaoDaPanelinha.LayoutDoPodio(8);
+
+        Assert.True(tres.PrimeiraLinhaY > oito.PrimeiraLinhaY,
+            "com menos linhas o bloco desce, pra ficar no meio da faixa");
+
+        // Nem o de cima escapa da faixa, nem o de baixo passa do rodapé.
+        foreach (var layout in new[] { tres, oito })
+        {
+            var ultima = layout.PrimeiraLinhaY + layout.Passo * (layout.Linhas - 1);
+            Assert.True(layout.PrimeiraLinhaY >= CartaoDaPanelinha.TopoDaFaixa);
+            Assert.True(ultima <= CartaoDaPanelinha.BaseDaFaixa);
+        }
+    }
+
     // ── O desenho ──────────────────────────────────────────────────────────────────────
 
     [Fact]
