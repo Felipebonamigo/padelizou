@@ -90,7 +90,7 @@ public class AulaARecuperarTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Outro aluno", telefoneAluno: null,
-            dataHora: quando, preco: null, recorrente: false, semanasRecorrencia: 0);
+            data: DataEHoraDoFormulario.ParaCampoDeData(quando), hora: DataEHoraDoFormulario.ParaCampoDeHora(quando), preco: null, recorrente: false, semanasRecorrencia: 0);
 
         Assert.True(await ctx.Aulas.AnyAsync(a => a.NomeAlunoAvulso == "Outro aluno"));
     }

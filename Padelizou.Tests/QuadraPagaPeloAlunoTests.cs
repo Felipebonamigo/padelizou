@@ -54,7 +54,7 @@ public class QuadraPagaPeloAlunoTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, alunoPagaQuadra: alunoPaga);
 
         Assert.Equal(alunoPaga, (await ctx.Aulas.SingleAsync()).AlunoPagaQuadra);
@@ -70,7 +70,7 @@ public class QuadraPagaPeloAlunoTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: true, semanasRecorrencia: 4, alunoPagaQuadra: true);
 
         var aulas = await ctx.Aulas.ToListAsync();

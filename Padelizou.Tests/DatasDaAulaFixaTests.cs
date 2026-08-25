@@ -121,7 +121,7 @@ public class DatasDaAulaFixaTests
 
         // O professor desmarcou a segunda semana (feriado). Sem a lista, "repetir por 3
         // semanas" criaria a aula no feriado e ele apagaria depois.
-        await controller.AdicionarManual(local.Id, "Robson", null, primeira, null,
+        await controller.AdicionarManual(local.Id, "Robson", null, DataEHoraDoFormulario.ParaCampoDeData(primeira), DataEHoraDoFormulario.ParaCampoDeHora(primeira), null,
             recorrente: true, semanasRecorrencia: 3,
             datas: new List<string>
             {
@@ -149,7 +149,7 @@ public class DatasDaAulaFixaTests
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
 
-        await controller.AdicionarManual(local.Id, "Robson", null, primeira, null,
+        await controller.AdicionarManual(local.Id, "Robson", null, DataEHoraDoFormulario.ParaCampoDeData(primeira), DataEHoraDoFormulario.ParaCampoDeHora(primeira), null,
             recorrente: true, semanasRecorrencia: 2,
             datas: new List<string>
             {
@@ -171,7 +171,7 @@ public class DatasDaAulaFixaTests
         var primeira = DateTime.Today.AddDays(5).AddHours(8);
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
 
-        await controller.AdicionarManual(local.Id, "Robson", null, primeira, null,
+        await controller.AdicionarManual(local.Id, "Robson", null, DataEHoraDoFormulario.ParaCampoDeData(primeira), DataEHoraDoFormulario.ParaCampoDeHora(primeira), null,
             recorrente: true, semanasRecorrencia: 4);
 
         Assert.Equal(4, await ctx.Aulas.CountAsync());
@@ -186,7 +186,7 @@ public class DatasDaAulaFixaTests
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
 
         await controller.AdicionarManual(local.Id, "Robson", null,
-            DateTime.Today.AddDays(5).AddHours(8), null,
+            DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(5).AddHours(8)), DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(5).AddHours(8)), null,
             recorrente: false, semanasRecorrencia: 4);
 
         var criada = Assert.Single(await ctx.Aulas.ToListAsync());
