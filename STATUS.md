@@ -21,7 +21,9 @@
 >
 > 🚫 **O feed social ficou de fora, e o motivo é DADO, não gosto:** produção tem ~128-177 contas, 4 aparelhos com push e **zero partidas finalizadas** em torneio que conta pro ranking. Feed de atividade sem atividade abre vazio — é o mesmo argumento que empurrou a premiação anual pra 2027, e prêmio que estreia vazio queima a estreia.
 >
-> 🧪 **4.916 testes, 0 falhas (78 novos), 5 avisos — os mesmos de antes.** **Sem migration nenhuma** em todo o bloco.
+> 🔒 **E O CACHE DO CARD DO DUELO FOI CORRIGIDO JUNTO** (pedido do Felipe depois de ler o relatório). Ele é de 12/08, exige login e saía com `Cache-Control: public` herdado do padrão do `Png(...)` — que é o certo pros cards de divulgação (é dele que a prévia do WhatsApp vive) e errado num card autenticado: `public` autoriza qualquer cache no caminho a guardar a resposta de UM e devolvê-la a OUTRO, e o duelo é montado do ponto de vista de quem pede. Teste escrito antes e visto falhar com `"public, max-age=3600"`. ⚠️ **Veio com CONTRAPROVA** (o cartaz continua `public`) — sem ela, um controller que respondesse `private` pra tudo passaria no teste sem provar nada. **Varridas as 14 actions do controller: só duas têm `[Authorize]` (duelo e panelinha), e as duas estão privadas.** Não foi criado gate mecânico pra isso: são dois endpoints e a régua está escrita no cabeçalho do controller — se virar rotina, vale um varredor no molde do `GateDeAutorizacaoDosPostsTests`.
+>
+> 🧪 **4.918 testes, 0 falhas (80 novos), 5 avisos — os mesmos de antes.** **Sem migration nenhuma** em todo o bloco.
 >
 > ⚠️ **Commitado e empurrado, NÃO publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
 >

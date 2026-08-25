@@ -354,6 +354,45 @@ public static class TestInfra
     public static PortaDosDesafios PortaDosDesafiosDe(DbPadelContext ctx, bool habilitado = false) =>
         new(ctx, Microsoft.Extensions.Options.Options.Create(new DesafiosSettings { Habilitado = habilitado }));
 
+    // A pasta com a Poppins de verdade. Card sem fonte responde 404 ANTES de qualquer regra
+    // (ver CartoesController), então um teste de porta com fonte dublada testaria o 404 errado.
+    public static string PastaDasFontesDeVerdade()
+    {
+        var pasta = AppContext.BaseDirectory;
+        for (int i = 0; i < 8 && pasta != null; i++)
+        {
+            var tentativa = Path.Combine(pasta, "Padelizou", "wwwroot", "fonts");
+            if (Directory.Exists(tentativa)) return tentativa;
+            pasta = Directory.GetParent(pasta)?.FullName;
+        }
+        throw new DirectoryNotFoundException("wwwroot/fonts não encontrado a partir do bin.");
+    }
+
+    // CartoesController pronto, com o ambiente dublado apontando pro wwwroot de verdade.
+    //
+    // Mora aqui, e não repetido em cada arquivo de card, porque os testes de PORTA dos cards
+    // fechados (duelo e panelinha) precisam do mesmo objeto — e duas montagens divergiriam no
+    // dia em que o construtor ganhasse uma dependência.
+    public static CartoesController NovoCartoesController(DbPadelContext ctx, int? usuarioLogadoId)
+    {
+        var ambiente = Substitute.For<IWebHostEnvironment>();
+        ambiente.WebRootPath.Returns(Path.GetDirectoryName(PastaDasFontesDeVerdade())!);
+
+        var controller = new CartoesController(
+            ctx, new FonteDoCartao(PastaDasFontesDeVerdade()), ambiente, new EstatisticasService(ctx));
+
+        var user = usuarioLogadoId == null
+            ? new ClaimsPrincipal(new ClaimsIdentity())
+            : new ClaimsPrincipal(new ClaimsIdentity(
+                new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.Value.ToString()) }, "Teste"));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user },
+        };
+        return controller;
+    }
+
     public static Jogador NovoJogador(int i) => new()
     {
         Nome = $"Jogador {i:00}",

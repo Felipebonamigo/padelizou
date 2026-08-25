@@ -351,7 +351,12 @@ public class CartoesController : Controller
         };
 
         var png = CartaoDoDuelo.Desenhar(dados, _fontes, _ambiente.WebRootPath);
-        return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
+
+        // ⚠️ `private`: esta ação exige login e o card é do ponto de vista de QUEM PEDE — o
+        // mesmo confronto gera arte diferente pra cada um dos dois. Com `public`, um cache no
+        // caminho poderia guardar a resposta de um e devolvê-la ao outro. O padrão do `Png` é
+        // `public` porque a maioria dos cards é de divulgação; este é da família fechada.
+        return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png", publico: false);
     }
 
     // ───────────────────────── A CHAVE DO MATA-MATA ─────────────────────────

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+using Padelizou.Models;
 using Padelizou.Services;
 using SkiaSharp;
 
@@ -147,5 +149,97 @@ public class CartoesDoJogadorEDueloTests
         };
 
         Assert.True(PixelsBrancos(CartaoDoDuelo.Desenhar(dados, Fontes(), WebRoot())) > 500);
+    }
+}
+
+// A PORTA DO CARD DO DUELO — a parte que não é desenho.
+//
+// ⚠️ O duelo é da família FECHADA do CartoesController: ele exige login porque a arte é a
+// provocação de UM dos dois, montada do ponto de vista de quem pede. E card que exige login
+// não pode sair com `Cache-Control: public`.
+public class CacheDoCardDoDueloTests
+{
+    // Dois jogadores que já se enfrentaram uma vez — o mínimo pro duelo existir (0 × 0 não
+    // vira card, por decisão de 12/08/2026).
+    private static async Task<(DbPadelContext Ctx, Jogador Eu, Jogador Oponente)> MontarConfrontoAsync()
+    {
+        var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+
+        var eu = new Jogador { Nome = "Felipe Bonamigo", Cpf = "11111111111" };
+        var meuParceiro = new Jogador { Nome = "Lucas Foka", Cpf = "22222222222" };
+        var oponente = new Jogador { Nome = "Diego Martins", Cpf = "33333333333" };
+        var parceiroDele = new Jogador { Nome = "Rafael Souza", Cpf = "44444444444" };
+        ctx.Jogadores.AddRange(eu, meuParceiro, oponente, parceiroDele);
+        await ctx.SaveChangesAsync();
+
+        var minhaDupla = new Dupla { CategoriaId = categoria.Id, Jogador1Id = eu.Id, Jogador2Id = meuParceiro.Id };
+        var aDele = new Dupla { CategoriaId = categoria.Id, Jogador1Id = oponente.Id, Jogador2Id = parceiroDele.Id };
+        ctx.Duplas.AddRange(minhaDupla, aDele);
+        await ctx.SaveChangesAsync();
+
+        ctx.Partidas.Add(new Partida
+        {
+            TorneioId = torneio.Id,
+            CategoriaId = categoria.Id,
+            Codigo = "DUELO1",
+            Status = "Finalizada",
+            Fase = "Final",
+            Dupla1Id = minhaDupla.Id,
+            Dupla2Id = aDele.Id,
+            GamesDupla1 = 6,
+            GamesDupla2 = 3,
+            SetsDupla1 = 1,
+            SetsDupla2 = 0,
+            VencedorId = minhaDupla.Id,
+        });
+        await ctx.SaveChangesAsync();
+
+        return (ctx, eu, oponente);
+    }
+
+    // ⚠️ O DEFEITO QUE ESTE TESTE PRENDE: o duelo saía com `Cache-Control: public`, herdado do
+    // padrão do `Png(...)` — que é o certo pros cards de DIVULGAÇÃO (é dele que a prévia do
+    // WhatsApp vive) e errado aqui. `public` autoriza qualquer cache no caminho (proxy, CDN,
+    // navegador compartilhado) a guardar a resposta de uma página autenticada e devolvê-la a
+    // OUTRA pessoa. O card da panelinha já nasceu com `private` em 25/08; este veio de 12/08 e
+    // ficou pra trás.
+    [Fact]
+    public async Task A_imagem_do_duelo_e_cache_privado()
+    {
+        var (ctx, eu, oponente) = await MontarConfrontoAsync();
+        using var _ = ctx;
+
+        var controller = TestInfra.NovoCartoesController(ctx, eu.Id);
+        var resposta = await controller.DueloImagem(oponente.Id);
+
+        // Primeiro a garantia de que o teste está medindo o caminho FELIZ: um 404 aqui também
+        // teria cabeçalho nenhum, e o teste passaria sem provar coisa alguma.
+        var imagem = Assert.IsType<FileContentResult>(resposta);
+        Assert.Equal("image/png", imagem.ContentType);
+        Assert.NotEmpty(imagem.FileContents);
+
+        var cache = controller.Response.Headers.CacheControl.ToString();
+        Assert.StartsWith("private", cache);
+        Assert.DoesNotContain("public", cache);
+    }
+
+    // A contraprova, pra o teste acima não passar por acidente num controller que responde
+    // `private` pra tudo: o cartaz do torneio é da família de DIVULGAÇÃO e PRECISA de cache
+    // compartilhado — é ele que serve a prévia do link pro servidor da Meta.
+    [Fact]
+    public async Task O_cartaz_do_torneio_continua_com_cache_publico()
+    {
+        var ctx = TestInfra.NovoContexto();
+        using var _ = ctx;
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+
+        var controller = TestInfra.NovoCartoesController(ctx, usuarioLogadoId: null);
+        controller.Url = TestInfra.UrlDeTeste();
+
+        var resposta = await controller.CartazImagem(torneio.Id);
+
+        Assert.IsType<FileContentResult>(resposta);
+        Assert.StartsWith("public", controller.Response.Headers.CacheControl.ToString());
     }
 }
