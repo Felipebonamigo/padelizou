@@ -25,7 +25,7 @@
 >
 > 🧪 **4.918 testes, 0 falhas (80 novos), 5 avisos — os mesmos de antes.** **Sem migration nenhuma** em todo o bloco.
 >
-> ⚠️ **Commitado e empurrado, NÃO publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `51bf8b7` (PR #32, CI #687 verde). Deploy run **#44 → dev** (28s) e **#45 → prod** (22s), os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita**: o proxy da sessão web recusa a saída (`CONNECT tunnel failed, 403`), então a evidência é o job, não uma chamada minha ao site.
 >
 >
 > Antes, no mesmo dia — 📅 **MINHA AGENDA VIRA ESTILO GOOGLE, E AULA GANHA ESPORTE (PADEL/TÊNIS/BEACH TÊNIS).**
@@ -44,7 +44,7 @@
 >
 > 🧪 **4.848 testes, 0 falhas (13 novos)** — esporte nasce em Padel, escolha explícita é gravada, esporte fora da lista cai no padrão (Adicionar e Editar), editar só o esporte salva (regressão do bug acima), editar propaga pra turma inteira, filtro só aparece com 2+ esportes lançados, filtro restringe a lista, filtro inválido na URL é ignorado. Grade/clique são mudança de tela pura, sem lógica nova pra testar — build limpo cobre a Razor, suíte inteira cobre regressão.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
+> ✅ **PUBLICADO junto, na mesma `51bf8b7`** (o PR #32 mergeou por cima deste). Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
 >
 >
 > Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
@@ -103,7 +103,7 @@
 >
 > 🧪 **4.809 testes, 0 falhas.** Build: 42 avisos → 5. **Sem migration.** Nenhum comportamento de produção muda, exceto um rótulo defensivo em `Details.cshtml`.
 >
-> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio, faltando copiar `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` pro environment `dev`.
+> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. ~~E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio.~~ ⚠️ **ESTA FRASE JÁ ESTAVA ERRADA QUANDO FOI ESCRITA** (corrigido em 25/08): a pendência caiu em **21/08** — está registrado logo abaixo, no bloco daquele dia, com o run #36 passando. A frase foi copiada de uma entrada velha e sobreviveu; em 25/08 ela fez uma sessão repetir ao Felipe que o dev estava quebrado quando os deploys #43, #44 e #45 estavam passando. **Entrada de diário copiada sem conferir vira fato falso com data.**
 >
 > Antes, no mesmo dia: 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
 >
