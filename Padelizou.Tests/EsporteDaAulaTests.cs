@@ -118,7 +118,7 @@ public class EsporteDaAulaTests
         var aula = Marcada(ctx, professor, local, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, aula.Preco, esporte: EsporteDaAula.BeachTenis);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), aula.Preco, esporte: EsporteDaAula.BeachTenis);
 
         Assert.Equal(EsporteDaAula.BeachTenis, (await ctx.Aulas.SingleAsync()).Esporte);
     }
@@ -132,7 +132,7 @@ public class EsporteDaAulaTests
         var aula = Marcada(ctx, professor, local, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, aula.Preco, esporte: EsporteDaAula.Padel);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), aula.Preco, esporte: EsporteDaAula.Padel);
 
         Assert.Equal("Nada mudou nessa aula.", controller.TempData["Sucesso"]);
         Assert.Equal(EsporteDaAula.Padel, (await ctx.Aulas.SingleAsync()).Esporte);
@@ -159,7 +159,7 @@ public class EsporteDaAulaTests
         ctx.SaveChanges();
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(titular.Id, local.Id, quando, titular.Preco, esporte: EsporteDaAula.Tenis);
+        await controller.Editar(titular.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(quando), hora: DataEHoraDoFormulario.ParaCampoDeHora(quando), titular.Preco, esporte: EsporteDaAula.Tenis);
 
         var todas = await ctx.Aulas.ToListAsync();
         Assert.All(todas, a => Assert.Equal(EsporteDaAula.Tenis, a.Esporte));
@@ -174,7 +174,7 @@ public class EsporteDaAulaTests
         var aula = Marcada(ctx, professor, local, DateTime.Today.AddDays(4).AddHours(8), esporte: EsporteDaAula.Tenis);
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, aula.Preco, esporte: "Vôlei");
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), aula.Preco, esporte: "Vôlei");
 
         Assert.Equal(EsporteDaAula.Tenis, (await ctx.Aulas.SingleAsync()).Esporte);
     }

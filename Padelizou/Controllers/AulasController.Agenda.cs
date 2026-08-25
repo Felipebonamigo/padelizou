@@ -545,11 +545,25 @@ namespace padelizou.Controllers
         // A regra de como ela nasce (o que herda, e por que sem preço) mora em
         // Services/Reposicao, que é onde dá pra testá-la sem banco.
         [HttpPost]
-        public async Task<IActionResult> Encaixar(int aulaId, int localId, DateTime dataHora,
+        public async Task<IActionResult> Encaixar(int aulaId, int localId, string? data, string? hora,
             int? duracaoMinutos = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS, e não um `DateTime dataHora` — mesma razão da tela de Adicionar
+            // (ver AdicionarManual e Services/DataEHoraDoFormulario): o formulário manda
+            // "2026-09-15" e "07:00", o app roda em pt-BR, e o binder leria a data ao contrário
+            // ou cairia em 01/01/0001 CALADO. A reposição iria pro ano 1 sem ninguém ver.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                // ⚠️ Sai ANTES de tocar na aula original: ela precisa continuar na fila de
+                // reposição, que é o único lugar que lembra o professor de que deve essa aula.
+                TempData["Erro"] = "Escolha a data e a hora da reposição.";
+                return RedirectToAction("MinhaAgenda");
+            }
+            var dataHora = quando.Value;
 
             var original = await _context.Aulas
                 .Include(a => a.Aluno)
@@ -722,11 +736,23 @@ namespace padelizou.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco,
+        public async Task<IActionResult> Editar(int aulaId, int localId, string? data, string? hora, decimal preco,
             int? duracaoMinutos = null, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS, e não um `DateTime dataHora` — ver o comentário do Encaixar logo
+            // acima e Services/DataEHoraDoFormulario. Aqui o estrago seria pior: a aula JÁ
+            // EXISTE e está marcada com o aluno, então uma data lida errado não cria lixo novo,
+            // move a aula de alguém pra um dia que ninguém combinou.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                TempData["Erro"] = "Escolha a data e a hora da aula.";
+                return RedirectToAction("Editar", new { id = aulaId });
+            }
+            var dataHora = quando.Value;
 
             // O ProfessorId no filtro é a autorização: sem ele, qualquer professor logado
             // remarcaria a aula de qualquer outro só mandando o id.

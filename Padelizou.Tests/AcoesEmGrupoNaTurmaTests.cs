@@ -143,7 +143,7 @@ public class AcoesEmGrupoNaTurmaTests
         var novoHorario = umaDaTurma.DataHora.AddHours(3);
 
         await TestInfra.NovoAulasController(ctx, professor.Id)
-            .Editar(umaDaTurma.Id, local.Id, novoHorario, preco: 90, duracaoMinutos: 90);
+            .Editar(umaDaTurma.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), preco: 90, duracaoMinutos: 90);
 
         var todas = await ctx.Aulas.Where(a => a.TurmaId == turma).OrderBy(a => a.Id).ToListAsync();
         Assert.All(todas, a => Assert.Equal(novoHorario, a.DataHora));
@@ -167,7 +167,7 @@ public class AcoesEmGrupoNaTurmaTests
         var novoHorario = umaDaTurma.DataHora.AddHours(1);
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(umaDaTurma.Id, local.Id, novoHorario, preco: 60, duracaoMinutos: 90);
+        await controller.Editar(umaDaTurma.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), preco: 60, duracaoMinutos: 90);
 
         Assert.Null(controller.TempData["Erro"]);
         Assert.All(await ctx.Aulas.Where(a => a.TurmaId == turma).ToListAsync(),

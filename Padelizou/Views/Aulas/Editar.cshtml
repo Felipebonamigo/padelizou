@@ -90,13 +90,33 @@
                             </select>
                         </div>
 
+                        @* ⚠️ DOIS CAMPOS, e não um `datetime-local` — mesma razão da tela de
+                           Adicionar (25/08/2026, pedido do Felipe): no Android o datetime-local
+                           abre a RODINHA de rolagem, onde a data é um número solto, sem
+                           calendário e sem dia da semana. E o dia da semana é o motivo inteiro
+                           de o professor estar olhando essa tela.
+
+                           O valor de cada campo sai de Services/DataEHoraDoFormulario, e não de
+                           um ToString solto: o campo só aceita "yyyy-MM-dd" e "HH:mm", e com
+                           qualquer outro formato o navegador abre o campo VAZIO sem reclamar —
+                           o professor "confirmaria" um horário que ele nunca digitou. *@
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">Data e hora</label>
-                            @* O formato tem que ser o do HTML (yyyy-MM-ddTHH:mm) e não o do
-                               pt-BR: com "09/08/2026 22:00" o navegador considera o valor
-                               inválido e abre o campo VAZIO, sem reclamar de nada. *@
-                            <input type="datetime-local" name="dataHora" class="form-control bg-light"
-                                   value="@Model.DataHora.ToString("yyyy-MM-ddTHH:mm")" required />
+                            <label class="form-label fw-bold text-muted small" for="input-data">Data e hora</label>
+                            <div class="row g-2">
+                                <div class="col-7">
+                                    <input type="date" name="data" id="input-data" class="form-control bg-light"
+                                           value="@Padelizou.Services.DataEHoraDoFormulario.ParaCampoDeData(Model.DataHora)"
+                                           data-dia-da-semana="dia-da-semana" required />
+                                </div>
+                                <div class="col-5">
+                                    <input type="time" name="hora" id="input-hora" class="form-control bg-light"
+                                           value="@Padelizou.Services.DataEHoraDoFormulario.ParaCampoDeHora(Model.DataHora)"
+                                           required />
+                                </div>
+                            </div>
+                            @* js/dia-da-semana.js (global): o calendário mostra o dia enquanto
+                               está aberto, mas depois de fechar sobra "09/08/2026". *@
+                            <div class="form-text fw-bold" id="dia-da-semana"></div>
                         </div>
 
                         <div class="mb-3">
