@@ -54,7 +54,7 @@ public class EsporteDaAulaTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0);
 
         Assert.Equal(EsporteDaAula.Padel, (await ctx.Aulas.SingleAsync()).Esporte);
@@ -68,7 +68,7 @@ public class EsporteDaAulaTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, esporte: EsporteDaAula.Tenis);
 
         Assert.Equal(EsporteDaAula.Tenis, (await ctx.Aulas.SingleAsync()).Esporte);
@@ -84,7 +84,7 @@ public class EsporteDaAulaTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, esporte: "Vôlei");
 
         Assert.Equal(EsporteDaAula.Padel, (await ctx.Aulas.SingleAsync()).Esporte);

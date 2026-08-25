@@ -156,7 +156,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
-            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
+            string? data, string? hora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
             int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null,
             int? duracaoMinutos = null, bool semPrazo = false,
             List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null,
@@ -164,6 +164,23 @@ namespace padelizou.Controllers
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS EM VEZ DE UM `DateTime dataHora` NA ASSINATURA, e o motivo é a
+            // CULTURA: a tela manda "2026-08-18" e "14:00" (o que `<input type="date">` e
+            // `<input type="time">` mandam), o app roda em pt-BR, e o binder leria a data ao
+            // contrário — ou recusaria calado, deixando `dataHora` em 01/01/0001. O parsing é
+            // invariante e mora em Services/DataEHoraDoFormulario, com teste.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                TempData["Erro"] = "Escolha a data e a hora da aula.";
+                return RedirectToAction("AdicionarManual");
+            }
+
+            // Sai anulável da guarda pra não-anulável aqui, e o resto do método continua
+            // exatamente como era. `.Value` depois de um `return` no nulo é provado, não é o
+            // `!` que cala o compilador sem mudar o risco.
+            var dataHora = quando.Value;
 
             // Esporte fora da lista (ou não escolhido) cai no padrão — o professor que só dá
             // padel nem vê esse campo na tela, e mandar lixo aqui não pode quebrar a aula.

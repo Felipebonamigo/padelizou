@@ -36,7 +36,7 @@ public class CadastroRapidoDoAlunoTests
         int diasAFrente = 2, int? alunoId = null) =>
         TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: nome, telefoneAluno: telefone,
-            dataHora: DateTime.Today.AddDays(diasAFrente).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(diasAFrente).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(diasAFrente).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, alunoId: alunoId);
 
     // ─── O cadastro nasce ao marcar a aula ────────────────────────────────────────────

@@ -35,7 +35,7 @@ public class AulaFixaSemPrazoTests
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
         await controller.AdicionarManual(local.Id, "Leonardo", null,
-            DateTime.Today.AddDays(4).AddHours(17), 100m,
+            DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(17)), DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(17)), 100m,
             recorrente: true, semanasRecorrencia: 4, semPrazo: true);
 
         var aulas = await ctx.Aulas.ToListAsync();
@@ -53,7 +53,7 @@ public class AulaFixaSemPrazoTests
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
         await controller.AdicionarManual(local.Id, "Leonardo", null,
-            DateTime.Today.AddDays(4).AddHours(17), 100m,
+            DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(17)), DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(17)), 100m,
             recorrente: true, semanasRecorrencia: 4, semPrazo: false);
 
         var aulas = await ctx.Aulas.ToListAsync();
@@ -114,7 +114,7 @@ public class AulaFixaSemPrazoTests
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
         await controller.AdicionarManual(local.Id, "Leonardo", null,
-            DateTime.Today.AddDays(4).AddHours(17), 100m,
+            DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(17)), DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(17)), 100m,
             recorrente: true, semanasRecorrencia: 4, semPrazo: true);
 
         var antes = await ctx.Aulas.CountAsync();
