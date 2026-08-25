@@ -15,7 +15,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
-        public async Task<IActionResult> AdicionarManual()
+        public async Task<IActionResult> AdicionarManual(DateTime? dataHora = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -35,6 +35,11 @@ namespace padelizou.Controllers
             // parágrafo acima: a lista inteira de um professor cabe folgada numa página, e
             // filtrar no navegador funciona com o sinal que a quadra tiver.
             ViewBag.MeusAlunos = await MeusAlunosAsync(professorId.Value);
+
+            // Veio de um clique na grade da Minha Agenda (ver MinhaAgenda.cshtml): o campo já
+            // nasce com o horário daquele espaço vazio, no lugar da sugestão genérica de
+            // "próxima hora cheia" (js/hora-sugerida.js já cede pro valor vindo do servidor).
+            ViewBag.DataHoraSugerida = dataHora;
 
             return View(locais);
         }

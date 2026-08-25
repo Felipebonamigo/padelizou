@@ -337,43 +337,50 @@
                    asp-route-data="@Model.Inicio.ToString("yyyy-MM-dd")"
                    class="text-decoration-none fw-bold">ver em lista</a>
             </div>
+            // 1 px por minuto: uma aula de 60 min ocupa 60px de altura — o mesmo espaço
+            // que ela ocupa na agenda de verdade. Sem isso, uma aula de 7h às 8h e uma de
+            // 7h às 7h30 pareciam do mesmo tamanho, e o buraco entre uma aula e outra não
+            // se via — parecia que a agenda tinha espaço livre onde não tinha (estilo
+            // Google Agenda, pedido do Felipe em 23/08/2026).
+            const int pxPorMinuto = 1;
+            var alturaGrade = (ultimaHora - primeiraHora + 1) * 60 * pxPorMinuto;
             <div class="card border-0 shadow-sm">
-                <div class="table-responsive">
-                    <table class="table table-bordered mb-0 pdz-horas">
-                        <thead>
-                            <tr>
-                                <th style="width:64px;"></th>
-                                @foreach (var dia in dias)
-                                {
-                                    <th class="text-center small py-2 @(dia == hoje ? "pdz-col-hoje" : "")">
-                                        <div class="text-uppercase text-muted">@PeriodoAgenda.DiaCurto(dia.DayOfWeek)</div>
-                                        <div class="@(dia == hoje ? "pdz-hoje d-inline-block" : "fw-bold")">@dia.Day</div>
-                                    </th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
+                <div class="pdz-grade-cabecalho">
+                    <div class="pdz-grade-gutter"></div>
+                    @foreach (var dia in dias)
+                    {
+                        <div class="pdz-grade-col-cabecalho text-center small py-2 @(dia == hoje ? "pdz-col-hoje" : "")">
+                            <div class="text-uppercase text-muted">@PeriodoAgenda.DiaCurto(dia.DayOfWeek)</div>
+                            <div class="@(dia == hoje ? "pdz-hoje d-inline-block" : "fw-bold")">@dia.Day</div>
+                        </div>
+                    }
+                </div>
+                <div class="pdz-grade-corpo" style="height:@(alturaGrade)px;">
+                    <div class="pdz-grade-gutter">
+                        @for (int h = primeiraHora; h <= ultimaHora; h++)
+                        {
+                            <div class="pdz-hora-rotulo" style="top:@((h - primeiraHora) * 60 * pxPorMinuto)px;">@h.ToString("00"):00</div>
+                        }
+                    </div>
+                    @foreach (var dia in dias)
+                    {
+                        <div class="pdz-grade-coluna @(dia == hoje ? "pdz-col-hoje" : "")" data-dia="@dia.ToString("yyyy-MM-dd")"
+                             data-primeira-hora="@primeiraHora" data-px-por-minuto="@pxPorMinuto">
                             @for (int h = primeiraHora; h <= ultimaHora; h++)
                             {
-                                <tr>
-                                    <td class="text-end text-muted small align-top" style="width:64px;">@h.ToString("00"):00</td>
-                                    @foreach (var dia in dias)
-                                    {
-                                        <td class="align-top p-1 @(dia == hoje ? "pdz-col-hoje" : "")" style="height:52px;">
-                                            @foreach (var aula in Model.Em(dia, h))
-                                            {
-                                                <button type="button" class="pdz-chip" data-aula="@aula.Id"
-                                                        style="background:@CorDe(aula.Status);"
-                                                        title="@aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)">
-                                                    @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
-                                                </button>
-                                            }
-                                        </td>
-                                    }
-                                </tr>
+                                <div class="pdz-linha-hora" style="top:@((h - primeiraHora) * 60 * pxPorMinuto)px;"></div>
                             }
-                        </tbody>
-                    </table>
+                            @foreach (var aula in Model.Do(dia))
+                            {
+                                var minutosDoTopo = (aula.DataHora.Hour * 60 + aula.DataHora.Minute) - (primeiraHora * 60);
+                                <button type="button" class="pdz-evento" data-aula="@aula.Id"
+                                        style="top:@(minutosDoTopo * pxPorMinuto)px; height:@(aula.DuracaoMinutos * pxPorMinuto)px; background:@CorDe(aula.Status);"
+                                        title="@aula.DataHora.ToString("HH:mm")–@DuracaoDaAula.Fim(aula).ToString("HH:mm") @NomeDoAluno(aula)">
+                                    @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
+                                </button>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         }
@@ -562,11 +569,47 @@
             border-radius: 50%; width: 22px; height: 22px;
             display: inline-flex; align-items: center; justify-content: center;
         }
-        .pdz-mes td, .pdz-horas td { vertical-align: top; }
+        .pdz-mes td { vertical-align: top; }
         /* O mês não cabe em tela de celular sem encolher: 7 colunas com nome de aluno. */
         @@media (max-width: 576px) {
             .pdz-mes td { height: 82px !important; }
             .pdz-chip { font-size: .62rem; }
+        }
+
+        /* ── Grade de Dia/Semana: cada aula ocupa o tanto de altura que a duração dela pede
+           (1px por minuto), do jeito que a Google Agenda mostra — em vez de um chip de
+           tamanho fixo dentro de uma hora cheia, que fazia uma aula de 30 min parecer do
+           mesmo tamanho que uma de 2h e escondia o buraco livre entre uma aula e outra. */
+        .pdz-grade-cabecalho, .pdz-grade-corpo { display: flex; }
+        .pdz-grade-corpo { position: relative; overflow-x: auto; }
+        .pdz-grade-gutter { flex: 0 0 56px; position: relative; }
+        .pdz-grade-col-cabecalho {
+            flex: 1 1 0; min-width: 96px; border-left: 1px solid var(--pdz-border, #e2e5ea);
+        }
+        .pdz-grade-coluna {
+            flex: 1 1 0; min-width: 96px; position: relative;
+            border-left: 1px solid var(--pdz-border, #e2e5ea);
+            cursor: pointer;
+        }
+        .pdz-hora-rotulo {
+            position: absolute; right: 6px; transform: translateY(-50%);
+            font-size: .68rem; color: var(--pdz-ink-fraco, #8a93a3); white-space: nowrap;
+        }
+        .pdz-linha-hora {
+            position: absolute; left: 0; right: 0; border-top: 1px solid var(--pdz-border, #eef0f3);
+            pointer-events: none;
+        }
+        .pdz-evento {
+            position: absolute; left: 2px; right: 2px; min-height: 16px;
+            border: 0; border-radius: 4px; color: #fff; font-size: .68rem; line-height: 1.15;
+            padding: 2px 4px; text-align: left; white-space: nowrap; overflow: hidden;
+            text-overflow: ellipsis; cursor: pointer; z-index: 2;
+        }
+        .pdz-evento:hover { filter: brightness(1.12); }
+        @@media (max-width: 576px) {
+            .pdz-grade-gutter { flex-basis: 44px; }
+            .pdz-grade-col-cabecalho, .pdz-grade-coluna { min-width: 76px; }
+            .pdz-evento { font-size: .6rem; }
         }
 </style>
 
@@ -682,6 +725,31 @@
 
             document.querySelectorAll('[data-aula]').forEach(function (el) {
                 el.addEventListener('click', function () { mostrar(parseInt(el.dataset.aula, 10)); });
+            });
+
+            function doisDigitos(n) { return n < 10 ? '0' + n : '' + n; }
+
+            // Clicar num espaço VAZIO da grade de Dia/Semana já abre "Adicionar Aula" com o
+            // horário daquele espaço — estilo Google Agenda (pedido do Felipe, 23/08/2026).
+            // Clique numa aula já marcada (.pdz-evento) não cai aqui: o listener dela está NO
+            // botão, e o clique nunca chega a borbulhar até a coluna.
+            document.querySelectorAll('.pdz-grade-coluna').forEach(function (coluna) {
+                coluna.addEventListener('click', function (e) {
+                    var retangulo = coluna.getBoundingClientRect();
+                    var pxPorMinuto = parseFloat(coluna.dataset.pxPorMinuto) || 1;
+                    var primeiraHora = parseInt(coluna.dataset.primeiraHora, 10) || 0;
+
+                    var minutosDoTopo = (e.clientY - retangulo.top) / pxPorMinuto;
+                    // Arredonda pros 15 min mais próximos — ninguém precisa marcar aula às 9h03.
+                    minutosDoTopo = Math.round(minutosDoTopo / 15) * 15;
+
+                    var totalMinutos = primeiraHora * 60 + minutosDoTopo;
+                    var hora = Math.floor(totalMinutos / 60);
+                    var minuto = totalMinutos % 60;
+
+                    var dataHora = coluna.dataset.dia + 'T' + doisDigitos(hora) + ':' + doisDigitos(minuto);
+                    window.location.href = '@Url.Action("AdicionarManual", "Aulas")?dataHora=' + encodeURIComponent(dataHora);
+                });
             });
 
             // Mesma política de 24h que já existia: cancelar em cima da hora cobra o aluno,
