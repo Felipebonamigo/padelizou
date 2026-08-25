@@ -94,6 +94,25 @@ public partial class Aula
     // Entra na previsão financeira como valor a receber.
     public bool CobrarMesmoFaltando { get; set; }
 
+    // ---- Recebimento ----
+    // Quando o dinheiro DESTA aula entrou. Nulo = ainda não entrou.
+    //
+    // POR QUE EXISTE (pedido do Felipe em 25/08/2026: "tem alunos que pagam depois ou por
+    // mês"): até aqui "Concluir" gravava, na mesma tacada, "a aula aconteceu" E "o dinheiro
+    // entrou" — o Financeiro somava toda `Realizada` como recebida. Aula dada e não paga era
+    // invisível: contada em "Recebido", fora de "a cobrar" e fora da lista de devedores.
+    //
+    // ⚠️ É UM EIXO À PARTE DO `Status`, e não um valor novo dele. Status responde o que
+    // aconteceu com a AULA (e é lido por EdicaoDeAula, Reposicao, a cor da grade, a ficha do
+    // aluno); isto responde se o DINHEIRO entrou. Um `Status = "Paga"` perderia o primeiro, e
+    // ainda por cima não conseguiria dizer "faltou, foi cobrada, e o aluno já pagou" — que é a
+    // linha mais comum do mensalista. Ver Services/RecebimentoDaAula pra régua de quem deve.
+    //
+    // ⚠️ Na migration que criou a coluna, toda aula `Realizada` nasceu carimbada (menos as
+    // cobertas por conta do mês ainda Aberta): até aquele dia `Realizada` SIGNIFICAVA
+    // recebido, e deixar tudo nulo faria o Financeiro do professor abrir em R$ 0,00.
+    public DateTime? PagaEm { get; set; }
+
     // NESTA aula o aluno acerta o aluguel da quadra direto com o clube. O custo por aula
     // do local (LocalAula.CustoPorAula) deixa de contar como despesa do professor aqui —
     // é por aula, e não por local, porque o mesmo aluno ora paga a quadra, ora não.

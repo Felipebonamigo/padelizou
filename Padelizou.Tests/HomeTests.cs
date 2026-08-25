@@ -186,6 +186,11 @@ public class HomeTests
         {
             ProfessorId = eu.Id, AlunoId = aluno.Id, LocalAulaId = local.Id,
             DataHora = DateTime.Today.AddDays(-1), Preco = 100, Status = "Realizada",
+            // Paga também: desde 25/08/2026 "no mês" no painel é o dinheiro que ENTROU, e não
+            // a aula que aconteceu (ver Services/RecebimentoDaAula). Este teste é sobre ver os
+            // TRÊS painéis, não sobre a régua de recebimento — o valor é só o que prova que o
+            // painel do professor está montado.
+            PagaEm = DateTime.Today.AddDays(-1).AddHours(10),
         });
 
         // Organizador de um torneio ativo.
@@ -214,7 +219,7 @@ public class HomeTests
 
         Assert.NotNull(vm.Professor);
         Assert.Equal(1, vm.Professor!.SolicitacoesPendentes);
-        Assert.Equal(100, vm.Professor.RecebidoNoMes);   // só a Realizada conta como recebida
+        Assert.Equal(100, vm.Professor.RecebidoNoMes);   // só a Realizada E PAGA conta como recebida
 
         Assert.NotNull(vm.Organizador);
         Assert.Equal(1, vm.Organizador!.TorneiosAtivos);

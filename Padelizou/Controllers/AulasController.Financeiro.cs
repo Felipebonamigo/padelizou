@@ -48,31 +48,40 @@ namespace padelizou.Controllers
 
             var doPeriodo = aulas.Where(a => a.DataHora >= de).ToList();
 
-            // "Recebido" = aula que aconteceu. Falta cobrável conta como devida, não recebida.
+            // ⚠️ "Recebido" É CAIXA, e desde 25/08/2026 ele pergunta pelo DINHEIRO, não pelo
+            // status: até aqui somava toda aula `Realizada`, e portanto contava como recebida a
+            // aula dada que o aluno ainda não pagou (ver Services/RecebimentoDaAula).
+            // `recebidas` e `aReceber` partem em duas exatamente o que gerou cobrança.
             var realizadas = doPeriodo.Where(a => a.Status == PoliticaAula.Realizada).ToList();
             var faltas = doPeriodo.Where(a => a.Status == PoliticaAula.Faltou).ToList();
-            var cobraveis = doPeriodo.Where(a => a.CobrarMesmoFaltando).ToList();
+            var recebidas = doPeriodo.Where(RecebimentoDaAula.FoiRecebida).ToList();
+            var aReceber = doPeriodo.Where(RecebimentoDaAula.EstaAReceber).ToList();
 
             var vm = new FinanceiroProfessorVM
             {
                 Periodo = periodo,
                 PeriodoRotulo = rotulo,
-                Recebido = realizadas.Sum(a => a.Preco),
+                Recebido = recebidas.Sum(a => a.Preco),
                 // Confirmada e ainda por acontecer: o que entra se ninguém desmarcar.
                 Previsto = aulas
                     .Where(a => a.Status == PoliticaAula.Confirmada && a.DataHora >= DateTime.Now)
                     .Sum(a => a.Preco),
-                AReceber = cobraveis.Sum(a => a.Preco),
+                AReceber = aReceber.Sum(a => a.Preco),
                 PerdidoComFaltas = faltas.Where(a => !a.CobrarMesmoFaltando).Sum(a => a.Preco),
                 AulasRealizadas = realizadas.Count,
                 AulasCanceladas = doPeriodo.Count(a => a.Status == PoliticaAula.Cancelada),
                 Faltas = faltas.Count,
             };
 
-            // Quem está devendo: agrupa por aluno as aulas realizadas/faltas cobráveis.
-            // Sem controle de quitação por aula, o critério é "aconteceu e é cobrável".
-            vm.Devedores = cobraveis
-                .GroupBy(a => a.AlunoId.HasValue ? $"a{a.AlunoId}" : $"v{(a.NomeAlunoAvulso ?? "").ToLower()}")
+            // Quem está devendo: agrupa por aluno o que gerou cobrança e ainda não foi pago.
+            // ⚠️ Até 25/08/2026 o critério era só `CobrarMesmoFaltando` — a aula DADA e não paga
+            // não aparecia aqui, porque não havia como saber que ela não tinha sido paga.
+            //
+            // A identidade do aluno é a MESMA de PrecoDaAula.Chave (conta quando existe, nome
+            // anotado quando não): é ela que faz esta lista, o cadastro e a conta do mês
+            // encontrarem a mesma pessoa sem conversão no meio.
+            vm.Devedores = aReceber
+                .GroupBy(PrecoDaAula.Chave)
                 .Select(g => new DevedorVM
                 {
                     Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
@@ -80,6 +89,9 @@ namespace padelizou.Controllers
                     AulasEmAberto = g.Count(),
                     Valor = g.Sum(a => a.Preco),
                     AulaMaisAntiga = g.Min(a => a.DataHora),
+                    // Os ids vão pro botão "Recebi": dar baixa não pode depender de recalcular
+                    // o grupo no POST, que é como a lista da tela e a do servidor divergem.
+                    AulaIds = g.Select(a => a.Id).ToList(),
                 })
                 .OrderByDescending(d => d.Valor)
                 .ToList();
@@ -92,7 +104,11 @@ namespace padelizou.Controllers
                 {
                     Local = g.Key.Nome,
                     Aulas = g.Count(),
-                    Recebido = g.Sum(a => a.Preco),
+                    // O total desta coluna tem que bater com o card "Recebido" do topo da
+                    // mesma tela — dois números de dinheiro se contradizendo numa página só é
+                    // pior do que não mostrar nenhum. Já `Aulas` e `Custo` contam aula DADA:
+                    // a quadra foi alugada quer o aluno tenha pago ou não.
+                    Recebido = g.Where(RecebimentoDaAula.FoiRecebida).Sum(a => a.Preco),
                     Custo = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count(a => !a.AlunoPagaQuadra) : null,
                 })
                 .OrderByDescending(l => l.Recebido)
@@ -178,6 +194,90 @@ namespace padelizou.Controllers
                     : "Falta registrada, sem cobrança.";
 
             return RedirectToAction("MinhaAgenda");
+        }
+
+        // O Pix que chegou na sexta pela aula de terça. Dar baixa é um momento DIFERENTE de
+        // concluir a aula (pedido do Felipe em 25/08/2026), e é por isso que existe uma ação
+        // própria em vez de um parâmetro a mais no fechamento da presença.
+        //
+        // `recebida = false` é o desfazer: o professor deu baixa no aluno errado, ou o Pix não
+        // caiu. Mesma simetria de MarcarFaturaPaga/ReabrirFatura.
+        [HttpPost]
+        public async Task<IActionResult> MarcarRecebida(int aulaId, bool recebida)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId no filtro É a autorização: sem ele, qualquer professor logado dá
+            // baixa na aula de qualquer outro só mandando o id.
+            var aula = await _context.Aulas.FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+            if (aula == null) return NotFound();
+
+            if (recebida && !RecebimentoDaAula.PodeMarcar(aula))
+            {
+                TempData["Erro"] = RecebimentoDaAula.MotivoParaNaoMarcar(aula);
+                return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
+            }
+
+            // A folha mostra UM card pra turma inteira, com o preço SOMADO — então a baixa
+            // feita dali vale pra sessão, igual a Concluir e Cancelar. Quem precisa separar
+            // aluno por aluno (dois pagaram, um não) faz isso na lista de devedores do
+            // Financeiro, onde cada um tem a própria linha.
+            var linhas = aula.TurmaId != null
+                ? await _context.Aulas.Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId).ToListAsync()
+                : new List<Aula> { aula };
+
+            var agora = DateTime.Now;
+            foreach (var linha in linhas)
+            {
+                if (!recebida) linha.PagaEm = null;
+                else if (RecebimentoDaAula.PodeMarcar(linha)) linha.PagaEm = agora;
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = recebida
+                ? "Aula marcada como recebida."
+                : "Aula voltou pra lista do que você tem a receber.";
+
+            return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
+        }
+
+        // Dar baixa em VÁRIAS aulas de uma vez: é o botão da lista de "quem está devendo", onde
+        // o aluno aparece com as N aulas em aberto dele. Sem lista, o professor teria que abrir
+        // a agenda dia a dia pra achar cada uma — e a lista existe justamente porque ele não
+        // sabe quais são.
+        //
+        // ⚠️ Aqui NÃO cascadeia por turma, ao contrário do MarcarRecebida: na lista de devedores
+        // cada aluno da turma já é a própria linha, e cascatear daria baixa no colega que não
+        // pagou.
+        [HttpPost]
+        public async Task<IActionResult> MarcarRecebidas(int[] aulaIds, string? periodo)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var ids = (aulaIds ?? Array.Empty<int>()).Distinct().ToList();
+
+            var aulas = await _context.Aulas
+                .Where(a => ids.Contains(a.Id) && a.ProfessorId == professorId)
+                .ToListAsync();
+
+            var agora = DateTime.Now;
+            var baixadas = 0;
+            foreach (var aula in aulas.Where(RecebimentoDaAula.PodeMarcar))
+            {
+                aula.PagaEm = agora;
+                baixadas++;
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = baixadas == 1
+                ? "1 aula marcada como recebida."
+                : $"{baixadas} aulas marcadas como recebidas.";
+
+            return RedirectToAction(nameof(Financeiro), new { periodo });
         }
 
         // "O aluno não vem hoje, mas paga e recupera depois" — o caso do mensalista, que o
@@ -289,14 +389,17 @@ namespace padelizou.Controllers
                 DataFim = fim,
                 TotalAulas = aulas.Count,
                 TotalAlunosDiferentes = aulas.Select(a => a.AlunoId).Distinct().Count(),
-                TotalRecebido = aulas.Sum(a => a.Preco),
+                // ⚠️ "Recebido" é o dinheiro que ENTROU; `TotalAulas` logo acima continua
+                // contando aula DADA. São duas perguntas diferentes desde 25/08/2026, e este
+                // relatório responde as duas na mesma tela (ver Services/RecebimentoDaAula).
+                TotalRecebido = aulas.Where(RecebimentoDaAula.FoiRecebida).Sum(a => a.Preco),
                 PorLocal = aulas
                     .GroupBy(a => a.LocalAula)
                     .Select(g => new RelatorioPorLocal
                     {
                         NomeLocal = g.Key.Nome,
                         QuantidadeAulas = g.Count(),
-                        Recebido = g.Sum(a => a.Preco),
+                        Recebido = g.Where(RecebimentoDaAula.FoiRecebida).Sum(a => a.Preco),
                         // Mesma régua do Financeiro: quadra que o aluno paga não é gasto do professor.
                         Gasto = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count(a => !a.AlunoPagaQuadra) : null
                     })

@@ -633,8 +633,12 @@ namespace padelizou.Controllers
         }
 
         // 4. ATUALIZAR STATUS DA AULA (Finalizar ou Cancelar) — só a partir de uma aula já Confirmada
+        //
+        // `recebido` é a diferença entre os dois botões de concluir na folha da agenda: "Concluir
+        // e recebi" e "Concluir, receber depois". Nasce FALSO porque quem chama sem dizer nada
+        // está cancelando, ou é código antigo — e inventar recebimento é inventar dinheiro.
         [HttpPost]
-        public async Task<IActionResult> AtualizarStatus(int aulaId, string novoStatus)
+        public async Task<IActionResult> AtualizarStatus(int aulaId, string novoStatus, bool recebido = false)
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdValue, out var userId))
@@ -656,10 +660,21 @@ namespace padelizou.Controllers
                         .ToListAsync()
                     : new List<Aula> { aula };
 
+                // Uma marca de tempo só pras N linhas: elas foram pagas no MESMO instante, que
+                // é o que a folha da turma afirma ao dizer que a sessão está paga.
+                var agora = DateTime.Now;
+
                 foreach (var linha in linhas)
                 {
                     linha.Status = novoStatus;
-                    if (novoStatus == PoliticaAula.Realizada) linha.Compareceu = true;
+                    if (novoStatus == PoliticaAula.Realizada)
+                    {
+                        linha.Compareceu = true;
+                        // ⚠️ Só em Realizada. Cancelar com `recebido=true` (formulário adulterado,
+                        // ou o parâmetro sobrando numa chamada futura) não pode carimbar dinheiro
+                        // numa aula que não aconteceu.
+                        if (recebido && RecebimentoDaAula.PodeMarcar(linha)) linha.PagaEm = agora;
+                    }
                     if (novoStatus == PoliticaAula.Cancelada)
                     {
                         linha.CanceladaEm = DateTime.Now;

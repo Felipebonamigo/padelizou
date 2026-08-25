@@ -39,9 +39,9 @@ public class FinanceiroProfessorVM
     public string Periodo { get; set; } = "mes";
     public string PeriodoRotulo { get; set; } = "";
 
-    public decimal Recebido { get; set; }        // aulas realizadas no período
+    public decimal Recebido { get; set; }        // o dinheiro que ENTROU no período (Aula.PagaEm)
     public decimal Previsto { get; set; }        // confirmadas ainda por acontecer
-    public decimal AReceber { get; set; }        // realizadas/faltas cobráveis não quitadas
+    public decimal AReceber { get; set; }        // gerou cobrança e ainda não foi paga
     public decimal PerdidoComFaltas { get; set; } // faltas que o professor NÃO cobrou
 
     public int AulasRealizadas { get; set; }
@@ -64,6 +64,9 @@ public class DevedorVM
     public int AulasEmAberto { get; set; }
     public decimal Valor { get; set; }
     public DateTime AulaMaisAntiga { get; set; }
+
+    // As aulas em aberto deste aluno, pro botão "Recebi" dar baixa exatamente nelas.
+    public List<int> AulaIds { get; set; } = new();
 
     public int DiasEmAberto => (int)(DateTime.Today - AulaMaisAntiga.Date).TotalDays;
 }

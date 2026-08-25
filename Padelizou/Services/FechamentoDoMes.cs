@@ -32,8 +32,15 @@ public static class FechamentoDoMes
     // ⚠️ REPOSIÇÃO FICA DE FORA. Ela aconteceu, mas o dinheiro dela já entrou na conta do mês
     // da aula original — foi por isso que ela nasceu sem preço. Contá-la aqui cobraria a mesma
     // aula duas vezes, em dois meses diferentes, que é o erro mais caro possível nesta tela.
+    //
+    // ⚠️ E AULA JÁ PAGA POR FORA TAMBÉM FICA DE FORA (desde 25/08/2026, quando nasceu o
+    // `Aula.PagaEm`): o professor que recebeu R$ 110 em dinheiro na quadra e deu baixa na aula
+    // não pode ver a mesma aula voltar na conta do fim do mês. É o MESMO erro da reposição, por
+    // outra porta — e agora existe uma porta a mais pra ele entrar. A conta fica "6 aulas" em
+    // vez de "8" quando duas foram acertadas por fora, que é exatamente o valor a cobrar.
     public static bool EntraNaConta(Aula aula) =>
         aula.RecuperaAulaId == null
+        && aula.PagaEm == null
         && (aula.Status == PoliticaAula.Realizada || aula.CobrarMesmoFaltando);
 
     public static bool DoMes(Aula aula, int ano, int mes) =>

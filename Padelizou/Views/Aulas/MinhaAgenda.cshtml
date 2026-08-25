@@ -523,7 +523,13 @@
                 <p class="mb-1 d-none small text-muted" id="mReposicaoLinha">
                     <i class="bi bi-arrow-counterclockwise"></i> <span id="mReposicao"></span> — já cobrada lá.
                 </p>
-                <p class="mb-0"><span class="badge" id="mStatus"></span></p>
+                <p class="mb-0">
+                    <span class="badge" id="mStatus"></span>
+                    @* Recebimento é um eixo À PARTE do status (ver Models/Aula.PagaEm): a aula
+                       pode estar "Realizada" e o dinheiro não ter entrado. Duas etiquetas
+                       porque são duas perguntas. *@
+                    <span class="badge d-none" id="mRecebimento"></span>
+                </p>
                 @* Qual aula está fora do Google — o aviso do topo dá o total, este diz quem. *@
                 <p class="mb-0 mt-2 small text-warning d-none" id="mForaDoGoogle">
                     <i class="bi bi-calendar-x"></i> Esta aula não está na sua Google Agenda.
@@ -552,10 +558,43 @@
                     <input type="hidden" name="aceitar" value="false" />
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i> Recusar</button>
                 </form>
+                @* "Concluir" deixou de querer dizer "recebi" (pedido do Felipe em 25/08/2026:
+                   "tem alunos que pagam depois ou por mês"). Os dois botões ficam lado a lado,
+                   do mesmo tamanho, porque o clique de fechar a aula é o MESMO instante em que
+                   o professor sabe se o dinheiro entrou — deixar pra depois é o passo que
+                   ninguém dá, e era assim que aula não paga entrava no "Recebido". *@
+                <form asp-action="AtualizarStatus" method="post" class="d-none" id="fConcluirPago">
+                    <input type="hidden" name="aulaId" id="mConcluirPagoId" />
+                    <input type="hidden" name="novoStatus" value="Realizada" />
+                    <input type="hidden" name="recebido" value="true" />
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="bi bi-check2-all"></i> Concluir e recebi
+                    </button>
+                </form>
                 <form asp-action="AtualizarStatus" method="post" class="d-none" id="fConcluir">
                     <input type="hidden" name="aulaId" id="mConcluirId" />
                     <input type="hidden" name="novoStatus" value="Realizada" />
-                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all"></i> Concluir</button>
+                    <input type="hidden" name="recebido" value="false" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-check2"></i> Concluir, receber depois
+                    </button>
+                </form>
+
+                @* O Pix que chega na sexta pela aula de terça: dar baixa é outro momento, e a
+                   aula já está concluída quando ele chega. *@
+                <form asp-action="MarcarRecebida" method="post" class="d-none" id="fRecebi">
+                    <input type="hidden" name="aulaId" id="mRecebiId" />
+                    <input type="hidden" name="recebida" value="true" />
+                    <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-cash-coin"></i> Recebi
+                    </button>
+                </form>
+                <form asp-action="MarcarRecebida" method="post" class="d-none" id="fNaoRecebi">
+                    <input type="hidden" name="aulaId" id="mNaoRecebiId" />
+                    <input type="hidden" name="recebida" value="false" />
+                    <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none">
+                        <i class="bi bi-arrow-counterclockwise"></i> Não recebi
+                    </button>
                 </form>
                 @* "Vai recuperar": o aluno não vem, a aula é cobrada assim mesmo e o horário
                    fica livre pra outro. Fica ao lado de Cancelar de propósito — é a escolha
@@ -677,6 +716,13 @@
                     // aula e R$ 110 na outra sem nada na tela explicando a diferença.
                     tamanho = PrecoDaAula.Rotulo(a.QuantidadeAlunos),
                     status = a.Status,
+                    // As duas perguntas do recebimento, respondidas pela MESMA régua do
+                    // servidor (Services/RecebimentoDaAula) — refazer a conta em JS é como as
+                    // duas telas passam a discordar sobre dinheiro.
+                    // ⚠️ Na turma o card traz o PagaEm da SESSÃO: só paga quando todos pagaram.
+                    paga = RecebimentoDaAula.EstaPaga(a),
+                    aReceber = RecebimentoDaAula.EstaAReceber(a),
+                    pagaEm = a.PagaEm != null ? a.PagaEm.Value.ToString("dd/MM") : null,
                     // Por que esta aula custa R$ 0,00. Sem isto, o professor abre a agenda duas
                     // semanas depois e vê uma aula de graça sem nenhuma explicação na tela.
                     reposicaoDe = a.RecuperaAula != null
@@ -732,6 +778,13 @@
                 badge.textContent = a.status;
                 badge.style.background = cores[a.status] || '#b34a4a';
 
+                // Verde só quando o dinheiro entrou. "A receber" fica em âmbar e não em
+                // vermelho: não é erro nem atraso, é a conta ainda aberta.
+                var recebimento = document.getElementById('mRecebimento');
+                recebimento.classList.toggle('d-none', !a.paga && !a.aReceber);
+                recebimento.textContent = a.paga ? 'Recebido em ' + a.pagaEm : 'A receber';
+                recebimento.style.background = a.paga ? '#2e9e5b' : '#c78a1e';
+
                 // Cada ação aparece só onde faz sentido: aceitar/recusar em Pendente,
                 // concluir/cancelar em Confirmada. Aula Realizada ou Cancelada não volta.
                 function alterna(formId, campoId, visivel) {
@@ -740,8 +793,13 @@
                 }
                 alterna('fAceitar', 'mAceitarId', a.status === 'Pendente');
                 alterna('fRecusar', 'mRecusarId', a.status === 'Pendente');
+                alterna('fConcluirPago', 'mConcluirPagoId', a.status === 'Confirmada');
                 alterna('fConcluir', 'mConcluirId', a.status === 'Confirmada');
                 alterna('fCancelar', 'mCancelarId', a.status === 'Confirmada');
+                // "Recebi" só onde há o que receber, e "Não recebi" só onde há o que desfazer:
+                // os dois juntos ofereceriam desfazer um recebimento que nunca houve.
+                alterna('fRecebi', 'mRecebiId', a.aReceber);
+                alterna('fNaoRecebi', 'mNaoRecebiId', a.paga);
                 // Mesma janela do Cancelar: é a escolha entre "desmarca e não cobra" e
                 // "não vem, paga e repõe" — as duas sobre uma aula que ainda está de pé.
                 alterna('fRecuperar', 'mRecuperarId', a.status === 'Confirmada');
