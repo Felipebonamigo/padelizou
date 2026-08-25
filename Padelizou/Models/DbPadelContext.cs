@@ -1144,6 +1144,7 @@ public partial class DbPadelContext : DbContext
             entity.HasIndex(e => e.TokenConfirmacao).IsUnique();
             entity.Property(e => e.NomeAlunoAvulso).HasMaxLength(100);
             entity.Property(e => e.TelefoneAlunoAvulso).HasMaxLength(20);
+            entity.Property(e => e.Esporte).HasMaxLength(20);
 
             entity.HasOne(a => a.LocalAula)
                 .WithMany()

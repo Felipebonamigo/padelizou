@@ -15,6 +15,11 @@ public partial class Aula
     public decimal Preco { get; set; }
     public string Status { get; set; } = null!;
 
+    // Padel, Tênis ou Beach Tênis (Padelizou.Services.EsporteDaAula) — nasce em Padel porque
+    // era o único esporte que existia até 25/08/2026. Um professor pode dar mais de um; cada
+    // AULA sabe o dela, não o professor (ver Services/EsporteDaAula).
+    public string Esporte { get; set; } = Padelizou.Services.EsporteDaAula.Padrao;
+
     // Quanto tempo a aula dura. Até 10/08/2026 o sistema inteiro fingia que toda aula era de
     // uma hora: a Google Agenda criava evento de 60 min e a trava de conflito só olhava o
     // horário de INÍCIO — duas aulas de 1h30 encavaladas passavam sem um pio.
