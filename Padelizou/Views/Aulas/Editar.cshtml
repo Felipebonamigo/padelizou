@@ -81,6 +81,16 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small" for="select-esporte">Esporte</label>
+                            <select name="esporte" id="select-esporte" class="form-select bg-light">
+                                @foreach (var opcao in (IEnumerable<string>)ViewBag.Esportes)
+                                {
+                                    <option value="@opcao" selected="@(opcao == Model.Esporte)">@opcao</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-bold text-muted small">Data e hora</label>
                             @* O formato tem que ser o do HTML (yyyy-MM-ddTHH:mm) e não o do
                                pt-BR: com "09/08/2026 22:00" o navegador considera o valor

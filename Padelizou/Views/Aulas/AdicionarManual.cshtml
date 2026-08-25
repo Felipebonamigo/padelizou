@@ -78,6 +78,18 @@
                                 </select>
                             </div>
 
+                            @* Nasce em Padel — quem só dá padel nem repara nesse campo. Existe pro
+                               professor que também dá tênis/beach tênis (Services/EsporteDaAula). *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small" for="select-esporte">Esporte</label>
+                                <select name="esporte" id="select-esporte" class="form-select bg-light">
+                                    @foreach (var opcao in (IEnumerable<string>)ViewBag.Esportes)
+                                    {
+                                        <option value="@opcao" selected="@(opcao == Padelizou.Services.EsporteDaAula.Padrao)">@opcao</option>
+                                    }
+                                </select>
+                            </div>
+
                             @* Quantos alunos dividem a quadra. Não é detalhe: é o que muda o
                                preço. O professor de verdade que estreou o sistema cobrava três
                                valores diferentes e a agenda só sabia de um. *@
@@ -155,7 +167,9 @@
                                 <label class="form-label fw-bold text-muted small">Data e hora</label>
                                 @* data-hora-sugerida (js/hora-sugerida.js): a rodinha do celular abre no minuto
                                    atual, e o professor girava até a hora cheia toda santa aula. *@
-                                <input type="datetime-local" name="dataHora" class="form-control bg-light" data-hora-sugerida required />
+                                <input type="datetime-local" name="dataHora" class="form-control bg-light"
+                                       value="@(ViewBag.DataHoraSugerida is DateTime dataHoraSugerida ? dataHoraSugerida.ToString("yyyy-MM-ddTHH:mm") : "")"
+                                       data-hora-sugerida required />
                             </div>
 
                             @* Aula de padel raramente é de uma hora redonda: a quadra é alugada

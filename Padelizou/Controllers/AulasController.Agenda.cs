@@ -15,7 +15,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
-        public async Task<IActionResult> AdicionarManual()
+        public async Task<IActionResult> AdicionarManual(DateTime? dataHora = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -35,6 +35,13 @@ namespace padelizou.Controllers
             // parágrafo acima: a lista inteira de um professor cabe folgada numa página, e
             // filtrar no navegador funciona com o sinal que a quadra tiver.
             ViewBag.MeusAlunos = await MeusAlunosAsync(professorId.Value);
+
+            // Veio de um clique na grade da Minha Agenda (ver MinhaAgenda.cshtml): o campo já
+            // nasce com o horário daquele espaço vazio, no lugar da sugestão genérica de
+            // "próxima hora cheia" (js/hora-sugerida.js já cede pro valor vindo do servidor).
+            ViewBag.DataHoraSugerida = dataHora;
+
+            ViewBag.Esportes = EsporteDaAula.Todos;
 
             return View(locais);
         }
@@ -152,10 +159,15 @@ namespace padelizou.Controllers
             DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
             int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null,
             int? duracaoMinutos = null, bool semPrazo = false,
-            List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null)
+            List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null,
+            string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // Esporte fora da lista (ou não escolhido) cai no padrão — o professor que só dá
+            // padel nem vê esse campo na tela, e mandar lixo aqui não pode quebrar a aula.
+            var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : EsporteDaAula.Padrao;
 
             var quantidadeAlunosValida = PrecoDaAula.Tamanho(quantidadeAlunos);
 
@@ -342,6 +354,7 @@ namespace padelizou.Controllers
                         TurmaId = turmaId,
                         AlunoPagaQuadra = alunoPagaQuadra,
                         Status = "Confirmada",
+                        Esporte = esporteValido,
                         RecorrenciaId = recorrenciaIdsPorAluno[i]
                     });
                 }
@@ -417,7 +430,7 @@ namespace padelizou.Controllers
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
         [HttpGet]
-        public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data)
+        public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -425,13 +438,24 @@ namespace padelizou.Controllers
             var referencia = (data ?? DateTime.Today).Date;
             var (inicio, fim) = PeriodoAgenda.Janela(periodo, referencia);
 
+            // De QUALQUER data — é o que decide se o filtro aparece na tela, e precisa saber
+            // de TODA aula do professor, não só da janela aberta agora.
+            var esportesDoProfessor = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId)
+                .Select(a => a.Esporte)
+                .Distinct()
+                .ToListAsync();
+
+            var esporteFiltro = esporte != null && esportesDoProfessor.Contains(esporte) ? esporte : null;
+
             var noPeriodo = await _context.Aulas
                 .Include(a => a.Aluno)
                 .Include(a => a.LocalAula)
                 // A aula que esta repõe: é o que explica, na agenda, uma aula de R$ 0,00.
                 .Include(a => a.RecuperaAula)
                 .Where(a => a.ProfessorId == professorId
-                         && a.DataHora >= inicio && a.DataHora < fim)
+                         && a.DataHora >= inicio && a.DataHora < fim
+                         && (esporteFiltro == null || a.Esporte == esporteFiltro))
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
@@ -484,6 +508,8 @@ namespace padelizou.Controllers
                                                         && a.DataHora >= DateTime.Now
                                                         && a.GoogleEventId == null)
                     : 0,
+                EsportesDoProfessor = esportesDoProfessor,
+                EsporteFiltro = esporteFiltro,
             };
 
             // Os locais só são carregados quando há fila: o formulário de encaixe é o único
@@ -659,12 +685,13 @@ namespace padelizou.Controllers
             }
 
             ViewBag.Locais = await LocaisParaEscolherAsync(professorId.Value, aula.LocalAulaId);
+            ViewBag.Esportes = EsporteDaAula.Todos;
             return View(aula);
         }
 
         [HttpPost]
         public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco,
-            int? duracaoMinutos = null)
+            int? duracaoMinutos = null, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -726,7 +753,10 @@ namespace padelizou.Controllers
                 aula.Preco, preco,
                 aula.DuracaoMinutos, duracao);
 
-            if (!mudanca.MudouAlgo)
+            var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : aula.Esporte;
+            var esporteMudou = esporteValido != aula.Esporte;
+
+            if (!mudanca.MudouAlgo && !esporteMudou)
             {
                 TempData["Sucesso"] = "Nada mudou nessa aula.";
                 return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
@@ -737,11 +767,13 @@ namespace padelizou.Controllers
             aula.LocalAulaId = local.Id;
             aula.LocalAula = local;
             aula.Preco = preco;
+            aula.Esporte = esporteValido;
 
-            // Horário/local/duração são da SESSÃO — valem pra turma inteira (ver
-            // Models/Aula.TurmaId). Preço fica de fora de propósito: é a fatia do ALUNO desta
-            // linha, os colegas mantêm a própria.
-            var colegasDeTurma = aula.TurmaId != null && mudanca.MudouOQueVaiProGoogle
+            // Horário/local/duração/esporte são da SESSÃO — valem pra turma inteira (ver
+            // Models/Aula.TurmaId): os N alunos jogam junto, na mesma quadra, o mesmo esporte.
+            // Preço fica de fora de propósito: é a fatia do ALUNO desta linha, os colegas
+            // mantêm a própria.
+            var colegasDeTurma = aula.TurmaId != null && (mudanca.MudouOQueVaiProGoogle || esporteMudou)
                 ? await _context.Aulas
                     .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId && a.Id != aula.Id)
                     .ToListAsync()
@@ -749,6 +781,7 @@ namespace padelizou.Controllers
 
             foreach (var colega in colegasDeTurma)
             {
+                colega.Esporte = esporteValido;
                 colega.DataHora = dataHora;
                 colega.DuracaoMinutos = duracao;
                 colega.LocalAulaId = local.Id;
