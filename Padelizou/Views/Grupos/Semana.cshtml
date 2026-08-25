@@ -19,6 +19,12 @@
     DateTime proximaSemana = ViewBag.ProximaSemana;
     bool estouNaSemanaAtual = ViewBag.EstouNaSemanaAtual == true;
 
+    // Quantos ainda cabem (ver Services/VagasDaSessao). A conta sai de `naLista`, o mesmo
+    // número que a linha acima já mostra — não é consulta nova, é a subtração que a pessoa
+    // fazia de cabeça.
+    var fraseDasVagas = VagasDaSessao.Frase(naLista.Count, grupo.VagasMaximas);
+    bool faltaGente = VagasDaSessao.FaltaGente(naLista.Count, grupo.VagasMaximas);
+
     // O sorteio de duplas vem por TempData (ver GruposController.SortearDuplas): ele não é
     // dado gravado, é o resultado de um clique que precisa sobreviver ao redirect.
     Padelizou.Services.SorteioDeDuplas.Resultado? sorteio = null;
@@ -40,6 +46,21 @@
                     <text> — @grupo.Clube.Nome</text>
                 }
                 — <strong>@naLista.Count na lista</strong>, @confirmaram confirmaram@(naoVao.Any() ? $" · {naoVao.Count} fora" : "")
+                @* ⚠️ EM DESTAQUE SÓ QUANDO FALTA. "lista completa" e "3 a mais que as vagas"
+                   são informação, não chamado — pintá-las de laranja ensinaria a ignorar a cor
+                   justamente na semana em que ela quer dizer "chame alguém". *@
+                @if (fraseDasVagas != null)
+                {
+                    <text> · </text>
+                    @if (faltaGente)
+                    {
+                        <strong class="text-warning">@fraseDasVagas</strong>
+                    }
+                    else
+                    {
+                        <span class="text-body-secondary">@fraseDasVagas</span>
+                    }
+                }
             </p>
             @* ⚠️ A FRASE QUE EXPLICA O NÚMERO. Desde 21/08/2026 silêncio conta como presença, e
                é este número que alguém olha pra reservar quadra — sem esta linha ele parece
@@ -60,8 +81,17 @@
                 <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-padel rounded-pill">
                     <i class="bi bi-plus-circle"></i> Registrar Jogo
                 </a>
-                <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-success rounded-pill">
-                    <i class="bi bi-person-plus"></i> Convidar
+                @* O card da noite fecha o ciclo que o "Registrar Jogo" abre: quem lançou o
+                   resultado sai daqui com a arte pronta, em vez de digitar o ranking na mão no
+                   grupo do WhatsApp. Fica ao lado dele de propósito — é o passo seguinte. *@
+                <a asp-controller="Cartoes" asp-action="Panelinha" asp-route-id="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-primary rounded-pill">
+                    <i class="bi bi-images"></i> Card da noite
+                </a>
+                @* Sólido só quando falta gente — é o único momento em que convidar é a ação
+                   principal da tela. Com a lista fechada ele continua ali, apagado: convidar
+                   um quinto pra revezar é legítimo, só não é o que a semana está pedindo. *@
+                <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn rounded-pill @(faltaGente ? "btn-success fw-bold" : "btn-outline-success")">
+                    <i class="bi bi-person-plus"></i> Convidar@(faltaGente ? $" ({VagasDaSessao.Faltam(naLista.Count, grupo.VagasMaximas)})" : "")
                 </a>
             }
             @if (ehAdmin)

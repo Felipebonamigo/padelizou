@@ -368,6 +368,17 @@
            class="btn btn-outline-primary rounded-pill px-3">
             <i class="bi bi-trophy-fill"></i> Ver os campeões
         </a>
+        @* O pódio aparece SÓ quando há campeão e vice, e por isso não é um segundo botão
+           sempre presente: no Americano o vice não existe como carimbo (o campeão sai da
+           classificação, não de uma final), e um botão que leva a uma página vazia pra sempre
+           é pior que botão nenhum. Quem responde é o serviço, pela mesma razão do de cima. *@
+        @if (Padelizou.Services.PodioDaCategoria.TemPodio(Model))
+        {
+            <a asp-controller="Cartoes" asp-action="Podio" asp-route-id="@Model.Id"
+               class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-award-fill"></i> Ver o pódio
+            </a>
+        }
         <small class="text-muted">
             Uma arte por categoria, pronta pra postar.
         </small>

@@ -1,0 +1,115 @@
+@model Padelizou.Services.DadosDoCardDaPanelinha
+@{
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    int grupoId = ViewBag.GrupoId;
+    DateTime? data = ViewBag.Data;
+
+    ViewData["Title"] = $"A noite da {Model.Panelinha} - Padelizou";
+
+    var imagem = Url.Action("PanelinhaImagem", "Cartoes", new { id = grupoId, data = data?.ToString("s") });
+    var arquivo = "noite-da-panelinha.png";
+
+    @* ⚠️ SEM OgImagem, e aqui não é só porque a imagem exige login: o grupo é PRIVADO. Prévia
+       de link é o servidor da Meta buscando a imagem sem sessão nenhuma — com og:image, colar
+       este link no WhatsApp mostraria o ranking da panelinha pra quem não é dela. O card sai
+       como ARQUIVO, pelo botão de compartilhar. *@
+    ViewData["Descricao"] = "O ranking da semana da sua panelinha, pronto pra mandar no grupo.";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 640px;">
+
+    <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupoId"
+       asp-route-data="@data?.ToString("s")"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar pro jogo da semana
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-images text-success"></i> A noite da @Model.Panelinha
+    </h2>
+    <p class="text-muted">O ranking desta semana, pronto pra mandar no grupo.</p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (!Padelizou.Services.CartaoDaPanelinha.TemOQueMostrar(Model))
+    {
+        @* Semana sem jogo lançado não vira arte — e a tela diz o que falta, em vez de entregar
+           um pódio vazio. É a mesma régua do duelo 0 × 0. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-clipboard-x fs-1 text-muted"></i>
+                <h5 class="fw-bold mt-3 mb-2" style="color: var(--pdz-ink);">
+                    Nenhum jogo registrado nesta semana
+                </h5>
+                <p class="text-muted mb-3">
+                    O card nasce do resultado: lance os jogos da noite e ele fica pronto na hora.
+                </p>
+                <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@grupoId"
+                   asp-route-data="@data?.ToString("s")" class="btn btn-padel rounded-pill">
+                    <i class="bi bi-plus-circle"></i> Registrar jogo
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="Ranking da semana da @Model.Panelinha"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="A noite da @Model.Panelinha">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+
+                @* ⚠️ O AVISO EXISTE PORQUE O CARD PARECE PÚBLICO E NÃO É. Quem vê uma arte
+                   bonita supõe que dá pra mandar o LINK — e o link pede login e recusa quem não
+                   é do grupo. Mandar a imagem funciona pra qualquer um; mandar o endereço, não. *@
+                <p class="small text-body-secondary text-center mb-0 mt-3">
+                    Mande a <strong>imagem</strong>, não o link: esta página é da panelinha e só
+                    abre pra quem é do grupo.
+                </p>
+            </div>
+        </div>
+
+        @* O pódio em texto — a arte é pra postar, esta lista é pra conferir antes. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                    @Padelizou.Services.CartaoDaPanelinha.FraseDosJogos(Model.Jogos)
+                </h6>
+                <ol class="list-unstyled mb-0">
+                    @foreach (var linha in Model.Podio)
+                    {
+                        <li class="d-flex justify-content-between align-items-center border-bottom py-2">
+                            <span>
+                                <strong class="me-2">@linha.Posicao&ordm;</strong>
+                                @linha.Nome
+                            </span>
+                            <span class="badge bg-primary rounded-pill">@linha.Pontos pts</span>
+                        </li>
+                    }
+                </ol>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

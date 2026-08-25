@@ -1,7 +1,34 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/08/2026** — 📅 **MINHA AGENDA VIRA ESTILO GOOGLE, E AULA GANHA ESPORTE (PADEL/TÊNIS/BEACH TÊNIS).**
+> Última atualização: **25/08/2026** — 🖼️ **CINCO CARDS NOVOS, E TRÊS DEFEITOS QUE SÓ APARECERAM OLHANDO AS ARTES.**
+>
+> 🗣️ **O pedido do Felipe:** um amigo mandou três propostas (preencher vaga · feed social · páginas exportáveis pro WhatsApp e Instagram) e ele pediu análise antes de decidir. A análise apontou que **a proposta 3 era a mais barata das três, não a mais cara** — o motor de artes já existia inteiro desde 12-13/08 (`CartaoCompartilhavel`, 1080×1350, cinco artes no ar) e o que faltava era layout, não tecnologia. Ele aprovou os quatro cards de torneio, o card da turma e o "faltam N".
+>
+> 📊 **A TELA DA SEMANA PASSOU A DIZER QUANTOS FALTAM.** O número já existia em dois lugares e não era dito em nenhum: a Home carregava `JogoDaSemanaVM.Vagas` sem exibir e a tela da Semana mostrava "N na lista" sem comparar com `VagasMaximas`. ⚠️ **Falta e sobra não são o mesmo sinal invertido**, e é a presença presumida que impõe isso: a panelinha inteira nasce na lista, então uma turma de 10 com 4 vagas abre TODA semana com gente a mais — subtração crua responderia "faltam -6" e o botão de convidar apareceria em destaque justamente na semana em que vai sobrar gente. `Services/VagasDaSessao`, os dois métodos com piso em zero, e a frase de sobra em cinza (cor de chamado em informação ensina a ignorar a cor). A **Home não foi tocada de propósito**: o comentário dela declara a decisão de 21/08 de não mostrar fração de vagas ali.
+>
+> 🃏 **O CARD DA NOITE DA PANELINHA** (`/Cartoes/Panelinha`) fecha o ciclo que o "Registrar Jogo" abre — quem lançou o resultado sai da tela com a arte pronta em vez de digitar o ranking na mão no grupo. ⚠️ **É o primeiro card sobre um GRUPO PRIVADO, e isso mudou três regras**: só membro gera (o gate foi visto barrar — desliguei a checagem de propósito e os dois testes falharam); a página **não declara `og:image`** (prévia de link é o servidor da Meta buscando a imagem SEM SESSÃO — é por ali que o roster vazaria); e o `Png()` ganhou `publico: false`, porque `Cache-Control: public` autoriza proxy e CDN a guardar a resposta e devolvê-la a quem não é do grupo. O corte do pódio é por POSIÇÃO e não pelos N primeiros nomes: com 3 pontos por vitória e 1 por derrota, **empate é o caso NORMAL** de uma noite curta, e cortar por quantidade partiria empate no meio.
+>
+> 🏆 **QUATRO CARDS DE TORNEIO: pódio, classificação, resultados do dia e chave.** Nenhum deles calcula nada por conta própria — pódio lê os carimbos de `UltimaFase` que o mata-mata já deixou, classificação sai de `ClassificacaoDeGrupos.Ordenar` (a régua que o chaveamento usa), e "quem venceu" sai sempre de `QuemVenceu.Da`. Uma segunda régua aqui publicaria, **impresso e fora do nosso alcance**, um card dizendo que a dupla A passou enquanto o chaveamento coloca a B na semifinal — o defeito de 05/08 numa versão pior. ⚠️ **Americano não tem pódio**, e é decisão declarada em três lugares: lá o campeão sai da CLASSIFICAÇÃO e não de uma final, e o card de campeão já cobre o formato melhor.
+>
+> 🐛 **DOIS DEFEITOS ACHADOS ESCREVENDO OS TESTES, os dois de divergência com a tela:** (1) **jogo AO VIVO entrava na classificação** — a tela filtra `Status == "Finalizada"` e minha consulta não, então o 6x0 do primeiro set entrava como saldo de quem estava ganhando; (2) **"tabela zerada não vira arte" estava medido pelo campo errado** — `Ordenar` conta em `Jogos` as partidas em que a dupla APARECE, inclusive as agendadas, e um grupo recém-sorteado já nasce com `Jogos > 0` em todo mundo. A régua liberaria o card exatamente no estado que ela existe pra barrar.
+>
+> 👁️ **E O QUE ESTE BLOCO REALMENTE ENSINA: gerei os cinco cards em PNG e OLHEI, com a suíte inteira verde.** Três defeitos estavam lá, nenhum detectável por teste de regra. (1) O pódio da panelinha saía com as **linhas coladas** (passo de 40px pra um corpo de 44) e 200px de vão embaixo — eu dividia a faixa pelo TETO de linhas em vez de pela quantidade real. (2) O card do pódio escrevia **"CAMPEÃO" fixo**, e saiu assim em cima de uma dupla de "4ª Categoria Feminina" — a régua de gênero já existia em `CampeoesDoTorneio.Rotulo`. (3) O card de resultados **pintava a linha inteira de uma cor só**, então não dava pra saber quem venceu: uma linha em lime diz que os DOIS venceram. É a terceira vez que este projeto registra "olhar a arte pegou o que o teste não pegou" — 12/08 e 13/08 foram as outras duas.
+>
+> 📌 **Cicatriz medida em teste:** `Partida.Dupla1`/`Dupla2` são navegações OBRIGATÓRIAS, e todo `Include` delas vira INNER JOIN — partida com dupla inexistente **some da consulta**, em vez de aparecer com um lado vazio. Em produção a FK impede o estado; o teste existe pra a próxima pessoa não procurar o defeito no card.
+>
+> 📄 **`RESERVAS-DA-TURMA.md`: design escrito, nada codado.** A "lista de reservas" gera migration e mexe em quem enxerga uma turma fechada — é `architectural`, e `architectural` é design aprovado antes de código. A régua do Felipe (**o sistema sugere a um membro chamar, nunca chama sozinho**) amarra o documento. O desenho descobriu que o matching pedido JÁ RODA e que a metade que falta é o lado de quem se OFERECE — daí os dois caminhos: lista por TURMA (o pedido literal, ~3× mais caro, puxa junto visibilidade + vitrine) ou lista por HORÁRIO (uma tabela, zero coluna nova em `GrupoPrivado`, reusa a tela `Convidar` inteira). Recomendação: por horário, com a fraqueza declarada — ele é genérico e perde o vínculo com a turma. **Três decisões pendentes do Felipe no fim do documento.**
+>
+> 🚫 **O feed social ficou de fora, e o motivo é DADO, não gosto:** produção tem ~128-177 contas, 4 aparelhos com push e **zero partidas finalizadas** em torneio que conta pro ranking. Feed de atividade sem atividade abre vazio — é o mesmo argumento que empurrou a premiação anual pra 2027, e prêmio que estreia vazio queima a estreia.
+>
+> 🔒 **E O CACHE DO CARD DO DUELO FOI CORRIGIDO JUNTO** (pedido do Felipe depois de ler o relatório). Ele é de 12/08, exige login e saía com `Cache-Control: public` herdado do padrão do `Png(...)` — que é o certo pros cards de divulgação (é dele que a prévia do WhatsApp vive) e errado num card autenticado: `public` autoriza qualquer cache no caminho a guardar a resposta de UM e devolvê-la a OUTRO, e o duelo é montado do ponto de vista de quem pede. Teste escrito antes e visto falhar com `"public, max-age=3600"`. ⚠️ **Veio com CONTRAPROVA** (o cartaz continua `public`) — sem ela, um controller que respondesse `private` pra tudo passaria no teste sem provar nada. **Varridas as 14 actions do controller: só duas têm `[Authorize]` (duelo e panelinha), e as duas estão privadas.** Não foi criado gate mecânico pra isso: são dois endpoints e a régua está escrita no cabeçalho do controller — se virar rotina, vale um varredor no molde do `GateDeAutorizacaoDosPostsTests`.
+>
+> 🧪 **4.918 testes, 0 falhas (80 novos), 5 avisos — os mesmos de antes.** **Sem migration nenhuma** em todo o bloco.
+>
+> ⚠️ **Commitado e empurrado, NÃO publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+>
+>
+> Antes, no mesmo dia — 📅 **MINHA AGENDA VIRA ESTILO GOOGLE, E AULA GANHA ESPORTE (PADEL/TÊNIS/BEACH TÊNIS).**
 >
 > 🗣️ **O pedido do Felipe, de um print da "Minha Agenda":** *"o horario deveria preencher todo ali, tipo das 7 as 8, pra nao dar a impressão de ter espaço na agenda. Estilo google"* + *"eu tinha que poder clicar em um espaço e ter a opção de add aula. Estilo google"* + *"João, por exemplo, da aula de tenis e beach tenis também. Seria legal um campo pra isso."*
 >
@@ -18,6 +45,7 @@
 > 🧪 **4.848 testes, 0 falhas (13 novos)** — esporte nasce em Padel, escolha explícita é gravada, esporte fora da lista cai no padrão (Adicionar e Editar), editar só o esporte salva (regressão do bug acima), editar propaga pra turma inteira, filtro só aparece com 2+ esportes lançados, filtro restringe a lista, filtro inválido na URL é ignorado. Grade/clique são mudança de tela pura, sem lógica nova pra testar — build limpo cobre a Razor, suíte inteira cobre regressão.
 >
 > ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
+>
 >
 > Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >

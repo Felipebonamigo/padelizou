@@ -591,6 +591,9 @@ namespace Padelizou.Controllers
             ViewBag.Torneio = torneio;
             ViewBag.RegraClassificados = torneio.ClassificadosPorGrupo; // Para pintar de verde quem passa de fase
             ViewBag.OQueFalta = quadros;
+            // O link do card da classificação precisa da categoria, e ela só chegava por
+            // parâmetro — a view não tinha como remontar o próprio endereço.
+            ViewBag.CategoriaId = categoriaId;
 
             return View(classificacaoFinal);
         }

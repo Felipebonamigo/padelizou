@@ -1,0 +1,105 @@
+@model List<Padelizou.Services.GrupoClassificado>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    int categoriaId = ViewBag.CategoriaId;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    var nomeDaCategoria = Model.FirstOrDefault()?.Categoria;
+
+    ViewData["Title"] = nomeDaCategoria == null
+        ? $"Classificação — {torneio.Nome} - Padelizou"
+        : $"Classificação — {nomeDaCategoria} - Padelizou";
+
+    // Endereço ABSOLUTO da primeira arte, pra prévia do link. Relativo não serve: quem lê a
+    // meta é o servidor da Meta, de fora, sem saber qual é o nosso domínio.
+    var primeiro = Model.FirstOrDefault();
+    var capa = primeiro == null ? null : Url.Action("ClassificacaoImagem", "Cartoes",
+        new { id = torneio.Id, categoriaId, grupo = primeiro.Grupo }, Context.Request.Scheme);
+
+    ViewData["OgTitulo"] = $"Classificação — {torneio.Nome}";
+    ViewData["Descricao"] = "A tabela da fase de grupos, pronta pra postar.";
+    if (capa != null)
+    {
+        ViewData["OgImagem"] = capa;
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Classificacao" asp-route-id="@torneio.Id"
+       asp-route-categoriaId="@categoriaId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar à classificação
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-table text-success"></i> Classificação
+    </h2>
+    <p class="text-muted">
+        @torneio.Nome@(nomeDaCategoria == null ? "" : $" — {nomeDaCategoria}")
+    </p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (Model.Count == 0)
+    {
+        @* ⚠️ A tabela existe desde o sorteio, com todo mundo zerado — e é o certo na TELA.
+           Aqui não: card postado com a coluna de vitórias vazia anuncia uma etapa que não
+           aconteceu. A frase diz exatamente o que falta. *@
+        <div class="alert alert-light border rounded-4">
+            <strong>Nenhum grupo com jogo terminado ainda.</strong>
+            <div class="small text-muted">
+                A arte de cada grupo nasce quando o primeiro jogo dele é encerrado — jogo em
+                andamento não entra na conta.
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small mb-4">
+            Uma arte por grupo, pronta pra postar. Salve no celular e mande no story.
+        </p>
+
+        foreach (var grupo in Model)
+        {
+            var imagem = Url.Action("ClassificacaoImagem", "Cartoes",
+                new { id = torneio.Id, categoriaId, grupo = grupo.Grupo });
+            var arquivo = $"grupo-{grupo.Grupo}.png";
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-body">
+                    <div class="fw-bold mb-3" style="color: var(--pdz-ink);">Grupo @grupo.Grupo</div>
+
+                    @* loading="lazy" pelo mesmo motivo dos outros: são PNGs de ~1080px, e
+                       carregar todos de uma vez no 4G do clube trava a página. *@
+                    <img src="@imagem" alt="Classificação do grupo @grupo.Grupo"
+                         class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                         style="max-width: 380px;" />
+
+                    <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                        <a href="@imagem" download="@arquivo"
+                           class="btn btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
+                        <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                data-imagem="@imagem" data-arquivo="@arquivo"
+                                data-titulo="Grupo @grupo.Grupo — @grupo.Categoria">
+                            <i class="bi bi-share-fill"></i> Compartilhar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}
