@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **22/08/2026** — 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
+> Última atualização: **25/08/2026** — 📅 **MINHA AGENDA VIRA ESTILO GOOGLE, E AULA GANHA ESPORTE (PADEL/TÊNIS/BEACH TÊNIS).**
+>
+> 🗣️ **O pedido do Felipe, de um print da "Minha Agenda":** *"o horario deveria preencher todo ali, tipo das 7 as 8, pra nao dar a impressão de ter espaço na agenda. Estilo google"* + *"eu tinha que poder clicar em um espaço e ter a opção de add aula. Estilo google"* + *"João, por exemplo, da aula de tenis e beach tenis também. Seria legal um campo pra isso."*
+>
+> 🧩 **A grade de Dia/Semana trocou de tabela por hora fixa (`<table>`, uma linha por hora) pra posicionamento absoluto** — `.pdz-grade-coluna` (`position:relative`) com cada `.pdz-evento` em `position:absolute`, `top`/`height` em **1px por minuto** calculado a partir de `DataHora`/`DuracaoMinutos`. Uma aula de 30min ocupa metade do espaço de uma de 1h, o buraco entre aulas aparece como buraco — antes toda aula, de qualquer duração, virava a mesma linha de uma hora. Absoluto e não `rowspan` de tabela porque `DuracaoDaAula.Opcoes` inclui 45min, que não é múltiplo de nenhuma grade de linha razoável.
+>
+> 🖱️ **Clicar num espaço vazio da grade abre "Adicionar Aula" com o horário já preenchido** — `AdicionarManual(DateTime? dataHora)` (novo parâmetro) recebe o clique convertido pra `yyyy-MM-ddTHH:mm` (arredondado pros 15min mais próximos) e o campo de data/hora nasce com esse valor, no lugar da sugestão genérica de "próxima hora cheia" (`js/hora-sugerida.js` já cedia pro valor vindo do servidor — nenhuma mudança lá).
+>
+> 🏓 **`Aula.Esporte` (novo, `string`, migration `AddEsporteToAula` com `defaultValue: "Padel"`)** — segue o mesmo padrão de `Aula.Status`/`PoliticaAula`: sem enum de C#, uma classe estática (`Services/EsporteDaAula`) com `Padel`/`Tênis`/`Beach Tênis` e `Padrao = Padel`. Escolhido em "Adicionar Aula" e em "Editar" (pré-selecionado em Padel — quem só dá padel não repara no campo). Turma inteira (`Aula.TurmaId`) muda de esporte junto, igual horário/local/duração: os N alunos jogam a MESMA sessão.
+>
+> 🎯 **Minha Agenda ganha filtro por esporte — só aparece pra quem já lançou mais de um.** `AgendaProfessorVM.EsportesDoProfessor` é calculado de TODA aula do professor (não só da janela aberta), decidindo se o filtro existe; `EsporteFiltro` é o que a URL pediu, validado contra a lista antes de filtrar `NoPeriodo` — um `?esporte=` fora da lista (ou de aba velha) cai em "todos" sem erro.
+>
+> 🐛 **Achado implementando, não em produção:** `EdicaoDeAula`/`MudancaDaAula` só conhecem horário/local/preço/duração — trocar SÓ o esporte caía no early-return de "nada mudou nessa aula" e a troca nunca ia pro banco. `Editar` ganhou uma checagem de `esporteMudou` separada da `MudancaDaAula`, que não precisa entrar na notificação do aluno (esporte não muda pra onde ele vai nem quando).
+>
+> 🧪 **4.848 testes, 0 falhas (13 novos)** — esporte nasce em Padel, escolha explícita é gravada, esporte fora da lista cai no padrão (Adicionar e Editar), editar só o esporte salva (regressão do bug acima), editar propaga pra turma inteira, filtro só aparece com 2+ esportes lançados, filtro restringe a lista, filtro inválido na URL é ignorado. Grade/clique são mudança de tela pura, sem lógica nova pra testar — build limpo cobre a Razor, suíte inteira cobre regressão.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
+>
+> Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >
 > 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
 >
@@ -17,7 +35,7 @@
 >
 > 🧪 **4.835 testes, 0 falhas (13 novos, 2 atualizados)** — sorteio não avisa mais ninguém, aprovar libera e avisa, só organizador/admin aprova ou desfaz, desfazer limpa grupos/jogos/vínculo de dupla, desfazer recusa com jogo já começado, `/Jogos` escondido de quem não pode aprovar e visível pra quem pode.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: `Status` continua sendo texto livre, só ganhou mais um valor possível.
+> ✅ **Publicado**, PR #29 mergeado (`135f7fd`), build no ar.
 >
 > Antes, no mesmo dia: 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
 >
@@ -31,7 +49,8 @@
 >
 > 🧪 **4.824 testes, 0 falhas (18 novos)** — reconhecimento pelo nome, fora da escada sem travar nível, seed no meio do caminho, troféu de vidro, e o ponto central: dois homens (ou duas mulheres) entram juntos em Lendas sem barreira, ao contrário de Mista/Casal.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: nada de schema neste bloco, só dado semeado no startup.
+> ✅ **Publicado**, PR #27 mergeado (`7b7b22d`), build no ar.
+>
 > Antes, no mesmo dia: 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
 >
 > 🗣️ **Começou com um link do Felipe** pro [vibe-coding-toolkit](https://github.com/soumatheusgomes/vibe-coding-toolkit) — 31 arquivos, ~7.850 linhas de método de trabalho com IA. Li inteiro e adotei o que traduz pra cá; o eixo ESLint/Biome (~1.600 linhas) é JS/TS e não serve, mas a ideia dele de **promoção rastreada** (regra nasce como aviso, vira erro quando a contagem zera) virou o burndown abaixo.
@@ -79,7 +98,7 @@
 >
 > 🧪 **4.806 testes, 0 falhas (25 novos)** — cobrindo a divisão de preço, a criação em turma (com validação de nome faltando), a renovação semanal com TurmaId estável (incluindo o cenário do bug do cancelamento avulso), o colapso de exibição e as quatro ações cascateando (e a de aula solo continuando isolada).
 >
-> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). ✅ **Publicado**, PR #25 mergeado (`fda585f`), build no ar.
 >
 > 🕳️ **Limitação conhecida, documentada em código, não resolvida:** `SincronizarGoogle` (reenvio de aula que ficou fora do Google) ainda cria um evento POR LINHA — se a criação do evento único falhar inteira na hora de `AdicionarManual`, o reenvio posterior criaria N eventos separados em vez de recriar o compartilhado. Caso raro (a criação já é best-effort com retry manual via essa mesma tela) e fora do escopo deste bloco.
 >

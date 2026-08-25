@@ -101,13 +101,16 @@
             <div class="d-flex align-items-center gap-1">
                 <a class="btn btn-sm btn-outline-secondary rounded-circle" title="Anterior"
                    asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                   asp-route-esporte="@Model.EsporteFiltro"
                    asp-route-data="@PeriodoAgenda.Deslocar(Model.Periodo, Model.Referencia, -1).ToString("yyyy-MM-dd")">
                     <i class="bi bi-chevron-left"></i>
                 </a>
                 <a class="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                   asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo">Hoje</a>
+                   asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                   asp-route-esporte="@Model.EsporteFiltro">Hoje</a>
                 <a class="btn btn-sm btn-outline-secondary rounded-circle" title="Próximo"
                    asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                   asp-route-esporte="@Model.EsporteFiltro"
                    asp-route-data="@PeriodoAgenda.Deslocar(Model.Periodo, Model.Referencia, 1).ToString("yyyy-MM-dd")">
                     <i class="bi bi-chevron-right"></i>
                 </a>
@@ -120,6 +123,7 @@
                     {
                         <a class="btn @(Model.Periodo == valor ? "btn-primary" : "btn-outline-primary")"
                            asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@valor"
+                           asp-route-esporte="@Model.EsporteFiltro"
                            asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">@rotulo</a>
                     }
                 </div>
@@ -127,17 +131,41 @@
                 <div class="btn-group btn-group-sm" role="group" aria-label="Modo de exibição">
                     <a class="btn @(Model.Vista == PeriodoAgenda.VistaCalendario ? "btn-secondary" : "btn-outline-secondary")"
                        asp-action="MinhaAgenda" asp-route-vista="@PeriodoAgenda.VistaCalendario"
-                       asp-route-periodo="@Model.Periodo" asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
+                       asp-route-periodo="@Model.Periodo" asp-route-esporte="@Model.EsporteFiltro"
+                       asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
                         <i class="bi bi-calendar3"></i> Calendário
                     </a>
                     <a class="btn @(Model.Vista == PeriodoAgenda.VistaLista ? "btn-secondary" : "btn-outline-secondary")"
                        asp-action="MinhaAgenda" asp-route-vista="@PeriodoAgenda.VistaLista"
-                       asp-route-periodo="@Model.Periodo" asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
+                       asp-route-periodo="@Model.Periodo" asp-route-esporte="@Model.EsporteFiltro"
+                       asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
                         <i class="bi bi-list-ul"></i> Lista
                     </a>
                 </div>
             </div>
         </div>
+
+        @* Só aparece pra quem já lançou aula de mais de um esporte — quem só dá padel nunca
+           teria o que escolher aqui (pedido do Felipe, 23/08/2026: "seria legal um campo pra
+           isso" sobre o João dar tênis e beach tênis também). *@
+        @if (Model.EsportesDoProfessor.Count > 1)
+        {
+            <div class="card-body pt-0 pb-2 d-flex align-items-center gap-2 flex-wrap">
+                <span class="small text-muted">Esporte:</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Filtrar por esporte">
+                    <a class="btn @(Model.EsporteFiltro == null ? "btn-secondary" : "btn-outline-secondary")"
+                       asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                       asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">Todos</a>
+                    @foreach (var opcao in Model.EsportesDoProfessor)
+                    {
+                        <a class="btn @(Model.EsporteFiltro == opcao ? "btn-secondary" : "btn-outline-secondary")"
+                           asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                           asp-route-esporte="@opcao"
+                           asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">@opcao</a>
+                    }
+                </div>
+            </div>
+        }
     </div>
 
     @* ── Pendências (sempre visíveis, de qualquer data) ──────────────────────────────── *@

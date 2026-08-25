@@ -78,6 +78,18 @@
                                 </select>
                             </div>
 
+                            @* Nasce em Padel — quem só dá padel nem repara nesse campo. Existe pro
+                               professor que também dá tênis/beach tênis (Services/EsporteDaAula). *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small" for="select-esporte">Esporte</label>
+                                <select name="esporte" id="select-esporte" class="form-select bg-light">
+                                    @foreach (var opcao in (IEnumerable<string>)ViewBag.Esportes)
+                                    {
+                                        <option value="@opcao" selected="@(opcao == Padelizou.Services.EsporteDaAula.Padrao)">@opcao</option>
+                                    }
+                                </select>
+                            </div>
+
                             @* Quantos alunos dividem a quadra. Não é detalhe: é o que muda o
                                preço. O professor de verdade que estreou o sistema cobrava três
                                valores diferentes e a agenda só sabia de um. *@
