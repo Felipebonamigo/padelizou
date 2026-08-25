@@ -354,6 +354,40 @@ public class CartoesController : Controller
         return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
     }
 
+    // ───────────────────────── O PÓDIO DA CATEGORIA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, igual ao card de campeão: mesma porta (`PodeVirarArteAsync`,
+    // que respeita o torneio oculto), sem login, cache público. O organizador é quem mais
+    // posta o pódio, mas quem ficou em segundo também posta o dele.
+    [HttpGet]
+    public async Task<IActionResult> Podio(int id)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var podios = await PodioDaCategoria.DoTorneioAsync(_context, id);
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(podios.Where(p => p.TemOQueMostrar).ToList());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PodioImagem(int id, int categoriaId)
+    {
+        // A recusa por falta de fonte vem ANTES de qualquer consulta, e é 404 e não uma imagem
+        // em branco — mesma razão do card de campeão.
+        if (!_fontes.Disponivel) return NotFound();
+
+        var podio = await PodioDaCategoria.DaCategoriaAsync(_context, id, categoriaId);
+        if (podio == null || !podio.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDoPodio.Desenhar(podio, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"podio-{Arquivo(podio.Categoria)}.png");
+    }
+
     // ───────────────────────── A NOITE DA PANELINHA ─────────────────────────
 
     // ⚠️ ESTE É O ÚNICO CARD FECHADO DO CONTROLLER, e a exceção é a razão de ele existir: os
