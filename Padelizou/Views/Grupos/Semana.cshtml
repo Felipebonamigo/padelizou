@@ -81,6 +81,12 @@
                 <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-padel rounded-pill">
                     <i class="bi bi-plus-circle"></i> Registrar Jogo
                 </a>
+                @* O card da noite fecha o ciclo que o "Registrar Jogo" abre: quem lançou o
+                   resultado sai daqui com a arte pronta, em vez de digitar o ranking na mão no
+                   grupo do WhatsApp. Fica ao lado dele de propósito — é o passo seguinte. *@
+                <a asp-controller="Cartoes" asp-action="Panelinha" asp-route-id="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-primary rounded-pill">
+                    <i class="bi bi-images"></i> Card da noite
+                </a>
                 @* Sólido só quando falta gente — é o único momento em que convidar é a ação
                    principal da tela. Com a lista fechada ele continua ali, apagado: convidar
                    um quinto pra revezar é legítimo, só não é o que a semana está pedindo. *@
