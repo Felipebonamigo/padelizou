@@ -354,6 +354,44 @@ public class CartoesController : Controller
         return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
     }
 
+    // ───────────────────────── A CLASSIFICAÇÃO DOS GRUPOS ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como o cartaz e o pódio: mesma porta (`PodeVirarArteAsync`),
+    // sem login, cache público.
+    //
+    // ⚠️ É POR CATEGORIA, e não pelo torneio inteiro como a página dos campeões: um torneio de
+    // dez categorias com quatro grupos cada geraria QUARENTA PNGs de 1080px numa página só, e
+    // o `loading="lazy"` não salva quem rola até o fim no 4G do clube. O link vem da tela de
+    // classificação daquela categoria, que é onde o organizador já está olhando.
+    [HttpGet]
+    public async Task<IActionResult> Classificacao(int id, int categoriaId)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+
+        ViewBag.Torneio = torneio;
+        ViewBag.CategoriaId = categoriaId;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(grupos.Where(g => g.TemOQueMostrar).ToList());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ClassificacaoImagem(int id, int categoriaId, string grupo)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var oGrupo = grupos.FirstOrDefault(g => g.Grupo == grupo);
+        if (oGrupo == null || !oGrupo.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDaClassificacao.Desenhar(oGrupo, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"grupo-{Arquivo(grupo)}-{Arquivo(oGrupo.Categoria)}.png");
+    }
+
     // ───────────────────────── O PÓDIO DA CATEGORIA ─────────────────────────
 
     // Família de DIVULGAÇÃO, igual ao card de campeão: mesma porta (`PodeVirarArteAsync`,

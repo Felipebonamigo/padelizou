@@ -17,7 +17,20 @@
 }
 
 <div class="container mt-4">
-    <h2 class="mb-4">🏆 Classificação - @torneio.Nome</h2>
+    <h2 class="mb-2">🏆 Classificação - @torneio.Nome</h2>
+
+    @* A tabela vira arte pro Instagram — uma por grupo. O link aparece sempre: a página de
+       destino é que decide se há grupo com jogo terminado, e ela explica o que falta quando
+       não há. Esconder o botão aqui exigiria repetir essa conta na tela, e seriam duas
+       respostas pra mesma pergunta. *@
+    <div class="mb-4">
+        <a asp-controller="Cartoes" asp-action="Classificacao" asp-route-id="@torneio.Id"
+           asp-route-categoriaId="@((int)ViewBag.CategoriaId)"
+           class="btn btn-sm btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-image"></i> Card da classificação
+        </a>
+        <small class="text-muted ms-2">Uma arte por grupo, pronta pra postar.</small>
+    </div>
 
     <div class="row">
         @foreach (var grupo in Model)
