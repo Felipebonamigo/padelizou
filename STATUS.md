@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/08/2026** — 🏷️ **A LISTA DE JOGOS DA PANELINHA PASSA A MOSTRAR SÓ O APELIDO — E O LINK QUE JÁ EXISTIA FINALMENTE PARECE UM LINK.**
+> Última atualização: **26/08/2026** — 🏅 **OS QUATRO RANKINGS DA PANELINHA TAMBÉM PASSAM A MOSTRAR SÓ O APELIDO.**
+>
+> 🗣️ **O pedido do Felipe, logo depois da lista de jogos:** *"no ranking do grupo, mostra só o apelido também"*.
+>
+> 🔎 **Foi aplicado nos QUATRO rankings de panelinha, e não só no citado — de propósito.** "Ranking do grupo" tem o **"Ranking da semana" colado nele** na mesma tela; e o **"Ranking Geral"** do `Detalhes` é o MESMO dado (`PontuacaoInterna`) noutra tela, com o **"Ranking do Mês"** ao lado. Atender só o literal deixaria dois cards vizinhos escrevendo o mesmo jogador de dois jeitos — bug visual, não fidelidade ao pedido.
+>
+> 🧩 **`Jogador.SoOApelido` (novo)**, sobre o `NomeBonito.ApelidoOuCurto` que nasceu na leva anterior. **`ComoChamar` fica intacto**: continua valendo em torneio, chave e no ranking PÚBLICO de jogadores, onde a razão de 06/08/2026 ("'Zeca' pode ser três pessoas no mesmo torneio") continua de pé. As duas formas convivem porque respondem perguntas diferentes — dentro da turma × fora dela.
+>
+> 🔒 **A ligação com as telas é teste de FONTE**, pelo motivo de sempre aqui: trocar `SoOApelido` de volta por `ComoChamar` numa view não quebra teste de comportamento nenhum (a suíte não renderiza Razor). Cada teste ancora no **título do card** e recorta até o `</ol>` — e essa precisão veio da lição da leva anterior, quando uma âncora genérica pegou o bloco errado e deixou 5 testes vermelhos de uma vez.
+>
+> ✅ **Falsificado card a card:** revertendo **só** o "Ranking do grupo", falha **só** o teste dele e os outros três seguem verdes.
+>
+> 🔗 **E os nomes dos rankings da `Semana` viraram LINK pro perfil** (decisão do Felipe quando o CI do PR #41 não disparou e ele escolheu aproveitar a rodada). Os dois cards do `Detalhes` já eram link desde sempre; os da `Semana` não — mesma informação, comportamento diferente conforme a tela, que é o tipo de divergência que a pessoa lê como "aqui está quebrado". Usam a `.pdz-nome-jogo` que nasceu na leva anterior, então o affordance é o mesmo da lista de jogos.
+>
+> 🧪 **5.067 testes, 0 falhas (15 novos).** **Sem migration.**
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, no mesmo dia — 🏷️ **A LISTA DE JOGOS DA PANELINHA PASSA A MOSTRAR SÓ O APELIDO — E O LINK QUE JÁ EXISTIA FINALMENTE PARECE UM LINK.**
 >
 > 🗣️ **O pedido do Felipe, num print de "Jogos recentes":** *"pode ser só o apelido, e ao clicar abrir o perfil"*.
 >
@@ -17,7 +35,7 @@
 >
 > 🧪 **5.052 testes, 0 falhas (15 novos).** Falsificado: revertendo o ViewModel pro nome completo, falha exatamente o teste da ligação com a tela (`Expected: "Marcião" / Actual: "Márcio Azeredo (Marcião)"`). **Sem migration.**
 >
-> ⏳ **Commitado, não publicado** nesta entrada.
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `786ae95` (PR #40), release `build-703-786ae95`, deploy run **#56** `success` — a linha `==> Feito. build-703-786ae95 no ar em prod` está nos logs do job.
 >
 > Antes, no mesmo dia — 🎾 **A TELA DA PANELINHA PASSA A MOSTRAR OS JOGOS DA SEMANA — E A LIÇÃO É SOBRE O TESTE, NÃO SOBRE O CARD.**
 >
