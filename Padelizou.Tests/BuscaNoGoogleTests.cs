@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Padelizou.Controllers;
+using Padelizou.Middleware;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -457,5 +458,48 @@ public class BuscaNoGoogleTests
         var lido = System.Xml.Linq.XDocument.Parse(xml);
         Assert.Equal("urlset", lido.Root!.Name.LocalName);
         Assert.Equal("http://www.sitemaps.org/schemas/sitemap/0.9", lido.Root.Name.NamespaceName);
+    }
+
+    // ── O llms.txt (o que as IAs leem antes de citar o site) ──────────────────────────────
+
+    private static async Task<(int Status, string ContentType, string Corpo)> LlmsTxtAsync(string host)
+    {
+        var contexto = new DefaultHttpContext();
+        contexto.Request.Path = "/llms.txt";
+        contexto.Request.Scheme = "https";
+        contexto.Request.Host = new HostString(host);
+        contexto.Response.Body = new MemoryStream();
+
+        var middleware = new RobotsMiddleware(_ => Task.CompletedTask);
+        await middleware.InvokeAsync(contexto);
+
+        contexto.Response.Body.Seek(0, SeekOrigin.Begin);
+        var corpo = await new StreamReader(contexto.Response.Body).ReadToEndAsync();
+        return (contexto.Response.StatusCode, contexto.Response.ContentType ?? "", corpo);
+    }
+
+    [Fact]
+    public async Task O_llms_txt_existe_no_site_publico_com_a_descricao_oficial()
+    {
+        var (status, contentType, corpo) = await LlmsTxtAsync("padelizou.com.br");
+
+        Assert.Equal(200, status);
+        Assert.StartsWith("text/plain", contentType);
+        Assert.Contains("# Padelizou", corpo);
+        Assert.Contains(MetaDaBusca.DescricaoDoSite, corpo);
+        Assert.Contains("https://padelizou.com.br/Torneios", corpo);
+        Assert.Contains("https://padelizou.com.br/Jogadores/Ranking", corpo);
+        Assert.Contains("https://padelizou.com.br/Professores", corpo);
+    }
+
+    // Mesma razão do robots.txt e do sitemap: o binário serve três hosts, e o dev não pode
+    // convidar IA nenhuma a citar o ambiente de teste como se fosse o site real.
+    [Theory]
+    [InlineData("dev.padelizou.com.br")]
+    [InlineData("admin.padelizou.com.br")]
+    public async Task O_llms_txt_nao_existe_fora_do_site_publico(string host)
+    {
+        var (status, _, _) = await LlmsTxtAsync(host);
+        Assert.Equal(404, status);
     }
 }
