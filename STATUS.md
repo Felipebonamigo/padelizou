@@ -2596,6 +2596,32 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
+### 21/08/2026 — 🏟️ Torneio em MAIS DE UM CLUBE (build-657, **em produção**)
+
+Pedido do Felipe, tirado do **Dez E Batata**: eles dividem o torneio em dois clubes e põem
+cada categoria inteira num deles, pra ninguém passar o fim de semana indo e voltando.
+
+**A fonte da verdade é a QUADRA** (`Quadra.ClubeId`, anulável = clube do torneio). Não existe
+tabela de sedes: a lista de clubes é o DISTINCT daí. Uma sede cadastrada à parte poderia
+existir sem quadra nenhuma, e o torneio teria duas respostas pra "onde eu jogo?".
+
+**Duas regras de naturezas opostas, e a ordem entre elas é o miolo:**
+- `Categoria.ClubeId` é trava **DURA** — a categoria não recebe quadra do outro clube nem com
+  o horário lotado. Não pôde pegar carona na quadra PREFERIDA, que cede no degrau 3.
+- `Torneio.MinutosParaTrocarDeClube` (30 padrão) é **MOLE** — cede quando a grade aperta,
+  porque a prioridade declarada é nenhuma quadra parar. Cede nesta ordem: folga → quadra do
+  clube certo → não repetir gente.
+
+O clube entrou em todas as telas onde errar manda a pessoa pro prédio errado (etiqueta de
+jogo, chave, `.ics`, aviso "sua quadra vagou", seletor do placar, Mesa de Controle) — a régua
+é `Services/LugarDoJogo`.
+
+⚠️ **O nome da quadra continua único POR TORNEIO**, não por clube: o motor identifica quadra
+por NOME (`Partida.NomeQuadra` é texto solto, sem FK). A tela sugere o clube dentro do nome.
+
+⚠️ **Falta verificar no navegador as telas do organizador** (criar/editar torneio): elas
+exigem login e a verificação parou aí. O caminho servidor está coberto por teste.
+
 ### 06/08/2026 (fim da noite) — 🚨 Erro em produção deixou de ser invisível
 
 Até hoje, um erro 500 mostrava a tela amiga e **acabava ali**: o rastro só existia no
