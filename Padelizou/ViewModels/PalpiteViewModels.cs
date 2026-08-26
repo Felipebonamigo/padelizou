@@ -24,3 +24,28 @@ public class VotanteVM
     public string Nome { get; set; } = null!;
     public string? FotoPerfil { get; set; }
 }
+
+// Uma linha do ranking de palpiteiros — ver Services/PontosDoPalpite pra régua.
+public class PalpiteiroVM
+{
+    public int JogadorId { get; set; }
+    public string Nome { get; set; } = null!;
+    public string? FotoPerfil { get; set; }
+    public int Acertos { get; set; }
+    public int PalpitesResolvidos { get; set; }
+    public double? Aproveitamento { get; set; }
+}
+
+// O desempenho de UM jogador no Palpitrômetro — pro perfil dele, não pro ranking (por isso
+// sem Nome/FotoPerfil: quem chama já sabe de quem é).
+public class DesempenhoDoPalpiteiroVM
+{
+    public int Acertos { get; set; }
+    public int PalpitesResolvidos { get; set; }
+    public int PalpitesEmAberto { get; set; }
+    public double? Aproveitamento { get; set; }
+
+    // Falso só quando o jogador nunca votou em nada que conta — distingue "nunca palpitou"
+    // de "palpitou e ainda não resolveu nenhum", que teriam Aproveitamento nulo do mesmo jeito.
+    public bool TemHistorico { get; set; }
+}

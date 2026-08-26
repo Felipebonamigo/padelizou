@@ -1,0 +1,134 @@
+@model List<Padelizou.ViewModels.PalpiteiroVM>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    int? meuId = ViewBag.MeuJogadorId as int?;
+    ViewData["Title"] = $"Palpiteiros — {torneio.Nome} - Padelizou";
+
+    var podio = Model.Take(3).ToList();
+    var minhaLinha = meuId == null ? null : Model.FirstOrDefault(l => l.JogadorId == meuId);
+    var minhaPosicao = minhaLinha == null ? 0 : Model.IndexOf(minhaLinha) + 1;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-action="Details" asp-route-id="@torneio.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-graph-up text-success"></i> Palpiteiros
+    </h2>
+    <p class="text-muted">@torneio.Nome</p>
+
+    @* ── A RÉGUA, EXPLICADA ─────────────────────────────────────────────────────────────
+       Curta porque a régua é curta: quem mais acertou. A segunda frase existe porque a
+       primeira dúvida de quem olha a tabela é "por que o 100% não está em primeiro?". *@
+    <div class="card border-0 shadow-sm rounded-4 mb-3" style="background: var(--pdz-navy-fixed);">
+        <div class="card-body text-white py-3">
+            <div class="small text-uppercase mb-2" style="letter-spacing:.12em; color: var(--padel-green);">
+                Como conta
+            </div>
+            <p class="mb-1">
+                <strong>Quem mais acertou</strong> nos jogos que já terminaram.
+            </p>
+            <p class="mb-0 small" style="color: rgba(255,255,255,.75);">
+                Um acerto, um ponto — quem acerta 9 de 11 fica na frente de quem acerta 8 de 8.
+                Palpitar mais vale a pena. Palpite no próprio jogo não conta.
+            </p>
+        </div>
+    </div>
+
+    @* ── O PÓDIO ────────────────────────────────────────────────────────────────────────
+       Os três primeiros ganham rosto. É o que a pessoa fotografa e joga no grupo. *@
+    @if (podio.Count > 0)
+    {
+        <div class="row g-2 mb-3">
+            @for (var i = 0; i < podio.Count; i++)
+            {
+                var l = podio[i];
+                var medalha = i == 0 ? "🥇" : i == 1 ? "🥈" : "🥉";
+                <div class="col-4">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 @(l.JogadorId == meuId ? "border border-2 border-success" : "")">
+                        <div class="card-body text-center p-2">
+                            <div style="font-size:1.5rem; line-height:1;">@medalha</div>
+                            <img src="@(string.IsNullOrEmpty(l.FotoPerfil) ? "/img/default-avatar.png" : l.FotoPerfil)"
+                                 alt="" class="rounded-circle my-2"
+                                 style="width:56px;height:56px;object-fit:cover;border:2px solid var(--padel-green);" />
+                            <div class="small fw-bold text-truncate" style="color: var(--pdz-ink);">@l.Nome</div>
+                            <div class="fw-bold" style="color: var(--padel-green);">@l.Acertos</div>
+                            <div class="text-muted" style="font-size:.7rem;">
+                                de @l.PalpitesResolvidos · @l.Aproveitamento%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* ── ONDE EU ESTOU ──────────────────────────────────────────────────────────────────
+       Numa lista de 40 nomes ninguém acha o próprio. A faixa aparece só pra quem palpitou e
+       ficou FORA do pódio — no pódio a pessoa já está se vendo. *@
+    @if (minhaLinha != null && minhaPosicao > 3)
+    {
+        <div class="alert alert-success rounded-4 d-flex align-items-center gap-3 py-2">
+            <span class="fw-bold fs-5">@minhaPosicao&ordm;</span>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">Você</div>
+                <div class="small">
+                    @minhaLinha.Acertos @(minhaLinha.Acertos == 1 ? "acerto" : "acertos")
+                    em @minhaLinha.PalpitesResolvidos @(minhaLinha.PalpitesResolvidos == 1 ? "palpite" : "palpites")
+                    · @minhaLinha.Aproveitamento%
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="small text-muted">
+                            <th class="ps-3" style="width:2.5rem;">#</th>
+                            <th>Palpiteiro</th>
+                            <th class="text-center pe-3">Acertos</th>
+                            <th class="text-center d-none d-sm-table-cell pe-3">Aproveitamento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < Model.Count; i++)
+                        {
+                            var l = Model[i];
+                            <tr class="@(l.JogadorId == meuId ? "table-success" : "")">
+                                <td class="ps-3 text-muted">@(i + 1)</td>
+                                <td>
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@l.JogadorId"
+                                       class="text-decoration-none d-flex align-items-center gap-2">
+                                        <img src="@(string.IsNullOrEmpty(l.FotoPerfil) ? "/img/default-avatar.png" : l.FotoPerfil)"
+                                             alt="" class="rounded-circle"
+                                             style="width:32px;height:32px;object-fit:cover;" />
+                                        <span class="text-truncate" style="color: var(--pdz-ink);">@l.Nome</span>
+                                    </a>
+                                </td>
+                                <td class="text-center fw-bold pe-3" style="color: var(--padel-green);">@l.Acertos</td>
+                                <td class="text-center d-none d-sm-table-cell small text-muted pe-3">
+                                    @l.Aproveitamento% <span class="text-muted">(@l.Acertos de @l.PalpitesResolvidos)</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ⚠️ Esta nota não é rodapé decorativo: sem ela o jogador que palpitou no PRÓPRIO jogo
+       procura o ponto que não veio e acha que é defeito. *@
+    <p class="text-muted small mt-3 mb-0">
+        <i class="bi bi-info-circle"></i>
+        Palpite no seu próprio jogo não entra na conta — os quatro em quadra são os únicos que
+        podem mudar o resultado. Você continua podendo votar; ele só não conta aqui.
+    </p>
+</div>

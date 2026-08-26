@@ -7,4 +7,8 @@ public interface IPalpiteService
     Task<Dictionary<int, PalpiteResumoVM>> ObterResumosAsync(IEnumerable<int> partidaIds, int? jogadorId);
     Task<PalpiteResumoVM> RegistrarVotoAsync(int partidaId, int jogadorId, int duplaEscolhidaId);
     Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId);
+
+    Task<List<PalpiteiroVM>> ObterRankingDoTorneioAsync(int torneioId);
+    Task<List<PalpiteiroVM>> ObterRankingGeralAsync(HashSet<int>? jogadoresDoLocal = null);
+    Task<DesempenhoDoPalpiteiroVM> ObterDesempenhoAsync(int jogadorId);
 }
