@@ -11,6 +11,10 @@ public class ProfessorPublicoVM
     public List<LocalAula> Locais { get; set; } = new();
     public List<string> Cidades { get; set; } = new();
 
+    // Padel/Tênis/Beach Tênis que o professor marcou que dá (Models/ProfessorEsporte). Vazio
+    // pra quem nunca configurou — o selo só aparece depois que ele salvar pelo menos um.
+    public List<string> EsportesQueEnsina { get; set; } = new();
+
     public decimal? MenorPreco { get; set; }
     public int AulasRealizadas { get; set; }
     public int AlunosAtendidos { get; set; }

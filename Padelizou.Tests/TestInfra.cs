@@ -268,6 +268,25 @@ public static class TestInfra
         return controller;
     }
 
+    // ProfessoresController: a vitrine pública e o perfil do professor.
+    public static ProfessoresController NovoProfessoresController(DbPadelContext ctx, int usuarioLogadoId)
+    {
+        var controller = new ProfessoresController(
+            ctx, Substitute.For<IPushNotificationService>(), NullLogger<ProfessoresController>.Instance);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        return controller;
+    }
+
     // TorneiosController pronto pra uso nos testes: serviços de borda (e-mail, push,
     // pagamentos...) viram dublês; estatísticas usa o banco de verdade (em memória).
     // `pagamentos` fica aberto porque a tela de criação agora PERGUNTA a ele se a conta de
