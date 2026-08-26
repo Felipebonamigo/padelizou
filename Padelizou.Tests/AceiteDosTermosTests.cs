@@ -61,7 +61,7 @@ public class AceiteDosTermosTests
     {
         // O nome da versão É a data em que ela passou a valer. Mudar uma e esquecer a outra
         // faria a tela dizer um dia e o registro guardar outro.
-        Assert.Equal(VersaoDosDocumentos.EmVigorDesde.ToString("yyyy-MM-dd"), VersaoDosDocumentos.Atual);
+        Assert.Equal(VersaoDosDocumentos.Atual, VersaoDosDocumentos.EmVigorDesde.ToString("yyyy-MM-dd"));
     }
 
     // ===================== A LINHA DA PESSOA GUARDA =====================

@@ -1,0 +1,370 @@
+<title>Padelizou para clubes — torneios</title>
+
+<style>
+  :root {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde: #A3D827;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+    --on-dark: #EEF2F9;
+    --on-dark-soft: #96A2BE;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #0F1626;
+      --navy-2: #17203A;
+      --verde-ink: #A3D827;
+      --ink: #E6EBF5;
+      --ink-soft: #99A5C0;
+      --paper: #121826;
+      --surface: #1A2233;
+      --rule: #2C3650;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --navy: #0F1626;
+    --navy-2: #17203A;
+    --verde-ink: #A3D827;
+    --ink: #E6EBF5;
+    --ink-soft: #99A5C0;
+    --paper: #121826;
+    --surface: #1A2233;
+    --rule: #2C3650;
+  }
+
+  :root[data-theme="light"] {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 2.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0.6rem 0 0;
+  }
+
+  h2 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 1.1rem;
+  }
+
+  p { margin: 0 0 0.9rem; max-width: 62ch; }
+  p:last-child { margin-bottom: 0; }
+  .lead { font-size: 1.12rem; color: var(--ink-soft); margin-top: 1.1rem; }
+  strong { font-weight: 700; color: var(--ink); }
+
+  /* ---- Placar ---- */
+  .placar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .placar div {
+    background: var(--navy);
+    padding: 1.9rem 1.5rem 1.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .placar .num {
+    font-size: clamp(2.6rem, 10vw, 3.9rem);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--verde);
+    font-variant-numeric: tabular-nums;
+  }
+  .placar .num span { font-size: 0.45em; letter-spacing: 0; }
+  .placar .rot {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-dark-soft);
+  }
+  .placar .desc { font-size: 0.95rem; color: var(--on-dark); line-height: 1.45; }
+
+  .base {
+    background: var(--surface);
+    border-left: 3px solid var(--verde);
+    padding: 1rem 1.25rem;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ---- Blocos de momento ---- */
+  .momento { display: grid; grid-template-columns: 1fr; gap: 1.6rem; }
+  .momento > div { padding-top: 1.1rem; border-top: 1px solid var(--rule); }
+  .momento h3 {
+    font-size: 1.06rem;
+    font-weight: 700;
+    margin: 0 0 0.45rem;
+    letter-spacing: -0.01em;
+  }
+  .momento h3 small {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--verde-ink);
+    margin-bottom: 0.3rem;
+  }
+
+  ul.regras { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+  ul.regras li { padding-left: 1.15rem; position: relative; max-width: 62ch; }
+  ul.regras li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.62em;
+    width: 6px; height: 6px;
+    background: var(--verde);
+    border-radius: 50%;
+  }
+
+  ol.passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.1rem; counter-reset: p; }
+  ol.passos li {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    counter-increment: p;
+  }
+  ol.passos li::before {
+    content: counter(p);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--verde-ink);
+    border-bottom: 2px solid var(--verde);
+    padding-bottom: 0.1rem;
+  }
+  ol.passos p { margin: 0; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 34rem) {
+    .placar { grid-template-columns: 1fr; }
+    .wrap { gap: 2.5rem; padding-top: 2rem; }
+  }
+
+  /* ---- Impressão / PDF ----
+     Gerado com Edge headless --print-to-pdf (Chrome não serve nesta máquina).
+     Vem POR ÚLTIMO de propósito: o headless pode reportar tema escuro, e estes
+     tokens têm a mesma especificidade do bloco prefers-color-scheme — quem vem
+     depois vence. Sem isto o PDF sai com fundo navy e come tinta à toa. */
+  @media print {
+    :root {
+      --navy: #1C2742;
+      --navy-2: #232F4E;
+      --verde-ink: #5E7D0F;
+      --ink: #16203A;
+      --ink-soft: #4A566F;
+      --paper: #FFFFFF;
+      --surface: #F1F4FA;
+      --rule: #C9D2E4;
+    }
+
+    @page { margin: 12mm 12mm; }
+
+    body { font-size: 10.5pt; line-height: 1.5; }
+    .wrap { max-width: none; padding: 0; gap: 1.3rem; }
+    h1 { font-size: 1.8rem; }
+    .lead { font-size: 0.98rem; }
+    .momento { gap: 1.1rem; }
+    .placar div { padding: 1.3rem 1.3rem 1.1rem; }
+    ul.regras { gap: 0.55rem; }
+    ol.passos { gap: 0.8rem; }
+
+    /* Só o que fica feio partido é que não parte. Blocos inteiros com "avoid"
+       pulam de página quando não cabem e deixam meia página em branco — o que
+       antes custava uma folha a mais. */
+    .placar, ol.passos li, ul.regras li { break-inside: avoid; }
+    h2, h3 { break-after: avoid; }
+
+    .placar div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .base { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Padelizou · Torneios do clube</p>
+    <h1>Seu torneio inteiro num link só.</h1>
+    <p class="lead">Da inscrição ao campeão: o jogador se inscreve e paga pelo celular, o dinheiro
+    cai na sua conta, a chave sai sozinha e todo mundo acompanha ao vivo — sem planilha, sem
+    grupo lotado de "quem é o próximo?", sem alguém correndo atrás de quem não pagou.</p>
+  </header>
+
+  <section>
+    <div class="placar">
+      <div>
+        <p class="num">R$ 0</p>
+        <p class="rot">De mensalidade</p>
+        <p class="desc">Você não assina nada e não fica preso a contrato. A taxa só existe quando
+        o torneio acontece.</p>
+      </div>
+      <div>
+        <p class="num">1 <span>link</span></p>
+        <p class="rot">O torneio inteiro</p>
+        <p class="desc">Inscrição, chave, jogos ao vivo, classificação e resultado no mesmo
+        endereço — o que você manda no grupo do WhatsApp.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Do anúncio ao troféu</h2>
+
+    <div class="momento">
+
+      <div>
+        <h3><small>Antes</small>A inscrição se resolve sozinha</h3>
+        <ul class="regras">
+          <li><strong>O jogador se inscreve e paga pelo celular</strong>, em Pix ou cartão. Sem
+          ninguém conferindo comprovante no privado.</li>
+          <li><strong>Limite de vagas por categoria e lista de espera automática</strong> — quando
+          alguém desiste, o primeiro da fila entra no lugar sem você fazer nada.</li>
+          <li><strong>Trava de categoria</strong>: quem já foi campeão de uma categoria mais forte
+          não se inscreve numa mais fraca. Você escolhe o quanto pegar pesado — e pode liberar
+          caso a caso.</li>
+          <li><strong>"Cabe no domingo?"</strong> — antes de anunciar, o sistema calcula quantos
+          jogos saem de N duplas e a que horas o torneio termina com as suas quadras.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3><small>No dia</small>A grade anda sem você no meio</h3>
+        <ul class="regras">
+          <li><strong>A chave sai pronta</strong>: grupos, mata-mata, chave direta, americano
+          individual ou de duplas. Sets e games podem mudar por fase — grupo em um set curto,
+          final em dois.</li>
+          <li><strong>A fase seguinte se monta sozinha</strong> quando a anterior fecha. Você não
+          redesenha quadro nenhum no meio do sábado.</li>
+          <li><strong>Mesa de controle</strong>: uma tela para lançar placar de todas as quadras,
+          e check-in dos inscritos na chegada.</li>
+          <li><strong>O jogador é avisado quando é a vez dele</strong> — o aviso dispara no fim do
+          jogo anterior, não por relógio. Se a grade atrasa, quem está esperando recebe o aviso do
+          atraso e não vai embora achando que perdeu a vez.</li>
+          <li><strong>Tudo ao vivo na página do torneio</strong>: jogo em andamento, próximos,
+          classificação dos grupos e o quadro do mata-mata, sem ninguém perguntar na organização.
+          Se a quadra tem câmera, o link da transmissão fica pendurado nela.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3><small>Depois</small>O que faz o jogador voltar no próximo</h3>
+        <ul class="regras">
+          <li><strong>Ranking de verdade</strong>, alimentado só por resultado de torneio: por
+          categoria, por dupla, por time, com quem subiu e quem desceu no mês.</li>
+          <li><strong>Votação de MVP</strong> — quem esteve na chave elege o melhor entre os
+          campeões nos dias seguintes.</li>
+          <li><strong>Card de campeão pronto para postar</strong>, com o nome da dupla e o do seu
+          clube junto.</li>
+          <li><strong>Cada jogador tem perfil</strong>: histórico, títulos, com quem mais joga,
+          quem é o algoz dele. O torneio do seu clube fica no currículo dessa pessoa.</li>
+          <li><strong>Álbum de fotos e recado aos inscritos</strong> na própria página do torneio,
+          e um <strong>grupo de WhatsApp</strong> cujo convite só aparece para quem está inscrito.</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>O dinheiro é seu, e chega direto</h2>
+    <ul class="regras">
+      <li><strong>A inscrição cai na sua conta, não na nossa.</strong> O repasse é automático no
+      momento em que o jogador paga — você não precisa esperar acerto no fim do mês.</li>
+      <li><strong>Pix cai na hora.</strong> Cartão é o cartão: entra em cerca de 30 dias, e por
+      isso você escolhe se quer aceitar cartão ou trabalhar só com Pix.</li>
+      <li><strong>Painel do torneio</strong> com quanto entrou, quem pagou, quem ainda não pagou —
+      e a cobrança de quem falta sai de dentro do sistema.</li>
+      <li><strong>Receber por fora continua valendo.</strong> Dá para usar o Padelizou só para
+      organizar e cobrar como você já cobra hoje.</li>
+    </ul>
+    <p class="base" style="margin-top:1.25rem">Não tem mensalidade e não tem contrato. O Padelizou
+    cobra uma <strong>taxa por torneio</strong>, combinada com você — e ela só existe quando o
+    torneio acontece. Se as inscrições forem pagas pelo site, essa taxa já sai embutida no
+    pagamento e você não precisa nos transferir nada depois.</p>
+  </section>
+
+  <section>
+    <h2>Como começa</h2>
+    <ol class="passos">
+      <li><p><strong>A gente libera o seu perfil de organizador.</strong> Nada de cadastro que
+      cria torneio sozinho — quem abre torneio no Padelizou é liberado pessoa a pessoa.</p></li>
+      <li><p><strong>Você cria o torneio em uma tela.</strong> Categorias, valor, vagas, quadras,
+      datas e formato. A gente monta o primeiro junto com você, ao vivo.</p></li>
+      <li><p><strong>Manda o link no grupo.</strong> As inscrições entram sozinhas e você
+      acompanha pelo celular.</p></li>
+      <li><p><strong>No dia, você só lança placar.</strong> O resto — chave, avisos, classificação,
+      ranking — o sistema faz.</p></li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>Padelizou — padelizou.com.br · Plataforma brasileira de padel: torneio, aula e a rede do
+    jogador no mesmo lugar. Já tem torneio rodando com inscrição paga pelo site e o dinheiro
+    caindo na conta do organizador. Também funciona como aplicativo instalado no celular.</p>
+  </footer>
+
+</div>
