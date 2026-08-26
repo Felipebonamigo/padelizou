@@ -11,7 +11,11 @@
 >
 > 💥 **O ESTRAGO REAL foi outro, e é a lição:** o merge em `main` (`60ddcef`, 16:05:26Z) caiu no **último minuto** da janela quebrada. O push não disparou o CI, então o release **`build-N-60ddcef` nunca foi publicado** — e sem release não há pacote pra instalar. Código mergeado em `main` e **impossível de publicar**, sem nada vermelho em lugar nenhum.
 >
-> 🔧 **`workflow_dispatch` no `ci.yml`** fecha isso: Actions → CI → Run workflow, escolhendo o branch. É a única peça que faltava pra que "o gatilho falhou" deixe de virar "o código está preso em `main`".
+> 🔧 **`workflow_dispatch` no `ci.yml`** fecha isso: Actions → CI → Run workflow, escolhendo o branch.
+>
+> ⚠️ **E o gatilho manual sozinho NÃO bastava** — quase passou assim. O job `publicar` era `if: github.event_name == 'push'`, então um disparo manual rodaria os testes e **não geraria pacote nenhum**: inútil justamente no caso que o criou, que é o push do merge não ter gerado release. A condição virou `push || workflow_dispatch` (ainda restrita ao `main`). O `needs: testes` continua de pé — pacote segue impossível de nascer com suíte vermelha.
+>
+> 📌 **O gatilho por evento NÃO voltou de forma estável.** O run #704 (16:06) foi isolado: o PR #42, aberto às 16:15, também ficou sem nenhum check. Ou seja, a janela 13:05–16:06 não "fechou" — o sintoma é intermitente, e é por isso que a saída manual precisa existir.
 >
 > ⏳ **Commitado, não publicado** nesta entrada. O merge deste PR também gera o release que carrega o `60ddcef` junto.
 >

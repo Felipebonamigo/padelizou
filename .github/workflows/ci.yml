@@ -152,10 +152,18 @@ jobs:
   # Se os testes passaram no main, gera o pacote pronto pra deploy e anexa
   # num release "build-N-sha". O VPS só instala pacotes daqui — ou seja,
   # é impossível publicar código que não passou nos testes.
+  #
+  # ⚠️ O `workflow_dispatch` ENTRA AQUI JUNTO COM O `push`, e sem isso o gatilho manual não
+  # serviria pro caso que o criou (26/08/2026): rodar só os testes na mão não resolve nada
+  # quando o problema é que o push do merge não gerou PACOTE. Foi exatamente o que travou o
+  # `60ddcef` — mergeado em `main`, testes verdes, e sem release nenhum pra instalar.
+  #
+  # `needs: testes` continua valendo pro disparo manual: o pacote nasce do job de testes,
+  # então continua sendo impossível publicar código que não passou na suíte.
   publicar:
     name: Pacote de deploy
     needs: testes
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
