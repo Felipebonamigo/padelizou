@@ -621,7 +621,7 @@ public class MvpDoTorneioTests
 
         // ⚠️ Duas linhas pra mesma pessoa DIVIDIRIAM os votos dela entre elas, e ela perderia
         // pra quem tem uma categoria só. A cédula tem uma linha por PESSOA.
-        var linha = Assert.Single(candidatos.Where(c => c.JogadorId == campea.Jogador1Id));
+        var linha = Assert.Single(candidatos, c => c.JogadorId == campea.Jogador1Id);
         Assert.Equal(2, linha.Categorias.Count);
     }
 

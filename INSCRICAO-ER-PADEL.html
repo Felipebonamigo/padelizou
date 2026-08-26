@@ -1,0 +1,297 @@
+<title>Como se inscrever no torneio do Er Padel — Padelizou</title>
+
+<style>
+  :root {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde: #A3D827;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+    --on-dark: #EEF2F9;
+    --on-dark-soft: #96A2BE;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #0F1626;
+      --navy-2: #17203A;
+      --verde-ink: #A3D827;
+      --ink: #E6EBF5;
+      --ink-soft: #99A5C0;
+      --paper: #121826;
+      --surface: #1A2233;
+      --rule: #2C3650;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --navy: #0F1626;
+    --navy-2: #17203A;
+    --verde-ink: #A3D827;
+    --ink: #E6EBF5;
+    --ink-soft: #99A5C0;
+    --paper: #121826;
+    --surface: #1A2233;
+    --rule: #2C3650;
+  }
+
+  :root[data-theme="light"] {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 2.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0.6rem 0 0;
+  }
+
+  h2 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 0.4rem;
+  }
+
+  .sub {
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 1.1rem;
+    color: var(--ink);
+  }
+
+  p { margin: 0 0 0.9rem; max-width: 62ch; }
+  p:last-child { margin-bottom: 0; }
+  .lead { font-size: 1.12rem; color: var(--ink-soft); margin-top: 1.1rem; }
+  strong { font-weight: 700; color: var(--ink); }
+
+  /* ---- Placar ---- */
+  .placar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .placar div {
+    background: var(--navy);
+    padding: 1.7rem 1.4rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .placar .num {
+    font-size: clamp(2.4rem, 9vw, 3.5rem);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--verde);
+    font-variant-numeric: tabular-nums;
+  }
+  .placar .num span { font-size: 0.42em; letter-spacing: 0; }
+  .placar .rot {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-dark-soft);
+  }
+  .placar .desc { font-size: 0.95rem; color: var(--on-dark); line-height: 1.45; }
+
+  .base {
+    background: var(--surface);
+    border-left: 3px solid var(--verde);
+    padding: 1rem 1.25rem;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+    border-radius: 0 4px 4px 0;
+  }
+
+  ul.regras { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+  ul.regras li { padding-left: 1.15rem; position: relative; max-width: 62ch; }
+  ul.regras li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.62em;
+    width: 6px; height: 6px;
+    background: var(--verde);
+    border-radius: 50%;
+  }
+
+  ol.passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1rem; counter-reset: p; }
+  ol.passos li {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    counter-increment: p;
+  }
+  ol.passos li::before {
+    content: counter(p);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--verde-ink);
+    border-bottom: 2px solid var(--verde);
+    padding-bottom: 0.1rem;
+  }
+  ol.passos p { margin: 0; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 34rem) {
+    .placar { grid-template-columns: 1fr; }
+    .wrap { gap: 2.4rem; padding-top: 2rem; }
+  }
+
+  /* ---- Impressão / PDF ----
+     Gerado com Edge headless --print-to-pdf (Chrome não serve nesta máquina).
+     Vem POR ÚLTIMO de propósito: o headless pode reportar tema escuro, e estes
+     tokens têm a mesma especificidade do bloco prefers-color-scheme — quem vem
+     depois vence. Sem isto o PDF sai com fundo navy e come tinta à toa. */
+  @media print {
+    :root {
+      --navy: #1C2742;
+      --navy-2: #232F4E;
+      --verde-ink: #5E7D0F;
+      --ink: #16203A;
+      --ink-soft: #4A566F;
+      --paper: #FFFFFF;
+      --surface: #F1F4FA;
+      --rule: #C9D2E4;
+    }
+
+    @page { margin: 12mm 12mm; }
+
+    body { font-size: 10.5pt; line-height: 1.5; }
+    .wrap { max-width: none; padding: 0; gap: 1.3rem; }
+    h1 { font-size: 1.8rem; }
+    .lead { font-size: 0.98rem; }
+    .sub { font-size: 1.05rem; }
+    ul.regras { gap: 0.5rem; }
+
+    /* Só o que fica feio partido é que não parte. Bloco inteiro com "avoid" pula
+       de página quando não cabe e deixa meia folha em branco. */
+    .placar, ol.passos li, ul.regras li { break-inside: avoid; }
+    h2, .sub { break-after: avoid; }
+
+    .placar div, .base { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Padelizou · Torneio do Er Padel</p>
+    <h1>Como se inscrever.</h1>
+    <p class="lead">Leva uns dois minutos, direto do celular. Você precisa de conta no Padelizou —
+    seu parceiro não precisa.</p>
+  </header>
+
+  <section>
+    <h2>Passo a passo</h2>
+    <ol class="passos">
+      <li><p><strong>Abra a página do torneio.</strong> Use o link que o Er Padel divulgou, ou
+      entre em <strong>padelizou.com.br</strong> → <strong>Torneios</strong> e procure pelo nome
+      ou pela cidade.</p></li>
+
+      <li><p><strong>Entre na sua conta.</strong> Se ainda não tem, clique em
+      <strong>Criar minha conta</strong>: nome, CPF, login, e-mail, celular e CEP. Faça isso antes
+      de preencher a inscrição, para não perder o que digitou.</p></li>
+
+      <li><p><strong>Vá na aba <em>Inscreva-se</em></strong> e escolha a
+      <strong>categoria</strong> em que vai jogar.</p></li>
+
+      <li><p><strong>Preencha os jogadores começando pelo CPF.</strong> Em Jogador 1, o botão
+      <strong>“Sou eu”</strong> completa seus dados. Se o CPF já tiver cadastro, nome, celular e
+      cidade vêm sozinhos; se for novo, os campos abrem para você preencher.</p></li>
+
+      <li><p><strong>Coloque o parceiro.</strong> Digite 3 letras do nome ou apelido dele e
+      escolha na lista — não precisa saber o CPF. Não achou? Preencha CPF, nome, celular e
+      cidade dele.</p></li>
+
+      <li><p><strong>Resolva o pagamento.</strong> Escolha <strong>Pix</strong> ou
+      <strong>cartão de crédito</strong>. Se o torneio aceitar pagar depois, dá para marcar
+      <strong>“Depois — só garantir minha vaga”</strong> e acertar até o fechamento das
+      inscrições.</p></li>
+
+      <li><p><strong>Clique em <em>Confirmar Inscrição</em>.</strong> Pronto: a vaga aparece na
+      lista de inscritos da categoria e você passa a receber os avisos do torneio.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Bom saber</h2>
+    <ul class="regras">
+      <li><strong>Ainda não tem parceiro?</strong> Marque a chavinha “Ainda não tenho parceiro”. A
+      vaga fica garantida e você define a dupla depois, na própria página do torneio, antes do
+      sorteio das chaves.</li>
+      <li><strong>Chamar alguém por link.</strong> Dá para gerar um convite e mandar no WhatsApp —
+      quem abrir entra com a conta dele e fecha a dupla com você.</li>
+      <li><strong>Se for Torneio Americano</strong>, a inscrição é individual: só CPF e nome. O
+      sistema sorteia os parceiros a cada rodada.</li>
+      <li><strong>Torneio restrito</strong> pede uma chave de acesso de 6 caracteres — peça ao
+      organizador do Er Padel.</li>
+      <li><strong>Lotou?</strong> Você entra na lista de espera e sobe automaticamente, na ordem
+      de chegada, se alguém desistir.</li>
+      <li><strong>Mudou de ideia?</strong> Enquanto as inscrições estiverem abertas, dá para
+      trocar o parceiro ou cancelar sua inscrição na própria página do torneio.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Dúvida na inscrição? Fale com a organização do Er Padel — ela vê todos os inscritos e
+    pagamentos pelo painel do torneio.
+  </footer>
+
+</div>

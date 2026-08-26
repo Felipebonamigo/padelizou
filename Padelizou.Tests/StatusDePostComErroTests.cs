@@ -68,6 +68,6 @@ public class StatusDePostComErroTests
         var noRamo = Regex.Matches(program, @"ramo\.UseStatusCodePagesWithReExecute\(");
 
         Assert.Equal(noRamo.Count, todas.Count);
-        Assert.Equal(1, todas.Count);
+        Assert.Single(todas);
     }
 }
