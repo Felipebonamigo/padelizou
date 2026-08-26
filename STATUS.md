@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/08/2026** — 📆 **AS TRÊS TELAS DE AULA PASSAM A TER CALENDÁRIO, E O DIA DA SEMANA VIRA RÉGUA ÚNICA.**
+> Última atualização: **25/08/2026** — 🏓 **PERFIL DO PROFESSOR GANHA "ESPORTES QUE VOCÊ ENSINA".**
+>
+> 🗣️ **O pedido do Felipe, terceira parte do mesmo print da agenda:** *"João, por exemplo, dá aula de tênis e beach tênis também. Seria legal um campo pra isso. Acho que é uma realidade dos professores."* Diferente do `Aula.Esporte` de mais cedo (o esporte DAQUELA aula), isto é uma declaração no PERFIL — o que o professor oferece, mostrado como selo na página pública dele.
+>
+> 🧩 **`ProfessorEsporte` (novo, migration): mesma forma de `ProfessorCidade` (N:N, chave composta ProfessorId+Esporte), mas sem tabela catálogo no banco** — o valor é a mesma string de `EsporteDaAula` (Padel/Tênis/Beach Tênis), validada em código, não por FK. É o meio-termo entre os dois padrões que já existiam no projeto: junção de verdade (como cidade) pro relacionamento N:N, catálogo em código (como `Aula.Esporte`) pro valor.
+>
+> ✏️ **Editado na própria página pública do professor** (`/Professores/Perfil/{id}`), no mesmo bloco onde ele já edita "Sobre mim"/"Experiência" — só o dono do perfil vê o form (`ProfessoresController.SalvarEsportes`, `[Authorize]`, com checagem de `IsProfessor` e de que o `ProfessorId` é o de quem está logado). Selo só aparece na página quando ele marcou pelo menos um; quem nunca configurou não mostra nada, em vez de "sem esporte".
+>
+> 🎾 **Quem nunca configurou nasce com Padel pré-marcado no formulário** (não gravado — só a caixinha já vem marcada): é o esporte implícito de todo professor da plataforma até aqui, mesmo raciocínio do `Padrao = Padel` do `EsporteDaAula`. Ele desmarca se não for o caso.
+>
+> 🧪 **4.859 testes, 0 falhas (8 novos)** — salva os marcados, ignora esporte fora da lista, salvar de novo substitui em vez de acumular, salvar vazio esvazia, quem não é professor não grava nada, um professor não mexe no esporte de outro, perfil mostra em ordem fixa (Padel/Tênis/Beach Tênis) independente da ordem gravada, quem nunca configurou não mostra esporte nenhum.
+>
+> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Migration inclusa (tabela `ProfessorEsporte`).
+>
+> Antes, no mesmo dia — 📆 **AS TRÊS TELAS DE AULA PASSAM A TER CALENDÁRIO, E O DIA DA SEMANA VIRA RÉGUA ÚNICA.**
 >
 > 🗣️ **O pedido do Felipe:** *"aplica o mesmo nas telas de editar aula e encaixe"*. Eram as duas que ficaram pra trás mais cedo hoje — a de Adicionar trocou o `datetime-local` por `date` + `time`, e o PR daquele bloco declarou, por escrito, que Editar e o encaixe da Minha Agenda continuavam com a rodinha do Android.
 >
@@ -109,8 +123,7 @@
 >
 > 🧪 **4.848 testes, 0 falhas (13 novos)** — esporte nasce em Padel, escolha explícita é gravada, esporte fora da lista cai no padrão (Adicionar e Editar), editar só o esporte salva (regressão do bug acima), editar propaga pra turma inteira, filtro só aparece com 2+ esportes lançados, filtro restringe a lista, filtro inválido na URL é ignorado. Grade/clique são mudança de tela pura, sem lógica nova pra testar — build limpo cobre a Razor, suíte inteira cobre regressão.
 >
-> ✅ **PUBLICADO junto, na mesma `51bf8b7`** (o PR #32 mergeou por cima deste). Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
->
+> ✅ **Publicado**, PR #31 mergeado (`80e27ed`), build-685 no ar em prod — deploy conferido nos logs do job, com a linha "Feito. build-685-80e27ed no ar em prod". Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
 >
 > Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >

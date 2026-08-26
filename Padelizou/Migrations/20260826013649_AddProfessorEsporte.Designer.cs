@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260826013649_AddProfessorEsporte")]
+    partial class AddProfessorEsporte
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3701,9 +3704,6 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("NomeCompletoAluno")
                         .HasColumnType("text");
-
-                    b.Property<DateTime?>("PagaEm")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Preco")
                         .HasPrecision(18, 2)
