@@ -7,10 +7,18 @@
    ⚠️ QUEM DECIDE É O ID, não a navegação — ver o comentário do ViewModel. Sem `<a>` no
    convidado porque `asp-route-id` vazio geraria um link pra /Jogadores/Perfil sem id, que dá
    "não encontrado" na cara de quem clicar. *@
+@* ⚠️ O LINK JÁ EXISTIA — o que faltava era PARECER link (Felipe, 26/08/2026: "ao clicar abrir
+   o perfil", sobre um nome que já abria o perfil). Era `text-decoration-none` + `color:inherit`:
+   clicável e indistinguível de texto morto, então ninguém clicava.
+
+   `.pdz-nome-jogo` herda a cor em vez de pintar de azul, e isso não é detalhe: o vencedor da
+   linha é destacado em verde pelo `<td>`, e cor de link por cima apagaria justamente o sinal de
+   quem ganhou. O pontilhado diz "dá pra clicar" sem gritar — mesma escolha do `.pdz-jl-vemde`,
+   pelo mesmo motivo (numa lista longa, dezenas de links azuis viram ruído). *@
 @if (Model.Id is int jogadorId)
 {
     <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogadorId"
-       class="text-decoration-none" style="color:inherit;">@Model.Texto</a>
+       class="pdz-nome-jogo">@Model.Texto</a>
 }
 else
 {

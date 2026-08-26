@@ -3305,3 +3305,25 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-m-CentoCinquentaVitorias::before { background-image: url("/img/molduras/chamas.svg"); }
 .pdz-m-MvpDeTorneio::before { background-image: url("/img/molduras/estrela-mvp.svg"); }
 .pdz-m-QueridoDaQuadra::before { background-image: url("/img/molduras/asas-coracao.svg"); }
+
+/* Nome de jogador dentro da lista de jogos da panelinha (Views/Shared/_NomeNoJogoDaPanelinha).
+   O link já existia desde sempre, mas com `text-decoration-none` + `color:inherit` ele era
+   indistinguível de texto morto — e o Felipe pediu em 26/08/2026 "ao clicar abrir o perfil"
+   sobre um nome que JÁ abria o perfil. O problema era a aparência, não o comportamento.
+
+   Herda a cor de propósito: o `<td>` pinta o lado VENCEDOR de verde, e cor de link por cima
+   apagaria o sinal de quem ganhou. O pontilhado dá o affordance sem virar ruído numa lista
+   com quatro nomes por linha — mesma escolha (e mesmo motivo) do `.pdz-jl-vemde`. */
+.pdz-nome-jogo {
+    color: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: .18em;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.pdz-nome-jogo:hover,
+.pdz-nome-jogo:focus-visible {
+    color: inherit;
+    text-decoration-style: solid;
+    text-decoration-color: currentColor;
+}
