@@ -7,6 +7,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # ⚠️ GATILHO MANUAL — existe por causa de 26/08/2026, e não por gosto de botão.
+  #
+  # Naquele dia o GitHub parou de gerar os eventos de `push`/`pull_request` deste repo das
+  # ~13:05Z às ~16:06Z. O PR #41 ficou 3 horas sem um único check criado (nem vermelho: NENHUM),
+  # e o merge dele em `main` caiu no último minuto da janela — o push não disparou, então o
+  # `build-N-sha7` daquele commit NUNCA foi publicado e não havia o que instalar em produção.
+  #
+  # Sem `workflow_dispatch` não havia saída: as duas gambiarras óbvias (commit vazio, fechar e
+  # reabrir o PR) são justamente as que não se deve usar pra forçar CI, e o `ci.yml` não tinha
+  # como ser chamado na mão. Agora tem: Actions → CI → Run workflow, escolhendo o branch.
+  workflow_dispatch:
 
 jobs:
   testes:
@@ -141,10 +152,18 @@ jobs:
   # Se os testes passaram no main, gera o pacote pronto pra deploy e anexa
   # num release "build-N-sha". O VPS só instala pacotes daqui — ou seja,
   # é impossível publicar código que não passou nos testes.
+  #
+  # ⚠️ O `workflow_dispatch` ENTRA AQUI JUNTO COM O `push`, e sem isso o gatilho manual não
+  # serviria pro caso que o criou (26/08/2026): rodar só os testes na mão não resolve nada
+  # quando o problema é que o push do merge não gerou PACOTE. Foi exatamente o que travou o
+  # `60ddcef` — mergeado em `main`, testes verdes, e sem release nenhum pra instalar.
+  #
+  # `needs: testes` continua valendo pro disparo manual: o pacote nasce do job de testes,
+  # então continua sendo impossível publicar código que não passou na suíte.
   publicar:
     name: Pacote de deploy
     needs: testes
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
