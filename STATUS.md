@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/08/2026** — 🎾 **A TELA DA PANELINHA PASSA A MOSTRAR OS JOGOS DA SEMANA — E A LIÇÃO É SOBRE O TESTE, NÃO SOBRE O CARD.**
+> Última atualização: **26/08/2026** — 🏷️ **A LISTA DE JOGOS DA PANELINHA PASSA A MOSTRAR SÓ O APELIDO — E O LINK QUE JÁ EXISTIA FINALMENTE PARECE UM LINK.**
+>
+> 🗣️ **O pedido do Felipe, num print de "Jogos recentes":** *"pode ser só o apelido, e ao clicar abrir o perfil"*.
+>
+> 🕳️ **A segunda metade do pedido JÁ FUNCIONAVA — e é esse o achado.** O nome sempre foi um `<a>` pro perfil do jogador. Só que o partial o desenhava com `text-decoration-none` + `color:inherit`: **clicável e indistinguível de texto morto**. O Felipe pediu um comportamento que existia porque a tela não dava nenhum sinal de que existia. Funcionalidade que ninguém vê é funcionalidade que não existe.
+>
+> 🎨 **`.pdz-nome-jogo` (novo no site.css) herda a cor em vez de pintar de azul**, e isso não é detalhe: o `<td>` pinta o lado VENCEDOR de verde, e cor de link por cima **apagaria o sinal de quem ganhou**. O affordance vem de sublinhado **pontilhado**, sólido no hover — mesma escolha (e o mesmo motivo escrito) do `.pdz-jl-vemde` que já existia: numa lista com quatro nomes por linha, dezenas de links azuis viram ruído.
+>
+> ⚠️ **E ISTO NÃO REVOGA A DECISÃO DE 06/08/2026, apesar de parecer.** Naquele dia o apelido SOZINHO saiu de todas as telas, com a razão escrita em `NomeBonito.ComApelido`: *"apelido não identifica ninguém fora da turma — 'Zeca' pode ser três pessoas no mesmo torneio"*. O caso aqui é o **oposto**: a lista de jogos de uma panelinha é lida **de dentro** do grupo, por gente que se conhece pelo apelido. Por isso a mudança é **escopada** — nasceu `NomeBonito.ApelidoOuCurto` + `ConvidadoNoJogo.ApelidoNaTela`, e `ComApelido` fica intacto valendo em torneio, chave e ranking, onde a razão de 06/08 continua de pé. Mexer em `ComApelido` teria "atendido o pedido" e quebrado a chave de torneio junto.
+>
+> 🛟 **Quem não tem apelido cai no nome curto** — sumir da linha não era opção, e tem teste pros três jeitos de não ter apelido (nulo, vazio, só espaços).
+>
+> 🔒 **A guarda do `.Include()` esquecido foi extraída pra um lugar só** (`ConvidadoNoJogo.Quem`): as duas formas de nome precisavam dela igual, e uma cópia que esquecesse o `throw` transformaria todo Include esquecido num "Convidado" silencioso por cima do nome de um membro. Tem teste de que a versão de apelido continua estourando.
+>
+> 🧪 **5.052 testes, 0 falhas (15 novos).** Falsificado: revertendo o ViewModel pro nome completo, falha exatamente o teste da ligação com a tela (`Expected: "Marcião" / Actual: "Márcio Azeredo (Marcião)"`). **Sem migration.**
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, no mesmo dia — 🎾 **A TELA DA PANELINHA PASSA A MOSTRAR OS JOGOS DA SEMANA — E A LIÇÃO É SOBRE O TESTE, NÃO SOBRE O CARD.**
 >
 > 🗣️ **O pedido do Felipe, num print da tela do Jogo da Semana:** *"nessa tela, exiba os jogos q ocorreram na semana"*. A tela mostrava "Ranking da semana" com os pontos de cada um e **não mostrava de onde os pontos vieram** — quem discordasse do próprio ranking não tinha o que conferir.
 >
@@ -21,7 +39,7 @@
 >
 > ⚠️ **Ressalva pra próxima sessão:** o convidado avulso COM conta pontua no ranking interno mas **não aparece** nos cards de ranking (que iteram só membros do grupo). Com a lista de jogos na tela, o nome dele passa a aparecer **na lista e não no ranking logo abaixo**. É comportamento antigo, não regressão — mas é a primeira pergunta que o card novo vai provocar.
 >
-> ⏳ **Commitado, não publicado** nesta entrada.
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `1baeb0f` (PR #39), release `build-701-1baeb0f`, deploy run **#55** `success` — a linha `==> Feito. build-701-1baeb0f no ar em prod` está nos logs do job.
 >
 > Antes, em 25/08/2026: 🏓 **PERFIL DO PROFESSOR GANHA "ESPORTES QUE VOCÊ ENSINA".**
 >

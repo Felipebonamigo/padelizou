@@ -58,11 +58,23 @@ public static class ConvidadoNoJogo
     // erro e sem log. Hoje esse caso derruba a página (NullReferenceException em
     // Views/Grupos/Detalhes.cshtml) e ele TEM que continuar derrubando: um `?? "Convidado"` solto
     // transformaria todo Include esquecido daqui pra frente num convidado silencioso.
-    public static string NomeNaTela(int? id, Jogador? jogador)
+    public static string NomeNaTela(int? id, Jogador? jogador) =>
+        Quem(id, jogador) is Jogador pessoa ? pessoa.ComoChamar : Rotulo;
+
+    // O mesmo, mas SÓ COM O APELIDO (nome curto pra quem não tem) — a forma que a lista de
+    // jogos da panelinha usa desde 26/08/2026, a pedido do Felipe: "pode ser só o apelido".
+    // O porquê de existirem as duas formas está em NomeBonito.ApelidoOuCurto.
+    public static string ApelidoNaTela(int? id, Jogador? jogador) =>
+        Quem(id, jogador) is Jogador pessoa ? NomeBonito.ApelidoOuCurto(pessoa.Nome, pessoa.Apelido) : Rotulo;
+
+    // A guarda mora AQUI, num lugar só: as duas formas acima precisam dela igual, e uma cópia
+    // que esquecesse o `throw` transformaria todo Include esquecido num convidado silencioso.
+    // Devolve null quando é a vaga do convidado de verdade (id nulo).
+    private static Jogador? Quem(int? id, Jogador? jogador)
     {
-        if (id == null) return Rotulo;
+        if (id == null) return null;
         if (jogador == null) throw new InvalidOperationException(
             $"JogoSemanal aponta pro jogador {id}, mas a navegação veio nula: falta um .Include() na query.");
-        return jogador.ComoChamar;
+        return jogador;
     }
 }

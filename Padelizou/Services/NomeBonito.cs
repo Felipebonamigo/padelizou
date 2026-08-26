@@ -75,6 +75,25 @@ public static class NomeBonito
         return $"{curto} ({alcunha})";
     }
 
+    // SÓ O APELIDO — e o nome curto quando não há apelido.
+    //
+    // ⚠️ ISTO NÃO REVOGA A DECISÃO DE 06/08/2026 explicada em ComApelido logo acima. Lá o
+    // argumento é que apelido não identifica ninguém DE FORA da turma ("Zeca" pode ser três
+    // pessoas no mesmo torneio), e ele continua valendo em torneio, chave e ranking — que é
+    // onde ComApelido é usado.
+    //
+    // Este método existe pro caso oposto, e é o único lugar onde ele se aplica hoje: a lista de
+    // jogos DE UMA PANELINHA, lida de dentro do grupo, por gente que se conhece pelo apelido,
+    // numa linha que já disputa espaço com data, placar, quatro nomes e dois botões (pedido do
+    // Felipe, 26/08/2026: "pode ser só o apelido"). Quem chama é ConvidadoNoJogo.ApelidoNaTela.
+    //
+    // Sem apelido cai no nome curto de propósito: sumir da linha não é opção.
+    public static string ApelidoOuCurto(string? nome, string? apelido)
+    {
+        var alcunha = Formatar(apelido);
+        return alcunha.Length > 0 ? alcunha : Curto(nome);
+    }
+
     public static string Formatar(string? nome)
     {
         if (string.IsNullOrWhiteSpace(nome)) return "";
