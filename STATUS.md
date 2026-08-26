@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/08/2026** — 🏓 **PERFIL DO PROFESSOR GANHA "ESPORTES QUE VOCÊ ENSINA".**
+> Última atualização: **26/08/2026** — 🎾 **A TELA DA PANELINHA PASSA A MOSTRAR OS JOGOS DA SEMANA — E A LIÇÃO É SOBRE O TESTE, NÃO SOBRE O CARD.**
+>
+> 🗣️ **O pedido do Felipe, num print da tela do Jogo da Semana:** *"nessa tela, exiba os jogos q ocorreram na semana"*. A tela mostrava "Ranking da semana" com os pontos de cada um e **não mostrava de onde os pontos vieram** — quem discordasse do próprio ranking não tinha o que conferir.
+>
+> ♻️ **NENHUMA CONSULTA NOVA.** `GruposController.Semana` **já carregava** exatamente esses jogos (`jogosDaSemana`), somava os pontos e **descartava a lista**. Faltavam 5 `.Include()` (os quatro jogadores + o clube), a ordenação e uma linha de ViewBag. A janela (`> inicioSemana && <= fimSemana`, ancorada na data da SESSÃO) não foi tocada: dar uma janela própria ao card criaria a **quarta cópia** da definição de semana — já são três em produção (`GruposController:660`, `CartoesController:528`, e a de 56 dias em `SortearDuplas`). O card fica logo ACIMA do "Ranking da semana" de propósito: causa em cima, efeito embaixo, conferíveis a olho.
+>
+> 🕳️ **O ACHADO QUE VALE MAIS QUE O CARD: um teste que eu escrevi, vi falhar, e mesmo assim NÃO PROVAVA NADA.** O teste dos `.Include()` era o mais importante da leva — sem eles a tela INTEIRA cai, porque `ConvidadoNoJogo.NomeNaTela` estoura de propósito com navegação nula. Ele falhou certinho antes da correção (por `null`), passou depois, e eu **falsifiquei mesmo assim**: apaguei um `.Include()` do controller — e a suíte seguiu **VERDE**.
+>
+> 🔬 **A causa são DUAS coisas empilhadas, e a segunda derruba o conserto óbvio.** (1) O EF InMemory preenche navegação por **fixup** a partir do ChangeTracker, então `.Include()` vira decorativo quando a entidade já está lá. (2) O conserto óbvio — `ChangeTracker.Clear()` antes de abrir a tela — **também não resolve**: a própria action carrega os quatro jogadores ANTES da consulta dos jogos, no `ranking` (`JogadoresGrupo.Include(jg => jg.Jogador)`). Ela repopula o tracker sozinha. **Nenhum teste de comportamento com InMemory consegue provar Include aqui.**
+>
+> 📌 **Isto é a lição de 19/08 (o InMemory não valida SQL) com uma cara nova e pior:** lá o teste falhava tarde, em produção; aqui ele **passa e dá segurança que não existe**. Fica escrito no topo do arquivo de teste e aqui: quando a asserção depende de `.Include()`, o teste de comportamento com InMemory é inconclusivo — confirme com falsificação antes de confiar.
+>
+> 🔒 **A trava virou teste de FONTE**, e a alternativa honesta era não travar nada: `IncludesDaConsultaDosJogosDaSemanaTests` recorta o trecho da consulta e exige os 5 `.Include()` + o desempate por `Id`. **Ele também foi falsificado** — e na primeira versão falhou pelo motivo ERRADO: ancorado em `_context.JogosSemanais` (que aparece **10 vezes** neste controller), o recorte pegava a consulta do `Detalhes` e os 5 testes ficavam vermelhos de uma vez. Reancorado em `var jogosDaSemana = await ...`, falha só no Include apagado.
+>
+> 🎨 **Duas decisões de tela pequenas e deliberadas:** a tabela **não** leva `bg-white` (diferente da irmã em `Grupos/Detalhes`, que vive solta na página — aqui ela está dentro de um card, e branco cravado quebraria o tema escuro); e o vazio diz *"Nenhum jogo lançado nessa semana"*, **diferente** do *"Ainda sem jogo registrado essa semana"* do card logo abaixo — a mesma frase duas vezes empilhada lê como bug de renderização.
+>
+> 🧪 **5.037 testes, 0 falhas (14 novos: 7 de comportamento, 6 de fonte, 1 de tradução SQL).** **Sem migration** — nenhuma entidade, coluna ou relação muda; as 5 navegações já estavam mapeadas.
+>
+> ⚠️ **Ressalva pra próxima sessão:** o convidado avulso COM conta pontua no ranking interno mas **não aparece** nos cards de ranking (que iteram só membros do grupo). Com a lista de jogos na tela, o nome dele passa a aparecer **na lista e não no ranking logo abaixo**. É comportamento antigo, não regressão — mas é a primeira pergunta que o card novo vai provocar.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, em 25/08/2026: 🏓 **PERFIL DO PROFESSOR GANHA "ESPORTES QUE VOCÊ ENSINA".**
 >
 > 🗣️ **O pedido do Felipe, terceira parte do mesmo print da agenda:** *"João, por exemplo, dá aula de tênis e beach tênis também. Seria legal um campo pra isso. Acho que é uma realidade dos professores."* Diferente do `Aula.Esporte` de mais cedo (o esporte DAQUELA aula), isto é uma declaração no PERFIL — o que o professor oferece, mostrado como selo na página pública dele.
 >
@@ -13,7 +35,7 @@
 >
 > 🧪 **4.859 testes, 0 falhas (8 novos)** — salva os marcados, ignora esporte fora da lista, salvar de novo substitui em vez de acumular, salvar vazio esvazia, quem não é professor não grava nada, um professor não mexe no esporte de outro, perfil mostra em ordem fixa (Padel/Tênis/Beach Tênis) independente da ordem gravada, quem nunca configurou não mostra esporte nenhum.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Migration inclusa (tabela `ProfessorEsporte`).
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `564b3a4` (PR #38, CI verde), release `build-699-564b3a4`, deploy run **#54** `success` — a linha `==> Feito. build-699-564b3a4 no ar em prod` está nos logs do job. Migration inclusa (tabela `ProfessorEsporte`). ⚠️ **A conferência externa do `/healthz` NÃO foi feita** (o proxy da sessão web recusa a saída, `CONNECT tunnel failed, 403`) e **a tela não foi vista renderizada** — sem browser nesta sessão.
 >
 > Antes, no mesmo dia — 📆 **AS TRÊS TELAS DE AULA PASSAM A TER CALENDÁRIO, E O DIA DA SEMANA VIRA RÉGUA ÚNICA.**
 >
