@@ -15,6 +15,9 @@
     var mensalidades = (List<MensalidadeGrupo>)ViewBag.Mensalidades;
     var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
     var rankingSemana = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingSemana;
+    // Os MESMOS jogos de onde o rankingSemana acima foi somado — é o que permite conferir um
+    // card contra o outro a olho. Ver o comentário no GruposController.Semana.
+    var jogosDaSemana = (List<JogoSemanal>)ViewBag.JogosDaSemana;
     DateTime semanaAnterior = ViewBag.SemanaAnterior;
     DateTime proximaSemana = ViewBag.ProximaSemana;
     bool estouNaSemanaAtual = ViewBag.EstouNaSemanaAtual == true;
@@ -473,6 +476,70 @@
             </div>
         </div>
     }
+
+    @* ══ JOGOS DA SEMANA ═══════════════════════════════════════════════════════════════════
+       Pedido do Felipe (26/08/2026), num print desta tela: "exiba os jogos q ocorreram na
+       semana". A tela já carregava esses jogos pra somar o "Ranking da semana" logo abaixo e
+       os DESCARTAVA — dizia quem pontuou sem dizer de onde os pontos vieram.
+
+       Fica ACIMA dos dois rankings de propósito: o de cima é a causa, o de baixo é o efeito, e
+       vizinhos assim dá pra conferir um contra o outro a olho.
+
+       ⚠️ A tabela NÃO leva `bg-white` (diferente da de Grupos/Detalhes, onde ela está solta na
+       página): aqui ela vive DENTRO de um card, e branco cravado quebraria o tema escuro. *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                <i class="bi bi-controller"></i> Jogos da semana (@jogosDaSemana.Count)
+            </h6>
+            @if (jogosDaSemana.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 text-nowrap">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Dupla 1</th>
+                                <th class="text-center">Placar</th>
+                                <th>Dupla 2</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var jogo in jogosDaSemana)
+                            {
+                                <tr>
+                                    @* Sem o ano: a janela toda tem 7 dias. *@
+                                    <td class="text-muted small">@jogo.DataJogo.ToString("dd/MM")</td>
+                                    @* Quem venceu sai da COLUNA VencedorLado, nunca deduzido do
+                                       placar — placar é opcional desde 18/08/2026, e deduzir de
+                                       um placar ausente daria 0x0, que é empate. *@
+                                    <td class="@(jogo.VencedorLado == 1 ? "fw-bold text-success" : "")">
+                                        <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador1))' /> /
+                                        <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador2Id, jogo.Dupla1Jogador2))' />
+                                    </td>
+                                    <td class="text-center fw-bold">
+                                        @(Padelizou.Services.ResultadoDoJogoSemanal.Placar(jogo) ?? "—")
+                                    </td>
+                                    <td class="@(jogo.VencedorLado == 2 ? "fw-bold text-success" : "")">
+                                        <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador1))' /> /
+                                        <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla2Jogador2Id, jogo.Dupla2Jogador2))' />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                @* Redação diferente da do card de ranking logo abaixo ("Ainda sem jogo
+                   registrado essa semana") de propósito: a mesma frase duas vezes empilhada
+                   lê como bug de renderização. O card aparece sempre — sumir deixaria a
+                   pessoa sem saber se a tela quebrou. *@
+                <p class="text-muted small mb-0">Nenhum jogo lançado nessa semana.</p>
+            }
+        </div>
+    </div>
 
     <div class="row">
         <div class="col-md-6 mb-4">
