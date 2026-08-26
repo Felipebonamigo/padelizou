@@ -13,7 +13,9 @@
 >
 > ✅ **Falsificado card a card:** revertendo **só** o "Ranking do grupo", falha **só** o teste dele e os outros três seguem verdes.
 >
-> 🧪 **5.063 testes, 0 falhas (11 novos).** **Sem migration.**
+> 🔗 **E os nomes dos rankings da `Semana` viraram LINK pro perfil** (decisão do Felipe quando o CI do PR #41 não disparou e ele escolheu aproveitar a rodada). Os dois cards do `Detalhes` já eram link desde sempre; os da `Semana` não — mesma informação, comportamento diferente conforme a tela, que é o tipo de divergência que a pessoa lê como "aqui está quebrado". Usam a `.pdz-nome-jogo` que nasceu na leva anterior, então o affordance é o mesmo da lista de jogos.
+>
+> 🧪 **5.067 testes, 0 falhas (15 novos).** **Sem migration.**
 >
 > ⏳ **Commitado, não publicado** nesta entrada.
 >

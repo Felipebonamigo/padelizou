@@ -552,7 +552,8 @@
                             @foreach (var item in rankingSemana.Take(5))
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    @item.Jogador.SoOApelido
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.Jogador.Id"
+                                       class="pdz-nome-jogo">@item.Jogador.SoOApelido</a>
                                     <span class="badge bg-primary rounded-pill">@item.Pontos pts</span>
                                 </li>
                             }
@@ -576,7 +577,8 @@
                             @foreach (var item in ranking.Where(r => r.PontuacaoInterna > 0).Take(5))
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    @item.Jogador.SoOApelido
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.Jogador.Id"
+                                       class="pdz-nome-jogo">@item.Jogador.SoOApelido</a>
                                     <span class="badge bg-primary rounded-pill">@item.PontuacaoInterna pts</span>
                                 </li>
                             }

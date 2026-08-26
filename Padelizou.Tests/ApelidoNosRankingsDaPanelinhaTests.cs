@@ -69,6 +69,24 @@ public class RankingsDaPanelinhaUsamOApelidoTests
         Assert.DoesNotContain("ComoChamar", bloco);
     }
 
+    // O nome no ranking LEVA PRO PERFIL, nos quatro cards.
+    //
+    // Os dois do `Detalhes` já eram link desde sempre; os dois da `Semana` não eram — mesma
+    // informação, comportamento diferente conforme a tela, que é o tipo de divergência que a
+    // pessoa lê como "aqui está quebrado". Alinhado em 26/08/2026, junto do apelido.
+    [Theory]
+    [InlineData("Grupos/Semana.cshtml", "Ranking da semana")]
+    [InlineData("Grupos/Semana.cshtml", "Ranking do grupo")]
+    [InlineData("Grupos/Detalhes.cshtml", "Ranking Geral")]
+    [InlineData("Grupos/Detalhes.cshtml", "Ranking do Mês")]
+    public void O_nome_no_ranking_leva_pro_perfil(string view, string titulo)
+    {
+        var bloco = BlocoDoCard(view, titulo);
+
+        Assert.Contains("asp-action=\"Perfil\"", bloco);
+        Assert.Contains("asp-controller=\"Jogadores\"", bloco);
+    }
+
     // Do título do card até o fim da `<ol>` dele.
     private static string BlocoDoCard(string view, string titulo)
     {
