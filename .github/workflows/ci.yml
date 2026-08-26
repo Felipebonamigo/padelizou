@@ -7,6 +7,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # ⚠️ GATILHO MANUAL — existe por causa de 26/08/2026, e não por gosto de botão.
+  #
+  # Naquele dia o GitHub parou de gerar os eventos de `push`/`pull_request` deste repo das
+  # ~13:05Z às ~16:06Z. O PR #41 ficou 3 horas sem um único check criado (nem vermelho: NENHUM),
+  # e o merge dele em `main` caiu no último minuto da janela — o push não disparou, então o
+  # `build-N-sha7` daquele commit NUNCA foi publicado e não havia o que instalar em produção.
+  #
+  # Sem `workflow_dispatch` não havia saída: as duas gambiarras óbvias (commit vazio, fechar e
+  # reabrir o PR) são justamente as que não se deve usar pra forçar CI, e o `ci.yml` não tinha
+  # como ser chamado na mão. Agora tem: Actions → CI → Run workflow, escolhendo o branch.
+  workflow_dispatch:
 
 jobs:
   testes:

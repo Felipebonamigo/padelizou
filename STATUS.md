@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
+>
+> 🕳️ **O que aconteceu:** das **~13:05Z às ~16:06Z** o GitHub parou de gerar os eventos de `push` e `pull_request` deste repo. O PR #41 ficou 3 horas com **zero checks criados** — não vermelho, *inexistente* (`get_check_runs` → `total_count: 0`, `get_status` → `pending` com lista vazia). Não era o diff: o workflow estava `active`, o repo é **público** (Actions ilimitado, não é cota), e o `workflow_dispatch` do **deploy rodou normalmente às 13:29**, depois do último CI. Ou seja, Actions funcionava; o que morreu foi só o gatilho por evento.
+>
+> 🧱 **E não havia saída limpa.** As duas gambiarras óbvias pra forçar CI — **commit vazio** e **fechar/reabrir o PR** — são exatamente as que não se deve usar, e o `ci.yml` **não tinha `workflow_dispatch`**: não existia forma de chamá-lo na mão. O Felipe decidiu mergear com a evidência local (build 0 erros, 5.067 testes, `has-pending-model-changes` limpo, rodados no commit exato).
+>
+> ✅ **A decisão se confirmou sozinha 4 minutos depois:** o gatilho voltou às 16:06 e o CI rodou no `ada1b10` — o commit mergeado — com **`success`** (run #704). O código foi validado; só chegou tarde.
+>
+> 💥 **O ESTRAGO REAL foi outro, e é a lição:** o merge em `main` (`60ddcef`, 16:05:26Z) caiu no **último minuto** da janela quebrada. O push não disparou o CI, então o release **`build-N-60ddcef` nunca foi publicado** — e sem release não há pacote pra instalar. Código mergeado em `main` e **impossível de publicar**, sem nada vermelho em lugar nenhum.
+>
+> 🔧 **`workflow_dispatch` no `ci.yml`** fecha isso: Actions → CI → Run workflow, escolhendo o branch. É a única peça que faltava pra que "o gatilho falhou" deixe de virar "o código está preso em `main`".
+>
+> ⏳ **Commitado, não publicado** nesta entrada. O merge deste PR também gera o release que carrega o `60ddcef` junto.
+>
 > Última atualização: **26/08/2026** — 🏅 **OS QUATRO RANKINGS DA PANELINHA TAMBÉM PASSAM A MOSTRAR SÓ O APELIDO.**
 >
 > 🗣️ **O pedido do Felipe, logo depois da lista de jogos:** *"no ranking do grupo, mostra só o apelido também"*.
