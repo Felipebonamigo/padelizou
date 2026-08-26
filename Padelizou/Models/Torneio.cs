@@ -187,6 +187,13 @@ public partial class Torneio
     // têm base pra existir — a Mesa é que avisa, quando chama.
     public bool SemHorarioPrevisto { get; set; }
 
+    // Quem pode marcar o placar e iniciar jogo neste torneio — escolha do organizador,
+    // editável a qualquer momento (inclusive no meio do torneio: abrir pros jogadores
+    // quando a mesa aperta é justamente o caso de uso). Valores e régua em
+    // Services/QuemMarcaOPlacar. O padrão é o comportamento de sempre: só a organização.
+    // W.O., reabrir e trocar quadra NUNCA abrem por aqui, em nenhum modo.
+    public string QuemMarcaPlacar { get; set; } = Padelizou.Services.QuemMarcaOPlacar.Organizacao;
+
     // Janela de jogos. DataInicio guarda só a data — sem a hora de abertura a grade
     // começava à meia-noite.
     //

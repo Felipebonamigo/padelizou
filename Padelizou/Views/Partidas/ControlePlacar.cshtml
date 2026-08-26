@@ -26,6 +26,11 @@
         : Model.LinkTransmissao;
     var linkVeioDaQuadra = string.IsNullOrWhiteSpace(Model.LinkTransmissao)
                            && !string.IsNullOrWhiteSpace(linkDaQuadraAtual);
+
+    // Quem entra só pela liberação do torneio (Services/QuemMarcaOPlacar) marca o JOGO:
+    // status, games e saque. Quadra, transmissão e W.O. são operação da mesa — a tela some
+    // com eles, e o POST ignora os campos mesmo que venham na mão.
+    bool ehDaMesa = ViewBag.EhDaMesa as bool? ?? true;
 }
 
 <div class="container mt-4">
@@ -55,6 +60,8 @@
                                     <option value="Finalizada" selected="@(Model.Status == "Finalizada")">✅ Finalizada (Para Cronômetro)</option>
                                 </select>
                             </div>
+                            @if (ehDaMesa)
+                            {
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Quadra</label>
                                 @if (quadras.Count > 0)
@@ -99,6 +106,7 @@
                                     <small class="text-muted">Esse torneio não tem quadras cadastradas — texto livre por enquanto.</small>
                                 }
                             </div>
+                            }
                         </div>
 
                         <hr class="text-muted" />
@@ -187,6 +195,8 @@
                             </button>
                         </div>
 
+                        @if (ehDaMesa)
+                        {
                         <hr class="text-muted" />
 
                         <!-- Linha 3: Link de Transmissão -->
@@ -213,6 +223,7 @@
                                 </span>
                             </label>
                         </div>
+                        }
 
                         <!-- Botões -->
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -228,7 +239,13 @@
                        aconteceu neste projeto (a criação de torneio perdia campos assim).
 
                        Fica no fim da tela, e não junto do placar, porque é o caminho
-                       excepcional: quem abre esta tela quase sempre veio marcar games. *@
+                       excepcional: quem abre esta tela quase sempre veio marcar games.
+
+                       Só a MESA vê: o aviso de "terminou em W.O." é inofensivo, mas o
+                       formulário de registrar não — e a régua de quem marca placar
+                       (Services/QuemMarcaOPlacar) nunca abre o W.O. *@
+                    @if (ehDaMesa)
+                    {
                     <hr class="my-4" />
                     @if (Padelizou.Services.EncerramentoPorWo.Foi(Model))
                     {
@@ -277,6 +294,7 @@
                                 </form>
                             </div>
                         </details>
+                    }
                     }
                 </div>
             </div>

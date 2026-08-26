@@ -41,6 +41,12 @@
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericanoDeDuplas.Linha>>;
     bool desempatePrevisto = ViewBag.DesempateAmericano == true;
     bool ehOrganizador = ViewBag.EhOrganizador == true;
+
+    // O organizador abriu a marcação de placar (Services/QuemMarcaOPlacar)? Quem entra por
+    // aqui ganha SÓ o lápis (e o play, na linha) — o salvar em lote, o finalizar e o
+    // desfazer continuam da organização, e o servidor confere tudo de novo em cada POST.
+    var modoQuemMarca = ViewBag.QuemMarcaPlacar as string;
+    bool ehInscritoDoTorneio = ViewBag.EhInscritoDoTorneio == true;
     bool defaultAoVivo = aoVivoList.Count > 0;
     var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
     int? meuId = ViewBag.MeuId as int?;
@@ -473,6 +479,18 @@
                                             <i class="bi bi-arrow-counterclockwise"></i>
                                         </button>
                                     </form>
+                                </div>
+                            }
+                            else if (Padelizou.Services.QuemMarcaOPlacar.Liberado(modoQuemMarca, meuId, jogo, ehInscritoDoTorneio))
+                            {
+                                @* Jogador liberado pelo torneio: só o lápis. Finalizar, salvar
+                                   em lote e desfazer continuam da organização. *@
+                                <div class="mt-3">
+                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" asp-route-voltarPara="@Model.TargetAction"
+                                       class="btn btn-outline-secondary fw-bold w-100"
+                                       title="Marcar placar e saque" aria-label="Marcar placar">
+                                        <i class="bi bi-pencil-fill"></i> Marcar placar
+                                    </a>
                                 </div>
                             }
                         </div>

@@ -56,6 +56,14 @@
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
 
+    // O organizador abriu a marcação de placar? (Services/QuemMarcaOPlacar). Quem entra por
+    // aqui vê SÓ o play e o lápis — trocar horário/quadra, voltar pra agendado e reabrir
+    // continuam da organização. O servidor confere tudo de novo em cada POST.
+    bool podeMarcarSemSerDaMesa = !Model.EhOrganizador
+        && Padelizou.Services.QuemMarcaOPlacar.Liberado(
+            ViewData["QuemMarcaPlacar"] as string, Model.MeuId, jogo,
+            ViewData["EhInscritoDoTorneio"] as bool? ?? false);
+
     // A bolinha do saque só em jogo EM QUADRA. Ela responde "quem está sacando AGORA" —
     // numa partida agendada não há saque nenhum, e o campo pode vir preenchido de um
     // "colocar no ar" desfeito ou de um placar corrigido depois. Em jogo finalizado ela
@@ -238,6 +246,35 @@
                    aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">
                     <i class="bi bi-pencil"></i>
                 </a>
+            </span>
+        }
+        else if (podeMarcarSemSerDaMesa)
+        {
+            <span class="pdz-jl-acoes">
+                @if (!Model.Finalizada)
+                {
+                    @* O mesmo play do organizador: dar a largada no próprio jogo faz parte
+                       de marcar o placar quando o torneio abriu essa porta. *@
+                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                    </form>
+                }
+                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" asp-route-voltarPara="@(ViewData["TargetAction"] as string)"
+                   class="btn btn-sm btn-outline-secondary"
+                   title="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")"
+                   aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                @if (Model.Finalizada && !string.IsNullOrEmpty(jogo.LinkTransmissao))
+                {
+                    <a href="@jogo.LinkTransmissao" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-secondary" title="Assistir" aria-label="Assistir">
+                        <i class="bi bi-play-btn"></i>
+                    </a>
+                }
             </span>
         }
         else if (Model.Finalizada && !string.IsNullOrEmpty(jogo.LinkTransmissao))
