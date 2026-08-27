@@ -87,7 +87,11 @@
     @if (TempData["WhatsAppLink"] != null)
     {
         <div class="alert alert-light border d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
-            <span>Quer avisar o aluno pelo WhatsApp também?</span>
+            @* Serve pra dois momentos — aula MARCADA (o convite com pedido de confirmação e o
+               link de cadastro, ver Services/ConviteDaAulaMarcada) e aula MUDADA. O texto é
+               neutro porque a própria mensagem já diz qual é o caso; "também" só fazia sentido
+               na edição, onde havia um aviso automático antes. *@
+            <span>Quer avisar o aluno pelo WhatsApp?</span>
             <a href="@TempData["WhatsAppLink"]" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold align-self-start align-self-sm-auto">
                 <i class="bi bi-whatsapp"></i> Avisar aluno
             </a>
