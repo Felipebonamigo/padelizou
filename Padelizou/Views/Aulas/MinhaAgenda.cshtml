@@ -14,6 +14,18 @@
         _ => "#b34a4a",
     };
 
+    // A cor de UMA AULA: o dinheiro fala mais alto que o status (pedido de um professor,
+    // 28/08/2026 — "deixar em amarelo o a receber na agenda"). Aula dada e não paga era verde
+    // igual à paga, e a diferença só existia no Financeiro; agora a agenda conta a mesma
+    // história. A régua é a MESMA das outras telas (Services/RecebimentoDaAula) e o âmbar é o
+    // MESMO do selo "A receber" do modal — refazer a conta ou a cor aqui é como duas telas
+    // passam a discordar sobre dinheiro.
+    //
+    // ⚠️ O card colapsado da turma passa aqui com o `PagaEm` DA SESSÃO (AgendaDeTurma): só
+    // fica verde quando todos pagaram, que é a única leitura honesta de um preço somado.
+    string CorDa(Aula aula) =>
+        RecebimentoDaAula.EstaAReceber(aula) ? "#c78a1e" : CorDe(aula.Status);
+
     // O nome que o aluno deu NA SOLICITAÇÃO vem primeiro: é como ele se apresenta pra esta
     // aula, e pode não ser o nome do cadastro.
     string NomeDoAluno(Aula a) => a.NomeCompletoAluno ?? a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso";
@@ -356,7 +368,7 @@
                                             @foreach (var aula in Model.Do(dia))
                                             {
                                                 <button type="button" class="pdz-chip" data-aula="@aula.Id"
-                                                        style="background:@CorDe(aula.Status);"
+                                                        style="background:@CorDa(aula);"
                                                         title="@aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)">
                                                     @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
                                                 </button>
@@ -432,7 +444,7 @@
                             {
                                 var minutosDoTopo = (aula.DataHora.Hour * 60 + aula.DataHora.Minute) - (primeiraHora * 60);
                                 <button type="button" class="pdz-evento" data-aula="@aula.Id"
-                                        style="top:@(minutosDoTopo * pxPorMinuto)px; height:@(aula.DuracaoMinutos * pxPorMinuto)px; background:@CorDe(aula.Status);"
+                                        style="top:@(minutosDoTopo * pxPorMinuto)px; height:@(aula.DuracaoMinutos * pxPorMinuto)px; background:@CorDa(aula);"
                                         title="@aula.DataHora.ToString("HH:mm")–@DuracaoDaAula.Fim(aula).ToString("HH:mm") @NomeDoAluno(aula)">
                                     @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
                                 </button>
@@ -487,7 +499,7 @@
                                         @DuracaoDaAula.Fim(aula).ToString("HH:mm")
                                     </small>
                                 </span>
-                                <span class="rounded-circle flex-shrink-0" style="width:10px;height:10px;background:@CorDe(aula.Status);"></span>
+                                <span class="rounded-circle flex-shrink-0" style="width:10px;height:10px;background:@CorDa(aula);"></span>
                                 <span class="flex-grow-1 text-start">
                                     <strong style="color: var(--pdz-ink);">@NomeDoAluno(aula)</strong>
                                     <small class="d-block text-muted">
@@ -508,7 +520,7 @@
                                         }
                                     </small>
                                 </span>
-                                <span class="badge" style="background:@CorDe(aula.Status);">@aula.Status</span>
+                                <span class="badge" style="background:@CorDa(aula);">@aula.Status</span>
                             </button>
                         }
                     </div>
@@ -523,6 +535,8 @@
         {
             <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:@CorDe(s);"></span>@s</span>
         }
+        @* O âmbar do dinheiro em aberto — a mesma régua e a mesma cor do selo do modal. *@
+        <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:#c78a1e;"></span>A receber</span>
     </div>
 </div>
 
@@ -692,6 +706,11 @@
         .pdz-grade-gutter { flex: 0 0 56px; position: relative; }
         .pdz-grade-col-cabecalho {
             flex: 1 1 0; min-width: 96px; border-left: 1px solid var(--pdz-border, #e2e5ea);
+            /* A grade estilo Google (25/08) alargou as colunas e o cabecalho ficou GRITANDO
+               em cima de cards de .68rem — reclamacao de professor em 28/08: "aumentou a
+               fonte do calendario, antes era menor". O rotulo do dia e orientacao, nao
+               conteudo; menor que o conteudo e o tamanho certo dele. */
+            font-size: .72rem;
         }
         .pdz-grade-coluna {
             flex: 1 1 0; min-width: 96px; position: relative;
@@ -716,6 +735,7 @@
         @@media (max-width: 576px) {
             .pdz-grade-gutter { flex-basis: 44px; }
             .pdz-grade-col-cabecalho, .pdz-grade-coluna { min-width: 76px; }
+            .pdz-grade-col-cabecalho { font-size: .65rem; }
             .pdz-evento { font-size: .6rem; }
         }
 </style>
@@ -857,10 +877,14 @@
 
             // Clicar num espaço VAZIO da grade de Dia/Semana já abre "Adicionar Aula" com o
             // horário daquele espaço — estilo Google Agenda (pedido do Felipe, 23/08/2026).
-            // Clique numa aula já marcada (.pdz-evento) não cai aqui: o listener dela está NO
-            // botão, e o clique nunca chega a borbulhar até a coluna.
             document.querySelectorAll('.pdz-grade-coluna').forEach(function (coluna) {
                 coluna.addEventListener('click', function (e) {
+                    // 🐛 Clique numa AULA borbulha até aqui — o card ([data-aula]) mora DENTRO
+                    // da coluna, e o comentário antigo dizia que "nunca chega a borbulhar":
+                    // dizia errado, nada impedia. O professor clicava no card pra concluir e a
+                    // página navegava pro "Adicionar Aula" por cima do modal (28/08/2026).
+                    if (e.target.closest('[data-aula]')) return;
+
                     var retangulo = coluna.getBoundingClientRect();
                     var pxPorMinuto = parseFloat(coluna.dataset.pxPorMinuto) || 1;
                     var primeiraHora = parseInt(coluna.dataset.primeiraHora, 10) || 0;
