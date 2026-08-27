@@ -1,0 +1,154 @@
+@model Padelizou.ViewModels.ImportarDoGoogleVM
+@{
+    ViewData["Title"] = "Trazer aulas do Google";
+}
+
+@* A TELA DE CONFERÊNCIA DA IMPORTAÇÃO (ver AulasController.Importacao).
+   A lista é o calendário PESSOAL do professor: dentista e aniversário vêm junto com aula,
+   e só ele sabe qual é qual — por isso tudo nasce DESMARCADO e nada é importado sozinho.
+   Local e preço valem pro LOTE (27 selects num celular é castigo); exceção se ajusta depois
+   na edição de aula, que já existe. *@
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-google"></i> Trazer aulas do Google
+            </h2>
+            <p class="text-muted mb-0 small">
+                Marque o que é aula. O resto da sua agenda fica onde está.
+            </p>
+        </div>
+        <a asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill btn-sm">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* Período — GET, troca a janela sem gravar nada. Padrão: os próximos 30 dias. Passado é
+       escolha explícita: aula passada entra em relatório e financeiro. *@
+    <form method="get" class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 d-flex align-items-end gap-2 flex-wrap">
+            <div>
+                <label class="form-label small fw-bold mb-1" for="imp-de">De</label>
+                <input type="date" id="imp-de" name="de" class="form-control form-control-sm"
+                       value="@Model.De.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label class="form-label small fw-bold mb-1" for="imp-ate">Até</label>
+                <input type="date" id="imp-ate" name="ate" class="form-control form-control-sm"
+                       value="@Model.Ate.AddDays(-1).ToString("yyyy-MM-dd")" />
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    @if (Model.Locais.Count == 0)
+    {
+        @* Sem local não há como gravar aula (LocalAulaId é obrigatório) — e mandar o professor
+           cadastrar é melhor que um select vazio que falha calado no envio. *@
+        <div class="alert alert-warning">
+            Cadastre um <strong>local de aula</strong> antes de importar —
+            toda aula do Padelizou acontece num local seu.
+            <a asp-action="MeusLocais" class="alert-link">Cadastrar local</a>
+        </div>
+    }
+    else if (Model.Eventos.Count == 0)
+    {
+        <div class="alert alert-light border">
+            Nenhum evento novo nesse período — o que já virou aula não aparece aqui.
+        </div>
+    }
+    else
+    {
+        <form asp-action="ImportarDoGoogleConfirmar" method="post">
+            <input type="hidden" name="de" value="@Model.De.ToString("yyyy-MM-ddTHH:mm:ss")" />
+            <input type="hidden" name="ate" value="@Model.Ate.ToString("yyyy-MM-ddTHH:mm:ss")" />
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold" style="color: var(--pdz-ink);">
+                            @Model.Eventos.Count evento(s) encontrados
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                                onclick="document.querySelectorAll('input[name=eventos]').forEach(c => c.checked = true); pdzContar();">
+                            Marcar todas
+                        </button>
+                    </div>
+
+                    @foreach (var evento in Model.Eventos)
+                    {
+                        <label class="d-flex align-items-start gap-2 border-bottom py-2" style="cursor: pointer;">
+                            <input class="form-check-input mt-1 flex-shrink-0" type="checkbox"
+                                   name="eventos" value="@evento.Id" onchange="pdzContar()">
+                            <span>
+                                <strong>@evento.Titulo</strong>
+                                <span class="d-block small text-muted">
+                                    @evento.Inicio.ToString("ddd dd/MM · HH:mm")–@evento.Fim.ToString("HH:mm")
+                                    @if (evento.LocalTexto != null)
+                                    {
+                                        <text> · @evento.LocalTexto</text>
+                                    }
+                                </span>
+                            </span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body d-flex gap-3 flex-wrap align-items-end">
+                    <div class="flex-grow-1" style="min-width: 200px;">
+                        <label class="form-label small fw-bold mb-1" for="imp-local">Local de todas</label>
+                        <select id="imp-local" name="localAulaId" class="form-select" required>
+                            @foreach (var local in Model.Locais)
+                            {
+                                <option value="@local.Id" data-preco="@local.PrecoPadrao.ToString(System.Globalization.CultureInfo.InvariantCulture)">@local.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div style="min-width: 140px;">
+                        <label class="form-label small fw-bold mb-1" for="imp-preco">Preço de cada uma (R$)</label>
+                        <input type="number" step="0.01" min="0" id="imp-preco" name="preco"
+                               class="form-control" required
+                               value="@Model.Locais[0].PrecoPadrao.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-3">
+                    <small class="text-muted">
+                        Vale pra todas as marcadas — dá pra ajustar cada aula depois, na agenda.
+                    </small>
+                </div>
+            </div>
+
+            <button type="submit" id="imp-confirmar" class="btn btn-padel rounded-pill w-100 fw-bold" disabled>
+                Importar (0)
+            </button>
+        </form>
+
+        <script>
+            // O botão diz QUANTAS vão entrar — é a confirmação embutida no rótulo, no padrão
+            // do MarcarVarios. Desligado com zero: importar nada não é um clique útil.
+            function pdzContar() {
+                var n = document.querySelectorAll('input[name=eventos]:checked').length;
+                var botao = document.getElementById('imp-confirmar');
+                botao.textContent = 'Importar (' + n + ')';
+                botao.disabled = n === 0;
+            }
+
+            // Trocar o local sugere o preço padrão DELE — sugestão, não imposição: o campo
+            // continua editável e o valor digitado só muda quando o professor troca o local.
+            document.getElementById('imp-local').addEventListener('change', function () {
+                var preco = this.options[this.selectedIndex].getAttribute('data-preco');
+                if (preco) document.getElementById('imp-preco').value = preco;
+            });
+        </script>
+    }
+</div>

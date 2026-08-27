@@ -45,6 +45,12 @@
             @if (Model.GoogleConectado)
             {
                 <span class="btn btn-sm btn-success rounded-pill disabled"><i class="bi bi-check-circle"></i> Google Agenda conectada</span>
+                @* Fora do aviso amarelo de propósito: aquele bloco só aparece com aula
+                   pendente de ENVIO, e o botão de importar sumiria depois da primeira
+                   sincronização — bug de visibilidade silencioso. *@
+                <a asp-action="ImportarDoGoogle" class="btn btn-sm btn-outline-primary rounded-pill">
+                    <i class="bi bi-cloud-download"></i> Trazer do Google
+                </a>
             }
             else
             {
