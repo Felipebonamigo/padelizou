@@ -789,7 +789,12 @@ namespace Padelizou.Controllers
                         AvisosDoDiaDeJogo.CorpoDasChaves(quando),
                         // Diz a que HORAS a pessoa joga. Quem não vir isso aparece na hora
                         // errada — ou não aparece.
-                        url, AlcanceDoAviso.AppEWhatsApp);
+                        //
+                        // ⚠️ FORA DO WHATSAPP desde 21/08/2026 (ver EncerramentoDaPartida): era
+                        // o pior formato pro canal — 1 mensagem por jogador DE UMA VEZ, 100 num
+                        // torneio cheio, todas com texto quase igual. É a rajada de texto
+                        // repetido, que é a assinatura de spam que a Meta lê.
+                        url, AlcanceDoAviso.SoApp);
                 }
             }
             catch (Exception ex)

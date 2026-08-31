@@ -219,6 +219,25 @@
 >
 > ✅ **Publicado**, PR #31 mergeado (`80e27ed`), build-685 no ar em prod — deploy conferido nos logs do job, com a linha "Feito. build-685-80e27ed no ar em prod". Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
 >
+> Antes, em 24/08/2026: 📶 **O CHIP DO WHATSAPP VOLTOU: `connectionStatus: open`, CONFERIDO NO SERVIDOR.**
+>
+> ✅ **O canal está de pé pela primeira vez desde 04/08.** Instância `padelizou`, número `5551 9239-5650`, `updatedAt` de hoje 12:30 UTC. **`_count` de mensagens em ZERO** — nada saiu ainda pelo chip novo, o que faz desta a última janela pra ajustar o que vai pro canal antes do primeiro disparo de verdade.
+>
+> 🪤 **A saída do `fetchInstances` traz uma armadilha de leitura, e vale saber antes de cair nela**: ela mostra `"disconnectionReasonCode":401` e `device_removed` mesmo com o canal aberto. **É registro histórico** — a data dentro dele é `2026-08-04T16:00:58Z`, exatamente a queda de 04/08. O campo não é limpo quando reconecta. Quem vale é o `connectionStatus`.
+>
+> ⚠️ **ISSO MUDOU A URGÊNCIA DO TRABALHO DE 21/08** (bloco abaixo). Enquanto o chip estava `close`, tirar o torneio do WhatsApp era desenho pro futuro e não mudava nada na prática. Com o canal aberto e o PR ainda **não mergeado**, produção volta a mandar os quatro avisos de torneio por um canal que **está realmente enviando** — e um torneio de 100 pessoas são ~450 mensagens no dia, com as "chaves saíram" indo 100 de uma vez em texto quase idêntico. É o padrão exato que restringiu o número em 04/08.
+>
+> 🧨 **DUAS ARMADILHAS DE DIAGNÓSTICO QUEIMARAM DUAS TENTATIVAS, e as duas moravam no próprio `WHATSAPP.md`** — o arquivo que existe justamente pra responder "o chip está conectado?":
+>
+>   1. **O nome da variável.** O doc mandava usar `$EVOLUTION_API_KEY`; na Evolution v2 a chave no `.env` é `AUTHENTICATION_API_KEY`. Expandia vazia, o header saía em branco e a resposta era `401 Unauthorized` — que lido de fora parece **chave errada ou chip banido**, e manda investigar o lado errado.
+>   2. **As aspas duplas não sobrevivem ao PowerShell.** Todos os comandos do doc usavam `-H "apikey: $CHAVE"`. O Windows PowerShell come as aspas duplas internas ao passar argumento pra executável nativo, então o `bash` do servidor recebia o `|` do `grep` como **pipe de verdade** (`bash: APIKEY: command not found`) e o `-H` sem o valor junto.
+>
+> 🔧 **Os cinco comandos do `WHATSAPP.md` foram reescritos sem uma única aspa dupla** — o truque é `-H apikey:$CHAVE` **sem espaço depois dos dois-pontos**, que dispensa a citação inteira. ⚠️ **A régua nova, escrita no doc: comando de diagnóstico que só funciona no bash do Linux é comando que não funciona**, porque quem digita está no PowerShell do Windows. Dois diagnósticos falharam por isso antes de alguém perceber que o problema nunca esteve no servidor.
+>
+> ⚠️ **O QUE AINDA NÃO FOI CONFERIDO: o `Evolution__BaseUrl` no systemd.** Chip aberto é só metade do circuito — sem o endereço no drop-in, o app nasce com o canal desligado e nada sai do mesmo jeito. `ssh root@179.197.233.184 'systemctl cat padelizou | grep Evolution'`; vazio quer dizer desligado.
+>
+> 🔒 **A saída do `fetchInstances` carrega o `token` da instância.** É credencial: não colar o print em grupo, issue ou PR.
+>
 > Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >
 > 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
@@ -345,6 +364,29 @@
 > 📋 **O resto está descrito com a correção pronta e NÃO aplicado**: o CI não reprova por CVE (o audit está ligado em `mode=all`, nível `low`, mas sai como warning no meio do log do restore — mesma história do `has-pending-model-changes` antes de virar passo); sem `packages.lock.json`, as 131 transitivas não estão fixadas em lugar nenhum e o CI resolve na hora; actions em tag móvel (`@v4` é ponteiro, não conteúdo, e o job `publicar` tem `contents: write`); o `deploy.sh` instala o tar.gz do release sem conferir hash — o healthcheck não pega isso, pacote adulterado responde 200 igual; e o job `testes`, que roda em `pull_request`, não declara `permissions`.
 >
 > ⚠️ **A política de rede da sessão bloqueou `api.osv.dev`, `api.github.com/advisories` e a busca do nuget.org (403).** Não contornei. Então a checagem de CVE se apoia numa base só — justamente a que tem o ponto cego acima — e o publicador saiu do nuspec assinado em cache, não dos owners do site. Rodar um `osv-scanner` de uma máquina com saída livre fecha a lacuna.
+>
+> Antes, no mesmo dia: 💬 **O TORNEIO INTEIRO SAIU DO WHATSAPP: O CANAL FICOU SÓ COM AULA, DESAFIO E PAGAMENTO.**
+>
+> 🗣️ **Decisão do Felipe** (21/08), depois de eu levantar o que ainda usava o canal: *"corrige o WHATSAPP.md, e tira as coisas"* — e a lista veio nominal: **"Seu jogo é o próximo!"**, **"Chaves do X saíram!"**, **"Torneio cancelado"** e **"Abriu vaga — vocês estão dentro!"** (nos dois caminhos, desistência e estorno).
+>
+> 📉 **Era o grosso do canal, e de longe.** A conta que dimensionou os tetos em 07/08 era exatamente esses avisos: num torneio de 100 pessoas, ~450 mensagens no dia — 100 de "chaves saíram" **de uma vez** e ~350 de "seu jogo é o próximo" (4 por partida × ~88 partidas). O que sobrou é aula e desafio: mensagem de **um pra um**, disparada por gesto humano, algumas dezenas por dia no pior caso. **O disparo em lote acabou** — e ele era o formato de risco, não o total: rajada de texto quase idêntico é a assinatura de spam que a Meta lê, e foi ela que restringiu o número em 04/08.
+>
+> ⚠️ **Os quatro ficaram `SoApp`, e NÃO `AppSemEmail` — a distinção é o ponto.** A tentação era calar o e-mail junto, já que quem está na quadra "já sabe". Mas quem está no clube **pode não ter o app instalado**, e aí o e-mail é o único canal que resta: `AppSemEmail` teria trocado um aviso barulhento por aviso nenhum. Cancelamento de torneio é o caso extremo — é o aviso mais caro de não chegar, porque a pessoa sai de casa e vai pra quadra à toa.
+>
+> 🧮 **OS TETOS FICARAM ONDE ESTAVAM (250/h, 1.200/dia), de propósito.** Agora sobram muito sobre o uso real, e isso não é preguiça: o teto nunca existiu pra apertar uso normal, e sim pra um laço infinito não torrar o número numa madrugada. Baixá-los agora só criaria a chance de cortar aviso de verdade no dia em que um caso novo entrar no canal. ⚠️ **O que teve que mudar foi o COMENTÁRIO**: ele era a planilha desses avisos, item por item — virou mentira no mesmo commit que os removeu, e mentira em comentário de teto é o tipo que faz o próximo mexer no número errado.
+>
+> 📄 **O `WHATSAPP.md` estava desatualizado em três pontos, todos capazes de fazer estrago.** Dizia teto de **60/h e 300/dia** (números de antes de 07/08 — quem lesse acharia que o canal barra num terço do que barra); descrevia um **aquecimento de 30/dia** que foi **removido** em 07/08 por decisão do Felipe; e afirmava que *"todo aviso do sistema já tenta o WhatsApp"* — que é **a descrição do sistema que queimou o número**, e o oposto do que vale desde que o `AlcanceDoAviso` nasceu. Ganhou também a seção **"Quem ainda fala pelo WhatsApp"**, com a lista do que resta e o histórico do que saiu (09/08 e 21/08).
+>
+> 🔑 **E o diagnóstico do canal estava quebrado por um nome de variável.** Os comandos do doc mandavam usar `$EVOLUTION_API_KEY`; na **Evolution v2** a chave no `.env` chama `AUTHENTICATION_API_KEY`. A variável expandia **vazia**, o header saía `apikey: ` em branco e a resposta era `{"status":401,"error":"Unauthorized"}` — que lido de fora parece **chave errada ou chip banido**, e manda a pessoa investigar o lado errado. Os comandos agora aceitam os dois nomes (`${AUTHENTICATION_API_KEY:-$EVOLUTION_API_KEY}`) e o doc explica o que o 401 significa de verdade. Junto foi a pegadinha irmã: o `systemctl cat padelizou` precisa rodar **dentro das aspas do ssh** — solto no PowerShell só devolve *"não é reconhecido como cmdlet"*, que foi o que aconteceu na conferência.
+>
+> 🧪 **4.697 testes, 0 falhas.** Dois fixavam o alcance antigo e foram reancorados com o porquê no comentário: `CancelarTorneioTests` (o nome era `Todo_inscrito_e_avisado_e_por_WhatsApp` — virou `..._do_cancelamento`, porque um nome de teste que promete o canal errado é a próxima confusão) e `EncerramentoIgualNasDuasTelasTests`. **Zero migration**: nada no banco mudou.
+>
+> ⚠️ **EM PR, NÃO PUBLICADO.** [PR #23](https://github.com/Felipebonamigo/padelizou/pull/23), branch `claude/whatsapp-notifications-sfk9av`. Até o merge, **os quatro avisos continuam indo pro WhatsApp em produção**.
+>
+> 🔀 **O PR NASCEU COM CONFLITO, e os dois lados eram trabalho de verdade** — o `main` andou quatro blocos enquanto este rodava. Resolvidos ficando com o código do `main` e só trocando o canal: em `EncerramentoDaPartida`, o `CorpoDoProximo` agora recebe `sedes` (torneio em mais de um clube); em `TorneiosController.Inscricoes`, a promoção da lista de espera virou o helper `AvisarPromocaoAsync`, com **dois** chamadores desde 21/08 (dupla e Americano) — ou seja, o alcance novo passou a valer pros dois de uma vez, o que a versão antiga, inline, não daria de graça. ⚠️ **Nenhum conflito foi resolvido escolhendo um lado inteiro**: fazer isso aqui teria desfeito o multi-sede ou a promoção do Americano, calados.
+>
+> 🕳️ **E O ESTADO DO CHIP CONTINUA SEM CONFERÊNCIA.** A última verificação boa é a de 07/08 (`state: close`); a tentativa de 21/08 morreu nos dois erros de comando acima, então **não prova nada**. Enquanto ninguém rodar o passo 3 do `WHATSAPP.md` e ver `"connectionStatus":"open"`, a premissa é que o canal **não está enviando** — e, se estiver mesmo `close`, esta mudança não altera nada na prática hoje: ela é o desenho pra quando o chip voltar.
+>
 >
 > Antes, no mesmo dia: 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
 >
