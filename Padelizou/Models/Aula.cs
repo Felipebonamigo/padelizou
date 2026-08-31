@@ -15,6 +15,11 @@ public partial class Aula
     public decimal Preco { get; set; }
     public string Status { get; set; } = null!;
 
+    // Padel, Tênis ou Beach Tênis (Padelizou.Services.EsporteDaAula) — nasce em Padel porque
+    // era o único esporte que existia até 25/08/2026. Um professor pode dar mais de um; cada
+    // AULA sabe o dela, não o professor (ver Services/EsporteDaAula).
+    public string Esporte { get; set; } = Padelizou.Services.EsporteDaAula.Padrao;
+
     // Quanto tempo a aula dura. Até 10/08/2026 o sistema inteiro fingia que toda aula era de
     // uma hora: a Google Agenda criava evento de 60 min e a trava de conflito só olhava o
     // horário de INÍCIO — duas aulas de 1h30 encavaladas passavam sem um pio.
@@ -88,6 +93,25 @@ public partial class Aula
     // Falta/cancelamento fora do prazo que o professor decidiu cobrar assim mesmo.
     // Entra na previsão financeira como valor a receber.
     public bool CobrarMesmoFaltando { get; set; }
+
+    // ---- Recebimento ----
+    // Quando o dinheiro DESTA aula entrou. Nulo = ainda não entrou.
+    //
+    // POR QUE EXISTE (pedido do Felipe em 25/08/2026: "tem alunos que pagam depois ou por
+    // mês"): até aqui "Concluir" gravava, na mesma tacada, "a aula aconteceu" E "o dinheiro
+    // entrou" — o Financeiro somava toda `Realizada` como recebida. Aula dada e não paga era
+    // invisível: contada em "Recebido", fora de "a cobrar" e fora da lista de devedores.
+    //
+    // ⚠️ É UM EIXO À PARTE DO `Status`, e não um valor novo dele. Status responde o que
+    // aconteceu com a AULA (e é lido por EdicaoDeAula, Reposicao, a cor da grade, a ficha do
+    // aluno); isto responde se o DINHEIRO entrou. Um `Status = "Paga"` perderia o primeiro, e
+    // ainda por cima não conseguiria dizer "faltou, foi cobrada, e o aluno já pagou" — que é a
+    // linha mais comum do mensalista. Ver Services/RecebimentoDaAula pra régua de quem deve.
+    //
+    // ⚠️ Na migration que criou a coluna, toda aula `Realizada` nasceu carimbada (menos as
+    // cobertas por conta do mês ainda Aberta): até aquele dia `Realizada` SIGNIFICAVA
+    // recebido, e deixar tudo nulo faria o Financeiro do professor abrir em R$ 0,00.
+    public DateTime? PagaEm { get; set; }
 
     // NESTA aula o aluno acerta o aluguel da quadra direto com o clube. O custo por aula
     // do local (LocalAula.CustoPorAula) deixa de contar como despesa do professor aqui —

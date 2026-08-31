@@ -1,0 +1,112 @@
+@model Padelizou.Services.ChaveDesenhavel
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+
+    ViewData["Title"] = $"Chave — {Model.Categoria} - Padelizou";
+
+    var imagem = Url.Action("ChaveImagem", "Cartoes", new { id = torneio.Id, categoriaId = Model.CategoriaId });
+    var arquivo = "chave.png";
+
+    var capa = Url.Action("ChaveImagem", "Cartoes",
+        new { id = torneio.Id, categoriaId = Model.CategoriaId }, Context.Request.Scheme);
+
+    ViewData["OgTitulo"] = $"Chave — {torneio.Nome}";
+    ViewData["Descricao"] = $"A chave do mata-mata de {Model.Categoria}, no {torneio.Nome}.";
+    if (Model.TemOQueMostrar)
+    {
+        ViewData["OgImagem"] = capa;
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Classificacao" asp-route-id="@torneio.Id"
+       asp-route-categoriaId="@Model.CategoriaId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar à categoria
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-diagram-3-fill text-success"></i> Chave
+    </h2>
+    <p class="text-muted">@torneio.Nome — @Model.Categoria</p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (!Model.TemOQueMostrar)
+    {
+        <div class="alert alert-light border rounded-4">
+            <strong>Esta categoria ainda não tem mata-mata.</strong>
+            <div class="small text-muted">
+                A chave nasce quando a fase de grupos fecha e o cruzamento é montado. Enquanto
+                isso, o que dá pra postar é a
+                <a asp-action="Classificacao" asp-route-id="@torneio.Id"
+                   asp-route-categoriaId="@Model.CategoriaId">classificação dos grupos</a>.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="Chave de @Model.Categoria"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="Chave — @Model.Categoria">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+
+                @if (Model.Rodadas.Count == Padelizou.Services.ChaveParaCard.MaximoDeFases)
+                {
+                    @* ⚠️ Quem vai postar precisa saber que o card pode não ser a chave inteira:
+                       acima de três fases ele entra pelas quartas. Dizer isso aqui é o que
+                       impede o organizador de anunciar "a chave" e ser corrigido no comentário. *@
+                    <p class="small text-body-secondary text-center mb-0 mt-3">
+                        O card mostra as três últimas fases — em chave maior, as anteriores
+                        ficam de fora.
+                    </p>
+                }
+            </div>
+        </div>
+
+        @* A chave em texto — a arte é pra postar, esta lista é pra conferir antes. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                @foreach (var rodada in Model.Rodadas)
+                {
+                    <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">@rodada.Fase</h6>
+                    <ul class="list-unstyled mb-3">
+                        @foreach (var jogo in rodada.Jogos)
+                        {
+                            <li class="border-bottom py-2">
+                                <span class="@(jogo.Dupla1Venceu ? "fw-bold" : "")">@jogo.Dupla1</span>
+                                <span class="text-muted mx-2">@(jogo.Placar ?? "×")</span>
+                                <span class="@(jogo.Dupla2Venceu ? "fw-bold" : "")">@jogo.Dupla2</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

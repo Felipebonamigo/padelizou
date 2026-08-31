@@ -353,8 +353,12 @@ namespace Padelizou.Controllers
                                                     && a.Status != "Cancelada" && a.Status != "Recusada"),
                     AulasNaSemana = minhasAulas.Count(a => a.DataHora >= hoje && a.DataHora < hoje.AddDays(7)
                                                         && a.Status != "Cancelada" && a.Status != "Recusada"),
+                    // ⚠️ O DINHEIRO QUE ENTROU, não a aula que aconteceu (desde 25/08/2026).
+                    // Somando `Realizada` este número discordava do Financeiro na mesma conta —
+                    // e dois "recebido" diferentes na mesma semana é como o professor conclui
+                    // que o sistema perdeu dinheiro dele (ver Services/RecebimentoDaAula).
                     RecebidoNoMes = minhasAulas
-                        .Where(a => a.Status == "Realizada" && a.DataHora >= inicioMes)
+                        .Where(a => a.DataHora >= inicioMes && RecebimentoDaAula.FoiRecebida(a))
                         .Sum(a => a.Preco),
                     // Já confirmado e ainda por dar: é o que entra se ninguém desmarcar.
                     AReceber = minhasAulas

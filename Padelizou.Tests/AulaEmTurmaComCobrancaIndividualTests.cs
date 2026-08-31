@@ -44,7 +44,7 @@ public class AulaEmTurmaComCobrancaIndividualTests
         List<string>? datas = null, IGoogleCalendarService? google = null) =>
         controller.AdicionarManual(
             localId: local.Id, nomeAluno: nomes.FirstOrDefault() ?? "", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: preco,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: preco,
             recorrente: recorrente, semanasRecorrencia: semanasRecorrencia, quantidadeAlunos: 3,
             datas: datas, semPrazo: semPrazo, nomesAlunos: nomes,
             alunoIds: nomes.Select(_ => (int?)null).ToList(),
@@ -134,7 +134,7 @@ public class AulaEmTurmaComCobrancaIndividualTests
         await TestInfra.NovoAulasController(ctx, professor.Id, google)
             .AdicionarManual(
                 localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-                dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+                data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
                 recorrente: false, semanasRecorrencia: 0, quantidadeAlunos: 3,
                 nomesAlunos: ["Medina", "Coello", "Lima"],
                 alunoIds: [null, null, null], telefonesAlunos: [null, null, null]);
@@ -156,7 +156,7 @@ public class AulaEmTurmaComCobrancaIndividualTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, quantidadeAlunos: 3);
 
         var aula = await ctx.Aulas.SingleAsync();

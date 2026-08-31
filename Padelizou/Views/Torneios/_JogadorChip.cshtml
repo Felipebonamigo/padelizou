@@ -5,13 +5,15 @@
     // página inteira do torneio por causa dele não é.
     if (Model == null) { return; }
 
+    // O histórico vem indexado pelo NOME da categoria, e é por ele que se procura: a versão que
+    // procurava pelo MATERIAL (TierDaCategoria) achava o título da 6ª Feminina no chip da 6ª
+    // Masculina — mesma madeira, campeã de outra categoria.
     var historico = ViewData["Historico"] as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>;
     var categoriaAtual = ViewData["CategoriaAtual"] as string;
     HistoricoCategoriaVM? h = null;
-    if (historico != null && categoriaAtual != null && historico.TryGetValue(Model.Id, out var porTier))
+    if (historico != null && categoriaAtual != null && historico.TryGetValue(Model.Id, out var porCategoria))
     {
-        var tier = Padelizou.Services.EstatisticasService.TierDaCategoria(categoriaAtual).Chave;
-        porTier.TryGetValue(tier, out h);
+        porCategoria.TryGetValue(categoriaAtual, out h);
     }
 }
 @* Tamanhos por classe (pdz-chip-*): dentro de um `.pdz-chip-compacto` (tabela do

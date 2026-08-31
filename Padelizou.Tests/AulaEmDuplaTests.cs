@@ -46,7 +46,7 @@ public class AulaEmDuplaTests
         AulasController controller, LocalAula local, string aluno, int quantos, decimal? preco = null) =>
         controller.AdicionarManual(
             localId: local.Id, nomeAluno: aluno, telefoneAluno: "(51) 99999-0000",
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: preco,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: preco,
             recorrente: false, semanasRecorrencia: 0, quantidadeAlunos: quantos);
 
     [Theory]

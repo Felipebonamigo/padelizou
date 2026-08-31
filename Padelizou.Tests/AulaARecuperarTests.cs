@@ -90,7 +90,7 @@ public class AulaARecuperarTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Outro aluno", telefoneAluno: null,
-            dataHora: quando, preco: null, recorrente: false, semanasRecorrencia: 0);
+            data: DataEHoraDoFormulario.ParaCampoDeData(quando), hora: DataEHoraDoFormulario.ParaCampoDeHora(quando), preco: null, recorrente: false, semanasRecorrencia: 0);
 
         Assert.True(await ctx.Aulas.AnyAsync(a => a.NomeAlunoAvulso == "Outro aluno"));
     }
@@ -165,7 +165,7 @@ public class AulaARecuperarTests
         Assert.Equal(aula.Id, Assert.Single(naFila).Id);
 
         await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(
-            aulaId: aula.Id, localId: local.Id, dataHora: DateTime.Today.AddDays(4).AddHours(10));
+            aulaId: aula.Id, localId: local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(10)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(10)));
 
         Assert.Empty(await FilaAsync(ctx, professor.Id));
     }
@@ -201,7 +201,7 @@ public class AulaARecuperarTests
         await TestInfra.NovoAulasController(ctx, professor.Id).MarcarParaRecuperar(aula.Id);
 
         var quando = DateTime.Today.AddDays(4).AddHours(10);
-        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, quando);
+        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(quando), hora: DataEHoraDoFormulario.ParaCampoDeHora(quando));
 
         var reposicao = await ctx.Aulas.SingleAsync(a => a.RecuperaAulaId != null);
 
@@ -246,8 +246,8 @@ public class AulaARecuperarTests
         var aula = Marcada(ctx, professor, aluno, local, DateTime.Today.AddDays(-3).AddHours(9));
         await TestInfra.NovoAulasController(ctx, professor.Id).MarcarParaRecuperar(aula.Id);
 
-        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, DateTime.Today.AddDays(4).AddHours(10));
-        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, DateTime.Today.AddDays(5).AddHours(10));
+        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(10)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(10)));
+        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(5).AddHours(10)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(5).AddHours(10)));
 
         Assert.Equal(1, await ctx.Aulas.CountAsync(a => a.RecuperaAulaId == aula.Id));
     }
@@ -264,7 +264,7 @@ public class AulaARecuperarTests
         var aula = Marcada(ctx, professor, aluno, local, DateTime.Today.AddDays(-3).AddHours(9));
         await TestInfra.NovoAulasController(ctx, professor.Id).MarcarParaRecuperar(aula.Id);
 
-        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, ocupado);
+        await TestInfra.NovoAulasController(ctx, professor.Id).Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(ocupado), hora: DataEHoraDoFormulario.ParaCampoDeHora(ocupado));
 
         Assert.False(await ctx.Aulas.AnyAsync(a => a.RecuperaAulaId != null));
     }
@@ -281,7 +281,7 @@ public class AulaARecuperarTests
 
         var push = Substitute.For<IPushNotificationService>();
         await TestInfra.NovoAulasController(ctx, professor.Id, push: push)
-            .Encaixar(aula.Id, local.Id, DateTime.Today.AddDays(4).AddHours(10));
+            .Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(10)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(10)));
 
         await push.Received(1).EnviarParaJogadorAsync(
             aluno.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
@@ -355,7 +355,7 @@ public class AulaARecuperarTests
         var aula = Marcada(ctx, professor, aluno, local, DateTime.Today.AddHours(9), preco: 150);
         await TestInfra.NovoAulasController(ctx, professor.Id).MarcarParaRecuperar(aula.Id);
         await TestInfra.NovoAulasController(ctx, professor.Id)
-            .Encaixar(aula.Id, local.Id, DateTime.Today.AddDays(2).AddHours(10));
+            .Encaixar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(10)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(10)));
 
         var reposicao = await ctx.Aulas.SingleAsync(a => a.RecuperaAulaId != null);
         reposicao.Status = PoliticaAula.Realizada;

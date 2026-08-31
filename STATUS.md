@@ -1,7 +1,225 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **24/08/2026** — 📶 **O CHIP DO WHATSAPP VOLTOU: `connectionStatus: open`, CONFERIDO NO SERVIDOR.**
+> Última atualização: **31/08/2026** — 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
+>
+> 🗣️ **O pedido do Felipe, num print da lista de inscritos:** *"nao pode ter esse trofeu aqui assim. Primeiro que nao é categoria Madeira, tem q ser a categoria que o atleta jogou (7a feminina, 7 masculina e assim por diante) e esse trofeu é de americano, esse nao deve aparecer como se fosse os torneios 'normais'/'Oficiais'"*.
+>
+> 🪵 **"Madeira" nunca foi categoria — é o MATERIAL do troféu.** É o degrau da escada diamante > ouro > prata > bronze > ferro > madeira > plástico de `Services/TrofeuDeMaterial`. O `title` do selo escrevia `@Model.TierNome`, então a pílula prometia "Campeão 1 vez(es) na categoria Madeira" pra alguém que ganhou a 6ª Feminina. Ninguém se inscreve na Madeira.
+>
+> 🕳️ **E o rótulo errado ESCONDIA um vazamento de dado, que é o achado real.** O histórico era agrupado **por material**, não por categoria — e 6ª Masculina e 6ª Feminina são a mesma madeira. O título de uma coroava o inscrito da outra, calado. Corrigir só o texto do `title` teria trocado uma mentira ("Madeira") por outra, pior: o nome de uma categoria em que a pessoa nunca jogou. A chave do dicionário passou a ser o **nome da categoria**; o material continua mandando na COR e no ícone da pílula, que é o que ele sempre soube fazer.
+>
+> 🎯 **O Americano sai deste selo — e SÓ deste selo.** Rodízio não tem chave, não tem final e não tem "chegar na semi": não há colocação de chave pra este selo carregar. Vencer o Americano da 6ª saía idêntico a ser campeão da 6ª Categoria, e numa pílula de 40px não cabe legenda que explique a diferença. **O título não some do sistema:** continua na prateleira do perfil, de vidro e marcado — que é exatamente a decisão de 08/08/2026 (`TrofeuDeMaterial.Contar`), tomada pelo mesmo motivo e nunca aplicada aqui.
+>
+> 🧱 **O filtro é campo a campo (`Formato != Americano && != AmericanoDuplas`), e não `FormatoDoTorneio.EhAmericano`**, porque roda NO BANCO — mesma razão já escrita em `EstatisticasService.DuplaContaNoRanking`. E **não** dá pra reusar aquele `DuplaContaNoRanking`: ele exclui torneio **restrito** junto, e restrito CONTA no histórico (o título aconteceu; o que não existe é ponto de ranking).
+>
+> 🧪 **5.131 testes, 0 falhas (10 novos).** **Sem migration.** Um deles é de tradução (`ToQueryString()` contra Npgsql): o filtro novo atravessa dois níveis de navegação (Dupla → Categoria → Torneio), e o InMemory da suíte não traduz nada — era a receita exata do estouro de 19/08/2026.
+>
+> ✅ **Falsificado meio a meio:** revertendo só o filtro do Americano falham 3 testes e os 7 do rótulo seguem verdes; revertendo só a busca do chip falha 1 e os outros 9 seguem. As duas metades estão presas de forma independente.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
+>
+> 🕳️ **O que aconteceu:** das **~13:05Z às ~16:06Z** o GitHub parou de gerar os eventos de `push` e `pull_request` deste repo. O PR #41 ficou 3 horas com **zero checks criados** — não vermelho, *inexistente* (`get_check_runs` → `total_count: 0`, `get_status` → `pending` com lista vazia). Não era o diff: o workflow estava `active`, o repo é **público** (Actions ilimitado, não é cota), e o `workflow_dispatch` do **deploy rodou normalmente às 13:29**, depois do último CI. Ou seja, Actions funcionava; o que morreu foi só o gatilho por evento.
+>
+> 🧱 **E não havia saída limpa.** As duas gambiarras óbvias pra forçar CI — **commit vazio** e **fechar/reabrir o PR** — são exatamente as que não se deve usar, e o `ci.yml` **não tinha `workflow_dispatch`**: não existia forma de chamá-lo na mão. O Felipe decidiu mergear com a evidência local (build 0 erros, 5.067 testes, `has-pending-model-changes` limpo, rodados no commit exato).
+>
+> ✅ **A decisão se confirmou sozinha 4 minutos depois:** o gatilho voltou às 16:06 e o CI rodou no `ada1b10` — o commit mergeado — com **`success`** (run #704). O código foi validado; só chegou tarde.
+>
+> 💥 **O ESTRAGO REAL foi outro, e é a lição:** o merge em `main` (`60ddcef`, 16:05:26Z) caiu no **último minuto** da janela quebrada. O push não disparou o CI, então o release **`build-N-60ddcef` nunca foi publicado** — e sem release não há pacote pra instalar. Código mergeado em `main` e **impossível de publicar**, sem nada vermelho em lugar nenhum.
+>
+> 🔧 **`workflow_dispatch` no `ci.yml`** fecha isso: Actions → CI → Run workflow, escolhendo o branch.
+>
+> ⚠️ **E o gatilho manual sozinho NÃO bastava** — quase passou assim. O job `publicar` era `if: github.event_name == 'push'`, então um disparo manual rodaria os testes e **não geraria pacote nenhum**: inútil justamente no caso que o criou, que é o push do merge não ter gerado release. A condição virou `push || workflow_dispatch` (ainda restrita ao `main`). O `needs: testes` continua de pé — pacote segue impossível de nascer com suíte vermelha.
+>
+> 📌 **O gatilho por evento NÃO voltou de forma estável.** O run #704 (16:06) foi isolado: o PR #42, aberto às 16:15, também ficou sem nenhum check. Ou seja, a janela 13:05–16:06 não "fechou" — o sintoma é intermitente, e é por isso que a saída manual precisa existir.
+>
+> ⏳ **Commitado, não publicado** nesta entrada. O merge deste PR também gera o release que carrega o `60ddcef` junto.
+>
+> Última atualização: **26/08/2026** — 🏅 **OS QUATRO RANKINGS DA PANELINHA TAMBÉM PASSAM A MOSTRAR SÓ O APELIDO.**
+>
+> 🗣️ **O pedido do Felipe, logo depois da lista de jogos:** *"no ranking do grupo, mostra só o apelido também"*.
+>
+> 🔎 **Foi aplicado nos QUATRO rankings de panelinha, e não só no citado — de propósito.** "Ranking do grupo" tem o **"Ranking da semana" colado nele** na mesma tela; e o **"Ranking Geral"** do `Detalhes` é o MESMO dado (`PontuacaoInterna`) noutra tela, com o **"Ranking do Mês"** ao lado. Atender só o literal deixaria dois cards vizinhos escrevendo o mesmo jogador de dois jeitos — bug visual, não fidelidade ao pedido.
+>
+> 🧩 **`Jogador.SoOApelido` (novo)**, sobre o `NomeBonito.ApelidoOuCurto` que nasceu na leva anterior. **`ComoChamar` fica intacto**: continua valendo em torneio, chave e no ranking PÚBLICO de jogadores, onde a razão de 06/08/2026 ("'Zeca' pode ser três pessoas no mesmo torneio") continua de pé. As duas formas convivem porque respondem perguntas diferentes — dentro da turma × fora dela.
+>
+> 🔒 **A ligação com as telas é teste de FONTE**, pelo motivo de sempre aqui: trocar `SoOApelido` de volta por `ComoChamar` numa view não quebra teste de comportamento nenhum (a suíte não renderiza Razor). Cada teste ancora no **título do card** e recorta até o `</ol>` — e essa precisão veio da lição da leva anterior, quando uma âncora genérica pegou o bloco errado e deixou 5 testes vermelhos de uma vez.
+>
+> ✅ **Falsificado card a card:** revertendo **só** o "Ranking do grupo", falha **só** o teste dele e os outros três seguem verdes.
+>
+> 🔗 **E os nomes dos rankings da `Semana` viraram LINK pro perfil** (decisão do Felipe quando o CI do PR #41 não disparou e ele escolheu aproveitar a rodada). Os dois cards do `Detalhes` já eram link desde sempre; os da `Semana` não — mesma informação, comportamento diferente conforme a tela, que é o tipo de divergência que a pessoa lê como "aqui está quebrado". Usam a `.pdz-nome-jogo` que nasceu na leva anterior, então o affordance é o mesmo da lista de jogos.
+>
+> 🧪 **5.067 testes, 0 falhas (15 novos).** **Sem migration.**
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, no mesmo dia — 🏷️ **A LISTA DE JOGOS DA PANELINHA PASSA A MOSTRAR SÓ O APELIDO — E O LINK QUE JÁ EXISTIA FINALMENTE PARECE UM LINK.**
+>
+> 🗣️ **O pedido do Felipe, num print de "Jogos recentes":** *"pode ser só o apelido, e ao clicar abrir o perfil"*.
+>
+> 🕳️ **A segunda metade do pedido JÁ FUNCIONAVA — e é esse o achado.** O nome sempre foi um `<a>` pro perfil do jogador. Só que o partial o desenhava com `text-decoration-none` + `color:inherit`: **clicável e indistinguível de texto morto**. O Felipe pediu um comportamento que existia porque a tela não dava nenhum sinal de que existia. Funcionalidade que ninguém vê é funcionalidade que não existe.
+>
+> 🎨 **`.pdz-nome-jogo` (novo no site.css) herda a cor em vez de pintar de azul**, e isso não é detalhe: o `<td>` pinta o lado VENCEDOR de verde, e cor de link por cima **apagaria o sinal de quem ganhou**. O affordance vem de sublinhado **pontilhado**, sólido no hover — mesma escolha (e o mesmo motivo escrito) do `.pdz-jl-vemde` que já existia: numa lista com quatro nomes por linha, dezenas de links azuis viram ruído.
+>
+> ⚠️ **E ISTO NÃO REVOGA A DECISÃO DE 06/08/2026, apesar de parecer.** Naquele dia o apelido SOZINHO saiu de todas as telas, com a razão escrita em `NomeBonito.ComApelido`: *"apelido não identifica ninguém fora da turma — 'Zeca' pode ser três pessoas no mesmo torneio"*. O caso aqui é o **oposto**: a lista de jogos de uma panelinha é lida **de dentro** do grupo, por gente que se conhece pelo apelido. Por isso a mudança é **escopada** — nasceu `NomeBonito.ApelidoOuCurto` + `ConvidadoNoJogo.ApelidoNaTela`, e `ComApelido` fica intacto valendo em torneio, chave e ranking, onde a razão de 06/08 continua de pé. Mexer em `ComApelido` teria "atendido o pedido" e quebrado a chave de torneio junto.
+>
+> 🛟 **Quem não tem apelido cai no nome curto** — sumir da linha não era opção, e tem teste pros três jeitos de não ter apelido (nulo, vazio, só espaços).
+>
+> 🔒 **A guarda do `.Include()` esquecido foi extraída pra um lugar só** (`ConvidadoNoJogo.Quem`): as duas formas de nome precisavam dela igual, e uma cópia que esquecesse o `throw` transformaria todo Include esquecido num "Convidado" silencioso por cima do nome de um membro. Tem teste de que a versão de apelido continua estourando.
+>
+> 🧪 **5.052 testes, 0 falhas (15 novos).** Falsificado: revertendo o ViewModel pro nome completo, falha exatamente o teste da ligação com a tela (`Expected: "Marcião" / Actual: "Márcio Azeredo (Marcião)"`). **Sem migration.**
+>
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `786ae95` (PR #40), release `build-703-786ae95`, deploy run **#56** `success` — a linha `==> Feito. build-703-786ae95 no ar em prod` está nos logs do job.
+>
+> Antes, no mesmo dia — 🎾 **A TELA DA PANELINHA PASSA A MOSTRAR OS JOGOS DA SEMANA — E A LIÇÃO É SOBRE O TESTE, NÃO SOBRE O CARD.**
+>
+> 🗣️ **O pedido do Felipe, num print da tela do Jogo da Semana:** *"nessa tela, exiba os jogos q ocorreram na semana"*. A tela mostrava "Ranking da semana" com os pontos de cada um e **não mostrava de onde os pontos vieram** — quem discordasse do próprio ranking não tinha o que conferir.
+>
+> ♻️ **NENHUMA CONSULTA NOVA.** `GruposController.Semana` **já carregava** exatamente esses jogos (`jogosDaSemana`), somava os pontos e **descartava a lista**. Faltavam 5 `.Include()` (os quatro jogadores + o clube), a ordenação e uma linha de ViewBag. A janela (`> inicioSemana && <= fimSemana`, ancorada na data da SESSÃO) não foi tocada: dar uma janela própria ao card criaria a **quarta cópia** da definição de semana — já são três em produção (`GruposController:660`, `CartoesController:528`, e a de 56 dias em `SortearDuplas`). O card fica logo ACIMA do "Ranking da semana" de propósito: causa em cima, efeito embaixo, conferíveis a olho.
+>
+> 🕳️ **O ACHADO QUE VALE MAIS QUE O CARD: um teste que eu escrevi, vi falhar, e mesmo assim NÃO PROVAVA NADA.** O teste dos `.Include()` era o mais importante da leva — sem eles a tela INTEIRA cai, porque `ConvidadoNoJogo.NomeNaTela` estoura de propósito com navegação nula. Ele falhou certinho antes da correção (por `null`), passou depois, e eu **falsifiquei mesmo assim**: apaguei um `.Include()` do controller — e a suíte seguiu **VERDE**.
+>
+> 🔬 **A causa são DUAS coisas empilhadas, e a segunda derruba o conserto óbvio.** (1) O EF InMemory preenche navegação por **fixup** a partir do ChangeTracker, então `.Include()` vira decorativo quando a entidade já está lá. (2) O conserto óbvio — `ChangeTracker.Clear()` antes de abrir a tela — **também não resolve**: a própria action carrega os quatro jogadores ANTES da consulta dos jogos, no `ranking` (`JogadoresGrupo.Include(jg => jg.Jogador)`). Ela repopula o tracker sozinha. **Nenhum teste de comportamento com InMemory consegue provar Include aqui.**
+>
+> 📌 **Isto é a lição de 19/08 (o InMemory não valida SQL) com uma cara nova e pior:** lá o teste falhava tarde, em produção; aqui ele **passa e dá segurança que não existe**. Fica escrito no topo do arquivo de teste e aqui: quando a asserção depende de `.Include()`, o teste de comportamento com InMemory é inconclusivo — confirme com falsificação antes de confiar.
+>
+> 🔒 **A trava virou teste de FONTE**, e a alternativa honesta era não travar nada: `IncludesDaConsultaDosJogosDaSemanaTests` recorta o trecho da consulta e exige os 5 `.Include()` + o desempate por `Id`. **Ele também foi falsificado** — e na primeira versão falhou pelo motivo ERRADO: ancorado em `_context.JogosSemanais` (que aparece **10 vezes** neste controller), o recorte pegava a consulta do `Detalhes` e os 5 testes ficavam vermelhos de uma vez. Reancorado em `var jogosDaSemana = await ...`, falha só no Include apagado.
+>
+> 🎨 **Duas decisões de tela pequenas e deliberadas:** a tabela **não** leva `bg-white` (diferente da irmã em `Grupos/Detalhes`, que vive solta na página — aqui ela está dentro de um card, e branco cravado quebraria o tema escuro); e o vazio diz *"Nenhum jogo lançado nessa semana"*, **diferente** do *"Ainda sem jogo registrado essa semana"* do card logo abaixo — a mesma frase duas vezes empilhada lê como bug de renderização.
+>
+> 🧪 **5.037 testes, 0 falhas (14 novos: 7 de comportamento, 6 de fonte, 1 de tradução SQL).** **Sem migration** — nenhuma entidade, coluna ou relação muda; as 5 navegações já estavam mapeadas.
+>
+> ⚠️ **Ressalva pra próxima sessão:** o convidado avulso COM conta pontua no ranking interno mas **não aparece** nos cards de ranking (que iteram só membros do grupo). Com a lista de jogos na tela, o nome dele passa a aparecer **na lista e não no ranking logo abaixo**. É comportamento antigo, não regressão — mas é a primeira pergunta que o card novo vai provocar.
+>
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `1baeb0f` (PR #39), release `build-701-1baeb0f`, deploy run **#55** `success` — a linha `==> Feito. build-701-1baeb0f no ar em prod` está nos logs do job.
+>
+> Antes, em 25/08/2026: 🏓 **PERFIL DO PROFESSOR GANHA "ESPORTES QUE VOCÊ ENSINA".**
+>
+> 🗣️ **O pedido do Felipe, terceira parte do mesmo print da agenda:** *"João, por exemplo, dá aula de tênis e beach tênis também. Seria legal um campo pra isso. Acho que é uma realidade dos professores."* Diferente do `Aula.Esporte` de mais cedo (o esporte DAQUELA aula), isto é uma declaração no PERFIL — o que o professor oferece, mostrado como selo na página pública dele.
+>
+> 🧩 **`ProfessorEsporte` (novo, migration): mesma forma de `ProfessorCidade` (N:N, chave composta ProfessorId+Esporte), mas sem tabela catálogo no banco** — o valor é a mesma string de `EsporteDaAula` (Padel/Tênis/Beach Tênis), validada em código, não por FK. É o meio-termo entre os dois padrões que já existiam no projeto: junção de verdade (como cidade) pro relacionamento N:N, catálogo em código (como `Aula.Esporte`) pro valor.
+>
+> ✏️ **Editado na própria página pública do professor** (`/Professores/Perfil/{id}`), no mesmo bloco onde ele já edita "Sobre mim"/"Experiência" — só o dono do perfil vê o form (`ProfessoresController.SalvarEsportes`, `[Authorize]`, com checagem de `IsProfessor` e de que o `ProfessorId` é o de quem está logado). Selo só aparece na página quando ele marcou pelo menos um; quem nunca configurou não mostra nada, em vez de "sem esporte".
+>
+> 🎾 **Quem nunca configurou nasce com Padel pré-marcado no formulário** (não gravado — só a caixinha já vem marcada): é o esporte implícito de todo professor da plataforma até aqui, mesmo raciocínio do `Padrao = Padel` do `EsporteDaAula`. Ele desmarca se não for o caso.
+>
+> 🧪 **4.859 testes, 0 falhas (8 novos)** — salva os marcados, ignora esporte fora da lista, salvar de novo substitui em vez de acumular, salvar vazio esvazia, quem não é professor não grava nada, um professor não mexe no esporte de outro, perfil mostra em ordem fixa (Padel/Tênis/Beach Tênis) independente da ordem gravada, quem nunca configurou não mostra esporte nenhum.
+>
+> ✅ **PUBLICADO em 26/08/2026 em prod**, na `564b3a4` (PR #38, CI verde), release `build-699-564b3a4`, deploy run **#54** `success` — a linha `==> Feito. build-699-564b3a4 no ar em prod` está nos logs do job. Migration inclusa (tabela `ProfessorEsporte`). ⚠️ **A conferência externa do `/healthz` NÃO foi feita** (o proxy da sessão web recusa a saída, `CONNECT tunnel failed, 403`) e **a tela não foi vista renderizada** — sem browser nesta sessão.
+>
+> Antes, no mesmo dia — 📆 **AS TRÊS TELAS DE AULA PASSAM A TER CALENDÁRIO, E O DIA DA SEMANA VIRA RÉGUA ÚNICA.**
+>
+> 🗣️ **O pedido do Felipe:** *"aplica o mesmo nas telas de editar aula e encaixe"*. Eram as duas que ficaram pra trás mais cedo hoje — a de Adicionar trocou o `datetime-local` por `date` + `time`, e o PR daquele bloco declarou, por escrito, que Editar e o encaixe da Minha Agenda continuavam com a rodinha do Android.
+>
+> ⚠️ **AS DUAS ACTIONS PASSAM A RECEBER `data` E `hora` SEPARADAS**, e não um `DateTime`. Mesma fronteira de cultura: `<input type="date">` manda sempre `yyyy-MM-dd`, o app roda em pt-BR, e o binder leria "2026-09-15" como dia 15 do mês 2026 — que não existe — e cairia em `01/01/0001` **calado**. 🕳️ **Em Editar o estrago é PIOR que em Adicionar**: a aula JÁ existe e está marcada com o aluno, então a data lida errado não cria lixo novo — ela **move a aula de alguém pra um dia que ninguém combinou**. E o `Encaixar` sai **antes de tocar na aula original** quando a data não vem: ela precisa continuar na fila de reposição, que é o único lugar que lembra o professor de que deve essa aula.
+>
+> 🧩 **O DIA DA SEMANA VIROU RÉGUA COMPARTILHADA** (`wwwroot/js/dia-da-semana.js`, pedido por atributo igual ao `hora-sugerida`). Era cópia local na tela de Adicionar; com **três** telas pedindo a mesma coisa — e a do encaixe repetindo o par uma vez por aula na fila — três cópias é como duas passam a discordar. ⚠️ **E discordariam justamente no detalhe que não dá erro nenhum quando está errado:** montar a data POR PARTES, porque `new Date("2026-09-15")` é lido como UTC e volta o dia ANTERIOR em todo fuso negativo — no Brasil inteiro. 📌 No encaixe o id do alvo carrega o **id da AULA**: id fixo faria a segunda linha da fila escrever o dia da semana em cima da primeira.
+>
+> 🧪 **21 testes novos, suíte em 5.015, 0 falhas.** Nove de fronteira (junta data+hora, aceita `HH:mm:ss`, recusa vazio, recusa `15/09/2026` — o formato brasileiro que o binder engoliria — e o encaixe recusado deixa a aula na fila) e **doze de FONTE prendendo as três telas JUNTAS**: sem `datetime-local`, com `date`+`time`, com os `name` certos, e todas pedindo a régua compartilhada. São de fonte por escolha declarada — uma dessas telas voltando pra rodinha **não quebra nada**: ela abre, a aula salva, e só o professor de pé na quadra descobre.
+>
+> 🐛 **E O TESTE DE FONTE REPROVOU A SI MESMO na primeira rodada** — casava com o **comentário** que explica por que o `datetime-local` saiu. Sem tirar comentário antes de buscar, ele reprovaria exatamente a documentação que existe pra ser lida, e a saída fácil seria **apagar o comentário**, o pior conserto possível. Agora corta `@* *@` e linha que **começa** com `//` — e só isso: cortar no `//` do meio da linha levaria junto o `https://` de uma URL dentro de string.
+>
+> ✅ **Falsificado:** devolvendo o `datetime-local` pra tela de Editar, caem exatamente os **3** testes dela e os das outras duas seguem verdes. 26 chamadas de teste acompanharam a troca de assinatura — o alvo saiu do **compilador**, não de regex: a primeira varredura por texto pegou junto `GradeDeJogos.Encaixar` e `Reposicao.Encaixar`, que são serviços puros e não têm nada com isso.
+>
+> ⏳ **AINDA NÃO PUBLICADO.** Sem migration.
+>
+>
+> Antes, no mesmo dia — 💵 **"CONCLUIR" DEIXOU DE QUERER DIZER "PAGA": O RECEBIMENTO DA AULA VIROU UM EIXO PRÓPRIO.**
+>
+> 🗣️ **O pedido do Felipe**, num print da folha de detalhe da Minha Agenda: *"permita o professor colocar como aula concluída mas ainda não paga, tem alunos que pagam depois ou por mês, pense nisso"*. Mexe em **dinheiro** e gera **migration** — é `architectural`, então saiu desenho escrito (`RECEBIMENTO-DA-AULA.md`) e aprovado antes de uma linha de código, com **três decisões dele**: dois botões lado a lado, backfill preservando dívida de mensalista, e **sem** preferência escondida no perfil.
+>
+> 🕳️ **O DEFEITO ERA DO TAMANHO DO PEDIDO.** Apertar "Concluir" gravava, na mesma tacada, *"a aula aconteceu"* **e** *"o dinheiro entrou"* — o comentário do próprio Financeiro dizia `// "Recebido" = aula que aconteceu`, e a lista de devedores era montada só de `CobrarMesmoFaltando`, com o comentário *"sem controle de quitação por aula"*. ⚠️ **Aula dada e não paga era INVISÍVEL**: somada em "Recebido", fora de "a cobrar" e fora de "quem está devendo". 🧾 **Metade do pedido já existia**: "pagam por mês" está pronto desde 19/08 (`FaturaDoAluno` + `FechamentoDoMes`); o que faltava era a marca por aula do avulso que dá a aula na terça e manda o Pix na sexta.
+>
+> 🔑 **`Aula.PagaEm` (`DateTime?`), ORTOGONAL AO STATUS — e essa é a decisão que segura o resto.** O caminho barato era um `PoliticaAula.Paga` ao lado de `Realizada`, e ele erra por dois motivos concretos: perde o fato da agenda (`EdicaoDeAula`, `Reposicao`, a cor da grade e a ficha do aluno leem o status) e **não consegue dizer "faltou, foi cobrada, e o aluno já pagou"**, que é a linha mais comum do mensalista. É a armadilha de **18/08** (`PodeOlharTudo` respondendo duas perguntas) em versão de dinheiro: **status responde o que aconteceu com a AULA; `PagaEm` responde se o DINHEIRO entrou.** A régua pura mora em `Services/RecebimentoDaAula`, e `FoiRecebida` + `EstaAReceber` **partem em duas exatamente o que gerou cobrança** — invariante com teste próprio, porque é ela que faz "Recebido" + "A cobrar" fecharem o faturamento sem sobrar nem faltar aula.
+>
+> 🖥️ **Na folha da agenda: "Concluir e recebi" e "Concluir, receber depois", do MESMO tamanho**, mais "Recebi"/"Não recebi" na aula já concluída. Os dois lado a lado porque o clique de fechar a aula é o mesmo instante em que o professor sabe se o dinheiro entrou — um passo a mais depois é o passo que ninguém dá, e era assim que aula não paga entrava no recebido. A etiqueta de "A receber" é **âmbar e não vermelha**: não é erro nem atraso, é conta aberta.
+>
+> ⚠️ **TURMA É O CASO QUE QUEBRA SE NINGUÉM PENSAR NELE.** `Concluir` cascadeia pras N linhas, como já fazia desde 22/08. **Recebimento NÃO se espalha**: dos três alunos, dois pagaram e um não, e cada um tem a própria linha com o próprio preço. Isso se resolve na **lista de devedores do Financeiro**, onde cada aluno já aparece na PRÓPRIA linha com o próprio botão — mais barato e mais honesto do que abrir N linhas dentro do modal. E o **card colapsado só sai pago quando TODOS pagaram**: ele mostra o preço SOMADO da sessão, então dizer "paga" com dois de três seria mentira em cima de dinheiro. 📌 `AgendaDeTurma.Colapsar` monta um `Aula` novo campo a campo — **esquecer um campo ali some com a informação em silêncio**, e por isso o carimbo da sessão tem teste.
+>
+> ⚠️ **A ARMADILHA DE COBRAR DUAS VEZES, fechada:** `FechamentoDoMes.EntraNaConta` passou a exigir `PagaEm == null`. Sem isso, a aula acertada em dinheiro na quadra voltava na conta do fim do mês — o que o próprio `FechamentoDoMes` já chamava de *"o erro mais caro possível nesta tela"*, agora por uma porta nova. A conta fica "6 aulas, R$ 660" em vez de "8, R$ 880" quando duas foram pagas por fora; mês inteiro pago por fora não gera conta nenhuma. Dar baixa na conta **carimba as aulas dela**, reabrir **apaga o carimbo** — sem isso a conta de abril diz "paga" e as oito aulas de abril continuam, cada uma, dizendo "a cobrar".
+>
+> 🐛 **E O TESTE DESSA FRONTEIRA PEGOU UM DEFEITO MEU ANTES DE ELE EXISTIR EM PRODUÇÃO.** A primeira versão do carimbo marcava TODAS as aulas do aluno naquela competência — **inclusive a que ele já tinha acertado em dinheiro ANTES do fechamento**, e que por isso nem entrou na conta. Reabrir a conta depois apagava aquele Pix, que aconteceu de verdade. Agora o carimbo só alcança as que estavam em aberto, e o reabrir só apaga as que carregam o `PagaEm` **daquela** baixa (a marca de tempo é a mesma da conta, e é ela que identifica o grupo).
+>
+> 📐 **E AS OUTRAS TRÊS TELAS QUE DIZIAM "RECEBIDO" FORAM JUNTO** — Relatório, Painel do Professor na tela inicial e a tabela por local. As três somavam aula **DADA** sob um rótulo de dinheiro: o mesmo defeito, por outras portas. Deixá-las poria **dois "Recebido" diferentes pro mesmo mês** na frente do professor, que é como ele conclui que o sistema perdeu dinheiro dele. O total da tabela por local agora **bate com o card do topo**, e tem teste travando isso.
+>
+> 🐘 **A MIGRATION FOI CONFERIDA CONTRA UM POSTGRES DE VERDADE, COM DADOS** — e não só lida. O `EF InMemory` **não roda migration nenhuma**, então o backfill é a única parte deste trabalho que teste algum não alcança. Nove linhas semeadas no schema **ANTIGO**, migration aplicada por cima, nove casos conferidos um a um: dada sem conta **carimba**; dentro de conta **Aberta fica em aberto**; dentro de conta **Paga carimba**; falta cobrável, Confirmada, reposição e aula de R$ 0 **não carimbam**; e as duas que provam a identidade — aluno **com conta** com conta Aberta do mês dele fica em aberto, o **mesmo** aluno num mês sem conta fechada carimba. `Down` rodado (derruba a coluna, preserva as nove aulas) e `has-pending-model-changes` limpo.
+>
+> ⚠️ **O BACKFILL NÃO É ENFEITE.** Coluna nova nasce nula, e nulo em toda aula já dada faria o Financeiro abrir em **"Recebido R$ 0,00"** com o histórico inteiro na lista de devedores — o professor leria como "o sistema perdeu o meu dinheiro". Até esta migration, `Realizada` **SIGNIFICAVA** recebido: carimbar preserva a verdade que estava no ar em vez de inventar uma nova. **Menos as aulas dentro de conta do mês ainda Aberta** — essas ele SABE que não recebeu, e carimbá-las apagaria dívida real de mensalista.
+>
+> 🧪 **4.994 testes, 0 falhas (40 novos), 5 avisos — os mesmos de antes.** Migration `AddPagaEmToAula`, com backfill.
+>
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `5176a61` (PR #36, CI #695 verde). Deploy run **#50 → dev** e **#51 → prod**, os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita** (o proxy da sessão web recusa a saída, `CONNECT tunnel failed, 403`), e **as telas novas NÃO foram vistas renderizadas** — sem browser nesta sessão. Neste mesmo dia, olhar a arte pegou três defeitos que a suíte não pegou: os dois botões da folha e o botão do devedor ainda merecem um olho do Felipe.
+>
+> 🐘 **E o backfill rodou sobre os dados REAIS na subida** — foi conferido antes contra um Postgres de verdade com nove casos, mas é a primeira e única vez que ele passa pelo banco de produção. Se algum número do Financeiro parecer errado, é aqui que se olha primeiro.
+>
+>
+> Antes, no mesmo dia — 📅 **CALENDÁRIO E RELÓGIO PRA MARCAR AULA, E A GRADE DA AGENDA DE VOLTA PRA DENTRO DO CARD.**
+>
+> 📅 **"ADICIONAR AULA" TROCOU `datetime-local` POR `date` + `time` — E O MOTIVO NÃO ERA ESTÉTICO.** 🗣️ O pedido do Felipe veio com a razão: *"o motivo de marcar aula assim é para que o professor consiga saber que dia da semana que é"*. No Android o `datetime-local` abre a **rodinha de rolagem**, onde a data é um número solto — sem calendário e sem dia da semana. `type="date"` abre o calendário do sistema (com D S T Q Q S S no cabeçalho) e `type="time"` abre o relógio. **E como o motivo é o DIA DA SEMANA, a tela passou a escrevê-lo por extenso embaixo do campo**: o calendário mostra enquanto está aberto, mas depois de fechar sobra "18/08/2026", que é justamente a pergunta que ele está respondendo ao marcar a aula.
+>
+> ⚠️ **O SERVIDOR RECEBE OS DOIS SEPARADOS E JUNTA COM PARSING INVARIANTE** (`Services/DataEHoraDoFormulario.Juntar`). O app roda em pt-BR e o `<input type="date">` manda sempre `yyyy-MM-dd` — lido na cultura corrente isso não é 18 de agosto, é uma data que pode não existir. 🐛 **E `TimeSpan.TryParseExact` com `"HH\:mm"` devolve FALSO pra `"14:00"`**: os formatos customizados de `TimeSpan` usam outros especificadores, e `HH` simplesmente não casa. Trocado por `TimeOnly.TryParseExact`. Custou uma rodada de testes vermelhos pra aparecer, e está escrito no arquivo pra não custar duas.
+>
+> 🧩 **O JS ganhou UMA função (`baseDataHora()`) que devolve o MESMO texto que o `datetime-local` mandava** — por isso o gerador de datas da aula fixa e o aviso de fim de aula não mudaram uma linha. ⚠️ **O dia da semana é montado por PARTES, nunca com `new Date("2026-08-18")`**: string só-data é lida como UTC pelo JS e volta o dia ANTERIOR em fuso negativo, ou seja, no Brasil inteiro — uma aula de terça apareceria como segunda. E o `hora-sugerida.js` (global) passou a cobrir os três tipos, com as duas partes saindo do MESMO instante: às 23:30 a próxima hora cheia é 00:00 de AMANHÃ, e duas contas separadas sugeririam o dia de ontem com a hora de hoje.
+>
+> 💸 **O preço: 23 chamadas de teste acompanharam a troca de assinatura** (10 nomeadas, 13 posicionais). Foi o custo de ter UMA porta em vez de duas — a alternativa era um campo escondido sincronizado por JS, que falha em silêncio e grava a aula no dia errado. **4.954 testes, 0 falhas (20 novos).** 📌 As telas de **EDITAR aula** e de **ENCAIXE** (Minha Agenda) continuam com `datetime-local`: postam pra actions diferentes e o pedido era desta tela. Aplicar o mesmo padrão nelas está **em aberto**, esperando o Felipe pedir.
+>
+> 🐛 **A GRADE DA AGENDA ESTAVA QUEBRADA NO CELULAR — visto pelo Felipe em produção.** Na visão de Semana, "QUI 27" e "SEX 28" apareciam **flutuando fora da borda do card**, sobre o fundo da página, e os dias de cima não batiam com as colunas de baixo. **A causa é uma linha:** o `overflow-x: auto` estava só no `.pdz-grade-corpo`. As duas faixas são `display:flex` com as mesmas sete colunas de largura mínima — o corpo rolava por dentro do card e o CABEÇALHO, sem rolagem, transbordava. Num celular de 360px as sete colunas somam mais de 570px, e a sobra vazava pra fora. Agora quem rola é **um wrapper só**, com as duas faixas dentro.
+>
+> 🧵 **A outra metade da correção: `width: max-content` COM `min-width: 100%` nas duas.** Sem o `max-content` elas parariam na largura do card e as colunas se espremeriam; sem o `min-width` encolheriam abaixo dele em tela larga, deixando um vão à direita. Juntos preenchem no desktop, crescem e rolam no celular — e, o que importa aqui, **dão a MESMA largura pras duas**, que é o que mantém o dia alinhado com a coluna dele. ⚠️ **3 testes de FONTE, escritos antes e vistos falhar, e a escolha é consciente**: não há suíte de CSS neste projeto e a alternativa era não travar nada. Eles prendem a INVARIANTE, não a aparência — quem devolver o `overflow-x` pro corpo fica vermelho, que é exatamente o caminho de volta do defeito. ⚠️ O código quebrado era do PR #31, não deste branch; foi corrigido aqui porque **tela quebrada em prod não espera a próxima leva**.
+>
+> 📄 **E o `RECEBIMENTO-DA-AULA.md` foi escrito neste bloco** — desenho primeiro, porque mexe em dinheiro e gera migration. Foi aprovado e implementado no mesmo dia: está na entrada acima.
+>
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod, nas duas levas.** A grade da agenda na `79b596f` (PR #34) — deploy **#46 → dev** e **#47 → prod**; a data/hora da aula na `15815d2` (PR #35) — deploy **#48 → dev** e **#49 → prod**. Os quatro `success`, e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita**: o proxy da sessão web recusa a saída (`CONNECT tunnel failed, 403`), então a evidência é o job, não uma chamada minha ao site. **Sem migration em nenhuma das duas.**
+>
+>
+> Antes, no mesmo dia — 🖼️ **CINCO CARDS NOVOS, E TRÊS DEFEITOS QUE SÓ APARECERAM OLHANDO AS ARTES.**
+>
+> 🗣️ **O pedido do Felipe:** um amigo mandou três propostas (preencher vaga · feed social · páginas exportáveis pro WhatsApp e Instagram) e ele pediu análise antes de decidir. A análise apontou que **a proposta 3 era a mais barata das três, não a mais cara** — o motor de artes já existia inteiro desde 12-13/08 (`CartaoCompartilhavel`, 1080×1350, cinco artes no ar) e o que faltava era layout, não tecnologia. Ele aprovou os quatro cards de torneio, o card da turma e o "faltam N".
+>
+> 📊 **A TELA DA SEMANA PASSOU A DIZER QUANTOS FALTAM.** O número já existia em dois lugares e não era dito em nenhum: a Home carregava `JogoDaSemanaVM.Vagas` sem exibir e a tela da Semana mostrava "N na lista" sem comparar com `VagasMaximas`. ⚠️ **Falta e sobra não são o mesmo sinal invertido**, e é a presença presumida que impõe isso: a panelinha inteira nasce na lista, então uma turma de 10 com 4 vagas abre TODA semana com gente a mais — subtração crua responderia "faltam -6" e o botão de convidar apareceria em destaque justamente na semana em que vai sobrar gente. `Services/VagasDaSessao`, os dois métodos com piso em zero, e a frase de sobra em cinza (cor de chamado em informação ensina a ignorar a cor). A **Home não foi tocada de propósito**: o comentário dela declara a decisão de 21/08 de não mostrar fração de vagas ali.
+>
+> 🃏 **O CARD DA NOITE DA PANELINHA** (`/Cartoes/Panelinha`) fecha o ciclo que o "Registrar Jogo" abre — quem lançou o resultado sai da tela com a arte pronta em vez de digitar o ranking na mão no grupo. ⚠️ **É o primeiro card sobre um GRUPO PRIVADO, e isso mudou três regras**: só membro gera (o gate foi visto barrar — desliguei a checagem de propósito e os dois testes falharam); a página **não declara `og:image`** (prévia de link é o servidor da Meta buscando a imagem SEM SESSÃO — é por ali que o roster vazaria); e o `Png()` ganhou `publico: false`, porque `Cache-Control: public` autoriza proxy e CDN a guardar a resposta e devolvê-la a quem não é do grupo. O corte do pódio é por POSIÇÃO e não pelos N primeiros nomes: com 3 pontos por vitória e 1 por derrota, **empate é o caso NORMAL** de uma noite curta, e cortar por quantidade partiria empate no meio.
+>
+> 🏆 **QUATRO CARDS DE TORNEIO: pódio, classificação, resultados do dia e chave.** Nenhum deles calcula nada por conta própria — pódio lê os carimbos de `UltimaFase` que o mata-mata já deixou, classificação sai de `ClassificacaoDeGrupos.Ordenar` (a régua que o chaveamento usa), e "quem venceu" sai sempre de `QuemVenceu.Da`. Uma segunda régua aqui publicaria, **impresso e fora do nosso alcance**, um card dizendo que a dupla A passou enquanto o chaveamento coloca a B na semifinal — o defeito de 05/08 numa versão pior. ⚠️ **Americano não tem pódio**, e é decisão declarada em três lugares: lá o campeão sai da CLASSIFICAÇÃO e não de uma final, e o card de campeão já cobre o formato melhor.
+>
+> 🐛 **DOIS DEFEITOS ACHADOS ESCREVENDO OS TESTES, os dois de divergência com a tela:** (1) **jogo AO VIVO entrava na classificação** — a tela filtra `Status == "Finalizada"` e minha consulta não, então o 6x0 do primeiro set entrava como saldo de quem estava ganhando; (2) **"tabela zerada não vira arte" estava medido pelo campo errado** — `Ordenar` conta em `Jogos` as partidas em que a dupla APARECE, inclusive as agendadas, e um grupo recém-sorteado já nasce com `Jogos > 0` em todo mundo. A régua liberaria o card exatamente no estado que ela existe pra barrar.
+>
+> 👁️ **E O QUE ESTE BLOCO REALMENTE ENSINA: gerei os cinco cards em PNG e OLHEI, com a suíte inteira verde.** Três defeitos estavam lá, nenhum detectável por teste de regra. (1) O pódio da panelinha saía com as **linhas coladas** (passo de 40px pra um corpo de 44) e 200px de vão embaixo — eu dividia a faixa pelo TETO de linhas em vez de pela quantidade real. (2) O card do pódio escrevia **"CAMPEÃO" fixo**, e saiu assim em cima de uma dupla de "4ª Categoria Feminina" — a régua de gênero já existia em `CampeoesDoTorneio.Rotulo`. (3) O card de resultados **pintava a linha inteira de uma cor só**, então não dava pra saber quem venceu: uma linha em lime diz que os DOIS venceram. É a terceira vez que este projeto registra "olhar a arte pegou o que o teste não pegou" — 12/08 e 13/08 foram as outras duas.
+>
+> 📌 **Cicatriz medida em teste:** `Partida.Dupla1`/`Dupla2` são navegações OBRIGATÓRIAS, e todo `Include` delas vira INNER JOIN — partida com dupla inexistente **some da consulta**, em vez de aparecer com um lado vazio. Em produção a FK impede o estado; o teste existe pra a próxima pessoa não procurar o defeito no card.
+>
+> 📄 **`RESERVAS-DA-TURMA.md`: design escrito, nada codado.** A "lista de reservas" gera migration e mexe em quem enxerga uma turma fechada — é `architectural`, e `architectural` é design aprovado antes de código. A régua do Felipe (**o sistema sugere a um membro chamar, nunca chama sozinho**) amarra o documento. O desenho descobriu que o matching pedido JÁ RODA e que a metade que falta é o lado de quem se OFERECE — daí os dois caminhos: lista por TURMA (o pedido literal, ~3× mais caro, puxa junto visibilidade + vitrine) ou lista por HORÁRIO (uma tabela, zero coluna nova em `GrupoPrivado`, reusa a tela `Convidar` inteira). Recomendação: por horário, com a fraqueza declarada — ele é genérico e perde o vínculo com a turma. **Três decisões pendentes do Felipe no fim do documento.**
+>
+> 🚫 **O feed social ficou de fora, e o motivo é DADO, não gosto:** produção tem ~128-177 contas, 4 aparelhos com push e **zero partidas finalizadas** em torneio que conta pro ranking. Feed de atividade sem atividade abre vazio — é o mesmo argumento que empurrou a premiação anual pra 2027, e prêmio que estreia vazio queima a estreia.
+>
+> 🔒 **E O CACHE DO CARD DO DUELO FOI CORRIGIDO JUNTO** (pedido do Felipe depois de ler o relatório). Ele é de 12/08, exige login e saía com `Cache-Control: public` herdado do padrão do `Png(...)` — que é o certo pros cards de divulgação (é dele que a prévia do WhatsApp vive) e errado num card autenticado: `public` autoriza qualquer cache no caminho a guardar a resposta de UM e devolvê-la a OUTRO, e o duelo é montado do ponto de vista de quem pede. Teste escrito antes e visto falhar com `"public, max-age=3600"`. ⚠️ **Veio com CONTRAPROVA** (o cartaz continua `public`) — sem ela, um controller que respondesse `private` pra tudo passaria no teste sem provar nada. **Varridas as 14 actions do controller: só duas têm `[Authorize]` (duelo e panelinha), e as duas estão privadas.** Não foi criado gate mecânico pra isso: são dois endpoints e a régua está escrita no cabeçalho do controller — se virar rotina, vale um varredor no molde do `GateDeAutorizacaoDosPostsTests`.
+>
+> 🧪 **4.918 testes, 0 falhas (80 novos), 5 avisos — os mesmos de antes.** **Sem migration nenhuma** em todo o bloco.
+>
+> ✅ **PUBLICADO em 25/08/2026, em dev E em prod**, na `51bf8b7` (PR #32, CI #687 verde). Deploy run **#44 → dev** (28s) e **#45 → prod** (22s), os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. ⚠️ **A conferência externa do `/healthz` NÃO foi feita**: o proxy da sessão web recusa a saída (`CONNECT tunnel failed, 403`), então a evidência é o job, não uma chamada minha ao site.
+>
+>
+> Antes, no mesmo dia — 📅 **MINHA AGENDA VIRA ESTILO GOOGLE, E AULA GANHA ESPORTE (PADEL/TÊNIS/BEACH TÊNIS).**
+>
+> 🗣️ **O pedido do Felipe, de um print da "Minha Agenda":** *"o horario deveria preencher todo ali, tipo das 7 as 8, pra nao dar a impressão de ter espaço na agenda. Estilo google"* + *"eu tinha que poder clicar em um espaço e ter a opção de add aula. Estilo google"* + *"João, por exemplo, da aula de tenis e beach tenis também. Seria legal um campo pra isso."*
+>
+> 🧩 **A grade de Dia/Semana trocou de tabela por hora fixa (`<table>`, uma linha por hora) pra posicionamento absoluto** — `.pdz-grade-coluna` (`position:relative`) com cada `.pdz-evento` em `position:absolute`, `top`/`height` em **1px por minuto** calculado a partir de `DataHora`/`DuracaoMinutos`. Uma aula de 30min ocupa metade do espaço de uma de 1h, o buraco entre aulas aparece como buraco — antes toda aula, de qualquer duração, virava a mesma linha de uma hora. Absoluto e não `rowspan` de tabela porque `DuracaoDaAula.Opcoes` inclui 45min, que não é múltiplo de nenhuma grade de linha razoável.
+>
+> 🖱️ **Clicar num espaço vazio da grade abre "Adicionar Aula" com o horário já preenchido** — `AdicionarManual(DateTime? dataHora)` (novo parâmetro) recebe o clique convertido pra `yyyy-MM-ddTHH:mm` (arredondado pros 15min mais próximos) e o campo de data/hora nasce com esse valor, no lugar da sugestão genérica de "próxima hora cheia" (`js/hora-sugerida.js` já cedia pro valor vindo do servidor — nenhuma mudança lá).
+>
+> 🏓 **`Aula.Esporte` (novo, `string`, migration `AddEsporteToAula` com `defaultValue: "Padel"`)** — segue o mesmo padrão de `Aula.Status`/`PoliticaAula`: sem enum de C#, uma classe estática (`Services/EsporteDaAula`) com `Padel`/`Tênis`/`Beach Tênis` e `Padrao = Padel`. Escolhido em "Adicionar Aula" e em "Editar" (pré-selecionado em Padel — quem só dá padel não repara no campo). Turma inteira (`Aula.TurmaId`) muda de esporte junto, igual horário/local/duração: os N alunos jogam a MESMA sessão.
+>
+> 🎯 **Minha Agenda ganha filtro por esporte — só aparece pra quem já lançou mais de um.** `AgendaProfessorVM.EsportesDoProfessor` é calculado de TODA aula do professor (não só da janela aberta), decidindo se o filtro existe; `EsporteFiltro` é o que a URL pediu, validado contra a lista antes de filtrar `NoPeriodo` — um `?esporte=` fora da lista (ou de aba velha) cai em "todos" sem erro.
+>
+> 🐛 **Achado implementando, não em produção:** `EdicaoDeAula`/`MudancaDaAula` só conhecem horário/local/preço/duração — trocar SÓ o esporte caía no early-return de "nada mudou nessa aula" e a troca nunca ia pro banco. `Editar` ganhou uma checagem de `esporteMudou` separada da `MudancaDaAula`, que não precisa entrar na notificação do aluno (esporte não muda pra onde ele vai nem quando).
+>
+> 🧪 **4.848 testes, 0 falhas (13 novos)** — esporte nasce em Padel, escolha explícita é gravada, esporte fora da lista cai no padrão (Adicionar e Editar), editar só o esporte salva (regressão do bug acima), editar propaga pra turma inteira, filtro só aparece com 2+ esportes lançados, filtro restringe a lista, filtro inválido na URL é ignorado. Grade/clique são mudança de tela pura, sem lógica nova pra testar — build limpo cobre a Razor, suíte inteira cobre regressão.
+>
+> ✅ **Publicado**, PR #31 mergeado (`80e27ed`), build-685 no ar em prod — deploy conferido nos logs do job, com a linha "Feito. build-685-80e27ed no ar em prod". Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
+>
+> Antes, em 24/08/2026: 📶 **O CHIP DO WHATSAPP VOLTOU: `connectionStatus: open`, CONFERIDO NO SERVIDOR.**
 >
 > ✅ **O canal está de pé pela primeira vez desde 04/08.** Instância `padelizou`, número `5551 9239-5650`, `updatedAt` de hoje 12:30 UTC. **`_count` de mensagens em ZERO** — nada saiu ainda pelo chip novo, o que faz desta a última janela pra ajustar o que vai pro canal antes do primeiro disparo de verdade.
 >
@@ -20,7 +238,7 @@
 >
 > 🔒 **A saída do `fetchInstances` carrega o `token` da instância.** É credencial: não colar o print em grupo, issue ou PR.
 >
-> Antes, em 22/08: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
+> Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >
 > 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
 >
@@ -36,7 +254,7 @@
 >
 > 🧪 **4.835 testes, 0 falhas (13 novos, 2 atualizados)** — sorteio não avisa mais ninguém, aprovar libera e avisa, só organizador/admin aprova ou desfaz, desfazer limpa grupos/jogos/vínculo de dupla, desfazer recusa com jogo já começado, `/Jogos` escondido de quem não pode aprovar e visível pra quem pode.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: `Status` continua sendo texto livre, só ganhou mais um valor possível.
+> ✅ **Publicado**, PR #29 mergeado (`135f7fd`), build no ar.
 >
 > Antes, no mesmo dia: 🏆 **CATEGORIA NOVA: "LENDAS" — VETERANIA, SEM NÍVEL, SEM SEPARAR POR SEXO.**
 >
@@ -50,7 +268,8 @@
 >
 > 🧪 **4.824 testes, 0 falhas (18 novos)** — reconhecimento pelo nome, fora da escada sem travar nível, seed no meio do caminho, troféu de vidro, e o ponto central: dois homens (ou duas mulheres) entram juntos em Lendas sem barreira, ao contrário de Mista/Casal.
 >
-> ⚠️ **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`. Sem migration: nada de schema neste bloco, só dado semeado no startup.
+> ✅ **Publicado**, PR #27 mergeado (`7b7b22d`), build no ar.
+>
 > Antes, no mesmo dia: 🔒 **A REGRA 0 GANHOU GATE MECÂNICO, E OS 37 CS8602 VIRARAM ZERO — DEPOIS ERRO DE BUILD.**
 >
 > 🗣️ **Começou com um link do Felipe** pro [vibe-coding-toolkit](https://github.com/soumatheusgomes/vibe-coding-toolkit) — 31 arquivos, ~7.850 linhas de método de trabalho com IA. Li inteiro e adotei o que traduz pra cá; o eixo ESLint/Biome (~1.600 linhas) é JS/TS e não serve, mas a ideia dele de **promoção rastreada** (regra nasce como aviso, vira erro quando a contagem zera) virou o burndown abaixo.
@@ -75,7 +294,7 @@
 >
 > 🧪 **4.809 testes, 0 falhas.** Build: 42 avisos → 5. **Sem migration.** Nenhum comportamento de produção muda, exceto um rótulo defensivo em `Details.cshtml`.
 >
-> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio, faltando copiar `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` pro environment `dev`.
+> ✅ **PR #26 mergeado, CI verde, release `build-672-4413fd2` publicado.** ⚠️ **NÃO foi feito deploy** — nem `dev` nem `prod`. ~~E a pendência de infra de 19/08 segue de pé: o deploy pro `dev` morre com `SSH_KEY` vazio.~~ ⚠️ **ESTA FRASE JÁ ESTAVA ERRADA QUANDO FOI ESCRITA** (corrigido em 25/08): a pendência caiu em **21/08** — está registrado logo abaixo, no bloco daquele dia, com o run #36 passando. A frase foi copiada de uma entrada velha e sobreviveu; em 25/08 ela fez uma sessão repetir ao Felipe que o dev estava quebrado quando os deploys #43, #44 e #45 estavam passando. **Entrada de diário copiada sem conferir vira fato falso com data.**
 >
 > Antes, no mesmo dia: 👥 **TURMA DE 2+ GANHA NOME E COBRANÇA POR ALUNO — "CADA UM RECEBE SUA COBRANÇA INDIVIDUALMENTE".**
 >
@@ -98,11 +317,19 @@
 >
 > 🧪 **4.806 testes, 0 falhas (25 novos)** — cobrindo a divisão de preço, a criação em turma (com validação de nome faltando), a renovação semanal com TurmaId estável (incluindo o cenário do bug do cancelamento avulso), o colapso de exibição e as quatro ações cascateando (e a de aula solo continuando isolada).
 >
-> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). **Commitado, não publicado** — falta abrir/mergear o PR e disparar o `Deploy`.
+> ⚠️ **Migration `TurmaNaAula` gerada em worktree limpo, confere sem pendência** (`has-pending-model-changes`). ✅ **Publicado**, PR #25 mergeado (`fda585f`), build no ar.
 >
 > 🕳️ **Limitação conhecida, documentada em código, não resolvida:** `SincronizarGoogle` (reenvio de aula que ficou fora do Google) ainda cria um evento POR LINHA — se a criação do evento único falhar inteira na hora de `AdicionarManual`, o reenvio posterior criaria N eventos separados em vez de recriar o compartilhado. Caso raro (a criação já é best-effort com retry manual via essa mesma tela) e fora do escopo deste bloco.
 >
 > Antes, na véspera (21/08): 💾 **O PACOTE DE DEPLOY CAIU DE 536 MB PRA 66 MB, E O CI PASSOU A REPROVAR POR CVE.**
+>
+> ✅ **PUBLICADO NO DEV em 24/08/2026, na `build-681-eed7140`** (PR #24). **Produção continua na build anterior** — a regra 3 manda passar pelo dev primeiro, e este bloco muda o LAYOUT do pacote, não o comportamento do app. **Sem migration**: nada de banco aqui.
+>
+> 📏 **A medida no servidor bateu com a de casa.** O `curl` do `deploy.sh` baixou **23,8 MB** — o `tar.gz` desse release era **173 MB** antes do RID. E o `==> Feito. build-681-eed7140 no ar em dev` só é impresso DEPOIS do laço que exige `/healthz` respondendo **200**: se não respondesse em 60s, o script teria voltado o symlink sozinho e o job ficaria vermelho. Não há linha de rollback no log. Ou seja: o app sobe com **20 DLLs em vez de 66** e com o `libSkiaSharp.so` na RAIZ em vez de `runtimes/linux-x64/native/`, e o `dotnet Padelizou.dll` do systemd carrega esse layout sem reclamar.
+>
+> ⚠️ **NÃO CONFERIDO NO NAVEGADOR** — a política de rede da sessão bloqueia `dev.padelizou.com.br` com 403 no CONNECT (mesma nota de 19, 20 e 21/08). **A prova barata, sem login:** abrir `/Cartoes/CartazImagem/<id-de-um-torneio>` no dev. O `CartoesController` não tem `[Authorize]`, e essa rota desenha um PNG pelo **SkiaSharp** — é o ÚNICO caminho que o `/healthz` não exercita, e é justamente o que o layout achatado põe à prova. Se voltar imagem, o nativo carregou. Se voltar erro 500, é o `libSkiaSharp` não sendo achado — e aí o caminho é `Deploy` com `acao=rollback`, `ambiente=dev`.
+>
+> 🔑 **E o deploy pro `dev` funcionou** — vale registrar porque o bloco de 22/08 acima ainda dá a pendência do `VPS_SSH_KEY` vazio como de pé, contradizendo o de 21/08 que a deu por resolvida. O run `deploy → dev` de 24/08 passou pelo `Preparar o acesso ao VPS` e publicou. **A pendência está fechada mesmo.**
 >
 > 🎯 **Os dois achados ALTOS da auditoria e o portão de CVE saíram do papel.** O `tar.gz` que o CI anexa no release foi de **173 MB pra 24 MB**, e o pacote publicado de **536 MB pra 66 MB** — 66 DLLs viraram 20, e as 18 plataformas de binário nativo viraram zero.
 >
@@ -2436,6 +2663,32 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 21/08/2026 — 🏟️ Torneio em MAIS DE UM CLUBE (build-657, **em produção**)
+
+Pedido do Felipe, tirado do **Dez E Batata**: eles dividem o torneio em dois clubes e põem
+cada categoria inteira num deles, pra ninguém passar o fim de semana indo e voltando.
+
+**A fonte da verdade é a QUADRA** (`Quadra.ClubeId`, anulável = clube do torneio). Não existe
+tabela de sedes: a lista de clubes é o DISTINCT daí. Uma sede cadastrada à parte poderia
+existir sem quadra nenhuma, e o torneio teria duas respostas pra "onde eu jogo?".
+
+**Duas regras de naturezas opostas, e a ordem entre elas é o miolo:**
+- `Categoria.ClubeId` é trava **DURA** — a categoria não recebe quadra do outro clube nem com
+  o horário lotado. Não pôde pegar carona na quadra PREFERIDA, que cede no degrau 3.
+- `Torneio.MinutosParaTrocarDeClube` (30 padrão) é **MOLE** — cede quando a grade aperta,
+  porque a prioridade declarada é nenhuma quadra parar. Cede nesta ordem: folga → quadra do
+  clube certo → não repetir gente.
+
+O clube entrou em todas as telas onde errar manda a pessoa pro prédio errado (etiqueta de
+jogo, chave, `.ics`, aviso "sua quadra vagou", seletor do placar, Mesa de Controle) — a régua
+é `Services/LugarDoJogo`.
+
+⚠️ **O nome da quadra continua único POR TORNEIO**, não por clube: o motor identifica quadra
+por NOME (`Partida.NomeQuadra` é texto solto, sem FK). A tela sugere o clube dentro do nome.
+
+⚠️ **Falta verificar no navegador as telas do organizador** (criar/editar torneio): elas
+exigem login e a verificação parou aí. O caminho servidor está coberto por teste.
 
 ### 06/08/2026 (fim da noite) — 🚨 Erro em produção deixou de ser invisível
 

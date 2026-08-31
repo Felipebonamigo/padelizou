@@ -9,6 +9,16 @@ publish/
 appsettings.json
 **/App_Data/GoogleTokens/
 
+# Intermediário do gerador dos one-pagers. O `.src.html` é o rascunho de onde sai o
+# `.html` final; só o final e o PDF dele é que são entregáveis.
+#
+# ⚠️ Os one-pagers em si (CLUBES.html, Padelizou-Jogadores.pdf, telas/…) SÃO versionados,
+# de propósito — não são lixo de build. Metade deles já estava no repositório e a outra
+# metade ficou de fora por esquecimento, o que fazia `git status` nunca ficar limpo e
+# convidava um `git add -A` distraído a levar tudo junto. Ignorá-los "pra limpar a árvore"
+# some com entregável de verdade, calado.
+*.src.html
+
 # Backups locais e config pessoal
 Migrations_old_20260721_backup/
 

@@ -133,7 +133,7 @@ public class EdicaoDeAulaTests
         var novoHorario = DateTime.Today.AddDays(5).AddHours(9);
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, hangar.Id, novoHorario, 150m);
+        await controller.Editar(aula.Id, hangar.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), 150m);
 
         var salva = await ctx.Aulas.SingleAsync();
         Assert.Equal(novoHorario, salva.DataHora);
@@ -154,7 +154,7 @@ public class EdicaoDeAulaTests
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, hangar.Id, DateTime.Today.AddDays(5).AddHours(9), 150m);
+        await controller.Editar(aula.Id, hangar.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(5).AddHours(9)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(5).AddHours(9)), 150m);
 
         var anotacao = await ctx.AnotacoesAula.SingleAsync();
         Assert.Equal(aula.Id, anotacao.AulaId);
@@ -172,7 +172,7 @@ public class EdicaoDeAulaTests
         google.AtualizarEventoAsync(Arg.Any<Aula>()).Returns("evt-1");
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id, google);
-        await controller.Editar(aula.Id, batata.Id, DateTime.Today.AddDays(4).AddHours(9), 110m);
+        await controller.Editar(aula.Id, batata.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(4).AddHours(9)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(4).AddHours(9)), 110m);
 
         // Sem isto a aula é corrigida no Padelizou e o Google segue com o horário velho — que
         // é onde o professor olha antes de marcar outra coisa.
@@ -192,7 +192,7 @@ public class EdicaoDeAulaTests
         var google = Substitute.For<IGoogleCalendarService>();
         var controller = TestInfra.NovoAulasController(ctx, professor.Id, google);
 
-        await controller.Editar(aula.Id, batata.Id, aula.DataHora, 130m);
+        await controller.Editar(aula.Id, batata.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 130m);
 
         await google.DidNotReceive().AtualizarEventoAsync(Arg.Any<Aula>());
         Assert.Equal(130m, (await ctx.Aulas.SingleAsync()).Preco);
@@ -209,7 +209,7 @@ public class EdicaoDeAulaTests
         var aula = Marcada(ctx, professor, batata, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, batata.Id, ocupado, 110m);
+        await controller.Editar(aula.Id, batata.Id, data: DataEHoraDoFormulario.ParaCampoDeData(ocupado), hora: DataEHoraDoFormulario.ParaCampoDeHora(ocupado), 110m);
 
         // Dois alunos no mesmo horário é o erro que a agenda existe pra evitar.
         Assert.Equal(DateTime.Today.AddDays(4).AddHours(8), (await ctx.Aulas.FindAsync(aula.Id))!.DataHora);
@@ -226,7 +226,7 @@ public class EdicaoDeAulaTests
         var aula = Marcada(ctx, professor, batata, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, batata.Id, aula.DataHora, 95m);
+        await controller.Editar(aula.Id, batata.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 95m);
 
         Assert.Equal(95m, (await ctx.Aulas.SingleAsync()).Preco);
     }
@@ -244,7 +244,7 @@ public class EdicaoDeAulaTests
         var aula = Marcada(ctx, professor, batata, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, intruso.Id);
-        await controller.Editar(aula.Id, hangar.Id, DateTime.Today.AddDays(9), 999m);
+        await controller.Editar(aula.Id, hangar.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(9)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(9)), 999m);
 
         var intacta = await ctx.Aulas.SingleAsync();
         Assert.Equal(batata.Id, intacta.LocalAulaId);
@@ -268,7 +268,7 @@ public class EdicaoDeAulaTests
         var aula = Marcada(ctx, professor, batata, DateTime.Today.AddDays(4).AddHours(8));
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, quadraAlheia.Id, aula.DataHora, 110m);
+        await controller.Editar(aula.Id, quadraAlheia.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 110m);
 
         Assert.Equal(batata.Id, (await ctx.Aulas.SingleAsync()).LocalAulaId);
     }
@@ -284,7 +284,7 @@ public class EdicaoDeAulaTests
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, hangar.Id, DateTime.Today.AddDays(5), 300m);
+        await controller.Editar(aula.Id, hangar.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(5)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(5)), 300m);
 
         var intacta = await ctx.Aulas.SingleAsync();
         Assert.Equal(batata.Id, intacta.LocalAulaId);
@@ -306,7 +306,7 @@ public class EdicaoDeAulaTests
         var push = Substitute.For<IPushNotificationService>();
         var controller = TestInfra.NovoAulasController(ctx, professor.Id, push: push);
 
-        await controller.Editar(aula.Id, hangar.Id, DateTime.Now.AddDays(5), 150m);
+        await controller.Editar(aula.Id, hangar.Id, data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Now.AddDays(5)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Now.AddDays(5)), 150m);
 
         await push.Received(1).EnviarParaJogadorAsync(
             aluno.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),

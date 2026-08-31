@@ -115,6 +115,11 @@ public class ProfessoresController : Controller
             .OrderByDescending(a => a.AtualizadoEm ?? a.CriadoEm)
             .ToListAsync();
 
+        var esportesSalvos = await _context.ProfessorEsportes
+            .Where(pe => pe.ProfessorId == id)
+            .Select(pe => pe.Esporte)
+            .ToListAsync();
+
         var vm = new ProfessorPublicoVM
         {
             Professor = professor,
@@ -127,6 +132,10 @@ public class ProfessoresController : Controller
                 .Select(pc => pc.Cidade.Nome)
                 .OrderBy(n => n)
                 .ToListAsync(),
+            // Ordem fixa (Padel, Tênis, Beach Tênis), não a ordem que caiu no banco.
+            EsportesQueEnsina = EsporteDaAula.Todos
+                .Where(esportesSalvos.Contains)
+                .ToList(),
             TotalAvaliacoes = avaliacoes.Count,
             MediaNota = avaliacoes.Any() ? Math.Round(avaliacoes.Average(a => a.Nota), 1) : null,
             // O interruptor do professor decide se TEXTO aparece; a nota e a média ficam
@@ -261,6 +270,31 @@ public class ProfessoresController : Controller
 
         await _context.SaveChangesAsync();
         TempData["Sucesso"] = "Sua apresentação foi atualizada.";
+        return RedirectToAction("Perfil", new { id = meuId });
+    }
+
+    // Esportes que o professor dá aula (Padel, Tênis, Beach Tênis — muitos ensinam mais de
+    // um). Pedido do Felipe: "acho que é uma realidade dos professores".
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> SalvarEsportes(List<string>? esportes)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId))
+            return RedirectToAction("Perfil", "Auth");
+
+        var professor = await _context.Jogadores.FindAsync(meuId);
+        if (professor == null || !professor.IsProfessor) return Forbid();
+
+        var validos = EsporteDaAula.Todos
+            .Where(e => esportes != null && esportes.Contains(e))
+            .ToList();
+
+        var atuais = await _context.ProfessorEsportes.Where(pe => pe.ProfessorId == meuId).ToListAsync();
+        _context.ProfessorEsportes.RemoveRange(atuais);
+        _context.ProfessorEsportes.AddRange(validos.Select(e => new ProfessorEsporte { ProfessorId = meuId, Esporte = e }));
+
+        await _context.SaveChangesAsync();
+        TempData["Sucesso"] = "Seus esportes foram atualizados.";
         return RedirectToAction("Perfil", new { id = meuId });
     }
 }

@@ -1,0 +1,109 @@
+@model List<Padelizou.Services.PodioDeCategoria>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    ViewData["Title"] = $"Pódio — {torneio.Nome} - Padelizou";
+
+    // Endereço ABSOLUTO da primeira arte, pra prévia do link. Relativo não serve: quem lê a
+    // meta é o servidor da Meta, de fora, sem saber qual é o nosso domínio.
+    var primeiro = Model.FirstOrDefault();
+    var capa = primeiro == null ? null : Url.Action("PodioImagem", "Cartoes",
+        new { id = torneio.Id, categoriaId = primeiro.CategoriaId }, Context.Request.Scheme);
+
+    @* Esta página É da família de divulgação (aberta, sem login), então ela PODE ter prévia —
+       ao contrário do card da panelinha e do duelo. As <meta> saem do _Layout: escrevê-las
+       aqui faria a página ter duas de cada uma. *@
+    ViewData["OgTitulo"] = $"Pódio — {torneio.Nome}";
+    ViewData["Descricao"] = $"Campeões, vices e semifinalistas do {torneio.Nome}, no Padelizou.";
+    if (capa != null)
+    {
+        ViewData["OgImagem"] = capa;
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@torneio.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-award-fill text-warning"></i> Pódio
+    </h2>
+    <p class="text-muted">@torneio.Nome</p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (Model.Count == 0)
+    {
+        @* ⚠️ A frase diz o que FALTA, e diz a diferença que o organizador vai notar: o card de
+           campeão aparece antes deste. Pódio precisa de campeão E vice — e no Americano o vice
+           não existe como carimbo, então lá esta página fica vazia pra sempre, de propósito. *@
+        <div class="alert alert-light border rounded-4">
+            <strong>Ainda não há pódio fechado neste torneio.</strong>
+            <div class="small text-muted">
+                A arte de cada categoria nasce quando a final é encerrada — ela precisa do
+                campeão e do vice. Em torneio no formato Americano o pódio não é montado assim:
+                ali vale o
+                <a asp-action="Campeoes" asp-route-id="@torneio.Id">card de campeão</a>.
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small mb-4">
+            Uma arte por categoria, com campeão, vice e semifinalistas. Salve no celular e
+            mande no story.
+        </p>
+
+        foreach (var podio in Model)
+        {
+            var imagem = Url.Action("PodioImagem", "Cartoes",
+                new { id = torneio.Id, categoriaId = podio.CategoriaId });
+            var arquivo = $"podio-{podio.CategoriaId}.png";
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="fw-bold" style="color: var(--pdz-ink);">
+                            @Padelizou.Services.CategoriaNaTela.Curto(podio.Categoria)
+                        </div>
+                        <div class="small text-muted">@podio.Campeao</div>
+                    </div>
+
+                    @* loading="lazy" pelo mesmo motivo do card de campeão: num torneio de 12
+                       categorias são 12 PNGs de ~1080px, e carregar todos de uma vez no 4G do
+                       clube trava a página. *@
+                    <img src="@imagem" alt="Pódio de @podio.Categoria"
+                         class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                         style="max-width: 380px;" />
+
+                    <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                        <a href="@imagem" download="@arquivo"
+                           class="btn btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
+                        <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                data-imagem="@imagem" data-arquivo="@arquivo"
+                                data-titulo="Pódio — @podio.Categoria">
+                            <i class="bi bi-share-fill"></i> Compartilhar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

@@ -32,10 +32,15 @@ public class QuadraPagaPeloAlunoTests
         return (ctx, professor, local);
     }
 
+    // `PagaEm` preenchido de propósito: desde 25/08/2026 "Recebido" é o dinheiro que ENTROU, e
+    // não a aula que aconteceu (ver Services/RecebimentoDaAula). Sem isto, estes testes — que
+    // são sobre CUSTO de quadra — mediriam a régua de recebimento em vez da de custo, e o
+    // líquido sairia negativo por um motivo que não tem nada a ver com o que eles perguntam.
     private static Aula Realizada(Jogador professor, LocalAula local, DateTime quando, bool alunoPagaQuadra = false) => new()
     {
         ProfessorId = professor.Id, LocalAulaId = local.Id, NomeAlunoAvulso = "Medina",
         DataHora = quando, Preco = 110, Status = PoliticaAula.Realizada, AlunoPagaQuadra = alunoPagaQuadra,
+        PagaEm = quando.AddHours(1),
     };
 
     private static async Task<FinanceiroProfessorVM> AbrirFinanceiroAsync(DbPadelContext ctx, int professorId)
@@ -54,7 +59,7 @@ public class QuadraPagaPeloAlunoTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: false, semanasRecorrencia: 0, alunoPagaQuadra: alunoPaga);
 
         Assert.Equal(alunoPaga, (await ctx.Aulas.SingleAsync()).AlunoPagaQuadra);
@@ -70,7 +75,7 @@ public class QuadraPagaPeloAlunoTests
 
         await TestInfra.NovoAulasController(ctx, professor.Id).AdicionarManual(
             localId: local.Id, nomeAluno: "Medina", telefoneAluno: null,
-            dataHora: DateTime.Today.AddDays(2).AddHours(7), preco: null,
+            data: DataEHoraDoFormulario.ParaCampoDeData(DateTime.Today.AddDays(2).AddHours(7)), hora: DataEHoraDoFormulario.ParaCampoDeHora(DateTime.Today.AddDays(2).AddHours(7)), preco: null,
             recorrente: true, semanasRecorrencia: 4, alunoPagaQuadra: true);
 
         var aulas = await ctx.Aulas.ToListAsync();

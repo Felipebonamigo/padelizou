@@ -15,7 +15,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
-        public async Task<IActionResult> AdicionarManual()
+        public async Task<IActionResult> AdicionarManual(DateTime? dataHora = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -35,6 +35,13 @@ namespace padelizou.Controllers
             // parágrafo acima: a lista inteira de um professor cabe folgada numa página, e
             // filtrar no navegador funciona com o sinal que a quadra tiver.
             ViewBag.MeusAlunos = await MeusAlunosAsync(professorId.Value);
+
+            // Veio de um clique na grade da Minha Agenda (ver MinhaAgenda.cshtml): o campo já
+            // nasce com o horário daquele espaço vazio, no lugar da sugestão genérica de
+            // "próxima hora cheia" (js/hora-sugerida.js já cede pro valor vindo do servidor).
+            ViewBag.DataHoraSugerida = dataHora;
+
+            ViewBag.Esportes = EsporteDaAula.Todos;
 
             return View(locais);
         }
@@ -149,13 +156,35 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
-            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
+            string? data, string? hora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
             int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null,
             int? duracaoMinutos = null, bool semPrazo = false,
-            List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null)
+            List<string>? nomesAlunos = null, List<int?>? alunoIds = null, List<string?>? telefonesAlunos = null,
+            string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS EM VEZ DE UM `DateTime dataHora` NA ASSINATURA, e o motivo é a
+            // CULTURA: a tela manda "2026-08-18" e "14:00" (o que `<input type="date">` e
+            // `<input type="time">` mandam), o app roda em pt-BR, e o binder leria a data ao
+            // contrário — ou recusaria calado, deixando `dataHora` em 01/01/0001. O parsing é
+            // invariante e mora em Services/DataEHoraDoFormulario, com teste.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                TempData["Erro"] = "Escolha a data e a hora da aula.";
+                return RedirectToAction("AdicionarManual");
+            }
+
+            // Sai anulável da guarda pra não-anulável aqui, e o resto do método continua
+            // exatamente como era. `.Value` depois de um `return` no nulo é provado, não é o
+            // `!` que cala o compilador sem mudar o risco.
+            var dataHora = quando.Value;
+
+            // Esporte fora da lista (ou não escolhido) cai no padrão — o professor que só dá
+            // padel nem vê esse campo na tela, e mandar lixo aqui não pode quebrar a aula.
+            var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : EsporteDaAula.Padrao;
 
             var quantidadeAlunosValida = PrecoDaAula.Tamanho(quantidadeAlunos);
 
@@ -342,6 +371,7 @@ namespace padelizou.Controllers
                         TurmaId = turmaId,
                         AlunoPagaQuadra = alunoPagaQuadra,
                         Status = "Confirmada",
+                        Esporte = esporteValido,
                         RecorrenciaId = recorrenciaIdsPorAluno[i]
                     });
                 }
@@ -407,6 +437,43 @@ namespace padelizou.Controllers
                 ? $"{sessoesCriadas} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
                 : $"{sessoesCriadas} aula(s) criada(s) com sucesso.";
 
+            // ── "Avisar aluno": o recado de aula marcada, pro professor mandar ────────────
+            // Pedido de um professor (28/08/2026). O botão verde que a tela já desenha pra
+            // EDIÇÃO passa a aparecer também na CRIAÇÃO — que é onde ele faz falta: aluno sem
+            // conta não recebe aviso nenhum ao ser marcado, e o professor combinava por fora
+            // sem nada pronto na mão.
+            //
+            // ⚠️ Só quem NÃO tem conta (ver ConviteDaAulaMarcada.CabeConvite): quem tem já
+            // recebeu push/e-mail/WhatsApp automático, e o botão faria a mesma mensagem chegar
+            // duas vezes.
+            //
+            // ⚠️ Uma sessão só, a PRIMEIRA: o `wa.me` abre UMA conversa. Numa recorrência de 12
+            // semanas o recado é da primeira aula, e é isso que o professor combina com o aluno
+            // ("toda quinta às 14h" se resolve na conversa, não em 12 mensagens).
+            var primeira = novasAulas
+                .OrderBy(a => a.DataHora)
+                .FirstOrDefault(a => ConviteDaAulaMarcada.CabeConvite(a.AlunoId, a.TelefoneAlunoAvulso));
+
+            // O local vem por consulta: a aula acabou de nascer com `LocalAulaId` e a navegação
+            // pode estar vazia. Sem ele o recado não diz ONDE, que é metade do que o aluno
+            // precisa — então some o botão em vez de mandar meia mensagem.
+            var localDoConvite = primeira == null
+                ? null
+                : primeira.LocalAula ?? await _context.LocaisAula.FindAsync(primeira.LocalAulaId);
+
+            if (primeira != null && localDoConvite != null)
+            {
+                var professor = await _context.Jogadores.FindAsync(professorId.Value);
+                primeira.LocalAula = localDoConvite;
+
+                TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(
+                    primeira.TelefoneAlunoAvulso,
+                    ConviteDaAulaMarcada.Texto(
+                        primeira,
+                        professor?.ComoChamar ?? "seu professor",
+                        Url.Action("Cadastro", "Auth", null, Request.Scheme) ?? "https://padelizou.com.br"));
+            }
+
             return RedirectToAction("MinhaAgenda");
         }
 
@@ -417,7 +484,7 @@ namespace padelizou.Controllers
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
         [HttpGet]
-        public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data)
+        public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -425,13 +492,24 @@ namespace padelizou.Controllers
             var referencia = (data ?? DateTime.Today).Date;
             var (inicio, fim) = PeriodoAgenda.Janela(periodo, referencia);
 
+            // De QUALQUER data — é o que decide se o filtro aparece na tela, e precisa saber
+            // de TODA aula do professor, não só da janela aberta agora.
+            var esportesDoProfessor = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId)
+                .Select(a => a.Esporte)
+                .Distinct()
+                .ToListAsync();
+
+            var esporteFiltro = esporte != null && esportesDoProfessor.Contains(esporte) ? esporte : null;
+
             var noPeriodo = await _context.Aulas
                 .Include(a => a.Aluno)
                 .Include(a => a.LocalAula)
                 // A aula que esta repõe: é o que explica, na agenda, uma aula de R$ 0,00.
                 .Include(a => a.RecuperaAula)
                 .Where(a => a.ProfessorId == professorId
-                         && a.DataHora >= inicio && a.DataHora < fim)
+                         && a.DataHora >= inicio && a.DataHora < fim
+                         && (esporteFiltro == null || a.Esporte == esporteFiltro))
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
@@ -484,6 +562,8 @@ namespace padelizou.Controllers
                                                         && a.DataHora >= DateTime.Now
                                                         && a.GoogleEventId == null)
                     : 0,
+                EsportesDoProfessor = esportesDoProfessor,
+                EsporteFiltro = esporteFiltro,
             };
 
             // Os locais só são carregados quando há fila: o formulário de encaixe é o único
@@ -502,11 +582,25 @@ namespace padelizou.Controllers
         // A regra de como ela nasce (o que herda, e por que sem preço) mora em
         // Services/Reposicao, que é onde dá pra testá-la sem banco.
         [HttpPost]
-        public async Task<IActionResult> Encaixar(int aulaId, int localId, DateTime dataHora,
+        public async Task<IActionResult> Encaixar(int aulaId, int localId, string? data, string? hora,
             int? duracaoMinutos = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS, e não um `DateTime dataHora` — mesma razão da tela de Adicionar
+            // (ver AdicionarManual e Services/DataEHoraDoFormulario): o formulário manda
+            // "2026-09-15" e "07:00", o app roda em pt-BR, e o binder leria a data ao contrário
+            // ou cairia em 01/01/0001 CALADO. A reposição iria pro ano 1 sem ninguém ver.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                // ⚠️ Sai ANTES de tocar na aula original: ela precisa continuar na fila de
+                // reposição, que é o único lugar que lembra o professor de que deve essa aula.
+                TempData["Erro"] = "Escolha a data e a hora da reposição.";
+                return RedirectToAction("MinhaAgenda");
+            }
+            var dataHora = quando.Value;
 
             var original = await _context.Aulas
                 .Include(a => a.Aluno)
@@ -590,8 +684,12 @@ namespace padelizou.Controllers
         }
 
         // 4. ATUALIZAR STATUS DA AULA (Finalizar ou Cancelar) — só a partir de uma aula já Confirmada
+        //
+        // `recebido` é a diferença entre os dois botões de concluir na folha da agenda: "Concluir
+        // e recebi" e "Concluir, receber depois". Nasce FALSO porque quem chama sem dizer nada
+        // está cancelando, ou é código antigo — e inventar recebimento é inventar dinheiro.
         [HttpPost]
-        public async Task<IActionResult> AtualizarStatus(int aulaId, string novoStatus)
+        public async Task<IActionResult> AtualizarStatus(int aulaId, string novoStatus, bool recebido = false)
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdValue, out var userId))
@@ -613,10 +711,21 @@ namespace padelizou.Controllers
                         .ToListAsync()
                     : new List<Aula> { aula };
 
+                // Uma marca de tempo só pras N linhas: elas foram pagas no MESMO instante, que
+                // é o que a folha da turma afirma ao dizer que a sessão está paga.
+                var agora = DateTime.Now;
+
                 foreach (var linha in linhas)
                 {
                     linha.Status = novoStatus;
-                    if (novoStatus == PoliticaAula.Realizada) linha.Compareceu = true;
+                    if (novoStatus == PoliticaAula.Realizada)
+                    {
+                        linha.Compareceu = true;
+                        // ⚠️ Só em Realizada. Cancelar com `recebido=true` (formulário adulterado,
+                        // ou o parâmetro sobrando numa chamada futura) não pode carimbar dinheiro
+                        // numa aula que não aconteceu.
+                        if (recebido && RecebimentoDaAula.PodeMarcar(linha)) linha.PagaEm = agora;
+                    }
                     if (novoStatus == PoliticaAula.Cancelada)
                     {
                         linha.CanceladaEm = DateTime.Now;
@@ -659,15 +768,28 @@ namespace padelizou.Controllers
             }
 
             ViewBag.Locais = await LocaisParaEscolherAsync(professorId.Value, aula.LocalAulaId);
+            ViewBag.Esportes = EsporteDaAula.Todos;
             return View(aula);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco,
-            int? duracaoMinutos = null)
+        public async Task<IActionResult> Editar(int aulaId, int localId, string? data, string? hora, decimal preco,
+            int? duracaoMinutos = null, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // ⚠️ DOIS CAMPOS, e não um `DateTime dataHora` — ver o comentário do Encaixar logo
+            // acima e Services/DataEHoraDoFormulario. Aqui o estrago seria pior: a aula JÁ
+            // EXISTE e está marcada com o aluno, então uma data lida errado não cria lixo novo,
+            // move a aula de alguém pra um dia que ninguém combinou.
+            var quando = DataEHoraDoFormulario.Juntar(data, hora);
+            if (quando == null)
+            {
+                TempData["Erro"] = "Escolha a data e a hora da aula.";
+                return RedirectToAction("Editar", new { id = aulaId });
+            }
+            var dataHora = quando.Value;
 
             // O ProfessorId no filtro é a autorização: sem ele, qualquer professor logado
             // remarcaria a aula de qualquer outro só mandando o id.
@@ -726,7 +848,10 @@ namespace padelizou.Controllers
                 aula.Preco, preco,
                 aula.DuracaoMinutos, duracao);
 
-            if (!mudanca.MudouAlgo)
+            var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : aula.Esporte;
+            var esporteMudou = esporteValido != aula.Esporte;
+
+            if (!mudanca.MudouAlgo && !esporteMudou)
             {
                 TempData["Sucesso"] = "Nada mudou nessa aula.";
                 return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
@@ -737,11 +862,13 @@ namespace padelizou.Controllers
             aula.LocalAulaId = local.Id;
             aula.LocalAula = local;
             aula.Preco = preco;
+            aula.Esporte = esporteValido;
 
-            // Horário/local/duração são da SESSÃO — valem pra turma inteira (ver
-            // Models/Aula.TurmaId). Preço fica de fora de propósito: é a fatia do ALUNO desta
-            // linha, os colegas mantêm a própria.
-            var colegasDeTurma = aula.TurmaId != null && mudanca.MudouOQueVaiProGoogle
+            // Horário/local/duração/esporte são da SESSÃO — valem pra turma inteira (ver
+            // Models/Aula.TurmaId): os N alunos jogam junto, na mesma quadra, o mesmo esporte.
+            // Preço fica de fora de propósito: é a fatia do ALUNO desta linha, os colegas
+            // mantêm a própria.
+            var colegasDeTurma = aula.TurmaId != null && (mudanca.MudouOQueVaiProGoogle || esporteMudou)
                 ? await _context.Aulas
                     .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId && a.Id != aula.Id)
                     .ToListAsync()
@@ -749,6 +876,7 @@ namespace padelizou.Controllers
 
             foreach (var colega in colegasDeTurma)
             {
+                colega.Esporte = esporteValido;
                 colega.DataHora = dataHora;
                 colega.DuracaoMinutos = duracao;
                 colega.LocalAulaId = local.Id;

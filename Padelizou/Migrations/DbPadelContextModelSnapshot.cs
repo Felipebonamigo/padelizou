@@ -2897,6 +2897,20 @@ namespace Padelizou.Migrations
                     b.ToTable("ProfessorCidade");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.ProfessorEsporte", b =>
+                {
+                    b.Property<int>("ProfessorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Esporte")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("ProfessorId", "Esporte");
+
+                    b.ToTable("ProfessorEsporte");
+                });
+
             modelBuilder.Entity("Padelizou.Models.PushSubscriptionJogador", b =>
                 {
                     b.Property<int>("Id")
@@ -3667,6 +3681,11 @@ namespace Padelizou.Migrations
                     b.Property<int>("DuracaoMinutos")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Esporte")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("GoogleEventId")
                         .HasColumnType("text");
 
@@ -3682,6 +3701,9 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("NomeCompletoAluno")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("PagaEm")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Preco")
                         .HasPrecision(18, 2)
@@ -5055,6 +5077,17 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("Cidade");
+
+                    b.Navigation("Professor");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.ProfessorEsporte", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Professor")
+                        .WithMany()
+                        .HasForeignKey("ProfessorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Professor");
                 });

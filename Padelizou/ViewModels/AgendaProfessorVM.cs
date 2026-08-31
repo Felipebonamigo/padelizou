@@ -43,6 +43,14 @@ public class AgendaProfessorVM
     // de novo e nada aparecia na tela.
     public int AulasForaDoGoogle { get; set; }
 
+    // Todo esporte que o professor já lançou aula (não só nesta janela) — é o que decide se
+    // o filtro aparece. Quem só dá padel nunca vê o filtro: não haveria o que escolher.
+    public List<string> EsportesDoProfessor { get; set; } = new();
+
+    // Esporte selecionado no filtro, ou null pra "todos". Não confundir com
+    // EsportesDoProfessor: este é o que a URL pediu, aquele é o que existe pra pedir.
+    public string? EsporteFiltro { get; set; }
+
     public List<Aula> Do(DateTime dia) =>
         NoPeriodo.Where(a => a.DataHora.Date == dia.Date).OrderBy(a => a.DataHora).ToList();
 

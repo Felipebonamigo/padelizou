@@ -70,7 +70,7 @@ public class DuracaoDaAulaTests
         var quando = DateTime.Today.AddDays(4).AddHours(17);
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
 
-        await controller.AdicionarManual(local.Id, "Leonardo", null, quando, 100m,
+        await controller.AdicionarManual(local.Id, "Leonardo", null, DataEHoraDoFormulario.ParaCampoDeData(quando), DataEHoraDoFormulario.ParaCampoDeHora(quando), 100m,
             recorrente: false, semanasRecorrencia: 1, duracaoMinutos: 120);
 
         var aula = await ctx.Aulas.SingleAsync();
@@ -87,12 +87,12 @@ public class DuracaoDaAulaTests
         var dezessete = DateTime.Today.AddDays(4).AddHours(17);
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.AdicionarManual(local.Id, "Leonardo", null, dezessete, 100m,
+        await controller.AdicionarManual(local.Id, "Leonardo", null, DataEHoraDoFormulario.ParaCampoDeData(dezessete), DataEHoraDoFormulario.ParaCampoDeHora(dezessete), 100m,
             recorrente: false, semanasRecorrencia: 1, duracaoMinutos: 120);
 
         // 18h cai DENTRO da aula das 17h às 19h. Com a trava velha (igualdade de horário)
         // essa segunda aula entrava.
-        await controller.AdicionarManual(local.Id, "Outro aluno", null, dezessete.AddHours(1), 100m,
+        await controller.AdicionarManual(local.Id, "Outro aluno", null, DataEHoraDoFormulario.ParaCampoDeData(dezessete.AddHours(1)), DataEHoraDoFormulario.ParaCampoDeHora(dezessete.AddHours(1)), 100m,
             recorrente: false, semanasRecorrencia: 1, duracaoMinutos: 60);
 
         Assert.Equal(1, await ctx.Aulas.CountAsync());
@@ -107,11 +107,11 @@ public class DuracaoDaAulaTests
         var dezessete = DateTime.Today.AddDays(4).AddHours(17);
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
 
-        await controller.AdicionarManual(local.Id, "Leonardo", null, dezessete, 100m,
+        await controller.AdicionarManual(local.Id, "Leonardo", null, DataEHoraDoFormulario.ParaCampoDeData(dezessete), DataEHoraDoFormulario.ParaCampoDeHora(dezessete), 100m,
             recorrente: false, semanasRecorrencia: 1, duracaoMinutos: 90);
 
         // 18:30 começa quando a de 1h30 termina — professor dá aula em sequência o dia todo.
-        await controller.AdicionarManual(local.Id, "Outro aluno", null, dezessete.AddMinutes(90), 100m,
+        await controller.AdicionarManual(local.Id, "Outro aluno", null, DataEHoraDoFormulario.ParaCampoDeData(dezessete.AddMinutes(90)), DataEHoraDoFormulario.ParaCampoDeHora(dezessete.AddMinutes(90)), 100m,
             recorrente: false, semanasRecorrencia: 1, duracaoMinutos: 60);
 
         Assert.Equal(2, await ctx.Aulas.CountAsync());
@@ -136,7 +136,7 @@ public class DuracaoDaAulaTests
         google.AtualizarEventoAsync(Arg.Any<Aula>()).Returns("evt-1");
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id, google);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, 100m, duracaoMinutos: 120);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 100m, duracaoMinutos: 120);
 
         Assert.Equal(120, (await ctx.Aulas.SingleAsync()).DuracaoMinutos);
         // O evento tem que esticar junto: senão o professor marca outra coisa em cima do que
@@ -162,7 +162,7 @@ public class DuracaoDaAulaTests
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoAulasController(ctx, professor.Id);
-        await controller.Editar(aula.Id, local.Id, aula.DataHora, 130m);
+        await controller.Editar(aula.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(aula.DataHora), hora: DataEHoraDoFormulario.ParaCampoDeHora(aula.DataHora), 130m);
 
         var salva = await ctx.Aulas.SingleAsync();
         Assert.Equal(120, salva.DuracaoMinutos);

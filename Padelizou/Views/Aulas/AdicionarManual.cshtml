@@ -78,6 +78,18 @@
                                 </select>
                             </div>
 
+                            @* Nasce em Padel — quem só dá padel nem repara nesse campo. Existe pro
+                               professor que também dá tênis/beach tênis (Services/EsporteDaAula). *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small" for="select-esporte">Esporte</label>
+                                <select name="esporte" id="select-esporte" class="form-select bg-light">
+                                    @foreach (var opcao in (IEnumerable<string>)ViewBag.Esportes)
+                                    {
+                                        <option value="@opcao" selected="@(opcao == Padelizou.Services.EsporteDaAula.Padrao)">@opcao</option>
+                                    }
+                                </select>
+                            </div>
+
                             @* Quantos alunos dividem a quadra. Não é detalhe: é o que muda o
                                preço. O professor de verdade que estreou o sistema cobrava três
                                valores diferentes e a agenda só sabia de um. *@
@@ -151,11 +163,38 @@
                                o nome de um aluno pro campo errado. *@
                             <div id="blocos-turma" class="d-none mb-3"></div>
 
+                            @* ⚠️ DOIS CAMPOS, E NÃO UM `datetime-local` (25/08/2026, pedido do Felipe).
+                               No Android o `datetime-local` abre a RODINHA de rolagem, onde a data é
+                               um número solto — e o motivo de o professor marcar aula olhando o
+                               calendário é justamente SABER QUE DIA DA SEMANA CAI. `type="date"` abre o
+                               calendário do sistema (com os dias da semana no cabeçalho) e
+                               `type="time"` abre o relógio.
+
+                               O servidor recebe os dois separados e junta em
+                               Services/DataEHoraDoFormulario — parsing invariante, porque a cultura
+                               pt-BR do app leria "2026-08-18" ao contrário e cairia fora calada. *@
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Data e hora</label>
-                                @* data-hora-sugerida (js/hora-sugerida.js): a rodinha do celular abre no minuto
-                                   atual, e o professor girava até a hora cheia toda santa aula. *@
-                                <input type="datetime-local" name="dataHora" class="form-control bg-light" data-hora-sugerida required />
+                                <label class="form-label fw-bold text-muted small" for="input-data">Data e hora</label>
+                                @* data-hora-sugerida (js/hora-sugerida.js): o seletor do celular abre no
+                                   minuto atual, e o professor girava até a hora cheia toda santa aula. *@
+                                <div class="row g-2">
+                                    <div class="col-7">
+                                        <input type="date" name="data" id="input-data" class="form-control bg-light"
+                                               value="@(ViewBag.DataHoraSugerida is DateTime sugeridaData ? Padelizou.Services.DataEHoraDoFormulario.ParaCampoDeData(sugeridaData) : "")"
+                                               data-hora-sugerida data-dia-da-semana="dia-da-semana" required />
+                                    </div>
+                                    <div class="col-5">
+                                        <input type="time" name="hora" id="input-hora" class="form-control bg-light"
+                                               value="@(ViewBag.DataHoraSugerida is DateTime sugeridaHora ? Padelizou.Services.DataEHoraDoFormulario.ParaCampoDeHora(sugeridaHora) : "")"
+                                               data-hora-sugerida required />
+                                    </div>
+                                </div>
+                                @* O dia da semana POR EXTENSO, embaixo do campo: o calendário mostra ele
+                                   enquanto está aberto, mas depois de fechar sobra "18/08/2026" — e é
+                                   exatamente essa a pergunta que o professor está respondendo.
+                                   Quem escreve é js/dia-da-semana.js (global) — a mesma régua das telas
+                                   de Editar e do encaixe, desde que elas passaram a ter calendário. *@
+                                <div class="form-text fw-bold" id="dia-da-semana"></div>
                             </div>
 
                             @* Aula de padel raramente é de uma hora redonda: a quadra é alugada
@@ -280,8 +319,24 @@
             // A tela GERA as datas e o professor desmarca o que não vale. Antes ele mandava só
             // um número de semanas e descobria o estrago depois, apagando aula por aula: mês
             // com 5 sextas, feriado no meio, a semana em que ele viaja.
-            var $inputDataHora = $('input[name="dataHora"]');
+            var $inputData = $('#input-data');
+            var $inputHora = $('#input-hora');
             var $inputSemanas = $('#input-semanas');
+
+            // A base "yyyy-MM-ddTHH:mm" que o resto desta tela consome — o MESMO texto que o
+            // `<input type="datetime-local">` mandava antes de virar dois campos. Por isso
+            // nada além desta função mudou aqui embaixo.
+            //
+            // ⚠️ COM A HORA JUNTO, `new Date(texto)` é lido como hora LOCAL; só a data
+            // ("2026-08-18") seria lida como UTC e voltaria o DIA ANTERIOR em fuso negativo —
+            // ou seja, no Brasil inteiro. É por isso que quem gera datas continua recebendo a
+            // string completa, e nunca só a parte da data.
+            function baseDataHora() {
+                var dia = $inputData.val();
+                var hora = $inputHora.val();
+                // O `<input type="time">` pode mandar "HH:mm:ss" quando tem step em segundos.
+                return (dia && hora) ? dia + 'T' + hora.substring(0, 5) : '';
+            }
             var $listaDatas = $('#lista-datas');
             var $contadorDatas = $('#contador-datas');
 
@@ -303,7 +358,7 @@
             }
 
             function gerarDatas() {
-                var base = $inputDataHora.val();
+                var base = baseDataHora();
                 if (!base) {
                     $listaDatas.html('<div class="small text-muted p-2">Escolha a data e a hora da primeira aula.</div>');
                     $contadorDatas.text('');
@@ -368,6 +423,12 @@
                 if (!indeterminado) gerarDatas();
             });
 
+            // ── O dia da semana sai daqui em 25/08/2026 ──────────────────────────────────
+            // Ele continua embaixo do campo — quem escreve agora é wwwroot/js/dia-da-semana.js,
+            // pedido pelo `data-dia-da-semana` do <input>. Foi pra lá quando as telas de Editar
+            // e de encaixe ganharam calendário: três cópias da mesma régua é como duas passam a
+            // discordar, e a discordância aqui é muda (a data errada não dá erro nenhum).
+
             // ── Quando a aula termina ────────────────────────────────────────────────────
             // O professor escolhe o começo e a duração; quem erra o encaixe na quadra é quem
             // não vê o fim. A conta é a mesma de Services/DuracaoDaAula.
@@ -375,7 +436,7 @@
             var $avisoFim = $('#aviso-fim-aula');
 
             function mostrarFim() {
-                var base = $inputDataHora.val();
+                var base = baseDataHora();
                 var minutos = parseInt($selectDuracao.val(), 10);
                 if (!base || !minutos) { $avisoFim.text(''); return; }
 
@@ -387,11 +448,11 @@
             }
 
             $selectDuracao.on('change', mostrarFim);
-            $inputDataHora.on('change', mostrarFim);
+            $inputData.add($inputHora).on('change', mostrarFim);
 
             // Regerar quando a base muda descarta o que ele já tinha desmarcado — é o certo:
             // mudou o dia da semana, as datas velhas não valem mais.
-            $inputDataHora.on('change', function () { if ($checkRecorrente.prop('checked')) gerarDatas(); });
+            $inputData.add($inputHora).on('change', function () { if ($checkRecorrente.prop('checked')) gerarDatas(); });
             $inputSemanas.on('change input', gerarDatas);
 
             // Mesma conta do servidor (Services/PrecoDaAula): sem preço pro tamanho pedido,

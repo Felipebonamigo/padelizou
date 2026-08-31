@@ -154,12 +154,10 @@ public sealed record CampeaoDeCategoria(
     // "CAMPEÕES" / "CAMPEÃS" / "CAMPEÃO" / "CAMPEÃ".
     public string Rotulo => CampeoesDoTorneio.Rotulo(Categoria, Pessoas != 1);
 
-    // O nome que vai grande no meio do card.
-    public string Nomes =>
-        NomeTime
-        ?? (Jogador1 == null ? ""
-            : Jogador2 == null ? Jogador1.ComoChamar
-            : $"{Jogador1.ComoChamar}  &  {Jogador2.ComoChamar}");
+    // O nome que vai grande no meio do card. A régua mora em `NomeDaDupla` desde 25/08/2026,
+    // porque o card do PÓDIO precisa da mesma frase pra quatro duplas — e dois lugares
+    // escrevendo dupla escreveriam com dois separadores diferentes na mesma página.
+    public string Nomes => NomeDaDupla.De(NomeTime, Jogador1, Jogador2);
 
     // Dá pra desenhar um card com isto? Uma linha de campeão sem nome nenhum (dupla apagada,
     // importação antiga) não vira arte — vira um card em branco com a nossa marca embaixo.

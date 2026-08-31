@@ -659,8 +659,25 @@ namespace padelizou.Controllers
             // sessão (inclusivo), acompanhando a mesma cadência de 7 em 7 dias do jogo fixo.
             var fimSemana = sessao.DataHora.Date;
             var inicioSemana = fimSemana.AddDays(-7);
+            //
+            // ⚠️ OS 5 `.Include()` EXISTEM PORQUE ESTA LISTA VAI PRA TELA desde 26/08/2026, e não
+            // só pro somatório de pontos (que lê id e nunca precisou de navegação). Tirar um
+            // deles não quebra a soma — quebra a PÁGINA INTEIRA: a view lê os nomes por
+            // ConvidadoNoJogo.NomeNaTela, que ESTOURA de propósito quando o id está preenchido e
+            // a navegação veio nula, justamente pra Include esquecido não virar "Convidado"
+            // impresso por cima do nome de um membro.
             var jogosDaSemana = await _context.JogosSemanais
+                .Include(j => j.Dupla1Jogador1)
+                .Include(j => j.Dupla1Jogador2)
+                .Include(j => j.Dupla2Jogador1)
+                .Include(j => j.Dupla2Jogador2)
+                .Include(j => j.Clube)
                 .Where(j => j.GrupoId == grupoId && j.DataJogo.Date > inicioSemana && j.DataJogo.Date <= fimSemana)
+                // DataJogo é data PURA e a panelinha lança vários jogos na mesma noite: sem o
+                // desempate por Id a ordem muda de um F5 pro outro. A ordem não afeta a soma de
+                // pontos logo abaixo — soma não tem ordem.
+                .OrderByDescending(j => j.DataJogo)
+                .ThenByDescending(j => j.Id)
                 .ToListAsync();
             var pontosSemana = new Dictionary<int, int>();
             foreach (var jogo in jogosDaSemana) AplicarPontos(pontosSemana, jogo);
@@ -686,6 +703,13 @@ namespace padelizou.Controllers
                 .Where(x => x.Pontos > 0)
                 .OrderByDescending(x => x.Pontos)
                 .ToList();
+            // Colado no RankingSemana de propósito: os dois saem da MESMA lista de jogos, e é
+            // isso que deixa o card de cima ser conferido contra o de baixo a olho. Separados,
+            // um dia só um dos dois seria atualizado.
+            //
+            // ⚠️ Nome repetido com HomeViewModels.JogosDaSemana, que é OUTRA coisa (as próximas
+            // sessões fixas das panelinhas, no futuro). Aqui são partidas jogadas, no passado.
+            ViewBag.JogosDaSemana = jogosDaSemana;
             ViewBag.SemanaAnterior = sessao.DataHora.AddDays(-7);
             ViewBag.ProximaSemana = sessao.DataHora.AddDays(7);
 

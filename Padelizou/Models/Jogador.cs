@@ -56,6 +56,17 @@ public partial class Jogador
     [NotMapped]
     public string ComoChamar => Padelizou.Services.NomeBonito.ComApelido(Nome, Apelido);
 
+    // SÓ o apelido — nome curto pra quem não tem. Usado nas telas de PANELINHA (lista de jogos
+    // e os quatro rankings de grupo), a pedido do Felipe em 26/08/2026: "pode ser só o apelido".
+    //
+    // ⚠️ NÃO É O `ComoChamar` COM OUTRO NOME, e a diferença é a razão de 06/08 logo acima: lá o
+    // apelido sozinho saiu das telas porque não identifica ninguém DE FORA da turma. Panelinha é
+    // exatamente o caso oposto — grupo fechado, gente que se conhece pelo apelido. Por isso as
+    // duas formas convivem: esta pra dentro do grupo, `ComoChamar` pra torneio, chave e ranking
+    // público, onde a razão de 06/08 continua valendo. Ver NomeBonito.ApelidoOuCurto.
+    [NotMapped]
+    public string SoOApelido => Padelizou.Services.NomeBonito.ApelidoOuCurto(Nome, Apelido);
+
     // Perfil e resultado de busca: o nome completo com o apelido ao lado, pra ligar
     // "quem eu procurei" com "quem eu conheço".
     [NotMapped]

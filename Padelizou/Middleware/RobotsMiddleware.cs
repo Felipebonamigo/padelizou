@@ -1,3 +1,5 @@
+using Padelizou.Services;
+
 namespace Padelizou.Middleware;
 
 // Diz aos buscadores o que pode entrar no índice — por HOST, porque o mesmo binário serve
@@ -46,6 +48,35 @@ public class RobotsMiddleware
             await context.Response.WriteAsync(naoIndexavel
                 ? "User-agent: *\nDisallow: /\n"
                 : "User-agent: *\nAllow: /\n\n" + sitemap);
+            return;
+        }
+
+        // O mesmo raciocínio do robots.txt: se o portão de acesso antecipado religar, este
+        // arquivo não pode virar redirect pra tela de senha — é o que ChatGPT/Claude/Perplexity
+        // leem antes de decidir se citam o site. No dev e no admin não existe (404): citar o
+        // ambiente de teste como se fosse o Padelizou de verdade é pior do que não ser citado.
+        if (context.Request.Path == "/llms.txt")
+        {
+            if (naoIndexavel)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+
+            await context.Response.WriteAsync(
+                $"""
+                # Padelizou
+
+                > {MetaDaBusca.DescricaoDoSite}
+
+                ## Principais páginas
+                - [Torneios abertos]({baseUrl}/Torneios): torneios de padel com inscrições abertas — data, local, categorias e valor.
+                - [Ranking]({baseUrl}/Jogadores/Ranking): ranking de padel por pontuação, categoria, clube e cidade.
+                - [Professores]({baseUrl}/Professores): professores de padel disponíveis para aula, por cidade.
+                """);
             return;
         }
 

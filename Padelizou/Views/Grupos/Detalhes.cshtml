@@ -168,7 +168,7 @@
                             @foreach (var item in ranking)
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.JogadorId" class="text-decoration-none text-dark">@item.Jogador.ComoChamar</a>
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.JogadorId" class="text-decoration-none text-dark">@item.Jogador.SoOApelido</a>
                                     <span class="badge bg-primary rounded-pill">@item.PontuacaoInterna pts</span>
                                 </li>
                             }
@@ -209,7 +209,7 @@
                             @foreach (var item in rankingMes.Where(r => r.Pontos > 0))
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.Jogador.Id" class="text-decoration-none text-dark">@item.Jogador.ComoChamar</a>
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.Jogador.Id" class="text-decoration-none text-dark">@item.Jogador.SoOApelido</a>
                                     <span class="badge bg-success rounded-pill">@item.Pontos pts</span>
                                 </li>
                             }
@@ -245,10 +245,11 @@
                         <tr>
                             <td>@jogo.DataJogo.ToString("dd/MM/yyyy")</td>
                             <td class="text-muted small">@(jogo.Clube?.Nome ?? "—")</td>
-                            @* A vaga do convidado sem nome (id nulo) aparece como "Convidado",
-                               sem link — ver Views/Shared/_NomeNoJogoDaPanelinha. Esta é a única
-                               tela onde o jogo fica pra sempre, então é aqui que a diferença
-                               entre "gente" e "vaga" precisa estar visível. *@
+                            @* Só o APELIDO desde 26/08/2026 (nome curto pra quem não tem) — e a
+                               vaga do convidado sem nome (id nulo) continua "Convidado", sem
+                               link. As duas regras moram em Views/Shared/_NomeNoJogoDaPanelinha,
+                               que esta tela divide com a lista da Semana: são a mesma listagem,
+                               e divergirem seria o próximo "por que aqui está diferente?". *@
                             <td class="@(jogo.VencedorLado == 1 ? "fw-bold text-success" : "")">
                                 <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador1))' /> /
                                 <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador2Id, jogo.Dupla1Jogador2))' />

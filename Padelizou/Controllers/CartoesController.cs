@@ -8,9 +8,22 @@ namespace Padelizou.Controllers;
 
 // OS CARDS QUE O JOGADOR POSTA.
 //
-// Duas artes, um controller, porque o que elas têm em comum é o que importa: são as ÚNICAS
-// páginas do Padelizou cujo objetivo é sair do Padelizou. Tudo aqui é público de propósito —
-// card que só quem tem login vê não é divulgação, é relatório.
+// Um controller pra todas as artes, porque o que elas têm em comum é o que importa: são as
+// ÚNICAS páginas do Padelizou cujo objetivo é sair do Padelizou.
+//
+// ⚠️ E ELAS SE DIVIDEM EM DUAS FAMÍLIAS, que não podem ser confundidas na hora de acrescentar
+// a próxima:
+//
+//   • As de DIVULGAÇÃO (campeões, cartaz, card do ano público) são abertas de propósito — card
+//     que só quem tem login vê não é divulgação, é relatório. Elas viajam como LINK, com
+//     prévia, e por isso o cache delas é `public`.
+//   • As FECHADAS (duelo, noite da panelinha) mostram dado de quem não escolheu aparecer: o
+//     duelo é a provocação de UM dos dois, e a panelinha é um grupo privado. Elas exigem
+//     login, NÃO declaram `og:image` (o servidor da Meta busca a prévia sem sessão nenhuma —
+//     é por ali que o dado vazaria) e viajam como ARQUIVO, pelo botão de compartilhar.
+//
+// Card novo: decida a família ANTES do layout. É ela que responde se leva `[Authorize]`, se a
+// página pode ter prévia e se o `Png(...)` vai com `publico: false`.
 //
 // ⚠️ NADA É GRAVADO EM DISCO. O PNG é desenhado a cada pedido e vai embora na resposta. Guardar
 // entraria no `tar` completo diário do backup (14 cópias) pra economizar um desenho de ~40 ms —
@@ -57,9 +70,14 @@ public class CartoesController : Controller
             _context, torneio, int.TryParse(claim, out var meuId) ? meuId : null);
     }
 
-    private FileContentResult Png(byte[] bytes, string nomeDoArquivo)
+    // ⚠️ `publico: false` PRA CARD QUE EXIGE LOGIN. `Cache-Control: public` autoriza qualquer
+    // cache no caminho (proxy, CDN, navegador compartilhado) a guardar a resposta e devolvê-la
+    // a OUTRA pessoa — o que num card de torneio é o objetivo (é dele que a prévia do WhatsApp
+    // vive) e num card de grupo privado é vazamento. Quem passa `false` ganha `private`: o cache
+    // continua existindo, só que dentro do navegador de quem pediu.
+    private FileContentResult Png(byte[] bytes, string nomeDoArquivo, bool publico = true)
     {
-        Response.Headers.CacheControl = $"public, max-age={SegundosDeCache}";
+        Response.Headers.CacheControl = $"{(publico ? "public" : "private")}, max-age={SegundosDeCache}";
 
         // O nome sugerido na hora de salvar. `inline` e não `attachment`: a imagem precisa
         // ABRIR no navegador (é assim que a prévia do link funciona e é assim que a pessoa
@@ -333,7 +351,239 @@ public class CartoesController : Controller
         };
 
         var png = CartaoDoDuelo.Desenhar(dados, _fontes, _ambiente.WebRootPath);
-        return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
+
+        // ⚠️ `private`: esta ação exige login e o card é do ponto de vista de QUEM PEDE — o
+        // mesmo confronto gera arte diferente pra cada um dos dois. Com `public`, um cache no
+        // caminho poderia guardar a resposta de um e devolvê-la ao outro. O padrão do `Png` é
+        // `public` porque a maioria dos cards é de divulgação; este é da família fechada.
+        return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png", publico: false);
+    }
+
+    // ───────────────────────── A CHAVE DO MATA-MATA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como os outros cards de torneio.
+    [HttpGet]
+    public async Task<IActionResult> Chave(int id, int categoriaId)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var chave = await ChaveParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        if (chave == null) return NotFound();
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(chave);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ChaveImagem(int id, int categoriaId)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var chave = await ChaveParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        if (chave == null || !chave.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDaChave.Desenhar(chave, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"chave-{Arquivo(chave.Categoria)}.png");
+    }
+
+    // ───────────────────────── OS RESULTADOS DO DIA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como o cartaz, o pódio e a classificação.
+    //
+    // Sem `data`, o dia é HOJE — que é quando o organizador abre esta tela: no fim da tarde,
+    // no clube, com o dia inteiro jogado.
+    [HttpGet]
+    public async Task<IActionResult> Resultados(int id, int categoriaId, DateTime? data)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var dia = await ResultadosDoDia.DaCategoriaAsync(_context, id, categoriaId, data ?? DateTime.Now);
+        if (dia == null) return NotFound();
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(dia);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ResultadosImagem(int id, int categoriaId, DateTime? data)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var dia = await ResultadosDoDia.DaCategoriaAsync(_context, id, categoriaId, data ?? DateTime.Now);
+        if (dia == null || !dia.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDosResultados.Desenhar(dia, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"resultados-{Arquivo(dia.Categoria)}-{dia.Dia:yyyy-MM-dd}.png");
+    }
+
+    // ───────────────────────── A CLASSIFICAÇÃO DOS GRUPOS ─────────────────────────
+
+    // Família de DIVULGAÇÃO, como o cartaz e o pódio: mesma porta (`PodeVirarArteAsync`),
+    // sem login, cache público.
+    //
+    // ⚠️ É POR CATEGORIA, e não pelo torneio inteiro como a página dos campeões: um torneio de
+    // dez categorias com quatro grupos cada geraria QUARENTA PNGs de 1080px numa página só, e
+    // o `loading="lazy"` não salva quem rola até o fim no 4G do clube. O link vem da tela de
+    // classificação daquela categoria, que é onde o organizador já está olhando.
+    [HttpGet]
+    public async Task<IActionResult> Classificacao(int id, int categoriaId)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+
+        ViewBag.Torneio = torneio;
+        ViewBag.CategoriaId = categoriaId;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(grupos.Where(g => g.TemOQueMostrar).ToList());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ClassificacaoImagem(int id, int categoriaId, string grupo)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var oGrupo = grupos.FirstOrDefault(g => g.Grupo == grupo);
+        if (oGrupo == null || !oGrupo.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDaClassificacao.Desenhar(oGrupo, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"grupo-{Arquivo(grupo)}-{Arquivo(oGrupo.Categoria)}.png");
+    }
+
+    // ───────────────────────── O PÓDIO DA CATEGORIA ─────────────────────────
+
+    // Família de DIVULGAÇÃO, igual ao card de campeão: mesma porta (`PodeVirarArteAsync`,
+    // que respeita o torneio oculto), sem login, cache público. O organizador é quem mais
+    // posta o pódio, mas quem ficou em segundo também posta o dele.
+    [HttpGet]
+    public async Task<IActionResult> Podio(int id)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var podios = await PodioDaCategoria.DoTorneioAsync(_context, id);
+
+        ViewBag.Torneio = torneio;
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(podios.Where(p => p.TemOQueMostrar).ToList());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PodioImagem(int id, int categoriaId)
+    {
+        // A recusa por falta de fonte vem ANTES de qualquer consulta, e é 404 e não uma imagem
+        // em branco — mesma razão do card de campeão.
+        if (!_fontes.Disponivel) return NotFound();
+
+        var podio = await PodioDaCategoria.DaCategoriaAsync(_context, id, categoriaId);
+        if (podio == null || !podio.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
+
+        var png = CartaoDoPodio.Desenhar(podio, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"podio-{Arquivo(podio.Categoria)}.png");
+    }
+
+    // ───────────────────────── A NOITE DA PANELINHA ─────────────────────────
+
+    // ⚠️ ESTE É O ÚNICO CARD FECHADO DO CONTROLLER, e a exceção é a razão de ele existir: os
+    // outros são sobre torneio (evento público) ou sobre uma pessoa mostrando os próprios
+    // números. Este leva o ranking de um grupo privado, com nome de gente que não escolheu
+    // aparecer em lugar nenhum — o grupo é fechado por `CodigoConvite`. Só membro gera.
+    //
+    // ⚠️ E É POR ISSO QUE A PÁGINA NÃO TEM `OgImagem`: prévia de link é o servidor da Meta
+    // buscando a imagem SEM SESSÃO. Com og:image, colar o link no WhatsApp publicaria o
+    // roster pra quem não é do grupo — o mesmo motivo pelo qual o Duelo abriu mão da prévia.
+    // O card viaja como ARQUIVO, pelo botão de compartilhar.
+    private async Task<(DadosDoCardDaPanelinha? Dados, int GrupoId)> MontarNoiteAsync(int id, DateTime? data)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var souMembro = await _context.JogadoresGrupo
+            .AnyAsync(jg => jg.GrupoId == id && jg.JogadorId == meuId);
+        if (!souMembro) return (null, id);
+
+        var grupo = await _context.GruposPrivados
+            .AsNoTracking()
+            .Include(g => g.Clube)
+            .FirstOrDefaultAsync(g => g.Id == id);
+        if (grupo == null) return (null, id);
+
+        // ⚠️ A DATA VEM DE FORA, e NUNCA de `ObterOuCriarSessaoAsync`: pedir a sessão CRIA a
+        // sessão (ver o comentário do GruposController.Semana), e um card gerado do histórico
+        // gravaria a semana corrente inteira de lambuja, com o lembrete de 24h em cima dela.
+        // Sem data, a âncora é hoje — que é o caso de quem acabou de jogar.
+        var fim = (data ?? DateTime.Now).Date;
+        var inicio = fim.AddDays(-7);
+
+        var jogos = await _context.JogosSemanais
+            .AsNoTracking()
+            .Where(j => j.GrupoId == id && j.DataJogo.Date > inicio && j.DataJogo.Date <= fim)
+            .ToListAsync();
+
+        var pontos = PontuacaoDaPanelinha.Totais(jogos);
+
+        // ⚠️ SÓ MEMBRO PONTUA NO CARD, igual à tela da Semana. `Totais` também soma o convidado
+        // avulso COM conta (ele jogou), mas o ranking da panelinha nunca o mostrou — e card que
+        // discorda da tela que o gerou é pior que card nenhum.
+        var membros = await _context.JogadoresGrupo
+            .AsNoTracking()
+            .Include(jg => jg.Jogador)
+            .Where(jg => jg.GrupoId == id)
+            .ToListAsync();
+
+        var dados = new DadosDoCardDaPanelinha
+        {
+            Panelinha = grupo.Nome,
+            Data = fim,
+            Clube = grupo.Clube?.Nome,
+            Jogos = jogos.Count,
+            Podio = CartaoDaPanelinha.Podio(
+                membros.Select(m => (m.Jogador.ComoChamar, pontos.GetValueOrDefault(m.JogadorId)))),
+        };
+
+        return (dados, id);
+    }
+
+    [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> Panelinha(int id, DateTime? data)
+    {
+        var (dados, grupoId) = await MontarNoiteAsync(id, data);
+        if (dados == null) return NotFound();
+
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        ViewBag.GrupoId = grupoId;
+        ViewBag.Data = data;
+        return View(dados);
+    }
+
+    [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> PanelinhaImagem(int id, DateTime? data)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var (dados, _) = await MontarNoiteAsync(id, data);
+        if (dados == null) return NotFound();
+
+        // Semana sem jogo não vira arte — a tela explica, a imagem não existe.
+        if (!CartaoDaPanelinha.TemOQueMostrar(dados)) return NotFound();
+
+        var png = CartaoDaPanelinha.Desenhar(dados, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"{Arquivo(dados.Panelinha)}-{dados.Data:yyyy-MM-dd}.png", publico: false);
     }
 
     // Nome de arquivo previsível a partir de um texto livre. O nome da categoria vai pro

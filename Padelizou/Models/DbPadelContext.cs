@@ -49,6 +49,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
+    public DbSet<ProfessorEsporte> ProfessorEsportes { get; set; }
     public DbSet<JogadorCategoria> JogadorCategorias { get; set; }
     public DbSet<JogadorClube> JogadorClubes { get; set; }
     public DbSet<JogadorDiaHorario> JogadorDiasHorarios { get; set; }
@@ -1144,6 +1145,7 @@ public partial class DbPadelContext : DbContext
             entity.HasIndex(e => e.TokenConfirmacao).IsUnique();
             entity.Property(e => e.NomeAlunoAvulso).HasMaxLength(100);
             entity.Property(e => e.TelefoneAlunoAvulso).HasMaxLength(20);
+            entity.Property(e => e.Esporte).HasMaxLength(20);
 
             entity.HasOne(a => a.LocalAula)
                 .WithMany()
@@ -1466,6 +1468,17 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.Cidade)
                 .WithMany()
                 .HasForeignKey(e => e.CidadeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProfessorEsporte>(entity =>
+        {
+            entity.HasKey(e => new { e.ProfessorId, e.Esporte });
+            entity.Property(e => e.Esporte).HasMaxLength(20);
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
