@@ -571,6 +571,16 @@ namespace padelizou.Controllers
             // com duas linhas respondendo pelo mesmo e-mail o banco escolhe sozinho qual —
             // a vítima não entra (a senha confere contra a outra conta) e o link de recuperar
             // senha vai pro e-mail de quem ocupou.
+            // ⚠️ E-MAIL ERRADO SÓ APARECE QUANDO A PESSOA PRECISA DELE — e aí é tarde: o link
+            // de "Esqueci minha senha" some num domínio que não existe e ela fica trancada
+            // fora da conta. Ver Services/EmailDoCadastro; a mesma régua vale no cadastro.
+            if (EmailDoCadastro.Problema(email) is { } emailRuim)
+            {
+                ViewBag.Erro = emailRuim;
+                await PopularDadosTimeAsync(jogadorId);
+                return View(jogador);
+            }
+
             if (await IdentidadeJogador.EmUsoAsync(_context, email, jogadorId))
             {
                 ViewBag.Erro = "Esse e-mail já está em uso por outra conta.";
@@ -1139,6 +1149,17 @@ namespace padelizou.Controllers
             if (await IdentidadeJogador.EmUsoAsync(_context, login, jogador?.Id))
             {
                 ViewBag.Erro = "Já foi criado um login com esse nome — escolha outro.";
+                await PopularCatalogosAsync();
+                return View();
+            }
+
+            // A PORTA DO CADASTRO. O `type="email"` da tela pega sintaxe quebrada e mais nada:
+            // "hotmial.com" passa por ele com folga, porque a sintaxe está perfeita. Ver
+            // Services/EmailDoCadastro.
+            if (EmailDoCadastro.Problema(email) is { } emailRuim)
+            {
+                ViewBag.Erro = emailRuim;
+                ViewBag.FormEmail = email;
                 await PopularCatalogosAsync();
                 return View();
             }

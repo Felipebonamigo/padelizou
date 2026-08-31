@@ -997,6 +997,15 @@ public class EstatisticasService : IEstatisticasService
             .Include(d => d.Categoria)
             .Where(d => d.NomeTime == null   // campanha de time não é colocação de jogador
                      && nomes.Contains(d.Categoria.Nome)
+                     // ⚠️ SÓ TORNEIO DE CHAVE (Felipe, 31/08/2026): o rodízio não tem final nem
+                     // semi, então não tem "colocação" nenhuma pra este selo carregar — o campeão
+                     // do Americano da 6ª estava saindo com o mesmo troféu do campeão da 6ª
+                     // Categoria, e a lista de inscritos não tinha como dizer qual era qual.
+                     // O título NÃO some do sistema: continua na prateleira do perfil, de vidro e
+                     // marcado (ver TrofeuDeMaterial.Contar). A comparação é campo a campo, e não
+                     // por `FormatoDoTorneio.EhAmericano`, porque isto roda NO BANCO.
+                     && d.Categoria.Torneio.Formato != FormatoDoTorneio.Americano
+                     && d.Categoria.Torneio.Formato != FormatoDoTorneio.AmericanoDeDuplas
                      && (excluirTorneioId == null || d.Categoria.TorneioId != excluirTorneioId))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, CategoriaNome = d.Categoria.Nome })
             .ToListAsync();
@@ -1005,26 +1014,30 @@ public class EstatisticasService : IEstatisticasService
 
         void Aplicar(int jogadorId, string? fase, string categoriaNome)
         {
-            var (tierChave, tierNome, icone, corFundo, corTexto) = TierDaCategoria(categoriaNome);
+            // A chave é o NOME DA CATEGORIA, não o material do troféu. Agrupar por material
+            // dizia "na categoria Madeira" — que não é categoria nenhuma, é o degrau da escada
+            // (Services/TrofeuDeMaterial) — e, pior, juntava 6ª Masculina com 6ª Feminina, que
+            // são a mesma madeira: o título de uma coroava o inscrito da outra.
+            // O material continua mandando na COR da pílula; só não manda mais no agrupamento.
+            var (_, _, icone, corFundo, corTexto) = TierDaCategoria(categoriaNome);
 
-            if (!mapa.TryGetValue(jogadorId, out var porTier))
+            if (!mapa.TryGetValue(jogadorId, out var porCategoria))
             {
-                porTier = new Dictionary<string, HistoricoCategoriaVM>();
-                mapa[jogadorId] = porTier;
+                porCategoria = new Dictionary<string, HistoricoCategoriaVM>();
+                mapa[jogadorId] = porCategoria;
             }
-            if (!porTier.TryGetValue(tierChave, out var hist))
+            if (!porCategoria.TryGetValue(categoriaNome, out var hist))
             {
                 hist = new HistoricoCategoriaVM
                 {
+                    CategoriaNome = categoriaNome,
                     MelhorFase = "Grupos",
                     Titulos = 0,
-                    Tier = tierChave,
-                    TierNome = tierNome,
                     IconeTier = icone,
                     CorFundoTier = corFundo,
                     CorTextoTier = corTexto
                 };
-                porTier[tierChave] = hist;
+                porCategoria[categoriaNome] = hist;
             }
             if (RankFase(fase) > RankFase(hist.MelhorFase)) hist.MelhorFase = fase ?? "Grupos";
             if (fase == "Campeao") hist.Titulos += 1;

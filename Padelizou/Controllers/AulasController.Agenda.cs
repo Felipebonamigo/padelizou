@@ -437,6 +437,43 @@ namespace padelizou.Controllers
                 ? $"{sessoesCriadas} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
                 : $"{sessoesCriadas} aula(s) criada(s) com sucesso.";
 
+            // ── "Avisar aluno": o recado de aula marcada, pro professor mandar ────────────
+            // Pedido de um professor (28/08/2026). O botão verde que a tela já desenha pra
+            // EDIÇÃO passa a aparecer também na CRIAÇÃO — que é onde ele faz falta: aluno sem
+            // conta não recebe aviso nenhum ao ser marcado, e o professor combinava por fora
+            // sem nada pronto na mão.
+            //
+            // ⚠️ Só quem NÃO tem conta (ver ConviteDaAulaMarcada.CabeConvite): quem tem já
+            // recebeu push/e-mail/WhatsApp automático, e o botão faria a mesma mensagem chegar
+            // duas vezes.
+            //
+            // ⚠️ Uma sessão só, a PRIMEIRA: o `wa.me` abre UMA conversa. Numa recorrência de 12
+            // semanas o recado é da primeira aula, e é isso que o professor combina com o aluno
+            // ("toda quinta às 14h" se resolve na conversa, não em 12 mensagens).
+            var primeira = novasAulas
+                .OrderBy(a => a.DataHora)
+                .FirstOrDefault(a => ConviteDaAulaMarcada.CabeConvite(a.AlunoId, a.TelefoneAlunoAvulso));
+
+            // O local vem por consulta: a aula acabou de nascer com `LocalAulaId` e a navegação
+            // pode estar vazia. Sem ele o recado não diz ONDE, que é metade do que o aluno
+            // precisa — então some o botão em vez de mandar meia mensagem.
+            var localDoConvite = primeira == null
+                ? null
+                : primeira.LocalAula ?? await _context.LocaisAula.FindAsync(primeira.LocalAulaId);
+
+            if (primeira != null && localDoConvite != null)
+            {
+                var professor = await _context.Jogadores.FindAsync(professorId.Value);
+                primeira.LocalAula = localDoConvite;
+
+                TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(
+                    primeira.TelefoneAlunoAvulso,
+                    ConviteDaAulaMarcada.Texto(
+                        primeira,
+                        professor?.ComoChamar ?? "seu professor",
+                        Url.Action("Cadastro", "Auth", null, Request.Scheme) ?? "https://padelizou.com.br"));
+            }
+
             return RedirectToAction("MinhaAgenda");
         }
 

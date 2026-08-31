@@ -28,12 +28,15 @@ public class RankingLinhaVM
 // Selo histórico de um jogador numa categoria (usado nas abas do torneio)
 public class HistoricoCategoriaVM
 {
+    // A CATEGORIA jogada, com a grafia que o organizador escreveu ("6ª Categoria Feminina").
+    // É o que o selo escreve no `title`, e é a chave do dicionário que o chip consulta.
+    // ⚠️ Aqui já morou um `TierNome` ("Madeira", "Ouro"), e ele ia parar no rótulo: o MATERIAL
+    // do troféu se passando por categoria. Material é cor de pílula, não nome de categoria.
+    public string CategoriaNome { get; set; } = "";
     public string MelhorFase { get; set; } = "Grupos";
     public int Titulos { get; set; }
 
-    // Estilo do selo, conforme o tier da categoria (ver EstatisticasService.TierDaCategoria).
-    public string Tier { get; set; } = "Geral";
-    public string TierNome { get; set; } = "Geral";
+    // Estilo do selo, conforme o material da categoria (ver EstatisticasService.TierDaCategoria).
     public string IconeTier { get; set; } = "bi-trophy-fill";
     public string CorFundoTier { get; set; } = "#eef2f8";
     public string CorTextoTier { get; set; } = "#6c757d";

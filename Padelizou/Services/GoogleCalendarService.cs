@@ -155,6 +155,53 @@ public class GoogleCalendarService : IGoogleCalendarService
         });
     }
 
+    public async Task<List<EventoDaAgenda>?> ListarEventosAsync(int professorId, DateTime de, DateTime ate)
+    {
+        var calendarService = await AbrirAgendaAsync(professorId);
+        if (calendarService == null) return null;
+
+        try
+        {
+            var eventos = new List<EventoDaAgenda>();
+            string? pagina = null;
+
+            do
+            {
+                var request = calendarService.Events.List("primary");
+                request.TimeMinDateTimeOffset = new DateTimeOffset(de, TimeSpan.FromHours(-3));
+                request.TimeMaxDateTimeOffset = new DateTimeOffset(ate, TimeSpan.FromHours(-3));
+                // Expande a recorrência: a aula fixa semanal vira um evento POR SEMANA, que é
+                // o que a importação precisa — uma Aula por sessão, como o resto do sistema.
+                request.SingleEvents = true;
+                request.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
+                // A hora volta escrita no fuso de Brasília, seja qual for o fuso do calendário
+                // do professor — é o que faz o `.DateTime` da tradução bater com `Aula.DataHora`
+                // (ver EventoDaAgenda). Mesmo raciocínio, ao contrário, do TimeZone no envio.
+                request.TimeZone = "America/Sao_Paulo";
+                request.MaxResults = 250;
+                request.PageToken = pagina;
+
+                var resposta = await request.ExecuteAsync();
+
+                foreach (var cru in resposta.Items ?? Enumerable.Empty<Event>())
+                {
+                    if (EventoDaAgenda.De(cru) is { } evento) eventos.Add(evento);
+                }
+
+                pagina = resposta.NextPageToken;
+            } while (pagina != null);
+
+            return eventos;
+        }
+        catch (Exception ex)
+        {
+            // Null, e NÃO lista vazia: o chamador precisa saber que a leitura falhou (token
+            // morto, rede) pra dizer isso na tela — "sua agenda está vazia" seria mentira.
+            _logger.LogWarning(ex, "Falha ao listar eventos da Google Agenda do professor {ProfessorId}", professorId);
+            return null;
+        }
+    }
+
     public async Task RemoverEventoAsync(int professorId, string googleEventId)
     {
         if (string.IsNullOrWhiteSpace(googleEventId)) return;

@@ -24,4 +24,18 @@ public interface IGoogleCalendarService
     // some do Padelizou e continua ocupando o horário no Google — e é lá que o professor
     // olha antes de marcar outra coisa.
     Task RemoverEventoAsync(int professorId, string googleEventId);
+
+    // Os eventos do calendário do professor no período — o sentido INVERSO de tudo acima, e
+    // o primeiro método que LÊ do Google (27/08/2026, importação de aulas). O escopo OAuth de
+    // sempre (`calendar.events`) já cobre leitura: nenhum professor precisa reconectar.
+    //
+    // Devolve null quando o professor não conectou OU quando a chamada falhou — o chamador
+    // TEM que distinguir null de lista vazia e dizer isso na tela: o token morto por refresh
+    // recusado é a falha mais muda deste sistema, e uma lista vazia no lugar dela viraria
+    // "sua agenda não tem nada" pra quem tem a semana lotada.
+    //
+    // Dia-inteiro e cancelado já vêm filtrados (ver EventoDaAgenda.De); recorrência vem
+    // EXPANDIDA — cada aula fixa semanal aparece como um evento por semana, que é o que a
+    // importação precisa pra criar uma Aula por sessão.
+    Task<List<EventoDaAgenda>?> ListarEventosAsync(int professorId, DateTime de, DateTime ate);
 }
