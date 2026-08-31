@@ -402,8 +402,8 @@ namespace Padelizou.Controllers
             var hist = await _estatisticas.ObterMelhoresColocacoesAsync(nomes, excluirTorneioId: torneioId);
             // Aceita nulo (dupla ainda sem parceiro) devolvendo 0 — a transmissão não pode
             // quebrar por causa de uma inscrição incompleta.
-            int Titulos(int? jogadorId) => jogadorId != null && hist.TryGetValue(jogadorId.Value, out var porTier)
-                ? porTier.Values.Sum(v => v.Titulos) : 0;
+            int Titulos(int? jogadorId) => jogadorId != null && hist.TryGetValue(jogadorId.Value, out var porCategoria)
+                ? porCategoria.Values.Sum(v => v.Titulos) : 0;
 
             var partidas = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)

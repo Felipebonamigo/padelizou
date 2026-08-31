@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **31/08/2026** — 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
+>
+> 🗣️ **O pedido do Felipe, num print da lista de inscritos:** *"nao pode ter esse trofeu aqui assim. Primeiro que nao é categoria Madeira, tem q ser a categoria que o atleta jogou (7a feminina, 7 masculina e assim por diante) e esse trofeu é de americano, esse nao deve aparecer como se fosse os torneios 'normais'/'Oficiais'"*.
+>
+> 🪵 **"Madeira" nunca foi categoria — é o MATERIAL do troféu.** É o degrau da escada diamante > ouro > prata > bronze > ferro > madeira > plástico de `Services/TrofeuDeMaterial`. O `title` do selo escrevia `@Model.TierNome`, então a pílula prometia "Campeão 1 vez(es) na categoria Madeira" pra alguém que ganhou a 6ª Feminina. Ninguém se inscreve na Madeira.
+>
+> 🕳️ **E o rótulo errado ESCONDIA um vazamento de dado, que é o achado real.** O histórico era agrupado **por material**, não por categoria — e 6ª Masculina e 6ª Feminina são a mesma madeira. O título de uma coroava o inscrito da outra, calado. Corrigir só o texto do `title` teria trocado uma mentira ("Madeira") por outra, pior: o nome de uma categoria em que a pessoa nunca jogou. A chave do dicionário passou a ser o **nome da categoria**; o material continua mandando na COR e no ícone da pílula, que é o que ele sempre soube fazer.
+>
+> 🎯 **O Americano sai deste selo — e SÓ deste selo.** Rodízio não tem chave, não tem final e não tem "chegar na semi": não há colocação de chave pra este selo carregar. Vencer o Americano da 6ª saía idêntico a ser campeão da 6ª Categoria, e numa pílula de 40px não cabe legenda que explique a diferença. **O título não some do sistema:** continua na prateleira do perfil, de vidro e marcado — que é exatamente a decisão de 08/08/2026 (`TrofeuDeMaterial.Contar`), tomada pelo mesmo motivo e nunca aplicada aqui.
+>
+> 🧱 **O filtro é campo a campo (`Formato != Americano && != AmericanoDuplas`), e não `FormatoDoTorneio.EhAmericano`**, porque roda NO BANCO — mesma razão já escrita em `EstatisticasService.DuplaContaNoRanking`. E **não** dá pra reusar aquele `DuplaContaNoRanking`: ele exclui torneio **restrito** junto, e restrito CONTA no histórico (o título aconteceu; o que não existe é ponto de ranking).
+>
+> 🧪 **5.131 testes, 0 falhas (10 novos).** **Sem migration.** Um deles é de tradução (`ToQueryString()` contra Npgsql): o filtro novo atravessa dois níveis de navegação (Dupla → Categoria → Torneio), e o InMemory da suíte não traduz nada — era a receita exata do estouro de 19/08/2026.
+>
+> ✅ **Falsificado meio a meio:** revertendo só o filtro do Americano falham 3 testes e os 7 do rótulo seguem verdes; revertendo só a busca do chip falha 1 e os outros 9 seguem. As duas metades estão presas de forma independente.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
 > Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
 >
 > 🕳️ **O que aconteceu:** das **~13:05Z às ~16:06Z** o GitHub parou de gerar os eventos de `push` e `pull_request` deste repo. O PR #41 ficou 3 horas com **zero checks criados** — não vermelho, *inexistente* (`get_check_runs` → `total_count: 0`, `get_status` → `pending` com lista vazia). Não era o diff: o workflow estava `active`, o repo é **público** (Actions ilimitado, não é cota), e o `workflow_dispatch` do **deploy rodou normalmente às 13:29**, depois do último CI. Ou seja, Actions funcionava; o que morreu foi só o gatilho por evento.
