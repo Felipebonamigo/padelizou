@@ -17,7 +17,13 @@
 >
 > ✅ **Falsificado meio a meio:** revertendo só o filtro do Americano falham 3 testes e os 7 do rótulo seguem verdes; revertendo só a busca do chip falha 1 e os outros 9 seguem. As duas metades estão presas de forma independente.
 >
-> ⏳ **Commitado, não publicado** nesta entrada.
+> ✅ **PUBLICADO em 31/08/2026, em dev E em prod**, na `build-726-e071b89` (PR #51, CI #726 verde: build, `has-pending-model-changes` limpo, 5.131 testes e a checagem de CVE, todos `success`). Deploy run **#58 → dev** e **#59 → prod**, os dois `success` — e verde aqui é o healthcheck do `deploy.sh` passando, porque falha dá rollback sozinho e o job fica vermelho. **Sem migration.**
+>
+> 🎯 **Publiquei NOMEANDO o build (`build-726-e071b89`), não com o campo vazio.** Vazio quer dizer "o mais recente", e é exatamente o que produziu as regressões silenciosas de 11/08 e 12/08 registradas mais abaixo — duas sessões publicando no mesmo minuto, a mais velha por cima da mais nova, com `/healthz` 200 e `NRestarts=0` em ambas. Nomear o build tira a corrida da equação.
+>
+> ⚠️ **A conferência externa do `/healthz` NÃO foi feita** e **a tela NÃO foi vista renderizada**: sem browser e com o proxy da sessão recusando a saída. A evidência é o job do deploy, não uma chamada minha ao site — o selo com o nome certo da categoria ainda merece um olho do Felipe numa lista de inscritos de verdade.
+>
+> 🚨 **E A PENDÊNCIA DE SEGURANÇA DE 21/08 SEGUE DE PÉ, medida de novo hoje:** o environment `prod` continua SEM aprovação obrigatória. O run #59 foi criado 13:33:03 e **começou a executar 13:33:08** — 5 segundos, sem passar por `waiting`. Qualquer disparo do workflow, de qualquer sessão, publica direto em produção. Conserto (só pela interface, a API de environments é bloqueada pelo proxy): **Settings → Environments → `prod` → Required reviewers**, com o Felipe, e **sem** marcar "Prevent self-review".
 >
 > Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
 >
