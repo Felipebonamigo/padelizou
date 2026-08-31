@@ -141,7 +141,11 @@ public class RegistroResultadosSettings
     // saía mais cara justamente nos torneios grandes. ⚠️ O custo continua por jogo — em
     // inscrição barata com muitos jogos o percentual pode não cobrir o custo; o mínimo
     // segura parte disso, e o resto é decisão de quem responde (o valor é ajustável).
-    public decimal PercentualDasInscricoes { get; set; } = 5m;
+    //
+    // 5% → 10% em 26/08/2026 (Felipe), depois de ver o concorrente cobrar 28% do mesmo
+    // torneio. Pedido feito a 5% não é recalculado: a cotação congela no pedido
+    // (SolicitacaoRegistroResultados.PercentualCotado).
+    public decimal PercentualDasInscricoes { get; set; } = 10m;
 
     // Piso do serviço. Mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos.
     // Também é o amortecedor de distância: clube longe encarece, e quem responde ajusta o

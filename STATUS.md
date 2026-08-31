@@ -19,6 +19,22 @@
 >
 > ⏳ **Commitado, não publicado** nesta entrada.
 >
+> Antes, em 26/08/2026: 🎾 **O ORGANIZADOR ESCOLHE QUEM MARCA O PLACAR — E O "NÓS REGISTRAMOS OS RESULTADOS" SUBIU DE 5% PRA 10%.**
+>
+> 🗣️ **A origem foi uma conta do Felipe:** o concorrente que só marca placar cobrou R$ 6.765 pra cobrir um torneio de 151 duplas × R$ 160 — **28% das inscrições**. O nosso serviço equivalente cobrava 5%. Dois movimentos saíram disso, aprovados em design antes de qualquer código (dinheiro + régua de autorização + migration = architectural).
+>
+> 💰 **Parte A — `RegistroResultadosSettings.PercentualDasInscricoes`: 5% → 10%.** Nada além do número (e o corte onde o percentual passa o mínimo de R$ 500 caiu de R$ 10.000 pra R$ 5.000 de inscrições). **Pedido antigo não é recalculado de graça**: a cotação já congelava no pedido (`PercentualCotado`, regra de 20/08) — o teste novo fixa o default e aponta pro teste do congelamento ao lado.
+>
+> 🎛️ **Parte B — `Torneio.QuemMarcaPlacar`** (migration, default `Organizacao`): `Organizacao` (o de sempre) · `JogadoresEmQuadra` (os 4 do jogo) · `Inscritos` (qualquer inscrito fora de lista de espera + assistentes do Padelizou). Rádio na criação e na gestão, **editável a qualquer momento** — abrir pros jogadores no meio do dia, quando a mesa aperta, é o caso de uso; não é dinheiro nem contrato com quem entrou, então não trava com inscrito (diferente da forma de recebimento).
+>
+> 🔒 **O que a escolha abre é SÓ marcar placar e iniciar jogo.** A régua nova (`PodeMarcarPlacarAsync`) soma gente à régua cheia da mesa, nunca tira — e W.O., reabrir, voltar pra agendado e quadra/transmissão continuam da organização em QUALQUER modo. No POST do placar, quem não é da mesa tem os campos de quadra/transmissão **ignorados no servidor** (a tela nem os desenha, mas formulário na mão viria por ali). Reabrir continuar sendo da organização é a rede de segurança do modo aberto: jogador que errou e encerrou chama a mesa.
+>
+> ⚠️ **`IsAssistente` ganhou UMA escrita, de propósito:** a flag é de leitura por contrato (`PoderesNoSistema`), e a exceção vale só no modo `Inscritos` — é o que deixa a equipe do "nós registramos os resultados" trabalhar num torneio que abriu. Está comentado no ponto exato (`LiberadoPeloTorneioAsync`).
+>
+> 🧪 **22 testes novos (5.093, 0 vermelhos), vistos falhar antes da correção** — inclusive o de que quadra/transmissão de quem não é da mesa não gravam, e o de que W.O./reabrir seguem Forbid até no modo mais aberto. Consultas novas com teste de tradução Npgsql (`TraducaoDasConsultasDeQuemMarcaTests`, padrão de 19/08). O gate de duplicação pegou a propriedade nova sem lado — ela viaja na cópia (`DuplicacaoDeTorneio.Copiadas`), como `UsaCheckIn`.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
 > Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
 >
 > 🕳️ **O que aconteceu:** das **~13:05Z às ~16:06Z** o GitHub parou de gerar os eventos de `push` e `pull_request` deste repo. O PR #41 ficou 3 horas com **zero checks criados** — não vermelho, *inexistente* (`get_check_runs` → `total_count: 0`, `get_status` → `pending` com lista vazia). Não era o diff: o workflow estava `active`, o repo é **público** (Actions ilimitado, não é cota), e o `workflow_dispatch` do **deploy rodou normalmente às 13:29**, depois do último CI. Ou seja, Actions funcionava; o que morreu foi só o gatilho por evento.
