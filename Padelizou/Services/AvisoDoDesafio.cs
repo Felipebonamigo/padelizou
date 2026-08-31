@@ -61,6 +61,19 @@ public static class AvisoDoDesafio
         new("A disputa do placar foi resolvida",
             $"O desafio fechou em {placar}, e os pontos entraram no ranking.");
 
+    // O ÚNICO empurrão que os Desafios dão (ver ResumoSemanalDoMural). Sai numa quinta de
+    // manhã, pra quem já usou o mural e não está nele agora.
+    //
+    // ⚠️ O corpo diz o NÚMERO e o lugar, e nada mais. "Volte pro Padelizou!" é o texto que
+    // ensina a ignorar o remetente; "7 duplas abertas em Gravataí" é um fato que a pessoa usa
+    // pra decidir em dois segundos se abre ou não.
+    public static TextoDoAviso ResumoDoMural(int quantasDuplas, string? cidade) =>
+        new($"{quantasDuplas} duplas abertas pra desafio",
+            string.IsNullOrWhiteSpace(cidade)
+                ? $"{quantasDuplas} duplas estão esperando desafio nesta semana. Publique o seu e escolha uma."
+                : $"{quantasDuplas} duplas em {cidade} estão esperando desafio nesta semana. "
+                  + "Publique o seu e escolha uma.");
+
     public static TextoDoAviso DisputaAnulada() =>
         new("O desafio foi anulado",
             "Não deu pra estabelecer o placar, então ninguém pontuou por esse jogo.");

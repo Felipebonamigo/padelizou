@@ -299,6 +299,9 @@ builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
 // O dono que recusa ou ignora 3 desafios em 14 dias perde o cinturão. É a metade da regra que
 // impede o campeão de virar um nome parado numa tela — ver Services/Cinturao.
 builder.Services.AddHostedService<VigiaDoCinturaoBackgroundService>();
+// O UNICO empurrao dos Desafios: um resumo do mural na quinta de manha, pra quem ja usou e
+// nao esta anunciando agora. Ver Services/ResumoSemanalDoMural.
+builder.Services.AddHostedService<ResumoSemanalDeDesafiosBackgroundService>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
