@@ -135,4 +135,42 @@ public class QuantosInscritosTests
         Assert.Equal(1, QuantosInscritos.DaCategoria(torneio, c2, vazias));
         Assert.Equal(3, QuantosInscritos.Contar(torneio, new[] { c1, c2 }, vazias).Duplas);
     }
+
+    [Fact]
+    public void O_total_da_opcao_Todos_e_a_soma_das_outras_opcoes_do_seletor()
+    {
+        // A opção "Todos" do seletor (31/08/2026) mostra um número ao lado, igual às outras.
+        // Se ele não fosse exatamente a soma das categorias, a primeira linha do seletor
+        // desmentiria as nove de baixo — e o organizador não teria como saber qual acreditar.
+        var torneio = Torneio();
+        var c1 = Categoria(1, Dupla(), Dupla(), Dupla(espera: true));
+        var c2 = Categoria(2, Dupla());
+        var vazias = Array.Empty<InscricaoAmericana>();
+
+        var total = QuantosInscritos.Contar(torneio, new[] { c1, c2 }, vazias).Total;
+
+        Assert.Equal(
+            QuantosInscritos.DaCategoria(torneio, c1, vazias) + QuantosInscritos.DaCategoria(torneio, c2, vazias),
+            total);
+        Assert.Equal(3, total);
+    }
+
+    [Fact]
+    public void O_total_soma_dupla_pessoa_e_time_e_deixa_a_fila_de_fora()
+    {
+        // Time conta: a categoria de times aparece no seletor com o número dela.
+        var comTimes = QuantosInscritos.Contar(
+            Torneio(),
+            new[] { Categoria(1, Dupla(), Dupla(time: "Fúria"), Dupla(espera: true)) },
+            Array.Empty<InscricaoAmericana>());
+
+        Assert.Equal(2, comTimes.Total);
+
+        var americano = QuantosInscritos.Contar(
+            Torneio("Americano"),
+            new[] { Categoria(1) },
+            new[] { new InscricaoAmericana { Id = 1, CategoriaId = 1 }, new InscricaoAmericana { Id = 2, CategoriaId = 1, EmListaDeEspera = true } });
+
+        Assert.Equal(1, americano.Total);
+    }
 }

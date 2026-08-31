@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **31/08/2026** — 📋 **A ABA DE INSCRITOS GANHOU "TODOS", DO MAIS RECENTE PRO MAIS ANTIGO.**
+>
+> 🗣️ **O pedido do Felipe, num print da aba:** *"na parte dos inscritos, deixe na primeira, 'todos' com todos inscritos, sem separar a categoria, por ordem do mais recente pro mais antigo"*.
+>
+> 🕳️ **A aba SEMPRE obrigou a escolher uma categoria pra ver alguém** — e "quem entrou hoje?", que é o que quem organiza responde no WhatsApp o dia inteiro, exigia abrir as nove categorias e comparar de cabeça. É a mesma queixa que já tinha gerado o total no cabeçalho, agora um degrau abaixo: o total dizia *quantos*, e não *quem*.
+>
+> 🥇 **"Todos" é a PRIMEIRA opção do seletor**, com o total ao lado igual às outras. O número é `QuantosInscritos.Total` (novo), e por construção é a **soma exata** dos números das outras opções — se divergisse, a primeira linha do seletor desmentiria as nove de baixo e ninguém saberia em qual acreditar.
+>
+> 🔁 **E o padrão de abertura mudou pra quem NÃO está inscrito.** Ele caía na PRIMEIRA categoria do torneio — escolha sem motivo nenhum, que mostrava 2 duplas de 9 categorias pra quem abriu o link do torneio. Agora cai em "Todos". **Quem ESTÁ inscrito continua caindo na categoria dele**: a razão pra isso ("é a lista que ele veio ver") não mudou, e tem teste de regressão.
+>
+> 🧮 **A ordem mora em `Services/TodosOsInscritos` e não num `.OrderBy` na view**, porque a suíte não renderiza Razor — ordenação escrita lá dentro não teria como ser falsificada. E ela tem **dois casos que erram calado**: `CriadoEm` nulo (inscrição anterior a 25/07/2026, ou seja, *das mais antigas que existem*) e empate de data (a dupla e o parceiro que entram no mesmo segundo).
+>
+> 🔬 **Achado ao falsificar:** o `?? DateTime.MinValue` do nulo é **no-op em memória** — o comparador padrão já joga `DateTime?` nulo pro fim num descendente. Ele ficou, com o comentário dizendo isso em vez de fingir que é ele quem segura a ordem: é trava contra o oposto plausível (`?? DateTime.MaxValue`, "sem data = trate como agora", que **falha o teste**) e contra o dia em que isto virar consulta ao banco, onde o Postgres ordena `NULLS FIRST` no `DESC`.
+>
+> ⚠️ **O selo de histórico do chip era a armadilha silenciosa.** O `_JogadorChip` desenha o troféu da categoria que estiver em `ViewData["CategoriaAtual"]` — numa lista **misturada**, sem reescrever isso card a card, todo mundo herdaria a categoria de quem veio antes. Tem teste de fonte pra reescrita, e outro travando que o nome CURTO dá o mesmo troféu que o inteiro (`Curto` só tira a palavra "Categoria"; o material é reconhecido por "3ª", "Mista", "Iniciantes").
+>
+> 🔒 **O painel é de LEITURA.** Chamar pra dupla, trocar parceiro e desistir continuam **só** no painel da categoria — repeti-los ali seria a segunda cópia de quatro réguas de permissão. Os cards reusam `_LadoDaPartida` e `_JogadorChip`, então time aparece pelo escudo (e não pelo organizador que o cadastrou) sem uma linha nova pra isso.
+>
+> 🧪 **5.146 testes, 0 falhas (25 novos).** **Sem migration.** Falsificado nos dois casos da ordem: `ThenBy` no lugar de `ThenByDescending` derruba o teste do empate; `?? MaxValue` derruba o do nulo.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
 > Última atualização: **26/08/2026** — 🚨 **O CI FICOU 3 HORAS SEM DISPARAR, E O `ci.yml` GANHOU GATILHO MANUAL POR CAUSA DISSO.**
 >
 > 🕳️ **O que aconteceu:** das **~13:05Z às ~16:06Z** o GitHub parou de gerar os eventos de `push` e `pull_request` deste repo. O PR #41 ficou 3 horas com **zero checks criados** — não vermelho, *inexistente* (`get_check_runs` → `total_count: 0`, `get_status` → `pending` com lista vazia). Não era o diff: o workflow estava `active`, o repo é **público** (Actions ilimitado, não é cota), e o `workflow_dispatch` do **deploy rodou normalmente às 13:29**, depois do último CI. Ou seja, Actions funcionava; o que morreu foi só o gatilho por evento.

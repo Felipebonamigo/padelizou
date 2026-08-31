@@ -825,6 +825,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                repetia "Categoria" dentro de um campo já chamado Categoria — era essa palavra
                que jogava cada opção pra segunda linha no celular. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
+                @* "TODOS" VEM PRIMEIRO (Felipe, 31/08/2026): a aba obrigava a escolher uma
+                   categoria pra ver alguém, e "quem entrou hoje?" — a pergunta que quem organiza
+                   responde o dia inteiro — exigia abrir as nove e comparar de cabeça. No fim da
+                   lista seria uma opção que ninguém rola pra ver.
+                   O número é o mesmo total do cabeçalho, e por construção é a SOMA dos números
+                   das outras opções (ver QuantosInscritos.Total) — a fila fora dos dois. *@
+                <option value="@Padelizou.Services.TodosOsInscritos.TodasAsCategorias"
+                        selected="@(categoriaSelecionadaId == Padelizou.Services.TodosOsInscritos.TodasAsCategorias)">
+                    Todos (@contagem.Total)
+                </option>
                 @foreach (var cat in Model.Categorias.OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                 {
                     var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
@@ -834,6 +844,99 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     </option>
                 }
             </select>
+        </div>
+
+        @* O PAINEL DE "TODOS": a lista inteira do torneio, sem separar categoria, do mais
+           recente pro mais antigo. É de LEITURA — os botões (chamar pra dupla, trocar parceiro,
+           desistir) continuam só no painel da categoria, que é onde a inscrição vive com o
+           contexto dela (limite, lista de espera, mural). Repeti-los aqui seria a segunda cópia
+           de quatro réguas de permissão.
+           A ordem mora em Services/TodosOsInscritos porque a suíte não renderiza Razor: um
+           `.OrderBy` escrito aqui não teria como ser falsificado, e ele tem dois casos que erram
+           calado (data nula e empate de data).
+           // atalho: a lista inteira vai no HTML junto com os painéis por categoria, que a
+           página já desenha todos (escondidos). Ou seja, cada inscrito aparece duas vezes na
+           fonte. Acima de ~300 inscritos no mesmo torneio, carregar este painel sob demanda. *@
+        @{
+            var todosOsInscritos = Padelizou.Services.TodosOsInscritos.MaisRecentesPrimeiro(
+                Model, Model.Categorias, inscricoesAmericanas);
+        }
+        <div class="categoria-inscritos-conteudo"
+             data-categoria-id="@Padelizou.Services.TodosOsInscritos.TodasAsCategorias"
+             style="display: @(categoriaSelecionadaId == Padelizou.Services.TodosOsInscritos.TodasAsCategorias ? "block" : "none");">
+            @if (todosOsInscritos.Count == 0)
+            {
+                <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Ninguém inscrito neste torneio ainda.</p>
+            }
+            else
+            {
+                <div class="d-flex gap-2 flex-wrap mb-3">
+                    <span class="badge" style="background-color: var(--pdz-navy-fixed);">@contagem.Rotulo</span>
+                    @if (contagem.NaEspera > 0)
+                    {
+                        <span class="badge bg-warning text-dark">@contagem.NaEspera na lista de espera</span>
+                    }
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 g-3">
+                    @foreach (var inscrito in todosOsInscritos)
+                    {
+                        @* ⚠️ A CATEGORIA DO CHIP TEM QUE SER REESCRITA CARD A CARD. O
+                           _JogadorChip desenha o selo de histórico da categoria que estiver em
+                           ViewData["CategoriaAtual"], e numa lista misturada todo mundo herdaria
+                           a categoria de quem veio antes — selo errado, sem nada quebrar.
+                           O nome vai curto porque é o mesmo que o card mostra, e o troféu não
+                           muda com ele: CategoriaNaTela.Curto só tira a palavra "Categoria", e
+                           TrofeuDeMaterial.Do reconhece "3ª", "Mista", "Iniciantes" (tem teste). *@
+                        ViewData["CategoriaAtual"] = inscrito.Categoria;
+                        <div class="col">
+                            <div class="border rounded p-3 h-100 @(inscrito.EmListaDeEspera ? "border-warning pdz-tinta-ambar" : "")">
+                                <div class="d-flex gap-2 flex-wrap align-items-center mb-2">
+                                    @* De que categoria veio: é a informação que o seletor dava e
+                                       que esta lista, por ser misturada, tiraria. *@
+                                    <span class="badge rounded-pill text-bg-light border fw-normal">@inscrito.Categoria</span>
+                                    @if (inscrito.EmListaDeEspera)
+                                    {
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Lista de espera</span>
+                                    }
+                                    @if (Padelizou.Services.PagamentoDaInscricao.TemOQueMostrar(Model))
+                                    {
+                                        <span class="badge @Padelizou.Services.PagamentoDaInscricao.Cor(inscrito.Pago)">
+                                            <i class="bi @(inscrito.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
+                                            @Padelizou.Services.PagamentoDaInscricao.Selo(inscrito.Pago)
+                                        </span>
+                                    }
+                                    @* QUANDO ENTROU. Sem isto a lista está numa ordem que ninguém
+                                       consegue conferir — e "quem entrou hoje?" continua sem
+                                       resposta. Nulo = inscrição anterior a 25/07/2026 (quando a
+                                       coluna nasceu): fica sem o texto, em vez de inventar data. *@
+                                    @if (inscrito.Quando is { } entrou)
+                                    {
+                                        <span class="text-muted small ms-auto">@Padelizou.Services.TempoRelativo.Curto(entrou)</span>
+                                    }
+                                </div>
+                                @if (inscrito.Dupla != null)
+                                {
+                                    <partial name="_LadoDaPartida" model="inscrito.Dupla" />
+                                    @* Inscrição sem parceiro: o _LadoDaPartida desenha só um chip
+                                       e a linha ficaria sem dizer por quê. Quem quiser chamar pra
+                                       dupla usa o painel da categoria, onde o botão vive. *@
+                                    @if (!inscrito.Dupla.EhTime && inscrito.Dupla.Jogador2 == null)
+                                    {
+                                        <span class="d-flex align-items-center gap-2 text-muted small">
+                                            <i class="bi bi-person-plus" style="font-size: 1.4rem;"></i>
+                                            Procurando parceiro
+                                        </span>
+                                    }
+                                }
+                                else
+                                {
+                                    <partial name="_JogadorChip" model="inscrito.Jogador" />
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
         @foreach (var cat in Model.Categorias)

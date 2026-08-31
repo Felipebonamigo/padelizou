@@ -20,6 +20,12 @@ public record ContagemDeInscritos(int Duplas, int Pessoas, int Times, int NaEspe
 {
     public bool Vazio => Duplas == 0 && Pessoas == 0 && Times == 0;
 
+    // Quantos inscritos ao todo, seja qual for a forma deles — é o número que vai na opção
+    // "Todos" do seletor da aba de inscritos, e ele tem que ser EXATAMENTE a soma dos números
+    // das outras opções (`DaCategoria`), senão a primeira linha do seletor desmente as nove
+    // de baixo. A fila fica de fora aqui pelo mesmo motivo de sempre: quem espera não ocupa vaga.
+    public int Total => Duplas + Pessoas + Times;
+
     // O rótulo pronto pra tela, no singular certo. Um torneio pode ter dupla E time ao mesmo
     // tempo (categoria de times convive com as normais), então os dois aparecem quando os
     // dois existem.

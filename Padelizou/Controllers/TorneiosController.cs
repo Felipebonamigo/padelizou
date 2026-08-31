@@ -497,7 +497,12 @@ namespace Padelizou.Controllers
             var jogadorLogadoId = ObterJogadorIdLogado();
 
             // Aba Inscritos: abre direto na categoria em que o usuário logado já está inscrito
-            // neste torneio (se estiver); senão cai pra primeira categoria do torneio.
+            // neste torneio (se estiver); senão abre em "Todos".
+            //
+            // ⚠️ O "senão" mudou em 31/08/2026. Ele caía na PRIMEIRA categoria do torneio — uma
+            // escolha sem motivo nenhum, que mostrava as 2 duplas de uma categoria pra quem
+            // abriu o torneio pra ver o torneio. Quem ESTÁ inscrito continua caindo na dele: a
+            // razão de 2026 pra isso ("é a lista que ele veio ver") não mudou.
             int? categoriaDoUsuario = null;
             if (jogadorLogadoId.HasValue)
             {
@@ -516,7 +521,7 @@ namespace Padelizou.Controllers
                         .FirstOrDefaultAsync();
                 }
             }
-            ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? torneio.Categorias.Select(c => c.Id).FirstOrDefault();
+            ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? TodosOsInscritos.TodasAsCategorias;
 
             // "Eu estou NESTE torneio?" — a mesma consulta que escolheu a categoria acima, de
             // propósito: com duas, a tela poderia abrir na categoria de alguém que ela não
