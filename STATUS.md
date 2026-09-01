@@ -46,8 +46,19 @@
 > envia o `Entrar?codigo=`** — o código é credencial permanente e repassável; aceitar cria o
 > `JogadorGrupo` direto.
 >
-> ⏳ **Nada implementado.** Próximo passo: aprovar as 6 pendências do fim do doc, aí migration em
-> worktree limpo.
+> ✅ **As 6 pendências foram fechadas no mesmo dia**, delegadas pelo Felipe — e **três mudaram depois
+> de conferir o código**, o que é o argumento contra recomendar de cabeça: (a) a FK do pedido não pode
+> ser `Cascade` nas duas pontas — `GrupoPrivado` já cascateia a partir de `Jogador`, e o segundo
+> caminho é o **conflito de múltiplos caminhos de cascade** que `JogadorGrupo`/`JogoSemanal`/
+> `CandidaturaParceiro`/`PalpitePartida` já documentam; a migration nem compilaria. (b) "os pedidos
+> somem quando a conta é excluída?" partia de premissa errada: **`ExclusaoDeConta` anonimiza, não
+> apaga** — não há órfão nem expurgo, e o que falta é um filtro `ExcluidoEm == null` na leitura, como
+> o `LembreteJogoBackgroundService` já faz. (c) "reusar `/Admin/Denuncias`" para nome de grupo
+> ofensivo não é reuso: aquela tela é **específica de `ComentarioPerfil`**. Fica de fora, e o botão de
+> moderação de hoje é desligar o `Listado` daquele grupo — com gatilho escrito pra construir a
+> denúncia (abertura do gate, ou ~50 turmas na vitrine).
+>
+> ⏳ **Nada implementado.** Próximo passo: migration em worktree limpo + `has-pending-model-changes`.
 >
 > Última atualização: **31/08/2026** — 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
 >

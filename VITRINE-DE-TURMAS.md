@@ -4,6 +4,9 @@
 > construção e (na segunda entrega) cria papel de acesso novo. Pelo critério do `CLAUDE.md` isso é
 > `architectural` três vezes — e `architectural` é design escrito e aprovado ANTES de qualquer código.
 >
+> **As 6 pendências foram fechadas em 01/09/2026**, delegadas por ele — ver a seção final. Três
+> mudaram depois de conferir o código, e uma delas (a FK) evitava uma migration que não compila.
+>
 > **Sucede o `RESERVAS-DA-TURMA.md`**, que recomendava o Caminho B. O Felipe escolheu o **Caminho A**
 > em 01/09/2026: a lista de reservas pertence à TURMA. O `JogadorDisponivel` do Caminho B **não será
 > construído** — ver "A troca de B para A", abaixo.
@@ -140,13 +143,20 @@ JogadorGrupo
   + OcultoNaVitrine bool NOT NULL DEFAULT false
 
 PedidoDeEntrada
-  GrupoId       int    PK, FK -> GrupoPrivado  (Restrict? ver pendência 3)
-  JogadorId     int    PK, FK -> Jogador
+  GrupoId       int    PK, FK -> GrupoPrivado, ON DELETE CASCADE
+  JogadorId     int    PK, FK -> Jogador,      ON DELETE RESTRICT
   Status        int    -- 0 Pendente · 1 Aceito · 2 Recusado · 3 Reserva
   CriadoEm      timestamp
   DecididoEm    timestamp?
-  DecididoPorId int?   FK -> Jogador
+  DecididoPorId int?   FK -> Jogador,          ON DELETE RESTRICT
 ```
+
+⚠️ **As duas FKs de `Jogador` são `Restrict`, e isso não é escolha de gosto.** `GrupoPrivado` já
+cascateia a partir de `Jogador` (pelo `AdministradorId`), então um segundo caminho direto de
+`Jogador` até uma tabela filha do grupo é o **conflito de múltiplos caminhos de cascade** — o mesmo
+que `JogadorGrupo`, `JogoSemanal`, `CandidaturaParceiro` e `PalpitePartida` já resolveram assim, com
+o motivo escrito no `DbPadelContext`. `GrupoId` em `Cascade`, como em `JogadorGrupo`: apagou o grupo,
+o pedido não sobrevive.
 
 ⚠️ **`defaultValue: true` precisa estar escrito à mão na migration.** Coluna `bool` nova do EF nasce
 `false` no banco; o `= true` em C# só vale para objeto NOVO. Sem isso, todos os grupos que já existem
@@ -284,6 +294,9 @@ não.
     isso é a receita exata do estouro de 19/08. Padrão: `TraducaoDasConsultasDePalpiteTests`.
 14. (Entrega 2) Admin responde pedido; admin **não** nomeia outro admin; remover admin não remove
     o membro do grupo.
+15. Pedido de conta anonimizada (`ExcluidoEm != null`) não aparece na fila do dono **nem** sobe como
+    reserva no `Convidar` — a conta é anonimizada e não apagada, então a linha continua lá e só o
+    filtro a esconde.
 
 ---
 
@@ -328,18 +341,51 @@ recurso — é a descoberta da própria funcionalidade.
 
 ---
 
-## Decisões pendentes do Felipe
+## Decisões fechadas (delegadas a mim em 01/09/2026)
 
-1. **`OcultaNaVitrine` por membro entra no PR 1?** Recomendo sim — é um bool e um botão, e é a única
-   saída de quem não quer o vínculo público sem abandonar a turma.
-2. **Quem vê a lista de pedidos: só dono/admins, ou todos os membros?** Recomendo só dono/admins —
-   quem pediu não escolheu se expor à turma inteira, e o recusado menos ainda.
-3. **Grupo apagado: `Cascade` ou `Restrict` na FK de `PedidoDeEntrada`?** Recomendo `Cascade` — o
-   pedido não sobrevive ao grupo, e é dado pessoal sem função depois disso.
-4. **Conta excluída (LGPD):** os pedidos dela somem junto? Recomendo sim, no mesmo caminho da
-   `ExclusaoDeConta`.
-5. **Nome de grupo é texto livre do dono e passa a ser exibido a todos os logados.** Quem modera?
-   Recomendo reusar `/Admin/Denuncias`, que já existe — um botão de denunciar no card.
-6. **Ordem da vitrine.** Recomendo: turmas que aceitam pedidos primeiro, depois por atividade dos
-   últimos 30 dias. Sem paginação na v1 (com ~5 grupos, paginar é código morto) — atalho
-   deliberado, com o comentário nomeando o teto: paginar acima de ~200 turmas.
+**1. `OcultoNaVitrine` entra no PR 1 — sim.** É um `bool` e um botão. Fora do PR 1 ele não existe
+quando a vitrine liga, e a única saída de quem não quer o vínculo público vira abandonar a turma —
+que é perder um membro para não perder a privacidade. Entra junto ou não vale.
+
+**2. A fila de pedidos é vista só por dono e admins.** Quem pede escolheu se expor ao *dono*, não à
+turma inteira; e o recusado, a ninguém. Consequência que fica registrada: quando um `Reserva` sobe ao
+topo da tela `Convidar`, **todos os membros veem que aquela pessoa é reserva** — isso é inerente ao
+recurso (alguém precisa chamar), e é o único vazamento aceito, porque é o que faz a reserva servir
+para algo. Pendente e recusado nunca aparecem ali.
+
+**3. FK: `GrupoId` Cascade, `JogadorId` Restrict.** Corrigido no bloco de dados acima — minha
+recomendação anterior ("Cascade") estava certa só para a metade do grupo. `Cascade` nas duas quebra a
+migration pelo conflito de múltiplos caminhos, que o `DbPadelContext` já documenta em quatro tabelas.
+
+**4. Conta excluída: nada é apagado, e o filtro resolve.** A pergunta partia de uma premissa errada
+minha — **`ExclusaoDeConta` anonimiza, não deleta** (é o único caminho correto: `Pagamento` é
+registro fiscal do MEI, `Dupla` recusa apagar quem já jogou, e o resultado de uma partida é dado de
+quatro pessoas). Então não há linha órfã e não existe expurgo a escrever. O que precisa existir é
+**um filtro `ExcluidoEm == null` na leitura dos pedidos**, exatamente como o
+`LembreteJogoBackgroundService` já filtra. Sem ele, a fila do dono enche de "Jogador removido"
+pendente, e uma reserva de conta encerrada apareceria como chamável no `Convidar`. Vira o teste 15.
+
+**5. Denúncia de nome de grupo: não entra agora — e o motivo está no código.** Eu havia recomendado
+"reusar `/Admin/Denuncias`", mas fui conferir: aquela tela é **específica de `ComentarioPerfil`**
+(`AdminController.Denuncias` consulta comentários com `DenunciadoEm != null`). Reusar significa
+generalizá-la para um segundo tipo de item — trabalho real disfarçado de reuso, o degrau 2 aplicado
+errado. O que vale hoje: a base é beta fechado, o Felipe conhece os donos, e **desligar `Listado`
+daquele grupo pelo `/Admin` já é o botão de moderação** — um `UPDATE` numa coluna que o PR 1 cria de
+qualquer jeito. **Gatilho para construir a denúncia de verdade:** o dia em que o Acesso Antecipado
+abrir, ou a vitrine passar de ~50 turmas — o que vier primeiro. Fica escrito aqui para a sessão
+futura não tratar isso como esquecimento.
+
+**6. Ordem: quem aceita pedidos primeiro, depois por jogos nos últimos 30 dias, depois por nome.**
+Os dois primeiros critérios põem no topo o que responde à pergunta do Rafael ("onde eu consigo
+entrar, e a turma está viva?"); o terceiro existe só para a ordem não mudar de um F5 para o outro
+quando os dois primeiros empatam — que é o mesmo desempate que os jogos recentes da `Detalhes` já
+precisaram fazer pelo `Id`. **Sem paginação na v1**, com o comentário nomeando o teto:
+`// atalho: vitrine sem paginação; paginar acima de ~200 turmas`.
+
+---
+
+## O que continua realmente em aberto
+
+Nada bloqueia o PR 1. Duas coisas dependem de dado que só produção tem, e estão marcadas como
+gatilho, não como pendência: **o volume de eventos por semana** (decide o feed, decisão 7) e o
+**critério de sucesso de duas semanas** — um pedido real aceito numa turma real.
