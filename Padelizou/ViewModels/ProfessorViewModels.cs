@@ -55,10 +55,30 @@ public class FinanceiroProfessorVM
     public List<DevedorVM> Devedores { get; set; } = new();
     public List<FinanceiroPorLocalVM> PorLocal { get; set; } = new();
     public List<MesFaturamentoVM> UltimosMeses { get; set; } = new();
-    public List<SemanaFaturamentoVM> UltimasSemanas { get; set; } = new();
+    // As semanas do MÊS escolhido no card (pedido do Felipe em 01/09/2026) — antes era uma
+    // janela rolante de 6 semanas, que atravessava a virada do mês e não somava mês nenhum.
+    public List<SemanaFaturamentoVM> Semanas { get; set; } = new();
+
+    // O mês que está na tela do card, sempre o primeiro dia dele.
+    public DateTime MesDasSemanas { get; set; }
+
+    // As setas do card. Elas param onde o dado para: não existe faturamento no futuro, e nem
+    // antes da primeira aula — caminhar por meses vazios é como o professor conclui que o
+    // sistema apagou as aulas dele.
+    public bool PodeAvancarSemanas { get; set; }
+    public bool PodeVoltarSemanas { get; set; }
+
+    public string MesDasSemanasRotulo => Padelizou.Services.SemanasDoMes.Rotulo(MesDasSemanas);
+    public string MesAnteriorChave => Padelizou.Services.SemanasDoMes.Chave(MesDasSemanas.AddMonths(-1));
+    public string MesSeguinteChave => Padelizou.Services.SemanasDoMes.Chave(MesDasSemanas.AddMonths(1));
     public List<AnoFaturamentoVM> UltimosAnos { get; set; } = new();
 
-    public bool TemMovimento => Recebido > 0 || Previsto > 0 || AReceber > 0;
+    // ⚠️ O card de semanas entra nesta conta, e não só os cartões do topo. A tela corta TUDO
+    // abaixo dos cartões quando não há movimento ("Nenhum movimento neste mês") — e o card
+    // ganhou mês próprio em 01/09/2026. Sem esta linha, clicar na seta pra ver um mês que TEVE
+    // movimento cairia na tela vazia do mês corrente, sumindo justamente com o card que o
+    // clique pediu.
+    public bool TemMovimento => Recebido > 0 || Previsto > 0 || AReceber > 0 || Semanas.Any(s => s.Valor > 0);
 }
 
 public class DevedorVM
@@ -110,14 +130,15 @@ public class MesFaturamentoVM
     public string Rotulo => Mes.ToString("MMM/yy");
 }
 
-// Uma barra da visão semanal do Financeiro. A semana vai de segunda a domingo.
+// Uma barra da visão semanal do Financeiro. A semana vai de segunda a domingo, RECORTADA nas
+// pontas do mês (ver Services/SemanasDoMes) — por isso `Fim` é gravado e não calculado: a
+// primeira e a última barra do mês quase nunca fecham no domingo.
 public class SemanaFaturamentoVM
 {
     public DateTime Inicio { get; set; }
+    public DateTime Fim { get; set; }
     public decimal Valor { get; set; }
     public int Aulas { get; set; }
-
-    public DateTime Fim => Inicio.AddDays(6);
     public string Rotulo => $"{Inicio:dd/MM}–{Fim:dd/MM}";
 }
 

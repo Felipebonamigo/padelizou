@@ -7,7 +7,7 @@
     string SoDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
 
     var maxMes = Model.UltimosMeses.Any() ? Math.Max(1m, Model.UltimosMeses.Max(m => m.Valor)) : 1m;
-    var maxSemana = Model.UltimasSemanas.Any() ? Math.Max(1m, Model.UltimasSemanas.Max(s => s.Valor)) : 1m;
+    var maxSemana = Model.Semanas.Any() ? Math.Max(1m, Model.Semanas.Max(s => s.Valor)) : 1m;
     var maxAno = Model.UltimosAnos.Any() ? Math.Max(1m, Model.UltimosAnos.Max(a => a.Valor)) : 1m;
 }
 
@@ -179,11 +179,35 @@
         </script>
     }
 
-    <!-- Últimas 6 semanas -->
+    <!-- Semanas do mês escolhido -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-calendar-week"></i> Últimas 6 semanas</h6>
-            @foreach (var s in Model.UltimasSemanas)
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                    <i class="bi bi-calendar-week"></i> Semanas de <span class="text-capitalize">@Model.MesDasSemanasRotulo</span>
+                </h6>
+                @* Setas no MESMO idioma da Minha Agenda (‹ › com o período escrito no meio): o
+                   professor já aprendeu esse gesto lá, e um segundo jeito de andar no tempo
+                   dentro do mesmo app é uma coisa nova pra aprender à toa.
+
+                   Elas param onde o dado para — sem `href` viram cinza e não clicam. Caminhar
+                   por meses vazios, dos dois lados, é como se conclui que o sistema apagou as
+                   aulas. O `periodo` viaja junto: trocar de mês aqui não pode mexer nos
+                   cartões do topo. *@
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <a class="btn btn-sm btn-outline-secondary rounded-circle @(Model.PodeVoltarSemanas ? "" : "disabled opacity-50")"
+                       title="Mês anterior" aria-disabled="@(Model.PodeVoltarSemanas ? "false" : "true")"
+                       href="@(Model.PodeVoltarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesAnteriorChave }) : null)">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary rounded-circle @(Model.PodeAvancarSemanas ? "" : "disabled opacity-50")"
+                       title="Próximo mês" aria-disabled="@(Model.PodeAvancarSemanas ? "false" : "true")"
+                       href="@(Model.PodeAvancarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesSeguinteChave }) : null)">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            @foreach (var s in Model.Semanas)
             {
                 var pctSemana = (int)Math.Round(s.Valor / maxSemana * 100);
                 <div class="d-flex align-items-center gap-2 mb-2">
@@ -197,7 +221,13 @@
                     </small>
                 </div>
             }
-            <p class="small text-muted mb-0 mt-2">Semana de segunda a domingo; a última linha é a semana atual.</p>
+            @* A nota conta o RECORTE, que é a única coisa surpreendente do card: a primeira e a
+               última barra do mês quase nunca são semanas inteiras. E diz o que isso compra —
+               a soma bate com o mês do card logo abaixo. *@
+            <p class="small text-muted mb-0 mt-2">
+                Semana de segunda a domingo, recortada nas pontas do mês: somadas, as barras dão
+                o faturamento de <span class="text-capitalize">@Model.MesDasSemanasRotulo</span>.
+            </p>
         </div>
     </div>
 
