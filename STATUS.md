@@ -1,7 +1,130 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **01/09/2026** — 🏪 **A PANELINHA VAI DEIXAR DE SER FECHADA POR CONSTRUÇÃO: DESENHO DA VITRINE DE TURMAS APROVADO EM 7 DECISÕES.**
+> Última atualização: **01/09/2026** — 🚪 **O JOGADOR PASSA A CONSEGUIR SAIR DO TORNEIO SOZINHO — E O TORNEIO SAI DO WHATSAPP PELA SEGUNDA VEZ.**
+>
+> Três entregas em produção no mesmo dia (`build-733`, `build-745`, `build-747`), todas nascidas
+> de pergunta do Felipe olhando a tela.
+>
+> 🚪 **SAIR DO TORNEIO GANHOU AS DUAS RESPOSTAS QUE FALTAVAM** (`build-733-79763cb`).
+>
+> 🗣️ *"faça uma opção, para quando estiver em dupla, perguntar para a pessoa se sai as duas ou
+> se sai somente ela."*
+>
+> Até aqui o sistema **decidia por ela**: em dupla completa, saía só quem clicou. A regra
+> protege o parceiro que continua querendo jogar — e segue sendo a resposta mais comum —, mas a
+> dupla que se inscreveu junto e desistiu junto era obrigada a clicar **duas vezes, em duas
+> contas**. Na prática a segunda metade não clicava, e meia inscrição segurava a vaga até o
+> encerramento, com a lista de espera parada atrás dela. Agora são dois botões: **Sair só eu** e
+> **Sair os dois** (`EscolhaDeQuemSai`).
+>
+> ⚠️ **O parâmetro cai em `SoEu` quando o formulário não manda nada, de propósito**: é a saída
+> que não tira a vaga de ninguém, então campo perdido no caminho nunca desinscreve o parceiro
+> por acidente.
+>
+> ⚠️ **"Sair os dois" é decisão de UM SÓ** — o parceiro perde a vaga sem concordar e só recebe o
+> aviso depois. Foi o pedido, e faz sentido pra dupla que desiste junta; se um dia incomodar na
+> prática, o caminho é pedir confirmação dele, e é trabalho novo.
+>
+> 🎾 **E O AMERICANO GANHOU A PORTA QUE NUNCA TEVE.** O botão de desistir nasceu dentro do laço
+> de **duplas**, e inscrição de Americano é individual, em outra tabela (`InscricaoAmericana`).
+> Resultado: num torneio Americano o jogador **não conseguia sair sozinho** — voltava a ser
+> mensagem pro organizador, que é o trabalho manual que o botão existe pra matar. Entraram
+> `MotivoParaNaoDesistirDoAmericano` e a ação `DesistirDoAmericano`. As duas travas que valem
+> pros dois tipos (é sua, inscrições abertas) foram pra um lugar só: escritas duas vezes, uma
+> das cópias acabaria deixando sair **depois do sorteio**, com a dupla sumindo de uma chave
+> já montada.
+>
+> 💸 **QUEM JÁ PAGOU AGORA SABE QUE A DEVOLUÇÃO NÃO É AUTOMÁTICA.** Estornar é botão do
+> organizador, por desenho (`ESTORNO.md`) — isso não mudou. O buraco era a ponte entre as duas
+> metades: dava pra cancelar uma inscrição **paga** e ninguém ficava sabendo, então a devolução
+> dependia do organizador reparar numa vaga a menos na lista. Agora quem cancela lê o aviso
+> antes de confirmar, e o organizador é notificado.
+>
+> 💰 **O CARD DO PIX PASSOU A DIZER QUANTO MANDAR** (`build-745-70f9012`).
+>
+> 🗣️ *"acho que pode ser interessante colocar o valor perto desse local aonde tem o pix do
+> organizador do torneio."*
+>
+> ⚠️ **O defeito escondido no pedido**: o card dava a chave e pedia o comprovante, mas não dizia
+> o número que a pessoa digita no app do banco. Ela ia buscar no cabeçalho da página — **e o do
+> cabeçalho é POR PESSOA**. Numa inscrição de dupla, quem lê `R$ 150,00` e manda 150 **paga
+> metade**, e quem descobre é o organizador conferindo comprovante na mão, num dinheiro que o
+> Padelizou não vê nem conserta. O card mostra o total da inscrição em destaque, com o
+> por-pessoa ao lado, e **antes** do campo da chave — a ordem de quem paga é decidir quanto,
+> copiar, mandar.
+>
+> ⚠️ **Nenhuma conta nova de dinheiro nasceu**: `ValorPorPessoa` devolve o mesmo
+> `PrecoInscricao` que a tela já mostrava nesse cenário (no "por fora" o `ViewBag.PrecoTotal` é
+> nulo e o cabeçalho cai no campo). Um dos testes **recusa `Model.PrecoInscricao * 2` escrito na
+> view**: duas contas do mesmo dinheiro é como a página passaria a anunciar dois preços.
+>
+> ⚠️ **E o card não promete o que não sabe.** Impedimento de horário soma, e a segunda categoria
+> do mesmo jogador pode custar menos (`PrecoDaInscricao`). Quando o torneio tem qualquer um dos
+> dois, entra a linha "esse é o valor base — confirme com o organizador". Total exato errado
+> colado numa chave Pix é pagamento a menos que ninguém conserta.
+>
+> 📵 **O TORNEIO SAIU DO CANAL DE WHATSAPP PELA SEGUNDA VEZ — E AGORA COM TRAVA**
+> (`build-747-77510d8`).
+>
+> 🕳️ **O que aconteceu, e é a lição do dia:** o aviso de "saiu uma inscrição PAGA" nasceu na
+> mesma `build-733` com `AlcanceDoAviso.AppEWhatsApp` e foi pra produção. Era o **único**
+> disparo de torneio no canal — a família inteira tinha saído em **21/08** por decisão do
+> Felipe, e o PR #23 (mergeado ontem) terminou o serviço passando até a promoção da lista de
+> espera pra `SoApp`. O aviso novo passava nos três critérios do canal (pessoal, urgente,
+> acionável) e o volume era ridículo, então **nada no código reclamou**. A porta reabriu dez
+> dias depois, e só apareceu porque o Felipe perguntou *"o que temos que ainda manda msg para o
+> whats?"* e a lista foi contada à mão.
+>
+> ⚠️ **A decisão de 21/08 estava escrita em comentário E em documento, e isso não segurou.** Por
+> isso a correção não foi só trocar a palavra: `TorneioNaoVaiProWhatsAppTests` varre os arquivos
+> `TorneiosController*` e quebra **nomeando o arquivo culpado**. Ele não julga se o próximo
+> aviso merece o canal — diz que essa decisão é do Felipe, e não de quem estiver escrevendo o
+> aviso com pressa. Se um dia for exceção de verdade, o caminho é apagar o teste de propósito.
+>
+> 📊 **O canal depois disto**: aula (5 disparos), desafio (2), pagamento pendente (1) — todos de
+> um pra um, disparados por gesto humano. **Torneio: zero.** É exatamente o que o comentário do
+> `VolumeDoWhatsApp` já descrevia, e voltou a ser verdade.
+>
+> 🐛 **DE QUEBRA, UM TESTE QUE QUEBRAVA TODO DIA 1º.**
+> `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` criava a aula "já realizada" em
+> `Today.AddDays(-1)` e esperava vê-la em `RecebidoNoMes`. No dia 1º de cada mês, ontem cai no
+> mês anterior — e o painel filtra por `DataHora >= inicioMes`. Falhava com
+> `Expected: 100, Actual: 0`. **Conferido vermelho no `origin/main` limpo** antes de qualquer
+> mudança: o defeito era do cenário, não do painel. Sem esse conserto o CI do dia inteiro
+> fecharia vermelho.
+>
+> 🧪 **5.220 testes, 0 falhas** (27 novos no dia). Os testes de tela foram vistos **vermelhos
+> contra a view original** antes de cada implementação entrar — um deles passou de primeira pelo
+> motivo errado (`inscricao.JogadorId == meuJogadorId` já existia na tela pro prazo de
+> pagamento) e foi trocado por regex de janela curta até falhar direito. Falsificações
+> confirmadas: `ADuplaInteira` igual a `SoEu` derruba o teste da vaga que abre; tirar o
+> `* PessoasPorInscricao` derruba o total da dupla; zerar `OTotalPodeVariar` derruba os três
+> casos do aviso de preço base.
+>
+> ✅ **Tudo publicado e conferido nos dois ambientes** — serviço `active`, `NRestarts=0`, 0
+> exceção, `healthz` 200. E, porque `healthz` 200 não prova que a versão nova subiu, os literais
+> foram procurados dentro do `Padelizou.dll` de produção com `strings -el`: `Sair os dois`,
+> `DesistirDoAmericano` e `o valor base` estão lá. Nenhuma migration em nenhuma das três.
+>
+> 🧹 **ANTES DISSO, ONTEM (31/08), UMA FAXINA QUE NUNCA FOI ANOTADA AQUI.** Três PRs parados há
+> semanas entraram — **#30** (STATUS da build-681), **#23** (torneio sai do WhatsApp) e **#46**
+> (quem marca o placar + registro de resultados a 10%), virando `build-727`, `build-729` e
+> `build-731`. Os dois conflitos eram **só no `STATUS.md`**, e a resolução foi a de sempre: as
+> duas entradas convivem, cada uma na posição cronológica dela. Nenhum arquivo de código
+> conflitou. Saíram junto **seis arquivos soltos** que a árvore carregava sem ninguém
+> referenciar (`RecadoDaAula.cs`, `VagasDoDia.cs`, o teste deles e três logos) — grep no repo
+> inteiro devolvia zero fora dos próprios arquivos.
+>
+> 📧 **E O E-MAIL DO PEDRO JUNIOR FOI ARRUMADO NA MÃO**, depois da validação que subiu na
+> `build-724`: `pedrojunior_1978@hotmial.com` virou `fariaspadel@gmail.com`, o endereço que ele
+> confirmou. A validação (`EmailDoCadastro`, com **Damerau-Levenshtein** — Levenshtein comum
+> não pega `hotmial`↔`hotmail`, porque transposição custa 2) está nas duas portas: cadastro e
+> editar perfil. ⚠️ **Ela BLOQUEIA o typo**, não só avisa. Se um dia alguém tiver e-mail num
+> domínio a uma letra de um dos dez grandes, leva recusa — risco aceito de propósito, e virar
+> "só avisa" é uma linha.
+>
+> Antes, no mesmo dia: 🏪 **A PANELINHA VAI DEIXAR DE SER FECHADA POR CONSTRUÇÃO: DESENHO DA VITRINE DE TURMAS APROVADO EM 7 DECISÕES.**
 >
 > 🗣️ **De onde veio:** cinco cards do Rafael Paim (preencher vaga · lista de reservas · feed
 > esportivo · visibilidade de turmas · compartilhar no WhatsApp) e quatro linhas do Felipe (grupos
