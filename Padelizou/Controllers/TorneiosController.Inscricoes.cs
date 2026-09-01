@@ -468,7 +468,12 @@ namespace Padelizou.Controllers
             await AvisarAsync(organizadores, "Saiu do torneio uma inscrição PAGA",
                 $"{quemSaiu?.ComoChamar ?? "Um inscrito"} cancelou a inscrição em {torneio.Nome}, e ela estava paga. "
                 + "O estorno não é automático: se for o caso de devolver, faça em Pagamentos → Meus.",
-                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+                // ⚠️ `SoApp`, e não o WhatsApp — decisão do Felipe em 01/09/2026, revertendo a
+                // minha. Este aviso passa nos três critérios do canal (pessoal, urgente,
+                // acionável) e o volume é ridículo, mas a família de torneio SAIU do canal em
+                // 21/08 e "só mais este" é exatamente como ela voltaria inteira. Quem decide o
+                // que entra ali é ele; `TorneioNaoVaiProWhatsAppTests` guarda a porta.
+                torneio.Id);
         }
 
         // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria (a
