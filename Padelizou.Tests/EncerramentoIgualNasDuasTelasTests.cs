@@ -185,9 +185,10 @@ public class EncerramentoIgualNasDuasTelasTests
         // Os QUATRO jogadores do jogo seguinte recebem a chamada — as duas duplas, não só uma.
         await push.Received(4).EnviarParaJogadorAsync(
             Arg.Any<int>(), "Seu jogo é o próximo!", Arg.Any<string>(), Arg.Any<string?>(),
-            // ⚠️ O único aviso do sistema que vale WhatsApp: a pessoa está no clube, o jogo é
-            // agora, e ela não vai abrir e-mail.
-            AlcanceDoAviso.AppEWhatsApp);
+            // ⚠️ FORA DO WHATSAPP desde 21/08/2026, com o resto da família de torneio. Continua
+            // `SoApp` e não `AppSemEmail` de propósito: quem está no clube pode não ter o app,
+            // e aí o e-mail é o único caminho que sobra.
+            AlcanceDoAviso.SoApp);
 
         // E fica carimbado, pra não avisar duas vezes se alguém corrigir o placar depois.
         Assert.NotNull((await ctx.Partidas.FindAsync(seguinte.Id))!.AvisoProximoEnviadoEm);

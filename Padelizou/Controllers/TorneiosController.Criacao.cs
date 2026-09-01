@@ -384,6 +384,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // POST montado à mão pode mandar qualquer texto no modo de quem marca placar.
+            // Modo desconhecido não abre nada — e também não é gravado: cai no padrão.
+            if (!QuemMarcaOPlacar.Existe(torneio.QuemMarcaPlacar))
+            {
+                torneio.QuemMarcaPlacar = QuemMarcaOPlacar.Organizacao;
+                ModelState.Remove(nameof(Torneio.QuemMarcaPlacar));
+            }
+
             // ── As recusas vêm ANTES de qualquer gravação ────────────────────────────────
             // Inclusive antes de achar-ou-criar o clube: recusar depois deixaria um clube
             // novo no catálogo a cada tentativa recusada.
@@ -1221,6 +1229,10 @@ namespace Padelizou.Controllers
             // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
             // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
             string? formaPagamento = null,
+            // Quem pode marcar placar (Services/QuemMarcaOPlacar). Nulo = aba antiga sem o
+            // campo: o modo gravado FICA. Editável a qualquer momento, inclusive no meio do
+            // torneio — abrir pros jogadores quando a mesa aperta é o caso de uso.
+            string? quemMarcaPlacar = null,
             // "Só confirmo a inscrição depois de pago". Nulo = campo ausente (aba antiga, ou
             // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
             // gravado FICA.
@@ -1440,6 +1452,12 @@ namespace Padelizou.Controllers
 
                 torneio.FormaPagamento = formaPagamento;
             }
+
+            // ── Quem pode marcar placar — sem trava de inscrito, de propósito ───────────
+            // Não é dinheiro nem contrato com quem entrou: é operação do dia. Modo
+            // desconhecido (POST montado à mão) não grava — o que está salvo fica.
+            if (quemMarcaPlacar != null && QuemMarcaOPlacar.Existe(quemMarcaPlacar))
+                torneio.QuemMarcaPlacar = quemMarcaPlacar;
 
             // ── "Só confirmo a inscrição depois de pago", agora editável ────────────────
             // A chave só existia na tela de CRIAÇÃO, e o Editar nunca a lia — o mesmo buraco

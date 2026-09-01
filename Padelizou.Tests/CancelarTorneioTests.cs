@@ -35,10 +35,11 @@ public class CancelarTorneioTests
     }
 
     [Fact]
-    public async Task Todo_inscrito_e_avisado_e_por_WhatsApp()
+    public async Task Todo_inscrito_e_avisado_do_cancelamento()
     {
         // O aviso mais caro de não chegar: sem ele a pessoa sai de casa e vai pra quadra.
-        // Por isso o alcance é o mesmo da promoção da lista de espera.
+        // Mesmo assim ele saiu do WhatsApp em 21/08/2026, com o resto da família de torneio —
+        // o e-mail continua indo, e é ele que alcança quem não instalou o app.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 3, status: "Inscrições Abertas");
         var push = Substitute.For<IPushNotificationService>();
@@ -50,7 +51,7 @@ public class CancelarTorneioTests
         await push.Received(6).EnviarParaJogadorAsync(
             Arg.Any<int>(), "Torneio cancelado",
             Arg.Is<string>(c => c != null && c.Contains("Sem quadra")),
-            Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
+            Arg.Any<string?>(), AlcanceDoAviso.SoApp);
     }
 
     [Fact]

@@ -978,6 +978,36 @@
                                 a votação fica aberta por uma semana. Dá pra desligar depois, na gestão.
                             </div>
                         </div>
+
+                        @* Quem pode marcar o placar (Services/QuemMarcaOPlacar). Nasce na
+                           organização — o comportamento de sempre. Abrir tira fila da mesa;
+                           W.O., reabrir e trocar quadra continuam da organização em qualquer
+                           escolha, e dá pra trocar depois, na gestão, até no dia do jogo. *@
+                        <label class="form-label fw-bold text-muted mb-1">Quem pode marcar o placar dos jogos?</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="QuemMarcaPlacar" value="Organizacao" id="marcaOrganizacao" />
+                            <label class="form-check-label" for="marcaOrganizacao">
+                                <span class="fw-bold">Só a organização</span>
+                                <span class="d-block small text-muted">Organizadores, marcadores e a equipe do Padelizou.</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="QuemMarcaPlacar" value="JogadoresEmQuadra" id="marcaEmQuadra" />
+                            <label class="form-check-label" for="marcaEmQuadra">
+                                <span class="fw-bold">Organização + jogadores em quadra</span>
+                                <span class="d-block small text-muted">Os 4 do jogo dão a largada e marcam o próprio placar.</span>
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" asp-for="QuemMarcaPlacar" value="Inscritos" id="marcaInscritos" />
+                            <label class="form-check-label" for="marcaInscritos">
+                                <span class="fw-bold">Qualquer inscrito do torneio</span>
+                                <span class="d-block small text-muted">
+                                    Todo inscrito marca o placar de qualquer jogo. Em qualquer escolha,
+                                    W.O., reabrir jogo e trocar quadra continuam só com a organização.
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 @* Impedimento é uma DUPLA marcando o horário em que não pode jogar, antes

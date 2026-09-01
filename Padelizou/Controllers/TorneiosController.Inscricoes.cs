@@ -344,7 +344,10 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Desistir(int duplaId)
+        // `escolha` só é lida quando a dupla está completa. Ela cai em `SoEu` quando o formulário
+        // não manda nada, e isso é de propósito: `SoEu` é a saída que NÃO tira a vaga de
+        // ninguém, então um campo perdido no caminho nunca desinscreve o parceiro por acidente.
+        public async Task<IActionResult> Desistir(int duplaId, EscolhaDeQuemSai escolha = EscolhaDeQuemSai.SoEu)
         {
             var dupla = await _context.Duplas
                 .Include(d => d.Categoria)
@@ -365,7 +368,7 @@ namespace Padelizou.Controllers
             var quemFica = DesistenciaDeInscricao.QuemFica(dupla, meuId);
             bool eraConfirmada = !dupla.EmListaDeEspera;
 
-            if (DesistenciaDeInscricao.Efeito(dupla) == EfeitoDaDesistencia.SoSaiQuemDesistiu)
+            if (DesistenciaDeInscricao.Efeito(dupla, escolha) == EfeitoDaDesistencia.SoSaiQuemDesistiu)
             {
                 // A vaga NÃO abre: o parceiro continua inscrito, agora sem dupla fechada. Ele
                 // assume a cadeira de Jogador1 porque essa coluna não é anulável.
@@ -381,14 +384,91 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
-            // Estava sozinho: a inscrição acaba e a vaga volta pra fila.
+            // Estava sozinho, ou os dois saem juntos: a inscrição acaba e a vaga volta pra fila.
+            bool eraPaga = dupla.Pago;
             _context.Duplas.Remove(dupla);
             await _context.SaveChangesAsync();
 
+            // O parceiro não clicou em nada e mesmo assim deixou de estar inscrito. Ele PRECISA
+            // saber hoje, não no dia do jogo — é o mesmo motivo pelo qual o organizador avisa
+            // quem ele remove (ver TirarDuplaDoTorneioAsync).
+            if (quemFica is { } parceiro)
+            {
+                await AvisarAsync(new[] { parceiro }, "A inscrição da dupla foi cancelada",
+                    $"{euMesmo?.ComoChamar ?? "Seu parceiro"} cancelou a inscrição de vocês em {torneio!.Nome}. "
+                    + "Se foi engano, dá pra se inscrever de novo enquanto as inscrições estiverem abertas.",
+                    torneioId);
+            }
+
+            await AvisarOrganizadorDeSaidaPagaAsync(eraPaga, torneio!, euMesmo);
+
             if (eraConfirmada) await PromoverDaListaDeEsperaAsync(dupla.CategoriaId, torneio!);
 
-            TempData["Sucesso"] = "Sua inscrição foi cancelada.";
+            TempData["Sucesso"] = eraPaga
+                ? "Sua inscrição foi cancelada. Como ela estava paga, a devolução é com o organizador — ele já foi avisado."
+                : "Sua inscrição foi cancelada.";
             return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // ── O inscrito do Americano desiste ───────────────────────────────────────────────
+        // Mesma porta do Desistir, pra quem se inscreveu num Torneio Americano. Ela existe
+        // separada porque a inscrição de Americano é individual e vive em outra tabela — não
+        // há parceiro, então também não há o que perguntar: sair é sempre a inscrição inteira.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DesistirDoAmericano(int inscricaoId)
+        {
+            var inscricao = await _context.InscricoesAmericanas
+                .Include(i => i.Categoria)
+                .FirstOrDefaultAsync(i => i.Id == inscricaoId);
+            if (inscricao == null) return NotFound();
+
+            int torneioId = inscricao.Categoria.TorneioId;
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            var meuId = ObterJogadorIdLogado() ?? 0;
+
+            if (DesistenciaDeInscricao.MotivoParaNaoDesistirDoAmericano(inscricao, torneio, meuId) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var euMesmo = await _context.Jogadores.FindAsync(meuId);
+            bool eraConfirmada = !inscricao.EmListaDeEspera;
+            bool eraPaga = inscricao.Pago;
+            int categoriaId = inscricao.CategoriaId;
+
+            _context.InscricoesAmericanas.Remove(inscricao);
+            await _context.SaveChangesAsync();
+
+            await AvisarOrganizadorDeSaidaPagaAsync(eraPaga, torneio!, euMesmo);
+
+            if (eraConfirmada) await PromoverDaListaDeEsperaAsync(categoriaId, torneio!);
+
+            TempData["Sucesso"] = eraPaga
+                ? "Sua inscrição foi cancelada. Como ela estava paga, a devolução é com o organizador — ele já foi avisado."
+                : "Sua inscrição foi cancelada.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // ⚠️ O dinheiro NÃO volta sozinho, e isso é desenho, não esquecimento: estornar é botão
+        // do organizador, na tela de pagamentos dele (ver ESTORNO.md). O buraco era outro — ele
+        // não ficava sabendo que alguém pago tinha saído, então a devolução dependia de ele
+        // reparar numa vaga a menos na lista. Este aviso é a ponte entre as duas metades.
+        private async Task AvisarOrganizadorDeSaidaPagaAsync(bool eraPaga, Torneio torneio, Jogador? quemSaiu)
+        {
+            if (!eraPaga) return;
+
+            var organizadores = await _context.TorneioOrganizadores
+                .Where(o => o.TorneioId == torneio.Id)
+                .Select(o => o.JogadorId)
+                .ToListAsync();
+
+            await AvisarAsync(organizadores, "Saiu do torneio uma inscrição PAGA",
+                $"{quemSaiu?.ComoChamar ?? "Um inscrito"} cancelou a inscrição em {torneio.Nome}, e ela estava paga. "
+                + "O estorno não é automático: se for o caso de devolver, faça em Pagamentos → Meus.",
+                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
         }
 
         // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria (a
@@ -438,11 +518,15 @@ namespace Padelizou.Controllers
 
         // Mesmo evento que o da desistência com pagamento, e por isso o mesmo alcance: a
         // vaga abrir por estorno ou por desistência direta é diferença nossa, não de quem
-        // estava na fila esperando.
+        // estava na fila esperando. ⚠️ O gêmeo mora em PagamentoInscricaoService — mexeu
+        // aqui, mexe lá.
+        //
+        // Fora do WhatsApp desde 21/08/2026, com o resto da família de torneio (ver
+        // Services/EncerramentoDaPartida).
         private async Task AvisarPromocaoAsync(IEnumerable<int> promovidos, Torneio torneio) =>
             await AvisarAsync(promovidos, "Abriu vaga — vocês estão dentro!",
                 $"Alguém desistiu de {torneio.Nome} e vocês saíram da lista de espera. Boa sorte!",
-                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+                torneio.Id, AlcanceDoAviso.SoApp);
 
         // Push falha calado (quem não instalou o app não recebe nada), então o aviso que
         // importa vai também por e-mail — é o que a maioria tem.
@@ -673,11 +757,13 @@ namespace Padelizou.Controllers
             torneio.CanceladoEm = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            // Cancelamento é o aviso mais caro de não chegar: a pessoa sai de casa e vai pra
-            // quadra. Por isso vale WhatsApp, como a promoção da lista de espera.
+            // Cancelamento é o aviso mais caro de NÃO chegar: a pessoa sai de casa e vai pra
+            // quadra à toa. Mesmo assim saiu do WhatsApp em 21/08/2026, com o resto da família
+            // de torneio (ver Services/EncerramentoDaPartida) — o e-mail continua indo, e é ele
+            // que alcança quem não instalou o app.
             await AvisarAsync(inscritos, "Torneio cancelado",
                 CancelamentoDoTorneio.RecadoParaInscritos(torneio.Nome, torneio.MotivoCancelamento),
-                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+                torneio.Id, AlcanceDoAviso.SoApp);
 
             TempData["Sucesso"] = $"Torneio cancelado. {inscritos.Count} inscrito(s) avisado(s). "
                 + "Ele sai da listagem, mas continua na sua lista de torneios — e quem pagou "

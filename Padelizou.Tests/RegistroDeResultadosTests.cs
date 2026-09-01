@@ -136,6 +136,21 @@ public class RegistroDeResultadosTests
     }
 
     [Fact]
+    public void O_percentual_do_servico_e_10_por_cento_das_inscricoes()
+    {
+        // Decisão do Felipe (26/08/2026), depois de ver o concorrente cobrar 28% pra cobrir
+        // um torneio: o serviço subiu de 5% pra 10%. Pedido feito na régua de 5% não é
+        // recalculado — a cotação congela no pedido (PercentualCotado), e é o teste abaixo
+        // deste que segura esse congelamento.
+        var config = new RegistroResultadosSettings();
+
+        Assert.Equal(10m, config.PercentualDasInscricoes);
+        // Com 10%, o percentual passa o mínimo de R$ 500 a partir de R$ 5.000 de inscrições.
+        Assert.Equal(5_000m, RegistroDeResultados.InscricoesParaSairDoMinimo(
+            config.PercentualDasInscricoes, config.ValorMinimo));
+    }
+
+    [Fact]
     public void Pedido_antigo_cotado_por_jogo_continua_valendo_o_que_leu()
     {
         // A cotação congela no pedido: quem pediu na regra do R$ 12 por jogo (antes de

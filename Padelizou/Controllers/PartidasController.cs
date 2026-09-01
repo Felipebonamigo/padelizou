@@ -67,6 +67,54 @@ namespace Padelizou.Controllers
                 .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
 
+        // A régua de MARCAR: a mesa inteira (acima) OU quem o torneio liberou pela escolha
+        // do organizador (Torneio.QuemMarcaPlacar). Vale só pra marcar placar e iniciar
+        // jogo — W.O., reabrir e voltar pra agendado seguem na régua cheia, e quem entra
+        // só por aqui não mexe em quadra nem transmissão (ver o POST do ControlePlacar).
+        private async Task<bool> PodeMarcarPlacarAsync(Partida partida) =>
+            await PodeControlarPlacarAsync(partida) || await LiberadoPeloTorneioAsync(partida);
+
+        // O que a escolha do organizador abre além da mesa. Regras em Services/QuemMarcaOPlacar
+        // — aqui é a versão que pergunta ao banco; a versão pura (pras telas desenharem o
+        // lápis) está no serviço, e as duas precisam dizer a mesma coisa.
+        private async Task<bool> LiberadoPeloTorneioAsync(Partida partida)
+        {
+            var jogadorId = ObterJogadorIdLogado();
+            if (jogadorId == null || partida.TorneioId == null) return false;
+
+            var modo = await _context.Torneios
+                .Where(t => t.Id == partida.TorneioId)
+                .Select(t => t.QuemMarcaPlacar)
+                .FirstOrDefaultAsync();
+            if (modo != QuemMarcaOPlacar.JogadoresEmQuadra && modo != QuemMarcaOPlacar.Inscritos)
+                return false;
+
+            // Os 4 em quadra entram nos dois modos abertos — inclusive no Inscritos, porque
+            // dupla de TIME e chave direta jogam sem inscrição própria pelo site.
+            if (await _context.Duplas
+                    .Where(d => d.Id == partida.Dupla1Id || d.Id == partida.Dupla2Id)
+                    .AnyAsync(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+                return true;
+
+            if (modo != QuemMarcaOPlacar.Inscritos) return false;
+
+            // Qualquer inscrito do torneio, fora lista de espera (quem espera não joga).
+            if (await _context.Duplas.AnyAsync(d =>
+                    d.Categoria.TorneioId == partida.TorneioId && !d.EmListaDeEspera
+                    && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)))
+                return true;
+
+            if (await _context.InscricoesAmericanas.AnyAsync(i =>
+                    i.Categoria.TorneioId == partida.TorneioId && !i.EmListaDeEspera
+                    && i.JogadorId == jogadorId))
+                return true;
+
+            // Assistente do Padelizou: a flag é de leitura por contrato (PoderesNoSistema),
+            // e esta é a exceção deliberada — só no modo em que o organizador abriu pra
+            // todo mundo, pra equipe do "nós registramos os resultados" poder trabalhar.
+            return await _context.Jogadores.AnyAsync(j => j.Id == jogadorId && j.IsAssistente);
+        }
+
         // POST: Partidas/Votar — palpitrômetro (voto do jogador logado em quem vai ganhar a partida)
         //
         // `placar1`/`placar2` são OPCIONAIS e vêm na orientação do jogo (lado 1 = Dupla1): sem
@@ -132,7 +180,11 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (partida == null) return NotFound();
-            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+            if (!await PodeMarcarPlacarAsync(partida)) return Forbid();
+
+            // Quem entra só pela liberação do torneio marca o JOGO: a tela esconde quadra,
+            // transmissão e W.O., e o POST ignora esses campos mesmo que venham na mão.
+            ViewBag.EhDaMesa = await PodeControlarPlacarAsync(partida);
 
             ViewBag.Quadras = await _context.Quadras
                 .Where(q => q.TorneioId == partida.TorneioId)
@@ -211,7 +263,9 @@ namespace Padelizou.Controllers
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
-            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+            // Régua de MARCAR, não a da mesa: dar a largada no próprio jogo é parte de
+            // marcar o placar quando o organizador abriu essa porta.
+            if (!await PodeMarcarPlacarAsync(partida)) return Forbid();
 
             // Idempotente: dois toques no botão (celular, dedo grande, 3G lento) não podem
             // zerar o cronômetro de uma partida que já começou.
@@ -525,7 +579,19 @@ namespace Padelizou.Controllers
             if (partida == null) return NotFound();
 
             // Sem isto, qualquer um que alcançasse a rota mudava o placar de qualquer jogo.
-            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+            bool ehDaMesa = await PodeControlarPlacarAsync(partida);
+            if (!ehDaMesa && !await LiberadoPeloTorneioAsync(partida)) return Forbid();
+
+            // Quem entra só pela liberação do torneio marca o JOGO: games, saque e status.
+            // Quadra e transmissão são operação da mesa — os campos que vierem no POST são
+            // ignorados (a tela nem os desenha, mas formulário montado à mão viria por aqui),
+            // valendo o que a partida já tem.
+            if (!ehDaMesa)
+            {
+                nomeQuadra = partida.NomeQuadra;
+                linkTransmissao = partida.LinkTransmissao;
+                aplicarLinkNaQuadra = false;
+            }
 
             // Guardado ANTES de mexer no status: "acabou de terminar" é diferente de "está
             // terminada". Corrigir o placar de um jogo já encerrado é rotina no meio do

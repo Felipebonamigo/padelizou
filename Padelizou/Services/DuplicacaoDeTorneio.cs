@@ -73,6 +73,9 @@ public static class DuplicacaoDeTorneio
         // Recursos ligados
         nameof(Torneio.UsaCheckIn),
         nameof(Torneio.UsaVotacaoDeMvp),
+        // Quem marca placar é jeito de operar o dia — quem abriu pros jogadores numa edição
+        // quer o mesmo na seguinte, e é editável na gestão de qualquer forma.
+        nameof(Torneio.QuemMarcaPlacar),
 
         // O grupo do WhatsApp costuma ser o mesmo entre edições — e é editável na gestão.
         nameof(Torneio.LinkGrupoWhatsApp),

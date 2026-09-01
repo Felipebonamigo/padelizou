@@ -60,7 +60,56 @@
 >
 > ⏳ **Nada implementado.** Próximo passo: migration em worktree limpo + `has-pending-model-changes`.
 >
-> Última atualização: **31/08/2026** — 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
+> Antes, no mesmo dia — 📅 **O CARD "ÚLTIMAS 6 SEMANAS" VIROU "SEMANAS DE \<MÊS\>", COM O MÊS ESCOLHIDO NA SETA.**
+>
+> 🗣️ **O pedido do Felipe**, num print do Financeiro: *"aonde diz (Ultimas 6 semanas), permita tambem escolher ali o mês, separando as semanas, como padrão vem o mês atual"*.
+>
+> 🕳️ **A janela rolante não pertencia a mês nenhum.** A última barra do print dele era **"31/08–06/09"** — seis dias de setembro somados a um de agosto. Nenhuma soma de barras batia com agosto, nem com setembro, e o card "Últimos 6 meses" logo abaixo dizia outro número pro mesmo mês.
+>
+> ✂️ **A semana continua de segunda a domingo — ela é RECORTADA nas pontas do mês.** É o recorte que faz a soma das barras ser exatamente o faturamento daquele mês. Em agosto/2026 (começa sábado, termina segunda) saem 6 barras: `01–02`, `03–09`, `10–16`, `17–23`, `24–30` e `31–31`.
+>
+> ⬅️➡️ **Navegação com as setas ‹ ›, o mesmo idioma da Minha Agenda** — o professor já aprendeu o gesto lá. Elas **param onde o dado para**: não existe faturamento no futuro, e nem antes da primeira aula; sem `href` viram cinza. O `periodo` dos cartões do topo viaja junto no link — trocar de mês no card não mexe neles.
+>
+> 🪤 **A armadilha que a mudança criava, e que virou teste:** a tela corta TUDO abaixo dos cartões quando o período do topo não teve movimento. Com o card ganhando mês próprio, clicar na seta pra ver um mês que TEVE movimento cairia na tela vazia do mês corrente — sumindo justamente com o card que o clique pediu. `TemMovimento` passou a olhar os dois recortes.
+>
+> 🧪 **5.208 testes, 0 falhas (23 novos).** **Sem migration.** A régua mora num serviço puro (`Services/SemanasDoMes`): as pontas do mês são onde esse tipo de conta erra calado, e tem teste de que as fatias cobrem o mês **sem buraco e sem sobreposição** em 5 meses diferentes (dia fora de todas = dinheiro que some; dia em duas = dinheiro contado duas vezes). Leitura do `?semanas=2026-08` em **InvariantCulture** — a armadilha do `DatasDaAulaFixa`.
+>
+> ✅ **Falsificado meio a meio:** tirando só o recorte falham 9 testes; ignorando só o parâmetro do mês e o limite das setas falham 7, sem interseção com os primeiros.
+>
+> ♻️ **Dois testes antigos foram REESCRITOS, não apagados** (`QuadraPagaPeloAlunoTests`): eles fixavam a janela rolante ("a última linha é a semana atual"). O que eles sempre disseram — cada aula cai na semana em que aconteceu, semana de segunda a domingo — continua travado, agora ancorado num mês FIXO em vez de "hoje", que é a armadilha de calendário que mordeu duas vezes hoje.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, em 01/09/2026: 💬 **COBRAR UM ALUNO COM VÁRIAS AULAS EM ATRASO AGORA PERGUNTA SE A MENSAGEM VAI DETALHADA.**
+>
+> 🗣️ **O pedido do Felipe**, num print da lista "Quem está devendo": *"caso o professor tenha um aluno com varias aulas em atraso, quando ele clicar para cobrar, caso o aluno tenha mais de uma aula devendo, perguntar se ele quer que envie todas as cobranças desse aluno para o whats detalhadamente, ai crie essa mensagem detalhada para encaminhar"*.
+>
+> 🕳️ **O botão mandava UMA frase pra qualquer devedor:** *"das 7 aula(s) em aberto, total de R$ 700,00"*. Quem deve sete aulas espalhadas por três meses não tem como conferir isso, e a resposta padrão do aluno — *"que aulas?"* — devolve o professor pra agenda, dia a dia: exatamente o trabalho que a lista de devedores existe pra poupar.
+>
+> ❓ **Com mais de uma aula em aberto, o botão pergunta** (`confirm`): **OK** manda o extrato — uma linha por aula com data, dia da semana, hora e valor, e o total no fim —, **Cancelar** manda o resumo curto de sempre, que continua existindo palavra por palavra. Com UMA aula em aberto não pergunta nada: detalhar seria repetir a linha que o resumo já tem.
+>
+> 🏷️ **A aula que NÃO aconteceu se identifica na linha** — `(falta)` pra falta cobrada, `(a repor)` pra quem está na fila de reposição. Sem isso o aluno lê a data, lembra que não teve aula naquele dia, e a cobrança inteira perde a credibilidade por causa de uma linha.
+>
+> 🔒 **A lista é a do PERÍODO que está na tela**, e não "todas de sempre": é a mesma que soma o valor mostrado ao lado do nome. Mandar o histórico inteiro faria a mensagem cobrar um total diferente do que está escrito na linha logo acima do botão — o mesmo defeito que a tabela por local já levou uma correção pra não ter. Quem quer cobrar tudo troca o período pra "Sempre".
+>
+> 📵 **Nada disso passa pelo chip do Padelizou.** É link `wa.me`: quem manda é o professor, do WhatsApp dele, e ainda pode editar o texto antes de enviar — a mesma decisão escrita em `Services/ConviteDaAulaMarcada`, e a que mantém cobrança (a mensagem que mais gera bloqueio) longe do número que já foi restringido uma vez. **`WHATSAPP.md` não muda.**
+>
+> ✂️ **Teto de 20 linhas, comentado no código:** o texto viaja DENTRO da URL do `wa.me`, e cinquenta linhas viram uma URL de vários KB, que é onde navegador e app truncam calados. Acima do teto a lista corta e **diz** que cortou (`…e mais N aula(s)`); o total continua sendo o da dívida inteira.
+>
+> 🧪 **5.168 testes, 0 falhas (14 novos).** **Sem migration**, sem tabela nova, sem tocar nas quatro réguas de autorização — o texto mora num serviço puro (`Services/CobrancaDasAulasEmAberto`), no molde de `RecebimentoDaAula`.
+>
+> ✅ **Falsificado meio a meio:** apagando só os marcadores/ordenação/teto do serviço falham 5 testes e os da tela seguem verdes; apagando só o `Aulas` que o controller preenche falham 3 e os do texto seguem. As duas metades estão presas de forma independente.
+>
+> 🐛 **O mesmo dia 1º pegou outro teste, e ele foi corrigido DUAS vezes.** `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` semeava a aula paga em **ontem** e cobrava o total do **mês corrente** — no dia 1º, ontem é o mês passado (esperado 100, veio 0), e estava vermelho antes desta mudança, com a árvore limpa. O trabalho do "sair do torneio" (`a219aee`) achou o mesmo defeito no mesmo dia e chegou primeiro no `main`; no merge ficou a versão de lá, que encosta a aula no começo do mês em vez de trazê-la pra hoje — mantém o cenário no passado, que é o que o teste descreve. **Duas sessões no mesmo dia tropeçando no mesmo teste é o sinal de que cenário ancorado em "ontem" é armadilha de calendário** — vale procurar os outros.
+>
+> 🚀 **NO AR: `build-735-6442584`, em dev e em produção** (PR #53, 01/09/2026 12:34Z).
+> O `deploy.sh` só fecha em verde com o `/healthz` respondendo 200 — se não responder, ele
+> volta sozinho pra versão anterior. **A conferência foi essa**: a sessão que publicou não
+> tem saída de rede pro `padelizou.com.br` (o proxy dela recusa o domínio), então ninguém
+> abriu a tela pra ver o botão com o olho. **Vale um clique no Financeiro de um professor
+> com devedor de 2+ aulas**, que é o caminho que o teste não cobre: o `confirm` do navegador.
+>
+> Antes, em 31/08/2026: 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
 >
 > 🗣️ **O pedido do Felipe, num print da lista de inscritos:** *"nao pode ter esse trofeu aqui assim. Primeiro que nao é categoria Madeira, tem q ser a categoria que o atleta jogou (7a feminina, 7 masculina e assim por diante) e esse trofeu é de americano, esse nao deve aparecer como se fosse os torneios 'normais'/'Oficiais'"*.
 >
@@ -75,6 +124,22 @@
 > 🧪 **5.131 testes, 0 falhas (10 novos).** **Sem migration.** Um deles é de tradução (`ToQueryString()` contra Npgsql): o filtro novo atravessa dois níveis de navegação (Dupla → Categoria → Torneio), e o InMemory da suíte não traduz nada — era a receita exata do estouro de 19/08/2026.
 >
 > ✅ **Falsificado meio a meio:** revertendo só o filtro do Americano falham 3 testes e os 7 do rótulo seguem verdes; revertendo só a busca do chip falha 1 e os outros 9 seguem. As duas metades estão presas de forma independente.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, em 26/08/2026: 🎾 **O ORGANIZADOR ESCOLHE QUEM MARCA O PLACAR — E O "NÓS REGISTRAMOS OS RESULTADOS" SUBIU DE 5% PRA 10%.**
+>
+> 🗣️ **A origem foi uma conta do Felipe:** o concorrente que só marca placar cobrou R$ 6.765 pra cobrir um torneio de 151 duplas × R$ 160 — **28% das inscrições**. O nosso serviço equivalente cobrava 5%. Dois movimentos saíram disso, aprovados em design antes de qualquer código (dinheiro + régua de autorização + migration = architectural).
+>
+> 💰 **Parte A — `RegistroResultadosSettings.PercentualDasInscricoes`: 5% → 10%.** Nada além do número (e o corte onde o percentual passa o mínimo de R$ 500 caiu de R$ 10.000 pra R$ 5.000 de inscrições). **Pedido antigo não é recalculado de graça**: a cotação já congelava no pedido (`PercentualCotado`, regra de 20/08) — o teste novo fixa o default e aponta pro teste do congelamento ao lado.
+>
+> 🎛️ **Parte B — `Torneio.QuemMarcaPlacar`** (migration, default `Organizacao`): `Organizacao` (o de sempre) · `JogadoresEmQuadra` (os 4 do jogo) · `Inscritos` (qualquer inscrito fora de lista de espera + assistentes do Padelizou). Rádio na criação e na gestão, **editável a qualquer momento** — abrir pros jogadores no meio do dia, quando a mesa aperta, é o caso de uso; não é dinheiro nem contrato com quem entrou, então não trava com inscrito (diferente da forma de recebimento).
+>
+> 🔒 **O que a escolha abre é SÓ marcar placar e iniciar jogo.** A régua nova (`PodeMarcarPlacarAsync`) soma gente à régua cheia da mesa, nunca tira — e W.O., reabrir, voltar pra agendado e quadra/transmissão continuam da organização em QUALQUER modo. No POST do placar, quem não é da mesa tem os campos de quadra/transmissão **ignorados no servidor** (a tela nem os desenha, mas formulário na mão viria por ali). Reabrir continuar sendo da organização é a rede de segurança do modo aberto: jogador que errou e encerrou chama a mesa.
+>
+> ⚠️ **`IsAssistente` ganhou UMA escrita, de propósito:** a flag é de leitura por contrato (`PoderesNoSistema`), e a exceção vale só no modo `Inscritos` — é o que deixa a equipe do "nós registramos os resultados" trabalhar num torneio que abriu. Está comentado no ponto exato (`LiberadoPeloTorneioAsync`).
+>
+> 🧪 **22 testes novos (5.093, 0 vermelhos), vistos falhar antes da correção** — inclusive o de que quadra/transmissão de quem não é da mesa não gravam, e o de que W.O./reabrir seguem Forbid até no modo mais aberto. Consultas novas com teste de tradução Npgsql (`TraducaoDasConsultasDeQuemMarcaTests`, padrão de 19/08). O gate de duplicação pegou a propriedade nova sem lado — ela viaja na cópia (`DuplicacaoDeTorneio.Copiadas`), como `UsaCheckIn`.
 >
 > ⏳ **Commitado, não publicado** nesta entrada.
 >
@@ -278,6 +343,25 @@
 >
 > ✅ **Publicado**, PR #31 mergeado (`80e27ed`), build-685 no ar em prod — deploy conferido nos logs do job, com a linha "Feito. build-685-80e27ed no ar em prod". Migration inclusa (`Aula.Esporte`, `defaultValue: "Padel"` pras aulas existentes).
 >
+> Antes, em 24/08/2026: 📶 **O CHIP DO WHATSAPP VOLTOU: `connectionStatus: open`, CONFERIDO NO SERVIDOR.**
+>
+> ✅ **O canal está de pé pela primeira vez desde 04/08.** Instância `padelizou`, número `5551 9239-5650`, `updatedAt` de hoje 12:30 UTC. **`_count` de mensagens em ZERO** — nada saiu ainda pelo chip novo, o que faz desta a última janela pra ajustar o que vai pro canal antes do primeiro disparo de verdade.
+>
+> 🪤 **A saída do `fetchInstances` traz uma armadilha de leitura, e vale saber antes de cair nela**: ela mostra `"disconnectionReasonCode":401` e `device_removed` mesmo com o canal aberto. **É registro histórico** — a data dentro dele é `2026-08-04T16:00:58Z`, exatamente a queda de 04/08. O campo não é limpo quando reconecta. Quem vale é o `connectionStatus`.
+>
+> ⚠️ **ISSO MUDOU A URGÊNCIA DO TRABALHO DE 21/08** (bloco abaixo). Enquanto o chip estava `close`, tirar o torneio do WhatsApp era desenho pro futuro e não mudava nada na prática. Com o canal aberto e o PR ainda **não mergeado**, produção volta a mandar os quatro avisos de torneio por um canal que **está realmente enviando** — e um torneio de 100 pessoas são ~450 mensagens no dia, com as "chaves saíram" indo 100 de uma vez em texto quase idêntico. É o padrão exato que restringiu o número em 04/08.
+>
+> 🧨 **DUAS ARMADILHAS DE DIAGNÓSTICO QUEIMARAM DUAS TENTATIVAS, e as duas moravam no próprio `WHATSAPP.md`** — o arquivo que existe justamente pra responder "o chip está conectado?":
+>
+>   1. **O nome da variável.** O doc mandava usar `$EVOLUTION_API_KEY`; na Evolution v2 a chave no `.env` é `AUTHENTICATION_API_KEY`. Expandia vazia, o header saía em branco e a resposta era `401 Unauthorized` — que lido de fora parece **chave errada ou chip banido**, e manda investigar o lado errado.
+>   2. **As aspas duplas não sobrevivem ao PowerShell.** Todos os comandos do doc usavam `-H "apikey: $CHAVE"`. O Windows PowerShell come as aspas duplas internas ao passar argumento pra executável nativo, então o `bash` do servidor recebia o `|` do `grep` como **pipe de verdade** (`bash: APIKEY: command not found`) e o `-H` sem o valor junto.
+>
+> 🔧 **Os cinco comandos do `WHATSAPP.md` foram reescritos sem uma única aspa dupla** — o truque é `-H apikey:$CHAVE` **sem espaço depois dos dois-pontos**, que dispensa a citação inteira. ⚠️ **A régua nova, escrita no doc: comando de diagnóstico que só funciona no bash do Linux é comando que não funciona**, porque quem digita está no PowerShell do Windows. Dois diagnósticos falharam por isso antes de alguém perceber que o problema nunca esteve no servidor.
+>
+> ⚠️ **O QUE AINDA NÃO FOI CONFERIDO: o `Evolution__BaseUrl` no systemd.** Chip aberto é só metade do circuito — sem o endereço no drop-in, o app nasce com o canal desligado e nada sai do mesmo jeito. `ssh root@179.197.233.184 'systemctl cat padelizou | grep Evolution'`; vazio quer dizer desligado.
+>
+> 🔒 **A saída do `fetchInstances` carrega o `token` da instância.** É credencial: não colar o print em grupo, issue ou PR.
+>
 > Antes, em 22/08/2026: 🔒 **AS CHAVES DO TORNEIO GANHAM TELA DE APROVAÇÃO ANTES DE VIRAREM PÚBLICAS.**
 >
 > 🗣️ **O pedido do Felipe:** *"colocar uma tela antes de aprovação, antes de dizer como liberar das chaves. Somente administrador, organizador, e eu teremos acesso a essa tela"*. Até aqui, clicar em "Sortear Grupos e Gerar Chaves" era um confirm() de navegador e as chaves já saíam **públicas na hora** — inscritos, torcida, todo mundo via na mesma requisição.
@@ -404,6 +488,29 @@
 > 📋 **O resto está descrito com a correção pronta e NÃO aplicado**: o CI não reprova por CVE (o audit está ligado em `mode=all`, nível `low`, mas sai como warning no meio do log do restore — mesma história do `has-pending-model-changes` antes de virar passo); sem `packages.lock.json`, as 131 transitivas não estão fixadas em lugar nenhum e o CI resolve na hora; actions em tag móvel (`@v4` é ponteiro, não conteúdo, e o job `publicar` tem `contents: write`); o `deploy.sh` instala o tar.gz do release sem conferir hash — o healthcheck não pega isso, pacote adulterado responde 200 igual; e o job `testes`, que roda em `pull_request`, não declara `permissions`.
 >
 > ⚠️ **A política de rede da sessão bloqueou `api.osv.dev`, `api.github.com/advisories` e a busca do nuget.org (403).** Não contornei. Então a checagem de CVE se apoia numa base só — justamente a que tem o ponto cego acima — e o publicador saiu do nuspec assinado em cache, não dos owners do site. Rodar um `osv-scanner` de uma máquina com saída livre fecha a lacuna.
+>
+> Antes, no mesmo dia: 💬 **O TORNEIO INTEIRO SAIU DO WHATSAPP: O CANAL FICOU SÓ COM AULA, DESAFIO E PAGAMENTO.**
+>
+> 🗣️ **Decisão do Felipe** (21/08), depois de eu levantar o que ainda usava o canal: *"corrige o WHATSAPP.md, e tira as coisas"* — e a lista veio nominal: **"Seu jogo é o próximo!"**, **"Chaves do X saíram!"**, **"Torneio cancelado"** e **"Abriu vaga — vocês estão dentro!"** (nos dois caminhos, desistência e estorno).
+>
+> 📉 **Era o grosso do canal, e de longe.** A conta que dimensionou os tetos em 07/08 era exatamente esses avisos: num torneio de 100 pessoas, ~450 mensagens no dia — 100 de "chaves saíram" **de uma vez** e ~350 de "seu jogo é o próximo" (4 por partida × ~88 partidas). O que sobrou é aula e desafio: mensagem de **um pra um**, disparada por gesto humano, algumas dezenas por dia no pior caso. **O disparo em lote acabou** — e ele era o formato de risco, não o total: rajada de texto quase idêntico é a assinatura de spam que a Meta lê, e foi ela que restringiu o número em 04/08.
+>
+> ⚠️ **Os quatro ficaram `SoApp`, e NÃO `AppSemEmail` — a distinção é o ponto.** A tentação era calar o e-mail junto, já que quem está na quadra "já sabe". Mas quem está no clube **pode não ter o app instalado**, e aí o e-mail é o único canal que resta: `AppSemEmail` teria trocado um aviso barulhento por aviso nenhum. Cancelamento de torneio é o caso extremo — é o aviso mais caro de não chegar, porque a pessoa sai de casa e vai pra quadra à toa.
+>
+> 🧮 **OS TETOS FICARAM ONDE ESTAVAM (250/h, 1.200/dia), de propósito.** Agora sobram muito sobre o uso real, e isso não é preguiça: o teto nunca existiu pra apertar uso normal, e sim pra um laço infinito não torrar o número numa madrugada. Baixá-los agora só criaria a chance de cortar aviso de verdade no dia em que um caso novo entrar no canal. ⚠️ **O que teve que mudar foi o COMENTÁRIO**: ele era a planilha desses avisos, item por item — virou mentira no mesmo commit que os removeu, e mentira em comentário de teto é o tipo que faz o próximo mexer no número errado.
+>
+> 📄 **O `WHATSAPP.md` estava desatualizado em três pontos, todos capazes de fazer estrago.** Dizia teto de **60/h e 300/dia** (números de antes de 07/08 — quem lesse acharia que o canal barra num terço do que barra); descrevia um **aquecimento de 30/dia** que foi **removido** em 07/08 por decisão do Felipe; e afirmava que *"todo aviso do sistema já tenta o WhatsApp"* — que é **a descrição do sistema que queimou o número**, e o oposto do que vale desde que o `AlcanceDoAviso` nasceu. Ganhou também a seção **"Quem ainda fala pelo WhatsApp"**, com a lista do que resta e o histórico do que saiu (09/08 e 21/08).
+>
+> 🔑 **E o diagnóstico do canal estava quebrado por um nome de variável.** Os comandos do doc mandavam usar `$EVOLUTION_API_KEY`; na **Evolution v2** a chave no `.env` chama `AUTHENTICATION_API_KEY`. A variável expandia **vazia**, o header saía `apikey: ` em branco e a resposta era `{"status":401,"error":"Unauthorized"}` — que lido de fora parece **chave errada ou chip banido**, e manda a pessoa investigar o lado errado. Os comandos agora aceitam os dois nomes (`${AUTHENTICATION_API_KEY:-$EVOLUTION_API_KEY}`) e o doc explica o que o 401 significa de verdade. Junto foi a pegadinha irmã: o `systemctl cat padelizou` precisa rodar **dentro das aspas do ssh** — solto no PowerShell só devolve *"não é reconhecido como cmdlet"*, que foi o que aconteceu na conferência.
+>
+> 🧪 **4.697 testes, 0 falhas.** Dois fixavam o alcance antigo e foram reancorados com o porquê no comentário: `CancelarTorneioTests` (o nome era `Todo_inscrito_e_avisado_e_por_WhatsApp` — virou `..._do_cancelamento`, porque um nome de teste que promete o canal errado é a próxima confusão) e `EncerramentoIgualNasDuasTelasTests`. **Zero migration**: nada no banco mudou.
+>
+> ⚠️ **EM PR, NÃO PUBLICADO.** [PR #23](https://github.com/Felipebonamigo/padelizou/pull/23), branch `claude/whatsapp-notifications-sfk9av`. Até o merge, **os quatro avisos continuam indo pro WhatsApp em produção**.
+>
+> 🔀 **O PR NASCEU COM CONFLITO, e os dois lados eram trabalho de verdade** — o `main` andou quatro blocos enquanto este rodava. Resolvidos ficando com o código do `main` e só trocando o canal: em `EncerramentoDaPartida`, o `CorpoDoProximo` agora recebe `sedes` (torneio em mais de um clube); em `TorneiosController.Inscricoes`, a promoção da lista de espera virou o helper `AvisarPromocaoAsync`, com **dois** chamadores desde 21/08 (dupla e Americano) — ou seja, o alcance novo passou a valer pros dois de uma vez, o que a versão antiga, inline, não daria de graça. ⚠️ **Nenhum conflito foi resolvido escolhendo um lado inteiro**: fazer isso aqui teria desfeito o multi-sede ou a promoção do Americano, calados.
+>
+> 🕳️ **E O ESTADO DO CHIP CONTINUA SEM CONFERÊNCIA.** A última verificação boa é a de 07/08 (`state: close`); a tentativa de 21/08 morreu nos dois erros de comando acima, então **não prova nada**. Enquanto ninguém rodar o passo 3 do `WHATSAPP.md` e ver `"connectionStatus":"open"`, a premissa é que o canal **não está enviando** — e, se estiver mesmo `close`, esta mudança não altera nada na prática hoje: ela é o desenho pra quando o chip voltar.
+>
 >
 > Antes, no mesmo dia: 🤝 **O SITE TEM PATROCINADOR: FAIXA NO RODAPÉ COM PARALELO E GRAND PADEL, EM PRODUÇÃO.**
 >

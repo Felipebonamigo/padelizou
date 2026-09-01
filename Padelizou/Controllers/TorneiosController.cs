@@ -1259,6 +1259,22 @@ namespace Padelizou.Controllers
             ViewBag.MeuId = meuId;
             ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
 
+            // QUEM MARCA PLACAR: a escolha do organizador (Services/QuemMarcaOPlacar) chega
+            // às listas pra desenhar o lápis de quem a régua liberar — e cada POST confere
+            // tudo de novo no servidor (PartidasController). "Sou inscrito?" só é perguntado
+            // ao banco no modo Inscritos, que é o único em que a resposta muda algo; nos
+            // outros a régua da view decide por MeuId e pelas duplas já carregadas.
+            ViewBag.QuemMarcaPlacar = torneioDaTela?.QuemMarcaPlacar;
+            ViewBag.EhInscritoDoTorneio = meuId != null
+                && torneioDaTela?.QuemMarcaPlacar == QuemMarcaOPlacar.Inscritos
+                && (await _context.Duplas.AnyAsync(d =>
+                        d.Categoria.TorneioId == torneioId && !d.EmListaDeEspera
+                        && (d.Jogador1Id == meuId || d.Jogador2Id == meuId))
+                    || await _context.InscricoesAmericanas.AnyAsync(i =>
+                        i.Categoria.TorneioId == torneioId && !i.EmListaDeEspera
+                        && i.JogadorId == meuId)
+                    || await _context.Jogadores.AnyAsync(j => j.Id == meuId && j.IsAssistente));
+
 
             // O NÚMERO de cada jogo dentro da fase dele ("Quartas de Final 2"). Os jogos que
             // ainda vão acontecer se descrevem citando esse número ("Vencedor Quartas de

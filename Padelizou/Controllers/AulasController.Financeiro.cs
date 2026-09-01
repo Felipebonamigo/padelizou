@@ -17,8 +17,10 @@ namespace padelizou.Controllers
         // "Quanto entrou, quanto ainda entra e quem está devendo" — o extrato geral de
         // Pagamentos/Meus só mostra o que passou pelo Asaas, e a maior parte das aulas
         // ainda é acertada por fora (Pix, dinheiro).
+        // `semanas` é o mês do card de semanas ("2026-08"), independente do `periodo` dos
+        // cartões do topo: um responde "quanto entrou nesta semana", o outro "como foi agosto".
         [HttpGet]
-        public async Task<IActionResult> Financeiro(string? periodo)
+        public async Task<IActionResult> Financeiro(string? periodo, string? semanas = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -28,8 +30,8 @@ namespace padelizou.Controllers
 
             // A semana entrou em 09/08/2026: o professor acerta a quadra com o clube POR SEMANA,
             // e o mês inteiro somado não responde "quanto eu levo lá na sexta". Segunda a
-            // domingo, a mesma régua do gráfico das últimas 6 semanas logo abaixo — duas
-            // definições de semana na mesma tela seriam dois números diferentes pro mesmo dia.
+            // domingo, a mesma régua do card de semanas do mês logo abaixo (Services/SemanasDoMes)
+            // — duas definições de semana na mesma tela seriam dois números pro mesmo dia.
             var estaSegunda = hoje.AddDays(-(((int)hoje.DayOfWeek + 6) % 7));
 
             var (de, rotulo) = periodo switch
@@ -92,6 +94,22 @@ namespace padelizou.Controllers
                     // Os ids vão pro botão "Recebi": dar baixa não pode depender de recalcular
                     // o grupo no POST, que é como a lista da tela e a do servidor divergem.
                     AulaIds = g.Select(a => a.Id).ToList(),
+                    // E as MESMAS aulas, com data, preço e status, pro botão do WhatsApp poder
+                    // escrever a cobrança detalhada (Services/CobrancaDasAulasEmAberto).
+                    //
+                    // ⚠️ São as aulas do PERÍODO ESCOLHIDO na tela — as mesmas que somam o valor
+                    // mostrado ao lado do nome. Mandar "todas de sempre" faria a mensagem cobrar
+                    // um total diferente do que está escrito na linha logo acima do botão, que é
+                    // exatamente o defeito que a tabela por local já levou uma correção pra não
+                    // ter. Quem quer cobrar o histórico inteiro troca o período pra "Sempre".
+                    Aulas = g.OrderBy(a => a.DataHora)
+                             .Select(a => new AulaEmAbertoVM
+                             {
+                                 DataHora = a.DataHora,
+                                 Preco = a.Preco,
+                                 Status = a.Status,
+                             })
+                             .ToList(),
                 })
                 .OrderByDescending(d => d.Valor)
                 .ToList();
@@ -124,16 +142,36 @@ namespace padelizou.Controllers
                 return new MesFaturamentoVM { Mes = mes, Valor = doMes.Sum(a => a.Preco), Aulas = doMes.Count };
             }).ToList();
 
-            // E as últimas 6 semanas, de segunda a domingo — no mês a mordida de uma semana
-            // fraca some na média.
-            var primeiraSemana = estaSegunda.AddDays(-7 * 5);
-            vm.UltimasSemanas = Enumerable.Range(0, 6).Select(i =>
+            // As semanas do MÊS escolhido, de segunda a domingo — no mês fechado a mordida de
+            // uma semana fraca some na média.
+            //
+            // ⚠️ Até 01/09/2026 isto era uma janela ROLANTE de 6 semanas, e a última barra
+            // atravessava a virada do mês ("31/08–06/09" no print do Felipe): ela não pertencia
+            // a mês nenhum, e a soma das barras não batia com mês nenhum. Agora as fatias são
+            // recortadas no mês (ver Services/SemanasDoMes) e a soma É o faturamento dele — o
+            // MESMO número que o card "Últimos 6 meses" mostra logo abaixo.
+            var mesDasSemanas = SemanasDoMes.Escolhido(semanas, hoje);
+            vm.MesDasSemanas = mesDasSemanas;
+            vm.Semanas = SemanasDoMes.Fatiar(mesDasSemanas).Select(fatia =>
             {
-                var inicio = primeiraSemana.AddDays(7 * i);
-                var fim = inicio.AddDays(7);
-                var daSemana = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= inicio && a.DataHora < fim).ToList();
-                return new SemanaFaturamentoVM { Inicio = inicio, Valor = daSemana.Sum(a => a.Preco), Aulas = daSemana.Count };
+                // `Fim` é o último DIA da fatia, inclusive: a comparação vai até o dia seguinte
+                // pra não perder a aula das 20h do domingo.
+                var daSemana = aulas.Where(a => a.Status == PoliticaAula.Realizada
+                                             && a.DataHora >= fatia.Inicio
+                                             && a.DataHora < fatia.Fim.AddDays(1)).ToList();
+                return new SemanaFaturamentoVM
+                {
+                    Inicio = fatia.Inicio,
+                    Fim = fatia.Fim,
+                    Valor = daSemana.Sum(a => a.Preco),
+                    Aulas = daSemana.Count,
+                };
             }).ToList();
+
+            // As setas param onde o dado para: não existe faturamento no futuro, e nem antes da
+            // primeira aula. `aulas` já está inteiro na memória — nenhuma consulta nova.
+            vm.PodeAvancarSemanas = mesDasSemanas < new DateTime(hoje.Year, hoje.Month, 1);
+            vm.PodeVoltarSemanas = aulas.Any(a => a.DataHora < mesDasSemanas);
 
             // E os últimos 6 anos — semana e mês respondem o dia a dia, mas não "esse ano
             // deu mais aula que o passado".
