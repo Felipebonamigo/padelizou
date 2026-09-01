@@ -185,12 +185,15 @@ public class HomeTests
         ctx.Aulas.Add(new Aula
         {
             ProfessorId = eu.Id, AlunoId = aluno.Id, LocalAulaId = local.Id,
-            DataHora = DateTime.Today.AddDays(-1), Preco = 100, Status = "Realizada",
+            // ⚠️ HOJE, e não "ontem": o painel soma o mês CORRENTE, e no dia 1º a aula de
+            // ontem cai no mês passado — o teste ficava vermelho um dia por mês, sem nada ter
+            // mudado no código (01/09/2026: esperado 100, veio 0).
+            DataHora = DateTime.Today.AddHours(8), Preco = 100, Status = "Realizada",
             // Paga também: desde 25/08/2026 "no mês" no painel é o dinheiro que ENTROU, e não
             // a aula que aconteceu (ver Services/RecebimentoDaAula). Este teste é sobre ver os
             // TRÊS painéis, não sobre a régua de recebimento — o valor é só o que prova que o
             // painel do professor está montado.
-            PagaEm = DateTime.Today.AddDays(-1).AddHours(10),
+            PagaEm = DateTime.Today.AddHours(9),
         });
 
         // Organizador de um torneio ativo.
