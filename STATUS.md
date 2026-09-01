@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **01/09/2026** — 💬 **COBRAR UM ALUNO COM VÁRIAS AULAS EM ATRASO AGORA PERGUNTA SE A MENSAGEM VAI DETALHADA.**
+> Última atualização: **01/09/2026** — 📅 **O CARD "ÚLTIMAS 6 SEMANAS" VIROU "SEMANAS DE \<MÊS\>", COM O MÊS ESCOLHIDO NA SETA.**
+>
+> 🗣️ **O pedido do Felipe**, num print do Financeiro: *"aonde diz (Ultimas 6 semanas), permita tambem escolher ali o mês, separando as semanas, como padrão vem o mês atual"*.
+>
+> 🕳️ **A janela rolante não pertencia a mês nenhum.** A última barra do print dele era **"31/08–06/09"** — seis dias de setembro somados a um de agosto. Nenhuma soma de barras batia com agosto, nem com setembro, e o card "Últimos 6 meses" logo abaixo dizia outro número pro mesmo mês.
+>
+> ✂️ **A semana continua de segunda a domingo — ela é RECORTADA nas pontas do mês.** É o recorte que faz a soma das barras ser exatamente o faturamento daquele mês. Em agosto/2026 (começa sábado, termina segunda) saem 6 barras: `01–02`, `03–09`, `10–16`, `17–23`, `24–30` e `31–31`.
+>
+> ⬅️➡️ **Navegação com as setas ‹ ›, o mesmo idioma da Minha Agenda** — o professor já aprendeu o gesto lá. Elas **param onde o dado para**: não existe faturamento no futuro, e nem antes da primeira aula; sem `href` viram cinza. O `periodo` dos cartões do topo viaja junto no link — trocar de mês no card não mexe neles.
+>
+> 🪤 **A armadilha que a mudança criava, e que virou teste:** a tela corta TUDO abaixo dos cartões quando o período do topo não teve movimento. Com o card ganhando mês próprio, clicar na seta pra ver um mês que TEVE movimento cairia na tela vazia do mês corrente — sumindo justamente com o card que o clique pediu. `TemMovimento` passou a olhar os dois recortes.
+>
+> 🧪 **5.208 testes, 0 falhas (23 novos).** **Sem migration.** A régua mora num serviço puro (`Services/SemanasDoMes`): as pontas do mês são onde esse tipo de conta erra calado, e tem teste de que as fatias cobrem o mês **sem buraco e sem sobreposição** em 5 meses diferentes (dia fora de todas = dinheiro que some; dia em duas = dinheiro contado duas vezes). Leitura do `?semanas=2026-08` em **InvariantCulture** — a armadilha do `DatasDaAulaFixa`.
+>
+> ✅ **Falsificado meio a meio:** tirando só o recorte falham 9 testes; ignorando só o parâmetro do mês e o limite das setas falham 7, sem interseção com os primeiros.
+>
+> ♻️ **Dois testes antigos foram REESCRITOS, não apagados** (`QuadraPagaPeloAlunoTests`): eles fixavam a janela rolante ("a última linha é a semana atual"). O que eles sempre disseram — cada aula cai na semana em que aconteceu, semana de segunda a domingo — continua travado, agora ancorado num mês FIXO em vez de "hoje", que é a armadilha de calendário que mordeu duas vezes hoje.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, em 01/09/2026: 💬 **COBRAR UM ALUNO COM VÁRIAS AULAS EM ATRASO AGORA PERGUNTA SE A MENSAGEM VAI DETALHADA.**
 >
 > 🗣️ **O pedido do Felipe**, num print da lista "Quem está devendo": *"caso o professor tenha um aluno com varias aulas em atraso, quando ele clicar para cobrar, caso o aluno tenha mais de uma aula devendo, perguntar se ele quer que envie todas as cobranças desse aluno para o whats detalhadamente, ai crie essa mensagem detalhada para encaminhar"*.
 >

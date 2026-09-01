@@ -43,9 +43,10 @@ public class QuadraPagaPeloAlunoTests
         PagaEm = quando.AddHours(1),
     };
 
-    private static async Task<FinanceiroProfessorVM> AbrirFinanceiroAsync(DbPadelContext ctx, int professorId)
+    private static async Task<FinanceiroProfessorVM> AbrirFinanceiroAsync(
+        DbPadelContext ctx, int professorId, string? semanas = null)
     {
-        var resultado = await TestInfra.NovoAulasController(ctx, professorId).Financeiro("mes");
+        var resultado = await TestInfra.NovoAulasController(ctx, professorId).Financeiro("mes", semanas);
         return (FinanceiroProfessorVM)Assert.IsType<ViewResult>(resultado).Model!;
     }
 
@@ -118,38 +119,63 @@ public class QuadraPagaPeloAlunoTests
         Assert.Null(Assert.Single(vm.PorLocal).Custo);
     }
 
+    // ⚠️ Desde 01/09/2026 as barras são as semanas DE UM MÊS, e não mais uma janela rolante de
+    // 6 semanas (pedido do Felipe; ver Services/SemanasDoMes). O que este teste sempre disse
+    // continua valendo, e é o que ele checa: cada aula cai na SEMANA em que aconteceu.
+    //
+    // O cenário é ancorado num mês FIXO, e não em "hoje": duas correções no dia 01/09/2026
+    // saíram de testes que semeavam em "ontem" e liam o mês corrente.
     [Fact]
     public async Task Cada_aula_cai_na_semana_em_que_aconteceu()
     {
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        var hoje = DateTime.Today;
-        ctx.Aulas.Add(Realizada(professor, local, hoje.AddHours(7)));
-        ctx.Aulas.Add(Realizada(professor, local, hoje.AddDays(-7).AddHours(7)));
+        // 12/08 e 19/08 de 2026 são quartas de semanas diferentes.
+        ctx.Aulas.Add(Realizada(professor, local, new DateTime(2026, 8, 12, 7, 0, 0)));
+        ctx.Aulas.Add(Realizada(professor, local, new DateTime(2026, 8, 19, 7, 0, 0)));
         await ctx.SaveChangesAsync();
 
-        var vm = await AbrirFinanceiroAsync(ctx, professor.Id);
+        var vm = await AbrirFinanceiroAsync(ctx, professor.Id, "2026-08");
 
-        Assert.Equal(6, vm.UltimasSemanas.Count);
-        Assert.Equal(110, vm.UltimasSemanas[5].Valor);  // a última linha é a semana atual
-        Assert.Equal(110, vm.UltimasSemanas[4].Valor);
-        Assert.All(vm.UltimasSemanas.Take(4), s => Assert.Equal(0, s.Valor));
+        // Agosto/2026: [01–02] [03–09] [10–16] [17–23] [24–30] [31–31].
+        Assert.Equal(110, vm.Semanas[2].Valor);
+        Assert.Equal(110, vm.Semanas[3].Valor);
+        Assert.Equal(220, vm.Semanas.Sum(s => s.Valor));
     }
 
+    // A semana segue de segunda a domingo NO MEIO do mês; nas pontas ela é recortada, e é esse
+    // recorte que faz a soma das barras ser o faturamento do mês (Services/SemanasDoMes).
     [Fact]
-    public async Task A_semana_comeca_na_segunda_e_termina_no_domingo()
+    public async Task A_semana_comeca_na_segunda_e_termina_no_domingo_no_meio_do_mes()
+    {
+        var (ctx, professor, local) = Montar();
+        using var _ = ctx;
+
+        var vm = await AbrirFinanceiroAsync(ctx, professor.Id, "2026-08");
+
+        foreach (var s in vm.Semanas.Skip(1).SkipLast(1))
+        {
+            Assert.Equal(DayOfWeek.Monday, s.Inicio.DayOfWeek);
+            Assert.Equal(DayOfWeek.Sunday, s.Fim.DayOfWeek);
+        }
+
+        // E o mês abre e fecha nas pontas dele, não em domingo nenhum.
+        Assert.Equal(new DateTime(2026, 8, 1), vm.Semanas.First().Inicio);
+        Assert.Equal(new DateTime(2026, 8, 31), vm.Semanas.Last().Fim);
+    }
+
+    // Sem parâmetro o card abre no mês CORRENTE, e a semana de hoje está entre as barras — é o
+    // que a última linha da janela rolante garantia, e continua garantido.
+    [Fact]
+    public async Task Sem_escolher_mes_o_card_mostra_a_semana_de_hoje()
     {
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
         var vm = await AbrirFinanceiroAsync(ctx, professor.Id);
 
-        Assert.All(vm.UltimasSemanas, s => Assert.Equal(DayOfWeek.Monday, s.Inicio.DayOfWeek));
-        Assert.All(vm.UltimasSemanas, s => Assert.Equal(DayOfWeek.Sunday, s.Fim.DayOfWeek));
-        // A semana atual é a última barra: hoje está dentro dela.
-        var atual = vm.UltimasSemanas[5];
-        Assert.InRange(DateTime.Today, atual.Inicio, atual.Fim);
+        Assert.Contains(vm.Semanas, s => DateTime.Today >= s.Inicio && DateTime.Today <= s.Fim);
     }
 
     [Fact]
