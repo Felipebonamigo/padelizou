@@ -21,7 +21,7 @@
 >
 > ✅ **Falsificado meio a meio:** apagando só os marcadores/ordenação/teto do serviço falham 5 testes e os da tela seguem verdes; apagando só o `Aulas` que o controller preenche falham 3 e os do texto seguem. As duas metades estão presas de forma independente.
 >
-> 🐛 **De quebra, um teste que quebrava um dia por mês:** `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` semeava a aula paga em **ontem** e cobrava o total do **mês corrente** — no dia 1º, ontem é o mês passado (esperado 100, veio 0). Estava vermelho antes desta mudança, com a árvore limpa. A aula passou a nascer HOJE.
+> 🐛 **O mesmo dia 1º pegou outro teste, e ele foi corrigido DUAS vezes.** `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` semeava a aula paga em **ontem** e cobrava o total do **mês corrente** — no dia 1º, ontem é o mês passado (esperado 100, veio 0), e estava vermelho antes desta mudança, com a árvore limpa. O trabalho do "sair do torneio" (`a219aee`) achou o mesmo defeito no mesmo dia e chegou primeiro no `main`; no merge ficou a versão de lá, que encosta a aula no começo do mês em vez de trazê-la pra hoje — mantém o cenário no passado, que é o que o teste descreve. **Duas sessões no mesmo dia tropeçando no mesmo teste é o sinal de que cenário ancorado em "ontem" é armadilha de calendário** — vale procurar os outros.
 >
 > ⏳ **Commitado, não publicado** nesta entrada.
 >

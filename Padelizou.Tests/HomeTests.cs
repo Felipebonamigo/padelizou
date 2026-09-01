@@ -174,6 +174,15 @@ public class HomeTests
         ctx.SaveChanges();
 
         // Professor: uma aula pendente e uma já realizada neste mês.
+        //
+        // ⚠️ "Já realizada" NÃO pode ser `Today.AddDays(-1)` solto: no dia 1º de cada mês ontem
+        // cai no mês passado, o painel filtra por `DataHora >= inicioMes` (HomeController) e a
+        // aula não entra na conta. O teste ficava vermelho um dia por mês, e o defeito não era
+        // do painel — era do cenário. Encostar no começo do mês mantém a aula no passado (ou,
+        // no dia 1º, na madrugada de hoje) e sempre DENTRO da janela que o painel soma.
+        var inicioDoMes = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var jaRealizada = DateTime.Today.AddDays(-1) < inicioDoMes ? inicioDoMes : DateTime.Today.AddDays(-1);
+
         var local = new LocalAula { ProfessorId = eu.Id, Nome = "Quadra A", Endereco = "rua", PrecoPadrao = 100 };
         ctx.LocaisAula.Add(local);
         ctx.SaveChanges();
@@ -185,15 +194,12 @@ public class HomeTests
         ctx.Aulas.Add(new Aula
         {
             ProfessorId = eu.Id, AlunoId = aluno.Id, LocalAulaId = local.Id,
-            // ⚠️ HOJE, e não "ontem": o painel soma o mês CORRENTE, e no dia 1º a aula de
-            // ontem cai no mês passado — o teste ficava vermelho um dia por mês, sem nada ter
-            // mudado no código (01/09/2026: esperado 100, veio 0).
-            DataHora = DateTime.Today.AddHours(8), Preco = 100, Status = "Realizada",
+            DataHora = jaRealizada, Preco = 100, Status = "Realizada",
             // Paga também: desde 25/08/2026 "no mês" no painel é o dinheiro que ENTROU, e não
             // a aula que aconteceu (ver Services/RecebimentoDaAula). Este teste é sobre ver os
             // TRÊS painéis, não sobre a régua de recebimento — o valor é só o que prova que o
             // painel do professor está montado.
-            PagaEm = DateTime.Today.AddHours(9),
+            PagaEm = jaRealizada,
         });
 
         // Organizador de um torneio ativo.
