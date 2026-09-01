@@ -23,6 +23,35 @@ public static class PixDoOrganizador
         && !string.IsNullOrWhiteSpace(torneio.ChavePixOrganizador)
         && torneio.PrecoInscricao > 0;
 
+    // ── QUANTO MANDAR ────────────────────────────────────────────────────────────────────
+    // O card dava a chave e pedia o comprovante, mas não dizia o número que a pessoa tem que
+    // digitar no app do banco. Ela ia buscar no cabeçalho da página — e o do cabeçalho é POR
+    // PESSOA. Numa inscrição de dupla, quem lê "R$ 150,00" e manda 150 pagou metade, e quem
+    // descobre isso é o organizador, conferindo comprovante na mão.
+    //
+    // ⚠️ NENHUMA CONTA NOVA DE DINHEIRO NASCE AQUI, de propósito: `ValorPorPessoa` devolve o
+    // mesmo `PrecoInscricao` que a tela já mostra neste cenário (no "por fora" o
+    // `ViewBag.PrecoTotal` é nulo e o cabeçalho cai no campo), e o total só multiplica pelo
+    // `PessoasPorInscricao` que o próprio Torneio expõe. Dois lugares calculando o preço é
+    // como a página passaria a anunciar dois valores diferentes pro mesmo torneio.
+    public static decimal ValorPorPessoa(Torneio torneio) => torneio.PrecoInscricao;
+
+    public static decimal ValorDaInscricao(Torneio torneio) =>
+        torneio.PrecoInscricao * torneio.PessoasPorInscricao;
+
+    // No Americano os dois números são iguais — a inscrição é de uma pessoa só. Imprimir
+    // "R$ 150,00 por pessoa · R$ 150,00 a inscrição" só faz procurar a diferença que não existe.
+    public static bool ValePorPessoaEPorInscricao(Torneio torneio) =>
+        torneio.PessoasPorInscricao > 1;
+
+    // ⚠️ O número do card é o preço BASE. Impedimento marcado SOMA, e a segunda categoria do
+    // mesmo jogador pode custar MENOS (ver Services/PrecoDaInscricao) — e o card não sabe
+    // quantas categorias esta pessoa vai pegar nem que impedimentos vai marcar. Prometer um
+    // total exato nesses torneios seria mandar pagar o valor errado no Pix, que é dinheiro
+    // que o Padelizou não vê e não conserta. Quando pode variar, o card avisa em vez de mentir.
+    public static bool OTotalPodeVariar(Torneio torneio) =>
+        torneio.TaxaPorImpedimento > 0 || torneio.PermiteMultiplasCategorias;
+
     // Quem recebe o comprovante é quem tem o caixa: o CRIADOR do torneio (ver
     // AcessoAoDinheiroDoTorneio). Ajudante organiza, mas não é pra quem o dinheiro vai.
     //
