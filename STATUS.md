@@ -1,7 +1,66 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **01/09/2026** — 📅 **O CARD "ÚLTIMAS 6 SEMANAS" VIROU "SEMANAS DE \<MÊS\>", COM O MÊS ESCOLHIDO NA SETA.**
+> Última atualização: **01/09/2026** — 🏪 **A PANELINHA VAI DEIXAR DE SER FECHADA POR CONSTRUÇÃO: DESENHO DA VITRINE DE TURMAS APROVADO EM 7 DECISÕES.**
+>
+> 🗣️ **De onde veio:** cinco cards do Rafael Paim (preencher vaga · lista de reservas · feed
+> esportivo · visibilidade de turmas · compartilhar no WhatsApp) e quatro linhas do Felipe (grupos
+> visíveis, tela "Meus grupos / Todos os grupos", "pedir pra participar", dono aceita ou recusa). A
+> frase que resume: *"se só vejo os grupos que eu já faço parte não tenho muita margem; na prática
+> jogar em grupos que já existem é mais fácil do que montar jogo aleatório"*.
+>
+> 📄 **`VITRINE-DE-TURMAS.md` (novo)** — nada codado. Gera migration, cria vitrine sobre grupo hoje
+> fechado e cria papel de acesso novo: `architectural` três vezes.
+>
+> 🔀 **O `RESERVAS-DA-TURMA.md` foi SUPERADO — Caminho A, não B.** O doc de 25/08 recomendava o B
+> (`JogadorDisponivel`, lista por horário) *porque o A exigia uma vitrine que ninguém tinha pedido*,
+> e previu por escrito que o A voltaria "se a vitrine virar prioridade por outro motivo". **Este
+> pedido é o outro motivo.** O `JogadorDisponivel` não será construído: a lista de reservas vira o
+> `Status = Reserva` do `PedidoDeEntrada` — uma tabela, dois papéis, e com o vínculo com a turma que
+> o B não tinha.
+>
+> ⚖️ **As 7 decisões do Felipe:** (1) Caminho A · (2) **mostra os nomes dos membros** · (3) `Listado`
+> nasce LIGADO, `AceitaPedidos` desligado · (4) recusado é permanente até o dono desfazer · (5) dono
+> **e admins** respondem, e o dono nomeia admin · (6) sem valores no card · (7) medir volume de
+> eventos antes de decidir o feed.
+>
+> 🕳️ **A decisão 2 revoga a régua de 25/08 ("roster de panelinha não vaza"), com o efeito na mesa:**
+> o perfil de cada jogador já é público, então o nome não revela identidade nova — o que passa a ser
+> público é o **vínculo** (*fulano joga com sicrano, nesse clube, terça às 20h*), que é padrão
+> semanal de localização e hoje não existe em lugar nenhum do sistema. Cercas registradas: vitrine
+> atrás de `[Authorize]`, `ComoChamar` e nunca o apelido (régua de 26/08), aviso aos donos no deploy,
+> e `JogadorGrupo.OcultoNaVitrine` pra sair da vitrine sem sair da turma.
+>
+> ⚠️ **A decisão 3 tem uma armadilha de migration já paga uma vez neste projeto:** `bool` nova do EF
+> nasce `false` no banco e o `= true` do C# só vale pra objeto NOVO — sem `defaultValue: true`
+> escrito à mão, todo grupo existente nasce `Listado = false` e a vitrine abre VAZIA, o oposto do que
+> foi pedido. É a lição de `Clube.Selecionavel`, e virou o teste nº 1 da lista.
+>
+> 🔒 **A decisão 5 cria a QUINTA régua de autorização** — `AdministradorId` é checado em **13 pontos**
+> do `GruposController` e 1 view, e todos passam a chamar um `EhAdminDoGrupoAsync`. Pelo
+> `ONDAS-PARALELAS.md`, régua de autorização é sempre tarefa sozinha: **PR separado**.
+>
+> 🚫 **Ficou de fora, com motivo escrito:** comentar no feed (moderação impagável pra operador solo;
+> `ComentarioPerfil` já é a casa do texto livre), mensagem no pedido de entrada (assédio sem canal de
+> denúncia), chamada automática da reserva (vetada em 25/08), vitrine sem login. E o **aceite nunca
+> envia o `Entrar?codigo=`** — o código é credencial permanente e repassável; aceitar cria o
+> `JogadorGrupo` direto.
+>
+> ✅ **As 6 pendências foram fechadas no mesmo dia**, delegadas pelo Felipe — e **três mudaram depois
+> de conferir o código**, o que é o argumento contra recomendar de cabeça: (a) a FK do pedido não pode
+> ser `Cascade` nas duas pontas — `GrupoPrivado` já cascateia a partir de `Jogador`, e o segundo
+> caminho é o **conflito de múltiplos caminhos de cascade** que `JogadorGrupo`/`JogoSemanal`/
+> `CandidaturaParceiro`/`PalpitePartida` já documentam; a migration nem compilaria. (b) "os pedidos
+> somem quando a conta é excluída?" partia de premissa errada: **`ExclusaoDeConta` anonimiza, não
+> apaga** — não há órfão nem expurgo, e o que falta é um filtro `ExcluidoEm == null` na leitura, como
+> o `LembreteJogoBackgroundService` já faz. (c) "reusar `/Admin/Denuncias`" para nome de grupo
+> ofensivo não é reuso: aquela tela é **específica de `ComentarioPerfil`**. Fica de fora, e o botão de
+> moderação de hoje é desligar o `Listado` daquele grupo — com gatilho escrito pra construir a
+> denúncia (abertura do gate, ou ~50 turmas na vitrine).
+>
+> ⏳ **Nada implementado.** Próximo passo: migration em worktree limpo + `has-pending-model-changes`.
+>
+> Antes, no mesmo dia — 📅 **O CARD "ÚLTIMAS 6 SEMANAS" VIROU "SEMANAS DE \<MÊS\>", COM O MÊS ESCOLHIDO NA SETA.**
 >
 > 🗣️ **O pedido do Felipe**, num print do Financeiro: *"aonde diz (Ultimas 6 semanas), permita tambem escolher ali o mês, separando as semanas, como padrão vem o mês atual"*.
 >

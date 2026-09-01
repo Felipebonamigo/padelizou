@@ -1,5 +1,16 @@
 # Lista de reservas — design para aprovação
 
+> ⛔ **SUPERADO em 01/09/2026 pelo `VITRINE-DE-TURMAS.md`.** O Felipe escolheu o **Caminho A** (a
+> lista pertence à turma), depois de pedir a vitrine de grupos e o "pedir pra participar" — que é
+> exatamente o "outro motivo" que a seção *Recomendação* deste documento previu. O **Caminho B**
+> (`JogadorDisponivel`, a lista por horário) **não será construído**: no desenho novo, a lista de
+> reservas é o `Status = Reserva` do `PedidoDeEntrada`, e assim tem o vínculo com a turma que o
+> pedido original do Rafael descrevia.
+>
+> O que continua valendo daqui, e foi transportado: a decisão de 25/08 ("o sistema sugere a um
+> membro chamar — nunca chama sozinho"), a régua do que é exponível de uma turma, e o inventário
+> do que já existe. Leia este documento pelo raciocínio; leia o novo pelo que será feito.
+
 > **Status: DESENHO, nada codado.** Este documento existe porque a coisa gera migration e mexe
 > em quem enxerga uma turma fechada — pelo critério do `CLAUDE.md` isso é `architectural`, e
 > `architectural` é design escrito e aprovado ANTES de qualquer código.
