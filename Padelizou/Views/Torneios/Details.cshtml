@@ -951,6 +951,32 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             }
                                         }
                                         <partial name="_JogadorChip" model="inscricao.Jogador" />
+
+                                        @* Sair do Americano. O botão da lista de duplas nunca
+                                           chegou aqui: inscrição de Americano é individual e
+                                           mora em outra tabela, então quem jogava Americano
+                                           voltava a depender de mensagem pro organizador.
+                                           Aparece só na SUA inscrição — no card dos outros
+                                           seria um botão pra tirar gente do torneio. *@
+                                        @if (meuJogadorId != null && Model.Status == "Inscrições Abertas"
+                                             && inscricao.JogadorId == meuJogadorId)
+                                        {
+                                            var avisoDePagoAmericano = inscricao.Pago
+                                                ? " Esta inscrição está paga: a devolução é feita pelo organizador, não é automática — ele será avisado."
+                                                : "";
+
+                                            <form asp-controller="Torneios" asp-action="DesistirDoAmericano" method="post" class="mt-2"
+                                                  data-confirmar-tom="perigo"
+                                                  data-confirmar-titulo="Cancelar sua inscrição?"
+                                                  data-confirmar="Sua vaga volta pra fila e alguém da lista de espera pode assumir.@avisoDePagoAmericano"
+                                                  data-confirmar-ok="Cancelar inscrição">
+                                                <input type="hidden" name="inscricaoId" value="@inscricao.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                    <i class="bi bi-box-arrow-left"></i>
+                                                    Cancelar minha inscrição
+                                                </button>
+                                            </form>
+                                        }
                                     </div>
                                 </div>
                             }
@@ -1085,6 +1111,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
 
+                                        @* O dinheiro não volta sozinho — estornar é botão do organizador
+                                           (ESTORNO.md). Quem pagou precisa saber disso ANTES de confirmar,
+                                           senão cancela achando que a devolução vem junto. *@
+                                        var avisoDePago = dupla.Pago
+                                            ? " Esta inscrição está paga: a devolução é feita pelo organizador, não é automática — ele será avisado."
+                                            : "";
+
                                         @* PÔR OU TROCAR O PARCEIRO NA PRÓPRIA INSCRIÇÃO.
                                            O servidor sempre deixou — TrocarParceiro e GerarConvite
                                            aceitam "qualquer um dos dois integrantes" — mas os botões
@@ -1212,17 +1245,55 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </div>
                                         }
 
-                                        <form asp-controller="Torneios" asp-action="Desistir" method="post" class="mt-2"
-                                              data-confirmar-tom="perigo"
-                                              data-confirmar-titulo="@(sozinho ? "Cancelar sua inscrição?" : "Sair da dupla?")"
-                                              data-confirmar="@(sozinho ? "Sua vaga volta pra fila e alguém da lista de espera pode assumir." : "Seu parceiro continua inscrito e vai precisar achar outro antes do sorteio.")"
-                                              data-confirmar-ok="@(sozinho ? "Cancelar inscrição" : "Sair da dupla")">
-                                            <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
-                                                <i class="bi bi-box-arrow-left"></i>
-                                                @(sozinho ? "Cancelar minha inscrição" : "Sair da dupla")
-                                            </button>
-                                        </form>
+                                        @if (sozinho)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="Desistir" method="post" class="mt-2"
+                                                  data-confirmar-tom="perigo"
+                                                  data-confirmar-titulo="Cancelar sua inscrição?"
+                                                  data-confirmar="Sua vaga volta pra fila e alguém da lista de espera pode assumir.@avisoDePago"
+                                                  data-confirmar-ok="Cancelar inscrição">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                    <i class="bi bi-box-arrow-left"></i>
+                                                    Cancelar minha inscrição
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            @* Dupla completa tem DUAS saídas, e o sistema não tem como
+                                               adivinhar qual. Antes ele escolhia "sai só eu" por você, e a
+                                               dupla que desistia junto precisava clicar em duas contas —
+                                               a segunda quase nunca clicava, e meia inscrição segurava a
+                                               vaga até o encerramento. *@
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <form asp-controller="Torneios" asp-action="Desistir" method="post"
+                                                      data-confirmar-tom="perigo"
+                                                      data-confirmar-titulo="Sair da dupla?"
+                                                      data-confirmar="Seu parceiro continua inscrito e vai precisar achar outro antes do sorteio. A vaga não abre.@avisoDePago"
+                                                      data-confirmar-ok="Sair da dupla">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <input type="hidden" name="escolha" value="@Padelizou.Services.EscolhaDeQuemSai.SoEu" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                        <i class="bi bi-box-arrow-left"></i>
+                                                        Sair só eu
+                                                    </button>
+                                                </form>
+
+                                                <form asp-controller="Torneios" asp-action="Desistir" method="post"
+                                                      data-confirmar-tom="perigo"
+                                                      data-confirmar-titulo="Cancelar a inscrição dos dois?"
+                                                      data-confirmar="Seu parceiro também sai do torneio e será avisado. A vaga volta pra fila e alguém da lista de espera pode assumir.@avisoDePago"
+                                                      data-confirmar-ok="Cancelar a inscrição">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <input type="hidden" name="escolha" value="@Padelizou.Services.EscolhaDeQuemSai.ADuplaInteira" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                        <i class="bi bi-box-arrow-left"></i>
+                                                        Sair os dois
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
                                     }
                                 </div>
                             </div>
