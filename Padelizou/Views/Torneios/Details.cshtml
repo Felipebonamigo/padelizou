@@ -614,6 +614,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
     <div class="alert alert-success border-0">
         <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
+
+        @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
+           valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
+           mostra o preço POR PESSOA — e numa inscrição de dupla pagava metade. *@
+        <p class="mb-2">
+            <span class="fs-5 fw-bold">
+                @Padelizou.Services.PixDoOrganizador.ValorDaInscricao(Model).ToString("C")
+            </span>
+            @if (Padelizou.Services.PixDoOrganizador.ValePorPessoaEPorInscricao(Model))
+            {
+                <span class="small">
+                    a inscrição da dupla —
+                    @Padelizou.Services.PixDoOrganizador.ValorPorPessoa(Model).ToString("C") por pessoa
+                </span>
+            }
+            else
+            {
+                <span class="small">por pessoa</span>
+            }
+        </p>
+        @if (Padelizou.Services.PixDoOrganizador.OTotalPodeVariar(Model))
+        {
+            @* O card não sabe quantas categorias esta pessoa vai pegar nem que impedimentos
+               vai marcar. Prometer um total exato aqui seria mandar pagar errado num Pix que
+               o Padelizou não vê e não conserta. *@
+            <p class="small text-muted mb-2">
+                Esse é o valor base: impedimento de horário soma, e a segunda categoria pode
+                ter outro preço. Na dúvida, confirme com o organizador antes de mandar.
+            </p>
+        }
+
         <div class="input-group input-group-sm mb-2" style="max-width: 34rem;">
             <input type="text" class="form-control" id="campoPixTorneio" readonly
                    value="@Model.ChavePixOrganizador" onclick="this.select();" />
