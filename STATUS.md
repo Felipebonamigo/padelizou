@@ -1,7 +1,31 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/08/2026** — 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
+> Última atualização: **01/09/2026** — 💬 **COBRAR UM ALUNO COM VÁRIAS AULAS EM ATRASO AGORA PERGUNTA SE A MENSAGEM VAI DETALHADA.**
+>
+> 🗣️ **O pedido do Felipe**, num print da lista "Quem está devendo": *"caso o professor tenha um aluno com varias aulas em atraso, quando ele clicar para cobrar, caso o aluno tenha mais de uma aula devendo, perguntar se ele quer que envie todas as cobranças desse aluno para o whats detalhadamente, ai crie essa mensagem detalhada para encaminhar"*.
+>
+> 🕳️ **O botão mandava UMA frase pra qualquer devedor:** *"das 7 aula(s) em aberto, total de R$ 700,00"*. Quem deve sete aulas espalhadas por três meses não tem como conferir isso, e a resposta padrão do aluno — *"que aulas?"* — devolve o professor pra agenda, dia a dia: exatamente o trabalho que a lista de devedores existe pra poupar.
+>
+> ❓ **Com mais de uma aula em aberto, o botão pergunta** (`confirm`): **OK** manda o extrato — uma linha por aula com data, dia da semana, hora e valor, e o total no fim —, **Cancelar** manda o resumo curto de sempre, que continua existindo palavra por palavra. Com UMA aula em aberto não pergunta nada: detalhar seria repetir a linha que o resumo já tem.
+>
+> 🏷️ **A aula que NÃO aconteceu se identifica na linha** — `(falta)` pra falta cobrada, `(a repor)` pra quem está na fila de reposição. Sem isso o aluno lê a data, lembra que não teve aula naquele dia, e a cobrança inteira perde a credibilidade por causa de uma linha.
+>
+> 🔒 **A lista é a do PERÍODO que está na tela**, e não "todas de sempre": é a mesma que soma o valor mostrado ao lado do nome. Mandar o histórico inteiro faria a mensagem cobrar um total diferente do que está escrito na linha logo acima do botão — o mesmo defeito que a tabela por local já levou uma correção pra não ter. Quem quer cobrar tudo troca o período pra "Sempre".
+>
+> 📵 **Nada disso passa pelo chip do Padelizou.** É link `wa.me`: quem manda é o professor, do WhatsApp dele, e ainda pode editar o texto antes de enviar — a mesma decisão escrita em `Services/ConviteDaAulaMarcada`, e a que mantém cobrança (a mensagem que mais gera bloqueio) longe do número que já foi restringido uma vez. **`WHATSAPP.md` não muda.**
+>
+> ✂️ **Teto de 20 linhas, comentado no código:** o texto viaja DENTRO da URL do `wa.me`, e cinquenta linhas viram uma URL de vários KB, que é onde navegador e app truncam calados. Acima do teto a lista corta e **diz** que cortou (`…e mais N aula(s)`); o total continua sendo o da dívida inteira.
+>
+> 🧪 **5.168 testes, 0 falhas (14 novos).** **Sem migration**, sem tabela nova, sem tocar nas quatro réguas de autorização — o texto mora num serviço puro (`Services/CobrancaDasAulasEmAberto`), no molde de `RecebimentoDaAula`.
+>
+> ✅ **Falsificado meio a meio:** apagando só os marcadores/ordenação/teto do serviço falham 5 testes e os da tela seguem verdes; apagando só o `Aulas` que o controller preenche falham 3 e os do texto seguem. As duas metades estão presas de forma independente.
+>
+> 🐛 **O mesmo dia 1º pegou outro teste, e ele foi corrigido DUAS vezes.** `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` semeava a aula paga em **ontem** e cobrava o total do **mês corrente** — no dia 1º, ontem é o mês passado (esperado 100, veio 0), e estava vermelho antes desta mudança, com a árvore limpa. O trabalho do "sair do torneio" (`a219aee`) achou o mesmo defeito no mesmo dia e chegou primeiro no `main`; no merge ficou a versão de lá, que encosta a aula no começo do mês em vez de trazê-la pra hoje — mantém o cenário no passado, que é o que o teste descreve. **Duas sessões no mesmo dia tropeçando no mesmo teste é o sinal de que cenário ancorado em "ontem" é armadilha de calendário** — vale procurar os outros.
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
+> Antes, em 31/08/2026: 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
 >
 > 🗣️ **O pedido do Felipe, num print da lista de inscritos:** *"nao pode ter esse trofeu aqui assim. Primeiro que nao é categoria Madeira, tem q ser a categoria que o atleta jogou (7a feminina, 7 masculina e assim por diante) e esse trofeu é de americano, esse nao deve aparecer como se fosse os torneios 'normais'/'Oficiais'"*.
 >

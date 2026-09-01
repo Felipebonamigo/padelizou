@@ -92,6 +92,22 @@ namespace padelizou.Controllers
                     // Os ids vão pro botão "Recebi": dar baixa não pode depender de recalcular
                     // o grupo no POST, que é como a lista da tela e a do servidor divergem.
                     AulaIds = g.Select(a => a.Id).ToList(),
+                    // E as MESMAS aulas, com data, preço e status, pro botão do WhatsApp poder
+                    // escrever a cobrança detalhada (Services/CobrancaDasAulasEmAberto).
+                    //
+                    // ⚠️ São as aulas do PERÍODO ESCOLHIDO na tela — as mesmas que somam o valor
+                    // mostrado ao lado do nome. Mandar "todas de sempre" faria a mensagem cobrar
+                    // um total diferente do que está escrito na linha logo acima do botão, que é
+                    // exatamente o defeito que a tabela por local já levou uma correção pra não
+                    // ter. Quem quer cobrar o histórico inteiro troca o período pra "Sempre".
+                    Aulas = g.OrderBy(a => a.DataHora)
+                             .Select(a => new AulaEmAbertoVM
+                             {
+                                 DataHora = a.DataHora,
+                                 Preco = a.Preco,
+                                 Status = a.Status,
+                             })
+                             .ToList(),
                 })
                 .OrderByDescending(d => d.Valor)
                 .ToList();
