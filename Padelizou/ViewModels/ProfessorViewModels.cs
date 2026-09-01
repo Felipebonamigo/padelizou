@@ -72,7 +72,23 @@ public class DevedorVM
     // As aulas em aberto deste aluno, pro botão "Recebi" dar baixa exatamente nelas.
     public List<int> AulaIds { get; set; } = new();
 
+    // AS MESMAS aulas, agora com o que a cobrança detalhada do WhatsApp precisa escrever
+    // (pedido do Felipe em 01/09/2026). Anda junto de `AulaIds`: uma lista para dar baixa,
+    // outra para explicar ao aluno o que está sendo cobrado — se as duas divergirem, o
+    // professor cobra uma coisa e baixa outra.
+    public List<AulaEmAbertoVM> Aulas { get; set; } = new();
+
     public int DiasEmAberto => (int)(DateTime.Today - AulaMaisAntiga.Date).TotalDays;
+}
+
+// Uma linha da cobrança detalhada. Guarda o `Status` cru, e não um "é falta?" já decidido,
+// porque quem escolhe como cada caso é ESCRITO pro aluno é o texto (Services/CobrancaDasAulasEmAberto)
+// — a tela só entrega o fato.
+public class AulaEmAbertoVM
+{
+    public DateTime DataHora { get; set; }
+    public decimal Preco { get; set; }
+    public string Status { get; set; } = "";
 }
 
 public class FinanceiroPorLocalVM

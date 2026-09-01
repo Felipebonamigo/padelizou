@@ -1,5 +1,6 @@
 @model Padelizou.ViewModels.FinanceiroProfessorVM
 @using System.Globalization
+@using Padelizou.Services
 @{
     ViewData["Title"] = "Financeiro do Professor";
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
@@ -120,16 +121,62 @@
                         </form>
                         @if (!string.IsNullOrWhiteSpace(d.Celular))
                         {
-                            var msg = Uri.EscapeDataString($"Oi {d.Nome.Split(' ')[0]}! Passando pra lembrar das {d.AulasEmAberto} aula(s) em aberto, total de {d.Valor.ToString("C", ptBr)}. Abraço!");
-                            <a href="https://wa.me/55@(SoDigitos(d.Celular))?text=@msg" target="_blank" rel="noopener"
-                               class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0" title="Cobrar pelo WhatsApp">
-                                <i class="bi bi-whatsapp"></i>
-                            </a>
+                            @* O texto dos dois botões sai do MESMO lugar (Services/CobrancaDasAulasEmAberto),
+                               que é onde ele é testado: total que não bate com as linhas e falta escrita
+                               como aula dada são erros que ninguém vê acontecer na tela. *@
+                            var zap = $"https://wa.me/55{SoDigitos(d.Celular)}?text=";
+                            var linkResumo = zap + Uri.EscapeDataString(CobrancaDasAulasEmAberto.Resumo(d));
+
+                            if (CobrancaDasAulasEmAberto.CabeDetalhe(d))
+                            {
+                                @* Com mais de uma aula em aberto o botão PERGUNTA (pedido do Felipe,
+                                   01/09/2026): OK manda o extrato com a data e o valor de cada aula,
+                                   Cancelar manda o resumo curto de sempre. Nos dois casos quem envia é
+                                   o professor — o wa.me só abre a conversa com o texto no campo.
+
+                                   Os dois links e a pergunta viajam em data-*, e não dentro do onclick:
+                                   nome de aluno é texto livre, e um apóstrofo no meio de um literal de
+                                   JS quebraria o botão. No atributo, o Razor codifica. *@
+                                var linkDetalhado = zap + Uri.EscapeDataString(CobrancaDasAulasEmAberto.Detalhada(d));
+                                var pergunta = $"{d.Nome} tem {d.AulasEmAberto} aula(s) em aberto.\n\n"
+                                             + "Mandar a cobrança DETALHADA, com a data e o valor de cada uma?\n\n"
+                                             + "OK = detalhada · Cancelar = só o resumo";
+                                <a href="@linkResumo" target="_blank" rel="noopener"
+                                   data-resumo="@linkResumo" data-detalhada="@linkDetalhado" data-pergunta="@pergunta"
+                                   onclick="return pdzEscolherCobranca(this);"
+                                   class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0"
+                                   title="Cobrar pelo WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@linkResumo" target="_blank" rel="noopener"
+                                   class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0"
+                                   title="Cobrar pelo WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                            }
                         }
                     </div>
                 }
             </div>
         </div>
+
+        @* Aqui e não em @@section Scripts: o `return` do "nenhum movimento" logo acima sai da
+           view antes de qualquer seção declarada no fim do arquivo. Este bloco nasce colado na
+           lista que ele serve — sem devedor na tela, não existe botão nem função. *@
+        <script>
+            // Pergunta antes de abrir o WhatsApp de quem deve mais de uma aula.
+            //
+            // ⚠️ Escreve o href nos DOIS caminhos. Trocando só no "OK", um segundo clique
+            // respondendo "Cancelar" reaproveitaria o link detalhado que ficou do clique
+            // anterior — e o professor mandaria o extrato achando que mandou o resumo.
+            function pdzEscolherCobranca(link) {
+                link.href = confirm(link.dataset.pergunta) ? link.dataset.detalhada : link.dataset.resumo;
+                return true;
+            }
+        </script>
     }
 
     <!-- Últimas 6 semanas -->
