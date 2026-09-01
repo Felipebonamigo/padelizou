@@ -23,7 +23,12 @@
 >
 > 🐛 **O mesmo dia 1º pegou outro teste, e ele foi corrigido DUAS vezes.** `HomeTests.Quem_acumula_os_tres_papeis_ve_os_tres_paineis` semeava a aula paga em **ontem** e cobrava o total do **mês corrente** — no dia 1º, ontem é o mês passado (esperado 100, veio 0), e estava vermelho antes desta mudança, com a árvore limpa. O trabalho do "sair do torneio" (`a219aee`) achou o mesmo defeito no mesmo dia e chegou primeiro no `main`; no merge ficou a versão de lá, que encosta a aula no começo do mês em vez de trazê-la pra hoje — mantém o cenário no passado, que é o que o teste descreve. **Duas sessões no mesmo dia tropeçando no mesmo teste é o sinal de que cenário ancorado em "ontem" é armadilha de calendário** — vale procurar os outros.
 >
-> ⏳ **Commitado, não publicado** nesta entrada.
+> 🚀 **NO AR: `build-735-6442584`, em dev e em produção** (PR #53, 01/09/2026 12:34Z).
+> O `deploy.sh` só fecha em verde com o `/healthz` respondendo 200 — se não responder, ele
+> volta sozinho pra versão anterior. **A conferência foi essa**: a sessão que publicou não
+> tem saída de rede pro `padelizou.com.br` (o proxy dela recusa o domínio), então ninguém
+> abriu a tela pra ver o botão com o olho. **Vale um clique no Financeiro de um professor
+> com devedor de 2+ aulas**, que é o caminho que o teste não cobre: o `confirm` do navegador.
 >
 > Antes, em 31/08/2026: 🏆 **O SELO DE CAMPEÃO DA LISTA DE INSCRITOS MENTIA DUAS VEZES.**
 >
