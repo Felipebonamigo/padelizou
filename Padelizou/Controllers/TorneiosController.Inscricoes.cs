@@ -410,6 +410,66 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id = torneioId });
         }
 
+        // ── Trocar o impedimento de horário ───────────────────────────────────────────────
+        // 🗣️ Felipe, 02/09/2026: "permita a pessoa alterar o impedimento, até o fechamento das
+        // inscrições" e "sempre que um parceiro alterar o impedimento, crie um aviso para o
+        // parceiro dele". A regra (quem pode, e o que acontece com o valor) mora em
+        // Services/AlteracaoDeImpedimento.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarImpedimento(int duplaId, TurnoDoImpedimento turno)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            var meuId = ObterJogadorIdLogado() ?? 0;
+
+            if (AlteracaoDeImpedimento.MotivoParaNaoAlterar(dupla, torneio, meuId, turno) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var antes = AlteracaoDeImpedimento.TurnoAtual(dupla);
+            if (antes == turno)
+            {
+                // Nada mudou. Sair aqui evita gravar autoria e acordar o parceiro por um clique
+                // que não trocou coisa nenhuma.
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var diferenca = AlteracaoDeImpedimento.QuantoMudaOValor(dupla, torneio!, turno);
+            AlteracaoDeImpedimento.Aplicar(dupla, torneio!, turno, meuId, DateTime.Now);
+            await _context.SaveChangesAsync();
+
+            // O parceiro não clicou em nada e o horário dele mudou junto — o impedimento é da
+            // INSCRIÇÃO, não de quem marcou. Sem este aviso ele descobre no dia do jogo.
+            var euMesmo = await _context.Jogadores.FindAsync(meuId);
+            var parceiro = dupla.Jogador1Id == meuId ? dupla.Jogador2Id : dupla.Jogador1Id;
+            if (parceiro is { } outro)
+            {
+                await AvisarAsync(new[] { outro }, "O impedimento da dupla mudou",
+                    $"{euMesmo?.ComoChamar ?? "Seu parceiro"} trocou o impedimento de vocês em {torneio!.Nome}: "
+                    + $"de \"{AlteracaoDeImpedimento.Rotulo(antes)}\" para \"{AlteracaoDeImpedimento.Rotulo(turno)}\". "
+                    + "Se não era pra ser, dá pra trocar de volta enquanto as inscrições estiverem abertas.",
+                    torneioId);
+            }
+
+            TempData["Sucesso"] = diferenca switch
+            {
+                > 0 => $"Impedimento alterado para \"{AlteracaoDeImpedimento.Rotulo(turno)}\". "
+                     + $"Foram somados {diferenca:C} à sua inscrição.",
+                < 0 => $"Impedimento retirado. Sua inscrição diminuiu {Math.Abs(diferenca):C}.",
+                _ => $"Impedimento alterado para \"{AlteracaoDeImpedimento.Rotulo(turno)}\". O valor não muda.",
+            };
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
         // ── O inscrito do Americano desiste ───────────────────────────────────────────────
         // Mesma porta do Desistir, pra quem se inscreveu num Torneio Americano. Ela existe
         // separada porque a inscrição de Americano é individual e vive em outra tabela — não
