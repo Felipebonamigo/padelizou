@@ -15,10 +15,18 @@ public static class PorteiroDeTeste
     // Quem pode RECEBER mensagem. Sem argumento não restringe nada, que é o estado da
     // PRODUÇÃO — e é o que quase todo teste quer, porque quase todo teste está conferindo o
     // que o sistema faz quando a mensagem pode sair. Quem testa a restrição passa a lista.
+    // ⚠️ O `BetaSettings` aqui é só pro aviso de start ("porteiro desligado num ambiente de
+    // teste"), e vai desligado de propósito: estes testes não são sobre log, e um Warning
+    // gritando em centenas de montagens não ajudaria ninguém. Quem testa o aviso monta o
+    // porteiro na mão — ver PorteiroDesligadoNoDevGritaTests.
+    private static IOptions<BetaSettings> NaoEhAmbienteDeTeste => Options.Create(new BetaSettings());
+
     public static PorteiroDaSaida Saida(params string[] soPara) =>
-        new(Options.Create(new EntregaSettings { SoPara = soPara }), NullLogger<PorteiroDaSaida>.Instance);
+        new(Options.Create(new EntregaSettings { SoPara = soPara }), NaoEhAmbienteDeTeste,
+            NullLogger<PorteiroDaSaida>.Instance);
 
     // Quem pode ENTRAR no ambiente. Mesma regra: sem argumento, ninguém é barrado.
     public static PorteiroDaEntrada Entrada(params string[] soEstas) =>
-        new(Options.Create(new EntradaSettings { SoEstas = soEstas }), NullLogger<PorteiroDaEntrada>.Instance);
+        new(Options.Create(new EntradaSettings { SoEstas = soEstas }), NaoEhAmbienteDeTeste,
+            NullLogger<PorteiroDaEntrada>.Instance);
 }

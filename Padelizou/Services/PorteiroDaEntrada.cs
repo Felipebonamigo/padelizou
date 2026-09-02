@@ -21,7 +21,8 @@ public class PorteiroDaEntrada
 {
     private readonly HashSet<string> _permitidas;
 
-    public PorteiroDaEntrada(IOptions<EntradaSettings> settings, ILogger<PorteiroDaEntrada> logger)
+    public PorteiroDaEntrada(IOptions<EntradaSettings> settings, IOptions<BetaSettings> beta,
+        ILogger<PorteiroDaEntrada> logger)
     {
         _permitidas = (settings.Value.SoEstas ?? [])
             .Select(IdentidadeJogador.Normalizar)
@@ -36,6 +37,17 @@ public class PorteiroDaEntrada
             logger.LogWarning(
                 "ENTRADA RESTRITA neste ambiente: só as {Quantas} conta(s) de Entrada:SoEstas conseguem entrar. " +
                 "Qualquer outra é recusada no login e desconectada na porta.", _permitidas.Count);
+        }
+        // O gêmeo do aviso do PorteiroDaSaida, e pelo mesmo motivo: config perdida não produz
+        // erro, só ausência — e ausência aqui quer dizer que qualquer conta do banco copiado da
+        // produção entra no ambiente de teste. Produção roda sem a chave de propósito, então o
+        // aviso é só pra quem se declarou cópia.
+        else if (beta.Value.AmbienteDeTeste)
+        {
+            logger.LogWarning(
+                "ENTRADA LIBERADA num ambiente de TESTE: `Entrada:SoEstas` está vazia, então qualquer " +
+                "conta do banco entra aqui — e este banco é cópia da produção. Confira o drop-in do " +
+                "systemd: variável malformada some sem erro nenhum.");
         }
     }
 

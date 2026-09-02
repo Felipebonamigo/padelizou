@@ -20,7 +20,8 @@ public class PorteiroDaSaida
 {
     private readonly HashSet<string> _permitidos;
 
-    public PorteiroDaSaida(IOptions<EntregaSettings> settings, ILogger<PorteiroDaSaida> logger)
+    public PorteiroDaSaida(IOptions<EntregaSettings> settings, IOptions<BetaSettings> beta,
+        ILogger<PorteiroDaSaida> logger)
     {
         _permitidos = (settings.Value.SoPara ?? [])
             .Select(Normalizar)
@@ -35,6 +36,24 @@ public class PorteiroDaSaida
             logger.LogWarning(
                 "SAÍDA RESTRITA neste ambiente: e-mail, WhatsApp e push só saem pros {Quantos} destinos de Entrega:SoPara. " +
                 "O resto é registrado no log e descartado.", _permitidos.Count);
+        }
+        // ⚠️ E O CONTRÁRIO, que é o estado silencioso e o perigoso.
+        //
+        // 🐛 01/09/2026: o drop-in do dev tinha `Environment=" Entrega__SoPara__2=..."` — espaço
+        // à esquerda, barra no fim. O processo subiu sem a variável e ninguém soube de nada.
+        // Ali a lista ficou com dois destinos e a falha foi fechada; o degrau seguinte não é:
+        // lista VAZIA quer dizer libera tudo, e o dev roda com cópia do banco de produção.
+        // Uma malformação que apagasse as linhas restantes faria o ambiente de teste mandar
+        // e-mail, WhatsApp e push pra gente de verdade, calado.
+        //
+        // Só no ambiente que se declarou de teste: produção roda sem a chave todo santo dia, e
+        // Warning permanente é Warning que ninguém lê.
+        else if (beta.Value.AmbienteDeTeste)
+        {
+            logger.LogWarning(
+                "SAÍDA LIBERADA num ambiente de TESTE: `Entrega:SoPara` está vazia, então e-mail, " +
+                "WhatsApp e push saem pra QUALQUER destino do banco — que aqui é cópia da produção. " +
+                "Confira o drop-in do systemd: variável malformada some sem erro nenhum.");
         }
     }
 
