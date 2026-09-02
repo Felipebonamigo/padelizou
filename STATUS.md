@@ -1,7 +1,135 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **01/09/2026** — 🚪 **O JOGADOR PASSA A CONSEGUIR SAIR DO TORNEIO SOZINHO — E O TORNEIO SAI DO WHATSAPP PELA SEGUNDA VEZ.**
+> Última atualização: **02/09/2026** — 🔓 **UMA AUDITORIA DE DEFAULTS INSEGUROS ACHOU TRÊS BURACOS, E DOIS JÁ ESTÃO FECHADOS EM PRODUÇÃO.**
+>
+> 🗣️ **De onde veio:** o Felipe mandou um print com um roteiro do Codex CLI (`codex plugin add
+> insecure-defaults@trailofbits`, `/insecure-defaults:audit src/`) e disse "execute esse
+> script". **Nada daquilo rodava aqui** — o Codex CLI não está instalado, o plugin não está no
+> catálogo desta conta e este repositório não tem `src/`. Rodei a auditoria à mão, no
+> `Padelizou/`, procurando o padrão que ela procura: **ausência de configuração levando ao
+> comportamento permissivo**.
+>
+> 🔴 **ACHADO 1 — O CABEÇALHO `Host` DECIDIA SE A PRODUÇÃO SERVIA O PAINEL.** O
+> `AdminHostMiddleware` entrava no ramo "libera tudo, inclusive /Admin" comparando
+> `Request.Host.Host` com `dev.padelizou.com.br` — e `Host` vem do cliente. Medido contra o app
+> de produção, sem passar pelo Caddy:
+>
+> ```
+> Host: padelizou.com.br      ->  /Admin = 404
+> Host: dev.padelizou.com.br  ->  /Admin = 302     ← a produção servindo o painel
+> ```
+>
+> ⚠️ **Nunca deu poder de admin** — o `AdminController` segue exigindo `IsAdminGeral` /
+> `IsAdminRaiz`, e o comentário do próprio arquivo já dizia que aquilo era sobre ONDE cada
+> coisa é servida, não sobre quem entra. E **não era alcançável de fora**: o Kestrel só escuta
+> em `localhost` e quem roteia por `Host` é o Caddy. Mas é justamente esse o ponto — **a
+> proteção inteira morava num arquivo que nem está neste repositório**.
+>
+> 🔑 **A régua nova não inventou variável**: passou a ser `Beta:AmbienteDeTeste`, que já
+> existia, nasce **falsa** e tem o motivo escrito no próprio `BetaSettings` — *"quem tem que se
+> declarar é a cópia, não o original"*. Ambiente novo que suba sem a chave se comporta como
+> produção, que é o lado seguro do erro. ⚠️ **Efeito colateral que vale saber**: se alguém
+> apagar `Beta__AmbienteDeTeste=true` do systemd do dev, **o dev perde o `/Admin`**.
+>
+> 🟡 **ACHADO 2 — UMA LINHA TORTA DO SYSTEMD APAGOU UM DESTINO, CALADA.** O drop-in do dev tinha
+> `Environment=" Entrega__SoPara__2=..."` — espaço à esquerda, barra no fim. O processo subiu
+> **sem a variável**, conferido em `/proc/<pid>/environ`, e ninguém foi avisado de nada. O log
+> dizia "2 destinos" quando o arquivo listava 3.
+>
+> ⚠️ **Ali a falha foi FECHADA** (o dev só deixou de mandar mensagem pro Lucas), mas o degrau
+> seguinte não é: `Restringindo` é `Count > 0`, então **lista vazia quer dizer LIBERA TUDO** —
+> certo pra produção, que roda sem a chave de propósito, e errado pro dev, **que roda com cópia
+> do banco de produção**. Uma malformação que apagasse as linhas restantes faria o ambiente de
+> teste mandar e-mail, WhatsApp e push pra gente de verdade, sem um erro sequer.
+>
+> 🔧 Os dois porteiros já gritavam quando **estão** restringindo. Agora gritam também quando
+> **não** estão e o ambiente se declarou de teste — o estado silencioso. Produção não ganha
+> Warning nenhum: log que sempre grita é log que ninguém lê. A linha torta foi corrigida no
+> servidor (backup em `saida-restrita.conf.bak-20260902-130059`) e o log passou de "2 destinos"
+> para "3 destinos".
+>
+> ⏳ **ACHADO 3, AINDA ABERTO — `X-Forwarded-For` é aceito de QUALQUER origem.** O
+> `Program.cs` faz `KnownIPNetworks.Clear()` e `KnownProxies.Clear()`, e o sink é o limitador
+> de tentativas, que particiona por `RemoteIpAddress` e protege **login, cadastro e "esqueci
+> minha senha"**. Se der pra forjar o IP, as 10 tentativas por janela deixam de significar
+> algo. **Não testei**: a única prova é estourar o limite em produção, e isso não se faz sem o
+> Felipe mandar. `XForwardedHost` **não** está na lista, o que fecha o vetor do Achado 1 por
+> esse caminho.
+>
+> 🚪 **E O IMPEDIMENTO DE HORÁRIO GANHOU TRÊS COISAS** (`build-753-58a3611`), todas pedidas no
+> mesmo dia:
+>
+> 🗣️ *"para a hora de gerar as chaves, colocar uma lista com todos os impedimentos marcados nas
+> inscrições, por dupla"* — o sorteio **já** respeitava as janelas (`JanelasDeImpedimento`), mas
+> o organizador não tinha como saber quantas eram nem de quem antes de apertar, que é o que
+> decide se a grade cabe no dia. A lista entra **antes** do botão.
+>
+> 🗣️ *"permita a pessoa alterar o impedimento, até o fechamento das inscrições"* — o turno era
+> escolhido uma vez, na inscrição, sem volta.
+>
+> 💰 **A régua do dinheiro é do Felipe**, e caiu redonda por um motivo que eu não sabia: *"se já
+> tem outro impedimento, mantém o mesmo custo; se não, avisa que é cobrado e o valor que é
+> adicionado"*. Uma inscrição marca **NO MÁXIMO UM** impedimento (`ImpedimentoUnico`), então a
+> quantidade só vive em 0 ou 1 — e os três movimentos possíveis são exatamente os que ele
+> descreveu: trocar (de graça), marcar (cobra) e tirar (devolve ao valor devido).
+>
+> ⚠️ **Onde ele não falou, eu decidi e está registrado: inscrição JÁ PAGA só aceita a troca de
+> turno.** Não mexe em um centavo, e é a alteração mais comum ("não posso mais na sexta, posso
+> no sábado"). Marcar ou tirar mexeria no valor — cobrança extra ou devolução —, e devolução
+> aqui é o botão de estorno do organizador, na mão (`ESTORNO.md`). A tela manda falar com ele em
+> vez de fingir que resolve.
+>
+> 🗣️ *"sempre que um parceiro alterar o impedimento, crie um aviso para o parceiro dele, e deixe
+> registrado quem marcou"* — o impedimento é da INSCRIÇÃO, não de quem clicou: o parceiro tem o
+> horário mudado sem ter feito nada. Aviso `SoApp` (torneio está fora do canal de WhatsApp), e
+> duas colunas novas em `Dupla`. ⚠️ **Coluna simples, SEM FK pra `Jogador`** — o mesmo motivo já
+> escrito no `DbPadelContext` pro `SolicitadoPorId`: sai cascade demais de `Jogador`, e uma
+> conta excluída pela LGPD não pode levar junto a inscrição de uma dupla inteira.
+>
+> 🔍 **DUAS CONFERÊNCIAS NO BANCO DE PRODUÇÃO, pedidas junto:**
+>
+>   · **Emerson Hammacher / Andrey Souza** (dupla 602, 5ª Masculina do ER): **não marcaram
+>     impedimento nenhum** — os quatro turnos em `false`. Confirmado por dois caminhos, porque
+>     o `ValorInscricao` é R$ 300,00 = 2 × R$ 150; com sábado de manhã marcado seria R$ 320,00
+>     (o ER cobra R$ 20 por impedimento).
+>   · **Antônia Mirailh / Ana Pasinato** (dupla 586, 3ª Feminina): **sexta à noite já estava
+>     marcado**, e os R$ 320,00 mostram que a taxa já entrou na conta dela. Não foi preciso
+>     escrever nada no banco.
+>
+> ✅ **Publicado e conferido nos dois ambientes** — `active`, `NRestarts=0`, 0 exceção,
+> `healthz` 200, migration aplicada (`ImpedimentoAlteradoEm` e `ImpedimentoAlteradoPorId`, as
+> duas nulas). O ER PADEL TOUR saiu do deploy com **43 duplas, 43 sem alteração** e os
+> impedimentos intactos em 9 / 3 / 1. E a prova do Achado 1 foi refeita em produção: o `Host`
+> forjado agora dá **404**.
+>
+> 🧪 **5.243 testes, 0 falhas** (34 novos no dia). Os testes de tela foram vistos **vermelhos
+> contra a view original** antes de cada implementação. ⚠️ **Um deles teve que ser reescrito e a
+> lição repete a de ontem**: usei uma janela de 6.000 caracteres pra provar que o campo mora no
+> card do dono, e ela era curta — mas **aumentar o número tornaria a trava vazia**, porque
+> distância grande o bastante pra passar é grande o bastante pra não provar nada. Virou âncora
+> estrutural: o campo tem que ficar ENTRE a checagem de dono e o formulário de desistir.
+>
+> 💸 **UMA DECISÃO DE PREÇO FICOU ABERTA, com os números já levantados.** O Felipe achou os 10%
+> do "Nós registramos os resultados" caros — *"normalmente os torneios são no valor de 150 R$
+> por pessoa"* — e cogitou R$ 10 por jogo ou preço por dia. **O fato que decide metade da
+> dúvida: `CustoPorJogo` já é 10 — é o que PAGAMOS a quem lança.** Cobrar R$ 10/jogo dá margem
+> zero. Nos três torneios reais:
+>
+> | torneio | pessoas | inscrições | jogos | dias | 10% (hoje) | R$10/jogo | nosso custo |
+> |---|---|---|---|---|---|---|---|
+> | ER PADEL TOUR | 80 | 12.000 | 57 | 3 | 1.200 | 570 | 570 |
+> | NATA PADEL TOUR | 60 | 7.500 | 43 | 2 | 750 | 430 | 430 |
+> | THE LAST DANCE | 50 | 6.750 | 35 | 4 | 675 | 350 | 350 |
+>
+> ⚠️ **O custo não acompanha os jogos, acompanha os DIAS** — e o `ValorMinimo` já dizia isso em
+> comentário: *"mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos"*. Por
+> pessoa-dia, o que pagamos hoje varia de **R$ 87** (THE LAST DANCE: 4 dias, 1 quadra) a **R$
+> 190** (ER PADEL TOUR) pelo mesmo trabalho. **Minha recomendação é cobrar por pessoa-dia**;
+> a R$ 250/dia o ER cairia de 1.200 pra 750, que era a queixa, e os pequenos e longos passariam
+> a cobrir o próprio custo. **O número é decisão do Felipe.**
+>
+> Antes, em 01/09/2026: 🚪 **O JOGADOR PASSA A CONSEGUIR SAIR DO TORNEIO SOZINHO — E O TORNEIO SAI DO WHATSAPP PELA SEGUNDA VEZ.**
 >
 > Três entregas em produção no mesmo dia (`build-733`, `build-745`, `build-747`), todas nascidas
 > de pergunta do Felipe olhando a tela.
