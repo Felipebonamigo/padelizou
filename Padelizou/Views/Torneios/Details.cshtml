@@ -1276,6 +1276,61 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </div>
                                         }
 
+                                        @* TROCAR O IMPEDIMENTO, até o fechamento das inscrições.
+                                           🗣️ Felipe, 02/09/2026. O turno era escolhido uma vez, na
+                                           inscrição, e não tinha volta — quem descobria o compromisso
+                                           depois só resolvia falando com o organizador.
+                                           A régua do dinheiro é dele: trocar um turno por outro mantém
+                                           o custo (a quantidade continua 1); marcar o primeiro cobra a
+                                           taxa, e a tela diz isso ANTES de gravar. *@
+                                        // (bloco de codigo: ja estamos dentro de um @if)
+                                            var turnoAtual = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(dupla);
+                                            var turnosOferecidos = new List<(Padelizou.Services.TurnoDoImpedimento Turno, bool Cabe)>
+                                            {
+                                                (Padelizou.Services.TurnoDoImpedimento.Nenhum, true),
+                                                (Padelizou.Services.TurnoDoImpedimento.QuintaNoite, Model.QuintaEhDiaDoTorneio && Model.PermiteImpedimentoQuintaNoite),
+                                                (Padelizou.Services.TurnoDoImpedimento.SextaNoite, Model.PermiteImpedimentoSextaNoite),
+                                                (Padelizou.Services.TurnoDoImpedimento.SabadoManha, Model.PermiteImpedimentoSabadoManha),
+                                                (Padelizou.Services.TurnoDoImpedimento.SabadoTarde, Model.PermiteImpedimentoSabadoTarde),
+                                            };
+                                        @if (Model.PermiteImpedimentos && turnosOferecidos.Count(t => t.Cabe) > 1)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="AlterarImpedimento" method="post" class="mt-2">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <label class="form-label small fw-bold mb-1">Impedimento de horário</label>
+                                                <div class="input-group input-group-sm" style="max-width: 26rem;">
+                                                    <select name="turno" class="form-select">
+                                                        @foreach (var opcao in turnosOferecidos.Where(t => t.Cabe))
+                                                        {
+                                                            <option value="@opcao.Turno" selected="@(opcao.Turno == turnoAtual)">
+                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao.Turno)
+                                                            </option>
+                                                        }
+                                                    </select>
+                                                    <button type="submit" class="btn btn-outline-secondary">Trocar</button>
+                                                </div>
+                                                @* O aviso do dinheiro só aparece quando há dinheiro em jogo:
+                                                   quem já tem um impedimento marcado troca de graça. *@
+                                                @if (Model.TaxaPorImpedimento > 0
+                                                     && turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)
+                                                {
+                                                    <small class="text-muted d-block mt-1">
+                                                        Marcar um impedimento soma
+                                                        <strong>@Model.TaxaPorImpedimento.ToString("C")</strong> à sua inscrição.
+                                                        Trocar um turno por outro depois não custa nada.
+                                                    </small>
+                                                }
+                                                else if (Model.TaxaPorImpedimento > 0)
+                                                {
+                                                    <small class="text-muted d-block mt-1">
+                                                        Trocar de turno não muda o valor. Tirar o impedimento devolve
+                                                        <strong>@Model.TaxaPorImpedimento.ToString("C")</strong> ao que você deve.
+                                                    </small>
+                                                }
+                                                <small class="text-muted d-block">Seu parceiro é avisado da troca.</small>
+                                            </form>
+                                        }
+
                                         @if (sozinho)
                                         {
                                             <form asp-controller="Torneios" asp-action="Desistir" method="post" class="mt-2"
@@ -2178,6 +2233,57 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     Quem está <strong>sem parceiro</strong> ainda pode fechar a dupla; quem está
                                     <strong>na lista de espera</strong> entra se alguém desistir. Depois de sortear,
                                     não dá mais.
+                                </p>
+                            </div>
+                        }
+
+                        @* OS IMPEDIMENTOS, ANTES DE SORTEAR.
+                           🗣️ Felipe, 02/09/2026: "para a hora de gerar as chaves, colocar uma lista
+                           com todos os impedimentos marcados nas inscrições, por dupla".
+                           O sorteio já respeita as janelas (Services/JanelasDeImpedimento), mas o
+                           organizador não tinha como saber QUANTAS eram nem de quem antes de
+                           apertar — e é a informação que decide se a grade cabe no dia. *@
+                        // (bloco de codigo: ja estamos dentro de um @if)
+                            var comImpedimento = Model.Categorias
+                                .SelectMany(c => c.Duplas.Select(d => new { Categoria = c, Dupla = d }))
+                                .Where(x => Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(x.Dupla)
+                                            != Padelizou.Services.TurnoDoImpedimento.Nenhum)
+                                .OrderBy(x => x.Categoria.Nome)
+                                .ToList();
+                        @if (comImpedimento.Any())
+                        {
+                            <div class="alert alert-info border-0 shadow-sm">
+                                <p class="fw-bold mb-2">
+                                    <i class="bi bi-clock-history"></i>
+                                    @comImpedimento.Count dupla(s) com impedimento de horário
+                                </p>
+                                <ul class="small mb-2 ps-3">
+                                    @foreach (var x in comImpedimento)
+                                    {
+                                        var turno = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(x.Dupla);
+                                        <li>
+                                            <strong>@x.Dupla.Jogador1.ComoChamar</strong>
+                                            @if (x.Dupla.Jogador2 != null)
+                                            {
+                                                <text> e <strong>@x.Dupla.Jogador2.ComoChamar</strong></text>
+                                            }
+                                            <span class="text-muted">(@x.Categoria.Nome)</span>
+                                            — não joga <strong>@Padelizou.Services.AlteracaoDeImpedimento.Rotulo(turno)</strong>
+                                            @* Quem marcou. Nulo = veio da inscrição e nunca foi trocado —
+                                               é a resposta certa, não uma informação faltando. *@
+                                            @if (x.Dupla.ImpedimentoAlteradoEm is DateTime quando)
+                                            {
+                                                <span class="text-muted">
+                                                    · alterado em @quando.ToString("dd/MM 'às' HH:mm")
+                                                </span>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                                <p class="small mb-0">
+                                    O sorteio já evita essas janelas sozinho. A lista está aqui pra você ver
+                                    <strong>quantas</strong> são antes de apertar: janela demais num torneio curto
+                                    aperta a grade.
                                 </p>
                             </div>
                         }

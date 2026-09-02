@@ -62,6 +62,22 @@ public partial class Dupla
     public bool ImpedimentoSextaNoite { get; set; }
     public bool ImpedimentoSabadoManha { get; set; }
     public bool ImpedimentoSabadoTarde { get; set; }
+
+    // QUEM mexeu no impedimento por último, e quando.
+    //
+    // 🗣️ Pedido do Felipe, 02/09/2026: "deixe registrado quem marcou o impedimento". A
+    // inscrição é de dois, e o turno vale pros dois — a dupla que chega no dia reclamando do
+    // horário não tinha como saber qual dos dois marcou, e o organizador, menos ainda.
+    //
+    // NULO = veio da inscrição original e nunca foi alterado. É o estado de todas as duplas
+    // que existiam antes desta coluna, e é a resposta certa pra elas: não houve alteração.
+    //
+    // ⚠️ COLUNA SIMPLES, SEM FK pra Jogador — o mesmo motivo escrito em DbPadelContext pro
+    // `SolicitadoPorId` do pedido de equipe: já existe caminho de cascade demais saindo de
+    // Jogador, e o que importa aqui é o registro histórico. Uma conta excluída pela LGPD não
+    // pode levar junto a inscrição de uma dupla inteira.
+    public int? ImpedimentoAlteradoPorId { get; set; }
+    public DateTime? ImpedimentoAlteradoEm { get; set; }
     public int? GrupoTorneioId { get; set; }
     public virtual GrupoTorneio? GrupoTorneio { get; set; }
 
