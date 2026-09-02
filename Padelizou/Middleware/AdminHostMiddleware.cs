@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Options;
+using Padelizou.Services;
+
 namespace Padelizou.Middleware;
 
 // Separa o painel admin (/Admin) pro subdomínio admin.padelizou.com.br — o site público não
@@ -25,11 +28,30 @@ public class AdminHostMiddleware
 
     private readonly RequestDelegate _next;
     private readonly IWebHostEnvironment _env;
+    private readonly bool _souAInstanciaDeTeste;
 
-    public AdminHostMiddleware(RequestDelegate next, IWebHostEnvironment env)
+    public AdminHostMiddleware(RequestDelegate next, IWebHostEnvironment env, IOptions<BetaSettings> beta)
     {
         _next = next;
         _env = env;
+
+        // ⚠️ QUEM SOU EU vem da CONFIGURAÇÃO desta instância, nunca da requisição.
+        //
+        // 🐛 Até 01/09/2026 o ramo "libera tudo" saía de `Request.Host.Host == DevHost` — e
+        // `Host` é escrito pelo cliente. Medido contra o app de produção, sem passar pelo
+        // Caddy: com `Host: padelizou.com.br`, `/Admin` dava 404; com `Host:
+        // dev.padelizou.com.br`, dava 302. A produção servia o painel a pedido de um
+        // cabeçalho.
+        //
+        // Nunca deu poder de admin (o AdminController segue exigindo IsAdminGeral /
+        // IsAdminRaiz) e não era alcançável de fora, porque o Kestrel só escuta em localhost e
+        // quem roteia por Host é o Caddy — mas isso quer dizer que a proteção inteira morava
+        // num arquivo que nem está neste repositório.
+        //
+        // `Beta:AmbienteDeTeste` já existia e nasce FALSA, pelo motivo certo: "quem tem que se
+        // declarar é a cópia, não o original" (ver Services/BetaSettings). Ambiente novo que
+        // suba sem a chave se comporta como produção, que é o lado seguro do erro.
+        _souAInstanciaDeTeste = beta.Value.AmbienteDeTeste;
     }
 
     public static bool EhHostAdmin(HttpContext context)
@@ -90,10 +112,14 @@ public class AdminHostMiddleware
                 return;
             }
         }
-        else if (EhHostDev(context))
+        else if (_souAInstanciaDeTeste && EhHostDev(context))
         {
             // sem restrição nenhuma — libera tudo, inclusive /Admin, pra dar pra testar
             // qualquer funcionalidade nessa instância isolada.
+            //
+            // ⚠️ O `_souAInstanciaDeTeste` vem PRIMEIRO de propósito: sem ele, bastava mandar
+            // `Host: dev.padelizou.com.br` pra produção entrar aqui. O host continua sendo
+            // checado porque a instância de teste também responde por outros nomes.
         }
         else if (path.StartsWithSegments("/Admin", StringComparison.OrdinalIgnoreCase))
         {
