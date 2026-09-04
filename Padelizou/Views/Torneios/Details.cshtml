@@ -957,6 +957,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         @{
             int categoriaSelecionadaId = ViewBag.CategoriaSelecionadaId is int csid ? csid : 0;
+            var todosOsInscritos = Padelizou.Services.InscritosDeTodasAsCategorias.Montar(Model, inscricoesAmericanas);
         }
         <div class="mb-3">
             <label class="form-label fw-bold small">Categoria</label>
@@ -967,6 +968,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                repetia "Categoria" dentro de um campo já chamado Categoria — era essa palavra
                que jogava cada opção pra segunda linha no celular. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
+                @* "Todos" VEM PRIMEIRO e é onde a aba abre pra quem não está inscrito
+                   (Felipe, 04/09/2026). A primeira categoria da lista não responde pergunta
+                   nenhuma — no ER PADEL TOUR ela mostrava 2 duplas de 49, e quem chegava na
+                   página concluía que o torneio estava vazio. *@
+                <option value="@Padelizou.Services.InscritosDeTodasAsCategorias.Todos"
+                        selected="@(categoriaSelecionadaId == Padelizou.Services.InscritosDeTodasAsCategorias.Todos)">
+                    Todas as categorias (@todosOsInscritos.Count)
+                </option>
                 @foreach (var cat in Model.Categorias.OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                 {
                     var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
@@ -976,6 +985,45 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     </option>
                 }
             </select>
+        </div>
+
+        @* O PAINEL "TODOS": uma lista chapada, do mais recente pro mais antigo, dizendo a dupla
+           e a categoria. Ela responde "quem já entrou neste torneio?", que é a pergunta de quem
+           abre a página — a lista por categoria responde outra, e continua ali no seletor.
+           Usa a mesma classe dos painéis por categoria pra o JS de troca não precisar saber
+           que este existe. *@
+        <div class="categoria-inscritos-conteudo"
+             data-categoria-id="@Padelizou.Services.InscritosDeTodasAsCategorias.Todos"
+             style="display: @(categoriaSelecionadaId == Padelizou.Services.InscritosDeTodasAsCategorias.Todos ? "block" : "none");">
+            @if (!todosOsInscritos.Any())
+            {
+                <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Ninguém inscrito ainda.</p>
+            }
+            else
+            {
+                <p class="text-muted small mb-2">@todosOsInscritos.Count inscrito(s), do mais recente pro mais antigo</p>
+                <div class="list-group shadow-sm">
+                    @foreach (var linha in todosOsInscritos)
+                    {
+                        <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                            <span class="fw-semibold flex-grow-1">@linha.Dupla</span>
+                            @if (linha.EmListaDeEspera)
+                            {
+                                @* Sem esta marca a espera pareceria vaga confirmada, e a conta
+                                   do topo da página não bateria com o que a lista mostra. *@
+                                <span class="badge bg-secondary">Lista de espera</span>
+                            }
+                            <span class="badge bg-primary-subtle text-primary-emphasis">
+                                @Padelizou.Services.CategoriaNaTela.Curto(linha.Categoria)
+                            </span>
+                            @if (linha.Quando is DateTime quandoEntrou)
+                            {
+                                <small class="text-muted">@quandoEntrou.ToString("dd/MM")</small>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
         @foreach (var cat in Model.Categorias)
