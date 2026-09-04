@@ -28,19 +28,13 @@ namespace padelizou.Controllers
             var hoje = DateTime.Today;
             periodo = (periodo ?? "mes").Trim().ToLower();
 
-            // A semana entrou em 09/08/2026: o professor acerta a quadra com o clube POR SEMANA,
-            // e o mês inteiro somado não responde "quanto eu levo lá na sexta". Segunda a
-            // domingo, a mesma régua do card de semanas do mês logo abaixo (Services/SemanasDoMes)
-            // — duas definições de semana na mesma tela seriam dois números pro mesmo dia.
-            var estaSegunda = hoje.AddDays(-(((int)hoje.DayOfWeek + 6) % 7));
-
-            var (de, rotulo) = periodo switch
-            {
-                "semana" => (estaSegunda, "nesta semana"),
-                "ano" => (new DateTime(hoje.Year, 1, 1), $"em {hoje.Year}"),
-                "sempre" => (DateTime.MinValue, "desde sempre"),
-                _ => (new DateTime(hoje.Year, hoje.Month, 1), "neste mês"),
-            };
+            // A faixa de datas mora em Services/PeriodoDoFinanceiro desde 02/09/2026, quando
+            // entrou o "mês passado". ⚠️ Ele é o PRIMEIRO período com as duas pontas — os
+            // quatro que já existiam somam "até hoje" e continuam assim; por isso a inclusão
+            // da aula passou a ser `faixa.Contem(...)` em vez de `>= de` solto, que esquecia
+            // o fim.
+            var faixa = PeriodoDoFinanceiro.Intervalo(periodo, hoje);
+            var rotulo = faixa.Rotulo;
 
             var aulas = await _context.Aulas
                 .Include(a => a.Aluno)
@@ -48,7 +42,7 @@ namespace padelizou.Controllers
                 .Where(a => a.ProfessorId == professorId)
                 .ToListAsync();
 
-            var doPeriodo = aulas.Where(a => a.DataHora >= de).ToList();
+            var doPeriodo = aulas.Where(a => faixa.Contem(a.DataHora)).ToList();
 
             // ⚠️ "Recebido" É CAIXA, e desde 25/08/2026 ele pergunta pelo DINHEIRO, não pelo
             // status: até aqui somava toda aula `Realizada`, e portanto contava como recebida a
