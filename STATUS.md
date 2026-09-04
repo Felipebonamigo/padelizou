@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **04/09/2026** — 📱 **A LISTA DE INSCRITOS VAZAVA PELA DIREITA NO CELULAR — DESDE 17/08.**
+>
+> 🗣️ **O pedido do Felipe**, com print: *"ta estourando o limite da tela"* / *"no mobile"*. A tela era a **Gerenciar Inscritos**, não o botão "Convidar" que eu tinha acabado de publicar.
+>
+> 🔍 **QUATRO BOTÕES QUE NÃO QUEBRAVAM NEM ENCOLHIAM.** A barra de ações era `flex-nowrap` com `flex-shrink: 0`. Na linha de quem está **sem parceiro** ela ganha quatro botões — "Marcar como pago", "Convidar por link", "Definir por CPF" e o de remover — e nenhum deles podia descer pra segunda fileira. A linha da dupla **completa** tem três e cabia: é por isso que o defeito sobreviveu desde **17/08 (`e093c71`)** sem ninguém ver.
+>
+> 🧪 **MEDIDO, NÃO CHUTADO.** Esta sessão tem Chromium — montei a linha isolada com o Bootstrap do próprio projeto e medi: **a 390px o conteúdo ocupava 468px**, com o "Definir por CPF" saindo pela borda. Depois da correção, 390px. No desktop (1280px), idêntico antes e depois.
+>
+> 🔧 **A correção:** `flex-wrap flex-lg-nowrap` na barra e o `flex-shrink: 0` restrito a `@media (min-width: 992px)`. Quem impede o "Marcar como pago" de quebrar no meio de si mesmo é o `text-nowrap` dos BOTÕES, que já estava lá — o `flex-nowrap` da barra era redundante pra isso e era o que forçava o vazamento. Abaixo de 992px a linha já vira coluna, a barra ocupa a largura inteira e não há nome disputando espaço: o `flex-shrink: 0` ali não protegia de nada.
+>
+> ✅ **A linha do "Convidar" foi medida também** (320, 390 e 1280px): cabe em todas — ela já nascera `flex-wrap`. O print era de outra tela.
+>
+> 🧪 **5.289 testes, 0 falhas (1 novo).** **Sem migration.** **Falsificado:** voltar o `flex-nowrap` derruba o teste novo.
+>
 > Última atualização: **04/09/2026** — 🟢 **"CONVIDAR": O LINK DA INSCRIÇÃO NUM TOQUE, AO LADO DO CARTAZ.**
 >
 > 🗣️ **O pedido do Felipe**, num print da página do torneio com a área ao lado do "Cartaz pra divulgar" marcada de verde: *"crie um botão 'convidar' e que é um botão que direciona o link para a pessoa se inscrever no torneio"*.
