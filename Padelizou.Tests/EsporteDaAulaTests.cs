@@ -181,17 +181,48 @@ public class EsporteDaAulaTests
 
     // ---- Filtro na Minha Agenda ----
 
-    // 🐛 OS CENÁRIOS DE SEMANA NÃO PODEM SAIR DE `DateTime.Today.AddDays(n)`.
+    // ⚠️ AS DATAS DA AGENDA SAEM DA JANELA DE VERDADE, e não de `DateTime.Today.AddDays(n)`.
     //
-    // A agenda mostra a semana de DOMINGO A SÁBADO (PeriodoAgenda.InicioDaSemana). Com aulas
-    // em `hoje+1` e `hoje+2`, o cenário só cabia na janela de domingo a quinta: numa SEXTA,
-    // `hoje+2` já é domingo da semana SEGUINTE, a aula sumia da tela e os testes de filtro
-    // falhavam — vermelhos dois dias por semana, e não por causa do filtro.
+    // Foi assim que estes quatro testes nasceram (26/08/2026) — e eles quebraram sozinhos nove
+    // dias depois, sem uma linha de produção ter mudado. A semana da agenda vai de DOMINGO a
+    // sábado (`PeriodoAgenda.Janela`): escritos numa QUARTA, `Today.AddDays(2)` caía dentro da
+    // janela; rodando numa SEXTA, o mesmo `+2` cai no domingo SEGUINTE, que já é a outra semana.
+    // O resultado dependia do dia em que a suíte rodava.
     //
-    // Ancorar na segunda-feira da semana exibida deixa os dois dias sempre dentro dela,
-    // qualquer que seja o dia em que a suíte rode.
-    private static DateTime PrimeiroDiaUtilDaSemana =>
-        PeriodoAgenda.InicioDaSemana(DateTime.Today).AddDays(1);
+    // Ancorar no início da janela é o que torna o teste determinístico: `DentroDaSemana(1)` é
+    // sempre o segundo dia da semana que a tela está mostrando, seja lá quando a suíte rodar.
+    private static DateTime DentroDaSemana(int diaDaJanela)
+    {
+        var (inicio, _) = PeriodoAgenda.Janela("semana", DateTime.Today);
+        return inicio.AddDays(diaDaJanela).AddHours(8);
+    }
+
+    // A prova de que a âncora acima resolve de verdade, e não só "passa hoje": rodando com
+    // CADA um dos sete dias possíveis como referência, os dias 1 e 2 da janela caem dentro
+    // dela — que é o que o `Today.AddDays(n)` antigo não garantia.
+    //
+    // Sem este teste, a correção seria indistinguível de ter esperado o calendário virar.
+    [Theory]
+    [InlineData("2026-08-30")] // domingo — primeiro dia da janela
+    [InlineData("2026-08-31")] // segunda
+    [InlineData("2026-09-01")] // terça
+    [InlineData("2026-09-02")] // quarta — o dia em que estes testes nasceram passando
+    [InlineData("2026-09-03")] // quinta
+    [InlineData("2026-09-04")] // sexta — o dia em que eles quebraram sozinhos
+    [InlineData("2026-09-05")] // sábado — último dia da janela
+    public void A_ancora_da_semana_cai_dentro_da_janela_em_qualquer_dia(string hoje)
+    {
+        var referencia = DateTime.Parse(hoje);
+        var (inicio, fim) = PeriodoAgenda.Janela("semana", referencia);
+
+        foreach (var dia in new[] { 1, 2 })
+        {
+            var quando = inicio.AddDays(dia).AddHours(8);
+            Assert.True(quando >= inicio && quando < fim,
+                $"Com hoje={hoje}, o dia {dia} da janela ({quando:dd/MM}) caiu fora de "
+                + $"[{inicio:dd/MM}, {fim:dd/MM}) — a âncora voltou a depender do calendário.");
+        }
+    }
 
     [Fact]
     public async Task Professor_de_um_esporte_so_nao_ve_opcao_de_filtro()
@@ -199,8 +230,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8));
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8));
+        Marcada(ctx, professor, local, DentroDaSemana(1));
+        Marcada(ctx, professor, local, DentroDaSemana(2));
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id).MinhaAgenda(null, "semana", DateTime.Today);
         var vm = Assert.IsType<AgendaProfessorVM>(Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(vista).Model);
@@ -214,8 +245,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, DentroDaSemana(1), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, DentroDaSemana(2), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id).MinhaAgenda(null, "semana", DateTime.Today);
         var vm = Assert.IsType<AgendaProfessorVM>(Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(vista).Model);
@@ -231,8 +262,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, DentroDaSemana(1), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, DentroDaSemana(2), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id)
             .MinhaAgenda(null, "semana", DateTime.Today, esporte: EsporteDaAula.Tenis);
@@ -251,8 +282,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, DentroDaSemana(1), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, DentroDaSemana(2), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id)
             .MinhaAgenda(null, "semana", DateTime.Today, esporte: "Vôlei");

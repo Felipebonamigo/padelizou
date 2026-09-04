@@ -1,6 +1,153 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **04/09/2026** — 👀 **A PÁGINA DO TORNEIO PARECIA VAZIA, E O CARD NÃO DIZIA ATÉ QUANDO DAVA PRA ENTRAR** (`build-766-6e4de3c`).
+>
+> Duas telas que já tinham a informação e não a mostravam onde ela decide alguma coisa.
+>
+> 🗓️ **O CARD DA LISTA PASSOU A DIZER O PRAZO.** 🗣️ *"acho que é bom colocar até quando vai as
+> inscrições de cada torneio também"*.
+>
+> O campo `PrevisaoEncerramentoInscricoes` **já existia**, **já estava preenchido em 3 dos 4
+> torneios abertos** e **já era mostrado** — só que na página de dentro, depois do clique. O
+> card é onde a pessoa decide se clica.
+>
+> Perto do prazo a frase conta os dias ("encerram hoje", "amanhã", "em 4 dias") e ganha
+> destaque; longe, mostra a data seca — "faltam 61 dias" não é urgência, é ruído. A régua virou
+> `Services/PrazoDaInscricaoNaTela` e é lida pelas DUAS telas, pelo mesmo motivo que fez o
+> `DataDoTorneioNaTela` nascer: duas cópias divergem na primeira mudança.
+>
+> ⚠️ **PRAZO VENCIDO CALA**, e é o ramo que não se adivinha lendo o campo: a data é PROMESSA,
+> não gatilho — quem encerra é o organizador, no botão. Passado o dia sem ele fechar, a
+> inscrição continua ABERTA, e "inscrições até 08/09" no dia 09 desanimaria quem ainda pode
+> entrar, contradizendo o botão logo abaixo. Por causa disso o bloco da página do torneio passou
+> a perguntar pela FRASE, não pelo campo: com `!= null`, torneio de prazo vencido e sem data de
+> chaveamento renderizava um parágrafo vazio com gap.
+>
+> 📋 **A ABA DE INSCRITOS ABRE EM "TODAS AS CATEGORIAS".** 🗣️ *"na primeira vez que abrir a aba
+> de inscritos, uma aba com todos, sem separar por categoria... do mais recente pro mais antigo
+> — e aí se o usuário quiser, ele seleciona a categoria"*.
+>
+> 🕳️ **O que ele viu:** o ER PADEL TOUR tem **49 duplas** e a aba abria na **3ª Masculina, que
+> tem 2**. A primeira categoria da lista não responde pergunta nenhuma — ela é só a primeira —,
+> e quem chega na página conclui que o torneio está vazio.
+>
+> ⚠️ **O QUE NÃO MUDOU: quem está inscrito continua abrindo na PRÓPRIA categoria.** Isso já
+> existia no controller e é proposital — essa pessoa abriu a página pra ver a categoria dela.
+> Mudou só o *fallback* de quem não está inscrito, que era "a primeira".
+>
+> 🧪 **UMA FALSIFICAÇÃO FALHOU, e o resultado ficou no código.** Eu tinha escrito
+> `OrderByDescending(l => l.Quando ?? DateTime.MinValue)` com um comentário afirmando que, sem o
+> coalesce, as inscrições sem data subiriam pro topo. **Quebrei o coalesce de propósito e o
+> teste continuou VERDE**: em `OrderByDescending`, o `null` de um `DateTime?` já ordena como
+> menor valor e cai no fim sozinho. A afirmação era falsa, então o coalesce saiu e o comentário
+> passou a contar o que aconteceu — **proteção que não protege de nada é ruído que a próxima
+> sessão lê como regra**. O teste ficou, marcado como caracterização: trocar por `OrderBy`
+> derruba os dois testes de ordem (isso sim, falsificado e visto vermelho).
+>
+> ✂️ **E um teste MEU foi apagado em vez de remendado**: `Com_prazo_futuro_diz_a_data` esperava
+> `"08/09"` para uma data a 4 dias, que é justamente quando a frase conta os DIAS — ele
+> contradizia outro teste sobre a MESMA entrada. Dois testes brigando pela mesma entrada é um
+> deles mentindo.
+>
+> 🧑‍🏫 **PRONTO E PARADO: o PR #63 (professor).** "Meus alunos" como página — o
+> `Services/AlunosDoProfessor` já existia e já tinha teste, vivia só dentro do autocompletar de
+> "Adicionar aula", onde some quando ele escolhe um nome — e **"mês passado" no Financeiro**.
+> Nesse segundo o que faltava não era filtro, era CONCEITO: os quatro períodos existentes
+> (semana, mês, ano, sempre) são todos ABERTOS, somando `DataHora >= de` sem fim nenhum. O fim é
+> EXCLUSIVO de propósito: com "31/08" inclusivo, a aula das 20h do dia 31 ficaria de fora e o
+> professor veria o mês fechado com uma aula a menos do que deu. **CI verde, não mergeado.**
+>
+> 🐛 **O SEGUNDO TESTE VERMELHO POR DATA EM QUATRO DIAS** (vai no #63). O `EsporteDaAulaTests`
+> criava aulas em `hoje+1` e `hoje+2` esperando as duas na semana exibida — mas a agenda vai de
+> **domingo a sábado**, e numa SEXTA o `hoje+2` já é o domingo da semana seguinte. Conferido
+> vermelho no `origin/main` limpo antes de qualquer mudança minha:
+> `Expected: 2, Actual: 1` e `Assert.Single: collection was empty`. ⚠️ **É o mesmo formato do
+> conserto de 01/09 no `HomeTests`, que quebrava todo dia 1º** — data relativa a "hoje"
+> atravessando fronteira de período. Se aparecer um terceiro, vale varrer a suíte inteira atrás
+> do padrão em vez de consertar um por vez.
+>
+> 🕵️ **O PERFIL COM NOME PELA METADE ERA DIGITAÇÃO, NÃO DEFEITO.** O Felipe achou um perfil
+> chamado `Fernanda (Pa`. No banco o nome estava assim mesmo, com 12 caracteres e parêntese
+> aberto. Três checagens fecharam a hipótese de defeito: o limite da coluna é **100**, o campo da
+> tela **não tem `maxlength`**, não há **`Substring`** nenhum no caminho da inscrição, e em toda
+> a produção **só existia esse** nome cortado. A pista de como aconteceu estava nas datas: a
+> dupla era de 26/08 e a jogadora nasceu **naquele mesmo dia às 15:53** — foi uma troca de
+> parceira, e quem preencheu parou de digitar no meio. Corrigido pra **Fernanda Vargas**;
+> `NomeAlteradoEm` ficou NULO de propósito, porque a carência de troca de nome é dela, e quem
+> corrigiu foi o admin.
+>
+> ⚠️ **E ali apareceu um buraco de cadastro: não existe DATA DE NASCIMENTO.** O `Jogador` tem 78
+> colunas — `Sexo`, `Cidade`, `Cep` — e nenhuma de nascimento. Guardar isso é coluna nova, logo
+> `architectural`. Antes do "como" falta o "porquê": se for pra **categoria por faixa etária**
+> vira regra de inscrição; se for pra tratar **menor de idade** (a Fernanda tem 17), envolve
+> responsável e dado de menor, que pede cuidado próprio.
+>
+> 🍎 **APPLE PAY: NÃO DÁ, E O MOTIVO NÃO É NOSSO** (spike, sem código). O gateway atual não tem
+> porta pra carteira nenhuma — o checkout hospedado aceita `PIX, CREDIT_CARD` e a API de cartão
+> aceita número em texto ou token PRÓPRIO deles. Apple Pay exigiria um **segundo gateway**, e
+> com ele refazer split, subconta, estorno parcial e os 6 webhooks, pra 8 tipos de pagamento e
+> 14 arquivos de teste de dinheiro. 💸 **A Apple não cobra nada do lojista**; o custo de
+> habilitar é o Apple Developer (US$ 99/ano), **evitável** num gateway que registre o domínio
+> pelo lojista — mas o único que faz isso de graça (Stripe) **não processa Pix em conta
+> brasileira**, o que o elimina aqui.
+>
+> 📊 **O número que encerrou a discussão sozinho**: produção tem **2 pagamentos confirmados pelo
+> gateway em toda a história** (contra 10 cancelados, R$ 1.250 que não viraram nada), e **3 dos 4
+> torneios cobram POR FORA**. Não há volume pra otimizar checkout. E Apple Pay é cartão
+> tokenizado: cairia na taxa de crédito, a mais cara, em vez da de Pix. ⚠️ **O que vale
+> investigar é o 10 × 2**, não a carteira.
+>
+> Antes, no mesmo dia: 📱 **A LISTA DE INSCRITOS VAZAVA PELA DIREITA NO CELULAR — DESDE 17/08.**
+>
+> 🗣️ **O pedido do Felipe**, com print: *"ta estourando o limite da tela"* / *"no mobile"*. A tela era a **Gerenciar Inscritos**, não o botão "Convidar" que eu tinha acabado de publicar.
+>
+> 🔍 **QUATRO BOTÕES QUE NÃO QUEBRAVAM NEM ENCOLHIAM.** A barra de ações era `flex-nowrap` com `flex-shrink: 0`. Na linha de quem está **sem parceiro** ela ganha quatro botões — "Marcar como pago", "Convidar por link", "Definir por CPF" e o de remover — e nenhum deles podia descer pra segunda fileira. A linha da dupla **completa** tem três e cabia: é por isso que o defeito sobreviveu desde **17/08 (`e093c71`)** sem ninguém ver.
+>
+> 🧪 **MEDIDO, NÃO CHUTADO.** Esta sessão tem Chromium — montei a linha isolada com o Bootstrap do próprio projeto e medi: **a 390px o conteúdo ocupava 468px**, com o "Definir por CPF" saindo pela borda. Depois da correção, 390px. No desktop (1280px), idêntico antes e depois.
+>
+> 🔧 **A correção:** `flex-wrap flex-lg-nowrap` na barra e o `flex-shrink: 0` restrito a `@media (min-width: 992px)`. Quem impede o "Marcar como pago" de quebrar no meio de si mesmo é o `text-nowrap` dos BOTÕES, que já estava lá — o `flex-nowrap` da barra era redundante pra isso e era o que forçava o vazamento. Abaixo de 992px a linha já vira coluna, a barra ocupa a largura inteira e não há nome disputando espaço: o `flex-shrink: 0` ali não protegia de nada.
+>
+> ✅ **A linha do "Convidar" foi medida também** (320, 390 e 1280px): cabe em todas — ela já nascera `flex-wrap`. O print era de outra tela.
+>
+> 🧪 **5.289 testes, 0 falhas (1 novo).** **Sem migration.** **Falsificado:** voltar o `flex-nowrap` derruba o teste novo.
+>
+> Última atualização: **04/09/2026** — 🟢 **"CONVIDAR": O LINK DA INSCRIÇÃO NUM TOQUE, AO LADO DO CARTAZ.**
+>
+> 🗣️ **O pedido do Felipe**, num print da página do torneio com a área ao lado do "Cartaz pra divulgar" marcada de verde: *"crie um botão 'convidar' e que é um botão que direciona o link para a pessoa se inscrever no torneio"*.
+>
+> 🧩 **NÃO É O CARTAZ DE NOVO, e é por isso que existe.** O cartaz resolve a divulgação ABERTA (story, feed, mural do clube) e para em imagem: pra chamar UMA pessoa o organizador teria que baixar a arte, achar a conversa e anexar. O convite é a divulgação DIRIGIDA — a que ele já faz na mão, colando o link no privado. Os dois dividem a mesma linha da página.
+>
+> 🎯 **O `#inscricao` é o pedido inteiro, e sozinho ele não fazia nada.** O Bootstrap 5 não lê a URL pra escolher aba: sem o script que traduz a hash, o convidado caía em **"Inscritos"** — a lista de quem JÁ entrou, a única aba da página que não serve pra se inscrever. O convite prometeria inscrição e entregaria plateia.
+>
+> 🚪 **A régua NÃO é a do cartaz, e reusar `PodeDivulgar` seria o defeito.** O cartaz vale pro torneio EM ANDAMENTO (ele só troca o selo pra "ACOMPANHE AO VIVO", porque assistir também é convite); o botão de convidar promete INSCRIÇÃO, e a aba "Inscreva-se" só existe enquanto o status é "Inscrições Abertas". `ConviteProTorneio.PodeConvidar` é régua própria — e os dois `@if` da view ficaram **separados**, não aninhados: hoje um é subconjunto do outro, e aninhar sumiria com o convite calado no dia em que alguém apertasse a régua do cartaz.
+>
+> 🕳️ **UMA FALSIFICAÇÃO PEGOU UM TESTE MEU QUE NÃO TRAVAVA NADA.** Eu tinha escrito `Assert.DoesNotContain("·")` achando que a guarda `contexto.Count > 0` impedia um separador pendurado — **apaguei a guarda e a suíte ficou VERDE**. `string.Join` nunca deixa separador solto; o que a guarda impede é o `\n` de uma linha do meio VAZIA, abrindo um buraco entre o nome do torneio e o link. O comentário do código afirmava algo falso e foi corrigido junto. Sem a falsificação, três testes teriam ficado no arquivo fingindo travar uma coisa que não travavam.
+>
+> 🧪 **5.288 testes, 0 falhas (23 novos).** **Sem migration.** Duas travas: `ConviteProTorneioTests` (regra e texto, comportamento) e `ConvidarNaPaginaDoTorneioTests` (fonte — a suíte não renderiza Razor).
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> Última atualização: **04/09/2026** — 🎯 **OS DOIS PRÓXIMOS TORNEIOS ABREM A HOME DO VISITANTE — E DOIS TESTES MEUS ESTAVAM VERMELHOS NO `main` POR CAUSA DO DIA DA SEMANA.**
+>
+> 🗣️ **O pedido do Felipe, num print da primeira tela:** *"logo que abre, a primeira coisa a aparecer tem q ser os 2 proximos torneios para as pessoas se inscreverem"*. Quem chegava via o hero, depois **seis cards de navegação**, e só então "Inscrições abertas" — a única seção da página em que dá pra gastar dinheiro estava atrás do mapa.
+>
+> 🧩 **A vitrine subiu pro topo, com dois cards e "Ver todos →".** "Os 2 PRÓXIMOS" saiu de graça: `Abertos` já chega ordenado do mais próximo pro mais distante, e isso já tinha trava (`OrdemDosTorneiosTests`). Grade de **duas** colunas, não três — dois cards numa grade de três deixam um buraco à direita que faz a seção parecer quebrada.
+>
+> 🚪 **SÓ NA TELA DE VISITANTE, e é decisão, não esquecimento.** Na versão logada o topo é a agenda da pessoa (próximo jogo, compromissos, "Seus torneios"); trocar isso por vitrine seria trocar informação pessoal e datada por publicidade. Quem já entrou tem o que fazer; quem acabou de chegar, não. A vitrine antiga continua lá pro logado, agora com `logado &&` no gate — sem isso o visitante veria os mesmos torneios **duas vezes** na mesma página.
+>
+> 🔴 **E O `main` ESTAVA COM DOIS TESTES VERMELHOS quando cheguei** — `Filtrar_por_esporte_so_traz_as_aulas_daquele_esporte` e `Filtro_invalido_na_url_e_ignorado`. Conferido no `main` limpo, sem nenhuma mudança minha: já falhavam. Publicar por cima era impossível (Regra 2), então virou parte do trabalho.
+>
+> 🕳️ **A causa não era produção — era um teste MEU, e o defeito é do tipo que não existe até certo dia.** Escrevi os dois em 26/08, numa QUARTA, ancorando as aulas em `DateTime.Today.AddDays(1)` e `(2)`. A semana da agenda vai de **DOMINGO a sábado** (`PeriodoAgenda.Janela`): na quarta os dois caíam dentro da janela; rodando numa **SEXTA** (hoje), o `+2` cai no domingo SEGUINTE, já fora. **Passaram nove dias verdes até o calendário virar** — o filtro de esporte nunca esteve quebrado.
+>
+> 🔒 **A correção ancora na janela de verdade, não em `Today`** — e veio com o teste que prova que resolve em QUALQUER dia, varrendo os sete. **Falsificado:** com a fórmula antiga ele quebra na sexta e no sábado, exatamente os dois dias em que `+1`/`+2` escapam da janela. Sem esse teste, a correção seria indistinguível de ter esperado o calendário virar.
+>
+> 📌 **A lição pra próxima sessão:** teste que ancora em `DateTime.Today` dentro de uma janela de calendário é bomba-relógio — ele não falha quando o código quebra, falha quando o dia muda. Ancore no que a tela usa pra decidir a janela.
+>
+> 🧪 **5.265 testes, 0 falhas (11 novos + 2 destravados).** **Sem migration.**
+>
+> 🚀 **Publicado em produção** — `build-758-e61c5c8` (PR #64; deploy confirmado no log: `==> Feito. build-758-e61c5c8 no ar em prod`).
+>
 > Última atualização: **02/09/2026** — 🔓 **UMA AUDITORIA DE DEFAULTS INSEGUROS ACHOU TRÊS BURACOS, E DOIS JÁ ESTÃO FECHADOS EM PRODUÇÃO.**
 >
 > 🗣️ **De onde veio:** o Felipe mandou um print com um roteiro do Codex CLI (`codex plugin add

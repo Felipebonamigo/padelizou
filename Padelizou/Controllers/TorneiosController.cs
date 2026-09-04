@@ -516,7 +516,15 @@ namespace Padelizou.Controllers
                         .FirstOrDefaultAsync();
                 }
             }
-            ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? torneio.Categorias.Select(c => c.Id).FirstOrDefault();
+            // ⚠️ O FALLBACK É "TODOS", NÃO "A PRIMEIRA CATEGORIA" (Felipe, 04/09/2026).
+            //
+            // A primeira da lista não responde pergunta nenhuma — ela é só a primeira. No ER
+            // PADEL TOUR isso abria a aba na 3ª Masculina, com 2 duplas de 49; quem chega na
+            // página conclui que o torneio está vazio.
+            //
+            // Quem ESTÁ inscrito continua abrindo na própria categoria: essa pessoa abriu a
+            // página pra ver a categoria dela, e "Todos" seria um passo a mais pra ela.
+            ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? InscritosDeTodasAsCategorias.Todos;
 
             // "Eu estou NESTE torneio?" — a mesma consulta que escolheu a categoria acima, de
             // propósito: com duas, a tela poderia abrir na categoria de alguém que ela não

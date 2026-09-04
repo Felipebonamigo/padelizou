@@ -255,14 +255,23 @@
 @* As duas perguntas que o organizador respondia no WhatsApp o torneio inteiro — "quando
    fecha?" e "já saiu a chave?" — agora ficam escritas na página. São PREVISÕES: quem encerra
    e quem sorteia continua sendo o organizador, no botão. *@
-@if (Model.PrevisaoEncerramentoInscricoes != null || Model.PrevisaoChaveamento != null)
+@* A frase do prazo saiu daqui e virou Services/PrazoDaInscricaoNaTela quando o card da lista
+   passou a mostrar o prazo também — mesma história do DataDoTorneioNaTela: eram duas telas pra
+   uma regra só. Ela cala quando a data já passou e o organizador ainda não fechou, caso em que
+   a inscrição segue aberta e a frase desanimaria quem ainda pode entrar.
+   ⚠️ Por isso a condição do bloco pergunta pela FRASE, e não pelo campo: com `!= null` aqui, o
+   torneio de prazo vencido e sem data de chaveamento renderizava um parágrafo vazio com gap. *@
+@{
+    var prazoDaInscricao = Padelizou.Services.PrazoDaInscricaoNaTela.Frase(Model, DateTime.Today);
+}
+@if (prazoDaInscricao != null || Model.PrevisaoChaveamento != null)
 {
     <p class="text-muted small mb-3 d-flex flex-wrap gap-3">
-        @if (Model.PrevisaoEncerramentoInscricoes != null)
+        @if (prazoDaInscricao != null)
         {
             <span>
                 <i class="bi bi-hourglass-split"></i>
-                Inscrições até <strong>@Model.PrevisaoEncerramentoInscricoes.Value.ToString("dd/MM")</strong>
+                <strong>@prazoDaInscricao</strong>
                 <span class="opacity-75">(previsto)</span>
             </span>
         }
@@ -299,17 +308,119 @@
    escrito aqui: torneio cancelado e torneio já finalizado não divulgam, e essa regra tem
    que ter um dono só — cartaz é a peça que mais sobrevive ao próprio contexto, porque é
    salva na galeria e reencaminhada dias depois. *@
-@if (Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status))
+@* ⚠️ AS DUAS RÉGUAS SÃO SEPARADAS DE PROPÓSITO, e não uma dentro da outra. Hoje "pode
+   convidar" é subconjunto de "pode divulgar" (inscrição aberta ⊂ nem cancelado nem
+   finalizado), então aninhar funcionaria — e sumiria com o convite calado no dia em que
+   alguém apertasse a régua do cartaz, que é uma pergunta diferente. Cada botão pergunta
+   pelo seu próprio serviço; a linha só existe quando algum dos dois tem o que mostrar. *@
+@{
+    var podeDivulgar = Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status);
+    var podeConvidar = Padelizou.Services.ConviteProTorneio.PodeConvidar(Model.Status);
+}
+@if (podeDivulgar || podeConvidar)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
-           class="btn btn-outline-primary rounded-pill px-3">
-            <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
-        </a>
+        @if (podeDivulgar)
+        {
+            <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
+               class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
+            </a>
+        }
+        @if (podeConvidar)
+        {
+            <button type="button" class="btn btn-success rounded-pill px-3"
+                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio">
+                <i class="bi bi-person-plus-fill"></i> Convidar
+            </button>
+        }
         <small class="text-muted">
-            Arte pronta pra postar, com o QR que leva direto pra cá.
+            @if (podeDivulgar && podeConvidar)
+            {
+                @:Cartaz pra postar; convite pra mandar no privado, com o link da inscrição.
+            }
+            else if (podeDivulgar)
+            {
+                @:Arte pronta pra postar, com o QR que leva direto pra cá.
+            }
+            else
+            {
+                @:Manda o link da inscrição pra quem você quer no torneio.
+            }
         </small>
     </div>
+}
+
+@* ── O CONVITE PRO TORNEIO ────────────────────────────────────────────────────────────
+   Pedido do Felipe (04/09/2026), num print com esta área marcada de verde: "crie um botão
+   'convidar' e que é um botão que direciona o link para a pessoa se inscrever no torneio".
+
+   Mesma forma do convite da panelinha (Grupos/Detalhes), e pelo mesmo motivo: o WhatsApp
+   cobre a maioria, e o link cru cobre quem cola no Instagram, no e-mail ou num grupo que
+   não é do zap. Só o botão verde deixaria essas pessoas sem caminho.
+
+   ⚠️ O `#inscricao` NÃO É ENFEITE: sem ele o convidado cai na aba "Inscritos", que é a lista
+   de quem JÁ entrou — a única aba da página que não serve pra se inscrever. Quem faz a hash
+   virar aba aberta é o script no fim deste arquivo. *@
+@if (podeConvidar)
+{
+    @* Absoluto (protocol:), como o QR do cartaz: o link vai pro WhatsApp de alguém, e um
+       caminho relativo colado lá não leva a lugar nenhum.
+
+       ⚠️ SEM `{ }` em volta destas três linhas. Envolvê-las abriria um escopo aninhado e as
+       variáveis não existiriam no HTML abaixo — foi assim que `localDoTorneio`, lá no topo
+       do arquivo, ficou invisível pro resto da página. *@
+    var linkDoConvite = Url.Action("Details", "Torneios", new { id = Model.Id },
+                                   protocol: Context.Request.Scheme) + "#inscricao";
+    var localDoConvite = (ViewBag.ClubeDoTorneio as Padelizou.Models.Clube)?.Nome ?? Model.LocalTorneio;
+    var textoDoConvite = Padelizou.Services.ConviteProTorneio.Texto(Model, localDoConvite, linkDoConvite);
+
+    <div class="modal fade" id="modalConvidarPraOTorneio" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Convidar pro torneio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-bold small mb-2"><i class="bi bi-whatsapp text-success"></i> Pelo WhatsApp</p>
+                    <p class="text-muted small">
+                        Serve até pra quem ainda não tem conta — o link abre a página do torneio
+                        já na inscrição.
+                    </p>
+                    <a class="btn btn-success rounded-pill w-100 mb-3"
+                       href="https://wa.me/?text=@Uri.EscapeDataString(textoDoConvite)"
+                       target="_blank" rel="noopener">
+                        <i class="bi bi-whatsapp"></i> Escolher no WhatsApp
+                    </a>
+
+                    @* Em celular antigo o clipboard falha calado; o campo selecionável é a
+                       saída pra copiar à mão, mesmo padrão do convite de parceiro. *@
+                    <p class="fw-bold small mb-2"><i class="bi bi-link-45deg"></i> Ou copie o link</p>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="linkDoConviteDoTorneio" readonly
+                               value="@linkDoConvite" onclick="this.select();" />
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="copiarConviteDoTorneio(this);">
+                            Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function copiarConviteDoTorneio(botao) {
+            var campo = document.getElementById('linkDoConviteDoTorneio');
+            campo.select();
+            // Sem clipboard (http, navegador antigo) o texto fica selecionado pra copiar à mão.
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(campo.value).then(function () {
+                    botao.textContent = 'Copiado!';
+                });
+            }
+        }
+    </script>
 }
 
 @* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
@@ -846,6 +957,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         @{
             int categoriaSelecionadaId = ViewBag.CategoriaSelecionadaId is int csid ? csid : 0;
+            var todosOsInscritos = Padelizou.Services.InscritosDeTodasAsCategorias.Montar(Model, inscricoesAmericanas);
         }
         <div class="mb-3">
             <label class="form-label fw-bold small">Categoria</label>
@@ -856,6 +968,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                repetia "Categoria" dentro de um campo já chamado Categoria — era essa palavra
                que jogava cada opção pra segunda linha no celular. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
+                @* "Todos" VEM PRIMEIRO e é onde a aba abre pra quem não está inscrito
+                   (Felipe, 04/09/2026). A primeira categoria da lista não responde pergunta
+                   nenhuma — no ER PADEL TOUR ela mostrava 2 duplas de 49, e quem chegava na
+                   página concluía que o torneio estava vazio. *@
+                <option value="@Padelizou.Services.InscritosDeTodasAsCategorias.Todos"
+                        selected="@(categoriaSelecionadaId == Padelizou.Services.InscritosDeTodasAsCategorias.Todos)">
+                    Todas as categorias (@todosOsInscritos.Count)
+                </option>
                 @foreach (var cat in Model.Categorias.OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                 {
                     var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
@@ -865,6 +985,45 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     </option>
                 }
             </select>
+        </div>
+
+        @* O PAINEL "TODOS": uma lista chapada, do mais recente pro mais antigo, dizendo a dupla
+           e a categoria. Ela responde "quem já entrou neste torneio?", que é a pergunta de quem
+           abre a página — a lista por categoria responde outra, e continua ali no seletor.
+           Usa a mesma classe dos painéis por categoria pra o JS de troca não precisar saber
+           que este existe. *@
+        <div class="categoria-inscritos-conteudo"
+             data-categoria-id="@Padelizou.Services.InscritosDeTodasAsCategorias.Todos"
+             style="display: @(categoriaSelecionadaId == Padelizou.Services.InscritosDeTodasAsCategorias.Todos ? "block" : "none");">
+            @if (!todosOsInscritos.Any())
+            {
+                <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Ninguém inscrito ainda.</p>
+            }
+            else
+            {
+                <p class="text-muted small mb-2">@todosOsInscritos.Count inscrito(s), do mais recente pro mais antigo</p>
+                <div class="list-group shadow-sm">
+                    @foreach (var linha in todosOsInscritos)
+                    {
+                        <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                            <span class="fw-semibold flex-grow-1">@linha.Dupla</span>
+                            @if (linha.EmListaDeEspera)
+                            {
+                                @* Sem esta marca a espera pareceria vaga confirmada, e a conta
+                                   do topo da página não bateria com o que a lista mostra. *@
+                                <span class="badge bg-secondary">Lista de espera</span>
+                            }
+                            <span class="badge bg-primary-subtle text-primary-emphasis">
+                                @Padelizou.Services.CategoriaNaTela.Curto(linha.Categoria)
+                            </span>
+                            @if (linha.Quando is DateTime quandoEntrou)
+                            {
+                                <small class="text-muted">@quandoEntrou.ToString("dd/MM")</small>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
         @foreach (var cat in Model.Categorias)
@@ -4087,11 +4246,20 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             }
                                         </span>
 
-                                        @* `flex-nowrap` + `text-nowrap` nos botões: sem isso o
-                                           "Marcar como pago" quebrava NO MEIO DELE MESMO e a linha
-                                           ficava com duas alturas diferentes. Aqui a barra inteira
-                                           desce pra baixo do nome quando não cabe, em bloco. *@
-                                        <div class="d-flex gap-2 flex-nowrap ms-lg-auto pdz-inscrito-acoes">
+                                        @* `text-nowrap` nos BOTÕES é o que impede o "Marcar como pago"
+                                           de quebrar no meio dele mesmo — e é ele que resolve isso,
+                                           não o `flex-nowrap` da barra.
+
+                                           ⚠️ A BARRA QUEBRA NO CELULAR (`flex-wrap`), e só no desktop
+                                           é que ela fica em linha única. Com `flex-nowrap` em toda
+                                           largura, a linha de quem está SEM PARCEIRO ganha quatro
+                                           botões — "Marcar como pago", "Convidar por link", "Definir
+                                           por CPF" e o de remover — que não cabiam nem podiam descer:
+                                           medido no Chromium a 390px, a linha ocupava 468px e o
+                                           "Definir por CPF" saía pela borda direita da tela. A linha
+                                           da dupla COMPLETA tem três botões e cabia, que é por que o
+                                           defeito passou despercebido desde 17/08. *@
+                                        <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto pdz-inscrito-acoes">
                                             @* Marcar pago vale em QUALQUER status: muita gente
                                                acerta o Pix depois das inscrições encerradas, e
                                                antes o botão sumia justo nessa hora. A lista
@@ -5629,8 +5797,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 *@
 <style>
     /* A barra de ações não encolhe: sem isto o flex espremia os botões pra caber o nome
-       comprido, e "Marcar como pago" quebrava no meio de si mesmo. */
-    .pdz-inscrito-acoes { flex-shrink: 0; }
+       comprido, e "Marcar como pago" quebrava no meio de si mesmo.
+
+       ⚠️ SÓ NO DESKTOP. Abaixo de 992px a linha vira coluna (`flex-column`), a barra já ocupa
+       a largura inteira e não há nome nenhum disputando espaço com ela — o `flex-shrink: 0`
+       ali não protegia de nada e ainda ajudava a empurrar o quarto botão pra fora da tela. */
+    @@media (min-width: 992px) {
+        .pdz-inscrito-acoes { flex-shrink: 0; }
+    }
 
     /* `min-width: 0` libera o truncamento: sem ele um nome longo EMPURRA a barra de ações
        pra fora, e a linha inteira estica. Com ele, o nome corta com reticências e a coluna
@@ -5648,3 +5822,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         }
     }
 </style>
+
+@*
+    O LINK DO CONVITE ABRE A ABA "INSCREVA-SE".
+
+    O botão "Convidar" manda `...\Details\7#inscricao`. Sem este script a hash não faz nada —
+    o Bootstrap 5 não lê a URL — e o convidado cai na aba "Inscritos", que é a lista de quem
+    JÁ entrou: a única aba da página que não serve pra se inscrever. O convite prometia
+    inscrição e entregava plateia.
+
+    ⚠️ DOMContentLoaded, e não código solto: o corpo da view é renderizado ANTES do
+    bootstrap.bundle.js do _Layout, então `window.bootstrap` ainda não existe quando esta
+    linha é lida. Mesmo motivo e mesma forma do script de abas do Ranking.
+
+    A aba "Inscreva-se" só existe enquanto as inscrições estão abertas — num torneio já
+    fechado o seletor não acha nada e o script sai calado, deixando a página na aba padrão.
+*@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (location.hash !== '#inscricao' || !window.bootstrap) return;
+
+        var aba = document.querySelector('#torneioTabs [data-bs-target="#inscricao"]');
+        if (aba) bootstrap.Tab.getOrCreateInstance(aba).show();
+    });
+</script>
