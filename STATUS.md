@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **04/09/2026** — 🟢 **"CONVIDAR": O LINK DA INSCRIÇÃO NUM TOQUE, AO LADO DO CARTAZ.**
+>
+> 🗣️ **O pedido do Felipe**, num print da página do torneio com a área ao lado do "Cartaz pra divulgar" marcada de verde: *"crie um botão 'convidar' e que é um botão que direciona o link para a pessoa se inscrever no torneio"*.
+>
+> 🧩 **NÃO É O CARTAZ DE NOVO, e é por isso que existe.** O cartaz resolve a divulgação ABERTA (story, feed, mural do clube) e para em imagem: pra chamar UMA pessoa o organizador teria que baixar a arte, achar a conversa e anexar. O convite é a divulgação DIRIGIDA — a que ele já faz na mão, colando o link no privado. Os dois dividem a mesma linha da página.
+>
+> 🎯 **O `#inscricao` é o pedido inteiro, e sozinho ele não fazia nada.** O Bootstrap 5 não lê a URL pra escolher aba: sem o script que traduz a hash, o convidado caía em **"Inscritos"** — a lista de quem JÁ entrou, a única aba da página que não serve pra se inscrever. O convite prometeria inscrição e entregaria plateia.
+>
+> 🚪 **A régua NÃO é a do cartaz, e reusar `PodeDivulgar` seria o defeito.** O cartaz vale pro torneio EM ANDAMENTO (ele só troca o selo pra "ACOMPANHE AO VIVO", porque assistir também é convite); o botão de convidar promete INSCRIÇÃO, e a aba "Inscreva-se" só existe enquanto o status é "Inscrições Abertas". `ConviteProTorneio.PodeConvidar` é régua própria — e os dois `@if` da view ficaram **separados**, não aninhados: hoje um é subconjunto do outro, e aninhar sumiria com o convite calado no dia em que alguém apertasse a régua do cartaz.
+>
+> 🕳️ **UMA FALSIFICAÇÃO PEGOU UM TESTE MEU QUE NÃO TRAVAVA NADA.** Eu tinha escrito `Assert.DoesNotContain("·")` achando que a guarda `contexto.Count > 0` impedia um separador pendurado — **apaguei a guarda e a suíte ficou VERDE**. `string.Join` nunca deixa separador solto; o que a guarda impede é o `\n` de uma linha do meio VAZIA, abrindo um buraco entre o nome do torneio e o link. O comentário do código afirmava algo falso e foi corrigido junto. Sem a falsificação, três testes teriam ficado no arquivo fingindo travar uma coisa que não travavam.
+>
+> 🧪 **5.288 testes, 0 falhas (23 novos).** **Sem migration.** Duas travas: `ConviteProTorneioTests` (regra e texto, comportamento) e `ConvidarNaPaginaDoTorneioTests` (fonte — a suíte não renderiza Razor).
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **04/09/2026** — 🎯 **OS DOIS PRÓXIMOS TORNEIOS ABREM A HOME DO VISITANTE — E DOIS TESTES MEUS ESTAVAM VERMELHOS NO `main` POR CAUSA DO DIA DA SEMANA.**
 >
 > 🗣️ **O pedido do Felipe, num print da primeira tela:** *"logo que abre, a primeira coisa a aparecer tem q ser os 2 proximos torneios para as pessoas se inscreverem"*. Quem chegava via o hero, depois **seis cards de navegação**, e só então "Inscrições abertas" — a única seção da página em que dá pra gastar dinheiro estava atrás do mapa.
@@ -19,7 +35,7 @@
 >
 > 🧪 **5.265 testes, 0 falhas (11 novos + 2 destravados).** **Sem migration.**
 >
-> ⏳ **Commitado, não publicado** nesta entrada.
+> 🚀 **Publicado em produção** — `build-758-e61c5c8` (PR #64; deploy confirmado no log: `==> Feito. build-758-e61c5c8 no ar em prod`).
 >
 > Última atualização: **02/09/2026** — 🔓 **UMA AUDITORIA DE DEFAULTS INSEGUROS ACHOU TRÊS BURACOS, E DOIS JÁ ESTÃO FECHADOS EM PRODUÇÃO.**
 >

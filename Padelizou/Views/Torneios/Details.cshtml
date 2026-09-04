@@ -299,17 +299,119 @@
    escrito aqui: torneio cancelado e torneio já finalizado não divulgam, e essa regra tem
    que ter um dono só — cartaz é a peça que mais sobrevive ao próprio contexto, porque é
    salva na galeria e reencaminhada dias depois. *@
-@if (Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status))
+@* ⚠️ AS DUAS RÉGUAS SÃO SEPARADAS DE PROPÓSITO, e não uma dentro da outra. Hoje "pode
+   convidar" é subconjunto de "pode divulgar" (inscrição aberta ⊂ nem cancelado nem
+   finalizado), então aninhar funcionaria — e sumiria com o convite calado no dia em que
+   alguém apertasse a régua do cartaz, que é uma pergunta diferente. Cada botão pergunta
+   pelo seu próprio serviço; a linha só existe quando algum dos dois tem o que mostrar. *@
+@{
+    var podeDivulgar = Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status);
+    var podeConvidar = Padelizou.Services.ConviteProTorneio.PodeConvidar(Model.Status);
+}
+@if (podeDivulgar || podeConvidar)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
-           class="btn btn-outline-primary rounded-pill px-3">
-            <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
-        </a>
+        @if (podeDivulgar)
+        {
+            <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
+               class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
+            </a>
+        }
+        @if (podeConvidar)
+        {
+            <button type="button" class="btn btn-success rounded-pill px-3"
+                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio">
+                <i class="bi bi-person-plus-fill"></i> Convidar
+            </button>
+        }
         <small class="text-muted">
-            Arte pronta pra postar, com o QR que leva direto pra cá.
+            @if (podeDivulgar && podeConvidar)
+            {
+                @:Cartaz pra postar; convite pra mandar no privado, com o link da inscrição.
+            }
+            else if (podeDivulgar)
+            {
+                @:Arte pronta pra postar, com o QR que leva direto pra cá.
+            }
+            else
+            {
+                @:Manda o link da inscrição pra quem você quer no torneio.
+            }
         </small>
     </div>
+}
+
+@* ── O CONVITE PRO TORNEIO ────────────────────────────────────────────────────────────
+   Pedido do Felipe (04/09/2026), num print com esta área marcada de verde: "crie um botão
+   'convidar' e que é um botão que direciona o link para a pessoa se inscrever no torneio".
+
+   Mesma forma do convite da panelinha (Grupos/Detalhes), e pelo mesmo motivo: o WhatsApp
+   cobre a maioria, e o link cru cobre quem cola no Instagram, no e-mail ou num grupo que
+   não é do zap. Só o botão verde deixaria essas pessoas sem caminho.
+
+   ⚠️ O `#inscricao` NÃO É ENFEITE: sem ele o convidado cai na aba "Inscritos", que é a lista
+   de quem JÁ entrou — a única aba da página que não serve pra se inscrever. Quem faz a hash
+   virar aba aberta é o script no fim deste arquivo. *@
+@if (podeConvidar)
+{
+    @* Absoluto (protocol:), como o QR do cartaz: o link vai pro WhatsApp de alguém, e um
+       caminho relativo colado lá não leva a lugar nenhum.
+
+       ⚠️ SEM `{ }` em volta destas três linhas. Envolvê-las abriria um escopo aninhado e as
+       variáveis não existiriam no HTML abaixo — foi assim que `localDoTorneio`, lá no topo
+       do arquivo, ficou invisível pro resto da página. *@
+    var linkDoConvite = Url.Action("Details", "Torneios", new { id = Model.Id },
+                                   protocol: Context.Request.Scheme) + "#inscricao";
+    var localDoConvite = (ViewBag.ClubeDoTorneio as Padelizou.Models.Clube)?.Nome ?? Model.LocalTorneio;
+    var textoDoConvite = Padelizou.Services.ConviteProTorneio.Texto(Model, localDoConvite, linkDoConvite);
+
+    <div class="modal fade" id="modalConvidarPraOTorneio" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Convidar pro torneio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-bold small mb-2"><i class="bi bi-whatsapp text-success"></i> Pelo WhatsApp</p>
+                    <p class="text-muted small">
+                        Serve até pra quem ainda não tem conta — o link abre a página do torneio
+                        já na inscrição.
+                    </p>
+                    <a class="btn btn-success rounded-pill w-100 mb-3"
+                       href="https://wa.me/?text=@Uri.EscapeDataString(textoDoConvite)"
+                       target="_blank" rel="noopener">
+                        <i class="bi bi-whatsapp"></i> Escolher no WhatsApp
+                    </a>
+
+                    @* Em celular antigo o clipboard falha calado; o campo selecionável é a
+                       saída pra copiar à mão, mesmo padrão do convite de parceiro. *@
+                    <p class="fw-bold small mb-2"><i class="bi bi-link-45deg"></i> Ou copie o link</p>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="linkDoConviteDoTorneio" readonly
+                               value="@linkDoConvite" onclick="this.select();" />
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="copiarConviteDoTorneio(this);">
+                            Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function copiarConviteDoTorneio(botao) {
+            var campo = document.getElementById('linkDoConviteDoTorneio');
+            campo.select();
+            // Sem clipboard (http, navegador antigo) o texto fica selecionado pra copiar à mão.
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(campo.value).then(function () {
+                    botao.textContent = 'Copiado!';
+                });
+            }
+        }
+    </script>
 }
 
 @* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
@@ -5648,3 +5750,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         }
     }
 </style>
+
+@*
+    O LINK DO CONVITE ABRE A ABA "INSCREVA-SE".
+
+    O botão "Convidar" manda `...\Details\7#inscricao`. Sem este script a hash não faz nada —
+    o Bootstrap 5 não lê a URL — e o convidado cai na aba "Inscritos", que é a lista de quem
+    JÁ entrou: a única aba da página que não serve pra se inscrever. O convite prometia
+    inscrição e entregava plateia.
+
+    ⚠️ DOMContentLoaded, e não código solto: o corpo da view é renderizado ANTES do
+    bootstrap.bundle.js do _Layout, então `window.bootstrap` ainda não existe quando esta
+    linha é lida. Mesmo motivo e mesma forma do script de abas do Ranking.
+
+    A aba "Inscreva-se" só existe enquanto as inscrições estão abertas — num torneio já
+    fechado o seletor não acha nada e o script sai calado, deixando a página na aba padrão.
+*@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (location.hash !== '#inscricao' || !window.bootstrap) return;
+
+        var aba = document.querySelector('#torneioTabs [data-bs-target="#inscricao"]');
+        if (aba) bootstrap.Tab.getOrCreateInstance(aba).show();
+    });
+</script>
