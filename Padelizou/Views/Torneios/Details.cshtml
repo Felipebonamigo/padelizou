@@ -255,14 +255,23 @@
 @* As duas perguntas que o organizador respondia no WhatsApp o torneio inteiro — "quando
    fecha?" e "já saiu a chave?" — agora ficam escritas na página. São PREVISÕES: quem encerra
    e quem sorteia continua sendo o organizador, no botão. *@
-@if (Model.PrevisaoEncerramentoInscricoes != null || Model.PrevisaoChaveamento != null)
+@* A frase do prazo saiu daqui e virou Services/PrazoDaInscricaoNaTela quando o card da lista
+   passou a mostrar o prazo também — mesma história do DataDoTorneioNaTela: eram duas telas pra
+   uma regra só. Ela cala quando a data já passou e o organizador ainda não fechou, caso em que
+   a inscrição segue aberta e a frase desanimaria quem ainda pode entrar.
+   ⚠️ Por isso a condição do bloco pergunta pela FRASE, e não pelo campo: com `!= null` aqui, o
+   torneio de prazo vencido e sem data de chaveamento renderizava um parágrafo vazio com gap. *@
+@{
+    var prazoDaInscricao = Padelizou.Services.PrazoDaInscricaoNaTela.Frase(Model, DateTime.Today);
+}
+@if (prazoDaInscricao != null || Model.PrevisaoChaveamento != null)
 {
     <p class="text-muted small mb-3 d-flex flex-wrap gap-3">
-        @if (Model.PrevisaoEncerramentoInscricoes != null)
+        @if (prazoDaInscricao != null)
         {
             <span>
                 <i class="bi bi-hourglass-split"></i>
-                Inscrições até <strong>@Model.PrevisaoEncerramentoInscricoes.Value.ToString("dd/MM")</strong>
+                <strong>@prazoDaInscricao</strong>
                 <span class="opacity-75">(previsto)</span>
             </span>
         }
