@@ -103,6 +103,34 @@ public class ConvidarNaPaginaDoTorneioTests
         Assert.Contains("Cartaz pra divulgar", fonte);
     }
 
+    // ── A BARRA DE AÇÕES DO ORGANIZADOR NÃO PODE VAZAR NO CELULAR ────────────────────
+    //
+    // Print do Felipe (04/09/2026): "ta estourando o limite da tela", na lista Gerenciar
+    // Inscritos. A linha de quem está SEM PARCEIRO ganha quatro botões — "Marcar como pago",
+    // "Convidar por link", "Definir por CPF" e o de remover — e a barra era `flex-nowrap` com
+    // `flex-shrink: 0`: não quebrava nem encolhia. Medido no Chromium a 390px, ocupava 468px,
+    // com o "Definir por CPF" saindo pela borda direita.
+    //
+    // ⚠️ DEFEITO ANTERIOR AO BOTÃO "CONVIDAR" — o markup é de 17/08 (e093c71). Passou
+    // despercebido porque a linha da dupla COMPLETA tem três botões e cabia.
+    [Fact]
+    public void A_barra_de_acoes_do_inscrito_quebra_no_celular()
+    {
+        var fonte = Details();
+
+        // `flex-wrap` até 992px, `flex-lg-nowrap` do desktop pra cima (lá a barra vira coluna
+        // alinhada entre as 25 linhas, e quebrar estragaria esse alinhamento).
+        Assert.Contains("d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto pdz-inscrito-acoes", fonte);
+
+        // E o `flex-shrink: 0` fica restrito ao desktop: no celular a barra já ocupa a largura
+        // inteira, então ele não protegia de nada e ainda segurava o quarto botão fora da tela.
+        var css = fonte[fonte.IndexOf("A barra de ações não encolhe", StringComparison.Ordinal)..];
+        var media = css.IndexOf("@@media (min-width: 992px)", StringComparison.Ordinal);
+        var regra = css.IndexOf(".pdz-inscrito-acoes { flex-shrink: 0; }", StringComparison.Ordinal);
+        Assert.True(media >= 0, "O `flex-shrink: 0` da barra precisa estar dentro de um @@media de desktop.");
+        Assert.True(media < regra, "A regra `flex-shrink: 0` ficou FORA do @@media — ela volta a valer no celular.");
+    }
+
     // A âncora é o `id` do modal, e não a palavra "Convidar": "Convidar" aparece em mais de um
     // lugar desta página (o convite de parceiro tem o dele), e uma âncora genérica fatiaria o
     // bloco errado — foi exatamente esse erro que já custou uma rodada nas travas de fonte

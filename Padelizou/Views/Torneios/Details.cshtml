@@ -4189,11 +4189,20 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             }
                                         </span>
 
-                                        @* `flex-nowrap` + `text-nowrap` nos botões: sem isso o
-                                           "Marcar como pago" quebrava NO MEIO DELE MESMO e a linha
-                                           ficava com duas alturas diferentes. Aqui a barra inteira
-                                           desce pra baixo do nome quando não cabe, em bloco. *@
-                                        <div class="d-flex gap-2 flex-nowrap ms-lg-auto pdz-inscrito-acoes">
+                                        @* `text-nowrap` nos BOTÕES é o que impede o "Marcar como pago"
+                                           de quebrar no meio dele mesmo — e é ele que resolve isso,
+                                           não o `flex-nowrap` da barra.
+
+                                           ⚠️ A BARRA QUEBRA NO CELULAR (`flex-wrap`), e só no desktop
+                                           é que ela fica em linha única. Com `flex-nowrap` em toda
+                                           largura, a linha de quem está SEM PARCEIRO ganha quatro
+                                           botões — "Marcar como pago", "Convidar por link", "Definir
+                                           por CPF" e o de remover — que não cabiam nem podiam descer:
+                                           medido no Chromium a 390px, a linha ocupava 468px e o
+                                           "Definir por CPF" saía pela borda direita da tela. A linha
+                                           da dupla COMPLETA tem três botões e cabia, que é por que o
+                                           defeito passou despercebido desde 17/08. *@
+                                        <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto pdz-inscrito-acoes">
                                             @* Marcar pago vale em QUALQUER status: muita gente
                                                acerta o Pix depois das inscrições encerradas, e
                                                antes o botão sumia justo nessa hora. A lista
@@ -5731,8 +5740,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 *@
 <style>
     /* A barra de ações não encolhe: sem isto o flex espremia os botões pra caber o nome
-       comprido, e "Marcar como pago" quebrava no meio de si mesmo. */
-    .pdz-inscrito-acoes { flex-shrink: 0; }
+       comprido, e "Marcar como pago" quebrava no meio de si mesmo.
+
+       ⚠️ SÓ NO DESKTOP. Abaixo de 992px a linha vira coluna (`flex-column`), a barra já ocupa
+       a largura inteira e não há nome nenhum disputando espaço com ela — o `flex-shrink: 0`
+       ali não protegia de nada e ainda ajudava a empurrar o quarto botão pra fora da tela. */
+    @@media (min-width: 992px) {
+        .pdz-inscrito-acoes { flex-shrink: 0; }
+    }
 
     /* `min-width: 0` libera o truncamento: sem ele um nome longo EMPURRA a barra de ações
        pra fora, e a linha inteira estica. Com ele, o nome corta com reticências e a coluna
