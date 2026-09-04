@@ -33,7 +33,10 @@
     <div class="btn-group mb-4" role="group">
         @* A semana vem primeiro porque é o ciclo real: a quadra se acerta com o clube por
            semana, e o mês somado não responde "quanto eu levo lá na sexta". *@
-        @foreach (var (chave, texto) in new[] { ("semana", "Esta semana"), ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
+        @* "Mês passado" fica ao lado de "Este mês" de propósito: ele é o mesmo recorte, um mês
+           atrás, e é o único da fila com FIM — os outros somam até hoje. É a aba que o
+           professor usa pra fechar a conta do mês que já acabou. *@
+        @foreach (var (chave, texto) in new[] { ("semana", "Esta semana"), ("mes", "Este mês"), (Padelizou.Services.PeriodoDoFinanceiro.MesPassado, "Mês passado"), ("ano", "Este ano"), ("sempre", "Sempre") })
         {
             <a asp-action="Financeiro" asp-route-periodo="@chave"
                class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>

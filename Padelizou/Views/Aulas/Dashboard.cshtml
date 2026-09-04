@@ -140,6 +140,12 @@
         <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-primary rounded-pill btn-sm">
             <i class="bi bi-calendar3"></i> Minha Agenda
         </a>
+        @* A lista de alunos existia só dentro do autocompletar de "Adicionar aula", onde some
+           assim que o professor escolhe um nome. Aqui ela vira lugar de olhar: quem já voltou,
+           quem tem conta, quem dá pra chamar no WhatsApp. *@
+        <a asp-controller="Aulas" asp-action="MeusAlunos" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-people"></i> Meus alunos
+        </a>
         <a asp-controller="Aulas" asp-action="Financeiro" class="btn btn-padel rounded-pill btn-sm fw-bold">
             <i class="bi bi-cash-coin"></i> Meu financeiro
         </a>

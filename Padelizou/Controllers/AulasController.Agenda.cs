@@ -46,6 +46,26 @@ namespace padelizou.Controllers
             return View(locais);
         }
 
+        // A LISTA DE ALUNOS, como página.
+        //
+        // 🗣️ Pedido do Felipe, 02/09/2026: "uma aba de lista de alunos". O agrupamento já
+        // existia e já tinha teste (Services/AlunosDoProfessor) — ele só nunca teve tela
+        // própria: vivia dentro do autocompletar de "Adicionar aula", onde some assim que o
+        // professor escolhe um nome. Aqui não nasce regra nova, nasce lugar pra olhar.
+        [HttpGet]
+        public async Task<IActionResult> MeusAlunos(string? busca)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var alunos = await MeusAlunosAsync(professorId.Value);
+
+            // A busca é a mesma do autocompletar — sem acento e sem caixa, porque o professor
+            // digita "jonatas" e precisa achar "Jônatas".
+            ViewBag.Busca = busca;
+            return View(alunos.Where(a => AlunosDoProfessor.Casa(a.Nome, busca)).ToList());
+        }
+
         private async Task<List<AlunoDoProfessor>> MeusAlunosAsync(int professorId)
         {
             var aulas = await _context.Aulas
