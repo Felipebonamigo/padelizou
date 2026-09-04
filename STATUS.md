@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **04/09/2026** — 👀 **A PÁGINA DO TORNEIO PARECIA VAZIA, E O CARD NÃO DIZIA ATÉ QUANDO DAVA PRA ENTRAR** (`build-766-6e4de3c`).
+> Última atualização: **04/09/2026** — 👀 **A PÁGINA DO TORNEIO PARECIA VAZIA, E O CARD NÃO DIZIA ATÉ QUANDO DAVA PRA ENTRAR** (`build-766-6e4de3c` e `build-770-ee1bc34`).
 >
 > Duas telas que já tinham a informação e não a mostravam onde ela decide alguma coisa.
 >
@@ -50,22 +50,34 @@
 > contradizia outro teste sobre a MESMA entrada. Dois testes brigando pela mesma entrada é um
 > deles mentindo.
 >
-> 🧑‍🏫 **PRONTO E PARADO: o PR #63 (professor).** "Meus alunos" como página — o
-> `Services/AlunosDoProfessor` já existia e já tinha teste, vivia só dentro do autocompletar de
-> "Adicionar aula", onde some quando ele escolhe um nome — e **"mês passado" no Financeiro**.
-> Nesse segundo o que faltava não era filtro, era CONCEITO: os quatro períodos existentes
-> (semana, mês, ano, sempre) são todos ABERTOS, somando `DataHora >= de` sem fim nenhum. O fim é
-> EXCLUSIVO de propósito: com "31/08" inclusivo, a aula das 20h do dia 31 ficaria de fora e o
-> professor veria o mês fechado com uma aula a menos do que deu. **CI verde, não mergeado.**
+> 🧑‍🏫 **O PROFESSOR GANHOU DUAS ABAS** (PR #63, `build-770-ee1bc34`). "Meus alunos" como página
+> — o `Services/AlunosDoProfessor` já existia e já tinha teste, vivia só dentro do autocompletar
+> de "Adicionar aula", onde some quando ele escolhe um nome. A página mostra quantas aulas cada
+> um fez, quando foi a última, e dois selos que ele não tinha como ver: **Recorrente** (já
+> voltou) e **Sem conta** — que é informação de ALCANCE, não de cadastro incompleto: quem não
+> tem conta não enxerga a aula no app, só dá pra chamar no WhatsApp.
 >
-> 🐛 **O SEGUNDO TESTE VERMELHO POR DATA EM QUATRO DIAS** (vai no #63). O `EsporteDaAulaTests`
-> criava aulas em `hoje+1` e `hoje+2` esperando as duas na semana exibida — mas a agenda vai de
-> **domingo a sábado**, e numa SEXTA o `hoje+2` já é o domingo da semana seguinte. Conferido
-> vermelho no `origin/main` limpo antes de qualquer mudança minha:
-> `Expected: 2, Actual: 1` e `Assert.Single: collection was empty`. ⚠️ **É o mesmo formato do
-> conserto de 01/09 no `HomeTests`, que quebrava todo dia 1º** — data relativa a "hoje"
-> atravessando fronteira de período. Se aparecer um terceiro, vale varrer a suíte inteira atrás
-> do padrão em vez de consertar um por vez.
+> E **"mês passado" no Financeiro**, onde o que faltava não era filtro, era CONCEITO: os quatro
+> períodos existentes (semana, mês, ano, sempre) são todos ABERTOS, somando `DataHora >= de` sem
+> fim nenhum. ⚠️ O fim é EXCLUSIVO de propósito: com "31/08" inclusivo, a aula das 20h do dia 31
+> ficaria de fora e o professor veria o mês fechado com uma aula a menos do que deu.
+>
+> 🤝 **O CONFLITO DESSE PR VALEU MAIS QUE O MERGE, e é a lição do dia.** Ele ficou horas parado
+> e sujou; ao trazer a main, o conflito era em `EsporteDaAulaTests` — porque **outra sessão
+> tinha consertado o MESMO defeito de data**, em paralelo.
+>
+> 🐛 O defeito: os cenários criavam aulas em `hoje+1` e `hoje+2` esperando as duas na semana
+> exibida, mas a agenda vai de **domingo a sábado** — numa SEXTA, `hoje+2` já é o domingo da
+> semana seguinte (`Expected: 2, Actual: 1` e `Assert.Single: collection was empty`, conferidos
+> vermelhos no `origin/main` limpo). Era o **segundo** vermelho por data em quatro dias, depois
+> do `HomeTests` que quebrava todo dia 1º.
+>
+> ✅ **Fiquei com a versão da outra sessão, inteira, porque ela é melhor**: ancora em
+> `PeriodoAgenda.Janela` em vez de `InicioDaSemana`, e acrescenta uma teoria rodando **os sete
+> dias da semana** como referência. ⚠️ **Essa teoria é a prova que a minha correção não tinha** —
+> sem ela, o conserto é indistinguível de ter esperado o calendário virar. Fica a régua: correção
+> de teste que depende de data só está pronta quando roda com TODOS os dias possíveis, não com o
+> de hoje.
 >
 > 🕵️ **O PERFIL COM NOME PELA METADE ERA DIGITAÇÃO, NÃO DEFEITO.** O Felipe achou um perfil
 > chamado `Fernanda (Pa`. No banco o nome estava assim mesmo, com 12 caracteres e parêntese
