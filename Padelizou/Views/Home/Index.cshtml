@@ -375,6 +375,36 @@ else
         </div>
     }
 
+    @* ══ VITRINE DO VISITANTE ═══════════════════════════════════════════════════════════════
+       Os dois próximos torneios ABREM a página de quem chega. Pedido do Felipe (02/09/2026),
+       num print da primeira tela: "logo que abre, a primeira coisa a aparecer tem q ser os 2
+       proximos torneios para as pessoas se inscreverem".
+
+       Antes, o visitante via o hero, depois seis cards de navegação, e só então a única seção
+       da página em que dá pra gastar dinheiro. A conversão estava atrás do mapa.
+
+       ⚠️ SÓ AQUI, e não na versão logada: lá o topo é a agenda da pessoa (próximo jogo,
+       compromissos, "Seus torneios"), e trocar isso por vitrine seria trocar informação
+       pessoal e datada por publicidade. Quem já entrou tem o que fazer; quem chegou agora, não.
+
+       "Os 2 PRÓXIMOS" sai de graça: `Abertos` já chega ordenado do mais próximo pro mais
+       distante (HomeController + OrdemDosTorneiosTests), então os dois primeiros são eles. *@
+    @if (!logado && Model.Abertos.Any())
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="pdz-section-title mb-0">Inscrições abertas</h3>
+            <a asp-controller="Torneios" asp-action="Index" class="small text-decoration-none fw-bold">Ver todos →</a>
+        </div>
+        @* Duas colunas, e não três: com dois cards numa grade de três sobra um buraco à
+           direita que faz a seção parecer quebrada. *@
+        <div class="row row-cols-1 row-cols-md-2 g-4 mb-5">
+            @foreach (var torneio in Model.Abertos.Take(2))
+            {
+                <partial name="_TorneioCard" model="torneio" />
+            }
+        </div>
+    }
+
     <!-- O mapa da plataforma: as portas de entrada -->
     <h3 class="pdz-section-title mb-4">@(logado ? "O que você quer fazer hoje?" : "O que dá pra fazer aqui")</h3>
     <div class="row row-cols-2 row-cols-md-3 g-3 mb-5">
@@ -410,8 +440,10 @@ else
         }
     </div>
 
-    <!-- Torneios com inscrições abertas -->
-    @if (Model.Abertos.Any())
+    @* Torneios com inscrições abertas — a vitrine do LOGADO, no lugar de sempre.
+       O `logado` no gate não é enfeite: sem ele o visitante veria os mesmos torneios duas
+       vezes na mesma página, já que desde 02/09/2026 eles abrem a home dele lá em cima. *@
+    @if (logado && Model.Abertos.Any())
     {
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="pdz-section-title mb-0">Inscrições abertas</h3>
