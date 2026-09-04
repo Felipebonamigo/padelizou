@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **04/09/2026** — 🎯 **OS DOIS PRÓXIMOS TORNEIOS ABREM A HOME DO VISITANTE — E DOIS TESTES MEUS ESTAVAM VERMELHOS NO `main` POR CAUSA DO DIA DA SEMANA.**
+>
+> 🗣️ **O pedido do Felipe, num print da primeira tela:** *"logo que abre, a primeira coisa a aparecer tem q ser os 2 proximos torneios para as pessoas se inscreverem"*. Quem chegava via o hero, depois **seis cards de navegação**, e só então "Inscrições abertas" — a única seção da página em que dá pra gastar dinheiro estava atrás do mapa.
+>
+> 🧩 **A vitrine subiu pro topo, com dois cards e "Ver todos →".** "Os 2 PRÓXIMOS" saiu de graça: `Abertos` já chega ordenado do mais próximo pro mais distante, e isso já tinha trava (`OrdemDosTorneiosTests`). Grade de **duas** colunas, não três — dois cards numa grade de três deixam um buraco à direita que faz a seção parecer quebrada.
+>
+> 🚪 **SÓ NA TELA DE VISITANTE, e é decisão, não esquecimento.** Na versão logada o topo é a agenda da pessoa (próximo jogo, compromissos, "Seus torneios"); trocar isso por vitrine seria trocar informação pessoal e datada por publicidade. Quem já entrou tem o que fazer; quem acabou de chegar, não. A vitrine antiga continua lá pro logado, agora com `logado &&` no gate — sem isso o visitante veria os mesmos torneios **duas vezes** na mesma página.
+>
+> 🔴 **E O `main` ESTAVA COM DOIS TESTES VERMELHOS quando cheguei** — `Filtrar_por_esporte_so_traz_as_aulas_daquele_esporte` e `Filtro_invalido_na_url_e_ignorado`. Conferido no `main` limpo, sem nenhuma mudança minha: já falhavam. Publicar por cima era impossível (Regra 2), então virou parte do trabalho.
+>
+> 🕳️ **A causa não era produção — era um teste MEU, e o defeito é do tipo que não existe até certo dia.** Escrevi os dois em 26/08, numa QUARTA, ancorando as aulas em `DateTime.Today.AddDays(1)` e `(2)`. A semana da agenda vai de **DOMINGO a sábado** (`PeriodoAgenda.Janela`): na quarta os dois caíam dentro da janela; rodando numa **SEXTA** (hoje), o `+2` cai no domingo SEGUINTE, já fora. **Passaram nove dias verdes até o calendário virar** — o filtro de esporte nunca esteve quebrado.
+>
+> 🔒 **A correção ancora na janela de verdade, não em `Today`** — e veio com o teste que prova que resolve em QUALQUER dia, varrendo os sete. **Falsificado:** com a fórmula antiga ele quebra na sexta e no sábado, exatamente os dois dias em que `+1`/`+2` escapam da janela. Sem esse teste, a correção seria indistinguível de ter esperado o calendário virar.
+>
+> 📌 **A lição pra próxima sessão:** teste que ancora em `DateTime.Today` dentro de uma janela de calendário é bomba-relógio — ele não falha quando o código quebra, falha quando o dia muda. Ancore no que a tela usa pra decidir a janela.
+>
+> 🧪 **5.265 testes, 0 falhas (11 novos + 2 destravados).** **Sem migration.**
+>
+> ⏳ **Commitado, não publicado** nesta entrada.
+>
 > Última atualização: **02/09/2026** — 🔓 **UMA AUDITORIA DE DEFAULTS INSEGUROS ACHOU TRÊS BURACOS, E DOIS JÁ ESTÃO FECHADOS EM PRODUÇÃO.**
 >
 > 🗣️ **De onde veio:** o Felipe mandou um print com um roteiro do Codex CLI (`codex plugin add
