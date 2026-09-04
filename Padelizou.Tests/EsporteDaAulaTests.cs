@@ -181,14 +181,26 @@ public class EsporteDaAulaTests
 
     // ---- Filtro na Minha Agenda ----
 
+    // 🐛 OS CENÁRIOS DE SEMANA NÃO PODEM SAIR DE `DateTime.Today.AddDays(n)`.
+    //
+    // A agenda mostra a semana de DOMINGO A SÁBADO (PeriodoAgenda.InicioDaSemana). Com aulas
+    // em `hoje+1` e `hoje+2`, o cenário só cabia na janela de domingo a quinta: numa SEXTA,
+    // `hoje+2` já é domingo da semana SEGUINTE, a aula sumia da tela e os testes de filtro
+    // falhavam — vermelhos dois dias por semana, e não por causa do filtro.
+    //
+    // Ancorar na segunda-feira da semana exibida deixa os dois dias sempre dentro dela,
+    // qualquer que seja o dia em que a suíte rode.
+    private static DateTime PrimeiroDiaUtilDaSemana =>
+        PeriodoAgenda.InicioDaSemana(DateTime.Today).AddDays(1);
+
     [Fact]
     public async Task Professor_de_um_esporte_so_nao_ve_opcao_de_filtro()
     {
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(1).AddHours(8));
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(2).AddHours(8));
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8));
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8));
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id).MinhaAgenda(null, "semana", DateTime.Today);
         var vm = Assert.IsType<AgendaProfessorVM>(Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(vista).Model);
@@ -202,8 +214,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(1).AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(2).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id).MinhaAgenda(null, "semana", DateTime.Today);
         var vm = Assert.IsType<AgendaProfessorVM>(Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(vista).Model);
@@ -219,8 +231,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(1).AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(2).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id)
             .MinhaAgenda(null, "semana", DateTime.Today, esporte: EsporteDaAula.Tenis);
@@ -239,8 +251,8 @@ public class EsporteDaAulaTests
         var (ctx, professor, local) = Montar();
         using var _ = ctx;
 
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(1).AddHours(8), esporte: EsporteDaAula.Padel);
-        Marcada(ctx, professor, local, DateTime.Today.AddDays(2).AddHours(8), esporte: EsporteDaAula.Tenis);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddHours(8), esporte: EsporteDaAula.Padel);
+        Marcada(ctx, professor, local, PrimeiroDiaUtilDaSemana.AddDays(1).AddHours(8), esporte: EsporteDaAula.Tenis);
 
         var vista = await TestInfra.NovoAulasController(ctx, professor.Id)
             .MinhaAgenda(null, "semana", DateTime.Today, esporte: "Vôlei");
