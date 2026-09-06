@@ -2115,6 +2115,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         </div>
                     }
 
+                    @* ── Desfazer as rodadas do Americano ────────────────────────────────
+                       O Americano não tem a tela de "Chaves em Aprovação" do formato Padrão
+                       (DesfazerSorteio só existe enquanto pendente, e o Americano nunca fica
+                       pendente): GerarRodadasAmericano/GerarRodadasAmericanoDuplas vão direto
+                       pra "Fase de Grupos", sem caminho de volta. Até aqui, um sorteio errado
+                       só se corrigia apagando o torneio inteiro e recomeçando.
+
+                       Some sozinho depois do primeiro jogo lançado — a régua é a mesma do
+                       servidor (DesfazerRodadasAmericano). Depois de desfazer, o botão "Abrir
+                       inscrições" logo acima aparece sozinho na próxima vez que a página
+                       carregar: `jaSorteou` vira falso assim que as partidas somem. *@
+                    @if (ViewBag.PodeDesfazerRodadasAmericano == true)
+                    {
+                        <div class="alert alert-secondary d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                            <div>
+                                <strong><i class="bi bi-shuffle"></i> Rodadas sorteadas</strong>
+                                <div class="small">Nenhum jogo foi lançado ainda — dá pra desfazer e sortear de novo, ou reabrir as inscrições.</div>
+                            </div>
+                            <form asp-controller="Torneios" asp-action="DesfazerRodadasAmericano" method="post" class="mb-0"
+                                  data-confirmar-titulo="Desfazer as rodadas?"
+                                  data-confirmar="Apaga as partidas sorteadas. O torneio volta pra 'Chaves em Sorteio' — dá pra sortear de novo, ou reabrir as inscrições."
+                                  data-confirmar-ok="Desfazer"
+                                  data-confirmar-tom="perigo">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-outline-danger fw-bold shadow-sm">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Desfazer Rodadas
+                                </button>
+                            </form>
+                        </div>
+                    }
+
                     @if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
                     {
                         @* Cancelado não tem próximo passo — o painel para aqui, e o que sobra é

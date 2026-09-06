@@ -268,6 +268,87 @@ namespace Padelizou.Controllers
             return RedirectToAction("Jogos", new { id = torneioId });
         }
 
+        // DESFAZ o sorteio das rodadas (individual ou de duplas): apaga as partidas geradas e
+        // devolve o torneio pra "Chaves em Sorteio", pronto pra sortear de novo — ou pra
+        // reabrir as inscrições (ReabrirInscricoes), que já recusa sozinha enquanto há Partida.
+        //
+        // Pedido do Felipe (06/09/2026): "Elas geraram as chaves sem querer do torneio
+        // Americano das gurias 2ª edição, deixe sem gerar as chaves ainda".
+        //
+        // ⚠️ NASCEU DE UM SORTEIO ACIDENTAL, E O AMERICANO NÃO TINHA CAMINHO DE VOLTA. O
+        // formato Padrão tem `DesfazerSorteio`, mas só desfaz ENQUANTO a chave está esperando
+        // aprovação (AprovacaoDeChaves.Pendente) — e o Americano não passa por lá:
+        // GerarRodadasAmericano/GerarRodadasAmericanoDuplas vão direto pra "Fase de Grupos".
+        // Até aqui, um sorteio errado só se corrigia apagando o torneio inteiro e recomeçando,
+        // perdendo as inscrições e o link já compartilhado.
+        //
+        // ⚠️ AS DUPLAS SE COMPORTAM DIFERENTE ENTRE OS DOIS FORMATOS, e por isso só uma delas
+        // é apagada aqui:
+        //   • no individual (Americano), a Dupla nasce EFÊMERA a cada rodada — é o par
+        //     sorteado daquela partida, não a inscrição. Quem inscreveu é InscricaoAmericana,
+        //     que continua intacta; apagar a Dupla não perde ninguém.
+        //   • no AmericanoDuplas, a Dupla É A INSCRIÇÃO — a mesma dupla fixa formada lá atrás.
+        //     Apagá-la junto apagaria quem se inscreveu, não só o sorteio.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DesfazerRodadasAmericano(int id)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias)
+                    .ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null || !FormatoDoTorneio.EhAmericano(torneio.Formato)) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (torneio.Status != "Fase de Grupos")
+            {
+                TempData["Erro"] = "Este torneio não tem rodadas geradas pra desfazer.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+
+            // Mesma recusa do DesfazerSorteio, pelo mesmo motivo: ninguém deveria ter jogo em
+            // andamento ou finalizado numa rodada recém-gerada — mas se algo escapou por
+            // outra porta, desfazer apagaria placar de verdade. Melhor recusar do que arriscar.
+            if (jogos.Any(j => j.Status != "Agendada"))
+            {
+                TempData["Erro"] = "Já tem jogo em andamento ou finalizado — não dá pra desfazer as rodadas.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            _context.Partidas.RemoveRange(jogos);
+
+            if (!FormatoDoTorneio.EhAmericanoDeDuplas(torneio.Formato))
+            {
+                var efemeras = torneio.Categorias.SelectMany(c => c.Duplas).ToList();
+                _context.Duplas.RemoveRange(efemeras);
+
+                // O grupo de cada inscrito é do SORTEIO, não da inscrição — desfazer devolve
+                // todo mundo pro "ainda não sorteado" (ver InscricaoAmericana.Grupo).
+                var categoriaIds = torneio.Categorias.Select(c => c.Id).ToList();
+                var fichas = await _context.InscricoesAmericanas
+                    .Where(i => categoriaIds.Contains(i.CategoriaId))
+                    .ToListAsync();
+                foreach (var ficha in fichas) ficha.Grupo = null;
+            }
+
+            // Volta pros defaults de "ainda não sorteado" — os mesmos valores com que a
+            // Categoria nasce (Models/Categoria).
+            foreach (var categoria in torneio.Categorias)
+            {
+                categoria.GruposAmericano = 1;
+                categoria.PassamPorGrupo = 0;
+            }
+
+            torneio.Status = PortaDaInscricao.Fechada;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Rodadas desfeitas — pode sortear de novo, ou reabrir as inscrições.";
+            return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
         // Americano: partida final entre os dois empatados na liderança. Cada um escolhe um
         // parceiro entre os outros inscritos, e sai um jogo só — quem vencer é o campeão.
         [HttpGet]

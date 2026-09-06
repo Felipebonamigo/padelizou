@@ -761,6 +761,16 @@ namespace Padelizou.Controllers
                 ViewBag.InscricoesNuncaAbriram =
                     PortaDaInscricao.NuncaAbriu(torneio, temInscrito, jaSorteou);
 
+                // O Americano não tem a tela de aprovação do Padrão — GerarRodadas* vai direto
+                // pra "Fase de Grupos", sem passar por "Chaves em Aprovação". Este botão é o
+                // "apague as chaves antes" que a própria PortaDaInscricao.PorQueNaoPodeAbrir
+                // promete pro organizador quando `jaSorteou` bloqueia o Reabrir. Mesma régua do
+                // servidor (DesfazerRodadasAmericano): só aparece enquanto ninguém jogou nada.
+                ViewBag.PodeDesfazerRodadasAmericano = jaSorteou
+                    && torneio.Status == "Fase de Grupos"
+                    && FormatoDoTorneio.EhAmericano(torneio.Formato)
+                    && !await _context.Partidas.AnyAsync(p => p.TorneioId == id && p.Status != "Agendada");
+
                 // Sem conta conectada as opções "pelo site" ficam à vista mas travadas, como
                 // na criação: escondê-las faria o organizador concluir que não existem.
                 ViewBag.RecebimentoConectado = _pagamentos.PodeReceberOnline(recebedorTorneio);
