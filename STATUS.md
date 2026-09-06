@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **06/09/2026** — 🔄 **O AMERICANO GANHOU BOTÃO DE VOLTAR ATRÁS — ELE NUNCA TEVE UM.**
+>
+> 🗣️ **O pedido do Felipe:** *"Elas geraram as chaves sem querer do torneio Americano das gurias 2ª edição, deixe sem gerar as chaves ainda, e cria a função de reabrir as inscrições e fechar as chaves"*.
+>
+> 🕳️ **O AMERICANO NUNCA TEVE CAMINHO DE VOLTA.** O formato Padrão tem `DesfazerSorteio` — mas só enquanto a chave está esperando aprovação (`AprovacaoDeChaves.Pendente`). O Americano não passa por ali: `GerarRodadasAmericano`/`GerarRodadasAmericanoDuplas` vão direto pra "Fase de Grupos". Um sorteio acidental — ou um clique de organizador apressado — não tinha desfazer nenhum. A única saída era apagar o torneio inteiro e recomeçar, perdendo as inscrições e o link já compartilhado.
+>
+> 🔓 **`ReabrirInscricoes` JÁ EXISTIA** (08/08/2026) e já recusava sozinho quando havia Partida — a régua é `PortaDaInscricao.PorQueNaoPodeAbrir`, com a própria mensagem de erro já dizendo "apague as chaves antes". O que faltava era exatamente esse "apague as chaves": `DesfazerRodadasAmericano`, nova ação que apaga as partidas geradas e devolve o torneio pra "Chaves em Sorteio" — de onde `ReabrirInscricoes` (ou um novo sorteio) já sabe seguir.
+>
+> ⚖️ **AS DUPLAS SE COMPORTAM DIFERENTE ENTRE OS DOIS FORMATOS DO AMERICANO, e a ação sabe disso:**
+> - no **individual** (`Americano`), a `Dupla` nasce EFÊMERA a cada rodada — é o par sorteado daquela partida, não a inscrição. Apagar essas duplas não perde ninguém: quem inscreveu é `InscricaoAmericana`, que continua intacta (e o `Grupo` de cada um volta a `null`).
+> - no **`AmericanoDuplas`**, a `Dupla` É A INSCRIÇÃO — a mesma dupla fixa formada lá atrás. Apagá-la junto apagaria quem se inscreveu, não só o sorteio. **Falsificado**: um teste dedicado prova que, se a ação ignorasse essa diferença, ela apagaria a inscrição de gente que nunca pediu pra sair.
+>
+> 🛡️ **Mesma recusa do `DesfazerSorteio`, pelo mesmo motivo:** com qualquer jogo em andamento ou finalizado, desfazer é recusado — apagar aí apagaria placar de verdade.
+>
+> 🔘 **Botão na página** ("Desfazer Rodadas", ao lado de onde "Abrir inscrições" já aparece), com o mesmo mecanismo de confirmação do `DesfazerSorteio`. Some sozinho depois do primeiro jogo lançado — mesma régua do servidor, refletida no `ViewBag.PodeDesfazerRodadasAmericano`.
+>
+> 🧪 **UM TESTE QUE NÃO TRAVAVA NADA, PEGO ANTES DE COMMITAR:** a primeira versão de `Nada_pra_desfazer_quando_ainda_nao_sorteou` checava só o status final — mas `PortaDaInscricao.Fechada` É LITERALMENTE `"Chaves em Sorteio"`, e com nada sorteado todo o resto da ação é no-op (0 partidas, 0 duplas, campos já nos defaults) tanto com a guarda quanto sem ela. Falsificar a guarda não derrubou o teste — a suíte ficou verde por acidente. Corrigido pra checar `TempData["Erro"]` (o sinal real de recusa); falsificado de novo, agora trava.
+>
+> 🧪 **5.339 testes, 0 falhas (16 novos).** **Sem migration** (só controller e view). **Falsificado:** cada guarda (formato, status, jogo já lançado, organizador, a diferença de Duplas entre os dois formatos do Americano) foi desligada uma de cada vez, e cada uma derrubou exatamente o teste que deveria.
+>
+> ⚠️ **A correção pro torneio "Americano das gurias – 2ª edição" é self-service, não manual:** ninguém mexeu no banco de produção. Depois do deploy, o Felipe clica em "Desfazer Rodadas" na própria página do torneio — o mesmo caminho que qualquer organizador vai usar dali pra frente.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **04/09/2026** — 👀 **A PÁGINA DO TORNEIO PARECIA VAZIA, E O CARD NÃO DIZIA ATÉ QUANDO DAVA PRA ENTRAR** (`build-766-6e4de3c` e `build-770-ee1bc34`).
 >
 > Duas telas que já tinham a informação e não a mostravam onde ela decide alguma coisa.
