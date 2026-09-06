@@ -1,6 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **06/09/2026** — 🔀 **O ORGANIZADOR JÁ TROCA A DUPLA DE CATEGORIA, SEM PERDER PAGO/PAGOEM.**
+>
+> 🗣️ **O pedido do Felipe:** *"Crie a opção também, do organizador trocar a dupla de categoria"*.
+>
+> 🕳️ **A ÚNICA SAÍDA ATÉ AQUI ERA `RemoverDupla` + inscrever de novo à mão** — dois cliques que perdiam `Pago`/`PagoEm` no meio do caminho, e obrigavam o organizador a digitar CPF de novo. `TrocarCategoriaDupla` move a dupla de lugar preservando tudo.
+>
+> ⚖️ **AS REGRAS DE QUEM PODE ENTRAR NÃO SOMEM NA TROCA — REUSADAS, NÃO REESCRITAS:**
+> - **Sexo** (`SexoDoJogador.MotivoParaNaoEntrar`): mover uma dupla do mesmo sexo pra "Categoria Mista" é recusado com a MESMA mensagem que a inscrição normal usa.
+> - **Vaga e lista de espera** (`Categoria.LimiteDuplas`): categoria de destino cheia não fura a fila — a dupla entra em lista de espera, como na inscrição. Saindo CONFIRMADA da categoria antiga, a fila de espera DE LÁ avança sozinha (mesmo comportamento de `RemoverDupla`/`Desistir`, reusando `PromoverDaListaDeEsperaAsync`).
+> - **Times e chave direta são cadastrados pelo organizador** (jogador não se inscreve) e carregam suposições diferentes sobre o que a `Dupla` representa — a troca só circula dentro do mesmo "tipo" de categoria (`DeTimes`/`ChaveDireta` do destino têm que bater com os da origem).
+>
+> 🔒 **O SERVIDOR JÁ ACEITA ATÉ O SORTEIO DE VERDADE** (`jaSorteou` — Partida existindo —, a MESMA régua de `ReabrirInscricoes`/`DesfazerSorteio`/`DesfazerRodadasAmericano`, mais folgada que a de `RemoverDupla`, que trava em "Inscrições Abertas" só). **O BOTÃO, por ora, só aparece durante "Inscrições Abertas"** — decisão de escopo, não limite do servidor: reusa o mesmo gate que já esconde "Remover"/"Trocar parceiro", e cobre o caso mais comum (organizador vê o erro assim que a pessoa se inscreve). Se o organizador precisar corrigir DEPOIS de encerrar (mas antes de sortear), o servidor aceita — só falta o botão aparecer também nessa janela, se algum dia fizer falta.
+>
+> 🧩 **UMA SUTILEZA DO EF EVITADA POR ORDEM, NÃO POR SORTE:** a checagem de vaga na categoria de destino roda ANTES de a dupla mudar de `CategoriaId` em memória — assim ela nunca corre risco de se contar a si mesma no destino, seja com o EF InMemory dos testes ou com o Npgsql de produção. Um design inicial carregava um parâmetro `ignorarDuplaIds` pra essa autocontagem que a ordem certa já tornava impossível — parâmetro morto, removido antes de commitar.
+>
+> 🔘 **Botão na página** ("Trocar categoria", ao lado de "Remover"), com um `<select>` das outras categorias do torneio. O select NÃO filtra por tipo/sexo/vaga — quem confere de verdade é o servidor, e a mensagem de erro dele já explica o motivo; filtrar dos dois lados seria a segunda cópia da mesma regra.
+>
+> 🧪 **5.356 testes, 0 falhas (17 novos).** **Sem migration** (só controller e view). **Falsificado, um de cada vez:** organizador, mesmo torneio, sorteio já feito, tipo de categoria, regra de sexo, vaga/lista de espera, promoção da fila de espera na origem — cada guarda desligada derrubou exatamente o teste que deveria.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **06/09/2026** — 🔄 **O AMERICANO GANHOU BOTÃO DE VOLTAR ATRÁS — ELE NUNCA TEVE UM.**
 >
 > 🗣️ **O pedido do Felipe:** *"Elas geraram as chaves sem querer do torneio Americano das gurias 2ª edição, deixe sem gerar as chaves ainda, e cria a função de reabrir as inscrições e fechar as chaves"*.

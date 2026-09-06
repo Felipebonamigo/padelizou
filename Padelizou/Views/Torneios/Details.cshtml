@@ -4352,6 +4352,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     </button>
                                                 </form>
                                             }
+
+                                            @* Trocar categoria: pra quem inscreveu na errada, ou trocou de
+                                               ideia antes do sorteio. Fica FORA do `!dupla.EhTime` de
+                                               propósito — time também troca de categoria (entre categorias
+                                               de times), só não escolhe parceiro por CPF nem convite por
+                                               link, que são coisa de PESSOA se inscrevendo.
+
+                                               ⚠️ O SELECT LISTA TODAS AS OUTRAS CATEGORIAS, sem filtrar
+                                               times/chave-direta/sexo aqui — quem confere isso de verdade é
+                                               o servidor (TrocarCategoriaDupla), e a mensagem de erro dele
+                                               já explica o motivo. Filtrar aqui seria a segunda cópia da
+                                               mesma regra, com risco de as duas discordarem um dia. *@
+                                            @if (Model.Categorias.Count > 1)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap"
+                                                        data-bs-toggle="collapse" data-bs-target="#trocarCategoria-@dupla.Id">
+                                                    <i class="bi bi-shuffle"></i> Trocar categoria
+                                                </button>
+                                            }
                                         </div>
                                     </div>
 
@@ -4424,6 +4443,26 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <small class="text-muted d-block mt-1">
                                                     Só quem está na dupla (ou o organizador) pode alterar, e só enquanto as inscrições estão abertas.
                                                 </small>
+                                            </form>
+                                        </div>
+                                    }
+
+                                    @if (Model.Status == "Inscrições Abertas" && Model.Categorias.Count > 1)
+                                    {
+                                        <div class="collapse mt-2" id="trocarCategoria-@dupla.Id">
+                                            <form asp-controller="Torneios" asp-action="TrocarCategoriaDupla" method="post"
+                                                  class="bg-white border rounded p-2 d-flex gap-2 align-items-center flex-wrap">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <select name="novaCategoriaId" class="form-select form-select-sm" style="width: auto;" required>
+                                                    <option value="" selected disabled>Pra qual categoria?</option>
+                                                    @foreach (var outraCategoria in Model.Categorias.Where(c => c.Id != dupla.CategoriaId))
+                                                    {
+                                                        <option value="@outraCategoria.Id">@outraCategoria.Nome</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-padel">
+                                                    <i class="bi bi-check-lg"></i> Mover
+                                                </button>
                                             </form>
                                         </div>
                                     }
