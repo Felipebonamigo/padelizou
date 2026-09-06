@@ -310,6 +310,118 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id = torneioId });
         }
 
+        // Aba "Gerenciar Torneio": muda a dupla de categoria — pra quem inscreveu na errada e
+        // devia ter ido noutra, ou trocou de ideia antes do sorteio. Sem isto, a única saída
+        // era RemoverDupla seguido de inscrever de novo à mão, perdendo Pago/PagoEm no meio.
+        //
+        // Pedido do Felipe (06/09/2026): "Crie a opção também, do organizador trocar a dupla
+        // de categoria".
+        //
+        // ⚠️ MESMA JANELA DO SORTEIO de sempre: uma vez que existe Partida, tem gente vendo
+        // contra quem joga e em qual grupo — mudar a categoria por baixo desfaria isso
+        // silenciosamente. `jaSorteou` é a MESMA régua de ReabrirInscricoes/DesfazerSorteio/
+        // DesfazerRodadasAmericano, e não a de RemoverDupla (que trava em "Inscrições
+        // Abertas" — mais estrita do que precisa: aqui a janela vai até o sorteio de verdade).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarCategoriaDupla(int duplaId, int novaCategoriaId)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, jogadorId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            // ⚠️ TEM QUE SER DO MESMO TORNEIO. A tela só lista as categorias de quem organiza
+            // esta página, mas um POST feito à mão poderia mandar o id de uma categoria de
+            // OUTRO torneio (até de outro organizador) — sem esta checagem a dupla mudaria de
+            // torneio inteiro, não só de categoria.
+            var novaCategoria = await _context.Categorias
+                .FirstOrDefaultAsync(c => c.Id == novaCategoriaId && c.TorneioId == torneioId);
+            if (novaCategoria == null) return NotFound();
+
+            if (novaCategoria.Id == dupla.CategoriaId)
+            {
+                TempData["Erro"] = "Esta dupla já está nesta categoria.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
+            if (jaSorteou)
+            {
+                TempData["Erro"] = "As chaves já foram sorteadas — não dá pra trocar de categoria agora.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // Categoria de times e de chave direta são cadastradas pelo ORGANIZADOR (jogador
+            // não se inscreve) e a Dupla ali carrega suposições diferentes (NomeTime, ou a
+            // mesma pessoa inscrita duas vezes no torneio) — misturar com uma categoria comum
+            // bagunçaria as duas. A troca só circula dentro do mesmo "tipo" de categoria.
+            if (dupla.Categoria.DeTimes != novaCategoria.DeTimes || dupla.Categoria.ChaveDireta != novaCategoria.ChaveDireta)
+            {
+                TempData["Erro"] = "Não dá pra trocar entre categoria de times/chave direta e categoria comum.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // A regra de sexo da categoria de DESTINO não some na troca — mesma checagem que
+            // a inscrição normal usa (DuplasController.Create). Times não têm Jogador2 de
+            // verdade (é o organizador cadastrando o nome do time), então a checagem não se
+            // aplica — e o guard acima já garante que só entra times⇄times.
+            if (!novaCategoria.DeTimes
+                && SexoDoJogador.MotivoParaNaoEntrar(novaCategoria.Nome, dupla.Jogador1!, dupla.Jogador2) is { } motivoSexo)
+            {
+                TempData["Erro"] = motivoSexo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            bool estavaConfirmada = !dupla.EmListaDeEspera;
+            int categoriaAntigaId = dupla.CategoriaId;
+
+            // ⚠️ CONFERE A VAGA ANTES DE TOCAR NA DUPLA. Ela ainda pertence à categoria
+            // ANTIGA neste ponto — a checagem não corre risco nenhum de se contar a si mesma
+            // na categoria de destino, tracked ou não. Só depois disso a dupla muda de fato.
+            bool novaEstaCheia = await CategoriaEstaCheiaAsync(novaCategoria);
+
+            dupla.CategoriaId = novaCategoria.Id;
+            // Recalcula do zero contra a categoria de DESTINO — mesma régua de
+            // DuplasController.CategoriaOuTorneioEstaCheioAsync, só a metade da CATEGORIA: o
+            // total do TORNEIO não muda numa troca dentro do mesmo torneio, então não há por
+            // que conferir `LimiteDuplasTotal` de novo aqui.
+            dupla.EmListaDeEspera = novaEstaCheia;
+            await _context.SaveChangesAsync();
+
+            // Sair CONFIRMADA da categoria antiga libera uma vaga de verdade lá — a fila de
+            // espera DAQUELA categoria avança sozinha, mesmo comportamento de
+            // RemoverDupla/Desistir (TirarDuplaDoTorneioAsync). Quem já estava na lista de
+            // espera não tirava vaga de ninguém, então sair dali não move a fila de ninguém.
+            if (estavaConfirmada) await PromoverDaListaDeEsperaAsync(categoriaAntigaId, torneio);
+
+            TempData["Sucesso"] = dupla.EmListaDeEspera
+                ? $"Movida pra {novaCategoria.Nome} — na lista de espera, a categoria está cheia."
+                : $"Movida pra {novaCategoria.Nome}.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // Mesma régua de DuplasController.CategoriaOuTorneioEstaCheioAsync (e do gêmeo em
+        // PagamentoInscricaoService), só a metade da CATEGORIA — a troca não muda o total do
+        // torneio, então `LimiteDuplasTotal` não entra aqui.
+        private async Task<bool> CategoriaEstaCheiaAsync(Categoria categoria)
+        {
+            if (!categoria.LimiteDuplas.HasValue) return false;
+
+            int naCategoria = await _context.Duplas.CountAsync(d => d.CategoriaId == categoria.Id && !d.EmListaDeEspera);
+            return naCategoria >= categoria.LimiteDuplas.Value;
+        }
+
         // O MIOLO da remoção de um inscrito, sem tela: apagar, avisar quem saiu e chamar a
         // lista de espera.
         //
