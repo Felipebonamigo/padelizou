@@ -4577,6 +4577,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             }
 
+            @* RELATÓRIO EM CSV — pedido do Felipe (07/09/2026): "crie um botão com um
+               relatório em excel, com nome completo, telefone, se pagou ou não, se tem
+               impedimento e quando". Atrás de PodeVerDinheiro, mesma régua do link "Cobrar"
+               acima: é o telefone em texto puro na planilha que pede essa régua, não o
+               relatório em si (ver RelatorioDuplasCsvTests). *@
+            @if (ViewBag.PodeVerDinheiro == true)
+            {
+                <div class="mb-4">
+                    <a asp-action="RelatorioDuplasCsv" asp-route-id="@Model.Id"
+                       class="btn btn-outline-secondary fw-bold">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Baixar relatório (CSV)
+                    </a>
+                </div>
+            }
+
             @* `<fieldset disabled>` desliga TUDO — marcar pago, editar impedimento — de uma vez
                só pra quem só pode OLHAR a gestão. O servidor é quem recusa de verdade
                (EhOrganizadorAsync); isto é só a tela não prometer o que ele não vai aceitar. *@

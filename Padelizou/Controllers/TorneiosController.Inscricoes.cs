@@ -653,6 +653,64 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── RELATÓRIO EM CSV: nome, telefone, pago e impedimento (aba Pagamentos) ──────────
+        // Pedido do Felipe (07/09/2026): "crie um botão com um relatório em excel, com nome
+        // completo, telefone, se pagou ou não, se tem impedimento e quando". Uma linha por
+        // DUPLA — mesmo recorte que a própria aba já mostra em tela, só que pra baixar.
+        //
+        // ⚠️ ATRÁS DE PodeVerDinheiro, e não de PodeGerenciar: é o TELEFONE que muda a régua.
+        // Hoje só quem vê dinheiro tem acesso ao número de qualquer jogador — o link "Cobrar"
+        // o usa por baixo pra montar o link do WhatsApp, mas nunca IMPRIME o dígito em tela pra
+        // quem não vê dinheiro (mesma régua de AbaPagamentosNaPaginaDoTorneioTests). Um
+        // relatório com telefone em texto puro pra qualquer ajudante exporia mais do que a
+        // própria tela já expõe hoje.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> RelatorioDuplasCsv(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await PodeVerDinheiroAsync(id, meuId)) return Forbid();
+
+            var duplas = await _context.Duplas
+                .Include(d => d.Categoria)
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .Where(d => d.Categoria.TorneioId == id && d.NomeTime == null)
+                .OrderBy(d => d.Categoria.Nome).ThenBy(d => d.Jogador1.Nome)
+                .ToListAsync();
+
+            // Mesmo formato de PagamentosController.ExportarCsv: ponto e vírgula (o Excel
+            // brasileiro abre certo de primeira) e BOM UTF-8 (sem ele, acento vira lixo).
+            static string Campo(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Categoria;Nome;Telefone;Pago;Impedimento;Impedimento alterado em");
+            foreach (var dupla in duplas)
+            {
+                var turno = AlteracaoDeImpedimento.TurnoAtual(dupla);
+                // "Quando" só faz sentido junto de um impedimento ATUAL — uma dupla que teve
+                // impedimento marcado e depois voltou pra "Nenhum" ainda carrega o registro
+                // histórico da última troca, e mostrar aqui confundiria "tem impedimento hoje"
+                // com "mexeu no impedimento algum dia".
+                var quando = turno == TurnoDoImpedimento.Nenhum || dupla.ImpedimentoAlteradoEm == null
+                    ? ""
+                    : dupla.ImpedimentoAlteradoEm.Value.ToString("dd/MM/yyyy HH:mm");
+                sb.AppendLine(string.Join(";",
+                    Campo(dupla.Categoria.Nome),
+                    Campo(dupla.NomeDeExibicao),
+                    Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador1?.Celular)),
+                    torneio.PrecoInscricao > 0 ? (dupla.Pago ? "Sim" : "Não") : "-",
+                    Campo(AlteracaoDeImpedimento.Rotulo(turno)),
+                    quando));
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetPreamble()
+                .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+            return File(bytes, "text/csv", $"duplas-{torneio.Codigo}-{DateTime.Now:yyyyMMdd}.csv");
+        }
+
         // ── O inscrito do Americano desiste ───────────────────────────────────────────────
         // Mesma porta do Desistir, pra quem se inscreveu num Torneio Americano. Ela existe
         // separada porque a inscrição de Americano é individual e vive em outra tabela — não
