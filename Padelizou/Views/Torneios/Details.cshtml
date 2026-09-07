@@ -906,6 +906,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
+
+    @* Aba PAGAMENTOS — pedido do Felipe (07/09/2026): "criar uma aba para gerenciar melhor os
+       pagamentos, impedimentos e cobrar jogador". Gateada por `PodeVerDinheiro` (a MESMA régua
+       de Financeiro), e não por `PodeGerenciar`: o valor de cada inscrição e o botão de cobrar
+       são dinheiro, e quem só ajuda a organizar vê a versão redigida do Financeiro — esta aba,
+       por ora, não tem versão redigida. Financeiro continua existindo do jeito que está (o
+       resumo em R$ e o por-categoria); esta aba é o lugar novo pra impedimento e cobrança em
+       lote, que não existiam em lugar nenhum. *@
+    @if (ViewBag.PodeVerDinheiro == true)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
+                <i class="bi bi-cash-coin"></i> Pagamentos
+            </button>
+        </li>
+    }
     <!-- Aba única de Jogos (Ao Vivo/Agendadas/Finalizadas) - só depois que as inscrições fecharem.
          Abre direto em Ao Vivo se tiver jogo rolando agora, senão em Agendadas (ver _JogosDoTorneio.cshtml). -->
     @* Chaves pendentes de aprovação (ver Services/AprovacaoDeChaves) escondem estas duas
@@ -4480,6 +4496,163 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </fieldset>
         </div>
     }
+
+    @* ── ABA PAGAMENTOS ──────────────────────────────────────────────────────────────────
+       Pedido do Felipe (07/09/2026): "criar uma aba para gerenciar melhor os pagamentos,
+       impedimentos e cobrar jogador", com uma opção de "cobrar todos os jogadores que não
+       pagaram de uma vez".
+
+       Três coisas por dupla que antes viviam espalhadas (ou não existiam em lugar nenhum):
+       quem pagou (já em Financeiro/Gerenciar), o impedimento de horário — ATÉ AQUI SÓ DE
+       LEITURA, na lista antes do sorteio — e o botão de cobrar (só em Financeiro).
+
+       ⚠️ NÃO REESCREVE O FINANCEIRO. O resumo em R$ e o por-categoria continuam lá; esta aba
+       reusa os MESMOS dados que a aba Gerenciar já carrega (`Model.Categorias`), sem
+       ViewModel novo — é a mesma dupla, olhada de outro ângulo. *@
+    @if (ViewBag.PodeVerDinheiro == true)
+    {
+        <div class="tab-pane fade" id="pagamentos" role="tabpanel">
+            @{
+                var duplasPagamento = Model.Categorias
+                    .SelectMany(c => c.Duplas.Select(d => new { Categoria = c, Dupla = d }))
+                    .Where(x => !x.Dupla.EhTime)
+                    .ToList();
+                var naoPagaramComCelular = duplasPagamento
+                    .Where(x => Model.PrecoInscricao > 0 && !x.Dupla.Pago
+                             && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(x.Dupla.Jogador1?.Celular))
+                    .ToList();
+            }
+
+            @* COBRAR TODOS — fila de WhatsApp, um clique de cada vez. Continua sendo O
+               ORGANIZADOR mandando, do PRÓPRIO número: o botão só abre, em sequência, os
+               mesmos links "Cobrar" que já existem em cada linha (.pdz-cobrar-link) — nada
+               de mensagem automática, nada de servidor envolvido. Ver wwwroot/js/cobrar-todos.js. *@
+            @if (naoPagaramComCelular.Count > 0)
+            {
+                <div class="alert alert-warning d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
+                    <div>
+                        <strong><i class="bi bi-whatsapp"></i> @naoPagaramComCelular.Count sem pagar</strong>
+                        <div class="small">O botão abre a mensagem de cada um, uma de cada vez, no seu WhatsApp.</div>
+                    </div>
+                    <button type="button" id="pdzCobrarTodos" class="btn btn-success fw-bold shadow-sm">
+                        <i class="bi bi-whatsapp"></i> Cobrar todos (@naoPagaramComCelular.Count)
+                    </button>
+                </div>
+            }
+
+            @if (!duplasPagamento.Any())
+            {
+                <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhum inscrito ainda.</p>
+            }
+            else
+            {
+                foreach (var categoriaComDuplas in duplasPagamento.GroupBy(x => x.Categoria).OrderBy(g => g.Key.Nome))
+                {
+                    <p class="fw-bold small mb-2 mt-3">@categoriaComDuplas.Key.Nome</p>
+                    <ul class="list-group list-group-flush mb-2">
+                        @foreach (var x in categoriaComDuplas)
+                        {
+                            var dupla = x.Dupla;
+                            var turnoAtual = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(dupla);
+                            <li class="list-group-item bg-transparent px-0">
+                                <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2">
+                                    <span class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap pdz-inscrito-esquerda">
+                                        <span class="pdz-inscrito-nome">
+                                            <span class="fw-semibold">@dupla.Jogador1.ComoChamar</span>
+                                            @if (dupla.Jogador2 != null)
+                                            {
+                                                <span class="text-muted">/</span>
+                                                <span class="fw-semibold">@dupla.Jogador2.ComoChamar</span>
+                                            }
+                                        </span>
+                                        @if (Model.PrecoInscricao > 0)
+                                        {
+                                            if (dupla.Pago)
+                                            {
+                                                <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle flex-shrink-0">Pago</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle flex-shrink-0">Não pago</span>
+                                            }
+                                        }
+                                        @* O impedimento que ATÉ AQUI só aparecia numa lista de leitura
+                                           antes do sorteio. "quem solicitou impedimento e pra qual
+                                           horário" — pedido do Felipe. *@
+                                        @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum)
+                                        {
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle flex-shrink-0">
+                                                <i class="bi bi-clock-history"></i> @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(turnoAtual)
+                                            </span>
+                                        }
+                                    </span>
+
+                                    <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto">
+                                        @if (Model.PrecoInscricao > 0)
+                                        {
+                                            @if (!dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
+                                            {
+                                                var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(dupla.Jogador1!.Nome)}! "
+                                                    + $"Sua inscrição em {Model.Nome} ({x.Categoria.Nome}) é "
+                                                    + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
+                                                    + "."
+                                                    + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
+                                                <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
+                                                   target="_blank" rel="noopener"
+                                                   class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp">
+                                                    <i class="bi bi-whatsapp"></i> Cobrar
+                                                </a>
+                                            }
+                                            <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <input type="hidden" name="voltarPara" value="Pagamentos" />
+                                                <button type="submit" class="btn btn-sm text-nowrap @(dupla.Pago ? "btn-outline-secondary" : "btn-success")">
+                                                    <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
+                                                    @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
+                                                </button>
+                                            </form>
+                                        }
+                                        <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                                                data-bs-toggle="collapse" data-bs-target="#impedimento-@dupla.Id">
+                                            <i class="bi bi-clock-history"></i> Impedimento
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="collapse mt-2" id="impedimento-@dupla.Id">
+                                    <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
+                                          class="bg-white border rounded p-2 d-flex gap-2 align-items-center flex-wrap">
+                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                        <select name="turno" class="form-select form-select-sm" style="width: auto;">
+                                            <option value="@Padelizou.Services.TurnoDoImpedimento.Nenhum" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)">Sem impedimento</option>
+                                            <option value="@Padelizou.Services.TurnoDoImpedimento.QuintaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.QuintaNoite)">Quinta à noite</option>
+                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
+                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
+                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-padel">
+                                            <i class="bi bi-check-lg"></i> Salvar
+                                        </button>
+                                        @* Dupla já paga: a troca não cobra nem estorna sozinha — o
+                                           aviso mora na mensagem de sucesso que volta do servidor
+                                           (TorneiosController.Inscricoes, AlterarImpedimentoOrganizador),
+                                           mas o lembrete AQUI evita que o organizador só descubra
+                                           depois de já ter clicado. *@
+                                        @if (dupla.Pago && Model.TaxaPorImpedimento > 0)
+                                        {
+                                            <small class="text-muted d-block w-100">
+                                                Esta inscrição já está paga — trocar o impedimento muda o valor devido, mas não cobra nem estorna sozinho.
+                                            </small>
+                                        }
+                                    </form>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+        </div>
+    }
     <!-- ABA: JOGOS (Ao Vivo/Agendadas/Finalizadas unificados) -->
     @if (torneioComecou)
     {
@@ -5187,6 +5360,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
+    <script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
 }
 
 <script>
@@ -5894,25 +6068,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 </style>
 
 @*
-    O LINK DO CONVITE ABRE A ABA "INSCREVA-SE".
+    A HASH DA URL ABRE A ABA CORRESPONDENTE.
 
-    O botão "Convidar" manda `...\Details\7#inscricao`. Sem este script a hash não faz nada —
-    o Bootstrap 5 não lê a URL — e o convidado cai na aba "Inscritos", que é a lista de quem
-    JÁ entrou: a única aba da página que não serve pra se inscrever. O convite prometia
-    inscrição e entregava plateia.
+    O botão "Convidar" manda `...\Details\7#inscricao`; o formulário de impedimento da aba
+    Pagamentos volta em `...\Details\7#pagamentos`. Sem este script a hash não faz nada — o
+    Bootstrap 5 não lê a URL — e quem chega cai na aba padrão. Um convite pra se inscrever caía
+    em "Inscritos" (a lista de quem JÁ entrou); um redirect de volta da aba Pagamentos caía em
+    "Inscritos" também, perdendo o lugar de onde a pessoa tinha saído.
+
+    ⚠️ GENÉRICO DE PROPÓSITO, e não um `if` por aba: a hash já É o seletor
+    (`data-bs-target="#pagamentos"` existe pra CSS/Bootstrap não por acaso — é o mesmo texto
+    que a URL carrega). Uma aba nova que precise disto não pede uma linha a mais aqui.
 
     ⚠️ DOMContentLoaded, e não código solto: o corpo da view é renderizado ANTES do
     bootstrap.bundle.js do _Layout, então `window.bootstrap` ainda não existe quando esta
     linha é lida. Mesmo motivo e mesma forma do script de abas do Ranking.
 
-    A aba "Inscreva-se" só existe enquanto as inscrições estão abertas — num torneio já
-    fechado o seletor não acha nada e o script sai calado, deixando a página na aba padrão.
+    Quando a aba da hash não existe nesta página (por status, por formato, por quem está
+    olhando), o seletor não acha nada e o script sai calado, deixando a página na aba padrão.
 *@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        if (location.hash !== '#inscricao' || !window.bootstrap) return;
+        if (!location.hash || !window.bootstrap) return;
 
-        var aba = document.querySelector('#torneioTabs [data-bs-target="#inscricao"]');
+        var aba = document.querySelector('#torneioTabs [data-bs-target="' + location.hash + '"]');
         if (aba) bootstrap.Tab.getOrCreateInstance(aba).show();
     });
 </script>

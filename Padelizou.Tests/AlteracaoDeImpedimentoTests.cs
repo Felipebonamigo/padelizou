@@ -209,4 +209,67 @@ public class AlteracaoDeImpedimentoTests
         Assert.Equal(TurnoDoImpedimento.SextaNoite, AlteracaoDeImpedimento.TurnoAtual(Dupla(sexta: true)));
         Assert.Equal(TurnoDoImpedimento.SabadoManha, AlteracaoDeImpedimento.TurnoAtual(Dupla(sabadoManha: true)));
     }
+
+    // ── A VERSÃO DO ORGANIZADOR (aba Pagamentos, 07/09/2026) ──────────────────────────────
+    //
+    // Pedido do Felipe: uma aba pra "gerenciar melhor os pagamentos, impedimentos e cobrar
+    // jogador", onde ele "enxerga quem solicitou impedimento e pra qual horário" e "permite
+    // ele editar esse impedimento".
+    //
+    // ⚠️ NÃO É `MotivoParaNaoAlterar` DE NOVO. Aquele método pergunta "é MEU impedimento?" — o
+    // organizador está mexendo no impedimento de OUTRA pessoa, de propósito, então a checagem
+    // de dono não se aplica. E a régua do dinheiro é OUTRA: perguntei ao Felipe explicitamente
+    // (a mesma trava dizia "fale com o organizador" — cabia a ele decidir o que o organizador
+    // faz ao chegar lá). A resposta: o organizador PODE mexer numa dupla já paga; a tela
+    // mostra quanto isso muda, mas o ajuste do dinheiro em si continua manual, do lado dele —
+    // nada é cobrado nem estornado sozinho.
+    [Fact]
+    public void Organizador_pode_alterar_mesmo_dupla_paga()
+    {
+        // ⚠️ O OPOSTO da régua do jogador — e é a régua certa, aprovada pelo Felipe.
+        var dupla = Dupla(sexta: true, pago: true);
+
+        Assert.Null(AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, Torneio(), jaSorteou: false));
+    }
+
+    [Fact]
+    public void Time_nao_tem_impedimento_de_horario()
+    {
+        var time = Dupla();
+        time.NomeTime = "Time A";
+
+        var motivo = AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(time, Torneio(), jaSorteou: false);
+
+        Assert.NotNull(motivo);
+    }
+
+    // ⚠️ A JANELA É `jaSorteou` (Partida existindo), NÃO `Status != "Inscrições Abertas"`
+    // como no jogador. A grade já montada é o que quebraria — mesma régua de
+    // TrocarCategoriaDupla/ReabrirInscricoes/DesfazerSorteio/DesfazerRodadasAmericano. Antes
+    // do sorteio, o organizador pode corrigir mesmo com as inscrições já encerradas ("Chaves
+    // em Sorteio") — é justamente o caso mais comum de precisar disto.
+    [Fact]
+    public void Organizador_pode_alterar_com_inscricoes_encerradas_antes_do_sorteio()
+    {
+        var motivo = AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(
+            Dupla(), Torneio("Chaves em Sorteio"), jaSorteou: false);
+
+        Assert.Null(motivo);
+    }
+
+    [Fact]
+    public void Organizador_nao_altera_depois_do_sorteio()
+    {
+        var motivo = AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(
+            Dupla(), Torneio("Fase de Grupos"), jaSorteou: true);
+
+        Assert.NotNull(motivo);
+    }
+
+    [Fact]
+    public void Organizador_inscricao_que_nao_existe_nao_estoura()
+    {
+        Assert.NotNull(AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(null, Torneio(), jaSorteou: false));
+        Assert.NotNull(AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(Dupla(), null, jaSorteou: false));
+    }
 }

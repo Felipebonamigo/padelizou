@@ -582,6 +582,77 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id = torneioId });
         }
 
+        // ── O ORGANIZADOR troca o impedimento de outra pessoa (aba Pagamentos) ────────────
+        // Pedido do Felipe (07/09/2026): na aba de gerenciar pagamentos, "o organizador pode
+        // enxergar quem solicitou impedimento e pra qual horário" e "permite ele editar esse
+        // impedimento". A regra mora em AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar
+        // — diferente da do próprio jogador: aqui não há checagem de dono (é OUTRA pessoa, de
+        // propósito), a janela vai até o sorteio (não só "Inscrições Abertas"), e uma dupla já
+        // paga PODE ter o impedimento trocado — o ajuste do dinheiro fica manual, do lado dele.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarImpedimentoOrganizador(int duplaId, TurnoDoImpedimento turno)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
+            if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            var antes = AlteracaoDeImpedimento.TurnoAtual(dupla);
+            if (antes == turno)
+            {
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            var diferenca = AlteracaoDeImpedimento.QuantoMudaOValor(dupla, torneio, turno);
+            AlteracaoDeImpedimento.Aplicar(dupla, torneio, turno, meuId, DateTime.Now);
+            await _context.SaveChangesAsync();
+
+            // Diferente do jogador (que avisa só o PARCEIRO, porque ele mesmo já sabe): aqui
+            // foi o organizador quem mexeu por fora, então os DOIS da dupla precisam saber.
+            var jogadoresDaDupla = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+            if (jogadoresDaDupla.Count > 0)
+            {
+                await AvisarAsync(jogadoresDaDupla, "O organizador mudou seu impedimento",
+                    $"O organizador de {torneio.Nome} trocou o impedimento de vocês: "
+                    + $"de \"{AlteracaoDeImpedimento.Rotulo(antes)}\" para \"{AlteracaoDeImpedimento.Rotulo(turno)}\".",
+                    torneioId);
+            }
+
+            // ⚠️ NENHUM AJUSTE DE DINHEIRO AUTOMÁTICO — decisão do Felipe (07/09/2026): ele
+            // pode trocar o impedimento mesmo de quem já pagou, mas o valor não se cobra nem
+            // se estorna sozinho. A mensagem é o lembrete: ele acerta manualmente, como já faz
+            // com o botão de marcar pago e com o estorno (ESTORNO.md).
+            TempData["Sucesso"] = diferenca switch
+            {
+                > 0 => $"Impedimento alterado para \"{AlteracaoDeImpedimento.Rotulo(turno)}\". "
+                     + $"A inscrição passa a valer {diferenca:C} a mais"
+                     + (dupla.Pago ? " — já está paga, ajuste o valor recebido." : "."),
+                < 0 => $"Impedimento alterado. A inscrição passa a valer {Math.Abs(diferenca):C} a menos"
+                     + (dupla.Pago ? " — já está paga, veja se cabe estorno." : "."),
+                _ => $"Impedimento alterado para \"{AlteracaoDeImpedimento.Rotulo(turno)}\". O valor não muda.",
+            };
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
         // ── O inscrito do Americano desiste ───────────────────────────────────────────────
         // Mesma porta do Desistir, pra quem se inscreveu num Torneio Americano. Ela existe
         // separada porque a inscrição de Americano é individual e vive em outra tabela — não

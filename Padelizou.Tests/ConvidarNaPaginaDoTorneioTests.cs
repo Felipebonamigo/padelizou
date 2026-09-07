@@ -83,13 +83,18 @@ public class ConvidarNaPaginaDoTorneioTests
 
     // ⚠️ SEM ESTE SCRIPT O `#inscricao` NÃO FAZ NADA. O Bootstrap 5 não lê a URL pra escolher
     // aba; a hash sozinha é decoração, e o convidado continua caindo em "Inscritos".
+    //
+    // O script é GENÉRICO (qualquer `#hash` que bata com um `data-bs-target` do torneioTabs),
+    // não hardcoded pra `#inscricao` — outras abas (ex.: Pagamentos) reusam o mesmo mecanismo
+    // sem precisar de uma linha nova aqui. Ver ConvidarNaPaginaDoTorneioTests desde 04/09 e a
+    // generalização de 07/09.
     [Fact]
-    public void A_hash_abre_a_aba_de_inscricao()
+    public void A_hash_abre_a_aba_correspondente()
     {
         var fonte = Details();
 
-        Assert.Contains("location.hash !== '#inscricao'", fonte);
-        Assert.Contains("#torneioTabs [data-bs-target=\"#inscricao\"]", fonte);
+        Assert.Contains("if (!location.hash || !window.bootstrap) return;", fonte);
+        Assert.Contains("'#torneioTabs [data-bs-target=\"' + location.hash + '\"]'", fonte);
         Assert.Contains("bootstrap.Tab.getOrCreateInstance(aba).show()", fonte);
     }
 

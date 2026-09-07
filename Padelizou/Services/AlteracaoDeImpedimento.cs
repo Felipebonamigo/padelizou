@@ -89,6 +89,34 @@ public static class AlteracaoDeImpedimento
         return null;
     }
 
+    // A VERSÃO DO ORGANIZADOR (aba Pagamentos, 07/09/2026): ele enxerga quem pediu impedimento
+    // pra qual horário, e pode corrigir — não é `MotivoParaNaoAlterar` de novo porque a
+    // pergunta é outra. Aquele pergunta "é MEU impedimento?"; aqui o organizador está mexendo
+    // no de OUTRA pessoa, de propósito, então não há checagem de dono.
+    //
+    // ⚠️ O DINHEIRO TEM RÉGUA DIFERENTE, E FOI O FELIPE QUEM DECIDIU: ele PODE alterar mesmo
+    // numa dupla já paga — a tela mostra quanto isso muda (`QuantoMudaOValor`), mas o ajuste
+    // do dinheiro em si continua manual, do lado dele (marcar/desmarcar pago, ou o estorno na
+    // mão de ESTORNO.md). Nada é cobrado nem estornado sozinho por esta função.
+    public static string? MotivoParaOrganizadorNaoAlterar(Dupla? dupla, Torneio? torneio, bool jaSorteou)
+    {
+        if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";
+
+        // Time não tem impedimento de horário — ele joga conforme a grade que o organizador
+        // monta, e as quatro janelas são coisa de PESSOA, não de time cadastrado por ele.
+        if (dupla.EhTime) return "Times não têm impedimento de horário — eles jogam conforme a grade do organizador.";
+
+        // ⚠️ A JANELA É `jaSorteou` (Partida existindo), NÃO "Inscrições Abertas" como no
+        // jogador — mesma régua de TrocarCategoriaDupla/ReabrirInscricoes/DesfazerSorteio/
+        // DesfazerRodadasAmericano. A grade já montada é o que quebraria; o organizador pode
+        // corrigir mesmo com as inscrições já encerradas, que é o caso mais comum de precisar
+        // disto (ele revisa DEPOIS de fechar, antes de sortear).
+        if (jaSorteou)
+            return "As chaves já foram sorteadas — mudar o impedimento agora bagunçaria a grade já montada.";
+
+        return null;
+    }
+
     // Grava a troca. Não decide nada: quem decide é o MotivoParaNaoAlterar, que o chamador já
     // consultou.
     public static void Aplicar(Dupla dupla, Torneio torneio, TurnoDoImpedimento novo,
