@@ -908,13 +908,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     }
 
     @* Aba PAGAMENTOS — pedido do Felipe (07/09/2026): "criar uma aba para gerenciar melhor os
-       pagamentos, impedimentos e cobrar jogador". Gateada por `PodeVerDinheiro` (a MESMA régua
-       de Financeiro), e não por `PodeGerenciar`: o valor de cada inscrição e o botão de cobrar
-       são dinheiro, e quem só ajuda a organizar vê a versão redigida do Financeiro — esta aba,
-       por ora, não tem versão redigida. Financeiro continua existindo do jeito que está (o
-       resumo em R$ e o por-categoria); esta aba é o lugar novo pra impedimento e cobrança em
-       lote, que não existiam em lugar nenhum. *@
-    @if (ViewBag.PodeVerDinheiro == true)
+       pagamentos, impedimentos e cobrar jogador". Financeiro continua existindo do jeito que
+       está (o resumo em R$ e o por-categoria); esta aba é o lugar novo pra impedimento e
+       cobrança em lote, que não existiam em lugar nenhum.
+
+       ⚠️ REVISTO NO MESMO DIA: nasceu gateada por `PodeVerDinheiro`, o que escondia o
+       IMPEDIMENTO (que não é dinheiro) de quem ajuda a organizar sem ver o caixa — pedido do
+       Felipe: "a parte de impedimentos do torneio tem que aparecer pro organizador". A aba
+       agora abre pra qualquer um que ajuda a organizar (`PodeGerenciar`, a MESMA régua da aba
+       "Gerenciar Torneio" ali em cima); o valor de cada inscrição e o botão de cobrar
+       continuam atrás de `PodeVerDinheiro` — DENTRO do painel, mesma régua redigida que
+       Financeiro.cshtml já usa pro ajudante. *@
+    @if (ViewBag.PodeGerenciar == true)
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -4521,11 +4526,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
        ⚠️ NÃO REESCREVE O FINANCEIRO. O resumo em R$ e o por-categoria continuam lá; esta aba
        reusa os MESMOS dados que a aba Gerenciar já carrega (`Model.Categorias`), sem
-       ViewModel novo — é a mesma dupla, olhada de outro ângulo. *@
-    @if (ViewBag.PodeVerDinheiro == true)
+       ViewModel novo — é a mesma dupla, olhada de outro ângulo.
+
+       🔁 REVISTO NO MESMO DIA: a aba abre pra qualquer um que ajuda a organizar
+       (`PodeGerenciar`) — o impedimento não é dinheiro, e o servidor já aceitava edição de
+       quem ajuda (`EhOrganizadorAsync`, não `PodeVerDinheiro` — ver
+       TorneiosController.Inscricoes.cs). Dentro do painel, `gestaoSoLeitura` desliga os
+       formulários pra quem só pode OLHAR a gestão (o assistente do sistema que não é
+       organizador DESTE torneio) — mesmo `<fieldset disabled>` da aba "Gerenciar Torneio". *@
+    @if (ViewBag.PodeGerenciar == true)
     {
         <div class="tab-pane fade" id="pagamentos" role="tabpanel">
             @{
+                var gestaoSoLeitura = ViewBag.GestaoSoLeitura == true;
                 var duplasPagamento = Model.Categorias
                     .SelectMany(c => c.Duplas.Select(d => new { Categoria = c, Dupla = d }))
                     .Where(x => !x.Dupla.EhTime)
@@ -4536,11 +4549,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     .ToList();
             }
 
+            @if (ViewBag.PodeVerDinheiro != true)
+            {
+                @* Mesmo aviso que Financeiro.cshtml já dá pro ajudante — sem ele, quem não vê
+                   dinheiro acharia que os valores e o "Cobrar" sumiram por engano. *@
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle"></i> @Padelizou.Services.AcessoAoDinheiroDoTorneio.ExplicacaoParaQuemAjuda
+                </div>
+            }
+
             @* COBRAR TODOS — fila de WhatsApp, um clique de cada vez. Continua sendo O
                ORGANIZADOR mandando, do PRÓPRIO número: o botão só abre, em sequência, os
                mesmos links "Cobrar" que já existem em cada linha (.pdz-cobrar-link) — nada
-               de mensagem automática, nada de servidor envolvido. Ver wwwroot/js/cobrar-todos.js. *@
-            @if (naoPagaramComCelular.Count > 0)
+               de mensagem automática, nada de servidor envolvido. Ver wwwroot/js/cobrar-todos.js.
+               Atrás de `PodeVerDinheiro`: a mensagem de cada "Cobrar" leva o VALOR e a chave
+               Pix, mesma régua do link individual e do botão de Financeiro.cshtml. *@
+            @if (ViewBag.PodeVerDinheiro == true && naoPagaramComCelular.Count > 0)
             {
                 <div class="alert alert-warning d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
                     <div>
@@ -4553,6 +4577,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             }
 
+            @* `<fieldset disabled>` desliga TUDO — marcar pago, editar impedimento — de uma vez
+               só pra quem só pode OLHAR a gestão. O servidor é quem recusa de verdade
+               (EhOrganizadorAsync); isto é só a tela não prometer o que ele não vai aceitar. *@
+            <fieldset disabled="@gestaoSoLeitura" class="border-0 p-0 m-0">
             @if (!duplasPagamento.Any())
             {
                 <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhum inscrito ainda.</p>
@@ -4601,21 +4629,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </span>
 
                                     <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto">
+                                        @* O link de "Cobrar" leva o VALOR e a chave Pix na mensagem — fica
+                                           atrás de PodeVerDinheiro, mesma régua do link individual e do
+                                           botão de Financeiro.cshtml. Marcar como pago NÃO fica: é
+                                           trabalho de quem ajuda a organizar (AlternarPagamentoDupla só
+                                           confere EhOrganizadorAsync). *@
+                                        @if (Model.PrecoInscricao > 0 && ViewBag.PodeVerDinheiro == true
+                                             && !dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
+                                        {
+                                            var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(dupla.Jogador1!.Nome)}! "
+                                                + $"Sua inscrição em {Model.Nome} ({x.Categoria.Nome}) é "
+                                                + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
+                                                + "."
+                                                + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
+                                            <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
+                                               target="_blank" rel="noopener"
+                                               class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp">
+                                                <i class="bi bi-whatsapp"></i> Cobrar
+                                            </a>
+                                        }
                                         @if (Model.PrecoInscricao > 0)
                                         {
-                                            @if (!dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
-                                            {
-                                                var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(dupla.Jogador1!.Nome)}! "
-                                                    + $"Sua inscrição em {Model.Nome} ({x.Categoria.Nome}) é "
-                                                    + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
-                                                    + "."
-                                                    + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
-                                                <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
-                                                   target="_blank" rel="noopener"
-                                                   class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp">
-                                                    <i class="bi bi-whatsapp"></i> Cobrar
-                                                </a>
-                                            }
                                             <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <input type="hidden" name="voltarPara" value="Pagamentos" />
@@ -4664,6 +4698,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     </ul>
                 }
             }
+            </fieldset>
         </div>
     }
     <!-- ABA: JOGOS (Ao Vivo/Agendadas/Finalizadas unificados) -->
