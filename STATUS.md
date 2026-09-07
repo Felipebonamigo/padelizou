@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **07/09/2026** — 💳 **A ABA "PAGAMENTOS": IMPEDIMENTO EDITÁVEL PELO ORGANIZADOR + COBRANÇA EM LOTE.**
+>
+> 🗣️ **O pedido do Felipe:** *"vamos criar uma aba para gerenciar melhor os pagamentos, impedimentos e cobrar jogador, e tem como ter uma opção do usuário mesmo cobrar todos os jogadores que não pagaram de uma vez?"* — e, num segundo recado: *"nessa tela o organizador pode enxergar quem solicitou impedimento e pra qual horário. permite ele editar esse impedimento"*.
+>
+> 🧭 **DUAS PERGUNTAS FEITAS ANTES DE CODAR, porque as respostas mudavam o desenho inteiro:**
+> - **Onde mora?** Aba nova (`Pagamentos`) dentro do torneio, ao lado de Inscritos/Gerenciar/Jogos/Grupos — não uma evolução da tela Financeiro, que continua existindo do jeito que está (resumo em R$, por categoria).
+> - **Cobrança em lote é o quê?** Fila de WhatsApp, um clique por vez — "Cobrar todos (N)" abre o primeiro, vira "Cobrar próximo (N-1 restantes)" pro seguinte, até zerar. Nunca envio automático: continua sendo o Felipe mandando, do próprio número.
+>
+> 💰 **UMA TERCEIRA PERGUNTA, ESSA DE DINHEIRO — E POR ISSO SÓ ELE PODIA RESPONDER:** hoje o jogador é bloqueado de trocar o impedimento de uma dupla JÁ PAGA quando isso mudaria o valor (a régua do próprio Felipe, 02/09). Pro ORGANIZADOR a resposta é o oposto: ele PODE trocar, a tela mostra quanto muda, mas o ajuste do dinheiro em si é manual — nada cobra nem estorna sozinho.
+>
+> 🔧 **`AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar`** — não é o método do jogador reaproveitado, é um NOVO ao lado dele, porque a pergunta é outra: sem checagem de dono (o organizador mexe em impedimento de OUTRA pessoa, de propósito), janela até o sorteio (`jaSorteou`, a mesma régua de `TrocarCategoriaDupla`/`ReabrirInscricoes`/`DesfazerSorteio`/`DesfazerRodadasAmericano` — mais folgada que a do jogador), e sem a trava de dinheiro que existe pro jogador.
+>
+> 🔔 **O aviso muda de alcance:** o jogador que troca o PRÓPRIO impedimento avisa só o parceiro (ele mesmo já sabe). O organizador mexeu por fora — avisa os DOIS.
+>
+> 📋 **O impedimento tinha UMA tela, só leitura** (a lista antes do sorteio, pedida em 02/09). Agora tem edição de verdade, na aba Pagamentos — reusando o MESMO `AlteracaoDeImpedimento.Rotulo`/`TurnoAtual` que a lista de leitura já usava.
+>
+> 🔁 **O script de hash virou genérico.** O botão "Convidar" (04/09) já abria a aba certa por `#inscricao`; era um `if` hardcoded pra essa hash só. Generalizado pra ler `location.hash` e montar o seletor na hora — a aba Pagamentos usa o MESMO mecanismo sem precisar de uma linha nova, e a próxima aba que precisar disto também não vai precisar.
+>
+> 📱 **`cobrar-todos.js`: verificado no Chromium, não só lido.** Simulei os cliques de verdade — a fila abre os links na ordem certa, o texto do botão desce "3 → 2 restantes → 1 restante → desabilitado", e um clique forçado no botão desabilitado não abre nada a mais.
+>
+> 🧪 **5.375 testes, 0 falhas (19 novos).** **Sem migration** — só controller, view, serviço e um JS novo. **Falsificado, um de cada vez:** organizador, sorteio já feito, time sem impedimento, aviso pros dois jogadores, gate de dinheiro da aba, aviso de dupla já paga.
+>
+> ⚠️ **Não visto renderizado** — sem browser de verdade nesta sessão (só o Chromium isolado pra testar o JS). A aba nova, o layout da linha de cada dupla e o fluxo de "Cobrar todos" de ponta a ponta precisam do olho do Felipe.
+>
 > Última atualização: **06/09/2026** — 🔀 **O ORGANIZADOR JÁ TROCA A DUPLA DE CATEGORIA, SEM PERDER PAGO/PAGOEM.**
 >
 > 🗣️ **O pedido do Felipe:** *"Crie a opção também, do organizador trocar a dupla de categoria"*.
