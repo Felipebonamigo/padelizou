@@ -65,14 +65,22 @@ public class RelatorioDuplasCsvTests
         Assert.IsType<ForbidResult>(resultado);
     }
 
+    // 🔁 REVISTO NO MESMO DIA: a primeira versão trazia o nome dos dois juntos numa coluna só
+    // ("Fulano & Sicrano") e o telefone de um deles — o Felipe mandou um print de como a
+    // Camila usa a planilha na mão hoje: colunas SEPARADAS por jogador (Jogador 1/Fone 1,
+    // Jogador 2/Fone 2), pra poder ligar/chamar qualquer um dos dois direto da linha. A régua
+    // de "uma linha por dupla" continua a mesma; o que mudou foi só como os DOIS jogadores
+    // aparecem dentro dessa linha.
     [Fact]
-    public async Task Traz_nome_telefone_pago_e_impedimento_de_cada_dupla()
+    public async Task Traz_cada_jogador_em_colunas_separadas()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, criador) = Cenario(ctx);
         torneio.PrecoInscricao = 100m;
-        var dupla = await ctx.Duplas.Include(d => d.Jogador1).FirstAsync(d => d.CategoriaId == categoria.Id);
+        var dupla = await ctx.Duplas.Include(d => d.Jogador1).Include(d => d.Jogador2)
+            .FirstAsync(d => d.CategoriaId == categoria.Id);
         dupla.Jogador1.Celular = "51992395650";
+        dupla.Jogador2!.Celular = "51988776655";
         dupla.Pago = true;
         dupla.ImpedimentoSextaNoite = true;
         dupla.ImpedimentoAlteradoEm = new DateTime(2026, 9, 1, 14, 30, 0);
@@ -84,11 +92,33 @@ public class RelatorioDuplasCsvTests
         Assert.Equal("text/csv", arquivo.ContentType);
         var texto = Encoding.UTF8.GetString(arquivo.FileContents);
 
-        Assert.Contains(dupla.NomeDeExibicao, texto);
+        Assert.Contains("Categoria;Jogador 1;Fone 1;Jogador 2;Fone 2;Pago;Impedimento;Impedimento alterado em", texto);
+        Assert.Contains(dupla.Jogador1.NomeNaTela, texto);
+        Assert.Contains(dupla.Jogador2.NomeNaTela, texto);
         Assert.Contains("(51) 99239-5650", texto);
+        Assert.Contains("(51) 98877-6655", texto);
         Assert.Contains("Sim", texto);
         Assert.Contains("Sexta à noite", texto);
         Assert.Contains("01/09/2026 14:30", texto);
+    }
+
+    // O mesmo estado que a planilha da Camila já marca em vermelho — inscrição sem parceiro
+    // ainda (Jogador2Id nulo) não pode virar uma célula vazia sem explicação.
+    [Fact]
+    public async Task Dupla_sem_parceiro_mostra_procurando_parceiro()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, criador) = Cenario(ctx, qtdDuplas: 0);
+        var sozinho = TestInfra.NovoJogador(50);
+        ctx.Jogadores.Add(sozinho);
+        ctx.Duplas.Add(new Dupla { Categoria = categoria, Jogador1 = sozinho });
+        await ctx.SaveChangesAsync();
+
+        var resultado = await TestInfra.NovoTorneiosController(ctx, criador.Id).RelatorioDuplasCsv(torneio.Id);
+
+        var arquivo = Assert.IsType<FileContentResult>(resultado);
+        var texto = Encoding.UTF8.GetString(arquivo.FileContents);
+        Assert.Contains("Procurando parceiro", texto);
     }
 
     [Fact]
