@@ -837,7 +837,20 @@ namespace Padelizou.Controllers
                     torneio.Id);
             }
 
-            return RedirectToAction("Details", new { id = torneio.Id });
+            TempData["Sucesso"] = "Inscrições encerradas. O próximo passo é sortear os grupos e gerar as chaves.";
+
+            // ⚠️ A HASH NÃO É ENFEITE: é ela que decide em qual aba a Details abre.
+            //
+            // Encerrar troca o status pra "Chaves em Sorteio", e é isso que faz `torneioComecou`
+            // virar true na view. A aba Inscritos perde o `active`, a aba Jogos assume — e neste
+            // exato momento ela está vazia por definição, porque o sorteio ainda não rodou. O
+            // organizador acabava de fechar as inscrições e caía num "Nenhum jogo agendado",
+            // com o botão de sortear a um clique dali sem nada dizendo isso.
+            //
+            // `#admin` é o painel de controle, que só existe pra quem gerencia (ViewBag.PodeGerenciar).
+            // Quando quem chega não pode vê-lo, o script de abas não acha o alvo e sai calado —
+            // a página abre na aba padrão, sem erro nenhum.
+            return RedirectToAction("Details", "Torneios", new { id = torneio.Id }, fragment: "admin");
         }
 
         // ---- "Pagar agora" de uma inscrição que já existe ----
