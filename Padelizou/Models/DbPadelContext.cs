@@ -91,6 +91,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
+    public DbSet<CurtidaDoComentario> CurtidasDoComentario { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
 
     // A caixa de entrada de avisos do jogador (a tela "Notificações"). Ver AvisoDoJogador.
@@ -772,6 +773,28 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.PerfilId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CurtidaDoComentario>(entity =>
+        {
+            // UMA curtida por pessoa em cada comentário — mesma régua do Elogio.
+            entity.HasIndex(e => new { e.ComentarioId, e.JogadorId }).IsUnique();
+
+            // ⚠️ OS DOIS EM CASCADE, e não é o conflito do Elogio/ComentarioPerfil (que é
+            // sobre DUAS FKs da MESMA entidade indo pro MESMO Jogador). Aqui as FKs vão pra
+            // tabelas DIFERENTES (ComentarioPerfil e Jogador) e convergem em
+            // CurtidaDoComentario por caminhos independentes — a mesma forma de
+            // BloqueioDoRanking, e o Postgres lida com caminho múltiplo de cascade sem
+            // reclamar (o conflito é coisa do SQL Server). Apagar o comentário apaga as
+            // curtidas dele; apagar a conta de quem curtiu apaga as curtidas que ela deu.
+            entity.HasOne(e => e.Comentario)
+                .WithMany(c => c.Curtidas)
+                .HasForeignKey(e => e.ComentarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<BloqueioDoRanking>(entity =>
         {

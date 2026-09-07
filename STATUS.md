@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **07/09/2026** — ❤️ **CURTIR COMENTÁRIO NO PERFIL.**
+>
+> 🗣️ **O pedido do Felipe:** *"Permita as pessoas curtirem comentário no perfil também"*.
+>
+> 🧱 **`CurtidaDoComentario`, tabela nova — mesma forma do `Elogio`:** um por pessoa (índice único `ComentarioId`+`JogadorId`, chave composta no banco), duas ações (`CurtirComentario`/`DescurtirComentario`, não um toggle só — mesmo padrão de `DarElogio`/`RemoverElogio` e `SeguirTorneio`/`DeixarDeSeguirTorneio`), e o autor não curte o próprio. O dono do PERFIL pode curtir os comentários que os outros deixaram nele — a trava é só sobre quem ESCREVEU o texto.
+>
+> 🕳️ **UMA FALSIFICAÇÃO QUE ENSINOU ALGO SOBRE A PRÓPRIA SUÍTE:** o comentário do teste dizia "a chave composta no banco não deixa clicar duas vezes" — mas removendo a checagem em C# (`jaCurti`) pra provar isso, a suíte deixou **duas linhas** entrarem, caladas. **O EF InMemory não aplica índice único.** A trava real, que a suíte consegue exercitar, é a checagem em C#; o índice do banco é a segunda camada, que só um teste contra Postgres provaria — e o comentário do teste foi corrigido pra dizer isso.
+>
+> 🔗 **FKs convergentes, não conflitantes:** `CurtidaDoComentario` tem uma FK pra `ComentarioPerfil` e outra pro `Jogador` que curtiu — as DUAS em cascade. Não é o mesmo conflito do `Elogio`/`ComentarioPerfil` (que é sobre duas FKs da MESMA entidade indo pro MESMO Jogador, por isso um Cascade e um Restrict lá); aqui os caminhos são independentes, mesma forma do `BloqueioDoRanking` — e o Postgres não reclama de caminho múltiplo de cascade (o conflito é coisa do SQL Server).
+>
+> 🧪 **5.387 testes, 0 falhas (12 novos).** **Com migration** (`AddCurtidaDoComentario` — tabela nova, sem dado existente pra migrar). **Falsificado:** guarda de autor, checagem de duplicidade (achou o buraco do InMemory), e a config de cascade da FK (removê-la quebra com uma `InvalidOperationException` de verdade, não silenciosa).
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **07/09/2026** — 💳 **A ABA "PAGAMENTOS": IMPEDIMENTO EDITÁVEL PELO ORGANIZADOR + COBRANÇA EM LOTE.**
 >
 > 🗣️ **O pedido do Felipe:** *"vamos criar uma aba para gerenciar melhor os pagamentos, impedimentos e cobrar jogador, e tem como ter uma opção do usuário mesmo cobrar todos os jogadores que não pagaram de uma vez?"* — e, num segundo recado: *"nessa tela o organizador pode enxergar quem solicitou impedimento e pra qual horário. permite ele editar esse impedimento"*.

@@ -490,6 +490,30 @@
                                     </div>
                                 </div>
                                 <p class="mb-0 small">@c.Texto</p>
+                                @* CURTIR — pedido do Felipe (07/09/2026): "Permita as pessoas
+                                   curtirem comentário no perfil também". Mesma régua do elogio:
+                                   quem escreveu o texto não curte o próprio; o dono DESTE
+                                   perfil pode curtir os comentários dos outros numa boa. *@
+                                @{
+                                    bool euCurti = meuId != null && c.Curtidas.Any(k => k.JogadorId == meuId);
+                                }
+                                @if (meuId != null && meuId != c.AutorId)
+                                {
+                                    <form asp-controller="Jogadores" asp-action="@(euCurti ? "DescurtirComentario" : "CurtirComentario")"
+                                          asp-route-comentarioId="@c.Id" method="post" class="mt-1">
+                                        <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none @(euCurti ? "text-danger" : "text-muted")">
+                                            <i class="bi @(euCurti ? "bi-heart-fill" : "bi-heart")"></i>
+                                            @if (c.Curtidas.Count > 0)
+                                            {
+                                                @: @c.Curtidas.Count
+                                            }
+                                        </button>
+                                    </form>
+                                }
+                                else if (c.Curtidas.Count > 0)
+                                {
+                                    <span class="small text-muted d-block mt-1"><i class="bi bi-heart-fill text-danger"></i> @c.Curtidas.Count</span>
+                                }
                             </div>
                         </div>
                     }
