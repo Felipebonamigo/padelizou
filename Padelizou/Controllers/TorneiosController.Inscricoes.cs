@@ -684,9 +684,14 @@ namespace Padelizou.Controllers
 
             // Mesmo formato de PagamentosController.ExportarCsv: ponto e vírgula (o Excel
             // brasileiro abre certo de primeira) e BOM UTF-8 (sem ele, acento vira lixo).
+            //
+            // ⚠️ JOGADOR 1 e JOGADOR 2 EM COLUNAS SEPARADAS, cada um com seu próprio telefone —
+            // não "Fulano & Sicrano" numa coluna só. O Felipe mandou a planilha que a Camila já
+            // usa na mão: Jogador 1/Fone 1/Jogador 2/Fone 2, pra poder ligar pra qualquer um
+            // dos dois direto da linha, sem abrir outra tela.
             static string Campo(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Categoria;Nome;Telefone;Pago;Impedimento;Impedimento alterado em");
+            sb.AppendLine("Categoria;Jogador 1;Fone 1;Jogador 2;Fone 2;Pago;Impedimento;Impedimento alterado em");
             foreach (var dupla in duplas)
             {
                 var turno = AlteracaoDeImpedimento.TurnoAtual(dupla);
@@ -697,10 +702,15 @@ namespace Padelizou.Controllers
                 var quando = turno == TurnoDoImpedimento.Nenhum || dupla.ImpedimentoAlteradoEm == null
                     ? ""
                     : dupla.ImpedimentoAlteradoEm.Value.ToString("dd/MM/yyyy HH:mm");
+                // NULO = ainda procurando parceiro (Dupla.Jogador2Id) — mesmo estado que a
+                // planilha da Camila já marca à mão; uma célula vazia sem dizer o motivo
+                // pareceria um dado perdido, não uma inscrição incompleta de verdade.
                 sb.AppendLine(string.Join(";",
                     Campo(dupla.Categoria.Nome),
-                    Campo(dupla.NomeDeExibicao),
-                    Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador1?.Celular)),
+                    Campo(dupla.Jogador1.NomeNaTela),
+                    Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador1.Celular)),
+                    Campo(dupla.Jogador2?.NomeNaTela ?? "Procurando parceiro"),
+                    Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador2?.Celular)),
                     torneio.PrecoInscricao > 0 ? (dupla.Pago ? "Sim" : "Não") : "-",
                     Campo(AlteracaoDeImpedimento.Rotulo(turno)),
                     quando));
