@@ -23,4 +23,8 @@ public class ComentarioPerfil
     // da conta do denunciante esbarrar numa denúncia pendente (a ExclusaoDeConta limpa
     // o que o jogador ESCREVEU, não o que ele marcou dos outros).
     public int? DenunciadoPorId { get; set; }
+
+    // Quem curtiu (Models/CurtidaDoComentario.cs). A tela lê `.Count` pro número e
+    // `.Any(k => k.JogadorId == meuId)` pra saber se EU já curti — sem consulta à parte.
+    public virtual ICollection<CurtidaDoComentario> Curtidas { get; set; } = new List<CurtidaDoComentario>();
 }

@@ -197,6 +197,7 @@ public class JogadoresController : Controller
         // Comentários no perfil: públicos, quem pode apagar é o autor, o dono do perfil ou um admin.
         ViewBag.Comentarios = await _context.ComentariosPerfil
             .Include(c => c.Autor)
+            .Include(c => c.Curtidas)
             .Where(c => c.PerfilId == id)
             .OrderByDescending(c => c.CriadoEm)
             .ToListAsync();
@@ -560,6 +561,56 @@ public class JogadoresController : Controller
         if (comentario != null && (comentario.AutorId == meuId || comentario.PerfilId == meuId || souAdmin))
         {
             _context.ComentariosPerfil.Remove(comentario);
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("Perfil", new { id = perfilId });
+    }
+
+    // ── Curtir um comentário do mural ─────────────────────────────────────────────────────
+    // Pedido do Felipe (07/09/2026): "Permita as pessoas curtirem comentário no perfil
+    // também". Mesma forma do Elogio: duas ações (Curtir/Descurtir), não um toggle só — e a
+    // trava de "um por pessoa" mora na chave composta do banco (Models/DbPadelContext),
+    // não numa checagem em C# que um clique duplo pudesse escapar.
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CurtirComentario(int comentarioId)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var comentario = await _context.ComentariosPerfil.FindAsync(comentarioId);
+        if (comentario == null) return NotFound();
+
+        // Mesma régua do elogio: não curte o próprio. O dono do PERFIL onde o comentário está
+        // pode curtir numa boa — a trava é só sobre quem ESCREVEU o texto.
+        if (comentario.AutorId != meuId)
+        {
+            bool jaCurti = await _context.CurtidasDoComentario
+                .AnyAsync(c => c.ComentarioId == comentarioId && c.JogadorId == meuId);
+            if (!jaCurti)
+            {
+                _context.CurtidasDoComentario.Add(new CurtidaDoComentario { ComentarioId = comentarioId, JogadorId = meuId });
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        return RedirectToAction("Perfil", new { id = comentario.PerfilId });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DescurtirComentario(int comentarioId)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var comentario = await _context.ComentariosPerfil.FindAsync(comentarioId);
+        int perfilId = comentario?.PerfilId ?? 0;
+
+        var curtida = await _context.CurtidasDoComentario
+            .FirstOrDefaultAsync(c => c.ComentarioId == comentarioId && c.JogadorId == meuId);
+        if (curtida != null)
+        {
+            _context.CurtidasDoComentario.Remove(curtida);
             await _context.SaveChangesAsync();
         }
 
