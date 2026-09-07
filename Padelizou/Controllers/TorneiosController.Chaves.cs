@@ -297,7 +297,7 @@ namespace Padelizou.Controllers
                 // pouco, em AprovarChaves.
                 torneio.Status = AprovacaoDeChaves.Pendente;
                 await _context.SaveChangesAsync();
-                return RedirectToAction("Details", new { id = torneio.Id });
+                return ParaAsChaves(torneio.Id);
             }
 
             // Agora sim os horários. A regra mora em EncaixarNasLevas, compartilhada com o
@@ -316,8 +316,21 @@ namespace Padelizou.Controllers
             torneio.Status = AprovacaoDeChaves.Pendente;
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("Details", new { id = torneio.Id });
+            return ParaAsChaves(torneio.Id);
         }
+
+        // Pra onde o organizador vai depois de sortear: a aba "Chaves e Grupos", que é a tela
+        // do que ele acabou de criar.
+        //
+        // ⚠️ A HASH NÃO É ENFEITE: é ela que decide em qual aba a Details abre (o script no fim
+        // da view). Sem ela a página recarregava na aba em que estava — o organizador apertava
+        // o botão que é o clímax da montagem do torneio e não via nada acontecer.
+        //
+        // Existe como método porque o GerarChaves tem DUAS saídas de sucesso: o torneio "por
+        // ordem de liberação" sai antes do encaixe na grade, o que tem horário sai depois.
+        // Duas linhas soltas divergiriam no dia em que uma delas mudasse.
+        private IActionResult ParaAsChaves(int torneioId) =>
+            RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "grupos");
 
         // A APROVAÇÃO das chaves: o passo entre "sorteado" e "público", pedido pelo Felipe.
         // Ninguém fora de quem organiza/administra vê nada até aqui — nem os inscritos (ver
