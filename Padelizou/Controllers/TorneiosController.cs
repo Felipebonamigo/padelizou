@@ -394,6 +394,19 @@ namespace Padelizou.Controllers
             ViewBag.TemRankingDePalpiteiros = partidasComResposta.Count > 0
                 && await _context.PalpitesPartida.AnyAsync(v => partidasComResposta.Contains(v.PartidaId));
 
+            // A aba Palpiteiros (07/09/2026, pedido do Felipe: "deixe uma aba no torneio para
+            // verificar o ranking do palpitômetro") só monta o ranking de verdade DEPOIS da
+            // pergunta barata acima dizer que há algo — a mesma cautela do botão, e pelo
+            // mesmo motivo: montar o ranking inteiro em TODA visita a esta página (a mais
+            // visitada do site) só pra descartá-lo quando não há nada é o custo que o botão
+            // sempre evitou. Continua existindo o mesmo raro falso-positivo documentado ali
+            // (palpite só dos 4 jogadores da própria partida, que ficam fora da conta) — lá
+            // vira 404, aqui vira "ainda não há ranking".
+            if (ViewBag.TemRankingDePalpiteiros == true)
+            {
+                ViewBag.RankingDePalpiteiros = await RankingDePalpiteiros.DoTorneioAsync(_context, id, ObterJogadorIdLogado());
+            }
+
             // 2. Roda a contabilidade grupo por grupo
             foreach (var categoria in torneio.Categorias)
             {

@@ -956,6 +956,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
+
+    @* Aba PALPITEIROS — pedido do Felipe (07/09/2026): "deixe uma aba no torneio para
+       verificar o ranking do palpitômetro". Mesma checagem barata que já decide o botão
+       lá em cima (ViewBag.TemRankingDePalpiteiros); a aba só existe quando esse "sim"
+       já veio, então o ranking (ViewBag.RankingDePalpiteiros) já está pronto pra ela. *@
+    @if (ViewBag.TemRankingDePalpiteiros == true)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="palpiteiros-tab" data-bs-toggle="tab" data-bs-target="#palpiteiros" type="button" role="tab" style="color: var(--pdz-ink);">
+                <i class="bi bi-graph-up"></i> Palpiteiros
+            </button>
+        </li>
+    }
 </ul>
 
 <!-- Conteúdo das Abas -->
@@ -4697,6 +4710,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     </tbody>
                 </table></div></div>
             }
+        </div>
+    }
+    <!-- ABA: PALPITEIROS (ranking do Palpitrômetro) -->
+    @if (ViewBag.TemRankingDePalpiteiros == true)
+    {
+        <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
+            <partial name="_RankingDePalpiteiros" model="(Padelizou.Services.PalpiteirosDoTorneio)ViewBag.RankingDePalpiteiros" />
         </div>
     }
     <!-- ABA: CHAVES E GRUPOS -->
