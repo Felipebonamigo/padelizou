@@ -57,6 +57,23 @@ public class AbaPagamentosNaPaginaDoTorneioTests
         Assert.Contains("id=\"pagamentos\"", bloco);
     }
 
+    // O BOTÃO DO RELATÓRIO — pedido do Felipe (07/09/2026): "crie um botão com um relatório
+    // em excel, com nome completo, telefone, se pagou ou não, se tem impedimento e quando".
+    // Atrás de PodeVerDinheiro (não PodeGerenciar): é o telefone em texto puro na planilha
+    // que pede essa régua, mesma trava do link "Cobrar" — ver RelatorioDuplasCsvTests pra a
+    // trava de comportamento de verdade (quem baixa, o que cada coluna traz).
+    [Fact]
+    public void O_botao_do_relatorio_existe_e_aponta_pra_acao_certa()
+    {
+        var bloco = BlocoDoPainel();
+
+        var inicioLink = bloco.IndexOf("asp-action=\"RelatorioDuplasCsv\"", StringComparison.Ordinal);
+        Assert.True(inicioLink >= 0, "Não achei o link do relatório (asp-action=\"RelatorioDuplasCsv\").");
+
+        var gate = bloco.LastIndexOf("PodeVerDinheiro == true", inicioLink, StringComparison.Ordinal);
+        Assert.True(gate >= 0, "O botão do relatório precisa estar atrás de `ViewBag.PodeVerDinheiro == true`.");
+    }
+
     // O CORAÇÃO DO PEDIDO (segunda rodada): quem só ajuda a organizar — sem ver dinheiro —
     // continua enxergando e editando impedimento. O botão/formulário de impedimento não pode
     // estar DENTRO de um `if (ViewBag.PodeVerDinheiro ...) { ... }` — e a aba tem vários
