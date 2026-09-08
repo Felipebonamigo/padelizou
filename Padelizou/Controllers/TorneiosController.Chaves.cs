@@ -161,11 +161,13 @@ namespace Padelizou.Controllers
                     continue;
                 }
 
-                // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
-                var duplasOrdenadas = duplas
-                    .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
-                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
-                    .ToList();
+                // ORDENAÇÃO PELO RANKING, COM DESEMPATE SORTEADO (define os cabeças de chave).
+                //
+                // ⚠️ O desempate não é detalhe: sem ele, `OrderByDescending` é estável e devolve
+                // a ordem em que as duplas vieram do banco — ou seja, a de inscrição. Num
+                // torneio em que ninguém tem ponto ainda, isso fazia o ranking inteiro virar
+                // "quem se inscreveu primeiro". Ver Services/SemeaduraDaChave.
+                var duplasOrdenadas = SemeaduraDaChave.Ordenar(duplas, pontosPorJogador, Random.Shared);
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
                 // múltiplo de 3, os melhores rankeados resolvem em grupo(s) de 2 (chave direta),
