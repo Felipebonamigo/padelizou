@@ -351,6 +351,14 @@ public sealed class SedesDoTorneio
     // Pares "categoria:clube" das caixas de seleção. Mesma forma de `PreferenciaDeQuadra.Ler`
     // e pelo mesmo motivo: é o que o navegador manda de graça e o que o binder entrega sem
     // ajuda. Par repetido some — a categoria só joga num lugar.
+    // A MESMA leitura serve pra QUADRA desde 08/09/2026, quando o editor de sedes saiu do
+    // formulário de gestão e virou tela própria. No formulário antigo a quadra era endereçada
+    // por POSIÇÃO (`ClubeDaQuadraNaPosicao`) porque nome e clube viajavam no MESMO POST;
+    // separados, duas abas abertas fariam as posições discordarem e o clube da quadra 3 iria
+    // parar na quadra 4, calado. Por Id isso não existe.
+    public static Dictionary<int, int> LerClubePorQuadra(IEnumerable<string>? valores, ISet<int> permitidos) =>
+        LerClubePorCategoria(valores, permitidos);
+
     public static Dictionary<int, int> LerClubePorCategoria(IEnumerable<string>? valores, ISet<int> permitidos)
     {
         var porCategoria = new Dictionary<int, int>();

@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **08/09/2026** — 📦 **O EDITOR DE SEDES MUDOU DE CASA.**
+>
+> 🗣️ **O pedido do Felipe:** *"move o editor de sedes pra aba nova"* — o bloco que eu tinha deixado de fora do bloco anterior, com a ressalva de que era refactor de risco.
+>
+> 🚚 **SAIU** do formulão de "Gerenciar Torneio" e **VIROU POST PRÓPRIO** (`AlterarSedesDoTorneio`) na sub-aba "Quadras e sedes", ao lado da janela do local alugado, do transbordo e do "só um jogo por dupla lá" — que é o mesmo assunto. "Gerenciar Torneio" ficou com o **nome e a quantidade** das quadras, que é identidade e existe também na criação.
+>
+> 🔑 **A QUADRA PASSOU A SER ENDEREÇADA POR Id, E NÃO DAVA PRA NÃO MUDAR.** No formulário antigo o 3º campo de nome andava em par com o 3º select de clube — seguro só porque os dois viajavam no MESMO POST. Separados, duas abas abertas fariam as posições discordarem e o clube da quadra 3 iria parar na quadra 4, calado. O formato virou `"id:clube"`, o mesmo que a categoria já usava.
+>
+> 🧹 **SUMIU A LISTA DE "QUAIS CLUBES SÃO SEDE" — e isso deixou o código mais próximo do que ele já dizia de si:** `SedesDoTorneio` afirma em letras garrafais que *"a fonte da verdade é a quadra"* e que não existe tabela de sedes. A lista à parte era justamente a segunda verdade que aquele comentário condenava. Agora o organizador diz onde cada quadra fica e a lista de sedes cai fora disso sozinha — **~120 linhas de JS foram embora** (a caixa "mais de um clube", o add/remove de clube, o par posicional, o init que reabria tudo). Sobrou UMA função, que monta a tabela de categorias a partir dos selects de quadra pra não exigir dois salvamentos.
+>
+> 🔒 **A MARCA `sedesInformadas` FOI EMBORA JUNTO, e a troca é honesta:** ela existia só pra impedir que um POST sem os campos apagasse as sedes. Agora o `Editar` **não escreve mais** em `Quadra.ClubeId`, `Categoria.ClubeId` nem `MinutosParaTrocarDeClube` — e é isso que o teste de regressão trava. `NomeDeQuadraUnico` passou a perguntar ao BANCO se o torneio tem mais de um clube (era o formulário quem dizia), pra que a explicação da recusa de nome repetido continue sendo a certa.
+>
+> 🕵️ **DUAS GUARDAS NÃO FALSIFICARAM, e as duas ensinaram algo diferente:**
+> - O filtro "esta quadra é deste torneio?" era **redundante de verdade** — os laços já percorrem só as quadras daqui e consultam o mapa por Id. **Removido**, com o motivo escrito: guarda que nenhum teste distingue de não existir é a que some no próximo refactor sem ninguém notar.
+> - O filtro da CATEGORIA parecia igual, mas é **carga** — por um caminho que eu não tinha testado: ele alimenta a validação de "categoria em clube sem quadra", e sem ele uma categoria de OUTRO torneio bloquearia o salvamento daqui. Ganhou o teste que faltava, e aí falsificou.
+>
+> 🌐 **O JS NOVO FOI VERIFICADO NO CHROMIUM DE VERDADE**, com as funções extraídas da própria view (não uma cópia): a tabela aparece com duas sedes, some com uma, preserva a escolha no vai e vem, traz marcado o que veio do banco, e nome de clube com HTML **não** vira markup.
+>
+> 🧪 **5.554 testes, 0 falhas (18 novos).** **Sem migration.** Sete guardas falsificadas.
+>
+> ⚠️ **Não visto renderizado** — o Chromium aqui exercitou o JS isolado, não a página. O layout da sub-aba e o sumiço do bloco antigo na gestão precisam do olho do Felipe.
+>
 > Última atualização: **08/09/2026** — 🏟️ **O LOCAL EXTERNO ALUGADO POR HORA (o caso do Er).**
 >
 > 🗣️ **O pedido do Felipe:** *"esse do ER por exemplo, como colocou muita dupla, ele terá q locar um local externo ao dele, ou seja, adicionar mais quadras para por os jogos [...] vai ter q por quantos jogos vão para la, ou quais horarios, quais categorias [...] isso só vai ser sabido quando formos gerar as chaves, talvez naquela aba 'pagamentos e impedimentos'"*. E, num segundo recado: *"o Er também me falou, que eles não querem q a dupla jogue os 2 jogos la, que jogue apenas um, para que ele possa jogar no clube dele também"*.

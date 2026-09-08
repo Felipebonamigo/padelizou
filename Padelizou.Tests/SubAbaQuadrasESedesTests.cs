@@ -63,6 +63,63 @@ public class SubAbaQuadrasESedesTests
         Assert.DoesNotContain("name=\"quantosJogos\"", trecho);
     }
 
+    // ── A MUDANÇA DE CASA (08/09/2026) ────────────────────────────────────────────────────
+    // 🗣️ Felipe: "move o editor de sedes pra aba nova". Os dois lados precisam de trava: o
+    // editor CHEGOU aqui e SAIU de lá. Só o primeiro deixaria as duas telas coexistindo, que é
+    // exatamente o que ele não queria.
+
+    [Fact]
+    public void O_editor_de_sedes_esta_na_sub_aba()
+    {
+        var fonte = Details();
+
+        var painel = fonte.IndexOf("id=\"pagamentosQuadras\"", StringComparison.Ordinal);
+        Assert.True(painel >= 0);
+
+        var form = fonte.IndexOf("asp-action=\"AlterarSedesDoTorneio\"", painel, StringComparison.Ordinal);
+        Assert.True(form > painel, "O editor de sedes precisa estar dentro da sub-aba Quadras e sedes.");
+
+        // Os três campos que ele carrega.
+        Assert.Contains("name=\"clubesQuadras\"", fonte);
+        Assert.Contains("name=\"clubesCategorias\"", fonte);
+        Assert.Contains("name=\"minutosParaTrocarDeClube\"", fonte);
+    }
+
+    // ⚠️ O LADO QUE MAIS IMPORTA. Enquanto o editor morava no formulário de gestão, a marca
+    // `sedesInformadas` era o que impedia um POST sem os campos de apagar as sedes. Se um
+    // pedaço dele ficar pra trás naquele formulário, ele volta a mandar `clubesQuadras` num
+    // POST que o servidor não lê mais — e o organizador acha que salvou.
+    [Theory]
+    [InlineData("sedesInformadas")]
+    [InlineData("clubesDoTorneio")]
+    [InlineData("chkEditMaisDeUmClube")]
+    [InlineData("pdzEditListaDeSedes")]
+    [InlineData("data-sedes-atuais")]
+    public void Nao_sobrou_pedaco_do_editor_antigo_na_gestao(string vestigio)
+    {
+        var fonte = Details();
+
+        // O comentário que explica a mudança pode citar o nome; o que não pode é campo vivo.
+        var linhasVivas = fonte.Split('\n')
+            .Where(l => l.Contains(vestigio, StringComparison.Ordinal))
+            .Where(l => !l.TrimStart().StartsWith("//") && !l.Contains("@*") && !l.Contains("*@"))
+            .Where(l => !l.Contains("`" + vestigio + "`"))
+            .ToList();
+
+        Assert.True(linhasVivas.Count == 0,
+            $"Sobrou \"{vestigio}\" vivo na tela:\n{string.Join("\n", linhasVivas)}");
+    }
+
+    // A quadra é endereçada por Id, e não por posição — é o que a separação do formulário
+    // obrigou. `ClubeDaQuadraNaPosicao` era o helper da amarração posicional.
+    [Fact]
+    public void A_quadra_e_endereçada_por_Id_e_nao_por_posicao()
+    {
+        var fonte = Details();
+
+        Assert.DoesNotContain("ClubeDaQuadraNaPosicao", fonte);
+    }
+
     private static string Details() =>
         File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
 

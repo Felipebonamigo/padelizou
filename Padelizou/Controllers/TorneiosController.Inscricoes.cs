@@ -751,6 +751,110 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── ONDE CADA QUADRA FICA, E ONDE CADA CATEGORIA JOGA ────────────────────────────
+        // 🗣️ Felipe, 08/09/2026: "move o editor de sedes pra aba nova".
+        //
+        // ⚠️ ISTO SAIU DO `Editar` (TorneiosController.Criacao) E VEIO PRA CÁ. Lá ele vivia
+        // dentro do formulário gigante de gestão, com a marca `sedesInformadas` — que existia
+        // só pra que um POST sem os campos não apagasse as sedes. Tela própria não precisa de
+        // marca: quem manda este POST está mexendo em sede, e ninguém mais escreve nessas
+        // colunas.
+        //
+        // ⚠️ E A QUADRA PASSOU A SER ENDEREÇADA POR **Id**, não por posição. No formulário
+        // antigo o 3º campo de nome andava em par com o 3º select de clube, e isso só era
+        // seguro porque os dois viajavam juntos. Separados, duas abas abertas fariam as
+        // posições discordarem e o clube da quadra 3 iria parar na quadra 4 — calado. O
+        // formato é o mesmo "id:clube" que a categoria já usava.
+        //
+        // ⚠️ A LISTA É A VERDADE INTEIRA: quadra que não vier no POST volta pro clube do
+        // torneio, e categoria que não vier fica solta. A tela manda uma linha por quadra e uma
+        // por categoria, então "não veio" quer dizer "é de casa" — não "não mexi". É o mesmo
+        // desenho da preferência de quadra (regravar tudo em vez de comparar e ajustar), e é o
+        // que faz a tela ser a verdade.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarSedesDoTorneio(int id, string[]? clubesQuadras,
+            string[]? clubesCategorias, int? minutosParaTrocarDeClube)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+            var categorias = await _context.Categorias.Where(c => c.TorneioId == id).ToListAsync();
+
+            // Os clubes que ESTE POST pode citar: os do catálogo, mais o clube do torneio. Um
+            // id que não esteja aqui é descartado pela leitura, não recusado — mesma régua do
+            // formulário antigo.
+            var permitidos = (await _context.Clubes.Select(c => c.Id).ToListAsync()).ToHashSet();
+
+            var porQuadra = SedesDoTorneio.LerClubePorQuadra(clubesQuadras, permitidos);
+            var porCategoria = SedesDoTorneio.LerClubePorCategoria(clubesCategorias, permitidos);
+
+            // ⚠️ SÓ AS CATEGORIAS DESTE TORNEIO. O valor vem do navegador, e aqui o filtro é
+            // CARGA, não zelo: `clubeDaCategoria.Values` alimenta a validação logo abaixo, e uma
+            // categoria de OUTRO torneio apontada pra um clube sem quadra aqui faria a recusa
+            // disparar — o organizador não conseguiria salvar as próprias sedes por causa de um
+            // valor que não é dele. Travado em
+            // SedesNaAbaDeQuadrasTests.Categoria_de_outro_torneio_nao_bloqueia_o_salvamento_daqui.
+            var idsDeCategoria = categorias.Select(c => c.Id).ToHashSet();
+            var clubeDaCategoria = porCategoria.Where(p => idsDeCategoria.Contains(p.Key))
+                .ToDictionary(p => p.Key, p => p.Value);
+
+            // ⚠️ A QUADRA NÃO PRECISA DO MESMO FILTRO, e não é descuido: os dois laços abaixo
+            // percorrem `quadras`, que já é só o deste torneio, e consultam o mapa POR Id. Um id
+            // de fora simplesmente nunca casa. Um filtro aqui seria uma segunda tranca que
+            // nenhum teste consegue distinguir de não existir — e guarda que não dá pra
+            // falsificar é a que some no próximo refactor sem ninguém notar.
+            var clubeDaQuadra = porQuadra;
+
+            // A MESMA recusa do formulário antigo, e ela vem ANTES de gravar qualquer coisa:
+            // meio salvo é pior que nada salvo. Ver Services/SedesDoTorneio.MotivoParaNaoSalvar.
+            var clubeDeCadaQuadra = quadras.Select(q =>
+                clubeDaQuadra.TryGetValue(q.Id, out var clube) ? clube
+                : torneio.ClubeId > 0 ? torneio.ClubeId : (int?)null);
+
+            if (SedesDoTorneio.MotivoParaNaoSalvar(clubeDeCadaQuadra, clubeDaCategoria.Values) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+            }
+
+            foreach (var quadra in quadras)
+            {
+                // Nulo = "no clube do torneio". É o que TODA quadra de torneio de uma sede só é,
+                // e é por isso que voltar pra uma sede só não precisa de conversão nenhuma.
+                quadra.ClubeId = clubeDaQuadra.TryGetValue(quadra.Id, out var clube)
+                                 && clube != torneio.ClubeId
+                    ? clube
+                    : null;
+            }
+
+            foreach (var categoria in categorias)
+            {
+                categoria.ClubeId = clubeDaCategoria.TryGetValue(categoria.Id, out var sede) ? sede : null;
+            }
+
+            // Negativo vira zero, e zero desliga a folga de propósito — o organizador que tem as
+            // duas sedes na mesma rua não quer buraco nenhum na grade. Nulo = campo ausente, e
+            // aí o que está gravado FICA.
+            if (minutosParaTrocarDeClube is { } folga)
+                torneio.MinutosParaTrocarDeClube = Math.Max(0, folga);
+
+            await _context.SaveChangesAsync();
+
+            var sedesAgora = quadras.Where(q => q.ClubeId != null).Select(q => q.ClubeId).Distinct().Count();
+            TempData["Sucesso"] = sedesAgora == 0
+                ? "Todas as quadras voltaram pro clube do torneio."
+                : $"Sedes salvas. Vale a partir do próximo sorteio (ou do \"Refazer grade\") — "
+                  + "jogo que já tem quadra não muda de lugar sozinho.";
+
+            return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+        }
+
         // Esta categoria pode transbordar pro local externo? Não confundir com o clube FIXO da
         // categoria (Gerenciar Torneio), que é trava dura: aqui é a régua mole do Er — a sede
         // principal enche e o que sobra vai pro alugado.
