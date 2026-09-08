@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-800-d9f8050`** (08/09/2026) — os três blocos abaixo, do PR #82. As duas migrations aplicaram: o `/healthz` devolve **503** quando há migration pendente (a trava de 07/08/2026), então o 200 que o `deploy.sh` exigiu nos dois ambientes é a prova de que o schema subiu junto.
+>
+> ⚠️ **A TRAVA DO PROD NÃO ESTÁ LIGADA — achado deste deploy.** O `infra/vps/README.md` diz que o environment `prod` deve ter **Required reviewers**, e que *"a trava não vem do arquivo `deploy.yml`, vem daqui"*. Ela **não está configurada**: o deploy em produção saiu **direto**, sem parar pra aprovação nenhuma. É exatamente o cenário que o próprio README antecipa ("se ele não existir, o GitHub cria sozinho na primeira execução — sem regra nenhuma"). **Settings → Environments → `prod` → Required reviewers.** Enquanto isso não for feito, qualquer disparo do workflow publica em produção sem confirmação.
+>
+> ⚠️ **E ISTO FOI PUBLICADO SEM NINGUÉM TER VISTO A TELA RENDERIZADA.** As três sub-abas novas, o `<optgroup>` do select de impedimento e o sumiço do bloco de sedes na gestão nunca passaram por um browser de verdade — só o JS isolado, no Chromium. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
 > Última atualização: **08/09/2026** — 📦 **O EDITOR DE SEDES MUDOU DE CASA.**
 >
 > 🗣️ **O pedido do Felipe:** *"move o editor de sedes pra aba nova"* — o bloco que eu tinha deixado de fora do bloco anterior, com a ressalva de que era refactor de risco.
