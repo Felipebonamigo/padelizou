@@ -4946,7 +4946,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                padrão do HTML pra botão sem type é submit — um clique salvaria e
                                recarregaria a página antes de o clube existir, levando junto o que
                                estivesse escolhido e não salvo. *@
-                            <div class="mb-3" style="max-width: 520px;">
+                            @* ⚠️ 720px, e não os 520px da primeira versão: nome + quadra + botão somam
+                               uns 540px, e o botão caía sozinho pra linha de baixo, entre os campos —
+                               virava um controle solto, sem dizer a que fila pertencia. *@
+                            <div class="mb-3" style="max-width: 720px;">
                                 <label class="form-label small fw-bold mb-1" for="pdzNovoClubeSede">
                                     Não achou o lugar? Cadastre o clube e diga em qual quadra ele fica
                                 </label>
