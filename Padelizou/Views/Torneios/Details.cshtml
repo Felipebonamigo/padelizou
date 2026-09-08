@@ -4932,6 +4932,46 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 }
                             </div>
 
+                            @* ── "Adicionar clube", 08/09/2026 ────────────────────────────────
+                               🗣️ Felipe: "permita aqui alterar para 'adicionar clube' nessa parte".
+
+                               O aviso do rodapé desta aba manda pra "Gerenciar Torneio" quem não
+                               achou o lugar na lista — só que lá se cadastra QUADRA, não CLUBE. O
+                               clube novo não nascia em canto nenhum do caminho, e o organizador
+                               voltava pra cá com a mesma lista de antes. O POST é o MESMO das
+                               outras três telas que cadastram local (wwwroot/js/adicionar-local.js);
+                               o que muda aqui é só onde a opção é pendurada, porque são N selects.
+
+                               ⚠️ `type="button"`: o botão mora DENTRO do <form> das sedes, e o
+                               padrão do HTML pra botão sem type é submit — um clique salvaria e
+                               recarregaria a página antes de o clube existir, levando junto o que
+                               estivesse escolhido e não salvo. *@
+                            <div class="mb-3" style="max-width: 520px;">
+                                <label class="form-label small fw-bold mb-1" for="pdzNovoClubeSede">
+                                    Não achou o lugar? Cadastre o clube aqui
+                                </label>
+                                <div class="d-flex gap-2">
+                                    <input type="text" id="pdzNovoClubeSede" maxlength="80"
+                                           class="form-control form-control-sm" placeholder="Nome do clube" />
+                                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                                            onclick="adicionarClubeNasSedes()">
+                                        <i class="bi bi-plus-circle"></i> Adicionar clube
+                                    </button>
+                                </div>
+                                @* Opcionais, mas é pela cidade que o local passa a existir pra
+                                   qualquer mira geográfica — ver Services/UfDoTorneio. *@
+                                <div class="d-flex gap-2 mt-2">
+                                    <input type="text" id="pdzNovoClubeSedeCidade" maxlength="80"
+                                           class="form-control form-control-sm" placeholder="Cidade (opcional)" />
+                                    <input type="text" id="pdzNovoClubeSedeEstado" maxlength="2"
+                                           class="form-control form-control-sm text-uppercase"
+                                           placeholder="UF" style="max-width: 80px;" />
+                                </div>
+                                @* O clube entra na lista SEM ficar escolhido, então sem esta linha
+                                   o clique não teria efeito visível nenhum e pareceria não funcionar. *@
+                                <small id="pdzNovoClubeSedeAviso" class="text-muted d-block mt-1"></small>
+                            </div>
+
                             <div class="mb-3" style="max-width: 320px;">
                                 <label class="form-label small fw-bold mb-1" for="pdzMinutosParaTrocarDeClube">
                                     Tempo pra ir de um clube ao outro (min)
@@ -5527,6 +5567,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         </div>
       }
     </div>
+    @* Implementação ÚNICA do "cadastre um local novo" — ver wwwroot/js/adicionar-local.js.
+       Aqui ele serve o "Adicionar clube" do editor de sedes. Fica FORA do @if de baixo: o
+       editor de sedes existe antes de o torneio começar, que é justamente quando o organizador
+       ainda está acertando onde cada quadra fica. *@
+    <script src="~/js/adicionar-local.js" asp-append-version="true"></script>
     <!-- SCRIPT (Coloque no final do arquivo Details.cshtml) -->
     <script>
             function mostrarCategoriaInscritos(categoriaId) {
