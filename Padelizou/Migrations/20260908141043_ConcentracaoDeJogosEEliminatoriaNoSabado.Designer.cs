@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260908141043_ConcentracaoDeJogosEEliminatoriaNoSabado")]
+    partial class ConcentracaoDeJogosEEliminatoriaNoSabado
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -738,9 +741,6 @@ namespace Padelizou.Migrations
 
                     b.Property<int>("PassamPorGrupo")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("PodeJogarNaSedeExtra")
-                        .HasColumnType("boolean");
 
                     b.Property<int?>("QuantidadeGrupos")
                         .HasColumnType("integer");
@@ -3000,12 +3000,6 @@ namespace Padelizou.Migrations
                     b.Property<int?>("ClubeId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("DisponivelAte")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime?>("DisponivelDe")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("text");
@@ -3410,9 +3404,6 @@ namespace Padelizou.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("DesempateAmericano")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("EvitarDoisJogosNaSedeExtra")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("ExcluirSeNaoPagar")

@@ -1,6 +1,72 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **08/09/2026** — 📦 **O EDITOR DE SEDES MUDOU DE CASA.**
+>
+> 🗣️ **O pedido do Felipe:** *"move o editor de sedes pra aba nova"* — o bloco que eu tinha deixado de fora do bloco anterior, com a ressalva de que era refactor de risco.
+>
+> 🚚 **SAIU** do formulão de "Gerenciar Torneio" e **VIROU POST PRÓPRIO** (`AlterarSedesDoTorneio`) na sub-aba "Quadras e sedes", ao lado da janela do local alugado, do transbordo e do "só um jogo por dupla lá" — que é o mesmo assunto. "Gerenciar Torneio" ficou com o **nome e a quantidade** das quadras, que é identidade e existe também na criação.
+>
+> 🔑 **A QUADRA PASSOU A SER ENDEREÇADA POR Id, E NÃO DAVA PRA NÃO MUDAR.** No formulário antigo o 3º campo de nome andava em par com o 3º select de clube — seguro só porque os dois viajavam no MESMO POST. Separados, duas abas abertas fariam as posições discordarem e o clube da quadra 3 iria parar na quadra 4, calado. O formato virou `"id:clube"`, o mesmo que a categoria já usava.
+>
+> 🧹 **SUMIU A LISTA DE "QUAIS CLUBES SÃO SEDE" — e isso deixou o código mais próximo do que ele já dizia de si:** `SedesDoTorneio` afirma em letras garrafais que *"a fonte da verdade é a quadra"* e que não existe tabela de sedes. A lista à parte era justamente a segunda verdade que aquele comentário condenava. Agora o organizador diz onde cada quadra fica e a lista de sedes cai fora disso sozinha — **~120 linhas de JS foram embora** (a caixa "mais de um clube", o add/remove de clube, o par posicional, o init que reabria tudo). Sobrou UMA função, que monta a tabela de categorias a partir dos selects de quadra pra não exigir dois salvamentos.
+>
+> 🔒 **A MARCA `sedesInformadas` FOI EMBORA JUNTO, e a troca é honesta:** ela existia só pra impedir que um POST sem os campos apagasse as sedes. Agora o `Editar` **não escreve mais** em `Quadra.ClubeId`, `Categoria.ClubeId` nem `MinutosParaTrocarDeClube` — e é isso que o teste de regressão trava. `NomeDeQuadraUnico` passou a perguntar ao BANCO se o torneio tem mais de um clube (era o formulário quem dizia), pra que a explicação da recusa de nome repetido continue sendo a certa.
+>
+> 🕵️ **DUAS GUARDAS NÃO FALSIFICARAM, e as duas ensinaram algo diferente:**
+> - O filtro "esta quadra é deste torneio?" era **redundante de verdade** — os laços já percorrem só as quadras daqui e consultam o mapa por Id. **Removido**, com o motivo escrito: guarda que nenhum teste distingue de não existir é a que some no próximo refactor sem ninguém notar.
+> - O filtro da CATEGORIA parecia igual, mas é **carga** — por um caminho que eu não tinha testado: ele alimenta a validação de "categoria em clube sem quadra", e sem ele uma categoria de OUTRO torneio bloquearia o salvamento daqui. Ganhou o teste que faltava, e aí falsificou.
+>
+> 🌐 **O JS NOVO FOI VERIFICADO NO CHROMIUM DE VERDADE**, com as funções extraídas da própria view (não uma cópia): a tabela aparece com duas sedes, some com uma, preserva a escolha no vai e vem, traz marcado o que veio do banco, e nome de clube com HTML **não** vira markup.
+>
+> 🧪 **5.554 testes, 0 falhas (18 novos).** **Sem migration.** Sete guardas falsificadas.
+>
+> ⚠️ **Não visto renderizado** — o Chromium aqui exercitou o JS isolado, não a página. O layout da sub-aba e o sumiço do bloco antigo na gestão precisam do olho do Felipe.
+>
+> Última atualização: **08/09/2026** — 🏟️ **O LOCAL EXTERNO ALUGADO POR HORA (o caso do Er).**
+>
+> 🗣️ **O pedido do Felipe:** *"esse do ER por exemplo, como colocou muita dupla, ele terá q locar um local externo ao dele, ou seja, adicionar mais quadras para por os jogos [...] vai ter q por quantos jogos vão para la, ou quais horarios, quais categorias [...] isso só vai ser sabido quando formos gerar as chaves, talvez naquela aba 'pagamentos e impedimentos'"*. E, num segundo recado: *"o Er também me falou, que eles não querem q a dupla jogue os 2 jogos la, que jogue apenas um, para que ele possa jogar no clube dele também"*.
+>
+> ✅ **METADE DO PEDIDO JÁ EXISTIA DESDE 21/08, e valeu conferir antes de codar:** torneio em mais de um clube, quadra sabendo em que clube fica, categoria PRESA a um clube, e folga pra atravessar a cidade. Tudo isso continua em **Gerenciar Torneio**, onde as quadras nascem — não foi duplicado.
+>
+> 🆕 **O QUE FALTAVA, e nasceu na sub-aba "Quadras e sedes" (dentro de Pagamentos e impedimentos, onde o Felipe pediu):**
+> - **A JANELA DA QUADRA** (`Quadra.DisponivelDe/Ate`): o lugar alugado vem por hora, e até aqui toda quadra do torneio valia o expediente inteiro — a grade marcaria jogo às 22h num portão trancado. **Trava DURA**, a única aqui que não cede nunca.
+> - **O TRANSBORDO** (`Categoria.PodeJogarNaSedeExtra`): prender a categoria INTEIRA num clube é o jeito do Dez E Batata; o do Er é outro — a sede principal enche e o que sobra vai pro externo. **Trava DURA** por categoria, mas a ESCOLHA de mandar pra lá é mole: a grade enche a sede principal primeiro, e isso é ORDEM na lista de quadras livres, não filtro (`PreferenciaDeQuadra.Escolher` já varre na ordem — zero linha de regra nova).
+> - **"SÓ UM JOGO POR DUPLA LÁ"** (`Torneio.EvitarDoisJogosNaSedeExtra`): **MOLE**, do mesmo tipo da folga de deslocamento. Prefere não repetir a dupla no alugado, mas **cede se não houver outro jogo pra pôr na vaga** — quadra parada no lugar que se está pagando por hora é o desfecho que o organizador já disse não aceitar. A memória é semeada com os jogos JÁ marcados, senão um "Refazer grade" esqueceria o jogo da manhã.
+>
+> 💡 **"QUANTOS JOGOS VÃO PRA LÁ" NÃO VIROU CAMPO**, e essa foi a discordância que valeu a pena levantar: janela e cota são **a mesma informação dita duas vezes**, e um dia iam discordar sem ninguém saber qual mandava. É `quadras × rodadas da janela` — a tela mostra a conta.
+>
+> 🕳️ **O DEFEITO DE CONTAGEM QUE A JANELA CRIA, medido e consertado:** cada rodada rende uma vaga **por quadra cadastrada, inclusive pelas fechadas**. Com metade das quadras alugadas só pra sábado de manhã, metade das vagas da sexta nasce morta e o orçamento acaba antes dos jogos — em 20 e 28 duplas, **2 jogos saíam com hora e SEM QUADRA** (o incidente do Interno de 05/08, por outra porta). `VagasDaGrade` passou a contar só as vagas ÚTEIS.
+>
+> 🚨 **UM GATE MECÂNICO NOVO, porque o mesmo erro apareceu DUAS VEZES NO MESMO DIA:** o `dotnet ef migrations add` **não lê o inicializador da propriedade** — `= true` vira `defaultValue: false` na migration, e esse é o valor que BACKFILLA as linhas de produção. Aconteceu com `EliminatoriaNoSabadoANoite` (teria tirado o sábado à noite de todas as categorias de todos os torneios) e com `PodeJogarNaSedeExtra` (teria prendido na sede principal todas as categorias soltas). **`GateDoDefaultDasColunasBoolTests` varre TODAS as migrations e cruza cada `AddColumn<bool>` com o default do modelo.** Ele já achou uma divergência HISTÓRICA e legítima — `Torneio.UsaCheckIn`, que a migration `CheckInOpcional` gravou `true` de propósito pros torneios que já estavam no ar —, anotada na lista de exceções com o motivo.
+>
+> 🧪 **5.536 testes, 0 falhas (22 novos neste bloco).** **COM migration** (`SedeExtraComHorarioETransbordo` — 4 colunas; `has-pending-model-changes` limpo). **As 9 guardas falsificadas — e duas delas NÃO caíram na primeira tentativa:** os testes da regra do Er passavam com a regra desligada, porque a ordenação "sede principal primeiro" já mandava a dupla pra Central sozinha e o cenário nunca a exercitava. Reescritos com a Central TOMADA nos horários certos, os dois passaram a cair. É a Regra 1 pegando um teste que confirmava o código em vez de travá-lo.
+>
+> ⚠️ **Não visto renderizado.** E fica UMA RESSALVA DE ESCOPO: o Felipe pediu que o editor de sedes SAÍSSE de "Gerenciar Torneio" pra cá. Ele NÃO foi movido — está costurado em ~10 pontos do POST de `Editar` (arrays posicionais de nome/clube por quadra + a marca `sedesInformadas` + JS), e mover isso junto com o motor misturaria um refactor de risco com uma feature nova. A sub-aba explica onde cadastrar a segunda sede e por quê. **Mover é o próximo bloco.**
+>
+> Última atualização: **08/09/2026** — 🕗 **"OS 2 JOGOS NA SEXTA" + SEM ELIMINATÓRIA NO SÁBADO À NOITE.**
+>
+> 🗣️ **Os dois pedidos do Felipe, no mesmo recado:** *"permita também criar uma opção, lá nos impedimentos, de 'colocar os 2 jogos na sexta', colocar os 2 jogos no sábado a tarde, os 2 jogos no sábado de manha, apenas para os organizadores e adm do sistema, para que nós possamos auxiliar algumas pessoas"* — e *"cria uma outra aba dentro dessa de pagamentos (mude o nome para Pagamentos e impedimentos) — colocar por categoria, se vai ter jogos de eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina nao pode ter jogo sabado a noite, ai passaria para domingo de manha"*.
+>
+> 🧭 **ARCHITECTURAL pelo critério do CLAUDE.md** (gera migration e encosta em dinheiro), então três decisões foram DELE antes de qualquer código, e as três moldaram o desenho:
+> - **Dinheiro:** concentrar os 2 jogos é **DE GRAÇA** — favor do organizador, não flexibilidade comprada. Quem tinha impedimento pago e vira concentração vê o valor **abaixar**, igual a tirar o impedimento. Nada cobra nem estorna sozinho.
+> - **Escopo da concentração:** só a **FASE DE GRUPOS**. "Os 2 jogos" são os 2 do grupo; a eliminatória sai depois dos grupos por definição, e prendê-la ao mesmo turno pediria o impossível.
+> - **Escopo do sábado à noite:** só as **ELIMINATÓRIAS**. Jogo de grupo da categoria continua entrando às 21h de sábado.
+>
+> 🔄 **A CONCENTRAÇÃO É O AVESSO DO IMPEDIMENTO, E POR ISSO NÃO COUBE NOS 4 BOOLEANOS.** Eles dizem "não posso em X", e `ImpedimentoUnico` garante no máximo UM ligado; ela diz "só posso em X", que precisaria de TRÊS ligados de uma vez — quebrando a invariante e fazendo o preço contar três taxas por um favor que é de graça. Daí `Dupla.ConcentrarJogosEm`, coluna própria. Na TELA, porém, é uma escolha só: os três `So*` entram no MESMO `<select>` do impedimento, num `<optgroup>` separado — dois dropdowns lado a lado convidariam ao estado impossível.
+>
+> 🔒 **A TRAVA NÃO É A TELA.** O formulário do jogador não oferece as três opções, mas um POST montado à mão chega com elas — e sem recusa qualquer inscrito se daria a concentração **e ainda abaixaria o próprio valor devido**. `MotivoParaNaoAlterar` recusa; `EhOrganizadorAsync` (que já inclui `IsAdminRaiz`/`IsAdminGeral` = "adm do sistema") é o gate do lado do organizador — nenhum papel de acesso novo foi criado.
+>
+> 🕳️ **O DEFEITO QUE O PEDIDO NÃO PREVIA, E QUE TERIA SAÍDO CALADO:** o impedimento tira UMA janela de muitas, então sempre sobra grade adiante. A concentração tira **TODAS menos uma** — e a lista de vagas é `jogos + margem`, que num fim de semana alcança a tarde de sábado por **UMA RODADA SÓ** (12h10, medido). Uma rodada não serve: a dupla joga DOIS jogos, e os dois não cabem no mesmo horário. Resultado: "os 2 jogos no sábado à tarde" — uma das três opções pedidas — caía no último recurso do encaixe e saía no dia errado, sem aviso nenhum. Consertado com `VagasDaGrade.Montar(peloMenosAte:)`, e travado por um teste que vai pelo `GerarChaves` de verdade. **Sem ninguém concentrado, a conta de vagas é EXATAMENTE a de sempre.**
+>
+> 🧨 **A MIGRATION GERADA VINHA ERRADA, E O ERRO ERA DE PRODUÇÃO:** `dotnet ef migrations add` não lê o `= true` do modelo e escreveu `defaultValue: false` — o valor que **backfilla as linhas que já existem**. O deploy teria tirado em silêncio o sábado à noite de TODAS as categorias de TODOS os torneios. Corrigido pra `true` e travado em `MigrationDaEliminatoriaNoSabadoTests`, que lê a migration como texto porque regenerá-la traz o `false` de volta.
+>
+> 📐 **"Passa pro domingo de manhã" não virou regra escrita** — de propósito. Bloqueada a noite de sábado, a próxima vaga que a grade oferece já é a abertura do dia seguinte (`HoraInicioDiasSeguintes`). Uma regra explícita seria uma segunda opinião sobre a grade, e discordaria dela no primeiro torneio de expediente diferente. O corte da noite é **18h**, constante ao lado do corte manhã/tarde (12h) que já existia.
+>
+> 🧪 **5.494 testes, 0 falhas (107 novos).** **COM migration** (`ConcentracaoDeJogosEEliminatoriaNoSabado` — duas colunas; `has-pending-model-changes` limpo). **Falsificado, um de cada vez, 9 guardas — cada uma derrubou exatamente o teste que deveria:** a recusa do jogador, a gratuidade, o recorte por fase da concentração, o recorte por fase da noite de sábado, o "turno que o torneio não tem não bloqueia nada", a checagem de dono da sub-aba, a exclusividade impedimento×concentração, o alcance da grade no sorteio e o alcance dentro do `VagasDaGrade`.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão. A aba renomeada, as duas sub-abas (`nav-pills`, reusadas de `_JogosDoTorneio`) e o `<optgroup>` no select precisam do olho do Felipe.
+>
 > Última atualização: **07/09/2026** — ❤️ **CURTIR COMENTÁRIO NO PERFIL.**
 >
 > 🗣️ **O pedido do Felipe:** *"Permita as pessoas curtirem comentário no perfil também"*.

@@ -455,7 +455,13 @@ public class RoboDoChaveamento
 
         // As vagas livres da grade, já descontando os jogos que têm dono. A receita mora em
         // Services/VagasDaGrade — eram três cópias com contas diferentes até 21/08/2026.
-        var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados);
+        // A concentração ("os 2 jogos na sexta") precisa que a grade ALCANCE o turno escolhido —
+        // ver Services/VagasDaGrade. Sem ninguém concentrado, `AteQuando` é null e a conta de
+        // vagas é exatamente a de sempre.
+        var concentracao = await ConcentracaoAsync(torneio);
+        var sedes = await SedesAsync(torneioId.Value);
+        var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados,
+            peloMenosAte: concentracao.AteQuando, sedes: sedes);
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
@@ -469,7 +475,9 @@ public class RoboDoChaveamento
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
             await QuadrasPreferidasAsync(torneioId.Value),
             await JanelasProibidasPorDuplaAsync(torneio),
-            await SedesAsync(torneioId.Value));
+            sedes,
+            concentracao.Janelas,
+            await NoiteDeSabadoPorCategoriaAsync(torneio));
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver
@@ -478,6 +486,20 @@ public class RoboDoChaveamento
     private async Task<Dictionary<int, (DateTime, DateTime)[]>> JanelasProibidasPorDuplaAsync(Torneio torneio) =>
         JanelasDeImpedimento.PorDupla(torneio, await _context.Duplas
             .Where(d => d.Categoria.TorneioId == torneio.Id)
+            .ToListAsync());
+
+    // A concentração ("os 2 jogos na sexta") e o "sem eliminatória no sábado à noite", 08/09/2026.
+    // Mesmo motivo de buscar direto no banco: `torneio` aqui vem de um FindAsync, sem
+    // Categorias/Duplas incluídas — usar as coleções vazias dele devolveria mapa vazio e a
+    // restrição sumiria em silêncio justamente no caminho que agenda as fases seguintes.
+    private async Task<ConcentracaoDeJogos.Concentracoes> ConcentracaoAsync(Torneio torneio) =>
+        ConcentracaoDeJogos.De(torneio, await _context.Duplas
+            .Where(d => d.Categoria.TorneioId == torneio.Id)
+            .ToListAsync());
+
+    private async Task<Dictionary<int, (DateTime Inicio, DateTime Fim)[]>> NoiteDeSabadoPorCategoriaAsync(Torneio torneio) =>
+        EliminatoriaNoSabado.PorCategoria(torneio, await _context.Categorias
+            .Where(c => c.TorneioId == torneio.Id)
             .ToListAsync());
 
     // O torneio em MAIS DE UM CLUBE. A régua e a consulta moram em Services/SedesDoTorneio —

@@ -98,4 +98,37 @@ public partial class Categoria
     //    obriga a grade a evitar conflito por jogador — ver Services/GradeDeJogos.Encaixar.
     // Quem cadastra as duplas é o organizador, como na de times: jogador não se inscreve.
     public bool ChaveDireta { get; set; }
+
+    // ---- ELIMINATÓRIA NO SÁBADO À NOITE (08/09/2026) ----
+    //
+    // 🗣️ Pedido do Felipe: "colocar por categoria, se vai ter jogos de eliminatórias no sábado
+    // a noite ainda ou não. por exemplo, a 5a categoria feminina nao pode ter jogo sabado a
+    // noite, ai passaria para domingo de manha".
+    //
+    // TRUE = como sempre foi, e é por isso que é o padrão: toda categoria que já existe no
+    // banco continua podendo jogar a noite inteira de sábado. Desligada, a grade não marca
+    // eliminatória DESTA categoria das 18h de sábado em diante, e o que sobra cai sozinho na
+    // abertura do domingo.
+    //
+    // ⚠️ SÓ A ELIMINATÓRIA (decisão do Felipe): os jogos de GRUPO continuam entrando no sábado
+    // à noite normalmente. A régua e o recorte por fase moram em Services/EliminatoriaNoSabado
+    // e em GradeDeJogos.Encaixar.
+    public bool EliminatoriaNoSabadoANoite { get; set; } = true;
+
+    // ---- TRANSBORDO PRA SEDE EXTRA (08/09/2026) ----
+    //
+    // 🗣️ Pedido do Felipe: o torneio que cresceu aluga um local externo, e "vai ter q por [...]
+    // quais categorias" jogam lá.
+    //
+    // ⚠️ NÃO É O `ClubeId` ACIMA, e a diferença é o assunto: `ClubeId` PRENDE a categoria
+    // inteira num clube (o jeito do Dez E Batata — ninguém passa o dia indo e voltando). Esta
+    // aqui é MOLE e é o jeito do Er: a sede principal enche, e o que não coube vai pro externo.
+    // Categoria com `ClubeId` preenchido já está presa e não olha pra este campo.
+    //
+    // ⚠️ NASCE `true` — E ISSO NÃO É DESCUIDO. Antes desta coluna, categoria sem clube fixo
+    // podia ser marcada em QUALQUER quadra do torneio. Nascer `false` prenderia, em silêncio,
+    // todas as categorias soltas de todo torneio de duas sedes que já está no banco. O que é
+    // NOVO pra todo mundo é só a preferência: a grade enche a sede principal primeiro (ver
+    // Services/GradeDeJogos.Encaixar), que é o que se quer quando a outra é alugada por hora.
+    public bool PodeJogarNaSedeExtra { get; set; } = true;
 }

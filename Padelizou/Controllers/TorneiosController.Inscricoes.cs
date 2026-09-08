@@ -653,6 +653,261 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── SEM ELIMINATÓRIA NO SÁBADO À NOITE, POR CATEGORIA (sub-aba "Eliminatórias") ───
+        // 🗣️ Pedido do Felipe (08/09/2026): "colocar por categoria, se vai ter jogos de
+        // eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina
+        // nao pode ter jogo sabado a noite, ai passaria para domingo de manha".
+        //
+        // Mora neste arquivo, e não junto do sorteio, porque é a outra metade da MESMA aba que
+        // o `AlterarImpedimentoOrganizador` logo acima serve — quem procurar "o que a aba
+        // Pagamentos e impedimentos faz" acha as duas ações lado a lado. A régua da janela está
+        // em Services/EliminatoriaNoSabado; quem a aplica é GradeDeJogos.Encaixar.
+        //
+        // ⚠️ SEM JANELA DE SORTEIO, ao contrário do impedimento: ligar/desligar isto não mexe em
+        // jogo nenhum sozinho, só muda o que a PRÓXIMA montagem de grade vai respeitar. O
+        // organizador que já sorteou e mudar de ideia aperta "Refazer grade", que é o botão que
+        // existe justamente pra isso.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarEliminatoriaNoSabado(int categoriaId, bool permitir)
+        {
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            if (categoria == null) return NotFound();
+
+            // ⚠️ A CHECAGEM DE DONO É SOBRE O TORNEIO DA CATEGORIA, lido do banco — nunca sobre
+            // um torneioId que venha no formulário. Sem isso, quem organiza o torneio A mexeria
+            // na categoria do torneio B só trocando o id no POST.
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(categoria.TorneioId, meuId)) return Forbid();
+
+            categoria.EliminatoriaNoSabadoANoite = permitir;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = permitir
+                ? $"{categoria.Nome}: as eliminatórias podem entrar no sábado à noite."
+                : $"{categoria.Nome}: sem eliminatória no sábado à noite — o que não couber até "
+                  + "as 18h cai no dia seguinte. Se as chaves já saíram, use \"Refazer grade\".";
+
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, "pagamentos");
+        }
+
+        // ── O LOCAL EXTERNO ALUGADO (sub-aba "Quadras e sedes") ───────────────────────────
+        // 🗣️ Felipe, 08/09/2026: "esse do ER por exemplo, como colocou muita dupla, ele terá q
+        // locar um local externo ao dele [...] vai ter q por quantos jogos vão para la, ou quais
+        // horarios, quais categorias, temos que pensar nisso, e aonde colocar".
+        //
+        // ⚠️ METADE DISSO JÁ EXISTIA (21/08): quais clubes, qual quadra em qual clube, e a
+        // categoria PRESA a um clube continuam em "Gerenciar Torneio", no formulário de edição.
+        // O que nasce aqui é o que só se sabe na hora de gerar as chaves: a JANELA do lugar
+        // alugado, quem PODE transbordar pra lá, e o "só um jogo por dupla lá".
+        //
+        // "Quantos jogos vão pra lá" NÃO virou campo: é `quadras × rodadas da janela`, e a tela
+        // mostra a conta (SedesDoTorneio.JogosQueCabemNaJanela). Dois campos pra mesma
+        // informação discordariam, e ninguém saberia qual mandou.
+
+        // A janela vale pra TODAS as quadras daquele clube — é o lugar que está alugado das 8h
+        // às 12h, não uma quadra dele. Nulos nos dois campos devolvem a quadra pro expediente
+        // inteiro do torneio.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarJanelaDaSede(int torneioId, int? clubeId,
+            DateTime? de, DateTime? ate)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            // ⚠️ O FILTRO É POR TORNEIO **E** POR CLUBE. Sem o TorneioId, o mesmo clube alugado
+            // por dois torneios no mesmo fim de semana teria a janela de um escrita no outro.
+            var quadras = await _context.Quadras
+                .Where(q => q.TorneioId == torneioId && q.ClubeId == clubeId)
+                .ToListAsync();
+
+            if (quadras.Count == 0)
+            {
+                TempData["Erro"] = "Esse clube não tem quadra nenhuma neste torneio.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            foreach (var quadra in quadras)
+            {
+                quadra.DisponivelDe = de;
+                quadra.DisponivelAte = ate;
+            }
+            await _context.SaveChangesAsync();
+
+            var cabem = SedesDoTorneio.JogosQueCabemNaJanela(
+                quadras.Count, de, ate, torneio.TempoPrevistoPartidaMinutos);
+
+            TempData["Sucesso"] = cabem is int quantos
+                ? $"{quadras.Count} quadra(s) disponíveis de {de:dd/MM HH:mm} a {ate:dd/MM HH:mm} — "
+                  + $"cabem cerca de {quantos} jogos. Se as chaves já saíram, use \"Refazer grade\"."
+                : $"{quadras.Count} quadra(s) voltaram a valer o expediente inteiro do torneio.";
+
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
+        // ── ONDE CADA QUADRA FICA, E ONDE CADA CATEGORIA JOGA ────────────────────────────
+        // 🗣️ Felipe, 08/09/2026: "move o editor de sedes pra aba nova".
+        //
+        // ⚠️ ISTO SAIU DO `Editar` (TorneiosController.Criacao) E VEIO PRA CÁ. Lá ele vivia
+        // dentro do formulário gigante de gestão, com a marca `sedesInformadas` — que existia
+        // só pra que um POST sem os campos não apagasse as sedes. Tela própria não precisa de
+        // marca: quem manda este POST está mexendo em sede, e ninguém mais escreve nessas
+        // colunas.
+        //
+        // ⚠️ E A QUADRA PASSOU A SER ENDEREÇADA POR **Id**, não por posição. No formulário
+        // antigo o 3º campo de nome andava em par com o 3º select de clube, e isso só era
+        // seguro porque os dois viajavam juntos. Separados, duas abas abertas fariam as
+        // posições discordarem e o clube da quadra 3 iria parar na quadra 4 — calado. O
+        // formato é o mesmo "id:clube" que a categoria já usava.
+        //
+        // ⚠️ A LISTA É A VERDADE INTEIRA: quadra que não vier no POST volta pro clube do
+        // torneio, e categoria que não vier fica solta. A tela manda uma linha por quadra e uma
+        // por categoria, então "não veio" quer dizer "é de casa" — não "não mexi". É o mesmo
+        // desenho da preferência de quadra (regravar tudo em vez de comparar e ajustar), e é o
+        // que faz a tela ser a verdade.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarSedesDoTorneio(int id, string[]? clubesQuadras,
+            string[]? clubesCategorias, int? minutosParaTrocarDeClube)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+            var categorias = await _context.Categorias.Where(c => c.TorneioId == id).ToListAsync();
+
+            // Os clubes que ESTE POST pode citar: os do catálogo, mais o clube do torneio. Um
+            // id que não esteja aqui é descartado pela leitura, não recusado — mesma régua do
+            // formulário antigo.
+            var permitidos = (await _context.Clubes.Select(c => c.Id).ToListAsync()).ToHashSet();
+
+            var porQuadra = SedesDoTorneio.LerClubePorQuadra(clubesQuadras, permitidos);
+            var porCategoria = SedesDoTorneio.LerClubePorCategoria(clubesCategorias, permitidos);
+
+            // ⚠️ SÓ AS CATEGORIAS DESTE TORNEIO. O valor vem do navegador, e aqui o filtro é
+            // CARGA, não zelo: `clubeDaCategoria.Values` alimenta a validação logo abaixo, e uma
+            // categoria de OUTRO torneio apontada pra um clube sem quadra aqui faria a recusa
+            // disparar — o organizador não conseguiria salvar as próprias sedes por causa de um
+            // valor que não é dele. Travado em
+            // SedesNaAbaDeQuadrasTests.Categoria_de_outro_torneio_nao_bloqueia_o_salvamento_daqui.
+            var idsDeCategoria = categorias.Select(c => c.Id).ToHashSet();
+            var clubeDaCategoria = porCategoria.Where(p => idsDeCategoria.Contains(p.Key))
+                .ToDictionary(p => p.Key, p => p.Value);
+
+            // ⚠️ A QUADRA NÃO PRECISA DO MESMO FILTRO, e não é descuido: os dois laços abaixo
+            // percorrem `quadras`, que já é só o deste torneio, e consultam o mapa POR Id. Um id
+            // de fora simplesmente nunca casa. Um filtro aqui seria uma segunda tranca que
+            // nenhum teste consegue distinguir de não existir — e guarda que não dá pra
+            // falsificar é a que some no próximo refactor sem ninguém notar.
+            var clubeDaQuadra = porQuadra;
+
+            // A MESMA recusa do formulário antigo, e ela vem ANTES de gravar qualquer coisa:
+            // meio salvo é pior que nada salvo. Ver Services/SedesDoTorneio.MotivoParaNaoSalvar.
+            var clubeDeCadaQuadra = quadras.Select(q =>
+                clubeDaQuadra.TryGetValue(q.Id, out var clube) ? clube
+                : torneio.ClubeId > 0 ? torneio.ClubeId : (int?)null);
+
+            if (SedesDoTorneio.MotivoParaNaoSalvar(clubeDeCadaQuadra, clubeDaCategoria.Values) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+            }
+
+            foreach (var quadra in quadras)
+            {
+                // Nulo = "no clube do torneio". É o que TODA quadra de torneio de uma sede só é,
+                // e é por isso que voltar pra uma sede só não precisa de conversão nenhuma.
+                quadra.ClubeId = clubeDaQuadra.TryGetValue(quadra.Id, out var clube)
+                                 && clube != torneio.ClubeId
+                    ? clube
+                    : null;
+            }
+
+            foreach (var categoria in categorias)
+            {
+                categoria.ClubeId = clubeDaCategoria.TryGetValue(categoria.Id, out var sede) ? sede : null;
+            }
+
+            // Negativo vira zero, e zero desliga a folga de propósito — o organizador que tem as
+            // duas sedes na mesma rua não quer buraco nenhum na grade. Nulo = campo ausente, e
+            // aí o que está gravado FICA.
+            if (minutosParaTrocarDeClube is { } folga)
+                torneio.MinutosParaTrocarDeClube = Math.Max(0, folga);
+
+            await _context.SaveChangesAsync();
+
+            var sedesAgora = quadras.Where(q => q.ClubeId != null).Select(q => q.ClubeId).Distinct().Count();
+            TempData["Sucesso"] = sedesAgora == 0
+                ? "Todas as quadras voltaram pro clube do torneio."
+                : $"Sedes salvas. Vale a partir do próximo sorteio (ou do \"Refazer grade\") — "
+                  + "jogo que já tem quadra não muda de lugar sozinho.";
+
+            return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+        }
+
+        // Esta categoria pode transbordar pro local externo? Não confundir com o clube FIXO da
+        // categoria (Gerenciar Torneio), que é trava dura: aqui é a régua mole do Er — a sede
+        // principal enche e o que sobra vai pro alugado.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarTransbordoDaCategoria(int categoriaId, bool permitir)
+        {
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            if (categoria == null) return NotFound();
+
+            // Dono conferido pelo torneio DA CATEGORIA, lido do banco — nunca por um id que
+            // venha no formulário. Mesma régua de AlterarEliminatoriaNoSabado.
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(categoria.TorneioId, meuId)) return Forbid();
+
+            categoria.PodeJogarNaSedeExtra = permitir;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = permitir
+                ? $"{categoria.Nome} pode jogar no local externo quando a sede principal encher."
+                : $"{categoria.Nome} joga só na sede principal.";
+
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, "pagamentos");
+        }
+
+        // 🗣️ Felipe, 08/09/2026: "o Er também me falou, que eles não querem q a dupla jogue os 2
+        // jogos la, que jogue apenas um, para que ele possa jogar no clube dele também".
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarEvitarDoisJogosNaSedeExtra(int id, bool evitar)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            torneio.EvitarDoisJogosNaSedeExtra = evitar;
+            await _context.SaveChangesAsync();
+
+            // ⚠️ A mensagem diz "evita", e não "garante", de propósito: a regra CEDE quando
+            // respeitá-la deixaria a quadra do lugar alugado parada. Prometer garantia numa
+            // regra mole é como o organizador descobre a exceção no dia do jogo.
+            TempData["Sucesso"] = evitar
+                ? "A grade vai evitar mandar os 2 jogos da mesma dupla pro local externo — "
+                  + "cede só se não houver outro jogo pra pôr na vaga."
+                : "A dupla pode ter os 2 jogos no local externo.";
+
+            return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+        }
+
         // ── RELATÓRIO EM CSV: nome, telefone, pago e impedimento (aba Pagamentos) ──────────
         // Pedido do Felipe (07/09/2026): "crie um botão com um relatório em excel, com nome
         // completo, telefone, se pagou ou não, se tem impedimento e quando". Uma linha por
