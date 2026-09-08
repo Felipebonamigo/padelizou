@@ -4585,14 +4585,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                Pix, mesma régua do link individual e do botão de Financeiro.cshtml. *@
             @if (ViewBag.PodeVerDinheiro == true && naoPagaramComCelular.Count > 0)
             {
+                @* ⚠️ O NOME DO BOTÃO É O CONSERTO (08/09/2026). Ele se chamava "Cobrar todos
+                   (N)" e o Felipe perguntou se mandava sozinho: *"dá a impressão que sim, mas
+                   parece que não está enviando"*. Não mandava, nunca mandou — abre UMA conversa
+                   por clique, e quem aperta enviar é o organizador. Um botão que promete
+                   disparo em massa transforma o funcionamento correto em suspeita de defeito. *@
                 <div class="alert alert-warning d-flex flex-wrap gap-2 align-items-center justify-content-between mb-4">
                     <div>
                         <strong><i class="bi bi-whatsapp"></i> @naoPagaramComCelular.Count sem pagar</strong>
-                        <div class="small">O botão abre a mensagem de cada um, uma de cada vez, no seu WhatsApp.</div>
+                        <div class="small">
+                            Abre a conversa de um por vez no seu WhatsApp, com o texto pronto —
+                            <strong>você aperta enviar</strong>. Uma de cada vez de propósito:
+                            disparo em massa derruba o seu número.
+                        </div>
+                        @* Fica escondido até o pop-up ser bloqueado. Antes, clique bloqueado não
+                           deixava rastro nenhum — o organizador clicava e nada acontecia. *@
+                        <div id="pdzCobrarAviso" class="small fw-bold text-danger mt-1 d-none"></div>
                     </div>
-                    <button type="button" id="pdzCobrarTodos" class="btn btn-success fw-bold shadow-sm">
-                        <i class="bi bi-whatsapp"></i> Cobrar todos (@naoPagaramComCelular.Count)
-                    </button>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        @* O id do torneio vai no atributo porque a memória é POR TORNEIO — uma
+                           chave só faria a cobrança de um marcar como cobrado o inscrito de outro. *@
+                        <button type="button" id="pdzCobrarTodos" data-pdz-torneio="@Model.Id"
+                                class="btn btn-success fw-bold shadow-sm">
+                            <i class="bi bi-whatsapp"></i> Abrir cobrança 1 de @naoPagaramComCelular.Count
+                        </button>
+                        @* ⚠️ SEM ISTO A MEMÓRIA VIRA ARMADILHA: a segunda leva de cobrança
+                           encontraria o botão desabilitado e nenhum caminho de volta. *@
+                        <button type="button" id="pdzCobrarRecomecar"
+                                class="btn btn-sm btn-outline-secondary d-none" title="Esquecer quem já foi cobrado">
+                            <i class="bi bi-arrow-counterclockwise"></i> Recomeçar
+                        </button>
+                    </div>
                 </div>
             }
 
@@ -4676,8 +4699,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
                                                 + "."
                                                 + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
+                                            @* `data-pdz-dupla` é o que a memória do "já cobrei"
+                                               guarda. A POSIÇÃO na lista não serviria: alguém
+                                               paga, sai da lista, e as posições seguintes andam
+                                               — a memória passaria a apontar pra outra pessoa. *@
                                             <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
                                                target="_blank" rel="noopener"
+                                               data-pdz-dupla="@dupla.Id"
                                                class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp">
                                                 <i class="bi bi-whatsapp"></i> Cobrar
                                             </a>
