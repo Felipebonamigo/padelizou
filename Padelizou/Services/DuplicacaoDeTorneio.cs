@@ -115,6 +115,10 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.TaxaExternoPagaEm),
         nameof(Torneio.TaxaExternoNegociadaEm),
         nameof(Torneio.TaxaExternoNegociadaObs),
+        // ⚠️ Fiado NÃO se herda. Copiado, a edição nova nasceria com as chaves já liberadas —
+        // e liberadas por uma dívida da edição PASSADA, que ninguém veria. A taxa desta edição
+        // é dela, e a trava precisa valer de novo do zero.
+        nameof(Torneio.TaxaExternoAdiadaEm),
 
         // Da edição que passou.
         nameof(Torneio.RecadoAosInscritos),

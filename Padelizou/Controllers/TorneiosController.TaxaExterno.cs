@@ -148,5 +148,61 @@ namespace Padelizou.Controllers
             return RedirectToAction("TaxaPlataforma", new { id });
         }
 
+        // O FIADO (08/09/2026, pedido do Felipe): o organizador sorteia agora e paga a taxa
+        // depois. A trava do "por fora" deixa de ser bloqueio e vira DÍVIDA REGISTRADA.
+        //
+        // ⚠️ Isto NÃO é o RegistrarNegociacaoTaxa logo acima, e a diferença é de quem assina.
+        // Lá é o Padelizou abrindo mão da cobrança, e só o raiz pode. Aqui é o organizador
+        // dizendo "eu pago", e por isso ele mesmo aperta — a conta continua dele, e o torneio
+        // aparece devendo no /Admin/Financeiro até alguém dar baixa.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AdiarTaxaExterno(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            // Mesma régua do GerarChaves: a taxa é conta de quem ficou com o dinheiro das
+            // inscrições, então quem não organiza não assina dívida em nome dele.
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // Torneio sem taxa a cobrar não tem o que adiar — e deixar carimbar assim mesmo
+            // encheria a lista de cobrança de linha que não deve nada.
+            if (!TaxaDoTorneioExterno.SeAplica(torneio))
+            {
+                TempData["Erro"] = "Este torneio não tem taxa do Padelizou a pagar.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // ⚠️ IDEMPOTENTE, e a data é a do PRIMEIRO fiado. Botão de painel é clicado duas
+            // vezes; reescrever a data zeraria a idade da dívida, que é justamente o que a
+            // lista de cobrança mostra.
+            if (torneio.TaxaExternoAdiadaEm == null)
+            {
+                torneio.TaxaExternoAdiadaEm = DateTime.Now;
+                await _context.SaveChangesAsync();
+
+                await AvisarAdminsDoFiadoAsync(torneio);
+            }
+
+            TempData["Sucesso"] = "Taxa adiada — as chaves estão liberadas. O acerto com o Padelizou fica pendente.";
+            return RedirectToAction("Details", "Torneios", new { id }, fragment: "admin");
+        }
+
+        // Sem este aviso a dívida só existe pra quem abrir o financeiro — e ninguém abre o
+        // financeiro por causa de um torneio que não sabe que aconteceu.
+        private async Task AvisarAdminsDoFiadoAsync(Torneio torneio)
+        {
+            var admins = await _context.Jogadores
+                .Where(j => (j.IsAdminGeral || j.IsAdminRaiz) && j.ExcluidoEm == null)
+                .Select(j => j.Id)
+                .ToListAsync();
+
+            if (admins.Count == 0) return;
+
+            await AvisarAsync(admins, "Taxa do Padelizou ficou pendente",
+                $"O organizador de {torneio.Nome} sorteou as chaves e vai pagar a taxa depois. "
+                + "O torneio está na lista de cobrança do financeiro.", torneio.Id);
+        }
     }
 }

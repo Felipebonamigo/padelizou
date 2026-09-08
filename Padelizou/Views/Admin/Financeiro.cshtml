@@ -165,9 +165,24 @@
                                 {
                                     <option value="">Nenhum torneio com taxa em aberto</option>
                                 }
+                                @* ⚠️ O "devendo desde" separa as duas situações que caem nesta
+                                   mesma lista e não são a mesma coisa: torneio PARADO antes do
+                                   sorteio (não levou nada, não deve nada) e torneio que pegou
+                                   FIADO — sorteou as chaves e ficou devendo. Sem isso, cobrar
+                                   era adivinhar. Os devedores vêm no topo. *@
                                 @foreach (var t in torneiosAbertos)
                                 {
-                                    <option value="@t.Id">@t.Nome (@t.Codigo)</option>
+                                    if (t.TaxaExternoAdiadaEm != null)
+                                    {
+                                        <option value="@t.Id">
+                                            @t.Nome (@t.Codigo) — DEVENDO desde
+                                            @(((DateTime)t.TaxaExternoAdiadaEm).ToString("dd/MM/yyyy"))
+                                        </option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@t.Id">@t.Nome (@t.Codigo)</option>
+                                    }
                                 }
                             </select>
                         </div>

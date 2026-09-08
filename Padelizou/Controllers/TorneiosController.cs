@@ -458,6 +458,11 @@ namespace Padelizou.Controllers
             ViewBag.TaxaExternoPendente = torneio.Status == "Chaves em Sorteio"
                 && await TaxaExternoImpedeChavesAsync(torneio);
 
+            // O fiado: o organizador sorteou com a taxa em aberto. O aviso CONTINUA na tela dele
+            // depois de adiar, com a data — sumir faria a dívida desaparecer justamente pra quem
+            // deve, e o único lugar que lembraria dela seria o financeiro do Padelizou.
+            ViewBag.TaxaExternoDevendo = TaxaDoTorneioExterno.EstaDevendo(torneio);
+
             // SELOS HISTÓRICOS: melhor colocação + títulos de cada jogador nas mesmas categorias
             // (por Categoria.Nome), considerando torneios anteriores a este.
             var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();

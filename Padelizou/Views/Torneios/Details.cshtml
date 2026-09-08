@@ -2070,6 +2070,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         <div class="tab-pane fade" id="admin" role="tabpanel">
             <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
 
+            @* A DÍVIDA NÃO SOME DA TELA DE QUEM DEVE (08/09/2026). Depois de "sortear agora,
+               pagar depois", o bloco da taxa lá embaixo desaparece — as chaves já saíram, e
+               aquele bloco só existe enquanto elas estão travadas. Sem este lembrete, adiar
+               apagaria a cobrança da vista justamente do organizador, e o único lugar onde ela
+               continuaria existindo seria o financeiro do Padelizou. *@
+            @if (ViewBag.TaxaExternoDevendo == true && ViewBag.PodeVerDinheiro == true)
+            {
+                <div class="alert alert-warning border-warning d-flex flex-wrap gap-2 align-items-center">
+                    <div class="flex-grow-1">
+                        <i class="bi bi-hourglass-split"></i>
+                        <strong>Taxa do Padelizou em aberto.</strong>
+                        Você sorteou as chaves em
+                        @Model.TaxaExternoAdiadaEm!.Value.ToString("dd/MM/yyyy 'às' HH:mm")
+                        e ficou de acertar depois.
+                    </div>
+                    <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
+                       class="btn btn-warning btn-sm fw-bold">
+                        <i class="bi bi-credit-card"></i> Pagar agora
+                    </a>
+                </div>
+            }
+
             @if (gestaoSoLeitura)
             {
                 <div class="alert alert-info border-0 d-flex gap-2 align-items-start">
@@ -2264,10 +2286,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                            ajudante pra lá daria um 403 na cara dele; melhor dizer de quem é. *@
                         @if (ViewBag.PodeVerDinheiro == true)
                         {
-                            <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
-                               class="btn btn-warning fw-bold shadow-sm">
-                                <i class="bi bi-credit-card"></i> Ver e pagar a taxa
-                            </a>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
+                                   class="btn btn-warning fw-bold shadow-sm">
+                                    <i class="bi bi-credit-card"></i> Ver e pagar a taxa
+                                </a>
+
+                                @* O FIADO. A taxa não some — ela vira dívida registrada, e o texto
+                                   da confirmação diz isso na cara. Esconder a consequência aqui
+                                   faria o organizador descobrir a cobrança só quando ela chegasse. *@
+                                <form asp-controller="Torneios" asp-action="AdiarTaxaExterno" method="post"
+                                      data-confirmar-titulo="Sortear agora e pagar depois?"
+                                      data-confirmar="As chaves são liberadas na hora. A taxa do Padelizou continua devida e o torneio fica na lista de cobrança até você acertar."
+                                      data-confirmar-ok="Sortear agora">
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <button type="submit" class="btn btn-outline-light fw-bold shadow-sm">
+                                        <i class="bi bi-hourglass-split"></i> Sortear agora, pagar depois
+                                    </button>
+                                </form>
+                            </div>
                         }
                         else
                         {

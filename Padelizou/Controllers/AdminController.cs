@@ -1352,10 +1352,16 @@ namespace padelizou.Controllers
                 .ToDictionaryAsync(j => j.Id, j => j.Nome);
 
             // Pro formulário da taxa: os torneios "por fora" com taxa ainda em aberto.
+            //
+            // ⚠️ `TaxaExternoAdiadaEm` entrou na projeção (08/09/2026) pra separar as duas
+            // situações que caíam na mesma lista e não são a mesma coisa: torneio PARADO antes
+            // do sorteio (não deve nada, não levou nada) e torneio que pegou FIADO (sorteou e
+            // ficou devendo). Sem essa data, a lista de cobrança não sabia de quem cobrar.
             ViewBag.TorneiosComTaxaAberta = await _context.Torneios
                 .Where(t => t.FormaPagamento == "Externo" && t.TaxaExternoPagaEm == null)
-                .OrderByDescending(t => t.DataInicio)
-                .Select(t => new { t.Id, t.Nome, t.Codigo })
+                .OrderByDescending(t => t.TaxaExternoAdiadaEm != null)   // devedores no topo
+                .ThenByDescending(t => t.DataInicio)
+                .Select(t => new { t.Id, t.Nome, t.Codigo, t.TaxaExternoAdiadaEm })
                 .ToListAsync();
 
             // Pro formulário da mensalidade: uma LISTA de professores, não texto livre — digitar

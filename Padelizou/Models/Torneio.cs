@@ -345,6 +345,19 @@ public partial class Torneio
     // preenchido pelo admin que registrou. É o que evita a pergunta "quem liberou isso?".
     public string? TaxaExternoNegociadaObs { get; set; }
 
+    // Quando o ORGANIZADOR pegou fiado: sorteou as chaves com a taxa em aberto, prometendo
+    // pagar depois. Nulo = nunca adiou.
+    //
+    // ⚠️ COLUNA PRÓPRIA, e não mais um uso do TaxaExternoNegociadaEm — as duas liberam a chave
+    // e querem dizer coisas opostas. Negociada é o PADELIZOU abrindo mão da cobrança (só o
+    // raiz assina, ver RegistrarNegociacaoTaxa); adiada é o ORGANIZADOR devendo. Numa coluna
+    // só, "eu perdoei" e "ele me deve" viram a mesma linha, e a lista de cobrança do
+    // /Admin/Financeiro deixa de saber de quem cobrar.
+    //
+    // ⚠️ Quem QUITA continua sendo o TaxaExternoPagaEm. Esta data não some quando a taxa é
+    // paga: ela é o "desde quando" da dívida, e serve pra saber quanto tempo o fiado durou.
+    public DateTime? TaxaExternoAdiadaEm { get; set; }
+
     // ---- Como o inscrito paga quando é "por fora" ----
     // A chave Pix do ORGANIZADOR, pra quem se inscreve pagar direto. O Padelizou não toca
     // nesse dinheiro nem confere se entrou: aqui a chave é só um recado, exibido junto com o

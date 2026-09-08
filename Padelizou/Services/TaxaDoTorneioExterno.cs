@@ -22,7 +22,25 @@ public static class TaxaDoTorneioExterno
     public static bool ChavesLiberadas(Torneio torneio) =>
         !SeAplica(torneio)
         || torneio.TaxaExternoPagaEm != null
-        || torneio.TaxaExternoNegociadaEm != null;
+        || torneio.TaxaExternoNegociadaEm != null
+        // O fiado (08/09/2026): o organizador destrava sozinho e o torneio passa a DEVER.
+        // A trava não sumiu — virou dívida registrada, que aparece no /Admin/Financeiro.
+        // Sem este terceiro caso, a única saída pra quem ia pagar depois era esperar um admin.
+        || torneio.TaxaExternoAdiadaEm != null;
+
+    // Este torneio está DEVENDO a taxa: o organizador pegou fiado e ninguém deu baixa ainda.
+    //
+    // ⚠️ Não é o mesmo que "chave travada". Torneio que nunca chegou a adiar também não pagou,
+    // mas está parado ANTES do sorteio — não deve nada, porque não levou nada. Devedor é quem
+    // já ficou com as chaves.
+    //
+    // ⚠️ E não é o mesmo que "negociado". Negociar é o Padelizou abrindo mão; aí não há o que
+    // cobrar. Por isso os dois carimbos encerram a dívida e o de adiar, sozinho, a mantém.
+    public static bool EstaDevendo(Torneio torneio) =>
+        SeAplica(torneio)
+        && torneio.TaxaExternoAdiadaEm != null
+        && torneio.TaxaExternoPagaEm == null
+        && torneio.TaxaExternoNegociadaEm == null;
 
     // Base da taxa: gente que existe na lista na hora do fechamento. Dupla completa são 2
     // pessoas, dupla ainda sem parceiro é 1 (cobrar por alguém que ainda não foi definido
