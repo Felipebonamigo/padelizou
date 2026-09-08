@@ -30,17 +30,48 @@
     @if (TempData["Sucesso"] != null) { <div class="alert alert-success">@TempData["Sucesso"]</div> }
     @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
 
-    <div class="btn-group mb-4" role="group">
-        @* A semana vem primeiro porque é o ciclo real: a quadra se acerta com o clube por
-           semana, e o mês somado não responde "quanto eu levo lá na sexta". *@
-        @* "Mês passado" fica ao lado de "Este mês" de propósito: ele é o mesmo recorte, um mês
-           atrás, e é o único da fila com FIM — os outros somam até hoje. É a aba que o
-           professor usa pra fechar a conta do mês que já acabou. *@
-        @foreach (var (chave, texto) in new[] { ("semana", "Esta semana"), ("mes", "Este mês"), (Padelizou.Services.PeriodoDoFinanceiro.MesPassado, "Mês passado"), ("ano", "Este ano"), ("sempre", "Sempre") })
-        {
-            <a asp-action="Financeiro" asp-route-periodo="@chave"
-               class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>
-        }
+    @{
+        var ehPersonalizado = Model.Periodo == Padelizou.Services.PeriodoDoFinanceiro.Personalizado;
+    }
+    <div class="mb-4">
+        <div class="btn-group" role="group">
+            @* A semana vem primeiro porque é o ciclo real: a quadra se acerta com o clube por
+               semana, e o mês somado não responde "quanto eu levo lá na sexta". *@
+            @* "Mês passado" fica ao lado de "Este mês" de propósito: ele é o mesmo recorte, um mês
+               atrás, e é o único da fila com FIM — os outros somam até hoje. É a aba que o
+               professor usa pra fechar a conta do mês que já acabou. *@
+            @foreach (var (chave, texto) in new[] { ("semana", "Esta semana"), ("mes", "Este mês"), (Padelizou.Services.PeriodoDoFinanceiro.MesPassado, "Mês passado"), ("ano", "Este ano"), ("sempre", "Sempre") })
+            {
+                <a asp-action="Financeiro" asp-route-periodo="@chave"
+                   class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>
+            }
+            @* Personalizado não navega direto como os outros — precisa das duas datas antes,
+               então o clique só abre o formulário logo abaixo (Bootstrap collapse, já usado no
+               resto do site). Ele começa ABERTO quando já é o período ativo, senão o professor
+               que voltou nesta tela veria os campos escondidos com a faixa dele já aplicada. *@
+            <button type="button" class="btn btn-sm @(ehPersonalizado ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3"
+                    data-bs-toggle="collapse" data-bs-target="#pdzPeriodoPersonalizado" aria-expanded="@(ehPersonalizado ? "true" : "false")">
+                Personalizado
+            </button>
+        </div>
+        <div class="collapse @(ehPersonalizado ? "show" : "")" id="pdzPeriodoPersonalizado">
+            <form asp-action="Financeiro" method="get" class="d-flex flex-wrap align-items-end gap-2 mt-2">
+                <input type="hidden" name="periodo" value="@Padelizou.Services.PeriodoDoFinanceiro.Personalizado" />
+                <div>
+                    <label class="form-label small text-muted mb-0" for="pdzDataInicio">De</label>
+                    <input type="date" id="pdzDataInicio" name="dataInicio" class="form-control form-control-sm"
+                           value="@Model.DataInicio?.ToString("yyyy-MM-dd")" required />
+                </div>
+                <div>
+                    @* Sem fim = "até hoje", a mesma regra dos outros períodos abertos — por isso
+                       este campo não é obrigatório. *@
+                    <label class="form-label small text-muted mb-0" for="pdzDataFim">Até (opcional)</label>
+                    <input type="date" id="pdzDataFim" name="dataFim" class="form-control form-control-sm"
+                           value="@Model.DataFim?.ToString("yyyy-MM-dd")" />
+                </div>
+                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Aplicar</button>
+            </form>
+        </div>
     </div>
 
     <!-- Cartões -->
@@ -113,6 +144,14 @@
                         <form asp-action="MarcarRecebidas" method="post" class="flex-shrink-0"
                               onsubmit="return confirm('Marcar @d.AulasEmAberto aula(s) de @d.Nome como recebida(s)?');">
                             <input type="hidden" name="periodo" value="@Model.Periodo" />
+                            @* Sem isso, dar baixa numa faixa personalizada voltaria pro "Este mês" padrão — a
+                               action MarcarRecebidas precisa das duas datas pra devolver o mesmo recorte
+                               (ver AulasController.Financeiro.cs). Nos outros períodos ela ignora os dois campos. *@
+                            @if (ehPersonalizado)
+                            {
+                                <input type="hidden" name="dataInicio" value="@Model.DataInicio?.ToString("yyyy-MM-dd")" />
+                                <input type="hidden" name="dataFim" value="@Model.DataFim?.ToString("yyyy-MM-dd")" />
+                            }
                             @foreach (var aulaId in d.AulaIds)
                             {
                                 <input type="hidden" name="aulaIds" value="@aulaId" />
@@ -198,14 +237,18 @@
                    aulas. O `periodo` viaja junto: trocar de mês aqui não pode mexer nos
                    cartões do topo. *@
                 <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    @* `dataInicio`/`dataFim` viajam junto pra não perder a faixa personalizada
+                       ao trocar de mês aqui — eles só existem no Model quando `Periodo` é
+                       "personalizado" (ver AulasController.Financeiro), então nos outros
+                       períodos entram como null e o Url.Action simplesmente os omite. *@
                     <a class="btn btn-sm btn-outline-secondary rounded-circle @(Model.PodeVoltarSemanas ? "" : "disabled opacity-50")"
                        title="Mês anterior" aria-disabled="@(Model.PodeVoltarSemanas ? "false" : "true")"
-                       href="@(Model.PodeVoltarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesAnteriorChave }) : null)">
+                       href="@(Model.PodeVoltarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesAnteriorChave, dataInicio = Model.DataInicio, dataFim = Model.DataFim }) : null)">
                         <i class="bi bi-chevron-left"></i>
                     </a>
                     <a class="btn btn-sm btn-outline-secondary rounded-circle @(Model.PodeAvancarSemanas ? "" : "disabled opacity-50")"
                        title="Próximo mês" aria-disabled="@(Model.PodeAvancarSemanas ? "false" : "true")"
-                       href="@(Model.PodeAvancarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesSeguinteChave }) : null)">
+                       href="@(Model.PodeAvancarSemanas ? Url.Action("Financeiro", new { periodo = Model.Periodo, semanas = Model.MesSeguinteChave, dataInicio = Model.DataInicio, dataFim = Model.DataFim }) : null)">
                         <i class="bi bi-chevron-right"></i>
                     </a>
                 </div>
