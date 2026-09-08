@@ -20,7 +20,7 @@ namespace padelizou.Controllers
         // `semanas` é o mês do card de semanas ("2026-08"), independente do `periodo` dos
         // cartões do topo: um responde "quanto entrou nesta semana", o outro "como foi agosto".
         [HttpGet]
-        public async Task<IActionResult> Financeiro(string? periodo, string? semanas = null)
+        public async Task<IActionResult> Financeiro(string? periodo, string? semanas = null, DateTime? dataInicio = null, DateTime? dataFim = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -33,7 +33,7 @@ namespace padelizou.Controllers
             // quatro que já existiam somam "até hoje" e continuam assim; por isso a inclusão
             // da aula passou a ser `faixa.Contem(...)` em vez de `>= de` solto, que esquecia
             // o fim.
-            var faixa = PeriodoDoFinanceiro.Intervalo(periodo, hoje);
+            var faixa = PeriodoDoFinanceiro.Intervalo(periodo, hoje, dataInicio, dataFim);
             var rotulo = faixa.Rotulo;
 
             var aulas = await _context.Aulas
@@ -57,6 +57,11 @@ namespace padelizou.Controllers
             {
                 Periodo = periodo,
                 PeriodoRotulo = rotulo,
+                // Só pra reabrir o campo com o que o professor digitou — inclusive quando ele
+                // ainda não formou uma faixa válida (fim antes do início), pra ele corrigir sem
+                // redigitar as duas datas.
+                DataInicio = periodo == PeriodoDoFinanceiro.Personalizado ? dataInicio : null,
+                DataFim = periodo == PeriodoDoFinanceiro.Personalizado ? dataFim : null,
                 Recebido = recebidas.Sum(a => a.Preco),
                 // Confirmada e ainda por acontecer: o que entra se ninguém desmarcar.
                 Previsto = aulas
@@ -284,7 +289,7 @@ namespace padelizou.Controllers
         // cada aluno da turma já é a própria linha, e cascatear daria baixa no colega que não
         // pagou.
         [HttpPost]
-        public async Task<IActionResult> MarcarRecebidas(int[] aulaIds, string? periodo)
+        public async Task<IActionResult> MarcarRecebidas(int[] aulaIds, string? periodo, DateTime? dataInicio = null, DateTime? dataFim = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -309,7 +314,7 @@ namespace padelizou.Controllers
                 ? "1 aula marcada como recebida."
                 : $"{baixadas} aulas marcadas como recebidas.";
 
-            return RedirectToAction(nameof(Financeiro), new { periodo });
+            return RedirectToAction(nameof(Financeiro), new { periodo, dataInicio, dataFim });
         }
 
         // "O aluno não vem hoje, mas paga e recupera depois" — o caso do mensalista, que o

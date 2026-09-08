@@ -106,6 +106,54 @@ public class PeriodoDoFinanceiroTests
     }
 
     [Fact]
+    public void Personalizado_com_as_duas_pontas_TERMINA_no_fim_escolhido()
+    {
+        var faixa = PeriodoDoFinanceiro.Intervalo(PeriodoDoFinanceiro.Personalizado, Hoje,
+            dataInicio: new DateTime(2026, 8, 3), dataFim: new DateTime(2026, 8, 9));
+
+        // Mesma régua do mês passado: fim EXCLUSIVO, senão a aula das 20h do dia 9 ficaria de
+        // fora.
+        Assert.Equal(new DateTime(2026, 8, 3), faixa.De);
+        Assert.Equal(new DateTime(2026, 8, 10), faixa.Ate);
+        Assert.Equal("de 03/08 a 09/08", faixa.Rotulo);
+    }
+
+    [Fact]
+    public void Personalizado_sem_data_de_fim_fica_ABERTO_ate_hoje()
+    {
+        // A mesma regra dos quatro períodos originais: sem fim escolhido, some até hoje.
+        var faixa = PeriodoDoFinanceiro.Intervalo(PeriodoDoFinanceiro.Personalizado, Hoje,
+            dataInicio: new DateTime(2026, 8, 3), dataFim: null);
+
+        Assert.Equal(new DateTime(2026, 8, 3), faixa.De);
+        Assert.Null(faixa.Ate);
+    }
+
+    [Fact]
+    public void Personalizado_sem_data_de_inicio_cai_no_mes_corrente()
+    {
+        // O campo de início é obrigatório na tela — mandar só o fim (ou nada) tem que cair no
+        // mesmo padrão de um período desconhecido, e não estourar.
+        var faixa = PeriodoDoFinanceiro.Intervalo(PeriodoDoFinanceiro.Personalizado, Hoje,
+            dataInicio: null, dataFim: new DateTime(2026, 8, 9));
+
+        Assert.Equal(new DateTime(2026, 9, 1), faixa.De);
+        Assert.Null(faixa.Ate);
+    }
+
+    [Fact]
+    public void Personalizado_com_fim_ANTES_do_inicio_cai_no_mes_corrente()
+    {
+        // Faixa invertida não é um período válido — mesmo tratamento de um período desconhecido,
+        // pra tela não quebrar nem mostrar dinheiro somado ao contrário.
+        var faixa = PeriodoDoFinanceiro.Intervalo(PeriodoDoFinanceiro.Personalizado, Hoje,
+            dataInicio: new DateTime(2026, 8, 20), dataFim: new DateTime(2026, 8, 10));
+
+        Assert.Equal(new DateTime(2026, 9, 1), faixa.De);
+        Assert.Null(faixa.Ate);
+    }
+
+    [Fact]
     public void A_aula_entra_no_periodo_por_UMA_regra_so()
     {
         // O controller filtrava com `>= de` solto. Com dois períodos de forma diferente na

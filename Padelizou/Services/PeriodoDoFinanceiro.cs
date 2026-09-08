@@ -33,11 +33,26 @@ public readonly record struct FaixaDoFinanceiro(DateTime De, DateTime? Ate, stri
 public static class PeriodoDoFinanceiro
 {
     public const string MesPassado = "mespassado";
+    public const string Personalizado = "personalizado";
 
-    public static FaixaDoFinanceiro Intervalo(string? periodo, DateTime hoje)
+    // `dataInicio`/`dataFim` só valem quando `periodo` é "personalizado" — os outros cinco
+    // continuam ignorando os dois parâmetros, do mesmo jeito que sempre ignoraram.
+    public static FaixaDoFinanceiro Intervalo(string? periodo, DateTime hoje, DateTime? dataInicio = null, DateTime? dataFim = null)
     {
         switch ((periodo ?? "mes").Trim().ToLowerInvariant())
         {
+            case Personalizado when dataInicio != null && dataInicio.Value.Date <= (dataFim ?? hoje).Date:
+            {
+                // Fim ABERTO (pedido do Felipe): sem data de fim, soma até hoje — a mesma regra
+                // dos quatro períodos originais. Com fim escolhido, o fim é EXCLUSIVO (dia
+                // seguinte), pela mesma razão do mês passado: a aula das 20h do último dia não
+                // pode cair de fora.
+                var inicio = dataInicio.Value.Date;
+                var ateExclusivo = dataFim?.Date.AddDays(1);
+                var rotuloFim = (dataFim?.Date ?? hoje).ToString("dd/MM");
+                return new(inicio, ateExclusivo, $"de {inicio:dd/MM} a {rotuloFim}");
+            }
+
             case "semana":
                 // Segunda a domingo, a mesma régua do card de semanas do mês
                 // (Services/SemanasDoMes) — duas definições de semana na mesma tela seriam

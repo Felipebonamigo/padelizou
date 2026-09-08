@@ -43,6 +43,12 @@ public class FinanceiroProfessorVM
     public string Periodo { get; set; } = "mes";
     public string PeriodoRotulo { get; set; } = "";
 
+    // Só preenchidos quando `Periodo` é "personalizado" — reabrem os campos de data com o que
+    // o professor escolheu, pra ele não perder a digitação ao trocar de mês nas Semanas ou dar
+    // baixa num devedor (ver os links/forms que os carregam em Financeiro.cshtml).
+    public DateTime? DataInicio { get; set; }
+    public DateTime? DataFim { get; set; }
+
     public decimal Recebido { get; set; }        // o dinheiro que ENTROU no período (Aula.PagaEm)
     public decimal Previsto { get; set; }        // confirmadas ainda por acontecer
     public decimal AReceber { get; set; }        // gerou cobrança e ainda não foi paga
