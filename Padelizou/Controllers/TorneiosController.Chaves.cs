@@ -528,7 +528,7 @@ namespace Padelizou.Controllers
                 // este alcance, "os 2 jogos no sábado à tarde" nunca encontra vaga e o encaixe
                 // cede em silêncio. Ver Services/VagasDaGrade e ConcentracaoNoSorteioTests.
                 var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra,
-                    peloMenosAte: concentracao?.AteQuando);
+                    peloMenosAte: concentracao?.AteQuando, sedes: sedes);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
                     ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,

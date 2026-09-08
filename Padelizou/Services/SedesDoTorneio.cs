@@ -43,27 +43,118 @@ public sealed class SedesDoTorneio
         new Dictionary<int, string[]>(),
         new Dictionary<int, int>(),
         new Dictionary<int, string>(),
+        new Dictionary<string, (DateTime?, DateTime?)>(StringComparer.OrdinalIgnoreCase),
+        new HashSet<int>(),
+        clubePrincipal: 0,
         TimeSpan.Zero,
-        maisDeUmClube: false);
+        maisDeUmClube: false,
+        evitarDoisJogosNaSedeExtra: false);
 
     private readonly Dictionary<string, int> _clubePorQuadra;
     private readonly Dictionary<int, string[]> _quadrasPorCategoria;
     private readonly Dictionary<int, int> _clubePorCategoria;
     private readonly Dictionary<int, string> _nomeDoClube;
+    private readonly Dictionary<string, (DateTime? De, DateTime? Ate)> _janelaPorQuadra;
+    private readonly HashSet<int> _categoriasPresasNaSedePrincipal;
+    private readonly int _clubePrincipal;
 
     private SedesDoTorneio(Dictionary<string, int> clubePorQuadra,
         Dictionary<int, string[]> quadrasPorCategoria,
         Dictionary<int, int> clubePorCategoria,
         Dictionary<int, string> nomeDoClube,
-        TimeSpan folga, bool maisDeUmClube)
+        Dictionary<string, (DateTime? De, DateTime? Ate)> janelaPorQuadra,
+        HashSet<int> categoriasPresasNaSedePrincipal,
+        int clubePrincipal,
+        TimeSpan folga, bool maisDeUmClube, bool evitarDoisJogosNaSedeExtra)
     {
+        EvitarDoisJogosNaSedeExtra = evitarDoisJogosNaSedeExtra;
         _clubePorQuadra = clubePorQuadra;
         _quadrasPorCategoria = quadrasPorCategoria;
         _clubePorCategoria = clubePorCategoria;
         _nomeDoClube = nomeDoClube;
+        _janelaPorQuadra = janelaPorQuadra;
+        _categoriasPresasNaSedePrincipal = categoriasPresasNaSedePrincipal;
+        _clubePrincipal = clubePrincipal;
         FolgaParaTrocarDeClube = folga;
         MaisDeUmClube = maisDeUmClube;
     }
+
+    // ── O LOCAL EXTERNO ALUGADO POR ALGUMAS HORAS (08/09/2026) ───────────────────────────
+    // 🗣️ Felipe: "ele terá q locar um local externo ao dele [...] e ai também vai ter q por
+    // quantos jogos vão para la, ou quais horarios, quais categorias".
+    //
+    // "Quantos jogos" não virou campo: é `quadras × rodadas da janela`, ou seja uma CONTA que
+    // a tela mostra. Dois campos pra mesma informação discordariam, e ninguém saberia qual
+    // mandou. As outras duas viraram: a janela mora em `Quadra.DisponivelDe/Ate`, e "quais
+    // categorias" em `Categoria.PodeJogarNaSedeExtra`.
+
+    // Esta quadra recebe jogo NESTE horário? Janela MEIO ABERTA ([De, Ate)), mesmo formato de
+    // JanelasDeImpedimento — um jogo que COMEÇA às 14h já está fora de uma janela até 14h.
+    //
+    // ⚠️ Quadra desconhecida conta como ABERTA, mesma régua defensiva de `ClubeDaQuadra`:
+    // `Partida.NomeQuadra` é texto solto, e uma quadra escrita direto no jogo não pode sumir
+    // da grade por não estar no cadastro.
+    public bool QuadraAberta(string? nomeQuadra, DateTime horario)
+    {
+        if (string.IsNullOrWhiteSpace(nomeQuadra)) return true;
+        if (!_janelaPorQuadra.TryGetValue(nomeQuadra!.Trim(), out var janela)) return true;
+
+        return (janela.De == null || horario >= janela.De)
+            && (janela.Ate == null || horario < janela.Ate);
+    }
+
+    // QUANTAS quadras cadastradas estão abertas neste horário. `null` quando NENHUMA quadra tem
+    // janela — e aí quem pergunta não precisa fazer conta nenhuma, que é o caso de todo torneio
+    // até 08/09/2026.
+    //
+    // Existe pro ORÇAMENTO DE VAGAS (Services/VagasDaGrade): cada rodada rende uma vaga por
+    // quadra CADASTRADA, inclusive pelas fechadas, e sem descontar as mortas o orçamento acaba
+    // antes dos jogos — o jogo entra numa vaga sem quadra aberta e nasce com hora e sem lugar.
+    public int? QuadrasAbertasEm(DateTime horario)
+    {
+        if (_janelaPorQuadra.Count == 0) return null;
+
+        int abertas = 0;
+        foreach (var nome in _clubePorQuadra.Keys)
+            if (QuadraAberta(nome, horario)) abertas++;
+
+        return abertas;
+    }
+
+    // QUANTOS JOGOS CABEM na janela do local alugado — a resposta que o Felipe pediu como campo
+    // ("vai ter q por quantos jogos vão para la") e que virou CONTA.
+    //
+    // 🗣️ A decisão: "quantos jogos" é `quadras × rodadas da janela`. Dois campos pra mesma
+    // informação (uma janela E uma cota) discordariam no primeiro torneio, e o organizador não
+    // teria como saber qual venceu. Aqui a tela CALCULA e mostra; quem manda é a janela.
+    //
+    // Null quando a janela não tem as duas pontas: sem começo ou sem fim não há quantas contar.
+    public static int? JogosQueCabemNaJanela(int quadras, DateTime? de, DateTime? ate, int duracaoMinutos)
+    {
+        if (de is not DateTime inicio || ate is not DateTime fim) return null;
+
+        var duracao = duracaoMinutos > 0 ? duracaoMinutos : 50;
+        var minutos = (fim - inicio).TotalMinutes;
+        if (minutos <= 0) return 0;
+
+        // Rodadas, e não "horas × quadras": o último jogo COMEÇA dentro da janela, então uma
+        // janela de 4h com jogos de 50 min tem 5 rodadas (8h, 8h50, 9h40, 10h30, 11h20), e não 4.
+        var rodadas = (int)(minutos / duracao) + ((int)(minutos % duracao) > 0 ? 1 : 0);
+
+        return Math.Max(quadras, 1) * rodadas;
+    }
+
+    // Esta quadra é do local EXTERNO (qualquer clube que não seja o principal do torneio)?
+    public bool EhSedeExtra(string? nomeQuadra) =>
+        ClubeDaQuadra(nomeQuadra) is { } clube && clube != _clubePrincipal;
+
+    // Esta categoria pode transbordar pro local externo?
+    //
+    // ⚠️ FALSE é a EXCEÇÃO, não a regra — ver o comentário de Models/Categoria. Categoria
+    // desconhecida responde `true` pela mesma razão que `QuadrasDe` nunca devolve lista vazia:
+    // uma trava por engano tira a categoria inteira da grade, calada.
+    public bool PodeIrPraSedeExtra(int categoriaId) =>
+        !_categoriasPresasNaSedePrincipal.Contains(categoriaId);
 
     // O torneio acontece em mais de um clube? É o interruptor que as telas consultam antes de
     // escrever o clube ao lado da quadra: num torneio de uma sede só, "Nata · Quadra 2" seria
@@ -72,6 +163,11 @@ public sealed class SedesDoTorneio
 
     // Zero quando não há mais de um clube, ou quando o organizador zerou o campo de propósito.
     public TimeSpan FolgaParaTrocarDeClube { get; }
+
+    // "Que a dupla jogue apenas UM dos jogos no local externo" (Felipe, 08/09/2026). MOLE:
+    // cede quando respeitá-la deixaria a quadra do lugar alugado parada — ver
+    // Services/GradeDeJogos.Encaixar e Models/Torneio.EvitarDoisJogosNaSedeExtra.
+    public bool EvitarDoisJogosNaSedeExtra { get; }
 
     // As quadras em que esta categoria PODE jogar. Null = pode em qualquer uma, que é o caminho
     // normal e o único que existia antes.
@@ -119,7 +215,8 @@ public sealed class SedesDoTorneio
     // comportamento antigo em vez de imprimir um lugar chutado.
     public static SedesDoTorneio Montar(int clubePrincipalId, int minutosParaTrocarDeClube,
         IEnumerable<Quadra> quadras, IEnumerable<Categoria> categorias,
-        IReadOnlyDictionary<int, string>? nomesDosClubes = null)
+        IReadOnlyDictionary<int, string>? nomesDosClubes = null,
+        bool evitarDoisJogosNaSedeExtra = false)
     {
         // Quadra sem clube dito é do clube do torneio. É o que faz TODO torneio anterior a esta
         // opção continuar sendo de uma sede só, sem uma linha de conversão no banco.
@@ -163,13 +260,38 @@ public sealed class SedesDoTorneio
             foreach (var (clubeId, nome) in nomesDosClubes)
                 if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
 
+        // A janela de cada quadra. Só entra no mapa quem TEM janela — quadra sem limite (a
+        // imensa maioria) não paga nem uma entrada de dicionário.
+        var janelaPorQuadra = new Dictionary<string, (DateTime? De, DateTime? Ate)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var quadra in quadras)
+        {
+            if (quadra.DisponivelDe == null && quadra.DisponivelAte == null) continue;
+
+            var nome = (quadra.Nome ?? "").Trim();
+            if (nome.Length == 0) continue;
+
+            janelaPorQuadra[nome] = (quadra.DisponivelDe, quadra.DisponivelAte);
+        }
+
+        // Quem NÃO pode transbordar. Guardado pelo lado negativo de propósito: o normal é poder
+        // (ver Models/Categoria), então o conjunto fica vazio na imensa maioria dos torneios e
+        // a pergunta `PodeIrPraSedeExtra` é um `Contains` num set vazio.
+        var presas = new HashSet<int>();
+        foreach (var categoria in categorias)
+            if (!categoria.PodeJogarNaSedeExtra) presas.Add(categoria.Id);
+
         return new SedesDoTorneio(
             clubePorQuadra,
             quadrasPorCategoria,
             clubePorCategoria,
             nomes,
+            janelaPorQuadra,
+            presas,
+            clubePrincipalId,
             TimeSpan.FromMinutes(Math.Max(0, minutosParaTrocarDeClube)),
-            maisDeUmClube: true);
+            maisDeUmClube: true,
+            evitarDoisJogosNaSedeExtra);
     }
 
     // Carrega do banco. Fica AQUI, e não em cada controller, porque são cinco telas que
@@ -184,7 +306,7 @@ public sealed class SedesDoTorneio
     {
         var doTorneio = await db.Torneios
             .Where(t => t.Id == torneioId)
-            .Select(t => new { t.ClubeId, t.MinutosParaTrocarDeClube })
+            .Select(t => new { t.ClubeId, t.MinutosParaTrocarDeClube, t.EvitarDoisJogosNaSedeExtra })
             .FirstOrDefaultAsync();
 
         if (doTorneio == null) return Nenhuma;
@@ -203,7 +325,8 @@ public sealed class SedesDoTorneio
             .Where(c => clubes.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Nome);
 
-        return Montar(doTorneio.ClubeId, doTorneio.MinutosParaTrocarDeClube, quadras, categorias, nomes);
+        return Montar(doTorneio.ClubeId, doTorneio.MinutosParaTrocarDeClube, quadras, categorias, nomes,
+            doTorneio.EvitarDoisJogosNaSedeExtra);
     }
 
     // ── O que os formulários mandam ───────────────────────────────────────────────────────

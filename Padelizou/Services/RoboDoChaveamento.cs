@@ -459,8 +459,9 @@ public class RoboDoChaveamento
         // ver Services/VagasDaGrade. Sem ninguém concentrado, `AteQuando` é null e a conta de
         // vagas é exatamente a de sempre.
         var concentracao = await ConcentracaoAsync(torneio);
+        var sedes = await SedesAsync(torneioId.Value);
         var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados,
-            peloMenosAte: concentracao.AteQuando);
+            peloMenosAte: concentracao.AteQuando, sedes: sedes);
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
@@ -474,7 +475,7 @@ public class RoboDoChaveamento
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
             await QuadrasPreferidasAsync(torneioId.Value),
             await JanelasProibidasPorDuplaAsync(torneio),
-            await SedesAsync(torneioId.Value),
+            sedes,
             concentracao.Janelas,
             await NoiteDeSabadoPorCategoriaAsync(torneio));
     }

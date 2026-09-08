@@ -39,6 +39,10 @@ public static class DuplicacaoDeTorneio
         // quantidade de quadras: a 2ª edição do torneio acontece nos mesmos lugares, e a
         // distância entre eles não mudou. Ver Services/SedesDoTorneio.
         nameof(Torneio.MinutosParaTrocarDeClube),
+        // "Que a dupla jogue apenas um jogo no local externo" viaja junto pelo mesmo motivo da
+        // folga acima: é uma combinação com o dono do lugar alugado, e a 2ª etapa do circuito
+        // acontece no mesmo arranjo. Ver Services/SedesDoTorneio.
+        nameof(Torneio.EvitarDoisJogosNaSedeExtra),
         nameof(Torneio.SemHorarioPrevisto),
         nameof(Torneio.HoraInicioDoDia),
         nameof(Torneio.HoraInicioDiasSeguintes),

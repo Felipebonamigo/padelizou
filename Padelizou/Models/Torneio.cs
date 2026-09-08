@@ -176,6 +176,20 @@ public partial class Torneio
     // à mão — coluna int nova nasce 0 no banco, e o padrão em C# só vale pra objeto novo.
     public int MinutosParaTrocarDeClube { get; set; } = 30;
 
+    // ---- "QUE A DUPLA JOGUE APENAS UM LÁ" (08/09/2026) ----
+    //
+    // 🗣️ Felipe: "o Er também me falou, que eles não querem q a dupla jogue os 2 jogos la, que
+    // jogue apenas um, para que ele possa jogar no clube dele também".
+    //
+    // ⚠️ REGRA MOLE, do mesmo tipo de `MinutosParaTrocarDeClube` e pelo mesmo motivo: a
+    // prioridade declarada do torneio é "nenhuma quadra fica sem jogo até o final", e no local
+    // ALUGADO POR HORA ela vale ainda mais — a hora vazia já foi paga. Então a grade PREFERE
+    // não repetir a dupla no externo, mas cede quando não há outro jogo pra pôr na vaga.
+    //
+    // FALSE = como sempre foi. Quem aplica é Services/GradeDeJogos.Encaixar, via
+    // Services/SedesDoTorneio.
+    public bool EvitarDoisJogosNaSedeExtra { get; set; }
+
     // Torneio SEM hora marcada: os jogos nascem numa ORDEM e vão pra quadra conforme ela
     // vaga, chamados pela Mesa de Controle. É como roda a maioria dos internos de clube —
     // ninguém consegue prever quanto dura um jogo de 4 games com desempate, e uma grade que

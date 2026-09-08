@@ -40,6 +40,27 @@ public partial class Quadra
     public int? ClubeId { get; set; }
     public virtual Clube? Clube { get; set; }
 
+    // ---- ATÉ QUE HORAS ESTA QUADRA EXISTE (08/09/2026) ----
+    //
+    // 🗣️ Pedido do Felipe: o torneio que cresceu demais aluga um LOCAL EXTERNO, e o local
+    // externo vem por hora — "das 8h às 14h de sábado". Até aqui toda quadra do torneio valia
+    // o expediente inteiro, e a grade marcaria jogo lá às 22h num lugar já fechado.
+    //
+    // NULOS = sem limite, e é o que TODA quadra que já existe é. A janela é MEIO ABERTA
+    // ([De, Ate)), mesmo formato de Services/JanelasDeImpedimento: um jogo que COMEÇA às 14h
+    // em ponto já está fora de uma janela que termina às 14h.
+    //
+    // ⚠️ MORA NA QUADRA, e não numa tabela de "sede alugada", pela MESMA razão que `ClubeId`
+    // mora aqui: a quadra é a única fonte da verdade sobre onde e quando o torneio acontece
+    // (ver Services/SedesDoTorneio). Uma janela declarada por sede, à parte, seria uma segunda
+    // verdade livre pra discordar da quadra — e a grade lê a quadra.
+    //
+    // ⚠️ SÓ VALE EM TORNEIO DE MAIS DE UMA SEDE (SedesDoTorneio.QuadraAberta): a janela nasceu
+    // pro local ALUGADO, não pra fechar o clube do próprio organizador. Quem quiser encurtar o
+    // dia do torneio inteiro mexe em `Torneio.HoraFimDoDia`, que é o campo que faz isso.
+    public DateTime? DisponivelDe { get; set; }
+    public DateTime? DisponivelAte { get; set; }
+
     // Relacionamento
     public virtual Torneio Torneio { get; set; } = null!;
 }

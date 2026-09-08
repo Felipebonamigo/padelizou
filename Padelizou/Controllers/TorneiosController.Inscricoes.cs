@@ -692,6 +692,118 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, "pagamentos");
         }
 
+        // ── O LOCAL EXTERNO ALUGADO (sub-aba "Quadras e sedes") ───────────────────────────
+        // 🗣️ Felipe, 08/09/2026: "esse do ER por exemplo, como colocou muita dupla, ele terá q
+        // locar um local externo ao dele [...] vai ter q por quantos jogos vão para la, ou quais
+        // horarios, quais categorias, temos que pensar nisso, e aonde colocar".
+        //
+        // ⚠️ METADE DISSO JÁ EXISTIA (21/08): quais clubes, qual quadra em qual clube, e a
+        // categoria PRESA a um clube continuam em "Gerenciar Torneio", no formulário de edição.
+        // O que nasce aqui é o que só se sabe na hora de gerar as chaves: a JANELA do lugar
+        // alugado, quem PODE transbordar pra lá, e o "só um jogo por dupla lá".
+        //
+        // "Quantos jogos vão pra lá" NÃO virou campo: é `quadras × rodadas da janela`, e a tela
+        // mostra a conta (SedesDoTorneio.JogosQueCabemNaJanela). Dois campos pra mesma
+        // informação discordariam, e ninguém saberia qual mandou.
+
+        // A janela vale pra TODAS as quadras daquele clube — é o lugar que está alugado das 8h
+        // às 12h, não uma quadra dele. Nulos nos dois campos devolvem a quadra pro expediente
+        // inteiro do torneio.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarJanelaDaSede(int torneioId, int? clubeId,
+            DateTime? de, DateTime? ate)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            // ⚠️ O FILTRO É POR TORNEIO **E** POR CLUBE. Sem o TorneioId, o mesmo clube alugado
+            // por dois torneios no mesmo fim de semana teria a janela de um escrita no outro.
+            var quadras = await _context.Quadras
+                .Where(q => q.TorneioId == torneioId && q.ClubeId == clubeId)
+                .ToListAsync();
+
+            if (quadras.Count == 0)
+            {
+                TempData["Erro"] = "Esse clube não tem quadra nenhuma neste torneio.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            foreach (var quadra in quadras)
+            {
+                quadra.DisponivelDe = de;
+                quadra.DisponivelAte = ate;
+            }
+            await _context.SaveChangesAsync();
+
+            var cabem = SedesDoTorneio.JogosQueCabemNaJanela(
+                quadras.Count, de, ate, torneio.TempoPrevistoPartidaMinutos);
+
+            TempData["Sucesso"] = cabem is int quantos
+                ? $"{quadras.Count} quadra(s) disponíveis de {de:dd/MM HH:mm} a {ate:dd/MM HH:mm} — "
+                  + $"cabem cerca de {quantos} jogos. Se as chaves já saíram, use \"Refazer grade\"."
+                : $"{quadras.Count} quadra(s) voltaram a valer o expediente inteiro do torneio.";
+
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
+        // Esta categoria pode transbordar pro local externo? Não confundir com o clube FIXO da
+        // categoria (Gerenciar Torneio), que é trava dura: aqui é a régua mole do Er — a sede
+        // principal enche e o que sobra vai pro alugado.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarTransbordoDaCategoria(int categoriaId, bool permitir)
+        {
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            if (categoria == null) return NotFound();
+
+            // Dono conferido pelo torneio DA CATEGORIA, lido do banco — nunca por um id que
+            // venha no formulário. Mesma régua de AlterarEliminatoriaNoSabado.
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(categoria.TorneioId, meuId)) return Forbid();
+
+            categoria.PodeJogarNaSedeExtra = permitir;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = permitir
+                ? $"{categoria.Nome} pode jogar no local externo quando a sede principal encher."
+                : $"{categoria.Nome} joga só na sede principal.";
+
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, "pagamentos");
+        }
+
+        // 🗣️ Felipe, 08/09/2026: "o Er também me falou, que eles não querem q a dupla jogue os 2
+        // jogos la, que jogue apenas um, para que ele possa jogar no clube dele também".
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarEvitarDoisJogosNaSedeExtra(int id, bool evitar)
+        {
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            torneio.EvitarDoisJogosNaSedeExtra = evitar;
+            await _context.SaveChangesAsync();
+
+            // ⚠️ A mensagem diz "evita", e não "garante", de propósito: a regra CEDE quando
+            // respeitá-la deixaria a quadra do lugar alugado parada. Prometer garantia numa
+            // regra mole é como o organizador descobre a exceção no dia do jogo.
+            TempData["Sucesso"] = evitar
+                ? "A grade vai evitar mandar os 2 jogos da mesma dupla pro local externo — "
+                  + "cede só se não houver outro jogo pra pôr na vaga."
+                : "A dupla pode ter os 2 jogos no local externo.";
+
+            return RedirectToAction("Details", "Torneios", new { id }, "pagamentos");
+        }
+
         // ── RELATÓRIO EM CSV: nome, telefone, pago e impedimento (aba Pagamentos) ──────────
         // Pedido do Felipe (07/09/2026): "crie um botão com um relatório em excel, com nome
         // completo, telefone, se pagou ou não, se tem impedimento e quando". Uma linha por

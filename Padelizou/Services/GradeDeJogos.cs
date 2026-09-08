@@ -209,6 +209,12 @@ public static class GradeDeJogos
         var ocupados = new Dictionary<int, List<(DateTime Quando, int? Clube)>>();  // pessoa -> quando e onde
         var ocupadas = new Dictionary<string, List<DateTime>>();                    // quadra -> quando está tomada
 
+        // Quem JÁ jogou no local externo — a memória de "que a dupla jogue apenas um lá".
+        // Semeada com os jogos que já estavam marcados: sem isso, um "Refazer grade" no meio do
+        // torneio esqueceria o jogo de sábado de manhã e mandaria a mesma dupla pro externo de
+        // novo à tarde.
+        var jaJogaramNoExterno = new HashSet<int>();
+
         bool Cruza(List<DateTime> quando, DateTime horario) =>
             quando.Any(h => (h - horario).Duration() < duracao);
 
@@ -255,6 +261,12 @@ public static class GradeDeJogos
 
             if (string.IsNullOrEmpty(marcado.NomeQuadra)) continue;
             Anotar(ocupadas, marcado.NomeQuadra!, quando);
+
+            if (sede.EhSedeExtra(marcado.NomeQuadra))
+            {
+                foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) jaJogaramNoExterno.Add(pessoa);
+                foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) jaJogaramNoExterno.Add(pessoa);
+            }
         }
 
         // Sai do laço porque não muda de horário pra horário — e porque agora ele é consultado
@@ -281,16 +293,34 @@ public static class GradeDeJogos
             {
                 livresAgora = quadras!
                     .Where(q => !(ocupadas.TryGetValue(q, out var quando) && Cruza(quando, horario)))
+                    // ⚠️ A JANELA DA QUADRA (08/09/2026) É TRAVA DURA, e é a única aqui que não
+                    // cede nunca: o local externo é ALUGADO por hora, e fora dela o portão está
+                    // trancado. Torneio de uma sede só responde sempre `true` e nada muda.
+                    .Where(q => sede.QuadraAberta(q, horario))
+                    // A SEDE PRINCIPAL PRIMEIRO — e isto é ORDEM, não filtro. Como
+                    // PreferenciaDeQuadra.Escolher varre `livres` na ordem, pôr as de casa na
+                    // frente basta pra que o lugar alugado só receba jogo quando o de casa
+                    // encher. É o que faz a hora alugada custar menos, e não tira quadra de
+                    // ninguém: se a de casa acabar, a externa continua na lista.
+                    .OrderBy(q => sede.EhSedeExtra(q) ? 1 : 0)
                     .ToList();
             }
 
             // As quadras que ESTE jogo pode usar: as livres, cortadas pelo clube da categoria.
             // Corte DURO — ver o comentário do método. Torneio de um clube só devolve a lista
             // inteira, sem alocar nada.
+            // ⚠️ DUAS TRAVAS DURAS, E ELAS SÃO DIFERENTES: `QuadrasDe` é a categoria PRESA a um
+            // clube (`Categoria.ClubeId`, o jeito do Dez E Batata — a categoria inteira fica
+            // lá); `PodeIrPraSedeExtra` é a categoria que o organizador NÃO quer mandar pro
+            // local alugado (`Categoria.PodeJogarNaSedeExtra`, o jeito do Er — a sede principal
+            // enche e o resto transborda). A primeira já pinou a categoria num lugar, então a
+            // segunda nem chega a ser perguntada pra ela.
             List<string> LivresPara(Partida p) =>
                 sede.QuadrasDe(p.CategoriaId) is { } daSede
                     ? livresAgora.Where(daSede.Contains).ToList()
-                    : livresAgora;
+                    : sede.PodeIrPraSedeExtra(p.CategoriaId)
+                        ? livresAgora
+                        : livresAgora.Where(q => !sede.EhSedeExtra(q)).ToList();
 
             // A ÚNICA coisa impossível na vida real é a mesma PESSOA em duas quadras ao mesmo
             // tempo. Fases diferentes dividindo o horário é normal e desejável: a final de uma
@@ -347,13 +377,36 @@ public static class GradeDeJogos
                 return !Ocupantes(p.Dupla1Id).Any(Correria) && !Ocupantes(p.Dupla2Id).Any(Correria);
             }
 
+            // "QUE A DUPLA JOGUE APENAS UM LÁ" (Felipe, 08/09/2026, pelo Er): a dupla que já
+            // jogou no local externo é PRETERIDA numa vaga que também cairia lá.
+            //
+            // ⚠️ MOLE, do mesmo tipo da folga pra trocar de clube: quem é preterido é o JOGO,
+            // nunca a vaga. Se não houver outro jogo pra pôr, o `if (jogo == null)` lá embaixo
+            // entra com ele mesmo — quadra parada no lugar que se está pagando por hora é o
+            // desfecho que o organizador não aceita, e ele já disse isso.
+            //
+            // A pergunta é feita sobre a quadra que ESTE jogo GANHARIA (mesma função que
+            // escolhe de verdade, logo abaixo), e não sobre "sobrou quadra externa": num
+            // horário com vaga nas duas sedes, ele iria pra casa de qualquer jeito.
+            bool RepetiriaOExterno(Partida p)
+            {
+                if (!sede.EvitarDoisJogosNaSedeExtra || !temQuadraCadastrada) return false;
+
+                var ganharia = PreferenciaDeQuadra.Escolher(LivresPara(p), Preferidas(p), comDono);
+                if (ganharia == null || !sede.EhSedeExtra(ganharia)) return false;
+
+                return Ocupantes(p.Dupla1Id).Any(jaJogaramNoExterno.Contains)
+                    || Ocupantes(p.Dupla2Id).Any(jaJogaramNoExterno.Contains);
+            }
+
             // O jogo IDEAL pra esta vaga: ninguém repetido, ninguém atravessando a cidade
             // correndo, e quadra livre no clube certo.
             //
             // ⚠️ `FirstOrDefault` VARRE A FILA INTEIRA, e é isso que faz a folga entre clubes
             // não custar quadra: o jogo que teria que correr é PRETERIDO, não a vaga. Quem entra
             // é o próximo da fila que serve — de outra categoria, do outro clube, tanto faz.
-            var jogo = fila.FirstOrDefault(p => Livre(p) && SemCorreria(p) && TemOndeJogar(p));
+            var jogo = fila.FirstOrDefault(p => Livre(p) && SemCorreria(p) && TemOndeJogar(p)
+                                             && !RepetiriaOExterno(p));
 
             if (jogo == null)
             {
@@ -410,6 +463,12 @@ public static class GradeDeJogos
             {
                 jogo.NomeQuadra = livre;
                 Anotar(ocupadas, livre, horario);
+
+                if (sede.EhSedeExtra(livre))
+                {
+                    foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) jaJogaramNoExterno.Add(pessoa);
+                    foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) jaJogaramNoExterno.Add(pessoa);
+                }
             }
 
             var onde = OndeJoga(jogo);
