@@ -4948,11 +4948,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                estivesse escolhido e não salvo. *@
                             <div class="mb-3" style="max-width: 520px;">
                                 <label class="form-label small fw-bold mb-1" for="pdzNovoClubeSede">
-                                    Não achou o lugar? Cadastre o clube aqui
+                                    Não achou o lugar? Cadastre o clube e diga em qual quadra ele fica
                                 </label>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap">
                                     <input type="text" id="pdzNovoClubeSede" maxlength="80"
-                                           class="form-control form-control-sm" placeholder="Nome do clube" />
+                                           class="form-control form-control-sm" placeholder="Nome do clube"
+                                           style="min-width: 180px; flex: 1 1 180px;" />
+                                    @* ⚠️ SEM `name`: campo sem nome não viaja no POST, e este não pode
+                                       viajar — o AlterarSedesDoTorneio lê `clubesQuadras`, e um valor a
+                                       mais aqui seria só ruído chegando no servidor. Ele serve pra dizer
+                                       ao JavaScript qual seletor de cima receber o clube. *@
+                                    <select id="pdzNovoClubeSedeQuadra" class="form-select form-select-sm"
+                                            style="max-width: 200px;">
+                                        @foreach (var quadra in quadrasDoTorneio.OrderBy(q => q.Id))
+                                        {
+                                            <option value="@quadra.Id">@quadra.Nome</option>
+                                        }
+                                    </select>
                                     <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
                                             onclick="adicionarClubeNasSedes()">
                                         <i class="bi bi-plus-circle"></i> Adicionar clube
