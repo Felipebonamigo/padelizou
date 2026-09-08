@@ -787,6 +787,20 @@ namespace padelizou.Controllers
                 return RedirectToAction("MinhaAgenda");
             }
 
+            // ⚠️ O CAMPO MOSTRA O TOTAL DA TURMA, não a fatia desta linha — pedido do Felipe
+            // (08/09/2026): "quando marco 4 atletas as vezes ele buga e da uns valores
+            // doidos". O card da agenda (Services/AgendaDeTurma.Colapsar) já soma as fatias
+            // pra mostrar o total da sessão; esta tela mostrava e editava só a fatia da linha
+            // clicada — o professor via um número bem menor do que o do card, "corrigia" pro
+            // total que tinha visto, e só aquela linha mudava. A soma seguinte inflava a cada
+            // edição. O POST espera o mesmo total de volta (ver lá).
+            if (aula.TurmaId != null)
+            {
+                aula.Preco = await _context.Aulas
+                    .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId)
+                    .SumAsync(a => a.Preco);
+            }
+
             ViewBag.Locais = await LocaisParaEscolherAsync(professorId.Value, aula.LocalAulaId);
             ViewBag.Esportes = EsporteDaAula.Todos;
             return View(aula);
@@ -862,10 +876,28 @@ namespace padelizou.Controllers
                 return RedirectToAction(nameof(Editar), new { id = aulaId });
             }
 
+            var ehTurma = aula.TurmaId != null;
+
+            // Precisa dos colegas ANTES de decidir o que mudou: o campo "Valor da aula" agora
+            // fala do TOTAL da turma (ver Editar GET), não da fatia desta linha — pra saber se
+            // o total mudou, é preciso somar todo mundo primeiro.
+            var colegasDeTurma = ehTurma
+                ? await _context.Aulas
+                    .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId && a.Id != aula.Id)
+                    .ToListAsync()
+                : new List<Aula>();
+
+            var precoTotalAntes = aula.Preco + colegasDeTurma.Sum(c => c.Preco);
+            var fatiaAntesDoEditado = aula.Preco;
+
+            // Do lado do PROFESSOR a conta é sempre em cima do TOTAL — é o que a tela mostra e
+            // o que decide "mudou algo". Do lado do ALUNO (mais abaixo, mudancaAluno) a conta é
+            // a FATIA dele: contar "o valor passou de R$332,50 pra R$400" quando a fatia dele
+            // foi de R$83 pra R$100 seria mentira sobre o que ele deve.
             var mudanca = new MudancaDaAula(
                 aula.DataHora, dataHora,
                 aula.LocalAula.Nome, local.Nome,
-                aula.Preco, preco,
+                precoTotalAntes, preco,
                 aula.DuracaoMinutos, duracao);
 
             var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : aula.Esporte;
@@ -881,27 +913,50 @@ namespace padelizou.Controllers
             aula.DuracaoMinutos = duracao;
             aula.LocalAulaId = local.Id;
             aula.LocalAula = local;
-            aula.Preco = preco;
             aula.Esporte = esporteValido;
 
             // Horário/local/duração/esporte são da SESSÃO — valem pra turma inteira (ver
             // Models/Aula.TurmaId): os N alunos jogam junto, na mesma quadra, o mesmo esporte.
-            // Preço fica de fora de propósito: é a fatia do ALUNO desta linha, os colegas
-            // mantêm a própria.
-            var colegasDeTurma = aula.TurmaId != null && (mudanca.MudouOQueVaiProGoogle || esporteMudou)
-                ? await _context.Aulas
-                    .Where(a => a.TurmaId == aula.TurmaId && a.ProfessorId == professorId && a.Id != aula.Id)
-                    .ToListAsync()
-                : new List<Aula>();
-
-            foreach (var colega in colegasDeTurma)
+            if (mudanca.MudouOQueVaiProGoogle || esporteMudou)
             {
-                colega.Esporte = esporteValido;
-                colega.DataHora = dataHora;
-                colega.DuracaoMinutos = duracao;
-                colega.LocalAulaId = local.Id;
-                colega.LocalAula = local;
+                foreach (var colega in colegasDeTurma)
+                {
+                    colega.Esporte = esporteValido;
+                    colega.DataHora = dataHora;
+                    colega.DuracaoMinutos = duracao;
+                    colega.LocalAulaId = local.Id;
+                    colega.LocalAula = local;
+                }
             }
+
+            // ⚠️ REVISTO 08/09/2026 — pedido do Felipe: "quando marco 4 atletas as vezes ele
+            // buga e da uns valores doidos". Até aqui o POST gravava o total inteiro só na
+            // linha editada e deixava os colegas com a fatia antiga — a soma seguinte
+            // (Services/AgendaDeTurma.Colapsar, o que o card da agenda mostra) inflava a cada
+            // edição. Agora o valor submetido é sempre o TOTAL, rachado de novo em fatias
+            // iguais — mesma conta da criação (ver Services/PrecoDaAula.DivididoIgualmente).
+            decimal fatiaDepoisDoEditado;
+            if (ehTurma)
+            {
+                var todasAsLinhas = new List<Aula> { aula };
+                todasAsLinhas.AddRange(colegasDeTurma);
+                var fatias = PrecoDaAula.DivididoIgualmente(preco, todasAsLinhas.Count);
+                for (var i = 0; i < todasAsLinhas.Count; i++) todasAsLinhas[i].Preco = fatias[i];
+                fatiaDepoisDoEditado = aula.Preco;
+            }
+            else
+            {
+                aula.Preco = preco;
+                fatiaDepoisDoEditado = preco;
+            }
+
+            // O recado do ALUNO fala da fatia dele — ver o comentário lá em cima sobre
+            // `mudanca` ser em cima do total.
+            var mudancaAluno = new MudancaDaAula(
+                mudanca.QuandoAntes, mudanca.QuandoDepois,
+                mudanca.LocalAntes, mudanca.LocalDepois,
+                fatiaAntesDoEditado, fatiaDepoisDoEditado,
+                mudanca.DuracaoAntes, mudanca.DuracaoDepois);
 
             await _context.SaveChangesAsync();
 
@@ -929,15 +984,15 @@ namespace padelizou.Controllers
                 }
             }
 
-            if (EdicaoDeAula.PrecisaAvisarAluno(aula, mudanca, DateTime.Now))
+            if (EdicaoDeAula.PrecisaAvisarAluno(aula, mudancaAluno, DateTime.Now))
             {
                 try
                 {
                     await _pushService.EnviarParaJogadorAsync(aula.AlunoId!.Value,
                         "Sua aula mudou",
-                        $"A aula com {aula.Professor?.ComoChamar ?? "seu professor"}: {EdicaoDeAula.Recado(mudanca)}.",
+                        $"A aula com {aula.Professor?.ComoChamar ?? "seu professor"}: {EdicaoDeAula.Recado(mudancaAluno)}.",
                         Url.Action("MinhasAulas", "Aulas"),
-                        EdicaoDeAula.CanalDoAviso(mudanca));
+                        EdicaoDeAula.CanalDoAviso(mudancaAluno));
                 }
                 catch (Exception ex)
                 {
@@ -953,7 +1008,7 @@ namespace padelizou.Controllers
             if (!aula.AlunoId.HasValue && !string.IsNullOrWhiteSpace(celular) && mudanca.MudouOQueVaiProGoogle)
             {
                 TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(celular,
-                    $"Olá, {aula.NomeAlunoAvulso}! Mudança na nossa aula: {EdicaoDeAula.Recado(mudanca)}.");
+                    $"Olá, {aula.NomeAlunoAvulso}! Mudança na nossa aula: {EdicaoDeAula.Recado(mudancaAluno)}.");
             }
 
             // Volta na semana da aula NOVA: remarcar pro mês que vem e cair na semana de onde

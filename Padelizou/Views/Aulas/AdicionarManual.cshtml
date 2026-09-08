@@ -512,6 +512,14 @@
 
             $selectLocal.on('change', atualizarSugestao);
             $('input[name="quantidadeAlunos"]').on('change', function () {
+                // ⚠️ LIMPA O VALOR DIGITADO, não só a sugestão do placeholder — pedido do
+                // Felipe (08/09/2026): "quando marco 4 atletas as vezes ele buga e da uns
+                // valores doidos". Sem isto, um preço digitado com "1" marcado sobrevivia à
+                // troca pra "Quarteto" e ia pro servidor como se fosse o TOTAL da turma
+                // inteira (AulasController.Agenda.AdicionarManual), rachado então em 4 fatias
+                // minúsculas. Mesma régua que renderizarBlocosDeTurma já usa pros nomes: some
+                // tudo e o professor preenche de novo, que é 2 toques, não um dilema.
+                $inputPreco.val('');
                 atualizarSugestao();
                 renderizarBlocosDeTurma();
             });
