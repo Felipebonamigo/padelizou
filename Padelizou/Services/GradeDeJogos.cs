@@ -136,6 +136,22 @@ public static class GradeDeJogos
     // Services/JanelasDeImpedimento) — até 21/08/2026 cobrado e nunca lido por aqui. Dupla
     // ausente do mapa (ou o mapa inteiro ausente) não tem restrição nenhuma, como sempre foi.
     //
+    // ⚠️ OS DOIS PARÂMETROS DE 08/09/2026 SÃO SEPARADOS DO DE CIMA POR UMA COISA SÓ: A FASE.
+    // O impedimento acima vale em TODA fase, porque é a pessoa que não pode estar ali. Estes
+    // dois valem em UMA fase cada, e é isso que os torna corretos:
+    //
+    //   • `janelasSoNosGruposPorDupla` é a CONCENTRAÇÃO ("os 2 jogos na sexta", pedido do
+    //     Felipe — ver Services/ConcentracaoDeJogos). "Os 2 jogos" são os 2 do GRUPO; a
+    //     eliminatória sai depois dos grupos por definição, e prendê-la ao mesmo turno pediria
+    //     o impossível — a dupla que passasse ficaria sem horário nenhum que servisse.
+    //   • `janelasSoNaEliminatoriaPorCategoria` é o "sem eliminatória no sábado à noite" (ver
+    //     Services/EliminatoriaNoSabado). A chave por CATEGORIA, não por dupla, e vale só FORA
+    //     da fase de grupos: o Felipe pediu "jogos de eliminatórias", e alcançar os grupos
+    //     empurraria jogo que ele não pediu pra empurrar.
+    //
+    // Os dois cedem no aperto de fila, exatamente como o impedimento — ver o `if (jogo == null)`
+    // lá embaixo. Jogo sem horário nenhum continua sendo o único desfecho inaceitável.
+    //
     // `sedes` é o torneio que acontece em MAIS DE UM CLUBE (Services/SedesDoTorneio). Omitida —
     // que é o caso de todo torneio até hoje — nada aqui muda de comportamento. Com ela entram
     // duas regras de naturezas opostas, e a diferença entre as duas é o assunto deste método:
@@ -152,7 +168,9 @@ public static class GradeDeJogos
         IReadOnlyList<Partida>? jaMarcados = null,
         IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
         IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasProibidasPorDupla = null,
-        SedesDoTorneio? sedes = null)
+        SedesDoTorneio? sedes = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasSoNosGruposPorDupla = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasSoNaEliminatoriaPorCategoria = null)
     {
         var sede = sedes ?? SedesDoTorneio.Nenhuma;
 
@@ -286,14 +304,29 @@ public static class GradeDeJogos
             // A janela é MEIO ABERTA ([Inicio, Fim)): o corte de sábado passa de "ImpedimentoManha"
             // pra "ImpedimentoTarde" exatamente no meio-dia, e um jogo marcado ÀS 12h00 precisa
             // cair num dos dois lados, nunca nos dois.
-            bool DentroDeJanelaProibida(int duplaId) =>
-                janelasProibidasPorDupla != null
-                && janelasProibidasPorDupla.TryGetValue(duplaId, out var janelas)
+            bool DentroDeJanela(IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? mapa, int chave) =>
+                mapa != null
+                && mapa.TryGetValue(chave, out var janelas)
                 && janelas.Any(j => horario >= j.Inicio && horario < j.Fim);
+
+            bool DentroDeJanelaProibida(int duplaId) =>
+                DentroDeJanela(janelasProibidasPorDupla, duplaId);
+
+            // O recorte por fase de 08/09/2026 — a concentração só nos grupos, a régua da noite
+            // de sábado só fora deles. Ver o comentário grande no cabeçalho do método.
+            bool ForaDoTurnoConcentrado(Partida p) =>
+                FasesTorneio.EhFaseDeGrupos(p.Fase)
+                && (DentroDeJanela(janelasSoNosGruposPorDupla, p.Dupla1Id)
+                 || DentroDeJanela(janelasSoNosGruposPorDupla, p.Dupla2Id));
+
+            bool EliminatoriaEmHoraProibida(Partida p) =>
+                !FasesTorneio.EhFaseDeGrupos(p.Fase)
+                && DentroDeJanela(janelasSoNaEliminatoriaPorCategoria, p.CategoriaId);
 
             bool Livre(Partida p) =>
                 !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
-                && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id);
+                && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id)
+                && !ForaDoTurnoConcentrado(p) && !EliminatoriaEmHoraProibida(p);
 
             // Existe quadra do clube CERTO livre pra este jogo? Torneio sem quadra cadastrada
             // responde sempre sim: lá a grade marca hora e não nomeia lugar.

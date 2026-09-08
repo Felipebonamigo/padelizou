@@ -923,7 +923,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
-                <i class="bi bi-cash-coin"></i> Pagamentos
+                <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
             </button>
         </li>
     }
@@ -4586,6 +4586,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     .ToList();
             }
 
+            @* ── SUB-ABAS (08/09/2026) ────────────────────────────────────────────────────
+               🗣️ Felipe: "cria uma outra aba dentro dessa de pagamentos (mude o nome para
+               Pagamentos e impedimentos) — colocar por categoria, se vai ter jogos de
+               eliminatórias no sabado a noite ainda ou não".
+
+               Mesmo `nav-pills` que _JogosDoTorneio já usa pras sub-abas de Ao Vivo/Agendadas —
+               reusado, não inventado, pra que as duas telas se comportem igual no celular. *@
+            <ul class="nav nav-pills pdz-pills mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pagamentos-lista-tab" data-bs-toggle="tab"
+                            data-bs-target="#pagamentosLista" type="button" role="tab">
+                        <i class="bi bi-people"></i> Por dupla
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pagamentos-eliminatorias-tab" data-bs-toggle="tab"
+                            data-bs-target="#pagamentosEliminatorias" type="button" role="tab">
+                        <i class="bi bi-moon-stars"></i> Eliminatórias
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+            <div class="tab-pane fade show active" id="pagamentosLista" role="tabpanel">
+
             @if (ViewBag.PodeVerDinheiro != true)
             {
                 @* Mesmo aviso que Financeiro.cshtml já dá pro ajudante — sem ele, quem não vê
@@ -4728,7 +4753,26 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
                                             <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
                                             <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
+                                            @* ⚠️ AS TRÊS DE BAIXO SÃO O AVESSO DAS DE CIMA, e por
+                                               isso vão num <optgroup> separado: as primeiras dizem
+                                               "não pode nesse turno", estas dizem "SÓ nesse turno".
+                                               Pedido do Felipe (08/09/2026), "apenas para os
+                                               organizadores e adm do sistema" — o formulário do
+                                               jogador (lá em cima, AlterarImpedimento) NÃO as
+                                               oferece, e o servidor recusa se alguém montar o POST
+                                               à mão (AlteracaoDeImpedimento.MotivoParaNaoAlterar). *@
+                                            <optgroup label="Concentrar os 2 jogos (só organizador)">
+                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSextaNoite)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SextaNoite)</option>
+                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSabadoManha)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SabadoManha)</option>
+                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSabadoTarde)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SabadoTarde)</option>
+                                            </optgroup>
                                         </select>
+                                        @* Grátis, decisão do Felipe: é favor do organizador, não
+                                           flexibilidade comprada. O lembrete evita que ele hesite
+                                           achando que vai cobrar da pessoa sem querer. *@
+                                        <small class="text-muted d-block w-100">
+                                            Concentrar os 2 jogos num turno só não cobra nada — é ajuda sua, não taxa.
+                                        </small>
                                         <button type="submit" class="btn btn-sm btn-padel">
                                             <i class="bi bi-check-lg"></i> Salvar
                                         </button>
@@ -4751,6 +4795,78 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 }
             }
             </fieldset>
+            </div>
+
+            @* ── SUB-ABA "ELIMINATÓRIAS" ──────────────────────────────────────────────────
+               🗣️ Felipe: "por exemplo, a 5a categoria feminina nao pode ter jogo sabado a
+               noite, ai passaria para domingo de manha, coisas assim".
+
+               Uma linha por categoria, com UM interruptor. Não há valor nem telefone aqui, então
+               não passa por `PodeVerDinheiro`: quem ajuda a organizar decide horário, que é
+               exatamente o que a aba toda já faz com o impedimento.
+
+               ⚠️ O interruptor NÃO REMARCA NADA sozinho — só muda o que a PRÓXIMA montagem de
+               grade respeita. O aviso embaixo diz isso, porque um organizador que já sorteou e
+               não vir o botão "Refazer grade" vai achar que o clique não funcionou. *@
+            <div class="tab-pane fade" id="pagamentosEliminatorias" role="tabpanel">
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    Desligue a categoria que <strong>não pode</strong> ter jogo de eliminatória no
+                    sábado à noite (da @Padelizou.Services.JanelasDeImpedimento.CorteSabadoTardeNoite.Hours.ToString("00")h
+                    em diante). O que não couber cai no dia seguinte, na abertura da manhã.
+                    Os jogos da <strong>fase de grupos</strong> não mudam.
+                </p>
+
+                <fieldset disabled="@gestaoSoLeitura" class="border-0 p-0 m-0">
+                @if (!Model.Categorias.Any())
+                {
+                    <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhuma categoria cadastrada ainda.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var categoria in Model.Categorias.OrderBy(c => c.Nome))
+                        {
+                            <li class="list-group-item bg-transparent px-0 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                                <span class="fw-semibold">@categoria.Nome</span>
+                                <span class="d-flex align-items-center gap-2 flex-wrap">
+                                    @if (categoria.EliminatoriaNoSabadoANoite)
+                                    {
+                                        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">
+                                            Pode jogar sábado à noite
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                            <i class="bi bi-moon-stars"></i> Sem eliminatória sábado à noite
+                                        </span>
+                                    }
+                                    <form asp-controller="Torneios" asp-action="AlterarEliminatoriaNoSabado" method="post">
+                                        <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                                        <input type="hidden" name="permitir" value="@((!categoria.EliminatoriaNoSabadoANoite).ToString().ToLowerInvariant())" />
+                                        <button type="submit" class="btn btn-sm text-nowrap @(categoria.EliminatoriaNoSabadoANoite ? "btn-outline-secondary" : "btn-success")">
+                                            @(categoria.EliminatoriaNoSabadoANoite ? "Tirar do sábado à noite" : "Liberar sábado à noite")
+                                        </button>
+                                    </form>
+                                </span>
+                            </li>
+                        }
+                    </ul>
+
+                    @if (torneioComecou)
+                    {
+                        <div class="alert alert-warning small mt-3 mb-0">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            As chaves deste torneio já saíram — mudar isto <strong>não remarca</strong>
+                            os jogos que já estão na grade. Use <strong>Refazer grade</strong>, na aba
+                            de jogos, pra aplicar a mudança.
+                        </div>
+                    }
+                }
+                </fieldset>
+            </div>
+            </div>
         </div>
     }
     <!-- ABA: JOGOS (Ao Vivo/Agendadas/Finalizadas unificados) -->

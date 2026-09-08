@@ -1,6 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **08/09/2026** — 🕗 **"OS 2 JOGOS NA SEXTA" + SEM ELIMINATÓRIA NO SÁBADO À NOITE.**
+>
+> 🗣️ **Os dois pedidos do Felipe, no mesmo recado:** *"permita também criar uma opção, lá nos impedimentos, de 'colocar os 2 jogos na sexta', colocar os 2 jogos no sábado a tarde, os 2 jogos no sábado de manha, apenas para os organizadores e adm do sistema, para que nós possamos auxiliar algumas pessoas"* — e *"cria uma outra aba dentro dessa de pagamentos (mude o nome para Pagamentos e impedimentos) — colocar por categoria, se vai ter jogos de eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina nao pode ter jogo sabado a noite, ai passaria para domingo de manha"*.
+>
+> 🧭 **ARCHITECTURAL pelo critério do CLAUDE.md** (gera migration e encosta em dinheiro), então três decisões foram DELE antes de qualquer código, e as três moldaram o desenho:
+> - **Dinheiro:** concentrar os 2 jogos é **DE GRAÇA** — favor do organizador, não flexibilidade comprada. Quem tinha impedimento pago e vira concentração vê o valor **abaixar**, igual a tirar o impedimento. Nada cobra nem estorna sozinho.
+> - **Escopo da concentração:** só a **FASE DE GRUPOS**. "Os 2 jogos" são os 2 do grupo; a eliminatória sai depois dos grupos por definição, e prendê-la ao mesmo turno pediria o impossível.
+> - **Escopo do sábado à noite:** só as **ELIMINATÓRIAS**. Jogo de grupo da categoria continua entrando às 21h de sábado.
+>
+> 🔄 **A CONCENTRAÇÃO É O AVESSO DO IMPEDIMENTO, E POR ISSO NÃO COUBE NOS 4 BOOLEANOS.** Eles dizem "não posso em X", e `ImpedimentoUnico` garante no máximo UM ligado; ela diz "só posso em X", que precisaria de TRÊS ligados de uma vez — quebrando a invariante e fazendo o preço contar três taxas por um favor que é de graça. Daí `Dupla.ConcentrarJogosEm`, coluna própria. Na TELA, porém, é uma escolha só: os três `So*` entram no MESMO `<select>` do impedimento, num `<optgroup>` separado — dois dropdowns lado a lado convidariam ao estado impossível.
+>
+> 🔒 **A TRAVA NÃO É A TELA.** O formulário do jogador não oferece as três opções, mas um POST montado à mão chega com elas — e sem recusa qualquer inscrito se daria a concentração **e ainda abaixaria o próprio valor devido**. `MotivoParaNaoAlterar` recusa; `EhOrganizadorAsync` (que já inclui `IsAdminRaiz`/`IsAdminGeral` = "adm do sistema") é o gate do lado do organizador — nenhum papel de acesso novo foi criado.
+>
+> 🕳️ **O DEFEITO QUE O PEDIDO NÃO PREVIA, E QUE TERIA SAÍDO CALADO:** o impedimento tira UMA janela de muitas, então sempre sobra grade adiante. A concentração tira **TODAS menos uma** — e a lista de vagas é `jogos + margem`, que num fim de semana alcança a tarde de sábado por **UMA RODADA SÓ** (12h10, medido). Uma rodada não serve: a dupla joga DOIS jogos, e os dois não cabem no mesmo horário. Resultado: "os 2 jogos no sábado à tarde" — uma das três opções pedidas — caía no último recurso do encaixe e saía no dia errado, sem aviso nenhum. Consertado com `VagasDaGrade.Montar(peloMenosAte:)`, e travado por um teste que vai pelo `GerarChaves` de verdade. **Sem ninguém concentrado, a conta de vagas é EXATAMENTE a de sempre.**
+>
+> 🧨 **A MIGRATION GERADA VINHA ERRADA, E O ERRO ERA DE PRODUÇÃO:** `dotnet ef migrations add` não lê o `= true` do modelo e escreveu `defaultValue: false` — o valor que **backfilla as linhas que já existem**. O deploy teria tirado em silêncio o sábado à noite de TODAS as categorias de TODOS os torneios. Corrigido pra `true` e travado em `MigrationDaEliminatoriaNoSabadoTests`, que lê a migration como texto porque regenerá-la traz o `false` de volta.
+>
+> 📐 **"Passa pro domingo de manhã" não virou regra escrita** — de propósito. Bloqueada a noite de sábado, a próxima vaga que a grade oferece já é a abertura do dia seguinte (`HoraInicioDiasSeguintes`). Uma regra explícita seria uma segunda opinião sobre a grade, e discordaria dela no primeiro torneio de expediente diferente. O corte da noite é **18h**, constante ao lado do corte manhã/tarde (12h) que já existia.
+>
+> 🧪 **5.494 testes, 0 falhas (107 novos).** **COM migration** (`ConcentracaoDeJogosEEliminatoriaNoSabado` — duas colunas; `has-pending-model-changes` limpo). **Falsificado, um de cada vez, 9 guardas — cada uma derrubou exatamente o teste que deveria:** a recusa do jogador, a gratuidade, o recorte por fase da concentração, o recorte por fase da noite de sábado, o "turno que o torneio não tem não bloqueia nada", a checagem de dono da sub-aba, a exclusividade impedimento×concentração, o alcance da grade no sorteio e o alcance dentro do `VagasDaGrade`.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão. A aba renomeada, as duas sub-abas (`nav-pills`, reusadas de `_JogosDoTorneio`) e o `<optgroup>` no select precisam do olho do Felipe.
+>
 > Última atualização: **07/09/2026** — ❤️ **CURTIR COMENTÁRIO NO PERFIL.**
 >
 > 🗣️ **O pedido do Felipe:** *"Permita as pessoas curtirem comentário no perfil também"*.

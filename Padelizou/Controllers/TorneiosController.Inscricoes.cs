@@ -653,6 +653,45 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── SEM ELIMINATÓRIA NO SÁBADO À NOITE, POR CATEGORIA (sub-aba "Eliminatórias") ───
+        // 🗣️ Pedido do Felipe (08/09/2026): "colocar por categoria, se vai ter jogos de
+        // eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina
+        // nao pode ter jogo sabado a noite, ai passaria para domingo de manha".
+        //
+        // Mora neste arquivo, e não junto do sorteio, porque é a outra metade da MESMA aba que
+        // o `AlterarImpedimentoOrganizador` logo acima serve — quem procurar "o que a aba
+        // Pagamentos e impedimentos faz" acha as duas ações lado a lado. A régua da janela está
+        // em Services/EliminatoriaNoSabado; quem a aplica é GradeDeJogos.Encaixar.
+        //
+        // ⚠️ SEM JANELA DE SORTEIO, ao contrário do impedimento: ligar/desligar isto não mexe em
+        // jogo nenhum sozinho, só muda o que a PRÓXIMA montagem de grade vai respeitar. O
+        // organizador que já sorteou e mudar de ideia aperta "Refazer grade", que é o botão que
+        // existe justamente pra isso.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarEliminatoriaNoSabado(int categoriaId, bool permitir)
+        {
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            if (categoria == null) return NotFound();
+
+            // ⚠️ A CHECAGEM DE DONO É SOBRE O TORNEIO DA CATEGORIA, lido do banco — nunca sobre
+            // um torneioId que venha no formulário. Sem isso, quem organiza o torneio A mexeria
+            // na categoria do torneio B só trocando o id no POST.
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(categoria.TorneioId, meuId)) return Forbid();
+
+            categoria.EliminatoriaNoSabadoANoite = permitir;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = permitir
+                ? $"{categoria.Nome}: as eliminatórias podem entrar no sábado à noite."
+                : $"{categoria.Nome}: sem eliminatória no sábado à noite — o que não couber até "
+                  + "as 18h cai no dia seguinte. Se as chaves já saíram, use \"Refazer grade\".";
+
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, "pagamentos");
+        }
+
         // ── RELATÓRIO EM CSV: nome, telefone, pago e impedimento (aba Pagamentos) ──────────
         // Pedido do Felipe (07/09/2026): "crie um botão com um relatório em excel, com nome
         // completo, telefone, se pagou ou não, se tem impedimento e quando". Uma linha por

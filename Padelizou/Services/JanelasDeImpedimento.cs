@@ -24,34 +24,53 @@ public static class JanelasDeImpedimento
     // constante; o resto do cálculo segue igual.
     public static readonly TimeSpan CorteSabadoManhaTarde = new(12, 0, 0);
 
+    // O corte TARDE/NOITE do sábado (08/09/2026), irmão do de cima e pela mesma razão: o
+    // sábado é o único dia aberto do padrão, e nada no modelo diz onde a noite começa.
+    //
+    // 18h é a convenção adotada aqui, e não é arbitrária: é a `HoraInicioDoDia` padrão do
+    // torneio — a hora em que a sexta abre justamente porque é quando a noite começa pra quem
+    // trabalha de dia. Se o corte real for outro, é só mudar esta constante.
+    //
+    // ⚠️ Este corte NÃO é um turno de impedimento: ninguém marca "não posso sábado à noite" na
+    // inscrição (o turno da TARDE já vai do meio-dia à virada do dia). Ele existe pra régua
+    // POR CATEGORIA de Services/EliminatoriaNoSabado, e mora aqui porque os dois cortes do
+    // mesmo sábado precisam ser lidos lado a lado.
+    public static readonly TimeSpan CorteSabadoTardeNoite = new(18, 0, 0);
+
+    // ⚠️ A BUSCA DO DIA É PRA FRENTE, MAS CURTA (no máximo os 3 dias que seguem DataInicio) —
+    // nunca "a próxima ocorrência daquele dia da semana", que foi o primeiro jeito que isto
+    // foi escrito e tinha um bug: num torneio que começa no SÁBADO (sem sexta nenhuma),
+    // buscar "a próxima sexta" sem limite achava a sexta da SEMANA SEGUINTE — e geraria uma
+    // janela que não corresponde a jogo nenhum do torneio, mas também não é o "sem janela"
+    // correto. Limitado aos 3 dias que seguem o início, um torneio de sábado-domingo
+    // simplesmente não acha sexta nenhuma: devolve null, não bloqueia nada.
+    //
+    // Era uma função local de `Da` até 08/09/2026. Virou pública porque a concentração
+    // (Services/ConcentracaoDeJogos) e a régua da noite de sábado (Services/EliminatoriaNoSabado)
+    // fazem a MESMA pergunta — e uma segunda cópia dessa busca é como um torneio de sábado
+    // volta a ganhar janela de sexta.
+    public static DateTime? DiaDoTorneio(Torneio torneio, DayOfWeek alvo)
+    {
+        if (torneio.DataInicio is not DateTime inicio) return null;
+
+        for (int offset = 0; offset < 3; offset++)
+        {
+            var dia = inicio.Date.AddDays(offset);
+            if (dia.DayOfWeek == alvo) return dia;
+        }
+        return null;
+    }
+
     // As janelas que ESTA dupla não pode jogar, neste torneio. Vazio se ela não marcou
     // impedimento nenhum, ou se o torneio não tem data (sem DataInicio não dá pra achar
     // "a próxima quinta/sexta/sábado" — mesma trava que QuintaEhDiaDoTorneio usa).
     public static IEnumerable<(DateTime Inicio, DateTime Fim)> Da(Torneio torneio, Dupla dupla)
     {
-        if (torneio.DataInicio is not DateTime inicioTorneio) yield break;
+        if (torneio.DataInicio is null) yield break;
 
         // Quinta e sexta bloqueiam o dia INTEIRO: nos dois só existe o turno da noite (não há
         // sessão de tarde antes de HoraInicioDoDia), então "à noite" e "o dia inteiro" coincidem.
-        //
-        // ⚠️ A busca do dia é PRA FRENTE, mas CURTA (no máximo os 3 dias que seguem
-        // DataInicio) — nunca "a próxima ocorrência daquele dia da semana", que foi o primeiro
-        // jeito que isto foi escrito e tinha um bug: num torneio que começa no SÁBADO (sem
-        // sexta nenhuma), buscar "a próxima sexta" sem limite achava a sexta da SEMANA
-        // SEGUINTE — e geraria uma janela que não corresponde a jogo nenhum do torneio, mas
-        // também não é o "sem janela" correto (torneio sem sexta não deveria gerar janela
-        // nenhuma pra este campo). Limitado aos 3 dias que seguem o início, um torneio de
-        // sábado-domingo simplesmente não acha sexta nenhuma — devolve null, não bloqueia
-        // nada, que é o comportamento certo pra um dia que não existe no calendário dele.
-        DateTime? DiaDoTorneio(DayOfWeek alvo)
-        {
-            for (int offset = 0; offset < 3; offset++)
-            {
-                var dia = inicioTorneio.Date.AddDays(offset);
-                if (dia.DayOfWeek == alvo) return dia;
-            }
-            return null;
-        }
+        DateTime? DiaDoTorneio(DayOfWeek alvo) => JanelasDeImpedimento.DiaDoTorneio(torneio, alvo);
 
         if (dupla.ImpedimentoQuintaNoite && torneio.QuintaEhDiaDoTorneio
             && DiaDoTorneio(DayOfWeek.Thursday) is DateTime quinta)

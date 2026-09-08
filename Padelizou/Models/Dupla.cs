@@ -78,6 +78,22 @@ public partial class Dupla
     // pode levar junto a inscrição de uma dupla inteira.
     public int? ImpedimentoAlteradoPorId { get; set; }
     public DateTime? ImpedimentoAlteradoEm { get; set; }
+
+    // ---- "COLOCAR OS 2 JOGOS NA SEXTA" (08/09/2026) ----
+    //
+    // 🗣️ Pedido do Felipe: "permita também criar uma opção, lá nos impedimentos, de 'colocar os
+    // 2 jogos na sexta' [...] apenas para os organizadores e adm do sistema, para que nós
+    // possamos auxiliar algumas pessoas".
+    //
+    // ⚠️ COLUNA PRÓPRIA, E NÃO OS QUATRO BOOLEANOS ACIMA, porque a escolha é o AVESSO deles:
+    // eles dizem "não posso em X" e Services/ImpedimentoUnico garante no máximo um ligado;
+    // esta diz "só posso em X", que precisaria de três ligados de uma vez — quebrando essa
+    // invariante e fazendo o preço contar três taxas por um favor que é de graça.
+    //
+    // NULO (ou Nenhuma) = sem concentração, que é o estado de toda inscrição que já existe. A
+    // regra mora em Services/ConcentracaoDeJogos; ela e o impedimento são EXCLUSIVOS entre si
+    // — marcar um zera o outro (ver AlteracaoDeImpedimento.Aplicar/AplicarConcentracao).
+    public Padelizou.Services.TurnoDeConcentracao? ConcentrarJogosEm { get; set; }
     public int? GrupoTorneioId { get; set; }
     public virtual GrupoTorneio? GrupoTorneio { get; set; }
 

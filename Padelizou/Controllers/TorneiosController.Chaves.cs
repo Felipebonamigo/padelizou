@@ -306,7 +306,9 @@ namespace Padelizou.Controllers
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
                 quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
                 janelas: JanelasDeImpedimento.PorDupla(torneio),
-                sedes: await SedesAsync(torneio.Id));
+                sedes: await SedesAsync(torneio.Id),
+                concentracao: ConcentracaoDeJogos.De(torneio),
+                noiteDeSabado: EliminatoriaNoSabado.PorCategoria(torneio));
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
@@ -459,6 +461,11 @@ namespace Padelizou.Controllers
             IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null,
             // O impedimento de horário PAGO na inscrição. Ver Services/JanelasDeImpedimento.
             IReadOnlyDictionary<int, (DateTime, DateTime)[]>? janelas = null,
+            // A concentração ("os 2 jogos na sexta") e o "sem eliminatória no sábado à noite" —
+            // as duas restrições de 08/09/2026, que valem cada uma em UMA fase. Ver
+            // Services/ConcentracaoDeJogos, Services/EliminatoriaNoSabado e GradeDeJogos.Encaixar.
+            ConcentracaoDeJogos.Concentracoes? concentracao = null,
+            IReadOnlyDictionary<int, (DateTime, DateTime)[]>? noiteDeSabado = null,
             // O torneio em mais de um clube. Nulo — o caso de quase todos — deixa tudo como era.
             // Ver Services/SedesDoTorneio.
             SedesDoTorneio? sedes = null)
@@ -516,10 +523,16 @@ namespace Padelizou.Controllers
                 // aqui, e não na conta da âncora, porque aqui vale pra TODA leva.
                 if (inicio < abre) inicio = abre;
 
-                var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra);
+                // ⚠️ `peloMenosAte` É O QUE FAZ A CONCENTRAÇÃO ACONTECER. A lista normal é
+                // `jogos + margem`, que num fim de semana mal passa da manhã de sábado — sem
+                // este alcance, "os 2 jogos no sábado à tarde" nunca encontra vaga e o encaixe
+                // cede em silêncio. Ver Services/VagasDaGrade e ConcentracaoNoSorteioTests.
+                var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra,
+                    peloMenosAte: concentracao?.AteQuando);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
-                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes);
+                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,
+                    concentracao?.Janelas, noiteDeSabado);
 
                 jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
             }
@@ -634,6 +647,8 @@ namespace Padelizou.Controllers
                 AberturaDoRecalculo(torneio, intocados), intocados,
                 await QuadrasPreferidasAsync(id),
                 JanelasDeImpedimento.PorDupla(torneio),
+                ConcentracaoDeJogos.De(torneio),
+                EliminatoriaNoSabado.PorCategoria(torneio),
                 await SedesAsync(id));
 
             await _context.SaveChangesAsync();
