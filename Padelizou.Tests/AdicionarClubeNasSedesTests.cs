@@ -115,16 +115,86 @@ public class AdicionarClubeNasSedesTests
         Assert.Contains("split(':')[0]", trecho);
     }
 
-    // O clube novo entra SEM ficar selecionado: a escolha é do organizador, e marcar sozinho
-    // mudaria a sede de todas as quadras de uma vez só por ter cadastrado um lugar.
+    // ── O CLUBE TEM QUE IR PARAR EM ALGUMA QUADRA (08/09/2026) ──────────────────────────
+    //
+    // 🗣️ Felipe: "mas aqui eu nao consigo selecionar o clube, parece um bug".
+    //
+    // A primeira versão só punha o clube na lista das quadras e parava aí. Do lado de quem
+    // usa, cadastrar um clube e ver os dois seletores continuarem em "Er Padel" é a mesma
+    // coisa que não ter funcionado — e quando o nome digitado já existia (achar-ou-criar), a
+    // resposta era "já estava na lista", um beco sem saída: nem cadastrou, nem colocou em
+    // lugar nenhum, nem disse o que fazer em seguida.
+    //
+    // Agora o bloco pergunta EM QUAL QUADRA, e é isso que ele faz — cadastrar virou meio do
+    // caminho, não o fim.
     [Fact]
-    public void O_clube_novo_nao_se_seleciona_sozinho()
+    public void O_bloco_pergunta_em_qual_quadra_o_clube_fica()
+    {
+        var fonte = Details();
+        var form = fonte.IndexOf("id=\"pdzSedes\"", StringComparison.Ordinal);
+
+        var escolha = fonte.IndexOf("id=\"pdzNovoClubeSedeQuadra\"", form, StringComparison.Ordinal);
+        Assert.True(escolha > form, "Falta o seletor de quadra no bloco de cadastrar clube.");
+
+        // As opções são as quadras do torneio, endereçadas por Id — o mesmo Id que forma o
+        // "quadraId:clubeId" dos seletores de cima.
+        var trecho = fonte.Substring(escolha, 600);
+        Assert.Contains("quadra.Id", trecho);
+    }
+
+    // ⚠️ SÓ A QUADRA ESCOLHIDA MUDA. O clube entra na LISTA de todas (é a mesma lista de
+    // clubes em toda parte), mas trocar a sede de todas as quadras de uma vez esvaziaria a
+    // sede principal sem ninguém ter pedido — e num torneio de duas quadras isso é o torneio
+    // inteiro mudando de endereço por causa de um cadastro.
+    [Fact]
+    public void So_a_quadra_escolhida_recebe_o_clube()
     {
         var js = AdicionarLocal();
-        var funcao = js.IndexOf("function adicionarClubeNasSedes", StringComparison.Ordinal);
-        var trecho = js.Substring(funcao);
+        var trecho = CorpoDaFuncaoDasSedes(js);
 
-        Assert.DoesNotContain("selected = true", trecho);
+        Assert.Contains("pdzNovoClubeSedeQuadra", trecho);
+        Assert.Contains("=== alvo", trecho);
+    }
+
+    // ⚠️ SEM O `change`, A TABELA DE BAIXO MENTE. "Em que clube cada categoria joga" é montada
+    // a partir do que está SELECIONADO nos seletores de quadra, e quem a remonta é o listener
+    // de `change` que vive no Details.cshtml. Mudar o valor por código não dispara evento
+    // nenhum: a sede nova apareceria em cima e a tabela continuaria oferecendo só a antiga.
+    [Fact]
+    public void A_troca_avisa_a_tabela_de_categorias()
+    {
+        var trecho = CorpoDaFuncaoDasSedes(AdicionarLocal());
+
+        Assert.Contains("new Event('change'", trecho);
+        Assert.Contains("bubbles", trecho);
+    }
+
+    // Clube que já existia não é erro nem beco sem saída: ele é aplicado na quadra do mesmo
+    // jeito. O achar-ou-criar do servidor devolve o antigo, e pra quem está na tela a diferença
+    // entre "criei agora" e "já existia" não muda nada do que ela queria fazer.
+    [Fact]
+    public void Clube_que_ja_existia_tambem_vai_pra_quadra()
+    {
+        var trecho = CorpoDaFuncaoDasSedes(AdicionarLocal());
+
+        Assert.DoesNotContain("já estava na lista", trecho);
+    }
+
+    // O aviso tem que dizer o que ainda FALTA. A troca acontece só na tela — sem clicar em
+    // "Salvar sedes" nada disso chega ao banco, e sair da página perde tudo em silêncio.
+    [Fact]
+    public void O_aviso_lembra_de_salvar()
+    {
+        var trecho = CorpoDaFuncaoDasSedes(AdicionarLocal());
+
+        Assert.Contains("Salvar sedes", trecho);
+    }
+
+    private static string CorpoDaFuncaoDasSedes(string js)
+    {
+        var funcao = js.IndexOf("function adicionarClubeNasSedes", StringComparison.Ordinal);
+        Assert.True(funcao >= 0, "Não achei a função das sedes.");
+        return js.Substring(funcao);
     }
 
     private static string Details() =>

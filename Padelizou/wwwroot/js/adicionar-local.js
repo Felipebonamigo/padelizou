@@ -83,13 +83,21 @@ function adicionarClubeSelect() {
 
 // ── O editor de sedes do torneio (aba "Pagamentos e impedimentos" › "Quadras e sedes") ──
 //
-// A diferença pras outras três telas: aqui NÃO há um seletor de clube, há UM POR QUADRA, e o
-// valor de cada opção é "quadraId:clubeId" — é assim que Services/SedesDoTorneio.LerClubePorQuadra
-// lê o POST. Uma opção com só o id do clube seria aceita pelo <select>, viajaria no formulário
-// e cairia fora na leitura: a quadra voltaria pro clube do torneio em silêncio.
+// Duas diferenças pras outras três telas. A primeira: aqui NÃO há um seletor de clube, há UM
+// POR QUADRA, e o valor de cada opção é "quadraId:clubeId" — é assim que
+// Services/SedesDoTorneio.LerClubePorQuadra lê o POST. Uma opção com só o id do clube seria
+// aceita pelo <select>, viajaria no formulário e cairia fora na leitura: a quadra voltaria pro
+// clube do torneio em silêncio.
 //
-// Antes disso o organizador não tinha saída pela tela — o rodapé mandava pra "Gerenciar
-// Torneio", que cadastra QUADRA e não CLUBE, e ele voltava pra cá com a mesma lista.
+// A segunda: cadastrar o clube NÃO É O FIM.
+//
+// 🗣️ Felipe: "mas aqui eu nao consigo selecionar o clube, parece um bug".
+//
+// A primeira versão só punha o clube na lista das quadras e parava. Do lado de quem usa,
+// cadastrar um clube e ver os seletores continuarem todos em "Er Padel" é a mesma coisa que
+// não ter funcionado — e quando o nome já existia, o achar-ou-criar do servidor devolvia o
+// clube antigo e a resposta era "já estava na lista": nem cadastrou, nem colocou em lugar
+// nenhum, nem disse o que fazer em seguida. Por isso o bloco agora pergunta EM QUAL QUADRA.
 function adicionarClubeNasSedes() {
     var input = document.getElementById('pdzNovoClubeSede');
     var aviso = document.getElementById('pdzNovoClubeSedeAviso');
@@ -102,45 +110,76 @@ function adicionarClubeNasSedes() {
 
     var cidade = document.getElementById('pdzNovoClubeSedeCidade');
     var estado = document.getElementById('pdzNovoClubeSedeEstado');
+    var ondeFica = document.getElementById('pdzNovoClubeSedeQuadra');
+
+    var alvo = ondeFica ? String(ondeFica.value) : '';
+    var nomeDaQuadra = (ondeFica && ondeFica.selectedIndex >= 0)
+        ? ondeFica.options[ondeFica.selectedIndex].text.trim()
+        : '';
+
+    // Torneio sem quadra nenhuma: o clube não teria onde pousar, e cadastrá-lo aqui só encheria
+    // o catálogo geral. A quadra nasce em "Gerenciar Torneio" — esta tela não cria quadra.
+    if (!alvo) {
+        falar('Este torneio ainda não tem quadra pra receber o clube. '
+            + 'Cadastre as quadras em "Gerenciar Torneio" e volte aqui.');
+        return;
+    }
 
     falar('Cadastrando…');
 
     pdzCriarClube(nome, cidade && cidade.value, estado && estado.value)
         .then(function (clube) {
-            var selects = document.querySelectorAll('.pdz-sede-da-quadra');
-            var novo = false;
+            var trocado = null;
 
-            Array.prototype.forEach.call(selects, function (select) {
+            Array.prototype.forEach.call(document.querySelectorAll('.pdz-sede-da-quadra'), function (select) {
                 if (select.options.length === 0) return;
 
-                // A quadra sai da PRIMEIRA opção, não da selecionada: as opções de um select
-                // são todas da mesma quadra, e assim não depende de haver algo escolhido.
+                // A quadra sai da PRIMEIRA opção, não da selecionada: as opções de um select são
+                // todas da mesma quadra, e assim não depende de haver algo escolhido.
                 var quadra = String(select.options[0].value).split(':')[0];
 
                 // O servidor é achar-ou-criar: digitar um clube que já está na lista devolve o
-                // que já existia. Sem esta conferência, ele apareceria duas vezes no seletor.
+                // que já existia. Sem esta conferência ele apareceria duas vezes no seletor.
                 var repetido = Array.prototype.some.call(select.options, function (o) {
                     return String(o.value).split(':')[1] === String(clube.id);
                 });
-                if (repetido) return;
 
-                var option = document.createElement('option');
-                option.value = quadra + ':' + clube.id;
-                option.text = clube.nome;
-                // ⚠️ SEM `selected`: cadastrar um clube não é escolhê-lo. Marcar sozinho jogaria
-                // TODAS as quadras pro lugar novo de uma vez, e a tabela de sede por categoria
-                // logo abaixo se remontaria em cima de uma escolha que ninguém fez.
-                select.appendChild(option);
-                novo = true;
+                if (!repetido) {
+                    var option = document.createElement('option');
+                    option.value = quadra + ':' + clube.id;
+                    option.text = clube.nome;
+                    select.appendChild(option);
+                }
+
+                // ⚠️ A LISTA cresce em TODAS as quadras (é a mesma lista de clubes em toda
+                // parte), mas a SEDE muda só na escolhida. Trocar as outras junto mudaria o
+                // torneio inteiro de endereço por causa de um cadastro — num torneio de duas
+                // quadras, isso é esvaziar a sede principal sem ninguém ter pedido.
+                if (quadra === alvo) {
+                    select.value = quadra + ':' + clube.id;
+                    trocado = select;
+                }
             });
 
             input.value = '';
             if (cidade) cidade.value = '';
             if (estado) estado.value = '';
 
-            falar(novo
-                ? clube.nome + ' entrou na lista. Agora escolha em qual quadra ele fica e salve as sedes.'
-                : clube.nome + ' já estava na lista das quadras.');
+            if (!trocado) {
+                falar('Cadastrei ' + clube.nome + ', mas não achei a quadra escolhida na tela. '
+                    + 'Recarregue a página e escolha o clube na lista da quadra.');
+                return;
+            }
+
+            // ⚠️ MUDAR `select.value` POR CÓDIGO NÃO DISPARA `change`. Quem remonta a tabela "em
+            // que clube cada categoria joga" é o listener de `change` que vive no Details.cshtml,
+            // lendo o que está SELECIONADO nos seletores de quadra. Sem este aviso a sede nova
+            // apareceria em cima e a tabela seguiria oferecendo só a antiga — e a trava de
+            // categoria por clube é justamente o que se configura em seguida.
+            trocado.dispatchEvent(new Event('change', { bubbles: true }));
+
+            falar(clube.nome + ' agora é a sede da quadra ' + nomeDaQuadra
+                + '. Clique em "Salvar sedes" pra valer.');
         })
         .catch(function () {
             falar('Não consegui cadastrar esse clube. Confira o nome e tente de novo.');
