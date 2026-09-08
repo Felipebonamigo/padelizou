@@ -392,6 +392,14 @@ public static class GradeDeJogos
     //
     // Três rodadas de folga é bastante — o conflito acontece no rabo da fila, com poucos
     // jogos restantes. Vaga que sobra não custa nada: ela simplesmente não é usada.
+    // Quantos horários a mesma dupla deveria esperar entre um jogo e o próximo. Dois, pedido do
+    // Felipe em 07/09/2026 depois de ver a grade do torneio do Er.
+    //
+    // ⚠️ É um ALVO, e quem o persegue NÃO é o encaixe — é a ORDEM EM QUE OS JOGOS CHEGAM
+    // (Services/OrdemDasRodadas). Fazer o guloso escolher "quem descansou mais" já foi tentado
+    // três vezes e medido pior nas três; ver o cabeçalho de DescansoNaGradeTests.
+    public const int HorariosDeDescanso = 2;
+
     public static int MargemDeHorarios(int quadras) => Math.Max(quadras, 1) * 3;
 
     // Tira da lista de horários as vagas que JÁ TÊM DONO. Cada horário aparece uma vez por

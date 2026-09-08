@@ -169,9 +169,20 @@ public class SemHorarioPrevistoTests
         var jogos = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id).OrderBy(p => p.Id).ToListAsync();
 
-        // Os jogos do Grupo A vêm antes dos do Grupo B: é a ordem em que o sorteio os criou.
+        // A ordem é a da fila do sorteio, e desde 07/09/2026 essa fila chega INTERCALADA por
+        // rodada (ver Services/OrdemDasRodadas): um jogo de cada grupo, depois o segundo de
+        // cada, e assim por diante.
+        //
+        // ⚠️ Este teste afirmava o contrário — "todo o Grupo A, depois todo o Grupo B" — e isso
+        // era o DEFEITO, não a promessa. Sem hora, a Mesa chama na ordem da lista; com os três
+        // jogos do Grupo A colados, as mesmas três duplas eram chamadas de volta à quadra na
+        // sequência. Foi o que o Felipe viu na grade do torneio do Er.
+        //
+        // O que a promessa sempre foi, e continua sendo: a ordem é DETERMINÍSTICA e é a mesma
+        // que a grade usaria se houvesse hora. O que mudou é qual ordem é essa.
         var fases = jogos.Select(j => j.Fase).ToList();
-        Assert.Equal(fases.OrderBy(f => f, StringComparer.Ordinal), fases);
+
+        Assert.Equal(new[] { "Grupo A", "Grupo B", "Grupo A", "Grupo B", "Grupo A", "Grupo B" }, fases);
     }
 
     [Fact]

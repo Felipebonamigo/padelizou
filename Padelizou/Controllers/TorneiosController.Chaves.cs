@@ -283,7 +283,7 @@ namespace Padelizou.Controllers
             // pelo robô, que as agenda emendadas nas vagas livres a partir do fim da fase que
             // as alimenta.
             var deChaveDireta = torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet();
-            jogosPraAgendar = OrdemDaFila(jogosPraAgendar, deChaveDireta);
+            jogosPraAgendar = OrdemDaFila(jogosPraAgendar, deChaveDireta, torneio.QuantidadeQuadras);
 
             // Torneio "por ordem de liberação": os jogos ficam SEM hora e vão pra quadra
             // conforme ela vaga, chamados pela Mesa. A ordem é a de criação — a mesma em que
@@ -429,12 +429,19 @@ namespace Padelizou.Controllers
         private static readonly string[] OrdemDasFases =
             { ChaveamentoMataMata.PrimeiraRodada, "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
 
-        private static List<Partida> OrdemDaFila(IEnumerable<Partida> jogos, ISet<int> categoriasDeChaveDireta) =>
-            jogos
-                .OrderBy(j => categoriasDeChaveDireta.Contains(j.CategoriaId) ? 0
-                            : FasesTorneio.EhFaseDeGrupos(j.Fase) ? 1 : 2)
-                .ThenBy(j => Array.IndexOf(OrdemDasFases, j.Fase))
-                .ToList();
+        private static List<Partida> OrdemDaFila(IEnumerable<Partida> jogos, ISet<int> categoriasDeChaveDireta,
+            int quadras) =>
+            // A separação por fase decide QUANDO cada família entra; a intercalação decide a
+            // ordem DENTRO da fase de grupos, que é o que dá descanso à dupla (ver
+            // Services/OrdemDasRodadas). As duas são independentes: a segunda não tira nenhum
+            // jogo do bloco em que a primeira o pôs.
+            OrdemDasRodadas.IntercalarFaseDeGrupos(
+                jogos
+                    .OrderBy(j => categoriasDeChaveDireta.Contains(j.CategoriaId) ? 0
+                                : FasesTorneio.EhFaseDeGrupos(j.Fase) ? 1 : 2)
+                    .ThenBy(j => Array.IndexOf(OrdemDasFases, j.Fase))
+                    .ToList(),
+                quadras);
 
         // ⚠️ Em DUAS LEVAS, não numa só. Ordenar a fila não basta: quando os jogos que sobram
         // conflitam entre si num horário, o encaixe puxa o próximo livre da fila — e aí um jogo
@@ -481,8 +488,8 @@ namespace Padelizou.Controllers
             bool NaoEsperaNinguem(Partida j) =>
                 semNadaPraEsperar.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
 
-            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), semNadaPraEsperar);
-            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), semNadaPraEsperar);
+            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), semNadaPraEsperar, torneio.QuantidadeQuadras);
+            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), semNadaPraEsperar, torneio.QuantidadeQuadras);
 
             // Tudo que já tem hora e quadra e que as levas seguintes precisam enxergar pra não
             // marcar em cima. Começa com os jogos intocados e VAI CRESCENDO a cada leva.
@@ -558,7 +565,7 @@ namespace Padelizou.Controllers
                          .OrderBy(x => x.Abre)
                          .ToList())
             {
-                Agendar(OrdemDaFila(daCategoria.Jogos, semNadaPraEsperar), daCategoria.Abre);
+                Agendar(OrdemDaFila(daCategoria.Jogos, semNadaPraEsperar, torneio.QuantidadeQuadras), daCategoria.Abre);
             }
         }
 
