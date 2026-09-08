@@ -135,11 +135,21 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">Valor da aula</label>
+                            <label class="form-label fw-bold text-muted small">
+                                Valor da aula@(Model.QuantidadeAlunos > 1 ? " (total da turma, dividido igual entre todos)" : "")
+                            </label>
                             @* DinheiroNoCampo, e não @Model.Preco direto: com a cultura pt-BR
                                isto escreveria "110,00", que é valor inválido num
                                <input type="number"> — o campo abriria vazio e o professor
-                               "confirmaria" um preço que ele nunca digitou. *@
+                               "confirmaria" um preço que ele nunca digitou.
+
+                               ⚠️ Em turma o campo é o TOTAL, não a fatia de quem foi clicado —
+                               pedido do Felipe (08/09/2026): "quando marco 4 atletas as vezes
+                               ele buga e da uns valores doidos". Sem o rótulo dizendo isso, o
+                               professor via um número bem menor do que o do card da agenda e
+                               "corrigia" achando que estava errado — ver
+                               AulasController.Agenda.Editar (GET já manda o total, POST racha
+                               de novo entre todos). *@
                             <input type="number" step="0.01" min="0" name="preco" id="input-preco"
                                    class="form-control bg-light"
                                    value="@DinheiroNoCampo.Valor(Model.Preco)" required />

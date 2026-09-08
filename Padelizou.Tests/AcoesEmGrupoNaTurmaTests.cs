@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using padelizou.Controllers;   // AulasController ficou no namespace legado, em minúsculo
@@ -133,8 +134,16 @@ public class AcoesEmGrupoNaTurmaTests
         await google.Received(1).RemoverEventoAsync(professor.Id, "evt-turma");
     }
 
+    // 🔁 REVISTO 08/09/2026 — pedido do Felipe: "quando marco 4 atletas as vezes ele buga e
+    // da uns valores doidos". Esta era a versão que travava o comportamento ERRADO: editar
+    // preço numa turma gravava o número digitado só na linha clicada e deixava os colegas com
+    // a fatia antiga — a soma seguinte (AgendaDeTurma.Colapsar, que é o que o card da agenda
+    // mostra) inflava a cada edição, porque o professor via o TOTAL no card, abria "Editar",
+    // via a FATIA de uma pessoa só (bem menor) e "corrigia" pro total que tinha visto — sem
+    // saber que só aquela linha mudava. Agora o campo fala do TOTAL dos dois lados (GET e
+    // POST), e o valor novo é rachado de novo em fatias iguais.
     [Fact]
-    public async Task Editar_horario_de_uma_linha_da_turma_move_as_tres_mas_nao_mexe_no_preco_das_outras()
+    public async Task Editar_a_turma_racha_o_novo_total_em_fatias_iguais()
     {
         var (ctx, professor, local, turma) = MontarTurma();
         using var _ = ctx;
@@ -142,16 +151,102 @@ public class AcoesEmGrupoNaTurmaTests
         var umaDaTurma = await ctx.Aulas.OrderBy(a => a.Id).FirstAsync(a => a.TurmaId == turma);
         var novoHorario = umaDaTurma.DataHora.AddHours(3);
 
+        // Total de 180 (60+60+60) vira 120 — cada um passa a valer 40, não "40 pra quem foi
+        // editado e 60 pros outros dois" (o que a soma seguinte mostraria como 160, não 120).
         await TestInfra.NovoAulasController(ctx, professor.Id)
-            .Editar(umaDaTurma.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), preco: 90, duracaoMinutos: 90);
+            .Editar(umaDaTurma.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), preco: 120, duracaoMinutos: 90);
 
         var todas = await ctx.Aulas.Where(a => a.TurmaId == turma).OrderBy(a => a.Id).ToListAsync();
         Assert.All(todas, a => Assert.Equal(novoHorario, a.DataHora));
+        Assert.All(todas, a => Assert.Equal(40m, a.Preco));
+        Assert.Equal(120m, todas.Sum(a => a.Preco));
+    }
 
-        // Só a linha editada mudou de preço — os colegas mantêm a própria fatia.
-        Assert.Equal(90, todas[0].Preco);
-        Assert.Equal(60, todas[1].Preco);
-        Assert.Equal(60, todas[2].Preco);
+    [Fact]
+    public async Task Editar_so_o_horario_mantem_o_total_da_turma_intacto()
+    {
+        // Mesmo total (180) reenviado junto com o horário novo: as fatias voltam a ser
+        // rachadas, mas o resultado é idêntico ao que já era — ninguém deveria notar diferença
+        // só por causa da rachadura de novo.
+        var (ctx, professor, local, turma) = MontarTurma();
+        using var _ = ctx;
+
+        var umaDaTurma = await ctx.Aulas.OrderBy(a => a.Id).FirstAsync(a => a.TurmaId == turma);
+        var novoHorario = umaDaTurma.DataHora.AddHours(3);
+
+        await TestInfra.NovoAulasController(ctx, professor.Id)
+            .Editar(umaDaTurma.Id, local.Id, data: DataEHoraDoFormulario.ParaCampoDeData(novoHorario), hora: DataEHoraDoFormulario.ParaCampoDeHora(novoHorario), preco: 180, duracaoMinutos: 90);
+
+        var todas = await ctx.Aulas.Where(a => a.TurmaId == turma).ToListAsync();
+        Assert.All(todas, a => Assert.Equal(60m, a.Preco));
+    }
+
+    // Racha sem perder centavo — mesma garantia de PrecoDaAula.DivididoIgualmente na criação,
+    // agora também vale na edição.
+    [Fact]
+    public async Task Editar_racha_o_novo_total_sem_perder_centavo()
+    {
+        var (ctx, professor, local, turma) = MontarTurma();
+        using var _ = ctx;
+
+        var umaDaTurma = await ctx.Aulas.OrderBy(a => a.Id).FirstAsync(a => a.TurmaId == turma);
+
+        await TestInfra.NovoAulasController(ctx, professor.Id)
+            .Editar(umaDaTurma.Id, local.Id,
+                data: DataEHoraDoFormulario.ParaCampoDeData(umaDaTurma.DataHora),
+                hora: DataEHoraDoFormulario.ParaCampoDeHora(umaDaTurma.DataHora),
+                preco: 100);
+
+        var todas = await ctx.Aulas.Where(a => a.TurmaId == turma).ToListAsync();
+        Assert.Equal(100m, todas.Sum(a => a.Preco));
+    }
+
+    // O CORAÇÃO DO PEDIDO: a tela de editar precisa mostrar o TOTAL da turma (o mesmo número
+    // que o card da agenda já soma — ver AgendaDeTurma.Colapsar), não a fatia da linha clicada.
+    // Sem isso o professor nunca sabe que número está editando de verdade.
+    [Fact]
+    public async Task Editar_GET_mostra_o_total_da_turma_no_campo_preco()
+    {
+        var (ctx, professor, _, turma) = MontarTurma();
+        using var _ = ctx;
+        var umaDaTurma = await ctx.Aulas.OrderBy(a => a.Id).FirstAsync(a => a.TurmaId == turma);
+
+        var resultado = await TestInfra.NovoAulasController(ctx, professor.Id).Editar(umaDaTurma.Id);
+
+        var view = Assert.IsType<ViewResult>(resultado);
+        var model = Assert.IsType<Aula>(view.Model);
+        Assert.Equal(180m, model.Preco);
+    }
+
+    // O aluno da turma precisa saber da PRÓPRIA fatia, não do total — "sua aula subiu pra
+    // R$210" seria mentira sobre o que ELE deve quando só a fatia dele foi de 60 pra 70.
+    [Fact]
+    public async Task Aluno_da_turma_e_avisado_da_propria_fatia_nao_do_total()
+    {
+        var (ctx, professor, local, turma) = MontarTurma();
+        using var _ = ctx;
+
+        var aluno = new Jogador { Nome = "Eduarda", Login = "eduarda", Cpf = "99900000003" };
+        ctx.Jogadores.Add(aluno);
+        await ctx.SaveChangesAsync();
+
+        var editada = await ctx.Aulas.OrderBy(a => a.Id).FirstAsync(a => a.TurmaId == turma);
+        editada.AlunoId = aluno.Id;
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        var controller = TestInfra.NovoAulasController(ctx, professor.Id, push: push);
+
+        // Total sobe de 180 pra 210 — a fatia dela sobe de 60 pra 70.
+        await controller.Editar(editada.Id, local.Id,
+            data: DataEHoraDoFormulario.ParaCampoDeData(editada.DataHora),
+            hora: DataEHoraDoFormulario.ParaCampoDeHora(editada.DataHora),
+            preco: 210);
+
+        await push.Received(1).EnviarParaJogadorAsync(
+            aluno.Id, Arg.Any<string>(),
+            Arg.Is<string>(msg => msg != null && msg.Contains("60") && msg.Contains("70") && !msg.Contains("210")),
+            Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
     }
 
     [Fact]
