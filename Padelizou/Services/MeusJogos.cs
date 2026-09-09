@@ -18,10 +18,12 @@ namespace Padelizou.Services;
 // veria a final como "possível jogo dele" — a tela viraria mentira justo pra quem já está
 // triste.
 //
-// ⚠️ Enquanto a categoria está na FASE DE GRUPOS não há como saber onde ele cai: a projeção
-// fala em "1º do Grupo A", e quem vai ser o 1º ainda está em disputa. Aí o honesto é mostrar
-// a chave inteira da categoria dele — é o caminho possível, e é o que ele quer ver. Quem
-// decide isso é quem chama (`chaveAindaNaoComecou`), porque é lá que se sabe.
+// ⚠️ Enquanto a categoria está na FASE DE GRUPOS a projeção fala em "1º do Grupo A", e quem
+// vai ser o 1º ainda está em disputa — mas O GRUPO DELE JÁ SE SABE, e é ele que recorta a
+// chave. Quem está no Grupo A pode terminar em 1º ou em 2º e cair nas DUAS vagas do Grupo A;
+// a oitava entre "1º do Grupo E" e "2º do Grupo F" não é caminho dele por nenhum resultado.
+// A primeira versão mostrava a chave inteira da categoria e o Felipe reclamou (09/09/2026):
+// eram 12 jogos numa tela cujo botão promete só os dele.
 public static class MeusJogos
 {
     // Um jogo real, reduzido ao que a regra precisa.
@@ -32,21 +34,41 @@ public static class MeusJogos
     // semifinal da 6ª Feminina como "possível jogo seu".
     public record JogoReal(string Categoria, string Fase, int OrdemNaFase, bool SouEu, bool Perdi);
 
+    // Onde o jogador está numa categoria que ainda não saiu dos grupos. `Grupo` nulo é a
+    // dupla sem grupo sorteado — não dá pra dizer por onde ele entra, e aí a chave inteira
+    // da categoria volta a ser a resposta honesta.
+    public record VagaNosGrupos(string Categoria, string? Grupo);
+
     // Quais jogos projetados podem ser do jogador.
     //
     // `byesComMeuNome`: os rótulos de bye que são dele (a dupla que folgou a primeira rodada
     // aparece pelo NOME na projeção, não por procedência).
-    // `categoriasEmGrupos`: categorias dele cuja chave ainda não começou — nelas, tudo passa.
+    // `minhasVagasNosGrupos`: em que grupo ele está, nas categorias dele cuja chave ainda não
+    // começou.
     public static List<ProximasFasesDaChave.JogoQueVem> Filtrar(
         IReadOnlyList<ProximasFasesDaChave.JogoQueVem> projetados,
         IReadOnlyList<JogoReal> jogosReais,
         IReadOnlyCollection<string> byesComMeuNome,
-        IReadOnlyCollection<string> categoriasEmGrupos)
+        IReadOnlyCollection<VagaNosGrupos> minhasVagasNosGrupos)
     {
         // O que "me leva adiante": a procedência de cada jogo meu que ainda não foi perdido.
         var alcancaveis = jogosReais
             .Where(j => j.SouEu && !j.Perdi)
             .Select(j => Procedencia(j.Categoria, j.Fase, j.OrdemNaFase))
+            .ToHashSet();
+
+        // As vagas que podem ser dele: TODAS as colocações do grupo dele — 1º e 2º saem em
+        // lados opostos do quadro, e ele ainda não sabe qual vai ser.
+        var minhasVagas = minhasVagasNosGrupos
+            .Where(v => v.Grupo != null)
+            .Select(v => Vaga(v.Categoria, v.Grupo!))
+            .ToHashSet();
+
+        // Sem grupo sorteado não dá pra dizer por onde ele entra; aí a chave inteira da
+        // categoria volta a ser a resposta honesta.
+        var categoriasSemGrupo = minhasVagasNosGrupos
+            .Where(v => v.Grupo == null)
+            .Select(v => v.Categoria)
             .ToHashSet();
 
         var meus = new List<ProximasFasesDaChave.JogoQueVem>();
@@ -56,9 +78,9 @@ public static class MeusJogos
         foreach (var jogo in projetados)
         {
             bool ehMeu =
-                categoriasEmGrupos.Contains(jogo.Categoria)
-                || EhMeu(jogo.Categoria, jogo.Lado1, alcancaveis, byesComMeuNome)
-                || EhMeu(jogo.Categoria, jogo.Lado2, alcancaveis, byesComMeuNome);
+                categoriasSemGrupo.Contains(jogo.Categoria)
+                || EhMeu(jogo.Categoria, jogo.Lado1, alcancaveis, byesComMeuNome, minhasVagas)
+                || EhMeu(jogo.Categoria, jogo.Lado2, alcancaveis, byesComMeuNome, minhasVagas);
 
             if (!ehMeu) continue;
 
@@ -70,15 +92,21 @@ public static class MeusJogos
     }
 
     private static bool EhMeu(string categoria, ProximasFasesDaChave.Lado lado,
-        HashSet<string> alcancaveis, IReadOnlyCollection<string> byesComMeuNome)
+        HashSet<string> alcancaveis, IReadOnlyCollection<string> byesComMeuNome,
+        IReadOnlyCollection<string> minhasVagas)
     {
         // Procedência desmontada: o lado aponta pra um jogo desta mesma chave — e "mesma
         // chave" quer dizer mesma CATEGORIA, que é a chave a que este jogo pertence.
         if (lado.DeQualFase != null && lado.DeQualNumero != null)
             return alcancaveis.Contains(Procedencia(categoria, lado.DeQualFase, lado.DeQualNumero.Value));
 
-        // Sem procedência, o rótulo é um nome (bye) ou uma colocação de grupo ("2º do Grupo
-        // C"). Só o nome pode ser dele — a colocação ainda não tem dono.
+        // Colocação de grupo ("2º do Grupo C"): ainda não tem dono, mas tem GRUPO — e o grupo
+        // já basta pra dizer que não é dele. A categoria entra na conta porque toda categoria
+        // tem um "Grupo A".
+        if (lado.DeQualGrupo != null)
+            return minhasVagas.Contains(Vaga(categoria, lado.DeQualGrupo));
+
+        // Sem procedência e sem grupo, o rótulo é um nome: o bye da chave que já começou.
         return byesComMeuNome.Contains(lado.Rotulo);
     }
 
@@ -87,4 +115,8 @@ public static class MeusJogos
     // pelos dois campos evita depender do texto, que é de tela e muda.
     private static string Procedencia(string categoria, string fase, int numero) =>
         $"{categoria}|{fase}#{numero}";
+
+    // O mesmo, pra vaga de grupo: "5ª Masculina|Grupo A". Sem a categoria, estar no Grupo A
+    // de uma marcaria as oitavas do Grupo A de TODAS as outras.
+    private static string Vaga(string categoria, string grupo) => $"{categoria}|{grupo}";
 }

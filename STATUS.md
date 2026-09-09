@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
+>
+> 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.
+>
+> 🕳️ **O `MeusJogos` desistia cedo demais.** O comentário dele dizia, com todas as letras: *"enquanto a categoria está na FASE DE GRUPOS não há como saber onde ele cai — aí o honesto é mostrar a chave inteira da categoria"*. **Metade disso é falsa:** quem vai ser o 1º ainda está em disputa, mas **o GRUPO dele já se sabe desde o sorteio**. A oitava entre "1º do Grupo E" e "2º do Grupo F" não é caminho de quem está no Grupo A **por resultado nenhum** — e o botão promete só os dele.
+>
+> 🧮 **Na chave do print (6 grupos, 2 classificados): de 11 jogos projetados pra 6.** Ficam a oitava do "2º do Grupo A", a quarta do "1º do Grupo A", a quarta que emenda na oitava dele — e as DUAS semifinais mais a final, porque terminar em 1º ou em 2º joga a dupla em lados opostos do quadro: **as duas são caminho possível, e cortar uma seria mentira do outro lado**.
+>
+> 🔑 **O grupo virou DADO da projeção, não texto:** `ProximasFasesDaChave.Lado` ganhou `DeQualGrupo`, do mesmo jeito que já guardava `DeQualFase`/`DeQualNumero` — ler "Grupo E" de dentro do rótulo "1º do Grupo E" seria depender de texto de tela. A corrente depois da vaga continua a mesma: a oitava que pode ser dele entrega um vencedor, e a quarta que cita esse vencedor entra junto.
+>
+> ⚠️ **SEM GRUPO SORTEADO, A CHAVE INTEIRA VOLTA** (`VagaNosGrupos.Grupo` nulo): aí realmente não dá pra dizer por onde ele entra, e mostrar tudo é o que sobra de honesto. É guarda de canto, com teste próprio.
+>
+> 🧪 **5.609 testes, 0 falhas.** **Sem migration.** As 8 guardas novas foram falsificadas uma a uma. ⚠️ **E uma delas mentiu na primeira tentativa:** o teste de tela passava com o `Include` do `GrupoTorneio` REMOVIDO, porque no InMemory as entidades montadas pelo próprio teste continuam rastreadas e as navegações vêm preenchidas de graça. Com `ChangeTracker.Clear()` ele continuou passando — e o motivo é pior: **em produção também passaria, por FIXUP do EF**, já que a projeção carrega os `GruposTorneio` da categoria logo depois. O `Include` ficou assim mesmo, explícito, e o comentário diz por quê: dependência invisível some no dia em que aquela consulta virar `AsNoTracking` ou mudar de lugar, e a chave inteira voltaria sem quebrar teste nenhum.
+>
 > Última atualização: **09/09/2026** — 🏆 **O SELO DO CHIP VIROU SÓ TROFÉU.**
 >
 > 🗣️ **O pedido do Felipe**, num print da Fase de Grupos com "Vice" e "Semifinal" ao lado dos nomes: *"essa parte aqui, exiba apenas quem foi campeao, nao precisa exibir, semi, vice etc"*.

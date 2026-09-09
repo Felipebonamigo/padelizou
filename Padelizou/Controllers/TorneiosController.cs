@@ -1099,23 +1099,33 @@ namespace Padelizou.Controllers
                 .ToHashSet();
 
             // Categoria dele que ainda está na fase de grupos: a projeção fala em "1º do Grupo
-            // A" e ninguém sabe quem vai ser o 1º. Mostrar a chave inteira da categoria é o
-            // honesto — é o caminho que ele PODE percorrer.
+            // A" e ninguém sabe quem vai ser o 1º — mas se sabe DE QUAL GRUPO ele sai, e é
+            // isso que recorta a chave. Quem está no Grupo A pode terminar em 1º ou em 2º e
+            // cair nas duas vagas do Grupo A; a oitava do "1º do Grupo E" nunca vai ser dele.
             var minhasCategorias = todas
                 .Where(p => EstouNesteJogo(p, jogadorId))
                 .Select(p => p.CategoriaId)
                 .ToHashSet();
 
-            var categoriasEmGrupos = todas
+            var minhasVagasNosGrupos = todas
                 .Where(p => minhasCategorias.Contains(p.CategoriaId))
                 .GroupBy(p => p.CategoriaId)
                 .Where(g => !g.Any(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)))
-                .Select(g => g.First().Categoria?.Nome ?? "")
-                .Where(nome => nome != "")
-                .ToHashSet();
+                .Select(g => new MeusJogos.VagaNosGrupos(
+                    g.First().Categoria?.Nome ?? "", MeuGrupoNaCategoria(g, jogadorId)))
+                .Where(v => v.Categoria != "")
+                .ToList();
 
-            return MeusJogos.Filtrar(projetados, reais, minhasDuplas, categoriasEmGrupos);
+            return MeusJogos.Filtrar(projetados, reais, minhasDuplas, minhasVagasNosGrupos);
         }
+
+        // Em que grupo o jogador caiu nesta categoria. Nulo quando a dupla não tem grupo
+        // sorteado — aí não dá pra recortar a chave, e MeusJogos volta a mostrá-la inteira.
+        private static string? MeuGrupoNaCategoria(IEnumerable<Partida> daCategoria, int jogadorId) =>
+            daCategoria
+                .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                .FirstOrDefault(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+                ?.GrupoTorneio?.Nome;
 
         // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
         // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
@@ -1138,6 +1148,14 @@ namespace Padelizou.Controllers
                 // O escudo da dupla-TIME (categoria de times) vem do vínculo dela mesma.
                 .Include(p => p.Dupla1).ThenInclude(d => d.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Time)
+                // O grupo da dupla é o que recorta "meus jogos" na fase de grupos (ver
+                // MeuGrupoNaCategoria). Fica explícito de propósito: hoje a projeção carrega
+                // os GruposTorneio da categoria logo depois e o fixup do EF preencheria esta
+                // navegação de graça — dependência invisível, que some no dia em que aquela
+                // consulta virar AsNoTracking ou mudar de lugar, e volta a mostrar a chave
+                // inteira sem quebrar teste nenhum.
+                .Include(p => p.Dupla1).ThenInclude(d => d.GrupoTorneio)
+                .Include(p => p.Dupla2).ThenInclude(d => d.GrupoTorneio)
                 .Where(p => p.TorneioId == torneioId);
 
             if (timeFiltroId.HasValue)
