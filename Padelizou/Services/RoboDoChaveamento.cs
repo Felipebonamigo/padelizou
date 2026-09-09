@@ -460,8 +460,15 @@ public class RoboDoChaveamento
         // vagas é exatamente a de sempre.
         var concentracao = await ConcentracaoAsync(torneio);
         var sedes = await SedesAsync(torneioId.Value);
+        var janelasProibidas = await JanelasProibidasPorDuplaAsync(torneio);
+        var noiteDeSabado = await NoiteDeSabadoPorCategoriaAsync(torneio);
+
+        // O alcance olha as TRÊS restrições — ver VagasDaGrade.AlcanceNecessario.
         var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados,
-            peloMenosAte: concentracao.AteQuando, sedes: sedes);
+            peloMenosAte: VagasDaGrade.MaisTarde(
+                concentracao.AteQuando,
+                VagasDaGrade.AlcanceNecessario(janelasProibidas, noiteDeSabado)),
+            sedes: sedes);
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
@@ -474,10 +481,10 @@ public class RoboDoChaveamento
             await OcupantesPorDuplaAsync(torneioId.Value),
             await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
             await QuadrasPreferidasAsync(torneioId.Value),
-            await JanelasProibidasPorDuplaAsync(torneio),
+            janelasProibidas,
             sedes,
             concentracao.Janelas,
-            await NoiteDeSabadoPorCategoriaAsync(torneio));
+            noiteDeSabado);
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver

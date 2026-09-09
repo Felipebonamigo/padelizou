@@ -31,6 +31,44 @@ public static class VagasDaGrade
     public static int Duracao(Torneio torneio) =>
         torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
 
+    // ATÉ ONDE A GRADE PRECISA IR pra que as restrições de horário deixem algo de pé.
+    //
+    // 🕳️ MEDIDO EM 09/09/2026, auditando o torneio do Er: com 63 duplas, 33 delas com
+    // impedimento e **4 quadras**, dois jogos da mesma dupla caíam no MESMO horário, dentro da
+    // janela que ela tinha pago pra evitar. Com 2 quadras, zero furos — ou seja, MAIS capacidade
+    // dava PIOR resultado, o contrário do que a intuição diz.
+    //
+    // A razão: a grade oferece `jogos + margem` vagas, e cada rodada rende uma vaga por quadra.
+    // Com 4 quadras isso vira METADE das rodadas — e o impedimento bloqueia DIAS INTEIROS.
+    // Sobram menos horários distintos pra dupla escapar da janela dela, o orçamento acaba, e o
+    // último recurso do `Encaixar` entra: primeiro cede o impedimento, depois cede a regra de
+    // não repetir gente. Foi exatamente o que apareceu.
+    //
+    // ⚠️ É O MESMO DEFEITO QUE A CONCENTRAÇÃO TEVE (08/09) e o mesmo conserto: a grade precisa
+    // ALCANÇAR o fim da janela mais tardia, senão a restrição não tem pra onde empurrar o jogo.
+    // Aqui ele vale pros três mapas de janela — impedimento, concentração e noite de sábado —
+    // porque a pergunta é a mesma pros três.
+    public static DateTime? AlcanceNecessario(
+        params IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>?[] mapas)
+    {
+        DateTime? maisTarde = null;
+
+        foreach (var mapa in mapas)
+        {
+            if (mapa == null) continue;
+
+            foreach (var janelas in mapa.Values)
+                foreach (var janela in janelas)
+                    if (maisTarde == null || janela.Fim > maisTarde) maisTarde = janela.Fim;
+        }
+
+        return maisTarde;
+    }
+
+    // A mais tardia entre dois alcances. Nulo é "não pede nada", então ele nunca vence.
+    public static DateTime? MaisTarde(DateTime? um, DateTime? outro) =>
+        um == null ? outro : outro == null ? um : (um > outro ? um : outro);
+
     /// <summary>
     /// Os horários livres pra encaixar <paramref name="quantosJogos"/> a partir de
     /// <paramref name="inicio"/>, já descontando as vagas que os jogos de
@@ -68,13 +106,20 @@ public static class VagasDaGrade
             // e o limite é sempre o fim de um turno do próprio torneio.
             int teto = Math.Max(torneio.QuantidadeQuadras, 1) * (24 * 60 / Duracao(torneio)) * 14;
 
+            // ⚠️ NÃO PARA NO LIMITE — SEGUE UMA MARGEM ALÉM DELE, e isso foi medido (09/09/2026,
+            // auditando o Er com 4 quadras). Parando no primeiro horário que ALCANÇA o fim da
+            // janela, o outro lado dela ganha uma rodada só: com 4 quadras isso são 4 vagas pra
+            // todas as duplas que a janela empurrou pra lá, e o último recurso do encaixe entra
+            // de novo. O furo caiu de 2 pra 1 e não zerou. Alcançar não é o mesmo que caber.
             int cabem = 0;
+            int depoisDoLimite = 0;
             foreach (var h in GradeDeJogos.Horarios(inicio, torneio.HoraFimDoDia,
                          torneio.QuantidadeQuadras, Duracao(torneio), teto,
                          aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes))
             {
                 cabem++;
-                if (h >= limite) break;
+
+                if (h >= limite && ++depoisDoLimite > margem) break;
             }
 
             // NUNCA ENCOLHE: quem já pedia mais vagas que o alcance continua com as que pedia.
