@@ -15,9 +15,107 @@
 >
 > 💾 **O "APLICAR" GRAVA CINCO CAMPOS, E SÓ ACENDE POR ELES** (data de início, as duas aberturas, hora limite, duração). ⚠️ **Quadra NÃO se aplica por aqui, de propósito:** quadra tem NOME (identidade — `Models/Quadra`), clube e, quando alugada, janela de horário; criar quadra sem nome daqui repetiria a reconciliação do `Editar` — a segunda cópia de receita que `VagasDaGrade` nasceu pra matar. A tela DIZ quantas faltam e manda pro `Editar` / "Quadras e sedes". **A hora de fechar POR DIA vive só no planejador** — coluna nova seria migration, e o que faz o sorteio caber mais cedo é mais quadra, que é justamente o que a conta manda comprar.
 >
-> 🧪 **5.649 testes, 0 falhas (31 novos).** **Sem migration.** ⚠️ **E a falsificação pegou DOIS furos meus:** (1) a guarda do último jogo do dia passava com a fórmula errada — eu só tinha testado dia de nº ÍMPAR de jogos, onde `ceil` e divisão inteira coincidem; com o dia CHEIO a conta errada marcava jogo às 00h40 num dia que fecha 23h50; (2) o botão "Aplicar" acendia quando o organizador mexia em QUADRAS ou na hora de fechar do domingo — os dois campos que ele não grava —, ou seja, ele apertaria achando que tinha contratado a terceira quadra.
+> 🧪 **5.690 testes, 0 falhas (31 novos)** — o total já é com o `main` trazido pra dentro (o sorteio consertado e a auditoria da grade entraram no meio do caminho; o único conflito foi o topo deste arquivo, resolvido mantendo as duas histórias). Suíte rodada **2 vezes**, porque o sorteio é aleatório. **Sem migration.** ⚠️ **E a falsificação pegou DOIS furos meus:** (1) a guarda do último jogo do dia passava com a fórmula errada — eu só tinha testado dia de nº ÍMPAR de jogos, onde `ceil` e divisão inteira coincidem; com o dia CHEIO a conta errada marcava jogo às 00h40 num dia que fecha 23h50; (2) o botão "Aplicar" acendia quando o organizador mexia em QUADRAS ou na hora de fechar do domingo — os dois campos que ele não grava —, ou seja, ele apertaria achando que tinha contratado a terceira quadra.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-832-cbd3c39`** (09/09/2026, 16h20 e 16h21 UTC) — PR #96, com **o mesmo artefato nos dois ambientes**, que é o que a Regra 3 quer dizer com "testar em dev antes". Subiu: o **sorteio que voltou a sortear**, a **semeadura que parou de punir o líder**, a **troca de duplas entre grupos**, o **conserto do impedimento pago** e as **duas réguas emprestadas na auditoria da grade**.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA, medida de novo:** o job `deploy → prod` foi de `Set up job` a `Complete job` em **15 segundos** (16:21:54 → 16:22:09), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.** É a terceira sessão seguida a registrar isso.
+>
+> ⚠️ **O QUE FOI VERIFICADO E O QUE NÃO FOI:** os dois jobs passaram inteiros, e o passo `Publicar` é o que carrega o `/healthz` com rollback automático — então o healthz respondeu 200 nos dois. **Nada foi visto renderizado nem exercitado pela tela:** esta sessão não alcança `dev` nem `prod` (o proxy recusa o CONNECT com 403). Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`, com `build-829-49a81e2` como versão anterior.
+>
+> Última atualização: **09/09/2026** — 🔎 **A AUDITORIA DA GRADE ESTAVA REESCREVENDO A RÉGUA DO MOTOR — E ERRAVA NOS DOIS SENTIDOS.**
+>
+> 🕳️ Achado numa **revisão adversarial antes de publicar**, no merge desta branch com o `main`. O bloco "mesma pessoa em dois jogos" do `AuditoriaDaGrade` tinha escrito à mão o que o motor já decide — exatamente o que o cabeçalho do próprio arquivo proíbe (*"ESTE SERVIÇO É A ÚNICA CÓPIA DA AUDITORIA"*).
+>
+> ❌ **FALSO POSITIVO EM TORNEIO DE TIMES:** todo time é uma `Dupla` com o **organizador** no `Jogador1Id` (coluna NOT NULL). Lendo `Jogador1Id` na mão, a auditoria via a mesma pessoa em TODOS os times e **acusava a grade inteira, um achado por horário**, num torneio sem defeito nenhum. O motor não cai nisso porque `RoboDoChaveamento.OcupantesPorDupla` filtra `!d.EhTime` — e o comentário dele já dizia por quê.
+>
+> ❌ **FALSO NEGATIVO EM GRADE DESALINHADA:** o choque era medido por **instante exato** (`GroupBy(HorarioPrevisto)`), mas o motor mede por **intervalo** desde 21/08 (`CruzaComAPessoa`). ⚠️ E a grade desalinhada não é hipótese: `AberturaDoRecalculo` parte de `DateTime.Now` quando há jogo em quadra, então o "Refazer grade" das 20h13 põe jogos novos em 20:13 ao lado dos antigos em 20:00 — **a tela dizia "Nada fora do lugar" exatamente ali**, que é onde o organizador aperta o botão.
+>
+> 🔧 As duas réguas passaram a ser **emprestadas do motor**, não reescritas. Dedup por par de horários: dois jogos da mesma dupla se cruzando dariam um achado por jogador, com texto idêntico.
+>
+> 🧪 **5.666 testes, 0 falhas (3 novos).** **Sem migration.** As duas guardas do defeito foram vistas falhar antes; a terceira (jogos a 50 min de distância **não** são choque) passa de primeira de propósito — é o outro lado, pra medir por intervalo não virar acusação na rodada seguinte.
+>
+> ⚠️ **A revisão que achou isto QUASE NÃO ACONTECEU:** 13 dos 14 agentes morreram no limite de sessão e o resultado voltou `{bloqueiam:[], serios:[]}` — **falso negativo do script**, porque achado sem refutador não atinge quórum e é descartado como refutado. Os achados estavam no `journal.jsonl`. Resultado vazio de fan-out com falhas não é "nada encontrado".
+>
+> 🟡 **UM TERCEIRO ACHADO FICOU DE FORA, e não é regressão:** o **Americano nunca leu impedimento** (`TorneiosController.Americano.cs:254` chama `Montar` sem `peloMenosAte` e o `Encaixar` sem `janelasProibidasPorDupla`), embora `PermiteImpedimentos` e `TaxaPorImpedimento` sejam flags do TORNEIO, sem recorte de formato. O `jogosComJanela` desta branch é **no-op** lá (só age dentro do `if (peloMenosAte …)`), então o comportamento do Americano é idêntico ao de antes. Mas o botão "Conferir a grade" aparece em qualquer formato e vai acusar furos que nenhum "Refazer grade" resolve — `RefazerGrade` só existe no Padrão.
+>
+> Última atualização: **09/09/2026** — 🔒 **O IMPEDIMENTO PAGO PAROU DE CEDER: A MARGEM DA GRADE ERA POR QUADRA, E QUEM DISPUTA VAGA É JOGO.**
+>
+> 🗣️ **Felipe:** *"conserta esse furo do impedimento tambem"* — o defeito que a auditoria da troca de grupos tinha achado e reportado horas antes.
+>
+> 🕳️ **O QUE ACONTECIA:** com muitas duplas bloqueando o MESMO dia, o motor marcava jogo dentro da janela que a dupla **pagou** pra evitar (`Torneio.TaxaPorImpedimento` — é garantia vendida, não preferência). Medido antes, torneio sexta+sábado com 16 duplas: 4 impedidas → 0/30 sorteios com furo; 6 → 2/30; **8 → 28/30**.
+>
+> 📏 **A CAUSA, e o print que a entregou:** quase todo furo caía em **`sexta 23:50`** — o ÚLTIMO horário da sexta. Os jogos eram empurrados pro fim do dia bloqueado em vez de irem pro sábado, porque **a grade não alcançava o sábado com vaga pra todos**. `AlcanceNecessario` devolve o FIM da janela (sexta é dia inteiro → sábado 00:00, antes de o sábado abrir às 8h) e o `Montar` seguia daí `MargemDeHorarios` = `max(quadras,1)*3` vagas. **Margem dimensionada por QUADRA — e quem disputa as vagas do outro lado da janela é JOGO.** Com 8 de 16 impedidas, ~11 dos 14 jogos queriam o sábado e a grade abria 3 lá.
+>
+> 🔧 **O conserto é `VagasDaGrade.JogosComJanela`**: conta quantos dos jogos a agendar têm dupla (ou categoria, no caso da noite de sábado) com janela, e o `Montar` segue `margem + esse número` de vagas além do limite. Conta o JOGO e não a dupla — é o jogo que ocupa vaga —, e conta por cima de propósito: a receita deste arquivo pede com sobra e corta depois, e **foi pedir justo que produziu o furo**. Vale nos dois chamadores (`TorneiosController.Chaves` e `RoboDoChaveamento`).
+>
+> ✅ **VARRIDO 1/2/4/6 QUADRAS × 8/12/14/16 IMPEDIDAS — 240 sorteios, ZERO furos e ZERO jogos sem hora.** Inclusive o extremo de **16 de 16** (a categoria inteira bloqueada na sexta): o torneio migra inteiro pro sábado. ⚠️ O outro lado foi medido junto de propósito — alargar a grade não pode virar dupla sem horário nenhum, que seria trocar um defeito por outro pior.
+>
+> 🧪 **5.649 testes, 0 falhas (9 novos).** **Sem migration.** O `Theory` novo foi visto falhar pelo motivo certo em 4 dos casos (com a mensagem apontando `Fri 03/07 23:50`), e **o conserto foi falsificado depois**: trocando `margem + jogosComJanela` de volta por `margem`, 5 dos 9 casos ficam vermelhos na hora.
+>
+> 🔁 **E UM COMENTÁRIO QUE PASSOU A MENTIR FOI CORRIGIDO JUNTO:** o teste da troca de grupos dizia que "acima de ~4 impedidas quem cede é o motor" e rodava com 4 de 16 por causa disso. Com o motor consertado ele subiu pra **8 de 16** — metade da categoria — e o comentário agora explica por que o volume mudou. Comentário desatualizado num teste é a próxima sessão herdando um número sem saber que ele venceu.
+>
+> Última atualização: **09/09/2026** — 🏅 **SER CABEÇA DE CHAVE PASSOU A VALER A PENA: A SEMEADURA DOS GRUPOS ESTAVA INVERTIDA.**
+>
+> 🗣️ **Felipe:** *"quando houver ranking, seguindo a logica, nos torneios, digamos q tenham 9 duplas no torneio e todas rankeadas / Grupo A (1º do ranking, 9º do ranking e 6º) / Grupo B (2º, 8º, 5º) / Grupo C (3º, 7º, 4º)"*.
+>
+> 🕳️ **O ZIGUE-ZAGUE PUNIA QUEM ESTAVA MELHOR — e isso foi MEDIDO com 9 duplas rankeadas, não deduzido:** o código dava **Grupo A = 1º, 6º, 7º** e **Grupo C = 3º, 4º, 9º**. Somando as colocações, o grupo do LÍDER era o mais forte dos três (14) e o do 3º cabeça o mais fraco (16). O 1º do ranking pegava o **7º** (o melhor do terço de baixo) enquanto o 3º pegava o **9º**.
+>
+> 🔁 **A CAUSA ERA A TERCEIRA PASSADA.** Era a serpentina clássica (A→C, C→A, **A→C**) — e recomeçar em A na terceira volta é o que devolve o melhor dos piores pro grupo do líder. A régua nova: a **primeira** faixa abre os grupos na ordem (1º → Grupo A) e **toda faixa seguinte entra invertida** (…C, B, A), então o grupo do cabeça mais forte recebe o **pior de cada faixa**. O equilíbrio é idêntico — as somas continuam 14/15/16 —, só que agora a favor de quem se classificou melhor, que é a convenção de todo torneio semeado.
+>
+> ✅ **O SEGUNDO PEDIDO JÁ ESTAVA CERTO, e virou teste mesmo assim:** *"tem q seguir o chaveamento, que o primeiro do A e primeiro do B (teoricamente os 2 melhores rankeados) só se enfrentem na final"*. O `ChaveamentoMataMata` separa os lados do quadro desde 05/08. **Simulando 21 duplas rankeadas do sorteio à final** (7 grupos de 3, 14 classificados, quadro de 16 com 2 byes, melhor rankeado vencendo sempre): quartas `4º×1º` e `3º×2º`, semis `1º×5º` e `2º×6º`, **final `2º×1º`**. ⚠️ Virou guarda porque a semeadura dos GRUPOS mudou no mesmo dia — e é ela que decide quem classifica em que posição, que é a ENTRADA do chaveamento. Quebrar um mexendo no outro não daria erro: daria a final adiantada pra semifinal, descoberta no dia do torneio.
+>
+> 🧪 **5.640 testes, 0 falhas.** **Sem migration.** A guarda dos grupos foi vista falhar pelo motivo certo (`Expected: [1, 6, 9] / Actual: [1, 6, 7]`). O helper `SemearRankingCompletoAsync` dá a cada dupla um total de pontos DIFERENTE pelo caminho real (participações em torneios anteriores × peso), porque com todo mundo empatado o desempate sorteado de hoje tornaria a colocação impossível de afirmar.
+>
+> Última atualização: **09/09/2026** — 🔀 **O ORGANIZADOR PASSOU A TROCAR DUPLAS DE GRUPO, E A GRADE É REFEITA NA TROCA.**
+>
+> 🗣️ **Felipe:** *"permita também, que o organizador, troque a dupla de lugar no grupo, e ao trocar, verifique os horarios com impedimentos novamente, se nao vai atrapalhar algum"*.
+>
+> 🎯 **É o degrau que faltava entre "aceitar a chave como saiu" e "Desfazer sorteio"** — que ficou caro no mesmo dia em que o sorteio passou a sortear de verdade: torrar 63 duplas pra mover uma.
+>
+> 🔁 **É UM SWAP, não um "mover pra o grupo X":** mover uma só desbalancearia os grupos (o `2,2,3,3,3,3` da categoria de 16 viraria `1,2,3,3,3,4`), e esse desenho é o que o organizador escolheu na criação. **E não regera partida nenhuma:** dentro do grupo é todos-contra-todos, então trocar de lugar é trocar os Ids das duas nos jogos que já existem — cada uma herda os adversários da outra.
+>
+> 🕐 **A GRADE INTEIRA É REFEITA DEPOIS**, pelo `EncaixarNasLevas` de sempre. O miolo do "Refazer grade" virou `RecalcularAGradeAsync`, compartilhado — segunda cópia da regra divergiria, que é o motivo pelo qual o `EncaixarNasLevas` já era compartilhado. Como neste status nada começou, o recálculo parte de `AberturaDaGrade` e não de `DateTime.Now`.
+>
+> 🔒 **Só no status "Chaves em Aprovação"** (decisão do Felipe), mesma régua do "Desfazer sorteio": depois de aprovada a chave é pública e tem gente organizada pro horário. `[HttpPost]` + `[Authorize]` + `EhOrganizadorAsync` — régua de SORTEIO, não de dia de jogo: o marcador refaz grade, mas não remonta grupo.
+>
+> 🔍 **A AUDITORIA ACHOU UM FURO QUE NÃO É DESTA FEATURE — e a medição é o resultado principal desta sessão.** Num torneio sexta+sábado, 16 duplas, impedimento de sexta marcado ANTES do sorteio: **o sorteio sozinho já entrega grade com furo em 7/40 execuções, e com a troca dá exatamente 7/40 também.** A troca não adiciona um único furo — ela reavalia todas as janelas, igual ao sorteio.
+>
+> 📏 **O TETO DO MOTOR FOI MEDIDO, varrendo 30 sorteios por volume (16 duplas):** 4 impedidas → **0/30** furos (com e sem troca); 6 → 2/30; 8 → 28/30. **A causa:** `VagasDaGrade.AlcanceNecessario` garante CHEGAR ao fim da janela mais `GradeDeJogos.MargemDeHorarios` = `max(quadras,1)*3` vagas — margem dimensionada por QUADRA, não pelo VOLUME de jogos que a janela empurrou. A janela de sexta bloqueia o dia inteiro e joga mais de 3 jogos no sábado; as vagas acabam e o último recurso do `Encaixar` cede o impedimento. ⚠️ **Não consertado nesta sessão** — é defeito do motor, anterior a esta feature, e mexe na grade de todo torneio.
+>
+> 🧪 **5.638 testes, 0 falhas (9 novos).** **Sem migration.** As duas guardas de impedimento foram vistas falhar **por resultado errado** com a troca implementada SEM o recálculo. ⚠️ **E a primeira versão de uma delas era FLAKY e foi refeita:** ela cobrava "zero furos" num volume saturado (6 de 16), medindo o motor em vez desta feature — o teste agora roda no volume que o motor comporta, com o número medido no comentário. A guarda de tela foi falsificada duas vezes: sem o painel, e com o painel fora do `if` de status.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> Última atualização: **09/09/2026** — 🎲 **O SORTEIO PASSOU A SORTEAR: A CHAVE DE CATEGORIA COM GRUPOS NUNCA FOI ALEATÓRIA.**
+>
+> 🗣️ **Felipe, olhando a 4ª Masculina do torneio do Er no dev:** *"por que que toda vez q eu gero o sorteio, esta vindo igual, o chaveamento, os horarios dos jogos e tudo mais?"*.
+>
+> 🕳️ **NÃO ERA SEED TRAVADO — ERA AUSÊNCIA DE SORTEIO.** O ramo de categoria COM GRUPOS do `GerarChaves` não embaralhava nada: a ordem saía de `OrderByDescending(pontos)` e daí pra baixo **tudo é função pura dessa lista** — os grupos de 2 do `resto`, o zigue-zague, a letra do grupo, os confrontos. Os `OrderBy(Guid.NewGuid())` que de fato sorteiam só existiam nos ramos de **times** e de **chave direta**, que uma categoria com grupos não usa.
+>
+> 📋 **E o agravante: `OrderByDescending` do LINQ é ordenação ESTÁVEL.** Com quase todo mundo em 0 ponto — o normal de um torneio de teste —, o empate preservava a ordem de carga do EF. A chave era, literalmente, **"ordem de inscrição → zigue-zague"**. Confere com o print dele: 16 duplas, `16 % 3 = 1`, então Grupo A = {1º, 4º} e Grupo B = {2º, 3º} (os dois grupos de 2 da tela) e as 12 restantes em 4 grupos de 3.
+>
+> 🕐 **OS HORÁRIOS REPETIAM DE CARONA, não por bug próprio:** `EncaixarNasLevas` é chamado sem `aPartirDe`, então parte de `torneio.AberturaDaGrade` — **data fixa, não `DateTime.Now`**. Mesma lista de jogos + mesma configuração (quadras, duração) = mesma grade, minuto a minuto. Consertada a chave, a grade veio junto sem uma linha a mais.
+>
+> 🎯 **O CONSERTO É O DESEMPATE, E NÃO A ORDEM INTEIRA** (decisão do Felipe entre as três opções): `.ThenBy(_ => Guid.NewGuid())`. **Quem TEM ranking continua semeado por ranking** — é o que impede dois favoritos de caírem no mesmo grupo; quem empata é sorteado. Como quase todo mundo empata em 0, na prática o sorteio voltou a ser sorteio. Mesmo idioma dos outros dois ramos do arquivo, uma linha.
+>
+> 🧪 **5.629 testes, 0 falhas (4 novos).** **Sem migration.** As duas guardas do defeito **falharam pelo motivo certo** antes da correção (5 sorteios devolvendo a assinatura idêntica, impressa na mensagem). ⚠️ **As outras duas passaram de primeira DE PROPÓSITO** — são o outro lado: 16 duplas continuam fechando em `2,2,3,3,3,3` em toda execução, e com pontos distintos a 1ª/2ª/3ª continuam abrindo os Grupos A/B/C. Elas existem pra que o desempate não vire embaralhamento puro.
+>
+> ⚠️ **A SUÍTE FOI RODADA 4 VEZES**, não uma: o sorteio virou aleatório, então teste que dependesse em silêncio do determinismo passaria a ser loteria — é o furo que o `ChaveDiretaNoSorteioTests` já documenta ("passa ou falha por sorte"). Estável nas 4.
+>
+> ⚠️ **A chave já sorteada do Er não muda sozinha** — precisa de "Desfazer sorteio" + "Gerar chaves" enquanto ela estiver esperando aprovação. **Não visto renderizado** — sem browser nesta sessão.
+>
+> ---
+>
+> ⚠️ **O bloco abaixo é da publicação ANTERIOR** (commit `17496ea`), e não das quatro entradas acima — elas ainda não subiram quando esta linha foi escrita.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no commit `17496ea`** (09/09/2026, 13h05 e 13h07 UTC) — o "Meus jogos" por grupo (PR #91) e, junto com ele, tudo que estava no `main` e ainda não tinha subido: a **auditoria da grade do Er** (PR #90) e o **selo do chip** (PR #89). Mesmo artefato nos dois ambientes: o `dev` levou `17496ea` e a produção levou **o mesmo**, não um build novo — que é o que a Regra 3 quer dizer com "testar em dev antes".
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA, e agora foi medida de novo:** o job `deploy → prod` foi de `Set up job` a `Complete job` em **11 segundos**, sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **Nada disto foi visto renderizado** — sem browser nesta sessão. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
 >
 > Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
@@ -52,6 +150,24 @@
 > 🧪 **5.618 testes, 0 falhas (6 novos)** — o total já é com o `main` trazido pra dentro (a auditoria da grade do Er entrou no meio do caminho). **Sem migration.** As guardas falsificaram: o `Theory` de Final/Semifinal/Quartas/Grupos ficou vermelho nos quatro casos (todos entravam no mapa) e a guarda de tela achou o `RotuloFase` no Razor. A guarda do outro lado passou de primeira, e é de propósito: vice num torneio + campeã em outro continua com o troféu de 1 título.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> Última atualização: **09/09/2026** — 🩺 **BOTÃO "CONFERIR A GRADE": a auditoria virou tela.**
+>
+> 🗣️ **Felipe:** *"faz esse botão e sobe"*.
+>
+> 🚧 **NASCEU DE UM BECO, e vale registrar qual:** ele pediu **duas vezes** que eu conferisse a grade do torneio dele em `dev`, e a sessão da web **não alcança o `dev`** (o proxy recusa o CONNECT com 403). A saída não era pedir print de novo — era virar a auditoria em TELA, pra ele apertar e ver, em qualquer torneio, sem depender de mim nem da minha rede.
+>
+> 🔗 **O PONTO DE ARQUITETURA: a tela e o teste de regressão chamam o MESMO serviço** (`Services/AuditoriaDaGrade`). A auditoria que eu tinha escrito à mão no teste da escala do Er foi **apagada**, não mantida em paralelo — duas auditorias divergem, e a que fica errada é sempre a que ninguém está olhando. Pior: seria a TELA, que é justamente a que existe pra ser acreditada.
+>
+> 🔍 **Seis regras conferidas:** jogo dentro do impedimento da dupla · mesma **pessoa** em dois jogos no mesmo horário (por pessoa, não por dupla — com chave direta o mesmo jogador está em duplas de Ids diferentes) · concentração não atendida **na fase de grupos** · eliminatória no sábado à noite de categoria que pediu pra não ter · quadra usada fora da janela do local alugado · jogo sem horário.
+>
+> ⚠️ **"ACHADO" NÃO É "BUG", E A TELA DIZ ISSO NA PRIMEIRA LINHA.** A grade CEDE de propósito quando as vagas acabam — jogo sem hora nenhuma é pior. Sem essa frase o organizador leria a lista como defeito do sistema e perderia a decisão que é dele: refazer a grade, falar com a dupla, ou aceitar.
+>
+> 🔒 **Só lê.** Não remarca nada — quem muda a grade é o "Refazer grade", ao lado. Uma tela de conferência que conserta sozinha tira do organizador a decisão de aceitar o que cedeu. Atrás de `PodeOperarODiaDeJogoAsync`, mesma régua do botão vizinho: ela mostra a grade inteira e nome de jogador.
+>
+> 🧪 **5.639 testes, 0 falhas (14 novos).** **Sem migration.** Cinco guardas falsificadas.
+>
+> ⚠️ **Não visto renderizado** — a tela é nova e nunca passou por um browser.
 >
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >

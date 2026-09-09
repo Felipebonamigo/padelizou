@@ -162,9 +162,25 @@ namespace Padelizou.Controllers
                 }
 
                 // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
+                //
+                // ⚠️ O `ThenBy(Guid)` É O SORTEIO, e sem ele NÃO HAVIA SORTEIO NENHUM aqui
+                // (09/09/2026 — Felipe: "por que que toda vez q eu gero o sorteio, esta vindo
+                // igual, o chaveamento, os horarios dos jogos e tudo mais?"). Daqui pra baixo
+                // tudo é função PURA desta lista: os grupos de 2 do resto, o zigue-zague, a
+                // letra do grupo, os confrontos — e a grade de horários por tabela, já que ela
+                // nasce da lista de jogos e de `AberturaDaGrade`, que é data fixa.
+                //
+                // E `OrderByDescending` do LINQ é ordenação ESTÁVEL: o empate preservava a
+                // ordem de carga do EF, então com quase todo mundo em 0 ponto a chave saía na
+                // ordem de INSCRIÇÃO, igual a cada clique. Os `OrderBy(Guid.NewGuid())` que
+                // sorteiam de verdade só existiam nos ramos de times e de chave direta.
+                //
+                // ⚠️ SORTEIA O DESEMPATE, NÃO A ORDEM INTEIRA: quem tem ranking continua
+                // semeado por ranking, que é o que impede dois favoritos no mesmo grupo.
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
                                           + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
+                    .ThenBy(_ => Guid.NewGuid())
                     .ToList();
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
@@ -207,24 +223,29 @@ namespace Padelizou.Controllers
                         var bucket = new List<Dupla>[numGruposDeTres];
                         for (int i = 0; i < numGruposDeTres; i++) bucket[i] = new List<Dupla>();
 
-                        // DISTRIBUIÇÃO EM ZIGUE-ZAGUE (balanceia 1 cabeça de chave forte/médio/fraco por grupo)
-                        int grupoIndex = 0;
-                        int direcao = 1;
-                        foreach (var dupla in restantes)
+                        // DISTRIBUIÇÃO POR FAIXAS (1 cabeça de chave forte/médio/fraco por grupo).
+                        //
+                        // A lista chega ordenada do melhor pro pior e é fatiada em FAIXAS de
+                        // `numGruposDeTres`. A primeira faixa abre os grupos na ordem (o 1º do
+                        // ranking abre o Grupo A); TODA faixa seguinte entra INVERTIDA, então o
+                        // grupo do cabeça mais forte recebe o PIOR de cada faixa.
+                        //
+                        // ⚠️ ISTO NÃO É A SERPENTINA CLÁSSICA, e a diferença foi pedida pelo
+                        // Felipe (09/09/2026): "Grupo A (1º do ranking, 9º do ranking e 6º) /
+                        // Grupo B (2º, 8º, 5º) / Grupo C (3º, 7º, 4º)". A serpentina (A→C, C→A,
+                        // A→C) recomeçava em A na terceira faixa e dava Grupo A = 1º, 6º, 7º
+                        // contra Grupo C = 3º, 4º, 9º — somando as colocações, o grupo do LÍDER
+                        // saía o mais forte (14) e o do 3º cabeça o mais fraco (16). Ser cabeça
+                        // de chave PUNIA. O equilíbrio aqui é o mesmo (as somas continuam
+                        // 14/15/16), só que agora a favor de quem se classificou melhor, que é
+                        // a convenção de todo torneio semeado.
+                        for (int posicao = 0; posicao < restantes.Count; posicao++)
                         {
-                            bucket[grupoIndex].Add(dupla);
-
-                            grupoIndex += direcao;
-                            if (grupoIndex >= numGruposDeTres)
-                            {
-                                grupoIndex = numGruposDeTres - 1;
-                                direcao = -1;
-                            }
-                            else if (grupoIndex < 0)
-                            {
-                                grupoIndex = 0;
-                                direcao = 1;
-                            }
+                            int dentroDaFaixa = posicao % numGruposDeTres;
+                            int grupoIndex = posicao < numGruposDeTres
+                                ? dentroDaFaixa                                 // 1ª faixa: A, B, C…
+                                : numGruposDeTres - 1 - dentroDaFaixa;          // as demais: …C, B, A
+                            bucket[grupoIndex].Add(restantes[posicao]);
                         }
                         gruposDeDuplas.AddRange(bucket);
                     }
@@ -312,6 +333,40 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             return ParaAsChaves(torneio.Id);
+        }
+
+        // ── CONFERIR A GRADE ──────────────────────────────────────────────────────────────
+        // 🗣️ Felipe, 09/09/2026: "faz esse botão e sobe".
+        //
+        // Nasceu de um beco: ele pediu duas vezes que eu conferisse a grade do torneio dele em
+        // `dev`, e a sessão da web não alcança o `dev`. A saída não é pedir print — é virar a
+        // auditoria em tela, pra ele apertar e ver, em qualquer torneio, sem depender de mim.
+        //
+        // ⚠️ SÓ LÊ. Não remarca nada, não grava nada: quem muda a grade é o "Refazer grade", ao
+        // lado. Uma tela de conferência que conserta sozinha tira do organizador a decisão de
+        // aceitar ou não o que cedeu.
+        //
+        // A régua mora em Services/AuditoriaDaGrade, e é a MESMA que o teste de regressão usa.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> ConferirGrade(int id)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            // A tela mostra a grade inteira e nome de jogador: é de quem organiza. Mesma régua
+            // do "Refazer grade", que é o botão vizinho.
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var duplas = torneio.Categorias.SelectMany(c => c.Duplas).ToList();
+
+            ViewBag.Torneio = torneio;
+            ViewBag.TotalDeJogos = jogos.Count;
+
+            return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, await SedesAsync(id)));
         }
 
         // Pra onde o organizador vai depois de sortear: a aba "Chaves e Grupos", que é a tela
@@ -407,6 +462,79 @@ namespace Padelizou.Controllers
 
             TempData["Sucesso"] = "Sorteio desfeito — pode sortear de novo quando quiser.";
             return RedirectToAction("Details", new { id });
+        }
+
+        // TROCAR DUAS DUPLAS DE GRUPO, em cima do sorteio que acabou de sair. Pedido do Felipe
+        // (09/09/2026): "permita também, que o organizador, troque a dupla de lugar no grupo, e
+        // ao trocar, verifique os horarios com impedimentos novamente, se nao vai atrapalhar
+        // algum".
+        //
+        // É o ajuste fino que faltava entre "aceitar a chave como saiu" e "Desfazer sorteio":
+        // com o sorteio passando a sortear de verdade (mesmo dia), torrar 63 duplas pra mover
+        // uma seria caro demais.
+        //
+        // ⚠️ SÓ ENQUANTO A CHAVE ESPERA APROVAÇÃO (decisão do Felipe). Depois de aprovada ela é
+        // pública: tem gente que já viu contra quem joga e já se organizou pro horário — mesma
+        // razão pela qual DesfazerSorteio também para aqui.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarDuplasDeGrupo(int id, int duplaA, int duplaB)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            // Régua de SORTEIO, não de dia de jogo: isto muda confronto, então é organizador —
+            // o marcador, que pode refazer a grade, não pode remontar o grupo.
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (torneio.Status != AprovacaoDeChaves.Pendente)
+            {
+                TempData["Erro"] = "Só dá pra trocar duplas de grupo enquanto a chave espera aprovação.";
+                return ParaAsChaves(id);
+            }
+
+            // De dentro DESTE torneio: um Id de dupla vem do formulário, e formulário não
+            // escolhe em qual torneio se mexe.
+            var duplasDoTorneio = torneio.Categorias.SelectMany(c => c.Duplas).ToList();
+            var a = duplasDoTorneio.FirstOrDefault(d => d.Id == duplaA);
+            var b = duplasDoTorneio.FirstOrDefault(d => d.Id == duplaB);
+
+            if (TrocaDeGrupo.MotivoParaNaoTrocar(a, b) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return ParaAsChaves(id);
+            }
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            TrocaDeGrupo.Trocar(a!, b!, jogos);
+
+            // ⚠️ E AGORA A GRADE INTEIRA É REFEITA — a segunda metade do pedido ("ao trocar,
+            // verifique os horarios com impedimentos novamente, se nao vai atrapalhar algum").
+            //
+            // Os jogos guardaram o horário que já tinham, mas trocaram de DONO: a dupla que
+            // veio do grupo que jogava no sábado herda o horário de sexta da outra — e pode ter
+            // pago justamente pra não jogar na sexta. Refazendo, o encaixe reavalia todas as
+            // janelas de todo mundo, e não só as das duas duplas mexidas: remanejar move o
+            // horário de quem não pediu nada, então o furo pode nascer em qualquer lugar.
+            //
+            // Recalcular custa barato aqui e em lugar nenhum mais: neste status a chave ainda
+            // não é pública, ninguém se organizou pra horário nenhum, e nada começou — então
+            // AberturaDoRecalculo devolve a `AberturaDaGrade` do torneio, a mesma origem do
+            // sorteio, em vez de `DateTime.Now`.
+            var (remarcados, _) = await RecalcularAGradeAsync(torneio, jogos);
+
+            await _context.SaveChangesAsync();
+
+            var semHorario = remarcados.Count(j => j.HorarioPrevisto == null);
+            TempData[semHorario > 0 ? "Erro" : "Sucesso"] =
+                $"{a!.NomeDeExibicao} foi pro Grupo {a.Grupo} e {b!.NomeDeExibicao} pro Grupo {b.Grupo}. "
+                + (semHorario > 0
+                    ? $"⚠️ {semHorario} jogos ficaram SEM HORÁRIO: com os impedimentos desta troca não sobrou vaga no expediente."
+                    : "Os horários foram recalculados respeitando os impedimentos.");
+            return ParaAsChaves(id);
         }
 
         // A ORDEM DA FILA É O CAMINHO CRÍTICO DO TORNEIO.
@@ -528,7 +656,11 @@ namespace Padelizou.Controllers
                     peloMenosAte: VagasDaGrade.MaisTarde(
                         concentracao?.AteQuando,
                         VagasDaGrade.AlcanceNecessario(janelas, noiteDeSabado)),
-                    sedes: sedes);
+                    sedes: sedes,
+                    // Quantos JOGOS desta leva a janela pode empurrar pro outro lado do limite —
+                    // sem isto o alcance chega ao fim da janela e abre 3 vagas lá. Ver
+                    // VagasDaGrade.JogosComJanela.
+                    jogosComJanela: VagasDaGrade.JogosComJanela(daLeva, janelas, noiteDeSabado));
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
                     ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,
@@ -618,10 +750,8 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
 
             var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
-            var remarcar = todos.Where(p => p.Status == "Agendada").ToList();
-            var intocados = todos.Where(p => p.Status != "Agendada").ToList();
 
-            if (remarcar.Count == 0)
+            if (!todos.Any(p => p.Status == "Agendada"))
             {
                 TempData["Erro"] = todos.Count == 0
                     ? "Não há jogos pra remarcar: sorteie as chaves primeiro."
@@ -629,25 +759,7 @@ namespace Padelizou.Controllers
                 return VoltarPara(voltarPara, id);
             }
 
-            foreach (var jogo in remarcar)
-            {
-                jogo.HorarioPrevisto = null;
-                jogo.NomeQuadra = null;
-            }
-
-            EncaixarNasLevas(torneio, remarcar,
-                torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
-                OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(id),
-                AberturaDoRecalculo(torneio, intocados), intocados,
-                await QuadrasPreferidasAsync(id),
-                JanelasDeImpedimento.PorDupla(torneio),
-                ConcentracaoDeJogos.De(torneio),
-                EliminatoriaNoSabado.PorCategoria(torneio),
-                await SedesAsync(id));
-
-            // No "por ordem", a quadra volta a ficar em aberto: quem decide onde é a Mesa,
-            // conforme vaga. O horário fica.
-            OrdemDeLiberacao.ApagarAsQuadras(torneio, remarcar);
+            var (remarcar, intocados) = await RecalcularAGradeAsync(torneio, todos);
 
             await _context.SaveChangesAsync();
 
@@ -683,6 +795,47 @@ namespace Padelizou.Controllers
                 torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
 
             return agora > liberaQuadra ? agora : liberaQuadra;
+        }
+
+        // O RECÁLCULO DA GRADE, num lugar só: zera o horário e a quadra de tudo que ainda está
+        // "Agendada" e reencaixa pelas mesmas regras do sorteio — impedimento pago,
+        // concentração, noite de sábado, quadra preferida e sede.
+        //
+        // ⚠️ Nasceu compartilhado (09/09/2026) porque a TROCA DE DUPLA ENTRE GRUPOS precisa
+        // exatamente disto depois de mexer nos confrontos, e é o mesmo motivo pelo qual
+        // EncaixarNasLevas já é compartilhado entre o sorteio e o "Refazer grade": duas cópias
+        // divergiriam e o torneio teria duas grades. Quem chama grava — aqui só se mexe nas
+        // entidades em memória.
+        //
+        // Devolve (o que foi remarcado, o que ficou intocado), que é o material das duas
+        // mensagens de sucesso.
+        private async Task<(List<Partida> Remarcados, List<Partida> Intocados)> RecalcularAGradeAsync(
+            Torneio torneio, List<Partida> todos)
+        {
+            var remarcar = todos.Where(p => p.Status == "Agendada").ToList();
+            var intocados = todos.Where(p => p.Status != "Agendada").ToList();
+
+            foreach (var jogo in remarcar)
+            {
+                jogo.HorarioPrevisto = null;
+                jogo.NomeQuadra = null;
+            }
+
+            EncaixarNasLevas(torneio, remarcar,
+                torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
+                OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(torneio.Id),
+                AberturaDoRecalculo(torneio, intocados), intocados,
+                await QuadrasPreferidasAsync(torneio.Id),
+                JanelasDeImpedimento.PorDupla(torneio),
+                ConcentracaoDeJogos.De(torneio),
+                EliminatoriaNoSabado.PorCategoria(torneio),
+                await SedesAsync(torneio.Id));
+
+            // No "por ordem", a quadra volta a ficar em aberto: quem decide onde é a Mesa,
+            // conforme vaga. O horário fica.
+            OrdemDeLiberacao.ApagarAsQuadras(torneio, remarcar);
+
+            return (remarcar, intocados);
         }
 
         // Volta pra tela DE ONDE o organizador veio.
