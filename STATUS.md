@@ -1,6 +1,18 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🏅 **SER CABEÇA DE CHAVE PASSOU A VALER A PENA: A SEMEADURA DOS GRUPOS ESTAVA INVERTIDA.**
+>
+> 🗣️ **Felipe:** *"quando houver ranking, seguindo a logica, nos torneios, digamos q tenham 9 duplas no torneio e todas rankeadas / Grupo A (1º do ranking, 9º do ranking e 6º) / Grupo B (2º, 8º, 5º) / Grupo C (3º, 7º, 4º)"*.
+>
+> 🕳️ **O ZIGUE-ZAGUE PUNIA QUEM ESTAVA MELHOR — e isso foi MEDIDO com 9 duplas rankeadas, não deduzido:** o código dava **Grupo A = 1º, 6º, 7º** e **Grupo C = 3º, 4º, 9º**. Somando as colocações, o grupo do LÍDER era o mais forte dos três (14) e o do 3º cabeça o mais fraco (16). O 1º do ranking pegava o **7º** (o melhor do terço de baixo) enquanto o 3º pegava o **9º**.
+>
+> 🔁 **A CAUSA ERA A TERCEIRA PASSADA.** Era a serpentina clássica (A→C, C→A, **A→C**) — e recomeçar em A na terceira volta é o que devolve o melhor dos piores pro grupo do líder. A régua nova: a **primeira** faixa abre os grupos na ordem (1º → Grupo A) e **toda faixa seguinte entra invertida** (…C, B, A), então o grupo do cabeça mais forte recebe o **pior de cada faixa**. O equilíbrio é idêntico — as somas continuam 14/15/16 —, só que agora a favor de quem se classificou melhor, que é a convenção de todo torneio semeado.
+>
+> ✅ **O SEGUNDO PEDIDO JÁ ESTAVA CERTO, e virou teste mesmo assim:** *"tem q seguir o chaveamento, que o primeiro do A e primeiro do B (teoricamente os 2 melhores rankeados) só se enfrentem na final"*. O `ChaveamentoMataMata` separa os lados do quadro desde 05/08. **Simulando 21 duplas rankeadas do sorteio à final** (7 grupos de 3, 14 classificados, quadro de 16 com 2 byes, melhor rankeado vencendo sempre): quartas `4º×1º` e `3º×2º`, semis `1º×5º` e `2º×6º`, **final `2º×1º`**. ⚠️ Virou guarda porque a semeadura dos GRUPOS mudou no mesmo dia — e é ela que decide quem classifica em que posição, que é a ENTRADA do chaveamento. Quebrar um mexendo no outro não daria erro: daria a final adiantada pra semifinal, descoberta no dia do torneio.
+>
+> 🧪 **5.640 testes, 0 falhas.** **Sem migration.** A guarda dos grupos foi vista falhar pelo motivo certo (`Expected: [1, 6, 9] / Actual: [1, 6, 7]`). O helper `SemearRankingCompletoAsync` dá a cada dupla um total de pontos DIFERENTE pelo caminho real (participações em torneios anteriores × peso), porque com todo mundo empatado o desempate sorteado de hoje tornaria a colocação impossível de afirmar.
+>
 > Última atualização: **09/09/2026** — 🔀 **O ORGANIZADOR PASSOU A TROCAR DUPLAS DE GRUPO, E A GRADE É REFEITA NA TROCA.**
 >
 > 🗣️ **Felipe:** *"permita também, que o organizador, troque a dupla de lugar no grupo, e ao trocar, verifique os horarios com impedimentos novamente, se nao vai atrapalhar algum"*.

@@ -223,24 +223,29 @@ namespace Padelizou.Controllers
                         var bucket = new List<Dupla>[numGruposDeTres];
                         for (int i = 0; i < numGruposDeTres; i++) bucket[i] = new List<Dupla>();
 
-                        // DISTRIBUIÇÃO EM ZIGUE-ZAGUE (balanceia 1 cabeça de chave forte/médio/fraco por grupo)
-                        int grupoIndex = 0;
-                        int direcao = 1;
-                        foreach (var dupla in restantes)
+                        // DISTRIBUIÇÃO POR FAIXAS (1 cabeça de chave forte/médio/fraco por grupo).
+                        //
+                        // A lista chega ordenada do melhor pro pior e é fatiada em FAIXAS de
+                        // `numGruposDeTres`. A primeira faixa abre os grupos na ordem (o 1º do
+                        // ranking abre o Grupo A); TODA faixa seguinte entra INVERTIDA, então o
+                        // grupo do cabeça mais forte recebe o PIOR de cada faixa.
+                        //
+                        // ⚠️ ISTO NÃO É A SERPENTINA CLÁSSICA, e a diferença foi pedida pelo
+                        // Felipe (09/09/2026): "Grupo A (1º do ranking, 9º do ranking e 6º) /
+                        // Grupo B (2º, 8º, 5º) / Grupo C (3º, 7º, 4º)". A serpentina (A→C, C→A,
+                        // A→C) recomeçava em A na terceira faixa e dava Grupo A = 1º, 6º, 7º
+                        // contra Grupo C = 3º, 4º, 9º — somando as colocações, o grupo do LÍDER
+                        // saía o mais forte (14) e o do 3º cabeça o mais fraco (16). Ser cabeça
+                        // de chave PUNIA. O equilíbrio aqui é o mesmo (as somas continuam
+                        // 14/15/16), só que agora a favor de quem se classificou melhor, que é
+                        // a convenção de todo torneio semeado.
+                        for (int posicao = 0; posicao < restantes.Count; posicao++)
                         {
-                            bucket[grupoIndex].Add(dupla);
-
-                            grupoIndex += direcao;
-                            if (grupoIndex >= numGruposDeTres)
-                            {
-                                grupoIndex = numGruposDeTres - 1;
-                                direcao = -1;
-                            }
-                            else if (grupoIndex < 0)
-                            {
-                                grupoIndex = 0;
-                                direcao = 1;
-                            }
+                            int dentroDaFaixa = posicao % numGruposDeTres;
+                            int grupoIndex = posicao < numGruposDeTres
+                                ? dentroDaFaixa                                 // 1ª faixa: A, B, C…
+                                : numGruposDeTres - 1 - dentroDaFaixa;          // as demais: …C, B, A
+                            bucket[grupoIndex].Add(restantes[posicao]);
                         }
                         gruposDeDuplas.AddRange(bucket);
                     }
