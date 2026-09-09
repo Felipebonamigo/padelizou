@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-853-b5bcba4`** (23h04 e 23h05 UTC), **o mesmo artefato nos dois**. Subiu o conserto da prévia e o "por quê" no Conferir grade (PR #106).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — sétima sessão seguida.** O job `deploy → prod` foi de criado a concluído em **17 segundos** (23:05:16 → 23:05:33), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e nesta ordem:** no torneio do Er, **Conferir grade** (agora responde *por que* não coube — nomeia a quadra com janela fora das datas, o dia sem quadra aberta, e a conta de jogos × vagas) → corrigir a janela da quadra, se for esse o caso → **Refazer grade**. Sem o Refazer, a tela continua com a grade gravada antes do `build-848`.
+>
+> ⚠️ **Não visto renderizado** — sem browser, e o `dev.padelizou.com.br` é bloqueado pelo proxy desta sessão (403 no CONNECT). O bloco novo do `ConferirGrade` é um `alert-danger` com lista.
+
 > Última atualização: **09/09/2026** — 🕳️ **A PRÉVIA NÃO ESPERAVA JOGO DE GRUPO DE OUTRA CATEGORIA — a primeira correção da ordem tinha um buraco, e o Felipe achou pela tela.**
 >
 > 🗣️ **Felipe, num print do `dev` DEPOIS do build-848:** *"como que tem jogo dia 15, no torneio do er? se termina dia 13? e como que ele nao ta respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse erro?"*. A tela mostrava **Quartas de Final da 6ª Feminina** com selo "prévia" em **12/09 18:50** e jogos de **GRUPO** reais em **15/09 20:30**.
