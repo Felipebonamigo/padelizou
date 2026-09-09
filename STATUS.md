@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🎯 **O PALPITRÔMETRO EM CONTAGEM É SÓ DE TORNEIO OFICIAL.**
+>
+> 🗣️ **Felipe:** *"em produção tem esse palpitômetro aqui, o palpitômetro em contagem só vale dos torneios 'oficiais'; americanos e outros tipos não"*.
+>
+> ✅ **A SOMA PÚBLICA (aba do hub + selo do perfil) passou a exigir formato de CHAVE.** O filtro entrou onde já moravam "oculto" e "cancelado" — `RankingDePalpiteiros.TorneiosQueContamAsync` —, que é o único caminho por onde as duas telas somam. Um lugar só, então o selo e a aba continuam dizendo o MESMO número, que é a trava que este ranking tem desde que nasceu.
+>
+> 📋 **A RÉGUA É LISTA DE QUEM ENTRA, NÃO DE QUEM SAI** (`FormatoDoTorneio.EhOficial`), e a diferença não é estilo: escrita como `!EhAmericano`, o quarto formato do futuro entraria no ranking oficial **calado**, no dia em que alguém o CRIASSE — e o pedido foi explicitamente o contrário ("americanos e **outros tipos** não"). Há teste plantando um formato `"Suico"` pra continuar vermelho se alguém trocar por negação. **Falsificado de verdade:** com `!EhAmericano` no lugar, dois testes caem.
+>
+> ⚖️ **Restrito NÃO entrou na régua** (decisão do Felipe, perguntado): o ranking oficial de padel jogado tira restrito e Americano juntos; aqui só o formato. Torneio fechado continua somando palpite.
+>
+> 🎪 **A TABELA DO PRÓPRIO RODÍZIO CONTINUA EXISTINDO** — `DoTorneioAsync` não passa pelo filtro, de propósito. Não somar no ranking do país não é apagar o placar do sábado do grupo: é o mesmo arranjo da classificação do Americano, que vive na página dele e não pontua no oficial. Tem teste guardando as duas metades no mesmo caso.
+>
+> 🖥️ **A TELA DEIXOU DE PROMETER O QUE NÃO ENTREGA:** a aba do hub diz "palpitrômetro dos **torneios de chave** — Americano não soma aqui, e a tabela dele fica na página do próprio rodízio", e o selo do perfil diz o mesmo no tooltip. Sem isso, quem palpitou no rodízio de sábado e não se acha na lista conclui que a conta quebrou — e conta que parece quebrada é conta em que ninguém confia.
+>
+> 🧪 **5.621 testes, 0 falhas (9 novos).** **Sem migration.** Os 3 de banco foram vistos vermelhos por *"Collection was not empty"* antes da correção; os 2 do predicado, por *"does not contain a definition for 'EhOficial'"*.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> 🕳️ **LACUNA ACHADA DE QUEBRA, não corrigida (falta decisão):** o seletor **"Ver ranking de um torneio..."** do hub monta o ranking oficial daquele torneio (`hub.RankingTorneio`) mas **a aba Palpiteiros continua global** — `JogadorsController.Ranking` chama `GeralAsync` e ignora o `torneioId`. A aba **Palpiteiros dentro da página do torneio já existe** desde 07/09 (commit `14f1f7e`, no ar) e é onde se vê palpite por torneio hoje; o que falta é ela obedecer àquele seletor.
+>
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >
 > 🗣️ **Felipe:** *"criei o teste em dev, verifique se cumpriu bem os impedimentos e questões de horários, se ele respeitou isso"*.

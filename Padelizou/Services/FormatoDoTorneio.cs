@@ -23,6 +23,22 @@ public static class FormatoDoTorneio
     public static bool EhAmericano(string? formato) =>
         formato is Americano or AmericanoDeDuplas;
 
+    // O torneio "OFICIAL" — o de chave. É a régua de quem SOMA no ranking dos palpiteiros
+    // (Felipe, 09/09/2026: "o palpitômetro em contagem só vale dos torneios oficiais;
+    // americanos e outros tipos não").
+    //
+    // ⚠️ LISTA DE QUEM ENTRA, e não `!EhAmericano`, que é a lista de quem sai. As duas dizem o
+    // mesmo hoje e discordam no dia em que existir um quarto formato: pelo `!EhAmericano` ele
+    // entraria no ranking oficial CALADO, no dia em que alguém o criasse, e a régua do Felipe
+    // é explicitamente a outra — "americanos e OUTROS TIPOS não".
+    //
+    // ⚠️ Nulo é OFICIAL de propósito, e a coluna é NOT NULL no banco: nulo aqui não é dado
+    // real, é projeção que não trouxe o campo. Das duas saídas erradas esta é a barata — um
+    // `Select` esquecido faria o ranking perder os torneios de chave TODOS de uma vez, calado,
+    // enquanto o outro lado deixa um rodízio somar até alguém notar. Mesma leitura do
+    // `TemPosTorneio` logo abaixo.
+    public static bool EhOficial(string? formato) => formato is null or Padrao;
+
     // Dentro da família, os dois se separam de novo na hora de CONTAR: no individual o
     // resultado é da pessoa, no de duplas é do par. Tabela, ranking e contagem de inscritos
     // mudam por causa disso.

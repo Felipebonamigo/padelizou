@@ -14,6 +14,10 @@ namespace Padelizou.Services;
 // `Partida`. É isso que faz o ranking se CORRIGIR SOZINHO quando o organizador conserta um
 // placar depois — ponto gravado ficaria congelado no placar errado, e ninguém descobriria.
 //
+// 🏆 A SOMA PÚBLICA (o hub e o perfil) É SÓ DE TORNEIO OFICIAL — Americano fora, e qualquer
+// outro formato também. A tabela de UM torneio não passa por essa régua: o rodízio mostra quem
+// acertou os jogos dele, só não empurra ponto pro ranking do país. Ver TorneiosQueContamAsync.
+//
 // 🚫 QUEM JOGA A PARTIDA NÃO ENTRA NA CONTA DELA. Os quatro em quadra são os únicos que podem
 // MUDAR o resultado do próprio palpite. Continuam podendo votar (e o voto conta na barra do
 // palpitrômetro, que é opinião pública); só não conta no ranking — nem no acerto, nem no
@@ -81,9 +85,10 @@ public static class RankingDePalpiteiros
 
         var partidas = await ConsultaDePartidas(contexto, p => partidaIds.Contains(p.Id)).ToListAsync();
 
-        // ⚠️ TORNEIO OCULTO NÃO SOMA. O ranking do TORNEIO é protegido pela porta dele (oculto
-        // responde 404); esta lista é pública e não tem porta nenhuma — sem o filtro, ela
-        // somaria o torneio que o organizador ainda não divulgou.
+        // ⚠️ SÓ TORNEIO OFICIAL, VISÍVEL E NÃO CANCELADO. O ranking do TORNEIO é protegido
+        // pela porta dele (oculto responde 404); esta lista é pública e não tem porta nenhuma —
+        // sem o filtro, ela somaria o torneio que o organizador ainda não divulgou e o rodízio
+        // de sábado. Ver TorneiosQueContamAsync.
         var contam = await TorneiosQueContamAsync(contexto, partidas.Select(p => p.TorneioId));
         partidas = partidas.Where(p => p.TorneioId is int t && contam.Contains(t)).ToList();
 
@@ -95,8 +100,8 @@ public static class RankingDePalpiteiros
     //
     // Null = esta pessoa não tem palpite que conte — e aí o perfil não desenha selo nenhum.
     //
-    // ⚠️ Mesmo universo do hub (nada de oculto nem cancelado), de propósito: o selo do perfil
-    // e a linha da aba precisam dizer o MESMO número. Duas contagens diferentes pro mesmo nome
+    // ⚠️ Mesmo universo do hub (só oficial, nada de oculto nem cancelado), de propósito: o
+    // selo do perfil e a linha da aba precisam dizer o MESMO número. Duas contagens diferentes pro mesmo nome
     // é o tipo de divergência que ninguém reporta como bug — só desconfia das duas.
     public static async Task<PalpiteiroNoRanking?> DoJogadorAsync(DbPadelContext contexto, int jogadorId)
     {
@@ -311,8 +316,19 @@ public static class RankingDePalpiteiros
                     : new HashSet<int> { d.Jogador1Id });
     }
 
-    // Quais destes torneios podem somar no ranking geral: os que NÃO estão ocultos e NÃO foram
-    // cancelados.
+    // Quais destes torneios podem somar no ranking geral: os OFICIAIS (formato de chave) que
+    // NÃO estão ocultos e NÃO foram cancelados.
+    //
+    // ⚠️ AMERICANO NÃO SOMA (Felipe, 09/09/2026: "o palpitômetro em contagem só vale dos
+    // torneios oficiais; americanos e outros tipos não"). É a mesma razão que já tira o rodízio
+    // do ranking de padel jogado, e ela vale AQUI TAMBÉM porque o que decide o ponto do palpite
+    // é o PLACAR: num Americano de amigos, quem lança o placar é o próprio grupo que palpitou.
+    // A pergunta é `FormatoDoTorneio.EhOficial` — lista de quem ENTRA, ver lá o porquê.
+    //
+    // ⚠️ Só a SOMA passa por aqui. A tabela do próprio torneio (`DoTorneioAsync`) não chama
+    // este filtro, e é de propósito: o rodízio continua mostrando quem acertou os jogos DELE,
+    // como já mostra a classificação dele. Não somar no ranking do país não é apagar o placar
+    // do sábado.
     //
     // ⚠️ De propósito NÃO é a régua da VITRINE (`ApareceParaOPublico`), que exige também a
     // aprovação do admin. São perguntas diferentes: a vitrine decide o que é LISTADO e
@@ -333,11 +349,13 @@ public static class RankingDePalpiteiros
         var torneios = await contexto.Torneios
             .AsNoTracking()
             .Where(t => ids.Contains(t.Id))
-            .Select(t => new { t.Id, t.Oculto, t.Status })
+            .Select(t => new { t.Id, t.Oculto, t.Status, t.Formato })
             .ToListAsync();
 
         return torneios
-            .Where(t => !t.Oculto && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Where(t => FormatoDoTorneio.EhOficial(t.Formato)
+                        && !t.Oculto
+                        && !CancelamentoDoTorneio.EstaCancelado(t.Status))
             .Select(t => t.Id)
             .ToHashSet();
     }

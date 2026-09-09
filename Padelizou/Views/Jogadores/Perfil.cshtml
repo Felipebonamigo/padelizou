@@ -137,8 +137,9 @@
             }
 
             @* 🔮 O PALPITRÔMETRO. Só existe pra quem já teve um palpite contado — e a régua de
-               "contado" é a mesma do ranking (Services/PontosDoPalpite): jogo terminado, e nunca
-               o palpite de quem estava em quadra naquele jogo.
+               "contado" é a mesma do ranking (Services/PontosDoPalpite): jogo terminado, TORNEIO
+               DE CHAVE (Americano não soma, desde 09/09/2026), e nunca o palpite de quem estava
+               em quadra naquele jogo.
 
                ⚠️ O selo leva pra ABA do hub, e não pra um torneio: o número dele é o somatório
                de todos os torneios que o público enxerga, e mandar a pessoa pra um torneio só
@@ -150,7 +151,7 @@
                        class="text-decoration-none">
                         <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis"
                               style="font-size:.9rem;"
-                              title="Palpites no palpitrômetro dos torneios: cravar o placar vale 3, chegar perto 2, acertar só quem venceu 1. Quem está em quadra não pontua no próprio jogo.">
+                              title="Palpites no palpitrômetro dos torneios de chave (Americano não soma): cravar o placar vale 3, chegar perto 2, acertar só quem venceu 1. Quem está em quadra não pontua no próprio jogo.">
                             🔮 @palpites.Pontos pt@(palpites.Pontos == 1 ? "" : "s") no palpitrômetro ·
                             @palpites.Acertos de @palpites.Palpites@(palpites.Cravadas > 0 ? $" · {palpites.Cravadas} cravada(s)" : "")
                         </span>

@@ -406,6 +406,83 @@ public class PalpiteirosDoTorneioTests
         Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
     }
 
+    // ─────────────────── SÓ TORNEIO OFICIAL SOMA (Felipe, 09/09/2026) ───────────────────
+    //
+    // 🗣️ *"o palpitometro em contagem, só vale dos torneios 'oficiais'; americanos e outros
+    // tipos não"*. A soma pública passou a medir palpite em torneio de CHAVE, e a razão é a
+    // mesma que já tirou o Americano do ranking de padel jogado: rodízio é barato de fabricar
+    // — quatro amigos, uma tarde, placares lançados pelo próprio grupo — e aqui é justamente o
+    // placar que decide o ponto do palpite.
+
+    [Theory]
+    [InlineData(FormatoDoTorneio.Americano)]
+    [InlineData(FormatoDoTorneio.AmericanoDeDuplas)]
+    public async Task Torneio_AMERICANO_nao_soma_no_ranking_geral(string formato)
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Rodizio", "55530000007");
+
+        var (rodizio, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        rodizio.Formato = formato;
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        // Os DOIS formatos da família, e não só o individual: o de duplas tem chave nenhuma
+        // igual, e testar um só é como o outro fica de fora na próxima mudança.
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+
+        // ⚠️ O selo do perfil anda junto — ele soma pelo MESMO filtro. Deixar um dos dois de
+        // fora é a divergência que ninguém reporta: o perfil dizendo 3 pontos e a aba do hub
+        // não achando a pessoa.
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id));
+
+        // ⚠️ Mas a tabela DO RODÍZIO continua existindo, como a classificação dele: não somar
+        // no ranking do país não é o mesmo que apagar o placar do sábado do grupo.
+        var doTorneio = await RankingDePalpiteiros.DoTorneioAsync(ctx, rodizio.Id, olhandoId: null);
+        Assert.True(doTorneio!.TemRanking);
+    }
+
+    [Fact]
+    public async Task Formato_DESCONHECIDO_tambem_nao_soma()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Formato Novo", "55530000008");
+
+        var (estranho, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        estranho.Formato = "Suico";   // um formato que este código não conhece
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        // ⚠️ A lista é de quem ENTRA, não de quem sai, e este teste é o que segura isso: escrito
+        // como `!EhAmericano`, o quarto formato do futuro entraria no ranking oficial calado —
+        // no dia em que alguém o CRIAR, não no dia em que alguém se lembrar desta régua. Foi o
+        // próprio Felipe que pediu assim: "americanos e OUTROS TIPOS não".
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+    }
+
+    [Theory]
+    [InlineData(null, true)]                                    // torneio antigo, sem o campo lido
+    [InlineData(FormatoDoTorneio.Padrao, true)]
+    [InlineData(FormatoDoTorneio.Americano, false)]
+    [InlineData(FormatoDoTorneio.AmericanoDeDuplas, false)]
+    [InlineData("Suico", false)]                                // o formato que ainda não existe
+    public void A_regua_pura_do_formato_e_uma_lista_de_quem_ENTRA(string? formato, bool oficial)
+    {
+        Assert.Equal(oficial, FormatoDoTorneio.EhOficial(formato));
+    }
+
+    [Fact]
+    public void O_formato_NULO_e_oficial_de_propositio_e_isso_e_a_direcao_segura()
+    {
+        // ⚠️ A coluna é NOT NULL no banco (`IsRequired`), então nulo aqui NÃO é dado real: é
+        // projeção que não trouxe o campo. As duas saídas erram — e erram muito diferente. Se
+        // nulo não fosse oficial, um `Select` esquecido apagaria do ranking os torneios de
+        // chave TODOS de uma vez, calado; sendo oficial, o pior caso é um rodízio somar até
+        // alguém notar. Mesma leitura do FormatoDoTorneio.TemPosTorneio, que já trata nulo
+        // como Padrão porque o Americano veio depois.
+        Assert.True(FormatoDoTorneio.EhOficial(null));
+    }
+
     [Fact]
     public async Task Torneio_esperando_APROVACAO_soma_normalmente()
     {
