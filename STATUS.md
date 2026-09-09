@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-842-b6544b4`** (18h38 e 18h40 UTC), **o mesmo artefato nos dois**. Subiu a **tabela de quadras no planejador** (PR #101) — nome, local e janela por quadra, a janela valendo com um clube só, e o Editar sem os campos de quadra.
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — quinta sessão seguida a medir isso.** O job `deploy → prod` foi de `Set up job` a `Complete job` em **18 segundos** (18:39:58 → 18:40:16), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A tabela nova usa `datetime-local` e inputs ligados ao formulário por `form=`; vale um print do Felipe.
+>
+> ⏭️ **PRÓXIMO PR:** tirar da sub-aba "Quadras e sedes" o "onde cada quadra fica" e a janela por clube (hoje redundantes com a tabela), reescrevendo os ~15 testes de tela que travam aquele desenho e o JS que amarra os seletores de quadra à tabela de categorias.
+>
 > Última atualização: **09/09/2026** — 🏟️ **O PLANEJADOR VIROU O LUGAR ÚNICO DE QUADRA — nome, local e "de que horas até que horas" de cada uma; e a janela passou a valer com um clube só.**
 >
 > 🗣️ **Felipe**, olhando a tela de planejamento no ar: *"ajuste aqui, para que nessa parte permita adicionar mais quadras, e colocar o nome do local e dados necessário, e colocar quais horários estarão disponíveis nessa(s) quadra(s) (…) crie uma tabela também, para que possa controlar as quadras que estarão disponíveis, se são no mesmo clube ou não, e quais horários elas irão receber (de que horas até que horas, cada quadra)"*. Perguntado, escolheu: **planejador vira o lugar único** (as outras duas telas viram link) e **a quadra extra pode ser no próprio clube**.
