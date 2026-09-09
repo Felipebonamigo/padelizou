@@ -1,6 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 💸 **DESFAZER O SORTEIO PASSOU A DEVOLVER O FIADO DA TAXA — e o que estava aberto não era a mensagem, era a trava.**
+>
+> 🗣️ **Felipe**, num print do Painel de Controle com o torneio de volta em "Inscrições Abertas": *"aqui está dizendo que já sorteou a chave, mas a gente voltou, deveria ter sumido aquela mensagem"*.
+>
+> 🕳️ **O AVISO ERA A PONTA.** No torneio "por fora" o dinheiro nunca passa pelo sistema, e a trava do sorteio é o mecanismo de cobrança inteiro (`Services/TaxaDoTorneioExterno`). O organizador pega **fiado** pra sortear — `TaxaExternoAdiadaEm` carimba, a chave destrava, o torneio passa a dever. O `DesfazerSorteio` apagava as partidas e devolvia o status, mas **não o carimbo**. Daí duas coisas, e a segunda é dinheiro:
+>
+> 1. o painel seguia cobrando por uma chave que já tinha voltado (foi o print);
+> 2. **`ChavesLiberadas` responde `true` enquanto o carimbo existir — então a trava ficava desligada PRA SEMPRE.** Dava pra desfazer, reabrir inscrições, entrar mais 20 duplas e sortear de novo sem a taxa ser apresentada nenhuma vez. E o valor **não é congelado em lugar nenhum** (`Valor` calcula sobre a lista do momento), então a dívida registrada era a de um torneio menor do que o que ia acontecer.
+>
+> ✅ **Desenho aprovado pelo Felipe: quem devolve as chaves devolve a dívida.** O carimbo volta a nulo, o aviso some, a trava volta, e no sorteio seguinte ele escolhe de novo — sobre a lista nova. **Pago e negociado não se desfazem:** um é dinheiro que entrou, o outro é o Padelizou tendo aberto mão. Quem separa é `TaxaDoTorneioExterno.FiadoEmAberto`.
+>
+> ⚠️ **`FiadoEmAberto` PARECE `EstaDevendo` E NÃO É** — falta o `SeAplica`, de propósito. As duas divergem no torneio que carimbou o fiado e depois virou gratuito: `SeAplica` responde não, `EstaDevendo` responde não junto, e o carimbo ficaria pra trás esperando o preço voltar a subir pra destravar a chave de graça.
+>
+> 📣 **Os admins levam a BAIXA**, pelo mesmo caminho do push que receberam quando o fiado nasceu. Sem ela, quem viu a dívida aparecer continuaria cobrando um torneio que não deve mais.
+>
+> ⚠️ **O TORNEIO DO ER JÁ ESTÁ NO ESTADO ANTIGO** — o carimbo dele foi gravado antes deste conserto, e o conserto só age no `DesfazerSorteio`. Pra limpar: encerrar inscrições → gerar chaves → desfazer sorteio. Enquanto não fizer isso, o próximo sorteio dele sai sem a taxa ser apresentada.
+>
+> 🧪 **5.694 testes, 0 falhas (4 novos).** **Sem migration.** ⚠️ **A falsificação valeu de novo:** as duas guardas de "paga/negociada" passaram de primeira e **não mordiam** — trocando a condição por um `!= null` liso elas continuavam verdes, porque apagar o carimbo de um torneio JÁ PAGO não muda a trava. O que muda é a história que o `/Admin/Financeiro` ordena ("pegou fiado e depois pagou"). Com essa asserção acrescentada, as duas ficaram vermelhas na falsificação.
+>
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-836-9495758`** (17h29 e 17h31 UTC), **o mesmo artefato nos dois** — que é o que a Regra 3 quer dizer com "testar em dev antes". Subiu a **aba de planejamento de quadras** (PR #98), junto de tudo que o `main` já carregava do build-834.
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.

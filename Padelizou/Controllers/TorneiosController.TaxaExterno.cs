@@ -204,5 +204,25 @@ namespace Padelizou.Controllers
                 $"O organizador de {torneio.Nome} sorteou as chaves e vai pagar a taxa depois. "
                 + "O torneio está na lista de cobrança do financeiro.", torneio.Id);
         }
+
+        // A BAIXA DO FIADO, quando o sorteio é desfeito (ver TorneiosController.Chaves).
+        //
+        // ⚠️ Existe pelo mesmo motivo do aviso acima, e é o par dele: quem recebeu o push da
+        // dívida nascendo precisa saber que ela morreu, senão continua cobrando um torneio que
+        // não deve mais — e a linha some da lista do financeiro sem ninguém saber por quê.
+        private async Task AvisarAdminsDoFiadoDesfeitoAsync(Torneio torneio)
+        {
+            var admins = await _context.Jogadores
+                .Where(j => (j.IsAdminGeral || j.IsAdminRaiz) && j.ExcluidoEm == null)
+                .Select(j => j.Id)
+                .ToListAsync();
+
+            if (admins.Count == 0) return;
+
+            await AvisarAsync(admins, "Taxa do Padelizou não está mais pendente",
+                $"O organizador de {torneio.Nome} desfez o sorteio, então a taxa que ele ia pagar "
+                + "depois saiu da lista de cobrança. Ela volta a ser cobrada quando ele sortear de novo.",
+                torneio.Id);
+        }
     }
 }
