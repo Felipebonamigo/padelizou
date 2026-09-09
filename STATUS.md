@@ -17,6 +17,24 @@
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
 >
+> Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
+>
+> 🗣️ **Felipe:** *"criei o teste em dev, verifique se cumpriu bem os impedimentos e questões de horários, se ele respeitou isso"*.
+>
+> 🚫 **ESTA SESSÃO NÃO ALCANÇA O `dev`** (o proxy recusa o CONNECT com 403), então não deu pra ler as linhas do banco dele. O que deu — e rendeu mais que um print — foi rodar o MOTOR DE VERDADE na forma exata daquele torneio: **63 duplas, 24 grupos, 87 jogos, 2 quadras, 33 duplas com impedimento**, modo "por ordem".
+>
+> ✅ **NA CONFIGURAÇÃO DELE (2 quadras): zero furos.** Nenhum jogo dentro da janela que a dupla pagou pra evitar, ninguém chamado pra dois jogos no mesmo horário, todo jogo com hora dentro do expediente.
+>
+> 🕳️ **MAS VARRENDO A QUANTIDADE DE QUADRAS, O FURO APARECEU COM 4 — ou seja, com MAIS capacidade, não com menos.** A dupla 22 recebia os DOIS jogos no MESMO horário (sábado 17h10), dentro do impedimento dela de "Sábado à tarde". É o contrário do que a intuição diz, e a razão é o orçamento de vagas: a grade oferece `jogos + margem`, cada rodada rende uma vaga POR QUADRA, e o impedimento bloqueia DIAS INTEIROS. Com 4 quadras a grade termina em METADE das rodadas — sobram menos horários distintos pra dupla escapar da janela dela, o orçamento acaba, e o último recurso do `Encaixar` entra: primeiro cede o impedimento, depois cede a regra de não repetir gente.
+>
+> 🔁 **É O MESMO DEFEITO QUE A CONCENTRAÇÃO TEVE ONTEM, e o mesmo conserto** — só que agora vale pros TRÊS mapas de janela (impedimento, concentração e noite de sábado), porque a pergunta é a mesma pros três: `VagasDaGrade.AlcanceNecessario`.
+>
+> 📏 **E "ALCANÇAR" NÃO É "CABER" — isso foi medido, não deduzido.** A primeira versão parava no primeiro horário que atingia o fim da janela; o outro lado dela ganhava UMA rodada (4 vagas, com 4 quadras) pra todas as duplas que a janela empurrou pra lá. O furo caiu de 2 pra 1 e **não zerou**. Seguindo uma margem ALÉM do limite, zerou.
+>
+> 🧪 **5.599 testes, 0 falhas (10 novos, a auditoria varre 1, 2, 4 e 6 quadras).** **Sem migration.** Falsificado: tirando o alcance do impedimento voltam os 2 furos; tirando a margem além do limite volta 1.
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** a grade que já está gravada no `dev` do Er. Ela foi sorteada antes deste conserto, com 2 quadras — a configuração que a auditoria mostra limpa. Pra ter certeza das linhas dele, precisaria da lista de jogos.
+>
 > Última atualização: **09/09/2026** — 🕐 **"POR ORDEM" PASSOU A TER HORA (o que fica em aberto é a QUADRA) + 2 CONSERTOS DE TELA.**
 >
 > **1. 🗣️ Felipe, olhando os grupos do Er:** *"mesmo que seja por ordem os jogos, tem q ter o horario dos jogos; o que realmente muda é a quadra — o horário do jogo, teoricamente, é pré-definido, para as pessoas se organizarem"*.
