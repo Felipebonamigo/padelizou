@@ -604,6 +604,24 @@ namespace Padelizou.Controllers
                 ViewBag.MinhasInscricoesNoTorneio = torneio.Categorias
                     .SelectMany(c => InscricaoRepetida.DasDuplasCarregadas(c.Duplas, new[] { jogadorLogadoId.Value }))
                     .ToList();
+
+                // QUEM JÁ ENTROU EM QUADRA — a janela de fechar dupla (Services/JanelaDoParceiro)
+                // deixou de ser "Inscrições Abertas" em 09/09/2026 e vai até a bola rolar pra
+                // AQUELA dupla. O Razor não consulta banco, então o fato chega pronto: uma
+                // consulta pro torneio inteiro, e não uma por card do mural.
+                //
+                // ⚠️ Achata em MEMÓRIA depois de trazer duas colunas. `SelectMany` sobre um array
+                // novo (`new[] { p.Dupla1Id, p.Dupla2Id }`) é o tipo de projeção que o InMemory
+                // dos testes aceita e o Postgres pode recusar — o defeito de 19/08/2026 de novo.
+                var duplasQueJaJogaram = await _context.Partidas
+                    .Where(p => p.TorneioId == id
+                             && (p.Status == "Finalizada" || p.HorarioInicioReal != null))
+                    .Select(p => new { p.Dupla1Id, p.Dupla2Id })
+                    .ToListAsync();
+
+                ViewBag.DuplasQueJaJogaram = duplasQueJaJogaram
+                    .SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id })
+                    .ToHashSet();
             }
 
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será

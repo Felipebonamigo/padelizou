@@ -74,23 +74,29 @@ public class MuralDeParceirosTests
     {
         var aberta = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = null };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, NaoEstouInscrito));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, NaoEstouInscrito, jaComecouAJogar: false));
 
         // A própria inscrição não se chama.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 1, NaoEstouInscrito));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 1, NaoEstouInscrito, jaComecouAJogar: false));
 
         // Dupla completa não procura ninguém.
         var completa = new Dupla { CategoriaId = 9, Jogador1Id = 1, Jogador2Id = 3 };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(completa, "Inscrições Abertas", 2, NaoEstouInscrito));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(completa, "Inscrições Abertas", 2, NaoEstouInscrito, jaComecouAJogar: false));
 
-        // Inscrições fechadas fecham o mural — chamar viraria conversa sem saída.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Chaves em Sorteio", 2, NaoEstouInscrito));
+        // 09/09/2026: inscrições fechadas NÃO fecham mais o mural. A dupla sem parceiro entra
+        // na chave, então é justamente aqui que alguém ainda pode salvar a vaga dela.
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Chaves em Sorteio", 2, NaoEstouInscrito,
+            jaComecouAJogar: false));
+
+        // O que fecha o mural é a bola rolar pra AQUELA dupla.
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Fase de Grupos", 2, NaoEstouInscrito,
+            jaComecouAJogar: true));
 
         // Linha de time não tem parceiro.
         var time = new Dupla { CategoriaId = 9, Jogador1Id = 1, NomeTime = "Os Fortes" };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(time, "Inscrições Abertas", 2, NaoEstouInscrito));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(time, "Inscrições Abertas", 2, NaoEstouInscrito, jaComecouAJogar: false));
 
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(null, "Inscrições Abertas", 2, NaoEstouInscrito));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoChamar(null, "Inscrições Abertas", 2, NaoEstouInscrito, jaComecouAJogar: false));
     }
 
     // ⚠️ O PEDIDO DO FELIPE (21/08/2026): "caso esse jogador já esteja inscrito com alguma dupla
@@ -106,7 +112,7 @@ public class MuralDeParceirosTests
                 Situacao: InscricaoRepetida.Situacao.ComParceiro, NomeDoParceiro: "Ana"),
         };
 
-        var motivo = MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euJaFechei);
+        var motivo = MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euJaFechei, jaComecouAJogar: false);
 
         Assert.NotNull(motivo);
         Assert.Contains("Ana", motivo);
@@ -127,7 +133,7 @@ public class MuralDeParceirosTests
                 Situacao: InscricaoRepetida.Situacao.Sozinho, NomeDoParceiro: null),
         };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euEstouSozinho));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, euEstouSozinho, jaComecouAJogar: false));
         Assert.Null(MuralDeParceiros.AvisoDeQueJaEstaNestaCategoria(euEstouSozinho, 9, 2));
     }
 
@@ -143,7 +149,7 @@ public class MuralDeParceirosTests
                 Situacao: InscricaoRepetida.Situacao.ComParceiro, NomeDoParceiro: "Ana"),
         };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, fecheiNoutraCategoria));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoChamar(aberta, "Inscrições Abertas", 2, fecheiNoutraCategoria, jaComecouAJogar: false));
     }
 
     // ─────────────────────────── O CAMINHO INTEIRO ───────────────────────────
@@ -190,13 +196,14 @@ public class MuralDeParceirosTests
         Assert.NotNull(euMesmo.TempData["Erro"]);
         Assert.Empty(ctx.ChamadosDoMural);
 
-        // Inscrições fechadas depois que a página ficou aberta no celular.
+        // 09/09/2026: inscrições fechadas NÃO fecham mais o mural — a dupla sem parceiro entra
+        // na chave, e é aqui que ainda dá pra salvar a vaga dela.
         ctx.Torneios.First().Status = "Chaves em Sorteio";
         await ctx.SaveChangesAsync();
 
-        var atrasado = Controller(ctx, candidato.Id);
-        await atrasado.ChamarParaDupla(solo.Id);
-        Assert.NotNull(atrasado.TempData["Erro"]);
-        Assert.Empty(ctx.ChamadosDoMural);
+        var depoisDoEncerramento = Controller(ctx, candidato.Id);
+        await depoisDoEncerramento.ChamarParaDupla(solo.Id);
+        Assert.Null(depoisDoEncerramento.TempData["Erro"]);
+        Assert.Single(ctx.ChamadosDoMural);
     }
 }

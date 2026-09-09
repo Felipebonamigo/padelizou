@@ -39,7 +39,7 @@ public class ConviteDeParceiroTests
     {
         var token = ConviteDeParceiro.NovoToken();
 
-        Assert.True(ConviteDeParceiro.Valido(DuplaSemParceiro(token), Abertas, token));
+        Assert.True(ConviteDeParceiro.Valido(DuplaSemParceiro(token), Abertas, token, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -47,9 +47,9 @@ public class ConviteDeParceiroTests
     {
         var dupla = DuplaSemParceiro(ConviteDeParceiro.NovoToken());
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, ConviteDeParceiro.NovoToken()));
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, ""));
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, null));
+        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, ConviteDeParceiro.NovoToken(), jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, "", jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, null, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -60,21 +60,43 @@ public class ConviteDeParceiroTests
         var dupla = DuplaSemParceiro(token);
         dupla.Jogador2Id = 20;
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, token));
+        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, token, jaComecouAJogar: false));
         Assert.Equal("Essa dupla já está completa — alguém aceitou antes.",
-            ConviteDeParceiro.MotivoDeNaoValer(dupla, Abertas));
+            ConviteDeParceiro.MotivoDeNaoValer(dupla, Abertas, jaComecouAJogar: false));
     }
 
+    // 09/09/2026: o convite deixou de morrer com o fim das inscrições. Como a dupla sem
+    // parceiro passa a ENTRAR na chave, o link precisa continuar valendo até a bola rolar pra
+    // ela — mandar o link no WhatsApp em cima da hora é o jeito mais comum de salvar a vaga.
     [Fact]
-    public void Convite_morre_quando_as_inscricoes_encerram()
+    public void Convite_continua_valendo_depois_do_sorteio_enquanto_a_dupla_nao_jogou()
     {
-        // Depois do sorteio a dupla já está numa chave — entrar aí bagunçaria os jogos.
         var token = ConviteDeParceiro.NovoToken();
         var dupla = DuplaSemParceiro(token);
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, "Fase de Grupos", token));
-        Assert.Equal("As inscrições deste torneio já foram encerradas.",
-            ConviteDeParceiro.MotivoDeNaoValer(dupla, "Fase de Grupos"));
+        Assert.True(ConviteDeParceiro.Valido(dupla, "Fase de Grupos", token, jaComecouAJogar: false));
+    }
+
+    [Fact]
+    public void Convite_morre_quando_a_dupla_entra_em_quadra()
+    {
+        // A bola rolou com a vaga vazia: pendurar um nome no jogo depois seria reescrever o
+        // que já foi jogado.
+        var token = ConviteDeParceiro.NovoToken();
+        var dupla = DuplaSemParceiro(token);
+
+        Assert.False(ConviteDeParceiro.Valido(dupla, "Fase de Grupos", token, jaComecouAJogar: true));
+        Assert.Equal("Essa dupla já entrou em quadra — não dá mais pra definir o parceiro.",
+            ConviteDeParceiro.MotivoDeNaoValer(dupla, "Fase de Grupos", jaComecouAJogar: true));
+    }
+
+    [Fact]
+    public void Convite_morre_com_o_torneio_cancelado()
+    {
+        var token = ConviteDeParceiro.NovoToken();
+        var dupla = DuplaSemParceiro(token);
+
+        Assert.False(ConviteDeParceiro.Valido(dupla, "Cancelado", token, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -84,13 +106,13 @@ public class ConviteDeParceiroTests
         var dupla = DuplaSemParceiro(ConviteDeParceiro.NovoToken());
         dupla.ConviteToken = null;
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, "qualquer-coisa"));
+        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, "qualquer-coisa", jaComecouAJogar: false));
     }
 
     [Fact]
     public void Dupla_inexistente_nao_estoura_e_explica()
     {
-        Assert.False(ConviteDeParceiro.Valido(null, Abertas, "token"));
-        Assert.Equal("Esse convite não existe mais.", ConviteDeParceiro.MotivoDeNaoValer(null, Abertas));
+        Assert.False(ConviteDeParceiro.Valido(null, Abertas, "token", jaComecouAJogar: false));
+        Assert.Equal("Esse convite não existe mais.", ConviteDeParceiro.MotivoDeNaoValer(null, Abertas, jaComecouAJogar: false));
     }
 }

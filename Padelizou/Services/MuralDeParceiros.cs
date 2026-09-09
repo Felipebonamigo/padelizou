@@ -17,17 +17,26 @@ public static class MuralDeParceiros
     // faria qualquer chamador esquecido compilar em silêncio e a régua abrir sozinha — o pior
     // desfecho possível aqui. Sem default, o compilador quebra cada call site e obriga quem
     // escreveu a dizer de onde tira o fato.
+    //
+    // ⚠️ `jaComecouAJogar` (09/09/2026) segue a MESMA regra e pelo mesmo motivo: `= false`
+    // significa "a bola ainda não rolou", que é o valor PERMISSIVO — chamador esquecido
+    // abriria a janela sozinho, calado.
     public static string? MotivoParaNaoChamar(
         Dupla? dupla, string? statusDoTorneio, int candidatoId,
-        IEnumerable<InscricaoRepetida.Achado> inscricoesDoCandidato)
+        IEnumerable<InscricaoRepetida.Achado> inscricoesDoCandidato, bool jaComecouAJogar)
     {
         if (dupla == null) return "Inscrição não encontrada.";
         if (dupla.EhTime) return "Linha de time não procura parceiro.";
         if (dupla.Jogador2Id != null) return "Essa dupla já fechou.";
         if (dupla.Jogador1Id == candidatoId) return "Essa inscrição é a sua.";
-        // Fechou a inscrição, fechou o mural: chamar alguém pra um torneio que não aceita
-        // mais dupla é gerar conversa sem saída.
-        if (statusDoTorneio != PortaDaInscricao.Aberta) return "As inscrições deste torneio já fecharam.";
+
+        // ⚠️ A JANELA DEIXOU DE SER "INSCRIÇÕES ABERTAS" (09/09/2026). Aqui morava
+        // `statusDoTorneio != PortaDaInscricao.Aberta`, e ela fechava o mural no instante em
+        // que as inscrições encerravam — bem antes de a chave sair. Como a dupla sem parceiro
+        // agora ENTRA na chave, o mural precisa continuar aberto até a bola rolar pra ela:
+        // é justamente aí que alguém ainda pode salvar a vaga (ver Services/JanelaDoParceiro).
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) is { } foraDaJanela)
+            return foraDaJanela;
 
         // ⚠️ QUEM JÁ TEM DUPLA FECHADA NESTA CATEGORIA NÃO CHAMA (21/08/2026): ninguém joga duas
         // vezes na mesma categoria, então o chamado não teria pra onde ir.
@@ -101,16 +110,20 @@ public static class MuralDeParceiros
     // Vive aqui, e não no controller, porque a tela também pergunta: ela precisa saber se
     // desenha o botão Aceitar ou uma explicação no lugar dele. Duas cópias e a tela ofereceria
     // um botão que o servidor recusa — desleixo que o usuário paga.
-    public static string? MotivoParaNaoAceitar(Dupla? dupla, string? statusDoTorneio, int donoLogadoId)
+    public static string? MotivoParaNaoAceitar(
+        Dupla? dupla, string? statusDoTorneio, int donoLogadoId, bool jaComecouAJogar)
     {
         if (dupla == null) return "Inscrição não encontrada.";
         if (dupla.Jogador1Id != donoLogadoId) return "Essa inscrição não é sua.";
         if (dupla.EhTime) return "Linha de time não tem parceiro pra escolher.";
         if (dupla.Jogador2Id != null) return "Essa dupla já fechou.";
 
-        // Inscrição fechada, decisão fechada: aceitar aqui colocaria alguém num torneio que
-        // não aceita mais dupla — e o chaveamento já pode ter saído.
-        if (statusDoTorneio != PortaDaInscricao.Aberta) return "As inscrições deste torneio já fecharam.";
+        // ⚠️ MESMA JANELA NOVA DO MotivoParaNaoChamar (09/09/2026), e ela tem que ser a mesma:
+        // liberar só um dos dois deixaria gente se candidatando sem ninguém poder aceitar, ou
+        // o contrário — aceite liberado sem candidato de onde vir.
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) is { } foraDaJanela)
+            return foraDaJanela;
+
         return null;
     }
 }

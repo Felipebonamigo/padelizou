@@ -644,10 +644,29 @@ namespace Padelizou.Controllers
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
             if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneioId)) return Forbid();
 
-            // Depois do sorteio a dupla já está numa chave — trocar aí bagunçaria os jogos.
-            if (torneio.Status != "Inscrições Abertas")
+            // ⚠️ DUAS JANELAS DIFERENTES, e a diferença é o coração da mudança de 09/09/2026:
+            // esta ação faz DUAS coisas na mesma porta — DEFINIR o segundo nome que falta e
+            // TROCAR um parceiro que já existe.
+            //
+            //   • DEFINIR vale até a dupla entrar em quadra (Services/JanelaDoParceiro): a
+            //     inscrição sozinha entra na chave com a vaga em aberto, e é essa vaga que o
+            //     segundo nome vem preencher. Sem isso, "manter o Paulo e colocar o parceiro
+            //     depois" não teria por onde acontecer.
+            //   • TROCAR continua preso em "Inscrições Abertas", onde sempre esteve. Trocar A
+            //     por B numa chave já sorteada bagunçaria jogos que os inscritos já estão
+            //     vendo — o motivo antigo continua verdadeiro, só que agora só pra este caso.
+            if (dupla.Completa)
             {
-                TempData["Erro"] = "O parceiro só pode ser alterado enquanto as inscrições estão abertas. Fale com o organizador.";
+                if (torneio.Status != "Inscrições Abertas")
+                {
+                    TempData["Erro"] = "O parceiro só pode ser TROCADO enquanto as inscrições estão abertas. Fale com o organizador.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+            }
+            else if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio.Status,
+                         await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } foraDaJanela)
+            {
+                TempData["Erro"] = foraDaJanela;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
@@ -882,9 +901,13 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
             }
 
-            if (torneio.Status != "Inscrições Abertas")
+            // A MESMA janela do convite aceito (09/09/2026): gerar o link vale enquanto a dupla
+            // não entrou em quadra. Se aqui fechasse antes, o dono ficaria sem como convidar
+            // justamente na hora em que mais precisa — com a chave já sorteada e a vaga aberta.
+            if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio.Status,
+                    await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } foraDaJanela)
             {
-                TempData["Erro"] = "As inscrições deste torneio já foram encerradas.";
+                TempData["Erro"] = foraDaJanela;
                 return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
             }
 
@@ -913,9 +936,12 @@ namespace Padelizou.Controllers
 
             var torneio = dupla?.Categoria.Torneio;
 
-            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token))
+            bool jaComecouAJogar = dupla != null
+                && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id);
+
+            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token, jaComecouAJogar))
             {
-                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status);
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status, jaComecouAJogar);
                 return View("ConviteInvalido");
             }
 
@@ -968,9 +994,12 @@ namespace Padelizou.Controllers
 
             // A validade é conferida DE NOVO aqui, não só na tela: entre abrir o convite e
             // clicar em aceitar, outra pessoa pode ter aceitado o mesmo link.
-            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token))
+            bool jaComecouAJogar = dupla != null
+                && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id);
+
+            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token, jaComecouAJogar))
             {
-                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status);
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status, jaComecouAJogar);
                 return View("ConviteInvalido");
             }
 
@@ -1167,7 +1196,8 @@ namespace Padelizou.Controllers
                 ? new List<InscricaoRepetida.Achado>()
                 : await InscricaoRepetida.ProcurarAsync(_context, dupla.CategoriaId, new[] { candidatoId.Value });
 
-            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value, minhasInscricoes)
+            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value, minhasInscricoes,
+                    dupla != null && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id))
                 is { } motivo)
             {
                 TempData["Erro"] = motivo;
@@ -1284,10 +1314,11 @@ namespace Padelizou.Controllers
                 .GroupBy(a => a.JogadorId)
                 .ToDictionary(g => g.Key, g => g.First().NomeDoParceiro ?? "outra pessoa");
 
-            // Por que não dá pra aceitar (dupla já fechou, inscrição encerrada): a tela mostra
-            // o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
+            // Por que não dá pra aceitar (dupla já fechou, a dupla já entrou em quadra): a tela
+            // mostra o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
             ViewBag.MotivoParaNaoAceitar = MuralDeParceiros.MotivoParaNaoAceitar(
-                dupla, dupla.Categoria.Torneio?.Status, donoId.Value);
+                dupla, dupla.Categoria.Torneio?.Status, donoId.Value,
+                await JanelaDoParceiro.JaComecouAJogarAsync(_context, duplaId));
 
             return View(chamados);
         }
@@ -1310,7 +1341,8 @@ namespace Padelizou.Controllers
             // A MESMA régua da tela, conferida de novo aqui: entre abrir a lista e tocar em
             // aceitar, o torneio pode ter fechado ou a dupla pode ter sido fechada por outro
             // caminho (o convite por link continua existindo).
-            if (MuralDeParceiros.MotivoParaNaoAceitar(dupla, torneio?.Status, donoId.Value) is { } motivo)
+            if (MuralDeParceiros.MotivoParaNaoAceitar(dupla, torneio?.Status, donoId.Value,
+                    dupla != null && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return torneio == null
