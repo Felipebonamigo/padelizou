@@ -186,6 +186,21 @@ public static class ProximasFasesDaChave
     // rodada abre uma rodada inteira depois do fim da que a alimenta. Dentro disso, os jogos
     // ocupam as quadras livres do horário; quando o horário lota, o resto cai no seguinte.
     //
+    // ⚠️ E A ORDEM ENTRE CADEIAS É POR POSTO DE FASE (09/09/2026, Services/OrdemDasFases). Até
+    // aqui cada cadeia andava sozinha, a partir do fim dos grupos DELA — e foi exatamente isso que
+    // o Felipe viu na tela do Er: a *Final* da 3ª Feminina com o selo "prévia" às 22:10 de 12/09,
+    // e jogos de GRUPO da 6ª Masculina em 15/09. A categoria de 4 duplas fecha os grupos cedo,
+    // projeta semi e final na sequência, e acaba antes de a de 32 ter jogado a primeira
+    // eliminatória.
+    //
+    // 🗣️ *"o torneio tem q seguir uma ordem, primeiro todas as chaves, depois todas as primeiras
+    // eliminatorias (decimas > oitavas > quartas > semi > final) a ideia e fazer as finais de cada
+    // categorias ser os ultimos jogos do torneio"*.
+    //
+    // ⚠️ ESTA É A MESMA RÉGUA DA GRADE DE VERDADE (Services/LevasDaGrade), e tem que continuar
+    // sendo: prévia e grade dizendo ordens diferentes seria pior que não projetar — o jogador leria
+    // uma coisa na aba de jogos e jogaria outra.
+    //
     // ⚠️ Nada aqui sabe QUEM vai jogar (os lados são "Vencedor Quartas de Final 1"), então a
     // grade não tem como evitar que a mesma pessoa apareça em duas categorias no mesmo
     // horário. Quem garante isso é o encaixe de verdade (GradeDeJogos.Encaixar), na hora em
@@ -220,19 +235,34 @@ public static class ProximasFasesDaChave
 
         var jogos = new List<JogoQueVem>();
 
+        // A BARREIRA DE POSTO: o posto que está sendo emitido agora e o horário do último jogo do
+        // posto ANTERIOR. Como a escolha abaixo pega sempre o menor posto disponível, quando um
+        // posto novo começa todos os anteriores já saíram — e `maiorEmitido` é o fim deles.
+        int postoEmitido = int.MinValue;
+        DateTime? fimDoPostoAnterior = null;
+        DateTime? maiorEmitido = null;
+
+        int PostoDaProxima(int i) => OrdemDasFases.Posto(vivas[i].Rodadas[proxima[i]].Fase);
+
         while (true)
         {
-            // A cadeia que abre mais cedo entra primeiro — é o que faz as categorias
-            // dividirem as quadras do mesmo horário em vez de uma esperar a outra acabar.
+            // Primeiro o menor POSTO — a fase mais longe da final entra na frente, venha da
+            // categoria que vier. Empatado o posto, a cadeia que abre mais cedo: é o que faz as
+            // categorias dividirem as quadras do mesmo horário em vez de uma esperar a outra.
             int escolha = -1;
             for (int i = 0; i < vivas.Count; i++)
             {
                 if (proxima[i] >= vivas[i].Rodadas.Count) continue;
                 if (escolha < 0) { escolha = i; continue; }
 
+                int daVez = PostoDaProxima(i);
+                int daEscolha = PostoDaProxima(escolha);
+                if (daVez > daEscolha) continue;
+
                 // Sem horário (torneio por ordem de liberação) todas empatam: vale a ordem
                 // de entrada, e a lista sai agrupada por categoria.
-                if ((abertura[i] ?? DateTime.MaxValue) < (abertura[escolha] ?? DateTime.MaxValue))
+                if (daVez < daEscolha
+                    || (abertura[i] ?? DateTime.MaxValue) < (abertura[escolha] ?? DateTime.MaxValue))
                     escolha = i;
             }
 
@@ -240,7 +270,22 @@ public static class ProximasFasesDaChave
 
             var cadeia = vivas[escolha];
             var rodada = cadeia.Rodadas[proxima[escolha]];
+
+            // Virou o posto: o que já saiu é tudo de posto menor, e o fim disso é a barreira.
+            int posto = OrdemDasFases.Posto(rodada.Fase);
+            if (posto > postoEmitido)
+            {
+                fimDoPostoAnterior = maiorEmitido;
+                postoEmitido = posto;
+            }
+
             var horario = abertura[escolha];
+
+            // ⚠️ SEM `+ duração`: é o horário do último jogo do posto anterior, e não a rodada
+            // seguinte a ele — no minuto em que aquele jogo roda ainda sobra quadra. Mesma escolha
+            // de LevasDaGrade, e pelo mesmo pedido: *"a menos que fique horario vazio"*.
+            if (horario is DateTime abre && fimDoPostoAnterior is DateTime barreira && barreira > abre)
+                horario = barreira;
 
             for (int i = 0; i < rodada.Confrontos.Count; i++)
             {
@@ -269,6 +314,9 @@ public static class ProximasFasesDaChave
 
                 jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, horario,
                     rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra));
+
+                if (horario is DateTime marcado && (maiorEmitido == null || marcado > maiorEmitido))
+                    maiorEmitido = marcado;
             }
 
             abertura[escolha] = AbrirRodada(horario, grade);

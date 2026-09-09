@@ -303,8 +303,7 @@ namespace Padelizou.Controllers
             // As fases seguintes (oitavas, semi, final) nem passam por aqui: nascem depois,
             // pelo robô, que as agenda emendadas nas vagas livres a partir do fim da fase que
             // as alimenta.
-            var deChaveDireta = torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet();
-            jogosPraAgendar = OrdemDaFila(jogosPraAgendar, deChaveDireta, torneio.QuantidadeQuadras);
+            jogosPraAgendar = OrdemDaFila(jogosPraAgendar, torneio.QuantidadeQuadras);
 
             // Os horários. A regra mora em EncaixarNasLevas, compartilhada com o "Refazer
             // grade" — duas cópias divergiriam e o torneio teria duas grades.
@@ -314,13 +313,21 @@ namespace Padelizou.Controllers
             // pulava a grade inteira e saía com tudo nulo. Agora ele calcula igual e só apaga
             // a QUADRA no fim — ver Services/OrdemDeLiberacao, que explica por que a quadra
             // precisa ser distribuída antes de ser apagada.
-            EncaixarNasLevas(torneio, jogosPraAgendar, deChaveDireta,
+            var sedesDoTorneio = await SedesAsync(torneio.Id);
+
+            EncaixarNasLevas(torneio, jogosPraAgendar,
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
                 quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
                 janelas: JanelasDeImpedimento.PorDupla(torneio),
-                sedes: await SedesAsync(torneio.Id),
+                sedes: sedesDoTorneio,
                 concentracao: ConcentracaoDeJogos.De(torneio),
                 noiteDeSabado: EliminatoriaNoSabado.PorCategoria(torneio));
+
+            // ⚠️ "SE NÃO COUBER, TEM Q AVISAR POR QUE NAO COUBE" (Felipe, 09/09/2026). O aviso de
+            // prazo já existia ANTES do sorteio (PrevisaoGradeVM.EstouraOPrazo, "Passa do dia
+            // 13/09") e dizia só QUE passou. Agora ele também sai DEPOIS, que é quando o organizador
+            // olha, e traz a causa — ver Services/PorQueNaoCoube.
+            await AvisarSeNaoCoubeAsync(torneio, jogosPraAgendar, sedesDoTorneio);
 
             OrdemDeLiberacao.ApagarAsQuadras(torneio, jogosPraAgendar);
 
@@ -564,44 +571,17 @@ namespace Padelizou.Controllers
             return ParaAsChaves(id);
         }
 
-        // A ORDEM DA FILA É O CAMINHO CRÍTICO DO TORNEIO.
-        //
-        // A primeira rodada de uma CHAVE DIRETA não espera resultado de ninguém: as duplas já
-        // estão definidas. E é ela que tem mais fases pela frente — uma chave de 24 duplas são
-        // CINCO rodadas até a final, contra as três de uma categoria que sai de grupos. Deixá-la
-        // pro fim da fase de grupos empurrava essas cinco rodadas todas pra depois, e no Interno
-        // isso jogou a final da chave geral pras 23h18.
-        //
-        // Por isso ela abre o torneio, junto com os grupos e antes deles na fila. Quem garante
-        // que ninguém seja chamado pra duas quadras ao mesmo tempo é o encaixe, que compara
-        // PESSOA (GradeDeJogos.Encaixar) — e é justamente essa chave que põe cada jogador em
-        // duas duplas no mesmo dia.
-        private static readonly string[] OrdemDasFases =
-            { ChaveamentoMataMata.PrimeiraRodada, "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+        // A ordem da fila e as levas por posto moram em Services/LevasDaGrade — o sorteio, o
+        // "Refazer grade" e o robô das próximas fases usam a MESMA régua. Duas cópias divergiriam
+        // e o torneio teria duas ordens de fase, que é exatamente o defeito que ela conserta.
+        private static List<Partida> OrdemDaFila(IEnumerable<Partida> jogos, int quadras) =>
+            LevasDaGrade.OrdemDaFila(jogos, quadras);
 
-        private static List<Partida> OrdemDaFila(IEnumerable<Partida> jogos, ISet<int> categoriasDeChaveDireta,
-            int quadras) =>
-            // A separação por fase decide QUANDO cada família entra; a intercalação decide a
-            // ordem DENTRO da fase de grupos, que é o que dá descanso à dupla (ver
-            // Services/OrdemDasRodadas). As duas são independentes: a segunda não tira nenhum
-            // jogo do bloco em que a primeira o pôs.
-            OrdemDasRodadas.IntercalarFaseDeGrupos(
-                jogos
-                    .OrderBy(j => categoriasDeChaveDireta.Contains(j.CategoriaId) ? 0
-                                : FasesTorneio.EhFaseDeGrupos(j.Fase) ? 1 : 2)
-                    .ThenBy(j => Array.IndexOf(OrdemDasFases, j.Fase))
-                    .ToList(),
-                quadras);
-
-        // ⚠️ Em DUAS LEVAS, não numa só. Ordenar a fila não basta: quando os jogos que sobram
-        // conflitam entre si num horário, o encaixe puxa o próximo livre da fila — e aí um jogo
-        // de mata-mata sobe pro meio da fase de grupos. Agendando o que SAI DOS GRUPOS só depois
-        // do último jogo de grupo, a ordem das fases deixa de ser preferência e vira garantia.
-        //
-        // A chave direta fica na PRIMEIRA leva de propósito: ela não sai de grupo nenhum, então
-        // não há resultado que ela precise esperar.
+        // Distribui os jogos na grade, um POSTO de fase por vez (ver Services/LevasDaGrade e
+        // Services/OrdemDasFases): todos os grupos, depois todas as primeiras eliminatórias, e as
+        // finais no fim do torneio.
         private static void EncaixarNasLevas(Torneio torneio, List<Partida> jogos,
-            ISet<int> categoriasDeChaveDireta, IReadOnlyDictionary<int, int[]> ocupantes,
+            IReadOnlyDictionary<int, int[]> ocupantes,
             IReadOnlyList<string> quadras,
             DateTime? aPartirDe = null, IReadOnlyList<Partida>? jaMarcados = null,
             // A quadra preferida de cada categoria, quando o organizador escolheu alguma.
@@ -616,130 +596,12 @@ namespace Padelizou.Controllers
             IReadOnlyDictionary<int, (DateTime, DateTime)[]>? noiteDeSabado = null,
             // O torneio em mais de um clube. Nulo — o caso de quase todos — deixa tudo como era.
             // Ver Services/SedesDoTorneio.
-            SedesDoTorneio? sedes = null)
-        {
-            var abre = aPartirDe ?? torneio.AberturaDaGrade;
-            var intocados = jaMarcados ?? Array.Empty<Partida>();
-            // ⚠️ QUEM NÃO TEM O QUE ESPERAR ENTRA NA PRIMEIRA LEVA (21/08/2026).
-            //
-            // Antes, "não espera ninguém" era só chave direta e fase de grupos. O mata-mata de
-            // uma categoria que JÁ FECHOU os grupos caía na segunda leva junto com todo o resto
-            // — e a segunda leva só começa depois que a primeira acaba. Na prática: a 4ª
-            // masculina terminou os grupos ontem, tem semifinal pronta pra entrar em quadra, e
-            // ficava atrás de TODA a fase de grupos da 2ª. Quadra vazia com jogo esperando.
-            //
-            // Uma categoria sem NENHUM jogo de grupo sendo remarcado não tem resultado pendente:
-            // ou é de chave direta (não tem grupo), ou os grupos dela já foram jogados. Ela
-            // disputa as vagas de igual pra igual com os grupos que faltam.
-            var comGrupoPendente = jogos
-                .Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase))
-                .Select(j => j.CategoriaId)
-                .ToHashSet();
-
-            var semNadaPraEsperar = new HashSet<int>(categoriasDeChaveDireta);
-            foreach (var categoriaId in jogos.Select(j => j.CategoriaId).Distinct())
-                if (!comGrupoPendente.Contains(categoriaId)) semNadaPraEsperar.Add(categoriaId);
-
-            bool NaoEsperaNinguem(Partida j) =>
-                semNadaPraEsperar.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
-
-            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), semNadaPraEsperar, torneio.QuantidadeQuadras);
-            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), semNadaPraEsperar, torneio.QuantidadeQuadras);
-
-            // Tudo que já tem hora e quadra e que as levas seguintes precisam enxergar pra não
-            // marcar em cima. Começa com os jogos intocados e VAI CRESCENDO a cada leva.
-            //
-            // ⚠️ ATÉ 21/08/2026 A SEGUNDA LEVA SÓ RECEBIA OS INTOCADOS — os jogos que a primeira
-            // leva acabara de marcar ficavam invisíveis pra ela. Não dava problema por acidente:
-            // a segunda leva começava depois do último jogo de grupo do torneio INTEIRO, então
-            // nunca havia o que atropelar. Com a âncora por categoria (logo abaixo) isso deixa
-            // de valer, e sem esta lista as duas levas marcariam duas partidas na mesma quadra
-            // no mesmo horário. As duas mudanças andam JUNTAS ou nenhuma das duas anda.
-            var jaEmQuadra = new List<Partida>(intocados);
-
-            void Agendar(List<Partida> daLeva, DateTime inicio)
-            {
-                if (daLeva.Count == 0) return;
-
-                // ⚠️ NENHUMA LEVA COMEÇA ANTES DA ABERTURA DA GRADE. Num "refazer grade" a
-                // abertura é AGORA, e a âncora de uma leva vem do fim dos grupos da categoria —
-                // que pode ser uma hora do passado quando os grupos dela já foram jogados e os
-                // que faltam não couberam na grade. Sem este piso, a grade nasceria em cima de
-                // horários que já passaram: jogo marcado pra ontem, que não aparece pra ninguém.
-                //
-                // É um piso, não o conserto de um bug observado — o caminho é de canto. Fica
-                // aqui, e não na conta da âncora, porque aqui vale pra TODA leva.
-                if (inicio < abre) inicio = abre;
-
-                // ⚠️ `peloMenosAte` É O QUE FAZ A CONCENTRAÇÃO ACONTECER. A lista normal é
-                // `jogos + margem`, que num fim de semana mal passa da manhã de sábado — sem
-                // este alcance, "os 2 jogos no sábado à tarde" nunca encontra vaga e o encaixe
-                // cede em silêncio. Ver Services/VagasDaGrade e ConcentracaoNoSorteioTests.
-                // ⚠️ O ALCANCE OLHA AS TRÊS RESTRIÇÕES, e não só a concentração (09/09/2026).
-                // Medindo o torneio do Er com 4 quadras, o IMPEDIMENTO furava pelo mesmo motivo
-                // que a concentração furava: a grade acabava antes do fim da janela e o último
-                // recurso do encaixe entrava. Ver VagasDaGrade.AlcanceNecessario.
-                var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra,
-                    peloMenosAte: VagasDaGrade.MaisTarde(
-                        concentracao?.AteQuando,
-                        VagasDaGrade.AlcanceNecessario(janelas, noiteDeSabado)),
-                    sedes: sedes,
-                    // Quantos JOGOS desta leva a janela pode empurrar pro outro lado do limite —
-                    // sem isto o alcance chega ao fim da janela e abre 3 vagas lá. Ver
-                    // VagasDaGrade.JogosComJanela.
-                    jogosComJanela: VagasDaGrade.JogosComJanela(daLeva, janelas, noiteDeSabado));
-
-                GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
-                    ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,
-                    concentracao?.Janelas, noiteDeSabado);
-
-                jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
-            }
-
-            Agendar(abertura, abre);
-
-            // A hora em que o mata-mata DESTA categoria pode abrir.
-            //
-            // ⚠️ POR CATEGORIA, NÃO PELO TORNEIO INTEIRO (21/08/2026). Era uma âncora só: o
-            // último jogo de grupo de QUALQUER categoria segurava o mata-mata de TODAS. Numa
-            // categoria de 8 duplas que fecha os grupos às 15h, a semifinal ficava esperando a
-            // categoria de 32 terminar às 21h — e as quadras paradas no meio, que é justamente
-            // o que o organizador não pode ter ("nenhuma quadra sem jogo até o fim do torneio").
-            //
-            // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
-            // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
-            // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
-            //
-            // Conta os jogos de grupo INTOCADOS junto: num recálculo no meio do torneio a maior
-            // parte dos grupos já rolou, e olhar só pros remarcados diria que a fase de grupos
-            // acabou cedo — o mata-mata subiria pra cima dela.
-            DateTime AberturaDoMataMata(int categoriaId)
-            {
-                var fimDosGrupos = abertura.Concat(intocados)
-                    .Where(j => j.CategoriaId == categoriaId
-                             && FasesTorneio.EhFaseDeGrupos(j.Fase) && j.HorarioPrevisto != null)
-                    .Select(j => j.HorarioPrevisto!.Value)
-                    .DefaultIfEmpty()
-                    .Max();
-
-                if (fimDosGrupos == default) return abre;
-
-                return GradeDeJogos.AberturaDaProximaFase(fimDosGrupos, torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
-            }
-
-            // Da categoria que libera primeiro pra que libera por último. O encaixe é guloso e
-            // pega a primeira vaga livre: marcar fora dessa ordem daria as vagas mais cedo pra
-            // quem ainda nem terminou os grupos.
-            foreach (var daCategoria in depoisDosGrupos
-                         .GroupBy(j => j.CategoriaId)
-                         .Select(g => new { Abre = AberturaDoMataMata(g.Key), Jogos = g.ToList() })
-                         .OrderBy(x => x.Abre)
-                         .ToList())
-            {
-                Agendar(OrdemDaFila(daCategoria.Jogos, semNadaPraEsperar, torneio.QuantidadeQuadras), daCategoria.Abre);
-            }
-        }
+            SedesDoTorneio? sedes = null) =>
+            LevasDaGrade.Encaixar(torneio, jogos,
+                aPartirDe ?? torneio.AberturaDaGrade,
+                jaMarcados ?? Array.Empty<Partida>(),
+                new LevasDaGrade.Restricoes(ocupantes, quadras, quadrasPorCategoria, janelas,
+                    concentracao, noiteDeSabado, sedes));
 
         // RECALCULAR OS HORÁRIOS: os mesmos confrontos, a grade refeita a partir de agora.
         //
@@ -849,7 +711,6 @@ namespace Padelizou.Controllers
             }
 
             EncaixarNasLevas(torneio, remarcar,
-                torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
                 OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(torneio.Id),
                 AberturaDoRecalculo(torneio, intocados), intocados,
                 await QuadrasPreferidasAsync(torneio.Id),
@@ -1017,6 +878,45 @@ namespace Padelizou.Controllers
                 _logger.LogWarning(ex, "Falha ao avisar chaves publicadas do torneio {TorneioId}.", torneio.Id);
             }
         }
+        // Põe na tela o "não coube, e foi por isto" — a segunda metade do pedido do Felipe de
+        // 09/09/2026. A régua mora em Services/PorQueNaoCoube; aqui só se escolhe o cabeçalho, que
+        // depende de uma coisa que a régua não sabe: se a grade DE FATO passou do prazo.
+        //
+        // ⚠️ NÃO TRAVA O SORTEIO, e é escolha. Jogo sem horário é o único desfecho que o motor não
+        // aceita (GradeDeJogos.Encaixar), e recusar o sorteio deixaria o organizador sem grade
+        // nenhuma na véspera. Ele avisa, com a causa na mão, e quem decide é quem alugou a quadra.
+        private async Task AvisarSeNaoCoubeAsync(Torneio torneio, List<Partida> jogos, SedesDoTorneio sedes)
+        {
+            // Sem prazo não há o que estourar; e o "por ordem de liberação" não tem relógio que
+            // valha, então avisar sobre hora seria assustar com número inventado.
+            if (torneio.DataFim is not DateTime prazo || torneio.SemHorarioPrevisto) return;
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == torneio.Id).ToListAsync();
+
+            var ultimo = jogos.Where(j => j.HorarioPrevisto != null)
+                .Select(j => j.HorarioPrevisto!.Value)
+                .DefaultIfEmpty()
+                .Max();
+
+            // ⚠️ O TOTAL É O PROJETADO, não os jogos que acabaram de nascer: no sorteio só existem
+            // os grupos e a primeira rodada da chave direta — o mata-mata inteiro ainda vai nascer
+            // pelo robô, e ele também precisa de quadra. `MontarPrevisaoDaGrade` já faz essa conta,
+            // e é a mesma que a tela de previsão mostra.
+            var motivos = PorQueNaoCoube.Analisar(torneio, quadras, sedes,
+                MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                ultimo == default ? null : ultimo);
+
+            if (motivos.Count == 0) return;
+
+            bool passou = ultimo != default && ultimo.Date > prazo.Date;
+
+            TempData["Aviso"] = (passou
+                    ? $"A grade passou do fim do torneio ({prazo:dd/MM}): o último jogo ficou "
+                      + $"{ultimo:dd/MM 'às' HH:mm}. "
+                    : $"A grade coube até {prazo:dd/MM}, mas tem coisa pra olhar. ")
+                + string.Join(" ", motivos);
+        }
+
         // Projeta a grade inteira ANTES do sorteio: quantos jogos saem das duplas já
         // inscritas e a que horas o último termina. Cada categoria tem os próprios grupos e
         // o próprio mata-mata, mas todas dividem as mesmas quadras — por isso os jogos se

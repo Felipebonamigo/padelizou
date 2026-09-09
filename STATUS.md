@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🏁 **A ORDEM DAS FASES VIROU DO TORNEIO, E AS FINAIS SÃO OS ÚLTIMOS JOGOS.**
+>
+> 🗣️ **Felipe, num print da grade do Er em `dev`:** *"como que aqui tem jogo de chave e nas outras categorias tem final? o torneio tem q seguir uma ordem, primeiro todas as chaves, depois todas as primeiras eliminatorias (decimas > oitavas > quartas > semi > final) a ideia e fazer as finais de cada categorias ser os ultimos jogos do torneio"*. O print mostrava a **Final** da 3ª e da 6ª Feminina às 22:10 de 12/09 e jogos de **GRUPO** da 6ª Masculina em **15/09** — três dias depois das finais.
+>
+> 🕳️ **TRÊS LUGARES DIZIAM A MESMA COISA ERRADA.** Cada mata-mata era ancorado no fim dos grupos da **própria categoria** — `TorneiosController.Chaves.AberturaDoMataMata`, `RoboDoChaveamento` e `ProximasFasesDaChave`. Quem tem 8 duplas fecha os grupos às 21h e joga a final às 22h10; quem tem 24 ainda está na fase de grupos no dia seguinte. As duas leituras são defensáveis olhando UMA categoria, e nenhuma delas é o que um torneio parece de fora.
+>
+> ✅ **A régua nova é o POSTO da fase** (`Services/OrdemDasFases`): a distância até a final, lida do nome. É ela que faz a categoria de 8 duplas — que estreia pelas Quartas — encontrar a de 32 no **mesmo degrau**, sem que nenhuma precise saber o tamanho da outra. A fase de grupos é **um posto só, com todas as rodadas dela dentro** (alerta do próprio Felipe: *"cuidado por que os grupos podem ter rodada 2 tambem"*) — o intercalamento que dá descanso continua sendo o do `OrdemDasRodadas`.
+>
+> ⚠️ **A BARREIRA É O HORÁRIO DO ÚLTIMO JOGO DO POSTO ANTERIOR, e não a rodada seguinte a ele** — *"a menos que fique horario vazio, mas a ordem é colocar todos jogos de chave antes"*. No minuto em que o último jogo de grupo roda ainda sobra quadra, e quem a ocupa é o primeiro jogo do posto seguinte. Medido num torneio de 16/8/4 duplas com 3 quadras: às 11:30 uma oitava divide o horário com um jogo de grupo em vez de a terceira quadra ficar parada.
+>
+> 🕳️ **O ROBÔ NÃO ENXERGA FASE QUE AINDA NÃO NASCEU, e nenhuma barreira sobre "o que já está marcado" resolve isso.** A categoria de 4 duplas fecha os grupos às 11h e a Semifinal dela nasce na hora; as Quartas da de 8 só nascem às 11h30 e caem em cima. **Duas tentativas de barreira falharam antes de eu instrumentar** — a terceira saiu da causa raiz: a rodada nova entra junto com tudo que ainda está `Agendada` e ficou fora de ordem (`LevasDaGrade.ForaDeOrdem`), e o conjunto passa pela mesma régua. Sem estimativa, e sem travar o torneio esperando categoria que desistiu. **O custo, dito com todas as letras: um jogo já anunciado pode andar pra FRENTE quando outra categoria avança.**
+>
+> ⚠️ **A CHAVE DIRETA DEIXOU DE ABRIR O TORNEIO — inverte a decisão de 05/08/2026.** Ela abria por ter mais rodadas pela frente (24 duplas são cinco), e no Interno isso evitou a final da chave geral às 23h18. Perguntado sobre **exatamente esse custo**, o Felipe escolheu o outro lado. Três testes que travavam a regra antiga foram **reescritos dizendo por que trocaram de lado**, não apagados.
+>
+> 🧾 **E `Torneio.DataFim` EXISTIA E O MOTOR NUNCA A LEU.** 🗣️ *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio termina no domingo dia 13"* → *"se não couber, tem q avisar por que nao coube"*. Agora `Services/PorQueNaoCoube` nomeia as três causas: **quadra com janela fora das datas do torneio** (o `datetime-local` de ontem erra fácil em um dígito); **dia sem quadra aberta nenhuma** — e é assim que 12/09 vira 15/09 sem passar por 13, porque o encaixe pula a vaga sem quadra e tenta o dia seguinte, calado; e **volume**, com os DOIS números (jogos × vagas). ⚠️ **O aviso NÃO trava o sorteio**: jogo sem horário é o único desfecho que o motor não aceita. O "Conferir grade" ganhou a regra `DepoisDoFim`.
+>
+> 🧪 **5.749 testes, 0 falhas (16 novos), suíte rodada 2×.** **Sem migration.** Falsificado: os testes da ordem vistos vermelhos com *"a Final da cat 3 às 13:30 acontece antes do último não-final às 14:30"* e *"o posto 4 (Semifinal) começa antes de o posto 3 (Quartas) acabar"*; a regra da auditoria removida e os testes dela vistos vermelhos.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão. O `TempData["Aviso"]` é uma faixa amarela nova no topo do `Details`.
+>
+> ⏭️ **O QUE ISTO NÃO PROVA:** por que o torneio do Er marcou 15/09 continua sendo **hipótese** — a mais provável é janela de quadra com data fora do torneio, e é a primeira coisa que o aviso novo vai dizer quando ele sortear de novo. Vale ele apertar **Conferir grade** naquele torneio.
+
 > Última atualização: **09/09/2026** — ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
 >
 > 🗣️ **Felipe, descrevendo o combinado do Er:** *"no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20, 12:10. Vão ser 12 jogos"*. **A tela respondia 10.**
