@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🔀 **O ORGANIZADOR PASSOU A TROCAR DUPLAS DE GRUPO, E A GRADE É REFEITA NA TROCA.**
+>
+> 🗣️ **Felipe:** *"permita também, que o organizador, troque a dupla de lugar no grupo, e ao trocar, verifique os horarios com impedimentos novamente, se nao vai atrapalhar algum"*.
+>
+> 🎯 **É o degrau que faltava entre "aceitar a chave como saiu" e "Desfazer sorteio"** — que ficou caro no mesmo dia em que o sorteio passou a sortear de verdade: torrar 63 duplas pra mover uma.
+>
+> 🔁 **É UM SWAP, não um "mover pra o grupo X":** mover uma só desbalancearia os grupos (o `2,2,3,3,3,3` da categoria de 16 viraria `1,2,3,3,3,4`), e esse desenho é o que o organizador escolheu na criação. **E não regera partida nenhuma:** dentro do grupo é todos-contra-todos, então trocar de lugar é trocar os Ids das duas nos jogos que já existem — cada uma herda os adversários da outra.
+>
+> 🕐 **A GRADE INTEIRA É REFEITA DEPOIS**, pelo `EncaixarNasLevas` de sempre. O miolo do "Refazer grade" virou `RecalcularAGradeAsync`, compartilhado — segunda cópia da regra divergiria, que é o motivo pelo qual o `EncaixarNasLevas` já era compartilhado. Como neste status nada começou, o recálculo parte de `AberturaDaGrade` e não de `DateTime.Now`.
+>
+> 🔒 **Só no status "Chaves em Aprovação"** (decisão do Felipe), mesma régua do "Desfazer sorteio": depois de aprovada a chave é pública e tem gente organizada pro horário. `[HttpPost]` + `[Authorize]` + `EhOrganizadorAsync` — régua de SORTEIO, não de dia de jogo: o marcador refaz grade, mas não remonta grupo.
+>
+> 🔍 **A AUDITORIA ACHOU UM FURO QUE NÃO É DESTA FEATURE — e a medição é o resultado principal desta sessão.** Num torneio sexta+sábado, 16 duplas, impedimento de sexta marcado ANTES do sorteio: **o sorteio sozinho já entrega grade com furo em 7/40 execuções, e com a troca dá exatamente 7/40 também.** A troca não adiciona um único furo — ela reavalia todas as janelas, igual ao sorteio.
+>
+> 📏 **O TETO DO MOTOR FOI MEDIDO, varrendo 30 sorteios por volume (16 duplas):** 4 impedidas → **0/30** furos (com e sem troca); 6 → 2/30; 8 → 28/30. **A causa:** `VagasDaGrade.AlcanceNecessario` garante CHEGAR ao fim da janela mais `GradeDeJogos.MargemDeHorarios` = `max(quadras,1)*3` vagas — margem dimensionada por QUADRA, não pelo VOLUME de jogos que a janela empurrou. A janela de sexta bloqueia o dia inteiro e joga mais de 3 jogos no sábado; as vagas acabam e o último recurso do `Encaixar` cede o impedimento. ⚠️ **Não consertado nesta sessão** — é defeito do motor, anterior a esta feature, e mexe na grade de todo torneio.
+>
+> 🧪 **5.638 testes, 0 falhas (9 novos).** **Sem migration.** As duas guardas de impedimento foram vistas falhar **por resultado errado** com a troca implementada SEM o recálculo. ⚠️ **E a primeira versão de uma delas era FLAKY e foi refeita:** ela cobrava "zero furos" num volume saturado (6 de 16), medindo o motor em vez desta feature — o teste agora roda no volume que o motor comporta, com o número medido no comentário. A guarda de tela foi falsificada duas vezes: sem o painel, e com o painel fora do `if` de status.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🎲 **O SORTEIO PASSOU A SORTEAR: A CHAVE DE CATEGORIA COM GRUPOS NUNCA FOI ALEATÓRIA.**
 >
 > 🗣️ **Felipe, olhando a 4ª Masculina do torneio do Er no dev:** *"por que que toda vez q eu gero o sorteio, esta vindo igual, o chaveamento, os horarios dos jogos e tudo mais?"*.
