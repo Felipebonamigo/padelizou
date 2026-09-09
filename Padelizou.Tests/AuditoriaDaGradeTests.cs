@@ -35,6 +35,53 @@ public class AuditoriaDaGradeTests
     private static Partida Jogo(int d1, int d2, DateTime? quando, string fase = "Grupo A", string? quadra = null) =>
         new() { Codigo = "X", Fase = fase, CategoriaId = 1, Dupla1Id = d1, Dupla2Id = d2, HorarioPrevisto = quando, NomeQuadra = quadra };
 
+    // ⚠️ 🗣️ Felipe, 09/09/2026: *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio
+    // termina no domingo dia 13"*. `Torneio.DataFim` existia desde sempre e o motor NUNCA a leu —
+    // era um aviso na tela de previsão e mais nada. Agora a conferência a lê.
+    [Fact]
+    public void Jogo_marcado_depois_do_fim_do_torneio_e_acusado()
+    {
+        var torneio = Torneio();
+        torneio.DataFim = Sabado;                       // acaba no sábado 10/10
+
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[] { Jogo(1, 2, Sabado.AddDays(2).AddHours(19)) };   // segunda 12/10
+
+        var achados = AuditoriaDaGrade.Conferir(torneio, jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.DepoisDoFim);
+        Assert.Contains("12/10", achado.Descricao);
+        Assert.Contains("10/10", achado.Descricao);
+    }
+
+    // A contrapartida: o jogo que COMEÇA no último dia e varre a madrugada é o normal do torneio,
+    // não um estouro. A comparação é por DIA — mesma leitura de PrevisaoGradeVM.EstouraOPrazo.
+    [Fact]
+    public void Jogo_no_ultimo_dia_do_torneio_nao_e_acusado()
+    {
+        var torneio = Torneio();
+        torneio.DataFim = Sabado;
+
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[] { Jogo(1, 2, Sabado.AddHours(23).AddMinutes(50)) };
+
+        var achados = AuditoriaDaGrade.Conferir(torneio, jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.DepoisDoFim);
+    }
+
+    // Sem prazo marcado não há o que estourar — e o torneio sem `DataFim` é a maioria.
+    [Fact]
+    public void Sem_DataFim_nada_e_acusado_de_passar_do_fim()
+    {
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[] { Jogo(1, 2, Sabado.AddDays(30)) };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.DepoisDoFim);
+    }
+
     // Grade limpa não inventa achado — é o caso que o organizador vai ver na maioria das vezes,
     // e uma tela que sempre acha alguma coisa deixa de ser lida.
     [Fact]

@@ -26,6 +26,12 @@ public static class AuditoriaDaGrade
     public const string QuadraFechada = "Quadra fora do horário";
     public const string SemHorario = "Jogo sem horário";
 
+    // 🗣️ Felipe, 09/09/2026: *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio
+    // termina no domingo dia 13"*. `Torneio.DataFim` existia e o motor nunca a leu — era um aviso
+    // na previsão e mais nada. Aqui ela vira achado: o organizador aperta "Conferir grade" e vê
+    // exatamente quais jogos passaram do dia em que ele devolve a quadra.
+    public const string DepoisDoFim = "Depois do fim do torneio";
+
     // `Quando` fica separado do texto pra tela poder ordenar por ele — o organizador lê a grade
     // no relógio, não em ordem alfabética de regra.
     public record Achado(string Regra, string Descricao, DateTime? Quando);
@@ -88,6 +94,17 @@ public static class AuditoriaDaGrade
                     $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está "
                     + $"{quando:dd/MM 'às' HH:mm} — essa categoria pediu pra não ter eliminatória "
                     + "no sábado à noite.", quando));
+            }
+
+            // Comparação por DIA, e não por hora: o limite é "até domingo", não "até domingo às
+            // 00h" — a mesma leitura de PrevisaoGradeVM.EstouraOPrazo. Um jogo que COMEÇA 23h50 do
+            // domingo e varre a madrugada é o normal do torneio, não um estouro.
+            if (torneio.DataFim is DateTime prazo && quando.Date > prazo.Date)
+            {
+                achados.Add(new Achado(DepoisDoFim,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está marcado "
+                    + $"{quando:dd/MM 'às' HH:mm}, depois de {prazo:dd/MM} — o dia que você marcou "
+                    + "como limite do torneio.", quando));
             }
 
             if (!string.IsNullOrEmpty(jogo.NomeQuadra) && !sedes.QuadraAberta(jogo.NomeQuadra, quando))

@@ -806,6 +806,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 {
     <div class="alert alert-danger">@TempData["Erro"]</div>
 }
+@* O "não coube, e foi por isto" do sorteio (Services/PorQueNaoCoube). Amarelo e não vermelho de
+   propósito: o sorteio SAIU, a grade existe e o torneio funciona — o que passou foi o prazo que o
+   organizador marcou, e a decisão de encurtar ou alugar mais quadra é dele. *@
+@if (TempData["Aviso"] != null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Aviso"]
+    </div>
+}
 
 @* O ATALHO DO MARCADOR. Ele não tem o painel do organizador — sem esta faixa, o posto de
    trabalho dele (a Mesa de Controle) não teria porta nenhuma na página do torneio. Cada

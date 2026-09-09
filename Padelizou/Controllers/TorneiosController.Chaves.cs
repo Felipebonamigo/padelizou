@@ -313,13 +313,21 @@ namespace Padelizou.Controllers
             // pulava a grade inteira e saía com tudo nulo. Agora ele calcula igual e só apaga
             // a QUADRA no fim — ver Services/OrdemDeLiberacao, que explica por que a quadra
             // precisa ser distribuída antes de ser apagada.
+            var sedesDoTorneio = await SedesAsync(torneio.Id);
+
             EncaixarNasLevas(torneio, jogosPraAgendar,
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
                 quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
                 janelas: JanelasDeImpedimento.PorDupla(torneio),
-                sedes: await SedesAsync(torneio.Id),
+                sedes: sedesDoTorneio,
                 concentracao: ConcentracaoDeJogos.De(torneio),
                 noiteDeSabado: EliminatoriaNoSabado.PorCategoria(torneio));
+
+            // ⚠️ "SE NÃO COUBER, TEM Q AVISAR POR QUE NAO COUBE" (Felipe, 09/09/2026). O aviso de
+            // prazo já existia ANTES do sorteio (PrevisaoGradeVM.EstouraOPrazo, "Passa do dia
+            // 13/09") e dizia só QUE passou. Agora ele também sai DEPOIS, que é quando o organizador
+            // olha, e traz a causa — ver Services/PorQueNaoCoube.
+            await AvisarSeNaoCoubeAsync(torneio, jogosPraAgendar, sedesDoTorneio);
 
             OrdemDeLiberacao.ApagarAsQuadras(torneio, jogosPraAgendar);
 
@@ -870,6 +878,45 @@ namespace Padelizou.Controllers
                 _logger.LogWarning(ex, "Falha ao avisar chaves publicadas do torneio {TorneioId}.", torneio.Id);
             }
         }
+        // Põe na tela o "não coube, e foi por isto" — a segunda metade do pedido do Felipe de
+        // 09/09/2026. A régua mora em Services/PorQueNaoCoube; aqui só se escolhe o cabeçalho, que
+        // depende de uma coisa que a régua não sabe: se a grade DE FATO passou do prazo.
+        //
+        // ⚠️ NÃO TRAVA O SORTEIO, e é escolha. Jogo sem horário é o único desfecho que o motor não
+        // aceita (GradeDeJogos.Encaixar), e recusar o sorteio deixaria o organizador sem grade
+        // nenhuma na véspera. Ele avisa, com a causa na mão, e quem decide é quem alugou a quadra.
+        private async Task AvisarSeNaoCoubeAsync(Torneio torneio, List<Partida> jogos, SedesDoTorneio sedes)
+        {
+            // Sem prazo não há o que estourar; e o "por ordem de liberação" não tem relógio que
+            // valha, então avisar sobre hora seria assustar com número inventado.
+            if (torneio.DataFim is not DateTime prazo || torneio.SemHorarioPrevisto) return;
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == torneio.Id).ToListAsync();
+
+            var ultimo = jogos.Where(j => j.HorarioPrevisto != null)
+                .Select(j => j.HorarioPrevisto!.Value)
+                .DefaultIfEmpty()
+                .Max();
+
+            // ⚠️ O TOTAL É O PROJETADO, não os jogos que acabaram de nascer: no sorteio só existem
+            // os grupos e a primeira rodada da chave direta — o mata-mata inteiro ainda vai nascer
+            // pelo robô, e ele também precisa de quadra. `MontarPrevisaoDaGrade` já faz essa conta,
+            // e é a mesma que a tela de previsão mostra.
+            var motivos = PorQueNaoCoube.Analisar(torneio, quadras, sedes,
+                MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                ultimo == default ? null : ultimo);
+
+            if (motivos.Count == 0) return;
+
+            bool passou = ultimo != default && ultimo.Date > prazo.Date;
+
+            TempData["Aviso"] = (passou
+                    ? $"A grade passou do fim do torneio ({prazo:dd/MM}): o último jogo ficou "
+                      + $"{ultimo:dd/MM 'às' HH:mm}. "
+                    : $"A grade coube até {prazo:dd/MM}, mas tem coisa pra olhar. ")
+                + string.Join(" ", motivos);
+        }
+
         // Projeta a grade inteira ANTES do sorteio: quantos jogos saem das duplas já
         // inscritas e a que horas o último termina. Cada categoria tem os próprios grupos e
         // o próprio mata-mata, mas todas dividem as mesmas quadras — por isso os jogos se
