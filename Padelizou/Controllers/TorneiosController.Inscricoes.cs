@@ -653,6 +653,75 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── O ORGANIZADOR CONCENTRA OS 2 JOGOS NUM TURNO ─────────────────────────────────
+        // 🗣️ Reclamação de usuário (09/09/2026): "ao tentar colocar que o jogador só pode sexta
+        // a noite por exemplo, nao consegue por os 2 jogos no sabado de manha".
+        //
+        // ⚠️ ESTA AÇÃO NASCEU DE UM CONSERTO DE DESENHO. Em 08/09 a concentração era mais um
+        // valor do `TurnoDoImpedimento` e viajava no MESMO formulário do impedimento — então
+        // gravar uma APAGAVA a outra. Elas são de donos diferentes: o impedimento é o que o
+        // JOGADOR pede (e paga), a concentração é o que o ORGANIZADOR faz por cima. Agora são
+        // duas ações, dois campos e duas linhas na tela.
+        //
+        // 💰 NÃO MEXE NO VALOR, e agora isso é literal em vez de calculado: ela não passa por
+        // `AlteracaoDeImpedimento.Aplicar`, então não há como um favor do organizador mudar o
+        // que a dupla deve.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarConcentracaoOrganizador(int duplaId, TurnoDeConcentracao turno)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, meuId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
+            if (ConcentracaoDeJogos.MotivoParaOrganizadorNaoConcentrar(dupla, torneio, jaSorteou) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            var antes = dupla.ConcentrarJogosEm ?? TurnoDeConcentracao.Nenhuma;
+            if (antes == turno)
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+
+            dupla.ConcentrarJogosEm = turno == TurnoDeConcentracao.Nenhuma ? null : turno;
+            await _context.SaveChangesAsync();
+
+            // Os DOIS da dupla: o organizador mexeu por fora, ninguém dos dois clicou em nada.
+            // Mesma régua do impedimento trocado por ele.
+            var jogadores = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+            if (jogadores.Count > 0)
+            {
+                await AvisarAsync(jogadores, "O organizador ajustou o horário dos seus jogos",
+                    turno == TurnoDeConcentracao.Nenhuma
+                        ? $"O organizador de {torneio.Nome} desfez a concentração dos jogos de vocês."
+                        : $"O organizador de {torneio.Nome} vai tentar pôr os 2 jogos de vocês em "
+                          + $"\"{ConcentracaoDeJogos.Rotulo(turno)}\".",
+                    torneioId);
+            }
+
+            // ⚠️ "VAI TENTAR", e não "vai pôr": a concentração cede no aperto da grade (ver
+            // GradeDeJogos.Encaixar). Prometer garantia numa regra que cede é como o organizador
+            // descobre a exceção no dia do jogo — e o jogador, pior ainda.
+            TempData["Sucesso"] = turno == TurnoDeConcentracao.Nenhuma
+                ? "Concentração desfeita. O impedimento do jogador, se houver, continua valendo."
+                : $"Combinado: a grade vai tentar pôr os 2 jogos em \"{ConcentracaoDeJogos.Rotulo(turno)}\". "
+                  + "Vale a partir do próximo sorteio (ou do \"Refazer grade\").";
+
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
         // ── SEM ELIMINATÓRIA NO SÁBADO À NOITE, POR CATEGORIA (sub-aba "Eliminatórias") ───
         // 🗣️ Pedido do Felipe (08/09/2026): "colocar por categoria, se vai ter jogos de
         // eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina

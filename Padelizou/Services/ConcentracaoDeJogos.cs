@@ -108,6 +108,37 @@ public static class ConcentracaoDeJogos
         if (podeJogar.Fim < depois) yield return (podeJogar.Fim, depois);
     }
 
+    // AS DUAS SE CONTRADIZEM? "Não posso sábado de manhã" + "os 2 jogos no sábado de manhã" não
+    // deixa horário nenhum de pé.
+    //
+    // ⚠️ A GRADE CEDE NESSE CASO (jogo sem hora é pior que jogo fora do turno), e cede CALADA —
+    // por isso a pergunta existe: quem avisa é a TELA. Sem ela o organizador acha que mandou e
+    // não mandou, e só descobre no dia do jogo.
+    //
+    // Conflito é o turno PROIBIDO cobrir o turno ESCOLHIDO. Compara janela com janela, e não
+    // enum com enum, porque as duas formas não se correspondem uma a uma: o impedimento de
+    // sexta bloqueia a sexta INTEIRA, e o de sábado se parte no meio-dia.
+    public static bool Conflita(Torneio torneio, Dupla dupla)
+    {
+        if (JanelaDoTurnoDaDupla(torneio, dupla) is not { } podeJogar) return false;
+
+        return JanelasDeImpedimento.Da(torneio, dupla)
+            .Any(proibida => proibida.Inicio < podeJogar.Fim && podeJogar.Inicio < proibida.Fim);
+    }
+
+    // A janela em que ESTA dupla pode jogar, ou null quando ela não tem concentração (ou o turno
+    // não existe no calendário do torneio).
+    public static (DateTime Inicio, DateTime Fim)? JanelaDoTurnoDaDupla(Torneio torneio, Dupla dupla) =>
+        dupla.ConcentrarJogosEm is TurnoDeConcentracao turno && turno != TurnoDeConcentracao.Nenhuma
+            ? JanelaDoTurno(torneio, turno)
+            : null;
+
+    // A recusa do lado do organizador. É a MESMA régua do impedimento — sem checagem de dono (ele
+    // mexe no de outra pessoa, de propósito) e janela até o sorteio —, e por isso é delegada em
+    // vez de copiada: duas cópias divergem, e aí a tela aceita o que o servidor recusa.
+    public static string? MotivoParaOrganizadorNaoConcentrar(Dupla? dupla, Torneio? torneio, bool jaSorteou) =>
+        AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou);
+
     // ⚠️ ATÉ QUANDO A GRADE PRECISA IR pra que a concentração aconteça de verdade. Null quando
     // ninguém está concentrado — e aí nada muda pra torneio nenhum.
     //

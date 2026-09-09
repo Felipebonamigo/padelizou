@@ -63,33 +63,60 @@ public class AbaPagamentosEImpedimentosTests
         Assert.Contains("asp-action=\"AlterarEliminatoriaNoSabado\"", fonte);
     }
 
-    // As três opções novas do Felipe, no MESMO select do impedimento — é uma escolha só, e um
-    // segundo dropdown convidaria a marcar impedimento e concentração ao mesmo tempo.
+    // ⚠️ 09/09/2026: AS TRÊS OPÇÕES SAÍRAM DO SELECT DO IMPEDIMENTO e ganharam formulário
+    // próprio. Enquanto dividiam o mesmo `<select>`, gravar uma apagava a outra — a reclamação
+    // que originou o conserto ("não consegue pôr os 2 jogos no sábado de manhã"). São de donos
+    // diferentes: o impedimento é do JOGADOR, a concentração é do ORGANIZADOR por cima.
     [Theory]
-    [InlineData("SoSextaNoite")]
-    [InlineData("SoSabadoManha")]
-    [InlineData("SoSabadoTarde")]
-    public void O_select_do_impedimento_oferece_a_concentracao(string turno)
+    [InlineData("SextaNoite")]
+    [InlineData("SabadoManha")]
+    [InlineData("SabadoTarde")]
+    public void O_formulario_de_concentracao_oferece_os_tres_turnos(string turno)
     {
         var fonte = Details();
 
-        Assert.Contains($"TurnoDoImpedimento.{turno}", fonte);
+        var form = fonte.IndexOf("asp-action=\"AlterarConcentracaoOrganizador\"", StringComparison.Ordinal);
+        Assert.True(form >= 0, "Não achei o formulário de concentração.");
+
+        var fim = fonte.IndexOf("</form>", form, StringComparison.Ordinal);
+        Assert.Contains($"TurnoDeConcentracao.{turno}", fonte[form..fim]);
     }
 
-    // ⚠️ As opções novas NÃO podem aparecer no formulário do JOGADOR (o de `AlterarImpedimento`,
-    // lá em cima na página) — o Felipe pediu "apenas para os organizadores e adm do sistema".
-    // O servidor recusa de verdade (ConcentracaoPeloOrganizadorTests); isto é a tela não
-    // oferecer o que ele não vai aceitar.
+    // ⚠️ OS DOIS FORMULÁRIOS SÃO SEPARADOS, e é isso que faz as duas coisas conviverem: um POST
+    // só, com um campo só, voltaria a apagar a outra na hora de gravar.
     [Fact]
-    public void O_formulario_do_jogador_nao_oferece_a_concentracao()
+    public void Impedimento_e_concentracao_sao_formularios_diferentes()
     {
         var fonte = Details();
 
-        var doJogador = fonte.IndexOf("asp-action=\"AlterarImpedimento\"", StringComparison.Ordinal);
-        Assert.True(doJogador >= 0, "Não achei o formulário de impedimento do jogador.");
+        var doImpedimento = fonte.IndexOf("asp-action=\"AlterarImpedimentoOrganizador\"", StringComparison.Ordinal);
+        var daConcentracao = fonte.IndexOf("asp-action=\"AlterarConcentracaoOrganizador\"", StringComparison.Ordinal);
 
-        var fimDoFormulario = fonte.IndexOf("</form>", doJogador, StringComparison.Ordinal);
-        Assert.DoesNotContain("TurnoDoImpedimento.So", fonte[doJogador..fimDoFormulario]);
+        Assert.True(doImpedimento >= 0 && daConcentracao >= 0);
+        Assert.NotEqual(doImpedimento, daConcentracao);
+
+        // O select do impedimento não pode carregar concentração nenhuma.
+        var fimDoImpedimento = fonte.IndexOf("</form>", doImpedimento, StringComparison.Ordinal);
+        Assert.DoesNotContain("TurnoDeConcentracao", fonte[doImpedimento..fimDoImpedimento]);
+    }
+
+    // 🗣️ "não consegue ver qual impedimento foi solicitado pelo usuário, e qual pelo organizador".
+    [Fact]
+    public void A_tela_diz_de_quem_foi_cada_coisa()
+    {
+        var fonte = Details();
+
+        Assert.Contains("AutoriaDoImpedimentoDaDupla.Rotulo", fonte);
+        Assert.Contains("posto pelo organizador", fonte);
+    }
+
+    // As duas podem se contradizer, e a grade cede calada — o aviso tem que estar na tela.
+    [Fact]
+    public void A_tela_avisa_quando_as_duas_se_cruzam()
+    {
+        var fonte = Details();
+
+        Assert.Contains("ConcentracaoDeJogos.Conflita", fonte);
     }
 
     private static string Details() =>

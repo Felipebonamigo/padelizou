@@ -4652,7 +4652,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         {
                             var dupla = x.Dupla;
                             var turnoAtual = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(dupla);
-                            <li class="list-group-item bg-transparent px-0">
+                            var autoria = Padelizou.Services.AutoriaDoImpedimentoDaDupla.De(dupla);
+                            var concentracao = dupla.ConcentrarJogosEm ?? Padelizou.Services.TurnoDeConcentracao.Nenhuma;
+                            var conflito = Padelizou.Services.ConcentracaoDeJogos.Conflita(Model, dupla);
+
+                            <li class="list-group-item bg-transparent px-0 py-3">
+                                @* ── LINHA 1: quem é a dupla, e o dinheiro ──────────────── *@
                                 <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2">
                                     <span class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap pdz-inscrito-esquerda">
                                         <span class="pdz-inscrito-nome">
@@ -4674,23 +4679,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle flex-shrink-0">Não pago</span>
                                             }
                                         }
-                                        @* O impedimento que ATÉ AQUI só aparecia numa lista de leitura
-                                           antes do sorteio. "quem solicitou impedimento e pra qual
-                                           horário" — pedido do Felipe. *@
-                                        @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum)
-                                        {
-                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle flex-shrink-0">
-                                                <i class="bi bi-clock-history"></i> @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(turnoAtual)
-                                            </span>
-                                        }
                                     </span>
 
                                     <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto">
-                                        @* O link de "Cobrar" leva o VALOR e a chave Pix na mensagem — fica
-                                           atrás de PodeVerDinheiro, mesma régua do link individual e do
-                                           botão de Financeiro.cshtml. Marcar como pago NÃO fica: é
-                                           trabalho de quem ajuda a organizar (AlternarPagamentoDupla só
-                                           confere EhOrganizadorAsync). *@
                                         @if (Model.PrecoInscricao > 0 && ViewBag.PodeVerDinheiro == true
                                              && !dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
                                         {
@@ -4699,10 +4690,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
                                                 + "."
                                                 + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
-                                            @* `data-pdz-dupla` é o que a memória do "já cobrei"
-                                               guarda. A POSIÇÃO na lista não serviria: alguém
-                                               paga, sai da lista, e as posições seguintes andam
-                                               — a memória passaria a apontar pra outra pessoa. *@
                                             <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
                                                target="_blank" rel="noopener"
                                                data-pdz-dupla="@dupla.Id"
@@ -4722,57 +4709,109 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </form>
                                         }
                                         <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
-                                                data-bs-toggle="collapse" data-bs-target="#impedimento-@dupla.Id">
-                                            <i class="bi bi-clock-history"></i> Impedimento
+                                                data-bs-toggle="collapse" data-bs-target="#horario-@dupla.Id">
+                                            <i class="bi bi-clock-history"></i> Horário
                                         </button>
                                     </div>
                                 </div>
 
-                                <div class="collapse mt-2" id="impedimento-@dupla.Id">
-                                    <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
-                                          class="bg-white border rounded p-2 d-flex gap-2 align-items-center flex-wrap">
-                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                        <select name="turno" class="form-select form-select-sm" style="width: auto;">
-                                            <option value="@Padelizou.Services.TurnoDoImpedimento.Nenhum" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)">Sem impedimento</option>
-                                            <option value="@Padelizou.Services.TurnoDoImpedimento.QuintaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.QuintaNoite)">Quinta à noite</option>
-                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
-                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
-                                            <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
-                                            @* ⚠️ AS TRÊS DE BAIXO SÃO O AVESSO DAS DE CIMA, e por
-                                               isso vão num <optgroup> separado: as primeiras dizem
-                                               "não pode nesse turno", estas dizem "SÓ nesse turno".
-                                               Pedido do Felipe (08/09/2026), "apenas para os
-                                               organizadores e adm do sistema" — o formulário do
-                                               jogador (lá em cima, AlterarImpedimento) NÃO as
-                                               oferece, e o servidor recusa se alguém montar o POST
-                                               à mão (AlteracaoDeImpedimento.MotivoParaNaoAlterar). *@
-                                            <optgroup label="Concentrar os 2 jogos (só organizador)">
-                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSextaNoite)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SextaNoite)</option>
-                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSabadoManha)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SabadoManha)</option>
-                                                <option value="@Padelizou.Services.TurnoDoImpedimento.SoSabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SoSabadoTarde)">@Padelizou.Services.ConcentracaoDeJogos.Rotulo(Padelizou.Services.TurnoDeConcentracao.SabadoTarde)</option>
-                                            </optgroup>
-                                        </select>
-                                        @* Grátis, decisão do Felipe: é favor do organizador, não
-                                           flexibilidade comprada. O lembrete evita que ele hesite
-                                           achando que vai cobrar da pessoa sem querer. *@
-                                        <small class="text-muted d-block w-100">
-                                            Concentrar os 2 jogos num turno só não cobra nada — é ajuda sua, não taxa.
-                                        </small>
-                                        <button type="submit" class="btn btn-sm btn-padel">
-                                            <i class="bi bi-check-lg"></i> Salvar
-                                        </button>
-                                        @* Dupla já paga: a troca não cobra nem estorna sozinha — o
-                                           aviso mora na mensagem de sucesso que volta do servidor
-                                           (TorneiosController.Inscricoes, AlterarImpedimentoOrganizador),
-                                           mas o lembrete AQUI evita que o organizador só descubra
-                                           depois de já ter clicado. *@
-                                        @if (dupla.Pago && Model.TaxaPorImpedimento > 0)
+                                @* ── LINHA 2: as DUAS coisas de horário, cada uma com o dono ──
+                                   🗣️ Reclamação de 09/09/2026: "não consegue ver qual impedimento
+                                   foi solicitado pelo usuário, e qual pelo organizador".
+
+                                   Duas etiquetas de cores diferentes, e o texto diz de quem é —
+                                   não é ornamento: enquanto era um selo só, o organizador não
+                                   tinha como distinguir o pedido que ele PRECISA respeitar do
+                                   ajuste que ele mesmo fez. *@
+                                @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum
+                                     || concentracao != Padelizou.Services.TurnoDeConcentracao.Nenhuma)
+                                {
+                                    <div class="d-flex gap-2 flex-wrap mt-2">
+                                        @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum)
                                         {
-                                            <small class="text-muted d-block w-100">
-                                                Esta inscrição já está paga — trocar o impedimento muda o valor devido, mas não cobra nem estorna sozinho.
-                                            </small>
+                                            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-normal">
+                                                <i class="bi bi-slash-circle"></i>
+                                                <strong>Não pode:</strong> @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(turnoAtual)
+                                                <span class="opacity-75">· @Padelizou.Services.AutoriaDoImpedimentoDaDupla.Rotulo(autoria)</span>
+                                            </span>
                                         }
-                                    </form>
+                                        @if (concentracao != Padelizou.Services.TurnoDeConcentracao.Nenhuma)
+                                        {
+                                            <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle fw-normal">
+                                                <i class="bi bi-pin-map"></i>
+                                                <strong>Jogar em:</strong> @Padelizou.Services.ConcentracaoDeJogos.Rotulo(concentracao)
+                                                <span class="opacity-75">· posto pelo organizador</span>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+
+                                @* ⚠️ AS DUAS PODEM SE CONTRADIZER e a grade cede CALADA — quem
+                                   avisa é aqui. Ver ConcentracaoDeJogos.Conflita. *@
+                                @if (conflito)
+                                {
+                                    <div class="alert alert-danger small py-2 px-3 mt-2 mb-0">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        O impedimento e a concentração se cruzam: não sobra horário
+                                        possível, e a grade vai marcar onde der. Ajuste um dos dois.
+                                    </div>
+                                }
+
+                                @* ── O PAINEL: dois formulários, um pra cada dono ──────────── *@
+                                <div class="collapse mt-2" id="horario-@dupla.Id">
+                                    <div class="border rounded p-3" style="background-color: var(--pdz-surface-alt);">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small mb-1">
+                                                    <i class="bi bi-slash-circle text-warning"></i> Não pode jogar
+                                                </label>
+                                                <p class="text-muted small mb-2">O que o jogador pediu. Cada um custa @Model.TaxaPorImpedimento.ToString("C").</p>
+                                                <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
+                                                      class="d-flex gap-2 align-items-center flex-wrap">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <select name="turno" class="form-select form-select-sm" style="width: auto;">
+                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.Nenhum" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)">Sem impedimento</option>
+                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.QuintaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.QuintaNoite)">Quinta à noite</option>
+                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
+                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
+                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-check-lg"></i> Salvar
+                                                    </button>
+                                                    @if (dupla.Pago && Model.TaxaPorImpedimento > 0)
+                                                    {
+                                                        <small class="text-muted d-block w-100">
+                                                            Inscrição já paga — trocar muda o valor devido, mas não cobra nem estorna sozinho.
+                                                        </small>
+                                                    }
+                                                </form>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small mb-1">
+                                                    <i class="bi bi-pin-map text-primary"></i> Pôr os 2 jogos em
+                                                </label>
+                                                <p class="text-muted small mb-2">Ajuda sua, não taxa: <strong>não cobra nada</strong> e não mexe no que a dupla deve.</p>
+                                                <form asp-controller="Torneios" asp-action="AlterarConcentracaoOrganizador" method="post"
+                                                      class="d-flex gap-2 align-items-center flex-wrap">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <select name="turno" class="form-select form-select-sm" style="width: auto;">
+                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.Nenhuma" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.Nenhuma)">Onde couber</option>
+                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SextaNoite" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SextaNoite)">Sexta à noite</option>
+                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoManha" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoManha)">Sábado de manhã</option>
+                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoTarde" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoTarde)">Sábado à tarde</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-sm btn-padel">
+                                                        <i class="bi bi-check-lg"></i> Salvar
+                                                    </button>
+                                                    <small class="text-muted d-block w-100">
+                                                        Vale só nos jogos de grupo, e cede se a grade apertar.
+                                                    </small>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </li>
                         }
