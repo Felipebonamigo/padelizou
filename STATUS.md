@@ -15,11 +15,13 @@
 >
 > 🖥️ **A TELA DEIXOU DE PROMETER O QUE NÃO ENTREGA:** a aba do hub diz "palpitrômetro dos **torneios de chave** — Americano não soma aqui, e a tabela dele fica na página do próprio rodízio", e o selo do perfil diz o mesmo no tooltip. Sem isso, quem palpitou no rodízio de sábado e não se acha na lista conclui que a conta quebrou — e conta que parece quebrada é conta em que ninguém confia.
 >
-> 🧪 **5.621 testes, 0 falhas (9 novos).** **Sem migration.** Os 3 de banco foram vistos vermelhos por *"Collection was not empty"* antes da correção; os 2 do predicado, por *"does not contain a definition for 'EhOficial'"*.
+> 🧪 **5.622 testes, 0 falhas (10 novos).** **Sem migration.** Os 3 de banco foram vistos vermelhos por *"Collection was not empty"* antes da correção; os 2 do predicado, por *"does not contain a definition for 'EhOficial'"*.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
 >
-> 🕳️ **LACUNA ACHADA DE QUEBRA, não corrigida (falta decisão):** o seletor **"Ver ranking de um torneio..."** do hub monta o ranking oficial daquele torneio (`hub.RankingTorneio`) mas **a aba Palpiteiros continua global** — `JogadorsController.Ranking` chama `GeralAsync` e ignora o `torneioId`. A aba **Palpiteiros dentro da página do torneio já existe** desde 07/09 (commit `14f1f7e`, no ar) e é onde se vê palpite por torneio hoje; o que falta é ela obedecer àquele seletor.
+> ✅ **CONFIRMADO A PEDIDO, e agora com teste:** *"esse palpitômetro é apenas do torneio em que está a aba?"* — é. `DoTorneioAsync` filtra `p.TorneioId == torneioId`, e isso **não tinha guarda**: nenhum teste comparava dois torneios. Agora tem (`A_aba_do_torneio_mostra_SO_os_palpites_DAQUELE_torneio`), montado com o MESMO torcedor acertando um jogo em cada — com um palpite só, filtro errado ainda daria o número certo. Falsificado: trocando o filtro por `p => true`, cai. A aba diz **1**; o hub, que soma os dois, diz **2**.
+>
+> 🕳️ **LACUNA ACHADA DE QUEBRA, não corrigida (o Felipe viu e disse que está correto assim):** o seletor **"Ver ranking de um torneio..."** do hub monta o ranking oficial daquele torneio (`hub.RankingTorneio`) mas **a aba Palpiteiros continua global** — `JogadorsController.Ranking` chama `GeralAsync` e ignora o `torneioId`. A aba **Palpiteiros dentro da página do torneio já existe** desde 07/09 (commit `14f1f7e`, no ar) e é onde se vê palpite por torneio hoje; o que falta é ela obedecer àquele seletor.
 >
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >

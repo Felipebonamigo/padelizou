@@ -406,6 +406,41 @@ public class PalpiteirosDoTorneioTests
         Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
     }
 
+    [Fact]
+    public async Task A_aba_do_torneio_mostra_SO_os_palpites_DAQUELE_torneio()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor de Dois Torneios", "55530000010");
+
+        var (daAba, _, jogoDaAba) = await MontarJogoTerminadoAsync(ctx);
+        var (vizinho, _, jogoDoVizinho) = await MontarJogoTerminadoAsync(ctx);
+        daAba.Nome = "Copa da Aba";
+        vizinho.Nome = "Copa do Vizinho";
+        await ctx.SaveChangesAsync();
+
+        // O MESMO torcedor acerta um jogo em cada torneio. É essa a montagem que pega
+        // vazamento: com um palpite só, qualquer filtro errado ainda dá o número certo.
+        await PalpitarAsync(ctx, jogoDaAba, torcedor.Id, jogoDaAba.Dupla1Id);
+        await PalpitarAsync(ctx, jogoDoVizinho, torcedor.Id, jogoDoVizinho.Dupla1Id);
+
+        var doAba = await RankingDePalpiteiros.DoTorneioAsync(ctx, daAba.Id, olhandoId: null);
+
+        // ⚠️ Confirmação pedida pelo Felipe (09/09/2026): "esse palpitômetro é apenas do
+        // torneio em que está a aba?". É — e este teste é o que impede a resposta de
+        // envelhecer. Sem ele, a aba do torneio A poderia somar o palpite do torneio B sem
+        // ninguém notar: os DOIS números são plausíveis na tela, e a diferença só apareceria
+        // pra quem conferisse palpite por palpite. 1 e não 2, que é o que o hub soma.
+        Assert.Equal(1, doAba!.Linhas.Single().Palpites);
+        Assert.Equal(1, doAba.Linhas.Single().Pontos);
+        Assert.Equal(1, doAba.JogosApurados);
+
+        // E o cabeçalho nomeia o torneio DA ABA, não o vizinho.
+        Assert.Equal("Copa da Aba", doAba.Torneio);
+
+        // O outro lado da mesma régua: a soma do hub vê os dois, e é ela que dá 2 pontos.
+        Assert.Equal(2, (await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id))!.Pontos);
+    }
+
     // ─────────────────── SÓ TORNEIO OFICIAL SOMA (Felipe, 09/09/2026) ───────────────────
     //
     // 🗣️ *"o palpitometro em contagem, só vale dos torneios 'oficiais'; americanos e outros
