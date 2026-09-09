@@ -542,6 +542,16 @@
         @* ⚠️ O "por ordem" TAMBÉM refaz grade desde 09/09/2026: ele passou a ter horário, e é
            por este botão que um torneio sorteado ANTES da mudança ganha as horas — sem mexer
            nos confrontos, que é o que "desfazer o sorteio" faria. Ver Services/OrdemDeLiberacao. *@
+        @* 🗣️ "faz esse botão" (Felipe, 09/09/2026): a conferência da grade, ao lado de quem a
+           refaz. Fica FORA do `if` das agendadas de propósito — a grade também merece conferência
+           depois que os jogos começaram, e é justamente aí que o furo dói. *@
+        @if (ehOrganizador)
+        {
+            <a asp-controller="Torneios" asp-action="ConferirGrade" asp-route-id="@Model.TorneioId"
+               class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="bi bi-clipboard-check"></i> Conferir a grade
+            </a>
+        }
         @if (ehOrganizador && agendadasList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"

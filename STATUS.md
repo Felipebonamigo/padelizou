@@ -67,6 +67,16 @@
 >
 > ⚠️ **A chave já sorteada do Er não muda sozinha** — precisa de "Desfazer sorteio" + "Gerar chaves" enquanto ela estiver esperando aprovação. **Não visto renderizado** — sem browser nesta sessão.
 >
+> ---
+>
+> ⚠️ **O bloco abaixo é da publicação ANTERIOR** (commit `17496ea`), e não das quatro entradas acima — elas ainda não subiram quando esta linha foi escrita.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no commit `17496ea`** (09/09/2026, 13h05 e 13h07 UTC) — o "Meus jogos" por grupo (PR #91) e, junto com ele, tudo que estava no `main` e ainda não tinha subido: a **auditoria da grade do Er** (PR #90) e o **selo do chip** (PR #89). Mesmo artefato nos dois ambientes: o `dev` levou `17496ea` e a produção levou **o mesmo**, não um build novo — que é o que a Regra 3 quer dizer com "testar em dev antes".
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA, e agora foi medida de novo:** o job `deploy → prod` foi de `Set up job` a `Complete job` em **11 segundos**, sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **Nada disto foi visto renderizado** — sem browser nesta sessão. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
 > Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
 > 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.
@@ -83,6 +93,10 @@
 >
 > Última atualização: **09/09/2026** — 🏆 **O SELO DO CHIP VIROU SÓ TROFÉU.**
 >
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-819-aafd8a9`** (09/09/2026, PR #89). O pacote leva tudo até o #89 — o **#91 não está nele**, porque entrou no `main` um minuto depois do deploy sair. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o deploy em produção saiu **direto**, sem parar em aprovação nenhuma, exatamente como no build-800. Settings → Environments → `prod` → **Required reviewers**.
+>
 > 🗣️ **O pedido do Felipe**, num print da Fase de Grupos com "Vice" e "Semifinal" ao lado dos nomes: *"essa parte aqui, exiba apenas quem foi campeao, nao precisa exibir, semi, vice etc"*.
 >
 > ✂️ **SAIU A SEGUNDA PÍLULA.** `_SeloHistorico.cshtml` tinha um `if/else`: título → troféu + nº; senão, a melhor campanha na categoria (`RotuloFase`: "Vice", "Semifinal", "Quartas"). Sobrou só o `if` do troféu. Vale nos quatro lugares do `Details.cshtml` que usam `_JogadorChip` — tabela do grupo, lista de inscritos, duplas e fila de espera —, que é a mesma tela do print: uma pílula que some num bloco e sobrevive no de baixo seria a incoerência pior.
@@ -96,6 +110,24 @@
 > 🧪 **5.618 testes, 0 falhas (6 novos)** — o total já é com o `main` trazido pra dentro (a auditoria da grade do Er entrou no meio do caminho). **Sem migration.** As guardas falsificaram: o `Theory` de Final/Semifinal/Quartas/Grupos ficou vermelho nos quatro casos (todos entravam no mapa) e a guarda de tela achou o `RotuloFase` no Razor. A guarda do outro lado passou de primeira, e é de propósito: vice num torneio + campeã em outro continua com o troféu de 1 título.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> Última atualização: **09/09/2026** — 🩺 **BOTÃO "CONFERIR A GRADE": a auditoria virou tela.**
+>
+> 🗣️ **Felipe:** *"faz esse botão e sobe"*.
+>
+> 🚧 **NASCEU DE UM BECO, e vale registrar qual:** ele pediu **duas vezes** que eu conferisse a grade do torneio dele em `dev`, e a sessão da web **não alcança o `dev`** (o proxy recusa o CONNECT com 403). A saída não era pedir print de novo — era virar a auditoria em TELA, pra ele apertar e ver, em qualquer torneio, sem depender de mim nem da minha rede.
+>
+> 🔗 **O PONTO DE ARQUITETURA: a tela e o teste de regressão chamam o MESMO serviço** (`Services/AuditoriaDaGrade`). A auditoria que eu tinha escrito à mão no teste da escala do Er foi **apagada**, não mantida em paralelo — duas auditorias divergem, e a que fica errada é sempre a que ninguém está olhando. Pior: seria a TELA, que é justamente a que existe pra ser acreditada.
+>
+> 🔍 **Seis regras conferidas:** jogo dentro do impedimento da dupla · mesma **pessoa** em dois jogos no mesmo horário (por pessoa, não por dupla — com chave direta o mesmo jogador está em duplas de Ids diferentes) · concentração não atendida **na fase de grupos** · eliminatória no sábado à noite de categoria que pediu pra não ter · quadra usada fora da janela do local alugado · jogo sem horário.
+>
+> ⚠️ **"ACHADO" NÃO É "BUG", E A TELA DIZ ISSO NA PRIMEIRA LINHA.** A grade CEDE de propósito quando as vagas acabam — jogo sem hora nenhuma é pior. Sem essa frase o organizador leria a lista como defeito do sistema e perderia a decisão que é dele: refazer a grade, falar com a dupla, ou aceitar.
+>
+> 🔒 **Só lê.** Não remarca nada — quem muda a grade é o "Refazer grade", ao lado. Uma tela de conferência que conserta sozinha tira do organizador a decisão de aceitar o que cedeu. Atrás de `PodeOperarODiaDeJogoAsync`, mesma régua do botão vizinho: ela mostra a grade inteira e nome de jogador.
+>
+> 🧪 **5.639 testes, 0 falhas (14 novos).** **Sem migration.** Cinco guardas falsificadas.
+>
+> ⚠️ **Não visto renderizado** — a tela é nova e nunca passou por um browser.
 >
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >

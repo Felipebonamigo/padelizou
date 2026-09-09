@@ -44,11 +44,12 @@ public class GradeDoErAuditoriaTests
 
         await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
 
-        var furos = await FurosDeImpedimentoAsync(ctx, torneio);
+        var furos = (await AchadosAsync(ctx, torneio))
+            .Where(a => a.Regra == AuditoriaDaGrade.Impedimento).ToList();
 
         Assert.True(furos.Count == 0,
             $"{furos.Count} jogo(s) marcados dentro do impedimento da dupla:\n"
-            + string.Join("\n", furos.Take(15)));
+            + string.Join("\n", furos.Take(15).Select(a => a.Descricao)));
     }
 
     [Theory]
@@ -63,23 +64,12 @@ public class GradeDoErAuditoriaTests
 
         await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
 
-        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
-            .Include(p => p.Dupla1).Include(p => p.Dupla2).ToListAsync();
-
-        var conflitos = jogos
-            .Where(j => j.HorarioPrevisto != null)
-            .GroupBy(j => j.HorarioPrevisto!.Value)
-            .SelectMany(h => h
-                .SelectMany(j => new[] { j.Dupla1, j.Dupla2 })
-                .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
-                .Where(i => i != null)
-                .GroupBy(i => i!.Value)
-                .Where(g => g.Count() > 1)
-                .Select(g => $"{h.Key:dd/MM HH:mm} — jogador {g.Key} em {g.Count()} jogos"))
-            .ToList();
+        var conflitos = (await AchadosAsync(ctx, torneio))
+            .Where(a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos).ToList();
 
         Assert.True(conflitos.Count == 0,
-            $"{conflitos.Count} conflito(s):\n" + string.Join("\n", conflitos.Take(15)));
+            $"{conflitos.Count} conflito(s):\n"
+            + string.Join("\n", conflitos.Take(15).Select(a => a.Descricao)));
     }
 
     // "Questões de horário": todo jogo tem hora, e nenhum cai fora do expediente do torneio.
@@ -108,33 +98,21 @@ public class GradeDoErAuditoriaTests
             + string.Join("\n", foraDoExpediente.Take(15)));
     }
 
-    // Os jogos marcados DENTRO da janela que a dupla pagou pra evitar.
-    private static async Task<List<string>> FurosDeImpedimentoAsync(DbPadelContext ctx, Torneio torneio)
+    // ⚠️ CHAMA O MESMO SERVIÇO QUE A TELA (Services/AuditoriaDaGrade). Este arquivo tinha a
+    // auditoria escrita à mão; quando ela virou botão (09/09/2026), a cópia daqui foi apagada
+    // em vez de mantida em paralelo — duas auditorias divergem, e a que fica errada é sempre a
+    // que ninguém está olhando.
+    private static async Task<List<AuditoriaDaGrade.Achado>> AchadosAsync(DbPadelContext ctx, Torneio torneio)
     {
         var cheio = await ctx.Torneios
             .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
             .FirstAsync(t => t.Id == torneio.Id);
 
-        var janelas = JanelasDeImpedimento.PorDupla(cheio);
+        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+        var duplas = cheio.Categorias.SelectMany(c => c.Duplas).ToList();
 
-        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
-            .Include(p => p.Dupla1).Include(p => p.Dupla2).ToListAsync();
-
-        var furos = new List<string>();
-        foreach (var jogo in jogos)
-        {
-            if (jogo.HorarioPrevisto is not DateTime quando) continue;
-
-            foreach (var dupla in new[] { jogo.Dupla1, jogo.Dupla2 })
-            {
-                if (!janelas.TryGetValue(dupla.Id, out var proibidas)) continue;
-                if (!proibidas.Any(j => quando >= j.Inicio && quando < j.Fim)) continue;
-
-                furos.Add($"{quando:dd/MM HH:mm} — dupla {dupla.Id} ({jogo.Fase}) "
-                        + $"marcada dentro de \"{AlteracaoDeImpedimento.Rotulo(AlteracaoDeImpedimento.TurnoAtual(dupla))}\"");
-            }
-        }
-        return furos;
+        return AuditoriaDaGrade.Conferir(cheio, jogos, duplas,
+            await SedesDoTorneio.CarregarAsync(ctx, torneio.Id));
     }
 
     // 63 duplas em 24 grupos = 15 grupos de 3 (45 duplas, 45 jogos) + 9 de 2 (18 duplas, 9

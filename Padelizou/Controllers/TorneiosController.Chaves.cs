@@ -335,6 +335,40 @@ namespace Padelizou.Controllers
             return ParaAsChaves(torneio.Id);
         }
 
+        // ── CONFERIR A GRADE ──────────────────────────────────────────────────────────────
+        // 🗣️ Felipe, 09/09/2026: "faz esse botão e sobe".
+        //
+        // Nasceu de um beco: ele pediu duas vezes que eu conferisse a grade do torneio dele em
+        // `dev`, e a sessão da web não alcança o `dev`. A saída não é pedir print — é virar a
+        // auditoria em tela, pra ele apertar e ver, em qualquer torneio, sem depender de mim.
+        //
+        // ⚠️ SÓ LÊ. Não remarca nada, não grava nada: quem muda a grade é o "Refazer grade", ao
+        // lado. Uma tela de conferência que conserta sozinha tira do organizador a decisão de
+        // aceitar ou não o que cedeu.
+        //
+        // A régua mora em Services/AuditoriaDaGrade, e é a MESMA que o teste de regressão usa.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> ConferirGrade(int id)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            // A tela mostra a grade inteira e nome de jogador: é de quem organiza. Mesma régua
+            // do "Refazer grade", que é o botão vizinho.
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var duplas = torneio.Categorias.SelectMany(c => c.Duplas).ToList();
+
+            ViewBag.Torneio = torneio;
+            ViewBag.TotalDeJogos = jogos.Count;
+
+            return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, await SedesAsync(id)));
+        }
+
         // Pra onde o organizador vai depois de sortear: a aba "Chaves e Grupos", que é a tela
         // do que ele acabou de criar.
         //
