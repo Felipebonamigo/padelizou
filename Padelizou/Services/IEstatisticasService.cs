@@ -54,10 +54,10 @@ public interface IEstatisticasService
     // Nível comprovado (categoria prevista) de um único jogador, para o perfil. Null se não comprovou.
     Task<NivelComprovadoVM?> ObterNivelComprovadoJogadorAsync(int jogadorId, string modo = "Final");
 
-    // Para os selos das abas do torneio: por JogadorId e por tier de categoria (Diamante/Ouro/
-    // Prata/Bronze/Ferro/Madeira/Plástico), melhor fase histórica + títulos (opcionalmente
-    // excluindo o torneio atual).
-    Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterMelhoresColocacoesAsync(
+    // Para os selos das abas do torneio: por JogadorId e por NOME da categoria ("6ª Categoria
+    // Feminina"), quantos títulos a pessoa tem ali (opcionalmente excluindo o torneio atual).
+    // Só campeão entra — a melhor colocação (Vice/Semifinal) saiu do selo em 09/09/2026.
+    Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterTitulosPorCategoriaAsync(
         IEnumerable<string> categoriaNomes, int? excluirTorneioId = null);
 
     // Adversários do jogador agregados (jogos, vitórias, derrotas), ordenados por mais jogos.

@@ -33,7 +33,10 @@ public class HistoricoCategoriaVM
     // ⚠️ Aqui já morou um `TierNome` ("Madeira", "Ouro"), e ele ia parar no rótulo: o MATERIAL
     // do troféu se passando por categoria. Material é cor de pílula, não nome de categoria.
     public string CategoriaNome { get; set; } = "";
-    public string MelhorFase { get; set; } = "Grupos";
+
+    // Títulos NESTA categoria. É a única campanha que o selo carrega: a "melhor colocação"
+    // (Vice/Semifinal/Quartas) morava aqui e saiu em 09/09/2026, a pedido do Felipe — na tabela
+    // do grupo, ao lado do nome, só troféu. Quem não foi campeão não chega a ter um VM destes.
     public int Titulos { get; set; }
 
     // Estilo do selo, conforme o material da categoria (ver EstatisticasService.TierDaCategoria).
