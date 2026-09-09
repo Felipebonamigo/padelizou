@@ -1,6 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🕳️ **PENDUREI O ÚNICO AVISO NUM CAMPO OPCIONAL, e o torneio sem `DataFim` ficou sem nenhum.**
+>
+> 🗣️ **Felipe, DEPOIS de refazer a grade no `build-853`:** *"refiz a grade, continua com jogo dia 15, 16, do nada ele pula do dia 12 p dia 15"*.
+>
+> ✅ **A ORDEM FUNCIONOU** — no print, todos os jogos de grupo vêm antes e a primeira Oitavas (prévia) só aparece depois. O que sobrou é outra coisa.
+>
+> 🔍 **A ASSINATURA ESTAVA NO PRÓPRIO PRINT: a cadência não se perde (18:00 → 18:50 → 19:40 → 20:30), só a DATA salta.** Isso é `GradeDeJogos.Encaixar` pulando vaga por vaga porque nenhuma quadra está aberta naquele horário (`TemOndeJogar`) e voltando a marcar assim que uma abre. **Ele não dá erro nenhum: só empurra o torneio pra frente, calado.**
+>
+> 🕳️ **O ERRO DE PROJETO FOI MEU:** `PorQueNaoCoube.Analisar` sai por `return` logo na primeira linha quando `Torneio.DataFim` é nulo — e `DataFim` é **opcional**. Ou seja: o único aviso que eu tinha construído ficava **mudo** justamente no torneio que não preencheu o campo. Dois dias vazios no meio de um torneio são anômalos com ou sem prazo declarado.
+>
+> ✅ **`PorQueNaoCoube.BuracosNaGrade`** acha os dias vazios entre o primeiro e o último jogo e **diz a causa** — e só culpa a quadra quando ela é culpada: dia vazio COM quadra aberta ganha texto diferente, porque mandar o organizador mexer na quadra ali seria mandá-lo consertar o que não está quebrado.
+>
+> ✅ **`AuditoriaDaGrade.FaseForaDeOrdem`**: a conferência passou a saber olhar a ORDEM. Enquanto ela não sabia, a única forma de responder "está respeitando a ordem?" era eu ler o print — e print mostra um pedaço da lista. O `>=` no limite entre postos é o pedido, não folga minha: dividir o mesmo horário é permitido, vir antes não.
+>
+> 🧪 **5.773 testes, 0 falhas (21 novos), suíte rodada 2×.** **Sem migration.**
 
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-856-2a0ac81`** (23h24 e 23h26 UTC), **o mesmo artefato nos dois** — build fixado por nome no disparo, e não "o mais recente", pra que os dois ambientes não pudessem divergir. Subiu a etiqueta de **local + quadra na lista de jogos** (PR #107).
 >

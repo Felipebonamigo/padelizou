@@ -458,13 +458,24 @@ namespace Padelizou.Controllers
             // que tem jogo dia 15, no torneio do er? se termina dia 13? […] por que esse erro?"*.
             // A régua já existia e só falava no sorteio — que é um instante que passa. A pergunta
             // nasce DEPOIS, olhando a grade, e é aqui que ele olha.
-            ViewBag.PorQueNaoCoube = PorQueNaoCoube.Analisar(torneio,
+            var sedesDaConferencia = await SedesAsync(id);
+
+            var porQueNaoCoube = PorQueNaoCoube.Analisar(torneio,
                 await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync(),
-                await SedesAsync(id),
+                sedesDaConferencia,
                 jogos.Count,
                 jogos.Where(j => j.HorarioPrevisto != null).Max(j => j.HorarioPrevisto));
 
-            return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, await SedesAsync(id)));
+            // ⚠️ O BURACO NA GRADE VEM PRIMEIRO, e ele NÃO depende de `DataFim` (09/09/2026).
+            // 🗣️ *"refiz a grade, continua com jogo dia 15, 16, do nada ele pula do dia 12 p dia
+            // 15"*. O aviso de prazo fica mudo quando o campo não foi preenchido — e foi
+            // exatamente aí que eu tinha pendurado o único aviso. Dois dias vazios no meio de um
+            // torneio são anômalos com ou sem prazo declarado.
+            porQueNaoCoube.InsertRange(0, PorQueNaoCoube.BuracosNaGrade(torneio, sedesDaConferencia, jogos));
+
+            ViewBag.PorQueNaoCoube = porQueNaoCoube;
+
+            return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, sedesDaConferencia));
         }
 
         // Pra onde o organizador vai depois de sortear: a aba "Chaves e Grupos", que é a tela

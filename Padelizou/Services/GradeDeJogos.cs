@@ -315,12 +315,52 @@ public static class GradeDeJogos
             // local alugado (`Categoria.PodeJogarNaSedeExtra`, o jeito do Er — a sede principal
             // enche e o resto transborda). A primeira já pinou a categoria num lugar, então a
             // segunda nem chega a ser perguntada pra ela.
-            List<string> LivresPara(Partida p) =>
-                sede.QuadrasDe(p.CategoriaId) is { } daSede
-                    ? livresAgora.Where(daSede.Contains).ToList()
-                    : sede.PodeIrPraSedeExtra(p.CategoriaId)
-                        ? livresAgora
-                        : livresAgora.Where(q => !sede.EhSedeExtra(q)).ToList();
+            List<string> LivresPara(Partida p)
+            {
+                if (sede.QuadrasDe(p.CategoriaId) is { } daSede)
+                    return livresAgora.Where(daSede.Contains).ToList();
+
+                // Categoria que o organizador tirou do alugado só enxerga as quadras de casa.
+                if (!sede.PodeIrPraSedeExtra(p.CategoriaId))
+                    return livresAgora.Where(q => !sede.EhSedeExtra(q)).ToList();
+
+                // ⚠️ QUEM PODE IR PRO ALUGADO CEDE A QUADRA DE CASA PRA QUEM NÃO PODE (09/09/2026).
+                //
+                // 🗣️ Felipe, pelo Er: *"ele quer que os jogos que vao para o radar sejam das
+                // categoria menos fortes (lembrando que as mais fortes sao terceira e quarta), para
+                // deixar os melhores no clube dele"*.
+                //
+                // 🕳️ MARCAR A 3ª E A 4ª COMO "TIRAR DO EXTERNO" RESOLVIA SÓ METADE, e a outra
+                // metade saía ao contrário: as quadras de casa são oferecidas PRIMEIRO pra todo
+                // jogo, então a 6ª — que PODE ir pro Radar — pegava a quadra de casa, e a 3ª — que
+                // SÓ pode jogar em casa — esperava o horário seguinte com a quadra do Radar VAZIA
+                // ao lado. O organizador pagava a hora alugada ociosa e atrasava justamente a
+                // categoria que queria em casa. Medido em MelhoresNoClubeDeCasaTests: a 3ª caía
+                // pras 08:50 enquanto a 6ª ficava em casa às 08:00.
+                //
+                // ⚠️ É ORDEM, NÃO FILTRO — mesma escolha do "sede principal primeiro" logo acima.
+                // Sem ninguém preso esperando, a lista continua com as de casa na frente e nada
+                // muda; com alguém esperando, este jogo tenta o alugado primeiro e a de casa
+                // continua na lista, pro caso de o alugado não servir.
+                if (AlguemPresoEmCasaEsperando(p))
+                    return livresAgora.OrderByDescending(q => sede.EhSedeExtra(q) ? 1 : 0).ToList();
+
+                return livresAgora;
+            }
+
+            // Existe na fila OUTRO jogo, ainda sem horário, cuja categoria não pode sair de casa e
+            // que caberia neste horário? Só então vale a pena ceder a quadra de casa.
+            //
+            // ⚠️ NÃO CHAMA `LivresPara`, de propósito: seria recursão. A pergunta aqui é sobre a
+            // categoria e sobre o jogo estar livre, não sobre qual quadra ele ganharia.
+            bool AlguemPresoEmCasaEsperando(Partida escolhido) =>
+                temQuadraCadastrada
+                && livresAgora.Any(sede.EhSedeExtra)
+                && livresAgora.Any(q => !sede.EhSedeExtra(q))
+                && fila.Any(outro => !ReferenceEquals(outro, escolhido)
+                                  && !sede.PodeIrPraSedeExtra(outro.CategoriaId)
+                                  && sede.QuadrasDe(outro.CategoriaId) == null
+                                  && Livre(outro));
 
             // A ÚNICA coisa impossível na vida real é a mesma PESSOA em duas quadras ao mesmo
             // tempo. Fases diferentes dividindo o horário é normal e desejável: a final de uma

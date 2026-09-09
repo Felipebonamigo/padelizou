@@ -82,6 +82,62 @@ public class AuditoriaDaGradeTests
         Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.DepoisDoFim);
     }
 
+    // ⚠️ A ORDEM DAS FASES VIRA ACHADO (09/09/2026). 🗣️ Felipe, depois de duas correções: *"como
+    // que ele nao ta respeitando a ordem que eu tinha solicitado de nao jogar chaves no final?"*.
+    //
+    // Enquanto a conferência não sabia olhar isso, a única forma de responder era eu ler o print —
+    // e print mostra um pedaço da lista. A régua do posto mora em Services/OrdemDasFases; aqui ela
+    // vira uma pergunta que o organizador faz sozinho, em qualquer torneio.
+    [Fact]
+    public void Eliminatoria_antes_do_fim_da_fase_de_grupos_e_acusada()
+    {
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(20), "Quartas de Final"),   // eliminatória às 20h
+            Jogo(1, 2, Sabado.AddHours(22), "Grupo A"),            // e ainda tem grupo às 22h
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.FaseForaDeOrdem);
+        Assert.Contains("Quartas de Final", achado.Descricao);
+    }
+
+    // A contrapartida, e ela importa tanto quanto: dividir o MESMO horário é permitido — é o
+    // "a menos que fique horario vazio" do pedido. Só vir ANTES é que não pode.
+    [Fact]
+    public void Eliminatoria_no_mesmo_horario_do_ultimo_grupo_nao_e_acusada()
+    {
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(22), "Grupo A"),
+            Jogo(1, 2, Sabado.AddHours(22), "Quartas de Final"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.FaseForaDeOrdem);
+    }
+
+    [Fact]
+    public void Final_depois_de_tudo_nao_e_acusada()
+    {
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(9), "Grupo A"),
+            Jogo(1, 2, Sabado.AddHours(11), "Quartas de Final"),
+            Jogo(1, 2, Sabado.AddHours(13), "Semifinal"),
+            Jogo(1, 2, Sabado.AddHours(15), "Final"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.FaseForaDeOrdem);
+    }
+
     // Grade limpa não inventa achado — é o caso que o organizador vai ver na maioria das vezes,
     // e uma tela que sempre acha alguma coisa deixa de ser lida.
     [Fact]

@@ -102,6 +102,86 @@ public class PorQueNaoCoubeTests
         Assert.Empty(PorQueNaoCoube.Analisar(torneio, quadras, Sedes(quadras), totalDeJogos: 500, ultimoJogo: null));
     }
 
+    // ── O BURACO NA GRADE ────────────────────────────────────────────────────────────────
+    //
+    // 🗣️ Felipe, 09/09/2026, DEPOIS de refazer a grade: *"refiz a grade, continua com jogo dia 15,
+    // 16, do nada ele pula do dia 12 p dia 15"*.
+    //
+    // 🕳️ A ASSINATURA ESTAVA NO PRÓPRIO PRINT: a cadência não se perde (18:00 → 18:50 → 19:40 →
+    // 20:30), só a DATA salta. Isso é `GradeDeJogos.Encaixar` pulando vaga por vaga porque nenhuma
+    // quadra está aberta naquele horário (`TemOndeJogar`), e voltando a marcar assim que uma abre.
+    // Ele não dá erro nenhum: só empurra o torneio pra frente, calado.
+    //
+    // ⚠️ E ISTO NÃO PODE DEPENDER DE `DataFim`. O aviso de prazo fica MUDO quando o organizador não
+    // preencheu o campo — e um torneio com dois dias vazios no meio é anômalo de qualquer jeito.
+    // Foi a lição deste print: eu tinha pendurado o único aviso num campo opcional.
+    [Fact]
+    public void Dois_dias_sem_jogo_no_meio_da_grade_sao_apontados()
+    {
+        var torneio = Torneio();
+        torneio.DataFim = null;                      // de propósito: o aviso não pode depender disso
+
+        var quadras = new[]
+        {
+            Quadra("Arena 1", new DateTime(2026, 9, 12, 8, 0, 0), new DateTime(2026, 9, 12, 18, 0, 0)),
+            Quadra("Arena 2", new DateTime(2026, 9, 15, 18, 0, 0), new DateTime(2026, 9, 15, 23, 0, 0)),
+        };
+
+        var jogos = new[]
+        {
+            Jogo(new DateTime(2026, 9, 12, 17, 10, 0)),
+            Jogo(new DateTime(2026, 9, 12, 18, 0, 0)),
+            Jogo(new DateTime(2026, 9, 15, 18, 50, 0)),
+            Jogo(new DateTime(2026, 9, 15, 19, 40, 0)),
+        };
+
+        var buracos = PorQueNaoCoube.BuracosNaGrade(torneio, Sedes(quadras), jogos);
+
+        Assert.Contains(buracos, b => b.Contains("13/09"));
+        Assert.Contains(buracos, b => b.Contains("14/09"));
+        // Tem que dizer a CAUSA, não só o buraco: é a causa que o organizador consegue consertar.
+        Assert.Contains(buracos, b => b.Contains("quadra"));
+    }
+
+    [Fact]
+    public void Grade_em_dias_seguidos_nao_tem_buraco()
+    {
+        var torneio = Torneio();
+        var quadras = new[] { Quadra("Arena 1", null, null) };
+
+        var jogos = new[]
+        {
+            Jogo(new DateTime(2026, 9, 12, 17, 10, 0)),
+            Jogo(new DateTime(2026, 9, 13, 9, 0, 0)),
+        };
+
+        Assert.Empty(PorQueNaoCoube.BuracosNaGrade(torneio, Sedes(quadras), jogos));
+    }
+
+    [Fact]
+    public void Dia_vazio_COM_quadra_aberta_e_apontado_sem_culpar_a_quadra()
+    {
+        // O buraco existe, mas a quadra estava aberta — a causa é outra (impedimento, folga do
+        // organizador). Dizer "não havia quadra" seria mandar o organizador consertar o que não
+        // está quebrado.
+        var torneio = Torneio();
+        var quadras = new[] { Quadra("Arena 1", null, null) };
+
+        var jogos = new[]
+        {
+            Jogo(new DateTime(2026, 9, 12, 17, 10, 0)),
+            Jogo(new DateTime(2026, 9, 14, 9, 0, 0)),
+        };
+
+        var buracos = PorQueNaoCoube.BuracosNaGrade(torneio, Sedes(quadras), jogos);
+
+        Assert.Contains(buracos, b => b.Contains("13/09"));
+        Assert.DoesNotContain(buracos, b => b.Contains("nenhuma quadra"));
+    }
+
+    private static Partida Jogo(DateTime quando) =>
+        new() { Codigo = "X", Fase = "Grupo A", HorarioPrevisto = quando };
+
     // ── O sorteio de verdade avisa ───────────────────────────────────────────────────────
     [Fact]
     public async Task O_sorteio_avisa_quando_a_grade_passa_do_fim_do_torneio()
