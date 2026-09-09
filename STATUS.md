@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-860-7c5fbfe`** (23h44 e 23h46 UTC), **o mesmo artefato nos dois**. Subiu a auditoria de buraco/ordem e a cessão da quadra de casa (PR #108).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **O PRIMEIRO DEPLOY DE PROD FALHOU POR `ssh: connect to host *** port 22: Connection timed out`** (23:45:45). O `deploy.sh` **não chegou a rodar** — não houve deploy pela metade, e o `prod` seguiu no `build-853` até a segunda tentativa passar. É a primeira vez que isso aparece; se repetir, é o VPS recusando conexão e afeta o site no ar, não só o deploy.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — oitava sessão seguida.**
+>
+> ⏭️ **O QUE FAZER NO TORNEIO DO ER, nesta ordem:**
+> 1. **"Tirar do externo"** na 3ª e na 4ª (lista *"Quem pode ir pro local externo"*, na área de sedes) — isso já valia antes, é configuração.
+> 2. **Conferir grade** — agora ele aponta o **buraco** (dia sem jogo e por quê) e a **fase fora de ordem**, sem depender de `DataFim`.
+> 3. **Corrigir a janela da quadra** que estiver apontando pra fora das datas — é o que causa o pulo 12 → 15/16.
+> 4. **Refazer grade**.
+>
+> ⚠️ **Nada visto renderizado nesta sessão** — sem browser, e o proxy bloqueia `padelizou.com.br` e `dev.padelizou.com.br` (403 no CONNECT).
+
 > Última atualização: **09/09/2026** — 🕳️ **PENDUREI O ÚNICO AVISO NUM CAMPO OPCIONAL, e o torneio sem `DataFim` ficou sem nenhum.**
 >
 > 🗣️ **Felipe, DEPOIS de refazer a grade no `build-853`:** *"refiz a grade, continua com jogo dia 15, 16, do nada ele pula do dia 12 p dia 15"*.
