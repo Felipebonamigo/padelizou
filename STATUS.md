@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 📸 **A FOTO DE PERFIL PASSOU A EXIGIR UM ROSTO.**
+>
+> 🗣️ **O pedido:** *"na parte de adicionar foto, tem como o sistema identificar se tem uma pessoa na foto?"* → *"evitar que suba logo ou paisagem no lugar do rosto"* → *"não suba, se nao tiver um rosto"*. A recomendação daqui era AVISAR e deixar passar; o Felipe escolheu TRAVAR, e é a decisão dele.
+>
+> 📏 **O NÚMERO QUE DECIDIU O DESENHO, medido no Chromium com foto real antes de escrever uma linha:** o TinyFaceDetector **encolhe a foto inteira pra 416px antes de olhar**, então o que decide não é o tamanho do rosto em pixels — é a FRAÇÃO da foto que ele ocupa. Olhando a foto inteira: rosto com **8,8% da altura → acha**; com **8,3% → NÃO acha**. 8,8% é a pessoa do peito pra cima. **Foto de corpo inteiro na quadra tem o rosto em ~4% e seria recusada** — e é foto legítima.
+>
+> 🔍 **POR ISSO A CONFERÊNCIA VARRE A FOTO EM 5 PEDAÇOS** (4 cantos + centro, com sobreposição) quando a passada na foto inteira não acha nada: cada pedaço é AMPLIADO pros mesmos 416px, então um rosto que virava 30px na entrada da rede vira 60px e passa a ser visto. Piso medido: **de 8,8% para ~3,9%** — a pessoa ocupando 1/3 da altura da foto. ⚠️ **Abaixar o `scoreThreshold` NÃO substitui isso**: 0.3 e 0.5 dão exatamente o mesmo corte, porque o problema não é confiança baixa, é a rede não enxergar o rosto na entrada reduzida.
+>
+> ⏱️ **O preço é tempo, e ele cai no caso da recusa.** Medido com CPU 6x mais lenta (celular modesto): **1,1s** pra aprovar um retrato, **~7s** pra dizer não (é a recusa que varre os 5 pedaços). Quase todo o custo é a PRIMEIRA vez — baixar a biblioteca e compilar os shaders do WebGL custam 3,7s dos 4,5s originais. Por isso o preparo começa no **toque no campo**, não na escolha do arquivo: entre tocar e voltar da galeria passam segundos, e é lá que esse tempo cabe de graça (com 4s na galeria, a aprovação caiu de 4,9s pra 0,8s).
+>
+> 🔓 **É CONVENIÊNCIA, NÃO SEGURANÇA — e está escrito no arquivo pra ninguém "consertar" depois.** Roda no navegador: quem quiser burlar, burla em dois cliques no DevTools. Serve contra o ENGANO, que é o problema real. Por isso é **fail-open**: biblioteca que não baixou, WASM bloqueado, navegador antigo → **a foto sobe**. Travar por motivo técnico deixaria gente sem conseguir trocar de foto sem entender por quê. E por isso o servidor continua aceitando qualquer imagem: a mesma trava no servidor custaria **147,8 MB** de ONNX Runtime na VPS, ou mandar a foto de todos pra uma API de terceiro.
+>
+> 🧹 **A RECUSA LIMPA SÓ A FOTO, não derruba o formulário** — o EditarPerfil tem nome, telefone, time e sedes, e perder tudo por causa do campo opcional seria o segundo bug. Mesma escolha que a carência de nome já fazia ali. E o envio **espera** a conferência terminar: sem isso, apertar Salvar durante os 4s subiria a foto sem conferência nenhuma — a trava viraria sorte de cronometragem.
+>
+> 📦 `face-api.js` 0.22.2 (MIT, licença versionada junto) + TinyFaceDetector: **~850 KB** em `wwwroot/lib/face-api`, baixados sob demanda. **Fora do `STATIC_ASSETS` do sw.js de propósito** — 850 KB no cache de instalação penalizariam todo mundo que instala o app por um recurso usado ao trocar de foto. **CACHE_NAME não mudou** (nenhum arquivo da lista foi tocado).
+>
+> 🧪 **5.612 testes, 0 falhas.** **Sem migration.** Os 10 novos foram escritos ANTES e vistos vermelhos por "não existe". ✅ **E desta vez foi VISTO RENDERIZADO**: Postgres 16 e o app subiram nesta sessão, com conta criada pela própria tela — logo de time recusada no `/Auth/EditarPerfil` logado, paisagem recusada no `/Auth/Cadastro`, campo limpo, formulário salvando depois da recusa. Mais 11/11 na bateria de imagens (9 fotos com gente passam, paisagem e logo recusadas) e 8/8 no fluxo do navegador (fail-open, corrida do submit, recusa que não derruba o form).
+>
+> ⚠️ **O que NÃO está coberto:** rosto de perfil de lado, de óculos escuros e boné, ou foto de costas — o detector procura rosto, não pessoa. Quem tiver uma dessas vai precisar de outra foto, e não há saída manual. Se aparecer reclamação, o ajuste barato é subir o `inputSize` pra 608 (piso vai a 5,7% na primeira passada) ou abrir uma escapatória depois da segunda recusa.
+>
+> ⚠️ **Controles negativos são SINTÉTICOS** (paisagem e logo desenhados em canvas): o proxy desta sessão bloqueia banco de imagem, então não há foto real de paisagem na bateria.
+>
 > Última atualização: **09/09/2026** — 🕐 **"POR ORDEM" PASSOU A TER HORA (o que fica em aberto é a QUADRA) + 2 CONSERTOS DE TELA.**
 >
 > **1. 🗣️ Felipe, olhando os grupos do Er:** *"mesmo que seja por ordem os jogos, tem q ter o horario dos jogos; o que realmente muda é a quadra — o horário do jogo, teoricamente, é pré-definido, para as pessoas se organizarem"*.

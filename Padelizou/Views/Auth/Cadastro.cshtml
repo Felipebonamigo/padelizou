@@ -248,3 +248,9 @@
         </div>
     </div>
 </div>
+@section Scripts {
+    @* Recusa foto de perfil sem rosto — ver wwwroot/js/confere-rosto.js. A biblioteca só é
+       baixada se a pessoa escolher um arquivo: aqui é a primeira tela do site pra quem chega,
+       e ~850 KB no carregamento sairiam caro pra uma conferência que talvez nem aconteça. *@
+    <script src="~/js/confere-rosto.js" asp-append-version="true"></script>
+}

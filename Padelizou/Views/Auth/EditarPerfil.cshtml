@@ -325,3 +325,8 @@
         document.getElementById('blocoTimeExistente').style.display = dono ? 'none' : 'block';
     }
 </script>
+
+@section Scripts {
+    @* Recusa foto de perfil sem rosto — ver wwwroot/js/confere-rosto.js. *@
+    <script src="~/js/confere-rosto.js" asp-append-version="true"></script>
+}
