@@ -221,6 +221,20 @@ public sealed class SedesDoTorneio
             ? nome
             : null;
 
+    // O NOME DO CLUBE DO TORNEIO — o "Er Padel" que a lista de jogos escreve em toda linha.
+    //
+    // Existe porque a quadra não responde sozinha por ONDE é o jogo: num torneio por ordem de
+    // chegada o jogo legitimamente não tem quadra (🗣️ Felipe, 09/09/2026: *"nao tem quadra
+    // definida, apenas o clube, por que é por ordem de chegada (por ter checkin)"*), e ainda
+    // assim a pessoa precisa saber pra que prédio ir. Quem usa é Services/LugarDoJogo, e SÓ no
+    // torneio de um clube só — com dois, o clube certo é o da QUADRA, e chutar o principal
+    // mandaria metade do torneio pro endereço errado.
+    //
+    // Null quando ninguém passou os nomes dos clubes (é o caso de quem monta o mapa pra GRADE,
+    // que só compara "é o mesmo lugar?"). Aí a tela cai no comportamento antigo: só a quadra.
+    public string? NomeDoClubePrincipal =>
+        _nomeDoClube.TryGetValue(_clubePrincipal, out var nome) ? nome : null;
+
     // Monta o mapa a partir do que já está carregado.
     //
     // `nomesDosClubes` é opcional porque quem chama pela GRADE não precisa de nome nenhum — lá
@@ -273,15 +287,25 @@ public sealed class SedesDoTorneio
         // daqui carrega só o que a janela precisa (o mapa dela e a lista de quadras, pra
         // `QuadrasAbertasEm` ter o que contar) e `maisDeUmClube: false`, pra todo o resto
         // continuar respondendo como o torneio de uma sede sempre respondeu.
+        //
+        // ⚠️ O NOME DO CLUBE TAMBÉM SOBREVIVE, desde 09/09/2026. Ele era descartado aqui, e com
+        // isso o torneio de uma sede não tinha como dizer ONDE é o jogo — a etiqueta das telas
+        // saía só com a quadra, e a lista de jogos do Er não dizia "Er Padel" em lugar nenhum.
+        // `Nenhuma` continua sendo a saída quando não há NADA a dizer: nem janela, nem nome.
+        var nomes = new Dictionary<int, string>();
+        if (nomesDosClubes != null)
+            foreach (var (clubeId, nome) in nomesDosClubes)
+                if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
+
         if (clubePorQuadra.Values.Distinct().Count() <= 1)
         {
-            if (janelaPorQuadra.Count == 0) return Nenhuma;
+            if (janelaPorQuadra.Count == 0 && !nomes.ContainsKey(clubePrincipalId)) return Nenhuma;
 
             return new SedesDoTorneio(
                 clubePorQuadra,
                 new Dictionary<int, string[]>(),
                 new Dictionary<int, int>(),
-                new Dictionary<int, string>(),
+                nomes,
                 janelaPorQuadra,
                 new HashSet<int>(),
                 clubePrincipalId,
@@ -311,11 +335,6 @@ public sealed class SedesDoTorneio
             quadrasPorCategoria[categoria.Id] = daSede;
             clubePorCategoria[categoria.Id] = clubeDaCategoria;
         }
-
-        var nomes = new Dictionary<int, string>();
-        if (nomesDosClubes != null)
-            foreach (var (clubeId, nome) in nomesDosClubes)
-                if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
 
         // Quem NÃO pode transbordar. Guardado pelo lado negativo de propósito: o normal é poder
         // (ver Models/Categoria), então o conjunto fica vazio na imensa maioria dos torneios e
