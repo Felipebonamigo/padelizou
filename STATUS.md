@@ -17,6 +17,26 @@
 >
 > 🧪 **5.773 testes, 0 falhas (21 novos), suíte rodada 2×.** **Sem migration.**
 
+> Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
+>
+> 🗣️ **Felipe, num print da lista do 2º Etapa ER Padel Tour em `dev`:** *"falta aparecer qual o local e quadra aqui na lista de jogos"*. Os **97 jogos agendados** mostravam hora, categoria e grupo, e **nada** sobre onde. A referência que ele mandou é o que o Er já publicou na 1ª Etapa (`sportscore.com.br/timeline/436`): cada linha lá é `17/07 Sex 18:00 - Er Padel - Quadra: .Loja 7`, e o clube aparece **mesmo quando a quadra vem vazia** (`Radar Esportes - Quadra: .`).
+>
+> 🕳️ **DUAS COISAS SOMAVAM PRO SILÊNCIO, e as duas eram decisão antiga.** (1) O local só entrava na etiqueta em torneio de **mais de um clube** — regra de 21/08, *"repetir o clube em cada linha seria copiar o cabeçalho da página dezenas de vezes"*. (2) Jogo **sem quadra escrita** não rendia etiqueta nenhuma e sumia calado — e a guarda das telas perguntava por `NomeQuadra`, não pela etiqueta.
+>
+> ✅ **`LugarDoJogo.Etiqueta` virou "clube · quadra", sempre.** Perguntado sobre exatamente o custo de repetir o clube, o Felipe escolheu o outro lado: *"Sempre: Er Padel · Quadra 2"*. O que mudou desde 21/08 é que o torneio de duas sedes deixou de ser hipótese — o Er aluga o Radar —, e etiqueta que muda de forma conforme o torneio ensina o jogador a não confiar nela. O nome do clube do torneio deixou de ser jogado fora no atalho de uma sede só de `SedesDoTorneio.Montar` (`NomeDoClubePrincipal`).
+>
+> ✅ **E jogo sem quadra devolve o LOCAL sozinho, em vez de nada.** 🗣️ *"nao tem quadra definida, apenas o clube, por que é por ordem de chegada (por ter checkin)"* — quadra vazia **não é defeito**, quem decide a quadra é o balcão do check-in. Por isso a etiqueta **não** escreve "quadra a definir" (era a minha primeira leitura, e o Felipe corrigiu): ela diz o prédio, que é o que faz alguém sair andando pro lado certo.
+>
+> ⚠️ **O TEXTO CORRIDO NÃO ANDOU JUNTO, DE PROPÓSITO.** `EmTextoCorrido` entra **dentro de frase** — *"A {onde} vagou — seu jogo é o próximo"* (`AvisosDoDiaDeJogo`, que sai por push, e-mail e WhatsApp **de uma vez**) — e no `LOCATION` do `.ics`. Ali a pergunta é "que **quadra** vagou?", e *"A Er Padel vagou"* manda a pessoa se levantar sem dizer pra onde. Tem teste travando a diferença, pra que a próxima sessão não "uniformize" as duas.
+>
+> 🖼️ **Onde muda:** a linha da lista (`_JogoEmLinha`), o card do Ao Vivo, o jogo previsto e a Mesa de Controle passam a mostrar o lugar **mesmo sem quadra**; chave, vaga de chave e card de grupo ganham o clube **junto da quadra que já mostravam** (guarda inalterada — "Er Padel" sozinho numa célula de chaveamento seria ruído).
+>
+> 🧪 **5.775 testes, 0 falhas (8 novos em `OndeEOJogoNaTelaTests`), suíte rodada 2× já sobre o merge do `build-853`.** **Sem migration.** Falsificado: os 4 testes do local vistos vermelhos com *"Expected: Er Padel · Quadra 2 / Actual: Quadra 2"* e *"Expected: Er Padel / Actual: null"* antes da correção. Um teste de 21/08 **trocou de lado e foi reescrito dizendo por quê** (`Com_um_clube_so_a_etiqueta_e_so_a_quadra` → `Sem_mapa_de_sedes_a_etiqueta_continua_sendo_so_a_quadra`), não apagado.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> ⏭️ **ISTO SOZINHO NÃO ARRUMA A TELA DO ER, e é o próximo trabalho.** Os 97 jogos dele estão **sem quadra E com duas sedes** — e aí nada no banco diz em qual dos dois clubes cada jogo é, então a etiqueta continua (corretamente) calada. 🗣️ *"teremos que sortear o clube igual, respeitando o limite de quadras por horario, ou seja, as 8 da manha, vai ter 4 jogos, 2 no Er padel e 2 no radar"*. Hoje o motor só sabe distribuir por **quadra nomeada** (`GradeDeJogos` só nomeia com `Quadra` cadastrada). **Duas saídas, e a escolha é do Felipe:** (a) cadastrar as 4 quadras com o local de cada uma e **Refazer grade** — o motor já distribui exatamente assim, e a etiqueta já mostraria "Er Padel · Quadra 1"; (b) a grade passar a marcar **clube** sem quadra, o que é **architectural** pela régua do CLAUDE.md (mexe no motor e cria uma segunda fonte de verdade sobre "onde é o jogo", exatamente o que `SedesDoTorneio` foi escrito pra evitar).
+
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-853-b5bcba4`** (23h04 e 23h05 UTC), **o mesmo artefato nos dois**. Subiu o conserto da prévia e o "por quê" no Conferir grade (PR #106).
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.

@@ -349,8 +349,16 @@ public class TorneioEmMaisDeUmClubeTests
 
     // ── A etiqueta das telas (Services/LugarDoJogo) ───────────────────────────────────────
 
+    // ⚠️ TROCOU DE LADO EM 09/09/2026, e o nome antigo era "Com_um_clube_so_a_etiqueta_e_so_a
+    // _quadra". A regra de 21/08 ("num torneio de uma sede a etiqueta é só a quadra, porque
+    // repetir o clube em cada linha seria copiar o cabeçalho da página") foi invertida a pedido
+    // do Felipe: o local entra SEMPRE — ver Padelizou.Tests/OndeEOJogoNaTelaTests.
+    //
+    // O que sobrou aqui é o caso DEFENSIVO, que não mudou: mapa de sedes ausente ou vazio não
+    // faz a tela inventar clube nenhum. É ele que segura a parcial usada por uma tela que ainda
+    // não foi ligada ao `ViewData` das sedes.
     [Fact]
-    public void Com_um_clube_so_a_etiqueta_e_so_a_quadra()
+    public void Sem_mapa_de_sedes_a_etiqueta_continua_sendo_so_a_quadra()
     {
         Assert.Equal("Central", LugarDoJogo.Etiqueta(SedesDoTorneio.Nenhuma, "Central"));
         Assert.Equal("Central", LugarDoJogo.Etiqueta(null, "Central"));
