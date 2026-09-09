@@ -15,26 +15,6 @@ public enum TurnoDoImpedimento
     SabadoManha,
     SabadoTarde,
 
-    // ---- A CONCENTRAÇÃO (08/09/2026) — o AVESSO dos quatro de cima ----
-    //
-    // 🗣️ Felipe: "criar uma opção, lá nos impedimentos, de 'colocar os 2 jogos na sexta' [...]
-    // apenas para os organizadores e adm do sistema, para que nós possamos auxiliar algumas
-    // pessoas".
-    //
-    // `SextaNoite` quer dizer "NÃO pode na sexta"; `SoSextaNoite` quer dizer "só na sexta". São
-    // perguntas opostas, mas UMA escolha só — e é por isso que moram no mesmo enum: a tela tem
-    // um `<select>` só, e a inscrição tem um turno só. Dois dropdowns lado a lado convidariam a
-    // marcar impedimento e concentração ao mesmo tempo, que é justamente o estado impossível.
-    //
-    // ⚠️ ONDE CADA UMA MORA É DIFERENTE: o impedimento vira os quatro booleanos de
-    // Models/Dupla; a concentração vira `Dupla.ConcentrarJogosEm` (Services/ConcentracaoDeJogos).
-    // Marcar uma zera a outra — ver `Aplicar`.
-    //
-    // ⚠️ SÃO DO ORGANIZADOR, e a trava não é a tela: `MotivoParaNaoAlterar` recusa estes três
-    // no caminho do jogador, porque um POST montado à mão chega com eles do mesmo jeito.
-    SoSextaNoite,
-    SoSabadoManha,
-    SoSabadoTarde,
 }
 
 // Trocar o impedimento depois de já estar inscrito.
@@ -56,20 +36,6 @@ public static class AlteracaoDeImpedimento
     // essa leitura é como as telas passam a discordar sobre a mesma dupla.
     public static TurnoDoImpedimento TurnoAtual(Dupla dupla)
     {
-        // A concentração responde ANTES: ela e o impedimento são exclusivos (`Aplicar` zera um
-        // ao gravar o outro), mas perguntar por ela primeiro deixa a exclusividade explícita em
-        // vez de depender de os quatro booleanos estarem realmente limpos.
-        if (dupla.ConcentrarJogosEm is TurnoDeConcentracao concentrada
-            && concentrada != TurnoDeConcentracao.Nenhuma)
-        {
-            return concentrada switch
-            {
-                TurnoDeConcentracao.SextaNoite => TurnoDoImpedimento.SoSextaNoite,
-                TurnoDeConcentracao.SabadoManha => TurnoDoImpedimento.SoSabadoManha,
-                _ => TurnoDoImpedimento.SoSabadoTarde,
-            };
-        }
-
         if (dupla.ImpedimentoQuintaNoite) return TurnoDoImpedimento.QuintaNoite;
         if (dupla.ImpedimentoSextaNoite) return TurnoDoImpedimento.SextaNoite;
         if (dupla.ImpedimentoSabadoManha) return TurnoDoImpedimento.SabadoManha;
@@ -77,37 +43,20 @@ public static class AlteracaoDeImpedimento
         return TurnoDoImpedimento.Nenhum;
     }
 
-    // Este turno é uma concentração ("só jogo na sexta") e não um impedimento?
-    public static bool EhConcentracao(TurnoDoImpedimento turno) =>
-        turno is TurnoDoImpedimento.SoSextaNoite
-              or TurnoDoImpedimento.SoSabadoManha
-              or TurnoDoImpedimento.SoSabadoTarde;
-
-    // O valor que vai pra `Dupla.ConcentrarJogosEm`. `Nenhuma` pra tudo que não é concentração.
-    public static TurnoDeConcentracao Concentracao(TurnoDoImpedimento turno) => turno switch
-    {
-        TurnoDoImpedimento.SoSextaNoite => TurnoDeConcentracao.SextaNoite,
-        TurnoDoImpedimento.SoSabadoManha => TurnoDeConcentracao.SabadoManha,
-        TurnoDoImpedimento.SoSabadoTarde => TurnoDeConcentracao.SabadoTarde,
-        _ => TurnoDeConcentracao.Nenhuma,
-    };
-
-    // Quantas TAXAS este turno custa: 0 ou 1.
-    //
-    // 💰 CONCENTRAÇÃO CUSTA ZERO — decisão do Felipe (08/09/2026): é favor do organizador, não
-    // flexibilidade comprada. Contá-la como impedimento cobraria por um pedido que partiu dele,
-    // e ainda por cima uma taxa só por três janelas tiradas da grade.
-    private static int Taxas(TurnoDoImpedimento turno) =>
-        turno == TurnoDoImpedimento.Nenhum || EhConcentracao(turno) ? 0 : 1;
-
     // Quanto o valor da inscrição MUDA se o turno virar `novo`. Positivo = a dupla passa a
     // dever mais; negativo = passa a dever menos; zero = troca, ou torneio que não cobra.
     //
-    // ⚠️ Quem tinha impedimento PAGO e vira concentração passa a dever MENOS — o outro lado da
-    // decisão de que ela é grátis. Nada estorna sozinho: quem acerta é o organizador, como já
-    // era pra troca de impedimento (ver AlterarImpedimentoOrganizador).
-    public static decimal QuantoMudaOValor(Dupla dupla, Torneio torneio, TurnoDoImpedimento novo) =>
-        (Taxas(novo) - Taxas(TurnoAtual(dupla))) * torneio.TaxaPorImpedimento;
+    // ⚠️ A CONCENTRAÇÃO DO ORGANIZADOR NÃO ENTRA NESTA CONTA, e desde 09/09/2026 isso é literal
+    // em vez de calculado: ela mora em `Dupla.ConcentrarJogosEm`, um campo separado, e não passa
+    // por `Aplicar`. Enquanto as duas dividiam o mesmo campo, concentrar ABAIXAVA o valor de
+    // quem tinha impedimento pago — efeito colateral que ninguém tinha pedido.
+    public static decimal QuantoMudaOValor(Dupla dupla, Torneio torneio, TurnoDoImpedimento novo)
+    {
+        int antes = TurnoAtual(dupla) == TurnoDoImpedimento.Nenhum ? 0 : 1;
+        int depois = novo == TurnoDoImpedimento.Nenhum ? 0 : 1;
+
+        return (depois - antes) * torneio.TaxaPorImpedimento;
+    }
 
     // Devolve o motivo da recusa, ou null quando pode alterar.
     //
@@ -118,17 +67,6 @@ public static class AlteracaoDeImpedimento
         TurnoDoImpedimento? novo = null)
     {
         if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";
-
-        // ⚠️ FRONTEIRA DE CONFIANÇA (08/09/2026). "Os 2 jogos na sexta" é favor do organizador —
-        // o Felipe pediu "apenas para os organizadores e adm do sistema". A tela do jogador não
-        // oferece as três opções, mas tela não é trava: um POST montado à mão chega com elas do
-        // mesmo jeito, e sem esta recusa qualquer inscrito se daria a concentração — e ainda
-        // ABAIXARIA o próprio valor devido, já que ela é de graça.
-        if (novo is { } pedido && EhConcentracao(pedido))
-        {
-            return "Concentrar os 2 jogos num turno só é coisa do organizador — fale com ele "
-                 + "se você precisa de um horário assim.";
-        }
 
         // Time não passa por aqui: o Jogador1Id dele é o organizador que o cadastrou, e sem
         // esta linha o organizador mexeria no impedimento de um time pela porta do jogador.
@@ -197,11 +135,11 @@ public static class AlteracaoDeImpedimento
         dupla.ImpedimentoSabadoManha = novo == TurnoDoImpedimento.SabadoManha;
         dupla.ImpedimentoSabadoTarde = novo == TurnoDoImpedimento.SabadoTarde;
 
-        // ⚠️ EXCLUSIVIDADE, e ela sai de graça desta ordem: um `novo` de concentração deixa os
-        // quatro booleanos acima em false, e um `novo` de impedimento cai no `null` daqui. Não
-        // existe estado com os dois marcados, e nenhuma tela precisa saber disso.
-        var concentracao = Concentracao(novo);
-        dupla.ConcentrarJogosEm = concentracao == TurnoDeConcentracao.Nenhuma ? null : concentracao;
+        // ⚠️ NÃO ENCOSTA EM `ConcentrarJogosEm`, e é o conserto de 09/09/2026. Até aqui as duas
+        // dividiam a mesma escolha e esta linha zerava a outra — o organizador que atendia o
+        // pedido do jogador APAGAVA o pedido, e depois ninguém sabia de quem tinha sido cada
+        // coisa. São de donos diferentes: o impedimento é do JOGADOR (e ele paga por ele), a
+        // concentração é do ORGANIZADOR por cima. Ver ImpedimentoEConcentracaoConvivemTests.
 
         // ⚠️ Nulo continua nulo. Inscrição anterior à coluna `ValorInscricao` não tem valor
         // congelado de propósito (ver Models/Dupla): inventar um número aqui seria adivinhar o
@@ -223,10 +161,6 @@ public static class AlteracaoDeImpedimento
         TurnoDoImpedimento.SextaNoite => "Sexta à noite",
         TurnoDoImpedimento.SabadoManha => "Sábado de manhã",
         TurnoDoImpedimento.SabadoTarde => "Sábado à tarde",
-        // Delegado, não copiado: o rótulo da concentração já é escrito por quem manda nela, e
-        // duas cópias do mesmo texto é como a aba e a lista passam a dizer coisas diferentes
-        // sobre a mesma dupla.
-        _ when EhConcentracao(turno) => ConcentracaoDeJogos.Rotulo(Concentracao(turno)),
         _ => "Sem impedimento",
     };
 }

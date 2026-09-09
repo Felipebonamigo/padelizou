@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🔀 **IMPEDIMENTO E CONCENTRAÇÃO ERAM UMA COISA SÓ. VIRARAM DUAS.**
+>
+> 🗣️ **Reclamação de usuário:** *"ao tentar colocar que o jogador só pode sexta a noite por exemplo, nao consegue por os 2 jogos no sabado de manha. E também não consegue ver qual impedimento foi solicitado pelo usuário, e qual pelo organizador"*.
+>
+> 🕳️ **AS DUAS QUEIXAS SÃO O MESMO DEFEITO, e ele era de DESENHO — meu, de ontem.** Em 08/09 a concentração nasceu como mais um valor do `TurnoDoImpedimento`, num `<select>` só, com um `Aplicar` que zerava um campo ao gravar o outro. O comentário que escrevi lá dizia, com todas as letras: *"não existe estado com os dois marcados, e nenhuma tela precisa saber disso"*. **Precisava.** O organizador que atendia o pedido do jogador APAGAVA o pedido — e depois não tinha como saber de quem tinha sido cada coisa.
+>
+> 🧭 **ELAS SÃO DE DONOS DIFERENTES, e é isso que estava errado em juntá-las:**
+> - o **IMPEDIMENTO** é o que o **JOGADOR** pede ("não posso sexta à noite") — e ele PAGA por isso;
+> - a **CONCENTRAÇÃO** é o que o **ORGANIZADOR** faz por cima ("põe os 2 jogos no sábado de manhã") — de graça.
+>
+> Agora são dois campos independentes (já eram, no banco — **sem migration**), duas ações, dois formulários e dois rótulos. `AlteracaoDeImpedimento.Aplicar` não encosta mais em `ConcentrarJogosEm`, e `TurnoDoImpedimento` voltou a ter só os cinco valores de impedimento — a trava de "jogador não concede favor a si mesmo" deixou de ser uma checagem e virou **tipo**: o formulário dele não tem como expressar concentração.
+>
+> 💰 **E UM EFEITO COLATERAL SUMIU JUNTO:** enquanto dividiam o campo, concentrar **abaixava o valor** de quem tinha impedimento pago. Ninguém pediu isso — era consequência de a conta olhar um campo só. Hoje a concentração não passa por `Aplicar`, então não há como um favor do organizador mexer no que a dupla deve.
+>
+> 👤 **QUEM PEDIU O QUÊ, na tela** (`AutoriaDoImpedimento`): o dado já existia desde 02/09 (`ImpedimentoAlteradoPorId`) — faltava a pergunta, porque a tela imprimia só "alterado em <data>", que responde QUANDO e não POR QUEM. ⚠️ **A régua é "essa pessoa está na dupla?", e não "essa pessoa organiza?"**: o organizador joga o próprio torneio o tempo todo, e mexendo no próprio impedimento quem pediu foi ele COMO JOGADOR. Perguntar pelo papel mentiria justamente no caso mais comum.
+>
+> ⚠️ **AS DUAS PODEM SE CONTRADIZER** ("não posso sábado de manhã" + "os 2 jogos no sábado de manhã"): não sobra horário, a grade cede **calada**, e o organizador acharia que mandou. `ConcentracaoDeJogos.Conflita` responde, e a tela avisa em vermelho.
+>
+> 🎨 **A tela ficou mais legível:** cada dupla virou um cartão; as duas restrições aparecem como pílulas de cores diferentes com o dono escrito ("Não pode: Sexta à noite · pedido pelo jogador" / "Jogar em: Sábado de manhã · posto pelo organizador"); e o painel abre lado a lado, um formulário pra cada.
+>
+> 🧪 **5.568 testes, 0 falhas.** **Sem migration.** Seis guardas falsificadas — inclusive reintroduzir o zeramento, que derrubou exatamente os testes da reclamação. O arquivo de teste do desenho antigo foi **apagado**, não adaptado: ele travava o comportamento que estava errado.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > 🚀 **PUBLICADO em `dev` E `prod` no `build-800-d9f8050`** (08/09/2026) — os três blocos abaixo, do PR #82. As duas migrations aplicaram: o `/healthz` devolve **503** quando há migration pendente (a trava de 07/08/2026), então o 200 que o `deploy.sh` exigiu nos dois ambientes é a prova de que o schema subiu junto.
 >
 > ⚠️ **A TRAVA DO PROD NÃO ESTÁ LIGADA — achado deste deploy.** O `infra/vps/README.md` diz que o environment `prod` deve ter **Required reviewers**, e que *"a trava não vem do arquivo `deploy.yml`, vem daqui"*. Ela **não está configurada**: o deploy em produção saiu **direto**, sem parar pra aprovação nenhuma. É exatamente o cenário que o próprio README antecipa ("se ele não existir, o GitHub cria sozinho na primeira execução — sem regra nenhuma"). **Settings → Environments → `prod` → Required reviewers.** Enquanto isso não for feito, qualquer disparo do workflow publica em produção sem confirmação.

@@ -86,8 +86,8 @@ public class AbaPagamentosNaPaginaDoTorneioTests
     {
         var linha = LinhaDeExemplo();
 
-        var alvo = linha.IndexOf("data-bs-target=\"#impedimento-", StringComparison.Ordinal);
-        Assert.True(alvo >= 0, "Não achei o botão que abre o impedimento (data-bs-target=\"#impedimento-...\").");
+        var alvo = linha.IndexOf("data-bs-target=\"#horario-", StringComparison.Ordinal);
+        Assert.True(alvo >= 0, "Não achei o botão que abre o impedimento (data-bs-target=\"#horario-...\").");
 
         AssertChavesFechadasAte(linha, alvo, "o botão de Impedimento");
     }
@@ -116,7 +116,11 @@ public class AbaPagamentosNaPaginaDoTorneioTests
     private static string LinhaDeExemplo()
     {
         var bloco = BlocoDoPainel();
-        var inicio = bloco.IndexOf("<li class=\"list-group-item bg-transparent px-0\">", StringComparison.Ordinal);
+        // ⚠️ Ancorado no PREFIXO da classe, e não na string inteira: em 09/09/2026 a linha ganhou
+        // `py-3` (a dupla virou um cartão com duas linhas de horário) e a busca exata deixou de
+        // achar nada — o teste passava a falhar por não encontrar a linha, e não por ter achado
+        // o defeito que ele existe pra pegar.
+        var inicio = bloco.IndexOf("<li class=\"list-group-item bg-transparent px-0", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei nenhuma linha de dupla (<li class=\"list-group-item...\">) no painel.");
         var fim = bloco.IndexOf("</li>", inicio, StringComparison.Ordinal);
         Assert.True(fim > inicio, "Não achei o fim da linha de dupla (</li>).");
