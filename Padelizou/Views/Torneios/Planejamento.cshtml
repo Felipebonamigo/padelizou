@@ -48,6 +48,124 @@
         </div>
     </div>
 
+    @* ── AS QUADRAS DE VERDADE ────────────────────────────────────────────────────────────
+       🗣️ Felipe: "crie uma tabela também, para que possa controlar as quadras que estarão
+       disponíveis, se são no mesmo clube ou não, e quais horários elas irão receber (de que
+       horas até que horas, cada quadra)".
+
+       ⚠️ ESTE BLOCO GRAVA, ao contrário de tudo abaixo dele. Cada linha é um <form> próprio
+       (POST por quadra), e o bloco fica FORA do <form method="get"> da simulação de propósito:
+       formulário dentro de formulário é HTML inválido, e o navegador fecharia o de fora no
+       primeiro <form> de dentro — levando junto os botões da simulação.
+
+       Local: o clube do torneio é a opção padrão (grava nulo — a convenção de sempre); os
+       outros vêm do catálogo. Falta um? Ele se cadastra em Pagamentos › Quadras e sedes
+       ("Adicionar clube"), e aparece aqui na volta. *@
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold d-flex flex-wrap justify-content-between align-items-center gap-2"
+             style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
+            <span><i class="bi bi-grid-3x3-gap"></i> Quadras deste torneio</span>
+            <span class="small fw-normal text-muted">
+                @Model.Quadras.Count de @Model.MaximoDeQuadras · este bloco <strong>grava</strong>
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr class="small text-muted">
+                        <th style="min-width: 160px;">Nome</th>
+                        <th style="min-width: 180px;">Local</th>
+                        <th style="min-width: 190px;">Disponível de</th>
+                        <th style="min-width: 190px;">até</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var quadra in Model.Quadras)
+                {
+                    <tr>
+                        @* Uma linha = um formulário. `form` attribute liga cada campo ao seu
+                           <form> sem aninhar tags dentro da tabela. *@
+                        @{ var formId = $"quadra-{quadra.Id}"; }
+                        <td>
+                            <form method="post" asp-action="SalvarQuadraDoPlanejamento" asp-route-id="@Model.Torneio.Id" id="@formId" class="d-none"></form>
+                            <input type="hidden" name="quadraId" value="@quadra.Id" form="@formId" />
+                            <input type="text" name="nome" maxlength="60" required class="form-control form-control-sm"
+                                   value="@quadra.Nome" form="@formId" @(Model.SoLeitura ? "disabled" : "") />
+                        </td>
+                        <td>
+                            <select name="clubeId" class="form-select form-select-sm" form="@formId" @(Model.SoLeitura ? "disabled" : "")>
+                                <option value="@Model.Torneio.ClubeId" selected="@(quadra.ClubeId == null || quadra.ClubeId == Model.Torneio.ClubeId)">
+                                    @Model.NomeDoClubeDoTorneio (aqui)
+                                </option>
+                                @foreach (var clube in Model.Clubes.Where(c => c.Id != Model.Torneio.ClubeId))
+                                {
+                                    <option value="@clube.Id" selected="@(quadra.ClubeId == clube.Id)">@clube.Nome</option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <input type="datetime-local" name="de" class="form-control form-control-sm" form="@formId"
+                                   value="@(quadra.DisponivelDe?.ToString("yyyy-MM-dd\\THH:mm"))" @(Model.SoLeitura ? "disabled" : "") />
+                        </td>
+                        <td>
+                            <input type="datetime-local" name="ate" class="form-control form-control-sm" form="@formId"
+                                   value="@(quadra.DisponivelAte?.ToString("yyyy-MM-dd\\THH:mm"))" @(Model.SoLeitura ? "disabled" : "") />
+                        </td>
+                        <td class="text-nowrap">
+                            @if (!Model.SoLeitura)
+                            {
+                                <button type="submit" form="@formId" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-check2"></i> Salvar
+                                </button>
+                                <form method="post" asp-action="RemoverQuadraDoPlanejamento" asp-route-id="@Model.Torneio.Id" class="d-inline"
+                                      onsubmit="return confirm('Remover a quadra @quadra.Nome?');">
+                                    <input type="hidden" name="quadraId" value="@quadra.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3" title="Remover">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.SoLeitura && Model.Quadras.Count < Model.MaximoDeQuadras)
+                {
+                    <tr style="background-color: var(--pdz-surface-alt);">
+                        <td>
+                            <form method="post" asp-action="SalvarQuadraDoPlanejamento" asp-route-id="@Model.Torneio.Id" id="quadra-nova" class="d-none"></form>
+                            <input type="text" name="nome" maxlength="60" required class="form-control form-control-sm"
+                                   placeholder="Nova quadra (ex.: Alugada 1)" form="quadra-nova" />
+                        </td>
+                        <td>
+                            <select name="clubeId" class="form-select form-select-sm" form="quadra-nova">
+                                <option value="@Model.Torneio.ClubeId">@Model.NomeDoClubeDoTorneio (aqui)</option>
+                                @foreach (var clube in Model.Clubes.Where(c => c.Id != Model.Torneio.ClubeId))
+                                {
+                                    <option value="@clube.Id">@clube.Nome</option>
+                                }
+                            </select>
+                        </td>
+                        <td><input type="datetime-local" name="de" class="form-control form-control-sm" form="quadra-nova" /></td>
+                        <td><input type="datetime-local" name="ate" class="form-control form-control-sm" form="quadra-nova" /></td>
+                        <td class="text-nowrap">
+                            <button type="submit" form="quadra-nova" class="btn btn-sm btn-success rounded-pill px-3">
+                                <i class="bi bi-plus-circle"></i> Adicionar
+                            </button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer small text-muted">
+            <strong>De / até vazios</strong> = a quadra vale o expediente inteiro do torneio. Preencha só na
+            quadra alugada por hora — ela rende apenas as rodadas dentro da janela, e a conta abaixo já
+            desconta isso. A hora de fechar é a hora em que o último jogo <strong>começa</strong>.
+            Mudou quadra depois do sorteio? Use <strong>Refazer grade</strong>, na aba de jogos.
+        </div>
+    </div>
+
 <form method="get" asp-action="Planejamento" asp-route-id="@Model.Torneio.Id">
 
     @* ── OS BOTÕES ─────────────────────────────────────────────────────────────────────── *@
@@ -76,10 +194,6 @@
                     <div class="form-text small">Hora de <strong>começar</strong>, não de terminar.</div>
                 </div>
 
-                <div class="col-6 col-md-3">
-                    <label class="form-label small fw-bold mb-1">Quadras</label>
-                    <input type="number" name="quadras" min="1" max="26" class="form-control" value="@Model.Quadras" />
-                </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label small fw-bold mb-1">Duração do jogo</label>
                     <div class="input-group">
@@ -156,7 +270,7 @@
                 </h5>
                 <p class="mb-2">
                     Nos dias e horários acima cabem <strong>@plano.Vagas @(plano.Vagas == 1 ? "jogo" : "jogos")</strong>
-                    (@Model.Quadras @(Model.Quadras == 1 ? "quadra" : "quadras")), e o torneio tem
+                    (@plano.Quadras @(plano.Quadras == 1 ? "quadra" : "quadras")), e o torneio tem
                     <strong>@plano.TotalDeJogos</strong>.
                 </p>
                 @* As duas saídas são a MESMA conta vista de dois lados — o organizador escolhe
@@ -177,7 +291,8 @@
                             <div class="fw-bold mb-1"><i class="bi bi-grid-3x3"></i> Alugando quadra o fim de semana todo</div>
                             <div class="fs-5 fw-bold">@plano.QuadrasNecessarias @(plano.QuadrasNecessarias == 1 ? "quadra" : "quadras")</div>
                             <div class="small text-muted">
-                                são @(plano.QuadrasNecessarias - Model.Quadras) a mais do que as @Model.Quadras de agora.
+                                são @(plano.QuadrasNecessarias - plano.Quadras) a mais do que as @plano.Quadras de agora — quadra
+                                o fim de semana inteiro, sem janela.
                             </div>
                         </div>
                     </div>
@@ -191,7 +306,7 @@
             <div class="card-body">
                 <h5 class="fw-bold text-success mb-2"><i class="bi bi-check-circle-fill"></i> Cabe</h5>
                 <p class="mb-1">
-                    @plano.TotalDeJogos jogos em @Model.Quadras @(Model.Quadras == 1 ? "quadra" : "quadras")
+                    @plano.TotalDeJogos jogos em @plano.Quadras @(plano.Quadras == 1 ? "quadra" : "quadras")
                     @if (plano.UltimoJogoTermina != null)
                     {
                         <text>
@@ -316,25 +431,14 @@
                     </button>
                 </form>
 
-                @* ⚠️ QUADRA NÃO SE APLICA DAQUI, e a tela precisa dizer POR QUÊ — senão o botão
-                   que falta lê como esquecimento. Quadra tem nome, tem clube e, quando é
-                   alugada, tem janela de horário; nada disso cabe num número. *@
                 <hr />
-                <p class="small mb-2">
+                <p class="small text-muted mb-0">
                     <i class="bi bi-grid-3x3-gap"></i>
-                    <strong>As quadras não se aplicam por aqui.</strong> Cada quadra tem nome — e, se for
-                    alugada, tem clube e horário próprios. Cadastre-as onde elas têm identidade:
+                    As <strong>quadras</strong> não passam por este botão: a tabela lá em cima já grava cada
+                    uma na hora. Em que clube cada <em>categoria</em> joga e o transbordo pro local alugado
+                    continuam em
+                    <a asp-action="Details" asp-route-id="@Model.Torneio.Id" asp-fragment="pagamentos">Pagamentos › Quadras e sedes</a>.
                 </p>
-                <div class="d-flex flex-wrap gap-2">
-                    <a asp-action="Editar" asp-route-id="@Model.Torneio.Id"
-                       class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                        <i class="bi bi-pencil"></i> Editar torneio (nome e quantidade)
-                    </a>
-                    <a asp-action="Details" asp-route-id="@Model.Torneio.Id" asp-fragment="pagamentos"
-                       class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                        <i class="bi bi-geo-alt"></i> Quadras e sedes (clube e horário do local alugado)
-                    </a>
-                </div>
             </div>
         </div>
     }

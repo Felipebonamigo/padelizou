@@ -28,6 +28,11 @@ public class PlanejamentoDeQuadrasNaTelaTests
         torneio.DataInicio = new DateTime(2026, 9, 11);
         torneio.DataFim = new DateTime(2026, 9, 13);
         torneio.QuantidadeQuadras = 2;
+        // As linhas de verdade: desde 09/09/2026 a conta usa as quadras cadastradas (com a
+        // janela de cada uma), não o número — ver QuadrasNoPlanejadorTests.
+        ctx.Quadras.AddRange(
+            new Quadra { TorneioId = torneio.Id, Nome = "Quadra A" },
+            new Quadra { TorneioId = torneio.Id, Nome = "Quadra B" });
         ctx.SaveChanges();
 
         return (torneio, organizador, estranho);
@@ -77,10 +82,10 @@ public class PlanejamentoDeQuadrasNaTelaTests
         var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
 
         var vm = Ver(Assert.IsType<ViewResult>(
-            await controller.Planejamento(torneio.Id, quadras: 6, jogos: 300, duracao: 30)));
+            await controller.Planejamento(torneio.Id, jogos: 300, duracao: 30)));
 
         Assert.Equal(300, vm.Plano.TotalDeJogos);
-        Assert.Equal(6, vm.Plano.Quadras);
+        Assert.Equal(30, vm.Duracao);
         Assert.True(vm.Simulando);
 
         // ⚠️ O PONTO DO TESTE: simular é PERGUNTA, não mudança. Enquanto o organizador não
@@ -194,7 +199,9 @@ public class PlanejamentoDeQuadrasNaTelaTests
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador, _) = Cenario(ctx);
 
-        // Configuração que faz a conta DOER: 1 quadra e o fim de semana inteiro pra fechar.
+        // Configuração que faz a conta DOER: 1 quadra e três horas por dia pra fechar. A
+        // quadra sai pela LINHA, porque é a lista que a conta lê — o número acompanha.
+        ctx.Quadras.Remove(ctx.Quadras.First(q => q.TorneioId == torneio.Id && q.Nome == "Quadra B"));
         torneio.QuantidadeQuadras = 1;
         torneio.HoraInicioDoDia = new TimeSpan(19, 0, 0);
         torneio.HoraInicioDiasSeguintes = new TimeSpan(19, 0, 0);
@@ -231,12 +238,13 @@ public class PlanejamentoDeQuadrasNaTelaTests
         var (torneio, organizador, _) = Cenario(ctx);
         var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
 
-        // Quadras e hora de fechar do domingo: nenhum dos dois é gravável por aqui.
+        // A hora de fechar do domingo não é gravável por aqui (não tem coluna). Quadra deixou
+        // de ser botão de simulação em 09/09/2026 — virou a tabela, que grava na hora.
         var soSimulacao = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(
-            torneio.Id, quadras: 6, limites: "2026-09-13=14:00")));
+            torneio.Id, limites: "2026-09-13=14:00")));
 
         Assert.False(soSimulacao.MudouAlgo);
-        Assert.Equal(6, soSimulacao.Plano.Quadras);   // simulou mesmo, só não é aplicável
+        Assert.Equal(8, soSimulacao.Plano.Dias[2].Rodadas);   // simulou mesmo, só não é aplicável
 
         // Já a hora de início É gravável — e aí o botão tem o que fazer.
         var horarioNovo = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(

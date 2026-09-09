@@ -228,10 +228,53 @@ public sealed class SedesDoTorneio
             clubePorQuadra[nome] = quadra.ClubeId ?? clubePrincipalId;
         }
 
-        // Uma sede só? Então nada disto existe. Sai por aqui pra que o torneio comum não pague
-        // nem um dicionário a mais, e pra que `MaisDeUmClube` seja a única pergunta que as
-        // telas precisem fazer.
-        if (clubePorQuadra.Values.Distinct().Count() <= 1) return Nenhuma;
+        // A janela de cada quadra. Só entra no mapa quem TEM janela — quadra sem limite (a
+        // imensa maioria) não paga nem uma entrada de dicionário.
+        //
+        // ⚠️ MONTADA ANTES DO ATALHO DE UMA SEDE, e isso é o conserto de 09/09/2026. Ela nasceu
+        // pro local alugado de OUTRA sede (08/09), e vivia depois do `return Nenhuma` logo
+        // abaixo — então, com todas as quadras no mesmo clube, a janela era jogada fora em
+        // silêncio: o organizador alugava duas quadras no próprio complexo das 8h às 14h,
+        // digitava a janela, e o motor marcava jogo lá às 22h. Com a tela de planejamento
+        // oferecendo o campo (pedido do Felipe), o atalho virava mentira.
+        var janelaPorQuadra = new Dictionary<string, (DateTime? De, DateTime? Ate)>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var quadra in quadras)
+        {
+            if (quadra.DisponivelDe == null && quadra.DisponivelAte == null) continue;
+
+            var nome = (quadra.Nome ?? "").Trim();
+            if (nome.Length == 0) continue;
+
+            janelaPorQuadra[nome] = (quadra.DisponivelDe, quadra.DisponivelAte);
+        }
+
+        // Uma sede só? Então nada de SEDE existe: sem folga pra atravessar a cidade, sem
+        // categoria presa a um clube, sem transbordo. Sai por aqui pra que o torneio comum não
+        // pague nem um dicionário a mais, e pra que `MaisDeUmClube` seja a única pergunta que
+        // as telas precisem fazer.
+        //
+        // ⚠️ A JANELA SOBREVIVE À SAÍDA. Janela não é sede — é a quadra dizendo até que horas
+        // existe —, e ela vale num lugar só do mesmo jeito que vale em dois. O objeto que sai
+        // daqui carrega só o que a janela precisa (o mapa dela e a lista de quadras, pra
+        // `QuadrasAbertasEm` ter o que contar) e `maisDeUmClube: false`, pra todo o resto
+        // continuar respondendo como o torneio de uma sede sempre respondeu.
+        if (clubePorQuadra.Values.Distinct().Count() <= 1)
+        {
+            if (janelaPorQuadra.Count == 0) return Nenhuma;
+
+            return new SedesDoTorneio(
+                clubePorQuadra,
+                new Dictionary<int, string[]>(),
+                new Dictionary<int, int>(),
+                new Dictionary<int, string>(),
+                janelaPorQuadra,
+                new HashSet<int>(),
+                clubePrincipalId,
+                TimeSpan.Zero,
+                maisDeUmClube: false,
+                evitarDoisJogosNaSedeExtra: false);
+        }
 
         var quadrasPorClube = clubePorQuadra
             .GroupBy(par => par.Value)
@@ -259,20 +302,6 @@ public sealed class SedesDoTorneio
         if (nomesDosClubes != null)
             foreach (var (clubeId, nome) in nomesDosClubes)
                 if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
-
-        // A janela de cada quadra. Só entra no mapa quem TEM janela — quadra sem limite (a
-        // imensa maioria) não paga nem uma entrada de dicionário.
-        var janelaPorQuadra = new Dictionary<string, (DateTime? De, DateTime? Ate)>(
-            StringComparer.OrdinalIgnoreCase);
-        foreach (var quadra in quadras)
-        {
-            if (quadra.DisponivelDe == null && quadra.DisponivelAte == null) continue;
-
-            var nome = (quadra.Nome ?? "").Trim();
-            if (nome.Length == 0) continue;
-
-            janelaPorQuadra[nome] = (quadra.DisponivelDe, quadra.DisponivelAte);
-        }
 
         // Quem NÃO pode transbordar. Guardado pelo lado negativo de propósito: o normal é poder
         // (ver Models/Categoria), então o conjunto fica vazio na imensa maioria dos torneios e

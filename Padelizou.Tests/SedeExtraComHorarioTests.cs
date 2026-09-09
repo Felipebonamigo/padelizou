@@ -97,17 +97,22 @@ public class SedeExtraComHorarioTests
             .QuadraAberta("Quadra que ninguém cadastrou", Sabado.AddHours(3)));
     }
 
-    // Torneio de uma sede só não paga nada disto — mesma saída antecipada que `MaisDeUmClube`
-    // já tem. Uma quadra com janela num torneio de sede única continuaria aberta sempre, e é
-    // de propósito: a janela nasceu pro local ALUGADO, não pra fechar o clube do organizador.
+    // ⚠️ DECISÃO REVISTA EM 09/09/2026. Este teste dizia o contrário — "uma quadra com janela
+    // num torneio de sede única continuaria aberta sempre, porque a janela nasceu pro local
+    // ALUGADO" —, e isso valeu enquanto a janela só existia numa sub-aba de sedes. Com a tela
+    // de planejamento oferecendo "de que horas até que horas" pra CADA quadra (pedido do
+    // Felipe: o Er pode alugar quadra no próprio complexo), a saída antecipada virava campo
+    // que aceita o valor e o joga fora. A regra nova está em JanelaDeQuadraNoClubeUnicoTests;
+    // o que fica aqui é a metade que NÃO mudou: sede única continua sendo sede única.
     [Fact]
-    public void Torneio_de_uma_sede_so_nao_tem_janela_nenhuma()
+    public void Torneio_de_uma_sede_so_respeita_a_janela_sem_virar_duas_sedes()
     {
         var sede = Montar(new[] { Q("Central", null, Sabado.AddHours(8), Sabado.AddHours(14)) },
                           Array.Empty<Categoria>());
 
         Assert.False(sede.MaisDeUmClube);
-        Assert.True(sede.QuadraAberta("Central", Sabado.AddHours(20)));
+        Assert.True(sede.QuadraAberta("Central", Sabado.AddHours(9)));
+        Assert.False(sede.QuadraAberta("Central", Sabado.AddHours(20)));
     }
 
     // ── Qual quadra é da sede EXTRA ───────────────────────────────────────────────────────
