@@ -2529,13 +2529,34 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <ul class="small mb-2 ps-3">
                                     @foreach (var d in ficamDeFora.Take(12))
                                     {
-                                        <li>
-                                            <strong>@d.Jogador1.ComoChamar</strong>
-                                            @if (d.Jogador2 != null)
+                                        <li class="d-flex align-items-center justify-content-between gap-2">
+                                            <span>
+                                                <strong>@d.Jogador1.ComoChamar</strong>
+                                                @if (d.Jogador2 != null)
+                                                {
+                                                    <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
+                                                }
+                                                <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
+                                            </span>
+                                            @* Só quem está SEM PARCEIRO tem essa saída — "entrar igual" não
+                                               existe de verdade (dupla incompleta não é time, não joga
+                                               mata-mata), então a decisão que dá pra oferecer aqui é
+                                               cancelar a inscrição agora, com estorno se tiver pago. Quem
+                                               está na lista de espera não cancela por aqui: a vaga dela some
+                                               sozinha se ninguém desistir, e cancelar não é o problema dela. *@
+                                            @if (d.Jogador2 == null)
                                             {
-                                                <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
+                                                <form asp-controller="Torneios" asp-action="CancelarSemParceiro" method="post"
+                                                      data-confirmar-tom="perigo"
+                                                      data-confirmar-titulo="Cancelar esta inscrição?"
+                                                      data-confirmar="@(d.Jogador1.ComoChamar) sai do torneio e é avisado.@(d.Pago ? " O valor pago é estornado." : "") Não dá pra desfazer."
+                                                      data-confirmar-ok="Cancelar e estornar">
+                                                    <input type="hidden" name="duplaId" value="@d.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
+                                                        Cancelar@(d.Pago ? " e estornar" : "")
+                                                    </button>
+                                                </form>
                                             }
-                                            <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
                                         </li>
                                     }
                                 </ul>
