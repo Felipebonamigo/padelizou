@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-836-9495758`** (17h29 e 17h31 UTC), **o mesmo artefato nos dois** — que é o que a Regra 3 quer dizer com "testar em dev antes". Subiu a **aba de planejamento de quadras** (PR #98), junto de tudo que o `main` já carregava do build-834.
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — quarta sessão seguida a medir isso.** O job `deploy → prod` foi de `Set up job` a `Complete job` em **9 segundos** (17:31:05 → 17:31:14), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os dois jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**, porque esta sessão não alcança `dev` nem `prod`. A aba nova tem 31 testes na aritmética e na porta; no visual, nenhum.
+>
+> 🕓 **O CI DEMOROU 8 MINUTOS PRA CRIAR O PRIMEIRO CHECK do PR #98** (PR aberto 17h11, primeiro check 17h19) — o mesmo sintoma do incidente de 26/08 documentado no topo do `ci.yml`. Desta vez o gatilho veio sozinho e o `workflow_dispatch` não precisou ser usado; fica o registro de que o atraso se repetiu.
+>
 > Última atualização: **09/09/2026** — 🏟️ **ABA DE PLANEJAMENTO DE QUADRAS — "QUANTOS HORÁRIOS EU PRECISO ALUGAR?"**
 >
 > 🗣️ **Pedido do Felipe, pelo Er:** *"estão pensando e provavelmente irão alocar mais quadras, porque o ER só tem 2, então eles querem uma aba (…) que possam ver quantos horários eles teriam que locar de quadra, extra, para fechar os jogos da chave (…) uma previsão de quantos jogos precisaria colocar lá na sexta, e no sábado (…) que apenas o organizador e criador e nós do sistema poderemos ver"*.
