@@ -99,8 +99,18 @@ public sealed class SedesDoTorneio
         if (string.IsNullOrWhiteSpace(nomeQuadra)) return true;
         if (!_janelaPorQuadra.TryGetValue(nomeQuadra!.Trim(), out var janela)) return true;
 
+        // ⚠️ O "ATÉ" É INCLUSIVO (09/09/2026), e isso é o oposto de JanelasDeImpedimento — de
+        // propósito. A pergunta aqui é "dá pra COMEÇAR um jogo neste horário?", que é
+        // exatamente a de `Torneio.HoraFimDoDia`, inclusiva desde sempre. O impedimento
+        // responde outra coisa (um PERÍODO em que a pessoa não joga), e lá o fim de um turno é
+        // o começo do outro — meio aberto é o certo pra ele e errado pra cá.
+        //
+        // 🗣️ Medido no combinado do Er: "no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20,
+        // 12:10. Vão ser 12 jogos". Com o fim exclusivo, o jogo das 12:10 caía fora da janela
+        // que termina 12:10 e a tela prometia 10 — duas rodadas de quadra alugada sumiam da
+        // conta, e o organizador alugava de menos.
         return (janela.De == null || horario >= janela.De)
-            && (janela.Ate == null || horario < janela.Ate);
+            && (janela.Ate == null || horario <= janela.Ate);
     }
 
     // QUANTAS quadras cadastradas estão abertas neste horário. `null` quando NENHUMA quadra tem
@@ -135,11 +145,15 @@ public sealed class SedesDoTorneio
 
         var duracao = duracaoMinutos > 0 ? duracaoMinutos : 50;
         var minutos = (fim - inicio).TotalMinutes;
-        if (minutos <= 0) return 0;
+        if (minutos < 0) return 0;
 
-        // Rodadas, e não "horas × quadras": o último jogo COMEÇA dentro da janela, então uma
-        // janela de 4h com jogos de 50 min tem 5 rodadas (8h, 8h50, 9h40, 10h30, 11h20), e não 4.
-        var rodadas = (int)(minutos / duracao) + ((int)(minutos % duracao) > 0 ? 1 : 0);
+        // Rodadas, e não "horas × quadras": o que a janela mede são HORAS DE COMEÇAR jogo.
+        //
+        // ⚠️ `+1` PORQUE O "ATÉ" ENTRA NA CONTA (09/09/2026, junto com `QuadraAberta`): das 8h
+        // às 12h10 saem 6 rodadas — 8h, 8h50, 9h40, 10h30, 11h20 e a das 12h10 —, e não 5. Uma
+        // janela de tamanho zero ("das 8h às 8h") é 1 rodada pelo mesmo motivo: dá pra começar
+        // um jogo às 8h. Invertida é a única que cabe zero, e essa saiu logo acima.
+        var rodadas = (int)(minutos / duracao) + 1;
 
         return Math.Max(quadras, 1) * rodadas;
     }

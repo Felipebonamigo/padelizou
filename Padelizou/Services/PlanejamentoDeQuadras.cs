@@ -256,6 +256,78 @@ public static class PlanejamentoDeQuadras
         };
     }
 
+    /// <summary>A linha "adicionar quadra" já preenchida, a partir do que o torneio tem.</summary>
+    public sealed record ProximaQuadra(string Nome, int? ClubeId, DateTime? De, DateTime? Ate);
+
+    /// <summary>
+    /// O que sugerir na linha de adicionar: o nome seguindo a numeração da última quadra, e o
+    /// MESMO local e janela dela.
+    /// </summary>
+    // 🗣️ Felipe: "deixe essa tela mais fácil de preencher (…) quando adicionar um novo, colocar
+    // a data próxima, coisas assim". Quem cadastra a Radar 2 acabou de cadastrar a Radar 1, no
+    // mesmo lugar e no mesmo horário — herdar os três campos é o que transforma quatro
+    // preenchimentos em zero.
+    //
+    // ⚠️ O NOME SUGERIDO NÃO PODE COLIDIR com nenhum já existente: nome é identidade
+    // (Services/NomeDeQuadraUnico), e entregar de bandeja um nome que o próprio salvamento
+    // recusa seria a tela empurrando o organizador pro erro.
+    public static ProximaQuadra SugerirProximaQuadra(IReadOnlyList<Quadra> quadras)
+    {
+        var ultima = quadras.Count > 0 ? quadras[^1] : null;
+        if (ultima == null) return new ProximaQuadra("Quadra 1", null, null, null);
+
+        var usados = quadras.Select(q => (q.Nome ?? "").Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return new ProximaQuadra(
+            ProximoNomeLivre(ultima.Nome ?? "", usados),
+            ultima.ClubeId, ultima.DisponivelDe, ultima.DisponivelAte);
+    }
+
+    // "Radar 1" → "Radar 2"; "Central" → "Central 2". Se o resultado já existe, segue somando
+    // — dois cliques em "adicionar" sem recarregar a página não podem propor o mesmo nome.
+    private static string ProximoNomeLivre(string ultimo, ISet<string> usados)
+    {
+        var nome = ultimo.Trim();
+
+        // O número do FIM, se houver: "Arena Loja 7" vira "Arena Loja 8", e o 7 do meio de um
+        // nome qualquer não é tocado.
+        int corte = nome.Length;
+        while (corte > 0 && char.IsAsciiDigit(nome[corte - 1])) corte--;
+
+        // ⚠️ A LETRA VEM ANTES DO NÚMERO, porque é o nome que o sistema dá sozinho: o `Create`
+        // batiza as quadras de "Quadra A".."Quadra Z". Num torneio que nunca renomeou nada, a
+        // última é "Quadra B" e a sugestão certa é "Quadra C" — não "Quadra B 2".
+        if (corte == nome.Length && nome.Length >= 2 && nome[^1] is >= 'A' and < 'Z' && nome[^2] == ' ')
+        {
+            var comLetra = nome[..^1] + (char)(nome[^1] + 1);
+            if (!usados.Contains(comLetra)) return comLetra;
+        }
+
+        string prefixo;
+        int proximo;
+        if (corte < nome.Length && int.TryParse(nome[corte..], out var numero))
+        {
+            prefixo = nome[..corte];
+            proximo = numero + 1;
+        }
+        else
+        {
+            prefixo = nome + " ";
+            proximo = 2;
+        }
+
+        // Teto de segurança: o torneio tem no máximo 26 quadras, então o laço não passa disso
+        // na prática — o limite existe pra nunca virar laço infinito por dado inesperado.
+        for (int tentativa = 0; tentativa < 100; tentativa++)
+        {
+            var candidato = prefixo + (proximo + tentativa);
+            if (!usados.Contains(candidato)) return candidato;
+        }
+
+        return prefixo + (proximo + 100);
+    }
+
     /// <summary>
     /// Lê os limites por dia da tela, no formato <c>yyyy-MM-dd=HH:mm</c> separados por <c>;</c>.
     /// </summary>

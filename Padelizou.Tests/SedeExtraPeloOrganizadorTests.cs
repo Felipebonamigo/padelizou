@@ -21,8 +21,14 @@ public class SedeExtraPeloOrganizadorTests
     [Fact]
     public void A_capacidade_e_quadras_vezes_rodadas_da_janela()
     {
-        // 8h às 12h = 4 horas; jogos de 50 min = 4 rodadas (a 5ª começaria 11h20 e a 6ª 12h10,
-        // já fora). Com 2 quadras, 8 jogos.
+        // 8h às 12h com jogos de 50 min: 8h, 8h50, 9h40, 10h30, 11h20 — cinco rodadas, porque a
+        // sexta cairia às 12h10, além do "até". Com 2 quadras, 10 jogos.
+        //
+        // ⚠️ O NÚMERO NÃO MUDOU quando o "até" virou inclusivo (09/09/2026): 12h em ponto não é
+        // hora de rodada nenhuma partindo das 8h de 50 em 50, então incluí-lo não acrescenta
+        // nada. A diferença aparece quando o organizador escreve a hora de uma rodada DE
+        // VERDADE — foi o caso do Er, 8h às 12h10, que passou de 10 pra 12 jogos. Ver
+        // JanelaDaQuadraTerminaNoUltimoJogoTests.
         Assert.Equal(10, SedesDoTorneio.JogosQueCabemNaJanela(2, Sabado.AddHours(8), Sabado.AddHours(12), 50));
     }
 
@@ -33,11 +39,14 @@ public class SedeExtraPeloOrganizadorTests
         Assert.Null(SedesDoTorneio.JogosQueCabemNaJanela(2, Sabado.AddHours(8), null, 50));
     }
 
+    // Invertida cabe zero. A de tamanho ZERO passou a caber UMA rodada em 09/09/2026: "das 8h
+    // às 8h" quer dizer "dá pra começar um jogo às 8h", leitura inevitável depois de o "até"
+    // virar a hora do último jogo.
     [Fact]
-    public void Janela_invertida_ou_zerada_cabe_zero()
+    public void Janela_invertida_cabe_zero_e_a_de_um_instante_cabe_uma_rodada()
     {
         Assert.Equal(0, SedesDoTorneio.JogosQueCabemNaJanela(2, Sabado.AddHours(12), Sabado.AddHours(8), 50));
-        Assert.Equal(0, SedesDoTorneio.JogosQueCabemNaJanela(2, Sabado.AddHours(8), Sabado.AddHours(8), 50));
+        Assert.Equal(2, SedesDoTorneio.JogosQueCabemNaJanela(2, Sabado.AddHours(8), Sabado.AddHours(8), 50));
     }
 
     // ── A janela da sede ──────────────────────────────────────────────────────────────────

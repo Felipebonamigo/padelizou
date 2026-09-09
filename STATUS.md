@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
+>
+> 🗣️ **Felipe, descrevendo o combinado do Er:** *"no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20, 12:10. Vão ser 12 jogos"*. **A tela respondia 10.**
+>
+> 🕳️ **A JANELA NASCEU MEIO ABERTA ([De, Ate)) e a simetria era com a coisa errada.** O comentário de origem dizia "mesmo formato de `JanelasDeImpedimento`" — só que o impedimento é um **período** em que a pessoa não joga (o fim de um turno é o começo do outro, e meio aberto é o certo lá), enquanto a janela da quadra responde **até que horas dá pra COMEÇAR um jogo** — exatamente o que `Torneio.HoraFimDoDia` sempre respondeu, e aquele campo é **inclusivo desde sempre**. Duas rodadas de quadra alugada sumiam da conta, e o organizador alugava de menos. Perguntado, o Felipe confirmou a leitura dele: *"inclui sim, no caso iria até as 13h"* — 12:10 começa, 13:00 vaga.
+>
+> ✅ **`QuadraAberta` passou a `<=` e `JogosQueCabemNaJanela` ganhou o `+1`.** Janela de tamanho ZERO passou a caber UMA rodada ("das 8h às 8h" = dá pra começar um jogo às 8h); só a invertida cabe zero. ⚠️ **Uma guarda nova impede a "uniformização" futura:** os turnos do impedimento continuam se encostando sem sobrepor, com teste próprio. ⚠️ E **o número de 8h–12h NÃO mudou** (continua 10): 12h em ponto não é rodada nenhuma partindo das 8h de 50 em 50 — a diferença só aparece quando o organizador escreve a hora de uma rodada de verdade. **Errei isso no meu próprio teste antes de o CI pegar**, e o comentário lá registra o porquê.
+>
+> 🗣️ **"É uma mentira, não? pq se coloca lá embaixo para alterar, ele salva essas alterações"** — era. O aviso nasceu quando a tela inteira era leitura; hoje a tabela de quadras grava na hora e o "Aplicar" grava os horários. Agora ele **separa as duas metades**: o que grava, o que simula, e que **nenhum dos dois remarca jogo já marcado**.
+>
+> 🧾 **"FICOU BASTANTE DADO EM BRANCO, PREENCHA."** Quadra sem janela passou a **mostrar o expediente do torneio** nos campos — e salvar a linha assim **grava NULO**, porque o controller reconhece "janela == torneio inteiro". Mostrar não vira gravar, e o nulo é o que sobrevive a uma mudança de data. A linha **adicionar** vem pronta a partir da última quadra (nome numerado, mesmo local, mesma janela): a Radar 2 nasce igual à Radar 1, em zero preenchimentos. O nome sugerido **pula os que já existem** — entregar um nome que o próprio salvamento recusa seria a tela empurrando pro erro — e **segue o alfabeto** quando o nome é o que o sistema deu ("Quadra B" → "Quadra C"). Cada linha mostra **quantos jogos rende e a que horas a quadra vaga**.
+>
+> 🧪 **5.734 testes, 0 falhas (19 novos), suíte rodada 2×.** **Sem migration.** Falsificado: com o `<` de volta, os 12 jogos do Er e o sábado voltam a ficar vermelhos.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-842-b6544b4`** (18h38 e 18h40 UTC), **o mesmo artefato nos dois**. Subiu a **tabela de quadras no planejador** (PR #101) — nome, local e janela por quadra, a janela valendo com um clube só, e o Editar sem os campos de quadra.
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.

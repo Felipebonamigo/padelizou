@@ -48,9 +48,10 @@ public class JanelaDeQuadraNoClubeUnicoTests
         Assert.True(sedes.QuadraAberta("Alugada", Sabado.AddHours(9)));
         Assert.False(sedes.QuadraAberta("Alugada", Sabado.AddHours(7)));
 
-        // Meio aberta ([De, Ate)), mesma forma de Services/JanelasDeImpedimento: o jogo que
-        // COMEÇA às 14h em ponto já está fora de uma janela que termina às 14h.
-        Assert.False(sedes.QuadraAberta("Alugada", Sabado.AddHours(14)));
+        // O "até" entra: 14h é a hora do último jogo, não o instante em que já fechou
+        // (09/09/2026 — ver JanelaDaQuadraTerminaNoUltimoJogoTests).
+        Assert.True(sedes.QuadraAberta("Alugada", Sabado.AddHours(14)));
+        Assert.False(sedes.QuadraAberta("Alugada", Sabado.AddHours(15)));
     }
 
     [Fact]

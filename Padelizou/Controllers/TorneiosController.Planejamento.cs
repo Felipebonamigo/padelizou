@@ -111,6 +111,9 @@ namespace Padelizou.Controllers
                     .Where(c => c.Id == torneio.ClubeId).Select(c => c.Nome).FirstOrDefaultAsync()
                     ?? torneio.LocalTorneio ?? "Clube do torneio",
                 MaximoDeQuadras = MaximoDeQuadrasDoTorneio,
+                AberturaDoTorneio = JanelaDoTorneioInteiro(torneio).De,
+                FechamentoDoTorneio = JanelaDoTorneioInteiro(torneio).Ate,
+                NovaQuadra = PlanejamentoDeQuadras.SugerirProximaQuadra(quadrasReais),
             });
         }
 
@@ -169,8 +172,12 @@ namespace Padelizou.Controllers
             // Janela que fecha antes de abrir é quadra que nunca existe: a grade não marcaria
             // nada nela e ninguém saberia por quê. Meio aberta ([De, Ate)), então iguais também
             // é vazia. Um lado só (só "de" ou só "até") vale, e SedesDoTorneio.QuadraAberta sabe.
-            if (de is DateTime abre && ate is DateTime fecha && fecha <= abre)
-                return Recusar(id, "A quadra precisa fechar depois de abrir — confira \"de\" e \"até\".");
+            // ⚠️ `<`, e não `<=`: desde 09/09/2026 o "até" é a hora do ÚLTIMO JOGO, então "das 8h
+            // às 8h" é legítimo — quer dizer "uma rodada, às 8h". Só a janela INVERTIDA é
+            // impossível, e recusá-la aqui é o único lugar em que dá pra dizer: uma quadra que
+            // nunca abre não recebe jogo nenhum, e ninguém saberia por quê.
+            if (de is DateTime abre && ate is DateTime fecha && fecha < abre)
+                return Recusar(id, "A quadra não pode fechar antes de abrir — confira \"de\" e \"até\".");
 
             // Regra 3: renomear quadra com jogo marcado deixaria os jogos com o nome velho e o
             // cadastro com o novo (ver Services/NomesDeQuadra). Clube e janela continuam
@@ -204,10 +211,19 @@ namespace Padelizou.Controllers
                 quadras.Add(alvo);
             }
 
+            // ⚠️ A JANELA DO TORNEIO INTEIRO VIRA NULO (09/09/2026). A tela passou a MOSTRAR o
+            // expediente do torneio nos campos da quadra sem limite — dois campos vazios eram
+            // lidos como "faltou preencher" ("ficou bastante dado em branco", disse o Felipe) —,
+            // e salvar a linha sem mexer nela não pode transformar "sem limite" numa janela
+            // gravada. Nulo é também o que sobrevive a uma mudança de data do torneio: uma
+            // janela literal ficaria pra trás e fecharia a quadra em silêncio.
+            var doTorneio = JanelaDoTorneioInteiro(torneio);
+            bool janelaEhOTorneioInteiro = de == doTorneio.De && ate == doTorneio.Ate;
+
             alvo.Nome = nomeLimpo;
             alvo.ClubeId = clube;
-            alvo.DisponivelDe = de;
-            alvo.DisponivelAte = ate;
+            alvo.DisponivelDe = janelaEhOTorneioInteiro ? null : de;
+            alvo.DisponivelAte = janelaEhOTorneioInteiro ? null : ate;
 
             // Regra 1.
             torneio.QuantidadeQuadras = quadras.Count;
@@ -276,6 +292,20 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             return nomesEmJogo.Any(n => string.Equals(n.Trim(), nomeDaQuadra.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        // O expediente do torneio inteiro: da abertura do primeiro dia ao último horário em que
+        // um jogo pode COMEÇAR no último dia. É o que uma quadra sem janela de fato faz, e é o
+        // que a tela mostra nos campos dela.
+        //
+        // Sem `DataFim` o torneio não tem prazo; aí o fechamento é a própria abertura, e a
+        // comparação de "janela == torneio inteiro" simplesmente nunca casa — que é o certo:
+        // não há um "inteiro" pra comparar.
+        private static (DateTime De, DateTime Ate) JanelaDoTorneioInteiro(Torneio torneio)
+        {
+            var abre = (torneio.DataInicio ?? DateTime.Today).Date.Add(torneio.HoraInicioDoDia);
+            var fecha = torneio.DataFim is DateTime fim ? fim.Date.Add(torneio.HoraFimDoDia) : abre;
+            return (abre, fecha);
         }
 
         // Por Id, que é a ordem em que nasceram — a mesma da tabela na tela e a mesma que o

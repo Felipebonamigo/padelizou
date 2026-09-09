@@ -246,4 +246,16 @@ public class PlanejamentoDeQuadrasVM
     public List<Clube> Clubes { get; set; } = new();
     public string NomeDoClubeDoTorneio { get; set; } = "Clube do torneio";
     public int MaximoDeQuadras { get; set; }
+
+    // ── PREENCHER MENOS (09/09/2026) — "ficou bastante dado em branco, preencha" ──
+    //
+    // O expediente do torneio inteiro, que é o que uma quadra SEM janela de fato faz. A tela
+    // mostra isso nos campos em vez de deixá-los vazios; salvar a linha sem mexer devolve nulo
+    // ao banco (ver SalvarQuadraDoPlanejamento), então o campo cheio não inventa limite nenhum.
+    public DateTime AberturaDoTorneio { get; set; }
+    public DateTime FechamentoDoTorneio { get; set; }
+
+    // A linha "adicionar" já preenchida a partir da última quadra — nome numerado, mesmo local
+    // e mesma janela. Ver PlanejamentoDeQuadras.SugerirProximaQuadra.
+    public PlanejamentoDeQuadras.ProximaQuadra NovaQuadra { get; set; } = new("Quadra 1", null, null, null);
 }
