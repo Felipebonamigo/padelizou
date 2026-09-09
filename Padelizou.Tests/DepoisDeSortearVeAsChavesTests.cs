@@ -39,9 +39,11 @@ public class DepoisDeSortearVeAsChavesTests
     [Fact]
     public async Task Torneio_por_ordem_de_liberacao_tambem_cai_nas_chaves()
     {
-        // ⚠️ O caminho do `SemHorarioPrevisto` sai do método por um `return` PRÓPRIO, antes do
-        // encaixe na grade. É o caso do torneio do Er, e era o que ficaria de fora se só o
-        // return de baixo fosse consertado.
+        // ⚠️ O caminho do `SemHorarioPrevisto` TINHA um `return` próprio, antes do encaixe na
+        // grade — e este teste nasceu porque ele era o que ficava de fora quando só o return de
+        // baixo era consertado. Desde 09/09/2026 o atalho não existe mais: o por-ordem passa
+        // pela grade igual e só apaga a quadra no fim (Services/OrdemDeLiberacao). O teste fica,
+        // porque o destino do redirect continua sendo dele.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
         torneio.SemHorarioPrevisto = true;
@@ -51,7 +53,8 @@ public class DepoisDeSortearVeAsChavesTests
         var resposta = await controller.GerarChaves(torneio.Id);
 
         Assert.NotEmpty(ctx.Partidas);
-        Assert.All(ctx.Partidas, p => Assert.Null(p.HorarioPrevisto));   // é o modo por ordem
+        // No modo por ordem o que falta é a QUADRA, não a hora.
+        Assert.All(ctx.Partidas, p => Assert.True(string.IsNullOrEmpty(p.NomeQuadra)));
 
         var redirect = Assert.IsType<RedirectToActionResult>(resposta);
         Assert.Equal("grupos", redirect.Fragment);

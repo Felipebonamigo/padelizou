@@ -88,8 +88,8 @@
         ? $"{ficamDeFora.Count} fica{(ficamDeFora.Count == 1 ? "" : "m")} de fora: {nomesDeFora}{(ficamDeFora.Count > 4 ? "…" : "")}"
         : null;
     var horarioOuOrdem = Model.SemHorarioPrevisto
-        ? "Os jogos entram numa ordem, pra você chamar conforme a quadra vaga."
-        : "Os jogos ganham horário na hora.";
+        ? "Os jogos ganham horário, mas não quadra: você chama cada um conforme a quadra vaga."
+        : "Os jogos ganham horário e quadra na hora.";
 }
 
 @* Cancelado é a primeira coisa que a página diz, antes de qualquer aba: quem chegou pelo link
@@ -2286,6 +2286,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                            ajudante pra lá daria um 403 na cara dele; melhor dizer de quem é. *@
                         @if (ViewBag.PodeVerDinheiro == true)
                         {
+                            @* 🗣️ Felipe, 09/09/2026: "coloque um aviso, que clicando em sortear
+                               agora, nao publica a chave, fica apenas visivel para o organizador
+                               e adm".
+
+                               ⚠️ E O AVISO PERGUNTA O FORMATO em vez de afirmar, porque a frase
+                               só é verdade no Padrão: o Americano vai DIRETO pra "Fase de Grupos",
+                               que já é pública. Um aviso incondicional mentiria justamente no caso
+                               mais perigoso — o organizador clicaria achando que é rascunho e o
+                               rodízio sairia pros jogadores na hora. Ver
+                               Services/PublicacaoDaChave. *@
+                            var avisoDaPublicacao = Padelizou.Services.PublicacaoDaChave.Aviso(Model);
+                            var saiPublicaNaHora = Padelizou.Services.PublicacaoDaChave.SaiPublicaNaHora(Model);
+                            <div class="alert @(saiPublicaNaHora ? "alert-warning" : "alert-info") small py-2 px-3 mb-3">
+                                <i class="bi @(saiPublicaNaHora ? "bi-megaphone-fill" : "bi-eye-slash-fill")"></i>
+                                @avisoDaPublicacao
+                            </div>
+
                             <div class="d-flex flex-wrap gap-2">
                                 <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
                                    class="btn btn-warning fw-bold shadow-sm">
@@ -2294,10 +2311,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                                 @* O FIADO. A taxa não some — ela vira dívida registrada, e o texto
                                    da confirmação diz isso na cara. Esconder a consequência aqui
-                                   faria o organizador descobrir a cobrança só quando ela chegasse. *@
+                                   faria o organizador descobrir a cobrança só quando ela chegasse.
+
+                                   ⚠️ "Destrava o sorteio", e não "as chaves são liberadas": o
+                                   texto antigo lia como "a chave vai pro ar", que é justamente a
+                                   confusão que o aviso acima veio desfazer. *@
                                 <form asp-controller="Torneios" asp-action="AdiarTaxaExterno" method="post"
                                       data-confirmar-titulo="Sortear agora e pagar depois?"
-                                      data-confirmar="As chaves são liberadas na hora. A taxa do Padelizou continua devida e o torneio fica na lista de cobrança até você acertar."
+                                      data-confirmar="@("Destrava o sorteio. " + avisoDaPublicacao + " A taxa do Padelizou continua devida e o torneio fica na lista de cobrança até você acertar.")"
                                       data-confirmar-ok="Sortear agora">
                                     <input type="hidden" name="id" value="@Model.Id" />
                                     <button type="submit" class="btn btn-outline-light fw-bold shadow-sm">
@@ -2435,15 +2456,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <strong>@prev.Duplas duplas</strong> em @prev.Grupos grupos =
                                     @prev.JogosDeGrupo jogos de grupo + @prev.JogosDeMataMata de mata-mata =
                                     <strong>@prev.TotalDeJogos jogos</strong>, em @Model.QuantidadeQuadras
-                                    @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras")@(prev.SemHorarioPrevisto ? "." : $" de {Model.TempoPrevistoPartidaMinutos} min.")
+                                    @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras") de @Model.TempoPrevistoPartidaMinutos min.
                                     <br />
                                     @if (prev.SemHorarioPrevisto)
                                     {
-                                        @* Sem hora marcada não há o que prever: prometer um fim
-                                           que ninguém calculou seria pior que não dizer nada. *@
+                                        @* 09/09/2026: o por-ordem passou a ter HORA (pedido do
+                                           Felipe — "o horário é pré-definido, para as pessoas se
+                                           organizarem"). O que ele não tem é QUADRA marcada, e é
+                                           isso que o texto precisa dizer agora. *@
                                         <text>
-                                            Os jogos saem <strong>numa ordem, sem hora marcada</strong> — você chama
-                                            cada um pela Mesa de Controle conforme a quadra vaga.
+                                            Cada jogo sai <strong>com horário</strong>, pro pessoal se organizar —
+                                            mas <strong>sem quadra marcada</strong>: você chama cada um pela Mesa
+                                            de Controle conforme a quadra vaga.
                                         </text>
                                     }
                                     else
