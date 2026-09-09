@@ -247,11 +247,19 @@ public class TorneioFluxoTests
         Assert.Equal(2, semis.Select(s => s.CategoriaId).Distinct().Count());
     }
 
-    // A categoria que fecha os grupos mais cedo COMEÇA o mata-mata mais cedo — não espera a
-    // categoria mais lenta. São pessoas diferentes e as quadras estão livres; fazer a rápida
-    // esperar só empurra o fim do torneio pra madrugada com quadra vazia.
+    // A categoria que fecha os grupos mais cedo ESPERA a fase de grupos do TORNEIO acabar.
+    //
+    // ⚠️ ESTE TESTE AFIRMAVA O CONTRÁRIO até 09/09/2026 ("não espera a categoria mais lenta — são
+    // pessoas diferentes e as quadras estão livres"). O Felipe inverteu a prioridade quando viu o
+    // resultado na tela: *"o torneio tem q seguir uma ordem, primeiro todas as chaves, depois todas
+    // as primeiras eliminatorias […] a ideia e fazer as finais de cada categorias ser os ultimos
+    // jogos do torneio"*. Ver Services/OrdemDasFases.
+    //
+    // ⚠️ A QUADRA VAZIA CONTINUA VALENDO COMO DESEMPATE, e é por isso que a afirmação é `>=` e não
+    // `>`: a semifinal da rápida pode dividir o HORÁRIO do último jogo de grupo da lenta, ocupando
+    // a quadra que sobraria ali. O que ela não pode é vir antes dele.
     [Fact]
-    public async Task Categoria_que_termina_os_grupos_antes_comeca_o_mata_mata_antes()
+    public async Task Categoria_que_termina_os_grupos_antes_espera_os_grupos_do_torneio()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, grande, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 8);
@@ -295,9 +303,10 @@ public class TorneioFluxoTests
             .Where(p => p.CategoriaId == pequena.Id && p.Fase == "Semifinal").ToListAsync();
 
         Assert.NotEmpty(mataMata);
-        Assert.All(mataMata, p => Assert.True(p.HorarioPrevisto < fimDosGruposDaGrande,
-            $"a semifinal da categoria rápida ficou pra {p.HorarioPrevisto:HH:mm}, depois do último " +
-            $"jogo de grupo da outra ({fimDosGruposDaGrande:HH:mm}) — ela não tinha por que esperar"));
+        Assert.All(mataMata, p => Assert.True(p.HorarioPrevisto >= fimDosGruposDaGrande,
+            $"a semifinal da categoria rápida ficou pra {p.HorarioPrevisto:HH:mm}, ANTES do último " +
+            $"jogo de grupo da outra ({fimDosGruposDaGrande:HH:mm}) — o torneio joga TODAS as "
+            + "chaves antes de qualquer eliminatória"));
     }
 
     // A garantia que a mudança acima NÃO pode perder: ninguém é chamado pra duas quadras ao

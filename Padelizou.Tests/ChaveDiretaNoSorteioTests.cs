@@ -219,40 +219,20 @@ public class ChaveDiretaNoSorteioTests
         Assert.Empty(conflitos);
     }
 
-    [Fact]
-    public async Task A_chave_direta_ABRE_o_torneio_em_vez_de_esperar_os_grupos()
-    {
-        // A regra era o contrário — a chave direta ia pro fim da fase de grupos, pra que
-        // "fase de grupo primeiro, mata-mata depois" fosse garantia e não preferência.
-        //
-        // Só que isso vale pro mata-mata que SAI dos grupos, que de fato precisa do resultado
-        // deles. A chave direta não espera nada: as duplas já estão definidas, e ela é uma
-        // competição paralela ("como se fosse uma outra categoria", nas palavras do
-        // organizador). Pior: é ela que tem MAIS FASES pela frente — 24 duplas são cinco
-        // rodadas até a final, contra as três de uma categoria de grupos. Empurrá-la pro fim
-        // dos grupos empurrava as cinco rodadas junto, e no Interno isso jogou a final da
-        // chave geral pras 23h18.
-        //
-        // Quem impede o embaralhamento perigoso (a mesma pessoa em duas quadras) é o encaixe,
-        // que compara PESSOA — ver Ninguem_e_chamado_pra_duas_quadras_no_mesmo_horario.
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, org, chave) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
-        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
-
-        await controller.GerarChaves(torneio.Id);
-
-        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
-
-        var primeiroDoMataMata = jogos.Where(j => j.CategoriaId == chave.Id).Min(j => j.HorarioPrevisto);
-        var ultimoDeGrupo = jogos
-            .Where(j => Padelizou.Services.FasesTorneio.EhFaseDeGrupos(j.Fase))
-            .Max(j => j.HorarioPrevisto);
-
-        Assert.Equal(torneio.AberturaDaGrade, primeiroDoMataMata);
-        Assert.True(primeiroDoMataMata < ultimoDeGrupo,
-            $"a chave direta abriria às {primeiroDoMataMata:HH:mm}, sem ganhar nada em relação " +
-            $"ao fim dos grupos ({ultimoDeGrupo:HH:mm})");
-    }
+    // ⚠️ A CHAVE DIRETA JÁ ABRIU O TORNEIO, E NÃO ABRE MAIS (09/09/2026).
+    //
+    // O teste que vivia aqui — `A_chave_direta_ABRE_o_torneio_em_vez_de_esperar_os_grupos` —
+    // afirmava o contrário do que o torneio faz hoje. Ele nasceu em 05/08/2026: a chave direta não
+    // espera resultado de ninguém e é a que tem mais rodadas pela frente (24 duplas são cinco), e
+    // empurrá-la pro fim dos grupos empurrava as cinco junto — no Interno a final da chave geral
+    // foi parar às 23h18.
+    //
+    // 🗣️ Perguntado sobre exatamente esse custo, o Felipe escolheu o outro lado: *"a menos que
+    // fique horario vazio, mas a ordem é colocar todos jogos de chave antes"*. A primeira rodada da
+    // chave direta é eliminatória como qualquer outra.
+    //
+    // A afirmação nova mora em OrdemDasFasesNoTorneioTests, junto com as outras da mesma régua —
+    // aqui ela ficaria sozinha, longe do resto da ordem.
 
     [Fact]
     public async Task Mata_mata_que_sai_dos_grupos_continua_esperando_os_grupos()

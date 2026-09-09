@@ -4,16 +4,27 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// A CATEGORIA QUE JÁ FECHOU OS GRUPOS NÃO ESPERA A QUE NÃO FECHOU (21/08/2026).
+// A CATEGORIA QUE JÁ FECHOU OS GRUPOS ESPERA A QUE NÃO FECHOU (09/09/2026).
 //
-// ⚠️ O QUE ESTAVA ERRADO: `EncaixarNasLevas` agenda em duas levas — primeiro tudo que não
-// espera resultado (grupos e chave direta), depois tudo que sai dos grupos. A abertura da
-// segunda leva era UMA SÓ pro torneio inteiro: o último jogo de grupo de QUALQUER categoria.
+// ⚠️ ESTE ARQUIVO NASCEU DIZENDO O CONTRÁRIO, e a inversão é de 09/09/2026. Vale ler o porquê
+// das duas versões, porque a decisão pode voltar a ser pesada um dia.
 //
-// No meio do torneio isso vira quadra parada. A 4ª masculina terminou os grupos às 15h e tem
-// semifinal pra jogar; a 2ª, muito maior, ainda tem grupo até as 21h. A semifinal da 4ª ia pro
-// fim da fila — atrás de TODA a fase de grupos da 2ª — mesmo com quadra livre às 15h30. E a
-// prioridade declarada pro torneio é justamente "nenhuma quadra sem jogo até o final".
+// 🕐 A REGRA DE 21/08/2026 ERA "NÃO ESPERA": a 4ª masculina terminou os grupos às 15h e tem
+// semifinal pra jogar; a 2ª, muito maior, ainda tem grupo até as 21h. Fazer a 4ª esperar deixava
+// quadra parada às 15h30 com jogo pronto pra entrar — e a prioridade declarada pro torneio é
+// "nenhuma quadra sem jogo até o final".
+//
+// 🗣️ A REGRA DE 09/09/2026 É "ESPERA", e quem pediu foi o Felipe, olhando a grade do Er em `dev`:
+// *"como que aqui tem jogo de chave e nas outras categorias tem final? o torneio tem q seguir uma
+// ordem, primeiro todas as chaves, depois todas as primeiras eliminatorias (decimas > oitavas >
+// quartas > semi > final) a ideia e fazer as finais de cada categorias ser os ultimos jogos do
+// torneio"*. A régua mora em Services/OrdemDasFases e Services/LevasDaGrade.
+//
+// ⚠️ A QUADRA PARADA NÃO FOI ESQUECIDA — ela continua sendo o desempate, e o próprio Felipe pôs o
+// limite: *"a menos que fique horario vazio, mas a ordem é colocar todos jogos de chave antes"*. É
+// por isso que a barreira de posto é o HORÁRIO do último jogo do posto anterior, e não a rodada
+// seguinte a ele: no minuto em que o último jogo de grupo roda ainda sobra quadra, e quem a ocupa
+// é o primeiro jogo do posto seguinte.
 //
 // ⚠️ E DUAS COISAS ANDAM JUNTAS COM ISSO, OU NADA ANDA:
 //
@@ -147,10 +158,16 @@ public class AberturaDoMataMataPorCategoriaTests
     private static async Task<List<Partida>> JogosAsync(DbPadelContext ctx, int torneioId) =>
         await ctx.Partidas.Where(p => p.TorneioId == torneioId).ToListAsync();
 
-    // ⚠️ O TESTE QUE PROVA O FURO. Com a âncora única, a semifinal da 4ª nasce DEPOIS do último
-    // jogo de grupo da 2ª — quadra parada a tarde inteira com jogo pronto pra entrar.
+    // ⚠️ O TESTE QUE TROCOU DE LADO. Ele afirmava `primeiroDaPronta < ultimoGrupoDaAtrasada` — a
+    // semifinal da categoria pronta subindo pro meio dos grupos da atrasada. É exatamente o que o
+    // Felipe mandou parar de fazer: a fase de grupos do TORNEIO vem antes de qualquer eliminatória
+    // dele.
+    //
+    // O `>=` (e não `>`) é a folga que ele mesmo autorizou: a semifinal PODE dividir o horário do
+    // último jogo de grupo, ocupando a quadra que sobraria vazia ali. O que ela não pode é vir
+    // antes dele.
     [Fact]
-    public async Task Categoria_que_ja_fechou_os_grupos_joga_junto_com_os_grupos_da_outra()
+    public async Task Categoria_que_ja_fechou_os_grupos_espera_os_grupos_da_outra()
     {
         var (ctx, torneio, pronta, _, atrasada) = await TorneioNoMeioDoCaminhoAsync();
         using var _ = ctx;
@@ -168,10 +185,10 @@ public class AberturaDoMataMataPorCategoriaTests
         Assert.NotNull(primeiroDaPronta);
         Assert.NotNull(ultimoGrupoDaAtrasada);
 
-        Assert.True(primeiroDaPronta < ultimoGrupoDaAtrasada,
+        Assert.True(primeiroDaPronta >= ultimoGrupoDaAtrasada,
             $"A semifinal da categoria que já fechou os grupos foi marcada pra {primeiroDaPronta}, "
-            + $"e os grupos da outra só terminam às {ultimoGrupoDaAtrasada}. Ela não tem o que "
-            + "esperar — e enquanto espera, tem quadra vazia.");
+            + $"antes de os grupos da outra terminarem às {ultimoGrupoDaAtrasada} — o torneio joga "
+            + "TODAS as chaves antes de qualquer eliminatória.");
     }
 
     // Nada pode ser remarcado pra trás. Os grupos da 4ª foram jogados ONTEM, e a âncora de uma
