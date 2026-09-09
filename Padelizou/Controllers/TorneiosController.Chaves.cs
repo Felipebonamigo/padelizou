@@ -520,8 +520,15 @@ namespace Padelizou.Controllers
                 // `jogos + margem`, que num fim de semana mal passa da manhã de sábado — sem
                 // este alcance, "os 2 jogos no sábado à tarde" nunca encontra vaga e o encaixe
                 // cede em silêncio. Ver Services/VagasDaGrade e ConcentracaoNoSorteioTests.
+                // ⚠️ O ALCANCE OLHA AS TRÊS RESTRIÇÕES, e não só a concentração (09/09/2026).
+                // Medindo o torneio do Er com 4 quadras, o IMPEDIMENTO furava pelo mesmo motivo
+                // que a concentração furava: a grade acabava antes do fim da janela e o último
+                // recurso do encaixe entrava. Ver VagasDaGrade.AlcanceNecessario.
                 var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra,
-                    peloMenosAte: concentracao?.AteQuando, sedes: sedes);
+                    peloMenosAte: VagasDaGrade.MaisTarde(
+                        concentracao?.AteQuando,
+                        VagasDaGrade.AlcanceNecessario(janelas, noiteDeSabado)),
+                    sedes: sedes);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
                     ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,
