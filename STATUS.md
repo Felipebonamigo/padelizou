@@ -1,7 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
+> Última atualização: **09/09/2026** — 🎟️ **O IMPEDIMENTO PAGO PAROU DE CEDER QUANDO MUITA GENTE BLOQUEIA O MESMO DIA.**
+>
+> 🕳️ **O motor de grade cedia uma garantia VENDIDA.** O impedimento é cobrado na inscrição (`Torneio.TaxaPorImpedimento`) — não é preferência, é produto. E ele furava **calado**: o jogo nascia dentro da janela que a dupla pagou pra evitar, e ninguém era avisado.
+>
+> 📊 **MEDIDO, NÃO DEDUZIDO** (`AlcanceDoImpedimentoPorVolumeTests`). Torneio de sexta (03/07/2026), 16 duplas em 2 grupos de 2 + 4 de 3, `ImpedimentoSextaNoite` marcado ANTES do sorteio, varrendo os 16 arranjos possíveis de cada volume: **4 impedidas furavam 0/16, 6 furavam 9/16, e 8, 12 e 16 furavam 16/16**. O defeito não é do volume sozinho — é do volume somado ao arranjo, e por isso o teste é uma varredura e não um cenário.
+>
+> 🔑 **ALCANÇAR NÃO É O MESMO QUE CABER — e a sobra estava dimensionada pela coisa errada.** `VagasDaGrade.AlcanceNecessario` devolvia o **fim** da janela mais tardia; pro impedimento de sexta a janela é o dia INTEIRO, então o fim é **sábado 00:00**, que é o começo do sábado — antes de existir vaga nenhuma dele (o sábado abre em `HoraInicioDiasSeguintes`). O `Montar` seguia uma sobra além desse limite, mas a sobra era `GradeDeJogos.MargemDeHorarios(quadras)` = `max(quadras,1)*3`: **três rodadas, dimensionadas pela CAPACIDADE da grade**. Quem enche o outro lado da janela não é a capacidade — é o **VOLUME** de jogos que a janela empurrou pra lá. Com 8 duplas impedidas na sexta são muito mais que três jogos disputando o sábado, as vagas acabavam, e o último recurso do `GradeDeJogos.Encaixar` entrava: ele cede o impedimento primeiro.
+>
+> 📐 **O alcance virou DUAS coisas num registro só** (`VagasDaGrade.Alcance`: o instante **e** quantos jogos precisam caber depois dele). Não são dois parâmetros soltos de propósito — passar o instante e esquecer o volume é o erro que **compila**, não quebra teste de pedaço nenhum, e só aparece como jogo dentro da janela no torneio de verdade. O `AlcanceNecessario` passou a receber **os jogos da leva** e a contar os empurrados com **o mesmo recorte por fase que o `Encaixar` aplica**: impedimento vale em TODA fase, concentração só nos GRUPOS, noite de sábado só FORA deles. Contar sem o recorte pediria vaga pra jogo que a restrição nem alcança.
+>
+> ⚠️ **A concentração continua trazendo o instante dela pronto** (`Concentracoes.AteQuando`) em vez de sair do máximo do mapa: as janelas dela são o COMPLEMENTO do turno escolhido e vão a um horizonte de 30 dias, então o maior `Fim` do mapa não é hora de torneio nenhum. E `MaisTarde` combina **o instante mais tardio com o MAIOR dos volumes, não a soma** — vaga depois do limite mais tardio também está depois do mais cedo.
+>
+> 🟢 **`quantas = Math.Max(quantas, cabem)` continua sendo o piso**: o alcance nunca ENCOLHE a grade de quem já pedia mais, e `VagasAlcancamAConcentracaoTests.O_alcance_nunca_tira_vaga_de_quem_ja_tinha_mais` segue verde travando isso. Vaga que sobra não custa nada, e aqui é estrutural: o `Encaixar` para no instante em que a fila esvazia, então num torneio que não aperta as vagas a mais **nem chegam a ser visitadas**.
+>
+> ✅ **FALSIFICADO:** devolvendo `margem` sozinha no lugar de `JogosEmpurrados + margem` (uma linha em `VagasDaGrade.Montar`), voltam **exatamente** os números da tabela acima. A auditoria da escala do Er (`GradeDoErAuditoriaTests`, 1/2/4/6 quadras, 63 duplas e 33 impedidas) segue verde nos dois sentidos.
+>
+> 🧪 **5.630 testes, 0 falhas** (5 novos, 3 avisos — os mesmos de antes). Sem migration.
+>
+> ⏳ **AINDA NÃO PUBLICADO.**
+>
+>
+> Antes, no mesmo dia — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
 > 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.
 >

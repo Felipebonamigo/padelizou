@@ -48,26 +48,87 @@ public static class VagasDaGrade
     // ALCANÇAR o fim da janela mais tardia, senão a restrição não tem pra onde empurrar o jogo.
     // Aqui ele vale pros três mapas de janela — impedimento, concentração e noite de sábado —
     // porque a pergunta é a mesma pros três.
-    public static DateTime? AlcanceNecessario(
-        params IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>?[] mapas)
-    {
-        DateTime? maisTarde = null;
+    //
+    // ⚠️ E ALCANÇAR NÃO É O MESMO QUE CABER (09/09/2026, segunda medição). A primeira versão
+    // disto devolvia só o INSTANTE, e o `Montar` seguia `max(quadras,1)*3` vagas além dele —
+    // uma sobra dimensionada pela CAPACIDADE da grade. Quem enche o outro lado da janela não é
+    // a capacidade, é o VOLUME de jogos que ela empurrou pra lá: numa janela de DIA INTEIRO (o
+    // impedimento de sexta) isso é muito mais que três rodadas. Medido em
+    // `AlcanceDoImpedimentoPorVolumeTests`: 16 duplas, `ImpedimentoSextaNoite` antes do
+    // sorteio, varrendo os 16 arranjos de cada volume — 4 impedidas furavam 0/16, 6 furavam
+    // 9/16 e 8 furavam 16/16, sempre cedendo uma garantia PAGA (`Torneio.TaxaPorImpedimento`).
+    //
+    // Por isso o alcance são DUAS coisas num registro só, e não dois valores soltos: passar o
+    // instante e esquecer o volume é o erro que compila, não quebra teste de pedaço nenhum, e
+    // só aparece como jogo dentro da janela no torneio de verdade.
+    public readonly record struct Alcance(DateTime Ate, int JogosEmpurrados);
 
-        foreach (var mapa in mapas)
+    // O alcance que as três restrições de horário pedem, olhando os jogos que vão ser marcados.
+    //
+    // ⚠️ O RECORTE POR FASE É O MESMO DO `GradeDeJogos.Encaixar`, e é ele que faz a contagem
+    // valer: o impedimento vale em TODA fase (é a pessoa que não pode estar ali), a
+    // concentração só nos GRUPOS ("os 2 jogos" são os 2 do grupo) e a noite de sábado só FORA
+    // deles (o Felipe pediu "jogos de eliminatórias"). Contar sem o recorte pediria vaga pra
+    // jogo que a restrição nem alcança.
+    //
+    // ⚠️ A CONCENTRAÇÃO TRAZ O INSTANTE DELA PRONTO (`Concentracoes.AteQuando`) em vez de sair
+    // do máximo do mapa: as janelas dela são o COMPLEMENTO do turno escolhido e vão até um
+    // horizonte de 30 dias, então o maior `Fim` do mapa não é hora de torneio nenhum.
+    public static Alcance? AlcanceNecessario(
+        IEnumerable<Partida> jogos,
+        ConcentracaoDeJogos.Concentracoes? concentracao = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? impedimentoPorDupla = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? noiteDeSabadoPorCategoria = null)
+    {
+        var lista = jogos as IReadOnlyCollection<Partida> ?? jogos.ToList();
+
+        static bool Restrita(IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? mapa, int chave) =>
+            mapa != null && mapa.ContainsKey(chave);
+
+        static DateTime? FimMaisTardio(IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? mapa)
         {
-            if (mapa == null) continue;
+            DateTime? maisTarde = null;
+            if (mapa == null) return null;
 
             foreach (var janelas in mapa.Values)
                 foreach (var janela in janelas)
                     if (maisTarde == null || janela.Fim > maisTarde) maisTarde = janela.Fim;
+
+            return maisTarde;
         }
 
-        return maisTarde;
+        var doImpedimento = De(FimMaisTardio(impedimentoPorDupla), lista.Count(j =>
+            Restrita(impedimentoPorDupla, j.Dupla1Id) || Restrita(impedimentoPorDupla, j.Dupla2Id)));
+
+        var daConcentracao = De(concentracao?.AteQuando, lista.Count(j =>
+            FasesTorneio.EhFaseDeGrupos(j.Fase)
+            && (Restrita(concentracao?.Janelas, j.Dupla1Id) || Restrita(concentracao?.Janelas, j.Dupla2Id))));
+
+        var daNoiteDeSabado = De(FimMaisTardio(noiteDeSabadoPorCategoria), lista.Count(j =>
+            !FasesTorneio.EhFaseDeGrupos(j.Fase) && Restrita(noiteDeSabadoPorCategoria, j.CategoriaId)));
+
+        return MaisTarde(MaisTarde(doImpedimento, daConcentracao), daNoiteDeSabado);
     }
 
-    // A mais tardia entre dois alcances. Nulo é "não pede nada", então ele nunca vence.
-    public static DateTime? MaisTarde(DateTime? um, DateTime? outro) =>
-        um == null ? outro : outro == null ? um : (um > outro ? um : outro);
+    // Um alcance, ou nada quando não há instante a alcançar. Sem instante não existe "além do
+    // limite", então o volume sozinho não pede grade nenhuma.
+    private static Alcance? De(DateTime? ate, int jogosEmpurrados) =>
+        ate is DateTime quando ? new Alcance(quando, jogosEmpurrados) : null;
+
+    // O mais exigente entre dois alcances. Nulo é "não pede nada", então ele nunca vence.
+    //
+    // ⚠️ O INSTANTE MAIS TARDIO COM O MAIOR DOS VOLUMES, e não a soma. Vaga depois do limite
+    // mais tardio também está depois do mais cedo, então reservar o maior dos dois cobre os
+    // dois — e somar pediria grade pra um aperto que não existe (as duas restrições raramente
+    // empurram jogos diferentes).
+    public static Alcance? MaisTarde(Alcance? um, Alcance? outro)
+    {
+        if (um is not Alcance a) return outro;
+        if (outro is not Alcance b) return um;
+
+        return new Alcance(a.Ate > b.Ate ? a.Ate : b.Ate,
+                           Math.Max(a.JogosEmpurrados, b.JogosEmpurrados));
+    }
 
     /// <summary>
     /// Os horários livres pra encaixar <paramref name="quantosJogos"/> a partir de
@@ -75,7 +136,7 @@ public static class VagasDaGrade
     /// <paramref name="jaMarcados"/> ocupam.
     /// </summary>
     public static List<DateTime> Montar(Torneio torneio, DateTime inicio, int quantosJogos,
-        IEnumerable<Partida>? jaMarcados = null, DateTime? peloMenosAte = null,
+        IEnumerable<Partida>? jaMarcados = null, Alcance? peloMenosAte = null,
         SedesDoTorneio? sedes = null)
     {
         var ocupadas = (jaMarcados ?? Enumerable.Empty<Partida>())
@@ -99,18 +160,38 @@ public static class VagasDaGrade
         //
         // Omitido — o caso de todo torneio sem ninguém concentrado — a conta é EXATAMENTE a de
         // sempre, e nenhuma grade existente muda de tamanho.
-        if (peloMenosAte is DateTime limite && limite > inicio)
+        if (peloMenosAte is Alcance alcance && alcance.Ate > inicio)
         {
+            var limite = alcance.Ate;
+
             // Teto de 14 dias de grade cheia: existe só pra que um limite absurdo não vire uma
             // lista gigante. Na prática o laço para no primeiro horário que alcança o limite —
             // e o limite é sempre o fim de um turno do próprio torneio.
             int teto = Math.Max(torneio.QuantidadeQuadras, 1) * (24 * 60 / Duracao(torneio)) * 14;
 
-            // ⚠️ NÃO PARA NO LIMITE — SEGUE UMA MARGEM ALÉM DELE, e isso foi medido (09/09/2026,
-            // auditando o Er com 4 quadras). Parando no primeiro horário que ALCANÇA o fim da
-            // janela, o outro lado dela ganha uma rodada só: com 4 quadras isso são 4 vagas pra
-            // todas as duplas que a janela empurrou pra lá, e o último recurso do encaixe entra
-            // de novo. O furo caiu de 2 pra 1 e não zerou. Alcançar não é o mesmo que caber.
+            // ⚠️ NÃO PARA NO LIMITE — SEGUE ALÉM DELE O BASTANTE PRA OS JOGOS EMPURRADOS
+            // CABEREM. Alcançar não é o mesmo que caber, e a primeira versão disto (09/09/2026,
+            // auditando o Er com 4 quadras) media a sobra em `margem` — `max(quadras,1)*3`, ou
+            // seja, TRÊS RODADAS, dimensionadas pela CAPACIDADE da grade. Só que quem enche o
+            // outro lado da janela não é a capacidade, é o VOLUME de jogos que a janela empurrou
+            // pra lá — e uma janela de DIA INTEIRO (o impedimento de sexta) empurra muito mais
+            // que três rodadas.
+            //
+            // 🕳️ MEDIDO (09/09/2026, AlcanceDoImpedimentoPorVolumeTests): torneio de sexta com 16
+            // duplas e `ImpedimentoSextaNoite` marcado antes do sorteio, varrendo os 16 arranjos
+            // possíveis de cada volume — 4 impedidas furavam 0/16, 6 furavam 9/16 e 8 furavam
+            // 16/16. Com três rodadas de sobra o sábado não tinha vaga pras duplas que a sexta
+            // expulsou, as vagas acabavam, e o último recurso do `GradeDeJogos.Encaixar` entrava
+            // — cedendo primeiro o impedimento, que é garantia PAGA (`Torneio.TaxaPorImpedimento`).
+            //
+            // 📐 A sobra é `JogosEmpurrados + margem` — quem conta os jogos empurrados é o
+            // `AlcanceNecessario`, que é o único lugar que sabe QUAL restrição alcança QUAL
+            // fase. Torneio sem ninguém restrito não chega aqui (o alcance é nulo); com uma
+            // dupla impedida entre 87 jogos, a sobra é do tamanho dos jogos DELA.
+            //
+            // ⚠️ VAGA QUE SOBRA NÃO CUSTA NADA, e aqui isso é estrutural: o `Encaixar` para no
+            // instante em que a fila esvazia (`if (fila.Count == 0) break;`), então as vagas a
+            // mais nem chegam a ser visitadas num torneio que não aperta.
             int cabem = 0;
             int depoisDoLimite = 0;
             foreach (var h in GradeDeJogos.Horarios(inicio, torneio.HoraFimDoDia,
@@ -119,7 +200,7 @@ public static class VagasDaGrade
             {
                 cabem++;
 
-                if (h >= limite && ++depoisDoLimite > margem) break;
+                if (h >= limite && ++depoisDoLimite > alcance.JogosEmpurrados + margem) break;
             }
 
             // NUNCA ENCOLHE: quem já pedia mais vagas que o alcance continua com as que pedia.

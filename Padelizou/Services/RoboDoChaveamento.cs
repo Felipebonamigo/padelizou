@@ -463,11 +463,13 @@ public class RoboDoChaveamento
         var janelasProibidas = await JanelasProibidasPorDuplaAsync(torneio);
         var noiteDeSabado = await NoiteDeSabadoPorCategoriaAsync(torneio);
 
-        // O alcance olha as TRÊS restrições — ver VagasDaGrade.AlcanceNecessario.
+        // O alcance olha as TRÊS restrições, e mede também QUANTOS jogos elas empurram pro
+        // outro lado do limite — ver VagasDaGrade.AlcanceNecessario.
         var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados,
-            peloMenosAte: VagasDaGrade.MaisTarde(
-                concentracao.AteQuando,
-                VagasDaGrade.AlcanceNecessario(janelasProibidas, noiteDeSabado)),
+            peloMenosAte: VagasDaGrade.AlcanceNecessario(jogos,
+                concentracao,
+                impedimentoPorDupla: janelasProibidas,
+                noiteDeSabadoPorCategoria: noiteDeSabado),
             sedes: sedes);
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,

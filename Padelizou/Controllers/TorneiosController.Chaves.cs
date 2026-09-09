@@ -524,10 +524,14 @@ namespace Padelizou.Controllers
                 // Medindo o torneio do Er com 4 quadras, o IMPEDIMENTO furava pelo mesmo motivo
                 // que a concentração furava: a grade acabava antes do fim da janela e o último
                 // recurso do encaixe entrava. Ver VagasDaGrade.AlcanceNecessario.
+                // ⚠️ E O ALCANCE PRECISA DOS JOGOS DESTA LEVA, não só das janelas: ele mede
+                // QUANTOS jogos as restrições empurram pro outro lado do limite, que é o que
+                // dimensiona a sobra da grade. Alcançar não é o mesmo que caber.
                 var vagas = VagasDaGrade.Montar(torneio, inicio, daLeva.Count, jaEmQuadra,
-                    peloMenosAte: VagasDaGrade.MaisTarde(
-                        concentracao?.AteQuando,
-                        VagasDaGrade.AlcanceNecessario(janelas, noiteDeSabado)),
+                    peloMenosAte: VagasDaGrade.AlcanceNecessario(daLeva,
+                        concentracao,
+                        impedimentoPorDupla: janelas,
+                        noiteDeSabadoPorCategoria: noiteDeSabado),
                     sedes: sedes);
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),

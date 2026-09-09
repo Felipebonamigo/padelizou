@@ -60,7 +60,7 @@ public class VagasAlcancamAConcentracaoTests
     public void Com_alcance_a_tarde_de_sabado_ganha_rodada_de_sobra()
     {
         var vagas = VagasDaGrade.Montar(Torneio(), Sexta18h, quantosJogos: 39,
-            peloMenosAte: Sabado.AddDays(1));
+            peloMenosAte: new VagasDaGrade.Alcance(Sabado.AddDays(1), JogosEmpurrados: 0));
 
         var rodadasDaTarde = vagas
             .Where(v => v >= Sabado.Add(JanelasDeImpedimento.CorteSabadoManhaTarde) && v < Sabado.AddDays(1))
@@ -78,7 +78,7 @@ public class VagasAlcancamAConcentracaoTests
     {
         var semAlcance = VagasDaGrade.Montar(Torneio(), Sexta18h, quantosJogos: 400);
         var comAlcance = VagasDaGrade.Montar(Torneio(), Sexta18h, quantosJogos: 400,
-            peloMenosAte: Sabado.AddHours(9));
+            peloMenosAte: new VagasDaGrade.Alcance(Sabado.AddHours(9), JogosEmpurrados: 0));
 
         Assert.Equal(semAlcance.Count, comAlcance.Count);
     }
