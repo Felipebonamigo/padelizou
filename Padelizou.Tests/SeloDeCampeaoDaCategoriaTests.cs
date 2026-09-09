@@ -42,17 +42,21 @@ public class SeloDeCampeaoDaCategoriaTests
         return t;
     }
 
-    // Campeã de uma categoria num torneio de um formato. Devolve a jogadora coroada.
-    private static Jogador CampeaDe(DbPadelContext ctx, string cpf, string categoria, string formato)
+    // Uma jogadora que parou em `fase` numa categoria/formato. Devolve a jogadora.
+    private static Jogador ColocadaDe(DbPadelContext ctx, string cpf, string categoria, string formato, string fase)
     {
         var torneio = NovoTorneio(ctx, "T" + cpf.Substring(cpf.Length - 5), formato);
         var cat = new Categoria { Nome = categoria, Codigo = "C" + cpf.Substring(cpf.Length - 4), Torneio = torneio };
-        var jogadora = new Jogador { Nome = "Campeã " + cpf, Cpf = cpf };
+        var jogadora = new Jogador { Nome = "Jogadora " + cpf, Cpf = cpf };
         ctx.AddRange(cat, jogadora);
-        ctx.Duplas.Add(new Dupla { Categoria = cat, Jogador1 = jogadora, Jogador2Id = null, UltimaFase = "Campeao" });
+        ctx.Duplas.Add(new Dupla { Categoria = cat, Jogador1 = jogadora, Jogador2Id = null, UltimaFase = fase });
         ctx.SaveChanges();
         return jogadora;
     }
+
+    // Campeã de uma categoria num torneio de um formato. Devolve a jogadora coroada.
+    private static Jogador CampeaDe(DbPadelContext ctx, string cpf, string categoria, string formato)
+        => ColocadaDe(ctx, cpf, categoria, formato, "Campeao");
 
     // ── 1. O RÓTULO ────────────────────────────────────────────────────────────────────────
 
@@ -62,7 +66,7 @@ public class SeloDeCampeaoDaCategoriaTests
         var ctx = TestInfra.NovoContexto();
         var jogadora = CampeaDe(ctx, "88800000001", SextaFeminina, FormatoDoTorneio.Padrao);
 
-        var mapa = await new EstatisticasService(ctx).ObterMelhoresColocacoesAsync(new[] { SextaFeminina });
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
 
         // A chave do dicionário é o que o chip procura, e o rótulo é o que a pessoa lê.
         // "Madeira" não pode ser nem uma coisa nem outra.
@@ -79,7 +83,7 @@ public class SeloDeCampeaoDaCategoriaTests
         var jogadora = CampeaDe(ctx, "88800000002", SextaFeminina, FormatoDoTorneio.Padrao);
 
         var selo = (await new EstatisticasService(ctx)
-            .ObterMelhoresColocacoesAsync(new[] { SextaFeminina }))[jogadora.Id][SextaFeminina];
+            .ObterTitulosPorCategoriaAsync(new[] { SextaFeminina }))[jogadora.Id][SextaFeminina];
 
         Assert.Equal(TrofeuDeMaterial.Madeira.CorFundo, selo.CorFundoTier);
         Assert.Equal(TrofeuDeMaterial.Madeira.CorTexto, selo.CorTextoTier);
@@ -95,7 +99,7 @@ public class SeloDeCampeaoDaCategoriaTests
         var jogadora = CampeaDe(ctx, "88800000003", SextaFeminina, FormatoDoTorneio.Padrao);
 
         var mapa = await new EstatisticasService(ctx)
-            .ObterMelhoresColocacoesAsync(new[] { SextaFeminina, SextaMasculina });
+            .ObterTitulosPorCategoriaAsync(new[] { SextaFeminina, SextaMasculina });
 
         Assert.True(mapa[jogadora.Id].ContainsKey(SextaFeminina));
         Assert.False(mapa[jogadora.Id].ContainsKey(SextaMasculina));
@@ -111,9 +115,9 @@ public class SeloDeCampeaoDaCategoriaTests
         var ctx = TestInfra.NovoContexto();
         var jogadora = CampeaDe(ctx, "88800000004", SextaFeminina, formato);
 
-        var mapa = await new EstatisticasService(ctx).ObterMelhoresColocacoesAsync(new[] { SextaFeminina });
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
 
-        // Nem selo de título, nem selo de "melhor campanha": o rodízio não tem fase de chave.
+        // O título do rodízio não é título de chave, e este selo é histórico de chave.
         Assert.False(mapa.ContainsKey(jogadora.Id));
     }
 
@@ -125,7 +129,7 @@ public class SeloDeCampeaoDaCategoriaTests
         var ctx = TestInfra.NovoContexto();
         var jogadora = CampeaDe(ctx, "88800000005", SextaFeminina, FormatoDoTorneio.Padrao);
 
-        var mapa = await new EstatisticasService(ctx).ObterMelhoresColocacoesAsync(new[] { SextaFeminina });
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
 
         Assert.Equal(1, mapa[jogadora.Id][SextaFeminina].Titulos);
     }
@@ -143,7 +147,7 @@ public class SeloDeCampeaoDaCategoriaTests
         ctx.Duplas.Add(new Dupla { Categoria = catAmericano, Jogador1Id = jogadora.Id, UltimaFase = "Campeao" });
         ctx.SaveChanges();
 
-        var mapa = await new EstatisticasService(ctx).ObterMelhoresColocacoesAsync(new[] { SextaFeminina });
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
 
         Assert.Equal(1, mapa[jogadora.Id][SextaFeminina].Titulos);
     }
@@ -187,7 +191,7 @@ public class SeloDeCampeaoDaCategoriaTests
         var nomes = new[] { SextaFeminina }.ToHashSet();
         int? excluirTorneioId = 7;
 
-        // Mesma forma exata de EstatisticasService.ObterMelhoresColocacoesAsync.
+        // Mesma forma exata de EstatisticasService.ObterTitulosPorCategoriaAsync.
         var consulta = ctx.Duplas
             .Include(d => d.Categoria)
             .Where(d => d.NomeTime == null
@@ -203,6 +207,60 @@ public class SeloDeCampeaoDaCategoriaTests
         // O JOIN com Torneio precisa estar lá: sem ele o filtro de formato teria virado
         // avaliação em memória (ou nem existiria), e o Americano voltaria calado.
         Assert.Contains("Torneio", sql);
+    }
+
+    // ── 6. SÓ CAMPEÃO ──────────────────────────────────────────────────────────────────────
+    // 09/09/2026 — Felipe, num print da Fase de Grupos onde "Vice" e "Semifinal" apareciam ao
+    // lado do nome: *"exiba apenas quem foi campeao, nao precisa exibir, semi, vice etc"*.
+    // O selo virou exclusivamente troféu: ou a pessoa foi campeã NAQUELA categoria, ou não há
+    // pílula nenhuma no chip.
+    // ⚠️ A campanha não some do sistema — a aba de torneios do perfil (Views/Auth/Perfil.cshtml)
+    // continua escrevendo "Vice"/"Semifinal" com o mesmo RotuloFase. O que saiu é a pílula do chip.
+
+    [Theory]
+    [InlineData("Final")]           // vice
+    [InlineData("Semifinal")]
+    [InlineData("Quartas de Final")]
+    [InlineData("Grupos")]
+    public async Task Quem_nao_foi_campeao_nao_entra_no_mapa_de_selos(string fase)
+    {
+        var ctx = TestInfra.NovoContexto();
+        var jogadora = ColocadaDe(ctx, "88800000008", SextaFeminina, FormatoDoTorneio.Padrao, fase);
+
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
+
+        // Sem título não há selo: uma entrada vazia no mapa é convite pra pílula voltar.
+        Assert.False(mapa.ContainsKey(jogadora.Id));
+    }
+
+    [Fact]
+    public async Task A_campanha_do_vice_nao_derruba_o_titulo_da_MESMA_jogadora()
+    {
+        // A guarda do outro lado: quem foi vice num torneio e campeã em outro segue com o troféu.
+        var ctx = TestInfra.NovoContexto();
+        var jogadora = CampeaDe(ctx, "88800000009", SextaFeminina, FormatoDoTorneio.Padrao);
+
+        var outro = NovoTorneio(ctx, "VICE09", FormatoDoTorneio.Padrao);
+        var catOutro = new Categoria { Nome = SextaFeminina, Codigo = "CVI09", Torneio = outro };
+        ctx.Add(catOutro);
+        ctx.Duplas.Add(new Dupla { Categoria = catOutro, Jogador1Id = jogadora.Id, UltimaFase = "Final" });
+        ctx.SaveChanges();
+
+        var mapa = await new EstatisticasService(ctx).ObterTitulosPorCategoriaAsync(new[] { SextaFeminina });
+
+        Assert.Equal(1, mapa[jogadora.Id][SextaFeminina].Titulos);
+    }
+
+    [Fact]
+    public void O_selo_nao_escreve_mais_o_rotulo_de_fase()
+    {
+        // Guarda de tela: o Razor compila no build, então um campo que sumiu do VM não volta
+        // calado — mas nada impede alguém de reescrever a pílula de "Vice" a partir de outra
+        // fonte. O que não pode voltar aqui é o RÓTULO DE FASE.
+        var view = LerDaWeb("Views", "Torneios", "_SeloHistorico.cshtml");
+
+        Assert.DoesNotContain("RotuloFase", view);
+        Assert.Contains("Model.Titulos > 0", view);
     }
 
     private static string LerDaWeb(params string[] caminho)

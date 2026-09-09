@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🏆 **O SELO DO CHIP VIROU SÓ TROFÉU.**
+>
+> 🗣️ **O pedido do Felipe**, num print da Fase de Grupos com "Vice" e "Semifinal" ao lado dos nomes: *"essa parte aqui, exiba apenas quem foi campeao, nao precisa exibir, semi, vice etc"*.
+>
+> ✂️ **SAIU A SEGUNDA PÍLULA.** `_SeloHistorico.cshtml` tinha um `if/else`: título → troféu + nº; senão, a melhor campanha na categoria (`RotuloFase`: "Vice", "Semifinal", "Quartas"). Sobrou só o `if` do troféu. Vale nos quatro lugares do `Details.cshtml` que usam `_JogadorChip` — tabela do grupo, lista de inscritos, duplas e fila de espera —, que é a mesma tela do print: uma pílula que some num bloco e sobrevive no de baixo seria a incoerência pior.
+>
+> 🧹 **E O DADO MORREU JUNTO, EM VEZ DE FICAR DE ENFEITE:** `HistoricoCategoriaVM.MelhorFase` era lido **só** por essa pílula; com ela fora, viraria campo que ninguém lê — e a próxima sessão o leria como esquecimento. Foi embora, junto com o `RankFase` privado que existia só pra alimentá-lo. `Aplicar` agora sai fora logo no `fase != "Campeao"`: **quem não foi campeão não entra no mapa**, em vez de entrar com zero título — entrada vazia é convite pra pílula voltar.
+>
+> 🏷️ **O MÉTODO FOI RENOMEADO PORQUE PASSOU A MENTIR:** `ObterMelhoresColocacoesAsync` devolve exclusivamente títulos → `ObterTitulosPorCategoriaAsync` (interface + `TorneiosController` + `ObterPlacaresAoVivo`). É o mesmo tipo de nome torto que causou o bug de 31/08 ("na categoria Madeira"). De quebra, o comentário da interface ainda dizia "por tier de categoria" — a chave é o **nome** da categoria desde 31/08.
+>
+> ⚠️ **A CAMPANHA NÃO SUMIU DO SISTEMA:** a aba de torneios do perfil (`Views/Auth/Perfil.cshtml`) continua escrevendo "Vice"/"Semifinal" com o mesmo `RotuloFase`, que segue público. O que saiu é a pílula do chip.
+>
+> 🧪 **5.618 testes, 0 falhas (6 novos)** — o total já é com o `main` trazido pra dentro (a auditoria da grade do Er entrou no meio do caminho). **Sem migration.** As guardas falsificaram: o `Theory` de Final/Semifinal/Quartas/Grupos ficou vermelho nos quatro casos (todos entravam no mapa) e a guarda de tela achou o `RotuloFase` no Razor. A guarda do outro lado passou de primeira, e é de propósito: vice num torneio + campeã em outro continua com o troféu de 1 título.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >
 > 🗣️ **Felipe:** *"criei o teste em dev, verifique se cumpriu bem os impedimentos e questões de horários, se ele respeitou isso"*.

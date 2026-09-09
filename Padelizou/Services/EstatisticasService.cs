@@ -106,16 +106,6 @@ public class EstatisticasService : IEstatisticasService
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.Americano
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.AmericanoDeDuplas;
 
-    // Ordem das fases para "melhor colocação" (maior = mais longe).
-    private static int RankFase(string? fase) => fase switch
-    {
-        "Campeao" => 5,
-        "Final" => 4,
-        "Semifinal" => 3,
-        "Quartas de Final" => 2,
-        _ => 1
-    };
-
     public static string RotuloFase(string? fase) => fase switch
     {
         "Campeao" => "Campeão",
@@ -987,7 +977,7 @@ public class EstatisticasService : IEstatisticasService
         return mapa;
     }
 
-    public async Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterMelhoresColocacoesAsync(
+    public async Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterTitulosPorCategoriaAsync(
         IEnumerable<string> categoriaNomes, int? excluirTorneioId = null)
     {
         var nomes = categoriaNomes.ToHashSet();
@@ -998,7 +988,7 @@ public class EstatisticasService : IEstatisticasService
             .Where(d => d.NomeTime == null   // campanha de time não é colocação de jogador
                      && nomes.Contains(d.Categoria.Nome)
                      // ⚠️ SÓ TORNEIO DE CHAVE (Felipe, 31/08/2026): o rodízio não tem final nem
-                     // semi, então não tem "colocação" nenhuma pra este selo carregar — o campeão
+                     // semi, então não tem título de chave pra este selo carregar — o campeão
                      // do Americano da 6ª estava saindo com o mesmo troféu do campeão da 6ª
                      // Categoria, e a lista de inscritos não tinha como dizer qual era qual.
                      // O título NÃO some do sistema: continua na prateleira do perfil, de vidro e
@@ -1014,6 +1004,11 @@ public class EstatisticasService : IEstatisticasService
 
         void Aplicar(int jogadorId, string? fase, string categoriaNome)
         {
+            // ⚠️ SÓ TÍTULO (Felipe, 09/09/2026): *"exiba apenas quem foi campeao, nao precisa
+            // exibir, semi, vice etc"*. Quem parou na final ou na semi não entra no mapa — uma
+            // entrada de zero título aqui seria só um convite pra pílula de campanha voltar.
+            if (fase != "Campeao") return;
+
             // A chave é o NOME DA CATEGORIA, não o material do troféu. Agrupar por material
             // dizia "na categoria Madeira" — que não é categoria nenhuma, é o degrau da escada
             // (Services/TrofeuDeMaterial) — e, pior, juntava 6ª Masculina com 6ª Feminina, que
@@ -1031,7 +1026,6 @@ public class EstatisticasService : IEstatisticasService
                 hist = new HistoricoCategoriaVM
                 {
                     CategoriaNome = categoriaNome,
-                    MelhorFase = "Grupos",
                     Titulos = 0,
                     IconeTier = icone,
                     CorFundoTier = corFundo,
@@ -1039,8 +1033,7 @@ public class EstatisticasService : IEstatisticasService
                 };
                 porCategoria[categoriaNome] = hist;
             }
-            if (RankFase(fase) > RankFase(hist.MelhorFase)) hist.MelhorFase = fase ?? "Grupos";
-            if (fase == "Campeao") hist.Titulos += 1;
+            hist.Titulos += 1;
         }
 
         foreach (var r in registros)

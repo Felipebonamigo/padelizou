@@ -399,7 +399,7 @@ namespace Padelizou.Controllers
             var nomes = await _context.Categorias
                 .Where(c => c.TorneioId == torneioId)
                 .Select(c => c.Nome).Distinct().ToListAsync();
-            var hist = await _estatisticas.ObterMelhoresColocacoesAsync(nomes, excluirTorneioId: torneioId);
+            var hist = await _estatisticas.ObterTitulosPorCategoriaAsync(nomes, excluirTorneioId: torneioId);
             // Aceita nulo (dupla ainda sem parceiro) devolvendo 0 — a transmissão não pode
             // quebrar por causa de uma inscrição incompleta.
             int Titulos(int? jogadorId) => jogadorId != null && hist.TryGetValue(jogadorId.Value, out var porCategoria)

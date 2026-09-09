@@ -463,10 +463,10 @@ namespace Padelizou.Controllers
             // deve, e o único lugar que lembraria dela seria o financeiro do Padelizou.
             ViewBag.TaxaExternoDevendo = TaxaDoTorneioExterno.EstaDevendo(torneio);
 
-            // SELOS HISTÓRICOS: melhor colocação + títulos de cada jogador nas mesmas categorias
-            // (por Categoria.Nome), considerando torneios anteriores a este.
+            // SELOS HISTÓRICOS: títulos de cada jogador nas mesmas categorias (por Categoria.Nome),
+            // considerando torneios anteriores a este. Só campeão — ver _SeloHistorico.cshtml.
             var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();
-            ViewBag.HistoricoJogadores = await _estatisticas.ObterMelhoresColocacoesAsync(nomesCategorias, excluirTorneioId: id);
+            ViewBag.HistoricoJogadores = await _estatisticas.ObterTitulosPorCategoriaAsync(nomesCategorias, excluirTorneioId: id);
 
             if (torneio.Formato == "Americano")
             {
