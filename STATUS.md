@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🕳️ **A PRÉVIA NÃO ESPERAVA JOGO DE GRUPO DE OUTRA CATEGORIA — a primeira correção da ordem tinha um buraco, e o Felipe achou pela tela.**
+>
+> 🗣️ **Felipe, num print do `dev` DEPOIS do build-848:** *"como que tem jogo dia 15, no torneio do er? se termina dia 13? e como que ele nao ta respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse erro?"*. A tela mostrava **Quartas de Final da 6ª Feminina** com selo "prévia" em **12/09 18:50** e jogos de **GRUPO** reais em **15/09 20:30**.
+>
+> 🕳️ **O QUE A PRIMEIRA CORREÇÃO NÃO COBRIU.** Ela ordenou as fases **projetadas entre si**, e o piso da PRIMEIRA delas continuou saindo do fim dos grupos **da própria categoria** (`CadeiaDeFases.DepoisDe`, montado em `ProjetarProximasFasesAsync`). Jogo de grupo de OUTRA categoria não é cadeia nenhuma — é jogo **real**, que chega como `jaMarcados`, e `jaMarcados` só carregava horário e quadra. Sem a **fase**, a projeção não tinha como saber o posto daquele jogo pra esperá-lo.
+>
+> ⚠️ **E O MEU TESTE NÃO PEGOU, por um motivo que vale guardar:** ele semeava todas as cadeias com o MESMO `fimDosGrupos`. Sem categorias terminando em horas diferentes, o furo não tinha como aparecer. O teste novo (`A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria`) falhava **exatamente no 12/09 18:50 do print**.
+>
+> ✅ **`VagaOcupada` ganhou `Fase`** (opcional — vaga sem fase declarada NÃO vira barreira, de propósito: chutar "deve ser grupo" seguraria a chave atrás de um jogo que talvez seja a final).
+>
+> 🧾 **E o "Conferir grade" passou a dizer o PORQUÊ, não só o "quais".** `PorQueNaoCoube` já existia e só falava no sorteio — que é um instante que passa. A pergunta nasce DEPOIS, olhando a grade.
+>
+> 🧪 **5.752 testes, 0 falhas (3 novos), suíte rodada 2×.** **Sem migration.**
+>
+> ⏭️ **O 15/09 CONTINUA SENDO DADO VELHO NA TELA.** Os jogos de grupo em 15/09 são linhas gravadas ANTES do build-848: trocar o motor não reescreve linha nenhuma. Só **Refazer grade** aplica a ordem nova àquele torneio — e antes disso vale o **Conferir grade**, que agora nomeia a quadra com janela fora das datas, se for esse o caso.
+
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-848-d1ad234`** (22h03 e 22h04 UTC), **o mesmo artefato nos dois**. Subiu a ordem das fases por posto e o aviso do que não coube (PR #104).
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.

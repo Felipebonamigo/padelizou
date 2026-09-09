@@ -1046,7 +1046,9 @@ namespace Padelizou.Controllers
             // havia como saber qual.
             var ocupadas = partidas
                 .Where(p => p.HorarioPrevisto != null)
-                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra))
+                // A FASE vai junto: é ela que diz o posto do jogo real, e é o que faz a prévia
+                // esperar a fase de grupos das OUTRAS categorias. Ver ProximasFasesDaChave.Agendar.
+                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra, p.Fase))
                 .ToList();
 
             var projetados = ProximasFasesDaChave.Agendar(
