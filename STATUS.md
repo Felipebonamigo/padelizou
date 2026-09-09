@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> 🚀 **PUBLICADO em `dev` E `prod` no commit `17496ea`** (09/09/2026, 13h05 e 13h07 UTC) — o "Meus jogos" por grupo (PR #91) e, junto com ele, tudo que estava no `main` e ainda não tinha subido: a **auditoria da grade do Er** (PR #90) e o **selo do chip** (PR #89). Mesmo artefato nos dois ambientes: o `dev` levou `17496ea` e a produção levou **o mesmo**, não um build novo — que é o que a Regra 3 quer dizer com "testar em dev antes".
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA, e agora foi medida de novo:** o job `deploy → prod` foi de `Set up job` a `Complete job` em **11 segundos**, sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **Nada disto foi visto renderizado** — sem browser nesta sessão. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
 > Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
 > 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.
