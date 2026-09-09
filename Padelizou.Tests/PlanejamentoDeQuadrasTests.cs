@@ -193,4 +193,99 @@ public class PlanejamentoDeQuadrasTests
         Assert.Equal(new TimeSpan(21, 0, 0), limites[new DateTime(2026, 9, 11)]);
         Assert.Equal(new TimeSpan(14, 0, 0), limites[new DateTime(2026, 9, 13)]);
     }
+
+    // ── A QUADRA ALUGADA POR ALGUMAS HORAS ────────────────────────────────────────────────
+    //
+    // 🗣️ Felipe: "adicionar aqui nessa tela uma ou mais quadras, para calcular corretamente
+    // (…) quais horarios elas irão receber (de que horas até que horas, cada quadra)".
+    //
+    // ⚠️ A CAPACIDADE DEIXA DE SER `rodadas × quadras`. Uma quadra alugada das 8h às 14h de
+    // sábado rende só as rodadas dessa janela — 8 (8h, 8h50 … 13h50) —, e nada nos outros
+    // dias. Contá-la como quadra inteira prometeria 40 vagas onde existem 8: é a conta que
+    // faria o organizador alugar de menos e descobrir na sexta à noite.
+    //
+    // ⚠️ E A REGRA DA JANELA NÃO É COPIADA PRA CÁ: quem responde "esta quadra está aberta às
+    // 13h50?" é o mesmo SedesDoTorneio que o sorteio consulta. Meio aberta ([De, Ate)): o
+    // jogo que COMEÇA às 14h já está fora.
+    private static PlanejamentoDeQuadras.Plano DoErComQuadraAlugada(DateTime? ate = null)
+        => PlanejamentoDeQuadras.Montar(
+            inicio: new DateTime(2026, 9, 11, 18, 0, 0),
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0),
+            limitePadrao: new TimeSpan(23, 50, 0),
+            quadras: new[]
+            {
+                new Padelizou.Models.Quadra { Nome = "Quadra A" },
+                new Padelizou.Models.Quadra { Nome = "Quadra B" },
+                new Padelizou.Models.Quadra
+                {
+                    Nome = "Alugada",
+                    DisponivelDe = new DateTime(2026, 9, 12, 8, 0, 0),
+                    DisponivelAte = new DateTime(2026, 9, 12, 14, 0, 0),
+                },
+            },
+            duracaoMinutos: 50,
+            totalDeJogos: 87,
+            ate: ate,
+            limitesPorDia: PlanejamentoDeQuadras.LerLimites(null));
+
+    [Fact]
+    public void Quadra_alugada_so_rende_as_rodadas_da_janela_dela()
+    {
+        var plano = DoErComQuadraAlugada(ate: new DateTime(2026, 9, 13));
+
+        Assert.Equal(3, plano.Quadras);
+
+        // Sexta: a alugada está fechada (a janela é de sábado) → 8 rodadas × 2 = 16.
+        Assert.Equal(16, plano.Dias[0].Vagas);
+
+        // Sábado: 20 rodadas × 2 quadras de sempre + 8 rodadas da alugada = 48.
+        Assert.Equal(48, plano.Dias[1].Vagas);
+
+        // Domingo: de novo só as duas → 40.
+        Assert.Equal(40, plano.Dias[2].Vagas);
+
+        Assert.Equal(104, plano.Vagas);
+        Assert.Equal(0, plano.Faltam);
+    }
+
+    // Os jogos ENTRAM na quadra alugada enquanto ela está aberta — e é isso que adianta o
+    // fim do torneio: com 3 vagas por rodada de manhã, o sábado absorve mais, e o domingo
+    // termina mais cedo do que sem ela.
+    [Fact]
+    public void Com_a_quadra_alugada_o_torneio_termina_mais_cedo()
+    {
+        var sem = DoEr();
+        var com = DoErComQuadraAlugada();
+
+        Assert.Equal(48, com.Dias[1].Jogos);
+        Assert.Equal(87 - 16 - 48, com.Dias[2].Jogos);   // 23 no domingo
+        Assert.True(com.UltimoJogoComeca < sem.UltimoJogoComeca);
+
+        // 23 jogos em 2 quadras = 12 rodadas → a 12ª começa 8h + 11×50min = 17h10.
+        Assert.Equal(new DateTime(2026, 9, 13, 17, 10, 0), com.UltimoJogoComeca);
+    }
+
+    // ⚠️ A GUARDA DE NÃO-DIVERGÊNCIA CONTINUA VALENDO com a lista de quadras: sem janela
+    // nenhuma, três quadras de lista e "3" de número são a MESMA grade, até o minuto.
+    [Fact]
+    public void Lista_de_quadras_sem_janela_e_o_mesmo_que_o_numero()
+    {
+        var porNumero = DoEr(quadras: 3);
+        var porLista = PlanejamentoDeQuadras.Montar(
+            inicio: new DateTime(2026, 9, 11, 18, 0, 0),
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0),
+            limitePadrao: new TimeSpan(23, 50, 0),
+            quadras: new[]
+            {
+                new Padelizou.Models.Quadra { Nome = "A" },
+                new Padelizou.Models.Quadra { Nome = "B" },
+                new Padelizou.Models.Quadra { Nome = "C" },
+            },
+            duracaoMinutos: 50, totalDeJogos: 87, ate: null,
+            limitesPorDia: PlanejamentoDeQuadras.LerLimites(null));
+
+        Assert.Equal(porNumero.Vagas, porLista.Vagas);
+        Assert.Equal(porNumero.UltimoJogoComeca, porLista.UltimoJogoComeca);
+        Assert.Equal(porNumero.Dias.Select(d => d.Jogos), porLista.Dias.Select(d => d.Jogos));
+    }
 }

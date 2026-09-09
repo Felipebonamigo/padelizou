@@ -1541,7 +1541,10 @@ namespace Padelizou.Controllers
             // estourar; o valor dela é ignorado de propósito.
             var clubeEscolhido = await _context.Clubes.FindAsync(clubeId);
             if (clubeEscolhido != null) torneio.LocalTorneio = clubeEscolhido.Nome;
-            torneio.QuantidadeQuadras = quantidadeQuadras;
+            // ⚠️ A QUANTIDADE NÃO SE GRAVA AQUI — sai da reconciliação lá embaixo, como o número
+            // de linhas que sobrou (09/09/2026). Antes era o número digitado, e ele podia
+            // discordar da lista (30 digitado, 26 criadas pelo alfabeto); com os campos fora
+            // desta tela, gravaria ZERO. A quantidade é a lista, sempre — ver Planejamento.
             torneio.PermiteImpedimentos = permiteImpedimentos;
 
             // A TAXA DE IMPEDIMENTO passou a ser editável com o torneio já aberto (Felipe,
@@ -1678,10 +1681,21 @@ namespace Padelizou.Controllers
             // `quadrasPorPosicao` é essa mesma ordem, e é ela que traduz a caixinha marcada na
             // tela ("a terceira quadra") na quadra de verdade — inclusive quando a terceira
             // está nascendo agora.
+            //
+            // ⚠️ SÓ QUANDO A TELA MANDOU QUADRA (09/09/2026). Nome e quantidade SAÍRAM desta tela
+            // — o lugar único de quadra passou a ser o planejador (TorneiosController.
+            // Planejamento), com local e janela por quadra. O navegador agora manda este POST
+            // sem os dois campos: `quantidadeQuadras` chega 0 e `nomesQuadras` nulo, e o
+            // `Math.Max(1, 0)` de antes APAGARIA todas as quadras menos uma, calado, no meio de
+            // um salvamento de preço. A reconciliação fica (o Create partilha a receita e há
+            // chamadores que ainda mandam quantidade), mas só corre quando algo veio.
             var quadrasAtuais = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
             var quadrasPorPosicao = new List<Quadra>();
+            bool quadrasInformadas = nomesQuadras != null || quantidadeQuadras > 0;
+            if (!quadrasInformadas) quadrasPorPosicao.AddRange(quadrasAtuais);
+
             string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            int quantidade = Math.Max(1, quantidadeQuadras);
+            int quantidade = quadrasInformadas ? Math.Max(1, quantidadeQuadras) : 0;
             for (int i = 0; i < quantidade && i < alfabetoQuadras.Length; i++)
             {
                 string? nomeInformado = nomesQuadras != null && i < nomesQuadras.Length ? nomesQuadras[i]?.Trim() : null;
@@ -1704,10 +1718,14 @@ namespace Padelizou.Controllers
                     quadrasPorPosicao.Add(quadraNova);
                 }
             }
-            if (quadrasAtuais.Count > quantidade)
+            if (quadrasInformadas && quadrasAtuais.Count > quantidade)
             {
                 _context.Quadras.RemoveRange(quadrasAtuais.Skip(quantidade));
             }
+
+            // A quantidade É a lista (regra 1 do planejador). Sem quadra informada, fica o que
+            // está — que já é o número de linhas, mantido pelo planejador.
+            if (quadrasInformadas) torneio.QuantidadeQuadras = quadrasPorPosicao.Count;
 
             await _context.SaveChangesAsync();
 

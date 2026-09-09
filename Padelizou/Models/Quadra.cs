@@ -55,9 +55,12 @@ public partial class Quadra
     // (ver Services/SedesDoTorneio). Uma janela declarada por sede, à parte, seria uma segunda
     // verdade livre pra discordar da quadra — e a grade lê a quadra.
     //
-    // ⚠️ SÓ VALE EM TORNEIO DE MAIS DE UMA SEDE (SedesDoTorneio.QuadraAberta): a janela nasceu
-    // pro local ALUGADO, não pra fechar o clube do próprio organizador. Quem quiser encurtar o
-    // dia do torneio inteiro mexe em `Torneio.HoraFimDoDia`, que é o campo que faz isso.
+    // ⚠️ VALE EM QUALQUER TORNEIO desde 09/09/2026 — até então só valia com mais de uma sede,
+    // porque nasceu pro local ALUGADO e `SedesDoTorneio.Montar` saía antes de montar o mapa
+    // quando todas as quadras eram do mesmo clube. Com a tela de planejamento oferecendo o
+    // campo pra cada quadra (o Er pode alugar quadra no próprio complexo), esse atalho virava
+    // valor aceito e jogado fora. Quem quiser encurtar o dia do torneio INTEIRO continua
+    // mexendo em `Torneio.HoraFimDoDia`; a janela é de UMA quadra.
     public DateTime? DisponivelDe { get; set; }
     public DateTime? DisponivelAte { get; set; }
 

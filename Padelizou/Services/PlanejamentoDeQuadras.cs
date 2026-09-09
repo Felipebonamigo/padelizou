@@ -1,4 +1,5 @@
 using System.Globalization;
+using Padelizou.Models;
 
 namespace Padelizou.Services;
 
@@ -107,12 +108,46 @@ public static class PlanejamentoDeQuadras
         int totalDeJogos,
         DateTime? ate = null,
         IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null)
+        // N quadras sem janela: é a simulação "e se eu tivesse 4?", e é também a forma que
+        // o resumo da aba usa. Vira lista pra que exista UM núcleo só — a versão por número
+        // não pode ter a própria conta de vagas, senão as duas divergem no primeiro ajuste.
+        => Montar(inicio, aberturaDiasSeguintes, limitePadrao,
+            Enumerable.Range(1, Math.Max(1, quadras)).Select(i => new Quadra { Nome = $"Quadra {i}" }).ToList(),
+            duracaoMinutos, totalDeJogos, ate, limitesPorDia);
+
+    /// <summary>
+    /// O calendário com as quadras DE VERDADE: cada uma rende só as rodadas em que está aberta.
+    /// </summary>
+    // 🗣️ Felipe (09/09/2026): "adicionar aqui nessa tela uma ou mais quadras, para calcular
+    // corretamente (…) quais horarios elas irão receber (de que horas até que horas, cada
+    // quadra)". Uma quadra alugada das 8h às 14h de sábado NÃO é uma quadra inteira: rende 8
+    // rodadas num dia e zero nos outros. Contá-la inteira prometeria 40 vagas onde existem 8.
+    //
+    // ⚠️ QUEM DIZ SE A QUADRA ESTÁ ABERTA É O `SedesDoTorneio` — o mesmo objeto que o sorteio
+    // consulta (VagasDaGrade / GradeDeJogos.Encaixar). Nada aqui lê `DisponivelDe/Ate` na mão:
+    // a regra da janela (meio aberta, [De, Ate)) existe num lugar só, e é por isso que o que
+    // esta tela promete é o que a grade entrega.
+    public static Plano Montar(
+        DateTime inicio,
+        TimeSpan aberturaDiasSeguintes,
+        TimeSpan limitePadrao,
+        IReadOnlyList<Quadra> quadras,
+        int duracaoMinutos,
+        int totalDeJogos,
+        DateTime? ate = null,
+        IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null)
     {
         // Mesma normalização do motor (0 vira 50): torneio com o tempo zerado existe, e sem
         // ela a divisão por duração estouraria — ver GradeDeJogos.Horarios.
-        quadras = Math.Max(1, quadras);
+        int quantasQuadras = Math.Max(1, quadras.Count);
         duracaoMinutos = duracaoMinutos > 0 ? duracaoMinutos : 50;
         totalDeJogos = Math.Max(0, totalDeJogos);
+
+        // O clube principal é irrelevante pra pergunta que se faz aqui ("quantas estão abertas
+        // às 13h50?"), e a folga entre clubes também. Só a janela importa — e ela vale com um
+        // clube ou com dois (ver JanelaDeQuadraNoClubeUnicoTests).
+        var sedes = SedesDoTorneio.Montar(clubePrincipalId: 0, minutosParaTrocarDeClube: 0,
+            quadras, Array.Empty<Categoria>());
 
         var dias = new List<Dia>();
         int restantes = totalDeJogos;
@@ -150,14 +185,29 @@ public static class PlanejamentoDeQuadras
             // único campo capaz de desfazer aquilo.
             var rodadas = GradeDeJogos.RodadasPorDia(abre, limite, duracaoMinutos) ?? 0;
 
-            int vagasDoDia = rodadas * quadras;
-            int jogosDoDia = Math.Min(vagasDoDia, Math.Max(restantes, 0));
+            // Rodada a rodada, porque a capacidade de cada uma depende de quem está aberta
+            // naquele minuto — a quadra alugada entra às 8h e sai às 14h. As quadras enchem
+            // antes de o relógio andar (regra do GradeDeJogos.Horarios), então o último jogo
+            // do dia é a última rodada em que alguém entrou.
+            int vagasDoDia = 0, jogosDoDia = 0;
+            TimeSpan? ultimoJogoDoDia = null;
+            for (int r = 0; r < rodadas; r++)
+            {
+                var hora = abre + TimeSpan.FromMinutes(r * duracaoMinutos);
 
-            // O último jogo do dia entra na ceil(jogos ÷ quadras)-ésima rodada: as quadras
-            // enchem antes de o relógio andar, que é a regra do GradeDeJogos.Horarios.
-            TimeSpan? ultimoJogoDoDia = jogosDoDia > 0
-                ? abre + TimeSpan.FromMinutes(((jogosDoDia + quadras - 1) / quadras - 1) * duracaoMinutos)
-                : null;
+                // Nulo = nenhuma quadra tem janela → todas abertas. Limitado ao número de
+                // quadras pelo MESMO motivo de VagasDaGrade: é ele que manda em quantas vagas
+                // cada rodada tem.
+                int abertas = Math.Min(sedes.QuadrasAbertasEm(data.Add(hora)) ?? quantasQuadras, quantasQuadras);
+                vagasDoDia += abertas;
+
+                int entram = Math.Min(abertas, Math.Max(restantes, 0));
+                if (entram == 0) continue;
+
+                jogosDoDia += entram;
+                restantes -= entram;
+                ultimoJogoDoDia = hora;
+            }
 
             dias.Add(new Dia(
                 data, abre, limite, rodadas, vagasDoDia, jogosDoDia,
@@ -166,14 +216,13 @@ public static class PlanejamentoDeQuadras
 
             vagas += vagasDoDia;
             rodadasTotais += rodadas;
-            restantes -= jogosDoDia;
 
             if (ultimoJogoDoDia != null) ultimoJogo = data.Add(ultimoJogoDoDia.Value);
         }
 
         int alocados = totalDeJogos - Math.Max(restantes, 0);
         int faltam = Math.Max(restantes, 0);
-        int margem = GradeDeJogos.MargemDeHorarios(quadras);
+        int margem = GradeDeJogos.MargemDeHorarios(quantasQuadras);
 
         // ⚠️ QUANTAS QUADRAS FECHARIAM O PRAZO: rodada NÃO depende de quadra — quem manda no
         // número de rodadas é o relógio (abertura, limite, duração). Quadra só multiplica as
@@ -183,13 +232,13 @@ public static class PlanejamentoDeQuadras
         // seria inventar uma cobrança que ninguém fez.
         int quadrasNecessarias = ate != null && rodadasTotais > 0
             ? (totalDeJogos + rodadasTotais - 1) / rodadasTotais
-            : quadras;
+            : quantasQuadras;
 
         return new Plano
         {
             Dias = dias,
             TotalDeJogos = totalDeJogos,
-            Quadras = quadras,
+            Quadras = quantasQuadras,
             DuracaoMinutos = duracaoMinutos,
             Vagas = vagas,
             Alocados = alocados,

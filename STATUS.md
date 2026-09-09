@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🏟️ **O PLANEJADOR VIROU O LUGAR ÚNICO DE QUADRA — nome, local e "de que horas até que horas" de cada uma; e a janela passou a valer com um clube só.**
+>
+> 🗣️ **Felipe**, olhando a tela de planejamento no ar: *"ajuste aqui, para que nessa parte permita adicionar mais quadras, e colocar o nome do local e dados necessário, e colocar quais horários estarão disponíveis nessa(s) quadra(s) (…) crie uma tabela também, para que possa controlar as quadras que estarão disponíveis, se são no mesmo clube ou não, e quais horários elas irão receber (de que horas até que horas, cada quadra)"*. Perguntado, escolheu: **planejador vira o lugar único** (as outras duas telas viram link) e **a quadra extra pode ser no próprio clube**.
+>
+> 🕳️ **A SEGUNDA ESCOLHA DESTAMPOU UMA FALHA MUDA.** `SedesDoTorneio.Montar` saía por `return Nenhuma` assim que todas as quadras caíam no mesmo clube — otimização de 08/09, quando a janela só servia pro local alugado de OUTRA sede. Com a tela oferecendo o campo pra cada quadra, o atalho virava mentira: o Er aluga duas quadras no próprio complexo das 8h às 14h, digita a janela, e o motor a jogava fora e marcava jogo lá às 22h. **Agora a janela sobrevive à saída antecipada**, com `MaisDeUmClube` continuando `false` — janela não é sede, e confundir as duas ligaria folga de cidade e trava de categoria num torneio de um lugar só. Um teste antigo travava o comportamento velho com todas as letras (*"a janela nasceu pro local ALUGADO"*); foi reescrito dizendo por quê.
+>
+> 🧮 **A CONTA DO PLANEJADOR DEIXOU DE SER `rodadas × quadras`.** Ela anda rodada a rodada perguntando ao **mesmo** `SedesDoTorneio` do sorteio quantas quadras estão abertas naquele minuto — a alugada das 8h às 14h de sábado rende 8 rodadas, e zero nos outros dias. No Er com uma alugada assim: sábado passa de 40 pra 48 vagas, o domingo termina 17h10 em vez de 20h30. A guarda de não-divergência continua: sem janela, lista de 3 quadras e "3" de número dão a mesma grade até o minuto.
+>
+> 📋 **A TABELA.** Uma linha por quadra — nome, local (o clube do torneio grava nulo, convenção de sempre; os outros do catálogo), disponível de / até — com Salvar por linha, Remover e uma linha de Adicionar. Cada linha é um `<form>` próprio ligado por `form=` (formulário dentro de formulário é HTML inválido, e o bloco fica FORA do GET da simulação). **Três invariantes, cada uma já bug de produção:** (1) `QuantidadeQuadras` == nº de linhas, reescrita a cada salvamento — a divergência é o jogo com hora e sem quadra de 05/08; (2) nome é identidade (`NomeDeQuadraUnico`); (3) quadra com jogo marcado não se apaga nem se renomeia. O botão "Quadras" da simulação **saiu**: a tabela é a verdade, e "e se eu tivesse 4?" continua respondido por `QuadrasNecessarias`.
+>
+> ✂️ **O EDITAR PERDEU OS CAMPOS DE QUADRA** (viraram link pro planejador). ⚠️ **E ISSO EXPÔS UMA BOMBA:** o POST fazia `Math.Max(1, quantidadeQuadras)` e, sem o campo, quantidade chega 0 → **apagaria todas as quadras menos uma**, calado, no meio de um salvamento de preço. Agora a reconciliação só corre quando a tela mandou quadra (`nomesQuadras != null || quantidadeQuadras > 0` — há chamadores que ainda mandam só a quantidade), e a quantidade gravada é o nº de linhas que sobrou, não o número digitado. A tabela de preferência de quadra do Editar lê os nomes de um container oculto, e é chamada no carregamento por conta própria (antes só era chamada de dentro da função do campo que saiu).
+>
+> ⏭️ **A SUB-ABA "QUADRAS E SEDES" GANHOU SÓ O AVISO E O LINK.** Tirar de lá o "onde cada quadra fica" e a janela por clube é o **próximo PR**: são ~15 testes de tela presos ao desenho atual e um JS que amarra os seletores de quadra à tabela de categorias — sem browser nesta sessão, não é coisa pra mexer no mesmo diff. Enquanto isso são duas portas escrevendo as mesmas colunas, ambas certas.
+>
+> 🧪 **5.715 testes, 0 falhas (26 novos), suíte rodada 2×.** **Sem migration.** Falsificado: a guarda do Editar vista vermelha sem a condição.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão. A tabela usa `form=` em inputs fora do `<form>` e `datetime-local`; os dois são HTML padrão, mas é o tipo de coisa que merece um print.
+>
 > Última atualização: **09/09/2026** — 💸 **DESFAZER O SORTEIO PASSOU A DEVOLVER O FIADO DA TAXA — e o que estava aberto não era a mensagem, era a trava.**
 >
 > 🗣️ **Felipe**, num print do Painel de Controle com o torneio de volta em "Inscrições Abertas": *"aqui está dizendo que já sorteou a chave, mas a gente voltou, deveria ter sumido aquela mensagem"*.

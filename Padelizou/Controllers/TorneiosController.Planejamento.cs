@@ -32,10 +32,6 @@ namespace Padelizou.Controllers
         // 2.000 jogos é ~20× o maior torneio que já rodou aqui.
         private const int MaximoDeJogosNoPlanejamento = 2000;
 
-        // O alfabeto de nomes de quadra do `Editar` tem 26 letras, e é ele que dá teto real ao
-        // que o organizador consegue cadastrar. Aqui vai um pouco além pra não travar a
-        // simulação, mas longe do absurdo.
-        private const int MaximoDeQuadrasNoPlanejamento = 40;
         private const int MinimoDeMinutosPorJogo = 5;
         private const int MaximoDeMinutosPorJogo = 240;
 
@@ -44,7 +40,7 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> Planejamento(
             int id, DateTime? dataInicio = null, TimeSpan? horaInicio = null,
             TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null,
-            int? quadras = null, int? duracao = null, int? jogos = null,
+            int? duracao = null, int? jogos = null,
             DateTime? ate = null, string? limites = null,
             Dictionary<string, string>? limite = null)
         {
@@ -78,9 +74,15 @@ namespace Padelizou.Controllers
                     .Select(par => $"{par.Key}={par.Value}"))
                 : limites;
 
+            // AS QUADRAS SÃO AS DE VERDADE (09/09/2026), com a janela de cada uma — não mais um
+            // número girável. "E se eu tivesse 4?" continua respondido por `QuadrasNecessarias`
+            // e por acrescentar uma linha na tabela; o que saiu foi a possibilidade de a
+            // tabela dizer 2 e a conta usar 4.
+            var quadrasReais = await QuadrasDoPlanejamentoAsync(id);
+
             var botoes = Botoes(torneio, dataInicio, horaInicio, horaSeguintes, horaFim,
-                quadras, duracao, ate, limitesTexto);
-            var plano = MontarPlano(botoes, total);
+                duracao, ate, limitesTexto);
+            var plano = MontarPlano(botoes, total, quadrasReais);
 
             return View(new PlanejamentoDeQuadrasVM
             {
@@ -99,13 +101,187 @@ namespace Padelizou.Controllers
                 HoraInicio = botoes.Abre,
                 HoraSeguintes = botoes.AbreSeguintes,
                 HoraFim = botoes.Fecha,
-                Quadras = botoes.Quadras,
                 Duracao = botoes.Duracao,
                 Jogos = total,
                 Ate = botoes.Ate,
                 Limites = botoes.Limites,
+                Quadras = quadrasReais,
+                Clubes = await _context.Clubes.ParaEscolher().ToListAsync(),
+                NomeDoClubeDoTorneio = await _context.Clubes
+                    .Where(c => c.Id == torneio.ClubeId).Select(c => c.Nome).FirstOrDefaultAsync()
+                    ?? torneio.LocalTorneio ?? "Clube do torneio",
+                MaximoDeQuadras = MaximoDeQuadrasDoTorneio,
             });
         }
+
+        // ── A TABELA DE QUADRAS (09/09/2026) ─────────────────────────────────────────────
+        //
+        // 🗣️ Felipe: "adicionar aqui nessa tela uma ou mais quadras, para calcular corretamente,
+        // crie uma tabela também, para que possa controlar as quadras que estarão disponíveis,
+        // se são no mesmo clube ou não, e quais horários elas irão receber (de que horas até
+        // que horas, cada quadra)". Perguntado, escolheu: o planejador é o LUGAR ÚNICO de
+        // quadra — os campos de nome/quantidade saíram do `Editar` e viraram link pra cá.
+        //
+        // ⚠️ AS TRÊS REGRAS QUE ESTES POSTS SEGURAM, cada uma já bug de produção:
+        //   1. `QuantidadeQuadras` == número de linhas, sempre — reescrita a cada salvamento.
+        //      Divergindo, a grade oferece vaga sem nome e o jogo nasce com hora e sem quadra
+        //      (Interno de 05/08/2026; Services/NomesDeQuadra existe por isso).
+        //   2. Nome é identidade (Services/NomeDeQuadraUnico): `Partida.NomeQuadra` é texto
+        //      solto, e duas "Quadra 1" seriam a MESMA quadra pra grade.
+        //   3. Quadra com jogo marcado não se apaga nem se renomeia: o jogo apontaria pra um
+        //      nome que não existe mais, e o seletor "mudar de quadra" não teria como trazê-lo
+        //      de volta.
+        //
+        // Nulo em `ClubeId` = "no clube do torneio", a mesma convenção de AlterarSedesDoTorneio
+        // e de toda quadra de torneio de uma sede só.
+
+        // O alfabeto de nomes automáticos do `Create` tem 26 letras; é o teto que sempre valeu.
+        private const int MaximoDeQuadrasDoTorneio = 26;
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarQuadraDoPlanejamento(
+            int id, int? quadraId, string? nome, int? clubeId, DateTime? de, DateTime? ate)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+
+            // ⚠️ A QUADRA É PROCURADA DENTRO DESTE TORNEIO, nunca por `FindAsync(quadraId)`: o id
+            // vem do navegador, e um POST montado à mão renomearia a quadra de outro organizador.
+            Quadra? alvo = null;
+            if (quadraId is int idDaQuadra)
+            {
+                alvo = quadras.FirstOrDefault(q => q.Id == idDaQuadra);
+                if (alvo == null) return Recusar(id, "Essa quadra não é deste torneio.");
+            }
+
+            var nomeLimpo = (nome ?? "").Trim();
+            if (nomeLimpo.Length == 0) return Recusar(id, "Dê um nome à quadra.");
+
+            if (alvo == null && quadras.Count >= MaximoDeQuadrasDoTorneio)
+                return Recusar(id, $"O torneio já tem {MaximoDeQuadrasDoTorneio} quadras, que é o máximo.");
+
+            // Janela que fecha antes de abrir é quadra que nunca existe: a grade não marcaria
+            // nada nela e ninguém saberia por quê. Meio aberta ([De, Ate)), então iguais também
+            // é vazia. Um lado só (só "de" ou só "até") vale, e SedesDoTorneio.QuadraAberta sabe.
+            if (de is DateTime abre && ate is DateTime fecha && fecha <= abre)
+                return Recusar(id, "A quadra precisa fechar depois de abrir — confira \"de\" e \"até\".");
+
+            // Regra 3: renomear quadra com jogo marcado deixaria os jogos com o nome velho e o
+            // cadastro com o novo (ver Services/NomesDeQuadra). Clube e janela continuam
+            // editáveis — mudam onde e quando, não QUEM a quadra é.
+            if (alvo != null && !string.Equals(alvo.Nome.Trim(), nomeLimpo, StringComparison.OrdinalIgnoreCase)
+                && await QuadraTemJogoAsync(id, alvo.Nome))
+            {
+                return Recusar(id, $"\"{alvo.Nome}\" já tem jogo marcado — o nome não muda mais. "
+                                   + "Local e horário continuam editáveis.");
+            }
+
+            // O clube só é aceito se existir; o do próprio torneio vira nulo, que é a convenção.
+            int? clube = null;
+            if (clubeId is int clubeEscolhido && clubeEscolhido > 0 && clubeEscolhido != torneio.ClubeId
+                && await _context.Clubes.AnyAsync(c => c.Id == clubeEscolhido))
+            {
+                clube = clubeEscolhido;
+            }
+
+            // Regra 2, com a explicação certa: num torneio de duas sedes a saída natural é pôr o
+            // clube dentro do nome.
+            bool maisDeUmClube = clube != null || quadras.Any(q => q != alvo && q.ClubeId != null);
+            var nomes = quadras.Where(q => q != alvo).Select(q => q.Nome).Append(nomeLimpo);
+            if (NomeDeQuadraUnico.MotivoParaNaoSalvar(nomes, maisDeUmClube) is { } motivo)
+                return Recusar(id, motivo);
+
+            if (alvo == null)
+            {
+                alvo = new Quadra { TorneioId = id };
+                _context.Quadras.Add(alvo);
+                quadras.Add(alvo);
+            }
+
+            alvo.Nome = nomeLimpo;
+            alvo.ClubeId = clube;
+            alvo.DisponivelDe = de;
+            alvo.DisponivelAte = ate;
+
+            // Regra 1.
+            torneio.QuantidadeQuadras = quadras.Count;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = quadraId == null
+                ? $"Quadra \"{nomeLimpo}\" adicionada — o torneio agora tem {quadras.Count}."
+                : $"Quadra \"{nomeLimpo}\" atualizada.";
+
+            return RedirectToAction(nameof(Planejamento), new { id });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverQuadraDoPlanejamento(int id, int quadraId)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var quadras = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
+            var alvo = quadras.FirstOrDefault(q => q.Id == quadraId);
+            if (alvo == null) return Recusar(id, "Essa quadra não é deste torneio.");
+
+            // Torneio sem quadra é grade sem vaga; o `Editar` sempre garantiu pelo menos uma.
+            if (quadras.Count <= 1) return Recusar(id, "O torneio precisa de pelo menos uma quadra.");
+
+            // Regra 3.
+            if (await QuadraTemJogoAsync(id, alvo.Nome))
+                return Recusar(id, $"\"{alvo.Nome}\" já tem jogo marcado e não pode ser removida.");
+
+            // A preferência de categoria que apontava pra ela sai junto: órfã seria FK quebrada
+            // no Postgres, e no InMemory dos testes uma escolha apontando pro nada.
+            _context.QuadrasDaCategoria.RemoveRange(
+                await _context.QuadrasDaCategoria.Where(p => p.QuadraId == alvo.Id).ToListAsync());
+            _context.Quadras.Remove(alvo);
+
+            // Regra 1.
+            torneio.QuantidadeQuadras = quadras.Count - 1;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Quadra \"{alvo.Nome}\" removida — o torneio agora tem {quadras.Count - 1}.";
+            return RedirectToAction(nameof(Planejamento), new { id });
+        }
+
+        private IActionResult Recusar(int id, string motivo)
+        {
+            TempData["Erro"] = motivo;
+            return RedirectToAction(nameof(Planejamento), new { id });
+        }
+
+        // "Já tem jogo nesta quadra?" — pelo NOME, que é como o jogo guarda a quadra, sem
+        // diferenciar caixa nem espaço nas pontas (a mesma tolerância de NomeDeQuadraUnico).
+        // Comparado em memória de propósito: a lista de nomes distintos de um torneio é
+        // pequena, e assim não há tradução de `ToLower` pra confiar no provedor.
+        private async Task<bool> QuadraTemJogoAsync(int torneioId, string nomeDaQuadra)
+        {
+            var nomesEmJogo = await _context.Partidas
+                .Where(p => p.TorneioId == torneioId && p.NomeQuadra != null)
+                .Select(p => p.NomeQuadra!)
+                .Distinct()
+                .ToListAsync();
+
+            return nomesEmJogo.Any(n => string.Equals(n.Trim(), nomeDaQuadra.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Por Id, que é a ordem em que nasceram — a mesma da tabela na tela e a mesma que o
+        // `Create` usou pra numerá-las.
+        private Task<List<Quadra>> QuadrasDoPlanejamentoAsync(int torneioId) =>
+            _context.Quadras.Where(q => q.TorneioId == torneioId).OrderBy(q => q.Id).ToListAsync();
 
         // ── O ÚNICO CAMINHO DAQUI QUE GRAVA ───────────────────────────────────────────────
         //
@@ -175,21 +351,19 @@ namespace Padelizou.Controllers
         // girado — mesma função, todos os parâmetros nulos.
         private sealed record BotoesDoPlanejamento(
             DateTime DataInicio, TimeSpan Abre, TimeSpan AbreSeguintes, TimeSpan Fecha,
-            int Quadras, int Duracao, DateTime? Ate, string? Limites);
+            int Duracao, DateTime? Ate, string? Limites);
 
         private static BotoesDoPlanejamento Botoes(
             Torneio torneio, DateTime? dataInicio = null, TimeSpan? horaInicio = null,
             TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null,
-            int? quadras = null, int? duracao = null, DateTime? ate = null, string? limites = null)
+            int? duracao = null, DateTime? ate = null, string? limites = null)
             => new(
                 (dataInicio ?? torneio.DataInicio ?? DateTime.Today).Date,
                 horaInicio ?? torneio.HoraInicioDoDia,
                 horaSeguintes ?? torneio.HoraInicioDiasSeguintes,
                 horaFim ?? torneio.HoraFimDoDia,
-                // ⚠️ TETO NOS DOIS: os valores chegam pela URL, e a tela é a única coisa que
-                // limita o campo. `vagas = rodadas × quadras` com um número absurdo estoura o
-                // int calado — e a conta errada é pior que o erro.
-                Math.Clamp(quadras ?? torneio.QuantidadeQuadras, 1, MaximoDeQuadrasNoPlanejamento),
+                // ⚠️ TETO: o valor chega pela URL, e a tela é a única coisa que limita o campo.
+                // Uma duração absurda faz a conta errada calada — pior que o erro.
                 duracao is int d && d > 0
                     ? Math.Clamp(d, MinimoDeMinutosPorJogo, MaximoDeMinutosPorJogo)
                     : VagasDaGrade.Duracao(torneio),
@@ -204,12 +378,15 @@ namespace Padelizou.Controllers
         private static (DateTime, TimeSpan, TimeSpan, TimeSpan, int) Gravavel(BotoesDoPlanejamento b) =>
             (b.DataInicio, b.Abre, b.AbreSeguintes, b.Fecha, b.Duracao);
 
-        private static PlanejamentoDeQuadras.Plano MontarPlano(BotoesDoPlanejamento b, int total) =>
+        // As quadras entram como LISTA, com a janela de cada uma — é o que faz a quadra
+        // alugada das 8h às 14h render 8 rodadas e não 20 (Services/PlanejamentoDeQuadras).
+        private static PlanejamentoDeQuadras.Plano MontarPlano(BotoesDoPlanejamento b, int total,
+            IReadOnlyList<Quadra> quadras) =>
             PlanejamentoDeQuadras.Montar(
                 inicio: b.DataInicio.Add(b.Abre),
                 aberturaDiasSeguintes: b.AbreSeguintes,
                 limitePadrao: b.Fecha,
-                quadras: b.Quadras,
+                quadras: quadras,
                 duracaoMinutos: b.Duracao,
                 totalDeJogos: total,
                 ate: b.Ate,
@@ -238,7 +415,7 @@ namespace Padelizou.Controllers
         private async Task<PlanejamentoDeQuadras.Plano?> ResumoDoPlanejamentoAsync(Torneio torneio)
         {
             var (jogos, _) = await JogosDoTorneioAsync(torneio);
-            return jogos > 0 ? MontarPlano(Botoes(torneio), jogos) : null;
+            return jogos > 0 ? MontarPlano(Botoes(torneio), jogos, await QuadrasDoPlanejamentoAsync(torneio.Id)) : null;
         }
     }
 }

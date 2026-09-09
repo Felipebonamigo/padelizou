@@ -3243,14 +3243,26 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                     </div>
                                 }
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold small">Qtd. de Quadras</label>
-                                    <input type="number" id="editQuantidadeQuadras" name="quantidadeQuadras" class="form-control" value="@Model.QuantidadeQuadras" required oninput="gerarCamposQuadraEdicao()" />
-                                </div>
+                                @* ⚠️ NOME E QUANTIDADE DE QUADRA SAÍRAM DAQUI (09/09/2026). O lugar
+                                   único de quadra é o planejador — nome, local e janela de cada
+                                   uma, e a quantidade é o número de linhas. Ficou aqui só o
+                                   container OCULTO com os nomes atuais, porque a tabela de
+                                   preferência de quadra logo abaixo precisa deles pra desenhar as
+                                   colunas (montarPreferenciaQuadraEdicao). O POST do Editar não
+                                   recebe mais os campos, e sabe disso: sem eles, não toca em quadra. *@
                                 <div class="col-12">
-                                    <label class="form-label fw-bold small">Nome de cada Quadra</label>
-                                    <div id="editCamposNomesQuadras" class="row g-2"
+                                    <div id="editCamposNomesQuadras" class="d-none"
                                          data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'></div>
+                                    <div class="alert alert-light border small mb-0 py-2 px-3 d-flex flex-wrap align-items-center gap-2">
+                                        <span>
+                                            <i class="bi bi-grid-3x3-gap"></i>
+                                            <strong>@Model.QuantidadeQuadras @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras")</strong>
+                                            — nome, local e horário de cada uma ficam no planejador.
+                                        </span>
+                                        <a asp-action="Planejamento" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                            <i class="bi bi-calendar-range"></i> Quadras e planejamento
+                                        </a>
+                                    </div>
                                 </div>
 
                 @* ⚠️ O EDITOR DE SEDES SAIU DAQUI EM 08/09/2026 (pedido do Felipe:
@@ -4977,6 +4989,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                       data-categorias='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Categorias.OrderBy(c => c.Nome).Select(c => new { id = c.Id, nome = c.Nome, clube = c.ClubeId?.ToString() ?? "" })))'>
                     <div class="card-body">
                         <input type="hidden" name="id" value="@Model.Id" />
+                        @* 09/09/2026: nome, local e JANELA de cada quadra passaram a ser editados
+                           no planejador (lugar único de quadra — decisão do Felipe). O bloco abaixo
+                           continua funcionando por enquanto; a retirada dele é o próximo passo, com
+                           os testes de tela desta sub-aba reescritos junto. *@
+                        <div class="alert alert-info small py-2 px-3 mb-3 d-flex flex-wrap align-items-center gap-2">
+                            <span><i class="bi bi-info-circle"></i> Quadra (nome, local e de que horas até que horas) agora se edita no planejador.</span>
+                            <a asp-action="Planejamento" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-calendar-range"></i> Abrir o planejador
+                            </a>
+                        </div>
                         <h6 class="fw-bold mb-1"><i class="bi bi-geo-alt-fill"></i> Onde cada quadra fica</h6>
                         <p class="text-muted small mb-3">
                             Escolha o clube de cada quadra. O que ficar no clube do torneio é a sede
@@ -5933,8 +5955,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         .forEach(function (par) { marcadas[par] = true; });
                 }
 
+                // Os campos de nome saíram da tela (09/09/2026: quadra se edita no planejador),
+                // então os nomes vêm do container oculto. O caminho pelos inputs fica pra tela
+                // de criação, que ainda desenha os campos.
+                var container = document.getElementById('editCamposNomesQuadras');
                 var quadras = Array.from(document.querySelectorAll('#editCamposNomesQuadras input'))
                     .map(function (i, pos) { return (i.value || '').trim() || i.placeholder || ('Quadra ' + (pos + 1)); });
+                if (quadras.length === 0 && container) {
+                    quadras = JSON.parse(container.getAttribute('data-nomes-atuais') || '[]');
+                }
                 var categorias = JSON.parse(secao.getAttribute('data-categorias') || '[]');
 
                 if (quadras.length === 0 || categorias.length === 0) {
@@ -5967,6 +5996,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
 
             gerarCamposQuadraEdicao();
+            // Sem o campo de quantidade a função acima sai antes de chegar na tabela de
+            // preferência — que continua existindo e precisa ser desenhada no carregamento.
+            montarPreferenciaQuadraEdicao();
 
             // ── SEDES: a tabela "em que clube cada categoria joga" (sub-aba Quadras e sedes) ──
             //

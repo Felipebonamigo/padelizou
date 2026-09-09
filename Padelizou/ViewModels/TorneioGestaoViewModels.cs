@@ -229,9 +229,21 @@ public class PlanejamentoDeQuadrasVM
     public TimeSpan HoraInicio { get; set; }
     public TimeSpan HoraSeguintes { get; set; }
     public TimeSpan HoraFim { get; set; }
-    public int Quadras { get; set; }
     public int Duracao { get; set; }
     public int Jogos { get; set; }
     public DateTime? Ate { get; set; }
     public string? Limites { get; set; }
+
+    // ── AS QUADRAS DE VERDADE (09/09/2026) — a tabela que o Felipe pediu ──
+    //
+    // Não são botão de simulação: são as linhas de `Quadra` deste torneio, e mexer nelas GRAVA.
+    // A tela separa as duas coisas com todas as letras. `Quadras.Count` é também a quantidade
+    // do torneio — `Torneio.QuantidadeQuadras` é reescrita a cada salvamento pra nunca mais
+    // divergir da lista (o jogo sem quadra de 05/08/2026 nasceu dessa divergência).
+    public List<Quadra> Quadras { get; set; } = new();
+
+    // O catálogo pro seletor de local, e o nome do clube do torneio (a opção "aqui mesmo").
+    public List<Clube> Clubes { get; set; } = new();
+    public string NomeDoClubeDoTorneio { get; set; } = "Clube do torneio";
+    public int MaximoDeQuadras { get; set; }
 }
