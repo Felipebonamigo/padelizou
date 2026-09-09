@@ -162,9 +162,25 @@ namespace Padelizou.Controllers
                 }
 
                 // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
+                //
+                // ⚠️ O `ThenBy(Guid)` É O SORTEIO, e sem ele NÃO HAVIA SORTEIO NENHUM aqui
+                // (09/09/2026 — Felipe: "por que que toda vez q eu gero o sorteio, esta vindo
+                // igual, o chaveamento, os horarios dos jogos e tudo mais?"). Daqui pra baixo
+                // tudo é função PURA desta lista: os grupos de 2 do resto, o zigue-zague, a
+                // letra do grupo, os confrontos — e a grade de horários por tabela, já que ela
+                // nasce da lista de jogos e de `AberturaDaGrade`, que é data fixa.
+                //
+                // E `OrderByDescending` do LINQ é ordenação ESTÁVEL: o empate preservava a
+                // ordem de carga do EF, então com quase todo mundo em 0 ponto a chave saía na
+                // ordem de INSCRIÇÃO, igual a cada clique. Os `OrderBy(Guid.NewGuid())` que
+                // sorteiam de verdade só existiam nos ramos de times e de chave direta.
+                //
+                // ⚠️ SORTEIA O DESEMPATE, NÃO A ORDEM INTEIRA: quem tem ranking continua
+                // semeado por ranking, que é o que impede dois favoritos no mesmo grupo.
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
                                           + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
+                    .ThenBy(_ => Guid.NewGuid())
                     .ToList();
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é

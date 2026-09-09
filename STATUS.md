@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🎲 **O SORTEIO PASSOU A SORTEAR: A CHAVE DE CATEGORIA COM GRUPOS NUNCA FOI ALEATÓRIA.**
+>
+> 🗣️ **Felipe, olhando a 4ª Masculina do torneio do Er no dev:** *"por que que toda vez q eu gero o sorteio, esta vindo igual, o chaveamento, os horarios dos jogos e tudo mais?"*.
+>
+> 🕳️ **NÃO ERA SEED TRAVADO — ERA AUSÊNCIA DE SORTEIO.** O ramo de categoria COM GRUPOS do `GerarChaves` não embaralhava nada: a ordem saía de `OrderByDescending(pontos)` e daí pra baixo **tudo é função pura dessa lista** — os grupos de 2 do `resto`, o zigue-zague, a letra do grupo, os confrontos. Os `OrderBy(Guid.NewGuid())` que de fato sorteiam só existiam nos ramos de **times** e de **chave direta**, que uma categoria com grupos não usa.
+>
+> 📋 **E o agravante: `OrderByDescending` do LINQ é ordenação ESTÁVEL.** Com quase todo mundo em 0 ponto — o normal de um torneio de teste —, o empate preservava a ordem de carga do EF. A chave era, literalmente, **"ordem de inscrição → zigue-zague"**. Confere com o print dele: 16 duplas, `16 % 3 = 1`, então Grupo A = {1º, 4º} e Grupo B = {2º, 3º} (os dois grupos de 2 da tela) e as 12 restantes em 4 grupos de 3.
+>
+> 🕐 **OS HORÁRIOS REPETIAM DE CARONA, não por bug próprio:** `EncaixarNasLevas` é chamado sem `aPartirDe`, então parte de `torneio.AberturaDaGrade` — **data fixa, não `DateTime.Now`**. Mesma lista de jogos + mesma configuração (quadras, duração) = mesma grade, minuto a minuto. Consertada a chave, a grade veio junto sem uma linha a mais.
+>
+> 🎯 **O CONSERTO É O DESEMPATE, E NÃO A ORDEM INTEIRA** (decisão do Felipe entre as três opções): `.ThenBy(_ => Guid.NewGuid())`. **Quem TEM ranking continua semeado por ranking** — é o que impede dois favoritos de caírem no mesmo grupo; quem empata é sorteado. Como quase todo mundo empata em 0, na prática o sorteio voltou a ser sorteio. Mesmo idioma dos outros dois ramos do arquivo, uma linha.
+>
+> 🧪 **5.629 testes, 0 falhas (4 novos).** **Sem migration.** As duas guardas do defeito **falharam pelo motivo certo** antes da correção (5 sorteios devolvendo a assinatura idêntica, impressa na mensagem). ⚠️ **As outras duas passaram de primeira DE PROPÓSITO** — são o outro lado: 16 duplas continuam fechando em `2,2,3,3,3,3` em toda execução, e com pontos distintos a 1ª/2ª/3ª continuam abrindo os Grupos A/B/C. Elas existem pra que o desempate não vire embaralhamento puro.
+>
+> ⚠️ **A SUÍTE FOI RODADA 4 VEZES**, não uma: o sorteio virou aleatório, então teste que dependesse em silêncio do determinismo passaria a ser loteria — é o furo que o `ChaveDiretaNoSorteioTests` já documenta ("passa ou falha por sorte"). Estável nas 4.
+>
+> ⚠️ **A chave já sorteada do Er não muda sozinha** — precisa de "Desfazer sorteio" + "Gerar chaves" enquanto ela estiver esperando aprovação. **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
 > 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.
