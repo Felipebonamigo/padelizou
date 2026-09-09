@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🏟️ **ABA DE PLANEJAMENTO DE QUADRAS — "QUANTOS HORÁRIOS EU PRECISO ALUGAR?"**
+>
+> 🗣️ **Pedido do Felipe, pelo Er:** *"estão pensando e provavelmente irão alocar mais quadras, porque o ER só tem 2, então eles querem uma aba (…) que possam ver quantos horários eles teriam que locar de quadra, extra, para fechar os jogos da chave (…) uma previsão de quantos jogos precisaria colocar lá na sexta, e no sábado (…) que apenas o organizador e criador e nós do sistema poderemos ver"*.
+>
+> 🧭 **DUAS PERGUNTAS OPOSTAS, E POR ISSO DOIS SERVIÇOS.** O `PrevisaoDoTorneio` responde ONDE A GRADE TERMINA — o calendário é livre, e se não couber no domingo o torneio vai pra segunda; a resposta é uma DATA. O `PlanejamentoDeQuadras` novo trava o calendário (*"o clube está alugado até domingo às 14h e ponto"*) e responde O QUE FALTA pra caber nele. As duas aparecem juntas: *"termina domingo 20h30"* ao lado de *"mas você queria ir embora 14h — faltam 15 horários"*.
+>
+> 🧮 **A CONTA QUE FECHA O PEDIDO: rodada NÃO depende de quadra.** Quem manda no número de rodadas é o relógio (abertura, limite, duração); quadra só MULTIPLICA as vagas de cada rodada. Por isso *"quantas quadras eu preciso"* é uma divisão (`jogos ÷ rodadas`, pra cima), e não uma busca. **No Er (87 jogos, 2 quadras, sexta 18h / sábado e domingo 8h, limite 23h50): sexta 16 jogos, sábado 40, domingo 31 — cabe, sobram 9 vagas.** Com o domingo fechando às 14h (que é o que acontece de verdade), o domingo cai de 20 rodadas pra 8 e **faltam 15 jogos = 15 horários de quadra (12h30 de uma quadra só) ou passar a 3 quadras**.
+>
+> 🚪 **NENHUM PAPEL DE ACESSO NOVO:** "organizador, criador e nós do sistema" já É a régua `EhOrganizadorAsync` (organizador + `NivelAcesso = "Criador"` + `IsAdminRaiz`/`IsAdminGeral`). A aba usa `PodeGerenciar`, igual às de Gerenciar e Pagamentos.
+>
+> 🖥️ **ABA NO TORNEIO + TELA CHEIA.** A aba mostra o resumo (jogos, quadras, cabem, faltam, e as pílulas "sex 11/09: 16 jogos"); girar os números é em `Torneios/Planejamento`, que é leve — recarregar o `Details` a cada volta do botão travaria o celular do organizador. **As duas passam pelos MESMOS dois métodos** (`Botoes` + `MontarPlano`), com teste provando que não discordam: enquanto cada uma montasse o próprio plano, bastava uma normalização diferente pra aba dizer "cabe" e a tela dizer "faltam 15".
+>
+> 💾 **O "APLICAR" GRAVA CINCO CAMPOS, E SÓ ACENDE POR ELES** (data de início, as duas aberturas, hora limite, duração). ⚠️ **Quadra NÃO se aplica por aqui, de propósito:** quadra tem NOME (identidade — `Models/Quadra`), clube e, quando alugada, janela de horário; criar quadra sem nome daqui repetiria a reconciliação do `Editar` — a segunda cópia de receita que `VagasDaGrade` nasceu pra matar. A tela DIZ quantas faltam e manda pro `Editar` / "Quadras e sedes". **A hora de fechar POR DIA vive só no planejador** — coluna nova seria migration, e o que faz o sorteio caber mais cedo é mais quadra, que é justamente o que a conta manda comprar.
+>
+> 🧪 **5.649 testes, 0 falhas (31 novos).** **Sem migration.** ⚠️ **E a falsificação pegou DOIS furos meus:** (1) a guarda do último jogo do dia passava com a fórmula errada — eu só tinha testado dia de nº ÍMPAR de jogos, onde `ceil` e divisão inteira coincidem; com o dia CHEIO a conta errada marcava jogo às 00h40 num dia que fecha 23h50; (2) o botão "Aplicar" acendia quando o organizador mexia em QUADRAS ou na hora de fechar do domingo — os dois campos que ele não grava —, ou seja, ele apertaria achando que tinha contratado a terceira quadra.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🎯 **"MEUS JOGOS" PASSOU A RECORTAR PELO GRUPO, E NÃO PELA CATEGORIA.**
 >
 > 🗣️ **Reclamação do Felipe**, com o filtro LIGADO na aba Jogos do torneio do Er: *"aqui esta exibindo um chaveamento que nao é meu jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E. Por exemplo, em meus jogos, é meu jogos marcados e possiveis jogos que serão meus dependendo do chaveamento (primeiro ou segundo do grupo)"*.

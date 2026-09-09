@@ -1,4 +1,5 @@
 using Padelizou.Models;
+using Padelizou.Services;
 
 namespace Padelizou.ViewModels;
 
@@ -192,4 +193,45 @@ public class PrevisaoGradeVM
     // Torneio por ordem de liberação: a contagem de jogos continua valendo (é o tamanho do
     // dia), mas relógio nenhum vale — não há horário a prever nem prazo a estourar.
     public bool SemHorarioPrevisto { get; set; }
+}
+
+// A ABA DE PLANEJAMENTO DE QUADRAS (09/09/2026) — ver Services/PlanejamentoDeQuadras.
+//
+// Os campos vêm em DOIS grupos, e a diferença entre eles é o assunto da tela:
+//   • o PLANO é a resposta (quantos jogos por dia, quanto falta, quantas quadras);
+//   • os BOTÕES são a pergunta, ecoada de volta pra que o formulário continue mostrando o que
+//     o organizador girou — inclusive quando ele girou pra um valor que o torneio não tem.
+public class PlanejamentoDeQuadrasVM
+{
+    public Torneio Torneio { get; set; } = null!;
+    public PlanejamentoDeQuadras.Plano Plano { get; set; } = null!;
+
+    // O número REAL de jogos deste torneio: projeção das duplas inscritas antes do sorteio,
+    // partidas de verdade depois dele. É o padrão do campo — e o valor pro qual o botão
+    // "voltar ao real" leva.
+    public int JogosDoTorneio { get; set; }
+    public bool JogosJaSorteados { get; set; }
+
+    // O total do plano veio da URL, e não do torneio: a tela precisa dizer isso em voz alta,
+    // senão o organizador leva pra reunião um número que ele mesmo inventou achando que era o
+    // do sistema.
+    public bool Simulando { get; set; }
+
+    // Assistente do sistema entra em LEITURA (mesma régua da aba de gestão): vê a conta,
+    // não aperta o "Aplicar". Ver TorneiosController.PodeOlharAGestaoAsync.
+    public bool SoLeitura { get; set; }
+
+    // Algum botão diverge do que está gravado — só então "Aplicar" tem o que fazer.
+    public bool MudouAlgo { get; set; }
+
+    // ── os botões, como a tela os recebeu ──
+    public DateTime DataInicio { get; set; }
+    public TimeSpan HoraInicio { get; set; }
+    public TimeSpan HoraSeguintes { get; set; }
+    public TimeSpan HoraFim { get; set; }
+    public int Quadras { get; set; }
+    public int Duracao { get; set; }
+    public int Jogos { get; set; }
+    public DateTime? Ate { get; set; }
+    public string? Limites { get; set; }
 }
