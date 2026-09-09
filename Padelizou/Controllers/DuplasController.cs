@@ -831,6 +831,26 @@ namespace Padelizou.Controllers
                      + " Marque \"juntar com a inscrição que já existe\" e confirme de novo.";
             }
 
+            // ⚠️ NÃO DÁ PRA ABSORVER UMA INSCRIÇÃO QUE JÁ ESTÁ NA CHAVE (09/09/2026).
+            //
+            // Juntar duas inscrições sozinhas APAGA a que sobra (FecharDuplaComAsync). Isso
+            // sempre foi seguro porque inscrição sozinha ficava fora do sorteio — não havia
+            // jogo apontando pra ela. Agora ela ENTRA na chave com os jogos dela, e
+            // `Partida.Dupla1Id/Dupla2Id` são NOT NULL: o DELETE bate na FK e o jogador leva um
+            // 500 ao tocar em "Aceitar". Passar seria pior que o erro — sumiria com jogos já
+            // marcados no grupo de outras duplas.
+            //
+            // Escolher sozinho qual das duas vagas morre não é decisão de código: quem enxerga
+            // a grade inteira é o organizador. Aqui a resposta é recusar e dizer o porquê.
+            var idsJuntaveis = juntaveis.Select(j => j.DuplaId).Distinct().ToList();
+            if (idsJuntaveis.Count > 0 && await _context.Partidas
+                    .AnyAsync(p => idsJuntaveis.Contains(p.Dupla1Id) || idsJuntaveis.Contains(p.Dupla2Id)))
+            {
+                return $"{candidato.ComoChamar} já está inscrito sozinho nesta categoria e a inscrição dele "
+                     + "JÁ TEM JOGO NA CHAVE. Juntar as duas agora apagaria esses jogos — fale com o "
+                     + "organizador pra ele resolver as duas inscrições.";
+            }
+
             // ...nem violar a regra de uma categoria por jogador (ignorando esta categoria,
             // onde a dupla já está inscrita).
             var bloqueio = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(

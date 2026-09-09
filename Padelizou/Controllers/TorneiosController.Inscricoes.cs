@@ -1213,9 +1213,10 @@ namespace Padelizou.Controllers
             torneio.Status = PortaDaInscricao.Fechada;
             await _context.SaveChangesAsync();
 
-            // Último momento em que dá pra resolver: quem está sem parceiro ainda pode fechar
-            // a dupla antes do sorteio. Sem este aviso, a pessoa só descobria que ficou de
-            // fora quando a chave saía — e aí não havia mais o que fazer.
+            // ⚠️ ESTE AVISO MUDOU DE RECADO EM 09/09/2026, e o anterior virou mentira dupla:
+            // ele dizia "vocês ficam de fora do sorteio" (não ficam mais — a vaga entra na
+            // chave) e mandava "defina alguém na página do torneio" numa janela em que os
+            // botões nem existiam. Agora o prazo é outro e é real: até o primeiro jogo dele.
             var semParceiro = await _context.Duplas
                 .Where(d => d.Categoria.TorneioId == id && d.Jogador2Id == null && !d.EmListaDeEspera)
                 .Select(d => d.Jogador1Id)
@@ -1225,7 +1226,9 @@ namespace Padelizou.Controllers
             {
                 await AvisarAsync(semParceiro, "Você ainda está sem parceiro",
                     $"As inscrições de {torneio.Nome} foram encerradas e sua dupla não está fechada. "
-                    + "Sem parceiro, vocês ficam de fora do sorteio — defina alguém na página do torneio.",
+                    + "Sua vaga está garantida e entra no sorteio — mas você precisa definir o parceiro "
+                    + "até o seu primeiro jogo, senão perde por W.O. Dá pra fechar pela página do torneio, "
+                    + "pelo mural ou por convite.",
                     torneio.Id);
             }
 

@@ -14,8 +14,14 @@ public partial class Dupla
 
     public int Jogador1Id { get; set; }
 
-    // NULO = inscrito sozinho, ainda procurando parceiro. A dupla existe (ocupa vaga,
-    // pagou, entra na lista de espera), mas fica de fora do sorteio até ter os dois nomes.
+    // NULO = inscrito sozinho, ainda procurando parceiro. A dupla existe e ocupa a vaga dela:
+    // desde 09/09/2026 ela ENTRA no sorteio com a segunda posição em aberto, e o segundo nome
+    // pode ser definido até ela ter o primeiro jogo (ver Services/JanelaDoParceiro). Quem não
+    // fechar até lá perde por W.O.
+    //
+    // ⚠️ NULO TAMBÉM SIGNIFICA OUTRA COISA, e confundir as duas escreve texto errado na tela:
+    // o campeão individual do Americano é gravado como Dupla sem Jogador2 (ver
+    // EncerramentoDaPartida), e ali não há vaga nenhuma esperando ninguém.
     public int? Jogador2Id { get; set; }
 
     public string? Codigo { get; set; }
