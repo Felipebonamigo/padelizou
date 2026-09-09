@@ -17,6 +17,10 @@
 >
 > Última atualização: **09/09/2026** — 🏆 **O SELO DO CHIP VIROU SÓ TROFÉU.**
 >
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-819-aafd8a9`** (09/09/2026, PR #89). O pacote leva tudo até o #89 — o **#91 não está nele**, porque entrou no `main` um minuto depois do deploy sair. Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o deploy em produção saiu **direto**, sem parar em aprovação nenhuma, exatamente como no build-800. Settings → Environments → `prod` → **Required reviewers**.
+>
 > 🗣️ **O pedido do Felipe**, num print da Fase de Grupos com "Vice" e "Semifinal" ao lado dos nomes: *"essa parte aqui, exiba apenas quem foi campeao, nao precisa exibir, semi, vice etc"*.
 >
 > ✂️ **SAIU A SEGUNDA PÍLULA.** `_SeloHistorico.cshtml` tinha um `if/else`: título → troféu + nº; senão, a melhor campanha na categoria (`RotuloFase`: "Vice", "Semifinal", "Quartas"). Sobrou só o `if` do troféu. Vale nos quatro lugares do `Details.cshtml` que usam `_JogadorChip` — tabela do grupo, lista de inscritos, duplas e fila de espera —, que é a mesma tela do print: uma pílula que some num bloco e sobrevive no de baixo seria a incoerência pior.
