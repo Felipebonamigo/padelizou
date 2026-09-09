@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-848-d1ad234`** (22h03 e 22h04 UTC), **o mesmo artefato nos dois**. Subiu a ordem das fases por posto e o aviso do que não coube (PR #104).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — sexta sessão seguida a medir isso.** O job `deploy → prod` foi de criado a concluído em **20 segundos** (22:04:15 → 22:04:35), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A faixa amarela do `TempData["Aviso"]` no topo do `Details` é nova e merece um print.
+>
+> ⏭️ **TORNEIO JÁ SORTEADO NÃO PEGA A ORDEM NOVA SOZINHO.** O `HorarioPrevisto` está gravado no banco; trocar o motor não reescreve linha nenhuma. Pro torneio do Er passar a seguir a ordem é preciso apertar **Refazer grade** (ou desfazer o sorteio e sortear de novo). E vale apertar **Conferir grade** antes: é ele que diz se o 15/09 veio de janela de quadra com data errada.
+
 > Última atualização: **09/09/2026** — 🏁 **A ORDEM DAS FASES VIROU DO TORNEIO, E AS FINAIS SÃO OS ÚLTIMOS JOGOS.**
 >
 > 🗣️ **Felipe, num print da grade do Er em `dev`:** *"como que aqui tem jogo de chave e nas outras categorias tem final? o torneio tem q seguir uma ordem, primeiro todas as chaves, depois todas as primeiras eliminatorias (decimas > oitavas > quartas > semi > final) a ideia e fazer as finais de cada categorias ser os ultimos jogos do torneio"*. O print mostrava a **Final** da 3ª e da 6ª Feminina às 22:10 de 12/09 e jogos de **GRUPO** da 6ª Masculina em **15/09** — três dias depois das finais.
