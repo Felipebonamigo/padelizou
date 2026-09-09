@@ -103,22 +103,60 @@ public static class AuditoriaDaGrade
         // ⚠️ POR PESSOA, NÃO POR DUPLA, e é a mesma razão do `Encaixar`: com a chave direta (ou
         // duas categorias) o mesmo jogador está em duplas de Ids diferentes. Comparando dupla,
         // o caso que mais dói passa batido.
-        foreach (var mesmoHorario in jogos.Where(j => j.HorarioPrevisto != null)
-                                          .GroupBy(j => j.HorarioPrevisto!.Value))
-        {
-            var pessoas = mesmoHorario
-                .SelectMany(j => new[] { j.Dupla1Id, j.Dupla2Id })
-                .Where(porId.ContainsKey)
-                .SelectMany(id => new[] { porId[id].Jogador1Id, porId[id].Jogador2Id })
-                .Where(i => i != null)
-                .GroupBy(i => i!.Value)
-                .Where(g => g.Count() > 1);
+        //
+        // ⚠️ AS DUAS RÉGUAS SÃO EMPRESTADAS DO MOTOR, NÃO REESCRITAS AQUI (09/09/2026) — é o que
+        // o cabeçalho deste arquivo exige, e a primeira versão desrespeitava nos dois sentidos:
+        //
+        //   • QUEM OCUPA A QUADRA sai de `RoboDoChaveamento.OcupantesPorDupla`, que deixa TIME de
+        //     fora de propósito. Todo time é uma Dupla com o ORGANIZADOR no `Jogador1Id` (coluna
+        //     NOT NULL), então ler `Jogador1Id` na mão via a mesma pessoa em todos os times e
+        //     acusava a grade inteira — um achado por horário, num torneio sem defeito nenhum.
+        //
+        //   • O CHOQUE é por INTERVALO, como em `GradeDeJogos.CruzaComAPessoa`, e não por instante
+        //     exato. `GroupBy(HorarioPrevisto)` só cruzava jogos no MESMO minuto — e a grade
+        //     desalinhada não é hipótese: `AberturaDoRecalculo` parte de `DateTime.Now` quando há
+        //     jogo em quadra, então o "Refazer grade" das 20h13 põe jogos novos em 20:13 ao lado
+        //     dos antigos em 20:00. A tela dizia "Nada fora do lugar" exatamente ali, que é onde
+        //     o organizador aperta o botão.
+        var ocupantes = RoboDoChaveamento.OcupantesPorDupla(duplas);
+        var duracao = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
 
-            foreach (var pessoa in pessoas)
+        var agenda = new Dictionary<int, List<DateTime>>();
+        foreach (var jogo in jogos)
+        {
+            if (jogo.HorarioPrevisto is not DateTime quando) continue;
+
+            foreach (var duplaId in new[] { jogo.Dupla1Id, jogo.Dupla2Id })
             {
+                if (!ocupantes.TryGetValue(duplaId, out var pessoas)) continue;
+
+                foreach (var pessoa in pessoas)
+                {
+                    if (!agenda.TryGetValue(pessoa, out var quandos))
+                        agenda[pessoa] = quandos = new List<DateTime>();
+                    quandos.Add(quando);
+                }
+            }
+        }
+
+        // Dois jogos da MESMA dupla se cruzando dariam um achado por jogador, com texto idêntico
+        // (o texto diz "alguém", não o nome) — e dois avisos iguais lado a lado fazem a tela
+        // parecer quebrada. Deduplicado pelo par de horários, que é o que o organizador lê.
+        var jaAvisado = new HashSet<(DateTime, DateTime)>();
+
+        foreach (var quandos in agenda.Values)
+        {
+            var ordenados = quandos.OrderBy(q => q).ToList();
+
+            for (int i = 1; i < ordenados.Count; i++)
+            {
+                var (antes, depois) = (ordenados[i - 1], ordenados[i]);
+                if (depois - antes >= duracao || !jaAvisado.Add((antes, depois))) continue;
+
                 achados.Add(new Achado(PessoaEmDoisJogos,
-                    $"Alguém está escalado em {pessoa.Count()} jogos {mesmoHorario.Key:dd/MM 'às' HH:mm} "
-                    + "— ninguém joga em duas quadras ao mesmo tempo.", mesmoHorario.Key));
+                    $"Alguém está escalado {antes:dd/MM 'às' HH:mm} e de novo {depois:HH:mm} — "
+                    + $"os dois jogos se sobrepõem ({duracao.TotalMinutes:0} min de partida) e "
+                    + "ninguém joga em duas quadras ao mesmo tempo.", antes));
             }
         }
 

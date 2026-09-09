@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🔎 **A AUDITORIA DA GRADE ESTAVA REESCREVENDO A RÉGUA DO MOTOR — E ERRAVA NOS DOIS SENTIDOS.**
+>
+> 🕳️ Achado numa **revisão adversarial antes de publicar**, no merge desta branch com o `main`. O bloco "mesma pessoa em dois jogos" do `AuditoriaDaGrade` tinha escrito à mão o que o motor já decide — exatamente o que o cabeçalho do próprio arquivo proíbe (*"ESTE SERVIÇO É A ÚNICA CÓPIA DA AUDITORIA"*).
+>
+> ❌ **FALSO POSITIVO EM TORNEIO DE TIMES:** todo time é uma `Dupla` com o **organizador** no `Jogador1Id` (coluna NOT NULL). Lendo `Jogador1Id` na mão, a auditoria via a mesma pessoa em TODOS os times e **acusava a grade inteira, um achado por horário**, num torneio sem defeito nenhum. O motor não cai nisso porque `RoboDoChaveamento.OcupantesPorDupla` filtra `!d.EhTime` — e o comentário dele já dizia por quê.
+>
+> ❌ **FALSO NEGATIVO EM GRADE DESALINHADA:** o choque era medido por **instante exato** (`GroupBy(HorarioPrevisto)`), mas o motor mede por **intervalo** desde 21/08 (`CruzaComAPessoa`). ⚠️ E a grade desalinhada não é hipótese: `AberturaDoRecalculo` parte de `DateTime.Now` quando há jogo em quadra, então o "Refazer grade" das 20h13 põe jogos novos em 20:13 ao lado dos antigos em 20:00 — **a tela dizia "Nada fora do lugar" exatamente ali**, que é onde o organizador aperta o botão.
+>
+> 🔧 As duas réguas passaram a ser **emprestadas do motor**, não reescritas. Dedup por par de horários: dois jogos da mesma dupla se cruzando dariam um achado por jogador, com texto idêntico.
+>
+> 🧪 **5.666 testes, 0 falhas (3 novos).** **Sem migration.** As duas guardas do defeito foram vistas falhar antes; a terceira (jogos a 50 min de distância **não** são choque) passa de primeira de propósito — é o outro lado, pra medir por intervalo não virar acusação na rodada seguinte.
+>
+> ⚠️ **A revisão que achou isto QUASE NÃO ACONTECEU:** 13 dos 14 agentes morreram no limite de sessão e o resultado voltou `{bloqueiam:[], serios:[]}` — **falso negativo do script**, porque achado sem refutador não atinge quórum e é descartado como refutado. Os achados estavam no `journal.jsonl`. Resultado vazio de fan-out com falhas não é "nada encontrado".
+>
+> 🟡 **UM TERCEIRO ACHADO FICOU DE FORA, e não é regressão:** o **Americano nunca leu impedimento** (`TorneiosController.Americano.cs:254` chama `Montar` sem `peloMenosAte` e o `Encaixar` sem `janelasProibidasPorDupla`), embora `PermiteImpedimentos` e `TaxaPorImpedimento` sejam flags do TORNEIO, sem recorte de formato. O `jogosComJanela` desta branch é **no-op** lá (só age dentro do `if (peloMenosAte …)`), então o comportamento do Americano é idêntico ao de antes. Mas o botão "Conferir a grade" aparece em qualquer formato e vai acusar furos que nenhum "Refazer grade" resolve — `RefazerGrade` só existe no Padrão.
+>
 > Última atualização: **09/09/2026** — 🔒 **O IMPEDIMENTO PAGO PAROU DE CEDER: A MARGEM DA GRADE ERA POR QUADRA, E QUEM DISPUTA VAGA É JOGO.**
 >
 > 🗣️ **Felipe:** *"conserta esse furo do impedimento tambem"* — o defeito que a auditoria da troca de grupos tinha achado e reportado horas antes.
