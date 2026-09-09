@@ -642,10 +642,15 @@ namespace Padelizou.Controllers
 
             // Só quem está na dupla ou organiza o torneio pode mexer.
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
-            if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneioId)) return Forbid();
+            bool ehOrganizador = await UsuarioEhOrganizadorAsync(torneioId);
+            if (!ehDaDupla && !ehOrganizador) return Forbid();
 
-            // Depois do sorteio a dupla já está numa chave — trocar aí bagunçaria os jogos.
-            if (torneio.Status != "Inscrições Abertas")
+            // Depois do sorteio a dupla já está numa chave — trocar aí bagunçaria os jogos pro
+            // PRÓPRIO INSCRITO, que não vê o quadro todo. O organizador continua podendo mesmo
+            // com inscrições fechadas ou chave sorteada: ele que decide se vale corrigir um
+            // parceiro errado (Felipe, 09/09/2026) — os jogos continuam apontando pra mesma
+            // Dupla (Id), só troca quem é o Jogador2 dela.
+            if (!ehOrganizador && torneio.Status != "Inscrições Abertas")
             {
                 TempData["Erro"] = "O parceiro só pode ser alterado enquanto as inscrições estão abertas. Fale com o organizador.";
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });

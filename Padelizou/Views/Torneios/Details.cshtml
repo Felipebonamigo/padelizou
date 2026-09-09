@@ -4384,36 +4384,44 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </form>
                                             }
 
+                                            @* Time não tem parceiro pra convidar nem pra definir: quem monta a
+                                               lista é o organizador, na tela de times. Pior que inútil, era
+                                               perigoso — o time é gravado como Dupla com Jogador1Id = organizador
+                                               (ver TorneiosController.Times), então "Definir por CPF" num time
+                                               NÃO dava erro: pendurava um jogador na linha do time, calado. O
+                                               controller também recusa; isto aqui é só não oferecer. *@
+                                            @if (!dupla.EhTime)
+                                            {
+                                                @if (Model.Status == "Inscrições Abertas" && !dupla.Completa)
+                                                {
+                                                    @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
+                                                       que a maioria vai usar, por isso vem antes do formulário de CPF.
+                                                       Contornado, e não preenchido de verde: com 25 duplas sem parceiro
+                                                       eram 25 botões berrantes, e destaque que se repete em toda linha
+                                                       deixa de ser destaque. Só com inscrições abertas: convite por
+                                                       link espera a outra pessoa clicar, e depois de fechado o
+                                                       organizador usa "Definir por CPF" (botão embaixo), que fecha na
+                                                       hora sem depender de ninguém. *@
+                                                    <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
+                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                            <i class="bi bi-link-45deg"></i> Convidar por link
+                                                        </button>
+                                                    </form>
+                                                }
+                                                @* Trocar/definir parceiro continua disponível pro organizador mesmo
+                                                   com as inscrições fechadas ou a chave já sorteada — ele que corrige
+                                                   um parceiro errado sem depender de reabrir o torneio (Felipe,
+                                                   09/09/2026). O bloqueio por status continua valendo só pra troca
+                                                   feita pelo próprio inscrito (ver TrocarParceiro no controller). *@
+                                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                                                        data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
+                                                    <i class="bi bi-arrow-left-right"></i>
+                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
+                                                </button>
+                                            }
                                             @if (Model.Status == "Inscrições Abertas")
                                             {
-                                                @* Time não tem parceiro pra convidar nem pra definir: quem monta a
-                                                   lista é o organizador, na tela de times. Pior que inútil, era
-                                                   perigoso — o time é gravado como Dupla com Jogador1Id = organizador
-                                                   (ver TorneiosController.Times), então "Definir por CPF" num time
-                                                   NÃO dava erro: pendurava um jogador na linha do time, calado. O
-                                                   controller também recusa; isto aqui é só não oferecer. *@
-                                                @if (!dupla.EhTime)
-                                                {
-                                                    @if (!dupla.Completa)
-                                                    {
-                                                        @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
-                                                           que a maioria vai usar, por isso vem antes do formulário de CPF.
-                                                           Contornado, e não preenchido de verde: com 25 duplas sem parceiro
-                                                           eram 25 botões berrantes, e destaque que se repete em toda linha
-                                                           deixa de ser destaque. *@
-                                                        <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
-                                                            <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
-                                                                <i class="bi bi-link-45deg"></i> Convidar por link
-                                                            </button>
-                                                        </form>
-                                                    }
-                                                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
-                                                            data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
-                                                        <i class="bi bi-arrow-left-right"></i>
-                                                        @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
-                                                    </button>
-                                                }
                                                 @* Só o ícone: "Remover" é a ação que ninguém procura e
                                                    a única sem volta. Escrita por extenso, ela puxava o
                                                    olho em toda linha e ainda era a que mais empurrava
@@ -4452,7 +4460,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                     </div>
 
-                                    @if (Model.Status == "Inscrições Abertas" && !dupla.EhTime)
+                                    @* Formulário do botão acima — segue disponível pro organizador com
+                                       inscrições fechadas ou chave sorteada (ver comentário do botão). *@
+                                    @if (!dupla.EhTime)
                                     {
                                         <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
                                             <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
@@ -4519,7 +4529,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </div>
 
                                                 <small class="text-muted d-block mt-1">
-                                                    Só quem está na dupla (ou o organizador) pode alterar, e só enquanto as inscrições estão abertas.
+                                                    Como organizador, você pode alterar a qualquer momento — mesmo com as inscrições fechadas ou a chave já sorteada.
                                                 </small>
                                             </form>
                                         </div>

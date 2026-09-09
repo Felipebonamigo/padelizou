@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **09/09/2026** — ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
+> Última atualização: **09/09/2026** — 🔁 **O ORGANIZADOR AGORA TROCA PARCEIRO MESMO COM AS INSCRIÇÕES FECHADAS — E MESMO COM A CHAVE JÁ SORTEADA.**
+>
+> 🕳️ **O BLOQUEIO DE `TrocarParceiro` NÃO DISTINGUIA QUEM PEDIA.** `torneio.Status != "Inscrições Abertas"` recusava a troca pra QUALQUER UM, organizador incluso — mesmo ele já tendo a régua de autorização (`UsuarioEhOrganizadorAsync`) pra mexer em dupla alheia. A mensagem de erro dizia "fale com o organizador", e o organizador não tinha como. Perguntado, o Felipe escolheu: **liberar mesmo depois da chave sorteada** (as partidas continuam apontando pra mesma `Dupla.Id`, só troca quem é o `Jogador2` dela) — e manter todas as outras regras de hoje (não pode estar em outra dupla da categoria, anti-sandbagging do Ranking RS, recálculo do preço da segunda inscrição, "juntar com inscrição solo").
+>
+> ✅ **O bloqueio de status só vale pra quem está NA dupla agora** — o jogador sozinho continua sem poder mexer numa chave já montada, porque não vê o quadro todo. No painel "Gerenciar Inscritos" o botão "Trocar parceiro"/"Definir por CPF" deixou de sumir quando as inscrições fecham; só "Convidar por link" continua restrito a inscrições abertas (o convite espera a outra pessoa clicar — o organizador tem o caminho direto por CPF/nome, que fecha na hora).
+>
+> ⚠️ **NÃO COBERTO NESTE PR**: trocar parceiro de dupla campeã ou de torneio já `Finalizado` reescreveria retroativamente quem é campeão e a quem os pontos do Padelímetro pertencem (`CampeoesDoTorneio`/`EstatisticasService` leem a dupla ao vivo, não um retrato congelado) — o pedido não tocou nesse caso e o código também não distingue `Finalizado` de `Fase de Grupos`/`Chaves em Sorteio`. Se o Felipe topar organizador trocando parceiro depois do torneio acabado, vale revisitar.
+>
+> 🧪 **5.736 testes, 0 falhas (2 novos).** **Sem migration.** Falsificado: com o bloqueio de volta pro organizador, o teste `Organizador_troca_parceiro_mesmo_com_chave_sorteada` cai.
 >
 > 🗣️ **Felipe, descrevendo o combinado do Er:** *"no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20, 12:10. Vão ser 12 jogos"*. **A tela respondia 10.**
 >

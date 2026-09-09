@@ -292,4 +292,50 @@ public class OrganizadorJuntaInscricoesTests
         Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
         Assert.Contains("você mesmo", controller.TempData["Erro"] as string ?? "");
     }
+
+    // ---- Organizador troca parceiro com inscrições fechadas (pedido do Felipe, 09/09/2026) ----
+    //
+    // Até aqui o bloqueio "só enquanto as inscrições estão abertas" valia pra TODO MUNDO,
+    // organizador incluso — mesmo tendo a régua de autorização pra mexer em dupla alheia, ele
+    // não tinha como corrigir um parceiro errado depois de fechar. Escolhido: o organizador
+    // pode trocar mesmo com a chave já sorteada (a Dupla continua a mesma linha; só quem é o
+    // Jogador2 dela muda). O bloqueio continua valendo pra quem está NA dupla — evitando o
+    // jogador mexer sozinho numa chave já montada.
+
+    [Fact]
+    public async Task Organizador_troca_parceiro_mesmo_com_chave_sorteada()
+    {
+        var (ctx, torneio, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        duplaDoAnderson.Jogador2Id = gabriel.Id;
+        torneio.Status = "Fase de Grupos";
+        await ctx.SaveChangesAsync();
+
+        var outro = new Jogador { Nome = "Substituto", Cpf = "52998224725" };
+        ctx.Jogadores.Add(outro);
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, outro.Cpf, null);
+
+        Assert.Equal(outro.Id, (await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.Null(controller.TempData["Erro"]);
+    }
+
+    [Fact]
+    public async Task Integrante_da_dupla_continua_barrado_depois_de_fechar_inscricoes()
+    {
+        var (ctx, torneio, cat, _organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        torneio.Status = "Chaves em Sorteio";
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, anderson.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null);
+
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.Contains("enquanto as inscrições estão abertas", controller.TempData["Erro"] as string ?? "");
+    }
 }
