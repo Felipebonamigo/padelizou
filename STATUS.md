@@ -2,6 +2,17 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-856-2a0ac81`** (23h24 e 23h26 UTC), **o mesmo artefato nos dois** — build fixado por nome no disparo, e não "o mais recente", pra que os dois ambientes não pudessem divergir. Subiu a etiqueta de **local + quadra na lista de jogos** (PR #107).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — oitava sessão seguida a medir isso.** O job `deploy → prod` foi de criado a concluído em **15 segundos** (23:25:59 → 23:26:14), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A etiqueta nova aparece na primeira linha de cada jogo, ao lado da categoria e do grupo; vale um print.
+>
+> ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e a etiqueta só fala depois dele.** Os 97 jogos do 2º Etapa estão **sem quadra E com duas sedes** — nada no banco diz em qual clube cada um é, então a linha continua calada lá **de propósito**. O caminho escolhido (opção **a**): em **Planejamento de quadras**, cadastrar as 4 quadras com o **local** de cada uma (nome com o clube dentro — "Quadra 1 Er", "Quadra 1 Radar", senão o salvamento recusa o repetido) e a **janela** do Radar se ele for alugado por hora; depois **Refazer grade**, na aba de jogos. `SalvarQuadraDoPlanejamento` reescreve `QuantidadeQuadras` = número de linhas, então 4 quadras dão **4 vagas por horário — 2 em cada clube**, que é exatamente o que ele descreveu. E vale conferir **em que clube cada categoria joga** (Pagamentos › Quadras e sedes): sem isso a folga de deslocamento é regra **mole** e cede, mandando a mesma dupla de um clube pro outro entre dois jogos.
+
+
 > Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
 >
 > 🗣️ **Felipe, num print da lista do 2º Etapa ER Padel Tour em `dev`:** *"falta aparecer qual o local e quadra aqui na lista de jogos"*. Os **97 jogos agendados** mostravam hora, categoria e grupo, e **nada** sobre onde. A referência que ele mandou é o que o Er já publicou na 1ª Etapa (`sportscore.com.br/timeline/436`): cada linha lá é `17/07 Sex 18:00 - Er Padel - Quadra: .Loja 7`, e o clube aparece **mesmo quando a quadra vem vazia** (`Radar Esportes - Quadra: .`).
