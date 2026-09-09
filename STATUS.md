@@ -41,6 +41,24 @@
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
 >
+> Última atualização: **09/09/2026** — 🩺 **BOTÃO "CONFERIR A GRADE": a auditoria virou tela.**
+>
+> 🗣️ **Felipe:** *"faz esse botão e sobe"*.
+>
+> 🚧 **NASCEU DE UM BECO, e vale registrar qual:** ele pediu **duas vezes** que eu conferisse a grade do torneio dele em `dev`, e a sessão da web **não alcança o `dev`** (o proxy recusa o CONNECT com 403). A saída não era pedir print de novo — era virar a auditoria em TELA, pra ele apertar e ver, em qualquer torneio, sem depender de mim nem da minha rede.
+>
+> 🔗 **O PONTO DE ARQUITETURA: a tela e o teste de regressão chamam o MESMO serviço** (`Services/AuditoriaDaGrade`). A auditoria que eu tinha escrito à mão no teste da escala do Er foi **apagada**, não mantida em paralelo — duas auditorias divergem, e a que fica errada é sempre a que ninguém está olhando. Pior: seria a TELA, que é justamente a que existe pra ser acreditada.
+>
+> 🔍 **Seis regras conferidas:** jogo dentro do impedimento da dupla · mesma **pessoa** em dois jogos no mesmo horário (por pessoa, não por dupla — com chave direta o mesmo jogador está em duplas de Ids diferentes) · concentração não atendida **na fase de grupos** · eliminatória no sábado à noite de categoria que pediu pra não ter · quadra usada fora da janela do local alugado · jogo sem horário.
+>
+> ⚠️ **"ACHADO" NÃO É "BUG", E A TELA DIZ ISSO NA PRIMEIRA LINHA.** A grade CEDE de propósito quando as vagas acabam — jogo sem hora nenhuma é pior. Sem essa frase o organizador leria a lista como defeito do sistema e perderia a decisão que é dele: refazer a grade, falar com a dupla, ou aceitar.
+>
+> 🔒 **Só lê.** Não remarca nada — quem muda a grade é o "Refazer grade", ao lado. Uma tela de conferência que conserta sozinha tira do organizador a decisão de aceitar o que cedeu. Atrás de `PodeOperarODiaDeJogoAsync`, mesma régua do botão vizinho: ela mostra a grade inteira e nome de jogador.
+>
+> 🧪 **5.639 testes, 0 falhas (14 novos).** **Sem migration.** Cinco guardas falsificadas.
+>
+> ⚠️ **Não visto renderizado** — a tela é nova e nunca passou por um browser.
+>
 > Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
 >
 > 🗣️ **Felipe:** *"criei o teste em dev, verifique se cumpriu bem os impedimentos e questões de horários, se ele respeitou isso"*.

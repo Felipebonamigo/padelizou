@@ -1,0 +1,78 @@
+@model IEnumerable<Padelizou.Services.AuditoriaDaGrade.Achado>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    ViewData["Title"] = $"Conferir a grade — {torneio.Nome}";
+    var achados = Model.ToList();
+    var porRegra = achados.GroupBy(a => a.Regra).OrderByDescending(g => g.Count()).ToList();
+    int total = ViewBag.TotalDeJogos ?? 0;
+}
+
+<div class="container py-4" style="max-width: 900px;">
+    <a asp-action="Details" asp-route-id="@torneio.Id" class="btn btn-sm btn-outline-secondary mb-3">
+        <i class="bi bi-arrow-left"></i> Voltar pro torneio
+    </a>
+
+    <h4 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-clipboard-check"></i> Conferir a grade
+    </h4>
+    <p class="text-muted small mb-4">
+        @torneio.Nome — @total jogo(s) na grade.
+        Esta tela <strong>só lê</strong>: pra mudar horários, use "Refazer grade" na aba de jogos.
+    </p>
+
+    @if (achados.Count == 0)
+    {
+        <div class="alert alert-success">
+            <strong><i class="bi bi-check-circle-fill"></i> Nada fora do lugar.</strong>
+            <div class="small mt-1">
+                Nenhum jogo dentro de impedimento, ninguém escalado em dois jogos ao mesmo tempo,
+                nenhuma concentração desrespeitada na fase de grupos, e nenhuma quadra usada fora
+                do horário dela.
+            </div>
+        </div>
+    }
+    else
+    {
+        @* ⚠️ ACHADO NÃO É NECESSARIAMENTE BUG, e a tela precisa dizer isso na primeira linha: a
+           grade CEDE de propósito quando as vagas acabam (jogo sem hora nenhuma é pior). Sem
+           esta frase, o organizador lê a lista como defeito do sistema e perde a decisão que é
+           dele — mudar a grade, falar com a dupla, ou aceitar. *@
+        <div class="alert alert-warning">
+            <strong><i class="bi bi-exclamation-triangle-fill"></i> @achados.Count ponto(s) pra você olhar.</strong>
+            <div class="small mt-1">
+                Nem tudo aqui é erro: quando as vagas apertam, a grade prefere marcar o jogo fora
+                da restrição a deixá-lo sem horário nenhum. A decisão do que fazer é sua —
+                <strong>Refazer grade</strong>, falar com a dupla, ou aceitar.
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            @foreach (var grupo in porRegra)
+            {
+                <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fw-normal">
+                    @grupo.Key: <strong>@grupo.Count()</strong>
+                </span>
+            }
+        </div>
+
+        @foreach (var grupo in porRegra)
+        {
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2">
+                        @grupo.Key
+                        <span class="text-muted fw-normal small">— @grupo.Count() caso(s)</span>
+                    </h6>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var achado in grupo)
+                        {
+                            <li class="list-group-item bg-transparent px-0 py-2 small">
+                                @achado.Descricao
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+    }
+</div>
