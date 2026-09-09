@@ -100,22 +100,85 @@ public class MeusJogosTests
         Assert.Equal(["Semifinal 1", "Final"], meus.Select(j => j.FaseNumerada));
     }
 
-    // Na fase de grupos a projeção fala em "1º do Grupo A" e ninguém sabe quem vai ser o 1º.
-    // Recortar por procedência não daria nada, e a tela mostraria "você não tem mais jogos"
-    // pra quem ainda tem o torneio inteiro pela frente.
-    [Fact]
-    public void Categoria_ainda_nos_grupos_mostra_a_chave_inteira()
+    // ---- FASE DE GRUPOS: o recorte é pelo GRUPO dele, não pela categoria ----
+    //
+    // 🗣️ Reclamação do Felipe (09/09/2026): *"aqui esta exibindo um chaveamento que nao é meu
+    // jogo, por exemplo, eu sou do grupo A, nao tem por que exibir o chaveamento do grupo E"*.
+    // "Meus jogos" mostrava a chave INTEIRA da categoria enquanto ela estava nos grupos — 12
+    // jogos agendados numa tela cujo botão promete só os dele.
+
+    private static Lado Vaga(int posicao, string grupo) =>
+        new($"{posicao}º do {grupo}", DeQualGrupo: grupo);
+
+    // Oitavas por colocação + quartas que emendam nelas — o desenho da tela do Felipe.
+    private static List<JogoQueVem> ChaveSaindoDosGrupos() => new()
     {
-        var projetados = new List<JogoQueVem>
-        {
-            Projetado("Semifinal", 1, new Lado("1º do Grupo A"), new Lado("2º do Grupo B")),
-            Projetado("Semifinal", 2, new Lado("1º do Grupo B"), new Lado("2º do Grupo A")),
-            Projetado("Final", 1, VencedorDe("Semifinal", 1), VencedorDe("Semifinal", 2)),
-        };
+        Projetado("Oitavas de Final", 1, Vaga(1, "Grupo E"), Vaga(2, "Grupo F")),
+        Projetado("Oitavas de Final", 2, Vaga(1, "Grupo F"), Vaga(2, "Grupo E")),
+        Projetado("Oitavas de Final", 3, Vaga(2, "Grupo A"), Vaga(2, "Grupo D")),
+        Projetado("Oitavas de Final", 4, Vaga(2, "Grupo B"), Vaga(2, "Grupo C")),
+        Projetado("Quartas de Final", 1, VencedorDe("Oitavas de Final", 1), Vaga(1, "Grupo D")),
+        Projetado("Quartas de Final", 2, VencedorDe("Oitavas de Final", 2), Vaga(1, "Grupo C")),
+        Projetado("Quartas de Final", 3, VencedorDe("Oitavas de Final", 3), Vaga(1, "Grupo B")),
+        Projetado("Quartas de Final", 4, VencedorDe("Oitavas de Final", 4), Vaga(1, "Grupo A")),
+    };
 
-        var meus = MeusJogos.Filtrar(projetados, [], [], [Cat]);
+    // ⚠️ O TESTE DA RECLAMAÇÃO.
+    [Fact]
+    public void Chave_de_outro_grupo_nao_e_minha()
+    {
+        var meus = MeusJogos.Filtrar(ChaveSaindoDosGrupos(), [], [], [new(Cat, "Grupo A")]);
 
-        Assert.Equal(3, meus.Count);
+        Assert.DoesNotContain(meus, j => j.Lado1.DeQualGrupo == "Grupo E"
+                                      || j.Lado2.DeQualGrupo == "Grupo E");
+    }
+
+    // Ele pode terminar em 1º OU em 2º, e as duas colocações caem em jogos diferentes: as
+    // duas são dele. Recortar só pela que ele "deve" fazer esconderia metade do caminho.
+    [Fact]
+    public void As_duas_colocacoes_do_meu_grupo_sao_minhas()
+    {
+        var meus = MeusJogos.Filtrar(ChaveSaindoDosGrupos(), [], [], [new(Cat, "Grupo A")]);
+
+        Assert.Equal(
+            ["Oitavas de Final 3", "Quartas de Final 3", "Quartas de Final 4"],
+            meus.Select(j => j.FaseNumerada));
+    }
+
+    // A corrente continua valendo depois da vaga: a oitava que pode ser minha entrega um
+    // vencedor, e a quarta que cita esse vencedor também é minha.
+    [Fact]
+    public void A_corrente_segue_a_partir_da_vaga_do_meu_grupo()
+    {
+        var meus = MeusJogos.Filtrar(ChaveSaindoDosGrupos(), [], [], [new(Cat, "Grupo B")]);
+
+        Assert.Equal(
+            ["Oitavas de Final 4", "Quartas de Final 3", "Quartas de Final 4"],
+            meus.Select(j => j.FaseNumerada));
+    }
+
+    // Sem grupo sorteado não dá pra dizer por onde ele entra — e aí a chave inteira volta a
+    // ser a resposta honesta, que é o que a tela fazia pra todo mundo antes de 09/09/2026.
+    [Fact]
+    public void Sem_grupo_conhecido_a_chave_inteira_volta()
+    {
+        var meus = MeusJogos.Filtrar(ChaveSaindoDosGrupos(), [], [], [new(Cat, null)]);
+
+        Assert.Equal(8, meus.Count);
+    }
+
+    // O grupo é da CATEGORIA, não do torneio: toda categoria tem um "Grupo A".
+    [Fact]
+    public void Grupo_de_mesmo_nome_em_outra_categoria_fica_de_fora()
+    {
+        var projetados = ChaveSaindoDosGrupos()
+            .Append(new JogoQueVem("6ª Categoria Feminina", "Oitavas de Final", 3, null,
+                Vaga(2, "Grupo A"), Vaga(2, "Grupo D")))
+            .ToList();
+
+        var meus = MeusJogos.Filtrar(projetados, [], [], [new(Cat, "Grupo A")]);
+
+        Assert.All(meus, j => Assert.Equal(Cat, j.Categoria));
     }
 
     // A chave de OUTRA categoria nunca é dele, mesmo que os números das fases coincidam —

@@ -38,7 +38,14 @@ public static class ProximasFasesDaChave
     // mesma chave — é o que deixa a tela transformar o rótulo em link pro jogo citado. Nulos
     // no bye (que já tem nome) e na colocação de grupo ("2º do Grupo C"), que não apontam pra
     // jogo nenhum.
-    public record Lado(string Rotulo, string? DeQualFase = null, int? DeQualNumero = null);
+    //
+    // `DeQualGrupo` é o outro lado da mesma ideia: na colocação de grupo, o GRUPO desmontado
+    // ("Grupo C"). Sem ele, "só os meus jogos" não tinha como saber que o jogador do Grupo A
+    // nunca vai jogar a oitava do "1º do Grupo E" — e mostrava a chave inteira da categoria.
+    // Fica em campo próprio, e não lido do rótulo, pelo mesmo motivo da procedência: o rótulo
+    // é de tela e muda.
+    public record Lado(string Rotulo, string? DeQualFase = null, int? DeQualNumero = null,
+                       string? DeQualGrupo = null);
 
     // A categoria vem junto porque a lista de jogos mistura todas: sem ela, duas semifinais
     // de categorias diferentes viram duas linhas idênticas.
@@ -110,7 +117,7 @@ public static class ProximasFasesDaChave
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
         var primeira = new RodadaQueVem(fase, confrontos
-            .Select(c => (new Lado(c.Lado1.Rotulo), new Lado(c.Lado2.Rotulo)))
+            .Select(c => (VagaDeGrupo(c.Lado1), VagaDeGrupo(c.Lado2)))
             .ToList());
 
         var proximos = confrontos
@@ -118,7 +125,7 @@ public static class ProximasFasesDaChave
             // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do
             // avanço de verdade — é o que faz cada vencedor cruzar com uma vaga que passou
             // direto. Aqui o bye ainda não tem nome: é a colocação ("2º do Grupo C").
-            .Concat(byes.Select(b => new Lado(b.Rotulo)))
+            .Concat(byes.Select(VagaDeGrupo))
             .ToList();
 
         var rodadas = new List<RodadaQueVem> { primeira };
@@ -126,6 +133,11 @@ public static class ProximasFasesDaChave
 
         return new CadeiaDeFases(categoria, fimDosGrupos, rodadas);
     }
+
+    // A colocação de grupo vira lado guardando o GRUPO: é por ele que "só os meus jogos"
+    // reconhece a vaga que pode ser do jogador ("2º do Grupo A" é dele; "1º do Grupo E" não).
+    private static Lado VagaDeGrupo(ChaveProjetada.Vaga vaga) =>
+        new(vaga.Rotulo, DeQualGrupo: vaga.Grupo);
 
     // O encadeamento, rodada a rodada, até a final.
     private static List<RodadaQueVem> Encadear(List<Lado> lados)
