@@ -61,18 +61,23 @@ public class SedeExtraComHorarioTests
         Assert.False(sede.QuadraAberta("Externa 1", Sabado.AddHours(7)));
         Assert.True(sede.QuadraAberta("Externa 1", Sabado.AddHours(8)));
         Assert.True(sede.QuadraAberta("Externa 1", Sabado.AddHours(13).AddMinutes(59)));
-        Assert.False(sede.QuadraAberta("Externa 1", Sabado.AddHours(14)));
+        Assert.False(sede.QuadraAberta("Externa 1", Sabado.AddHours(14).AddMinutes(1)));
     }
 
-    // A janela é MEIO ABERTA, mesmo formato de JanelasDeImpedimento: o jogo que começa às 14h
-    // em ponto já está fora de uma janela que termina às 14h.
+    // ⚠️ CONVENÇÃO REVISTA EM 09/09/2026. Este teste dizia o contrário — "meio aberta, mesmo
+    // formato de JanelasDeImpedimento: o jogo que começa às 14h já está fora" — e o Felipe
+    // mostrou que a leitura de quem preenche é outra: "no radar, 08h … 12:10, vão ser 12
+    // jogos". O "até" é a hora do ÚLTIMO JOGO, igual a `Torneio.HoraFimDoDia`; a simetria com
+    // o impedimento era a errada (lá é um período, e o fim de um turno é o começo do outro).
+    // A regra nova, com o porquê, está em JanelaDaQuadraTerminaNoUltimoJogoTests.
     [Fact]
-    public void So_o_lado_de_abertura_conta_como_dentro()
+    public void O_lado_do_ate_tambem_conta_como_dentro()
     {
         var sede = DuasSedes(de: Sabado.AddHours(8), ate: Sabado.AddHours(14));
 
         Assert.True(sede.QuadraAberta("Externa 1", Sabado.AddHours(8)));
-        Assert.False(sede.QuadraAberta("Externa 1", Sabado.AddHours(14)));
+        Assert.True(sede.QuadraAberta("Externa 1", Sabado.AddHours(14)));
+        Assert.False(sede.QuadraAberta("Externa 1", Sabado.AddHours(14).AddMinutes(50)));
     }
 
     [Fact]
@@ -80,6 +85,7 @@ public class SedeExtraComHorarioTests
     {
         var soAte = DuasSedes(ate: Sabado.AddHours(14));
         Assert.True(soAte.QuadraAberta("Externa 1", Sabado.AddHours(3)));
+        Assert.True(soAte.QuadraAberta("Externa 1", Sabado.AddHours(14)));
         Assert.False(soAte.QuadraAberta("Externa 1", Sabado.AddHours(15)));
 
         var soDe = DuasSedes(de: Sabado.AddHours(8));

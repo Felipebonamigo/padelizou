@@ -130,11 +130,15 @@ public class QuadrasNoPlanejadorTests
         Assert.NotNull(controller.TempData["Erro"]);
     }
 
-    // Uma janela que fecha antes de abrir é quadra que nunca existe: a grade não marcaria
-    // nada nela e ninguém saberia por quê. Recusar aqui é o único lugar em que dá pra dizer.
+    // Uma janela INVERTIDA é quadra que nunca existe: a grade não marcaria nada nela e ninguém
+    // saberia por quê. Recusar aqui é o único lugar em que dá pra dizer.
+    //
+    // ⚠️ "DAS 8H ÀS 8H" SAIU DESTA LISTA em 09/09/2026: com o "até" virando a hora do último
+    // jogo, ela quer dizer "uma rodada, às 8h" — legítima. Ver
+    // JanelaDaQuadraTerminaNoUltimoJogoTests.
     [Theory]
     [InlineData(14, 8)]
-    [InlineData(8, 8)]
+    [InlineData(12, 11)]
     public async Task Janela_que_fecha_antes_de_abrir_e_recusada(int abreHora, int fechaHora)
     {
         using var ctx = TestInfra.NovoContexto();
@@ -292,5 +296,130 @@ public class QuadrasNoPlanejadorTests
 
         Assert.Equal(2, Quadras(ctx, torneio.Id).Count);
         Assert.Equal(2, (await ctx.Torneios.FindAsync(torneio.Id))!.QuantidadeQuadras);
+    }
+
+    // ── PREENCHER MENOS (09/09/2026) ─────────────────────────────────────────────────────
+    //
+    // 🗣️ Felipe: "ficou bastante dado em branco, preencha, e deixe essa tela mais fácil de
+    // preencher, já vir pré-preenchido as datas que já tinha cadastrado antes, quando
+    // adicionar um novo, colocar a data próxima, coisas assim".
+
+    // ⚠️ CAMPO CHEIO NÃO PODE VIRAR JANELA QUE NÃO EXISTIA. A quadra sem janela vale o
+    // expediente inteiro, e a tela passa a MOSTRAR esse expediente em vez de dois campos
+    // vazios — mas salvar a linha sem mexer nela não pode inventar um limite. Quando a janela
+    // que chega é exatamente a do torneio, grava NULO: é a mesma coisa dita de outro jeito, e
+    // o nulo é o que sobrevive a uma mudança de data do torneio.
+    [Fact]
+    public async Task Janela_igual_ao_torneio_inteiro_grava_sem_limite()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, organizador, _, _) = Cenario(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
+        var a = Quadras(ctx, torneio.Id)[0];
+
+        // 11/09 18:00 (DataInicio + HoraInicioDoDia) até 13/09 23:50 (DataFim + HoraFimDoDia).
+        await controller.SalvarQuadraDoPlanejamento(torneio.Id, a.Id, a.Nome, null,
+            de: new DateTime(2026, 9, 11, 18, 0, 0),
+            ate: new DateTime(2026, 9, 13, 23, 50, 0));
+
+        var gravada = Quadras(ctx, torneio.Id)[0];
+        Assert.Null(gravada.DisponivelDe);
+        Assert.Null(gravada.DisponivelAte);
+    }
+
+    // Um minuto a menos já é uma janela de verdade — a guarda acima não pode virar
+    // "arredonda pro torneio inteiro".
+    [Fact]
+    public async Task Janela_menor_que_o_torneio_e_gravada()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, organizador, _, _) = Cenario(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
+        var a = Quadras(ctx, torneio.Id)[0];
+
+        await controller.SalvarQuadraDoPlanejamento(torneio.Id, a.Id, a.Nome, null,
+            de: new DateTime(2026, 9, 11, 18, 0, 0),
+            ate: new DateTime(2026, 9, 13, 23, 40, 0));
+
+        Assert.Equal(new DateTime(2026, 9, 13, 23, 40, 0), Quadras(ctx, torneio.Id)[0].DisponivelAte);
+    }
+
+    // A linha "adicionar" chega pronta: nome seguindo o da última, e o MESMO local e janela —
+    // é como o Er cadastra a Radar 2 depois da Radar 1.
+    [Fact]
+    public void A_linha_nova_vem_sugerida_a_partir_da_ultima_quadra()
+    {
+        var sugestao = PlanejamentoDeQuadras.SugerirProximaQuadra(new[]
+        {
+            new Quadra { Nome = "Arena Nclass" },
+            new Quadra
+            {
+                Nome = "Radar 1", ClubeId = 7,
+                DisponivelDe = Sabado.AddHours(8), DisponivelAte = Sabado.AddHours(12).AddMinutes(10),
+            },
+        });
+
+        Assert.Equal("Radar 2", sugestao.Nome);
+        Assert.Equal(7, sugestao.ClubeId);
+        Assert.Equal(Sabado.AddHours(8), sugestao.De);
+        Assert.Equal(Sabado.AddHours(12).AddMinutes(10), sugestao.Ate);
+    }
+
+    [Theory]
+    [InlineData("Radar 1", "Radar 2")]
+    [InlineData("Quadra 9", "Quadra 10")]
+    [InlineData("Arena Loja 7", "Arena Loja 8")]
+    [InlineData("Central", "Central 2")]      // sem número nem letra no fim, começa a numerar
+    // A LETRA é o nome que o próprio sistema dá (o `Create` batiza "Quadra A".."Quadra Z"),
+    // então num torneio que nunca renomeou a sugestão continua o alfabeto.
+    [InlineData("Quadra A", "Quadra B")]
+    [InlineData("Quadra B", "Quadra C")]
+    public void O_nome_sugerido_segue_a_numeracao_da_ultima(string ultima, string esperado)
+    {
+        var sugestao = PlanejamentoDeQuadras.SugerirProximaQuadra(new[] { new Quadra { Nome = ultima } });
+
+        Assert.Equal(esperado, sugestao.Nome);
+    }
+
+    // Sem quadra nenhuma não há de quem herdar — e a tela nunca fica sem uma sugestão.
+    [Fact]
+    public void Sem_quadra_nenhuma_a_sugestao_e_a_primeira()
+    {
+        var sugestao = PlanejamentoDeQuadras.SugerirProximaQuadra(Array.Empty<Quadra>());
+
+        Assert.Equal("Quadra 1", sugestao.Nome);
+        Assert.Null(sugestao.ClubeId);
+        Assert.Null(sugestao.De);
+    }
+
+    // ⚠️ NOME SUGERIDO NÃO PODE COLIDIR: "Radar 1" e "Radar 2" já existindo, a próxima é
+    // "Radar 3" — senão a tela entrega de bandeja um nome que o próprio salvamento recusa
+    // (nome é identidade, Services/NomeDeQuadraUnico).
+    [Fact]
+    public void O_nome_sugerido_pula_os_que_ja_existem()
+    {
+        var sugestao = PlanejamentoDeQuadras.SugerirProximaQuadra(new[]
+        {
+            new Quadra { Nome = "Radar 1" },
+            new Quadra { Nome = "Radar 2" },
+        });
+
+        Assert.Equal("Radar 3", sugestao.Nome);
+    }
+
+    // A tela precisa saber o expediente do torneio pra preencher os campos vazios.
+    [Fact]
+    public async Task O_plano_traz_a_janela_do_torneio_inteiro_e_a_sugestao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, organizador, _, _) = Cenario(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
+
+        var vm = Assert.IsType<PlanejamentoDeQuadrasVM>(
+            Assert.IsType<ViewResult>(await controller.Planejamento(torneio.Id)).Model);
+
+        Assert.Equal(new DateTime(2026, 9, 11, 18, 0, 0), vm.AberturaDoTorneio);
+        Assert.Equal(new DateTime(2026, 9, 13, 23, 50, 0), vm.FechamentoDoTorneio);
+        Assert.Equal("Quadra C", vm.NovaQuadra.Nome);
     }
 }

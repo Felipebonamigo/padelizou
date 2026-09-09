@@ -37,14 +37,28 @@
         <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]</div>
     }
 
-    @* Nada aqui grava: é a primeira coisa que o organizador precisa saber pra girar os números
-       sem medo. O único botão que escreve está no fim da página, e diz o que escreve. *@
-    <div class="alert alert-light border d-flex align-items-start gap-2 small">
-        <i class="bi bi-info-circle fs-5"></i>
-        <div>
-            Esta tela é uma <strong>simulação</strong>: mexer nos campos não muda nada no torneio nem nos
-            jogos já marcados. Serve pra responder <em>“quantas quadras e quantos horários eu preciso?”</em>
-            antes de fechar com o clube.
+    @* ⚠️ ESTE AVISO JÁ MENTIU (09/09/2026). Ele nasceu quando a tela inteira era leitura e
+       dizia "mexer nos campos não muda nada no torneio" — mas a tabela de quadras grava na
+       hora, e o "Aplicar" no rodapé grava os horários. 🗣️ Felipe: "é uma mentira, não? pq se
+       coloca lá embaixo para alterar, ele salva essas alterações". Agora o aviso separa as
+       duas metades da tela, que é a informação de que ele precisa antes de mexer em qualquer
+       campo. *@
+    <div class="alert alert-light border small">
+        <div class="d-flex align-items-start gap-2 mb-2">
+            <i class="bi bi-pencil-square fs-5 text-success"></i>
+            <div>
+                <strong>As quadras (logo abaixo) gravam na hora.</strong> Nome, local e horário de cada
+                quadra são do torneio de verdade — cada linha tem o próprio botão de salvar.
+            </div>
+        </div>
+        <div class="d-flex align-items-start gap-2 mb-0">
+            <i class="bi bi-calculator fs-5"></i>
+            <div>
+                <strong>O resto é simulação</strong>, pra responder <em>“quantas quadras e quantos horários
+                eu preciso?”</em> antes de fechar com o clube: gire os campos à vontade que nada muda no
+                torneio — só o botão <strong>Aplicar horários</strong>, no fim da página, grava.
+                <strong>Nenhum dos dois remarca jogo que já tem horário.</strong>
+            </div>
         </div>
     </div>
 
@@ -76,7 +90,8 @@
                         <th style="min-width: 160px;">Nome</th>
                         <th style="min-width: 180px;">Local</th>
                         <th style="min-width: 190px;">Disponível de</th>
-                        <th style="min-width: 190px;">até</th>
+                        <th style="min-width: 190px;">Último jogo começa até</th>
+                        <th style="min-width: 130px;">Rende</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -104,13 +119,37 @@
                                 }
                             </select>
                         </td>
+                        @* ⚠️ CAMPO VAZIO VIRA O EXPEDIENTE DO TORNEIO, e não fica em branco:
+                           "ficou bastante dado em branco, preencha" (Felipe). Salvar a linha
+                           assim devolve NULO ao banco — SalvarQuadraDoPlanejamento reconhece a
+                           janela do torneio inteiro —, então mostrar não vira gravar. *@
+                        @{
+                            var de = quadra.DisponivelDe ?? Model.AberturaDoTorneio;
+                            var ate = quadra.DisponivelAte ?? Model.FechamentoDoTorneio;
+                            var rende = Padelizou.Services.SedesDoTorneio.JogosQueCabemNaJanela(
+                                1, quadra.DisponivelDe, quadra.DisponivelAte, Model.Duracao);
+                        }
                         <td>
                             <input type="datetime-local" name="de" class="form-control form-control-sm" form="@formId"
-                                   value="@(quadra.DisponivelDe?.ToString("yyyy-MM-dd\\THH:mm"))" @(Model.SoLeitura ? "disabled" : "") />
+                                   value="@de.ToString("yyyy-MM-dd\\THH:mm")" @(Model.SoLeitura ? "disabled" : "") />
                         </td>
                         <td>
                             <input type="datetime-local" name="ate" class="form-control form-control-sm" form="@formId"
-                                   value="@(quadra.DisponivelAte?.ToString("yyyy-MM-dd\\THH:mm"))" @(Model.SoLeitura ? "disabled" : "") />
+                                   value="@ate.ToString("yyyy-MM-dd\\THH:mm")" @(Model.SoLeitura ? "disabled" : "") />
+                        </td>
+                        @* O número com que o organizador raciocina ("vão ser 12 jogos"), e a
+                           hora em que a quadra de fato vaga — que é a pergunta seguinte dele. *@
+                        <td class="small">
+                            @if (rende is int jogosDaQuadra)
+                            {
+                                <span class="fw-bold">@jogosDaQuadra @(jogosDaQuadra == 1 ? "jogo" : "jogos")</span>
+                                <br />
+                                <span class="text-muted">vaga @ate.AddMinutes(Model.Duracao).ToString("HH:mm")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">torneio inteiro</span>
+                            }
                         </td>
                         <td class="text-nowrap">
                             @if (!Model.SoLeitura)
@@ -134,20 +173,32 @@
                     <tr style="background-color: var(--pdz-surface-alt);">
                         <td>
                             <form method="post" asp-action="SalvarQuadraDoPlanejamento" asp-route-id="@Model.Torneio.Id" id="quadra-nova" class="d-none"></form>
+                            @* Tudo já preenchido a partir da ÚLTIMA quadra: nome numerado, mesmo
+                               local, mesma janela. É como se cadastra a Radar 2 depois da Radar 1
+                               (Services/PlanejamentoDeQuadras.SugerirProximaQuadra). *@
                             <input type="text" name="nome" maxlength="60" required class="form-control form-control-sm"
-                                   placeholder="Nova quadra (ex.: Alugada 1)" form="quadra-nova" />
+                                   value="@Model.NovaQuadra.Nome" form="quadra-nova" />
                         </td>
                         <td>
                             <select name="clubeId" class="form-select form-select-sm" form="quadra-nova">
-                                <option value="@Model.Torneio.ClubeId">@Model.NomeDoClubeDoTorneio (aqui)</option>
+                                <option value="@Model.Torneio.ClubeId" selected="@(Model.NovaQuadra.ClubeId == null)">
+                                    @Model.NomeDoClubeDoTorneio (aqui)
+                                </option>
                                 @foreach (var clube in Model.Clubes.Where(c => c.Id != Model.Torneio.ClubeId))
                                 {
-                                    <option value="@clube.Id">@clube.Nome</option>
+                                    <option value="@clube.Id" selected="@(Model.NovaQuadra.ClubeId == clube.Id)">@clube.Nome</option>
                                 }
                             </select>
                         </td>
-                        <td><input type="datetime-local" name="de" class="form-control form-control-sm" form="quadra-nova" /></td>
-                        <td><input type="datetime-local" name="ate" class="form-control form-control-sm" form="quadra-nova" /></td>
+                        <td>
+                            <input type="datetime-local" name="de" class="form-control form-control-sm" form="quadra-nova"
+                                   value="@((Model.NovaQuadra.De ?? Model.AberturaDoTorneio).ToString("yyyy-MM-dd\\THH:mm"))" />
+                        </td>
+                        <td>
+                            <input type="datetime-local" name="ate" class="form-control form-control-sm" form="quadra-nova"
+                                   value="@((Model.NovaQuadra.Ate ?? Model.FechamentoDoTorneio).ToString("yyyy-MM-dd\\THH:mm"))" />
+                        </td>
+                        <td class="small text-muted">—</td>
                         <td class="text-nowrap">
                             <button type="submit" form="quadra-nova" class="btn btn-sm btn-success rounded-pill px-3">
                                 <i class="bi bi-plus-circle"></i> Adicionar
@@ -159,9 +210,12 @@
             </table>
         </div>
         <div class="card-footer small text-muted">
-            <strong>De / até vazios</strong> = a quadra vale o expediente inteiro do torneio. Preencha só na
-            quadra alugada por hora — ela rende apenas as rodadas dentro da janela, e a conta abaixo já
-            desconta isso. A hora de fechar é a hora em que o último jogo <strong>começa</strong>.
+            <strong>“Último jogo começa até”</strong> é a hora do último jogo, e ele entra na conta: das
+            <strong>8:00 às 12:10</strong> com jogos de 50 min saem 6 rodadas — 8:00, 8:50, 9:40, 10:30,
+            11:20 e 12:10 — que em 2 quadras são <strong>12 jogos</strong>, e a quadra vaga às 13:00.
+            <br />
+            Deixar a janela igual ao expediente do torneio é o mesmo que <strong>sem limite</strong>: a
+            quadra vale o torneio inteiro e acompanha uma eventual mudança de data.
             Mudou quadra depois do sorteio? Use <strong>Refazer grade</strong>, na aba de jogos.
         </div>
     </div>
