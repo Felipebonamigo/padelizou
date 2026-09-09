@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-832-cbd3c39`** (09/09/2026, 16h20 e 16h21 UTC) — PR #96, com **o mesmo artefato nos dois ambientes**, que é o que a Regra 3 quer dizer com "testar em dev antes". Subiu: o **sorteio que voltou a sortear**, a **semeadura que parou de punir o líder**, a **troca de duplas entre grupos**, o **conserto do impedimento pago** e as **duas réguas emprestadas na auditoria da grade**.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA, medida de novo:** o job `deploy → prod` foi de `Set up job` a `Complete job` em **15 segundos** (16:21:54 → 16:22:09), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.** É a terceira sessão seguida a registrar isso.
+>
+> ⚠️ **O QUE FOI VERIFICADO E O QUE NÃO FOI:** os dois jobs passaram inteiros, e o passo `Publicar` é o que carrega o `/healthz` com rollback automático — então o healthz respondeu 200 nos dois. **Nada foi visto renderizado nem exercitado pela tela:** esta sessão não alcança `dev` nem `prod` (o proxy recusa o CONNECT com 403). Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`, com `build-829-49a81e2` como versão anterior.
+>
 > Última atualização: **09/09/2026** — 🔎 **A AUDITORIA DA GRADE ESTAVA REESCREVENDO A RÉGUA DO MOTOR — E ERRAVA NOS DOIS SENTIDOS.**
 >
 > 🕳️ Achado numa **revisão adversarial antes de publicar**, no merge desta branch com o `main`. O bloco "mesma pessoa em dois jogos" do `AuditoriaDaGrade` tinha escrito à mão o que o motor já decide — exatamente o que o cabeçalho do próprio arquivo proíbe (*"ESTE SERVIÇO É A ÚNICA CÓPIA DA AUDITORIA"*).
