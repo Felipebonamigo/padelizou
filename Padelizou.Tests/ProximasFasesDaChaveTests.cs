@@ -389,6 +389,74 @@ public class ProximasFasesDaChaveTests
     // duplas fecha os grupos cedo, projeta semi e final na sequência, e termina antes de a de 32
     // ter jogado a primeira eliminatória. Consertar só a grade real não bastaria — o que o jogador
     // lê na aba de jogos é isto aqui.
+    // ⚠️ A PRÉVIA TAMBÉM ESPERA OS JOGOS DE GRUPO QUE JÁ ESTÃO MARCADOS (09/09/2026, segunda
+    // rodada do mesmo pedido).
+    //
+    // 🗣️ Felipe, num print do `dev` DEPOIS da primeira correção: *"como que ele nao ta
+    // respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse
+    // erro?"*. A tela mostrava a **Quartas de Final da 6ª Feminina** com selo "prévia" em 12/09
+    // 18:50, e jogos de **GRUPO** reais da 3ª e da 6ª Masculina em 15/09 20:30.
+    //
+    // 🕳️ O BURACO DA PRIMEIRA CORREÇÃO: ela ordenou as fases PROJETADAS entre si, e o piso da
+    // PRIMEIRA delas continuou saindo do fim dos grupos DA PRÓPRIA CATEGORIA
+    // (`CadeiaDeFases.DepoisDe`, montado em TorneiosController.ProjetarProximasFasesAsync). A
+    // categoria que fecha os grupos cedo projetava a eliminatória dela na frente de jogo de grupo
+    // REAL de outra categoria — e jogo de grupo real não é uma cadeia, é `jaMarcados`.
+    //
+    // O primeiro teste desta régua não pegou isso porque semeava todas as cadeias com o MESMO
+    // `fimDosGrupos`: sem categorias terminando em horas diferentes, o furo não tinha como
+    // aparecer. Aqui elas terminam em dias diferentes, que é o caso do Er.
+    [Fact]
+    public void A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria()
+    {
+        // A "Rápida" fechou os grupos dela em 12/09 às 18:00. A "Lenta" ainda tem jogo de GRUPO
+        // marcado pra 15/09 às 20:30 — jogo real, que já está na grade.
+        var fimDaRapida = new DateTime(2026, 9, 12, 18, 0, 0);
+        var grupoDaLenta = new DateTime(2026, 9, 15, 20, 30, 0);
+
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2, fimDaRapida, "Rápida");
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { cadeia },
+            new ConfiguracaoDaGrade(50, 4, Array.Empty<string>(), FimDoDia, AberturaSeguinte),
+            new[]
+            {
+                new VagaOcupada(fimDaRapida, null, "Grupo A"),
+                new VagaOcupada(grupoDaLenta, null, "Grupo D"),
+            });
+
+        Assert.NotEmpty(jogos);
+
+        var cedoDemais = jogos
+            .Where(j => j.Horario < grupoDaLenta)
+            .Select(j => $"{j.FaseNumerada} às {j.Horario:dd/MM HH:mm}")
+            .ToList();
+
+        Assert.True(cedoDemais.Count == 0,
+            $"ainda há jogo de GRUPO marcado pra {grupoDaLenta:dd/MM HH:mm} e a prévia promete "
+            + $"eliminatória antes disso: {string.Join(", ", cedoDemais)}");
+    }
+
+    // A contrapartida: uma vaga ocupada SEM fase (o chamador antigo, que não dizia qual era) não
+    // pode virar barreira — não dá pra saber o posto dela, e chutar "é grupo" seguraria a chave
+    // inteira atrás de um jogo que talvez seja a final.
+    [Fact]
+    public void Vaga_ocupada_sem_fase_nao_segura_a_previa()
+    {
+        var fimDosGrupos = new DateTime(2026, 9, 12, 18, 0, 0);
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B" }, 2, fimDosGrupos, "Categoria");
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { cadeia },
+            new ConfiguracaoDaGrade(50, 4, Array.Empty<string>(), FimDoDia, AberturaSeguinte),
+            new[] { new VagaOcupada(new DateTime(2026, 9, 20, 22, 0, 0), null) });
+
+        Assert.All(jogos, j => Assert.True(j.Horario < new DateTime(2026, 9, 20, 0, 0, 0),
+            $"a prévia foi empurrada pra {j.Horario:dd/MM HH:mm} por uma vaga sem fase declarada"));
+    }
+
     [Fact]
     public void A_previa_poe_todas_as_finais_depois_de_toda_semifinal()
     {

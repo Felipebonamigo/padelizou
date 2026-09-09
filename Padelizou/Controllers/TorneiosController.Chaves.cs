@@ -373,6 +373,16 @@ namespace Padelizou.Controllers
             ViewBag.Torneio = torneio;
             ViewBag.TotalDeJogos = jogos.Count;
 
+            // ⚠️ O "POR QUÊ", e não só o "quais" (09/09/2026). 🗣️ Felipe, num print do dev: *"como
+            // que tem jogo dia 15, no torneio do er? se termina dia 13? […] por que esse erro?"*.
+            // A régua já existia e só falava no sorteio — que é um instante que passa. A pergunta
+            // nasce DEPOIS, olhando a grade, e é aqui que ele olha.
+            ViewBag.PorQueNaoCoube = PorQueNaoCoube.Analisar(torneio,
+                await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync(),
+                await SedesAsync(id),
+                jogos.Count,
+                jogos.Where(j => j.HorarioPrevisto != null).Max(j => j.HorarioPrevisto));
+
             return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, await SedesAsync(id)));
         }
 

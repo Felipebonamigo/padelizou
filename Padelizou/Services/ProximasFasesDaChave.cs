@@ -170,7 +170,13 @@ public static class ProximasFasesDaChave
     // Uma vaga que já tem dono — os jogos REAIS que estão marcados. A projeção precisa deles
     // pra não prometer uma quadra que já está ocupada. `Quadra` nula é o torneio que não
     // cadastrou quadra: ela ocupa a vaga sem tomar um nome.
-    public record VagaOcupada(DateTime Horario, string? Quadra);
+    //
+    // ⚠️ `Fase` entrou em 09/09/2026 e NÃO é enfeite: é ela que diz o POSTO daquele jogo real, e
+    // sem posto a projeção não tem como esperar a fase de grupos de OUTRA categoria. Opcional
+    // porque nem todo chamador sabe dizer — e vaga sem fase declarada NÃO vira barreira, de
+    // propósito: chutar "deve ser grupo" seguraria a chave inteira atrás de um jogo que talvez
+    // seja a final.
+    public record VagaOcupada(DateTime Horario, string? Quadra, string? Fase = null);
 
     // `Quadras` são os nomes NA ORDEM; `Capacidade` é quantos jogos rodam ao mesmo tempo.
     // Os dois existem porque podem discordar: um torneio de 5 quadras pode ter cadastrado só
@@ -242,6 +248,30 @@ public static class ProximasFasesDaChave
         DateTime? fimDoPostoAnterior = null;
         DateTime? maiorEmitido = null;
 
+        // ⚠️ E O QUE JÁ ESTÁ MARCADO DE VERDADE CONTA NA BARREIRA (09/09/2026, segunda rodada do
+        // pedido). Ordenar as fases PROJETADAS entre si não basta: o piso da primeira delas vinha
+        // do fim dos grupos DA PRÓPRIA CATEGORIA (`CadeiaDeFases.DepoisDe`), e jogo de grupo de
+        // OUTRA categoria não é cadeia nenhuma — é jogo real, que chega aqui como `jaMarcados`.
+        //
+        // 🕳️ Foi assim que a tela do Er mostrou a Quartas da 6ª Feminina em 12/09 18:50 com jogos
+        // de GRUPO da 6ª Masculina marcados pra 15/09. Reproduzido em
+        // ProximasFasesDaChaveTests.A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria,
+        // que falhava com esse mesmo 12/09 18:50.
+        var reaisPorPosto = (jaMarcados ?? Array.Empty<VagaOcupada>())
+            .Where(v => v.Fase != null)
+            .Select(v => (Posto: OrdemDasFases.Posto(v.Fase), v.Horario))
+            .ToList();
+
+        DateTime? FimRealAntesDoPosto(int posto)
+        {
+            var fim = reaisPorPosto.Where(v => v.Posto < posto)
+                .Select(v => v.Horario).DefaultIfEmpty().Max();
+            return fim == default ? null : fim;
+        }
+
+        static DateTime? MaisTarde(DateTime? um, DateTime? outro) =>
+            um == null ? outro : outro == null ? um : (um > outro ? um : outro);
+
         int PostoDaProxima(int i) => OrdemDasFases.Posto(vivas[i].Rodadas[proxima[i]].Fase);
 
         while (true)
@@ -271,11 +301,12 @@ public static class ProximasFasesDaChave
             var cadeia = vivas[escolha];
             var rodada = cadeia.Rodadas[proxima[escolha]];
 
-            // Virou o posto: o que já saiu é tudo de posto menor, e o fim disso é a barreira.
+            // Virou o posto: o que já saiu é tudo de posto menor, e o fim disso é a barreira —
+            // contando tanto o que ESTA projeção emitiu quanto os jogos REAIS de posto menor.
             int posto = OrdemDasFases.Posto(rodada.Fase);
             if (posto > postoEmitido)
             {
-                fimDoPostoAnterior = maiorEmitido;
+                fimDoPostoAnterior = MaisTarde(maiorEmitido, FimRealAntesDoPosto(posto));
                 postoEmitido = posto;
             }
 
