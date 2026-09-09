@@ -112,6 +112,71 @@ public static class PorQueNaoCoube
         return motivos;
     }
 
+    /// <summary>
+    /// Os DIAS VAZIOS no meio da grade — dias entre o primeiro e o último jogo que não têm jogo
+    /// nenhum —, com a causa quando ela é conhecida. Lista vazia quer dizer grade sem buraco.
+    /// </summary>
+    /// <remarks>
+    /// 🗣️ Felipe, 09/09/2026, DEPOIS de refazer a grade: *"refiz a grade, continua com jogo dia
+    /// 15, 16, do nada ele pula do dia 12 p dia 15"*.
+    ///
+    /// 🕳️ A ASSINATURA ESTAVA NO PRÓPRIO PRINT: a cadência não se perde (18:00 → 18:50 → 19:40 →
+    /// 20:30), só a DATA salta. É `GradeDeJogos.Encaixar` pulando vaga por vaga porque nenhuma
+    /// quadra está aberta naquele horário (`TemOndeJogar`) e voltando a marcar assim que uma abre.
+    /// Ele não dá erro nenhum — só empurra o torneio pra frente, calado, e o organizador descobre
+    /// olhando a lista.
+    ///
+    /// ⚠️ NÃO DEPENDE DE `DataFim`, e essa é a lição deste print: eu tinha pendurado o único aviso
+    /// num campo OPCIONAL, então o torneio sem prazo preenchido ficava sem nenhum. Dois dias vazios
+    /// no meio de um torneio são anômalos com ou sem prazo declarado.
+    ///
+    /// ⚠️ Ele SÓ CULPA A QUADRA quando ela é culpada. Um dia vazio com quadra aberta tem outra
+    /// causa (impedimento, a grade simplesmente ter acabado), e mandar o organizador mexer na
+    /// quadra seria mandá-lo consertar o que não está quebrado.
+    /// </remarks>
+    public static List<string> BuracosNaGrade(Torneio torneio, SedesDoTorneio sedes,
+        IEnumerable<Partida> jogos)
+    {
+        var buracos = new List<string>();
+
+        var comHora = jogos.Where(j => j.HorarioPrevisto != null)
+            .Select(j => j.HorarioPrevisto!.Value)
+            .ToList();
+
+        if (comHora.Count == 0) return buracos;
+
+        var primeiro = comHora.Min().Date;
+        var ultimo = comHora.Max().Date;
+        var comJogo = comHora.Select(h => h.Date).ToHashSet();
+        var duracao = VagasDaGrade.Duracao(torneio);
+
+        for (var dia = primeiro.AddDays(1); dia < ultimo; dia = dia.AddDays(1))
+        {
+            if (comJogo.Contains(dia)) continue;
+
+            // Alguma quadra abre em ALGUM horário deste dia? A pergunta é feita nos horários que a
+            // grade de fato ofereceria, e não "no dia inteiro": uma quadra que só abre às 3h da
+            // manhã não serve pra nada e não deve inocentar o dia.
+            var abertura = dia == torneio.DataInicio?.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+            bool teveQuadra = false;
+
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+                 hora = hora.AddMinutes(duracao))
+            {
+                if ((sedes.QuadrasAbertasEm(hora) ?? int.MaxValue) > 0) { teveQuadra = true; break; }
+            }
+
+            buracos.Add(teveQuadra
+                ? $"{dia:dd/MM} ({DiaDaSemana(dia)}) está sem jogo nenhum, mesmo com quadra aberta — "
+                  + "a grade pulou o dia por outro motivo (impedimento de dupla, ou os jogos já tinham acabado)."
+                : $"{dia:dd/MM} ({DiaDaSemana(dia)}) está sem jogo nenhum porque NENHUMA QUADRA está "
+                  + "aberta nesse dia. Confira a coluna \"disponível de / até\" de cada quadra no "
+                  + "planejamento: a grade pula o dia inteiro, calado, e joga tudo pra frente.");
+        }
+
+        return buracos;
+    }
+
     // Quantas vagas de quadra o expediente rende do começo do torneio até o fim do prazo.
     //
     // ⚠️ CONTA SÓ AS ÚTEIS: uma quadra fechada naquele horário não é vaga, e contá-la faria a
