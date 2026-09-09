@@ -177,9 +177,17 @@ namespace Padelizou.Controllers
                 //
                 // ⚠️ SORTEIA O DESEMPATE, NÃO A ORDEM INTEIRA: quem tem ranking continua
                 // semeado por ranking, que é o que impede dois favoritos no mesmo grupo.
+                // ⚠️ O SEGUNDO JOGADOR PODE NÃO EXISTIR (09/09/2026): dupla inscrita sozinha
+                // entra na chave com a vaga em aberto. Aqui morava `d.Jogador2Id!.Value`, e o
+                // `!` só calava o compilador — no primeiro sorteio com inscrição sozinha isso
+                // era `InvalidOperationException` e um 500 na cara do organizador, antes de
+                // gravar grupo nenhum. Quem tem meia dupla soma meia semeadura, que é o certo:
+                // o ranking dela é só o do jogador que existe.
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
-                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
+                                          + (d.Jogador2Id is int parceiro
+                                              ? pontosPorJogador.GetValueOrDefault(parceiro)
+                                              : 0))
                     .ThenBy(_ => Guid.NewGuid())
                     .ToList();
 

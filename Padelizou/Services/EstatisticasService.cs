@@ -34,7 +34,7 @@ public class EstatisticasService : IEstatisticasService
         // fica fora do sorteio, e contá-lo aqui daria à categoria um tamanho que ela não teve.
         // É a MESMA régua que decide quem pontua — se as duas discordassem, a categoria teria
         // dois tamanhos ao mesmo tempo: um pra dividir o peso, outro pra somar o ponto.
-        var q = _context.Duplas.Where(d => d.NomeTime == null).Where(ForaDoSorteio.EstaNaChave);
+        var q = _context.Duplas.Where(d => d.NomeTime == null).Where(InscricaoQueConta.Expressao);
 
         if (categoriaIds != null)
         {
@@ -54,7 +54,7 @@ public class EstatisticasService : IEstatisticasService
     // nos métodos que leem a tabela inteira de qualquer jeito.
     private static Dictionary<int, int> ContarDuplasPorCategoria(IEnumerable<Dupla> duplas) =>
         duplas
-            .Where(d => d.NomeTime == null && !ForaDoSorteio.FicaDeFora(d))
+            .Where(d => d.NomeTime == null && InscricaoQueConta.Vale(d))
             .GroupBy(d => d.CategoriaId)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -256,7 +256,7 @@ public class EstatisticasService : IEstatisticasService
         // tabela Duplas INTEIRA (sem Where nenhum) numa página PÚBLICA que o hub chama 2-3x
         // por visita — sem isto, o EF rastreava toda entidade materializada (Dupla, Categoria,
         // Torneio, os dois Jogador) pra detectar mudança, e nada aqui grava nenhuma delas. Não
-        // filtra em SQL (o Where que segue) de propósito: ContaNoRanking e ForaDoSorteio.FicaDeFora
+        // filtra em SQL (o Where que segue) de propósito: ContaNoRanking e InscricaoQueConta.Vale
         // são C# arbitrário sobre o grafo carregado, não teriam tradução direta — mudar isso é
         // trabalho à parte, com o cuidado de não alterar quem entra no ranking.
         var duplas = await _context.Duplas
@@ -273,9 +273,9 @@ public class EstatisticasService : IEstatisticasService
         var porCategoria = duplas
             .Where(d => d.Categoria != null
                      && ContaNoRanking(d.Categoria.Torneio)   // torneio restrito fica fora
-                     // Quem não entrou no sorteio (lista de espera, sem parceiro) se
-                     // inscreveu mas não jogou — e estava levando ponto de participação.
-                     && !ForaDoSorteio.FicaDeFora(d)
+                     // Lista de espera e inscrição sem parceiro se inscreveram mas não
+                     // jogaram — e estavam levando ponto de participação.
+                     && InscricaoQueConta.Vale(d)
                      && (categoriaNome == null || d.Categoria.Nome == categoriaNome)
                      && (ate == null || d.Categoria.Torneio == null
                          || d.Categoria.Torneio.DataInicio == null
@@ -360,7 +360,7 @@ public class EstatisticasService : IEstatisticasService
             // pessoas despejava 4 linhas de "participou" (40 pontos) por jogador no ranking de
             // times, sem ninguém ter chegado a final nenhuma.
             .Where(EstatisticasService.DuplaContaNoRanking)
-            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
+            .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null   // dupla-TIME não pontua jogador nenhum
                      && (idsComTime.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
@@ -442,7 +442,7 @@ public class EstatisticasService : IEstatisticasService
             // Dupla-TIME fora: o Jogador1 dela é o organizador, e a campanha do time
             // inflaria os pontos do TIME DO ORGANIZADOR neste placar.
             .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
-            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
+            .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .Include(d => d.Jogador1).ThenInclude(j => j.Time)
             // `Jogador2!` porque a dupla pode não ter parceiro (inscrição sozinho). O `!` é seguro
             // aqui: o EF lê a expressão pra montar o JOIN, não executa o acesso — quem não tem
@@ -796,7 +796,7 @@ public class EstatisticasService : IEstatisticasService
             .Include(d => d.Jogador1)
             .Include(d => d.Jogador2)
             .Where(d => ids.Contains(d.Categoria.TorneioId))
-            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
+            .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .ToListAsync();
 
         // O status decide se cada torneio já paga ponto — POR torneio, porque numa série a
@@ -1183,10 +1183,10 @@ public class EstatisticasService : IEstatisticasService
         var resumo = await ObterResumoJogadorAsync(jogadorId);
 
         // Clubes onde o jogador de fato JOGOU torneio: lista de espera e sem-parceiro ficam de
-        // fora (a régua de sempre, ForaDoSorteio), e linha de time não é jogo desta pessoa.
+        // fora (a régua de sempre, InscricaoQueConta), e linha de time não é jogo desta pessoa.
         int clubesDiferentes = await _context.Duplas
             .Where(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Where(ForaDoSorteio.EstaNaChave)
+            .Where(InscricaoQueConta.Expressao)
             .Select(d => d.Categoria.Torneio.ClubeId)
             .Distinct()
             .CountAsync();
@@ -1266,9 +1266,9 @@ public class EstatisticasService : IEstatisticasService
             // ⚠️ Quem ficou na LISTA DE ESPERA ou SEM PARCEIRO sai daqui inteiro — não só dos
             // pontos, também da conta de torneios. Os dois se inscreveram e nenhum dos dois
             // jogou; contá-los como "torneio disputado" no perfil seria a mesma mentira que
-            // pagar ponto por eles. A régua tem UM dono (ForaDoSorteio), e reescrevê-la como
+            // pagar ponto por eles. A régua tem UM dono (InscricaoQueConta), e reescrevê-la como
             // flag nesta projeção seria a terceira cópia da mesma frase.
-            .Where(ForaDoSorteio.EstaNaChave)
+            .Where(InscricaoQueConta.Expressao)
             .Where(d => d.NomeTime == null   // time não é participação do organizador
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => new
@@ -1334,7 +1334,7 @@ public class EstatisticasService : IEstatisticasService
             // chaves, então o rodízio inflava o número que o organizador usa pra montar as
             // chaves e pra julgar se alguém está se inscrevendo numa categoria fraca demais.
             .Where(EstatisticasService.DuplaContaNoRanking)
-            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
+            .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null
                      && (ids.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
@@ -1374,7 +1374,7 @@ public class EstatisticasService : IEstatisticasService
         // Torneio restrito fora: o gráfico desenha a linha do RANKING, e ela precisa
         // terminar no mesmo total que o perfil mostra.
         var participacoes = await _context.Duplas
-            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
+            .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null
                      && !d.Categoria.Torneio.Restrito
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
@@ -1616,12 +1616,12 @@ public class EstatisticasService : IEstatisticasService
         }
 
         // ── Campanhas de torneio do ano (torneios, títulos, finais e PONTOS) ──────────────
-        // ⚠️ `ForaDoSorteio.EstaNaChave` e `NomeTime == null`, a mesma régua do resumo do
+        // ⚠️ `InscricaoQueConta.Expressao` e `NomeTime == null`, a mesma régua do resumo do
         // perfil: quem ficou na lista de espera ou sem parceiro se inscreveu e não jogou, e a
         // linha de TIME tem o organizador no Jogador1Id.
         var participacoes = await _context.Duplas
             .AsNoTracking()
-            .Where(ForaDoSorteio.EstaNaChave)
+            .Where(InscricaoQueConta.Expressao)
             .Where(d => d.NomeTime == null
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
                      && d.Categoria.Torneio.DataInicio >= inicio

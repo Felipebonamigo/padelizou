@@ -141,8 +141,16 @@ public class InscricaoFlexivelTests
 
     // ---------- Sorteio ----------
 
+    // 09/09/2026: a dupla incompleta passou a ENTRAR no sorteio (🗣️ Felipe: "tem q manter o
+    // Paulo, ele vai colocar o parceiro dele depois"). Só a lista de espera fica de fora.
+    //
+    // 💥 Este teste pegou um 500 de verdade: a ordenação por ranking fazia
+    // `d.Jogador2Id!.Value` (TorneiosController.Chaves.cs), e o `!` só calava o compilador —
+    // com dupla incompleta entrando, o primeiro clique em "Sortear Grupos e Gerar Chaves"
+    // morria com `InvalidOperationException: Nullable object must have a value`, antes de
+    // gravar grupo nenhum. É exatamente o padrão que o CLAUDE.md proíbe.
     [Fact]
-    public async Task Sorteio_ignora_dupla_incompleta_e_lista_de_espera()
+    public async Task Sorteio_leva_a_dupla_incompleta_junto_e_deixa_so_a_lista_de_espera_de_fora()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 4);
@@ -161,12 +169,12 @@ public class InscricaoFlexivelTests
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
         await controller.GerarChaves(torneio.Id);
 
-        // Só as 4 duplas prontas entraram em grupo; as outras 2 seguem inscritas e sem grupo.
+        // As 4 prontas MAIS a incompleta entraram em grupo; só a lista de espera ficou fora.
         var comGrupo = await ctx.Duplas.CountAsync(d => d.CategoriaId == categoria.Id && d.Grupo != null);
-        Assert.Equal(4, comGrupo);
+        Assert.Equal(5, comGrupo);
 
         var incompleta = await ctx.Duplas.FirstAsync(d => d.Jogador1Id == solo.Id);
-        Assert.Null(incompleta.Grupo);
+        Assert.NotNull(incompleta.Grupo);
 
         var naEspera = await ctx.Duplas.FirstAsync(d => d.Jogador1Id == espera1.Id);
         Assert.Null(naEspera.Grupo);

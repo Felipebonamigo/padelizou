@@ -579,10 +579,20 @@ public class RoboDoChaveamento
     // Time fica FORA do mapa de propósito (cai no Id da dupla, como sempre foi): lá o
     // Jogador1Id é o organizador em todos os times, e comparar por pessoa faria todo time
     // conflitar com todo time, empurrando a grade inteira pra frente.
+    //
+    // ⚠️ MEIA DUPLA TAMBÉM OCUPA QUADRA (09/09/2026). Aqui havia `d.Jogador2Id != null`, que
+    // não era regra — era só o jeito de poder escrever `Jogador2Id!.Value` embaixo. Quando a
+    // inscrição sozinha passou a entrar na chave, esse filtro a apagava do mapa de PESSOAS: o
+    // jogador inscrito sozinho numa categoria e com parceiro noutra podia ser marcado em duas
+    // quadras no mesmo horário, sem ninguém ver — a tela "Conferir grade" lê este mesmo mapa.
     public static Dictionary<int, int[]> OcupantesPorDupla(IEnumerable<Dupla> duplas) =>
         duplas
-            .Where(d => !d.EhTime && d.Jogador2Id != null)
-            .ToDictionary(d => d.Id, d => new[] { d.Jogador1Id, d.Jogador2Id!.Value });
+            .Where(d => !d.EhTime)
+            .ToDictionary(
+                d => d.Id,
+                d => d.Jogador2Id is int parceiro
+                    ? new[] { d.Jogador1Id, parceiro }
+                    : new[] { d.Jogador1Id });
 
     public static Dictionary<int, int[]> OcupantesPorDupla(Torneio torneio) =>
         OcupantesPorDupla(torneio.Categorias.SelectMany(c => c.Duplas));
