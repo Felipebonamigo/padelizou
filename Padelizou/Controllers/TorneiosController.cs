@@ -720,6 +720,12 @@ namespace Padelizou.Controllers
 
             if (ViewBag.PodeGerenciar == true)
             {
+                // A aba "Planejamento de quadras" (09/09/2026, pedido do Felipe pelo Er:
+                // "quantos horários eles teriam que locar de quadra, extra"). Aqui só o RESUMO
+                // — girar os números é na tela cheia (TorneiosController.Planejamento), porque
+                // esta página é a mais pesada do site e um planejador existe pra ser girado.
+                ViewBag.PlanejamentoResumo = await ResumoDoPlanejamentoAsync(torneio);
+
                 ViewBag.Organizadores = await _context.TorneioOrganizadores
                     .Include(o => o.Jogador)
                     .Where(o => o.TorneioId == id)

@@ -927,6 +927,26 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
+
+    @* Aba PLANEJAMENTO DE QUADRAS — pedido do Felipe (09/09/2026), pelo Er: "eles só têm 2
+       quadras (…) querem uma aba que possam ver quantos horários teriam que locar de quadra,
+       extra, para fechar os jogos da chave".
+
+       ⚠️ MESMA RÉGUA das duas abas acima (`PodeGerenciar`), e ela já é o recorte que ele pediu
+       — "apenas o organizador e criador e nós do sistema": `EhOrganizadorAsync` cobre os três,
+       então nenhum papel de acesso novo nasceu aqui.
+
+       Aqui fica só o RESUMO; girar os números é na tela cheia (Torneios/Planejamento), porque
+       esta página é a mais pesada do site e recarregá-la a cada volta do botão travaria o
+       celular do organizador. *@
+    @if (ViewBag.PodeGerenciar == true)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="planejamento-tab" data-bs-toggle="tab" data-bs-target="#planejamento" type="button" role="tab" style="color: var(--pdz-ink);">
+                <i class="bi bi-calendar-range"></i> Planejamento de quadras
+            </button>
+        </li>
+    }
     <!-- Aba única de Jogos (Ao Vivo/Agendadas/Finalizadas) - só depois que as inscrições fecharem.
          Abre direto em Ao Vivo se tiver jogo rolando agora, senão em Agendadas (ver _JogosDoTorneio.cshtml). -->
     @* Chaves pendentes de aprovação (ver Services/AprovacaoDeChaves) escondem estas duas
@@ -5239,6 +5259,95 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </div>
         </div>
     }
+    <!-- ABA: PLANEJAMENTO DE QUADRAS — só o resumo; a conta que se gira está em Torneios/Planejamento -->
+    @if (ViewBag.PodeGerenciar == true)
+    {
+        <div class="tab-pane fade" id="planejamento" role="tabpanel">
+            @{ var ptBrPlan = System.Globalization.CultureInfo.GetCultureInfo("pt-BR"); }
+            <h4 class="mb-1 fw-bold" style="color: var(--pdz-ink);">
+                <i class="bi bi-calendar-range"></i> Planejamento de quadras
+            </h4>
+            <p class="text-muted small mb-3">
+                Quantos jogos cabem em cada dia, e quanta quadra falta pra fechar o fim de semana.
+            </p>
+
+            @if (ViewBag.PlanejamentoResumo is Padelizou.Services.PlanejamentoDeQuadras.Plano plano)
+            {
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="small text-muted">Jogos</div>
+                            <div class="fs-4 fw-bold">@plano.TotalDeJogos</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="small text-muted">Quadras</div>
+                            <div class="fs-4 fw-bold">@plano.Quadras</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="small text-muted">Cabem</div>
+                            <div class="fs-4 fw-bold">@plano.Vagas</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="small text-muted">@(plano.Faltam > 0 ? "Faltam" : "Sobram")</div>
+                            <div class="fs-4 fw-bold @(plano.Faltam > 0 ? "text-danger" : "")">
+                                @(plano.Faltam > 0 ? plano.Faltam : plano.Sobram)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* A pergunta literal do pedido — "quantos jogos na sexta, e no sábado" —
+                   respondida já na aba. Sem isto ela seria um link com números soltos. *@
+                @foreach (var dia in plano.Dias.Where(d => d.Jogos > 0))
+                {
+                    <span class="badge rounded-pill me-1 mb-1" style="background-color: var(--pdz-navy-fixed); color: var(--padel-green);">
+                        @dia.Data.ToString("ddd dd/MM", ptBrPlan): @dia.Jogos @(dia.Jogos == 1 ? "jogo" : "jogos")
+                    </span>
+                }
+
+                @if (plano.Faltam > 0)
+                {
+                    <div class="alert alert-danger py-2 px-3 mt-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>@plano.Faltam @(plano.Faltam == 1 ? "jogo não cabe" : "jogos não cabem")</strong>
+                        no prazo do torneio. Saídas: alugar <strong>@plano.HorariosExtras @(plano.HorariosExtras == 1 ? "horário" : "horários")</strong>
+                        de quadra, ou passar a <strong>@plano.QuadrasNecessarias quadras</strong>.
+                    </div>
+                }
+                else if (plano.UltimoJogoTermina != null)
+                {
+                    <div class="alert alert-success py-2 px-3 mt-3">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Cabe — o último jogo termina
+                        <strong>@plano.UltimoJogoTermina.Value.ToString("dddd dd/MM 'às' HH:mm", ptBrPlan)</strong>.
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info py-2 px-3">
+                    <i class="bi bi-info-circle-fill"></i>
+                    Ainda não há jogos pra contar neste torneio — abra o planejador e simule um número
+                    pra ver quanta quadra o fim de semana pede.
+                </div>
+            }
+
+            <a asp-action="Planejamento" asp-route-id="@Model.Id" class="btn btn-primary rounded-pill px-4">
+                <i class="bi bi-sliders"></i> Abrir o planejador
+            </a>
+            <p class="small text-muted mt-2 mb-0">
+                Lá dá pra mudar horário de início, hora de fechar de cada dia, número de quadras e
+                duração do jogo — e ver o que muda, sem gravar nada.
+            </p>
+        </div>
+    }
+
     <!-- ABA: JOGOS (Ao Vivo/Agendadas/Finalizadas unificados) -->
     @if (torneioComecou)
     {

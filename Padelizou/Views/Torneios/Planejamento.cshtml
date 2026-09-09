@@ -1,0 +1,341 @@
+@model Padelizou.ViewModels.PlanejamentoDeQuadrasVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Planejamento de quadras — {Model.Torneio.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var plano = Model.Plano;
+
+    // Horas em HH:mm: `TimeSpan.ToString()` sai "18:00:00", que <input type="time"> recusa.
+    string Hora(TimeSpan t) => $"{(int)t.TotalHours % 24:00}:{t.Minutes:00}";
+
+    // "12 horários" vira "10h00" — é assim que o clube cobra quadra alugada, e é o número que
+    // o organizador leva pra negociar.
+    string EmHoras(int minutos) => minutos < 60
+        ? $"{minutos} min"
+        : $"{minutos / 60}h{(minutos % 60 == 0 ? "" : (minutos % 60).ToString("00"))}";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-calendar-range"></i> Planejamento de quadras
+            </h2>
+            <p class="text-muted small mb-0">@Model.Torneio.Nome</p>
+        </div>
+        <a asp-action="Details" asp-route-id="@Model.Torneio.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Torneio
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> @TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]</div>
+    }
+
+    @* Nada aqui grava: é a primeira coisa que o organizador precisa saber pra girar os números
+       sem medo. O único botão que escreve está no fim da página, e diz o que escreve. *@
+    <div class="alert alert-light border d-flex align-items-start gap-2 small">
+        <i class="bi bi-info-circle fs-5"></i>
+        <div>
+            Esta tela é uma <strong>simulação</strong>: mexer nos campos não muda nada no torneio nem nos
+            jogos já marcados. Serve pra responder <em>“quantas quadras e quantos horários eu preciso?”</em>
+            antes de fechar com o clube.
+        </div>
+    </div>
+
+<form method="get" asp-action="Planejamento" asp-route-id="@Model.Torneio.Id">
+
+    @* ── OS BOTÕES ─────────────────────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold" style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
+            <i class="bi bi-sliders"></i> O que você tem
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Começa em</label>
+                    <input type="date" name="dataInicio" class="form-control"
+                           value="@Model.DataInicio.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Abre no 1º dia</label>
+                    <input type="time" name="horaInicio" class="form-control" value="@Hora(Model.HoraInicio)" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Abre nos demais</label>
+                    <input type="time" name="horaSeguintes" class="form-control" value="@Hora(Model.HoraSeguintes)" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Último jogo começa até</label>
+                    <input type="time" name="horaFim" class="form-control" value="@Hora(Model.HoraFim)" />
+                    <div class="form-text small">Hora de <strong>começar</strong>, não de terminar.</div>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Quadras</label>
+                    <input type="number" name="quadras" min="1" max="26" class="form-control" value="@Model.Quadras" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Duração do jogo</label>
+                    <div class="input-group">
+                        <input type="number" name="duracao" min="10" max="240" class="form-control" value="@Model.Duracao" />
+                        <span class="input-group-text">min</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Último dia de quadra</label>
+                    <input type="date" name="ate" class="form-control" value="@(Model.Ate?.ToString("yyyy-MM-dd"))" />
+                    <div class="form-text small">Vazio = sem prazo.</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Jogos</label>
+                    <input type="number" name="jogos" min="0" max="2000" class="form-control" value="@Model.Jogos" />
+                    <div class="form-text small">
+                        @if (Model.JogosDoTorneio > 0)
+                        {
+                            <text>Real: <strong>@Model.JogosDoTorneio</strong>@(Model.JogosJaSorteados ? " (sorteados)" : " (pelas inscrições)")</text>
+                        }
+                        else
+                        {
+                            <text>Ainda não dá pra contar — digite pra simular.</text>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-primary rounded-pill px-4">
+                    <i class="bi bi-arrow-repeat"></i> Recalcular
+                </button>
+                <a asp-action="Planejamento" asp-route-id="@Model.Torneio.Id"
+                   class="btn btn-outline-secondary rounded-pill px-3">
+                    <i class="bi bi-arrow-counterclockwise"></i> Voltar ao que o torneio tem
+                </a>
+            </div>
+
+            @if (Model.Simulando)
+            {
+                <div class="alert alert-warning mt-3 mb-0 py-2 px-3 small">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Você está simulando <strong>@plano.TotalDeJogos jogos</strong>; este torneio tem
+                    <strong>@Model.JogosDoTorneio</strong>. O número da simulação não vale pra mais nada além desta tela.
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── A RESPOSTA ────────────────────────────────────────────────────────────────────── *@
+    @if (plano.DiaSemHoraPraAcabar)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-octagon-fill"></i>
+            <strong>Nenhum dia comporta jogo.</strong> A hora limite (@Hora(Model.HoraFim)) não passa da hora
+            de abertura — ajuste os horários acima.
+        </div>
+    }
+    else if (plano.TotalDeJogos == 0)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle-fill"></i>
+            Sem jogos pra distribuir ainda. A tabela abaixo já mostra <strong>quanto cabe</strong> em cada dia —
+            digite um número em <strong>Jogos</strong> pra ver o que falta.
+        </div>
+    }
+    else if (plano.Faltam > 0)
+    {
+        <div class="card shadow-sm mb-3 border-danger">
+            <div class="card-body">
+                <h5 class="fw-bold text-danger mb-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Faltam @plano.Faltam @(plano.Faltam == 1 ? "jogo" : "jogos") pra fechar dentro do prazo
+                </h5>
+                <p class="mb-2">
+                    Nos dias e horários acima cabem <strong>@plano.Vagas @(plano.Vagas == 1 ? "jogo" : "jogos")</strong>
+                    (@Model.Quadras @(Model.Quadras == 1 ? "quadra" : "quadras")), e o torneio tem
+                    <strong>@plano.TotalDeJogos</strong>.
+                </p>
+                @* As duas saídas são a MESMA conta vista de dois lados — o organizador escolhe
+                   qual delas o clube dele vende. *@
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="fw-bold mb-1"><i class="bi bi-clock-history"></i> Alugando por horário</div>
+                            <div class="fs-5 fw-bold">@plano.HorariosExtras @(plano.HorariosExtras == 1 ? "horário" : "horários") de quadra</div>
+                            <div class="small text-muted">
+                                = @EmHoras(plano.MinutosExtras) de uma quadra só, ou
+                                @EmHoras(plano.MinutosExtras / 2) em duas ao mesmo tempo.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                            <div class="fw-bold mb-1"><i class="bi bi-grid-3x3"></i> Alugando quadra o fim de semana todo</div>
+                            <div class="fs-5 fw-bold">@plano.QuadrasNecessarias @(plano.QuadrasNecessarias == 1 ? "quadra" : "quadras")</div>
+                            <div class="small text-muted">
+                                são @(plano.QuadrasNecessarias - Model.Quadras) a mais do que as @Model.Quadras de agora.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-3 border-success">
+            <div class="card-body">
+                <h5 class="fw-bold text-success mb-2"><i class="bi bi-check-circle-fill"></i> Cabe</h5>
+                <p class="mb-1">
+                    @plano.TotalDeJogos jogos em @Model.Quadras @(Model.Quadras == 1 ? "quadra" : "quadras")
+                    @if (plano.UltimoJogoTermina != null)
+                    {
+                        <text>
+                            — o último termina
+                            <strong>@plano.UltimoJogoTermina.Value.ToString("dddd dd/MM 'às' HH:mm", ptBr)</strong>.
+                        </text>
+                    }
+                </p>
+                <p class="small text-muted mb-0">
+                    Sobram <strong>@plano.Sobram</strong> @(plano.Sobram == 1 ? "vaga" : "vagas") de quadra.
+                </p>
+            </div>
+        </div>
+    }
+
+    @* A FOLGA NÃO É ENFEITE: sem vaga sobrando o sorteio não tem pra onde desviar de um
+       impedimento, e cai no último recurso (marca dentro da janela que a dupla pagou pra
+       evitar). O número vem do motor — GradeDeJogos.MargemDeHorarios. *@
+    @if (!plano.DiaSemHoraPraAcabar && plano.TotalDeJogos > 0 && !plano.FolgaSuficiente && plano.Faltam == 0)
+    {
+        <div class="alert alert-warning py-2 px-3 small">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Cabe, mas no limite.</strong> O sorteio trabalha melhor com pelo menos
+            <strong>@plano.Margem vagas</strong> sobrando pra desviar dos impedimentos sem chamar
+            ninguém pra dois jogos ao mesmo tempo — aqui sobram @plano.Sobram.
+        </div>
+    }
+
+    @* ── DIA A DIA ─────────────────────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm mb-3">
+        <div class="card-header fw-bold" style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
+            <i class="bi bi-calendar-week"></i> Dia a dia
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr class="small text-muted">
+                        <th>Dia</th>
+                        <th>Abre</th>
+                        <th style="min-width: 120px;">Fecha</th>
+                        <th class="text-center">Rodadas</th>
+                        <th class="text-center">Cabem</th>
+                        <th class="text-center">Jogos</th>
+                        <th class="text-center">Sobra</th>
+                        <th>Último jogo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var dia in plano.Dias)
+                {
+                    <tr class="@(dia.Rodadas == 0 ? "text-muted" : "")">
+                        <td class="fw-bold">@dia.Data.ToString("ddd dd/MM", ptBr)</td>
+                        <td>@Hora(dia.Abre)</td>
+                        @* A hora de fechar É a caixinha: é aqui que ele diz "domingo eu vou embora
+                           às 14h". Vazia, vale o limite geral lá de cima. *@
+                        <td>
+                            <input type="time" class="form-control form-control-sm"
+                                   name="limite[@dia.Data.ToString("yyyy-MM-dd")]"
+                                   value="@(dia.Limite == Model.HoraFim ? "" : Hora(dia.Limite))"
+                                   placeholder="@Hora(Model.HoraFim)" />
+                        </td>
+                        <td class="text-center">@dia.Rodadas</td>
+                        <td class="text-center">@dia.Vagas</td>
+                        <td class="text-center fw-bold">@dia.Jogos</td>
+                        <td class="text-center">@(dia.Vagas - dia.Jogos)</td>
+                        <td>
+                            @if (dia.UltimoJogoComeca != null)
+                            {
+                                <text>@Hora(dia.UltimoJogoComeca.Value) → @Hora(dia.UltimoJogoComeca.Value + TimeSpan.FromMinutes(plano.DuracaoMinutos))</text>
+                            }
+                            else if (dia.Rodadas == 0)
+                            {
+                                <span class="small">sem jogo</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer small text-muted">
+            Mudou alguma hora de fechar? <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Recalcular</button>
+            <span class="ms-2">
+                A hora de fechar por dia vale <strong>só aqui</strong> — o torneio guarda uma hora limite única.
+                Pra terminar mais cedo de verdade, o caminho é mais quadra.
+            </span>
+        </div>
+    </div>
+</form>
+
+    @* ── O QUE DÁ PRA GRAVAR ───────────────────────────────────────────────────────────── *@
+    @if (!Model.SoLeitura)
+    {
+        <div class="card shadow-sm mb-3 @(Model.MudouAlgo ? "border-primary" : "")">
+            <div class="card-header fw-bold" style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
+                <i class="bi bi-save"></i> Aplicar ao torneio
+            </div>
+            <div class="card-body">
+                @if (Model.MudouAlgo)
+                {
+                    <p class="mb-3">
+                        Gravar os horários acima no torneio:
+                        começa <strong>@Model.DataInicio.ToString("dd/MM", ptBr)</strong> às
+                        <strong>@Hora(Model.HoraInicio)</strong>, demais dias às <strong>@Hora(Model.HoraSeguintes)</strong>,
+                        último jogo começando até <strong>@Hora(Model.HoraFim)</strong>, partidas de
+                        <strong>@Model.Duracao min</strong>.
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted mb-3">Os horários acima são exatamente os que o torneio já tem.</p>
+                }
+
+                <form method="post" asp-action="AplicarPlanejamento" asp-route-id="@Model.Torneio.Id" class="mb-0">
+                    <input type="hidden" name="dataInicio" value="@Model.DataInicio.ToString("yyyy-MM-dd")" />
+                    <input type="hidden" name="horaInicio" value="@Hora(Model.HoraInicio)" />
+                    <input type="hidden" name="horaSeguintes" value="@Hora(Model.HoraSeguintes)" />
+                    <input type="hidden" name="horaFim" value="@Hora(Model.HoraFim)" />
+                    <input type="hidden" name="duracao" value="@Model.Duracao" />
+                    <button type="submit" class="btn btn-success rounded-pill px-4" disabled="@(!Model.MudouAlgo)">
+                        <i class="bi bi-check2"></i> Aplicar horários ao torneio
+                    </button>
+                </form>
+
+                @* ⚠️ QUADRA NÃO SE APLICA DAQUI, e a tela precisa dizer POR QUÊ — senão o botão
+                   que falta lê como esquecimento. Quadra tem nome, tem clube e, quando é
+                   alugada, tem janela de horário; nada disso cabe num número. *@
+                <hr />
+                <p class="small mb-2">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <strong>As quadras não se aplicam por aqui.</strong> Cada quadra tem nome — e, se for
+                    alugada, tem clube e horário próprios. Cadastre-as onde elas têm identidade:
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a asp-action="Editar" asp-route-id="@Model.Torneio.Id"
+                       class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-pencil"></i> Editar torneio (nome e quantidade)
+                    </a>
+                    <a asp-action="Details" asp-route-id="@Model.Torneio.Id" asp-fragment="pagamentos"
+                       class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-geo-alt"></i> Quadras e sedes (clube e horário do local alugado)
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
