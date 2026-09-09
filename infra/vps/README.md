@@ -9,6 +9,7 @@ Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite
 | `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos + config do servidor) |
 | `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 UTC — cópia FORA do servidor |
 | `backup-meio-dia.sh` · `cron-backup-meio-dia` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **16h UTC** — só o banco, direto pro cofre |
+| `copiar-torneio.sh` | `/opt/padelizou-deploy/` | sob demanda — leva UM torneio do `prod` pro `dev` |
 
 🕛 **O "meio-dia" é 16h UTC = 13h de Brasília, e o horário não é chute**: o backup completo roda
 às 4h UTC, então 12 horas depois é o único ponto que corta a janela de perda exatamente pela
@@ -199,6 +200,52 @@ systemctl restart padelizou
 O `Padelizou/padelizou.service` deste repositório já leva `Environment=TZ=America/Sao_Paulo`
 — serve de referência pra quando o servidor for reprovisionado do zero, mas **não
 reaplica sozinho** no unit que já está rodando no VPS.
+
+## Copiar um torneio do prod pro dev
+
+🗣️ **Felipe, 09/09/2026:** *"copie os dados de PRD para DEV do torneio do ER"*. O motivo é o
+certo: ensaiar no `dev` um "Refazer grade" sobre o torneio de verdade antes de apertar o botão em
+produção — que é a **Regra 3** do projeto.
+
+```bash
+ssh root@179.197.233.184
+sudo -u postgres /opt/padelizou-deploy/copiar-torneio.sh ERPADEL --conferir   # só mostra
+sudo -u postgres /opt/padelizou-deploy/copiar-torneio.sh ERPADEL              # copia
+```
+
+O código do torneio é o `Torneio.Codigo` — se errar, o script lista os que existem.
+
+⚠️ **POR QUE NÃO É UM `pg_dump db_padel | psql db_padel_dev`.** Restaurar o dump inteiro resolve em
+uma linha, e foi **recusado de propósito**: o `dev.padelizou.com.br` está aberto na internet, e o
+dump leva nome, CPF, e-mail, telefone e histórico de pagamento da **base inteira** pra lá. Copiar
+UM torneio leva as pessoas daquele torneio e mais ninguém.
+
+**Copia:** Torneio, Categoria, Quadra, QuadraDaCategoria, GrupoTorneio, Dupla, Partida,
+TorneioOrganizador, TorneioMarcador, e os Jogadores citados por eles.
+**Não copia, de propósito:** Pagamento, PalpitePartida, VotoDeMvp, SeguidorTorneio,
+AvaliacaoDoTorneio e o Ranking RS — dinheiro e voto não precisam existir no dev pra ensaiar uma
+grade, e cada tabela a mais é mais dado pessoal num host público.
+
+**As duas armadilhas que ele resolve** (as duas foram medidas contra um Postgres de verdade antes
+de o script existir, com o schema saído das migrations):
+
+1. **Id que colide.** Os dois bancos numeram do 1. Cada tabela ganha um mapa `velho → novo` tirado
+   da própria sequence do destino, e as FKs são reescritas por ele — nada de "somar um milhão",
+   que quebra na primeira base que passar do milhão.
+2. **Chave única que colide.** `Jogador.CPF` é único e o dev quase sempre já tem essas pessoas:
+   quem já existe é **reaproveitado**, só quem falta é inserido. `Torneio.Codigo` também é único —
+   por isso o torneio de mesmo código no destino é **apagado** antes. É uma cópia, não uma fusão.
+
+⚠️ **O `AgendaFeedToken` é regerado, nunca copiado** — é a chave que abre o feed de agenda daquela
+pessoa, e duplicá-la num segundo host espalharia um segredo vivo sem nenhum ganho.
+
+🔁 **É idempotente e roda numa transação só.** Rodar três vezes seguidas dá o mesmo resultado, e
+uma cópia pela metade (torneio sem duplas) não chega a existir. No fim ele **confere contando as
+duas pontas** e sai com erro se alguma tabela não bater — "não deu erro" não é o mesmo que "chegou
+inteiro".
+
+🔒 **Duas travas:** ele recusa `--para db_padel` (existe pra tirar dado do prod, nunca pra pôr) e
+recusa origem igual a destino.
 
 ## Quando algo dá errado
 

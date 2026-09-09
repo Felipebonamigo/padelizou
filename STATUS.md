@@ -16,11 +16,37 @@
 >
 > 🖼️ **Onde muda:** a linha da lista (`_JogoEmLinha`), o card do Ao Vivo, o jogo previsto e a Mesa de Controle passam a mostrar o lugar **mesmo sem quadra**; chave, vaga de chave e card de grupo ganham o clube **junto da quadra que já mostravam** (guarda inalterada — "Er Padel" sozinho numa célula de chaveamento seria ruído).
 >
-> 🧪 **5.772 testes, 0 falhas (8 novos em `OndeEOJogoNaTelaTests`), suíte rodada 2×.** **Sem migration.** Falsificado: os 4 testes do local vistos vermelhos com *"Expected: Er Padel · Quadra 2 / Actual: Quadra 2"* e *"Expected: Er Padel / Actual: null"* antes da correção. Um teste de 21/08 **trocou de lado e foi reescrito dizendo por quê** (`Com_um_clube_so_a_etiqueta_e_so_a_quadra` → `Sem_mapa_de_sedes_a_etiqueta_continua_sendo_so_a_quadra`), não apagado.
+> 🧪 **5.775 testes, 0 falhas (8 novos em `OndeEOJogoNaTelaTests`), suíte rodada 2× já sobre o merge do `build-853`.** **Sem migration.** Falsificado: os 4 testes do local vistos vermelhos com *"Expected: Er Padel · Quadra 2 / Actual: Quadra 2"* e *"Expected: Er Padel / Actual: null"* antes da correção. Um teste de 21/08 **trocou de lado e foi reescrito dizendo por quê** (`Com_um_clube_so_a_etiqueta_e_so_a_quadra` → `Sem_mapa_de_sedes_a_etiqueta_continua_sendo_so_a_quadra`), não apagado.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
 >
 > ⏭️ **ISTO SOZINHO NÃO ARRUMA A TELA DO ER, e é o próximo trabalho.** Os 97 jogos dele estão **sem quadra E com duas sedes** — e aí nada no banco diz em qual dos dois clubes cada jogo é, então a etiqueta continua (corretamente) calada. 🗣️ *"teremos que sortear o clube igual, respeitando o limite de quadras por horario, ou seja, as 8 da manha, vai ter 4 jogos, 2 no Er padel e 2 no radar"*. Hoje o motor só sabe distribuir por **quadra nomeada** (`GradeDeJogos` só nomeia com `Quadra` cadastrada). **Duas saídas, e a escolha é do Felipe:** (a) cadastrar as 4 quadras com o local de cada uma e **Refazer grade** — o motor já distribui exatamente assim, e a etiqueta já mostraria "Er Padel · Quadra 1"; (b) a grade passar a marcar **clube** sem quadra, o que é **architectural** pela régua do CLAUDE.md (mexe no motor e cria uma segunda fonte de verdade sobre "onde é o jogo", exatamente o que `SedesDoTorneio` foi escrito pra evitar).
+
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-853-b5bcba4`** (23h04 e 23h05 UTC), **o mesmo artefato nos dois**. Subiu o conserto da prévia e o "por quê" no Conferir grade (PR #106).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — sétima sessão seguida.** O job `deploy → prod` foi de criado a concluído em **17 segundos** (23:05:16 → 23:05:33), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e nesta ordem:** no torneio do Er, **Conferir grade** (agora responde *por que* não coube — nomeia a quadra com janela fora das datas, o dia sem quadra aberta, e a conta de jogos × vagas) → corrigir a janela da quadra, se for esse o caso → **Refazer grade**. Sem o Refazer, a tela continua com a grade gravada antes do `build-848`.
+>
+> ⚠️ **Não visto renderizado** — sem browser, e o `dev.padelizou.com.br` é bloqueado pelo proxy desta sessão (403 no CONNECT). O bloco novo do `ConferirGrade` é um `alert-danger` com lista.
+
+> Última atualização: **09/09/2026** — 🕳️ **A PRÉVIA NÃO ESPERAVA JOGO DE GRUPO DE OUTRA CATEGORIA — a primeira correção da ordem tinha um buraco, e o Felipe achou pela tela.**
+>
+> 🗣️ **Felipe, num print do `dev` DEPOIS do build-848:** *"como que tem jogo dia 15, no torneio do er? se termina dia 13? e como que ele nao ta respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse erro?"*. A tela mostrava **Quartas de Final da 6ª Feminina** com selo "prévia" em **12/09 18:50** e jogos de **GRUPO** reais em **15/09 20:30**.
+>
+> 🕳️ **O QUE A PRIMEIRA CORREÇÃO NÃO COBRIU.** Ela ordenou as fases **projetadas entre si**, e o piso da PRIMEIRA delas continuou saindo do fim dos grupos **da própria categoria** (`CadeiaDeFases.DepoisDe`, montado em `ProjetarProximasFasesAsync`). Jogo de grupo de OUTRA categoria não é cadeia nenhuma — é jogo **real**, que chega como `jaMarcados`, e `jaMarcados` só carregava horário e quadra. Sem a **fase**, a projeção não tinha como saber o posto daquele jogo pra esperá-lo.
+>
+> ⚠️ **E O MEU TESTE NÃO PEGOU, por um motivo que vale guardar:** ele semeava todas as cadeias com o MESMO `fimDosGrupos`. Sem categorias terminando em horas diferentes, o furo não tinha como aparecer. O teste novo (`A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria`) falhava **exatamente no 12/09 18:50 do print**.
+>
+> ✅ **`VagaOcupada` ganhou `Fase`** (opcional — vaga sem fase declarada NÃO vira barreira, de propósito: chutar "deve ser grupo" seguraria a chave atrás de um jogo que talvez seja a final).
+>
+> 🧾 **E o "Conferir grade" passou a dizer o PORQUÊ, não só o "quais".** `PorQueNaoCoube` já existia e só falava no sorteio — que é um instante que passa. A pergunta nasce DEPOIS, olhando a grade.
+>
+> 🧪 **5.752 testes, 0 falhas (3 novos), suíte rodada 2×.** **Sem migration.**
+>
+> ⏭️ **O 15/09 CONTINUA SENDO DADO VELHO NA TELA.** Os jogos de grupo em 15/09 são linhas gravadas ANTES do build-848: trocar o motor não reescreve linha nenhuma. Só **Refazer grade** aplica a ordem nova àquele torneio — e antes disso vale o **Conferir grade**, que agora nomeia a quadra com janela fora das datas, se for esse o caso.
 
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-848-d1ad234`** (22h03 e 22h04 UTC), **o mesmo artefato nos dois**. Subiu a ordem das fases por posto e o aviso do que não coube (PR #104).
 >
