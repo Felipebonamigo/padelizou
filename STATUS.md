@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🕐 **"POR ORDEM" PASSOU A TER HORA (o que fica em aberto é a QUADRA) + 2 CONSERTOS DE TELA.**
+>
+> **1. 🗣️ Felipe, olhando os grupos do Er:** *"mesmo que seja por ordem os jogos, tem q ter o horario dos jogos; o que realmente muda é a quadra — o horário do jogo, teoricamente, é pré-definido, para as pessoas se organizarem"*.
+>
+> 🔄 **ISSO REVISA UMA DECISÃO ESCRITA NO MODELO, e o que mudou foi o ALVO dela.** O `SemHorarioPrevisto` nasceu dizendo *"horário inventado que ninguém cumpre é pior que horário nenhum"*. A preocupação continua certa — mas o que atrasa e não se cumpre é a **QUADRA** (qual delas vaga primeiro depende de um jogo de 4 games com desempate). A **HORA** sai da mesma conta de sempre e responde a pergunta que o jogador de fato faz: *"chego às 8h ou às 15h?"*. Escondê-la não tornava o dia previsível — deixava 63 duplas sem saber quando aparecer.
+>
+> 🧩 **A QUADRA É APAGADA DEPOIS DA GRADE, NÃO EM VEZ DELA** (`Services/OrdemDeLiberacao`) — e essa ordem é o cuidado que faz a hora valer: é o encaixe que garante que ninguém seja chamado pra dois jogos no mesmo horário, e ele só sabe disso porque distribui as partidas ENTRE as quadras. Calcular hora sem passar por lá daria um relógio que põe a mesma pessoa em dois lugares — aí sim, horário que ninguém cumpre.
+>
+> 🔓 **"Refazer grade" foi liberado no por-ordem** (estava escondido justamente nele): é por ele que o torneio do Er, já sorteado sem hora, ganha os horários **sem mexer nos confrontos** — o que "desfazer o sorteio" faria com as 63 duplas. O nome da coluna envelheceu e ficou: renomear coluna usada por seis telas custaria migration por estética.
+>
+> **2. 🗣️ *"coloque um aviso, que clicando em sortear agora, nao publica a chave, fica apenas visivel para o organizador e adm"***.
+>
+> ⚠️ **CONFERIDO ANTES DE VIRAR TEXTO — e só é verdade no formato Padrão.** O `GerarChaves` para em `AprovacaoDeChaves.Pendente`; mas `GerarRodadasAmericano` vai **direto pra "Fase de Grupos"**, que já é público. Um aviso incondicional mentiria no caso mais perigoso: o organizador de um Americano clicaria achando que é rascunho e o rodízio sairia pros jogadores na hora. `Services/PublicacaoDaChave` responde por formato, e a confirmação do clique deixou de dizer *"as chaves são liberadas na hora"* — que lia como "vai pro ar", a própria confusão do pedido.
+>
+> **3. 🗣️ *"aonde eu coloco q foi cortesia?"*** — 🕳️ **NÃO TINHA ONDE, e é regressão do fiado de ontem.** O formulário de "Registrar negociação" (o único lugar que marca cortesia) vivia atrás de `!liberadas`, e isso estava certo enquanto só havia dois jeitos de liberar. O FIADO abriu um terceiro, e `ChavesLiberadas` passou a responder `true` pra ele — **sumindo com o caminho da cortesia justamente de quem pegou fiado**. O torneio ficava devendo pra sempre no `/Admin/Financeiro`, com a única saída sendo pagar mesmo quando o Padelizou já abriu mão. A pergunta certa não é *"a chave está liberada?"*, é *"a taxa ainda está em aberto?"* (`TaxaDoTorneioExterno.PodeRegistrarNegociacao`).
+>
+> 🧪 **5.589 testes, 0 falhas.** **Sem migration.** Guardas falsificadas — e **duas não caíram na primeira tentativa**: o torneio dos meus testes não tinha quadra cadastrada, então `NomeQuadra` ficava nulo de qualquer jeito e a checagem passava por vazio. Cadastradas as quadras, apagar a quadra virou escolha visível e os testes passaram a cair.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
 > Última atualização: **09/09/2026** — 🔀 **IMPEDIMENTO E CONCENTRAÇÃO ERAM UMA COISA SÓ. VIRARAM DUAS.**
 >
 > 🗣️ **Reclamação de usuário:** *"ao tentar colocar que o jogador só pode sexta a noite por exemplo, nao consegue por os 2 jogos no sabado de manha. E também não consegue ver qual impedimento foi solicitado pelo usuário, e qual pelo organizador"*.

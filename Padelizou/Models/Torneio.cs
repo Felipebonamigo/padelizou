@@ -190,15 +190,26 @@ public partial class Torneio
     // Services/SedesDoTorneio.
     public bool EvitarDoisJogosNaSedeExtra { get; set; }
 
-    // Torneio SEM hora marcada: os jogos nascem numa ORDEM e vão pra quadra conforme ela
-    // vaga, chamados pela Mesa de Controle. É como roda a maioria dos internos de clube —
-    // ninguém consegue prever quanto dura um jogo de 4 games com desempate, e uma grade que
-    // atrasa 40 min logo cedo passa o resto do dia mentindo pra todo mundo.
+    // Torneio SEM QUADRA MARCADA: os jogos têm hora, mas vão pra quadra conforme ela vaga,
+    // chamados pela Mesa de Controle. É como roda a maioria dos internos de clube.
     //
-    // Ligado, o sorteio NÃO calcula horário nenhum: `Partida.HorarioPrevisto` fica nulo e a
-    // ordem é a de criação. As telas passam a mostrar "1º, 2º, 3º jogo" no lugar da hora, e
-    // os avisos que dependem de relógio ("seu jogo é o próximo", "sua quadra atrasou") não
-    // têm base pra existir — a Mesa é que avisa, quando chama.
+    // ⚠️ O NOME DA COLUNA ENVELHECEU, e é de propósito que ele não foi trocado: renomear coluna
+    // usada por seis telas e por três controllers custaria migration e risco por estética. O que
+    // ela quer dizer hoje está aqui e em Services/OrdemDeLiberacao.
+    //
+    // ⚠️ ATÉ 09/09/2026 ELA TIRAVA A HORA TAMBÉM, e o motivo escrito era "ninguém prevê quanto
+    // dura um jogo de 4 games com desempate; uma grade que atrasa 40 min cedo passa o dia
+    // mentindo". O Felipe corrigiu o ALVO dessa preocupação, olhando o torneio do Er de 63
+    // duplas: *"mesmo que seja por ordem, tem q ter o horário dos jogos; o que realmente muda é
+    // a quadra — o horário é pré-definido, para as pessoas se organizarem"*.
+    //
+    // Ou seja: o que atrasa e não se cumpre é QUAL quadra vaga primeiro. A HORA sai da mesma
+    // conta de sempre e responde a pergunta que o jogador de fato faz — "chego às 8h ou às
+    // 15h?". Escondê-la não tornava o dia mais previsível; deixava 63 duplas sem saber quando
+    // aparecer.
+    //
+    // Ligado, o sorteio calcula a grade igual e apaga só a QUADRA (`Partida.NomeQuadra` nulo).
+    // Os avisos que dependem de relógio continuam de fora — a Mesa é que chama.
     public bool SemHorarioPrevisto { get; set; }
 
     // Quem pode marcar o placar e iniciar jogo neste torneio — escolha do organizador,

@@ -285,23 +285,14 @@ namespace Padelizou.Controllers
             var deChaveDireta = torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet();
             jogosPraAgendar = OrdemDaFila(jogosPraAgendar, deChaveDireta, torneio.QuantidadeQuadras);
 
-            // Torneio "por ordem de liberação": os jogos ficam SEM hora e vão pra quadra
-            // conforme ela vaga, chamados pela Mesa. A ordem é a de criação — a mesma em que
-            // eles entrariam na grade. Não calcular horário aqui é o ponto: horário inventado
-            // que ninguém cumpre é pior que horário nenhum, porque o jogador confia nele.
-            if (torneio.SemHorarioPrevisto)
-            {
-                _context.Partidas.AddRange(jogosPraAgendar);
-                // Sorteado e gravado, mas ainda não é público — fica esperando quem aprova
-                // (ver Services/AprovacaoDeChaves). O aviso "as chaves saíram" só sai daqui a
-                // pouco, em AprovarChaves.
-                torneio.Status = AprovacaoDeChaves.Pendente;
-                await _context.SaveChangesAsync();
-                return ParaAsChaves(torneio.Id);
-            }
-
-            // Agora sim os horários. A regra mora em EncaixarNasLevas, compartilhada com o
-            // "Refazer grade" — duas cópias divergiriam e o torneio teria duas grades.
+            // Os horários. A regra mora em EncaixarNasLevas, compartilhada com o "Refazer
+            // grade" — duas cópias divergiriam e o torneio teria duas grades.
+            //
+            // ⚠️ O TORNEIO "POR ORDEM" PASSA POR AQUI TAMBÉM desde 09/09/2026 (pedido do
+            // Felipe: "mesmo que seja por ordem os jogos, tem q ter o horario"). Antes ele
+            // pulava a grade inteira e saía com tudo nulo. Agora ele calcula igual e só apaga
+            // a QUADRA no fim — ver Services/OrdemDeLiberacao, que explica por que a quadra
+            // precisa ser distribuída antes de ser apagada.
             EncaixarNasLevas(torneio, jogosPraAgendar, deChaveDireta,
                 OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id),
                 quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id),
@@ -309,6 +300,8 @@ namespace Padelizou.Controllers
                 sedes: await SedesAsync(torneio.Id),
                 concentracao: ConcentracaoDeJogos.De(torneio),
                 noiteDeSabado: EliminatoriaNoSabado.PorCategoria(torneio));
+
+            OrdemDeLiberacao.ApagarAsQuadras(torneio, jogosPraAgendar);
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
@@ -617,12 +610,6 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
 
-            if (torneio.SemHorarioPrevisto)
-            {
-                TempData["Erro"] = "Este torneio roda por ordem de liberação: os jogos não têm horário pra refazer.";
-                return VoltarPara(voltarPara, id);
-            }
-
             var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
             var remarcar = todos.Where(p => p.Status == "Agendada").ToList();
             var intocados = todos.Where(p => p.Status != "Agendada").ToList();
@@ -650,6 +637,10 @@ namespace Padelizou.Controllers
                 ConcentracaoDeJogos.De(torneio),
                 EliminatoriaNoSabado.PorCategoria(torneio),
                 await SedesAsync(id));
+
+            // No "por ordem", a quadra volta a ficar em aberto: quem decide onde é a Mesa,
+            // conforme vaga. O horário fica.
+            OrdemDeLiberacao.ApagarAsQuadras(torneio, remarcar);
 
             await _context.SaveChangesAsync();
 

@@ -17,6 +17,11 @@ public class SemHorarioPrevistoTests
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
         torneio.SemHorarioPrevisto = true;
+        // Sem quadra cadastrada o encaixe não nomeia nada, e a checagem de "sem quadra" passaria
+        // por vazio — ver o comentário gêmeo em PorOrdemComHorarioTests.
+        ctx.Quadras.AddRange(
+            new Quadra { TorneioId = torneio.Id, Nome = "Quadra 1" },
+            new Quadra { TorneioId = torneio.Id, Nome = "Quadra 2" });
         await ctx.SaveChangesAsync();
 
         await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
@@ -24,7 +29,14 @@ public class SemHorarioPrevistoTests
         var jogos = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
 
         Assert.Equal(6, jogos.Count);                                  // as chaves saem normalmente
-        Assert.All(jogos, j => Assert.Null(j.HorarioPrevisto));        // e nenhuma com hora
+
+        // ⚠️ A REGRA VIROU AO CONTRÁRIO EM 09/09/2026, e este teste virou junto. O modo nasceu
+        // sem hora NENHUMA; o Felipe corrigiu o alvo: "o que realmente muda é a quadra — o
+        // horário é pré-definido, para as pessoas se organizarem". Então agora tem hora, e o
+        // que fica em aberto é a quadra. Ver Services/OrdemDeLiberacao.
+        Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+        Assert.All(jogos, j => Assert.True(string.IsNullOrEmpty(j.NomeQuadra),
+            $"jogo saiu com quadra \"{j.NomeQuadra}\" num torneio por ordem"));
         // Sorteado, mas ainda não aprovado (ver Services/AprovacaoDeChaves).
         Assert.Equal(Padelizou.Services.AprovacaoDeChaves.Pendente, (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }

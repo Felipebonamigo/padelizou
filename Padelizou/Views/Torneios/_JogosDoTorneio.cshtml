@@ -539,7 +539,10 @@
         @* Some no torneio por ordem de liberação: lá não existe horário a redistribuir, e o
            servidor recusa o clique. Um botão que só serve pra receber "não dá" é pior que
            botão nenhum. *@
-        @if (ehOrganizador && agendadasList.Count > 0 && ViewBag.SemHorarioPrevisto != true)
+        @* ⚠️ O "por ordem" TAMBÉM refaz grade desde 09/09/2026: ele passou a ter horário, e é
+           por este botão que um torneio sorteado ANTES da mudança ganha as horas — sem mexer
+           nos confrontos, que é o que "desfazer o sorteio" faria. Ver Services/OrdemDeLiberacao. *@
+        @if (ehOrganizador && agendadasList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
                   data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
