@@ -64,12 +64,20 @@
     // do `minhasInscricoes` logo acima: sem a chave, o botão some em vez de abrir sozinho.
     var duplasQueJaJogaram = ViewBag.DuplasQueJaJogaram as HashSet<int>;
 
-    // Quem o sorteio vai deixar de fora (sem parceiro ou na lista de espera). O GerarChaves
+    // Quem o sorteio vai deixar de fora — desde 09/09/2026, só a lista de espera. O GerarChaves
     // sempre filtrou isso, mas em silêncio — o organizador sorteava sem saber que ia deixar
     // gente na porta. A regra é lida do mesmo lugar que o sorteio usa, senão a tela prometeria
     // uma coisa e o sorteio faria outra.
     var ficamDeFora = Model.Categorias
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.Listar(c.Duplas))
+        .ToList();
+
+    // Quem ENTRA com a vaga de parceiro em aberto. É o aviso que substitui o antigo "sem
+    // parceiro fica de fora": eles não ficam mais de fora, entram — e cada um é um W.O.
+    // provável se o segundo nome não aparecer até o primeiro jogo. O organizador precisa ver
+    // quantos são ANTES de apertar o botão, que era exatamente pra isso que o alerta nasceu.
+    var comVagaEmAberto = Model.Categorias
+        .SelectMany(c => Padelizou.Services.ForaDoSorteio.ComVagaEmAberto(c.Duplas))
         .ToList();
 
     // Nome curto de dupla: primeiro nome de cada um. Usado nas listas densas (jogos do
@@ -79,7 +87,11 @@
         if (d == null) return "A definir";
         if (d.EhTime) return d.NomeTime ?? "Time";
         var p1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
-        var p2 = d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?";
+        // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha passou a ENTRAR na chave,
+        // então este texto virou coisa que o inscrito lê sobre si mesmo, na tabela do grupo.
+        // "Paulo / ?" parece dado corrompido; "Paulo / parceiro" diz o que é — vaga em aberto,
+        // esperando o segundo nome. Cabe no orçamento de ~17 caracteres da coluna da chave.
+        var p2 = d.Jogador2 == null ? "parceiro" : d.Jogador2.ComoChamar.Split(' ')[0];
         return $"{p1} / {p2}";
     };
 
@@ -92,6 +104,16 @@
     var detalheDeFora = ficamDeFora.Any()
         ? $"{ficamDeFora.Count} fica{(ficamDeFora.Count == 1 ? "" : "m")} de fora: {nomesDeFora}{(ficamDeFora.Count > 4 ? "…" : "")}"
         : null;
+
+    // A confirmação do sorteio precisa dizer as DUAS coisas, e a segunda é a que mudou de
+    // significado: quem está sem parceiro não fica mais na porta — entra, e pode virar W.O.
+    var nomesComVaga = string.Join(", ", comVagaEmAberto.Take(4)
+        .Select(d => d.Jogador1.ComoChamar.Split(' ')[0]));
+    var detalheComVaga = comVagaEmAberto.Any()
+        ? $"{comVagaEmAberto.Count} entra{(comVagaEmAberto.Count == 1 ? "" : "m")} sem parceiro: "
+          + $"{nomesComVaga}{(comVagaEmAberto.Count > 4 ? "…" : "")} — se não fechar a dupla até o primeiro jogo, é W.O."
+        : null;
+    var detalheDoSorteio = string.Join(" · ", new[] { detalheDeFora, detalheComVaga }.Where(t => t != null));
     var horarioOuOrdem = Model.SemHorarioPrevisto
         ? "Os jogos ganham horário, mas não quadra: você chama cada um conforme a quadra vaga."
         : "Os jogos ganham horário e quadra na hora.";
@@ -2531,34 +2553,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <ul class="small mb-2 ps-3">
                                     @foreach (var d in ficamDeFora.Take(12))
                                     {
-                                        <li class="d-flex align-items-center justify-content-between gap-2">
-                                            <span>
-                                                <strong>@d.Jogador1.ComoChamar</strong>
-                                                @if (d.Jogador2 != null)
-                                                {
-                                                    <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
-                                                }
-                                                <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
-                                            </span>
-                                            @* Só quem está SEM PARCEIRO tem essa saída — "entrar igual" não
-                                               existe de verdade (dupla incompleta não é time, não joga
-                                               mata-mata), então a decisão que dá pra oferecer aqui é
-                                               cancelar a inscrição agora, com estorno se tiver pago. Quem
-                                               está na lista de espera não cancela por aqui: a vaga dela some
-                                               sozinha se ninguém desistir, e cancelar não é o problema dela. *@
-                                            @if (d.Jogador2 == null)
+                                        <li>
+                                            <strong>@d.Jogador1.ComoChamar</strong>
+                                            @if (d.Jogador2 != null)
                                             {
-                                                <form asp-controller="Torneios" asp-action="CancelarSemParceiro" method="post"
-                                                      data-confirmar-tom="perigo"
-                                                      data-confirmar-titulo="Cancelar esta inscrição?"
-                                                      data-confirmar="@(d.Jogador1.ComoChamar) sai do torneio e é avisado.@(d.Pago ? " O valor pago é estornado." : "") Não dá pra desfazer."
-                                                      data-confirmar-ok="Cancelar e estornar">
-                                                    <input type="hidden" name="duplaId" value="@d.Id" />
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
-                                                        Cancelar@(d.Pago ? " e estornar" : "")
-                                                    </button>
-                                                </form>
+                                                <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
                                             }
+                                            <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
                                         </li>
                                     }
                                 </ul>
@@ -2567,9 +2568,63 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <p class="small text-muted mb-2">…e mais @(ficamDeFora.Count - 12).</p>
                                 }
                                 <p class="small mb-0">
-                                    Quem está <strong>sem parceiro</strong> ainda pode fechar a dupla; quem está
-                                    <strong>na lista de espera</strong> entra se alguém desistir. Depois de sortear,
-                                    não dá mais.
+                                    Quem está <strong>na lista de espera</strong> entra se alguém desistir.
+                                    Depois de sortear, não dá mais.
+                                </p>
+                            </div>
+                        }
+
+                        @* QUEM ENTRA COM A VAGA DE PARCEIRO EM ABERTO (09/09/2026).
+                           🗣️ Felipe: "tem q manter o Paulo, ele vai colocar o parceiro dele depois".
+
+                           Este aviso HERDA a função do antigo "sem parceiro fica de fora": eles
+                           deixaram de ficar na porta, mas o organizador continua precisando ver
+                           quantos são antes de apertar — cada um é um W.O. provável se o segundo
+                           nome não aparecer. Sem isto, o sorteio voltaria a não dizer NADA sobre
+                           dupla incompleta, que é o defeito que o alerta veio consertar em 20/08. *@
+                        @if (comVagaEmAberto.Any())
+                        {
+                            <div class="alert alert-info border-0 shadow-sm">
+                                <p class="fw-bold mb-2">
+                                    <i class="bi bi-person-plus"></i>
+                                    @comVagaEmAberto.Count inscrito(s) entram sem parceiro
+                                </p>
+                                <ul class="small mb-2 ps-3">
+                                    @foreach (var d in comVagaEmAberto.Take(12))
+                                    {
+                                        <li class="d-flex align-items-center justify-content-between gap-2">
+                                            <span>
+                                                <strong>@d.Jogador1.ComoChamar</strong>
+                                                <span class="text-muted">— a vaga do parceiro fica aberta</span>
+                                            </span>
+                                            @* A saída pra quem claramente não vai fechar. Ela mora AQUI
+                                               porque a lista de "fica de fora" deixou de conter inscrição
+                                               sozinha — e sem mudar de casa a ação ficaria sem porta na
+                                               tela. Só antes do sorteio: depois, a dupla já tem jogo
+                                               marcado e a saída passa a ser o W.O. *@
+                                            <form asp-controller="Torneios" asp-action="CancelarSemParceiro" method="post"
+                                                  data-confirmar-tom="perigo"
+                                                  data-confirmar-titulo="Cancelar esta inscrição?"
+                                                  data-confirmar="@(d.Jogador1.ComoChamar) sai do torneio e é avisado.@(d.Pago ? " O valor pago é estornado." : "") Não dá pra desfazer."
+                                                  data-confirmar-ok="Cancelar e estornar">
+                                                <input type="hidden" name="duplaId" value="@d.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
+                                                    Cancelar@(d.Pago ? " e estornar" : "")
+                                                </button>
+                                            </form>
+                                        </li>
+                                    }
+                                </ul>
+                                @if (comVagaEmAberto.Count > 12)
+                                {
+                                    <p class="small text-muted mb-2">…e mais @(comVagaEmAberto.Count - 12).</p>
+                                }
+                                <p class="small mb-0">
+                                    Eles <strong>entram na chave</strong> e ocupam a vaga deles. O parceiro pode
+                                    ser definido até o <strong>primeiro jogo</strong> de cada um — pelo próprio
+                                    jogador, pelo mural, por convite, ou por você em "Definir por CPF".
+                                    Quem não fechar até lá <strong>perde por W.O.</strong>, e você lança o W.O.
+                                    jogo a jogo na Mesa de Controle.
                                 </p>
                             </div>
                         }
@@ -2630,10 +2685,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                            Os textos são montados no topo desta view. *@
                         <form asp-controller="Torneios" asp-action="GerarChaves" method="post"
                               data-confirmar-titulo="Sortear as chaves?"
-                              data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra, sai ou troca de parceiro."
+                              @* ⚠️ "NINGUÉM MAIS TROCA DE PARCEIRO" DEIXOU DE SER VERDADE em
+                                 09/09/2026, e metade continua verdade: ninguém mais ENTRA nem
+                                 SAI, e ninguém TROCA um parceiro que já tem — mas quem está com
+                                 a vaga aberta ainda DEFINE o segundo nome, até o primeiro jogo
+                                 dele. Prometer o contrário aqui faria o organizador achar que
+                                 sortear fecha a porta do Paulo, que é o oposto do que ele pediu. *@
+                              data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra nem sai, e quem já tem parceiro não troca — só quem está com a vaga aberta ainda pode definir o dele."
                               data-confirmar-ok="Sortear agora"
-                              data-confirmar-tom="@(ficamDeFora.Any() ? "perigo" : "padrao")"
-                              data-confirmar-detalhe="@detalheDeFora">
+                              data-confirmar-tom="@(ficamDeFora.Any() || comVagaEmAberto.Any() ? "perigo" : "padrao")"
+                              data-confirmar-detalhe="@detalheDoSorteio">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-primary fw-bold shadow-sm">
                                 <i class="bi bi-diagram-3-fill"></i> Sortear Grupos e Gerar Chaves

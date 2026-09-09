@@ -217,7 +217,14 @@ public class EncerramentoDaPartida
             var torneio = partida.TorneioId == null ? null : await _context.Torneios.FindAsync(partida.TorneioId.Value);
 
             // Push é lido de relance: apelido identifica mais rápido que nome completo.
-            string Nomes(Dupla d) => $"{d.Jogador1?.ComoChamar} e {d.Jogador2?.ComoChamar}";
+            //
+            // ⚠️ SÓ UM NOME QUANDO A VAGA ESTÁ ABERTA (09/09/2026): a dupla sem parceiro passou
+            // a entrar na chave, e este texto era `"{j1} e {j2}"` — saía "Vocês venceram Paulo
+            // Prass e  (6x0)", com o `e` pendurado no vazio. Escrever "e parceiro" aqui seria
+            // pior: o jogo foi contra uma pessoa só.
+            string Nomes(Dupla d) => d.Jogador2?.ComoChamar is { } parceiro
+                ? $"{d.Jogador1?.ComoChamar} e {parceiro}"
+                : d.Jogador1?.ComoChamar ?? "";
             var placar = $"{partida.GamesDupla1}x{partida.GamesDupla2}";
             var ondeFoi = torneio != null ? $" · {torneio.Nome}" : "";
             bool ehFinal = partida.Fase == "Final";

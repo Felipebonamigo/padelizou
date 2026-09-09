@@ -146,10 +146,23 @@ namespace Padelizou.Controllers
                     Categoria = p.Categoria.Nome,
                     Horario = p.HorarioPrevisto!.Value,
                     Quadra = p.NomeQuadra,
-                    Adversarios = (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId)
+                    // ⚠️ OS DOIS NOMES VÊM SEPARADOS, e a junção é feita EM MEMÓRIA logo abaixo.
+                    // Aqui morava a concatenação inteira, com `Jogador2!` — escrita quando dupla
+                    // incompleta nunca chegava a ter jogo. Desde 09/09/2026 ela entra na chave, e
+                    // este `Select` é traduzido pra SQL: no Postgres, concatenar com NULL devolve
+                    // NULL, então o card do próximo jogo ficaria SEM ADVERSÁRIO nenhum — não
+                    // "Paulo e ", mas vazio. O InMemory da suíte concatena em C# e devolveria
+                    // "Paulo e ", escondendo metade do defeito.
+                    //
+                    // É o MESMO defeito que o comentário acima já registra ter acontecido com
+                    // TIME ("saía como 'Bonamigo e'"); a inscrição sem parceiro reabriu a porta.
+                    AdversarioUm = (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId)
                         // Apelido quando existir — é como o jogador reconhece o adversário.
-                        ? (p.Dupla2.Jogador1.Apelido ?? p.Dupla2.Jogador1.Nome) + " e " + (p.Dupla2.Jogador2!.Apelido ?? p.Dupla2.Jogador2.Nome)
-                        : (p.Dupla1.Jogador1.Apelido ?? p.Dupla1.Jogador1.Nome) + " e " + (p.Dupla1.Jogador2!.Apelido ?? p.Dupla1.Jogador2.Nome),
+                        ? (p.Dupla2.Jogador1.Apelido ?? p.Dupla2.Jogador1.Nome)
+                        : (p.Dupla1.Jogador1.Apelido ?? p.Dupla1.Jogador1.Nome),
+                    AdversarioDois = (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId)
+                        ? (p.Dupla2.Jogador2 == null ? null : (p.Dupla2.Jogador2.Apelido ?? p.Dupla2.Jogador2.Nome))
+                        : (p.Dupla1.Jogador2 == null ? null : (p.Dupla1.Jogador2.Apelido ?? p.Dupla1.Jogador2.Nome)),
                 })
                 .FirstOrDefaultAsync();
 

@@ -26,5 +26,21 @@
 else
 {
     <partial name="_JogadorChip" model="Model.Jogador1" />
-    <partial name="_JogadorChip" model="Model.Jogador2" />
+    @if (Model.Jogador2 != null)
+    {
+        <partial name="_JogadorChip" model="Model.Jogador2" />
+    }
+    else
+    {
+        @* VAGA EM ABERTO (09/09/2026). O chip nulo simplesmente não desenhava, e a dupla
+           incompleta ficava idêntica a uma partida de SIMPLES na tabela do grupo e no card do
+           jogo — quem olhava não tinha como saber que faltava alguém. Sem link: não há perfil
+           pra abrir. *@
+        <span class="d-flex align-items-center gap-2 mb-1 text-muted pdz-chip-vaga">
+            <i class="bi bi-person-plus" aria-hidden="true"></i>
+            <span class="pdz-chip-texto">
+                <span class="fst-italic d-block pdz-chip-nome">parceiro a definir</span>
+            </span>
+        </span>
+    }
 }
