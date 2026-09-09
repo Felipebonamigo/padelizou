@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **09/09/2026** — 🔒 **O IMPEDIMENTO PAGO PAROU DE CEDER: A MARGEM DA GRADE ERA POR QUADRA, E QUEM DISPUTA VAGA É JOGO.**
+>
+> 🗣️ **Felipe:** *"conserta esse furo do impedimento tambem"* — o defeito que a auditoria da troca de grupos tinha achado e reportado horas antes.
+>
+> 🕳️ **O QUE ACONTECIA:** com muitas duplas bloqueando o MESMO dia, o motor marcava jogo dentro da janela que a dupla **pagou** pra evitar (`Torneio.TaxaPorImpedimento` — é garantia vendida, não preferência). Medido antes, torneio sexta+sábado com 16 duplas: 4 impedidas → 0/30 sorteios com furo; 6 → 2/30; **8 → 28/30**.
+>
+> 📏 **A CAUSA, e o print que a entregou:** quase todo furo caía em **`sexta 23:50`** — o ÚLTIMO horário da sexta. Os jogos eram empurrados pro fim do dia bloqueado em vez de irem pro sábado, porque **a grade não alcançava o sábado com vaga pra todos**. `AlcanceNecessario` devolve o FIM da janela (sexta é dia inteiro → sábado 00:00, antes de o sábado abrir às 8h) e o `Montar` seguia daí `MargemDeHorarios` = `max(quadras,1)*3` vagas. **Margem dimensionada por QUADRA — e quem disputa as vagas do outro lado da janela é JOGO.** Com 8 de 16 impedidas, ~11 dos 14 jogos queriam o sábado e a grade abria 3 lá.
+>
+> 🔧 **O conserto é `VagasDaGrade.JogosComJanela`**: conta quantos dos jogos a agendar têm dupla (ou categoria, no caso da noite de sábado) com janela, e o `Montar` segue `margem + esse número` de vagas além do limite. Conta o JOGO e não a dupla — é o jogo que ocupa vaga —, e conta por cima de propósito: a receita deste arquivo pede com sobra e corta depois, e **foi pedir justo que produziu o furo**. Vale nos dois chamadores (`TorneiosController.Chaves` e `RoboDoChaveamento`).
+>
+> ✅ **VARRIDO 1/2/4/6 QUADRAS × 8/12/14/16 IMPEDIDAS — 240 sorteios, ZERO furos e ZERO jogos sem hora.** Inclusive o extremo de **16 de 16** (a categoria inteira bloqueada na sexta): o torneio migra inteiro pro sábado. ⚠️ O outro lado foi medido junto de propósito — alargar a grade não pode virar dupla sem horário nenhum, que seria trocar um defeito por outro pior.
+>
+> 🧪 **5.649 testes, 0 falhas (9 novos).** **Sem migration.** O `Theory` novo foi visto falhar pelo motivo certo em 4 dos casos (com a mensagem apontando `Fri 03/07 23:50`), e **o conserto foi falsificado depois**: trocando `margem + jogosComJanela` de volta por `margem`, 5 dos 9 casos ficam vermelhos na hora.
+>
+> 🔁 **E UM COMENTÁRIO QUE PASSOU A MENTIR FOI CORRIGIDO JUNTO:** o teste da troca de grupos dizia que "acima de ~4 impedidas quem cede é o motor" e rodava com 4 de 16 por causa disso. Com o motor consertado ele subiu pra **8 de 16** — metade da categoria — e o comentário agora explica por que o volume mudou. Comentário desatualizado num teste é a próxima sessão herdando um número sem saber que ele venceu.
+>
 > Última atualização: **09/09/2026** — 🏅 **SER CABEÇA DE CHAVE PASSOU A VALER A PENA: A SEMEADURA DOS GRUPOS ESTAVA INVERTIDA.**
 >
 > 🗣️ **Felipe:** *"quando houver ranking, seguindo a logica, nos torneios, digamos q tenham 9 duplas no torneio e todas rankeadas / Grupo A (1º do ranking, 9º do ranking e 6º) / Grupo B (2º, 8º, 5º) / Grupo C (3º, 7º, 4º)"*.

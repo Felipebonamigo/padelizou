@@ -111,16 +111,18 @@ public class TrocaDeDuplaEntreGruposTests
         // não só pras duas duplas mexidas: remanejar a grade move o horário de quem não pediu
         // nada, então o furo poderia nascer em qualquer lugar.
         //
-        // ⚠️ 4 DE 16 IMPEDIDAS, E ESSE NÚMERO FOI MEDIDO (09/09/2026), não escolhido no olho.
-        // Varrendo 30 sorteios por volume: com 4 impedidas o motor entrega 0 furos em 30/30
-        // (com e sem troca); com 6 já aparecem 2/30; com 8 são 28/30. Acima de ~4 quem cede é
-        // o MOTOR DE GRADE, e não a troca — o alcance de VagasDaGrade garante CHEGAR ao fim da
-        // janela mais `max(quadras,1)*3` vagas, mas a janela da sexta empurra mais jogos que
-        // isso pro sábado, as vagas acabam e o último recurso do Encaixar cede o impedimento.
+        // ⚠️ 8 DE 16 IMPEDIDAS — METADE DA CATEGORIA, e esse volume só passou a ser testável
+        // quando o motor de grade foi consertado, no mesmo dia. A primeira versão deste teste
+        // rodava com 6 e era FLAKY: o `VagasDaGrade` garantia chegar ao fim da janela mais
+        // `max(quadras,1)*3` vagas, margem por QUADRA e não pelo volume de jogos que a janela
+        // empurrava — então quem cedia era o motor, não a troca, e o teste passava ou falhava
+        // por sorte do sorteio. Com `VagasDaGrade.JogosComJanela` dimensionando o alcance, o
+        // invariante virou absoluto e este teste pôde subir pro volume que interessa.
         //
-        // Testar no volume saturado mediria o furo do motor, não esta feature, e passaria ou
-        // falharia por sorte do sorteio (foi exatamente o que aconteceu na primeira versão
-        // deste teste). O defeito do motor está reportado à parte, com os números acima.
+        // A guarda do motor mora em ImpedimentoNaGradeCheiaTests (varre 1, 2, 4 e 6 quadras
+        // contra 4 a 16 duplas impedidas). Aqui o que se testa é a TROCA: que refazer a grade
+        // depois de mexer nos grupos reavalia as janelas de todo mundo, e não só das duas
+        // duplas mexidas.
         for (int rodada = 1; rodada <= 8; rodada++)
         {
             using var ctx = TestInfra.NovoContexto();
@@ -131,7 +133,7 @@ public class TrocaDeDuplaEntreGruposTests
                     // janela na inscrição, muito antes de existir chave.
                     var todas = await ctx.Duplas.Where(d => d.CategoriaId == c.Id)
                         .OrderBy(d => d.Id).ToListAsync();
-                    for (int i = 0; i < todas.Count; i += 4) todas[i].ImpedimentoSextaNoite = true;
+                    for (int i = 0; i < todas.Count; i += 2) todas[i].ImpedimentoSextaNoite = true;
                     await ctx.SaveChangesAsync();
                 });
 

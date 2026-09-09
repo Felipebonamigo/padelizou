@@ -468,7 +468,10 @@ public class RoboDoChaveamento
             peloMenosAte: VagasDaGrade.MaisTarde(
                 concentracao.AteQuando,
                 VagasDaGrade.AlcanceNecessario(janelasProibidas, noiteDeSabado)),
-            sedes: sedes);
+            sedes: sedes,
+            // Ver VagasDaGrade.JogosComJanela: alcançar o fim da janela não basta se do outro
+            // lado dela só couberem as vagas da margem por quadra.
+            jogosComJanela: VagasDaGrade.JogosComJanela(jogos, janelasProibidas, noiteDeSabado));
 
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou

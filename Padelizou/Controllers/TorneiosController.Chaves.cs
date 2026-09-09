@@ -622,7 +622,11 @@ namespace Padelizou.Controllers
                     peloMenosAte: VagasDaGrade.MaisTarde(
                         concentracao?.AteQuando,
                         VagasDaGrade.AlcanceNecessario(janelas, noiteDeSabado)),
-                    sedes: sedes);
+                    sedes: sedes,
+                    // Quantos JOGOS desta leva a janela pode empurrar pro outro lado do limite —
+                    // sem isto o alcance chega ao fim da janela e abre 3 vagas lá. Ver
+                    // VagasDaGrade.JogosComJanela.
+                    jogosComJanela: VagasDaGrade.JogosComJanela(daLeva, janelas, noiteDeSabado));
 
                 GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
                     ocupantes, quadras, jaEmQuadra, quadrasPorCategoria, janelas, sedes,
