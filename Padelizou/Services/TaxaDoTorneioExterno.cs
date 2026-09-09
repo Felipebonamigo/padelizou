@@ -42,6 +42,25 @@ public static class TaxaDoTorneioExterno
         && torneio.TaxaExternoPagaEm == null
         && torneio.TaxaExternoNegociadaEm == null;
 
+    // O FIADO AINDA ESTÁ EM ABERTO — ou seja, dá pra voltar atrás nele.
+    //
+    // 🗣️ Pedido do Felipe (09/09/2026), num print do painel com o torneio de volta em
+    // "Inscrições Abertas": *"aqui está dizendo que já sorteou a chave, mas a gente voltou,
+    // deveria ter sumido aquela mensagem"*. Quem devolve as chaves devolve a dívida.
+    //
+    // ⚠️ PARECE `EstaDevendo` E NÃO É: falta o `SeAplica` de propósito. Aquela pergunta é "há o
+    // que cobrar deste torneio HOJE?"; esta é "existe uma promessa em aberto pra desfazer?". As
+    // duas divergem no torneio que carimbou o fiado e depois virou gratuito: `SeAplica` responde
+    // não, `EstaDevendo` responde não junto — e o carimbo ficaria pra trás, esperando o preço
+    // voltar a subir pra destravar a chave de graça.
+    //
+    // ⚠️ PAGO e NEGOCIADO ficam de fora, e é a linha inteira desta regra: pagar é dinheiro que
+    // entrou, negociar é o Padelizou tendo aberto mão. Só a PROMESSA volta atrás.
+    public static bool FiadoEmAberto(Torneio torneio) =>
+        torneio.TaxaExternoAdiadaEm != null
+        && torneio.TaxaExternoPagaEm == null
+        && torneio.TaxaExternoNegociadaEm == null;
+
     // AINDA DÁ PRA REGISTRAR A CORTESIA (a "negociação")?
     //
     // 🗣️ Pergunta do Felipe, 09/09/2026, olhando o torneio do Er: "aonde eu coloco q foi

@@ -458,9 +458,36 @@ namespace Padelizou.Controllers
             _context.Partidas.RemoveRange(jogos);
 
             torneio.Status = "Chaves em Sorteio";
+
+            // ⚠️ QUEM DEVOLVE AS CHAVES DEVOLVE A DÍVIDA (09/09/2026, desenho aprovado pelo
+            // Felipe). No torneio "por fora" a trava do sorteio é o mecanismo de cobrança
+            // inteiro (Services/TaxaDoTorneioExterno): o organizador pega FIADO pra sortear, e o
+            // carimbo destrava a chave. Desfazer apagava as partidas e devolvia o status, mas
+            // não o carimbo — e daí saíam duas coisas, sendo a segunda dinheiro:
+            //
+            //   1. o painel seguia cobrando por uma chave que já tinha voltado (foi o print);
+            //   2. `ChavesLiberadas` responde `true` enquanto o carimbo existir, então a trava
+            //      ficava desligada PRA SEMPRE: dava pra desfazer, reabrir inscrições, entrar
+            //      mais gente e sortear de novo sem a taxa ser apresentada nenhuma vez — com a
+            //      dívida registrada valendo a de um torneio menor, já que
+            //      `TaxaDoTorneioExterno.Valor` calcula sobre a lista do momento.
+            //
+            // Pago e negociado não se desfazem: um é dinheiro que entrou, o outro é o Padelizou
+            // tendo aberto mão. É o que `FiadoEmAberto` separa.
+            bool devolveuOFiado = TaxaDoTorneioExterno.FiadoEmAberto(torneio);
+            if (devolveuOFiado) torneio.TaxaExternoAdiadaEm = null;
+
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = "Sorteio desfeito — pode sortear de novo quando quiser.";
+            // Os admins levaram um push quando o fiado foi tirado (AvisarAdminsDoFiadoAsync).
+            // Sem a baixa, quem viu a dívida nascer continuaria cobrando um torneio que não
+            // deve mais — e a lista do financeiro mudaria sozinha, sem ninguém saber por quê.
+            if (devolveuOFiado) await AvisarAdminsDoFiadoDesfeitoAsync(torneio);
+
+            TempData["Sucesso"] = devolveuOFiado
+                ? "Sorteio desfeito — pode sortear de novo quando quiser. A taxa do Padelizou "
+                  + "voltou a ficar pendente: você escolhe de novo na hora de sortear."
+                : "Sorteio desfeito — pode sortear de novo quando quiser.";
             return RedirectToAction("Details", new { id });
         }
 
