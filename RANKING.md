@@ -354,9 +354,19 @@ Duas condições, as duas obrigatórias:
    `"Inscrições Abertas"` (`PortaDaInscricao.Aberta`), **não** `"Chaves em Sorteio"`
    (`PortaDaInscricao.Fechada` — inscrição encerrada, chave ainda não sorteada) e **não**
    `"Cancelado"`. Sobram "Fase de Grupos" e "Finalizado", que só se alcança tendo sorteado.
-2. **A pessoa estava NA CHAVE** — a régua é `ForaDoSorteio`, que já existe e já é a dona da
-   pergunta "quem não entra no sorteio": fora quem está em **lista de espera** e fora quem
-   ficou **sem parceiro**. Os dois se inscreveram; nenhum dos dois jogou.
+2. **A pessoa estava NA CHAVE de verdade** — a régua é `InscricaoQueConta`: fora quem está em
+   **lista de espera** e fora quem ficou **sem parceiro**. Os dois se inscreveram; nenhum dos
+   dois jogou.
+
+   ⚠️ **A régua MUDOU DE NOME em 09/09/2026, e o nome novo é o ponto.** Até ali quem respondia
+   isto era `ForaDoSorteio` — a MESMA régua que decidia quem entra no sorteio. Nesse dia a
+   dupla sem parceiro passou a **entrar na chave** (com a vaga aberta, pra fechar até o
+   primeiro jogo), e as duas perguntas deixaram de ter a mesma resposta. Se elas tivessem
+   continuado juntas, quem entrasse sem parceiro e levasse W.O. **levaria ponto de
+   participação por não aparecer** — porque `Dupla.UltimaFase` nasce `"Grupos"` e a conta não
+   olha uma única Partida —, o peso da categoria incharia (subindo o ponto de todo mundo,
+   campeão inclusive), e **retroativamente**, já que a régua não tem data de corte.
+   `ForaDoSorteio` ficou só com o sorteio; a semântica de ranking está intacta aqui.
 
 ⚠️ **Torneio cancelado não paga nada, nem a participação.** O torneio pode ser cancelado
 depois de sorteado, e nesse caso os pontos que existiam **somem** — é o comportamento certo
@@ -382,9 +392,11 @@ injustiça que este trabalho existe pra consertar.
   jogou. Um torneio de 60 duplas com 6 categorias não é um torneio de 60 duplas pra
   ninguém.
 - **Conta quem entrou na chave**: fora `NomeTime != null` (dupla-TIME, cujo `Jogador1Id` é o
-  organizador) e fora quem `ForaDoSorteio` deixa de fora (lista de espera, sem parceiro).
+  organizador) e fora quem `InscricaoQueConta` não conta (lista de espera, sem parceiro).
   **É a MESMA régua que decide quem pontua** — se o peso contasse gente que a soma não
-  conta, a categoria teria dois tamanhos ao mesmo tempo.
+  conta, a categoria teria dois tamanhos ao mesmo tempo. ⚠️ E é por isso que ela NÃO pode ser
+  o `ForaDoSorteio`: desde 09/09/2026 a inscrição sem parceiro entra no sorteio, e contá-la
+  aqui daria à categoria um tamanho que ela não teve.
 - **Piso de 3 duplas pra valer campanha** (proposto por mim e **confirmado pelo Felipe em
   10/08/2026**, quando ele perguntou o que era o piso — antes disso era escolha minha dentro
   de um "pode fazer", que é coisa diferente de regra decidida): com 1 dupla o "campeão" não
@@ -456,11 +468,14 @@ inteiro** — o PDZ médio da categoria, **fotografado na geração das chaves**
   de ponto passa por `Pontos(...)`, e um torneio que não começou devolve **0** ali dentro.
   Deixar isso como `.Where(...)` na consulta exigiria oito lugares lembrarem — e o nono,
   escrito daqui a três meses, não lembraria.
-- ⚠️ **Quem entra na soma é `ForaDoSorteio`**, com um gêmeo `EstaNaChave` escrito como
-  `Expression` pro EF traduzir (o método recebe a entidade e o `Completa` é propriedade
-  calculada, que o provedor não sabe ler). Mesmo padrão do par
+- ⚠️ **Quem entra na soma é `InscricaoQueConta.Vale`**, com o gêmeo `InscricaoQueConta.Expressao`
+  escrito como `Expression` pro EF traduzir (o método recebe a entidade e o `Completa` é
+  propriedade calculada, que o provedor não sabe ler). Mesmo padrão do par
   `ContaNoRanking`/`DuplaContaNoRanking`, **com teste comparando os dois lado a lado** —
   foi exatamente assim que o Americano escapou por uma consulta escrita à mão.
+  ⚠️ **Não confunda com `ForaDoSorteio`**, que era o dono disto até 09/09/2026: hoje ele
+  responde só "entra no sorteio?", e as duas réguas discordam de propósito no caso da
+  inscrição sem parceiro. `InscricaoQueContaTests` trava as duas juntas.
 - ⚠️ **`EstatisticasService.PontosPorFase(fase)` foi REMOVIDO de propósito.** Eram 8 lugares
   somando ponto (perfil, busca, ranking por categoria, times, por torneio, evolução) e um
   método que ainda aceitasse só a fase deixaria qualquer um deles com a regra velha, sem

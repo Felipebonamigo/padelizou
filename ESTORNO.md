@@ -56,8 +56,14 @@ dentro do próprio `DesfazerAsync`.)
 ### Um terceiro caminho: cancelar quem ficou SEM PARCEIRO, na hora de sortear
 
 Desde 09/09/2026, a tela do torneio tem uma saída mais estreita, só pra esse caso: na janela
-**"Chaves em Sorteio"**, o organizador cancela ali mesmo a inscrição de quem ficou sem
-parceiro (`TorneiosController.CancelarSemParceiro`). Cancela e estorna **na mesma
+**"Chaves em Sorteio"**, no aviso **"entram sem parceiro"**, o organizador cancela ali mesmo a
+inscrição de quem ficou sozinho (`TorneiosController.CancelarSemParceiro`).
+
+⚠️ O botão **mudou de casa no mesmo dia**: ele nasceu dentro do alerta "ficam de fora do
+sorteio", e horas depois a inscrição sem parceiro deixou de ficar de fora — ela passou a
+**entrar na chave** com a vaga aberta (ver STATUS.md). Sem a mudança de casa, a ação teria
+ficado sem porta na tela. Depois do sorteio ela não vale mais: com jogo já marcado, a saída
+passa a ser o W.O. Cancela e estorna **na mesma
 requisição**, sem esperar o webhook do Asaas: pede a devolução ao gateway
 (`PagamentoInscricaoService.EstornarTotalAsync`) e só depois remove a dupla. Sem cobrança real
 pra estornar (pago por fora, marcado na mão), só cancela e avisa o organizador pra acertar a

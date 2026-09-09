@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **09/09/2026** — ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
+> Última atualização: **09/09/2026** — 👥 **QUEM SE INSCREVE SOZINHO ENTRA NA CHAVE, e o parceiro entra até o primeiro jogo.**
+>
+> 🗣️ **Felipe, olhando o card do Paulo na 3ª do Er:** *"mas nesse caso, tem q manter o Paulo, ele vai colocar o parceiro dele depois"*. Antes disso a inscrição sozinha era **filtrada do sorteio em silêncio**; a decisão que a tela oferecia era só cancelar.
+>
+> 🕳️ **A TELA JÁ PROMETIA ISSO E O CÓDIGO NUNCA ENTREGOU.** O alerta amarelo dizia *"quem está sem parceiro ainda pode fechar a dupla"* — renderizado em "Chaves em Sorteio", quando os **seis** caminhos de fechar dupla (CPF, gerar convite, aceitar convite, chamar no mural, aceitar chamado) já exigiam `"Inscrições Abertas"`, e os botões nem eram desenhados. A janela nova (`Services/JanelaDoParceiro`) vai até **a bola rolar pra aquela dupla**, e é o que torna a frase verdadeira.
+>
+> ⚠️ **A RÉGUA RESPONDIA DUAS PERGUNTAS AO MESMO TEMPO, e essa é a parte que quase passou.** `ForaDoSorteio` decidia "entra no sorteio?" **e** "conta pro ranking?", com as duas escritas travadas por teste como complementares. Mudar o sorteio arrastaria o ranking: quem entrasse sem parceiro e levasse W.O. **levaria ponto de participação por não aparecer** (`UltimaFase` nasce `"Grupos"` e a conta não olha uma Partida sequer), o **peso da categoria incharia** — subindo o ponto de todo mundo dela, campeão inclusive — e tudo isso **retroativamente**, porque a régua não tem data de corte. A metade do ranking virou `Services/InscricaoQueConta`, com a semântica intacta e os 13 leitores repontados. ⚠️ **Dois deles liam a forma EM MEMÓRIA** (`EstatisticasService` 57 e 278): um sed pelo nome da expressão SQL teria deixado os dois para trás, envenenando o ranking em silêncio.
+>
+> 💥 **Quatro defeitos reais que só existiam porque a dupla incompleta nunca chegava lá** — todos vistos vermelhos antes: **500 no sorteio** (`d.Jogador2Id!.Value`, o `!` calando o compilador sem mudar o risco); **o jogador sozinho sumia do mapa de PESSOAS da grade** e podia ser marcado em **duas quadras no mesmo horário** (a tela "Conferir grade" empresta o mesmo mapa e também não veria); push *"Vocês venceram Paulo Prass e  (6x0)"*; e o "seu próximo jogo" da Home, que concatenava **em SQL** com `Jogador2!` — no Postgres, concatenar com NULL devolve **NULL**, então o card ficaria **sem adversário nenhum** (o InMemory da suíte devolveria `"Paulo e "`, escondendo metade do defeito).
+>
+> 🔒 **Absorver inscrição que já está na chave virava violação de FK** — juntar duas inscrições sozinhas APAGA a que sobra, e agora ela tem jogo apontando pra ela. Recusa e explica; quem resolve é o organizador, que enxerga a grade.
+>
+> 📋 **O que o organizador vê:** o alerta se dividiu em dois — *"ficam de fora"* (só lista de espera) e *"entram sem parceiro"*, que herda a função do aviso antigo (cada um é um W.O. provável) e é a nova casa do botão de cancelar e estornar. Na chave, `"Paulo / ?"` virou `"Paulo / parceiro"`, e o card do jogo deixou de parecer uma partida de simples.
+>
+> ⚠️ **O que NÃO mudou, de propósito:** ranking, peso e MVP (acima); **dinheiro** — meia dupla continua pagando por uma pessoa, e o parceiro paga a diferença ao entrar; **trocar** A por B numa chave sorteada continua travado (só **definir** o que falta é que abriu); e `NomeDaDupla`/`NomeDeExibicao`, porque `Jogador2Id` nulo **também** significa campeão individual do Americano — mexer na régua central escreveria "e parceiro" no card de campeão.
+>
+> ⚙️ **Sem W.O. automático:** quem não fechar até o primeiro jogo perde por W.O., lançado jogo a jogo na Mesa de Controle. **Enquanto houver jogo de grupo pendente, o mata-mata não nasce** — é o preço aceito por manter a vaga.
+>
+> ---
+>
+> **Anterior:** ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
 >
 > 🗣️ **Felipe, descrevendo o combinado do Er:** *"no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20, 12:10. Vão ser 12 jogos"*. **A tela respondia 10.**
 >
