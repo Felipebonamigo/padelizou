@@ -170,4 +170,90 @@ public class AuditoriaDaGradeTests
         Assert.Equal(Sabado.AddHours(9), achado.Quando);
         Assert.Contains("Fulano e Sicrano", achado.Descricao);
     }
+
+    // ── As duas guardas de 09/09/2026: a auditoria recriava a régua do motor em vez de usá-la ──
+    //
+    // ⚠️ É o defeito que o cabeçalho deste serviço proíbe com todas as letras ("ESTE SERVIÇO É A
+    // ÚNICA CÓPIA DA AUDITORIA"). O bloco "mesma pessoa em dois jogos" tinha escrito à mão o que
+    // `RoboDoChaveamento.OcupantesPorDupla` e `GradeDeJogos.Encaixar` já decidem — e divergia dos
+    // dois em direções opostas: falso POSITIVO em torneio de times, falso NEGATIVO em grade
+    // desalinhada. Achado numa revisão adversarial antes de publicar.
+
+    [Fact]
+    public void Em_torneio_de_times_nao_acusa_o_organizador_em_todos_os_jogos()
+    {
+        // 🕳️ FALSO POSITIVO EM MASSA. Todo TIME é uma Dupla com `Jogador1Id` = organizador (a
+        // coluna é NOT NULL), então comparar pessoa na mão enxerga a MESMA pessoa em todos os
+        // times e acusa a grade inteira, um achado por horário.
+        //
+        // O motor não cai nisso: `OcupantesPorDupla` filtra `!d.EhTime`, e o comentário dele diz
+        // por quê — "comparar por pessoa faria todo time conflitar com todo time, empurrando a
+        // grade inteira pra frente". A auditoria tem que enxergar a grade como o motor a montou.
+        var organizador = 777;
+        var times = new[]
+        {
+            TimeDe(1, organizador), TimeDe(2, organizador),
+            TimeDe(3, organizador), TimeDe(4, organizador),
+        };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(18), quadra: "Quadra 1"),
+            Jogo(3, 4, Sabado.AddHours(18), quadra: "Quadra 2"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, times, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos);
+    }
+
+    [Fact]
+    public void Acusa_a_mesma_pessoa_em_jogos_que_se_sobrepoem_sem_comecar_no_mesmo_minuto()
+    {
+        // 🕳️ FALSO NEGATIVO. O choque era medido por INSTANTE EXATO (`GroupBy(HorarioPrevisto)`),
+        // mas o motor mede por INTERVALO desde 21/08/2026 (`CruzaComAPessoa`: a distância entre
+        // os dois é menor que a duração da partida).
+        //
+        // ⚠️ E a grade desalinhada NÃO é hipótese: `AberturaDoRecalculo` parte de `DateTime.Now`
+        // sempre que há jogo já em quadra, então um "Refazer grade" às 20h13 produz jogos em
+        // 20:13 enquanto os antigos seguem em 20:00. Era exatamente aí que a tela dizia "Nada
+        // fora do lugar" — e é exatamente aí que o organizador aperta o botão.
+        var mesmaPessoa = 42;
+        var duplas = new[] { Dupla(1, mesmaPessoa, 11), Dupla(2, 20, 21), Dupla(3, mesmaPessoa, 31), Dupla(4, 40, 41) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(20), quadra: "Quadra 1"),
+            Jogo(3, 4, Sabado.AddHours(20).AddMinutes(13), quadra: "Quadra 2"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.Contains(achados, a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos);
+    }
+
+    [Fact]
+    public void Jogos_distantes_mais_que_a_duracao_nao_sao_choque()
+    {
+        // O outro lado da guarda acima: passar a medir por intervalo não pode virar acusação em
+        // rodada seguinte. 50 minutos de partida, jogos a 50 minutos de distância — a grade
+        // normal do torneio, e ela está certa.
+        var mesmaPessoa = 42;
+        var duplas = new[] { Dupla(1, mesmaPessoa, 11), Dupla(2, 20, 21), Dupla(3, mesmaPessoa, 31), Dupla(4, 40, 41) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(20), quadra: "Quadra 1"),
+            Jogo(3, 4, Sabado.AddHours(20).AddMinutes(50), quadra: "Quadra 1"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos);
+    }
+
+    // Um TIME: `NomeTime` preenchido e `Jogador2Id` nulo, com o organizador no `Jogador1Id` —
+    // exatamente como TorneiosController.Times grava.
+    private static Dupla TimeDe(int id, int organizadorId) => new()
+    {
+        Id = id, Jogador1Id = organizadorId, Jogador2Id = null, NomeTime = $"Time {id}",
+        Categoria = new Categoria { Id = 1, Nome = "3ª", Codigo = "C3" },
+    };
 }

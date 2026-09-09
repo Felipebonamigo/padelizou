@@ -65,6 +65,34 @@ public static class VagasDaGrade
         return maisTarde;
     }
 
+    // QUANTOS JOGOS PODEM PRECISAR DE VAGA DO OUTRO LADO DA JANELA.
+    //
+    // 🕳️ ISTO É O QUE FALTAVA PRO `AlcanceNecessario` FUNCIONAR (09/09/2026, pedido do Felipe:
+    // "conserta esse furo do impedimento tambem"). Alcançar o fim da janela não basta se do
+    // outro lado dela só existirem `MargemDeHorarios` vagas: essa margem é dimensionada por
+    // QUADRA (`max(quadras,1)*3`) e não pelo VOLUME de jogos que a janela deslocou.
+    //
+    // 📏 O número que provou isso: torneio sexta+sábado, 16 duplas, 14 jogos, 1 quadra. A sexta
+    // tem 8 vagas e a janela de sexta bloqueia o DIA INTEIRO. Com 8 duplas impedidas, ~11 dos 14
+    // jogos precisam de vaga no sábado — e a grade oferecia 3. Os 8 que sobravam iam pro último
+    // horário da sexta (23:50 aparecia em quase todo furo medido), dentro da janela paga.
+    //
+    // Conta o JOGO, e não a dupla: é o jogo que ocupa vaga. Um jogo em que as DUAS duplas têm
+    // janela continua sendo um só. E conta por cima de propósito — uma dupla com janela pode ter
+    // vaga boa antes do limite —, porque esta receita pede com sobra e corta depois; pedir justo
+    // é o que produziu o furo.
+    public static int JogosComJanela(
+        IEnumerable<Partida> jogos,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? porDupla = null,
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? porCategoria = null)
+    {
+        if (porDupla == null && porCategoria == null) return 0;
+
+        return jogos.Count(j =>
+            (porDupla != null && (porDupla.ContainsKey(j.Dupla1Id) || porDupla.ContainsKey(j.Dupla2Id)))
+            || (porCategoria != null && porCategoria.ContainsKey(j.CategoriaId)));
+    }
+
     // A mais tardia entre dois alcances. Nulo é "não pede nada", então ele nunca vence.
     public static DateTime? MaisTarde(DateTime? um, DateTime? outro) =>
         um == null ? outro : outro == null ? um : (um > outro ? um : outro);
@@ -76,7 +104,7 @@ public static class VagasDaGrade
     /// </summary>
     public static List<DateTime> Montar(Torneio torneio, DateTime inicio, int quantosJogos,
         IEnumerable<Partida>? jaMarcados = null, DateTime? peloMenosAte = null,
-        SedesDoTorneio? sedes = null)
+        SedesDoTorneio? sedes = null, int jogosComJanela = 0)
     {
         var ocupadas = (jaMarcados ?? Enumerable.Empty<Partida>())
             .Where(p => p.HorarioPrevisto != null)
@@ -111,6 +139,12 @@ public static class VagasDaGrade
             // janela, o outro lado dela ganha uma rodada só: com 4 quadras isso são 4 vagas pra
             // todas as duplas que a janela empurrou pra lá, e o último recurso do encaixe entra
             // de novo. O furo caiu de 2 pra 1 e não zerou. Alcançar não é o mesmo que caber.
+            // ⚠️ A MARGEM ALÉM DO LIMITE PRECISA CABER OS JOGOS QUE A JANELA EMPURROU
+            // (09/09/2026). Só `margem` aqui é margem por QUADRA, e quem disputa as vagas do
+            // outro lado da janela são JOGOS: com 8 de 16 duplas impedidas na sexta, 11 dos 14
+            // jogos queriam o sábado e a grade abria 3 vagas lá. Ver JogosComJanela.
+            int alemDoLimite = margem + jogosComJanela;
+
             int cabem = 0;
             int depoisDoLimite = 0;
             foreach (var h in GradeDeJogos.Horarios(inicio, torneio.HoraFimDoDia,
@@ -119,7 +153,7 @@ public static class VagasDaGrade
             {
                 cabem++;
 
-                if (h >= limite && ++depoisDoLimite > margem) break;
+                if (h >= limite && ++depoisDoLimite > alemDoLimite) break;
             }
 
             // NUNCA ENCOLHE: quem já pedia mais vagas que o alcance continua com as que pedia.

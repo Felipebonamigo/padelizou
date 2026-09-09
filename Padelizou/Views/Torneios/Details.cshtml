@@ -5401,6 +5401,70 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <h4 class="fw-bold mb-3" style="color: var(--pdz-ink);">
                             <i class="bi bi-grid-3x3-gap-fill me-2" style="color: var(--padel-green);"></i> Fase de Grupos
                         </h4>
+
+                        @* TROCAR DUAS DUPLAS DE GRUPO (09/09/2026, pedido do Felipe). Fica AQUI,
+                           e não no painel de aprovação lá em cima, porque é olhando os grupos que
+                           se decide mover alguém — e aqui os selects saem de `categoria.GruposTorneio`,
+                           que já está na mão, sem uma consulta a mais.
+
+                           ⚠️ Só enquanto a chave espera aprovação e só pra quem aprova: é a mesma
+                           régua do "Desfazer sorteio", e a ação recusa de novo do lado de lá
+                           (esconder botão não é autorização). *@
+                        @if (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente
+                             && ViewBag.PodeAprovarChaves == true)
+                        {
+                            <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                        <i class="bi bi-arrow-left-right"></i> Trocar duas duplas de grupo
+                                    </h6>
+                                    <p class="small text-muted mb-3">
+                                        As duas trocam de lugar entre si — os grupos continuam do mesmo tamanho.
+                                        Os horários são recalculados na hora, respeitando os impedimentos de quem pagou por eles.
+                                    </p>
+                                    <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
+                                          class="row g-2 align-items-end"
+                                          data-confirmar-titulo="Trocar as duas de grupo?"
+                                          data-confirmar="Os confrontos dos dois grupos mudam e TODOS os horários do torneio são recalculados."
+                                          data-confirmar-ok="Trocar">
+                                        <input type="hidden" name="id" value="@Model.Id" />
+                                        <div class="col-12 col-md-5">
+                                            <label class="form-label small fw-bold mb-1" for="duplaA-@categoria.Id">Esta dupla…</label>
+                                            <select class="form-select" id="duplaA-@categoria.Id" name="duplaA" required>
+                                                @foreach (var g in categoria.GruposTorneio.OrderBy(x => x.Nome))
+                                                {
+                                                    <optgroup label="@g.Nome">
+                                                        @foreach (var d in g.Duplas.OrderBy(x => x.NomeDeExibicao))
+                                                        {
+                                                            <option value="@d.Id">@d.NomeDeExibicao</option>
+                                                        }
+                                                    </optgroup>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-5">
+                                            <label class="form-label small fw-bold mb-1" for="duplaB-@categoria.Id">…troca de lugar com esta</label>
+                                            <select class="form-select" id="duplaB-@categoria.Id" name="duplaB" required>
+                                                @foreach (var g in categoria.GruposTorneio.OrderBy(x => x.Nome))
+                                                {
+                                                    <optgroup label="@g.Nome">
+                                                        @foreach (var d in g.Duplas.OrderBy(x => x.NomeDeExibicao))
+                                                        {
+                                                            <option value="@d.Id">@d.NomeDeExibicao</option>
+                                                        }
+                                                    </optgroup>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-2 d-grid">
+                                            <button type="submit" class="btn btn-outline-primary fw-bold">
+                                                <i class="bi bi-arrow-left-right"></i> Trocar
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
