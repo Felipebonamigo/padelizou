@@ -2,12 +2,17 @@
 
 > Escrito em 30/07/2026, antes do primeiro torneio real. É o roteiro pra quando alguém
 > que **já pagou** desiste — o caso que vai aparecer no primeiro evento.
+>
+> **Atualizado em 09/09/2026**: a régua "estorno NÃO tira a inscrição" deixou de valer pra
+> metade dos torneios — ver o passo 3 e "Como isso ficou resolvido", no fim.
 
 ## Resumo em três linhas
 
 1. O organizador estorna sozinho, na tela: **Pagamentos → Meus → botão de estornar** na linha da cobrança.
 2. O sistema **devolve o dinheiro** (ou cancela a cobrança, se ainda não tinha sido paga).
-3. ⚠️ **O estorno NÃO tira a inscrição.** Quem devolveu o dinheiro tem que remover a dupla à mão, na página do torneio.
+3. **Se o torneio é "só confirmo depois de pago", a inscrição some sozinha junto com o dinheiro.**
+   Se é "garante a vaga, acerta depois", o estorno mexe só no dinheiro — a dupla continua
+   inscrita e marcada como paga, e tem que ser removida à mão, na página do torneio.
 
 ---
 
@@ -28,15 +33,36 @@ O botão faz uma coisa diferente em cada caso, e a diferença importa:
 
 Só o **dono do torneio/aula** consegue estornar — a checagem é na gravação, não só na tela.
 
-### 3. Tirar a inscrição (o passo que o sistema NÃO faz)
-Estornar mexe **só no dinheiro**. A dupla continua inscrita e marcada como paga, então:
+### 3. Tirar a inscrição — só em "garante a vaga, acerta depois"
+
+⚠️ Isto era o passo 3 de **todo** estorno até 09/09/2026. Não é mais.
+
+No torneio **"só confirmo a inscrição depois de pago"**, a dupla só passa a existir quando o
+pagamento confirma — é assim que o webhook cria a inscrição (`EfetivarTorneioAsync`). Por
+simetria, quando o dinheiro volta (`PAYMENT_REFUNDED`), a inscrição **desfaz sozinha**
+(`PagamentoInscricaoService.DesfazerAsync`). Nada a fazer aqui.
+
+No torneio **"garante a vaga, acerta depois"**, a inscrição já existia ANTES de alguém pagar —
+o estorno não pode apagar o que não nasceu do pagamento. Aí sim, à mão:
 
 - Página do torneio → **Remover dupla** (se a pessoa desistiu de verdade), **ou**
 - Página do torneio → **marcar como não paga** (se ela vai jogar e pagar por fora).
 
 Removendo a dupla, quem estava na **lista de espera é promovido automaticamente** — é por isso
 que este passo não pode ser esquecido: enquanto a vaga estiver ocupada por quem desistiu, a
-próxima pessoa da fila não entra.
+próxima pessoa da fila não entra. (No caminho automático a promoção também acontece sozinha,
+dentro do próprio `DesfazerAsync`.)
+
+### Um terceiro caminho: cancelar quem ficou SEM PARCEIRO, na hora de sortear
+
+Desde 09/09/2026, a tela do torneio tem uma saída mais estreita, só pra esse caso: na janela
+**"Chaves em Sorteio"**, o organizador cancela ali mesmo a inscrição de quem ficou sem
+parceiro (`TorneiosController.CancelarSemParceiro`). Cancela e estorna **na mesma
+requisição**, sem esperar o webhook do Asaas: pede a devolução ao gateway
+(`PagamentoInscricaoService.EstornarTotalAsync`) e só depois remove a dupla. Sem cobrança real
+pra estornar (pago por fora, marcado na mão), só cancela e avisa o organizador pra acertar a
+devolução fora do sistema. Fora dessa dupla incompleta e dessa janela, o caminho continua
+sendo `Pagamentos → Meus`.
 
 ---
 
@@ -66,18 +92,27 @@ próxima pessoa da fila não entra.
 ## Onde isso está no código
 
 - Ação: `PagamentosController.Estornar` — checa dono, escolhe devolver × cancelar, grava o status.
+  O caminho de estorno TOTAL (chamar o gateway, trocar o status) foi extraído pra
+  `PagamentoInscricaoService.EstornarTotalAsync` em 09/09/2026, reusado também por
+  `TorneiosController.CancelarSemParceiro` — só o estorno PARCIAL continua só nesta tela.
 - Chamada ao meio de pagamento: `AsaasService.EstornarAsync` (`POST /refund` se pago, `DELETE` se pendente).
-- Webhook: `PAYMENT_REFUNDED` → Estornado; `PAYMENT_DELETED`/`PAYMENT_OVERDUE` → Cancelado.
+- Webhook: `PAYMENT_REFUNDED` → Estornado **e** `PagamentoInscricaoService.DesfazerAsync`, que
+  desfaz a inscrição — mas só no tipo "confirma com o pagamento" (`TorneioDupla`/
+  `TorneioAmericano`). No tipo "garante a vaga, acerta depois" (`TorneioPagarDepois`),
+  `DesfazerAsync` só destrava o `Pago` (`DesfazerPagamentoDeInscricaoAsync`) — a inscrição fica
+  de pé de propósito. `PAYMENT_DELETED`/`PAYMENT_OVERDUE` → Cancelado.
 
-## ⏳ Decisão pendente do Felipe
+## Como a decisão pendente foi resolvida
 
-Hoje o estorno e a inscrição são **duas ações separadas**, de propósito nenhum — é assim porque
-nunca foi decidido. As duas leituras possíveis:
+Este documento listava, desde 30/07/2026, uma decisão em aberto: **estornar deveria remover a
+inscrição sozinho, ou ficar manual?** Achada em código em 09/09/2026, sem data exata de quando
+foi decidida — ela virou as **duas coisas**, uma pra cada tipo de torneio:
 
-- **Estornar deveria remover a inscrição sozinho?** Fica consistente (dinheiro devolvido = vaga
-  livre) e a lista de espera anda na hora. Mas tira do organizador o caso "devolvi por cortesia
-  e ele joga de graça".
-- **Ou seguir manual, com um aviso na tela** ("essa inscrição continua valendo — remover?").
-  Mais passos, menos surpresa.
+- **"Só confirmo depois de pago"**: estornar desfaz a inscrição sozinho. Faz sentido — ela não
+  existia antes do dinheiro entrar, então não devia sobreviver a ele saindo.
+- **"Garante a vaga, acerta depois"**: continua manual, de propósito — é a regra que sustenta
+  exatamente o caso que esta decisão citava como risco, "devolvi por cortesia e ele joga de
+  graça". Aqui, estornar não pode tirar a vaga de quem a garantiu antes de pagar.
 
-Enquanto não for decidido, vale a regra deste documento: **estornou, vá remover a dupla**.
+Ou seja: as duas leituras que este documento apresentava como alternativas venceram as duas,
+cada uma no torneio a que ela se aplica.
