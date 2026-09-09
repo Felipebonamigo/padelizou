@@ -42,6 +42,23 @@ public static class TaxaDoTorneioExterno
         && torneio.TaxaExternoPagaEm == null
         && torneio.TaxaExternoNegociadaEm == null;
 
+    // AINDA DÁ PRA REGISTRAR A CORTESIA (a "negociação")?
+    //
+    // 🗣️ Pergunta do Felipe, 09/09/2026, olhando o torneio do Er: "aonde eu coloco q foi
+    // cortesia?". Não tinha onde — o formulário do admin vivia atrás de "a chave NÃO está
+    // liberada", e isso estava certo enquanto só havia dois jeitos de liberar (pago ou
+    // negociado). O FIADO de 08/09 abriu um terceiro, e `ChavesLiberadas` passou a responder
+    // `true` pra ele — sumindo com o caminho da cortesia justamente de quem pegou fiado. O
+    // torneio ficava DEVENDO pra sempre, e a única saída era pagar mesmo com o Padelizou já
+    // tendo aberto mão.
+    //
+    // ⚠️ A PERGUNTA CERTA NÃO É "a chave está liberada?", É "a taxa ainda está em aberto?".
+    // As duas coincidiam antes do fiado; agora não coincidem mais.
+    public static bool PodeRegistrarNegociacao(Torneio torneio) =>
+        SeAplica(torneio)
+        && torneio.TaxaExternoPagaEm == null
+        && torneio.TaxaExternoNegociadaEm == null;
+
     // Base da taxa: gente que existe na lista na hora do fechamento. Dupla completa são 2
     // pessoas, dupla ainda sem parceiro é 1 (cobrar por alguém que ainda não foi definido
     // seria cobrar por fantasma). Lista de espera fica fora — ela não joga e o organizador

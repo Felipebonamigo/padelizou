@@ -995,7 +995,7 @@ namespace Padelizou.Controllers
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
                 DateTime? fimDosGrupos =
-                    !torneio.SemHorarioPrevisto && fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
+                    fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
                         ? fim : null;
 
                 cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
@@ -1023,9 +1023,10 @@ namespace Padelizou.Controllers
                 cadeias.Add(ProximasFasesDaChave.Montar(
                     porCategoria.Select(p => new ProximasFasesDaChave.PartidaDaChave(
                         p.Id, p.Fase, p.Dupla1.NomeDeExibicao, p.Dupla2.NomeDeExibicao,
-                        // Torneio "por ordem de liberação" não marca hora: sem horário a
-                        // projeção ainda diz QUEM joga, que é metade do pedido.
-                        torneio.SemHorarioPrevisto ? null : p.HorarioPrevisto)).ToList(),
+                        // ⚠️ O "por ordem" TAMBÉM tem hora desde 09/09/2026 (ver
+                        // Services/OrdemDeLiberacao) — escondê-la aqui deixaria a projeção das
+                        // próximas fases muda justamente pro torneio que mais precisa dela.
+                        p.HorarioPrevisto)).ToList(),
                     byes!,
                     porCategoria.First().Categoria.Nome));
             }
@@ -1038,7 +1039,7 @@ namespace Padelizou.Controllers
             // minuto num torneio de cinco quadras — e nenhum deles com quadra, porque não
             // havia como saber qual.
             var ocupadas = partidas
-                .Where(p => p.HorarioPrevisto != null && !torneio.SemHorarioPrevisto)
+                .Where(p => p.HorarioPrevisto != null)
                 .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra))
                 .ToList();
 

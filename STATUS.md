@@ -13,7 +13,45 @@
 >
 > ⚠️ **A CAMPANHA NÃO SUMIU DO SISTEMA:** a aba de torneios do perfil (`Views/Auth/Perfil.cshtml`) continua escrevendo "Vice"/"Semifinal" com o mesmo `RotuloFase`, que segue público. O que saiu é a pílula do chip.
 >
-> 🧪 **5.587 testes, 0 falhas (6 novos).** **Sem migration.** As guardas falsificaram: o `Theory` de Final/Semifinal/Quartas/Grupos ficou vermelho nos quatro casos (todos entravam no mapa) e a guarda de tela achou o `RotuloFase` no Razor. A guarda do outro lado passou de primeira, e é de propósito: vice num torneio + campeã em outro continua com o troféu de 1 título.
+> 🧪 **5.618 testes, 0 falhas (6 novos)** — o total já é com o `main` trazido pra dentro (a auditoria da grade do Er entrou no meio do caminho). **Sem migration.** As guardas falsificaram: o `Theory` de Final/Semifinal/Quartas/Grupos ficou vermelho nos quatro casos (todos entravam no mapa) e a guarda de tela achou o `RotuloFase` no Razor. A guarda do outro lado passou de primeira, e é de propósito: vice num torneio + campeã em outro continua com o troféu de 1 título.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> Última atualização: **09/09/2026** — 🔍 **AUDITORIA DA GRADE DO ER — E UM FURO DE IMPEDIMENTO QUE APARECE COM MAIS QUADRAS.**
+>
+> 🗣️ **Felipe:** *"criei o teste em dev, verifique se cumpriu bem os impedimentos e questões de horários, se ele respeitou isso"*.
+>
+> 🚫 **ESTA SESSÃO NÃO ALCANÇA O `dev`** (o proxy recusa o CONNECT com 403), então não deu pra ler as linhas do banco dele. O que deu — e rendeu mais que um print — foi rodar o MOTOR DE VERDADE na forma exata daquele torneio: **63 duplas, 24 grupos, 87 jogos, 2 quadras, 33 duplas com impedimento**, modo "por ordem".
+>
+> ✅ **NA CONFIGURAÇÃO DELE (2 quadras): zero furos.** Nenhum jogo dentro da janela que a dupla pagou pra evitar, ninguém chamado pra dois jogos no mesmo horário, todo jogo com hora dentro do expediente.
+>
+> 🕳️ **MAS VARRENDO A QUANTIDADE DE QUADRAS, O FURO APARECEU COM 4 — ou seja, com MAIS capacidade, não com menos.** A dupla 22 recebia os DOIS jogos no MESMO horário (sábado 17h10), dentro do impedimento dela de "Sábado à tarde". É o contrário do que a intuição diz, e a razão é o orçamento de vagas: a grade oferece `jogos + margem`, cada rodada rende uma vaga POR QUADRA, e o impedimento bloqueia DIAS INTEIROS. Com 4 quadras a grade termina em METADE das rodadas — sobram menos horários distintos pra dupla escapar da janela dela, o orçamento acaba, e o último recurso do `Encaixar` entra: primeiro cede o impedimento, depois cede a regra de não repetir gente.
+>
+> 🔁 **É O MESMO DEFEITO QUE A CONCENTRAÇÃO TEVE ONTEM, e o mesmo conserto** — só que agora vale pros TRÊS mapas de janela (impedimento, concentração e noite de sábado), porque a pergunta é a mesma pros três: `VagasDaGrade.AlcanceNecessario`.
+>
+> 📏 **E "ALCANÇAR" NÃO É "CABER" — isso foi medido, não deduzido.** A primeira versão parava no primeiro horário que atingia o fim da janela; o outro lado dela ganhava UMA rodada (4 vagas, com 4 quadras) pra todas as duplas que a janela empurrou pra lá. O furo caiu de 2 pra 1 e **não zerou**. Seguindo uma margem ALÉM do limite, zerou.
+>
+> 🧪 **5.599 testes, 0 falhas (10 novos, a auditoria varre 1, 2, 4 e 6 quadras).** **Sem migration.** Falsificado: tirando o alcance do impedimento voltam os 2 furos; tirando a margem além do limite volta 1.
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** a grade que já está gravada no `dev` do Er. Ela foi sorteada antes deste conserto, com 2 quadras — a configuração que a auditoria mostra limpa. Pra ter certeza das linhas dele, precisaria da lista de jogos.
+>
+> Última atualização: **09/09/2026** — 🕐 **"POR ORDEM" PASSOU A TER HORA (o que fica em aberto é a QUADRA) + 2 CONSERTOS DE TELA.**
+>
+> **1. 🗣️ Felipe, olhando os grupos do Er:** *"mesmo que seja por ordem os jogos, tem q ter o horario dos jogos; o que realmente muda é a quadra — o horário do jogo, teoricamente, é pré-definido, para as pessoas se organizarem"*.
+>
+> 🔄 **ISSO REVISA UMA DECISÃO ESCRITA NO MODELO, e o que mudou foi o ALVO dela.** O `SemHorarioPrevisto` nasceu dizendo *"horário inventado que ninguém cumpre é pior que horário nenhum"*. A preocupação continua certa — mas o que atrasa e não se cumpre é a **QUADRA** (qual delas vaga primeiro depende de um jogo de 4 games com desempate). A **HORA** sai da mesma conta de sempre e responde a pergunta que o jogador de fato faz: *"chego às 8h ou às 15h?"*. Escondê-la não tornava o dia previsível — deixava 63 duplas sem saber quando aparecer.
+>
+> 🧩 **A QUADRA É APAGADA DEPOIS DA GRADE, NÃO EM VEZ DELA** (`Services/OrdemDeLiberacao`) — e essa ordem é o cuidado que faz a hora valer: é o encaixe que garante que ninguém seja chamado pra dois jogos no mesmo horário, e ele só sabe disso porque distribui as partidas ENTRE as quadras. Calcular hora sem passar por lá daria um relógio que põe a mesma pessoa em dois lugares — aí sim, horário que ninguém cumpre.
+>
+> 🔓 **"Refazer grade" foi liberado no por-ordem** (estava escondido justamente nele): é por ele que o torneio do Er, já sorteado sem hora, ganha os horários **sem mexer nos confrontos** — o que "desfazer o sorteio" faria com as 63 duplas. O nome da coluna envelheceu e ficou: renomear coluna usada por seis telas custaria migration por estética.
+>
+> **2. 🗣️ *"coloque um aviso, que clicando em sortear agora, nao publica a chave, fica apenas visivel para o organizador e adm"***.
+>
+> ⚠️ **CONFERIDO ANTES DE VIRAR TEXTO — e só é verdade no formato Padrão.** O `GerarChaves` para em `AprovacaoDeChaves.Pendente`; mas `GerarRodadasAmericano` vai **direto pra "Fase de Grupos"**, que já é público. Um aviso incondicional mentiria no caso mais perigoso: o organizador de um Americano clicaria achando que é rascunho e o rodízio sairia pros jogadores na hora. `Services/PublicacaoDaChave` responde por formato, e a confirmação do clique deixou de dizer *"as chaves são liberadas na hora"* — que lia como "vai pro ar", a própria confusão do pedido.
+>
+> **3. 🗣️ *"aonde eu coloco q foi cortesia?"*** — 🕳️ **NÃO TINHA ONDE, e é regressão do fiado de ontem.** O formulário de "Registrar negociação" (o único lugar que marca cortesia) vivia atrás de `!liberadas`, e isso estava certo enquanto só havia dois jeitos de liberar. O FIADO abriu um terceiro, e `ChavesLiberadas` passou a responder `true` pra ele — **sumindo com o caminho da cortesia justamente de quem pegou fiado**. O torneio ficava devendo pra sempre no `/Admin/Financeiro`, com a única saída sendo pagar mesmo quando o Padelizou já abriu mão. A pergunta certa não é *"a chave está liberada?"*, é *"a taxa ainda está em aberto?"* (`TaxaDoTorneioExterno.PodeRegistrarNegociacao`).
+>
+> 🧪 **5.589 testes, 0 falhas.** **Sem migration.** Guardas falsificadas — e **duas não caíram na primeira tentativa**: o torneio dos meus testes não tinha quadra cadastrada, então `NomeQuadra` ficava nulo de qualquer jeito e a checagem passava por vazio. Cadastradas as quadras, apagar a quadra virou escolha visível e os testes passaram a cair.
 >
 > ⚠️ **Não visto renderizado** — sem browser nesta sessão.
 >
