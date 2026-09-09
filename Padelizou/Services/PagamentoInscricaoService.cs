@@ -89,6 +89,13 @@ public interface IPagamentoInscricaoService
     // O avesso do EfetivarAsync: o dinheiro voltou, a inscrição volta junto.
     Task<bool> DesfazerAsync(Pagamento pagamento);
 
+    // Estorno TOTAL (nunca parcial) de uma cobrança: pede a devolução ao gateway — ou cancela
+    // a fatura, se ainda não tinha sido paga — e grava o novo status. Não mexe na inscrição
+    // que a cobrança libera; quem chama decide isso (o webhook chama DesfazerAsync depois; quem
+    // cancela na hora, como o sorteio de chaves, remove a inscrição direto — ver
+    // TorneiosController.CancelarSemParceiro).
+    Task<bool> EstornarTotalAsync(Pagamento pagamento);
+
     // Devolvemos só PARTE do dinheiro: a inscrição fica, mas passa a valer menos. Sincroniza
     // o ValorInscricao dela com o valor que sobrou no Pagamento (ver Services/EstornoParcial).
     Task<bool> AjustarValorDaInscricaoAsync(Pagamento pagamento);
@@ -829,6 +836,27 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         // evento até receber 200, e o EfetivarAsync sai fora quando ele já está preenchido.
         pagamento.ReferenciaId = fatura.Id;
         await _context.SaveChangesAsync();
+    }
+
+    // O caminho de estorno TOTAL de PagamentosController.Estornar, extraído pra ser chamado
+    // também de fora daquela tela (ver TorneiosController.CancelarSemParceiro) sem duplicar a
+    // chamada ao gateway. Cobrança "Pendente" nunca foi paga — "estornar" ali é só apagar a
+    // fatura; "Confirmado"/"AguardandoEstorno" pede a devolução de verdade.
+    //
+    // Só o TOTAL mora aqui: o estorno PARCIAL mantém a inscrição de pé e mexe em
+    // ValorInscricao/ValorEstornado (ver Services/EstornoParcial) — outra decisão, que
+    // continua só na tela de Pagamentos.
+    public async Task<bool> EstornarTotalAsync(Pagamento pagamento)
+    {
+        if (string.IsNullOrWhiteSpace(pagamento.AsaasPaymentId)) return false;
+        if (pagamento.Status is not ("Confirmado" or "Pendente" or "AguardandoEstorno")) return false;
+
+        bool jaFoiPaga = pagamento.Status is "Confirmado" or "AguardandoEstorno";
+        if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId, jaFoiPaga, null)) return false;
+
+        pagamento.Status = jaFoiPaga ? "Estornado" : "Cancelado";
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     // Chamado pelo webhook: o dinheiro entrou, então agora a inscrição existe de fato.

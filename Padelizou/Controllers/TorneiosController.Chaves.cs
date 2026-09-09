@@ -335,6 +335,87 @@ namespace Padelizou.Controllers
             return ParaAsChaves(torneio.Id);
         }
 
+        // ── CANCELAR QUEM FICOU SEM PARCEIRO, NA HORA DE SORTEAR ────────────────────────────
+        // 🗣️ Felipe, 09/09/2026: hoje quem fica sem parceiro só é excluído do sorteio em
+        // silêncio (ForaDoSorteio) — o alerta acima do botão já avisa, mas não dá nenhuma
+        // decisão de verdade pro organizador. Pedido: "avise que tem um sozinho e pergunta se
+        // ele entra igual ou não". Entrar como está não é possível — dupla sem o segundo nome
+        // não é um time, não joga mata-mata —, então a decisão vira: sortear sem essa pessoa
+        // (não fazer nada, é o padrão de sempre) ou cancelar a inscrição dela agora e devolver
+        // o dinheiro, se ela pagou.
+        //
+        // ⚠️ SÓ DUPLA INCOMPLETA, E SÓ NESTA JANELA. `RemoverDupla` já cobre "Inscrições
+        // Abertas" pra qualquer inscrito; esta ação não duplica aquela — cobre exatamente o
+        // buraco que ela deixa (não dá pra remover depois que as inscrições fecham).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelarSemParceiro(int duplaId)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .Include(d => d.Jogador1)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, jogadorId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            if (torneio.Status != "Chaves em Sorteio")
+            {
+                TempData["Erro"] = "Só dá pra cancelar por aqui na hora de sortear as chaves.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            if (dupla.Completa)
+            {
+                TempData["Erro"] = "Esta dupla já tem os dois parceiros — cancele pela lista de inscritos.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            string nome = dupla.Jogador1.ComoChamar;
+            string? avisoDoDinheiro = null;
+
+            // Achar a cobrança desta inscrição: o vínculo nasce só quando o pagamento confirma
+            // (EfetivarTorneioAsync/EfetivarPagamentoDeInscricaoAsync gravam ReferenciaId =
+            // dupla.Id nesse momento — antes disso ela nem existiria pra aparecer aqui).
+            if (dupla.Pago)
+            {
+                var pagamento = await CobrancaDaDupla.AtivaDe(_context, dupla.Id)
+                    .OrderByDescending(p => p.Id)
+                    .FirstOrDefaultAsync();
+
+                if (pagamento != null && !string.IsNullOrWhiteSpace(pagamento.AsaasPaymentId))
+                {
+                    if (!await _pagamentos.EstornarTotalAsync(pagamento))
+                    {
+                        TempData["Erro"] = "O gateway recusou o estorno. Tente novamente em instantes.";
+                        return RedirectToAction("Details", new { id = torneioId });
+                    }
+                }
+                else
+                {
+                    // Pago por fora (dinheiro, Pix direto) ou marcado na mão — não há cobrança
+                    // real pra pedir devolução ao gateway. Mesmo caso de
+                    // PagamentosController.Estornar quando a cobrança não tem AsaasPaymentId.
+                    avisoDoDinheiro = " Não tinha cobrança no gateway pra estornar — combine a devolução com ele por fora.";
+                }
+            }
+
+            await TirarDuplaDoTorneioAsync(dupla, torneio,
+                $"O organizador cancelou sua inscrição em {torneio.Nome} porque você ficou sem parceiro até "
+                + "o sorteio das chaves."
+                + (avisoDoDinheiro == null && dupla.Pago ? " O valor pago foi estornado." : ""));
+
+            TempData["Sucesso"] = $"Inscrição de {nome} cancelada."
+                + (avisoDoDinheiro ?? (dupla.Pago ? " Valor estornado." : ""));
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
         // ── CONFERIR A GRADE ──────────────────────────────────────────────────────────────
         // 🗣️ Felipe, 09/09/2026: "faz esse botão e sobe".
         //
