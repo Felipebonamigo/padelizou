@@ -7,7 +7,11 @@ public class BetaSettings
 {
     public bool Habilitado { get; set; } = true;
     public string Rotulo { get; set; } = "Beta";
-    public string Texto { get; set; } = "Estamos em fase de testes — coisas podem mudar de um dia pro outro.";
+    // ⚠️ CURTO POR OBRIGAÇÃO, não por estilo: a faixa aparece em TODA tela do site, e o texto
+    // de 67 caracteres virava duas linhas no celular, mais uma do link — ~170px antes do nome
+    // do torneio (Deivid, 10/09/2026: "diminui um pouco a aba dos bugs", "tá muito longo").
+    // Cada ambiente sobrescreve isto no systemd; quem escrever o de lá tem o mesmo teto.
+    public string Texto { get; set; } = "Em testes — as coisas ainda mudam por aqui.";
 
     // Este é o ambiente de TESTE (dev.padelizou.com.br), não o Padelizou de verdade.
     //

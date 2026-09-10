@@ -644,6 +644,13 @@ namespace Padelizou.Controllers
             if (PixDoOrganizador.Aparece(torneio))
             {
                 ViewBag.QuemRecebeOPix = await PixDoOrganizador.QuemRecebeOComprovanteAsync(_context, id);
+
+                // O card recolhe pra quem já acertou com o organizador (Emerson, 10/09/2026:
+                // "se o cara já pagou, daria pra tirar info do pagamento, ocupa muito
+                // espaço"). Duas consultas a mais SÓ no "por fora" — o `if` acima já é a
+                // condição de o bloco existir na tela.
+                ViewBag.JaPagueiNesteTorneio = jogadorLogadoId.HasValue
+                    && await PixDoOrganizador.JaPagouTudoAsync(_context, torneio, jogadorLogadoId.Value);
             }
 
             // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de
