@@ -985,6 +985,62 @@ namespace Padelizou.Controllers
         // molhou, a 1 é a coberta, a final merece a do meio. Regras em Services/TrocaDeQuadra
         // — inclusive a que importa: quadra ocupada no mesmo horário TROCA de dono em vez de
         // recusar, senão o organizador fica no mesmo beco.
+        // O QUE ESTA TROCA FAZ COM O CONFERIR GRADE — perguntado pela tela ANTES do Trocar.
+        //
+        // 🗣️ *"veja para avisar se o jogo q eu trocar altera algo do 'conferir grade', por exemplo,
+        // se vai atrapalhar o impedimento, restrição ou jogos seguidos"* (Felipe, 10/09/2026).
+        //
+        // ⚠️ É UM ENDPOINT, e não a lista pré-calculada, por causa da conta: o modal é UM só pro
+        // torneio inteiro (o jogo A vem do botão clicado), então pré-calcular todo par seria 97×97
+        // auditorias numa página de 97 jogos. Aqui é UMA, quando a pessoa escolhe.
+        //
+        // GET e sem antiforgery de propósito: não escreve nada. A régua de quem pode ver é a mesma
+        // da tela — a auditoria mostra nome de jogador e a grade inteira.
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> ImpactoDaTroca(int id, string? jogoA, string? jogoB)
+        {
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var refA = ReferenciaDoJogo.Ler(jogoA);
+            var refB = ReferenciaDoJogo.Ler(jogoB);
+            if (refA == null || refB == null) return Json(new { grau = "impossivel", texto = "Não encontrei um dos jogos." });
+
+            // ⚠️ A PRÉVIA FICA DE FORA, E ISSO É HONESTIDADE, NÃO PREGUIÇA: o jogo previsto não tem
+            // linha no banco nem duplas definidas ("Vencedor Quartas 1"), então não há como saber
+            // quem joga — e sem isso a auditoria de impedimento e de jogos seguidos não responde.
+            // Dizer "nada muda" ali seria inventar.
+            if (refA.EhPrevia || refB.EhPrevia)
+            {
+                return Json(new
+                {
+                    grau = "previa",
+                    texto = "Jogo previsto: só dá pra conferir depois que a fase anterior terminar e "
+                          + "as duplas forem conhecidas.",
+                });
+            }
+
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            var jogos = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Where(p => p.TorneioId == id)
+                .OrderBy(p => p.Id)
+                .ToListAsync();
+
+            // Qualificado: a AÇÃO se chama igual ao serviço, de propósito — a rota
+            // `/Torneios/ImpactoDaTroca` é o nome certo pra quem lê o Network do navegador.
+            var impacto = Padelizou.Services.ImpactoDaTroca.Avaliar(torneio, jogos,
+                torneio.Categorias.SelectMany(c => c.Duplas).ToList(), await SedesAsync(id),
+                jogos.FirstOrDefault(p => p.Id == refA.PartidaId),
+                jogos.FirstOrDefault(p => p.Id == refB.PartidaId));
+
+            return Json(new { grau = impacto.Grau.ToString().ToLowerInvariant(), texto = impacto.Texto });
+        }
+
         // AJUSTAR HORÁRIOS — o irmão manso do "Recalcular horários" (10/09/2026).
         //
         // 🗣️ *"temos q pensar melhor esse botão q ele seja mais inteligente, por que hoje ele refaz

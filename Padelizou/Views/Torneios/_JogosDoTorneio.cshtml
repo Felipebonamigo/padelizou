@@ -684,36 +684,56 @@
                             Jogo escolhido: <strong id="trocaJogoARotulo">—</strong>
                         </p>
                         <label class="form-label fw-bold" for="trocaJogoB">Trocar com qual jogo?</label>
-                        <select name="jogoB" id="trocaJogoB" class="form-select" required>
+                        @* 🗣️ "aqui quando eu for selecionar outro jogo, ta muito poluido" (Felipe,
+                           10/09/2026). Eram 97 linhas de ~120 caracteres, todas repetindo a data e
+                           o nome completo dos quatro jogadores. Três cortes, nenhum deles perde
+                           informação que o organizador use pra escolher:
+                             • o DIA sobe pro <optgroup> — aparece uma vez, não 97;
+                             • o nome vira o compacto de sempre (NomeDaDupla.CompactoNa, o mesmo dos
+                               cards) em vez do nome civil inteiro;
+                             • a categoria vira a curta (CategoriaNaTela.Curto): "4ª Masculina" no
+                               lugar de "4ª Categoria Masculina".
+                           Reuso, não invenção: as duas réguas já existiam e já são o que a aba mostra. *@
+                        <select name="jogoB" id="trocaJogoB" class="form-select" required
+                                data-impacto-url="@Url.Action("ImpactoDaTroca", "Torneios", new { id = Model.TorneioId })">
                             <option value="">Escolha o outro jogo...</option>
-                            @* A mesma lista da aba, na mesma ordem: jogos reais e previstos, pelo
-                               relógio. Prévia sem horário (torneio por ordem) não entra — não há
-                               slot pra trocar. *@
-                            @foreach (var linha in linhasAgendadas)
+                            @foreach (var doDia in linhasAgendadas
+                                        .Where(l => l.Horario != null)
+                                        .GroupBy(l => l.Horario!.Value.Date))
                             {
-                                if (linha.Jogo is Partida candidato)
-                                {
-                                    <option value="@candidato.Id" data-jogo-id="@candidato.Id">
-                                        @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
-                                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra, candidato.CategoriaId, candidato.ClubeId) is { } ondeReal ? $"· {ondeReal}" : "")
-                                        · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
-                                        (@candidato.Categoria.Nome)
-                                    </option>
-                                }
-                                else if (linha.Porvir is JogoQueVem previsto
-                                         && previsto.Horario is DateTime quandoPrevisto
-                                         && previsto.CategoriaId is int categoriaPrevista)
-                                {
-                                    var referencia = Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaPrevista, previsto.Fase, previsto.Numero).ToString();
-                                    <option value="@referencia" data-jogo-id="@referencia">
-                                        @quandoPrevisto.ToString("dd/MM HH:mm")
-                                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
-                                        · @previsto.FaseNumerada · @previsto.Lado1.Rotulo x @previsto.Lado2.Rotulo
-                                        (@previsto.Categoria, prévia)
-                                    </option>
-                                }
+                                <optgroup label="@doDia.Key.ToString("dddd, dd/MM", new System.Globalization.CultureInfo("pt-BR"))">
+                                    @foreach (var linha in doDia)
+                                    {
+                                        if (linha.Jogo is Partida candidato)
+                                        {
+                                            <option value="@candidato.Id" data-jogo-id="@candidato.Id">
+                                                @candidato.HorarioPrevisto!.Value.ToString("HH:mm")
+                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra, candidato.CategoriaId, candidato.ClubeId) is { } ondeReal ? $"· {ondeReal}" : "")
+                                                · @CategoriaNaTela.Curto(candidato.Categoria.Nome)
+                                                · @NomeDaDupla.CompactoNa(candidato.Dupla1) × @NomeDaDupla.CompactoNa(candidato.Dupla2)
+                                            </option>
+                                        }
+                                        else if (linha.Porvir is JogoQueVem previsto
+                                                 && previsto.Horario is DateTime quandoPrevisto
+                                                 && previsto.CategoriaId is int categoriaPrevista)
+                                        {
+                                            var referencia = Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaPrevista, previsto.Fase, previsto.Numero).ToString();
+                                            <option value="@referencia" data-jogo-id="@referencia">
+                                                @quandoPrevisto.ToString("HH:mm")
+                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
+                                                · @CategoriaNaTela.Curto(previsto.Categoria) · @previsto.FaseNumerada (prévia)
+                                            </option>
+                                        }
+                                    }
+                                </optgroup>
                             }
                         </select>
+
+                        @* O AVISO DE IMPACTO: preenchido por wwwroot/js/impacto-da-troca.js quando a
+                           pessoa escolhe, com a resposta de /Torneios/ImpactoDaTroca. Nasce escondido
+                           porque sem escolha não há o que dizer. *@
+                        <div id="trocaImpacto" class="alert py-2 px-3 mt-2 mb-0 small d-none" role="status"></div>
+
                         <div class="form-text">
                             Os dois jogos trocam horário e quadra entre si. Jogo previsto (prévia) nasce no
                             horário que receber, assim que a fase anterior terminar.

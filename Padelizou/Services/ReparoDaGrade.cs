@@ -45,7 +45,7 @@ public static class ReparoDaGrade
     // ⚠️ Os pesos DUROS são comparados como um bloco só (ver `Custo`), então a ordem entre eles
     // também vale: trocar um impedimento por uma fase fora de ordem baixa o duro e é aceito;
     // o contrário sobe e é recusado.
-    private static int Peso(string regra) => regra switch
+    public static int Peso(string regra) => regra switch
     {
         AuditoriaDaGrade.SemHorario => 100_000,
         AuditoriaDaGrade.PessoaEmDoisJogos => 50_000,
@@ -63,7 +63,9 @@ public static class ReparoDaGrade
         _ => 0,
     };
 
-    private static bool EhDuro(string regra) => Peso(regra) >= 1_000;
+    // Duro = promessa feita (e paga) ao jogador, ou impossibilidade física. Nunca pode piorar —
+    // nem no reparo, nem numa troca na mão (Services/ImpactoDaTroca avisa em vermelho).
+    public static bool EhDuro(string regra) => Peso(regra) >= 1_000;
 
     // Quantas rodadas de melhoria no máximo. Cada uma percorre os jogos doentes; na prática duas
     // ou três bastam, e o teto existe pra que um empate patológico não vire laço infinito.
