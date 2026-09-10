@@ -16,6 +16,17 @@
     // Pra onde o POST das setas volta (a aba de onde se clicou). Fora do atributo `model=""` de
     // propósito: aspas dentro de aspas quebram o parser do Razor.
     var voltarParaAqui = ViewData["TargetAction"] as string;
+
+    // O RÓTULO DO JOGO nos modais (⇄, relógio, quadra) e o horário no formato do
+    // `<input type="datetime-local">`. Eram a mesma expressão copiada em três botões; viraram
+    // variável quando o quarto uso (o menu ⋯) apareceu — e porque `model=""` de partial não
+    // aceita aspas dentro, pela mesma razão do `voltarParaAqui` aqui em cima.
+    var rotuloDoJogo = $"{jogo.Codigo} · {jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário"} · {jogo.Dupla1.NomeDeExibicao} x {jogo.Dupla2.NomeDeExibicao}";
+    var horarioDoJogoNoInput = jogo.HorarioPrevisto?.ToString("yyyy-MM-dd'T'HH:mm") ?? "";
+    var referenciaDoJogo = jogo.Id.ToString();
+    // As setas ↑↓ do menu só em jogo AGENDADO: mover quem está em quadra é reescrever o que
+    // está acontecendo. O menu em si continua no AO VIVO, por causa do relógio.
+    var ehAgendado = jogo.Status == "Agendada";
     var g1 = jogo.GamesDupla1 ?? 0;
     var g2 = jogo.GamesDupla2 ?? 0;
     var venceu1 = Model.Finalizada && g1 > g2;
@@ -204,31 +215,12 @@
                             <i class="bi bi-play-fill"></i>
                         </button>
                     </form>
-                    @* ↑↓: mover o jogo UMA linha. Vizinho em outro horário → o slot inteiro troca
-                       (hora + quadra + clube); vizinho no mesmo horário → troca a posição dentro
-                       dele (Services/OrdemNoHorario). Só em jogo agendado: mover quem está em
-                       quadra seria reescrever o que está acontecendo. *@
-                    @if (jogo.Status == "Agendada" && jogo.TorneioId is int torneioDaLinha)
-                    {
-                        <partial name="_SetasDaOrdem" model="(torneioDaLinha, jogo.Id.ToString(), voltarParaAqui)" />
-                    }
                     <button type="button" class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
                             data-jogo-id="@jogo.Id"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                            data-jogo-rotulo="@rotuloDoJogo"
                             title="Trocar horário" aria-label="Trocar horário">
                         <i class="bi bi-arrow-left-right"></i>
-                    </button>
-                    @* Definir o horário NA MÃO (10/09/2026): a troca acima precisa de outro jogo
-                       pra trocar de lugar; aqui o organizador digita a hora. Mesmo modal pro
-                       torneio inteiro, em _JogosDoTorneio. *@
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="modal" data-bs-target="#modalDefinirHorario"
-                            data-jogo-id="@jogo.Id"
-                            data-jogo-horario="@(jogo.HorarioPrevisto?.ToString("yyyy-MM-dd'T'HH:mm") ?? "")"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
-                            title="Definir horário na mão" aria-label="Definir horário na mão">
-                        <i class="bi bi-clock"></i>
                     </button>
                 }
                 @* Mudar SÓ a quadra. Trocar horário arrasta o slot inteiro (hora + quadra), e
@@ -240,7 +232,7 @@
                             data-bs-toggle="modal" data-bs-target="#modalTrocarQuadra"
                             data-jogo-id="@jogo.Id"
                             data-jogo-quadra="@jogo.NomeQuadra"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                            data-jogo-rotulo="@rotuloDoJogo"
                             title="Mudar de quadra" aria-label="Mudar de quadra">
                         <i class="bi bi-geo-alt"></i>
                     </button>
@@ -279,6 +271,19 @@
                    aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">
                     <i class="bi bi-pencil"></i>
                 </a>
+                @* ⋯ — o relógio (definir horário na mão) e as setas ↑↓ moram aqui desde
+                   10/09/2026 (🗣️ *"tira o ⇄ e o relogio pra um menu ⋯"*, depois corrigido pra
+                   *"relogio e as setas"*). Fica por ÚLTIMO na barra, que é onde todo mundo
+                   procura um ⋯, e só enquanto o jogo não acabou: em jogo finalizado não há
+                   horário pra marcar nem linha pra subir.
+
+                   ⚠️ As setas SÓ em jogo agendado — mover quem está em quadra seria reescrever
+                   o que está acontecendo. O menu continua existindo no AO VIVO por causa do
+                   relógio, e é por isso que a decisão vem daqui e não de dentro da partial. *@
+                @if (!Model.Finalizada)
+                {
+                    <partial name="_MenuDoJogo" model="(jogo.TorneioId, referenciaDoJogo, voltarParaAqui, horarioDoJogoNoInput, rotuloDoJogo, ehAgendado)" />
+                }
             </span>
         }
         else if (podeMarcarSemSerDaMesa)

@@ -19,6 +19,22 @@
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar: a suíte inteira passa e o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(6084)`). A tela em si só se confere no `dev`.
 
+> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
+>
+> ✅ **O CORTE É POR QUANDO A AÇÃO ACONTECE, e é o que faz a escolha dele fechar.** Fica na barra o trabalho do **dia de jogo**, com o clube esperando: ▶ começar, ⇄ trocar de horário com outro jogo (choveu, a dupla não veio), 📍 mudar de quadra, ✏️ marcar placar — um toque cada. Vai pro menu o trabalho de **antes**, montando a grade sentado: o relógio (digitar a hora) e as setas ↑↓.
+>
+> 📏 **MEDIDO NO CHROMIUM, e a barra agora é UMA linha de 360px pra cima** (era duas desde as setas). Aos 320px continuam duas: 5 botões de 48px pedem 259px e o cartão oferece 221px — não tem conta que resolva sem encolher o alvo de dedo.
+>
+> 🕳️ **A MEDIÇÃO PEGOU UM DEFEITO QUE O TESTE NÃO PEGARIA: o menu aberto media 356px** e encostava nas duas bordas de um celular de 390px. Causa: `.pdz-jl-setas` continuava `display: flex` — a regra que servia na barra punha "Subir uma linha" e "Descer uma linha" **lado a lado**. Virou `flex-direction: column` e o menu foi pra 222px. ⚠️ Sem abrir o menu no navegador isso passaria: o Razor está certo, o CSS é que estava aplicando uma regra de outro contexto.
+>
+> ⚠️ **AS SETAS GANHARAM RÓTULO ESCRITO** ("Subir uma linha" / "Descer uma linha"). Na barra, ↑ e ↓ lado a lado se explicavam; numa lista vertical, "↑" sozinho não diz nem para onde nem o quê.
+>
+> ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
+>
+> 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+
 > **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
@@ -52,6 +68,20 @@
 > ⚠️ **O `main` andou DUAS VEZES no meio do caminho** (PRs #149, #152, #154 de sessões paralelas), e as duas vezes o conflito foi só no `STATUS.md`, no mesmo lugar: o cabeçalho "Última atualização". A resolução é mecânica e vale anotar — **o bloco novo fica no topo com o cabeçalho, e o que estava lá vira entrada datada normal**. Nenhuma linha de código conflitou nas duas mesclas.
 >
 >
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-981-978401d`** (15h18 de Brasília — runs 181 e 182 do Deploy). PR #157, o dia da semana que comia o nome do clube na árvore da chave. **Sem migration.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA:** `HTTP 200`, corpo `ok`, nos **dois** domínios, por `curl` daqui — verificação independente, e não só o healthcheck do próprio `deploy.sh`. As entradas anteriores desta sessão não conseguiram (o proxy bloqueava o domínio) e ficaram só com o job verde; a diferença estava dita lá e some aqui. Como o `/healthz` deste app também confere o schema, o 200 diz que o modelo EF do build novo casa com o banco.
+>
+> 🕳️ **O QUE ESTE BUILD CONSERTA É UMA REGRESSÃO QUE ESTAVA NO AR DESDE O `build-961`** — minha, publicada de manhã e achada pela revisão adversarial do meu próprio diff, que terminou **depois** do deploy. Na árvore da chave o `sex ` empurrava a etiqueta de quadra/clube pra fora de uma linha `nowrap; overflow: hidden` **sem reticências**: medido no Chromium a 390px, a vaga da chave perdia **23px dos 45** de "Er Padel" e a chave projetada perdia **49 de 49** — o clube sumia inteiro, calado. O dia da semana ficou onde cabe (listas de jogos e mini-jogo do grupo, medido em 351px de linha).
+>
+> 📌 **A LIÇÃO DE PROCESSO É SOBRE A ORDEM:** a revisão do diff rodou em paralelo ao CI e **não terminou antes do merge**. Mesclar sem esperar por ela custou um build errado no ar por ~45 minutos. Revisão que não bloqueia o merge é revisão que chega tarde.
+>
+> 🔁 **E A REVISÃO PEGOU UM TERCEIRO COMENTÁRIO MEU AFIRMANDO O INVERSO DO CÓDIGO** — o do `PixDoOrganizador` dizia que excluir a família inteira do Americano "recolheria o card de quem nunca pagou". É o oposto: sem o bloco, `minhas` fica vazia, o `Count > 0` dá falso e o método devolve `false` pra **todo mundo**, pago ou não — o card **nunca recolhe** naquele formato. Ninguém perde o caminho de pagar (é o lado seguro), mas a funcionalidade morre calada. Três comentários errados num dia é padrão, não azar: **o comentário que explica um `if` merece a mesma desconfiança que o `if`.**
+>
+> 📌 **UMA LIÇÃO SOBRE COMO EU RODEI A REVISÃO, pra quem repetir:** dos 13 achados, 12 aparecem como "derrubados" pelos céticos — e **não porque fossem falsos**, mas porque eu **corrigi o código enquanto a verificação rodava**, e eles foram olhar uma árvore já consertada. Verificação adversarial precisa rodar contra um commit CONGELADO; do contrário o placar mente nos dois sentidos.
+>
+> ⏱️ **E UMA ARMADILHA DESTE AMBIENTE, PRA NÃO SE PERDER:** os `sleep` da sessão web **não consomem tempo real de mundo** — o relógio do sandbox congela e a espera é creditada sem que o GitHub ande. Eu li isso como "o runner está lento" e queimei dezenas de consultas em laço; o `main` não tinha andado um merge sequer. Quem precisa esperar CI aqui **agenda um check-in** (`send_later`, que roda no servidor, em tempo real) e encerra o turno — não fica em laço de polling.
+>
 > **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
 > 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
@@ -76,8 +106,6 @@
 >
 > 🧪 **Os dois caminhos do passo foram rodados aqui, com o corpo do YAML extraído e executado em `bash -e`:** com o `palpitrometro.js` corrigido, `TUDO VERDE` e `exit=0`; com o `palpitrometro.js` de antes da trava (`git show HEAD~1`), as 3 conferências vermelhas viram 3 `::error::JS:` e `exit=1`. ⚠️ **Não é o CI de verdade** (não dá pra rodar o Actions daqui) — é o mesmo script no mesmo shell.
 >
-> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
->
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-970-8847871`** (14h51 e 14h53 de Brasília — runs 176 e 178). PR #152. ✅ **SEM MIGRATION.**
 >
 > 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
@@ -99,7 +127,6 @@
 > ⚠️ **O `main` ANDOU DEPOIS DO MEU MERGE, e o `build-970` NÃO leva o que veio depois** (PRs #154 e #149, mesclados minutos adiante). Foi pedido **pela tag**, e não como "o mais recente", justamente por isso — havia três sessões mesclando na mesma meia hora. Nada foi revertido: o `build-970` descende dos `build-958`/`961`/`962` que já estavam no ar.
 >
 > 🕳️ **E FICA ANOTADA UMA ARMADILHA NOVA DA API DE ACTIONS: a listagem de runs atrasa.** Disparei o `dev`, recebi `204`, listei os runs e **não achei o meu** — concluí que o 204 não tinha virado run (é a lição que o STATUS já registrava) e disparei de novo. Os dois viraram run: **176 e 177, o mesmo `build-970` instalado duas vezes seguidas no `dev`**. Sem dano (é o mesmo pacote), mas o certo é **esperar e reconsultar** antes de redisparar: `204` continua não sendo prova, e a ausência na listagem também não é prova do contrário. Quem confirma de verdade é o **log do job** (`==> Feito. build-970-8847871 no ar em dev`), não a lista.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >

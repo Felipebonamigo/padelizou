@@ -1,0 +1,56 @@
+@model (int? TorneioId, string Referencia, string? VoltarPara, string HorarioAtual, string Rotulo, bool ComSetas)
+@*
+    ⋯ — O MENU DA LINHA DE JOGO (10/09/2026).
+
+    🗣️ Felipe, depois que a barra de 7 botões passou a quebrar em duas linhas no celular:
+    *"tira o ⇄ e o relogio pra um menu ⋯"*, e logo em seguida, corrigindo qual par sai da
+    barra: *"relogio e as setas"*.
+
+    O CORTE É POR QUANDO A AÇÃO ACONTECE, e é o que faz a escolha dele fazer sentido:
+      • fica na barra o trabalho do DIA DE JOGO, com o clube esperando — ▶ começar,
+        ⇄ trocar de horário com outro jogo (choveu, a dupla não veio), 📍 mudar de quadra,
+        ✏️ marcar o placar. Um toque cada.
+      • vai pro menu o trabalho de ANTES, montando a grade sentado — o relógio (digitar o
+        horário) e as setas ↑↓ (arrumar a ordem da linha).
+
+    ⚠️ E O CUSTO ESTÁ ANOTADO, porque ele cai justamente sobre o pedido de hoje de manhã:
+    arrumar sete semifinais na seta agora é abrir o menu sete vezes — cada POST recarrega a
+    página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar, o
+    caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
+
+    ⚠️ `dropdown-menu` é `<div>` e não `<ul>` de propósito: o formulário das setas (dois
+    submits num form só) não caberia dentro de um `<li>` sem embrulho, e o Bootstrap aceita
+    item solto dentro do div.
+
+    ⚠️ O `_SetasDaOrdem` continua sendo UMA partial só, usada pelo jogo real e pela prévia —
+    o que muda entre eles é a referência (Services/ReferenciaDoJogo), nunca o markup.
+*@
+<div class="dropdown">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown"
+            aria-expanded="false" title="Mais ações" aria-label="Mais ações">
+        <i class="bi bi-three-dots"></i>
+    </button>
+    @* `dropdown-menu-end` alinha o menu pela DIREITA do ⋯: o botão é o último da barra, que
+       por sua vez é colada na direita do cartão — abrindo pela esquerda o menu nasceria
+       metade fora da tela no celular. *@
+    <div class="dropdown-menu dropdown-menu-end">
+        @* As setas só em jogo AGENDADO: mover quem está em quadra é reescrever o que está
+           acontecendo. Quem decide é quem chama — aqui só se obedece. *@
+        @if (Model.ComSetas && Model.TorneioId is int torneioDasSetas)
+        {
+            <partial name="_SetasDaOrdem" model="(torneioDasSetas, Model.Referencia, Model.VoltarPara)" />
+            <hr class="dropdown-divider" />
+        }
+        @* Definir o horário NA MÃO: a troca (⇄, que ficou na barra) precisa de outro jogo pra
+           trocar de lugar; aqui o organizador digita a hora. O modal é um só pro torneio
+           inteiro e mora em _JogosDoTorneio — este botão só diz de qual jogo se trata. *@
+        <button type="button" class="dropdown-item"
+                data-bs-toggle="modal" data-bs-target="#modalDefinirHorario"
+                data-jogo-id="@Model.Referencia"
+                data-jogo-horario="@Model.HorarioAtual"
+                data-jogo-rotulo="@Model.Rotulo"
+                title="Definir horário na mão" aria-label="Definir horário na mão">
+            <i class="bi bi-clock"></i> Definir horário na mão
+        </button>
+    </div>
+</div>
