@@ -126,6 +126,23 @@ public class BotaoConferirGradeTests
         Assert.Contains("asp-action=\"ConferirGrade\"", fonte);
     }
 
+    // 🗣️ Felipe, 10/09/2026, depois de uma noite trocando horário na mão: *"crie um aviso, quando
+    // clicar no recalcular horarios, para avisar q se clicar ali, ire gerar todos horarios novos e
+    // o que foi feito sera perdido"*. O aviso já existia e dizia o que o botão FAZ; faltava dizer o
+    // que ele DESFAZ.
+    [Fact]
+    public void O_recalcular_horarios_avisa_que_os_ajustes_na_mao_se_perdem()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+
+        var formulario = fonte.Substring(fonte.IndexOf("asp-action=\"RefazerGrade\""));
+        var aviso = formulario.Substring(0, formulario.IndexOf("</form>"));
+
+        Assert.Contains("data-confirmar=", aviso);
+        Assert.Contains("perdid", aviso);          // "será perdida" / "serão perdidos"
+        Assert.Contains("na mão", aviso);
+    }
+
     private static string PastaDoProjeto()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
