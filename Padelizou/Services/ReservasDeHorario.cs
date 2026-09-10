@@ -50,8 +50,15 @@ public static class ReservasDeHorario
     // essa troca calada e punha o jogo de volta numa quadra que agora é de outro. Esse jogo segue
     // como qualquer fora de ordem, e a reserva dele morre. Quem está na hora da reserva fica onde
     // está, com a quadra que TEM (mudar de quadra depois de nascer também é decisão de alguém).
+    //
+    // `pessoaOcupada(jogo, quando)`: alguém deste jogo já está marcado nesse horário em OUTRO jogo?
+    // A prévia não sabe quem vai jogar, então a reserva foi feita às cegas; na hora em que a
+    // rodada nasce as duplas existem, e o encaixe respeitaria a agenda da pessoa — a reserva
+    // também tem que respeitar (revisão adversarial, 10/09/2026). Se ela poria a mesma pessoa em
+    // duas quadras no mesmo minuto, morre, e o jogo vai pra grade como qualquer outro.
     public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
-        IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe)
+        IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe,
+        Func<Partida, DateTime, bool>? pessoaOcupada = null)
     {
         var reservados = new List<Partida>();
         var mortas = new List<ReservaDeHorario>();
@@ -73,6 +80,12 @@ public static class ReservasDeHorario
 
             if (jogo.HorarioPrevisto == null)
             {
+                if (pessoaOcupada != null && pessoaOcupada(jogo, reserva.Horario))
+                {
+                    mortas.Add(reserva);
+                    continue;
+                }
+
                 jogo.HorarioPrevisto = reserva.Horario;
                 jogo.NomeQuadra = reserva.NomeQuadra;
             }

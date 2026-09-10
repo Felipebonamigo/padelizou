@@ -1170,12 +1170,15 @@ namespace Padelizou.Controllers
                     ? " O jogo previsto nasce nesse horário quando a fase anterior terminar."
                     : "");
 
+            // ⚠️ NA MESMA MENSAGEM, e não num TempData["Aviso"] à parte: a página Jogos, de onde
+            // o organizador troca, só mostra Sucesso e Erro (o "Aviso" é do Details) — o aviso
+            // separado era descartado calado, exatamente o que ele existe pra não ser.
             if (mortas.Count > 0)
             {
                 var nomeDaCategoria = partidas
                     .GroupBy(p => p.CategoriaId)
                     .ToDictionary(g => g.Key, g => g.First().Categoria.Nome);
-                TempData["Aviso"] = "Com essa troca, deixou de valer e foi desfeita a reserva de: " +
+                TempData["Sucesso"] += " ⚠️ Com essa troca, deixou de valer e foi desfeita a reserva de: " +
                     string.Join("; ", mortas.Select(r =>
                         $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
                         $"({r.Horario:dd/MM HH:mm})")) +

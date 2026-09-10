@@ -478,8 +478,28 @@ public class RoboDoChaveamento
         DateTime? AbreARodadaDe(int posto, int categoriaId) =>
             LevasDaGrade.PisoDaCategoria(torneio, jaMarcados, posto, categoriaId);
 
+        // A agenda das PESSOAS, pra reserva não pôr alguém em duas quadras no mesmo minuto
+        // (revisão adversarial, 10/09/2026). Mesma régua por intervalo do GradeDeJogos.Encaixar
+        // (`Cruza`: menos de uma partida de distância). Os fora de ordem ficam de fora da conta
+        // porque vão ser remarcados de qualquer jeito.
+        var ocupantesPorDupla = await OcupantesPorDuplaAsync(torneioId.Value);
+        var duracaoDaPartida = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
+        var queFicamOndeEstao = jaMarcados.Except(forasDeOrdem).ToList();
+
+        int[] Pessoas(Partida p) => Gente(p.Dupla1Id).Concat(Gente(p.Dupla2Id)).ToArray();
+        int[] Gente(int duplaId) =>
+            ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0 ? pessoas : new[] { -duplaId };
+        bool PessoaOcupada(Partida jogo, DateTime quando)
+        {
+            var minhas = Pessoas(jogo);
+            return queFicamOndeEstao.Any(p => !ReferenceEquals(p, jogo)
+                && p.HorarioPrevisto is DateTime h
+                && (h - quando).Duration() < duracaoDaPartida
+                && Pessoas(p).Intersect(minhas).Any());
+        }
+
         var (reservados, mortas) = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
-            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId));
+            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId), PessoaOcupada);
 
         // A reserva de um jogo que já saiu dela (trocado depois de nascer) morre aqui — quem chama
         // grava junto com a rodada nova. Ver ReservasDeHorario.Aplicar.
@@ -524,7 +544,7 @@ public class RoboDoChaveamento
         // acabou de calcular. O piso contra "marcar no passado" continua dentro dela.
         LevasDaGrade.Encaixar(torneio, paraEncaixar, torneio.AberturaDaGrade, intocados,
             new LevasDaGrade.Restricoes(
-                await OcupantesPorDuplaAsync(torneioId.Value),
+                ocupantesPorDupla,
                 await QuadrasEmUsoAsync(torneioId.Value),
                 await QuadrasPreferidasAsync(torneioId.Value),
                 janelasProibidas,

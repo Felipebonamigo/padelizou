@@ -435,6 +435,56 @@ public class ReservaDeHorarioTests
         c.Ctx.ChangeTracker.Clear();
         Assert.Equal(As("20:55"), (await JogoAsync(c, "A2")).HorarioPrevisto);
         Assert.Empty(await ReservasAsync(c));
-        Assert.NotNull(controller.TempData["Aviso"]);
+
+        // ⚠️ NA MENSAGEM DE SUCESSO, e não num TempData["Aviso"] à parte: a página Jogos (de onde
+        // o organizador troca) só mostra Sucesso e Erro — o aviso separado era descartado calado.
+        var mensagem = Assert.IsType<string>(controller.TempData["Sucesso"]);
+        Assert.Contains("deixou de valer", mensagem);
+        Assert.Contains("3ª Feminina", mensagem);
+    }
+
+    [Fact]
+    public async Task A_reserva_nao_poe_a_mesma_pessoa_em_duas_quadras_no_mesmo_minuto()
+    {
+        // O jogador P joga na A e na B. A Final da A está reservada pras 22:00 na Quadra 1, e a B
+        // tem um jogo com P às 22:00 na Quadra 2 (a prévia não sabe quem joga, então não tinha como
+        // evitar). Quando a final nasce e P está nela, a reserva não pode valer: o encaixe respeita
+        // a agenda da pessoa, e a reserva também tem que respeitar. A final vai pra grade e a
+        // reserva morre.
+        var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
+        await ReservarAsync(c, c.A, "Final", 1, "22:00", quadra: "Quadra 1");
+
+        var a1 = await c.Ctx.Partidas.Include(p => p.Dupla1).SingleAsync(p => p.Codigo == "A1");
+        var b2 = await c.Ctx.Partidas.Include(p => p.Dupla1).SingleAsync(p => p.Codigo == "B2");
+        a1.Dupla1.Jogador1Id = b2.Dupla1.Jogador1Id;   // P joga nas duas categorias
+        b2.HorarioPrevisto = As("22:00");
+        b2.NomeQuadra = "Quadra 2";
+        await c.Ctx.SaveChangesAsync();
+
+        await FinalizarAsync(c, "A1", "A2");           // a Dupla1 da A1 (com P) vence e vai pra final
+
+        var final = await c.Ctx.Partidas.SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
+        Assert.NotNull(final.HorarioPrevisto);
+        Assert.NotEqual(As("22:00"), final.HorarioPrevisto);
+        Assert.Empty(await ReservasAsync(c));
+    }
+
+    [Fact]
+    public async Task A_rodada_de_outra_categoria_nao_ocupa_o_slot_reservado_pra_um_jogo_que_ainda_vai_nascer()
+    {
+        // Uma quadra. A Final da A está reservada pras 21:06, e a A ainda está na semifinal. As
+        // Quartas da B fecham primeiro e a Semifinal da B nasce: sem enxergar a reserva, o encaixe
+        // a poria justamente às 21:06 — e a final nasceria em cima dela. A reserva de um jogo que
+        // ainda vai nascer entra no encaixe como jogo marcado (ReservasDeHorario.AindaPorNascer).
+        var c = Montar(faseDaB: "Quartas de Final");
+        await ReservarAsync(c, c.A, "Final", 1, "21:06");
+
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");
+
+        var semisDaB = await c.Ctx.Partidas.Where(p => p.CategoriaId == c.B.Id && p.Fase == "Semifinal").ToListAsync();
+        Assert.Equal(2, semisDaB.Count);
+        Assert.All(semisDaB, s => Assert.NotNull(s.HorarioPrevisto));
+        Assert.DoesNotContain(semisDaB, s => s.HorarioPrevisto == As("21:06"));
+        Assert.Single(await ReservasAsync(c));         // a reserva continua viva, esperando a final
     }
 }
