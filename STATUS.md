@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🔒 **TROCAR HORÁRIO DEPOIS DA CHAVE PUBLICADA JÁ FUNCIONAVA — agora está TRAVADO POR TESTE.** Nenhum código de produção mudou. **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-940-b01797d`** (12h55 e 12h58 de Brasília — runs 157 e 158). Leva junto **três PRs de duas sessões**: o #139 (travar por teste a troca de horário depois da chave publicada), o #137 (os dois testes instáveis da grade) e o #140 (recolher as chaves). ⚠️ **ESTE RELEASE TEM MIGRATION** — `20260910152847_CarimboDasChavesAvisadas`, do #140 —, diferente dos últimos de hoje. Ela é aditiva: coluna nova nula (`ChavesAvisadasEm`) mais um `UPDATE` que só a preenche; nada existente é apagado ou alterado, e o app aplica no startup.
+>
+> ⚠️ **O DEPLOY EM `prod` FALHOU NA PRIMEIRA TENTATIVA, e o modo como falhou é o que importa:** `ssh: connect to host *** port 22: Connection timed out`, no passo *Publicar*, **antes** de o `deploy.sh` rodar. Ou seja: nada foi instalado, a migration não tocou o banco, e prod ficou intacto no `build-928` — não foi um deploy pela metade. O `dev` tinha publicado 90 segundos antes na mesma máquina, o que apontava pra rede e não pra host errado; **uma** re-execução resolveu (tentativa 2, mesma run 158). 📌 **Fica anotado como o primeiro timeout de SSH do deploy** — se repetir, deixa de ser transitório e vira sinal de VPS.
+>
+> 🔎 **E fica anotado o limite deste ambiente de sessão web:** o proxy bloqueia `padelizou.com.br`, então **não dá pra conferir o `/healthz` por fora daqui**. Quem atesta o healthcheck é o próprio `deploy.sh` (que faz rollback automático se não vier 200) — o que é evidência de verdade, mas não é verificação independente, e a diferença precisa ser dita em vez de escondida.
+>
+> **10/09/2026** — 🔒 **TROCAR HORÁRIO DEPOIS DA CHAVE PUBLICADA JÁ FUNCIONAVA — agora está TRAVADO POR TESTE.** Nenhum código de produção mudou. **Sem migration.**
 >
 > 🗣️ Felipe: *"eu consigo trocar horarios depois de publicado e aprovado? se não, permita q tenha um botão la, altera tambem, pq terá alguns jogadores q vao querer trocar e as vezes tem trocas depois das chaves publicadas"*. **A resposta é sim**, e a pergunta merecia mais que um "sim": ela descreve o dia de jogo real, em que a troca chega por WhatsApp depois de a chave já estar no celular de todo mundo.
 >
