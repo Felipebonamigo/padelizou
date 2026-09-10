@@ -124,7 +124,15 @@
                                 }
                                 else if (jogo.HorarioPrevisto is DateTime h)
                                 {
-                                    <span>@DiaDaSemana.Curto(h) @h.ToString("dd/MM HH:mm")</span>
+                                    @* ⚠️ SEM o dia da semana, e MEDIDO: esta linha é `nowrap;
+                                       overflow: hidden` SEM reticências, e a etiqueta de quadra
+                                       é a última (`margin-left: auto`). No Chromium com o CSS
+                                       real, a 390px, na coluna mínima da grade, o "sex " faz
+                                       "Er Padel" perder 23px dos 45 — o nome do clube encurta
+                                       calado. Quem quer o dia da semana tem ele na LISTA de
+                                       jogos, onde a linha quebra. Ver
+                                       DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
+                                    <span>@h.ToString("dd/MM HH:mm")</span>
                                 }
                                 else
                                 {

@@ -117,6 +117,12 @@ public static class PixDoOrganizador
                 // Time fica de fora (a mesma exclusão do "Pagar agora" no controller): todo time
                 // é uma `Dupla` com o organizador no `Jogador1Id`, e sem isto um time sem
                 // pagamento manteria o card aberto pra sempre na tela dele.
+                //
+                // ⚠️ LISTA DE ESPERA CONTA, e é escolha: quem está na fila entra como qualquer
+                // inscrição, então uma vaga de espera não paga mantém o card aberto pra quem já
+                // pagou a outra. É o lado SEGURO (card aberto nunca tira o caminho de pagar), e
+                // é a MESMA régua do "Pagar agora" — filtrar aqui e não lá faria as duas telas
+                // discordarem sobre o que é uma inscrição minha.
                 .Where(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
                 .Select(d => d.Pago));
         }

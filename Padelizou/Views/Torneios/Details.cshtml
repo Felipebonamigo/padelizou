@@ -6071,7 +6071,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                             <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                             @if (previsto?.Horario is DateTime quando)
                                                             {
-                                                                <span>@DiaDaSemana.Curto(quando) @quando.ToString("dd/MM HH:mm")</span>
+                                                                @* ⚠️ SEM o dia da semana (medido): aqui é
+                                                                   PIOR que na vaga da chave — a 390px o
+                                                                   "sex " faz "Er Padel" perder 49px de 49,
+                                                                   isto é, o clube some inteiro e sem
+                                                                   reticências. Ver
+                                                                   DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
+                                                                <span>@quando.ToString("dd/MM HH:mm")</span>
                                                                 @if (!string.IsNullOrEmpty(previsto.Quadra))
                                                                 {
                                                                     <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
