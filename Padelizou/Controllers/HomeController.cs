@@ -148,6 +148,8 @@ namespace Padelizou.Controllers
                     Categoria = p.Categoria.Nome,
                     Horario = p.HorarioPrevisto!.Value,
                     Quadra = p.NomeQuadra,
+                    CategoriaId = p.CategoriaId,
+                    ClubeId = p.ClubeId,
                     // ⚠️ OS DOIS NOMES VÊM SEPARADOS, e a junção é feita EM MEMÓRIA logo abaixo.
                     // Aqui morava a concatenação inteira, com `Jogador2!` — escrita quando dupla
                     // incompleta nunca chegava a ter jogo. Desde 09/09/2026 ela entra na chave, e
@@ -167,6 +169,14 @@ namespace Padelizou.Controllers
                         : (p.Dupla1.Jogador2 == null ? null : (p.Dupla1.Jogador2.Apelido ?? p.Dupla1.Jogador2.Nome)),
                 })
                 .FirstOrDefaultAsync();
+
+            // Onde é o jogo, pela mesma régua das telas do torneio — uma consulta, só quando há
+            // jogo. Não se reimplementa a etiqueta aqui: é o degrau 2 da escada.
+            if (vm.ProximoJogo is { } proximo)
+            {
+                var sedesDoProximo = await SedesDoTorneio.CarregarAsync(_context, proximo.TorneioId);
+                proximo.Onde = LugarDoJogo.Etiqueta(sedesDoProximo, proximo.Quadra, proximo.CategoriaId, proximo.ClubeId);
+            }
 
             // Compromissos: aula que vou ter, aula que vou dar e quadra reservada.
             // (Jogo semanal de grupo fica de fora — é registrado depois que acontece.)

@@ -670,7 +670,7 @@
                                 {
                                     <option value="@candidato.Id" data-jogo-id="@candidato.Id">
                                         @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
-                                        @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra)}")
+                                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra, candidato.CategoriaId, candidato.ClubeId) is { } ondeReal ? $"· {ondeReal}" : "")
                                         · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
                                         (@candidato.Categoria.Nome)
                                     </option>

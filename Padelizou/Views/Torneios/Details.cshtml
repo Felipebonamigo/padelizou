@@ -5808,9 +5808,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 {
                                                                     <span>por ordem</span>
                                                                 }
-                                                                @if (!string.IsNullOrEmpty(jogoDoGrupo.NomeQuadra))
+                                                                @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogoDoGrupo.NomeQuadra, jogoDoGrupo.CategoriaId, jogoDoGrupo.ClubeId) is { } ondeJoga)
                                                                 {
-                                                                    <span class="pdz-grupo-jogo-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogoDoGrupo.NomeQuadra, jogoDoGrupo.CategoriaId, jogoDoGrupo.ClubeId)</span>
+                                                                    <span class="pdz-grupo-jogo-quadra">@ondeJoga</span>
                                                                 }
                                                             </div>
                                                             <div class="pdz-grupo-jogo-lado @(ganhou1 ? "pdz-chave-venceu" : ganhou2 ? "text-muted" : "")">
@@ -5846,10 +5846,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                    saber o que ganha terminando em primeiro. O cruzamento sai
                                    do mesmo motor do sorteio de verdade — ver
                                    Services/ChaveProjetada. *@
-                                var gruposDaCategoria = categoria.GruposTorneio
-                                    .Select(g => g.Nome).OrderBy(n => n).ToList();
+                                var gruposEmOrdem = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
+                                var gruposDaCategoria = gruposEmOrdem.Select(g => g.Nome).ToList();
+                                @* O tamanho de cada grupo decide quem descansa — é assim que a
+                                   prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
-                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2);
+                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2,
+                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
 
                                 if (rodadasProjetadas.Count == 0)
                                 {
