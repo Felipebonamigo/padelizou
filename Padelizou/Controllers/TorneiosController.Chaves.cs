@@ -1034,10 +1034,32 @@ namespace Padelizou.Controllers
             var remarcar = todos.Where(p => p.Status == "Agendada").OrderBy(p => p.Id).ToList();
             var intocados = todos.Where(p => p.Status != "Agendada").ToList();
 
+            // ⚠️ O CLUBE VAI EMBORA JUNTO COM A HORA E A QUADRA (10/09/2026), e isso é correção,
+            // não arrumação. O slot é o TRIO (hora, quadra, clube): `TrocaDeHorario.Trocar` troca
+            // os três juntos e `OrdemDeLiberacao.CarimbarOClube` grava o terceiro A PARTIR da
+            // quadra. Zerar dois e deixar o carimbo do slot ANTIGO deixava um terço do slot velho
+            // vivo dentro do recálculo — e quem o lia era o reparo que fecha este método:
+            // `TrocaDeHorario.Lado.ClubeDaVaga` responde "em que clube fica esta vaga?" pelo
+            // carimbo do jogo, que apontava pro horário que o jogo JÁ NÃO OCUPA. No SORTEIO o mesmo
+            // reparo roda ANTES do carimbo, com `ClubeId` nulo, e a resposta vem da quadra — a
+            // certa. Duas respostas pra mesma pergunta: a régua de sede (categoria presa em casa
+            // contra vaga no clube alugado, `TrocaDeHorario.NaoPodeIrPraVagaDe`) recusava aqui a
+            // troca que aceitava lá, e a grade saía diferente da do sorteio sem nada ter mudado.
+            // Era a instabilidade de `GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_
+            // grade_do_sorteio` (~15% dos sorteios, sempre "2 de 44 jogos trocaram de horário");
+            // medido com confrontos FIXOS, 45 de 160 formas de torneio divergiam, e NENHUMA sem
+            // categoria presa em casa. O carimbo volta logo abaixo, pela quadra nova.
+            // (`RefazerAGradeEmDoisClubesTests`)
             foreach (var jogo in remarcar)
             {
                 jogo.HorarioPrevisto = null;
                 jogo.NomeQuadra = null;
+                jogo.ClubeId = null;
+                // A POSIÇÃO DENTRO DO HORÁRIO VAI JUNTO (10/09/2026, Services/OrdemNoHorario): o
+                // botão promete "desfaz as trocas feitas na mão", e a ordem manual é uma delas.
+                // Mantê-la faria a fila obedecer a uma escolha feita sobre uma grade que não existe
+                // mais — o jogo 1 do horário sendo o que o organizador pôs em cima de outro jogo.
+                jogo.OrdemNoHorario = null;
             }
 
             // As RESERVAS de horário (Models/ReservaDeHorario) vão embora junto: a reserva é um
@@ -1275,6 +1297,90 @@ namespace Padelizou.Controllers
                 return VoltarPara(voltarPara, id);
             }
 
+            return await TrocarSlotsAsync(id, refA, refB, voltarPara);
+        }
+
+        // AS SETAS ↑↓ DA LINHA: mover um jogo UMA posição na lista (10/09/2026).
+        //
+        // 🗣️ Felipe, arrumando o domingo do Er: *"quando eu altero um jogo, no mesmo horario, ele nao
+        // esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu
+        // quiser"* — e, logo depois: *"só cuide q se colocar o jogo pra cima, ele mude o horario e
+        // quadra tb se tiver, e avise se atrapalhar algo com ficar 2 jogos seguidos pra alguem"*.
+        //
+        // ⚠️ A SETA NÃO É UMA SEGUNDA MÁQUINA: ela é o ⇄ com a linha de cima (ou de baixo). Vizinho
+        // em OUTRO horário → troca o slot inteiro, hora + quadra + clube, que é exatamente o que ele
+        // pediu; vizinho no MESMO horário → hora e quadra já são iguais dos dois lados, e o que troca
+        // é a posição (Services/OrdemNoHorario). Uma régua só pros dois casos, e o aviso de impacto
+        // sai do mesmo lugar. Duas contas de "quem vem antes" fariam a seta mover o jogo pra um
+        // lugar diferente do que a tela mostra.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MoverNoHorario(int id, string? jogo, string? direcao, string? voltarPara = null)
+        {
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            int passo = direcao switch { "cima" => -1, "baixo" => +1, _ => 0 };
+            var referencia = ReferenciaDoJogo.Ler(jogo);
+            if (passo == 0 || referencia == null)
+            {
+                TempData["Erro"] = "Não entendi pra onde mover o jogo.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            var fila = await FilaDaAbaJogosAsync(id);
+            int onde = fila.FindIndex(l => l.Referencia == referencia);
+            if (onde < 0)
+            {
+                TempData["Erro"] = "Não encontrei o jogo na lista — a página pode estar velha. Recarregue e tente de novo.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            int vizinho = onde + passo;
+            if (vizinho < 0 || vizinho >= fila.Count)
+            {
+                TempData["Erro"] = passo < 0
+                    ? "Este jogo já é o primeiro da lista."
+                    : "Este jogo já é o último da lista.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            // Prévia de projeção antiga (sem categoria) não tem referência — e por isso não tem
+            // botão. Se ela for a vizinha, o movimento pararia nela: melhor dizer do que mover
+            // pro lugar errado.
+            if (fila[vizinho].Referencia is not ReferenciaDoJogo doVizinho)
+            {
+                TempData["Erro"] = "O jogo logo " + (passo < 0 ? "acima" : "abaixo")
+                    + " é uma prévia sem categoria — não dá pra trocar com ele.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            return await TrocarSlotsAsync(id, referencia, doVizinho, voltarPara);
+        }
+
+        // A FILA DA ABA JOGOS, do jeito que a TELA a desenha — jogos agendados e prévias, na mesma
+        // ordem (Services/OrdemNoHorario.Ordenar). SEM os filtros de tela, de propósito: a seta move
+        // o jogo na grade do torneio, não no recorte de quem está olhando. Com o filtro no meio, ↑
+        // pularia por cima do jogo escondido e a posição gravada diria outra coisa.
+        private async Task<List<OrdemNoHorario.Linha>> FilaDaAbaJogosAsync(int torneioId)
+        {
+            var partidas = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .Where(p => p.TorneioId == torneioId)
+                .ToListAsync();
+
+            var projetados = await ProjetarProximasFasesAsync(torneioId, partidas);
+            return OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados);
+        }
+
+        // O MIOLO DA TROCA, compartilhado pelo ⇄ e pelas setas ↑↓. Cada lado recebe o slot do outro:
+        // hora, quadra, clube — e a POSIÇÃO dentro do horário, que é o que faz a troca entre dois
+        // jogos do mesmo horário significar alguma coisa.
+        private async Task<IActionResult> TrocarSlotsAsync(int id, ReferenciaDoJogo refA, ReferenciaDoJogo refB,
+            string? voltarPara)
+        {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
@@ -1311,11 +1417,32 @@ namespace Padelizou.Controllers
                 return VoltarPara(voltarPara, id);
             }
 
+            // O CONFERIR GRADE ANTES DA MEXIDA. 🗣️ *"avise se atrapalhar algo com ficar 2 jogos
+            // seguidos pra alguem ou algo assim"*. A conta é a de Services/ImpactoDaTroca — a mesma
+            // que o modal do ⇄ já mostra ANTES do clique. Aqui ela é medida de verdade, depois, e
+            // por isso vale também pras setas, que não têm modal onde perguntar.
+            var duplasDoTorneio = await _context.Duplas
+                .Where(d => d.Categoria!.TorneioId == id)
+                .ToListAsync();
+            var antes = Padelizou.Services.ImpactoDaTroca.Contar(torneio, partidas, duplasDoTorneio, sedes);
+
             // O slot é o TRIO hora + quadra + clube (PR #120: "o clube é pelo horário"). O clube
             // do slot de uma prévia sai da quadra dela — e, sem quadra cadastrada, é o do torneio,
             // como CarimbarOClube faria.
             var slotDeA = (Horario: ladoA.Horario!.Value, Quadra: ladoA.Quadra, Clube: ladoA.ClubeDaVaga(sedes) ?? torneio.ClubeId);
             var slotDeB = (Horario: ladoB.Horario!.Value, Quadra: ladoB.Quadra, Clube: ladoB.ClubeDaVaga(sedes) ?? torneio.ClubeId);
+
+            // ⚠️ A POSIÇÃO DENTRO DO HORÁRIO SÓ EXISTE DEPOIS DE SER ESCRITA (Services/OrdemNoHorario).
+            // Dois jogos do mesmo horário, os dois no automático, trocarem "automático" por
+            // "automático" devolve a mesma fila — era o ⇄ no-op que o Felipe reportou. Antes de
+            // trocar, o prefixo do horário até o mais abaixo dos dois ganha número explícito; quem
+            // está debaixo continua no automático, que já vem depois do manual.
+            var fila = OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados);
+            var linhaA = fila.FirstOrDefault(l => l.Referencia == refA);
+            var linhaB = fila.FirstOrDefault(l => l.Referencia == refB);
+            var numerados = linhaA != null && linhaB != null
+                ? OrdemNoHorario.Materializar(fila, linhaA, linhaB).ToList()
+                : new List<(OrdemNoHorario.Linha Linha, int Ordem)>();
 
             // Cada lado recebe o slot do outro: o real na própria linha, o previsto numa reserva
             // (a dele, se já tinha — a PK composta garante que é uma só).
@@ -1325,13 +1452,15 @@ namespace Padelizou.Controllers
             // reais não têm quadra (a Mesa chama), e três deles apareciam com "Arena 4" no meio de
             // 43 sem quadra — na lista, no ICS e na Home do jogador. Hora e clube vêm do slot;
             // quadra só quando o slot era de um jogo real (a que o balcão deu, se deu).
-            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot, bool slotDePrevia)
+            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot, bool slotDePrevia,
+                int? ordem)
             {
                 if (lado.Real is Partida real)
                 {
                     real.HorarioPrevisto = slot.Horario;
                     real.NomeQuadra = torneio.SemHorarioPrevisto && slotDePrevia ? null : slot.Quadra;
                     real.ClubeId = slot.Clube;
+                    real.OrdemNoHorario = ordem;
                     return;
                 }
 
@@ -1352,10 +1481,50 @@ namespace Padelizou.Controllers
 
                 reserva.Horario = slot.Horario;
                 reserva.NomeQuadra = slot.Quadra;
+                reserva.OrdemNoHorario = ordem;
             }
 
-            Receber(ladoA, slotDeB, slotDePrevia: ladoB.Previsto != null);
-            Receber(ladoB, slotDeA, slotDePrevia: ladoA.Previsto != null);
+            // Os números do prefixo, gravados ANTES da troca.
+            //
+            // ⚠️ A PRÉVIA NUMERADA VIRA RESERVA no horário e na quadra em que ela JÁ ESTÁ — é o
+            // preço de ter posição: posição só existe em cima de um horário que não se move
+            // sozinho. Por isso o prefixo para no mais abaixo dos dois (OrdemNoHorario.Materializar)
+            // em vez de numerar o horário inteiro: quem está debaixo não é fixado à toa.
+            foreach (var (linha, ordem) in numerados)
+            {
+                if (linha.Jogo is Partida jogoNumerado)
+                {
+                    jogoNumerado.OrdemNoHorario = ordem;
+                    continue;
+                }
+
+                if (linha.Referencia is not ReferenciaDoJogo dePrevia || linha.Horario is not DateTime quando) continue;
+
+                var reservaDaFila = reservas.FirstOrDefault(r =>
+                    r.CategoriaId == dePrevia.CategoriaId && r.Fase == dePrevia.Fase && r.Numero == dePrevia.Numero);
+                if (reservaDaFila == null)
+                {
+                    reservaDaFila = new ReservaDeHorario
+                    {
+                        CategoriaId = dePrevia.CategoriaId, Fase = dePrevia.Fase, Numero = dePrevia.Numero,
+                        Horario = quando, NomeQuadra = linha.Previsto?.Quadra,
+                    };
+                    reservas.Add(reservaDaFila);
+                    _context.ReservasDeHorario.Add(reservaDaFila);
+                }
+                reservaDaFila.OrdemNoHorario = ordem;
+            }
+
+            int? OrdemAgoraDe(OrdemNoHorario.Linha? linha) =>
+                linha == null ? null
+                : numerados.Any(n => n.Linha == linha) ? numerados.First(n => n.Linha == linha).Ordem
+                : linha.Ordem;
+
+            var ordemDeA = OrdemAgoraDe(linhaA);
+            var ordemDeB = OrdemAgoraDe(linhaB);
+
+            Receber(ladoA, slotDeB, slotDePrevia: ladoB.Previsto != null, ordemDeB);
+            Receber(ladoB, slotDeA, slotDePrevia: ladoA.Previsto != null, ordemDeA);
 
             // A CONFERÊNCIA: a prévia refeita com a troca tem que mostrar cada jogo previsto no
             // slot que ele recebeu. Se não mostra, a reserva não vale (o jogo cairia antes de a
@@ -1367,10 +1536,10 @@ namespace Padelizou.Controllers
                 if (lado.Previsto == null) continue;
 
                 var referencia = lado.Referencia;
-                var depois = conferencia.FirstOrDefault(j =>
+                var depoisDaTroca = conferencia.FirstOrDefault(j =>
                     j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero);
 
-                if (depois == null || depois.Horario != slot.Horario)
+                if (depoisDaTroca == null || depoisDaTroca.Horario != slot.Horario)
                 {
                     TempData["Erro"] = $"Não dá pra pôr {lado.Rotulo} às {slot.Horario:dd/MM HH:mm}: nesse horário a fase " +
                         "anterior dessa categoria ainda não terminou. Troque com um jogo mais tarde.";
@@ -1407,6 +1576,18 @@ namespace Padelizou.Controllers
                         $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
                         $"({r.Horario:dd/MM HH:mm})")) +
                     ". A fase anterior passou desse horário — o jogo volta pra grade.";
+            }
+
+            // O QUE A MEXIDA FEZ COM O CONFERIR GRADE, medido nos jogos REAIS depois da troca.
+            // Silêncio quando nada muda: dizer "nada muda" numa troca de duas prévias seria
+            // inventar — o jogo previsto não sabe quem joga, e impedimento e jogos seguidos não
+            // têm resposta sem as duplas (a mesma honestidade do endpoint /Torneios/ImpactoDaTroca).
+            var impacto = Padelizou.Services.ImpactoDaTroca.Comparar(
+                antes, Padelizou.Services.ImpactoDaTroca.Contar(torneio, partidas, duplasDoTorneio, sedes));
+            if (impacto.Grau != Padelizou.Services.ImpactoDaTroca.Nivel.Igual)
+            {
+                var selo = impacto.Grau == Padelizou.Services.ImpactoDaTroca.Nivel.Melhora ? "✅" : "⚠️";
+                TempData["Sucesso"] += $" {selo} Conferir grade — {impacto.Texto}.";
             }
 
             return VoltarPara(voltarPara, id);

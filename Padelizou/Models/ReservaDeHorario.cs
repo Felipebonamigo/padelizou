@@ -44,5 +44,12 @@ public class ReservaDeHorario
     // faria com ele.
     public string? NomeQuadra { get; set; }
 
+    // A POSIÇÃO DESTA PRÉVIA DENTRO DO HORÁRIO DELA — o mesmo campo de Partida.OrdemNoHorario,
+    // do lado do jogo que ainda não nasceu (10/09/2026). As semifinais e finais de domingo do Er
+    // são prévia: sem esta coluna, "arrumar a ordem do domingo" não alcançaria justamente os
+    // jogos que originaram o pedido. Vai junto com a hora e a quadra quando o robô transforma a
+    // reserva em jogo real (Services/ReservasDeHorario.Aplicar).
+    public int? OrdemNoHorario { get; set; }
+
     public virtual Categoria Categoria { get; set; } = null!;
 }

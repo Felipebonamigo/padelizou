@@ -2755,6 +2755,13 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-jl-acoes form { margin: 0; }
 
+/* ↑↓ da ordem: dois botões num formulário só (o que muda é o `direcao`), então ele precisa se
+   comportar como os botões soltos ao lado — flex e o mesmo gap da barra de ações. */
+.pdz-jl-setas {
+    display: flex;
+    gap: .3rem;
+}
+
 /* Segunda linha: o confronto, com rosto. */
 .pdz-jl-confronto {
     display: flex;
