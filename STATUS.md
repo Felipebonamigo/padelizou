@@ -1,7 +1,9 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🔎 **O FILTRO DE CATEGORIA NÃO ALCANÇAVA A PRÉVIA — E A PROJEÇÃO INTEIRA SAÍA DA LISTA RECORTADA.** 🗣️ Felipe, com "3ª Feminina" marcada na aba Jogos do Er: *"eu selecionei '3 feminina' e esta aparecendo jogos de outras categorias no filtro"* — e o print mostrava três Oitavas da **4ª Masculina** com o selo *prévia*, no meio da lista. **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
+>
+> 🔎 **O FILTRO DE CATEGORIA NÃO ALCANÇAVA A PRÉVIA — E A PROJEÇÃO INTEIRA SAÍA DA LISTA RECORTADA.** 🗣️ Felipe, com "3ª Feminina" marcada na aba Jogos do Er: *"eu selecionei '3 feminina' e esta aparecendo jogos de outras categorias no filtro"* — e o print mostrava três Oitavas da **4ª Masculina** com o selo *prévia*, no meio da lista. **Sem migration.**
 >
 > 🕳️ **A CAUSA É MAIS FUNDA QUE O SINTOMA, e o nome da variável era a armadilha.** O filtro de categoria (e o de time) vira **SQL**, então a lista chamada `todasAsPartidas` — que prometia o torneio inteiro — chegava à projeção **já recortada**. Daí saíam dois estragos, e só o primeiro aparecia: **(1)** as cadeias são montadas a partir das **CATEGORIAS lidas do banco** (`aindaEmGrupos`), que nenhum `Where` de partida alcança, então a prévia da 4ª aparecia com a 3ª marcada; **(2)** o **horário** de cada prévia era calculado numa grade que só enxergava os jogos filtrados — com as quadras das outras categorias parecendo livres, a Final voltava pra um horário que na vida real está lotado. Medido em teste: 10:40 vira 09:50 só por causa do filtro.
 >
