@@ -163,30 +163,63 @@ public class PalpiteService : IPalpiteService
         var voto = await _context.PalpitesPartida
             .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
 
+        bool ehLinhaNova = voto == null;
         if (voto == null)
         {
-            voto = new PalpitePartida { PartidaId = partidaId, JogadorId = jogadorId, DuplaEscolhidaId = duplaEscolhidaId };
+            voto = new PalpitePartida { PartidaId = partidaId, JogadorId = jogadorId };
             _context.PalpitesPartida.Add(voto);
         }
-        else
+
+        Escrever(voto, duplaEscolhidaId, placar);
+
+        try
         {
-            voto.DuplaEscolhidaId = duplaEscolhidaId;
-            voto.DataHora = DateTime.Now;
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (ehLinhaNova)
+        {
+            // ⚠️ CLIQUE DUPLO: os dois POSTs leram "esse jogador ainda não votou" e os dois
+            // tentaram INSERIR — o palpitrômetro não tem trava de clique, e cada requisição tem o
+            // próprio DbContext. Quem segura é o índice único (PartidaId, JogadorId), e está certo
+            // que seja ele (mesma decisão do chamado do mural em DuplasController). O que faltava
+            // era o serviço saber PERDER a corrida: quem chega depois grava por cima, porque o
+            // palpite dele é o último que a pessoa deu. Sem isto virava 500 — o controller só
+            // trata InvalidOperationException — e push de erro em produção por um toque duplo.
+            _context.Entry(voto).State = EntityState.Detached;
+
+            var doGemeo = await _context.PalpitesPartida
+                .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
+
+            // ⚠️ Sem linha do outro lado, a gravação falhou por OUTRO motivo — e aí o erro TEM
+            // que subir. Engolir tudo que é DbUpdateException trocaria um 500 que avisa por um
+            // palpite que some caladinho.
+            if (doGemeo == null) throw;
+
+            Escrever(doGemeo, duplaEscolhidaId, placar);
+            await _context.SaveChangesAsync();
         }
 
-        // ⚠️ As quatro colunas são reescritas SEMPRE, inclusive pra nulo. Trocar de opinião sem
-        // dizer o placar tem que APAGAR o placar anterior: ele apontava a outra dupla, e uma
-        // linha com "vence a Dupla 1" e "4 x 6" gravados juntos é uma contradição que o ranking
-        // leria como palpite de placar — e contaria contra a própria pessoa.
+        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
+        return resumos[partidaId];
+    }
+
+    // O palpite inteiro numa passada só — e é de propósito que ele seja UM lugar: a segunda
+    // tentativa (a que perdeu a corrida) escreve na linha do gêmeo, e duas listas de colunas
+    // acabariam divergindo justo no caminho que quase nunca roda.
+    //
+    // ⚠️ As quatro colunas do placar são reescritas SEMPRE, inclusive pra nulo. Trocar de
+    // opinião sem dizer o placar tem que APAGAR o placar anterior: ele apontava a outra dupla, e
+    // uma linha com "vence a Dupla 1" e "4 x 6" gravados juntos é uma contradição que o ranking
+    // leria como palpite de placar — e contaria contra a própria pessoa.
+    private static void Escrever(PalpitePartida voto, int duplaEscolhidaId, PlacarPalpitado placar)
+    {
+        voto.DuplaEscolhidaId = duplaEscolhidaId;
+        voto.DataHora = DateTime.Now;
+
         voto.GamesDupla1 = placar.EmSets ? null : placar.Lado1;
         voto.GamesDupla2 = placar.EmSets ? null : placar.Lado2;
         voto.SetsDupla1 = placar.EmSets ? placar.Lado1 : null;
         voto.SetsDupla2 = placar.EmSets ? placar.Lado2 : null;
-
-        await _context.SaveChangesAsync();
-
-        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
-        return resumos[partidaId];
     }
 
     // O placar palpitado, conferido contra o formato do jogo e contra o próprio voto. Devolve

@@ -37,6 +37,49 @@ async function enviarPalpite(container, duplaId, placar1, placar2) {
     let corpo = `partidaId=${partidaId}&duplaId=${duplaId}`;
     if (placar1 != null && placar2 != null) corpo += `&placar1=${placar1}&placar2=${placar2}`;
 
+    return enfileirar(container, corpo);
+}
+
+// ⚠️ UM POST POR VEZ, E A TRAVA É POR CARTÃO — mesma régua do `placar-ao-vivo.js`. Dois jogos
+// na mesma tela não têm nada a ver um com o outro e não esperam um pelo outro.
+//
+// Sem ela, o toque duplo no nome dispara dois POSTs que leem "esse jogador ainda não votou" ao
+// mesmo tempo e tentam INSERIR os dois: era o `DbUpdateException em POST /Partidas/Votar` de
+// 10/09 em produção. ⚠️ O servidor também sabe perder essa corrida (`PalpiteService`), e as duas
+// travas são necessárias: esta poupa a requisição gêmea DESTA aba, e a de lá é a que segura
+// duas abas, dois aparelhos e o POST montado à mão — trava de tela não atravessa a rede.
+//
+// E ela conserta o que o servidor não alcança: **duas respostas voltam fora de ordem**. Com o
+// primeiro POST lento, a resposta dele chegava DEPOIS da do segundo e repintava a tela com o
+// palpite velho — a ficha recém-escolhida apagava sozinha na frente da pessoa, e só o F5
+// consertava.
+async function enfileirar(container, corpo) {
+    // ⚠️ Toque que chega no meio do envio NÃO se perde (mesma régua do placar-ao-vivo.js): se
+    // diz outra coisa — trocou de dupla, escolheu ficha —, ele vai assim que a vez chegar. Se
+    // repete o que já está indo, é o toque duplo: não há nada novo pra mandar.
+    if (container.dataset.palpiteEmVoo) {
+        if (corpo !== container.dataset.palpiteEmVoo) container.dataset.palpitePendente = corpo;
+        return;
+    }
+
+    try {
+        let proximo = corpo;
+        while (proximo) {
+            container.dataset.palpiteEmVoo = proximo;
+            await falarComOServidor(container, proximo);
+
+            proximo = container.dataset.palpitePendente || '';
+            delete container.dataset.palpitePendente;
+        }
+    } finally {
+        // A trava se solta aconteça o que acontecer. Travado pra sempre, o palpitrômetro
+        // deixaria de aceitar toque até o F5 — pior do que o erro que derrubou o envio.
+        delete container.dataset.palpiteEmVoo;
+        delete container.dataset.palpitePendente;
+    }
+}
+
+async function falarComOServidor(container, corpo) {
     const response = await fetch('/Partidas/Votar', {
         method: 'POST',
         headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
