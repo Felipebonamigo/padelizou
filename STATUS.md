@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
+>
+> 📌 **O BUILD FOI PEDIDO PELO NOME, e não como "o mais recente" — de propósito.** Entre o merge deste PR e o deploy, o #145 (*Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR*) entrou no `main`. Publicar `build-958-b949a3d` leva **exatamente** o que subiu no `dev` e o que esta sessão testou; o #145 fica pra quem o escreveu publicar. É a lição de hoje de manhã aplicada ao contrário: com duas sessões mesclando na mesma tarde, quem quiser segurar algo fora do prod segura o **merge** — e quem já mesclou, publica **pela tag**, não pelo topo.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve `CONNECT tunnel failed, response 403` pro domínio (tentado). Quem atesta o healthcheck é o próprio `deploy.sh`, que faz rollback automático se não vier 200: não houve rollback e os dois runs terminaram `success`, com *"==> Feito. build-958-b949a3d no ar"* nos dois logs. É evidência de verdade, mas **não** é verificação independente — e a diferença fica dita.
 >
 > 📱 **A BARRA DE AÇÕES DO JOGO VAZAVA PRA FORA DO CARTÃO NO CELULAR.** 🗣️ Felipe, com o Painel de Controle aberto no telefone: *"a tela esta estourando aqui ao usar no mobile"* — e a captura mostrava o **play verde do lado de fora da borda esquerda**, cortado pela tela.
 >
