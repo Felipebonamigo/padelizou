@@ -22,7 +22,7 @@ public static class MuralDeParceiros
     // significa "a bola ainda não rolou", que é o valor PERMISSIVO — chamador esquecido
     // abriria a janela sozinho, calado.
     public static string? MotivoParaNaoChamar(
-        Dupla? dupla, string? statusDoTorneio, int candidatoId,
+        Dupla? dupla, Torneio? torneio, int candidatoId,
         IEnumerable<InscricaoRepetida.Achado> inscricoesDoCandidato, bool jaComecouAJogar)
     {
         if (dupla == null) return "Inscrição não encontrada.";
@@ -35,7 +35,7 @@ public static class MuralDeParceiros
         // que as inscrições encerravam — bem antes de a chave sair. Como a dupla sem parceiro
         // agora ENTRA na chave, o mural precisa continuar aberto até a bola rolar pra ela:
         // é justamente aí que alguém ainda pode salvar a vaga (ver Services/JanelaDoParceiro).
-        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) is { } foraDaJanela)
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) is { } foraDaJanela)
             return foraDaJanela;
 
         // ⚠️ QUEM JÁ TEM DUPLA FECHADA NESTA CATEGORIA NÃO CHAMA (21/08/2026): ninguém joga duas
@@ -111,7 +111,7 @@ public static class MuralDeParceiros
     // desenha o botão Aceitar ou uma explicação no lugar dele. Duas cópias e a tela ofereceria
     // um botão que o servidor recusa — desleixo que o usuário paga.
     public static string? MotivoParaNaoAceitar(
-        Dupla? dupla, string? statusDoTorneio, int donoLogadoId, bool jaComecouAJogar)
+        Dupla? dupla, Torneio? torneio, int donoLogadoId, bool jaComecouAJogar)
     {
         if (dupla == null) return "Inscrição não encontrada.";
         if (dupla.Jogador1Id != donoLogadoId) return "Essa inscrição não é sua.";
@@ -121,7 +121,7 @@ public static class MuralDeParceiros
         // ⚠️ MESMA JANELA NOVA DO MotivoParaNaoChamar (09/09/2026), e ela tem que ser a mesma:
         // liberar só um dos dois deixaria gente se candidatando sem ninguém poder aceitar, ou
         // o contrário — aceite liberado sem candidato de onde vir.
-        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) is { } foraDaJanela)
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) is { } foraDaJanela)
             return foraDaJanela;
 
         return null;

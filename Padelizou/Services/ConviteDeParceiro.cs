@@ -39,11 +39,11 @@ public static class ConviteDeParceiro
     //
     // ⚠️ `jaComecouAJogar` NÃO TEM VALOR PADRÃO, pelo mesmo motivo escrito no MuralDeParceiros:
     // `false` é o valor PERMISSIVO, e um chamador esquecido abriria o convite sozinho, calado.
-    public static bool Valido(Dupla? dupla, string? statusDoTorneio, string? token, bool jaComecouAJogar)
+    public static bool Valido(Dupla? dupla, Torneio? torneio, string? token, bool jaComecouAJogar)
     {
         if (dupla == null || string.IsNullOrWhiteSpace(token)) return false;
         if (string.IsNullOrWhiteSpace(dupla.ConviteToken)) return false;
-        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) != null) return false;
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) != null) return false;
 
         return TokenConfere(dupla.ConviteToken, token);
     }
@@ -66,11 +66,11 @@ public static class ConviteDeParceiro
     // Por que o convite não serve mais — a mensagem que a pessoa lê ao abrir um link velho.
     // Distinguir os motivos importa: "já tem parceiro" e "a dupla já jogou" levam a ações
     // diferentes (falar com quem convidou × procurar outro torneio).
-    public static string MotivoDeNaoValer(Dupla? dupla, string? statusDoTorneio, bool jaComecouAJogar)
+    public static string MotivoDeNaoValer(Dupla? dupla, Torneio? torneio, bool jaComecouAJogar)
     {
         if (dupla == null) return "Esse convite não existe mais.";
         if (dupla.Jogador2Id != null) return "Essa dupla já está completa — alguém aceitou antes.";
-        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, statusDoTorneio, jaComecouAJogar) is { } foraDaJanela)
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) is { } foraDaJanela)
             return foraDaJanela;
         return "Esse convite não vale mais. Peça um link novo pra quem te convidou.";
     }

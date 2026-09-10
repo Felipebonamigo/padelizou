@@ -21,6 +21,11 @@ namespace Padelizou.Tests;
 // Agora ele cai numa tela com Aceitar e Recusar, e aceitar fecha a dupla na hora.
 public class AceitarOuRecusarChamadoTests
 {
+    // A régua passou a receber o TORNEIO (e não status solto) pra não haver como trocar status
+    // por formato — os dois eram `string?` vizinhos.
+    private static Torneio TorneioCom(string status, string formato = FormatoDoTorneio.Padrao) =>
+        new() { Id = 1, Nome = "Torneio de Teste", Codigo = "TST123", Status = status, Formato = formato };
+
     private static DuplasController Controller(
         DbPadelContext ctx, int usuarioLogadoId, IPushNotificationService? push = null)
     {
@@ -86,27 +91,27 @@ public class AceitarOuRecusarChamadoTests
     {
         var solo = new Dupla { Jogador1Id = 1, Jogador2Id = null };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Inscrições Abertas", 1, jaComecouAJogar: false));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
         // Não é minha inscrição.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Inscrições Abertas", 2, jaComecouAJogar: false));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Inscrições Abertas"), 2, jaComecouAJogar: false));
 
         // Dupla que já fechou não escolhe mais ninguém — senão o segundo aceite TROCARIA o
         // parceiro sem ninguém ter pedido isso.
         var fechada = new Dupla { Jogador1Id = 1, Jogador2Id = 3 };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(fechada, "Inscrições Abertas", 1, jaComecouAJogar: false));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(fechada, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
         // 09/09/2026: inscrições encerradas não impedem mais o aceite — a dupla sem parceiro
         // entra na chave, e o segundo nome pode entrar até ela jogar.
-        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Chaves em Sorteio", 1, jaComecouAJogar: false));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Chaves em Sorteio"), 1, jaComecouAJogar: false));
 
         // O que impede é a dupla já ter entrado em quadra.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Fase de Grupos", 1, jaComecouAJogar: true));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Fase de Grupos"), 1, jaComecouAJogar: true));
 
         var time = new Dupla { Jogador1Id = 1, NomeTime = "Os Fortes" };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(time, "Inscrições Abertas", 1, jaComecouAJogar: false));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(time, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(null, "Inscrições Abertas", 1, jaComecouAJogar: false));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(null, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
     }
 
     // ═══════════════════ A TELA ═══════════════════

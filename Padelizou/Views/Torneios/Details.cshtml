@@ -1340,7 +1340,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            o valor PERMISSIVO. Se a chave for renomeada, o botão
                                            some (seguro) em vez de aparecer onde não deve. *@
                                         @if (meuIdNaPagina != null && minhasInscricoes != null && duplasQueJaJogaram != null
-                                             && MuralDeParceiros.MotivoParaNaoChamar(dupla, Model.Status, meuIdNaPagina.Value, minhasInscricoes,
+                                             && MuralDeParceiros.MotivoParaNaoChamar(dupla, Model, meuIdNaPagina.Value, minhasInscricoes,
                                                     duplasQueJaJogaram.Contains(dupla.Id)) == null
                                              && !chamadosQueEuFiz.Contains(dupla.Id))
                                         {
@@ -1378,13 +1378,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                     }
 
-                                    @* Desistir é do próprio inscrito, e só enquanto as
-                                       inscrições estão abertas — depois do sorteio a dupla já
-                                       está numa chave e sair é assunto do organizador.
-                                       Aparece só na SUA inscrição: no card dos outros seria
-                                       um botão pra tirar gente do torneio. *@
-                                    @if (meuIdNaPagina != null && Model.Status == "Inscrições Abertas"
-                                         && (dupla.Jogador1Id == meuIdNaPagina || dupla.Jogador2Id == meuIdNaPagina))
+                                    @* AS AÇÕES DA PRÓPRIA INSCRIÇÃO. Aparecem só na SUA: no card dos
+                                       outros, "desistir" seria um botão pra tirar gente do torneio.
+
+                                       ⚠️ DUAS JANELAS AQUI DENTRO, e misturá-las foi um defeito real
+                                       (achado em revisão adversarial, 09/09/2026): DESISTIR e trocar
+                                       IMPEDIMENTO seguem presos em "Inscrições Abertas" — depois do
+                                       sorteio a dupla está numa chave e sair é assunto do organizador.
+                                       Mas DEFINIR o parceiro que falta vale até a dupla entrar em
+                                       quadra, e esta cópia tinha ficado com a régua velha: o push que
+                                       o encerramento manda ("dá pra fechar pela página do torneio")
+                                       chegava numa tela sem botão nenhum — a promessa central da
+                                       mudança sem caminho pro Paulo. A cópia do organizador já tinha
+                                       sido repontada; esta não. *@
+                                    @{
+                                        var minhaInscricao = meuIdNaPagina != null
+                                            && (dupla.Jogador1Id == meuIdNaPagina || dupla.Jogador2Id == meuIdNaPagina);
+                                        var inscricoesAbertas = Model.Status == "Inscrições Abertas";
+                                        var podeDefinirNaMinha = duplasQueJaJogaram != null
+                                            && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
+                                                    dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
+                                    }
+                                    @if (minhaInscricao && (inscricoesAbertas || podeDefinirNaMinha))
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
 
@@ -1406,7 +1421,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                                            Time não entra: quem monta a lista é o organizador, e o
                                            "parceiro" de um time é a linha do próprio time. *@
-                                        @if (!dupla.EhTime)
+                                        @if (!dupla.EhTime && (podeDefinirNaMinha || (inscricoesAbertas && !sozinho)))
                                         {
                                             <div class="d-flex flex-wrap gap-2 mt-2">
                                                 @* QUEM ME CHAMOU, na própria inscrição.
@@ -1522,6 +1537,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </div>
                                         }
 
+                                        @* ⚠️ DAQUI PRA BAIXO, SÓ COM AS INSCRIÇÕES ABERTAS. O bloco de
+                                           fora passou a aceitar também a janela de definir parceiro, e
+                                           sem esta cerca o impedimento e o desistir vazariam pra depois
+                                           do sorteio — os dois mexem na grade já montada, e é por isso
+                                           que os controllers deles recusam ali. *@
+                                        @if (inscricoesAbertas)
+                                        {
                                         @* TROCAR O IMPEDIMENTO, até o fechamento das inscrições.
                                            🗣️ Felipe, 02/09/2026. O turno era escolhido uma vez, na
                                            inscrição, e não tinha volta — quem descobria o compromisso
@@ -1625,6 +1647,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     </button>
                                                 </form>
                                             </div>
+                                        }
                                         }
                                     }
                                 </div>
@@ -4472,7 +4495,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         @{
                                             var podeDefinirParceiro = duplasQueJaJogaram != null
                                                 && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
-                                                        dupla, Model.Status, duplasQueJaJogaram.Contains(dupla.Id)) == null;
+                                                        dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
                                             var podeTrocarParceiro = Model.Status == "Inscrições Abertas"
                                                 && !dupla.EhTime && dupla.Completa;
                                         }

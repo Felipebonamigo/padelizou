@@ -663,7 +663,7 @@ namespace Padelizou.Controllers
                     return RedirectToAction("Details", "Torneios", new { id = torneioId });
                 }
             }
-            else if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio.Status,
+            else if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio,
                          await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } foraDaJanela)
             {
                 TempData["Erro"] = foraDaJanela;
@@ -924,7 +924,7 @@ namespace Padelizou.Controllers
             // A MESMA janela do convite aceito (09/09/2026): gerar o link vale enquanto a dupla
             // não entrou em quadra. Se aqui fechasse antes, o dono ficaria sem como convidar
             // justamente na hora em que mais precisa — com a chave já sorteada e a vaga aberta.
-            if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio.Status,
+            if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio,
                     await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } foraDaJanela)
             {
                 TempData["Erro"] = foraDaJanela;
@@ -959,9 +959,9 @@ namespace Padelizou.Controllers
             bool jaComecouAJogar = dupla != null
                 && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id);
 
-            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token, jaComecouAJogar))
+            if (!ConviteDeParceiro.Valido(dupla, torneio, token, jaComecouAJogar))
             {
-                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status, jaComecouAJogar);
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio, jaComecouAJogar);
                 return View("ConviteInvalido");
             }
 
@@ -1017,9 +1017,9 @@ namespace Padelizou.Controllers
             bool jaComecouAJogar = dupla != null
                 && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id);
 
-            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token, jaComecouAJogar))
+            if (!ConviteDeParceiro.Valido(dupla, torneio, token, jaComecouAJogar))
             {
-                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status, jaComecouAJogar);
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio, jaComecouAJogar);
                 return View("ConviteInvalido");
             }
 
@@ -1216,7 +1216,7 @@ namespace Padelizou.Controllers
                 ? new List<InscricaoRepetida.Achado>()
                 : await InscricaoRepetida.ProcurarAsync(_context, dupla.CategoriaId, new[] { candidatoId.Value });
 
-            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value, minhasInscricoes,
+            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio, candidatoId.Value, minhasInscricoes,
                     dupla != null && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id))
                 is { } motivo)
             {
@@ -1337,7 +1337,7 @@ namespace Padelizou.Controllers
             // Por que não dá pra aceitar (dupla já fechou, a dupla já entrou em quadra): a tela
             // mostra o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
             ViewBag.MotivoParaNaoAceitar = MuralDeParceiros.MotivoParaNaoAceitar(
-                dupla, dupla.Categoria.Torneio?.Status, donoId.Value,
+                dupla, dupla.Categoria.Torneio, donoId.Value,
                 await JanelaDoParceiro.JaComecouAJogarAsync(_context, duplaId));
 
             return View(chamados);
@@ -1361,7 +1361,7 @@ namespace Padelizou.Controllers
             // A MESMA régua da tela, conferida de novo aqui: entre abrir a lista e tocar em
             // aceitar, o torneio pode ter fechado ou a dupla pode ter sido fechada por outro
             // caminho (o convite por link continua existindo).
-            if (MuralDeParceiros.MotivoParaNaoAceitar(dupla, torneio?.Status, donoId.Value,
+            if (MuralDeParceiros.MotivoParaNaoAceitar(dupla, torneio, donoId.Value,
                     dupla != null && await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id)) is { } motivo)
             {
                 TempData["Erro"] = motivo;

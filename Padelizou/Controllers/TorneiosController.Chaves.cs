@@ -121,9 +121,9 @@ namespace Padelizou.Controllers
                     }
                     continue;   // o caminho de duplas abaixo não vale pra times
                 }
-                // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
-                // nomes) e confirmada. Quem está na lista de espera ou ainda sem parceiro
-                // continua inscrito, mas fora das chaves.
+                // Quem entra no sorteio: todo mundo com vaga confirmada. Desde 09/09/2026 a
+                // inscrição SEM PARCEIRO entra também, ocupando a vaga dela com a segunda posição
+                // em aberto (ver Services/ForaDoSorteio) — só a lista de espera fica fora.
                 var duplas = categoria.Duplas.Where(d => !ForaDoSorteio.FicaDeFora(d)).ToList();
 
                 // CORREÇÃO DA REGRA DE OURO:
@@ -1137,7 +1137,7 @@ namespace Padelizou.Controllers
                 // tela prometia 22 grupos e 98 jogos num torneio que tem bem menos.
                 if (categoria.ChaveDireta)
                 {
-                    int naChave = categoria.Duplas.Count(d => d.Jogador2Id != null && !d.EmListaDeEspera);
+                    int naChave = categoria.Duplas.Count(d => !ForaDoSorteio.FicaDeFora(d));
                     if (naChave < 2) continue;
 
                     duplas += naChave;
@@ -1145,8 +1145,18 @@ namespace Padelizou.Controllers
                     continue;
                 }
 
-                // Dupla sem parceiro ainda não é uma dupla: não entra em grupo nenhum.
-                int daCategoria = categoria.Duplas.Count(d => d.Jogador2Id != null);
+                // ⚠️ A MESMA RÉGUA DO SORTEIO, LIDA DO MESMO LUGAR (`ForaDoSorteio`), e isso é o
+                // conserto de um defeito de 09/09/2026: aqui a régua estava COPIADA À MÃO
+                // (`d.Jogador2Id != null`), então quando a inscrição sem parceiro passou a entrar
+                // na chave o grep pelo nome da régua não alcançou esta linha. A previsão continuou
+                // prometendo a grade das duplas FECHADAS enquanto o sorteio fazia a de todas —
+                // menos grupos, menos jogos, menos quadra alugada, no painel que diz com todas as
+                // letras que "os números são REAIS".
+                //
+                // E errava nos DOIS sentidos: sem o filtro de lista de espera, contava dupla
+                // fechada que o sorteio deixa de fora. Num cenário com uma sozinha e uma na espera
+                // os dois erros se cancelavam — foi assim que a suíte ficou verde.
+                int daCategoria = categoria.Duplas.Count(d => !ForaDoSorteio.FicaDeFora(d));
                 var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
 
                 duplas += daCategoria;

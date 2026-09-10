@@ -8,6 +8,11 @@ namespace Padelizou.Tests;
 // dependia de uma conversa por fora antes de o site conseguir ajudar.
 public class ConviteDeParceiroTests
 {
+    // A régua passou a receber o TORNEIO (e não status solto) pra não haver como trocar status
+    // por formato — os dois eram `string?` vizinhos.
+    private static Torneio TorneioCom(string status, string formato = FormatoDoTorneio.Padrao) =>
+        new() { Id = 1, Nome = "Torneio de Teste", Codigo = "TST123", Status = status, Formato = formato };
+
     private const string Abertas = "Inscrições Abertas";
 
     private static Dupla DuplaSemParceiro(string token) => new()
@@ -39,7 +44,7 @@ public class ConviteDeParceiroTests
     {
         var token = ConviteDeParceiro.NovoToken();
 
-        Assert.True(ConviteDeParceiro.Valido(DuplaSemParceiro(token), Abertas, token, jaComecouAJogar: false));
+        Assert.True(ConviteDeParceiro.Valido(DuplaSemParceiro(token), TorneioCom(Abertas), token, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -47,9 +52,9 @@ public class ConviteDeParceiroTests
     {
         var dupla = DuplaSemParceiro(ConviteDeParceiro.NovoToken());
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, ConviteDeParceiro.NovoToken(), jaComecouAJogar: false));
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, "", jaComecouAJogar: false));
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, null, jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom(Abertas), ConviteDeParceiro.NovoToken(), jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom(Abertas), "", jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom(Abertas), null, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -60,9 +65,9 @@ public class ConviteDeParceiroTests
         var dupla = DuplaSemParceiro(token);
         dupla.Jogador2Id = 20;
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, token, jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom(Abertas), token, jaComecouAJogar: false));
         Assert.Equal("Essa dupla já está completa — alguém aceitou antes.",
-            ConviteDeParceiro.MotivoDeNaoValer(dupla, Abertas, jaComecouAJogar: false));
+            ConviteDeParceiro.MotivoDeNaoValer(dupla, TorneioCom(Abertas), jaComecouAJogar: false));
     }
 
     // 09/09/2026: o convite deixou de morrer com o fim das inscrições. Como a dupla sem
@@ -74,7 +79,7 @@ public class ConviteDeParceiroTests
         var token = ConviteDeParceiro.NovoToken();
         var dupla = DuplaSemParceiro(token);
 
-        Assert.True(ConviteDeParceiro.Valido(dupla, "Fase de Grupos", token, jaComecouAJogar: false));
+        Assert.True(ConviteDeParceiro.Valido(dupla, TorneioCom("Fase de Grupos"), token, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -85,9 +90,9 @@ public class ConviteDeParceiroTests
         var token = ConviteDeParceiro.NovoToken();
         var dupla = DuplaSemParceiro(token);
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, "Fase de Grupos", token, jaComecouAJogar: true));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom("Fase de Grupos"), token, jaComecouAJogar: true));
         Assert.Equal("Essa dupla já entrou em quadra — não dá mais pra definir o parceiro.",
-            ConviteDeParceiro.MotivoDeNaoValer(dupla, "Fase de Grupos", jaComecouAJogar: true));
+            ConviteDeParceiro.MotivoDeNaoValer(dupla, TorneioCom("Fase de Grupos"), jaComecouAJogar: true));
     }
 
     [Fact]
@@ -96,7 +101,7 @@ public class ConviteDeParceiroTests
         var token = ConviteDeParceiro.NovoToken();
         var dupla = DuplaSemParceiro(token);
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, "Cancelado", token, jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom("Cancelado"), token, jaComecouAJogar: false));
     }
 
     [Fact]
@@ -106,13 +111,13 @@ public class ConviteDeParceiroTests
         var dupla = DuplaSemParceiro(ConviteDeParceiro.NovoToken());
         dupla.ConviteToken = null;
 
-        Assert.False(ConviteDeParceiro.Valido(dupla, Abertas, "qualquer-coisa", jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(dupla, TorneioCom(Abertas), "qualquer-coisa", jaComecouAJogar: false));
     }
 
     [Fact]
     public void Dupla_inexistente_nao_estoura_e_explica()
     {
-        Assert.False(ConviteDeParceiro.Valido(null, Abertas, "token", jaComecouAJogar: false));
-        Assert.Equal("Esse convite não existe mais.", ConviteDeParceiro.MotivoDeNaoValer(null, Abertas, jaComecouAJogar: false));
+        Assert.False(ConviteDeParceiro.Valido(null, TorneioCom(Abertas), "token", jaComecouAJogar: false));
+        Assert.Equal("Esse convite não existe mais.", ConviteDeParceiro.MotivoDeNaoValer(null, TorneioCom(Abertas), jaComecouAJogar: false));
     }
 }
