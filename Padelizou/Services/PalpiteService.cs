@@ -203,6 +203,44 @@ public class PalpiteService : IPalpiteService
         return resumos[partidaId];
     }
 
+    // RETIRAR O PALPITE (10/09/2026). 🗣️ Felipe: *"tambem permita retirar o palpite colocado"*.
+    //
+    // 🕳️ Dava pra TROCAR de dupla e trocar a ficha do placar, mas não pra sair: uma vez tocado o
+    // nome, aquele palpite ficava na barra e no ranking pra sempre. Quem tocou sem querer — e o
+    // alvo é um nome no meio de uma lista de 97 jogos — não tinha caminho de volta.
+    //
+    // ⚠️ A JANELA É A MESMA DO PALPITAR, e não uma régua nova: 🗣️ *"todo jogo pode ser palpitado
+    // até começar"*. Começou, a aposta está valendo — sair ali seria desistir vendo o primeiro
+    // game. Uma segunda régua aqui também deixaria a tela poder retirar o que não pode trocar.
+    //
+    // ⚠️ IDEMPOTENTE: o toque duplo manda dois POSTs, e o segundo chega com a linha já apagada.
+    // Estourar ali daria alerta vermelho a quem conseguiu exatamente o que queria — mesma lição
+    // da corrida do clique duplo no votar.
+    public async Task<PalpiteResumoVM> RetirarPalpiteAsync(int partidaId, int jogadorId)
+    {
+        var partida = await _context.Partidas.FindAsync(partidaId);
+        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+        if (partida.Status != "Agendada")
+            throw new InvalidOperationException("Esta partida já começou — não é mais possível mudar o palpite.");
+
+        // ⚠️ A CHECAGEM DE DONO É ESTRUTURAL (Regra 0): a linha é procurada por (partida,
+        // jogador), e o jogador vem da claim de quem está logado. Não existe caminho por onde
+        // pedir a retirada do palpite de outra pessoa — nem com um POST montado à mão.
+        var meu = await _context.PalpitesPartida
+            .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
+
+        if (meu != null)
+        {
+            // O placar palpitado mora na MESMA linha do voto e sai junto: deixá-lo pra trás
+            // faria a frase "a galera crava 6x4" continuar contando um palpite que não existe.
+            _context.PalpitesPartida.Remove(meu);
+            await _context.SaveChangesAsync();
+        }
+
+        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
+        return resumos[partidaId];
+    }
+
     // O palpite inteiro numa passada só — e é de propósito que ele seja UM lugar: a segunda
     // tentativa (a que perdeu a corrida) escreve na linha do gêmeo, e duas listas de colunas
     // acabariam divergindo justo no caminho que quase nunca roda.

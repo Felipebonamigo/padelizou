@@ -388,6 +388,18 @@
                     {
                         <span class="pdz-total-votos">· 0 voto(s)</span>
                     }
+                    @* RETIRAR (10/09/2026 — 🗣️ *"tambem permita retirar o palpite colocado"*).
+                       Só pra quem pode votar: a janela de retirar é a MESMA de palpitar, e o
+                       servidor recusa depois que o jogo começa. Nasce escondido pra quem ainda
+                       não palpitou, e o JS mostra/esconde sozinho a cada palpite — sem F5. *@
+                    @if (podeVotar)
+                    {
+                        <button type="button" class="pdz-ver-votos pdz-retirar-palpite"
+                                title="Retirar meu palpite" onclick="retirarPalpite(this)"
+                                hidden="@(r?.MeuVotoDuplaId == null)">
+                            · <span class="text-danger">retirar</span>
+                        </button>
+                    }
                 </span>
             </div>
         }

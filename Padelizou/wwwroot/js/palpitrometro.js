@@ -37,7 +37,20 @@ async function enviarPalpite(container, duplaId, placar1, placar2) {
     let corpo = `partidaId=${partidaId}&duplaId=${duplaId}`;
     if (placar1 != null && placar2 != null) corpo += `&placar1=${placar1}&placar2=${placar2}`;
 
-    return enfileirar(container, corpo);
+    return enfileirar(container, '/Partidas/Votar?' + corpo);
+}
+
+// RETIRAR O PALPITE (10/09/2026 — 🗣️ Felipe: *"tambem permita retirar o palpite colocado"*).
+//
+// ⚠️ VAI PELA MESMA FILA do voto e da ficha, e não por um fetch solto: retirar e votar mexem na
+// MESMA linha do banco, então dois pedidos soltos podem se cruzar e a tela terminaria pintada
+// com o que respondeu por último — o palpite reaparecendo depois de retirado. Quem decide se
+// dá pra retirar é o servidor (só enquanto o jogo está agendado).
+async function retirarPalpite(el) {
+    const container = el.closest('.pdz-palpitrometro');
+    if (!container) return;
+
+    return enfileirar(container, '/Partidas/RetirarPalpite?partidaId=' + container.dataset.partidaId);
 }
 
 // ⚠️ UM POST POR VEZ, E A TRAVA É POR CARTÃO — mesma régua do `placar-ao-vivo.js`. Dois jogos
@@ -53,17 +66,20 @@ async function enviarPalpite(container, duplaId, placar1, placar2) {
 // primeiro POST lento, a resposta dele chegava DEPOIS da do segundo e repintava a tela com o
 // palpite velho — a ficha recém-escolhida apagava sozinha na frente da pessoa, e só o F5
 // consertava.
-async function enfileirar(container, corpo) {
+// ⚠️ `pedido` é a linha inteira — `rota?corpo` numa string só. Ela mora no `dataset`, que só
+// sabe guardar texto, e é comparada inteira pra saber se o toque repetiu: sem a rota junto, um
+// "retirar" chegando no meio de um voto do MESMO jogo pareceria o mesmo pedido.
+async function enfileirar(container, pedido) {
     // ⚠️ Toque que chega no meio do envio NÃO se perde (mesma régua do placar-ao-vivo.js): se
-    // diz outra coisa — trocou de dupla, escolheu ficha —, ele vai assim que a vez chegar. Se
-    // repete o que já está indo, é o toque duplo: não há nada novo pra mandar.
+    // diz outra coisa — trocou de dupla, escolheu ficha, retirou —, ele vai assim que a vez
+    // chegar. Se repete o que já está indo, é o toque duplo: não há nada novo pra mandar.
     if (container.dataset.palpiteEmVoo) {
-        if (corpo !== container.dataset.palpiteEmVoo) container.dataset.palpitePendente = corpo;
+        if (pedido !== container.dataset.palpiteEmVoo) container.dataset.palpitePendente = pedido;
         return;
     }
 
     try {
-        let proximo = corpo;
+        let proximo = pedido;
         while (proximo) {
             container.dataset.palpiteEmVoo = proximo;
             await falarComOServidor(container, proximo);
@@ -79,8 +95,12 @@ async function enfileirar(container, corpo) {
     }
 }
 
-async function falarComOServidor(container, corpo) {
-    const response = await fetch('/Partidas/Votar', {
+async function falarComOServidor(container, pedido) {
+    const corte = pedido.indexOf('?');
+    const rota = pedido.slice(0, corte);
+    const corpo = pedido.slice(corte + 1);
+
+    const response = await fetch(rota, {
         method: 'POST',
         headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
         body: corpo
@@ -92,6 +112,7 @@ async function falarComOServidor(container, corpo) {
         alert((data && data.erro) || 'Não foi possível registrar seu palpite.');
         return;
     }
+
 
     atualizarPalpitrometro(container, data);
 }
@@ -136,6 +157,13 @@ function atualizarPalpitrometro(container, data) {
     // Marca de "foi em quem eu votei", nas duas apresentações.
     container.querySelectorAll('[data-dupla-id]').forEach(op => {
         op.classList.toggle('pdz-palpite-meu', String(data.meuVotoDuplaId) === op.dataset.duplaId);
+    });
+
+    // O "retirar" só existe enquanto existe palpite meu — senão ele fica na tela oferecendo
+    // desfazer o que já foi desfeito. (`hidden`, e não `display`, porque é a mesma chave que o
+    // Razor usa pra nascer escondido.)
+    container.querySelectorAll('.pdz-retirar-palpite').forEach(function (botao) {
+        botao.hidden = data.meuVotoDuplaId == null;
     });
 
     // Saiu do zero: o estado "ninguém palpitou" some. Sem isto o palpitrômetro continuava

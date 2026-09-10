@@ -130,5 +130,14 @@
                 Ver quem votou
             </button>
         }
+        @* Mesma régua da versão em linha: a janela de retirar é a de palpitar, e o botão nasce
+           escondido pra quem não palpitou. *@
+        @if (votavel)
+        {
+            <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger pdz-retirar-palpite"
+                    onclick="retirarPalpite(this)" hidden="@(meuVoto == null)">
+                Retirar meu palpite
+            </button>
+        }
     </div>
 </div>
