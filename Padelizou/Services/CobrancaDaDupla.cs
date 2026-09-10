@@ -20,4 +20,21 @@ public static class CobrancaDaDupla
         ctx.Pagamentos.Where(p => p.ReferenciaId == duplaId
             && (p.Tipo == "TorneioDupla" || p.Tipo == "TorneioPagarDepois")
             && (p.Status == "Confirmado" || p.Status == "Pendente" || p.Status == "AguardandoEstorno"));
+
+    // As cobranças do "pagar depois" que continuam ABERTAS neste torneio.
+    //
+    // ⚠️ ESTAS O `AtivaDe` NUNCA ACHA, e é de propósito: `ReferenciaId` só é gravado quando o
+    // pagamento CONFIRMA — a fatura que nunca confirmou não tem vínculo nenhum em coluna. Quem
+    // sabe de quem ela é é o JSON de `DadosInscricao`, que não é consultável em SQL. Por isso
+    // aqui vai só o filtro GROSSO (poucas linhas: as pendentes daquele torneio) e o fino roda
+    // em memória sobre o JSON — a mesma divisão que CobrancaPendenteDaInscricaoAsync já usa.
+    //
+    // `DadosInscricao != null` está no filtro porque quem lê o JSON logo depois faz
+    // `Deserialize(...!)`: linha sem dados viraria ArgumentNullException, que NÃO é
+    // JsonException e passaria direto pelo catch de quem chama.
+    public static IQueryable<Pagamento> PendentesDoPagarDepois(DbPadelContext ctx, int torneioId) =>
+        ctx.Pagamentos.Where(p => p.Tipo == "TorneioPagarDepois"
+            && p.TorneioId == torneioId
+            && p.Status == "Pendente"
+            && p.DadosInscricao != null);
 }

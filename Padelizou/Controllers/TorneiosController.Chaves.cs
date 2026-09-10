@@ -427,6 +427,32 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // ⚠️ A FATURA ABERTA MORRE COM A INSCRIÇÃO. O bloco do estorno acima só roda quando
+            // `dupla.Pago` — mas no torneio que "garante a vaga e cobra depois" a inscrição NÃO
+            // paga tem uma cobrança pendente viva no gateway, com link válido até o prazo. Sem
+            // isto ela sobrevivia ao cancelamento: o jogador pagava depois de já ter sido
+            // removido, o dinheiro entrava, a dupla não existia mais, e o
+            // EfetivarPagamentoDeInscricaoAsync caía no LogError que pede devolução à mão.
+            //
+            // `EstornarTotalAsync` já sabe tratar cobrança Pendente: ali ela é CANCELADA no
+            // gateway (o link morre), sem movimentar dinheiro nenhum.
+            if (!dupla.Pago
+                && await FaturaAbertaDaInscricaoAsync(torneioId, dupla.Id) is { } faturaAberta
+                && !string.IsNullOrWhiteSpace(faturaAberta.AsaasPaymentId))
+            {
+                if (!await _pagamentos.EstornarTotalAsync(faturaAberta))
+                {
+                    // Não dá pra seguir e apagar a inscrição: o link continuaria valendo e
+                    // ninguém mais teria tela pra matá-lo depois que a dupla sumir.
+                    TempData["Erro"] = "Não consegui cancelar a cobrança em aberto dessa inscrição. "
+                        + "Tente de novo em instantes — remover a inscrição com a fatura de pé deixaria "
+                        + "ele pagando por uma vaga que não existe mais.";
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
+
+                avisoDoDinheiro = " A cobrança em aberto dele foi cancelada.";
+            }
+
             // ⚠️ QUEM CHAMOU NO MURAL PRECISA SABER, E A CASCATA NÃO AVISA NINGUÉM. Apagar a
             // dupla leva junto os ChamadosDoMural dela (FK Cascade, ver DbPadelContext) — e é
             // justamente a inscrição SOZINHA que acumula chamado. Sem isto, quem se candidatou
@@ -458,6 +484,31 @@ namespace Padelizou.Controllers
             TempData["Sucesso"] = $"Inscrição de {nome} cancelada."
                 + (avisoDoDinheiro ?? (dupla.Pago ? " Valor estornado." : ""));
             return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // De quem é cada fatura pendente do "pagar depois"? Só o JSON sabe — ver
+        // CobrancaDaDupla.PendentesDoPagarDepois pro porquê de a consulta parar no filtro grosso.
+        private async Task<Pagamento?> FaturaAbertaDaInscricaoAsync(int torneioId, int duplaId)
+        {
+            foreach (var pagamento in await CobrancaDaDupla.PendentesDoPagarDepois(_context, torneioId).ToListAsync())
+            {
+                try
+                {
+                    var dados = System.Text.Json.JsonSerializer
+                        .Deserialize<DadosPagamentoDeInscricao>(pagamento.DadosInscricao!);
+                    if (dados?.DuplaId == duplaId) return pagamento;
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    // Mesmo tratamento do PagamentoInscricaoService.Desserializar: uma linha
+                    // estragada não pode derrubar o cancelamento das outras — mas ela FICA no log,
+                    // porque é a única pista de que existe fatura sem dono identificável.
+                    _logger.LogError(ex, "DadosInscricao inválidos no pagamento {Id} — não dá pra saber "
+                        + "de qual inscrição é essa cobrança em aberto.", pagamento.Id);
+                }
+            }
+
+            return null;
         }
 
         // ── CONFERIR A GRADE ──────────────────────────────────────────────────────────────
