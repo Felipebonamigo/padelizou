@@ -97,8 +97,22 @@ public static class ChaveamentoMataMata
     // (Services/AvancoDaChave). classificadosPorGrupo é 2 no padrão; a categoria de TIMES
     // passa o número que o organizador decidiu.
     public static (string Fase, List<Confronto> Confrontos, List<int> Byes) MontarPrimeiraFase(
-        List<Classificado> classificados, int classificadosPorGrupo = 2)
+        List<Classificado> classificados, int classificadosPorGrupo = 2, string? cruzamentoDesenhado = null)
     {
+        // ⚠️ O DESENHO À MÃO ENTRA AQUI, E SÓ AQUI (10/09/2026, Services/CruzamentoDoMataMata).
+        // Este método é o motor ÚNICO — a prévia (ChaveProjetada) e o mata-mata de verdade
+        // (RoboDoChaveamento) passam os dois por ele —, então pôr a decisão neste ponto faz a
+        // tela e o sábado dizerem a mesma coisa, que é a regra da casa.
+        //
+        // ⚠️ `null` (ou desenho que não serve) cai no de sempre, letra por letra: é isto que
+        // garante que nenhum torneio existente muda. 🗣️ *"cuidado para nao mexer nada no que ja
+        // tem do ER hoje"*.
+        if (CruzamentoDoMataMata.Ler(cruzamentoDesenhado) is { } desenho
+            && CruzamentoDoMataMata.Conferir(desenho, classificados) == null)
+        {
+            return CruzamentoDoMataMata.Aplicar(desenho, classificados);
+        }
+
         // Quem JOGA a primeira rodada é semeado pela campanha: posição no grupo primeiro
         // (todo 1º entra antes de qualquer 2º); dentro da mesma posição, vitórias e saldo —
         // é o que faz "o melhor abre o jogo contra o pior".
@@ -329,7 +343,10 @@ public static class ChaveamentoMataMata
     // que a rodada seguinte tem metade dos jogos desta — o que só vale sem bye. Com bye a
     // rodada seguinte tem (jogos + byes) / 2, e a conta de lá diverge da chave de verdade
     // (7 grupos: 6 jogos + 2 byes). Quem manda é a régua que o robô aplica.
-    private static int LadoDaVaga(int vagas, int vaga)
+    // Público desde 10/09/2026: o cruzamento desenhado à mão (Services/CruzamentoDoMataMata)
+    // avisa quando dois do mesmo grupo caem na mesma metade, e tem que ler a metade pela MESMA
+    // geometria que o motor usa — senão o aviso fala de uma chave que não é a que vai acontecer.
+    public static int LadoDaVaga(int vagas, int vaga)
     {
         while (vagas > 2)
         {

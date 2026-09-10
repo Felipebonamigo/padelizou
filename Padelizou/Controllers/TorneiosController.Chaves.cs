@@ -710,6 +710,83 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id });
         }
 
+        // O CHAVEAMENTO DESENHADO À MÃO (10/09/2026).
+        //
+        // 🗣️ *"permita alterar na mao o chaveamento, como funciona a chave de cada um, se o primeiro
+        // passar quem enfrenta, etc (obviamente que apenas organizadores e adm do sistema podem
+        // fazer isso)"* — e, junto: *"cuidado para nao mexer nada no que ja tem do ER hoje, isso é
+        // para os próximos torneios"*.
+        //
+        // ⚠️ A régua de quem pode é `EhOrganizadorAsync`, que JÁ inclui admin raiz e geral — é
+        // exatamente o que o pedido descreve, e inventar uma segunda régua aqui criaria a quarta
+        // trava de autorização do sistema (as três atuais já se dessincronizaram uma vez).
+        //
+        // ⚠️ `texto` nulo ou vazio LIMPA o desenho — a categoria volta pro motor, que é o estado de
+        // quem nunca mexeu. É o "desfazer" desta tela, e não precisa de ação própria.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarCruzamento(int id, int categoriaId, string? texto)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            var categoria = torneio.Categorias.FirstOrDefault(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+
+            if (torneio.Status != AprovacaoDeChaves.Pendente)
+            {
+                TempData["Erro"] = "Só dá pra desenhar o chaveamento enquanto a chave espera aprovação.";
+                return ParaAsChaves(id);
+            }
+
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                categoria.CruzamentoDoMataMata = null;
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = $"{categoria.Nome}: o chaveamento voltou a ser montado pelo sistema.";
+                return ParaAsChaves(id);
+            }
+
+            if (CruzamentoDoMataMata.Ler(texto) is not { } desenho)
+            {
+                TempData["Erro"] = "Não consegui ler esse desenho de chaveamento. O formato é \"1A×2C|1B×2D;bye:1E\".";
+                return ParaAsChaves(id);
+            }
+
+            // As vagas que ESTA categoria tem, pelas colocações que classificam — é contra isso que
+            // o desenho é conferido. Vem dos grupos, não dos jogos: o mata-mata ainda não existe.
+            int passam = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+            var vagas = categoria.GruposTorneio
+                .OrderBy(g => g.Nome)
+                .SelectMany(g => Enumerable.Range(1, passam)
+                    .Select(posicao => new ChaveamentoMataMata.Classificado(
+                        DuplaId: 0, Grupo: g.Nome, Vitorias: 0, Saldo: 0, Posicao: posicao)))
+                .ToList();
+
+            if (CruzamentoDoMataMata.Conferir(desenho, vagas) is { } motivo)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: {motivo} O desenho não foi salvo.";
+                return ParaAsChaves(id);
+            }
+
+            categoria.CruzamentoDoMataMata = desenho.Escrever();
+            await _context.SaveChangesAsync();
+
+            // ⚠️ Aviso, não recusa (decisão do Felipe): a régua de metades é convenção forte, mas
+            // em categoria pequena às vezes não há como evitar — e às vezes ele QUER o cruzamento.
+            var avisos = CruzamentoDoMataMata.Avisos(desenho, vagas);
+            TempData[avisos.Count > 0 ? "Aviso" : "Sucesso"] =
+                $"{categoria.Nome}: chaveamento desenhado. "
+                + (avisos.Count > 0 ? "⚠️ " + string.Join(" ", avisos) : "A prévia já mostra o caminho novo.");
+
+            return ParaAsChaves(id);
+        }
+
         // TROCAR DUAS DUPLAS DE GRUPO, em cima do sorteio que acabou de sair. Pedido do Felipe
         // (09/09/2026): "permita também, que o organizador, troque a dupla de lugar no grupo, e
         // ao trocar, verifique os horarios com impedimentos novamente, se nao vai atrapalhar
