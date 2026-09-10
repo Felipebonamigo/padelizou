@@ -16,9 +16,10 @@ namespace Padelizou.Services;
 // quando nenhum dos seis caminhos aceitava mais nada — e os botões nem eram desenhados. A tela
 // mentia; esta régua é o que a torna verdade.
 //
-// ⚠️ É SÓ PRA DEFINIR O QUE FALTA, NUNCA PRA TROCAR QUEM JÁ ESTÁ. Trocar A por B numa chave
-// sorteada bagunçaria jogos que os inscritos já estão vendo — isso continua preso em
-// "Inscrições Abertas", onde sempre esteve (ver DuplasController.TrocarParceiro).
+// ⚠️ PRO JOGADOR, É SÓ PRA DEFINIR O QUE FALTA, NUNCA PRA TROCAR QUEM JÁ ESTÁ. Trocar A por B
+// numa chave sorteada bagunçaria jogos que os inscritos já estão vendo — pra ele isso continua
+// preso em "Inscrições Abertas", onde sempre esteve (ver DuplasController.TrocarParceiro).
+// O ORGANIZADOR tem a janela mais larga, e ela mora em MotivoParaOrganizadorNaoTrocar, abaixo.
 public static class JanelaDoParceiro
 {
     // ⚠️ RECEBE O TORNEIO, e não (formato, status) soltos: a régua precisa dos DOIS campos, e
@@ -31,7 +32,7 @@ public static class JanelaDoParceiro
 
         // Time não tem parceiro: Jogador2Id nulo é a construção normal dele, e a lista de
         // times se altera na tela de times, pelo organizador.
-        if (dupla.EhTime) return "Time não tem parceiro — a lista de times se altera em \"Gerenciar times e estrutura\".";
+        if (dupla.EhTime) return TimeNaoTemParceiro;
 
         if (dupla.Completa) return "Essa dupla já está completa.";
 
@@ -47,6 +48,54 @@ public static class JanelaDoParceiro
         if (torneio.Formato == FormatoDoTorneio.Americano)
             return "Nesse formato a inscrição é individual — não há parceiro pra definir.";
 
+        return OTetoDaJanela(torneio, jaComecouAJogar, "definir o parceiro");
+    }
+
+    // A VERSÃO DO ORGANIZADOR, e ela responde outra pergunta: TROCAR quem já está, não definir
+    // quem falta.
+    //
+    // 🗣️ Felipe, 10/09/2026, no card da 3ª do Er: *"troque o parceiro do paulo prass (er guex)
+    // pelo 03761230010 cpf Arthur Prass"*. A chave do Er já estava sorteada e trocar estava preso
+    // em "Inscrições Abertas": o único caminho que sobrava era remover a inscrição e refazê-la —
+    // que perde a vaga na chave, o lugar na grade e o pagamento já marcado.
+    //
+    // ⚠️ MESMO PAR DE `AlteracaoDeImpedimento`: o JOGADOR anda pelo status (trocar segue preso em
+    // "Inscrições Abertas" — depois do sorteio, sair da chave é assunto do organizador), o
+    // ORGANIZADOR anda pela grade, porque é ele quem a enxerga inteira e quem responde por ela.
+    //
+    // ⚠️ E O TETO É O MESMO DO DEFINIR PORQUE `Partida` NÃO GUARDA QUEM JOGOU: ela aponta pra
+    // `Dupla1Id`/`Dupla2Id`, e quem jogou é lido da composição ATUAL da dupla — ranking, MVP,
+    // Padelímetro e estatística, todos. Trocar depois do primeiro jogo daria ao parceiro novo os
+    // games que outra pessoa jogou, sem uma linha de histórico dizendo o contrário. Não é um
+    // limite de cerimônia: é o que separa corrigir um cadastro de reescrever o que aconteceu.
+    public static string? MotivoParaOrganizadorNaoTrocar(Dupla? dupla, Torneio? torneio, bool jaComecouAJogar)
+    {
+        if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";
+
+        if (dupla.EhTime) return TimeNaoTemParceiro;
+
+        // Não há quem trocar — a pergunta é outra, e quem responde é MotivoParaNaoDefinir. Sem
+        // esta linha, "trocar" numa inscrição sozinha passaria pela porta do organizador sem
+        // nunca ter checado o Americano individual logo abaixo.
+        if (!dupla.Completa)
+            return "Essa inscrição está sem parceiro — o caso é definir o que falta, não trocar.";
+
+        // Mesma recusa do definir, e pelo mesmo motivo: no Americano individual a linha de Dupla
+        // é pareamento de rodada ou o CARIMBO DE CAMPEÃO, nunca inscrição. Trocar ali penduraria
+        // um segundo nome no título de alguém. O Americano de DUPLAS não entra: lá a dupla é a
+        // inscrição, e a troca é tão real quanto no Padrão.
+        if (torneio.Formato == FormatoDoTorneio.Americano)
+            return "Nesse formato a inscrição é individual — não há parceiro pra trocar.";
+
+        return OTetoDaJanela(torneio, jaComecouAJogar, "trocar o parceiro");
+    }
+
+    private const string TimeNaoTemParceiro =
+        "Time não tem parceiro — a lista de times se altera em \"Gerenciar times e estrutura\".";
+
+    // O TETO, comum às duas perguntas: torneio cancelado, torneio acabado, bola já rolada.
+    private static string? OTetoDaJanela(Torneio torneio, bool jaComecouAJogar, string oQue)
+    {
         if (CancelamentoDoTorneio.EstaCancelado(torneio.Status))
             return "Esse torneio foi cancelado.";
 
@@ -64,12 +113,14 @@ public static class JanelaDoParceiro
         // Partida nenhuma (GerarChaves pula categoria com menos de 2), então ali o
         // `jaComecouAJogar` seria falso pra sempre.
         if (torneio.Status == "Finalizado")
-            return "Esse torneio já terminou — não dá mais pra definir o parceiro.";
+            return $"Esse torneio já terminou — não dá mais pra {oQue}.";
 
-        // A bola já rolou pra ESTA dupla: o jogo aconteceu (ou está acontecendo) com a vaga
-        // vazia, e pendurar um nome nele depois seria reescrever o que já foi jogado.
+        // A bola já rolou pra ESTA dupla: o jogo aconteceu (ou está acontecendo) com a dupla do
+        // jeito que ela estava, e mexer no segundo nome depois seria reescrever o que já foi
+        // jogado — pendurar um nome numa vaga que ficou vazia em quadra, no caso do DEFINIR;
+        // dar a um os games que o outro jogou, no caso do TROCAR.
         if (jaComecouAJogar)
-            return "Essa dupla já entrou em quadra — não dá mais pra definir o parceiro.";
+            return $"Essa dupla já entrou em quadra — não dá mais pra {oQue}.";
 
         return null;
     }

@@ -4458,8 +4458,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             var podeDefinirParceiro = duplasQueJaJogaram != null
                                                 && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
                                                         dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
-                                            var podeTrocarParceiro = Model.Status == "Inscrições Abertas"
-                                                && !dupla.EhTime && dupla.Completa;
+                                            @* TROCAR quem já está: aqui, no painel do organizador, a janela é
+                                               a MESMA do definir — vale até a bola rolar pra esta dupla. Este
+                                               bloco inteiro está sob `ViewBag.PodeGerenciar`, então quem lê
+                                               esta linha é sempre organizador, e é a régua dele que vale.
+
+                                               ⚠️ Era `Model.Status == "Inscrições Abertas"`, e foi isso que
+                                               deixou o Felipe sem caminho no card do Paulo com a chave do Er
+                                               já sorteada. A régua do JOGADOR não mudou — a cópia dela, no
+                                               card da própria inscrição lá em cima, segue presa no status. *@
+                                            var podeTrocarParceiro = duplasQueJaJogaram != null
+                                                && Padelizou.Services.JanelaDoParceiro.MotivoParaOrganizadorNaoTrocar(
+                                                        dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
                                         }
                                         <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto pdz-inscrito-acoes">
                                             @* Marcar pago vale em QUALQUER status: muita gente
