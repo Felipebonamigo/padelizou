@@ -19,6 +19,30 @@
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
 
+> **10/09/2026** — 📏 **A REVISÃO DEPOIS DO DEPLOY: O DIA DA SEMANA COMIA O NOME DO CLUBE NA ÁRVORE DA CHAVE, e três testes meus provavam menos do que diziam.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> A revisão adversarial do PR #145 terminou **depois** de ele já estar em `dev` e `prod` (`build-961`), e o que sobrou dela não era cosmético.
+>
+> 🕳️ **O DIA DA SEMANA (pedido do Emerson) NÃO CABE NA ÁRVORE DA CHAVE — e foi MEDIDO, não estimado.** No Chromium com o `site.css` real, a 390px, na coluna mínima da grade (`.pdz-arv` é `minmax(6.5rem, 1fr)` no celular):
+>
+> | linha | sem o dia | com o dia |
+> |---|---|---|
+> | vaga da chave (`.pdz-chave-quando`) | pede 130px, cabe 127 → "Er Padel" perde **3px de 45** | perde **23px de 45** |
+> | chave projetada (`.pdz-chave-projetada-quando`) | pede 149px, cabe 123 → perde **27px de 49** | perde **49 de 49 — o clube SOME** |
+> | mini-jogo do grupo (`.pdz-grupo-jogo-quando`) | inteiro (a linha tem 351px) | **inteiro** |
+>
+> ⚠️ **O QUE FAZ ISSO SER SILENCIOSO:** as duas linhas da árvore são `white-space: nowrap; overflow: hidden` **sem `text-overflow: ellipsis`**, e a etiqueta de quadra/clube é a última (`margin-left: auto`) — então é ela que encurta, sem reticências e sem rolagem. Numa tela que existe pra dizer QUANDO e ONDE, trocar o ONDE por três letras é o pior lado da troca. O dia da semana **saiu** das duas linhas da árvore e **fica** nas listas de jogos e no mini-jogo do grupo, que é onde a medição diz que cabe.
+>
+> 📌 **FICA ANOTADO E NÃO CORRIGIDO:** a chave projetada **já cortava 27px antes desta mudança**. É defeito pré-existente e é outra tarefa (reticências, ou repensar a linha) — alargar este PR pra ele seria mudar o assunto.
+>
+> 🔴 **E TRÊS TESTES MEUS PROVAVAM MENOS DO QUE DIZIAM.** O pior era a "contraprova" do `AmericanoDuplas`: ela usava uma dupla **não paga** e cobrava `False` — e **passava igual com o defeito que dizia travar**, porque excluindo a família inteira do Americano a lista fica VAZIA e o método devolve `False` pelo motivo errado. Agora a inscrição é **paga** e a asserção é `True`: só há um jeito de passar, que é enxergar a dupla. Os outros dois: o `Assert.Contains("Chaves e Grupos")` era satisfeito pelo **comentário Razor** acima do botão (a mesma armadilha do `<details>`, duas vezes no mesmo dia), e a bolinha do Ao Vivo era travada por **distância em caracteres** (`< 400`, quando a real é 65) — virou régua estrutural, sem número mágico.
+>
+> 🕳️ **E NADA LIGAVA O SERVIÇO À TELA:** apagar as duas linhas do controller deixava a suíte inteira verde, o `ViewBag.JaPagueiNesteTorneio` chegava nulo e o card nunca recolhia — o pedido do Emerson morrendo em silêncio com dez testes verdes em cima. Agora tem trava.
+>
+> ✍️ **Dois comentários meus afirmavam coisas falsas, e comentário errado é pior que comentário nenhum:** o do CSS dizia que a data era "menor que a etiqueta ao lado" (em pixels ela era **maior** — .72 contra .68; o que a fazia LER menor era a etiqueta ter peso 700 e fundo), e o do `DiaDaSemana` dizia que "agora existe uma lista só" enquanto sobrava uma **terceira cópia** em `Views/Aulas/MeusHorarios.cshtml` (capitalizada e indexada por `HorarioDaTurma.DiaSemana`, contrato diferente — unificar é outra tarefa). Os dois reescritos.
+>
+> 🧪 **6.175 testes, 0 falhas (15 novos).** Três vistos vermelhos antes da correção ("o dia da semana voltou pra a vaga da chave", "esperava EXATAMENTE 1 e achei 2", a projetada) e três **falsificados** um a um: excluindo a família inteira do Americano cai a contraprova, apagando a linha do controller cai a trava da tela, e fechando o `@if` antes da bolinha cai a régua da bolinha.
+>
 > **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
