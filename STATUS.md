@@ -15,6 +15,24 @@
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
 
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+>
+> 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
+>
+> ✅ **ZERAR O CARIMBO *É* "MAIS UMA VEZ, E SÓ" — não existe código de "voltar a travar".** `PodeTrocarNome` já lê "carimbo nulo → pode", e o próprio salvamento da pessoa recarimba. Por isso o diff não tem coluna, flag nem migration: a régua que trava é a mesma que destrava. O teste que segura o pedido inteiro é ponta a ponta (`Depois_de_usar_a_liberacao_o_nome_trava_de_novo_sozinho`): libera pelo painel → ela troca pelo perfil → a **segunda** troca é recusada sozinha.
+>
+> ⚠️ **A TELA CONTINUA SEM EDITAR CONTA ALHEIA, e a distinção é o que deixa isto caber lá.** O cabeçalho dela veta escrita porque *"trocar o e-mail de uma conta é entregar a conta"*. Liberar devolve uma **troca**, não escreve um **dado**: o admin não digita, não escolhe e não chega a ver o nome novo — quem troca é a dona da conta, no perfil dela. Conferido por teste (`Liberar_nao_toca_no_nome_nem_no_apelido_gravados`).
+>
+> 🔒 **SÃO OS DOIS PRIMEIROS POSTs DESSA TELA, e a trava do assistente é o VERBO** — `ObterJogadorAdminAsync` recusa qualquer POST pra quem só olha, então o Foka segue vendo a tela inteira e sem clicar. Tem teste pra ele e pro jogador comum (`ForbidResult`, carimbo intacto).
+>
+> 🔁 **O BOTÃO PERGUNTA A RÉGUA, não relê o carimbo.** `p.ApelidoAlteradoEm != null` na view ofereceria botão inútil pro apelido de quem já saiu da carência de 1 mês sozinho — e seria a segunda cópia da regra, discordando da primeira no dia em que ela mudar. A view chama `PodeTrocarNome`/`PodeTrocarApelido`, o mesmo idioma do `EditarPerfil.cshtml`, e o teste proíbe a releitura.
+>
+> 📝 **O CARIMBO SOME, ENTÃO A EXCEÇÃO VAI PRO LOG** (`_logger.LogInformation`): depois de zerado, a conta não sabe mais dizer que já tinha trocado uma vez. Sem essa linha, nada registraria que houve exceção — e um carimbo novo pra isso seria coluna e migration, que a escada não paga por um registro de auditoria.
+>
+> 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
+>
+> ⏭️ **A CAROL ainda precisa do clique**: publicar, abrir `/Admin/Acesso`, procurar `03842585063` e "Liberar nova troca de nome". Daqui não dá pra fazer por ela — esta sessão não alcança o banco de produção.
+
 > **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
