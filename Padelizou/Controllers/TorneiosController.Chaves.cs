@@ -1082,6 +1082,9 @@ namespace Padelizou.Controllers
                 .ToListAsync();
             var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
             var projetados = await ProjetarProximasFasesAsync(id, partidas, reservas);
+            // Com as SEDES: a categoria presa em casa não vai pro slot do Radar por uma troca na mão
+            // (PR #120) — vale igual quando um dos lados é prévia.
+            var sedes = await SedesAsync(id);
 
             TrocaDeHorario.Lado Resolver(ReferenciaDoJogo referencia) => referencia.EhPrevia
                 ? new TrocaDeHorario.Lado(referencia, null, projetados.FirstOrDefault(j =>
@@ -1091,23 +1094,27 @@ namespace Padelizou.Controllers
             var ladoA = Resolver(refA);
             var ladoB = Resolver(refB);
 
-            if (TrocaDeHorario.MotivoParaNaoTrocar(ladoA, ladoB, id) is { } motivo)
+            if (TrocaDeHorario.MotivoParaNaoTrocar(ladoA, ladoB, id, sedes) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return VoltarPara(voltarPara, id);
             }
 
-            var slotDeA = (Horario: ladoA.Horario!.Value, Quadra: ladoA.Quadra);
-            var slotDeB = (Horario: ladoB.Horario!.Value, Quadra: ladoB.Quadra);
+            // O slot é o TRIO hora + quadra + clube (PR #120: "o clube é pelo horário"). O clube
+            // do slot de uma prévia sai da quadra dela — e, sem quadra cadastrada, é o do torneio,
+            // como CarimbarOClube faria.
+            var slotDeA = (Horario: ladoA.Horario!.Value, Quadra: ladoA.Quadra, Clube: ladoA.ClubeDaVaga(sedes) ?? torneio.ClubeId);
+            var slotDeB = (Horario: ladoB.Horario!.Value, Quadra: ladoB.Quadra, Clube: ladoB.ClubeDaVaga(sedes) ?? torneio.ClubeId);
 
             // Cada lado recebe o slot do outro: o real na própria linha, o previsto numa reserva
             // (a dele, se já tinha — a PK composta garante que é uma só).
-            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra) slot)
+            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot)
             {
                 if (lado.Real is Partida real)
                 {
                     real.HorarioPrevisto = slot.Horario;
                     real.NomeQuadra = slot.Quadra;
+                    real.ClubeId = slot.Clube;
                     return;
                 }
 

@@ -202,6 +202,10 @@ public sealed class SedesDoTorneio
     public bool EhSedeExtra(string? nomeQuadra) =>
         ClubeDaQuadra(nomeQuadra) is { } clube && clube != _clubePrincipal;
 
+    // E este CLUBE? É a mesma pergunta pra quem tem o carimbo do jogo (Partida.ClubeId) em vez
+    // do nome da quadra — o "por ordem", que apaga a quadra e guarda o clube.
+    public bool EhSedeExtra(int clubeId) => MaisDeUmClube && clubeId != _clubePrincipal;
+
     // Esta categoria pode transbordar pro local externo?
     //
     // ⚠️ FALSE é a EXCEÇÃO, não a regra — ver o comentário de Models/Categoria. Categoria
