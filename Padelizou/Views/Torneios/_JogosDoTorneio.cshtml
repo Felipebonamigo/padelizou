@@ -565,9 +565,11 @@
         @if (ehOrganizador && agendadasList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
-                  data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos. As trocas de horário feitas à mão são desfeitas — inclusive as das eliminatórias previstas."
-                  data-confirmar-titulo="Recalcular os horários?"
-                  data-confirmar-ok="Recalcular">
+                  @* 🗣️ "gerar todos horarios novos e o que foi feito sera perdido" (Felipe, 10/09/2026):
+                     o aviso dizia o que o botão FAZ; faltava o que ele DESFAZ — as trocas na mão. *@
+                  data-confirmar="Gera horários NOVOS pra todos os @agendadasList.Count jogos que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                  data-confirmar-titulo="Recalcular todos os horários?"
+                  data-confirmar-ok="Recalcular e perder os ajustes">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 @* Pra voltar pra ESTA tela. Sem isto, quem estava na página do torneio caía na
@@ -577,7 +579,7 @@
                     <i class="bi bi-clock-history"></i> Recalcular horários
                 </button>
                 <span class="form-text ms-2">
-                    Redistribui só o que ainda não começou. Use quando o torneio atrasar.
+                    Redistribui só o que ainda não começou — e desfaz as trocas feitas na mão. Use quando o torneio atrasar.
                 </span>
             </form>
         }
