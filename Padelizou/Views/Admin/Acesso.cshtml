@@ -11,6 +11,13 @@
 <div class="container mt-4 mb-5">
     <a asp-controller="Admin" asp-action="Index" class="small text-decoration-none">&larr; Painel Admin</a>
 
+    @* A tela era só de consulta e não tinha onde mostrar resposta de ação nenhuma. As duas
+       liberações voltam pra cá por redirect, e sem este bloco o clique não diria nada. *@
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success mt-3 mb-0">@TempData["Sucesso"]</div>
+    }
+
     <div class="mb-4 mt-2">
         <h2 class="fw-bold" style="color: var(--pdz-ink);">Acesso do jogador</h2>
         <p class="text-muted mb-0">
@@ -216,6 +223,64 @@
                     A senha não aparece em lugar nenhum do sistema: o banco guarda só o hash dela.
                     Não existe "consultar a senha" — existe definir uma nova.
                 </div>
+
+                @* ── AS TROCAS DE NOME E APELIDO ──────────────────────────────────────
+                   A outra pergunta que chega pelo WhatsApp: "o site não deixa eu arrumar meu
+                   nome". A recusa que ela leu manda falar com a gente — é aqui que a gente
+                   responde, sem SSH.
+
+                   ⚠️ O botão SÓ APARECE PRA QUEM ESTÁ TRAVADO DE VERDADE, e quem responde isso
+                   é a MESMA régua que trava a pessoa no perfil dela — não uma releitura do
+                   carimbo aqui. Reescrever "já trocou alguma vez" nesta tela ofereceria um botão
+                   inútil pro apelido de quem já saiu da carência sozinho, e no dia em que a régua
+                   mudar seriam duas contas discordando. ── *@
+                @{
+                    var agoraSuporte = DateTime.Now;
+                    var nomeTravado = !TrocaDeNome.PodeTrocarNome(p.NomeAlteradoEm, agoraSuporte).Pode;
+                    var apelidoTravado = !TrocaDeNome.PodeTrocarApelido(p.ApelidoAlteradoEm, agoraSuporte).Pode;
+                }
+                @if (p.ExcluidoEm == null && (nomeTravado || apelidoTravado))
+                {
+                    <hr class="my-3" />
+                    <div class="small fw-bold mb-2" style="color: var(--pdz-ink);">Trocas de nome e apelido</div>
+
+                    @if (nomeTravado)
+                    {
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <div class="small text-muted">
+                                <strong>Nome travado.</strong> Já foi corrigido em
+                                <strong>@p.NomeAlteradoEm?.ToString("dd/MM/yyyy")</strong>, e o nome
+                                muda uma vez só. Liberar devolve <strong>uma</strong> troca: quando
+                                ela salvar, trava de novo sozinho.
+                            </div>
+                            <form asp-controller="Admin" asp-action="LiberarTrocaDeNome" method="post">
+                                <input type="hidden" name="jogadorId" value="@p.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                    Liberar nova troca de nome
+                                </button>
+                            </form>
+                        </div>
+                    }
+
+                    @if (apelidoTravado)
+                    {
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="small text-muted">
+                                <strong>Apelido em carência.</strong> Trocado em
+                                <strong>@p.ApelidoAlteradoEm?.ToString("dd/MM/yyyy")</strong>; libera
+                                sozinho em
+                                <strong>@TrocaDeNome.PodeTrocarApelido(p.ApelidoAlteradoEm, agoraSuporte).LiberaEm?.ToString("dd/MM/yyyy")</strong>.
+                                Só precisa de botão quem não pode esperar até lá.
+                            </div>
+                            <form asp-controller="Admin" asp-action="LiberarTrocaDeApelido" method="post">
+                                <input type="hidden" name="jogadorId" value="@p.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                    Liberar troca de apelido
+                                </button>
+                            </form>
+                        </div>
+                    }
+                }
             </div>
         </div>
     }
