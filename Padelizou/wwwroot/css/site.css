@@ -2728,11 +2728,21 @@ button, a, input, select { touch-action: manipulation; }
     border-color: rgba(224, 170, 62, .5);
 }
 
+/* ⚠️ `flex-wrap: wrap` NÃO é enfeite — é o que segura a barra dentro do cartão (10/09/2026).
+   Abaixo de 576px esta barra ganha `width: 100%` + `justify-content: flex-end` (ver o media
+   query lá embaixo). Sem quebrar linha, o que não cabe escorre pro lado CONTRÁRIO ao
+   alinhamento: pra esquerda, pra fora do cartão e pra fora da tela — e sem virar rolagem
+   horizontal, porque o navegador não cria área de rolagem à esquerda. Some em silêncio.
+   Medido a 390px: a barra pede 365px, o cartão oferece 291px, e o play verde nascia em -21px.
+   Não dá pra espremer: 7 alvos de dedo de 44px já passam de 337px — nesta largura, uma linha
+   só é impossível. Ver AcoesDoJogoNoCelularTests. */
 .pdz-jl-acoes {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: .3rem;
     margin-left: auto;
+    justify-content: flex-end;
 }
 
 .pdz-jl-acoes form { margin: 0; }
