@@ -13,7 +13,12 @@
     linha tornaria inviável arrumar sete semifinais. Quem avisa é o resultado — a mensagem diz o
     que a mexida fez com o Conferir grade (Services/ImpactoDaTroca).
 *@
-<form asp-controller="Torneios" asp-action="MoverNoHorario" method="post" class="pdz-jl-setas">
+@* `data-manter-posicao`: depois do POST a lista volta pra onde estava, em vez de nascer no topo
+   (js/manter-posicao-na-lista.js). 🗣️ *"quando eu trocar aqui, ele tem q permanecer no mesmo local
+   da tela, esta indo para o inicio"* — numa lista de 97 jogos, arrumar sete semifinais custava
+   sete rolagens até reencontrar a linha. *@
+<form asp-controller="Torneios" asp-action="MoverNoHorario" method="post" class="pdz-jl-setas"
+      data-manter-posicao>
     @Html.AntiForgeryToken()
     <input type="hidden" name="id" value="@Model.TorneioId" />
     <input type="hidden" name="jogo" value="@Model.Referencia" />

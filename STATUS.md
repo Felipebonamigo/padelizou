@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
+>
+> 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
+>
+> 🕳️ **É O CUSTO DO POST → REDIRECT → GET**, e ele só apareceu agora porque antes ninguém clicava sete vezes seguidas: a página nova nasce no começo. Numa lista de 97 jogos, arrumar a ordem de sete semifinais custava sete rolagens até reencontrar a linha — a ferramenta que existia pra poupar trabalho cobrando trabalho de volta.
+>
+> ✅ **A RESPOSTA É A MESMA PEÇA DE 08/08**, e isso é o ponto: `js/jogos-abas.js` nasceu da queixa gêmea (*"ele tem que se manter na tela que eu estou editando"*) e usa `sessionStorage`. O `js/manter-posicao-na-lista.js` guarda o `scrollY` no submit e o devolve depois do redirect. Reuso de padrão, não invenção — duas mecânicas diferentes pra "a tela não pode se mexer sozinha" divergiriam na primeira mudança.
+>
+> ⚠️ **POR OPT-IN (`data-manter-posicao` no formulário), e não em todo POST da página:** ação que leva pra outra tela, ou que muda a lista inteira (o "Recalcular horários"), não quer voltar pra uma posição que já não quer dizer nada. Quem sabe disso é quem escreveu o botão.
+>
+> ⚠️ **RESTAURA NO `load` + `requestAnimationFrame`, e não no `DOMContentLoaded`:** o navegador ainda pula pra âncora do endereço (`#jogosDoTorneio`) e o `jogos-abas.js` ainda troca a aba — as duas coisas mexem na altura da página, e rolar antes delas erraria o alvo. E a posição é lida UMA vez e apagada: sem isso, qualquer visita seguinte àquela página seria arrastada pra um lugar escolhido em outro momento.
+>
+> 🧪 **6.124 testes, 0 falhas (3 novos).** Vistos vermelhos antes: o formulário das setas sem o `data-manter-posicao`, as duas telas sem o script, e o script sem existir.
+>
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio. O que dá pra afirmar é o que o teste lê da fonte; a rolagem em si só se confere no `dev`.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 >
 > 🔢 **DENTRO DO MESMO HORÁRIO, A ORDEM DA LINHA AGORA EXISTE — E É EDITÁVEL.** 🗣️ Felipe, arrumando o domingo do Er (*"Semifinal 6 masc / 6 fem / 5 masc / 3 fem / 4 masc..."*): *"quando eu altero um jogo, no mesmo horario, ele nao esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu quiser"*; *"por padrão, se tem semifinal 1 e semifinal 2 no mesmo horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*; e *"só cuide q se colocar o jogo pra cima, ele mude o horario e quadra tb se tiver, e avise se atrapalhar algo com ficar 2 jogos seguidos pra alguem"*.
 >
