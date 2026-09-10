@@ -5669,12 +5669,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </h6>
                                     <p class="small text-muted mb-3">
                                         As duas trocam de lugar entre si — os grupos continuam do mesmo tamanho.
-                                        Os horários são recalculados na hora, respeitando os impedimentos de quem pagou por eles.
+                                        Você escolhe o que fazer com os horários.
                                     </p>
+                                    @* Refazer os horários virou ESCOLHA (rádio abaixo) — ver o porquê em
+                                       TorneiosController.TrocarDuplasDeGrupo. O confirm fala dos DOIS caminhos:
+                                       afirmar "recalcula tudo" quando talvez não recalcule seria pior que calar. *@
                                     <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
                                           class="row g-2 align-items-end"
                                           data-confirmar-titulo="Trocar as duas de grupo?"
-                                          data-confirmar="Os confrontos dos dois grupos mudam e TODOS os horários do torneio são recalculados. Toda troca de horário feita na mão e as reservas das eliminatórias previstas se perdem."
+                                          data-confirmar="Os confrontos dos dois grupos mudam. Se você escolheu recalcular todos os horários, TODA troca de horário feita na mão e as reservas das eliminatórias previstas se perdem."
                                           data-confirmar-ok="Trocar">
                                         <input type="hidden" name="id" value="@Model.Id" />
                                         <div class="col-12 col-md-5">
@@ -5705,7 +5708,29 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 }
                                             </select>
                                         </div>
-                                        <div class="col-12 col-md-2 d-grid">
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="refazerHorarios"
+                                                       id="manterHorarios-@categoria.Id" value="false" checked />
+                                                <label class="form-check-label small" for="manterHorarios-@categoria.Id">
+                                                    <strong>Só trocar as duplas</strong> — os horários ficam como estão,
+                                                    e nenhuma troca sua se perde.
+                                                    <span class="text-muted">Se a troca furar um impedimento, o aviso diz
+                                                    qual — e o "Ajustar horários" conserta sem refazer a grade.</span>
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="refazerHorarios"
+                                                       id="refazerHorarios-@categoria.Id" value="true" />
+                                                <label class="form-check-label small" for="refazerHorarios-@categoria.Id">
+                                                    <strong>Trocar e recalcular todos os horários</strong> — respeita os
+                                                    impedimentos de quem pagou por eles.
+                                                    <span class="text-danger">Refaz a grade inteira: as trocas feitas na
+                                                    mão e as reservas das eliminatórias previstas se perdem.</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-3 d-grid">
                                             <button type="submit" class="btn btn-outline-primary fw-bold">
                                                 <i class="bi bi-arrow-left-right"></i> Trocar
                                             </button>

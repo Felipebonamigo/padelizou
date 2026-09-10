@@ -38,12 +38,22 @@ public static class ImpactoDaTroca
         if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, torneio.Id, sedes) is { } motivo)
             return new Resultado(Nivel.Impossivel, motivo);
 
-        var antes = PorRegra(torneio, jogos, duplas, sedes);
+        var antes = Contar(torneio, jogos, duplas, sedes);
 
         TrocaDeHorario.Trocar(a!, b!);
-        var depois = PorRegra(torneio, jogos, duplas, sedes);
+        var depois = Contar(torneio, jogos, duplas, sedes);
         TrocaDeHorario.Trocar(a!, b!);          // desfaz: prever não mexe na grade
 
+        return Comparar(antes, depois);
+    }
+
+    /// <summary>
+    /// O que mudou entre duas contagens de <see cref="Contar"/>. Serve pra qualquer mexida na
+    /// grade, não só a troca de slot: a troca de duplas de grupo usa a mesma resposta.
+    /// </summary>
+    public static Resultado Comparar(IReadOnlyDictionary<string, int> antes,
+        IReadOnlyDictionary<string, int> depois)
+    {
         var piorou = new List<string>();
         var melhorou = new List<string>();
         bool duroPiorou = false;
@@ -81,9 +91,11 @@ public static class ImpactoDaTroca
         return new Resultado(Nivel.Melhora, texto);
     }
 
-    // Quantos achados de cada regra, ignorando os que não pesam (o cadastro em conflito, que
-    // nenhuma troca de horário resolve — ver ReparoDaGrade).
-    private static Dictionary<string, int> PorRegra(Torneio torneio, IList<Partida> jogos,
+    /// <summary>
+    /// Quantos achados de cada regra, ignorando os que não pesam (o cadastro em conflito, que
+    /// nenhuma troca de horário resolve — ver <see cref="ReparoDaGrade"/>).
+    /// </summary>
+    public static Dictionary<string, int> Contar(Torneio torneio, IList<Partida> jogos,
         IReadOnlyCollection<Dupla> duplas, SedesDoTorneio sedes) =>
         AuditoriaDaGrade.Conferir(torneio, jogos.ToList(), duplas, sedes)
             .Where(a => ReparoDaGrade.Peso(a.Regra) > 0)
