@@ -313,6 +313,39 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
+            // A FILA DOS JOGOS QUE VÊM — o assunto da tela desde 10/09/2026.
+            //
+            // 🗣️ Felipe, com o Er aberto em "0 de 64 presentes": *"acho que aqui teria q mudar,
+            // por próximos jogos, e ver se as pessoas chegaram, e nao todos"*. A lista por
+            // categoria responde "quem está inscrito"; no sábado de manhã a pergunta é "quem
+            // joga agora já chegou?", e com 64 duplas achar as duas do jogo das 8h era rolar a
+            // lista inteira cruzando de cabeça com a grade.
+            //
+            // ⚠️ A ORDEM É A MESMA DA ABA JOGOS (Services/OrdemNoHorario): hora → posição
+            // gravada → Id. Duas contas de "quem vem antes" fariam as duas telas mostrarem
+            // ordens diferentes pra mesma grade.
+            //
+            // ⚠️ Só "Agendada". Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos
+            // dois, a pergunta do check-in já foi respondida por outra via. E a PRÉVIA (a
+            // eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela
+            // não sabe quem joga, então não há quem marcar.
+            //
+            // ⚠️ Pelo caminho `Categoria.TorneioId`, e não por `Partida.TorneioId`: é o mesmo
+            // caminho do `Comunicar` aqui do lado, e o único que a categoria garante.
+            var agendadas = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .Where(p => p.Categoria.TorneioId == id && p.Status == "Agendada")
+                .ToListAsync();
+
+            ViewBag.JogosQueVem = OrdemNoHorario
+                .Ordenar(agendadas, Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Select(l => l.Jogo!)
+                .ToList();
+
             return View(torneio);
         }
 

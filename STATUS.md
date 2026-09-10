@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1001-28f2256`** (16h15 e 16h16 — runs 190 e 191). PR #163, o **chaveamento desenhado à mão**. ⚠️ **TEM MIGRATION** (`ChaveamentoManual`: coluna nullable em `Categoria`) — o `deploy.sh` aplica no startup. Este release leva junto o **PR #162** da sessão paralela.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
+>
+> 🕳️ **A TELA RESPONDIA A PERGUNTA DA VÉSPERA.** "Quem está inscrito" é a lista por categoria; no sábado de manhã a pergunta é **"quem joga agora já chegou?"** — e com 64 duplas achar as duas do jogo das 8h era rolar a lista inteira cruzando de cabeça com a grade. A informação existia e não estava onde se decide o W.O.
+>
+> ✅ **AGORA A TELA É A FILA DO DIA**: blocos por horário (`sáb 12/09 às 08:00`), cada jogo com as duas duplas e o "Chegou" em cada uma, e o jogo com as duas presentes apagado com o selo *"os dois chegaram"*. A lista por categoria continua inteira embaixo, **fechada**, em "Resto do torneio" — é ela que serve pra marcar quem chegou cedo e joga à tarde.
+>
+> ⚠️ **A ORDEM É A MESMA DA ABA JOGOS** (`Services/OrdemNoHorario`: hora → posição gravada → Id). Duas contas de "quem vem antes" fariam as duas telas mostrarem ordens diferentes pra mesma grade — a lição de hoje de manhã, aplicada antes de doer. E o `GroupBy` da view **não reordena**: em LINQ to Objects os grupos saem na ordem em que aparecem, e a fila já chega ordenada.
+>
+> ⚠️ **SÓ "Agendada".** Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos dois a pergunta do check-in já foi respondida por outra via. A **prévia** (eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela não sabe quem joga, então não há quem marcar.
+>
+> ♻️ **A LINHA DA CHAMADA VIROU UM PARCIAL** (`_LinhaDoCheckIn.cshtml`), porque agora ela é desenhada em dois lugares — dentro do jogo e na lista de baixo. Duas cópias do formulário que GRAVA presença divergiriam na primeira mudança. De brinde, ela ganhou `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenhava a página do topo (`js/manter-posicao-na-lista.js`, a peça de hoje de manhã, pela mesma queixa).
+>
+> 🧪 **6.250 testes, 0 falhas (9 novos)** + o `conferir-palpitrometro.js` verde. Vistos vermelhos antes: `ViewData["JogosQueVem"]` nulo, *"A tela não lê a fila dos jogos"* e *"Could not find file '_LinhaDoCheckIn.cshtml'"*. A consulta nova tem **teste de tradução Npgsql** (`ToQueryString`, o padrão de 19/08): ela filtra pela navegação `Categoria.TorneioId`, e o InMemory do resto da suíte não traduz nada.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão e o proxy recusa o domínio. O que dá pra afirmar é o que o teste lê da fonte e do controller, e que o Razor compila.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1001-28f2256`** (16h15 e 16h16 — runs 190 e 191). PR #163, o **chaveamento desenhado à mão**. ⚠️ **TEM MIGRATION** (`ChaveamentoManual`: coluna nullable em `Categoria`) — o `deploy.sh` aplica no startup. Este release leva junto o **PR #162** da sessão paralela.
 >
 > 🗺️ **O ORGANIZADOR PASSA A DESENHAR QUEM CRUZA COM QUEM NA PRIMEIRA ELIMINATÓRIA.** 🗣️ *"permita alterar na mao o chaveamento, como funciona a chave de cada um, se o primeiro passar quem enfrenta, etc (obviamente que apenas organizadores e adm do sistema podem fazer isso)"*.
 >
@@ -64,7 +82,15 @@
 >
 > 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-988-7b37450`** (15h27 e 15h29 de Brasília — runs 183 e 184). PR #155. **Sem migration.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES DURANTE A ABERTURA DO PR** — #149, #152 e #154; depois #156 e #157; depois #158 —, e o `STATUS.md` conflitou nas três. Duas tentativas de merge foram recusadas com `405 Pull Request has merge conflicts` antes de a terceira passar. 📌 **A lição prática, com quatro sessões mergeando na mesma tarde:** o conflito não é o código, é este arquivo — cada mescla foi resolvida ficando com a minha entrada no topo e as do `main` logo abaixo, e a última ainda tirou um cabeçalho órfão que a anterior deixou (a entrada do `focused-euler` já tinha vindo do `main` com o cabeçalho dele).
+>
+> ⚠️ **O CI NÃO RODOU NO HEAD FINAL DO PR, e isso precisa estar escrito.** Os dois runs verdes foram no `5a10995` (983 e 984); o head mesclado (`1d79c23`) só acrescentou a resolução do `STATUS.md` e a remoção do cabeçalho órfão — **nenhuma mudança de código** —, e eu mergeei sem um terceiro run porque o `main` andava a cada poucos minutos. O que rodou aqui antes do merge: a suíte inteira (**6.201, 0 falhas**) e o `has-pending-model-changes` do CI (*"No changes have been made to the model since the last migration"*). O CI do `main` (run 988) fechou verde no commit de merge, que é o que gerou o release — sem ele não haveria o que instalar.
+>
+> ⚠️ **O BUILD FOI PEDIDO PELO NOME nos dois ambientes** (`build-988-7b37450`, e não "o mais recente"): entre o release e o deploy entrou o PR #159 no `main`, e "o mais recente" teria instalado outra coisa. 📌 E o de sempre: o `build-988` leva junto tudo que estava no `main` antes do meu merge — os PRs #156, #157 e #158 das sessões paralelas.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve 403 pros dois domínios. Quem atesta é o `deploy.sh` (rollback automático se não vier 200), e os dois logs dizem *"==> Feito. build-988-7b37450 no ar em dev"* e *"...no ar em prod"*. É evidência de verdade, mas não é verificação independente.
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
 >
