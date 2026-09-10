@@ -256,7 +256,26 @@ public static class AuditoriaDaGrade
         var pares = new Dictionary<(Partida, Partida), List<int>>();
         foreach (var (pessoa, quandos) in agenda)
         {
-            var ordenados = quandos.OrderBy(q => q.Quando).ToList();
+            // ⚠️ O DESEMPATE POR `Codigo` É A CORREÇÃO, NÃO ESTILO (10/09/2026). `OrderBy` é
+            // ESTÁVEL: dois jogos da mesma pessoa NO MESMO HORÁRIO — que existe e tem nome, é o
+            // achado "Mesma pessoa em dois jogos" logo abaixo — ficavam na ordem em que vieram na
+            // LISTA. A varredura de pares consecutivos montava então pares diferentes ((A,B) e
+            // (B,C) numa ordem, (B,A) e (A,C) na outra), o dicionário agrupava por chaves
+            // diferentes, e A MESMA GRADE rendia 3 achados numa ordem e 2 na outra.
+            //
+            // 🕳️ Isso vazava para três lugares de uma vez: o número que o organizador lê no
+            // "Conferir grade", o `Custo` do reparo (que aceitava numa passagem a troca que
+            // recusava na outra) e o `Doentes` (que começava por outro jogo). Era a causa do
+            // "Refazer grade" não reproduzir a grade do sorteio em ~15% dos sorteios, sempre com
+            // um PAR de jogos trocando entre si — o defeito que o PR #118 tentou fechar pela
+            // ponta do reparo e que só fecha aqui, na régua.
+            //
+            // `Codigo` e não `Id`: no sorteio os jogos ainda não foram gravados e são todos zero.
+            // É o mesmo desempate que `ReparoDaGrade.EmOrdemEstavel` já usa, pelo mesmo motivo.
+            var ordenados = quandos
+                .OrderBy(q => q.Quando)
+                .ThenBy(q => q.Jogo.Codigo, StringComparer.Ordinal)
+                .ToList();
             for (int i = 1; i < ordenados.Count; i++)
             {
                 var chave = (ordenados[i - 1].Jogo, ordenados[i].Jogo);
@@ -347,6 +366,16 @@ public static class AuditoriaDaGrade
             }
         }
 
-        return achados.OrderBy(a => a.Quando ?? DateTime.MaxValue).ThenBy(a => a.Regra).ToList();
+        // ⚠️ ORDEM TOTAL. Com só (Quando, Regra) o desempate caía na ordem de emissão — que segue a
+        // ordem da LISTA de jogos, e o `pares` acima é um dicionário, cuja enumeração segue a
+        // inserção. Dois achados da mesma regra no mesmo minuto trocavam de lugar conforme o banco
+        // devolvesse os jogos, e a lista do "Conferir grade" se reembaralhava sozinha entre dois
+        // F5 — o organizador lendo a mesma grade duas vezes e achando que algo tinha mudado.
+        return achados
+            .OrderBy(a => a.Quando ?? DateTime.MaxValue)
+            .ThenBy(a => a.Regra, StringComparer.Ordinal)
+            .ThenByDescending(a => a.Gravidade)
+            .ThenBy(a => a.Descricao, StringComparer.Ordinal)
+            .ToList();
     }
 }
