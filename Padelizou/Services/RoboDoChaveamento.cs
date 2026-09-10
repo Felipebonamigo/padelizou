@@ -426,9 +426,13 @@ public class RoboDoChaveamento
         // Mesa de Controle daria erro no meio do torneio por causa de outro torneio.
         if (torneio == null) return;
 
-        // Torneio por ordem de liberação não tem grade: o mata-mata entra na fila como todo o
-        // resto, sem hora. Ver Torneio.SemHorarioPrevisto.
-        if (torneio.SemHorarioPrevisto) return;
+        // ⚠️ O "POR ORDEM DE LIBERAÇÃO" PASSA POR AQUI TAMBÉM (10/09/2026). Até hoje o robô saía
+        // antes, e a rodada nova nascia SEM hora — enquanto o sorteio e o Refazer grade, desde
+        // 09/09 (Services/OrdemDeLiberacao), dão hora a todo jogo e apagam só a QUADRA. Ficava a
+        // fase de grupos com hora e a semifinal "por ordem" na mesma lista, e a prévia prometendo
+        // uma hora que o jogo real nunca ganhava — foi no torneio do Er, que é por ordem, que a
+        // troca de horário da eliminatória prevista não tinha como funcionar. Agora ele faz o
+        // mesmo que os outros dois: calcula, carimba o clube e apaga a quadra no fim.
 
         var jaMarcados = await _context.Partidas
             .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
@@ -553,8 +557,10 @@ public class RoboDoChaveamento
                 sedes));
 
         // A rodada nova também sai com o clube gravado (Partida.ClubeId) — ver OrdemDeLiberacao.
-        // `candidatos`, e não `paraEncaixar`: o jogo reservado também precisa de clube.
+        // `candidatos`, e não `paraEncaixar`: o jogo reservado também precisa de clube. E no "por
+        // ordem" a quadra vai embora DEPOIS do carimbo — quem decide onde é a Mesa, conforme vaga.
         OrdemDeLiberacao.CarimbarOClube(torneio, candidatos, sedes);
+        OrdemDeLiberacao.ApagarAsQuadras(torneio, candidatos);
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver
