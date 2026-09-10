@@ -22,6 +22,32 @@ public class ChaveProjetadaTests
         Assert.Equal(8, vagas.Distinct().Count());
     }
 
+    // 10/09/2026 — A PRÉVIA DAVA O BYE A QUEM O ROBÔ NÃO DÁ.
+    //
+    // Achado pela revisão adversarial, com a forma exata do Er: 8 duplas → grupos A(2), B(3),
+    // C(3). A prévia montava todo mundo com campanha zerada e o desempate caía no NOME do grupo:
+    // "1º do Grupo A (passou direto)". O robô de verdade dá o bye a quem tem a melhor campanha —
+    // e o 1º do A joga UM jogo (no máximo 1 vitória), enquanto os 1ºs de B e C têm 2. A dupla
+    // que a chave publicada mandava descansar era chamada pra quadra. Com o TAMANHO de cada
+    // grupo, a prévia sabe o teto de campanha de cada vaga e escolhe como o robô.
+    [Fact]
+    public void Grupo_de_2_nao_recebe_bye_na_previa_quando_os_outros_sao_de_3()
+    {
+        var (fase, confrontos, byes) = ChaveProjetada.Montar(
+            new[] { "Grupo A", "Grupo B", "Grupo C" }, 2, duplasPorGrupo: new[] { 2, 3, 3 });
+
+        Assert.Equal("Quartas de Final", fase);
+        Assert.Equal(new[] { "1º do Grupo B", "1º do Grupo C" }, byes.Select(b => b.Rotulo).OrderBy(r => r).ToArray());
+        Assert.Contains(confrontos, c => c.Lado1.Rotulo == "1º do Grupo A" || c.Lado2.Rotulo == "1º do Grupo A");
+    }
+
+    [Fact]
+    public void Sem_o_tamanho_dos_grupos_a_previa_continua_como_era()
+    {
+        var (_, _, byes) = ChaveProjetada.Montar(new[] { "Grupo A", "Grupo B", "Grupo C" });
+        Assert.Equal(new[] { "1º do Grupo A", "1º do Grupo B" }, byes.Select(b => b.Rotulo).OrderBy(r => r).ToArray());
+    }
+
     [Fact]
     public void Tres_grupos_todos_avancam_e_os_melhores_primeiros_descansam()
     {
