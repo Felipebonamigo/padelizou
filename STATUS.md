@@ -315,6 +315,38 @@
 >
 > 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
 
+> **10/09/2026** — ⏳ **NO BRANCH `claude/wizardly-archimedes-um7u3v` (PR #166), ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910200606_FusaoDeTimesComNomeIgual` — funde dados e cria índice único; **não tem desfazer**).
+>
+> 🛡️ **DOIS TIMES COM O MESMO NOME DEIXARAM DE SER POSSÍVEIS — A TRAVA AGORA É DO BANCO.** 🗣️ Felipe: *"não deixa mais dois times com nome idêntico existirem, tem q mesclar, não pode ser diferente apenas pelo case sensitive"*.
+>
+> 🔎 **ACHADO NUMA VARREDURA SÓ-LEITURA DA PRODUÇÃO** (primeira sessão com acesso HTTP ao `padelizou.com.br` — ver a entrada da política de rede abaixo). A aba **Times** do 2ª Etapa ER PADEL TOUR listava **`ER Padel` (21 jogadores, 318 pts)** e **`Er padel` (2 jogadores, 25 pts)** como cadastros DIFERENTES, com o pódio partido entre as duas linhas. Os dois do segundo: **Camila Lopes** (a própria organizadora) e **Ivone Peixoto**.
+>
+> 🕳️ **A REGRA JÁ EXISTIA; UM DOS TRÊS CAMINHOS NÃO A APLICAVA.** `AdminController.CriarTime` recusa nome repetido — e o comentário dele já descrevia este estrago antes de acontecer: *"com dois SINDAQUA na base, cada pessoa cai num dos dois pelo acaso da consulta — e metade do time fica pendurada no cadastro errado, em silêncio"*. `AuthController.DefinirTimeAsync` acha por nome sem diferenciar maiúscula e ENTRA no que existe. Já o bloco `ehDonoTime` do `EditarPerfil` fazia `new Time { Nome = nomeTime.Trim() }` **direto**. E o mesmo trecho **piorava o conserto**: quem já tinha time e digitasse o nome de outro caía em `meuTime.Nome = ...` e renomeava, produzindo dois times com o nome IDÊNTICO.
+>
+> ✅ **A TRAVA FOI PRO BANCO, e é o degrau 4 da escada deste arquivo** (*chave/índice do banco em vez de checar duplicata em C#*): índice único em **`lower(btrim("Nome"))`**. Vale pros três caminhos de uma vez — e pro quarto que alguém escrever daqui a seis meses sem ler nada disso. Índice por expressão, então vai em SQL cru e fica **fora do snapshot** do EF; o `has-pending-model-changes` continua limpo porque o modelo não mudou.
+>
+> ⚠️ **A ORDEM DENTRO DA MIGRATION É O QUE FAZ O DEPLOY PASSAR: funde primeiro, indexa depois.** Com a duplicata viva o índice não aplica — se ele viesse antes, a migration falharia, o `/healthz` daria 503 (ele confere migration pendente) e o `deploy.sh` faria rollback sozinho.
+>
+> ⚠️ **RECUSAR SOZINHO PRENDERIA A PESSOA** — ela digita o nome do próprio clube, o banco diz não, e ela não tem como chegar no cadastro certo. Por isso **funde**: sobrevive o de **mais jogadores** (empate, menor `Id`), que é o mesmo critério que o projeto já usa pra grafias de cidade (*"entre duas grafias empatadas, ganha a que mais gente escreveu"*).
+>
+<<<<<<< HEAD
+> ⚠️ **ADMINISTRAÇÃO NUNCA É HERDADA NUMA FUSÃO, e essa é a parte que mais importa.** Quem comandava o absorvido não passa a comandar o sobrevivente: a Camila mandava em 2 pessoas e herdar daria a ela o comando de 21. **Reparo de dado não pode virar promoção** — mesma razão pela qual digitar no cadastro o nome de um time existente não dá cargo nenhum. Quem administrava o sobrevivente segue administrando. Time que ficar sem nenhum cai no estado dos 44 importados do ranking, e um admin concede o primeiro.
+>
+> ⚠️ **O NOME DO SOBREVIVENTE NÃO MUDA.** Como a colisão é por `lower(btrim(nome))`, o que a pessoa digitou só difere na caixa ou em espaço — e aplicá-lo deixaria alguém trocar a grafia de um time que não administra, só por saber como ele se chama.
+>
+> 🧪 **6.311 testes, 0 falhas com o `main` mesclado (14 novos: `FusaoDeTimesTests` + `TimeDuplicadoNoPerfilTests`).** Vistos vermelhos antes: *"The collection contained 2 items"* (o segundo time nascendo), *"Expected ViewResult, Actual RedirectToActionResult"* (o rename passando), *"Assert.Empty() Failure"* (o cargo saindo na duplicata) e `CS0103: FusaoDeTimes does not exist`. **Falsificado depois**: trocar o desempate por "ganha o primeiro argumento" derruba 2 testes; fazer a administração ser herdada derruba 2.
+>
+> 🐘 **A MIGRATION FOI RODADA CONTRA UM POSTGRES 16 DE VERDADE, e não só contra o InMemory** — que é o buraco de 19/08 escrito neste arquivo. Base criada do zero pelas migrations, semeada com as três grafias (`ER Padel`, `Er padel`, `  er padel  `) mais um time de controle. Depois: **um** time com **24** jogadores, sedes 1+2+3 sem repetir, só o administrador do sobrevivente de pé, a transferência que virava `10 → 10` apagada, e o time de controle intacto. O índice recusa `'er padel'` **e** `' ER PADEL '`, e aceita nome novo. `Down()` derruba o índice e reaplicar funciona.
+>
+> 🕳️ **O `Down()` NÃO DESFAZ A FUSÃO** — os absorvidos foram apagados e não há registro de quem era de quem. Voltar a migration devolve a permissão de repetir nome, não os cadastros. Quem precisar deles vai no backup do dia.
+>
+> ⚠️ **Atalho nomeado:** dois salvamentos simultâneos com o mesmo nome novo passam os dois pela checagem em C# e o segundo bate no índice — vira erro 500, não duplicata. Sem retry de propósito; o conserto, se doer, é capturar `DbUpdateException` e reentrar por `FundirAsync`.
+>
+> 🌐 **E ESTA FOI A PRIMEIRA SESSÃO WEB COM ACESSO AO SITE NO AR.** O `padelizou.com.br` era 403 no proxy de egresso porque o ambiente de nuvem estava no nível **Trusted** (allowlist fechada: GitHub, npm, pypi). Felipe trocou pra **Personalizado** em claude.ai/code → ícone de nuvem → **Nuvem** → engrenagem do ambiente, com `padelizou.com.br` e `dev.padelizou.com.br` em **Domínios permitidos** e a caixa **"Também incluir lista padrão de gerenciadores de pacotes comuns"** marcada (sem ela o `dotnet restore` do hook perde o NuGet e os 4 plugins não instalam). ⚠️ **Pegou nesta mesma sessão, sem abrir outra** — o container tinha acabado de ser reprovisionado. **Continua fora de alcance em qualquer política: banco e SSH** (raw TCP não passa pelo proxy) e **tela logada** (precisa de credencial).
+>
+> 📋 **A varredura só-leitura do torneio do Er passou em tudo o mais**: 97 jogos (56 reais + 41 prévias), 24 grupos com o número exato de confrontos de todos-contra-todos (zero repetido, zero faltando), 64 duplas inscritas = 64 em jogo, 128 perfis linkados **todos** com 200, zero conflito de quadra, zero jogador em dois jogos no mesmo horário, e nenhum mata-mata antes do jogo que o alimenta. **Duas coisas ficaram anotadas e não viraram trabalho**: o **Radar** tem pico de **3 jogos simultâneos sem quadra atribuída** (19 jogos no sábado — conferir se cabe), e a página do torneio entrega **759 KB de HTML** numa requisição, que é a que os jogadores abrem no celular.
+>
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
