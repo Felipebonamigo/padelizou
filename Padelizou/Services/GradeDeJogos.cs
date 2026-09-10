@@ -384,6 +384,16 @@ public static class GradeDeJogos
 
             // O recorte por fase de 08/09/2026 — a concentração só nos grupos, a régua da noite
             // de sábado só fora deles. Ver o comentário grande no cabeçalho do método.
+            // A dupla tem concentração E este horário está DENTRO do turno dela?
+            //
+            // ⚠️ `janelasSoNosGruposPorDupla` guarda o COMPLEMENTO (os turnos PROIBIDOS), então
+            // "dentro do turno escolhido" é estar no mapa e FORA de todas as janelas dele. Ler isso
+            // ao contrário faria a prioridade servir justamente quem não pode jogar agora.
+            bool DentroDaJanelaDeConcentracao(int duplaId) =>
+                janelasSoNosGruposPorDupla != null
+                && janelasSoNosGruposPorDupla.ContainsKey(duplaId)
+                && !DentroDeJanela(janelasSoNosGruposPorDupla, duplaId);
+
             bool ForaDoTurnoConcentrado(Partida p) =>
                 FasesTorneio.EhFaseDeGrupos(p.Fase)
                 && (DentroDeJanela(janelasSoNosGruposPorDupla, p.Dupla1Id)
@@ -445,8 +455,30 @@ public static class GradeDeJogos
             // ⚠️ `FirstOrDefault` VARRE A FILA INTEIRA, e é isso que faz a folga entre clubes
             // não custar quadra: o jogo que teria que correr é PRETERIDO, não a vaga. Quem entra
             // é o próximo da fila que serve — de outra categoria, do outro clube, tanto faz.
-            var jogo = fila.FirstOrDefault(p => Livre(p) && SemCorreria(p) && TemOndeJogar(p)
-                                             && !RepetiriaOExterno(p));
+            // ⚠️ QUEM SÓ PODE JOGAR NESTE TURNO PASSA NA FRENTE DE QUEM PODE JOGAR EM QUALQUER UM
+            // (09/09/2026). Sem isto, a concentração ("os 2 jogos na sexta à noite") é uma promessa
+            // que a grade quase nunca cumpre.
+            //
+            // 🕳️ MEDIDO NO ER: quatro duplas pediram sexta à noite e jogaram 15/09 às 20:30 — fora
+            // do turno, depois do fim do torneio, sem quadra e com gente repetida. A concentração
+            // só PROÍBE o resto; ela não RESERVA vaga. Um jogo sem concentração serve em qualquer
+            // horário, então ele toma as vagas da sexta antes de a dupla concentrada chegar na
+            // fila — e quando a sexta acaba, ela não tem mais nenhum horário possível, porque o
+            // turno dela já passou. O encaixe a segura até o último recurso e a despeja no fim.
+            //
+            // ⚠️ É A MESMA FORMA DO "CEDE A QUADRA DE CASA": quem tem UMA opção passa na frente de
+            // quem tem TODAS. E é ORDEM, não filtro — se nenhum jogo concentrado servir nesta vaga,
+            // ela segue pro resto da fila exatamente como antes. Sem ninguém concentrado no
+            // torneio, `janelasSoNosGruposPorDupla` é nulo e este passo nem chega a ser feito.
+            bool ConcentradoNesteTurno(Partida p) =>
+                janelasSoNosGruposPorDupla != null
+                && FasesTorneio.EhFaseDeGrupos(p.Fase)
+                && (DentroDaJanelaDeConcentracao(p.Dupla1Id) || DentroDaJanelaDeConcentracao(p.Dupla2Id));
+
+            bool Serve(Partida p) => Livre(p) && SemCorreria(p) && TemOndeJogar(p) && !RepetiriaOExterno(p);
+
+            var jogo = fila.FirstOrDefault(p => ConcentradoNesteTurno(p) && Serve(p))
+                    ?? fila.FirstOrDefault(Serve);
 
             if (jogo == null)
             {

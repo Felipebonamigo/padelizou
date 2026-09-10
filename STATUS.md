@@ -1,9 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **09/09/2026** — 🕳️ **JANELA DE QUADRA IMPOSSÍVEL DEIXA DE SER OBEDECIDA** (PR #110).
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-867-78bcbd8`** (21h26 e 21h27 de Brasília). Três consertos urgentes pro Er, numa madrugada só (PRs #110 e #112).
 >
-> 🚀 **PUBLICADO em `dev` E `prod` no `build-863-6365054`** (21h18 e 21h19 de Brasília — 00h18/00h19 UTC), **o mesmo artefato nos dois**. 🔁 Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+> 🔒 **VAZAMENTO EM PRODUÇÃO: a chave esperando aprovação aparecia pra deslogado.** 🗣️ *"outro erro grave apareceu as partidas agendadas sem ter aprovado as chaves, cuide isso e nao deixe q nada vaze sem ser publicado"* — print de `padelizou.com.br` em navegação anônima. **O portão existia na porta errada:** a ação `Jogos` conferia a aprovação desde 22/08; a MESMA lista embutida na aba "Jogos" do `Details` só conferia `Status != "Inscrições Abertas"`, e "Chaves em Aprovação" passa nisso. Agora o portão mora em `CarregarViewBagJogosAsync`, que abastece as duas telas — e fecha a lista, a **prévia** (que lia os grupos direto do banco) e o **desenho do mata-mata**. Organizador continua vendo; aprovado, todo mundo vê. **Lição:** régua de visibilidade escrita numa ação protege a ação, não o dado.
+>
+> 🕐 **O PULO PRO DIA 15 NÃO ERA A QUADRA — ERA A CONCENTRAÇÃO.** O "Conferir grade" do Er (que o Felipe mandou em print) entregou: *"as quadras comportam o torneio. Sobrou uma restrição de horário empurrando jogo"* — quatro duplas com *"os 2 jogos na sexta à noite"* jogando 15/09 20:30. **A concentração não reserva vaga, só proíbe o resto:** jogo sem restrição tomava a sexta antes, e quando a sexta acabava a dupla concentrada não tinha mais horário nenhum — último recurso, fim da grade, sem quadra, gente repetida. As três queixas eram uma só. Agora quem só pode jogar num turno entra nele antes de quem pode em qualquer um (mesma forma do "cede a quadra de casa").
+>
+> 🧱 **E a janela de quadra IMPOSSÍVEL (nenhuma quadra aberta em nenhum horário do torneio) passou a ser ignorada** em vez de obedecida — guarda estreito: uma vaga aberta já basta pra não disparar (PR #110, `build-863`, **instalado sozinho às 21h18/21h19** — runs 115 e 116 — e superado pelo 867 oito minutos depois; o 867 o inclui).
+>
+> ⚠️ **TRÊS CORREÇÕES SEGUIDAS "ÀS CEGAS" antes de eu pedir o Conferir grade** — o proxy desta sessão bloqueia `dev` e `prod` (403). A regra 6 valia aqui: parar e instrumentar em vez de chutar a quarta. O Conferir grade É a instrumentação, e ele já estava no ar desde o `build-860`. Pedir o print dele na primeira rodada teria poupado duas.
+>
+> 🧪 **5.793 testes, 0 falhas (12 novos na madrugada).** **Sem migration.**
+>
+> ⏭️ **NO TORNEIO DO ER (prod), nesta ordem:** "Tirar do externo" na 3ª e na 4ª → Sortear → Conferir grade → (Refazer grade, se apontar algo) → **Aprovar chaves**. Até o Aprovar, ninguém de fora vê nada.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — nona sessão seguida. Deploy de prod a um clique de qualquer um com acesso ao Actions.
+
+> **09/09/2026** — 🕳️ **JANELA DE QUADRA IMPOSSÍVEL DEIXA DE SER OBEDECIDA** (PR #110). ⚠️ **DIAGNÓSTICO INCOMPLETO, corrigido pela entrada acima:** o conserto é real e continua valendo, mas **o pulo pro dia 15 NÃO era a quadra — era a concentração** (PR #112). Atribuí as três queixas a uma causa só e acertei em duas.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-863-6365054`** (21h18 e 21h19 de Brasília — 00h18/00h19 UTC), **o mesmo artefato nos dois** — superado pelo `build-867` oito minutos depois. 🔁 Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
 >
 > ⚠️ **ELE FICOU 12 MINUTOS MERGEADO E FORA DO AR** (release às 21h06, deploy às 21h18), e ninguém teria percebido: o PR #110 não tocou o `STATUS.md`, então o topo deste arquivo seguia descrevendo o `build-860` como o último bloco — e o `main` verde parecia publicado. **Merge não é deploy**, e é este arquivo que guarda a diferença.
 >
@@ -15,11 +31,9 @@
 > ter um dia que não existiu pra quem lê. Mesma régua do resto do sistema: `DateTime.Now` é hora
 > LOCAL e o fuso do VPS é `America/Sao_Paulo` (ver `infra/vps/README.md`).
 >
-> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — nona sessão seguida.** O job `deploy → prod` foi de ponta a ponta em **22 segundos** (21:19:49 → 21:20:11), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
 >
-> 🗣️ **Felipe, na TERCEIRA vez:** *"refiz a grade, ainda ta pulando pro dia 15 e ainda tem bastante coisa errada — ta sem o nome do clube que vai ser o jogo, e ainda pulando os dias, e a 3a vez q te falo sobre isso, e eu preciso publicar ainda hoje essa chave"*.
 >
-> 🔍 **AS DUAS QUEIXAS ERAM O MESMO DEFEITO, e a assinatura estava no print: os jogos REAIS estavam SEM QUADRA.** `GradeDeJogos.Encaixar` só grava `NomeQuadra` quando acha quadra **aberta** naquele horário; sem nenhuma aberta ele marca a hora, deixa o lugar em branco e escorrega pro horário seguinte — dia após dia, calado. Daí sai tudo junto: o **pulo do dia 12 pro 15**, o **jogo sem local**, e **dois jogos da mesma dupla no mesmo minuto** (o último recurso do encaixe, quando as vagas acabam).
+> 🔍 **A ASSINATURA ESTAVA NO PRINT: os jogos REAIS estavam SEM QUADRA.** `GradeDeJogos.Encaixar` só grava `NomeQuadra` quando acha quadra **aberta** naquele horário; sem nenhuma aberta ele marca a hora, deixa o lugar em branco e escorrega pro horário seguinte — dia após dia, calado. Daí saem o **jogo sem local** e **dois jogos da mesma dupla no mesmo minuto** (o último recurso do encaixe, quando as vagas acabam). ⚠️ **O pulo de dia eu pendurei aqui por engano** — ver a entrada acima.
 >
 > ✅ **A CAUSA RAIZ É CONFIGURAÇÃO, e o motor não pode obedecer configuração impossível.** Uma janela que não deixa NENHUMA quadra aberta em NENHUM horário do torneio não é restrição — é dígito errado no `datetime-local`. Obedecê-la destrói a grade inteira; ignorá-la devolve o comportamento de quem nunca preencheu o campo, que é o que o organizador tinha antes de a tabela de quadras existir. Entre um torneio sem grade e um torneio com a janela ignorada, só o segundo dá pra publicar.
 >

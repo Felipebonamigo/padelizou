@@ -865,7 +865,12 @@ namespace Padelizou.Controllers
                 // ela na lista, a rodada existe no banco e não aparece no desenho da chave.
                 var fasesMataMata = new[] { ChaveamentoMataMata.PrimeiraRodada,
                                             "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
-                var partidasMataMata = await _context.Partidas
+                // O desenho da chave obedece ao MESMO portão da lista (ViewBag.ChaveAindaNaoPublicada,
+                // decidido em CarregarViewBagJogosAsync): chave esperando aprovação não se desenha
+                // pra quem não organiza.
+                var partidasMataMata = ViewBag.ChaveAindaNaoPublicada == true
+                    ? new List<Partida>()
+                    : await _context.Partidas
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                     .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
@@ -1183,6 +1188,28 @@ namespace Padelizou.Controllers
 
             var partidas = await query.ToListAsync();
 
+            // ⚠️ AS CHAVES AINDA NÃO FORAM APROVADAS: PRA QUEM NÃO ORGANIZA, NÃO EXISTE JOGO
+            // (09/09/2026). 🗣️ Felipe, num print de PRODUÇÃO em navegação anônima: *"outro erro
+            // grave apareceu as partidas agendadas sem ter aprovado as chaves, cuide isso e nao
+            // deixe q nada vaze sem ser publicado"* — e depois: *"nao exiba nada até publicar a
+            // chave (desse menu de jogos)"*.
+            //
+            // 🕳️ O PORTÃO EXISTIA NA PORTA ERRADA. A ação `Jogos` conferia a aprovação desde 22/08;
+            // a MESMA lista, embutida na aba "Jogos" do `Details`, só conferia `Status !=
+            // "Inscrições Abertas"` — e "Chaves em Aprovação" passa nisso. Porta da frente
+            // trancada, porta dos fundos aberta pra qualquer visitante, inclusive deslogado.
+            //
+            // ⚠️ POR ISSO O PORTÃO MORA AQUI, no método que abastece as DUAS telas, e não numa
+            // ação: régua de visibilidade escrita numa ação protege aquela ação, não o dado. E
+            // esvazia a lista em vez de sair cedo, pra TODA chave do ViewBag continuar existindo
+            // com o valor vazio — a view não precisa saber que houve portão.
+            var torneioDaGrade = await _context.Torneios.FindAsync(torneioId);
+            bool chaveAindaNaoPublicada = torneioDaGrade != null
+                && torneioDaGrade.Status == AprovacaoDeChaves.Pendente
+                && !await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
+            if (chaveAindaNaoPublicada) partidas = new List<Partida>();
+            ViewBag.ChaveAindaNaoPublicada = chaveAindaNaoPublicada;
+
             // "MEUS JOGOS": a lista inteira de um torneio de 86 jogos não serve pra quem só
             // quer saber a que horas ele joga. Precisa vir ANTES da projeção — os jogos que
             // ainda não existem saem dos que existem, e a corrente parte dos jogos DELE.
@@ -1216,7 +1243,12 @@ namespace Padelizou.Controllers
             // ⚠️ A projeção parte do torneio INTEIRO, não da lista filtrada: a chave de uma
             // categoria só se desenha com todos os jogos dela na mão, e filtrar antes deixaria
             // a projeção montando um quadro que não existe. O recorte vem depois.
-            var projetados = await ProjetarProximasFasesAsync(torneioId, todasAsPartidas);
+            // ⚠️ A PRÉVIA TAMBÉM FICA MUDA: `ProjetarProximasFasesAsync` monta a chave a partir dos
+            // GRUPOS lidos direto do banco, e desenharia "1º do Grupo A × 2º do Grupo C" mesmo com
+            // a lista de jogos vazia — o desenho do sorteio vazando por outra porta.
+            var projetados = chaveAindaNaoPublicada
+                ? new List<ProximasFasesDaChave.JogoQueVem>()
+                : await ProjetarProximasFasesAsync(torneioId, todasAsPartidas);
 
             ViewBag.JogosQueVem = ViewBag.SoMeusJogos
                 ? RecortarProjecaoDoJogador(projetados, todasAsPartidas, meuJogadorId!.Value)
