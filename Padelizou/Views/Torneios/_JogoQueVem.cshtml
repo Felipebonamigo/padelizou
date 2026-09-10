@@ -10,9 +10,24 @@
     O horário NÃO é chute: sai da duração de partida configurada no torneio e das mesmas
     regras de grade do resto (Services/GradeDeJogos). Atrasar na prática não muda o slot.
 
-    Sem palpitrômetro e sem botões de organizador de propósito: não há partida no banco pra
-    votar nem pra editar. Oferecer o botão daria um beco sem saída.
+    Sem palpitrômetro de propósito: não há partida no banco pra votar. O organizador tem UM
+    botão, o de trocar horário (10/09/2026 — "permita também trocar de horário as
+    eliminatórias, não apenas as de chave"): a troca vira uma reserva (Models/ReservaDeHorario),
+    que a prévia mostra na hora e o robô honra quando o jogo nascer. Os outros botões (play,
+    quadra, placar) continuam sem sentido aqui — não há jogo pra pôr em quadra.
 *@
+@{
+    // Vale também no torneio POR ORDEM: ele tem hora desde 09/09, e o robô dá hora à rodada nova
+    // nele desde 10/09 — a reserva vira jogo com a hora reservada (e sem quadra, que é da Mesa).
+    bool podeTrocar = ViewBag.EhOrganizador == true;
+
+    // A referência que o POST de trocar horário lê (Services/ReferenciaDoJogo): o mesmo tipo
+    // escreve e lê, senão o botão apontaria pra um jogo que o servidor não acha. Sem categoria
+    // (projeção antiga, sem Id) ou sem horário não há o que trocar.
+    string? referenciaDaTroca = podeTrocar && Model.CategoriaId is int categoriaDaPrevia && Model.Horario is DateTime
+        ? Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaDaPrevia, Model.Fase, Model.Numero).ToString()
+        : null;
+}
 @* O ENDEREÇO do jogo na página: é pra cá que aponta o "Vencedor Semifinal 1" de outra
    linha. O id sai de Services/AncoraDoJogo, o mesmo lugar de onde o link é montado — duas
    fórmulas separadas viravam clique que não vai a lugar nenhum no dia em que uma mudasse. *@
@@ -57,6 +72,21 @@
                 <i class="bi bi-hourglass-split"></i> prévia
             </span>
         </span>
+
+        @* Trocar horário — o mesmo modal e o mesmo POST dos jogos reais (_JogoEmLinha). O que
+           muda é a referência: este jogo não tem Id, então vai como "previa:categoria:fase:n". *@
+        @if (referenciaDaTroca != null)
+        {
+            <span class="pdz-jl-acoes">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
+                        data-jogo-id="@referenciaDaTroca"
+                        data-jogo-rotulo="@Model.FaseNumerada · @Model.Horario?.ToString("dd/MM HH:mm") · @Model.Lado1.Rotulo x @Model.Lado2.Rotulo (@Model.Categoria, prévia)"
+                        title="Trocar horário" aria-label="Trocar horário">
+                    <i class="bi bi-arrow-left-right"></i>
+                </button>
+            </span>
+        }
     </div>
 
     @* Cada lado que VEM DE UM JOGO vira link pra ele. Numa lista de 80 linhas, ler "Vencedor

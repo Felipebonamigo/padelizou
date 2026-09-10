@@ -426,9 +426,13 @@ public class RoboDoChaveamento
         // Mesa de Controle daria erro no meio do torneio por causa de outro torneio.
         if (torneio == null) return;
 
-        // Torneio por ordem de liberação não tem grade: o mata-mata entra na fila como todo o
-        // resto, sem hora. Ver Torneio.SemHorarioPrevisto.
-        if (torneio.SemHorarioPrevisto) return;
+        // ⚠️ O "POR ORDEM DE LIBERAÇÃO" PASSA POR AQUI TAMBÉM (10/09/2026). Até hoje o robô saía
+        // antes, e a rodada nova nascia SEM hora — enquanto o sorteio e o Refazer grade, desde
+        // 09/09 (Services/OrdemDeLiberacao), dão hora a todo jogo e apagam só a QUADRA. Ficava a
+        // fase de grupos com hora e a semifinal "por ordem" na mesma lista, e a prévia prometendo
+        // uma hora que o jogo real nunca ganhava — foi no torneio do Er, que é por ordem, que a
+        // troca de horário da eliminatória prevista não tinha como funcionar. Agora ele faz o
+        // mesmo que os outros dois: calcula, carimba o clube e apaga a quadra no fim.
 
         var jaMarcados = await _context.Partidas
             .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
@@ -454,26 +458,83 @@ public class RoboDoChaveamento
         // remarca — é a mesma linha que o "Refazer grade" não cruza —, e um jogo de posto menor ou
         // igual nunca está fora de ordem por causa de uma rodada que acabou de entrar.
         // ⚠️ POR ID: é a ordem da fila em que o sorteio gravou (ver RecalcularAGradeAsync, 10/09/2026).
-        var forasDeOrdem = LevasDaGrade.ForaDeOrdem(
-            await _context.Partidas.Where(p => p.TorneioId == torneioId).OrderBy(p => p.Id).ToListAsync(),
-            OrdemDasFases.Posto(jogos[0].Fase));
+        var todos = await _context.Partidas.Where(p => p.TorneioId == torneioId).OrderBy(p => p.Id).ToListAsync();
+        var forasDeOrdem = LevasDaGrade.ForaDeOrdem(todos, OrdemDasFases.Posto(jogos[0].Fase));
+
+        // ── A RESERVA DO ORGANIZADOR (10/09/2026, Models/ReservaDeHorario) ─────────────────
+        // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"*. A troca
+        // feita numa eliminatória que ainda não existia mora numa reserva, e é AQUI que ela vira
+        // jogo de verdade: a rodada nasce no horário e na quadra reservados, e não onde o encaixe a
+        // poria. Vale também pro fora de ordem que está sendo reencaixado — sem isso a Final
+        // reservada da A perdia a reserva no minuto em que a Semifinal da B nascesse, calada.
+        //
+        // ⚠️ A régua de validade é a MESMA da prévia (ReservasDeHorario.Vale): reserva que caiu
+        // antes de a fase anterior desta categoria acabar não vale, e o jogo volta pra grade. Lida
+        // ANTES de zerar os fora de ordem: é a hora que eles TÊM que diz quando a fase anterior
+        // acabou.
+        var reservas = await ReservasDeHorario.DoTorneio(_context, torneioId.Value).ToListAsync();
+        var candidatos = jogos.Concat(forasDeOrdem).ToList();
+
+        // O número do jogo dentro da fase: por Id nos que já existem, e pela ordem da lista na rodada
+        // que está nascendo — é a ordem em que `AddRange` grava, logo a ordem dos Ids de amanhã.
+        var numeroPorId = ReservasDeHorario.NumeroNaFase(todos);
+        int NumeroDe(Partida p) => p.Id == 0 ? jogos.IndexOf(p) + 1 : numeroPorId.GetValueOrDefault(p.Id);
+        DateTime? AbreARodadaDe(int posto, int categoriaId) =>
+            LevasDaGrade.PisoDaCategoria(torneio, jaMarcados, posto, categoriaId);
+
+        // A agenda das PESSOAS, pra reserva não pôr alguém em duas quadras no mesmo minuto
+        // (revisão adversarial, 10/09/2026). Mesma régua por intervalo do GradeDeJogos.Encaixar
+        // (`Cruza`: menos de uma partida de distância). Os fora de ordem ficam de fora da conta
+        // porque vão ser remarcados de qualquer jeito.
+        var ocupantesPorDupla = await OcupantesPorDuplaAsync(torneioId.Value);
+        var duracaoDaPartida = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
+        var queFicamOndeEstao = jaMarcados.Except(forasDeOrdem).ToList();
+
+        int[] Pessoas(Partida p) => Gente(p.Dupla1Id).Concat(Gente(p.Dupla2Id)).ToArray();
+        int[] Gente(int duplaId) =>
+            ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0 ? pessoas : new[] { -duplaId };
+        bool PessoaOcupada(Partida jogo, DateTime quando)
+        {
+            var minhas = Pessoas(jogo);
+            return queFicamOndeEstao.Any(p => !ReferenceEquals(p, jogo)
+                && p.HorarioPrevisto is DateTime h
+                && (h - quando).Duration() < duracaoDaPartida
+                && Pessoas(p).Intersect(minhas).Any());
+        }
+
+        var (reservados, mortas) = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
+            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId), PessoaOcupada);
+
+        // A reserva de um jogo que já saiu dela (trocado depois de nascer) morre aqui — quem chama
+        // grava junto com a rodada nova. Ver ReservasDeHorario.Aplicar.
+        _context.ReservasDeHorario.RemoveRange(mortas);
+        reservas = reservas.Except(mortas).ToList();
 
         // A rodada nova ainda não tem horário; os fora de ordem perdem o que tinham pra disputar as
-        // vagas de novo, na ordem certa.
-        foreach (var jogo in forasDeOrdem)
+        // vagas de novo, na ordem certa. Os reservados ficam com a hora da reserva.
+        foreach (var jogo in forasDeOrdem.Except(reservados))
         {
             jogo.HorarioPrevisto = null;
             jogo.NomeQuadra = null;
         }
 
-        var paraEncaixar = jogos.Concat(forasDeOrdem).ToList();
+        var paraEncaixar = candidatos.Except(reservados).ToList();
 
         // Os que ficam de fora da conta e não podem ser atropelados: tudo que CONTINUA com hora.
         // Lido DEPOIS de zerar os fora de ordem de propósito — o EF devolve as mesmas instâncias
         // nas duas consultas, então um jogo recém-zerado já sai daqui sozinho. Fosse lido antes,
         // ele entraria como intocado E como candidato, e o encaixe reservaria a vaga dele contra
         // ele mesmo.
-        var intocados = jaMarcados.Where(p => p.HorarioPrevisto != null).ToList();
+        //
+        // Entram também os reservados da rodada nova (ainda não estão no banco) e os slots das
+        // reservas de jogos que AINDA VÃO NASCER — senão o encaixe de hoje ocuparia a quadra que
+        // a reserva de amanhã prometeu (ver ReservasDeHorario.AindaPorNascer).
+        var fasesQueExistem = todos.Concat(jogos).Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+        var intocados = jaMarcados.Where(p => p.HorarioPrevisto != null)
+            .Union(reservados)
+            .Concat(ReservasDeHorario.AindaPorNascer(reservas, fasesQueExistem,
+                (categoriaId, fase) => AbreARodadaDe(OrdemDasFases.Posto(fase), categoriaId)))
+            .ToList();
 
         // As restrições de horário do torneio. Mesmo motivo de buscar direto no banco em cada uma:
         // `torneio` aqui vem de um FindAsync, sem Categorias/Duplas incluídas.
@@ -487,7 +548,7 @@ public class RoboDoChaveamento
         // acabou de calcular. O piso contra "marcar no passado" continua dentro dela.
         LevasDaGrade.Encaixar(torneio, paraEncaixar, torneio.AberturaDaGrade, intocados,
             new LevasDaGrade.Restricoes(
-                await OcupantesPorDuplaAsync(torneioId.Value),
+                ocupantesPorDupla,
                 await QuadrasEmUsoAsync(torneioId.Value),
                 await QuadrasPreferidasAsync(torneioId.Value),
                 janelasProibidas,
@@ -496,7 +557,10 @@ public class RoboDoChaveamento
                 sedes));
 
         // A rodada nova também sai com o clube gravado (Partida.ClubeId) — ver OrdemDeLiberacao.
-        OrdemDeLiberacao.CarimbarOClube(torneio, paraEncaixar, sedes);
+        // `candidatos`, e não `paraEncaixar`: o jogo reservado também precisa de clube. E no "por
+        // ordem" a quadra vai embora DEPOIS do carimbo — quem decide onde é a Mesa, conforme vaga.
+        OrdemDeLiberacao.CarimbarOClube(torneio, candidatos, sedes);
+        OrdemDeLiberacao.ApagarAsQuadras(torneio, candidatos);
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver

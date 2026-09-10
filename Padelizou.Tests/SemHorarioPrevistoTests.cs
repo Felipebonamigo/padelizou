@@ -198,11 +198,14 @@ public class SemHorarioPrevistoTests
     }
 
     [Fact]
-    public async Task O_mata_mata_gerado_depois_tambem_nasce_sem_hora()
+    public async Task O_mata_mata_gerado_depois_nasce_com_hora_e_sem_quadra()
     {
-        // O robô de avanço agenda na grade por um caminho PRÓPRIO (AgendarNaGradeAsync).
-        // Se ele ignorasse a chave, a fase de grupos ficaria sem hora e a semifinal apareceria
-        // marcada pras 3h da manhã — o pior dos dois mundos.
+        // O robô de avanço agenda na grade por um caminho PRÓPRIO (AgendarNaGradeAsync), e ele
+        // precisa fazer o que o sorteio e o Refazer grade fazem desde 09/09 (Services/
+        // OrdemDeLiberacao): calcular a hora, carimbar o clube e apagar só a QUADRA. Até
+        // 10/09/2026 ele saía antes e a rodada nascia SEM hora — a fase de grupos com hora e a
+        // semifinal "por ordem", na mesma lista, e a prévia prometendo uma hora que o jogo real
+        // nunca ganhava. 🗣️ *"mesmo que seja por ordem os jogos, tem q ter o horario dos jogos"*.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 4);
         torneio.SemHorarioPrevisto = true;
@@ -219,6 +222,10 @@ public class SemHorarioPrevistoTests
             .ToListAsync();
 
         Assert.NotEmpty(mataMata);
-        Assert.All(mataMata, j => Assert.Null(j.HorarioPrevisto));
+        Assert.All(mataMata, j =>
+        {
+            Assert.NotNull(j.HorarioPrevisto);
+            Assert.Null(j.NomeQuadra);
+        });
     }
 }

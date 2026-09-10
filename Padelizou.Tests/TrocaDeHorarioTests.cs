@@ -141,4 +141,82 @@ public class TrocaDeHorarioTests
         Assert.NotNull(TrocaDeHorario.MotivoParaNaoTrocar(null, Jogo(2), Torneio));
         Assert.NotNull(TrocaDeHorario.MotivoParaNaoTrocar(Jogo(1), null, Torneio));
     }
+
+    // ═══ A REFERÊNCIA DO JOGO NO FORMULÁRIO (10/09/2026) ═══
+    //
+    // O modal passou a oferecer também as eliminatórias PREVISTAS (as que ainda não existem no
+    // banco), então "qual jogo" deixou de ser um Id: é o Id do jogo real, ou a tripla
+    // (categoria, fase, número) do jogo previsto. O texto sai e volta pelo mesmo tipo
+    // (Services/ReferenciaDoJogo), pelo mesmo motivo da AncoraDoJogo: dois formatos separados
+    // viravam clique que não chega a lugar nenhum no dia em que um deles mudasse.
+
+    [Fact]
+    public void Referencia_de_jogo_real_e_o_id()
+    {
+        var referencia = ReferenciaDoJogo.Ler("42");
+
+        Assert.NotNull(referencia);
+        Assert.False(referencia!.EhPrevia);
+        Assert.Equal(42, referencia.PartidaId);
+    }
+
+    [Fact]
+    public void Referencia_de_previa_carrega_categoria_fase_e_numero()
+    {
+        var referencia = ReferenciaDoJogo.Ler("previa:7:Quartas de Final:2");
+
+        Assert.NotNull(referencia);
+        Assert.True(referencia!.EhPrevia);
+        Assert.Equal(7, referencia.CategoriaId);
+        Assert.Equal("Quartas de Final", referencia.Fase);
+        Assert.Equal(2, referencia.Numero);
+    }
+
+    [Fact]
+    public void A_referencia_da_previa_e_a_mesma_nos_dois_lados()
+    {
+        // O botão da linha escreve; o POST lê. Tem que ser o mesmo texto.
+        var escrita = ReferenciaDoJogo.Prevista(7, "Quartas de Final", 2);
+
+        Assert.Equal(escrita, ReferenciaDoJogo.Ler(escrita.ToString()));
+        Assert.Equal(ReferenciaDoJogo.Real(42), ReferenciaDoJogo.Ler(ReferenciaDoJogo.Real(42).ToString()));
+    }
+
+    [Fact]
+    public void Texto_que_nao_e_referencia_nao_vira_jogo()
+    {
+        // Segura o POST montado à mão: nada disto pode virar exceção nem jogo inventado.
+        Assert.Null(ReferenciaDoJogo.Ler(null));
+        Assert.Null(ReferenciaDoJogo.Ler(""));
+        Assert.Null(ReferenciaDoJogo.Ler("abc"));
+        Assert.Null(ReferenciaDoJogo.Ler("previa:x:Final:1"));
+        Assert.Null(ReferenciaDoJogo.Ler("previa:7:Final"));
+        Assert.Null(ReferenciaDoJogo.Ler("previa:7:Final:zero"));
+        Assert.Null(ReferenciaDoJogo.Ler("previa:7::1"));
+    }
+
+    // A MESMA régua do clube vale quando um dos lados é a eliminatória PREVISTA (mesclagem com o
+    // PR #120, 10/09/2026): a Final prevista da 3ª não pode receber, por troca, o horário de um
+    // jogo real que é no Radar.
+    [Fact]
+    public void Previa_de_categoria_presa_em_casa_nao_troca_pra_vaga_do_local_externo()
+    {
+        var terceira = new Categoria { Id = 3, Nome = "3ª Masculina", Codigo = "3M", PodeJogarNaSedeExtra = false };
+        var finalPrevista = new TrocaDeHorario.Lado(
+            ReferenciaDoJogo.Prevista(3, "Final", 1), null,
+            new ProximasFasesDaChave.JogoQueVem("3ª Masculina", "Final", 1, new DateTime(2026, 8, 1, 20, 0, 0),
+                new ProximasFasesDaChave.Lado("Vencedor Semifinal 1"), new ProximasFasesDaChave.Lado("Vencedor Semifinal 2"),
+                "Arena 1", 3));
+
+        var noRadar = Jogo(2, horaEm: 10);
+        noRadar.CategoriaId = 6;
+        noRadar.ClubeId = 2;
+        var real = new TrocaDeHorario.Lado(ReferenciaDoJogo.Real(2), noRadar, null);
+
+        var motivo = TrocaDeHorario.MotivoParaNaoTrocar(finalPrevista, real, Torneio, SedesDoEr(terceira));
+
+        Assert.NotNull(motivo);
+        Assert.Contains("Radar", motivo);
+        Assert.Contains("3ª Masculina", motivo);
+    }
 }
