@@ -37,11 +37,9 @@ public class TelasDeAulaSemRodinhaDeDataTests
     //
     // Só linha que COMEÇA com `//`, mais os blocos Razor: cortar no `//` do meio da linha
     // levaria junto o `https://` de uma URL dentro de string.
-    private static string SemComentarios(string fonte)
-    {
-        var semRazor = Regex.Replace(fonte, @"@\*.*?\*@", "", RegexOptions.Singleline);
-        return Regex.Replace(semRazor, @"^[ \t]*//.*$", "", RegexOptions.Multiline);
-    }
+    // A regra mora no TestInfra desde 10/09/2026: era a segunda cópia dela, e a terceira
+    // estava prestes a nascer nos testes do card do Pix.
+    private static string SemComentarios(string fonte) => TestInfra.SemComentarios(fonte);
 
     public static TheoryData<string> AsTresTelas() => new()
     {

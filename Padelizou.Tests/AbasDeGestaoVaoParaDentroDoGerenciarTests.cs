@@ -34,8 +34,13 @@ public class AbasDeGestaoVaoParaDentroDoGerenciarTests
         // lugar exato de onde o card do Pix acabou de sair.
         var li = TagDoLi(idDoBotao);
 
-        Assert.Contains("pdz-aba-recolhida", li);
-        Assert.Contains("AprovacaoDeChaves.ChavePublicada(Model)", li);
+        // ⚠️ A POLARIDADE, e não a presença dos dois literais. `Assert.Contains` dos dois
+        // separados passava IDÊNTICO com o ternário INVERTIDO (`? "" : "pdz-aba-recolhida"`),
+        // que é a aba sumindo justo ANTES de publicar e voltando depois — o oposto do pedido.
+        // Provado por mutação em 10/09/2026: verde com o defeito instalado.
+        Assert.Matches(
+            new Regex(@"AprovacaoDeChaves\.ChavePublicada\(Model\)\s*\?\s*""pdz-aba-recolhida"""),
+            li);
     }
 
     [Theory]
@@ -84,19 +89,39 @@ public class AbasDeGestaoVaoParaDentroDoGerenciarTests
         var css = File.ReadAllText(CaminhoDoCss());
 
         Assert.Matches(new Regex(@"\.pdz-aba-recolhida\s*\{[^}]*display:\s*none", RegexOptions.Singleline), css);
-        Assert.Matches(new Regex(@"\.pdz-aba-recolhida:has\([^)]*\.nav-link\.active[^)]*\)\s*\{[^}]*display:", RegexOptions.Singleline), css);
+        // ⚠️ O VALOR, e não só a propriedade: terminar em `display:` deixava
+        // `{ display: none; }` passar — a aba ativa continuando invisível, que é exatamente o
+        // painel abrindo com a barra sem nada marcado. Provado por mutação em 10/09/2026.
+        Assert.Matches(new Regex(@"\.pdz-aba-recolhida:has\([^)]*\.nav-link\.active[^)]*\)\s*\{[^}]*display:\s*block", RegexOptions.Singleline), css);
     }
 
     [Fact]
     public void O_painel_Gerenciar_Torneio_oferece_as_duas()
     {
         // Recolher sem oferecer outro caminho seria esconder a ferramenta, não movê-la.
-        var painel = PainelDoAdmin();
+        //
+        // ⚠️ NO BOTÃO, E NÃO NO PAINEL. Procurar a frase no painel inteiro não prova nada: ele
+        // tem 196 MIL caracteres, e dentro dele já existiam DUAS outras aparições de
+        // "Pagamentos e impedimentos" — uma no comentário que cita o pedido do Felipe e outra
+        // em texto de verdade da página ("Pagamentos e impedimentos › Quadras e sedes"). Com
+        // isso, apagar o rótulo do atalho deixava este teste verde. Provado por mutação em
+        // 10/09/2026 — e tirar os comentários NÃO resolvia, porque a segunda aparição executa.
+        Assert.Contains("Pagamentos e impedimentos", TextoDoAtalho("pagamentos-tab"));
+        Assert.Contains("Planejamento de quadras", TextoDoAtalho("planejamento-tab"));
+    }
 
-        Assert.Contains("pagamentos-tab", painel);
-        Assert.Contains("planejamento-tab", painel);
-        Assert.Contains("Pagamentos e impedimentos", painel);
-        Assert.Contains("Planejamento de quadras", painel);
+    // O que está ESCRITO no atalho do painel de gestão que abre a aba `idDaAba` — do `>` que
+    // fecha a tag do botão até o `</button>`.
+    private static string TextoDoAtalho(string idDaAba)
+    {
+        var painel = PainelDoAdmin();
+        var clique = painel.IndexOf($"getElementById('{idDaAba}')", StringComparison.Ordinal);
+        Assert.True(clique >= 0, $"Não achei o atalho que abre a aba {idDaAba} no painel de gestão.");
+
+        var abre = painel.IndexOf('>', clique);
+        var fecha = painel.IndexOf("</button>", clique, StringComparison.Ordinal);
+        Assert.True(abre >= 0 && fecha > abre, $"O atalho de {idDaAba} não é um <button> fechado.");
+        return painel[(abre + 1)..fecha];
     }
 
     [Fact]
@@ -108,9 +133,17 @@ public class AbasDeGestaoVaoParaDentroDoGerenciarTests
         var atalhos = painel.IndexOf("pagamentos-tab", StringComparison.Ordinal);
         Assert.True(atalhos >= 0, "Não achei os atalhos no painel de gestão.");
 
-        var gate = painel.LastIndexOf("AprovacaoDeChaves.ChavePublicada(Model)", atalhos, StringComparison.Ordinal);
-        Assert.True(gate >= 0 && atalhos - gate < 900,
-            "Os atalhos precisam estar atrás de um `@if (... ChavePublicada(Model))`.");
+        // ⚠️ O `@if (` PRECISA ESTAR NA BUSCA. Procurar só "AprovacaoDeChaves.ChavePublicada
+        // (Model)" deixava o `!` de fora da string: `@if (!ChavePublicada(Model))` — atalho que
+        // só aparece ANTES de publicar, quando as abas ainda estão na barra — passava verde.
+        // Provado por mutação em 10/09/2026.
+        var gate = Regex.Matches(painel[..atalhos], @"@if\s*\(\s*AprovacaoDeChaves\.ChavePublicada\(Model\)\s*\)");
+        Assert.True(gate.Count > 0,
+            "Os atalhos precisam estar atrás de um `@if (AprovacaoDeChaves.ChavePublicada(Model))` — sem `!`.");
+
+        var ultimo = gate[^1];
+        Assert.True(atalhos - (ultimo.Index + ultimo.Length) < 900,
+            "O `@if` está longe demais dos atalhos pra ser o portão deles.");
     }
 
     // A tag inteira do <button>, do `<` até o `>` que a fecha.

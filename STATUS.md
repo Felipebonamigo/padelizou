@@ -77,6 +77,33 @@
 > 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
 >
 
+> **10/09/2026** — 🧪 **SEIS TESTES MEUS ERAM FALSO-VERDE, E QUEM PROVOU FOI MUTAÇÃO, NÃO LEITURA.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration, e sem uma linha de código de produção alterada** — logo, nada a publicar: o que está no ar segue sendo o `build-1008-14383b5`.
+>
+> 🗣️ Felipe, depois de eu relatar o que a revisão adversarial achou: *"corrige os testes falso-verde"*.
+>
+> 🕳️ **O MÉTODO: instalar o defeito e ver o teste passar.** Sete mutações, uma por teste, rodadas ANTES de qualquer conserto. Seis ficaram verdes com o defeito dentro — inclusive o teste que eu tinha escrito **naquele mesmo dia pra travar a correção das abas**:
+>
+> | Mutação | O que ela instala | Antes |
+> |---|---|---|
+> | `? "pdz-aba-recolhida" : ""` → `? "" : "…"` | aba some ANTES de publicar e volta depois | 🟢 passava |
+> | `@if (…ChavePublicada)` → `@if (!…)` | atalho só existe quando as abas já estão na barra | 🟢 passava |
+> | `display: block` → `display: none` | aba ativa continua invisível | 🟢 passava |
+> | apagar o rótulo do atalho de Pagamentos | atalho sem texto | 🟢 passava |
+> | `ApareceParaMim(Model, true)` | card do Pix VOLTA pro dia de jogo | 🟢 passava |
+> | `ApareceParaMim(torneio, true)` | a consulta a mais volta pra toda abertura | 🟢 passava |
+>
+> ⚠️ **AS DUAS CAUSAS, e nenhuma é distração:** (1) `Assert.Contains` de dois literais **não fixa a polaridade** de um ternário que contém os dois; e (2) buscar `"…ChavePublicada(Model)"` deixa o **`!` fora da string**. Some a isso o `Contains` que acha a coisa procurada **no comentário** logo acima do código — armadilha que mordeu QUATRO vezes numa sessão só.
+>
+> ✅ **`TestInfra.SemComentarios`** — era a **segunda** cópia (vinha do `TelasDeAulaSemRodinhaDeDataTests`) e a terceira ia nascer aqui. Subiu pro infra compartilhado e a antiga passou a delegar. São **104 arquivos de teste** que leem fonte com `File.ReadAllText`; a armadilha é da casa, não deste PR.
+>
+> 🕳️ **E TIRAR COMENTÁRIO NÃO RESOLVEU UM DELES — o painel tem 196 MIL caracteres.** `O_painel_Gerenciar_Torneio_oferece_as_duas` procurava "Pagamentos e impedimentos" no painel inteiro, onde a frase aparece **três vezes**: no comentário que cita o Felipe, no atalho, e em **texto de verdade da página** (`<strong>Pagamentos e impedimentos › Quadras e sedes</strong>`). Só o segundo conserto pegou: a asserção mudou de lugar — passou a olhar **o que está escrito DENTRO do `<button>`**, achado pelo `getElementById` dele. Instrumentar em vez de chutar (Regra 6) foi o que mostrou isso; a primeira tentativa continuou verde.
+>
+> ✅ **`DevoAlguma` ganhou teste contra dado real** — a propriedade que decide se o card SOBREVIVE à publicação não tinha nenhum. Comentar o `minhas.AddRange(americanas)` deixava a suíte inteira verde e o jogador de Americano que não pagou sem caminho pro Pix no dia do jogo. Agora fica vermelho (conferido).
+>
+> 🧪 **6.300 testes, 0 falhas.** As SETE mutações agora dão vermelho, mais a oitava (`AddRange(americanas)`). `node conferir-palpitrometro.js` verde.
+>
+> ⚠️ **O QUE NÃO ENTROU AQUI, e continua de pé:** depois de publicado, uma marcação errada de `Pago` pelo organizador **apaga** o card em vez de recolher — a pessoa fica sem caminho pro Pix —, e o comentário do `<details>` ainda afirma o contrário ("recolhe, não some… marcação errada não pode deixar o jogador sem caminho pra pagar"). Idem o parceiro que entra numa inscrição sozinha já marcada como paga. São defeitos de COMPORTAMENTO, não de teste; o Felipe pediu os testes.
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (PR #167). **Sem migration.** O registro do deploy — horários, runs e o que foi conferido por fora — está na entrada do topo.
 >
 > 📍 **A PRIMEIRA COISA DA TELA DO TORNEIO PASSA A SER O JOGO.** 🗣️ Felipe, com a página aberta no celular: *"acho que podemos remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já pagaram, e aí fica melhor a visão da tela, porque atualmente, quando abro o site a primeira coisa que queria ver é os jogos ao vivo"* e *"Os menus Pagamentos e impedimentos e Planejamento de quadras, também pode mover para dentro do Gerenciar torneio, depois que foi publicada as chaves"*. **Duas coisas, o mesmo problema:** publicada a chave, o topo da página continuava sendo sobre INSCRIÇÃO — card de cobrança e duas abas de preparação — enquanto quem abre quer placar.
