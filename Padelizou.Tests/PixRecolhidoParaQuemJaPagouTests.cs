@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 using Padelizou.Services;
 using Xunit;
@@ -28,7 +29,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.Jogadores.Add(visitante);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, visitante.Id));
+        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), visitante.Id));
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: false);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: true);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
     }
 
     [Fact]
@@ -64,8 +65,8 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: true, parceiro: parceiro);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, parceiro.Id));
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), parceiro.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
     }
 
     [Fact]
@@ -80,7 +81,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.Duplas.Add(new Dupla { Categoria = segunda, Jogador1 = eu, Pago = false });
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
     }
 
     [Fact]
@@ -94,12 +95,12 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.InscricoesAmericanas.Add(inscricao);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
 
         inscricao.Pago = true;
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, eu.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
     }
 
     [Fact]
@@ -120,7 +121,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var euPaguei = Inscrever(ctx, categoria, pago: true, quem: organizador);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, torneio.Id, euPaguei.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), euPaguei.Id));
     }
 
     [Fact]
@@ -137,6 +138,56 @@ public class PixRecolhidoParaQuemJaPagouTests
         Assert.Contains("open=\"@(pixRecolhido ? null : \"open\")\"", fonte);
         Assert.Contains("ViewBag.JaPagueiNesteTorneio", fonte);
     }
+
+    [Fact]
+    public async Task No_Americano_individual_as_duplas_de_RODADA_nao_contam_como_inscricao()
+    {
+        // 🕳️ NO AMERICANO INDIVIDUAL, `Dupla` NAO E INSCRICAO. Cada rodada sorteada grava um par
+        // por confronto (TorneiosController.Americano.GerarRodadasAmericano) e o desempate grava
+        // mais dois (CriarDesempateAmericano) — todos com `Pago` false, porque ninguem paga um
+        // par de rodada. A inscricao ali e a InscricaoAmericana.
+        //
+        // Contar essas linhas deixa o card ABERTO PRA SEMPRE pra quem ja pagou: e o pedido do
+        // Emerson morrendo em silencio justamente no formato que mais gera essas linhas.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.Formato = FormatoDoTorneio.Americano;
+
+        var eu = new Jogador { Nome = "Eu", Cpf = "55500000055" };
+        var parceiroDaRodada = new Jogador { Nome = "Parceiro da rodada", Cpf = "66600000066" };
+        ctx.Jogadores.AddRange(eu, parceiroDaRodada);
+        ctx.InscricoesAmericanas.Add(new InscricaoAmericana { Categoria = categoria, Jogador = eu, Pago = true });
+
+        // Duas rodadas sorteadas: dois pares meus, nenhum deles uma inscricao.
+        ctx.Duplas.Add(new Dupla { Categoria = categoria, Jogador1 = eu, Jogador2 = parceiroDaRodada });
+        ctx.Duplas.Add(new Dupla { Categoria = categoria, Jogador1 = parceiroDaRodada, Jogador2 = eu });
+        await ctx.SaveChangesAsync();
+
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+    }
+
+    [Fact]
+    public async Task No_Americano_DE_DUPLAS_a_dupla_continua_sendo_a_inscricao()
+    {
+        // A contraprova do teste de cima: no AmericanoDuplas o par e FIXO — ele e a inscricao, e
+        // o sorteio nao cria par nenhum. Se a regra excluisse a familia inteira do Americano,
+        // este formato passaria a recolher o card de quem nunca pagou.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.Formato = FormatoDoTorneio.AmericanoDeDuplas;
+        var eu = Inscrever(ctx, categoria, pago: false);
+        await ctx.SaveChangesAsync();
+
+        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+    }
+
+    // Do mesmo jeito que a acao Details carrega: Categorias -> Duplas ja vem na consulta que abre
+    // a pagina, e e de la que a regra le (nenhuma consulta nova na pagina mais pesada do site).
+    private static async Task<Torneio> ComoATelaCarregaAsync(DbPadelContext ctx, int torneioId) =>
+        await ctx.Torneios
+            .Include(t => t.Categorias)
+                .ThenInclude(c => c.Duplas)
+            .FirstAsync(t => t.Id == torneioId);
 
     private static Jogador Inscrever(Padelizou.Models.DbPadelContext ctx, Categoria categoria,
         bool pago, Jogador? parceiro = null, Jogador? quem = null)

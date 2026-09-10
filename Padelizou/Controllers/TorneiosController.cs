@@ -650,7 +650,7 @@ namespace Padelizou.Controllers
                 // espaço"). Duas consultas a mais SÓ no "por fora" — o `if` acima já é a
                 // condição de o bloco existir na tela.
                 ViewBag.JaPagueiNesteTorneio = jogadorLogadoId.HasValue
-                    && await PixDoOrganizador.JaPagouTudoAsync(_context, id, jogadorLogadoId.Value);
+                    && await PixDoOrganizador.JaPagouTudoAsync(_context, torneio, jogadorLogadoId.Value);
             }
 
             // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de

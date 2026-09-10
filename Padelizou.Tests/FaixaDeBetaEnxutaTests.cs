@@ -39,6 +39,21 @@ public class FaixaDeBetaEnxutaTests
     }
 
     [Fact]
+    public void Quem_manda_procurar_o_link_chama_ele_pelo_nome_que_esta_na_tela()
+    {
+        // 🕳️ O rótulo encurtou na faixa, mas a tela de erro continuava mandando procurar
+        // "Sugestão, bug ou crítica" — um nome que não existe mais em lugar nenhum da tela.
+        // Quem cai no Ops com um código de referência na mão fica procurando o que não há.
+        var layout = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Shared", "_Layout.cshtml"));
+        var erro = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Shared", "Error.cshtml"));
+
+        var rotulo = Regex.Match(layout, @"pdz-link-beta""[^>]*>\s*([^<]+?)\s*<i ", RegexOptions.Singleline);
+        Assert.True(rotulo.Success, "Não achei o texto do link da faixa de beta.");
+
+        Assert.Contains($"\"{rotulo.Groups[1].Value}\"", erro);
+    }
+
+    [Fact]
     public void A_faixa_e_baixa()
     {
         var css = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "wwwroot", "css", "site.css"));

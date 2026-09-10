@@ -90,25 +90,46 @@ public static class PixDoOrganizador
     // e outra não, o card continua aberto: é justamente quem ainda deve. E quem não tem
     // inscrição nenhuma também vê aberto — essa pessoa é a que ainda vai pagar.
     //
-    // ⚠️ TIME FICA DE FORA (`NomeTime == null`, a mesma exclusão do "Pagar agora" no
-    // controller): todo time é uma `Dupla` com o organizador no `Jogador1Id`, e sem isso um
-    // time sem pagamento manteria o card aberto pra sempre na tela dele.
-    public static async Task<bool> JaPagouTudoAsync(DbPadelContext db, int torneioId, int jogadorId)
+    // ⚠️ RECEBE O TORNEIO **JÁ CARREGADO COM `Categorias → Duplas`** (é o que a consulta que
+    // abre o Details faz, no topo da ação) e lê as duplas de lá, sem ir ao banco. É a mesma
+    // decisão, e o mesmo motivo, do `MinhasInscricoesNoTorneio` no mesmo método: esta é a
+    // página mais pesada do site, e uma consulta a mais aqui é uma consulta em toda abertura
+    // dela. Com as categorias não carregadas o resultado é "não pagou" — o lado seguro, que
+    // deixa o card aberto.
+    public static async Task<bool> JaPagouTudoAsync(DbPadelContext db, Torneio torneio, int jogadorId)
     {
-        var duplas = await db.Duplas
-            .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null
-                     && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Select(d => d.Pago)
-            .ToListAsync();
+        var minhas = new List<bool>();
 
+        // ⚠️ NO AMERICANO INDIVIDUAL, `Dupla` NÃO É INSCRIÇÃO — e isso não é detalhe: cada
+        // rodada sorteada grava um par por confronto (TorneiosController.Americano.
+        // GerarRodadasAmericano) e o desempate grava mais dois (CriarDesempateAmericano), todos
+        // com `Pago` false, porque ninguém paga um par de rodada. Lá a inscrição é a
+        // `InscricaoAmericana`; contar as duplas deixaria o card aberto pra sempre pra quem já
+        // pagou, no formato que mais gera essas linhas.
+        //
+        // O `AmericanoDuplas` fica FORA desta exceção de propósito: lá o par é FIXO, ele É a
+        // inscrição, e o sorteio não cria dupla nenhuma. Excluir a família inteira recolheria o
+        // card de quem nunca pagou — tem contraprova travando os dois lados.
+        if (torneio.Formato != FormatoDoTorneio.Americano)
+        {
+            minhas.AddRange(torneio.Categorias
+                .SelectMany(c => c.Duplas)
+                // Time fica de fora (a mesma exclusão do "Pagar agora" no controller): todo time
+                // é uma `Dupla` com o organizador no `Jogador1Id`, e sem isto um time sem
+                // pagamento manteria o card aberto pra sempre na tela dele.
+                .Where(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+                .Select(d => d.Pago));
+        }
+
+        // As americanas NÃO são pré-carregadas pela tela, então estas vêm do banco — uma
+        // consulta, e só em torneio "por fora" com alguém logado (ver o `if` do controller).
         var americanas = await db.InscricoesAmericanas
-            .Where(i => i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId)
+            .Where(i => i.Categoria.TorneioId == torneio.Id && i.JogadorId == jogadorId)
             .Select(i => i.Pago)
             .ToListAsync();
 
-        // Duas consultas e não uma: `Concat` de projeções de tabelas diferentes é exatamente o
-        // tipo de tradução que o InMemory dos testes aceita e o Postgres recusa (19/08/2026).
-        return (duplas.Count + americanas.Count) > 0
-            && duplas.All(pago => pago) && americanas.All(pago => pago);
+        minhas.AddRange(americanas);
+
+        return minhas.Count > 0 && minhas.All(pago => pago);
     }
 }
