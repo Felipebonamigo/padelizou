@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🔎 **A SEQUÊNCIA DE JOGOS POR CLUBE, POR QUADRA E POR FASE** na aba Jogos (página do torneio e `/Torneios/Jogos`). ⚠️ **Ainda NÃO publicado** — branch `claude/game-sequence-function-kibwiu`. **Sem migration.** 🗣️ *"Crie uma função aqui, para poder [ver] a sequencia de jogos, Por clube, por quadra, por fase (quartas, semi,etc)"*, num print da aba Jogos do 2º Etapa ER Padel Tour (88 jogos em dois clubes).
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-912-3bcbb64`** (09h47 nos dois — runs 144 e 145). PR #129, a tela de **trocar horário**. **Sem migration.** ⚠️ **O PR #128 (a sequência de jogos por clube, entrada abaixo) entrou na `main` DEPOIS deste release e NÃO está no ar** — o próximo deploy leva ele junto.
+>
+> 📋 **A LISTA DE "TROCAR COM QUAL JOGO" ESTAVA ILEGÍVEL.** 🗣️ *"aqui quando eu for selecionar outro jogo, ta muito poluido"* — eram **97 linhas de ~120 caracteres**, cada uma repetindo a data e o nome civil dos quatro jogadores. Três cortes, nenhum perde informação que o organizador use pra escolher: o **DIA** subiu pro `<optgroup>` (aparece uma vez, não 97), o nome virou `NomeDaDupla.CompactoNa` e a categoria `CategoriaNaTela.Curto`. **As duas réguas já existiam e são o que a aba de jogos mostra** — degrau 2 da escada do CLAUDE.md, reuso em vez de invenção.
+>
+> ⚠️ **A TROCA AGORA DIZ O QUE VAI FAZER COM O CONFERIR GRADE, ANTES DE VOCÊ APERTAR.** 🗣️ *"veja para avisar se o jogo q eu trocar altera algo do 'conferir grade', por exemplo, se vai atrapalhar o impedimento, restrição ou jogos seguidos"*. `Services/ImpactoDaTroca` audita a grade, aplica a troca **em memória**, audita de novo e desfaz. 🔴 vermelho quando piora **promessa** (impedimento, gente em dois jogos, quadra fechada), 🟡 amarelo quando piora **conforto** (jogos seguidos, concentração), 🟢 verde quando melhora, ⚪ cinza quando nada muda.
+>
+> ✅ **A RÉGUA É A MESMA DAS OUTRAS DUAS TELAS** — `AuditoriaDaGrade` pra achar, `ReparoDaGrade.Peso` pra separar duro de mole. Três lugares discordando sobre a mesma troca seria pior que não avisar: o organizador confiaria no que aparecesse primeiro. É a terceira vez nesta sessão que a resposta certa foi *reusar a régua em vez de reescrevê-la* (reparo, prévia, troca).
+>
+> ⚠️ **NÃO BLOQUEIA, de propósito:** quem decide é o organizador — às vezes ele troca sabendo que piora, porque combinou com a dupla no telefone. O aviso informa; a recusa continua sendo só das regras duras de `TrocaDeHorario` (categoria presa em casa, jogo já começado).
+>
+> ⚠️ **É UM ENDPOINT (`/Torneios/ImpactoDaTroca`), E NÃO LISTA PRÉ-CALCULADA — por causa da conta.** O modal é **UM só** pro torneio inteiro (o jogo A vem do botão clicado), então pré-calcular todo par seria **97 × 97 auditorias** por página. Assim é **uma**, no instante da escolha.
+>
+> ⚠️ **A PRÉVIA FICA DE FORA E DIZ ISSO.** O jogo previsto não tem duplas definidas ("Vencedor Quartas 1"), então impedimento e jogos seguidos não têm resposta — responder "nada muda" ali seria inventar.
+>
+> 🧪 **5.996 testes, 0 falhas (9 novos).** Falsificados antes: *"'ImpactoDaTroca' não existe"* e o fixture de jogos seguidos que trocava um par colado por outro — a contagem não mudava e **o código estava certo**; era o teste que afirmava errado.
+>
+> ⏭️ **NO TORNEIO DO ER:** Ajustar horários → Conferir grade → trocas na mão (agora com o aviso) → **Aprovar chaves**.
+
+> **10/09/2026** — 🔎 **A SEQUÊNCIA DE JOGOS POR CLUBE, POR QUADRA E POR FASE** na aba Jogos (página do torneio e `/Torneios/Jogos`). ⚠️ **Ainda NÃO publicado** — branch `claude/game-sequence-function-kibwiu`. **Sem migration.** 🗣️ *"Crie uma função aqui, para poder [ver] a sequencia de jogos, Por clube, por quadra, por fase (quartas, semi,etc)"*, num print da aba Jogos do 2º Etapa ER Padel Tour (88 jogos em dois clubes).
 >
 > ✅ **Três selects novos** ao lado do de time e do de categorias, aplicam sozinhos ao escolher (`clubeFiltroId`, `quadraFiltro`, `faseFiltro` na URL): **clube** (só em torneio de mais de um — com um só não separa nada), **quadra** (as em uso, com o clube junto: "Er Padel · Arena 1", a mesma etiqueta da linha) e **fase** (as que o torneio TEM, na ordem da chave; os grupos viram uma escolha só, "Fase de grupos"). "Limpar filtros" aparece quando algum está ligado; o "Meus jogos" leva os três na URL. A régua mora em `Services/FiltroDeJogos` e vale pros DOIS tipos de linha — o jogo real e a **prévia** (filtrar por "Semifinal" não mostra a Final prevista embaixo).
 >
