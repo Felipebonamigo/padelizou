@@ -23,12 +23,18 @@ public class SetasDaOrdemNaTelaTests
         return File.ReadAllText(Path.Combine(wwwroot, "js", nome));
     }
 
+    // ⚠️ A CADEIA GANHOU UM ELO EM 10/09/2026: as setas saíram da barra e foram pro menu ⋯
+    // (🗣️ *"relogio e as setas"*), então a tela chama `_MenuDoJogo` e é ELE quem chama
+    // `_SetasDaOrdem`. O teste segue os dois passos de propósito — cobrar só o menu deixaria
+    // passar um menu vazio, que é o mesmo defeito de quando a prévia ficou semanas sem botão
+    // de horário nenhum.
     [Fact]
     public void O_jogo_real_agendado_tem_as_setas()
     {
         var fonte = View("_JogoEmLinha.cshtml");
 
-        Assert.Contains("_SetasDaOrdem", fonte);
+        Assert.Contains("_MenuDoJogo", fonte);
+        Assert.Contains("_SetasDaOrdem", View("_MenuDoJogo.cshtml"));
         // Só em jogo agendado: mover quem está em quadra é reescrever o que está acontecendo.
         Assert.Contains("jogo.Status == \"Agendada\"", fonte);
     }
@@ -37,7 +43,8 @@ public class SetasDaOrdemNaTelaTests
     [Fact]
     public void A_previa_tambem_tem_as_setas()
     {
-        Assert.Contains("_SetasDaOrdem", View("_JogoQueVem.cshtml"));
+        Assert.Contains("_MenuDoJogo", View("_JogoQueVem.cshtml"));
+        Assert.Contains("_SetasDaOrdem", View("_MenuDoJogo.cshtml"));
     }
 
     [Fact]

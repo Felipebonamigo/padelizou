@@ -718,6 +718,10 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("CruzamentoDoMataMata")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<bool>("DeTimes")
                         .HasColumnType("boolean");
 

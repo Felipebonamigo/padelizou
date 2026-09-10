@@ -163,30 +163,101 @@ public class PalpiteService : IPalpiteService
         var voto = await _context.PalpitesPartida
             .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
 
+        bool ehLinhaNova = voto == null;
         if (voto == null)
         {
-            voto = new PalpitePartida { PartidaId = partidaId, JogadorId = jogadorId, DuplaEscolhidaId = duplaEscolhidaId };
+            voto = new PalpitePartida { PartidaId = partidaId, JogadorId = jogadorId };
             _context.PalpitesPartida.Add(voto);
         }
-        else
+
+        Escrever(voto, duplaEscolhidaId, placar);
+
+        try
         {
-            voto.DuplaEscolhidaId = duplaEscolhidaId;
-            voto.DataHora = DateTime.Now;
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (ehLinhaNova)
+        {
+            // ⚠️ CLIQUE DUPLO: os dois POSTs leram "esse jogador ainda não votou" e os dois
+            // tentaram INSERIR — o palpitrômetro não tem trava de clique, e cada requisição tem o
+            // próprio DbContext. Quem segura é o índice único (PartidaId, JogadorId), e está certo
+            // que seja ele (mesma decisão do chamado do mural em DuplasController). O que faltava
+            // era o serviço saber PERDER a corrida: quem chega depois grava por cima, porque o
+            // palpite dele é o último que a pessoa deu. Sem isto virava 500 — o controller só
+            // trata InvalidOperationException — e push de erro em produção por um toque duplo.
+            _context.Entry(voto).State = EntityState.Detached;
+
+            var doGemeo = await _context.PalpitesPartida
+                .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
+
+            // ⚠️ Sem linha do outro lado, a gravação falhou por OUTRO motivo — e aí o erro TEM
+            // que subir. Engolir tudo que é DbUpdateException trocaria um 500 que avisa por um
+            // palpite que some caladinho.
+            if (doGemeo == null) throw;
+
+            Escrever(doGemeo, duplaEscolhidaId, placar);
+            await _context.SaveChangesAsync();
         }
 
-        // ⚠️ As quatro colunas são reescritas SEMPRE, inclusive pra nulo. Trocar de opinião sem
-        // dizer o placar tem que APAGAR o placar anterior: ele apontava a outra dupla, e uma
-        // linha com "vence a Dupla 1" e "4 x 6" gravados juntos é uma contradição que o ranking
-        // leria como palpite de placar — e contaria contra a própria pessoa.
+        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
+        return resumos[partidaId];
+    }
+
+    // RETIRAR O PALPITE (10/09/2026). 🗣️ Felipe: *"tambem permita retirar o palpite colocado"*.
+    //
+    // 🕳️ Dava pra TROCAR de dupla e trocar a ficha do placar, mas não pra sair: uma vez tocado o
+    // nome, aquele palpite ficava na barra e no ranking pra sempre. Quem tocou sem querer — e o
+    // alvo é um nome no meio de uma lista de 97 jogos — não tinha caminho de volta.
+    //
+    // ⚠️ A JANELA É A MESMA DO PALPITAR, e não uma régua nova: 🗣️ *"todo jogo pode ser palpitado
+    // até começar"*. Começou, a aposta está valendo — sair ali seria desistir vendo o primeiro
+    // game. Uma segunda régua aqui também deixaria a tela poder retirar o que não pode trocar.
+    //
+    // ⚠️ IDEMPOTENTE: o toque duplo manda dois POSTs, e o segundo chega com a linha já apagada.
+    // Estourar ali daria alerta vermelho a quem conseguiu exatamente o que queria — mesma lição
+    // da corrida do clique duplo no votar.
+    public async Task<PalpiteResumoVM> RetirarPalpiteAsync(int partidaId, int jogadorId)
+    {
+        var partida = await _context.Partidas.FindAsync(partidaId);
+        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+        if (partida.Status != "Agendada")
+            throw new InvalidOperationException("Esta partida já começou — não é mais possível mudar o palpite.");
+
+        // ⚠️ A CHECAGEM DE DONO É ESTRUTURAL (Regra 0): a linha é procurada por (partida,
+        // jogador), e o jogador vem da claim de quem está logado. Não existe caminho por onde
+        // pedir a retirada do palpite de outra pessoa — nem com um POST montado à mão.
+        var meu = await _context.PalpitesPartida
+            .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
+
+        if (meu != null)
+        {
+            // O placar palpitado mora na MESMA linha do voto e sai junto: deixá-lo pra trás
+            // faria a frase "a galera crava 6x4" continuar contando um palpite que não existe.
+            _context.PalpitesPartida.Remove(meu);
+            await _context.SaveChangesAsync();
+        }
+
+        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
+        return resumos[partidaId];
+    }
+
+    // O palpite inteiro numa passada só — e é de propósito que ele seja UM lugar: a segunda
+    // tentativa (a que perdeu a corrida) escreve na linha do gêmeo, e duas listas de colunas
+    // acabariam divergindo justo no caminho que quase nunca roda.
+    //
+    // ⚠️ As quatro colunas do placar são reescritas SEMPRE, inclusive pra nulo. Trocar de
+    // opinião sem dizer o placar tem que APAGAR o placar anterior: ele apontava a outra dupla, e
+    // uma linha com "vence a Dupla 1" e "4 x 6" gravados juntos é uma contradição que o ranking
+    // leria como palpite de placar — e contaria contra a própria pessoa.
+    private static void Escrever(PalpitePartida voto, int duplaEscolhidaId, PlacarPalpitado placar)
+    {
+        voto.DuplaEscolhidaId = duplaEscolhidaId;
+        voto.DataHora = DateTime.Now;
+
         voto.GamesDupla1 = placar.EmSets ? null : placar.Lado1;
         voto.GamesDupla2 = placar.EmSets ? null : placar.Lado2;
         voto.SetsDupla1 = placar.EmSets ? placar.Lado1 : null;
         voto.SetsDupla2 = placar.EmSets ? placar.Lado2 : null;
-
-        await _context.SaveChangesAsync();
-
-        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
-        return resumos[partidaId];
     }
 
     // O placar palpitado, conferido contra o formato do jogo e contra o próprio voto. Devolve
@@ -234,6 +305,26 @@ public class PalpiteService : IPalpiteService
             .ToDictionaryAsync(t => t.Id);
     }
 
+    // Uma linha do modal "quem votou em quem", com o placar que a pessoa palpitou.
+    //
+    // ⚠️ MAIOR × MENOR é o que orienta o placar pelo VOTO: a validação do RegistrarVoto já
+    // garante que o placar aponta a dupla escolhida, então o maior dos dois lados é sempre o
+    // dela. Comparar lado a lado precisaria saber de que lado a pessoa está — e é exatamente a
+    // conta que a tela já faz pra marcar a ficha escolhida.
+    private static VotanteVM Montar(PalpitePartida v)
+    {
+        var palpitado = PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2);
+
+        return new VotanteVM
+        {
+            Nome = v.Jogador.Nome,
+            FotoPerfil = v.Jogador.FotoPerfil,
+            PlacarVencedor = palpitado.Existe ? Math.Max(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarPerdedor = palpitado.Existe ? Math.Min(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarEmSets = palpitado.EmSets,
+        };
+    }
+
     public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
@@ -246,10 +337,8 @@ public class PalpiteService : IPalpiteService
 
         return new VotantesPartidaVM
         {
-            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList(),
-            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList()
+            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id).Select(Montar).ToList(),
+            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id).Select(Montar).ToList()
         };
     }
 }

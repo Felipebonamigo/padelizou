@@ -34,7 +34,8 @@ public static class ChaveProjetada
     // Fase vazia = não dá pra projetar (grupo de menos). `Byes` são as vagas que pulam a
     // primeira rodada — os melhores, na mesma regra do sorteio de verdade.
     public static (string Fase, List<ConfrontoProjetado> Confrontos, List<Vaga> Byes) Montar(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
+        string? cruzamentoDesenhado = null)
     {
         if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>(), new List<Vaga>());
 
@@ -63,7 +64,8 @@ public static class ChaveProjetada
             }
         }
 
-        var (fase, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, passam);
+        var (fase, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(
+            classificados, passam, cruzamentoDesenhado);
 
         return (fase,
             confrontos.Select(c => new ConfrontoProjetado(vagas[c.Dupla1Id], vagas[c.Dupla2Id])).ToList(),

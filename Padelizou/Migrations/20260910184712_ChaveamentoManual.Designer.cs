@@ -12,8 +12,8 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    [Migration("20260910200606_FusaoDeTimesComNomeIgual")]
-    partial class FusaoDeTimesComNomeIgual
+    [Migration("20260910184712_ChaveamentoManual")]
+    partial class ChaveamentoManual
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -720,6 +720,10 @@ namespace Padelizou.Migrations
                         .HasMaxLength(50)
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CruzamentoDoMataMata")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<bool>("DeTimes")
                         .HasColumnType("boolean");
@@ -2782,9 +2786,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("PlacarMarcadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -3171,9 +3172,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.HasKey("CategoriaId", "Fase", "Numero");
 
                     b.ToTable("ReservaDeHorario");
@@ -3422,9 +3420,6 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("ChavePixOrganizador")
                         .HasColumnType("text");
-
-                    b.Property<DateTime?>("ChavesAvisadasEm")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("ClassificadosPorGrupo")
                         .HasColumnType("integer");

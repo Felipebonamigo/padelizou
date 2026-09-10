@@ -1,0 +1,53 @@
+@model Padelizou.Models.Dupla
+
+@* UMA LINHA DA CHAMADA: a dupla, a hora em que chegou e o botão que grava.
+
+   Vive num parcial porque a MESMA linha é desenhada em dois lugares desde 10/09/2026 — dentro
+   do jogo que vem, na fila do dia, e na lista por categoria do "Resto do torneio". Duas cópias
+   do formulário divergiriam na primeira mudança, e é ele que grava presença.
+
+   ⚠️ `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenha a página do
+   começo (js/manter-posicao-na-lista.js). É a peça de hoje mais cedo, pela mesma queixa.
+
+   ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e
+   o `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
+
+@if (Model == null) { return; }
+
+@{ bool chegou = Model.CheckInEm != null; }
+
+<div class="list-group-item d-flex align-items-center gap-3 px-2 @(chegou ? "bg-light" : "")">
+    <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle") fs-4"
+       style="color: @(chegou ? "var(--padel-green)" : "#ccc");"></i>
+    <div class="flex-grow-1 overflow-hidden">
+        <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">
+            @if (Model.EhTime)
+            {
+                <span><i class="bi bi-people-fill"></i> @Model.NomeTime</span>
+            }
+            else
+            {
+                @Model.Jogador1.ComoChamar
+                @if (Model.Jogador2 != null)
+                {
+                    <span>/ @Model.Jogador2.ComoChamar</span>
+                }
+                else
+                {
+                    <em class="text-muted small">/ sem parceiro</em>
+                }
+            }
+        </span>
+        @if (chegou)
+        {
+            <small class="text-muted">chegou @Model.CheckInEm!.Value.ToString("HH:mm")</small>
+        }
+    </div>
+    <form asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
+        <input type="hidden" name="duplaId" value="@Model.Id" />
+        <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
+        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+            @(chegou ? "Desfazer" : "Chegou")
+        </button>
+    </form>
+</div>

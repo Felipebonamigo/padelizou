@@ -92,11 +92,18 @@
 
     @* A leitura da galera sobre o placar. A CONTAGEM anda junto: "crava 6x4" com 3 de 12
        palpites promete um consenso que não existe — com o número ao lado, quem lê julga. *@
+    @* Clicável, como a irmã da versão em linha: daqui se vê QUEM cravou aquele placar. O
+       `div` de fora continua sendo o alvo do JS (display + reescrita do placar). *@
     <div class="text-center mt-1 small text-muted pdz-palpite-consenso"
          style="display: @(r.TemPlacarMaisPalpitado ? "block" : "none");">
-        <i class="bi bi-people"></i>
-        A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-        <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+        <button type="button" class="pdz-ver-votos"
+                data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2"
+                title="Ver quem palpitou e o placar de cada um"
+                onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+            <i class="bi bi-people"></i>
+            A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+            <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+        </button>
     </div>
 
     @if (finalizada && r.CravaramOPlacar.Count > 0)
@@ -121,6 +128,15 @@
         {
             <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2" onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
                 Ver quem votou
+            </button>
+        }
+        @* Mesma régua da versão em linha: a janela de retirar é a de palpitar, e o botão nasce
+           escondido pra quem não palpitou. *@
+        @if (votavel)
+        {
+            <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger pdz-retirar-palpite"
+                    onclick="retirarPalpite(this)" hidden="@(meuVoto == null)">
+                Retirar meu palpite
             </button>
         }
     </div>

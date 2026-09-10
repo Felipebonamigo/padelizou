@@ -207,8 +207,13 @@ public class DefinirHorarioNaMaoTests
     public void A_lista_oferece_o_botao_de_definir_horario_na_mao_pro_jogo_real_e_pra_previa()
     {
         var pasta = Path.Combine(PastaDoProjeto(), "Views", "Torneios");
-        Assert.Contains("data-bs-target=\"#modalDefinirHorario\"", File.ReadAllText(Path.Combine(pasta, "_JogoEmLinha.cshtml")));
-        Assert.Contains("data-bs-target=\"#modalDefinirHorario\"", File.ReadAllText(Path.Combine(pasta, "_JogoQueVem.cshtml")));
+
+        // ⚠️ O BOTÃO MUDOU DE ENDEREÇO EM 10/09/2026: saiu da barra e foi pro menu ⋯
+        // (🗣️ *"relogio e as setas"*). Continua alcançável das DUAS telas, e é isso que se
+        // cobra — a tela chama o menu, o menu abre o modal.
+        Assert.Contains("_MenuDoJogo", File.ReadAllText(Path.Combine(pasta, "_JogoEmLinha.cshtml")));
+        Assert.Contains("_MenuDoJogo", File.ReadAllText(Path.Combine(pasta, "_JogoQueVem.cshtml")));
+        Assert.Contains("data-bs-target=\"#modalDefinirHorario\"", File.ReadAllText(Path.Combine(pasta, "_MenuDoJogo.cshtml")));
 
         var lista = File.ReadAllText(Path.Combine(pasta, "_JogosDoTorneio.cshtml"));
         Assert.Contains("asp-action=\"DefinirHorario\"", lista);

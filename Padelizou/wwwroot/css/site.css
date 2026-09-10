@@ -1200,12 +1200,16 @@ button, a, input, select { touch-action: manipulation; }
     white-space: nowrap;
 }
 
+/* ⚠️ ELA APARECE EM TODA TELA DO SITE, então cada pixel aqui é cobrado em todas elas
+   (Deivid, 10/09/2026: "diminui um pouco a aba dos bugs", "tá muito longo" — no celular dele
+   eram TRÊS linhas antes do nome do torneio). O aviso encurtou junto, em BetaSettings. */
 .pdz-faixa-beta {
     background: var(--pdz-lime);
     color: var(--pdz-navy-fixed);
-    font-size: .82rem;
+    font-size: .78rem;
     font-weight: 600;
-    padding: 7px 0;
+    line-height: 1.3;
+    padding: 5px 0;
 }
 
 .pdz-faixa-beta i { flex-shrink: 0; }
@@ -1218,6 +1222,16 @@ button, a, input, select { touch-action: manipulation; }
     white-space: nowrap;
 }
 .pdz-link-beta:hover { color: #000; }
+
+/* O card do Pix é um <details>: recolhido pra quem já pagou, aberto pra quem ainda deve
+   (ver Views/Torneios/Details.cshtml). O cursor e o respiro do resumo existem porque, sem
+   eles, a linha "Inscrição paga — ver o Pix do organizador" não parece clicável. */
+.pdz-pix > summary {
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.pdz-pix[open] > summary { margin-bottom: .35rem; }
 
 /* ── Tema escuro: o que o bloco lá de cima não cobria ──────────────────────
    As classes utilitárias do Bootstrap que fixam cor clara (`bg-light`,
@@ -2296,6 +2310,23 @@ button, a, input, select { touch-action: manipulation; }
     }
 }
 
+/* ABA RECOLHIDA: sai da barra, continua no DOM.
+   O botão precisa existir porque treze redirects do servidor voltam com `#pagamentos` e o
+   script que lê a hash procura `#torneioTabs [data-bs-target="..."]` — apagado o botão, o
+   organizador cai na aba padrão toda vez que mexe num impedimento. Ver Views/Torneios/Details.cshtml.
+
+   ⚠️ A CLASSE VIVE NO `<li class="nav-item">`, E NÃO NO BOTÃO. Quem é filho do flex é o <li>:
+   `.pdz-abas .nav-item` acima lhe dá `flex: 1 1 auto`, e metade da linha até 430px. Escondendo
+   só o `.nav-link`, o <li> continua reivindicando a largura — dois deles viram uma faixa em
+   branco no topo do celular, exatamente onde o card do Pix acabou de sair.
+
+   ⚠️ E REAPARECE QUANDO É A ABA ATIVA: sem a segunda linha, o redirect abriria o painel de
+   Pagamentos com a barra sem nenhuma aba marcada — o conteúdo certo e nenhuma pista de onde a
+   pessoa está. É `:has()` porque quem ganha `.active` é o botão FILHO (é o Bootstrap que põe);
+   `.pdz-aba-recolhida.active` nunca casaria, as duas classes não vivem no mesmo elemento. */
+.pdz-aba-recolhida { display: none; }
+.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }
+
 /* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
    texto vermelho sobre o fundo ativo era ilegível. */
 .pdz-tab-dot {
@@ -2663,8 +2694,14 @@ button, a, input, select { touch-action: manipulation; }
     font-size: .82rem;
 }
 
-.pdz-jl-quando strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
-.pdz-jl-quando span { color: var(--pdz-muted); font-size: .72rem; }
+/* A HORA É O DADO QUE SE PROCURA NUMA LISTA DE 97 JOGOS (Deivid, 10/09/2026: "os horários
+   tão um pouco pequenos"). Ela estava em 1rem — o tamanho do texto comum da linha — e a data em
+   .72rem. ⚠️ A data era, em pixels, MAIOR que a etiqueta de categoria ao lado (.68rem): o que a
+   fazia LER menor era a etiqueta ter peso 700 e fundo próprio. Corrigido aqui porque a primeira
+   versão deste comentário afirmava o contrário, e comentário errado é pior que comentário
+   nenhum. Quem lê está de pé, no clube, com o celular numa mão. */
+.pdz-jl-quando strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.pdz-jl-quando span { color: var(--pdz-muted); font-size: .8rem; }
 
 .pdz-jl-etiquetas {
     display: flex;
@@ -2728,20 +2765,35 @@ button, a, input, select { touch-action: manipulation; }
     border-color: rgba(224, 170, 62, .5);
 }
 
+/* ⚠️ `flex-wrap: wrap` NÃO é enfeite — é o que segura a barra dentro do cartão (10/09/2026).
+   Abaixo de 576px esta barra ganha `width: 100%` + `justify-content: flex-end` (ver o media
+   query lá embaixo). Sem quebrar linha, o que não cabe escorre pro lado CONTRÁRIO ao
+   alinhamento: pra esquerda, pra fora do cartão e pra fora da tela — e sem virar rolagem
+   horizontal, porque o navegador não cria área de rolagem à esquerda. Some em silêncio.
+   Medido a 390px: a barra pede 365px, o cartão oferece 291px, e o play verde nascia em -21px.
+   Não dá pra espremer: 7 alvos de dedo de 44px já passam de 337px — nesta largura, uma linha
+   só é impossível. Ver AcoesDoJogoNoCelularTests. */
 .pdz-jl-acoes {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: .3rem;
     margin-left: auto;
+    justify-content: flex-end;
 }
 
 .pdz-jl-acoes form { margin: 0; }
 
-/* ↑↓ da ordem: dois botões num formulário só (o que muda é o `direcao`), então ele precisa se
-   comportar como os botões soltos ao lado — flex e o mesmo gap da barra de ações. */
+/* ↑↓ da ordem: dois botões num formulário só (o que muda é o `direcao`). Desde 10/09/2026 eles
+   moram DENTRO do menu ⋯ (_MenuDoJogo), e a coluna não é enfeite: com o `display: flex` que
+   valia na barra, os dois viravam uma linha só de 356px — o menu aberto encostava nas duas
+   bordas de um celular de 390px (medido). Empilhados, o menu tem a largura do texto.
+
+   ⚠️ Sem `flex-wrap`: os dois nascem e morrem juntos, um embaixo do outro. Separá-los seria o
+   organizador procurando a seta gêmea no meio da lista. */
 .pdz-jl-setas {
     display: flex;
-    gap: .3rem;
+    flex-direction: column;
 }
 
 /* Segunda linha: o confronto, com rosto. */
@@ -2949,7 +3001,10 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-ver-votos:hover .pdz-total-votos,
-.pdz-ver-votos:focus .pdz-total-votos {
+.pdz-ver-votos:focus .pdz-total-votos,
+/* A frase "A galera crava 9x7" usa o mesmo botão: o placar é o alvo que se anuncia no hover. */
+.pdz-ver-votos:hover .pdz-consenso-placar,
+.pdz-ver-votos:focus .pdz-consenso-placar {
     color: var(--padel-green);
     text-decoration: underline;
 }

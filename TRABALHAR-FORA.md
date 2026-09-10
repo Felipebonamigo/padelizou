@@ -98,3 +98,36 @@ do CI pra saber que quebrou.
 O que ele **não** consegue de lá: entrar no VPS, ler os bancos de produção ou dev, e
 usar os segredos do `appsettings.json`. Integrações com Asaas, e-mail e push só dá pra
 conferir de verdade publicando no `dev`.
+
+## Ver a UI de dentro da sessão web (10/09/2026)
+
+Dá — e por meses a gente achou que não dava: dezenas de entradas do `STATUS.md` fecham
+com "⚠️ NÃO RODEI A UI". O container da sessão web tem **PostgreSQL 16** e **Chromium com
+Playwright** instalados. O app sobe local, com dados de demonstração, e o Claude clica na
+tela de verdade — foi assim que a tabela do palpitrômetro apareceu com uma fileira de
+zeros que nenhum teste da suíte pegaria.
+
+```bash
+pg_ctlcluster 16 main start
+su postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'postgres'\" -c 'CREATE DATABASE db_padel_local'"
+
+cd Padelizou && ASPNETCORE_ENVIRONMENT=Development \
+  ConnectionStrings__DefaultConnection="Host=127.0.0.1;Port=5432;Database=db_padel_local;Username=postgres;Password=postgres" \
+  dotnet run -c Release            # aplica as migrations e semeia o DadosDemo sozinho
+```
+
+O Playwright fica em `/opt/node22/lib/node_modules/playwright` e o Chromium em
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (o caminho tem o número da build —
+`ls /opt/pw-browsers` antes de fixar no script). Um `.mjs` de 30 linhas navega, tira
+print e imprime o texto da tela.
+
+⚠️ **O DadosDemo nasce raso** — 5 torneios e 2 partidas, sem palpite nenhum. Pra conferir
+uma tela específica, o caminho curto é `INSERT` direto no banco local (as tabelas são
+singulares: `"Torneio"`, `"Partida"`, `"PalpitePartida"`).
+
+⚠️ **Login local**: os jogadores do demo nascem sem senha (pré-cadastro). Gerar um hash do
+Identity num teste descartável (`new PasswordHasher<Jogador>().HashPassword(...)`) e
+carimbar no `SenhaHash` é mais rápido do que preencher o formulário de cadastro inteiro.
+
+⚠️ **Isto não substitui o `dev`**: aqui não há Asaas, e-mail, push nem os dados de
+verdade. O que se prova é layout, clique, JavaScript e o que o Razor de fato desenhou.

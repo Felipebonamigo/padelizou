@@ -52,6 +52,19 @@ public class TraducaoDasConsultasDePalpiteTests
         Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidas(ctx, p => p.TorneioId == 1));
 
     [Fact]
+    public void As_partidas_EM_ABERTO_de_UM_TORNEIO_viram_SQL() =>
+        // O caminho do "em aberto" (10/09/2026): os jogos do torneio que ainda NÃO foram
+        // apurados. Mesma armadilha do irmão acima — o filtro de quem chama tem que entrar
+        // ANTES da projeção pro record, senão o EF não acha a coluna.
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidasEmAberto(ctx, p => p.TorneioId == 1));
+
+    [Fact]
+    public void A_pergunta_barata_de_EXISTE_PALPITE_NESTE_TORNEIO_vira_SQL() =>
+        // É ela que decide se a aba Palpiteiros existe, em TODA visita à página do torneio —
+        // a mais visitada do site. Atravessa a navegação `Partida` pra chegar no TorneioId.
+        Traduz(ctx => RankingDePalpiteiros.PalpitesDoTorneio(ctx, torneioId: 1));
+
+    [Fact]
     public void As_partidas_de_uma_LISTA_DE_IDS_viram_SQL()
     {
         // O caminho do hub e do perfil: parte-se dos palpites e buscam-se aquelas partidas.

@@ -81,7 +81,10 @@ public class RoboDoChaveamento
         //    todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes não ganham
         //    partida aqui — é a ausência dela que o robô de avanço lê depois
         //    (Services/AvancoDaChave) pra somá-los aos vencedores.
-        var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
+        //    O cruzamento desenhado à mão, quando existe, manda no lugar da semeadura — a
+        //    decisão mora dentro do MontarPrimeiraFase, pra prévia e sorteio não divergirem.
+        var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(
+            classificados, classificamPorGrupo, categoria.CruzamentoDoMataMata);
         if (confrontos.Count == 0) return;
 
         var jogosDoMataMata = confrontos

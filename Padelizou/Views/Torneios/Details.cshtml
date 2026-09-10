@@ -313,6 +313,32 @@
     </p>
 }
 
+@* AS FERRAMENTAS DO DIA SÃO A PRIMEIRA COISA DA TELA depois que a chave é publicada (10/09/2026).
+   🗣️ Felipe, com o torneio do Er no ar: *"acho que a ferramentas do organizador tem q ser a
+   primeira coisa da tela, depois que as chaves foram publicadas"*. Elas eram o ÚLTIMO bloco do
+   Painel de Controle, atrás do sorteio, dos organizadores e do formulário de editar o torneio —
+   e o painel só abre depois de um clique na aba. No dia do jogo, o caminho mais longo até as
+   três telas que só servem naquele dia.
+
+   ⚠️ LOGO ABAIXO DO CABEÇALHO, e não encostado nas abas: entre um e outro moram o cartaz, o
+   convite, o grupo do WhatsApp, as fotos, os cards de campeão, o pódio, o MVP, o mural e os
+   palpiteiros — tudo que o torneio no ar acumula. Ali embaixo o card ainda seria uma rolagem.
+   Acima do cabeçalho, não: a tela ficaria sem dizer de que torneio ela fala.
+
+   ⚠️ MESMA RÉGUA da aba "Chaves e Grupos" (AprovacaoDeChaves.ChavePublicada): antes de publicar
+   o trabalho é montar o torneio, e o card fica onde sempre esteve.
+
+   ⚠️ O `<fieldset disabled>` é o do painel, repetido aqui de propósito: fora dele o assistente
+   do sistema (ViewBag.GestaoSoLeitura) ganharia o "Avisar todo mundo" LIGADO, e descobriria a
+   recusa só depois de escrever a mensagem — o Comunicar exige EhOrganizadorAsync no servidor. *@
+@if (ViewBag.PodeGerenciar == true && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+{
+    <fieldset disabled="@(ViewBag.GestaoSoLeitura == true)" class="border-0 p-0 m-0">
+        <partial name="_FerramentasDoOrganizador" model="Model" />
+    </fieldset>
+}
+
+
 @* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
    grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
 @if (!string.IsNullOrWhiteSpace(Model.RecadoAosInscritos))
@@ -642,8 +668,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="btn btn-outline-success rounded-pill px-3">
             <i class="bi bi-graph-up"></i> Palpiteiros
         </a>
+        @* ⚠️ "Quem mais acertou" é mentira na véspera: ninguém acertou nada ainda, porque
+           nenhum jogo terminou. O texto pergunta ao ranking em que fase ele está — o mesmo
+           `ModoParticipacao` que decide o aviso dentro da aba. *@
+        @{ var palpiteirosDoCard = ViewBag.RankingDePalpiteiros as Padelizou.Services.PalpiteirosDoTorneio; }
         <small class="text-muted">
-            Quem mais acertou no Palpitrômetro.
+            @(palpiteirosDoCard?.ModoParticipacao == true
+                ? "Quem já palpitou neste torneio."
+                : "Quem mais acertou no Palpitrômetro.")
         </small>
     </div>
 }
@@ -738,7 +770,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@
-@if (Padelizou.Services.PixDoOrganizador.Aparece(Model))
+@if (Padelizou.Services.PixDoOrganizador.ApareceParaMim(Model, ViewBag.DevoAlgumaNesteTorneio == true))
 {
     @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
        MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
@@ -750,8 +782,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
         : null;
 
-    <div class="alert alert-success border-0">
-        <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
+    @* ── RECOLHIDO PRA QUEM JÁ PAGOU ─────────────────────────────────────────────────────
+       🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+       ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
+       da tela.
+
+       ⚠️ `<details>` E NÃO UM `if` QUE APAGA. Quem diz que a inscrição está paga é o
+       organizador virando o `Pago` na mão (muita gente paga em dinheiro na quadra); uma
+       marcação errada dele não pode deixar o jogador sem caminho pra pagar. Recolhido, a
+       chave continua a um toque.
+
+       O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
+       aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
+    bool pixRecolhido = ViewBag.JaPagueiNesteTorneio == true;
+
+    <details class="alert alert-success border-0 pdz-pix" open="@(pixRecolhido ? null : "open")">
+        <summary class="fw-bold">
+            @if (pixRecolhido)
+            {
+                <text><i class="bi bi-check-circle-fill"></i> Inscrição paga — ver o Pix do organizador</text>
+            }
+            else
+            {
+                <text><i class="bi bi-qr-code"></i> Pix do organizador</text>
+            }
+        </summary>
 
         @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
            valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
@@ -808,7 +863,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 A conversa abre já escrita — é só anexar a foto do comprovante.
             </p>
         }
-    </div>
+    </details>
 
     <script>
         function pdzCopiarPix(botao) {
@@ -957,7 +1012,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        Financeiro.cshtml já usa pro ajudante. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+    @* ⚠️ RECOLHIDA, E NÃO APAGADA, depois que a chave sai (Felipe, 10/09/2026: "pode mover para
+       dentro do Gerenciar torneio, depois que foi publicada as chaves"). O botão CONTINUA no
+       DOM porque TREZE redirects do servidor voltam com o fragmento `#pagamentos`
+       (TorneiosController.Inscricoes: impedimento, sedes, janela da sede, cobrança) e a tela
+       cheia do Planejamento tem um link `asp-fragment="pagamentos"`. O script do fim deste
+       arquivo abre a aba procurando `#torneioTabs [data-bs-target="..."]`: apagado o botão, o
+       seletor não acha nada, o script sai calado e o organizador cai na aba padrão toda vez
+       que mexe num impedimento.
+
+       ⚠️ A classe vai no <li>, e NÃO no <button>: quem é filho do flex é o <li> — o site.css
+       dá `flex: 1 1 auto` a ele, e metade da linha até 430px. Escondendo só o botão, sobra um
+       <li> VAZIO reivindicando a largura — dois deles, uma faixa em branco no celular. Ela
+       REAPARECE quando esta é a aba ativa (o `:has()` do site.css), senão o painel abriria com
+       a barra sem nada marcado. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
             </button>
@@ -977,7 +1046,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        celular do organizador. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+        @* Recolhe junto com a de Pagamentos, e pelo mesmo motivo — ver a nota lá em cima. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="planejamento-tab" data-bs-toggle="tab" data-bs-target="#planejamento" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-calendar-range"></i> Planejamento de quadras
             </button>
@@ -997,8 +1067,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
-    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado"
-         || (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente && ViewBag.PodeAprovarChaves == true))
+    @* A MESMA régua que decide o botão "Chaves e Grupos" da lista de jogos (Services/AbaDeChavesEGrupos):
+       lá o link só é oferecido quando esta aba existe de verdade aqui. *@
+    @if (AbaDeChavesEGrupos.Existe(Model, ViewBag.PodeAprovarChaves == true))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="grupos-tab" data-bs-toggle="tab" data-bs-target="#grupos" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -2155,6 +2226,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         <div class="tab-pane fade" id="admin" role="tabpanel">
             <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
 
+            @* ── AS DUAS FERRAMENTAS DO ANTES, RECOLHIDAS PRA CÁ ──────────────────────────
+               🗣️ Felipe, 10/09/2026: *"Os menus Pagamentos e impedimentos e Planejamento de
+               quadras, também pode mover para dentro do Gerenciar torneio, depois que foi
+               publicada as chaves."*
+
+               As duas são ferramentas do ANTES: o impedimento alimenta o sorteio e o
+               planejamento decide quantas quadras alugar. Publicada a chave, elas viram duas
+               abas entre quem abre a página e o placar — e a barra do organizador tem NOVE.
+
+               ⚠️ SÓ AQUI DEPOIS DE PUBLICAR: antes, as abas continuam na barra, e repetir o
+               atalho seria dois caminhos pro mesmo lugar na mesma tela.
+
+               ⚠️ `.click()` NO BOTÃO REAL, e não um `data-bs-toggle` daqui: o Bootstrap
+               desativa os irmãos procurando o `nav` ANCESTRAL do elemento clicado. Um botão
+               fora do `#torneioTabs` abriria este painel SEM fechar o que estava aberto —
+               dois painéis na tela ao mesmo tempo. Clicar no botão de verdade é o caminho
+               que o Bootstrap já sabe percorrer. *@
+            @if (AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('pagamentos-tab').click();">
+                        <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('planejamento-tab').click();">
+                        <i class="bi bi-calendar-range"></i> Planejamento de quadras
+                    </button>
+                </div>
+            }
+
             @* A DÍVIDA NÃO SOME DA TELA DE QUEM DEVE (08/09/2026). Depois de "sortear agora,
                pagar depois", o bloco da taxa lá embaixo desaparece — as chaves já saíram, e
                aquele bloco só existe enquanto elas estão travadas. Sem este lembrete, adiar
@@ -2770,6 +2872,54 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <div class="form-text">
                                 Só enquanto nenhum jogo começou — depois disso esconderia um torneio
                                 em andamento de quem está jogando.
+                            </div>
+                        </form>
+                    }
+
+                    @* ── Recalcular horários ────────────────────────────────────────────────
+                       O remendo pro dia em que a realidade não cabe na grade — chuva, jogo que
+                       passou de três sets, dupla que não apareceu. Ele redistribui o que FALTA,
+                       a partir de agora, sem tocar em quem já jogou nem em quem está em quadra,
+                       e sem mexer em confronto nenhum.
+
+                       ⚠️ VEIO DA LISTA DE JOGOS EM 10/09/2026. 🗣️ Felipe, num print da aba
+                       Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios,
+                       para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem
+                       querer ali"*. Lá ele ficava logo acima dos 97 jogos, na tela que se rola o
+                       dia inteiro; aqui ele fica com as outras ações que mexem no torneio
+                       inteiro. O irmão manso (Ajustar horários) continuou lá, com a mesa.
+
+                       ⚠️ FICA FORA da corrente de status acima de propósito: quem tem horário
+                       pra refazer é quem tem jogo agendado, e isso atravessa "Chaves em
+                       Aprovação", "Fase de Grupos" e o torneio que sai público na hora — repetir
+                       o botão em cada ramo seria a mesma regra escrita três vezes. Zero agendado
+                       e ele some: o servidor recusaria o clique com "não há horário pra
+                       recalcular", e botão que só serve pra receber "não dá" é pior que botão
+                       nenhum.
+
+                       ⚠️ O comentário fica FORA da tag `<form …>`: dentro dela o Razor apaga os
+                       atributos seguintes, e foi assim que o build-900 saiu pra produção sem o
+                       `data-confirmar` deste mesmo botão (ver ComentarioRazorDentroDeTagTests). *@
+                    @{ int agendadasNoTorneio = ViewBag.AgendadasNoTorneio as int? ?? 0; }
+                    @if (agendadasNoTorneio > 0)
+                    {
+                        <hr />
+                        <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-0"
+                              data-confirmar="Gera horários NOVOS pra todos os @agendadasNoTorneio jogos do torneio que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                              data-confirmar-titulo="Recalcular todos os horários?"
+                              data-confirmar-tom="perigo"
+                              data-confirmar-ok="Recalcular e perder os ajustes">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            @* Depois de recalcular, o que interessa é ver os horários novos — e não
+                               voltar pra este painel. "Details" leva pra página do torneio com âncora
+                               na aba de jogos (ver TorneiosController.VoltarPara). *@
+                            <input type="hidden" name="voltarPara" value="Details" />
+                            <button type="submit" class="btn btn-danger fw-bold shadow-sm">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Recalcular horários
+                            </button>
+                            <div class="form-text">
+                                Refaz TODOS os horários do zero e desfaz as trocas feitas na mão.
+                                Use quando o torneio atrasar.
                             </div>
                         </form>
                     }
@@ -4094,73 +4244,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             </div>
 
-            <!-- FERRAMENTAS DO DIA -->
-            <div class="card bg-light border-0 shadow-sm mt-4">
-                <div class="card-body">
-                    <h6 class="fw-bold text-muted text-uppercase mb-3">Ferramentas do organizador</h6>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        @* Nem todo torneio quer lista de chamada: num interno de 8 duplas o
-                           organizador conhece todo mundo de vista. O interruptor está em
-                           Editar Dados do Torneio. *@
-                        @if (Model.UsaCheckIn)
-                        {
-                            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
-                                <i class="bi bi-clipboard-check"></i> Check-in do dia
-                            </a>
-                        }
-                        @* Pra quem ajuda, a mesma tela é só a caderneta — prometer "Financeiro"
-                           seria mandá-lo procurar números que ele não vai encontrar. *@
-                        <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            @if (ViewBag.PodeVerDinheiro == true)
-                            {
-                                <i class="bi bi-cash-stack"></i> <text>Financeiro</text>
-                            }
-                            else
-                            {
-                                <i class="bi bi-journal-check"></i> <text>Quem já acertou</text>
-                            }
-                        </a>
-                        <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            <i class="bi bi-file-earmark-text"></i> Relatório / PDF
-                        </a>
-                    </div>
-
-                    <!-- COMUNICADO EM MASSA -->
-                    <div class="border-top pt-3">
-                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                            <i class="bi bi-megaphone-fill"></i> Avisar todo mundo
-                        </h6>
-                        <p class="small text-muted">
-                            Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
-                        </p>
-                        <form asp-action="Comunicar" method="post"
-                              data-confirmar-titulo="Avisar todo mundo?"
-                              data-confirmar="A mensagem sai agora por notificação, e-mail e WhatsApp pra todos os inscritos. Não dá pra desfazer."
-                              data-confirmar-ok="Enviar aviso">
-                            <input type="hidden" name="id" value="@Model.Id" />
-                            <div class="row g-2">
-                                <div class="col-12 col-md-4">
-                                    <select name="categoriaId" class="form-select form-select-sm">
-                                        <option value="">Todas as categorias</option>
-                                        @foreach (var c in Model.Categorias)
-                                        {
-                                            <option value="@c.Id">@c.Nome</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-8">
-                                    <input type="text" name="mensagem" class="form-control form-control-sm"
-                                           maxlength="180" required
-                                           placeholder="Ex: As chaves saíram! Confira seu horário." />
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
-                                <i class="bi bi-send"></i> Enviar aviso
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @* Com a chave publicada elas sobem pro TOPO da página (o bloco antes das abas);
+               até lá o lugar é aqui, no fim do painel — quem ainda não publicou está montando
+               o torneio, não operando o dia dele. Um lugar de cada vez, nunca os dois. *@
+            @if (!Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <partial name="_FerramentasDoOrganizador" model="Model" />
+            }
 
             <!-- NÓS REGISTRAMOS OS RESULTADOS PRA VOCÊ -->
             @{
@@ -5719,6 +5809,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     @* Refazer os horários virou ESCOLHA (rádio abaixo) — ver o porquê em
                                        TorneiosController.TrocarDuplasDeGrupo. O confirm fala dos DOIS caminhos:
                                        afirmar "recalcula tudo" quando talvez não recalcule seria pior que calar. *@
+                                    @* ⚠️ O CHAVEAMENTO À MÃO fica logo abaixo deste bloco (procure por
+                                       SalvarCruzamento): as duas coisas se decidem olhando os mesmos grupos. *@
                                     <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
                                           class="row g-2 align-items-end"
                                           data-confirmar-titulo="Trocar as duas de grupo?"
@@ -5784,6 +5876,83 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
                         }
+                        @* ═══ O CHAVEAMENTO DESENHADO À MÃO (10/09/2026) ═══════════════════════
+                           🗣️ "permita alterar na mao o chaveamento, como funciona a chave de cada um,
+                           se o primeiro passar quem enfrenta" — e "cuidado para nao mexer nada no que
+                           ja tem do ER hoje, isso é para os próximos torneios".
+
+                           ⚠️ O campo abre com o desenho QUE O MOTOR FARIA (CruzamentoDoMataMata.Padrao),
+                           e não vazio: abrir a tela e salvar sem mexer produz a MESMA chave de antes.
+                           Vazio, o sistema volta a montar sozinho — é o desfazer desta tela.
+
+                           Régua de quem vê: a mesma do bloco acima (organizador ou admin, chave ainda
+                           esperando aprovação). A ação recusa de novo do lado de lá. *@
+                        @if (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente
+                             && ViewBag.PodeAprovarChaves == true
+                             && categoria.GruposTorneio.Count > 0)
+                        {
+                            var gruposDaCategoria = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
+                            var duplasPorGrupo = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
+                            var desenhoAtual = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                                            ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
+                                                   gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2, duplasPorGrupo);
+
+                            if (desenhoAtual != null)
+                            {
+                                <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                            <i class="bi bi-diagram-3"></i> Chaveamento da primeira eliminatória
+                                        </h6>
+                                        <p class="small text-muted mb-2">
+                                            Quem cruza com quem quando os grupos acabarem — e, por consequência, o
+                                            caminho de cada um até a final.
+                                            @if (categoria.CruzamentoDoMataMata == null)
+                                            {
+                                                <span>Hoje quem monta é o sistema; o que está aí embaixo é o que ele faria.</span>
+                                            }
+                                            else
+                                            {
+                                                <strong>Este chaveamento foi desenhado à mão.</strong>
+                                            }
+                                        </p>
+
+                                        <form asp-controller="Torneios" asp-action="SalvarCruzamento" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <input type="hidden" name="categoriaId" value="@categoria.Id" />
+
+                                            <div class="mb-2">
+                                                @foreach (var confronto in desenhoAtual.Confrontos)
+                                                {
+                                                    <div class="small">@confronto.Lado1.Rotulo <span class="text-muted">×</span> @confronto.Lado2.Rotulo</div>
+                                                }
+                                                @foreach (var bye in desenhoAtual.Byes)
+                                                {
+                                                    <div class="small text-muted">@bye.Rotulo — passa direto (bye)</div>
+                                                }
+                                            </div>
+
+                                            <label class="form-label small fw-bold mb-1" for="cruzamento-@categoria.Id">
+                                                Desenho (formato <code>1A×2C|1B×2D;bye:1E</code>)
+                                            </label>
+                                            <input type="text" class="form-control font-monospace mb-2"
+                                                   id="cruzamento-@categoria.Id" name="texto"
+                                                   value="@desenhoAtual.Escrever()" />
+                                            <div class="form-text mb-2">
+                                                <code>1A</code> é o 1º do Grupo A. Toda vaga que classifica precisa aparecer
+                                                uma vez — em jogo ou em bye. <strong>Apague tudo e salve</strong> pra voltar
+                                                ao chaveamento do sistema.
+                                            </div>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
+                                                <i class="bi bi-diagram-3"></i> Salvar chaveamento
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        }
+
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -5872,7 +6041,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 }
                                                                 else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
                                                                 {
-                                                                    <span>@hg.ToString("dd/MM HH:mm")</span>
+                                                                    <span>@DiaDaSemana.Curto(hg) @hg.ToString("dd/MM HH:mm")</span>
                                                                 }
                                                                 else
                                                                 {
@@ -5999,10 +6168,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                             <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                             @if (previsto?.Horario is DateTime quando)
                                                             {
+                                                                @* ⚠️ SEM o dia da semana (medido): aqui é
+                                                                   PIOR que na vaga da chave — a 390px o
+                                                                   "sex " faz "Er Padel" perder 49px de 49,
+                                                                   isto é, o clube some inteiro e sem
+                                                                   reticências. Ver
+                                                                   DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
                                                                 <span>@quando.ToString("dd/MM HH:mm")</span>
-                                                                @if (!string.IsNullOrEmpty(previsto.Quadra))
+                                                                @* A GUARDA É A ETIQUETA, E NÃO A QUADRA (10/09/2026) — a mesma
+                                                                   correção que os cards de grupo e as vagas da chave receberam,
+                                                                   e que este cartão ficou sem. 🗣️ *"quartas de final ta sem
+                                                                   clube"*: a hora daquelas quartas foi digitada na mão, hora
+                                                                   digitada não traz quadra, e o `IsNullOrEmpty(Quadra)` calava
+                                                                   o cartão inteiro — inclusive o clube, que o jogo previsto
+                                                                   sabe (ProximasFasesDaChave, ClubeId). *@
+                                                                @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondeJoga)
                                                                 {
-                                                                    <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
+                                                                    <span class="pdz-chave-projetada-quadra">@ondeJoga</span>
                                                                 }
                                                             }
                                                             else
