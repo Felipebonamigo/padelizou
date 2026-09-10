@@ -220,6 +220,75 @@ public class PixRecolhidoParaQuemJaPagouTests
                 .ThenInclude(c => c.Duplas)
             .FirstAsync(t => t.Id == torneioId);
 
+    // ── E O `DevoAlguma`? ────────────────────────────────────────────────────────────────
+    // 🕳️ A propriedade que decide se o card SOBREVIVE à publicação da chave não tinha um único
+    // teste contra dado real (10/09/2026). Os testes acima todos cobram `JaPagueiTudo`, e os do
+    // `CardDoPixSaiDaTela...` entregam o `bool` na mão — nenhum passava pela contagem.
+    //
+    // O estrago disso não é teórico: apague o `minhas.AddRange(americanas)` do
+    // `MinhasInscricoesAsync` e o jogador de Americano que NÃO pagou passa a ter Total=0,
+    // NaoPagas=0, `DevoAlguma` falso — e em "Fase de Grupos" o card do Pix desaparece
+    // justamente de quem deve, que é a única pessoa pra quem ele ainda existe. Com a suíte
+    // inteira verde.
+    [Fact]
+    public async Task Inscricao_em_aberto_faz_DevoAlguma()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        var eu = Inscrever(ctx, categoria, pago: false);
+        await ctx.SaveChangesAsync();
+
+        var minhas = await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id);
+
+        Assert.True(minhas.DevoAlguma);
+        Assert.True(PixDoOrganizador.ApareceParaMim(PorForaPublicado(torneio), minhas.DevoAlguma));
+    }
+
+    [Fact]
+    public async Task Tudo_pago_NAO_faz_DevoAlguma_e_o_card_some_depois_de_publicado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        var eu = Inscrever(ctx, categoria, pago: true);
+        await ctx.SaveChangesAsync();
+
+        var minhas = await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id);
+
+        Assert.False(minhas.DevoAlguma);
+        Assert.False(PixDoOrganizador.ApareceParaMim(PorForaPublicado(torneio), minhas.DevoAlguma));
+    }
+
+    [Fact]
+    public async Task Americana_em_aberto_tambem_faz_DevoAlguma()
+    {
+        // ⚠️ ESTE é o que segura o `AddRange(americanas)`: sem ele o teste acima ainda passa
+        // (a dupla responde), e só o Americano fica sem caminho pro Pix no dia do jogo.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.Formato = FormatoDoTorneio.Americano;
+
+        var eu = new Jogador { Nome = "Eu", Cpf = "77700000077" };
+        ctx.Jogadores.Add(eu);
+        ctx.InscricoesAmericanas.Add(new InscricaoAmericana { Categoria = categoria, Jogador = eu, Pago = false });
+        await ctx.SaveChangesAsync();
+
+        var minhas = await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id);
+
+        Assert.True(minhas.DevoAlguma);
+        Assert.True(PixDoOrganizador.ApareceParaMim(PorForaPublicado(torneio), minhas.DevoAlguma));
+    }
+
+    // O mesmo torneio, com a chave já publicada e cobrando "por fora" — que é o único cenário
+    // em que o card existe.
+    private static Torneio PorForaPublicado(Torneio torneio)
+    {
+        torneio.Status = "Fase de Grupos";
+        torneio.FormaPagamento = FormaDePagamentoDoTorneio.Externo;
+        torneio.ChavePixOrganizador = "51999999999";
+        torneio.PrecoInscricao = 150m;
+        return torneio;
+    }
+
     private static Jogador Inscrever(Padelizou.Models.DbPadelContext ctx, Categoria categoria,
         bool pago, Jogador? parceiro = null, Jogador? quem = null)
     {

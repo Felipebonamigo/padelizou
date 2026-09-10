@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Padelizou.Models;
 using Padelizou.Services;
 using Xunit;
@@ -106,7 +107,11 @@ public class CardDoPixSaiDaTelaDepoisDePublicadoTests
     {
         // Não pode nascer uma quinta formulação de "as chaves já saíram": `ChavePublicada` já
         // decide a aba "Chaves e Grupos" e o card de ferramentas do organizador no topo.
-        var fonte = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Services", "PixDoOrganizador.cs"));
+        // ⚠️ SEM OS COMENTÁRIOS: o comentário do `ApareceParaMim` cita "AprovacaoDeChaves.
+        // ChavePublicada" pelo nome, então o `Contains` sozinho passaria com a chamada apagada.
+        // Quem segurava a mutação era o `DoesNotContain` de baixo — este par agora vale por si.
+        var fonte = TestInfra.SemComentarios(
+            File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Services", "PixDoOrganizador.cs")));
 
         Assert.Contains("AprovacaoDeChaves.ChavePublicada", fonte);
         Assert.DoesNotContain("\"Fase de Grupos\"", fonte);
@@ -119,7 +124,13 @@ public class CardDoPixSaiDaTelaDepoisDePublicadoTests
         // jogo e o pedido morreria em silêncio — com os testes de comportamento verdes.
         var view = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Torneios", "Details.cshtml"));
 
-        Assert.Contains("PixDoOrganizador.ApareceParaMim", view);
+        // ⚠️ O ARGUMENTO ENTRA NA BUSCA. Cobrar só o nome do método deixava passar
+        // `ApareceParaMim(Model, true)`, que colapsa em `Aparece(torneio)` — ou seja, o card
+        // VOLTA pra tela do dia de jogo com o teste verde, que é o pedido morrendo em silêncio.
+        // Provado por mutação em 10/09/2026.
+        Assert.Matches(
+            new Regex(@"PixDoOrganizador\.ApareceParaMim\(\s*Model\s*,\s*ViewBag\.DevoAlgumaNesteTorneio"),
+            view);
 
         var card = view.IndexOf("Pix do organizador", StringComparison.Ordinal);
         var gate = view.LastIndexOf("PixDoOrganizador.ApareceParaMim", card, StringComparison.Ordinal);
@@ -142,9 +153,18 @@ public class CardDoPixSaiDaTelaDepoisDePublicadoTests
         var busca = controller.IndexOf("PixDoOrganizador.QuemRecebeOComprovanteAsync", StringComparison.Ordinal);
         Assert.True(busca >= 0, "O controller precisa buscar quem recebe o comprovante.");
 
-        var portao = controller.LastIndexOf("PixDoOrganizador.ApareceParaMim", busca, StringComparison.Ordinal);
-        Assert.True(portao >= 0 && busca - portao < 500,
-            "A busca do contato precisa estar atrás do MESMO `ApareceParaMim` que a view usa.");
+        // ⚠️ MESMO MOTIVO DO TESTE DA VIEW: `ApareceParaMim(torneio, true)` passa a valer
+        // `Aparece(torneio)` e devolve a consulta a mais pra TODA abertura da página mais
+        // pesada do site — com o teste verde. O argumento real entra na busca.
+        var portao = Regex.Matches(
+            controller[..busca],
+            @"PixDoOrganizador\.ApareceParaMim\(\s*torneio\s*,\s*minhasInscricoes\.DevoAlguma\s*\)");
+        Assert.True(portao.Count > 0,
+            "A busca do contato precisa estar atrás do MESMO `ApareceParaMim` que a view usa, com o `DevoAlguma` de verdade.");
+
+        var ultimo = portao[^1];
+        Assert.True(busca - (ultimo.Index + ultimo.Length) < 500,
+            "O portão está longe demais da busca pra ser o portão dela.");
     }
 
     private static string RaizDoRepo()

@@ -10,6 +10,7 @@ using padelizou.Controllers;   // AuthController ficou no namespace legado, em m
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace Padelizou.Tests;
 
@@ -450,6 +451,24 @@ public static class TestInfra
         ctx.SaveChanges();
 
         return (torneio, categoria, organizador);
+    }
+
+    // ── O TEXTO QUE O CÓDIGO DIZ, SEM O QUE O COMENTÁRIO EXPLICA ────────────────────────
+    // São 104 arquivos de teste aqui que leem fonte com `File.ReadAllText` e procuram
+    // substring. Esse padrão tem uma armadilha própria, e ela já mordeu QUATRO vezes numa
+    // sessão só (10/09/2026): o comentário acima do código cita a coisa procurada — o pedido
+    // do Felipe, o nome do método, a classe CSS — e o `Assert.Contains` acha ali, com o código
+    // apagado. O teste fica verde defendendo a documentação em vez do comportamento.
+    //
+    // Pior: quando enfim falha, a saída mais barata é apagar o comentário. O conserto certo é
+    // este — a busca passa a enxergar só o que EXECUTA.
+    //
+    // ⚠️ Só linha que COMEÇA com `//`, mais os blocos Razor `@* *@`: cortar no `//` do meio da
+    // linha levaria junto o `https://` de uma URL dentro de string.
+    public static string SemComentarios(string fonte)
+    {
+        var semRazor = Regex.Replace(fonte, @"@\*.*?\*@", "", RegexOptions.Singleline);
+        return Regex.Replace(semRazor, @"^[ \t]*//.*$", "", RegexOptions.Multiline);
     }
 
     // Dá um placar à partida (games) e finaliza pelo fluxo real do controller.
