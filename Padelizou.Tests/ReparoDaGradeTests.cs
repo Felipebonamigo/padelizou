@@ -61,6 +61,59 @@ public class ReparoDaGradeTests
         IReadOnlyCollection<Dupla> duplas, string regra) =>
         AuditoriaDaGrade.Conferir(torneio, jogos, duplas, SedesDoTorneio.Nenhuma).Count(a => a.Regra == regra);
 
+    // Um TIME: `NomeTime` preenchido, `Jogador2Id` nulo e o ORGANIZADOR no `Jogador1Id` — é assim
+    // que TorneiosController.Times grava, e é por isso que time fica fora do mapa de pessoas
+    // (comparar por pessoa faria todo time brigar com todo time).
+    private static Dupla TimeDe(int id, int organizadorId) => new()
+    {
+        Id = id, Jogador1Id = organizadorId, Jogador2Id = null, NomeTime = $"Time {id}", Categoria = Cat,
+    };
+
+    // 🕳️ O REPARO CHAMAVA O MESMO TIME PRA DUAS QUADRAS NO MESMO HORÁRIO (10/09/2026).
+    //
+    // A régua do reparo é `AuditoriaDaGrade.Conferir`, e ela PULAVA quem não está no mapa de
+    // pessoas — ou seja, todo time — em vez de cair na identidade do próprio time, que é o que
+    // `GradeDeJogos.Encaixar` faz (`new[] { -duplaId }`). Time em dois jogos ao mesmo tempo pesava
+    // ZERO: o reparo trocava de graça um impedimento de 20.000 por um choque que ele não
+    // enxergava, e o "Conferir grade" saía dizendo "nada fora do lugar".
+    //
+    // Medido antes da correção: `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_
+    // chave_direta_na_mesma_grade` falhava ~1 em 60 sorteios, e o choque NUNCA existia antes do
+    // reparo — era ele quem o criava. Aqui os confrontos são FIXOS: número que sai do `GerarChaves`
+    // mede sorte, não código.
+    [Fact]
+    public void Nao_troca_criando_o_mesmo_time_em_duas_quadras_ao_mesmo_tempo()
+    {
+        const int organizador = 777;
+        var impedida = Dupla(5, 50, 51);
+        impedida.ImpedimentoSextaNoite = true;
+        var duplas = new[]
+        {
+            TimeDe(1, organizador), TimeDe(2, organizador), TimeDe(3, organizador),
+            impedida, Dupla(6, 60, 61),
+        };
+
+        var jogos = new List<Partida>
+        {
+            Jogo(1, 1, 2, Sabado.AddHours(9)),          // Time 1 aqui…
+            Jogo(2, 1, 3, Sexta.AddHours(20)),          // …e aqui
+            Jogo(3, 5, 6, Sexta.AddHours(20)),          // dentro do impedimento: é o doente
+        };
+
+        // A isca: trocar o jogo 3 com o jogo 1 apaga o impedimento (20.000) — e joga o Time 1 pra
+        // cima do próprio Time 1 das 20h de sexta.
+        Assert.Equal(1, Quantos(Torneio(), jogos, duplas, AuditoriaDaGrade.Impedimento));
+        Assert.Equal(0, Quantos(Torneio(), jogos, duplas, AuditoriaDaGrade.PessoaEmDoisJogos));
+
+        ReparoDaGrade.Reparar(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.Equal(0, Quantos(Torneio(), jogos, duplas, AuditoriaDaGrade.PessoaEmDoisJogos));
+        // E dito de frente, sem depender da auditoria: os dois jogos do Time 1 em horários
+        // diferentes. Um jogo dentro do impedimento é ruim; o time chamado pra duas quadras ao
+        // mesmo tempo é pior, e é o único desfecho que a Mesa não consegue remendar no dia.
+        Assert.NotEqual(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
+    }
+
     // O caso do Er: um jogo caiu dentro do impedimento e existe, na grade, um jogo sem restrição
     // nenhuma que pode ficar com aquele horário.
     [Fact]
