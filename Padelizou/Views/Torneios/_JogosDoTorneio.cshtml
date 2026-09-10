@@ -133,7 +133,6 @@
     // o select aparecia cheio e qualquer escolha esvaziava a tela. Esta só traz quadra que
     // algum jogo de fato usa (ver TorneiosController.CarregarViewBagJogosAsync).
     var quadrasParaFiltrar = ViewBag.QuadrasParaFiltrar as IReadOnlyList<string> ?? Array.Empty<string>();
-    int agendadasNoTorneio = ViewBag.AgendadasNoTorneio as int? ?? agendadasList.Count;
     bool temFiltroDeClube = clubesFiltro.Count > 1;
     bool temFiltroDeQuadra = quadrasParaFiltrar.Count > 1;
     bool temFiltroDeFase = fasesFiltro.Count > 1;
@@ -622,19 +621,14 @@
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }
 
-        @* RECALCULAR HORÁRIOS: o remendo pro dia em que a realidade não cabe na grade —
-           chuva, jogo que passou de três sets, dupla que não apareceu.
-
-           Não confundir com o que faz o torneio ANDAR: preencher as vagas do mata-mata
-           quando saem os classificados é automático, ninguém aperta nada pra isso. Este
-           botão redistribui o que FALTA, a partir de agora, sem tocar em quem já jogou nem
-           em quem está em quadra. *@
-        @* Some no torneio por ordem de liberação: lá não existe horário a redistribuir, e o
-           servidor recusa o clique. Um botão que só serve pra receber "não dá" é pior que
-           botão nenhum. *@
-        @* ⚠️ O "por ordem" TAMBÉM refaz grade desde 09/09/2026: ele passou a ter horário, e é
-           por este botão que um torneio sorteado ANTES da mudança ganha as horas — sem mexer
-           nos confrontos, que é o que "desfazer o sorteio" faria. Ver Services/OrdemDeLiberacao. *@
+        @* ⚠️ O "RECALCULAR HORÁRIOS" NÃO MORA MAIS AQUI (10/09/2026). 🗣️ Felipe, num print
+           desta tela no 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o
+           lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*. Esta é
+           a tela onde se passa o dia — rola-se ela pra achar quem joga agora e pra apertar o
+           play —, e o botão que apaga uma noite de trocas na mão estava no caminho do polegar.
+           Ele foi pro Painel de Controle (Details.cshtml, aba Gerenciar Torneio), junto do
+           Recolher as chaves e do Desfazer o sorteio. O que fica aqui são os dois que não jogam
+           trabalho fora: o Conferir a grade e o Ajustar horários. *@
         @* 🗣️ "faz esse botão" (Felipe, 09/09/2026): a conferência da grade, ao lado de quem a
            refaz. Fica FORA do `if` das agendadas de propósito — a grade também merece conferência
            depois que os jogos começaram, e é justamente aí que o furo dói. *@
@@ -647,41 +641,9 @@
         }
         @if (ehOrganizador && agendadasList.Count > 0)
         {
-            @* 🗣️ "gerar todos horarios novos e o que foi feito sera perdido" (Felipe, 10/09/2026):
-               o aviso dizia o que o botão FAZ; faltava o que ele DESFAZ — as trocas na mão.
-               ⚠️ O comentário fica FORA da tag: dentro de `<form …>` o Razor apagava os atributos
-               seguintes, e o build-900 saiu pra produção SEM este aviso — o clique recalculava
-               na hora (ensaio do Er, 10/09/2026; ver ComentarioRazorDentroDeTagTests). Reincidi
-               nisso no PR #125, com o `data-confirmar-tom` abaixo: a armadilha é escrever o
-               comentário JUNTO do atributo que ele explica, que é o lugar mais natural do mundo.
-
-               🗣️ "esse botão em vermelho" (Felipe, apontando o OK do modal): `tom="perigo"` pinta
-               o OK de vermelho e troca a interrogação por um alerta — já existia em
-               wwwroot/js/confirmar.js, faltava pedir. É a única ação desta tela que joga trabalho
-               fora, e por isso o botão dela também é `btn-danger`. *@
-            <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
-                  data-confirmar="Gera horários NOVOS pra todos os @agendadasNoTorneio jogos do torneio que ainda não começaram — inclusive os que o filtro está escondendo. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
-                  data-confirmar-titulo="Recalcular todos os horários?"
-                  data-confirmar-tom="perigo"
-                  data-confirmar-ok="Recalcular e perder os ajustes">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="id" value="@Model.TorneioId" />
-                @* Pra voltar pra ESTA tela. Sem isto, quem estava na página do torneio caía na
-                   lista pura de jogos e via as abas mãe (Inscritos, Grupos, Chaves) sumirem. *@
-                <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
-                @* 🗣️ "pode ficar em vermelho tambem, para mostrar que é perigoso, por que ele
-                   reorganiza todas as chaves" (Felipe, 10/09/2026). É o único botão desta tela que
-                   joga trabalho fora — a cor diz isso antes do clique, o diálogo confirma depois. *@
-                <button type="submit" class="btn btn-danger btn-sm">
-                    <i class="bi bi-exclamation-triangle-fill"></i> Recalcular horários
-                </button>
-                <span class="form-text ms-2">
-                    Refaz TODOS os horários do zero e desfaz as trocas feitas na mão. Use quando o torneio atrasar.
-                </span>
-            </form>
-
-            @* O irmão manso, e é o que se aperta primeiro: ele não desmarca nada — só troca jogos
-               de lugar enquanto isso derrubar pontos do Conferir grade. Ver Services/ReparoDaGrade. *@
+            @* O irmão manso do recalcular, e o único dos dois que sobrou aqui: ele não desmarca
+               nada — só troca jogos de lugar enquanto isso derrubar pontos do Conferir grade.
+               Ver Services/ReparoDaGrade. *@
             <form asp-controller="Torneios" asp-action="AjustarHorarios" method="post" class="mb-3">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
@@ -693,6 +655,15 @@
                     Mantém a grade e as suas trocas: só corrige o que o Conferir grade aponta.
                 </span>
             </form>
+
+            @* Onde o vermelho foi parar. Sem esta linha, um botão que esteve aqui o tempo todo
+               simplesmente some — e quem o procura no meio de um torneio atrasado não tem onde
+               olhar. *@
+            <div class="form-text mb-3">
+                <i class="bi bi-info-circle"></i>
+                O <strong>Recalcular horários</strong> saiu daqui — agora ele fica em
+                <strong>Gerenciar Torneio</strong>, com quem organiza.
+            </div>
         }
 
         @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela

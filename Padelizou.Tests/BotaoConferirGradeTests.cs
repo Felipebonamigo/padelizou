@@ -118,8 +118,11 @@ public class BotaoConferirGradeTests
         Assert.Contains(motivos, m => m.Contains("Radar 1") && m.Contains("15/09"));
     }
 
+    // Fica na LISTA DE JOGOS, com quem opera o dia — conferir a grade não muda nada, e é
+    // justamente ali que o furo aparece. O "Recalcular horários" é que mudou de tela em
+    // 10/09/2026 (ver RecalcularHorariosNoPainelTests).
     [Fact]
-    public void O_botao_fica_ao_lado_do_Refazer_grade()
+    public void O_conferir_a_grade_fica_na_lista_de_jogos()
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
 
@@ -133,7 +136,8 @@ public class BotaoConferirGradeTests
     [Fact]
     public void O_recalcular_horarios_avisa_que_os_ajustes_na_mao_se_perdem()
     {
-        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+        // Mora no Painel de Controle desde 10/09/2026 — ver RecalcularHorariosNoPainelTests.
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
 
         var formulario = fonte.Substring(fonte.IndexOf("asp-action=\"RefazerGrade\""));
         var aviso = formulario.Substring(0, formulario.IndexOf("</form>"));
@@ -148,7 +152,7 @@ public class BotaoConferirGradeTests
     [Fact]
     public void O_recalcular_horarios_e_vermelho_na_tela_e_no_modal()
     {
-        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
 
         var formulario = fonte.Substring(fonte.IndexOf("asp-action=\"RefazerGrade\""));
         formulario = formulario.Substring(0, formulario.IndexOf("</form>"));
@@ -157,9 +161,9 @@ public class BotaoConferirGradeTests
         Assert.Contains("data-confirmar-tom=\"perigo\"", formulario);    // o OK do modal
     }
 
-    // O botão manso fica ao lado, e é o que se aperta primeiro.
+    // O botão manso é o que sobrou na lista de jogos, e é o que se aperta primeiro.
     [Fact]
-    public void O_ajustar_horarios_fica_ao_lado_do_recalcular()
+    public void O_ajustar_horarios_fica_na_lista_de_jogos()
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
 

@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/focused-euler-1mlif4`, ainda não publicado.** **Sem migration.**
+>
+> 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
+>
+> 🕳️ **ELE MORAVA NA TELA ONDE SE PASSA O DIA.** A lista de 97 jogos é a que se rola pra achar quem joga agora e pra apertar o play — e o único botão que apaga uma noite de trocas na mão ficava logo acima dela, no caminho do polegar. Confirmação vermelha não conserta lugar errado: ela só aparece depois do clique que não era pra ter acontecido.
+>
+> ✅ **AGORA ELE FICA EM `Gerenciar Torneio`**, no card de status, logo abaixo do **Recolher as Chaves** — junto das outras ações que mexem no torneio inteiro (Desfazer o sorteio, Recolher as chaves). Botão, cor (`btn-danger`), aviso (`data-confirmar-tom="perigo"`) e a contagem do torneio (`ViewBag.AgendadasNoTorneio`, e não a da tela filtrada) vieram inteiros — o que mudou foi **onde**.
+>
+> ⚠️ **FICA FORA DA CORRENTE DE STATUS DO PAINEL, de propósito:** quem tem horário pra refazer é quem tem jogo **agendado**, e isso atravessa "Chaves em Aprovação", "Fase de Grupos" e o torneio que sai público na hora. Repetir o botão nos três ramos seria a mesma regra escrita três vezes — é a mesma escolha que o "Reabrir as inscrições" já faz ali em cima. Zero agendado e ele some.
+>
+> ⚠️ **QUEM SÓ MARCA PLACAR PERDE O BOTÃO, e essa é a consequência pedida.** O painel é de quem organiza (`ViewBag.PodeGerenciar`); a lista de jogos enxerga `PodeOperarODiaDeJogo`, que inclui o marcador. **O servidor não mudou** — `RefazerGrade` continua aceitando marcador —, o que saiu é a porta. Com a mesa ficaram os dois que não jogam trabalho fora: **Ajustar horários** e **Conferir a grade**, mais uma linha dizendo pra onde o vermelho foi.
+>
+> 🧪 **6.176 testes, 0 falhas (4 novos meus; os outros 48 vieram do `main` — PRs #145, #147/#150 e #148, mesclados aqui antes de publicar).** Vistos vermelhos antes: `RecalcularHorariosNoPainelTests` inteiro (*"O <form asp-action=\"RefazerGrade\"> não está em Details.cshtml"*, e o `DoesNotContain` achando o form ainda na lista), mais os três testes antigos que liam o botão em `_JogosDoTorneio.cshtml` e passaram a ler o `Details.cshtml` (`startIndex ('-1')`).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão, e o proxy recusa o domínio. O que dá pra afirmar é que o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(2803)`, o que mostra que a view entra no build e não só o C#) e o que os testes leem da fonte. A tela em si só se confere no `dev`.
+
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >
 > 📌 **O BUILD FOI PEDIDO PELO NOME, e não como "o mais recente" — de propósito.** Entre o merge deste PR e o deploy, o #145 (*Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR*) entrou no `main`. Publicar `build-958-b949a3d` leva **exatamente** o que subiu no `dev` e o que esta sessão testou; o #145 fica pra quem o escreveu publicar. É a lição de hoje de manhã aplicada ao contrário: com duas sessões mesclando na mesma tarde, quem quiser segurar algo fora do prod segura o **merge** — e quem já mesclou, publica **pela tag**, não pelo topo.
 >
