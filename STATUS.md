@@ -1,7 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-976-658d281`** (15h05 e 15h06 de Brasília — runs 179 e 180, os dois com a tag **explícita** no input `build`, e não "a mais recente"). PR #153. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as duas travas do clique duplo do palpitrômetro** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`) — **mais o primeiro passo de Node do `ci.yml`**. Fecha o `DbUpdateException em POST /Partidas/Votar` que chegou por push de erro às 13h52.
+>
+> 📦 **ESTE BUILD NÃO LEVA CARONA DE CÓDIGO, e isso foi conferido, não presumido:** `git diff --name-only build-970..build-976` devolve **7 arquivos, todos deste PR** (mais o `STATUS.md`). Os PRs #149 e #154, que entraram no `main` entre um build e outro, são **registro de STATUS, sem código**. Os PRs #144–#148 já tinham ido ao ar nos builds 952/958/962/970 das sessões paralelas — ou seja, o alerta de "leva junto tudo que entrou antes" **não se aplicou desta vez**.
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA — a primeira verificação independente desde que a nota do proxy existe.** O proxy desta sessão **não** bloqueou o domínio: `/healthz` **200** em `dev` e em `prod`, e o `palpitrometro.js` servido pelos dois já traz a trava (`palpiteEmVoo` aparece **4×**; **antes** do deploy o prod servia **0**, que é a medida de que o arquivo velho saiu do ar). 📌 **A lição é sobre a nota, não sobre o site:** "o proxy bloqueia `padelizou.com.br`" é estado **de sessão**, não regra do ambiente — a próxima sessão testa em vez de assumir que não dá.
+>
+> 🧪 **CI verde no PR, e o passo novo rodou no runner de verdade** — passo 9, `Conferir a trava de clique do palpitrômetro (JS)`, `success`, com o `Dizer QUAL teste caiu` `skipped` do lado (que é o desenho: ele só aparece quando a suíte cai). **6.179 testes, 0 falhas** no estado já mesclado com o `main`.
+>
+> ⚠️ **O `main` andou DUAS VEZES no meio do caminho** (PRs #149, #152, #154 de sessões paralelas), e as duas vezes o conflito foi só no `STATUS.md`, no mesmo lugar: o cabeçalho "Última atualização". A resolução é mecânica e vale anotar — **o bloco novo fica no topo com o cabeçalho, e o que estava lá vira entrada datada normal**. Nenhuma linha de código conflitou nas duas mesclas.
+>
+>
+> **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
 > 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
 >
