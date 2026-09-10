@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl` desta sessão**: `/healthz` 200 em `dev` e `prod`; `/js/compartilhar-texto.js` servido nos dois (é o arquivo que só existe neste build); no `prod`, `/Torneios/CompartilharJogos/26` (o Er) responde **200 com 6 artes e o alternador "Também os previstos"**, e `/Torneios/JogosImagem/26?parte=1` devolve **`image/png` de 198 KB**.
+>
+> 🔁 **O `main` ANDOU QUATRO VEZES entre abrir o PR e mesclar** (PRs #164, #166, #167/#168, #170 — e o #171 entrou depois do merge, antes do deploy do `prod`). Cada vez: mescla, resolve o STATUS, roda a suíte (6.322 verdes na última). O merge pelo GitHub recusou duas vezes com *"has merge conflicts"* onde o `ort` local mesclava limpo — a saída foi empurrar a mesclagem local e esperar o CI dela. ⚠️ **A tag `build-1022-35ba247` foi pedida explicitamente no `prod`** porque o run 199 já nasceu com o `main` em `fa11f18` (PR #171): "o mais recente" teria publicado outro artefato no `prod` do que no `dev`.
+>
+> 🧹 **O STATUS do `main` tinha um `<<<<<<< HEAD` órfão** (sobra da resolução do PR #166, na entrada dele); removido aqui.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `prod` não parou pedindo aprovação.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
 >
 > 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
 >
@@ -27,7 +37,7 @@
 >
 > 🧹 **DE PASSAGEM: o `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** (marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar). Removido neste merge.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #169) e PUBLICADO no `build-1022-35ba247`** — o registro do deploy é a entrada do topo. **Sem migration.**
 >
 > 📤 **A ABA JOGOS GANHOU "COMPARTILHAR ESTA LISTA": texto pro grupo do WhatsApp e arte 1080×1350 pro story, com os filtros da tela.** 🗣️ Felipe, num print da aba filtrada por "Los Corneteiros" no 2ª Etapa ER PADEL TOUR: *"no final da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"* — *"Algo que fique bom para compartilhar no insta tambem"* — *"terá q questionar se vale apenas os jogos ja marcados ou se os possiveis tambem (por que o mata mata nao ta definido)"*.
 >
