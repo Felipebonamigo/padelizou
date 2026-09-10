@@ -965,10 +965,27 @@ namespace Padelizou.Controllers
             var remarcar = todos.Where(p => p.Status == "Agendada").OrderBy(p => p.Id).ToList();
             var intocados = todos.Where(p => p.Status != "Agendada").ToList();
 
+            // ⚠️ O CLUBE VAI EMBORA JUNTO COM A HORA E A QUADRA (10/09/2026), e isso é correção,
+            // não arrumação. O slot é o TRIO (hora, quadra, clube): `TrocaDeHorario.Trocar` troca
+            // os três juntos e `OrdemDeLiberacao.CarimbarOClube` grava o terceiro A PARTIR da
+            // quadra. Zerar dois e deixar o carimbo do slot ANTIGO deixava um terço do slot velho
+            // vivo dentro do recálculo — e quem o lia era o reparo que fecha este método:
+            // `TrocaDeHorario.Lado.ClubeDaVaga` responde "em que clube fica esta vaga?" pelo
+            // carimbo do jogo, que apontava pro horário que o jogo JÁ NÃO OCUPA. No SORTEIO o mesmo
+            // reparo roda ANTES do carimbo, com `ClubeId` nulo, e a resposta vem da quadra — a
+            // certa. Duas respostas pra mesma pergunta: a régua de sede (categoria presa em casa
+            // contra vaga no clube alugado, `TrocaDeHorario.NaoPodeIrPraVagaDe`) recusava aqui a
+            // troca que aceitava lá, e a grade saía diferente da do sorteio sem nada ter mudado.
+            // Era a instabilidade de `GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_
+            // grade_do_sorteio` (~15% dos sorteios, sempre "2 de 44 jogos trocaram de horário");
+            // medido com confrontos FIXOS, 45 de 160 formas de torneio divergiam, e NENHUMA sem
+            // categoria presa em casa. O carimbo volta logo abaixo, pela quadra nova.
+            // (`RefazerAGradeEmDoisClubesTests`)
             foreach (var jogo in remarcar)
             {
                 jogo.HorarioPrevisto = null;
                 jogo.NomeQuadra = null;
+                jogo.ClubeId = null;
             }
 
             // As RESERVAS de horário (Models/ReservaDeHorario) vão embora junto: a reserva é um
