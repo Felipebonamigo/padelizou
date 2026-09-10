@@ -1008,10 +1008,11 @@ namespace Padelizou.Controllers
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            var a = await _context.Partidas.FindAsync(jogoA);
-            var b = await _context.Partidas.FindAsync(jogoB);
+            var a = await _context.Partidas.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == jogoA);
+            var b = await _context.Partidas.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == jogoB);
 
-            if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, id) is { } motivo)
+            // Com as SEDES: a categoria presa em casa não vai pro slot do Radar por uma troca na mão.
+            if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, id, await SedesAsync(id)) is { } motivo)
             {
                 TempData["Erro"] = motivo;
             }
