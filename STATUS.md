@@ -27,6 +27,37 @@
 >
 > 🔎 **E fica anotado o limite deste ambiente de sessão web:** o proxy bloqueia `padelizou.com.br`, então **não dá pra conferir o `/healthz` por fora daqui**. Quem atesta o healthcheck é o próprio `deploy.sh` (que faz rollback automático se não vier 200) — o que é evidência de verdade, mas não é verificação independente, e a diferença precisa ser dita em vez de escondida.
 >
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` no `build-938-af647b9`** (12h49 de Brasília — run 156) **e, MINUTOS DEPOIS, TAMBÉM EM `prod`** (12h58, run 158, `deploy → prod` no `b01797d`, que descende do merge do #140). PR #140. ⚠️ **COM MIGRATION.**
+>
+> ⚠️ **O PROD NÃO ERA PRA TER RECEBIDO ISTO HOJE, e o registro fica aqui pra não se perder.** 🗣️ O pedido foi *"aprova, mas publica só no dev por enquanto"*, com o torneio do Er no ar. O deploy pro `dev` (run 156, `build-938-af647b9`) foi o único disparado por esta sessão; o run 158 saiu de outro lugar — provavelmente a sessão paralela levando o PR #139 —, e como `b01797d` descende do merge do #140, ele carregou a migration junto. O `Migrate()` roda no **startup** do app (`Program.cs:399`), então a coluna `ChavesAvisadasEm` e o `UPDATE` do backfill já rodaram no banco de produção.
+>
+> 📌 **A lição não é sobre esta migration** (coluna anulável + backfill, sem reescrita de linha), **é sobre a janela:** com duas sessões mergeando na mesma tarde, "levar o MEU PR pro prod" leva junto tudo que entrou no `main` antes dele. Quem quiser segurar algo fora do prod precisa segurar o **merge**, não o deploy.
+>
+> 🔙 **RECOLHER AS CHAVES: A ARESTA QUE FALTAVA, `Fase de Grupos` → `Chaves em Aprovação`.** 🗣️ Felipe, com o Painel de Controle do 2ª Etapa ER Padel Tour aberto em "FASE DE GRUPOS": *"permita recolocar o torneio em fase fechada, ou já tem isso?"* **Não tinha** — depois da aprovação o status só andava pra frente. As três saídas que existiam resolvem outra coisa: `DesfazerSorteio` **apaga** grupos e jogos (e fecha no instante em que se aprova), `ReabrirInscricoes` recusa assim que existe partida, e `AlternarVisibilidade` some da listagem mas **deixa quem já está inscrito vendo a página** (é o desenho de `VisibilidadeDoTorneio`).
+>
+> ✅ **O ENCANAMENTO JÁ EXISTIA, e é por isso que o diff é pequeno.** `AprovacaoDeChaves.Publicada` é o predicado único que a agenda/ICS, a Home, o push de quadra atrasada e as abas já consultam — virar o status de volta re-esconde tudo sozinho. Faltava só a transição. A régua nova (`PorQueNaoPodeRecolher`) tem a mesma forma de `PortaDaInscricao.PorQueNaoPodeAbrir`: devolve o motivo da recusa ou `null`, e a tela mostra a frase em vez de inventar outra.
+>
+> ⚠️ **A ÚNICA RECUSA É A BOLA JÁ TER ROLADO.** `JaSaiuDoPapel` une as duas leituras que já existiam — o `Status != "Agendada"` do `DesfazerSorteio` e o `HorarioInicioReal` do mural. Esconder um torneio **em andamento** não é preferência do organizador: é jogador dentro do clube sem ver contra quem joga. Todo o resto é aviso, não proibição.
+>
+> 🕳️ **O AMERICANO TERIA QUEBRADO, e o defeito só apareceu lendo o fluxo inteiro.** Ele vai direto pra "Fase de Grupos" (`GerarRodadasAmericano`) e nunca passou pela aprovação. Recolher um jogaria ele em "Chaves em Aprovação" — onde o painel oferece o **"Desfazer e Sortear de Novo" do formato Padrão**, cujo `DesfazerSorteio` apaga `GruposTorneio` e `Partidas` **sem tratar a `Dupla` EFÊMERA do Americano individual**, que é exatamente a diferença que o `DesfazerRodadasAmericano` existe pra respeitar. Agora `PublicacaoDaChave.SaiPublicaNaHora` — a régua que já sabia disso — responde também aqui. Teste visto vermelho antes: o status virava "Chaves em Aprovação" de verdade.
+>
+> 💾 **MIGRATION `Torneio.ChavesAvisadasEm`, e ela é a metade do trabalho.** Podendo voltar pra aprovação, aprovar deixou de ser uma vez só — e a rajada "as chaves saíram" repetiria a cada ciclo pra base inteira do torneio, porque `AvisarChavesPublicadasAsync` não tinha carimbo. ⚠️ **NÃO dá pra derivar isso do `AvisoDoJogador`**, e foi conferido antes de virar coluna: ele é gravado dentro de `try/catch` que **engole a falha**, a entrega é por fila (tem atraso), a URL `/Torneios/Jogos/{id}` é compartilhada por **4** avisos diferentes e o título depende do **nome** do torneio, que pode ser trocado. Um default que errasse pro lado "marcada" mandaria justamente a segunda rajada.
+>
+> ⚠️ **O `UPDATE` DA MIGRATION É ESCRITO À MÃO, e é a mesma decisão da migration do `AvisoDeTorneioNovoEm`**: sem ele todo torneio já publicado entraria como "nunca avisado", e o primeiro recolher→aprovar de cada um mandaria push pra base inteira dele. Carimba quem passou da aprovação (qualquer status fora dos três que vêm antes dela) e **deixa o Americano de fora** — pra ele a rajada nunca saiu. ⚠️ A data é **aproximada** nas linhas antigas (não existe registro de quando cada chave foi aprovada), e por isso **a tela não mostra a data**: ela diz só "já foram avisados uma vez", que é o que de fato se sabe.
+>
+> 🛡️ **A GUARDA DA DUPLICAÇÃO ME PEGOU, E TINHA RAZÃO** — `DuplicarTorneioTests.Toda_propriedade_do_Torneio_escolheu_um_lado` quebrou pedindo que `ChavesAvisadasEm` escolhesse lado. Herdado, a edição nova nasceria "já avisada" e a caixinha viria **desmarcada** na primeira liberação dela: as chaves sairiam e ninguém receberia o aviso. No circuito que repete toda etapa, só a primeira edição avisaria. Foi pro `NaoViajam`, ao lado do `AvisoDeTorneioNovoEm`, que é do mesmo tipo. **É a terceira vez em duas semanas que a resposta certa foi perguntar "o que a guarda está protegendo?" em vez de "como faço ela calar?".**
+>
+> ⚠️ **RECOLHER NÃO DESFAZ O QUE JÁ SAIU**, e a tela diz isso antes do clique: o push entregue e o evento que já caiu na agenda de quem usa o ICS não voltam. Recolher esconde daqui pra frente.
+>
+> 🧪 **6.073 testes, 0 falhas (13 novos, em `RecolherChavesTests`).** Vistos vermelhos antes: *"RecolherChaves não existe"*, *"ChavesAvisadasEm não existe"*, `AprovarChaves` sem o parâmetro, e o Americano sendo recolhido. `has-pending-model-changes`: limpo. CI verde de primeira, sem re-run.
+>
+> ⏭️ **O `build-938` leva junto o PR #137** (os dois testes instáveis da grade), que entrou no `main` dois minutos antes. O **#139 fica pro próximo deploy**. Pra levar isto ao `prod`: Actions → Deploy → `prod`, build `build-938-af647b9` ou mais recente — **depois do torneio do Er**.
+>
+> 📌 **Fora do escopo, anotado e NÃO mexido:** o `DesfazerSorteio` recusa por `Status != "Agendada"` e não olha `HorarioInicioReal` — um jogo que começou sem ninguém mexer no status passa por ele. O `AprovacaoDeChaves.JaSaiuDoPapel` que nasceu aqui já é a expressão que fecha isso; trocar lá é uma linha, mas é outra ação.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima segunda sessão seguida.
+
 > **10/09/2026** — 🔒 **TROCAR HORÁRIO DEPOIS DA CHAVE PUBLICADA JÁ FUNCIONAVA — agora está TRAVADO POR TESTE.** Nenhum código de produção mudou. **Sem migration.**
 >
 > 🗣️ Felipe: *"eu consigo trocar horarios depois de publicado e aprovado? se não, permita q tenha um botão la, altera tambem, pq terá alguns jogadores q vao querer trocar e as vezes tem trocas depois das chaves publicadas"*. **A resposta é sim**, e a pergunta merecia mais que um "sim": ela descreve o dia de jogo real, em que a troca chega por WhatsApp depois de a chave já estar no celular de todo mundo.

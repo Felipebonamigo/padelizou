@@ -5949,15 +5949,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                        a regra mudar — a tela do quadro diria uma hora e a
                                        lista de jogos diria outra.
 
-                                       O casamento é por (fase, posição na rodada): os dois
-                                       saem do mesmo motor de chaveamento, na mesma ordem.
+                                       O casamento é por (fase, NÚMERO do jogo) — nunca por
+                                       posição na lista.
 
-                                       ⚠️ POR ISSO LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem`
-                                       (10/09/2026). Casar por POSIÇÃO exige a rodada inteira:
+                                       ⚠️ POR POSIÇÃO ESTAVA ERRADO, e o comentário que ficou aqui
+                                       até 10/09/2026 dizia por quê sem perceber: "os dois saem do
+                                       mesmo motor de chaveamento, na mesma ordem". Saem do mesmo
+                                       motor; NÃO chegam na mesma ordem. `ProjetarProximasFasesAsync`
+                                       termina com `OrderBy(j => j.Horario)`, e uma RESERVA do
+                                       organizador (Models/ReservaDeHorario, o "trocar horário" de
+                                       uma prévia) grava a hora escolhida sem mover o cursor da
+                                       grade — de propósito. Reservando a Semifinal 1 pra depois da
+                                       2, a lista chega com a 2 na frente e a vaga da 1 mostrava a
+                                       hora e a quadra da 2. Travado em
+                                       QuadroDaChaveCasaPorNumeroTests.
+
+                                       ⚠️ E LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
                                        `JogosQueVem` é a lista da ABA JOGOS e os filtros dela
                                        (clube, quadra, fase, "meus jogos") a recortam — com uma
-                                       semifinal fora, a outra caía na vaga da primeira e o
-                                       quadro mostrava confronto que não existe. *@
+                                       semifinal fora, o quadro mostrava confronto que não existe.
+                                       Procurar pelo número resolve os dois de uma vez: não importa
+                                       quem recortou nem quem reordenou. *@
                                     var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
                                             as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
                                         ?.Where(j => j.Categoria == categoria.Nome)
@@ -5974,7 +5986,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     var jogo = rodada.Jogos[i];
                                                     var previsto = projecaoDaCategoria != null
                                                         && projecaoDaCategoria.TryGetValue(rodada.Fase, out var daFase)
-                                                        && i < daFase.Count ? daFase[i] : null;
+                                                        ? daFase.FirstOrDefault(j => j.Numero == i + 1) : null;
 
                                                     @* Número junto da hora, na etiqueta de cima, e os
                                                        lados soltos ocupando a largura toda — a mesma
