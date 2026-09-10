@@ -19,6 +19,8 @@
 >
 > 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE A SUÍTE NÃO PEGARIA**: a 1200px a tabela do modo participação vinha com **PALPITES 0 · ACERTOS 0 · % 0% · PONTOS 0** em toda linha — a "fileira de zeros" que a régua da coluna "Cravadas" condena. As quatro colunas somem enquanto nada foi apurado.
 >
+> 🔀 **O `main` ANDOU no meio do caminho** (PRs #162, #163 e #165, de sessões paralelas) e foi mesclado aqui antes do CI: conflito só no `STATUS.md`, no lugar de sempre — nenhuma linha de código, e o `Details.cshtml` mesclou sozinho. Com o `main` junto são **6.272 testes, 0 falhas**.
+>
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
