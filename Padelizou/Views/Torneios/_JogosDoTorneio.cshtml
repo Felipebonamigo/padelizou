@@ -527,7 +527,14 @@
 
     <!-- SUB-ABA: AGENDADAS -->
     <div class="tab-pane fade @(defaultAoVivo ? "" : "show active")" id="agendadas" role="tabpanel">
-        @if (agendadasList.Count == 0 && jogosQueVem.Count == 0)
+        @if (ViewBag.ChaveAindaNaoPublicada == true)
+        {
+            @* 🗣️ "nao exiba nada até publicar a chave (desse menu de jogos)" — Felipe, 09/09/2026.
+               A lista chega vazia do controller (o portão mora em CarregarViewBagJogosAsync);
+               aqui só se explica o vazio, pra não parecer que o sorteio ainda não aconteceu. *@
+            <p class="text-muted">As chaves ainda não foram publicadas pelo organizador.</p>
+        }
+        else if (agendadasList.Count == 0 && jogosQueVem.Count == 0)
         {
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }
