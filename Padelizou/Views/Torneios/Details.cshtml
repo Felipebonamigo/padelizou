@@ -4624,8 +4624,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     </label>
                                                 </div>
 
+                                                @* ⚠️ ESTE RODAPÉ JÁ MENTIU. Ele dizia "e só enquanto as inscrições
+                                                   estão abertas" — encostado num botão que, desde 10/09/2026,
+                                                   funciona com a chave já sorteada. Como este bloco é do
+                                                   organizador (`ViewBag.PodeGerenciar`), a frase é escrita do
+                                                   ponto de vista DELE, e as duas janelas aparecem separadas:
+                                                   a dele vai até a dupla entrar em quadra, a de quem está na
+                                                   dupla continua presa nas inscrições abertas. *@
                                                 <small class="text-muted d-block mt-1">
-                                                    Só quem está na dupla (ou o organizador) pode alterar, e só enquanto as inscrições estão abertas.
+                                                    Como organizador, você altera até esta dupla entrar em quadra.
+                                                    Quem está na dupla só altera enquanto as inscrições estão abertas.
                                                 </small>
                                             </form>
                                         </div>

@@ -330,4 +330,16 @@ public class TrocaDeParceiroPeloOrganizadorTests
         Assert.True(painelDoOrganizador > meuCard,
             "A régua do organizador tem que ficar no painel dele, depois do card do próprio inscrito.");
     }
+
+    [Fact]
+    public void O_formulario_do_organizador_nao_promete_mais_a_janela_velha()
+    {
+        // 🕳️ Achado na releitura do próprio diff: o rodapé do formulário dizia "e só enquanto as
+        // inscrições estão abertas" — encostado no botão que agora funciona com a chave sorteada.
+        // É a tela mentindo de novo, do mesmo jeito que em 09/09, só que ao contrário: antes ela
+        // prometia o que o servidor negava; aqui negaria o que o servidor aceita.
+        var tela = Tela();
+
+        Assert.DoesNotContain("e só enquanto as inscrições estão abertas", tela);
+    }
 }
