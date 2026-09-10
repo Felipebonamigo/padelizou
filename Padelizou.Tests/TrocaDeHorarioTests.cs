@@ -27,6 +27,18 @@ public class TrocaDeHorarioTests
         Assert.Null(TrocaDeHorario.MotivoParaNaoTrocar(Jogo(1), Jogo(2, horaEm: 14), Torneio));
     }
 
+    // Dois jogos NOVOS, ainda sem Id (o reparo do sorteio roda antes de gravar), são jogos
+    // diferentes: "o mesmo jogo" é a mesma instância, não o mesmo número. Ver ReparoDaGradeTests.
+    [Fact]
+    public void Dois_jogos_novos_sem_Id_sao_jogos_diferentes()
+    {
+        var a = Jogo(0); a.Codigo = "AAA";
+        var b = Jogo(0, horaEm: 14); b.Codigo = "BBB";
+
+        Assert.Null(TrocaDeHorario.MotivoParaNaoTrocar(a, b, Torneio));
+        Assert.NotNull(TrocaDeHorario.MotivoParaNaoTrocar(a, a, Torneio));
+    }
+
     [Fact]
     public void A_troca_leva_horario_E_quadra_juntos()
     {

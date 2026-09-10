@@ -53,7 +53,11 @@ public static class AuditoriaDaGrade
 
     // `Quando` fica separado do texto pra tela poder ordenar por ele — o organizador lê a grade
     // no relógio, não em ordem alfabética de regra.
-    public record Achado(string Regra, string Descricao, DateTime? Quando);
+    //
+    // `Gravidade` é quanto FALTA: 1 pra quase todo achado; no "Jogos seguidos", quantos horários de
+    // descanso faltaram (1 = descansou um, 2 = emendou). É o que deixa o reparo (ReparoDaGrade)
+    // preferir dois avisos de "1 de folga" a uma dupla emendada — a tela não a mostra.
+    public record Achado(string Regra, string Descricao, DateTime? Quando, int Gravidade = 1);
 
     public static List<Achado> Conferir(Torneio torneio, IReadOnlyCollection<Partida> jogos,
         IReadOnlyCollection<Dupla> duplas, SedesDoTorneio sedes)
@@ -272,11 +276,17 @@ public static class AuditoriaDaGrade
             var folga = duracao * GradeDeJogos.HorariosDeDescanso;
             if (depois - antes >= duracao && depois - antes < duracao + folga)
             {
+                // Um número só pro texto e pra gravidade: a grade desalinhada (refeita às 20h13)
+                // dá descanso fracionário, e dois arredondamentos diferentes fariam a tela dizer
+                // "1" enquanto o reparo pesa "0".
+                int descansou = (int)Math.Round((depois - antes - duracao).TotalMinutes / duracao.TotalMinutes,
+                    MidpointRounding.AwayFromZero);
                 achados.Add(new Achado(JogosSeguidos,
                     $"{nomes}: {Rotulo(jogoAntes)} {antes:dd/MM 'às' HH:mm} e de novo "
                     + $"{Rotulo(jogoDepois)} às {depois:HH:mm} — "
-                    + $"{(depois - antes - duracao).TotalMinutes / duracao.TotalMinutes:0} horário(s) de "
-                    + $"descanso, e a grade promete {GradeDeJogos.HorariosDeDescanso}.", antes));
+                    + $"{descansou} horário(s) de "
+                    + $"descanso, e a grade promete {GradeDeJogos.HorariosDeDescanso}.", antes,
+                    Gravidade: Math.Max(1, GradeDeJogos.HorariosDeDescanso - descansou)));
                 continue;
             }
 
