@@ -5763,6 +5763,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     @* Refazer os horários virou ESCOLHA (rádio abaixo) — ver o porquê em
                                        TorneiosController.TrocarDuplasDeGrupo. O confirm fala dos DOIS caminhos:
                                        afirmar "recalcula tudo" quando talvez não recalcule seria pior que calar. *@
+                                    @* ⚠️ O CHAVEAMENTO À MÃO fica logo abaixo deste bloco (procure por
+                                       SalvarCruzamento): as duas coisas se decidem olhando os mesmos grupos. *@
                                     <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
                                           class="row g-2 align-items-end"
                                           data-confirmar-titulo="Trocar as duas de grupo?"
@@ -5828,6 +5830,83 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
                         }
+                        @* ═══ O CHAVEAMENTO DESENHADO À MÃO (10/09/2026) ═══════════════════════
+                           🗣️ "permita alterar na mao o chaveamento, como funciona a chave de cada um,
+                           se o primeiro passar quem enfrenta" — e "cuidado para nao mexer nada no que
+                           ja tem do ER hoje, isso é para os próximos torneios".
+
+                           ⚠️ O campo abre com o desenho QUE O MOTOR FARIA (CruzamentoDoMataMata.Padrao),
+                           e não vazio: abrir a tela e salvar sem mexer produz a MESMA chave de antes.
+                           Vazio, o sistema volta a montar sozinho — é o desfazer desta tela.
+
+                           Régua de quem vê: a mesma do bloco acima (organizador ou admin, chave ainda
+                           esperando aprovação). A ação recusa de novo do lado de lá. *@
+                        @if (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente
+                             && ViewBag.PodeAprovarChaves == true
+                             && categoria.GruposTorneio.Count > 0)
+                        {
+                            var gruposDaCategoria = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
+                            var duplasPorGrupo = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
+                            var desenhoAtual = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                                            ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
+                                                   gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2, duplasPorGrupo);
+
+                            if (desenhoAtual != null)
+                            {
+                                <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                            <i class="bi bi-diagram-3"></i> Chaveamento da primeira eliminatória
+                                        </h6>
+                                        <p class="small text-muted mb-2">
+                                            Quem cruza com quem quando os grupos acabarem — e, por consequência, o
+                                            caminho de cada um até a final.
+                                            @if (categoria.CruzamentoDoMataMata == null)
+                                            {
+                                                <span>Hoje quem monta é o sistema; o que está aí embaixo é o que ele faria.</span>
+                                            }
+                                            else
+                                            {
+                                                <strong>Este chaveamento foi desenhado à mão.</strong>
+                                            }
+                                        </p>
+
+                                        <form asp-controller="Torneios" asp-action="SalvarCruzamento" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <input type="hidden" name="categoriaId" value="@categoria.Id" />
+
+                                            <div class="mb-2">
+                                                @foreach (var confronto in desenhoAtual.Confrontos)
+                                                {
+                                                    <div class="small">@confronto.Lado1.Rotulo <span class="text-muted">×</span> @confronto.Lado2.Rotulo</div>
+                                                }
+                                                @foreach (var bye in desenhoAtual.Byes)
+                                                {
+                                                    <div class="small text-muted">@bye.Rotulo — passa direto (bye)</div>
+                                                }
+                                            </div>
+
+                                            <label class="form-label small fw-bold mb-1" for="cruzamento-@categoria.Id">
+                                                Desenho (formato <code>1A×2C|1B×2D;bye:1E</code>)
+                                            </label>
+                                            <input type="text" class="form-control font-monospace mb-2"
+                                                   id="cruzamento-@categoria.Id" name="texto"
+                                                   value="@desenhoAtual.Escrever()" />
+                                            <div class="form-text mb-2">
+                                                <code>1A</code> é o 1º do Grupo A. Toda vaga que classifica precisa aparecer
+                                                uma vez — em jogo ou em bye. <strong>Apague tudo e salve</strong> pra voltar
+                                                ao chaveamento do sistema.
+                                            </div>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
+                                                <i class="bi bi-diagram-3"></i> Salvar chaveamento
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        }
+
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {

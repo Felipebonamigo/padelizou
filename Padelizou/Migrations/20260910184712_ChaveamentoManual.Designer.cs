@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260910184712_ChaveamentoManual")]
+    partial class ChaveamentoManual
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2783,9 +2786,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("PlacarMarcadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -3172,9 +3172,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.HasKey("CategoriaId", "Fase", "Numero");
 
                     b.ToTable("ReservaDeHorario");
@@ -3423,9 +3420,6 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("ChavePixOrganizador")
                         .HasColumnType("text");
-
-                    b.Property<DateTime?>("ChavesAvisadasEm")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("ClassificadosPorGrupo")
                         .HasColumnType("integer");

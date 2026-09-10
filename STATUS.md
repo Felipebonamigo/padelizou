@@ -21,7 +21,54 @@
 >
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
-> **10/09/2026** — ✅ **MESCLADO no `main` (PR #161), ainda não publicado.** **Sem migration.**
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
+>
+> 🕳️ **A TELA RESPONDIA A PERGUNTA DA VÉSPERA.** "Quem está inscrito" é a lista por categoria; no sábado de manhã a pergunta é **"quem joga agora já chegou?"** — e com 64 duplas achar as duas do jogo das 8h era rolar a lista inteira cruzando de cabeça com a grade. A informação existia e não estava onde se decide o W.O.
+>
+> ✅ **AGORA A TELA É A FILA DO DIA**: blocos por horário (`sáb 12/09 às 08:00`), cada jogo com as duas duplas e o "Chegou" em cada uma, e o jogo com as duas presentes apagado com o selo *"os dois chegaram"*. A lista por categoria continua inteira embaixo, **fechada**, em "Resto do torneio" — é ela que serve pra marcar quem chegou cedo e joga à tarde.
+>
+> ⚠️ **A ORDEM É A MESMA DA ABA JOGOS** (`Services/OrdemNoHorario`: hora → posição gravada → Id). Duas contas de "quem vem antes" fariam as duas telas mostrarem ordens diferentes pra mesma grade — a lição de hoje de manhã, aplicada antes de doer. E o `GroupBy` da view **não reordena**: em LINQ to Objects os grupos saem na ordem em que aparecem, e a fila já chega ordenada.
+>
+> ⚠️ **SÓ "Agendada".** Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos dois a pergunta do check-in já foi respondida por outra via. A **prévia** (eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela não sabe quem joga, então não há quem marcar.
+>
+> ♻️ **A LINHA DA CHAMADA VIROU UM PARCIAL** (`_LinhaDoCheckIn.cshtml`), porque agora ela é desenhada em dois lugares — dentro do jogo e na lista de baixo. Duas cópias do formulário que GRAVA presença divergiriam na primeira mudança. De brinde, ela ganhou `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenhava a página do topo (`js/manter-posicao-na-lista.js`, a peça de hoje de manhã, pela mesma queixa).
+>
+> 🧪 **6.250 testes, 0 falhas (9 novos)** + o `conferir-palpitrometro.js` verde. Vistos vermelhos antes: `ViewData["JogosQueVem"]` nulo, *"A tela não lê a fila dos jogos"* e *"Could not find file '_LinhaDoCheckIn.cshtml'"*. A consulta nova tem **teste de tradução Npgsql** (`ToQueryString`, o padrão de 19/08): ela filtra pela navegação `Categoria.TorneioId`, e o InMemory do resto da suíte não traduz nada.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão e o proxy recusa o domínio. O que dá pra afirmar é o que o teste lê da fonte e do controller, e que o Razor compila.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1001-28f2256`** (16h15 e 16h16 — runs 190 e 191). PR #163, o **chaveamento desenhado à mão**. ⚠️ **TEM MIGRATION** (`ChaveamentoManual`: coluna nullable em `Categoria`) — o `deploy.sh` aplica no startup. Este release leva junto o **PR #162** da sessão paralela.
+>
+> 🗺️ **O ORGANIZADOR PASSA A DESENHAR QUEM CRUZA COM QUEM NA PRIMEIRA ELIMINATÓRIA.** 🗣️ *"permita alterar na mao o chaveamento, como funciona a chave de cada um, se o primeiro passar quem enfrenta, etc (obviamente que apenas organizadores e adm do sistema podem fazer isso)"*.
+>
+> 🔒 **E FOI A OUTRA FRASE DELE QUE DESENHOU A SOLUÇÃO:** *"cuidado para nao mexer nada no que ja tem do ER hoje, isso é para os próximos torneios"*. `Categoria.CruzamentoDoMataMata` é campo **novo e ANULÁVEL**, e **null quer dizer "o motor decide" — o comportamento de hoje, letra por letra**. A migration só ADICIONA a coluna: nenhum dado tocado, e toda categoria existente continua null. **A promessa está travada por teste, não por confiança:** com null a chave sai idêntica à de antes em 4, 6, 8 e 12 vagas, e desenho CORROMPIDO no banco também cai no motor — nunca numa categoria sem mata-mata.
+>
+> ⚙️ **SÓ A PRIMEIRA RODADA, e o motivo é estrutural:** da segunda em diante o quadro é GEOMETRIA, não escolha (a lista [vencedores na ordem dos jogos, byes] cruzada primeiro × último até a final, `AvancoDaChave`). Deixar editar aquilo permitiria desenhar uma chave que **não fecha**. Editando a primeira, o caminho inteiro muda junto — que é exatamente o *"se o primeiro passar quem enfrenta"* do pedido. A decisão mora DENTRO de `ChaveamentoMataMata.MontarPrimeiraFase`, o motor único por onde passam a prévia e o mata-mata de verdade: assim a tela e o sábado dizem a mesma coisa.
+>
+> ✅ **Quem pode: `EhOrganizadorAsync`, que JÁ inclui admin raiz e geral** — é exatamente o que o pedido descreve, e inventar uma segunda régua criaria a QUARTA trava de autorização do sistema (as três atuais já se dessincronizaram uma vez, em 31/07). **Janela:** só enquanto a chave espera aprovação, mesma régua do "trocar duplas de grupo". **Metades** (dois do mesmo grupo se reencontrando antes da final): **avisa e deixa passar**, decisão dele — mesma postura do Conferir grade.
+>
+> 🖊️ **O campo abre com o desenho que o MOTOR faria, não vazio** — abrir a tela e salvar sem mexer produz a MESMA chave. Apagar tudo e salvar devolve a categoria pro motor: é o desfazer desta tela. Formato legível de propósito (`1A×2C|1B×2D;bye:1E`), porque quem for ler o banco às 3h da manhã de um torneio precisa entender sem abrir o código.
+>
+> ⚠️ **TRÊS TESTES MEUS ESTAVAM ERRADOS, E O CÓDIGO CERTO NOS TRÊS.** A geometria da chave é contraintuitiva: **com 4 jogos, quem se encontra na semifinal é o jogo 1 com o jogo 4** (o cruzamento é primeiro × último), não os vizinhos — eu afirmei o contrário duas vezes. E `Conferir` devolve o MOTIVO pra não usar o desenho, não o desenho. A lição ficou escrita nos testes: quando a régua e o teste discordam sobre geometria de chave, desconfie do teste primeiro.
+>
+> 🧪 **6.075 testes, 0 falhas (29 novos).** `has-pending-model-changes` → "No changes".
+>
+> ⚠️ **O DEPLOY FALHOU UMA VEZ NO ACESSO SSH AO VPS** (run 189, `dev`) — antes de instalar qualquer coisa, então nada mudou em nenhum ambiente. Passou na segunda. É a terceira vez nesta sessão que o SSH do deploy cai sozinho; se virar rotina, vale investigar o `ssh-keyscan` do workflow.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NUM DOS COMMITS, e o repo já tinha remédio pra isso.** O `21a5d21` ficou sem **nenhum** check criado (nem vermelho: nenhum) enquanto outras sessões rodavam normalmente no mesmo minuto — o mesmo quadro de 26/08 que fez nascer o `workflow_dispatch` do `ci.yml`. Resolvido pelo gatilho manual (Actions → CI → Run workflow no branch), que devolveu verde no SHA certo. **As duas gambiarras óbvias continuam proibidas**: commit vazio e fechar/reabrir o PR.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
+>
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
 >
 > 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
 >
@@ -39,7 +86,7 @@
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar: a suíte inteira passa e o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(6084)`). A tela em si só se confere no `dev`.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (PR #159). ✅ **SEM MIGRATION.** O registro do deploy — horários, runs e o que foi conferido por fora — está na entrada do topo.
 >
 > ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
 >
@@ -55,7 +102,15 @@
 >
 > 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-988-7b37450`** (15h27 e 15h29 de Brasília — runs 183 e 184). PR #155. **Sem migration.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES DURANTE A ABERTURA DO PR** — #149, #152 e #154; depois #156 e #157; depois #158 —, e o `STATUS.md` conflitou nas três. Duas tentativas de merge foram recusadas com `405 Pull Request has merge conflicts` antes de a terceira passar. 📌 **A lição prática, com quatro sessões mergeando na mesma tarde:** o conflito não é o código, é este arquivo — cada mescla foi resolvida ficando com a minha entrada no topo e as do `main` logo abaixo, e a última ainda tirou um cabeçalho órfão que a anterior deixou (a entrada do `focused-euler` já tinha vindo do `main` com o cabeçalho dele).
+>
+> ⚠️ **O CI NÃO RODOU NO HEAD FINAL DO PR, e isso precisa estar escrito.** Os dois runs verdes foram no `5a10995` (983 e 984); o head mesclado (`1d79c23`) só acrescentou a resolução do `STATUS.md` e a remoção do cabeçalho órfão — **nenhuma mudança de código** —, e eu mergeei sem um terceiro run porque o `main` andava a cada poucos minutos. O que rodou aqui antes do merge: a suíte inteira (**6.201, 0 falhas**) e o `has-pending-model-changes` do CI (*"No changes have been made to the model since the last migration"*). O CI do `main` (run 988) fechou verde no commit de merge, que é o que gerou o release — sem ele não haveria o que instalar.
+>
+> ⚠️ **O BUILD FOI PEDIDO PELO NOME nos dois ambientes** (`build-988-7b37450`, e não "o mais recente"): entre o release e o deploy entrou o PR #159 no `main`, e "o mais recente" teria instalado outra coisa. 📌 E o de sempre: o `build-988` leva junto tudo que estava no `main` antes do meu merge — os PRs #156, #157 e #158 das sessões paralelas.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve 403 pros dois domínios. Quem atesta é o `deploy.sh` (rollback automático se não vier 200), e os dois logs dizem *"==> Feito. build-988-7b37450 no ar em dev"* e *"...no ar em prod"*. É evidência de verdade, mas não é verificação independente.
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
 >
