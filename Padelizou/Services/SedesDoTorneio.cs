@@ -88,6 +88,46 @@ public sealed class SedesDoTorneio
     // mandou. As outras duas viraram: a janela mora em `Quadra.DisponivelDe/Ate`, e "quais
     // categorias" em `Categoria.PodeJogarNaSedeExtra`.
 
+    // Alguma quadra abre em ALGUM horário que a grade deste torneio ofereceria?
+    //
+    // ⚠️ A pergunta é feita nos horários que a grade DE FATO usaria (a cadência do torneio, dia a
+    // dia, da abertura ao último início), e não "no dia inteiro": uma quadra aberta só às 3h da
+    // manhã não serve pra nada e não pode inocentar a configuração.
+    //
+    // ⚠️ SEM `DataFim`, olha uma semana a partir do início. Torneio não dura mais que isso, e o
+    // campo é OPCIONAL — pendurar o guarda nele deixaria justamente o torneio sem prazo à mercê
+    // do defeito (foi o erro que eu já tinha cometido uma vez neste mesmo assunto).
+    private static bool NenhumaQuadraAbreNoTorneio(
+        IReadOnlyDictionary<string, (DateTime? De, DateTime? Ate)> janelas,
+        IEnumerable<string> todasAsQuadras, Torneio torneio)
+    {
+        if (torneio.DataInicio is not DateTime inicio) return false;
+
+        // Quadra sem janela já responde "aberta" em qualquer horário: se existe uma, a
+        // configuração não é impossível e nem vale percorrer o relógio.
+        if (todasAsQuadras.Any(q => !janelas.ContainsKey(q))) return false;
+
+        int duracao = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+        var ultimoDia = (torneio.DataFim?.Date ?? inicio.Date.AddDays(7));
+
+        for (var dia = inicio.Date; dia <= ultimoDia; dia = dia.AddDays(1))
+        {
+            var abertura = dia == inicio.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+                 hora = hora.AddMinutes(duracao))
+            {
+                foreach (var janela in janelas.Values)
+                {
+                    if ((janela.De == null || hora >= janela.De) && (janela.Ate == null || hora <= janela.Ate))
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     // Esta quadra recebe jogo NESTE horário? Janela MEIO ABERTA ([De, Ate)), mesmo formato de
     // JanelasDeImpedimento — um jogo que COMEÇA às 14h já está fora de uma janela até 14h.
     //
@@ -221,6 +261,39 @@ public sealed class SedesDoTorneio
             ? nome
             : null;
 
+    // O CLUBE QUE A CATEGORIA JÁ DETERMINA, mesmo sem quadra no jogo (10/09/2026).
+    //
+    // 🗣️ Felipe, na grade do Er em produção, 97 jogos sem etiqueta: *"falta aparecer em qual
+    // clube é os jogos"*. O Er é POR ORDEM (a quadra é apagada de propósito) e tem DOIS clubes —
+    // a combinação exata em que `NomeDoClubeDaQuadra` não tem de onde tirar o clube.
+    //
+    // Duas coisas respondem sem chute: a categoria PRESA num clube (`Categoria.ClubeId`, o jeito
+    // do Dez E Batata) e a categoria TIRADA DO EXTERNO (`PodeJogarNaSedeExtra = false`, o jeito
+    // do Er — a 3ª e a 4ª só jogam em casa). A que pode transbordar joga em qualquer um dos
+    // dois, e aí a resposta é null: escrever o principal mandaria metade do torneio pro
+    // endereço errado.
+    public string? NomeDoClubeDaCategoria(int categoriaId)
+    {
+        if (ClubeDaCategoria(categoriaId) is { } presa)
+            return _nomeDoClube.TryGetValue(presa, out var nomePresa) ? nomePresa : null;
+
+        return PodeIrPraSedeExtra(categoriaId) ? null : NomeDoClubePrincipal;
+    }
+
+    // O NOME DO CLUBE DO TORNEIO — o "Er Padel" que a lista de jogos escreve em toda linha.
+    //
+    // Existe porque a quadra não responde sozinha por ONDE é o jogo: num torneio por ordem de
+    // chegada o jogo legitimamente não tem quadra (🗣️ Felipe, 09/09/2026: *"nao tem quadra
+    // definida, apenas o clube, por que é por ordem de chegada (por ter checkin)"*), e ainda
+    // assim a pessoa precisa saber pra que prédio ir. Quem usa é Services/LugarDoJogo, e SÓ no
+    // torneio de um clube só — com dois, o clube certo é o da QUADRA, e chutar o principal
+    // mandaria metade do torneio pro endereço errado.
+    //
+    // Null quando ninguém passou os nomes dos clubes (é o caso de quem monta o mapa pra GRADE,
+    // que só compara "é o mesmo lugar?"). Aí a tela cai no comportamento antigo: só a quadra.
+    public string? NomeDoClubePrincipal =>
+        _nomeDoClube.TryGetValue(_clubePrincipal, out var nome) ? nome : null;
+
     // Monta o mapa a partir do que já está carregado.
     //
     // `nomesDosClubes` é opcional porque quem chama pela GRADE não precisa de nome nenhum — lá
@@ -230,7 +303,10 @@ public sealed class SedesDoTorneio
     public static SedesDoTorneio Montar(int clubePrincipalId, int minutosParaTrocarDeClube,
         IEnumerable<Quadra> quadras, IEnumerable<Categoria> categorias,
         IReadOnlyDictionary<int, string>? nomesDosClubes = null,
-        bool evitarDoisJogosNaSedeExtra = false)
+        bool evitarDoisJogosNaSedeExtra = false,
+        // O torneio, quando quem chama o tem na mão. Serve pra UMA coisa: reconhecer a janela
+        // IMPOSSÍVEL — ver `JanelasImpossiveis`. Omitido, nada muda.
+        Torneio? torneio = null)
     {
         // Quadra sem clube dito é do clube do torneio. É o que faz TODO torneio anterior a esta
         // opção continuar sendo de uma sede só, sem uma linha de conversão no banco.
@@ -263,6 +339,32 @@ public sealed class SedesDoTorneio
             janelaPorQuadra[nome] = (quadra.DisponivelDe, quadra.DisponivelAte);
         }
 
+        // ⚠️ JANELA QUE NÃO DEIXA NENHUMA QUADRA ABERTA EM NENHUM HORÁRIO DO TORNEIO É DADO
+        // ERRADO, E O MOTOR PARA DE OBEDECÊ-LA (09/09/2026).
+        //
+        // 🗣️ Felipe, na TERCEIRA vez: *"refiz a grade, ainda ta pulando pro dia 15 [...] ta sem o
+        // nome do clube que vai ser o jogo, e ainda pulando os dias"*.
+        //
+        // 🕳️ AS DUAS QUEIXAS ERAM O MESMO DEFEITO. `GradeDeJogos.Encaixar` só grava `NomeQuadra`
+        // quando encontra quadra ABERTA naquele horário; sem nenhuma aberta ele marca a hora,
+        // deixa o lugar em branco e escorrega pro horário seguinte — dia após dia, calado. Daí
+        // sai tudo junto: o pulo de 12 pra 15, o jogo sem local, e dois jogos da MESMA dupla no
+        // mesmo minuto (o último recurso, quando as vagas acabam).
+        //
+        // Obedecer uma janela assim destrói a grade inteira; ignorá-la devolve o comportamento de
+        // quem nunca preencheu o campo — que é o que o organizador tinha antes de a tabela de
+        // quadras existir. Entre um torneio sem grade e um torneio com a janela ignorada, o
+        // segundo é o único que dá pra publicar.
+        //
+        // ⚠️ ESTREITO DE PROPÓSITO: basta UMA quadra abrir em UM horário do torneio pra ele não
+        // disparar. A janela legítima do local alugado ("das 8h às 14h de sábado") deixa quadra
+        // aberta, logo não é impossível, e continua valendo inteira.
+        if (janelaPorQuadra.Count > 0 && torneio != null
+            && NenhumaQuadraAbreNoTorneio(janelaPorQuadra, clubePorQuadra.Keys, torneio))
+        {
+            janelaPorQuadra.Clear();
+        }
+
         // Uma sede só? Então nada de SEDE existe: sem folga pra atravessar a cidade, sem
         // categoria presa a um clube, sem transbordo. Sai por aqui pra que o torneio comum não
         // pague nem um dicionário a mais, e pra que `MaisDeUmClube` seja a única pergunta que
@@ -273,15 +375,25 @@ public sealed class SedesDoTorneio
         // daqui carrega só o que a janela precisa (o mapa dela e a lista de quadras, pra
         // `QuadrasAbertasEm` ter o que contar) e `maisDeUmClube: false`, pra todo o resto
         // continuar respondendo como o torneio de uma sede sempre respondeu.
+        //
+        // ⚠️ O NOME DO CLUBE TAMBÉM SOBREVIVE, desde 09/09/2026. Ele era descartado aqui, e com
+        // isso o torneio de uma sede não tinha como dizer ONDE é o jogo — a etiqueta das telas
+        // saía só com a quadra, e a lista de jogos do Er não dizia "Er Padel" em lugar nenhum.
+        // `Nenhuma` continua sendo a saída quando não há NADA a dizer: nem janela, nem nome.
+        var nomes = new Dictionary<int, string>();
+        if (nomesDosClubes != null)
+            foreach (var (clubeId, nome) in nomesDosClubes)
+                if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
+
         if (clubePorQuadra.Values.Distinct().Count() <= 1)
         {
-            if (janelaPorQuadra.Count == 0) return Nenhuma;
+            if (janelaPorQuadra.Count == 0 && !nomes.ContainsKey(clubePrincipalId)) return Nenhuma;
 
             return new SedesDoTorneio(
                 clubePorQuadra,
                 new Dictionary<int, string[]>(),
                 new Dictionary<int, int>(),
-                new Dictionary<int, string>(),
+                nomes,
                 janelaPorQuadra,
                 new HashSet<int>(),
                 clubePrincipalId,
@@ -311,11 +423,6 @@ public sealed class SedesDoTorneio
             quadrasPorCategoria[categoria.Id] = daSede;
             clubePorCategoria[categoria.Id] = clubeDaCategoria;
         }
-
-        var nomes = new Dictionary<int, string>();
-        if (nomesDosClubes != null)
-            foreach (var (clubeId, nome) in nomesDosClubes)
-                if (!string.IsNullOrWhiteSpace(nome)) nomes[clubeId] = nome.Trim();
 
         // Quem NÃO pode transbordar. Guardado pelo lado negativo de propósito: o normal é poder
         // (ver Models/Categoria), então o conjunto fica vazio na imensa maioria dos torneios e
@@ -347,12 +454,13 @@ public sealed class SedesDoTorneio
     // são poucas linhas, e ter duas formas de montar o mapa é o mesmo problema com outra roupa.
     public static async Task<SedesDoTorneio> CarregarAsync(DbPadelContext db, int torneioId)
     {
-        var doTorneio = await db.Torneios
-            .Where(t => t.Id == torneioId)
-            .Select(t => new { t.ClubeId, t.MinutosParaTrocarDeClube, t.EvitarDoisJogosNaSedeExtra })
-            .FirstOrDefaultAsync();
+        // ⚠️ O TORNEIO INTEIRO, e não só três colunas: `Montar` precisa das datas e do expediente
+        // pra reconhecer a janela IMPOSSÍVEL. Uma projeção enxuta economizaria bytes e devolveria
+        // o guarda desligado em produção — que é o único lugar onde ele importa.
+        var torneio = await db.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == torneioId);
 
-        if (doTorneio == null) return Nenhuma;
+        if (torneio == null) return Nenhuma;
+        var doTorneio = torneio;
 
         var quadras = await db.Quadras.Where(q => q.TorneioId == torneioId).AsNoTracking().ToListAsync();
         var categorias = await db.Categorias.Where(c => c.TorneioId == torneioId).AsNoTracking().ToListAsync();
@@ -369,7 +477,7 @@ public sealed class SedesDoTorneio
             .ToDictionaryAsync(c => c.Id, c => c.Nome);
 
         return Montar(doTorneio.ClubeId, doTorneio.MinutosParaTrocarDeClube, quadras, categorias, nomes,
-            doTorneio.EvitarDoisJogosNaSedeExtra);
+            doTorneio.EvitarDoisJogosNaSedeExtra, torneio);
     }
 
     // ── O que os formulários mandam ───────────────────────────────────────────────────────

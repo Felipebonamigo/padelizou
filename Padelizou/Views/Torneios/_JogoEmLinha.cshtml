@@ -169,9 +169,13 @@
                     : jogo.Fase;
             }
             <span class="pdz-jl-etiqueta pdz-jl-fase">@faseNaTela</span>
-            @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+            @* ONDE É O JOGO — clube e quadra (Services/LugarDoJogo).
+               ⚠️ A guarda é a ETIQUETA, e não `NomeQuadra`: jogo por ordem de chegada não tem
+               quadra e MESMO ASSIM tem lugar. Perguntar pela quadra era o que fazia os 97
+               jogos do 2º Etapa não dizerem uma palavra sobre onde (Felipe, 09/09/2026). *@
+            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId) is { } ondeJoga)
             {
-                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra)</span>
+                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @ondeJoga</span>
             }
             @* W.O.: sem este selo o jogo aparece como um 6x0 comum, e quem varre a lista
                depois não tem como saber que ninguém entrou em quadra — o placar é o mesmo

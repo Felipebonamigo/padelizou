@@ -379,6 +379,151 @@ public class ProximasFasesDaChaveTests
         Assert.All(jogos, j => Assert.Contains(j.Quadra, CincoQuadras));
     }
 
+    // ⚠️ A PRÉVIA SEGUE A MESMA ORDEM DE FASES DA GRADE DE VERDADE (09/09/2026).
+    //
+    // 🗣️ O print que originou isto era de PRÉVIA, não de jogo marcado: o Felipe viu a *Final* da 3ª
+    // Feminina e da 6ª Feminina às 22:10 de 12/09 com o selo "prévia", e jogos de GRUPO da 6ª
+    // Masculina em 15/09. *"como que aqui tem jogo de chave e nas outras categorias tem final?"*
+    //
+    // 🕳️ A CAUSA: cada cadeia andava sozinha, a partir do fim dos grupos DELA. A categoria de 4
+    // duplas fecha os grupos cedo, projeta semi e final na sequência, e termina antes de a de 32
+    // ter jogado a primeira eliminatória. Consertar só a grade real não bastaria — o que o jogador
+    // lê na aba de jogos é isto aqui.
+    // ⚠️ A PRÉVIA TAMBÉM ESPERA OS JOGOS DE GRUPO QUE JÁ ESTÃO MARCADOS (09/09/2026, segunda
+    // rodada do mesmo pedido).
+    //
+    // 🗣️ Felipe, num print do `dev` DEPOIS da primeira correção: *"como que ele nao ta
+    // respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse
+    // erro?"*. A tela mostrava a **Quartas de Final da 6ª Feminina** com selo "prévia" em 12/09
+    // 18:50, e jogos de **GRUPO** reais da 3ª e da 6ª Masculina em 15/09 20:30.
+    //
+    // 🕳️ O BURACO DA PRIMEIRA CORREÇÃO: ela ordenou as fases PROJETADAS entre si, e o piso da
+    // PRIMEIRA delas continuou saindo do fim dos grupos DA PRÓPRIA CATEGORIA
+    // (`CadeiaDeFases.DepoisDe`, montado em TorneiosController.ProjetarProximasFasesAsync). A
+    // categoria que fecha os grupos cedo projetava a eliminatória dela na frente de jogo de grupo
+    // REAL de outra categoria — e jogo de grupo real não é uma cadeia, é `jaMarcados`.
+    //
+    // O primeiro teste desta régua não pegou isso porque semeava todas as cadeias com o MESMO
+    // `fimDosGrupos`: sem categorias terminando em horas diferentes, o furo não tinha como
+    // aparecer. Aqui elas terminam em dias diferentes, que é o caso do Er.
+    [Fact]
+    public void A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria()
+    {
+        // A "Rápida" fechou os grupos dela em 12/09 às 18:00. A "Lenta" ainda tem jogo de GRUPO
+        // marcado pra 15/09 às 20:30 — jogo real, que já está na grade.
+        var fimDaRapida = new DateTime(2026, 9, 12, 18, 0, 0);
+        var grupoDaLenta = new DateTime(2026, 9, 15, 20, 30, 0);
+
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2, fimDaRapida, "Rápida");
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { cadeia },
+            new ConfiguracaoDaGrade(50, 4, Array.Empty<string>(), FimDoDia, AberturaSeguinte),
+            new[]
+            {
+                new VagaOcupada(fimDaRapida, null, "Grupo A"),
+                new VagaOcupada(grupoDaLenta, null, "Grupo D"),
+            });
+
+        Assert.NotEmpty(jogos);
+
+        var cedoDemais = jogos
+            .Where(j => j.Horario < grupoDaLenta)
+            .Select(j => $"{j.FaseNumerada} às {j.Horario:dd/MM HH:mm}")
+            .ToList();
+
+        Assert.True(cedoDemais.Count == 0,
+            $"ainda há jogo de GRUPO marcado pra {grupoDaLenta:dd/MM HH:mm} e a prévia promete "
+            + $"eliminatória antes disso: {string.Join(", ", cedoDemais)}");
+    }
+
+    // A contrapartida: uma vaga ocupada SEM fase (o chamador antigo, que não dizia qual era) não
+    // pode virar barreira — não dá pra saber o posto dela, e chutar "é grupo" seguraria a chave
+    // inteira atrás de um jogo que talvez seja a final.
+    [Fact]
+    public void Vaga_ocupada_sem_fase_nao_segura_a_previa()
+    {
+        var fimDosGrupos = new DateTime(2026, 9, 12, 18, 0, 0);
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B" }, 2, fimDosGrupos, "Categoria");
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { cadeia },
+            new ConfiguracaoDaGrade(50, 4, Array.Empty<string>(), FimDoDia, AberturaSeguinte),
+            new[] { new VagaOcupada(new DateTime(2026, 9, 20, 22, 0, 0), null) });
+
+        Assert.All(jogos, j => Assert.True(j.Horario < new DateTime(2026, 9, 20, 0, 0, 0),
+            $"a prévia foi empurrada pra {j.Horario:dd/MM HH:mm} por uma vaga sem fase declarada"));
+    }
+
+    [Fact]
+    public void A_previa_poe_todas_as_finais_depois_de_toda_semifinal()
+    {
+        // Três tamanhos: 8 grupos (chave de 16), 4 grupos (chave de 8) e 2 grupos (chave de 4).
+        // Cada uma estreia no mata-mata numa fase diferente, que é o que faz a ordem importar.
+        var fimDosGrupos = new DateTime(2026, 9, 12, 11, 0, 0);
+
+        ProximasFasesDaChave.CadeiaDeFases De(string categoria, int grupos) =>
+            ProximasFasesDaChave.MontarDosGrupos(
+                Enumerable.Range(0, grupos).Select(i => $"Grupo {(char)('A' + i)}").ToList(),
+                2, fimDosGrupos, categoria);
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { De("Grande", 8), De("Media", 4), De("Pequena", 2) },
+            new ConfiguracaoDaGrade(30, 3, Array.Empty<string>(), FimDoDia, AberturaSeguinte));
+
+        var finais = jogos.Where(j => j.Fase == "Final").ToList();
+        Assert.Equal(3, finais.Count);
+
+        var ultimoQueNaoEFinal = jogos.Where(j => j.Fase != "Final").Max(j => j.Horario)!.Value;
+
+        var cedoDemais = finais
+            .Where(j => j.Horario < ultimoQueNaoEFinal)
+            .Select(j => $"Final da {j.Categoria} às {j.Horario:dd/MM HH:mm}")
+            .ToList();
+
+        Assert.True(cedoDemais.Count == 0,
+            $"o último jogo que não é final é {ultimoQueNaoEFinal:dd/MM HH:mm}, e a prévia promete "
+            + $"estas finais antes dele: {string.Join(", ", cedoDemais)}");
+    }
+
+    [Fact]
+    public void Na_previa_cada_posto_de_fase_so_comeca_quando_o_anterior_acabou()
+    {
+        var fimDosGrupos = new DateTime(2026, 9, 12, 11, 0, 0);
+
+        ProximasFasesDaChave.CadeiaDeFases De(string categoria, int grupos) =>
+            ProximasFasesDaChave.MontarDosGrupos(
+                Enumerable.Range(0, grupos).Select(i => $"Grupo {(char)('A' + i)}").ToList(),
+                2, fimDosGrupos, categoria);
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { De("Grande", 8), De("Media", 4), De("Pequena", 2) },
+            new ConfiguracaoDaGrade(30, 3, Array.Empty<string>(), FimDoDia, AberturaSeguinte));
+
+        var porPosto = jogos
+            .Where(j => j.Horario != null)
+            .GroupBy(j => Padelizou.Services.OrdemDasFases.Posto(j.Fase))
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                Posto = g.Key,
+                Fases = string.Join("/", g.Select(j => j.Fase).Distinct().Order()),
+                Comeca = g.Min(j => j.Horario)!.Value,
+                Acaba = g.Max(j => j.Horario)!.Value,
+            })
+            .ToList();
+
+        Assert.True(porPosto.Count >= 3, $"a prévia só teve os postos {string.Join(", ", porPosto.Select(p => p.Posto))}");
+
+        for (int i = 1; i < porPosto.Count; i++)
+            Assert.True(porPosto[i].Comeca >= porPosto[i - 1].Acaba,
+                $"o posto {porPosto[i].Posto} ({porPosto[i].Fases}) começa {porPosto[i].Comeca:dd/MM HH:mm}, "
+                + $"antes de o posto {porPosto[i - 1].Posto} ({porPosto[i - 1].Fases}) acabar "
+                + $"{porPosto[i - 1].Acaba:dd/MM HH:mm}");
+    }
+
     [Fact]
     public void Nunca_promete_mais_jogos_do_que_quadras_no_mesmo_horario()
     {

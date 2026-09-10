@@ -5,6 +5,7 @@
     var achados = Model.ToList();
     var porRegra = achados.GroupBy(a => a.Regra).OrderByDescending(g => g.Count()).ToList();
     int total = ViewBag.TotalDeJogos ?? 0;
+    var porQueNaoCoube = (ViewBag.PorQueNaoCoube as IEnumerable<string>)?.ToList() ?? new List<string>();
 }
 
 <div class="container py-4" style="max-width: 900px;">
@@ -19,6 +20,23 @@
         @torneio.Nome — @total jogo(s) na grade.
         Esta tela <strong>só lê</strong>: pra mudar horários, use "Refazer grade" na aba de jogos.
     </p>
+
+    @* ⚠️ O "POR QUÊ" VEM ANTES DA LISTA, e isso é escolha de leitura: a lista de achados diz
+       QUAIS jogos estão fora do lugar, e essa é a pergunta que vem DEPOIS. A primeira é sempre
+       "por que o torneio não coube no dia que eu marquei" — 🗣️ *"como que tem jogo dia 15, no
+       torneio do er? se termina dia 13?"*. A régua mora em Services/PorQueNaoCoube. *@
+    @if (porQueNaoCoube.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong><i class="bi bi-calendar-x-fill"></i> Por que a grade está assim</strong>
+            <ul class="small mt-2 mb-0 ps-3">
+                @foreach (var motivo in porQueNaoCoube)
+                {
+                    <li>@motivo</li>
+                }
+            </ul>
+        </div>
+    }
 
     @if (achados.Count == 0)
     {

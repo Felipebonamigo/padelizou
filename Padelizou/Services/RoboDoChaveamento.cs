@@ -434,60 +434,65 @@ public class RoboDoChaveamento
             .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
             .ToListAsync();
 
-        // A fase que alimenta esta é a da MESMA categoria: é dela que sai quem vai jogar, e é
-        // dela que a folga tem que partir. Uma rodada de folga, não o minuto em que o último
-        // jogo acaba — quem joga a semifinal das 22h é quem disputa a final, e colar uma fase
-        // na outra é chamar a mesma dupla de volta sem descanso.
+        // ⚠️ O ROBÔ NÃO ENXERGA FASE QUE AINDA NÃO NASCEU — e é daí que vinha o defeito que o
+        // Felipe reportou em 09/09/2026 (*"como que aqui tem jogo de chave e nas outras categorias
+        // tem final?"*).
         //
-        // Vira o dia na abertura dos DIAS SEGUINTES: o mata-mata quase sempre cai no domingo,
-        // que começa cedo — não às 18h da sexta em que o torneio abriu.
-        int categoriaId = jogos[0].CategoriaId;
-        var fimDaFaseAnterior = jaMarcados
-            .Where(p => p.CategoriaId == categoriaId)
-            .Select(p => p.HorarioPrevisto!.Value)
-            .DefaultIfEmpty()
-            .Max();
+        // 🕳️ MEDIDO num torneio de 16/8/4 duplas, 3 quadras: a categoria de 4 fecha os grupos às
+        // 11h e a Semifinal dela nasce na hora, marcada pras 12h30. As Quartas da categoria de 8
+        // só nascem às 11h30, quando os grupos DELA fecham — e caem em cima, às 12h30/13h. Nenhuma
+        // barreira calculada sobre "o que já está marcado" resolve isso: no instante em que a
+        // semifinal foi marcada, as quartas não existiam pra serem consultadas.
+        //
+        // ✅ Por isso a rodada nova NÃO é encaixada sozinha: ela entra junto com tudo que ainda
+        // está "Agendada" e ficou FORA DE ORDEM por causa dela (Services/LevasDaGrade.ForaDeOrdem),
+        // e o conjunto todo passa pela mesma régua de postos do sorteio. Nada de estimar quanto
+        // tempo a outra categoria vai levar, e nada de travar o torneio esperando uma categoria que
+        // desistiu: quem chega depois reordena o que está por vir.
+        //
+        // ⚠️ SÓ MEXE EM "Agendada", E SÓ EM POSTO MAIOR. Jogo FINALIZADO ou EM QUADRA não se
+        // remarca — é a mesma linha que o "Refazer grade" não cruza —, e um jogo de posto menor ou
+        // igual nunca está fora de ordem por causa de uma rodada que acabou de entrar.
+        var forasDeOrdem = LevasDaGrade.ForaDeOrdem(
+            await _context.Partidas.Where(p => p.TorneioId == torneioId).ToListAsync(),
+            OrdemDasFases.Posto(jogos[0].Fase));
 
-        var inicio = fimDaFaseAnterior == default
-            ? torneio.AberturaDaGrade
-            : GradeDeJogos.AberturaDaProximaFase(fimDaFaseAnterior, torneio.HoraFimDoDia,
-                                    torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
+        // A rodada nova ainda não tem horário; os fora de ordem perdem o que tinham pra disputar as
+        // vagas de novo, na ordem certa.
+        foreach (var jogo in forasDeOrdem)
+        {
+            jogo.HorarioPrevisto = null;
+            jogo.NomeQuadra = null;
+        }
 
-        // As vagas livres da grade, já descontando os jogos que têm dono. A receita mora em
-        // Services/VagasDaGrade — eram três cópias com contas diferentes até 21/08/2026.
-        // A concentração ("os 2 jogos na sexta") precisa que a grade ALCANCE o turno escolhido —
-        // ver Services/VagasDaGrade. Sem ninguém concentrado, `AteQuando` é null e a conta de
-        // vagas é exatamente a de sempre.
+        var paraEncaixar = jogos.Concat(forasDeOrdem).ToList();
+
+        // Os que ficam de fora da conta e não podem ser atropelados: tudo que CONTINUA com hora.
+        // Lido DEPOIS de zerar os fora de ordem de propósito — o EF devolve as mesmas instâncias
+        // nas duas consultas, então um jogo recém-zerado já sai daqui sozinho. Fosse lido antes,
+        // ele entraria como intocado E como candidato, e o encaixe reservaria a vaga dele contra
+        // ele mesmo.
+        var intocados = jaMarcados.Where(p => p.HorarioPrevisto != null).ToList();
+
+        // As restrições de horário do torneio. Mesmo motivo de buscar direto no banco em cada uma:
+        // `torneio` aqui vem de um FindAsync, sem Categorias/Duplas incluídas.
         var concentracao = await ConcentracaoAsync(torneio);
         var sedes = await SedesAsync(torneioId.Value);
         var janelasProibidas = await JanelasProibidasPorDuplaAsync(torneio);
         var noiteDeSabado = await NoiteDeSabadoPorCategoriaAsync(torneio);
 
-        // O alcance olha as TRÊS restrições — ver VagasDaGrade.AlcanceNecessario.
-        var horarios = VagasDaGrade.Montar(torneio, inicio, jogos.Count, jaMarcados,
-            peloMenosAte: VagasDaGrade.MaisTarde(
-                concentracao.AteQuando,
-                VagasDaGrade.AlcanceNecessario(janelasProibidas, noiteDeSabado)),
-            sedes: sedes,
-            // Ver VagasDaGrade.JogosComJanela: alcançar o fim da janela não basta se do outro
-            // lado dela só couberem as vagas da margem por quadra.
-            jogosComJanela: VagasDaGrade.JogosComJanela(jogos, janelasProibidas, noiteDeSabado));
-
-        // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
-        // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
-        // longe na categoria dele e na chave direta ao mesmo tempo.
-        //
-        // A preferência de quadra entra aqui também, e é justamente aqui que ela mais importa:
-        // as fases que este método agenda são a semi e a FINAL, que é o jogo que o organizador
-        // quer na quadra boa.
-        GradeDeJogos.Encaixar(jogos, horarios, VagasDaGrade.Duracao(torneio),
-            await OcupantesPorDuplaAsync(torneioId.Value),
-            await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
-            await QuadrasPreferidasAsync(torneioId.Value),
-            janelasProibidas,
-            sedes,
-            concentracao.Janelas,
-            noiteDeSabado);
+        // ⚠️ A ABERTURA É A DA GRADE, e não o fim da fase anterior: quem decide a hora de cada
+        // posto agora é a régua, e dar a ela um piso adiantado esconderia a barreira que ela
+        // acabou de calcular. O piso contra "marcar no passado" continua dentro dela.
+        LevasDaGrade.Encaixar(torneio, paraEncaixar, torneio.AberturaDaGrade, intocados,
+            new LevasDaGrade.Restricoes(
+                await OcupantesPorDuplaAsync(torneioId.Value),
+                await QuadrasEmUsoAsync(torneioId.Value),
+                await QuadrasPreferidasAsync(torneioId.Value),
+                janelasProibidas,
+                concentracao,
+                noiteDeSabado,
+                sedes));
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver

@@ -26,6 +26,18 @@ public static class AuditoriaDaGrade
     public const string QuadraFechada = "Quadra fora do horário";
     public const string SemHorario = "Jogo sem horário";
 
+    // 🗣️ Felipe, 09/09/2026: *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio
+    // termina no domingo dia 13"*. `Torneio.DataFim` existia e o motor nunca a leu — era um aviso
+    // na previsão e mais nada. Aqui ela vira achado: o organizador aperta "Conferir grade" e vê
+    // exatamente quais jogos passaram do dia em que ele devolve a quadra.
+    public const string DepoisDoFim = "Depois do fim do torneio";
+
+    // 🗣️ Felipe, 09/09/2026, depois de DUAS correções da ordem: *"como que ele nao ta respeitando
+    // a ordem que eu tinha solicitado de nao jogar chaves no final?"*. Enquanto a conferência não
+    // sabia olhar isso, a única forma de responder era eu ler o print dele — e print mostra um
+    // pedaço da lista. Agora é uma pergunta que ele faz sozinho, em qualquer torneio.
+    public const string FaseForaDeOrdem = "Fase fora de ordem";
+
     // `Quando` fica separado do texto pra tela poder ordenar por ele — o organizador lê a grade
     // no relógio, não em ordem alfabética de regra.
     public record Achado(string Regra, string Descricao, DateTime? Quando);
@@ -90,11 +102,52 @@ public static class AuditoriaDaGrade
                     + "no sábado à noite.", quando));
             }
 
+            // Comparação por DIA, e não por hora: o limite é "até domingo", não "até domingo às
+            // 00h" — a mesma leitura de PrevisaoGradeVM.EstouraOPrazo. Um jogo que COMEÇA 23h50 do
+            // domingo e varre a madrugada é o normal do torneio, não um estouro.
+            if (torneio.DataFim is DateTime prazo && quando.Date > prazo.Date)
+            {
+                achados.Add(new Achado(DepoisDoFim,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está marcado "
+                    + $"{quando:dd/MM 'às' HH:mm}, depois de {prazo:dd/MM} — o dia que você marcou "
+                    + "como limite do torneio.", quando));
+            }
+
             if (!string.IsNullOrEmpty(jogo.NomeQuadra) && !sedes.QuadraAberta(jogo.NomeQuadra, quando))
             {
                 achados.Add(new Achado(QuadraFechada,
                     $"{jogo.NomeQuadra} está marcada {quando:dd/MM 'às' HH:mm}, fora do horário "
                     + "em que esse local está disponível.", quando));
+            }
+        }
+
+        // ── 5. A ORDEM DAS FASES DO TORNEIO ──────────────────────────────────────────────
+        //
+        // A régua é o POSTO (Services/OrdemDasFases): todos os grupos, depois todas as primeiras
+        // eliminatórias, e as finais por último — do TORNEIO inteiro, não de cada categoria.
+        //
+        // ⚠️ `>=` E NÃO `>` NO LIMITE, e isso é o pedido e não uma folga minha: *"a menos que fique
+        // horario vazio, mas a ordem é colocar todos jogos de chave antes"*. O primeiro jogo de um
+        // posto PODE dividir o horário com o último do posto anterior — é o que ocupa a quadra que
+        // sobraria vazia naquele minuto. O que não pode é vir ANTES.
+        var porPosto = jogos
+            .Where(j => j.HorarioPrevisto != null)
+            .GroupBy(j => OrdemDasFases.Posto(j.Fase))
+            .OrderBy(g => g.Key)
+            .Select(g => new { Posto = g.Key, Jogos = g.ToList(), Acaba = g.Max(j => j.HorarioPrevisto!.Value) })
+            .ToList();
+
+        for (int i = 1; i < porPosto.Count; i++)
+        {
+            var anterior = porPosto[i - 1];
+
+            foreach (var jogo in porPosto[i].Jogos.Where(j => j.HorarioPrevisto < anterior.Acaba))
+            {
+                achados.Add(new Achado(FaseForaDeOrdem,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está "
+                    + $"{jogo.HorarioPrevisto:dd/MM 'às' HH:mm}, antes de a fase anterior do torneio "
+                    + $"terminar ({anterior.Acaba:dd/MM 'às' HH:mm}).",
+                    jogo.HorarioPrevisto));
             }
         }
 

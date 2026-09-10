@@ -26,10 +26,173 @@
 > ⚠️ **O que NÃO mudou, de propósito:** ranking, peso e MVP (acima); **dinheiro** — meia dupla continua pagando por uma pessoa, e o parceiro paga a diferença ao entrar; **trocar** A por B numa chave sorteada continua travado (só **definir** o que falta é que abriu); e `NomeDaDupla`/`NomeDeExibicao`, porque `Jogador2Id` nulo **também** significa campeão individual do Americano — mexer na régua central escreveria "e parceiro" no card de campeão.
 >
 > ⚙️ **Sem W.O. automático:** quem não fechar até o primeiro jogo perde por W.O., lançado jogo a jogo na Mesa de Controle. **Enquanto houver jogo de grupo pendente, o mata-mata não nasce** — é o preço aceito por manter a vaga.
+
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-867-78bcbd8`** (21h26 e 21h27 de Brasília). Três consertos urgentes pro Er, numa madrugada só (PRs #110 e #112).
 >
-> ---
+> 🔒 **VAZAMENTO EM PRODUÇÃO: a chave esperando aprovação aparecia pra deslogado.** 🗣️ *"outro erro grave apareceu as partidas agendadas sem ter aprovado as chaves, cuide isso e nao deixe q nada vaze sem ser publicado"* — print de `padelizou.com.br` em navegação anônima. **O portão existia na porta errada:** a ação `Jogos` conferia a aprovação desde 22/08; a MESMA lista embutida na aba "Jogos" do `Details` só conferia `Status != "Inscrições Abertas"`, e "Chaves em Aprovação" passa nisso. Agora o portão mora em `CarregarViewBagJogosAsync`, que abastece as duas telas — e fecha a lista, a **prévia** (que lia os grupos direto do banco) e o **desenho do mata-mata**. Organizador continua vendo; aprovado, todo mundo vê. **Lição:** régua de visibilidade escrita numa ação protege a ação, não o dado.
 >
-> **Anterior:** ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
+> 🕐 **O PULO PRO DIA 15 NÃO ERA A QUADRA — ERA A CONCENTRAÇÃO.** O "Conferir grade" do Er (que o Felipe mandou em print) entregou: *"as quadras comportam o torneio. Sobrou uma restrição de horário empurrando jogo"* — quatro duplas com *"os 2 jogos na sexta à noite"* jogando 15/09 20:30. **A concentração não reserva vaga, só proíbe o resto:** jogo sem restrição tomava a sexta antes, e quando a sexta acabava a dupla concentrada não tinha mais horário nenhum — último recurso, fim da grade, sem quadra, gente repetida. As três queixas eram uma só. Agora quem só pode jogar num turno entra nele antes de quem pode em qualquer um (mesma forma do "cede a quadra de casa").
+>
+> 🧱 **E a janela de quadra IMPOSSÍVEL (nenhuma quadra aberta em nenhum horário do torneio) passou a ser ignorada** em vez de obedecida — guarda estreito: uma vaga aberta já basta pra não disparar (PR #110, `build-863`, **instalado sozinho às 21h18/21h19** — runs 115 e 116 — e superado pelo 867 oito minutos depois; o 867 o inclui).
+>
+> ⚠️ **TRÊS CORREÇÕES SEGUIDAS "ÀS CEGAS" antes de eu pedir o Conferir grade** — o proxy desta sessão bloqueia `dev` e `prod` (403). A regra 6 valia aqui: parar e instrumentar em vez de chutar a quarta. O Conferir grade É a instrumentação, e ele já estava no ar desde o `build-860`. Pedir o print dele na primeira rodada teria poupado duas.
+>
+> 🧪 **5.793 testes, 0 falhas (12 novos na madrugada).** **Sem migration.**
+>
+> ⏭️ **NO TORNEIO DO ER (prod), nesta ordem:** "Tirar do externo" na 3ª e na 4ª → Sortear → Conferir grade → (Refazer grade, se apontar algo) → **Aprovar chaves**. Até o Aprovar, ninguém de fora vê nada.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — nona sessão seguida. Deploy de prod a um clique de qualquer um com acesso ao Actions.
+
+> **09/09/2026** — 🕳️ **JANELA DE QUADRA IMPOSSÍVEL DEIXA DE SER OBEDECIDA** (PR #110). ⚠️ **DIAGNÓSTICO INCOMPLETO, corrigido pela entrada acima:** o conserto é real e continua valendo, mas **o pulo pro dia 15 NÃO era a quadra — era a concentração** (PR #112). Atribuí as três queixas a uma causa só e acertei em duas.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-863-6365054`** (21h18 e 21h19 de Brasília — 00h18/00h19 UTC), **o mesmo artefato nos dois** — superado pelo `build-867` oito minutos depois. 🔁 Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **ELE FICOU 12 MINUTOS MERGEADO E FORA DO AR** (release às 21h06, deploy às 21h18), e ninguém teria percebido: o PR #110 não tocou o `STATUS.md`, então o topo deste arquivo seguia descrevendo o `build-860` como o último bloco — e o `main` verde parecia publicado. **Merge não é deploy**, e é este arquivo que guarda a diferença.
+>
+> ✅ **O `prod` passou de primeira desta vez** — sem o `ssh: connect to host *** port 22: Connection timed out` que derrubou a primeira tentativa do `build-860`.
+>
+> 🕐 **OS HORÁRIOS DESTE DIÁRIO SÃO DE BRASÍLIA, e isto virou regra por engano cometido.** O GitHub
+> Actions responde em **UTC**, 3h à frente — copiar a hora do Actions pra cá já datou uma entrada no
+> DIA SEGUINTE: o `main` marcava 10/09 quando aqui ainda eram 21h de 09/09, e o diário passaria a
+> ter um dia que não existiu pra quem lê. Mesma régua do resto do sistema: `DateTime.Now` é hora
+> LOCAL e o fuso do VPS é `America/Sao_Paulo` (ver `infra/vps/README.md`).
+>
+>
+>
+> 🔍 **A ASSINATURA ESTAVA NO PRINT: os jogos REAIS estavam SEM QUADRA.** `GradeDeJogos.Encaixar` só grava `NomeQuadra` quando acha quadra **aberta** naquele horário; sem nenhuma aberta ele marca a hora, deixa o lugar em branco e escorrega pro horário seguinte — dia após dia, calado. Daí saem o **jogo sem local** e **dois jogos da mesma dupla no mesmo minuto** (o último recurso do encaixe, quando as vagas acabam). ⚠️ **O pulo de dia eu pendurei aqui por engano** — ver a entrada acima.
+>
+> ✅ **A CAUSA RAIZ É CONFIGURAÇÃO, e o motor não pode obedecer configuração impossível.** Uma janela que não deixa NENHUMA quadra aberta em NENHUM horário do torneio não é restrição — é dígito errado no `datetime-local`. Obedecê-la destrói a grade inteira; ignorá-la devolve o comportamento de quem nunca preencheu o campo, que é o que o organizador tinha antes de a tabela de quadras existir. Entre um torneio sem grade e um torneio com a janela ignorada, só o segundo dá pra publicar.
+>
+> ⚠️ **O GUARDA É ESTREITO DE PROPÓSITO: basta UMA quadra abrir em UM horário pra ele não disparar.** A janela legítima do local alugado ("das 8h às 14h de sábado") deixa quadra aberta, logo não é impossível, e continua valendo inteira — tem teste só pra isso, porque quebrá-la reintroduziria o defeito de 08/09 (jogo marcado no lugar fechado).
+>
+> ⚠️ **E O LIMITE ESTÁ ESCRITO NUM TESTE PRÓPRIO: UMA vaga já basta**, mesmo sendo pouco pros 97 jogos. Fazer o guarda comparar vagas com o número de jogos o transformaria de *"esta configuração é impossível"* em *"esta configuração é apertada"* — e apertado é justamente o que o organizador escolhe quando aluga quadra por hora. Quem cobre o apertado é a **conferência**, que não muda a grade.
+>
+> 🗓️ **Sem `DataFim`, o guarda olha uma semana a partir do início:** o campo é OPCIONAL, e pendurar a regra nele deixaria o torneio sem prazo à mercê do defeito.
+>
+> 🧪 **5.788 testes, 0 falhas (5 novos), suíte rodada 2×. Sem migration.** Mexeu em `Services/SedesDoTorneio.cs` e no novo `JanelaImpossivelDeQuadraTests.cs`.
+>
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-860-7c5fbfe`** (23h44 e 23h46 UTC), **o mesmo artefato nos dois**. Subiu a auditoria de buraco/ordem e a cessão da quadra de casa (PR #108).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **O PRIMEIRO DEPLOY DE PROD FALHOU POR `ssh: connect to host *** port 22: Connection timed out`** (23:45:45). O `deploy.sh` **não chegou a rodar** — não houve deploy pela metade, e o `prod` seguiu no `build-853` até a segunda tentativa passar. É a primeira vez que isso aparece; se repetir, é o VPS recusando conexão e afeta o site no ar, não só o deploy.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — oitava sessão seguida.**
+>
+> ⏭️ **O QUE FAZER NO TORNEIO DO ER, nesta ordem:**
+> 1. **"Tirar do externo"** na 3ª e na 4ª (lista *"Quem pode ir pro local externo"*, na área de sedes) — isso já valia antes, é configuração.
+> 2. **Conferir grade** — agora ele aponta o **buraco** (dia sem jogo e por quê) e a **fase fora de ordem**, sem depender de `DataFim`.
+> 3. **Corrigir a janela da quadra** que estiver apontando pra fora das datas — é o que causa o pulo 12 → 15/16.
+> 4. **Refazer grade**.
+>
+> ⚠️ **Nada visto renderizado nesta sessão** — sem browser, e o proxy bloqueia `padelizou.com.br` e `dev.padelizou.com.br` (403 no CONNECT).
+
+> Última atualização: **09/09/2026** — 🕳️ **PENDUREI O ÚNICO AVISO NUM CAMPO OPCIONAL, e o torneio sem `DataFim` ficou sem nenhum.**
+>
+> 🗣️ **Felipe, DEPOIS de refazer a grade no `build-853`:** *"refiz a grade, continua com jogo dia 15, 16, do nada ele pula do dia 12 p dia 15"*.
+>
+> ✅ **A ORDEM FUNCIONOU** — no print, todos os jogos de grupo vêm antes e a primeira Oitavas (prévia) só aparece depois. O que sobrou é outra coisa.
+>
+> 🔍 **A ASSINATURA ESTAVA NO PRÓPRIO PRINT: a cadência não se perde (18:00 → 18:50 → 19:40 → 20:30), só a DATA salta.** Isso é `GradeDeJogos.Encaixar` pulando vaga por vaga porque nenhuma quadra está aberta naquele horário (`TemOndeJogar`) e voltando a marcar assim que uma abre. **Ele não dá erro nenhum: só empurra o torneio pra frente, calado.**
+>
+> 🕳️ **O ERRO DE PROJETO FOI MEU:** `PorQueNaoCoube.Analisar` sai por `return` logo na primeira linha quando `Torneio.DataFim` é nulo — e `DataFim` é **opcional**. Ou seja: o único aviso que eu tinha construído ficava **mudo** justamente no torneio que não preencheu o campo. Dois dias vazios no meio de um torneio são anômalos com ou sem prazo declarado.
+>
+> ✅ **`PorQueNaoCoube.BuracosNaGrade`** acha os dias vazios entre o primeiro e o último jogo e **diz a causa** — e só culpa a quadra quando ela é culpada: dia vazio COM quadra aberta ganha texto diferente, porque mandar o organizador mexer na quadra ali seria mandá-lo consertar o que não está quebrado.
+>
+> ✅ **`AuditoriaDaGrade.FaseForaDeOrdem`**: a conferência passou a saber olhar a ORDEM. Enquanto ela não sabia, a única forma de responder "está respeitando a ordem?" era eu ler o print — e print mostra um pedaço da lista. O `>=` no limite entre postos é o pedido, não folga minha: dividir o mesmo horário é permitido, vir antes não.
+>
+> 🧪 **5.773 testes, 0 falhas (21 novos), suíte rodada 2×.** **Sem migration.**
+
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-856-2a0ac81`** (23h24 e 23h26 UTC), **o mesmo artefato nos dois** — build fixado por nome no disparo, e não "o mais recente", pra que os dois ambientes não pudessem divergir. Subiu a etiqueta de **local + quadra na lista de jogos** (PR #107).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — oitava sessão seguida a medir isso.** O job `deploy → prod` foi de criado a concluído em **15 segundos** (23:25:59 → 23:26:14), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A etiqueta nova aparece na primeira linha de cada jogo, ao lado da categoria e do grupo; vale um print.
+>
+> ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e a etiqueta só fala depois dele.** Os 97 jogos do 2º Etapa estão **sem quadra E com duas sedes** — nada no banco diz em qual clube cada um é, então a linha continua calada lá **de propósito**. O caminho escolhido (opção **a**): em **Planejamento de quadras**, cadastrar as 4 quadras com o **local** de cada uma (nome com o clube dentro — "Quadra 1 Er", "Quadra 1 Radar", senão o salvamento recusa o repetido) e a **janela** do Radar se ele for alugado por hora; depois **Refazer grade**, na aba de jogos. `SalvarQuadraDoPlanejamento` reescreve `QuantidadeQuadras` = número de linhas, então 4 quadras dão **4 vagas por horário — 2 em cada clube**, que é exatamente o que ele descreveu. E vale conferir **em que clube cada categoria joga** (Pagamentos › Quadras e sedes): sem isso a folga de deslocamento é regra **mole** e cede, mandando a mesma dupla de um clube pro outro entre dois jogos.
+
+
+> Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
+>
+> 🗣️ **Felipe, num print da lista do 2º Etapa ER Padel Tour em `dev`:** *"falta aparecer qual o local e quadra aqui na lista de jogos"*. Os **97 jogos agendados** mostravam hora, categoria e grupo, e **nada** sobre onde. A referência que ele mandou é o que o Er já publicou na 1ª Etapa (`sportscore.com.br/timeline/436`): cada linha lá é `17/07 Sex 18:00 - Er Padel - Quadra: .Loja 7`, e o clube aparece **mesmo quando a quadra vem vazia** (`Radar Esportes - Quadra: .`).
+>
+> 🕳️ **DUAS COISAS SOMAVAM PRO SILÊNCIO, e as duas eram decisão antiga.** (1) O local só entrava na etiqueta em torneio de **mais de um clube** — regra de 21/08, *"repetir o clube em cada linha seria copiar o cabeçalho da página dezenas de vezes"*. (2) Jogo **sem quadra escrita** não rendia etiqueta nenhuma e sumia calado — e a guarda das telas perguntava por `NomeQuadra`, não pela etiqueta.
+>
+> ✅ **`LugarDoJogo.Etiqueta` virou "clube · quadra", sempre.** Perguntado sobre exatamente o custo de repetir o clube, o Felipe escolheu o outro lado: *"Sempre: Er Padel · Quadra 2"*. O que mudou desde 21/08 é que o torneio de duas sedes deixou de ser hipótese — o Er aluga o Radar —, e etiqueta que muda de forma conforme o torneio ensina o jogador a não confiar nela. O nome do clube do torneio deixou de ser jogado fora no atalho de uma sede só de `SedesDoTorneio.Montar` (`NomeDoClubePrincipal`).
+>
+> ✅ **E jogo sem quadra devolve o LOCAL sozinho, em vez de nada.** 🗣️ *"nao tem quadra definida, apenas o clube, por que é por ordem de chegada (por ter checkin)"* — quadra vazia **não é defeito**, quem decide a quadra é o balcão do check-in. Por isso a etiqueta **não** escreve "quadra a definir" (era a minha primeira leitura, e o Felipe corrigiu): ela diz o prédio, que é o que faz alguém sair andando pro lado certo.
+>
+> ⚠️ **O TEXTO CORRIDO NÃO ANDOU JUNTO, DE PROPÓSITO.** `EmTextoCorrido` entra **dentro de frase** — *"A {onde} vagou — seu jogo é o próximo"* (`AvisosDoDiaDeJogo`, que sai por push, e-mail e WhatsApp **de uma vez**) — e no `LOCATION` do `.ics`. Ali a pergunta é "que **quadra** vagou?", e *"A Er Padel vagou"* manda a pessoa se levantar sem dizer pra onde. Tem teste travando a diferença, pra que a próxima sessão não "uniformize" as duas.
+>
+> 🖼️ **Onde muda:** a linha da lista (`_JogoEmLinha`), o card do Ao Vivo, o jogo previsto e a Mesa de Controle passam a mostrar o lugar **mesmo sem quadra**; chave, vaga de chave e card de grupo ganham o clube **junto da quadra que já mostravam** (guarda inalterada — "Er Padel" sozinho numa célula de chaveamento seria ruído).
+>
+> 🧪 **5.775 testes, 0 falhas (8 novos em `OndeEOJogoNaTelaTests`), suíte rodada 2× já sobre o merge do `build-853`.** **Sem migration.** Falsificado: os 4 testes do local vistos vermelhos com *"Expected: Er Padel · Quadra 2 / Actual: Quadra 2"* e *"Expected: Er Padel / Actual: null"* antes da correção. Um teste de 21/08 **trocou de lado e foi reescrito dizendo por quê** (`Com_um_clube_so_a_etiqueta_e_so_a_quadra` → `Sem_mapa_de_sedes_a_etiqueta_continua_sendo_so_a_quadra`), não apagado.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão.
+>
+> ⏭️ **ISTO SOZINHO NÃO ARRUMA A TELA DO ER, e é o próximo trabalho.** Os 97 jogos dele estão **sem quadra E com duas sedes** — e aí nada no banco diz em qual dos dois clubes cada jogo é, então a etiqueta continua (corretamente) calada. 🗣️ *"teremos que sortear o clube igual, respeitando o limite de quadras por horario, ou seja, as 8 da manha, vai ter 4 jogos, 2 no Er padel e 2 no radar"*. Hoje o motor só sabe distribuir por **quadra nomeada** (`GradeDeJogos` só nomeia com `Quadra` cadastrada). **Duas saídas, e a escolha é do Felipe:** (a) cadastrar as 4 quadras com o local de cada uma e **Refazer grade** — o motor já distribui exatamente assim, e a etiqueta já mostraria "Er Padel · Quadra 1"; (b) a grade passar a marcar **clube** sem quadra, o que é **architectural** pela régua do CLAUDE.md (mexe no motor e cria uma segunda fonte de verdade sobre "onde é o jogo", exatamente o que `SedesDoTorneio` foi escrito pra evitar).
+
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-853-b5bcba4`** (23h04 e 23h05 UTC), **o mesmo artefato nos dois**. Subiu o conserto da prévia e o "por quê" no Conferir grade (PR #106).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — sétima sessão seguida.** O job `deploy → prod` foi de criado a concluído em **17 segundos** (23:05:16 → 23:05:33), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e nesta ordem:** no torneio do Er, **Conferir grade** (agora responde *por que* não coube — nomeia a quadra com janela fora das datas, o dia sem quadra aberta, e a conta de jogos × vagas) → corrigir a janela da quadra, se for esse o caso → **Refazer grade**. Sem o Refazer, a tela continua com a grade gravada antes do `build-848`.
+>
+> ⚠️ **Não visto renderizado** — sem browser, e o `dev.padelizou.com.br` é bloqueado pelo proxy desta sessão (403 no CONNECT). O bloco novo do `ConferirGrade` é um `alert-danger` com lista.
+
+> Última atualização: **09/09/2026** — 🕳️ **A PRÉVIA NÃO ESPERAVA JOGO DE GRUPO DE OUTRA CATEGORIA — a primeira correção da ordem tinha um buraco, e o Felipe achou pela tela.**
+>
+> 🗣️ **Felipe, num print do `dev` DEPOIS do build-848:** *"como que tem jogo dia 15, no torneio do er? se termina dia 13? e como que ele nao ta respeitando a ordem que eu tinha solicitado de nao jogar chaves no final? por que esse erro?"*. A tela mostrava **Quartas de Final da 6ª Feminina** com selo "prévia" em **12/09 18:50** e jogos de **GRUPO** reais em **15/09 20:30**.
+>
+> 🕳️ **O QUE A PRIMEIRA CORREÇÃO NÃO COBRIU.** Ela ordenou as fases **projetadas entre si**, e o piso da PRIMEIRA delas continuou saindo do fim dos grupos **da própria categoria** (`CadeiaDeFases.DepoisDe`, montado em `ProjetarProximasFasesAsync`). Jogo de grupo de OUTRA categoria não é cadeia nenhuma — é jogo **real**, que chega como `jaMarcados`, e `jaMarcados` só carregava horário e quadra. Sem a **fase**, a projeção não tinha como saber o posto daquele jogo pra esperá-lo.
+>
+> ⚠️ **E O MEU TESTE NÃO PEGOU, por um motivo que vale guardar:** ele semeava todas as cadeias com o MESMO `fimDosGrupos`. Sem categorias terminando em horas diferentes, o furo não tinha como aparecer. O teste novo (`A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria`) falhava **exatamente no 12/09 18:50 do print**.
+>
+> ✅ **`VagaOcupada` ganhou `Fase`** (opcional — vaga sem fase declarada NÃO vira barreira, de propósito: chutar "deve ser grupo" seguraria a chave atrás de um jogo que talvez seja a final).
+>
+> 🧾 **E o "Conferir grade" passou a dizer o PORQUÊ, não só o "quais".** `PorQueNaoCoube` já existia e só falava no sorteio — que é um instante que passa. A pergunta nasce DEPOIS, olhando a grade.
+>
+> 🧪 **5.752 testes, 0 falhas (3 novos), suíte rodada 2×.** **Sem migration.**
+>
+> ⏭️ **O 15/09 CONTINUA SENDO DADO VELHO NA TELA.** Os jogos de grupo em 15/09 são linhas gravadas ANTES do build-848: trocar o motor não reescreve linha nenhuma. Só **Refazer grade** aplica a ordem nova àquele torneio — e antes disso vale o **Conferir grade**, que agora nomeia a quadra com janela fora das datas, se for esse o caso.
+
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-848-d1ad234`** (22h03 e 22h04 UTC), **o mesmo artefato nos dois**. Subiu a ordem das fases por posto e o aviso do que não coube (PR #104).
+>
+> 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — sexta sessão seguida a medir isso.** O job `deploy → prod` foi de criado a concluído em **20 segundos** (22:04:15 → 22:04:35), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
+>
+> ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A faixa amarela do `TempData["Aviso"]` no topo do `Details` é nova e merece um print.
+>
+> ⏭️ **TORNEIO JÁ SORTEADO NÃO PEGA A ORDEM NOVA SOZINHO.** O `HorarioPrevisto` está gravado no banco; trocar o motor não reescreve linha nenhuma. Pro torneio do Er passar a seguir a ordem é preciso apertar **Refazer grade** (ou desfazer o sorteio e sortear de novo). E vale apertar **Conferir grade** antes: é ele que diz se o 15/09 veio de janela de quadra com data errada.
+
+> Última atualização: **09/09/2026** — 🏁 **A ORDEM DAS FASES VIROU DO TORNEIO, E AS FINAIS SÃO OS ÚLTIMOS JOGOS.**
+>
+> 🗣️ **Felipe, num print da grade do Er em `dev`:** *"como que aqui tem jogo de chave e nas outras categorias tem final? o torneio tem q seguir uma ordem, primeiro todas as chaves, depois todas as primeiras eliminatorias (decimas > oitavas > quartas > semi > final) a ideia e fazer as finais de cada categorias ser os ultimos jogos do torneio"*. O print mostrava a **Final** da 3ª e da 6ª Feminina às 22:10 de 12/09 e jogos de **GRUPO** da 6ª Masculina em **15/09** — três dias depois das finais.
+>
+> 🕳️ **TRÊS LUGARES DIZIAM A MESMA COISA ERRADA.** Cada mata-mata era ancorado no fim dos grupos da **própria categoria** — `TorneiosController.Chaves.AberturaDoMataMata`, `RoboDoChaveamento` e `ProximasFasesDaChave`. Quem tem 8 duplas fecha os grupos às 21h e joga a final às 22h10; quem tem 24 ainda está na fase de grupos no dia seguinte. As duas leituras são defensáveis olhando UMA categoria, e nenhuma delas é o que um torneio parece de fora.
+>
+> ✅ **A régua nova é o POSTO da fase** (`Services/OrdemDasFases`): a distância até a final, lida do nome. É ela que faz a categoria de 8 duplas — que estreia pelas Quartas — encontrar a de 32 no **mesmo degrau**, sem que nenhuma precise saber o tamanho da outra. A fase de grupos é **um posto só, com todas as rodadas dela dentro** (alerta do próprio Felipe: *"cuidado por que os grupos podem ter rodada 2 tambem"*) — o intercalamento que dá descanso continua sendo o do `OrdemDasRodadas`.
+>
+> ⚠️ **A BARREIRA É O HORÁRIO DO ÚLTIMO JOGO DO POSTO ANTERIOR, e não a rodada seguinte a ele** — *"a menos que fique horario vazio, mas a ordem é colocar todos jogos de chave antes"*. No minuto em que o último jogo de grupo roda ainda sobra quadra, e quem a ocupa é o primeiro jogo do posto seguinte. Medido num torneio de 16/8/4 duplas com 3 quadras: às 11:30 uma oitava divide o horário com um jogo de grupo em vez de a terceira quadra ficar parada.
+>
+> 🕳️ **O ROBÔ NÃO ENXERGA FASE QUE AINDA NÃO NASCEU, e nenhuma barreira sobre "o que já está marcado" resolve isso.** A categoria de 4 duplas fecha os grupos às 11h e a Semifinal dela nasce na hora; as Quartas da de 8 só nascem às 11h30 e caem em cima. **Duas tentativas de barreira falharam antes de eu instrumentar** — a terceira saiu da causa raiz: a rodada nova entra junto com tudo que ainda está `Agendada` e ficou fora de ordem (`LevasDaGrade.ForaDeOrdem`), e o conjunto passa pela mesma régua. Sem estimativa, e sem travar o torneio esperando categoria que desistiu. **O custo, dito com todas as letras: um jogo já anunciado pode andar pra FRENTE quando outra categoria avança.**
+>
+> ⚠️ **A CHAVE DIRETA DEIXOU DE ABRIR O TORNEIO — inverte a decisão de 05/08/2026.** Ela abria por ter mais rodadas pela frente (24 duplas são cinco), e no Interno isso evitou a final da chave geral às 23h18. Perguntado sobre **exatamente esse custo**, o Felipe escolheu o outro lado. Três testes que travavam a regra antiga foram **reescritos dizendo por que trocaram de lado**, não apagados.
+>
+> 🧾 **E `Torneio.DataFim` EXISTIA E O MOTOR NUNCA A LEU.** 🗣️ *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio termina no domingo dia 13"* → *"se não couber, tem q avisar por que nao coube"*. Agora `Services/PorQueNaoCoube` nomeia as três causas: **quadra com janela fora das datas do torneio** (o `datetime-local` de ontem erra fácil em um dígito); **dia sem quadra aberta nenhuma** — e é assim que 12/09 vira 15/09 sem passar por 13, porque o encaixe pula a vaga sem quadra e tenta o dia seguinte, calado; e **volume**, com os DOIS números (jogos × vagas). ⚠️ **O aviso NÃO trava o sorteio**: jogo sem horário é o único desfecho que o motor não aceita. O "Conferir grade" ganhou a regra `DepoisDoFim`.
+>
+> 🧪 **5.749 testes, 0 falhas (16 novos), suíte rodada 2×.** **Sem migration.** Falsificado: os testes da ordem vistos vermelhos com *"a Final da cat 3 às 13:30 acontece antes do último não-final às 14:30"* e *"o posto 4 (Semifinal) começa antes de o posto 3 (Quartas) acabar"*; a regra da auditoria removida e os testes dela vistos vermelhos.
+>
+> ⚠️ **Não visto renderizado** — sem browser nesta sessão. O `TempData["Aviso"]` é uma faixa amarela nova no topo do `Details`.
+>
+> ⏭️ **O QUE ISTO NÃO PROVA:** por que o torneio do Er marcou 15/09 continua sendo **hipótese** — a mais provável é janela de quadra com data fora do torneio, e é a primeira coisa que o aviso novo vai dizer quando ele sortear de novo. Vale ele apertar **Conferir grade** naquele torneio.
+
+> Última atualização: **09/09/2026** — ⏱️ **O "ATÉ" DA QUADRA VIROU A HORA DO ÚLTIMO JOGO, e o aviso que dizia "esta tela é uma simulação" parou de mentir.**
 >
 > 🗣️ **Felipe, descrevendo o combinado do Er:** *"no radar, 2 quadras — 08h, 08:50, 09:40, 10:30, 11:20, 12:10. Vão ser 12 jogos"*. **A tela respondia 10.**
 >

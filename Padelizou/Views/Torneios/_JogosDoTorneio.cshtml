@@ -318,12 +318,15 @@
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center small opacity-75 mb-3">
-                                @* Quadra só quando existe: "Quadra não definida" em destaque
-                                   era ruído em todo torneio que roda por ordem de chegada. *@
+                                @* O LUGAR, quando dá pra dizer algum (Services/LugarDoJogo).
+                                   Continua sem escrever "Quadra não definida" — isso era ruído
+                                   em todo torneio que roda por ordem de chegada —, mas o CLUBE
+                                   aparece mesmo sem quadra: ali a resposta é o prédio, e é ela
+                                   que faz alguém sair andando pro lado certo. *@
                                 <span>
-                                    @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+                                    @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId) is { } ondeJoga)
                                     {
-                                        <i class="bi bi-geo-alt-fill"></i> @LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra) <text>· </text>
+                                        <i class="bi bi-geo-alt-fill"></i> @ondeJoga <text>· </text>
                                     }
                                     @jogo.Categoria.Nome · @jogo.Fase
                                 </span>
@@ -524,7 +527,14 @@
 
     <!-- SUB-ABA: AGENDADAS -->
     <div class="tab-pane fade @(defaultAoVivo ? "" : "show active")" id="agendadas" role="tabpanel">
-        @if (agendadasList.Count == 0 && jogosQueVem.Count == 0)
+        @if (ViewBag.ChaveAindaNaoPublicada == true)
+        {
+            @* 🗣️ "nao exiba nada até publicar a chave (desse menu de jogos)" — Felipe, 09/09/2026.
+               A lista chega vazia do controller (o portão mora em CarregarViewBagJogosAsync);
+               aqui só se explica o vazio, pra não parecer que o sorteio ainda não aconteceu. *@
+            <p class="text-muted">As chaves ainda não foram publicadas pelo organizador.</p>
+        }
+        else if (agendadasList.Count == 0 && jogosQueVem.Count == 0)
         {
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }

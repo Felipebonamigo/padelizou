@@ -315,12 +315,52 @@ public static class GradeDeJogos
             // local alugado (`Categoria.PodeJogarNaSedeExtra`, o jeito do Er — a sede principal
             // enche e o resto transborda). A primeira já pinou a categoria num lugar, então a
             // segunda nem chega a ser perguntada pra ela.
-            List<string> LivresPara(Partida p) =>
-                sede.QuadrasDe(p.CategoriaId) is { } daSede
-                    ? livresAgora.Where(daSede.Contains).ToList()
-                    : sede.PodeIrPraSedeExtra(p.CategoriaId)
-                        ? livresAgora
-                        : livresAgora.Where(q => !sede.EhSedeExtra(q)).ToList();
+            List<string> LivresPara(Partida p)
+            {
+                if (sede.QuadrasDe(p.CategoriaId) is { } daSede)
+                    return livresAgora.Where(daSede.Contains).ToList();
+
+                // Categoria que o organizador tirou do alugado só enxerga as quadras de casa.
+                if (!sede.PodeIrPraSedeExtra(p.CategoriaId))
+                    return livresAgora.Where(q => !sede.EhSedeExtra(q)).ToList();
+
+                // ⚠️ QUEM PODE IR PRO ALUGADO CEDE A QUADRA DE CASA PRA QUEM NÃO PODE (09/09/2026).
+                //
+                // 🗣️ Felipe, pelo Er: *"ele quer que os jogos que vao para o radar sejam das
+                // categoria menos fortes (lembrando que as mais fortes sao terceira e quarta), para
+                // deixar os melhores no clube dele"*.
+                //
+                // 🕳️ MARCAR A 3ª E A 4ª COMO "TIRAR DO EXTERNO" RESOLVIA SÓ METADE, e a outra
+                // metade saía ao contrário: as quadras de casa são oferecidas PRIMEIRO pra todo
+                // jogo, então a 6ª — que PODE ir pro Radar — pegava a quadra de casa, e a 3ª — que
+                // SÓ pode jogar em casa — esperava o horário seguinte com a quadra do Radar VAZIA
+                // ao lado. O organizador pagava a hora alugada ociosa e atrasava justamente a
+                // categoria que queria em casa. Medido em MelhoresNoClubeDeCasaTests: a 3ª caía
+                // pras 08:50 enquanto a 6ª ficava em casa às 08:00.
+                //
+                // ⚠️ É ORDEM, NÃO FILTRO — mesma escolha do "sede principal primeiro" logo acima.
+                // Sem ninguém preso esperando, a lista continua com as de casa na frente e nada
+                // muda; com alguém esperando, este jogo tenta o alugado primeiro e a de casa
+                // continua na lista, pro caso de o alugado não servir.
+                if (AlguemPresoEmCasaEsperando(p))
+                    return livresAgora.OrderByDescending(q => sede.EhSedeExtra(q) ? 1 : 0).ToList();
+
+                return livresAgora;
+            }
+
+            // Existe na fila OUTRO jogo, ainda sem horário, cuja categoria não pode sair de casa e
+            // que caberia neste horário? Só então vale a pena ceder a quadra de casa.
+            //
+            // ⚠️ NÃO CHAMA `LivresPara`, de propósito: seria recursão. A pergunta aqui é sobre a
+            // categoria e sobre o jogo estar livre, não sobre qual quadra ele ganharia.
+            bool AlguemPresoEmCasaEsperando(Partida escolhido) =>
+                temQuadraCadastrada
+                && livresAgora.Any(sede.EhSedeExtra)
+                && livresAgora.Any(q => !sede.EhSedeExtra(q))
+                && fila.Any(outro => !ReferenceEquals(outro, escolhido)
+                                  && !sede.PodeIrPraSedeExtra(outro.CategoriaId)
+                                  && sede.QuadrasDe(outro.CategoriaId) == null
+                                  && Livre(outro));
 
             // A ÚNICA coisa impossível na vida real é a mesma PESSOA em duas quadras ao mesmo
             // tempo. Fases diferentes dividindo o horário é normal e desejável: a final de uma
@@ -344,6 +384,16 @@ public static class GradeDeJogos
 
             // O recorte por fase de 08/09/2026 — a concentração só nos grupos, a régua da noite
             // de sábado só fora deles. Ver o comentário grande no cabeçalho do método.
+            // A dupla tem concentração E este horário está DENTRO do turno dela?
+            //
+            // ⚠️ `janelasSoNosGruposPorDupla` guarda o COMPLEMENTO (os turnos PROIBIDOS), então
+            // "dentro do turno escolhido" é estar no mapa e FORA de todas as janelas dele. Ler isso
+            // ao contrário faria a prioridade servir justamente quem não pode jogar agora.
+            bool DentroDaJanelaDeConcentracao(int duplaId) =>
+                janelasSoNosGruposPorDupla != null
+                && janelasSoNosGruposPorDupla.ContainsKey(duplaId)
+                && !DentroDeJanela(janelasSoNosGruposPorDupla, duplaId);
+
             bool ForaDoTurnoConcentrado(Partida p) =>
                 FasesTorneio.EhFaseDeGrupos(p.Fase)
                 && (DentroDeJanela(janelasSoNosGruposPorDupla, p.Dupla1Id)
@@ -405,8 +455,30 @@ public static class GradeDeJogos
             // ⚠️ `FirstOrDefault` VARRE A FILA INTEIRA, e é isso que faz a folga entre clubes
             // não custar quadra: o jogo que teria que correr é PRETERIDO, não a vaga. Quem entra
             // é o próximo da fila que serve — de outra categoria, do outro clube, tanto faz.
-            var jogo = fila.FirstOrDefault(p => Livre(p) && SemCorreria(p) && TemOndeJogar(p)
-                                             && !RepetiriaOExterno(p));
+            // ⚠️ QUEM SÓ PODE JOGAR NESTE TURNO PASSA NA FRENTE DE QUEM PODE JOGAR EM QUALQUER UM
+            // (09/09/2026). Sem isto, a concentração ("os 2 jogos na sexta à noite") é uma promessa
+            // que a grade quase nunca cumpre.
+            //
+            // 🕳️ MEDIDO NO ER: quatro duplas pediram sexta à noite e jogaram 15/09 às 20:30 — fora
+            // do turno, depois do fim do torneio, sem quadra e com gente repetida. A concentração
+            // só PROÍBE o resto; ela não RESERVA vaga. Um jogo sem concentração serve em qualquer
+            // horário, então ele toma as vagas da sexta antes de a dupla concentrada chegar na
+            // fila — e quando a sexta acaba, ela não tem mais nenhum horário possível, porque o
+            // turno dela já passou. O encaixe a segura até o último recurso e a despeja no fim.
+            //
+            // ⚠️ É A MESMA FORMA DO "CEDE A QUADRA DE CASA": quem tem UMA opção passa na frente de
+            // quem tem TODAS. E é ORDEM, não filtro — se nenhum jogo concentrado servir nesta vaga,
+            // ela segue pro resto da fila exatamente como antes. Sem ninguém concentrado no
+            // torneio, `janelasSoNosGruposPorDupla` é nulo e este passo nem chega a ser feito.
+            bool ConcentradoNesteTurno(Partida p) =>
+                janelasSoNosGruposPorDupla != null
+                && FasesTorneio.EhFaseDeGrupos(p.Fase)
+                && (DentroDaJanelaDeConcentracao(p.Dupla1Id) || DentroDaJanelaDeConcentracao(p.Dupla2Id));
+
+            bool Serve(Partida p) => Livre(p) && SemCorreria(p) && TemOndeJogar(p) && !RepetiriaOExterno(p);
+
+            var jogo = fila.FirstOrDefault(p => ConcentradoNesteTurno(p) && Serve(p))
+                    ?? fila.FirstOrDefault(Serve);
 
             if (jogo == null)
             {
