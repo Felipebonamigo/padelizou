@@ -313,6 +313,32 @@
     </p>
 }
 
+@* AS FERRAMENTAS DO DIA SÃO A PRIMEIRA COISA DA TELA depois que a chave é publicada (10/09/2026).
+   🗣️ Felipe, com o torneio do Er no ar: *"acho que a ferramentas do organizador tem q ser a
+   primeira coisa da tela, depois que as chaves foram publicadas"*. Elas eram o ÚLTIMO bloco do
+   Painel de Controle, atrás do sorteio, dos organizadores e do formulário de editar o torneio —
+   e o painel só abre depois de um clique na aba. No dia do jogo, o caminho mais longo até as
+   três telas que só servem naquele dia.
+
+   ⚠️ LOGO ABAIXO DO CABEÇALHO, e não encostado nas abas: entre um e outro moram o cartaz, o
+   convite, o grupo do WhatsApp, as fotos, os cards de campeão, o pódio, o MVP, o mural e os
+   palpiteiros — tudo que o torneio no ar acumula. Ali embaixo o card ainda seria uma rolagem.
+   Acima do cabeçalho, não: a tela ficaria sem dizer de que torneio ela fala.
+
+   ⚠️ MESMA RÉGUA da aba "Chaves e Grupos" (AprovacaoDeChaves.ChavePublicada): antes de publicar
+   o trabalho é montar o torneio, e o card fica onde sempre esteve.
+
+   ⚠️ O `<fieldset disabled>` é o do painel, repetido aqui de propósito: fora dele o assistente
+   do sistema (ViewBag.GestaoSoLeitura) ganharia o "Avisar todo mundo" LIGADO, e descobriria a
+   recusa só depois de escrever a mensagem — o Comunicar exige EhOrganizadorAsync no servidor. *@
+@if (ViewBag.PodeGerenciar == true && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+{
+    <fieldset disabled="@(ViewBag.GestaoSoLeitura == true)" class="border-0 p-0 m-0">
+        <partial name="_FerramentasDoOrganizador" model="Model" />
+    </fieldset>
+}
+
+
 @* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
    grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
 @if (!string.IsNullOrWhiteSpace(Model.RecadoAosInscritos))
@@ -997,7 +1023,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
-    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado"
+    @* A MESMA régua do bloco de ferramentas lá em cima — "a chave já é pública?" mora em
+       AprovacaoDeChaves. O segundo termo é o que só quem aprova enxerga. *@
+    @if (Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
          || (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente && ViewBag.PodeAprovarChaves == true))
     {
         <li class="nav-item" role="presentation">
@@ -4094,73 +4122,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             </div>
 
-            <!-- FERRAMENTAS DO DIA -->
-            <div class="card bg-light border-0 shadow-sm mt-4">
-                <div class="card-body">
-                    <h6 class="fw-bold text-muted text-uppercase mb-3">Ferramentas do organizador</h6>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        @* Nem todo torneio quer lista de chamada: num interno de 8 duplas o
-                           organizador conhece todo mundo de vista. O interruptor está em
-                           Editar Dados do Torneio. *@
-                        @if (Model.UsaCheckIn)
-                        {
-                            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
-                                <i class="bi bi-clipboard-check"></i> Check-in do dia
-                            </a>
-                        }
-                        @* Pra quem ajuda, a mesma tela é só a caderneta — prometer "Financeiro"
-                           seria mandá-lo procurar números que ele não vai encontrar. *@
-                        <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            @if (ViewBag.PodeVerDinheiro == true)
-                            {
-                                <i class="bi bi-cash-stack"></i> <text>Financeiro</text>
-                            }
-                            else
-                            {
-                                <i class="bi bi-journal-check"></i> <text>Quem já acertou</text>
-                            }
-                        </a>
-                        <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            <i class="bi bi-file-earmark-text"></i> Relatório / PDF
-                        </a>
-                    </div>
-
-                    <!-- COMUNICADO EM MASSA -->
-                    <div class="border-top pt-3">
-                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                            <i class="bi bi-megaphone-fill"></i> Avisar todo mundo
-                        </h6>
-                        <p class="small text-muted">
-                            Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
-                        </p>
-                        <form asp-action="Comunicar" method="post"
-                              data-confirmar-titulo="Avisar todo mundo?"
-                              data-confirmar="A mensagem sai agora por notificação, e-mail e WhatsApp pra todos os inscritos. Não dá pra desfazer."
-                              data-confirmar-ok="Enviar aviso">
-                            <input type="hidden" name="id" value="@Model.Id" />
-                            <div class="row g-2">
-                                <div class="col-12 col-md-4">
-                                    <select name="categoriaId" class="form-select form-select-sm">
-                                        <option value="">Todas as categorias</option>
-                                        @foreach (var c in Model.Categorias)
-                                        {
-                                            <option value="@c.Id">@c.Nome</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-8">
-                                    <input type="text" name="mensagem" class="form-control form-control-sm"
-                                           maxlength="180" required
-                                           placeholder="Ex: As chaves saíram! Confira seu horário." />
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
-                                <i class="bi bi-send"></i> Enviar aviso
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @* Com a chave publicada elas sobem pro TOPO da página (o bloco antes das abas);
+               até lá o lugar é aqui, no fim do painel — quem ainda não publicou está montando
+               o torneio, não operando o dia dele. Um lugar de cada vez, nunca os dois. *@
+            @if (!Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <partial name="_FerramentasDoOrganizador" model="Model" />
+            }
 
             <!-- NÓS REGISTRAMOS OS RESULTADOS PRA VOCÊ -->
             @{
