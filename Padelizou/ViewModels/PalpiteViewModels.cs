@@ -56,6 +56,22 @@ public class VotanteVM
 {
     public string Nome { get; set; } = null!;
     public string? FotoPerfil { get; set; }
+
+    // O PLACAR QUE ESTA PESSOA PALPITOU (10/09/2026 — 🗣️ Felipe: *"permita clicar e ver quem
+    // colocou o palpitometro e qual o placar"*).
+    //
+    // ⚠️ VENCEDOR × PERDEDOR, e não lado 1 × lado 2: no banco o placar mora na orientação do
+    // JOGO, mas o modal lista a pessoa DEBAIXO da dupla em que ela votou — ali um "4 x 6" diria
+    // que ela apostou na derrota de quem escolheu. É a mesma orientação da ficha que ela tocou.
+    //
+    // ⚠️ NULO nos dois = não palpitou placar, que é o palpite de sempre e continua valendo.
+    public int? PlacarVencedor { get; set; }
+    public int? PlacarPerdedor { get; set; }
+
+    // A moeda daquele palpite: sets ou games. Vem do PALPITE, não do formato de hoje — o
+    // organizador pode editar o formato depois, e aí "2 x 0" sem a moeda viraria um placar de
+    // games que nenhum jogo termina.
+    public bool PlacarEmSets { get; set; }
 }
 
 // A tabela dos palpiteiros, pronta pra partial. A página do TORNEIO e a aba do hub usam a

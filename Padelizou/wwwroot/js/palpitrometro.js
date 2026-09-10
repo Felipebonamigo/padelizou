@@ -209,11 +209,32 @@ async function verVotos(partidaId, nome1, nome2) {
     const response = await fetch('/Partidas/VerVotos?partidaId=' + partidaId);
     const data = await response.json();
 
+    // ⚠️ Nome e foto vêm do CADASTRO de quem votou — texto de gente, não do sistema. Como esta
+    // lista é montada com innerHTML, tudo que vem do servidor passa por aqui antes: sem isso um
+    // nome com "<" quebra o modal, e um nome montado de propósito injeta marcação na página.
+    function texto(valor) {
+        return String(valor == null ? '' : valor)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     function montarLista(votantes) {
         if (!votantes || votantes.length === 0) return '<div class="text-muted small">Ninguém votou nessa dupla ainda.</div>';
         return votantes.map(function (v) {
-            var foto = v.fotoPerfil || '/img/default-avatar.png';
-            return '<div class="d-flex align-items-center gap-2 mb-2"><img src="' + foto + '" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;"><span>' + v.nome + '</span></div>';
+            var foto = texto(v.fotoPerfil || '/img/default-avatar.png');
+
+            // ⚠️ O placar é OPCIONAL e continua sendo: quem só disse quem vence aparece só com o
+            // nome. Um "0 x 0" no lugar do vazio inventaria um palpite que ninguém deu.
+            var placar = v.placarVencedor != null && v.placarPerdedor != null
+                ? '<span class="badge bg-success-subtle text-success-emphasis ms-auto">'
+                    + v.placarVencedor + ' x ' + v.placarPerdedor
+                    + (v.placarEmSets ? ' <span class="fw-normal">sets</span>' : '')
+                    + '</span>'
+                : '';
+
+            return '<div class="d-flex align-items-center gap-2 mb-2"><img src="' + foto
+                + '" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;"><span>'
+                + texto(v.nome) + '</span>' + placar + '</div>';
         }).join('');
     }
 

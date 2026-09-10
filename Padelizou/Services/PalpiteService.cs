@@ -267,6 +267,26 @@ public class PalpiteService : IPalpiteService
             .ToDictionaryAsync(t => t.Id);
     }
 
+    // Uma linha do modal "quem votou em quem", com o placar que a pessoa palpitou.
+    //
+    // ⚠️ MAIOR × MENOR é o que orienta o placar pelo VOTO: a validação do RegistrarVoto já
+    // garante que o placar aponta a dupla escolhida, então o maior dos dois lados é sempre o
+    // dela. Comparar lado a lado precisaria saber de que lado a pessoa está — e é exatamente a
+    // conta que a tela já faz pra marcar a ficha escolhida.
+    private static VotanteVM Montar(PalpitePartida v)
+    {
+        var palpitado = PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2);
+
+        return new VotanteVM
+        {
+            Nome = v.Jogador.Nome,
+            FotoPerfil = v.Jogador.FotoPerfil,
+            PlacarVencedor = palpitado.Existe ? Math.Max(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarPerdedor = palpitado.Existe ? Math.Min(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarEmSets = palpitado.EmSets,
+        };
+    }
+
     public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
@@ -279,10 +299,8 @@ public class PalpiteService : IPalpiteService
 
         return new VotantesPartidaVM
         {
-            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList(),
-            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList()
+            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id).Select(Montar).ToList(),
+            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id).Select(Montar).ToList()
         };
     }
 }
