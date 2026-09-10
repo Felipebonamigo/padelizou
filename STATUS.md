@@ -15,8 +15,54 @@
 >
 > ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
 >
-> 🧪 **6.177 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+> 🧪 **6.187 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 10 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
 >
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
+>
+> 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
+>
+> 🕳️ **CHECK-THEN-INSERT COM UM `DbContext` POR REQUISIÇÃO.** `PalpiteService.RegistrarVotoAsync` lê "esse jogador ainda não votou" e insere. Dois POSTs do mesmo dedo — toque duplo no nome da dupla, duas abas, ou o voto seguido da ficha de placar (o `palpitrometro.js` **não tem trava de clique**) — leem os dois "não votou" e inserem os dois. O índice `IX_PalpitePartida_PartidaId_JogadorId` recusa o segundo com **23505**, e a exceção subia inteira: o controller só trata `InvalidOperationException` → **500** → push de erro. É a MESMA forma do `FinalizarEmDobro` de hoje de manhã, agora num endpoint que qualquer logado alcança de dentro do jogo.
+>
+> ✅ **O ÍNDICE CONTINUA SENDO QUEM SEGURA — o que faltava era o serviço saber PERDER a corrida.** Mesma decisão do chamado do mural (`DuplasController`): quem chega depois **detacha, relê a linha do gêmeo e grava por cima**, porque o palpite dele é o último que a pessoa deu. Pra quem clicou não sobra erro nenhum — a barra atualiza como sempre, com um voto só.
+>
+> ⚠️ **O `catch` é ESTREITO de propósito.** Só entra no caminho da corrida quando (a) a linha era **nova** e (b) a releitura **acha** a linha do gêmeo. Sem ela, `throw`: a gravação falhou por outro motivo, e aí o 500 é o aviso. Engolir todo `DbUpdateException` trocaria um erro que avisa por um palpite que some caladinho.
+>
+> 🧪 **6.124 testes, 0 falhas (3 novos, em `PalpiteEmDobroTests`).** ⚠️ **EF InMemory não valida índice único** — a suíte inteira passava lisa por este defeito. O índice entra no teste como **interceptor** (`OGemeoChegouPrimeiro`): grava a linha rival e lança a `DbUpdateException` no mesmo instante em que o Postgres lançaria. Vistos vermelhos antes: os dois testes da corrida, com a mensagem exata da produção (*23505: duplicate key value violates unique constraint "IX_PalpitePartida_PartidaId_JogadorId"*). O terceiro — o que exige que erro de verdade **continue** subindo — passou de primeira e por isso foi **falsificado**: trocando o `throw` por "insere de novo", ele cai.
+>
+> 🖐️ **E A TRAVA DE CLIQUE DO JS ENTROU JUNTO** (🗣️ Felipe, no mesmo dia: *"arruma a trava de clique no js também"*). O `palpitrometro.js` agora fala com o servidor **um POST por vez, por cartão** — mesma régua do `placar-ao-vivo.js`. Toque que **repete** o que já está indo é o toque duplo e não vai; toque que diz **outra coisa** (trocou de dupla, escolheu ficha) **não se perde**: espera a vez e sai depois. Dois jogos na mesma tela não esperam um pelo outro.
+>
+> ⚠️ **AS DUAS TRAVAS SÃO NECESSÁRIAS, e isso não é cinto e suspensório.** A do JS poupa a requisição gêmea **desta aba**; a do servidor é a que segura **duas abas, dois aparelhos e o POST montado à mão** — trava de tela não atravessa a rede. Tirar qualquer uma das duas devolve metade do defeito.
+>
+> 🎨 **E O JS CONSERTA O QUE O SERVIDOR NÃO ALCANÇA: RESPOSTA FORA DE ORDEM.** Com o primeiro POST lento, a resposta dele voltava **depois** da do segundo e repintava a tela com o palpite velho — a ficha recém-escolhida **apagava sozinha na frente da pessoa**, e só o F5 consertava. Era invisível pro servidor (as duas gravações estavam certas) e é a conferência que nasceu mais vermelha.
+>
+> 🧪 **A METADE DA TELA NÃO TEM TESTE NA SUÍTE — e agora tem conferência versionada.** `Padelizou.Tests/js/conferir-palpitrometro.js`: DOM falso + servidor falso em **Node puro, zero dependência** (um `npm install` traria package.json, lockfile e supply chain pra um repositório que hoje não tem nada disso — ver `SUPPLY-CHAIN.md`). **5 conferências, 3 vistas vermelhas antes** da correção: o toque duplo mandando 2 POSTs, os dois POSTs se cruzando, e a tela terminando pintada com o palpite velho. ✅ **E O CI RODA** (🗣️ *"liga o passo do node no ci"*): passo **"Conferir a trava de clique do palpitrômetro (JS)"** no `ci.yml`, que reprova o build. 📌 **É o primeiro passo de Node deste CI** — e ele **não traz npm nada**: usa o `node` que já vem no runner, sem `setup-node`, sem package.json, sem lockfile (o `SUPPLY-CHAIN.md` continua valendo pra árvore inteira do repositório, que segue sendo só NuGet).
+>
+> ⚠️ **O PASSO FICA DEPOIS DO "Dizer QUAL teste caiu", e a posição é a regra, não gosto:** aquele roda em `if: failure()`, então um portão antes dele faria o job anunciar *"a suíte falhou mas nenhum teste aparece como Failed"* — mensagem falsa pra uma falha que não é de teste. É a MESMA razão que já tinha posto o portão de CVE no fim. E o `node` roda **sem cano** (`| tee`, `| grep`): com cano quem devolve o código de saída é o último comando, e conferência vermelha passaria por verde — a armadilha que o passo dos testes documenta desde sempre. Falha vira **anotação `::error::`**, uma por conferência caída, que se lê pelo celular sem abrir o log.
+>
+> 🧪 **Os dois caminhos do passo foram rodados aqui, com o corpo do YAML extraído e executado em `bash -e`:** com o `palpitrometro.js` corrigido, `TUDO VERDE` e `exit=0`; com o `palpitrometro.js` de antes da trava (`git show HEAD~1`), as 3 conferências vermelhas viram 3 `::error::JS:` e `exit=1`. ⚠️ **Não é o CI de verdade** (não dá pra rodar o Actions daqui) — é o mesmo script no mesmo shell.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-970-8847871`** (14h51 e 14h53 de Brasília — runs 176 e 178). PR #152. ✅ **SEM MIGRATION.**
+>
+> 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
+>
+> 🕳️ **ELE MORAVA NA TELA ONDE SE PASSA O DIA.** A lista de 97 jogos é a que se rola pra achar quem joga agora e pra apertar o play — e o único botão que apaga uma noite de trocas na mão ficava logo acima dela, no caminho do polegar. Confirmação vermelha não conserta lugar errado: ela só aparece depois do clique que não era pra ter acontecido.
+>
+> ✅ **AGORA ELE FICA EM `Gerenciar Torneio`**, no card de status, logo abaixo do **Recolher as Chaves** — junto das outras ações que mexem no torneio inteiro (Desfazer o sorteio, Recolher as chaves). Botão, cor (`btn-danger`), aviso (`data-confirmar-tom="perigo"`) e a contagem do torneio (`ViewBag.AgendadasNoTorneio`, e não a da tela filtrada) vieram inteiros — o que mudou foi **onde**.
+>
+> ⚠️ **FICA FORA DA CORRENTE DE STATUS DO PAINEL, de propósito:** quem tem horário pra refazer é quem tem jogo **agendado**, e isso atravessa "Chaves em Aprovação", "Fase de Grupos" e o torneio que sai público na hora. Repetir o botão nos três ramos seria a mesma regra escrita três vezes — é a mesma escolha que o "Reabrir as inscrições" já faz ali em cima. Zero agendado e ele some.
+>
+> ⚠️ **QUEM SÓ MARCA PLACAR PERDE O BOTÃO, e essa é a consequência pedida.** O painel é de quem organiza (`ViewBag.PodeGerenciar`); a lista de jogos enxerga `PodeOperarODiaDeJogo`, que inclui o marcador. **O servidor não mudou** — `RefazerGrade` continua aceitando marcador —, o que saiu é a porta. Com a mesa ficaram os dois que não jogam trabalho fora: **Ajustar horários** e **Conferir a grade**, mais uma linha dizendo pra onde o vermelho foi.
+>
+> 🧪 **6.176 testes, 0 falhas (4 novos meus; os outros 48 vieram do `main` — PRs #145, #147/#150 e #148, mesclados aqui antes de publicar).** Vistos vermelhos antes: `RecalcularHorariosNoPainelTests` inteiro (*"O <form asp-action=\"RefazerGrade\"> não está em Details.cshtml"*, e o `DoesNotContain` achando o form ainda na lista), mais os três testes antigos que liam o botão em `_JogosDoTorneio.cshtml` e passaram a ler o `Details.cshtml` (`startIndex ('-1')`).
+>
+> ⚠️ **NÃO VI A TELA** — esta sessão não tem browser. O que dá pra afirmar é que o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(2803)`, o que mostra que a view entra no build e não só o C#) e o que os testes leem da fonte. **O botão no lugar certo, na tela, ainda é olho humano.**
+>
+> ✅ **O `/healthz` FOI CONFERIDO POR FORA DAQUI, e desta vez deu pra fazer**: `ok` / **HTTP 200** em `dev.padelizou.com.br` e em `padelizou.com.br`, por `curl` desta sessão. É diferente das últimas entradas de hoje, em que o proxy devolvia `403` pro domínio e quem atestava era só o `deploy.sh` — aqui há verificação **independente**, e neste app o `/healthz` também confere o schema.
+>
+> ⚠️ **O `main` ANDOU DEPOIS DO MEU MERGE, e o `build-970` NÃO leva o que veio depois** (PRs #154 e #149, mesclados minutos adiante). Foi pedido **pela tag**, e não como "o mais recente", justamente por isso — havia três sessões mesclando na mesma meia hora. Nada foi revertido: o `build-970` descende dos `build-958`/`961`/`962` que já estavam no ar.
+>
+> 🕳️ **E FICA ANOTADA UMA ARMADILHA NOVA DA API DE ACTIONS: a listagem de runs atrasa.** Disparei o `dev`, recebi `204`, listei os runs e **não achei o meu** — concluí que o 204 não tinha virado run (é a lição que o STATUS já registrava) e disparei de novo. Os dois viraram run: **176 e 177, o mesmo `build-970` instalado duas vezes seguidas no `dev`**. Sem dano (é o mesmo pacote), mas o certo é **esperar e reconsultar** antes de redisparar: `204` continua não sendo prova, e a ausência na listagem também não é prova do contrário. Quem confirma de verdade é o **log do job** (`==> Feito. build-970-8847871 no ar em dev`), não a lista.
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >
@@ -36,7 +82,33 @@
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
 
+> **10/09/2026** — 📏 **A REVISÃO DEPOIS DO DEPLOY: O DIA DA SEMANA COMIA O NOME DO CLUBE NA ÁRVORE DA CHAVE, e três testes meus provavam menos do que diziam.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> A revisão adversarial do PR #145 terminou **depois** de ele já estar em `dev` e `prod` (`build-961`), e o que sobrou dela não era cosmético.
+>
+> 🕳️ **O DIA DA SEMANA (pedido do Emerson) NÃO CABE NA ÁRVORE DA CHAVE — e foi MEDIDO, não estimado.** No Chromium com o `site.css` real, a 390px, na coluna mínima da grade (`.pdz-arv` é `minmax(6.5rem, 1fr)` no celular):
+>
+> | linha | sem o dia | com o dia |
+> |---|---|---|
+> | vaga da chave (`.pdz-chave-quando`) | pede 130px, cabe 127 → "Er Padel" perde **3px de 45** | perde **23px de 45** |
+> | chave projetada (`.pdz-chave-projetada-quando`) | pede 149px, cabe 123 → perde **27px de 49** | perde **49 de 49 — o clube SOME** |
+> | mini-jogo do grupo (`.pdz-grupo-jogo-quando`) | inteiro (a linha tem 351px) | **inteiro** |
+>
+> ⚠️ **O QUE FAZ ISSO SER SILENCIOSO:** as duas linhas da árvore são `white-space: nowrap; overflow: hidden` **sem `text-overflow: ellipsis`**, e a etiqueta de quadra/clube é a última (`margin-left: auto`) — então é ela que encurta, sem reticências e sem rolagem. Numa tela que existe pra dizer QUANDO e ONDE, trocar o ONDE por três letras é o pior lado da troca. O dia da semana **saiu** das duas linhas da árvore e **fica** nas listas de jogos e no mini-jogo do grupo, que é onde a medição diz que cabe.
+>
+> 📌 **FICA ANOTADO E NÃO CORRIGIDO:** a chave projetada **já cortava 27px antes desta mudança**. É defeito pré-existente e é outra tarefa (reticências, ou repensar a linha) — alargar este PR pra ele seria mudar o assunto.
+>
+> 🔴 **E TRÊS TESTES MEUS PROVAVAM MENOS DO QUE DIZIAM.** O pior era a "contraprova" do `AmericanoDuplas`: ela usava uma dupla **não paga** e cobrava `False` — e **passava igual com o defeito que dizia travar**, porque excluindo a família inteira do Americano a lista fica VAZIA e o método devolve `False` pelo motivo errado. Agora a inscrição é **paga** e a asserção é `True`: só há um jeito de passar, que é enxergar a dupla. Os outros dois: o `Assert.Contains("Chaves e Grupos")` era satisfeito pelo **comentário Razor** acima do botão (a mesma armadilha do `<details>`, duas vezes no mesmo dia), e a bolinha do Ao Vivo era travada por **distância em caracteres** (`< 400`, quando a real é 65) — virou régua estrutural, sem número mágico.
+>
+> 🕳️ **E NADA LIGAVA O SERVIÇO À TELA:** apagar as duas linhas do controller deixava a suíte inteira verde, o `ViewBag.JaPagueiNesteTorneio` chegava nulo e o card nunca recolhia — o pedido do Emerson morrendo em silêncio com dez testes verdes em cima. Agora tem trava.
+>
+> ✍️ **Dois comentários meus afirmavam coisas falsas, e comentário errado é pior que comentário nenhum:** o do CSS dizia que a data era "menor que a etiqueta ao lado" (em pixels ela era **maior** — .72 contra .68; o que a fazia LER menor era a etiqueta ter peso 700 e fundo), e o do `DiaDaSemana` dizia que "agora existe uma lista só" enquanto sobrava uma **terceira cópia** em `Views/Aulas/MeusHorarios.cshtml` (capitalizada e indexada por `HorarioDaTurma.DiaSemana`, contrato diferente — unificar é outra tarefa). Os dois reescritos.
+>
+> 🧪 **6.175 testes, 0 falhas (15 novos).** Três vistos vermelhos antes da correção ("o dia da semana voltou pra a vaga da chave", "esperava EXATAMENTE 1 e achei 2", a projetada) e três **falsificados** um a um: excluindo a família inteira do Americano cai a contraprova, apagando a linha do controller cai a trava da tela, e fechando o `@if` antes da bolinha cai a régua da bolinha.
+>
 > **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
 >
@@ -52,9 +124,13 @@
 >
 > 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
 >
-> ⏭️ **A CAROL ainda precisa do clique**: publicar, abrir `/Admin/Acesso`, procurar `03842585063` e "Liberar nova troca de nome". Daqui não dá pra fazer por ela — esta sessão não alcança o banco de produção.
+> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar `03842585063` → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
+>
+> ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
+>
+> 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
 >
@@ -68,7 +144,9 @@
 >
 > 🧪 **6.124 testes, 0 falhas (3 novos).** Vistos vermelhos antes: o formulário das setas sem o `data-manter-posicao`, as duas telas sem o script, e o script sem existir.
 >
-> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio. O que dá pra afirmar é o que o teste lê da fonte; a rolagem em si só se confere no `dev`.
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio (o mesmo limite anotado no `build-940`). O que dá pra afirmar é o que o teste lê da fonte e que o `deploy.sh` viu o `/healthz` responder 200; **a rolagem em si é o Felipe quem confere**, clicando uma seta no meio da lista do Er.
+>
+> 📌 **UM DISPARO DE DEPLOY FALHOU CALADO, e vale como aviso pro próximo:** o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run nenhuma** — o deploy simplesmente não aconteceu, sem erro em lugar nenhum. Só apareceu porque a lista de runs foi conferida depois. **Disparo pela API se confere na lista**, nunca pelo 204. ⚠️ **E o mesmo GitHub engoliu o `pull_request` do PR #149**: nenhum check nasceu pro head, e o CI teve que ir pelo `workflow_dispatch` do `ci.yml` — que existe desde 26/08 exatamente pra isso.
 >
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 

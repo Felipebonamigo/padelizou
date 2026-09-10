@@ -25,9 +25,15 @@ public class PontoVermelhoSoComJogoAoVivoTests
         // O `@if` que a acende vem ANTES dela, na mesma aba. `aoVivoList` é a lista que o
         // contador da própria aba imprime — a mesma fonte, e não uma segunda contagem que
         // possa discordar do número entre parênteses.
-        var gate = fonte.LastIndexOf("aoVivoList.Count > 0", bolinha, StringComparison.Ordinal);
-        Assert.True(gate >= 0 && bolinha - gate < 400,
-            "A bolinha vermelha precisa estar atrás de um `@if (aoVivoList.Count > 0)`.");
+        var gate = fonte.LastIndexOf("@if (aoVivoList.Count > 0)", bolinha, StringComparison.Ordinal);
+        Assert.True(gate >= 0, "A bolinha vermelha precisa estar atrás de um `@if (aoVivoList.Count > 0)`.");
+
+        // ⚠️ E o `@if` precisa FECHAR depois dela: entre o `{` do gate e a bolinha não pode haver
+        // um `}` — senão o `if` estaria gateando outra coisa e a bolinha ficaria solta de novo.
+        // A versão anterior media DISTÂNCIA em caracteres (< 400, quando a real é 65), que é um
+        // número mágico: passava com o `if` fechado no meio, e quebraria num comentário a mais.
+        var corpo = fonte[gate..bolinha];
+        Assert.DoesNotContain("}", corpo);
     }
 
     private static string ListaDeJogos() =>

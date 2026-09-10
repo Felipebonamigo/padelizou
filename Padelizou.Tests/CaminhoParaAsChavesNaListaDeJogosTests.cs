@@ -54,7 +54,15 @@ public class CaminhoParaAsChavesNaListaDeJogosTests
         // E o atalho direto pra aba de chaves — a hash é o que a abre (ver o script no fim do
         // Details.cshtml), então o link precisa carregá-la.
         Assert.Contains("asp-fragment=\"grupos\"", fonte);
-        Assert.Contains("Chaves e Grupos", fonte);
+
+        // ⚠️ O RÓTULO, NA TAG — e não no arquivo. A primeira versão deste teste procurava a
+        // string "Chaves e Grupos" solta, e o comentário Razor logo acima do botão já a
+        // continha: ele passava com o botão apagado. É o mesmo defeito que o teste do card do
+        // Pix teve hoje, e por isso a régua agora é o trecho ENTRE as âncoras do link.
+        var link = fonte.IndexOf("asp-fragment=\"grupos\"", StringComparison.Ordinal);
+        var fimDoLink = fonte.IndexOf("</a>", link, StringComparison.Ordinal);
+        Assert.True(fimDoLink > link, "Não achei o fim do link das chaves.");
+        Assert.Contains("Chaves e Grupos", fonte[link..fimDoLink]);
         // Só quando a aba existe de verdade: link que cai numa aba inexistente é pior que
         // link nenhum, porque some sem dizer o que houve.
         Assert.Contains("AbaDeChavesEGrupos.Existe", fonte);

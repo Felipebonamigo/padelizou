@@ -2678,9 +2678,11 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 /* A HORA É O DADO QUE SE PROCURA NUMA LISTA DE 97 JOGOS (Deivid, 10/09/2026: "os horários
-   tão um pouco pequenos"). Ela estava do tamanho do texto comum, e a data — que desde o mesmo
-   pedido carrega o dia da semana — menor que a etiqueta cinza ao lado. Quem lê está de pé, no
-   clube, com o celular numa mão. */
+   tão um pouco pequenos"). Ela estava em 1rem — o tamanho do texto comum da linha — e a data em
+   .72rem. ⚠️ A data era, em pixels, MAIOR que a etiqueta de categoria ao lado (.68rem): o que a
+   fazia LER menor era a etiqueta ter peso 700 e fundo próprio. Corrigido aqui porque a primeira
+   versão deste comentário afirmava o contrário, e comentário errado é pior que comentário
+   nenhum. Quem lê está de pé, no clube, com o celular numa mão. */
 .pdz-jl-quando strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .pdz-jl-quando span { color: var(--pdz-muted); font-size: .8rem; }
 
