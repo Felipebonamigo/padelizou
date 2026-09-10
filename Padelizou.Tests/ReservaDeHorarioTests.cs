@@ -566,4 +566,34 @@ public class ReservaDeHorarioTests
         Assert.DoesNotContain(semisDaB, s => s.HorarioPrevisto == As("21:06"));
         Assert.Single(await ReservasAsync(c));         // a reserva continua viva, esperando a final
     }
+
+    // ═══ OS HORÁRIOS QUE A TELA OFERECE (10/09/2026) ═══
+    //
+    // 🗣️ *"ao alterar o horario, deixe para que fique mais facil seguindo a ordem padrão do jogo
+    // (nesse torneio é de 50 em 50 min)"*. A régua mora em Services/HorariosDaGrade e está
+    // travada lá; o que MORA AQUI é a ligação — a lista precisa sair da ação com os horários
+    // deste torneio, com a ocupação lida dos jogos e com o horário das PRÉVIAS incluído, senão
+    // abrir o modal numa prévia mostra o seletor sem nada marcado.
+    [Fact]
+    public async Task A_tela_oferece_os_horarios_da_grade_com_a_ocupacao_e_os_das_previas()
+    {
+        var c = Montar();
+        var previa = FinalDa(await PreviaAsync(c), c.B);
+
+        var controller = Controller(c);
+        Assert.IsType<ViewResult>(await controller.Jogos(c.Torneio.Id, null, null));
+        var slots = (List<HorariosDaGrade.Slot>)controller.ViewBag.SlotsDaGrade;
+
+        // O passo é o do torneio (11 min aqui), começando na abertura da grade.
+        Assert.Equal(Dia.AddHours(8), slots[0].Horario);
+        Assert.Equal(Dia.AddHours(8).AddMinutes(Duracao), slots[1].Horario);
+
+        // A ocupação vem dos jogos reais: às 20:00 está o A1, e a quadra é uma só.
+        var vinteEmPonto = slots.Single(s => s.Horario == As("20:00"));
+        Assert.Equal(1, vinteEmPonto.Ocupadas);
+        Assert.True(vinteEmPonto.Lotado);
+
+        // E o horário da prévia está lá pra poder ser o "atual" do seletor.
+        Assert.Contains(previa.Horario!.Value, slots.Select(s => s.Horario));
+    }
 }

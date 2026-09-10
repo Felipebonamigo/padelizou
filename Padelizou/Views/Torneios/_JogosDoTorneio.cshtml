@@ -54,6 +54,9 @@
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
     // As quadras que o torneio usa — a lista do "mudar de quadra".
     var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
+    // Os horários que ESTE torneio usa — a lista do "definir horário" (Services/HorariosDaGrade).
+    var slotsDaGrade = ViewBag.SlotsDaGrade as List<Padelizou.Services.HorariosDaGrade.Slot>
+        ?? new List<Padelizou.Services.HorariosDaGrade.Slot>();
 
     // De qual tela esta lista está sendo mostrada. As partials filhas (_JogoEmLinha) leem
     // daqui pra devolver o organizador pra ESTA página depois de uma ação — a página do
@@ -893,7 +896,46 @@
                             Jogo escolhido: <strong id="definirJogoRotulo">—</strong>
                         </p>
                         <label class="form-label fw-bold" for="definirHorario">Novo horário</label>
-                        <input type="datetime-local" class="form-control" name="horario" id="definirHorario" required />
+                        @* 🗣️ "ao alterar o horario, deixe para que fique mais facil seguindo a ordem
+                           padrão do jogo (nesse torneio é de 50 em 50 min)" (Felipe, 10/09/2026). Era
+                           um relógio em branco: pra ir das 19:40 pras 20:30 o organizador rolava a
+                           roda de minuto em minuto e tinha que saber o passo de cabeça — e errar por
+                           um minuto não dá erro, dá um jogo desalinhado que só aparece no Conferir
+                           grade. A lista é a do próprio torneio (Services/HorariosDaGrade). *@
+                        <select name="horario" id="definirHorario" class="form-select" required>
+                            @* ⚠️ VAZIA E PRIMEIRA. Sem ela o seletor já nasce com o primeiro horário
+                               do torneio marcado, e abrir o modal num jogo sem hora e apertar Salvar
+                               mandaria o jogo pras 08:00 do primeiro dia sem ninguém ter escolhido —
+                               o campo livre de antes, vazio, não fazia isso. *@
+                            <option value="">Escolha o horário…</option>
+                            @foreach (var dia in slotsDaGrade.GroupBy(s => s.Horario.Date))
+                            {
+                                <optgroup label="@dia.Key.ToString("dddd, dd/MM")">
+                                    @foreach (var slot in dia)
+                                    {
+                                        @* Quantas quadras sobram: é o que evita escolher o horário que
+                                           o servidor vai recusar por a quadra do jogo já ter dono. *@
+                                        var quantas = slot.Quadras <= 0 ? ""
+                                            : slot.Lotado ? " · sem quadra livre"
+                                            : slot.Livres == 1 ? " · 1 quadra livre"
+                                            : $" · {slot.Livres} quadras livres";
+                                        <option value="@slot.Horario.ToString("yyyy-MM-dd'T'HH:mm")">@slot.Horario.ToString("HH:mm")@quantas</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                        @* A SAÍDA PRA HORA QUEBRADA. A grade é o caminho normal, mas o dia de jogo
+                           tem 20:13: o campo livre continua ali, atrás de uma caixinha, e é ele que
+                           abre sozinho quando o jogo está numa hora que não é da grade. *@
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="definirForaDaGrade"
+                                   onchange="pdzDefinirHorarioModo()" />
+                            <label class="form-check-label" for="definirForaDaGrade">
+                                Outro horário, fora da grade
+                            </label>
+                        </div>
+                        <input type="datetime-local" class="form-control mt-2" name="horario"
+                               id="definirHorarioLivre" required disabled hidden />
                         <div class="form-text">
                             Só este jogo muda; a grade não é recalculada. Se a hora nova for num horário em que o
                             clube atual está fechado, o jogo vai pro clube principal. O Conferir grade aponta se
@@ -909,6 +951,18 @@
         </div>
 
         <script>
+            // Lista OU campo livre — nunca os dois. Campo `disabled` não é enviado, e é assim que
+            // os dois podem ter o mesmo `name` sem o servidor receber dois valores.
+            function pdzDefinirHorarioModo() {
+                var fora = document.getElementById('definirForaDaGrade').checked;
+                var lista = document.getElementById('definirHorario');
+                var livre = document.getElementById('definirHorarioLivre');
+                if (!lista || !livre) return;
+
+                lista.disabled = fora; lista.hidden = fora;
+                livre.disabled = !fora; livre.hidden = !fora;
+            }
+
             // O botão do card carrega o jogo e a hora atual dele no campo.
             document.addEventListener('DOMContentLoaded', function () {
                 var modal = document.getElementById('modalDefinirHorario');
@@ -918,7 +972,20 @@
                     if (!botao) return;
                     document.getElementById('definirJogo').value = botao.getAttribute('data-jogo-id');
                     document.getElementById('definirJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
-                    document.getElementById('definirHorario').value = botao.getAttribute('data-jogo-horario') || '';
+
+                    var atual = botao.getAttribute('data-jogo-horario') || '';
+                    var lista = document.getElementById('definirHorario');
+                    var livre = document.getElementById('definirHorarioLivre');
+                    lista.value = atual;
+                    livre.value = atual;
+
+                    // Hora que a lista não tem (jogo numa hora quebrada, ou a grade mudou depois
+                    // que a página abriu): abre já no campo livre, com o valor que o jogo tem — um
+                    // seletor em branco faria pensar que o jogo não tem hora. Lista sem horário
+                    // nenhum (torneio sem grade) também cai aqui, senão não haveria como salvar.
+                    document.getElementById('definirForaDaGrade').checked =
+                        lista.options.length <= 1 || (atual !== '' && lista.value !== atual);
+                    pdzDefinirHorarioModo();
                 });
             });
         </script>
