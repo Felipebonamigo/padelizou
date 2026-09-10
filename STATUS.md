@@ -44,7 +44,15 @@
 >
 > 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-988-7b37450`** (15h27 e 15h29 de Brasília — runs 183 e 184). PR #155. **Sem migration.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES DURANTE A ABERTURA DO PR** — #149, #152 e #154; depois #156 e #157; depois #158 —, e o `STATUS.md` conflitou nas três. Duas tentativas de merge foram recusadas com `405 Pull Request has merge conflicts` antes de a terceira passar. 📌 **A lição prática, com quatro sessões mergeando na mesma tarde:** o conflito não é o código, é este arquivo — cada mescla foi resolvida ficando com a minha entrada no topo e as do `main` logo abaixo, e a última ainda tirou um cabeçalho órfão que a anterior deixou (a entrada do `focused-euler` já tinha vindo do `main` com o cabeçalho dele).
+>
+> ⚠️ **O CI NÃO RODOU NO HEAD FINAL DO PR, e isso precisa estar escrito.** Os dois runs verdes foram no `5a10995` (983 e 984); o head mesclado (`1d79c23`) só acrescentou a resolução do `STATUS.md` e a remoção do cabeçalho órfão — **nenhuma mudança de código** —, e eu mergeei sem um terceiro run porque o `main` andava a cada poucos minutos. O que rodou aqui antes do merge: a suíte inteira (**6.201, 0 falhas**) e o `has-pending-model-changes` do CI (*"No changes have been made to the model since the last migration"*). O CI do `main` (run 988) fechou verde no commit de merge, que é o que gerou o release — sem ele não haveria o que instalar.
+>
+> ⚠️ **O BUILD FOI PEDIDO PELO NOME nos dois ambientes** (`build-988-7b37450`, e não "o mais recente"): entre o release e o deploy entrou o PR #159 no `main`, e "o mais recente" teria instalado outra coisa. 📌 E o de sempre: o `build-988` leva junto tudo que estava no `main` antes do meu merge — os PRs #156, #157 e #158 das sessões paralelas.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve 403 pros dois domínios. Quem atesta é o `deploy.sh` (rollback automático se não vier 200), e os dois logs dizem *"==> Feito. build-988-7b37450 no ar em dev"* e *"...no ar em prod"*. É evidência de verdade, mas não é verificação independente.
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
 >
