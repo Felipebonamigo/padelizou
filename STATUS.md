@@ -1,7 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (20h08 e 20h09 UTC — runs 194 e 195). PR #167. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO POR FORA, NOS DOIS:** `/healthz` devolveu **HTTP 200** e corpo **`ok`** em `padelizou.com.br` e em `dev.padelizou.com.br`. E mais que isso — o `site.css` servido pelos dois já traz `.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }`, ou seja, **é ESTE build que está no ar**, e não só "um deploy que terminou verde".
+>
+> ⚠️ **O `prod` NÃO PEDIU APROVAÇÃO.** O `infra/vps/README.md:159` manda marcar *Required reviewers* no environment `prod`, e eu avisei o Felipe que o deploy ficaria pendente esperando ele. Não ficou: o run 195 foi de ponta a ponta em **11 segundos** (20:09:46 → 20:09:57), sem parada. Ou o environment `prod` não existe com a trava, ou o dono do repo se auto-aprova. **Fica anotado como coisa a conferir** — a trava documentada e a trava real não são a mesma.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES**: PR #165 (check-in) antes do meu CI, e PR #168 (palpitrômetro) entre o meu merge e o deploy. Publiquei **pela tag** `build-1008-14383b5`, e não por "o mais recente" — senão o `prod` levava junto o #168, que a outra sessão ainda não quis publicar.
+
 >
 > 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
 >
@@ -70,7 +77,7 @@
 > 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
 >
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (PR #167). **Sem migration.** O registro do deploy — horários, runs e o que foi conferido por fora — está na entrada do topo.
 >
 > 📍 **A PRIMEIRA COISA DA TELA DO TORNEIO PASSA A SER O JOGO.** 🗣️ Felipe, com a página aberta no celular: *"acho que podemos remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já pagaram, e aí fica melhor a visão da tela, porque atualmente, quando abro o site a primeira coisa que queria ver é os jogos ao vivo"* e *"Os menus Pagamentos e impedimentos e Planejamento de quadras, também pode mover para dentro do Gerenciar torneio, depois que foi publicada as chaves"*. **Duas coisas, o mesmo problema:** publicada a chave, o topo da página continuava sendo sobre INSCRIÇÃO — card de cobrança e duas abas de preparação — enquanto quem abre quer placar.
 >
