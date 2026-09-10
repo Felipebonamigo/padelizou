@@ -259,7 +259,15 @@
 <ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist" data-torneio-id="@Model.TorneioId">
     <li class="nav-item" role="presentation">
         <button class="nav-link @(defaultAoVivo ? "active" : "")" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
-            <span class="pdz-tab-dot"></span> Ao Vivo (@aoVivoList.Count)
+            @* A BOLINHA VERMELHA SÓ COM JOGO EM QUADRA (Felipe, 10/09/2026: "deixaria piscando
+               vermelho só quando houvesse jogo ao vivo"). Acesa ao lado de um "(0)", ela deixa
+               de ser sinal: quem varre a tela aprende a ignorá-la, e no dia do jogo de verdade
+               ela não chama mais ninguém. Mesma lista do contador ao lado — nunca duas contas. *@
+            @if (aoVivoList.Count > 0)
+            {
+                <span class="pdz-tab-dot"></span>
+            }
+            Ao Vivo (@aoVivoList.Count)
         </button>
     </li>
     <li class="nav-item" role="presentation">

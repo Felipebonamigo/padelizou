@@ -75,4 +75,40 @@ public static class PixDoOrganizador
         return $"Olá! Acabei de pagar a inscrição do {nomeDoTorneio} pelo Pix.{quem} "
              + "Estou mandando o comprovante aqui.";
     }
+
+    // ── JÁ PAGUEI? O CARD RECOLHE ────────────────────────────────────────────────────────
+    // 🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+    // ocupa muito espaço"*. No celular, o bloco inteiro — valor, chave, aviso e botão do
+    // WhatsApp — empurrava as abas do torneio (Inscritos, Jogos, Chaves e Grupos) pra fora
+    // da tela de quem já tinha resolvido a parte dele.
+    //
+    // ⚠️ RECOLHE, NÃO SOME (a view usa <details>): a última palavra sobre quem pagou é do
+    // organizador virando o `Pago` na mão — muita inscrição é paga em dinheiro na quadra —, e
+    // uma marcação errada dele não pode deixar o jogador sem caminho pra pagar.
+    //
+    // ⚠️ "JÁ PAGUEI" É TODAS AS MINHAS INSCRIÇÕES DESTE TORNEIO. Com duas categorias, uma paga
+    // e outra não, o card continua aberto: é justamente quem ainda deve. E quem não tem
+    // inscrição nenhuma também vê aberto — essa pessoa é a que ainda vai pagar.
+    //
+    // ⚠️ TIME FICA DE FORA (`NomeTime == null`, a mesma exclusão do "Pagar agora" no
+    // controller): todo time é uma `Dupla` com o organizador no `Jogador1Id`, e sem isso um
+    // time sem pagamento manteria o card aberto pra sempre na tela dele.
+    public static async Task<bool> JaPagouTudoAsync(DbPadelContext db, int torneioId, int jogadorId)
+    {
+        var duplas = await db.Duplas
+            .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null
+                     && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+            .Select(d => d.Pago)
+            .ToListAsync();
+
+        var americanas = await db.InscricoesAmericanas
+            .Where(i => i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId)
+            .Select(i => i.Pago)
+            .ToListAsync();
+
+        // Duas consultas e não uma: `Concat` de projeções de tabelas diferentes é exatamente o
+        // tipo de tradução que o InMemory dos testes aceita e o Postgres recusa (19/08/2026).
+        return (duplas.Count + americanas.Count) > 0
+            && duplas.All(pago => pago) && americanas.All(pago => pago);
+    }
 }

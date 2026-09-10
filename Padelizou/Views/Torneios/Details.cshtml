@@ -750,8 +750,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
         : null;
 
-    <div class="alert alert-success border-0">
-        <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
+    @* ── RECOLHIDO PRA QUEM JÁ PAGOU ─────────────────────────────────────────────────────
+       🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+       ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
+       da tela.
+
+       ⚠️ `<details>` E NÃO UM `if` QUE APAGA. Quem diz que a inscrição está paga é o
+       organizador virando o `Pago` na mão (muita gente paga em dinheiro na quadra); uma
+       marcação errada dele não pode deixar o jogador sem caminho pra pagar. Recolhido, a
+       chave continua a um toque.
+
+       O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
+       aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
+    bool pixRecolhido = ViewBag.JaPagueiNesteTorneio == true;
+
+    <details class="alert alert-success border-0 pdz-pix" open="@(pixRecolhido ? null : "open")">
+        <summary class="fw-bold">
+            @if (pixRecolhido)
+            {
+                <text><i class="bi bi-check-circle-fill"></i> Inscrição paga — ver o Pix do organizador</text>
+            }
+            else
+            {
+                <text><i class="bi bi-qr-code"></i> Pix do organizador</text>
+            }
+        </summary>
 
         @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
            valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
@@ -808,7 +831,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 A conversa abre já escrita — é só anexar a foto do comprovante.
             </p>
         }
-    </div>
+    </details>
 
     <script>
         function pdzCopiarPix(botao) {
@@ -997,8 +1020,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
-    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado"
-         || (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente && ViewBag.PodeAprovarChaves == true))
+    @* A MESMA régua que decide o botão "Chaves e Grupos" da lista de jogos (Services/AbaDeChavesEGrupos):
+       lá o link só é oferecido quando esta aba existe de verdade aqui. *@
+    @if (AbaDeChavesEGrupos.Existe(Model, ViewBag.PodeAprovarChaves == true))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="grupos-tab" data-bs-toggle="tab" data-bs-target="#grupos" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -5872,7 +5896,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 }
                                                                 else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
                                                                 {
-                                                                    <span>@hg.ToString("dd/MM HH:mm")</span>
+                                                                    <span>@DiaDaSemana.Curto(hg) @hg.ToString("dd/MM HH:mm")</span>
                                                                 }
                                                                 else
                                                                 {
@@ -5987,7 +6011,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                             <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                             @if (previsto?.Horario is DateTime quando)
                                                             {
-                                                                <span>@quando.ToString("dd/MM HH:mm")</span>
+                                                                <span>@DiaDaSemana.Curto(quando) @quando.ToString("dd/MM HH:mm")</span>
                                                                 @if (!string.IsNullOrEmpty(previsto.Quadra))
                                                                 {
                                                                     <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
