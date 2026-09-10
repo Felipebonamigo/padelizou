@@ -31,10 +31,20 @@ public static class ReservasDeHorario
     // a ordem em que o robô grava a rodada, e a mesma com que a prévia e a tela citam o jogo
     // ("Vencedor Quartas de Final 2"). É a chave da reserva do lado do jogo real.
     public static Dictionary<int, int> NumeroNaFase(IEnumerable<Partida> partidas) =>
-        partidas
-            .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
-            .GroupBy(p => new { p.CategoriaId, p.Fase })
-            .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => (p.Id, Numero: i + 1)))
+        NumeroNaFase(partidas.Select(p => (p.Id, p.CategoriaId, p.Fase)));
+
+    // A MESMA conta a partir só do que ela precisa (Id, categoria, fase) — 10/09/2026.
+    //
+    // ⚠️ Existe porque o número TEM QUE SAIR DA GRADE INTEIRA DO TORNEIO, e a tela de jogos
+    // carrega uma lista já recortada (por time e por categoria isso vira SQL, antes de qualquer
+    // lista existir). Numerar o recorte faz a Semifinal 2 aparecer escrita "Semifinal 1" — e a
+    // prévia, que não é recortada, continuar citando "Vencedor Semifinal 2". A referência
+    // apontando pro jogo errado é pior que não numerar.
+    public static Dictionary<int, int> NumeroNaFase(IEnumerable<(int Id, int CategoriaId, string Fase)> jogos) =>
+        jogos
+            .Where(j => ChaveamentoMataMata.EhFaseDeMataMata(j.Fase))
+            .GroupBy(j => new { j.CategoriaId, j.Fase })
+            .SelectMany(g => g.OrderBy(j => j.Id).Select((j, i) => (j.Id, Numero: i + 1)))
             .ToDictionary(x => x.Id, x => x.Numero);
 
     // O resultado de aplicar as reservas aos jogos reais: quem ficou com a hora da reserva (os

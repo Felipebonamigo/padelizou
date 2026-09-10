@@ -122,8 +122,14 @@
         ?? Array.Empty<(int Id, string Nome)>();
     var fasesFiltro = ViewBag.FasesDoTorneio as IReadOnlyList<(string Valor, string Rotulo)>
         ?? Array.Empty<(string Valor, string Rotulo)>();
+    // ⚠️ As quadras do FILTRO não são as do "mudar de quadra". Aquela lista completa pelo
+    // CADASTRO quando os jogos não têm quadra, e no torneio por ordem de liberação NENHUM tem —
+    // o select aparecia cheio e qualquer escolha esvaziava a tela. Esta só traz quadra que
+    // algum jogo de fato usa (ver TorneiosController.CarregarViewBagJogosAsync).
+    var quadrasParaFiltrar = ViewBag.QuadrasParaFiltrar as IReadOnlyList<string> ?? Array.Empty<string>();
+    int agendadasNoTorneio = ViewBag.AgendadasNoTorneio as int? ?? agendadasList.Count;
     bool temFiltroDeClube = clubesFiltro.Count > 1;
-    bool temFiltroDeQuadra = quadrasDoTorneio.Count > 1;
+    bool temFiltroDeQuadra = quadrasParaFiltrar.Count > 1;
     bool temFiltroDeFase = fasesFiltro.Count > 1;
 }
 @if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui || temFiltroDeClube || temFiltroDeQuadra || temFiltroDeFase)
@@ -175,7 +181,7 @@
         {
             <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
                 <option value="">Todas as quadras</option>
-                @foreach (var nomeDaQuadra in quadrasDoTorneio)
+                @foreach (var nomeDaQuadra in quadrasParaFiltrar)
                 {
                     <option value="@nomeDaQuadra"
                             selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
@@ -640,7 +646,7 @@
                wwwroot/js/confirmar.js, faltava pedir. É a única ação desta tela que joga trabalho
                fora, e por isso o botão dela também é `btn-danger`. *@
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
-                  data-confirmar="Gera horários NOVOS pra todos os @agendadasList.Count jogos que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                  data-confirmar="Gera horários NOVOS pra todos os @agendadasNoTorneio jogos do torneio que ainda não começaram — inclusive os que o filtro está escondendo. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
                   data-confirmar-titulo="Recalcular todos os horários?"
                   data-confirmar-tom="perigo"
                   data-confirmar-ok="Recalcular e perder os ajustes">
@@ -747,6 +753,16 @@
                             Jogo escolhido: <strong id="trocaJogoARotulo">—</strong>
                         </p>
                         <label class="form-label fw-bold" for="trocaJogoB">Trocar com qual jogo?</label>
+                        @* A lista sai da MESMA lista da aba, então o filtro de cima recorta as opções
+                           daqui também. Dizer isso é o mínimo: sem o aviso, o jogo que o organizador
+                           procura simplesmente não está lá, e nada na tela explica por quê. *@
+                        @if (filtroSequencia.Ativo || soMeusJogos || categoriaFiltroAtual.Length > 0)
+                        {
+                            <div class="form-text text-warning-emphasis mb-1">
+                                <i class="bi bi-funnel-fill"></i>
+                                A lista abaixo segue os filtros da tela. Limpe os filtros pra trocar com um jogo que não aparece.
+                            </div>
+                        }
                         @* 🗣️ "aqui quando eu for selecionar outro jogo, ta muito poluido" (Felipe,
                            10/09/2026). Eram 97 linhas de ~120 caracteres, todas repetindo a data e
                            o nome completo dos quatro jogadores. Três cortes, nenhum deles perde

@@ -69,9 +69,24 @@ public sealed record FiltroDeJogos(int? ClubeId = null, string? Quadra = null, s
             .Select(f => FasesTorneio.EhFaseDeGrupos(f) ? FasesTorneio.FaseDeGrupos : f.Trim())
             .Distinct()
             .OrderBy(Ordem)
+            // O NÚMERO NO FIM DO NOME ORDENA COMO NÚMERO. As rodadas do Americano ("Americano
+            // Rodada 1".."Rodada 11") não estão na corrente do mata-mata e caíam no desempate
+            // por nome, que põe a "Rodada 10" antes da "Rodada 2" — quem opera a mesa procurando
+            // a rodada seguinte a achava no meio da lista.
+            .ThenBy(NumeroNoFim)
             .ThenBy(f => f, StringComparer.CurrentCultureIgnoreCase)
             .Select(f => (Valor: f, Rotulo: f == FasesTorneio.FaseDeGrupos ? "Fase de grupos" : f))
             .ToList();
+
+    // O inteiro que termina o nome, ou int.MaxValue quando não termina em número — aí quem
+    // desempata é o nome, como antes.
+    private static int NumeroNoFim(string fase)
+    {
+        var fim = fase.Length;
+        while (fim > 0 && char.IsAsciiDigit(fase[fim - 1])) fim--;
+
+        return fim < fase.Length && int.TryParse(fase.AsSpan(fim), out var numero) ? numero : int.MaxValue;
+    }
 
     // Grupos antes de tudo; depois a corrente do mata-mata (ChaveamentoMataMata.ProximaFase),
     // que é a única que sabe que "Primeira Rodada" vem antes de "Oitavas de Final".
