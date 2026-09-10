@@ -725,7 +725,12 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TrocarDuplasDeGrupo(int id, int duplaA, int duplaB)
+        // ⚠️ O PADRÃO É REFAZER, e isso é escolha de segurança, não inércia: o formulário SEMPRE
+        // manda a opção, então este valor só vale pra quem chamar sem dizer nada — e pra esse, o
+        // certo é a garantia que foi vendida (o impedimento pago). É o que as duas guardas de
+        // 09/09 afirmam, e elas continuam chamando sem parâmetro de propósito.
+        public async Task<IActionResult> TrocarDuplasDeGrupo(int id, int duplaA, int duplaB,
+            bool refazerHorarios = true)
         {
             // Com os jogadores: a mensagem do fim diz QUEM trocou, e sem eles NomeDeExibicao cai
             // em "Dupla 11" (10/09/2026, ensaio do Er — o InMemory da suíte preenche a navegação
@@ -758,7 +763,11 @@ namespace Padelizou.Controllers
                 return ParaAsChaves(id);
             }
 
-            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).OrderBy(p => p.Id).ToListAsync();
+            var duplasParaAuditar = duplasDoTorneio;
+            var sedesDaTroca = await SedesAsync(id);
+            var antesDaTroca = Padelizou.Services.ImpactoDaTroca.Contar(torneio, jogos, duplasParaAuditar, sedesDaTroca);
+
             TrocaDeGrupo.Trocar(a!, b!, jogos);
 
             // ⚠️ E AGORA A GRADE INTEIRA É REFEITA — a segunda metade do pedido ("ao trocar,
@@ -774,16 +783,45 @@ namespace Padelizou.Controllers
             // não é pública, ninguém se organizou pra horário nenhum, e nada começou — então
             // AberturaDoRecalculo devolve a `AberturaDaGrade` do torneio, a mesma origem do
             // sorteio, em vez de `DateTime.Now`.
-            var (remarcados, _) = await RecalcularAGradeAsync(torneio, jogos);
+            // ⚠️ REFAZER OS HORÁRIOS VIROU ESCOLHA (10/09/2026). 🗣️ *"não obrigue a refazer os
+            // horarios, questione se é para refazer os horarios ou apenas trocar as dupla sem mudar
+            // os horarios"*. O recálculo automático era a segunda metade do pedido de 09/09 e
+            // continua CERTO — mas ficou caro: depois de uma noite arrumando horário na mão, trocar
+            // duas duplas de grupo jogava todo esse trabalho fora.
+            //
+            // Mantendo os horários, o risco de 09/09 é real: o jogo guardou o horário e trocou de
+            // DONO, então a dupla que veio do sábado pode herdar a sexta que ela pagou pra não
+            // jogar. Não se impede — CONTA-SE, com a mesma régua do Conferir grade, e se diz onde
+            // resolver (o "Ajustar horários", que conserta trocando slots em vez de refazer tudo).
+            int semHorario = 0;
+            if (refazerHorarios)
+            {
+                var (remarcados, _) = await RecalcularAGradeAsync(torneio, jogos);
+                semHorario = remarcados.Count(j => j.HorarioPrevisto == null);
+            }
 
             await _context.SaveChangesAsync();
 
-            var semHorario = remarcados.Count(j => j.HorarioPrevisto == null);
-            TempData[semHorario > 0 ? "Erro" : "Sucesso"] =
-                $"{a!.NomeDeExibicao} foi pro Grupo {a.Grupo} e {b!.NomeDeExibicao} pro Grupo {b.Grupo}. "
-                + (semHorario > 0
+            var depoisDaTroca = Padelizou.Services.ImpactoDaTroca.Contar(torneio, jogos, duplasParaAuditar, sedesDaTroca);
+            var impacto = Padelizou.Services.ImpactoDaTroca.Comparar(antesDaTroca, depoisDaTroca);
+
+            var quem = $"{a!.NomeDeExibicao} foi pro Grupo {a.Grupo} e {b!.NomeDeExibicao} pro Grupo {b.Grupo}. ";
+            var oQueAconteceu = refazerHorarios
+                ? (semHorario > 0
                     ? $"⚠️ {semHorario} jogos ficaram SEM HORÁRIO: com os impedimentos desta troca não sobrou vaga no expediente."
-                    : "Os horários foram recalculados respeitando os impedimentos.");
+                    : "Os horários foram recalculados respeitando os impedimentos.")
+                : "Os horários ficaram como estavam — nenhuma troca sua se perdeu.";
+
+            var oQueMudou = impacto.Grau switch
+            {
+                Padelizou.Services.ImpactoDaTroca.Nivel.Igual => "",
+                Padelizou.Services.ImpactoDaTroca.Nivel.Melhora => $" No Conferir grade, {impacto.Texto}.",
+                _ => $" ⚠️ No Conferir grade, {impacto.Texto} — o botão \"Ajustar horários\" conserta isso sem refazer a grade.",
+            };
+
+            bool ruim = semHorario > 0 || impacto.Grau == Padelizou.Services.ImpactoDaTroca.Nivel.Perigo;
+            TempData[ruim ? "Erro" : "Sucesso"] = quem + oQueAconteceu + oQueMudou;
+
             return ParaAsChaves(id);
         }
 

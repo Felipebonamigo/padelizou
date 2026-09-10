@@ -127,6 +127,79 @@ public class TrocaDeDuplaEntreGruposTests
         Assert.Empty(await FurosDeImpedimentoAsync(ctx, torneio));
     }
 
+    // 🗣️ Felipe, 10/09/2026, depois de passar a noite arrumando horário na mão: *"nessa função de
+    // trocar as duplas de grupo, não obrigue a refazer os horarios, questione se é para refazer os
+    // horarios ou apenas trocar as dupla sem mudar os horarios"*.
+    //
+    // O recálculo automático era a segunda metade do pedido de 09/09 e continua certo — mas virou
+    // caro depois que o organizador passou a ter trabalho manual na grade: trocar duas duplas de
+    // grupo jogava fora todas as trocas de horário feitas na mão. Agora ele escolhe.
+    [Fact]
+    public async Task Sem_refazer_os_horarios_os_slots_ficam_exatamente_onde_estavam()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _, controller) = await SortearAsync(ctx, qtdDuplas: 16);
+        var (a, b) = await DuasDuplasDeGruposDiferentesAsync(ctx, categoria);
+
+        var antes = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).AsNoTracking()
+            .ToDictionaryAsync(p => p.Id, p => p.HorarioPrevisto);
+
+        await controller.TrocarDuplasDeGrupo(torneio.Id, a.Id, b.Id, refazerHorarios: false);
+
+        var depois = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).AsNoTracking()
+            .ToDictionaryAsync(p => p.Id, p => p.HorarioPrevisto);
+
+        Assert.Equal(antes.Count, depois.Count);
+        Assert.All(depois, par => Assert.Equal(antes[par.Key], par.Value));
+
+        // E a troca de grupo aconteceu de verdade.
+        await ctx.Entry(a).ReloadAsync();
+        await ctx.Entry(b).ReloadAsync();
+        Assert.NotEqual(a.Grupo, b.Grupo);
+    }
+
+    // ⚠️ E O AVISO É O QUE TORNA A ESCOLHA SEGURA: sem refazer, a dupla pode herdar um horário
+    // dentro do impedimento que ela pagou. O sistema não impede — ele CONTA, com a mesma régua do
+    // Conferir grade (Services/ImpactoDaTroca), e o organizador resolve com o "Ajustar horários".
+    [Fact]
+    public async Task Sem_refazer_o_aviso_diz_que_o_impedimento_foi_furado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _, controller) = await SortearAsync(ctx, qtdDuplas: 16);
+        var sexta = SextaDeAbertura.Date;
+        var daSexta = await UmaDuplaQueJogaEmAsync(ctx, categoria, sexta);
+        var doSabado = await UmaDuplaQueJogaEmAsync(ctx, categoria, sexta.AddDays(1), exceto: daSexta.Grupo);
+        doSabado.ImpedimentoSextaNoite = true;
+        await ctx.SaveChangesAsync();
+
+        var resultado = await controller.TrocarDuplasDeGrupo(torneio.Id, daSexta.Id, doSabado.Id,
+            refazerHorarios: false);
+
+        // O furo existe (é o preço de manter os horários) E está escrito na tela.
+        Assert.NotEmpty(await FurosDeImpedimentoAsync(ctx, torneio));
+        var aviso = string.Join(" ", controller.TempData.Values.Select(v => v?.ToString()));
+        Assert.Contains("Impedimento", aviso);
+        Assert.Contains("Ajustar horários", aviso);
+    }
+
+    // Refazendo, continua valendo o de sempre — é o mesmo teste do coração do pedido de 09/09,
+    // agora com a escolha explícita.
+    [Fact]
+    public async Task Refazendo_os_horarios_o_impedimento_pago_continua_protegido()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _, controller) = await SortearAsync(ctx, qtdDuplas: 16);
+        var sexta = SextaDeAbertura.Date;
+        var daSexta = await UmaDuplaQueJogaEmAsync(ctx, categoria, sexta);
+        var doSabado = await UmaDuplaQueJogaEmAsync(ctx, categoria, sexta.AddDays(1), exceto: daSexta.Grupo);
+        doSabado.ImpedimentoSextaNoite = true;
+        await ctx.SaveChangesAsync();
+
+        await controller.TrocarDuplasDeGrupo(torneio.Id, daSexta.Id, doSabado.Id, refazerHorarios: true);
+
+        Assert.Empty(await FurosDeImpedimentoAsync(ctx, torneio));
+    }
+
     [Fact]
     public async Task A_troca_nao_atrapalha_o_impedimento_de_quem_nao_pediu_nada()
     {

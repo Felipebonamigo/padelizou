@@ -9,8 +9,25 @@
 >
 > 🧪 **6.043 testes, 0 falhas (12 novos).** Vistos vermelhos antes: *"HorariosDaGrade não existe"*, a lista da tela sem sair da ação, e o seletor sem a opção vazia.
 >
-> 🔴 **UM TESTE DO MAIN FALHA 1 VEZ EM 15, E NÃO É DESTE TRABALHO — MEDIDO.** `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_mesma_grade` quebra no `Assert.Empty(conflitos)`: a grade marca **a mesma pessoa em duas quadras no mesmo horário**. Reproduzido num worktree limpo do `main` (`ac65c87`), sem alteração nenhuma: **1 falha em 15 execuções**. É intermitente porque o sorteio da chave direta é aleatório — o CI passa quase sempre e o furo segue no código. Não foi corrigido aqui de propósito: é o motor da grade, área que a sessão paralela estava mexendo no mesmo momento (`ONDAS-PARALELAS.md`). **Fica como o próximo trabalho, e é dos graves.**
+> 🔴 **CONFIRMO A MEDIÇÃO DA SESSÃO PARALELA sobre `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_mesma_grade`** (a tabela dos dois testes instáveis, entrada de hoje mais abaixo): num worktree limpo do `main` em `ac65c87`, sem alteração nenhuma, **1 falha em 15 execuções** — a deles deu 1 em 25, no mesmo lugar (`Assert.Empty(conflitos)`, a mesma pessoa em duas quadras no mesmo horário). Duas medições independentes, mesmo defeito. Não mexi nele aqui de propósito: é o motor da grade, que a sessão paralela estava alterando no mesmo momento (`ONDAS-PARALELAS.md`).
 >
+
+> **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-920-d3ac215`** (10h29 nos dois — runs 150 e 151). PR #131, a troca de duplas de grupo. **Sem migration.** Este release leva junto o **PR #128** (sequência de jogos por clube, da sessão paralela), que estava mergeado e fora do ar.
+>
+> 🔀 **REFAZER OS HORÁRIOS AO TROCAR DUAS DUPLAS DE GRUPO VIROU ESCOLHA.** 🗣️ *"nessa função de trocar as duplas de grupo, não obrigue a refazer os horarios, questione se é para refazer os horarios ou apenas trocar as dupla sem mudar os horarios"*. O recálculo automático era a segunda metade do pedido de 09/09 e **continua certo** — mas ficou caro no dia em que o organizador passou a ter trabalho manual na grade: trocar duas duplas jogava a noite inteira de ajustes fora. Agora um rádio, com **"Só trocar as duplas" marcado por padrão na tela**.
+>
+> ⚠️ **O QUE TORNA A ESCOLHA SEGURA É O AVISO, não a proibição.** Mantendo os horários, o risco de 09/09 é real: o jogo guarda o horário e **troca de DONO**, então a dupla que veio do sábado pode herdar a sexta que ela pagou pra não jogar. O sistema não impede — **conta**. `ImpactoDaTroca` ganhou `Contar`/`Comparar` (as mesmas peças do aviso da troca de horário, PR #129) e a mensagem do fim diz o que mudou no Conferir grade **e onde resolver**: o "Ajustar horários", que conserta trocando slots em vez de refazer tudo. Os três botões passaram a se compor.
+>
+> ⚠️ **O PADRÃO DA AÇÃO É `refazerHorarios: true`, e isso é segurança e não inércia:** o formulário SEMPRE manda a escolha, então o default só vale pra quem chamar sem dizer nada — e pra esse o certo é a garantia que foi vendida (o impedimento pago). As duas guardas de 09/09 continuam chamando sem parâmetro, de propósito.
+>
+> 🛡️ **DUAS GUARDAS DA SESSÃO PARALELA ME PEGARAM NO MESMO PR, E AS DUAS TINHAM RAZÃO.** (1) Eu tirei o `data-confirmar` do formulário porque o texto afirmava "TODOS os horários são recalculados", o que agora depende do rádio — a resposta certa não era **tirar** o aviso, era **reescrevê-lo pra valer nos dois modos**. (2) Um comentário meu longo demais empurrou o `@if` de autorização pra fora da janela de 1500 caracteres que o outro teste inspeciona. **Lição, e é a terceira desta sessão no mesmo tema:** quando uma guarda reclama, a pergunta certa é *"o que ela está protegendo?"* — não *"como faço ela calar?"*.
+>
+> 🧪 **6.017 testes, 0 falhas (3 novos).** Falsificados antes: a ação não tinha o parâmetro; e os horários mudando quando o teste pediu pra não mudar.
+>
+> ⏭️ **NO TORNEIO DO ER:** Ajustar horários → Conferir grade → trocas na mão (com o aviso de impacto) → **Aprovar chaves**.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
+
 > **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-912-3bcbb64`** (09h47 nos dois — runs 144 e 145). PR #129, a tela de **trocar horário**. **Sem migration.** ⚠️ **O PR #128 (a sequência de jogos por clube, entrada abaixo) entrou na `main` DEPOIS deste release e NÃO está no ar** — o próximo deploy leva ele junto.
 >
 > 📋 **A LISTA DE "TROCAR COM QUAL JOGO" ESTAVA ILEGÍVEL.** 🗣️ *"aqui quando eu for selecionar outro jogo, ta muito poluido"* — eram **97 linhas de ~120 caracteres**, cada uma repetindo a data e o nome civil dos quatro jogadores. Três cortes, nenhum perde informação que o organizador use pra escolher: o **DIA** subiu pro `<optgroup>` (aparece uma vez, não 97), o nome virou `NomeDaDupla.CompactoNa` e a categoria `CategoriaNaTela.Curto`. **As duas réguas já existiam e são o que a aba de jogos mostra** — degrau 2 da escada do CLAUDE.md, reuso em vez de invenção.
@@ -29,7 +46,7 @@
 >
 > ⏭️ **NO TORNEIO DO ER:** Ajustar horários → Conferir grade → trocas na mão (agora com o aviso) → **Aprovar chaves**.
 
-> **10/09/2026** — 🔎 **A SEQUÊNCIA DE JOGOS POR CLUBE, POR QUADRA E POR FASE** na aba Jogos (página do torneio e `/Torneios/Jogos`). ⚠️ **Ainda NÃO publicado** — branch `claude/game-sequence-function-kibwiu`. **Sem migration.** 🗣️ *"Crie uma função aqui, para poder [ver] a sequencia de jogos, Por clube, por quadra, por fase (quartas, semi,etc)"*, num print da aba Jogos do 2º Etapa ER Padel Tour (88 jogos em dois clubes).
+> **10/09/2026** — 🔎 **A SEQUÊNCIA DE JOGOS POR CLUBE, POR QUADRA E POR FASE** na aba Jogos (página do torneio e `/Torneios/Jogos`). 🚀 **PUBLICADO em `dev` e `prod`** — PR #128 (`build-918-ddfb6f0`) e PR #130, que corrigiu o que a revisão adversarial achou no #128; o `build-920` que está no ar carrega os dois. **Sem migration.** 🗣️ *"Crie uma função aqui, para poder [ver] a sequencia de jogos, Por clube, por quadra, por fase (quartas, semi,etc)"*, num print da aba Jogos do 2º Etapa ER Padel Tour (88 jogos em dois clubes).
 >
 > ✅ **Três selects novos** ao lado do de time e do de categorias, aplicam sozinhos ao escolher (`clubeFiltroId`, `quadraFiltro`, `faseFiltro` na URL): **clube** (só em torneio de mais de um — com um só não separa nada), **quadra** (as em uso, com o clube junto: "Er Padel · Arena 1", a mesma etiqueta da linha) e **fase** (as que o torneio TEM, na ordem da chave; os grupos viram uma escolha só, "Fase de grupos"). "Limpar filtros" aparece quando algum está ligado; o "Meus jogos" leva os três na URL. A régua mora em `Services/FiltroDeJogos` e vale pros DOIS tipos de linha — o jogo real e a **prévia** (filtrar por "Semifinal" não mostra a Final prevista embaixo).
 >
@@ -39,7 +56,34 @@
 >
 > 🧪 **6.005 testes, 0 falhas** (18 novos em `SequenciaDeJogosPorClubeQuadraEFaseTests`: a régua sem banco, a precedência do clube, as duas portas — `Jogos` e `Details` — e um teste de FONTE que trava os três `name=` da tela). A view compilou; a suíte não renderiza Razor, então o select em si não foi visto no navegador.
 >
-> ⏭️ PR → CI → merge → `dev` → `prod`. Detalhe consciente: o modal "Trocar horário" lista só os jogos da lista filtrada — pra trocar com um de fora, limpar o filtro.
+> ⏭️ Feito: PR → CI → merge → `dev` → `prod`. Detalhe consciente: o modal "Trocar horário" lista só os jogos da lista filtrada — pra trocar com um de fora, limpar o filtro. O #130 fez o modal DIZER isso, em vez de o jogo sumir sem explicação.
+
+> **10/09/2026** — 🩺 **O QUE A REVISÃO ADVERSARIAL DO PR #128 ACHOU — e por que ela pagou o próprio custo (PR #130).** Cinco lentes sobre o diff, cada achado passado por dois céticos independentes com ordem de REFUTAR. Seis defeitos reais, três graves, num diff que já tinha 6.005 testes verdes e CI verde.
+>
+> 🕳️ **1. FILTRAR A ABA JOGOS CORROMPIA O QUADRO DA ABA CHAVES — o casamento lá é POR ÍNDICE.** `Details.cshtml` desenha a chave prevista lendo `ViewBag.JogosQueVem` e pareando `daFase[i]` por POSIÇÃO. Com uma semifinal fora da lista, a outra caía na vaga da primeira: hora e quadra erradas embaixo do confronto errado, pra qualquer jogador que abrisse a chave. ⚠️ **JÁ ACONTECIA COM O "MEUS JOGOS"** desde 09/09 — o filtro novo só tornou frequente o que era raro. `ViewBag.ProjecaoCompleta` é a lista que ninguém recorta, e é dela que a aba Chaves lê agora.
+>
+> 🕳️ **2. NO TORNEIO POR ORDEM O FILTRO DE QUADRA NUNCA CASAVA COM NADA.** `OrdemDeLiberacao.ApagarAsQuadras` zera `NomeQuadra` de todo jogo, aí `NomesDeQuadra.Disponiveis` cai no CADASTRO e o select aparecia com as três quadras — **qualquer escolha esvaziava a tela**. O filtro quebrado justamente no torneio do Er, que é o do print que originou o pedido. As opções saem das quadras que algum jogo DE FATO usa; sem nenhuma, o select não aparece.
+>
+> 🕳️ **3. REGRA 0:** essa mesma lista não passava pelo portão da chave não aprovada — visitante deslogado via, num torneio "Chaves em Aprovação", as quadras que a grade não publicada ocupa, com nome de clube, ao lado do texto "as chaves ainda não foram publicadas".
+>
+> 🕳️ **4. O AVISO VERMELHO DO "RECALCULAR HORÁRIOS" CONTAVA A LISTA DA TELA.** Com o filtro no Radar prometia refazer "11 jogos" e refazia os 88. Diálogo de ação destrutiva mentindo sobre o tamanho do estrago é o defeito que os PRs #123 e #125 foram escritos pra evitar — e ele voltou por uma porta lateral. ⚠️ **Também já valia pro filtro de categoria**, que existe há muito mais tempo.
+>
+> 🕳️ **5. O número do jogo na fase ainda renumerava com o filtro de TIME** (que vira SQL antes de qualquer lista existir) e **6.** as rodadas do Americano saíam alfabéticas no select ("Rodada 10" antes da "Rodada 2").
+>
+> 🧠 **A LIÇÃO, e ela é sobre ViewBag:** `JogosQueVem`, `Agendadas` e `QuadrasDoTorneio` pareciam da aba Jogos e não eram — outras telas liam as mesmas chaves. **Filtrar uma lista que já está no `ViewBag` é mudar o dado de todo mundo que lê aquela chave**, e o compilador não avisa. Quem recortar uma lista pra uma tela: publique o recorte numa CHAVE NOVA e deixe a original inteira, ou vá ler quem mais consome a chave antes. O grep é `ViewBag.<Nome>` no projeto todo, e leva um minuto.
+>
+> 🧪 **6.025 testes, 0 falhas** (11 novos no #130, todos vistos vermelhos antes — inclusive dois de FONTE: um trava a aba Chaves lendo `ProjecaoCompleta`, outro trava o texto do diálogo destrutivo).
+
+> **10/09/2026** — 🎲 **DOIS TESTES DA GRADE SÃO INSTÁVEIS, E ISSO NÃO É RUÍDO DE CI — É DEFEITO ANOTADO.** Medido, não suposto, rodando o mesmo teste 25 vezes seguidas no mesmo commit:
+>
+> | Teste | Falhas em 25 | Onde |
+> |---|---|---|
+> | `GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio` | 5 (e 3 na base `8cd3d67`, ANTES dos PRs de hoje) | `ReparoDaGrade` / `GradeDeJogos` |
+> | `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_mesma_grade` | 1 | sorteio / chave direta |
+>
+> ⚠️ **O PRIMEIRO DIZ QUE O "RECALCULAR HORÁRIOS" NÃO REPRODUZ A GRADE DO SORTEIO EM ~15% DOS SORTEIOS** — a mensagem é sempre a mesma, `2 de 44 jogos trocaram de horário`, e é EXATAMENTE a assinatura que o STATUS de hoje dá como resolvida no PR #118 ("ordem estável dentro do reparo"). **Não está resolvida**: a ordenação por (horário, `Codigo`) não desempata tudo. Quem for consertar comece por aí, e meça com confrontos FIXOS — número que sai do `GerarChaves` mede sorte, não código.
+>
+> 💥 **O CUSTO JÁ APARECEU:** o CI do merge do #128 caiu por causa do primeiro, o job "Pacote de deploy" foi PULADO e **nenhum release foi publicado** — não havia o que instalar. Uma re-execução resolveu. Enquanto os dois viverem, todo merge tem ~1 em 6 de precisar de re-run, e quem estiver com pressa vai ler "meu PR quebrou a main" sobre um defeito que não é dele.
 
 > **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-907-15d7ecf`** (08h57 nos dois — runs 142 e 143). O **PR #125** (o botão "Ajustar horários") e o **#126**, que consertou a `main` que o #125 quebrou. **Sem migration.**
 >

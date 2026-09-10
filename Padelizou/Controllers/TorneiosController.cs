@@ -1317,13 +1317,59 @@ namespace Padelizou.Controllers
                 ? previstos.Where(j => filtro.Aceita(sedes, j)).ToList()
                 : previstos;
 
-            // O que os selects da tela oferecem — só o que ESTE torneio tem. O clube só com mais
-            // de um (com um só, "por clube" não separa nada); as fases vêm dos jogos reais e das
-            // prévias, na ordem da chave; as quadras já estão em ViewBag.QuadrasDoTorneio.
+            // ⚠️ A PROJEÇÃO INTEIRA, PRA QUEM CASA POR ÍNDICE (10/09/2026). A aba CHAVES do
+            // `Details` desenha o quadro previsto lendo esta lista e parseando a vaga pela
+            // POSIÇÃO dentro da fase (`daFase[i]`) — os dois saem do mesmo motor, na mesma
+            // ordem. Uma lista recortada faz a Semifinal 2 aparecer na vaga da Semifinal 1: o
+            // quadro mostrando confronto que não existe.
+            //
+            // Isto JÁ ACONTECIA com o "meus jogos", que recorta a mesma lista desde 09/09 — o
+            // filtro por clube/quadra/fase só tornou frequente o que era raro. Por isso a aba
+            // Chaves passou a ler daqui, e não de `JogosQueVem`: aquela é a lista da ABA JOGOS,
+            // e é dela que os filtros são donos.
+            ViewBag.ProjecaoCompleta = projetados;
+
+            // ⚠️ O QUE A TELA OFERECE E O QUE AS OUTRAS ABAS LEEM SAI DA GRADE INTEIRA DO
+            // TORNEIO, e não da lista da tela. `todasAsPartidas` parece a grade inteira e não é:
+            // o filtro de time e o de categoria viram SQL lá em cima, antes de qualquer lista
+            // existir. Montar as opções em cima dela faz o select perder justamente a opção que
+            // está ligada (marcar uma categoria de grupos apagava "Quartas de Final" do select,
+            // com o faseFiltro=Quartas ainda valendo) e o número da fase renumerar.
+            //
+            // Passa pelo MESMO portão da chave não aprovada: sem ele, o select de quadras
+            // mostraria a grade não publicada a visitante deslogado (Regra 0).
+            var gradeDoTorneio = chaveAindaNaoPublicada
+                ? new List<(int Id, int CategoriaId, string Fase, string? NomeQuadra, string Status)>()
+                : (await _context.Partidas.AsNoTracking()
+                        .Where(p => p.TorneioId == torneioId)
+                        .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status })
+                        .ToListAsync())
+                    .Select(p => (p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status))
+                    .ToList();
+
             ViewBag.FiltroDeJogos = filtro;
             ViewBag.ClubesDoTorneio = sedes.MaisDeUmClube ? sedes.Clubes : Array.Empty<(int Id, string Nome)>();
             ViewBag.FasesDoTorneio = FiltroDeJogos.FasesParaEscolher(
-                todasAsPartidas.Select(p => p.Fase).Concat(projetados.Select(j => j.Fase)));
+                gradeDoTorneio.Select(p => p.Fase).Concat(projetados.Select(j => j.Fase)));
+
+            // ⚠️ AS QUADRAS DO FILTRO SÃO AS QUE ALGUM JOGO USA — e não `QuadrasDoTorneio`, que
+            // completa pelo CADASTRO quando os jogos não têm quadra (ver NomesDeQuadra). No
+            // torneio POR ORDEM o motor apaga a quadra de todo jogo de propósito
+            // (OrdemDeLiberacao.ApagarAsQuadras), então aquela lista vinha cheia e QUALQUER
+            // escolha esvaziava a tela — o filtro quebrado justamente no torneio do Er, que é o
+            // que originou o pedido. Sem quadra em jogo nenhum, o select não aparece.
+            ViewBag.QuadrasParaFiltrar = gradeDoTorneio
+                .Select(p => (p.NomeQuadra ?? "").Trim())
+                .Where(q => q.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(q => q, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            // ⚠️ QUANTOS JOGOS O "RECALCULAR HORÁRIOS" REALMENTE REFAZ. O aviso vermelho dele
+            // contava a lista da TELA: com o filtro no Radar ele prometia refazer "11 jogos" e
+            // refazia os 88 do torneio. Diálogo de ação destrutiva que mente sobre o tamanho do
+            // estrago é o defeito que os PRs #123 e #125 foram escritos pra evitar.
+            ViewBag.AgendadasNoTorneio = gradeDoTorneio.Count(p => p.Status == "Agendada");
 
             // Só times que de fato jogam ESTE torneio — a lista vinha com todos os times
             // do sistema, e a tela esconde o filtro quando ela é vazia.
@@ -1464,10 +1510,12 @@ namespace Padelizou.Controllers
             // A ordem é a de Id — a mesma que o avanço de verdade usa pra parear vencedores, e a
             // mesma chave da reserva de horário (Services/ReservasDeHorario).
             //
-            // ⚠️ `todasAsPartidas`, e não a lista da tela: a Semifinal 2 continua sendo a 2 quando
-            // a Semifinal 1 sumiu pelo filtro (por quadra, por clube, "meus jogos"). Numerar o
-            // recorte renumeraria a referência "Vencedor Semifinal 2" pro jogo errado.
-            ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(todasAsPartidas);
+            // ⚠️ A GRADE INTEIRA, e não a lista da tela nem `todasAsPartidas`: a Semifinal 2
+            // continua sendo a 2 quando a Semifinal 1 sumiu por QUALQUER filtro. `todasAsPartidas`
+            // não serve porque o filtro de TIME já a recortou em SQL, e ele tira jogos de dentro
+            // da mesma categoria e fase — que é exatamente o que renumera.
+            ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(
+                gradeDoTorneio.Select(p => (p.Id, p.CategoriaId, p.Fase)));
         }
     }
 }
