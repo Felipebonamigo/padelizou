@@ -45,6 +45,12 @@ public static class AuditoriaDaGrade
     // ao mesmo tempo".
     public const string JogosSeguidos = "Jogos seguidos";
 
+    // As restrições das DUAS duplas de um jogo não cabem juntas em horário nenhum do torneio:
+    // uma só joga sexta à noite (concentração), a outra não joga sexta (impedimento). O motor
+    // marca onde der — é o retardatário do domingo, o "impedimento" do Conferir grade — e sem
+    // esta linha o organizador procura o defeito na grade quando ele está no CADASTRO.
+    public const string RestricoesEmConflito = "Restrições em conflito";
+
     // `Quando` fica separado do texto pra tela poder ordenar por ele — o organizador lê a grade
     // no relógio, não em ordem alfabética de regra.
     public record Achado(string Regra, string Descricao, DateTime? Quando);
@@ -211,7 +217,18 @@ public static class AuditoriaDaGrade
         var ocupantes = RoboDoChaveamento.OcupantesPorDupla(duplas);
         var duracao = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
 
-        var agenda = new Dictionary<int, List<DateTime>>();
+        // O NOME DA PESSOA (10/09/2026). 🗣️ Felipe, com 14 "Alguém joga…" na tela: *"os horarios eu
+        // vou trocar na mão"* — e não dá pra trocar na mão sem saber quem é nem quais jogos.
+        var nomeDaPessoa = new Dictionary<int, string>();
+        foreach (var d in duplas)
+        {
+            if (d.Jogador1 != null) nomeDaPessoa[d.Jogador1Id] = d.Jogador1.NomeNaTela;
+            if (d.Jogador2Id is int j2 && d.Jogador2 != null) nomeDaPessoa[j2] = d.Jogador2.NomeNaTela;
+        }
+        string Pessoa(int id) => nomeDaPessoa.TryGetValue(id, out var nome) ? nome : $"jogador {id}";
+        string Rotulo(Partida j) => $"{j.Fase} ({Nome(j.Dupla1Id)} × {Nome(j.Dupla2Id)})";
+
+        var agenda = new Dictionary<int, List<(DateTime Quando, Partida Jogo)>>();
         foreach (var jogo in jogos)
         {
             if (jogo.HorarioPrevisto is not DateTime quando) continue;
@@ -223,44 +240,100 @@ public static class AuditoriaDaGrade
                 foreach (var pessoa in pessoas)
                 {
                     if (!agenda.TryGetValue(pessoa, out var quandos))
-                        agenda[pessoa] = quandos = new List<DateTime>();
-                    quandos.Add(quando);
+                        agenda[pessoa] = quandos = new List<(DateTime, Partida)>();
+                    quandos.Add((quando, jogo));
                 }
             }
         }
 
-        // Dois jogos da MESMA dupla se cruzando dariam um achado por jogador, com texto idêntico
-        // (o texto diz "alguém", não o nome) — e dois avisos iguais lado a lado fazem a tela
-        // parecer quebrada. Deduplicado pelo par de horários, que é o que o organizador lê.
-        var jaAvisado = new HashSet<(DateTime, DateTime)>();
-
-        foreach (var quandos in agenda.Values)
+        // Os dois jogadores da MESMA dupla cruzam os MESMOS dois jogos: é UM achado, com os dois
+        // nomes — dois avisos iguais lado a lado fazem a tela parecer quebrada. Agrupado pelo par
+        // de jogos, que é o que o organizador vai mexer.
+        var pares = new Dictionary<(Partida, Partida), List<int>>();
+        foreach (var (pessoa, quandos) in agenda)
         {
-            var ordenados = quandos.OrderBy(q => q).ToList();
-
+            var ordenados = quandos.OrderBy(q => q.Quando).ToList();
             for (int i = 1; i < ordenados.Count; i++)
             {
-                var (antes, depois) = (ordenados[i - 1], ordenados[i]);
-                if (!jaAvisado.Add((antes, depois))) continue;
+                var chave = (ordenados[i - 1].Jogo, ordenados[i].Jogo);
+                if (!pares.TryGetValue(chave, out var quem)) pares[chave] = quem = new List<int>();
+                quem.Add(pessoa);
+            }
+        }
 
-                // Seguidos, sem a folga da régua: não se sobrepõem (isso é o achado abaixo), mas
-                // entre um e outro passam menos horários do que a grade promete.
-                var folga = duracao * GradeDeJogos.HorariosDeDescanso;
-                if (depois - antes >= duracao && depois - antes < duracao + folga)
+        foreach (var ((jogoAntes, jogoDepois), quem) in pares)
+        {
+            var antes = jogoAntes.HorarioPrevisto!.Value;
+            var depois = jogoDepois.HorarioPrevisto!.Value;
+            var nomes = string.Join(" e ", quem.Select(Pessoa));
+
+            // Seguidos, sem a folga da régua: não se sobrepõem (isso é o achado abaixo), mas
+            // entre um e outro passam menos horários do que a grade promete.
+            var folga = duracao * GradeDeJogos.HorariosDeDescanso;
+            if (depois - antes >= duracao && depois - antes < duracao + folga)
+            {
+                achados.Add(new Achado(JogosSeguidos,
+                    $"{nomes}: {Rotulo(jogoAntes)} {antes:dd/MM 'às' HH:mm} e de novo "
+                    + $"{Rotulo(jogoDepois)} às {depois:HH:mm} — "
+                    + $"{(depois - antes - duracao).TotalMinutes / duracao.TotalMinutes:0} horário(s) de "
+                    + $"descanso, e a grade promete {GradeDeJogos.HorariosDeDescanso}.", antes));
+                continue;
+            }
+
+            if (depois - antes >= duracao) continue;
+
+            achados.Add(new Achado(PessoaEmDoisJogos,
+                $"{nomes}: escalado em {Rotulo(jogoAntes)} {antes:dd/MM 'às' HH:mm} e de novo em "
+                + $"{Rotulo(jogoDepois)} às {depois:HH:mm} — "
+                + $"os dois jogos se sobrepõem ({duracao.TotalMinutes:0} min de partida) e "
+                + "ninguém joga em duas quadras ao mesmo tempo.", antes));
+        }
+
+        // ── 7. AS RESTRIÇÕES DAS DUAS DUPLAS NÃO CABEM JUNTAS ────────────────────────────
+        // Medido em GradeDoErMedidaTests: a dupla concentrada na sexta contra a dupla que não
+        // joga sexta vira o "retardatário" do domingo à noite e um "fora da concentração" — dois
+        // achados que apontam pra grade quando o problema é o cadastro. Aqui a pergunta é feita
+        // de frente: existe UM horário do torneio em que as duas possam jogar?
+        {
+            var passo = VagasDaGrade.Duracao(torneio);
+            var ultimoDia = (torneio.DataFim ?? (torneio.DataInicio ?? DateTime.Today).AddDays(2)).Date;
+
+            bool Proibido(int duplaId, DateTime quando, bool ehGrupo) =>
+                Dentro(impedimentos, duplaId, quando) || (ehGrupo && Dentro(concentracoes, duplaId, quando));
+
+            bool AlgumHorarioServe(Partida jogo, bool ehGrupo)
+            {
+                for (var h = torneio.AberturaDaGrade; h.Date <= ultimoDia;
+                     h = GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes, passo))
                 {
-                    achados.Add(new Achado(JogosSeguidos,
-                        $"Alguém joga {antes:dd/MM 'às' HH:mm} e de novo {depois:HH:mm} — "
-                        + $"{(depois - antes - duracao).TotalMinutes / duracao.TotalMinutes:0} horário(s) de "
-                        + $"descanso, e a grade promete {GradeDeJogos.HorariosDeDescanso}.", antes));
-                    continue;
+                    if (!Proibido(jogo.Dupla1Id, h, ehGrupo) && !Proibido(jogo.Dupla2Id, h, ehGrupo)) return true;
                 }
+                return false;
+            }
 
-                if (depois - antes >= duracao) continue;
+            string Restricao(int duplaId, bool ehGrupo)
+            {
+                if (!porId.TryGetValue(duplaId, out var d)) return "sem restrição";
+                if (ehGrupo && d.ConcentrarJogosEm is TurnoDeConcentracao turno && turno != TurnoDeConcentracao.Nenhuma)
+                    return $"\"{ConcentracaoDeJogos.Rotulo(turno)}\"";
+                if (impedimentos.ContainsKey(duplaId))
+                    return $"impedimento \"{AlteracaoDeImpedimento.Rotulo(AlteracaoDeImpedimento.TurnoAtual(d))}\"";
+                return "sem restrição";
+            }
 
-                achados.Add(new Achado(PessoaEmDoisJogos,
-                    $"Alguém está escalado {antes:dd/MM 'às' HH:mm} e de novo {depois:HH:mm} — "
-                    + $"os dois jogos se sobrepõem ({duracao.TotalMinutes:0} min de partida) e "
-                    + "ninguém joga em duas quadras ao mesmo tempo.", antes));
+            foreach (var jogo in jogos)
+            {
+                bool ehGrupo = FasesTorneio.EhFaseDeGrupos(jogo.Fase);
+                bool temRestricao = impedimentos.ContainsKey(jogo.Dupla1Id) || impedimentos.ContainsKey(jogo.Dupla2Id)
+                    || (ehGrupo && (concentracoes.ContainsKey(jogo.Dupla1Id) || concentracoes.ContainsKey(jogo.Dupla2Id)));
+                if (!temRestricao || AlgumHorarioServe(jogo, ehGrupo)) continue;
+
+                achados.Add(new Achado(RestricoesEmConflito,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} não tem horário possível: "
+                    + $"{Nome(jogo.Dupla1Id)} tem {Restricao(jogo.Dupla1Id, ehGrupo)} e "
+                    + $"{Nome(jogo.Dupla2Id)} tem {Restricao(jogo.Dupla2Id, ehGrupo)}. A grade marca onde der — "
+                    + "isso se resolve no cadastro das duplas, não no horário.",
+                    jogo.HorarioPrevisto));
             }
         }
 
