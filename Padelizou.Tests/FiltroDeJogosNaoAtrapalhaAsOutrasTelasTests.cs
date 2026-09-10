@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
+using padelizou.Models;   // GrupoTorneio ficou no namespace legado, em minúsculo
 using JogoQueVem = Padelizou.Services.ProximasFasesDaChave.JogoQueVem;
 
 namespace Padelizou.Tests;
@@ -301,5 +302,136 @@ public class FiltroDeJogosNaoAtrapalhaAsOutrasTelasTests
             pasta = Directory.GetParent(pasta)?.FullName;
         }
         throw new DirectoryNotFoundException("Padelizou.csproj não encontrado a partir do bin.");
+    }
+
+    // Uma categoria de GRUPOS de verdade: quatro grupos de duas duplas, uma rodada marcada.
+    // É o desenho da 4ª Masculina do Er — e o que faz a projeção ter o que montar.
+    private static async Task<int> CategoriaDeGruposAsync(Cenario c, string nome)
+    {
+        var categoria = new Categoria { Nome = nome, Codigo = "CGRP", TorneioId = c.Torneio.Id, ClassificadosPorGrupo = 2 };
+        c.Ctx.Categorias.Add(categoria);
+        await c.Ctx.SaveChangesAsync();
+
+        int cpf = 200;
+        foreach (var letra in new[] { "A", "B", "C", "D" })
+        {
+            var grupo = new GrupoTorneio { Categoria = categoria, Nome = $"Grupo {letra}" };
+            c.Ctx.Add(grupo);
+
+            var duplas = new List<Dupla>();
+            for (int i = 0; i < 2; i++)
+            {
+                var j1 = TestInfra.NovoJogador(cpf++);
+                var j2 = TestInfra.NovoJogador(cpf++);
+                c.Ctx.Jogadores.AddRange(j1, j2);
+                var dupla = new Dupla { Categoria = categoria, Jogador1 = j1, Jogador2 = j2, GrupoTorneio = grupo, Grupo = letra };
+                c.Ctx.Duplas.Add(dupla);
+                duplas.Add(dupla);
+            }
+
+            c.Ctx.Partidas.Add(new Partida
+            {
+                TorneioId = c.Torneio.Id,
+                Categoria = categoria,
+                Dupla1 = duplas[0],
+                Dupla2 = duplas[1],
+                Codigo = $"G{letra}",
+                Status = "Agendada",
+                Fase = $"Grupo {letra}",
+                NomeQuadra = "Arena 1",
+                ClubeId = c.Er.Id,
+                HorarioPrevisto = c.Torneio.DataInicio!.Value.AddMinutes(100),
+            });
+        }
+
+        await c.Ctx.SaveChangesAsync();
+        return categoria.Id;
+    }
+
+    // ── 8. O FILTRO DE CATEGORIA E A PRÉVIA (10/09/2026) ─────────────────────────────────
+    //
+    // 🗣️ Felipe, com "3ª Feminina" marcada na aba Jogos do Er: *"eu selecionei '3 feminina' e
+    // esta aparecendo jogos de outras categorias no filtro"* — e o print mostrava três Oitavas
+    // da 4ª Masculina, com o selo "prévia", no meio da lista.
+    //
+    // 🕳️ A CAUSA É MAIS FUNDA QUE O SINTOMA. O filtro de categoria (e o de time) vira SQL lá em
+    // cima, então `todasAsPartidas` — o nome promete o torneio inteiro — chega à projeção JÁ
+    // RECORTADA. Daí saem dois estragos: as cadeias são montadas a partir das CATEGORIAS do
+    // banco (todas elas, o filtro não as alcança) e por isso a prévia da 4ª aparece; e o
+    // horário de cada uma é calculado numa grade que só enxerga os jogos que passaram no
+    // filtro, ou seja, com as quadras das outras categorias parecendo livres.
+
+    [Fact]
+    public async Task A_previa_obedece_ao_filtro_de_categoria()
+    {
+        // ⚠️ A CATEGORIA QUE VAZA É A DE GRUPOS, e é por isso que este teste monta uma. A
+        // projeção parte das CATEGORIAS lidas do banco (`aindaEmGrupos`), que o filtro não
+        // alcança — a 4ª Masculina do print é assim. A de chave direta, por acidente, some
+        // junto com os jogos dela: sem mata-mata na lista filtrada, não há de onde partir.
+        var c = await TorneioAsync();
+        var feminina = c.GrupoNoEr.CategoriaId;
+        var outra = await CategoriaDeGruposAsync(c, "5ª Categoria Masculina");
+
+        var semFiltro = (List<JogoQueVem>)(await AbrirAsync(c)).ViewBag.JogosQueVem;
+        Assert.Contains(semFiltro, j => j.CategoriaId == outra);
+
+        var previas = (List<JogoQueVem>)(await AbrirAsync(c, categorias: new[] { feminina })).ViewBag.JogosQueVem;
+
+        Assert.DoesNotContain(previas, j => j.CategoriaId == outra);
+        Assert.All(previas, j => Assert.Equal(feminina, j.CategoriaId));
+    }
+
+    [Fact]
+    public async Task A_previa_e_calculada_na_grade_INTEIRA_mesmo_com_o_filtro_ligado()
+    {
+        // As duas quadras das 9:50 estão tomadas por jogos da FEMININA, então a Final prevista
+        // da masculina não cabe lá e vai pra 10:40. Filtrando pela masculina, a grade que a
+        // projeção enxerga fica sem esses dois jogos — e a Final volta pras 9:50, um horário
+        // que na vida real não existe. O horário da prévia não pode depender do que a tela
+        // está mostrando.
+        var c = await TorneioAsync();
+        var masculina = c.SemiNoEr.CategoriaId;
+
+        var j1 = TestInfra.NovoJogador(90);
+        var j2 = TestInfra.NovoJogador(91);
+        c.Ctx.Jogadores.AddRange(j1, j2);
+        c.Ctx.Partidas.Add(new Partida
+        {
+            TorneioId = c.Torneio.Id,
+            CategoriaId = c.GrupoNoEr.CategoriaId,
+            Dupla1 = new Dupla { CategoriaId = c.GrupoNoEr.CategoriaId, Jogador1 = j1 },
+            Dupla2 = new Dupla { CategoriaId = c.GrupoNoEr.CategoriaId, Jogador1 = j2 },
+            Codigo = "JLOT",
+            Status = "Agendada",
+            Fase = "Grupo A",
+            NomeQuadra = "Quadra Radar",
+            ClubeId = c.Radar.Id,
+            HorarioPrevisto = c.GrupoNoEr.HorarioPrevisto,
+        });
+        await c.Ctx.SaveChangesAsync();
+
+        var semFiltro = (List<JogoQueVem>)(await AbrirAsync(c)).ViewBag.JogosQueVem;
+        var comFiltro = (List<JogoQueVem>)(await AbrirAsync(c, categorias: new[] { masculina })).ViewBag.JogosQueVem;
+
+        var finalSem = semFiltro.Single(j => j.CategoriaId == masculina && j.Fase == "Final");
+        var finalCom = comFiltro.Single(j => j.CategoriaId == masculina && j.Fase == "Final");
+
+        Assert.Equal(finalSem.Horario, finalCom.Horario);
+    }
+
+    [Fact]
+    public async Task Os_horarios_que_o_definir_horario_oferece_contam_a_ocupacao_do_torneio_inteiro()
+    {
+        // Mesmo defeito, outra porta: a lista de horários do "Definir horário" (10/09/2026) diz
+        // quantas quadras sobram em cada um. Contando só os jogos que passaram no filtro, ela
+        // ofereceria como livre um horário que está lotado — e o servidor recusaria a escolha.
+        var c = await TorneioAsync();
+        var masculina = c.SemiNoEr.CategoriaId;
+
+        var controller = await AbrirAsync(c, categorias: new[] { masculina });
+        var slots = (List<HorariosDaGrade.Slot>)controller.ViewBag.SlotsDaGrade;
+
+        var noveECinquenta = slots.Single(s => s.Horario == c.GrupoNoEr.HorarioPrevisto);
+        Assert.Equal(1, noveECinquenta.Ocupadas);
     }
 }
