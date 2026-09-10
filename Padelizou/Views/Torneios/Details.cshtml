@@ -764,7 +764,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@
-@if (Padelizou.Services.PixDoOrganizador.Aparece(Model))
+@if (Padelizou.Services.PixDoOrganizador.ApareceParaMim(Model, ViewBag.DevoAlgumaNesteTorneio == true))
 {
     @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
        MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
@@ -1006,7 +1006,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        Financeiro.cshtml já usa pro ajudante. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+    @* ⚠️ RECOLHIDA, E NÃO APAGADA, depois que a chave sai (Felipe, 10/09/2026: "pode mover para
+       dentro do Gerenciar torneio, depois que foi publicada as chaves"). O botão CONTINUA no
+       DOM porque TREZE redirects do servidor voltam com o fragmento `#pagamentos`
+       (TorneiosController.Inscricoes: impedimento, sedes, janela da sede, cobrança) e a tela
+       cheia do Planejamento tem um link `asp-fragment="pagamentos"`. O script do fim deste
+       arquivo abre a aba procurando `#torneioTabs [data-bs-target="..."]`: apagado o botão, o
+       seletor não acha nada, o script sai calado e o organizador cai na aba padrão toda vez
+       que mexe num impedimento.
+
+       ⚠️ A classe vai no <li>, e NÃO no <button>: quem é filho do flex é o <li> — o site.css
+       dá `flex: 1 1 auto` a ele, e metade da linha até 430px. Escondendo só o botão, sobra um
+       <li> VAZIO reivindicando a largura — dois deles, uma faixa em branco no celular. Ela
+       REAPARECE quando esta é a aba ativa (o `:has()` do site.css), senão o painel abriria com
+       a barra sem nada marcado. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
             </button>
@@ -1026,7 +1040,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        celular do organizador. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+        @* Recolhe junto com a de Pagamentos, e pelo mesmo motivo — ver a nota lá em cima. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="planejamento-tab" data-bs-toggle="tab" data-bs-target="#planejamento" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-calendar-range"></i> Planejamento de quadras
             </button>
@@ -2204,6 +2219,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var gestaoSoLeitura = ViewBag.GestaoSoLeitura == true;
         <div class="tab-pane fade" id="admin" role="tabpanel">
             <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
+
+            @* ── AS DUAS FERRAMENTAS DO ANTES, RECOLHIDAS PRA CÁ ──────────────────────────
+               🗣️ Felipe, 10/09/2026: *"Os menus Pagamentos e impedimentos e Planejamento de
+               quadras, também pode mover para dentro do Gerenciar torneio, depois que foi
+               publicada as chaves."*
+
+               As duas são ferramentas do ANTES: o impedimento alimenta o sorteio e o
+               planejamento decide quantas quadras alugar. Publicada a chave, elas viram duas
+               abas entre quem abre a página e o placar — e a barra do organizador tem NOVE.
+
+               ⚠️ SÓ AQUI DEPOIS DE PUBLICAR: antes, as abas continuam na barra, e repetir o
+               atalho seria dois caminhos pro mesmo lugar na mesma tela.
+
+               ⚠️ `.click()` NO BOTÃO REAL, e não um `data-bs-toggle` daqui: o Bootstrap
+               desativa os irmãos procurando o `nav` ANCESTRAL do elemento clicado. Um botão
+               fora do `#torneioTabs` abriria este painel SEM fechar o que estava aberto —
+               dois painéis na tela ao mesmo tempo. Clicar no botão de verdade é o caminho
+               que o Bootstrap já sabe percorrer. *@
+            @if (AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('pagamentos-tab').click();">
+                        <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('planejamento-tab').click();">
+                        <i class="bi bi-calendar-range"></i> Planejamento de quadras
+                    </button>
+                </div>
+            }
 
             @* A DÍVIDA NÃO SOME DA TELA DE QUEM DEVE (08/09/2026). Depois de "sortear agora,
                pagar depois", o bloco da taxa lá embaixo desaparece — as chaves já saíram, e

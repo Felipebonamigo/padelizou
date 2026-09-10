@@ -643,14 +643,28 @@ namespace Padelizou.Controllers
             // e quem não tinha ficava com a inscrição pendurada. Ver Services/PixDoOrganizador.
             if (PixDoOrganizador.Aparece(torneio))
             {
-                ViewBag.QuemRecebeOPix = await PixDoOrganizador.QuemRecebeOComprovanteAsync(_context, id);
-
                 // O card recolhe pra quem já acertou com o organizador (Emerson, 10/09/2026:
                 // "se o cara já pagou, daria pra tirar info do pagamento, ocupa muito
-                // espaço"). Duas consultas a mais SÓ no "por fora" — o `if` acima já é a
-                // condição de o bloco existir na tela.
-                ViewBag.JaPagueiNesteTorneio = jogadorLogadoId.HasValue
-                    && await PixDoOrganizador.JaPagouTudoAsync(_context, torneio, jogadorLogadoId.Value);
+                // espaço"). UMA consulta a mais, e só no "por fora" com alguém logado — o `if`
+                // acima já é a condição estrutural de o bloco existir na tela.
+                var minhasInscricoes = jogadorLogadoId.HasValue
+                    ? await PixDoOrganizador.MinhasInscricoesAsync(_context, torneio, jogadorLogadoId.Value)
+                    : default;
+
+                ViewBag.JaPagueiNesteTorneio = minhasInscricoes.JaPagueiTudo;
+
+                // Depois das chaves publicadas o card só existe pra quem ainda deve — inclusive
+                // pra quem acabou de ser promovido da lista de espera no dia do jogo.
+                ViewBag.DevoAlgumaNesteTorneio = minhasInscricoes.DevoAlguma;
+
+                // ⚠️ O CONTATO SÓ É BUSCADO SE O CARD VAI MESMO SER DESENHADO, e o portão é o
+                // MESMO que a view usa. Com o controller no `Aparece` e a view no
+                // `ApareceParaMim`, o dia do jogo — quando mais gente abre esta página, que é a
+                // mais pesada do site — pagava uma consulta por abertura pra alimentar um card
+                // que ninguém vê. Visitante deslogado depois de publicado não faz consulta
+                // nenhuma: `default` acima já diz que ele não deve nada.
+                if (PixDoOrganizador.ApareceParaMim(torneio, minhasInscricoes.DevoAlguma))
+                    ViewBag.QuemRecebeOPix = await PixDoOrganizador.QuemRecebeOComprovanteAsync(_context, id);
             }
 
             // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de
