@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
+>
+> 📱 **A BARRA DE AÇÕES DO JOGO VAZAVA PRA FORA DO CARTÃO NO CELULAR.** 🗣️ Felipe, com o Painel de Controle aberto no telefone: *"a tela esta estourando aqui ao usar no mobile"* — e a captura mostrava o **play verde do lado de fora da borda esquerda**, cortado pela tela.
+>
+> 🕳️ **A CAUSA É A SOMA DE DUAS REGRAS QUE, SOZINHAS, ESTÃO CERTAS.** `.pdz-jl-acoes` é um flex que **não quebra linha**; abaixo de 576px ele ganha `width: 100%` + `justify-content: flex-end`. Quando os botões não cabem, o excedente escorre pro lado **contrário** ao alinhamento — pra **esquerda**, pra fora do cartão e pra fora da tela. E **some em silêncio**: navegador não cria área de rolagem à esquerda, então nem barra horizontal aparece pra denunciar.
+>
+> 📏 **MEDIDO NO CHROMIUM COM O `site.css` REAL, e não estimado** (Playwright, página estática com o mesmo encadeamento `container → tab-content.p-4 → .pdz-jl`): a 390px a barra pede **365px** e o cartão oferece **291px** de área útil — o primeiro botão nascia em **x = −21,5px**. A 320px, em **−91,5px**; a 402px, em −9,5px. Depois da correção, sobra folga em todas: nada mais cruza a borda.
+>
+> ⚠️ **O QUE ESTOUROU FOI A CONTA DE BOTÕES, e é por isso que apareceu agora:** as setas ↑↓ da ordem (10/09) levaram a barra de **5 pra 7 botões**. Cada `.btn-sm` daqui tem **48px** — o `.btn { padding: .5rem 1.1rem }` do site vence o `.btn-sm` do Bootstrap —, então 7 botões mais os vãos pedem 365px.
+>
+> ✅ **A CORREÇÃO É `flex-wrap: wrap`, e não espremer os botões.** 7 alvos de dedo de 44px já passam de **337px**: numa linha só, nesta largura, é **impossível** — a barra tem que quebrar. O custo é honesto e está anotado: no celular ela vira **duas linhas** (+42px por cartão). Rolagem horizontal escondida foi descartada — o organizador não descobriria que existe o lápis lá na ponta.
+>
+> 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
 >
@@ -20,6 +34,8 @@
 > 📌 **UM DISPARO DE DEPLOY FALHOU CALADO, e vale como aviso pro próximo:** o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run nenhuma** — o deploy simplesmente não aconteceu, sem erro em lugar nenhum. Só apareceu porque a lista de runs foi conferida depois. **Disparo pela API se confere na lista**, nunca pelo 204.
 >
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 >
 > 🔢 **DENTRO DO MESMO HORÁRIO, A ORDEM DA LINHA AGORA EXISTE — E É EDITÁVEL.** 🗣️ Felipe, arrumando o domingo do Er (*"Semifinal 6 masc / 6 fem / 5 masc / 3 fem / 4 masc..."*): *"quando eu altero um jogo, no mesmo horario, ele nao esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu quiser"*; *"por padrão, se tem semifinal 1 e semifinal 2 no mesmo horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*; e *"só cuide q se colocar o jogo pra cima, ele mude o horario e quadra tb se tiver, e avise se atrapalhar algo com ficar 2 jogos seguidos pra alguem"*.
 >
