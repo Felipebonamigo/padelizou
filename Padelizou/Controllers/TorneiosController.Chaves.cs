@@ -329,6 +329,8 @@ namespace Padelizou.Controllers
             // olha, e traz a causa — ver Services/PorQueNaoCoube.
             await AvisarSeNaoCoubeAsync(torneio, jogosPraAgendar, sedesDoTorneio);
 
+            // O clube ANTES de a quadra ir embora — ver OrdemDeLiberacao.CarimbarOClube.
+            OrdemDeLiberacao.CarimbarOClube(torneio, jogosPraAgendar, sedesDoTorneio);
             OrdemDeLiberacao.ApagarAsQuadras(torneio, jogosPraAgendar);
 
             _context.Partidas.AddRange(jogosPraAgendar);
@@ -822,7 +824,8 @@ namespace Padelizou.Controllers
                 await SedesAsync(torneio.Id));
 
             // No "por ordem", a quadra volta a ficar em aberto: quem decide onde é a Mesa,
-            // conforme vaga. O horário fica.
+            // conforme vaga. O horário fica — e o CLUBE também (CarimbarOClube, antes do apagar).
+            OrdemDeLiberacao.CarimbarOClube(torneio, remarcar, await SedesAsync(torneio.Id));
             OrdemDeLiberacao.ApagarAsQuadras(torneio, remarcar);
 
             return (remarcar, intocados);

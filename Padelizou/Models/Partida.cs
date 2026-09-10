@@ -51,6 +51,20 @@ public partial class Partida
         }
     }
     public string? NomeQuadra { get; set; } // Ex: "Quadra Central", "Quadra 1"
+
+    // EM QUE CLUBE É O JOGO — a decisão do motor, gravada (10/09/2026).
+    //
+    // 🗣️ Felipe: *"nao precisa ter a quadra definida, mas o clube sempre tem q estar definido"*.
+    // O motor escolhe a quadra de cada jogo (Services/GradeDeJogos.Encaixar) e a quadra carrega o
+    // clube; o modo "por ordem" apaga a quadra porque quem chama é a Mesa
+    // (Services/OrdemDeLiberacao), e sem esta coluna o clube ia junto — 97 jogos sem lugar na
+    // tela do Er. Carimbado a partir da quadra escolhida, antes de ela ser apagada, no "por
+    // ordem" e fora dele. Nulo só no jogo que nunca passou pela grade.
+    //
+    // ⚠️ É a decisão de QUANDO SORTEOU. A Mesa pode chamar o jogo em outra quadra, e aí quem
+    // manda é `NomeQuadra` (Services/LugarDoJogo lê a quadra primeiro, o carimbo depois).
+    public int? ClubeId { get; set; }
+    public virtual Clube? Clube { get; set; }
     public string? LinkTransmissao { get; set; } // Ex: "https://youtube.com/live/..."
 
     // Quando saiu o aviso "seu jogo é o próximo" pros jogadores desta partida.

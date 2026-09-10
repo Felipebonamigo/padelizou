@@ -5722,7 +5722,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 }
                                                                 @if (!string.IsNullOrEmpty(jogoDoGrupo.NomeQuadra))
                                                                 {
-                                                                    <span class="pdz-grupo-jogo-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogoDoGrupo.NomeQuadra, jogoDoGrupo.CategoriaId)</span>
+                                                                    <span class="pdz-grupo-jogo-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogoDoGrupo.NomeQuadra, jogoDoGrupo.CategoriaId, jogoDoGrupo.ClubeId)</span>
                                                                 }
                                                             </div>
                                                             <div class="pdz-grupo-jogo-lado @(ganhou1 ? "pdz-chave-venceu" : ganhou2 ? "text-muted" : "")">

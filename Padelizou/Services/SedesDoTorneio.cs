@@ -261,6 +261,10 @@ public sealed class SedesDoTorneio
             ? nome
             : null;
 
+    // O nome de um clube do torneio pelo Id — pro carimbo `Partida.ClubeId` virar texto na tela.
+    public string? NomeDoClube(int clubeId) =>
+        _nomeDoClube.TryGetValue(clubeId, out var nome) ? nome : null;
+
     // O CLUBE QUE A CATEGORIA JÁ DETERMINA, mesmo sem quadra no jogo (10/09/2026).
     //
     // 🗣️ Felipe, na grade do Er em produção, 97 jogos sem etiqueta: *"falta aparecer em qual

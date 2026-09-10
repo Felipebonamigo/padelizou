@@ -30,7 +30,7 @@
                            Services/LugarDoJogo. *@
                         <div class="card-header bg-white text-center fw-bold text-danger">
                             <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
-                            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), partida.NomeQuadra, partida.CategoriaId) is { } ondeJoga)
+                            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), partida.NomeQuadra, partida.CategoriaId, partida.ClubeId) is { } ondeJoga)
                             {
                                 <span class="d-block small fw-normal text-muted">
                                     <i class="bi bi-geo-alt-fill"></i> @ondeJoga

@@ -493,6 +493,9 @@ public class RoboDoChaveamento
                 concentracao,
                 noiteDeSabado,
                 sedes));
+
+        // A rodada nova também sai com o clube gravado (Partida.ClubeId) — ver OrdemDeLiberacao.
+        OrdemDeLiberacao.CarimbarOClube(torneio, paraEncaixar, sedes);
     }
 
     // O impedimento de horário pago na inscrição, pronto pra passar pro Encaixar. Ver

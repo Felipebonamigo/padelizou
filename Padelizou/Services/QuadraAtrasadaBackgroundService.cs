@@ -58,6 +58,8 @@ public class QuadraAtrasadaBackgroundService : BackgroundService
             var piso = agora - QuadraAtrasada.Teto;
             var limite = agora - QuadraAtrasada.Tolerancia;
             var torneiosComCandidata = await context.Partidas
+                // Chave ainda não aprovada não gera push nenhum — ver AprovacaoDeChaves.Publicada.
+                .Where(AprovacaoDeChaves.Publicada)
                 .Where(p => p.TorneioId != null && p.Status == "Agendada"
                     && p.AvisoAtrasoEnviadoEm == null && p.AvisoProximoEnviadoEm == null
                     && p.HorarioPrevisto != null && p.HorarioPrevisto >= piso && p.HorarioPrevisto <= limite)
