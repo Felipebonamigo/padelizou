@@ -2310,6 +2310,23 @@ button, a, input, select { touch-action: manipulation; }
     }
 }
 
+/* ABA RECOLHIDA: sai da barra, continua no DOM.
+   O botão precisa existir porque treze redirects do servidor voltam com `#pagamentos` e o
+   script que lê a hash procura `#torneioTabs [data-bs-target="..."]` — apagado o botão, o
+   organizador cai na aba padrão toda vez que mexe num impedimento. Ver Views/Torneios/Details.cshtml.
+
+   ⚠️ A CLASSE VIVE NO `<li class="nav-item">`, E NÃO NO BOTÃO. Quem é filho do flex é o <li>:
+   `.pdz-abas .nav-item` acima lhe dá `flex: 1 1 auto`, e metade da linha até 430px. Escondendo
+   só o `.nav-link`, o <li> continua reivindicando a largura — dois deles viram uma faixa em
+   branco no topo do celular, exatamente onde o card do Pix acabou de sair.
+
+   ⚠️ E REAPARECE QUANDO É A ABA ATIVA: sem a segunda linha, o redirect abriria o painel de
+   Pagamentos com a barra sem nenhuma aba marcada — o conteúdo certo e nenhuma pista de onde a
+   pessoa está. É `:has()` porque quem ganha `.active` é o botão FILHO (é o Bootstrap que põe);
+   `.pdz-aba-recolhida.active` nunca casaria, as duas classes não vivem no mesmo elemento. */
+.pdz-aba-recolhida { display: none; }
+.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }
+
 /* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
    texto vermelho sobre o fundo ativo era ilegível. */
 .pdz-tab-dot {
