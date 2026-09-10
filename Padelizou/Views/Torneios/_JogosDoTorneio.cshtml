@@ -324,7 +324,7 @@
                                    aparece mesmo sem quadra: ali a resposta é o prédio, e é ela
                                    que faz alguém sair andando pro lado certo. *@
                                 <span>
-                                    @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra) is { } ondeJoga)
+                                    @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId) is { } ondeJoga)
                                     {
                                         <i class="bi bi-geo-alt-fill"></i> @ondeJoga <text>· </text>
                                     }

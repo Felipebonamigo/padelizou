@@ -33,12 +33,17 @@ public static class LugarDoJogo
     // 🗣️ *"nao tem quadra definida, apenas o clube, por que é por ordem de chegada (por ter
     // checkin)"* — quem decide a quadra é o balcão, na hora. O que a linha não pode é ficar
     // muda sobre o prédio, que é o que ela fazia nos 97 jogos do print.
-    public static string? Etiqueta(SedesDoTorneio? sedes, string? nomeQuadra)
+    // `categoriaId` entrou em 10/09/2026 e só é lido quando NÃO há quadra: a quadra é o dado mais
+    // específico e continua mandando. Sem ela, num torneio de dois clubes, é a categoria que
+    // pode dizer o clube — ver SedesDoTorneio.NomeDoClubeDaCategoria. Opcional porque nem toda
+    // tela tem a categoria na mão; sem ela o comportamento é o de antes.
+    public static string? Etiqueta(SedesDoTorneio? sedes, string? nomeQuadra, int? categoriaId = null)
     {
         var quadra = (nomeQuadra ?? "").Trim();
         var clube = ClubeNaEtiqueta(sedes, quadra);
 
-        if (quadra.Length == 0) return clube;
+        if (quadra.Length == 0)
+            return clube ?? (sedes != null && categoriaId is { } cat ? sedes.NomeDoClubeDaCategoria(cat) : null);
 
         return clube == null ? quadra : $"{clube} · {quadra}";
     }

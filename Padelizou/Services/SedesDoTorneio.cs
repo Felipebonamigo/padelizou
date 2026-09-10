@@ -261,6 +261,25 @@ public sealed class SedesDoTorneio
             ? nome
             : null;
 
+    // O CLUBE QUE A CATEGORIA JÁ DETERMINA, mesmo sem quadra no jogo (10/09/2026).
+    //
+    // 🗣️ Felipe, na grade do Er em produção, 97 jogos sem etiqueta: *"falta aparecer em qual
+    // clube é os jogos"*. O Er é POR ORDEM (a quadra é apagada de propósito) e tem DOIS clubes —
+    // a combinação exata em que `NomeDoClubeDaQuadra` não tem de onde tirar o clube.
+    //
+    // Duas coisas respondem sem chute: a categoria PRESA num clube (`Categoria.ClubeId`, o jeito
+    // do Dez E Batata) e a categoria TIRADA DO EXTERNO (`PodeJogarNaSedeExtra = false`, o jeito
+    // do Er — a 3ª e a 4ª só jogam em casa). A que pode transbordar joga em qualquer um dos
+    // dois, e aí a resposta é null: escrever o principal mandaria metade do torneio pro
+    // endereço errado.
+    public string? NomeDoClubeDaCategoria(int categoriaId)
+    {
+        if (ClubeDaCategoria(categoriaId) is { } presa)
+            return _nomeDoClube.TryGetValue(presa, out var nomePresa) ? nomePresa : null;
+
+        return PodeIrPraSedeExtra(categoriaId) ? null : NomeDoClubePrincipal;
+    }
+
     // O NOME DO CLUBE DO TORNEIO — o "Er Padel" que a lista de jogos escreve em toda linha.
     //
     // Existe porque a quadra não responde sozinha por ONDE é o jogo: num torneio por ordem de

@@ -55,6 +55,60 @@ public class OndeEOJogoNaTelaTests
             categorias: Array.Empty<Categoria>(),
             nomesDosClubes: new Dictionary<int, string> { [ErPadel] = "Er Padel", [Radar] = "Radar Esportes" });
 
+    // ── DOIS CLUBES E JOGO SEM QUADRA: A CATEGORIA RESPONDE ────────────────────────────────
+    //
+    // 🗣️ Felipe, 10/09/2026, na grade do Er em PRODUÇÃO recém-sorteada: *"falta aparecer em qual
+    // clube é os jogos"*. Os 97 jogos, todos sem etiqueta nenhuma.
+    //
+    // 🕳️ Era a combinação exata que a etiqueta não sabia responder: o Er é POR ORDEM (a quadra
+    // é apagada de propósito — `OrdemDeLiberacao.ApagarAsQuadras`) e tem DOIS clubes (Er Padel e
+    // Radar). Sem quadra, `ClubeNaEtiqueta` não tinha de onde tirar o clube e calava — certo
+    // pra não chutar, errado pra quem já sabia: a 3ª e a 4ª foram "tiradas do externo", logo
+    // jogam no Er Padel sem dúvida nenhuma, e a categoria PRESA num clube (o jeito do Dez E
+    // Batata) também. O que a etiqueta não pode fazer é adivinhar; o que ela pode é LER o que a
+    // categoria já diz.
+    private static SedesDoTorneio DoisClubesComCategorias() =>
+        SedesDoTorneio.Montar(
+            clubePrincipalId: ErPadel,
+            minutosParaTrocarDeClube: 30,
+            quadras: new[] { QuadraDe("Loja 7", null), QuadraDe("Quadra Radar", Radar) },
+            categorias: new[]
+            {
+                new Categoria { Id = 3, Nome = "3ª Masculina", Codigo = "C3M", PodeJogarNaSedeExtra = false },
+                new Categoria { Id = 6, Nome = "6ª Masculina", Codigo = "C6M", PodeJogarNaSedeExtra = true },
+                new Categoria { Id = 9, Nome = "Presa no Radar", Codigo = "PR", ClubeId = Radar },
+            },
+            nomesDosClubes: new Dictionary<int, string> { [ErPadel] = "Er Padel", [Radar] = "Radar Esportes" });
+
+    [Fact]
+    public void Sem_quadra_com_dois_clubes_a_categoria_tirada_do_externo_e_do_clube_principal()
+    {
+        Assert.Equal("Er Padel", LugarDoJogo.Etiqueta(DoisClubesComCategorias(), null, categoriaId: 3));
+    }
+
+    [Fact]
+    public void Sem_quadra_com_dois_clubes_a_categoria_presa_num_clube_e_daquele_clube()
+    {
+        Assert.Equal("Radar Esportes", LugarDoJogo.Etiqueta(DoisClubesComCategorias(), null, categoriaId: 9));
+    }
+
+    // A contrapartida que segura o chute: a categoria que PODE transbordar joga em qualquer um
+    // dos dois, e sem quadra ninguém sabe qual. Aí a etiqueta continua calada — escrever "Er
+    // Padel" mandaria metade do torneio pro endereço errado.
+    [Fact]
+    public void Sem_quadra_com_dois_clubes_a_categoria_livre_continua_sem_etiqueta()
+    {
+        Assert.Null(LugarDoJogo.Etiqueta(DoisClubesComCategorias(), null, categoriaId: 6));
+    }
+
+    // E a quadra, quando existe, continua mandando: ela é o dado mais específico.
+    [Fact]
+    public void Com_quadra_a_categoria_nao_muda_nada()
+    {
+        Assert.Equal("Radar Esportes · Quadra Radar",
+            LugarDoJogo.Etiqueta(DoisClubesComCategorias(), "Quadra Radar", categoriaId: 3));
+    }
+
     // ── O LOCAL ENTRA EM TODA LINHA ───────────────────────────────────────────────────────
 
     // ⚠️ INVERTE A DECISÃO DE 21/08/2026, que dizia "repetir o clube em cada linha da lista
