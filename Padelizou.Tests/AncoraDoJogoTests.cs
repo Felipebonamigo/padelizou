@@ -95,6 +95,8 @@ public class AncoraDoJogoTests
 
         Assert.Null(primeiraRodada.Lado1.DeQualFase);
         Assert.Null(primeiraRodada.Lado1.DeQualNumero);
-        Assert.StartsWith("1º do Grupo", primeiraRodada.Lado1.Rotulo);
+        // Colocação de grupo — qual delas abre o jogo 1 é da semeadura (com 3 grupos e bye,
+        // o 1º C fica do lado do jogo 2; ver ChaveamentoMataMata.Semear), não deste teste.
+        Assert.Contains("º do Grupo", primeiraRodada.Lado1.Rotulo);
     }
 }
