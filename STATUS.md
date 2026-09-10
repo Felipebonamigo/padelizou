@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07).
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
 > 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
 >
@@ -13,7 +13,13 @@
 >
 > 🧪 **6.124 testes, 0 falhas (3 novos, em `PalpiteEmDobroTests`).** ⚠️ **EF InMemory não valida índice único** — a suíte inteira passava lisa por este defeito. O índice entra no teste como **interceptor** (`OGemeoChegouPrimeiro`): grava a linha rival e lança a `DbUpdateException` no mesmo instante em que o Postgres lançaria. Vistos vermelhos antes: os dois testes da corrida, com a mensagem exata da produção (*23505: duplicate key value violates unique constraint "IX_PalpitePartida_PartidaId_JogadorId"*). O terceiro — o que exige que erro de verdade **continue** subindo — passou de primeira e por isso foi **falsificado**: trocando o `throw` por "insere de novo", ele cai.
 >
-> 📌 **Fora do escopo, anotado e NÃO mexido:** o `palpitrometro.js` segue sem trava de clique. Os dois POSTs continuam saindo (um deles agora só regrava), e as duas respostas podem chegar **fora de ordem** — a tela pode ficar pintada com o penúltimo estado até o próximo F5. O 500 acabou; a requisição gêmea, não.
+> 🖐️ **E A TRAVA DE CLIQUE DO JS ENTROU JUNTO** (🗣️ Felipe, no mesmo dia: *"arruma a trava de clique no js também"*). O `palpitrometro.js` agora fala com o servidor **um POST por vez, por cartão** — mesma régua do `placar-ao-vivo.js`. Toque que **repete** o que já está indo é o toque duplo e não vai; toque que diz **outra coisa** (trocou de dupla, escolheu ficha) **não se perde**: espera a vez e sai depois. Dois jogos na mesma tela não esperam um pelo outro.
+>
+> ⚠️ **AS DUAS TRAVAS SÃO NECESSÁRIAS, e isso não é cinto e suspensório.** A do JS poupa a requisição gêmea **desta aba**; a do servidor é a que segura **duas abas, dois aparelhos e o POST montado à mão** — trava de tela não atravessa a rede. Tirar qualquer uma das duas devolve metade do defeito.
+>
+> 🎨 **E O JS CONSERTA O QUE O SERVIDOR NÃO ALCANÇA: RESPOSTA FORA DE ORDEM.** Com o primeiro POST lento, a resposta dele voltava **depois** da do segundo e repintava a tela com o palpite velho — a ficha recém-escolhida **apagava sozinha na frente da pessoa**, e só o F5 consertava. Era invisível pro servidor (as duas gravações estavam certas) e é a conferência que nasceu mais vermelha.
+>
+> 🧪 **A METADE DA TELA NÃO TEM TESTE NA SUÍTE — e agora tem conferência versionada.** `Padelizou.Tests/js/conferir-palpitrometro.js`: DOM falso + servidor falso em **Node puro, zero dependência** (um `npm install` traria package.json, lockfile e supply chain pra um repositório que hoje não tem nada disso — ver `SUPPLY-CHAIN.md`). **5 conferências, 3 vistas vermelhas antes** da correção: o toque duplo mandando 2 POSTs, os dois POSTs se cruzando, e a tela terminando pintada com o palpite velho. ⚠️ **NINGUÉM RODA ISTO SOZINHO** — o `dotnet test` não vê e o CI não tem passo de Node; é de mão, antes de commitar: `node Padelizou.Tests/js/conferir-palpitrometro.js`. 📌 **É a segunda vez que um defeito de JS é conferido por script de mão** (a primeira, 19/08, morreu no scratchpad da sessão). **Se houver uma terceira, o passo de Node no CI deixa de ser opcional** — não foi feito agora porque muda o gate de todo PR, e isso é decisão do Felipe, não efeito colateral desta correção.
 >
 >
 > **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
