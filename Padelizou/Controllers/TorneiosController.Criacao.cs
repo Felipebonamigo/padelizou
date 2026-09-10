@@ -1685,13 +1685,16 @@ namespace Padelizou.Controllers
             // ⚠️ SÓ QUANDO A TELA MANDOU QUADRA (09/09/2026). Nome e quantidade SAÍRAM desta tela
             // — o lugar único de quadra passou a ser o planejador (TorneiosController.
             // Planejamento), com local e janela por quadra. O navegador agora manda este POST
-            // sem os dois campos: `quantidadeQuadras` chega 0 e `nomesQuadras` nulo, e o
-            // `Math.Max(1, 0)` de antes APAGARIA todas as quadras menos uma, calado, no meio de
-            // um salvamento de preço. A reconciliação fica (o Create partilha a receita e há
-            // chamadores que ainda mandam quantidade), mas só corre quando algo veio.
+            // sem os dois campos: `quantidadeQuadras` chega 0 e `nomesQuadras` chega VAZIO — não
+            // nulo: pra parâmetro de topo de tipo coleção, o model binder entrega uma coleção
+            // vazia quando o campo não vem. A guarda de 09/09 perguntava `!= null`, era sempre
+            // verdadeira, e o `Math.Max(1, 0)` APAGAVA todas as quadras menos uma, calado, no
+            // meio de um salvamento de preço (achado no ensaio do Er, 10/09/2026 — ver
+            // EditarNaoApagaAsQuadrasTests). A reconciliação fica (o Create partilha a receita e
+            // há chamadores que ainda mandam quantidade), mas só corre quando algo veio DE FATO.
             var quadrasAtuais = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
             var quadrasPorPosicao = new List<Quadra>();
-            bool quadrasInformadas = nomesQuadras != null || quantidadeQuadras > 0;
+            bool quadrasInformadas = nomesQuadras is { Length: > 0 } || quantidadeQuadras > 0;
             if (!quadrasInformadas) quadrasPorPosicao.AddRange(quadrasAtuais);
 
             string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

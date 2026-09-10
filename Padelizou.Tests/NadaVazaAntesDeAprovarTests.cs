@@ -72,3 +72,41 @@ public class NadaVazaAntesDeAprovarTests
         Assert.NotNull(((HomeVM)depois.Model!).ProximoJogo);
     }
 }
+
+// 10/09/2026 — A PORTA QUE FALTAVA: `/Torneios/Classificacao/{id}?categoriaId=`.
+//
+// Achada no ensaio do torneio do Er numa app de verdade: com a chave pendente, Details, Jogos,
+// Home, ICS e cards estavam fechados — e a tela de classificação mostrava Grupo A/B/C, todas as
+// duplas e "Paulo Prass / A definir" pra jogador logado E pra visitante sem cookie. A ação não
+// olhava `AprovacaoDeChaves.Pendente`. Mesma régua do Jogos: só quem organiza enxerga antes de
+// aprovar; pra todo mundo mais é como se o sorteio não tivesse saído.
+public class ClassificacaoNaoVazaAntesDeAprovarTests
+{
+    [Fact]
+    public async Task A_classificacao_de_chave_pendente_so_abre_pra_quem_organiza()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        Assert.Equal(AprovacaoDeChaves.Pendente, (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+
+        var inscrito = (await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id)).Jogador1Id;
+
+        // Jogador inscrito: recusado, de volta pro Details com o mesmo aviso do Jogos.
+        var doInscrito = await TestInfra.NovoTorneiosController(ctx, inscrito).Classificacao(torneio.Id, categoria.Id);
+        var volta = Assert.IsType<RedirectToActionResult>(doInscrito);
+        Assert.Equal("Details", volta.ActionName);
+
+        // Visitante sem login: idem.
+        var doVisitante = await TestInfra.NovoTorneiosController(ctx, 0).Classificacao(torneio.Id, categoria.Id);
+        Assert.IsType<RedirectToActionResult>(doVisitante);
+
+        // Organizador: vê.
+        Assert.IsType<ViewResult>(await TestInfra.NovoTorneiosController(ctx, org.Id).Classificacao(torneio.Id, categoria.Id));
+
+        // Aprovada a chave, a tela abre pra todo mundo, como antes.
+        await TestInfra.NovoTorneiosController(ctx, org.Id).AprovarChaves(torneio.Id);
+        Assert.IsType<ViewResult>(await TestInfra.NovoTorneiosController(ctx, inscrito).Classificacao(torneio.Id, categoria.Id));
+        Assert.IsType<ViewResult>(await TestInfra.NovoTorneiosController(ctx, 0).Classificacao(torneio.Id, categoria.Id));
+    }
+}
