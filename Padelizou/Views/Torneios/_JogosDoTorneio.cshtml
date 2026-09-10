@@ -569,17 +569,39 @@
                      o aviso dizia o que o botão FAZ; faltava o que ele DESFAZ — as trocas na mão. *@
                   data-confirmar="Gera horários NOVOS pra todos os @agendadasList.Count jogos que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
                   data-confirmar-titulo="Recalcular todos os horários?"
+                  @* 🗣️ "esse botão em vermelho" (Felipe, apontando o OK do modal, 10/09/2026). O tom
+                     de perigo já existia em wwwroot/js/confirmar.js — pinta o OK de vermelho e troca
+                     a interrogação por um alerta. Faltava pedir; é a única ação desta tela que joga
+                     trabalho fora. *@
+                  data-confirmar-tom="perigo"
                   data-confirmar-ok="Recalcular e perder os ajustes">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 @* Pra voltar pra ESTA tela. Sem isto, quem estava na página do torneio caía na
                    lista pura de jogos e via as abas mãe (Inscritos, Grupos, Chaves) sumirem. *@
                 <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
-                <button type="submit" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-clock-history"></i> Recalcular horários
+                @* 🗣️ "pode ficar em vermelho tambem, para mostrar que é perigoso, por que ele
+                   reorganiza todas as chaves" (Felipe, 10/09/2026). É o único botão desta tela que
+                   joga trabalho fora — a cor diz isso antes do clique, o diálogo confirma depois. *@
+                <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Recalcular horários
                 </button>
                 <span class="form-text ms-2">
-                    Redistribui só o que ainda não começou — e desfaz as trocas feitas na mão. Use quando o torneio atrasar.
+                    Refaz TODOS os horários do zero e desfaz as trocas feitas na mão. Use quando o torneio atrasar.
+                </span>
+            </form>
+
+            @* O irmão manso, e é o que se aperta primeiro: ele não desmarca nada — só troca jogos
+               de lugar enquanto isso derrubar pontos do Conferir grade. Ver Services/ReparoDaGrade. *@
+            <form asp-controller="Torneios" asp-action="AjustarHorarios" method="post" class="mb-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.TorneioId" />
+                <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                <button type="submit" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-magic"></i> Ajustar horários
+                </button>
+                <span class="form-text ms-2">
+                    Mantém a grade e as suas trocas: só corrige o que o Conferir grade aponta.
                 </span>
             </form>
         }

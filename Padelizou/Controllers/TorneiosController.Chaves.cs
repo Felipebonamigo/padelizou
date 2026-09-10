@@ -335,6 +335,12 @@ namespace Padelizou.Controllers
             // prazo já existia ANTES do sorteio (PrevisaoGradeVM.EstouraOPrazo, "Passa do dia
             // 13/09") e dizia só QUE passou. Agora ele também sai DEPOIS, que é quando o organizador
             // olha, e traz a causa — ver Services/PorQueNaoCoube.
+            // ⚠️ O REPARO DEPOIS DO ENCAIXE, e antes de a quadra sumir. O guloso não volta atrás
+            // (ver Services/ReparoDaGrade): quando as vagas apertam ele marca o jogo dentro do
+            // impedimento, sem saber que dez vagas atrás havia um jogo livre que caberia ali.
+            ReparoDaGrade.Reparar(torneio, jogosPraAgendar,
+                torneio.Categorias.SelectMany(c => c.Duplas).ToList(), sedesDoTorneio);
+
             await AvisarSeNaoCoubeAsync(torneio, jogosPraAgendar, sedesDoTorneio);
 
             // O clube ANTES de a quadra ir embora — ver OrdemDeLiberacao.CarimbarOClube.
@@ -937,9 +943,17 @@ namespace Padelizou.Controllers
                 EliminatoriaNoSabado.PorCategoria(torneio),
                 await SedesAsync(torneio.Id));
 
+            // O reparo fecha o recálculo pelo mesmo motivo do sorteio: o guloso não volta atrás.
+            // ⚠️ Recebe a grade INTEIRA (remarcados + intocados) porque descanso e impedimento são
+            // da pessoa, não do lote — o jogo remarcado das 21h encosta no que já rolou às 20h.
+            // Quem já começou não se move: `TrocaDeHorario` recusa quem não está "Agendada".
+            var sedesDoRecalculo = await SedesAsync(torneio.Id);
+            ReparoDaGrade.Reparar(torneio, todos,
+                torneio.Categorias.SelectMany(c => c.Duplas).ToList(), sedesDoRecalculo);
+
             // No "por ordem", a quadra volta a ficar em aberto: quem decide onde é a Mesa,
             // conforme vaga. O horário fica — e o CLUBE também (CarimbarOClube, antes do apagar).
-            OrdemDeLiberacao.CarimbarOClube(torneio, remarcar, await SedesAsync(torneio.Id));
+            OrdemDeLiberacao.CarimbarOClube(torneio, remarcar, sedesDoRecalculo);
             OrdemDeLiberacao.ApagarAsQuadras(torneio, remarcar);
 
             return (remarcar, intocados);
@@ -967,6 +981,43 @@ namespace Padelizou.Controllers
         // molhou, a 1 é a coberta, a final merece a do meio. Regras em Services/TrocaDeQuadra
         // — inclusive a que importa: quadra ocupada no mesmo horário TROCA de dono em vez de
         // recusar, senão o organizador fica no mesmo beco.
+        // AJUSTAR HORÁRIOS — o irmão manso do "Recalcular horários" (10/09/2026).
+        //
+        // 🗣️ *"temos q pensar melhor esse botão q ele seja mais inteligente, por que hoje ele refaz
+        // tudo e as vezes deixa impedimentos ainda, por que eu alterei na mao"*. O Recalcular joga a
+        // grade fora e monta outra; este NÃO desmarca nada — só troca jogos de lugar enquanto isso
+        // derrubar pontos do Conferir grade (Services/ReparoDaGrade). O que o organizador arrumou na
+        // mão fica de pé, a menos que trocá-lo melhore o conjunto.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AjustarHorarios(int id, string? voltarPara = null)
+        {
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            // Por Id: a mesma ordem da fila do sorteio (ver RecalcularAGradeAsync).
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).OrderBy(p => p.Id).ToListAsync();
+
+            var resultado = ReparoDaGrade.Reparar(torneio, jogos,
+                torneio.Categorias.SelectMany(c => c.Duplas).ToList(), await SedesAsync(id));
+
+            if (resultado.Trocas > 0) await _context.SaveChangesAsync();
+
+            TempData[resultado.Trocas > 0 ? "Sucesso" : "Aviso"] = resultado.Trocas == 0
+                ? "Não achei troca que melhorasse a grade — ela já está no melhor arranjo que as "
+                  + "restrições permitem. O que sobrou no Conferir grade se resolve falando com as duplas."
+                : $"Ajustei {resultado.Trocas} jogo(s) de lugar: o Conferir grade saiu de "
+                  + $"{resultado.AchadosAntes} para {resultado.AchadosDepois} ponto(s). "
+                  + "Nenhum horário foi refeito — só trocas.";
+
+            return VoltarPara(voltarPara, id);
+        }
+
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
