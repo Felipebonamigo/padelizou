@@ -61,6 +61,19 @@
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
 
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`** (16h04 e 16h10 de Brasília — runs 187 e 188). PR #161. ✅ **SEM MIGRATION.**
+>
+> 📍 **O CLUBE VOLTOU AO CARTÃO DA PRÉVIA DO MATA-MATA** — o pedido dos dois prints do Er (*"quartas de final ta sem clube"*, *"tem uma parte com e uma sem"*). O que a correção é está na entrada logo abaixo.
+>
+> ✅ **`/healthz` CONFERIDO POR FORA NOS DOIS: HTTP 200, corpo `ok`** (`dev.padelizou.com.br` e `padelizou.com.br`, por `curl` desta sessão). É verificação independente, e não só o healthcheck que o próprio `deploy.sh` faz — os dois runs também saíram verdes com *"==> Feito. build-997-6b6dc3d no ar"*.
+>
+> 🔓 **O `prod` NÃO PAROU PEDINDO APROVAÇÃO.** O `deploy.yml` aponta pro environment `prod` justamente pra isso, mas nesta conta a regra de revisores não está ligada: o run foi direto do dispatch ao deploy, em 20 segundos. Fica anotado porque a sessão anunciou o clique e ele não veio — quem publicar daqui não deve esperar por ele.
+>
+> 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
+>
+> ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
+
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
 > ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
@@ -91,6 +104,9 @@
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A suíte inteira passa e o Razor compila; a faixa em branco descrita acima foi deduzida do CSS (`site.css:2295` e `:2305`), **não medida**. Confere no `dev` antes do `prod`.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`.** PR #161. ✅ **SEM MIGRATION.**
+
 >
 > 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
 >
