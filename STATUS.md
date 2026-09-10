@@ -13,6 +13,12 @@
 >
 > 🔧 **ENSAIOS DE ESCRITA NO `dev` (o motivo documentado da cópia).** `RefazerGrade` recalculou **56 jogos, 11/09 18:00 a 17:10, confrontos inalterados** — o "Refazer grade" que a cópia existe pra ensaiar antes do PRD (Regra 3). `MarcarCheckIn` marca e desmarca uma dupla; **restaurei o estado**. Só o `dev` foi tocado.
 >
+> 🎯 **PLACAR TESTADO DE PONTA A PONTA NO `dev` (jogo 924, 4ª Masculina, Grupo E) — e desfeito.** `ColocarNoAr` → aba "Ao Vivo" foi de (0) pra (1); `ControlePlacar` gravou **6 x 3** e o card ao vivo da página do torneio passou a mostrar `games1=6 games2=3`; `VoltarParaAgendado` devolveu o jogo pra fila. O jogo terminou **idêntico aos irmãos intocados** (`Agendada, 0 x 0, sem quadra`).
+>
+> ⚠️ **NÃO FINALIZEI O JOGO, DE PROPÓSITO — e este é o aviso pra próxima sessão.** `FinalizarPartida` (e o `ControlePlacar` com `status=Finalizada`) chamam `EncerramentoDaPartida.AplicarAsync`: Padelímetro, robôs de chaveamento, **aviso de resultado e a chamada "seu jogo é o próximo"**. No `dev` isso sai pra **gente de verdade**, porque o banco é cópia da produção — quem segura é a lista `Entrega:SoPara` (`PorteiroDaSaida`), que mora no **systemd do VPS** e **não dá pra ler de uma sessão web**. Com a lista vazia, o `dev` manda e-mail, WhatsApp e push pra quem não se inscreveu em nada. Enquanto ninguém confirmar essa lista, o teste de placar no `dev` para **antes** do finalizar: `ColocarNoAr` e `ControlePlacar` com `status=AoVivo`/`Agendada` são **mudos** (o `_encerramento` está guardado por `status == "Finalizada"`).
+>
+> ✅ **E o desfazer tem uma sutileza que vale saber:** `DesfazerDoJogo.VoltarParaAgendado` zera o placar pra **NULO**, enquanto os jogos que nunca foram tocados estão em **0 x 0**. Sem impacto prático (jogo não jogado não entra na classificação), mas deixa o jogo diferente dos vizinhos — devolvi o `0 x 0` com um POST `status=Agendada`.
+>
 > 🧪 **Suíte local no mesmo turno: `dotnet build` 0, `dotnet test` 6242/0 falhas, `conferir-palpitrometro.js` verde, `has-pending-model-changes` limpo.**
 >
 > ⚠️ **RESSALVA (baixa, pré-existente, já do Felipe):** a prévia do mata-mata ainda **projeta quadra/horário** que o torneio "por ordem" pode não cumprir — os cards têm clube, mas prometem quadra que talvez não exista. É a pendência que a entrada de 10/09 já registrou como decisão do Felipe, não desta sessão.
