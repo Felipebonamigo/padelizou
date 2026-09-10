@@ -160,6 +160,69 @@ public class AuditoriaDaGradeTests
         Assert.Contains("09:50", achado.Descricao);
     }
 
+    // 🗣️ Felipe, 10/09/2026, com 14 "Alguém joga…" na tela: *"os horarios eu vou trocar na mão"*.
+    // Não dá sem saber QUEM e QUAIS jogos.
+    [Fact]
+    public void Jogos_seguidos_diz_quem_e_quais_jogos()
+    {
+        var ana = new Jogador { Id = 10, Nome = "Ana Souza" };
+        var bia = new Jogador { Id = 11, Nome = "Bia Lima" };
+        var duplas = new[]
+        {
+            new Dupla { Id = 1, Jogador1Id = 10, Jogador1 = ana, Jogador2Id = 11, Jogador2 = bia,
+                        Categoria = new Categoria { Id = 1, Nome = "3ª", Codigo = "C3" } },
+            Dupla(2, 20, 21), Dupla(3, 30, 31),
+        };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(9), "Grupo A"),
+            Jogo(1, 3, Sabado.AddHours(9).AddMinutes(50), "Grupo C"),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.JogosSeguidos);
+        Assert.Contains("Ana Souza", achado.Descricao);
+        Assert.Contains("Bia Lima", achado.Descricao);
+        Assert.Contains("Grupo A", achado.Descricao);
+        Assert.Contains("Grupo C", achado.Descricao);
+    }
+
+    // A dupla concentrada na sexta contra a dupla que não joga sexta: não existe horário. O motor
+    // marca onde der (é o retardatário do domingo), e a tela tem que dizer que o problema é o
+    // cadastro, não a grade.
+    [Fact]
+    public void Conferir_grade_aponta_restricoes_que_nao_cabem_juntas()
+    {
+        var soSexta = Dupla(1, 10, 11);
+        soSexta.ConcentrarJogosEm = TurnoDeConcentracao.SextaNoite;
+        var nuncaSexta = Dupla(2, 20, 21);
+        nuncaSexta.ImpedimentoSextaNoite = true;
+
+        var jogos = new[] { Jogo(1, 2, Sabado.AddHours(9), "Grupo A") };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, new[] { soSexta, nuncaSexta }, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.RestricoesEmConflito);
+        Assert.Contains("sexta", achado.Descricao, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cadastro", achado.Descricao);
+    }
+
+    [Fact]
+    public void Restricoes_que_cabem_juntas_nao_sao_conflito()
+    {
+        var soSexta = Dupla(1, 10, 11);
+        soSexta.ConcentrarJogosEm = TurnoDeConcentracao.SextaNoite;
+        var semSabadoDeManha = Dupla(2, 20, 21);
+        semSabadoDeManha.ImpedimentoSabadoManha = true;
+
+        var jogos = new[] { Jogo(1, 2, Sexta.AddHours(20), "Grupo A") };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, new[] { soSexta, semSabadoDeManha }, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.RestricoesEmConflito);
+    }
+
     [Fact]
     public void Com_a_folga_da_regua_nao_e_jogo_seguido()
     {

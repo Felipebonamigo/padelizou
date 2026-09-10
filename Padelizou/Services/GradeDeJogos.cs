@@ -486,12 +486,15 @@ public static class GradeDeJogos
             // colados. Então a prioridade só vale pra quem DESCANSOU o que a régua pede; a dupla
             // que acabou de sair de quadra volta pra fila comum e entra na vaga seguinte que
             // couber — ainda dentro do turno dela.
-            bool Descansou(int pessoa) =>
+            bool Descansou(int pessoa, int horariosDeFolga) =>
                 !ocupados.TryGetValue(pessoa, out var agenda)
-                || !agenda.Any(a => a.Quando < horario && a.Quando >= horario - duracao * HorariosDeDescanso);
+                || !agenda.Any(a => a.Quando < horario && a.Quando >= horario - duracao * horariosDeFolga);
 
-            bool DescansaramTodos(Partida p) =>
-                Ocupantes(p.Dupla1Id).All(Descansou) && Ocupantes(p.Dupla2Id).All(Descansou);
+            bool Descansaram(Partida p, int horariosDeFolga) =>
+                Ocupantes(p.Dupla1Id).All(x => Descansou(x, horariosDeFolga))
+                && Ocupantes(p.Dupla2Id).All(x => Descansou(x, horariosDeFolga));
+
+            bool DescansaramTodos(Partida p) => Descansaram(p, HorariosDeDescanso);
 
             // ⚠️ E NO PASSO GERAL A DUPLA CONCENTRADA TAMBÉM ESPERA O DESCANSO, se houver outro jogo
             // que caiba. SÓ ELA, de propósito: a régua global de "quem descansou mais primeiro" foi
@@ -504,6 +507,21 @@ public static class GradeDeJogos
                 && (janelasSoNosGruposPorDupla.ContainsKey(p.Dupla1Id) || janelasSoNosGruposPorDupla.ContainsKey(p.Dupla2Id));
 
             var jogo = fila.FirstOrDefault(p => ConcentradoNesteTurno(p) && DescansaramTodos(p) && Serve(p))
+                    // ⚠️ QUEM DESCANSOU ENTRA ANTES DE QUEM NÃO DESCANSOU (10/09/2026). 🗣️ Felipe, no
+                    // Conferir grade do Er: 14 "jogos seguidos" depois do Refazer — *"na logica, é
+                    // melhor deixar um jogo bem espaçado do outro do que junto (se nao houver
+                    // impedimento)"*. A ordem de OrdemDasRodadas dá o descanso quando a fila anda
+                    // inteira; com Radar só de manhã, impedimento, concentração e categoria presa em
+                    // casa a fila é atropelada e o primeiro que serve é, muitas vezes, quem acabou de
+                    // sair da quadra. Isto NÃO é o "quem descansou mais primeiro" medido pior em
+                    // DescansoNaGradeTests: é um limiar (a folga que a régua promete) com a ordem da
+                    // fila mantida entre os descansados, e cai no de sempre quando ninguém descansou —
+                    // nunca deixa quadra parada. Medido em GradeDoErMedidaTests.
+                    ?? fila.FirstOrDefault(p => Serve(p) && DescansaramTodos(p))
+                    // ⚠️ SEM degrau intermediário ("pelo menos um horário de folga"): medido em
+                    // 10/09/2026 — PIOROU (4-5 seguidos por grade no sorteio, 7-10 no refazer, contra
+                    // 1 e 4 só com o limiar cheio) e quebrou a guarda do Americano. Mesma lição de
+                    // DescansoNaGradeTests: reordenar de novo empurra os cansados pro fim.
                     ?? fila.FirstOrDefault(p => Serve(p) && (!TemConcentrado(p) || DescansaramTodos(p)))
                     ?? fila.FirstOrDefault(Serve);
 

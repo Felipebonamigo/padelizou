@@ -536,8 +536,11 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> ConferirGrade(int id)
         {
+            // Com os JOGADORES: sem eles a dupla vira "Dupla 589" e a pessoa vira "alguém" — e o
+            // organizador não tem como mexer na mão no que não sabe quem é (10/09/2026).
             var torneio = await _context.Torneios
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
 
