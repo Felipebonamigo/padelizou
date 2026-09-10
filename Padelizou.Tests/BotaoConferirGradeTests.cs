@@ -143,6 +143,33 @@ public class BotaoConferirGradeTests
         Assert.Contains("na mão", aviso);
     }
 
+    // 🗣️ *"o botão recalcular horarios pode ficar em vermelho tambem, para mostrar que é perigoso,
+    // por que ele reorganiza todas as chaves"* e, apontando o OK do modal, *"esse botão em vermelho"*.
+    [Fact]
+    public void O_recalcular_horarios_e_vermelho_na_tela_e_no_modal()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+
+        var formulario = fonte.Substring(fonte.IndexOf("asp-action=\"RefazerGrade\""));
+        formulario = formulario.Substring(0, formulario.IndexOf("</form>"));
+
+        Assert.Contains("btn-danger", formulario);                       // o botão da tela
+        Assert.Contains("data-confirmar-tom=\"perigo\"", formulario);    // o OK do modal
+    }
+
+    // O botão manso fica ao lado, e é o que se aperta primeiro.
+    [Fact]
+    public void O_ajustar_horarios_fica_ao_lado_do_recalcular()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+
+        Assert.Contains("asp-action=\"AjustarHorarios\"", fonte);
+        // Sem `data-confirmar`: ele não joga nada fora, então não precisa pedir licença.
+        var formulario = fonte.Substring(fonte.IndexOf("asp-action=\"AjustarHorarios\""));
+        formulario = formulario.Substring(0, formulario.IndexOf("</form>"));
+        Assert.DoesNotContain("data-confirmar", formulario);
+    }
+
     private static string PastaDoProjeto()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
