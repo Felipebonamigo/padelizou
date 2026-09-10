@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/wizardly-archimedes-um7u3v`, ainda não publicado.** **Sem migration.**
+>
+> 🛡️ **A CAIXA "SOU DONO DO TIME" ERA O TERCEIRO CAMINHO QUE CRIAVA TIME — E O ÚNICO SEM TRAVA DE NOME REPETIDO.** Achado numa varredura só-leitura do 2ª Etapa ER PADEL TOUR em produção: a aba **Times** do torneio listava **`ER Padel` (21 jogadores, 318 pts)** e **`Er padel` (2 jogadores, 25 pts)** como times DIFERENTES. Os dois do segundo são a Camila Lopes (a própria organizadora) e a Ivone Peixoto.
+>
+> 🕳️ **A REGRA JÁ EXISTIA — UM DOS TRÊS CAMINHOS NÃO A APLICAVA.** `AdminController.CriarTime` recusa nome repetido (e o comentário dele já descrevia este estrago: *"com dois SINDAQUA na base, cada pessoa cai num dos dois pelo acaso da consulta — e metade do time fica pendurada no cadastro errado, em silêncio"*); `AuthController.DefinirTimeAsync` acha por nome sem diferenciar maiúscula e ENTRA no que existe. Já o `AuthController.EditarPerfil`, no bloco `ehDonoTime`, fazia `new Time { Nome = nomeTime.Trim() }` **direto, sem olhar**.
+>
+> ⚠️ **E O MESMO TRECHO PIORAVA A TENTATIVA DE CONSERTO:** a dona do `Er padel` corrigindo o nome pra `ER Padel` caía em `meuTime.Nome = nomeTime.Trim()` e **renomeava** — passariam a existir dois times com o nome IDÊNTICO, pior que a duplicata original.
+>
+> ✅ **AGORA:** nome que já existe → **entra no time existente**, e nome que colide com OUTRO time no rename → **recusa com mensagem** (decisão do Felipe: recusar, não fundir automático — fusão disparada por edição de perfil dissolveria o time de alguém sem a pessoa entender o que fez).
+>
+> ⚠️ **QUEM ENTRA POR ESSE CAMINHO NÃO GANHA CARGO, LOGO NEM SEDE** — e isso não é economia, é a mesma trava do `DefinirTimeAsync`: deixar o logo e as sedes passarem daria a qualquer pessoa a identidade visual de um time alheio só por saber como ele se chama.
+>
+> 🧪 **6.128 testes, 0 falhas (4 novos, `TimeDuplicadoNoPerfilTests`).** Vistos vermelhos antes: *"Assert.Single() Failure: The collection contained 2 items"* (o segundo time nascendo), *"Expected ViewResult, Actual RedirectToActionResult"* (o rename passando) e *"Assert.Empty() Failure"* (o cargo saindo na duplicata). O quarto (caminho feliz: nome novo cria e administra) passou de primeira **de propósito** — é guarda de regressão, não teste de defeito.
+>
+> 🕳️ **O DADO EM PRODUÇÃO CONTINUA PARTIDO** — a correção impede novos, não junta os dois que já existem, e não há ferramenta de fusão no admin. O `ExcluirTime` deixa os jogadores SEM time (`SetNull`), não os move.
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
 >

@@ -689,47 +689,86 @@ namespace padelizou.Controllers
             // --- Meu time ---
             if (ehDonoTime)
             {
-                bool acabouDeCriar = meuTime == null;
-                if (meuTime == null)
-                {
-                    meuTime = new Time { Nome = nomeTime!.Trim() };
-                    _context.Times.Add(meuTime);
-                }
-                else if (!string.IsNullOrWhiteSpace(nomeTime))
-                {
-                    meuTime.Nome = nomeTime.Trim();
-                }
-                if (logoTime != null && logoTime.Length > 0)
-                {
-                    // Se o processamento falhar, o logo que já estava lá continua — trocar por
-                    // nulo apagaria o escudo do time por causa de um envio ruim.
-                    var logoSalvo = await SalvarLogoTimeAsync(logoTime);
-                    if (logoSalvo.Salvou) meuTime.Logo = logoSalvo.Caminho;
-                    else if (logoSalvo.DeuErro) TempData["ErroImagem"] = logoSalvo.Erro;
-                }
-                await _context.SaveChangesAsync(); // garante o Id do time recém-criado
+                // ⚠️ NOME REPETIDO. Este é o TERCEIRO caminho que cria um Time, e era o único
+                // que não olhava se o nome já existia — foi por ele que a base de produção
+                // ganhou "ER Padel" e "Er padel" como times DIFERENTES, com os pontos de time
+                // do torneio partidos entre as duas linhas (achado em 10/09/2026). A régua
+                // aqui é a mesma que o AdminController.CriarTime e o DefinirTimeAsync já
+                // aplicam: o nome manda, sem diferenciar maiúscula.
+                var nomePedido = (nomeTime ?? "").Trim();
+                var meuTimeId = meuTime?.Id ?? 0;   // 0 = ainda não tenho time; nenhum Id é 0
+                var alvo = nomePedido.ToLower();
+                var homonimo = nomePedido.Length == 0
+                    ? null
+                    : await _context.Times.FirstOrDefaultAsync(t => t.Nome.ToLower() == alvo && t.Id != meuTimeId);
 
-                // As sedes só podem ser gravadas DEPOIS do SaveChanges acima: o vínculo
-                // precisa do Id do time, e num time recém-criado ele acabou de nascer.
-                await SedesDoTime.DefinirAsync(_context, meuTime.Id, clubeSedeIds);
-
-                // Quem cria o time é o primeiro administrador dele. Só vale pra time NOVO:
-                // os 44 importados do ranking já existem, e entrar num deles pelo nome não
-                // dá cargo nenhum — quem manda lá é designado por um admin do Padelizou.
-                if (acabouDeCriar)
+                // Renomear o próprio time para o nome de OUTRO é recusado: passariam a existir
+                // dois times com o nome idêntico, que é pior que a duplicata que a pessoa
+                // estava tentando corrigir. Nada da tela é gravado (não há SaveChanges antes
+                // deste ponto na ação), então volta o formulário inteiro com o erro.
+                if (meuTime != null && homonimo != null)
                 {
-                    _context.TimeAdministradores.Add(new TimeAdministrador
+                    ViewBag.Erro = $"Já existe um time chamado \"{homonimo.Nome}\". Dois times com o mesmo nome dividiriam a mesma turma em duas — fale com o Padelizou se for pra juntar os dois.";
+                    await PopularDadosTimeAsync(jogadorId);
+                    return View(jogador);
+                }
+
+                if (meuTime == null && homonimo != null)
+                {
+                    // O nome já existe: ENTRA nele em vez de criar um segundo, igual ao
+                    // DefinirTimeAsync faz no cadastro.
+                    //
+                    // ⚠️ E entra SEM cargo, SEM logo e SEM sede — de propósito. Quem digitou
+                    // o nome não administra esse time: dar-lhe o escudo e as sedes deixaria
+                    // qualquer pessoa reescrever a identidade de um time alheio só por saber
+                    // como ele se chama, que é o mesmo risco que o DefinirTimeAsync evita ao
+                    // não conceder administração.
+                    TransferenciasDeTime.Registrar(_context, jogador, homonimo.Id);
+                }
+                else
+                {
+                    bool acabouDeCriar = meuTime == null;
+                    if (meuTime == null)
                     {
-                        TimeId = meuTime.Id,
-                        JogadorId = jogadorId,
-                        ConcedidoPorId = jogadorId,   // criou, logo se concedeu
-                        ConcedidoEm = DateTime.Now,
-                    });
-                }
+                        meuTime = new Time { Nome = nomePedido };
+                        _context.Times.Add(meuTime);
+                    }
+                    else if (nomePedido.Length > 0)
+                    {
+                        meuTime.Nome = nomePedido;
+                    }
+                    if (logoTime != null && logoTime.Length > 0)
+                    {
+                        // Se o processamento falhar, o logo que já estava lá continua — trocar por
+                        // nulo apagaria o escudo do time por causa de um envio ruim.
+                        var logoSalvo = await SalvarLogoTimeAsync(logoTime);
+                        if (logoSalvo.Salvou) meuTime.Logo = logoSalvo.Caminho;
+                        else if (logoSalvo.DeuErro) TempData["ErroImagem"] = logoSalvo.Erro;
+                    }
+                    await _context.SaveChangesAsync(); // garante o Id do time recém-criado
 
-                // Quem administra também veste a camisa — e a troca passa pelo registro de
-                // transferências, como toda troca de time no sistema.
-                TransferenciasDeTime.Registrar(_context, jogador, meuTime.Id);
+                    // As sedes só podem ser gravadas DEPOIS do SaveChanges acima: o vínculo
+                    // precisa do Id do time, e num time recém-criado ele acabou de nascer.
+                    await SedesDoTime.DefinirAsync(_context, meuTime.Id, clubeSedeIds);
+
+                    // Quem cria o time é o primeiro administrador dele. Só vale pra time NOVO:
+                    // os 44 importados do ranking já existem, e entrar num deles pelo nome não
+                    // dá cargo nenhum — quem manda lá é designado por um admin do Padelizou.
+                    if (acabouDeCriar)
+                    {
+                        _context.TimeAdministradores.Add(new TimeAdministrador
+                        {
+                            TimeId = meuTime.Id,
+                            JogadorId = jogadorId,
+                            ConcedidoPorId = jogadorId,   // criou, logo se concedeu
+                            ConcedidoEm = DateTime.Now,
+                        });
+                    }
+
+                    // Quem administra também veste a camisa — e a troca passa pelo registro de
+                    // transferências, como toda troca de time no sistema.
+                    TransferenciasDeTime.Registrar(_context, jogador, meuTime.Id);
+                }
             }
             else
             {
