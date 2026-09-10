@@ -70,6 +70,17 @@ pra estornar (pago por fora, marcado na mão), só cancela e avisa o organizador
 devolução fora do sistema. Fora dessa dupla incompleta e dessa janela, o caminho continua
 sendo `Pagamentos → Meus`.
 
+⚠️ **A inscrição NÃO paga também mexe em dinheiro aqui**, e é o caso menos óbvio: no torneio
+que "garante a vaga e cobra depois", quem não pagou tem uma **fatura pendente viva no gateway**,
+com link que funciona até o prazo. Cancelar a inscrição sem matá-la deixava o jogador pagando
+por uma vaga que não existe mais — o dinheiro entrava, ninguém estava inscrito, e a confirmação
+caía num `LogError` pedindo devolução à mão. Desde 10/09/2026 a ação cancela a fatura junto
+(`DELETE` no gateway, sem movimentar dinheiro). Essa fatura **não tem `ReferenciaId`** — ele só
+é gravado quando o pagamento confirma —, então quem a acha é o JSON de `DadosInscricao`
+(`CobrancaDaDupla.PendentesDoPagarDepois` + filtro em memória), nunca a consulta por referência.
+Se o gateway recusar, **a inscrição não é removida**: sumir com ela deixaria o link de pé sem
+nenhuma tela pra cancelá-lo depois.
+
 ---
 
 ## O que esperar do dinheiro
