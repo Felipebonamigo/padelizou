@@ -13,7 +13,25 @@
 >
 > ✅ **A CORREÇÃO É `flex-wrap: wrap`, e não espremer os botões.** 7 alvos de dedo de 44px já passam de **337px**: numa linha só, nesta largura, é **impossível** — a barra tem que quebrar. O custo é honesto e está anotado: no celular ela vira **duas linhas** (+42px por cartão). Rolagem horizontal escondida foi descartada — o organizador não descobriria que existe o lápis lá na ponta.
 >
-> 🧪 **6.123 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
+> 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
+>
+> 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
+>
+> 🕳️ **É O CUSTO DO POST → REDIRECT → GET**, e ele só apareceu agora porque antes ninguém clicava sete vezes seguidas: a página nova nasce no começo. Numa lista de 97 jogos, arrumar a ordem de sete semifinais custava sete rolagens até reencontrar a linha — a ferramenta que existia pra poupar trabalho cobrando trabalho de volta.
+>
+> ✅ **A RESPOSTA É A MESMA PEÇA DE 08/08**, e isso é o ponto: `js/jogos-abas.js` nasceu da queixa gêmea (*"ele tem que se manter na tela que eu estou editando"*) e usa `sessionStorage`. O `js/manter-posicao-na-lista.js` guarda o `scrollY` no submit e o devolve depois do redirect. Reuso de padrão, não invenção — duas mecânicas diferentes pra "a tela não pode se mexer sozinha" divergiriam na primeira mudança.
+>
+> ⚠️ **POR OPT-IN (`data-manter-posicao` no formulário), e não em todo POST da página:** ação que leva pra outra tela, ou que muda a lista inteira (o "Recalcular horários"), não quer voltar pra uma posição que já não quer dizer nada. Quem sabe disso é quem escreveu o botão.
+>
+> ⚠️ **RESTAURA NO `load` + `requestAnimationFrame`, e não no `DOMContentLoaded`:** o navegador ainda pula pra âncora do endereço (`#jogosDoTorneio`) e o `jogos-abas.js` ainda troca a aba — as duas coisas mexem na altura da página, e rolar antes delas erraria o alvo. E a posição é lida UMA vez e apagada: sem isso, qualquer visita seguinte àquela página seria arrastada pra um lugar escolhido em outro momento.
+>
+> 🧪 **6.124 testes, 0 falhas (3 novos).** Vistos vermelhos antes: o formulário das setas sem o `data-manter-posicao`, as duas telas sem o script, e o script sem existir.
+>
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio. O que dá pra afirmar é o que o teste lê da fonte; a rolagem em si só se confere no `dev`.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 >
@@ -35,6 +53,17 @@
 >
 > 🧪 **6.113 testes, 0 falhas (30 novos; os outros 23 vieram do `main`).** Vistos vermelhos antes: *"'Partida' does not contain a definition for 'OrdemNoHorario'"*, *"'TorneiosController' does not contain a definition for 'MoverNoHorario'"*, a prévia ignorando a reserva de ordem, o `RefazerGrade` deixando a ordem de pé e as quatro travas de view sem as setas. ⚠️ **Um teste passou pelo motivo errado e foi refeito**: `Trocar_horario_entre_dois_jogos_do_mesmo_horario_troca_a_posicao` continuou verde com a troca de ordem removida de `TrocaDeHorario.Trocar` — porque o caminho do controller grava por `Receber`, não por `Trocar`. Falsificado de novo desligando a `Materializar`, e `Trocar` ganhou o teste de unidade dele (é o caminho do `ReparoDaGrade`).
 >
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-949-2a53bc0`** (13h52 e 13h53 de Brasília — runs 34504680779 e 34504840832, os dois com a tag **explícita** no input `build`, e não "a mais recente": havia outra sessão mesclando no mesmo minuto e o `build-948-151ff00` saiu um minuto antes do meu). PR #138, o `ClubeId` que sobrevivia ao "Recalcular horários". **Sem migration.** `/healthz` 200 nos dois — e neste app o `/healthz` também confere o schema, então 200 diz que o modelo EF do build novo casa com o banco.
+>
+> 🤝 **DUAS SESSÕES ACHARAM A MESMA CAUSA RAIZ HOJE, DE PONTAS OPOSTAS, E AS DUAS CORREÇÕES ESTÃO NO AR.** É o mesmo defeito: **o carimbo de clube do slot ANTIGO sobrevivia dentro do recálculo**, e o reparo o lia como se fosse o clube da vaga atual.
+>
+>   • **PR #137** (sessão paralela, `build-940`) consertou **o leitor**: `TrocaDeHorario.Lado.ClubeDaVaga` passou a ler `sedes.ClubeDaQuadra(Quadra) ?? Real?.ClubeId` em vez do contrário — *"a quadra nunca mente: quando ela existe, ela É o slot"*.
+>   • **PR #138** (este, `build-949`) consertou **o dado**: `RecalcularAGradeAsync` zera o `ClubeId` junto com a hora e a quadra, porque o slot é o TRIO e deixar um terço do slot velho vivo era a origem da mentira.
+>
+> ⚠️ **NÃO É REGRA DUPLICADA, e vale dizer por quê** (a regra do `CLAUDE.md` sobre a segunda cópia existe pra isso): as duas mexem em lugares diferentes do mesmo caminho e nenhuma reescreve a régua da outra. Com o #137 sozinho o campo continuava mentindo pra qualquer outro leitor dentro da janela do recálculo; com o #138 sozinho o leitor continuava preferindo carimbo a quadra em todo o resto do sistema. Juntas, o sorteio e o Refazer passam a rodar o reparo sobre o MESMO mundo (`ClubeId` nulo nos dois, quadra mandando), que era a invariante quebrada. **6.121 testes, 0 falhas** com as duas.
+>
+> 🧠 **A LIÇÃO É SOBRE PROCESSO, NÃO SOBRE O BUG:** eu comecei deste arquivo, li a entrada dos testes instáveis, medi por três horas e cheguei no carimbo — e a sessão paralela já tinha chegado lá e publicado. O que faltou foi uma linha: `gh pr list` antes de começar a caçar um defeito que o `STATUS.md` marca como aberto. O `ONDAS-PARALELAS.md` cuida de arquivos em conflito; não cuida de duas sessões caçando a MESMA pista. **Quem pegar um item aberto daqui: confira os PRs abertos e os mesclados nas últimas horas primeiro.**
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-940-b01797d`** (12h55 e 12h58 de Brasília — runs 157 e 158). Leva junto **três PRs de duas sessões**: o #139 (travar por teste a troca de horário depois da chave publicada), o #137 (os dois testes instáveis da grade) e o #140 (recolher as chaves). ⚠️ **ESTE RELEASE TEM MIGRATION** — `20260910152847_CarimboDasChavesAvisadas`, do #140 —, diferente dos últimos de hoje. Ela é aditiva: coluna nova nula (`ChavesAvisadasEm`) mais um `UPDATE` que só a preenche; nada existente é apagado ou alterado, e o app aplica no startup.
 >
 > ⚠️ **O DEPLOY EM `prod` FALHOU NA PRIMEIRA TENTATIVA, e o modo como falhou é o que importa:** `ssh: connect to host *** port 22: Connection timed out`, no passo *Publicar*, **antes** de o `deploy.sh` rodar. Ou seja: nada foi instalado, a migration não tocou o banco, e prod ficou intacto no `build-928` — não foi um deploy pela metade. O `dev` tinha publicado 90 segundos antes na mesma máquina, o que apontava pra rede e não pra host errado; **uma** re-execução resolveu (tentativa 2, mesma run 158). 📌 **Fica anotado como o primeiro timeout de SSH do deploy** — se repetir, deixa de ser transitório e vira sinal de VPS.
