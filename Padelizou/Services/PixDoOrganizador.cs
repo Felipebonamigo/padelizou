@@ -75,4 +75,61 @@ public static class PixDoOrganizador
         return $"Olá! Acabei de pagar a inscrição do {nomeDoTorneio} pelo Pix.{quem} "
              + "Estou mandando o comprovante aqui.";
     }
+
+    // ── JÁ PAGUEI? O CARD RECOLHE ────────────────────────────────────────────────────────
+    // 🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+    // ocupa muito espaço"*. No celular, o bloco inteiro — valor, chave, aviso e botão do
+    // WhatsApp — empurrava as abas do torneio (Inscritos, Jogos, Chaves e Grupos) pra fora
+    // da tela de quem já tinha resolvido a parte dele.
+    //
+    // ⚠️ RECOLHE, NÃO SOME (a view usa <details>): a última palavra sobre quem pagou é do
+    // organizador virando o `Pago` na mão — muita inscrição é paga em dinheiro na quadra —, e
+    // uma marcação errada dele não pode deixar o jogador sem caminho pra pagar.
+    //
+    // ⚠️ "JÁ PAGUEI" É TODAS AS MINHAS INSCRIÇÕES DESTE TORNEIO. Com duas categorias, uma paga
+    // e outra não, o card continua aberto: é justamente quem ainda deve. E quem não tem
+    // inscrição nenhuma também vê aberto — essa pessoa é a que ainda vai pagar.
+    //
+    // ⚠️ RECEBE O TORNEIO **JÁ CARREGADO COM `Categorias → Duplas`** (é o que a consulta que
+    // abre o Details faz, no topo da ação) e lê as duplas de lá, sem ir ao banco. É a mesma
+    // decisão, e o mesmo motivo, do `MinhasInscricoesNoTorneio` no mesmo método: esta é a
+    // página mais pesada do site, e uma consulta a mais aqui é uma consulta em toda abertura
+    // dela. Com as categorias não carregadas o resultado é "não pagou" — o lado seguro, que
+    // deixa o card aberto.
+    public static async Task<bool> JaPagouTudoAsync(DbPadelContext db, Torneio torneio, int jogadorId)
+    {
+        var minhas = new List<bool>();
+
+        // ⚠️ NO AMERICANO INDIVIDUAL, `Dupla` NÃO É INSCRIÇÃO — e isso não é detalhe: cada
+        // rodada sorteada grava um par por confronto (TorneiosController.Americano.
+        // GerarRodadasAmericano) e o desempate grava mais dois (CriarDesempateAmericano), todos
+        // com `Pago` false, porque ninguém paga um par de rodada. Lá a inscrição é a
+        // `InscricaoAmericana`; contar as duplas deixaria o card aberto pra sempre pra quem já
+        // pagou, no formato que mais gera essas linhas.
+        //
+        // O `AmericanoDuplas` fica FORA desta exceção de propósito: lá o par é FIXO, ele É a
+        // inscrição, e o sorteio não cria dupla nenhuma. Excluir a família inteira recolheria o
+        // card de quem nunca pagou — tem contraprova travando os dois lados.
+        if (torneio.Formato != FormatoDoTorneio.Americano)
+        {
+            minhas.AddRange(torneio.Categorias
+                .SelectMany(c => c.Duplas)
+                // Time fica de fora (a mesma exclusão do "Pagar agora" no controller): todo time
+                // é uma `Dupla` com o organizador no `Jogador1Id`, e sem isto um time sem
+                // pagamento manteria o card aberto pra sempre na tela dele.
+                .Where(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+                .Select(d => d.Pago));
+        }
+
+        // As americanas NÃO são pré-carregadas pela tela, então estas vêm do banco — uma
+        // consulta, e só em torneio "por fora" com alguém logado (ver o `if` do controller).
+        var americanas = await db.InscricoesAmericanas
+            .Where(i => i.Categoria.TorneioId == torneio.Id && i.JogadorId == jogadorId)
+            .Select(i => i.Pago)
+            .ToListAsync();
+
+        minhas.AddRange(americanas);
+
+        return minhas.Count > 0 && minhas.All(pago => pago);
+    }
 }
