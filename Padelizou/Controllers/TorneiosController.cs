@@ -302,7 +302,10 @@ namespace Padelizou.Controllers
 
         // Exemplo de como deve ficar o seu método Details
         [HttpGet]
-        public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
+        // `clubeFiltroId`, `quadraFiltro` e `faseFiltro`: a sequência de jogos por clube, quadra
+        // e fase (Services/FiltroDeJogos). Chegam do formulário da aba Jogos; vazio = sem recorte.
+        public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
+            int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null)
         {
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias)
@@ -873,7 +876,8 @@ namespace Padelizou.Controllers
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.
             if (torneio.Status != "Inscrições Abertas")
             {
-                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
+                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
+                    new FiltroDeJogos(clubeFiltroId, quadraFiltro, faseFiltro));
                 // Pontos por time neste torneio (só faz sentido depois que começa a valer resultado).
                 ViewBag.PontosTimes = await _estatisticas.ObterPontosTimesNoTorneioAsync(id);
 
@@ -962,7 +966,8 @@ namespace Padelizou.Controllers
 
             return View(torneio);
         }
-        public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
+        public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
+            int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null)
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
@@ -981,7 +986,8 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
-            await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
+            await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
+                new FiltroDeJogos(clubeFiltroId, quadraFiltro, faseFiltro));
             ViewBag.Torneio = torneio;
 
             return View();
@@ -1184,12 +1190,14 @@ namespace Padelizou.Controllers
         // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
         // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
         // pros dois lugares não divergirem.
-        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
+        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
+            FiltroDeJogos? sequencia = null)
         {
             // As sedes ficam AQUI, e não só na ação, porque é este método que abastece as duas
             // telas que mostram jogo (`Details` e `Jogos`) — e a etiqueta de quadra sai das
             // mesmas parciais nas duas. Ver Services/LugarDoJogo.
-            ViewData[LugarDoJogo.ChaveNaTela] = await Robo.SedesAsync(torneioId);
+            var sedes = await Robo.SedesAsync(torneioId);
+            ViewData[LugarDoJogo.ChaveNaTela] = sedes;
 
             var query = _context.Partidas
                 .Include(p => p.Categoria)
@@ -1262,6 +1270,14 @@ namespace Padelizou.Controllers
             if (ViewBag.SoMeusJogos)
                 partidas = partidas.Where(p => EstouNesteJogo(p, meuJogadorId!.Value)).ToList();
 
+            // A SEQUÊNCIA POR CLUBE, QUADRA OU FASE (Services/FiltroDeJogos, 10/09/2026). Vem
+            // DEPOIS do "meus jogos" e ANTES das três listas, pelo mesmo motivo dele: recorta o
+            // que a tela MOSTRA, não o que a projeção das próximas fases e a classificação
+            // precisam — essas continuam partindo de `todasAsPartidas`.
+            var filtro = sequencia ?? FiltroDeJogos.Nenhum;
+            if (filtro.Ativo)
+                partidas = partidas.Where(p => filtro.Aceita(sedes, p)).ToList();
+
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
 
             // PLACAR AO VIVO NA TELA DE BLOQUEIO: quais desses jogos EU já sigo — precisa vir
@@ -1291,9 +1307,23 @@ namespace Padelizou.Controllers
                 ? new List<ProximasFasesDaChave.JogoQueVem>()
                 : await ProjetarProximasFasesAsync(torneioId, todasAsPartidas);
 
-            ViewBag.JogosQueVem = ViewBag.SoMeusJogos
+            List<ProximasFasesDaChave.JogoQueVem> previstos = ViewBag.SoMeusJogos
                 ? RecortarProjecaoDoJogador(projetados, todasAsPartidas, meuJogadorId!.Value)
                 : projetados;
+
+            // A prévia obedece ao MESMO recorte do jogo real: filtrar por "Semifinal" e ver a
+            // Final prevista logo abaixo seria a lista discordando do próprio filtro.
+            ViewBag.JogosQueVem = filtro.Ativo
+                ? previstos.Where(j => filtro.Aceita(sedes, j)).ToList()
+                : previstos;
+
+            // O que os selects da tela oferecem — só o que ESTE torneio tem. O clube só com mais
+            // de um (com um só, "por clube" não separa nada); as fases vêm dos jogos reais e das
+            // prévias, na ordem da chave; as quadras já estão em ViewBag.QuadrasDoTorneio.
+            ViewBag.FiltroDeJogos = filtro;
+            ViewBag.ClubesDoTorneio = sedes.MaisDeUmClube ? sedes.Clubes : Array.Empty<(int Id, string Nome)>();
+            ViewBag.FasesDoTorneio = FiltroDeJogos.FasesParaEscolher(
+                todasAsPartidas.Select(p => p.Fase).Concat(projetados.Select(j => j.Fase)));
 
             // Só times que de fato jogam ESTE torneio — a lista vinha com todos os times
             // do sistema, e a tela esconde o filtro quando ela é vazia.
@@ -1418,7 +1448,11 @@ namespace Padelizou.Controllers
             //
             // A ordem é a de Id — a mesma que o avanço de verdade usa pra parear vencedores, e a
             // mesma chave da reserva de horário (Services/ReservasDeHorario).
-            ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(partidas);
+            //
+            // ⚠️ `todasAsPartidas`, e não a lista da tela: a Semifinal 2 continua sendo a 2 quando
+            // a Semifinal 1 sumiu pelo filtro (por quadra, por clube, "meus jogos"). Numerar o
+            // recorte renumeraria a referência "Vencedor Semifinal 2" pro jogo errado.
+            ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(todasAsPartidas);
         }
     }
 }
