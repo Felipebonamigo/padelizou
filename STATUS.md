@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🏷️ **A TAG DO BUILD PASSA A APONTAR PRO COMMIT QUE ELA NOMEIA.** 🗣️ Felipe, depois do deploy do palpitrômetro: *"arruma essa tag do ci tambem"*.
+>
+> 🕳️ **O `gh release create` nascia SEM `--target`**, e aí o `gh` cria a tag apontando pro topo do branch padrão **naquele instante** — não pro commit que o run compilou. Com dois merges perto, a tag passa a apontar pro commit do outro: o `build-1011-ea86749` ficou apontando pro `f3170fe`, o merge do PR #164, que entrou **4 minutos** depois do #168.
+>
+> ⚠️ **NADA DO QUE FOI PUBLICADO ESTAVA ERRADO, e isso importa pra dimensionar o conserto**: o `deploy.sh` baixa o **tarball** do release (`releases/download/$TAG/padelizou.tar.gz`) e, quando recebe um sha, procura pelo **nome** da tag — e o nome sempre saiu do `github.sha`. O que quebrava era a **procedência**: `git show` na tag mostra um commit que não é o do pacote. Pista errada justamente no dia em que algo deu errado.
+>
+> 🧪 **6.351 testes, 0 falhas (2 novos, em `TagDoBuildApontaProCommitTests` — o PRIMEIRO teste da suíte a ler `.github/`).** Visto vermelho antes em *"Not found: --target"*. O segundo teste trava o par que tem que concordar: o **nome** da tag e o **alvo** dela saem do mesmo `github.sha` — `--target` com `github.ref` ou `main` reintroduziria o defeito com outro nome, porque os dois também são "o topo agora".
+>
+> ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
 >
 > 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
 >
