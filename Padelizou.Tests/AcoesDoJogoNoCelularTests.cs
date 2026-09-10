@@ -52,16 +52,21 @@ public class AcoesDoJogoNoCelularTests
             Css());
     }
 
-    // As setas ↑↓ são um formulário só (dois submits, o que muda é o `direcao`), e ele entra na
-    // barra como UM item de flex. Sem quebrar linha por dentro, ↑ e ↓ nunca se separam — o par
-    // vai inteiro pra linha de baixo. Separá-los seria o organizador procurando a seta gêmea
-    // no fim da fila.
+    // As setas ↑↓ são um formulário só (dois submits, o que muda é o `direcao`). Desde
+    // 10/09/2026 ele mora DENTRO do menu ⋯, e ali a direção é COLUNA — não é preferência:
+    // em linha, os dois rótulos novos ("Subir uma linha" / "Descer uma linha") faziam o menu
+    // aberto medir 356px e encostar nas duas bordas de um celular de 390px. Medido no Chromium
+    // antes de virar regra; empilhados, o menu tem 222px.
+    //
+    // E continuam sem `flex-wrap`: os dois nascem e morrem juntos. Separá-los seria o
+    // organizador procurando a seta gêmea no meio da lista.
     [Fact]
     public void As_setas_da_ordem_seguem_juntas_e_nao_se_separam()
     {
         var setas = Regex.Match(Css(), @"\.pdz-jl-setas\s*\{[^}]*\}", RegexOptions.Singleline);
 
         Assert.True(setas.Success, "A regra .pdz-jl-setas sumiu do site.css.");
+        Assert.Matches(new Regex(@"flex-direction:\s*column"), setas.Value);
         Assert.DoesNotMatch(new Regex(@"flex-wrap:\s*wrap"), setas.Value);
     }
 }

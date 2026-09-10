@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
+>
+> ✅ **O CORTE É POR QUANDO A AÇÃO ACONTECE, e é o que faz a escolha dele fechar.** Fica na barra o trabalho do **dia de jogo**, com o clube esperando: ▶ começar, ⇄ trocar de horário com outro jogo (choveu, a dupla não veio), 📍 mudar de quadra, ✏️ marcar placar — um toque cada. Vai pro menu o trabalho de **antes**, montando a grade sentado: o relógio (digitar a hora) e as setas ↑↓.
+>
+> 📏 **MEDIDO NO CHROMIUM, e a barra agora é UMA linha de 360px pra cima** (era duas desde as setas). Aos 320px continuam duas: 5 botões de 48px pedem 259px e o cartão oferece 221px — não tem conta que resolva sem encolher o alvo de dedo.
+>
+> 🕳️ **A MEDIÇÃO PEGOU UM DEFEITO QUE O TESTE NÃO PEGARIA: o menu aberto media 356px** e encostava nas duas bordas de um celular de 390px. Causa: `.pdz-jl-setas` continuava `display: flex` — a regra que servia na barra punha "Subir uma linha" e "Descer uma linha" **lado a lado**. Virou `flex-direction: column` e o menu foi pra 222px. ⚠️ Sem abrir o menu no navegador isso passaria: o Razor está certo, o CSS é que estava aplicando uma regra de outro contexto.
+>
+> ⚠️ **AS SETAS GANHARAM RÓTULO ESCRITO** ("Subir uma linha" / "Descer uma linha"). Na barra, ↑ e ↓ lado a lado se explicavam; numa lista vertical, "↑" sozinho não diz nem para onde nem o quê.
+>
+> ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
+>
+> 🧪 **6.177 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+>
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >
 > 📌 **O BUILD FOI PEDIDO PELO NOME, e não como "o mais recente" — de propósito.** Entre o merge deste PR e o deploy, o #145 (*Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR*) entrou no `main`. Publicar `build-958-b949a3d` leva **exatamente** o que subiu no `dev` e o que esta sessão testou; o #145 fica pra quem o escreveu publicar. É a lição de hoje de manhã aplicada ao contrário: com duas sessões mesclando na mesma tarde, quem quiser segurar algo fora do prod segura o **merge** — e quem já mesclou, publica **pela tag**, não pelo topo.
 >

@@ -2765,11 +2765,16 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-jl-acoes form { margin: 0; }
 
-/* ↑↓ da ordem: dois botões num formulário só (o que muda é o `direcao`), então ele precisa se
-   comportar como os botões soltos ao lado — flex e o mesmo gap da barra de ações. */
+/* ↑↓ da ordem: dois botões num formulário só (o que muda é o `direcao`). Desde 10/09/2026 eles
+   moram DENTRO do menu ⋯ (_MenuDoJogo), e a coluna não é enfeite: com o `display: flex` que
+   valia na barra, os dois viravam uma linha só de 356px — o menu aberto encostava nas duas
+   bordas de um celular de 390px (medido). Empilhados, o menu tem a largura do texto.
+
+   ⚠️ Sem `flex-wrap`: os dois nascem e morrem juntos, um embaixo do outro. Separá-los seria o
+   organizador procurando a seta gêmea no meio da lista. */
 .pdz-jl-setas {
     display: flex;
-    gap: .3rem;
+    flex-direction: column;
 }
 
 /* Segunda linha: o confronto, com rosto. */

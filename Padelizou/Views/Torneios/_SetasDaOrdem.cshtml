@@ -12,6 +12,15 @@
     Sem confirmação de propósito: a seta é reversível pela seta contrária, e um diálogo a cada
     linha tornaria inviável arrumar sete semifinais. Quem avisa é o resultado — a mensagem diz o
     que a mexida fez com o Conferir grade (Services/ImpactoDaTroca).
+
+    ⚠️ MORA DENTRO DO MENU ⋯ desde 10/09/2026 (_MenuDoJogo), e por isso os dois submits são
+    `dropdown-item` e não `btn`: o `.btn { padding: .5rem 1.1rem }` do site faria dois blocos de
+    48px no meio de uma lista vertical de texto. O `<form>` solto dentro do `.dropdown-menu` é
+    de propósito — ele é `<div>`, não `<ul>`, justamente pra caber um formulário sem `<li>`.
+
+    ⚠️ E AGORA CADA SETA TEM RÓTULO ESCRITO. Ícone sozinho funcionava na barra, onde ↑ e ↓
+    estavam lado a lado e um explicava o outro; numa lista vertical, "↑" sozinho não diz nem
+    para onde nem o quê.
 *@
 @* `data-manter-posicao`: depois do POST a lista volta pra onde estava, em vez de nascer no topo
    (js/manter-posicao-na-lista.js). 🗣️ *"quando eu trocar aqui, ele tem q permanecer no mesmo local
@@ -23,12 +32,12 @@
     <input type="hidden" name="id" value="@Model.TorneioId" />
     <input type="hidden" name="jogo" value="@Model.Referencia" />
     <input type="hidden" name="voltarPara" value="@Model.VoltarPara" />
-    <button type="submit" name="direcao" value="cima" class="btn btn-sm btn-outline-secondary"
+    <button type="submit" name="direcao" value="cima" class="dropdown-item"
             title="Subir uma linha" aria-label="Subir uma linha">
-        <i class="bi bi-arrow-up"></i>
+        <i class="bi bi-arrow-up"></i> Subir uma linha
     </button>
-    <button type="submit" name="direcao" value="baixo" class="btn btn-sm btn-outline-secondary"
+    <button type="submit" name="direcao" value="baixo" class="dropdown-item"
             title="Descer uma linha" aria-label="Descer uma linha">
-        <i class="bi bi-arrow-down"></i>
+        <i class="bi bi-arrow-down"></i> Descer uma linha
     </button>
 </form>
