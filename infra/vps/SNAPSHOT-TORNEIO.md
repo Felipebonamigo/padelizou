@@ -1,9 +1,19 @@
-# Snapshot de um torneio — DESENHO, aguardando aprovação
+# Snapshot de um torneio — desenho e implementação
 
-> ⚠️ **Nada disto está implementado.** É o desenho escrito que a regra `architectural` do
-> `CLAUDE.md` exige antes do código: o script escreve no banco de **produção**.
+> ✅ **APROVADO E IMPLEMENTADO em 10/09/2026** (🗣️ *"aprovado, pode fazer"*). Este documento é o
+> desenho que a regra `architectural` do `CLAUDE.md` exige antes do código, porque o script
+> escreve no banco de **produção** — foi escrito e aprovado ANTES de qualquer linha.
 > 🗣️ Felipe, 10/09/2026: *"como esta nosso backup, como eu montei todo torneio do er, nao
 > podemos perder essa chave de nenhum jeito"*.
+>
+> **O que saiu:** `snapshot-torneio.sh`, `restaurar-torneio.sh`, `torneio-tabelas.sh` (a lista
+> compartilhada) e `ensaio-snapshot.sh` (o roteiro de prova, automatizado). Modo de usar no
+> [`README.md`](README.md).
+>
+> **A prova:** o roteiro da última seção rodou contra um **Postgres de verdade**, com o schema
+> saído das migrations (94 tabelas) — **21 verificações verdes**, incluindo os 8 jogos voltando
+> byte a byte, a trava da FK recusando, a sequence não colidindo e o dinheiro intacto. Está
+> automatizado em `ensaio-snapshot.sh`; é ele que precisa ficar verde depois de qualquer mexida.
 
 ## O problema, em uma linha
 
@@ -51,6 +61,10 @@ pro schema e escrever a partir dele.
 Duas propriedades que vêm de graça dessa escolha:
 
 - **O arquivo é um `pg_dump` comum.** Se o script quebrar um dia, dá pra ler e restaurar na mão.
+  ⚠️ O `CREATE TABLE` da área de trabalho vai **dentro** do arquivo, então a forma dela é decidida
+  na hora de GUARDAR, não na de restaurar — melhoria neste script só vale pros snapshots tirados
+  depois dela. Foi medido: um arquivo do script antigo continua falhando na migration; um do
+  script novo passa.
 - **Sobrevive a migration.** O `pg_dump` escreve a lista de colunas dentro do `COPY`; um
   snapshot de ontem carregado num schema criado hoje entra com as colunas que existiam, e as
   novas ficam no default. Colar lista de coluna à mão não teria essa propriedade — é o mesmo
@@ -110,9 +124,12 @@ que este script existe pra cobrir.
   semana do Er.
 - **Snapshot automático antes do Refazer grade.** É a versão em C# disto. Depois.
 
-## Como eu provo que funciona — antes do Er, no `dev`
+## Como eu provo que funciona — feito, e automatizado
 
-O Er já está no `dev` (`copiar-torneio.sh ERPADEL` rodou em 09/09).
+⚠️ **O roteiro abaixo NÃO foi rodado contra o Er em produção nem no `dev` do VPS** — esta sessão
+não tem rede pro servidor. Ele rodou contra um Postgres 16 descartável com o schema de verdade,
+gerado por `dotnet ef migrations script`. Está em `ensaio-snapshot.sh`, e no VPS roda com
+`--schema-de db_padel`.
 
 1. Snapshot do Er no `dev`.
 2. **Refazer grade** no `dev` → confirmar que a grade mudou.
@@ -125,7 +142,21 @@ O Er já está no `dev` (`copiar-torneio.sh ERPADEL` rodou em 09/09).
 
 ⚠️ **Sinceridade sobre a Regra 1:** isto é shell, e a suíte do projeto é xUnit — **não há teste
 de regressão em C# que cubra este script.** A prova é o roteiro medido acima, e é por isso que
-ele tem passo negativo e passo de idempotência em vez de terminar no "rodou".
+ele tem passo negativo e passo de idempotência em vez de terminar no "rodou". O
+`ensaio-snapshot.sh` é o que faz esse roteiro ser repetível em vez de uma afirmação de uma vez só.
+
+### O que o ensaio mediu (10/09/2026)
+
+| Passo | Resultado |
+|---|---|
+| Snapshot | 12 tabelas, **`ReservaDeHorario` incluída** |
+| Refazer grade → restaurar `--grade` | os **8 jogos** voltaram **byte a byte** idênticos; as 2 reservas de volta |
+| Rodar de novo | **0 linhas** mudadas (idempotente) |
+| Trava da FK | recusou apagar jogo com palpite pendurado, nomeando `"PalpitePartida".PartidaId`, e saiu com código 1 |
+| Desfazer sorteio → `--chave` | jogos de volta com os **Ids originais** (50–57), 3 grupos, 6 duplas nos grupos, status de volta |
+| Coluna nova por migration | com `LIKE ... INCLUDING DEFAULTS`, a coluna nasce com o default. **Visto vermelho antes:** sem ele a restauração não falha calada — ela **não acontece**, morre na carga com `null value in column "ColunaNova" ... violates not-null constraint` |
+| Sequence | jogo novo nasceu no Id **58**, sem colidir |
+| **Teste negativo** | `Pagamento` 2 linhas / R$ 200,00 e as 6 inscrições **intactos** nos dois modos |
 
 ## Custo
 

@@ -1,0 +1,16 @@
+# O dump do banco de HORA EM HORA — a janela de perda cai pra 1 hora.
+#
+# 🗣️ Felipe, 10/09/2026: *"Temos q pensar num backup por hora, para caso tenha algum problema ou
+# mexer em algo errado, tenhamos como recuperar"*.
+#
+# ⚠️ SUBSTITUI o /etc/cron.d/padelizou-backup-meio-dia, que rodava uma vez por dia às 16h UTC.
+# Os dois juntos não fazem sentido: de hora em hora, o das 16h nunca acrescenta nada. Ao instalar
+# este, APAGUE o outro — ver infra/vps/README.md.
+#
+# O relógio deste arquivo é o do SISTEMA. No minuto 17 e não no 0 de propósito: às 4h00 e 4h30
+# rodam o backup completo e a cópia de fora, e um dump concorrendo com eles pelo mesmo disco e
+# pela mesma rede não ajuda ninguém. O minuto 17 fica longe dos dois.
+#
+# O log vai pro mesmo arquivo do backup de fora, de propósito: é uma linha do tempo só, pra quem
+# for investigar "quando foi a última cópia boa?".
+17 * * * * root /usr/local/bin/backup-do-banco.sh >> /var/log/padelizou-backup-drive.log 2>&1

@@ -1,28 +1,64 @@
 # Publicar o Padelizou pelo GitHub (dá pra fazer do celular)
 
 Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite.sh`,
-`backup-meio-dia.sh`) moram no VPS e continuam funcionando do jeito de sempre, por SSH.
+`backup-do-banco.sh`) moram no VPS e continuam funcionando do jeito de sempre, por SSH.
 
 | Arquivo aqui | Onde fica no servidor | Quando roda |
 |---|---|---|
 | `deploy.sh` · `rollback.sh` | `/opt/padelizou-deploy/` | sob demanda |
 | `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos + config do servidor) |
 | `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 UTC — cópia FORA do servidor |
-| `backup-meio-dia.sh` · `cron-backup-meio-dia` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **16h UTC** — só o banco, direto pro cofre |
+| `backup-do-banco.sh` · `cron-backup-por-hora` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **de hora em hora** — só o banco, direto pro cofre |
 | `copiar-torneio.sh` | `/opt/padelizou-deploy/` | sob demanda — leva UM torneio do `prod` pro `dev` |
+| `snapshot-torneio.sh` · `restaurar-torneio.sh` | `/opt/padelizou-deploy/` | sob demanda — guarda e devolve UM torneio |
+| `torneio-tabelas.sh` | `/opt/padelizou-deploy/` | biblioteca dos três acima (não roda sozinho) |
+| `ensaio-snapshot.sh` | `/opt/padelizou-deploy/` | sob demanda — prova que o snapshot funciona |
 
-🕛 **O "meio-dia" é 16h UTC = 13h de Brasília, e o horário não é chute**: o backup completo roda
-às 4h UTC, então 12 horas depois é o único ponto que corta a janela de perda exatamente pela
-metade (24h → 12h). Escrever `0 12` achando que é meio-dia deixaria 8h de um lado e 16h do
-outro — com o buraco maior justo sobre a tarde e a noite, que é quando entra inscrição.
+🕐 **DE HORA EM HORA, desde 10/09/2026** (🗣️ *"Temos q pensar num backup por hora, para caso
+tenha algum problema ou mexer em algo errado, tenhamos como recuperar"*). A janela de perda era
+24h, virou 12h com o backup do meio-dia em 02/09, e agora é **1 hora em qualquer ponto do dia**.
+O `backup-do-banco.sh` **substituiu** o `backup-meio-dia.sh`: de hora em hora não há mais meio a
+cortar, e manter os dois seria manter uma rodada que nunca acrescenta nada.
 
 ⚠️ **Ele copia SÓ o banco e NÃO grava o carimbo do vigia.** As duas coisas são de propósito e
-estão explicadas no cabeçalho do script — em resumo: o que corre risco entre uma rodada e outra
-é pagamento, não foto; e carimbar aqui esconderia uma falha da rodada completa das 4h30.
+estão explicadas no cabeçalho do script — em resumo: o que corre risco entre uma rodada e outra é
+pagamento e grade, não foto; e carimbar aqui esconderia uma falha da rodada completa das 4h30
+atrás de um sucesso de uma hora atrás.
+
+⚠️ **E ele NÃO é um desfazer.** Recuperar por ele é restaurar o banco INTEIRO de uma hora atrás,
+levando junto tudo o que entrou nessa hora. Pra desfazer um erro em UM torneio sem tocar no resto
+existe o `snapshot-torneio.sh` — ver a seção mais abaixo. São coisas diferentes, e as duas são
+precisas.
+
+🕓 **Sobre o relógio das rodadas de 4h e 4h30:** elas seguem o relógio do SISTEMA, e há uma
+contradição velha na documentação — o `cron-backup-meio-dia` dizia que o VPS roda em UTC, e a
+seção 4 aqui embaixo exige o fuso em `America/Sao_Paulo` pro app. Confira com `timedatectl status`.
+Pro backup de hora em hora isso deixou de importar: de hora em hora, todo fuso dá o mesmo
+resultado.
 
 ⚠️ O nome no servidor ainda é `backup-drive.sh` por motivo histórico: desde 07/08/2026 ele
 manda pro **Backblaze B2** (principal, chave que não expira) **e** pro Google Drive (reserva).
 O cron aponta pro nome antigo — renomear exigiria mexer no cron pra ganhar só estética.
+
+### Instalar o backup de hora em hora (uma vez, no VPS)
+
+O cron velho e o novo não convivem: o das 16h nunca acrescentaria nada e ainda seria mais um
+lugar pra divergir.
+
+```bash
+scp infra/vps/backup-do-banco.sh root@179.197.233.184:/usr/local/bin/backup-do-banco.sh
+ssh root@179.197.233.184 'chmod +x /usr/local/bin/backup-do-banco.sh'
+scp infra/vps/cron-backup-por-hora root@179.197.233.184:/etc/cron.d/padelizou-backup-por-hora
+ssh root@179.197.233.184 '
+  rm -f /etc/cron.d/padelizou-backup-meio-dia /usr/local/bin/backup-meio-dia.sh
+  chmod 644 /etc/cron.d/padelizou-backup-por-hora
+  /usr/local/bin/backup-do-banco.sh          # roda uma vez na mão, pra ver a saída
+  tail -5 /var/log/padelizou-backup-drive.log'
+```
+
+⚠️ O `/etc/cron.d/` recusa arquivo com permissão de escrita pra grupo/outros e **ignora o
+arquivo calado** — daí o `chmod 644`. E rodar na mão uma vez é o que separa "instalei" de
+"funciona": o cron não avisa quando o script morre.
 
 O que mudou: o workflow `.github/workflows/deploy.yml` chama esses mesmos scripts
 por você. Assim dá pra publicar do celular — app do GitHub → **Actions** → **Deploy**
@@ -221,7 +257,13 @@ dump leva nome, CPF, e-mail, telefone e histórico de pagamento da **base inteir
 UM torneio leva as pessoas daquele torneio e mais ninguém.
 
 **Copia:** Torneio, Categoria, Quadra, QuadraDaCategoria, GrupoTorneio, Dupla, Partida,
-TorneioOrganizador, TorneioMarcador, e os Jogadores citados por eles.
+TorneioOrganizador, TorneioMarcador, **ReservaDeHorario** e os Jogadores citados por eles.
+
+🐛 **A `ReservaDeHorario` faltava até 10/09/2026.** Este script é de 09/09, a tabela nasceu em
+10/09, e a lista de tabelas dele não acompanhou: o ensaio do Er no `dev` ia sem as reservas de
+horário das finais — justamente o que se queria ensaiar. A lista agora mora num arquivo só
+(`torneio-tabelas.sh`), compartilhado com o `snapshot-torneio.sh`, porque duas listas divergem
+na primeira tabela nova. **Tabela nova que pendure no torneio entra lá.**
 **Não copia, de propósito:** Pagamento, PalpitePartida, VotoDeMvp, SeguidorTorneio,
 AvaliacaoDoTorneio e o Ranking RS — dinheiro e voto não precisam existir no dev pra ensaiar uma
 grade, e cada tabela a mais é mais dado pessoal num host público.
@@ -246,6 +288,63 @@ inteiro".
 
 🔒 **Duas travas:** ele recusa `--para db_padel` (existe pra tirar dado do prod, nunca pra pôr) e
 recusa origem igual a destino.
+
+## Guardar e devolver UM torneio — o snapshot
+
+🗣️ **Felipe, 10/09/2026:** *"como esta nosso backup, como eu montei todo torneio do er, nao
+podemos perder essa chave de nenhum jeito"*. Desenho completo em
+[`SNAPSHOT-TORNEIO.md`](SNAPSHOT-TORNEIO.md), escrito e aprovado antes do código.
+
+**Rode ANTES de apertar "Refazer grade" ou "Desfazer sorteio" numa chave ajustada à mão:**
+
+```bash
+ssh root@179.197.233.184
+sudo -u postgres /opt/padelizou-deploy/snapshot-torneio.sh ERPADEL
+```
+
+Guarda em `/var/backups/padelizou/torneios/ERPADEL_<data>_<hora>.sql.gz` e sobe pro B2 na hora.
+
+**Deu errado? Volta:**
+
+```bash
+ARQ=/var/backups/padelizou/torneios/ERPADEL_20260910_2312.sql.gz
+
+# 1. Ver o que mudaria — NÃO grava nada. É o padrão.
+sudo -u postgres /opt/padelizou-deploy/restaurar-torneio.sh $ARQ --grade
+
+# 2. Gravar.
+sudo -u postgres /opt/padelizou-deploy/restaurar-torneio.sh $ARQ --grade --aplicar
+```
+
+| Porta | Desfaz | O que faz |
+|---|---|---|
+| `--grade` | **Refazer grade** | Devolve horário, quadra e clube de cada jogo, e as reservas. **Só UPDATE** — não apaga nem cria jogo. |
+| `--chave` | **Desfazer sorteio** | Reinsere os jogos e grupos com os **Ids originais**, repõe as duplas nos grupos, as reservas e o status. |
+
+### O que ele NUNCA toca
+
+`Pagamento` (dinheiro), a linha da `Dupla` (inscrição paga — só o campo do grupo é escrito),
+`Jogador`, `Clubes`, e o carimbo do fiado `Torneio.TaxaExternoAdiadaEm` — o `--chave` mostra o
+valor de antes e o de agora e manda resolver na tela do financeiro. **Script não restaura dívida.**
+
+Antes de apagar qualquer linha ele pergunta ao catálogo do Postgres quem aponta pra ela; se
+achar palpite, voto ou qualquer coisa pendurada, **recusa e diz o nome da tabela**. E tira um
+snapshot novo antes de escrever, pra dar pra desfazer a própria restauração.
+
+### Provar que funciona
+
+```bash
+sudo -u postgres /opt/padelizou-deploy/ensaio-snapshot.sh --schema-de db_padel
+```
+
+Monta um banco descartável com o schema de verdade, semeia um torneio no formato do Er, e roda
+o roteiro inteiro: snapshot → Refazer grade → conferir → restaurar → idempotência → a trava da
+FK → Desfazer sorteio → `--chave` → coluna nova por migration → a sequence → e o teste negativo
+do dinheiro. **21 verificações.** Ele nunca escreve no banco de onde copia o schema.
+
+⚠️ **Isto é shell, e a suíte deste projeto é xUnit** — não há teste de regressão em C# que cubra
+estes scripts. O `ensaio-snapshot.sh` é o substituto, e é ele que precisa ficar verde depois de
+qualquer mexida aqui.
 
 ## Quando algo dá errado
 

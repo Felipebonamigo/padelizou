@@ -39,6 +39,10 @@
 #   copiar-torneio.sh AMIGOS26 --conferir           # só mostra o que faria, não grava
 set -euo pipefail
 
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=torneio-tabelas.sh
+source "$AQUI/torneio-tabelas.sh"
+
 CODIGO="${1:?Uso: copiar-torneio.sh <CODIGO-DO-TORNEIO> [--de db] [--para db] [--conferir]}"
 shift
 DE="db_padel"
@@ -67,6 +71,12 @@ if [ "$PARA" = "db_padel" ]; then
 fi
 
 psql() { command psql -v ON_ERROR_STOP=1 -X -q "$@"; }
+
+# A lista de tabelas e o filtro de cada uma moram no torneio-tabelas.sh, compartilhados com o
+# snapshot-torneio.sh. Duas cópias divergiriam na primeira tabela nova — e divergiram: a
+# ReservaDeHorario nasceu em 10/09 e ficou de fora daqui até o dia seguinte.
+filtro() { filtro_do_torneio "$1" "$TORNEIO_ID"; }
+TABELAS="$TABELAS_DO_TORNEIO"
 NA_ORIGEM()  { psql -d "$DE" "$@"; }
 NO_DESTINO() { psql -d "$PARA" "$@"; }
 
@@ -80,36 +90,6 @@ if [ -z "$TORNEIO_ID" ]; then
 fi
 
 echo "── Copiando '$CODIGO' (Id $TORNEIO_ID) de $DE para $PARA ──"
-
-# As tabelas, NA ORDEM DE DEPENDÊNCIA, e o filtro que pega só as linhas deste torneio.
-# `Jogador` e `Clubes` entram por último no SELECT porque dependem do que as outras citam.
-filtro() {
-  local t="$TORNEIO_ID"
-  case "$1" in
-    Torneio)            echo "SELECT * FROM \"Torneio\" WHERE \"Id\" = $t" ;;
-    Categoria)          echo "SELECT * FROM \"Categoria\" WHERE \"TorneioId\" = $t" ;;
-    Quadra)             echo "SELECT * FROM \"Quadra\" WHERE \"TorneioId\" = $t" ;;
-    GrupoTorneio)       echo "SELECT g.* FROM \"GrupoTorneio\" g JOIN \"Categoria\" c ON c.\"Id\" = g.\"CategoriaId\" WHERE c.\"TorneioId\" = $t" ;;
-    QuadraDaCategoria)  echo "SELECT q.* FROM \"QuadraDaCategoria\" q JOIN \"Categoria\" c ON c.\"Id\" = q.\"CategoriaId\" WHERE c.\"TorneioId\" = $t" ;;
-    Dupla)              echo "SELECT d.* FROM \"Dupla\" d JOIN \"Categoria\" c ON c.\"Id\" = d.\"CategoriaId\" WHERE c.\"TorneioId\" = $t" ;;
-    Partida)            echo "SELECT * FROM \"Partida\" WHERE \"TorneioId\" = $t" ;;
-    TorneioOrganizador) echo "SELECT * FROM \"TorneioOrganizador\" WHERE \"TorneioId\" = $t" ;;
-    TorneioMarcador)    echo "SELECT * FROM \"TorneioMarcador\" WHERE \"TorneioId\" = $t" ;;
-    # Os jogadores citados por QUALQUER um dos anteriores — dupla, organizador, marcador.
-    Jogador)            echo "SELECT * FROM \"Jogador\" WHERE \"Id\" IN (
-                                SELECT d.\"Jogador1Id\" FROM \"Dupla\" d JOIN \"Categoria\" c ON c.\"Id\"=d.\"CategoriaId\" WHERE c.\"TorneioId\" = $t
-                                UNION SELECT d.\"Jogador2Id\" FROM \"Dupla\" d JOIN \"Categoria\" c ON c.\"Id\"=d.\"CategoriaId\" WHERE c.\"TorneioId\" = $t
-                                UNION SELECT \"JogadorId\" FROM \"TorneioOrganizador\" WHERE \"TorneioId\" = $t
-                                UNION SELECT \"JogadorId\" FROM \"TorneioMarcador\" WHERE \"TorneioId\" = $t)" ;;
-    # Os clubes citados pelo torneio, pelas categorias e pelas quadras. `Torneio.ClubeId` é NOT NULL.
-    Clubes)             echo "SELECT * FROM \"Clubes\" WHERE \"Id\" IN (
-                                SELECT \"ClubeId\" FROM \"Torneio\" WHERE \"Id\" = $t
-                                UNION SELECT \"ClubeId\" FROM \"Categoria\" WHERE \"TorneioId\" = $t
-                                UNION SELECT \"ClubeId\" FROM \"Quadra\" WHERE \"TorneioId\" = $t)" ;;
-  esac
-}
-
-TABELAS="Clubes Jogador Torneio Categoria Quadra GrupoTorneio QuadraDaCategoria Dupla Partida TorneioOrganizador TorneioMarcador"
 
 if [ "$CONFERIR" = "1" ]; then
   echo "── O que seria copiado (nada foi gravado) ──"
@@ -169,6 +149,7 @@ CREATE TEMP TABLE alvo AS
 SELECT "Id" FROM public."Torneio"
 WHERE "Codigo" = (SELECT "Codigo" FROM copia."s_Torneio");
 
+DELETE FROM public."ReservaDeHorario"   WHERE "CategoriaId" IN (SELECT "Id" FROM public."Categoria" WHERE "TorneioId" IN (SELECT "Id" FROM alvo));
 DELETE FROM public."Partida"            WHERE "TorneioId" IN (SELECT "Id" FROM alvo);
 DELETE FROM public."Dupla"              WHERE "CategoriaId" IN (SELECT "Id" FROM public."Categoria" WHERE "TorneioId" IN (SELECT "Id" FROM alvo));
 DELETE FROM public."GrupoTorneio"       WHERE "CategoriaId" IN (SELECT "Id" FROM public."Categoria" WHERE "TorneioId" IN (SELECT "Id" FROM alvo));
@@ -285,6 +266,12 @@ SELECT copia.inserir('TorneioMarcador', '{
   "JogadorId": "(SELECT novo FROM map_jogador m WHERE m.velho = s.\"JogadorId\")"
 }');
 
+-- A reserva do horário da eliminatória prevista (Models/ReservaDeHorario, 10/09/2026). Sem ela o
+-- ensaio no dev sai sem as trocas de horário das finais — que é justamente o que se quer ensaiar.
+SELECT copia.inserir('ReservaDeHorario', '{
+  "CategoriaId": "(SELECT novo FROM map_categoria m WHERE m.velho = s.\"CategoriaId\")"
+}');
+
 COMMIT;
 SQL
 
@@ -293,16 +280,10 @@ SQL
 echo "── Conferência ──"
 NOVO_ID=$(NO_DESTINO -At -c "SELECT \"Id\" FROM \"Torneio\" WHERE \"Codigo\" = '${CODIGO//\'/\'\'}';")
 falhou=0
-for t in Categoria Quadra GrupoTorneio QuadraDaCategoria Dupla Partida TorneioOrganizador TorneioMarcador; do
+for t in $TABELAS; do
+  case "$t" in Clubes|Jogador|Torneio) continue ;; esac   # não são "do" torneio: são citados por ele
   na_origem=$(NA_ORIGEM -At -c "SELECT count(*) FROM ($(filtro "$t")) x;")
-  case "$t" in
-    Categoria|Quadra|TorneioOrganizador|TorneioMarcador)
-      no_destino=$(NO_DESTINO -At -c "SELECT count(*) FROM \"$t\" WHERE \"TorneioId\" = $NOVO_ID;") ;;
-    Partida)
-      no_destino=$(NO_DESTINO -At -c "SELECT count(*) FROM \"Partida\" WHERE \"TorneioId\" = $NOVO_ID;") ;;
-    *)
-      no_destino=$(NO_DESTINO -At -c "SELECT count(*) FROM \"$t\" x JOIN \"Categoria\" c ON c.\"Id\" = x.\"CategoriaId\" WHERE c.\"TorneioId\" = $NOVO_ID;") ;;
-  esac
+  no_destino=$(NO_DESTINO -At -c "$(contagem_do_torneio "$t" "$NOVO_ID")")
   if [ "$na_origem" = "$no_destino" ]; then
     printf '  ✔ %-20s %s\n' "$t" "$no_destino"
   else

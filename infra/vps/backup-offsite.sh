@@ -62,7 +62,16 @@ copiar_para() {
     --backup-dir "$cofre:apagados/$(date +%Y-%m)" \
     --transfers 4 --retries 3 || return 1
 
-  # 3. Historico: dump mais velho que o limite sai (o backup local ja guarda 14 dias).
+  # 3. Os SNAPSHOTS de torneio (snapshot-torneio.sh). Sao raros e manuais — cada um e a foto de
+  #    uma chave montada a mao antes de alguem apertar "Refazer grade". O proprio script ja sobe
+  #    o arquivo na hora; isto aqui e a segunda chance, pra quando o rclone falhou naquele
+  #    momento. SEM retencao: apagar sozinho o unico registro de uma chave montada a mao e
+  #    exatamente o risco que eles existem pra cobrir.
+  if [ -d "$LOCAL/torneios" ]; then
+    $RCLONE copy "$LOCAL/torneios" "$cofre:torneios" --transfers 4 --retries 3 || return 1
+  fi
+
+  # 4. Historico: dump mais velho que o limite sai (o backup local ja guarda 14 dias).
   $RCLONE delete "$cofre:banco" --min-age "${DIAS_DE_HISTORICO}d" || true
 
   return 0
