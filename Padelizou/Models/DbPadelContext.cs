@@ -66,6 +66,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<Quadra> Quadras { get; set; }
     // Qual quadra cada categoria prefere. Ver Models/QuadraDaCategoria.
     public DbSet<QuadraDaCategoria> QuadrasDaCategoria { get; set; }
+    // O horário que o organizador reservou pra uma eliminatória que ainda não nasceu. Ver
+    // Models/ReservaDeHorario.
+    public DbSet<ReservaDeHorario> ReservasDeHorario { get; set; }
     public DbSet<InscricaoAmericana> InscricoesAmericanas { get; set; }
     public DbSet<PushSubscriptionJogador> PushSubscriptionsJogador { get; set; }
     public DbSet<SeguidorDePartida> SeguidoresDePartida { get; set; }
@@ -1041,6 +1044,20 @@ public partial class DbPadelContext : DbContext
         // própria. Quadra apagada na edição (o organizador baixou de 5 pra 3) leva junto as
         // escolhas que apontavam pra ela, senão a grade tentaria mandar jogo pra uma quadra
         // que não existe mais.
+        // A reserva de horário de um jogo previsto (Models/ReservaDeHorario). A chave é a tripla
+        // com que a prévia numera o jogo; reservar de novo o mesmo jogo é atualizar, nunca uma
+        // segunda linha. Cascade: apagar a categoria leva as reservas dela — não há jogo pra
+        // esperar por elas.
+        modelBuilder.Entity<ReservaDeHorario>(entity =>
+        {
+            entity.HasKey(e => new { e.CategoriaId, e.Fase, e.Numero });
+
+            entity.HasOne(e => e.Categoria)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<QuadraDaCategoria>(entity =>
         {
             entity.HasKey(e => new { e.CategoriaId, e.QuadraId });

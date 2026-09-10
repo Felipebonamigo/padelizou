@@ -730,4 +730,113 @@ public class ProximasFasesDaChaveTests
             Assert.Null(j.Quadra);
         });
     }
+
+    // ═══ O HORÁRIO RESERVADO PELO ORGANIZADOR (10/09/2026) ═══
+    //
+    // 🗣️ Felipe, olhando as finais do Er com o selo "prévia": *"permita também trocar de horário
+    // as eliminatórias, não apenas as de chave"*. A eliminatória que ainda não nasceu só existe
+    // aqui, na prévia — a troca dele precisa de um lugar pra morar até o robô criar o jogo. É a
+    // reserva (Models/ReservaDeHorario), e a prévia é a primeira a obedecê-la: é nela que o
+    // organizador vê o resultado da troca.
+
+    private const int CategoriaX = 1, CategoriaY = 2;
+
+    private static PartidaDaChave[] Semis(string hora) => new[]
+    {
+        Jogo(1, "Semifinal", "A1", "B1", hora),
+        Jogo(2, "Semifinal", "C1", "D1", hora),
+    };
+
+    [Fact]
+    public void A_reserva_vale_mesmo_no_slot_que_outra_categoria_pegaria_antes()
+    {
+        // Duas categorias com a semifinal às 21:00: as duas finais abrem 21:11, e sem reserva a X
+        // (emitida primeiro) fica com a Quadra A e a Y com a B. A reserva da Y na Quadra A das
+        // 21:11 tem que valer MESMO sendo a Y emitida depois — o slot é reservado antes de a X
+        // passar por ele, senão a troca do organizador some na primeira categoria da fila.
+        var cadeias = new[]
+        {
+            ProximasFasesDaChave.Montar(Semis("21:00"), Array.Empty<string>(), "X", CategoriaX),
+            ProximasFasesDaChave.Montar(Semis("21:00"), Array.Empty<string>(), "Y", CategoriaY),
+        };
+        var reservas = new[]
+        {
+            new HorarioReservado(CategoriaY, "Final", 1, DateTime.Parse("2026-08-08 21:11"), "Quadra A"),
+        };
+
+        var finais = ProximasFasesDaChave.Agendar(cadeias, Grade(5, 11, CincoQuadras), reservas: reservas)
+            .Where(j => j.Fase == "Final")
+            .ToList();
+
+        var daY = Assert.Single(finais, f => f.Categoria == "Y");
+        var daX = Assert.Single(finais, f => f.Categoria == "X");
+
+        Assert.Equal(DateTime.Parse("2026-08-08 21:11"), daY.Horario);
+        Assert.Equal("Quadra A", daY.Quadra);
+        Assert.Equal(DateTime.Parse("2026-08-08 21:11"), daX.Horario);
+        Assert.NotEqual("Quadra A", daX.Quadra);
+    }
+
+    [Fact]
+    public void A_final_reservada_pra_mais_tarde_sai_na_hora_e_na_quadra_reservadas()
+    {
+        var reservas = new[]
+        {
+            new HorarioReservado(CategoriaX, "Final", 1, DateTime.Parse("2026-08-08 22:00"), "Quadra C"),
+        };
+
+        var final = Assert.Single(ProximasFasesDaChave.Agendar(
+            new[] { ProximasFasesDaChave.Montar(Semis("21:00"), Array.Empty<string>(), "X", CategoriaX) },
+            Grade(5, 11, CincoQuadras), reservas: reservas));
+
+        Assert.Equal(DateTime.Parse("2026-08-08 22:00"), final.Horario);
+        Assert.Equal("Quadra C", final.Quadra);
+    }
+
+    [Fact]
+    public void A_rodada_seguinte_abre_depois_do_jogo_reservado_e_o_resto_da_rodada_nao_anda_junto()
+    {
+        var quartas = new[]
+        {
+            Jogo(1, "Quartas de Final", "A1/A2", "B1/B2", "19:00"),
+            Jogo(2, "Quartas de Final", "C1/C2", "D1/D2", "19:00"),
+            Jogo(3, "Quartas de Final", "E1/E2", "F1/F2", "19:30"),
+            Jogo(4, "Quartas de Final", "G1/G2", "H1/H2", "19:30"),
+        };
+
+        // Semifinal 1 reservada pras 21:00. A Semifinal 2 continua onde a grade a poria (19:41,
+        // quando as quartas acabam) — reservar um jogo não arrasta o irmão dele. E a Final espera
+        // a semi reservada: 21:11, e não 19:52.
+        var reservas = new[]
+        {
+            new HorarioReservado(CategoriaX, "Semifinal", 1, DateTime.Parse("2026-08-08 21:00"), "Quadra A"),
+        };
+
+        var jogos = ProximasFasesDaChave.Agendar(
+            new[] { ProximasFasesDaChave.Montar(quartas, Array.Empty<string>(), "X", CategoriaX) },
+            Grade(5, 11, CincoQuadras), reservas: reservas);
+
+        Assert.Equal(DateTime.Parse("2026-08-08 21:00"), jogos.Single(j => j.FaseNumerada == "Semifinal 1").Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 19:41"), jogos.Single(j => j.FaseNumerada == "Semifinal 2").Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 21:11"), jogos.Single(j => j.Fase == "Final").Horario);
+    }
+
+    [Fact]
+    public void Reserva_antes_de_a_semifinal_acabar_e_ignorada_e_a_previa_diz_a_hora_possivel()
+    {
+        // A semi é às 21:00 e dura 11 minutos: a final não pode ser às 21:05, reserva ou não —
+        // os finalistas ainda estão em quadra. A reserva foi aceita quando era possível; se o
+        // torneio atrasou e ela deixou de ser, a tela mostra a hora possível (21:11), não a
+        // prometida. É a mesma régua do robô (ReservasDeHorario.Vale).
+        var reservas = new[]
+        {
+            new HorarioReservado(CategoriaX, "Final", 1, DateTime.Parse("2026-08-08 21:05"), "Quadra C"),
+        };
+
+        var final = Assert.Single(ProximasFasesDaChave.Agendar(
+            new[] { ProximasFasesDaChave.Montar(Semis("21:00"), Array.Empty<string>(), "X", CategoriaX) },
+            Grade(5, 11, CincoQuadras), reservas: reservas));
+
+        Assert.Equal(DateTime.Parse("2026-08-08 21:11"), final.Horario);
+    }
 }

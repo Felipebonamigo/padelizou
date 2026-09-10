@@ -39,4 +39,46 @@ public static class TrocaDeHorario
         (a.HorarioPrevisto, b.HorarioPrevisto) = (b.HorarioPrevisto, a.HorarioPrevisto);
         (a.NomeQuadra, b.NomeQuadra) = (b.NomeQuadra, a.NomeQuadra);
     }
+
+    // ═══ A TROCA COM UMA ELIMINATÓRIA QUE AINDA NÃO NASCEU (10/09/2026) ═══
+    //
+    // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"*. Um lado
+    // da troca pode ser um jogo PREVISTO (ProximasFasesDaChave.JogoQueVem): ele não tem linha no
+    // banco, então o slot que ele recebe vira uma RESERVA (Models/ReservaDeHorario), e é o robô
+    // que a transforma em jogo quando a rodada nascer.
+
+    // Um lado da troca: o jogo real OU o previsto, reduzido ao slot dele.
+    public sealed record Lado(ReferenciaDoJogo Referencia, Partida? Real, ProximasFasesDaChave.JogoQueVem? Previsto)
+    {
+        public bool Existe => Real != null || Previsto != null;
+        public DateTime? Horario => Real != null ? Real.HorarioPrevisto : Previsto?.Horario;
+        public string? Quadra => Real != null ? Real.NomeQuadra : Previsto?.Quadra;
+
+        // Como a mensagem chama o jogo: o real pelo código, como sempre; o previsto pela fase
+        // numerada, que é como a tela o mostra ("4ª Masculina · Final").
+        public string Rotulo => Real != null
+            ? $"o jogo {Real.Codigo}"
+            : Previsto != null ? $"{Previsto.Categoria} · {Previsto.FaseNumerada}" : "o jogo";
+    }
+
+    // Null = pode trocar. Texto = o motivo. As regras do jogo real são as mesmas de sempre (acima);
+    // o previsto só precisa existir na prévia de agora e ter hora.
+    public static string? MotivoParaNaoTrocar(Lado a, Lado b, int torneioId)
+    {
+        if (!a.Existe || !b.Existe)
+            return "Não encontrei um dos jogos — a prévia pode ter mudado desde que a página abriu. Recarregue e tente de novo.";
+        if (a.Referencia == b.Referencia) return "Escolha dois jogos diferentes.";
+
+        foreach (var real in new[] { a.Real, b.Real })
+        {
+            if (real == null) continue;
+            if (real.TorneioId != torneioId) return "Os dois jogos precisam ser deste torneio.";
+            if (real.Status != "Agendada") return $"O jogo {real.Codigo} já começou ou terminou — só se troca jogo agendado.";
+        }
+
+        if (a.Horario == null || b.Horario == null)
+            return "Um dos jogos ainda está sem horário — não há o que trocar.";
+
+        return null;
+    }
 }

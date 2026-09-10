@@ -565,7 +565,7 @@
         @if (ehOrganizador && agendadasList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
-                  data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                  data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos. As trocas de horário feitas à mão são desfeitas — inclusive as das eliminatórias previstas."
                   data-confirmar-titulo="Recalcular os horários?"
                   data-confirmar-ok="Recalcular">
                 @Html.AntiForgeryToken()
@@ -631,7 +631,12 @@
     @* MODAL: trocar horário entre dois jogos (só organizador). Um modal pro torneio
        inteiro: o botão do card diz quem é o jogo A, e aqui se escolhe o jogo B — os dois
        trocam o slot inteiro (hora + quadra), então a grade não ganha buraco nem quadra
-       em dobro. Só jogo AGENDADO entra: jogo em quadra ou finalizado é história. *@
+       em dobro. Só jogo AGENDADO entra: jogo em quadra ou finalizado é história.
+
+       As eliminatórias PREVISTAS entram na lista desde 10/09/2026 ("permita também trocar de
+       horário as eliminatórias, não apenas as de chave"): o slot que a prévia recebe vira uma
+       reserva (Models/ReservaDeHorario), e o robô cria o jogo nele quando a fase anterior
+       terminar. A referência delas não é Id — ver Services/ReferenciaDoJogo. *@
     @if (ehOrganizador)
     {
         <div class="modal fade" id="modalTrocarHorario" tabindex="-1" aria-hidden="true">
@@ -651,17 +656,38 @@
                         <label class="form-label fw-bold" for="trocaJogoB">Trocar com qual jogo?</label>
                         <select name="jogoB" id="trocaJogoB" class="form-select" required>
                             <option value="">Escolha o outro jogo...</option>
-                            @foreach (var candidato in agendadasList.OrderBy(p => p.HorarioPrevisto))
+                            @* A mesma lista da aba, na mesma ordem: jogos reais e previstos, pelo
+                               relógio. Prévia sem horário (torneio por ordem) não entra — não há
+                               slot pra trocar. *@
+                            @foreach (var linha in linhasAgendadas)
                             {
-                                <option value="@candidato.Id" data-jogo-id="@candidato.Id">
-                                    @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
-                                    @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra)}")
-                                    · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
-                                    (@candidato.Categoria.Nome)
-                                </option>
+                                if (linha.Jogo is Partida candidato)
+                                {
+                                    <option value="@candidato.Id" data-jogo-id="@candidato.Id">
+                                        @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
+                                        @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {LugarDoJogo.Etiqueta(ViewData.Sedes(), candidato.NomeQuadra)}")
+                                        · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
+                                        (@candidato.Categoria.Nome)
+                                    </option>
+                                }
+                                else if (linha.Porvir is JogoQueVem previsto
+                                         && previsto.Horario is DateTime quandoPrevisto
+                                         && previsto.CategoriaId is int categoriaPrevista)
+                                {
+                                    var referencia = Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaPrevista, previsto.Fase, previsto.Numero).ToString();
+                                    <option value="@referencia" data-jogo-id="@referencia">
+                                        @quandoPrevisto.ToString("dd/MM HH:mm")
+                                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
+                                        · @previsto.FaseNumerada · @previsto.Lado1.Rotulo x @previsto.Lado2.Rotulo
+                                        (@previsto.Categoria, prévia)
+                                    </option>
+                                }
                             }
                         </select>
-                        <div class="form-text">Os dois jogos trocam horário e quadra entre si.</div>
+                        <div class="form-text">
+                            Os dois jogos trocam horário e quadra entre si. Jogo previsto (prévia) nasce no
+                            horário que receber, assim que a fase anterior terminar.
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>

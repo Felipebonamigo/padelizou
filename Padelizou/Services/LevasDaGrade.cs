@@ -119,20 +119,11 @@ public static class LevasDaGrade
         // Aqui SIM entra a folga de uma rodada (AberturaDaProximaFase): quem disputa o último jogo
         // da fase anterior é candidato a passar, e emendar as duas no mesmo horário o poria na
         // quadra no minuto em que saiu dela.
-        DateTime? PisoDaCategoria(int posto, int categoriaId)
-        {
-            var fim = jaEmQuadra
-                .Where(j => j.CategoriaId == categoriaId && j.HorarioPrevisto != null
-                         && OrdemDasFases.Posto(j.Fase) < posto)
-                .Select(j => j.HorarioPrevisto!.Value)
-                .DefaultIfEmpty()
-                .Max();
-
-            return fim == default
-                ? null
-                : GradeDeJogos.AberturaDaProximaFase(fim, torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
-        }
+        //
+        // A conta mora em `PisoDaCategoria` (público) porque a RESERVA do organizador
+        // (Services/ReservasDeHorario) responde à mesma pergunta antes de valer.
+        DateTime? PisoDestaCategoria(int posto, int categoriaId) =>
+            PisoDaCategoria(torneio, jaEmQuadra, posto, categoriaId);
 
         static DateTime MaisTarde(DateTime um, DateTime? outro) =>
             outro is DateTime o && o > um ? o : um;
@@ -166,7 +157,7 @@ public static class LevasDaGrade
                          .GroupBy(j => j.CategoriaId)
                          .Select(g => new
                          {
-                             Abre = MaisTarde(barreira, PisoDaCategoria(doPosto.Key, g.Key)),
+                             Abre = MaisTarde(barreira, PisoDestaCategoria(doPosto.Key, g.Key)),
                              Jogos = g.ToList(),
                          })
                          .OrderBy(x => x.Abre)
@@ -175,6 +166,32 @@ public static class LevasDaGrade
                 Agendar(OrdemDaFila(daCategoria.Jogos, torneio.QuantidadeQuadras), daCategoria.Abre);
             }
         }
+    }
+
+    /// <summary>
+    /// Quando uma rodada de posto <paramref name="posto"/> da categoria pode abrir: uma rodada
+    /// depois do último jogo já marcado de posto menor DA MESMA CATEGORIA. Nulo = ela não tem fase
+    /// anterior marcada, e aí não há o que esperar.
+    /// </summary>
+    /// <remarks>
+    /// É "esta categoria já sabe QUEM joga?" — a dependência de resultado, e não a barreira de
+    /// posto entre categorias. Lida aqui pelo encaixe e pela reserva do organizador
+    /// (Services/ReservasDeHorario.Vale): a reserva atravessa a barreira, nunca este piso.
+    /// </remarks>
+    public static DateTime? PisoDaCategoria(Torneio torneio, IEnumerable<Partida> jaEmQuadra,
+        int posto, int categoriaId)
+    {
+        var fim = jaEmQuadra
+            .Where(j => j.CategoriaId == categoriaId && j.HorarioPrevisto != null
+                     && OrdemDasFases.Posto(j.Fase) < posto)
+            .Select(j => j.HorarioPrevisto!.Value)
+            .DefaultIfEmpty()
+            .Max();
+
+        return fim == default
+            ? null
+            : GradeDeJogos.AberturaDaProximaFase(fim, torneio.HoraFimDoDia,
+                torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
     }
 
     // A ORDEM DA FILA QUE CHEGA AO ENCAIXE.
