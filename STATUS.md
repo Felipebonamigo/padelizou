@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a régua agora diz *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1, e errar o vencedor vale 0"*, e o aviso conta **341 palpites** esperando resultado. `/healthz` 200 nos dois ambientes.
+>
+> 🏷️ **PRIMEIRA TAG COM O `--target` VALENDO**: a `build-1039-cd13be1` aponta pro `cd13be1`, o próprio merge do PR — nome e alvo dizendo o mesmo commit.
 >
 > 🎯 **A RÉGUA DA TELA ESCONDIA OS 3 PONTOS DO PLACAR EXATO — durante o torneio inteiro do Er.** 🗣️ Felipe, olhando a aba Palpiteiros no ar, com **332 palpites esperando resultado**: *"E tem bonificação pra quem acerta o placar exato? tem que ter uma pontuação pra quem acerta o vencedor, e mais pra quem acerta o placar exato"*.
 >
