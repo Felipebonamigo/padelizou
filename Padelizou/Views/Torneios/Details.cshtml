@@ -2668,14 +2668,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         @* A confirmação diz a CONSEQUÊNCIA, não repete o nome do botão: é o que
                            decide se a pessoa aperta ou vai fechar a dupla de alguém antes.
                            Os textos são montados no topo desta view. *@
+                        @* ⚠️ "NINGUÉM MAIS TROCA DE PARCEIRO" DEIXOU DE SER VERDADE em
+                           09/09/2026, e metade continua verdade: ninguém mais ENTRA nem
+                           SAI, e ninguém TROCA um parceiro que já tem — mas quem está com
+                           a vaga aberta ainda DEFINE o segundo nome, até o primeiro jogo
+                           dele. Prometer o contrário aqui faria o organizador achar que
+                           sortear fecha a porta do Paulo, que é o oposto do que ele pediu.
+                           ⚠️ E ESTE COMENTÁRIO FICA FORA DA TAG: dentro de `<form …>`, o Razor
+                           apagava todos os atributos depois dele — o Sortear saía sem
+                           confirmação nenhuma (ensaio do Er, 10/09/2026; ver
+                           ComentarioRazorDentroDeTagTests). *@
                         <form asp-controller="Torneios" asp-action="GerarChaves" method="post"
                               data-confirmar-titulo="Sortear as chaves?"
-                              @* ⚠️ "NINGUÉM MAIS TROCA DE PARCEIRO" DEIXOU DE SER VERDADE em
-                                 09/09/2026, e metade continua verdade: ninguém mais ENTRA nem
-                                 SAI, e ninguém TROCA um parceiro que já tem — mas quem está com
-                                 a vaga aberta ainda DEFINE o segundo nome, até o primeiro jogo
-                                 dele. Prometer o contrário aqui faria o organizador achar que
-                                 sortear fecha a porta do Paulo, que é o oposto do que ele pediu. *@
                               data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra nem sai, e quem já tem parceiro não troca — só quem está com a vaga aberta ainda pode definir o dele."
                               data-confirmar-ok="Sortear agora"
                               data-confirmar-tom="@(ficamDeFora.Any() || comVagaEmAberto.Any() ? "perigo" : "padrao")"
@@ -2704,7 +2708,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             </a>
                             <form asp-controller="Torneios" asp-action="DesfazerSorteio" method="post"
                                   data-confirmar-titulo="Desfazer o sorteio?"
-                                  data-confirmar="Apaga os grupos e os jogos sorteados. O torneio volta pra 'Chaves em Sorteio' — dá pra sortear de novo quando quiser."
+                                  data-confirmar="Apaga os grupos e os jogos sorteados — e com eles toda troca de horário feita na mão e as reservas das eliminatórias previstas. O torneio volta pra 'Chaves em Sorteio' — dá pra sortear de novo quando quiser."
                                   data-confirmar-ok="Desfazer"
                                   data-confirmar-tom="perigo">
                                 <input type="hidden" name="id" value="@Model.Id" />
@@ -5670,7 +5674,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
                                           class="row g-2 align-items-end"
                                           data-confirmar-titulo="Trocar as duas de grupo?"
-                                          data-confirmar="Os confrontos dos dois grupos mudam e TODOS os horários do torneio são recalculados."
+                                          data-confirmar="Os confrontos dos dois grupos mudam e TODOS os horários do torneio são recalculados. Toda troca de horário feita na mão e as reservas das eliminatórias previstas se perdem."
                                           data-confirmar-ok="Trocar">
                                         <input type="hidden" name="id" value="@Model.Id" />
                                         <div class="col-12 col-md-5">

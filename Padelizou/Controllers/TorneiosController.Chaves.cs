@@ -721,8 +721,12 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> TrocarDuplasDeGrupo(int id, int duplaA, int duplaB)
         {
+            // Com os jogadores: a mensagem do fim diz QUEM trocou, e sem eles NomeDeExibicao cai
+            // em "Dupla 11" (10/09/2026, ensaio do Er — o InMemory da suíte preenche a navegação
+            // sozinho e escondia isso).
             var torneio = await _context.Torneios
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
 
@@ -1101,12 +1105,18 @@ namespace Padelizou.Controllers
 
             // Cada lado recebe o slot do outro: o real na própria linha, o previsto numa reserva
             // (a dele, se já tinha — a PK composta garante que é uma só).
-            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot)
+            //
+            // ⚠️ NO "POR ORDEM" A QUADRA DA PRÉVIA NÃO VAI PRO JOGO REAL (10/09/2026, ensaio do Er):
+            // a projeção dá quadra a cada jogo previsto só pra contar vagas; nesse modo os jogos
+            // reais não têm quadra (a Mesa chama), e três deles apareciam com "Arena 4" no meio de
+            // 43 sem quadra — na lista, no ICS e na Home do jogador. Hora e clube vêm do slot;
+            // quadra só quando o slot era de um jogo real (a que o balcão deu, se deu).
+            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot, bool slotDePrevia)
             {
                 if (lado.Real is Partida real)
                 {
                     real.HorarioPrevisto = slot.Horario;
-                    real.NomeQuadra = slot.Quadra;
+                    real.NomeQuadra = torneio.SemHorarioPrevisto && slotDePrevia ? null : slot.Quadra;
                     real.ClubeId = slot.Clube;
                     return;
                 }
@@ -1130,8 +1140,8 @@ namespace Padelizou.Controllers
                 reserva.NomeQuadra = slot.Quadra;
             }
 
-            Receber(ladoA, slotDeB);
-            Receber(ladoB, slotDeA);
+            Receber(ladoA, slotDeB, slotDePrevia: ladoB.Previsto != null);
+            Receber(ladoB, slotDeA, slotDePrevia: ladoA.Previsto != null);
 
             // A CONFERÊNCIA: a prévia refeita com a troca tem que mostrar cada jogo previsto no
             // slot que ele recebeu. Se não mostra, a reserva não vale (o jogo cairia antes de a

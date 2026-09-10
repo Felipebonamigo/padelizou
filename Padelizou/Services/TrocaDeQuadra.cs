@@ -42,10 +42,17 @@ public static class TrocaDeQuadra
     // Quem está ocupando a quadra pedida no MESMO horário — se houver, é com ele que a troca
     // acontece. Jogo sem horário não disputa quadra com ninguém: ele entra quando a Mesa
     // chamar.
+    //
+    // ⚠️ QUEM JÁ TERMINOU NÃO OCUPA NADA (10/09/2026, ensaio do Er): no "por ordem" o balcão dá
+    // a quadra que acabou de vagar ao próximo jogo do mesmo horário — e o jogo finalizado era
+    // achado como "ocupante", a troca acontecia, e quem acabou de jogar ficava com a quadra do
+    // outro (nula). A quadra dele é história, não agenda (é o que MotivoParaNaoMudar já diz);
+    // a quadra vagou, e é por isso que está sendo dada a outro.
     public static Partida? QuemOcupa(Partida jogo, string quadra, IEnumerable<Partida> doTorneio) =>
         jogo.HorarioPrevisto == null
             ? null
             : doTorneio.FirstOrDefault(p => p.Id != jogo.Id
+                                         && p.Status != "Finalizada"
                                          && p.HorarioPrevisto == jogo.HorarioPrevisto
                                          && p.NomeQuadra == quadra);
 

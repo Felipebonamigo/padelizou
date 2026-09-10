@@ -564,10 +564,13 @@
         }
         @if (ehOrganizador && agendadasList.Count > 0)
         {
+            @* 🗣️ "gerar todos horarios novos e o que foi feito sera perdido" (Felipe, 10/09/2026):
+               o aviso dizia o que o botão FAZ; faltava o que ele DESFAZ — as trocas na mão.
+               ⚠️ O comentário fica FORA da tag: dentro de `<form …>` o Razor apagava os atributos
+               seguintes, e o build-900 saiu pra produção SEM este aviso — o clique recalculava
+               na hora (ensaio do Er, 10/09/2026; ver ComentarioRazorDentroDeTagTests). *@
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
-                  @* 🗣️ "gerar todos horarios novos e o que foi feito sera perdido" (Felipe, 10/09/2026):
-                     o aviso dizia o que o botão FAZ; faltava o que ele DESFAZ — as trocas na mão. *@
-                  data-confirmar="Gera horários NOVOS pra todos os @agendadasList.Count jogos que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                  data-confirmar="Gera horários NOVOS pra todos os @agendadasList.Count jogos que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
                   data-confirmar-titulo="Recalcular todos os horários?"
                   data-confirmar-ok="Recalcular e perder os ajustes">
                 @Html.AntiForgeryToken()

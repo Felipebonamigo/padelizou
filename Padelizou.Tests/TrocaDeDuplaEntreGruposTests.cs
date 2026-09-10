@@ -59,6 +59,29 @@ public class TrocaDeDuplaEntreGruposTests
         Assert.Equal("2,2,3,3,3,3", string.Join(",", tamanhos.OrderBy(t => t)));
     }
 
+    // 10/09/2026, ensaio do Er: a mensagem dizia "Dupla 11 foi pro Grupo B e Dupla 16 pro
+    // Grupo A" — o controller carregava as duplas sem os jogadores, e NomeDeExibicao caía no
+    // número. Ninguém confere na mão uma troca que não diz QUEM trocou.
+    [Fact]
+    public async Task A_mensagem_diz_quem_trocou_pelo_nome_e_nao_pelo_numero()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _, controller) = await SortearAsync(ctx, qtdDuplas: 16);
+        var (a, b) = await DuasDuplasDeGruposDiferentesAsync(ctx, categoria);
+        var nomeDeA = (await ctx.Jogadores.SingleAsync(j => j.Id == a.Jogador1Id)).Nome;
+        var nomeDeB = (await ctx.Jogadores.SingleAsync(j => j.Id == b.Jogador1Id)).Nome;
+
+        // Como em produção: a requisição nasce sem nada rastreado. Sem isto o InMemory
+        // preenche Jogador1/Jogador2 de graça e o teste passaria com a consulta errada.
+        ctx.ChangeTracker.Clear();
+        await controller.TrocarDuplasDeGrupo(torneio.Id, a.Id, b.Id);
+
+        var mensagem = (string?)(controller.TempData["Sucesso"] ?? controller.TempData["Erro"]) ?? "";
+        Assert.Contains(nomeDeA, mensagem);
+        Assert.Contains(nomeDeB, mensagem);
+        Assert.DoesNotContain($"Dupla {a.Id} ", mensagem);
+    }
+
     [Fact]
     public async Task Os_confrontos_do_grupo_passam_a_ser_com_a_dupla_que_entrou()
     {
