@@ -2,13 +2,14 @@
 //
 //     node Padelizou.Tests/js/conferir-palpitrometro.js
 //
-// ⚠️ NINGUÉM RODA ISTO SOZINHO — nem o `dotnet test`, nem o CI (que não tem passo de Node). É
-// conferência de mão, e está versionada só pra não morrer junto com o scratchpad da sessão,
-// como morreu a de 19/08. Quem mexer no `palpitrometro.js` roda antes de commitar.
+// ⚠️ O `dotnet test` NÃO enxerga este arquivo — quem roda é o CI, no passo "Conferir a trava
+// de clique do palpitrômetro (JS)" do `ci.yml`, e ele reprova o build. Rode à mão antes de
+// commitar: descobrir pelo PR vermelho custa um ciclo.
 //
-// Sem dependência nenhuma de propósito: `require('fs')` e mais nada. Um `npm install` aqui
-// traria package.json, lockfile e supply chain pra um repositório que hoje não tem nada disso
-// (ver SUPPLY-CHAIN.md) — por uma conferência de 150 linhas.
+// Sem dependência nenhuma de propósito: `require('fs')` e mais nada — nem no CI, que usa o
+// `node` que já vem no runner. Um `npm install` aqui traria package.json, lockfile e supply
+// chain pra um repositório que hoje não tem nada disso (ver SUPPLY-CHAIN.md), por uma
+// conferência de 150 linhas.
 //
 // O defeito que ele guarda: 10/09/2026, `DbUpdateException em POST /Partidas/Votar` em
 // produção. Dois POSTs do mesmo dedo. A trava do servidor está em `PalpiteService` e tem teste
