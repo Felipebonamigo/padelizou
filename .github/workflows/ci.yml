@@ -84,6 +84,38 @@ jobs:
           echo "$quebrados" | while IFS= read -r teste; do echo "::error::TESTE VERMELHO: $teste"; done
           exit 0
 
+      # ⚠️ DEPOIS do "Dizer QUAL teste caiu" pelo MESMO motivo do passo de CVE logo abaixo: se
+      # falhasse antes dele, o job anunciaria "a suíte falhou mas nenhum teste aparece como
+      # Failed" — mensagem falsa, porque a suíte nem teria rodado.
+      #
+      # O que ele guarda: a trava de clique do palpitrômetro (10/09/2026 — `DbUpdateException
+      # em POST /Partidas/Votar`, dois POSTs do mesmo dedo). O `dotnet test` não enxerga um
+      # arquivo .js, então até aqui a única metade testada do conserto era a do servidor.
+      #
+      # `node` já vem no runner do GitHub e o script não tem UMA dependência: sem
+      # `setup-node`, sem package.json, sem lockfile, sem `npm install`. Um repositório que
+      # hoje não tem nada de npm (ver SUPPLY-CHAIN.md) não ganha uma árvore de terceiros por
+      # causa de uma conferência de 150 linhas.
+      - name: Conferir a trava de clique do palpitrômetro (JS)
+        shell: bash
+        run: |
+          node --version
+          saida="${RUNNER_TEMP:-/tmp}/palpitrometro.txt"
+
+          # ⚠️ Sem cano (`| tee`, `| grep`): com cano quem devolve o código de saída é o último
+          # comando, e uma conferência VERMELHA passaria por verde. Mesma armadilha que o
+          # passo "Rodar os testes" documenta aqui em cima.
+          if node Padelizou.Tests/js/conferir-palpitrometro.js > "$saida" 2>&1; then
+            cat "$saida"
+            exit 0
+          fi
+
+          cat "$saida"
+          # ::error:: vira ANOTAÇÃO, que se lê pelo celular sem abrir o log — mesma razão do
+          # passo que diz qual teste caiu.
+          grep '^ FALHA' "$saida" | while IFS= read -r linha; do echo "::error::JS:$linha"; done
+          exit 1
+
       # Este passo vem DEPOIS do "Dizer QUAL teste caiu", e a ordem importa: aquele roda em
       # `if: failure()`, então um portão de CVE antes dele faria o job anunciar "a suíte falhou
       # mas nenhum teste aparece como Failed" — mensagem falsa pra uma falha que não é de teste.
