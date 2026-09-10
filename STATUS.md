@@ -28,6 +28,24 @@
 > 🔎 **E fica anotado o limite deste ambiente de sessão web:** o proxy bloqueia `padelizou.com.br`, então **não dá pra conferir o `/healthz` por fora daqui**. Quem atesta o healthcheck é o próprio `deploy.sh` (que faz rollback automático se não vier 200) — o que é evidência de verdade, mas não é verificação independente, e a diferença precisa ser dita em vez de escondida.
 >
 
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+>
+> 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
+>
+> ✅ **ZERAR O CARIMBO *É* "MAIS UMA VEZ, E SÓ" — não existe código de "voltar a travar".** `PodeTrocarNome` já lê "carimbo nulo → pode", e o próprio salvamento da pessoa recarimba. Por isso o diff não tem coluna, flag nem migration: a régua que trava é a mesma que destrava. O teste que segura o pedido inteiro é ponta a ponta (`Depois_de_usar_a_liberacao_o_nome_trava_de_novo_sozinho`): libera pelo painel → ela troca pelo perfil → a **segunda** troca é recusada sozinha.
+>
+> ⚠️ **A TELA CONTINUA SEM EDITAR CONTA ALHEIA, e a distinção é o que deixa isto caber lá.** O cabeçalho dela veta escrita porque *"trocar o e-mail de uma conta é entregar a conta"*. Liberar devolve uma **troca**, não escreve um **dado**: o admin não digita, não escolhe e não chega a ver o nome novo — quem troca é a dona da conta, no perfil dela. Conferido por teste (`Liberar_nao_toca_no_nome_nem_no_apelido_gravados`).
+>
+> 🔒 **SÃO OS DOIS PRIMEIROS POSTs DESSA TELA, e a trava do assistente é o VERBO** — `ObterJogadorAdminAsync` recusa qualquer POST pra quem só olha, então o Foka segue vendo a tela inteira e sem clicar. Tem teste pra ele e pro jogador comum (`ForbidResult`, carimbo intacto).
+>
+> 🔁 **O BOTÃO PERGUNTA A RÉGUA, não relê o carimbo.** `p.ApelidoAlteradoEm != null` na view ofereceria botão inútil pro apelido de quem já saiu da carência de 1 mês sozinho — e seria a segunda cópia da regra, discordando da primeira no dia em que ela mudar. A view chama `PodeTrocarNome`/`PodeTrocarApelido`, o mesmo idioma do `EditarPerfil.cshtml`, e o teste proíbe a releitura.
+>
+> 📝 **O CARIMBO SOME, ENTÃO A EXCEÇÃO VAI PRO LOG** (`_logger.LogInformation`): depois de zerado, a conta não sabe mais dizer que já tinha trocado uma vez. Sem essa linha, nada registraria que houve exceção — e um carimbo novo pra isso seria coluna e migration, que a escada não paga por um registro de auditoria.
+>
+> 🧪 **6.131 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
+>
+> ⏭️ **A CAROL ainda precisa do clique**: publicar, abrir `/Admin/Acesso`, procurar `03842585063` e "Liberar nova troca de nome". Daqui não dá pra fazer por ela — esta sessão não alcança o banco de produção.
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` no `build-938-af647b9`** (12h49 de Brasília — run 156) **e, MINUTOS DEPOIS, TAMBÉM EM `prod`** (12h58, run 158, `deploy → prod` no `b01797d`, que descende do merge do #140). PR #140. ⚠️ **COM MIGRATION.**
 >
 > ⚠️ **O PROD NÃO ERA PRA TER RECEBIDO ISTO HOJE, e o registro fica aqui pra não se perder.** 🗣️ O pedido foi *"aprova, mas publica só no dev por enquanto"*, com o torneio do Er no ar. O deploy pro `dev` (run 156, `build-938-af647b9`) foi o único disparado por esta sessão; o run 158 saiu de outro lugar — provavelmente a sessão paralela levando o PR #139 —, e como `b01797d` descende do merge do #140, ele carregou a migration junto. O `Migrate()` roda no **startup** do app (`Program.cs:399`), então a coluna `ChavesAvisadasEm` e o `UPDATE` do backfill já rodaram no banco de produção.
