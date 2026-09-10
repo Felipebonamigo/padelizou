@@ -666,6 +666,10 @@ namespace Padelizou.Controllers
             _context.RemoveRange(grupos);
             _context.Partidas.RemoveRange(jogos);
 
+            // As reservas de horário das eliminatórias previstas (Models/ReservaDeHorario) eram
+            // desta grade; sem a grade, sobreviver seria valer pra um sorteio que ainda não existe.
+            _context.ReservasDeHorario.RemoveRange(await ReservasDeHorario.DoTorneio(_context, id).ToListAsync());
+
             torneio.Status = "Chaves em Sorteio";
 
             // ⚠️ QUEM DEVOLVE AS CHAVES DEVOLVE A DÍVIDA (09/09/2026, desenho aprovado pelo
@@ -919,6 +923,11 @@ namespace Padelizou.Controllers
                 jogo.NomeQuadra = null;
             }
 
+            // As RESERVAS de horário (Models/ReservaDeHorario) vão embora junto: a reserva é um
+            // remendo por cima da grade, como a troca de dois jogos reais — que o recálculo também
+            // desfaz ao remarcar tudo. O texto do botão avisa. Quem chama grava.
+            _context.ReservasDeHorario.RemoveRange(await ReservasDeHorario.DoTorneio(_context, torneio.Id).ToListAsync());
+
             EncaixarNasLevas(torneio, remarcar,
                 OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(torneio.Id),
                 AberturaDoRecalculo(torneio, intocados), intocados,
@@ -978,6 +987,24 @@ namespace Padelizou.Controllers
             var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
             var deOnde = jogo!.NomeQuadra;
 
+            // A quadra pode estar RESERVADA pra uma eliminatória que ainda vai nascer
+            // (Models/ReservaDeHorario) — olhando só os jogos reais ela parecia livre, o jogo ia pra
+            // lá e a final nascia em cima dele (revisão adversarial, 10/09/2026). Mesma regra do
+            // dono real: a reserva troca de quadra com o jogo, em vez de recusar.
+            string? previstoQueCedeu = null;
+            if (ocupante == null)
+            {
+                var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
+                var reservaOcupante = ReservasDeHorario.QuemReservou(reservas,
+                    doTorneio.Select(p => (p.CategoriaId, p.Fase)).ToHashSet(), jogo.HorarioPrevisto, quadra);
+                if (reservaOcupante != null)
+                {
+                    reservaOcupante.NomeQuadra = deOnde;
+                    previstoQueCedeu = ReservasDeHorario.Rotulo(reservaOcupante, await _context.Categorias
+                        .Where(c => c.Id == reservaOcupante.CategoriaId).Select(c => c.Nome).FirstOrDefaultAsync());
+                }
+            }
+
             // A câmera é da QUADRA e não viaja com o jogo: o mapa sai dos jogos como estão
             // AGORA, antes da troca. Ver Services/TransmissaoDaQuadra.
             var cameras = TransmissaoDaQuadra.PorQuadra(doTorneio);
@@ -986,10 +1013,13 @@ namespace Padelizou.Controllers
             TrocaDeQuadra.Mudar(jogo, quadra, ocupante, cameras);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = (ocupante == null
-                ? $"O jogo {jogo.Codigo} agora é na {quadra}."
-                : $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
-                  $"assume a {deOnde ?? "quadra que estava livre"}.")
+            TempData["Sucesso"] = (ocupante != null
+                ? $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
+                  $"assume a {deOnde ?? "quadra que estava livre"}."
+                : previstoQueCedeu != null
+                ? $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra}, e {previstoQueCedeu} (prévia), " +
+                  $"que estava reservado pra ela, passa pra {deOnde ?? "a quadra que estava livre"}."
+                : $"O jogo {jogo.Codigo} agora é na {quadra}.")
                 + (jogo.LinkTransmissao == linkAntes ? "" :
                    string.IsNullOrEmpty(jogo.LinkTransmissao)
                        ? " A transmissão saiu junto: a nova quadra não tem câmera cadastrada."
@@ -1002,26 +1032,164 @@ namespace Padelizou.Controllers
         // conta; quem conhece a vida (a dupla que só chega às 10h, o jogo que rende mais com
         // público) é o organizador — e ele troca o slot inteiro (hora + quadra) de A com B.
         // Regras em Services/TrocaDeHorario.
+        //
+        // ⚠️ `jogoA`/`jogoB` SÃO REFERÊNCIAS, não Ids (10/09/2026, Services/ReferenciaDoJogo): o
+        // Id do jogo real, ou "previa:<categoria>:<fase>:<n>" da eliminatória que ainda não nasceu.
+        // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"* — as
+        // finais do Er estavam na tela com o selo "prévia", e a prévia não tinha botão.
+        //
+        // Com prévia no meio, o slot que a prévia recebe vira RESERVA (Models/ReservaDeHorario) e
+        // o robô a transforma em jogo quando a rodada nascer. A troca é CONFERIDA antes de gravar:
+        // a prévia é refeita com a reserva nova, e se a reserva não pegou (o jogo cairia antes de
+        // a fase anterior da categoria terminar — ver ReservasDeHorario.Vale), a troca é recusada
+        // com o motivo, em vez de gravar uma promessa que a tela ia desmentir.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> TrocarHorario(int id, int jogoA, int jogoB, string? voltarPara = null)
+        public async Task<IActionResult> TrocarHorario(int id, string? jogoA, string? jogoB, string? voltarPara = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            var a = await _context.Partidas.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == jogoA);
-            var b = await _context.Partidas.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == jogoB);
+            var refA = ReferenciaDoJogo.Ler(jogoA);
+            var refB = ReferenciaDoJogo.Ler(jogoB);
+            if (refA == null || refB == null)
+            {
+                TempData["Erro"] = "Não encontrei um dos jogos.";
+                return VoltarPara(voltarPara, id);
+            }
 
-            // Com as SEDES: a categoria presa em casa não vai pro slot do Radar por uma troca na mão.
-            if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, id, await SedesAsync(id)) is { } motivo)
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            // ⚠️ NO "POR ORDEM DE LIBERAÇÃO" A PRÉVIA NÃO TROCA (revisão adversarial, 10/09/2026): esse
+            // torneio tem hora desde 09/09 (Services/OrdemDeLiberacao), então a prévia mostra
+            // horário — mas o robô não agenda a rodada nova nele (AgendarNaGradeAsync sai antes), e
+            // a reserva seria uma promessa que ninguém cumpre. Entre jogos reais a troca segue.
+            if (torneio.SemHorarioPrevisto && (refA.EhPrevia || refB.EhPrevia))
+            {
+                TempData["Erro"] = "Neste torneio os jogos entram por ordem de liberação: a eliminatória prevista " +
+                    "entra na fila quando nascer, e não tem horário fixo pra trocar. Troque só entre jogos já sorteados.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            // A prévia de agora, pelo mesmo caminho da tela — é dela que saem o slot do jogo
+            // previsto e a conferência de depois. Categoria e duplas vêm junto porque a projeção
+            // lê o nome delas.
+            var partidas = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .Where(p => p.TorneioId == id)
+                .ToListAsync();
+            var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
+            var projetados = await ProjetarProximasFasesAsync(id, partidas, reservas);
+            // Com as SEDES: a categoria presa em casa não vai pro slot do Radar por uma troca na mão
+            // (PR #120) — vale igual quando um dos lados é prévia.
+            var sedes = await SedesAsync(id);
+
+            TrocaDeHorario.Lado Resolver(ReferenciaDoJogo referencia) => referencia.EhPrevia
+                ? new TrocaDeHorario.Lado(referencia, null, projetados.FirstOrDefault(j =>
+                    j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero))
+                : new TrocaDeHorario.Lado(referencia, partidas.FirstOrDefault(p => p.Id == referencia.PartidaId), null);
+
+            var ladoA = Resolver(refA);
+            var ladoB = Resolver(refB);
+
+            if (TrocaDeHorario.MotivoParaNaoTrocar(ladoA, ladoB, id, sedes) is { } motivo)
             {
                 TempData["Erro"] = motivo;
+                return VoltarPara(voltarPara, id);
             }
-            else
+
+            // O slot é o TRIO hora + quadra + clube (PR #120: "o clube é pelo horário"). O clube
+            // do slot de uma prévia sai da quadra dela — e, sem quadra cadastrada, é o do torneio,
+            // como CarimbarOClube faria.
+            var slotDeA = (Horario: ladoA.Horario!.Value, Quadra: ladoA.Quadra, Clube: ladoA.ClubeDaVaga(sedes) ?? torneio.ClubeId);
+            var slotDeB = (Horario: ladoB.Horario!.Value, Quadra: ladoB.Quadra, Clube: ladoB.ClubeDaVaga(sedes) ?? torneio.ClubeId);
+
+            // Cada lado recebe o slot do outro: o real na própria linha, o previsto numa reserva
+            // (a dele, se já tinha — a PK composta garante que é uma só).
+            void Receber(TrocaDeHorario.Lado lado, (DateTime Horario, string? Quadra, int Clube) slot)
             {
-                TrocaDeHorario.Trocar(a!, b!);
-                await _context.SaveChangesAsync();
-                TempData["Sucesso"] = $"Horários trocados: agora o jogo {a!.Codigo} é " +
-                    $"{a.HorarioPrevisto:dd/MM HH:mm} e o {b!.Codigo} é {b.HorarioPrevisto:dd/MM HH:mm}.";
+                if (lado.Real is Partida real)
+                {
+                    real.HorarioPrevisto = slot.Horario;
+                    real.NomeQuadra = slot.Quadra;
+                    real.ClubeId = slot.Clube;
+                    return;
+                }
+
+                var referencia = lado.Referencia;
+                var reserva = reservas.FirstOrDefault(r =>
+                    r.CategoriaId == referencia.CategoriaId && r.Fase == referencia.Fase && r.Numero == referencia.Numero);
+                if (reserva == null)
+                {
+                    reserva = new ReservaDeHorario
+                    {
+                        CategoriaId = referencia.CategoriaId,
+                        Fase = referencia.Fase,
+                        Numero = referencia.Numero,
+                    };
+                    reservas.Add(reserva);
+                    _context.ReservasDeHorario.Add(reserva);
+                }
+
+                reserva.Horario = slot.Horario;
+                reserva.NomeQuadra = slot.Quadra;
+            }
+
+            Receber(ladoA, slotDeB);
+            Receber(ladoB, slotDeA);
+
+            // A CONFERÊNCIA: a prévia refeita com a troca tem que mostrar cada jogo previsto no
+            // slot que ele recebeu. Se não mostra, a reserva não vale (o jogo cairia antes de a
+            // fase anterior da categoria dele terminar) — e aí nada é gravado: o contexto é da
+            // requisição, e sair sem SaveChanges deixa o banco como estava.
+            var conferencia = await ProjetarProximasFasesAsync(id, partidas, reservas);
+            foreach (var (lado, slot) in new[] { (ladoA, slotDeB), (ladoB, slotDeA) })
+            {
+                if (lado.Previsto == null) continue;
+
+                var referencia = lado.Referencia;
+                var depois = conferencia.FirstOrDefault(j =>
+                    j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero);
+
+                if (depois == null || depois.Horario != slot.Horario)
+                {
+                    TempData["Erro"] = $"Não dá pra pôr {lado.Rotulo} às {slot.Horario:dd/MM HH:mm}: nesse horário a fase " +
+                        "anterior dessa categoria ainda não terminou. Troque com um jogo mais tarde.";
+                    return VoltarPara(voltarPara, id);
+                }
+            }
+
+            // ⚠️ AS OUTRAS RESERVAS QUE ESTA TROCA MATOU (revisão adversarial, 10/09/2026): mover
+            // uma semifinal pra mais tarde faz a reserva da final dessa categoria deixar de valer.
+            // Ela não fica no banco calada — prévia e robô a ignorariam e o organizador só
+            // descobriria olhando. A troca acontece, a reserva morta some, e a mensagem diz.
+            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
+            _context.ReservasDeHorario.RemoveRange(mortas);
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Horários trocados: agora {ladoA.Rotulo} é {slotDeB.Horario:dd/MM HH:mm} e " +
+                $"{ladoB.Rotulo} é {slotDeA.Horario:dd/MM HH:mm}." +
+                (ladoA.Previsto != null || ladoB.Previsto != null
+                    ? " O jogo previsto nasce nesse horário quando a fase anterior terminar."
+                    : "");
+
+            // ⚠️ NA MESMA MENSAGEM, e não num TempData["Aviso"] à parte: a página Jogos, de onde
+            // o organizador troca, só mostra Sucesso e Erro (o "Aviso" é do Details) — o aviso
+            // separado era descartado calado, exatamente o que ele existe pra não ser.
+            if (mortas.Count > 0)
+            {
+                var nomeDaCategoria = partidas
+                    .GroupBy(p => p.CategoriaId)
+                    .ToDictionary(g => g.Key, g => g.First().Categoria.Nome);
+                TempData["Sucesso"] += " ⚠️ Com essa troca, deixou de valer e foi desfeita a reserva de: " +
+                    string.Join("; ", mortas.Select(r =>
+                        $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
+                        $"({r.Horario:dd/MM HH:mm})")) +
+                    ". A fase anterior passou desse horário — o jogo volta pra grade.";
             }
 
             return VoltarPara(voltarPara, id);
