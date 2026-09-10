@@ -7,8 +7,6 @@
 >
 > 🔁 **O `main` ANDOU QUATRO VEZES entre abrir o PR e mesclar** (PRs #164, #166, #167/#168, #170 — e o #171 entrou depois do merge, antes do deploy do `prod`). Cada vez: mescla, resolve o STATUS, roda a suíte (6.322 verdes na última). O merge pelo GitHub recusou duas vezes com *"has merge conflicts"* onde o `ort` local mesclava limpo — a saída foi empurrar a mesclagem local e esperar o CI dela. ⚠️ **A tag `build-1022-35ba247` foi pedida explicitamente no `prod`** porque o run 199 já nasceu com o `main` em `fa11f18` (PR #171): "o mais recente" teria publicado outro artefato no `prod` do que no `dev`.
 >
-> 🧹 **O STATUS do `main` tinha um `<<<<<<< HEAD` órfão** (sobra da resolução do PR #166, na entrada dele); removido aqui.
->
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `prod` não parou pedindo aprovação.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
