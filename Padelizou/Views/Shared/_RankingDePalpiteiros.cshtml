@@ -100,7 +100,7 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         <partial name="_TabelaDePalpiteiros"
-                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0))' />
+                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao))' />
     </div>
 </div>
 

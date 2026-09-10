@@ -89,7 +89,12 @@ public record TabelaDePalpiteirosVM(
     // A coluna "Em aberto" — palpites que ainda esperam resultado. Como a de cima, ela some por
     // DADO: no hub (que soma torneios já jogados) e num torneio acabado não há pendente nenhum,
     // e uma fileira de zeros ocuparia a largura que o celular não tem.
-    bool MostrarEmAberto = false)
+    bool MostrarEmAberto = false,
+
+    // As colunas da APURAÇÃO — palpites contados, acertos, aproveitamento e pontos. Somem
+    // enquanto nenhum jogo do torneio foi apurado: ali elas só sabem dizer zero, e uma tabela
+    // de zeros parece conta quebrada em vez de véspera (visto no navegador, 10/09/2026).
+    bool MostrarApuracao = true)
 {
     public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
 }

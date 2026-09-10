@@ -37,6 +37,21 @@ public class RankingEmAbertoNaTelaTests
     }
 
     [Fact]
+    public void Antes_do_primeiro_resultado_a_tabela_nao_desenha_FILEIRA_DE_ZEROS()
+    {
+        var tabela = Ler("Views", "Shared", "_TabelaDePalpiteiros.cshtml");
+
+        // ⚠️ Visto no navegador (10/09/2026, 1200px): sem isto a tabela do modo participação
+        // mostrava PALPITES 0 · ACERTOS 0 · % 0% em toda linha. É a mesma régua da coluna
+        // "Cravadas" — coluna que só sabe dizer zero explica um jeito de pontuar que ainda não
+        // aconteceu ali, e faz a conta parecer quebrada.
+        Assert.Contains("MostrarApuracao", tabela);
+
+        var ranking = Ler("Views", "Shared", "_RankingDePalpiteiros.cshtml");
+        Assert.Contains("!Model.ModoParticipacao", ranking);
+    }
+
+    [Fact]
     public void O_ranking_avisa_que_a_pontuacao_ainda_NAO_comecou()
     {
         var ranking = Ler("Views", "Shared", "_RankingDePalpiteiros.cshtml");

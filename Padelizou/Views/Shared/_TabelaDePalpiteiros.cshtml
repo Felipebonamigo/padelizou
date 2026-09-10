@@ -15,18 +15,24 @@
             <tr class="text-muted small">
                 <th style="width:3rem;">#</th>
                 <th>Palpiteiro</th>
-                <th class="text-center d-none d-sm-table-cell">Palpites</th>
-                <th class="text-center d-none d-sm-table-cell">Acertos</th>
-                @if (Model.MostrarCravadas)
+                @if (Model.MostrarApuracao)
                 {
-                    <th class="text-center d-none d-sm-table-cell">Cravadas</th>
+                    <th class="text-center d-none d-sm-table-cell">Palpites</th>
+                    <th class="text-center d-none d-sm-table-cell">Acertos</th>
+                    @if (Model.MostrarCravadas)
+                    {
+                        <th class="text-center d-none d-sm-table-cell">Cravadas</th>
+                    }
+                    <th class="text-center d-none d-sm-table-cell">%</th>
                 }
-                <th class="text-center d-none d-sm-table-cell">%</th>
                 @if (Model.MostrarEmAberto)
                 {
                     <th class="text-center">Em aberto</th>
                 }
-                <th class="text-end">Pontos</th>
+                @if (Model.MostrarApuracao)
+                {
+                    <th class="text-end">Pontos</th>
+                }
             </tr>
         </thead>
         <tbody>
@@ -49,20 +55,26 @@
                             <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
                         }
                     </td>
-                    <td class="text-center d-none d-sm-table-cell">@linha.Palpites</td>
-                    <td class="text-center d-none d-sm-table-cell text-success fw-bold">@linha.Acertos</td>
-                    @if (Model.MostrarCravadas)
+                    @if (Model.MostrarApuracao)
                     {
-                        <td class="text-center d-none d-sm-table-cell">@linha.Cravadas</td>
+                        <td class="text-center d-none d-sm-table-cell">@linha.Palpites</td>
+                        <td class="text-center d-none d-sm-table-cell text-success fw-bold">@linha.Acertos</td>
+                        @if (Model.MostrarCravadas)
+                        {
+                            <td class="text-center d-none d-sm-table-cell">@linha.Cravadas</td>
+                        }
+                        <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento.ToString("0.#")%</td>
                     }
-                    <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento.ToString("0.#")%</td>
                     @if (Model.MostrarEmAberto)
                     {
                         @* Fica VISÍVEL no celular (sem o `d-none d-sm-table-cell` das outras):
                            na véspera do torneio ela é a única coluna com número. *@
                         <td class="text-center text-body-secondary">@(linha.EmAberto > 0 ? linha.EmAberto.ToString() : "–")</td>
                     }
-                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
+                    @if (Model.MostrarApuracao)
+                    {
+                        <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
+                    }
                 </tr>
             }
         </tbody>
