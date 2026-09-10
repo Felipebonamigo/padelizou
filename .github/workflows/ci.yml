@@ -226,6 +226,15 @@ jobs:
       - name: Compactar
         run: tar -czf padelizou.tar.gz -C publish .
 
+      # ⚠️ O `--target` NÃO É ENFEITE (10/09/2026). Sem ele o `gh` cria a tag apontando pro
+      # topo do branch padrão NAQUELE INSTANTE — não pro commit que este run compilou. Com dois
+      # merges perto, a tag passa a apontar pro commit do outro: o `build-1011-ea86749` ficou
+      # apontando pro `f3170fe`, o merge do PR #164, que entrou 4 minutos depois do #168.
+      #
+      # Não troca o que é PUBLICADO — o `deploy.sh` instala o TARBALL do release, não o que a
+      # tag aponta —, mas destrói a procedência: quem for investigar um build (`git show` na
+      # tag, "que código está no ar?") lê um commit que não é o do pacote. Pista errada
+      # justamente no dia em que algo deu errado. Tem teste: TagDoBuildApontaProCommitTests.
       - name: Criar release de build
         env:
           GH_TOKEN: ${{ github.token }}
@@ -233,6 +242,7 @@ jobs:
           sha7=$(echo "${{ github.sha }}" | cut -c1-7)
           tag="build-${{ github.run_number }}-$sha7"
           gh release create "$tag" padelizou.tar.gz \
+            --target "${{ github.sha }}" \
             --title "Build ${{ github.run_number }} ($sha7)" \
             --notes "Pacote pronto pra deploy — commit ${{ github.sha }}" \
             --prerelease
