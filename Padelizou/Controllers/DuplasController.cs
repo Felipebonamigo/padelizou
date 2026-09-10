@@ -641,8 +641,14 @@ namespace Padelizou.Controllers
             }
 
             // Só quem está na dupla ou organiza o torneio pode mexer.
+            //
+            // ⚠️ O `ehOrganizador` é apurado SEMPRE, e não só quando `ehDaDupla` é falso: ele
+            // decide a JANELA logo abaixo, não só a entrada. Curto-circuitá-lo por `ehDaDupla`
+            // custaria uma consulta a menos e daria a janela estreita ao organizador que também
+            // está inscrito no próprio torneio — que é o caso do Felipe em metade dos torneios.
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
-            if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneioId)) return Forbid();
+            bool ehOrganizador = await UsuarioEhOrganizadorAsync(torneioId);
+            if (!ehDaDupla && !ehOrganizador) return Forbid();
 
             // ⚠️ DUAS JANELAS DIFERENTES, e a diferença é o coração da mudança de 09/09/2026:
             // esta ação faz DUAS coisas na mesma porta — DEFINIR o segundo nome que falta e
@@ -652,14 +658,28 @@ namespace Padelizou.Controllers
             //     inscrição sozinha entra na chave com a vaga em aberto, e é essa vaga que o
             //     segundo nome vem preencher. Sem isso, "manter o Paulo e colocar o parceiro
             //     depois" não teria por onde acontecer.
-            //   • TROCAR continua preso em "Inscrições Abertas", onde sempre esteve. Trocar A
-            //     por B numa chave já sorteada bagunçaria jogos que os inscritos já estão
-            //     vendo — o motivo antigo continua verdadeiro, só que agora só pra este caso.
+            //   • TROCAR continua preso em "Inscrições Abertas" PRO JOGADOR, onde sempre esteve.
+            //     Trocar A por B numa chave já sorteada bagunçaria jogos que os inscritos já
+            //     estão vendo — depois do sorteio, sair da chave é assunto do organizador.
+            //     ⚠️ 10/09/2026: o ORGANIZADOR passou a ter a janela larga aqui também
+            //     (JanelaDoParceiro.MotivoParaOrganizadorNaoTrocar). 🗣️ Felipe, no card da 3ª do
+            //     Er: "troque o parceiro do paulo prass (er guex) pelo ... Arthur Prass" — a
+            //     chave já estava sorteada, e o único caminho que sobrava era remover a
+            //     inscrição e refazê-la, perdendo vaga na chave, lugar na grade e o pagamento.
+            //     É o mesmo par de AlteracaoDeImpedimento: jogador pelo status, organizador
+            //     pela grade.
             if (dupla.Completa)
             {
-                if (torneio.Status != "Inscrições Abertas")
+                var foraDaJanelaDeTrocar = ehOrganizador
+                    ? JanelaDoParceiro.MotivoParaOrganizadorNaoTrocar(dupla, torneio,
+                        await JanelaDoParceiro.JaComecouAJogarAsync(_context, dupla.Id))
+                    : torneio.Status != "Inscrições Abertas"
+                        ? "O parceiro só pode ser TROCADO enquanto as inscrições estão abertas. Fale com o organizador."
+                        : null;
+
+                if (foraDaJanelaDeTrocar != null)
                 {
-                    TempData["Erro"] = "O parceiro só pode ser TROCADO enquanto as inscrições estão abertas. Fale com o organizador.";
+                    TempData["Erro"] = foraDaJanelaDeTrocar;
                     return RedirectToAction("Details", "Torneios", new { id = torneioId });
                 }
             }
