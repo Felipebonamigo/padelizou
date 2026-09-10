@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — 🧪 **TESTE COMPLETO DO TORNEIO DO ER COPIADO NO `dev`, LOGADO COMO O FELIPE — tudo verde.** Sem publicar, sem migration, sem mudança de código. **PRD intocado.**
+>
+> 🔑 **A PRIMEIRA SESSÃO QUE DE FATO ENTROU NO `dev` E DIRIGIU A UI.** As anteriores fechavam com *"não entro em conta de ninguém / NÃO RODEI A UI"* — o portão do `dev` pede a senha compartilhada, que a sessão não tem, e a senha do repo (`padelizou`/`bona`) é do systemd de referência, recusada lá. Desta vez o Felipe passou o **login dele no `dev`**, e `/Auth/Login` é caminho liberado do portão: logado, o gate deixa passar. Fica a nota: pra conferir tela no `dev` de fora, é o **login do Felipe**, não a senha do portão.
+>
+> 📋 **CÓPIA ÍNTEGRA (Torneio.Id=34, "2ª Etapa ER PADEL TOUR (EPT)").** 7 categorias (3ª/4ª/5ª/6ª Masc, 3ª/5ª/6ª Fem), **64 duplas** (6/16/12/10/7/5/8, batendo em cinco fontes do HTML), **128 jogadores nomeados, zero vazio**, **24 grupos** (nenhum vazio), **56 partidas de fase de grupos** (número que fecha com o round-robin), sede **Er Padel** com quadras Arena Nclass e Arena Loja 7, Felipe como organizador. O mata-mata ainda **sem partidas geradas** é de propósito — a chave nasce quando a última partida do grupo da categoria fecha.
+>
+> ✅ **A CORREÇÃO DO CLUBE NA PRÉVIA DO MATA-MATA (build-992) CONFIRMADA SOBRE DADO REAL.** **97/97** cards de jogo mostram clube; **41/41** prévias de mata-mata mostram hora **e** clube; o quadro da chave e a aba Jogos **concordam** — todo mata-mata projetado no Er Padel, e os 19 jogos no Radar são de **fase de grupos**, não de mata-mata. A queixa *"quartas de final ta sem clube"* **não reproduz** neste build.
+>
+> 🧹 **TELAS LIMPAS.** Financeiro (83 valores `R$` bem formados, zero `null`/`NaN`/decimal quebrado), Check-in (64 duplas com controle de presença), Relatório — nenhuma com erro, Razor não renderizado ou nulo visível.
+>
+> 🔧 **ENSAIOS DE ESCRITA NO `dev` (o motivo documentado da cópia).** `RefazerGrade` recalculou **56 jogos, 11/09 18:00 a 17:10, confrontos inalterados** — o "Refazer grade" que a cópia existe pra ensaiar antes do PRD (Regra 3). `MarcarCheckIn` marca e desmarca uma dupla; **restaurei o estado**. Só o `dev` foi tocado.
+>
+> 🧪 **Suíte local no mesmo turno: `dotnet build` 0, `dotnet test` 6242/0 falhas, `conferir-palpitrometro.js` verde, `has-pending-model-changes` limpo.**
+>
+> ⚠️ **RESSALVA (baixa, pré-existente, já do Felipe):** a prévia do mata-mata ainda **projeta quadra/horário** que o torneio "por ordem" pode não cumprir — os cards têm clube, mas prometem quadra que talvez não exista. É a pendência que a entrada de 10/09 já registrou como decisão do Felipe, não desta sessão.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
 > ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
 >
