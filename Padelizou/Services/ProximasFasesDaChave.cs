@@ -53,9 +53,19 @@ public static class ProximasFasesDaChave
     // (Models/ReservaDeHorario.OrdemNoHorario). Nula = automático. Quem preenche é quem lê as
     // reservas (TorneiosController.ProjetarProximasFasesAsync), e não o motor daqui: a projeção
     // decide QUANDO o jogo cai, não em que posição da linha o organizador quer vê-lo.
+    //
+    // `ClubeId` é ONDE o jogo previsto vai ser — a mesma pergunta que `Partida.ClubeId` responde
+    // pro jogo real, e pela mesma régua (Services/OrdemDeLiberacao.CarimbarOClube): o clube é o da
+    // quadra escolhida e, sem quadra escolhida, o do torneio.
+    //
+    // 🗣️ Felipe, num print do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"*.
+    // A hora daquelas quartas foi digitada na mão, e hora digitada não traz quadra
+    // (TorneiosController.DefinirHorario) — sem este campo o jogo previsto ficava sem NADA que
+    // dissesse o lugar, no torneio em que o clube é a única resposta que existe (o Er é "por
+    // ordem": a quadra é apagada de propósito e quem chama é o balcão).
     public record JogoQueVem(string Categoria, string Fase, int Numero, DateTime? Horario,
                              Lado Lado1, Lado Lado2, string? Quadra = null, int? CategoriaId = null,
-                             int? OrdemNoHorario = null)
+                             int? OrdemNoHorario = null, int? ClubeId = null)
     {
         // "Quartas de Final 2" — o rótulo que a tela mostra e que os lados citam.
         // A FINAL não numera: é um jogo só, e "Final 1" faria pensar que existe uma Final 2.
@@ -332,6 +342,19 @@ public static class ProximasFasesDaChave
         int CapacidadeEm(DateTime h) =>
             grade.Sedes?.QuadrasAbertasEm(h) is int abertas ? abertas : capacidade;
 
+        // O CLUBE DO JOGO PREVISTO — a MESMA linha do carimbo dos jogos reais
+        // (OrdemDeLiberacao.CarimbarOClube): o clube é o da quadra escolhida e, sem quadra que
+        // responda, o do torneio. Duas contas diriam prédios diferentes pro mesmo jogo, e é o
+        // clube que decide pra que lado da cidade a pessoa dirige.
+        //
+        // ⚠️ SEM SLOT NENHUM (nem hora nem quadra) NÃO HÁ CLUBE, e a régua é a mesma de lá: o
+        // carimbo pula o jogo que ninguém colocou em lugar nenhum. Escrever o principal pra ele
+        // seria chute — é o aviso de SedesDoTorneio.ClubeQueACategoriaDetermina.
+        int? ClubeDoSlot(DateTime? quando, string? quadra) =>
+            quando == null && string.IsNullOrWhiteSpace(quadra)
+                ? null
+                : grade.Sedes?.ClubeDaQuadra(quadra) ?? grade.Sedes?.ClubePrincipalId;
+
         bool Serve(string q, DateTime h, IReadOnlyList<string>? permitidas) =>
             !(ocupadas.TryGetValue(h, out var usadas) && usadas.Contains(q))
             && (permitidas == null || permitidas.Contains(q))
@@ -483,7 +506,8 @@ public static class ProximasFasesDaChave
                 }
 
                 jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, quando,
-                    rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra, cadeia.CategoriaId));
+                    rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra, cadeia.CategoriaId,
+                    ClubeId: ClubeDoSlot(quando, quadra)));
 
                 if (quando is DateTime marcado)
                 {
