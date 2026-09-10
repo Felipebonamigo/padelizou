@@ -1,7 +1,38 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
+>
+> 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
+>
+> 🕳️ **A BARRA ESTAVA CERTA — PRO OUTRO USO.** `.pdz-pills` foi desenhada em 08/08 pras abas FIXAS (Ao Vivo / Agendadas / Finalizadas), e lá `flex: 1 1 auto` é o acerto: elas preenchem a linha e não sobra buraco. Numa lista de tamanho **variável** o mesmo acerto vira defeito — a sétima categoria caía sozinha na segunda linha e esticava pela largura inteira, virando uma faixa verde que parece título, não aba escolhida. Com as **12 categorias** que o ER já teve, eram quatro linhas de botão antes do primeiro grupo.
+>
+> ⚠️ **POR ISSO O `.pdz-pills` NÃO FOI TOCADO**: quem muda de desenho é só esta lista, a única de tamanho variável da tela. Mexer no CSS compartilhado consertaria uma tela e mexeria em quatro.
+>
+> ✅ **`<select>` nativo** (degrau 4 da escada do CLAUDE.md): no celular quem abre é o seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela. Fica **na linha do título**, então a troca **devolve** uma linha de altura em vez de custar uma.
+>
+> 💾 **A CATEGORIA ESCOLHIDA SOBREVIVE AO SALVAR** (`js/seletor-de-categoria.js`): dentro dela se troca dupla de grupo e se desenha o chaveamento à mão, e cada POST redesenhava a página na PRIMEIRA categoria — com 12, era caçar a sua de novo a cada gravação. `sessionStorage` **por torneio**, mesma forma e mesmo motivo do `js/jogos-abas.js` de 08/08.
+>
+> ⚠️ **UMA RÉGUA SÓ decide quem entra na tela** (`temChaveParaMostrar`, com o `comChave` derivado dela): duas contas dariam opção sem painel — escolher a categoria e não ver nada — ou painel sem opção, que é chave desenhada e inalcançável. Tem teste contando que a condição está escrita **uma vez**.
+>
+> 🧩 **Categoria única não ganha seletor** (controle que não escolhe nada): fica o nome. E o painel deixou de se anunciar como `role="tabpanel"` — sem barra de abas o papel ficou órfão; virou `region` com o nome da categoria.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl` desta sessão**: `/healthz` **200** em `dev` e `prod`, o `/js/seletor-de-categoria.js` servido nos dois é o arquivo novo, e em `padelizou.com.br/Torneios/Details/26` o HTML traz **as 7 categorias do ER como `<option>`** (`cat-89` a `cat-97`), **nenhum `id="categoriaPills"`**, um painel `role="region"` para cada opção e a página abrindo na primeira (`cat-89`) — ou seja, seletor e painel casam no ar, e não só no teste.
+>
+> ⚠️ **ESTE RELEASE LEVOU JUNTO A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`): a mudança daqui é só Razor + JS, mas o build aplica aquela migration no startup. Não foi um deploy "sem migration".
+>
+> 🧪 **6.346 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde, com o `main` mesclado; `has-pending-model-changes` → *"No changes"*. Vistos vermelhos antes, um a um — e **dois foram reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
+>
+> 🕳️ **UM DEFEITO ACHADO RELENDO O DIFF, e coberto:** num F5 o navegador restaura o valor do `<select>` sozinho (*form restoration*) e não restaura junto a classe do painel, que vem do servidor sempre na primeira categoria — sem sincronizar na abertura, o seletor diria "6ª Feminina" com a chave da 3ª Masculina desenhada embaixo.
+>
+> 🔀 **O `main` ANDOU DUAS VEZES entre o CI e o merge** (PRs #166, #169 e #170). Conflito só no `STATUS.md`, e a suíte foi rodada por cima a cada mesclagem.
+>
+> 🧹 **O `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** — marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar. Removido neste PR.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `workflow_dispatch` do `prod` publicou sem pedir aprovação.
+
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
 >
 > ✅ **CONFERIDO NO AR, anônimo, por `curl` desta sessão**: `/healthz` 200 em `dev` e `prod`; `/js/compartilhar-texto.js` servido nos dois (é o arquivo que só existe neste build); no `prod`, `/Torneios/CompartilharJogos/26` (o Er) responde **200 com 6 artes e o alternador "Também os previstos"**, e `/Torneios/JogosImagem/26?parte=1` devolve **`image/png` de 198 KB**.
 >
@@ -9,31 +40,7 @@
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `prod` não parou pedindo aprovação.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
->
-> 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
->
-> 🕳️ **A BARRA ESTAVA CERTA — PRO OUTRO USO.** `.pdz-pills` foi desenhada em 08/08 pras abas FIXAS (Ao Vivo / Agendadas / Finalizadas), e lá `flex: 1 1 auto` é o acerto: as abas preenchem a linha e não sobra buraco. Numa lista de tamanho **variável** o mesmo acerto vira defeito — a sétima categoria caía sozinha na segunda linha e esticava pela largura inteira, virando uma faixa verde que parece título, não aba escolhida. Com as **12 categorias** que o ER já teve, eram quatro linhas de botão antes do primeiro grupo.
->
-> ⚠️ **POR ISSO O `.pdz-pills` NÃO FOI TOCADO**: quem muda de desenho é só esta lista, a única de tamanho variável da tela. Mexer no CSS compartilhado consertaria uma tela e mexeria em quatro.
->
-> ✅ **`<select>` nativo** (degrau 4 da escada do CLAUDE.md): no celular quem abre é o seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela, e some a conta de "quantas cabem por linha". Ele fica **na linha do título**, à direita de "Chaves e Grupos", então a troca ainda **devolve** uma linha de altura em vez de custar uma.
->
-> 💾 **A CATEGORIA ESCOLHIDA SOBREVIVE AO SALVAR** (`js/seletor-de-categoria.js`): dentro dela se troca dupla de grupo e se desenha o chaveamento à mão, e cada POST redesenhava a página na PRIMEIRA categoria — com 12, era caçar a sua de novo a cada gravação. `sessionStorage` **por torneio**, mesma forma e mesmo motivo do `js/jogos-abas.js` de 08/08.
->
-> ⚠️ **UMA RÉGUA SÓ decide quem entra na tela** (`temChaveParaMostrar`, agora com o `comChave` derivado dela): duas contas dariam opção sem painel — escolher a categoria e não ver nada — ou painel sem opção, que é chave desenhada e inalcançável. Tem teste contando que a condição está escrita **uma vez**.
->
-> 🧩 **Categoria única não ganha seletor** (controle que não escolhe nada): fica o nome. E o painel deixou de se anunciar como `role="tabpanel"` — sem barra de abas, o papel ficou órfão; virou `region` com o nome da categoria.
->
-> 🧪 **6.260 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes, um a um. Dois deles passaram de primeira e foram **reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
->
-> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é que a suíte lê da fonte o que foi combinado e que o Razor compila.
->
-> 🔀 **O `main` ANDOU DUAS VEZES entre o CI e o merge** (PRs #166, #169 e #170, de sessões paralelas). Conflito só no `STATUS.md` nas duas, e a suíte foi rodada de novo por cima a cada uma: **6.346 testes, 0 falhas** com tudo mesclado, `has-pending-model-changes` → *"No changes"*.
->
-> ⚠️ **ESTE RELEASE LEVA JUNTO A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`) — a minha mudança é só Razor + JS, mas quem publicar este build aplica aquela migration no startup. Não é "sem migration" pro deploy, só pro diff daqui.
->
-> 🧹 **DE PASSAGEM: o `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** (marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar). Removido neste merge.
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #171) e PUBLICADO no `build-1024-fa11f18`** — o registro completo (o porquê da troca, o que foi conferido no ar e as ressalvas) é a entrada do topo.
 
 > **10/09/2026** — ✅ **MESCLADO no `main` (PR #169) e PUBLICADO no `build-1022-35ba247`** — o registro do deploy é a entrada do topo. **Sem migration.**
 >
