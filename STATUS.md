@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
+>
+> 🕳️ **A TELA RESPONDIA A PERGUNTA DA VÉSPERA.** "Quem está inscrito" é a lista por categoria; no sábado de manhã a pergunta é **"quem joga agora já chegou?"** — e com 64 duplas achar as duas do jogo das 8h era rolar a lista inteira cruzando de cabeça com a grade. A informação existia e não estava onde se decide o W.O.
+>
+> ✅ **AGORA A TELA É A FILA DO DIA**: blocos por horário (`sáb 12/09 às 08:00`), cada jogo com as duas duplas e o "Chegou" em cada uma, e o jogo com as duas presentes apagado com o selo *"os dois chegaram"*. A lista por categoria continua inteira embaixo, **fechada**, em "Resto do torneio" — é ela que serve pra marcar quem chegou cedo e joga à tarde.
+>
+> ⚠️ **A ORDEM É A MESMA DA ABA JOGOS** (`Services/OrdemNoHorario`: hora → posição gravada → Id). Duas contas de "quem vem antes" fariam as duas telas mostrarem ordens diferentes pra mesma grade — a lição de hoje de manhã, aplicada antes de doer. E o `GroupBy` da view **não reordena**: em LINQ to Objects os grupos saem na ordem em que aparecem, e a fila já chega ordenada.
+>
+> ⚠️ **SÓ "Agendada".** Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos dois a pergunta do check-in já foi respondida por outra via. A **prévia** (eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela não sabe quem joga, então não há quem marcar.
+>
+> ♻️ **A LINHA DA CHAMADA VIROU UM PARCIAL** (`_LinhaDoCheckIn.cshtml`), porque agora ela é desenhada em dois lugares — dentro do jogo e na lista de baixo. Duas cópias do formulário que GRAVA presença divergiriam na primeira mudança. De brinde, ela ganhou `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenhava a página do topo (`js/manter-posicao-na-lista.js`, a peça de hoje de manhã, pela mesma queixa).
+>
+> 🧪 **6.250 testes, 0 falhas (9 novos)** + o `conferir-palpitrometro.js` verde. Vistos vermelhos antes: `ViewData["JogosQueVem"]` nulo, *"A tela não lê a fila dos jogos"* e *"Could not find file '_LinhaDoCheckIn.cshtml'"*. A consulta nova tem **teste de tradução Npgsql** (`ToQueryString`, o padrão de 19/08): ela filtra pela navegação `Categoria.TorneioId`, e o InMemory do resto da suíte não traduz nada.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão e o proxy recusa o domínio. O que dá pra afirmar é o que o teste lê da fonte e do controller, e que o Razor compila.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
 > ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
 >
