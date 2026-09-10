@@ -1,0 +1,161 @@
+@model Padelizou.ViewModels.CompartilharJogosVM
+@using Microsoft.AspNetCore.Routing
+@{
+    ViewData["Title"] = $"Compartilhar os jogos — {Model.Torneio.Nome} - Padelizou";
+    ViewData["OgTitulo"] = $"Jogos — {Model.Torneio.Nome}";
+    ViewData["Descricao"] = Model.Grade.Recorte == null
+        ? $"A lista de jogos do {Model.Torneio.Nome}."
+        : $"Os jogos de {Model.Grade.Recorte} no {Model.Torneio.Nome}.";
+
+    // Endereço ABSOLUTO da primeira arte, pra prévia do link — relativo não serve: quem lê a
+    // meta é o servidor da Meta, de fora, sem saber qual é o nosso domínio.
+    if (Model.FonteDisponivel && Model.Grade.TemOQueMostrar)
+    {
+        ViewData["OgImagem"] = Url.Action("JogosImagem", "Torneios",
+            new RouteValueDictionary(Model.Filtros) { ["parte"] = 1 }, Context.Request.Scheme);
+    }
+
+    // Os mesmos filtros, só trocando a pergunta das prévias.
+    RouteValueDictionary ComPrevias(bool ligado) => new(Model.Filtros) { ["comPrevias"] = ligado };
+    var voltar = new RouteValueDictionary(Model.Filtros);
+    voltar.Remove("comPrevias");
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a href="@Url.Action("Jogos", "Torneios", voltar)" class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar à lista de jogos
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-share-fill text-success"></i> Compartilhar esta lista
+    </h2>
+    <p class="text-muted">
+        @Model.Torneio.Nome@(Model.Grade.Recorte == null ? "" : $" — {Model.Grade.Recorte}")
+    </p>
+
+    @* 🗣️ "terá q questionar se vale apenas os jogos ja marcados ou se os possiveis tambem (por
+       que o mata mata nao ta definido)" — Felipe, 10/09/2026. A pergunta só existe quando há
+       prévia na lista; sem mata-mata por vir não há o que perguntar. *@
+    @if (Model.TemPrevias)
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <div class="fw-bold mb-2" style="color: var(--pdz-ink);">O que vai na lista?</div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="@Url.Action("CompartilharJogos", "Torneios", ComPrevias(false))"
+                       class="btn rounded-pill px-3 @(Model.ComPrevias ? "btn-outline-secondary" : "btn-padel fw-bold")">
+                        <i class="bi bi-calendar-check"></i> Só os jogos marcados
+                    </a>
+                    <a href="@Url.Action("CompartilharJogos", "Torneios", ComPrevias(true))"
+                       class="btn rounded-pill px-3 @(Model.ComPrevias ? "btn-padel fw-bold" : "btn-outline-secondary")">
+                        <i class="bi bi-hourglass-split"></i> Também os previstos
+                    </a>
+                </div>
+                <div class="form-text mt-2">
+                    Previsto é o mata-mata que ainda não tem quem joga ("1º do Grupo A x 2º do Grupo B").
+                    Ele entra com o horário da grade e a marca <em>prévia</em>.
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!Model.Grade.TemOQueMostrar)
+    {
+        <div class="alert alert-light border rounded-4">
+            <strong>Nenhum jogo agendado com estes filtros.</strong>
+            <div class="small text-muted">
+                A lista compartilhada é a mesma da aba Jogos — volte lá e mude os filtros.
+            </div>
+        </div>
+    }
+    else
+    {
+        @* ── O TEXTO PRO WHATSAPP ────────────────────────────────────────────────────────
+           Mesma forma do convite do torneio (Details): o wa.me abre a conversa da própria
+           pessoa com o texto no campo, e ela escolhe o grupo. O campo selecionável é a saída pra
+           quem cola em outro lugar — ou pra quem está num celular onde o clipboard falha calado. *@
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body">
+                <p class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                    <i class="bi bi-whatsapp text-success"></i> Pro grupo do WhatsApp
+                </p>
+                <textarea class="form-control font-monospace small mb-3" id="textoDaLista" rows="8" readonly
+                          onclick="this.select();">@Model.Texto</textarea>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-success rounded-pill px-3 pdz-compartilhar-texto"
+                       href="https://wa.me/?text=@Uri.EscapeDataString(Model.Texto)"
+                       target="_blank" rel="noopener" data-origem="textoDaLista">
+                        <i class="bi bi-whatsapp"></i> Mandar no WhatsApp
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3 pdz-copiar-texto"
+                            data-origem="textoDaLista">
+                        <i class="bi bi-clipboard"></i> Copiar o texto
+                    </button>
+                </div>
+                <div class="form-text mt-2">
+                    O texto leva o link desta lista, com os filtros — quem receber abre a mesma tela,
+                    sempre atualizada.
+                </div>
+            </div>
+        </div>
+
+        @* ── AS ARTES PRO INSTAGRAM ──────────────────────────────────────────────────────── *@
+        <p class="fw-bold mb-2" style="color: var(--pdz-ink);">
+            <i class="bi bi-instagram text-danger"></i> Pro story e pro feed
+        </p>
+
+        @if (!Model.FonteDisponivel)
+        {
+            <div class="alert alert-warning rounded-4">
+                <strong>As artes estão desligadas neste servidor.</strong>
+                <div class="small">
+                    Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                    todos os textos invisíveis, então nenhum é gerado.
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted small mb-3">
+                Uma arte por dia@(Model.Grade.Artes.Any(a => a.Partes > 1) ? " — dia com mais de " + Padelizou.Services.CartaoDosJogos.MaximoDeJogos + " jogos sai em partes" : ""). Salve no celular e poste em sequência.
+            </p>
+
+            foreach (var arte in Model.Grade.Artes)
+            {
+                var imagem = Url.Action("JogosImagem", "Torneios",
+                    new RouteValueDictionary(Model.Filtros) { ["parte"] = arte.Parte });
+                var arquivo = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(arte.Rotulo)}.png";
+
+                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                    <div class="card-body">
+                        <div class="fw-bold mb-3" style="color: var(--pdz-ink);">@arte.Rotulo</div>
+
+                        @* loading="lazy" pelo mesmo motivo dos outros cards: são PNGs de ~1080px, e
+                           carregar todos de uma vez no 4G do clube trava a página. *@
+                        <img src="@imagem" alt="Jogos de @arte.Rotulo"
+                             class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                             style="max-width: 380px;" />
+
+                        <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                            <a href="@imagem" download="@arquivo"
+                               class="btn btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-download"></i> Baixar
+                            </a>
+                            <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                    data-imagem="@imagem" data-arquivo="@arquivo"
+                                    data-titulo="Jogos — @arte.Rotulo">
+                                <i class="bi bi-share-fill"></i> Compartilhar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+    <script src="~/js/compartilhar-texto.js" asp-append-version="true"></script>
+}

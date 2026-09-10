@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 📤 **A ABA JOGOS GANHOU "COMPARTILHAR ESTA LISTA": texto pro grupo do WhatsApp e arte 1080×1350 pro story, com os filtros da tela.** 🗣️ Felipe, num print da aba filtrada por "Los Corneteiros" no 2ª Etapa ER PADEL TOUR: *"no final da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"* — *"Algo que fique bom para compartilhar no insta tambem"* — *"terá q questionar se vale apenas os jogos ja marcados ou se os possiveis tambem (por que o mata mata nao ta definido)"*.
+>
+> ✅ **O que existe**: um botão no FIM da lista de agendados (pra todo mundo, não só organizador — a decisão do cartaz) que leva a `/Torneios/CompartilharJogos/{id}?…filtros…`. Lá: (1) a pergunta **"Só os jogos marcados / Também os previstos"**, que só aparece quando há prévia na lista, padrão *só os marcados*; (2) o **texto pro WhatsApp** (`*torneio* — recorte`, um cabeçalho por dia, `18:00 · 6ª Masculina · Grupo D · Er Padel` + `Pedro Kirchner / Carlos Morais x …`, prévia marcada *prévia*, e no fim o link da lista com os filtros), com "Mandar no WhatsApp" (`wa.me`, e no celular o menu nativo — `js/compartilhar-texto.js`) e "Copiar"; (3) **uma arte por dia** (`CartaoDosJogos`, família de divulgação, cache público), até **8 jogos** por arte e dia cheio dividido em partes **equilibradas** (9 → 5 + 4, 11 → 6 + 5 — a versão "8 e o resto" deixava uma linha órfã, visto na prévia).
+>
+> ⚠️ **A LISTA É A DA TELA, LETRA POR LETRA, e é por isso que o card mora no `TorneiosController` e não no `CartoesController`.** `ListaDeJogos.Montar` não consulta banco: recebe a fila que `CarregarViewBagJogosAsync` + `OrdemNoHorario` já montaram e só traduz pras palavras da linha (`CategoriaNaTela.Curto`, `LugarDoJogo.Etiqueta`, o "parceiro" da vaga em aberto, `NomeDaDupla.Compacto` na arte). Uma segunda régua de "quais jogos" seria a que vazaria: o portão da chave em aprovação (09/09, *"nao deixe q nada vaze"*) mora naquele método, e aqui vira **404** pra quem não organiza — teste visto barrar. Torneio oculto e cancelado também 404. O `Png()` do CartoesController virou `Services/EntregaDeCard`, pra os dois controllers responderem com o MESMO cabeçalho.
+>
+> 🧪 **6.275 testes, 0 falhas (25 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'JogoDaLista' could not be found"* (nada existia), depois *8 + 1* na divisão. Um teste confere que **a Poppins tem glifo** pra cada caractere que o card acrescenta (x · ª Á º /) — sem fallback, caractere sem glifo sai como espaço em branco calado. ✅ **As artes foram geradas em PNG e OLHADAS** (a lição de 25/08): 8 jogos, 4 com prévia, 1 órfão (que virou o equilíbrio) e "sem data" (torneio por ordem sem hora). ✅ Conferido num projeto à parte que o `Url.Action` com `int[]` (as categorias) emite `categoriaFiltroIds=3&categoriaFiltroIds=5` e que array vazio some da URL.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é o que os testes leem do controller e da fonte, que o Razor compila, e como a arte sai em PNG.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >
