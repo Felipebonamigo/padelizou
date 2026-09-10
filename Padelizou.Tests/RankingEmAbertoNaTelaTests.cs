@@ -62,17 +62,23 @@ public class RankingEmAbertoNaTelaTests
     }
 
     [Fact]
-    public void O_botao_do_torneio_nao_promete_ACERTO_antes_de_existir_jogo_apurado()
+    public void A_PAGINA_do_torneio_nao_promete_ACERTO_antes_de_existir_jogo_apurado()
     {
-        var details = Ler("Views", "Torneios", "Details.cshtml");
+        // ⚠️ ATUALIZADO, NÃO APAGADO (10/09/2026). Este teste vigiava a legenda de um BOTÃO
+        // "Palpiteiros" no topo da página — botão que saiu por ser duplicata da aba (🗣️ Felipe:
+        // *"palpiteiros me parece duplicado, não?"*). A INTENÇÃO não saiu junto: "quem mais
+        // acertou" é mentira na véspera, quando nenhum jogo terminou.
+        //
+        // Sem o botão, o que sobra na página do torneio é a ABA ("Palpiteiros", neutra) e o
+        // link do painel ("Abrir em página própria"), também neutro. Então a cobrança agora é
+        // sobre a PÁGINA inteira: ela não promete acerto em lugar nenhum. Quem decide a frase é
+        // o ranking, e ele tem o `O_ranking_avisa_que_a_pontuacao_ainda_NAO_comecou` logo acima.
+        //
+        // Sem tirar os comentários isto reprovaria a própria explicação de por que o botão saiu.
+        var details = TestInfra.SemComentarios(Ler("Views", "Torneios", "Details.cshtml"));
 
-        var inicio = details.IndexOf("asp-action=\"Palpiteiros\"", StringComparison.Ordinal);
-        Assert.True(inicio >= 0, "Não achei o botão Palpiteiros na página do torneio.");
-
-        // "Quem mais acertou no Palpitrômetro" é mentira na véspera: ninguém acertou nada
-        // ainda. O texto tem que perguntar ao ranking em que fase ele está.
-        var trecho = details[inicio..Math.Min(details.Length, inicio + 700)];
-        Assert.Contains("ModoParticipacao", trecho);
+        Assert.DoesNotContain("acertou", details, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ModoParticipacao", Ler("Views", "Shared", "_RankingDePalpiteiros.cshtml"));
     }
 
     private static string Ler(params string[] caminho) =>

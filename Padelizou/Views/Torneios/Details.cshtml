@@ -369,38 +369,55 @@
 @{
     var podeDivulgar = Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status);
     var podeConvidar = Padelizou.Services.ConviteProTorneio.PodeConvidar(Model.Status);
+
+    // As FOTOS entram nesta mesma linha, e por isso o link é resolvido aqui em cima. O bloco
+    // delas ficava ~130 linhas abaixo (só o modal do convite, invisível, separava os dois na
+    // tela), então eram DUAS linhas de um botão cada onde cabe uma de dois.
+    //
+    // O Padelizou não hospeda a imagem: guarda o endereço de onde o fotógrafo publicou, e quem
+    // confere se esse endereço serve é o serviço — a view nunca põe o campo cru num href, ou a
+    // conferência deixa de existir.
+    //
+    // ⚠️ E ESTE COMENTÁRIO NÃO SOLETRA O NOME DO CAMPO DE PROPÓSITO: o
+    // `FotosDoTorneioTests` cobra que ele apareça UMA vez só na tela (o formulário da gestão),
+    // e o `SemComentarioRazor` dele tira `@* *@` mas não `//`. Escrever o nome aqui derrubava
+    // aquele teste — foi o que aconteceu na primeira versão desta linha.
+    var linkDasFotos = Padelizou.Services.FotosDoTorneio.LinkPara(Model);
 }
-@if (podeDivulgar || podeConvidar)
+@* ⚠️ A EXPLICAÇÃO DE CADA BOTÃO VIVE NO `title`, E NÃO NUMA LINHA FIXA EMBAIXO (Felipe,
+   10/09/2026: *"estou achando muito poluído essa tela, muita informação"*). Eram três botões
+   empilhados com uma legenda cada — seis linhas antes do primeiro jogo. Legenda permanente
+   ensina na PRIMEIRA visita e é ruído em todas as outras; mesma troca já feita hoje no
+   "Sugestão ou bug" do rodapé. *@
+@if (podeDivulgar || podeConvidar || linkDasFotos != null)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         @if (podeDivulgar)
         {
             <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
-               class="btn btn-outline-primary rounded-pill px-3">
+               class="btn btn-outline-primary rounded-pill px-3"
+               title="Arte pronta pra postar, com o QR que leva direto pra cá.">
                 <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
             </a>
         }
         @if (podeConvidar)
         {
             <button type="button" class="btn btn-success rounded-pill px-3"
-                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio">
+                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio"
+                    title="Manda o link da inscrição pra quem você quer no torneio.">
                 <i class="bi bi-person-plus-fill"></i> Convidar
             </button>
         }
-        <small class="text-muted">
-            @if (podeDivulgar && podeConvidar)
-            {
-                @:Cartaz pra postar; convite pra mandar no privado, com o link da inscrição.
-            }
-            else if (podeDivulgar)
-            {
-                @:Arte pronta pra postar, com o QR que leva direto pra cá.
-            }
-            else
-            {
-                @:Manda o link da inscrição pra quem você quer no torneio.
-            }
-        </small>
+        @* PRA TODO MUNDO, de propósito, ao contrário dos dois de cima: álbum de torneio é
+           divulgação — quem não jogou ver a foto é o que puxa gente pro próximo. *@
+        @if (linkDasFotos != null)
+        {
+            <a href="@linkDasFotos" target="_blank" rel="noopener noreferrer"
+               class="btn btn-outline-primary rounded-pill px-3"
+               title="Publicadas pelo organizador — abre fora do Padelizou.">
+                <i class="bi bi-camera-fill"></i> Ver as fotos do torneio
+            </a>
+        }
     </div>
 }
 
@@ -493,26 +510,6 @@
         </a>
         <small class="text-muted">
             É onde o organizador avisa mudança de horário e chama pra quadra.
-        </small>
-    </div>
-}
-
-@* ── AS FOTOS DO TORNEIO ──────────────────────────────────────────────────────────────
-   O oposto do bloco acima, e de propósito: este botão é PRA TODO MUNDO. Álbum de torneio
-   é divulgação — quem não jogou ver a foto é justamente o que puxa gente pro próximo.
-
-   O Padelizou não hospeda a imagem: guarda o endereço de onde o fotógrafo publicou. Quem
-   confere se esse endereço serve é o serviço, na hora de mostrar — a view nunca lê
-   Model.LinkDasFotos num href, ou a conferência deixa de existir. *@
-@if (Padelizou.Services.FotosDoTorneio.LinkPara(Model) is { } linkDasFotos)
-{
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a href="@linkDasFotos" target="_blank" rel="noopener noreferrer"
-           class="btn btn-outline-primary rounded-pill px-3">
-            <i class="bi bi-camera-fill"></i> Ver as fotos do torneio
-        </a>
-        <small class="text-muted">
-            Publicadas pelo organizador — abre fora do Padelizou.
         </small>
     </div>
 }
@@ -656,29 +653,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 }
 
 @* ── OS PALPITEIROS ───────────────────────────────────────────────────────────────────
-   O Palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem
-   ACERTOU. O ranking é derivado do que já estava lá — por isso nasce com histórico.
+   O Palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU.
+   O ranking é derivado do que já estava lá — por isso nasce com histórico.
 
-   ⚠️ Quem responde "já tem o que mostrar?" é o CONTROLLER, pelo mesmo motivo do MVP: a
-   view não tem as partidas do torneio em mãos, e a conta feita aqui esconderia o link em
-   silêncio, sempre. *@
-@if (ViewBag.TemRankingDePalpiteiros == true)
-{
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="btn btn-outline-success rounded-pill px-3">
-            <i class="bi bi-graph-up"></i> Palpiteiros
-        </a>
-        @* ⚠️ "Quem mais acertou" é mentira na véspera: ninguém acertou nada ainda, porque
-           nenhum jogo terminou. O texto pergunta ao ranking em que fase ele está — o mesmo
-           `ModoParticipacao` que decide o aviso dentro da aba. *@
-        @{ var palpiteirosDoCard = ViewBag.RankingDePalpiteiros as Padelizou.Services.PalpiteirosDoTorneio; }
-        <small class="text-muted">
-            @(palpiteirosDoCard?.ModoParticipacao == true
-                ? "Quem já palpitou neste torneio."
-                : "Quem mais acertou no Palpitrômetro.")
-        </small>
-    </div>
-}
+   🗣️ Felipe, 10/09/2026, olhando a lista de botões do topo: *"palpiteiros me parece
+   duplicado, não?"*. Estava: havia um BOTÃO aqui, pra página cheia (/Torneios/Palpiteiros), e
+   uma ABA logo abaixo (#palpiteiros) — o mesmo ícone, o mesmo nome, o mesmo portão
+   (`TemRankingDePalpiteiros`) e o MESMO parcial desenhado dos dois lados
+   (`_RankingDePalpiteiros`). O botão era o mais antigo; a aba nasceu em 07/09 a pedido dele
+   ("deixe uma aba no torneio para verificar o ranking do palpitômetro") e o botão ficou —
+   tanto que o comentário da aba diz "a mesma checagem barata que já decide o botão lá em
+   cima". Duas portas idênticas não são escolha, são hesitação cobrada de quem só queria ver
+   o jogo.
+
+   ✅ FICOU A ABA, que é o que ele pediu e mantém a pessoa na tela. O link pra página cheia
+   foi pra DENTRO do painel dela: `Details.cshtml` era o ÚNICO lugar do sistema que apontava
+   pra /Torneios/Palpiteiros, e tirar o botão sem mais nada deixaria a página alcançável só
+   por quem digitasse a URL — ela existe justamente pra ser mandada no grupo. *@
 
 @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
    "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
@@ -5683,6 +5674,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     {
         <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
             <partial name="_RankingDePalpiteiros" model="(Padelizou.Services.PalpiteirosDoTorneio)ViewBag.RankingDePalpiteiros" />
+
+            @* A ÚNICA porta pra página cheia desde que o botão do topo saiu (10/09/2026). Ela
+               não é enfeite: é o endereço que se manda no grupo do WhatsApp, e o parcial acima
+               foi extraído justamente pra ela poder "ser aberta direto de um link". Aqui
+               embaixo ela não custa nada a quem só quer ver o ranking, e está à mão de quem
+               quer o link — que é a mesma pessoa. *@
+            <div class="text-center mt-3">
+                <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="small text-muted">
+                    <i class="bi bi-box-arrow-up-right"></i> Abrir em página própria (pra mandar no grupo)
+                </a>
+            </div>
         </div>
     }
     <!-- ABA: CHAVES E GRUPOS -->
