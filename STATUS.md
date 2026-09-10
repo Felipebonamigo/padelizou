@@ -1,14 +1,53 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (20h08 e 20h09 UTC — runs 194 e 195). PR #167. ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
 >
-> ✅ **CONFERIDO POR FORA, NOS DOIS:** `/healthz` devolveu **HTTP 200** e corpo **`ok`** em `padelizou.com.br` e em `dev.padelizou.com.br`. E mais que isso — o `site.css` servido pelos dois já traz `.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }`, ou seja, **é ESTE build que está no ar**, e não só "um deploy que terminou verde".
+> 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
 >
-> ⚠️ **O `prod` NÃO PEDIU APROVAÇÃO.** O `infra/vps/README.md:159` manda marcar *Required reviewers* no environment `prod`, e eu avisei o Felipe que o deploy ficaria pendente esperando ele. Não ficou: o run 195 foi de ponta a ponta em **11 segundos** (20:09:46 → 20:09:57), sem parada. Ou o environment `prod` não existe com a trava, ou o dono do repo se auto-aprova. **Fica anotado como coisa a conferir** — a trava documentada e a trava real não são a mesma.
+> 🕳️ **A BARRA ESTAVA CERTA — PRO OUTRO USO.** `.pdz-pills` foi desenhada em 08/08 pras abas FIXAS (Ao Vivo / Agendadas / Finalizadas), e lá `flex: 1 1 auto` é o acerto: as abas preenchem a linha e não sobra buraco. Numa lista de tamanho **variável** o mesmo acerto vira defeito — a sétima categoria caía sozinha na segunda linha e esticava pela largura inteira, virando uma faixa verde que parece título, não aba escolhida. Com as **12 categorias** que o ER já teve, eram quatro linhas de botão antes do primeiro grupo.
 >
-> 🔁 **O `main` ANDOU DUAS VEZES**: PR #165 (check-in) antes do meu CI, e PR #168 (palpitrômetro) entre o meu merge e o deploy. Publiquei **pela tag** `build-1008-14383b5`, e não por "o mais recente" — senão o `prod` levava junto o #168, que a outra sessão ainda não quis publicar.
+> ⚠️ **POR ISSO O `.pdz-pills` NÃO FOI TOCADO**: quem muda de desenho é só esta lista, a única de tamanho variável da tela. Mexer no CSS compartilhado consertaria uma tela e mexeria em quatro.
+>
+> ✅ **`<select>` nativo** (degrau 4 da escada do CLAUDE.md): no celular quem abre é o seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela, e some a conta de "quantas cabem por linha". Ele fica **na linha do título**, à direita de "Chaves e Grupos", então a troca ainda **devolve** uma linha de altura em vez de custar uma.
+>
+> 💾 **A CATEGORIA ESCOLHIDA SOBREVIVE AO SALVAR** (`js/seletor-de-categoria.js`): dentro dela se troca dupla de grupo e se desenha o chaveamento à mão, e cada POST redesenhava a página na PRIMEIRA categoria — com 12, era caçar a sua de novo a cada gravação. `sessionStorage` **por torneio**, mesma forma e mesmo motivo do `js/jogos-abas.js` de 08/08.
+>
+> ⚠️ **UMA RÉGUA SÓ decide quem entra na tela** (`temChaveParaMostrar`, agora com o `comChave` derivado dela): duas contas dariam opção sem painel — escolher a categoria e não ver nada — ou painel sem opção, que é chave desenhada e inalcançável. Tem teste contando que a condição está escrita **uma vez**.
+>
+> 🧩 **Categoria única não ganha seletor** (controle que não escolhe nada): fica o nome. E o painel deixou de se anunciar como `role="tabpanel"` — sem barra de abas, o papel ficou órfão; virou `region` com o nome da categoria.
+>
+> 🧪 **6.260 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes, um a um. Dois deles passaram de primeira e foram **reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é que a suíte lê da fonte o que foi combinado e que o Razor compila.
+>
+> 🔀 **O `main` ANDOU DUAS VEZES entre o CI e o merge** (PRs #166, #169 e #170, de sessões paralelas). Conflito só no `STATUS.md` nas duas, e a suíte foi rodada de novo por cima a cada uma: **6.346 testes, 0 falhas** com tudo mesclado, `has-pending-model-changes` → *"No changes"*.
+>
+> ⚠️ **ESTE RELEASE LEVA JUNTO A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`) — a minha mudança é só Razor + JS, mas quem publicar este build aplica aquela migration no startup. Não é "sem migration" pro deploy, só pro diff daqui.
+>
+> 🧹 **DE PASSAGEM: o `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** (marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar). Removido neste merge.
 
+> **10/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 📤 **A ABA JOGOS GANHOU "COMPARTILHAR ESTA LISTA": texto pro grupo do WhatsApp e arte 1080×1350 pro story, com os filtros da tela.** 🗣️ Felipe, num print da aba filtrada por "Los Corneteiros" no 2ª Etapa ER PADEL TOUR: *"no final da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"* — *"Algo que fique bom para compartilhar no insta tambem"* — *"terá q questionar se vale apenas os jogos ja marcados ou se os possiveis tambem (por que o mata mata nao ta definido)"*.
+>
+> ✅ **O que existe**: um botão no FIM da lista de agendados (pra todo mundo, não só organizador — a decisão do cartaz) que leva a `/Torneios/CompartilharJogos/{id}?…filtros…`. Lá: (1) a pergunta **"Só os jogos marcados / Também os previstos"**, que só aparece quando há prévia na lista, padrão *só os marcados*; (2) o **texto pro WhatsApp** (`*torneio* — recorte`, um cabeçalho por dia, `18:00 · 6ª Masculina · Grupo D · Er Padel` + `Pedro Kirchner / Carlos Morais x …`, prévia marcada *prévia*, e no fim o link da lista com os filtros), com "Mandar no WhatsApp" (`wa.me`, e no celular o menu nativo — `js/compartilhar-texto.js`) e "Copiar"; (3) **uma arte por dia** (`CartaoDosJogos`, família de divulgação, cache público), até **8 jogos** por arte e dia cheio dividido em partes **equilibradas** (9 → 5 + 4, 11 → 6 + 5 — a versão "8 e o resto" deixava uma linha órfã, visto na prévia).
+>
+> ⚠️ **A LISTA É A DA TELA, LETRA POR LETRA, e é por isso que o card mora no `TorneiosController` e não no `CartoesController`.** `ListaDeJogos.Montar` não consulta banco: recebe a fila que `CarregarViewBagJogosAsync` + `OrdemNoHorario` já montaram e só traduz pras palavras da linha (`CategoriaNaTela.Curto`, `LugarDoJogo.Etiqueta`, o "parceiro" da vaga em aberto, `NomeDaDupla.Compacto` na arte). Uma segunda régua de "quais jogos" seria a que vazaria: o portão da chave em aprovação (09/09, *"nao deixe q nada vaze"*) mora naquele método, e aqui vira **404** pra quem não organiza — teste visto barrar. Torneio oculto e cancelado também 404. O `Png()` do CartoesController virou `Services/EntregaDeCard`, pra os dois controllers responderem com o MESMO cabeçalho.
+>
+> 🧪 **6.275 testes, 0 falhas (25 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'JogoDaLista' could not be found"* (nada existia), depois *8 + 1* na divisão. Um teste confere que **a Poppins tem glifo** pra cada caractere que o card acrescenta (x · ª Á º /) — sem fallback, caractere sem glifo sai como espaço em branco calado. ✅ **As artes foram geradas em PNG e OLHADAS** (a lição de 25/08): 8 jogos, 4 com prévia, 1 órfão (que virou o equilíbrio) e "sem data" (torneio por ordem sem hora). ✅ Conferido num projeto à parte que o `Url.Action` com `int[]` (as categorias) emite `categoriaFiltroIds=3&categoriaFiltroIds=5` e que array vazio some da URL.
+>
+> 🖥️ **RODEI A UI DE DENTRO DA SESSÃO** (a receita do `TRABALHAR-FORA.md`, descoberta pela sessão do palpitrômetro hoje): Postgres 16 local, `dotnet run` com o DadosDemo, Playwright a 430px no *Torneio dos Amigos 2026*. O botão sai com `categoriaFiltroIds=7&categoriaFiltroIds=8&soMeusJogos=False`; a página abre, o texto vem certo, o `wa.me` carrega o texto, o PNG responde **200 `image/png`, `public, max-age=3600`, `inline; filename="jogos-torneio-dos-amigos-2026-qui-10-09.png"`**, o Copiar diz *Copiado!*, e parte 99 e torneio inexistente dão 404. 🕳️ **E O NAVEGADOR PEGOU O QUE A SUÍTE NÃO PEGARIA**: a arte vazava 6px pela direita do card no celular — o `max-width: 380px` inline vence o `img-fluid`. Corrigido com `min(380px, 100%)` **só nesta página**; as páginas irmãs de `Views/Cartoes` têm o mesmo inline e o mesmo vazamento, e ficaram como estão pra não alargar o PR.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1011-ea86749`** (17h13 e 17h15 de Brasília — runs 196 e 197), **o mesmo artefato nos dois**, com a tag explícita no campo `build` (e não "o mais recente"). PR #168. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as três coisas do palpitrômetro pedidas na véspera do Er** — o ranking aparecendo antes do primeiro jogo (modo participação), o modal dizendo **quem palpitou o quê** (com o placar de cada um, e a frase "A galera crava" virando botão), e o **retirar o palpite** (`POST /Partidas/RetirarPalpite`).
+>
+> ✅ **CONFERIDO NO AR, no torneio do Er (`/Torneios/Details/26`, anônimo)**: a aba Palpiteiros existe, o aviso diz *"Ainda não há jogo apurado"*, a conta é de **116 palpites esperando resultado**, a coluna **Em aberto** está na tabela, e são **33 frases de consenso clicáveis** entre os 56 palpitrômetros da lista. No `dev` e no `prod`, o `/js/palpitrometro.js` servido já traz `RetirarPalpite` e `placarVencedor`; `/healthz` responde 200 nos dois.
+>
+> 🕳️ **ACHADO NO CAMINHO — O NOME DA TAG DE BUILD PODE MENTIR SOBRE O COMMIT.** O `ci.yml` cria o release com `gh release create "$tag" ... ` **sem `--target`**, então o **tarball** sai do `github.sha` (certo) mas a **tag git** nasce apontando pro topo do `main` naquele instante. O PR #164 entrou 4 minutos depois do #168 e a tag `build-1011-ea86749` ficou apontando pro merge dele (`f3170fe`). ⚠️ **Não trocou o que foi publicado** — o pacote instalado é o do #168, e o #164 era só `STATUS.md` —, mas a procedência fica enganosa e um dia vai custar uma investigação. O conserto é uma linha: `--target "${{ github.sha }}"`.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #168) e PUBLICADO no `build-1011-ea86749`** — o registro do deploy é a entrada acima. **Sem migration.**
 >
 > 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
 >
@@ -68,6 +107,19 @@
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
 
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`** (16h04 e 16h10 de Brasília — runs 187 e 188). PR #161. ✅ **SEM MIGRATION.**
+>
+> 📍 **O CLUBE VOLTOU AO CARTÃO DA PRÉVIA DO MATA-MATA** — o pedido dos dois prints do Er (*"quartas de final ta sem clube"*, *"tem uma parte com e uma sem"*). O que a correção é está na entrada logo abaixo.
+>
+> ✅ **`/healthz` CONFERIDO POR FORA NOS DOIS: HTTP 200, corpo `ok`** (`dev.padelizou.com.br` e `padelizou.com.br`, por `curl` desta sessão). É verificação independente, e não só o healthcheck que o próprio `deploy.sh` faz — os dois runs também saíram verdes com *"==> Feito. build-997-6b6dc3d no ar"*.
+>
+> 🔓 **O `prod` NÃO PAROU PEDINDO APROVAÇÃO.** O `deploy.yml` aponta pro environment `prod` justamente pra isso, mas nesta conta a regra de revisores não está ligada: o run foi direto do dispatch ao deploy, em 20 segundos. Fica anotado porque a sessão anunciou o clique e ele não veio — quem publicar daqui não deve esperar por ele.
+>
+> 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
+>
+> ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
+
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
 > ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
@@ -104,7 +156,13 @@
 >
 > ⚠️ **O QUE NÃO ENTROU AQUI, e continua de pé:** depois de publicado, uma marcação errada de `Pago` pelo organizador **apaga** o card em vez de recolher — a pessoa fica sem caminho pro Pix —, e o comentário do `<details>` ainda afirma o contrário ("recolhe, não some… marcação errada não pode deixar o jogador sem caminho pra pagar"). Idem o parceiro que entra numa inscrição sozinha já marcada como paga. São defeitos de COMPORTAMENTO, não de teste; o Felipe pediu os testes.
 
-> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (PR #167). **Sem migration.** O registro do deploy — horários, runs e o que foi conferido por fora — está na entrada do topo.
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (20h08 e 20h09 UTC — runs 194 e 195). PR #167. **Sem migration.**
+>
+> ✅ **CONFERIDO POR FORA, NOS DOIS:** `/healthz` devolveu **HTTP 200** e corpo **`ok`** em `padelizou.com.br` e em `dev.padelizou.com.br`. E mais que isso — o `site.css` servido pelos dois já traz `.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }`, ou seja, **é ESTE build que está no ar**, e não só "um deploy que terminou verde".
+>
+> ⚠️ **O `prod` NÃO PEDIU APROVAÇÃO.** O `infra/vps/README.md:159` manda marcar *Required reviewers* no environment `prod`, e eu avisei o Felipe que o deploy ficaria pendente esperando ele. Não ficou: o run 195 foi de ponta a ponta em **11 segundos** (20:09:46 → 20:09:57), sem parada. Ou o environment `prod` não existe com a trava, ou o dono do repo se auto-aprova. **Fica anotado como coisa a conferir** — a trava documentada e a trava real não são a mesma.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES**: PR #165 (check-in) antes do meu CI, e PR #168 (palpitrômetro) entre o meu merge e o deploy. Publiquei **pela tag** `build-1008-14383b5`, e não por "o mais recente" — senão o `prod` levava junto o #168, que a outra sessão ainda não quis publicar.
 >
 > 📍 **A PRIMEIRA COISA DA TELA DO TORNEIO PASSA A SER O JOGO.** 🗣️ Felipe, com a página aberta no celular: *"acho que podemos remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já pagaram, e aí fica melhor a visão da tela, porque atualmente, quando abro o site a primeira coisa que queria ver é os jogos ao vivo"* e *"Os menus Pagamentos e impedimentos e Planejamento de quadras, também pode mover para dentro do Gerenciar torneio, depois que foi publicada as chaves"*. **Duas coisas, o mesmo problema:** publicada a chave, o topo da página continuava sendo sobre INSCRIÇÃO — card de cobrança e duas abas de preparação — enquanto quem abre quer placar.
 >
@@ -125,6 +183,9 @@
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A suíte inteira passa e o Razor compila; a faixa em branco descrita acima foi deduzida do CSS (`site.css:2295` e `:2305`), **não medida**. Confere no `dev` antes do `prod`.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`.** PR #161. ✅ **SEM MIGRATION.**
+
 >
 > 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
 >
@@ -324,6 +385,37 @@
 > ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
 >
 > 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/wizardly-archimedes-um7u3v` (PR #166), ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910200606_FusaoDeTimesComNomeIgual` — funde dados e cria índice único; **não tem desfazer**).
+>
+> 🛡️ **DOIS TIMES COM O MESMO NOME DEIXARAM DE SER POSSÍVEIS — A TRAVA AGORA É DO BANCO.** 🗣️ Felipe: *"não deixa mais dois times com nome idêntico existirem, tem q mesclar, não pode ser diferente apenas pelo case sensitive"*.
+>
+> 🔎 **ACHADO NUMA VARREDURA SÓ-LEITURA DA PRODUÇÃO** (primeira sessão com acesso HTTP ao `padelizou.com.br` — ver a entrada da política de rede abaixo). A aba **Times** do 2ª Etapa ER PADEL TOUR listava **`ER Padel` (21 jogadores, 318 pts)** e **`Er padel` (2 jogadores, 25 pts)** como cadastros DIFERENTES, com o pódio partido entre as duas linhas. Os dois do segundo: **Camila Lopes** (a própria organizadora) e **Ivone Peixoto**.
+>
+> 🕳️ **A REGRA JÁ EXISTIA; UM DOS TRÊS CAMINHOS NÃO A APLICAVA.** `AdminController.CriarTime` recusa nome repetido — e o comentário dele já descrevia este estrago antes de acontecer: *"com dois SINDAQUA na base, cada pessoa cai num dos dois pelo acaso da consulta — e metade do time fica pendurada no cadastro errado, em silêncio"*. `AuthController.DefinirTimeAsync` acha por nome sem diferenciar maiúscula e ENTRA no que existe. Já o bloco `ehDonoTime` do `EditarPerfil` fazia `new Time { Nome = nomeTime.Trim() }` **direto**. E o mesmo trecho **piorava o conserto**: quem já tinha time e digitasse o nome de outro caía em `meuTime.Nome = ...` e renomeava, produzindo dois times com o nome IDÊNTICO.
+>
+> ✅ **A TRAVA FOI PRO BANCO, e é o degrau 4 da escada deste arquivo** (*chave/índice do banco em vez de checar duplicata em C#*): índice único em **`lower(btrim("Nome"))`**. Vale pros três caminhos de uma vez — e pro quarto que alguém escrever daqui a seis meses sem ler nada disso. Índice por expressão, então vai em SQL cru e fica **fora do snapshot** do EF; o `has-pending-model-changes` continua limpo porque o modelo não mudou.
+>
+> ⚠️ **A ORDEM DENTRO DA MIGRATION É O QUE FAZ O DEPLOY PASSAR: funde primeiro, indexa depois.** Com a duplicata viva o índice não aplica — se ele viesse antes, a migration falharia, o `/healthz` daria 503 (ele confere migration pendente) e o `deploy.sh` faria rollback sozinho.
+>
+> ⚠️ **RECUSAR SOZINHO PRENDERIA A PESSOA** — ela digita o nome do próprio clube, o banco diz não, e ela não tem como chegar no cadastro certo. Por isso **funde**: sobrevive o de **mais jogadores** (empate, menor `Id`), que é o mesmo critério que o projeto já usa pra grafias de cidade (*"entre duas grafias empatadas, ganha a que mais gente escreveu"*).
+>
+> ⚠️ **ADMINISTRAÇÃO NUNCA É HERDADA NUMA FUSÃO, e essa é a parte que mais importa.** Quem comandava o absorvido não passa a comandar o sobrevivente: a Camila mandava em 2 pessoas e herdar daria a ela o comando de 21. **Reparo de dado não pode virar promoção** — mesma razão pela qual digitar no cadastro o nome de um time existente não dá cargo nenhum. Quem administrava o sobrevivente segue administrando. Time que ficar sem nenhum cai no estado dos 44 importados do ranking, e um admin concede o primeiro.
+>
+> ⚠️ **O NOME DO SOBREVIVENTE NÃO MUDA.** Como a colisão é por `lower(btrim(nome))`, o que a pessoa digitou só difere na caixa ou em espaço — e aplicá-lo deixaria alguém trocar a grafia de um time que não administra, só por saber como ele se chama.
+>
+> 🧪 **6.311 testes, 0 falhas com o `main` mesclado (14 novos: `FusaoDeTimesTests` + `TimeDuplicadoNoPerfilTests`).** Vistos vermelhos antes: *"The collection contained 2 items"* (o segundo time nascendo), *"Expected ViewResult, Actual RedirectToActionResult"* (o rename passando), *"Assert.Empty() Failure"* (o cargo saindo na duplicata) e `CS0103: FusaoDeTimes does not exist`. **Falsificado depois**: trocar o desempate por "ganha o primeiro argumento" derruba 2 testes; fazer a administração ser herdada derruba 2.
+>
+> 🐘 **A MIGRATION FOI RODADA CONTRA UM POSTGRES 16 DE VERDADE, e não só contra o InMemory** — que é o buraco de 19/08 escrito neste arquivo. Base criada do zero pelas migrations, semeada com as três grafias (`ER Padel`, `Er padel`, `  er padel  `) mais um time de controle. Depois: **um** time com **24** jogadores, sedes 1+2+3 sem repetir, só o administrador do sobrevivente de pé, a transferência que virava `10 → 10` apagada, e o time de controle intacto. O índice recusa `'er padel'` **e** `' ER PADEL '`, e aceita nome novo. `Down()` derruba o índice e reaplicar funciona.
+>
+> 🕳️ **O `Down()` NÃO DESFAZ A FUSÃO** — os absorvidos foram apagados e não há registro de quem era de quem. Voltar a migration devolve a permissão de repetir nome, não os cadastros. Quem precisar deles vai no backup do dia.
+>
+> ⚠️ **Atalho nomeado:** dois salvamentos simultâneos com o mesmo nome novo passam os dois pela checagem em C# e o segundo bate no índice — vira erro 500, não duplicata. Sem retry de propósito; o conserto, se doer, é capturar `DbUpdateException` e reentrar por `FundirAsync`.
+>
+> 🌐 **E ESTA FOI A PRIMEIRA SESSÃO WEB COM ACESSO AO SITE NO AR.** O `padelizou.com.br` era 403 no proxy de egresso porque o ambiente de nuvem estava no nível **Trusted** (allowlist fechada: GitHub, npm, pypi). Felipe trocou pra **Personalizado** em claude.ai/code → ícone de nuvem → **Nuvem** → engrenagem do ambiente, com `padelizou.com.br` e `dev.padelizou.com.br` em **Domínios permitidos** e a caixa **"Também incluir lista padrão de gerenciadores de pacotes comuns"** marcada (sem ela o `dotnet restore` do hook perde o NuGet e os 4 plugins não instalam). ⚠️ **Pegou nesta mesma sessão, sem abrir outra** — o container tinha acabado de ser reprovisionado. **Continua fora de alcance em qualquer política: banco e SSH** (raw TCP não passa pelo proxy) e **tela logada** (precisa de credencial).
+>
+> 📋 **A varredura só-leitura do torneio do Er passou em tudo o mais**: 97 jogos (56 reais + 41 prévias), 24 grupos com o número exato de confrontos de todos-contra-todos (zero repetido, zero faltando), 64 duplas inscritas = 64 em jogo, 128 perfis linkados **todos** com 200, zero conflito de quadra, zero jogador em dois jogos no mesmo horário, e nenhum mata-mata antes do jogo que o alimenta. **Duas coisas ficaram anotadas e não viraram trabalho**: o **Radar** tem pico de **3 jogos simultâneos sem quadra atribuída** (19 jogos no sábado — conferir se cabe), e a página do torneio entrega **759 KB de HTML** numa requisição, que é a que os jogadores abrem no celular.
+>
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >

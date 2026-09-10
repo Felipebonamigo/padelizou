@@ -110,6 +110,21 @@ public static class CartaoCompartilhavel
         return usado;
     }
 
+    // O mesmo, ALINHADO À ESQUERDA a partir de `x` — pra lista em que a hora tem coluna própria
+    // (CartaoDosJogos): centralizar cada linha faria a coluna da hora dançar conforme o nome
+    // de dupla é curto ou longo.
+    public static float TextoAEsquerda(
+        SKCanvas canvas, string texto, float x, float y, SKTypeface? familia, float tamanho,
+        SKColor cor, float larguraMaxima, float tamanhoMinimo = 18f)
+    {
+        var usado = TamanhoQueCabe(texto, familia, tamanho, larguraMaxima, tamanhoMinimo);
+
+        using var tinta = new SKPaint { Color = cor, IsAntialias = true };
+        using var fonte = new SKFont(familia, usado);
+        canvas.DrawText(texto, x, y, SKTextAlign.Left, fonte, tinta);
+        return usado;
+    }
+
     // O maior tamanho de fonte em que o texto ainda cabe na largura. Separado do desenho porque
     // é pura conta — e conta pura é o que dá pra prender em teste sem abrir um canvas.
     public static float TamanhoQueCabe(
