@@ -903,7 +903,14 @@ namespace Padelizou.Controllers
         private async Task<(List<Partida> Remarcados, List<Partida> Intocados)> RecalcularAGradeAsync(
             Torneio torneio, List<Partida> todos)
         {
-            var remarcar = todos.Where(p => p.Status == "Agendada").ToList();
+            // ⚠️ POR ID, e isto é a grade inteira (10/09/2026). O sorteio grava os jogos NA ORDEM DA
+            // FILA (OrdemDaFila → AddRange → Ids crescentes); quem lê `Partidas.Where(...)` sem
+            // ORDER BY recebe a ordem que o banco quiser — o InMemory devolvia de trás pra frente, e
+            // o Postgres, depois de um UPDATE por linha, na ordem do heap. A fila chegava embaralhada
+            // e a intercalação que dá o descanso trabalhava sobre outra ordem: mesmas entradas, mesmo
+            // motor, grade diferente — o Refazer media PIOR que o sorteio quatro vezes seguidas.
+            // GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio.
+            var remarcar = todos.Where(p => p.Status == "Agendada").OrderBy(p => p.Id).ToList();
             var intocados = todos.Where(p => p.Status != "Agendada").ToList();
 
             foreach (var jogo in remarcar)

@@ -453,8 +453,9 @@ public class RoboDoChaveamento
         // ⚠️ SÓ MEXE EM "Agendada", E SÓ EM POSTO MAIOR. Jogo FINALIZADO ou EM QUADRA não se
         // remarca — é a mesma linha que o "Refazer grade" não cruza —, e um jogo de posto menor ou
         // igual nunca está fora de ordem por causa de uma rodada que acabou de entrar.
+        // ⚠️ POR ID: é a ordem da fila em que o sorteio gravou (ver RecalcularAGradeAsync, 10/09/2026).
         var forasDeOrdem = LevasDaGrade.ForaDeOrdem(
-            await _context.Partidas.Where(p => p.TorneioId == torneioId).ToListAsync(),
+            await _context.Partidas.Where(p => p.TorneioId == torneioId).OrderBy(p => p.Id).ToListAsync(),
             OrdemDasFases.Posto(jogos[0].Fase));
 
         // A rodada nova ainda não tem horário; os fora de ordem perdem o que tinham pra disputar as

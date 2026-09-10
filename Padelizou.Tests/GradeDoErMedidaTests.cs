@@ -196,12 +196,45 @@ public class GradeDoErMedidaTests
         //     total, 24 com zero de folga.
         //   • com um degrau intermediário ("pelo menos 1 de folga"): 51 no total e a guarda do
         //     Americano (DescansoNaGradeTests) quebrou — descartado.
-        // ⚠️ O Refazer sai pior que o sorteio nas quatro medições, e ainda não sei por quê — fica
-        // registrado como pergunta aberta, não como regra. Estes tetos são "não piora o que foi
-        // medido", com folga pra sorte do sorteio.
-        Assert.True(total.GetValueOrDefault(AuditoriaDaGrade.JogosSeguidos) <= 64,
-            $"jogos seguidos demais nas 8 grades: {total.GetValueOrDefault(AuditoriaDaGrade.JogosSeguidos)} (medido: 46 com a régua, 88 sem)");
-        Assert.True(zeroDeFolga <= 36,
-            $"jogos com ZERO horário de folga nas 8 grades: {zeroDeFolga} (medido: 24 com a régua, 49 sem)");
+        //   • e com o Refazer lendo os jogos POR ID (a fila do sorteio, ver
+        //     Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio): sorteio 2-3, refazer
+        //     IGUAL ao sorteio; 20 no total, 10 com zero de folga. Era esse o "Refazer sai pior".
+        // Estes tetos são "não piora o que foi medido", com folga pra sorte do sorteio.
+        Assert.True(total.GetValueOrDefault(AuditoriaDaGrade.JogosSeguidos) <= 40,
+            $"jogos seguidos demais nas 8 grades: {total.GetValueOrDefault(AuditoriaDaGrade.JogosSeguidos)} (medido: 20 com tudo, 88 sem nada)");
+        Assert.True(zeroDeFolga <= 20,
+            $"jogos com ZERO horário de folga nas 8 grades: {zeroDeFolga} (medido: 10 com tudo, 49 sem nada)");
+    }
+
+    // 🕳️ A CAUSA DO "REFAZER SAI PIOR QUE O SORTEIO" (10/09/2026, medido quatro vezes antes de
+    // achar): o sorteio grava os jogos NA ORDEM DA FILA (OrdemDaFila → AddRange → Ids crescentes),
+    // e o Refazer lia `_context.Partidas.Where(...)` SEM ORDER BY — o banco devolve na ordem que
+    // quiser (o InMemory devolvia de trás pra frente; o Postgres, depois de um UPDATE em cada
+    // linha, na ordem do heap). A fila chegava embaralhada, e a intercalação que dá o descanso
+    // trabalhava em cima de outra ordem. Mesmas entradas, mesmo motor, grade diferente.
+    //
+    // A régua: com NADA mudado entre o sorteio e o Refazer, a grade tem que sair IGUAL.
+    [Fact]
+    public async Task Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org) = MontarOEr(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+        var doSorteio = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).AsNoTracking()
+            .ToDictionaryAsync(p => p.Id, p => (p.HorarioPrevisto, p.NomeQuadra));
+
+        await controller.RefazerGrade(torneio.Id);
+        var doRefazer = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).AsNoTracking()
+            .ToDictionaryAsync(p => p.Id, p => (p.HorarioPrevisto, p.NomeQuadra));
+
+        var mudaram = doSorteio.Where(par => doRefazer[par.Key].HorarioPrevisto != par.Value.HorarioPrevisto)
+            .Select(par => $"#{par.Key}: {par.Value.HorarioPrevisto:dd HH:mm} → {doRefazer[par.Key].HorarioPrevisto:dd HH:mm}")
+            .ToList();
+
+        Assert.True(mudaram.Count == 0,
+            $"nada mudou entre o sorteio e o Refazer, e {mudaram.Count} de {doSorteio.Count} jogos trocaram de horário: "
+            + string.Join(", ", mudaram.Take(6)));
     }
 }
