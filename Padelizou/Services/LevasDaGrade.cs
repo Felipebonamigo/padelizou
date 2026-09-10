@@ -100,16 +100,17 @@ public static class LevasDaGrade
         // ⚠️ Conta os de fora junto (`jaMarcados`): num recálculo no meio do torneio a maior parte
         // dos grupos já rolou, e olhar só pros remarcados diria que a fase de grupos acabou cedo —
         // as eliminatórias subiriam pra cima dela.
-        DateTime? FimDosPostosAnteriores(int posto)
-        {
-            var fim = jaEmQuadra
-                .Where(j => j.HorarioPrevisto != null && OrdemDasFases.Posto(j.Fase) < posto)
-                .Select(j => j.HorarioPrevisto!.Value)
-                .DefaultIfEmpty()
-                .Max();
-
-            return fim == default ? null : fim;
-        }
+        //
+        // ⚠️ É O FIM DO BLOCO, NÃO O `Max` (OrdemDasFases.FimDoBloco, 09/09/2026): um jogo de grupo
+        // retardatário no domingo de manhã não segura as eliminatórias de sábado à noite.
+        DateTime? FimDosPostosAnteriores(int posto) =>
+            OrdemDasFases.FimDoBloco(
+                jaEmQuadra
+                    .Where(j => j.HorarioPrevisto != null && OrdemDasFases.Posto(j.Fase) < posto)
+                    .Select(j => j.HorarioPrevisto!.Value),
+                h => GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes,
+                                           VagasDaGrade.Duracao(torneio)),
+                torneio.QuantidadeQuadras);
 
         // ── O SEGUNDO PISO: A DEPENDÊNCIA DE RESULTADO ───────────────────────────────────
         // A barreira responde "o torneio já chegou neste degrau?"; este piso responde "esta

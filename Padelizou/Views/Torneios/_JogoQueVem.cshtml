@@ -43,7 +43,7 @@
             @* A QUADRA sai da mesma grade dos jogos marcados: as categorias disputam as
                mesmas quadras, e por isso a projeção só consegue dizer "Quadra C" depois de
                pôr todas elas juntas no relógio. Metade do que o jogador precisa é o lugar. *@
-            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), Model.Quadra) is { } ondeJoga)
+            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), Model.Quadra, Model.CategoriaId) is { } ondeJoga)
             {
                 <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @ondeJoga</span>
             }

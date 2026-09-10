@@ -23,6 +23,7 @@ public static class AuditoriaDaGrade
     public const string PessoaEmDoisJogos = "Mesma pessoa em dois jogos";
     public const string Concentracao = "Concentração";
     public const string NoiteDeSabado = "Sábado à noite";
+    public const string Retardatario = "Jogo retardatário";
     public const string QuadraFechada = "Quadra fora do horário";
     public const string SemHorario = "Jogo sem horário";
 
@@ -136,12 +137,42 @@ public static class AuditoriaDaGrade
         // horario vazio, mas a ordem é colocar todos jogos de chave antes"*. O primeiro jogo de um
         // posto PODE dividir o horário com o último do posto anterior — é o que ocupa a quadra que
         // sobraria vazia naquele minuto. O que não pode é vir ANTES.
+        //
+        // ⚠️ E O FIM DE UM POSTO É O FIM DO BLOCO DELE, NÃO O `Max` (OrdemDasFases.FimDoBloco,
+        // 09/09/2026): um jogo de grupo retardatário no domingo de manhã não faz a eliminatória
+        // de sábado à noite ser "fora de ordem". O retardatário em si é apontado logo abaixo.
+        DateTime Seguinte(DateTime h) =>
+            GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
+
         var porPosto = jogos
             .Where(j => j.HorarioPrevisto != null)
             .GroupBy(j => OrdemDasFases.Posto(j.Fase))
             .OrderBy(g => g.Key)
-            .Select(g => new { Posto = g.Key, Jogos = g.ToList(), Acaba = g.Max(j => j.HorarioPrevisto!.Value) })
+            .Select(g => new
+            {
+                Posto = g.Key,
+                Jogos = g.ToList(),
+                Acaba = OrdemDasFases.FimDoBloco(g.Select(j => j.HorarioPrevisto!.Value), Seguinte,
+                                                 torneio.QuantidadeQuadras)!.Value,
+            })
             .ToList();
+
+        // ── 5b. O JOGO DE GRUPO RETARDATÁRIO ─────────────────────────────────────────────
+        // Só na fase de grupos: ela é UMA leva, e um jogo dela depois de um horário inteiro vazio
+        // é o que o organizador vai querer mexer na mão (impedimento, concentração — o Conferir
+        // grade acusa o motivo nas outras regras). Nas eliminatórias os buracos são naturais:
+        // cada categoria entra quando fecha a fase anterior DELA.
+        foreach (var grupos in porPosto.Where(p => p.Posto == OrdemDasFases.PostoDaFaseDeGrupos))
+        {
+            foreach (var jogo in grupos.Jogos.Where(j => j.HorarioPrevisto > grupos.Acaba))
+            {
+                achados.Add(new Achado(Retardatario,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está "
+                    + $"{jogo.HorarioPrevisto:dd/MM 'às' HH:mm}, depois de a fase de grupos fechar "
+                    + $"({grupos.Acaba:dd/MM 'às' HH:mm}) — as eliminatórias não esperam por ele.",
+                    jogo.HorarioPrevisto));
+            }
+        }
 
         for (int i = 1; i < porPosto.Count; i++)
         {
