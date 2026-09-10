@@ -453,8 +453,11 @@
                 <div class="container d-flex align-items-center flex-wrap gap-2">
                     <i class="bi bi-cone-striped"></i>
                     <span>@beta.Texto</span>
-                    <a asp-controller="Auth" asp-action="ReportarProblema" class="pdz-link-beta">
-                        Sugestão, bug ou crítica <i class="bi bi-arrow-right-short"></i>
+                    @* O rótulo curto é o que tira uma LINHA da faixa no celular; o convite
+                       inteiro ("crítica" inclusive) fica no title, onde não custa altura. *@
+                    <a asp-controller="Auth" asp-action="ReportarProblema" class="pdz-link-beta"
+                       title="Sugestão, bug ou crítica">
+                        Sugestão ou bug <i class="bi bi-arrow-right-short"></i>
                     </a>
                 </div>
             </div>

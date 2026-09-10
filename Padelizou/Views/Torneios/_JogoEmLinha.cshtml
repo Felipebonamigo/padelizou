@@ -150,7 +150,7 @@
             @if (jogo.HorarioPrevisto is DateTime h)
             {
                 <strong>@h.ToString("HH:mm")</strong>
-                <span>@h.ToString("dd/MM")</span>
+                <span>@DiaDaSemana.Curto(h) @h.ToString("dd/MM")</span>
             }
             else
             {

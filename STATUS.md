@@ -1,7 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/focused-euler-1mlif4`, ainda não publicado.** **Sem migration.**
+>
+> 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
+>
+> 🕳️ **ELE MORAVA NA TELA ONDE SE PASSA O DIA.** A lista de 97 jogos é a que se rola pra achar quem joga agora e pra apertar o play — e o único botão que apaga uma noite de trocas na mão ficava logo acima dela, no caminho do polegar. Confirmação vermelha não conserta lugar errado: ela só aparece depois do clique que não era pra ter acontecido.
+>
+> ✅ **AGORA ELE FICA EM `Gerenciar Torneio`**, no card de status, logo abaixo do **Recolher as Chaves** — junto das outras ações que mexem no torneio inteiro (Desfazer o sorteio, Recolher as chaves). Botão, cor (`btn-danger`), aviso (`data-confirmar-tom="perigo"`) e a contagem do torneio (`ViewBag.AgendadasNoTorneio`, e não a da tela filtrada) vieram inteiros — o que mudou foi **onde**.
+>
+> ⚠️ **FICA FORA DA CORRENTE DE STATUS DO PAINEL, de propósito:** quem tem horário pra refazer é quem tem jogo **agendado**, e isso atravessa "Chaves em Aprovação", "Fase de Grupos" e o torneio que sai público na hora. Repetir o botão nos três ramos seria a mesma regra escrita três vezes — é a mesma escolha que o "Reabrir as inscrições" já faz ali em cima. Zero agendado e ele some.
+>
+> ⚠️ **QUEM SÓ MARCA PLACAR PERDE O BOTÃO, e essa é a consequência pedida.** O painel é de quem organiza (`ViewBag.PodeGerenciar`); a lista de jogos enxerga `PodeOperarODiaDeJogo`, que inclui o marcador. **O servidor não mudou** — `RefazerGrade` continua aceitando marcador —, o que saiu é a porta. Com a mesa ficaram os dois que não jogam trabalho fora: **Ajustar horários** e **Conferir a grade**, mais uma linha dizendo pra onde o vermelho foi.
+>
+> 🧪 **6.176 testes, 0 falhas (4 novos meus; os outros 48 vieram do `main` — PRs #145, #147/#150 e #148, mesclados aqui antes de publicar).** Vistos vermelhos antes: `RecalcularHorariosNoPainelTests` inteiro (*"O <form asp-action=\"RefazerGrade\"> não está em Details.cshtml"*, e o `DoesNotContain` achando o form ainda na lista), mais os três testes antigos que liam o botão em `_JogosDoTorneio.cshtml` e passaram a ler o `Details.cshtml` (`startIndex ('-1')`).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão, e o proxy recusa o domínio. O que dá pra afirmar é que o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(2803)`, o que mostra que a view entra no build e não só o C#) e o que os testes leem da fonte. A tela em si só se confere no `dev`.
+
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
+>
+> 📌 **O BUILD FOI PEDIDO PELO NOME, e não como "o mais recente" — de propósito.** Entre o merge deste PR e o deploy, o #145 (*Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR*) entrou no `main`. Publicar `build-958-b949a3d` leva **exatamente** o que subiu no `dev` e o que esta sessão testou; o #145 fica pra quem o escreveu publicar. É a lição de hoje de manhã aplicada ao contrário: com duas sessões mesclando na mesma tarde, quem quiser segurar algo fora do prod segura o **merge** — e quem já mesclou, publica **pela tag**, não pelo topo.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve `CONNECT tunnel failed, response 403` pro domínio (tentado). Quem atesta o healthcheck é o próprio `deploy.sh`, que faz rollback automático se não vier 200: não houve rollback e os dois runs terminaram `success`, com *"==> Feito. build-958-b949a3d no ar"* nos dois logs. É evidência de verdade, mas **não** é verificação independente — e a diferença fica dita.
 >
 > 📱 **A BARRA DE AÇÕES DO JOGO VAZAVA PRA FORA DO CARTÃO NO CELULAR.** 🗣️ Felipe, com o Painel de Controle aberto no telefone: *"a tela esta estourando aqui ao usar no mobile"* — e a captura mostrava o **play verde do lado de fora da borda esquerda**, cortado pela tela.
 >
@@ -14,6 +35,24 @@
 > ✅ **A CORREÇÃO É `flex-wrap: wrap`, e não espremer os botões.** 7 alvos de dedo de 44px já passam de **337px**: numa linha só, nesta largura, é **impossível** — a barra tem que quebrar. O custo é honesto e está anotado: no celular ela vira **duas linhas** (+42px por cartão). Rolagem horizontal escondida foi descartada — o organizador não descobriria que existe o lápis lá na ponta.
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
+
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+>
+> 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
+>
+> ✅ **ZERAR O CARIMBO *É* "MAIS UMA VEZ, E SÓ" — não existe código de "voltar a travar".** `PodeTrocarNome` já lê "carimbo nulo → pode", e o próprio salvamento da pessoa recarimba. Por isso o diff não tem coluna, flag nem migration: a régua que trava é a mesma que destrava. O teste que segura o pedido inteiro é ponta a ponta (`Depois_de_usar_a_liberacao_o_nome_trava_de_novo_sozinho`): libera pelo painel → ela troca pelo perfil → a **segunda** troca é recusada sozinha.
+>
+> ⚠️ **A TELA CONTINUA SEM EDITAR CONTA ALHEIA, e a distinção é o que deixa isto caber lá.** O cabeçalho dela veta escrita porque *"trocar o e-mail de uma conta é entregar a conta"*. Liberar devolve uma **troca**, não escreve um **dado**: o admin não digita, não escolhe e não chega a ver o nome novo — quem troca é a dona da conta, no perfil dela. Conferido por teste (`Liberar_nao_toca_no_nome_nem_no_apelido_gravados`).
+>
+> 🔒 **SÃO OS DOIS PRIMEIROS POSTs DESSA TELA, e a trava do assistente é o VERBO** — `ObterJogadorAdminAsync` recusa qualquer POST pra quem só olha, então o Foka segue vendo a tela inteira e sem clicar. Tem teste pra ele e pro jogador comum (`ForbidResult`, carimbo intacto).
+>
+> 🔁 **O BOTÃO PERGUNTA A RÉGUA, não relê o carimbo.** `p.ApelidoAlteradoEm != null` na view ofereceria botão inútil pro apelido de quem já saiu da carência de 1 mês sozinho — e seria a segunda cópia da regra, discordando da primeira no dia em que ela mudar. A view chama `PodeTrocarNome`/`PodeTrocarApelido`, o mesmo idioma do `EditarPerfil.cshtml`, e o teste proíbe a releitura.
+>
+> 📝 **O CARIMBO SOME, ENTÃO A EXCEÇÃO VAI PRO LOG** (`_logger.LogInformation`): depois de zerado, a conta não sabe mais dizer que já tinha trocado uma vez. Sem essa linha, nada registraria que houve exceção — e um carimbo novo pra isso seria coluna e migration, que a escada não paga por um registro de auditoria.
+>
+> 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
+>
+> ⏭️ **A CAROL ainda precisa do clique**: publicar, abrir `/Admin/Acesso`, procurar `03842585063` e "Liberar nova troca de nome". Daqui não dá pra fazer por ela — esta sessão não alcança o banco de produção.
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
@@ -31,7 +70,7 @@
 >
 > ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio (o mesmo limite anotado no `build-940`). O que dá pra afirmar é o que o teste lê da fonte e que o `deploy.sh` viu o `/healthz` responder 200; **a rolagem em si é o Felipe quem confere**, clicando uma seta no meio da lista do Er.
 >
-> 📌 **UM DISPARO DE DEPLOY FALHOU CALADO, e vale como aviso pro próximo:** o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run nenhuma** — o deploy simplesmente não aconteceu, sem erro em lugar nenhum. Só apareceu porque a lista de runs foi conferida depois. **Disparo pela API se confere na lista**, nunca pelo 204.
+> 📌 **UM DISPARO DE DEPLOY FALHOU CALADO, e vale como aviso pro próximo:** o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run nenhuma** — o deploy simplesmente não aconteceu, sem erro em lugar nenhum. Só apareceu porque a lista de runs foi conferida depois. **Disparo pela API se confere na lista**, nunca pelo 204. ⚠️ **E o mesmo GitHub engoliu o `pull_request` do PR #149**: nenhum check nasceu pro head, e o CI teve que ir pelo `workflow_dispatch` do `ci.yml` — que existe desde 26/08 exatamente pra isso.
 >
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 
@@ -72,7 +111,34 @@
 >
 > 🔎 **E fica anotado o limite deste ambiente de sessão web:** o proxy bloqueia `padelizou.com.br`, então **não dá pra conferir o `/healthz` por fora daqui**. Quem atesta o healthcheck é o próprio `deploy.sh` (que faz rollback automático se não vier 200) — o que é evidência de verdade, mas não é verificação independente, e a diferença precisa ser dita em vez de escondida.
 >
-
+> **10/09/2026** — 👂 **SEIS PEDIDOS DO GRUPO DO 2ª ETAPA ER PADEL TOUR, TODOS DE TELA.** Deivid Santos e Emerson Pisoni mandaram print e queixa durante o torneio; o Felipe repassou junto com um dele. **Sem migration.**
+>
+> 🗺️ **1. "TA RUIM DE ACHAR O CHAVEAMENTO"** (Deivid, com o print de `/Torneios/Jogos` aberto). 🕳️ **E o buraco é maior que a queixa:** essa página é o destino de **quatro avisos** diferentes (ver `Torneio.ChavesAvisadasEm` e `QuadraAtrasadaBackgroundService`) — quem toca no push cai nela, e ela **não tinha saída nenhuma**: nem pro torneio, nem pras chaves. As abas mãe (Inscritos, Chaves e Grupos, Times) só existem no `/Torneios/Details`, e nada na tela diz isso. Agora tem dois botões no topo, e o das chaves leva direto pra aba certa (a hash `#grupos`, que o script do fim do `Details.cshtml` lê). ⚠️ **A régua de "essa aba existe?" virou uma só** (`Services/AbaDeChavesEGrupos`): a lista de status estava escrita no `@if` do Details, e uma segunda cópia aqui é como o botão passaria a prometer uma aba que a outra tela não desenha.
+>
+> 💸 **2. "SE O CARA JÁ PAGOU, DARIA PRA TIRAR INFO DO PAGAMENTO, OCUPA MUITO ESPAÇO"** (Emerson). O card do Pix — valor, chave, aviso e botão do WhatsApp — empurrava justamente as abas do item 1 pra fora da tela de quem já tinha resolvido a parte dele. ⚠️ **RECOLHE, NÃO SOME:** virou um `<details>`, e quem diz que a inscrição está paga é o organizador virando o `Pago` **na mão** (muita gente paga em dinheiro na quadra) — uma marcação errada dele não pode deixar o jogador sem caminho pra pagar. E "já paguei" é **todas** as minhas inscrições deste torneio: com duas categorias, uma paga e outra não, o card fica aberto; quem não tem inscrição nenhuma também vê aberto, porque é justamente quem ainda vai pagar.
+>
+> 📅 **3. "ALI NA DATA DARIA PRA COLOCAR O DIA DA SEMANA, NÃO QUERO PROCURAR PRA SABER SE É SEXTA OU SÁBADO"** (Emerson). "11/09" não responde a pergunta de quem lê a lista. Entrou nas **cinco** telas em que a data de um jogo chega ao jogador (linha da lista, prévia da fase que vem, vaga da chave, mini-jogo do grupo e chave projetada) — uma que ficasse de fora seria a tela em que ele volta a adivinhar. ⚠️ **Lista fixa, e não `ToString("ddd")`**: o abreviado do pt-BR sai do ICU do sistema, vem com ponto ("sex.") e muda entre versões — o que aparece na tela não pode depender da imagem do Linux do VPS. O Painel do Clube já escrevia essa lista à mão; agora existe **uma** (`Services/DiaDaSemana`).
+>
+> 🔎 **4. "OS HORÁRIOS TÃO UM POUCO PEQUENOS"** (Deivid). A hora estava em 1rem — o tamanho do texto comum — e a data em .72rem, **menor que a etiqueta de categoria ao lado**: a ordem errada de importância na mesma linha. Foi pra 1.15rem e .8rem.
+>
+> 📏 **5. "DIMINUI UM POUCO A ABA DOS BUGS", "TÁ MUITO LONGO"** (Deivid). A faixa de beta aparece em **toda tela do site**, então cada pixel é cobrado em todas elas — no celular dele eram três linhas antes do nome do torneio. O aviso encolheu de 67 pra 43 caracteres, o link de "Sugestão, bug ou crítica" pra "Sugestão ou bug" (o convite inteiro ficou no `title`, onde não custa altura), e a faixa passou de .82rem/7px pra .78rem/5px. ⚠️ **O canal de feedback continua**: é a única porta de reclamação em toda tela, e some sem avisar — tem teste cobrando o link.
+>
+> 🔴 **6. "DEIXARIA PISCANDO VERMELHO SÓ QUANDO HOUVESSE JOGO AO VIVO"** (Felipe, com o print de *"● Ao Vivo (0)"*). Bolinha acesa ao lado de um zero deixa de ser sinal: quem varre a tela aprende a ignorá-la, e no dia do jogo de verdade ela não chama mais ninguém. Agora ela é gateada pela **mesma lista** que imprime o número entre parênteses — nunca duas contagens.
+>
+> 🧪 **6.160 testes, 0 falhas (36 novos), 4 avisos — os mesmos de antes.** Os 20 primeiros foram **vistos vermelhos antes da correção**, cada um pelo motivo dele ("não achei o dia da semana na view", "a hora do jogo está em 1rem", "o aviso de beta tem 67 caracteres", "a bolinha precisa estar atrás de um `@if`"). Os que nascem verdes — o dia da semana certo, o `JaPagouTudoAsync`, o link de feedback, o card que recolhe — foram **falsificados**: com a lista de dias girada um dia, o filtro de time removido, as americanas ignoradas, o link renomeado e o `<details>` trocado por `<div>`, deram vermelho. ⚠️ **E um deles nasceu FRACO:** o teste do card procurava a palavra `<details>` e achava a do próprio comentário acima do card — passava com o card apagado. Refeito pra cobrar a **tag** e o atributo condicional.
+>
+> 🔬 **A REVISÃO DO PRÓPRIO DIFF, ANTES DE PUBLICAR, ACHOU DOIS DEFEITOS — e o primeiro matava o pedido do Emerson em silêncio.** 🕳️ **No Americano individual, `Dupla` NÃO É INSCRIÇÃO:** cada rodada sorteada grava um par por confronto (`GerarRodadasAmericano`) e o desempate grava mais dois (`CriarDesempateAmericano`), **todos com `Pago` false** — ninguém paga um par de rodada. A consulta contava essas linhas, então o card do Pix **nunca recolhia** pra quem já pagou, justamente no formato que mais gera essas linhas. O lado errado era o seguro (card aberto), e é por isso que passaria despercebido. ⚠️ **E o teste `Americano_conta_igual` passava verde sem nunca gravar um par de rodada** — falso verde, exatamente o que a Regra 1 existe pra impedir; refeito com o cenário real e com contraprova pro `AmericanoDuplas`, onde o par é FIXO e É a inscrição. 🕳️ **O segundo:** o rename do link da faixa deixou a **tela de erro** mandando procurar "Sugestão, bug ou crítica", um rótulo que não existe mais na tela — corrigido lá e no `PRIMEIROS-USUARIOS.md`, com teste que casa os dois textos. 📌 **De quebra, a regra passou a ler as duplas do torneio JÁ CARREGADO** (a consulta que abre o `Details` traz `Categorias → Duplas` inteiras): uma consulta a menos na página mais pesada do site, a mesma decisão do `MinhasInscricoesNoTorneio` 50 linhas acima.
+>
+> ✅ **O `open="@(...)"` foi conferido RENDERIZANDO, e não por leitura**: num app mínimo à parte, pago sai `<details class="a">` e não-pago sai `<details class="a" open="open">`. Esta sessão não tem browser, e a diferença entre "o Razor omite atributo nulo" e "o Razor escreve `open=\"\"`" é a diferença entre o card recolher e nunca recolher.
+>
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-961-b176b7a`** (14h33 e 14h34 de Brasília — runs 172 e 173 do Deploy, as duas com a **tag explícita** no input `build`: havia quatro sessões mesclando na mesma meia hora, e "o mais recente" teria instalado o build de outra). PR #145.
+>
+> ⚠️ **O MEU PR NÃO TEM MIGRATION, MAS O RELEASE TEM** — `20260910161935_OrdemNoHorario`, do PR #144 de outra sessão, que entrou no `main` antes do meu merge. É a lição que a entrada do `build-938` já registrou hoje: **levar o meu PR pro prod leva junto tudo que entrou no `main` antes dele.** Ela é aditiva (duas colunas `int` nulas) e o `Migrate()` roda no startup.
+>
+> 🔎 **O QUE ATESTA O DEPLOY, e o que não atesta:** o `deploy.sh` faz o healthcheck e dá rollback sozinho se não vier 200 — job verde é evidência de verdade, mas **não é verificação independente**, porque o proxy desta sessão bloqueia `padelizou.com.br`. E, mais importante: **nenhuma das seis telas foi vista.** Altura da faixa, o tamanho novo da hora e se "sex 11/09" cabe na célula estreita do grupo são coisas de olhar no celular.
+>
+> 📌 **`204 queued` NÃO É PROVA DE DISPARO** — a sessão do PR #149 registrou hoje um `workflow_dispatch` que respondeu 204 e **não criou run nenhuma**. Os dois deploys daqui foram conferidos na lista de runs depois de disparados, e não pelo código de retorno.
+>
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` no `build-938-af647b9`** (12h49 de Brasília — run 156) **e, MINUTOS DEPOIS, TAMBÉM EM `prod`** (12h58, run 158, `deploy → prod` no `b01797d`, que descende do merge do #140). PR #140. ⚠️ **COM MIGRATION.**
 >
 > ⚠️ **O PROD NÃO ERA PRA TER RECEBIDO ISTO HOJE, e o registro fica aqui pra não se perder.** 🗣️ O pedido foi *"aprova, mas publica só no dev por enquanto"*, com o torneio do Er no ar. O deploy pro `dev` (run 156, `build-938-af647b9`) foi o único disparado por esta sessão; o run 158 saiu de outro lugar — provavelmente a sessão paralela levando o PR #139 —, e como `b01797d` descende do merge do #140, ele carregou a migration junto. O `Migrate()` roda no **startup** do app (`Program.cs:399`), então a coluna `ChavesAvisadasEm` e o `UPDATE` do backfill já rodaram no banco de produção.

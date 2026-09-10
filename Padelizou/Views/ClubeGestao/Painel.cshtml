@@ -4,7 +4,6 @@
 @{
     ViewData["Title"] = Model.Clube.Nome + " — Painel do Clube";
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
-    string[] diasCurtos = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
 }
 
 <div class="container mt-4 mb-5">
@@ -223,7 +222,7 @@
                                     <div class="text-center flex-shrink-0" style="width: 54px;">
                                         <div class="fw-bold" style="color: var(--pdz-ink);">@r.DataHora.ToString("HH:mm")</div>
                                         <small class="text-muted" style="font-size:.72rem;">
-                                            @diasCurtos[(int)r.DataHora.DayOfWeek] @r.DataHora.ToString("dd/MM")
+                                            @DiaDaSemana.Curto(r.DataHora) @r.DataHora.ToString("dd/MM")
                                         </small>
                                     </div>
                                     <div class="flex-grow-1 overflow-hidden">
