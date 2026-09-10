@@ -17,12 +17,15 @@
     quadra, placar) continuam sem sentido aqui — não há jogo pra pôr em quadra.
 *@
 @{
-    bool ehOrganizador = ViewBag.EhOrganizador == true;
+    // No torneio POR ORDEM a prévia tem hora (desde 09/09) mas o robô não agenda a rodada nova
+    // nele — uma reserva ali seria promessa que ninguém cumpre. O servidor recusa; aqui o botão
+    // nem aparece.
+    bool podeTrocar = ViewBag.EhOrganizador == true && ViewBag.SemHorarioPrevisto != true;
 
     // A referência que o POST de trocar horário lê (Services/ReferenciaDoJogo): o mesmo tipo
     // escreve e lê, senão o botão apontaria pra um jogo que o servidor não acha. Sem categoria
-    // (projeção antiga, sem Id) ou sem horário (torneio por ordem) não há o que trocar.
-    string? referenciaDaTroca = ehOrganizador && Model.CategoriaId is int categoriaDaPrevia && Model.Horario is DateTime
+    // (projeção antiga, sem Id) ou sem horário não há o que trocar.
+    string? referenciaDaTroca = podeTrocar && Model.CategoriaId is int categoriaDaPrevia && Model.Horario is DateTime
         ? Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaDaPrevia, Model.Fase, Model.Numero).ToString()
         : null;
 }

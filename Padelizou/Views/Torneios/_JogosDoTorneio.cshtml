@@ -659,6 +659,13 @@
                             @* A mesma lista da aba, na mesma ordem: jogos reais e previstos, pelo
                                relógio. Prévia sem horário (torneio por ordem) não entra — não há
                                slot pra trocar. *@
+                            @{
+                                // No torneio POR ORDEM a prévia não troca: o robô não agenda a
+                                // rodada nova nele, e a reserva seria promessa sem dono. Fica
+                                // numa variável porque ViewBag é dinâmico, e dinâmico dentro do
+                                // `is` do padrão abaixo quebra a análise de atribuição do C#.
+                                bool previaTroca = ViewBag.SemHorarioPrevisto != true;
+                            }
                             @foreach (var linha in linhasAgendadas)
                             {
                                 if (linha.Jogo is Partida candidato)
@@ -670,7 +677,8 @@
                                         (@candidato.Categoria.Nome)
                                     </option>
                                 }
-                                else if (linha.Porvir is JogoQueVem previsto
+                                else if (previaTroca
+                                         && linha.Porvir is JogoQueVem previsto
                                          && previsto.Horario is DateTime quandoPrevisto
                                          && previsto.CategoriaId is int categoriaPrevista)
                                 {

@@ -839,4 +839,38 @@ public class ProximasFasesDaChaveTests
 
         Assert.Equal(DateTime.Parse("2026-08-08 21:11"), final.Horario);
     }
+
+    [Fact]
+    public void Reserva_que_deixou_de_valer_nao_segura_o_slot_pra_ninguem()
+    {
+        // Achado da revisão adversarial (10/09/2026). A reserva da Final da X foi feita quando as
+        // semis dela eram às 09:00; depois as semis foram remarcadas pras 12:00 e a reserva (11:00)
+        // ficou pra trás. Ela não vale — mas o slot dela era pré-reservado e só devolvido na hora
+        // de emitir a Final da X, DEPOIS de a Semifinal da Y ter passado pelas 11:00 e ter sido
+        // empurrada pras 13:00 por causa dele. Reserva antes de a cadeia sequer poder abrir não
+        // toma vaga de ninguém: as duas semis da Y cabem às 11:00, como sem reserva nenhuma.
+        var duasQuadras = new[] { "Quadra A", "Quadra B" };
+        var quartasDaY = new[]
+        {
+            Jogo(1, "Quartas de Final", "A1", "B1", "09:00"),
+            Jogo(2, "Quartas de Final", "C1", "D1", "09:00"),
+            Jogo(3, "Quartas de Final", "E1", "F1", "10:00"),
+            Jogo(4, "Quartas de Final", "G1", "H1", "10:00"),
+        };
+        var cadeias = new[]
+        {
+            ProximasFasesDaChave.Montar(quartasDaY, Array.Empty<string>(), "Y", CategoriaY),
+            ProximasFasesDaChave.Montar(Semis("12:00"), Array.Empty<string>(), "X", CategoriaX),
+        };
+        var reservas = new[]
+        {
+            new HorarioReservado(CategoriaX, "Final", 1, DateTime.Parse("2026-08-08 11:00"), "Quadra A"),
+        };
+
+        var jogos = ProximasFasesDaChave.Agendar(cadeias, Grade(2, 60, duasQuadras), reservas: reservas);
+
+        var semisDaY = jogos.Where(j => j.Categoria == "Y" && j.Fase == "Semifinal").ToList();
+        Assert.Equal(2, semisDaY.Count);
+        Assert.All(semisDaY, s => Assert.Equal(DateTime.Parse("2026-08-08 11:00"), s.Horario));
+    }
 }

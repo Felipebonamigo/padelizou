@@ -269,9 +269,17 @@ public static class ProximasFasesDaChave
 
         foreach (var r in reservas ?? Array.Empty<HorarioReservado>())
         {
-            bool algumaCadeiaEmite = vivas.Any(c => c.CategoriaId == r.CategoriaId
+            var cadeiaQueEmite = vivas.FirstOrDefault(c => c.CategoriaId == r.CategoriaId
                 && c.Rodadas.Any(rod => rod.Fase == r.Fase && r.Numero >= 1 && r.Numero <= rod.Confrontos.Count));
-            if (!algumaCadeiaEmite) continue;
+            if (cadeiaQueEmite == null) continue;
+
+            // ⚠️ RESERVA QUE FICOU PRA TRÁS NÃO TOMA VAGA (revisão adversarial, 10/09/2026): a fase
+            // anterior foi remarcada pra depois dela e ela não vai valer — mas o slot ficava
+            // pré-reservado até a rodada dela ser emitida, e nesse meio tempo as outras cadeias
+            // passavam pelo horário e eram empurradas por um jogo que nunca ia estar ali. Nenhuma
+            // rodada da cadeia abre antes de `AbrirRodada(DepoisDe)`, então dá pra saber já aqui.
+            // (O `Vale` na emissão continua: a rodada seguinte pode abrir ainda mais tarde.)
+            if (!ReservasDeHorario.Vale(r.Horario, AbrirRodada(cadeiaQueEmite.DepoisDe, grade))) continue;
 
             reservadas[(r.CategoriaId, r.Fase, r.Numero)] = r;
             lotacao[r.Horario] = lotacao.GetValueOrDefault(r.Horario) + 1;

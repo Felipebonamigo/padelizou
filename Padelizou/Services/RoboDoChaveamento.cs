@@ -478,8 +478,13 @@ public class RoboDoChaveamento
         DateTime? AbreARodadaDe(int posto, int categoriaId) =>
             LevasDaGrade.PisoDaCategoria(torneio, jaMarcados, posto, categoriaId);
 
-        var reservados = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
+        var (reservados, mortas) = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
             p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId));
+
+        // A reserva de um jogo que já saiu dela (trocado depois de nascer) morre aqui — quem chama
+        // grava junto com a rodada nova. Ver ReservasDeHorario.Aplicar.
+        _context.ReservasDeHorario.RemoveRange(mortas);
+        reservas = reservas.Except(mortas).ToList();
 
         // A rodada nova ainda não tem horário; os fora de ordem perdem o que tinham pra disputar as
         // vagas de novo, na ordem certa. Os reservados ficam com a hora da reserva.

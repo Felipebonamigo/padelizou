@@ -33,8 +33,9 @@ public class ReservaDeHorarioTests
     //
     // Com `faseDaB` = Quartas, a B tem quatro jogos e a Semifinal dela nasce DEPOIS da Final da A:
     // é o cenário em que o robô reencaixa a Final da A por estar "fora de ordem".
-    private static Cenario Montar(string faseDaB = "Semifinal")
+    private static Cenario Montar(string faseDaB = "Semifinal", bool porOrdem = false, string[]? quadras = null)
     {
+        quadras ??= new[] { "Quadra Central" };
         var ctx = TestInfra.NovoContexto();
 
         var organizador = new Jogador { Nome = "Organizador", Cpf = "99900000099" };
@@ -49,8 +50,9 @@ public class ReservaDeHorarioTests
             HoraInicioDoDia = new TimeSpan(8, 0, 0),
             HoraInicioDiasSeguintes = new TimeSpan(8, 0, 0),
             HoraFimDoDia = new TimeSpan(23, 0, 0),
-            QuantidadeQuadras = 1,
+            QuantidadeQuadras = quadras.Length,
             TempoPrevistoPartidaMinutos = Duracao,
+            SemHorarioPrevisto = porOrdem,
         };
         ctx.Torneios.Add(torneio);
 
@@ -60,7 +62,8 @@ public class ReservaDeHorarioTests
         ctx.SaveChanges();
 
         ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = organizador.Id });
-        ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = "Quadra Central" });
+        foreach (var nome in quadras)
+            ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = nome });
 
         int proximo = 1;
         Dupla Dupla(Categoria categoria)
@@ -84,7 +87,7 @@ public class ReservaDeHorarioTests
                 Status = "Agendada",
                 Fase = fase,
                 HorarioPrevisto = As(hora),
-                NomeQuadra = "Quadra Central",
+                NomeQuadra = quadras[0],
             });
 
         Jogo(a, "Semifinal", "20:00", "A1");
@@ -130,7 +133,8 @@ public class ReservaDeHorarioTests
     private static Task<List<ReservaDeHorario>> ReservasAsync(Cenario c) =>
         c.Ctx.ReservasDeHorario.OrderBy(r => r.CategoriaId).ToListAsync();
 
-    private static async Task ReservarAsync(Cenario c, Categoria categoria, string fase, int numero, string hora)
+    private static async Task ReservarAsync(Cenario c, Categoria categoria, string fase, int numero, string hora,
+        string quadra = "Quadra Central")
     {
         c.Ctx.ReservasDeHorario.Add(new ReservaDeHorario
         {
@@ -138,7 +142,7 @@ public class ReservaDeHorarioTests
             Fase = fase,
             Numero = numero,
             Horario = As(hora),
-            NomeQuadra = "Quadra Central",
+            NomeQuadra = quadra,
         });
         await c.Ctx.SaveChangesAsync();
         c.Ctx.ChangeTracker.Clear();
@@ -343,5 +347,94 @@ public class ReservaDeHorarioTests
         Assert.NotNull(final.HorarioPrevisto);
         Assert.True(final.HorarioPrevisto >= As("21:17"),
             $"a final nasceu {final.HorarioPrevisto:HH:mm}, antes de a semifinal das 21:06 acabar");
+    }
+
+    // ═══ O QUE A REVISÃO ADVERSARIAL ACHOU (10/09/2026) ═══
+
+    [Fact]
+    public async Task A_reserva_nao_desfaz_a_troca_feita_depois_de_o_jogo_nascer()
+    {
+        // A Final da A nasce às 22:00 pela reserva. O organizador então troca a Final (real) com a
+        // Quartas 4 da B: Final 20:55, B4 22:00. Quando as Quartas da B fecham e a Semifinal da B
+        // nasce, a Final da A é reencaixada por estar fora de ordem — e a reserva de 22:00, que
+        // continua no banco, NÃO pode voltar por cima da troca: a quadra das 22:00 agora é da B4.
+        // A reserva só vale enquanto o jogo estiver nela; se ele saiu, ela some.
+        var c = Montar(faseDaB: "Quartas de Final");
+        await ReservarAsync(c, c.A, "Final", 1, "22:00");
+        await FinalizarAsync(c, "A1", "A2");
+
+        var finalA = await c.Ctx.Partidas.SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
+        var b4 = await JogoAsync(c, "B4");
+        await Controller(c).TrocarHorario(c.Torneio.Id, finalA.Id.ToString(), b4.Id.ToString());
+        c.Ctx.ChangeTracker.Clear();
+        Assert.Equal(As("20:55"), (await c.Ctx.Partidas.SingleAsync(p => p.Id == finalA.Id)).HorarioPrevisto);
+
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");
+
+        var final = await c.Ctx.Partidas.SingleAsync(p => p.Id == finalA.Id);
+        Assert.NotEqual(As("22:00"), final.HorarioPrevisto);
+        Assert.Empty(await ReservasAsync(c));
+    }
+
+    [Fact]
+    public async Task No_torneio_por_ordem_de_liberacao_a_previa_nao_troca_de_horario()
+    {
+        // O "por ordem" tem hora desde 09/09 (Services/OrdemDeLiberacao), então a prévia mostra
+        // horário — mas o robô não agenda a rodada nova nesse torneio (AgendarNaGradeAsync sai
+        // antes), e uma reserva ali seria uma promessa que ninguém cumpre. A troca com prévia é
+        // recusada com o motivo; a troca entre jogos reais continua como sempre.
+        var c = Montar(porOrdem: true);
+
+        var controller = Controller(c);
+        await controller.TrocarHorario(c.Torneio.Id, Previa(c.A, "Final", 1), Previa(c.B, "Final", 1));
+
+        Assert.NotNull(controller.TempData["Erro"]);
+        Assert.Empty(await ReservasAsync(c));
+    }
+
+    [Fact]
+    public async Task Mudar_de_quadra_pra_uma_quadra_reservada_troca_de_quadra_com_a_reserva()
+    {
+        // "Mudar de quadra" só enxergava jogos reais: a Quadra 1 das 22:00 parecia livre, mas
+        // estava reservada pra Final da A. Sem isto, o jogo real ia pra lá e a final nascia em
+        // cima dele — dois jogos na mesma quadra no mesmo minuto, a única coisa que a grade não
+        // pode produzir. A mesma regra do jogo real: quadra com dono TROCA de dono.
+        var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
+        await ReservarAsync(c, c.A, "Final", 1, "22:00", quadra: "Quadra 1");
+
+        var b2 = await JogoAsync(c, "B2");
+        b2.HorarioPrevisto = As("22:00");
+        b2.NomeQuadra = "Quadra 2";
+        await c.Ctx.SaveChangesAsync();
+
+        await Controller(c).TrocarQuadra(c.Torneio.Id, b2.Id, "Quadra 1");
+        c.Ctx.ChangeTracker.Clear();
+
+        Assert.Equal("Quadra 1", (await JogoAsync(c, "B2")).NomeQuadra);
+        var reserva = Assert.Single(await ReservasAsync(c));
+        Assert.Equal("Quadra 2", reserva.NomeQuadra);
+    }
+
+    [Fact]
+    public async Task Troca_que_faz_outra_reserva_deixar_de_valer_apaga_a_reserva_e_avisa()
+    {
+        // A Final da A está reservada pras 21:00 (vale: a Semifinal 2 da A acaba 20:33). Aí o
+        // organizador troca a Semifinal 2 da A (20:22) com a Quartas 4 da B (20:55): a semi passa
+        // a acabar 21:06, e a reserva das 21:00 deixa de valer. Ela não pode ficar no banco
+        // calada — a prévia e o robô a ignorariam e o organizador só descobriria olhando. A
+        // troca acontece, a reserva morta some, e a mensagem diz.
+        var c = Montar(faseDaB: "Quartas de Final");
+        await ReservarAsync(c, c.A, "Final", 1, "21:00");
+        var a2 = await JogoAsync(c, "A2");
+        var b4 = await JogoAsync(c, "B4");
+
+        var controller = Controller(c);
+        await controller.TrocarHorario(c.Torneio.Id, a2.Id.ToString(), b4.Id.ToString());
+
+        Assert.Null(controller.TempData["Erro"]);
+        c.Ctx.ChangeTracker.Clear();
+        Assert.Equal(As("20:55"), (await JogoAsync(c, "A2")).HorarioPrevisto);
+        Assert.Empty(await ReservasAsync(c));
+        Assert.NotNull(controller.TempData["Aviso"]);
     }
 }

@@ -37,29 +37,79 @@ public static class ReservasDeHorario
             .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => (p.Id, Numero: i + 1)))
             .ToDictionary(x => x.Id, x => x.Numero);
 
-    // Dá a cada jogo real que tem reserva válida o horário e a quadra dela. Devolve os que
-    // ganharam hora — são os "intocados" do encaixe que vem depois: quem foi reservado não
-    // disputa vaga, e os outros desviam dele.
-    public static List<Partida> Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
+    // O resultado de aplicar as reservas aos jogos reais: quem ficou com a hora da reserva (os
+    // "intocados" do encaixe que vem depois — quem foi reservado não disputa vaga, e os outros
+    // desviam dele) e as reservas que MORRERAM (o jogo saiu delas; quem chama apaga).
+    public sealed record Aplicacao(List<Partida> Reservados, List<ReservaDeHorario> Mortas);
+
+    // Dá a cada jogo real sem hora que tem reserva válida o horário e a quadra dela.
+    //
+    // ⚠️ A RESERVA SÓ VALE ENQUANTO O JOGO ESTIVER NELA (revisão adversarial, 10/09/2026). O jogo
+    // que já nasceu e está em OUTRO horário saiu da reserva por decisão de alguém — a troca de
+    // horário feita depois de ele nascer —, e reaplicar a reserva no reencaixe seguinte desfazia
+    // essa troca calada e punha o jogo de volta numa quadra que agora é de outro. Esse jogo segue
+    // como qualquer fora de ordem, e a reserva dele morre. Quem está na hora da reserva fica onde
+    // está, com a quadra que TEM (mudar de quadra depois de nascer também é decisão de alguém).
+    public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
         IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe)
     {
-        if (reservas.Count == 0) return new List<Partida>();
+        var reservados = new List<Partida>();
+        var mortas = new List<ReservaDeHorario>();
+        if (reservas.Count == 0) return new Aplicacao(reservados, mortas);
 
         var porChave = reservas.ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero));
-        var reservados = new List<Partida>();
 
         foreach (var jogo in jogos)
         {
             if (!porChave.TryGetValue((jogo.CategoriaId, jogo.Fase, numeroDe(jogo)), out var reserva)) continue;
+
+            if (jogo.HorarioPrevisto is DateTime atual && atual != reserva.Horario)
+            {
+                mortas.Add(reserva);
+                continue;
+            }
+
             if (!Vale(reserva.Horario, abreARodadaDe(jogo))) continue;
 
-            jogo.HorarioPrevisto = reserva.Horario;
-            jogo.NomeQuadra = reserva.NomeQuadra;
+            if (jogo.HorarioPrevisto == null)
+            {
+                jogo.HorarioPrevisto = reserva.Horario;
+                jogo.NomeQuadra = reserva.NomeQuadra;
+            }
+
             reservados.Add(jogo);
         }
 
-        return reservados;
+        return new Aplicacao(reservados, mortas);
     }
+
+    // Quem reservou ESTE slot (hora + quadra) entre os jogos que ainda vão nascer — o dono que o
+    // "mudar de quadra" precisa enxergar (revisão adversarial, 10/09/2026): olhando só os jogos
+    // reais, a quadra reservada parecia livre, o jogo real ia pra lá e a final nascia em cima dele.
+    public static ReservaDeHorario? QuemReservou(IEnumerable<ReservaDeHorario> reservas,
+        ISet<(int CategoriaId, string Fase)> fasesQueExistem, DateTime? horario, string? quadra) =>
+        horario == null || quadra == null
+            ? null
+            : reservas.FirstOrDefault(r => !fasesQueExistem.Contains((r.CategoriaId, r.Fase))
+                                        && r.Horario == horario && r.NomeQuadra == quadra);
+
+    // As reservas que a prévia NÃO CONSEGUIU HONRAR: o jogo previsto delas não saiu no horário
+    // reservado (a fase anterior passou dele) — ou nem saiu. Depois de uma troca de horário, são
+    // as reservas que a troca matou (revisão adversarial, 10/09/2026): sem isto elas ficavam no
+    // banco, prévia e robô as ignoravam, e o organizador só descobria olhando.
+    public static List<ReservaDeHorario> QueNaoValemMais(IEnumerable<ReservaDeHorario> reservas,
+        ISet<(int CategoriaId, string Fase)> fasesQueExistem,
+        IReadOnlyList<ProximasFasesDaChave.JogoQueVem> projetados) =>
+        reservas
+            .Where(r => !fasesQueExistem.Contains((r.CategoriaId, r.Fase))
+                     && !projetados.Any(j => j.CategoriaId == r.CategoriaId && j.Fase == r.Fase
+                                          && j.Numero == r.Numero && j.Horario == r.Horario))
+            .ToList();
+
+    // Como a mensagem chama o jogo de uma reserva: "3ª Feminina · Final", "4ª Masculina · Semifinal 2".
+    public static string Rotulo(ReservaDeHorario reserva, string? categoria) =>
+        $"{categoria ?? $"categoria {reserva.CategoriaId}"} · " +
+        (reserva.Fase == "Final" ? reserva.Fase : $"{reserva.Fase} {reserva.Numero}");
 
     // As reservas de jogos que AINDA VÃO NASCER, na forma de jogos marcados — pra que o encaixe
     // dos outros não ocupe o slot delas enquanto o jogo não existe.

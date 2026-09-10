@@ -987,6 +987,24 @@ namespace Padelizou.Controllers
             var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
             var deOnde = jogo!.NomeQuadra;
 
+            // A quadra pode estar RESERVADA pra uma eliminatória que ainda vai nascer
+            // (Models/ReservaDeHorario) — olhando só os jogos reais ela parecia livre, o jogo ia pra
+            // lá e a final nascia em cima dele (revisão adversarial, 10/09/2026). Mesma regra do
+            // dono real: a reserva troca de quadra com o jogo, em vez de recusar.
+            string? previstoQueCedeu = null;
+            if (ocupante == null)
+            {
+                var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
+                var reservaOcupante = ReservasDeHorario.QuemReservou(reservas,
+                    doTorneio.Select(p => (p.CategoriaId, p.Fase)).ToHashSet(), jogo.HorarioPrevisto, quadra);
+                if (reservaOcupante != null)
+                {
+                    reservaOcupante.NomeQuadra = deOnde;
+                    previstoQueCedeu = ReservasDeHorario.Rotulo(reservaOcupante, await _context.Categorias
+                        .Where(c => c.Id == reservaOcupante.CategoriaId).Select(c => c.Nome).FirstOrDefaultAsync());
+                }
+            }
+
             // A câmera é da QUADRA e não viaja com o jogo: o mapa sai dos jogos como estão
             // AGORA, antes da troca. Ver Services/TransmissaoDaQuadra.
             var cameras = TransmissaoDaQuadra.PorQuadra(doTorneio);
@@ -995,10 +1013,13 @@ namespace Padelizou.Controllers
             TrocaDeQuadra.Mudar(jogo, quadra, ocupante, cameras);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = (ocupante == null
-                ? $"O jogo {jogo.Codigo} agora é na {quadra}."
-                : $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
-                  $"assume a {deOnde ?? "quadra que estava livre"}.")
+            TempData["Sucesso"] = (ocupante != null
+                ? $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
+                  $"assume a {deOnde ?? "quadra que estava livre"}."
+                : previstoQueCedeu != null
+                ? $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra}, e {previstoQueCedeu} (prévia), " +
+                  $"que estava reservado pra ela, passa pra {deOnde ?? "a quadra que estava livre"}."
+                : $"O jogo {jogo.Codigo} agora é na {quadra}.")
                 + (jogo.LinkTransmissao == linkAntes ? "" :
                    string.IsNullOrEmpty(jogo.LinkTransmissao)
                        ? " A transmissão saiu junto: a nova quadra não tem câmera cadastrada."
@@ -1036,34 +1057,20 @@ namespace Padelizou.Controllers
                 return VoltarPara(voltarPara, id);
             }
 
-            // Dois jogos reais: a troca de sempre.
-            if (!refA.EhPrevia && !refB.EhPrevia)
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            // ⚠️ NO "POR ORDEM DE LIBERAÇÃO" A PRÉVIA NÃO TROCA (revisão adversarial, 10/09/2026): esse
+            // torneio tem hora desde 09/09 (Services/OrdemDeLiberacao), então a prévia mostra
+            // horário — mas o robô não agenda a rodada nova nele (AgendarNaGradeAsync sai antes), e
+            // a reserva seria uma promessa que ninguém cumpre. Entre jogos reais a troca segue.
+            if (torneio.SemHorarioPrevisto && (refA.EhPrevia || refB.EhPrevia))
             {
-                var a = await _context.Partidas.FindAsync(refA.PartidaId!.Value);
-                var b = await _context.Partidas.FindAsync(refB.PartidaId!.Value);
-
-                if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, id) is { } motivo)
-                {
-                    TempData["Erro"] = motivo;
-                }
-                else
-                {
-                    TrocaDeHorario.Trocar(a!, b!);
-                    await _context.SaveChangesAsync();
-                    TempData["Sucesso"] = $"Horários trocados: agora o jogo {a!.Codigo} é " +
-                        $"{a.HorarioPrevisto:dd/MM HH:mm} e o {b!.Codigo} é {b.HorarioPrevisto:dd/MM HH:mm}.";
-                }
-
+                TempData["Erro"] = "Neste torneio os jogos entram por ordem de liberação: a eliminatória prevista " +
+                    "entra na fila quando nascer, e não tem horário fixo pra trocar. Troque só entre jogos já sorteados.";
                 return VoltarPara(voltarPara, id);
             }
 
-            return await TrocarHorarioComPreviaAsync(id, refA, refB, voltarPara);
-        }
-
-        // A troca em que pelo menos um lado é uma eliminatória PREVISTA. Ver TrocarHorario.
-        private async Task<IActionResult> TrocarHorarioComPreviaAsync(int id,
-            ReferenciaDoJogo refA, ReferenciaDoJogo refB, string? voltarPara)
-        {
             // A prévia de agora, pelo mesmo caminho da tela — é dela que saem o slot do jogo
             // previsto e a conferência de depois. Categoria e duplas vêm junto porque a projeção
             // lê o nome delas.
@@ -1147,6 +1154,14 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // ⚠️ AS OUTRAS RESERVAS QUE ESTA TROCA MATOU (revisão adversarial, 10/09/2026): mover
+            // uma semifinal pra mais tarde faz a reserva da final dessa categoria deixar de valer.
+            // Ela não fica no banco calada — prévia e robô a ignorariam e o organizador só
+            // descobriria olhando. A troca acontece, a reserva morta some, e a mensagem diz.
+            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
+            _context.ReservasDeHorario.RemoveRange(mortas);
+
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Horários trocados: agora {ladoA.Rotulo} é {slotDeB.Horario:dd/MM HH:mm} e " +
@@ -1154,6 +1169,18 @@ namespace Padelizou.Controllers
                 (ladoA.Previsto != null || ladoB.Previsto != null
                     ? " O jogo previsto nasce nesse horário quando a fase anterior terminar."
                     : "");
+
+            if (mortas.Count > 0)
+            {
+                var nomeDaCategoria = partidas
+                    .GroupBy(p => p.CategoriaId)
+                    .ToDictionary(g => g.Key, g => g.First().Categoria.Nome);
+                TempData["Aviso"] = "Com essa troca, deixou de valer e foi desfeita a reserva de: " +
+                    string.Join("; ", mortas.Select(r =>
+                        $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
+                        $"({r.Horario:dd/MM HH:mm})")) +
+                    ". A fase anterior passou desse horário — o jogo volta pra grade.";
+            }
 
             return VoltarPara(voltarPara, id);
         }
