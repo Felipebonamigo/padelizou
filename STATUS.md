@@ -129,6 +129,28 @@
 > 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
 >
 
+> **10/09/2026** — 🦺 **UM CINTO PRO `:has()` E UM COMENTÁRIO QUE VIROU MENTIRA.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+>
+> Os dois itens que sobraram da revisão adversarial do PR #167 (69 agentes, 21 achados brutos, 5 sobreviventes — os 5 eram os falso-verdes, já corrigidos no PR #173).
+>
+> 🕳️ **O COMENTÁRIO DO CARD DO PIX PROMETIA O QUE A TELA NÃO FAZ MAIS.** Ele dizia: *"uma marcação errada dele não pode deixar o jogador sem caminho pra pagar"* — verdade enquanto o card RECOLHIA. Depois que ele passou a SUMIR com a chave publicada, marcação errada de `Pago` deixa o jogador exatamente sem caminho. O texto agora separa os dois tempos e **nomeia o custo**, em vez de prometer o antigo. Comentário que promete o que o código não faz foi o defeito mais repetido da sessão: quatro vezes.
+>
+> 🦺 **O `:has()` GANHOU CINTO — `wwwroot/js/abas-recolhidas.js`.** As duas linhas do `site.css` são **regras separadas**: `.pdz-aba-recolhida { display: none }` vale em qualquer navegador; `.pdz-aba-recolhida:has(> .nav-link.active) { display: block }` é **descartada inteira** por quem não entende `:has()`. Sem a segunda, a aba ativa fica invisível — o estrago que ela existe pra impedir. E o alvo não é hipotético: o app **é o próprio site** numa casca TWA (`ANDROID.md:3`), logo roda no WebView do aparelho.
+>
+> ⚠️ **O CINTO SE CALA ONDE O `:has()` FUNCIONA** (`CSS.supports("selector(:has(*))")`). Dois mecanismos ligados fazendo a mesma coisa é a segunda fonte da verdade que um dia diverge — e o CSS é o caminho bom: resolve **antes da primeira pintura**, então a barra não salta depois de desenhada. Ele escuta `shown.bs.tab`, que cobre os três caminhos de uma vez: clique na aba, `.click()` dos atalhos do Painel, e o `Tab...show()` do script da hash.
+>
+> ✅ **E O TESTE DELE É DE COMPORTAMENTO, NÃO DE TEXTO** — `Padelizou.Tests/js/conferir-abas-recolhidas.js`, DOM falso no Node, o padrão que o `conferir-palpitrometro.js` já tinha. Depois de uma sessão inteira consertando asserção sobre texto-fonte, valeu registrar: onde dá pra rodar o código, rodar o código. Onze conferências, incluindo trocar de aba (a anterior tem que voltar a se recolher, senão a barra junta aba solta a cada clique) e `window.CSS` indefinido.
+>
+> 🕳️ **O CI RODAVA UM CONFERIDOR SÓ, PELO NOME.** O passo citava `conferir-palpitrometro.js` na mão — o segundo teria nascido **fora do CI** sem ninguém notar. Agora ele **varre** `Padelizou.Tests/js/conferir-*.js`, mantendo a disciplina de não usar cano (com cano, conferência vermelha passa por verde) e a anotação `::error::`. Arquivo de teste que nunca roda é pior que nenhum: parece cobertura.
+>
+> 🧪 **6.350 testes, 0 falhas** + os dois conferidores de JS verdes. Vermelhos vistos antes: o do Node em *"ENOENT: no such file or directory, `abas-recolhidas.js`"*, e o do elo nas DUAS mutações (tirar a tag `<script>`, e tirar só o `asp-append-version`). O do Node também foi falsificado depois: sem a memória `dataset.pdzRecolhe`, 2 falhas.
+>
+> ⚠️ **UM TROPEÇO MEU, PORQUE ELE VAI SE REPETIR:** rodei `git checkout -- Details.cshtml` pra reverter uma mutação e levei junto a correção de comentário que ainda **não estava commitada**. Perdi as duas edições do arquivo e refiz. Mutação em arquivo com trabalho não commitado se reverte por **cópia** (`cp` de um backup), nunca por `git checkout`.
+>
+> 🔎 **REFUTADO POR MIM, e vale escrever pra ninguém "consertar" depois:** o achado de que o `sw.js` precisaria subir o `CACHE_NAME` por causa do `site.css` **não morde**. O `_Layout.cshtml:197` usa `asp-append-version`, o prod serve `/css/site.css?v=t_AbC-6PH…`, e o `sw.js:113` faz `caches.match(request)` **sem `ignoreSearch`** — hash novo é cache miss e vai pra rede. O `CACHE_NAME` importa pros arquivos servidos **sem** hash (logo, fonte, `offline.html`).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O comportamento do cinto está provado no Node contra DOM falso; o navegador de verdade, e principalmente um WebView **sem** `:has()`, ninguém abriu.
+
 > **10/09/2026** — 🧪 **SEIS TESTES MEUS ERAM FALSO-VERDE, E QUEM PROVOU FOI MUTAÇÃO, NÃO LEITURA.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration, e sem uma linha de código de produção alterada** — logo, nada a publicar: o que está no ar segue sendo o `build-1008-14383b5`.
 >
 > 🗣️ Felipe, depois de eu relatar o que a revisão adversarial achou: *"corrige os testes falso-verde"*.

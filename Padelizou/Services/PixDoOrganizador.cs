@@ -110,9 +110,16 @@ public static class PixDoOrganizador
     // WhatsApp — empurrava as abas do torneio (Inscritos, Jogos, Chaves e Grupos) pra fora
     // da tela de quem já tinha resolvido a parte dele.
     //
-    // ⚠️ RECOLHE, NÃO SOME (a view usa <details>): a última palavra sobre quem pagou é do
-    // organizador virando o `Pago` na mão — muita inscrição é paga em dinheiro na quadra —, e
-    // uma marcação errada dele não pode deixar o jogador sem caminho pra pagar.
+    // ⚠️ RECOLHE, NÃO SOME (a view usa <details>) — MAS SÓ ANTES DE A CHAVE SAIR. A última
+    // palavra sobre quem pagou é do organizador virando o `Pago` na mão (muita inscrição é paga
+    // em dinheiro na quadra), e até publicar uma marcação errada dele não tira o caminho de
+    // ninguém: o card recolhe e a chave fica a um toque.
+    //
+    // ⚠️ PUBLICADA A CHAVE, QUEM O `Pago` DIZ QUE PAGOU PERDE O CARD — é o `ApareceParaMim`
+    // logo acima, e é o pedido do Felipe. O custo tem nome: marcado como pago por engano, o
+    // jogador não acha mais a chave Pix nesta tela. Fica dito aqui porque este comentário
+    // afirmava o contrário e a revisão de 10/09/2026 pegou — comentário que promete o que o
+    // código não faz é o defeito que mais se repetiu naquela sessão.
     //
     // ⚠️ "JÁ PAGUEI" É TODAS AS MINHAS INSCRIÇÕES DESTE TORNEIO. Com duas categorias, uma paga
     // e outra não, o card continua aberto: é justamente quem ainda deve. E quem não tem

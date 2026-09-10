@@ -146,6 +146,27 @@ public class AbasDeGestaoVaoParaDentroDoGerenciarTests
             "O `@if` está longe demais dos atalhos pra ser o portão deles.");
     }
 
+    [Fact]
+    public void O_CINTO_do_navegador_sem_has_chega_na_tela()
+    {
+        // 🕳️ Arquivo que existe e nunca carrega é o mesmo defeito da prévia que ficou semanas
+        // sem botão de horário: o `conferir-abas-recolhidas.js` passaria verde pra sempre
+        // testando um script que nenhuma página inclui. Quem prova o comportamento é o Node;
+        // este aqui prova só o elo que falta — que ele está na tela.
+        var view = Details();
+
+        Assert.Contains("~/js/abas-recolhidas.js", view);
+        Assert.Contains(File.Exists(Path.Combine(RaizDoRepo(), "Padelizou", "wwwroot", "js", "abas-recolhidas.js"))
+            ? "~/js/abas-recolhidas.js" : "ARQUIVO NAO EXISTE", view);
+
+        // ⚠️ `asp-append-version` é obrigatório: o Service Worker guarda script em cache pelo
+        // caminho, e sem a versão o organizador fica preso no JS velho indefinidamente — a
+        // mesma razão escrita no jogos.cshtml.
+        var i = view.IndexOf("~/js/abas-recolhidas.js", StringComparison.Ordinal);
+        var fimDaTag = view.IndexOf('>', i);
+        Assert.Contains("asp-append-version", view[i..fimDaTag]);
+    }
+
     // A tag inteira do <button>, do `<` até o `>` que a fecha.
     private static string TagDoBotao(string idDoBotao)
     {
