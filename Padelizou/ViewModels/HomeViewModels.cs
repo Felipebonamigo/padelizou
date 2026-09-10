@@ -146,7 +146,17 @@ public class ProximoJogoVM
     public string Categoria { get; set; } = "";
     public DateTime Horario { get; set; }
     public string? Quadra { get; set; }
-    public string Adversarios { get; set; } = "";
+
+    // Os dois adversários chegam SEPARADOS do banco e viram uma frase aqui. A consulta é
+    // traduzida pra SQL, e concatenar com NULL no Postgres devolve NULL: com a junção lá, a
+    // dupla adversária que está com a vaga de parceiro em aberto (09/09/2026) apagaria o
+    // adversário inteiro do card. `AdversarioDois` nulo é essa dupla — e aí a frase é um nome.
+    public string AdversarioUm { get; set; } = "";
+    public string? AdversarioDois { get; set; }
+
+    public string Adversarios => string.IsNullOrWhiteSpace(AdversarioDois)
+        ? AdversarioUm
+        : $"{AdversarioUm} e {AdversarioDois}";
 }
 
 // Item da faixa "próximos compromissos" (aula, reserva de quadra, aula que vou dar).

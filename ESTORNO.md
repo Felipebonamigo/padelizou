@@ -56,13 +56,30 @@ dentro do próprio `DesfazerAsync`.)
 ### Um terceiro caminho: cancelar quem ficou SEM PARCEIRO, na hora de sortear
 
 Desde 09/09/2026, a tela do torneio tem uma saída mais estreita, só pra esse caso: na janela
-**"Chaves em Sorteio"**, o organizador cancela ali mesmo a inscrição de quem ficou sem
-parceiro (`TorneiosController.CancelarSemParceiro`). Cancela e estorna **na mesma
+**"Chaves em Sorteio"**, no aviso **"entram sem parceiro"**, o organizador cancela ali mesmo a
+inscrição de quem ficou sozinho (`TorneiosController.CancelarSemParceiro`).
+
+⚠️ O botão **mudou de casa no mesmo dia**: ele nasceu dentro do alerta "ficam de fora do
+sorteio", e horas depois a inscrição sem parceiro deixou de ficar de fora — ela passou a
+**entrar na chave** com a vaga aberta (ver STATUS.md). Sem a mudança de casa, a ação teria
+ficado sem porta na tela. Depois do sorteio ela não vale mais: com jogo já marcado, a saída
+passa a ser o W.O. Cancela e estorna **na mesma
 requisição**, sem esperar o webhook do Asaas: pede a devolução ao gateway
 (`PagamentoInscricaoService.EstornarTotalAsync`) e só depois remove a dupla. Sem cobrança real
 pra estornar (pago por fora, marcado na mão), só cancela e avisa o organizador pra acertar a
 devolução fora do sistema. Fora dessa dupla incompleta e dessa janela, o caminho continua
 sendo `Pagamentos → Meus`.
+
+⚠️ **A inscrição NÃO paga também mexe em dinheiro aqui**, e é o caso menos óbvio: no torneio
+que "garante a vaga e cobra depois", quem não pagou tem uma **fatura pendente viva no gateway**,
+com link que funciona até o prazo. Cancelar a inscrição sem matá-la deixava o jogador pagando
+por uma vaga que não existe mais — o dinheiro entrava, ninguém estava inscrito, e a confirmação
+caía num `LogError` pedindo devolução à mão. Desde 10/09/2026 a ação cancela a fatura junto
+(`DELETE` no gateway, sem movimentar dinheiro). Essa fatura **não tem `ReferenciaId`** — ele só
+é gravado quando o pagamento confirma —, então quem a acha é o JSON de `DadosInscricao`
+(`CobrancaDaDupla.PendentesDoPagarDepois` + filtro em memória), nunca a consulta por referência.
+Se o gateway recusar, **a inscrição não é removida**: sumir com ela deixaria o link de pé sem
+nenhuma tela pra cancelá-lo depois.
 
 ---
 

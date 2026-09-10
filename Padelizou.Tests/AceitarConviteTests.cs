@@ -132,10 +132,34 @@ public class AceitarConviteTests
         Assert.Null(dupla.Jogador2Id);
     }
 
+    // 09/09/2026: o convite passou a valer depois do encerramento e depois do sorteio. A dupla
+    // sem parceiro entra na chave, e o link mandado no WhatsApp é o jeito mais comum de fechar
+    // a vaga em cima da hora.
     [Fact]
-    public async Task Convite_nao_vale_depois_de_as_inscricoes_encerrarem()
+    public async Task Convite_vale_depois_do_sorteio_enquanto_a_dupla_nao_jogou()
     {
         var (ctx, dupla, token) = Cenario(statusTorneio: "Fase de Grupos");
+
+        var resultado = await Controller(ctx, usuarioLogadoId: 20).AceitarConvite(token);
+
+        Assert.IsType<RedirectToActionResult>(resultado);
+        Assert.Equal(20, dupla.Jogador2Id);
+    }
+
+    // O que mata o convite é a dupla já ter entrado em quadra.
+    [Fact]
+    public async Task Convite_nao_vale_depois_de_a_dupla_entrar_em_quadra()
+    {
+        var (ctx, dupla, token) = Cenario(statusTorneio: "Fase de Grupos");
+        var adversaria = new Dupla { CategoriaId = dupla.CategoriaId, Jogador1Id = 30, Jogador2Id = 31 };
+        ctx.Duplas.Add(adversaria);
+        ctx.SaveChanges();
+        ctx.Partidas.Add(new Partida
+        {
+            TorneioId = ctx.Torneios.First().Id, CategoriaId = dupla.CategoriaId, Codigo = "P1",
+            Dupla1Id = dupla.Id, Dupla2Id = adversaria.Id, Status = "Finalizada",
+        });
+        ctx.SaveChanges();
 
         var resultado = await Controller(ctx, usuarioLogadoId: 20).AceitarConvite(token);
 

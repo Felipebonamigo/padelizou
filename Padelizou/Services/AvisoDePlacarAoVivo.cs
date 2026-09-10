@@ -77,8 +77,13 @@ public class AvisoDePlacarAoVivo
     {
         string Nome(Jogador? j) => j == null ? "?" : NomeBonito.Curto(j.Nome);
 
+        // ⚠️ VAGA DE PARCEIRO EM ABERTO (09/09/2026): a inscrição sozinha passou a entrar na
+        // chave, então este push virou alcançável com metade dos nomes — e saía "Paulo/? 6 x 0
+        // João/Maria", com a barra pendurada num "?" que não diz nada. Quando falta o segundo,
+        // o push diz só quem existe.
         string Dupla(Padelizou.Models.Dupla? d) => d == null ? "A definir"
             : d.EhTime ? (d.NomeTime ?? "Time")
+            : d.Jogador2 == null ? Nome(d.Jogador1)
             : $"{Nome(d.Jogador1)}/{Nome(d.Jogador2)}";
 
         var titulo = partida.Status == "Finalizada" ? "Jogo encerrado" : "Placar ao vivo";

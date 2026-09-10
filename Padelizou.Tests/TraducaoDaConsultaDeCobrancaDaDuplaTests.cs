@@ -30,4 +30,14 @@ public class TraducaoDaConsultaDeCobrancaDaDuplaTests
         var sql = CobrancaDaDupla.AtivaDe(ctx, duplaId: 1).ToQueryString();
         Assert.Contains("SELECT", sql);
     }
+
+    [Fact]
+    public void As_faturas_abertas_do_pagar_depois_viram_SQL()
+    {
+        // O irmão que o AtivaDe não cobre: a fatura que nunca confirmou não tem ReferenciaId,
+        // e é ela que precisa morrer quando o organizador cancela a inscrição sem parceiro.
+        using var ctx = ContextoPostgres();
+        var sql = CobrancaDaDupla.PendentesDoPagarDepois(ctx, torneioId: 1).ToQueryString();
+        Assert.Contains("SELECT", sql);
+    }
 }

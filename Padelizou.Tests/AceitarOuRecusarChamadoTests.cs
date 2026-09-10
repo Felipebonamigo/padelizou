@@ -21,6 +21,11 @@ namespace Padelizou.Tests;
 // Agora ele cai numa tela com Aceitar e Recusar, e aceitar fecha a dupla na hora.
 public class AceitarOuRecusarChamadoTests
 {
+    // A régua passou a receber o TORNEIO (e não status solto) pra não haver como trocar status
+    // por formato — os dois eram `string?` vizinhos.
+    private static Torneio TorneioCom(string status, string formato = FormatoDoTorneio.Padrao) =>
+        new() { Id = 1, Nome = "Torneio de Teste", Codigo = "TST123", Status = status, Formato = formato };
+
     private static DuplasController Controller(
         DbPadelContext ctx, int usuarioLogadoId, IPushNotificationService? push = null)
     {
@@ -86,23 +91,27 @@ public class AceitarOuRecusarChamadoTests
     {
         var solo = new Dupla { Jogador1Id = 1, Jogador2Id = null };
 
-        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Inscrições Abertas", 1));
+        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
         // Não é minha inscrição.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Inscrições Abertas", 2));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Inscrições Abertas"), 2, jaComecouAJogar: false));
 
         // Dupla que já fechou não escolhe mais ninguém — senão o segundo aceite TROCARIA o
         // parceiro sem ninguém ter pedido isso.
         var fechada = new Dupla { Jogador1Id = 1, Jogador2Id = 3 };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(fechada, "Inscrições Abertas", 1));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(fechada, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
-        // Inscrições encerradas: o chaveamento já pode ter saído.
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, "Chaves em Sorteio", 1));
+        // 09/09/2026: inscrições encerradas não impedem mais o aceite — a dupla sem parceiro
+        // entra na chave, e o segundo nome pode entrar até ela jogar.
+        Assert.Null(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Chaves em Sorteio"), 1, jaComecouAJogar: false));
+
+        // O que impede é a dupla já ter entrado em quadra.
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(solo, TorneioCom("Fase de Grupos"), 1, jaComecouAJogar: true));
 
         var time = new Dupla { Jogador1Id = 1, NomeTime = "Os Fortes" };
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(time, "Inscrições Abertas", 1));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(time, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
 
-        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(null, "Inscrições Abertas", 1));
+        Assert.NotNull(MuralDeParceiros.MotivoParaNaoAceitar(null, TorneioCom("Inscrições Abertas"), 1, jaComecouAJogar: false));
     }
 
     // ═══════════════════ A TELA ═══════════════════
@@ -266,15 +275,44 @@ public class AceitarOuRecusarChamadoTests
         Assert.Null((await ctx.Duplas.FindAsync(solo.Id))!.Jogador2Id);
     }
 
-    // Entre abrir a lista e tocar em aceitar, o torneio fecha (ou outro caminho fechou a
-    // dupla). A tela some com o botão, mas quem decide é o servidor.
+    // 09/09/2026: inscrições encerradas NÃO recusam mais o aceite. A dupla sem parceiro passou
+    // a entrar na chave, e é exatamente nessa janela — inscrições fechadas, chave por sair ou
+    // já sorteada — que alguém ainda pode salvar a vaga dela.
     [Fact]
-    public async Task Torneio_que_fechou_no_meio_do_caminho_recusa_o_aceite()
+    public async Task Torneio_com_inscricoes_encerradas_ainda_aceita_o_chamado()
     {
         var (ctx, solo, dono, a, _) = Cenario();
         using var _1 = ctx;
 
         ctx.Torneios.First().Status = "Chaves em Sorteio";
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, dono.Id);
+        await controller.AceitarChamado(solo.Id, a.Id);
+
+        Assert.Equal(a.Id, (await ctx.Duplas.FindAsync(solo.Id))!.Jogador2Id);
+        Assert.Null(controller.TempData["Erro"]);
+    }
+
+    // O que fecha a janela é a bola rolar pra ESTA dupla: o jogo aconteceu com a vaga vazia, e
+    // pendurar um nome nele depois seria reescrever o que já foi jogado.
+    [Fact]
+    public async Task Dupla_que_ja_entrou_em_quadra_recusa_o_aceite()
+    {
+        var (ctx, solo, dono, a, _) = Cenario();
+        using var _1 = ctx;
+
+        var torneio = ctx.Torneios.First();
+        torneio.Status = "Fase de Grupos";
+        var duplaSolo = await ctx.Duplas.FindAsync(solo.Id);
+        var adversaria = new Dupla { CategoriaId = duplaSolo!.CategoriaId, Jogador1Id = dono.Id, Jogador2Id = a.Id };
+        ctx.Duplas.Add(adversaria);
+        await ctx.SaveChangesAsync();
+        ctx.Partidas.Add(new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = duplaSolo.CategoriaId, Codigo = "P1",
+            Dupla1Id = solo.Id, Dupla2Id = adversaria.Id, Status = "Finalizada",
+        });
         await ctx.SaveChangesAsync();
 
         var controller = Controller(ctx, dono.Id);

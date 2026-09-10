@@ -216,8 +216,12 @@ public class AmericanoDeDuplasTests
         }
     }
 
+    // 09/09/2026: a dupla incompleta passou a ENTRAR no rodízio, como entrou na chave — o
+    // Americano de Duplas lê a MESMA régua (ForaDoSorteio), e é assim que ele deve ler: a vaga
+    // é de quem se inscreveu, e o segundo nome entra até o primeiro jogo dela. Se não entrar,
+    // aquela dupla leva W.O., igual na chave.
     [Fact]
-    public async Task O_sorteio_gera_todos_contra_todos_e_pula_dupla_incompleta()
+    public async Task O_sorteio_gera_todos_contra_todos_incluindo_a_dupla_incompleta()
     {
         var (ctx, torneio, _, org, duplas) = MontarTorneio(4, incompletas: 1);
         using var _1 = ctx;
@@ -225,16 +229,16 @@ public class AmericanoDeDuplasTests
         await SortearAsync(ctx, org, torneio.Id);
 
         var partidas = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
-        Assert.Equal(6, partidas.Count);   // 4 duplas = 6 jogos
+        Assert.Equal(10, partidas.Count);   // 5 duplas (4 fechadas + 1 com vaga aberta) = 10 jogos
         Assert.All(partidas, p => Assert.StartsWith("Americano", p.Fase));
         Assert.All(partidas, p => Assert.NotNull(p.HorarioPrevisto));
 
-        // A incompleta não entra em jogo nenhum; as completas jogam 3 vezes cada.
+        // A incompleta joga o mesmo tanto que as outras — a vaga dela é uma vaga de verdade.
         var incompleta = await ctx.Duplas.SingleAsync(d => d.Jogador2Id == null);
-        Assert.DoesNotContain(partidas, p => p.Dupla1Id == incompleta.Id || p.Dupla2Id == incompleta.Id);
+        Assert.Equal(4, partidas.Count(p => p.Dupla1Id == incompleta.Id || p.Dupla2Id == incompleta.Id));
         foreach (var dupla in duplas)
         {
-            Assert.Equal(3, partidas.Count(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id));
+            Assert.Equal(4, partidas.Count(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id));
         }
 
         Assert.Equal("Fase de Grupos", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);

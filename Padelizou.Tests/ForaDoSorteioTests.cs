@@ -4,9 +4,19 @@ using Xunit;
 
 namespace Padelizou.Tests;
 
-// A regra sempre existiu dentro do GerarChaves, só que em silêncio: quem se inscreveu "ainda
-// não tenho parceiro" descobria que ficou de fora quando a chave saía. Agora a tela avisa antes
-// de sortear — e as duas leem daqui, senão a tela prometeria uma coisa e o sorteio faria outra.
+// QUEM O SORTEIO DEIXA DE FORA — e, desde 09/09/2026, só isso.
+//
+// 🗣️ Felipe: "tem q manter o Paulo, ele vai colocar o parceiro dele depois". Quem se inscreve
+// sozinho passou a ENTRAR na chave, ocupando a vaga dele com a segunda posição em aberto; o
+// segundo nome entra depois, até a dupla ter o primeiro jogo com placar. Se nunca entrar, a
+// dupla leva W.O. — risco assumido, e o organizador é avisado na hora de sortear.
+//
+// ⚠️ ESTA RÉGUA JÁ RESPONDEU DUAS PERGUNTAS AO MESMO TEMPO, e é a coisa mais importante a se
+// saber sobre este arquivo. Até aqui ela dizia "entra no sorteio?" E "conta pro ranking?" —
+// então mudar o sorteio pagaria ponto de participação a quem não jogou, incharia o peso da
+// categoria (subindo o ponto até do campeão) e faria isso RETROATIVAMENTE, porque a régua não
+// tem data de corte. A metade do ranking mudou de casa: Services/InscricaoQueConta, com a
+// semântica de sempre e o teste dela. Aqui ficou só o sorteio.
 public class ForaDoSorteioTests
 {
     private static Dupla Inscricao(int id, bool comParceiro, bool naEspera = false) =>
@@ -24,30 +34,57 @@ public class ForaDoSorteioTests
         => Assert.False(ForaDoSorteio.FicaDeFora(Inscricao(1, comParceiro: true)));
 
     [Fact]
-    public void Sem_parceiro_fica_de_fora()
-        => Assert.True(ForaDoSorteio.FicaDeFora(Inscricao(1, comParceiro: false)));
+    public void Sem_parceiro_ENTRA_no_sorteio_com_a_vaga_em_aberto()
+    {
+        // A regra virou de lado em 09/09/2026. Antes: "sem parceiro fica de fora". Agora a
+        // vaga é dele, e o parceiro entra depois.
+        Assert.False(ForaDoSorteio.FicaDeFora(Inscricao(1, comParceiro: false)));
+    }
 
     [Fact]
     public void Na_lista_de_espera_fica_de_fora_mesmo_com_a_dupla_fechada()
         => Assert.True(ForaDoSorteio.FicaDeFora(Inscricao(1, comParceiro: true, naEspera: true)));
 
     [Fact]
-    public void O_motivo_separa_o_que_cada_um_resolve()
+    public void Sem_parceiro_E_na_espera_fica_de_fora_pela_espera()
     {
-        // Sem parceiro é o jogador que resolve; espera é o organizador (ou uma desistência).
-        Assert.Equal("sem parceiro", ForaDoSorteio.Motivo(Inscricao(1, comParceiro: false)));
-        Assert.Equal("na lista de espera", ForaDoSorteio.Motivo(Inscricao(2, comParceiro: true, naEspera: true)));
+        // Inscrição sozinha PODE estar na lista de espera (a vaga acabou antes de ela fechar
+        // a dupla). O que a mantém fora agora é só a espera — se ela for chamada, entra
+        // mesmo sem parceiro.
+        Assert.True(ForaDoSorteio.FicaDeFora(Inscricao(1, comParceiro: false, naEspera: true)));
+    }
+
+    [Fact]
+    public void O_motivo_de_ficar_de_fora_agora_e_um_so()
+    {
+        // Sobrou uma razão só: sem vaga. "Sem parceiro" deixou de tirar ninguém do sorteio.
+        Assert.Equal("na lista de espera", ForaDoSorteio.Motivo(Inscricao(1, comParceiro: true, naEspera: true)));
+        Assert.Equal("na lista de espera", ForaDoSorteio.Motivo(Inscricao(2, comParceiro: false, naEspera: true)));
     }
 
     [Fact]
     public void Time_nunca_fica_de_fora_por_estar_sem_parceiro()
     {
         // Time (categoria de times) não TEM parceiro: Jogador2Id nulo é a construção normal
-        // dele. Sem esta regra, o sorteio pulava todos os times em silêncio.
+        // dele. Continua valendo, e agora pelo mesmo motivo de todo mundo.
         var time = Inscricao(9, comParceiro: false);
         time.NomeTime = "Nata Padel";
 
         Assert.False(ForaDoSorteio.FicaDeFora(time));
+    }
+
+    [Fact]
+    public void Time_marcado_na_espera_tambem_entra()
+    {
+        // O caso que sumiu quando este arquivo foi reescrito, e ele importa: `EhTime` vem ANTES
+        // da espera na régua, então time entra de qualquer jeito. É o que segura um `EhTime` que
+        // chegue à linha do sorteio de duplas — hoje o ramo `DeTimes` sai antes por `continue`,
+        // e é só isso que separa os dois caminhos.
+        var time = Inscricao(10, comParceiro: false, naEspera: true);
+        time.NomeTime = "Clube dos Feras";
+
+        Assert.False(ForaDoSorteio.FicaDeFora(time));
+        Assert.Empty(ForaDoSorteio.ComVagaEmAberto(new[] { time }));
     }
 
     [Fact]
@@ -56,50 +93,43 @@ public class ForaDoSorteioTests
         var duplas = new[]
         {
             Inscricao(1, comParceiro: true),                    // joga
-            Inscricao(2, comParceiro: false),                   // sem parceiro
+            Inscricao(2, comParceiro: false),                   // joga, com a vaga em aberto
             Inscricao(3, comParceiro: true, naEspera: true),    // espera
             Inscricao(4, comParceiro: true),                    // joga
         };
 
         var fora = ForaDoSorteio.Listar(duplas);
 
-        Assert.Equal(new[] { 2, 3 }, fora.Select(d => d.Id));
+        Assert.Equal(new[] { 3 }, fora.Select(d => d.Id));
     }
 
-    // ── As duas escritas da mesma régua ───────────────────────────────────────────────
     [Fact]
-    public void A_versao_que_roda_no_banco_concorda_com_a_que_roda_em_memoria()
+    public void Quem_entra_com_a_vaga_em_aberto_e_listado_a_parte()
     {
-        // ⚠️ ESTE É O TESTE QUE IMPEDE O DEFEITO CLÁSSICO DESTA CASA. `EstaNaChave` existe
-        // porque o EF não traduz `FicaDeFora` (recebe entidade e lê `Completa`, propriedade
-        // calculada), então a régua está escrita DUAS vezes — e no par irmão
-        // `ContaNoRanking`/`DuplaContaNoRanking` a cópia escrita à mão já divergiu em
-        // silêncio: foi assim que o Americano continuou pontuando no ranking oficial.
-        //
-        // Desde 10/08/2026 esta régua decide PONTO DE RANKING (RANKING.md, Trilha B), então
-        // uma divergência aqui não some só do sorteio — ela paga, ou deixa de pagar, ponto.
-        var naChave = ForaDoSorteio.EstaNaChave.Compile();
+        // O organizador perdeu o aviso antigo (a lista de "fica de fora") justamente pra quem
+        // ele mais precisa ver: quem entra incompleto é quem pode virar W.O. Esta lista é o
+        // que substitui aquele aviso na tela do sorteio.
+        var duplas = new[]
+        {
+            Inscricao(1, comParceiro: true),                     // fechada
+            Inscricao(2, comParceiro: false),                    // entra com vaga aberta
+            Inscricao(3, comParceiro: false, naEspera: true),    // não entra: espera
+            Inscricao(4, comParceiro: false),                    // entra com vaga aberta
+        };
 
+        var comVagaAberta = ForaDoSorteio.ComVagaEmAberto(duplas);
+
+        Assert.Equal(new[] { 2, 4 }, comVagaAberta.Select(d => d.Id));
+    }
+
+    [Fact]
+    public void Time_nunca_aparece_como_vaga_em_aberto()
+    {
+        // Jogador2Id nulo num time não é vaga nenhuma — é a construção normal dele. Listá-lo
+        // faria o organizador procurar um parceiro que não existe.
         var time = Inscricao(9, comParceiro: false);
         time.NomeTime = "Nata Padel";
 
-        var timeNaEspera = Inscricao(10, comParceiro: false, naEspera: true);
-        timeNaEspera.NomeTime = "Clube dos Feras";
-
-        var todosOsCasos = new[]
-        {
-            Inscricao(1, comParceiro: true),                   // joga
-            Inscricao(2, comParceiro: false),                  // sem parceiro
-            Inscricao(3, comParceiro: true, naEspera: true),   // espera
-            Inscricao(4, comParceiro: false, naEspera: true),  // os dois defeitos juntos
-            time,                                              // time entra sem parceiro
-            timeNaEspera,                                      // time, mesmo marcado na espera
-        };
-
-        foreach (var d in todosOsCasos)
-            Assert.True(ForaDoSorteio.FicaDeFora(d) != naChave(d),
-                $"As duas escritas discordam sobre a dupla {d.Id} "
-                + $"(NomeTime={d.NomeTime ?? "null"}, Jogador2Id={d.Jogador2Id?.ToString() ?? "null"}, "
-                + $"EmListaDeEspera={d.EmListaDeEspera}).");
+        Assert.Empty(ForaDoSorteio.ComVagaEmAberto(new[] { time }));
     }
 }

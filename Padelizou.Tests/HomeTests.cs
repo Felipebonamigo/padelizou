@@ -69,6 +69,43 @@ public class HomeTests
         Assert.Equal("Copa Rolando", vm.EmAndamento[0].Nome);
     }
 
+    // ⚠️ A CONCATENAÇÃO DO ADVERSÁRIO É TRADUZIDA PRA SQL, e ela tinha `Jogador2!` — escrito
+    // quando dupla incompleta nunca chegava a ter jogo. Desde 09/09/2026 ela entra na chave, e
+    // no Postgres concatenar com NULL devolve NULL: o jogador abriria a Home e o card do
+    // próximo jogo não mostraria adversário NENHUM (não "Paulo e ", mas vazio).
+    //
+    // É o MESMO defeito que o comentário desta consulta já registra ter acontecido com TIME
+    // ("o adversário saía como 'Bonamigo e'"), e que foi resolvido lá excluindo times — a
+    // inscrição sem parceiro reabriu a porta por outro lado.
+    [Fact]
+    public async Task Proximo_jogo_mostra_o_adversario_que_esta_com_a_vaga_de_parceiro_aberta()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var eu = new Jogador { Nome = "Eu Mesmo", Cpf = "1" };
+        var parceiro = new Jogador { Nome = "Parceiro", Cpf = "2" };
+        var solo = new Jogador { Nome = "Paulo Prass", Cpf = "3" };
+        ctx.Jogadores.AddRange(eu, parceiro, solo);
+
+        var cat = NovaCategoria(ctx, "Copa", "Fase de Grupos");
+        var minhaDupla = new Dupla { CategoriaId = cat.Id, Jogador1Id = eu.Id, Jogador2Id = parceiro.Id };
+        var incompleta = new Dupla { CategoriaId = cat.Id, Jogador1Id = solo.Id, Jogador2Id = null };
+        ctx.Duplas.AddRange(minhaDupla, incompleta);
+        ctx.SaveChanges();
+
+        ctx.Partidas.Add(new Partida
+        {
+            CategoriaId = cat.Id, TorneioId = cat.TorneioId, Codigo = "J1", Fase = "Grupo A",
+            Dupla1Id = minhaDupla.Id, Dupla2Id = incompleta.Id, Status = "Agendada",
+            HorarioPrevisto = DateTime.Now.AddDays(1), NomeQuadra = "Quadra 2",
+        });
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, eu.Id);
+
+        Assert.NotNull(vm.ProximoJogo);
+        Assert.Equal("Paulo Prass", vm.ProximoJogo!.Adversarios);
+    }
+
     [Fact]
     public async Task Logado_ve_proximo_jogo_com_hora_quadra_e_adversarios()
     {

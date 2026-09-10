@@ -276,14 +276,14 @@ public static class MvpDoTorneio
 
     // Quem tem direito a votar: quem esteve NA CHAVE deste torneio.
     //
-    // ⚠️ `ForaDoSorteio.EstaNaChave` e `NomeTime == null`, a mesma régua do ranking e do resumo
+    // ⚠️ `InscricaoQueConta.Expressao` e `NomeTime == null`, a mesma régua do ranking e do resumo
     // do perfil: quem ficou na lista de espera ou sem parceiro se inscreveu e não jogou. Deixar
     // essa gente votar transformaria a eleição num concurso de quem cadastra mais amigos.
     public static async Task<HashSet<int>> EleitoresAsync(DbPadelContext contexto, int torneioId)
     {
         var duplas = await contexto.Duplas
             .AsNoTracking()
-            .Where(ForaDoSorteio.EstaNaChave)
+            .Where(InscricaoQueConta.Expressao)
             .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
             .Select(d => new { d.Jogador1Id, d.Jogador2Id })
             .ToListAsync();

@@ -59,12 +59,25 @@
     var minhasInscricoes = ViewBag.MinhasInscricoesNoTorneio
         as List<Padelizou.Services.InscricaoRepetida.Achado>;
 
-    // Quem o sorteio vai deixar de fora (sem parceiro ou na lista de espera). O GerarChaves
+    // Quem já entrou em quadra — a janela de fechar dupla (Services/JanelaDoParceiro) vai até
+    // a bola rolar pra AQUELA dupla, e o Razor não consulta banco. Anulável pelo mesmo motivo
+    // do `minhasInscricoes` logo acima: sem a chave, o botão some em vez de abrir sozinho.
+    var duplasQueJaJogaram = ViewBag.DuplasQueJaJogaram as HashSet<int>;
+
+    // Quem o sorteio vai deixar de fora — desde 09/09/2026, só a lista de espera. O GerarChaves
     // sempre filtrou isso, mas em silêncio — o organizador sorteava sem saber que ia deixar
     // gente na porta. A regra é lida do mesmo lugar que o sorteio usa, senão a tela prometeria
     // uma coisa e o sorteio faria outra.
     var ficamDeFora = Model.Categorias
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.Listar(c.Duplas))
+        .ToList();
+
+    // Quem ENTRA com a vaga de parceiro em aberto. É o aviso que substitui o antigo "sem
+    // parceiro fica de fora": eles não ficam mais de fora, entram — e cada um é um W.O.
+    // provável se o segundo nome não aparecer até o primeiro jogo. O organizador precisa ver
+    // quantos são ANTES de apertar o botão, que era exatamente pra isso que o alerta nasceu.
+    var comVagaEmAberto = Model.Categorias
+        .SelectMany(c => Padelizou.Services.ForaDoSorteio.ComVagaEmAberto(c.Duplas))
         .ToList();
 
     // Nome curto de dupla: primeiro nome de cada um. Usado nas listas densas (jogos do
@@ -74,7 +87,11 @@
         if (d == null) return "A definir";
         if (d.EhTime) return d.NomeTime ?? "Time";
         var p1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
-        var p2 = d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?";
+        // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha passou a ENTRAR na chave,
+        // então este texto virou coisa que o inscrito lê sobre si mesmo, na tabela do grupo.
+        // "Paulo / ?" parece dado corrompido; "Paulo / parceiro" diz o que é — vaga em aberto,
+        // esperando o segundo nome. Cabe no orçamento de ~17 caracteres da coluna da chave.
+        var p2 = d.Jogador2 == null ? "parceiro" : d.Jogador2.ComoChamar.Split(' ')[0];
         return $"{p1} / {p2}";
     };
 
@@ -87,6 +104,16 @@
     var detalheDeFora = ficamDeFora.Any()
         ? $"{ficamDeFora.Count} fica{(ficamDeFora.Count == 1 ? "" : "m")} de fora: {nomesDeFora}{(ficamDeFora.Count > 4 ? "…" : "")}"
         : null;
+
+    // A confirmação do sorteio precisa dizer as DUAS coisas, e a segunda é a que mudou de
+    // significado: quem está sem parceiro não fica mais na porta — entra, e pode virar W.O.
+    var nomesComVaga = string.Join(", ", comVagaEmAberto.Take(4)
+        .Select(d => d.Jogador1.ComoChamar.Split(' ')[0]));
+    var detalheComVaga = comVagaEmAberto.Any()
+        ? $"{comVagaEmAberto.Count} entra{(comVagaEmAberto.Count == 1 ? "" : "m")} sem parceiro: "
+          + $"{nomesComVaga}{(comVagaEmAberto.Count > 4 ? "…" : "")} — se não fechar a dupla até o primeiro jogo, é W.O."
+        : null;
+    var detalheDoSorteio = string.Join(" · ", new[] { detalheDeFora, detalheComVaga }.Where(t => t != null));
     var horarioOuOrdem = Model.SemHorarioPrevisto
         ? "Os jogos ganham horário, mas não quadra: você chama cada um conforme a quadra vaga."
         : "Os jogos ganham horário e quadra na hora.";
@@ -1316,8 +1343,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            `else` — e foi por isso que a regra nova ("quem já tem
                                            dupla nesta categoria não chama") não tinha onde entrar
                                            sem nascer em dois lugares. *@
-                                        @if (meuIdNaPagina != null && minhasInscricoes != null
-                                             && MuralDeParceiros.MotivoParaNaoChamar(dupla, Model.Status, meuIdNaPagina.Value, minhasInscricoes) == null
+                                        @* ⚠️ `duplasQueJaJogaram != null` pelo MESMO motivo do
+                                           `minhasInscricoes` acima: ViewBag é dynamic, e um
+                                           fallback vazio aqui significaria "a bola não rolou" —
+                                           o valor PERMISSIVO. Se a chave for renomeada, o botão
+                                           some (seguro) em vez de aparecer onde não deve. *@
+                                        @if (meuIdNaPagina != null && minhasInscricoes != null && duplasQueJaJogaram != null
+                                             && MuralDeParceiros.MotivoParaNaoChamar(dupla, Model, meuIdNaPagina.Value, minhasInscricoes,
+                                                    duplasQueJaJogaram.Contains(dupla.Id)) == null
                                              && !chamadosQueEuFiz.Contains(dupla.Id))
                                         {
                                             <form asp-controller="Duplas" asp-action="ChamarParaDupla" method="post" class="mt-1">
@@ -1354,13 +1387,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                     }
 
-                                    @* Desistir é do próprio inscrito, e só enquanto as
-                                       inscrições estão abertas — depois do sorteio a dupla já
-                                       está numa chave e sair é assunto do organizador.
-                                       Aparece só na SUA inscrição: no card dos outros seria
-                                       um botão pra tirar gente do torneio. *@
-                                    @if (meuIdNaPagina != null && Model.Status == "Inscrições Abertas"
-                                         && (dupla.Jogador1Id == meuIdNaPagina || dupla.Jogador2Id == meuIdNaPagina))
+                                    @* AS AÇÕES DA PRÓPRIA INSCRIÇÃO. Aparecem só na SUA: no card dos
+                                       outros, "desistir" seria um botão pra tirar gente do torneio.
+
+                                       ⚠️ DUAS JANELAS AQUI DENTRO, e misturá-las foi um defeito real
+                                       (achado em revisão adversarial, 09/09/2026): DESISTIR e trocar
+                                       IMPEDIMENTO seguem presos em "Inscrições Abertas" — depois do
+                                       sorteio a dupla está numa chave e sair é assunto do organizador.
+                                       Mas DEFINIR o parceiro que falta vale até a dupla entrar em
+                                       quadra, e esta cópia tinha ficado com a régua velha: o push que
+                                       o encerramento manda ("dá pra fechar pela página do torneio")
+                                       chegava numa tela sem botão nenhum — a promessa central da
+                                       mudança sem caminho pro Paulo. A cópia do organizador já tinha
+                                       sido repontada; esta não. *@
+                                    @{
+                                        var minhaInscricao = meuIdNaPagina != null
+                                            && (dupla.Jogador1Id == meuIdNaPagina || dupla.Jogador2Id == meuIdNaPagina);
+                                        var inscricoesAbertas = Model.Status == "Inscrições Abertas";
+                                        var podeDefinirNaMinha = duplasQueJaJogaram != null
+                                            && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
+                                                    dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
+                                    }
+                                    @if (minhaInscricao && (inscricoesAbertas || podeDefinirNaMinha))
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
 
@@ -1382,7 +1430,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                                            Time não entra: quem monta a lista é o organizador, e o
                                            "parceiro" de um time é a linha do próprio time. *@
-                                        @if (!dupla.EhTime)
+                                        @if (!dupla.EhTime && (podeDefinirNaMinha || (inscricoesAbertas && !sozinho)))
                                         {
                                             <div class="d-flex flex-wrap gap-2 mt-2">
                                                 @* QUEM ME CHAMOU, na própria inscrição.
@@ -1498,6 +1546,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </div>
                                         }
 
+                                        @* ⚠️ DAQUI PRA BAIXO, SÓ COM AS INSCRIÇÕES ABERTAS. O bloco de
+                                           fora passou a aceitar também a janela de definir parceiro, e
+                                           sem esta cerca o impedimento e o desistir vazariam pra depois
+                                           do sorteio — os dois mexem na grade já montada, e é por isso
+                                           que os controllers deles recusam ali. *@
+                                        @if (inscricoesAbertas)
+                                        {
                                         @* TROCAR O IMPEDIMENTO, até o fechamento das inscrições.
                                            🗣️ Felipe, 02/09/2026. O turno era escolhido uma vez, na
                                            inscrição, e não tinha volta — quem descobria o compromisso
@@ -1601,6 +1656,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     </button>
                                                 </form>
                                             </div>
+                                        }
                                         }
                                     }
                                 </div>
@@ -2438,6 +2494,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             são fixas e cada uma enfrenta todas as outras. Vence a que somar mais games.
                         </div>
 
+                        @* ⚠️ O AVISO DE QUEM ENTRA SEM PARCEIRO VALE AQUI TAMBÉM (09/09/2026). Ele
+                           nasceu só no ramo Padrão, e o Americano de Duplas lê a MESMA régua —
+                           então lá a meia dupla entrava no rodízio sem uma palavra na tela, e sem
+                           a saída de cancelar que o outro formato ganhou. *@
+                        <partial name="_EntramSemParceiro" model="comVagaEmAberto" />
+
                         @* Os números saem da MESMA régua do sorteio (Services/RodadasAmericanoDeDuplas
                            e ForaDoSorteio): o que a tela promete é o que o botão faz. *@
                         @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
@@ -2529,34 +2591,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <ul class="small mb-2 ps-3">
                                     @foreach (var d in ficamDeFora.Take(12))
                                     {
-                                        <li class="d-flex align-items-center justify-content-between gap-2">
-                                            <span>
-                                                <strong>@d.Jogador1.ComoChamar</strong>
-                                                @if (d.Jogador2 != null)
-                                                {
-                                                    <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
-                                                }
-                                                <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
-                                            </span>
-                                            @* Só quem está SEM PARCEIRO tem essa saída — "entrar igual" não
-                                               existe de verdade (dupla incompleta não é time, não joga
-                                               mata-mata), então a decisão que dá pra oferecer aqui é
-                                               cancelar a inscrição agora, com estorno se tiver pago. Quem
-                                               está na lista de espera não cancela por aqui: a vaga dela some
-                                               sozinha se ninguém desistir, e cancelar não é o problema dela. *@
-                                            @if (d.Jogador2 == null)
+                                        <li>
+                                            <strong>@d.Jogador1.ComoChamar</strong>
+                                            @if (d.Jogador2 != null)
                                             {
-                                                <form asp-controller="Torneios" asp-action="CancelarSemParceiro" method="post"
-                                                      data-confirmar-tom="perigo"
-                                                      data-confirmar-titulo="Cancelar esta inscrição?"
-                                                      data-confirmar="@(d.Jogador1.ComoChamar) sai do torneio e é avisado.@(d.Pago ? " O valor pago é estornado." : "") Não dá pra desfazer."
-                                                      data-confirmar-ok="Cancelar e estornar">
-                                                    <input type="hidden" name="duplaId" value="@d.Id" />
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
-                                                        Cancelar@(d.Pago ? " e estornar" : "")
-                                                    </button>
-                                                </form>
+                                                <text> e <strong>@d.Jogador2.ComoChamar</strong></text>
                                             }
+                                            <span class="text-muted">— @Padelizou.Services.ForaDoSorteio.Motivo(d)</span>
                                         </li>
                                     }
                                 </ul>
@@ -2565,12 +2606,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <p class="small text-muted mb-2">…e mais @(ficamDeFora.Count - 12).</p>
                                 }
                                 <p class="small mb-0">
-                                    Quem está <strong>sem parceiro</strong> ainda pode fechar a dupla; quem está
-                                    <strong>na lista de espera</strong> entra se alguém desistir. Depois de sortear,
-                                    não dá mais.
+                                    Quem está <strong>na lista de espera</strong> entra se alguém desistir.
+                                    Depois de sortear, não dá mais.
                                 </p>
                             </div>
                         }
+
+                        <partial name="_EntramSemParceiro" model="comVagaEmAberto" />
 
                         @* OS IMPEDIMENTOS, ANTES DE SORTEAR.
                            🗣️ Felipe, 02/09/2026: "para a hora de gerar as chaves, colocar uma lista
@@ -2628,10 +2670,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                            Os textos são montados no topo desta view. *@
                         <form asp-controller="Torneios" asp-action="GerarChaves" method="post"
                               data-confirmar-titulo="Sortear as chaves?"
-                              data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra, sai ou troca de parceiro."
+                              @* ⚠️ "NINGUÉM MAIS TROCA DE PARCEIRO" DEIXOU DE SER VERDADE em
+                                 09/09/2026, e metade continua verdade: ninguém mais ENTRA nem
+                                 SAI, e ninguém TROCA um parceiro que já tem — mas quem está com
+                                 a vaga aberta ainda DEFINE o segundo nome, até o primeiro jogo
+                                 dele. Prometer o contrário aqui faria o organizador achar que
+                                 sortear fecha a porta do Paulo, que é o oposto do que ele pediu. *@
+                              data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra nem sai, e quem já tem parceiro não troca — só quem está com a vaga aberta ainda pode definir o dele."
                               data-confirmar-ok="Sortear agora"
-                              data-confirmar-tom="@(ficamDeFora.Any() ? "perigo" : "padrao")"
-                              data-confirmar-detalhe="@detalheDeFora">
+                              data-confirmar-tom="@(ficamDeFora.Any() || comVagaEmAberto.Any() ? "perigo" : "padrao")"
+                              data-confirmar-detalhe="@detalheDoSorteio">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-primary fw-bold shadow-sm">
                                 <i class="bi bi-diagram-3-fill"></i> Sortear Grupos e Gerar Chaves
@@ -4398,6 +4446,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            "Definir por CPF" saía pela borda direita da tela. A linha
                                            da dupla COMPLETA tem três botões e cabia, que é por que o
                                            defeito passou despercebido desde 17/08. *@
+                                        @* DEFINIR o parceiro que falta vale até a dupla entrar em quadra
+                                           (09/09/2026) — e não até as inscrições encerrarem, como TROCAR.
+                                           A régua é a mesma que o servidor aplica (JanelaDoParceiro): sem
+                                           isso, a tela esconderia o botão que o controller aceitaria.
+
+                                           ⚠️ `duplasQueJaJogaram != null` porque ViewBag é dynamic: sem a
+                                           chave, o botão some (seguro) em vez de aparecer onde o servidor
+                                           vai recusar. *@
+                                        @{
+                                            var podeDefinirParceiro = duplasQueJaJogaram != null
+                                                && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
+                                                        dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
+                                            var podeTrocarParceiro = Model.Status == "Inscrições Abertas"
+                                                && !dupla.EhTime && dupla.Completa;
+                                        }
                                         <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto pdz-inscrito-acoes">
                                             @* Marcar pago vale em QUALQUER status: muita gente
                                                acerta o Pix depois das inscrições encerradas, e
@@ -4414,36 +4477,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </form>
                                             }
 
+                                            @* Time não tem parceiro pra convidar nem pra definir: quem monta a
+                                               lista é o organizador, na tela de times. Pior que inútil, era
+                                               perigoso — o time é gravado como Dupla com Jogador1Id = organizador
+                                               (ver TorneiosController.Times), então "Definir por CPF" num time
+                                               NÃO dava erro: pendurava um jogador na linha do time, calado. O
+                                               controller também recusa; isto aqui é só não oferecer.
+                                               (A régua `podeDefinirParceiro` já recusa time e dupla completa.) *@
+                                            @if (podeDefinirParceiro)
+                                            {
+                                                @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
+                                                   que a maioria vai usar, por isso vem antes do formulário de CPF.
+                                                   Contornado, e não preenchido de verde: com 25 duplas sem parceiro
+                                                   eram 25 botões berrantes, e destaque que se repete em toda linha
+                                                   deixa de ser destaque. *@
+                                                <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                        <i class="bi bi-link-45deg"></i> Convidar por link
+                                                    </button>
+                                                </form>
+                                            }
+                                            @if (podeDefinirParceiro || podeTrocarParceiro)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                                                        data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
+                                                    <i class="bi bi-arrow-left-right"></i>
+                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
+                                                </button>
+                                            }
                                             @if (Model.Status == "Inscrições Abertas")
                                             {
-                                                @* Time não tem parceiro pra convidar nem pra definir: quem monta a
-                                                   lista é o organizador, na tela de times. Pior que inútil, era
-                                                   perigoso — o time é gravado como Dupla com Jogador1Id = organizador
-                                                   (ver TorneiosController.Times), então "Definir por CPF" num time
-                                                   NÃO dava erro: pendurava um jogador na linha do time, calado. O
-                                                   controller também recusa; isto aqui é só não oferecer. *@
-                                                @if (!dupla.EhTime)
-                                                {
-                                                    @if (!dupla.Completa)
-                                                    {
-                                                        @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
-                                                           que a maioria vai usar, por isso vem antes do formulário de CPF.
-                                                           Contornado, e não preenchido de verde: com 25 duplas sem parceiro
-                                                           eram 25 botões berrantes, e destaque que se repete em toda linha
-                                                           deixa de ser destaque. *@
-                                                        <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
-                                                            <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                            <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
-                                                                <i class="bi bi-link-45deg"></i> Convidar por link
-                                                            </button>
-                                                        </form>
-                                                    }
-                                                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
-                                                            data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
-                                                        <i class="bi bi-arrow-left-right"></i>
-                                                        @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
-                                                    </button>
-                                                }
                                                 @* Só o ícone: "Remover" é a ação que ninguém procura e
                                                    a única sem volta. Escrita por extenso, ela puxava o
                                                    olho em toda linha e ainda era a que mais empurrava
@@ -4482,7 +4546,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                     </div>
 
-                                    @if (Model.Status == "Inscrições Abertas" && !dupla.EhTime)
+                                    @* A MESMA condição do botão que abre este collapse: se elas
+                                       divergirem, o botão aparece e não abre nada. *@
+                                    @if (podeDefinirParceiro || podeTrocarParceiro)
                                     {
                                         <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
                                             <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"

@@ -51,7 +51,8 @@
     string NomeDaDupla(Padelizou.Models.Dupla? d) =>
         d == null ? "A definir"
         : d.EhTime ? (d.NomeTime ?? "Time")
-        : $"{NomeCurto(d.Jogador1)} / {NomeCurto(d.Jogador2)}";
+        // Vaga em aberto (09/09/2026): "Paulo / ?" parecia dado corrompido.
+        : $"{NomeCurto(d.Jogador1)} / {(d.Jogador2 == null ? "parceiro" : NomeCurto(d.Jogador2))}";
 
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
@@ -101,9 +102,12 @@
             return html;
         }
 
+        // ⚠️ O SEGUNDO ROSTO SÓ EXISTE SE HOUVER SEGUNDA PESSOA (09/09/2026). Com a inscrição
+        // sozinha entrando na chave, `Foto(null)` devolvia o avatar padrão e a dupla incompleta
+        // aparecia com DUAS caras — uma delas de ninguém.
         html.AppendHtml($"<span class=\"pdz-jl-rostos\">"
             + $"<img class=\"pdz-jl-rosto\" src=\"{Foto(d.Jogador1)}\" alt=\"\" loading=\"lazy\" />"
-            + $"<img class=\"pdz-jl-rosto\" src=\"{Foto(d.Jogador2)}\" alt=\"\" loading=\"lazy\" />"
+            + (d.Jogador2 == null ? "" : $"<img class=\"pdz-jl-rosto\" src=\"{Foto(d.Jogador2)}\" alt=\"\" loading=\"lazy\" />")
             + "</span>");
 
         html.AppendHtml("<span class=\"pdz-jl-nome\">");
@@ -116,7 +120,10 @@
         }
         else
         {
-            html.Append("?");
+            // Vaga de parceiro em aberto (09/09/2026): a inscrição sozinha entra na chave, então
+            // esta lista passou a mostrá-la. "?" parecia dado corrompido; sem link porque não há
+            // perfil pra abrir.
+            html.Append("parceiro");
         }
 
         html.AppendHtml("</span>");

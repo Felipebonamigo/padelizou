@@ -121,9 +121,9 @@ namespace Padelizou.Controllers
                     }
                     continue;   // o caminho de duplas abaixo não vale pra times
                 }
-                // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
-                // nomes) e confirmada. Quem está na lista de espera ou ainda sem parceiro
-                // continua inscrito, mas fora das chaves.
+                // Quem entra no sorteio: todo mundo com vaga confirmada. Desde 09/09/2026 a
+                // inscrição SEM PARCEIRO entra também, ocupando a vaga dela com a segunda posição
+                // em aberto (ver Services/ForaDoSorteio) — só a lista de espera fica fora.
                 var duplas = categoria.Duplas.Where(d => !ForaDoSorteio.FicaDeFora(d)).ToList();
 
                 // CORREÇÃO DA REGRA DE OURO:
@@ -177,9 +177,17 @@ namespace Padelizou.Controllers
                 //
                 // ⚠️ SORTEIA O DESEMPATE, NÃO A ORDEM INTEIRA: quem tem ranking continua
                 // semeado por ranking, que é o que impede dois favoritos no mesmo grupo.
+                // ⚠️ O SEGUNDO JOGADOR PODE NÃO EXISTIR (09/09/2026): dupla inscrita sozinha
+                // entra na chave com a vaga em aberto. Aqui morava `d.Jogador2Id!.Value`, e o
+                // `!` só calava o compilador — no primeiro sorteio com inscrição sozinha isso
+                // era `InvalidOperationException` e um 500 na cara do organizador, antes de
+                // gravar grupo nenhum. Quem tem meia dupla soma meia semeadura, que é o certo:
+                // o ranking dela é só o do jogador que existe.
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
-                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
+                                          + (d.Jogador2Id is int parceiro
+                                              ? pontosPorJogador.GetValueOrDefault(parceiro)
+                                              : 0))
                     .ThenBy(_ => Guid.NewGuid())
                     .ToList();
 
@@ -380,6 +388,19 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // ⚠️ TIME NÃO PASSA POR AQUI, e a checagem tem que vir ANTES da de `Completa`:
+            // `Dupla.Completa` é `Jogador2Id != null`, e TODO time tem esse campo nulo — então
+            // um time entrava por esta porta como se fosse inscrição sozinha. A tela nunca
+            // desenha o botão (ForaDoSorteio.ComVagaEmAberto exclui time), mas um POST montado à
+            // mão apagaria a linha do time e ainda mandaria "Você saiu do torneio" pro
+            // Jogador1Id dela — que é o próprio organizador. A régua irmã escrita no mesmo dia
+            // (JanelaDoParceiro) já tinha essa guarda; esta nasceu sem.
+            if (dupla.EhTime)
+            {
+                TempData["Erro"] = "Time não se cancela por aqui — use \"Gerenciar times e estrutura\".";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             if (dupla.Completa)
             {
                 TempData["Erro"] = "Esta dupla já tem os dois parceiros — cancele pela lista de inscritos.";
@@ -415,14 +436,88 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // ⚠️ A FATURA ABERTA MORRE COM A INSCRIÇÃO. O bloco do estorno acima só roda quando
+            // `dupla.Pago` — mas no torneio que "garante a vaga e cobra depois" a inscrição NÃO
+            // paga tem uma cobrança pendente viva no gateway, com link válido até o prazo. Sem
+            // isto ela sobrevivia ao cancelamento: o jogador pagava depois de já ter sido
+            // removido, o dinheiro entrava, a dupla não existia mais, e o
+            // EfetivarPagamentoDeInscricaoAsync caía no LogError que pede devolução à mão.
+            //
+            // `EstornarTotalAsync` já sabe tratar cobrança Pendente: ali ela é CANCELADA no
+            // gateway (o link morre), sem movimentar dinheiro nenhum.
+            if (!dupla.Pago
+                && await FaturaAbertaDaInscricaoAsync(torneioId, dupla.Id) is { } faturaAberta
+                && !string.IsNullOrWhiteSpace(faturaAberta.AsaasPaymentId))
+            {
+                if (!await _pagamentos.EstornarTotalAsync(faturaAberta))
+                {
+                    // Não dá pra seguir e apagar a inscrição: o link continuaria valendo e
+                    // ninguém mais teria tela pra matá-lo depois que a dupla sumir.
+                    TempData["Erro"] = "Não consegui cancelar a cobrança em aberto dessa inscrição. "
+                        + "Tente de novo em instantes — remover a inscrição com a fatura de pé deixaria "
+                        + "ele pagando por uma vaga que não existe mais.";
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
+
+                avisoDoDinheiro = " A cobrança em aberto dele foi cancelada.";
+            }
+
+            // ⚠️ QUEM CHAMOU NO MURAL PRECISA SABER, E A CASCATA NÃO AVISA NINGUÉM. Apagar a
+            // dupla leva junto os ChamadosDoMural dela (FK Cascade, ver DbPadelContext) — e é
+            // justamente a inscrição SOZINHA que acumula chamado. Sem isto, quem se candidatou
+            // fica esperando resposta de uma vaga que não existe mais e não procura outra: o
+            // mesmo silêncio que o Felipe mandou cortar em 17/08/2026 ("quem chamou fica
+            // ESPERANDO"). O caminho gêmeo já faz isso — ver FecharDuplaComAsync, que lê os ids
+            // ANTES do RemoveRange pelo mesmo motivo.
+            //
+            // Texto próprio: aqui ninguém recusou ninguém e a vaga não foi preenchida — a
+            // inscrição deixou de existir. As duas frases prontas do mural diriam algo falso.
+            var candidatosDoMural = await _context.ChamadosDoMural
+                .Where(c => c.DuplaId == dupla.Id)
+                .Select(c => c.CandidatoId)
+                .ToListAsync();
+
             await TirarDuplaDoTorneioAsync(dupla, torneio,
                 $"O organizador cancelou sua inscrição em {torneio.Nome} porque você ficou sem parceiro até "
                 + "o sorteio das chaves."
                 + (avisoDoDinheiro == null && dupla.Pago ? " O valor pago foi estornado." : ""));
 
+            if (candidatosDoMural.Count > 0)
+            {
+                await AvisarAsync(candidatosDoMural, "A inscrição saiu do torneio",
+                    $"A inscrição de {nome} em {torneio.Nome} foi cancelada, então o seu pedido pra "
+                    + "fechar dupla não tem mais resposta. Tem outras inscrições procurando parceiro "
+                    + "por lá — toque pra ver.", torneio.Id);
+            }
+
             TempData["Sucesso"] = $"Inscrição de {nome} cancelada."
                 + (avisoDoDinheiro ?? (dupla.Pago ? " Valor estornado." : ""));
             return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // De quem é cada fatura pendente do "pagar depois"? Só o JSON sabe — ver
+        // CobrancaDaDupla.PendentesDoPagarDepois pro porquê de a consulta parar no filtro grosso.
+        private async Task<Pagamento?> FaturaAbertaDaInscricaoAsync(int torneioId, int duplaId)
+        {
+            foreach (var pagamento in await CobrancaDaDupla.PendentesDoPagarDepois(_context, torneioId).ToListAsync())
+            {
+                try
+                {
+                    var dados = System.Text.Json.JsonSerializer
+                        .Deserialize<DadosPagamentoDeInscricao>(pagamento.DadosInscricao!);
+                    if (dados?.DuplaId == duplaId) return pagamento;
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    // Mesmo tratamento do PagamentoInscricaoService.Desserializar: uma linha
+                    // estragada não pode derrubar o cancelamento das outras — mas ela FICA no log,
+                    // porque é a única pista de que existe fatura sem dono identificável.
+                    _logger.LogError(ex, "DadosInscricao inválidos no pagamento {Id} — não dá pra saber "
+                        + "de qual inscrição é essa cobrança em aberto.", pagamento.Id);
+                }
+            }
+
+            return null;
         }
 
         // ── CONFERIR A GRADE ──────────────────────────────────────────────────────────────
@@ -1053,7 +1148,7 @@ namespace Padelizou.Controllers
                 // tela prometia 22 grupos e 98 jogos num torneio que tem bem menos.
                 if (categoria.ChaveDireta)
                 {
-                    int naChave = categoria.Duplas.Count(d => d.Jogador2Id != null && !d.EmListaDeEspera);
+                    int naChave = categoria.Duplas.Count(d => !ForaDoSorteio.FicaDeFora(d));
                     if (naChave < 2) continue;
 
                     duplas += naChave;
@@ -1061,8 +1156,18 @@ namespace Padelizou.Controllers
                     continue;
                 }
 
-                // Dupla sem parceiro ainda não é uma dupla: não entra em grupo nenhum.
-                int daCategoria = categoria.Duplas.Count(d => d.Jogador2Id != null);
+                // ⚠️ A MESMA RÉGUA DO SORTEIO, LIDA DO MESMO LUGAR (`ForaDoSorteio`), e isso é o
+                // conserto de um defeito de 09/09/2026: aqui a régua estava COPIADA À MÃO
+                // (`d.Jogador2Id != null`), então quando a inscrição sem parceiro passou a entrar
+                // na chave o grep pelo nome da régua não alcançou esta linha. A previsão continuou
+                // prometendo a grade das duplas FECHADAS enquanto o sorteio fazia a de todas —
+                // menos grupos, menos jogos, menos quadra alugada, no painel que diz com todas as
+                // letras que "os números são REAIS".
+                //
+                // E errava nos DOIS sentidos: sem o filtro de lista de espera, contava dupla
+                // fechada que o sorteio deixa de fora. Num cenário com uma sozinha e uma na espera
+                // os dois erros se cancelavam — foi assim que a suíte ficou verde.
+                int daCategoria = categoria.Duplas.Count(d => !ForaDoSorteio.FicaDeFora(d));
                 var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
 
                 duplas += daCategoria;

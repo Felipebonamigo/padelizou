@@ -66,7 +66,7 @@ public static class RodadasAmericanoDeDuplas
 
     public static string ComoFica(int duplas)
     {
-        if (!Aceita(duplas)) return "precisa de pelo menos 2 duplas completas pra ter jogo.";
+        if (!Aceita(duplas)) return "precisa de pelo menos 2 inscrições pra ter jogo.";
 
         var descanso = duplas % 2 != 0 ? " Número ímpar: uma dupla descansa por rodada." : "";
         return $"{duplas} duplas — {Rodadas(duplas)} rodadas, {Partidas(duplas)} jogos, "

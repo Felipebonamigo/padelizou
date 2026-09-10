@@ -192,8 +192,10 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in torneio.Categorias.Where(c => !c.DeTimes))
             {
-                // Mesma régua do sorteio padrão (Services/ForaDoSorteio): só entra dupla
-                // fechada e fora da lista de espera.
+                // Mesma régua do sorteio padrão (Services/ForaDoSorteio): entra todo mundo com
+                // vaga confirmada. Desde 09/09/2026 isso inclui a inscrição SEM PARCEIRO, que
+                // ocupa a vaga dela no rodízio com a segunda posição em aberto — só a lista de
+                // espera fica fora.
                 var prontas = categoria.Duplas
                     .Where(d => !ForaDoSorteio.FicaDeFora(d))
                     .Select(d => d.Id)
@@ -233,7 +235,7 @@ namespace Padelizou.Controllers
 
             if (jogos.Count == 0)
             {
-                TempData["Erro"] = "Nenhuma categoria tem duplas completas suficientes pra sortear.";
+                TempData["Erro"] = "Nenhuma categoria tem inscrições suficientes pra sortear.";
                 return RedirectToAction("Details", new { id = torneioId });
             }
 

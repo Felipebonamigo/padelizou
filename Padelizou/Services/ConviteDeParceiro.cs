@@ -25,19 +25,25 @@ public static class ConviteDeParceiro
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 
-    // O convite vale enquanto: existe token, a dupla ainda não tem parceiro e as inscrições
-    // do torneio estão abertas.
+    // O convite vale enquanto: existe token, a dupla ainda não tem parceiro e a janela de
+    // definir parceiro não fechou (ver Services/JanelaDoParceiro).
     //
-    // Não há prazo em dias de propósito: o fim das inscrições JÁ é o prazo natural, e um
-    // prazo menor faria o link morrer com o torneio ainda aberto — quem tentasse usar veria
-    // "convite expirado" sem entender por quê, num torneio em que ainda dá pra se inscrever.
-    // Aceitar o convite limpa o token, então um link usado não fecha uma segunda dupla.
-    public static bool Valido(Dupla? dupla, string? statusDoTorneio, string? token)
+    // Não há prazo em dias de propósito: a janela JÁ é o prazo natural, e um prazo menor faria
+    // o link morrer com o torneio ainda aberto — quem tentasse usar veria "convite expirado"
+    // sem entender por quê. Aceitar o convite limpa o token, então um link usado não fecha uma
+    // segunda dupla.
+    //
+    // ⚠️ A JANELA DEIXOU DE SER "INSCRIÇÕES ABERTAS" (09/09/2026): a dupla sem parceiro passou
+    // a entrar na chave, e o link precisa continuar valendo até a bola rolar pra ela — é o
+    // caminho mais comum de fechar a vaga em cima da hora (o dono manda o link no WhatsApp).
+    //
+    // ⚠️ `jaComecouAJogar` NÃO TEM VALOR PADRÃO, pelo mesmo motivo escrito no MuralDeParceiros:
+    // `false` é o valor PERMISSIVO, e um chamador esquecido abriria o convite sozinho, calado.
+    public static bool Valido(Dupla? dupla, Torneio? torneio, string? token, bool jaComecouAJogar)
     {
         if (dupla == null || string.IsNullOrWhiteSpace(token)) return false;
         if (string.IsNullOrWhiteSpace(dupla.ConviteToken)) return false;
-        if (dupla.Jogador2Id != null) return false;
-        if (statusDoTorneio != "Inscrições Abertas") return false;
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) != null) return false;
 
         return TokenConfere(dupla.ConviteToken, token);
     }
@@ -58,13 +64,14 @@ public static class ConviteDeParceiro
     }
 
     // Por que o convite não serve mais — a mensagem que a pessoa lê ao abrir um link velho.
-    // Distinguir os motivos importa: "já tem parceiro" e "inscrições encerradas" levam a
-    // ações diferentes (falar com quem convidou × procurar outro torneio).
-    public static string MotivoDeNaoValer(Dupla? dupla, string? statusDoTorneio)
+    // Distinguir os motivos importa: "já tem parceiro" e "a dupla já jogou" levam a ações
+    // diferentes (falar com quem convidou × procurar outro torneio).
+    public static string MotivoDeNaoValer(Dupla? dupla, Torneio? torneio, bool jaComecouAJogar)
     {
         if (dupla == null) return "Esse convite não existe mais.";
         if (dupla.Jogador2Id != null) return "Essa dupla já está completa — alguém aceitou antes.";
-        if (statusDoTorneio != "Inscrições Abertas") return "As inscrições deste torneio já foram encerradas.";
+        if (JanelaDoParceiro.MotivoParaNaoDefinir(dupla, torneio, jaComecouAJogar) is { } foraDaJanela)
+            return foraDaJanela;
         return "Esse convite não vale mais. Peça um link novo pra quem te convidou.";
     }
 }
