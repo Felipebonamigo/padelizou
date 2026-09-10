@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
+using System.Collections.Concurrent;
 
 namespace Padelizou.Services;
 
@@ -42,6 +43,59 @@ public class EncerramentoDaPartida
     // Os endereços que o push leva. Vêm de fora porque quem sabe montar rota é o controller;
     // este serviço não carrega IUrlHelper só pra isso.
     public record LinksDoAviso(string? DoTorneio, string? DaListaDeJogos);
+
+    // ── UM FINALIZAR DE CADA VEZ POR TORNEIO ──────────────────────────────────────────────
+    //
+    // ⚠️ Ensaio do Er (10/09/2026, anomalia C1): dois POSTs iguais de "finalizar" no último
+    // jogo de grupo — clique duplo, duas abas, ou a fila offline da Mesa reentregando — criaram
+    // a Semifinal DUAS VEZES (4 jogos em vez de 2), e a Final nunca ia nascer: o robô de avanço
+    // espera as 4 semis, devolve 4 vencedores, "Semifinal" já existe, para. As guardas que
+    // existiam ("já finalizada" no controller; `mataMataJaGerado` e `AnyAsync(proximaFase)` no
+    // robô) são check-then-insert: cada requisição tem o próprio DbContext, as duas passam pela
+    // checagem antes de qualquer uma gravar, e as duas gravam.
+    //
+    // A trava é EM PROCESSO (a app roda num processo só por ambiente — mesmo arranjo da
+    // TravaDeEntrada) e POR TORNEIO. Por torneio, e não por partida, porque dois jogos
+    // DIFERENTES da mesma categoria terminando juntos caem no mesmo buraco: cada um vê o outro
+    // já finalizado e os dois montam a fase. Nada de lock no banco: a suíte roda em EF InMemory,
+    // que não tem `FOR UPDATE`.
+    //
+    // ⚠️ ONDE ELA COMEÇA É O QUE IMPORTA: ANTES de o controller carregar a partida. A guarda "já
+    // finalizada" só vale se a leitura é feita com a trava na mão — quem carrega antes de
+    // esperar fica com o status de antes de o outro gravar, e passa. Por isso quem finaliza
+    // (Mesa, Controle de Placar e W.O.) toma isto no TOPO da ação, com `using var`, e segura até
+    // o último `return`: carregar → checar → gravar → robô, tudo dentro. A partida tem que ser o
+    // PRIMEIRO toque daquele contexto nela — consulta sobre entidade já rastreada devolve a
+    // instância velha, trava ou não; a chave (o TorneioId) sai de uma projeção justamente
+    // porque projeção não rastreia nada.
+    //
+    // Sem torneio (jogo avulso) não há robô e não há trava: devolve um descartável vazio.
+    //
+    // atalho: o dicionário nunca esvazia — uma SemaphoreSlim por torneio que finalizou jogo
+    // desde que o processo subiu. Teto real: centenas de torneios por ano; a saída, se um dia
+    // pesar, é remover a entrada quando ninguém mais espera nela.
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> _travaPorTorneio = new();
+
+    public static async Task<IDisposable> UmDeCadaVezPorTorneioAsync(int? torneioId)
+    {
+        if (torneioId is not int id) return TravaTomada.Nenhuma;
+
+        var trava = _travaPorTorneio.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        await trava.WaitAsync();
+        return new TravaTomada(trava);
+    }
+
+    private sealed class TravaTomada : IDisposable
+    {
+        public static readonly TravaTomada Nenhuma = new(null);
+
+        private SemaphoreSlim? _trava;
+
+        public TravaTomada(SemaphoreSlim? trava) => _trava = trava;
+
+        // Solta uma vez só, mesmo que alguém descarte duas vezes.
+        public void Dispose() => Interlocked.Exchange(ref _trava, null)?.Release();
+    }
 
     // `partida` já está com Status "Finalizada" e VencedorId gravados.
     // `acabouDeTerminar` separa "o jogo ACABOU agora" de "alguém corrigiu um placar antigo":
@@ -143,10 +197,43 @@ public class EncerramentoDaPartida
     {
         var campeao = await _context.Duplas.FindAsync(vencedorId);
         if (campeao != null) campeao.UltimaFase = "Campeao";
+        await _context.SaveChangesAsync();
+
+        await FinalizarOTorneioSeAcabouEmTodasAsCategoriasAsync(torneioId);
+    }
+
+    // O TORNEIO SÓ ACABA QUANDO ACABA EM TODAS AS CATEGORIAS.
+    //
+    // ⚠️ Ensaio do Er (10/09/2026, anomalia C2): até aqui a PRIMEIRA final que terminava
+    // carimbava `Status = "Finalizado"` no torneio inteiro. Final da 4ª Feminina às 12:10 de
+    // sábado, 1 de 12 — e /Torneios listou o Er em "Finalizados", disse "nenhum torneio em
+    // andamento", a votação de MVP abriu e a Home do jogador perdeu o card "Seus torneios", com
+    // ele ainda tendo duas finais por jogar.
+    //
+    // O carimbo da CATEGORIA (campeã com UltimaFase = "Campeao", cards, campanha do Padelímetro)
+    // continua na hora, por categoria — só o do TORNEIO espera.
+    //
+    // A régua é "não sobra jogo por jogar em categoria nenhuma", e não "toda categoria tem
+    // campeão": categoria sem jogo (uma inscrição só, nunca sorteada) não teria campeão nunca e
+    // seguraria o torneio pra sempre. `Partida.Status` é Agendada / AoVivo / Finalizada — não há
+    // "cancelada" pra descontar. E a partida que acabou de terminar já está gravada como
+    // Finalizada quando se chega aqui: as três telas salvam antes de chamar AplicarAsync.
+    //
+    // Quem lê "Finalizado" (MvpDoTorneio, MovimentoNoRanking, AvisoDoMvpBackgroundService,
+    // JanelaDoParceiro, CancelamentoDoTorneio, a Home) não muda: cada um deles supõe que o
+    // carimbo é o fim de verdade, e agora é. O Reabrir de uma final devolve "Fase de Grupos"
+    // (PartidasController.ReabrirPartida) e a final refeita passa por aqui de novo — fecha o
+    // ciclo. Os quatro carimbos do Americano em RoboDoChaveamento continuam incondicionais.
+    private async Task FinalizarOTorneioSeAcabouEmTodasAsCategoriasAsync(int torneioId)
+    {
+        bool aindaTemJogo = await _context.Partidas
+            .AnyAsync(p => p.TorneioId == torneioId && p.Status != "Finalizada");
+        if (aindaTemJogo) return;
 
         var torneio = await _context.Torneios.FindAsync(torneioId);
-        if (torneio != null) torneio.Status = "Finalizado";
+        if (torneio == null) return;
 
+        torneio.Status = "Finalizado";
         await _context.SaveChangesAsync();
     }
 
@@ -182,9 +269,11 @@ public class EncerramentoDaPartida
             }
         }
 
-        if (torneio != null) torneio.Status = "Finalizado";
-
         await _context.SaveChangesAsync();
+
+        // Mesma régua da final do mata-mata: o desempate fecha a CATEGORIA; o torneio só
+        // fecha quando não sobra rodada em nenhuma outra.
+        await FinalizarOTorneioSeAcabouEmTodasAsCategoriasAsync(torneioId);
     }
 
     // Fim de jogo: avisa quem jogou e quem acompanha esses jogadores. É o momento em que o

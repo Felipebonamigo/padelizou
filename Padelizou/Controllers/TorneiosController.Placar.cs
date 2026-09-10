@@ -245,6 +245,18 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null,
             int? games1 = null, int? games2 = null)
         {
+            // UM FINALIZAR DE CADA VEZ POR TORNEIO (ensaio do Er, 10/09/2026, anomalia C1 — o
+            // porquê inteiro está em EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync). A trava
+            // vem ANTES de carregar a partida e segura até o último `return`: a guarda "já
+            // finalizada" logo abaixo só enxerga o que a outra requisição gravou porque a carga
+            // de baixo é a primeira leitura desta partida neste contexto — a chave sai de uma
+            // projeção, que não rastreia nada.
+            var torneioDaPartida = await _context.Partidas
+                .Where(p => p.Id == partidaId)
+                .Select(p => p.TorneioId)
+                .FirstOrDefaultAsync();
+            using var travaDoTorneio = await EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync(torneioDaPartida);
+
             // Usando _context.Partidas (Plural)
             var partida = await _context.Partidas
                 .Include(p => p.Dupla1)

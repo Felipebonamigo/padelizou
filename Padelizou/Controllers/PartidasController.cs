@@ -347,6 +347,15 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RegistrarWo(int id, int duplaQueNaoCompareceuId, string? voltarPara = null)
         {
+            // UM FINALIZAR DE CADA VEZ POR TORNEIO (ensaio do Er, 10/09/2026, anomalia C1 — ver
+            // EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync): a trava vem ANTES da carga, que
+            // é a primeira leitura desta partida neste contexto, e segura até o último `return`.
+            var torneioDaPartida = await _context.Partidas
+                .Where(p => p.Id == id)
+                .Select(p => p.TorneioId)
+                .FirstOrDefaultAsync();
+            using var travaDoTorneio = await EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync(torneioDaPartida);
+
             var partida = await _context.Partidas
                 .Include(p => p.Categoria).ThenInclude(c => c.Torneio)
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -575,6 +584,18 @@ namespace Padelizou.Controllers
         // mãe (Inscritos, Grupos, Chaves) sumiam e ele achava que tinha perdido o caminho.
         public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null)
         {
+            // UM FINALIZAR DE CADA VEZ POR TORNEIO (ensaio do Er, 10/09/2026, anomalia C1 — ver
+            // EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync): a trava vem ANTES do FindAsync,
+            // que é a primeira leitura desta partida neste contexto, e segura até o último
+            // `return`. Vale pra todo POST desta tela, e não só pro "Finalizada", de propósito:
+            // um salvar de placar que entrasse no meio de um finalizar do mesmo torneio veria
+            // metade do estado.
+            var torneioDaPartida = await _context.Partidas
+                .Where(p => p.Id == id)
+                .Select(p => p.TorneioId)
+                .FirstOrDefaultAsync();
+            using var travaDoTorneio = await EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync(torneioDaPartida);
+
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
 
