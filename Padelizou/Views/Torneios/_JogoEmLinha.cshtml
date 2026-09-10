@@ -166,7 +166,7 @@
                ⚠️ A guarda é a ETIQUETA, e não `NomeQuadra`: jogo por ordem de chegada não tem
                quadra e MESMO ASSIM tem lugar. Perguntar pela quadra era o que fazia os 97
                jogos do 2º Etapa não dizerem uma palavra sobre onde (Felipe, 09/09/2026). *@
-            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra) is { } ondeJoga)
+            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId) is { } ondeJoga)
             {
                 <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @ondeJoga</span>
             }
