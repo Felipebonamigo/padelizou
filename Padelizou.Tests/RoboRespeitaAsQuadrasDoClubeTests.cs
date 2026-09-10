@@ -148,6 +148,39 @@ public class RoboRespeitaAsQuadrasDoClubeTests
             .Where(p => p.TorneioId == c.Torneio.Id && p.HorarioPrevisto == As(hora))
             .ToListAsync();
 
+    // A QUADRA QUE O BALCÃO DEU É DECISÃO DO BALCÃO (10/09/2026, revisão adversarial do ensaio).
+    //
+    // No "por ordem" o jogo "Agendada" que JÁ TEM quadra foi chamado pelo balcão: as duplas estão
+    // caminhando pra quadra. O reencaixe dos "fora de ordem" (uma rodada de posto menor nascendo
+    // depois) zerava hora e quadra desse jogo e o empurrava pra depois — a Final da 7ª, chamada
+    // pra Arena 3 às 11:20, sumia da quadra no minuto em que a Semifinal da 3ª nascia. Jogo com
+    // quadra no por ordem fica onde está, como o jogo em quadra.
+    [Fact]
+    public async Task No_por_ordem_o_jogo_agendado_que_ja_tem_quadra_do_balcao_nao_e_reencaixado()
+    {
+        var c = MontarOEr();
+
+        JaMarcados(c, c.Presa, "Grupo A", "10:30", 2, status: "Finalizada");
+        JaMarcados(c, c.Livre, "Grupo A", "10:30", 3, status: "Finalizada");
+        JaMarcados(c, c.Livre, "Semifinal", "10:30", 2, status: "Finalizada");
+
+        // A Final da categoria livre (posto maior), chamada pelo balcão pra Arena 3 às 11:20.
+        var final = Jogo(c, c.Livre, "Final");
+        final.HorarioPrevisto = As("11:20");
+        final.NomeQuadra = "Arena 3";
+        final.ClubeId = c.Er.Id;
+        c.Ctx.Partidas.Add(final);
+        await c.Ctx.SaveChangesAsync();
+
+        // Nasce a Semifinal da presa (posto menor): a Final acima está "fora de ordem".
+        var novos = RodadaNova(c, c.Presa, "Semifinal", 2);
+        await AgendarAsync(c, novos);
+
+        var depois = await c.Ctx.Partidas.SingleAsync(p => p.Id == final.Id);
+        Assert.Equal(As("11:20"), depois.HorarioPrevisto);
+        Assert.Equal("Arena 3", depois.NomeQuadra);
+    }
+
     // O caso do ensaio: sábado 11:20, cinco jogos "Er Padel" já marcados sem quadra, Radar aberto e
     // vazio. A rodada nova de uma categoria que PODE ir pro Radar tem que ir pra lá — e não virar a
     // sexta e a sétima "Arena".

@@ -461,6 +461,15 @@ public class RoboDoChaveamento
         var todos = await _context.Partidas.Where(p => p.TorneioId == torneioId).OrderBy(p => p.Id).ToListAsync();
         var forasDeOrdem = LevasDaGrade.ForaDeOrdem(todos, OrdemDasFases.Posto(jogos[0].Fase));
 
+        // ⚠️ NO "POR ORDEM", QUADRA ESCRITA É O BALCÃO CHAMANDO (10/09/2026, revisão adversarial do
+        // ensaio do Er): nesse modo o jogo nasce sem quadra, e o "Agendada" que JÁ TEM quadra foi
+        // chamado pelo balcão — as duplas estão caminhando pra ela. Reencaixá-lo zerava hora e
+        // quadra e o empurrava pra depois, no minuto em que outra categoria fechava uma fase (a
+        // Final chamada pra Arena 3 sumia da quadra quando a Semifinal da 3ª nascia). Fica onde
+        // está, como o jogo em quadra: quem manda a partir da chamada é o balcão.
+        if (torneio != null && OrdemDeLiberacao.Vale(torneio))
+            forasDeOrdem = forasDeOrdem.Where(p => string.IsNullOrWhiteSpace(p.NomeQuadra)).ToList();
+
         // ── A RESERVA DO ORGANIZADOR (10/09/2026, Models/ReservaDeHorario) ─────────────────
         // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"*. A troca
         // feita numa eliminatória que ainda não existia mora numa reserva, e é AQUI que ela vira
