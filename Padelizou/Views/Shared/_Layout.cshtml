@@ -606,6 +606,8 @@
        formulário ter data-confirmar. Ver Views/Shared/_ModalConfirmar.cshtml. *@
     <partial name="_ModalConfirmar" />
     <script src="~/js/confirmar.js" asp-append-version="true"></script>
+    @* Só faz algo na tela que tem o modal de trocar horário — sai calado nas outras. *@
+    <script src="~/js/impacto-da-troca.js" asp-append-version="true"></script>
     @if (User.Identity?.IsAuthenticated == true)
     {
         @* O push.js religa sozinho a inscrição de quem já autorizou os avisos, e pra isso
