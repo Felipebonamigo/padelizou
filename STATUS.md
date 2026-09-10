@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 👥 **QUEM SE INSCREVE SOZINHO ENTRA NA CHAVE, e o parceiro entra até o primeiro jogo.**
+> Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-880-aca0a92`** (22h48 e 22h49 de Brasília). PR #116, os dois erros do print do prod logo depois do build-875 — e o deploy de `prod` **levou junto o PR #115** (inscrição solo, da sessão paralela) — em `dev` ele já estava desde 22h25, pelo `build-878-dbf8af0` que a sessão paralela instalou (run 123, só `dev`); `prod` pulou do 875 pro 880. **Sem migration.**
+>
+> 🕐 **UM JOGO DE GRUPO RETARDATÁRIO NÃO SEGURA MAIS AS ELIMINATÓRIAS DO TORNEIO INTEIRO.** 🗣️ *"os jogos estao terminando no sabado 19:40 por que? nao deveria, é pra ir ate as 23h"*. Os grupos fechavam 19h40 de sábado e UM jogo de grupo (3ª Feminina, Grupo B) caía em 08h de domingo — impedimento ou concentração da dupla. A barreira de posto era o `Max` dos horários, então TODAS as eliminatórias esperavam esse jogo e a noite de sábado ficava vazia: o oposto do *"a menos que fique horario vazio"* que abriu a ordem das fases. Agora o fim de um posto é o fim do **BLOCO** dele (`OrdemDasFases.FimDoBloco`): um horário inteiro vazio seguido de **menos de uma rodada** de jogos separa os retardatários. Os três lugares que calculam barreira leem a mesma função (`LevasDaGrade`, `ProximasFasesDaChave`, `AuditoriaDaGrade`), e o **Conferir grade ganhou a regra "Jogo retardatário"** — é o jogo pra mexer na mão.
+>
+> ⚠️ **O LIMIAR DE UMA RODADA É O OUTRO LADO DA MOEDA, e não é folga minha:** um horário vazio no MEIO da fase (o encaixe não achou jogo que coubesse nele — descanso, impedimento), seguido de dezenas de jogos, é a fase seguindo. Cortar o bloco ali mandaria as eliminatórias pro meio dos grupos, que é exatamente a queixa de 09/09 de manhã. O corte anda do fim pro começo e para no primeiro buraco que não é de retardatário. E só um horário INTEIRO vazio é buraco: jogo mexido na mão pra 20h13 não parte o bloco.
+>
+> 🏟️ **A PRÉVIA ESCOLHE QUADRA COM AS RÉGUAS DA GRADE DE VERDADE.** 🗣️ *"no domingo (dia 13/09) nao tem radar, o radar vai ser só no sabado"* — e a tela mostrava *Oitavas de Final 3 · Radar · Radar 1* às 08h de domingo, com o selo **prévia**, e pra 4ª Masculina. `GradeDeJogos.Encaixar` já respeitava a janela e a trava de clube; `ProximasFasesDaChave.Agendar` pegava a primeira quadra livre pelo NOME e contava capacidade como se todas abrissem o dia inteiro. Com `Sedes` na configuração ela faz as mesmas duas perguntas (quadra aberta neste horário? categoria pode jogar nela?), o domingo do Er tem 5 vagas por horário e não 7, e o jogo previsto carrega a categoria pra etiqueta escrever o clube.
+>
+> 🧪 **5.873 testes, 0 falhas (16 novos).** Vistos vermelhos antes: *"'FimDoBloco' não existe"*, *"a prévia deixou a noite de sábado vazia e começou 13/09 08:00"*, *"a grade deixou a noite de sábado vazia"*, *"o Radar só abre na manhã de sábado, e a prévia prometeu: Oitavas de Final 6 12/09 20:30 Radar 1"*, *"a 4ª fica no Er Padel, e a prévia mandou pro Radar"*. ⚠️ O teste antigo da prévia (`A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria`) passou a ter uma RODADA de grupo no dia 15 em vez de um jogo só — um jogo só depois de um buraco é retardatário, por definição.
+>
+> ⏭️ **NO TORNEIO DO ER (prod):** o Conferir grade agora nomeia o retardatário (Grupo B da 3ª Feminina, 13/09 08h). Mexer na mão pra sábado se a restrição da dupla permitir; se não, deixa — as eliminatórias não esperam mais por ele. Depois: Tirar do externo na 3ª e 4ª → Refazer grade → Conferir grade → **Aprovar chaves**.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima sessão seguida.
+
+> **10/09/2026** — 👥 **QUEM SE INSCREVE SOZINHO ENTRA NA CHAVE, e o parceiro entra até o primeiro jogo.**
 >
 > 🗣️ **Felipe, olhando o card do Paulo na 3ª do Er:** *"mas nesse caso, tem q manter o Paulo, ele vai colocar o parceiro dele depois"*. Antes disso a inscrição sozinha era **filtrada do sorteio em silêncio**; a decisão que a tela oferecia era só cancelar.
 >
