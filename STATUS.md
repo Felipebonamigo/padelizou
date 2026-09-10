@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
+>
+> ✅ **O CORTE É POR QUANDO A AÇÃO ACONTECE, e é o que faz a escolha dele fechar.** Fica na barra o trabalho do **dia de jogo**, com o clube esperando: ▶ começar, ⇄ trocar de horário com outro jogo (choveu, a dupla não veio), 📍 mudar de quadra, ✏️ marcar placar — um toque cada. Vai pro menu o trabalho de **antes**, montando a grade sentado: o relógio (digitar a hora) e as setas ↑↓.
+>
+> 📏 **MEDIDO NO CHROMIUM, e a barra agora é UMA linha de 360px pra cima** (era duas desde as setas). Aos 320px continuam duas: 5 botões de 48px pedem 259px e o cartão oferece 221px — não tem conta que resolva sem encolher o alvo de dedo.
+>
+> 🕳️ **A MEDIÇÃO PEGOU UM DEFEITO QUE O TESTE NÃO PEGARIA: o menu aberto media 356px** e encostava nas duas bordas de um celular de 390px. Causa: `.pdz-jl-setas` continuava `display: flex` — a regra que servia na barra punha "Subir uma linha" e "Descer uma linha" **lado a lado**. Virou `flex-direction: column` e o menu foi pra 222px. ⚠️ Sem abrir o menu no navegador isso passaria: o Razor está certo, o CSS é que estava aplicando uma regra de outro contexto.
+>
+> ⚠️ **AS SETAS GANHARAM RÓTULO ESCRITO** ("Subir uma linha" / "Descer uma linha"). Na barra, ↑ e ↓ lado a lado se explicavam; numa lista vertical, "↑" sozinho não diz nem para onde nem o quê.
+>
+> ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
+>
+> 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+>
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
 >
@@ -58,8 +75,6 @@
 >
 > 🧪 **Os dois caminhos do passo foram rodados aqui, com o corpo do YAML extraído e executado em `bash -e`:** com o `palpitrometro.js` corrigido, `TUDO VERDE` e `exit=0`; com o `palpitrometro.js` de antes da trava (`git show HEAD~1`), as 3 conferências vermelhas viram 3 `::error::JS:` e `exit=1`. ⚠️ **Não é o CI de verdade** (não dá pra rodar o Actions daqui) — é o mesmo script no mesmo shell.
 >
-> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
->
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-970-8847871`** (14h51 e 14h53 de Brasília — runs 176 e 178). PR #152. ✅ **SEM MIGRATION.**
 >
 > 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
@@ -81,7 +96,6 @@
 > ⚠️ **O `main` ANDOU DEPOIS DO MEU MERGE, e o `build-970` NÃO leva o que veio depois** (PRs #154 e #149, mesclados minutos adiante). Foi pedido **pela tag**, e não como "o mais recente", justamente por isso — havia três sessões mesclando na mesma meia hora. Nada foi revertido: o `build-970` descende dos `build-958`/`961`/`962` que já estavam no ar.
 >
 > 🕳️ **E FICA ANOTADA UMA ARMADILHA NOVA DA API DE ACTIONS: a listagem de runs atrasa.** Disparei o `dev`, recebi `204`, listei os runs e **não achei o meu** — concluí que o 204 não tinha virado run (é a lição que o STATUS já registrava) e disparei de novo. Os dois viraram run: **176 e 177, o mesmo `build-970` instalado duas vezes seguidas no `dev`**. Sem dano (é o mesmo pacote), mas o certo é **esperar e reconsultar** antes de redisparar: `204` continua não sendo prova, e a ausência na listagem também não é prova do contrário. Quem confirma de verdade é o **log do job** (`==> Feito. build-970-8847871 no ar em dev`), não a lista.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >
