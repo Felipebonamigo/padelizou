@@ -75,6 +75,24 @@ public class TrocaDeHorarioTests
         Assert.Equal(2, b.ClubeId);
     }
 
+    // 🗣️ *"quando eu altero um jogo, no mesmo horario, ele nao esta trocando a ordem na linha"*
+    // (Felipe, 10/09/2026). Quem toma o slot do outro toma o LUGAR DELE na linha
+    // (Services/OrdemNoHorario) — senão o jogo mudava de hora e reaparecia numa posição que
+    // ninguém escolheu. É por aqui que o reparo da grade também preserva a fila.
+    [Fact]
+    public void A_troca_leva_a_posicao_dentro_do_horario_junto()
+    {
+        var a = Jogo(1, horaEm: 10);
+        a.OrdemNoHorario = 1;
+        var b = Jogo(2, horaEm: 10);
+        b.OrdemNoHorario = 2;
+
+        TrocaDeHorario.Trocar(a, b);
+
+        Assert.Equal(2, a.OrdemNoHorario);
+        Assert.Equal(1, b.OrdemNoHorario);
+    }
+
     // E a categoria que fica em casa (a 3ª, a 4ª) não pode ser mandada pro slot do local
     // alugado por uma troca na mão — a grade automática não faria isso, e a troca também não.
     private static SedesDoTorneio SedesDoEr(params Categoria[] categorias) =>

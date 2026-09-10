@@ -1113,7 +1113,21 @@ namespace Padelizou.Controllers
                 ocupadas,
                 reservadas);
 
-            return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
+            // A POSIÇÃO DENTRO DO HORÁRIO QUE O ORGANIZADOR GRAVOU PRA CADA PRÉVIA (10/09/2026).
+            // Ela mora na reserva, junto com a hora e a quadra dela — e é lida AQUI, e não dentro
+            // do motor da projeção: aquele decide QUANDO o jogo cai; em que posição da linha o
+            // organizador quer vê-lo é assunto da tela (Services/OrdemNoHorario).
+            var ordemReservada = reservas
+                .Where(r => r.OrdemNoHorario != null)
+                .ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero), r => r.OrdemNoHorario);
+
+            return projetados
+                .Select(j => j.CategoriaId is int categoria
+                             && ordemReservada.TryGetValue((categoria, j.Fase, j.Numero), out var ordem)
+                    ? j with { OrdemNoHorario = ordem }
+                    : j)
+                .OrderBy(j => j.Horario ?? DateTime.MaxValue)
+                .ToList();
         }
 
         // O jogador está NESTA dupla? Usado pra saber se ele venceu ou perdeu um jogo já
@@ -1314,7 +1328,17 @@ namespace Padelizou.Controllers
             // de flutuar em ordem arbitrária no meio da lista.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
                 .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
-            ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
+            // ⚠️ A FILA SAI DE Services/OrdemNoHorario, E NÃO DE UM `OrderBy(HorarioPrevisto)` SOLTO
+            // (10/09/2026). Aquele ordenava só pela hora, sobre uma lista que veio do Postgres SEM
+            // `ORDER BY`: dois jogos no mesmo minuto saíam na ordem que o banco quisesse — e ela
+            // muda sozinha depois de um UPDATE. 🗣️ *"se tem semifinal 1 e semifinal 2 no mesmo
+            // horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*.
+            // É a MESMA régua que as setas ↑↓ usam pra achar o vizinho: duas contas de "quem vem
+            // antes" fariam a seta mover o jogo pra um lugar diferente do que a tela mostrou.
+            ViewBag.Agendadas = OrdemNoHorario
+                .Ordenar(partidas.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Select(l => l.Jogo!)
+                .ToList();
 
             // ⚠️ A projeção parte do torneio INTEIRO, não da lista filtrada: a chave de uma
             // categoria só se desenha com todos os jogos dela na mão, e filtrar antes deixaria

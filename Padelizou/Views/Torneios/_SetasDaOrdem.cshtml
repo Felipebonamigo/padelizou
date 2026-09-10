@@ -1,0 +1,29 @@
+@model (int TorneioId, string Referencia, string? VoltarPara)
+@*
+    ↑↓ — MOVER O JOGO UMA LINHA NA LISTA (10/09/2026).
+
+    🗣️ Felipe, arrumando o domingo do Er: *"quando eu altero um jogo, no mesmo horario, ele nao
+    esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu
+    quiser"*; e *"só cuide q se colocar o jogo pra cima, ele mude o horario e quadra tb se tiver"*.
+
+    Um formulário só, dois submits: o que muda é o `direcao`. E é o MESMO markup pro jogo real e
+    pra prévia — o que difere é a referência (Services/ReferenciaDoJogo), como no ⇄ e no relógio.
+
+    Sem confirmação de propósito: a seta é reversível pela seta contrária, e um diálogo a cada
+    linha tornaria inviável arrumar sete semifinais. Quem avisa é o resultado — a mensagem diz o
+    que a mexida fez com o Conferir grade (Services/ImpactoDaTroca).
+*@
+<form asp-controller="Torneios" asp-action="MoverNoHorario" method="post" class="pdz-jl-setas">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" value="@Model.TorneioId" />
+    <input type="hidden" name="jogo" value="@Model.Referencia" />
+    <input type="hidden" name="voltarPara" value="@Model.VoltarPara" />
+    <button type="submit" name="direcao" value="cima" class="btn btn-sm btn-outline-secondary"
+            title="Subir uma linha" aria-label="Subir uma linha">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+    <button type="submit" name="direcao" value="baixo" class="btn btn-sm btn-outline-secondary"
+            title="Descer uma linha" aria-label="Descer uma linha">
+        <i class="bi bi-arrow-down"></i>
+    </button>
+</form>

@@ -37,6 +37,25 @@ public partial class Partida
     public string Fase { get; set; } = "Fase de Grupos";
 
     public DateTime? HorarioPrevisto { get; set; }
+
+    // A POSIÇÃO DESTE JOGO DENTRO DO PRÓPRIO HORÁRIO (10/09/2026).
+    //
+    // 🗣️ Felipe, arrumando o domingo do Er: *"quando eu altero um jogo, no mesmo horario, ele nao
+    // esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu
+    // quiser"*. Num torneio "por ordem de liberação" (Services/OrdemDeLiberacao) a quadra é nula:
+    // cinco jogos no mesmo minuto eram cinco linhas sem nenhum critério entre si, e o ⇄ entre dois
+    // deles trocava hora por hora igual, quadra nula por quadra nula — não mudava nada.
+    //
+    // Nulo = AUTOMÁTICO, e o automático é o que ele pediu de padrão: "a Semifinal 1 antes da 2",
+    // que é a ordem de Id (a mesma de ReservasDeHorario.NumeroNaFase). Quem tem número gravado
+    // vem antes de quem não tem — a numeração é 1..k a partir do topo do horário, então "sem
+    // número" só pode significar "abaixo dos numerados". A régua inteira está em
+    // Services/OrdemNoHorario, que é quem ordena a lista da tela.
+    //
+    // ⚠️ Some com o "Recalcular horários": ele refaz a grade do zero e desfaz as trocas na mão —
+    // a ordem manual é uma delas.
+    public int? OrdemNoHorario { get; set; }
+
     public DateTime? HorarioInicioReal { get; set; }
     public DateTime? HorarioFimReal { get; set; }
 
