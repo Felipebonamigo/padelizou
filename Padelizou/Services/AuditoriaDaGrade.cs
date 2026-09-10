@@ -218,7 +218,19 @@ public static class AuditoriaDaGrade
         //     jogo em quadra, então o "Refazer grade" das 20h13 põe jogos novos em 20:13 ao lado
         //     dos antigos em 20:00. A tela dizia "Nada fora do lugar" exatamente ali, que é onde
         //     o organizador aperta o botão.
+        //   • E QUEM NÃO ESTÁ NO MAPA OCUPA A QUADRA COMO ELE MESMO (10/09/2026). O time fica de
+        //     fora do mapa de propósito (acima), mas "fora do mapa" não é "não ocupa quadra":
+        //     `GradeDeJogos.Encaixar` e `RoboDoChaveamento` caem na identidade da própria dupla
+        //     (`-duplaId`) e é assim que a grade evita chamar o MESMO time pra duas quadras. Aqui
+        //     a dupla fora do mapa era PULADA, e o buraco não era só de tela: o `ReparoDaGrade`
+        //     pesa por esta régua, então o mesmo time em dois jogos ao mesmo tempo custava ZERO e
+        //     o reparo trocava de graça um impedimento por um choque que ele não enxergava.
+        //     Medido em ~1 de 60 sorteios do Interno, sempre criado pelo reparo
+        //     (ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_
+        //     mesma_grade). O `-duplaId` é negativo pra nunca colidir com um JogadorId de verdade.
         var ocupantes = RoboDoChaveamento.OcupantesPorDupla(duplas);
+        int[] Ocupam(int duplaId) =>
+            ocupantes.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0 ? pessoas : new[] { -duplaId };
         var duracao = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
 
         // O NOME DA PESSOA (10/09/2026). 🗣️ Felipe, com 14 "Alguém joga…" na tela: *"os horarios eu
@@ -229,7 +241,10 @@ public static class AuditoriaDaGrade
             if (d.Jogador1 != null) nomeDaPessoa[d.Jogador1Id] = d.Jogador1.NomeNaTela;
             if (d.Jogador2Id is int j2 && d.Jogador2 != null) nomeDaPessoa[j2] = d.Jogador2.NomeNaTela;
         }
-        string Pessoa(int id) => nomeDaPessoa.TryGetValue(id, out var nome) ? nome : $"jogador {id}";
+        // Quem ocupa a quadra "como ele mesmo" (o time) entra pelo `-duplaId`, e aí o nome que o
+        // organizador precisa ler é o do TIME — "jogador -12" não diz nada a ninguém.
+        string Pessoa(int id) => id < 0 ? Nome(-id)
+            : nomeDaPessoa.TryGetValue(id, out var nome) ? nome : $"jogador {id}";
         string Rotulo(Partida j) => $"{j.Fase} ({Nome(j.Dupla1Id)} × {Nome(j.Dupla2Id)})";
 
         var agenda = new Dictionary<int, List<(DateTime Quando, Partida Jogo)>>();
@@ -239,9 +254,7 @@ public static class AuditoriaDaGrade
 
             foreach (var duplaId in new[] { jogo.Dupla1Id, jogo.Dupla2Id })
             {
-                if (!ocupantes.TryGetValue(duplaId, out var pessoas)) continue;
-
-                foreach (var pessoa in pessoas)
+                foreach (var pessoa in Ocupam(duplaId))
                 {
                     if (!agenda.TryGetValue(pessoa, out var quandos))
                         agenda[pessoa] = quandos = new List<(DateTime, Partida)>();

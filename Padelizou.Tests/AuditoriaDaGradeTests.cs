@@ -453,6 +453,56 @@ public class AuditoriaDaGradeTests
         Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos);
     }
 
+    // 🕳️ O OUTRO LADO DA GUARDA ACIMA, E ELE ESTAVA ABERTO (10/09/2026). Deixar o time fora do
+    // mapa de pessoas evita que todo time brigue com todo time — mas aqui a auditoria PULAVA a
+    // dupla que não está no mapa (`if (!ocupantes.TryGetValue(...)) continue;`) em vez de cair na
+    // identidade do próprio time, que é o que `GradeDeJogos.Encaixar` e `RoboDoChaveamento` fazem
+    // (`new[] { -duplaId }`). Resultado: o MESMO time em duas quadras no mesmo horário custava
+    // ZERO — o "Conferir grade" dizia "nada fora do lugar" e o `ReparoDaGrade`, que pesa por esta
+    // mesma régua, podia CRIAR o choque de graça.
+    //
+    // Medido: `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_
+    // mesma_grade` falhava ~1 em 60 sorteios, sempre com dois times chamados pra duas quadras ao
+    // mesmo tempo, e sempre depois do reparo (antes dele, zero).
+    [Fact]
+    public void Acusa_o_MESMO_time_marcado_em_dois_jogos_ao_mesmo_tempo()
+    {
+        var organizador = 777;
+        var times = new[]
+        {
+            TimeDe(1, organizador), TimeDe(2, organizador),
+            TimeDe(3, organizador), TimeDe(4, organizador),
+        };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(18), quadra: "Quadra 1"),
+            Jogo(1, 3, Sabado.AddHours(18), quadra: "Quadra 2"),   // o time 1 em duas quadras
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, times, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos);
+        // Quem lê a tela precisa saber QUE time é — "jogador -1" não diz nada a ninguém.
+        Assert.Contains("Time 1", achado.Descricao);
+    }
+
+    // E o time seguido de si mesmo sem a folga da régua é "jogos seguidos", como qualquer pessoa.
+    [Fact]
+    public void Acusa_o_MESMO_time_em_jogos_seguidos_sem_descanso()
+    {
+        var organizador = 777;
+        var times = new[] { TimeDe(1, organizador), TimeDe(2, organizador), TimeDe(3, organizador) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(18), quadra: "Quadra 1"),
+            Jogo(1, 3, Sabado.AddHours(18).AddMinutes(50), quadra: "Quadra 1"),   // emendado
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, times, SedesDoTorneio.Nenhuma);
+
+        Assert.Contains(achados, a => a.Regra == AuditoriaDaGrade.JogosSeguidos);
+    }
+
     // Um TIME: `NomeTime` preenchido e `Jogador2Id` nulo, com o organizador no `Jogador1Id` —
     // exatamente como TorneiosController.Times grava.
     private static Dupla TimeDe(int id, int organizadorId) => new()
