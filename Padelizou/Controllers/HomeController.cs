@@ -121,6 +121,8 @@ namespace Padelizou.Controllers
             // cobre o jogo atrasado do dia: ainda é "o próximo" até alguém finalizar.
             var corte = DateTime.Now.AddHours(-2);
             vm.ProximoJogo = await _context.Partidas
+                // Chave ainda não aprovada não é "seu próximo jogo" — ver AprovacaoDeChaves.Publicada.
+                .Where(AprovacaoDeChaves.Publicada)
                 .Where(p => p.HorarioPrevisto != null && p.HorarioPrevisto >= corte
                          && p.Status != "Finalizada"
                          // ⚠️ Dupla-TIME fora. Na categoria de times o `Jogador1Id` é o

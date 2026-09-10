@@ -80,6 +80,56 @@ public class ConcentracaoNaoPodeSerEspremidaTests
             + $"{doConcentrado.HorarioPrevisto:dd/MM 'às' HH:mm}");
     }
 
+    // ⚠️ A PRIORIDADE NÃO PODE COMPRAR O DESCANSO (10/09/2026). 🗣️ Felipe, num print dos grupos
+    // do Er em produção: *"varios jogos seguidos, temos q evitar isso, acho que ja tem uma regra
+    // pra isso, nao?"* — Alexandre/Felipe 21:20 e 22:10, Maickel/Rodrigo 12:10 e 13:00.
+    //
+    // 🕳️ Tinha a regra (OrdemDasRodadas, 07/09: intercalar os grupos por rodada), e a prioridade
+    // da concentração passou por cima dela: ela puxa os DOIS jogos da dupla pra frente da fila, e
+    // o segundo entra no horário seguinte ao primeiro. "Os 2 jogos na sexta à noite" quer dizer
+    // no mesmo TURNO — a sexta tem sete rodadas, cabe folga —, não colados.
+    [Fact]
+    public void Dupla_concentrada_nao_joga_dois_horarios_seguidos_quando_o_turno_tem_espaco()
+    {
+        var torneio = Torneio();
+
+        var duplas = new List<Dupla>
+        {
+            new() { Id = 1001, ConcentrarJogosEm = TurnoDeConcentracao.SextaNoite },
+            new() { Id = 1002 }, new() { Id = 1003 },
+        };
+        for (int id = 2001; id <= 2030; id++) duplas.Add(new Dupla { Id = id });
+
+        // A concentrada joga DUAS vezes (grupo de 3), e a fila tem outros 15 jogos sem restrição
+        // — mais que o suficiente pra ocupar o horário entre os dois dela.
+        var jogos = new List<Partida>
+        {
+            new() { Codigo = "C1", Fase = "Grupo B", CategoriaId = 1, Dupla1Id = 1001, Dupla2Id = 1002 },
+            new() { Codigo = "C2", Fase = "Grupo B", CategoriaId = 1, Dupla1Id = 1001, Dupla2Id = 1003 },
+        };
+        for (int id = 2001; id <= 2029; id += 2)
+            jogos.Add(new Partida { Codigo = $"L{id}", Fase = "Grupo A", CategoriaId = 1, Dupla1Id = id, Dupla2Id = id + 1 });
+
+        var concentracao = ConcentracaoDeJogos.De(torneio, duplas);
+        var horarios = VagasDaGrade.Montar(torneio, torneio.AberturaDaGrade, jogos.Count,
+            peloMenosAte: concentracao.AteQuando,
+            jogosComJanela: VagasDaGrade.JogosComJanela(jogos, porDupla: concentracao.Janelas));
+
+        GradeDeJogos.Encaixar(jogos, horarios, Duracao,
+            ocupantesPorDupla: null, quadras: null, jaMarcados: null, quadrasPorCategoria: null,
+            janelasProibidasPorDupla: null, sedes: null,
+            janelasSoNosGruposPorDupla: concentracao.Janelas);
+
+        var daConcentrada = jogos.Where(j => j.Dupla1Id == 1001).Select(j => j.HorarioPrevisto!.Value).OrderBy(h => h).ToList();
+        var sexta = new DateTime(2026, 9, 11);
+
+        Assert.All(daConcentrada, h => Assert.Equal(sexta, h.Date));             // os 2 na sexta
+        var folga = (daConcentrada[1] - daConcentrada[0]).TotalMinutes / Duracao;
+        Assert.True(folga >= GradeDeJogos.HorariosDeDescanso + 1,
+            $"a dupla concentrada jogou {daConcentrada[0]:HH:mm} e {daConcentrada[1]:HH:mm} — "
+            + $"{folga - 1:0} horário(s) de descanso, e a régua pede {GradeDeJogos.HorariosDeDescanso}");
+    }
+
     [Fact]
     public void Sem_ninguem_concentrado_a_ordem_da_fila_e_a_de_sempre()
     {

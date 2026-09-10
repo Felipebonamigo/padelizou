@@ -38,6 +38,12 @@ public static class AuditoriaDaGrade
     // pedaço da lista. Agora é uma pergunta que ele faz sozinho, em qualquer torneio.
     public const string FaseForaDeOrdem = "Fase fora de ordem";
 
+    // 🗣️ Felipe, 10/09/2026: *"varios jogos seguidos, temos q evitar isso [...] é bom ter um botão
+    // para 'ver jogos seguidos da mesma pessoa'"*. O botão é esta tela; a régua é a folga que a
+    // grade promete (GradeDeJogos.HorariosDeDescanso), aplicada por PESSOA como a de "dois jogos
+    // ao mesmo tempo".
+    public const string JogosSeguidos = "Jogos seguidos";
+
     // `Quando` fica separado do texto pra tela poder ordenar por ele — o organizador lê a grade
     // no relógio, não em ordem alfabética de regra.
     public record Achado(string Regra, string Descricao, DateTime? Quando);
@@ -204,7 +210,21 @@ public static class AuditoriaDaGrade
             for (int i = 1; i < ordenados.Count; i++)
             {
                 var (antes, depois) = (ordenados[i - 1], ordenados[i]);
-                if (depois - antes >= duracao || !jaAvisado.Add((antes, depois))) continue;
+                if (!jaAvisado.Add((antes, depois))) continue;
+
+                // Seguidos, sem a folga da régua: não se sobrepõem (isso é o achado abaixo), mas
+                // entre um e outro passam menos horários do que a grade promete.
+                var folga = duracao * GradeDeJogos.HorariosDeDescanso;
+                if (depois - antes >= duracao && depois - antes < duracao + folga)
+                {
+                    achados.Add(new Achado(JogosSeguidos,
+                        $"Alguém joga {antes:dd/MM 'às' HH:mm} e de novo {depois:HH:mm} — "
+                        + $"{(depois - antes - duracao).TotalMinutes / duracao.TotalMinutes:0} horário(s) de "
+                        + $"descanso, e a grade promete {GradeDeJogos.HorariosDeDescanso}.", antes));
+                    continue;
+                }
+
+                if (depois - antes >= duracao) continue;
 
                 achados.Add(new Achado(PessoaEmDoisJogos,
                     $"Alguém está escalado {antes:dd/MM 'às' HH:mm} e de novo {depois:HH:mm} — "

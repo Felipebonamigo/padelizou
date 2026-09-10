@@ -343,6 +343,9 @@ namespace padelizou.Controllers
                 // reais — mais útil que o marcador acima, mas nem toda partida tem isso definido,
                 // daí o evento de torneio acima servir de garantia mesmo quando este não aparecer.
                 var partidas = await _context.Partidas
+                    // ⚠️ Chave ainda não aprovada fica FORA do calendário: o Google/Apple Calendar
+                    // notifica evento novo, e foi por aqui que o horário chegou antes da hora.
+                    .Where(AprovacaoDeChaves.Publicada)
                     .Where(p => p.HorarioPrevisto != null
                              && p.Status != "Finalizada"
                              && (p.Dupla1.Jogador1Id == jogador.Id || p.Dupla1.Jogador2Id == jogador.Id ||

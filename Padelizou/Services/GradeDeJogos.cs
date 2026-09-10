@@ -477,7 +477,34 @@ public static class GradeDeJogos
 
             bool Serve(Partida p) => Livre(p) && SemCorreria(p) && TemOndeJogar(p) && !RepetiriaOExterno(p);
 
-            var jogo = fila.FirstOrDefault(p => ConcentradoNesteTurno(p) && Serve(p))
+            // ⚠️ A PRIORIDADE NÃO COMPRA O DESCANSO (10/09/2026). 🗣️ Felipe, nos grupos do Er em
+            // produção: *"varios jogos seguidos, temos q evitar isso, acho que ja tem uma regra
+            // pra isso, nao?"*. Tinha — a intercalação por rodada de OrdemDasRodadas — e a
+            // prioridade acima passava por cima dela: puxava os DOIS jogos da dupla concentrada
+            // pra frente da fila, e o segundo entrava no horário seguinte ao primeiro. "Os 2
+            // jogos na sexta à noite" quer dizer no mesmo TURNO (a sexta tem sete rodadas), não
+            // colados. Então a prioridade só vale pra quem DESCANSOU o que a régua pede; a dupla
+            // que acabou de sair de quadra volta pra fila comum e entra na vaga seguinte que
+            // couber — ainda dentro do turno dela.
+            bool Descansou(int pessoa) =>
+                !ocupados.TryGetValue(pessoa, out var agenda)
+                || !agenda.Any(a => a.Quando < horario && a.Quando >= horario - duracao * HorariosDeDescanso);
+
+            bool DescansaramTodos(Partida p) =>
+                Ocupantes(p.Dupla1Id).All(Descansou) && Ocupantes(p.Dupla2Id).All(Descansou);
+
+            // ⚠️ E NO PASSO GERAL A DUPLA CONCENTRADA TAMBÉM ESPERA O DESCANSO, se houver outro jogo
+            // que caiba. SÓ ELA, de propósito: a régua global de "quem descansou mais primeiro" foi
+            // medida PIOR três vezes (cabeçalho de DescansoNaGradeTests — empurra os cansados pro
+            // fim, onde só sobram eles). Aqui é um limiar de dois horários, restrito a quem a
+            // prioridade acima tirou da ordem intercalada; todo o resto continua na ordem de
+            // OrdemDasRodadas, que é a que dá o descanso a eles.
+            bool TemConcentrado(Partida p) =>
+                janelasSoNosGruposPorDupla != null
+                && (janelasSoNosGruposPorDupla.ContainsKey(p.Dupla1Id) || janelasSoNosGruposPorDupla.ContainsKey(p.Dupla2Id));
+
+            var jogo = fila.FirstOrDefault(p => ConcentradoNesteTurno(p) && DescansaramTodos(p) && Serve(p))
+                    ?? fila.FirstOrDefault(p => Serve(p) && (!TemConcentrado(p) || DescansaramTodos(p)))
                     ?? fila.FirstOrDefault(Serve);
 
             if (jogo == null)

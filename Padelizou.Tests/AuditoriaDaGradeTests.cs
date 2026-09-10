@@ -138,6 +138,44 @@ public class AuditoriaDaGradeTests
         Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.FaseForaDeOrdem);
     }
 
+    // 🗣️ Felipe, 10/09/2026, nos grupos do Er em produção: *"varios jogos seguidos, temos q evitar
+    // isso [...] os horarios eu vou trocar na mão por enquanto, mas é bom ter um botão para 'ver
+    // jogos seguidos da mesma pessoa'"*. O botão é o Conferir grade; esta é a régua dele. A régua
+    // de "dois jogos ao mesmo tempo" já existia; "seguidos" é a mesma pergunta com a folga que a
+    // grade promete (GradeDeJogos.HorariosDeDescanso) em vez de zero.
+    [Fact]
+    public void Mesma_pessoa_em_dois_horarios_seguidos_e_acusada()
+    {
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21), Dupla(3, 30, 31) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(9)),                        // 09:00
+            Jogo(1, 3, Sabado.AddHours(9).AddMinutes(50)),         // 09:50 — a dupla 1 de novo, sem folga
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.JogosSeguidos);
+        Assert.Contains("09:00", achado.Descricao);
+        Assert.Contains("09:50", achado.Descricao);
+    }
+
+    [Fact]
+    public void Com_a_folga_da_regua_nao_e_jogo_seguido()
+    {
+        // 09:00 e 11:30 com partida de 50 min: dois horários inteiros de folga (09:50 e 10:40).
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21), Dupla(3, 30, 31) };
+        var jogos = new[]
+        {
+            Jogo(1, 2, Sabado.AddHours(9)),
+            Jogo(1, 3, Sabado.AddHours(11).AddMinutes(30)),
+        };
+
+        var achados = AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.JogosSeguidos);
+    }
+
     // Grade limpa não inventa achado — é o caso que o organizador vai ver na maioria das vezes,
     // e uma tela que sempre acha alguma coisa deixa de ser lida.
     [Fact]

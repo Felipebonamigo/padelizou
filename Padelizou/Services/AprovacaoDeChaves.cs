@@ -15,4 +15,23 @@ namespace Padelizou.Services;
 public static class AprovacaoDeChaves
 {
     public const string Pendente = "Chaves em Aprovação";
+
+    // O JOGO JÁ É PÚBLICO? — o predicado ÚNICO de todo leitor da grade que fala com jogador
+    // (10/09/2026).
+    //
+    // 🗣️ Felipe: *"chegou a notificação de horarios para as pessoas, e nao poderia chegar, lembra
+    // que pedi para nao chegar as notificações e nem nada até publicar?"* — e o print: a Home
+    // dizendo "Seu próximo jogo: sáb. 12/09 às 08:00" com o torneio em "Chaves em Aprovação".
+    //
+    // 🕳️ O `AprovarChaves` era o único que AVISAVA, e por isso parecia fechado. Mas três leitores
+    // entregavam o horário sem olhar a aprovação: a agenda/ICS (o calendário do celular notifica
+    // evento novo — foi a notificação que chegou), o "próximo jogo" da Home e o push de quadra
+    // atrasada. A mesma lição da aba Jogos, de horas antes: régua de visibilidade escrita num
+    // lugar protege aquele lugar, não o dado. Daí uma expressão só, traduzível pro SQL, que cada
+    // leitor põe no `Where`.
+    //
+    // Pelo caminho `Categoria.Torneio`, e não por `Partida.TorneioId`: este é nulo em partida
+    // fora de torneio (jogo semanal), e a categoria é obrigatória.
+    public static readonly System.Linq.Expressions.Expression<Func<Models.Partida, bool>> Publicada =
+        p => p.Categoria.Torneio.Status != Pendente;
 }
