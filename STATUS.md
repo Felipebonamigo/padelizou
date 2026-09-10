@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ✅ **MESCLADO no `main` (PR #175).** **Sem migration.** ⚠️ **Não precisa de deploy**: é mudança de `ci.yml`, que vale a partir do build seguinte ao merge — não há artefato novo pra instalar.
 >
 > 🏷️ **A TAG DO BUILD PASSA A APONTAR PRO COMMIT QUE ELA NOMEIA.** 🗣️ Felipe, depois do deploy do palpitrômetro: *"arruma essa tag do ci tambem"*.
 >
@@ -10,6 +10,8 @@
 > ⚠️ **NADA DO QUE FOI PUBLICADO ESTAVA ERRADO, e isso importa pra dimensionar o conserto**: o `deploy.sh` baixa o **tarball** do release (`releases/download/$TAG/padelizou.tar.gz`) e, quando recebe um sha, procura pelo **nome** da tag — e o nome sempre saiu do `github.sha`. O que quebrava era a **procedência**: `git show` na tag mostra um commit que não é o do pacote. Pista errada justamente no dia em que algo deu errado.
 >
 > 🧪 **6.351 testes, 0 falhas (2 novos, em `TagDoBuildApontaProCommitTests` — o PRIMEIRO teste da suíte a ler `.github/`).** Visto vermelho antes em *"Not found: --target"*. O segundo teste trava o par que tem que concordar: o **nome** da tag e o **alvo** dela saem do mesmo `github.sha` — `--target` com `github.ref` ou `main` reintroduziria o defeito com outro nome, porque os dois também são "o topo agora".
+>
+> ✅ **CONFERIDO NO PIPELINE DE VERDADE**, que é a única prova que vale aqui: o merge deste PR (`75cb1e7`) gerou a **`build-1032-75cb1e7`**, e a tag aponta pro `75cb1e7` — nome e alvo dizendo o mesmo commit.
 >
 > ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
 
