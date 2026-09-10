@@ -17,6 +17,12 @@ public class SetasDaOrdemNaTelaTests
         return File.ReadAllText(Path.Combine(Path.GetDirectoryName(wwwroot)!, "Views", "Torneios", nome));
     }
 
+    private static string Js(string nome)
+    {
+        var wwwroot = Path.GetDirectoryName(TestInfra.PastaDasFontesDeVerdade())!;
+        return File.ReadAllText(Path.Combine(wwwroot, "js", nome));
+    }
+
     [Fact]
     public void O_jogo_real_agendado_tem_as_setas()
     {
@@ -58,5 +64,44 @@ public class SetasDaOrdemNaTelaTests
 
         Assert.Contains("OrdemNoHorario.Ordenar(agendadasList, jogosQueVem)", fonte);
         Assert.DoesNotContain(".OrderBy(x => x.Horario ?? DateTime.MaxValue)", fonte);
+    }
+
+    // ═══ A TELA NÃO PODE VOLTAR PRO TOPO A CADA CLIQUE (10/09/2026) ═══
+    //
+    // 🗣️ Felipe, num print da lista do Er rolada até as quartas de domingo: *"quando eu trocar
+    // aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
+    //
+    // 🕳️ Toda ação do organizador é POST → redirect → GET, e a página nova nasce no começo. Numa
+    // lista de 97 jogos, arrumar a ordem de sete semifinais custava sete rolagens até achar de
+    // novo onde se estava. É a MESMA queixa de 08/08 que criou o js/jogos-abas.js ("ele tem que
+    // se manter na tela que eu estou editando") — e a resposta é a mesma peça: sessionStorage.
+    [Fact]
+    public void As_setas_pedem_pra_tela_ficar_onde_esta()
+    {
+        Assert.Contains("data-manter-posicao", View("_SetasDaOrdem.cshtml"));
+    }
+
+    [Fact]
+    public void As_duas_telas_que_mostram_a_lista_carregam_o_script()
+    {
+        // Details (aba Jogos embutida) e /Torneios/Jogos — as mesmas duas do js/jogos-abas.js.
+        Assert.Contains("manter-posicao-na-lista.js", View("Details.cshtml"));
+        Assert.Contains("manter-posicao-na-lista.js", View("jogos.cshtml"));
+    }
+
+    [Fact]
+    public void O_script_guarda_a_posicao_e_sobrevive_a_memoria_proibida()
+    {
+        var fonte = Js("manter-posicao-na-lista.js");
+
+        Assert.Contains("sessionStorage", fonte);
+        Assert.Contains("scrollY", fonte);
+        // Navegação privada com cookies bloqueados faz o sessionStorage ESTOURAR no acesso.
+        // Sem try/catch, a exceção derruba o script e a lista some de comportamento — a mesma
+        // defesa que o js/jogos-abas.js já tem.
+        Assert.Contains("catch", fonte);
+        // Consumida UMA vez: sem apagar, qualquer visita seguinte àquela página seria arrastada
+        // pra uma posição escolhida em outro momento.
+        Assert.Contains("removeItem", fonte);
     }
 }
