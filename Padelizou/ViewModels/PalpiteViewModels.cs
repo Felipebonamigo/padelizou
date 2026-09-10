@@ -68,7 +68,12 @@ public record TabelaDePalpiteirosVM(
     // A coluna "Cravadas" só existe onde houve palpite COM placar. Ela some por dado, nunca por
     // interruptor: num recorte em que ninguém teve como palpitar placar, ela seria uma fileira
     // de zeros explicando um jeito de pontuar que não existia ali.
-    bool MostrarCravadas)
+    bool MostrarCravadas,
+
+    // A coluna "Em aberto" — palpites que ainda esperam resultado. Como a de cima, ela some por
+    // DADO: no hub (que soma torneios já jogados) e num torneio acabado não há pendente nenhum,
+    // e uma fileira de zeros ocuparia a largura que o celular não tem.
+    bool MostrarEmAberto = false)
 {
     public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
 }

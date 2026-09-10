@@ -22,6 +22,10 @@
                     <th class="text-center d-none d-sm-table-cell">Cravadas</th>
                 }
                 <th class="text-center d-none d-sm-table-cell">%</th>
+                @if (Model.MostrarEmAberto)
+                {
+                    <th class="text-center">Em aberto</th>
+                }
                 <th class="text-end">Pontos</th>
             </tr>
         </thead>
@@ -30,7 +34,10 @@
             {
                 bool souEu = Model.SouEu(linha);
                 <tr class="@(souEu ? "table-success" : "")">
-                    <td class="fw-bold text-muted">@linha.Posicao</td>
+                    @* ⚠️ Posicao == 0 é o "ainda não há classificação" que o serviço escreve
+                       enquanto nenhum jogo foi apurado. Numerar 1º, 2º, 3º uma tabela em que
+                       todo mundo tem zero ponto anunciaria uma liderança que não existe. *@
+                    <td class="fw-bold text-muted">@(linha.Posicao == 0 ? "·" : linha.Posicao.ToString())</td>
                     <td class="fw-semibold" style="color: var(--pdz-ink);">
                         <img src="@(string.IsNullOrEmpty(linha.Foto) ? "/img/default-avatar.png" : linha.Foto)"
                              alt="" class="rounded-circle me-1"
@@ -49,6 +56,12 @@
                         <td class="text-center d-none d-sm-table-cell">@linha.Cravadas</td>
                     }
                     <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento.ToString("0.#")%</td>
+                    @if (Model.MostrarEmAberto)
+                    {
+                        @* Fica VISÍVEL no celular (sem o `d-none d-sm-table-cell` das outras):
+                           na véspera do torneio ela é a única coluna com número. *@
+                        <td class="text-center text-body-secondary">@(linha.EmAberto > 0 ? linha.EmAberto.ToString() : "–")</td>
+                    }
                     <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
                 </tr>
             }
