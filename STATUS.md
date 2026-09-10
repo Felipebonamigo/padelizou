@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
+>
+> 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
+>
+> 🕳️ **O JOGO PREVISTO FICA SEM QUADRA POR DOIS CAMINHOS, E NOS DOIS FICAVA SEM CLUBE JUNTO.** (1) **Hora digitada na mão**: o `DefinirHorario` grava a reserva com `NomeQuadra = null` — *"o robô escolhe"* — e daí em diante a prévia não tinha mais nada pra dizer o lugar. (2) **Sem nome de quadra sobrando no horário**: a projeção **conta** vagas pelas quadras abertas do cadastro (`QuadrasAbertasEm`) e **nomeia** pela lista de quadras em uso (`QuadrasEmUsoAsync`, que completa o cadastro só até `QuantidadeQuadras`); com menos nomes do que quadras abertas, o jogo cabe na conta e não sobra nome — o caso que o `NomesDeQuadra` já descrevia, e o das oitavas do print.
+>
+> ⚠️ **NO "POR ORDEM" ISSO APAGA O LUGAR INTEIRO.** O Er é por ordem de liberação: a quadra é apagada de propósito (quem chama é o balcão) e o **clube é a única resposta que existe** — 🗣️ *"nao precisa ter a quadra definida, mas o clube sempre tem q estar definido"*.
+>
+> ✅ **`JogoQueVem.ClubeId`, carimbado pela MESMA linha dos jogos reais** (`OrdemDeLiberacao.CarimbarOClube`): o clube é o da **quadra escolhida** e, sem quadra que responda, o **do torneio**. É o que a reserva sem quadra vai virar quando nascer — ela pula o encaixe (`paraEncaixar = candidatos.Except(reservados)`) e o carimbo lhe dá o clube do torneio. **Sem hora E sem quadra continua sem clube**: ninguém pôs esse jogo em lugar nenhum, e escrever o principal seria chute (o aviso de `ClubeQueACategoriaDetermina`).
+>
+> 🔁 **E O CARTÃO DA PRÉVIA ERA A QUARTA TELA DO "a guarda é a etiqueta, e não a quadra"** (10/09) — ficou de fora das três corrigidas, e o `if (!IsNullOrEmpty(previsto.Quadra))` calava o cartão inteiro, clube incluído. As **três** telas que desenham prévia passam a pedir a etiqueta completa (quadra, categoria e clube): o cartão do quadro, a linha da aba Jogos e a opção do modal de troca. `GuardaDoLugarNasTelasDeChaveTests` ganhou a quarta linha.
+>
+> 🧪 **6.208 testes, 0 falhas (6 novos meus; o resto veio do `main`, mesclado aqui antes de fechar).** Vistos vermelhos antes: os de comportamento em *"Values differ: Expected 1, Actual null"*, o da guarda em *"IsNullOrEmpty"* e os três de fonte no regex da etiqueta de 4 argumentos. **Falsificados depois**: sem o `?? ClubePrincipalId` caem o da hora na mão e o do horário sem nome sobrando — este acusando *"Oitavas de Final 4 12/09 20:30, Oitavas de Final 5 12/09 20:30"*, o mesmo desenho do print; trocando a quadra pelo principal cai o do carimbo pela quadra (a manhã inteira no Radar sairia escrita "Er Padel").
+>
+> ⚠️ **DUAS COISAS QUE FICARAM DE PÉ, e não são desta correção:** a prévia ainda **promete quadra que não vai existir** no torneio por ordem (os jogos reais nascem sem quadra; o quadro mostra "Arena Loja 7"), e ela ainda **põe jogo num horário em que nenhuma quadra está livre** — a grade de verdade escorrega pro horário seguinte (`GradeDeJogos.TemOndeJogar`), a projeção não (o `SemLugar` só olha o nome quando a categoria está presa a um clube). É o que faz um cartão ter quadra e o vizinho não. Mexer nisso muda **horário** de jogo previsto a dois dias do torneio — decisão do Felipe, não desta sessão.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar: a suíte inteira passa e o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(6084)`). A tela em si só se confere no `dev`.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
 >
