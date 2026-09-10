@@ -12,8 +12,8 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    [Migration("20260910154420_OrdemNoHorario")]
-    partial class OrdemNoHorario
+    [Migration("20260910152847_CarimboDasChavesAvisadas")]
+    partial class CarimboDasChavesAvisadas
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -2782,9 +2782,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("PlacarMarcadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -3171,9 +3168,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
-                    b.Property<int?>("OrdemNoHorario")
-                        .HasColumnType("integer");
-
                     b.HasKey("CategoriaId", "Fase", "Numero");
 
                     b.ToTable("ReservaDeHorario");
@@ -3422,6 +3416,9 @@ namespace Padelizou.Migrations
 
                     b.Property<string>("ChavePixOrganizador")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("ChavesAvisadasEm")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("ClassificadosPorGrupo")
                         .HasColumnType("integer");

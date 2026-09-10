@@ -600,9 +600,21 @@ namespace Padelizou.Controllers
         // A APROVAÇÃO das chaves: o passo entre "sorteado" e "público", pedido pelo Felipe.
         // Ninguém fora de quem organiza/administra vê nada até aqui — nem os inscritos (ver
         // TorneiosController.cs, ação Jogos, e Details.cshtml, aba Chaves e Grupos).
+        //
+        // `avisarJogadores` é a caixinha da tela (10/09/2026), e ela existe por causa do
+        // `RecolherChaves` logo abaixo: podendo voltar pra aprovação, aprovar deixou de ser uma
+        // vez só, e a rajada "as chaves saíram" repetiria a cada volta pra base inteira do torneio.
+        //
+        // ⚠️ NULO NÃO É "NÃO": é "ninguém disse", e cai no carimbo — avisa só se nunca avisou.
+        // O formulário SEMPRE manda a escolha (o `<input type="hidden">` ao lado da caixinha
+        // garante o `false` quando ela está desmarcada), então o nulo só alcança quem chamar sem
+        // dizer nada: POST feito à mão, ou aba velha com o formulário de antes desta mudança. Pra
+        // esse, o certo é o comportamento seguro — e aqui o seguro é NÃO repetir a rajada. Mesmo
+        // raciocínio do `refazerHorarios` do TrocarDuplasDeGrupo, com o default no outro sentido
+        // porque lá o seguro era a garantia vendida, e aqui é o silêncio.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> AprovarChaves(int id)
+        public async Task<IActionResult> AprovarChaves(int id, bool? avisarJogadores = null)
         {
             var torneio = await _context.Torneios.FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
@@ -613,15 +625,72 @@ namespace Padelizou.Controllers
             }
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            bool avisar = avisarJogadores ?? torneio.ChavesAvisadasEm == null;
+
             torneio.Status = "Fase de Grupos";
+
+            // O carimbo vai junto do status, numa gravação só: é ele que faz a próxima aprovação
+            // saber que a rajada já saiu uma vez. Ele marca o DISPARO — a entrega em si é por
+            // fila e best-effort, e sempre foi (ver AvisarChavesPublicadasAsync).
+            if (avisar) torneio.ChavesAvisadasEm = DateTime.Now;
+
             await _context.SaveChangesAsync();
 
             // O aviso "as chaves saíram" nasce AQUI, não no sorteio — é agora que elas ficam
             // de verdade visíveis pra quem joga.
-            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
-            await AvisarChavesPublicadasAsync(torneio, jogos);
+            if (avisar)
+            {
+                var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+                await AvisarChavesPublicadasAsync(torneio, jogos);
+            }
 
-            TempData["Sucesso"] = "Chaves aprovadas — já estão visíveis pra todo mundo.";
+            TempData["Sucesso"] = avisar
+                ? "Chaves aprovadas — já estão visíveis pra todo mundo, e os jogadores foram avisados."
+                : "Chaves aprovadas — já estão visíveis pra todo mundo. Ninguém foi avisado de novo.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // RECOLHE a chave publicada: `Fase de Grupos` → `Chaves em Aprovação`, com o sorteio
+        // INTEIRO de pé. É o desfazer da aprovação, e não do sorteio.
+        //
+        // 🗣️ Felipe, 10/09/2026: *"permita recolocar o torneio em fase fechada, ou já tem isso?"*
+        // Não tinha — depois de aprovar, o status só andava pra frente. As três saídas que
+        // existiam resolvem outra coisa: `DesfazerSorteio` APAGA grupos e jogos (e fecha assim
+        // que se aprova), `ReabrirInscricoes` recusa com partida existindo, e
+        // `AlternarVisibilidade` some da listagem mas deixa quem já está inscrito vendo a página.
+        //
+        // ⚠️ NÃO MEXE NO `ChavesAvisadasEm`, de propósito: é exatamente o que ele lembra. Limpar
+        // aqui faria a re-aprovação achar que nunca avisou e mandar a segunda rajada.
+        //
+        // ⚠️ E NÃO DESFAZ O QUE JÁ SAIU. O push entregue e o evento que já caiu na agenda de quem
+        // usa o ICS não voltam. Recolher esconde daqui pra frente; a tela diz isso antes do clique.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecolherChaves(int id)
+        {
+            var torneio = await _context.Torneios.FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            // A autorização vem ANTES da checagem de estado, ao contrário do `AprovarChaves` logo
+            // acima: quem não organiza não precisa aprender em que fase o torneio está.
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            bool jaSaiuDoPapel = await _context.Partidas
+                .Where(p => p.TorneioId == id)
+                .AnyAsync(AprovacaoDeChaves.JaSaiuDoPapel);
+
+            if (AprovacaoDeChaves.PorQueNaoPodeRecolher(torneio, jaSaiuDoPapel) is { } naoRecolhe)
+            {
+                TempData["Erro"] = naoRecolhe;
+                return RedirectToAction("Details", new { id });
+            }
+
+            torneio.Status = AprovacaoDeChaves.Pendente;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Chaves recolhidas — voltaram a aparecer só pra você e pros outros "
+                                + "organizadores. Os jogos e os horários continuam como estavam.";
             return RedirectToAction("Details", new { id });
         }
 

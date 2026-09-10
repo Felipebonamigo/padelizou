@@ -95,10 +95,18 @@ public static class TrocaDeHorario
             ? $"o jogo {Real.Codigo}"
             : Previsto != null ? $"{Previsto.Categoria} · {Previsto.FaseNumerada}" : "o jogo";
 
-        // O clube do SLOT: o carimbo do jogo real (Partida.ClubeId, que o "por ordem" guarda depois
-        // de apagar a quadra) ou, sem carimbo, o clube da quadra — do previsto só a quadra existe.
+        // O clube do SLOT: o da QUADRA, e só sem quadra que responda é que vale o carimbo do jogo
+        // real (Partida.ClubeId, que o "por ordem" guarda depois de apagar a quadra) — do previsto
+        // só a quadra existe.
+        //
+        // ⚠️ A ORDEM DESTES DOIS É CORREÇÃO, NÃO ESTILO (10/09/2026). O carimbo era lido primeiro,
+        // e ele TEM uma janela em que mente: o "Recalcular horários" zera hora e quadra sem zerar o
+        // carimbo, o encaixe dá vaga nova — que pode ser em outro clube — e `CarimbarOClube` só
+        // refaz o carimbo no fim, DEPOIS do reparo. No meio disso o jogo está numa Arena dizendo
+        // "Radar". A quadra nunca mente: quando ela existe, ela É o slot. Ver
+        // TrocaDeHorarioTests.O_clube_da_vaga_sai_da_QUADRA_e_nao_do_carimbo_velho.
         public int? ClubeDaVaga(SedesDoTorneio sedes) =>
-            (Real?.ClubeId) ?? sedes.ClubeDaQuadra(Quadra);
+            sedes.ClubeDaQuadra(Quadra) ?? Real?.ClubeId;
     }
 
     // Null = pode trocar. Texto = o motivo. As regras do jogo real são as mesmas de sempre (acima);
