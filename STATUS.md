@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1011-ea86749`** (17h13 e 17h15 de Brasília — runs 196 e 197), **o mesmo artefato nos dois**, com a tag explícita no campo `build` (e não "o mais recente"). PR #168. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as três coisas do palpitrômetro pedidas na véspera do Er** — o ranking aparecendo antes do primeiro jogo (modo participação), o modal dizendo **quem palpitou o quê** (com o placar de cada um, e a frase "A galera crava" virando botão), e o **retirar o palpite** (`POST /Partidas/RetirarPalpite`).
+>
+> ✅ **CONFERIDO NO AR, no torneio do Er (`/Torneios/Details/26`, anônimo)**: a aba Palpiteiros existe, o aviso diz *"Ainda não há jogo apurado"*, a conta é de **116 palpites esperando resultado**, a coluna **Em aberto** está na tabela, e são **33 frases de consenso clicáveis** entre os 56 palpitrômetros da lista. No `dev` e no `prod`, o `/js/palpitrometro.js` servido já traz `RetirarPalpite` e `placarVencedor`; `/healthz` responde 200 nos dois.
+>
+> 🕳️ **ACHADO NO CAMINHO — O NOME DA TAG DE BUILD PODE MENTIR SOBRE O COMMIT.** O `ci.yml` cria o release com `gh release create "$tag" ... ` **sem `--target`**, então o **tarball** sai do `github.sha` (certo) mas a **tag git** nasce apontando pro topo do `main` naquele instante. O PR #164 entrou 4 minutos depois do #168 e a tag `build-1011-ea86749` ficou apontando pro merge dele (`f3170fe`). ⚠️ **Não trocou o que foi publicado** — o pacote instalado é o do #168, e o #164 era só `STATUS.md` —, mas a procedência fica enganosa e um dia vai custar uma investigação. O conserto é uma linha: `--target "${{ github.sha }}"`.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #168) e PUBLICADO no `build-1011-ea86749`** — o registro do deploy é a entrada acima. **Sem migration.**
 >
 > 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
 >
