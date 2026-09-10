@@ -19,7 +19,7 @@
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
 
-> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
 >
@@ -35,7 +35,11 @@
 >
 > 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
 >
-> ⏭️ **A CAROL ainda precisa do clique**: publicar, abrir `/Admin/Acesso`, procurar `03842585063` e "Liberar nova troca de nome". Daqui não dá pra fazer por ela — esta sessão não alcança o banco de produção.
+> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar `03842585063` → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
+>
+> ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
+>
+> 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
 >
