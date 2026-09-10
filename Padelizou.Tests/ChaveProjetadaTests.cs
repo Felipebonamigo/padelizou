@@ -22,23 +22,32 @@ public class ChaveProjetadaTests
         Assert.Equal(8, vagas.Distinct().Count());
     }
 
-    // 10/09/2026 — A PRÉVIA DAVA O BYE A QUEM O ROBÔ NÃO DÁ.
+    // 10/09/2026 — A PRÉVIA DÁ O BYE A QUEM O ROBÔ DÁ: o 1º do grupo de 2, depois A, B, C.
     //
-    // Achado pela revisão adversarial, com a forma exata do Er: 8 duplas → grupos A(2), B(3),
-    // C(3). A prévia montava todo mundo com campanha zerada e o desempate caía no NOME do grupo:
-    // "1º do Grupo A (passou direto)". O robô de verdade dá o bye a quem tem a melhor campanha —
-    // e o 1º do A joga UM jogo (no máximo 1 vitória), enquanto os 1ºs de B e C têm 2. A dupla
-    // que a chave publicada mandava descansar era chamada pra quadra. Com o TAMANHO de cada
-    // grupo, a prévia sabe o teto de campanha de cada vaga e escolhe como o robô.
+    // 🗣️ Felipe: *"1º bye: o 1º do grupo de 2 (jogou menos). e priorizando Grupos A, B, C por
+    // que eles são os cabeças de chave"*. Com o TAMANHO de cada grupo a prévia sabe quem jogou
+    // menos (grupo de 2 = 1 jogo; de 3 = 2), e a ordem dos grupos faz o resto — é a mesma régua
+    // do robô (ChaveamentoMataMata.OrdemDosByes), pelo mesmo motor.
     [Fact]
-    public void Grupo_de_2_nao_recebe_bye_na_previa_quando_os_outros_sao_de_3()
+    public void O_primeiro_do_grupo_de_2_recebe_o_bye_e_depois_vem_o_grupo_de_cima()
     {
         var (fase, confrontos, byes) = ChaveProjetada.Montar(
             new[] { "Grupo A", "Grupo B", "Grupo C" }, 2, duplasPorGrupo: new[] { 2, 3, 3 });
 
         Assert.Equal("Quartas de Final", fase);
-        Assert.Equal(new[] { "1º do Grupo B", "1º do Grupo C" }, byes.Select(b => b.Rotulo).OrderBy(r => r).ToArray());
-        Assert.Contains(confrontos, c => c.Lado1.Rotulo == "1º do Grupo A" || c.Lado2.Rotulo == "1º do Grupo A");
+        Assert.Equal(new[] { "1º do Grupo A", "1º do Grupo B" }, byes.Select(b => b.Rotulo).ToArray());
+        Assert.Contains(confrontos, c => c.Lado1.Rotulo == "1º do Grupo C" || c.Lado2.Rotulo == "1º do Grupo C");
+    }
+
+    [Fact]
+    public void Com_o_grupo_de_2_no_fim_da_lista_ele_ainda_descansa_primeiro()
+    {
+        // 8 duplas sorteadas como B(3), C(3) e o grupo de 2 chamado "Grupo C"? Não: é o TAMANHO
+        // que decide, não o nome. Grupo de 2 em último lugar na lista continua sendo o 1º bye.
+        var (_, _, byes) = ChaveProjetada.Montar(
+            new[] { "Grupo A", "Grupo B", "Grupo C" }, 2, duplasPorGrupo: new[] { 3, 3, 2 });
+
+        Assert.Equal(new[] { "1º do Grupo C", "1º do Grupo A" }, byes.Select(b => b.Rotulo).ToArray());
     }
 
     [Fact]

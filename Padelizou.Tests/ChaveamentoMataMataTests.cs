@@ -6,8 +6,52 @@ namespace Padelizou.Tests;
 // Lógica pura do motor de chaveamento (quadro, fases, melhores segundos, semeadura).
 public class ChaveamentoMataMataTests
 {
-    private static Classificado C(int duplaId, string grupo, int pos, int vitorias = 0, int saldo = 0)
-        => new(duplaId, grupo, vitorias, saldo, pos);
+    private static Classificado C(int duplaId, string grupo, int pos, int vitorias = 0, int saldo = 0, int jogos = 0)
+        => new(duplaId, grupo, vitorias, saldo, pos, jogos);
+
+    // ═══ QUEM DESCANSA (Felipe, 10/09/2026) ═══
+    //
+    // 🗣️ *"1º bye: o 1º do grupo de 2 (jogou menos). e priorizando Grupos A, B, C por que eles
+    // são os cabeças de chave"*. Até aqui o bye era da MELHOR CAMPANHA — e o 1º do grupo de 2 tem
+    // no máximo 1 vitória contra 2 dos grupos de 3: exatamente quem jogou menos era quem nunca
+    // descansava. A chave publicada dizia o contrário (por coincidência do desempate por nome), e
+    // no sábado o robô faria o inverso do que a tela prometeu. A régua: posição no grupo, depois
+    // quem jogou MENOS, depois a ordem dos grupos (A é o grupo dos cabeças de chave). A campanha
+    // fica pra ordenar quem JOGA a primeira rodada, não quem a pula.
+    [Fact]
+    public void O_bye_e_do_primeiro_do_grupo_de_dois_e_depois_do_grupo_de_cima()
+    {
+        // A forma do Er: A com 2 duplas (1 jogo cada), B e C com 3 (2 jogos cada).
+        var classificados = new List<Classificado>
+        {
+            C(1, "Grupo A", 1, vitorias: 1, saldo: 4, jogos: 1), C(2, "Grupo A", 2, vitorias: 0, saldo: -4, jogos: 1),
+            C(3, "Grupo B", 1, vitorias: 2, saldo: 9, jogos: 2), C(4, "Grupo B", 2, vitorias: 1, saldo: 1, jogos: 2),
+            C(5, "Grupo C", 1, vitorias: 2, saldo: 12, jogos: 2), C(6, "Grupo C", 2, vitorias: 1, saldo: 2, jogos: 2),
+        };
+
+        var (fase, confrontos, byes) = MontarPrimeiraFase(classificados);
+
+        Assert.Equal("Quartas de Final", fase);
+        Assert.Equal(new[] { 1, 3 }, byes);   // 1º do A (jogou menos), depois o 1º do B (grupo de cima) — não o C, mesmo com campanha melhor
+        Assert.Equal(2, confrontos.Count);
+        Assert.Contains(confrontos, c => c.Dupla1Id == 5 || c.Dupla2Id == 5);   // o 1º do C joga
+    }
+
+    [Fact]
+    public void Com_grupos_do_mesmo_tamanho_o_bye_segue_a_ordem_dos_grupos_e_nao_a_campanha()
+    {
+        // 3 grupos de 3: o 1º do C tem a melhor campanha e mesmo assim quem descansa é A e B.
+        var classificados = new List<Classificado>
+        {
+            C(1, "Grupo A", 1, vitorias: 2, saldo: 3, jogos: 2), C(2, "Grupo A", 2, vitorias: 1, saldo: 0, jogos: 2),
+            C(3, "Grupo B", 1, vitorias: 2, saldo: 5, jogos: 2), C(4, "Grupo B", 2, vitorias: 1, saldo: 1, jogos: 2),
+            C(5, "Grupo C", 1, vitorias: 2, saldo: 12, jogos: 2), C(6, "Grupo C", 2, vitorias: 1, saldo: 2, jogos: 2),
+        };
+
+        var (_, _, byes) = MontarPrimeiraFase(classificados);
+
+        Assert.Equal(new[] { 1, 3 }, byes);
+    }
 
     [Theory]
     [InlineData(16, "Oitavas de Final")]
@@ -208,7 +252,10 @@ public class ChaveamentoMataMataTests
         var (fase, confrontos, byes) = MontarPrimeiraFase(classificados, classificadosPorGrupo: 2);
 
         Assert.Equal("Quartas de Final", fase);
-        Assert.Equal(new[] { 5, 3 }, byes);   // os dois 1ºs de melhor campanha (saldo 3 e 2)
+        // Até 10/09/2026 eram os dois 1ºs de melhor campanha (5 e 3, saldo 3 e 2). A régua do
+        // Felipe trocou isso: o bye segue a ordem dos grupos — A e B, os cabeças de chave —,
+        // e a campanha só semeia quem joga (ver OrdemDosByes e o teste logo acima).
+        Assert.Equal(new[] { 1, 3 }, byes);
 
         var todos = confrontos.SelectMany(c => new[] { c.Dupla1Id, c.Dupla2Id }).Concat(byes).ToHashSet();
         Assert.Equal(new HashSet<int> { 1, 2, 3, 4, 5, 6 }, todos);

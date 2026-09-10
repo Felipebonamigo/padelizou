@@ -163,11 +163,12 @@ public static class AvancoDaChave
             // Pós-grupos: recalcula a classificação com a MESMA régua da geração do mata-mata
             // (Services/ClassificacaoDeGrupos). Os jogos de grupo estão todos finalizados — o
             // mata-mata só nasce depois deles —, então a conta dá sempre o mesmo resultado.
+            // Na ORDEM DOS BYES (ChaveamentoMataMata.OrdemDosByes — quem jogou menos, depois o
+            // grupo de cima), a mesma com que a primeira fase escolheu quem descansa: é essa
+            // ordem que a semeadura usa pra saber de que lado da chave cada bye cai.
             var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
-            noQuadro = ClassificacaoDeGrupos.Calcular(
-                    duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2))
-                .OrderBy(c => c.Posicao)
-                .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
+            noQuadro = ChaveamentoMataMata.OrdemDosByes(ClassificacaoDeGrupos.Calcular(
+                    duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)))
                 .Select(c => c.DuplaId)
                 .ToList();
         }
