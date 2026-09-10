@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **10/09/2026** — 🕳️ **JANELA DE QUADRA IMPOSSÍVEL DEIXA DE SER OBEDECIDA** (PR #110).
+>
+> ⚠️ **AINDA NÃO PUBLICADO.** O `build-863-6365054` saiu às 00h06 UTC, mas o último deploy é o `build-860-7c5fbfe` — **`dev` e `prod` continuam SEM este conserto**. Actions → Deploy → Run workflow → `build-863-6365054`.
+>
+> 🗣️ **Felipe, na TERCEIRA vez:** *"refiz a grade, ainda ta pulando pro dia 15 e ainda tem bastante coisa errada — ta sem o nome do clube que vai ser o jogo, e ainda pulando os dias, e a 3a vez q te falo sobre isso, e eu preciso publicar ainda hoje essa chave"*.
+>
+> 🔍 **AS DUAS QUEIXAS ERAM O MESMO DEFEITO, e a assinatura estava no print: os jogos REAIS estavam SEM QUADRA.** `GradeDeJogos.Encaixar` só grava `NomeQuadra` quando acha quadra **aberta** naquele horário; sem nenhuma aberta ele marca a hora, deixa o lugar em branco e escorrega pro horário seguinte — dia após dia, calado. Daí sai tudo junto: o **pulo do dia 12 pro 15**, o **jogo sem local**, e **dois jogos da mesma dupla no mesmo minuto** (o último recurso do encaixe, quando as vagas acabam).
+>
+> ✅ **A CAUSA RAIZ É CONFIGURAÇÃO, e o motor não pode obedecer configuração impossível.** Uma janela que não deixa NENHUMA quadra aberta em NENHUM horário do torneio não é restrição — é dígito errado no `datetime-local`. Obedecê-la destrói a grade inteira; ignorá-la devolve o comportamento de quem nunca preencheu o campo, que é o que o organizador tinha antes de a tabela de quadras existir. Entre um torneio sem grade e um torneio com a janela ignorada, só o segundo dá pra publicar.
+>
+> ⚠️ **O GUARDA É ESTREITO DE PROPÓSITO: basta UMA quadra abrir em UM horário pra ele não disparar.** A janela legítima do local alugado ("das 8h às 14h de sábado") deixa quadra aberta, logo não é impossível, e continua valendo inteira — tem teste só pra isso, porque quebrá-la reintroduziria o defeito de 08/09 (jogo marcado no lugar fechado).
+>
+> ⚠️ **E O LIMITE ESTÁ ESCRITO NUM TESTE PRÓPRIO: UMA vaga já basta**, mesmo sendo pouco pros 97 jogos. Fazer o guarda comparar vagas com o número de jogos o transformaria de *"esta configuração é impossível"* em *"esta configuração é apertada"* — e apertado é justamente o que o organizador escolhe quando aluga quadra por hora. Quem cobre o apertado é a **conferência**, que não muda a grade.
+>
+> 🗓️ **Sem `DataFim`, o guarda olha uma semana a partir do início:** o campo é OPCIONAL, e pendurar a regra nele deixaria o torneio sem prazo à mercê do defeito.
+>
+> 🧪 **5.788 testes, 0 falhas (5 novos), suíte rodada 2×. Sem migration.** Mexeu em `Services/SedesDoTorneio.cs` e no novo `JanelaImpossivelDeQuadraTests.cs`.
+>
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-860-7c5fbfe`** (23h44 e 23h46 UTC), **o mesmo artefato nos dois**. Subiu a auditoria de buraco/ordem e a cessão da quadra de casa (PR #108).
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
