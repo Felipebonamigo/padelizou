@@ -1113,7 +1113,21 @@ namespace Padelizou.Controllers
                 ocupadas,
                 reservadas);
 
-            return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
+            // A POSIÇÃO DENTRO DO HORÁRIO QUE O ORGANIZADOR GRAVOU PRA CADA PRÉVIA (10/09/2026).
+            // Ela mora na reserva, junto com a hora e a quadra dela — e é lida AQUI, e não dentro
+            // do motor da projeção: aquele decide QUANDO o jogo cai; em que posição da linha o
+            // organizador quer vê-lo é assunto da tela (Services/OrdemNoHorario).
+            var ordemReservada = reservas
+                .Where(r => r.OrdemNoHorario != null)
+                .ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero), r => r.OrdemNoHorario);
+
+            return projetados
+                .Select(j => j.CategoriaId is int categoria
+                             && ordemReservada.TryGetValue((categoria, j.Fase, j.Numero), out var ordem)
+                    ? j with { OrdemNoHorario = ordem }
+                    : j)
+                .OrderBy(j => j.Horario ?? DateTime.MaxValue)
+                .ToList();
         }
 
         // O jogador está NESTA dupla? Usado pra saber se ele venceu ou perdeu um jogo já
@@ -1199,7 +1213,12 @@ namespace Padelizou.Controllers
             var sedes = await Robo.SedesAsync(torneioId);
             ViewData[LugarDoJogo.ChaveNaTela] = sedes;
 
-            var query = _context.Partidas
+            // ⚠️ DUAS LISTAS, E O NOME DIZ QUAL É QUAL (10/09/2026). `doTorneio` é a grade INTEIRA;
+            // `query` é ela com os filtros de time e de categoria, que viram SQL logo abaixo. Até
+            // hoje existia só a segunda, com o nome `todasAsPartidas` — que prometia o torneio
+            // inteiro e entregava o recorte da tela. 🗣️ Felipe, com "3ª Feminina" marcada: *"eu
+            // selecionei '3 feminina' e esta aparecendo jogos de outras categorias no filtro"*.
+            var doTorneio = _context.Partidas
                 .Include(p => p.Categoria)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
                 // `Jogador2!`: quem se inscreveu sozinho ainda não tem parceiro. O EF lê a
@@ -1220,6 +1239,8 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla2).ThenInclude(d => d.GrupoTorneio)
                 .Where(p => p.TorneioId == torneioId);
 
+            var query = doTorneio;
+
             if (timeFiltroId.HasValue)
             {
                 // Vira SQL, não roda em memória: dupla sem parceiro compara contra NULO e
@@ -1236,6 +1257,14 @@ namespace Padelizou.Controllers
             }
 
             var partidas = await query.ToListAsync();
+
+            // A GRADE INTEIRA, pra quem PRECISA dela: a projeção das próximas fases (as quadras
+            // ocupadas de todas as categorias decidem a hora de cada prévia), a numeração dentro
+            // da fase e a lista de horários do "Definir horário". Uma segunda leitura só quando o
+            // SQL recortou — sem filtro as duas listas são a mesma, e o EF devolve as mesmas
+            // instâncias nos dois casos (identity map).
+            bool recortadaNoSql = timeFiltroId.HasValue || (categoriaFiltroIds != null && categoriaFiltroIds.Length > 0);
+            var jogosDoTorneio = recortadaNoSql ? await doTorneio.ToListAsync() : partidas;
 
             // ⚠️ AS CHAVES AINDA NÃO FORAM APROVADAS: PRA QUEM NÃO ORGANIZA, NÃO EXISTE JOGO
             // (09/09/2026). 🗣️ Felipe, num print de PRODUÇÃO em navegação anônima: *"outro erro
@@ -1256,7 +1285,11 @@ namespace Padelizou.Controllers
             bool chaveAindaNaoPublicada = torneioDaGrade != null
                 && torneioDaGrade.Status == AprovacaoDeChaves.Pendente
                 && !await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
-            if (chaveAindaNaoPublicada) partidas = new List<Partida>();
+            if (chaveAindaNaoPublicada)
+            {
+                partidas = new List<Partida>();
+                jogosDoTorneio = new List<Partida>();
+            }
             ViewBag.ChaveAindaNaoPublicada = chaveAindaNaoPublicada;
 
             // "MEUS JOGOS": a lista inteira de um torneio de 86 jogos não serve pra quem só
@@ -1295,7 +1328,17 @@ namespace Padelizou.Controllers
             // de flutuar em ordem arbitrária no meio da lista.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
                 .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
-            ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
+            // ⚠️ A FILA SAI DE Services/OrdemNoHorario, E NÃO DE UM `OrderBy(HorarioPrevisto)` SOLTO
+            // (10/09/2026). Aquele ordenava só pela hora, sobre uma lista que veio do Postgres SEM
+            // `ORDER BY`: dois jogos no mesmo minuto saíam na ordem que o banco quisesse — e ela
+            // muda sozinha depois de um UPDATE. 🗣️ *"se tem semifinal 1 e semifinal 2 no mesmo
+            // horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*.
+            // É a MESMA régua que as setas ↑↓ usam pra achar o vizinho: duas contas de "quem vem
+            // antes" fariam a seta mover o jogo pra um lugar diferente do que a tela mostrou.
+            ViewBag.Agendadas = OrdemNoHorario
+                .Ordenar(partidas.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Select(l => l.Jogo!)
+                .ToList();
 
             // ⚠️ A projeção parte do torneio INTEIRO, não da lista filtrada: a chave de uma
             // categoria só se desenha com todos os jogos dela na mão, e filtrar antes deixaria
@@ -1305,17 +1348,28 @@ namespace Padelizou.Controllers
             // a lista de jogos vazia — o desenho do sorteio vazando por outra porta.
             var projetados = chaveAindaNaoPublicada
                 ? new List<ProximasFasesDaChave.JogoQueVem>()
-                : await ProjetarProximasFasesAsync(torneioId, todasAsPartidas);
+                : await ProjetarProximasFasesAsync(torneioId, jogosDoTorneio);
 
             List<ProximasFasesDaChave.JogoQueVem> previstos = ViewBag.SoMeusJogos
-                ? RecortarProjecaoDoJogador(projetados, todasAsPartidas, meuJogadorId!.Value)
+                ? RecortarProjecaoDoJogador(projetados, jogosDoTorneio, meuJogadorId!.Value)
                 : projetados;
 
             // A prévia obedece ao MESMO recorte do jogo real: filtrar por "Semifinal" e ver a
             // Final prevista logo abaixo seria a lista discordando do próprio filtro.
-            ViewBag.JogosQueVem = filtro.Ativo
-                ? previstos.Where(j => filtro.Aceita(sedes, j)).ToList()
-                : previstos;
+            //
+            // ⚠️ A CATEGORIA ENTRA AQUI, e não no `FiltroDeJogos`, porque pro jogo real ela vira
+            // SQL lá em cima — e era essa metade faltando que punha a Oitava da 4ª Masculina na
+            // tela de quem marcou só a 3ª Feminina. A projeção monta as cadeias a partir das
+            // CATEGORIAS do banco, que nenhum `Where` de partida alcança.
+            //
+            // Prévia sem categoria (projeção antiga, sem Id) sai quando há filtro: não dá pra
+            // dizer que ela é da categoria escolhida, e afirmar que é seria o mesmo defeito.
+            var categoriasEscolhidas = categoriaFiltroIds ?? Array.Empty<int>();
+            ViewBag.JogosQueVem = previstos
+                .Where(j => categoriasEscolhidas.Length == 0
+                            || (j.CategoriaId is int daPrevia && categoriasEscolhidas.Contains(daPrevia)))
+                .Where(j => !filtro.Ativo || filtro.Aceita(sedes, j))
+                .ToList();
 
             // ⚠️ A PROJEÇÃO INTEIRA, PRA QUEM CASA POR ÍNDICE (10/09/2026). A aba CHAVES do
             // `Details` desenha o quadro previsto lendo esta lista e parseando a vaga pela
@@ -1435,14 +1489,14 @@ namespace Padelizou.Controllers
             // jogo (nesse torneio é de 50 em 50 min)"* — em vez de um relógio em branco, a lista
             // dos horários que este torneio usa, com quantas quadras sobram em cada um.
             //
-            // ⚠️ DO TORNEIO INTEIRO (`todasAsPartidas`), e não da lista filtrada da tela: o modal é
+            // ⚠️ DO TORNEIO INTEIRO (`jogosDoTorneio`), e não da lista filtrada da tela: o modal é
             // um só e serve qualquer linha, e a ocupação de um horário conta os jogos de TODAS as
             // categorias — contar só as que passaram no filtro diria "3 quadras livres" onde não
             // há nenhuma. Os horários das prévias entram por `tambem`: elas têm hora, são
             // remarcáveis, e não são jogo no banco.
             ViewBag.SlotsDaGrade = torneioDaTela == null
                 ? new List<HorariosDaGrade.Slot>()
-                : HorariosDaGrade.Montar(torneioDaTela, todasAsPartidas, sedes,
+                : HorariosDaGrade.Montar(torneioDaTela, jogosDoTorneio, sedes,
                     projetados.Select(j => j.Horario));
 
             if (torneioDaTela?.Formato == FormatoDoTorneio.Americano)

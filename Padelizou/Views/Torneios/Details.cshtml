@@ -2718,14 +2718,59 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             </form>
                         </div>
 
+                        // A rajada "as chaves saíram" já saiu uma vez? O carimbo é quem responde
+                        // (Torneio.ChavesAvisadasEm) — e é ele que decide se a caixinha nasce
+                        // marcada. Torneio que nunca foi aprovado avisa; re-aprovação, não.
+                        bool primeiraLiberacao = Model.ChavesAvisadasEm == null;
                         <form asp-controller="Torneios" asp-action="AprovarChaves" method="post"
                               data-confirmar-titulo="Aprovar e liberar as chaves?"
-                              data-confirmar="As chaves ficam visíveis pra todo mundo, e os jogadores recebem o aviso de que as chaves saíram."
+                              data-confirmar="@(primeiraLiberacao
+                                  ? "As chaves ficam visíveis pra todo mundo, e os jogadores recebem o aviso de que as chaves saíram."
+                                  : "As chaves voltam a ficar visíveis pra todo mundo. Os jogadores JÁ foram avisados uma vez deste torneio — só recebem outro aviso se a caixinha estiver marcada.")"
                               data-confirmar-ok="Aprovar e liberar">
                             <input type="hidden" name="id" value="@Model.Id" />
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" value="true"
+                                       name="avisarJogadores" id="pdzAvisarJogadores" checked="@primeiraLiberacao" />
+                                @* O hidden vem DEPOIS da caixa de propósito: desmarcada, a caixa não
+                                   manda nada, e sem ele o servidor leria silêncio em vez de "não avise".
+                                   Marcada, chegam os dois valores e o binder fica com o primeiro. *@
+                                <input type="hidden" name="avisarJogadores" value="false" />
+                                <label class="form-check-label" for="pdzAvisarJogadores">
+                                    Avisar os jogadores por push
+                                </label>
+                                @if (!primeiraLiberacao)
+                                {
+                                    <div class="form-text">
+                                        Eles já foram avisados uma vez deste torneio — marque só se os
+                                        horários mudaram e vale a pena avisar de novo.
+                                    </div>
+                                }
+                            </div>
                             <button type="submit" class="btn btn-success fw-bold shadow-sm">
                                 <i class="bi bi-check-circle-fill"></i> Aprovar e Liberar as Chaves
                             </button>
+                        </form>
+                    }
+                    else if (Model.Status == "Fase de Grupos"
+                             && !Padelizou.Services.PublicacaoDaChave.SaiPublicaNaHora(Model))
+                    {
+                        @* RECOLHER: o caminho de volta pra "Chaves em Aprovação", com o sorteio
+                           inteiro de pé — o desfazer da APROVAÇÃO, e não do sorteio. A recusa (e a
+                           frase) moram em Services/AprovacaoDeChaves.PorQueNaoPodeRecolher. *@
+                        <form asp-controller="Torneios" asp-action="RecolherChaves" method="post"
+                              data-confirmar-titulo="Recolher as chaves?"
+                              data-confirmar="Elas voltam a aparecer só pra você e pros outros organizadores. Os grupos, os jogos e os horários continuam exatamente como estão. ⚠️ O aviso que já chegou no celular de quem joga, e o evento que já entrou na agenda, NÃO voltam atrás."
+                              data-confirmar-ok="Recolher"
+                              data-confirmar-tom="perigo">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-warning fw-bold shadow-sm">
+                                <i class="bi bi-eye-slash-fill"></i> Recolher as Chaves
+                            </button>
+                            <div class="form-text">
+                                Só enquanto nenhum jogo começou — depois disso esconderia um torneio
+                                em andamento de quem está jogando.
+                            </div>
                         </form>
                     }
                 </div>

@@ -282,6 +282,28 @@ public partial class Torneio
     // propósito — são justamente os que ainda esperam o anúncio.
     public DateTime? AvisoDeTorneioNovoEm { get; set; }
 
+    // Quando a rajada "as chaves saíram" foi disparada pros jogadores. Nulo = nunca saiu.
+    //
+    // ⚠️ NASCEU EM 10/09/2026 COM O "RECOLHER AS CHAVES" (Felipe: "permita recolocar o torneio em
+    // fase fechada"). Com a aprovação sendo de mão única, "já avisei?" era a mesma pergunta que
+    // "já aprovei?" — o Status respondia as duas. Podendo voltar pra aprovação, elas se separam:
+    // sem carimbo, cada ciclo recolher→aprovar mandaria um push novo pra base inteira do torneio.
+    // É a MESMA lição do `AvisoDeTorneioNovoEm`, que existe pelo mesmo motivo no anúncio à base.
+    //
+    // ⚠️ NÃO dá pra derivar isso do `AvisoDoJogador` (a caixa de entrada), e foi conferido antes
+    // de virar coluna: ele é gravado dentro de um `try/catch` que engole a falha, a entrega é por
+    // fila (tem atraso), a URL `/Torneios/Jogos/{id}` é compartilhada por 4 avisos diferentes e o
+    // título depende do NOME do torneio, que pode ser trocado. Um default que errasse pro lado
+    // "marcada" mandaria justamente a segunda rajada que isto existe pra evitar.
+    //
+    // ⚠️ O `RecolherChaves` NÃO limpa este campo, de propósito — é exatamente o que ele lembra.
+    //
+    // ⚠️ A migração carimba os torneios que JÁ PASSARAM da aprovação (qualquer status fora de
+    // "Inscrições Abertas", "Chaves em Sorteio" e "Chaves em Aprovação"): pra esses a rajada saiu
+    // de verdade, e deixá-los nulos faria o primeiro recolher→aprovar de cada um reavisar todo
+    // mundo. Mesma decisão, e mesmo motivo, da migração do `AvisoDeTorneioNovoEm`.
+    public DateTime? ChavesAvisadasEm { get; set; }
+
     // Quando o acerto dos R$ 5 por pessoa foi confirmado. Nulo = contratado mas ainda não pago.
     //
     // ⚠️ O ponto só entra no ranking depois disto. Contratar é intenção; o que vale é o

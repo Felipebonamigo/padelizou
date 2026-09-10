@@ -27,6 +27,10 @@
     string? referenciaDaTroca = podeTrocar && Model.CategoriaId is int categoriaDaPrevia && Model.Horario is DateTime
         ? Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaDaPrevia, Model.Fase, Model.Numero).ToString()
         : null;
+
+    // Pra onde o POST das setas volta. Fora do atributo `model=""`: aspas dentro de aspas quebram
+    // o parser do Razor.
+    var voltarParaAqui = ViewData["TargetAction"] as string;
 }
 @* O ENDEREÇO do jogo na página: é pra cá que aponta o "Vencedor Semifinal 1" de outra
    linha. O id sai de Services/AncoraDoJogo, o mesmo lugar de onde o link é montado — duas
@@ -78,6 +82,14 @@
         @if (referenciaDaTroca != null)
         {
             <span class="pdz-jl-acoes">
+                @* ↑↓: a prévia entra na MESMA fila dos jogos reais, e sobe/desce por ela — as
+                   semifinais e finais de domingo do Er ainda não nasceram, e uma ordem que só
+                   alcançasse jogo real não resolveria o pedido. A posição vira reserva
+                   (Models/ReservaDeHorario.OrdemNoHorario) e o robô a leva pro jogo quando ele nasce. *@
+                @if (ViewData["TorneioDaLista"] is int torneioDaPrevia)
+                {
+                    <partial name="_SetasDaOrdem" model="(torneioDaPrevia, referenciaDaTroca, voltarParaAqui)" />
+                }
                 <button type="button" class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
                         data-jogo-id="@referenciaDaTroca"

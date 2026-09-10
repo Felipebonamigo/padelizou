@@ -75,6 +75,24 @@ public class TrocaDeHorarioTests
         Assert.Equal(2, b.ClubeId);
     }
 
+    // 🗣️ *"quando eu altero um jogo, no mesmo horario, ele nao esta trocando a ordem na linha"*
+    // (Felipe, 10/09/2026). Quem toma o slot do outro toma o LUGAR DELE na linha
+    // (Services/OrdemNoHorario) — senão o jogo mudava de hora e reaparecia numa posição que
+    // ninguém escolheu. É por aqui que o reparo da grade também preserva a fila.
+    [Fact]
+    public void A_troca_leva_a_posicao_dentro_do_horario_junto()
+    {
+        var a = Jogo(1, horaEm: 10);
+        a.OrdemNoHorario = 1;
+        var b = Jogo(2, horaEm: 10);
+        b.OrdemNoHorario = 2;
+
+        TrocaDeHorario.Trocar(a, b);
+
+        Assert.Equal(2, a.OrdemNoHorario);
+        Assert.Equal(1, b.OrdemNoHorario);
+    }
+
     // E a categoria que fica em casa (a 3ª, a 4ª) não pode ser mandada pro slot do local
     // alugado por uma troca na mão — a grade automática não faria isso, e a troca também não.
     private static SedesDoTorneio SedesDoEr(params Categoria[] categorias) =>
@@ -118,6 +136,77 @@ public class TrocaDeHorarioTests
         noRadar.ClubeId = 2;
 
         Assert.Null(TrocaDeHorario.MotivoParaNaoTrocar(daSexta, noRadar, Torneio, SedesDoEr(sexta)));
+    }
+
+    // 🕳️ O CARIMBO DE CLUBE PODE ESTAR VELHO, E A QUADRA NUNCA ESTÁ (10/09/2026).
+    //
+    // `Partida.ClubeId` existe pro "por ordem de liberação", onde a quadra é apagada e o carimbo
+    // é tudo que diz ONDE é o jogo (OrdemDeLiberacao.CarimbarOClube). Mas ele era lido ANTES da
+    // quadra, e há uma janela em que ele mente: o "Recalcular horários" zera hora e quadra, o
+    // encaixe dá vaga nova — que pode ser em OUTRO clube — e o carimbo só é refeito no fim, DEPOIS
+    // do reparo. No meio disso o jogo está numa Arena carregando "Radar" no carimbo.
+    //
+    // Medido: era essa a diferença entre o reparo do sorteio (carimbo ainda nulo, clube saindo da
+    // quadra) e o do Recalcular (carimbo velho) — em 1 de 40 sorteios do Er os dois davam
+    // vereditos diferentes pro MESMO par de jogos, e a grade recalculada saía diferente da
+    // sorteada sem nada ter mudado
+    // (GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio).
+    //
+    // A régua: quando o jogo TEM quadra, o clube da vaga é o da quadra. O carimbo só responde
+    // quando não há quadra que responda — que é exatamente o caso pro qual ele foi criado.
+    [Fact]
+    public void O_clube_da_vaga_sai_da_QUADRA_e_nao_do_carimbo_velho()
+    {
+        var terceira = new Categoria { Id = 3, Nome = "3ª Masculina", Codigo = "3M", PodeJogarNaSedeExtra = false };
+        var daTerceira = Jogo(1, horaEm: 20, quadra: "Arena 1");
+        daTerceira.CategoriaId = 3;
+        daTerceira.Categoria = terceira;
+
+        // O dono da vaga está numa quadra do Er Padel, com o carimbo velho do Radar.
+        var naArena = Jogo(2, horaEm: 10, quadra: "Arena 1");
+        naArena.CategoriaId = 6;
+        naArena.ClubeId = 2;                     // ← mentira: a Arena 1 é do Er Padel
+
+        Assert.Null(TrocaDeHorario.MotivoParaNaoTrocar(daTerceira, naArena, Torneio, SedesDoEr(terceira)));
+    }
+
+    // O outro lado, e é o que dói: o carimbo velho dizendo "casa" sobre uma vaga que é no ALUGADO
+    // manda a categoria presa em casa pro Radar — a régua vira uma porta.
+    [Fact]
+    public void Carimbo_velho_de_casa_nao_libera_a_vaga_que_e_no_local_externo()
+    {
+        var terceira = new Categoria { Id = 3, Nome = "3ª Masculina", Codigo = "3M", PodeJogarNaSedeExtra = false };
+        var daTerceira = Jogo(1, horaEm: 20, quadra: "Arena 1");
+        daTerceira.CategoriaId = 3;
+        daTerceira.Categoria = terceira;
+
+        var noRadar = Jogo(2, horaEm: 10, quadra: "Radar 1");
+        noRadar.CategoriaId = 6;
+        noRadar.ClubeId = 1;                     // ← mentira: a Radar 1 é do Radar
+
+        var motivo = TrocaDeHorario.MotivoParaNaoTrocar(daTerceira, noRadar, Torneio, SedesDoEr(terceira));
+
+        Assert.NotNull(motivo);
+        Assert.Contains("Radar", motivo);
+    }
+
+    // A CONTRAPROVA, e ela é a razão de o carimbo existir: SEM quadra, quem responde é ele. É o
+    // "por ordem de liberação", onde a Mesa é que dá a quadra e o jogo sai da grade só com hora e
+    // clube. Sem esta guarda, "ler a quadra primeiro" viraria "esquecer o carimbo".
+    [Fact]
+    public void Sem_quadra_quem_diz_o_clube_da_vaga_e_o_carimbo()
+    {
+        var terceira = new Categoria { Id = 3, Nome = "3ª Masculina", Codigo = "3M", PodeJogarNaSedeExtra = false };
+        var daTerceira = Jogo(1, horaEm: 20);
+        daTerceira.CategoriaId = 3;
+        daTerceira.Categoria = terceira;
+        daTerceira.ClubeId = 1;
+
+        var semQuadra = Jogo(2, horaEm: 10);     // "por ordem": quadra apagada, clube carimbado
+        semQuadra.CategoriaId = 6;
+        semQuadra.ClubeId = 2;
+
+        Assert.NotNull(TrocaDeHorario.MotivoParaNaoTrocar(daTerceira, semQuadra, Torneio, SedesDoEr(terceira)));
     }
 
     [Fact]

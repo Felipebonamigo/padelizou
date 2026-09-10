@@ -62,6 +62,9 @@
     // daqui pra devolver o organizador pra ESTA página depois de uma ação — a página do
     // torneio tem as abas mãe, e /Torneios/Jogos é só a lista.
     ViewData["TargetAction"] = Model.TargetAction;
+    // A prévia (_JogoQueVem) não recebe o torneio pelo modelo dela — o JogoQueVem é do motor da
+    // projeção e não conhece Id de torneio. As setas ↑↓ precisam dele no POST.
+    ViewData["TorneioDaLista"] = Model.TorneioId;
 }
 
 @* A QUADRA VAGOU: o próximo jogo dela já vem com o botão de começar.
@@ -692,11 +695,12 @@
            no torneio, igual ao dos outros: é slot de grade, não palpite. O que está "a
            definir" é QUEM joga, e é só isso que a linha diz. *@
         @{
-            var linhasAgendadas = agendadasList
-                .Select(p => (Horario: p.HorarioPrevisto, Jogo: p, Porvir: (JogoQueVem?)null))
-                .Concat(jogosQueVem.Select(j => (Horario: j.Horario, Jogo: (Partida?)null, Porvir: (JogoQueVem?)j)))
-                .OrderBy(x => x.Horario ?? DateTime.MaxValue)
-                .ToList();
+            @* ⚠️ A FILA SAI DE Services/OrdemNoHorario, e não de um OrderBy solto aqui (10/09/2026).
+               Ordenar só pela hora deixava dois jogos do mesmo minuto na ordem que o banco
+               devolvesse — e ela muda sozinha depois de um UPDATE. É a MESMA régua que as setas
+               ↑↓ usam pra achar o vizinho: duas contas de "quem vem antes" fariam a seta mover o
+               jogo pra um lugar diferente do que esta lista mostrou. *@
+            var linhasAgendadas = Padelizou.Services.OrdemNoHorario.Ordenar(agendadasList, jogosQueVem);
         }
 
         <div class="pdz-jogos-lista">
@@ -706,7 +710,7 @@
                 {
                     <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId)" />
                 }
-                else if (linha.Porvir is JogoQueVem porvir)
+                else if (linha.Previsto is JogoQueVem porvir)
                 {
                     <partial name="_JogoQueVem" model="porvir" />
                 }
@@ -795,7 +799,7 @@
                                                 · @NomeDaDupla.CompactoNa(candidato.Dupla1) × @NomeDaDupla.CompactoNa(candidato.Dupla2)
                                             </option>
                                         }
-                                        else if (linha.Porvir is JogoQueVem previsto
+                                        else if (linha.Previsto is JogoQueVem previsto
                                                  && previsto.Horario is DateTime quandoPrevisto
                                                  && previsto.CategoriaId is int categoriaPrevista)
                                         {

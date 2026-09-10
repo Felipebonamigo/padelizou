@@ -115,6 +115,11 @@ public static class DuplicacaoDeTorneio
         // "Novo torneio aberto" dela nunca sairia — o circuito que roda todo mês seria
         // anunciado uma vez só, na primeira edição, e ninguém descobriria por quê.
         nameof(Torneio.AvisoDeTorneioNovoEm),
+        // ⚠️ Do MESMO tipo que o de cima — cala. Herdado, a edição nova nasceria "já avisada" e a
+        // caixinha do Aprovar viria DESMARCADA na primeira liberação dela: as chaves sairiam e
+        // ninguém receberia o "as chaves saíram". No circuito que repete toda etapa, só a
+        // primeira edição avisaria.
+        nameof(Torneio.ChavesAvisadasEm),
         nameof(Torneio.RankingAmericanoPagoEm),
         nameof(Torneio.TaxaExternoPagaEm),
         nameof(Torneio.TaxaExternoNegociadaEm),
