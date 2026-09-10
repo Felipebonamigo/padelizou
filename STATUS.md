@@ -144,6 +144,20 @@
 >
 > 🧪 **6.025 testes, 0 falhas** (11 novos no #130, todos vistos vermelhos antes — inclusive dois de FONTE: um trava a aba Chaves lendo `ProjecaoCompleta`, outro trava o texto do diálogo destrutivo).
 
+> **10/09/2026** — ✅ **A INSTABILIDADE DA GRADE ERA A RÉGUA, NÃO O REPARO — e o `Conferir grade` contava errado.** ⚠️ **Ainda NÃO publicado** — branch `claude/game-sequence-function-kibwiu`. **Sem migration.** 🗣️ *"conserta a instabilidade da grade"*.
+>
+> 🕳️ **A CAUSA.** `AuditoriaDaGrade.Conferir`, ao montar os "jogos seguidos", ordenava a agenda de cada pessoa com `OrderBy(q => q.Quando)` — e `OrderBy` é **ESTÁVEL**. Dois jogos da mesma pessoa NO MESMO HORÁRIO (que existe e tem nome: é o achado "Mesma pessoa em dois jogos") ficavam na ordem em que vieram na LISTA. A varredura de pares consecutivos montava pares diferentes — `(A,B)` e `(B,C)` numa ordem, `(B,A)` e `(A,C)` na outra — e o dicionário agrupava por chaves diferentes.
+>
+> ⚠️ **NÃO ERA SÓ A ORDEM DOS ACHADOS: ERA A CONTAGEM.** A mesma grade rendia **3 achados numa ordem e 2 na outra**. Isso vazava para três lugares de uma vez: o **número que o organizador lê no "Conferir grade"**, o `ReparoDaGrade.Custo` (que aceitava numa passagem a troca que recusava na outra) e o `Doentes` (que começava por outro jogo). Como o sorteio entrega a lista na ordem da fila e o "Refazer" na ordem que o banco quiser (`Partidas.Where(...)` sem ORDER BY), saíam duas grades.
+>
+> 🎯 **O PR #118 TENTOU FECHAR PELA PONTA ERRADA.** Ele ordenou os candidatos DENTRO do reparo (`EmOrdemEstavel`) — correto e necessário, mas insuficiente: a régua que o reparo consulta já respondia diferente. **Regra 6 na prática: a terceira tentativa no mesmo lugar significa que o problema não está ali.**
+>
+> ✅ **A correção são duas ordenações totais em `AuditoriaDaGrade`:** `.ThenBy(q => q.Jogo.Codigo)` no desempate da agenda de cada pessoa (`Codigo` e não `Id` — no sorteio os jogos ainda não foram gravados e são todos zero, o mesmo motivo do `EmOrdemEstavel`), e um desempate total na lista devolvida, pra a tela não se reembaralhar entre dois F5.
+>
+> 🧪 **PROVA:** `GradeEstavelIndependenteDaOrdemTests` (3 testes, vistos vermelhos) reproduz o defeito **sem sorteio nenhum** — e o terceiro sai com a assinatura exata da produção, um PAR trocando entre si: *"AAA: 10 10:50 → 10 10:00, CCC: 10 10:00 → 10 10:50"*. Ele percorre TODAS as permutações da lista, porque o defeito só aparece em algumas e foi assim que escapou do #118. O `Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio` passou **50 de 50** (era 5 falhas em 25). **6.049 testes, 0 falhas.**
+>
+> 🕳️ **E SOBROU UM, QUE É OUTRO DEFEITO E MAIS GRAVE:** `ChaveDiretaNoSorteioTests.Torneio_completo_com_categorias_times_e_chave_direta_na_mesma_grade` ainda falha ~1 em 70, e a mensagem é **`05/08 18:24 time-62`** — a MESMA dupla-time marcada em dois jogos no mesmo horário. A causa está em `RoboDoChaveamento.OcupantesPorDupla`, que faz `.Where(d => !d.EhTime)` e **tira as duplas-time da conta de ocupação**: sem ocupante registrado, nada impede a grade de chamar o time pra duas quadras de uma vez. Excluir era certo pelo motivo errado (o `Jogador1Id` de um time é o organizador, e comparar por pessoa faria todo time brigar com todo time); o conserto é dar ao time um ocupante próprio derivado do `Id` da dupla, num espaço que não colida com Id de jogador. **NÃO corrigido aqui** — muda o encaixe, e 🗣️ *"nao meixa nas chaves mais até eu mandar"*. Não afeta o Er, que não tem categoria de times.
+
 > **10/09/2026** — 🎲 **DOIS TESTES DA GRADE SÃO INSTÁVEIS, E ISSO NÃO É RUÍDO DE CI — É DEFEITO ANOTADO.** Medido, não suposto, rodando o mesmo teste 25 vezes seguidas no mesmo commit:
 >
 > | Teste | Falhas em 25 | Onde |
