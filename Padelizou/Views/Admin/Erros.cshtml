@@ -3,6 +3,12 @@
     ViewData["Title"] = "Erros de produção - Admin";
     var nomes = ViewBag.NomesDosJogadores as Dictionary<int, string> ?? new();
     var ultimas24h = (int)ViewBag.Ultimas24h;
+    var tipos = ViewBag.TiposDoRegistro as List<string> ?? new();
+    var caminhos = ViewBag.CaminhosDoRegistro as List<string> ?? new();
+    string? filtroTipo = ViewBag.FiltroTipo;
+    string? filtroCaminho = ViewBag.FiltroCaminho;
+    bool filtrando = filtroTipo != null || filtroCaminho != null;
+    var totalDoRecorte = (int)ViewBag.TotalDoRecorte;
 }
 
 <div class="container mt-4 mb-5">
@@ -29,12 +35,58 @@
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center">
-                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@Model.Count</div>
-                    <div class="small text-muted">no registro (últimos 100)</div>
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@totalDoRecorte</div>
+                    @* ⚠️ O total do RECORTE, não o tamanho da lista: com mais de 100 a tela
+                       mostra 100, e um "100" fixo esconderia justamente que passou de 100. *@
+                    <div class="small text-muted">
+                        @(filtrando ? "com este filtro" : "no registro")
+                        @if (totalDoRecorte > Model.Count)
+                        {
+                            <text>(mostrando @Model.Count)</text>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    @* ── O FILTRO ───────────────────────────────────────────────────────────────────────
+       (Tipo, Caminho) é a MESMA identidade que o vigia usa pra decidir se reavisa — então
+       filtrar pelos dois é perguntar pelo erro de que o push falou, e não por um parecido.
+
+       As opções saem da tabela inteira (ver AdminController.Erros) e são um <select>, não um
+       campo de texto: no celular, digitar "/Partidas/Votar" sem errar uma barra é o caminho
+       mais curto pra concluir que "não tem nada" quando tem. *@
+    <form asp-controller="Admin" asp-action="Erros" method="get" class="row g-2 align-items-end mb-4">
+        <div class="col-12 col-md-4">
+            <label class="form-label small text-muted mb-1" for="filtroTipo">Tipo do erro</label>
+            <select class="form-select" id="filtroTipo" name="tipo" onchange="this.form.submit()">
+                <option value="">Todos os tipos</option>
+                @foreach (var t in tipos)
+                {
+                    <option value="@t" selected="@(filtroTipo == t)">@t</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-md-5">
+            <label class="form-label small text-muted mb-1" for="filtroCaminho">Caminho</label>
+            <select class="form-select" id="filtroCaminho" name="caminho" onchange="this.form.submit()">
+                <option value="">Todos os caminhos</option>
+                @foreach (var c in caminhos)
+                {
+                    <option value="@c" selected="@(filtroCaminho == c)">@c</option>
+                }
+            </select>
+        </div>
+        @if (filtrando)
+        {
+            <div class="col-12 col-md-3">
+                <a asp-controller="Admin" asp-action="Erros" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x-lg"></i> Limpar filtro
+                </a>
+            </div>
+        }
+    </form>
 
     <form asp-controller="Admin" asp-action="TestarVigiaDeErros" method="post" class="mb-4"
           data-confirmar="Isto estoura um erro DE VERDADE: você vai cair na tela de erro, e um aviso sai pros administradores. É o teste do alarme. Pode ir?">
@@ -46,9 +98,24 @@
 
     @if (Model.Count == 0)
     {
-        <div class="alert alert-success">
-            <i class="bi bi-check-circle"></i> Nenhum erro registrado. É assim que a gente gosta.
-        </div>
+        @* ⚠️ "Nada aqui" com filtro ligado e "nada aqui" de verdade são notícias diferentes:
+           a primeira é a resposta a uma pergunta, a segunda é o registro vazio. Uma frase só
+           pras duas faria a tela parecer dizer que não há erro nenhum no sistema. *@
+        @if (filtrando)
+        {
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i>
+                Nenhum erro <strong>@(filtroTipo ?? "de qualquer tipo")</strong>
+                em <strong>@(filtroCaminho ?? "qualquer caminho")</strong> no registro
+                (que guarda os últimos @((int)Padelizou.Services.VigiaDeErros.Retencao.TotalDays) dias).
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> Nenhum erro registrado. É assim que a gente gosta.
+            </div>
+        }
     }
     else
     {

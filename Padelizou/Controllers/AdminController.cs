@@ -689,12 +689,31 @@ namespace padelizou.Controllers
 
         // Os erros não tratados de produção — o que o CapturaDeErro registrou. O aviso por
         // push/e-mail diz QUE quebrou; esta tela diz ONDE e POR QUÊ, sem precisar de ssh.
+        //
+        // O FILTRO POR TIPO E CAMINHO (10/09/2026) responde a pergunta estreita que o push não
+        // responde: "este erro voltou a acontecer DEPOIS do deploy?". A identidade do erro pro
+        // vigia é exatamente (Tipo, Caminho) — ver VigiaDeErros.DeveAvisar —, então filtrar
+        // pelos dois é perguntar pelo MESMO erro de que o aviso falava, e não por um parecido.
+        //
+        // ⚠️ O FILTRO ENTRA ANTES DO `Take(100)`, e é o ponto todo desta tela. Filtrar a página
+        // já carregada compila, parece certo no dia calmo e mente no dia ruim: basta outro erro
+        // ter estourado 200 vezes pra empurrar o que se procura pra fora da janela, e aí a tela
+        // diz "nenhum erro deste tipo" com o erro gravado no banco. Mesma armadilha do
+        // `ConsultaDePartidas` de 19/08 (filtrar depois de projetar), noutra roupa.
         [HttpGet]
-        public async Task<IActionResult> Erros()
+        public async Task<IActionResult> Erros(string? tipo = null, string? caminho = null)
         {
             if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
 
-            var erros = await _context.ErrosDoSistema
+            // Vazio e "todos" são a mesma coisa: o <select> devolve "" na opção de cima.
+            tipo = string.IsNullOrWhiteSpace(tipo) ? null : tipo;
+            caminho = string.IsNullOrWhiteSpace(caminho) ? null : caminho;
+
+            var consulta = _context.ErrosDoSistema
+                .Where(e => tipo == null || e.Tipo == tipo)
+                .Where(e => caminho == null || e.Caminho == caminho);
+
+            var erros = await consulta
                 .OrderByDescending(e => e.QuandoEm)
                 .Take(100)
                 .ToListAsync();
@@ -706,7 +725,23 @@ namespace padelizou.Controllers
                 .Where(j => ids.Contains(j.Id))
                 .ToDictionaryAsync(j => j.Id, j => j.Nome);
 
-            ViewBag.Ultimas24h = erros.Count(e => e.QuandoEm >= DateTime.Now.AddHours(-24));
+            // ⚠️ Contado no BANCO, sobre o mesmo recorte do filtro. Contado sobre a página, o
+            // número empacava em 100 justo no dia em que passar de 100 é a notícia — e, com
+            // filtro, ele responderia por uma lista que não é a que está na tela.
+            var ontem = DateTime.Now.AddHours(-24);
+            ViewBag.Ultimas24h = await consulta.CountAsync(e => e.QuandoEm >= ontem);
+            ViewBag.TotalDoRecorte = await consulta.CountAsync();
+
+            // As caixinhas saem da TABELA INTEIRA, não da página: montadas a partir das últimas
+            // 100, o tipo que se procura sumiria da lista exatamente no dia da rajada — e o
+            // filtro ficaria sem a opção que interessa, sem nada na tela explicando por quê.
+            ViewBag.TiposDoRegistro = await _context.ErrosDoSistema
+                .Select(e => e.Tipo).Distinct().OrderBy(t => t).ToListAsync();
+            ViewBag.CaminhosDoRegistro = await _context.ErrosDoSistema
+                .Select(e => e.Caminho).Distinct().OrderBy(c => c).ToListAsync();
+
+            ViewBag.FiltroTipo = tipo;
+            ViewBag.FiltroCaminho = caminho;
 
             return View(erros);
         }

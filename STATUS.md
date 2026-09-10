@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> 🔎 **A TELA DE ERROS GANHOU FILTRO POR TIPO E POR CAMINHO.** 🗣️ Felipe, depois de eu dizer que não dava pra afirmar daqui se o `DbUpdateException em POST /Partidas/Votar` tinha parado: *"faz o filtro por tipo e caminho na tela de erros"*. A pergunta é estreita — "existe ESTE tipo NESTE caminho depois das 15h07?" — e a tela só sabia mostrar as últimas 100 linhas de tudo, misturadas.
+>
+> 🎯 **(Tipo, Caminho) NÃO É UM PAR QUALQUER: é a identidade que o vigia já usa.** `VigiaDeErros.DeveAvisar` decide a janela de silêncio por esse mesmo par, então filtrar pelos dois é perguntar pelo **erro de que o push falou**, e não por um parecido. Reusar a chave que já existia é o que faz a tela responder exatamente a pergunta que o aviso levanta.
+>
+> ⚠️ **O FILTRO ENTRA ANTES DO `Take(100)`, e este é o ponto todo.** Filtrar a página já carregada compila, parece certo no dia calmo e **mente no dia ruim**: basta outro erro ter estourado 200 vezes pra empurrar o que se procura pra fora da janela, e a tela responde *"nenhum erro deste tipo"* com o erro gravado no banco. É a mesma armadilha do `ConsultaDePartidas` de 19/08 (filtrar depois de projetar) noutra roupa. **As caixinhas do filtro saem da tabela inteira pelo mesmo motivo** — montadas a partir das últimas 100, a opção que interessa sumiria justo no dia da rajada.
+>
+> 🔢 **DE QUEBRA, O "NAS ÚLTIMAS 24H" PAROU DE EMPACAR EM 100.** Ele era contado sobre a página (`erros.Count(...)` sobre a lista de 100), então o número travava em 100 exatamente no dia em que passar de 100 é a notícia. Agora é `CountAsync` no banco, sobre o **mesmo recorte do filtro** — senão ele responderia por uma lista diferente da que está na tela. O segundo cartão virou o **total do recorte**, com "(mostrando 100)" quando há mais.
+>
+> 🙈 **E "nada aqui" com filtro ligado ficou diferente de "nada aqui" de verdade** — a primeira é a resposta a uma pergunta, a segunda é o registro vazio. Uma frase só pras duas faria a tela parecer dizer que não há erro nenhum no sistema.
+>
+> 🧪 **6.191 testes, 0 falhas (12 novos: 8 em `FiltroDaTelaDeErrosTests`, 4 em `TraducaoDasConsultasDaTelaDeErrosTests`).** Vistos vermelhos antes: *"No overload for method 'Erros' takes 2 arguments"*. ⚠️ **E os dois que carregam o valor da mudança foram FALSIFICADOS depois**, porque compilar não prova comportamento: com o filtro movido pra DEPOIS do `Take(100)`, caem `O_filtro_procura_na_TABELA_INTEIRA_e_nao_so_nas_ultimas_100` e `O_contador_de_24h_nao_para_em_100`; com um método nosso plantado dentro do `Where`, caem 3 dos 4 testes de tradução (o quarto não usa aquele recorte — e continuar verde ali é o certo).
+>
+> 📌 **Tradução conferida porque o InMemory não confere** (regra da casa): as três formas novas — o `Where` do filtro opcional, o `Distinct` das caixinhas e o `Count` da janela — compilam contra Npgsql via `ToQueryString()`. Um 500 na **tela de erros** seria o lugar mais irônico possível pra ele acontecer: é pra ela que o aviso de erro manda a pessoa.
+>
+>
+> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
 >
 > ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
 >
