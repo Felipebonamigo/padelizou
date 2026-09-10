@@ -1,7 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (23h51 e 23h52 UTC — runs 204 e 205). PR #179. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DO ER (`/Torneios/Details/26`, 830 KB de HTML baixados do `prod`)** — e não só o `/healthz`:
+> - **"Palpiteiros" acima das abas: 0** (era 1). Na página inteira: **2** — a aba e o link do painel, que é exatamente o desenho novo.
+> - **`Cartaz pra divulgar` e `Ver as fotos do torneio` com `title=`**, e as duas frases antigas **dentro do atributo**, não como texto: `title="Arte pronta pra postar, com o QR que leva direto pra cá."` e `title="Publicadas pelo organizador — abre fora do Padelizou."`.
+> - **Zero `<small>` e zero `</div>` entre os dois botões** — prova estrutural de que dividem a MESMA linha.
+> - **`Abrir em página própria`: 1** — a página cheia não ficou órfã.
+> - `/healthz` **HTTP 200** e corpo **`ok`** nos dois domínios.
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e isso é novo aqui:** ele tem o portão de **Acesso Antecipado**, então anônimo é redirecionado pra `/AcessoAntecipado/Entrar` e o HTML do torneio nunca chega (o primeiro `curl` voltou **0 bytes** justamente por isso). No `dev` a conferência externa possível é o `/healthz` e os estáticos; a **visual é no `prod`**, que é aberto. Vale lembrar antes de alguém prometer "conferi no dev" de novo.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES no meio** (PRs #178 e #180, de outra sessão — o #178 entrou minutos antes do meu merge). Publiquei **pela tag** `build-1040-e57d577`, com o sha7 conferido contra o meu merge `e57d5775`, e não por "o mais recente".
+>
+> ⚠️ **A LISTAGEM DE RELEASES VEM ORDENADA POR NOME, NÃO POR DATA.** `build-997` aparece **antes** de `build-1040` na primeira página — pegar "a primeira" publica um build de quatro horas atrás. Ordene por `published_at` e confira o sha7.
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a régua agora diz *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1, e errar o vencedor vale 0"*, e o aviso conta **341 palpites** esperando resultado. `/healthz` 200 nos dois ambientes.
 >
@@ -31,7 +44,7 @@
 >
 > ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
 
-> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (PR #179) — o registro do deploy e o que foi conferido no ar estão na entrada do topo. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do 2ª Etapa ER Padel Tour no celular: *"estou achando muito poluído essa tela, muita informação"*. Contados, eram **DEZ blocos** entre o topo e o primeiro jogo. E, olhando a lista: *"palpiteiros me parece duplicado, não?"*.
 >
