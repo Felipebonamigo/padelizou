@@ -13,6 +13,9 @@
 *@
 @{
     var jogo = Model.Jogo;
+    // Pra onde o POST das setas volta (a aba de onde se clicou). Fora do atributo `model=""` de
+    // propósito: aspas dentro de aspas quebram o parser do Razor.
+    var voltarParaAqui = ViewData["TargetAction"] as string;
     var g1 = jogo.GamesDupla1 ?? 0;
     var g2 = jogo.GamesDupla2 ?? 0;
     var venceu1 = Model.Finalizada && g1 > g2;
@@ -201,6 +204,14 @@
                             <i class="bi bi-play-fill"></i>
                         </button>
                     </form>
+                    @* ↑↓: mover o jogo UMA linha. Vizinho em outro horário → o slot inteiro troca
+                       (hora + quadra + clube); vizinho no mesmo horário → troca a posição dentro
+                       dele (Services/OrdemNoHorario). Só em jogo agendado: mover quem está em
+                       quadra seria reescrever o que está acontecendo. *@
+                    @if (jogo.Status == "Agendada" && jogo.TorneioId is int torneioDaLinha)
+                    {
+                        <partial name="_SetasDaOrdem" model="(torneioDaLinha, jogo.Id.ToString(), voltarParaAqui)" />
+                    }
                     <button type="button" class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
                             data-jogo-id="@jogo.Id"

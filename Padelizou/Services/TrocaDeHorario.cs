@@ -59,11 +59,18 @@ public static class TrocaDeHorario
     // trocar aqui, tem q cuidar para nao trocar o clube, por que o clube é pelo horario"* (Felipe,
     // 10/09/2026). No "por ordem" a quadra é nula e o clube carimbado é tudo que diz ONDE é o jogo;
     // trocar só hora e quadra deixava o jogo com a hora do Radar e o nome do Er Padel.
+    //
+    // ⚠️ A POSIÇÃO DENTRO DO HORÁRIO VAI JUNTO (10/09/2026, Services/OrdemNoHorario): quem toma o
+    // slot do outro toma o lugar dele na linha, senão o jogo mudava de hora e reaparecia numa
+    // posição que ninguém escolheu. E é isto que dá sentido à troca entre dois jogos do MESMO
+    // horário — ali hora, quadra e clube são iguais dos dois lados, e a posição é a única coisa
+    // que existe pra trocar. 🗣️ *"no mesmo horario, ele nao esta trocando a ordem na linha"*.
     public static void Trocar(Partida a, Partida b)
     {
         (a.HorarioPrevisto, b.HorarioPrevisto) = (b.HorarioPrevisto, a.HorarioPrevisto);
         (a.NomeQuadra, b.NomeQuadra) = (b.NomeQuadra, a.NomeQuadra);
         (a.ClubeId, b.ClubeId) = (b.ClubeId, a.ClubeId);
+        (a.OrdemNoHorario, b.OrdemNoHorario) = (b.OrdemNoHorario, a.OrdemNoHorario);
     }
 
     // ═══ A TROCA COM UMA ELIMINATÓRIA QUE AINDA NÃO NASCEU (10/09/2026) ═══

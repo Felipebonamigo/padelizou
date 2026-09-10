@@ -49,8 +49,13 @@ public static class ProximasFasesDaChave
 
     // A categoria vem junto porque a lista de jogos mistura todas: sem ela, duas semifinais
     // de categorias diferentes viram duas linhas idênticas.
+    // `OrdemNoHorario` é a posição dentro do horário que o organizador gravou pra esta prévia
+    // (Models/ReservaDeHorario.OrdemNoHorario). Nula = automático. Quem preenche é quem lê as
+    // reservas (TorneiosController.ProjetarProximasFasesAsync), e não o motor daqui: a projeção
+    // decide QUANDO o jogo cai, não em que posição da linha o organizador quer vê-lo.
     public record JogoQueVem(string Categoria, string Fase, int Numero, DateTime? Horario,
-                             Lado Lado1, Lado Lado2, string? Quadra = null, int? CategoriaId = null)
+                             Lado Lado1, Lado Lado2, string? Quadra = null, int? CategoriaId = null,
+                             int? OrdemNoHorario = null)
     {
         // "Quartas de Final 2" — o rótulo que a tela mostra e que os lados citam.
         // A FINAL não numera: é um jogo só, e "Final 1" faria pensar que existe uma Final 2.
