@@ -702,28 +702,36 @@ namespace padelizou.Controllers
                     ? null
                     : await _context.Times.FirstOrDefaultAsync(t => t.Nome.ToLower() == alvo && t.Id != meuTimeId);
 
-                // Renomear o próprio time para o nome de OUTRO é recusado: passariam a existir
-                // dois times com o nome idêntico, que é pior que a duplicata que a pessoa
-                // estava tentando corrigir. Nada da tela é gravado (não há SaveChanges antes
-                // deste ponto na ação), então volta o formulário inteiro com o erro.
-                if (meuTime != null && homonimo != null)
+                // Nome que já existe NUNCA vira um segundo cadastro — o banco tem índice único
+                // em `lower(btrim("Nome"))` desde 10/09/2026, então um insert desses nem chega
+                // a gravar. E recusar sozinho deixaria a pessoa presa: ela digita o nome do
+                // próprio clube, o banco diz não, e ela não tem como chegar no cadastro certo.
+                // Por isso: quem não tinha time ENTRA no que existe; quem já tinha, FUNDE.
+                if (homonimo != null)
                 {
-                    ViewBag.Erro = $"Já existe um time chamado \"{homonimo.Nome}\". Dois times com o mesmo nome dividiriam a mesma turma em duas — fale com o Padelizou se for pra juntar os dois.";
-                    await PopularDadosTimeAsync(jogadorId);
-                    return View(jogador);
-                }
+                    var destino = meuTime == null
+                        ? homonimo
+                        : await FusaoDeTimes.FundirAsync(_context, meuTime.Id, homonimo.Id);
+                    await _context.SaveChangesAsync();
 
-                if (meuTime == null && homonimo != null)
-                {
-                    // O nome já existe: ENTRA nele em vez de criar um segundo, igual ao
-                    // DefinirTimeAsync faz no cadastro.
-                    //
-                    // ⚠️ E entra SEM cargo, SEM logo e SEM sede — de propósito. Quem digitou
-                    // o nome não administra esse time: dar-lhe o escudo e as sedes deixaria
-                    // qualquer pessoa reescrever a identidade de um time alheio só por saber
-                    // como ele se chama, que é o mesmo risco que o DefinirTimeAsync evita ao
-                    // não conceder administração.
-                    TransferenciasDeTime.Registrar(_context, jogador, homonimo.Id);
+                    // ⚠️ Logo, sedes e cargo NÃO saem daqui, e o nome do destino não muda.
+                    // Depois da junção quem manda é quem já mandava no sobrevivente; deixar
+                    // esta tela gravar o escudo, as sedes ou a grafia permitiria a qualquer
+                    // pessoa reescrever a identidade de um time alheio só por saber como ele
+                    // se chama — o mesmo risco que o DefinirTimeAsync evita ao não conceder
+                    // administração a quem digita o nome de um time que já existe.
+                    TransferenciasDeTime.Registrar(_context, jogador, destino.Id);
+
+                    avisos.Add(meuTime == null
+                        ? $"Já existia um time chamado \"{destino.Nome}\" — você entrou nele."
+                        : $"Já existia um time com esse nome: os dois viraram um só, o \"{destino.Nome}\".");
+
+                    if (logoTime != null && logoTime.Length > 0)
+                    {
+                        // Dito, e não engolido: a pessoa mandou um escudo e ele não foi
+                        // aplicado. Silenciar aqui faria parecer que o envio deu certo.
+                        avisos.Add("O escudo enviado não foi aplicado nesta junção — salve de novo se você administra o time.");
+                    }
                 }
                 else
                 {

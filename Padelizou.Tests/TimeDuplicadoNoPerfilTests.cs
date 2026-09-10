@@ -59,13 +59,17 @@ public class TimeDuplicadoNoPerfilTests
     }
 
     [Fact]
-    public async Task Renomear_o_proprio_time_para_o_nome_de_outro_e_recusado()
+    public async Task Renomear_o_proprio_time_para_o_nome_de_outro_funde_os_dois()
     {
         // O agravante do mesmo trecho: com os dois times já na base, a dona do "Er padel"
         // corrigindo o nome pra "ER Padel" passaria a ter DOIS times com o nome idêntico —
-        // pior que o problema que ela quis arrumar.
+        // pior que o problema que ela quis arrumar. Agora os dois viram um só, pela régua do
+        // FusaoDeTimes (sobrevive o de mais jogadores).
         var (ctx, jogador) = await CenarioAsync();
         using var _ = ctx;
+        ctx.Jogadores.AddRange(
+            new Jogador { Id = 2, Nome = "Rafael", Cpf = "2", TimeId = 10 },
+            new Jogador { Id = 3, Nome = "Bruno", Cpf = "3", TimeId = 10 });
         ctx.Times.Add(new Time { Id = 11, Nome = "Er padel" });
         ctx.TimeAdministradores.Add(new TimeAdministrador
         {
@@ -74,13 +78,16 @@ public class TimeDuplicadoNoPerfilTests
             ConcedidoPorId = jogador.Id,
             ConcedidoEm = DateTime.Now,
         });
+        jogador.TimeId = 11;
         await ctx.SaveChangesAsync();
 
-        var resultado = await SalvarComoDonoAsync(ctx, jogador.Id, "ER Padel");
+        await SalvarComoDonoAsync(ctx, jogador.Id, "ER Padel");
 
-        Assert.IsType<ViewResult>(resultado);
-        Assert.Equal("Er padel", (await ctx.Times.FindAsync(11))!.Nome);
-        Assert.Equal(2, ctx.Times.Count());
+        Assert.Single(ctx.Times);
+        Assert.Equal("ER Padel", ctx.Times.Single().Nome);
+        Assert.Equal(10, (await ctx.Jogadores.FindAsync(jogador.Id))!.TimeId);
+        // A fusão não promove: ela administrava 1 pessoa, e não passa a mandar em 3.
+        Assert.Empty(ctx.TimeAdministradores);
     }
 
     [Fact]
