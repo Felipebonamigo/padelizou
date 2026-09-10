@@ -13,6 +13,22 @@
 >
 > 🔧 **ENSAIOS DE ESCRITA NO `dev` (o motivo documentado da cópia).** `RefazerGrade` recalculou **56 jogos, 11/09 18:00 a 17:10, confrontos inalterados** — o "Refazer grade" que a cópia existe pra ensaiar antes do PRD (Regra 3). `MarcarCheckIn` marca e desmarca uma dupla; **restaurei o estado**. Só o `dev` foi tocado.
 >
+> 🚨 **A PRÉVIA DO MATA-MATA PROMETE UM HORÁRIO E O ROBÔ ENTREGA OUTRO — inclusive OUTRO DIA.** Medido no `dev` fechando a **5ª Feminina** inteira (4 jogos de grupo, 954/955/960/964) e vendo o robô gerar as semis. Comparação **apples-to-apples** (prévia lida minutos antes de finalizar, jogo real lido logo depois, sem `Refazer grade` no meio):
+>
+> | Confronto | A prévia dizia | O robô gerou |
+> |---|---|---|
+> | 1º Grupo A × 2º Grupo B (Rose × Natália) | **dom 13/09 10:30** | **sáb 12/09 17:10** |
+> | 1º Grupo B × 2º Grupo A (Rosane × Caroline) | dom 13/09 11:20 | **dom 13/09 08:00** |
+> | Final | dom 16:20 | dom 15:30 |
+>
+> ⚠️ **Uma semifinal anunciada pra domingo de manhã nasceu no SÁBADO à noite — um dia antes.** Quem se planejou pela prévia perde o jogo. É a pendência que a entrada de 10/09 já descrevia por cima ("a projeção não escorrega pro horário seguinte como a `GradeDeJogos.TemOndeJogar`"), agora com tamanho medido: **erro de DIA, não de minutos**.
+>
+> 🔀 **E os RÓTULOS saem trocados:** o confronto que a prévia chama de "Semifinal 1" (1ºA × 2ºB) vira **Semifinal 2** no jogo real, e vice-versa. Os **confrontos estão certos** — o problema é o número e a hora colados neles.
+>
+> ✅ **O QUE FUNCIONOU NO ENSAIO:** finalizar grava placar e status (`Finalizada`, abas 97→93 agendadas / 0→4 finalizadas); a **classificação dos grupos está correta** (as semis casaram exatamente 1ºA×2ºB e 1ºB×2ºA a partir dos placares digitados); o **robô do mata-mata gerou as duas semifinais como jogos REAIS** (ids 967 e 968) e deixou a **Final como prévia**, que é o desenho certo (ela depende das semis).
+>
+> 📌 **A lista `Entrega:SoPara` do `dev` está configurada** — confirmado pelo Felipe em 10/09, e foi o que liberou este ensaio. Sem essa confirmação, finalizar no `dev` manda aviso pra gente real da cópia.
+>
 > 🚨 **ENSAIO DO "REFAZER GRADE" NO TORNEIO DO ER: ELE REEMBARALHA A GRADE INTEIRA.** Rodado sobre a cópia recém-chegada (que espelha o horário da produção), o botão moveu **46 dos 56 jogos** pra outro horário — e trocou jogos **de clube** (Er Padel ↔ Radar): o 913 foi pro Radar, o 917/918/923 saíram dele. O total por clube não muda (37 Er Padel + 19 Radar), **quem** vai pra onde muda. Os confrontos ficam intactos, como a mensagem promete. ⚠️ **É a resposta do ensaio que a cópia existe pra dar: apertar isso em produção com jogador já avisado do horário remarca quase todo mundo.**
 >
 > ✅ **E ele é ESTÁVEL: rodar uma 2ª vez mudou 0 de 56.** A grade converge — o susto é só no primeiro clique sobre uma grade arrumada à mão.
