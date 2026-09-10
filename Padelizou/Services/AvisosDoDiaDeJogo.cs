@@ -29,14 +29,23 @@ public static class AvisosDoDiaDeJogo
             .Where(p => p.Id != terminada.Id)
             .Where(p => p.Status == "Agendada")
             .Where(p => p.HorarioPrevisto != null)
-            .Where(p => MesmaQuadra(p.NomeQuadra, terminada.NomeQuadra))
+            .Where(p => MesmoLugar(p, terminada))
             .OrderBy(p => p.HorarioPrevisto)
             .FirstOrDefault();
     }
 
-    private static bool MesmaQuadra(string? a, string? b) =>
-        string.IsNullOrWhiteSpace(a) && string.IsNullOrWhiteSpace(b)
-        || string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
+    // Com quadra dos dois lados, é a quadra. Sem quadra em um deles — o "por ordem de
+    // liberação", onde a quadra é do balcão e o que se sabe do jogo é o CLUBE carimbado
+    // (Partida.ClubeId) —, é o clube: nulo casa com nulo, que é o torneio pequeno de uma sede.
+    //
+    // ⚠️ Até 10/09/2026 quadra nula casava com qualquer quadra nula, e no Er (duas sedes, toda
+    // quadra nula) o aviso ia pro jogo mais cedo do torneio INTEIRO — as jogadoras do Radar
+    // recebiam "a quadra vagou" por um jogo do Er Padel, e consumiam o "avisa uma vez só" do
+    // jogo certo (revisão adversarial do ensaio).
+    private static bool MesmoLugar(Partida a, Partida b) =>
+        !string.IsNullOrWhiteSpace(a.NomeQuadra) && !string.IsNullOrWhiteSpace(b.NomeQuadra)
+            ? string.Equals(a.NomeQuadra.Trim(), b.NomeQuadra.Trim(), StringComparison.OrdinalIgnoreCase)
+            : a.ClubeId == b.ClubeId;
 
     // Os jogadores de uma partida, sem repetir e sem nulo (dupla pode estar sem parceiro).
     // Dupla-TIME não tem jogador pra avisar: o Jogador1Id dela é o organizador que cadastrou
@@ -57,9 +66,14 @@ public static class AvisosDoDiaDeJogo
     // está no clube errado: perto do quê? Com sede, o clube entra no texto. Sai por app, e-mail
     // e WhatsApp de uma vez (ver Services/EncerramentoDaPartida), então errar aqui erra em três
     // canais ao mesmo tempo.
+    //
+    // Sem quadra (o "por ordem"), diz pelo menos o PRÉDIO, pelo carimbo: "vagou uma quadra no
+    // Radar" ainda manda a pessoa pro lado certo.
     public static string CorpoDoProximo(Partida partida, SedesDoTorneio? sedes = null) =>
         LugarDoJogo.EmTextoCorrido(sedes, partida.NomeQuadra) is { } onde
             ? $"A {onde} vagou — seu jogo é o próximo. Fique por perto."
+            : partida.ClubeId is { } carimbo && sedes?.NomeDoClube(carimbo) is { } clube
+            ? $"Vagou uma quadra no {clube} — seu jogo é o próximo. Fique por perto."
             : "A quadra vagou — seu jogo é o próximo. Fique por perto.";
 
     // "Chaves publicadas": o valor está em dizer QUANDO a pessoa joga, não que existe uma

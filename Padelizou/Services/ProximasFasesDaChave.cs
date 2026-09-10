@@ -114,9 +114,12 @@ public static class ProximasFasesDaChave
         int classificadosPorGrupo,
         DateTime? fimDosGrupos,
         string categoria = "",
-        int? categoriaId = null)
+        int? categoriaId = null,
+        // Quantas duplas tem cada grupo, na MESMA ordem de `grupos`: é o que faz a prévia dar o
+        // bye a quem o robô dá (ver ChaveProjetada). Nulo = campanha zerada, como era.
+        IReadOnlyList<int>? duplasPorGrupo = null)
     {
-        var (fase, confrontos, byes) = ChaveProjetada.Montar(grupos, classificadosPorGrupo);
+        var (fase, confrontos, byes) = ChaveProjetada.Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
         var primeira = new RodadaQueVem(fase, confrontos

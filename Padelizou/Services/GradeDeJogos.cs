@@ -208,6 +208,7 @@ public static class GradeDeJogos
         // relógio: o nome da quadra é único no torneio, então ele já É o lugar.
         var ocupados = new Dictionary<int, List<(DateTime Quando, int? Clube)>>();  // pessoa -> quando e onde
         var ocupadas = new Dictionary<string, List<DateTime>>();                    // quadra -> quando está tomada
+        var semQuadra = new Dictionary<int, List<DateTime>>();                      // clube -> quando um jogo SEM quadra toma uma dele
 
         // Quem JÁ jogou no local externo — a memória de "que a dupla jogue apenas um lá".
         // Semeada com os jogos que já estavam marcados: sem isso, um "Refazer grade" no meio do
@@ -255,14 +256,34 @@ public static class GradeDeJogos
         {
             if (marcado.HorarioPrevisto is not DateTime quando) continue;
 
-            var ondeEle = OndeJoga(marcado);
+            // Onde o jogo já marcado acontece: a categoria, a quadra — e, sem quadra, o CARIMBO
+            // (Partida.ClubeId). É o "por ordem de liberação": a quadra é nula de propósito (quem a
+            // dá é o balcão, conforme vaga) e o carimbo é tudo que diz em que prédio o jogo é.
+            // Só pro jogo JÁ MARCADO: o da fila carrega carimbo velho quando é reencaixado.
+            var ondeEle = OndeJoga(marcado) ?? marcado.ClubeId;
             foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
             foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
 
-            if (string.IsNullOrEmpty(marcado.NomeQuadra)) continue;
-            Anotar(ocupadas, marcado.NomeQuadra!, quando);
+            // ⚠️ JOGO JÁ MARCADO SEM QUADRA OCUPA UMA QUADRA DO CLUBE DELE (10/09/2026, ensaio do dia
+            // inteiro, achado C6). Até aqui ele não bloqueava quadra nenhuma — a ocupação é por NOME
+            // —, então o robô, ao criar a rodada seguinte no "por ordem", achava as cinco Arenas
+            // livres num horário em que já havia cinco jogos "Er Padel" sem quadra, e carimbava a
+            // sexta e a sétima no mesmo clube com o Radar aberto e VAZIO ao lado (11:20 de sábado:
+            // 7 Er Padel / 0 Radar, pra 5 Arenas). A vaga do horário já era descontada por instante
+            // (VagasDaGrade.Descontando); o que faltava era descontar a QUADRA, e é por clube que se
+            // desconta — qual delas vai ser é decisão do balcão. Ver `livresAgora`, abaixo.
+            if (string.IsNullOrEmpty(marcado.NomeQuadra))
+            {
+                if (ondeEle is int clubeDele) Anotar(semQuadra, clubeDele, quando);
+            }
+            else
+            {
+                Anotar(ocupadas, marcado.NomeQuadra, quando);
+            }
 
-            if (sede.EhSedeExtra(marcado.NomeQuadra))
+            // Pelo clube, e não pelo nome da quadra: o jogo sem quadra carimbado no local externo
+            // também conta como "já jogou lá" — mesma régua, pela mesma fonte.
+            if (ondeEle is int clube && sede.EhSedeExtra(clube))
             {
                 foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) jaJogaramNoExterno.Add(pessoa);
                 foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) jaJogaramNoExterno.Add(pessoa);
@@ -304,6 +325,24 @@ public static class GradeDeJogos
                     // ninguém: se a de casa acabar, a externa continua na lista.
                     .OrderBy(q => sede.EhSedeExtra(q) ? 1 : 0)
                     .ToList();
+
+                // Cada jogo já marcado SEM quadra neste horário toma UMA quadra do clube dele — a
+                // última da lista daquele clube, porque a primeira é a que a ordem acima prefere e
+                // qual delas o balcão vai dar ninguém sabe. Assim o clube nunca recebe mais jogos
+                // num horário do que tem quadras abertas nele: o que não cabe vai pro outro clube
+                // (se a categoria pode) ou pro horário seguinte, que é o que este laço já faz.
+                // Torneio de uma sede só não tem clube por quadra e nada sai daqui — lá a conta de
+                // vagas por instante (VagasDaGrade.Descontando) já segura o total.
+                foreach (var (clube, quando) in semQuadra)
+                {
+                    int tomadas = quando.Count(h => (h - horario).Duration() < duracao);
+                    for (int k = livresAgora.Count - 1; k >= 0 && tomadas > 0; k--)
+                    {
+                        if (sede.ClubeDaQuadra(livresAgora[k]) != clube) continue;
+                        livresAgora.RemoveAt(k);
+                        tomadas--;
+                    }
+                }
             }
 
             // As quadras que ESTE jogo pode usar: as livres, cortadas pelo clube da categoria.

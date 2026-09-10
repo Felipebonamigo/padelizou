@@ -31,6 +31,12 @@ public static class AvancoDaChave
     // (ChaveamentoMataMata.ParearVencedores) cruza o primeiro com o último. Assim cada
     // vencedor da primeira rodada encontra uma dupla que passou direto — que é o desenho
     // certo de uma chave de 24 em quadro de 32.
+    //
+    // ⚠️ E a SEMEADURA da primeira fase conta com exatamente esta ordem (vencedores por Id do
+    // jogo, byes do melhor pro pior) pra saber em que metade da chave cada bye cai — é assim
+    // que ela mantém os dois classificados de um grupo em lados opostos até a final
+    // (ChaveamentoMataMata.Semear, ensaio do Er de 10/09/2026). Mudar a ordem aqui, ou a de
+    // ByesDaCategoriaAsync, muda os lados lá — e a semifinal volta a juntar o mesmo grupo.
     public static async Task<List<int>> QuemAvancaAsync(
         DbPadelContext context, int categoriaId, string faseConcluida)
     {

@@ -149,6 +149,52 @@ public class HomeTests
         Assert.Empty(vm.EmAndamento);
     }
 
+    // 10/09/2026 — NO TORNEIO DE DUAS SEDES, O CARD DIZ EM QUE PRÉDIO É O JOGO.
+    //
+    // Achado pela revisão adversarial: o card lia só `NomeQuadra`; no "por ordem" (quadra nula,
+    // clube carimbado em Partida.ClubeId) ele dizia "sáb. 12/09 às 08:00" e nada de Radar. A
+    // jogadora ia pro Er Padel; o jogo era do outro lado da cidade. A régua é a mesma das nove
+    // telas do torneio: LugarDoJogo.Etiqueta, com o carimbo.
+    [Fact]
+    public async Task Proximo_jogo_sem_quadra_em_torneio_de_duas_sedes_diz_o_clube_do_carimbo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var er = new Clube { Nome = "Er Padel" };
+        var radar = new Clube { Nome = "Radar" };
+        ctx.Clubes.AddRange(er, radar);
+        var eu = new Jogador { Nome = "Eu Mesmo", Cpf = "1" };
+        var parceiro = new Jogador { Nome = "Parceiro", Cpf = "2" };
+        var rival1 = new Jogador { Nome = "Rival Um", Cpf = "3" };
+        var rival2 = new Jogador { Nome = "Rival Dois", Cpf = "4" };
+        ctx.Jogadores.AddRange(eu, parceiro, rival1, rival2);
+        ctx.SaveChanges();
+
+        var cat = NovaCategoria(ctx, "2ª Etapa ER PADEL TOUR", "Fase de Grupos");
+        var torneio = ctx.Torneios.Single(t => t.Id == cat.TorneioId);
+        torneio.ClubeId = er.Id;
+        torneio.SemHorarioPrevisto = true;
+        ctx.Quadras.AddRange(
+            new Quadra { TorneioId = torneio.Id, Nome = "Arena 1", ClubeId = er.Id },
+            new Quadra { TorneioId = torneio.Id, Nome = "Radar 1", ClubeId = radar.Id });
+        var minhaDupla = new Dupla { CategoriaId = cat.Id, Jogador1Id = eu.Id, Jogador2Id = parceiro.Id };
+        var rivalDupla = new Dupla { CategoriaId = cat.Id, Jogador1Id = rival1.Id, Jogador2Id = rival2.Id };
+        ctx.Duplas.AddRange(minhaDupla, rivalDupla);
+        ctx.SaveChanges();
+
+        ctx.Partidas.Add(new Partida
+        {
+            CategoriaId = cat.Id, TorneioId = torneio.Id, Codigo = "J1", Fase = "Grupo A",
+            Dupla1Id = minhaDupla.Id, Dupla2Id = rivalDupla.Id, Status = "Agendada",
+            HorarioPrevisto = DateTime.Now.AddDays(1), NomeQuadra = null, ClubeId = radar.Id,
+        });
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, eu.Id);
+
+        Assert.NotNull(vm.ProximoJogo);
+        Assert.Equal("Radar", vm.ProximoJogo!.Onde);
+    }
+
     [Fact]
     public async Task Partida_finalizada_ou_sem_horario_nao_vira_proximo_jogo()
     {

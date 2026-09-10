@@ -146,6 +146,12 @@ public class ProximoJogoVM
     public string Categoria { get; set; } = "";
     public DateTime Horario { get; set; }
     public string? Quadra { get; set; }
+    // O lugar como as telas do torneio escrevem (LugarDoJogo.Etiqueta): "Radar", "Er Padel ·
+    // Arena 2". No "por ordem" a quadra é nula e é o carimbo do clube que diz o prédio — sem
+    // isto o card dizia a hora e nada sobre Radar/Er Padel (10/09/2026, revisão adversarial).
+    public string? Onde { get; set; }
+    public int CategoriaId { get; set; }
+    public int? ClubeId { get; set; }
 
     // Os dois adversários chegam SEPARADOS do banco e viram uma frase aqui. A consulta é
     // traduzida pra SQL, e concatenar com NULL no Postgres devolve NULL: com a junção lá, a

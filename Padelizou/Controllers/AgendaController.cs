@@ -355,6 +355,10 @@ namespace padelizou.Controllers
                         p.Id,
                         p.HorarioPrevisto,
                         p.NomeQuadra,
+                        // O carimbo do clube e a categoria: sem quadra (o "por ordem"), é por eles
+                        // que se sabe em que prédio o jogo é — ver LocalDaPartida.
+                        p.ClubeId,
+                        p.CategoriaId,
                         p.Fase,
                         CategoriaNome = p.Categoria.Nome,
                         TorneioId = p.Categoria.TorneioId,
@@ -386,14 +390,25 @@ namespace padelizou.Controllers
                 foreach (var torneioId in partidas.Select(p => p.TorneioId).Distinct())
                     sedesPorTorneio[torneioId] = await SedesDoTorneio.CarregarAsync(_context, torneioId);
 
-                string? LocalDaPartida(int torneioId, string? nomeQuadra, string? localDoTorneio)
+                string? LocalDaPartida(int torneioId, string? nomeQuadra, string? localDoTorneio,
+                    int? clubeId, int categoriaId)
                 {
                     var sedes = sedesPorTorneio.GetValueOrDefault(torneioId);
 
                     // Com mais de uma sede, o clube da QUADRA é a verdade e o do torneio não
                     // entra: repetir "Clube A" ao lado de "Quadra 2 — Clube B" é o próprio bug.
+                    //
+                    // ⚠️ SEM QUADRA, O CARIMBO (10/09/2026, revisão adversarial do ensaio do Er):
+                    // no "por ordem" toda quadra é nula, e cair direto em `localDoTorneio` mandava
+                    // pro Google/Apple Calendar "Er Padel" em todo jogo carimbado no Radar — o
+                    // calendário era o leitor que não lia Partida.ClubeId. A ordem é a mesma da
+                    // etiqueta das telas (LugarDoJogo.Etiqueta): quadra, carimbo, clube da
+                    // categoria, e só por último o clube principal.
                     if (sedes is { MaisDeUmClube: true })
-                        return LugarDoJogo.EmTextoCorrido(sedes, nomeQuadra) ?? localDoTorneio;
+                        return LugarDoJogo.EmTextoCorrido(sedes, nomeQuadra)
+                            ?? (clubeId is { } carimbo ? sedes.NomeDoClube(carimbo) : null)
+                            ?? sedes.NomeDoClubeDaCategoria(categoriaId)
+                            ?? localDoTorneio;
 
                     return nomeQuadra != null ? $"{nomeQuadra} — {localDoTorneio}" : localDoTorneio;
                 }
@@ -404,7 +419,7 @@ namespace padelizou.Controllers
                     Fim: p.HorarioPrevisto.Value.AddMinutes(p.DuracaoMinutos),
                     DiaInteiro: false,
                     Resumo: $"Partida: {Dupla(p.D1J1, p.D1J2)} x {Dupla(p.D2J1, p.D2J2)}",
-                    Local: LocalDaPartida(p.TorneioId, p.NomeQuadra, p.TorneioLocal),
+                    Local: LocalDaPartida(p.TorneioId, p.NomeQuadra, p.TorneioLocal, p.ClubeId, p.CategoriaId),
                     Descricao: $"{p.Fase} — {p.CategoriaNome}")));
             }
 

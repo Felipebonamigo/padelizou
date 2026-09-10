@@ -45,9 +45,9 @@ else
                 <span>por ordem</span>
             }
 
-            @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+            @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId, jogo.ClubeId) is { } ondeJoga)
             {
-                <span class="pdz-chave-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId, jogo.ClubeId)</span>
+                <span class="pdz-chave-quadra">@ondeJoga</span>
             }
         </div>
 

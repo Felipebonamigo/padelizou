@@ -1010,7 +1010,9 @@ namespace Padelizou.Controllers
             // com a primeira rodada criada, e as categorias de grupo apareciam sem mata-mata.
             var comMataMata = deMataMata.Select(p => p.CategoriaId).ToHashSet();
             var aindaEmGrupos = await _context.Categorias
-                .Include(c => c.GruposTorneio)
+                // Com as duplas de cada grupo: o TAMANHO do grupo é o que diz quem descansa
+                // na prévia (ChaveProjetada), como no robô.
+                .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
                 .Where(c => c.TorneioId == torneioId && !c.ChaveDireta && !comMataMata.Contains(c.Id))
                 .ToListAsync();
 
@@ -1031,12 +1033,14 @@ namespace Padelizou.Controllers
                     fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
                         ? fim : null;
 
+                var gruposEmOrdem = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
                 cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
-                    categoria.GruposTorneio.Select(g => g.Nome).OrderBy(n => n).ToList(),
+                    gruposEmOrdem.Select(g => g.Nome).ToList(),
                     Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
                     fimDosGrupos,
                     categoria.Nome,
-                    categoria.Id));
+                    categoria.Id,
+                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList()));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria

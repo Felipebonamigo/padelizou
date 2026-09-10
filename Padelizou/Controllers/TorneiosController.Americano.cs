@@ -588,6 +588,18 @@ namespace Padelizou.Controllers
             if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
                 return NotFound();
 
+            // Chave sorteada mas ainda não aprovada (ver Services/AprovacaoDeChaves): só quem
+            // organiza enxerga os grupos por aqui — a mesma porta do Jogos. Era a porta que
+            // faltava: com Details, Jogos, Home, ICS e cards fechados, esta tela entregava
+            // Grupo A/B/C com todas as duplas pra jogador e pra visitante (ensaio do Er,
+            // 10/09/2026 — ver ClassificacaoNaoVazaAntesDeAprovarTests).
+            if (torneio.Status == AprovacaoDeChaves.Pendente
+                && !await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0))
+            {
+                TempData["Erro"] = "As chaves deste torneio ainda não foram aprovadas.";
+                return RedirectToAction("Details", new { id });
+            }
+
             // 1. Busca as duplas desta categoria que já têm um Grupo definido
             var duplas = await _context.Duplas
                 .Include(d => d.Jogador1)

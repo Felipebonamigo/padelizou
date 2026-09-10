@@ -376,6 +376,40 @@ public class ReservaDeHorarioTests
         Assert.Empty(await ReservasAsync(c));
     }
 
+    // 10/09/2026, ensaio do Er numa app de verdade: no "por ordem" os 43 jogos reais estavam sem
+    // quadra (é o modo: a Mesa chama), e os três que tinham trocado com uma prévia apareciam com
+    // "Arena 1"/"Arena 4" — a QUADRA PROJETADA da prévia, que é só o jeito de a projeção contar
+    // vagas, carimbada num jogo real. O jogador via "Er Padel · Arena 4" num jogo e "Er Padel"
+    // nos outros, e o ICS idem. No por ordem, o jogo real que recebe o slot de uma prévia fica
+    // com a hora e o clube dele — e sem quadra, como todos os outros.
+    [Fact]
+    public async Task No_torneio_por_ordem_a_troca_real_com_previa_nao_carimba_quadra_no_jogo_real()
+    {
+        var c = Montar(porOrdem: true);
+        // Como o por ordem grava de verdade: hora e clube, quadra nula.
+        foreach (var jogo in await c.Ctx.Partidas.ToListAsync()) jogo.NomeQuadra = null;
+        await c.Ctx.SaveChangesAsync();
+
+        var antes = await PreviaAsync(c);
+        var finalA = FinalDa(antes, c.A);
+        Assert.NotNull(finalA.Quadra);   // a projeção tem quadra — é ela que não pode vazar
+        var b2 = await JogoAsync(c, "B2");
+
+        var controller = Controller(c);
+        await controller.TrocarHorario(c.Torneio.Id, b2.Id.ToString(), Previa(c.A, "Final", 1));
+
+        Assert.Null(controller.TempData["Erro"]);
+        c.Ctx.ChangeTracker.Clear();
+
+        var depois = await JogoAsync(c, "B2");
+        Assert.Equal(finalA.Horario, depois.HorarioPrevisto);
+        Assert.Null(depois.NomeQuadra);
+
+        var reserva = Assert.Single(await ReservasAsync(c));
+        Assert.Equal(As("20:33"), reserva.Horario);
+        Assert.Null(reserva.NomeQuadra);
+    }
+
     [Fact]
     public async Task No_torneio_por_ordem_a_previa_troca_e_a_final_nasce_na_hora_reservada_sem_quadra()
     {

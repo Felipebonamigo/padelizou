@@ -13,8 +13,15 @@ namespace Padelizou.Services;
 // regra mudasse, e a tela prometeria um cruzamento que o sorteio não faria.
 //
 // ⚠️ O que ela NÃO consegue prever: a ordem dos "melhores 2ºs" depende da campanha de cada
-// dupla, que ainda não existe. Aqui todos entram com campanha zerada, então o desempate cai
-// no nome do grupo. A tela precisa dizer que é prévia.
+// dupla, que ainda não existe. Sem o tamanho dos grupos todos entram com campanha zerada e o
+// desempate cai no nome do grupo. A tela precisa dizer que é prévia.
+//
+// 🕳️ COM O TAMANHO DOS GRUPOS ELA ACERTA O BYE (10/09/2026, revisão adversarial do ensaio do
+// Er): 8 duplas viram A(2), B(3), C(3); com campanha zerada o bye ia pro "1º do Grupo A", e o
+// robô de verdade o dá a quem tem a melhor campanha — o 1º do A joga UM jogo (no máximo 1
+// vitória), os 1ºs de B e C têm até 2. A dupla que a chave publicada mandava descansar era
+// chamada pra quadra. Cada vaga entra com o TETO de campanha do grupo dela (1º: n−1 vitórias,
+// 2º: n−2), e o desempate entre tamanhos iguais continua pelo nome, como era.
 public static class ChaveProjetada
 {
     // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é.
@@ -28,7 +35,7 @@ public static class ChaveProjetada
     // Fase vazia = não dá pra projetar (grupo de menos). `Byes` são as vagas que pulam a
     // primeira rodada — os melhores, na mesma regra do sorteio de verdade.
     public static (string Fase, List<ConfrontoProjetado> Confrontos, List<Vaga> Byes) Montar(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
     {
         if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>(), new List<Vaga>());
 
@@ -46,10 +53,14 @@ public static class ChaveProjetada
                 int id = posicao * 1000 + g;
                 vagas[id] = new Vaga(posicao, grupos[g]);
 
-                // Campanha zerada em todo mundo: sem jogo jogado não há o que comparar, e
-                // inventar números faria a prévia parecer mais certa do que é.
+                // Sem o tamanho do grupo, campanha zerada: sem jogo jogado não há o que
+                // comparar, e inventar números faria a prévia parecer mais certa do que é. Com
+                // o tamanho, o TETO: é o que o robô compara no caso normal.
+                int teto = duplasPorGrupo != null && g < duplasPorGrupo.Count
+                    ? Math.Max(0, duplasPorGrupo[g] - posicao)
+                    : 0;
                 classificados.Add(new ChaveamentoMataMata.Classificado(
-                    id, grupos[g], Vitorias: 0, Saldo: 0, Posicao: posicao));
+                    id, grupos[g], Vitorias: teto, Saldo: 0, Posicao: posicao));
             }
         }
 
@@ -74,9 +85,9 @@ public static class ChaveProjetada
     // último — o mesmo AvancoDaChave + ParearVencedores. Duas contas divergiriam no dia em
     // que a regra mudasse, e o mapa prometeria um cruzamento que a chave não faria.
     public static List<RodadaProjetada> MontarCompleta(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
     {
-        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo);
+        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
         if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
 
         var rodadas = new List<RodadaProjetada>();
