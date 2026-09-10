@@ -182,6 +182,81 @@ public class AprovacaoDeChavesTests
         Assert.NotNull(controller.TempData["Erro"]);
     }
 
+    // ⚠️ 🗣️ Felipe, 09/09/2026, num print de PRODUÇÃO em navegação ANÔNIMA: *"outro erro grave
+    // apareceu as partidas agendadas sem ter aprovado as chaves, cuide isso e nao deixe q nada
+    // vaze sem ser publicado"*.
+    //
+    // 🕳️ O PORTÃO EXISTIA NA PORTA ERRADA. A ação `Jogos` (a página dedicada) conferia a aprovação
+    // desde 22/08 — e é o que os dois testes acima medem. Mas a MESMA lista de jogos é embutida na
+    // aba "Jogos" do `Details`, e lá a única condição era `Status != "Inscrições Abertas"`.
+    // "Chaves em Aprovação" passa nessa condição. Ou seja: o portão da frente estava trancado e a
+    // porta dos fundos, aberta pra qualquer visitante — inclusive deslogado.
+    //
+    // ⚠️ A LIÇÃO: uma régua de visibilidade escrita numa AÇÃO protege aquela ação, não o DADO. Aqui
+    // ela passou a morar no método que carrega o dado (`CarregarViewBagJogosAsync`), que é por onde
+    // as duas telas passam — a única forma de as duas não divergirem de novo.
+    [Fact]
+    public async Task Details_nao_mostra_jogo_nenhum_enquanto_as_chaves_esperam_aprovacao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        Assert.Equal(AprovacaoDeChaves.Pendente, (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+        Assert.True(await ctx.Partidas.AnyAsync(p => p.TorneioId == torneio.Id), "o sorteio não gerou jogo");
+
+        // DESLOGADO — o caso do print: navegação anônima em padelizou.com.br.
+        var anonimo = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 0);
+        var resultado = await anonimo.Details(torneio.Id, null, null);
+
+        var view = Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(resultado);
+
+        // ⚠️ TODAS as listas, e não só a de agendadas: "não exiba nada até publicar a chave"
+        // (Felipe). Ao Vivo, Finalizadas e a PRÉVIA das próximas fases contam o mesmo torneio.
+        foreach (var chave in new[] { "Agendadas", "AoVivo", "Finalizadas", "JogosQueVem" })
+        {
+            var lista = view.ViewData[chave] as System.Collections.IEnumerable;
+            Assert.True(lista == null || !lista.Cast<object>().Any(),
+                $"a aba Jogos do Details entregou \"{chave}\" com as chaves ainda esperando aprovação");
+        }
+    }
+
+    [Fact]
+    public async Task Details_mostra_os_jogos_pro_organizador_enquanto_pendente()
+    {
+        // A contrapartida: quem organiza precisa ver pra poder conferir e aprovar. Esconder dele
+        // transformaria a aprovação num carimbo às cegas.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        var view = Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(
+            await controller.Details(torneio.Id, null, null));
+
+        var agendadas = view.ViewData["Agendadas"] as System.Collections.IEnumerable;
+        Assert.True(agendadas != null && agendadas.Cast<object>().Any(),
+            "o organizador precisa ver a grade pra decidir se aprova");
+    }
+
+    [Fact]
+    public async Task Depois_de_aprovado_o_jogo_aparece_pra_quem_nao_esta_logado()
+    {
+        // E o fecho do ciclo: aprovar é o que solta. Sem este teste, "esconder sempre" passaria.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var doOrganizador = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await doOrganizador.GerarChaves(torneio.Id);
+        await doOrganizador.AprovarChaves(torneio.Id);
+
+        var view = Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 0).Details(torneio.Id, null, null));
+
+        var agendadas = view.ViewData["Agendadas"] as System.Collections.IEnumerable;
+        Assert.True(agendadas != null && agendadas.Cast<object>().Any(),
+            "depois de aprovada, a chave é pública");
+    }
+
     [Fact]
     public async Task Jogos_continua_visivel_pro_organizador_enquanto_pendente()
     {
