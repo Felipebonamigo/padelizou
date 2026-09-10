@@ -68,7 +68,7 @@ public sealed record FiltroDeJogos(int? ClubeId = null, string? Quadra = null, s
             .Where(f => !string.IsNullOrWhiteSpace(f))
             .Select(f => FasesTorneio.EhFaseDeGrupos(f) ? FasesTorneio.FaseDeGrupos : f.Trim())
             .Distinct()
-            .OrderBy(Ordem)
+            .OrderBy(OrdemDaFase)
             // O NÚMERO NO FIM DO NOME ORDENA COMO NÚMERO. As rodadas do Americano ("Americano
             // Rodada 1".."Rodada 11") não estão na corrente do mata-mata e caíam no desempate
             // por nome, que põe a "Rodada 10" antes da "Rodada 2" — quem opera a mesa procurando
@@ -90,7 +90,10 @@ public sealed record FiltroDeJogos(int? ClubeId = null, string? Quadra = null, s
 
     // Grupos antes de tudo; depois a corrente do mata-mata (ChaveamentoMataMata.ProximaFase),
     // que é a única que sabe que "Primeira Rodada" vem antes de "Oitavas de Final".
-    private static int Ordem(string fase)
+    //
+    // Pública porque Services/OrdemNoHorario desempata duas prévias do mesmo horário por ela —
+    // duas réguas de "qual fase vem antes" discordariam no primeiro nome de fase novo.
+    public static int OrdemDaFase(string fase)
     {
         if (fase == FasesTorneio.FaseDeGrupos) return 0;
 

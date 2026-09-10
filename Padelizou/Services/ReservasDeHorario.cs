@@ -98,6 +98,10 @@ public static class ReservasDeHorario
 
                 jogo.HorarioPrevisto = reserva.Horario;
                 jogo.NomeQuadra = reserva.NomeQuadra;
+                // A POSIÇÃO DENTRO DO HORÁRIO VEM JUNTO (10/09/2026, Services/OrdemNoHorario): a
+                // fila que o organizador montou na prévia sumiria no instante em que o jogo passa
+                // a existir — e ele nasceria no fim do horário, sem nada na tela explicando.
+                jogo.OrdemNoHorario = reserva.OrdemNoHorario;
             }
 
             reservados.Add(jogo);
