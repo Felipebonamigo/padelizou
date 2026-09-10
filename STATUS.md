@@ -3,7 +3,13 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **10/09/2026** — 🕳️ **JANELA DE QUADRA IMPOSSÍVEL DEIXA DE SER OBEDECIDA** (PR #110).
 >
-> ⚠️ **AINDA NÃO PUBLICADO.** O `build-863-6365054` saiu às 00h06 UTC, mas o último deploy é o `build-860-7c5fbfe` — **`dev` e `prod` continuam SEM este conserto**. Actions → Deploy → Run workflow → `build-863-6365054`.
+> 🚀 **PUBLICADO em `dev` E `prod` no `build-863-6365054`** (00h18 e 00h19 UTC), **o mesmo artefato nos dois**. 🔁 Rollback é um clique: Actions → Deploy → Run workflow → `prod` + `rollback`.
+>
+> ⚠️ **ELE FICOU 12 MINUTOS MERGEADO E FORA DO AR** (release às 00h06, deploy às 00h18), e ninguém teria percebido: o PR #110 não tocou o `STATUS.md`, então o topo deste arquivo seguia descrevendo o `build-860` como o último bloco — e o `main` verde parecia publicado. **Merge não é deploy**, e é este arquivo que guarda a diferença.
+>
+> ✅ **O `prod` passou de primeira desta vez** — sem o `ssh: connect to host *** port 22: Connection timed out` que derrubou a primeira tentativa do `build-860`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA — nona sessão seguida.** O job `deploy → prod` foi de ponta a ponta em **22 segundos** (00:19:49 → 00:20:11), sem parar em aprovação nenhuma. **Settings → Environments → `prod` → Required reviewers.**
 >
 > 🗣️ **Felipe, na TERCEIRA vez:** *"refiz a grade, ainda ta pulando pro dia 15 e ainda tem bastante coisa errada — ta sem o nome do clube que vai ser o jogo, e ainda pulando os dias, e a 3a vez q te falo sobre isso, e eu preciso publicar ainda hoje essa chave"*.
 >
