@@ -35,7 +35,8 @@
     // Os pedaços SEM vídeo, trocados por inteiro. Os modais entram porque a lista de jogos
     // candidatos deles envelhece junto (o "trocar com qual jogo?" não pode oferecer uma
     // partida que já entrou em quadra).
-    var BLOCOS = ["#agendadas", "#finalizadas", "#classificacao", "#modalTrocarHorario", "#modalTrocarQuadra"];
+    var BLOCOS = ["#agendadas", "#finalizadas", "#classificacao", "#modalTrocarHorario", "#modalTrocarQuadra",
+                  "#modalDefinirHorario"];
 
     function estaOcupado() {
         // ⚠️ Placar indo pro servidor = não atualizar. O cabeçalho do card seria trocado pelo

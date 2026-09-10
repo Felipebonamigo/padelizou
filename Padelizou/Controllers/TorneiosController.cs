@@ -1430,6 +1430,21 @@ namespace Padelizou.Controllers
             // regra pelo erro.
             ViewBag.SemHorarioPrevisto = torneioDaTela?.SemHorarioPrevisto == true;
 
+            // OS HORÁRIOS QUE O "DEFINIR HORÁRIO" OFERECE (10/09/2026, Services/HorariosDaGrade).
+            // 🗣️ *"ao alterar o horario, deixe para que fique mais facil seguindo a ordem padrão do
+            // jogo (nesse torneio é de 50 em 50 min)"* — em vez de um relógio em branco, a lista
+            // dos horários que este torneio usa, com quantas quadras sobram em cada um.
+            //
+            // ⚠️ DO TORNEIO INTEIRO (`todasAsPartidas`), e não da lista filtrada da tela: o modal é
+            // um só e serve qualquer linha, e a ocupação de um horário conta os jogos de TODAS as
+            // categorias — contar só as que passaram no filtro diria "3 quadras livres" onde não
+            // há nenhuma. Os horários das prévias entram por `tambem`: elas têm hora, são
+            // remarcáveis, e não são jogo no banco.
+            ViewBag.SlotsDaGrade = torneioDaTela == null
+                ? new List<HorariosDaGrade.Slot>()
+                : HorariosDaGrade.Montar(torneioDaTela, todasAsPartidas, sedes,
+                    projetados.Select(j => j.Horario));
+
             if (torneioDaTela?.Formato == FormatoDoTorneio.Americano)
             {
                 // ⚠️ Sai da montagem compartilhada, e NÃO da lista `partidas` desta tela: ela
