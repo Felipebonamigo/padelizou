@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/amazing-curie-fe2l9i`, ainda não publicado.** **Sem migration.**
+>
+> 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
+>
+> 🕳️ **A BARRA ESTAVA CERTA — PRO OUTRO USO.** `.pdz-pills` foi desenhada em 08/08 pras abas FIXAS (Ao Vivo / Agendadas / Finalizadas), e lá `flex: 1 1 auto` é o acerto: as abas preenchem a linha e não sobra buraco. Numa lista de tamanho **variável** o mesmo acerto vira defeito — a sétima categoria caía sozinha na segunda linha e esticava pela largura inteira, virando uma faixa verde que parece título, não aba escolhida. Com as **12 categorias** que o ER já teve, eram quatro linhas de botão antes do primeiro grupo.
+>
+> ⚠️ **POR ISSO O `.pdz-pills` NÃO FOI TOCADO**: quem muda de desenho é só esta lista, a única de tamanho variável da tela. Mexer no CSS compartilhado consertaria uma tela e mexeria em quatro.
+>
+> ✅ **`<select>` nativo** (degrau 4 da escada do CLAUDE.md): no celular quem abre é o seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela, e some a conta de "quantas cabem por linha". Ele fica **na linha do título**, à direita de "Chaves e Grupos", então a troca ainda **devolve** uma linha de altura em vez de custar uma.
+>
+> 💾 **A CATEGORIA ESCOLHIDA SOBREVIVE AO SALVAR** (`js/seletor-de-categoria.js`): dentro dela se troca dupla de grupo e se desenha o chaveamento à mão, e cada POST redesenhava a página na PRIMEIRA categoria — com 12, era caçar a sua de novo a cada gravação. `sessionStorage` **por torneio**, mesma forma e mesmo motivo do `js/jogos-abas.js` de 08/08.
+>
+> ⚠️ **UMA RÉGUA SÓ decide quem entra na tela** (`temChaveParaMostrar`, agora com o `comChave` derivado dela): duas contas dariam opção sem painel — escolher a categoria e não ver nada — ou painel sem opção, que é chave desenhada e inalcançável. Tem teste contando que a condição está escrita **uma vez**.
+>
+> 🧩 **Categoria única não ganha seletor** (controle que não escolhe nada): fica o nome. E o painel deixou de se anunciar como `role="tabpanel"` — sem barra de abas, o papel ficou órfão; virou `region` com o nome da categoria.
+>
+> 🧪 **6.260 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes, um a um. Dois deles passaram de primeira e foram **reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é que a suíte lê da fonte o que foi combinado e que o Razor compila.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >

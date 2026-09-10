@@ -5658,43 +5658,63 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         }
         else
         {
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        // (Já estamos dentro do bloco de código do `else`: daqui as declarações vão soltas, sem `@{`.)
+        //
+        // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
+        // sorteados OU chave direta (que nunca terá grupo, só o mata-mata puro —
+        // sem isto ela não ganhava aba nenhuma e a chave dela ficava invisível).
+        //
+        // ⚠️ UMA RÉGUA SÓ, e é esta: o seletor lá embaixo escolhe entre as categorias desta
+        // lista e os painéis são desenhados pelo MESMO predicado. Duas contas de "quem entra
+        // na tela" dariam opção sem painel (escolher e não ver nada) ou painel sem opção
+        // (chave que existe e ninguém alcança).
+        Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
+            (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
+        var comChave = Model.Categorias.Where(temChaveParaMostrar).ToList();
+
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
             @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
                de uma tela que também mostra a chave — e numa chave direta (sem grupo
                nenhum) virava mentira. *@
             <h4 class="mb-0 fw-bold" style="color: var(--pdz-ink);">
                 <i class="bi bi-layout-split"></i> Chaves e Grupos
             </h4>
+
+            @* ── A ESCOLHA DA CATEGORIA (10/09/2026) ───────────────────────────────────
+               🗣️ Felipe, no 2ª Etapa ER Padel Tour, 7 categorias: *"visualmente nao ta legal
+               isso aqui tambem, acho que um drop com select seria melhor, não?"*.
+
+               Era a barra `.pdz-pills`, e ela está CERTA pro que foi desenhada: 3-4 abas fixas,
+               onde `flex: 1 1 auto` (site.css) preenche a linha e não sobra buraco. Numa lista
+               de tamanho VARIÁVEL o mesmo acerto vira defeito — a sétima categoria caía sozinha
+               na segunda linha e esticava pela largura inteira, virando uma faixa verde que
+               parece título, não aba escolhida. Com as 12 categorias que o ER já teve, eram
+               quatro linhas de botão antes do primeiro grupo. Por isso quem muda é ESTA lista,
+               e não o `.pdz-pills`, que continua servindo as abas fixas.
+
+               `<select>` nativo, degrau 4 da escada do CLAUDE.md: no celular quem abre é o
+               seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela,
+               e some a conta de "quantas cabem por linha". *@
+            @if (comChave.Count > 1)
+            {
+                <select class="form-select fw-bold w-auto mw-100" id="seletorDeCategoria"
+                        data-torneio-id="@Model.Id" aria-label="Escolher a categoria">
+                    @foreach (var categoria in comChave)
+                    {
+                        <option value="cat-@(categoria.Id)">@categoria.Nome</option>
+                    }
+                </select>
+            }
+            else if (comChave.Count == 1)
+            {
+                @* Uma categoria só: o select seria um controle que não escolhe nada. O nome
+                   fica, porque é ele que diz de quem é a chave desenhada logo abaixo. *@
+                <span class="fw-bold" style="color: var(--pdz-ink);">@comChave[0].Nome</span>
+            }
         </div>
 
-        <!-- MENU DE CATEGORIAS (Rolagem Horizontal para Celular) -->
-        <ul class="nav nav-pills pdz-pills mb-4" id="categoriaPills" role="tablist">
-            @{
-                var primeiraCat = true;
-                // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
-                // sorteados OU chave direta (que nunca terá grupo, só o mata-mata puro —
-                // sem isto ela não ganhava aba nenhuma e a chave dela ficava invisível).
-                Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
-                    (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
-            }
-            @foreach (var categoria in Model.Categorias)
-            {
-                if (temChaveParaMostrar(categoria))
-                {
-                    <li class="nav-item me-2" role="presentation">
-                        <button class="nav-link rounded-pill fw-bold border @(primeiraCat ? "active" : "")"
-                                id="cat-@(categoria.Id)-tab" data-bs-toggle="pill" data-bs-target="#cat-@(categoria.Id)"
-                                type="button" role="tab">
-                            @categoria.Nome
-                        </button>
-                    </li>
-                    primeiraCat = false;
-                }
-            }
-        </ul>
-
         <!-- CONTEÚDO DOS GRUPOS POR CATEGORIA -->
-        <div class="tab-content" id="categoriaPillsContent">
+        <div class="tab-content" id="painelDasCategorias">
             @{
                 var primeiraCatContent = true;
             }
@@ -5703,7 +5723,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 if (temChaveParaMostrar(categoria))
                 {
                     ViewData["CategoriaAtual"] = categoria.Nome;
-                    <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
+                    <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="region" aria-label="@categoria.Nome">
                         <!-- O cruzamento mata-mata é gerado automaticamente (TorneiosController.ProcessarMataMataAutomatico)
                              assim que a última partida da Fase de Grupos dessa categoria é finalizada — sem botão manual. -->
                         @{
@@ -6168,6 +6188,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 }
             }
         </div>
+
+        @* Troca o painel visível e LEMBRA a escolha (o porquê está no arquivo). *@
+        <script src="~/js/seletor-de-categoria.js" asp-append-version="true"></script>
         } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
       }
       else
