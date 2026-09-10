@@ -17,10 +17,9 @@
     quadra, placar) continuam sem sentido aqui — não há jogo pra pôr em quadra.
 *@
 @{
-    // No torneio POR ORDEM a prévia tem hora (desde 09/09) mas o robô não agenda a rodada nova
-    // nele — uma reserva ali seria promessa que ninguém cumpre. O servidor recusa; aqui o botão
-    // nem aparece.
-    bool podeTrocar = ViewBag.EhOrganizador == true && ViewBag.SemHorarioPrevisto != true;
+    // Vale também no torneio POR ORDEM: ele tem hora desde 09/09, e o robô dá hora à rodada nova
+    // nele desde 10/09 — a reserva vira jogo com a hora reservada (e sem quadra, que é da Mesa).
+    bool podeTrocar = ViewBag.EhOrganizador == true;
 
     // A referência que o POST de trocar horário lê (Services/ReferenciaDoJogo): o mesmo tipo
     // escreve e lê, senão o botão apontaria pra um jogo que o servidor não acha. Sem categoria

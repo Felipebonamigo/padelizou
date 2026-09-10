@@ -1060,16 +1060,9 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
-            // ⚠️ NO "POR ORDEM DE LIBERAÇÃO" A PRÉVIA NÃO TROCA (revisão adversarial, 10/09/2026): esse
-            // torneio tem hora desde 09/09 (Services/OrdemDeLiberacao), então a prévia mostra
-            // horário — mas o robô não agenda a rodada nova nele (AgendarNaGradeAsync sai antes), e
-            // a reserva seria uma promessa que ninguém cumpre. Entre jogos reais a troca segue.
-            if (torneio.SemHorarioPrevisto && (refA.EhPrevia || refB.EhPrevia))
-            {
-                TempData["Erro"] = "Neste torneio os jogos entram por ordem de liberação: a eliminatória prevista " +
-                    "entra na fila quando nascer, e não tem horário fixo pra trocar. Troque só entre jogos já sorteados.";
-                return VoltarPara(voltarPara, id);
-            }
+            // O "por ordem de liberação" TAMBÉM troca prévia (10/09/2026): ele tem hora desde 09/09, e
+            // o robô passou a dar hora à rodada nova nele (RoboDoChaveamento.AgendarNaGradeAsync) —
+            // a reserva vira jogo com a hora reservada e sem quadra, que é como o modo funciona.
 
             // A prévia de agora, pelo mesmo caminho da tela — é dela que saem o slot do jogo
             // previsto e a conferência de depois. Categoria e duplas vêm junto porque a projeção

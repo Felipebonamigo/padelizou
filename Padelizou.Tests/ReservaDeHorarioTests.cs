@@ -377,19 +377,30 @@ public class ReservaDeHorarioTests
     }
 
     [Fact]
-    public async Task No_torneio_por_ordem_de_liberacao_a_previa_nao_troca_de_horario()
+    public async Task No_torneio_por_ordem_a_previa_troca_e_a_final_nasce_na_hora_reservada_sem_quadra()
     {
-        // O "por ordem" tem hora desde 09/09 (Services/OrdemDeLiberacao), então a prévia mostra
-        // horário — mas o robô não agenda a rodada nova nesse torneio (AgendarNaGradeAsync sai
-        // antes), e uma reserva ali seria uma promessa que ninguém cumpre. A troca com prévia é
-        // recusada com o motivo; a troca entre jogos reais continua como sempre.
+        // O "por ordem" tem hora desde 09/09 (Services/OrdemDeLiberacao): a Mesa decide a QUADRA,
+        // o horário existe. É o torneio do Er — e foi nele que o botão não apareceu (10/09/2026),
+        // porque a primeira versão travava a troca com prévia no por ordem: o robô saía antes de
+        // dar hora à rodada nova. Agora o robô faz o que o sorteio faz: a final nasce na hora
+        // reservada, sem quadra (a Mesa chama) e com o clube carimbado.
         var c = Montar(porOrdem: true);
+        var antes = await PreviaAsync(c);
+        var finalA = FinalDa(antes, c.A);
+        var finalB = FinalDa(antes, c.B);
 
         var controller = Controller(c);
         await controller.TrocarHorario(c.Torneio.Id, Previa(c.A, "Final", 1), Previa(c.B, "Final", 1));
 
-        Assert.NotNull(controller.TempData["Erro"]);
-        Assert.Empty(await ReservasAsync(c));
+        Assert.Null(controller.TempData["Erro"]);
+        Assert.Equal(2, (await ReservasAsync(c)).Count);
+
+        await FinalizarAsync(c, "A1", "A2");
+
+        var final = await c.Ctx.Partidas.SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
+        Assert.Equal(finalB.Horario, final.HorarioPrevisto);
+        Assert.Null(final.NomeQuadra);
+        Assert.NotNull(finalA.Horario);   // a prévia tinha hora — é o que faz a troca existir
     }
 
     [Fact]
