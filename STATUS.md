@@ -1,7 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07).
+>
+> 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
+>
+> 🕳️ **CHECK-THEN-INSERT COM UM `DbContext` POR REQUISIÇÃO.** `PalpiteService.RegistrarVotoAsync` lê "esse jogador ainda não votou" e insere. Dois POSTs do mesmo dedo — toque duplo no nome da dupla, duas abas, ou o voto seguido da ficha de placar (o `palpitrometro.js` **não tem trava de clique**) — leem os dois "não votou" e inserem os dois. O índice `IX_PalpitePartida_PartidaId_JogadorId` recusa o segundo com **23505**, e a exceção subia inteira: o controller só trata `InvalidOperationException` → **500** → push de erro. É a MESMA forma do `FinalizarEmDobro` de hoje de manhã, agora num endpoint que qualquer logado alcança de dentro do jogo.
+>
+> ✅ **O ÍNDICE CONTINUA SENDO QUEM SEGURA — o que faltava era o serviço saber PERDER a corrida.** Mesma decisão do chamado do mural (`DuplasController`): quem chega depois **detacha, relê a linha do gêmeo e grava por cima**, porque o palpite dele é o último que a pessoa deu. Pra quem clicou não sobra erro nenhum — a barra atualiza como sempre, com um voto só.
+>
+> ⚠️ **O `catch` é ESTREITO de propósito.** Só entra no caminho da corrida quando (a) a linha era **nova** e (b) a releitura **acha** a linha do gêmeo. Sem ela, `throw`: a gravação falhou por outro motivo, e aí o 500 é o aviso. Engolir todo `DbUpdateException` trocaria um erro que avisa por um palpite que some caladinho.
+>
+> 🧪 **6.124 testes, 0 falhas (3 novos, em `PalpiteEmDobroTests`).** ⚠️ **EF InMemory não valida índice único** — a suíte inteira passava lisa por este defeito. O índice entra no teste como **interceptor** (`OGemeoChegouPrimeiro`): grava a linha rival e lança a `DbUpdateException` no mesmo instante em que o Postgres lançaria. Vistos vermelhos antes: os dois testes da corrida, com a mensagem exata da produção (*23505: duplicate key value violates unique constraint "IX_PalpitePartida_PartidaId_JogadorId"*). O terceiro — o que exige que erro de verdade **continue** subindo — passou de primeira e por isso foi **falsificado**: trocando o `throw` por "insere de novo", ele cai.
+>
+> 📌 **Fora do escopo, anotado e NÃO mexido:** o `palpitrometro.js` segue sem trava de clique. Os dois POSTs continuam saindo (um deles agora só regrava), e as duas respostas podem chegar **fora de ordem** — a tela pode ficar pintada com o penúltimo estado até o próximo F5. O 500 acabou; a requisição gêmea, não.
+>
+>
+> **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 >
 > 🔢 **DENTRO DO MESMO HORÁRIO, A ORDEM DA LINHA AGORA EXISTE — E É EDITÁVEL.** 🗣️ Felipe, arrumando o domingo do Er (*"Semifinal 6 masc / 6 fem / 5 masc / 3 fem / 4 masc..."*): *"quando eu altero um jogo, no mesmo horario, ele nao esta trocando a ordem na linha, tem q trocar tambem para q eu possa colocar a ordem que eu quiser"*; *"por padrão, se tem semifinal 1 e semifinal 2 no mesmo horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*; e *"só cuide q se colocar o jogo pra cima, ele mude o horario e quadra tb se tiver, e avise se atrapalhar algo com ficar 2 jogos seguidos pra alguem"*.
 >
