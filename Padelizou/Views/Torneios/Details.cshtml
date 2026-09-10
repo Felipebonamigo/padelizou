@@ -6044,9 +6044,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                    reticências. Ver
                                                                    DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
                                                                 <span>@quando.ToString("dd/MM HH:mm")</span>
-                                                                @if (!string.IsNullOrEmpty(previsto.Quadra))
+                                                                @* A GUARDA É A ETIQUETA, E NÃO A QUADRA (10/09/2026) — a mesma
+                                                                   correção que os cards de grupo e as vagas da chave receberam,
+                                                                   e que este cartão ficou sem. 🗣️ *"quartas de final ta sem
+                                                                   clube"*: a hora daquelas quartas foi digitada na mão, hora
+                                                                   digitada não traz quadra, e o `IsNullOrEmpty(Quadra)` calava
+                                                                   o cartão inteiro — inclusive o clube, que o jogo previsto
+                                                                   sabe (ProximasFasesDaChave, ClubeId). *@
+                                                                @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondeJoga)
                                                                 {
-                                                                    <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
+                                                                    <span class="pdz-chave-projetada-quadra">@ondeJoga</span>
                                                                 }
                                                             }
                                                             else

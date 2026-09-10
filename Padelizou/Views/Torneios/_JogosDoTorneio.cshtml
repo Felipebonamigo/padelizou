@@ -785,7 +785,7 @@
                                             var referencia = Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaPrevista, previsto.Fase, previsto.Numero).ToString();
                                             <option value="@referencia" data-jogo-id="@referencia">
                                                 @quandoPrevisto.ToString("HH:mm")
-                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
+                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
                                                 · @CategoriaNaTela.Curto(previsto.Categoria) · @previsto.FaseNumerada (prévia)
                                             </option>
                                         }

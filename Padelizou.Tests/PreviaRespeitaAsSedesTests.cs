@@ -113,6 +113,79 @@ public class PreviaRespeitaAsSedesTests
         Assert.Equal(3, jogos.Count(j => j.Horario == Sabado.AddHours(8).AddMinutes(50)));
     }
 
+    // ── O CLUBE DO JOGO PREVISTO (10/09/2026) ────────────────────────────────────────────
+    // 🗣️ Felipe, num print do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"*.
+
+    [Fact]
+    public void O_jogo_previsto_carimba_o_clube_da_quadra_que_ele_recebeu()
+    {
+        // A contrapartida da régua abaixo, e ela vem primeiro: o clube sai da QUADRA escolhida.
+        // Sem este teste, "clube do torneio quando não há quadra" vira "clube do torneio sempre",
+        // e a manhã de sábado inteira no Radar apareceria escrita "Er Padel".
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(OitoGrupos, 2, Sexta.AddHours(23), "6ª", 6);
+
+        var jogos = ProximasFasesDaChave.Agendar(new[] { cadeia }, Grade(Sedes()));
+
+        Assert.Contains(jogos, j => j.Quadra != null && j.Quadra.StartsWith("Radar"));
+        Assert.All(jogos, j => Assert.Equal(
+            j.Quadra != null && j.Quadra.StartsWith("Radar") ? Radar : ErPadel, j.ClubeId));
+    }
+
+    [Fact]
+    public void A_previa_com_hora_digitada_na_mao_continua_dizendo_o_clube()
+    {
+        // "Definir horário na mão" numa prévia grava a reserva com `NomeQuadra = null`
+        // (TorneiosController.DefinirHorario: *"hora digitada não traz quadra: o robô escolhe"*),
+        // e a partir daí o jogo previsto não tinha quadra NEM clube: o cartão do quadro mostrava
+        // só "12/09 18:50", enquanto os cards de grupo ao lado diziam "Radar" e "Er Padel".
+        //
+        // O clube ele TEM: quando a reserva vira jogo de verdade ela pula o encaixe
+        // (RoboDoChaveamento: `paraEncaixar = candidatos.Except(reservados)`) e nasce sem quadra,
+        // então `OrdemDeLiberacao.CarimbarOClube` a carimba com o clube do torneio. A prévia diz
+        // desde já o que o carimbo vai dizer.
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B" }, 2, Sabado.AddHours(12), "6ª Feminina", 6);
+        var naMao = Sabado.AddHours(18).AddMinutes(50);
+        var reservas = new[] { new HorarioReservado(6, "Semifinal", 1, naMao, null) };
+
+        var jogos = ProximasFasesDaChave.Agendar(new[] { cadeia }, Grade(Sedes()), reservas: reservas);
+
+        var reservado = jogos.Single(j => j.FaseNumerada == "Semifinal 1");
+        Assert.Equal(naMao, reservado.Horario);
+        Assert.Null(reservado.Quadra);          // o balcão é quem escolhe — a prévia não inventa uma
+        Assert.Equal(ErPadel, reservado.ClubeId);
+    }
+
+    [Fact]
+    public void Sem_nome_de_quadra_sobrando_no_horario_o_jogo_previsto_ainda_diz_o_clube()
+    {
+        // 🗣️ Felipe, no quadro do Er: *"tem uma parte com e uma sem"* — as oitavas de sábado à
+        // noite saíam sem lugar NENHUM, e as quartas do domingo com "Er Padel · Arena Loja 7".
+        //
+        // 🕳️ A projeção CONTA vagas pelas quadras abertas do cadastro (`QuadrasAbertasEm`) e
+        // NOMEIA pela lista de quadras em uso (RoboDoChaveamento.QuadrasEmUsoAsync, que completa o
+        // cadastro só até `Torneio.QuantidadeQuadras`). Quando a lista tem menos nomes do que o
+        // cadastro tem quadras abertas naquele horário, o jogo cabe na conta e não sobra nome pra
+        // ele — nasce com hora e sem quadra, que é o caso que NomesDeQuadra já descreve. Sem
+        // quadra, ele ficava sem clube também.
+        //
+        // Aqui: 5 Arenas abertas à noite no cadastro, mas só 3 nomes de Arena na lista.
+        var semTodosOsNomes = new[] { "Arena 1", "Arena 2", "Arena 3", "Radar 1", "Radar 2" };
+        var cadeia = ProximasFasesDaChave.MontarDosGrupos(
+            OitoGrupos, 2, Sabado.AddHours(19).AddMinutes(40), "6ª", 6);
+
+        var jogos = ProximasFasesDaChave.Agendar(new[] { cadeia },
+            new ConfiguracaoDaGrade(50, Quadras.Length, semTodosOsNomes, FimDoDia, Abertura, Sedes()));
+
+        Assert.Contains(jogos, j => j.Horario != null && j.Quadra == null);
+        var semLugar = jogos
+            .Where(j => j.Horario != null && j.ClubeId == null)
+            .Select(j => $"{j.FaseNumerada} {j.Horario:dd/MM HH:mm}")
+            .ToList();
+        Assert.True(semLugar.Count == 0,
+            $"jogo previsto com hora e sem clube nenhum pra mostrar: {string.Join(", ", semLugar)}");
+    }
+
     // O jogo previsto carrega a categoria: é por ela que a etiqueta escreve "Er Padel" quando a
     // prévia não tem quadra pra dizer (LugarDoJogo.Etiqueta).
     [Fact]
