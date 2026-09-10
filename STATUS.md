@@ -15,9 +15,42 @@
 >
 > ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
 >
-> 🧪 **6.187 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 10 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+> 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
 >
 
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
+>
+> 🕳️ **O card era o ÚLTIMO bloco do Painel de Controle** — atrás do status, do sorteio, dos organizadores, dos marcadores e do formulário inteiro de editar o torneio —, e o painel só abre depois de um clique na aba "Gerenciar Torneio". No dia do jogo, o caminho mais longo até as três telas que só servem naquele dia: **check-in, financeiro e relatório** (mais o "avisar todo mundo", que é do mesmo card e vai junto).
+>
+> ✅ **Ele MUDA DE LUGAR, não ganha uma cópia.** O card virou `Views/Torneios/_FerramentasDoOrganizador.cshtml`: com a chave publicada é renderizado logo abaixo do cabeçalho do torneio; antes disso, segue no fim do painel, onde sempre esteve. Dois cards iguais divergiriam na primeira mudança — o parcial é o que garante **um lugar de cada vez**.
+>
+> ⚠️ **LOGO ABAIXO DO CABEÇALHO, e não encostado nas abas.** Entre um ponto e outro moram o cartaz, o convite, o grupo do WhatsApp, as fotos, os cards de campeão, o pódio, o MVP, o mural e os palpiteiros — tudo que um torneio no ar acumula. "Antes das abas" ainda seria uma rolagem no sábado de manhã; acima do cabeçalho, a tela deixaria de dizer de que torneio ela fala. O teste trava as **duas** pontas.
+>
+> ⚠️ **O `<fieldset disabled>` FOI JUNTO.** O card saiu de dentro da casca do painel, que é o que desliga tudo pro **assistente do sistema** (`ViewBag.GestaoSoLeitura`). Sem repetir a casca no lugar novo, ele ganharia o "Avisar todo mundo" LIGADO e descobriria a recusa só depois de escrever a mensagem — o `Comunicar` exige `EhOrganizadorAsync` no servidor, então era UI mentindo, não buraco de acesso.
+>
+> ✅ **"A CHAVE JÁ É PÚBLICA?" VIROU RÉGUA ÚNICA**: `AprovacaoDeChaves.ChavePublicada(torneio)` — a irmã, do lado do TORNEIO, do predicado `Publicada` que já existia do lado da PARTIDA. Aquele só sabe dizer "não está esperando aprovação", o que é verdade também num torneio de inscrições abertas, que não tem chave nenhuma. A aba "Chaves e Grupos" passou a perguntar por ela em vez da lista de status escrita na view.
+>
+> 🔀 **O `main` DE HOJE TROUXE A MESMA LISTA DE STATUS ESCRITA DE NOVO, e a mescla juntou as duas.** Outra sessão criou `Services/AbaDeChavesEGrupos` no mesmo dia (o botão "Chaves e Grupos" da lista de jogos, pedido do Deivid), com `"Fase de Grupos" or "Mata-Mata" or "Finalizado"` copiado. O conflito era literalmente as duas versões da mesma linha do `@if` da aba: ficou a **dele** na view, e o `Existe` dele passou a chamar o `ChavePublicada` daqui. Uma lista só, dois chamadores — cópias que concordam hoje divergem na primeira mudança, e aí o botão promete uma aba que o Details não desenha.
+>
+> 🧪 **6.201 testes, 0 falhas (19 novos meus; o resto veio do `main` — PRs #149, #152, #154, #156 e #157, mesclados duas vezes durante a abertura do PR).** Vistos vermelhos antes: *"'AprovacaoDeChaves' does not contain a definition for 'ChavePublicada'"*; depois, com o card já no topo, *"As ferramentas têm que vir antes do cartaz e do resto da página"* — a primeira colocação parava encostada nas abas; e, depois da mescla, o `AbaDeChavesEGrupos` ainda com a lista própria.
+>
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio (conferido hoje: `CONNECT tunnel failed, response 403` em `padelizou.com.br` **e** em `dev.padelizou.com.br`). O que dá pra afirmar é o que o teste lê da fonte e que o Razor do parcial compila; a tela em si só se confere no `dev`.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-976-658d281`** (15h05 e 15h06 de Brasília — runs 179 e 180, os dois com a tag **explícita** no input `build`, e não "a mais recente"). PR #153. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as duas travas do clique duplo do palpitrômetro** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`) — **mais o primeiro passo de Node do `ci.yml`**. Fecha o `DbUpdateException em POST /Partidas/Votar` que chegou por push de erro às 13h52.
+>
+> 📦 **ESTE BUILD NÃO LEVA CARONA DE CÓDIGO, e isso foi conferido, não presumido:** `git diff --name-only build-970..build-976` devolve **7 arquivos, todos deste PR** (mais o `STATUS.md`). Os PRs #149 e #154, que entraram no `main` entre um build e outro, são **registro de STATUS, sem código**. Os PRs #144–#148 já tinham ido ao ar nos builds 952/958/962/970 das sessões paralelas — ou seja, o alerta de "leva junto tudo que entrou antes" **não se aplicou desta vez**.
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA — a primeira verificação independente desde que a nota do proxy existe.** O proxy desta sessão **não** bloqueou o domínio: `/healthz` **200** em `dev` e em `prod`, e o `palpitrometro.js` servido pelos dois já traz a trava (`palpiteEmVoo` aparece **4×**; **antes** do deploy o prod servia **0**, que é a medida de que o arquivo velho saiu do ar). 📌 **A lição é sobre a nota, não sobre o site:** "o proxy bloqueia `padelizou.com.br`" é estado **de sessão**, não regra do ambiente — a próxima sessão testa em vez de assumir que não dá.
+>
+> 🧪 **CI verde no PR, e o passo novo rodou no runner de verdade** — passo 9, `Conferir a trava de clique do palpitrômetro (JS)`, `success`, com o `Dizer QUAL teste caiu` `skipped` do lado (que é o desenho: ele só aparece quando a suíte cai). **6.179 testes, 0 falhas** no estado já mesclado com o `main`.
+>
+> ⚠️ **O `main` andou DUAS VEZES no meio do caminho** (PRs #149, #152, #154 de sessões paralelas), e as duas vezes o conflito foi só no `STATUS.md`, no mesmo lugar: o cabeçalho "Última atualização". A resolução é mecânica e vale anotar — **o bloco novo fica no topo com o cabeçalho, e o que estava lá vira entrada datada normal**. Nenhuma linha de código conflitou nas duas mesclas.
+>
+>
 > **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
 > 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.
