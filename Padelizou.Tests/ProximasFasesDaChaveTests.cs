@@ -409,8 +409,11 @@ public class ProximasFasesDaChaveTests
     [Fact]
     public void A_previa_espera_o_jogo_de_grupo_ja_marcado_de_outra_categoria()
     {
-        // A "Rápida" fechou os grupos dela em 12/09 às 18:00. A "Lenta" ainda tem jogo de GRUPO
-        // marcado pra 15/09 às 20:30 — jogo real, que já está na grade.
+        // A "Rápida" fechou os grupos dela em 12/09 às 18:00. A "Lenta" ainda tem uma RODADA
+        // INTEIRA de jogos de GRUPO marcada pra 15/09 às 20:30 — jogos reais, que já estão na
+        // grade (a grade que transbordou, como no Er). ⚠️ Uma rodada cheia, e não um jogo só: um
+        // jogo só depois de um buraco é RETARDATÁRIO e não segura a fila — ver
+        // OrdemDasFases.FimDoBloco e RetardatarioNaoSeguraAFilaTests.
         var fimDaRapida = new DateTime(2026, 9, 12, 18, 0, 0);
         var grupoDaLenta = new DateTime(2026, 9, 15, 20, 30, 0);
 
@@ -423,6 +426,9 @@ public class ProximasFasesDaChaveTests
             new[]
             {
                 new VagaOcupada(fimDaRapida, null, "Grupo A"),
+                new VagaOcupada(grupoDaLenta, null, "Grupo D"),
+                new VagaOcupada(grupoDaLenta, null, "Grupo D"),
+                new VagaOcupada(grupoDaLenta, null, "Grupo D"),
                 new VagaOcupada(grupoDaLenta, null, "Grupo D"),
             });
 

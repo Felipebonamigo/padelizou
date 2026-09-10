@@ -50,4 +50,56 @@ public static class OrdemDasFases
             _ => PostoDaFinal,
         };
     }
+
+    // ── O FIM DE UM POSTO ────────────────────────────────────────────────────────────────────
+    // Não é o último jogo dele — é o último jogo do BLOCO CHEIO dele.
+    //
+    // 🗣️ Felipe, 09/09/2026, no print do Er em produção: *"os jogos estao terminando no sabado
+    // 19:40 por que? nao deveria, é pra ir ate as 23h"*. A fase de grupos fechava 19h40 de sábado
+    // e UM jogo de grupo caía em 08h de domingo (impedimento ou concentração da dupla). Com a
+    // barreira no `Max`, TODAS as eliminatórias esperavam esse jogo, e a noite de sábado ficava
+    // vazia — o oposto do que ele mesmo abriu ao pedir a ordem: *"a menos que fique horario
+    // vazio"*. Um retardatário não pode segurar o torneio inteiro atrás dele.
+    //
+    // A régua: os horários em ordem; o primeiro HORÁRIO DA GRADE INTEIRO sem jogo do posto
+    // encerra o bloco, e o que vem depois é retardatário. `horarioSeguinte` é o passo da grade
+    // (GradeDeJogos.DepoisDe) — é ele que sabe que depois das 22h10 de sexta vem 08h de sábado,
+    // e que isso NÃO é buraco.
+    //
+    // ⚠️ SÓ UM HORÁRIO INTEIRO CONTA COMO BURACO, e não "o próximo horário passou": jogo mexido
+    // na mão pra um minuto quebrado (20h13) partiria o bloco a cada troca do organizador. Por
+    // isso o teste é `seguinte(seguinte(anterior)) <= h` — cabe um horário cheio entre os dois.
+    //
+    // ⚠️ E RETARDATÁRIO É QUEM SOBRA EM MENOS DE UMA RODADA depois do buraco (`capacidade` =
+    // quadras do torneio). O outro lado dessa moeda é o buraco NO MEIO da fase — um horário que
+    // o encaixe deixou vazio porque nenhum jogo restante cabia nele (descanso, impedimento) e
+    // depois do qual a fase continua com dezenas de jogos. Cortar o bloco ali mandaria as
+    // eliminatórias pro MEIO dos grupos, que é exatamente a queixa de 09/09 de manhã. Uma rodada
+    // inteira de jogos depois do buraco é a fase seguindo, não gente atrasada; o corte anda do
+    // fim pro começo e para no primeiro buraco que não é de retardatário.
+    //
+    // Os três lugares que calculam barreira de posto leem daqui (LevasDaGrade,
+    // ProximasFasesDaChave, AuditoriaDaGrade): grade, prévia e Conferir grade dizendo fins
+    // diferentes seria pior que qualquer uma das três réguas sozinha.
+    public static DateTime? FimDoBloco(IEnumerable<DateTime> horarios, Func<DateTime, DateTime> horarioSeguinte,
+        int capacidade)
+    {
+        // Com repetição, de propósito: o que se conta depois do buraco são JOGOS, não horários.
+        var lista = horarios.OrderBy(h => h).ToList();
+        if (lista.Count == 0) return null;
+
+        int umaRodada = Math.Max(1, capacidade);
+        int fim = lista.Count;                      // exclusivo — lista[0..fim) é o bloco
+
+        for (int i = lista.Count - 1; i > 0; i--)
+        {
+            bool buraco = horarioSeguinte(horarioSeguinte(lista[i - 1])) <= lista[i];
+            if (!buraco) continue;
+
+            if (fim - i < umaRodada) fim = i;       // retardatários: caem fora, e segue olhando
+            else break;                             // uma rodada cheia depois do buraco: é a fase
+        }
+
+        return lista[fim - 1];
+    }
 }

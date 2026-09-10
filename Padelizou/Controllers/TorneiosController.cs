@@ -1031,7 +1031,8 @@ namespace Padelizou.Controllers
                     categoria.GruposTorneio.Select(g => g.Nome).OrderBy(n => n).ToList(),
                     Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
                     fimDosGrupos,
-                    categoria.Nome));
+                    categoria.Nome,
+                    categoria.Id));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
@@ -1057,7 +1058,8 @@ namespace Padelizou.Controllers
                         // próximas fases muda justamente pro torneio que mais precisa dela.
                         p.HorarioPrevisto)).ToList(),
                     byes!,
-                    porCategoria.First().Categoria.Nome));
+                    porCategoria.First().Categoria.Nome,
+                    porCategoria.Key));
             }
 
             if (cadeias.Count == 0) return new();
@@ -1074,6 +1076,8 @@ namespace Padelizou.Controllers
                 .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra, p.Fase))
                 .ToList();
 
+            // As SEDES vão junto: janela do local alugado e trava de clube da categoria são as
+            // mesmas da grade de verdade — sem elas a prévia prometia o Radar no domingo.
             var projetados = ProximasFasesDaChave.Agendar(
                 cadeias,
                 new ProximasFasesDaChave.ConfiguracaoDaGrade(
@@ -1081,7 +1085,8 @@ namespace Padelizou.Controllers
                     torneio.QuantidadeQuadras,
                     await QuadrasEmUsoAsync(torneioId),
                     torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes),
+                    torneio.HoraInicioDiasSeguintes,
+                    await SedesAsync(torneioId)),
                 ocupadas);
 
             return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
