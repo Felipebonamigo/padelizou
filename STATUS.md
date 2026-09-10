@@ -21,6 +21,36 @@
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é que a suíte lê da fonte o que foi combinado e que o Razor compila.
 
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1011-ea86749`** (17h13 e 17h15 de Brasília — runs 196 e 197), **o mesmo artefato nos dois**, com a tag explícita no campo `build` (e não "o mais recente"). PR #168. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as três coisas do palpitrômetro pedidas na véspera do Er** — o ranking aparecendo antes do primeiro jogo (modo participação), o modal dizendo **quem palpitou o quê** (com o placar de cada um, e a frase "A galera crava" virando botão), e o **retirar o palpite** (`POST /Partidas/RetirarPalpite`).
+>
+> ✅ **CONFERIDO NO AR, no torneio do Er (`/Torneios/Details/26`, anônimo)**: a aba Palpiteiros existe, o aviso diz *"Ainda não há jogo apurado"*, a conta é de **116 palpites esperando resultado**, a coluna **Em aberto** está na tabela, e são **33 frases de consenso clicáveis** entre os 56 palpitrômetros da lista. No `dev` e no `prod`, o `/js/palpitrometro.js` servido já traz `RetirarPalpite` e `placarVencedor`; `/healthz` responde 200 nos dois.
+>
+> 🕳️ **ACHADO NO CAMINHO — O NOME DA TAG DE BUILD PODE MENTIR SOBRE O COMMIT.** O `ci.yml` cria o release com `gh release create "$tag" ... ` **sem `--target`**, então o **tarball** sai do `github.sha` (certo) mas a **tag git** nasce apontando pro topo do `main` naquele instante. O PR #164 entrou 4 minutos depois do #168 e a tag `build-1011-ea86749` ficou apontando pro merge dele (`f3170fe`). ⚠️ **Não trocou o que foi publicado** — o pacote instalado é o do #168, e o #164 era só `STATUS.md` —, mas a procedência fica enganosa e um dia vai custar uma investigação. O conserto é uma linha: `--target "${{ github.sha }}"`.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #168) e PUBLICADO no `build-1011-ea86749`** — o registro do deploy é a entrada acima. **Sem migration.**
+>
+> 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
+>
+> 1️⃣ **O RANKING APARECE ANTES DO PRIMEIRO JOGO.** A aba e o botão só nasciam quando um jogo **com palpite** terminava — ou seja, na véspera do torneio, que é justamente quando todo mundo palpita, não existia tela nenhuma. Cada linha ganhou o **EM ABERTO** (palpites de jogos que ainda não terminaram), com a **mesma exclusão de quem está em quadra** que a apuração já fazia: sem ela o número encolheria sozinho quando o jogo terminasse. Enquanto nada foi apurado a tela é de **participação** — ordenada por quem mais palpitou, sem pódio, com "·" no lugar da posição (tabela de zeros não tem líder) e o aviso de que a pontuação começa no primeiro resultado. Depois disso a ordem volta a ser a de pontos e a coluna Em aberto fica ao lado, porque 🗣️ *"todo jogo pode ser palpitado até começar"*.
+>
+> ⚠️ **O EM ABERTO É DO TORNEIO E SÓ DELE.** O hub do Ranking e o selo do perfil somam pontos de vários torneios — enchê-los de gente com zero ponto trocaria um ranking por lista de presença, e o selo diria "0 pt" pra quem nunca pontuou. Tem teste travando os dois.
+>
+> ✅ **De quebra, morreu o falso-positivo documentado**: o gate da aba passou a ser o **ranking pronto** (`TemRanking`) em vez de "existe palpite em jogo terminado". Torneio em que só os 4 jogadores da própria partida palpitaram mostrava o botão e a página respondia **404**.
+>
+> 2️⃣ **O MODAL DIZ QUEM PALPITOU O QUÊ.** Ele existia desde sempre e mostrava só o NOME. Agora cada linha traz o placar palpitado, **vencedor × perdedor** — no banco ele mora na orientação do jogo, mas a pessoa é listada DEBAIXO da dupla em que votou, e ali "4 x 6" diria que ela apostou na derrota de quem escolheu. A **frase do consenso virou o segundo caminho pro modal** (era texto morto), nas duas apresentações. ⚠️ E o nome/foto passaram a ser **escapados** antes do `innerHTML`: vêm do cadastro de quem votou.
+>
+> 3️⃣ **DÁ PRA RETIRAR O PALPITE.** Dava pra trocar de dupla e trocar a ficha; não dava pra sair — quem tocou sem querer (o alvo é um nome no meio de 97 jogos) não tinha caminho de volta. `POST /Partidas/RetirarPalpite`, com **[HttpPost] + [Authorize] + dono ESTRUTURAL** (a linha é achada por `(partida, jogador)` e o jogador vem da claim — não existe parâmetro por onde pedir o palpite alheio). A janela é a **mesma** do palpitar. O placar sai junto, senão "a galera crava 6x4" seguiria contando palpite que não existe. Na tela o "retirar" só aparece pra quem palpitou e **some sozinho** depois. ⚠️ O pedido vai pela **MESMA fila** do voto (a linha do pedido agora carrega a rota): soltos, votar e retirar mexem na mesma linha do banco e se cruzam — e a tela terminaria pintada pelo que respondeu por último, com **o palpite reaparecendo depois de retirado**.
+>
+> 🖥️ **RODEI A UI — E ISSO É NOVO.** Dezenas de entradas aqui fecham com "⚠️ NÃO RODEI A UI". O container da sessão web tem **PostgreSQL 16 e Chromium/Playwright**: o app sobe local com o DadosDemo, e dá pra clicar de verdade. Conferido a 430px e a 1200px, logado: o consenso abre o modal com os placares (`Diego 6 x 4 · Lucas 6 x 3 · Bruno sem placar`), o retirar apaga a linha no banco e some da tela sem F5, e a aba mostra o modo participação e depois o ranking com pontos. **A receita está no `TRABALHAR-FORA.md`.**
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE A SUÍTE NÃO PEGARIA**: a 1200px a tabela do modo participação vinha com **PALPITES 0 · ACERTOS 0 · % 0% · PONTOS 0** em toda linha — a "fileira de zeros" que a régua da coluna "Cravadas" condena. As quatro colunas somem enquanto nada foi apurado.
+>
+> 🔀 **O `main` ANDOU no meio do caminho** (PRs #162, #163 e #165, de sessões paralelas) e foi mesclado aqui antes do CI: conflito só no `STATUS.md`, no lugar de sempre — nenhuma linha de código, e o `Details.cshtml` mesclou sozinho. Com o `main` junto são **6.272 testes, 0 falhas**.
+>
+> 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
+
 > **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
@@ -59,6 +89,19 @@
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
 
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`** (16h04 e 16h10 de Brasília — runs 187 e 188). PR #161. ✅ **SEM MIGRATION.**
+>
+> 📍 **O CLUBE VOLTOU AO CARTÃO DA PRÉVIA DO MATA-MATA** — o pedido dos dois prints do Er (*"quartas de final ta sem clube"*, *"tem uma parte com e uma sem"*). O que a correção é está na entrada logo abaixo.
+>
+> ✅ **`/healthz` CONFERIDO POR FORA NOS DOIS: HTTP 200, corpo `ok`** (`dev.padelizou.com.br` e `padelizou.com.br`, por `curl` desta sessão). É verificação independente, e não só o healthcheck que o próprio `deploy.sh` faz — os dois runs também saíram verdes com *"==> Feito. build-997-6b6dc3d no ar"*.
+>
+> 🔓 **O `prod` NÃO PAROU PEDINDO APROVAÇÃO.** O `deploy.yml` aponta pro environment `prod` justamente pra isso, mas nesta conta a regra de revisores não está ligada: o run foi direto do dispatch ao deploy, em 20 segundos. Fica anotado porque a sessão anunciou o clique e ele não veio — quem publicar daqui não deve esperar por ele.
+>
+> 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
+>
+> ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
+
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
 > ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
@@ -68,7 +111,30 @@
 > 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
 >
 
+> **10/09/2026** — ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, ainda não publicado.** **Sem migration.**
+>
+> 📍 **A PRIMEIRA COISA DA TELA DO TORNEIO PASSA A SER O JOGO.** 🗣️ Felipe, com a página aberta no celular: *"acho que podemos remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já pagaram, e aí fica melhor a visão da tela, porque atualmente, quando abro o site a primeira coisa que queria ver é os jogos ao vivo"* e *"Os menus Pagamentos e impedimentos e Planejamento de quadras, também pode mover para dentro do Gerenciar torneio, depois que foi publicada as chaves"*. **Duas coisas, o mesmo problema:** publicada a chave, o topo da página continuava sendo sobre INSCRIÇÃO — card de cobrança e duas abas de preparação — enquanto quem abre quer placar.
+>
+> ✅ **`PixDoOrganizador.ApareceParaMim(torneio, devoAlguma)`** — o card sai depois de publicado, e a régua de "publicado" é a `AprovacaoDeChaves.ChavePublicada` que a aba "Chaves e Grupos" já usa (nenhuma quarta cópia da lista de status). As duas abas viram **atalho dentro do Painel de Controle**, e o botão delas **continua no DOM, só recolhido**.
+>
+> ⚠️ **"TEORICAMENTE JÁ PAGARAM" NÃO É "TODOS PAGARAM", e a diferença tem dono no código:** quem ainda deve continua vendo o card depois de publicado. Não é caso de canto — `PromoverDaListaDeEsperaAsync` tira o próximo da fila **sempre que uma vaga abre, inclusive quando o organizador remove uma dupla no dia do jogo**, e há mais três portas (aceitar convite, aceitar pedido do mural, troca de parceiro pelo organizador) que fazem alguém entrar num torneio já publicado devendo. No "por fora", `Details.cshtml:837` é o **único caminho que o próprio jogador alcança** pra chave Pix: nenhum e-mail, push ou lembrete a carrega (o `LembreteDeInscricaoNaoPaga.VigiaEsteTorneio` **exige** `EhPeloSite`, então torneio por fora não recebe lembrete nenhum). ⚠️ **Existe um segundo caminho, e ele não substitui o card:** o botão "Cobrar no WhatsApp" (`Details.cshtml:4995`) manda a chave junto — mas depende de **o organizador clicar**, um a um, e vive dentro do painel de inscritos. Tirar o card dessa pessoa seria dizer "pague" sem dizer pra quem, e deixar o caminho na mão de outro.
+>
+> 🕳️ **O MAPEAMENTO PEGOU UM DEFEITO NA MINHA PRÓPRIA IMPLEMENTAÇÃO, e ele era exatamente o oposto do pedido.** A classe `pdz-aba-recolhida` tinha nascido no `<button class="nav-link">` — mas quem é filho do flex é o `<li class="nav-item">`, e o `site.css` lhe dá `flex: 1 1 auto` e **metade da linha até 430px**. Com `display:none` só no botão, sobravam **dois `<li>` VAZIOS reivindicando 50% da largura cada**: uma faixa em branco no topo do celular, no lugar exato de onde o card do Pix acabou de sair. A classe foi pro `<li>`, e o "reaparece quando é a aba ativa" virou `:has(> .nav-link.active)` — `.pdz-aba-recolhida.active` **nunca casaria**, porque as duas classes não vivem no mesmo elemento (quem ganha `.active` é o botão filho, é o Bootstrap que põe).
+>
+> ⚠️ **O BOTÃO NÃO PODE SER APAGADO: são TREZE redirects**, não cinco como o primeiro comentário dizia (`TorneiosController.Inscricoes.cs` 615, 621, 653, 690, 695, 722, 761, 802, 820, 892, 924, 950, 977), mais o link `asp-fragment="pagamentos"` do `Planejamento.cshtml:494`. O script do fim do `Details.cshtml` abre a aba procurando `#torneioTabs [data-bs-target="..."]` — apagado o botão, o seletor não acha nada, **o script sai calado** e o organizador cai na aba padrão toda vez que mexe num impedimento.
+>
+> ✅ **E O CONTROLLER VOLTOU A USAR A MESMA RÉGUA DA VIEW.** O `Aparece` mora no serviço justamente pra não existirem duas — o comentário dele diz isso com todas as letras. Com a view perguntando `ApareceParaMim` e o controller parado no `Aparece`, no **dia do jogo** (quando mais gente abre a página mais pesada do site) quem já pagou carregava do banco o criador do torneio pra alimentar um card que a view não desenha. Agora a busca do contato fica atrás do mesmo portão; **visitante deslogado depois de publicado não faz consulta nenhuma**.
+>
+> ⚠️ **Os dois atalhos ficam FORA do `<fieldset disabled="@gestaoSoLeitura">`** (linhas 2244/2248 contra 2290): o assistente do sistema em modo leitura continua alcançando as duas telas. E o `onclick` clica no **botão real**, não num `data-bs-toggle` próprio — o Bootstrap desativa os irmãos procurando o `nav` **ancestral** do elemento clicado, e um botão fora do `#torneioTabs` abriria este painel sem fechar o que estava aberto.
+>
+> 🧪 **6.275 testes, 0 falhas (2 arquivos novos meus: `CardDoPixSaiDaTelaDepoisDePublicadoTests` e `AbasDeGestaoVaoParaDentroDoGerenciarTests`; os outros 8 vieram do `main`, mesclado aqui — PR #165 — e a suíte rodou de novo depois).** Vistos vermelhos antes: os **cinco** da troca de elemento (`Assert.Contains() Failure ... String: "<li class="nav-item" role="presentation""`, e o inverso no botão) e o do portão do controller (*"A busca do contato precisa estar atrás do MESMO `ApareceParaMim` que a view usa"*). ⚠️ **Um teste desta mesma leva já tinha sido pego falso-verde** na revisão adversarial: `No_Americano_DE_DUPLAS_a_dupla_continua_sendo_a_inscricao` usava dupla NÃO paga cobrando `False` — passava idêntico com o defeito que dizia travar (excluir a família Americano inteira dá lista vazia → `false` pra todo mundo). Virou dupla PAGA cobrando `True`.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A suíte inteira passa e o Razor compila; a faixa em branco descrita acima foi deduzida do CSS (`site.css:2295` e `:2305`), **não medida**. Confere no `dev` antes do `prod`.
+
 > **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`.** PR #161. ✅ **SEM MIGRATION.**
+
 >
 > 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
 >

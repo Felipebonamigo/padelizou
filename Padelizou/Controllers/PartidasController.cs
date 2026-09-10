@@ -127,32 +127,61 @@ namespace Padelizou.Controllers
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             try
             {
-                var resumo = await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId, placar1, placar2);
-                return Json(new
-                {
-                    sucesso = true,
-                    votosDupla1 = resumo.VotosDupla1,
-                    votosDupla2 = resumo.VotosDupla2,
-                    totalVotos = resumo.TotalVotos,
-                    percentualDupla1 = resumo.PercentualDupla1,
-                    percentualDupla2 = resumo.PercentualDupla2,
-                    meuVotoDuplaId = resumo.MeuVotoDuplaId,
-                    meuPlacarLado1 = resumo.MeuPlacarLado1,
-                    meuPlacarLado2 = resumo.MeuPlacarLado2,
-                    placarEmSets = resumo.PlacarEmSets,
-                    // A leitura da galera muda com o meu palpite — se não voltasse aqui, a
-                    // frase "a galera crava 6x4" ficaria congelada na página até o F5.
-                    placarMaisPalpitadoLado1 = resumo.PlacarMaisPalpitadoLado1,
-                    placarMaisPalpitadoLado2 = resumo.PlacarMaisPalpitadoLado2,
-                    placarMaisPalpitadoVotos = resumo.PlacarMaisPalpitadoVotos,
-                    palpitesComPlacar = resumo.PalpitesComPlacar
-                });
+                return Json(DoPalpitrometro(await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId, placar1, placar2)));
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { sucesso = false, erro = ex.Message });
             }
         }
+
+        // POST: Partidas/RetirarPalpite — tirar o próprio palpite deste jogo.
+        //
+        // 🗣️ Felipe, 10/09/2026: *"tambem permita retirar o palpite colocado"*. Dava pra trocar
+        // de dupla e trocar a ficha; não dava pra sair.
+        //
+        // ⚠️ REGRA 0: [HttpPost] + [Authorize] + dono. A checagem de dono é ESTRUTURAL — o
+        // serviço procura a linha por (partida, jogador) e o jogador vem da claim, então não há
+        // parâmetro por onde pedir o palpite de outra pessoa. A janela (só enquanto o jogo está
+        // agendado) também é do serviço, que é quem o POST montado à mão encontra.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> RetirarPalpite(int partidaId)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            try
+            {
+                return Json(DoPalpitrometro(await _palpites.RetirarPalpiteAsync(partidaId, jogadorId)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { sucesso = false, erro = ex.Message });
+            }
+        }
+
+        // A resposta que a tela do palpitrômetro sabe pintar. UMA só, e é de propósito: votar,
+        // trocar a ficha e retirar terminam todos no mesmo `atualizarPalpitrometro` do JS —
+        // dois formatos de resposta virariam dois caminhos de repintura, e o que faltasse num
+        // deles ficaria congelado na tela até o F5.
+        private static object DoPalpitrometro(Padelizou.ViewModels.PalpiteResumoVM resumo) => new
+        {
+            sucesso = true,
+            votosDupla1 = resumo.VotosDupla1,
+            votosDupla2 = resumo.VotosDupla2,
+            totalVotos = resumo.TotalVotos,
+            percentualDupla1 = resumo.PercentualDupla1,
+            percentualDupla2 = resumo.PercentualDupla2,
+            meuVotoDuplaId = resumo.MeuVotoDuplaId,
+            meuPlacarLado1 = resumo.MeuPlacarLado1,
+            meuPlacarLado2 = resumo.MeuPlacarLado2,
+            placarEmSets = resumo.PlacarEmSets,
+            // A leitura da galera muda com o meu palpite — se não voltasse aqui, a
+            // frase "a galera crava 6x4" ficaria congelada na página até o F5.
+            placarMaisPalpitadoLado1 = resumo.PlacarMaisPalpitadoLado1,
+            placarMaisPalpitadoLado2 = resumo.PlacarMaisPalpitadoLado2,
+            placarMaisPalpitadoVotos = resumo.PlacarMaisPalpitadoVotos,
+            palpitesComPlacar = resumo.PalpitesComPlacar
+        };
 
         // GET: Partidas/VerVotos — quem votou em quem no palpitrômetro (público, qualquer logado)
         [HttpGet]

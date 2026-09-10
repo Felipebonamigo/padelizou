@@ -29,7 +29,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.Jogadores.Add(visitante);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), visitante.Id));
+        Assert.False((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), visitante.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: false);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.False((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: true);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -65,8 +65,8 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: true, parceiro: parceiro);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), parceiro.Id));
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), parceiro.Id)).JaPagueiTudo);
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.Duplas.Add(new Dupla { Categoria = segunda, Jogador1 = eu, Pago = false });
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.False((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -95,12 +95,12 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.InscricoesAmericanas.Add(inscricao);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.False((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
 
         inscricao.Pago = true;
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var euPaguei = Inscrever(ctx, categoria, pago: true, quem: organizador);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), euPaguei.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), euPaguei.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         ctx.Duplas.Add(new Dupla { Categoria = categoria, Jogador1 = parceiroDaRodada, Jogador2 = eu });
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class PixRecolhidoParaQuemJaPagouTests
         var eu = Inscrever(ctx, categoria, pago: true);
         await ctx.SaveChangesAsync();
 
-        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True((await PixDoOrganizador.MinhasInscricoesAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id)).JaPagueiTudo);
     }
 
     [Fact]
@@ -195,12 +195,18 @@ public class PixRecolhidoParaQuemJaPagouTests
         // o pedido do Emerson morrendo em silencio com 10 testes verdes em cima dele.
         var controller = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Controllers", "TorneiosController.cs"));
 
-        var chamada = controller.IndexOf("PixDoOrganizador.JaPagouTudoAsync", StringComparison.Ordinal);
-        Assert.True(chamada >= 0, "O controller precisa perguntar ao PixDoOrganizador quem ja pagou.");
-        Assert.Contains("ViewBag.JaPagueiNesteTorneio", controller);
+        var chamada = controller.IndexOf("PixDoOrganizador.MinhasInscricoesAsync", StringComparison.Ordinal);
+        Assert.True(chamada >= 0, "O controller precisa perguntar ao PixDoOrganizador o que eu tenho neste torneio.");
 
-        // E a resposta so e calculada quando o card existe — o `if (PixDoOrganizador.Aparece(...))`
-        // vem antes. Sem isso, duas consultas a mais em TODA abertura da pagina mais pesada do site.
+        // As DUAS perguntas que a tela faz sobre a mesma foto: recolher o card (paguei tudo) e
+        // manter o card depois de publicado (devo alguma). Apagar qualquer uma das duas linhas
+        // deixa a suite verde e quebra a tela em silencio.
+        Assert.Contains("ViewBag.JaPagueiNesteTorneio", controller);
+        Assert.Contains("ViewBag.DevoAlgumaNesteTorneio", controller);
+
+        // E a resposta so e calculada quando o card PODE existir — o `if (PixDoOrganizador.
+        // Aparece(...))` vem antes. Sem isso, uma consulta a mais em TODA abertura da pagina
+        // mais pesada do site, inclusive nos torneios que cobram pelo site (a maioria).
         var portao = controller.LastIndexOf("PixDoOrganizador.Aparece(torneio)", chamada, StringComparison.Ordinal);
         Assert.True(portao >= 0 && chamada - portao < 900,
             "A pergunta precisa ficar DENTRO do `if (PixDoOrganizador.Aparece(torneio))`.");

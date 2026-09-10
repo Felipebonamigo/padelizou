@@ -15,7 +15,16 @@
     </h2>
     <p class="text-muted">
         @Model.Torneio ·
-        @Model.JogosApurados @(Model.JogosApurados == 1 ? "jogo apurado" : "jogos apurados")
+        @if (Model.ModoParticipacao)
+        {
+            @* "0 jogos apurados" é verdade e não explica nada. Antes do primeiro resultado o
+               que dá tamanho à tabela é o tanto de palpite que já entrou. *@
+            <text>@Model.PalpitesEmAberto @(Model.PalpitesEmAberto == 1 ? "palpite" : "palpites") esperando o primeiro resultado</text>
+        }
+        else
+        {
+            <text>@Model.JogosApurados @(Model.JogosApurados == 1 ? "jogo apurado" : "jogos apurados")</text>
+        }
     </p>
 
     @* O pódio, a régua e a tabela moram em Views/Shared/_RankingDePalpiteiros.cshtml — é a

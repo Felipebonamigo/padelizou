@@ -52,6 +52,17 @@ public static class RankingDePalpiteiros
         var apuracao = await ApurarAsync(contexto, partidas,
             await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList()));
 
+        // O QUE AINDA NÃO VIROU PONTO — só no ranking do TORNEIO (10/09/2026). 🗣️ Felipe, com o
+        // 2ª Etapa ER PADEL TOUR no ar e 41 jogos já votados: *"acho que o ranking do
+        // palpitometro ja tem que aparecer"*.
+        //
+        // 🕳️ Sem isto, a aba só nascia quando o PRIMEIRO jogo terminava: na véspera do torneio,
+        // que é justamente quando todo mundo palpita, a tabela vinha vazia e o link não existia.
+        //
+        // ⚠️ É do TORNEIO e só dele. O hub e o selo do perfil somam pontos de vários torneios —
+        // encher aquela tabela de gente com zero ponto trocaria um ranking por lista de presença.
+        var linhas = Mesclar(apuracao.Linhas, await EmAbertoAsync(contexto, torneioId));
+
         return new PalpiteirosDoTorneio
         {
             TorneioId = torneio.Id,
@@ -59,8 +70,89 @@ public static class RankingDePalpiteiros
             JogosApurados = apuracao.JogosApurados,
             PalpitesComPlacar = apuracao.PalpitesComPlacar,
             EuId = olhandoId,
-            Linhas = apuracao.Linhas,
+            // ⚠️ A ORDEM MUDA COM A FASE, e é a única coisa que muda: enquanto nada foi apurado
+            // não há ponto pra classificar, e ordenar por ponto seria ordenar por nada.
+            Linhas = apuracao.JogosApurados == 0 ? ClassificarPorParticipacao(linhas) : Classificar(linhas),
         };
+    }
+
+    // Junta as duas metades numa linha só por pessoa: quem já pontuou ganha o "em aberto" ao
+    // lado dos pontos; quem só tem palpite pendente entra zerado.
+    //
+    // ⚠️ UMA LINHA POR PESSOA, e não duas listas na tela: a mesma pessoa aparecendo em dois
+    // lugares da mesma tabela é o defeito que ninguém reporta — só desconfia da conta.
+    private static List<PalpiteiroNoRanking> Mesclar(
+        List<PalpiteiroNoRanking> apurados, List<PalpiteiroNoRanking> emAberto)
+    {
+        var porJogador = apurados.ToDictionary(l => l.JogadorId);
+
+        foreach (var pendente in emAberto)
+        {
+            if (porJogador.TryGetValue(pendente.JogadorId, out var linha))
+            {
+                linha.EmAberto = pendente.EmAberto;
+                continue;
+            }
+
+            porJogador[pendente.JogadorId] = pendente;
+        }
+
+        return porJogador.Values.ToList();
+    }
+
+    // Os palpites deste torneio que ainda NÃO têm resultado — por pessoa.
+    private static async Task<List<PalpiteiroNoRanking>> EmAbertoAsync(DbPadelContext contexto, int torneioId)
+    {
+        var partidas = await ConsultaDePartidasEmAberto(contexto, p => p.TorneioId == torneioId).ToListAsync();
+        if (partidas.Count == 0) return new List<PalpiteiroNoRanking>();
+
+        var palpites = await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList());
+        if (palpites.Count == 0) return new List<PalpiteiroNoRanking>();
+
+        var duplaIds = partidas.SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).Distinct().ToList();
+        return ContarEmAberto(partidas, palpites, await EmQuadraAsync(contexto, duplaIds));
+    }
+
+    // A contagem PURA do que está em aberto.
+    //
+    // ⚠️ MESMA exclusão de quem está em quadra que a apuração faz, e é ela que evita o número
+    // que ENCOLHE sozinho: contar aqui o palpite do próprio jogador e descartá-lo quando o jogo
+    // terminasse faria a linha dele cair de "2 em aberto" pra "0 palpites" sem nada explicar.
+    public static List<PalpiteiroNoRanking> ContarEmAberto(
+        IEnumerable<PartidaApurada> partidas,
+        IEnumerable<PalpiteApurado> palpites,
+        Dictionary<int, HashSet<int>> emQuadra)
+    {
+        var porPartida = palpites.GroupBy(v => v.PartidaId).ToDictionary(g => g.Key, g => g.ToList());
+        var porJogador = new Dictionary<int, PalpiteiroNoRanking>();
+
+        foreach (var partida in partidas)
+        {
+            if (!porPartida.TryGetValue(partida.Id, out var doJogo)) continue;
+
+            var jogadoresDaPartida = new HashSet<int>(emQuadra.GetValueOrDefault(partida.Dupla1Id, new HashSet<int>()));
+            jogadoresDaPartida.UnionWith(emQuadra.GetValueOrDefault(partida.Dupla2Id, new HashSet<int>()));
+
+            foreach (var palpite in doJogo)
+            {
+                if (jogadoresDaPartida.Contains(palpite.JogadorId)) continue;
+
+                if (!porJogador.TryGetValue(palpite.JogadorId, out var linha))
+                {
+                    linha = new PalpiteiroNoRanking
+                    {
+                        JogadorId = palpite.JogadorId,
+                        Nome = palpite.Nome,
+                        Foto = palpite.Foto,
+                    };
+                    porJogador[palpite.JogadorId] = linha;
+                }
+
+                linha.EmAberto++;
+            }
+        }
+
+        return porJogador.Values.ToList();
     }
 
     // ── 2. O RANKING GERAL (a aba do hub) ─────────────────────────────────────────────────
@@ -207,6 +299,11 @@ public static class RankingDePalpiteiros
         var ordenados = palpiteiros
             .OrderByDescending(p => p.Pontos)
             .ThenByDescending(p => p.Aproveitamento)
+            // Entre dois desempenhos idênticos, quem tem mais palpite em aberto vem primeiro —
+            // desempate de EXIBIÇÃO, não de classificação: eles dividem a mesma posição (a
+            // conta ali embaixo só olha pontos e aproveitamento). No hub e no perfil isto é
+            // sempre zero, então a ordem de lá não muda.
+            .ThenByDescending(p => p.EmAberto)
             .ThenBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p.JogadorId)
             .ToList();
@@ -221,6 +318,24 @@ public static class RankingDePalpiteiros
                 ? anterior.Posicao
                 : i + 1;
         }
+
+        return ordenados;
+    }
+
+    // A ordem de ANTES do primeiro resultado: quem mais palpitou primeiro.
+    //
+    // ⚠️ E SEM POSIÇÃO (`Posicao = 0`, que a tela desenha como "·"). Numerar 1º, 2º, 3º uma
+    // tabela em que todo mundo tem zero ponto anuncia uma liderança que não existe — pela mesma
+    // razão que o pódio não desenha com zeros. Quem está no topo aqui apenas palpitou mais.
+    public static List<PalpiteiroNoRanking> ClassificarPorParticipacao(IEnumerable<PalpiteiroNoRanking> palpiteiros)
+    {
+        var ordenados = palpiteiros
+            .OrderByDescending(p => p.EmAberto)
+            .ThenBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.JogadorId)
+            .ToList();
+
+        foreach (var linha in ordenados) linha.Posicao = 0;
 
         return ordenados;
     }
@@ -248,6 +363,33 @@ public static class RankingDePalpiteiros
             .Where(filtro)
             .Select(p => new PartidaApurada(p.Id, p.TorneioId, p.VencedorId, p.Dupla1Id, p.Dupla2Id,
                 p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2, p.MotivoDoEncerramento));
+
+    // As partidas que AINDA NÃO têm resultado — o outro lado da consulta acima, e por isso
+    // escrita como a negação exata dela: tudo que não é "Finalizada com vencedor" está em
+    // aberto (agendada, ao vivo, e a finalizada sem vencedor gravado).
+    //
+    // ⚠️ O filtro de quem chama entra ANTES da projeção pelo mesmo motivo da irmã — filtrar
+    // depois do `Select` não traduz, e o InMemory da suíte não pega (ver
+    // TraducaoDasConsultasDePalpiteTests).
+    public static IQueryable<PartidaApurada> ConsultaDePartidasEmAberto(
+        DbPadelContext contexto, System.Linq.Expressions.Expression<Func<Partida, bool>> filtro) =>
+        contexto.Partidas
+            .AsNoTracking()
+            .Where(p => p.Status != PartidaFinalizada || p.VencedorId == null)
+            .Where(filtro)
+            .Select(p => new PartidaApurada(p.Id, p.TorneioId, p.VencedorId, p.Dupla1Id, p.Dupla2Id,
+                p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2, p.MotivoDoEncerramento));
+
+    // A PERGUNTA BARATA que decide se a aba Palpiteiros existe: há QUALQUER palpite neste
+    // torneio? Quem chama pendura um `AnyAsync()`.
+    //
+    // ⚠️ Mora aqui, e não escrita à mão no controller, porque ela roda em TODA visita à página
+    // do torneio — a mais visitada do site — e atravessa a navegação `Partida` pra chegar no
+    // `TorneioId`. Consulta assim é exatamente a que precisa de trava de tradução.
+    public static IQueryable<PalpitePartida> PalpitesDoTorneio(DbPadelContext contexto, int torneioId) =>
+        contexto.PalpitesPartida
+            .AsNoTracking()
+            .Where(v => v.Partida.TorneioId == torneioId);
 
     private static async Task<List<PalpiteApurado>> PalpitesDasPartidasAsync(
         DbPadelContext contexto, List<int> partidaIds) =>
@@ -380,6 +522,13 @@ public sealed class PalpiteiroNoRanking
     // jogo dele).
     public int Palpites { get; set; }
 
+    // Palpites em jogos que ainda NÃO terminaram — os que vão virar ponto, e ainda não são.
+    //
+    // ⚠️ NÃO SOMA em `Palpites` nem entra no aproveitamento: um palpite sem resultado não é
+    // acerto nem erro, e diluir o aproveitamento com ele faria a porcentagem de todo mundo cair
+    // a cada jogo novo palpitado — castigando justamente quem mais participa.
+    public int EmAberto { get; set; }
+
     // ⚠️ SÓ DESEMPATA — não ordena. Ver PontosDoPalpite: 9 de 11 fica na frente de 8 de 8.
     public double Aproveitamento => Palpites == 0 ? 0 : Math.Round(Acertos * 100.0 / Palpites, 1);
 }
@@ -408,4 +557,12 @@ public sealed class PalpiteirosDoTorneio
     public int? EuId { get; set; }
 
     public bool TemRanking => Linhas.Count > 0;
+
+    // Quantos palpites deste torneio ainda esperam resultado.
+    public int PalpitesEmAberto => Linhas.Sum(l => l.EmAberto);
+
+    // AINDA NÃO HÁ O QUE PONTUAR: nenhum jogo apurado, e o que a tela mostra é quem já
+    // palpitou. É pergunta feita AO DADO, como o `PalpitesComPlacar` ali em cima — nada de
+    // interruptor: no minuto em que o primeiro jogo termina, a tela vira ranking sozinha.
+    public bool ModoParticipacao => JogosApurados == 0;
 }
