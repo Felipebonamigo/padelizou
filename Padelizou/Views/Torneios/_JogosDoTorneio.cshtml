@@ -695,6 +695,38 @@
                 }
             }
         </div>
+
+        @* ── COMPARTILHAR ESTA LISTA ───────────────────────────────────────────────────────
+           🗣️ Felipe, 10/09/2026, num print desta aba filtrada por "Los Corneteiros": *"no final
+           da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d
+           whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"*.
+
+           NO FIM, e não junto dos filtros: quem chega aqui já rolou a lista e conferiu que ela é
+           a que quer mandar. E PRA TODO MUNDO (não só organizador): cada inscrito que manda a
+           grade no grupo do time é divulgação que não custa nada — a decisão do cartaz.
+
+           ⚠️ Leva TODOS os filtros da tela. Sem eles, "compartilhar esta lista" compartilharia
+           outra. Só quando há lista: chave em aprovação chega vazia pra quem não organiza (o
+           portão de CarregarViewBagJogosAsync), e aí o botão nem existe. *@
+        @if (linhasAgendadas.Count > 0 && ViewBag.ChaveAindaNaoPublicada != true)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <a href="@Url.Action("CompartilharJogos", "Torneios", new {
+                        id = Model.TorneioId,
+                        timeFiltroId = ViewBag.TimeAtual as int?,
+                        categoriaFiltroIds = categoriaFiltroAtual,
+                        soMeusJogos,
+                        clubeFiltroId = filtroSequencia.ClubeId,
+                        quadraFiltro = filtroSequencia.Quadra,
+                        faseFiltro = filtroSequencia.Fase })"
+                   class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="bi bi-share-fill"></i> Compartilhar esta lista
+                </a>
+                <small class="text-muted">
+                    Texto pro grupo do WhatsApp ou arte pro story, com os filtros de cima.
+                </small>
+            </div>
+        }
     </div>
 
     <!-- SUB-ABA: FINALIZADAS -->
