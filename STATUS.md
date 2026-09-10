@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION.**
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NUM DOS COMMITS, e o repo já tinha remédio pra isso.** O `21a5d21` ficou sem **nenhum** check criado (nem vermelho: nenhum) enquanto outras sessões rodavam normalmente no mesmo minuto — o mesmo quadro de 26/08 que fez nascer o `workflow_dispatch` do `ci.yml`. Resolvido pelo gatilho manual (Actions → CI → Run workflow no branch), que devolveu verde no SHA certo. **As duas gambiarras óbvias continuam proibidas**: commit vazio e fechar/reabrir o PR.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
 >
 > ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
 >
