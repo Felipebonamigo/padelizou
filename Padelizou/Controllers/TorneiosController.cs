@@ -991,8 +991,12 @@ namespace Padelizou.Controllers
         // quando a anterior fecha, então o jogador via a primeira rodada e mais nada — sem
         // saber a que horas voltar nem contra quem pode jogar. A regra mora em
         // Services/ProximasFasesDaChave; aqui só se junta o que ela precisa.
+        //
+        // `reservas` são os horários que o organizador reservou pra jogos previstos
+        // (Models/ReservaDeHorario). Nulo = lê do banco; a troca de horário passa as dela pra
+        // conferir a troca ANTES de gravar.
         private async Task<List<ProximasFasesDaChave.JogoQueVem>> ProjetarProximasFasesAsync(
-            int torneioId, List<Partida> partidas)
+            int torneioId, List<Partida> partidas, IReadOnlyList<ReservaDeHorario>? reservas = null)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return new();
@@ -1076,6 +1080,15 @@ namespace Padelizou.Controllers
                 .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra, p.Fase))
                 .ToList();
 
+            // As reservas do organizador — só as de fases que AINDA NÃO NASCERAM: a fase que já
+            // virou jogo real entra por `ocupadas`, e a reserva dela já foi consumida pelo robô.
+            reservas ??= await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
+            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var reservadas = reservas
+                .Where(r => !fasesReais.Contains((r.CategoriaId, r.Fase)))
+                .Select(r => new ProximasFasesDaChave.HorarioReservado(r.CategoriaId, r.Fase, r.Numero, r.Horario, r.NomeQuadra))
+                .ToList();
+
             // As SEDES vão junto: janela do local alugado e trava de clube da categoria são as
             // mesmas da grade de verdade — sem elas a prévia prometia o Radar no domingo.
             var projetados = ProximasFasesDaChave.Agendar(
@@ -1087,7 +1100,8 @@ namespace Padelizou.Controllers
                     torneio.HoraFimDoDia,
                     torneio.HoraInicioDiasSeguintes,
                     await SedesAsync(torneioId)),
-                ocupadas);
+                ocupadas,
+                reservadas);
 
             return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
         }
@@ -1398,12 +1412,9 @@ namespace Padelizou.Controllers
             // ainda vão acontecer se descrevem citando esse número ("Vencedor Quartas de
             // Final 2"), e sem ele na etiqueta do jogo REAL a referência apontaria pro nada.
             //
-            // A ordem é a de Id — a mesma que o avanço de verdade usa pra parear vencedores.
-            ViewBag.NumeroNaFase = partidas
-                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
-                .GroupBy(p => new { p.CategoriaId, p.Fase })
-                .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => (p.Id, Numero: i + 1)))
-                .ToDictionary(x => x.Id, x => x.Numero);
+            // A ordem é a de Id — a mesma que o avanço de verdade usa pra parear vencedores, e a
+            // mesma chave da reserva de horário (Services/ReservasDeHorario).
+            ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(partidas);
         }
     }
 }

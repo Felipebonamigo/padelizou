@@ -181,6 +181,10 @@ public static class ProximasFasesDaChave
     // seja a final.
     public record VagaOcupada(DateTime Horario, string? Quadra, string? Fase = null);
 
+    // O horário que o organizador RESERVOU pra um jogo previsto — a troca de horário feita na
+    // prévia (Models/ReservaDeHorario). A chave é a mesma numeração desta projeção.
+    public record HorarioReservado(int CategoriaId, string Fase, int Numero, DateTime Horario, string? Quadra = null);
+
     // `Quadras` são os nomes NA ORDEM; `Capacidade` é quantos jogos rodam ao mesmo tempo.
     // Os dois existem porque podem discordar: um torneio de 5 quadras pode ter cadastrado só
     // 3 nomes, e aí duas vagas de cada horário ficam sem nome — o que é a verdade, e melhor
@@ -218,7 +222,8 @@ public static class ProximasFasesDaChave
     public static List<JogoQueVem> Agendar(
         IReadOnlyList<CadeiaDeFases> cadeias,
         ConfiguracaoDaGrade grade,
-        IReadOnlyList<VagaOcupada>? jaMarcados = null)
+        IReadOnlyList<VagaOcupada>? jaMarcados = null,
+        IReadOnlyList<HorarioReservado>? reservas = null)
     {
         var vivas = cadeias.Where(c => c.Rodadas.Count > 0).ToList();
         if (vivas.Count == 0) return new List<JogoQueVem>();
@@ -237,6 +242,54 @@ public static class ProximasFasesDaChave
                     ocupadas[vaga.Horario] = nomes = new HashSet<string>();
                 nomes.Add(vaga.Quadra!);
             }
+        }
+
+        // ── AS RESERVAS DO ORGANIZADOR (10/09/2026, Models/ReservaDeHorario) ─────────────
+        // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"*. A
+        // troca feita numa prévia mora numa reserva, e a prévia é a primeira a obedecê-la.
+        //
+        // ⚠️ O SLOT É RESERVADO AQUI, ANTES DE QUALQUER CADEIA PASSAR POR ELE. As cadeias saem em
+        // ordem de posto e de abertura; a Final da Y é emitida depois da Final da X, e se o slot
+        // só fosse tomado na hora de emitir a Y, a X já teria passado por ele e a troca do
+        // organizador sumiria na primeira categoria da fila. Reserva que no fim não vale (ver
+        // `Vale`, abaixo) devolve o slot — `Liberar`.
+        //
+        // Só reserva o que alguma cadeia viva vai emitir: reserva órfã (a fase virou real, a
+        // categoria saiu) não pode tomar quadra de ninguém.
+        var reservadas = new Dictionary<(int Categoria, string Fase, int Numero), HorarioReservado>();
+        var quadrasReservadas = new HashSet<(DateTime, string)>();
+
+        void Liberar(HorarioReservado r)
+        {
+            lotacao[r.Horario] = Math.Max(0, lotacao.GetValueOrDefault(r.Horario) - 1);
+            if (r.Quadra != null && quadrasReservadas.Remove((r.Horario, r.Quadra))
+                && ocupadas.TryGetValue(r.Horario, out var nomes))
+                nomes.Remove(r.Quadra);
+        }
+
+        foreach (var r in reservas ?? Array.Empty<HorarioReservado>())
+        {
+            var cadeiaQueEmite = vivas.FirstOrDefault(c => c.CategoriaId == r.CategoriaId
+                && c.Rodadas.Any(rod => rod.Fase == r.Fase && r.Numero >= 1 && r.Numero <= rod.Confrontos.Count));
+            if (cadeiaQueEmite == null) continue;
+
+            // ⚠️ RESERVA QUE FICOU PRA TRÁS NÃO TOMA VAGA (revisão adversarial, 10/09/2026): a fase
+            // anterior foi remarcada pra depois dela e ela não vai valer — mas o slot ficava
+            // pré-reservado até a rodada dela ser emitida, e nesse meio tempo as outras cadeias
+            // passavam pelo horário e eram empurradas por um jogo que nunca ia estar ali. Nenhuma
+            // rodada da cadeia abre antes de `AbrirRodada(DepoisDe)`, então dá pra saber já aqui.
+            // (O `Vale` na emissão continua: a rodada seguinte pode abrir ainda mais tarde.)
+            if (!ReservasDeHorario.Vale(r.Horario, AbrirRodada(cadeiaQueEmite.DepoisDe, grade))) continue;
+
+            reservadas[(r.CategoriaId, r.Fase, r.Numero)] = r;
+            lotacao[r.Horario] = lotacao.GetValueOrDefault(r.Horario) + 1;
+
+            if (r.Quadra == null) continue;
+            if (!ocupadas.TryGetValue(r.Horario, out var nomesDaHora))
+                ocupadas[r.Horario] = nomesDaHora = new HashSet<string>();
+            // Só o que ESTA reserva pôs é o que `Liberar` tira: a quadra que um jogo real já
+            // ocupa no mesmo minuto continua ocupada.
+            if (nomesDaHora.Add(r.Quadra)) quadrasReservadas.Add((r.Horario, r.Quadra));
         }
 
         // Estado de cada cadeia: qual a próxima rodada e a partir de quando ela pode abrir.
@@ -361,17 +414,46 @@ public static class ProximasFasesDaChave
 
             var horario = abertura[escolha];
 
+            // A dependência de resultado DESTA categoria: antes disto os dois lados do jogo ainda
+            // podem estar em quadra. É o piso que nem a reserva do organizador atravessa — a
+            // barreira de posto (abaixo) ela atravessa, porque entre categorias são pessoas
+            // diferentes e a ordem das fases é preferência do torneio, não impossibilidade.
+            var abreARodada = abertura[escolha];
+
             // ⚠️ SEM `+ duração`: é o horário do último jogo do posto anterior, e não a rodada
             // seguinte a ele — no minuto em que aquele jogo roda ainda sobra quadra. Mesma escolha
             // de LevasDaGrade, e pelo mesmo pedido: *"a menos que fique horario vazio"*.
             if (horario is DateTime abre && fimDoPostoAnterior is DateTime barreira && barreira > abre)
                 horario = barreira;
 
+            // O jogo mais tarde da rodada, reservado ou não: é dele que a rodada seguinte abre.
+            // `horario` continua sendo o cursor dos jogos SEM reserva — reservar a Semifinal 1
+            // pras 21h não arrasta a Semifinal 2 junto.
+            DateTime? ultimoDaRodada = null;
+
             for (int i = 0; i < rodada.Confrontos.Count; i++)
             {
                 string? quadra = null;
+                DateTime? quando = null;
 
-                if (horario is DateTime h)
+                // A reserva do organizador, se ele fez uma pra este jogo e ela ainda é possível.
+                // A que deixou de ser (o torneio atrasou e a fase anterior passou dela) volta pra
+                // grade como qualquer jogo — e a tela mostra a hora possível, não a prometida.
+                if (cadeia.CategoriaId is int categoriaDaReserva
+                    && reservadas.Remove((categoriaDaReserva, rodada.Fase, i + 1), out var reserva))
+                {
+                    if (ReservasDeHorario.Vale(reserva.Horario, abreARodada))
+                    {
+                        quando = reserva.Horario;
+                        quadra = reserva.Quadra;
+                    }
+                    else
+                    {
+                        Liberar(reserva);
+                    }
+                }
+
+                if (quando == null && horario is DateTime h)
                 {
                     // Horário lotado (ou sem quadra que sirva a esta categoria): o jogo escorrega
                     // pro seguinte. Sem esta parada, a projeção anunciava 8 jogos no mesmo minuto
@@ -389,15 +471,20 @@ public static class ProximasFasesDaChave
                     }
 
                     horario = h;
+                    quando = h;
                 }
 
-                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, horario,
+                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, quando,
                     rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra, cadeia.CategoriaId));
 
-                if (horario is DateTime marcado) emitidos.Add((posto, marcado));
+                if (quando is DateTime marcado)
+                {
+                    emitidos.Add((posto, marcado));
+                    if (ultimoDaRodada == null || marcado > ultimoDaRodada) ultimoDaRodada = marcado;
+                }
             }
 
-            abertura[escolha] = AbrirRodada(horario, grade);
+            abertura[escolha] = AbrirRodada(ultimoDaRodada ?? horario, grade);
             proxima[escolha]++;
         }
 

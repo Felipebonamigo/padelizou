@@ -40,27 +40,15 @@ public static class TrocaDeHorario
         return null;
     }
 
-    // O clube do SLOT: o carimbo do jogo (Partida.ClubeId, que o "por ordem" guarda depois de
-    // apagar a quadra) ou, sem carimbo, o clube da quadra.
-    private static int? ClubeDaVaga(Partida p, SedesDoTorneio sedes) =>
-        p.ClubeId ?? sedes.ClubeDaQuadra(p.NomeQuadra);
-
     // `quem` pode tomar a vaga de `dono`? Mesmas duas réguas de GradeDeJogos.Encaixar: categoria
     // presa a um clube (`ClubeDaCategoria`) e categoria tirada do externo (`PodeIrPraSedeExtra`).
-    private static string? NaoPodeIrPraVagaDe(Partida quem, Partida dono, SedesDoTorneio sedes)
-    {
-        if (ClubeDaVaga(dono, sedes) is not int clube) return null;
-
-        bool presa = sedes.ClubeDaCategoria(quem.CategoriaId) is int fixo
-            ? fixo != clube
-            : !sedes.PodeIrPraSedeExtra(quem.CategoriaId) && sedes.EhSedeExtra(clube);
-        if (!presa) return null;
-
-        var categoria = quem.Categoria?.Nome ?? "essa categoria";
-        var nomeDoClube = sedes.NomeDoClube(clube) ?? "outro clube";
-        return $"O jogo {quem.Codigo} é da {categoria}, que não joga no {nomeDoClube} — e o horário "
-             + $"{dono.HorarioPrevisto:dd/MM HH:mm} do jogo {dono.Codigo} é lá. O clube é do horário, não do jogo.";
-    }
+    // A régua mora na versão por LADO (abaixo), que serve ao jogo real e ao previsto; aqui só se
+    // embrulha a partida.
+    private static string? NaoPodeIrPraVagaDe(Partida quem, Partida dono, SedesDoTorneio sedes) =>
+        NaoPodeIrPraVagaDe(
+            new Lado(ReferenciaDoJogo.Real(quem.Id), quem, null),
+            new Lado(ReferenciaDoJogo.Real(dono.Id), dono, null),
+            sedes);
 
     // A troca em si: horário, quadra E CLUBE andam juntos — o slot físico é o trio. 🗣️ *"quando eu
     // trocar aqui, tem q cuidar para nao trocar o clube, por que o clube é pelo horario"* (Felipe,
@@ -71,5 +59,77 @@ public static class TrocaDeHorario
         (a.HorarioPrevisto, b.HorarioPrevisto) = (b.HorarioPrevisto, a.HorarioPrevisto);
         (a.NomeQuadra, b.NomeQuadra) = (b.NomeQuadra, a.NomeQuadra);
         (a.ClubeId, b.ClubeId) = (b.ClubeId, a.ClubeId);
+    }
+
+    // ═══ A TROCA COM UMA ELIMINATÓRIA QUE AINDA NÃO NASCEU (10/09/2026) ═══
+    //
+    // 🗣️ *"permita também trocar de horário as eliminatórias, não apenas as de chave"*. Um lado
+    // da troca pode ser um jogo PREVISTO (ProximasFasesDaChave.JogoQueVem): ele não tem linha no
+    // banco, então o slot que ele recebe vira uma RESERVA (Models/ReservaDeHorario), e é o robô
+    // que a transforma em jogo quando a rodada nascer.
+
+    // Um lado da troca: o jogo real OU o previsto, reduzido ao slot dele.
+    public sealed record Lado(ReferenciaDoJogo Referencia, Partida? Real, ProximasFasesDaChave.JogoQueVem? Previsto)
+    {
+        public bool Existe => Real != null || Previsto != null;
+        public DateTime? Horario => Real != null ? Real.HorarioPrevisto : Previsto?.Horario;
+        public string? Quadra => Real != null ? Real.NomeQuadra : Previsto?.Quadra;
+        public int? CategoriaId => Real != null ? Real.CategoriaId : Previsto?.CategoriaId;
+        public string? NomeDaCategoria => Real != null ? Real.Categoria?.Nome : Previsto?.Categoria;
+
+        // Como a mensagem chama o jogo: o real pelo código, como sempre; o previsto pela fase
+        // numerada, que é como a tela o mostra ("4ª Masculina · Final").
+        public string Rotulo => Real != null
+            ? $"o jogo {Real.Codigo}"
+            : Previsto != null ? $"{Previsto.Categoria} · {Previsto.FaseNumerada}" : "o jogo";
+
+        // O clube do SLOT: o carimbo do jogo real (Partida.ClubeId, que o "por ordem" guarda depois
+        // de apagar a quadra) ou, sem carimbo, o clube da quadra — do previsto só a quadra existe.
+        public int? ClubeDaVaga(SedesDoTorneio sedes) =>
+            (Real?.ClubeId) ?? sedes.ClubeDaQuadra(Quadra);
+    }
+
+    // Null = pode trocar. Texto = o motivo. As regras do jogo real são as mesmas de sempre (acima);
+    // o previsto só precisa existir na prévia de agora e ter hora. Com `sedes`, a régua do clube
+    // vale igual: a Final prevista da 3ª não recebe, por troca, o horário de um jogo no Radar.
+    public static string? MotivoParaNaoTrocar(Lado a, Lado b, int torneioId, SedesDoTorneio? sedes = null)
+    {
+        if (!a.Existe || !b.Existe)
+            return "Não encontrei um dos jogos — a prévia pode ter mudado desde que a página abriu. Recarregue e tente de novo.";
+        if (a.Referencia == b.Referencia) return "Escolha dois jogos diferentes.";
+
+        foreach (var real in new[] { a.Real, b.Real })
+        {
+            if (real == null) continue;
+            if (real.TorneioId != torneioId) return "Os dois jogos precisam ser deste torneio.";
+            if (real.Status != "Agendada") return $"O jogo {real.Codigo} já começou ou terminou — só se troca jogo agendado.";
+        }
+
+        if (a.Horario == null || b.Horario == null)
+            return "Um dos jogos ainda está sem horário — não há o que trocar.";
+
+        if (sedes != null && sedes.MaisDeUmClube)
+            return NaoPodeIrPraVagaDe(a, b, sedes) ?? NaoPodeIrPraVagaDe(b, a, sedes);
+
+        return null;
+    }
+
+    // `quem` pode tomar a vaga de `dono`? Mesmas duas réguas de GradeDeJogos.Encaixar: categoria
+    // presa a um clube (`ClubeDaCategoria`) e categoria tirada do externo (`PodeIrPraSedeExtra`).
+    private static string? NaoPodeIrPraVagaDe(Lado quem, Lado dono, SedesDoTorneio sedes)
+    {
+        if (quem.CategoriaId is not int categoriaId) return null;
+        if (dono.ClubeDaVaga(sedes) is not int clube) return null;
+
+        bool presa = sedes.ClubeDaCategoria(categoriaId) is int fixo
+            ? fixo != clube
+            : !sedes.PodeIrPraSedeExtra(categoriaId) && sedes.EhSedeExtra(clube);
+        if (!presa) return null;
+
+        var categoria = quem.NomeDaCategoria ?? "essa categoria";
+        var nomeDoClube = sedes.NomeDoClube(clube) ?? "outro clube";
+        var quemEh = quem.Real != null ? $"O jogo {quem.Real.Codigo}" : $"O jogo previsto {quem.Rotulo}";
+        return $"{quemEh} é da {categoria}, que não joga no {nomeDoClube} — e o horário "
+             + $"{dono.Horario:dd/MM HH:mm} de {dono.Rotulo} é lá. O clube é do horário, não do jogo.";
     }
 }
