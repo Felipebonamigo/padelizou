@@ -5874,15 +5874,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </div>
 
                                     @* HORA e QUADRA vêm da MESMA projeção da aba Jogos
-                                       (ViewBag.JogosQueVem, montada por
-                                       Services/ProximasFasesDaChave). Recalcular aqui daria
+                                       (Services/ProximasFasesDaChave). Recalcular aqui daria
                                        uma segunda conta, e duas contas divergem no dia em que
                                        a regra mudar — a tela do quadro diria uma hora e a
                                        lista de jogos diria outra.
 
                                        O casamento é por (fase, posição na rodada): os dois
-                                       saem do mesmo motor de chaveamento, na mesma ordem. *@
-                                    var projecaoDaCategoria = (ViewBag.JogosQueVem
+                                       saem do mesmo motor de chaveamento, na mesma ordem.
+
+                                       ⚠️ POR ISSO LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem`
+                                       (10/09/2026). Casar por POSIÇÃO exige a rodada inteira:
+                                       `JogosQueVem` é a lista da ABA JOGOS e os filtros dela
+                                       (clube, quadra, fase, "meus jogos") a recortam — com uma
+                                       semifinal fora, a outra caía na vaga da primeira e o
+                                       quadro mostrava confronto que não existe. *@
+                                    var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
                                             as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
                                         ?.Where(j => j.Categoria == categoria.Nome)
                                         .GroupBy(j => j.Fase)
