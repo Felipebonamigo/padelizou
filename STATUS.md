@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
+> Última atualização: **10/09/2026** — 🔒 **TROCAR HORÁRIO DEPOIS DA CHAVE PUBLICADA JÁ FUNCIONAVA — agora está TRAVADO POR TESTE.** Nenhum código de produção mudou. **Sem migration.**
+>
+> 🗣️ Felipe: *"eu consigo trocar horarios depois de publicado e aprovado? se não, permita q tenha um botão la, altera tambem, pq terá alguns jogadores q vao querer trocar e as vezes tem trocas depois das chaves publicadas"*. **A resposta é sim**, e a pergunta merecia mais que um "sim": ela descreve o dia de jogo real, em que a troca chega por WhatsApp depois de a chave já estar no celular de todo mundo.
+>
+> 🔎 **Por que já funcionava:** nenhuma das cinco ações de horário (`TrocarHorario`, `DefinirHorario`, `TrocarQuadra`, `AjustarHorarios`, `RefazerGrade`) olha `Torneio.Status`. A autorização é `PodeOperarODiaDeJogoAsync` (organizador, marcador ou admin) e o resto é **regra por JOGO**: só jogo `"Agendada"` muda de hora, porque jogo em quadra ou já jogado tem horário de história, não de agenda. O portão de "chave não publicada" (`ChaveAindaNaoPublicada`) só existe pra **visitante em torneio com chave em aprovação** — ele nunca alcançou o organizador, e some quando a chave é aprovada.
+>
+> 🧪 **`RemanejarDepoisDePublicadoTests`, 4 testes de caracterização** — depois de `GerarChaves` + `AprovarChaves`: a troca ⇄ de dois jogos reais, o "Definir horário" na mão, o **atraso de uma Semifinal ainda PREVISTA** (que vira `ReservaDeHorario`), e a tela do organizador ainda trazendo `Agendadas` e `SlotsDaGrade` — sem os dois, o botão existe e não tem o que oferecer. **6.064 testes, 0 falhas.**
+>
+> ⚠️ **Teste de caracterização nasce verde, então foi FALSIFICADO antes de entrar** (Regra 1): com `if (torneio.Status != AprovacaoDeChaves.Pendente) return Forbid();` nas duas ações **e** o portão da tela invertido (`Status != Pendente`, sem a exceção do organizador), deu **`Failed: 4, Passed: 0`** — cada um pelo motivo dele: a troca não aconteceu, a hora não mudou, a prévia sumiu da tela, e `ChaveAindaNaoPublicada` veio `true` pro organizador de um torneio publicado. É exatamente o defeito que o arquivo existe pra pegar: o dia em que alguém "proteger" a grade publicada com um gate de status e achar que não quebrou nada.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
 >
 > 🔎 **O FILTRO DE CATEGORIA NÃO ALCANÇAVA A PRÉVIA — E A PROJEÇÃO INTEIRA SAÍA DA LISTA RECORTADA.** 🗣️ Felipe, com "3ª Feminina" marcada na aba Jogos do Er: *"eu selecionei '3 feminina' e esta aparecendo jogos de outras categorias no filtro"* — e o print mostrava três Oitavas da **4ª Masculina** com o selo *prévia*, no meio da lista. **Sem migration.**
 >
