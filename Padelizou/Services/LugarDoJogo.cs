@@ -37,13 +37,23 @@ public static class LugarDoJogo
     // específico e continua mandando. Sem ela, num torneio de dois clubes, é a categoria que
     // pode dizer o clube — ver SedesDoTorneio.NomeDoClubeDaCategoria. Opcional porque nem toda
     // tela tem a categoria na mão; sem ela o comportamento é o de antes.
-    public static string? Etiqueta(SedesDoTorneio? sedes, string? nomeQuadra, int? categoriaId = null)
+    //
+    // `clubeId` é o carimbo `Partida.ClubeId` (10/09/2026): a decisão do motor, gravada. Sem
+    // quadra, ele responde ANTES da categoria — é mais específico (a categoria livre pode ter
+    // ido pra qualquer clube; o carimbo diz pra qual foi). Com quadra, continua valendo a quadra.
+    public static string? Etiqueta(SedesDoTorneio? sedes, string? nomeQuadra, int? categoriaId = null,
+        int? clubeId = null)
     {
         var quadra = (nomeQuadra ?? "").Trim();
         var clube = ClubeNaEtiqueta(sedes, quadra);
 
         if (quadra.Length == 0)
-            return clube ?? (sedes != null && categoriaId is { } cat ? sedes.NomeDoClubeDaCategoria(cat) : null);
+        {
+            if (clube != null) return clube;
+            if (sedes == null) return null;
+            if (clubeId is { } carimbo && sedes.NomeDoClube(carimbo) is { } doCarimbo) return doCarimbo;
+            return categoriaId is { } cat ? sedes.NomeDoClubeDaCategoria(cat) : null;
+        }
 
         return clube == null ? quadra : $"{clube} · {quadra}";
     }

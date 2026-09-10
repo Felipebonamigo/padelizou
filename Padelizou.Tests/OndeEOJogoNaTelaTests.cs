@@ -109,6 +109,25 @@ public class OndeEOJogoNaTelaTests
             LugarDoJogo.Etiqueta(DoisClubesComCategorias(), "Quadra Radar", categoriaId: 3));
     }
 
+    // ── O CARIMBO DO CLUBE NO JOGO VENCE A CATEGORIA ───────────────────────────────────────
+    //
+    // 🗣️ Felipe, 10/09/2026: *"nao precisa ter a quadra definida, mas o clube sempre tem q estar
+    // definido"*. `Partida.ClubeId` é a decisão do motor gravada; a categoria livre (que pode
+    // transbordar) deixa de ficar muda quando o jogo já sabe pra que clube foi.
+    [Fact]
+    public void Sem_quadra_o_clube_carimbado_no_jogo_responde_mesmo_pra_categoria_livre()
+    {
+        Assert.Equal("Radar Esportes",
+            LugarDoJogo.Etiqueta(DoisClubesComCategorias(), null, categoriaId: 6, clubeId: Radar));
+    }
+
+    [Fact]
+    public void Com_quadra_o_carimbo_nao_muda_a_etiqueta()
+    {
+        Assert.Equal("Er Padel · Loja 7",
+            LugarDoJogo.Etiqueta(DoisClubesComCategorias(), "Loja 7", categoriaId: 6, clubeId: Radar));
+    }
+
     // ── O LOCAL ENTRA EM TODA LINHA ───────────────────────────────────────────────────────
 
     // ⚠️ INVERTE A DECISÃO DE 21/08/2026, que dizia "repetir o clube em cada linha da lista

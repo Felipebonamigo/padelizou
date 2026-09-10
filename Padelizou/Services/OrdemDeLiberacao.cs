@@ -37,4 +37,24 @@ public static class OrdemDeLiberacao
 
         foreach (var jogo in jogos) jogo.NomeQuadra = null;
     }
+
+    // GRAVA EM QUE CLUBE O MOTOR PÔS CADA JOGO — antes de a quadra ser apagada, e em todo
+    // torneio, por ordem ou não (10/09/2026).
+    //
+    // 🗣️ Felipe: *"tem q o sistema mesmo definir o que irão para o 'radar' no sabado de manhã,
+    // nao precisa ter a quadra definida, mas o clube sempre tem q estar definido"*. O sistema já
+    // definia — a janela do Radar e o "cede a quadra de casa" moram no Encaixar — e o
+    // `ApagarAsQuadras` logo acima jogava a definição fora junto com a quadra. Este passo é a
+    // única coisa entre o Encaixar e o apagar, e por isso tem que ser chamado ANTES dele.
+    //
+    // Quadra fora do cadastro (texto solto) ou torneio sem quadra cadastrada caem no clube do
+    // torneio: é o único prédio que existe nesses casos, e nulo aqui seria a tela muda de novo.
+    public static void CarimbarOClube(Torneio torneio, IEnumerable<Partida> jogos, SedesDoTorneio sedes)
+    {
+        foreach (var jogo in jogos)
+        {
+            if (jogo.HorarioPrevisto == null && string.IsNullOrWhiteSpace(jogo.NomeQuadra)) continue;
+            jogo.ClubeId = sedes.ClubeDaQuadra(jogo.NomeQuadra) ?? torneio.ClubeId;
+        }
+    }
 }
