@@ -61,14 +61,21 @@ public static class RankingDePalpiteiros
         //
         // ⚠️ É do TORNEIO e só dele. O hub e o selo do perfil somam pontos de vários torneios —
         // encher aquela tabela de gente com zero ponto trocaria um ranking por lista de presença.
-        var linhas = Mesclar(apuracao.Linhas, await EmAbertoAsync(contexto, torneioId));
+        var emAberto = await EmAbertoAsync(contexto, torneioId);
+        var linhas = Mesclar(apuracao.Linhas, emAberto.Linhas);
 
         return new PalpiteirosDoTorneio
         {
             TorneioId = torneio.Id,
             Torneio = torneio.Nome,
             JogosApurados = apuracao.JogosApurados,
-            PalpitesComPlacar = apuracao.PalpitesComPlacar,
+            // ⚠️ APURADO **MAIS** EM ABERTO, e a soma é o conserto de 10/09/2026. É este número
+            // que decide se a tela ensina a cravada (3 pontos) ou só o acerto do vencedor — e,
+            // contando só o apurado, na véspera do torneio ele era ZERO: a régua do Er dizia
+            // *"acertou quem venceu vale 1 ponto; errar vale 0"* com 332 palpites já dados,
+            // muitos com placar. 🗣️ Felipe: *"tem bonificação pra quem acerta o placar exato?"*
+            // — tinha desde sempre; a tela é que não estava contando.
+            PalpitesComPlacar = apuracao.PalpitesComPlacar + emAberto.PalpitesComPlacar,
             EuId = olhandoId,
             // ⚠️ A ORDEM MUDA COM A FASE, e é a única coisa que muda: enquanto nada foi apurado
             // não há ponto pra classificar, e ordenar por ponto seria ordenar por nada.
@@ -100,14 +107,19 @@ public static class RankingDePalpiteiros
         return porJogador.Values.ToList();
     }
 
+    // O que está em aberto: as linhas por pessoa e quantos desses palpites vieram COM placar.
+    public sealed record EmAberto(List<PalpiteiroNoRanking> Linhas, int PalpitesComPlacar);
+
     // Os palpites deste torneio que ainda NÃO têm resultado — por pessoa.
-    private static async Task<List<PalpiteiroNoRanking>> EmAbertoAsync(DbPadelContext contexto, int torneioId)
+    private static async Task<EmAberto> EmAbertoAsync(DbPadelContext contexto, int torneioId)
     {
+        var vazio = new EmAberto(new List<PalpiteiroNoRanking>(), 0);
+
         var partidas = await ConsultaDePartidasEmAberto(contexto, p => p.TorneioId == torneioId).ToListAsync();
-        if (partidas.Count == 0) return new List<PalpiteiroNoRanking>();
+        if (partidas.Count == 0) return vazio;
 
         var palpites = await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList());
-        if (palpites.Count == 0) return new List<PalpiteiroNoRanking>();
+        if (palpites.Count == 0) return vazio;
 
         var duplaIds = partidas.SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).Distinct().ToList();
         return ContarEmAberto(partidas, palpites, await EmQuadraAsync(contexto, duplaIds));
@@ -118,13 +130,14 @@ public static class RankingDePalpiteiros
     // ⚠️ MESMA exclusão de quem está em quadra que a apuração faz, e é ela que evita o número
     // que ENCOLHE sozinho: contar aqui o palpite do próprio jogador e descartá-lo quando o jogo
     // terminasse faria a linha dele cair de "2 em aberto" pra "0 palpites" sem nada explicar.
-    public static List<PalpiteiroNoRanking> ContarEmAberto(
+    public static EmAberto ContarEmAberto(
         IEnumerable<PartidaApurada> partidas,
         IEnumerable<PalpiteApurado> palpites,
         Dictionary<int, HashSet<int>> emQuadra)
     {
         var porPartida = palpites.GroupBy(v => v.PartidaId).ToDictionary(g => g.Key, g => g.ToList());
         var porJogador = new Dictionary<int, PalpiteiroNoRanking>();
+        int comPlacar = 0;
 
         foreach (var partida in partidas)
         {
@@ -149,10 +162,18 @@ public static class RankingDePalpiteiros
                 }
 
                 linha.EmAberto++;
+
+                // Mesma leitura da apuração (`PlacaresPossiveis.Lido`): a moeda vem do PALPITE,
+                // não do formato de hoje.
+                if (PlacaresPossiveis.Lido(palpite.GamesDupla1, palpite.GamesDupla2,
+                        palpite.SetsDupla1, palpite.SetsDupla2).Existe)
+                {
+                    comPlacar++;
+                }
             }
         }
 
-        return porJogador.Values.ToList();
+        return new EmAberto(porJogador.Values.ToList(), comPlacar);
     }
 
     // ── 2. O RANKING GERAL (a aba do hub) ─────────────────────────────────────────────────

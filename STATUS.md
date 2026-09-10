@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ✅ **MESCLADO no `main` (PR #175).** **Sem migration.** ⚠️ **Não precisa de deploy**: é mudança de `ci.yml`, que vale a partir do build seguinte ao merge — não há artefato novo pra instalar.
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🎯 **A RÉGUA DA TELA ESCONDIA OS 3 PONTOS DO PLACAR EXATO — durante o torneio inteiro do Er.** 🗣️ Felipe, olhando a aba Palpiteiros no ar, com **332 palpites esperando resultado**: *"E tem bonificação pra quem acerta o placar exato? tem que ter uma pontuação pra quem acerta o vencedor, e mais pra quem acerta o placar exato"*.
+>
+> ✅ **A pontuação SEMPRE existiu** (`PontosDoPalpite`, desde 08/2026): **cravou 3 · chegou perto 2 · só o vencedor 1 · errou 0**. Quem não estava contando era a TELA.
+>
+> 🕳️ **CAUSA: `PalpitesComPlacar` só somava palpite de jogo APURADO** — é ele que a régua consulta pra decidir se ensina a cravada, e a pergunta é feita ao dado de propósito (torneio jogado antes de o placar existir não deve aprender uma regra que ninguém teve como usar). Só que **no modo participação, que nasceu hoje, não há nada apurado**: o número era zero e a régua dizia *"cada jogo em que você acertou quem venceu vale 1 ponto; errar vale 0"* com centenas de palpites de placar já dados. **Defeito que a estreia do modo participação criou** — antes dele a aba nem existia antes do primeiro resultado.
+>
+> ✅ **Agora `PalpitesComPlacar` = apurado + em aberto.** A pergunta continua sendo ao dado: torneio em que ninguém palpitou placar segue sem falar em cravar.
+>
+> 🧪 **6.354 testes, 0 falhas (3 novos).** Visto vermelho antes em *"Assert.Equal() Failure: Values differ"* (0 em vez de 1). Conferido no navegador local, no modo participação: a régua passou a dizer *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1"*.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #175).** **Sem migration.** ⚠️ **Não precisa de deploy**: é mudança de `ci.yml`, que vale a partir do build seguinte ao merge — não há artefato novo pra instalar.
 >
 > 🏷️ **A TAG DO BUILD PASSA A APONTAR PRO COMMIT QUE ELA NOMEIA.** 🗣️ Felipe, depois do deploy do palpitrômetro: *"arruma essa tag do ci tambem"*.
 >
