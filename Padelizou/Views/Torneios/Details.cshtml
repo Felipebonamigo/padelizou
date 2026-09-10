@@ -787,10 +787,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
        da tela.
 
-       ⚠️ `<details>` E NÃO UM `if` QUE APAGA. Quem diz que a inscrição está paga é o
-       organizador virando o `Pago` na mão (muita gente paga em dinheiro na quadra); uma
-       marcação errada dele não pode deixar o jogador sem caminho pra pagar. Recolhido, a
-       chave continua a um toque.
+       ⚠️ `<details>` E NÃO UM `if` QUE APAGA — **ENQUANTO A CHAVE NÃO SAI**. Quem diz que a
+       inscrição está paga é o organizador virando o `Pago` na mão (muita gente paga em
+       dinheiro na quadra), e antes de publicar uma marcação errada dele não tira o caminho de
+       ninguém: recolhido, a chave continua a um toque.
+
+       ⚠️ DEPOIS DE PUBLICADO A PROMESSA ACIMA NÃO VALE MAIS, e isso é escolha, não descuido
+       (Felipe, 10/09/2026: *"remover a parte de Pix do organizador quando o torneio já foi
+       publicado"*). O portão de cima é o `ApareceParaMim`: publicada a chave, o card só existe
+       pra quem o sistema acha que DEVE. Marcado como pago por engano, o jogador fica sem
+       caminho pro Pix nesta tela — o conserto é o organizador desmarcar o `Pago`, e o caminho
+       que sobra pra ele é o botão "Cobrar no WhatsApp" da aba Pagamentos. O comentário antigo
+       daqui seguia prometendo o contrário; ficava a documentação de um comportamento que a
+       tela não tem mais.
 
        O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
        aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
@@ -6501,6 +6510,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
     <script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
+    @* O cinto das abas recolhidas: só assume onde o `:has()` do site.css não existe (o WebView
+       do app Android). Ver o cabeçalho do arquivo. *@
+    <script src="~/js/abas-recolhidas.js" asp-append-version="true"></script>
 }
 
 <script>

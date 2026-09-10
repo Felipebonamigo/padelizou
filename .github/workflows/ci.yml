@@ -96,25 +96,36 @@ jobs:
       # `setup-node`, sem package.json, sem lockfile, sem `npm install`. Um repositório que
       # hoje não tem nada de npm (ver SUPPLY-CHAIN.md) não ganha uma árvore de terceiros por
       # causa de uma conferência de 150 linhas.
-      - name: Conferir a trava de clique do palpitrômetro (JS)
+      # ⚠️ VARRE A PASTA, não cita arquivo pelo nome. Até 10/09/2026 este passo chamava o
+      # `conferir-palpitrometro.js` na mão, e o segundo conferidor que nasceu
+      # (`conferir-abas-recolhidas.js`) teria ficado FORA do CI sem ninguém notar — um arquivo
+      # de teste que nunca roda é pior que nenhum, porque parece cobertura.
+      - name: Conferir as travas de JS
         shell: bash
         run: |
           node --version
-          saida="${RUNNER_TEMP:-/tmp}/palpitrometro.txt"
+          falhou=0
 
-          # ⚠️ Sem cano (`| tee`, `| grep`): com cano quem devolve o código de saída é o último
-          # comando, e uma conferência VERMELHA passaria por verde. Mesma armadilha que o
-          # passo "Rodar os testes" documenta aqui em cima.
-          if node Padelizou.Tests/js/conferir-palpitrometro.js > "$saida" 2>&1; then
+          for conferidor in Padelizou.Tests/js/conferir-*.js; do
+            echo "── $conferidor"
+            saida="${RUNNER_TEMP:-/tmp}/$(basename "$conferidor" .js).txt"
+
+            # ⚠️ Sem cano (`| tee`, `| grep`): com cano quem devolve o código de saída é o
+            # último comando, e uma conferência VERMELHA passaria por verde. Mesma armadilha
+            # que o passo "Rodar os testes" documenta aqui em cima.
+            if node "$conferidor" > "$saida" 2>&1; then
+              cat "$saida"
+              continue
+            fi
+
+            falhou=1
             cat "$saida"
-            exit 0
-          fi
+            # ::error:: vira ANOTAÇÃO, que se lê pelo celular sem abrir o log — mesma razão do
+            # passo que diz qual teste caiu.
+            grep '^ FALHA' "$saida" | while IFS= read -r linha; do echo "::error::JS:$linha"; done
+          done
 
-          cat "$saida"
-          # ::error:: vira ANOTAÇÃO, que se lê pelo celular sem abrir o log — mesma razão do
-          # passo que diz qual teste caiu.
-          grep '^ FALHA' "$saida" | while IFS= read -r linha; do echo "::error::JS:$linha"; done
-          exit 1
+          exit $falhou
 
       # Este passo vem DEPOIS do "Dizer QUAL teste caiu", e a ordem importa: aquele roda em
       # `if: failure()`, então um portão de CVE antes dele faria o job anunciar "a suíte falhou
