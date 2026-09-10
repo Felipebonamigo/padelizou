@@ -27,6 +27,27 @@
 >
 > ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
 
+> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print do 2ª Etapa ER Padel Tour no celular: *"estou achando muito poluído essa tela, muita informação"*. Contados, eram **DEZ blocos** entre o topo e o primeiro jogo. E, olhando a lista: *"palpiteiros me parece duplicado, não?"*.
+>
+> 🕳️ **ESTAVA, E LITERALMENTE.** Um BOTÃO no topo (`asp-action="Palpiteiros"`, página cheia) e uma ABA (`#palpiteiros`) — mesmo ícone, mesmo nome, mesmo portão (`TemRankingDePalpiteiros`) e **o mesmo parcial desenhado dos dois lados** (`_RankingDePalpiteiros`). O botão era o mais antigo; a aba nasceu em **07/09** a pedido dele e ninguém tirou o botão — tanto que o comentário da aba dizia *"a mesma checagem barata que já decide o botão lá em cima"*: quem escreveu **viu** o botão e o deixou.
+>
+> ⚠️ **MAS `Details.cshtml` ERA O ÚNICO LUGAR DO SISTEMA QUE LINKAVA PRA `/Torneios/Palpiteiros`** (conferido: nenhum outro `.cshtml` ou `.cs` aponta pra ação). Tirar o botão e parar aí deixaria a página **órfã** — alcançável só por quem digitasse a URL, sendo que ela existe justamente pra ser mandada no grupo (o comentário do `_RankingDePalpiteiros` diz isso: "pode ser aberta direto de um link"). O link foi pra **dentro do painel da aba**: quem já está olhando o ranking é exatamente quem quer a URL.
+>
+> ✅ **AS TRÊS APARAS:** o botão duplicado saiu; as legendas permanentes viraram `title` (*"Arte pronta pra postar…"*, *"Publicadas pelo organizador…"* — legenda fixa ensina na PRIMEIRA visita e é ruído em todas as outras, mesma troca do "Sugestão ou bug" de hoje); e **Cartaz + Convidar + Fotos passaram a dividir UMA linha**. Os blocos de Cartaz e Fotos ficavam ~130 linhas separados no arquivo, mas **coladinhos na tela** — só o modal do convite, invisível, os separava.
+>
+> 🧪 **6.359 testes, 0 falhas** + os dois conferidores de JS verdes. Seis testes novos em `TopoDaPaginaDoTorneioEnxutoTests`, todos vistos vermelhos antes e **cada um falsificado por mutação depois**: devolver o botão ao topo, tirar o link do painel, tirar o link do painel **e** pô-lo fora dele, apagar o `title`, separar Cartaz e Fotos em duas linhas, e devolver uma legenda fixa. Seis mutações, seis vermelhos.
+>
+> 🕳️ **A PRIMEIRA VERSÃO DE UM DELES CAIU NO `</i>`.** `LastIndexOf('<', i)` a partir do rótulo acha a tag do ÍCONE, não a do botão — o teste acusou `String: "</i"`. Corrigido pra procurar o `<a `/`<button ` que envolve.
+>
+> ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM, e os dois estavam CERTOS:**
+> - `FotosDoTorneioTests` cobra que o campo cru apareça **UMA vez só** na tela (o formulário da gestão). Meu comentário novo o soletrava — e o `SemComentarioRazor` dele tira `@* *@`, **não** `//`. Reescrevi o comentário pra não soletrar, e ele agora diz por quê. **A mesma armadilha do dia, ao contrário**: em vez de o comentário fazer um teste passar, fez um teste falhar.
+> - `RankingEmAbertoNaTela.O_botao_do_torneio_nao_promete_ACERTO...` vigiava a legenda do botão que saiu. **ATUALIZADO, NÃO APAGADO** (precedente de 10/09): a intenção — a página não promete "quem mais acertou" na véspera — virou cobrança sobre a **página inteira**, e foi falsificada (pendurar "— quem mais acertou" no rótulo da aba deixa vermelho).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A economia de linhas está raciocinada da estrutura, **não medida**. E os filtros (o maior ganho isolado: 4 dropdowns viram 1 botão) **ficaram de fora de propósito**: o Er começa amanhã e o Felipe vai operar esta tela o fim de semana inteiro; mudar onde ficam os filtros no sábado de manhã atrapalha quem já decorou o caminho.
+
+
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
 >
 > 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
