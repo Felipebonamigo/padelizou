@@ -13,6 +13,16 @@
 >
 > 🔧 **ENSAIOS DE ESCRITA NO `dev` (o motivo documentado da cópia).** `RefazerGrade` recalculou **56 jogos, 11/09 18:00 a 17:10, confrontos inalterados** — o "Refazer grade" que a cópia existe pra ensaiar antes do PRD (Regra 3). `MarcarCheckIn` marca e desmarca uma dupla; **restaurei o estado**. Só o `dev` foi tocado.
 >
+> 🔍 **CAUSA DA DIVERGÊNCIA PRÉVIA × JOGO REAL — investigada, e o alarme acima fica MENOR do que foi escrito.** 🗣️ Felipe: *"mas acho q foi nossas alterações na mao"* — **em parte ele está certo**. São DUAS causas, e só uma é surpresa.
+>
+> 1️⃣ **CONFRONTO (o que mais importa): a prévia semeia com CAMPANHA ZERADA.** Prévia e sorteio passam pelo **mesmo motor** (`ChaveamentoMataMata.MontarPrimeiraFase`) — isso é de propósito e está documentado. O que muda é a **ENTRADA**: o robô manda `ClassificacaoDeGrupos.Calcular(...)`, com vitórias e saldo de verdade; a prévia (`ChaveProjetada`) monta `new Classificado(id, grupo, Vitorias: 0, Saldo: 0, ...)` — **tudo zero** —, e aí o desempate cai no nome do grupo. Como a semeadura ordena por campanha, ordem diferente = **cruzamento diferente**. Medido na 3ª Feminina: a prévia dizia `2ºA × 2ºC` e `1ºC × 2ºB`; o robô fez `1ºC × 2ºA` e `2ºC × 2ºB`. ✅ **Não é defeito escondido — o próprio arquivo avisa:** *"O que ela NÃO consegue prever: a ordem dos melhores 2ºs depende da campanha de cada dupla, que ainda não existe (...) A tela precisa dizer que é prévia"* — e a tela **diz** (selo "prévia").
+>
+> 2️⃣ **HORÁRIO: a prévia não sabe QUEM joga, e por isso ignora as restrições de pessoa.** `ProximasFasesDaChave` projeta por fase e capacidade; o comentário é explícito: *"Nada aqui sabe QUEM vai jogar (...) Quem garante isso é o encaixe de verdade (GradeDeJogos.Encaixar), na hora em que a rodada nasce com nome e sobrenome"*. O `RoboDoChaveamento.AgendarNaGradeAsync` aplica o que a prévia não tem como aplicar: impedimento por dupla, concentração, sede, noite de sábado, e **pessoa em duas quadras** — além de **reencaixar os "fora de ordem"** (`LevasDaGrade.ForaDeOrdem`).
+>
+> ⚠️ **E AQUI ENTRA A RESSALVA DO FELIPE, QUE PROCEDE:** o "sábado 17:10 em vez de domingo 10:30" foi **amplificado pelas MINHAS rodadas de `Refazer grade`**, que compactaram a grade (sexta virou 18:00–23:00) e **liberaram vagas no sábado à noite** — foi justamente lá que o robô encaixou. **Em cima da grade de produção o desvio seria outro, provavelmente menor.** O "erro de DIA" registrado na entrada acima é da MINHA grade, não uma medida da produção. A divergência entre as duas contas é real; **o tamanho dela, não medi na grade de verdade.**
+>
+> 📌 **O que fica pro Felipe decidir:** a prévia é honesta (tem selo) mas mostra confronto e hora que vão mudar. Se jogador se planeja por ela, o custo é real — e a correção possível do lado do confronto é **parar de prometer cruzamento** enquanto a campanha não existe (mostrar só a fase e a vaga), não tentar adivinhar melhor.
+>
 > 🚨 **A PRÉVIA DO MATA-MATA PROMETE UM HORÁRIO E O ROBÔ ENTREGA OUTRO — inclusive OUTRO DIA.** Medido no `dev` fechando a **5ª Feminina** inteira (4 jogos de grupo, 954/955/960/964) e vendo o robô gerar as semis. Comparação **apples-to-apples** (prévia lida minutos antes de finalizar, jogo real lido logo depois, sem `Refazer grade` no meio):
 >
 > | Confronto | A prévia dizia | O robô gerou |
