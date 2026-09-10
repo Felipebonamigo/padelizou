@@ -14,6 +14,20 @@
 > ⚠️ **O `main` andou DUAS VEZES no meio do caminho** (PRs #149, #152, #154 de sessões paralelas), e as duas vezes o conflito foi só no `STATUS.md`, no mesmo lugar: o cabeçalho "Última atualização". A resolução é mecânica e vale anotar — **o bloco novo fica no topo com o cabeçalho, e o que estava lá vira entrada datada normal**. Nenhuma linha de código conflitou nas duas mesclas.
 >
 >
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-981-978401d`** (15h18 de Brasília — runs 181 e 182 do Deploy). PR #157, o dia da semana que comia o nome do clube na árvore da chave. **Sem migration.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA:** `HTTP 200`, corpo `ok`, nos **dois** domínios, por `curl` daqui — verificação independente, e não só o healthcheck do próprio `deploy.sh`. As entradas anteriores desta sessão não conseguiram (o proxy bloqueava o domínio) e ficaram só com o job verde; a diferença estava dita lá e some aqui. Como o `/healthz` deste app também confere o schema, o 200 diz que o modelo EF do build novo casa com o banco.
+>
+> 🕳️ **O QUE ESTE BUILD CONSERTA É UMA REGRESSÃO QUE ESTAVA NO AR DESDE O `build-961`** — minha, publicada de manhã e achada pela revisão adversarial do meu próprio diff, que terminou **depois** do deploy. Na árvore da chave o `sex ` empurrava a etiqueta de quadra/clube pra fora de uma linha `nowrap; overflow: hidden` **sem reticências**: medido no Chromium a 390px, a vaga da chave perdia **23px dos 45** de "Er Padel" e a chave projetada perdia **49 de 49** — o clube sumia inteiro, calado. O dia da semana ficou onde cabe (listas de jogos e mini-jogo do grupo, medido em 351px de linha).
+>
+> 📌 **A LIÇÃO DE PROCESSO É SOBRE A ORDEM:** a revisão do diff rodou em paralelo ao CI e **não terminou antes do merge**. Mesclar sem esperar por ela custou um build errado no ar por ~45 minutos. Revisão que não bloqueia o merge é revisão que chega tarde.
+>
+> 🔁 **E A REVISÃO PEGOU UM TERCEIRO COMENTÁRIO MEU AFIRMANDO O INVERSO DO CÓDIGO** — o do `PixDoOrganizador` dizia que excluir a família inteira do Americano "recolheria o card de quem nunca pagou". É o oposto: sem o bloco, `minhas` fica vazia, o `Count > 0` dá falso e o método devolve `false` pra **todo mundo**, pago ou não — o card **nunca recolhe** naquele formato. Ninguém perde o caminho de pagar (é o lado seguro), mas a funcionalidade morre calada. Três comentários errados num dia é padrão, não azar: **o comentário que explica um `if` merece a mesma desconfiança que o `if`.**
+>
+> 📌 **UMA LIÇÃO SOBRE COMO EU RODEI A REVISÃO, pra quem repetir:** dos 13 achados, 12 aparecem como "derrubados" pelos céticos — e **não porque fossem falsos**, mas porque eu **corrigi o código enquanto a verificação rodava**, e eles foram olhar uma árvore já consertada. Verificação adversarial precisa rodar contra um commit CONGELADO; do contrário o placar mente nos dois sentidos.
+>
+> ⏱️ **E UMA ARMADILHA DESTE AMBIENTE, PRA NÃO SE PERDER:** os `sleep` da sessão web **não consomem tempo real de mundo** — o relógio do sandbox congela e a espera é creditada sem que o GitHub ande. Eu li isso como "o runner está lento" e queimei dezenas de consultas em laço; o `main` não tinha andado um merge sequer. Quem precisa esperar CI aqui **agenda um check-in** (`send_later`, que roda no servidor, em tempo real) e encerra o turno — não fica em laço de polling.
+>
 > **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
 > 🔔 **`DbUpdateException em POST /Partidas/Votar` — o erro que chegou no celular.** 🗣️ Felipe mandou o print da notificação de erro em produção (13h52). Não era palpite estranho nem POST montado à mão: é **clique duplo no palpitrômetro**.

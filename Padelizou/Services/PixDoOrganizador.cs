@@ -108,8 +108,15 @@ public static class PixDoOrganizador
         // pagou, no formato que mais gera essas linhas.
         //
         // O `AmericanoDuplas` fica FORA desta exceção de propósito: lá o par é FIXO, ele É a
-        // inscrição, e o sorteio não cria dupla nenhuma. Excluir a família inteira recolheria o
-        // card de quem nunca pagou — tem contraprova travando os dois lados.
+        // inscrição, e o sorteio não cria dupla nenhuma.
+        //
+        // ⚠️ E O ESTRAGO DE EXCLUIR A FAMÍLIA INTEIRA É O OPOSTO DO QUE PARECE — vale escrever
+        // porque a primeira versão deste comentário errou: sem o bloco, `minhas` fica VAZIA no
+        // AmericanoDuplas, o `Count > 0` lá embaixo dá falso, e o método devolve `false` pra
+        // TODO MUNDO, pago ou não. O card então **nunca recolhe** naquele formato — ninguém
+        // perde o caminho de pagar (é o lado seguro), mas o pedido do Emerson morre calado. É
+        // exatamente por isso que a contraprova usa dupla PAGA e cobra `True`: com `False` ela
+        // passaria pelo motivo errado.
         if (torneio.Formato != FormatoDoTorneio.Americano)
         {
             minhas.AddRange(torneio.Categorias
