@@ -186,7 +186,9 @@ public class FiltroDeJogosNaoAtrapalhaAsOutrasTelasTests
     [Fact]
     public void O_texto_do_recalcular_usa_a_contagem_do_torneio()
     {
-        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_JogosDoTorneio.cshtml"));
+        // O botão saiu da lista de jogos em 10/09/2026 e foi pro Painel de Controle; a
+        // contagem continua sendo a do TORNEIO, que é o que ele refaz.
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
         var recalcular = fonte[fonte.IndexOf("action=\"RefazerGrade\"", StringComparison.Ordinal)..];
         var ateOFim = recalcular[..recalcular.IndexOf("</form>", StringComparison.Ordinal)];
 

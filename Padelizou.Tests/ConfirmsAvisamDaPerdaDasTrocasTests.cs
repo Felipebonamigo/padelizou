@@ -18,7 +18,7 @@ public class ConfirmsAvisamDaPerdaDasTrocasTests
     [Theory]
     [InlineData("Torneios/Details.cshtml", "DesfazerSorteio")]
     [InlineData("Torneios/Details.cshtml", "TrocarDuplasDeGrupo")]
-    [InlineData("Torneios/_JogosDoTorneio.cshtml", "RefazerGrade")]
+    [InlineData("Torneios/Details.cshtml", "RefazerGrade")]
     public void O_confirm_diz_que_as_trocas_na_mao_e_as_reservas_se_perdem(string view, string acao)
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", view));
