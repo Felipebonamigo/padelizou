@@ -388,6 +388,18 @@
                     {
                         <span class="pdz-total-votos">· 0 voto(s)</span>
                     }
+                    @* RETIRAR (10/09/2026 — 🗣️ *"tambem permita retirar o palpite colocado"*).
+                       Só pra quem pode votar: a janela de retirar é a MESMA de palpitar, e o
+                       servidor recusa depois que o jogo começa. Nasce escondido pra quem ainda
+                       não palpitou, e o JS mostra/esconde sozinho a cada palpite — sem F5. *@
+                    @if (podeVotar)
+                    {
+                        <button type="button" class="pdz-ver-votos pdz-retirar-palpite"
+                                title="Retirar meu palpite" onclick="retirarPalpite(this)"
+                                hidden="@(r?.MeuVotoDuplaId == null)">
+                            · <span class="text-danger">retirar</span>
+                        </button>
+                    }
                 </span>
             </div>
         }
@@ -452,10 +464,24 @@
 
         @if (r != null && r.TemPlacarMaisPalpitado)
         {
+            @* 🗣️ Felipe, 10/09/2026, com esta frase marcada num print: *"tambem permita clicar
+               e ver quem colocou o palpitometro e qual o placar"*. Ela é o lugar mais natural
+               pra perguntar "quem foi que cravou?", e era texto morto — o único caminho pro
+               modal era o "N voto(s)" lá em cima.
+               ⚠️ O `div` externo CONTINUA sendo o `pdz-palpite-consenso`: é ele que o JS acha
+               pra mostrar/esconder e pra reescrever o placar depois do voto. O botão vai por
+               dentro, senão o `style.display` do JS mandaria no botão e não na linha. *@
             <div class="mt-1 small text-muted pdz-palpite-consenso">
-                <i class="bi bi-people"></i>
-                A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-                <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+                <button type="button" class="pdz-ver-votos"
+                        data-partida-id="@jogo.Id"
+                        data-nome1="@NomeDaDupla(jogo.Dupla1)"
+                        data-nome2="@NomeDaDupla(jogo.Dupla2)"
+                        title="Ver quem palpitou e o placar de cada um"
+                        onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                    <i class="bi bi-people"></i>
+                    A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+                    <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+                </button>
             </div>
         }
 

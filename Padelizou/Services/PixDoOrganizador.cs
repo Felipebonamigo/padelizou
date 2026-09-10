@@ -23,6 +23,34 @@ public static class PixDoOrganizador
         && !string.IsNullOrWhiteSpace(torneio.ChavePixOrganizador)
         && torneio.PrecoInscricao > 0;
 
+    // ── E APARECE PRA ESTA PESSOA, NESTE MOMENTO DO TORNEIO? ─────────────────────────────
+    // 🗣️ Felipe, 10/09/2026, com a página do torneio aberta no celular: *"acho que podemos
+    // remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já
+    // pagaram, e aí fica melhor a visão da tela — quando abro o site a primeira coisa que
+    // queria ver é os jogos ao vivo"*.
+    //
+    // O card já recolhia pra quem tinha pago (pedido do Emerson, no mesmo dia). Agora ele SAI:
+    // publicada a chave, a página é sobre JOGO, e um bloco de cobrança no topo é rolagem entre
+    // a pessoa e o placar.
+    //
+    // ⚠️ "TEORICAMENTE JÁ PAGARAM" NÃO É "TODOS PAGARAM", e a diferença tem dono aqui: quem
+    // ainda deve continua vendo o card depois de publicado. Não é caso de canto —
+    // `PromoverDaListaDeEsperaAsync` tira o próximo da fila sempre que uma vaga abre, INCLUSIVE
+    // quando o organizador remove uma dupla no dia do jogo. Essa pessoa entra num torneio já
+    // publicado, devendo. No "por fora" este card é o único caminho que o JOGADOR alcança
+    // sozinho pra chave Pix e pro WhatsApp de quem recebe — o outro é o botão "Cobrar no
+    // WhatsApp" do painel de inscritos, que depende de o organizador clicar, e nenhum e-mail,
+    // push ou lembrete carrega a chave (o LembreteDeInscricaoNaoPaga exige `EhPeloSite`, então
+    // torneio por fora não recebe lembrete nenhum). Tirar o card dela seria dizer "pague" sem
+    // dizer pra quem, e deixar o caminho na mão de outra pessoa.
+    //
+    // ⚠️ A RÉGUA DE "JÁ PUBLICOU" NÃO NASCE AQUI: é a `AprovacaoDeChaves.ChavePublicada`, a
+    // mesma que decide a aba "Chaves e Grupos" e o card de ferramentas do organizador no topo
+    // da página. Uma quarta cópia da lista de status é como as três telas passam a discordar
+    // sobre quando o torneio começou.
+    public static bool ApareceParaMim(Torneio torneio, bool devoAlguma) =>
+        Aparece(torneio) && (!AprovacaoDeChaves.ChavePublicada(torneio) || devoAlguma);
+
     // ── QUANTO MANDAR ────────────────────────────────────────────────────────────────────
     // O card dava a chave e pedia o comprovante, mas não dizia o número que a pessoa tem que
     // digitar no app do banco. Ela ia buscar no cabeçalho da página — e o do cabeçalho é POR
@@ -96,7 +124,11 @@ public static class PixDoOrganizador
     // página mais pesada do site, e uma consulta a mais aqui é uma consulta em toda abertura
     // dela. Com as categorias não carregadas o resultado é "não pagou" — o lado seguro, que
     // deixa o card aberto.
-    public static async Task<bool> JaPagouTudoAsync(DbPadelContext db, Torneio torneio, int jogadorId)
+    // ⚠️ DEVOLVE A FOTO, e não um `bool`: a tela faz DUAS perguntas diferentes sobre a mesma
+    // consulta — "recolho o card?" (paguei tudo) e "o card existe depois de publicado?" (devo
+    // alguma). Dois métodos seriam duas leituras do mesmo dado, e um `bool` só não distingue
+    // "não tenho inscrição" de "tenho e está paga" — distinção que decide o card no dia do jogo.
+    public static async Task<MinhasInscricoes> MinhasInscricoesAsync(DbPadelContext db, Torneio torneio, int jogadorId)
     {
         var minhas = new List<bool>();
 
@@ -143,6 +175,17 @@ public static class PixDoOrganizador
 
         minhas.AddRange(americanas);
 
-        return minhas.Count > 0 && minhas.All(pago => pago);
+        return new MinhasInscricoes(minhas.Count, minhas.Count(pago => !pago));
+    }
+
+    // Quantas inscrições eu tenho neste torneio e quantas ainda não foram pagas.
+    public readonly record struct MinhasInscricoes(int Total, int NaoPagas)
+    {
+        // O card RECOLHE: tenho inscrição e não devo nada. Sem inscrição nenhuma ele fica
+        // aberto — essa pessoa é justamente quem ainda vai pagar.
+        public bool JaPagueiTudo => Total > 0 && NaoPagas == 0;
+
+        // O card SOBREVIVE à publicação da chave: ainda há o que pagar.
+        public bool DevoAlguma => NaoPagas > 0;
     }
 }

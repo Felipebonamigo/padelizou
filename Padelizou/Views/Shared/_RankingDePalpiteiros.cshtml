@@ -52,6 +52,22 @@
     </div>
 }
 
+@* ── ANTES DO PRIMEIRO RESULTADO ────────────────────────────────────────────────────────
+   🗣️ Felipe, 10/09/2026, com o torneio no ar e 41 jogos já votados: *"acho que o ranking do
+   palpitometro ja tem que aparecer"*. Aparece — e diz, na primeira linha, que ainda não é
+   ranking: uma tabela de zeros sem esta frase parece conta quebrada, não véspera. *@
+@if (Model.ModoParticipacao)
+{
+    <div class="alert alert-success border-0 rounded-4 small">
+        <i class="bi bi-hourglass-split"></i>
+        <strong>Ainda não há jogo apurado.</strong>
+        A pontuação começa quando o <strong>primeiro jogo</strong> terminar — por enquanto, quem
+        já palpitou:
+        <strong>@Model.PalpitesEmAberto @(Model.PalpitesEmAberto == 1 ? "palpite" : "palpites")</strong>
+        esperando resultado.
+    </div>
+}
+
 @* ── A RÉGUA, ANTES DA TABELA ───────────────────────────────────────────────────────────
    ⚠️ Ela vem PRIMEIRO de propósito. Sem ela, quem vê um 100% de aproveitamento ABAIXO
    de um 75% conclui que a conta quebrou — e conta que parece quebrada é conta em que
@@ -84,7 +100,7 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         <partial name="_TabelaDePalpiteiros"
-                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar))' />
+                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao))' />
     </div>
 </div>
 
