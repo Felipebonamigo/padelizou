@@ -85,7 +85,8 @@ public static class ClassificacaoDeGrupos
             for (int pos = 0; pos < ranking.Count && pos < passam; pos++)
             {
                 classificados.Add(new ChaveamentoMataMata.Classificado(
-                    ranking[pos].Dupla.Id, grupo.Key, ranking[pos].Vitorias, ranking[pos].Saldo, pos + 1));
+                    ranking[pos].Dupla.Id, grupo.Key, ranking[pos].Vitorias, ranking[pos].Saldo, pos + 1,
+                    Jogos: ranking[pos].Jogos));
             }
         }
 

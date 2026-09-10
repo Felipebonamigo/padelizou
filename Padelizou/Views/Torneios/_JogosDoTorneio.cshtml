@@ -872,6 +872,57 @@
             });
         </script>
 
+        @* MODAL: definir o horário NA MÃO (só organizador, 10/09/2026). 🗣️ "permita tambem,
+           trocar o horario na mão, na lista de jogos, para nós organizadores". A troca ⇄ exige
+           outro jogo pra trocar de lugar; aqui o organizador digita a hora que quiser, num jogo
+           só. O clube acompanha a hora (Services/HorarioNaMao): se o clube atual não tem quadra
+           aberta na hora nova, o jogo volta pro clube principal. Prévia vira reserva, como na
+           troca. Comentário FORA da tag de propósito (ComentarioRazorDentroDeTagTests). *@
+        <div class="modal fade" id="modalDefinirHorario" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Torneios" asp-action="DefinirHorario" method="post" class="modal-content">
+                    <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                    <input type="hidden" name="jogo" id="definirJogo" value="" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-clock"></i> Definir horário</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2">
+                            Jogo escolhido: <strong id="definirJogoRotulo">—</strong>
+                        </p>
+                        <label class="form-label fw-bold" for="definirHorario">Novo horário</label>
+                        <input type="datetime-local" class="form-control" name="horario" id="definirHorario" required />
+                        <div class="form-text">
+                            Só este jogo muda; a grade não é recalculada. Se a hora nova for num horário em que o
+                            clube atual está fechado, o jogo vai pro clube principal. O Conferir grade aponta se
+                            alguém ficou em dois jogos no mesmo horário.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar horário</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão do card carrega o jogo e a hora atual dele no campo.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalDefinirHorario');
+                if (!modal) return;
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    document.getElementById('definirJogo').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('definirJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    document.getElementById('definirHorario').value = botao.getAttribute('data-jogo-horario') || '';
+                });
+            });
+        </script>
+
         @* MODAL: mudar SÓ a quadra, sem mexer na hora. A troca de horário arrasta o slot
            inteiro e quase nunca é o que se quer quando a quadra molha ou a final merece a
            do meio. Quadra ocupada naquele horário não é recusada: as duas trocam de lugar

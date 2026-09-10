@@ -67,6 +67,14 @@ public static class ReparoDaGrade
     // nem no reparo, nem numa troca na mão (Services/ImpactoDaTroca avisa em vermelho).
     public static bool EhDuro(string regra) => Peso(regra) >= 1_000;
 
+    // O peso de UM achado: o da regra vezes o QUADRADO da gravidade. 🕳️ Sem o quadrado, "0 de
+    // folga" e "1 de folga" pesavam igual, e o reparo EMENDAVA os dois jogos de uma dupla pra
+    // apagar dois avisos de "1 de folga" de duplas diferentes — 8 pontos viravam 6 e três pessoas
+    // jogavam sem sair da quadra (10/09/2026, ReparoDaGradeTests). Faltar dois horários tem que
+    // custar mais que o dobro de faltar um.
+    private static int Peso(AuditoriaDaGrade.Achado achado) =>
+        Peso(achado.Regra) * achado.Gravidade * achado.Gravidade;
+
     // Quantas rodadas de melhoria no máximo. Cada uma percorre os jogos doentes; na prática duas
     // ou três bastam, e o teto existe pra que um empate patológico não vire laço infinito.
     private const int MaximoDePassadas = 6;
@@ -95,6 +103,7 @@ public static class ReparoDaGrade
                 foreach (var outro in EmOrdemEstavel(jogos))
                 {
                     if (ReferenceEquals(doente, outro)) continue;
+                    if (!MesmoPosto(doente, outro)) continue;
                     if (TrocaDeHorario.MotivoParaNaoTrocar(doente, outro, torneio.Id, sedes) != null) continue;
 
                     TrocaDeHorario.Trocar(doente, outro);
@@ -132,7 +141,7 @@ public static class ReparoDaGrade
 
         foreach (var achado in AuditoriaDaGrade.Conferir(torneio, jogos.ToList(), duplas, sedes))
         {
-            int peso = Peso(achado.Regra);
+            int peso = Peso(achado);
             if (peso == 0) continue;
 
             achados++;
@@ -152,7 +161,7 @@ public static class ReparoDaGrade
 
         foreach (var achado in AuditoriaDaGrade.Conferir(torneio, jogos.ToList(), duplas, sedes))
         {
-            int peso = Peso(achado.Regra);
+            int peso = Peso(achado);
             if (peso == 0 || achado.Quando is not DateTime quando) continue;
 
             pesoPorHorario[quando] = pesoPorHorario.GetValueOrDefault(quando) + peso;
@@ -165,6 +174,18 @@ public static class ReparoDaGrade
             .ThenBy(j => j.Codigo, StringComparer.Ordinal)
             .ToList();
     }
+
+    // ⚠️ SÓ TROCA JOGO DO MESMO POSTO DE FASE — grupo com grupo, semifinal com semifinal
+    // (10/09/2026). 🕳️ Sem isto o reparo trocou uma semifinal emendada com a final por um jogo de
+    // grupo de duas horas antes: pra régua da tela o jogo de grupo que foi parar depois é só um
+    // "retardatário" (5 pontos — o bloco dos grupos "fecha" sem ele, ver OrdemDasFases.FimDoBloco),
+    // e a semifinal no horário dele não é "fase fora de ordem". 40 − 5, negócio fechado — e o
+    // torneio jogando uma eliminatória antes de fechar as chaves, exatamente o que o Felipe mandou
+    // nunca fazer (🗣️ *"a ordem é colocar todos jogos de chave antes"*). Trocando só dentro do
+    // posto, o conjunto de horários de cada posto não muda, e a ordem das fases fica como o
+    // encaixe deixou. (ReparoDaGradeTests.Nao_troca_uma_eliminatoria_com_um_jogo_de_grupo)
+    private static bool MesmoPosto(Partida a, Partida b) =>
+        OrdemDasFases.Posto(a.Fase) == OrdemDasFases.Posto(b.Fase);
 
     // ⚠️ ORDEM ESTÁVEL, E ISSO É CORREÇÃO, NÃO ESTILO (10/09/2026). O reparo é guloso: aceita a
     // PRIMEIRA troca que melhora, então a ordem em que os candidatos aparecem muda o resultado. O

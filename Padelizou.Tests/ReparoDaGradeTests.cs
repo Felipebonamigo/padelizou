@@ -206,6 +206,121 @@ public class ReparoDaGradeTests
         Assert.Equal(0, resultado.AchadosDepois);
     }
 
+    // 🕳️ O REPARO DO SORTEIO NÃO TROCAVA NADA (10/09/2026, achado pela intermitência de
+    // GradeDoErMedidaTests.Refazer_grade_sem_nada_mudado_reproduz_a_grade_do_sorteio: 3 falhas em 8
+    // rodadas, sozinho, sem paralelismo). No GerarChaves o reparo roda ANTES do AddRange, quando
+    // todo jogo novo ainda tem Id 0 — e `TrocaDeHorario.MotivoParaNaoTrocar` lia `a.Id == b.Id` como
+    // "é o mesmo jogo" e recusava TODA troca. O sorteio saía sem reparo; o Refazer, com os Ids
+    // gravados, reparava. Mesmas entradas, mesmo motor, grade diferente — de novo.
+    //
+    // O mesmo cenário de Conta_quantos_pontos_caiu, só que ninguém tem Id ainda.
+    [Fact]
+    public void Jogos_recem_sorteados_ainda_sem_Id_tambem_sao_trocados()
+    {
+        var impedida = Dupla(1, 10, 11);
+        impedida.ImpedimentoSextaNoite = true;
+        var duplas = new[] { impedida, Dupla(2, 20, 21), Dupla(3, 30, 31), Dupla(4, 40, 41),
+                             Dupla(5, 50, 51), Dupla(6, 60, 61) };
+        var jogos = new List<Partida>
+        {
+            Jogo(0, 1, 2, Sexta.AddHours(20)),
+            Jogo(0, 3, 4, Sabado.AddHours(9)),
+            Jogo(0, 5, 6, Sabado.AddHours(9)),
+        };
+        jogos[0].Codigo = "AAA"; jogos[1].Codigo = "BBB"; jogos[2].Codigo = "CCC";
+
+        var resultado = ReparoDaGrade.Reparar(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.Equal(1, resultado.Trocas);
+        Assert.Equal(0, Quantos(Torneio(), jogos, duplas, AuditoriaDaGrade.Impedimento));
+    }
+
+    // 🕳️ ZERO DE FOLGA NÃO É "UM PONTO" (10/09/2026, achado no minuto em que o reparo do sorteio
+    // passou a funcionar: DescansoNaFaseDeGruposTests e UmRoboSoDeChaveamentoTests caíram). O
+    // "Jogos seguidos" pesava 10 tanto pra "1 horário de descanso" quanto pra "0" — e o reparo,
+    // que conta pontos, EMENDAVA dois jogos de uma dupla (0 de folga) pra apagar dois avisos de
+    // "1 de folga" de duplas diferentes: 8 pontos → 7 → 6, e três pessoas jogando sem sair da
+    // quadra. É o contrário do pedido (🗣️ *"tem jogos seguidos dos mesmos jogadores, isso temos q
+    // evitar"*): faltar DOIS horários é mais que o dobro de faltar um.
+    //
+    // Duas duplas com um horário de descanso cada; a única troca que "tira um ponto" emenda uma
+    // delas. Fica como está.
+    [Fact]
+    public void Nao_emenda_dois_jogos_de_uma_dupla_pra_tirar_um_ponto_de_um_horario_de_descanso()
+    {
+        var duplas = Enumerable.Range(1, 8).Select(i => Dupla(i, i * 10, i * 10 + 1)).ToArray();
+        var jogos = new List<Partida>
+        {
+            Jogo(1, 1, 2, Sexta.AddHours(18)),
+            Jogo(2, 5, 6, Sexta.AddHours(18).AddMinutes(50), "Grupo B"),
+            Jogo(3, 1, 3, Sexta.AddHours(19).AddMinutes(40)),                 // dupla 1: 1 de folga
+            Jogo(4, 5, 7, Sexta.AddHours(20).AddMinutes(30), "Grupo B"),      // dupla 5: 1 de folga
+        };
+        var antes = jogos.ToDictionary(j => j.Id, j => j.HorarioPrevisto);
+
+        var resultado = ReparoDaGrade.Reparar(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.Equal(0, resultado.Trocas);
+        Assert.All(jogos, j => Assert.Equal(antes[j.Id], j.HorarioPrevisto));
+        Assert.DoesNotContain(AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma),
+            a => a.Regra == AuditoriaDaGrade.JogosSeguidos && a.Descricao.Contains("0 horário"));
+    }
+
+    // O espelho: uma dupla emendada (0 de folga) e uma troca que lhe dá pelo menos um horário. O
+    // reparo faz — antes ele via "1 ponto → 1 ponto" e deixava a emenda de pé.
+    [Fact]
+    public void Prefere_um_horario_de_descanso_a_nenhum()
+    {
+        var duplas = Enumerable.Range(1, 8).Select(i => Dupla(i, i * 10, i * 10 + 1)).ToArray();
+        var jogos = new List<Partida>
+        {
+            Jogo(1, 1, 2, Sexta.AddHours(18)),
+            Jogo(2, 1, 3, Sexta.AddHours(18).AddMinutes(50)),                 // dupla 1 emendada
+            Jogo(3, 5, 6, Sexta.AddHours(19).AddMinutes(40), "Grupo B"),
+            Jogo(4, 7, 8, Sexta.AddHours(20).AddMinutes(30), "Grupo B"),
+        };
+
+        var resultado = ReparoDaGrade.Reparar(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        Assert.True(resultado.Trocas >= 1);
+        Assert.DoesNotContain(AuditoriaDaGrade.Conferir(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma),
+            a => a.Regra == AuditoriaDaGrade.JogosSeguidos && a.Descricao.Contains("0 horário"));
+    }
+
+    // 🕳️ A SEMIFINAL QUE SUBIU PRO MEIO DOS GRUPOS (10/09/2026, achado por
+    // AberturaDoMataMataPorCategoriaTests no minuto em que a emenda passou a pesar 40). O reparo
+    // trocou a semifinal (emendada com a final) com um jogo de grupo de duas horas antes. Pra
+    // régua da tela isso NÃO é "fase fora de ordem": o jogo de grupo que foi parar depois vira
+    // "retardatário" (5 pontos, o bloco dos grupos "fecha" sem ele), e a semifinal fica de pé no
+    // horário que era dele. 40 − 5: negócio da China — e o torneio jogando uma eliminatória antes
+    // de fechar as chaves, que é o que o Felipe mandou nunca fazer.
+    //
+    // A régua: o reparo troca jogos DO MESMO POSTO de fase. Grupo com grupo, semifinal com
+    // semifinal. Assim o conjunto de horários de cada posto não muda, e a ordem das fases fica
+    // exatamente como o encaixe deixou.
+    [Fact]
+    public void Nao_troca_uma_eliminatoria_com_um_jogo_de_grupo()
+    {
+        var duplas = Enumerable.Range(1, 11).Select(i => Dupla(i, i * 10, i * 10 + 1)).ToArray();
+        var jogos = new List<Partida>
+        {
+            Jogo(1, 1, 2, Sexta.AddHours(18)),
+            Jogo(2, 3, 4, Sexta.AddHours(18)),
+            Jogo(3, 8, 9, Sexta.AddHours(18).AddMinutes(50)),
+            Jogo(4, 10, 11, Sexta.AddHours(18).AddMinutes(50)),
+            Jogo(5, 5, 6, Sexta.AddHours(20).AddMinutes(30), "Semifinal"),
+            Jogo(6, 5, 7, Sexta.AddHours(21).AddMinutes(20), "Final"),   // dupla 5 emendada
+        };
+
+        var resultado = ReparoDaGrade.Reparar(Torneio(), jogos, duplas, SedesDoTorneio.Nenhuma);
+
+        var ultimoGrupo = jogos.Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase)).Max(j => j.HorarioPrevisto);
+        var primeiraEliminatoria = jogos.Where(j => !FasesTorneio.EhFaseDeGrupos(j.Fase)).Min(j => j.HorarioPrevisto);
+        Assert.True(primeiraEliminatoria > ultimoGrupo,
+            $"eliminatória às {primeiraEliminatoria:HH:mm} com jogo de grupo às {ultimoGrupo:HH:mm}");
+        Assert.Equal(0, resultado.Trocas);     // a única troca que ajudaria a dupla 5 é a proibida
+    }
+
     // ── A FIAÇÃO DO BOTÃO ────────────────────────────────────────────────────────────────────
 
     [Fact]

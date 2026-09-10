@@ -22,7 +22,12 @@ public static class TrocaDeHorario
     public static string? MotivoParaNaoTrocar(Partida? a, Partida? b, int torneioId, SedesDoTorneio? sedes = null)
     {
         if (a == null || b == null) return "Não encontrei um dos jogos.";
-        if (a.Id == b.Id) return "Escolha dois jogos diferentes.";
+
+        // "O mesmo jogo" é a mesma INSTÂNCIA, ou o mesmo Id gravado. Jogo novo tem Id 0 — e o
+        // reparo do sorteio (ReparoDaGrade, dentro do GerarChaves) troca jogos ANTES de gravar:
+        // comparar só o Id dizia que todos eram o mesmo jogo, e o sorteio saía sem reparo nenhum
+        // enquanto o Refazer, com os Ids, reparava (10/09/2026, ReparoDaGradeTests).
+        if (ReferenceEquals(a, b) || (a.Id != 0 && a.Id == b.Id)) return "Escolha dois jogos diferentes.";
         if (a.TorneioId != torneioId || b.TorneioId != torneioId)
             return "Os dois jogos precisam ser deste torneio.";
 

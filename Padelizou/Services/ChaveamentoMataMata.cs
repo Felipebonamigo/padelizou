@@ -22,7 +22,9 @@ namespace Padelizou.Services;
 public static class ChaveamentoMataMata
 {
     // Um classificado de grupo: Posicao é 1 (campeão do grupo) ou 2 (vice do grupo).
-    public record Classificado(int DuplaId, string Grupo, int Vitorias, int Saldo, int Posicao);
+    // `Jogos` é quantos jogos a dupla disputou no grupo: é o que separa o grupo de 2 (1 jogo) do
+    // de 3 (2 jogos) na hora do bye. Zero = quem chama não sabe (vale a ordem dos grupos).
+    public record Classificado(int DuplaId, string Grupo, int Vitorias, int Saldo, int Posicao, int Jogos = 0);
 
     public record Confronto(int Dupla1Id, int Dupla2Id);
 
@@ -74,17 +76,32 @@ public static class ChaveamentoMataMata
         return p;
     }
 
+    // QUEM DESCANSA, do primeiro bye pro último — a régua do Felipe (10/09/2026):
+    //
+    // 🗣️ *"1º bye: o 1º do grupo de 2 (jogou menos). e priorizando Grupos A, B, C por que eles
+    // são os cabeças de chave"*. Posição no grupo primeiro (todo 1º antes de qualquer 2º);
+    // depois quem jogou MENOS (o grupo de 2 tem um jogo, o de 3 tem dois); depois a ordem dos
+    // grupos — o A é o grupo dos cabeças de chave. A CAMPANHA NÃO DECIDE BYE: até aqui decidia,
+    // e o 1º do grupo de 2 (no máximo 1 vitória contra 2 dos grupos de 3) era justamente quem
+    // nunca descansava — o oposto de "jogou menos".
+    //
+    // Pública porque o robô de avanço lista os byes na MESMA ordem (AvancoDaChave.
+    // ByesDaCategoriaAsync): é essa ordem que diz em que metade da chave cada bye cai.
+    public static IEnumerable<Classificado> OrdemDosByes(IEnumerable<Classificado> classificados) =>
+        classificados.OrderBy(c => c.Posicao).ThenBy(c => c.Jogos).ThenBy(c => c.Grupo);
+
     // Monta a primeira fase do mata-mata. Fase vazia = nada a gerar (sem classificados).
     //
-    // Byes: as vagas do quadro que sobram vão pros MELHORES (posição no grupo primeiro,
-    // campanha depois) — eles entram direto na fase seguinte, e o robô de avanço os soma
-    // aos vencedores (Services/AvancoDaChave). classificadosPorGrupo é 2 no padrão; a
-    // categoria de TIMES passa o número que o organizador decidiu.
+    // Byes: as vagas do quadro que sobram vão pra quem OrdemDosByes manda — eles entram
+    // direto na fase seguinte, e o robô de avanço os soma aos vencedores
+    // (Services/AvancoDaChave). classificadosPorGrupo é 2 no padrão; a categoria de TIMES
+    // passa o número que o organizador decidiu.
     public static (string Fase, List<Confronto> Confrontos, List<int> Byes) MontarPrimeiraFase(
         List<Classificado> classificados, int classificadosPorGrupo = 2)
     {
-        // Posição no grupo manda primeiro (todo 1º entra antes de qualquer 2º); dentro da
-        // mesma posição, a campanha compara entre grupos — a régua de sempre.
+        // Quem JOGA a primeira rodada é semeado pela campanha: posição no grupo primeiro
+        // (todo 1º entra antes de qualquer 2º); dentro da mesma posição, vitórias e saldo —
+        // é o que faz "o melhor abre o jogo contra o pior".
         var candidatos = classificados
             .Where(c => c.Posicao >= 1 && c.Posicao <= classificadosPorGrupo)
             .OrderBy(c => c.Posicao)
@@ -97,8 +114,8 @@ public static class ChaveamentoMataMata
         // a maior potência que coubesse DENTRO e eliminava os piores 2ºs sem mata-mata
         // nenhum — com 3 grupos, duas duplas classificadas iam embora sem jogar.
         int quadro = MenorPotenciaDe2APartirDe(candidatos.Count);
-        var passamDireto = candidatos.Take(quadro - candidatos.Count).ToList();
-        var cabecas = candidatos.Skip(passamDireto.Count).ToList();
+        var passamDireto = OrdemDosByes(candidatos).Take(quadro - candidatos.Count).ToList();
+        var cabecas = candidatos.Except(passamDireto).ToList();
 
         var confrontos = Semear(cabecas, passamDireto)
             .Select(jogo => new Confronto(jogo.Mandante.DuplaId, jogo.Adversario.DuplaId))

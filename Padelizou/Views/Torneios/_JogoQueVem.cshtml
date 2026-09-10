@@ -85,6 +85,14 @@
                         title="Trocar horário" aria-label="Trocar horário">
                     <i class="bi bi-arrow-left-right"></i>
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modalDefinirHorario"
+                        data-jogo-id="@referenciaDaTroca"
+                        data-jogo-horario="@(Model.Horario?.ToString("yyyy-MM-dd'T'HH:mm") ?? "")"
+                        data-jogo-rotulo="@Model.FaseNumerada · @Model.Horario?.ToString("dd/MM HH:mm") · @Model.Lado1.Rotulo x @Model.Lado2.Rotulo (@Model.Categoria, prévia)"
+                        title="Definir horário na mão" aria-label="Definir horário na mão">
+                    <i class="bi bi-clock"></i>
+                </button>
             </span>
         }
     </div>

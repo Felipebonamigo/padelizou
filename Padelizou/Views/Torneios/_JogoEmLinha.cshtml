@@ -208,6 +208,17 @@
                             title="Trocar horário" aria-label="Trocar horário">
                         <i class="bi bi-arrow-left-right"></i>
                     </button>
+                    @* Definir o horário NA MÃO (10/09/2026): a troca acima precisa de outro jogo
+                       pra trocar de lugar; aqui o organizador digita a hora. Mesmo modal pro
+                       torneio inteiro, em _JogosDoTorneio. *@
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal" data-bs-target="#modalDefinirHorario"
+                            data-jogo-id="@jogo.Id"
+                            data-jogo-horario="@(jogo.HorarioPrevisto?.ToString("yyyy-MM-dd'T'HH:mm") ?? "")"
+                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                            title="Definir horário na mão" aria-label="Definir horário na mão">
+                        <i class="bi bi-clock"></i>
+                    </button>
                 }
                 @* Mudar SÓ a quadra. Trocar horário arrasta o slot inteiro (hora + quadra), e
                    quase nunca é o que se quer quando a quadra molha ou a final merece a do

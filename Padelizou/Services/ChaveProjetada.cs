@@ -16,12 +16,11 @@ namespace Padelizou.Services;
 // dupla, que ainda não existe. Sem o tamanho dos grupos todos entram com campanha zerada e o
 // desempate cai no nome do grupo. A tela precisa dizer que é prévia.
 //
-// 🕳️ COM O TAMANHO DOS GRUPOS ELA ACERTA O BYE (10/09/2026, revisão adversarial do ensaio do
-// Er): 8 duplas viram A(2), B(3), C(3); com campanha zerada o bye ia pro "1º do Grupo A", e o
-// robô de verdade o dá a quem tem a melhor campanha — o 1º do A joga UM jogo (no máximo 1
-// vitória), os 1ºs de B e C têm até 2. A dupla que a chave publicada mandava descansar era
-// chamada pra quadra. Cada vaga entra com o TETO de campanha do grupo dela (1º: n−1 vitórias,
-// 2º: n−2), e o desempate entre tamanhos iguais continua pelo nome, como era.
+// 🕳️ COM O TAMANHO DOS GRUPOS ELA ACERTA O BYE (10/09/2026): 8 duplas viram A(2), B(3), C(3),
+// e o bye é de quem jogou MENOS — o 1º do grupo de 2 —, depois pela ordem dos grupos (a régua
+// do Felipe, em ChaveamentoMataMata.OrdemDosByes). Cada vaga entra com os JOGOS que o grupo
+// dela tem (n−1), e o motor faz o resto — o mesmo motor do robô, então a tela e o sábado dizem
+// a mesma coisa.
 public static class ChaveProjetada
 {
     // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é.
@@ -53,14 +52,14 @@ public static class ChaveProjetada
                 int id = posicao * 1000 + g;
                 vagas[id] = new Vaga(posicao, grupos[g]);
 
-                // Sem o tamanho do grupo, campanha zerada: sem jogo jogado não há o que
-                // comparar, e inventar números faria a prévia parecer mais certa do que é. Com
-                // o tamanho, o TETO: é o que o robô compara no caso normal.
-                int teto = duplasPorGrupo != null && g < duplasPorGrupo.Count
-                    ? Math.Max(0, duplasPorGrupo[g] - posicao)
+                // Campanha zerada em todo mundo: sem jogo jogado não há o que comparar, e
+                // inventar números faria a prévia parecer mais certa do que é. O que a prévia
+                // SABE é quantos jogos o grupo tem — e é isso que decide o bye.
+                int jogosNoGrupo = duplasPorGrupo != null && g < duplasPorGrupo.Count
+                    ? Math.Max(0, duplasPorGrupo[g] - 1)
                     : 0;
                 classificados.Add(new ChaveamentoMataMata.Classificado(
-                    id, grupos[g], Vitorias: teto, Saldo: 0, Posicao: posicao));
+                    id, grupos[g], Vitorias: 0, Saldo: 0, Posicao: posicao, Jogos: jogosNoGrupo));
             }
         }
 
