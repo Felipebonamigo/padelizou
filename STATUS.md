@@ -58,7 +58,7 @@
 >
 > 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/game-order-edit-rdu992`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
 > 📍 **A LISTA NÃO VOLTA MAIS PRO TOPO A CADA CLIQUE.** 🗣️ Felipe, num print de `padelizou.com.br` rolado até as quartas de domingo, minutos depois de as setas subirem: *"quando eu trocar aqui, ele tem q permanecer no mesmo local da tela, esta indo para o inicio"*.
 >
@@ -72,7 +72,9 @@
 >
 > 🧪 **6.124 testes, 0 falhas (3 novos).** Vistos vermelhos antes: o formulário das setas sem o `data-manter-posicao`, as duas telas sem o script, e o script sem existir.
 >
-> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio. O que dá pra afirmar é o que o teste lê da fonte; a rolagem em si só se confere no `dev`.
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio (o mesmo limite anotado no `build-940`). O que dá pra afirmar é o que o teste lê da fonte e que o `deploy.sh` viu o `/healthz` responder 200; **a rolagem em si é o Felipe quem confere**, clicando uma seta no meio da lista do Er.
+>
+> 📌 **UM DISPARO DE DEPLOY FALHOU CALADO, e vale como aviso pro próximo:** o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run nenhuma** — o deploy simplesmente não aconteceu, sem erro em lugar nenhum. Só apareceu porque a lista de runs foi conferida depois. **Disparo pela API se confere na lista**, nunca pelo 204. ⚠️ **E o mesmo GitHub engoliu o `pull_request` do PR #149**: nenhum check nasceu pro head, e o CI teve que ir pelo `workflow_dispatch` do `ci.yml` — que existe desde 26/08 exatamente pra isso.
 >
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-944-d8a43b3`** (13h34 e 13h48 de Brasília — runs 159 e 163). PR #142. ⚠️ **TEM MIGRATION** (`20260910161935_OrdemNoHorario` — duas colunas `int` nulas, aditivas). Mesclado o `main` do `build-940` antes de abrir: ele trouxe outra migration (`CarimboDasChavesAvisadas`, do #140), e a minha **foi regerada por cima dela** — o Designer da primeira versão tinha nascido de um snapshot sem a coluna do #140, o que deixaria o histórico de migrations mentindo pra próxima que alguém gerar.
 
