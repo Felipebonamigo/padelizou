@@ -7,10 +7,15 @@
     int? meuVoto = r.MeuVotoDuplaId;
     // Time (categoria de times) aposta pelo NOME DO TIME — o Jogador1 da linha é o
     // organizador que cadastrou, não quem joga.
-    string nome1 = Model.partida.Dupla1?.NomeTime
-        ?? $"{Model.partida.Dupla1?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla1?.Jogador2?.Nome?.Split(' ')[0]}";
-    string nome2 = Model.partida.Dupla2?.NomeTime
-        ?? $"{Model.partida.Dupla2?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla2?.Jogador2?.Nome?.Split(' ')[0]}";
+    // ⚠️ VAGA DE PARCEIRO EM ABERTO (09/09/2026): a inscrição sozinha entra na chave, então
+    // aqui podia sair "Paulo / " com a barra pendurada no vazio. Sem o segundo nome, mostra
+    // "Paulo / parceiro" — a mesma redação da tabela do grupo e do card do jogo.
+    string PrimeiroNome(Padelizou.Models.Jogador? j) => j?.Nome?.Split(' ')[0] ?? "?";
+    string NomeDaDupla(Padelizou.Models.Dupla? d) => d?.NomeTime
+        ?? $"{PrimeiroNome(d?.Jogador1)} / {(d?.Jogador2 == null ? "parceiro" : PrimeiroNome(d.Jogador2))}";
+
+    string nome1 = NomeDaDupla(Model.partida.Dupla1);
+    string nome2 = NomeDaDupla(Model.partida.Dupla2);
     bool galeraAcertou = finalizada && r.TotalVotos > 0
         && ((r.VotosDupla1 >= r.VotosDupla2 && Model.partida.VencedorId == Model.partida.Dupla1Id)
          || (r.VotosDupla2 > r.VotosDupla1 && Model.partida.VencedorId == Model.partida.Dupla2Id));

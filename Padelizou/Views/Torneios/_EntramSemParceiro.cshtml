@@ -1,0 +1,58 @@
+@model List<Padelizou.Models.Dupla>
+
+@* QUEM ENTRA COM A VAGA DE PARCEIRO EM ABERTO (09/09/2026).
+   🗣️ Felipe: "tem q manter o Paulo, ele vai colocar o parceiro dele depois".
+
+   Este aviso HERDA a função do antigo "sem parceiro fica de fora": eles deixaram de ficar na
+   porta, mas o organizador continua precisando ver quantos são antes de apertar — cada um é um
+   W.O. provável se o segundo nome não aparecer. Sem isto, o sorteio voltaria a não dizer NADA
+   sobre dupla incompleta, que é o defeito que o alerta veio consertar em 20/08.
+
+   ⚠️ É PARCIAL, e não bloco inline, porque o mesmo aviso vale nos DOIS ramos do sorteio: o
+   Padrão e o Americano de Duplas leem a MESMA régua (ForaDoSorteio). Enquanto ele era inline no
+   ramo Padrão, o Americano de Duplas sorteava com meia dupla no rodízio sem uma palavra na tela
+   e sem a saída de cancelar — achado numa revisão adversarial. *@
+@if (Model.Any())
+{
+    <div class="alert alert-info border-0 shadow-sm">
+        <p class="fw-bold mb-2">
+            <i class="bi bi-person-plus"></i>
+            @Model.Count inscrito(s) entram sem parceiro
+        </p>
+        <ul class="small mb-2 ps-3">
+            @foreach (var d in Model.Take(12))
+            {
+                <li class="d-flex align-items-center justify-content-between gap-2">
+                    <span>
+                        <strong>@d.Jogador1.ComoChamar</strong>
+                        <span class="text-muted">— a vaga do parceiro fica aberta</span>
+                    </span>
+                    @* A saída pra quem claramente não vai fechar. Ela mora AQUI porque a lista
+                       de "fica de fora" deixou de conter inscrição sozinha — e sem mudar de casa
+                       a ação ficaria sem porta na tela. Só antes do sorteio: depois, a dupla já
+                       tem jogo marcado e a saída passa a ser o W.O. *@
+                    <form asp-controller="Torneios" asp-action="CancelarSemParceiro" method="post"
+                          data-confirmar-tom="perigo"
+                          data-confirmar-titulo="Cancelar esta inscrição?"
+                          data-confirmar="@(d.Jogador1.ComoChamar) sai do torneio e é avisado.@(d.Pago ? " O valor pago é estornado." : "") Não dá pra desfazer."
+                          data-confirmar-ok="Cancelar e estornar">
+                        <input type="hidden" name="duplaId" value="@d.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
+                            Cancelar@(d.Pago ? " e estornar" : "")
+                        </button>
+                    </form>
+                </li>
+            }
+        </ul>
+        @if (Model.Count > 12)
+        {
+            <p class="small text-muted mb-2">…e mais @(Model.Count - 12).</p>
+        }
+        <p class="small mb-0">
+            Eles <strong>entram na chave</strong> e ocupam a vaga deles. O parceiro pode ser
+            definido até o <strong>primeiro jogo</strong> de cada um — pelo próprio jogador, pelo
+            mural, por convite, ou por você em "Definir por CPF". Quem não fechar até lá
+            <strong>perde por W.O.</strong>, e você lança o W.O. jogo a jogo na Mesa de Controle.
+        </p>
+    </div>
+}

@@ -61,6 +61,23 @@ public class InscricaoQueContaTests
     [Fact]
     public void Time_conta_mesmo_sem_parceiro() => Assert.True(InscricaoQueConta.Vale(Time(9)));
 
+    [Fact]
+    public void Time_conta_mesmo_marcado_na_lista_de_espera()
+    {
+        // ⚠️ Parece contraintuitivo e é de propósito: `EhTime` vem ANTES da espera nas duas
+        // escritas, então um time marcado na espera conta. Time não passa por lista de espera —
+        // quem monta a lista é o organizador —, e a coluna só existe porque time e dupla
+        // dividem a mesma tabela.
+        //
+        // Isto está escrito como TESTE, e não como comentário no meio do array de casos, porque
+        // ali eu tinha deixado o comentário INVERTIDO ("time na espera não conta"): o assert de
+        // concordância compara as duas escritas entre si, então ele passava do mesmo jeito. Numa
+        // base em que comentário é memória, um comentário errado é convite pra alguém "consertar"
+        // a régua — e mexer nesta régua é mexer em ponto de ranking, retroativamente.
+        Assert.True(InscricaoQueConta.Vale(Time(10, naEspera: true)));
+        Assert.True(InscricaoQueConta.Expressao.Compile()(Time(10, naEspera: true)));
+    }
+
     // ── A SEPARAÇÃO, QUE É O CORAÇÃO DA MUDANÇA ───────────────────────────────────────────
 
     [Fact]
@@ -106,7 +123,7 @@ public class InscricaoQueContaTests
             Inscricao(3, comParceiro: true, naEspera: true),   // espera
             Inscricao(4, comParceiro: false, naEspera: true),  // os dois de uma vez
             Time(9),                                           // time conta sem parceiro
-            Time(10, naEspera: true),                          // time na espera não conta
+            Time(10, naEspera: true),                          // time conta mesmo marcado na espera
         };
 
         foreach (var d in todosOsCasos)

@@ -74,6 +74,20 @@ public class ForaDoSorteioTests
     }
 
     [Fact]
+    public void Time_marcado_na_espera_tambem_entra()
+    {
+        // O caso que sumiu quando este arquivo foi reescrito, e ele importa: `EhTime` vem ANTES
+        // da espera na régua, então time entra de qualquer jeito. É o que segura um `EhTime` que
+        // chegue à linha do sorteio de duplas — hoje o ramo `DeTimes` sai antes por `continue`,
+        // e é só isso que separa os dois caminhos.
+        var time = Inscricao(10, comParceiro: false, naEspera: true);
+        time.NomeTime = "Clube dos Feras";
+
+        Assert.False(ForaDoSorteio.FicaDeFora(time));
+        Assert.Empty(ForaDoSorteio.ComVagaEmAberto(new[] { time }));
+    }
+
+    [Fact]
     public void Listar_traz_so_quem_fica_na_porta()
     {
         var duplas = new[]

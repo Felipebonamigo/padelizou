@@ -166,4 +166,53 @@ public class CancelarSemParceiroTests
         await pagamentos.DidNotReceiveWithAnyArgs().EstornarTotalAsync(default!);
         Assert.Contains("por fora", c.TempData["Sucesso"]!.ToString()!, StringComparison.OrdinalIgnoreCase);
     }
+
+    // ── OS DOIS ACHADOS DA REVISÃO ADVERSARIAL (09/09/2026) ───────────────────────────────
+
+    [Fact]
+    public async Task Recusa_cancelar_um_TIME()
+    {
+        // 🕳️ `Dupla.Completa` é `Jogador2Id != null`, e TODO time tem esse campo nulo — então o
+        // time passava pela guarda como se fosse inscrição sozinha. A tela nunca desenha o botão
+        // pra ele, mas um POST montado à mão apagaria a linha do time e ainda mandaria "Você saiu
+        // do torneio" pro Jogador1Id dela, que é o próprio organizador.
+        using var ctx = TestInfra.NovoContexto();
+        var (_, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        var time = new Dupla
+        {
+            CategoriaId = categoria.Id, Jogador1Id = organizador.Id, Jogador2Id = null,
+            NomeTime = "Nata Padel",
+        };
+        ctx.Duplas.Add(time);
+        await ctx.SaveChangesAsync();
+
+        var c = TestInfra.NovoTorneiosController(ctx, organizador.Id);
+        await c.CancelarSemParceiro(time.Id);
+
+        Assert.NotNull(await ctx.Duplas.FindAsync(time.Id));
+        Assert.NotNull(c.TempData["Erro"]);
+    }
+
+    [Fact]
+    public async Task Avisa_quem_chamou_no_mural_antes_de_a_cascata_apagar_o_chamado()
+    {
+        // 🕳️ Apagar a dupla leva junto os ChamadosDoMural dela (FK Cascade) — e é justamente a
+        // inscrição SOZINHA que acumula chamado. Sem o aviso, quem se candidatou fica esperando
+        // resposta de uma vaga que não existe mais. O caminho gêmeo (FecharDuplaComAsync) já lia
+        // os ids antes de apagar, pelo mesmo motivo; esta ação nasceu sem.
+        using var ctx = TestInfra.NovoContexto();
+        var (_, _, organizador, _, dupla) = MontarSolo(ctx);
+        var candidato = new Jogador { Nome = "Candidato", Cpf = "55500000011" };
+        ctx.Jogadores.Add(candidato);
+        await ctx.SaveChangesAsync();
+        ctx.ChamadosDoMural.Add(new ChamadoDoMural { DuplaId = dupla.Id, CandidatoId = candidato.Id });
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await TestInfra.NovoTorneiosController(ctx, organizador.Id, push: push)
+            .CancelarSemParceiro(dupla.Id);
+
+        Assert.Null(await ctx.Duplas.FindAsync(dupla.Id));
+        await push.ReceivedWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!, default);
+    }
 }

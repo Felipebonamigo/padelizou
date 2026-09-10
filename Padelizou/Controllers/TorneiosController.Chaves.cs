@@ -379,6 +379,19 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // ⚠️ TIME NÃO PASSA POR AQUI, e a checagem tem que vir ANTES da de `Completa`:
+            // `Dupla.Completa` é `Jogador2Id != null`, e TODO time tem esse campo nulo — então
+            // um time entrava por esta porta como se fosse inscrição sozinha. A tela nunca
+            // desenha o botão (ForaDoSorteio.ComVagaEmAberto exclui time), mas um POST montado à
+            // mão apagaria a linha do time e ainda mandaria "Você saiu do torneio" pro
+            // Jogador1Id dela — que é o próprio organizador. A régua irmã escrita no mesmo dia
+            // (JanelaDoParceiro) já tinha essa guarda; esta nasceu sem.
+            if (dupla.EhTime)
+            {
+                TempData["Erro"] = "Time não se cancela por aqui — use \"Gerenciar times e estrutura\".";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             if (dupla.Completa)
             {
                 TempData["Erro"] = "Esta dupla já tem os dois parceiros — cancele pela lista de inscritos.";
@@ -414,10 +427,33 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // ⚠️ QUEM CHAMOU NO MURAL PRECISA SABER, E A CASCATA NÃO AVISA NINGUÉM. Apagar a
+            // dupla leva junto os ChamadosDoMural dela (FK Cascade, ver DbPadelContext) — e é
+            // justamente a inscrição SOZINHA que acumula chamado. Sem isto, quem se candidatou
+            // fica esperando resposta de uma vaga que não existe mais e não procura outra: o
+            // mesmo silêncio que o Felipe mandou cortar em 17/08/2026 ("quem chamou fica
+            // ESPERANDO"). O caminho gêmeo já faz isso — ver FecharDuplaComAsync, que lê os ids
+            // ANTES do RemoveRange pelo mesmo motivo.
+            //
+            // Texto próprio: aqui ninguém recusou ninguém e a vaga não foi preenchida — a
+            // inscrição deixou de existir. As duas frases prontas do mural diriam algo falso.
+            var candidatosDoMural = await _context.ChamadosDoMural
+                .Where(c => c.DuplaId == dupla.Id)
+                .Select(c => c.CandidatoId)
+                .ToListAsync();
+
             await TirarDuplaDoTorneioAsync(dupla, torneio,
                 $"O organizador cancelou sua inscrição em {torneio.Nome} porque você ficou sem parceiro até "
                 + "o sorteio das chaves."
                 + (avisoDoDinheiro == null && dupla.Pago ? " O valor pago foi estornado." : ""));
+
+            if (candidatosDoMural.Count > 0)
+            {
+                await AvisarAsync(candidatosDoMural, "A inscrição saiu do torneio",
+                    $"A inscrição de {nome} em {torneio.Nome} foi cancelada, então o seu pedido pra "
+                    + "fechar dupla não tem mais resposta. Tem outras inscrições procurando parceiro "
+                    + "por lá — toque pra ver.", torneio.Id);
+            }
 
             TempData["Sucesso"] = $"Inscrição de {nome} cancelada."
                 + (avisoDoDinheiro ?? (dupla.Pago ? " Valor estornado." : ""));
