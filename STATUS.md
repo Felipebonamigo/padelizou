@@ -20,6 +20,12 @@
 > 🧪 **6.260 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes, um a um. Dois deles passaram de primeira e foram **reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar é que a suíte lê da fonte o que foi combinado e que o Razor compila.
+>
+> 🔀 **O `main` ANDOU DUAS VEZES entre o CI e o merge** (PRs #166, #169 e #170, de sessões paralelas). Conflito só no `STATUS.md` nas duas, e a suíte foi rodada de novo por cima a cada uma: **6.346 testes, 0 falhas** com tudo mesclado, `has-pending-model-changes` → *"No changes"*.
+>
+> ⚠️ **ESTE RELEASE LEVA JUNTO A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`) — a minha mudança é só Razor + JS, mas quem publicar este build aplica aquela migration no startup. Não é "sem migration" pro deploy, só pro diff daqui.
+>
+> 🧹 **DE PASSAGEM: o `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** (marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar). Removido neste merge.
 
 > **10/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
 >
