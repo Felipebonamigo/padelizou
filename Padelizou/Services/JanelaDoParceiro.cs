@@ -68,6 +68,20 @@ public static class JanelaDoParceiro
     // Padelímetro e estatística, todos. Trocar depois do primeiro jogo daria ao parceiro novo os
     // games que outra pessoa jogou, sem uma linha de histórico dizendo o contrário. Não é um
     // limite de cerimônia: é o que separa corrigir um cadastro de reescrever o que aconteceu.
+    //
+    // ⚠️ E ELE É UM DEGRAU, NÃO UM COFRE — achado em revisão adversarial, 10/09/2026, DEPOIS de
+    // publicado. As duas testemunhas que este teto lê (`Status == "Finalizada"` e
+    // `HorarioInicioReal`) são APAGÁVEIS por dois botões sancionados, em sequência:
+    // `ReabrirPartida` põe a partida em "AoVivo" (PartidasController.cs:551) e, nesse estado,
+    // `VoltarParaAgendado` passa na régua de `DesfazerDoJogo` — que só recusa o que NÃO é
+    // "AoVivo" (DesfazerDoJogo.cs:65) — e zera `HorarioInicioReal` (:77). Depois disso o
+    // `JaComecouAJogarAsync` volta a dizer false numa dupla que jogou, e o replay do
+    // Padelímetro (PadelimetroService.RecalcularTudoAsync) lê a composição de HOJE.
+    // Pior no caminho de `TorneiosController.Placar.FinalizarPartida:296`, que finaliza SEM
+    // carimbar `HorarioInicioReal`: ali o `Status` é a única testemunha, e some junto.
+    // Segura o acidente; não segura a sequência deliberada. Fechar isso é trabalho à parte —
+    // a régua honesta seria um carimbo de quem jogou na própria Partida (molde pronto em
+    // Models/JogoSemanal.cs), que é migration e replay do Padelímetro.
     public static string? MotivoParaOrganizadorNaoTrocar(Dupla? dupla, Torneio? torneio, bool jaComecouAJogar)
     {
         if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";

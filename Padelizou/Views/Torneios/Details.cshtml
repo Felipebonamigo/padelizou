@@ -4459,9 +4459,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
                                                         dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
                                             @* TROCAR quem já está: aqui, no painel do organizador, a janela é
-                                               a MESMA do definir — vale até a bola rolar pra esta dupla. Este
-                                               bloco inteiro está sob `ViewBag.PodeGerenciar`, então quem lê
-                                               esta linha é sempre organizador, e é a régua dele que vale.
+                                               a MESMA do definir — vale até a bola rolar pra esta dupla.
+
+                                               ⚠️ `ViewBag.PodeGerenciar` NÃO é "é organizador": ele é
+                                               `ehOrganizadorDeVerdade || PodeOlharAGestaoAsync(...)`
+                                               (TorneiosController.cs:710), então o ASSISTENTE DO SISTEMA lê
+                                               esta linha também. Ele não ganha a janela larga por isso: o
+                                               painel dele vem dentro do `<fieldset disabled>` de
+                                               `GestaoSoLeitura`, e o servidor decide sozinho pelo
+                                               `ehOrganizador` do TrocarParceiro, que sai de
+                                               `UsuarioEhOrganizadorAsync`. Quem trocar esta régua por
+                                               "PodeGerenciar" no servidor abre a janela pro assistente.
 
                                                ⚠️ Era `Model.Status == "Inscrições Abertas"`, e foi isso que
                                                deixou o Felipe sem caminho no card do Paulo com a chave do Er
