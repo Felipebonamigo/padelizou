@@ -169,16 +169,41 @@ public class PixRecolhidoParaQuemJaPagouTests
     [Fact]
     public async Task No_Americano_DE_DUPLAS_a_dupla_continua_sendo_a_inscricao()
     {
-        // A contraprova do teste de cima: no AmericanoDuplas o par e FIXO — ele e a inscricao, e
+        // A contraprova do teste de cima: no AmericanoDuplas o par e FIXO — ele E a inscricao, e
         // o sorteio nao cria par nenhum. Se a regra excluisse a familia inteira do Americano,
-        // este formato passaria a recolher o card de quem nunca pagou.
+        // este formato pararia de enxergar a unica inscricao que existe.
+        //
+        // ⚠️ A INSCRICAO AQUI E PAGA, DE PROPOSITO. A primeira versao deste teste usava uma
+        // dupla NAO paga e cobrava `False` — e passava igual com o defeito que dizia travar:
+        // excluindo a familia inteira, a lista fica VAZIA, `Count > 0` da falso e o metodo
+        // devolve `False` pelo motivo errado. Falso verde. Com a dupla paga, so ha um jeito de
+        // dar `True`: enxergar a dupla.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
         torneio.Formato = FormatoDoTorneio.AmericanoDeDuplas;
-        var eu = Inscrever(ctx, categoria, pago: false);
+        var eu = Inscrever(ctx, categoria, pago: true);
         await ctx.SaveChangesAsync();
 
-        Assert.False(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+        Assert.True(await PixDoOrganizador.JaPagouTudoAsync(ctx, await ComoATelaCarregaAsync(ctx, torneio.Id), eu.Id));
+    }
+
+    [Fact]
+    public void A_TELA_pergunta_ao_servico_quem_ja_pagou()
+    {
+        // 🕳️ Nada ligava o servico a tela: apagar as duas linhas do controller deixava a suite
+        // inteira verde, `ViewBag.JaPagueiNesteTorneio` chegava nulo, e o card nunca recolhia —
+        // o pedido do Emerson morrendo em silencio com 10 testes verdes em cima dele.
+        var controller = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Controllers", "TorneiosController.cs"));
+
+        var chamada = controller.IndexOf("PixDoOrganizador.JaPagouTudoAsync", StringComparison.Ordinal);
+        Assert.True(chamada >= 0, "O controller precisa perguntar ao PixDoOrganizador quem ja pagou.");
+        Assert.Contains("ViewBag.JaPagueiNesteTorneio", controller);
+
+        // E a resposta so e calculada quando o card existe — o `if (PixDoOrganizador.Aparece(...))`
+        // vem antes. Sem isso, duas consultas a mais em TODA abertura da pagina mais pesada do site.
+        var portao = controller.LastIndexOf("PixDoOrganizador.Aparece(torneio)", chamada, StringComparison.Ordinal);
+        Assert.True(portao >= 0 && chamada - portao < 900,
+            "A pergunta precisa ficar DENTRO do `if (PixDoOrganizador.Aparece(torneio))`.");
     }
 
     // Do mesmo jeito que a acao Details carrega: Categorias -> Duplas ja vem na consulta que abre

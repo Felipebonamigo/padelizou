@@ -10,8 +10,14 @@ namespace Padelizou.Services;
 // ⚠️ LISTA FIXA, e não `ToString("ddd")`: o abreviado do pt-BR sai do ICU do sistema, vem com
 // ponto ("sex.") e já mudou entre versões do ICU. Aqui a linha é apertada e o texto é curto de
 // propósito — três letras, sem ponto —, e o que aparece na tela não pode depender de qual
-// imagem do Linux o VPS está rodando. É a MESMA lista que o Painel do Clube já escrevia à mão;
-// agora existe uma só, e não duas que podem discordar.
+// imagem do Linux o VPS está rodando. É a MESMA lista que o Painel do Clube já escrevia à mão,
+// e ele passou a ler daqui.
+//
+// ⚠️ AINDA EXISTE UMA TERCEIRA CÓPIA, em `Views/Aulas/MeusHorarios.cshtml`, e ela NÃO foi
+// trocada de propósito: lá os dias são capitalizados ("Dom", "Seg") e o índice vem de
+// `HorarioDaTurma.DiaSemana`, não de `DayOfWeek` — mesma lista, contrato diferente. Unificar as
+// duas é outra tarefa; dizer "agora existe uma só" seria mentira, e a primeira versão deste
+// comentário dizia exatamente isso.
 public static class DiaDaSemana
 {
     private static readonly string[] Curtos = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
