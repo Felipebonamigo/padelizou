@@ -1198,6 +1198,129 @@ namespace Padelizou.Controllers
             return VoltarPara(voltarPara, id);
         }
 
+        // Definir o horário de UM jogo na mão, digitando a hora. 🗣️ *"permita tambem, trocar o
+        // horario na mão, na lista de jogos, para nós organizadores"* (Felipe, 10/09/2026). A
+        // troca ⇄ acima exige outro jogo pra trocar de slot; aqui só este muda. Regras em
+        // Services/HorarioNaMao. `jogo` é a mesma referência da troca: Id do jogo real, ou
+        // "previa:<categoria>:<fase>:<n>" — a prévia vira a mesma reserva, conferida do mesmo
+        // jeito (a hora tem que ser depois de a fase anterior da categoria terminar).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DefinirHorario(int id, string? jogo, DateTime? horario, string? voltarPara = null)
+        {
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var referencia = ReferenciaDoJogo.Ler(jogo);
+            if (referencia == null)
+            {
+                TempData["Erro"] = "Não encontrei o jogo.";
+                return VoltarPara(voltarPara, id);
+            }
+            if (horario is not DateTime hora)
+            {
+                TempData["Erro"] = "Escolha um horário.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var partidas = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .Where(p => p.TorneioId == id)
+                .ToListAsync();
+            var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
+            var sedes = await SedesAsync(id);
+            string rotulo;
+            Partida? real = null;
+
+            if (referencia.EhPrevia)
+            {
+                var projetados = await ProjetarProximasFasesAsync(id, partidas, reservas);
+                var previsto = projetados.FirstOrDefault(j =>
+                    j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero);
+                if (previsto == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse jogo previsto.";
+                    return VoltarPara(voltarPara, id);
+                }
+
+                var reserva = reservas.FirstOrDefault(r =>
+                    r.CategoriaId == referencia.CategoriaId && r.Fase == referencia.Fase && r.Numero == referencia.Numero);
+                if (reserva == null)
+                {
+                    reserva = new ReservaDeHorario
+                    {
+                        CategoriaId = referencia.CategoriaId, Fase = referencia.Fase, Numero = referencia.Numero,
+                    };
+                    reservas.Add(reserva);
+                    _context.ReservasDeHorario.Add(reserva);
+                }
+                // Hora digitada não traz quadra: o robô escolhe (ou o balcão, no por ordem).
+                reserva.Horario = hora;
+                reserva.NomeQuadra = null;
+                rotulo = $"{previsto.Categoria} · {previsto.FaseNumerada}";
+            }
+            else
+            {
+                real = partidas.FirstOrDefault(p => p.Id == referencia.PartidaId);
+                var motivo = HorarioNaMao.MotivoParaNaoDefinir(real, id, hora, partidas);
+                if (real == null || motivo != null)
+                {
+                    TempData["Erro"] = motivo ?? "Não encontrei o jogo.";
+                    return VoltarPara(voltarPara, id);
+                }
+
+                var quadras = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
+                HorarioNaMao.Definir(real, hora, HorarioNaMao.ClubeParaOHorario(real, hora, torneio, quadras));
+                rotulo = $"o jogo {real.Codigo}";
+            }
+
+            // A CONFERÊNCIA, a mesma da troca: a prévia refeita tem que mostrar o jogo previsto
+            // na hora pedida — senão a reserva não vale (a fase anterior da categoria ainda não
+            // terminou nessa hora) e nada é gravado. E as reservas que a hora nova matou (a
+            // semifinal que atrasou e passou da final reservada) somem, com aviso.
+            var conferencia = await ProjetarProximasFasesAsync(id, partidas, reservas);
+            if (referencia.EhPrevia)
+            {
+                var depois = conferencia.FirstOrDefault(j =>
+                    j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero);
+                if (depois == null || depois.Horario != hora)
+                {
+                    TempData["Erro"] = $"Não dá pra pôr {rotulo} às {hora:dd/MM HH:mm}: nesse horário a fase " +
+                        "anterior dessa categoria ainda não terminou. Escolha uma hora mais tarde.";
+                    return VoltarPara(voltarPara, id);
+                }
+            }
+
+            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
+            _context.ReservasDeHorario.RemoveRange(mortas);
+
+            await _context.SaveChangesAsync();
+
+            var onde = real == null ? null : LugarDoJogo.Etiqueta(sedes, real.NomeQuadra, real.CategoriaId, real.ClubeId);
+            TempData["Sucesso"] = $"Agora {rotulo} é {hora:dd/MM HH:mm}" + (onde != null ? $" · {onde}" : "") + "." +
+                (referencia.EhPrevia ? " O jogo previsto nasce nesse horário quando a fase anterior terminar." : "");
+
+            if (mortas.Count > 0)
+            {
+                var nomeDaCategoria = partidas
+                    .GroupBy(p => p.CategoriaId)
+                    .ToDictionary(g => g.Key, g => g.First().Categoria.Nome);
+                TempData["Sucesso"] += " ⚠️ Com essa hora, deixou de valer e foi desfeita a reserva de: " +
+                    string.Join("; ", mortas.Select(r =>
+                        $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
+                        $"({r.Horario:dd/MM HH:mm})")) +
+                    ". A fase anterior passou desse horário — o jogo volta pra grade.";
+            }
+
+            return VoltarPara(voltarPara, id);
+        }
+
         // Push de "chaves publicadas". É o momento em que o torneio deixa de ser uma lista de
         // inscritos e vira jogo com hora marcada — e até agora o jogador só descobria isso
         // abrindo o site por conta própria.

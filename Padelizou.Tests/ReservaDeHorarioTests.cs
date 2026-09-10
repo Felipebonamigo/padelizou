@@ -376,6 +376,40 @@ public class ReservaDeHorarioTests
         Assert.Empty(await ReservasAsync(c));
     }
 
+    // ═══ HORÁRIO NA MÃO (10/09/2026) ═══
+    //
+    // 🗣️ *"permita tambem, trocar o horario na mão, na lista de jogos"*: a prévia também aceita
+    // uma hora digitada — vira a mesma reserva da troca ⇄, conferida do mesmo jeito.
+    [Fact]
+    public async Task Definir_a_hora_de_uma_previa_na_mao_vira_reserva()
+    {
+        var c = Montar();
+        var controller = Controller(c);
+
+        await controller.DefinirHorario(c.Torneio.Id, Previa(c.A, "Final", 1), As("21:30"));
+
+        Assert.Null(controller.TempData["Erro"]);
+        var reserva = Assert.Single(await ReservasAsync(c));
+        Assert.Equal(c.A.Id, reserva.CategoriaId);
+        Assert.Equal("Final", reserva.Fase);
+        Assert.Equal(1, reserva.Numero);
+        Assert.Equal(As("21:30"), reserva.Horario);
+        Assert.Null(reserva.NomeQuadra);
+        Assert.Equal(As("21:30"), FinalDa(await PreviaAsync(c), c.A).Horario);
+    }
+
+    [Fact]
+    public async Task Definir_a_previa_antes_da_fase_anterior_terminar_e_recusado()
+    {
+        var c = Montar();
+        var controller = Controller(c);
+
+        await controller.DefinirHorario(c.Torneio.Id, Previa(c.A, "Final", 1), As("18:00"));
+
+        Assert.Contains("fase anterior", (string?)controller.TempData["Erro"] ?? "");
+        Assert.Empty(await ReservasAsync(c));
+    }
+
     // 10/09/2026, ensaio do Er numa app de verdade: no "por ordem" os 43 jogos reais estavam sem
     // quadra (é o modo: a Mesa chama), e os três que tinham trocado com uma prévia apareciam com
     // "Arena 1"/"Arena 4" — a QUADRA PROJETADA da prévia, que é só o jeito de a projeção contar
