@@ -776,8 +776,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
         : null;
 
-    <div class="alert alert-success border-0">
-        <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
+    @* ── RECOLHIDO PRA QUEM JÁ PAGOU ─────────────────────────────────────────────────────
+       🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+       ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
+       da tela.
+
+       ⚠️ `<details>` E NÃO UM `if` QUE APAGA. Quem diz que a inscrição está paga é o
+       organizador virando o `Pago` na mão (muita gente paga em dinheiro na quadra); uma
+       marcação errada dele não pode deixar o jogador sem caminho pra pagar. Recolhido, a
+       chave continua a um toque.
+
+       O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
+       aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
+    bool pixRecolhido = ViewBag.JaPagueiNesteTorneio == true;
+
+    <details class="alert alert-success border-0 pdz-pix" open="@(pixRecolhido ? null : "open")">
+        <summary class="fw-bold">
+            @if (pixRecolhido)
+            {
+                <text><i class="bi bi-check-circle-fill"></i> Inscrição paga — ver o Pix do organizador</text>
+            }
+            else
+            {
+                <text><i class="bi bi-qr-code"></i> Pix do organizador</text>
+            }
+        </summary>
 
         @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
            valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
@@ -834,7 +857,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 A conversa abre já escrita — é só anexar a foto do comprovante.
             </p>
         }
-    </div>
+    </details>
 
     <script>
         function pdzCopiarPix(botao) {
@@ -1023,10 +1046,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </button>
         </li>
     }
-    @* A MESMA régua do bloco de ferramentas lá em cima — "a chave já é pública?" mora em
-       AprovacaoDeChaves. O segundo termo é o que só quem aprova enxerga. *@
-    @if (Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
-         || (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente && ViewBag.PodeAprovarChaves == true))
+    @* A MESMA régua que decide o botão "Chaves e Grupos" da lista de jogos (Services/AbaDeChavesEGrupos):
+       lá o link só é oferecido quando esta aba existe de verdade aqui. *@
+    @if (AbaDeChavesEGrupos.Existe(Model, ViewBag.PodeAprovarChaves == true))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="grupos-tab" data-bs-toggle="tab" data-bs-target="#grupos" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -2798,6 +2820,54 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <div class="form-text">
                                 Só enquanto nenhum jogo começou — depois disso esconderia um torneio
                                 em andamento de quem está jogando.
+                            </div>
+                        </form>
+                    }
+
+                    @* ── Recalcular horários ────────────────────────────────────────────────
+                       O remendo pro dia em que a realidade não cabe na grade — chuva, jogo que
+                       passou de três sets, dupla que não apareceu. Ele redistribui o que FALTA,
+                       a partir de agora, sem tocar em quem já jogou nem em quem está em quadra,
+                       e sem mexer em confronto nenhum.
+
+                       ⚠️ VEIO DA LISTA DE JOGOS EM 10/09/2026. 🗣️ Felipe, num print da aba
+                       Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios,
+                       para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem
+                       querer ali"*. Lá ele ficava logo acima dos 97 jogos, na tela que se rola o
+                       dia inteiro; aqui ele fica com as outras ações que mexem no torneio
+                       inteiro. O irmão manso (Ajustar horários) continuou lá, com a mesa.
+
+                       ⚠️ FICA FORA da corrente de status acima de propósito: quem tem horário
+                       pra refazer é quem tem jogo agendado, e isso atravessa "Chaves em
+                       Aprovação", "Fase de Grupos" e o torneio que sai público na hora — repetir
+                       o botão em cada ramo seria a mesma regra escrita três vezes. Zero agendado
+                       e ele some: o servidor recusaria o clique com "não há horário pra
+                       recalcular", e botão que só serve pra receber "não dá" é pior que botão
+                       nenhum.
+
+                       ⚠️ O comentário fica FORA da tag `<form …>`: dentro dela o Razor apaga os
+                       atributos seguintes, e foi assim que o build-900 saiu pra produção sem o
+                       `data-confirmar` deste mesmo botão (ver ComentarioRazorDentroDeTagTests). *@
+                    @{ int agendadasNoTorneio = ViewBag.AgendadasNoTorneio as int? ?? 0; }
+                    @if (agendadasNoTorneio > 0)
+                    {
+                        <hr />
+                        <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-0"
+                              data-confirmar="Gera horários NOVOS pra todos os @agendadasNoTorneio jogos do torneio que ainda não começaram. Toda troca de horário feita na mão será perdida — inclusive as reservas das eliminatórias previstas. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
+                              data-confirmar-titulo="Recalcular todos os horários?"
+                              data-confirmar-tom="perigo"
+                              data-confirmar-ok="Recalcular e perder os ajustes">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            @* Depois de recalcular, o que interessa é ver os horários novos — e não
+                               voltar pra este painel. "Details" leva pra página do torneio com âncora
+                               na aba de jogos (ver TorneiosController.VoltarPara). *@
+                            <input type="hidden" name="voltarPara" value="Details" />
+                            <button type="submit" class="btn btn-danger fw-bold shadow-sm">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Recalcular horários
+                            </button>
+                            <div class="form-text">
+                                Refaz TODOS os horários do zero e desfaz as trocas feitas na mão.
+                                Use quando o torneio atrasar.
                             </div>
                         </form>
                     }
@@ -5840,7 +5910,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 }
                                                                 else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
                                                                 {
-                                                                    <span>@hg.ToString("dd/MM HH:mm")</span>
+                                                                    <span>@DiaDaSemana.Curto(hg) @hg.ToString("dd/MM HH:mm")</span>
                                                                 }
                                                                 else
                                                                 {
@@ -5967,7 +6037,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                             <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                             @if (previsto?.Horario is DateTime quando)
                                                             {
-                                                                <span>@quando.ToString("dd/MM HH:mm")</span>
+                                                                <span>@DiaDaSemana.Curto(quando) @quando.ToString("dd/MM HH:mm")</span>
                                                                 @if (!string.IsNullOrEmpty(previsto.Quadra))
                                                                 {
                                                                     <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>

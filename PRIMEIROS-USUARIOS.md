@@ -73,7 +73,7 @@ Maiúscula/minúscula no usuário tanto faz, e espaço colado ao copiar não atr
 - **"Já tem alguém cadastrado com esse e-mail/login"** — o formulário volta preenchido, é só
   trocar o campo apontado.
 - **Esqueceu a senha da conta** — tem "Esqueci minha senha" na tela de entrar; chega por e-mail.
-- **Erro de verdade (tela de Ops)** — o link "Sugestão, bug ou crítica" na faixa de beta manda
+- **Erro de verdade (tela de Ops)** — o link "Sugestão ou bug" na faixa de beta manda
   direto pro seu WhatsApp com a mensagem já começada.
 
 ## ✅ O que já foi ensaiado (30/07, no ambiente publicado)

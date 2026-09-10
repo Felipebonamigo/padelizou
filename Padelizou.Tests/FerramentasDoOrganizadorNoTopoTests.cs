@@ -117,16 +117,34 @@ public class FerramentasDoOrganizadorNoTopoTests
 
     // ── A ABA DE CHAVES USA A MESMA RÉGUA ────────────────────────────────────────────────
 
-    [Fact]
-    public void A_aba_de_chaves_pergunta_pela_mesma_regua()
+    [Theory]
+    [InlineData("Fase de Grupos")]
+    [InlineData("Mata-Mata")]
+    [InlineData("Finalizado")]
+    [InlineData(AprovacaoDeChaves.Pendente)]
+    [InlineData("Inscrições Abertas")]
+    [InlineData("Chaves em Sorteio")]
+    [InlineData("Cancelado")]
+    public void A_aba_de_chaves_e_a_chave_publicada_nao_divergem(string status)
     {
-        // Duas listas de status pra "a chave já é pública?" divergiriam na primeira mudança.
-        var fonte = Details();
-        Assert.DoesNotContain("Model.Status == \"Mata-Mata\"", fonte);
+        // Pra quem NÃO aprova, "a aba existe?" e "a chave é pública?" são a mesma pergunta —
+        // o termo a mais da aba é só o organizador enxergando a chave pendente.
+        var torneio = new Torneio { Status = status };
+        Assert.Equal(AprovacaoDeChaves.ChavePublicada(torneio),
+                     AbaDeChavesEGrupos.Existe(torneio, podeAprovarChaves: false));
+    }
 
-        int aba = fonte.IndexOf("id=\"grupos-tab\"", StringComparison.Ordinal);
-        Assert.True(aba >= 0, "Não achei a aba Chaves e Grupos no Details.");
-        Assert.Contains("AprovacaoDeChaves.ChavePublicada(Model)", fonte[Math.Max(0, aba - 700)..aba]);
+    [Fact]
+    public void A_lista_de_status_mora_num_lugar_so()
+    {
+        // `AbaDeChavesEGrupos` nasceu no `main` no mesmo dia, com a MESMA lista escrita de
+        // novo. Duas cópias que concordam hoje divergem na primeira mudança — e aí o botão da
+        // lista de jogos promete uma aba que o Details não desenha.
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Services", "AbaDeChavesEGrupos.cs"));
+        Assert.Contains("ChavePublicada(torneio)", fonte);
+        Assert.DoesNotContain("\"Mata-Mata\"", fonte);
+
+        Assert.DoesNotContain("Model.Status == \"Mata-Mata\"", Details());
     }
 
     private static string Details() => Ler("Torneios/Details.cshtml");
