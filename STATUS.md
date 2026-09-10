@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-867-78bcbd8`.** Três consertos urgentes pro Er, numa madrugada só (PRs #110 e #112).
+>
+> 🔒 **VAZAMENTO EM PRODUÇÃO: a chave esperando aprovação aparecia pra deslogado.** 🗣️ *"outro erro grave apareceu as partidas agendadas sem ter aprovado as chaves, cuide isso e nao deixe q nada vaze sem ser publicado"* — print de `padelizou.com.br` em navegação anônima. **O portão existia na porta errada:** a ação `Jogos` conferia a aprovação desde 22/08; a MESMA lista embutida na aba "Jogos" do `Details` só conferia `Status != "Inscrições Abertas"`, e "Chaves em Aprovação" passa nisso. Agora o portão mora em `CarregarViewBagJogosAsync`, que abastece as duas telas — e fecha a lista, a **prévia** (que lia os grupos direto do banco) e o **desenho do mata-mata**. Organizador continua vendo; aprovado, todo mundo vê. **Lição:** régua de visibilidade escrita numa ação protege a ação, não o dado.
+>
+> 🕐 **O PULO PRO DIA 15 NÃO ERA A QUADRA — ERA A CONCENTRAÇÃO.** O "Conferir grade" do Er (que o Felipe mandou em print) entregou: *"as quadras comportam o torneio. Sobrou uma restrição de horário empurrando jogo"* — quatro duplas com *"os 2 jogos na sexta à noite"* jogando 15/09 20:30. **A concentração não reserva vaga, só proíbe o resto:** jogo sem restrição tomava a sexta antes, e quando a sexta acabava a dupla concentrada não tinha mais horário nenhum — último recurso, fim da grade, sem quadra, gente repetida. As três queixas eram uma só. Agora quem só pode jogar num turno entra nele antes de quem pode em qualquer um (mesma forma do "cede a quadra de casa").
+>
+> 🧱 **E a janela de quadra IMPOSSÍVEL (nenhuma quadra aberta em nenhum horário do torneio) passou a ser ignorada** em vez de obedecida — guarda estreito: uma vaga aberta já basta pra não disparar (PR #110, `build-863`, que nunca chegou a ser instalado sozinho: o 867 o inclui).
+>
+> ⚠️ **TRÊS CORREÇÕES SEGUIDAS "ÀS CEGAS" antes de eu pedir o Conferir grade** — o proxy desta sessão bloqueia `dev` e `prod` (403). A regra 6 valia aqui: parar e instrumentar em vez de chutar a quarta. O Conferir grade É a instrumentação, e ele já estava no ar desde o `build-860`. Pedir o print dele na primeira rodada teria poupado duas.
+>
+> 🧪 **5.793 testes, 0 falhas (12 novos na madrugada).** **Sem migration.**
+>
+> ⏭️ **NO TORNEIO DO ER (prod), nesta ordem:** "Tirar do externo" na 3ª e na 4ª → Sortear → Conferir grade → (Refazer grade, se apontar algo) → **Aprovar chaves**. Até o Aprovar, ninguém de fora vê nada.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — nona sessão seguida. Deploy de prod a um clique de qualquer um com acesso ao Actions.
+
 > Última atualização: **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-860-7c5fbfe`** (23h44 e 23h46 UTC), **o mesmo artefato nos dois**. Subiu a auditoria de buraco/ordem e a cessão da quadra de casa (PR #108).
 >
 > 🔁 **Rollback é um clique:** Actions → Deploy → Run workflow → `prod` + `rollback`.
