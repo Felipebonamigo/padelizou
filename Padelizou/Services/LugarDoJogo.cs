@@ -45,20 +45,19 @@ public static class LugarDoJogo
         int? clubeId = null)
     {
         var quadra = (nomeQuadra ?? "").Trim();
-        var clube = ClubeNaEtiqueta(sedes, quadra);
+        var clube = sedes != null && ClubeDoJogo(sedes, quadra, categoriaId, clubeId) is { } id
+            ? sedes.NomeDoClube(id)
+            : null;
 
-        if (quadra.Length == 0)
-        {
-            if (clube != null) return clube;
-            if (sedes == null) return null;
-            if (clubeId is { } carimbo && sedes.NomeDoClube(carimbo) is { } doCarimbo) return doCarimbo;
-            return categoriaId is { } cat ? sedes.NomeDoClubeDaCategoria(cat) : null;
-        }
+        if (quadra.Length == 0) return clube;
 
         return clube == null ? quadra : $"{clube} · {quadra}";
     }
 
-    // Que clube escrever ao lado da quadra — e a resposta depende de quantos o torneio tem.
+    // EM QUE CLUBE É O JOGO — o Id, pela MESMA régua da etiqueta (10/09/2026). É o que o filtro
+    // "por clube" da aba Jogos (Services/FiltroDeJogos) pergunta, e mora AQUI, e não lá, pra
+    // que o clube pelo qual se filtra seja sempre o clube que a linha escreve: a etiqueta só
+    // traduz esta resposta em nome. Null = ninguém sabe, e a tela não escreve clube nenhum.
     //
     // Com UM clube, toda quadra é dele, inclusive a que a Mesa de Controle escreveu à mão: não
     // existe segundo prédio pra errar, então até o jogo sem quadra nenhuma sabe onde é.
@@ -66,13 +65,23 @@ public static class LugarDoJogo
     // Com DOIS, só a quadra do CADASTRO tem clube. Nome de quadra que não está lá devolve null e
     // a tela mostra só o nome — `Partida.NomeQuadra` é texto solto, e escrever um clube chutado
     // seria pior que não escrever nenhum, porque é ele que decide pra que prédio a pessoa dirige.
-    // Pelo mesmo motivo, jogo SEM quadra num torneio de duas sedes não recebe local nenhum:
-    // nada no banco diz em qual dos dois ele é.
-    private static string? ClubeNaEtiqueta(SedesDoTorneio? sedes, string quadra)
+    // Jogo SEM quadra num torneio de duas sedes responde pelo carimbo do motor
+    // (`Partida.ClubeId`), e só então pelo que a categoria já determina — a presa num clube e a
+    // tirada do externo (ver SedesDoTorneio.ClubeQueACategoriaDetermina). A categoria livre sem
+    // nada disso não é de clube nenhum: nada no banco diz em qual dos dois ela é.
+    public static int? ClubeDoJogo(SedesDoTorneio? sedes, string? nomeQuadra, int? categoriaId = null,
+        int? clubeId = null)
     {
         if (sedes == null) return null;
 
-        return sedes.MaisDeUmClube ? sedes.NomeDoClubeDaQuadra(quadra) : sedes.NomeDoClubePrincipal;
+        if (!sedes.MaisDeUmClube) return sedes.ClubePrincipalId;
+
+        var quadra = (nomeQuadra ?? "").Trim();
+        if (quadra.Length > 0) return sedes.ClubeDaQuadra(quadra);
+
+        if (clubeId is { } carimbo && sedes.NomeDoClube(carimbo) != null) return carimbo;
+
+        return categoriaId is { } cat ? sedes.ClubeQueACategoriaDetermina(cat) : null;
     }
 
     // A mesma etiqueta pro calendário e pros avisos, onde o separador tem que ser texto comum:

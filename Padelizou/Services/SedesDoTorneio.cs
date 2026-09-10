@@ -280,13 +280,29 @@ public sealed class SedesDoTorneio
     // do Er — a 3ª e a 4ª só jogam em casa). A que pode transbordar joga em qualquer um dos
     // dois, e aí a resposta é null: escrever o principal mandaria metade do torneio pro
     // endereço errado.
-    public string? NomeDoClubeDaCategoria(int categoriaId)
-    {
-        if (ClubeDaCategoria(categoriaId) is { } presa)
-            return _nomeDoClube.TryGetValue(presa, out var nomePresa) ? nomePresa : null;
+    public string? NomeDoClubeDaCategoria(int categoriaId) =>
+        ClubeQueACategoriaDetermina(categoriaId) is { } clube ? NomeDoClube(clube) : null;
 
-        return PodeIrPraSedeExtra(categoriaId) ? null : NomeDoClubePrincipal;
-    }
+    // A MESMA pergunta, respondida pelo Id — é a régua de `NomeDoClubeDaCategoria`, que só
+    // traduz em nome. Existe à parte porque o filtro "por clube" da aba Jogos compara Ids
+    // (Services/FiltroDeJogos, via LugarDoJogo.ClubeDoJogo), e duas réguas parecidas em dois
+    // lugares é como se escreve o filtro que discorda da etiqueta.
+    public int? ClubeQueACategoriaDetermina(int categoriaId) =>
+        ClubeDaCategoria(categoriaId) ?? (PodeIrPraSedeExtra(categoriaId) ? null : _clubePrincipal);
+
+    // O CLUBE DO TORNEIO pelo Id (`Torneio.ClubeId`). Null só em `Nenhuma`, que não sabe de
+    // clube nenhum — e que nasce com 0 no lugar, um Id que nenhum clube tem.
+    public int? ClubePrincipalId => _clubePrincipal == 0 ? null : _clubePrincipal;
+
+    // OS CLUBES DO TORNEIO, com nome, o principal primeiro — a lista do filtro "por clube" da
+    // aba Jogos (10/09/2026). Vazia quando ninguém passou os nomes (quem monta o mapa pra
+    // GRADE), e aí a tela não oferece o filtro: um select de Ids sem nome não escolhe nada.
+    public IReadOnlyList<(int Id, string Nome)> Clubes =>
+        _nomeDoClube
+            .OrderBy(par => par.Key == _clubePrincipal ? 0 : 1)
+            .ThenBy(par => par.Value, StringComparer.CurrentCultureIgnoreCase)
+            .Select(par => (par.Key, par.Value))
+            .ToList();
 
     // O NOME DO CLUBE DO TORNEIO — o "Er Padel" que a lista de jogos escreve em toda linha.
     //

@@ -113,8 +113,20 @@
     // botão nenhum, e o torcedor é a maioria de quem abre esta tela.
     bool tenhoJogoAqui = ViewBag.TenhoJogoAqui == true;
     bool soMeusJogos = ViewBag.SoMeusJogos == true;
+
+    // A SEQUÊNCIA POR CLUBE, QUADRA E FASE (Services/FiltroDeJogos, 10/09/2026). Cada select só
+    // aparece quando tem o que separar: um clube só, uma quadra só ou uma fase só é um select
+    // que não filtra nada.
+    var filtroSequencia = ViewBag.FiltroDeJogos as FiltroDeJogos ?? FiltroDeJogos.Nenhum;
+    var clubesFiltro = ViewBag.ClubesDoTorneio as IReadOnlyList<(int Id, string Nome)>
+        ?? Array.Empty<(int Id, string Nome)>();
+    var fasesFiltro = ViewBag.FasesDoTorneio as IReadOnlyList<(string Valor, string Rotulo)>
+        ?? Array.Empty<(string Valor, string Rotulo)>();
+    bool temFiltroDeClube = clubesFiltro.Count > 1;
+    bool temFiltroDeQuadra = quadrasDoTorneio.Count > 1;
+    bool temFiltroDeFase = fasesFiltro.Count > 1;
 }
-@if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui)
+@if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui || temFiltroDeClube || temFiltroDeQuadra || temFiltroDeFase)
 {
     <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <input type="hidden" name="id" value="@Model.TorneioId" />
@@ -128,6 +140,9 @@
             <a asp-action="@Model.TargetAction"
                asp-route-id="@Model.TorneioId"
                asp-route-timeFiltroId="@(ViewBag.TimeAtual as int?)"
+               asp-route-clubeFiltroId="@filtroSequencia.ClubeId"
+               asp-route-quadraFiltro="@filtroSequencia.Quadra"
+               asp-route-faseFiltro="@filtroSequencia.Fase"
                asp-route-soMeusJogos="@(soMeusJogos ? "false" : "true")"
                class="btn @(soMeusJogos ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3">
                 <i class="bi @(soMeusJogos ? "bi-person-check-fill" : "bi-person")"></i>
@@ -140,6 +155,54 @@
             <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
                 <option value="">Todos os Times</option>
             </select>
+        }
+
+        @* A sequência por clube, por quadra e por fase — aplica sozinha ao escolher, como o
+           time. A opção da quadra leva o clube junto ("Er Padel · Arena 1"), a mesma etiqueta
+           da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
+        @if (temFiltroDeClube)
+        {
+            <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
+                <option value="">Todos os clubes</option>
+                @foreach (var clube in clubesFiltro)
+                {
+                    <option value="@clube.Id" selected="@(filtroSequencia.ClubeId == clube.Id)">@clube.Nome</option>
+                }
+            </select>
+        }
+
+        @if (temFiltroDeQuadra)
+        {
+            <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
+                <option value="">Todas as quadras</option>
+                @foreach (var nomeDaQuadra in quadrasDoTorneio)
+                {
+                    <option value="@nomeDaQuadra"
+                            selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
+                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), nomeDaQuadra) ?? nomeDaQuadra)
+                    </option>
+                }
+            </select>
+        }
+
+        @if (temFiltroDeFase)
+        {
+            <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
+                <option value="">Todas as fases</option>
+                @foreach (var fase in fasesFiltro)
+                {
+                    <option value="@fase.Valor" selected="@(fase.Valor == filtroSequencia.Fase?.Trim())">@fase.Rotulo</option>
+                }
+            </select>
+        }
+
+        @if (filtroSequencia.Ativo)
+        {
+            @* Volta pra lista inteira — todos os filtros, não só estes três: é o que "limpar" diz. *@
+            <a asp-action="@Model.TargetAction" asp-route-id="@Model.TorneioId"
+               class="btn btn-link btn-sm text-decoration-none px-1">
+                <i class="bi bi-x-circle"></i> Limpar filtros
+            </a>
         }
 
         @if (temFiltroDeCategoria)

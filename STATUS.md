@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-907-15d7ecf`** (08h57 nos dois — runs 142 e 143). O **PR #125** (o botão "Ajustar horários") e o **#126**, que consertou a `main` que o #125 quebrou. **Sem migration.**
+> Última atualização: **10/09/2026** — 🔎 **A SEQUÊNCIA DE JOGOS POR CLUBE, POR QUADRA E POR FASE** na aba Jogos (página do torneio e `/Torneios/Jogos`). ⚠️ **Ainda NÃO publicado** — branch `claude/game-sequence-function-kibwiu`. **Sem migration.** 🗣️ *"Crie uma função aqui, para poder [ver] a sequencia de jogos, Por clube, por quadra, por fase (quartas, semi,etc)"*, num print da aba Jogos do 2º Etapa ER Padel Tour (88 jogos em dois clubes).
+>
+> ✅ **Três selects novos** ao lado do de time e do de categorias, aplicam sozinhos ao escolher (`clubeFiltroId`, `quadraFiltro`, `faseFiltro` na URL): **clube** (só em torneio de mais de um — com um só não separa nada), **quadra** (as em uso, com o clube junto: "Er Padel · Arena 1", a mesma etiqueta da linha) e **fase** (as que o torneio TEM, na ordem da chave; os grupos viram uma escolha só, "Fase de grupos"). "Limpar filtros" aparece quando algum está ligado; o "Meus jogos" leva os três na URL. A régua mora em `Services/FiltroDeJogos` e vale pros DOIS tipos de linha — o jogo real e a **prévia** (filtrar por "Semifinal" não mostra a Final prevista embaixo).
+>
+> ⚠️ **O CLUBE DO FILTRO É O CLUBE DA ETIQUETA.** `LugarDoJogo.ClubeDoJogo` (novo) responde o Id pela mesma precedência — quadra, carimbo do motor, categoria — e a `Etiqueta` passou a só traduzir esse Id em nome. `SedesDoTorneio` ganhou `Clubes`, `ClubePrincipalId` e `ClubeQueACategoriaDetermina` (a régua de `NomeDoClubeDaCategoria`, que virou tradução). Uma régua só, pra filtrar por "Radar" nunca mostrar linha etiquetada "Er Padel".
+>
+> 🕳️ **DE CARONA: o número do jogo na fase era calculado sobre a lista FILTRADA** (`NumeroNaFase(partidas)`) — com "meus jogos" ligado, a Semifinal 2 de quem só via a dela virava "Semifinal 1", e a prévia "Vencedor Semifinal 2" apontava pro jogo errado. Agora parte de `todasAsPartidas`; teste `O_numero_do_jogo_na_fase_nao_muda_com_o_filtro`, visto vermelho antes.
+>
+> 🧪 **6.005 testes, 0 falhas** (18 novos em `SequenciaDeJogosPorClubeQuadraEFaseTests`: a régua sem banco, a precedência do clube, as duas portas — `Jogos` e `Details` — e um teste de FONTE que trava os três `name=` da tela). A view compilou; a suíte não renderiza Razor, então o select em si não foi visto no navegador.
+>
+> ⏭️ PR → CI → merge → `dev` → `prod`. Detalhe consciente: o modal "Trocar horário" lista só os jogos da lista filtrada — pra trocar com um de fora, limpar o filtro.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-907-15d7ecf`** (08h57 nos dois — runs 142 e 143). O **PR #125** (o botão "Ajustar horários") e o **#126**, que consertou a `main` que o #125 quebrou. **Sem migration.**
 >
 > 🧠 **"AJUSTAR HORÁRIOS": UMA PASSADA DE REPARO QUE CONSERTA SEM REFAZER.** 🗣️ *"temos q pensar melhor esse botão q ele seja mais inteligente, por que hoje ele refaz tudo e as vezes deixa impedimentos ainda, por que eu alterei na mao"*.
 >
