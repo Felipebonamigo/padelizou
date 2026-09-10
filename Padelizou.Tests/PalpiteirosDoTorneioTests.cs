@@ -222,13 +222,16 @@ public class PalpiteirosDoTorneioTests
         return torcedor;
     }
 
-    private static async Task PalpitarAsync(DbPadelContext ctx, Partida partida, int jogadorId, int duplaId)
+    private static async Task PalpitarAsync(DbPadelContext ctx, Partida partida, int jogadorId, int duplaId,
+        int? games1 = null, int? games2 = null)
     {
         ctx.PalpitesPartida.Add(new PalpitePartida
         {
             PartidaId = partida.Id,
             JogadorId = jogadorId,
             DuplaEscolhidaId = duplaId,
+            GamesDupla1 = games1,
+            GamesDupla2 = games2,
         });
         await ctx.SaveChangesAsync();
     }
@@ -361,6 +364,47 @@ public class PalpiteirosDoTorneioTests
         // ⚠️ SEM POSIÇÃO enquanto ninguém pontuou: um "1º" numa tabela de zeros anuncia
         // liderança que não existe — é a mesma razão pela qual o pódio não desenha com zeros.
         Assert.All(ranking.Linhas, l => Assert.Equal(0, l.Posicao));
+    }
+
+    [Fact]
+    public async Task Antes_do_primeiro_resultado_a_regua_ja_CONTA_o_palpite_de_placar()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, partida) = await MontarJogoAgendadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        var torcedor = await NovoTorcedorAsync(ctx, "Cravou na Véspera", "55510000009");
+        await PalpitarAsync(ctx, partida, torcedor.Id, duplas[0].Id, games1: 6, games2: 4);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
+
+        // 🕳️ O DEFEITO (visto no ar em 10/09/2026, no Er): `PalpitesComPlacar` só somava palpite
+        // de jogo APURADO. Enquanto nada tinha terminado ele era zero, e a régua da tela — que
+        // pergunta a ele se deve ensinar a cravada — dizia *"cada jogo em que você acertou quem
+        // venceu vale 1 ponto; errar vale 0"*, escondendo os 3 pontos do placar exato de 332
+        // palpites já dados. 🗣️ Felipe: *"tem bonificação pra quem acerta o placar exato?"* —
+        // tinha desde sempre; era a tela que não contava.
+        //
+        // ⚠️ A pergunta continua sendo feita AO DADO: torneio em que ninguém palpitou placar
+        // segue com zero aqui, e a régua segue sem falar em cravar.
+        Assert.True(ranking!.ModoParticipacao);
+        Assert.Equal(1, ranking.PalpitesComPlacar);
+    }
+
+    [Fact]
+    public async Task Palpite_SEM_placar_em_aberto_nao_faz_a_tela_falar_em_cravar()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, partida) = await MontarJogoAgendadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        var torcedor = await NovoTorcedorAsync(ctx, "So o Vencedor", "55510000010");
+        await PalpitarAsync(ctx, partida, torcedor.Id, duplas[0].Id);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
+
+        Assert.Equal(1, ranking!.PalpitesEmAberto);
+        Assert.Equal(0, ranking.PalpitesComPlacar);
     }
 
     [Fact]
