@@ -277,7 +277,7 @@ public class PalpiteirosDoTorneioTests
     }
 
     [Fact]
-    public async Task Jogo_que_ainda_NAO_terminou_fica_fora_da_conta()
+    public async Task Jogo_que_ainda_NAO_terminou_nao_PONTUA_mas_conta_como_EM_ABERTO()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, partida) = await MontarJogoTerminadoAsync(ctx);
@@ -293,8 +293,152 @@ public class PalpiteirosDoTorneioTests
 
         var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
 
+        // Ele NÃO pontua — esta metade é a de sempre.
+        var linha = Assert.Single(ranking!.Linhas);
+        Assert.Equal(0, linha.Pontos);
+        Assert.Equal(0, linha.Palpites);
+        Assert.Equal(0, ranking.JogosApurados);
+
+        // ⚠️ E esta é a metade nova (10/09/2026): ele APARECE, com o palpite em aberto. Antes a
+        // tabela vinha vazia e a aba não existia até o primeiro jogo terminar — num torneio que
+        // começa amanhã, o palpitrômetro tinha 41 jogos votados e nenhuma tela pra mostrar quem
+        // estava participando.
+        Assert.Equal(1, linha.EmAberto);
+        Assert.True(ranking.TemRanking);
+        Assert.True(ranking.ModoParticipacao);
+    }
+
+    // ─────────────────── ANTES DO PRIMEIRO RESULTADO: A PARTICIPAÇÃO ───────────────────
+
+    // Um jogo AGENDADO — o estado em que o torneio inteiro passa a véspera, e onde vive todo
+    // palpite antes de virar ponto.
+    private static async Task<(Torneio torneio, Categoria categoria, Partida partida)>
+        MontarJogoAgendadoAsync(DbPadelContext ctx)
+    {
+        var (torneio, categoria, partida) = await MontarJogoTerminadoAsync(ctx);
+        partida.Status = "Agendada";
+        partida.VencedorId = null;
+        partida.GamesDupla1 = null;
+        partida.GamesDupla2 = null;
+        await ctx.SaveChangesAsync();
+        return (torneio, categoria, partida);
+    }
+
+    [Fact]
+    public async Task Antes_do_primeiro_resultado_a_lista_ordena_por_QUEM_MAIS_PALPITOU()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, primeiro) = await MontarJogoAgendadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        var segundo = new Partida
+        {
+            TorneioId = torneio.Id,
+            CategoriaId = categoria.Id,
+            Dupla1Id = duplas[0].Id,
+            Dupla2Id = duplas[1].Id,
+            Status = "Agendada",
+            Fase = "Grupos",
+            Codigo = "P2",
+        };
+        ctx.Partidas.Add(segundo);
+        await ctx.SaveChangesAsync();
+
+        var doisPalpites = await NovoTorcedorAsync(ctx, "Aposta em Tudo", "55510000001");
+        var umPalpite = await NovoTorcedorAsync(ctx, "Aposta num Jogo", "55510000002");
+
+        await PalpitarAsync(ctx, primeiro, doisPalpites.Id, duplas[0].Id);
+        await PalpitarAsync(ctx, segundo, doisPalpites.Id, duplas[1].Id);
+        await PalpitarAsync(ctx, primeiro, umPalpite.Id, duplas[1].Id);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
+
+        Assert.True(ranking!.ModoParticipacao);
+        Assert.Equal(new[] { doisPalpites.Id, umPalpite.Id }, ranking.Linhas.Select(l => l.JogadorId));
+        Assert.Equal(new[] { 2, 1 }, ranking.Linhas.Select(l => l.EmAberto));
+        Assert.Equal(3, ranking.PalpitesEmAberto);
+
+        // ⚠️ SEM POSIÇÃO enquanto ninguém pontuou: um "1º" numa tabela de zeros anuncia
+        // liderança que não existe — é a mesma razão pela qual o pódio não desenha com zeros.
+        Assert.All(ranking.Linhas, l => Assert.Equal(0, l.Posicao));
+    }
+
+    [Fact]
+    public async Task Quem_esta_EM_QUADRA_tambem_fica_fora_do_EM_ABERTO()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, partida) = await MontarJogoAgendadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        // ⚠️ MESMA régua da apuração, e é ela que evita o número que ENCOLHE sozinho: contar o
+        // palpite do próprio jogador aqui e descartá-lo quando o jogo terminasse faria a linha
+        // dele cair de "2 em aberto" pra "0 palpites" sem nada na tela explicar.
+        await PalpitarAsync(ctx, partida, duplas[0].Jogador1Id, duplas[0].Id);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
+
         Assert.Empty(ranking!.Linhas);
         Assert.False(ranking.TemRanking);
+    }
+
+    [Fact]
+    public async Task Depois_do_primeiro_resultado_quem_so_tem_palpite_EM_ABERTO_continua_na_lista()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, terminado) = await MontarJogoTerminadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        var agendado = new Partida
+        {
+            TorneioId = torneio.Id,
+            CategoriaId = categoria.Id,
+            Dupla1Id = duplas[0].Id,
+            Dupla2Id = duplas[1].Id,
+            Status = "Agendada",
+            Fase = "Grupos",
+            Codigo = "P2",
+        };
+        ctx.Partidas.Add(agendado);
+        await ctx.SaveChangesAsync();
+
+        var pontuou = await NovoTorcedorAsync(ctx, "Já Acertou Um", "55520000001");
+        var soEmAberto = await NovoTorcedorAsync(ctx, "Só Palpitou no Que Vem", "55520000002");
+
+        await PalpitarAsync(ctx, terminado, pontuou.Id, duplas[0].Id);   // acertou: 1 ponto
+        await PalpitarAsync(ctx, agendado, pontuou.Id, duplas[0].Id);    // e tem um em aberto
+        await PalpitarAsync(ctx, agendado, soEmAberto.Id, duplas[1].Id);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
+
+        // 🗣️ Felipe, 10/09/2026: *"todo jogo pode ser palpitado até começar"* — quem só tem
+        // palpite em jogo que ainda não rolou continua na lista durante o torneio inteiro, em
+        // vez de sumir dela até um deles terminar.
+        Assert.False(ranking!.ModoParticipacao);
+        Assert.Equal(new[] { pontuou.Id, soEmAberto.Id }, ranking.Linhas.Select(l => l.JogadorId));
+        Assert.Equal(1, ranking.Linhas[0].Pontos);
+        Assert.Equal(1, ranking.Linhas[0].EmAberto);
+        Assert.Equal(0, ranking.Linhas[1].Pontos);
+        Assert.Equal(1, ranking.Linhas[1].EmAberto);
+
+        // A ordem volta a ser a de PONTOS assim que existe ponto — o em aberto não classifica.
+        Assert.Equal(new[] { 1, 2 }, ranking.Linhas.Select(l => l.Posicao));
+    }
+
+    [Fact]
+    public async Task O_ranking_GERAL_e_o_selo_do_perfil_NAO_contam_palpite_em_aberto()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, categoria, agendado) = await MontarJogoAgendadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor da Véspera", "55520000003");
+        await PalpitarAsync(ctx, agendado, torcedor.Id, duplas[0].Id);
+
+        // ⚠️ O "em aberto" é do TORNEIO, e só dele. O hub e o selo do perfil somam pontos de
+        // vários torneios — encher aquela tabela de gente com zero ponto trocaria um ranking
+        // por uma lista de presença, e o selo diria "0 pt" pra quem ainda não jogou nada.
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id));
     }
 
     [Fact]

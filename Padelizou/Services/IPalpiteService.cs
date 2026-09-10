@@ -10,5 +10,9 @@ public interface IPalpiteService
     // do jogo (lado 1 = Dupla1), e a moeda — games ou sets — quem decide é o formato da fase.
     Task<PalpiteResumoVM> RegistrarVotoAsync(int partidaId, int jogadorId, int duplaEscolhidaId,
         int? placarLado1 = null, int? placarLado2 = null);
+    // Tira o palpite desta pessoa neste jogo — voto e placar, que moram na mesma linha.
+    // Idempotente: quem não tinha palpite recebe o resumo do jeito que ele está.
+    Task<PalpiteResumoVM> RetirarPalpiteAsync(int partidaId, int jogadorId);
+
     Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId);
 }

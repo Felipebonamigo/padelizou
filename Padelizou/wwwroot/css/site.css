@@ -3001,7 +3001,10 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-ver-votos:hover .pdz-total-votos,
-.pdz-ver-votos:focus .pdz-total-votos {
+.pdz-ver-votos:focus .pdz-total-votos,
+/* A frase "A galera crava 9x7" usa o mesmo botão: o placar é o alvo que se anuncia no hover. */
+.pdz-ver-votos:hover .pdz-consenso-placar,
+.pdz-ver-votos:focus .pdz-consenso-placar {
     color: var(--padel-green);
     text-decoration: underline;
 }

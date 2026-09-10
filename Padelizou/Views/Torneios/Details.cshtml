@@ -668,8 +668,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="btn btn-outline-success rounded-pill px-3">
             <i class="bi bi-graph-up"></i> Palpiteiros
         </a>
+        @* ⚠️ "Quem mais acertou" é mentira na véspera: ninguém acertou nada ainda, porque
+           nenhum jogo terminou. O texto pergunta ao ranking em que fase ele está — o mesmo
+           `ModoParticipacao` que decide o aviso dentro da aba. *@
+        @{ var palpiteirosDoCard = ViewBag.RankingDePalpiteiros as Padelizou.Services.PalpiteirosDoTorneio; }
         <small class="text-muted">
-            Quem mais acertou no Palpitrômetro.
+            @(palpiteirosDoCard?.ModoParticipacao == true
+                ? "Quem já palpitou neste torneio."
+                : "Quem mais acertou no Palpitrômetro.")
         </small>
     </div>
 }

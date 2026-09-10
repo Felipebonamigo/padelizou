@@ -45,17 +45,22 @@ function palpitrometro(partidaId, dupla1Id, meuVoto) {
     filhos['.pdz-palpite-placar'].querySelectorAll = () => fichas;
     filhos['.pdz-palpite-consenso'].querySelector = sel => filhos[sel] || null;
 
+    // O botão "retirar": é NELE que se vê se a tela escondeu o que já foi desfeito.
+    const botaoRetirar = { hidden: false };
+
     const container = {
         fichas,
+        botaoRetirar,
         dataset: { partidaId: String(partidaId), dupla1Id: String(dupla1Id), meuVoto: meuVoto || '' },
         classList: { contains: () => false, remove() { }, toggle() { } },
         querySelector: sel => filhos[sel] || null,
-        querySelectorAll: () => [],
+        querySelectorAll: sel => (sel === '.pdz-retirar-palpite' ? [botaoRetirar] : []),
     };
 
     const toque = duplaId => ({ dataset: { duplaId: String(duplaId), votavel: 'true' }, closest: () => container });
     const ficha = (v, p) => ({ dataset: { vencedor: String(v), perdedor: String(p) }, closest: () => container });
-    return { container, toque, ficha };
+    const retirar = () => ({ closest: () => container });
+    return { container, toque, ficha, retirar };
 }
 
 // ── O SERVIDOR FALSO ──────────────────────────────────────────────────────────────────────
@@ -83,7 +88,8 @@ function servidor(atrasos = {}) {
             json: async () => ({
                 votosDupla1: 1, votosDupla2: 0, totalVotos: 1,
                 percentualDupla1: 100, percentualDupla2: 0,
-                meuVotoDuplaId: Number(p.get('duplaId')),
+                // Sem `duplaId` o pedido é o RETIRAR: a resposta volta sem voto meu.
+                meuVotoDuplaId: p.has('duplaId') ? Number(p.get('duplaId')) : null,
                 meuPlacarLado1: p.has('placar1') ? Number(p.get('placar1')) : null,
                 meuPlacarLado2: p.has('placar2') ? Number(p.get('placar2')) : null,
                 placarEmSets: false, placarMaisPalpitadoLado1: null, placarMaisPalpitadoLado2: null,
@@ -97,7 +103,7 @@ function servidor(atrasos = {}) {
 
 function carregar(fetchFalso) {
     const montar = new Function('fetch', 'alert', 'cabecalhoAntifalsificacao', 'document', 'bootstrap',
-        fonte + '\n; return { votarPalpite, palpitarPlacar };');
+        fonte + '\n; return { votarPalpite, palpitarPlacar, retirarPalpite };');
     return montar(fetchFalso, () => { }, h => h, undefined, undefined);
 }
 
@@ -153,6 +159,37 @@ function confere(nome, condicao, detalhe) {
         await Promise.all([js.votarPalpite(um.toque(10)), js.votarPalpite(outro.toque(20))]);
         confere('dois jogos diferentes falam ao mesmo tempo', s.posts.length === 2 && s.cruzou(),
                 `${s.posts.length} POSTs, cruzaram=${s.cruzou()}`);
+    }
+
+    // 4. RETIRAR entra na MESMA fila do voto — e é a rota certa que vai.
+    //    ⚠️ Voto e retirada mexem na MESMA linha do banco. Soltas, as duas se cruzam e a tela
+    //    termina pintada pela resposta que chegou por último: o palpite REAPARECENDO depois de
+    //    retirado, e só o F5 consertando.
+    {
+        const s = servidor({ 0: 40, 1: 1 });   // o voto demora; sem fila ele pinta por último
+        const js = carregar(s.fetchFalso);
+        const { container, toque, retirar } = palpitrometro(7, 10, '10');
+
+        const a = js.votarPalpite(toque(10));
+        const b = js.retirarPalpite(retirar());
+        await Promise.all([a, b]);
+
+        confere('retirar e votar não se cruzam', s.posts.length === 2 && !s.cruzou(),
+                `${s.posts.length} POSTs, cruzaram=${s.cruzou()}`);
+        confere('a tela termina SEM palpite (o retirar foi o último)',
+                container.dataset.meuVoto === '', `meuVoto=${container.dataset.meuVoto}`);
+        confere('o botão de retirar se esconde sozinho depois da retirada',
+                container.botaoRetirar.hidden === true, 'continuou visível');
+    }
+
+    // 5. Retirar duas vezes seguidas é UM POST só — o toque duplo não vira dois pedidos.
+    {
+        const s = servidor({ 0: 30 });
+        const js = carregar(s.fetchFalso);
+        const { retirar } = palpitrometro(7, 10, '10');
+        const el = retirar();
+        await Promise.all([js.retirarPalpite(el), js.retirarPalpite(el)]);
+        confere('toque duplo no retirar manda UM POST', s.posts.length === 1, `mandou ${s.posts.length}`);
     }
 
     console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);

@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **10/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
+>
+> 1️⃣ **O RANKING APARECE ANTES DO PRIMEIRO JOGO.** A aba e o botão só nasciam quando um jogo **com palpite** terminava — ou seja, na véspera do torneio, que é justamente quando todo mundo palpita, não existia tela nenhuma. Cada linha ganhou o **EM ABERTO** (palpites de jogos que ainda não terminaram), com a **mesma exclusão de quem está em quadra** que a apuração já fazia: sem ela o número encolheria sozinho quando o jogo terminasse. Enquanto nada foi apurado a tela é de **participação** — ordenada por quem mais palpitou, sem pódio, com "·" no lugar da posição (tabela de zeros não tem líder) e o aviso de que a pontuação começa no primeiro resultado. Depois disso a ordem volta a ser a de pontos e a coluna Em aberto fica ao lado, porque 🗣️ *"todo jogo pode ser palpitado até começar"*.
+>
+> ⚠️ **O EM ABERTO É DO TORNEIO E SÓ DELE.** O hub do Ranking e o selo do perfil somam pontos de vários torneios — enchê-los de gente com zero ponto trocaria um ranking por lista de presença, e o selo diria "0 pt" pra quem nunca pontuou. Tem teste travando os dois.
+>
+> ✅ **De quebra, morreu o falso-positivo documentado**: o gate da aba passou a ser o **ranking pronto** (`TemRanking`) em vez de "existe palpite em jogo terminado". Torneio em que só os 4 jogadores da própria partida palpitaram mostrava o botão e a página respondia **404**.
+>
+> 2️⃣ **O MODAL DIZ QUEM PALPITOU O QUÊ.** Ele existia desde sempre e mostrava só o NOME. Agora cada linha traz o placar palpitado, **vencedor × perdedor** — no banco ele mora na orientação do jogo, mas a pessoa é listada DEBAIXO da dupla em que votou, e ali "4 x 6" diria que ela apostou na derrota de quem escolheu. A **frase do consenso virou o segundo caminho pro modal** (era texto morto), nas duas apresentações. ⚠️ E o nome/foto passaram a ser **escapados** antes do `innerHTML`: vêm do cadastro de quem votou.
+>
+> 3️⃣ **DÁ PRA RETIRAR O PALPITE.** Dava pra trocar de dupla e trocar a ficha; não dava pra sair — quem tocou sem querer (o alvo é um nome no meio de 97 jogos) não tinha caminho de volta. `POST /Partidas/RetirarPalpite`, com **[HttpPost] + [Authorize] + dono ESTRUTURAL** (a linha é achada por `(partida, jogador)` e o jogador vem da claim — não existe parâmetro por onde pedir o palpite alheio). A janela é a **mesma** do palpitar. O placar sai junto, senão "a galera crava 6x4" seguiria contando palpite que não existe. Na tela o "retirar" só aparece pra quem palpitou e **some sozinho** depois. ⚠️ O pedido vai pela **MESMA fila** do voto (a linha do pedido agora carrega a rota): soltos, votar e retirar mexem na mesma linha do banco e se cruzam — e a tela terminaria pintada pelo que respondeu por último, com **o palpite reaparecendo depois de retirado**.
+>
+> 🖥️ **RODEI A UI — E ISSO É NOVO.** Dezenas de entradas aqui fecham com "⚠️ NÃO RODEI A UI". O container da sessão web tem **PostgreSQL 16 e Chromium/Playwright**: o app sobe local com o DadosDemo, e dá pra clicar de verdade. Conferido a 430px e a 1200px, logado: o consenso abre o modal com os placares (`Diego 6 x 4 · Lucas 6 x 3 · Bruno sem placar`), o retirar apaga a linha no banco e some da tela sem F5, e a aba mostra o modo participação e depois o ranking com pontos. **A receita está no `TRABALHAR-FORA.md`.**
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE A SUÍTE NÃO PEGARIA**: a 1200px a tabela do modo participação vinha com **PALPITES 0 · ACERTOS 0 · % 0% · PONTOS 0** em toda linha — a "fileira de zeros" que a régua da coluna "Cravadas" condena. As quatro colunas somem enquanto nada foi apurado.
+>
+> 🔀 **O `main` ANDOU no meio do caminho** (PRs #162, #163 e #165, de sessões paralelas) e foi mesclado aqui antes do CI: conflito só no `STATUS.md`, no lugar de sempre — nenhuma linha de código, e o `Details.cshtml` mesclou sozinho. Com o `main` junto são **6.272 testes, 0 falhas**.
+>
+> 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >

@@ -387,27 +387,27 @@ namespace Padelizou.Controllers
             ViewBag.TemEnqueteDoTorneio = EnqueteDoTorneio.Aberta(
                 torneio.Status, ultimoJogoDoTorneio, DateTime.Now, torneio.Formato);
 
-            // O ranking de palpiteiros só tem o que mostrar depois que um jogo COM palpite
-            // terminou. Pergunta barata (um Any sobre as partidas já carregadas) e é ela que
-            // decide se o link aparece — a página em si devolve 404, como a do MVP.
-            var partidasComResposta = partidasFinalizadas
-                .Where(p => p.VencedorId != null)
-                .Select(p => p.Id)
-                .ToList();
-            ViewBag.TemRankingDePalpiteiros = partidasComResposta.Count > 0
-                && await _context.PalpitesPartida.AnyAsync(v => partidasComResposta.Contains(v.PartidaId));
-
-            // A aba Palpiteiros (07/09/2026, pedido do Felipe: "deixe uma aba no torneio para
-            // verificar o ranking do palpitômetro") só monta o ranking de verdade DEPOIS da
-            // pergunta barata acima dizer que há algo — a mesma cautela do botão, e pelo
-            // mesmo motivo: montar o ranking inteiro em TODA visita a esta página (a mais
-            // visitada do site) só pra descartá-lo quando não há nada é o custo que o botão
-            // sempre evitou. Continua existindo o mesmo raro falso-positivo documentado ali
-            // (palpite só dos 4 jogadores da própria partida, que ficam fora da conta) — lá
-            // vira 404, aqui vira "ainda não há ranking".
-            if (ViewBag.TemRankingDePalpiteiros == true)
+            // O RANKING DE PALPITEIROS: a aba e o botão. Duas perguntas, nesta ordem — e é a
+            // ordem que segura o custo desta página, a mais visitada do site.
+            //
+            // 1) A BARATA: existe QUALQUER palpite neste torneio? Um `Any` que não monta nada.
+            // 2) Só então a conta inteira, e é o RANKING PRONTO quem decide se a aba aparece.
+            //
+            // ⚠️ ATÉ 10/09/2026 A PERGUNTA ERA OUTRA: "existe palpite em jogo já TERMINADO?".
+            // 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e 41 jogos já votados: *"acho que o
+            // ranking do palpitometro ja tem que aparecer"*. Na véspera do torneio — justamente
+            // quando todo mundo palpita — a aba não existia, porque nenhum jogo tinha terminado.
+            //
+            // ⚠️ E a troca MATA o falso-positivo que morava aqui: num torneio em que os únicos
+            // palpites vieram dos quatro jogadores das PRÓPRIAS partidas (que ficam fora da
+            // conta), o botão aparecia e a página respondia 404. Agora as duas telas obedecem
+            // ao mesmo `TemRanking`.
+            ViewBag.TemRankingDePalpiteiros = false;
+            if (await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
             {
-                ViewBag.RankingDePalpiteiros = await RankingDePalpiteiros.DoTorneioAsync(_context, id, ObterJogadorIdLogado());
+                var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(_context, id, ObterJogadorIdLogado());
+                ViewBag.RankingDePalpiteiros = palpiteirosDoTorneio;
+                ViewBag.TemRankingDePalpiteiros = palpiteirosDoTorneio?.TemRanking == true;
             }
 
             // 2. Roda a contabilidade grupo por grupo
