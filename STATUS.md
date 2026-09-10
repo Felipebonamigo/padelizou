@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-912-3bcbb64`** (09h47 nos dois — runs 144 e 145). PR #129, a tela de **trocar horário**. **Sem migration.** ⚠️ **O PR #128 (a sequência de jogos por clube, entrada abaixo) entrou na `main` DEPOIS deste release e NÃO está no ar** — o próximo deploy leva ele junto.
+> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-920-d3ac215`** (10h29 nos dois — runs 150 e 151). PR #131, a troca de duplas de grupo. **Sem migration.** Este release leva junto o **PR #128** (sequência de jogos por clube, da sessão paralela), que estava mergeado e fora do ar.
+>
+> 🔀 **REFAZER OS HORÁRIOS AO TROCAR DUAS DUPLAS DE GRUPO VIROU ESCOLHA.** 🗣️ *"nessa função de trocar as duplas de grupo, não obrigue a refazer os horarios, questione se é para refazer os horarios ou apenas trocar as dupla sem mudar os horarios"*. O recálculo automático era a segunda metade do pedido de 09/09 e **continua certo** — mas ficou caro no dia em que o organizador passou a ter trabalho manual na grade: trocar duas duplas jogava a noite inteira de ajustes fora. Agora um rádio, com **"Só trocar as duplas" marcado por padrão na tela**.
+>
+> ⚠️ **O QUE TORNA A ESCOLHA SEGURA É O AVISO, não a proibição.** Mantendo os horários, o risco de 09/09 é real: o jogo guarda o horário e **troca de DONO**, então a dupla que veio do sábado pode herdar a sexta que ela pagou pra não jogar. O sistema não impede — **conta**. `ImpactoDaTroca` ganhou `Contar`/`Comparar` (as mesmas peças do aviso da troca de horário, PR #129) e a mensagem do fim diz o que mudou no Conferir grade **e onde resolver**: o "Ajustar horários", que conserta trocando slots em vez de refazer tudo. Os três botões passaram a se compor.
+>
+> ⚠️ **O PADRÃO DA AÇÃO É `refazerHorarios: true`, e isso é segurança e não inércia:** o formulário SEMPRE manda a escolha, então o default só vale pra quem chamar sem dizer nada — e pra esse o certo é a garantia que foi vendida (o impedimento pago). As duas guardas de 09/09 continuam chamando sem parâmetro, de propósito.
+>
+> 🛡️ **DUAS GUARDAS DA SESSÃO PARALELA ME PEGARAM NO MESMO PR, E AS DUAS TINHAM RAZÃO.** (1) Eu tirei o `data-confirmar` do formulário porque o texto afirmava "TODOS os horários são recalculados", o que agora depende do rádio — a resposta certa não era **tirar** o aviso, era **reescrevê-lo pra valer nos dois modos**. (2) Um comentário meu longo demais empurrou o `@if` de autorização pra fora da janela de 1500 caracteres que o outro teste inspeciona. **Lição, e é a terceira desta sessão no mesmo tema:** quando uma guarda reclama, a pergunta certa é *"o que ela está protegendo?"* — não *"como faço ela calar?"*.
+>
+> 🧪 **6.017 testes, 0 falhas (3 novos).** Falsificados antes: a ação não tinha o parâmetro; e os horários mudando quando o teste pediu pra não mudar.
+>
+> ⏭️ **NO TORNEIO DO ER:** Ajustar horários → Conferir grade → trocas na mão (com o aviso de impacto) → **Aprovar chaves**.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `prod` E `dev` no `build-912-3bcbb64`** (09h47 nos dois — runs 144 e 145). PR #129, a tela de **trocar horário**. **Sem migration.** ⚠️ **O PR #128 (a sequência de jogos por clube, entrada abaixo) entrou na `main` DEPOIS deste release e NÃO está no ar** — o próximo deploy leva ele junto.
 >
 > 📋 **A LISTA DE "TROCAR COM QUAL JOGO" ESTAVA ILEGÍVEL.** 🗣️ *"aqui quando eu for selecionar outro jogo, ta muito poluido"* — eram **97 linhas de ~120 caracteres**, cada uma repetindo a data e o nome civil dos quatro jogadores. Três cortes, nenhum perde informação que o organizador use pra escolher: o **DIA** subiu pro `<optgroup>` (aparece uma vez, não 97), o nome virou `NomeDaDupla.CompactoNa` e a categoria `CategoriaNaTela.Curto`. **As duas réguas já existiam e são o que a aba de jogos mostra** — degrau 2 da escada do CLAUDE.md, reuso em vez de invenção.
 >
