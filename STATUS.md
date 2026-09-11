@@ -21,6 +21,22 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
+> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** ⏳ **NO BRANCH `claude/inspiring-goodall-ihmmb1`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com o print da prévia de 2 grupos ocupando o monitor inteiro: *"ficou muito esticado, nao tem pq e fica feio, deixe em um tamanho normal que fique bonito"* — e, logo depois, *"Talvez seja melhor fazer tambem da esquerda pra direita, ao inves de cima para baixo, ficará mais alinhado"*.
+>
+> 🕳️ **O ESTICADO NÃO ERA UM `width` ESQUECIDO: ERA A GEOMETRIA.** O quadro do computador (`.pdz-arv`) era uma grade de **N colunas, N = jogos da rodada mais larga**. Com 2 grupos são **2 colunas**, cada uma metade do monitor — cartão de **~870px** pra escrever "1º do Grupo A", e a final ocupando as duas. Nenhum cap de largura conserta isso sozinho: com o cartão capado em 17rem os dois cartões ficam **centralizados em meia tela cada**, com 700px de linha de ligação entre eles. **Foi renderizado e olhado antes de escolher.**
+>
+> ✅ **AGORA É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA NAS DUAS TELAS.** A rodada é uma **coluna de 17rem** e o que muda por largura é só o TRILHO: no celular encaixa (`scroll-snap`) com a seguinte espiando na beirada; no computador (`@media (min-width: 768px)`) a chave inteira está à vista, sem encaixe, centralizada por `width: fit-content` + `margin-inline: auto`. **O `.pdz-arv` inteiro foi apagado** — marcação e CSS.
+>
+> ⚠️ **`justify-content: center` NÃO SERVE AQUI**: num container que rola, ele esconde o COMEÇO do conteúdo e não há barra pra voltar. `fit-content` + margem automática centraliza enquanto cabe e vira 100% quando não cabe — medido: a chave de 8 jogos a 800px rola até o fim e volta com a primeira rodada em x=24.
+>
+> 📏 **17rem POR RODADA, MEDIDO, não escolhido no olho.** A linha `.pdz-chave-quando` é `nowrap; overflow: hidden` **sem reticências**, então cartão apertado come o nome do clube calado. Cartão de 264px → `Er Padel · Arena Loja 7` inteiro nos 15 cartões da chave de 16. A 16rem já perde **3px**; a 15rem, **19px**; a 13rem, **51px**. E o desenho antigo, na chave de 8 jogos a 1440px, dava cartão de **166px** — cortava o clube em todas as oitavas.
+>
+> 🧪 **6.559 testes, 0 falhas** + as 2 conferências do JS verdes. O `QuadroDaPreviaTemOsDoisDesenhosTests` (que travava "no pc é de cima pra baixo") virou `QuadroDaPreviaDeitaNasDuasTelasTests`. **3 vistos vermelhos antes da correção**: *"Not found: class=\"pdz-chd\""*, *"Não achei o @media da prévia no computador"* e *"Not found: pdz-chd-fichas d-md-none"*.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, nos dois temas, a 1440px / 820px / 390px: cartão 264px e **corte 0** no computador; celular **sem mudança nenhuma** (o `@media` começa em 768px). ⚠️ **A armadilha do headless de novo**: `.pdz-chd-trilho` tem `scroll-behavior: smooth`, e o `:root { scroll-behavior: auto }` da página de medição **não alcança** — a rolagem não terminava e o trilho parecia travado em `scrollLeft = 0`. Quem for medir rolagem DELE tem que forçar `auto` **no seletor dele**.
+
 > **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1132-17beb25`** (runs 246 e 247). PR #214. ✅ **SEM MIGRATION.**
