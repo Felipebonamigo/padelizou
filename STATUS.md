@@ -19,9 +19,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-<<<<<<< HEAD
-=======
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` no `build-1088-e61686c`** (run 34625113564). PR #199. ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` no `build-1088-e61686c`** (run 34625113564). PR #199. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**, o `/css/site.css` servido traz as regras novas (`.pdz-arv-liga`, `.pdz-chd-trilho`, `.pdz-chave-vaga.pdz-arv-final`) e **zero** do CSS morto que saiu, e o `/sw.js` já está em `padelizou-static-v27`. ⚠️ **A PÁGINA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. A prova visual é a local, com o app de verdade.
 >
@@ -55,7 +53,6 @@
 >
 > ⏭️ **FICOU DE FORA, de propósito**: a **chave de verdade** (`_ChaveDoMataMata`) continua em fases empilhadas, sem linhas — levar a árvore pras duas telas foi recomendado e **não** aprovado, e é uma tarefa própria. E o polimento do cartão que apareceu nas maquetes (número em selo lime, hora com mais peso) ficou fora pelo mesmo motivo: ele mora no cartão COMPARTILHADO, então mexeria na chave real junto.
 
->>>>>>> origin/main
 > **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
 >
 > 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
