@@ -92,6 +92,27 @@
 @functions {
     private static string Foto(Padelizou.Models.Jogador? j) =>
         string.IsNullOrEmpty(j?.FotoPerfil) ? "/img/default-avatar.png" : j!.FotoPerfil!;
+
+    // O ESCUDO DO TIME, do lado do nome. 🗣️ Felipe, 11/09/2026, olhando a aba Jogos em
+    // produção: *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano
+    // A"*. Aqui não há nome de time escrito — o escudo é a pista inteira, e por isso leva o
+    // nome no alt e no title.
+    //
+    // ⚠️ HtmlEncode no src E no alt: esta linha é montada em STRING (HtmlContentBuilder), então
+    // o encoding que o Razor faz sozinho em `@atributo` NÃO acontece aqui — e o nome do time é
+    // texto que quem cadastra digita. Uma aspa nele fecharia o atributo.
+    //
+    // Só quem tem logo cadastrado desenha: os 44 times importados do ranking nasceram sem
+    // nenhum, e `src=""` é ícone quebrado repetido em 97 linhas.
+    private static string Escudo(Padelizou.Models.Jogador? j)
+    {
+        var time = j?.Time;
+        if (time == null || string.IsNullOrEmpty(time.Logo)) return "";
+
+        var src = System.Net.WebUtility.HtmlEncode(time.Logo);
+        var nome = System.Net.WebUtility.HtmlEncode(time.Nome);
+        return $"<img class=\"pdz-jl-escudo\" src=\"{src}\" alt=\"{nome}\" title=\"{nome}\" loading=\"lazy\" />";
+    }
 }
 
 @* Um lado da partida: rostos e nomes, CADA JOGADOR clicável pro perfil dele.
@@ -126,11 +147,13 @@
 
         html.AppendHtml("<span class=\"pdz-jl-nome\">");
         html.AppendHtml($"<a href=\"/Jogadores/Perfil/{d.Jogador1Id}\">").Append(NomeCurto(d.Jogador1)).AppendHtml("</a>");
+        html.AppendHtml(Escudo(d.Jogador1));
         html.AppendHtml("<span class=\"pdz-jl-barra\"> / </span>");
 
         if (d.Jogador2Id is int segundo)
         {
             html.AppendHtml($"<a href=\"/Jogadores/Perfil/{segundo}\">").Append(NomeCurto(d.Jogador2)).AppendHtml("</a>");
+            html.AppendHtml(Escudo(d.Jogador2));
         }
         else
         {

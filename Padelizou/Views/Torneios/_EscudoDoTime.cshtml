@@ -1,0 +1,16 @@
+@model Padelizou.Models.Time
+@*
+    O escudo do time — a "bandeira" do pedido do Felipe (11/09/2026).
+
+    Parcial próprio porque o chip do jogador desenha o mesmo escudo em DOIS lugares: do lado do
+    nome (o normal) e como SELO no canto da foto, quando o card ao vivo pede. Duas cópias do
+    <img> seriam duas verdades sobre alt, tamanho e lazy — e a segunda envelhece calada.
+
+    Só desenha quem tem logo cadastrado: os 44 times importados do ranking nasceram sem nenhum,
+    e `src=""` é ícone quebrado repetido em cada linha da tela.
+*@
+@if (Model == null || string.IsNullOrEmpty(Model.Logo)) { return; }
+
+@* O alt e o title levam o nome do time porque na tabela do grupo e no card ao vivo o nome
+   não é escrito em lugar nenhum — sem eles o escudo é um desenho sem legenda. *@
+<img src="@Model.Logo" class="pdz-chip-escudo" alt="@Model.Nome" title="@Model.Nome" loading="lazy" />
