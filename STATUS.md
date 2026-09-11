@@ -1,7 +1,6 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
->
 > Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
 >
 > 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
