@@ -63,11 +63,11 @@
                 <i class="bi bi-megaphone-fill"></i> Avisar todo mundo
             </h6>
             <p class="small text-muted">
-                Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
+                Manda notificação pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
             </p>
             <form asp-action="Comunicar" method="post"
                   data-confirmar-titulo="Avisar todo mundo?"
-                  data-confirmar="A mensagem sai agora por notificação, e-mail e WhatsApp pra todos os inscritos. Não dá pra desfazer."
+                  data-confirmar="A mensagem sai agora por notificação pra todos os inscritos e fica na Caixa de Avisos de cada um. Não dá pra desfazer."
                   data-confirmar-ok="Enviar aviso">
                 <input type="hidden" name="id" value="@Model.Id" />
                 <div class="row g-2">

@@ -378,6 +378,13 @@ namespace Padelizou.Controllers
 
         // Um clique avisa todo mundo do torneio. É o que hoje o organizador faz na mão,
         // em cinco grupos de WhatsApp diferentes.
+        //
+        // ⚠️ SÓ NOTIFICAÇÃO (push + Caixa de Avisos), por `AppSemEmail`. 11/09/2026, pedido do
+        // Felipe: *"acho que esse botão ai, tem q ser só push"*. Antes ia sem alcance nenhum,
+        // caía no padrão `SoApp` e mandava e-mail pra TODOS os inscritos — a rajada mais
+        // proporcional ao torneio que existe aqui, e a cota do Gmail já estourou duas vezes
+        // por volume assim. O aviso daqui é de dia de jogo ("chuva, atrasou 1h"): quem precisa
+        // dele está a caminho da quadra com o telefone na mão, não na caixa de entrada.
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Comunicar(int id, string mensagem, int? categoriaId)
@@ -418,7 +425,8 @@ namespace Padelizou.Controllers
             {
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogadorId, torneio.Nome, mensagem.Trim(), url);
+                    await _pushService.EnviarParaJogadorAsync(jogadorId, torneio.Nome, mensagem.Trim(), url,
+                        AlcanceDoAviso.AppSemEmail);
                     enviados++;
                 }
                 catch (Exception ex)
@@ -428,7 +436,8 @@ namespace Padelizou.Controllers
             }
 
             TempData["Sucesso"] = $"Comunicado enviado para {enviados} de {ids.Count} inscrito(s). " +
-                                  "Quem não tem o app instalado não recebe push.";
+                                  "Sai por notificação e fica na Caixa de Avisos de cada um — " +
+                                  "sem e-mail e sem WhatsApp.";
             return RedirectToAction("Details", new { id });
         }
 
