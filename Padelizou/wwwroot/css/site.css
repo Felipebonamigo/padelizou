@@ -3326,6 +3326,50 @@ a.pdz-grupo-jogo[href]:focus-visible {
     text-decoration: underline;
 }
 
+/* ── MODAL NO APP INSTALADO: o X não pode ficar debaixo do relógio ──────────────────
+   🗣️ Felipe, 11/09/2026, num print do iPhone com o modal "Quem palpitou o quê" aberto:
+   *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*.
+
+   O `_Layout` pede `viewport-fit=cover` — instalado, o app usa a tela INTEIRA, inclusive
+   atrás do relógio e da bateria. O corpo da página já paga essa conta (ver as regras de
+   `env(safe-area-inset-*)` lá em cima), mas o `.modal` é `position: fixed` e não herda nada
+   disso: com a lista longa o diálogo encosta no topo do aparelho e o botão de fechar vai
+   parar debaixo da barra de status, onde o toque não chega.
+
+   ⚠️ Aqui, e não no `.modal-dialog`: com `box-sizing: border-box` o `padding` do `.modal`
+   encolhe a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a
+   lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura,
+   e o fim da lista sairia por baixo.
+
+   ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de
+   rolagem) e não encosta no topo/rodapé — por isso estes dois não brigam com ele. */
+.modal {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* O cabeçalho de cada dupla no modal é um BOTÃO que dobra aquele lado — parece texto até o
+   hover, como o "N voto(s)" do palpitrômetro. */
+.pdz-votantes-dupla {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+}
+
+.pdz-votantes-seta {
+    transition: transform .15s ease;
+    display: inline-block;
+}
+
+.pdz-votantes-dupla[aria-expanded="false"] .pdz-votantes-seta {
+    transform: rotate(-90deg);
+}
+
 /* ── Capa do torneio no card: INTEIRA, nunca cortada ─────────────────────────────
    Queixa do Felipe (08/08/2026): "o folder sempre fica cortado". Era `object-fit:
    cover`, que preenche a caixa cortando o que sobra — e num folder de torneio o que
