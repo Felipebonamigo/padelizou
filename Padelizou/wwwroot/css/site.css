@@ -2291,12 +2291,59 @@ button, a, input, select { touch-action: manipulation; }
    Mesmo remédio das pills, aplicado às `nav-tabs` da página do torneio. Do
    tamanho do próprio texto, cinco abas viravam TRÊS linhas irregulares no
    celular do organizador (142px, 178px e 75px de vão) — e tela com buraco não
-   parece arrumada, parece quebrada. */
+   parece arrumada, parece quebrada.
+
+   CONTORNO EM TODAS (Felipe, 11/09/2026): *"deixar pelo menos desenhado o
+   contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil
+   pro usuario ver q é uma aba"*. É a MESMA queixa de 08/08/2026 que deu
+   borda às `.pdz-pills` — as pills de dentro (Ao Vivo/Agendadas/Finalizadas)
+   foram atendidas e a barra de cima ficou como o Bootstrap a desenha:
+   `border: 1px solid transparent` na inativa, cor de borda só na ativa. Com
+   isso só a aba escolhida parecia botão; as outras quatro, texto solto.
+
+   A LINHA DA `nav-tabs` SAI JUNTO. Ela existe pra que a aba ativa — de meia
+   caixa, cantos arredondados só em cima — se FUNDA nela, e por isso o
+   Bootstrap ainda puxa cada aba 1px pra baixo (`margin-bottom: -1px`). Com as
+   cinco viradas caixa fechada, essa linha passa cortando todas e a borda de
+   baixo de cada uma fica 1px fora do lugar. */
+.pdz-abas {
+    border-bottom: 0;
+    /* Coladas, o contorno de uma é o da vizinha e volta o "onde termina esta e
+       começa a outra". É também o vão que o `calc(50% - .25rem)` de duas por
+       linha, ali embaixo, já supunha existir. */
+    gap: .25rem;
+}
+
 .pdz-abas .nav-item { flex: 1 1 auto; }
 
 .pdz-abas .nav-link {
     width: 100%;
     white-space: nowrap;
+    margin-bottom: 0;
+    border: 1px solid var(--pdz-border);
+    border-radius: .5rem;
+}
+
+/* `:focus` junto do `:hover` porque o Bootstrap trata os dois na MESMA regra
+   (`.nav-tabs .nav-link:hover, :focus`) e pinta a borda de cinza: sem isto, a
+   aba que ficou com o foco depois do clique seria a única de cor diferente. */
+.pdz-abas .nav-link:hover,
+.pdz-abas .nav-link:focus {
+    border-color: var(--pdz-lime);
+}
+
+/* A ATIVA: anel lima + superfície. Contornar todas tira justamente o que a
+   distinguia (era a única com cor de borda), e cinco caixas iguais não dizem
+   onde a pessoa está.
+
+   ⚠️ ANEL, E NÃO PREENCHIMENTO LIMA como nas pills — escolha, não esquecimento.
+   Esta barra tem abas que carregam cor PRÓPRIA: "Gerenciar Torneio" é
+   `text-danger` e "Inscreva-se" é verde sobre navy, as duas vencendo (por
+   `!important` e por estilo inline) qualquer cor que a regra da ativa
+   escrevesse. Vermelho sobre lima não se lê. */
+.pdz-abas .nav-link.active {
+    background-color: var(--pdz-surface-alt);
+    border-color: var(--pdz-lime);
 }
 
 @media (max-width: 430px) {

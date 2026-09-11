@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
+>
+> 🕳️ **É A MESMA QUEIXA DE 08/08/2026 QUE CRIOU A BORDA DAS `.pdz-pills`** — as pills de dentro (Ao Vivo/Agendadas/Finalizadas) foram atendidas e a barra de CIMA ficou como o Bootstrap a desenha: `.nav-tabs .nav-link { border: 1px solid transparent }`, com cor de borda **só na ativa**. Por isso, no print, "Jogos" era a única que parecia botão e Inscritos, Chaves e Grupos, Times e Palpiteiros eram texto solto.
+>
+> ⚠️ **A ATIVA É ANEL LIMA, E NÃO PREENCHIMENTO LIMA COMO NAS PILLS — escolha, não esquecimento.** Esta barra tem abas com cor PRÓPRIA: "Gerenciar Torneio" é `text-danger` (`!important`) e "Inscreva-se" é verde sobre navy (inline). As duas vencem qualquer `color` que a regra da ativa escrevesse, e vermelho sobre lima não se lê. Fica anel lima + fundo `--pdz-surface-alt`, que não disputa cor com ninguém.
+>
+> ⚠️ **A LINHA DA `nav-tabs` SAIU JUNTO** (`border-bottom: 0`) **e o `margin-bottom: -1px` do Bootstrap foi zerado**: aquele desenho existe pra aba de MEIA caixa se fundir na linha. Com as cinco viradas caixa fechada, a linha passaria cortando todas. Tem teste, com o motivo escrito.
+>
+> 🧪 **6.434 testes, 0 falhas (4 novos, em `ContornoDasAbasDoTorneioTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-abas`"*, *"Não achei a regra `.pdz-abas .nav-link.active`"* e no `border:` da regra existente, que só tinha `width` e `white-space`.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas a 430px e a 900px**: cinco caixas contornadas, ativa com anel lima, "Gerenciar Torneio" vermelho e "Inscreva-se" verde legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS, não o Razor.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
 >
 > 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
 >
