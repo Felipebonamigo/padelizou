@@ -829,7 +829,7 @@ namespace Padelizou.Controllers
 
             // As vagas que ESTA categoria tem, pelas colocações que classificam — é contra isso que
             // o desenho é conferido. Vem dos grupos, não dos jogos: o mata-mata ainda não existe.
-            int passam = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+            int passam = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
             var vagas = categoria.GruposTorneio
                 .OrderBy(g => g.Nome)
                 .SelectMany(g => Enumerable.Range(1, passam)
@@ -1915,7 +1915,7 @@ namespace Padelizou.Controllers
                     grupos += gruposDeTimes;
                     jogosDeGrupo += CategoriaDeTimes.JogosDeGrupo(times, gruposDeTimes);
                     jogosDeMataMata += CategoriaDeTimes.JogosDeMataMata(
-                        gruposDeTimes, categoria.ClassificadosPorGrupo ?? 2);
+                        gruposDeTimes, ClassificacaoDeGrupos.VagasPorGrupo(categoria));
                     continue;
                 }
 

@@ -93,9 +93,9 @@ public class RoboDoChaveamento
 
         var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
 
-        // Quantos passam de cada grupo: 2 é a regra de sempre; a categoria de TIMES usa o
-        // número que o organizador definiu ao criá-la.
-        int classificamPorGrupo = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+        // Quantos passam de cada grupo — régua única em ClassificacaoDeGrupos.VagasPorGrupo:
+        // 2 é a regra de sempre, e a categoria de TIMES usa o número que o organizador definiu.
+        int classificamPorGrupo = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
 
         // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
         //    — a mesma que a tela de classificação e a detecção de bye usam.
@@ -151,7 +151,9 @@ public class RoboDoChaveamento
         Categoria categoria, int? torneioId, CruzamentoDoMataMata.Mapa desenho,
         List<Partida> partidasDeGrupo)
     {
-        int classificamPorGrupo = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+        // A régua única de quantas vagas cada grupo dá (ClassificacaoDeGrupos.VagasPorGrupo) —
+        // o `?? 2` na mão tem gate mecânico desde 11/09/2026.
+        int classificamPorGrupo = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
         var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
 
         // O desenho serve pra ESTA categoria? A conferência é sobre o conjunto de vagas

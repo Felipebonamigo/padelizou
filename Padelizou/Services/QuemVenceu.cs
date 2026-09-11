@@ -51,6 +51,21 @@ public static class QuemVenceu
     public static int? Lado(int? sets1, int? sets2, int? games1, int? games2) =>
         LadoPorSets(sets1, sets2) ?? LadoPorGames(games1, games2);
 
+    // ── Quem venceu um jogo que AINDA ESTÁ EM QUADRA ───────────────────────────────────
+    //
+    // A pergunta do card AO VIVO (11/09/2026, Felipe num print de um 8 x 6 em quadra: "pq q
+    // esse aqui ta o numero verde se o jogo n terminou?"). Ali o placar muda a cada game, e
+    // "está na frente" não é "venceu": num jogo até 9, o 8 x 6 ainda tem jogo; num jogo até 4,
+    // o 3 x 3 estende pra 5; numa soma de 7, o 6 x 0 tem um game pra jogar.
+    //
+    // ⚠️ Não é uma terceira conta — é a composição das duas que já existem. O formato diz se o
+    // jogo está DECIDIDO (FormatoDaPartida.PodeEncerrar) e o `Lado` acima diz a favor de quem.
+    // Escrever aqui um `games1 >= 9` seria o `limiteGames: 9` cravado voltando por outra porta.
+    public static int? LadoJaDecidido(FormatoDaPartida.Formato formato, int? sets1, int? sets2, int? games1, int? games2) =>
+        FormatoDaPartida.PodeEncerrar(formato, games1 ?? 0, games2 ?? 0)
+            ? Lado(sets1, sets2, games1, games2)
+            : null;
+
     private static int? LadoPorSets(int? sets1, int? sets2)
     {
         int s1 = sets1 ?? 0, s2 = sets2 ?? 0;

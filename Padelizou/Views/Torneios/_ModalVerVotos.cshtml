@@ -15,12 +15,28 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3">
+                    @* ⚠️ O CABEÇALHO DE CADA DUPLA É UM BOTÃO QUE DOBRA AQUELE LADO (11/09/2026 —
+                       🗣️ Felipe: *"permita minimizar pela 'dupla' apostada tambem"*). Com 15 nomes de
+                       um lado, ver a outra dupla exigia rolar a lista inteira.
+                       ⚠️ `<button>` e não `<p onclick>`: recolher é ação, e ação sem botão não chega
+                       pra quem navega por teclado nem pro leitor de tela. O `aria-expanded` é quem
+                       conta o estado — pra ele e pro CSS que gira a seta. *@
                     <div class="col-12 col-sm-6">
-                        <p class="fw-bold small mb-2" id="modalVerVotosNome1"></p>
+                        <button type="button" class="pdz-votantes-dupla fw-bold small mb-2"
+                                aria-expanded="true" aria-controls="modalVerVotosLista1"
+                                onclick="alternarVotantes(this, 'modalVerVotosLista1')">
+                            <i class="bi bi-caret-down-fill pdz-votantes-seta"></i>
+                            <span id="modalVerVotosNome1"></span>
+                        </button>
                         <div id="modalVerVotosLista1"></div>
                     </div>
                     <div class="col-12 col-sm-6">
-                        <p class="fw-bold small mb-2" id="modalVerVotosNome2"></p>
+                        <button type="button" class="pdz-votantes-dupla fw-bold small mb-2"
+                                aria-expanded="true" aria-controls="modalVerVotosLista2"
+                                onclick="alternarVotantes(this, 'modalVerVotosLista2')">
+                            <i class="bi bi-caret-down-fill pdz-votantes-seta"></i>
+                            <span id="modalVerVotosNome2"></span>
+                        </button>
                         <div id="modalVerVotosLista2"></div>
                     </div>
                 </div>

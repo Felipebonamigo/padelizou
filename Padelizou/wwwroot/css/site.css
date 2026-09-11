@@ -940,7 +940,10 @@ a:hover { color: var(--pdz-lime-600); }
     border-radius: 6px;
     background: rgba(255, 255, 255, .12);
 }
-.pdz-live-placar-ganhando { color: var(--pdz-lime); }
+/* O lime é de QUEM VENCEU o jogo — nunca de quem está só na frente (11/09/2026). O card
+   finalizado usa esta mesma cor pra dizer "venceu"; pintar a vantagem de um jogo em quadra
+   com ela fazia a tela anunciar um fim que não aconteceu. */
+.pdz-live-placar-venceu { color: var(--pdz-lime); }
 .pdz-live-editar {
     color: rgba(255,255,255,.65);
     font-size: .78rem;
@@ -1940,6 +1943,13 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-chave-quadra { margin-left: auto; font-weight: 700; }
 .pdz-chave-aovivo { color: #d9534f; font-weight: 700; }
 
+/* O TERCEIRO ESTADO do card (Felipe, 11/09/2026: "o que estiver finalizado deixe um circulo
+   parecido com o do aovivo, só que outra cor"). Verde de sinal, e NÃO o lime da marca: o lime
+   sobre o card claro tem contraste de 1,8:1 — ilegível em corpo .62rem —, e ele já é a cor de
+   quem VENCEU (.pdz-chave-venceu), na linha logo abaixo. Fixo nos dois temas pelo mesmo motivo
+   do vermelho do ao vivo, e medido na mesma faixa dele (3,2:1 no claro, 4,0:1 no escuro). */
+.pdz-chave-encerrado { color: #2e9e5b; font-weight: 700; }
+
 .pdz-chave-num {
     display: inline-flex;
     align-items: center;
@@ -2067,6 +2077,24 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-grupo-jogo-aovivo {
     border-color: #d9534f;
     box-shadow: 0 0 0 2px rgba(217, 83, 79, .15);
+}
+
+/* O CARD INTEIRO É O ALVO DO TOQUE, e não só a bolinha "AO VIVO": no celular a linha do
+   "quando" tem 10px de altura, e mirar nela é o tipo de alvo que se erra três vezes antes de
+   acertar. O elemento é sempre <a> (ver Details.cshtml) — sem href ele não é link nenhum, daí
+   o `[href]` nas regras que acendem. */
+a.pdz-grupo-jogo {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.pdz-grupo-jogo[href] { cursor: pointer; }
+
+a.pdz-grupo-jogo[href]:hover,
+a.pdz-grupo-jogo[href]:focus-visible {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 3px rgba(217, 83, 79, .35);
 }
 
 .pdz-grupo-jogo-quando {
@@ -2608,8 +2636,19 @@ button, a, input, select { touch-action: manipulation; }
     height: .85rem;
     border-radius: 50%;
     overflow: hidden;
-    background: radial-gradient(circle at 32% 30%, #f4ff8a 0%, #d8e94a 45%, #b6c92f 100%);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, .18) inset, 0 0 6px rgba(216, 233, 74, .55);
+    /* ⚠️ FELTRO, NÃO LED (🗣️ Felipe, 11/09/2026: "achei a bolinha um verde muito brilhante" e
+       "só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel").
+       A primeira versão tinha um ponto especular forte e um halo de 6px em volta — junto, isso
+       lê como luzinha acesa, não como bola. Bola de padel é FOSCA: o que dá o volume dela é a
+       sombra de contato embaixo-à-direita, não o reflexo.
+
+       São duas camadas: a sombra por cima (primeiro `radial-gradient`) e o feltro por baixo. O
+       halo sobrou em 2px só pra bola não sumir no navy do card — o amarelo optic continua o
+       mesmo, que é o que deixa ela achável de relance no meio do jogo. */
+    background:
+        radial-gradient(circle at 70% 76%, rgba(70, 74, 12, .42) 0%, rgba(70, 74, 12, 0) 58%),
+        radial-gradient(circle at 38% 32%, #ecf094 0%, #dde055 44%, #c6cb3e 78%, #a3a831 100%);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .26) inset, 0 0 2px rgba(205, 209, 70, .22);
     vertical-align: middle;
 }
 
@@ -2628,7 +2667,7 @@ button, a, input, select { touch-action: manipulation; }
     top: -30%;
     bottom: -30%;
     width: 100%;
-    border: 1.5px solid rgba(255, 255, 255, .82);
+    border: 1.5px solid rgba(250, 250, 236, .9);
     border-radius: 50%;
 }
 
@@ -2852,26 +2891,35 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-live-input {
     width: 2.2em;
     text-align: center;
-    background: var(--pdz-surface);
+
+    /* ⚠️ FUNDO ESCURO FIXO, e não `var(--pdz-surface)` (11/09/2026). O cabeçalho do card é
+       escuro NOS DOIS TEMAS (gradiente navy em .pdz-live-header), mas este campo pegava o
+       token que SEGUE o tema da página — `#ffffff` no claro — com a tinta cravada em `#fff`
+       logo abaixo. No tema escuro os dois combinavam por coincidência; no CLARO era branco no
+       branco, e o placar simplesmente não aparecia (medido no navegador: `rgb(255,255,255)`
+       sobre `rgb(255,255,255)`). Quem mora num fundo fixo se pinta com cor fixa. */
+    background: var(--pdz-navy-fixed);
 
     /* ⚠️ `color: inherit` NÃO SERVE AQUI, e era o motivo de o placar ficar ruim de ler
        (Felipe, 21/08/2026). O pai (.pdz-live-placar) é branco a 55% de opacidade — cinza de
        propósito, porque LÁ o número é decoração ao lado dos nomes. Dentro da caixinha ele
        deixa de ser decoração: é o número que o organizador lê de pé, no balcão, com a quadra
        rolando, e é o que ele vai editar. Herdar os 55% apagava justamente o que precisa ser
-       lido. O verde de quem está ganhando continua vindo do pai, pela regra logo abaixo. */
+       lido. O verde de quem VENCEU continua vindo do pai, pela regra logo abaixo. */
     color: #fff;
 
     font-size: 1.9rem;
     font-weight: 800;
     line-height: 1.1;
-    border: 1px solid var(--pdz-border);
+    /* A borda acompanha o fundo: `var(--pdz-border)` é tinta escura a 9% no tema claro, que
+       sobre o card escuro não desenha caixa nenhuma. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 8px;
     padding: .05em .15em;
 }
 
-/* Quem está ganhando continua verde — agora com a cor CHEIA, não a 55% do pai. */
-.pdz-live-placar-ganhando .pdz-live-input { color: var(--pdz-lime); }
+/* Quem venceu continua verde — agora com a cor CHEIA, não a 55% do pai. */
+.pdz-live-placar-venceu .pdz-live-input { color: var(--pdz-lime); }
 
 .pdz-live-input:focus {
     outline: 2px solid var(--pdz-accent, #a3e635);
@@ -2896,10 +2944,13 @@ button, a, input, select { touch-action: manipulation; }
     width: 2.1rem;
     height: 2.1rem;
     flex: 0 0 auto;
-    border: 1px solid var(--pdz-border);
+    /* Mesmo motivo do campo ao lado (11/09/2026): estes botões moram no cabeçalho ESCURO do
+       card, que é escuro nos dois temas. Com os tokens que seguem o tema eles viravam dois
+       botões BRANCOS num card escuro — o contrário do defeito do campo, e a mesma causa. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 10px;
-    background: var(--pdz-surface);
-    color: var(--pdz-ink);
+    background: var(--pdz-navy-fixed);
+    color: #fff;
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1;
@@ -3284,6 +3335,50 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-ver-votos:focus .pdz-consenso-placar {
     color: var(--padel-green);
     text-decoration: underline;
+}
+
+/* ── MODAL NO APP INSTALADO: o X não pode ficar debaixo do relógio ──────────────────
+   🗣️ Felipe, 11/09/2026, num print do iPhone com o modal "Quem palpitou o quê" aberto:
+   *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*.
+
+   O `_Layout` pede `viewport-fit=cover` — instalado, o app usa a tela INTEIRA, inclusive
+   atrás do relógio e da bateria. O corpo da página já paga essa conta (ver as regras de
+   `env(safe-area-inset-*)` lá em cima), mas o `.modal` é `position: fixed` e não herda nada
+   disso: com a lista longa o diálogo encosta no topo do aparelho e o botão de fechar vai
+   parar debaixo da barra de status, onde o toque não chega.
+
+   ⚠️ Aqui, e não no `.modal-dialog`: com `box-sizing: border-box` o `padding` do `.modal`
+   encolhe a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a
+   lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura,
+   e o fim da lista sairia por baixo.
+
+   ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de
+   rolagem) e não encosta no topo/rodapé — por isso estes dois não brigam com ele. */
+.modal {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* O cabeçalho de cada dupla no modal é um BOTÃO que dobra aquele lado — parece texto até o
+   hover, como o "N voto(s)" do palpitrômetro. */
+.pdz-votantes-dupla {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+}
+
+.pdz-votantes-seta {
+    transition: transform .15s ease;
+    display: inline-block;
+}
+
+.pdz-votantes-dupla[aria-expanded="false"] .pdz-votantes-seta {
+    transform: rotate(-90deg);
 }
 
 /* ── Capa do torneio no card: INTEIRA, nunca cortada ─────────────────────────────

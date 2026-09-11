@@ -1,0 +1,39 @@
+@model Padelizou.Models.Partida
+
+@* UM JOGO NA TELA DE CHECK-IN: a etiqueta da categoria/fase e as duas duplas, cada uma com o
+   seu botão. É o mesmo cartão na fila de cima (o que ainda não começou) e no bloco fechado do
+   fim (o que já começou ou acabou) — daí ele viver num parcial.
+
+   ⚠️ O SELO SAI DO STATUS, e é a única coisa que muda entre os dois lugares. Escrever dois
+   cartões parecidos pra isso é como as duas telas passam a divergir na primeira mudança. *@
+
+@if (Model == null) { return; }
+
+@{
+    bool osDoisChegaram = Model.Dupla1?.CheckInEm != null && Model.Dupla2?.CheckInEm != null;
+    bool jaComecou = Model.Status != "Agendada";
+}
+
+<div class="card border-0 shadow-sm mb-2 @(osDoisChegaram || jaComecou ? "opacity-50" : "")">
+    <div class="card-body p-2">
+        <div class="small text-muted mb-1 d-flex flex-wrap align-items-center gap-2">
+            <span class="text-truncate">@Model.Categoria?.Nome · @Model.Fase</span>
+            @if (Model.Status == "AoVivo")
+            {
+                <span class="badge rounded-pill bg-danger"><i class="bi bi-broadcast"></i> no ar</span>
+            }
+            else if (Model.Status == "Finalizada")
+            {
+                <span class="badge rounded-pill bg-secondary">jogo encerrado</span>
+            }
+            else if (osDoisChegaram)
+            {
+                <span class="badge rounded-pill bg-success">os dois chegaram</span>
+            }
+        </div>
+        <div class="list-group list-group-flush">
+            <partial name="_LinhaDoCheckIn" model="Model.Dupla1" />
+            <partial name="_LinhaDoCheckIn" model="Model.Dupla2" />
+        </div>
+    </div>
+</div>

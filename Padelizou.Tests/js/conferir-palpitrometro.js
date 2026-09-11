@@ -116,9 +116,18 @@ function telaDoModal() {
                       'modalVerVotosLista1', 'modalVerVotosLista2']) {
         els[id] = elemento();
     }
+    // Os cabeçalhos que dobram cada dupla (11/09/2026): o `verVotos` reabre os dois a cada
+    // abertura, porque o modal é UM só, reusado por todos os jogos da lista.
+    const cabecalhos = [elemento(), elemento()].map(e => ({
+        ...e, atributos: {}, setAttribute(nome, valor) { this.atributos[nome] = valor; },
+    }));
     return {
         els,
-        document: { getElementById: id => els[id] || null },
+        cabecalhos,
+        document: {
+            getElementById: id => els[id] || null,
+            querySelectorAll: sel => (sel === '.pdz-votantes-dupla' ? cabecalhos : []),
+        },
         bootstrap: { Modal: { getOrCreateInstance: () => ({ show() { } }) } },
     };
 }
@@ -287,6 +296,27 @@ function confere(nome, condicao, detalhe) {
                 tela.els['modalVerVotosLista1'].innerHTML.includes('Ana Pasinato')
                 && tela.els['modalVerVotosNome1'].innerText === 'Dupla A · 1',
                 `lista="${tela.els['modalVerVotosLista1'].innerHTML}", titulo="${tela.els['modalVerVotosNome1'].innerText}"`);
+    }
+
+    // 7. O MODAL É UM SÓ, reusado por todos os jogos: abrir de novo desdobra os dois lados.
+    //    ⚠️ Sem isso, um lado dobrado num jogo continuaria dobrado no próximo, escondendo gente
+    //    que ninguém mandou esconder — e o cabeçalho diria "aberto" com a lista sumida.
+    {
+        const tela = telaDoModal();
+        const js = carregar(async () => ({
+            ok: true,
+            json: async () => ({ votantesDupla1: [], votantesDupla2: [] }),
+        }), tela);
+
+        tela.els.modalVerVotosLista1.hidden = true;                  // alguém dobrou no jogo anterior
+        tela.cabecalhos[0].setAttribute('aria-expanded', 'false');
+
+        await js.verVotos(7, 'Dupla A', 'Dupla B');
+
+        confere('reabrir o modal desdobra os dois lados',
+                tela.els.modalVerVotosLista1.hidden === false
+                && tela.cabecalhos.every(c => c.atributos['aria-expanded'] === 'true'),
+                `lista1.hidden=${tela.els.modalVerVotosLista1.hidden}`);
     }
 
     console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);
