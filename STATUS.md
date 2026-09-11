@@ -1,7 +1,25 @@
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 📤 **O "COMPARTILHAR ESTA LISTA" GANHOU AS TRÊS COISAS QUE O FELIPE PEDIU DEPOIS DE USAR.** 🗣️ *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"* · *"crie tambem uma opção de importar planilha se quiserem"* · *"tente fazer com que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
+>
+> 1️⃣ **UMA LINHA EM BRANCO ENTRE CADA JOGO NO TEXTO.** Doze jogos eram 24 linhas coladas no grupo, e achar o seu exigia contar de dois em dois. A linha vem **ANTES** de cada jogo, e não depois — é o que garante que ela nunca dobre com a do cabeçalho do dia nem com a do link do fim. O teste escreve **a mensagem inteira** em vez de um punhado de `Contains`: a forma do texto É o recurso, e é uma linha em branco a mais ou a menos que a quebra.
+>
+> 2️⃣ **A PLANILHA (`/Torneios/JogosPlanilha`)**: a mesma lista em colunas — Data, Hora, Categoria, Fase, Local, Dupla 1, Dupla 2, Situação. ⚠️ **Entendi "importar planilha" como o lado de QUEM ABRE** (o organizador leva a grade pro Excel dele), e não como subir uma planilha pra criar jogos — esse seria outro recurso, `architectural`, e está anotado abaixo. ⚠️ **CSV e não XLSX: é o degrau 3 da escada** — abre no Excel, no Google Sheets e no Numbers sem UMA dependência nova (ClosedXML entraria no publish e no backup pra entregar o mesmo conteúdo com negrito). **BOM + `;` + CRLF**, os três por motivo: sem BOM o Excel lê "6ª" como "6Âª"; com vírgula a planilha inteira cai numa coluna só no Windows em português. ⚠️ **A planilha NÃO depende da Poppins** — a arte se desliga sem a fonte, e amarrar as três saídas ao mesmo `if` tiraria as colunas por um motivo que só vale pro desenho.
+>
+> 3️⃣ **A ARTE PASSOU DE 8 PRA 14 JOGOS, e o espaço saiu do CABEÇALHO.** Ele gastava 600 dos 1350px em logo grande + "JOGOS" em corpo 96 + pílula do dia + recorte — quatro blocos pra dizer duas coisas. Agora **o título É o dia** ("SEX 11/09", que é a pergunta de quem vê o story) e o recorte vem embaixo numa linha lime: 260px no lugar de 600, e a lista ficou com os outros 340. ⚠️ **A pílula lime saiu** — é a única peça da família que este card não tem; o dia em corpo 76 dentro dela viraria a faixa de 120px que o pedido manda devolver pra lista.
+>
+> 👁️ **E DE NOVO FOI OLHAR A ARTE QUE PEGOU O DEFEITO** (a quarta vez que este arquivo registra isso): com a faixa maior e o teto de linha antigo, **três jogos viravam três frases perdidas no meio de um card vazio** — o defeito do pódio da panelinha, de volta por outra porta. O teto da altura da linha subiu pra 160 e o corpo acompanha (20 a 40): lista curta sai com linhas GRANDES, lista cheia cai pros 56px da conta. Um segundo tropeço foi meu, no DADO do teste: 14 jogos de 40 em 40 minutos a partir das 18h **atravessam a meia-noite**, viram dois dias e a arte "de 14" saiu com 9.
+>
+> 🧪 **6.448 testes, 0 falhas (12 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'PlanilhaDaLista' does not exist"*, *"'TorneiosController' does not contain a definition for 'JogosPlanilha'"* e o texto sem as linhas em branco.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`): a tela abre com as três saídas, o texto vem com o respiro, e o **clique no "Baixar em planilha" baixou `jogos-torneio-dos-amigos-2026.csv` de verdade** — conferido byte a byte (BOM `EF BB BF`, `;`, CRLF, acento certo).
+>
+> 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
+
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
 >
 > 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
 >
