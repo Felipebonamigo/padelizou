@@ -17,6 +17,64 @@
 >
 > 🧪 **6.514 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
 
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **O NÚMERO DE VAGAS POR GRUPO VIROU RÉGUA ÚNICA, E A TELA DE CLASSIFICAÇÃO PAROU DE MENTIR.** 🗣️ Felipe, depois de eu reportar a divergência: *"sim, alinha a outra tela também"*.
+>
+> 🕳️ **NÃO ERA LATENTE: ERA DEFEITO NO AR EM CATEGORIA DE TIMES.** A tela `/Torneios/Classificacao` lia `torneio.ClassificadosPorGrupo` (nasce 2, nenhuma tela edita) e o `AvancoDaChave` — quem monta o mata-mata de verdade — lê o da CATEGORIA. Numa categoria de times, onde o organizador escolhe **de 1 a 4 por grupo** em `Times.cshtml`, isso quebrava duas coisas de uma vez: o **verde da tabela** (`posicao <= N`) marcava 2 linhas quando 4 passavam — **o time em 3º lia que estava fora de uma vaga que ia receber** — e o painel "o que cada um precisa" simulava o corte errado.
+>
+> ⚠️ **A CAUSA RAIZ NÃO ERA A TELA: ERA O NÚMERO NÃO TER CASA.** `Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)` estava escrito à mão em **dez lugares** — `AvancoDaChave`, `RoboDoChaveamento`, três pontos dos controllers e quatro views —, e nas views **sem** o `Math.Max(1, …)`. Consertar só a cópia que divergiu seria consertar o sintoma: a décima primeira cópia era questão de tempo.
+>
+> ♻️ **`ClassificacaoDeGrupos.VagasPorGrupo(Categoria?)`** — a régua do NÚMERO, ao lado do `Ordenar`, que é a régua da ORDEM. As duas metades da mesma pergunta no mesmo arquivo. Os dez lugares passaram a chamá-la; oito eram idênticos (refatoração pura) e as duas views de exibição **ganharam** o piso de 1 vaga que não tinham.
+>
+> 🚪 **E TEM GATE MECÂNICO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `O_numero_de_vagas_so_e_escrito_na_regua` varre todo `.cs` e `.cshtml` do projeto (fora Migrations) e quebra se o `?? 2` reaparecer na mão. Regra que depende de lembrança volta; esta não tem como.
+>
+> ⚠️ **`Torneio.ClassificadosPorGrupo` AGORA NÃO É LIDO POR NINGUÉM** — só a `DuplicacaoDeTorneio` ainda o copia. A coluna FICA (dropar pede migration, que é `architectural`), com o porquê escrito no próprio campo. **Decisão do Felipe pendente**: virar o padrão do torneio (dentro da régua) ou sair numa migration. ⚠️ Se virar padrão, **muda a CHAVE** de todo torneio cuja coluna não seja 2.
+>
+> ⚠️ **ALINHAR FOI A TELA → CHAVEAMENTO, e não o contrário** — por isso o fallback é `?? 2` e não o campo do torneio: pôr o do torneio de padrão mudaria o mata-mata de torneios que já existem, o oposto do que foi pedido.
+>
+> 🧪 **6.456 testes, 0 falhas (7 novos, em `VagasPorGrupoSaoUmaReguaSoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"'ClassificacaoDeGrupos' does not contain a definition for 'VagasPorGrupo'"*, no `RegraClassificados` **2 onde tinha que ser 3**, no painel simulando com 2 vagas, e o gate listando os dez arquivos com a cópia na mão.
+>
+> ⚠️ **Sem migration. Nada visto em tela** — o que se provou é o número que o controller entrega, não o verde desenhado.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **"O QUE CADA UM PRECISA PARA PASSAR" CHEGOU AO CARD DO GRUPO, EM POP-UP.** 🗣️ Felipe, num print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o grupo de 3, ja tiveram 2 jogos e falta um, exiba botão 'O que cada um precisa para passar' e nele abre um pop up, explicando qual placar cada um precisa fazer para passar, por que as vezes cada dupla ganha um jogo ou enfim, e fica a duvida de quantos games precisa fazer para passar de fase"*.
+>
+> ♻️ **O MOTOR JÁ EXISTIA — e é o MESMO pedido, de 13/08/2026.** `Services/OQuePrecisaParaClassificar` simula todo placar possível do jogo que falta e pergunta à régua oficial (`ClassificacaoDeGrupos`, a que monta a chave) quem classifica em cada um. Só que vivia na tela `/Torneios/Classificacao` e **não** no card do grupo — que é de onde o print foi tirado. **Nenhuma matemática nova**: o trabalho foi levar o painel pra lá.
+>
+> 🆕 **O QUE FALTAVA PRO PEDIDO SER ATENDIDO DE FRENTE: A LINHA DE CADA DUPLA.** A tabela de cenários responde de lado (ache seu nome nas linhas e deduza). No Grupo B do print: **Eder/Augusto — "Já classificado"**; **Marcelo/Enio — "Passa vencendo ou se Paulo vencer por até 4 games"**; **Paulo/Arthur — "Passa vencendo por 5 games ou mais"**.
+>
+> ⚠️ **É 5, E NÃO 4 — e é exatamente por isso que o pedido existe.** Vencendo por 4 (9x5) o Paulo empata o saldo com o Marcelo em **−1**, e o 3º critério, games a favor, fica com o Marcelo: **14 a 13**. Ninguém faz essa conta de cabeça na beira da quadra.
+>
+> ♻️ **UMA PARCIAL SÓ (`_OQuePrecisaParaClassificar`) PRAS DUAS TELAS**, e o nome CURTO da dupla saiu da view pro serviço — a regra vivia copiada na Classificação, onde podia divergir da frase ao lado dela na mesma linha da tabela. A Classificação continua abrindo NO LUGAR (collapse) e o card abre em pop-up: **quem embrulha é quem chama**. O rótulo do botão virou um só, o do Felipe.
+>
+> ⚠️ **QUANTOS PASSAM SAI DE `categoria.ClassificadosPorGrupo ?? 2`** — o MESMO número do `AvancoDaChave`, que monta o mata-mata de verdade. A trava é `[Theory]` com 1 e 2 vagas, e precisa ser: `torneio.ClassificadosPorGrupo` nasce 2 e nenhuma tela o edita, então um painel que lesse o do TORNEIO passaria calado num teste só de duas vagas.
+>
+> 🕳️ **O MODAL NÃO PODE NASCER DENTRO DO CARD, e isso custou um SEGUNDO laço no Razor.** `site.css:712` dá `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do grupo é exatamente isso — ancestral com `transform` vira bloco de contenção do `position: fixed`. **Medido no Chromium**: dentro do card o pop-up virou **294x452 dentro de um card de 296px**; fora dele cobre a viewport inteira mesmo com o card sob o mouse.
+>
+> 🧪 **6.449 testes, 0 falhas (13 novos, em `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"The type name 'Situacao' does not exist"*, no `ViewBag.OQuePrecisaPorGrupo` nulo e nas três buscas de marcação. **Duas travas falsificadas**: trocar o campo das vagas pelo do torneio derruba o caso de 1 vaga, e juntar os dois laços do Razor derruba a conta de laços.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas, a 430px e a 1100px**: pop-up centrado, sem rolagem horizontal, as três linhas de dupla legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS e o `position: fixed`, não o Razor.
+>
+> ⚠️ **DIVERGÊNCIA ANOTADA E NÃO CONSERTADA — ✅ CONSERTADA NO BLOCO ACIMA, no mesmo dia** (e era pior do que eu disse aqui: em categoria de TIMES já estava no ar). A tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
+>
+> 🕳️ **NA PRIMEIRA VERSÃO ELES SUMIAM DA TELA INTEIRA** (a consulta filtrava `Status == "Agendada"`), e isso tinha um custo que só aparece operando: quem põe o jogo no ar **antes** de marcar a chegada perde o caminho pro check-in daquela dupla — ela só volta pela lista de 64. Agora o jogo que começou ou acabou tem endereço: o bloco **"Já jogaram ou estão em jogo (N)"**, fechado, no fim da tela, com o mesmo botão dentro.
+>
+> ⚠️ **AO VIVO NA FRENTE DO FINALIZADO**, e não uma ordem só: um está acontecendo AGORA e ainda pode precisar de correção, o outro é histórico. Dentro de cada grupo, a ordem é a da aba Jogos — o ao vivo pela largada, o finalizado pelo fim (placar lançado depois cai pro horário previsto).
+>
+> ♻️ **O CARTÃO DO JOGO VIROU PARCIAL** (`_JogoNoCheckIn.cshtml`), porque agora ele é desenhado nos dois blocos. O que muda entre eles é só o SELO, e ele sai do `Status` — escrever dois cartões parecidos pra isso é exatamente como duas telas passam a divergir na primeira mudança. O formulário que grava presença segue num arquivo só (`_LinhaDoCheckIn`), e o teste trava isso nos três lugares onde a linha aparece.
+>
+> 🧪 **6.508 testes, 0 falhas (11 na tela do check-in, 4 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: *"Não achei o bloco de quem já jogou / está em jogo"* e `ViewData["JogosQueJaRolaram"]` nulo. ⚠️ **Dois testes foram derrubados sem querer** ao reescrever o arquivo (a busca por âncora comeu o que havia entre elas) — percebido pela contagem cair de 11 pra 9, e restaurados no mesmo turno.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser aqui. O `dev` é quem mostra.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
 > **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
@@ -536,7 +594,11 @@
 >
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1005-3156b46`** (16h48 e 16h50 de Brasília — runs 192 e 193). PR #165. **Sem migration.**
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e `/Torneios/CheckIn/26` respondendo **302 pro login** nos dois (e não 500) — a rota nova está de pé e fechada pra quem não entrou. O proxy desta sessão, que passou o dia devolvendo 403 pro domínio, voltou a deixar passar; a nota de "não dá pra conferir por fora" **não vale mais pra este deploy**.
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERÊNCIA É A APARÊNCIA.** 302 e 200 dizem que a tela responde, não que ela está certa: o desenho dos blocos por horário, o cartão de cada jogo e o "Resto do torneio" fechado só se conferem abrindo a página logado — e esta sessão não tem navegador.
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >
