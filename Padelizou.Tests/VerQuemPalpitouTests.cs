@@ -213,6 +213,38 @@ public class VerQuemPalpitouTests
     }
 
     [Fact]
+    public void Depois_de_escolher_o_placar_as_FICHAS_se_recolhem()
+    {
+        // 🗣️ Felipe, 11/09/2026, num print do cartão com as 9 fichas ainda abertas depois de ele
+        // ter escolhido o 9x6: *"acho que tambem podemos 'minimizar' os placares depois de
+        // votado, pra nao ficar poluindo a tela"*.
+        //
+        // Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira de fichas que
+        // já cumpriu o papel dela. Fica o resumo — "Seu palpite: 9 x 6 · trocar" —, e as fichas
+        // voltam no clique em "trocar", sem passar pelo servidor.
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        {
+            var fonte = Ler("Views", "Torneios", arquivo);
+
+            Assert.Contains("pdz-palpite-placar-resumo", fonte);
+            Assert.Contains("pdz-palpite-fichas", fonte);
+            Assert.Contains("trocarPlacar(", fonte);
+
+            // ⚠️ Quem decide qual dos dois nasce aberto é o DADO (já palpitei placar?), e não o
+            // JS depois de carregar: sem isso a tela pisca a fileira inteira em cada F5.
+            Assert.Contains("PalpiteiOPlacar", fonte);
+
+            // ⚠️ E o resumo NÃO pode levar a classe `d-flex` (visto no navegador, 11/09/2026):
+            // as utilitárias do Bootstrap são `!important`, então `.d-flex` ganha do
+            // `style.display = 'none'` que o JS escreve — o resumo ficava na tela ao lado das
+            // fichas reabertas, e nenhum teste de comportamento pega isso.
+            var inicio = fonte.IndexOf("pdz-palpite-placar-resumo", StringComparison.Ordinal);
+            var tag = fonte[inicio..fonte.IndexOf('>', inicio)];
+            Assert.DoesNotContain("d-flex", tag);
+        }
+    }
+
+    [Fact]
     public void O_modal_desenha_o_placar_de_cada_votante()
     {
         var js = Ler("wwwroot", "js", "palpitrometro.js");

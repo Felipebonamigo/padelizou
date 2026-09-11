@@ -446,18 +446,38 @@
         @if (podeVotar && r != null && r.PlacaresDoFormato.Count > 0)
         {
             <div class="pdz-palpite-placar mt-1" style="display: @(r.MeuVotoDuplaId != null ? "block" : "none");">
-                <div class="small text-muted mb-1">
-                    E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                @* ⚠️ DEPOIS DE ESCOLHER, AS FICHAS SE RECOLHEM (11/09/2026). 🗣️ Felipe, num print do
+                   cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem
+                   podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*.
+                   Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já
+                   cumpriu o papel dela.
+                   ⚠️ Quem decide qual dos dois nasce aberto é o DADO (`PalpiteiOPlacar`), e não o JS
+                   depois de carregar: senão a tela piscaria a fileira inteira a cada F5. *@
+@* ⚠️ SEM `d-flex` (visto no navegador, 11/09/2026): as utilitárias do Bootstrap são
+                   `!important`, e `.d-flex` ganha do `style.display = 'none'` que o JS escreve — o
+                   resumo ficava na tela ao lado das fichas reabertas. O `flex` vem do próprio
+                   `style`, que é o mesmo lugar de onde ele some. *@
+                <div class="pdz-palpite-placar-resumo small text-muted align-items-center gap-2"
+                     style="display: @(r.PalpiteiOPlacar ? "flex" : "none");">
+                    <span>Seu palpite: <strong class="pdz-resumo-placar">@meuVencedor x @meuPerdedor</strong></span>
+                    <button type="button" class="btn btn-link btn-sm p-0 pdz-trocar-placar"
+                            onclick="trocarPlacar(this)">trocar</button>
                 </div>
-                <div class="d-flex flex-wrap gap-1">
-                    @foreach (var placar in r.PlacaresDoFormato)
-                    {
-                        bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
-                        <button type="button"
-                                class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
-                                data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
-                                onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
-                    }
+
+                <div class="pdz-palpite-fichas" style="display: @(r.PalpiteiOPlacar ? "none" : "block");">
+                    <div class="small text-muted mb-1">
+                        E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var placar in r.PlacaresDoFormato)
+                        {
+                            bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                            <button type="button"
+                                    class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                                    data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                                    onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                        }
+                    </div>
                 </div>
             </div>
         }
