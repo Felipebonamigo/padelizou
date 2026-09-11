@@ -150,14 +150,25 @@ public static class ProximasFasesDaChave
         int? categoriaId = null,
         // Quantas duplas tem cada grupo, na MESMA ordem de `grupos`: é o que faz a prévia dar o
         // bye a quem o robô dá (ver ChaveProjetada). Nulo = campanha zerada, como era.
-        IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<int>? duplasPorGrupo = null,
+        // O cruzamento desenhado à mão (Models/Categoria.CruzamentoDoMataMata). Nulo = o motor
+        // decide, como sempre. Passar a prometer o cruzamento DESENHADO é o que impede a prévia
+        // de anunciar um confronto que o robô não vai criar na categoria que tem desenho.
+        string? cruzamentoDesenhado = null,
+        // Quantos jogos da ABERTURA já nasceram de verdade. Desde o avanço parcial dos grupos
+        // (11/09/2026) ela nasce jogo a jogo: os que já existem estão na lista de jogos, com nome
+        // e sobrenome, e a prévia continua prometendo só o que falta — sem repetir nenhum.
+        int jogosJaCriadosNaAbertura = 0)
     {
-        var (fase, confrontos, byes) = ChaveProjetada.Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
+        var (fase, confrontos, byes) = ChaveProjetada.Montar(
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado);
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
+        int jaReais = Math.Clamp(jogosJaCriadosNaAbertura, 0, confrontos.Count);
         var primeira = new RodadaQueVem(fase, confrontos
+            .Skip(jaReais)
             .Select(c => (VagaDeGrupo(c.Lado1), VagaDeGrupo(c.Lado2)))
-            .ToList());
+            .ToList(), jaReais + 1);
 
         var proximos = confrontos
             .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
@@ -167,7 +178,8 @@ public static class ProximasFasesDaChave
             .Concat(byes.Select(VagaDeGrupo))
             .ToList();
 
-        var rodadas = new List<RodadaQueVem> { primeira };
+        var rodadas = new List<RodadaQueVem>();
+        if (primeira.Confrontos.Count > 0) rodadas.Add(primeira);
         rodadas.AddRange(Encadear(proximos));
 
         return new CadeiaDeFases(categoria, fimDosGrupos, rodadas, categoriaId);

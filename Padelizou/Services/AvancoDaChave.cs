@@ -52,20 +52,32 @@ public static class AvancoDaChave
     public static async Task<List<int?>> VagasDaProximaFaseAsync(
         DbPadelContext context, int categoriaId, string faseConcluida)
     {
-        var doMataMata = await context.Partidas
+        var daCategoria = await context.Partidas
             .Where(p => p.CategoriaId == categoriaId)
             .OrderBy(p => p.Id)
             .Select(p => new { p.Id, p.Fase, p.Status, p.VencedorId })
             .ToListAsync();
 
-        var partidasDaFase = doMataMata.Where(p => p.Fase == faseConcluida).ToList();
+        var partidasDaFase = daCategoria.Where(p => p.Fase == faseConcluida).ToList();
         if (partidasDaFase.Count == 0) return new List<int?>();
+
+        // ⚠️ COM A FASE DE GRUPOS ABERTA, A ABERTURA DO MATA-MATA AINDA ESTÁ CRESCENDO.
+        //
+        // Desde o avanço parcial dos grupos (11/09/2026, RoboDoChaveamento.
+        // MontarAberturaDesenhadaAsync) os jogos da primeira rodada nascem grupo a grupo. Contar
+        // vagas aí seria contar meia chave: com 1 dos 2 jogos criados e terminado, a lista teria
+        // UMA vaga, `NomeFase` batizaria isso de "Final" e o torneio ganharia uma decisão com
+        // metade da categoria ainda em quadra. Só a abertura sofre disso — daí a trava valer
+        // exatamente nela.
+        if (daCategoria.Any(p => FasesTorneio.EhFaseDeGrupos(p.Fase) && p.Status != "Finalizada")
+            && faseConcluida == PrimeiraFaseDeMataMata(daCategoria.Select(p => p.Fase)))
+            return new List<int?>();
 
         // ⚠️ O QUADRO JÁ PASSOU DAQUI. Reabrir e finalizar de novo um jogo de uma fase cuja
         // SEGUINTE já acabou não pode remontar a rodada que veio depois: ela pode estar em
         // quadra, ou já ter dado um campeão. A trava olha da fase depois da próxima pra frente
         // — a PRÓXIMA pode existir pela metade, que é justamente o que o avanço parcial faz.
-        var fasesDaCategoria = doMataMata.Select(p => p.Fase).ToHashSet();
+        var fasesDaCategoria = daCategoria.Select(p => p.Fase).ToHashSet();
         var proxima = ChaveamentoMataMata.ProximaFase(faseConcluida);
         for (var seguinte = ChaveamentoMataMata.ProximaFase(proxima);
              seguinte != null;
@@ -192,6 +204,13 @@ public static class AvancoDaChave
         }
         else
         {
+            // ⚠️ FASE DE GRUPOS ABERTA = SEM BYE. A classificação de um grupo em andamento é
+            // provisória (ClassificacaoDeGrupos responde com o que tem), e a abertura da chave
+            // ainda está nascendo grupo a grupo desde 11/09/2026 — a conta `noQuadro − jogos×2`
+            // acusaria como "folgou" todo mundo cujo jogo ainda não foi criado.
+            if (partidas.Any(p => FasesTorneio.EhFaseDeGrupos(p.Fase) && p.Status != "Finalizada"))
+                return new List<int>();
+
             // Pós-grupos: recalcula a classificação com a MESMA régua da geração do mata-mata
             // (Services/ClassificacaoDeGrupos). Os jogos de grupo estão todos finalizados — o
             // mata-mata só nasce depois deles —, então a conta dá sempre o mesmo resultado.

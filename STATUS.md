@@ -1,6 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
+>
+> ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
+>
+> 🕳️ **NÃO OCORRIA, e em dois lugares:** `AvancoDaChave.QuemAvancaAsync` devolvia lista VAZIA se qualquer partida da fase não estivesse finalizada, e `MontarMataMataDosGruposAsync` saía na primeira linha enquanto houvesse um jogo de grupo aberto. Numa categoria de 8 duplas (2 quartas + 2 byes) a dupla que venceu às 10h ficava sem jogo até as 13h — com o adversário dela conhecido desde o sorteio, porque quem a espera FOLGOU a rodada.
+>
+> 1️⃣ **MATA-MATA (vale pra todo torneio).** A lista de vagas agora sai COM BURACO (`VagasDaProximaFaseAsync`, `null` = vaga sem dono) e o robô cria os confrontos cujas DUAS vagas já têm dono. ⚠️ **A geometria entrega menos do que a frase sugere**: `ParearVencedores` cruza a vaga i com a n-1-i, então a Semifinal 1 é *"vencedor da Quartas 1 × última vaga"* — o jogo nasce quando as duas vagas são conhecidas, o que pode ser UMA quarta só quando a outra vaga é um bye (o caso mais comum, porque 3 grupos dão 2 jogos e 2 byes).
+>
+> 2️⃣ **GRUPOS: só com o CRUZAMENTO DESENHADO** (decisão do Felipe entre três saídas). Sem desenho, quem o 1º do Grupo A enfrenta sai da campanha COMPARADA de todos os grupos — enquanto o Grupo D joga não dá pra saber se ele é o melhor ou o pior primeiro colocado, e o jogo criado cedo teria que ser desfeito. Com o desenho a vaga é por COLOCAÇÃO e fica conhecida quando os dois grupos dela fecham. ✅ **O Er não muda: `CruzamentoDoMataMata` é null nele, e null continua sendo o caminho de sempre, letra por letra.**
+>
+> ⚠️ **NASCE EM ORDEM DE QUADRO, e isso é regra, não capricho:** o jogo 2 de uma fase só nasce depois do 1. O número de um jogo dentro da fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave (`OrdemDoQuadro`), a procedência da prévia (*"Vencedor Semifinal 2"*) e a reserva de horário que o organizador fez no jogo previsto. Deixar a Semifinal 2 nascer antes da 1 por ter terminado primeiro faria as três apontarem pro jogo errado. **O preço: quando a metade de baixo da chave fecha primeiro, ela espera a de cima.**
+>
+> 🕳️ **O BYE VIROU RESPOSTA ESTÁVEL, e foi a parte perigosa.** `ByesDaCategoriaAsync` se esgotava sozinha (olhava TODAS as fases, então quando a segunda nascia os byes já tinham jogo). Isso só funcionava com a fase seguinte nascendo INTEIRA: com meia semifinal no ar os byes sumiriam da conta, a lista de vagas cairia de 4 pra 2, `NomeFase(2)` diria "Final" e o robô montaria a decisão por cima de uma semifinal pela metade — **o bug do Interno de 05/08/2026 por outra porta**. Agora ela é ancorada na primeira rodada e não muda mais; quem não quer bye em fase adiantada filtra onde DESENHA (`QuadroDoMataMata` e `ProximasFasesDaChave` só os somam na primeira fase).
+>
+> 🔒 **E DUAS TRAVAS NOVAS, as duas vistas falhando antes de existirem:** (a) com a fase de grupos ABERTA não há bye nem vaga — sem isso o jogo de abertura solitário virava uma segunda fase (o teste pegou: *"the collection contained 2 items"*); (b) a trava de "fase já avançada" saiu da lista de vagas e virou a contagem dos jogos que a fase seguinte JÁ TEM, no robô. O teste do bug do Interno foi reescrito no nível do ROBÔ, que é onde o defeito acontecia — no nível do helper ele media a mecânica antiga.
+>
+> 🖥️ **A TELA PRECISOU ACOMPANHAR, senão o recurso escondia o caminho de quem classificou:** `QuadroDoMataMata` e `ProximasFasesDaChave` passaram a desenhar/projetar fase PELA METADE (sem isso a Semifinal 2 e a Final sumiam), a projeção passou a partir da PRIMEIRA fase em vez da mais adiantada, e categoria com grupos abertos continua sendo projetada por COLOCAÇÃO. 🕳️ De quebra, a prévia da aba de chaves ignorava o cruzamento desenhado (`MontarCompleta` nunca recebeu o campo) — prometia a semeadura do motor numa categoria que tem desenho.
+>
+> ⏰ **O HORÁRIO NÃO MUDOU (decisão do Felipe):** o jogo que nasce cedo entra na grade com o piso de hoje (depois do último jogo da fase anterior da categoria). No "por ordem de liberação" quem chama é o balcão, então na prática ele já pode ser chamado antes; mexer em `LevasDaGrade.PisoDaCategoria` ficou de fora de propósito.
+>
+> 🧪 **6.518 testes, 0 falhas (12 novos, em `AvancoParcialDaChaveTests` e `AvancoParcialDosGruposTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia) e *"The collection contained 2 items"* (a fase seguinte nascia por cima).
+
 > Última atualização: **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:

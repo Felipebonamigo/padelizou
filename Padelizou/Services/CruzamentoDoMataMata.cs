@@ -126,16 +126,40 @@ public static class CruzamentoDoMataMata
     public static (string Fase, List<ChaveamentoMataMata.Confronto> Confrontos, List<int> Byes) Aplicar(
         Mapa mapa, IReadOnlyCollection<ChaveamentoMataMata.Classificado> classificados)
     {
-        int IdDa(Vaga vaga) => classificados
-            .First(c => c.Posicao == vaga.Posicao && SemPrefixo(c.Grupo) == vaga.Grupo).DuplaId;
-
-        int quadro = ChaveamentoMataMata.MenorPotenciaDe2APartirDe(
-            mapa.Confrontos.Count * 2 + mapa.Byes.Count);
+        int IdDa(Vaga vaga) => IdDaVaga(vaga, classificados)!.Value;
 
         return (
-            ChaveamentoMataMata.NomeFase(quadro),
+            NomeDaAbertura(mapa),
             mapa.Confrontos.Select(c => new ChaveamentoMataMata.Confronto(IdDa(c.Lado1), IdDa(c.Lado2))).ToList(),
             mapa.Byes.Select(IdDa).ToList());
+    }
+
+    /// <summary>
+    /// Como se chama a fase de abertura que este desenho produz — pelo tamanho do QUADRO, que é
+    /// a régua de sempre (com bye a fase tem menos jogos do que o nome promete).
+    /// </summary>
+    public static string NomeDaAbertura(Mapa mapa) =>
+        ChaveamentoMataMata.NomeFase(ChaveamentoMataMata.MenorPotenciaDe2APartirDe(
+            mapa.Confrontos.Count * 2 + mapa.Byes.Count));
+
+    /// <summary>
+    /// A dupla que ocupa esta vaga, ou <c>null</c> se ela ainda não tem dono.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ O `null` é o que faz o AVANÇO PARCIAL DOS GRUPOS existir (11/09/2026): o robô chama isto
+    /// com a classificação dos grupos que JÁ FECHARAM, e a vaga de um grupo que ainda está em
+    /// quadra volta vazia. O jogo nasce quando as duas vagas dele respondem — e não quando o
+    /// último grupo da categoria acaba. Quem resolve vaga passa por aqui, e só por aqui: o
+    /// casamento (colocação + grupo, com ou sem o prefixo "Grupo ") escrito em dois lugares é
+    /// a cópia de regra que este projeto já pagou caro pra não ter.
+    /// </remarks>
+    public static int? IdDaVaga(Vaga vaga, IReadOnlyCollection<ChaveamentoMataMata.Classificado> classificados)
+    {
+        foreach (var c in classificados)
+            if (c.Posicao == vaga.Posicao && SemPrefixo(c.Grupo) == vaga.Grupo)
+                return c.DuplaId;
+
+        return null;
     }
 
     /// <summary>

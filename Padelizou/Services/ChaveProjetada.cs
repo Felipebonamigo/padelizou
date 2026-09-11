@@ -91,9 +91,14 @@ public static class ChaveProjetada
     // último — o mesmo AvancoDaChave + ParearVencedores. Duas contas divergiriam no dia em
     // que a regra mudasse, e o mapa prometeria um cruzamento que a chave não faria.
     public static List<RodadaProjetada> MontarCompleta(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
+        // O cruzamento desenhado à mão (Models/Categoria.CruzamentoDoMataMata). Nulo = o motor
+        // decide, como sempre. Sem ele o quadro da aba de chaves desenhava a semeadura do motor
+        // numa categoria que TEM desenho — prometendo um confronto que o sorteio não faria.
+        string? cruzamentoDesenhado = null)
     {
-        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
+        var (fase, primeiraRodada, byes) = Montar(
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado);
         if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
 
         var rodadas = new List<RodadaProjetada>();
