@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1119-d9f3082`** (15h17 e 15h18 de Brasília — runs 241 e 242). PR #211. **Sem migration.**
+>
+> ✅ **Conferido por fora, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e o check-in respondendo **302 pro login** nos dois (`/Torneios/CheckIn/26` em prod, `/34` em dev) — a tela está de pé e fechada pra quem não entrou. ⚠️ O que 200 e 302 **não** dizem é se o desenho está certo: o bloco fechado do fim só se vê abrindo logado.
+>
+> ⚠️ **O `main` andou de novo no meio do caminho** (#190 e #210), e pela terceira vez o conflito foi só no `STATUS.md`. 📌 **O padrão já tem nome:** reconstruir este arquivo a partir do `main` **apaga** qualquer entrada minha que ainda não esteja lá — aconteceu duas vezes com o registro do `build-1005`, e as duas vezes foi preciso reaplicar o commit por cima. Mesclar aqui é juntar duas listas, não escolher um lado.
 >
 > ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
 >
