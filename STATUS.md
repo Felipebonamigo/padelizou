@@ -27,6 +27,8 @@
 >
 > ⚠️ **E O RANKING SE MOVE** (escolha do Felipe, com o custo na mesa): uma dupla pode passar à frente da outra semana que vem por ter jogado outro torneio, então a mesma tabela, com os mesmos jogos, pode mudar de 2º colocado depois de a chave estar montada. A alternativa era congelar o número no sorteio (migration), e ele preferiu entregar sem. O teto: o que vale é a chave já gerada.
 
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+
 > **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
 >
 > ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
@@ -134,7 +136,7 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
-> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** ⏳ **NO BRANCH `claude/inspiring-goodall-ihmmb1`.** ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264 do Deploy, 20h18 e 20h20 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #227. ✅ **SEM MIGRATION.**
 >
 > 🗣️ Felipe, com o print da prévia de 2 grupos ocupando o monitor inteiro: *"ficou muito esticado, nao tem pq e fica feio, deixe em um tamanho normal que fique bonito"* — e, logo depois, *"Talvez seja melhor fazer tambem da esquerda pra direita, ao inves de cima para baixo, ficará mais alinhado"*.
 >
@@ -149,6 +151,12 @@
 > 🧪 **6.559 testes, 0 falhas** + as 2 conferências do JS verdes. O `QuadroDaPreviaTemOsDoisDesenhosTests` (que travava "no pc é de cima pra baixo") virou `QuadroDaPreviaDeitaNasDuasTelasTests`. **3 vistos vermelhos antes da correção**: *"Not found: class=\"pdz-chd\""*, *"Não achei o @media da prévia no computador"* e *"Not found: pdz-chd-fichas d-md-none"*.
 >
 > 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, nos dois temas, a 1440px / 820px / 390px: cartão 264px e **corte 0** no computador; celular **sem mudança nenhuma** (o `@media` começa em 768px). ⚠️ **A armadilha do headless de novo**: `.pdz-chd-trilho` tem `scroll-behavior: smooth`, e o `:root { scroll-behavior: auto }` da página de medição **não alcança** — a rolagem não terminava e o trilho parecia travado em `scrollLeft = 0`. Quem for medir rolagem DELE tem que forçar `auto` **no seletor dele**.
+>
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, por `curl`** (`padelizou.com.br/Torneios/Details/26`): **7 quadros deitados** (`pdz-chd-trilho`), **13 ligações** desenhadas com **ponto** decimal (`--a:25%;--hw:50%`), **7 fichas e 7 dicas com `d-md-none`**, e **zero** `pdz-arv-rolagem` — o desenho de cima pra baixo saiu do ar. No `/css/site.css` servido: o `@media`, o `flex: 0 0 17rem` e o `.pdz-chd-conta`, com **zero** regra `.pdz-arv` de layout. `/healthz` **200** nos dois ambientes.
+>
+> 👀 **E A PROVA VISUAL É DE PRODUÇÃO, não de maquete**: o primeiro quadro foi RECORTADO do HTML que prod serve e renderizado no Chromium com o `site-prod.css` baixado do ar — cartão de **264px, corte 0** nos dois temas. É a MESMA categoria do print do Felipe (2 grupos, jogos 1/2/3, 13:50 · 14:40 · 18:00, Er Padel · Arena Loja 7), agora deitada.
+>
+> ⚠️ **DOIS DEPLOYS CORRERAM EM PARALELO** (outra sessão publicou o `3686b36` às 20h22, run 265). O `head_sha` de um `workflow_dispatch` é o `main` do minuto do disparo, e **não** o artefato instalado — quem manda é o input `build`. Foi por isso que o run 264 aparece com o sha da outra sessão; o que está no ar foi conferido pelo conteúdo servido, não pela listagem de runs.
 
 > **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
 >
