@@ -22,7 +22,13 @@
 >
 > ⏰ **O HORÁRIO NÃO MUDOU (decisão do Felipe):** o jogo que nasce cedo entra na grade com o piso de hoje (depois do último jogo da fase anterior da categoria). No "por ordem de liberação" quem chama é o balcão, então na prática ele já pode ser chamado antes; mexer em `LevasDaGrade.PisoDaCategoria` ficou de fora de propósito.
 >
-> 🧪 **6.518 testes, 0 falhas (12 novos, em `AvancoParcialDaChaveTests` e `AvancoParcialDosGruposTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia) e *"The collection contained 2 items"* (a fase seguinte nascia por cima).
+> 🏷️ **3️⃣ E A COLOCAÇÃO VIRA NOME ASSIM QUE O GRUPO FECHA.** 🗣️ Felipe, com o print do Er na mão (Grupo B encerrado, Grupo A sem jogar): *"Avança sim, pq o grupo b esta definido, tem q por o 1º e 2º nas semifinais"* · *"sempre que um grupo finalizar, igual da foto, o Grupo B já está definido, então já pode mudar"*. A chave era escrita por colocação até o ÚLTIMO jogo da CATEGORIA acabar — com o Grupo B encerrado, *"2º do Grupo B"* já tinha nome, sobrenome e foto no sistema, e o quadro seguia na frase genérica. Agora `Services/ClassificadosJaConhecidos` responde quem já É cada vaga, e a prévia (lista de jogos e aba de chaves) escreve o nome.
+>
+> ⚠️ **ISSO É RÓTULO, NÃO PARTIDA** — eu errei o alvo na primeira resposta e o Felipe corrigiu. O JOGO da semifinal continua nascendo só com os dois lados (`Partida.Dupla1Id`/`Dupla2Id` são NOT NULL; vaga vazia exigiria migration). E **por grupo FECHADO, nunca por jogo solto**: no meio do grupo a dupla em 1º com um jogo a menos cai pra 2º na rodada seguinte, e o quadro trocaria de nome a cada placar.
+>
+> 🕳️ **E NUMA CATEGORIA DE 2 GRUPOS O JOGO NÃO NASCE MESMO, por geometria:** as duas semifinais cruzam A com B (`1ºA × 2ºB` e `1ºB × 2ºA`), então toda vaga do quadro depende dos DOIS grupos. O ganho de criar jogo cedo aparece com 3+ grupos (onde há bye) ou dentro do mata-mata; o ganho de mostrar NOME aparece em qualquer formato.
+>
+> 🧪 **6.575 testes, 0 falhas (18 novos, em `AvancoParcialDaChaveTests`, `AvancoParcialDosGruposTests` e `NomeNaVagaAssimQueOGrupoFechaTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia), *"The collection contained 2 items"* (a fase seguinte nascia por cima) e *"Assert.Contains() Failure: Item not found"* (o nome não chegava na vaga).
 
 >
 > **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**

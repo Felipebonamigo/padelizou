@@ -1114,6 +1114,20 @@ namespace Padelizou.Controllers
                 .ToList();
             var cadeias = new List<ProximasFasesDaChave.CadeiaDeFases>();
 
+            // Os jogos de grupo COM as duplas carregadas: é deles que sai o nome de quem já
+            // classificou (Services/ClassificadosJaConhecidos). A lista recebida pode vir
+            // filtrada por time ou categoria, e meia fase de grupos daria meia classificação.
+            var jogosDeGrupoPorCategoria = (await _context.Partidas
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                    .Where(p => p.TorneioId == torneioId
+                             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                    .ToListAsync())
+                .GroupBy(p => p.CategoriaId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             // Quantos jogos da abertura já nasceram em cada categoria que ainda está em grupos:
             // a prévia promete só o que FALTA, sem repetir o que já está na lista de jogos.
             var aberturaJaCriada = partidas
@@ -1160,7 +1174,13 @@ namespace Padelizou.Controllers
                     categoria.Id,
                     gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
                     categoria.CruzamentoDoMataMata,
-                    aberturaJaCriada.GetValueOrDefault(categoria.Id)));
+                    aberturaJaCriada.GetValueOrDefault(categoria.Id),
+                    // 🗣️ *"o Grupo B já está definido, então já pode mudar, na semifinal o 1º do
+                    // B e o 2º do B"*: fechado o grupo, a colocação vira nome na prévia.
+                    ClassificadosJaConhecidos.De(
+                        gruposEmOrdem,
+                        jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
+                        ClassificacaoDeGrupos.VagasPorGrupo(categoria))));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria

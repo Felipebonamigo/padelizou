@@ -158,10 +158,13 @@ public static class ProximasFasesDaChave
         // Quantos jogos da ABERTURA já nasceram de verdade. Desde o avanço parcial dos grupos
         // (11/09/2026) ela nasce jogo a jogo: os que já existem estão na lista de jogos, com nome
         // e sobrenome, e a prévia continua prometendo só o que falta — sem repetir nenhum.
-        int jogosJaCriadosNaAbertura = 0)
+        int jogosJaCriadosNaAbertura = 0,
+        // Os nomes que já não são promessa: o grupo fechou e a colocação virou dupla
+        // (Services/ClassificadosJaConhecidos).
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
         var (fase, confrontos, byes) = ChaveProjetada.Montar(
-            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado);
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
         int jaReais = Math.Clamp(jogosJaCriadosNaAbertura, 0, confrontos.Count);
