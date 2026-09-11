@@ -7,6 +7,24 @@
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
 
+> **11/09/2026** — ⏳ **NO BRANCH `claude/new-session-6j9ybe`, ainda não publicado.** **Sem migration.**
+>
+> 🕳️ **O VIGIA PEGOU: três `InvalidOperationException` em `GET /Partidas/VerVotos`, 08:49, no mesmo minuto** — *"Partida não encontrada."*. 📱 Felipe mandou o print do registro de erros.
+>
+> ✅ **Jogo que não existe (mais) agora é 404, e não 500.** O `partidaId` fica congelado no HTML do botão enquanto a aba estiver aberta; o jogo, não — **regerar a chave, regerar o americano e mudar resultado do mata-mata apagam partidas** (`Partidas.RemoveRange`, em quatro pontos). O `ObterVotantesAsync` devolve **nulo** em vez de estourar, e o controller responde `NotFound()`.
+>
+> ⚠️ **As duas irmãs que GRAVAM continuam estourando, de propósito**: `RegistrarVotoAsync` e `RetirarPalpiteAsync` jogam `InvalidOperationException` porque quem chama precisa da FRASE pra mostrar ("esta partida já começou"). Numa LEITURA não há nada a dizer — id que não existe é 404.
+>
+> 🕳️ **E O 500 NÃO ERA A PIOR PARTE: o JS fazia `response.json()` sem olhar o `ok`.** A página de erro é HTML, o parse estourava, ninguém pegava a promessa — e o modal ficava em **"Carregando..." pra sempre**. É por isso que foram **TRÊS** erros no mesmo minuto e não um: o dedo bateu de novo. Agora o modal avisa *"Este jogo saiu da lista — atualize a página."* (e a guarda vale pra qualquer resposta não-ok, igual ao `falarComOServidor` que já fazia isso desde sempre).
+>
+> ⚠️ **QUAL id chegou, NÃO DÁ PRA SABER — e isso é escolha, não falha**: o vigia grava o CAMINHO e não a query (`IExceptionHandlerPathFeature.Path`), senão `/Auth/RedefinirSenha?token=…` passaria a gravar token de senha numa tabela que a tela do admin mostra. A causa acima é o candidato mais provável, não um fato provado; o 404 cobre igual o outro caminho — requisição **sem** `partidaId` chega como zero.
+>
+> 🧪 **6.432 testes, 0 falhas (2 novos)** + **2 conferências novas** no `conferir-palpitrometro.js` (15 no total, e o modal entrou no DOM falso pela primeira vez). Vistos vermelhos antes: *"System.InvalidOperationException : Partida não encontrada."* (o erro do print, reproduzido) e *"estourou: a página de erro é HTML, não JSON"*. As duas travas anti-correção-grande-demais foram **falsificadas**: `NotFound()` solto na ação acusa na hora, e forçar o aviso com 200 na mão também.
+>
+> ⚠️ **`Assert.NotNull` em 6 chamadas antigas do `ObterVotantesAsync`** — CS8602 é erro aqui, e a prova é a guarda, nunca o `!`.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser. O que se provou é o 404 do servidor e o desvio do JS contra um DOM falso.
+
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **O ESCUDO CHEGOU NAS OUTRAS DUAS TELAS DE JOGO — E EM DUAS FORMAS DIFERENTES, POR ESCOLHA DO FELIPE.** Ele abriu a aba **Jogos** em produção, com o `build-1052` no ar, e pediu o resto: 🗣️ *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* e, olhando a maquete de novo, 🗣️ *"e no ao vivo use esse do B"*.

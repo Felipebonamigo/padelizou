@@ -368,10 +368,26 @@ public class PalpiteService : IPalpiteService
             .ThenBy(v => v.Nome, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
+    // ⚠️ Devolve NULO quando o jogo não existe mais, e NÃO estoura como as irmãs aqui de cima.
+    //
+    // As duas que gravam (`RegistrarVotoAsync`, `RetirarPalpiteAsync`) jogam
+    // InvalidOperationException porque quem chama precisa da FRASE pra mostrar: "esta partida já
+    // começou", "dupla inválida". Aqui não há nada a dizer — é uma leitura, e a resposta certa
+    // pra um id que não existe é 404, não 500.
+    //
+    // 11/09/2026: era exatamente a diferença que faltava. Três `InvalidOperationException` no
+    // vigia em `GET /Partidas/VerVotos`, no mesmo minuto.
+    //
+    // ⚠️ QUAL id chegou, não dá pra saber: o registro do vigia guarda o CAMINHO e não a query
+    // (`IExceptionHandlerPathFeature.Path`), e é de propósito — `/Auth/RedefinirSenha?token=…`
+    // passaria a gravar token de redefinição de senha numa tabela que a tela do admin mostra.
+    // O candidato mais provável é o botão apontando pro jogo apagado (regerar a chave, regerar
+    // o americano e mudar resultado do mata-mata fazem `Partidas.RemoveRange`), e o 404 cobre
+    // igual o outro caminho: requisição SEM `partidaId` chega aqui como zero.
+    public async Task<VotantesPartidaVM?> ObterVotantesAsync(int partidaId)
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
-        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+        if (partida == null) return null;
 
         var votos = await _context.PalpitesPartida
             .Include(v => v.Jogador)
