@@ -6006,14 +6006,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
-                                                <table class="table table-hover table-borderless mb-0 text-center align-middle">
+                                                <table class="table table-hover table-borderless mb-0 text-center align-middle pdz-tabela-grupo">
                                                     <thead class="table-light text-muted small">
                                                         <tr>
-                                                            <th class="text-start ps-3" style="width: 50%;">Dupla</th>
-                                                            <th title="Jogos">J</th>
-                                                            <th title="Vitórias" class="text-success">V</th>
-                                                            <th title="Derrotas" class="text-danger">D</th>
-                                                            <th title="Saldo de Games">SG</th>
+                                                            @* Sem largura: a coluna da dupla fica com TUDO o que as quatro de
+                                                               número não pedirem (ver .pdz-col-num no site.css). Fixada em 50%,
+                                                               estreitar as outras devolvia o espaço pra margem, não pro nome. *@
+                                                            <th class="text-start ps-3">Dupla</th>
+                                                            <th title="Jogos" class="pdz-col-num">J</th>
+                                                            <th title="Vitórias" class="text-success pdz-col-num">V</th>
+                                                            <th title="Derrotas" class="text-danger pdz-col-num">D</th>
+                                                            <th title="Saldo de Games" class="pdz-col-num">SG</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -6025,7 +6028,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 @* Compacto: avatar menor, clube escondido e nome truncando —
                                                                    nome quebrando em três linhas fazia cada linha do grupo
                                                                    ocupar três alturas. *@
-                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto" style="max-width: 180px;">
+                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto">
                                                                     <partial name="_LadoDaPartida" model="dupla" />
                                                                 </td>
 

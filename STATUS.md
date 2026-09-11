@@ -25,6 +25,27 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
 
+> **11/09/2026** — 🛡️ **A CHAPINHA DO ESCUDO VALE EM TODO CANTO, E AS COLUNAS DE NÚMERO ENCOLHERAM.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, NÃO publicado — esperando o Felipe ver o render.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print da Fase de Grupos: *"alguns escudos estão com fundo branco, consegue arrumar?"* e *"acho que dá pra diminuir o tamanho do J V D SG da coluna, pra caber mais do nome"*.
+>
+> 🕳️ **O FUNDO BRANCO NÃO ESTÁ NO CSS: ESTÁ DENTRO DOS ARQUIVOS.** Baixei os 17 escudos do torneio do ar e medi os quatro cantos de cada um: **10 têm fundo branco assado** (cantos opacos e claros), 4 têm fundo colorido, e **só 3 são transparentes**. Dois dos dez são **`.jpeg`** — formato que **não tem canal alpha**, então ali o fundo opaco é garantido por construção. O comentário que vivia no CSS dizia *"escudo é PNG transparente"* e errava em 14 dos 17: **nenhum é PNG**.
+>
+> ⚠️ **E TIRAR O BRANCO SERIA O CONSERTO ERRADO**, além de impossível em CSS (que não apaga pixel dentro de arquivo): **8 dos 17 têm desenho escuro** (luminância média < 70) e sumiriam no navy da página. É a mesma lição que o próprio `site.css` já tinha aprendido no card AO VIVO — *"escudo escuro de fundo transparente desaparece nele"* —, só que lá a chapinha valia **só ali**. O que incomoda no print não é o branco: é ele aparecer em **alguns**. Chapinha em todos vira decisão em vez de acidente, e o branco **puro** (`#fff`, não translúcido) faz o fundo já assado dos dez se fundir com ela sem deixar borda.
+>
+> ⚠️ **ALTURA FIXA, LARGURA LIVRE.** Com os dois lados fixos, escudo largo dentro de caixa quadrada deixa barra de chapinha em cima e embaixo — o quadrado branco de novo, agora desenhado por nós. Com a largura solta a caixa segue a proporção da imagem.
+>
+> 📏 **AS COLUNAS, MEDIDAS DENTRO DO NAVEGADOR** (Chromium, CSS real, janela de 500px): antes `Dupla=212px` com as quatro de número somando **211px**; depois `Dupla=305px` com elas somando **120px**. **+93px pro nome (+44%)**, e `rolagem=nao` nos dois.
+>
+> 🕳️ **O RENDER PEGOU UM DEFEITO QUE TESTE NENHUM PEGARIA.** Tirar o `max-width: 180px` da célula do nome fazia o OPOSTO do pedido: com largura automática a coluna **cresce** pra caber "Marcelo Konfidera" inteiro, a tabela passa do cartão e o `.table-responsive` vira **rolagem horizontal** — pior que truncar. Resolvido com `table-layout: fixed`, e isso virou teste (visto vermelho antes).
+>
+> ✅ **Ferramenta nova que vale registrar:** dá pra renderizar um pedaço da tela **sem subir o app** — HTML estático com o `site.css` de verdade, os assets reais baixados do ar, `<html data-bs-theme="dark">`, e o Chromium de `/opt/pw-browsers` com `--screenshot`. Mais barato que Postgres + build, e foi ele que achou o defeito acima. Instrumentar as larguras com um `<script>` que escreve no DOM e ler com `--dump-dom` dá o número, não a impressão.
+>
+> 🧪 **6.414 testes, 0 falhas** (9 novos) + os dois conferidores de JS verdes.
+>
+> ⚠️ **AGUARDANDO DECISÃO:** os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto. Uniforme, mas é visual novo pra eles — o Felipe viu o render e decide.
+
+
 > **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
