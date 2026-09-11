@@ -1,33 +1,92 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1105-1eedb7c`** (runs 235 e 236 do Deploy, 17h42 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #207. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
 >
-> ✅ **PROVADO NO AR, NA PÁGINA DE VERDADE E COM RÉGUA** — o HTML anônimo de `padelizou.com.br/Torneios/Details/26` (939 KB) renderizado no Chromium com o **`site.css` servido por produção**: **24 tabelas** de grupo com `pdz-grupo-tabela`, **zero** `max-width: 180px`, e as colunas medidas em **265 / 30 / 30 / 30 / 42 px** a 1700px. Dos **128 nomes** da tela, **só 1 ainda trunca** ("Arthur Prass (Batatinha)"); a 390px a coluna do nome fica com 152px e nenhuma tabela rola de lado. `/healthz` **200** e `sw.js` em **`padelizou-static-v29`** nos dois ambientes.
+> 🔲 **O NÚMERO DE VAGAS POR GRUPO VIROU RÉGUA ÚNICA, E A TELA DE CLASSIFICAÇÃO PAROU DE MENTIR.** 🗣️ Felipe, depois de eu reportar a divergência: *"sim, alinha a outra tela também"*.
 >
-> ⚠️ **O `prod` FOI DISPARADO POR OUTRA SESSÃO, 21 SEGUNDOS DEPOIS DO MEU `dev` — e com a MESMA tag.** Deu certo por coincidência: o `build-1105` era o mais recente, então o "mais recente" dela e o meu nome explícito apontavam pro mesmo pacote. Com um merge a mais no meio, teriam apontado pra pacotes diferentes, e `dev` e `prod` divergiriam sem ninguém notar. **Quatro sessões publicando no mesmo dia pedem a tag explícita SEMPRE** — o `deploy.yml` só serializa por ambiente (`concurrency: deploy-<ambiente>`), não escolhe versão por você.
+> 🕳️ **NÃO ERA LATENTE: ERA DEFEITO NO AR EM CATEGORIA DE TIMES.** A tela `/Torneios/Classificacao` lia `torneio.ClassificadosPorGrupo` (nasce 2, nenhuma tela edita) e o `AvancoDaChave` — quem monta o mata-mata de verdade — lê o da CATEGORIA. Numa categoria de times, onde o organizador escolhe **de 1 a 4 por grupo** em `Times.cshtml`, isso quebrava duas coisas de uma vez: o **verde da tabela** (`posicao <= N`) marcava 2 linhas quando 4 passavam — **o time em 3º lia que estava fora de uma vaga que ia receber** — e o painel "o que cada um precisa" simulava o corte errado.
 >
-> 🔴 **O JOB "Pacote de deploy" DO CI FICOU VERMELHO, E O PACOTE ESTÁ CERTO:** o release `build-1105-1eedb7c` foi criado com sucesso e o passo seguinte — o que apaga releases fora dos 20 últimos — morreu em `HTTP 404: Reference does not exist (.../tags/build-1050-a22347e)`, com `exit 123` do `xargs`. É **corrida entre runs simultâneos**: outro run já tinha apagado aquela tag, e o `gh release delete` de quem chegou depois não encontra mais nada. Não afeta artefato nem deploy; **o conserto é tolerar a tag ausente na limpeza** (um `|| true` no `xargs`, ou conferir antes de apagar), e ficou pendente.
+> ⚠️ **A CAUSA RAIZ NÃO ERA A TELA: ERA O NÚMERO NÃO TER CASA.** `Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)` estava escrito à mão em **dez lugares** — `AvancoDaChave`, `RoboDoChaveamento`, três pontos dos controllers e quatro views —, e nas views **sem** o `Math.Max(1, …)`. Consertar só a cópia que divergiu seria consertar o sintoma: a décima primeira cópia era questão de tempo.
 >
-> 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
+> ♻️ **`ClassificacaoDeGrupos.VagasPorGrupo(Categoria?)`** — a régua do NÚMERO, ao lado do `Ordenar`, que é a régua da ORDEM. As duas metades da mesma pergunta no mesmo arquivo. Os dez lugares passaram a chamá-la; oito eram idênticos (refatoração pura) e as duas views de exibição **ganharam** o piso de 1 vaga que não tinham.
 >
-> 🕳️ **A CAUSA NÃO ERA O PADDING, ERA O `table-layout: auto`.** As quatro colunas não tinham largura declarada: o navegador repartia **toda a sobra do card** entre elas, e a célula da dupla ainda carregava `max-width: 180px` — teto que a impedia de aceitar a sobra. Resultado medido no print do Felipe (janela de ~1700px): **cada número com 46–69px** e o nome preso em 127px, virando "Augusto Ohl…".
+> 🚪 **E TEM GATE MECÂNICO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `O_numero_de_vagas_so_e_escrito_na_regua` varre todo `.cs` e `.cshtml` do projeto (fora Migrations) e quebra se o `?? 2` reaparecer na mão. Regra que depende de lembrança volta; esta não tem como.
 >
-> 📐 **A CORREÇÃO É UMA PROPRIEDADE, NÃO UMA CONTA:** `table-layout: fixed` na tabela, `30px` em J/V/D e `42px` no SG, e a coluna da dupla **sem largura declarada** — em layout fixo, a única coluna sem largura fica com todo o resto. Foi o degrau 4 da escada do CLAUDE.md (recurso nativo da plataforma) resolvendo sozinho: nenhuma media query, nenhum JS, nenhuma conta de porcentagem.
+> ⚠️ **`Torneio.ClassificadosPorGrupo` AGORA NÃO É LIDO POR NINGUÉM** — só a `DuplicacaoDeTorneio` ainda o copia. A coluna FICA (dropar pede migration, que é `architectural`), com o porquê escrito no próprio campo. **Decisão do Felipe pendente**: virar o padrão do torneio (dentro da régua) ou sair numa migration. ⚠️ Se virar padrão, **muda a CHAVE** de todo torneio cuja coluna não seja 2.
 >
-> ⚠️ **TIRAR O TETO DE 180px SOZINHO NÃO RESOLVERIA, e parece que resolveria** — em layout `auto` a coluna sem teto passa a pedir o **nome inteiro** (o chip é `white-space: nowrap`) e a tabela estoura a `.table-responsive`, trocando nome cortado por rolagem lateral. ⚠️ E **o SG é mais largo que J/V/D de propósito**: em layout fixo a célula **não cresce pelo conteúdo**, então apertá-lo no tamanho dos outros cortaria o "+12" em vez de empurrar a coluna.
+> ⚠️ **ALINHAR FOI A TELA → CHAVEAMENTO, e não o contrário** — por isso o fallback é `?? 2` e não o campo do torneio: pôr o do torneio de padrão mudaria o mata-mata de torneios que já existem, o oposto do que foi pedido.
 >
-> 📊 **MEDIDO NO CHROMIUM, ANTES E DEPOIS LADO A LADO** (Playwright, a marcação real com `bootstrap.min.css` + `site.css` de verdade, nos dois temas): na largura do print, o nome foi de **207px → 282px** de coluna (**127 → 200px** de texto visível) e os quatro números de **46/46/46/69 → 30/30/30/42**; "Augusto Ohlweiler", "Paulo Prass (Parceiro)" e "Arthur Prass (Junior)" **deixaram de ser cortados**. A 1350px o nome vai de 180 → 222px; a **390px**, de 180 → 199px — ⚠️ **no celular o ganho é pequeno (~19px)**, porque lá o limite é a tela e não o repartir. **Nenhuma das larguras rola de lado.**
+> 🧪 **6.456 testes, 0 falhas (7 novos, em `VagasPorGrupoSaoUmaReguaSoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"'ClassificacaoDeGrupos' does not contain a definition for 'VagasPorGrupo'"*, no `RegraClassificados` **2 onde tinha que ser 3**, no painel simulando com 2 vagas, e o gate listando os dez arquivos com a cópia na mão.
 >
-> 🔁 **`sw.js` FOI PRA `padelizou-static-v29`, E O NÚMERO CUSTOU UM CONFLITO PRA APARECER.** Este branch subiu v27 → **v28** antes de mesclar o `main`, que já tinha ido a v28 pela bolinha do saque — e ⚠️ **aquele v28 JÁ ESTÁ EM PRODUÇÃO com outro `site.css`**. Manter o número deixaria a tabela repartida do jeito velho pra quem já guardou aquele v28, **sem erro nenhum em lugar nenhum**. ⚠️ Aqui o git conflitou (o `main` trouxe um comentário novo na mesma linha) e a colisão apareceu; **quando as duas pontas escrevem só o mesmo número, ele mescla limpo e a colisão passa calada** — foi o que aconteceu no v27, duas vezes no mesmo dia.
+> ⚠️ **Sem migration. Nada visto em tela** — o que se provou é o número que o controller entrega, não o verde desenhado.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
 >
-> 🔀 **MESCLADO COM O `main` DEPOIS DE TRÊS PRs DE OUTRAS SESSÕES** (#201 moldura clara do escudo, #204 selo do escudo na tabela do grupo, #202 bolinha do saque). O conflito no `Details.cshtml` era na MESMA linha: o `main` trocou o parcial por `view-data="chipComSelo"` e este trabalho tirou o `max-width: 180px` da célula — as duas mudanças ficaram. **Medido de novo depois da mescla**, e os números acima se mantiveram; com o escudo virando selo na foto, o texto visível a 1350px sobe de 122 → 164px.
+> 🔲 **"O QUE CADA UM PRECISA PARA PASSAR" CHEGOU AO CARD DO GRUPO, EM POP-UP.** 🗣️ Felipe, num print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o grupo de 3, ja tiveram 2 jogos e falta um, exiba botão 'O que cada um precisa para passar' e nele abre um pop up, explicando qual placar cada um precisa fazer para passar, por que as vezes cada dupla ganha um jogo ou enfim, e fica a duvida de quantos games precisa fazer para passar de fase"*.
 >
-> 🧪 **6.505 testes, 0 falhas (4 novos, em `EspacoDoNomeNaTabelaDoGrupoTests`; os outros 28 vieram no `main`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-grupo-tabela`"* e nos dois guardas da view; depois **falsificados um a um** (devolvi o `width: 50%` ao cabeçalho, troquei `fixed` por `auto`, igualei o SG a J/V/D). ⚠️ **O guarda da view apaga os COMENTÁRIOS antes de conferir**: o `width: 50%` que este trabalho tirou está citado na prosa que explica por que ele saiu, e o teste ficava vermelho pela explicação em vez da marcação.
+> ♻️ **O MOTOR JÁ EXISTIA — e é o MESMO pedido, de 13/08/2026.** `Services/OQuePrecisaParaClassificar` simula todo placar possível do jogo que falta e pergunta à régua oficial (`ClassificacaoDeGrupos`, a que monta a chave) quem classifica em cada um. Só que vivia na tela `/Torneios/Classificacao` e **não** no card do grupo — que é de onde o print foi tirado. **Nenhuma matemática nova**: o trabalho foi levar o painel pra lá.
 >
-> ⚠️ **EXISTE UM PR ABERTO QUE FAZ A MESMA COISA — o #190** (*"Chapinha no escudo em todo canto, e colunas de número estreitas"*, branch `claude/sleepy-davinci-4t72i2`, de 11/09 14h13, **nunca mesclado**). Então o Felipe tinha razão ao perguntar *"já solicitei isso?"*: **foi pedido e feito, mas nunca publicado**. ⚠️ **A minha busca inicial não o encontrou** porque olhei o `git log --all` de um clone **sem aquele branch** e o `STATUS.md` do `main` — e trabalho que só existe em PR aberto não está em nenhum dos dois. Chegou no MESMO desenho por conta própria (`table-layout: fixed`, 30px, e a mesma armadilha do `max-width` que vira rolagem lateral); ele leva junto a chapinha do escudo, que o #201 já resolveu de outro jeito e **já está no `main`**. **Decisão do Felipe**: o #190 agora está duplicado nas duas metades e o razoável é fechá-lo.
+> 🆕 **O QUE FALTAVA PRO PEDIDO SER ATENDIDO DE FRENTE: A LINHA DE CADA DUPLA.** A tabela de cenários responde de lado (ache seu nome nas linhas e deduza). No Grupo B do print: **Eder/Augusto — "Já classificado"**; **Marcelo/Enio — "Passa vencendo ou se Paulo vencer por até 4 games"**; **Paulo/Arthur — "Passa vencendo por 5 games ou mais"**.
 >
-> ⏭️ **FICOU DE FORA, de propósito**: a `Classificacao.cshtml` (a outra tela com J/V/D/SG) **já declara** 40/40/40/50px nas suas colunas e não tem o defeito; e o `ps-3` da coluna da dupla — 16px de recuo que no celular valeriam mais três letras — não foi mexido, porque alinha o nome com o resto do card.
+> ⚠️ **É 5, E NÃO 4 — e é exatamente por isso que o pedido existe.** Vencendo por 4 (9x5) o Paulo empata o saldo com o Marcelo em **−1**, e o 3º critério, games a favor, fica com o Marcelo: **14 a 13**. Ninguém faz essa conta de cabeça na beira da quadra.
+>
+> ♻️ **UMA PARCIAL SÓ (`_OQuePrecisaParaClassificar`) PRAS DUAS TELAS**, e o nome CURTO da dupla saiu da view pro serviço — a regra vivia copiada na Classificação, onde podia divergir da frase ao lado dela na mesma linha da tabela. A Classificação continua abrindo NO LUGAR (collapse) e o card abre em pop-up: **quem embrulha é quem chama**. O rótulo do botão virou um só, o do Felipe.
+>
+> ⚠️ **QUANTOS PASSAM SAI DE `categoria.ClassificadosPorGrupo ?? 2`** — o MESMO número do `AvancoDaChave`, que monta o mata-mata de verdade. A trava é `[Theory]` com 1 e 2 vagas, e precisa ser: `torneio.ClassificadosPorGrupo` nasce 2 e nenhuma tela o edita, então um painel que lesse o do TORNEIO passaria calado num teste só de duas vagas.
+>
+> 🕳️ **O MODAL NÃO PODE NASCER DENTRO DO CARD, e isso custou um SEGUNDO laço no Razor.** `site.css:712` dá `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do grupo é exatamente isso — ancestral com `transform` vira bloco de contenção do `position: fixed`. **Medido no Chromium**: dentro do card o pop-up virou **294x452 dentro de um card de 296px**; fora dele cobre a viewport inteira mesmo com o card sob o mouse.
+>
+> 🧪 **6.449 testes, 0 falhas (13 novos, em `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"The type name 'Situacao' does not exist"*, no `ViewBag.OQuePrecisaPorGrupo` nulo e nas três buscas de marcação. **Duas travas falsificadas**: trocar o campo das vagas pelo do torneio derruba o caso de 1 vaga, e juntar os dois laços do Razor derruba a conta de laços.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas, a 430px e a 1100px**: pop-up centrado, sem rolagem horizontal, as três linhas de dupla legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS e o `position: fixed`, não o Razor.
+>
+> ⚠️ **DIVERGÊNCIA ANOTADA E NÃO CONSERTADA — ✅ CONSERTADA NO BLOCO ACIMA, no mesmo dia** (e era pior do que eu disse aqui: em categoria de TIMES já estava no ar). A tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
+>
+> 🕳️ **NA PRIMEIRA VERSÃO ELES SUMIAM DA TELA INTEIRA** (a consulta filtrava `Status == "Agendada"`), e isso tinha um custo que só aparece operando: quem põe o jogo no ar **antes** de marcar a chegada perde o caminho pro check-in daquela dupla — ela só volta pela lista de 64. Agora o jogo que começou ou acabou tem endereço: o bloco **"Já jogaram ou estão em jogo (N)"**, fechado, no fim da tela, com o mesmo botão dentro.
+>
+> ⚠️ **AO VIVO NA FRENTE DO FINALIZADO**, e não uma ordem só: um está acontecendo AGORA e ainda pode precisar de correção, o outro é histórico. Dentro de cada grupo, a ordem é a da aba Jogos — o ao vivo pela largada, o finalizado pelo fim (placar lançado depois cai pro horário previsto).
+>
+> ♻️ **O CARTÃO DO JOGO VIROU PARCIAL** (`_JogoNoCheckIn.cshtml`), porque agora ele é desenhado nos dois blocos. O que muda entre eles é só o SELO, e ele sai do `Status` — escrever dois cartões parecidos pra isso é exatamente como duas telas passam a divergir na primeira mudança. O formulário que grava presença segue num arquivo só (`_LinhaDoCheckIn`), e o teste trava isso nos três lugares onde a linha aparece.
+>
+> 🧪 **6.508 testes, 0 falhas (11 na tela do check-in, 4 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: *"Não achei o bloco de quem já jogou / está em jogo"* e `ViewData["JogosQueJaRolaram"]` nulo. ⚠️ **Dois testes foram derrubados sem querer** ao reescrever o arquivo (a busca por âncora comeu o que havia entre elas) — percebido pela contagem cair de 11 pra 9, e restaurados no mesmo turno.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser aqui. O `dev` é quem mostra.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
+> **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
+>
+> 1. *"botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes"* → escudo no `_JogadorChip` (`build-1052`).
+> 2. *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* + *"e no ao vivo use esse do B"* → escudo na lista de jogos e SELO no card ao vivo (`build-1062`).
+> 3. *"pq tem algumas bandeirinhas sem fundo igual as demais ainda"* + *"nessa parte aqui, dos grupos, faça igual dos jogos ao vivo, com o logo redondinho no canto da foto"* → moldura clara em todos e selo também na tabela do grupo (`build-1105`).
+>
+> 🕳️ **A QUEIXA DAS "BANDEIRINHAS SEM FUNDO" NÃO ERA DEPLOY FALTANDO — ERA O ARQUIVO DE CADA LOGO.** Baixados e medidos os **17 escudos em uso no torneio 26**: só **3** têm fundo transparente; os outros 14 trazem o fundo DENTRO da imagem, e bem diferentes entre si — retângulo preto (Compass, Chakra, Os Loberos), azul-escuro (Operados), branco (Dez Padel, Porto) e dois JPEG. Sem fundo no CSS, cada um aparece como veio e a fileira fica salpicada.
+>
+> ✅ **A moldura clara é o que iguala**: branco FIXO nos dois temas (os opacos são quase todos claros por dentro — moldura que mudasse com o tema desigualaria de novo no escuro), borda de 1px, cantos de 4px, `contain` dentro. Não deixa todos da mesma COR — isso só editando as imagens —, mas dá a todos a mesma forma e o mesmo contorno.
+>
+> 🎖️ **O SELO É DO AO VIVO E DA TABELA DO GRUPO, e de mais ninguém.** O `_JogadorChip` é o mesmo parcial de quatro telas; quem quer o selo avisa por `view-data` (`EscudoComoSelo`), porque o que muda é o HTML — o selo nasce DENTRO da moldura da foto, que é quem ancora o canto quando o nome quebra em duas linhas. Ele encolhe de 18px pra 14px no compacto: lá a foto tem 26px contra 36px do ao vivo.
+>
+> ⚠️ **O selo nasceu NAVY e virou branco no mesmo dia**: com os logos de verdade o fundo escuro apagava os escuros — o "Compass", preto sobre navy, sumia dentro do próprio selo.
+>
+> 👀 **A SESSÃO WEB PASSOU A VER A TELA, e isso mudou o diagnóstico.** O Chromium do container (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome --headless=new --screenshot`, sem Playwright e sem servidor) renderiza um HTML local com o `site.css` do projeto e os **logos e fotos baixados de produção**. Foi assim que *"algumas bandeirinhas sem fundo"* virou a contagem 3-de-17 acima, em vez de chute.
+>
+> 🕳️ **A LIÇÃO CARA DO DIA: DUAS SESSÕES NO MESMO `site.css`.** O `build-1099` (do PR #201) foi publicado em `prod` e **sobrescrito 15 segundos depois** pelo `build-1098-9db8a22`, de outra frente — e aquele build **não tinha as linhas da moldura**: elas se perderam numa resolução de conflito no PR #204. O `main` ficou certo (outra sessão restaurou em `e5b4fab`), mas o AR ficou uma versão atrás sem ninguém notar. O conserto foi publicar o **`main` inteiro**, e não reempurrar o build antigo. É o que o `ONDAS-PARALELAS.md` já diz: **duas tarefas só rodam juntas se os arquivos são disjuntos** — e `site.css` não era.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`, DEPOIS de todos os deploys da rodada**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **93 selos** na tabela dos grupos (`pdz-chip-foto-selo`), **104 escudos** na lista de jogos (`pdz-jl-escudo`) e **186** ao lado do nome — com a moldura (`background:#fff` + borda) no `/css/site.css` servido.
+>
+> 🧪 **6.440 testes, 0 falhas (12 novos no dia, em `EscudoDoTimeNoChipTests` e `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde.
+>
+> ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM POR REGEX FROUXO, e o conserto vale pro próximo**: `\.pdz-chip-foto-selo \.pdz-chip-escudo` passou a casar também com `.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo` no dia em que essa regra nasceu — e o teste passou a medir o seletor errado. Levaram **âncora de início de linha** (`^` com `RegexOptions.Multiline`). Guarda de CSS por regex precisa ancorar o seletor.
+>
+> 🧹 **E O TÍTULO DESTE ARQUIVO VOLTOU PRO TOPO**: um merge de hoje deixou uma entrada inteira ACIMA do `# Padelizou — Status e Roadmap`, e o diário passou a começar no meio. A entrada não se perdeu — está logo abaixo, na ordem.
+
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
 >
@@ -60,6 +119,34 @@
 > 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`): a tela abre com as três saídas, o texto vem com o respiro, e o **clique no "Baixar em planilha" baixou `jogos-torneio-dos-amigos-2026.csv` de verdade** — conferido byte a byte (BOM `EF BB BF`, `;`, CRLF, acento certo).
 >
 > 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
+
+> **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1105-1eedb7c`** (runs 235 e 236 do Deploy, 17h42 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #207. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, NA PÁGINA DE VERDADE E COM RÉGUA** — o HTML anônimo de `padelizou.com.br/Torneios/Details/26` (939 KB) renderizado no Chromium com o **`site.css` servido por produção**: **24 tabelas** de grupo com `pdz-grupo-tabela`, **zero** `max-width: 180px`, e as colunas medidas em **265 / 30 / 30 / 30 / 42 px** a 1700px. Dos **128 nomes** da tela, **só 1 ainda trunca** ("Arthur Prass (Batatinha)"); a 390px a coluna do nome fica com 152px e nenhuma tabela rola de lado. `/healthz` **200** e `sw.js` em **`padelizou-static-v29`** nos dois ambientes.
+>
+> ⚠️ **O `prod` FOI DISPARADO POR OUTRA SESSÃO, 21 SEGUNDOS DEPOIS DO MEU `dev` — e com a MESMA tag.** Deu certo por coincidência: o `build-1105` era o mais recente, então o "mais recente" dela e o meu nome explícito apontavam pro mesmo pacote. Com um merge a mais no meio, teriam apontado pra pacotes diferentes, e `dev` e `prod` divergiriam sem ninguém notar. **Quatro sessões publicando no mesmo dia pedem a tag explícita SEMPRE** — o `deploy.yml` só serializa por ambiente (`concurrency: deploy-<ambiente>`), não escolhe versão por você.
+>
+> 🔴 **O JOB "Pacote de deploy" DO CI FICOU VERMELHO, E O PACOTE ESTÁ CERTO:** o release `build-1105-1eedb7c` foi criado com sucesso e o passo seguinte — o que apaga releases fora dos 20 últimos — morreu em `HTTP 404: Reference does not exist (.../tags/build-1050-a22347e)`, com `exit 123` do `xargs`. É **corrida entre runs simultâneos**: outro run já tinha apagado aquela tag, e o `gh release delete` de quem chegou depois não encontra mais nada. Não afeta artefato nem deploy; **o conserto é tolerar a tag ausente na limpeza** (um `|| true` no `xargs`, ou conferir antes de apagar), e ficou pendente.
+>
+> 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
+>
+> 🕳️ **A CAUSA NÃO ERA O PADDING, ERA O `table-layout: auto`.** As quatro colunas não tinham largura declarada: o navegador repartia **toda a sobra do card** entre elas, e a célula da dupla ainda carregava `max-width: 180px` — teto que a impedia de aceitar a sobra. Resultado medido no print do Felipe (janela de ~1700px): **cada número com 46–69px** e o nome preso em 127px, virando "Augusto Ohl…".
+>
+> 📐 **A CORREÇÃO É UMA PROPRIEDADE, NÃO UMA CONTA:** `table-layout: fixed` na tabela, `30px` em J/V/D e `42px` no SG, e a coluna da dupla **sem largura declarada** — em layout fixo, a única coluna sem largura fica com todo o resto. Foi o degrau 4 da escada do CLAUDE.md (recurso nativo da plataforma) resolvendo sozinho: nenhuma media query, nenhum JS, nenhuma conta de porcentagem.
+>
+> ⚠️ **TIRAR O TETO DE 180px SOZINHO NÃO RESOLVERIA, e parece que resolveria** — em layout `auto` a coluna sem teto passa a pedir o **nome inteiro** (o chip é `white-space: nowrap`) e a tabela estoura a `.table-responsive`, trocando nome cortado por rolagem lateral. ⚠️ E **o SG é mais largo que J/V/D de propósito**: em layout fixo a célula **não cresce pelo conteúdo**, então apertá-lo no tamanho dos outros cortaria o "+12" em vez de empurrar a coluna.
+>
+> 📊 **MEDIDO NO CHROMIUM, ANTES E DEPOIS LADO A LADO** (Playwright, a marcação real com `bootstrap.min.css` + `site.css` de verdade, nos dois temas): na largura do print, o nome foi de **207px → 282px** de coluna (**127 → 200px** de texto visível) e os quatro números de **46/46/46/69 → 30/30/30/42**; "Augusto Ohlweiler", "Paulo Prass (Parceiro)" e "Arthur Prass (Junior)" **deixaram de ser cortados**. A 1350px o nome vai de 180 → 222px; a **390px**, de 180 → 199px — ⚠️ **no celular o ganho é pequeno (~19px)**, porque lá o limite é a tela e não o repartir. **Nenhuma das larguras rola de lado.**
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v29`, E O NÚMERO CUSTOU UM CONFLITO PRA APARECER.** Este branch subiu v27 → **v28** antes de mesclar o `main`, que já tinha ido a v28 pela bolinha do saque — e ⚠️ **aquele v28 JÁ ESTÁ EM PRODUÇÃO com outro `site.css`**. Manter o número deixaria a tabela repartida do jeito velho pra quem já guardou aquele v28, **sem erro nenhum em lugar nenhum**. ⚠️ Aqui o git conflitou (o `main` trouxe um comentário novo na mesma linha) e a colisão apareceu; **quando as duas pontas escrevem só o mesmo número, ele mescla limpo e a colisão passa calada** — foi o que aconteceu no v27, duas vezes no mesmo dia.
+>
+> 🔀 **MESCLADO COM O `main` DEPOIS DE TRÊS PRs DE OUTRAS SESSÕES** (#201 moldura clara do escudo, #204 selo do escudo na tabela do grupo, #202 bolinha do saque). O conflito no `Details.cshtml` era na MESMA linha: o `main` trocou o parcial por `view-data="chipComSelo"` e este trabalho tirou o `max-width: 180px` da célula — as duas mudanças ficaram. **Medido de novo depois da mescla**, e os números acima se mantiveram; com o escudo virando selo na foto, o texto visível a 1350px sobe de 122 → 164px.
+>
+> 🧪 **6.505 testes, 0 falhas (4 novos, em `EspacoDoNomeNaTabelaDoGrupoTests`; os outros 28 vieram no `main`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-grupo-tabela`"* e nos dois guardas da view; depois **falsificados um a um** (devolvi o `width: 50%` ao cabeçalho, troquei `fixed` por `auto`, igualei o SG a J/V/D). ⚠️ **O guarda da view apaga os COMENTÁRIOS antes de conferir**: o `width: 50%` que este trabalho tirou está citado na prosa que explica por que ele saiu, e o teste ficava vermelho pela explicação em vez da marcação.
+>
+> ⚠️ **EXISTE UM PR ABERTO QUE FAZ A MESMA COISA — o #190** (*"Chapinha no escudo em todo canto, e colunas de número estreitas"*, branch `claude/sleepy-davinci-4t72i2`, de 11/09 14h13, **nunca mesclado**). Então o Felipe tinha razão ao perguntar *"já solicitei isso?"*: **foi pedido e feito, mas nunca publicado**. ⚠️ **A minha busca inicial não o encontrou** porque olhei o `git log --all` de um clone **sem aquele branch** e o `STATUS.md` do `main` — e trabalho que só existe em PR aberto não está em nenhum dos dois. Chegou no MESMO desenho por conta própria (`table-layout: fixed`, 30px, e a mesma armadilha do `max-width` que vira rolagem lateral); ele leva junto a chapinha do escudo, que o #201 já resolveu de outro jeito e **já está no `main`**. **Decisão do Felipe**: o #190 agora está duplicado nas duas metades e o razoável é fechá-lo.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a `Classificacao.cshtml` (a outra tela com J/V/D/SG) **já declara** 40/40/40/50px nas suas colunas e não tem o defeito; e o `ps-3` da coluna da dupla — 16px de recuo que no celular valeriam mais três letras — não foi mexido, porque alinha o nome com o resto do card.
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1092-bbdb0bb`** (runs 228 e 229, 17h20 e 17h22 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #202. ✅ **SEM MIGRATION.**
 >
@@ -265,6 +352,45 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
 
+> **11/09/2026** — 🛡️ **A CHAPINHA DO ESCUDO VALE EM TODO CANTO, E AS COLUNAS DE NÚMERO ENCOLHERAM.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print da Fase de Grupos: *"alguns escudos estão com fundo branco, consegue arrumar?"* e *"acho que dá pra diminuir o tamanho do J V D SG da coluna, pra caber mais do nome"*.
+>
+> 🕳️ **O FUNDO BRANCO NÃO ESTÁ NO CSS: ESTÁ DENTRO DOS ARQUIVOS.** Baixei os 17 escudos do torneio do ar e medi os quatro cantos de cada um: **10 têm fundo branco assado** (cantos opacos e claros), 4 têm fundo colorido, e **só 3 são transparentes**. Dois dos dez são **`.jpeg`** — formato que **não tem canal alpha**, então ali o fundo opaco é garantido por construção. O comentário que vivia no CSS dizia *"escudo é PNG transparente"* e errava em 14 dos 17: **nenhum é PNG**.
+>
+> ⚠️ **E TIRAR O BRANCO SERIA O CONSERTO ERRADO**, além de impossível em CSS (que não apaga pixel dentro de arquivo): **8 dos 17 têm desenho escuro** (luminância média < 70) e sumiriam no navy da página. É a mesma lição que o próprio `site.css` já tinha aprendido no card AO VIVO — *"escudo escuro de fundo transparente desaparece nele"* —, só que lá a chapinha valia **só ali**. O que incomoda no print não é o branco: é ele aparecer em **alguns**. Chapinha em todos vira decisão em vez de acidente, e o branco **puro** (`#fff`, não translúcido) faz o fundo já assado dos dez se fundir com ela sem deixar borda.
+>
+> ⚠️ **ALTURA FIXA, LARGURA LIVRE.** Com os dois lados fixos, escudo largo dentro de caixa quadrada deixa barra de chapinha em cima e embaixo — o quadrado branco de novo, agora desenhado por nós. Com a largura solta a caixa segue a proporção da imagem.
+>
+> 📏 **AS COLUNAS, MEDIDAS DENTRO DO NAVEGADOR** (Chromium, CSS real, janela de 500px): antes `Dupla=212px` com as quatro de número somando **211px**; depois `Dupla=305px` com elas somando **120px**. **+93px pro nome (+44%)**, e `rolagem=nao` nos dois.
+>
+> 🕳️ **O RENDER PEGOU UM DEFEITO QUE TESTE NENHUM PEGARIA.** Tirar o `max-width: 180px` da célula do nome fazia o OPOSTO do pedido: com largura automática a coluna **cresce** pra caber "Marcelo Konfidera" inteiro, a tabela passa do cartão e o `.table-responsive` vira **rolagem horizontal** — pior que truncar. Resolvido com `table-layout: fixed`, e isso virou teste (visto vermelho antes).
+>
+> ✅ **Ferramenta nova que vale registrar:** dá pra renderizar um pedaço da tela **sem subir o app** — HTML estático com o `site.css` de verdade, os assets reais baixados do ar, `<html data-bs-theme="dark">`, e o Chromium de `/opt/pw-browsers` com `--screenshot`. Mais barato que Postgres + build, e foi ele que achou o defeito acima. Instrumentar as larguras com um `<script>` que escreve no DOM e ler com `--dump-dom` dá o número, não a impressão.
+>
+> 🧪 **6.414 testes, 0 falhas** (9 novos) + os dois conferidores de JS verdes.
+>
+> 🔁 **E CHEGOU PRIMEIRO NAS COLUNAS TAMBÉM — os DOIS pedidos deste bloco eram duplicata.** A versão delas (`.pdz-grupo-tabela`) faz o mesmo que a minha e **melhor**: pegou que o **SG precisa de 42px**, porque guarda sinal + dois dígitos (`+12`) e em `table-layout: fixed` a célula **não cresce pelo conteúdo** — meus 30px uniformes **cortariam** o saldo no primeiro jogo com diferença de dois dígitos. Descartei minha implementação e os testes dela.
+>
+> ✅ **DO MEU TRABALHO SOBROU UMA COISA SÓ, e ela não veio do pedido: o `CssNaoPodeFicarQuebradoTests`.** Ele nasceu porque eu quebrei o arquivo duas vezes resolvendo conflito, e porque 6.421 testes passaram verde por cima do estrago. Esse buraco não era meu nem delas: é de todo mundo que mexer em CSS aqui.
+>
+> ⚠️ **O CUSTO REAL DO DIA, escrito pra não se repetir:** trabalhei duas vezes num conserto que já estava em voo, e das duas a outra sessão mesclou antes. O `ONDAS-PARALELAS.md` cobre tarefas de uma MESMA onda; não cobre sessões que o Felipe abre no celular ao longo do dia. **Antes de começar qualquer coisa visual: `git fetch origin main && git log origin/main --oneline -25`** — os títulos de commit deste repo são descritivos o bastante pra ver o assunto em voo. Custa cinco segundos e teria poupado as duas rodadas.
+>
+> 🔁 **E A OUTRA SESSÃO CHEGOU PRIMEIRO NOS ESCUDOS.** O Felipe fez o MESMO pedido às duas no mesmo dia — pra mim *"alguns escudos estão com fundo branco"*, pra ela *"pq tem algumas bandeirinhas sem fundo igual as demais"*. Ela mediu os MESMOS 17 escudos do torneio 26, chegou aos MESMOS números (3 transparentes, 14 com fundo dentro do arquivo, dois JPEG), decidiu a MESMA coisa (moldura branca fixa nos dois temas) e **mesclou antes**. No merge eu fiquei com a versão dela — quadrada, 18px, com borda — e **descartei a minha** (altura fixa, largura livre, abraçando o escudo). Os quatro testes que travavam o MEU desenho saíram junto: teste meu brigando com o que já está no ar é teste errado. Deste PR sobrou o que era de fato meu: **as colunas** e **o gate de CSS**.
+>
+> ⚠️ **O QUE ISSO CUSTOU, e é a lição:** duas sessões mediram os mesmos 17 arquivos, escreveram o mesmo comentário e resolveram o mesmo problema em paralelo. O `ONDAS-PARALELAS.md` manda conferir se os arquivos são disjuntos — mas isso é entre TAREFAS de uma mesma onda, e não entre sessões que o Felipe abre no celular ao longo do dia. Antes de começar trabalho visual, vale um `git log origin/main --oneline -20` só pra ver se o assunto já está em voo.
+>
+> 🕳️ **E O MERGE COM O `main` QUASE MATOU O ARQUIVO EM SILÊNCIO.** Outra sessão mexeu no MESMO trecho no mesmo dia (o selo no canto da foto do card AO VIVO e o `.pdz-jl-escudo` da lista de jogos). Resolvendo o conflito eu **engoli o `}` que fechava o `.pdz-jl-escudo`** — 613 `{` para 612 `}`. Dali pra baixo, toda regra virou declaração solta dentro dela: `.pdz-col-num` e `.pdz-tabela-grupo` **deixaram de existir**.
+>
+> ⚠️ **E A SUÍTE PASSOU VERDE COM O ARQUIVO QUEBRADO: 6.421 testes, 0 falhas.** São 104 arquivos de teste que leem fonte com `File.ReadAllText` e procuram substring — **nenhum PARSEIA nada**. "A regra está escrita no arquivo" continuava verdadeiro enquanto "a regra é aplicada pelo navegador" tinha deixado de ser. Quem pegou foi contar chaves à mão, depois de o `grep` mostrar um comentário onde devia estar um `}`.
+>
+> ✅ **VIROU GATE: `CssNaoPodeFicarQuebradoTests`** — chaves balanceadas (ignorando comentário, que aqui é fartíssimo) e nenhum bloco de regra com mais de 2.500 caracteres, que é o desenho de um `}` faltando quando duas somem e uma sobra. Visto vermelho no arquivo quebrado, com a mensagem *"613 `{` para 612 `}`"*, antes de devolver a chave.
+>
+> ✅ **A CHAPINHA FOI TAMBÉM PRA LISTA DE JOGOS** (`.pdz-jl-escudo`): o pedido do Felipe não tinha tela — *"alguns escudos estão com fundo branco"* —, e são os mesmos 10 arquivos. O selo do card AO VIVO ficou **de fora de propósito**: ele tem fundo navy e anel claro por decisão da outra sessão, aprovada à parte (*"e no ao vivo use esse do B"*), e o seletor dela é mais específico, então as duas convivem sem brigar.
+>
+> ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
+
+
 > **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
@@ -346,7 +472,15 @@
 >
 > ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
 
-> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (PR #179) — o registro do deploy e o que foi conferido no ar estão na entrada do topo. **Sem migration.**
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DO ER (`/Torneios/Details/26`, 830 KB de HTML baixados do `prod`)** — e não só o `/healthz`:
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e isso é novo aqui:** ele tem o portão de **Acesso Antecipado**, então anônimo é redirecionado pra `/AcessoAntecipado/Entrar` e o HTML do torneio nunca chega (o primeiro `curl` voltou **0 bytes** justamente por isso). No `dev` a conferência externa possível é o `/healthz` e os estáticos; a **visual é no `prod`**, que é aberto. Vale lembrar antes de alguém prometer "conferi no dev" de novo.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES no meio** (PRs #178 e #180, de outra sessão — o #178 entrou minutos antes do meu merge). Publiquei **pela tag** `build-1040-e57d577`, com o sha7 conferido contra o meu merge `e57d5775`, e não por "o mais recente".
+>
+> ⚠️ **A LISTAGEM DE RELEASES VEM ORDENADA POR NOME, NÃO POR DATA.** `build-997` aparece **antes** de `build-1040` na primeira página — pegar "a primeira" publica um build de quatro horas atrás. Ordene por `published_at` e confira o sha7.
 >
 > 🗣️ Felipe, com o print do 2ª Etapa ER Padel Tour no celular: *"estou achando muito poluído essa tela, muita informação"*. Contados, eram **DEZ blocos** entre o topo e o primeiro jogo. E, olhando a lista: *"palpiteiros me parece duplicado, não?"*.
 >
@@ -450,7 +584,11 @@
 >
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1005-3156b46`** (16h48 e 16h50 de Brasília — runs 192 e 193). PR #165. **Sem migration.**
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e `/Torneios/CheckIn/26` respondendo **302 pro login** nos dois (e não 500) — a rota nova está de pé e fechada pra quem não entrou. O proxy desta sessão, que passou o dia devolvendo 403 pro domínio, voltou a deixar passar; a nota de "não dá pra conferir por fora" **não vale mais pra este deploy**.
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERÊNCIA É A APARÊNCIA.** 302 e 200 dizem que a tela responde, não que ela está certa: o desenho dos blocos por horário, o cartão de cada jogo e o "Resto do torneio" fechado só se conferem abrindo a página logado — e esta sessão não tem navegador.
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >
