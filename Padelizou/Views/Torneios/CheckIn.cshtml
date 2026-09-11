@@ -11,6 +11,7 @@
        Reordenar aqui seria a segunda conta de "quem vem antes" — e é assim que duas telas
        passam a discordar sobre a mesma grade. *@
     var jogos = ViewBag.JogosQueVem as List<Padelizou.Models.Partida> ?? new List<Padelizou.Models.Partida>();
+    var jaRolaram = ViewBag.JogosQueJaRolaram as List<Padelizou.Models.Partida> ?? new List<Padelizou.Models.Partida>();
 }
 
 <div class="container mt-4 mb-5">
@@ -68,22 +69,7 @@
 
             foreach (var jogo in doHorario)
             {
-                bool osDoisChegaram = jogo.Dupla1?.CheckInEm != null && jogo.Dupla2?.CheckInEm != null;
-                <div class="card border-0 shadow-sm mb-2 @(osDoisChegaram ? "opacity-50" : "")">
-                    <div class="card-body p-2">
-                        <div class="small text-muted mb-1 d-flex flex-wrap align-items-center gap-2">
-                            <span class="text-truncate">@jogo.Categoria?.Nome · @jogo.Fase</span>
-                            @if (osDoisChegaram)
-                            {
-                                <span class="badge rounded-pill bg-success">os dois chegaram</span>
-                            }
-                        </div>
-                        <div class="list-group list-group-flush">
-                            <partial name="_LinhaDoCheckIn" model="jogo.Dupla1" />
-                            <partial name="_LinhaDoCheckIn" model="jogo.Dupla2" />
-                        </div>
-                    </div>
-                </div>
+                <partial name="_JogoNoCheckIn" model="jogo" />
             }
         }
     }
@@ -138,6 +124,32 @@
             }
         </div>
     </div>
+
+    @* ── O QUE JÁ COMEÇOU OU JÁ ACABOU ─────────────────────────────────────────────────
+       🗣️ Felipe, 11/09/2026: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja
+       começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão
+       em jogo"*.
+
+       ⚠️ FECHADO, MAS PRESENTE. Na primeira versão estes jogos sumiam da tela inteira, e quem
+       pusesse o jogo no ar antes de marcar a chegada perdia o caminho pro check-in daquela
+       dupla — só voltava pela lista de 64. O botão continua aqui dentro, igual ao de cima. *@
+    @if (jaRolaram.Any())
+    {
+        <div class="mt-3">
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#jaJogaram"
+                    aria-expanded="false" aria-controls="jaJogaram">
+                <i class="bi bi-check2-square"></i> Já jogaram ou estão em jogo (@jaRolaram.Count)
+            </button>
+
+            <div class="collapse mt-3" id="jaJogaram">
+                @foreach (var jogo in jaRolaram)
+                {
+                    <partial name="_JogoNoCheckIn" model="jogo" />
+                }
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {
