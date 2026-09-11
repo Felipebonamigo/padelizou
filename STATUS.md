@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **O ESCUDO CHEGOU NAS OUTRAS DUAS TELAS DE JOGO — E EM DUAS FORMAS DIFERENTES, POR ESCOLHA DO FELIPE.** Ele abriu a aba **Jogos** em produção, com o `build-1052` no ar, e pediu o resto: 🗣️ *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* e, olhando a maquete de novo, 🗣️ *"e no ao vivo use esse do B"*.
 >
