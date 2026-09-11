@@ -1,4 +1,18 @@
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er (`/Torneios/CompartilharJogos/26`)**: a página responde **200** com o botão **"Baixar em planilha"**; a planilha baixa de verdade (**`text/csv`, 6.624 bytes, 56 jogos**, `attachment; filename=jogos-2-etapa-er-padel-tour-ept.csv`, com o BOM `EF BB BF` e `;`); e a arte `parte=1` sai em **PNG de 242 KB com 14 jogos** — a mesma sexta que antes precisava de duas imagens. 📉 **A prova do teto novo está na própria página: as partes caíram de SEIS pra TRÊS.**
+>
+> 🔒 **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e não é defeito**: o gate de **Acesso Antecipado** redireciona TODA a aplicação lá (o `/Torneios/Details/26` responde o mesmo 302 pro `/AcessoAntecipado/Entrar`). A evidência no `dev` é o run verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho se o `/healthz` não responder — mais o `/healthz` 200 chamado por fora.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO DUAS VEZES NESTE PR** (`fbd25b6` e `7b55897`: zero checks criados, enquanto outros branches rodavam no mesmo minuto). É o quadro de 26/08 e de 10/09; resolvido pelo **gatilho manual** do `ci.yml` (Actions → CI → Run workflow no branch), que devolveu verde no SHA certo. **As duas gambiarras continuam proibidas**: commit vazio e fechar/reabrir o PR.
+>
+> 📌 **E UM DISPARO DE DEPLOY FALHOU CALADO DE NOVO** — o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run** (mesma nota de 10/09). Não foi refeito porque, no minuto seguinte, a sessão paralela publicou o `build-1099`, que já carrega este código: o `prod` está no ar com ele, conferido acima. **Quem disparar um deploy: confira que o run EXISTE, o 204 não garante nada.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES entre o PR e o merge** (PRs #202, #203 e o #201 depois). Cada vez: mescla, resolve o `STATUS.md`, roda a suíte inteira — **6.497 testes, 0 falhas** na última.
+>
+> 🧹 **CICATRIZ DESTA SESSÃO, e é de processo:** eu commitei `STATUS.md` **com os marcadores de conflito dentro** (`<<<<<<< HEAD`) porque encadeei `git add && git commit` depois de um script que **abortou no meio** — o `&&` só olha o comando anterior, e o `git add` "resolve" o conflito aos olhos do git. Corrigido no commit seguinte. **A lição: depois de resolver conflito, conferir o arquivo ANTES do `add`** — e o que enganou o script foi uma entrada antiga do próprio `STATUS.md` que CITA um marcador dentro de uma frase, então a busca tem que ser por LINHA inteira, nunca por substring.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
 >
 > 📤 **O "COMPARTILHAR ESTA LISTA" GANHOU AS TRÊS COISAS QUE O FELIPE PEDIU DEPOIS DE USAR.** 🗣️ *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"* · *"crie tambem uma opção de importar planilha se quiserem"* · *"tente fazer com que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
 >
