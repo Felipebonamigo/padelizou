@@ -218,5 +218,6 @@ public class AvisoPorWhatsAppTests
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             PorteiroDeTeste.Saida(),
+            new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 }

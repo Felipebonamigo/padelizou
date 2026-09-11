@@ -2,9 +2,31 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 >
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/tender-allen-odkzo9`, ainda não publicado.** **Sem migration.**
 >
-> 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
+> 🔕 **UM BOTÃO QUE CALA O SISTEMA INTEIRO.** 🗣️ Felipe: *"crie um botão para desabilitar todas notificações no painel admin"*. Perguntado sobre o alcance, escolheu **push + e-mail + WhatsApp, com a Caixa de Avisos continuando a ser gravada**, e **só o admin raiz** mexendo. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA numa tabela que já existe).
+>
+> 🕳️ **O BURACO QUE ELE FECHA É O ENVIO EM FUGA** — um job novo despejando aviso na base toda, um torneio duplicado avisando todo mundo de novo. Até aqui a única saída era **ssh no servidor mais restart do serviço**, e o momento em que isso é preciso é exatamente o momento em que ninguém tem o notebook na mão. É o mesmo raciocínio do portão de acesso (05/08), e por isso é o mesmo MOLDE: chave/valor em `ConfiguracaoDoSistema`, singleton com a cópia em memória, banco como fonte da verdade — **a decisão sobrevive ao deploy**, que é o teste que justifica a tabela em vez de um `bool` em memória.
+>
+> ✅ **O CORTE É NUM LUGAR SÓ: `PushNotificationService.EntregarAgoraAsync`.** É o funil por onde passa todo aviso do sistema, então o botão vale pros **~30 pontos que geram aviso** sem que nenhum deles saiba que ele existe — e o próximo aviso a nascer já nasce obedecendo. Cortar nos 30 seria a mesma regra escrita 30 vezes, e a 31ª esqueceria dela.
+>
+> ⚠️ **MUDO É "NÃO INCOMODA", NÃO É "APAGA": a Caixa de Avisos continua sendo gravada.** É o único canal que não depende de entrega nenhuma (é só abrir o app), e gravar ali não toca no celular de ninguém — então religar devolve o histórico inteiro, em vez de um buraco que ninguém reconstrói depois. **O que passou NÃO é reenviado**, e a tela diz isso com todas as letras.
+>
+> ⚠️ **O PLACAR AO VIVO É A EXCEÇÃO: mudo, ele é descartado INTEIRO.** Ele é `ApenasPush` e por projeto não entra na caixa (16/08) — placar de meia hora atrás não vale ser guardado pra depois.
+>
+> ⚠️ **AQUI NÃO EXISTE PADRÃO VINDO DO systemd, ao contrário do portão** — e é escolha, não esquecimento: um sistema mudo é estado de EXCEÇÃO sempre, e uma chave de configuração pra isso seria uma forma de subir um ambiente calado sem ninguém ter decidido calar. O sintoma disso ("ninguém recebe nada") é dos mais caros de diagnosticar, porque cada canal falha por conta própria o tempo todo e a suspeita nunca cai no interruptor.
+>
+> 🚨 **E POR ISSO O ESTADO MUDO GRITA EM TRÊS LUGARES**: faixa vermelha no topo do painel **pra qualquer admin** (não só pro raiz que apertou), a gaveta "Ferramentas e ajustes" **abrindo sozinha** com selo `avisos MUDOS`, e uma faixa na tela de **Teste de aviso**. Portão fechado gera "não consigo entrar"; silêncio não gera sintoma nenhum — sem isso, a chave ficaria ligada por dias.
+>
+> ⚠️ **O TESTE DIRIGIDO NÃO OBEDECE AO SILÊNCIO, de propósito**: ele é uma pessoa escolhida a dedo pelo próprio admin que apertou o botão, e é a única forma de conferir se um canal está de pé enquanto o sistema está calado. O risco disso é o admin ler *"Enviado!"* e concluir que os avisos do sistema estão saindo — daí a faixa naquela tela.
+>
+> 🧪 **6.569 testes, 0 falhas (11 novos, em `BotaoDoSilencioDeAvisosTests`)** + `conferir-palpitrometro.js` verde. **Os 7 vistos vermelhos antes**, pelos motivos certos: não gravava, não recusava o administrador nomeado, o e-mail saía e o push era tentado. 🔬 **A pegadinha de testar PUSH**: ele sai por HTTP direto do `WebPushClient`, sem interface no meio pra substituir — o que delata a TENTATIVA é o **log** (a inscrição do teste tem chave de mentira, então qualquer envio estoura no `catch` que registra). **Os dois lados estão testados**: sem o par de controle, uma mudança que matasse o push inteiro passaria como "o silêncio funciona".
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA** — o painel exige banco e login, e não há Postgres nesta sessão. O que foi conferido: o Razor **compila** (as views são compiladas no build em Release) e a suíte inteira passa.
+
+> **11/09/2026** — 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`.** **Sem migration.**
+>
+> 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
 >
 > 🕳️ **O QUE INCOMODAVA NÃO ERA O VERDE, ERA O HALO.** A primeira versão tinha um `box-shadow` de **6px** espalhando luz em volta (`rgba(216,233,74,.55)`) e um ponto especular forte no gradiente. Somados, leem como **luzinha acesa**, não como bola — e o olho vai nela antes de ir no placar, que é o oposto do que ela existe pra fazer.
 >
