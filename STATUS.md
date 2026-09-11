@@ -1,3 +1,35 @@
+# Padelizou — Status e Roadmap
+
+> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
+>
+> 1. *"botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes"* → escudo no `_JogadorChip` (`build-1052`).
+> 2. *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* + *"e no ao vivo use esse do B"* → escudo na lista de jogos e SELO no card ao vivo (`build-1062`).
+> 3. *"pq tem algumas bandeirinhas sem fundo igual as demais ainda"* + *"nessa parte aqui, dos grupos, faça igual dos jogos ao vivo, com o logo redondinho no canto da foto"* → moldura clara em todos e selo também na tabela do grupo (`build-1105`).
+>
+> 🕳️ **A QUEIXA DAS "BANDEIRINHAS SEM FUNDO" NÃO ERA DEPLOY FALTANDO — ERA O ARQUIVO DE CADA LOGO.** Baixados e medidos os **17 escudos em uso no torneio 26**: só **3** têm fundo transparente; os outros 14 trazem o fundo DENTRO da imagem, e bem diferentes entre si — retângulo preto (Compass, Chakra, Os Loberos), azul-escuro (Operados), branco (Dez Padel, Porto) e dois JPEG. Sem fundo no CSS, cada um aparece como veio e a fileira fica salpicada.
+>
+> ✅ **A moldura clara é o que iguala**: branco FIXO nos dois temas (os opacos são quase todos claros por dentro — moldura que mudasse com o tema desigualaria de novo no escuro), borda de 1px, cantos de 4px, `contain` dentro. Não deixa todos da mesma COR — isso só editando as imagens —, mas dá a todos a mesma forma e o mesmo contorno.
+>
+> 🎖️ **O SELO É DO AO VIVO E DA TABELA DO GRUPO, e de mais ninguém.** O `_JogadorChip` é o mesmo parcial de quatro telas; quem quer o selo avisa por `view-data` (`EscudoComoSelo`), porque o que muda é o HTML — o selo nasce DENTRO da moldura da foto, que é quem ancora o canto quando o nome quebra em duas linhas. Ele encolhe de 18px pra 14px no compacto: lá a foto tem 26px contra 36px do ao vivo.
+>
+> ⚠️ **O selo nasceu NAVY e virou branco no mesmo dia**: com os logos de verdade o fundo escuro apagava os escuros — o "Compass", preto sobre navy, sumia dentro do próprio selo.
+>
+> 👀 **A SESSÃO WEB PASSOU A VER A TELA, e isso mudou o diagnóstico.** O Chromium do container (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome --headless=new --screenshot`, sem Playwright e sem servidor) renderiza um HTML local com o `site.css` do projeto e os **logos e fotos baixados de produção**. Foi assim que *"algumas bandeirinhas sem fundo"* virou a contagem 3-de-17 acima, em vez de chute.
+>
+> 🕳️ **A LIÇÃO CARA DO DIA: DUAS SESSÕES NO MESMO `site.css`.** O `build-1099` (do PR #201) foi publicado em `prod` e **sobrescrito 15 segundos depois** pelo `build-1098-9db8a22`, de outra frente — e aquele build **não tinha as linhas da moldura**: elas se perderam numa resolução de conflito no PR #204. O `main` ficou certo (outra sessão restaurou em `e5b4fab`), mas o AR ficou uma versão atrás sem ninguém notar. O conserto foi publicar o **`main` inteiro**, e não reempurrar o build antigo. É o que o `ONDAS-PARALELAS.md` já diz: **duas tarefas só rodam juntas se os arquivos são disjuntos** — e `site.css` não era.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`, DEPOIS de todos os deploys da rodada**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **93 selos** na tabela dos grupos (`pdz-chip-foto-selo`), **104 escudos** na lista de jogos (`pdz-jl-escudo`) e **186** ao lado do nome — com a moldura (`background:#fff` + borda) no `/css/site.css` servido.
+>
+> 🧪 **6.440 testes, 0 falhas (12 novos no dia, em `EscudoDoTimeNoChipTests` e `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde.
+>
+> ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM POR REGEX FROUXO, e o conserto vale pro próximo**: `\.pdz-chip-foto-selo \.pdz-chip-escudo` passou a casar também com `.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo` no dia em que essa regra nasceu — e o teste passou a medir o seletor errado. Levaram **âncora de início de linha** (`^` com `RegexOptions.Multiline`). Guarda de CSS por regex precisa ancorar o seletor.
+>
+> 🧹 **E O TÍTULO DESTE ARQUIVO VOLTOU PRO TOPO**: um merge de hoje deixou uma entrada inteira ACIMA do `# Padelizou — Status e Roadmap`, e o diário passou a começar no meio. A entrada não se perdeu — está logo abaixo, na ordem.
+
+
 > Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er (`/Torneios/CompartilharJogos/26`)**: a página responde **200** com o botão **"Baixar em planilha"**; a planilha baixa de verdade (**`text/csv`, 6.624 bytes, 56 jogos**, `attachment; filename=jogos-2-etapa-er-padel-tour-ept.csv`, com o BOM `EF BB BF` e `;`); e a arte `parte=1` sai em **PNG de 242 KB com 14 jogos** — a mesma sexta que antes precisava de duas imagens. 📉 **A prova do teto novo está na própria página: as partes caíram de SEIS pra TRÊS.**
@@ -30,9 +62,6 @@
 >
 > 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
 
-# Padelizou — Status e Roadmap
-
-> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** ⏳ **NO BRANCH `claude/wonderful-pasteur-bkqy9o`.** ✅ **SEM MIGRATION.**
 >
 > 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
