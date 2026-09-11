@@ -67,7 +67,7 @@
             </p>
             <form asp-action="Comunicar" method="post"
                   data-confirmar-titulo="Avisar todo mundo?"
-                  data-confirmar="A mensagem sai agora por notificação pra todos os inscritos e fica na Caixa de Avisos de cada um. Não dá pra desfazer."
+                  data-confirmar="A mensagem sai agora por notificação pra todos os inscritos e fica na Caixa de Avisos de cada um — e também por e-mail, se você marcou a caixinha. Não dá pra desfazer."
                   data-confirmar-ok="Enviar aviso">
                 <input type="hidden" name="id" value="@Model.Id" />
                 <div class="row g-2">
@@ -85,6 +85,23 @@
                                maxlength="180" required
                                placeholder="Ex: As chaves saíram! Confira seu horário." />
                     </div>
+                </div>
+                @* A CAIXINHA DO E-MAIL (11/09/2026). Sem `checked` de propósito: marcada por
+                   padrão, o botão volta a mandar e-mail pra base inteira do torneio sem
+                   ninguém decidir isso — que é o defeito que o alcance `AppSemEmail` fechou
+                   hoje de manhã, e a cota do Gmail já estourou duas vezes por volume assim.
+
+                   ⚠️ Sem <input type="hidden"> de par: checkbox desmarcada não vai no POST, e
+                   o binder do MVC resolve `bool` ausente como false. O hidden só existiria pra
+                   forçar um valor — aqui ele seria uma segunda fonte da mesma verdade. *@
+                <div class="form-check mt-2">
+                    <input type="checkbox" class="form-check-input" id="tambemPorEmail"
+                           name="tambemPorEmail" value="true" />
+                    <label class="form-check-label small" for="tambemPorEmail">
+                        Mandar também por e-mail
+                        <span class="text-muted">— alcança quem não instalou o app. Vale pra chave
+                        publicada ou mudança de horário; pra recado do dia, só a notificação basta.</span>
+                    </label>
                 </div>
                 <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
                     <i class="bi bi-send"></i> Enviar aviso

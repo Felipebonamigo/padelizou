@@ -379,15 +379,22 @@ namespace Padelizou.Controllers
         // Um clique avisa todo mundo do torneio. É o que hoje o organizador faz na mão,
         // em cinco grupos de WhatsApp diferentes.
         //
-        // ⚠️ SÓ NOTIFICAÇÃO (push + Caixa de Avisos), por `AppSemEmail`. 11/09/2026, pedido do
-        // Felipe: *"acho que esse botão ai, tem q ser só push"*. Antes ia sem alcance nenhum,
-        // caía no padrão `SoApp` e mandava e-mail pra TODOS os inscritos — a rajada mais
-        // proporcional ao torneio que existe aqui, e a cota do Gmail já estourou duas vezes
-        // por volume assim. O aviso daqui é de dia de jogo ("chuva, atrasou 1h"): quem precisa
-        // dele está a caminho da quadra com o telefone na mão, não na caixa de entrada.
+        // ⚠️ O PADRÃO É SÓ NOTIFICAÇÃO (push + Caixa de Avisos), por `AppSemEmail`. 11/09/2026,
+        // pedido do Felipe: *"acho que esse botão ai, tem q ser só push"*. Antes ia sem alcance
+        // nenhum, caía em `SoApp` e mandava e-mail pra TODOS os inscritos — a rajada mais
+        // proporcional ao torneio que existe aqui, e a cota do Gmail já estourou duas vezes por
+        // volume assim. O aviso daqui é de dia de jogo ("chuva, atrasou 1h"): quem precisa dele
+        // está a caminho da quadra com o telefone na mão, não na caixa de entrada.
+        //
+        // E a CAIXINHA é a saída pro outro caso, do mesmo dia (*"poe a caixinha de mandar por
+        // email tambem"*): o e-mail é o único canal que alcança quem NÃO instalou o app, e eram
+        // 4 aparelhos registrados em 128 jogadores no torneio do Er. "A chave saiu" merece esse
+        // alcance; "chuva, atrasou 1h" não merece, e é por isso que a escolha é por aviso e
+        // nasce desmarcada — o custo aparece na hora de pagar, não escondido num padrão.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Comunicar(int id, string mensagem, int? categoriaId)
+        public async Task<IActionResult> Comunicar(int id, string mensagem, int? categoriaId,
+            bool tambemPorEmail = false)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -421,12 +428,16 @@ namespace Padelizou.Controllers
             var url = Url.Action("Details", "Torneios", new { id });
             int enviados = 0;
 
+            // `SoApp` é "app + e-mail, sem WhatsApp" — o nome é herança de quando o WhatsApp era
+            // a única pergunta que o alcance fazia (ver AlcanceDoAviso). É o valor com e-mail.
+            var alcance = tambemPorEmail ? AlcanceDoAviso.SoApp : AlcanceDoAviso.AppSemEmail;
+
             foreach (var jogadorId in ids)
             {
                 try
                 {
                     await _pushService.EnviarParaJogadorAsync(jogadorId, torneio.Nome, mensagem.Trim(), url,
-                        AlcanceDoAviso.AppSemEmail);
+                        alcance);
                     enviados++;
                 }
                 catch (Exception ex)
@@ -436,8 +447,9 @@ namespace Padelizou.Controllers
             }
 
             TempData["Sucesso"] = $"Comunicado enviado para {enviados} de {ids.Count} inscrito(s). " +
-                                  "Sai por notificação e fica na Caixa de Avisos de cada um — " +
-                                  "sem e-mail e sem WhatsApp.";
+                                  (tambemPorEmail
+                                      ? "Saiu por notificação, pela Caixa de Avisos e por e-mail."
+                                      : "Saiu por notificação e fica na Caixa de Avisos de cada um — sem e-mail.");
             return RedirectToAction("Details", new { id });
         }
 

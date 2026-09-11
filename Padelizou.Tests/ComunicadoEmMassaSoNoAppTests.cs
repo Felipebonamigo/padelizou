@@ -64,16 +64,70 @@ public class ComunicadoEmMassaSoNoAppTests
         Assert.False(AlcanceDoAviso.AppSemEmail.VaiNoWhatsApp());
     }
 
+    [Fact]
+    public async Task Com_a_caixinha_marcada_o_comunicado_vai_tambem_por_email()
+    {
+        // 11/09/2026 — 🗣️ Felipe: *"poe a caixinha de mandar por email tambem"*. O motivo é o
+        // alcance: o e-mail é o único canal que chega em quem NÃO instalou o app, e eram 4
+        // aparelhos registrados em 128 jogadores no dia do Er. Sem esta saída, "a chave saiu"
+        // só encontrava quem já ia abrir o app de qualquer jeito.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2);
+        var push = Substitute.For<IPushNotificationService>();
+        var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id, push: push);
+
+        await controller.Comunicar(torneio.Id, "As chaves saíram!", categoriaId: null, tambemPorEmail: true);
+
+        // `SoApp` é o valor "app + e-mail, sem WhatsApp" (o nome engana — ver AlcanceDoAviso).
+        await push.Received(4).EnviarParaJogadorAsync(
+            Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),
+            AlcanceDoAviso.SoApp);
+
+        // E marcar a caixinha NÃO pode abrir o WhatsApp de carona.
+        Assert.True(AlcanceDoAviso.SoApp.VaiNoEmail());
+        Assert.False(AlcanceDoAviso.SoApp.VaiNoWhatsApp());
+    }
+
     // ── O QUE A TELA PROMETE ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void A_caixinha_do_email_existe_e_nasce_desmarcada()
+    {
+        var form = FormDoComunicado();
+
+        int caixinha = form.IndexOf("name=\"tambemPorEmail\"", StringComparison.Ordinal);
+        Assert.True(caixinha >= 0, "Não achei a caixinha 'mandar também por e-mail' no formulário.");
+
+        // ⚠️ DESMARCADA de propósito, e é a metade que importa travar: marcada por padrão, o
+        // botão volta a ser o que era antes de 11/09/2026 — e-mail pra base inteira do torneio
+        // sem ninguém ter decidido isso — só que agora com uma caixinha dando álibi.
+        int fimDaTag = form.IndexOf(">", caixinha, StringComparison.Ordinal);
+        Assert.True(fimDaTag >= 0, "A tag da caixinha não fecha.");
+        Assert.DoesNotContain("checked", form[caixinha..fimDaTag], StringComparison.OrdinalIgnoreCase);
+    }
+
 
     [Fact]
     public void O_modal_de_confirmacao_nao_promete_canal_que_nao_sai()
     {
         var form = FormDoComunicado();
 
+        // O WhatsApp é o único que NUNCA sai daqui, marcando o que marcar: nenhum dos dois
+        // alcances em jogo passa por VaiNoWhatsApp(). Prometê-lo é o defeito de 11/09/2026.
         Assert.DoesNotContain("WhatsApp", form, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("e-mail", form, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("email", form, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void O_modal_so_fala_em_email_amarrado_a_caixinha()
+    {
+        // O e-mail voltou à tela em 11/09/2026, mas como ESCOLHA. O texto do modal é um só
+        // (o confirmar.js lê o data-confirmar do <form>, e a view não escreve JavaScript),
+        // então ele precisa valer nos dois casos — dizer "sai por e-mail" seco mentiria
+        // metade das vezes, que é exatamente o buraco que este arquivo fechou.
+        var confirmacao = AtributoDoForm("data-confirmar");
+
+        Assert.Contains("e-mail", confirmacao, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("se você marcou", confirmacao, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -102,6 +156,20 @@ public class ComunicadoEmMassaSoNoAppTests
         Assert.True(fim >= 0, "Não achei o fim do formulário do comunicado.");
 
         return fonte[inicio..fim];
+    }
+
+    // O valor de um atributo do <form> do comunicado — `data-confirmar` e afins.
+    private static string AtributoDoForm(string atributo)
+    {
+        var form = FormDoComunicado();
+        int inicio = form.IndexOf(atributo + "=\"", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, $"Não achei o atributo {atributo} no formulário do comunicado.");
+
+        inicio += atributo.Length + 2;
+        int fim = form.IndexOf('"', inicio);
+        Assert.True(fim >= 0, $"O atributo {atributo} não fecha as aspas.");
+
+        return form[inicio..fim];
     }
 
     private static string PastaDoProjeto()
