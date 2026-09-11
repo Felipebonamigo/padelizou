@@ -26,8 +26,15 @@ namespace Padelizou.Services;
 public class RoboDoChaveamento
 {
     private readonly DbPadelContext _context;
+    // Os pontos do ranking, pro desempate de grupo (ClassificacaoDeGrupos). Consultados só
+    // quando algum grupo empata até eles — ver PontosSePrecisarAsync.
+    private readonly IEstatisticasService _estatisticas;
 
-    public RoboDoChaveamento(DbPadelContext context) => _context = context;
+    public RoboDoChaveamento(DbPadelContext context, IEstatisticasService estatisticas)
+    {
+        _context = context;
+        _estatisticas = estatisticas;
+    }
 
     // ===================================================================================
     // ROBÔ 1: FIM DA FASE DE GRUPOS → primeira rodada do mata-mata
@@ -74,8 +81,10 @@ public class RoboDoChaveamento
         // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
         //    — a mesma que a tela de classificação e a detecção de bye usam.
         var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
+        var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasFinalizadas, _estatisticas.ObterPontosPorJogadorAsync);
         var classificados = ClassificacaoDeGrupos.Calcular(
-            duplasDosGrupos, partidasFinalizadas, classificamPorGrupo);
+            duplasDosGrupos, partidasFinalizadas, pontos, classificamPorGrupo);
 
         // 2. Motor único de chaveamento: TODO classificado avança; o quadro cresce pra caber
         //    todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes não ganham
@@ -117,7 +126,8 @@ public class RoboDoChaveamento
 
         // Vencedores da fase + quem passou direto (bye), com a fase completa conferida lá
         // dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
-        var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
+        var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida,
+            _estatisticas.ObterPontosPorJogadorAsync);
         if (avancam.Count < 2) return;
 
         // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24 entrega

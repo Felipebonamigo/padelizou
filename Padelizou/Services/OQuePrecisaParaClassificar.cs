@@ -76,7 +76,8 @@ public static class OQuePrecisaParaClassificar
         IReadOnlyList<Dupla> duplasDoGrupo,
         IReadOnlyList<Partida> partidasDoGrupo,
         int classificamPorGrupo,
-        FormatoDaPartida.Formato formato)
+        FormatoDaPartida.Formato formato,
+        IReadOnlyDictionary<int, int> pontosPorJogador)
     {
         // "Jogado" é ter vencedor pela régua única — não é o Status. Um jogo marcado como
         // finalizado 0x0 não decidiu nada, e contá-lo como jogado faria o painel simular o
@@ -104,10 +105,12 @@ public static class OQuePrecisaParaClassificar
 
         foreach (var r in possiveis)
         {
-            var ranking = RankingCom(duplasDoGrupo, jogados, jogo, r.g1, r.g2);
+            var ranking = RankingCom(duplasDoGrupo, jogados, jogo, r.g1, r.g2, pontosPorJogador);
             simulados.Add((r.g1, r.g2, ranking.Take(passam).Select(l => l.Dupla.Id).ToHashSet()));
 
-            if (ClassificacaoDeGrupos.EmpateNoCorte(ranking, passam) is { Count: > 0 } empatadas)
+            if (ClassificacaoDeGrupos.EmpateNoCorte(ranking, passam,
+                    ComOJogoSimulado(jogados, jogo, r.g1, r.g2), pontosPorJogador)
+                is { Count: > 0 } empatadas)
                 empates.Add(new EmpateNoCorte(
                     PlacarDoJogo(lado1, lado2, r.g1, r.g2),
                     empatadas.Select(l => l.Dupla).ToList(),
@@ -116,7 +119,8 @@ public static class OQuePrecisaParaClassificar
 
         // NA ORDEM DA TABELA, e pela régua oficial: o pop-up abre em cima do card do grupo, e
         // duas ordens pra mesma lista fariam a pessoa procurar o próprio nome duas vezes.
-        var todos = ClassificacaoDeGrupos.Ordenar(duplasDoGrupo, jogados).Select(l => l.Dupla).ToList();
+        var todos = ClassificacaoDeGrupos.Ordenar(duplasDoGrupo, jogados, pontosPorJogador)
+            .Select(l => l.Dupla).ToList();
         var jaClassificados = todos.Where(d => simulados.All(s => s.Classificados.Contains(d.Id))).ToList();
         var semChance = todos.Where(d => simulados.All(s => !s.Classificados.Contains(d.Id))).ToList();
 
@@ -245,23 +249,34 @@ public static class OQuePrecisaParaClassificar
     // ⚠️ `Ordenar`, e não `Calcular`: é a MESMA régua (o `Calcular` é este ranking cortado nos N
     // primeiros), e é o ranking inteiro que permite perguntar se o corte foi esportivo. Continua
     // valendo a regra do arquivo: aqui não há nenhum `>` comparando vitórias.
+    // As partidas do grupo COM o placar simulado — o `EmpateNoCorte` precisa delas pra saber
+    // se o confronto direto resolve, e o jogo que falta é justamente um dos confrontos.
+    private static List<Partida> ComOJogoSimulado(List<Partida> jogados, Partida jogo, int g1, int g2) =>
+        // ⚠️ CÓPIA da partida, nunca a instância que veio do banco: mexer nela deixaria o
+        // objeto rastreado pelo EF com um placar inventado, e bastaria um SaveChanges de
+        // qualquer outro ponto da requisição pra gravar um resultado que ninguém jogou.
+        new List<Partida>(jogados)
+        {
+            new Partida
+            {
+                Id = jogo.Id,
+                Dupla1Id = jogo.Dupla1Id,
+                Dupla2Id = jogo.Dupla2Id,
+                GamesDupla1 = g1,
+                GamesDupla2 = g2,
+                Fase = jogo.Fase,
+            }
+        };
+
     private static List<ClassificacaoDeGrupos.Linha> RankingCom(
-        IReadOnlyList<Dupla> duplas, List<Partida> jogados, Partida jogo, int g1, int g2)
+        IReadOnlyList<Dupla> duplas, List<Partida> jogados, Partida jogo, int g1, int g2,
+        IReadOnlyDictionary<int, int> pontosPorJogador)
     {
         // ⚠️ CÓPIA da partida, nunca a instância que veio do banco: mexer nela deixaria o
         // objeto rastreado pelo EF com um placar inventado, e bastaria um SaveChanges de
         // qualquer outro ponto da requisição pra gravar um resultado que ninguém jogou.
-        var simulada = new Partida
-        {
-            Id = jogo.Id,
-            Dupla1Id = jogo.Dupla1Id,
-            Dupla2Id = jogo.Dupla2Id,
-            GamesDupla1 = g1,
-            GamesDupla2 = g2,
-            Fase = jogo.Fase,
-        };
-
-        return ClassificacaoDeGrupos.Ordenar(duplas, new List<Partida>(jogados) { simulada });
+        return ClassificacaoDeGrupos.Ordenar(
+            duplas, ComOJogoSimulado(jogados, jogo, g1, g2), pontosPorJogador);
     }
 
     // "Cadu / Dedé vence por 9x4" — o placar sempre na orientação do VENCEDOR.

@@ -1,7 +1,33 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.** ⚠️ **MEXE NA RÉGUA QUE MONTA O MATA-MATA, com torneio rodando** — ver a ressalva no fim.
+>
+> 🔲 **O DESEMPATE DE GRUPO GANHOU CONFRONTO DIRETO E RANKING — E O POP-UP PASSOU A FALAR EM PLACAR.** 🗣️ Felipe, em quatro mensagens seguidas olhando a tela no ar: *"ta meio confuso aqui, nao ficou claro para mim"* · *"seria 4 e 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais facil"* · *"e esse caso aqui se for os 3 jogos 9x4 e houver empate?"* · *"e se empatar entre apenas 2 duplas, passa quem venceu o confronto direto"* · *"e empate entre os 3, passa quem esta na frente no ranking, se não tiver ninguem com pontuação ainda, faça sorteio"*.
+>
+> 🕳️ **ELE ACHOU UM BURACO DE VERDADE.** Com os três jogos 9x4 num grupo de 3, as três duplas terminam com **1 vitória, saldo 0 e 13 games a favor** — empate em tudo o que era critério. Quem passava saía do `ThenBy(Dupla.Id)`: **ordem de cadastro no banco**. E o painel apresentava isso como eliminação esportiva ("passa vencendo por 6 games ou mais"), sem dizer que era cara-ou-coroa.
+>
+> ⚖️ **A RÉGUA NOVA, entre "games a favor" e o sorteio**: empate de **DUAS** duplas → **confronto direto**; de **TRÊS ou mais** → **ranking anual** (soma dos pontos dos dois jogadores); e **sorteio** quando nem isso separa. Nenhum grupo que se decide na quadra muda de resultado.
+>
+> 🎯 **A REGRA DELE RESOLVE A OBJEÇÃO DE 05/08/2026**, que estava escrita no próprio arquivo: confronto direto tinha sido recusado porque num empate de TRÊS ele é circular (A ganhou de B, B de C, C de A). Separar por TAMANHO do empate é o que o faz funcionar — entre duas nunca há circularidade.
+>
+> ✅ **E O CASO HISTÓRICO MUDOU DE RESPOSTA, pra melhor**: no grupo A dos TIMES do Interno de 05/08 (Target.it e Argentus empatadas em tudo), a 2ª vaga saía por Id e ficava com a Target.it. Agora sai no confronto direto, e é da **Argentus — que venceu a Target.it**. `FinalDosTimesTests` foi atualizado com o motivo escrito.
+>
+> ⚠️ **O SORTEIO É FNV-1a À MÃO, e não `string.GetHashCode()`**: o hash de string do .NET é **aleatorizado por processo**, então usá-lo faria a régua responder uma coisa antes do deploy e outra depois, com os mesmos jogos — a chave de ontem deixaria de casar com a tabela de hoje. A ordem de saída está **cravada em teste**, conferida contra uma implementação independente do FNV-1a. E ele não é mais a ordem de inscrição, que favorecia quem se inscreveu primeiro.
+>
+> 💰 **O RANKING É LIDO AO VIVO, e só onde precisa.** Buscar pontos custa DUAS consultas (`Jogador.PontuacaoGlobal` é campo morto), e a página do torneio é a mais visitada do site — 24 grupos no 2ª Etapa ER. Então a régua expõe `PrecisaDePontos`, e as telas só pagam nos grupos que empatam até o ranking. O `BuscarPontosDoRanking` (delegate com a assinatura do `ObterPontosPorJogadorAsync`) é o que deixa os serviços ESTÁTICOS — `AvancoDaChave`, `ClassificacaoParaCard` — alcançarem o ranking sem DI e sem uma segunda cópia daquela consulta.
+>
+> 📱 **O POP-UP**: a frase de cada dupla passou a nomear o **placar** ("Só passa vencendo por 9x4 ou mais folgado — **9x5 não basta**"), a tabela "Se acontecer/Classificam" saiu (dizia o mesmo em outra ordem), e o nome de dupla virou **um só** na tela — `Dupla.NomeCurto`, "Marcelo / Enio", o mesmo da lista de jogos. Antes a MESMA dupla aparecia de três jeitos no mesmo pop-up.
+>
+> ⚠️ **A FRASE CURTA TEM TRAVA**: ela só sai quando o conjunto que classifica é um **prefixo** do melhor pro pior resultado da dupla. "9x4 ou mais folgado" afirma que todo placar melhor também classifica, e o desempate por games a favor pode furar isso — furou, cai na descrição por blocos, mais longa e sempre verdadeira.
+>
+> 🧪 **6.574 testes, 0 falhas (33 novos, em `DesempateDoGrupoTests`, `VagasPorGrupoSaoUmaReguaSoTests` e `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Conferido no Chromium a 430px.
+>
+> ⚠️ **RESSALVA QUE PRECISA SER LIDA ANTES DE PUBLICAR**: isto muda a `ClassificacaoDeGrupos`, que alimenta o `AvancoDaChave` (monta o mata-mata), o robô, a prévia da chave, a tela de Classificação, a tabela do grupo e os Cartões — **com o 2ª Etapa ER rodando**. O efeito é limitado aos grupos em EMPATE PERFEITO (no resto a resposta é idêntica), e conferi na produção que **nenhum grupo está nesse estado hoje** (os 16 "empatados" da varredura são grupos com J0, que ainda não jogaram). Mas se algum grupo empatado já tiver chave montada, a recontagem pode discordar dela.
+>
+> ⚠️ **E O RANKING SE MOVE** (escolha do Felipe, com o custo na mesa): uma dupla pode passar à frente da outra semana que vem por ter jogado outro torneio, então a mesma tabela, com os mesmos jogos, pode mudar de 2º colocado depois de a chave estar montada. A alternativa era congelar o número no sorteio (migration), e ele preferiu entregar sem. O teto: o que vale é a chave já gerada.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
 >
 > 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
 >

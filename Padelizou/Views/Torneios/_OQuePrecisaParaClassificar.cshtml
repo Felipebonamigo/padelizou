@@ -50,15 +50,17 @@
     }
 </ul>
 
-@* ── O CORTE QUE NÃO SAI DA QUADRA ────────────────────────────────────────────────────────
+@* ── O CORTE QUE CAI NO SORTEIO ───────────────────────────────────────────────────────────
    🗣️ Felipe, olhando o painel no ar: *"e esse caso aqui se for os 3 jogos 9x4 e houver
    empate?"*. Num grupo de 3 com os três jogos 9x4, as três terminam com 1 vitória, saldo 0 e
-   13 games a favor — empate em tudo o que é esportivo. Hoje quem passa sai da ordem de
-   cadastro, e o painel dizia "passa vencendo por 6 ou mais" como se fosse mérito de quadra. *@
+   13 games a favor — e, sem ninguém pontuado no ranking, a vaga sai do sorteio.
+
+   ⚠️ O aviso é sobre o SORTEIO, não sobre o empate: confronto direto e ranking são decisões
+   legítimas, e o `EmpateNoCorte` já não devolve nada quando um deles resolveu. *@
 @if (Model.EmpatesNoCorte.Count > 0)
 {
     <div class="alert alert-warning small mt-3 mb-0 py-2">
-        <strong>⚠️ Tem placar que termina em empate total.</strong>
+        <strong>⚠️ Tem placar que cai no sorteio.</strong>
         @foreach (var empate in Model.EmpatesNoCorte)
         {
             <div class="mt-1">
@@ -69,8 +71,8 @@
             </div>
         }
         <div class="mt-1">
-            Nesse caso o sistema desempata pela <strong>ordem de inscrição</strong>, que não é
-            critério esportivo — vale combinar o desempate antes de o jogo começar.
+            Nem o confronto direto nem o ranking separam — a vaga sai de <strong>sorteio</strong>.
+            Vale combinar o desempate antes de o jogo começar.
         </div>
     </div>
 }
@@ -78,5 +80,6 @@
 @* A régua é a mesma do chaveamento — dizer isso aqui evita a pergunta "e se o sistema
    calcular diferente na hora?". *@
 <p class="small text-muted mt-3 mb-0">
-    Critério: vitórias, depois saldo de games, depois games a favor.
+    Critério: vitórias, saldo de games, games a favor. Empatou: confronto direto entre duas
+    duplas; entre três ou mais, quem está na frente no ranking; e sorteio se nem isso separar.
 </p>

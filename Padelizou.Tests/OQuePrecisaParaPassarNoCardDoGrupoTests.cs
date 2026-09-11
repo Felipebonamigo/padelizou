@@ -35,8 +35,11 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     {
         Id = id,
         Grupo = "B",
-        Jogador1 = new Jogador { Nome = nome, Cpf = $"9990000000{id}", Login = $"j{id}" },
-        Jogador2 = new Jogador { Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
+        // As FKs também: é delas que a régua lê os pontos do ranking (como em produção).
+        Jogador1Id = id,
+        Jogador2Id = 100 + id,
+        Jogador1 = new Jogador { Id = id, Nome = nome, Cpf = $"9990000000{id}", Login = $"j{id}" },
+        Jogador2 = new Jogador { Id = 100 + id, Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
@@ -77,7 +80,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     {
         var (duplas, jogos) = GrupoBDoPrint();
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // Eder/Augusto não joga o último jogo e passa em QUALQUER resultado dele: pro Eder ficar
         // em 3º os dois outros precisariam terminar acima de +2, e o jogo que falta dá no máximo
@@ -91,7 +94,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     {
         var (duplas, jogos) = GrupoBDoPrint();
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // ⚠️ O PLACAR, E NÃO A MARGEM. 🗣️ Felipe, vendo "por 5 games ou mais" no ar: *"seria 4 e
         // 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais
@@ -111,7 +114,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     {
         var (duplas, jogos) = GrupoBDoPrint();
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // ⚠️ O PLACAR NA VOZ DE QUEM PERDE: "5x9", os meus games na frente. Escrever "9x5" aqui
         // (a orientação do vencedor) inverteria o sentido justamente pra quem está lendo sobre
@@ -133,7 +136,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     {
         var (duplas, jogos) = GrupoBDoPrint();
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // A tela lista as duplas a partir daqui — faltando uma, ela some do pop-up sem erro
         // nenhum, e o painel passa a responder por um grupo que não é o da tela.
@@ -151,7 +154,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), Jogo(2, 3, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         Assert.Equal(OQuePrecisaParaClassificar.Estado.JaClassificado, Da(quadro, 1).Estado);
         Assert.Equal(OQuePrecisaParaClassificar.Estado.SemChance, Da(quadro, 2).Estado);
@@ -166,7 +169,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 3, 9, 2), Jogo(2, 3, 9, 1), Jogo(1, 2, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // Vitória serve, derrota não — e nenhum placar precisa ser citado, porque nenhum deles
         // muda a resposta. Citar um aqui só daria número pra decorar à toa.
@@ -198,7 +201,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 4), Jogo(2, 3, 9, 4), Jogo(3, 1, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // O 9x4 do Cadu é o placar que empata tudo — e é ele que o aviso precisa nomear.
         var empate = Assert.Single(quadro.EmpatesNoCorte);
@@ -209,6 +212,39 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         Assert.Equal(3, empate.Empatadas.Count);
     }
 
+    // ⚠️ O AVISO É SOBRE O SORTEIO, NÃO SOBRE O EMPATE. Depois de 11/09/2026 o empate de DUAS
+    // duplas é resolvido no confronto direto e o de três pelo ranking — nesses casos a decisão é
+    // legítima e avisar seria assustar por nada. O aviso existe só pro placar que sobra sem
+    // critério nenhum.
+    [Fact]
+    public void Empate_que_o_confronto_direto_resolve_nao_gera_aviso()
+    {
+        // Grupo de 3 em que o placar que falta empata DUAS duplas (Ana e Cadu) — e elas já se
+        // enfrentaram, então o confronto direto decide.
+        var duplas = new[] { Dupla(1, "Ana", "Alice"), Dupla(2, "Bia", "Bruna"), Dupla(3, "Cadu", "Caio") };
+        var jogos = new[] { Jogo(1, 3, 9, 7), Jogo(1, 2, 9, 7), Jogo(2, 3, null, null) };
+
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9,
+            ClassificacaoDeGrupos.SemPontos)!;
+
+        Assert.All(quadro.EmpatesNoCorte, e =>
+            Assert.True(e.Empatadas.Count > 2,
+                "empate de duas tem confronto direto — não é sorteio, e não devia virar aviso"));
+    }
+
+    [Fact]
+    public void Empate_que_o_ranking_resolve_nao_gera_aviso()
+    {
+        var duplas = new[] { Dupla(1, "Ana", "Alice"), Dupla(2, "Bia", "Bruna"), Dupla(3, "Cadu", "Caio") };
+        var jogos = new[] { Jogo(1, 2, 9, 4), Jogo(2, 3, 9, 4), Jogo(3, 1, null, null) };
+
+        // Com pontos distintos, o empate de três se resolve no ranking — decisão legítima.
+        var pontos = new Dictionary<int, int> { [1] = 900, [2] = 500, [3] = 100 };
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, pontos)!;
+
+        Assert.Empty(quadro.EmpatesNoCorte);
+    }
+
     [Fact]
     public void Sem_empate_no_corte_nao_ha_aviso_nenhum()
     {
@@ -216,7 +252,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         // saldo ou nos games a favor). Aviso aqui seria ruído sobre uma decisão que foi justa.
         var (duplas, jogos) = GrupoBDoPrint();
 
-        Assert.Empty(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!.EmpatesNoCorte);
+        Assert.Empty(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!.EmpatesNoCorte);
     }
 
     [Fact]
@@ -226,8 +262,10 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
             File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_OQuePrecisaParaClassificar.cshtml")));
 
         Assert.Contains("Model.EmpatesNoCorte", parcial);
-        // A palavra que o organizador precisa ler pra saber que a decisão não é da quadra.
-        Assert.Contains("ordem de inscrição", parcial);
+        // A palavra que o organizador precisa ler pra saber que a decisão não teve critério.
+        Assert.Contains("sorteio", parcial);
+        // E o rodapé precisa listar os degraus novos, senão a régua na tela mente por omissão.
+        Assert.Contains("confronto direto", parcial);
     }
 
     // ═══════════════ A TELA ═══════════════

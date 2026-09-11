@@ -133,7 +133,7 @@ public class RoboRespeitaAsQuadrasDoClubeTests
     private static async Task AgendarAsync(Cenario c, List<Partida> novos)
     {
         c.Ctx.ChangeTracker.Clear();
-        await new RoboDoChaveamento(c.Ctx).AgendarNaGradeAsync(novos, c.Torneio.Id);
+        await new RoboDoChaveamento(c.Ctx, TestInfra.EstatisticasFalsas()).AgendarNaGradeAsync(novos, c.Torneio.Id);
         c.Ctx.Partidas.AddRange(novos);
         await c.Ctx.SaveChangesAsync();
     }

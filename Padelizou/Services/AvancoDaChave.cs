@@ -38,7 +38,7 @@ public static class AvancoDaChave
     // (ChaveamentoMataMata.Semear, ensaio do Er de 10/09/2026). Mudar a ordem aqui, ou a de
     // ByesDaCategoriaAsync, muda os lados lá — e a semifinal volta a juntar o mesmo grupo.
     public static async Task<List<int>> QuemAvancaAsync(
-        DbPadelContext context, int categoriaId, string faseConcluida)
+        DbPadelContext context, int categoriaId, string faseConcluida, BuscarPontosDoRanking buscarPontos)
     {
         var partidasDaFase = await context.Partidas
             .Where(p => p.CategoriaId == categoriaId && p.Fase == faseConcluida)
@@ -81,7 +81,7 @@ public static class AvancoDaChave
         }
 
         var avancam = partidasDaFase.Select(p => p.VencedorId!.Value).ToList();
-        avancam.AddRange(await ByesDaCategoriaAsync(context, categoriaId));
+        avancam.AddRange(await ByesDaCategoriaAsync(context, categoriaId, buscarPontos));
         return avancam;
     }
 
@@ -98,7 +98,12 @@ public static class AvancoDaChave
     //    de mata-mata, e sem essa régua ela entraria nas oitavas de carona, ressuscitada.
     // Público porque o DESENHO da chave também precisa saber quem descansou: sem isso as
     // duplas de bye somem do quadro — jogam a fase seguinte e não aparecem em lugar nenhum.
-    public static async Task<List<int>> ByesDaCategoriaAsync(DbPadelContext context, int categoriaId)
+    // `buscarPontos`: o ranking só é consultado se algum grupo empatar até ele
+    // (ClassificacaoDeGrupos.PontosSePrecisarAsync). Aqui a conta PRECISA bater com a do
+    // chaveamento — é este método que diz quem descansou, e divergir dele foi o defeito de
+    // 05/08 descrito logo abaixo.
+    public static async Task<List<int>> ByesDaCategoriaAsync(
+        DbPadelContext context, int categoriaId, BuscarPontosDoRanking buscarPontos)
     {
         var categoria = await context.Categorias
             .AsNoTracking()
@@ -167,8 +172,10 @@ public static class AvancoDaChave
             // grupo de cima), a mesma com que a primeira fase escolheu quem descansa: é essa
             // ordem que a semeadura usa pra saber de que lado da chave cada bye cai.
             var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
+            var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                duplas, partidasDeGrupo, buscarPontos);
             noQuadro = ChaveamentoMataMata.OrdemDosByes(ClassificacaoDeGrupos.Calcular(
-                    duplas, partidasDeGrupo, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
+                    duplas, partidasDeGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
                 .Select(c => c.DuplaId)
                 .ToList();
         }

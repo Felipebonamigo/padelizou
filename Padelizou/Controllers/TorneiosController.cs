@@ -930,7 +930,8 @@ namespace Padelizou.Controllers
                 var byesPorCategoria = new Dictionary<int, List<Dupla>>();
                 foreach (var categoriaId in ((Dictionary<int, List<Partida>>)ViewBag.MataMataPorCategoria).Keys)
                 {
-                    var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, categoriaId);
+                    var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, categoriaId,
+                        _estatisticas.ObterPontosPorJogadorAsync);
                     if (byeIds.Count == 0) continue;
 
                     var duplasDeBye = await _context.Duplas
@@ -997,8 +998,16 @@ namespace Padelizou.Controllers
                             .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
                             .ToList();
 
+                        // ⚠️ Os pontos do ranking só são buscados no grupo que empata até
+                        // eles (duas consultas). Esta é a página mais visitada do site, com 24
+                        // grupos no 2ª Etapa ER — buscar sempre custaria caro por nada.
+                        var doGrupoDuplas = grupo.Duplas.ToList();
+                        var pontosDoGrupo = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                            doGrupoDuplas, doGrupo, _estatisticas.ObterPontosPorJogadorAsync);
+
                         if (OQuePrecisaParaClassificar.Montar(
-                                grupo.Duplas.ToList(), doGrupo, passamDaCategoria, formatoDosGrupos) is { } quadro)
+                                doGrupoDuplas, doGrupo, passamDaCategoria, formatoDosGrupos,
+                                pontosDoGrupo) is { } quadro)
                             oQuePrecisaPorGrupo[grupo.Id] = quadro;
                     }
                 }
@@ -1122,7 +1131,8 @@ namespace Padelizou.Controllers
             // duplas que nunca vão se enfrentar.
             foreach (var porCategoria in deMataMata.GroupBy(p => p.CategoriaId))
             {
-                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key);
+                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key,
+                    _estatisticas.ObterPontosPorJogadorAsync);
                 var nomePorDupla = porCategoria
                     .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
                     .DistinctBy(d => d.Id)
