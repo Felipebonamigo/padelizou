@@ -1,7 +1,9 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.**
 >
 > 🗣️ Felipe: *"estou pensando em botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes, como ficaria? e como me indica colocar?"* — foram três maquetes (escudo junto do nome · selo na foto · bandeira da dupla inteira) e ele escolheu a primeira.
 >
@@ -18,6 +20,12 @@
 > 🧪 **6.381 testes, 0 falhas (4 novos, em `EscudoDoTimeNoChipTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-chip-escudo"*, *"não achei a regra .pdz-chip-escudo no site.css"* e *"não achei o `<img>` do escudo no chip"*. **Um deles passou de primeira e foi reescrito até discriminar**: "o escudo fica fora da linha do clube" passa trivialmente num chip que não tem escudo nenhum, então ele agora exige primeiro que o escudo EXISTA.
 >
 > ⚠️ **A suíte não renderiza Razor** (ver `SeloDeCampeaoDaCategoriaTests`, seção 4), então os 4 testes são guarda de ARQUIVO: travam o que, desfeito, apaga o escudo da tela sem deixar nenhum outro teste vermelho. ⚠️ **Não foi visto no navegador** — sessão web, sem browser.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz **186 escudos** (`class="pdz-chip-escudo"`) de **17 times distintos**, cada um com `alt`/`title` do nome — o primeiro deles é literalmente `/uploads/logos-time/bandeiraer.jpeg`, a bandeira que o pedido citou.
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA, e a Regra 3 só valeu pela metade**: o `dev` está atrás do gate de Acesso Antecipado, então anônimo não abre página nenhuma lá — a prova em `dev` é o job verde e o `/healthz` 200; a prova do escudo é o HTML de `prod`. **O olhar humano sobre o visual (tamanho, peso, escudo escuro no card navy) continua pendente.**
+>
+> ⚠️ **Um escudo real é JPEG, não PNG transparente** (`bandeiraer.jpeg`): a chapinha clara do card ao vivo fica atrás de um retângulo opaco, sem prejuízo — mas quem cadastrar logo JPEG vai ver um quadradinho de fundo branco no tema escuro.
 >
 > ⏭️ **FICOU DE FORA, de propósito**: a lista de Agendadas/Finalizadas (`_JogoEmLinha`, onde não existe nome de time pra acompanhar o escudo — era a opção B) e o **cartão de imagem do WhatsApp** (`CartaoDosJogos`), onde escudo é desenho SkiaSharp e não HTML.
 
