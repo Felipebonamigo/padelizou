@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.** ⚠️ **MEXE NA RÉGUA QUE MONTA O MATA-MATA, com torneio rodando** — ver a ressalva no fim.
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br/Torneios/Details/26`, anônimo, `curl`) — mais forte do que ler número de run, porque outras sessões estavam publicando no mesmo minuto: **8 botões**, **8 modais**, **zero** "Se acontecer" (a tabela saiu) e **8 rodapés** com *"confronto direto"* (a régua nova escrita na tela). O nome curto chegou: *"Falta um jogo: Marcos / Marcio × Marcelo / Milton"*. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **O CAMINHO "DEPENDE" SEGUE SEM SER VISTO NO AR, por falta de caso**: os 8 grupos com um jogo faltando estão todos em "já classificado". A frase *"Só passa vencendo por 9x4 ou mais folgado — 9x5 não basta"* está provada por teste e no Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade** — e o mesmo vale pro aviso de sorteio.
+>
+> 🕳️ **O `STATUS.md` DESTE REPO ESTÁ EM CORRIDA ENTRE SESSÕES, e isso custou 4 rodadas de merge.** O `main` andou 26 + 9 + 2 + 2 commits durante um único ciclo de CI, e o topo deste arquivo conflita em TODA sessão. Duas vezes o arquivo chegou malformado no `main` (entrada acima do título, cabeçalho "Documento vivo" comido) e uma vez um marcador `<<<<<<<` passou pelo build — porque `.md` não compila. **Quem resolver conflito aqui: confira `grep -c '^<<<<<<<' STATUS.md` antes de commitar.**
+>
+> 🧪 **6.630 testes, 0 falhas** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (o avanço parcial da chave incluído — o `QuemAvancaAsync` virou `VagasDaProximaFaseAsync` no meio do caminho, e os pontos do desempate passaram a atravessar ele).
+>
+> ⚠️ **AS DUAS RESSALVAS DO DESEMPATE CONTINUAM VALENDO** (ver a entrada do branch, abaixo): o ranking é lido **ao vivo**, então a mesma tabela pode mudar de 2º colocado semana que vem — o que vale é a chave já gerada; e os critérios novos só disparam onde antes era ordem de cadastro, então nenhum grupo decidido na quadra mudou.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.** ⚠️ **MEXE NA RÉGUA QUE MONTA O MATA-MATA, com torneio rodando** — ver a ressalva no fim.
 >
 > 🔲 **O DESEMPATE DE GRUPO GANHOU CONFRONTO DIRETO E RANKING — E O POP-UP PASSOU A FALAR EM PLACAR.** 🗣️ Felipe, em quatro mensagens seguidas olhando a tela no ar: *"ta meio confuso aqui, nao ficou claro para mim"* · *"seria 4 e 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais facil"* · *"e esse caso aqui se for os 3 jogos 9x4 e houver empate?"* · *"e se empatar entre apenas 2 duplas, passa quem venceu o confronto direto"* · *"e empate entre os 3, passa quem esta na frente no ranking, se não tiver ninguem com pontuação ainda, faça sorteio"*.
 >
