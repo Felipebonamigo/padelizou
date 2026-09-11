@@ -245,6 +245,55 @@ public class NomeBonitoTests
         Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
     }
 
+    // ─────────────── O PERFIL É ONDE O NOME COMPLETO MORA ───────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe: *"e ai so quando abrir o perfil vera o nome completo?"*. É isso
+    // mesmo — e a pergunta descobriu o buraco: o perfil imprimia `jogador.Nome` CRU, então era
+    // justamente ali, na página feita pra mostrar o nome inteiro, que "JOAO EGIDIO FERREIRA DA
+    // ROCHA" aparecia gritando.
+    //
+    // ⚠️ Teste de FONTE: a suíte não renderiza Razor. O que se trava aqui é que nenhuma linha do
+    // perfil escreve nome de PESSOA sem passar pelo NomeBonito — o completo continua completo,
+    // só a caixa se arruma.
+
+    [Fact]
+    public void O_perfil_nao_escreve_nome_de_pessoa_sem_passar_pelo_NomeBonito()
+    {
+        var linhas = File.ReadAllLines(CaminhoDoPerfil());
+        var cruas = new List<string>();
+
+        for (var i = 0; i < linhas.Length; i++)
+        {
+            // `\.Nome\b` não casa com `.NomeNaTela` nem `.NomeComApelido`: depois de "Nome"
+            // vem letra, e ali não há fronteira de palavra. Sobra só o acesso cru.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(
+                    linhas[i], @"\b(jogador|Autor|Oponente|Parceiro)\.Nome\b")) continue;
+
+            // Passar o nome cru PRA DENTRO do NomeBonito é o jeito certo — é o que a linha do
+            // "para falar com ..." já fazia antes de tudo isto.
+            if (linhas[i].Contains("NomeBonito.", StringComparison.Ordinal)) continue;
+
+            cruas.Add($"linha {i + 1}: {linhas[i].Trim()}");
+        }
+
+        Assert.True(cruas.Count == 0,
+            "Nome de pessoa escrito cru no perfil:\n" + string.Join("\n", cruas));
+    }
+
+    private static string CaminhoDoPerfil()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var alvo = Path.Combine(dir.FullName, "Padelizou", "Views", "Jogadores", "Perfil.cshtml");
+            if (File.Exists(alvo)) return alvo;
+            dir = dir.Parent;
+        }
+
+        throw new FileNotFoundException(
+            "Não achei o Perfil.cshtml subindo a partir de " + AppContext.BaseDirectory);
+    }
+
     [Fact]
     public void Nome_de_uma_palavra_so_nao_quebra()
     {
