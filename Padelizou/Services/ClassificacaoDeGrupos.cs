@@ -10,6 +10,32 @@ namespace Padelizou.Services;
 // de games, dentro de cada grupo; classificam os N primeiros.
 public static class ClassificacaoDeGrupos
 {
+    // ── QUANTAS VAGAS CADA GRUPO DÁ — a régua única do NÚMERO ────────────────────────────
+    //
+    // O `Ordenar` logo abaixo responde QUEM vem primeiro; isto responde QUANTOS entram. São as
+    // duas metades da mesma pergunta, e por isso moram no mesmo arquivo.
+    //
+    // ⚠️ ESTE NÚMERO ESTAVA ESCRITO À MÃO EM DEZ LUGARES (`categoria.ClassificadosPorGrupo ?? 2`,
+    // com `Math.Max(1, …)` nos quatro serviços e SEM ele nas quatro views), e foi exatamente
+    // assim que a tela de Classificação passou a discordar do chaveamento: ela lia o campo do
+    // TORNEIO (`Torneio.ClassificadosPorGrupo`, que nasce 2 e nenhuma tela edita) enquanto o
+    // `AvancoDaChave` lia o da CATEGORIA. Numa categoria de TIMES, onde o organizador escolhe de
+    // 1 a 4 por grupo, a tela pintava 2 linhas de verde e a chave levava 4 — o time em 3º lia
+    // que estava fora de uma vaga que ia receber. `VagasPorGrupoSaoUmaReguaSoTests` tem o gate
+    // que quebra se o `?? 2` for reescrito fora daqui.
+    //
+    // ⚠️ `Torneio.ClassificadosPorGrupo` NÃO entra como padrão, e isso é escolha: hoje quem
+    // manda no mata-mata é o campo da categoria, e pôr o do torneio de fallback mudaria a CHAVE
+    // de todo torneio cuja coluna tenha valor diferente de 2 (a `DuplicacaoDeTorneio` copia
+    // aquele campo, então não é impossível existir um). Alinhar a tela ao chaveamento é o que
+    // foi pedido — o contrário seria alinhar o chaveamento à tela.
+    public const int VagasPadrao = 2;
+
+    // `categoria` nula vale a regra de sempre: as views chamam isto com navegação que pode não
+    // ter vindo do Include, e estourar ali derrubaria a página por causa de um número de tela.
+    public static int VagasPorGrupo(Categoria? categoria) =>
+        Math.Max(1, categoria?.ClassificadosPorGrupo ?? VagasPadrao);
+
     // Uma linha da tabela do grupo, já com a campanha somada. A TELA de classificação também
     // come daqui desde 13/08/2026: ela montava a própria ordenação (vitórias + saldo, sem
     // terceiro critério e com a vitória contada por `meusGames > gamesAdversario` em vez do
@@ -70,7 +96,7 @@ public static class ClassificacaoDeGrupos
     public static List<ChaveamentoMataMata.Classificado> Calcular(
         IEnumerable<Dupla> duplasComGrupo,
         IReadOnlyList<Partida> partidasDeGrupo,
-        int classificamPorGrupo = 2)
+        int classificamPorGrupo = VagasPadrao)
     {
         var classificados = new List<ChaveamentoMataMata.Classificado>();
         int passam = Math.Max(1, classificamPorGrupo);

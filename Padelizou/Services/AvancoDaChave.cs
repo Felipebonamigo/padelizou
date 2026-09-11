@@ -168,7 +168,7 @@ public static class AvancoDaChave
             // ordem que a semeadura usa pra saber de que lado da chave cada bye cai.
             var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
             noQuadro = ChaveamentoMataMata.OrdemDosByes(ClassificacaoDeGrupos.Calcular(
-                    duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)))
+                    duplas, partidasDeGrupo, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
                 .Select(c => c.DuplaId)
                 .ToList();
         }
