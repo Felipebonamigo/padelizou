@@ -164,7 +164,9 @@ public class FiltroDeJogosNaoAtrapalhaAsOutrasTelasTests
     public void A_aba_chaves_da_pagina_do_torneio_le_a_projecao_completa()
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
-        var chaves = fonte[fonte.IndexOf("pdz-chave-projetada-rodadas", StringComparison.Ordinal)..];
+        // Do ponto em que a aba Chaves lê a projeção até o fim do arquivo. A âncora mudou em
+        // 11/09/2026 (o quadro virou partial), o que ela guarda não.
+        var chaves = fonte[fonte.IndexOf("var projecaoDaCategoria", StringComparison.Ordinal)..];
 
         // O quadro casa por índice: tem que ler a lista inteira, nunca a recortada.
         Assert.Contains("ProjecaoCompleta", fonte);

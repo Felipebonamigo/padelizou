@@ -74,7 +74,12 @@ public static class ChaveProjetada
 
     // ---- O caminho inteiro, da primeira fase à final ----
 
-    public record JogoProjetado(int Numero, string Lado1, string Lado2);
+    // `VemDoJogoN` é o número do jogo que produz aquele lado — nulo quando o lado é uma
+    // COLOCAÇÃO (primeira rodada) ou quem passou direto. É o que liga os jogos numa árvore:
+    // sem isso, quem desenha o quadro teria que adivinhar a ligação lendo o texto do rótulo,
+    // que é tradução pra humano e não dado. Ver Services/ArvoreDaChave.
+    public record JogoProjetado(int Numero, string Lado1, string Lado2,
+                                int? VemDoJogo1 = null, int? VemDoJogo2 = null);
     public record RodadaProjetada(string Fase, List<JogoProjetado> Jogos);
 
     // A primeira rodada sai por colocação ("1º do Grupo A x 2º do Grupo D"); da segunda em
@@ -99,21 +104,26 @@ public static class ChaveProjetada
             jogos.Add(new JogoProjetado(proximoNumero++, confronto.Lado1.Rotulo, confronto.Lado2.Rotulo));
         rodadas.Add(new RodadaProjetada(fase, jogos));
 
-        // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes.
-        var entrantes = jogos.Select(j => $"Vencedor do jogo {j.Numero}").ToList();
-        entrantes.AddRange(byes.Select(b => $"{b.Rotulo} (passou direto)"));
+        // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes. O vencedor
+        // carrega o NÚMERO do jogo de onde vem; o bye não vem de jogo nenhum.
+        var entrantes = jogos
+            .Select(j => (Rotulo: $"Vencedor do jogo {j.Numero}", VemDoJogo: (int?)j.Numero))
+            .ToList();
+        entrantes.AddRange(byes.Select(b => (Rotulo: $"{b.Rotulo} (passou direto)", VemDoJogo: (int?)null)));
 
         while (entrantes.Count > 1)
         {
             var jogosDaRodada = new List<JogoProjetado>();
-            var proximos = new List<string>();
+            var proximos = new List<(string Rotulo, int? VemDoJogo)>();
 
             // O pareamento do robô: primeiro x último da lista de quem avança.
             for (int i = 0; i < entrantes.Count / 2; i++)
             {
-                var jogo = new JogoProjetado(proximoNumero++, entrantes[i], entrantes[entrantes.Count - 1 - i]);
+                var (lado1, lado2) = (entrantes[i], entrantes[entrantes.Count - 1 - i]);
+                var jogo = new JogoProjetado(proximoNumero++, lado1.Rotulo, lado2.Rotulo,
+                                             lado1.VemDoJogo, lado2.VemDoJogo);
                 jogosDaRodada.Add(jogo);
-                proximos.Add($"Vencedor do jogo {jogo.Numero}");
+                proximos.Add((Rotulo: $"Vencedor do jogo {jogo.Numero}", VemDoJogo: (int?)jogo.Numero));
             }
 
             rodadas.Add(new RodadaProjetada(ChaveamentoMataMata.NomeFase(entrantes.Count), jogosDaRodada));

@@ -24,8 +24,9 @@ namespace Padelizou.Tests;
 public class PreviaDizOClubeNaTelaTests
 {
     [Theory]
-    // O cartão da prévia no quadro do mata-mata — o do print.
-    [InlineData("Torneios/Details.cshtml", "previsto")]
+    // O cartão da prévia no quadro do mata-mata — o do print. Mora no partial da árvore desde
+    // 11/09/2026; antes era markup solto no meio do `Details.cshtml`.
+    [InlineData("Torneios/_ChaveProjetadaArvore.cshtml", "previsto")]
     // A opção "trocar com qual jogo?" do modal de horário, no mesmo arquivo da lista.
     [InlineData("Torneios/_JogosDoTorneio.cshtml", "previsto")]
     // A linha do jogo previsto na aba Jogos.
