@@ -31,6 +31,35 @@
 > 🧪 **6.575 testes, 0 falhas (18 novos, em `AvancoParcialDaChaveTests`, `AvancoParcialDosGruposTests` e `NomeNaVagaAssimQueOGrupoFechaTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia), *"The collection contained 2 items"* (a fase seguinte nascia por cima) e *"Assert.Contains() Failure: Item not found"* (o nome não chegava na vaga).
 
 >
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
+>
+> 🔒 **O `dev` continua sem conferência por fora** (o gate de Acesso Antecipado redireciona o site inteiro lá): a evidência é o job `deploy → dev` verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho — mais o `/healthz` 200.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO PELA TERCEIRA VEZ NESTA SESSÃO** (`ac46898`: zero checks criados). Gatilho manual de novo. ⚠️ **Já são cinco ocorrências registradas neste arquivo** (26/08, 10/09 e três hoje) — se doer mais uma vez, vale investigar o `ci.yml` em vez de seguir apertando o botão.
+>
+> ✅ **E OS DOIS DISPAROS DE DEPLOY CRIARAM RUN DESTA VEZ** — conferido pelo run **e pelo nome do job** (`deploy → dev`, `deploy → prod`), que é o que prova o ambiente: o `204 queued` sozinho não garante nada (a nota de 10/09 e a de hoje mais cedo).
+>
+> 🧪 **6.565 testes, 0 falhas** depois de mesclar o `main` duas vezes no caminho (PRs #221 e #223, de sessões paralelas).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 🖼️ **"TUDO NUMA IMAGEM SÓ": A LISTA INTEIRA NUM PNG ALTO, ESCOLHIDO NA TELA.** 🗣️ Felipe: *"da para por a opção, para o jogador selecionar se nao quer todos os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a ressalva, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse"*.
+>
+> ⚠️ **A IMAGEM CRESCE PRA BAIXO, NUNCA ESPREME — a ressalva dele É a regra do recurso.** Espremer 33 jogos nos 1350px do story daria linha de 23px: a lista inteira numa imagem que ninguém lê, exatamente o que ele proibiu. A linha fica em 64px (legível) e o PNG fica alto: **33 jogos em 2 dias = 1080×2844**, onde hoje saem **quatro** artes. Os dias viram **pílulas lime** no meio da imagem (a pílula que o card do story perdeu pro espaço, de volta onde ela serve).
+>
+> 🚧 **O TETO É DE 10.000px, E É ELE QUE FAZ A OPÇÃO SUMIR** em vez de entregar imagem ilegível: acima disso o WhatsApp reamostra e o celular engasga — *"uma imagem que não abre não é mais fácil que três que abrem"*. Passando do teto, a tela **diz por quê** e sugere filtrar; quem precisa continua com as partes. ~150 jogos é o limite prático (o Er inteiro tem 97).
+>
+> 🎛️ **A ESCOLHA É DE TELA, e por isso mora FORA de `Filtros`** (`umaImagem` na query da página, `tudo=true` no endpoint da imagem). A planilha e o texto nem sabem que ela existe — e o alternador só aparece quando há **mais de uma arte**: com uma só, os dois botões dariam a mesma imagem.
+>
+> ♻️ **A LINHA DO JOGO VIROU UM MÉTODO SÓ** (`CartaoDosJogos.Linha`), usado pelos dois formatos. Duas cópias divergiriam na primeira mudança, e a lista postada num formato passaria a não bater com a do outro. O `CartaoCompartilhavel` ganhou **altura** em `Fundo`, `Rodape` e `EmPng` (o padrão continua 1350): sem isso o gradiente terminava em 1350 e o resto do PNG saía **preto**. E o pé passou a ser medido **da base**, pros dois formatos terminarem igual.
+>
+> 🧪 **6.565 testes, 0 falhas (7 novos)** + `conferir-palpitrometro.js` verde. Vermelho visto antes: *"'CartaoDosJogos' does not contain a definition for 'AlturaDaImagemUnica'"*. E um vermelho **no dado, não na regra**: medi a diferença de altura com 10 jogos, que caem no **piso de 1350** (o formato do story) — com 20 a conta mede o que devia medir.
+>
+> 🖥️ **UI RODADA**: com 25 jogos semeados no banco local, a tela mostrou **3 artes**, o alternador apareceu, e o clique em "Tudo numa imagem só" devolveu **`image/png` de 413 KB, 1080×2332**, com `public, max-age=3600`. As faixas dos dois dias aparecem no meio da imagem.
+
 > **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
 >
 > 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
@@ -63,6 +92,24 @@
 > 🧪 **6.471 testes, 0 falhas (2 novos)** + **14 conferências** no JS (1 nova). Vistos vermelhos antes: *"Não achei a regra do `.modal` no site.css"* e *"Not found: alternarVotantes("*. ⚠️ O DOM falso do modal (da sessão paralela) ganhou `querySelectorAll` — sem ele a conferência estourava em *"document.querySelectorAll is not a function"*, que é o mock incompleto e não o código.
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
+
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
+>
+> 🕳️ **A CAUSA É UMA VARIÁVEL QUE NÃO EXISTE — e é verdade estrutural, não caso isolado.** O Bootstrap 5.3 escreve `.card-body { padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x) }` e declara as duas variáveis **dentro da regra do `.card`**. O card do Ao Vivo é `.pdz-live-card`, casa nossa — ali as duas não existem, a declaração inteira fica inválida no cálculo e o padding cai pro **valor inicial: zero**. Sem erro, sem aviso: o bloco encosta nos quatro lados. **Vale igual pra `.card-header`, `.card-footer` e `.card-img-overlay`.**
+>
+> ⚠️ **E SÓ DAVA NO COMPUTADOR**, que é por que durou: o `site.css` tem `.card-body { padding: 1.15rem !important }` dentro do `@media (max-width: 767px)` — no celular o `!important` tapava o buraco.
+>
+> ✅ **`.pdz-live-palpite { padding: .5rem 1.1rem 1rem }`** no lugar do `card-body pt-2`. O 1.1rem não foi escolhido: é o do `.pdz-live-header` e o do `.pdz-live-video-label`, e é o que alinha o "Palpitrômetro" com o "Transmissão" logo acima. Nada de ensinar as variáveis do `.card` ao cartão — seria carregar um componente inteiro pra pegar dois números.
+>
+> 🔎 **"VEJA SE TEM MAIS ALGO ASSIM": varri as 8 famílias do Bootstrap cujo espaçamento vem de variável do pai** (`card-*`, `accordion-*`, `modal-*`, `list-group-item`, `dropdown-item`, `toast-body`, `nav-link`, `page-link`) em todas as views, com pilha de tags. **Deram 28 apontamentos e um só é defeito** — este. Os 27 restantes são template dentro de `<script>` (o pai nasce no JS, noutro lugar da página), partial cujo pai está no chamador (`_SetasDaOrdem`, `_LinhaDoCheckIn`, `_PessoaNaRede`, `MenuDesafios`) e `.nav-link` dentro de `.navbar-nav`, que declara as vars dele.
+>
+> 🚦 **GATE MECÂNICO NOVO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `Nenhuma_view_usa_peca_de_card_fora_de_um_card` monta a pilha de tags de toda `.cshtml` e quebra se uma peça de card aparecer sem `.card` por cima. Só a família `card-*` — é a que quebrou, e é a única que hoje dá **zero** falso positivo. Comentário do Razor e `<script>` ficam de fora.
+>
+> 🧪 **6.564 testes, 0 falhas (6 novos, em `PalpitrometroColadoNaBordaTests`)** + **14 conferências** no JS. Os 6 vistos vermelhos antes, pelos motivos certos: *"Sub-string found: card-body"*, *"não achei a regra .pdz-live-palpite no site.css"* (×3) e o gate apontando exatamente `_JogosDoTorneio.cshtml:659` — **um só**, que é a prova de que não tinha mais nenhum.
+>
+> 🖥️ **MEDIDO NO CHROMIUM**, com o `site.css` e o `bootstrap.min.css` de verdade, os dois cards lado a lado: a 1280px o "Palpitrômetro" saiu de **1,0px** da borda pra **18,6px** — os mesmos 18,6px do "Transmissão" — e o "12 voto(s)" de **5px** pra **21px** do fim do card. Abaixo de 768px, onde o `!important` já tapava: 18,3px → **17,5px**, agora batendo com o rótulo da transmissão em vez de 0,8px fora.
 
 > **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 

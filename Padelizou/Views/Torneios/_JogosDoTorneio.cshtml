@@ -654,9 +654,17 @@
                         @* Só quando alguém palpitou: em jogo ao vivo não se vota mais, e o
                            bloco com barra vazia + "0%" + "0 voto(s)" parecia defeito. É a
                            mesma regra que a versão em linha já segue. *@
+                        @* ⚠️ `pdz-live-palpite`, e NÃO `card-body` (11/09/2026): este cartão é
+                           `.pdz-live-card`, casa nossa. O Bootstrap declara o padding do
+                           `.card-body` com `var(--bs-card-spacer-x/y)`, e as duas variáveis só
+                           nascem na regra do `.card` — fora de um, a declaração inteira é
+                           inválida e o padding vira ZERO, calado. O bloco encostava nas bordas
+                           do cartão (🗣️ Felipe: *"essa parte aqui ta muito colada no card"*), e
+                           só no computador: o `.card-body { padding: 1.15rem !important }` do
+                           `@@media (max-width: 767px)` tapava o buraco no celular. *@
                         @if (palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
                         {
-                            <div class="card-body pt-2">
+                            <div class="pdz-live-palpite">
                                 <partial name="_Palpitrometro" model="(jogo, resumoPalpite, meuId)" />
                             </div>
                         }
