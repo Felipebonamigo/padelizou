@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NESTE BRANCH** (nem no push nem no PR), enquanto rodava normalmente nos branches das outras sessões — mesmo sintoma de 26/08. Foi disparado **na mão** (Actions → CI → Run workflow), que é exatamente o que o `workflow_dispatch` do `ci.yml` existe pra cobrir: runs 1055 e 1056, verdes no sha exato que foi mesclado.
 >
 > 🗣️ **"A GALERA CRAVA" PROMETIA MAIS DO QUE ENTREGAVA.** Felipe, apontando a frase num jogo com **3 de 8**: *"aqui por que tem isso? nao sei se faz muito sentido"*. Dois problemas, e ele tinha razão nos dois.
 >
