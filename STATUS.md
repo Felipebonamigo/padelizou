@@ -25,7 +25,19 @@
 >
 > ⚠️ **Nada foi visto numa tela** — sessão web, sem browser, e a suíte não renderiza Razor. Tamanho do selo (17px sobre foto de 36px) e do escudo da lista (14px) seguem pendentes do olho do Felipe.
 
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🪗 **AS FICHAS DE PLACAR SE RECOLHEM DEPOIS DA ESCOLHA.** 🗣️ Felipe, num print do cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*. Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já tinha cumprido o papel.
+>
+> ✅ **Fica uma linha só — "Seu palpite: 6 x 2 · trocar"** —, e o **"trocar"** reabre a fileira **sem falar com o servidor**: mudar de ideia não é palpite até a ficha ser tocada, e um POST ali gravaria uma intenção que a pessoa ainda não teve. Quem votou e **não** escolheu placar continua vendo as fichas abertas, como antes.
+>
+> ⚠️ **Quem decide qual dos dois nasce aberto é o DADO** (`PalpiteiOPlacar`), não o JS depois de carregar — senão a tela piscaria a fileira inteira a cada F5.
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE NENHUM TESTE PEGARIA: `d-flex` do Bootstrap é `!important`.** O resumo nascia com essa classe, então o `style.display = 'none'` que o JS escreve **perdia** pro `!important` — depois do "trocar", o resumo ficava na tela ao lado das fichas reabertas. O `inline` dizia `none` e o `computado` dizia `flex`; foi assim que apareceu. A classe saiu, o `flex` passou a vir do próprio `style` (mesmo lugar de onde ele some), e o teste de fonte agora **proíbe** `d-flex` naquela tag, com o motivo escrito.
+>
+> 🧪 **6.406 testes, 0 falhas (1 novo)** + **4 conferências novas** no `conferir-palpitrometro.js` (13 no total). Vistos vermelhos antes: *"Not found: pdz-palpite-placar-resumo"* e, depois do achado do navegador, *"Assert.DoesNotContain() Failure: Sub-string found"* pro `d-flex`. A conferência do recolhimento foi **falsificada**: fixando `display` nos dois elementos, ela acusa na hora.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
 >
