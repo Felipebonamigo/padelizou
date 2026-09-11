@@ -21,7 +21,19 @@
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
 
-> **11/09/2026** — ⏳ **NO BRANCH `claude/new-session-6j9ybe`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1081-abc4fe3`** (runs 221 e 224), **o mesmo artefato nos dois**, com a tag explícita. PR #197. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, e com o ANTES medido**: `GET /Partidas/VerVotos?partidaId=99999999` em produção respondia **500** às 16h41 e responde **404** às 16h43. Sem `partidaId` (o caso do robô, que chega como zero): **404** também. O `/js/palpitrometro.js` servido traz as duas frases da guarda nos dois ambientes. `/healthz` **200** em `dev` e `prod`.
+>
+> ⚠️ **A TAG FOI EXPLÍCITA POR NECESSIDADE, NÃO POR CAPRICHO**: o PR #198 (contorno das abas, outra sessão) entrou no `main` **um minuto** depois do #197. "O mais recente" teria levado pra produção um trabalho que não era deste bloco e que não tinha passado por `dev`.
+>
+> ⚠️ **O `build-1081` carregou junto o que estava represado desde o `build-1074`**: o #195 (aviso de quadra vaga) e o #196 (só STATUS). O `deploy.sh` instala o build INTEIRO — não existe publicar um commit só.
+>
+> 🕳️ **O PRIMEIRO DEPLOY EM PROD FALHOU, e vale saber por quê**: `ssh: connect to host port 22: Connection timed out` (exit 255, run 222). Morreu no SSH, **antes** do `deploy.sh` — produção ficou intacta, sem estado pela metade (conferido: ainda 500 e `healthz` 200 depois da falha). A causa provável é o deploy em `dev` de OUTRA sessão no **mesmo segundo**, contra o **mesmo VPS**: o `concurrency` do `deploy.yml` é `deploy-${ambiente}`, então `dev` e `prod` não esperam um pelo outro, embora sejam a mesma máquina. Uma retentativa resolveu.
+>
+> ⚠️ **O environment `prod` NÃO pediu aprovação** — o job foi direto pro `Publicar`. O `infra/vps/README.md` diz que a trava mora em Settings → Environments → `prod` → Required reviewers, e não no yml. **Ou ela não está configurada, ou não vale pra quem dispara.** Fica registrado: hoje um deploy em produção sai sem ninguém confirmar.
+>
+> ⏳ **~~NO BRANCH `claude/new-session-6j9ybe`~~ — publicado.** **Sem migration.**
 >
 > 🕳️ **O VIGIA PEGOU: três `InvalidOperationException` em `GET /Partidas/VerVotos`, 08:49, no mesmo minuto** — *"Partida não encontrada."*. 📱 Felipe mandou o print do registro de erros.
 >
