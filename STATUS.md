@@ -20,7 +20,7 @@
 
 > **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 
-> **11/09/2026** — ⏳ **NO BRANCH `claude/exciting-rubin-ga3ovw`.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1132-17beb25`** (runs 246 e 247). PR #214. ✅ **SEM MIGRATION.**
 >
 > 🎯 **O CARD DO JOGO, DENTRO DO CARD DO GRUPO, GANHOU DESTINO E TERCEIRO ESTADO.** 🗣️ Felipe, com o print do Grupo C: *"permita clicar no aovivo e ir para a pagina do aovivo aonde esta o jogo"* · *"e o que estiver finalizado deixe um circulo parecido com o do aovivo, só que outra cor q mostre q foi finalizado, direfernte do aovivo e do aguardando ainda"*.
 >
@@ -33,6 +33,10 @@
 > 👀 **E DE NOVO FOI OLHAR A TELA**, no Chromium do container, com o `site.css` e o `bootstrap.bundle.min.js` de verdade: as duas abas abrindo, o card centralizado (`scrollY` 585, card no 397 de uma janela de 613) e os três estados nos dois temas.
 >
 > 🕳️ **ARMADILHA NOVA PRA QUEM MEDIR TELA NO HEADLESS, e custou meia hora**: o Bootstrap declara `:root { scroll-behavior: smooth }`, e **rolagem suave não termina** com `--virtual-time-budget` — `window.scrollTo(0, 500)` devolve `scrollY = 0` e parece defeito do código. A página sem Bootstrap rolava; a com Bootstrap, não. Quem for medir ROLAGEM: force `scroll-behavior: auto` **na página de medição**, nunca no site.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **56 cards de jogo do grupo já saindo como `<a class="pdz-grupo-jogo">`**, o `pdzIrProJogoDaHash` na página e a regra `.pdz-chave-encerrado { color: #2e9e5b }` no `/css/site.css` servido.
+>
+> ⚠️ **OS DOIS ESTADOS NOVOS NÃO PUDERAM SER VISTOS EM PRODUÇÃO, e não é defeito: é o DADO.** No minuto do deploy o Er estava com os **56 jogos de grupo agendados** — zero ao vivo e zero finalizado (`pdz-chave-venceu`, `pdz-grupo-jogo-aovivo` e `href="#jogo-"`: todos em 0). Sem jogo naqueles status, o `href` e o selo não têm quando nascer. A prova visual é a do Chromium acima; **a de produção fica pra próxima rodada de jogos** — quem passar por aqui com o torneio rolando, confira.
 >
 > 🧪 **6.556 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
 
