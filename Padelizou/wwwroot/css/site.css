@@ -2314,12 +2314,59 @@ button, a, input, select { touch-action: manipulation; }
    Mesmo remédio das pills, aplicado às `nav-tabs` da página do torneio. Do
    tamanho do próprio texto, cinco abas viravam TRÊS linhas irregulares no
    celular do organizador (142px, 178px e 75px de vão) — e tela com buraco não
-   parece arrumada, parece quebrada. */
+   parece arrumada, parece quebrada.
+
+   CONTORNO EM TODAS (Felipe, 11/09/2026): *"deixar pelo menos desenhado o
+   contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil
+   pro usuario ver q é uma aba"*. É a MESMA queixa de 08/08/2026 que deu
+   borda às `.pdz-pills` — as pills de dentro (Ao Vivo/Agendadas/Finalizadas)
+   foram atendidas e a barra de cima ficou como o Bootstrap a desenha:
+   `border: 1px solid transparent` na inativa, cor de borda só na ativa. Com
+   isso só a aba escolhida parecia botão; as outras quatro, texto solto.
+
+   A LINHA DA `nav-tabs` SAI JUNTO. Ela existe pra que a aba ativa — de meia
+   caixa, cantos arredondados só em cima — se FUNDA nela, e por isso o
+   Bootstrap ainda puxa cada aba 1px pra baixo (`margin-bottom: -1px`). Com as
+   cinco viradas caixa fechada, essa linha passa cortando todas e a borda de
+   baixo de cada uma fica 1px fora do lugar. */
+.pdz-abas {
+    border-bottom: 0;
+    /* Coladas, o contorno de uma é o da vizinha e volta o "onde termina esta e
+       começa a outra". É também o vão que o `calc(50% - .25rem)` de duas por
+       linha, ali embaixo, já supunha existir. */
+    gap: .25rem;
+}
+
 .pdz-abas .nav-item { flex: 1 1 auto; }
 
 .pdz-abas .nav-link {
     width: 100%;
     white-space: nowrap;
+    margin-bottom: 0;
+    border: 1px solid var(--pdz-border);
+    border-radius: .5rem;
+}
+
+/* `:focus` junto do `:hover` porque o Bootstrap trata os dois na MESMA regra
+   (`.nav-tabs .nav-link:hover, :focus`) e pinta a borda de cinza: sem isto, a
+   aba que ficou com o foco depois do clique seria a única de cor diferente. */
+.pdz-abas .nav-link:hover,
+.pdz-abas .nav-link:focus {
+    border-color: var(--pdz-lime);
+}
+
+/* A ATIVA: anel lima + superfície. Contornar todas tira justamente o que a
+   distinguia (era a única com cor de borda), e cinco caixas iguais não dizem
+   onde a pessoa está.
+
+   ⚠️ ANEL, E NÃO PREENCHIMENTO LIMA como nas pills — escolha, não esquecimento.
+   Esta barra tem abas que carregam cor PRÓPRIA: "Gerenciar Torneio" é
+   `text-danger` e "Inscreva-se" é verde sobre navy, as duas vencendo (por
+   `!important` e por estilo inline) qualquer cor que a regra da ativa
+   escrevesse. Vermelho sobre lima não se lê. */
+.pdz-abas .nav-link.active {
+    background-color: var(--pdz-surface-alt);
+    border-color: var(--pdz-lime);
 }
 
 @media (max-width: 430px) {
@@ -2396,12 +2443,38 @@ button, a, input, select { touch-action: manipulation; }
    roubar letra dele. */
 .pdz-chip-compacto .pdz-chip-escudo { width: 14px; height: 14px; }
 
-/* No card AO VIVO o fundo é navy, e escudo escuro de fundo transparente
-   desaparece nele. A chapinha clara vale só ali. */
-.pdz-live-jogadores .pdz-chip-escudo {
-    background: rgba(255, 255, 255, .92);
-    border-radius: 4px;
+/* O SELO: no card AO VIVO o escudo sai do lado do nome e vai pro canto da foto
+   (Felipe, 11/09/2026: "e no ao vivo use esse do B"). Quem ancora o canto é a
+   moldura da foto — é ela que tem `relative`, e não o chip inteiro: com o chip,
+   um nome que quebra em duas linhas no celular arrasta o selo junto.
+
+   Fundo navy e anel claro porque o card é navy: escudo de fundo transparente
+   sumiria nele, e escudo claro sem anel se mistura com a foto atrás. */
+.pdz-chip-foto-selo {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+.pdz-chip-foto-selo .pdz-chip-escudo {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 17px;
+    height: 17px;
     padding: 1px;
+    border-radius: 50%;
+    background: var(--pdz-navy-fixed);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .5);
+}
+
+/* O escudo na LISTA de jogos (Agendadas/Finalizadas): inline, do tamanho do nome
+   que ele acompanha — lá o nome da dupla é uma linha de texto, não um chip. */
+.pdz-jl-escudo {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    vertical-align: -2px;
+    margin-left: 4px;
 }
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um

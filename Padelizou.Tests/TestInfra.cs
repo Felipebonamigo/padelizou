@@ -157,14 +157,16 @@ public static class TestInfra
         new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),
             NullLogger<EncerramentoDaPartida>.Instance);
 
+    // `palpites` entra de fora pra quem precisa do serviço DE VERDADE (o modal "quem votou"
+    // responde 404 lendo o banco — com o dublê a ação nunca chega no caminho que interessa).
     public static PartidasController NovoPartidasController(DbPadelContext ctx, int? usuarioLogadoId,
-        IPushNotificationService? push = null)
+        IPushNotificationService? push = null, IPalpiteService? palpites = null)
     {
         push ??= Substitute.For<IPushNotificationService>();
 
         var controller = new PartidasController(
             ctx,
-            Substitute.For<IPalpiteService>(),
+            palpites ?? Substitute.For<IPalpiteService>(),
             push,
             NullLogger<PartidasController>.Instance,
             NovoEncerramento(ctx, push));

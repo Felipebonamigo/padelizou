@@ -368,6 +368,17 @@
    pelo seu próprio serviço; a linha só existe quando algum dos dois tem o que mostrar. *@
 @{
     var podeDivulgar = Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status);
+
+    // ⚠️ O CARTAZ SAI DAQUI QUANDO A CHAVE É PUBLICADA (11/09/2026). 🗣️ Felipe, na página do Er
+    // no dia do torneio: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro
+    // lugar"*. O QR dele leva pra INSCRIÇÃO — com a chave no ar ela fechou, e o botão vira a
+    // primeira coisa que 100+ jogadores veem antes dos jogos, sem servir a nenhum deles.
+    //
+    // Ele não some: passa pro card de ferramentas do organizador, gateado pelo MESMO predicado
+    // — dois lugares possíveis, um de cada vez, como o próprio card já faz. Antes da chave fica
+    // aqui e pra TODO MUNDO, que é a decisão de sempre: cada inscrito que chama a turma no grupo
+    // é divulgação que não custa nada.
+    var cartazNoTopo = podeDivulgar && !Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model);
     var podeConvidar = Padelizou.Services.ConviteProTorneio.PodeConvidar(Model.Status);
 
     // As FOTOS entram nesta mesma linha, e por isso o link é resolvido aqui em cima. O bloco
@@ -389,10 +400,10 @@
    empilhados com uma legenda cada — seis linhas antes do primeiro jogo. Legenda permanente
    ensina na PRIMEIRA visita e é ruído em todas as outras; mesma troca já feita hoje no
    "Sugestão ou bug" do rodapé. *@
-@if (podeDivulgar || podeConvidar || linkDasFotos != null)
+@if (cartazNoTopo || podeConvidar || linkDasFotos != null)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        @if (podeDivulgar)
+        @if (cartazNoTopo)
         {
             <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
                class="btn btn-outline-primary rounded-pill px-3"

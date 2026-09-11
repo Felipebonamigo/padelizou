@@ -31,6 +31,96 @@
 >
 > ⏭️ **FICOU DE FORA, de propósito**: a **chave de verdade** (`_ChaveDoMataMata`) continua em fases empilhadas, sem linhas — levar a árvore pras duas telas foi recomendado e **não** aprovado, e é uma tarefa própria. E o polimento do cartão que apareceu nas maquetes (número em selo lime, hora com mais peso) ficou fora pelo mesmo motivo: ele mora no cartão COMPARTILHADO, então mexeria na chave real junto.
 
+> **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
+>
+> 🕳️ **É A MESMA QUEIXA DE 08/08/2026 QUE CRIOU A BORDA DAS `.pdz-pills`** — as pills de dentro (Ao Vivo/Agendadas/Finalizadas) foram atendidas e a barra de CIMA ficou como o Bootstrap a desenha: `.nav-tabs .nav-link { border: 1px solid transparent }`, com cor de borda **só na ativa**. Por isso, no print, "Jogos" era a única que parecia botão e Inscritos, Chaves e Grupos, Times e Palpiteiros eram texto solto.
+>
+> ⚠️ **A ATIVA É ANEL LIMA, E NÃO PREENCHIMENTO LIMA COMO NAS PILLS — escolha, não esquecimento.** Esta barra tem abas com cor PRÓPRIA: "Gerenciar Torneio" é `text-danger` (`!important`) e "Inscreva-se" é verde sobre navy (inline). As duas vencem qualquer `color` que a regra da ativa escrevesse, e vermelho sobre lima não se lê. Fica anel lima + fundo `--pdz-surface-alt`, que não disputa cor com ninguém.
+>
+> ⚠️ **A LINHA DA `nav-tabs` SAIU JUNTO** (`border-bottom: 0`) **e o `margin-bottom: -1px` do Bootstrap foi zerado**: aquele desenho existe pra aba de MEIA caixa se fundir na linha. Com as cinco viradas caixa fechada, a linha passaria cortando todas. Tem teste, com o motivo escrito.
+>
+> 🧪 **6.434 testes, 0 falhas (4 novos, em `ContornoDasAbasDoTorneioTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-abas`"*, *"Não achei a regra `.pdz-abas .nav-link.active`"* e no `border:` da regra existente, que só tinha `width` e `white-space`.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas a 430px e a 900px**: cinco caixas contornadas, ativa com anel lima, "Gerenciar Torneio" vermelho e "Inscreva-se" verde legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS, não o Razor.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/new-session-6j9ybe`, ainda não publicado.** **Sem migration.**
+>
+> 🕳️ **O VIGIA PEGOU: três `InvalidOperationException` em `GET /Partidas/VerVotos`, 08:49, no mesmo minuto** — *"Partida não encontrada."*. 📱 Felipe mandou o print do registro de erros.
+>
+> ✅ **Jogo que não existe (mais) agora é 404, e não 500.** O `partidaId` fica congelado no HTML do botão enquanto a aba estiver aberta; o jogo, não — **regerar a chave, regerar o americano e mudar resultado do mata-mata apagam partidas** (`Partidas.RemoveRange`, em quatro pontos). O `ObterVotantesAsync` devolve **nulo** em vez de estourar, e o controller responde `NotFound()`.
+>
+> ⚠️ **As duas irmãs que GRAVAM continuam estourando, de propósito**: `RegistrarVotoAsync` e `RetirarPalpiteAsync` jogam `InvalidOperationException` porque quem chama precisa da FRASE pra mostrar ("esta partida já começou"). Numa LEITURA não há nada a dizer — id que não existe é 404.
+>
+> 🕳️ **E O 500 NÃO ERA A PIOR PARTE: o JS fazia `response.json()` sem olhar o `ok`.** A página de erro é HTML, o parse estourava, ninguém pegava a promessa — e o modal ficava em **"Carregando..." pra sempre**. É por isso que foram **TRÊS** erros no mesmo minuto e não um: o dedo bateu de novo. Agora o modal avisa *"Este jogo saiu da lista — atualize a página."* (e a guarda vale pra qualquer resposta não-ok, igual ao `falarComOServidor` que já fazia isso desde sempre).
+>
+> ⚠️ **QUAL id chegou, NÃO DÁ PRA SABER — e isso é escolha, não falha**: o vigia grava o CAMINHO e não a query (`IExceptionHandlerPathFeature.Path`), senão `/Auth/RedefinirSenha?token=…` passaria a gravar token de senha numa tabela que a tela do admin mostra. A causa acima é o candidato mais provável, não um fato provado; o 404 cobre igual o outro caminho — requisição **sem** `partidaId` chega como zero.
+>
+> 🧪 **6.432 testes, 0 falhas (2 novos)** + **2 conferências novas** no `conferir-palpitrometro.js` (15 no total, e o modal entrou no DOM falso pela primeira vez). Vistos vermelhos antes: *"System.InvalidOperationException : Partida não encontrada."* (o erro do print, reproduzido) e *"estourou: a página de erro é HTML, não JSON"*. As duas travas anti-correção-grande-demais foram **falsificadas**: `NotFound()` solto na ação acusa na hora, e forçar o aviso com 200 na mão também.
+>
+> ⚠️ **`Assert.NotNull` em 6 chamadas antigas do `ObterVotantesAsync`** — CS8602 é erro aqui, e a prova é a guarda, nunca o `!`.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser. O que se provou é o 404 do servidor e o desvio do JS contra um DOM falso.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO CHEGOU NAS OUTRAS DUAS TELAS DE JOGO — E EM DUAS FORMAS DIFERENTES, POR ESCOLHA DO FELIPE.** Ele abriu a aba **Jogos** em produção, com o `build-1052` no ar, e pediu o resto: 🗣️ *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* e, olhando a maquete de novo, 🗣️ *"e no ao vivo use esse do B"*.
+>
+> 📋 **LISTA DE AGENDADAS/FINALIZADAS (`_JogoEmLinha`): escudo de 14px depois do nome de CADA jogador.** Os dois, e não só quem abre a dupla — numa dupla de times diferentes, um escudo só conta metade da história.
+>
+> ⚠️ **ALI O HTML É MONTADO EM STRING** (`HtmlContentBuilder.AppendHtml`), então o encoding que o Razor faz sozinho em `@atributo` **não acontece** — e o nome do time é texto que quem cadastra digita. `src` e `alt` passam por `WebUtility.HtmlEncode`; uma aspa no nome do time fecharia o atributo.
+>
+> 🎖️ **CARD AO VIVO: o escudo vira SELO no canto da foto**, fundo navy e anel claro (o card é navy — escudo transparente sumiria nele).
+>
+> ⚠️ **O SELO É SÓ DO AO VIVO, E ISSO CUSTOU UM MECANISMO**: o `_JogadorChip` é o MESMO parcial da tabela do grupo, da lista de inscritos e da lista de duplas, que continuam com o escudo do lado do nome. Quem acende é o card, por `view-data` (`EscudoComoSelo`). **Não dava pra ser só CSS**: o selo precisa nascer DENTRO da moldura da foto, que é quem ancora o canto — posicionado de fora, o canto vira número mágico e desalinha quando o nome quebra em duas linhas no celular.
+>
+> ♻️ **O `<img>` do escudo virou o parcial `_EscudoDoTime`**: dois lugares desenham o mesmo escudo, e duas cópias seriam duas verdades sobre `alt`, tamanho e `loading` — a segunda envelhece calada.
+>
+> ⚠️ **TRÊS TESTES DO CHIP MUDARAM DE ARQUIVO JUNTO, DE PROPÓSITO** (passaram a ler o parcial), com o porquê escrito ao lado. O que eles guardam não mudou: o escudo existe, sai do LOGO, nomeia o time e não fica na linha do clube.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, **104 escudos na lista de jogos** (`pdz-jl-escudo`) além dos **186 do chip** — o primeiro deles no jogo das 18:00 do print do Felipe: `<a href="/Jogadores/Perfil/402">Paulo Prass</a><img class="pdz-jl-escudo" src="/uploads/logos-time/bandeiraer.jpeg" alt="ER Padel" ...>`.
+>
+> ⚠️ **O SELO NÃO PÔDE SER PROVADO NO AR: não há jogo AO VIVO agora** (a aba marca "Ao Vivo (0)"), e sem card não há HTML pra conferir. O que se provou é que o **CSS novo está servido** (`.pdz-chip-foto-selo` em `/css/site.css`) e que os 6 testes travam o HTML. **A primeira partida que entrar no ar é o teste de verdade.**
+>
+> 🧪 **6.411 testes, 0 falhas (6 novos, em `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-jl-escudo"*, *"Not found: EscudoComoSelo"*, *"não achei o método Escudo(...) no _JogoEmLinha"* e *"não achei a moldura da foto com selo no chip"*.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser, e a suíte não renderiza Razor. Tamanho do selo (17px sobre foto de 36px) e do escudo da lista (14px) seguem pendentes do olho do Felipe.
+
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 📣 **O CARTAZ SAIU DO TOPO NO DIA DO JOGO.** 🗣️ Felipe, na página do Er com o torneio rolando: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro lugar"*.
+>
+> 🕳️ **O QR DO CARTAZ LEVA PRA INSCRIÇÃO** — com a chave publicada ela já fechou. O botão era a primeira coisa que 100+ jogadores viam antes dos jogos, chamando pra uma porta que não existe mais.
+>
+> ✅ **Ele MUDA DE LUGAR, não some**: com a chave no ar vai pro card **Ferramentas do organizador** (que nessa hora já é o topo da tela pra quem organiza); antes dela fica onde sempre esteve, **pra todo mundo** — cada inscrito que chama a turma no grupo é divulgação que não custa nada. Os dois lugares são gateados pelo **mesmo** `AprovacaoDeChaves.ChavePublicada`, então nunca aparecem juntos: é o mesmo desenho que o próprio card já usa desde 10/09.
+>
+> ⚠️ **A LINHA DE BOTÕES DO TOPO USA A MESMA RÉGUA**: sem somar a condição no `@if` de fora, um torneio publicado sem convite nem fotos desenharia um `d-flex` vazio — faixa de margem sem nada dentro. Tem teste.
+>
+> ⚠️ **`DivulgacaoDoTorneio.PodeDivulgar` continua dona da pergunta "este torneio vira cartaz?"** (cancelado e finalizado não viram). São duas réguas com donos diferentes, e nenhuma foi diluída na outra.
+>
+> 🧪 **6.415 testes, 0 falhas (3 novos).** Vistos vermelhos antes em *"Not found: cartazNoTopo"* e *"Not found: Cartaz pra divulgar"* (no card). Os testes de topo da sessão paralela (`TopoDaPaginaDoTorneioEnxutoTests`) seguem verdes — a marcação continua lá, o que mudou é a condição.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, 430px), os dois papéis: **anônimo** não vê cartaz nenhum na página; **organizador** vê **um** só, dentro do card de ferramentas.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🪗 **AS FICHAS DE PLACAR SE RECOLHEM DEPOIS DA ESCOLHA.** 🗣️ Felipe, num print do cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*. Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já tinha cumprido o papel.
+>
+> ✅ **Fica uma linha só — "Seu palpite: 6 x 2 · trocar"** —, e o **"trocar"** reabre a fileira **sem falar com o servidor**: mudar de ideia não é palpite até a ficha ser tocada, e um POST ali gravaria uma intenção que a pessoa ainda não teve. Quem votou e **não** escolheu placar continua vendo as fichas abertas, como antes.
+>
+> ⚠️ **Quem decide qual dos dois nasce aberto é o DADO** (`PalpiteiOPlacar`), não o JS depois de carregar — senão a tela piscaria a fileira inteira a cada F5.
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE NENHUM TESTE PEGARIA: `d-flex` do Bootstrap é `!important`.** O resumo nascia com essa classe, então o `style.display = 'none'` que o JS escreve **perdia** pro `!important` — depois do "trocar", o resumo ficava na tela ao lado das fichas reabertas. O `inline` dizia `none` e o `computado` dizia `flex`; foi assim que apareceu. A classe saiu, o `flex` passou a vir do próprio `style` (mesmo lugar de onde ele some), e o teste de fonte agora **proíbe** `d-flex` naquela tag, com o motivo escrito.
+>
+> 🧪 **6.406 testes, 0 falhas (1 novo)** + **4 conferências novas** no `conferir-palpitrometro.js` (13 no total). Vistos vermelhos antes: *"Not found: pdz-palpite-placar-resumo"* e, depois do achado do navegador, *"Assert.DoesNotContain() Failure: Sub-string found"* pro `d-flex`. A conferência do recolhimento foi **falsificada**: fixando `display` nos dois elementos, ela acusa na hora.
+
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
