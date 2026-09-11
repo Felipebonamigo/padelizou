@@ -52,11 +52,17 @@
 >
 > 🧹 **`CACHE_NAME` do service worker foi pra `v28`, e o motivo vale a linha:** dois branches do mesmo dia subiram `v26` → `v27` independentemente (o do escudo/chave e este), e o **git juntou os dois sem conflito**, como se fosse a mesma mudança. O número ficaria igual com **dois `site.css` diferentes** — e quem tivesse guardado o primeiro `v27` nunca baixaria o segundo: a bolinha simplesmente não apareceria pra quem usa o app instalado, **sem erro em lugar nenhum**. Achado no merge com o `main`, não em teste.
 
-> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` no `build-1088-e61686c`** (run 34625113564). PR #199. ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1088-e61686c`** (runs 226 e 227 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #199. ✅ **SEM MIGRATION.**
 >
-> ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**, o `/css/site.css` servido traz as regras novas (`.pdz-arv-liga`, `.pdz-chd-trilho`, `.pdz-chave-vaga.pdz-arv-final`) e **zero** do CSS morto que saiu, e o `/sw.js` já está em `padelizou-static-v27`. ⚠️ **A PÁGINA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. A prova visual é a local, com o app de verdade.
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, na página de verdade** (`/Torneios/Details/26`, 7 categorias): **7 quadros de cima pra baixo** (`pdz-arv-rolagem`) e **7 deitados** (`pdz-chd-trilho`), **43 ligações** desenhadas, **zero** ocorrência de `pdz-chave-projetada` (o quadro velho) e **zero** de "passou direto".
 >
-> ⏭️ **PROD NÃO FOI PUBLICADO** (não foi pedido): `padelizou.com.br` continua servindo as quatro colunas soltas — 334 ocorrências de `pdz-chave-projetada` no HTML de `/Torneios/Details/26`, conferidas agora.
+> 🔢 **E A PORCENTAGEM DA LIGAÇÃO CHEGOU COM PONTO** no HTML de produção (`--a:25%;--hw:50%`) — é a prova no ar do defeito de cultura que o teste dos sete grupos pega. Com vírgula, o quadro estaria no ar sem nenhuma linha.
+>
+> 🖥️ **E VISTO EM TELA**, renderizando o HTML de produção com o `site.css` de produção: no computador as duas semifinais se juntam na final com o cotovelo, a final sai destacada em lime e o troféu fecha embaixo; a 390px a semifinal ocupa dois terços e a final fica espiando na beirada, com a linha já chegando nela.
+>
+> ⚠️ **O `dev` NÃO TEM PROVA VISUAL ANÔNIMA** — está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. Lá a prova é `/healthz` **200** e o `/css/site.css` servido com as regras novas e sem o CSS morto.
+>
+> 🔁 **E LOGO DEPOIS OUTRA SESSÃO PUBLICOU POR CIMA** (deploys 228 e 229, `build-1092-bbdb0bb`), o que é bom e vale registrar: aquele build nasceu do `main` que já carregava esta chave, então a árvore **continua no ar** — reconferido agora, com o `site.css` de prod trazendo `.pdz-chd-trilho` e **zero** de `pdz-chave-projetada`, e o `sw.js` já em `v28`. Ou seja: o que está em produção hoje é o `build-1092`, não o `1088` que eu publiquei — a chave é a mesma, o resto veio junto.
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
