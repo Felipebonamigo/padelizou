@@ -1,7 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
+>
+> 🔤 **O SELETOR DE CATEGORIAS GANHOU ORDEM E ABRE NA CATEGORIA DE QUEM OLHA.** Duas queixas do Felipe sobre o seletor que subiu no `build-1024`: *"esta fora de ordem"* e *"venha sempre selecionado a categoria que o usuario esta cadastrado (se estiver em duas, vem na melhor delas 1>2>3>4)"*.
+>
+> 🕳️ **A LISTA SAÍA NA ORDEM DO BANCO.** O `Include` do controller devolve as categorias como foram CRIADAS, e o seletor herdou isso das pills — que já vinham assim desde sempre. Agora sai pela `CategoriaNaTela.Ordem`, a régua que as outras listas de categoria do site já usam.
+>
+> ⚠️ **E ESSA RÉGUA MUDOU DE CABEÇA PRA BAIXO — VALE PRO SITE INTEIRO.** Ela agrupava por sexo desde 08/08 (todas as masculinas, depois todas as femininas); com as duas escadas no mesmo torneio isso empurra a 3ª Feminina pra **depois** da 6ª Masculina, que é o defeito de 08/08 de novo, uma escada adiante. Passa a ser **por nível, com a masculina na frente da feminina do mesmo degrau** — a ordem que o Felipe escolheu entre as três possíveis. No ER: `3ªM → 3ªF → 4ªM → 5ªM → 5ªF → 6ªM → 6ªF`. Uma régua só, porque duas ordens pra mesma lista é o defeito, não o remédio.
+>
+> ⚠️ **DOIS TESTES QUE GRAVAVAM O AGRUPAMENTO POR SEXO MUDARAM JUNTO, DE PROPÓSITO** (`OrdemDasCategoriasTests`, `PaginaDeTimesTests`), com o porquê escrito ao lado. O que eles guardam continua de pé: a ordem não é a de criação, e o elenco do time segue a régua do site — a régua é que mudou.
+>
+> 🎯 **`Services/CategoriaQueAbre` decide qual categoria a aba abre**, e *"a melhor"* é a **primeira da ordem de tela, sem critério novo**: depois da mudança acima aquela régua já lidera pelo nível, que é o "1>2>3>4" pedido. Conta também quem é o **segundo** da dupla — metade das inscrições do site é gente que foi chamada, não que chamou. Quem não está em nenhuma das listadas (o organizador, o anônimo) vê a primeira.
+>
+> ⚠️ **A MARCAÇÃO VEM DO SERVIDOR NAS DUAS PONTAS** (a `<option>` selecionada e o painel aceso): deixar pro JS acertar depois pintaria a chave errada por um instante a cada abertura. E a **memória por torneio continua vencendo numa troca manual** — quem mudou de categoria e salvou algo lá não é devolvido, que era o pedido do `build-1024`. O "sempre" vale na chegada.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz as 7 categorias do ER **na ordem nova**, com `selected="selected"` na `cat-89` e o painel `cat-89` em `show active` — as duas pontas casando. ⚠️ **O "abre na MINHA categoria" não foi visto no ar**: anônimo não tem categoria, e a sessão não tem browser pra logar. O que existe é teste de unidade sobre a régua (`CategoriaQueAbreNasChavesTests`).
+>
+> 🧪 **6.365 testes, 0 falhas (11 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes — e **um foi reescrito até discriminar**: o teste da ordem passava de primeira porque a mesma chamada já existia noutro trecho da view, e só passou a provar algo olhando a DECLARAÇÃO do `comChave`.
+>
+> 🪜 **A LIÇÃO DO DIA, e ela é o degrau 2 da escada deste arquivo:** a ordenação certa já existia escrita (`CategoriaNaTela.Ordem`, de 08/08) e eu não a procurei ao montar o seletor — o `<select>` nasceu com a ordem do banco porque copiou o que as pills faziam. *"Já existe algo equivalente aqui?"* vale também pro que a tela ANTIGA fazia errado: herdar o comportamento dela não é reuso.
+
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a régua agora diz *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1, e errar o vencedor vale 0"*, e o aviso conta **341 palpites** esperando resultado. `/healthz` 200 nos dois ambientes.
 >
