@@ -21,6 +21,24 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
+>
+> 🕳️ **A CAUSA É UMA VARIÁVEL QUE NÃO EXISTE — e é verdade estrutural, não caso isolado.** O Bootstrap 5.3 escreve `.card-body { padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x) }` e declara as duas variáveis **dentro da regra do `.card`**. O card do Ao Vivo é `.pdz-live-card`, casa nossa — ali as duas não existem, a declaração inteira fica inválida no cálculo e o padding cai pro **valor inicial: zero**. Sem erro, sem aviso: o bloco encosta nos quatro lados. **Vale igual pra `.card-header`, `.card-footer` e `.card-img-overlay`.**
+>
+> ⚠️ **E SÓ DAVA NO COMPUTADOR**, que é por que durou: o `site.css` tem `.card-body { padding: 1.15rem !important }` dentro do `@media (max-width: 767px)` — no celular o `!important` tapava o buraco.
+>
+> ✅ **`.pdz-live-palpite { padding: .5rem 1.1rem 1rem }`** no lugar do `card-body pt-2`. O 1.1rem não foi escolhido: é o do `.pdz-live-header` e o do `.pdz-live-video-label`, e é o que alinha o "Palpitrômetro" com o "Transmissão" logo acima. Nada de ensinar as variáveis do `.card` ao cartão — seria carregar um componente inteiro pra pegar dois números.
+>
+> 🔎 **"VEJA SE TEM MAIS ALGO ASSIM": varri as 8 famílias do Bootstrap cujo espaçamento vem de variável do pai** (`card-*`, `accordion-*`, `modal-*`, `list-group-item`, `dropdown-item`, `toast-body`, `nav-link`, `page-link`) em todas as views, com pilha de tags. **Deram 28 apontamentos e um só é defeito** — este. Os 27 restantes são template dentro de `<script>` (o pai nasce no JS, noutro lugar da página), partial cujo pai está no chamador (`_SetasDaOrdem`, `_LinhaDoCheckIn`, `_PessoaNaRede`, `MenuDesafios`) e `.nav-link` dentro de `.navbar-nav`, que declara as vars dele.
+>
+> 🚦 **GATE MECÂNICO NOVO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `Nenhuma_view_usa_peca_de_card_fora_de_um_card` monta a pilha de tags de toda `.cshtml` e quebra se uma peça de card aparecer sem `.card` por cima. Só a família `card-*` — é a que quebrou, e é a única que hoje dá **zero** falso positivo. Comentário do Razor e `<script>` ficam de fora.
+>
+> 🧪 **6.564 testes, 0 falhas (6 novos, em `PalpitrometroColadoNaBordaTests`)** + **14 conferências** no JS. Os 6 vistos vermelhos antes, pelos motivos certos: *"Sub-string found: card-body"*, *"não achei a regra .pdz-live-palpite no site.css"* (×3) e o gate apontando exatamente `_JogosDoTorneio.cshtml:659` — **um só**, que é a prova de que não tinha mais nenhum.
+>
+> 🖥️ **MEDIDO NO CHROMIUM**, com o `site.css` e o `bootstrap.min.css` de verdade, os dois cards lado a lado: a 1280px o "Palpitrômetro" saiu de **1,0px** da borda pra **18,6px** — os mesmos 18,6px do "Transmissão" — e o "12 voto(s)" de **5px** pra **21px** do fim do card. Abaixo de 768px, onde o `!important` já tapava: 18,3px → **17,5px**, agora batendo com o rótulo da transmissão em vez de 0,8px fora.
+
 > **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1132-17beb25`** (runs 246 e 247). PR #214. ✅ **SEM MIGRATION.**

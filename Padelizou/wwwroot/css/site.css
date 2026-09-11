@@ -958,6 +958,13 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-live-video iframe { border: 0; }
 
+/* O palpitrômetro, embaixo da transmissão. O padding é DELE, e não do `.card-body` do
+   Bootstrap: `.pdz-live-card` não é `.card`, então lá dentro `--bs-card-spacer-x/y` não
+   existem e o padding do `.card-body` cai pra zero sem avisar (11/09/2026). Os 1.1rem dos
+   lados são os mesmos do `.pdz-live-header` e do `.pdz-live-video-label` — é o que alinha o
+   rótulo "Palpitrômetro" com o "Transmissão" logo acima. */
+.pdz-live-palpite { padding: .5rem 1.1rem 1rem; }
+
 /* Fundo suave usado em vários cards utilitários */
 .bg-light { background-color: var(--pdz-surface-alt) !important; }
 
