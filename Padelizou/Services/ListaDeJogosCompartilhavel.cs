@@ -146,6 +146,12 @@ public static class TextoDaLista
 
         // O dia aparece UMA vez, como cabeçalho, e não repetido em cada linha — 88 linhas com
         // "11/09" na frente é o que fazia o modal do ⇄ ficar "muito poluído" (10/09/2026).
+        //
+        // ⚠️ E CADA JOGO VEM SEPARADO POR UMA LINHA EM BRANCO (11/09/2026). 🗣️ Felipe:
+        // *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"*. Sem
+        // ela, doze jogos viravam 24 linhas coladas no grupo e achar o seu exigia contar de dois
+        // em dois. A linha em branco vem ANTES de cada jogo (e não depois), que é o que garante
+        // que ela nunca dobre com a do cabeçalho do dia nem com a do link no fim.
         DateTime? diaAberto = DateTime.MinValue;
         foreach (var jogo in jogos)
         {
@@ -157,6 +163,7 @@ public static class TextoDaLista
                 diaAberto = diaDoJogo;
             }
 
+            linhas.Add("");
             linhas.Add(Contexto(jogo));
             linhas.Add($"{jogo.Lado1} x {jogo.Lado2}");
         }
@@ -176,6 +183,84 @@ public static class TextoDaLista
         if (!string.IsNullOrWhiteSpace(jogo.Lugar)) partes.Add(jogo.Lugar);
         if (jogo.Previa) partes.Add("prévia");
         return string.Join(" · ", partes.Where(p => !string.IsNullOrWhiteSpace(p)));
+    }
+}
+
+// A MESMA LISTA EM COLUNAS — o arquivo que abre na planilha.
+//
+// 🗣️ Felipe, 11/09/2026: *"crie tambem uma opção de importar planilha se quiserem"*. Quem quer
+// ORGANIZAR a grade (ordenar por quadra, imprimir pro balcão, mandar a escala pro clube) não
+// quer texto nem arte — quer as colunas, na ferramenta dele.
+//
+// ⚠️ CSV, E NÃO XLSX, e isso é o degrau 3 da escada deste projeto: o formato nativo abre no
+// Excel, no Google Sheets e no Numbers sem UMA dependência nova. Um pacote de planilha (ClosedXML
+// e parentes) entraria no publish, no backup e na lista de coisas que envelhecem, pra entregar o
+// mesmo conteúdo com negrito.
+//
+// ⚠️ E ELE SAI DA MESMA `JogoDaLista` das outras duas saídas. Uma consulta própria aqui seria a
+// terceira régua de "quais jogos", e a planilha diria uma coisa enquanto a arte ao lado dela
+// dissesse outra.
+public static class PlanilhaDaLista
+{
+    // ⚠️ PONTO-E-VÍRGULA, e não vírgula. O Excel em português abre CSV pelo separador de lista
+    // do Windows, que aqui é ";" — com vírgula a planilha inteira cai numa coluna só, e quem
+    // abriu não tem como saber por quê. O Google Sheets detecta os dois.
+    public const string Separador = ";";
+
+    // CRLF: é o que a RFC 4180 manda e o que o Excel espera dentro de campo com quebra.
+    private const string FimDeLinha = "\r\n";
+
+    private static readonly string[] Colunas =
+        { "Data", "Hora", "Categoria", "Fase", "Local", "Dupla 1", "Dupla 2", "Situação" };
+
+    public static string Montar(IReadOnlyList<JogoDaLista> jogos)
+    {
+        var texto = new System.Text.StringBuilder();
+        texto.Append(string.Join(Separador, Colunas)).Append(FimDeLinha);
+
+        foreach (var jogo in jogos)
+        {
+            texto.Append(string.Join(Separador, new[]
+            {
+                // Data e hora em colunas SEPARADAS: é o que deixa ordenar e filtrar do outro
+                // lado. Sem horário (torneio por ordem) a data fica vazia e a hora diz a palavra
+                // da tela — duas colunas vazias pareceriam dado perdido.
+                Campo(jogo.Horario?.ToString("dd/MM/yyyy")),
+                Campo(TextoDaLista.Quando(jogo)),
+                Campo(jogo.Categoria),
+                Campo(jogo.Fase),
+                Campo(jogo.Lugar),
+                // O nome COMPLETO, como no texto: a planilha tem largura de coluna, o card não.
+                Campo(jogo.Lado1),
+                Campo(jogo.Lado2),
+                // A prévia é dita aqui também — uma coluna "1º Grupo A" sem aviso vira uma dupla
+                // inventada assim que alguém filtrar a planilha.
+                Campo(jogo.Previa ? "Prévia" : "Marcado"),
+            })).Append(FimDeLinha);
+        }
+
+        return texto.ToString();
+    }
+
+    // ⚠️ COM BOM, e é ele que faz o arquivo abrir certo. Sem os três bytes, o Excel lê como
+    // Latin-1 e "6ª Masculina" chega como "6Âª Masculina" na tela de quem abriu — o defeito
+    // clássico de CSV em português, que ninguém consegue explicar olhando o arquivo.
+    public static byte[] EmBytes(string csv) =>
+        System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(new System.Text.UTF8Encoding(false).GetBytes(csv))
+            .ToArray();
+
+    // RFC 4180: campo com o separador, com aspas ou com quebra de linha vai entre aspas, e as
+    // aspas de dentro dobram. O que não tem nada disso sai cru — planilha onde todo campo tem
+    // aspas é ilegível pra quem abre o arquivo no bloco de notas.
+    private static string Campo(string? valor)
+    {
+        var texto = valor ?? "";
+        if (!texto.Contains(Separador) && !texto.Contains('"')
+            && !texto.Contains('\n') && !texto.Contains('\r'))
+            return texto;
+
+        return $"\"{texto.Replace("\"", "\"\"")}\"";
     }
 }
 
