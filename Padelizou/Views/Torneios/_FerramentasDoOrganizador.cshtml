@@ -37,6 +37,24 @@
             <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                 <i class="bi bi-file-earmark-text"></i> Relatório / PDF
             </a>
+            @* O CARTAZ, depois que a chave saiu (11/09/2026 — 🗣️ Felipe: *"oculte esse 'cartaz
+               pra divulgar' ou coloque ele em outro lugar"*). Lá no topo ele era a primeira
+               coisa que todo jogador via no dia do jogo, chamando pra uma inscrição que já
+               fechou; aqui ele fica com quem divulga.
+               ⚠️ Gateado pelo MESMO `ChavePublicada` que o tira do topo — este card também é
+               desenhado no fim do Painel de Controle ANTES da publicação, e sem isso o
+               organizador veria o cartaz duas vezes na mesma página.
+               ⚠️ E `PodeDivulgar` continua sendo o dono da pergunta "este torneio vira cartaz?"
+               (cancelado e finalizado não viram). Duas réguas, cada uma com seu dono. *@
+            @if (Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
+                 && Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status))
+            {
+                <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
+                   class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                   title="Arte pronta pra postar, com o QR que leva direto pra cá.">
+                    <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
+                </a>
+            }
         </div>
 
         <!-- COMUNICADO EM MASSA -->

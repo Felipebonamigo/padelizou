@@ -27,6 +27,22 @@
 
 > Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
 >
+> 📣 **O CARTAZ SAIU DO TOPO NO DIA DO JOGO.** 🗣️ Felipe, na página do Er com o torneio rolando: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro lugar"*.
+>
+> 🕳️ **O QR DO CARTAZ LEVA PRA INSCRIÇÃO** — com a chave publicada ela já fechou. O botão era a primeira coisa que 100+ jogadores viam antes dos jogos, chamando pra uma porta que não existe mais.
+>
+> ✅ **Ele MUDA DE LUGAR, não some**: com a chave no ar vai pro card **Ferramentas do organizador** (que nessa hora já é o topo da tela pra quem organiza); antes dela fica onde sempre esteve, **pra todo mundo** — cada inscrito que chama a turma no grupo é divulgação que não custa nada. Os dois lugares são gateados pelo **mesmo** `AprovacaoDeChaves.ChavePublicada`, então nunca aparecem juntos: é o mesmo desenho que o próprio card já usa desde 10/09.
+>
+> ⚠️ **A LINHA DE BOTÕES DO TOPO USA A MESMA RÉGUA**: sem somar a condição no `@if` de fora, um torneio publicado sem convite nem fotos desenharia um `d-flex` vazio — faixa de margem sem nada dentro. Tem teste.
+>
+> ⚠️ **`DivulgacaoDoTorneio.PodeDivulgar` continua dona da pergunta "este torneio vira cartaz?"** (cancelado e finalizado não viram). São duas réguas com donos diferentes, e nenhuma foi diluída na outra.
+>
+> 🧪 **6.415 testes, 0 falhas (3 novos).** Vistos vermelhos antes em *"Not found: cartazNoTopo"* e *"Not found: Cartaz pra divulgar"* (no card). Os testes de topo da sessão paralela (`TopoDaPaginaDoTorneioEnxutoTests`) seguem verdes — a marcação continua lá, o que mudou é a condição.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, 430px), os dois papéis: **anônimo** não vê cartaz nenhum na página; **organizador** vê **um** só, dentro do card de ferramentas.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
 > 🪗 **AS FICHAS DE PLACAR SE RECOLHEM DEPOIS DA ESCOLHA.** 🗣️ Felipe, num print do cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*. Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já tinha cumprido o papel.
 >
 > ✅ **Fica uma linha só — "Seu palpite: 6 x 2 · trocar"** —, e o **"trocar"** reabre a fileira **sem falar com o servidor**: mudar de ideia não é palpite até a ficha ser tocada, e um POST ali gravaria uma intenção que a pessoa ainda não teve. Quem votou e **não** escolheu placar continua vendo as fichas abertas, como antes.
