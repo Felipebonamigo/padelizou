@@ -10,13 +10,19 @@
 >
 > ✅ **O que muda na quadra:** até 9 → o 8 x 6 fica branco e só o 9 acende; até 4 → o 3 x 3 (que estende o limite pra 5) não acende ninguém; soma de 7 → o 6 x 0 ainda tem um game pra jogar, o 4 x 3 fecha; **soma par empatada (7 x 7) → ninguém verde**, que é onde "ganhando" e "venceu" mais divergem. Com sets em jogo, o set decide — a mesma ordem do `QuemVenceu.Da` que finaliza a partida.
 >
-> 🧪 **6.512 testes, 0 falhas (11 novos, em `VerdeSoDeQuemVenceuTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'QuemVenceu' does not contain a definition for 'LadoJaDecidido'"* (12×, os testes de régua), o JSON sem `"vencedor":1`, a view ainda com o `>` no Razor, o JS sem `linha.vencedor` e o CSS sem `.pdz-live-placar-venceu`.
+> 🧪 **6.520 testes, 0 falhas (19 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'QuemVenceu' does not contain a definition for 'LadoJaDecidido'"* (12×, os testes de régua), o JSON sem `"vencedor":1`, a view ainda com o `>` no Razor, o JS sem `linha.vencedor` e o CSS sem `.pdz-live-placar-venceu`.
 >
 > 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`), logado como marcador num jogo até 9: **9 x 6 → o 9 em `rgb(163, 216, 39)`; um toque no − → 8 x 6 com os DOIS em branco, sem recarga; toque no + → lime de volta na hora.** O empate 8 x 8, que era o caso que ficava preso, sai com os dois brancos.
 >
 > 🧹 **`CACHE_NAME` do service worker foi pra `v29`** — `site.css` e `placar-ao-vivo.js` mudaram, e sem virar o número quem usa o app instalado continuaria com o verde velho, sem erro em lugar nenhum.
 >
-> 🐛 **ACHADO DE CARONA, e NÃO foi mexido — é outro trabalho:** no **tema CLARO** o campo de placar do card AO VIVO é **branco no branco**. Conferido no navegador: `color: rgb(255,255,255)` sobre `background-color: rgb(255,255,255)`, porque o `.pdz-live-input` fixa `#fff` no texto e pega `var(--pdz-surface)` no fundo — que vale `#ffffff` no tema claro. O número do placar simplesmente não aparece pra quem não usa o tema escuro, e vem de linhas de 21/08/2026 que este trabalho não tocou.
+> 🌗 **E O ACHADO DE CARONA FOI CONSERTADO NO MESMO BLOCO (🗣️ *"conserta isso tambem"*): o placar do card AO VIVO era BRANCO NO BRANCO no tema claro.** Medido no navegador antes: `color: rgb(255,255,255)` sobre `background-color: rgb(255,255,255)` — o organizador que não usa o tema escuro via **caixas vazias** no lugar dos games, desde 21/08/2026, sem erro em lugar nenhum.
+>
+> 🕳️ **A CAUSA É UMA MISTURA DE DOIS MUNDOS, e vale mais que o conserto:** o cabeçalho do card é escuro **nos dois temas** (o gradiente navy de `.pdz-live-header`), mas o campo e os botões −/+ que moram nele pegavam `var(--pdz-surface)` / `var(--pdz-ink)` — tokens que SEGUEM o tema da página. No escuro combinavam por coincidência; no claro o número sumia e o −/+ virava dois botões brancos gritando num card escuro. **Quem mora num fundo fixo se pinta com cor fixa** (`--pdz-navy-fixed`, que existe exatamente pra isso).
+>
+> 🧪 **O teste MEDE CONTRASTE, não nome de token** (`PlacarDoCardAoVivoLegivelNosDoisTemasTests`): resolve os `var()` pelos dois temas, calcula o contraste da WCAG e exige ≥ 3:1 (texto grande) — mais a régua da causa, que é a cor do placar **não mudar com o tema**. Proibir `var(--pdz-surface)` numa linha travaria a solução de hoje; o que não pode voltar é o número ilegível. **Vermelho visto antes: *"ficou ilegível no tema claro: tinta #fff sobre fundo #ffffff dá 1.00:1"*** e *"`background` de `.pdz-live-passo` muda com o tema (#ffffff no claro, #1a2338 no escuro)"*. ⚠️ **Dois enganos do próprio teste foram pegos porque o número medido não batia**: o seletor casava dentro de `.pdz-live-placar-venceu .pdz-live-input` (media o lime achando que media o branco) e a citação `` `color: inherit` `` DENTRO de um comentário do CSS abria uma declaração falsa que engolia a de verdade.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR nos dois temas, depois:** `[−][9][+]` sai **idêntico** no claro e no escuro — `rgb(163,216,39)` no 9, `rgb(255,255,255)` no 6 e nos botões, todos sobre `rgb(28,39,66)`.
 
 # Padelizou — Status e Roadmap
 

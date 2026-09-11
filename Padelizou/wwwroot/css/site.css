@@ -2825,7 +2825,14 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-live-input {
     width: 2.2em;
     text-align: center;
-    background: var(--pdz-surface);
+
+    /* ⚠️ FUNDO ESCURO FIXO, e não `var(--pdz-surface)` (11/09/2026). O cabeçalho do card é
+       escuro NOS DOIS TEMAS (gradiente navy em .pdz-live-header), mas este campo pegava o
+       token que SEGUE o tema da página — `#ffffff` no claro — com a tinta cravada em `#fff`
+       logo abaixo. No tema escuro os dois combinavam por coincidência; no CLARO era branco no
+       branco, e o placar simplesmente não aparecia (medido no navegador: `rgb(255,255,255)`
+       sobre `rgb(255,255,255)`). Quem mora num fundo fixo se pinta com cor fixa. */
+    background: var(--pdz-navy-fixed);
 
     /* ⚠️ `color: inherit` NÃO SERVE AQUI, e era o motivo de o placar ficar ruim de ler
        (Felipe, 21/08/2026). O pai (.pdz-live-placar) é branco a 55% de opacidade — cinza de
@@ -2838,7 +2845,9 @@ button, a, input, select { touch-action: manipulation; }
     font-size: 1.9rem;
     font-weight: 800;
     line-height: 1.1;
-    border: 1px solid var(--pdz-border);
+    /* A borda acompanha o fundo: `var(--pdz-border)` é tinta escura a 9% no tema claro, que
+       sobre o card escuro não desenha caixa nenhuma. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 8px;
     padding: .05em .15em;
 }
@@ -2869,10 +2878,13 @@ button, a, input, select { touch-action: manipulation; }
     width: 2.1rem;
     height: 2.1rem;
     flex: 0 0 auto;
-    border: 1px solid var(--pdz-border);
+    /* Mesmo motivo do campo ao lado (11/09/2026): estes botões moram no cabeçalho ESCURO do
+       card, que é escuro nos dois temas. Com os tokens que seguem o tema eles viravam dois
+       botões BRANCOS num card escuro — o contrário do defeito do campo, e a mesma causa. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 10px;
-    background: var(--pdz-surface);
-    color: var(--pdz-ink);
+    background: var(--pdz-navy-fixed);
+    color: #fff;
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1;
