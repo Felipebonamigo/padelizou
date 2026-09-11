@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` no `build-1088-e61686c`** (run 34625113564). PR #199. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**, o `/css/site.css` servido traz as regras novas (`.pdz-arv-liga`, `.pdz-chd-trilho`, `.pdz-chave-vaga.pdz-arv-final`) e **zero** do CSS morto que saiu, e o `/sw.js` já está em `padelizou-static-v27`. ⚠️ **A PÁGINA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. A prova visual é a local, com o app de verdade.
+>
+> ⏭️ **PROD NÃO FOI PUBLICADO** (não foi pedido): `padelizou.com.br` continua servindo as quatro colunas soltas — 334 ocorrências de `pdz-chave-projetada` no HTML de `/Torneios/Details/26`, conferidas agora.
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
