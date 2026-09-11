@@ -444,7 +444,11 @@
 >
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1005-3156b46`** (16h48 e 16h50 de Brasília — runs 192 e 193). PR #165. **Sem migration.**
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e `/Torneios/CheckIn/26` respondendo **302 pro login** nos dois (e não 500) — a rota nova está de pé e fechada pra quem não entrou. O proxy desta sessão, que passou o dia devolvendo 403 pro domínio, voltou a deixar passar; a nota de "não dá pra conferir por fora" **não vale mais pra este deploy**.
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERÊNCIA É A APARÊNCIA.** 302 e 200 dizem que a tela responde, não que ela está certa: o desenho dos blocos por horário, o cartão de cada jogo e o "Resto do torneio" fechado só se conferem abrindo a página logado — e esta sessão não tem navegador.
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >
