@@ -55,7 +55,13 @@
 >
 > ⏭️ **FICOU DE FORA, de propósito**: a `Classificacao.cshtml` (a outra tela com J/V/D/SG) **já declara** 40/40/40/50px nas suas colunas e não tem o defeito; e o `ps-3` da coluna da dupla — 16px de recuo que no celular valeriam mais três letras — não foi mexido, porque alinha o nome com o resto do card.
 
-> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1092-bbdb0bb`** (runs 228 e 229, 17h20 e 17h22 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #202. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, anônimo, nos DOIS ambientes**: `/healthz` **200**; `sw.js` em **`padelizou-static-v28`**; `/js/saque-ao-vivo.js` servido (**6.858 bytes**); e o `/css/site.css` com `pdz-bolinha-quica`, `pdz-bolinha-apagada`, `pdz-saque-toque` e o bloco `prefers-reduced-motion`.
+>
+> ⚠️ **A BOLINHA EM SI NÃO PÔDE SER PROVADA NO AR: não há jogo AO VIVO agora.** `/Torneios/Details/26` em produção marca **"Ao Vivo (0)"** (97 agendadas, 0 finalizadas), e sem card não há bolinha no HTML. O que se provou é que o mecanismo está servido e que a página carrega o `saque-ao-vivo.js` com o hash novo. **A primeira partida que entrar no ar é o teste de verdade** — e aí a bolinha nasce sozinha, que é justamente a mudança.
+>
+> ⚠️ **O CI NÃO RODOU NAS DUAS PRIMEIRAS TENTATIVAS, e a causa vale guardar: PR conflitado não gera check NENHUM.** O `main` andou três vezes enquanto este branch existia (PRs #199, #201, #203, de outra sessão), e com o merge-ref impossível o GitHub não cria run — nem vermelho, NENHUM. Fica parecido com o apagão de eventos de 26/08, mas não é: o conserto é mesclar o `main`, não o `workflow_dispatch`. **Sintoma pra reconhecer: `mergeable_state: "dirty"` + `total_count: 0` em check-runs.**
 >
 > 🎾 **A BOLINHA DO SAQUE APARECEU — DEPOIS DE 37 DIAS INVISÍVEL.** 🗣️ Felipe, num print do card AO VIVO: *"Nao esta exibindo a bolinha verde de quem esta sacando, é algum erro?"*
 >
@@ -81,7 +87,7 @@
 >
 > 🧪 **6.446 testes, 0 falhas (16 novos, em `SaqueSempreDefinidoTests`)** + `conferir-palpitrometro.js` verde. **13 vistos vermelhos antes da correção**, cada um pelo motivo dele (*"Expected: 1, Actual: null"* na largada, *"Expected: 2, Actual: 0"* no card, arquivo inexistente pro parcial e pro JS, `NotImplementedException` no `TrocarSaque`). Os **3 que nasceram verdes foram falsificados um a um**: trocando `??=` por `=` cai o "não mexe no saque que já tinha dono"; tirando a chamada de dentro do `if` da transição cai o "Não mostrar"; apagando a leitura da bandeira no `jogos-ao-vivo-atualiza.js` cai o teste da corrida. ⚠️ **E o Razor É compilado no build** — conferido de propósito com um campo inexistente no parcial, que quebrou o build: o parcial novo e a tupla estão type-checked, não só lidos como texto.
 >
-> ⚠️ **NADA FOI VISTO NUMA TELA** — sessão web, sem browser, e a suíte não renderiza Razor. **A costura e o quique seguem pendentes do olho do Felipe**: tamanho da bola (13px), amplitude do pulo (~7px) e se o movimento não compete com a bolinha pulsante do "AO VIVO", que vive no mesmo card.
+> ⚠️ **NADA FOI VISTO NUMA TELA** (segue valendo depois da publicação) — sessão web, sem browser, e a suíte não renderiza Razor. **A costura e o quique seguem pendentes do olho do Felipe**: tamanho da bola (13px), amplitude do pulo (~7px) e se o movimento não compete com a bolinha pulsante do "AO VIVO", que vive no mesmo card.
 >
 > ⚠️ **OS JOGOS JÁ NO AR NÃO GANHAM BOLINHA RETROATIVA** — a regra vale na largada. Os dois do print do Felipe só terão saque quando alguém tocar na bola apagada (ou o jogo for reaberto).
 >
