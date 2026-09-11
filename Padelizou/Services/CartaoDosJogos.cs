@@ -33,28 +33,47 @@ public sealed record GradeDesenhavel(string Torneio, string? Recorte, string? Cl
 public static class CartaoDosJogos
 {
     private const float MargemH = 60;
-    private const float TituloY = 388;
-    private const float PilulaCentroY = 468;
-    private const float RecorteY = 548;
+
+    // ⚠️ O ALTO DO CARD ENCOLHEU PRA CABER MAIS JOGO (11/09/2026). 🗣️ Felipe: *"tente fazer com
+    // que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
+    // O cabeçalho antigo gastava 600 dos 1350px em logo grande + "JOGOS" em corpo 96 + pílula do
+    // dia + recorte — quatro blocos pra dizer duas coisas. Agora o TÍTULO É O DIA (que é a
+    // pergunta de quem vê o story) e o recorte vem embaixo, numa linha só: 260px no lugar de 600,
+    // e a lista ganhou os outros 340.
+    //
+    // ⚠️ A PÍLULA LIME SAIU DAQUI, e é a única peça da família que este card não tem. O dia em
+    // corpo 76 dentro de uma pílula viraria uma faixa de 120px — justamente o espaço que o pedido
+    // manda devolver pra lista. A assinatura da marca continua na faixa lime do topo, na logo, no
+    // subtítulo lime e no rodapé.
+    private const float TituloY = 236;
+    private const float SubtituloY = 292;
 
     // A faixa onde a lista mora. Fixa, pra o rodapé não subir nem descer entre as artes de um
     // mesmo dia — a sequência no story sai com a mesma cara.
-    private const float PrimeiraLinhaY = 596;
-    private const float UltimaLinhaY = 1116;
+    private const float PrimeiraLinhaY = 336;
+    private const float UltimaLinhaY = 1120;
 
-    private const float DivisoriaY = 1158;
-    private const float TorneioY = 1206;
-    private const float LegendaY = 1254;
+    private const float DivisoriaY = 1160;
+    private const float TorneioY = 1205;
+    private const float LegendaY = 1248;
 
-    // Oito jogos com DUAS linhas cada (contexto em cima, confronto embaixo): é o que cabe na
-    // faixa com corpo ainda legível de relance no celular. O card de resultados cabe cinco com
-    // três linhas; a conta é a mesma.
-    public const int MaximoDeJogos = 8;
+    // Catorze jogos com DUAS linhas cada (contexto em cima, confronto embaixo). Era OITO até o
+    // cabeçalho encolher; com 784px de faixa, catorze ainda dá corpo 22 no confronto — legível
+    // de relance no celular, que é a régua. Acima disso o contexto cairia pro corpo mínimo e a
+    // arte viraria uma tabela que ninguém lê no story.
+    //
+    // ⚠️ O TETO É DE LEGIBILIDADE, NÃO DE ESPAÇO: quem tem mais que isso num dia recebe partes
+    // equilibradas (ver Dividir), e a tela oferece todas. Um dia com trinta jogos não cabe numa
+    // imagem só sem virar ilegível — e ilegível não resolve o pedido, só o esconde.
+    public const int MaximoDeJogos = 14;
 
-    // A lista com menos de cinco jogos NÃO estica as linhas até encher a faixa: três jogos com
-    // 170px cada parecem um card vazio com três frases perdidas. Abaixo disto o bloco é
-    // centralizado na faixa, com a altura de linha de cinco.
-    private const int LinhasMinimasNaConta = 5;
+    // O TETO DA ALTURA DE CADA LINHA. Sem ele, um jogo sozinho viraria uma caixa de 784px.
+    //
+    // ⚠️ E ELE É GENEROSO (160) DE PROPÓSITO: com a faixa maior, um teto apertado deixava três
+    // jogos como três frases perdidas no meio de um card vazio — visto na prévia, não no teste, e
+    // é o mesmo defeito do pódio da panelinha (25/08/2026). Com 160 a lista curta sai com linhas
+    // GRANDES, que é o que se faz com o espaço que sobra; a lista cheia cai pros 56 da conta.
+    private const float AlturaMaximaDoJogo = 160;
 
     /// <summary>
     /// As artes de uma lista: agrupa por dia, na ordem em que os dias aparecem na fila (que já
@@ -101,27 +120,23 @@ public static class CartaoDosJogos
                 CartaoCompartilhavel.Fundo(canvas);
                 CartaoCompartilhavel.FaixaDoTopo(canvas);
 
-                CartaoCompartilhavel.Logo(canvas, logo, CartaoCompartilhavel.Largura / 2f, 150, 108);
+                CartaoCompartilhavel.Logo(canvas, logo, CartaoCompartilhavel.Largura / 2f, 86, 64);
                 CartaoCompartilhavel.TextoCentralizado(
-                    canvas, "P A D E L I Z O U", 248, fontes.Media, 34,
+                    canvas, "P A D E L I Z O U", 152, fontes.Media, 26,
                     CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - 160);
 
+                // O DIA é o título: "SEX 11/09". É a única pergunta que quem vê o story faz antes
+                // de procurar o próprio nome na lista.
                 CartaoCompartilhavel.TextoCentralizado(
-                    canvas, "JOGOS", TituloY, fontes.Forte, 96,
-                    CartaoCompartilhavel.Branco, CartaoCompartilhavel.Largura - 140);
+                    canvas, TituloDoDia(arte), TituloY, fontes.Forte, 76,
+                    CartaoCompartilhavel.Branco, CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 40);
 
-                // O dia na pílula, com a parte quando há mais de uma: "SEX 11/09 · 1/2". Em
-                // maiúsculas porque é a assinatura das pílulas da família ("OPEN MASCULINA").
-                CartaoCompartilhavel.Pilula(canvas, PilulaDoDia(arte), PilulaCentroY, fontes, 40);
-
-                // O recorte — quais filtros estavam ligados. Sem ele, a lista é o torneio inteiro
-                // e a linha simplesmente não existe.
-                if (!string.IsNullOrWhiteSpace(grade.Recorte))
-                {
-                    CartaoCompartilhavel.TextoCentralizado(
-                        canvas, grade.Recorte.ToUpperInvariant(), RecorteY, fontes.Media, 34,
-                        CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 20);
-                }
+                // Embaixo, o recorte (quais filtros estavam ligados) e a parte, quando há mais de
+                // uma. Sem recorte a lista é o torneio inteiro, e aí a linha diz "JOGOS": um card
+                // que abre sem dizer do que se trata é um card que não se compartilha.
+                CartaoCompartilhavel.TextoCentralizado(
+                    canvas, Subtitulo(grade.Recorte, arte), SubtituloY, fontes.Media, 30,
+                    CartaoCompartilhavel.Lime, CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 18);
 
                 Jogos(canvas, fontes, arte.Jogos);
                 Evento(canvas, fontes, grade);
@@ -135,10 +150,17 @@ public static class CartaoDosJogos
         }
     }
 
-    public static string PilulaDoDia(ArteDeJogos arte)
+    /// <summary>"SEX 11/09" — o dia da arte, em maiúsculas, como o card escreve.</summary>
+    public static string TituloDoDia(ArteDeJogos arte) => TextoDaLista.Dia(arte.Dia).ToUpperInvariant();
+
+    /// <summary>
+    /// A linha abaixo do dia: o recorte (ou "JOGOS", quando a lista é o torneio inteiro) e a
+    /// parte, quando o dia não coube numa arte só.
+    /// </summary>
+    public static string Subtitulo(string? recorte, ArteDeJogos arte)
     {
-        var dia = TextoDaLista.Dia(arte.Dia).ToUpperInvariant();
-        return arte.Partes > 1 ? $"{dia}  ·  {arte.Parte}/{arte.Partes}" : dia;
+        var texto = string.IsNullOrWhiteSpace(recorte) ? "JOGOS" : recorte.ToUpperInvariant();
+        return arte.Partes > 1 ? $"{texto}  ·  {arte.Parte} DE {arte.Partes}" : texto;
     }
 
     private static void Jogos(SKCanvas canvas, FonteDoCartao fontes, List<JogoDaLista> jogos)
@@ -146,15 +168,17 @@ public static class CartaoDosJogos
         if (jogos.Count == 0) return;
 
         float faixa = UltimaLinhaY - PrimeiraLinhaY;
-        float alturaDoJogo = faixa / Math.Max(jogos.Count, LinhasMinimasNaConta);
-        float corpo = Math.Clamp(alturaDoJogo * 0.40f, 20f, 34f);
-        float corpoDoContexto = Math.Max(16f, corpo * 0.66f);
+        float alturaDoJogo = Math.Min(faixa / jogos.Count, AlturaMaximaDoJogo);
+        // O corpo acompanha a altura da linha, entre 20 (catorze jogos) e 40 (a lista curta, com
+        // espaço de sobra). O `Texto` ainda encolhe sozinho o nome de dupla que não couber.
+        float corpo = Math.Clamp(alturaDoJogo * 0.40f, 20f, 40f);
+        float corpoDoContexto = Math.Max(16f, corpo * 0.62f);
         float corpoDaHora = corpo * 1.15f;
 
         // A hora à esquerda, numa coluna fixa; o texto começa depois dela. "por ordem" é a
         // palavra mais larga que a coluna recebe, e o TamanhoQueCabe a encolhe se precisar.
-        float xHora = MargemH + 26;
-        float larguraDaHora = 160;
+        float xHora = MargemH + 20;
+        float larguraDaHora = 132;
         float xTexto = xHora + larguraDaHora + 14;
         float larguraDoTexto = CartaoCompartilhavel.Largura - MargemH - xTexto - 20;
 
