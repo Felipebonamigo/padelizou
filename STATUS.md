@@ -1,11 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` no `build-1088-e61686c`** (run 34625113564). PR #199. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1088-e61686c`** (runs 226 e 227 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #199. ✅ **SEM MIGRATION.**
 >
-> ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**, o `/css/site.css` servido traz as regras novas (`.pdz-arv-liga`, `.pdz-chd-trilho`, `.pdz-chave-vaga.pdz-arv-final`) e **zero** do CSS morto que saiu, e o `/sw.js` já está em `padelizou-static-v27`. ⚠️ **A PÁGINA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. A prova visual é a local, com o app de verdade.
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, na página de verdade** (`/Torneios/Details/26`, 7 categorias): **7 quadros de cima pra baixo** (`pdz-arv-rolagem`) e **7 deitados** (`pdz-chd-trilho`), **43 ligações** desenhadas, **zero** ocorrência de `pdz-chave-projetada` (o quadro velho) e **zero** de "passou direto". O `/sw.js` está em `padelizou-static-v27` e o `/css/site.css` servido traz as regras novas sem nada do CSS morto.
 >
-> ⏭️ **PROD NÃO FOI PUBLICADO** (não foi pedido): `padelizou.com.br` continua servindo as quatro colunas soltas — 334 ocorrências de `pdz-chave-projetada` no HTML de `/Torneios/Details/26`, conferidas agora.
+> 🔢 **E A PORCENTAGEM DA LIGAÇÃO CHEGOU COM PONTO** no HTML de produção (`--a:25%;--hw:50%`) — é a prova no ar do defeito de cultura que o teste dos sete grupos pega. Com vírgula, o quadro estaria lá sem nenhuma linha.
+>
+> 🖥️ **E VISTO EM TELA**, renderizando o HTML de produção com o `site.css` de produção: no computador as duas semifinais se juntam na final com o cotovelo, a final sai destacada em lime e o troféu fecha embaixo; a 390px a semifinal ocupa dois terços e a final fica espiando na beirada, com a linha já chegando nela. ⚠️ **O `dev` continua sem prova visual anônima** (gate de Acesso Antecipado: `/Torneios/Details/26` responde 302) — lá a prova é `/healthz` 200 e o CSS servido.
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
