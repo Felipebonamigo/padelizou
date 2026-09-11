@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.ViewModels;
 using Xunit;
 
 namespace Padelizou.Tests;
@@ -29,6 +31,7 @@ public class VerQuemPalpitouTests
         await servico.RegistrarVotoAsync(partida.Id, soOVencedor.Id, duplas[0].Id);
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(votantes);
 
         // ⚠️ "Cravou o Placar" chega na tela como "Cravou Placar" desde 11/09/2026: o nome passou
         // a sair pelo `NomeBonito.Curto` (primeiro + último). Quem manda no que se procura aqui é
@@ -60,6 +63,7 @@ public class VerQuemPalpitouTests
         await servico.RegistrarVotoAsync(partida.Id, torcedor.Id, duplas[1].Id, 4, 6);
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(votantes);
 
         var linha = Assert.Single(votantes.VotantesDupla2);
         Assert.Equal(6, linha.PlacarVencedor);
@@ -92,7 +96,9 @@ public class VerQuemPalpitouTests
             await servico.RegistrarVotoAsync(partida.Id, jogador.Id, duplas[0].Id, g1, g2);
         }
 
-        var votantes = (await servico.ObterVotantesAsync(partida.Id)).VotantesDupla1;
+        var resposta = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(resposta);
+        var votantes = resposta.VotantesDupla1;
 
         // 🗣️ Felipe, 11/09/2026: *"coloque em ordem de placar, por exemplo, se colocaram o placar
         // igual, deixe próximo"*. Com 14 nomes numa coluna, achar quem apostou o mesmo que você
@@ -122,6 +128,7 @@ public class VerQuemPalpitouTests
         await servico.RegistrarVotoAsync(partida.Id, torcedor.Id, duplas[0].Id, 2, 0);
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(votantes);
 
         // "2 x 0" sem a moeda ao lado é um placar de games que nenhum jogo termina.
         var linha = Assert.Single(votantes.VotantesDupla1);
@@ -279,6 +286,7 @@ public class VerQuemPalpitouTests
         await servico.RegistrarVotoAsync(partida.Id, sussurrado.Id, duplas[0].Id, 6, 0);
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(votantes);
         var nomes = votantes.VotantesDupla1.Select(v => v.Nome).OrderBy(n => n).ToList();
 
         // Primeiro + último, e a caixa arrumada: é o mesmo `NomeBonito.Curto` do resto do site.
@@ -298,6 +306,7 @@ public class VerQuemPalpitouTests
         await servico.RegistrarVotoAsync(partida.Id, cuidadoso.Id, duplas[0].Id);
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
+        Assert.NotNull(votantes);
         var linha = Assert.Single(votantes.VotantesDupla1);
         Assert.Equal("Leonardo DiCaprio", linha.Nome);
     }
@@ -364,6 +373,54 @@ public class VerQuemPalpitouTests
         Assert.Contains("text-nowrap", trecho);
     }
 
+    // ────────── O JOGO QUE SUMIU ENQUANTO A PÁGINA ESTAVA ABERTA (11/09/2026) ──────────
+    //
+    // 🕳️ Três `InvalidOperationException` em `GET /Partidas/VerVotos` no mesmo minuto (08:49), no
+    // registro do vigia — a mensagem era "Partida não encontrada.".
+    //
+    // O `partidaId` do botão é desenhado no HTML e fica congelado ali enquanto a aba estiver
+    // aberta. O jogo, não: regerar a chave, regerar o americano e mudar um resultado do
+    // mata-mata APAGAM partidas (`_context.Partidas.RemoveRange`, em quatro pontos). Quem estava
+    // com a lista aberta na hora continua com um botão apontando pra um jogo que não existe mais.
+    //
+    // ⚠️ E o 500 não era a pior parte: o JS fazia `response.json()` sem olhar o `ok`, então a
+    // página de erro em HTML estourava o parse, o modal ficava em "Carregando..." pra sempre e o
+    // dedo batia de novo. É por isso que são TRÊS no mesmo minuto, e não um.
+    //
+    // Jogo apagado não é defeito do sistema: é 404. Assim ele some do vigia — que passa a
+    // guardar só o que é erro de verdade — e a pessoa lê o motivo em vez de esperar.
+
+    [Fact]
+    public async Task Ver_votos_de_um_jogo_que_NAO_EXISTE_MAIS_responde_404_em_vez_de_estourar()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var controller = TestInfra.NovoPartidasController(ctx, usuarioLogadoId: null,
+            palpites: new PalpiteService(ctx));
+
+        var resposta = await controller.VerVotos(partidaId: 9999);
+
+        Assert.IsType<NotFoundResult>(resposta);
+    }
+
+    [Fact]
+    public async Task O_404_do_jogo_apagado_NAO_engoliu_o_modal_de_quem_existe()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, duplas) = await MontarJogoAgendadoAsync(ctx);
+        var servico = new PalpiteService(ctx);
+        var torcedor = await NovoTorcedorAsync(ctx, "Quem Votou", "55540000009");
+        await servico.RegistrarVotoAsync(partida.Id, torcedor.Id, duplas[0].Id, 6, 4);
+
+        var controller = TestInfra.NovoPartidasController(ctx, usuarioLogadoId: null, palpites: servico);
+
+        // ⚠️ Este não é o teste do defeito — é a trava contra a correção grande demais. Um
+        // `NotFound()` solto no começo da ação faria o teste de cima passar e apagaria o modal
+        // inteiro. Falsificado em 11/09/2026 devolvendo NotFound sempre: acusa na hora.
+        var json = Assert.IsType<JsonResult>(await controller.VerVotos(partida.Id));
+        var votantes = Assert.IsType<VotantesPartidaVM>(json.Value);
+
+        Assert.Equal("Quem Votou", Assert.Single(votantes.VotantesDupla1).Nome);
+    }
     // ─────────────────────────── INFRA ───────────────────────────
 
     private static async Task<(Partida partida, List<Dupla> duplas)> MontarJogoAgendadoAsync(

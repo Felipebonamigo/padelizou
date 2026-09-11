@@ -14,5 +14,6 @@ public interface IPalpiteService
     // Idempotente: quem não tinha palpite recebe o resumo do jeito que ele está.
     Task<PalpiteResumoVM> RetirarPalpiteAsync(int partidaId, int jogadorId);
 
-    Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId);
+    // Nulo = o jogo não existe (mais). Ver a nota no PalpiteService: quem chama devolve 404.
+    Task<VotantesPartidaVM?> ObterVotantesAsync(int partidaId);
 }
