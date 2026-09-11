@@ -1,7 +1,40 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
+>
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+>
+> 🎾 **A BOLINHA DO SAQUE APARECEU — DEPOIS DE 37 DIAS INVISÍVEL.** 🗣️ Felipe, num print do card AO VIVO: *"Nao esta exibindo a bolinha verde de quem esta sacando, é algum erro?"*
+>
+> 🕳️ **O DEFEITO NÃO ERA DE DESENHO, ERA DE DADO — E É O TIPO MAIS CARO: a feature no ar sem NENHUM caminho que a alimente.** O card sempre soube desenhar a bolinha (`_JogosDoTorneio.cshtml`, desde 05/08). O que não existia era quem gravasse `Partida.DuplaSacandoId`: o **único** lugar do site era o POST do Controle de Partida, que **já nasce marcado em "Não mostrar"** e que ninguém abre com cinco quadras rolando. Nem a Mesa de Controle nem o −/+ do card tocavam no campo. Resultado: campo nulo em 100% dos jogos, bolinha em 0% das telas, por 37 dias, **sem um teste sequer** (`grep pdz-bolinha Padelizou.Tests/` voltava vazio).
+>
+> 🎯 **REGRA NOVA, decidida pelo Felipe: jogo que ENTRA EM QUADRA sai com alguém sacando.** 🗣️ *"tanto faz em quem começar a bolinha, mas tem q ter em alguem"*. Qual dupla é indiferente de propósito — quem saca primeiro é sorteio na quadra e o servidor não tem como saber. Fica com a **dupla de cima**, e o organizador corrige num toque.
+>
+> ⚠️ **SÃO TRÊS PORTAS PRA QUADRA, e todas as três chamam a MESMA régua** (`Services/SaqueDoJogo.DefinirNaLargada`): o play (`ColocarNoAr`), o `<select>` de status do Controle de Partida e o `ReabrirPartida`. Régua copiada em três lugares é exatamente como a autorização de organizador virou três verdades que precisam andar juntas.
+>
+> ⚠️ **E A LARGADA VENCE O CAMPO VAZIO DO FORMULÁRIO, DE PROPÓSITO.** O "Não mostrar" do Controle de Partida vem **pré-marcado** em todo jogo que nunca teve saque — tratá-lo como escolha deixaria o vazio voltar pela porta dos fundos, em quem dá a largada por aquele `<select>` sem olhar pra bolinha. Com o jogo **já** no ar o `if` não roda, e aí "Não mostrar" é escolha de verdade e é obedecida (é a saída de quem não sabe quem está sacando: bolinha errada na tela do torcedor é pior que bolinha nenhuma). **Tem teste dos dois lados.**
+>
+> 👆 **UM TOQUE TROCA O SAQUE, no próprio card.** 🗣️ *"permita o organizador/marcador alterar a bolinha"* — e o porquê de não poder morar só no lápis: *"normalmente se vira após o 3º game, depois de 2 em 2, até finalizar a partida"*. Do lado de quem não saca nasce uma **bola apagada** (contorno), que é o alvo. `Partidas/TrocarSaque` confere **a mesma régua** do lápis (`PodeMarcarPlacarAsync`: organização, marcador, admin e quem o torneio liberou), recusa dupla de outro jogo e recusa jogo fora de quadra.
+>
+> ⚠️ **NÃO AUTOMATIZEI A VIRADA a cada game** — o próprio Felipe escreveu *"(nao é sempre)"*. Régua automática escreveria na tela do torcedor uma informação que ninguém conferiu.
+>
+> ⚠️ **O TOQUE É UM `<form>` DE VERDADE**, não um `<span>` com `onclick`: sem JavaScript ele continua trocando o saque por POST + volta. O `js/saque-ao-vivo.js` só **intercepta** — recarga ali reiniciaria o `<iframe>` da transmissão e jogaria a tela pro topo, os dois defeitos que o −/+ já tinha deixado de causar.
+>
+> ⚠️ **BANDEIRA PRÓPRIA (`pdzTrocandoSaque`), e não a `pdzSalvandoPlacar` do placar.** Compartilhar abriria uma corrida: game salvando junto com troca de saque, e quem terminasse primeiro baixaria a bandeira do outro — a atualização automática entraria no meio do salvamento que continua em pé e devolveria o placar velho pra tela, que é exatamente o que essas bandeiras existem pra impedir. **As duas pontas têm teste**: levantar sem ninguém ler (ou ler sem ninguém levantar) falha CALADO.
+>
+> 🎾 **A BOLA VIROU BOLA: costura e quique, em CSS puro.** 🗣️ *"voce consegue fazer a imagem de uma bolinha de tenis? se possivel ela 'quicando' na tela? ou isso seria ruim pro sistema?"* — não é ruim, e **sem arquivo de imagem**: a costura são dois círculos maiores que a bola cortados pelo `overflow: hidden`, e o quique é `@keyframes` só de `transform` (a GPU anima, sem recalcular layout). Um `.png` custaria uma requisição por página, uma entrada no service worker e duas resoluções pra manter — pra desenhar dois arcos. ⚠️ **`prefers-reduced-motion: reduce` não recebe o quique**: animação infinita é justamente o tipo que incomoda quem marcou essa preferência, e a informação não depende do movimento.
+>
+> ♻️ **O `<span>` da bolinha virou o parcial `_BolinhaDoSaque`**: as duas linhas do card desenham a mesma coisa, e duas cópias seriam duas verdades sobre título, tamanho e alvo de toque. Mesma razão do `_EscudoDoTime`.
+>
+> 🧪 **6.446 testes, 0 falhas (16 novos, em `SaqueSempreDefinidoTests`)** + `conferir-palpitrometro.js` verde. **13 vistos vermelhos antes da correção**, cada um pelo motivo dele (*"Expected: 1, Actual: null"* na largada, *"Expected: 2, Actual: 0"* no card, arquivo inexistente pro parcial e pro JS, `NotImplementedException` no `TrocarSaque`). Os **3 que nasceram verdes foram falsificados um a um**: trocando `??=` por `=` cai o "não mexe no saque que já tinha dono"; tirando a chamada de dentro do `if` da transição cai o "Não mostrar"; apagando a leitura da bandeira no `jogos-ao-vivo-atualiza.js` cai o teste da corrida. ⚠️ **E o Razor É compilado no build** — conferido de propósito com um campo inexistente no parcial, que quebrou o build: o parcial novo e a tupla estão type-checked, não só lidos como texto.
+>
+> ⚠️ **NADA FOI VISTO NUMA TELA** — sessão web, sem browser, e a suíte não renderiza Razor. **A costura e o quique seguem pendentes do olho do Felipe**: tamanho da bola (13px), amplitude do pulo (~7px) e se o movimento não compete com a bolinha pulsante do "AO VIVO", que vive no mesmo card.
+>
+> ⚠️ **OS JOGOS JÁ NO AR NÃO GANHAM BOLINHA RETROATIVA** — a regra vale na largada. Os dois do print do Felipe só terão saque quando alguém tocar na bola apagada (ou o jogo for reaberto).
+>
+> 🧹 `CACHE_NAME` do service worker subiu pra `v27` (o `site.css` mudou).
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
 >
 > 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
 >

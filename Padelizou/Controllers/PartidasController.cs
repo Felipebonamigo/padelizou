@@ -333,6 +333,9 @@ namespace Padelizou.Controllers
                 partida.HorarioInicioReal ??= DateTime.Now;
                 partida.HorarioFimReal = null;
                 partida.SendoTransmitida = !string.IsNullOrEmpty(partida.LinkTransmissao);
+                // Jogo em quadra tem alguém sacando (Services/SaqueDoJogo). Qual dupla é
+                // indiferente — o card é que não pode nascer sem bolinha.
+                SaqueDoJogo.DefinirNaLargada(partida);
 
                 TempData["Sucesso"] = "Partida no ar!";
             }
@@ -684,6 +687,9 @@ namespace Padelizou.Controllers
             partida.VencedorId = null;
             partida.HorarioFimReal = null;
             partida.HorarioInicioReal ??= DateTime.Now;
+            // Reabrir devolve o jogo PRA QUADRA, e jogo em quadra tem alguém sacando: sem isto
+            // o placar corrigido volta ao vivo com o card sem bolinha (Services/SaqueDoJogo).
+            SaqueDoJogo.DefinirNaLargada(partida);
 
             // Reabrir um W.O. desfaz o W.O. junto: o jogo volta a ser um jogo por acontecer,
             // e o placar convencional que ficou na tela é pra ser corrigido, não mantido.
@@ -699,6 +705,50 @@ namespace Padelizou.Controllers
             return partida.TorneioId.HasValue
                 ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
                 : RedirectToAction("ControlePlacar", new { id });
+        }
+
+        // PASSAR O SAQUE PRA OUTRA DUPLA, de um toque, no próprio card AO VIVO.
+        //
+        // 🗣️ Felipe, 11/09/2026: *"permita o organizador/marcador alterar a bolinha"* — e o
+        // contexto de por que isso não podia morar só na tela do lápis: *"normalmente (nao é
+        // sempre), se marca a bolinha na primeira virada de quadra (normalmente se vira após o
+        // 3º game, depois de 2 em 2, até finalizar a partida)"*. Ou seja: o saque muda MUITAS
+        // vezes por jogo, e cada mudança não pode custar abrir tela, salvar e voltar.
+        //
+        // ⚠️ NÃO automatizei a virada a cada game de propósito: ele mesmo disse que "não é
+        // sempre" (tie-break, dupla que erra a ordem, jogo que retoma depois da chuva). Régua
+        // automática aqui escreveria na tela do torcedor uma informação que ninguém conferiu.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarSaque(int id, int duplaId, string? voltarPara = null)
+        {
+            var partida = await _context.Partidas.FindAsync(id);
+            if (partida == null) return NotFound();
+
+            // A MESMA régua de quem já podia marcar saque pelo Controle de Partida: organização,
+            // marcador do torneio, admin, e quem o organizador liberou (Services/QuemMarcaOPlacar).
+            // Uma régua própria aqui seria a quarta porta do mesmo dado.
+            if (!await PodeMarcarPlacarAsync(partida)) return Forbid();
+
+            // ⚠️ SÓ JOGO EM QUADRA. A bolinha responde "quem está sacando AGORA" — num jogo
+            // agendado ela promete o que não existe, e é exatamente o estado que o
+            // Services/DesfazerDoJogo limpa quando o jogo sai da quadra.
+            if (partida.Status != "AoVivo") return BadRequest();
+            if (!SaqueDoJogo.EhDesteJogo(partida, duplaId)) return BadRequest();
+
+            partida.DuplaSacandoId = duplaId;
+            await _context.SaveChangesAsync();
+
+            // Quem veio por `fetch` (o toque na bolinha, que não recarrega a página) leva o
+            // estado gravado de volta em JSON — o servidor tem a última palavra, igual ao −/+
+            // do placar. E o TIPO da resposta é o sinal de sucesso do outro lado: sessão
+            // vencida responde 302 pra tela de login, que o `fetch` segue e entrega como 200.
+            if (Request.Headers.XRequestedWith == "XMLHttpRequest")
+                return Json(new { partidaId = partida.Id, duplaSacandoId = partida.DuplaSacandoId });
+
+            // Sem JavaScript o toque é um POST comum: volta pra lista de onde veio.
+            return VoltarDaLargada(partida, id, voltarPara);
         }
 
         // POST: Partidas/ControlePlacar/5
@@ -800,12 +850,10 @@ namespace Padelizou.Controllers
                 partida.SetsDupla2 = null;
             }
 
-            // Quem saca só pode ser uma das duas duplas DESTE jogo. Vazio = não mostrar.
-            // Sem essa checagem, um POST montado à mão apontaria a bolinha do saque pra uma
-            // dupla de outra partida, e a tela mostraria um nome que não está em quadra.
-            partida.DuplaSacandoId = duplaSacandoId == partida.Dupla1Id || duplaSacandoId == partida.Dupla2Id
-                ? duplaSacandoId
-                : null;
+            // Quem saca só pode ser uma das duas duplas DESTE jogo (Services/SaqueDoJogo).
+            // Vazio = "não mostrar", e ele continua valendo pro jogo JÁ em quadra: é a saída de
+            // quem não sabe quem está sacando e prefere não mentir pro torcedor.
+            partida.DuplaSacandoId = SaqueDoJogo.EhDesteJogo(partida, duplaSacandoId) ? duplaSacandoId : null;
 
             // Aplica o link (e a quadra) a todos os PRÓXIMOS jogos da mesma quadra — a câmera
             // costuma cobrir a quadra o dia inteiro. Só toca jogos ainda não finalizados; os que
@@ -832,6 +880,13 @@ namespace Padelizou.Controllers
                 partida.HorarioInicioReal ??= DateTime.Now;
                 partida.HorarioFimReal = null;
                 partida.SendoTransmitida = !string.IsNullOrEmpty(linkTransmissao);
+
+                // ⚠️ A LARGADA VENCE O CAMPO VAZIO DO FORMULÁRIO, e é DEPOIS dele de propósito.
+                // O "Não mostrar" desta tela vem PRÉ-MARCADO em todo jogo que nunca teve saque
+                // — tratá-lo como escolha aqui seria o vazio voltando pela porta dos fundos, em
+                // quem deu a largada por este <select> sem nem olhar pra bolinha. Com o jogo já
+                // no ar o `if` não roda, e aí o "Não mostrar" é escolha de verdade e é obedecido.
+                SaqueDoJogo.DefinirNaLargada(partida);
             }
             else if (status == "Finalizada" && partida.Status != "Finalizada")
             {
