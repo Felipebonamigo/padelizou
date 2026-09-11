@@ -1393,10 +1393,13 @@ namespace Padelizou.Controllers
                     .Select(s => s.PartidaId)
                     .ToListAsync()).ToHashSet()
                 : new HashSet<int>();
-            // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
-            // de flutuar em ordem arbitrária no meio da lista.
+            // DA MAIS RECENTE FINALIZADA PRA MAIS ANTIGA (Felipe, 11/09/2026). A régua do
+            // "quando este jogo aconteceu" é uma só e mora em Services/DuracaoDoJogo — aqui ela
+            // parava em `HorarioFimReal ?? HorarioPrevisto`, sem o passo do meio: o jogo que
+            // entrou em quadra e teve o placar lançado sem carimbo de fim voltava pro horário do
+            // SORTEIO e afundava abaixo de jogos que acabaram antes de ele começar.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
-                .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
+                .OrderByDescending(DuracaoDoJogo.Quando).ThenByDescending(p => p.Id).ToList();
             // ⚠️ A FILA SAI DE Services/OrdemNoHorario, E NÃO DE UM `OrderBy(HorarioPrevisto)` SOLTO
             // (10/09/2026). Aquele ordenava só pela hora, sobre uma lista que veio do Postgres SEM
             // `ORDER BY`: dois jogos no mesmo minuto saíam na ordem que o banco quisesse — e ela

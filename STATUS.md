@@ -15,6 +15,24 @@
 > 🧪 **6.558 testes, 0 falhas** + `conferir-palpitrometro.js` verde. **Sem teste novo, de propósito**: isto é gosto, não defeito — um `Assert` em código hexadecimal travaria a próxima troca de cor sem proteger nada. Os testes que já existem (`.pdz-bolinha-apagada` e `.pdz-saque-toque` no CSS) continuam segurando a estrutura.
 >
 > 🧹 **`CACHE_NAME` → `v31`** (mexeu no `site.css`). É a lição de hoje de manhã aplicada sem ninguém precisar lembrar.
+> **11/09/2026** — ⏱️ **AS FINALIZADAS DIZEM QUE HORAS COMEÇARAM, QUE HORAS ACABARAM E QUANTO DURARAM.** ⏳ **NO BRANCH `claude/affectionate-euler-4yl8p5`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com as Finalizadas do 2ª Etapa ER PADEL TOUR na tela: *"as finalizadas tem q ficar em ordem da mais recente finalizada para mais tempo atras"* e, na sequência: *"coloque também o tempo de duração da partida, em baixo do horario previsto, coloque que horario começou e que horario terminou mas nao pode ocupar muito a tela, nao podemos poluir muito"*.
+>
+> 🕳️ **OS DOIS PEDIDOS SÃO O MESMO DEFEITO, VISTO DE FORA — e o primeiro já estava "certo".** A lista ordena pelo fim real desde 08/08/2026 (há teste). Só que o card mostra o **horário PREVISTO**, e só ele: quem varre a tela lê `21:20 · 20:30 · 22:05` e conclui que a ordem quebrou, porque **a grandeza que ordena não estava escrita em lugar nenhum**. Mostrar começo e fim é o que torna a ordem legível — por isso a régua e o rótulo nasceram no MESMO arquivo, `Services/DuracaoDoJogo`.
+>
+> ✅ **MAS TINHA DEFEITO DE VERDADE NA RÉGUA: ela tinha DOIS passos, e o resto do sistema usa TRÊS.** Era `HorarioFimReal ?? HorarioPrevisto`; `EstatisticasService`, `MvpDoTorneio` e `EnqueteDoTorneio` usam `?? HorarioInicioReal ??` no meio. O jogo que entrou em quadra às 21:30 e teve o placar lançado **sem carimbo de fim** voltava pro horário do SORTEIO e afundava **abaixo de jogos que acabaram antes de ele começar**. Reproduzido em teste antes da correção: esperado `[1,3,2]`, veio `[3,2,1]`. Agora a régua é uma só, e as **duas** telas (aba Jogos e Dia do Jogo) apontam pra ela.
+>
+> 🎨 **O RÓTULO: `21:24–22:13 · 49 min`**, em `.7rem` cinza, debaixo da hora. Nulo em quem não entrou em quadra — o MESMO card desenha as Agendadas, e lá ele não escreve nada. Sem os dois carimbos vira `começou 19:42` / `terminou 20:05`; com os carimbos trocados (correção na mão) mostra só a faixa, porque `-12 min` na tela é pior que silêncio. A duração sai de `Partida.MinutosDecorridos`, a MESMA propriedade do cronômetro do AO VIVO.
+>
+> 🕳️ **ARMADILHA NOVA, MEDIDA NO CHROMIUM: `flex-wrap: wrap` + filho `flex-basis: 100%` MEDE ERRADO.** É o jeito óbvio de quebrar linha dentro de um flex, e funciona — mas numa caixa **sem largura definida** o navegador dimensiona pelo `max-content` **somando os dois numa linha só**: a caixa da hora pulou de **119px pra 237px**. A **600px de tela** isso empurrava as etiquetas de categoria/fase/quadra pra uma segunda linha que antes não existia — exatamente o "não podemos poluir muito" do pedido. Trocado por **grid** (`grid-template-columns: auto auto` + `grid-column: 1 / -1` na duração), onde a largura é a da MAIOR linha: 119px em 390, 520, 600 e 700px, igual ao de antes.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, em cinco larguras (390 · 520 · 600 · 700 · 1100): a duração nasce em `y=44`, abaixo da hora em `y=23`; a caixa não cresce; o card AGENDADO continua sem a linha.
+>
+> 🧪 **6.572 testes, 0 falhas (14 novos, em `DuracaoDoJogoNaListaTests`)** + `conferir-palpitrometro.js` verde. Três vermelhos vistos antes da correção: a ordem `[3,2,1]`, *"Not found: DuracaoDoJogo.Rotulo"* e *"Não achei a regra `.pdz-jl-quando .pdz-jl-durou` no site.css"*.
+>
+> 🧹 **`CACHE_NAME` → `v32`** (mexeu no `site.css`).
+
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
