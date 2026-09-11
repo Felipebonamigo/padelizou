@@ -31,9 +31,12 @@ function palpitrometro(partidaId, dupla1Id, meuVoto) {
     const filhos = {};
     for (const sel of ['[data-pct="1"]', '[data-pct="2"]', '[data-bar="1"]', '[data-bar="2"]',
                        '.pdz-total-votos', '.pdz-palpite-placar', '.pdz-palpite-consenso',
-                       '.pdz-consenso-placar', '.pdz-consenso-votos']) {
+                       '.pdz-consenso-placar', '.pdz-consenso-votos',
+                       // 11/09/2026: o resumo que substitui a fileira de fichas depois da escolha.
+                       '.pdz-palpite-placar-resumo', '.pdz-palpite-fichas', '.pdz-resumo-placar']) {
         filhos[sel] = elemento();
     }
+    filhos['.pdz-palpite-placar-resumo'].querySelector = sel => filhos[sel] || null;
     // As fichas de placar de verdade: é NELAS que dá pra ver com que palpite a tela TERMINOU
     // pintada — a marca "btn-success" é a ficha escolhida.
     const fichas = [[6, 4], [6, 3]].map(([v, p]) => ({
@@ -43,6 +46,7 @@ function palpitrometro(partidaId, dupla1Id, meuVoto) {
     }));
     fichas.forEach(f => { f.classList.dono = f; });
     filhos['.pdz-palpite-placar'].querySelectorAll = () => fichas;
+    filhos['.pdz-palpite-placar'].querySelector = sel => filhos[sel] || null;
     filhos['.pdz-palpite-consenso'].querySelector = sel => filhos[sel] || null;
 
     // O botão "retirar": é NELE que se vê se a tela escondeu o que já foi desfeito.
@@ -60,7 +64,9 @@ function palpitrometro(partidaId, dupla1Id, meuVoto) {
     const toque = duplaId => ({ dataset: { duplaId: String(duplaId), votavel: 'true' }, closest: () => container });
     const ficha = (v, p) => ({ dataset: { vencedor: String(v), perdedor: String(p) }, closest: () => container });
     const retirar = () => ({ closest: () => container });
-    return { container, toque, ficha, retirar };
+    // O "trocar" procura o BLOCO do placar, não o cartão inteiro.
+    const trocar = () => ({ closest: () => filhos['.pdz-palpite-placar'] });
+    return { container, filhos, toque, ficha, retirar, trocar };
 }
 
 // ── O SERVIDOR FALSO ──────────────────────────────────────────────────────────────────────
@@ -103,7 +109,7 @@ function servidor(atrasos = {}) {
 
 function carregar(fetchFalso) {
     const montar = new Function('fetch', 'alert', 'cabecalhoAntifalsificacao', 'document', 'bootstrap',
-        fonte + '\n; return { votarPalpite, palpitarPlacar, retirarPalpite };');
+        fonte + '\n; return { votarPalpite, palpitarPlacar, retirarPalpite, trocarPlacar };');
     return montar(fetchFalso, () => { }, h => h, undefined, undefined);
 }
 
@@ -190,6 +196,34 @@ function confere(nome, condicao, detalhe) {
         const el = retirar();
         await Promise.all([js.retirarPalpite(el), js.retirarPalpite(el)]);
         confere('toque duplo no retirar manda UM POST', s.posts.length === 1, `mandou ${s.posts.length}`);
+    }
+
+    // 6. ESCOLHER A FICHA RECOLHE A FILEIRA — e o "trocar" a traz de volta, sem POST.
+    {
+        const s = servidor();
+        const js = carregar(s.fetchFalso);
+        const { filhos, ficha, trocar } = palpitrometro(7, 10, '10');
+
+        await js.palpitarPlacar(ficha(6, 4));
+
+        confere('depois de escolher, as fichas se recolhem',
+                filhos['.pdz-palpite-fichas'].style.display === 'none'
+                && filhos['.pdz-palpite-placar-resumo'].style.display === 'flex',
+                `fichas=${filhos['.pdz-palpite-fichas'].style.display}, resumo=${filhos['.pdz-palpite-placar-resumo'].style.display}`);
+        confere('o resumo diz o placar escolhido',
+                filhos['.pdz-resumo-placar'].innerText === '6 x 4',
+                `disse "${filhos['.pdz-resumo-placar'].innerText}"`);
+
+        const postsAntes = s.posts.length;
+        js.trocarPlacar(trocar());
+        confere('o "trocar" reabre a fileira',
+                filhos['.pdz-palpite-fichas'].style.display === 'block'
+                && filhos['.pdz-palpite-placar-resumo'].style.display === 'none',
+                `fichas=${filhos['.pdz-palpite-fichas'].style.display}`);
+        // ⚠️ Trocar de ideia não é palpite até a ficha ser tocada: um POST aqui gravaria uma
+        // intenção que a pessoa ainda não teve.
+        confere('o "trocar" NÃO fala com o servidor', s.posts.length === postsAntes,
+                `mandou ${s.posts.length - postsAntes} POST(s)`);
     }
 
     console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);
