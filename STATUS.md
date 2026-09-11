@@ -1,8 +1,24 @@
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 🖼️ **"TUDO NUMA IMAGEM SÓ": A LISTA INTEIRA NUM PNG ALTO, ESCOLHIDO NA TELA.** 🗣️ Felipe: *"da para por a opção, para o jogador selecionar se nao quer todos os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a ressalva, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse"*.
+>
+> ⚠️ **A IMAGEM CRESCE PRA BAIXO, NUNCA ESPREME — a ressalva dele É a regra do recurso.** Espremer 33 jogos nos 1350px do story daria linha de 23px: a lista inteira numa imagem que ninguém lê, exatamente o que ele proibiu. A linha fica em 64px (legível) e o PNG fica alto: **33 jogos em 2 dias = 1080×2844**, onde hoje saem **quatro** artes. Os dias viram **pílulas lime** no meio da imagem (a pílula que o card do story perdeu pro espaço, de volta onde ela serve).
+>
+> 🚧 **O TETO É DE 10.000px, E É ELE QUE FAZ A OPÇÃO SUMIR** em vez de entregar imagem ilegível: acima disso o WhatsApp reamostra e o celular engasga — *"uma imagem que não abre não é mais fácil que três que abrem"*. Passando do teto, a tela **diz por quê** e sugere filtrar; quem precisa continua com as partes. ~150 jogos é o limite prático (o Er inteiro tem 97).
+>
+> 🎛️ **A ESCOLHA É DE TELA, e por isso mora FORA de `Filtros`** (`umaImagem` na query da página, `tudo=true` no endpoint da imagem). A planilha e o texto nem sabem que ela existe — e o alternador só aparece quando há **mais de uma arte**: com uma só, os dois botões dariam a mesma imagem.
+>
+> ♻️ **A LINHA DO JOGO VIROU UM MÉTODO SÓ** (`CartaoDosJogos.Linha`), usado pelos dois formatos. Duas cópias divergiriam na primeira mudança, e a lista postada num formato passaria a não bater com a do outro. O `CartaoCompartilhavel` ganhou **altura** em `Fundo`, `Rodape` e `EmPng` (o padrão continua 1350): sem isso o gradiente terminava em 1350 e o resto do PNG saía **preto**. E o pé passou a ser medido **da base**, pros dois formatos terminarem igual.
+>
+> 🧪 **6.565 testes, 0 falhas (7 novos)** + `conferir-palpitrometro.js` verde. Vermelho visto antes: *"'CartaoDosJogos' does not contain a definition for 'AlturaDaImagemUnica'"*. E um vermelho **no dado, não na regra**: medi a diferença de altura com 10 jogos, que caem no **piso de 1350** (o formato do story) — com 20 a conta mede o que devia medir.
+>
+> 🖥️ **UI RODADA**: com 25 jogos semeados no banco local, a tela mostrou **3 artes**, o alternador apareceu, e o clique em "Tudo numa imagem só" devolveu **`image/png` de 413 KB, 1080×2332**, com `public, max-age=3600`. As faixas dos dois dias aparecem no meio da imagem.
+
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 >
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
 >
 > 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
 >

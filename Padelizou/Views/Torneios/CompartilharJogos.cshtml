@@ -17,6 +17,9 @@
 
     // Os mesmos filtros, só trocando a pergunta das prévias.
     RouteValueDictionary ComPrevias(bool ligado) => new(Model.Filtros) { ["comPrevias"] = ligado };
+    // O formato das artes é escolha de TELA (não entra em `Filtros`), então ele viaja junto com
+    // os filtros em vez de dentro deles.
+    RouteValueDictionary Formato(bool umaImagem) => new(Model.Filtros) { ["umaImagem"] = umaImagem };
     var voltar = new RouteValueDictionary(Model.Filtros);
     voltar.Remove("comPrevias");
 }
@@ -140,6 +143,75 @@
         }
         else
         {
+            @* ── UMA POR DIA × TUDO NUMA IMAGEM SÓ ───────────────────────────────────────
+               🗣️ "da para por a opção, para o jogador selecionar se nao quer todos os jogos na
+               lista em uma imagem apenas, dividindo e cabendo, por que é mais facil" — Felipe,
+               11/09/2026. Mandar UMA imagem no grupo é mais fácil que mandar três em sequência.
+
+               ⚠️ Só aparece quando há mais de uma arte (com uma só, os dois botões dariam a mesma
+               imagem) E quando a lista cabe numa imagem legível — a ressalva dele: "a menos que
+               tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse". *@
+            @if (Model.Grade.Artes.Count > 1)
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <a href="@Url.Action("CompartilharJogos", "Torneios", Formato(false))"
+                       class="btn rounded-pill px-3 @(Model.UmaImagem ? "btn-outline-secondary" : "btn-padel fw-bold")">
+                        <i class="bi bi-images"></i> Uma por dia
+                    </a>
+                    @if (Model.CabeNumaImagemSo)
+                    {
+                        <a href="@Url.Action("CompartilharJogos", "Torneios", Formato(true))"
+                           class="btn rounded-pill px-3 @(Model.UmaImagem ? "btn-padel fw-bold" : "btn-outline-secondary")">
+                            <i class="bi bi-file-image"></i> Tudo numa imagem só
+                        </a>
+                    }
+                </div>
+
+                @if (!Model.CabeNumaImagemSo)
+                {
+                    @* A opção some, e a tela diz por quê — senão parece que o botão sumiu sozinho. *@
+                    <div class="form-text mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Esta lista tem jogos demais pra uma imagem só: ela sairia alta demais pra
+                        abrir no celular. Filtre por categoria ou por clube se quiser tudo junto.
+                    </div>
+                }
+            }
+
+            if (Model.UmaImagem && Model.CabeNumaImagemSo)
+            {
+                var inteira = Url.Action("JogosImagem", "Torneios",
+                    new RouteValueDictionary(Model.Filtros) { ["tudo"] = true });
+                var arquivoInteiro = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(Model.Torneio.Nome)}.png";
+
+                <p class="text-muted small mb-3">
+                    A lista inteira numa imagem só, pra mandar no grupo. É alta: ela abre e dá zoom
+                    no WhatsApp, mas no story ficaria cortada — pro story, use "uma por dia".
+                </p>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                    <div class="card-body">
+                        <img src="@inteira" alt="Todos os jogos da lista"
+                             class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                             style="max-width: min(380px, 100%);" />
+
+                        <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                            <a href="@inteira" download="@arquivoInteiro"
+                               class="btn btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-download"></i> Baixar
+                            </a>
+                            <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                    data-imagem="@inteira" data-arquivo="@arquivoInteiro"
+                                    data-titulo="Jogos — @Model.Torneio.Nome">
+                                <i class="bi bi-share-fill"></i> Compartilhar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                return;
+            }
+
             <p class="text-muted small mb-3">
                 Uma arte por dia@(Model.Grade.Artes.Any(a => a.Partes > 1) ? " — dia com mais de " + Padelizou.Services.CartaoDosJogos.MaximoDeJogos + " jogos sai em partes" : ""). Salve no celular e poste em sequência.
             </p>

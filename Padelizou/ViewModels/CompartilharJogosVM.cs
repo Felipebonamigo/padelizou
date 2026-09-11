@@ -19,4 +19,6 @@ public sealed record CompartilharJogosVM(
     bool ComPrevias,
     bool TemPrevias,
     bool FonteDisponivel,
+    bool CabeNumaImagemSo,
+    bool UmaImagem,
     RouteValueDictionary Filtros);
