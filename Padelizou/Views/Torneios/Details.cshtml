@@ -43,6 +43,18 @@
 
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
     ViewData["Historico"] = historico;
+
+    // O ESCUDO DO TIME COMO SELO no canto da foto, na TABELA DO GRUPO. 🗣️ Felipe, 11/09/2026,
+    // com um print das duas tabelas: *"nessa parte aqui, dos grupos, faça igual dos jogos ao
+    // vivo, com o logo redondinho no canto da foto"*.
+    //
+    // ⚠️ A coluna da dupla é a mais apertada do site (180px, nome truncado com reticências): do
+    // lado do nome o escudo roubava letra de um nome que já estava cortado. No canto da foto
+    // não ocupa linha nenhuma.
+    //
+    // Mesmo mecanismo do card ao vivo (ver _JogosDoTorneio): quem muda é o HTML do chip, não só
+    // a posição no CSS — o selo nasce DENTRO da moldura da foto.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
     var pontosTimes = ViewBag.PontosTimes as List<PontosTimeTorneioVM> ?? new List<PontosTimeTorneioVM>();
     // Quem está olhando a página. Usado pra mostrar o botão de desistir só na própria
     // inscrição — nos cards dos outros ele seria um botão de tirar gente do torneio.
@@ -6037,7 +6049,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                    nome quebrando em três linhas fazia cada linha do grupo
                                                                    ocupar três alturas. *@
                                                                 <td class="text-start ps-3 py-2 pdz-chip-compacto" style="max-width: 180px;">
-                                                                    <partial name="_LadoDaPartida" model="dupla" />
+                                                                    <partial name="_LadoDaPartida" model="dupla" view-data="chipComSelo" />
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
