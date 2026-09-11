@@ -1,7 +1,34 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/eager-euler-q1xnm4`, ainda não publicado.** **Sem migration.**
+>
+> 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
+>
+> 🎯 **Ele não se perdeu — a régua era `(jogo.GamesDupla1 ?? 0) > (jogo.GamesDupla2 ?? 0)`, escrita no Razor:** QUALQUER vantagem pintava de lime, desde o 1 x 0. E é o MESMO lime que o card finalizado usa pra dizer "venceu o jogo" — duas cores iguais pra duas coisas diferentes, na mesma tela. Quem lê acredita na mais forte, e a tela anunciava um fim que não aconteceu.
+>
+> ⏱️ **E O VERDE ATRASAVA — a metade do defeito que o print não mostra.** A classe só nascia no HTML do servidor: o −/+ salva por `fetch` e atualizava o NÚMERO, nunca a COR. Um 9 x 8 corrigido pra 8 x 8 ficava com o EMPATE pintado de verde do lado de cima. A atualização automática arrumaria no tique de 20s — **mas ela não roda com o cursor dentro do campo** (`estaOcupado`, em `jogos-ao-vivo-atualiza.js`): quem DIGITA em vez de tocar no −/+ ficava com a cor errada por tempo indeterminado.
+>
+> ♻️ **A RÉGUA NOVA NÃO É UMA TERCEIRA CONTA** — é a composição das duas que já existiam, numa linha só (`Services/QuemVenceu.LadoJaDecidido`): `FormatoDaPartida.PodeEncerrar` diz se o jogo está DECIDIDO e `QuemVenceu.Lado` diz a favor de QUEM. Escrever um `games1 >= 9` no Razor ou no JS seria o `limiteGames: 9` cravado voltando pela terceira porta. **Quem responde é o SERVIDOR nos dois caminhos**: `ViewBag.VencedorNoPlacar` no HTML e um campo `vencedor` na resposta JSON do salvar — e é este segundo que conserta o atraso, porque o JS passa a ter o que obedecer sem esperar a atualização automática.
+>
+> ✅ **O que muda na quadra:** até 9 → o 8 x 6 fica branco e só o 9 acende; até 4 → o 3 x 3 (que estende o limite pra 5) não acende ninguém; soma de 7 → o 6 x 0 ainda tem um game pra jogar, o 4 x 3 fecha; **soma par empatada (7 x 7) → ninguém verde**, que é onde "ganhando" e "venceu" mais divergem. Com sets em jogo, o set decide — a mesma ordem do `QuemVenceu.Da` que finaliza a partida.
+>
+> 🧪 **6.549 testes, 0 falhas (19 novos; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'QuemVenceu' does not contain a definition for 'LadoJaDecidido'"* (12×, os testes de régua), o JSON sem `"vencedor":1`, a view ainda com o `>` no Razor, o JS sem `linha.vencedor` e o CSS sem `.pdz-live-placar-venceu`.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`), logado como marcador num jogo até 9: **9 x 6 → o 9 em `rgb(163, 216, 39)`; um toque no − → 8 x 6 com os DOIS em branco, sem recarga; toque no + → lime de volta na hora.** O empate 8 x 8, que era o caso que ficava preso, sai com os dois brancos.
+>
+> 🧹 **`CACHE_NAME` do service worker foi pra `v30`, e é a TERCEIRA colisão do mesmo dia:** eu tinha escrito `v29` antes de mesclar o `main`, que já estava em `v29` — e o `const` **NÃO conflitou**, porque as duas pontas escreveram o mesmo número. Quem denunciou foi o **comentário** logo acima dele, que conflitou: é literalmente a pista que a colisão anterior deixou escrita ali pra quem viesse depois. Sem isso, `site.css` e `placar-ao-vivo.js` novos ficariam guardados sob um nome que o app instalado já tem, e o verde velho continuaria no ar sem erro em lugar nenhum. **Quem sobe o número confere o `main` ANTES de escolher qual.**
+>
+> 🌗 **E O ACHADO DE CARONA FOI CONSERTADO NO MESMO BLOCO (🗣️ *"conserta isso tambem"*): o placar do card AO VIVO era BRANCO NO BRANCO no tema claro.** Medido no navegador antes: `color: rgb(255,255,255)` sobre `background-color: rgb(255,255,255)` — o organizador que não usa o tema escuro via **caixas vazias** no lugar dos games, desde 21/08/2026, sem erro em lugar nenhum.
+>
+> 🕳️ **A CAUSA É UMA MISTURA DE DOIS MUNDOS, e vale mais que o conserto:** o cabeçalho do card é escuro **nos dois temas** (o gradiente navy de `.pdz-live-header`), mas o campo e os botões −/+ que moram nele pegavam `var(--pdz-surface)` / `var(--pdz-ink)` — tokens que SEGUEM o tema da página. No escuro combinavam por coincidência; no claro o número sumia e o −/+ virava dois botões brancos gritando num card escuro. **Quem mora num fundo fixo se pinta com cor fixa** (`--pdz-navy-fixed`, que existe exatamente pra isso).
+>
+> 🧪 **O teste MEDE CONTRASTE, não nome de token** (`PlacarDoCardAoVivoLegivelNosDoisTemasTests`): resolve os `var()` pelos dois temas, calcula o contraste da WCAG e exige ≥ 3:1 (texto grande) — mais a régua da causa, que é a cor do placar **não mudar com o tema**. Proibir `var(--pdz-surface)` numa linha travaria a solução de hoje; o que não pode voltar é o número ilegível. **Vermelho visto antes: *"ficou ilegível no tema claro: tinta #fff sobre fundo #ffffff dá 1.00:1"*** e *"`background` de `.pdz-live-passo` muda com o tema (#ffffff no claro, #1a2338 no escuro)"*. ⚠️ **Dois enganos do próprio teste foram pegos porque o número medido não batia**: o seletor casava dentro de `.pdz-live-placar-venceu .pdz-live-input` (media o lime achando que media o branco) e a citação `` `color: inherit` `` DENTRO de um comentário do CSS abria uma declaração falsa que engolia a de verdade.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR nos dois temas, depois:** `[−][9][+]` sai **idêntico** no claro e no escuro — `rgb(163,216,39)` no 9, `rgb(255,255,255)` no 6 e nos botões, todos sobre `rgb(28,39,66)`.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
 >
 > 🔲 **O NÚMERO DE VAGAS POR GRUPO VIROU RÉGUA ÚNICA, E A TELA DE CLASSIFICAÇÃO PAROU DE MENTIR.** 🗣️ Felipe, depois de eu reportar a divergência: *"sim, alinha a outra tela também"*.
 >

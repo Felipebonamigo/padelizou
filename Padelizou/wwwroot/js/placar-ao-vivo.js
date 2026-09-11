@@ -63,6 +63,22 @@
             var card = document.querySelector('.pdz-live-card[data-partida-id="' + linha.partidaId + '"]');
             if (!card) return;
 
+            // ⚠️ O VERDE ANDA JUNTO COM O NÚMERO (11/09/2026). A classe só nascia no HTML
+            // do servidor, então um 9 x 8 corrigido pra 8 x 8 ficava com o empate pintado de
+            // verde: a atualização automática arrumaria no tique seguinte, mas ela NÃO roda
+            // com o cursor dentro do campo (`estaOcupado` em jogos-ao-vivo-atualiza.js) — quem
+            // digita em vez de tocar no −/+ ficava com a cor errada por tempo indeterminado.
+            //
+            // ⚠️ Quem VENCEU é decidido pelo SERVIDOR e vem na resposta: a régua tem soma ×
+            // "até" e o desempate do "vencer por dois" (Services/QuemVenceu.LadoJaDecidido).
+            // Comparar games1 com games2 aqui seria a segunda cópia da régua — o mesmo erro do
+            // `limiteGames: 9` que já viveu cravado neste arquivo.
+            var lados = card.querySelectorAll(".pdz-live-placar");
+            if (lados.length === 2 && typeof linha.vencedor === "number") {
+                lados[0].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 1);
+                lados[1].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 2);
+            }
+
             var campos = card.querySelectorAll(".pdz-live-input");
             var tetos = [linha.teto1, linha.teto2];
             [linha.games1, linha.games2].forEach(function (valor, i) {
