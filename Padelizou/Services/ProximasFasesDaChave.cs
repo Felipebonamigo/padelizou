@@ -74,7 +74,13 @@ public static class ProximasFasesDaChave
 
     // ================= ESTRUTURA: quem joga com quem, ainda sem hora =================
 
-    public record RodadaQueVem(string Fase, IReadOnlyList<(Lado Lado1, Lado Lado2)> Confrontos);
+    // `PrimeiroNumero` é o número do primeiro confronto da lista dentro da fase — 1 quando a
+    // rodada inteira ainda está por vir, e maior quando os primeiros jogos dela JÁ NASCERAM
+    // (avanço parcial, 11/09/2026: a Semifinal 1 é real e só a 2 é projeção). Sem ele a
+    // Semifinal 2 seria emitida como "Semifinal 1" e a reserva de horário do organizador, que
+    // é guardada por (categoria, fase, número), cairia no jogo errado.
+    public record RodadaQueVem(string Fase, IReadOnlyList<(Lado Lado1, Lado Lado2)> Confrontos,
+                               int PrimeiroNumero = 1);
 
     // O caminho de UMA categoria até a final. `DepoisDe` é o último jogo que já tem hora e
     // que alimenta a primeira rodada projetada — dele sai a folga de abertura.
@@ -97,22 +103,34 @@ public static class ProximasFasesDaChave
     {
         if (partidasDeMataMata.Count == 0) return CadeiaDeFases.Vazia;
 
-        var faseAtual = FaseMaisAdiantada(partidasDeMataMata);
-        if (faseAtual == null) return CadeiaDeFases.Vazia;
+        // ⚠️ PARTE DA PRIMEIRA FASE, E NÃO DA MAIS ADIANTADA (11/09/2026). Com o avanço parcial
+        // (Services/AvancoDaChave) a fase mais adiantada pode ter UM jogo só — a Semifinal 1
+        // nascida assim que a Quartas 1 terminou, com a 2 ainda em quadra. Partindo dela, a
+        // projeção teria um lado só, não encadearia nada, e a Final sumiria da tela justamente
+        // quando metade do quadro já sabe o caminho. Partindo da primeira e PULANDO o que já é
+        // real (ver Encadear), a conta é a mesma de sempre quando as fases estão cheias.
+        var primeiraFase = FaseMenosAdiantada(partidasDeMataMata);
+        if (primeiraFase == null) return CadeiaDeFases.Vazia;
 
         var daFase = partidasDeMataMata
-            .Where(p => p.Fase == faseAtual)
+            .Where(p => p.Fase == primeiraFase)
             .OrderBy(p => p.Id)          // a MESMA ordem do avanço de verdade
             .ToList();
 
-        // Cada jogo da fase atual entrega um vencedor — citado pelo NÚMERO dele naquela
+        // Cada jogo da primeira fase entrega um vencedor — citado pelo NÚMERO dele naquela
         // fase; cada bye entrega a própria dupla, que já tem nome.
         var lados = daFase
-            .Select((_, i) => new Lado($"Vencedor {faseAtual} {i + 1}", faseAtual, i + 1))
+            .Select((_, i) => new Lado($"Vencedor {primeiraFase} {i + 1}", primeiraFase, i + 1))
             .Concat(byes.Select(b => new Lado(b)))
             .ToList();
 
-        return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata), Encadear(lados), categoriaId);
+        // Quantos jogos cada fase JÁ TEM de verdade: a projeção não repete o que existe.
+        var jaSaoReais = partidasDeMataMata
+            .GroupBy(p => p.Fase)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata),
+            Encadear(lados, jaSaoReais), categoriaId);
     }
 
     // ---- Entrada 2: a chave AINDA NEM COMEÇOU (categoria na fase de grupos) ----
@@ -132,14 +150,28 @@ public static class ProximasFasesDaChave
         int? categoriaId = null,
         // Quantas duplas tem cada grupo, na MESMA ordem de `grupos`: é o que faz a prévia dar o
         // bye a quem o robô dá (ver ChaveProjetada). Nulo = campanha zerada, como era.
-        IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<int>? duplasPorGrupo = null,
+        // O cruzamento desenhado à mão (Models/Categoria.CruzamentoDoMataMata). Nulo = o motor
+        // decide, como sempre. Passar a prometer o cruzamento DESENHADO é o que impede a prévia
+        // de anunciar um confronto que o robô não vai criar na categoria que tem desenho.
+        string? cruzamentoDesenhado = null,
+        // Quantos jogos da ABERTURA já nasceram de verdade. Desde o avanço parcial dos grupos
+        // (11/09/2026) ela nasce jogo a jogo: os que já existem estão na lista de jogos, com nome
+        // e sobrenome, e a prévia continua prometendo só o que falta — sem repetir nenhum.
+        int jogosJaCriadosNaAbertura = 0,
+        // Os nomes que já não são promessa: o grupo fechou e a colocação virou dupla
+        // (Services/ClassificadosJaConhecidos).
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
-        var (fase, confrontos, byes) = ChaveProjetada.Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
+        var (fase, confrontos, byes) = ChaveProjetada.Montar(
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
+        int jaReais = Math.Clamp(jogosJaCriadosNaAbertura, 0, confrontos.Count);
         var primeira = new RodadaQueVem(fase, confrontos
+            .Skip(jaReais)
             .Select(c => (VagaDeGrupo(c.Lado1), VagaDeGrupo(c.Lado2)))
-            .ToList());
+            .ToList(), jaReais + 1);
 
         var proximos = confrontos
             .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
@@ -149,7 +181,8 @@ public static class ProximasFasesDaChave
             .Concat(byes.Select(VagaDeGrupo))
             .ToList();
 
-        var rodadas = new List<RodadaQueVem> { primeira };
+        var rodadas = new List<RodadaQueVem>();
+        if (primeira.Confrontos.Count > 0) rodadas.Add(primeira);
         rodadas.AddRange(Encadear(proximos));
 
         return new CadeiaDeFases(categoria, fimDosGrupos, rodadas, categoriaId);
@@ -161,7 +194,13 @@ public static class ProximasFasesDaChave
         new(vaga.Rotulo, DeQualGrupo: vaga.Grupo);
 
     // O encadeamento, rodada a rodada, até a final.
-    private static List<RodadaQueVem> Encadear(List<Lado> lados)
+    //
+    // `jaSaoReais` diz quantos jogos de cada fase JÁ EXISTEM no banco: eles saem da projeção
+    // (estão na lista de jogos de verdade), mas continuam na CORRENTE — é o vencedor deles que
+    // ocupa a vaga da rodada seguinte. Sem essa separação, a fase criada pela metade pelo
+    // avanço parcial apareceria duas vezes na tela, ou sumiria inteira.
+    private static List<RodadaQueVem> Encadear(
+        List<Lado> lados, IReadOnlyDictionary<string, int>? jaSaoReais = null)
     {
         var rodadas = new List<RodadaQueVem>();
 
@@ -177,7 +216,10 @@ public static class ProximasFasesDaChave
             var fase = ChaveamentoMataMata.NomeFase(lados.Count);
             var confrontos = Parear(lados);
 
-            rodadas.Add(new RodadaQueVem(fase, confrontos));
+            int reais = jaSaoReais?.GetValueOrDefault(fase) ?? 0;
+            if (reais < confrontos.Count)
+                rodadas.Add(new RodadaQueVem(fase, confrontos.Skip(reais).ToList(), reais + 1));
+
             lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1)).ToList();
 
             if (fase == "Final") break;
@@ -288,7 +330,9 @@ public static class ProximasFasesDaChave
         foreach (var r in reservas ?? Array.Empty<HorarioReservado>())
         {
             var cadeiaQueEmite = vivas.FirstOrDefault(c => c.CategoriaId == r.CategoriaId
-                && c.Rodadas.Any(rod => rod.Fase == r.Fase && r.Numero >= 1 && r.Numero <= rod.Confrontos.Count));
+                && c.Rodadas.Any(rod => rod.Fase == r.Fase
+                    && r.Numero >= rod.PrimeiroNumero
+                    && r.Numero < rod.PrimeiroNumero + rod.Confrontos.Count));
             if (cadeiaQueEmite == null) continue;
 
             // ⚠️ RESERVA QUE FICOU PRA TRÁS NÃO TOMA VAGA (revisão adversarial, 10/09/2026): a fase
@@ -471,7 +515,7 @@ public static class ProximasFasesDaChave
                 // A que deixou de ser (o torneio atrasou e a fase anterior passou dela) volta pra
                 // grade como qualquer jogo — e a tela mostra a hora possível, não a prometida.
                 if (cadeia.CategoriaId is int categoriaDaReserva
-                    && reservadas.Remove((categoriaDaReserva, rodada.Fase, i + 1), out var reserva))
+                    && reservadas.Remove((categoriaDaReserva, rodada.Fase, rodada.PrimeiroNumero + i), out var reserva))
                 {
                     if (ReservasDeHorario.Vale(reserva.Horario, abreARodada))
                     {
@@ -505,7 +549,7 @@ public static class ProximasFasesDaChave
                     quando = h;
                 }
 
-                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, quando,
+                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, rodada.PrimeiroNumero + i, quando,
                     rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra, cadeia.CategoriaId,
                     ClubeId: ClubeDoSlot(quando, quadra)));
 
@@ -542,17 +586,16 @@ public static class ProximasFasesDaChave
         return pares;
     }
 
-    private static string? FaseMaisAdiantada(IReadOnlyList<PartidaDaChave> partidas)
+    // A PRIMEIRA fase de mata-mata da categoria — a que tem os byes e de onde a corrente parte.
+    // Pela ordem do próprio motor, não por nome nem por Id: a fase que nenhuma outra presente
+    // antecede é a de abertura (com bye o quadro começa em "Quartas de Final" sem nunca ter
+    // tido Oitavas, então contar fases não serve).
+    private static string? FaseMenosAdiantada(IReadOnlyList<PartidaDaChave> partidas)
     {
-        // "Mais adiantada" pela ordem do próprio motor, não por nome nem por Id: seguir a
-        // corrente de ProximaFase a partir de cada fase presente diz qual é a última.
         var fases = partidas.Select(p => p.Fase).Distinct().ToHashSet();
 
-        return fases.FirstOrDefault(f =>
-        {
-            var proxima = ChaveamentoMataMata.ProximaFase(f);
-            return proxima == null || !fases.Contains(proxima);
-        });
+        return fases.FirstOrDefault(f => !fases.Any(
+            outra => ChaveamentoMataMata.ProximaFase(outra) == f));
     }
 
     private static DateTime? UltimoHorario(IReadOnlyList<PartidaDaChave> partidas) =>

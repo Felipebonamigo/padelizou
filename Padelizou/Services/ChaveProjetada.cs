@@ -23,19 +23,28 @@ namespace Padelizou.Services;
 // a mesma coisa.
 public static class ChaveProjetada
 {
-    // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é.
-    public record Vaga(int Posicao, string Grupo)
+    // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é — e o NOME da dupla assim que
+    // o grupo dela fecha (11/09/2026, ver Services/ClassificadosJaConhecidos).
+    //
+    // 🗣️ Felipe, com o Grupo B encerrado e o A sem jogar: *"tem q por o 1º e 2º nas semifinais"*.
+    // Fechado o grupo, "2º do Grupo B" já tem nome no sistema — e a frase genérica no lugar dele
+    // é a tela escondendo o que ela sabe de quem acabou de classificar.
+    public record Vaga(int Posicao, string Grupo, string? Nome = null)
     {
-        public string Rotulo => $"{Posicao}º do {Grupo}";
+        public string Rotulo => Nome ?? $"{Posicao}º do {Grupo}";
     }
 
     public record ConfrontoProjetado(Vaga Lado1, Vaga Lado2);
 
     // Fase vazia = não dá pra projetar (grupo de menos). `Byes` são as vagas que pulam a
     // primeira rodada — os melhores, na mesma regra do sorteio de verdade.
+    // `jaConhecidos` (por (grupo, colocação)) troca a colocação pelo NOME da dupla nos grupos que
+    // já fecharam — ver Services/ClassificadosJaConhecidos. Vazio = a chave inteira por colocação,
+    // como era.
     public static (string Fase, List<ConfrontoProjetado> Confrontos, List<Vaga> Byes) Montar(
         IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
-        string? cruzamentoDesenhado = null)
+        string? cruzamentoDesenhado = null,
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
         if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>(), new List<Vaga>());
 
@@ -51,7 +60,9 @@ public static class ChaveProjetada
             for (int posicao = 1; posicao <= passam; posicao++)
             {
                 int id = posicao * 1000 + g;
-                vagas[id] = new Vaga(posicao, grupos[g]);
+                vagas[id] = new Vaga(posicao, grupos[g],
+                    jaConhecidos != null && jaConhecidos.TryGetValue((grupos[g], posicao), out var nome)
+                        ? nome : null);
 
                 // Campanha zerada em todo mundo: sem jogo jogado não há o que comparar, e
                 // inventar números faria a prévia parecer mais certa do que é. O que a prévia
@@ -91,9 +102,16 @@ public static class ChaveProjetada
     // último — o mesmo AvancoDaChave + ParearVencedores. Duas contas divergiriam no dia em
     // que a regra mudasse, e o mapa prometeria um cruzamento que a chave não faria.
     public static List<RodadaProjetada> MontarCompleta(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
+        // O cruzamento desenhado à mão (Models/Categoria.CruzamentoDoMataMata). Nulo = o motor
+        // decide, como sempre. Sem ele o quadro da aba de chaves desenhava a semeadura do motor
+        // numa categoria que TEM desenho — prometendo um confronto que o sorteio não faria.
+        string? cruzamentoDesenhado = null,
+        // Os nomes que já não são promessa (Services/ClassificadosJaConhecidos).
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
-        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
+        var (fase, primeiraRodada, byes) = Montar(
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
         if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
 
         var rodadas = new List<RodadaProjetada>();
