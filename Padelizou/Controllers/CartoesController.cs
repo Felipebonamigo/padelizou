@@ -432,7 +432,8 @@ public class CartoesController : Controller
         if (torneio == null) return NotFound();
         if (!await PodeVirarArteAsync(id)) return NotFound();
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId,
+                _estatisticas.ObterPontosPorJogadorAsync);
 
         ViewBag.Torneio = torneio;
         ViewBag.CategoriaId = categoriaId;
@@ -445,7 +446,8 @@ public class CartoesController : Controller
     {
         if (!_fontes.Disponivel) return NotFound();
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId,
+                _estatisticas.ObterPontosPorJogadorAsync);
         var oGrupo = grupos.FirstOrDefault(g => g.Grupo == grupo);
         if (oGrupo == null || !oGrupo.TemOQueMostrar) return NotFound();
         if (!await PodeVirarArteAsync(id)) return NotFound();

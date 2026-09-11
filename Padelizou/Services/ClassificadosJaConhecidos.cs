@@ -45,7 +45,8 @@ public static class ClassificadosJaConhecidos
     public static Dictionary<(string Grupo, int Posicao), string> De(
         IEnumerable<GrupoTorneio> grupos,
         IReadOnlyList<Partida> partidasDeGrupo,
-        int vagasPorGrupo)
+        int vagasPorGrupo,
+        IReadOnlyDictionary<int, int> pontosPorJogador)
     {
         var conhecidos = new Dictionary<(string, int), string>();
         int passam = Math.Max(1, vagasPorGrupo);
@@ -73,7 +74,11 @@ public static class ClassificadosJaConhecidos
             // A MESMA régua que monta a chave (Services/ClassificacaoDeGrupos.Ordenar). Um nome
             // que saísse de outra ordenação poria na vaga uma dupla diferente da que o robô vai
             // pôr — a tela prometendo um confronto que o sábado não faz.
-            var ranking = ClassificacaoDeGrupos.Ordenar(duplas, jogosDoGrupo);
+            // ⚠️ COM OS PONTOS do ranking: num grupo que terminou empatado em tudo, quem
+            // fica em 2º sai do ranking (ClassificacaoDeGrupos). Ordenar sem eles aqui poria na
+            // vaga um nome diferente do que o robô vai pôr — a tela prometendo um confronto que
+            // o sábado não faz, que é o defeito que este arquivo existe pra impedir.
+            var ranking = ClassificacaoDeGrupos.Ordenar(duplas, jogosDoGrupo, pontosPorJogador);
 
             for (int pos = 0; pos < ranking.Count && pos < passam; pos++)
                 conhecidos[(grupo.Nome, pos + 1)] = ranking[pos].Dupla.NomeDeExibicao;

@@ -106,7 +106,7 @@ public class AvancoParcialDosGruposTests
             await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync(),
             await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id
                 && FasesTorneio.EhFaseDeGrupos(p.Fase) && p.Status == "Finalizada").ToListAsync(),
-            categoria.ClassificadosPorGrupo ?? 2);
+            ClassificacaoDeGrupos.SemPontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria));
 
         int? Vaga(CruzamentoDoMataMata.Vaga v) => CruzamentoDoMataMata.IdDaVaga(v, classificados);
 
@@ -153,7 +153,7 @@ public class AvancoParcialDosGruposTests
         // Continua só o jogo de abertura: nada de Final, Semifinal ou o que for.
         var fases = (await AberturaAsync(ctx, categoria.Id)).Select(p => p.Fase).Distinct().ToList();
         Assert.Single(fases);
-        Assert.Empty(await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id));
+        Assert.Empty(await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking));
     }
 
     // Fechada a fase de grupos inteira, a chave é EXATAMENTE a mesma que o desenho produziria de
@@ -177,7 +177,8 @@ public class AvancoParcialDosGruposTests
         var jogosDeGrupo = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && FasesTorneio.EhFaseDeGrupos(p.Fase)).ToListAsync();
         var classificados = ClassificacaoDeGrupos.Calcular(
-            duplas, jogosDeGrupo, categoria.ClassificadosPorGrupo ?? 2);
+            duplas, jogosDeGrupo, ClassificacaoDeGrupos.SemPontos,
+            ClassificacaoDeGrupos.VagasPorGrupo(categoria));
 
         var (faseEsperada, confrontosEsperados, byesEsperados) =
             CruzamentoDoMataMata.Aplicar(mapa, classificados);
@@ -193,7 +194,7 @@ public class AvancoParcialDosGruposTests
         }
 
         // E os byes voltam a ser os do desenho, agora que a classificação é definitiva.
-        Assert.Equal(byesEsperados, await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id));
+        Assert.Equal(byesEsperados, await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking));
     }
 
     // A prévia não pode prometer de novo o jogo que já nasceu — ele já está na lista de jogos,

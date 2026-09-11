@@ -31,10 +31,13 @@ public class EncerramentoDaPartida
     private readonly ILogger<EncerramentoDaPartida> _logger;
 
     public EncerramentoDaPartida(DbPadelContext context, IPadelimetroService padelimetro,
-        IPushNotificationService push, ILogger<EncerramentoDaPartida> logger)
+        IPushNotificationService push, ILogger<EncerramentoDaPartida> logger,
+        IEstatisticasService estatisticas)
     {
         _context = context;
-        _robo = new RoboDoChaveamento(context);
+        // O robô precisa do ranking pro desempate de grupo (ClassificacaoDeGrupos) — e é este
+        // caminho que monta o mata-mata quando o último jogo do grupo termina.
+        _robo = new RoboDoChaveamento(context, estatisticas);
         _padelimetro = padelimetro;
         _push = push;
         _logger = logger;
