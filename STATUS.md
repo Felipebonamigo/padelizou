@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
+>
+> 🕳️ **NA PRIMEIRA VERSÃO ELES SUMIAM DA TELA INTEIRA** (a consulta filtrava `Status == "Agendada"`), e isso tinha um custo que só aparece operando: quem põe o jogo no ar **antes** de marcar a chegada perde o caminho pro check-in daquela dupla — ela só volta pela lista de 64. Agora o jogo que começou ou acabou tem endereço: o bloco **"Já jogaram ou estão em jogo (N)"**, fechado, no fim da tela, com o mesmo botão dentro.
+>
+> ⚠️ **AO VIVO NA FRENTE DO FINALIZADO**, e não uma ordem só: um está acontecendo AGORA e ainda pode precisar de correção, o outro é histórico. Dentro de cada grupo, a ordem é a da aba Jogos — o ao vivo pela largada, o finalizado pelo fim (placar lançado depois cai pro horário previsto).
+>
+> ♻️ **O CARTÃO DO JOGO VIROU PARCIAL** (`_JogoNoCheckIn.cshtml`), porque agora ele é desenhado nos dois blocos. O que muda entre eles é só o SELO, e ele sai do `Status` — escrever dois cartões parecidos pra isso é exatamente como duas telas passam a divergir na primeira mudança. O formulário que grava presença segue num arquivo só (`_LinhaDoCheckIn`), e o teste trava isso nos três lugares onde a linha aparece.
+>
+> 🧪 **6.508 testes, 0 falhas (11 na tela do check-in, 4 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: *"Não achei o bloco de quem já jogou / está em jogo"* e `ViewData["JogosQueJaRolaram"]` nulo. ⚠️ **Dois testes foram derrubados sem querer** ao reescrever o arquivo (a busca por âncora comeu o que havia entre elas) — percebido pela contagem cair de 11 pra 9, e restaurados no mesmo turno.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser aqui. O `dev` é quem mostra.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
+> **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
 >
@@ -520,7 +536,11 @@
 >
 > 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1005-3156b46`** (16h48 e 16h50 de Brasília — runs 192 e 193). PR #165. **Sem migration.**
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e `/Torneios/CheckIn/26` respondendo **302 pro login** nos dois (e não 500) — a rota nova está de pé e fechada pra quem não entrou. O proxy desta sessão, que passou o dia devolvendo 403 pro domínio, voltou a deixar passar; a nota de "não dá pra conferir por fora" **não vale mais pra este deploy**.
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERÊNCIA É A APARÊNCIA.** 302 e 200 dizem que a tela responde, não que ela está certa: o desenho dos blocos por horário, o cartão de cada jogo e o "Resto do torneio" fechado só se conferem abrindo a página logado — e esta sessão não tem navegador.
 >
 > 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
 >
