@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/exciting-rubin-ga3ovw`.** **Sem migration.**
+>
+> 🎯 **O CARD DO JOGO, DENTRO DO CARD DO GRUPO, GANHOU DESTINO E TERCEIRO ESTADO.** 🗣️ Felipe, com o print do Grupo C: *"permita clicar no aovivo e ir para a pagina do aovivo aonde esta o jogo"* · *"e o que estiver finalizado deixe um circulo parecido com o do aovivo, só que outra cor q mostre q foi finalizado, direfernte do aovivo e do aguardando ainda"*.
+>
+> 1️⃣ **O JOGO EM QUADRA VIRA LINK PRO CARD GRANDE.** Card pequeno e card grande moram na MESMA página, em abas diferentes — então é uma **hash** (`#jogo-123`), e não uma URL nova: nada recarrega e o `<iframe>` da transmissão não reinicia, que é o motivo de o `jogos-ao-vivo-atualiza.js` existir. O elemento é **sempre `<a>`, com `href` só no jogo ao vivo** (`href` nulo o Razor não escreve, e `<a>` sem href é texto comum) — um elemento só pros três estados, em vez do miolo duplicado num `if`. O alvo do toque é o **card inteiro**: no celular a linha do "quando" tem 10px.
+>
+> 2️⃣ **O TERCEIRO ESTADO: `● ENCERRADO`, verde.** Antes eram DOIS na tela — bolinha vermelha ou uma data — e a data é a MESMA do jogo que acabou e do que ainda vai acontecer: "sex 11/09 19:40" não dizia se era história ou agenda. ⚠️ **Verde de sinal (`#2e9e5b`), e NÃO o lime da marca**: o lime sobre o card claro dá contraste de **1,8:1** em corpo `.62rem`, e ele já é a cor de quem VENCEU, na linha logo abaixo. O selo toma o **lugar** da data porque a linha é `nowrap; overflow: hidden` sem reticências — os dois juntos comeriam o "Er Padel · Arena Nclass" calado, que é o defeito medido na árvore da chave hoje de manhã.
+>
+> 🕳️ **A VERDADE ESTRUTURAL QUE ESTE TRABALHO DEIXA: `Tab.show()` DO BOOTSTRAP É ASSÍNCRONO.** Ele tira o `active` da aba velha, **espera os 150ms do fade dela** e só então acende a nova. Na linha seguinte ao `show()` o painel de destino ainda é `display: none`, o card mede 0x0 e `scrollIntoView` num elemento sem posição não rola nada. Quem desliga animação no sistema (`prefers-reduced-motion`) nunca veria — é o defeito que passa na máquina de quem escreveu e falha no celular de quem usa. Por isso o `pdzMostrarAba` recebe um `depois` e só chama no `shown.bs.tab` (e direto, quando a aba já é a ativa: ali evento nenhum nasce).
+>
+> 👀 **E DE NOVO FOI OLHAR A TELA**, no Chromium do container, com o `site.css` e o `bootstrap.bundle.min.js` de verdade: as duas abas abrindo, o card centralizado (`scrollY` 585, card no 397 de uma janela de 613) e os três estados nos dois temas.
+>
+> 🕳️ **ARMADILHA NOVA PRA QUEM MEDIR TELA NO HEADLESS, e custou meia hora**: o Bootstrap declara `:root { scroll-behavior: smooth }`, e **rolagem suave não termina** com `--virtual-time-budget` — `window.scrollTo(0, 500)` devolve `scrollY = 0` e parece defeito do código. A página sem Bootstrap rolava; a com Bootstrap, não. Quem for medir ROLAGEM: force `scroll-behavior: auto` **na página de medição**, nunca no site.
+>
+> 🧪 **6.514 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
+
+> **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
 >
 > 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
 >

@@ -1940,6 +1940,13 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-chave-quadra { margin-left: auto; font-weight: 700; }
 .pdz-chave-aovivo { color: #d9534f; font-weight: 700; }
 
+/* O TERCEIRO ESTADO do card (Felipe, 11/09/2026: "o que estiver finalizado deixe um circulo
+   parecido com o do aovivo, só que outra cor"). Verde de sinal, e NÃO o lime da marca: o lime
+   sobre o card claro tem contraste de 1,8:1 — ilegível em corpo .62rem —, e ele já é a cor de
+   quem VENCEU (.pdz-chave-venceu), na linha logo abaixo. Fixo nos dois temas pelo mesmo motivo
+   do vermelho do ao vivo, e medido na mesma faixa dele (3,2:1 no claro, 4,0:1 no escuro). */
+.pdz-chave-encerrado { color: #2e9e5b; font-weight: 700; }
+
 .pdz-chave-num {
     display: inline-flex;
     align-items: center;
@@ -2067,6 +2074,24 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-grupo-jogo-aovivo {
     border-color: #d9534f;
     box-shadow: 0 0 0 2px rgba(217, 83, 79, .15);
+}
+
+/* O CARD INTEIRO É O ALVO DO TOQUE, e não só a bolinha "AO VIVO": no celular a linha do
+   "quando" tem 10px de altura, e mirar nela é o tipo de alvo que se erra três vezes antes de
+   acertar. O elemento é sempre <a> (ver Details.cshtml) — sem href ele não é link nenhum, daí
+   o `[href]` nas regras que acendem. */
+a.pdz-grupo-jogo {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.pdz-grupo-jogo[href] { cursor: pointer; }
+
+a.pdz-grupo-jogo[href]:hover,
+a.pdz-grupo-jogo[href]:focus-visible {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 3px rgba(217, 83, 79, .35);
 }
 
 .pdz-grupo-jogo-quando {
