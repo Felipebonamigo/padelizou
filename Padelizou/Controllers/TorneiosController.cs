@@ -1527,6 +1527,17 @@ namespace Padelizou.Controllers
             // é a régua que existe justamente porque o `limiteGames: 9` já viveu cravado no JS.
             // Aqui só se PERGUNTA a ela. O servidor continua sendo a palavra final no POST.
             var tetos = new Dictionary<int, (int Lado1, int Lado2)>();
+
+            // E, no mesmo passeio, QUEM JÁ VENCEU cada jogo — 1, 2 ou 0 pra "ainda tem jogo"
+            // (11/09/2026, Felipe num print de um 8 x 6 em quadra: "pq q esse aqui ta o numero
+            // verde se o jogo n terminou?"). O verde do card era `games1 > games2` escrito no
+            // Razor, então qualquer vantagem pintava de lime — o mesmo lime que no card
+            // finalizado significa "venceu".
+            //
+            // ⚠️ Pelo mesmo motivo do teto, a conta NÃO pode ir pra view nem pro JavaScript:
+            // "decidido" tem soma × "até" e o desempate do "vencer por dois". Aqui só se
+            // PERGUNTA (Services/QuemVenceu.LadoJaDecidido).
+            var vencedores = new Dictionary<int, int>();
             if (torneioDaTela != null)
             {
                 foreach (var p in (List<Partida>)ViewBag.AoVivo)
@@ -1534,9 +1545,11 @@ namespace Padelizou.Controllers
                     var f = FormatoDaPartida.De(torneioDaTela, p.Fase);
                     int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
                     tetos[p.Id] = (FormatoDaPartida.TetoDoLado(f, g1, g2), FormatoDaPartida.TetoDoLado(f, g2, g1));
+                    vencedores[p.Id] = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0;
                 }
             }
             ViewBag.TetoDeGames = tetos;
+            ViewBag.VencedorNoPlacar = vencedores;
 
             // Quem organiza vê os botões de mexer no jogo ("colocar no ar", editar placar).
             // Fica FORA do if do Americano de propósito: nasceu lá dentro, quando só o
