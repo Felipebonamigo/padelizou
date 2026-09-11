@@ -7,7 +7,13 @@
 // "mesma mudança", sem conflito. O número ficaria igual com DOIS site.css diferentes, e quem
 // tivesse guardado o primeiro v27 nunca baixaria o segundo: a bolinha do saque simplesmente
 // não apareceria pra quem usa o app instalado, sem erro nenhum em lugar nenhum.
-const CACHE_NAME = "padelizou-static-v28";
+//
+// ⚠️ E v29 PELO MESMO MOTIVO, no mesmo dia: este branch subiu v27 → v28 antes de mesclar o
+// `main`, que já tinha ido a v28 pela bolinha do saque — e o v28 JÁ ESTÁ EM PRODUÇÃO com
+// outro `site.css`. Mantê-lo deixaria a tabela do grupo repartida do jeito velho pra quem já
+// guardou aquele v28, sem erro nenhum. O conflito aqui é a única pista: quando o git NÃO
+// conflita (as duas pontas escrevem o mesmo número), a colisão passa calada.
+const CACHE_NAME = "padelizou-static-v29";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

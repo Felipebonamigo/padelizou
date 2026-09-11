@@ -6029,17 +6029,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
-                                                <table class="table table-hover table-borderless mb-0 text-center align-middle pdz-tabela-grupo">
+                                                <table class="table table-hover table-borderless mb-0 text-center align-middle pdz-grupo-tabela">
                                                     <thead class="table-light text-muted small">
                                                         <tr>
-                                                            @* Sem largura: a coluna da dupla fica com TUDO o que as quatro de
-                                                               número não pedirem (ver .pdz-col-num no site.css). Fixada em 50%,
-                                                               estreitar as outras devolvia o espaço pra margem, não pro nome. *@
+                                                            @* Sem largura declarada de propósito: em `table-layout: fixed` esta é a
+                                                               coluna que recebe toda a sobra do card (as de J/V/D/SG pedem os poucos
+                                                               pixels de um número no site.css). O `width: 50%` que ficava aqui
+                                                               reservava METADE do card pros quatro dígitos. *@
                                                             <th class="text-start ps-3">Dupla</th>
-                                                            <th title="Jogos" class="pdz-col-num">J</th>
-                                                            <th title="Vitórias" class="text-success pdz-col-num">V</th>
-                                                            <th title="Derrotas" class="text-danger pdz-col-num">D</th>
-                                                            <th title="Saldo de Games" class="pdz-col-num">SG</th>
+                                                            <th title="Jogos">J</th>
+                                                            <th title="Vitórias" class="text-success">V</th>
+                                                            <th title="Derrotas" class="text-danger">D</th>
+                                                            <th title="Saldo de Games">SG</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>

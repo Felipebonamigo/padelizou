@@ -2013,6 +2013,36 @@ button, a, input, select { touch-action: manipulation; }
     margin: 0 auto;
 }
 
+/* ── Tabela do grupo: a sobra é do NOME, não dos números (11/09/2026) ───────
+   🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem
+   um pouco menos espaçados, para que caiba mais do nome das pessoas"*.
+
+   O chip compacto de 10/09 resolveu a ALTURA da linha (avatar menor, clube escondido,
+   nome truncando) e deixou a LARGURA de lado: com `table-layout: auto`, o navegador
+   devolvia toda a sobra do card pras quatro colunas de UM DÍGITO — "Augusto Ohlweiler"
+   saía "Augusto Ohl…" ao lado de um "0" com ~90px só pra ele.
+
+   ⚠️ Tirar o teto da célula da dupla sozinho NÃO resolveria: em layout `auto` a coluna
+   sem teto passa a pedir o nome INTEIRO (o chip é `white-space: nowrap`) e a tabela
+   estoura a `.table-responsive`. Quem reparte é o layout FIXO: as quatro pedem o que
+   precisam e a única sem largura declarada — a da dupla — fica com o resto. */
+.pdz-grupo-tabela { table-layout: fixed; }
+
+/* Um dígito não precisa de mais que isto, e o `.5rem` de cada lado que o Bootstrap dá a
+   toda célula (`--bs-table-cell-padding-x`) é mais largo que o dígito que ele emoldura. */
+.pdz-grupo-tabela th:not(:first-child),
+.pdz-grupo-tabela td:not(:first-child) {
+    width: 30px;
+    padding-left: .1rem;
+    padding-right: .1rem;
+}
+
+/* ⚠️ O SALDO É MAIS LARGO DE PROPÓSITO: ele guarda sinal + dois dígitos ("+12"), e em
+   layout fixo a célula NÃO cresce pelo conteúdo — apertado no tamanho de J/V/D, o número
+   sai cortado em vez de empurrar a coluna. */
+.pdz-grupo-tabela th:last-child,
+.pdz-grupo-tabela td:last-child { width: 42px; }
+
 /* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
    A tabela mostra V/D/SG; estes são os jogos que produziram (ou vão produzir)
    aqueles números. Ficam juntos de propósito: o placar já existia no sistema, só
@@ -2520,26 +2550,6 @@ button, a, input, select { touch-action: manipulation; }
     background: #fff;
 }
 
-/* ── AS COLUNAS DE NÚMERO DA TABELA DO GRUPO ───────────────────────────────────────────
-   🗣️ Felipe, 11/09/2026: *"acho que dá pra diminuir o tamanho do J V D SG da coluna, pra
-   caber mais do nome"*. As quatro dividiam METADE da tabela (~12,5% cada) pra mostrar um
-   dígito, enquanto "Marcelo Konf…" truncava do outro lado. Largura fixa e apertada aqui
-   devolve tudo o que sobra pra coluna da dupla, que é a única de tamanho variável. */
-.pdz-col-num { width: 30px; }
-
-/* ⚠️ `fixed` NÃO É ENFEITE, e foi o render que mostrou. Soltar o `max-width: 180px` da célula
-   do nome sem isto faz o contrário do pedido: com largura automática a coluna CRESCE pra caber
-   "Marcelo Konfidera" inteiro, a tabela fica mais larga que o cartão e o `.table-responsive`
-   vira ROLAGEM HORIZONTAL — pior que o nome truncado. Com `fixed`, as quatro larguras acima
-   mandam, a coluna da dupla fica com o resto, e o nome volta a truncar dentro dela. */
-.pdz-tabela-grupo { table-layout: fixed; }
-
-.pdz-tabela-grupo th.pdz-col-num,
-.pdz-tabela-grupo td:not(:first-child) {
-    padding-left: 2px;
-    padding-right: 2px;
-    font-size: .82rem;
-}
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
    nome não se explica sozinho — e o próprio conceito de chave (quem perde sai, de onde

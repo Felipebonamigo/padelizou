@@ -7,8 +7,9 @@ namespace Padelizou.Tests;
 //
 // 🕳️ NASCEU DE UM ESTRAGO DE VERDADE, e é por isso que ele existe. Resolvendo um conflito de
 // merge no `site.css` eu engoli o `}` que fechava o `.pdz-jl-escudo`. A partir dali, TODA regra
-// seguinte virou declaração solta dentro dela — `.pdz-col-num`, `.pdz-tabela-grupo` e o que
-// viesse depois pararam de existir.
+// seguinte virou declaração solta dentro dela — tudo o que viesse depois parou de existir.
+// (As regras que eu tinha quebrado eram minhas e acabaram descartadas num merge; o buraco que
+// elas revelaram é que fica.)
 //
 // ⚠️ E A SUÍTE INTEIRA PASSOU: 6.421 testes, 0 falhas, com o arquivo quebrado. São 104 arquivos
 // de teste que leem fonte com `File.ReadAllText` e procuram substring — nenhum deles PARSEIA
