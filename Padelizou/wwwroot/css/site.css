@@ -21,6 +21,9 @@
     --pdz-surface: #ffffff;
     --pdz-surface-alt: #f4f7fc;
     --pdz-border: rgba(28, 39, 66, .09);
+    /* A linha que liga os jogos na árvore da chave. A borda comum (9% de alpha) existe pra
+       separar caixa de fundo; traço que atravessa o quadro precisa ser visto de relance. */
+    --pdz-linha-chave: rgba(28, 39, 66, .28);
 
     /* Navy fixo — não muda com o tema (usado em fundos/detalhes que sempre precisam ficar escuros,
        tipo os painéis "Ranking Global" e cabeçalhos de card com texto branco em cima). */
@@ -55,6 +58,7 @@
     --pdz-surface: #1a2338;
     --pdz-surface-alt: #212c46;
     --pdz-border: rgba(231, 236, 247, .10);
+    --pdz-linha-chave: rgba(231, 236, 247, .30);
 
     --pdz-shadow-sm: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .25);
     --pdz-shadow-md: 0 6px 18px rgba(0, 0, 0, .35), 0 2px 6px rgba(0, 0, 0, .25);
@@ -1646,187 +1650,248 @@ button, a, input, select { touch-action: manipulation; }
    palpite de verdade. */
 .pdz-palpite-vazio { opacity: .45; }
 
-/* Prévia do mata-mata em COLUNAS por rodada, uma ao lado da outra — o caminho até a
-   final se lê da esquerda pra direita, como um chaveamento de verdade. */
-.pdz-chave-projetada-rodadas {
-    display: flex;
-    gap: 1rem;
+/* ── A PRÉVIA DO MATA-MATA COMO ÁRVORE ─────────────────────────────────────
+   O caminho até a final com as LINHAS mostrando de onde vem cada vaga, no lugar das quatro
+   colunas soltas que a tela teve até 11/09/2026.
+
+   SÃO DOIS DESENHOS DA MESMA CHAVE, e a escolha é do Felipe:
+     · computador (`.pdz-arv`) — de cima pra baixo, a chave inteira à vista;
+     · celular (`.pdz-chd`)    — deitada e arrastável da esquerda pra direita, a rodada atual em
+                                 dois terços da tela e a seguinte espiando na beirada, como a
+                                 chave da Libertadores no Google.
+
+   ⚠️ A GEOMETRIA DOS DOIS É A MESMA CONTA (Services/ArvoreDaChave): coluna e largura de cada
+   jogo. No computador viram COLUNAS da grade, no celular LINHAS — e a ligação usa as mesmas
+   porcentagens, só trocando o eixo. Marcação em Views/Torneios/_ChaveProjetadaArvore.cshtml.
+
+   ⚠️ A ÁRVORE ANTERIOR (também `.pdz-arv`) foi tentada e abandonada em 05/08/2026 porque
+   crescia pra LARGURA: numa chave de 32 ela tinha 16 jogos de largura e não cabia em tela
+   nenhuma. Ficou de CSS morto até hoje, sem view nenhuma, e o que está aqui é outra coisa —
+   esta cresce pra baixo no computador e é arrastável no celular, que são as duas direções em
+   que a tela tem espaço de sobra. */
+
+/* ---- COMPUTADOR: de cima pra baixo ---- */
+.pdz-arv-rolagem {
     overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
     padding-bottom: .5rem;
 }
 
-.pdz-chave-projetada-rodada {
-    flex: 0 0 15rem;
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-}
-
-@media (max-width: 767.98px) {
-    /* No celular as colunas cortavam no meio ("QUARTAS DE F...") sem nenhuma
-       pista de rolagem — Semifinal e Final ficavam invisíveis. Empilhadas, como
-       a chave de verdade (_ChaveDoMataMata) já faz: as duas ganham a mesma cara. */
-    .pdz-chave-projetada-rodadas {
-        flex-direction: column;
-        overflow-x: visible;
-        gap: 1.1rem;
-    }
-
-    .pdz-chave-projetada-rodada { flex: 1 1 auto; }
-}
-
-.pdz-chave-projetada-fase {
-    font-size: .72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--pdz-muted);
-}
-
-/* Mesma anatomia da vaga da chave de verdade (.pdz-chave-vaga): etiqueta fina em cima
-   com número, hora e quadra, e os dois lados embaixo ocupando a largura toda.
-
-   Era um flex de duas colunas — número à esquerda, um bloco com TUDO à direita. Como o
-   bloco encolhia até o conteúdo, ele descolava do número e ia parar no canto direito do
-   cartão, deixando um vão no meio e os nomes soltos longe do quadro. */
-.pdz-chave-projetada-jogo {
-    padding: .45rem .6rem;
-    border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
-    border-radius: 10px;
-    background: var(--pdz-surface-alt);
-    color: var(--pdz-ink);
-    font-size: .82rem;
-    line-height: 1.35;
-}
-
-/* Hora e quadra do jogo projetado. Menor e mais apagada que os lados: quem olha o quadro
-   procura primeiro QUEM joga; o quando vem logo depois, e é a metade que faltava — o
-   jogador precisa saber a que horas voltar e pra qual quadra ir. */
-.pdz-chave-projetada-quando {
-    display: flex;
-    align-items: center;
-    gap: .35rem;
-    font-size: .68rem;
-    font-weight: 600;
-    letter-spacing: .02em;
-    color: var(--pdz-muted);
-    margin-bottom: .2rem;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-/* Encostada na direita, como na chave real: hora e quadra são duas informações
-   diferentes, e emendadas no meio da linha viravam uma frase só. */
-.pdz-chave-projetada-quadra { margin-left: auto; font-weight: 700; }
-
-.pdz-chave-projetada-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 1.15rem;
-    height: 1.15rem;
-    border-radius: 50%;
-    background: var(--pdz-surface);
-    border: 1px solid var(--pdz-border);
-    color: var(--pdz-muted);
-    font-size: .62rem;
-    font-weight: 700;
-}
-
-.pdz-chave-projetada-lado {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* O de baixo apagado, igual à chave real: dá pra ler o confronto de relance sem
-   confundir as duas linhas. */
-.pdz-chave-projetada-lado-2 { color: var(--pdz-muted); }
-
-/* ── Chaveamento do mata-mata: ÁRVORE de cima pra baixo ────────────────────
-   A primeira rodada no topo, cada fase numa linha abaixo ligada por linhas que
-   mostram de onde vem cada vaga, e a final no pé com o troféu.
-
-   Vale pra TODO mata-mata — o pós-grupos e o que é só mata-mata usam o mesmo
-   componente, então os dois têm exatamente a mesma cara.
-
-   Uma grade de N colunas (N = vagas da primeira linha). Cada fase abaixo tem metade
-   das vagas, e cada vaga ocupa o DOBRO de colunas — é isso que a centraliza sobre os
-   dois jogos que a alimentam, sem cálculo de pixel.
-
-   ⚠️ A rolagem lateral é UMA só, no container de fora. Uma rolagem por linha
-   desalinharia as colunas: a semifinal deixaria de ficar embaixo das quartas que a
-   alimentam, e as linhas de ligação apontariam pro nada.
-   Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
-.pdz-arv-rolagem {
-    overflow-x: auto;
-    padding-bottom: .5rem;
-}
-
+/* Uma grade de N colunas (N = jogos da rodada mais larga). Cada vaga ocupa as colunas dos jogos
+   que a alimentam, e é isso que a centraliza sobre eles — sem uma conta de pixel. */
 .pdz-arv {
     display: grid;
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr));
+    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(8.5rem, 1fr));
     min-width: min-content;
 }
 
-.pdz-arv-fase,
-.pdz-arv-linha {
-    grid-column: 1 / -1;       /* rótulo e linha ocupam a largura toda da grade */
-}
-
-.pdz-arv-linha {
-    display: grid;
-    grid-template-columns: subgrid;   /* herda as colunas do pai: tudo alinhado */
-}
-
-@supports not (grid-template-columns: subgrid) {
-    .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr)); }
-}
-
 .pdz-arv-fase {
-    font-size: .64rem;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: .45rem;
+    font-size: .72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .05em;
-    color: var(--pdz-muted);
-    margin: .5rem 0 .2rem;
+    color: var(--pdz-ink);
+    border-bottom: 1px solid var(--pdz-border);
+    padding-bottom: .3rem;
+    margin: .85rem .25rem .1rem;
 }
+
+.pdz-arv > .pdz-arv-fase:first-child { margin-top: 0; }
+
+.pdz-arv-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
 
 .pdz-arv-celula {
-    padding: 0 .25rem;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    padding: 0 .25rem;
 }
 
-/* A ligação com os dois pais logo acima: dois cotovelos que se encontram no meio e
-   um talo que desce até esta vaga. Tudo em porcentagem da PRÓPRIA célula, então
-   funciona igual numa vaga de 2 colunas e numa de 8. */
+.pdz-arv-celula > .pdz-chave-vaga { flex: 1 1 auto; }
+
+/* A ligação com os jogos de cima, desenhada em % da PRÓPRIA célula: o `::before` é uma caixa
+   que vai do centro de um alimentador ao do outro (`--a` e `--hw`) e desenha os dois talos mais
+   a linha que os junta; o `::after` desce do meio até esta vaga. Funciona igual numa vaga de 2
+   colunas e numa de 16, porque não há nenhum pixel na conta. */
 .pdz-arv-liga {
     position: relative;
     display: block;
-    height: 14px;
+    flex: 0 0 22px;
+    height: 22px;
 }
 
-.pdz-arv-liga::before,
+.pdz-arv-liga::before {
+    content: "";
+    position: absolute;
+    left: var(--a);
+    width: var(--hw);
+    top: 0;
+    height: 50%;
+    border: 2px solid var(--pdz-linha-chave);
+    border-top: 0;
+}
+
 .pdz-arv-liga::after {
     content: "";
     position: absolute;
-    top: 0;
-    height: 50%;
-    width: 25%;
-    border-bottom: 2px solid var(--pdz-border);
-}
-
-.pdz-arv-liga::before { left: 25%; border-left: 2px solid var(--pdz-border); }
-.pdz-arv-liga::after  { left: 50%; border-right: 2px solid var(--pdz-border); }
-
-.pdz-arv-liga > i {
-    position: absolute;
     left: 50%;
+    margin-left: -1px;
     top: 50%;
     height: 50%;
-    border-left: 2px solid var(--pdz-border);
+    border-left: 2px solid var(--pdz-linha-chave);
+}
+
+/* Vaga alimentada por UM jogo só — o outro lado passou direto. Talo reto: não há dois pontos
+   pra juntar, e o cotovelo desenharia um bico apontando pro nada. */
+.pdz-arv-liga-reta::before { display: none; }
+.pdz-arv-liga-reta::after { top: 0; height: 100%; }
+
+.pdz-arv-trofeu-celula { grid-column: 1 / -1; }
+
+/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
+
+   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
+   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
+   destaque sumiria calado. */
+.pdz-chave-vaga.pdz-arv-final {
+    border-color: var(--padel-green);
+    background: rgba(163, 216, 39, .10);
+}
+
+/* ---- CELULAR: deitada, arrastável da esquerda pra direita ---- */
+.pdz-chd { display: flex; flex-direction: column; gap: .55rem; }
+
+.pdz-chd-fichas {
+    display: flex;
+    gap: .35rem;
+    overflow-x: auto;
+    padding-bottom: .3rem;
+    scrollbar-width: none;
+}
+
+.pdz-chd-fichas::-webkit-scrollbar { display: none; }
+
+.pdz-chd-ficha {
+    flex: 0 0 auto;
+    font-size: .66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .32rem .7rem;
+    border-radius: 999px;
+    border: 1px solid var(--pdz-border);
+    background: var(--pdz-surface);
+    color: var(--pdz-muted);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.pdz-chd-ficha:hover { color: var(--pdz-ink); border-color: var(--padel-green); }
+
+/* O trilho: cada rodada ocupa dois terços da largura, então a SEGUINTE fica espiando na
+   beirada — é ela que responde "ganhei, e agora?" antes de alguém arrastar. O encaixe é
+   `scroll-snap`, sem uma linha de JS. */
+.pdz-chd-trilho {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding-bottom: .5rem;
+}
+
+.pdz-chd-trilho::-webkit-scrollbar { display: none; }
+
+/* Espaço no fim: sem ele a última rodada nunca chega ao começo da tela, porque o trilho para
+   de rolar quando o conteúdo acaba. */
+.pdz-chd-trilho::after { content: ""; flex: 0 0 34%; }
+
+.pdz-chd-rodada {
+    flex: 0 0 66%;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pdz-chd-cab {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--pdz-ink);
+    border-bottom: 1px solid var(--pdz-border);
+    padding: 0 .25rem .3rem;
+    margin-bottom: .35rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Todas as rodadas têm o MESMO número de linhas (a largura da chave), então as faixas ficam
+   alinhadas de uma coluna pra outra e a ligação aponta pro cartão certo. Quem ocupa mais de
+   uma faixa é a vaga que junta duas — e é assim que ela nasce centralizada. */
+.pdz-chd-grade {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-rows: repeat(var(--pdz-chd-linhas), minmax(3.9rem, 1fr));
+}
+
+.pdz-chd-celula {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: .15rem .25rem;
+}
+
+.pdz-chd-celula > .pdz-chave-vaga { flex: 1 1 auto; min-width: 0; }
+
+/* A MESMA ligação do computador com os eixos trocados: o cotovelo entra pela esquerda. */
+.pdz-chd-liga {
+    position: relative;
+    flex: 0 0 16px;
+    align-self: stretch;
+}
+
+.pdz-chd-liga::before {
+    content: "";
+    position: absolute;
+    top: var(--a);
+    height: var(--hw);
+    left: 0;
+    width: 50%;
+    border: 2px solid var(--pdz-linha-chave);
+    border-left: 0;
+}
+
+.pdz-chd-liga::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    margin-top: -1px;
+    left: 50%;
+    right: 0;
+    border-top: 2px solid var(--pdz-linha-chave);
+}
+
+.pdz-chd-liga-reta::before { display: none; }
+.pdz-chd-liga-reta::after { left: 0; }
+
+.pdz-chd-rodada-trofeu { flex: 0 0 60%; }
+.pdz-chd-rodada-trofeu .pdz-chave-trofeu { padding: .5rem .4rem; }
+
+.pdz-chd-dica {
+    font-size: .68rem;
+    color: var(--pdz-muted);
+    text-align: center;
+    margin: 0;
 }
 
 /* ---- A vaga ----
@@ -1913,23 +1978,6 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-chave-venceu { color: var(--padel-green); font-weight: 700; }
 
-/* De onde vem quem vai ocupar a vaga. A LINHA já mostra isso; o número é só a
-   confirmação pra quem está procurando o próprio jogo. */
-.pdz-arv-vem {
-    display: inline-flex;
-    align-items: center;
-    gap: .2rem;
-    font-size: .66rem;
-    color: var(--pdz-muted);
-}
-
-/* Quem passou direto: vaga com cara de "já está dentro", sem placar nem horário. */
-.pdz-arv-bye {
-    border-style: solid;
-    border-color: var(--pdz-lime);
-    background: var(--pdz-surface-alt);
-}
-
 .pdz-chave-selobye {
     font-size: .55rem;
     font-weight: 700;
@@ -1965,13 +2013,35 @@ button, a, input, select { touch-action: manipulation; }
     margin: 0 auto;
 }
 
-@media (max-width: 575.98px) {
-    .pdz-arv { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
-    @supports not (grid-template-columns: subgrid) {
-        .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
-    }
-    .pdz-chave-vaga { font-size: .68rem; }
+/* ── Tabela do grupo: a sobra é do NOME, não dos números (11/09/2026) ───────
+   🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem
+   um pouco menos espaçados, para que caiba mais do nome das pessoas"*.
+
+   O chip compacto de 10/09 resolveu a ALTURA da linha (avatar menor, clube escondido,
+   nome truncando) e deixou a LARGURA de lado: com `table-layout: auto`, o navegador
+   devolvia toda a sobra do card pras quatro colunas de UM DÍGITO — "Augusto Ohlweiler"
+   saía "Augusto Ohl…" ao lado de um "0" com ~90px só pra ele.
+
+   ⚠️ Tirar o teto da célula da dupla sozinho NÃO resolveria: em layout `auto` a coluna
+   sem teto passa a pedir o nome INTEIRO (o chip é `white-space: nowrap`) e a tabela
+   estoura a `.table-responsive`. Quem reparte é o layout FIXO: as quatro pedem o que
+   precisam e a única sem largura declarada — a da dupla — fica com o resto. */
+.pdz-grupo-tabela { table-layout: fixed; }
+
+/* Um dígito não precisa de mais que isto, e o `.5rem` de cada lado que o Bootstrap dá a
+   toda célula (`--bs-table-cell-padding-x`) é mais largo que o dígito que ele emoldura. */
+.pdz-grupo-tabela th:not(:first-child),
+.pdz-grupo-tabela td:not(:first-child) {
+    width: 30px;
+    padding-left: .1rem;
+    padding-right: .1rem;
 }
+
+/* ⚠️ O SALDO É MAIS LARGO DE PROPÓSITO: ele guarda sinal + dois dígitos ("+12"), e em
+   layout fixo a célula NÃO cresce pelo conteúdo — apertado no tamanho de J/V/D, o número
+   sai cortado em vez de empurrar a coluna. */
+.pdz-grupo-tabela th:last-child,
+.pdz-grupo-tabela td:last-child { width: 42px; }
 
 /* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
    A tabela mostra V/D/SG; estes são os jogos que produziram (ou vão produzir)
@@ -2019,32 +2089,15 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-ink);
 }
 
-/* Legibilidade acima de "caber": no celular a chave NÃO encolhe o cartão — ele mantém
-   largura e fonte confortáveis e a chave rola de lado. Espremer pra caber na tela
-   deixava o cartão com 90px e fonte de 10px, com os nomes truncados em nada; rolar é
-   um incômodo, não conseguir ler é um defeito. */
-.pdz-arv,
-.pdz-arv-linha {
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
-}
+/* Legibilidade acima de "caber": o cartão da chave mantém fonte confortável em qualquer
+   largura. Espremer pra caber na tela deixava o cartão com 90px e fonte de 10px, com os nomes
+   truncados em nada — rolar é um incômodo, não conseguir ler é um defeito.
 
-@supports (grid-template-columns: subgrid) {
-    .pdz-arv-linha { grid-template-columns: subgrid; }
-}
-
+   ⚠️ ESTAS DUAS REGRAS VALEM DE VERDADE e são a fonte final do cartão da chave (a base é
+   `.pdz-chave-vaga`, mais acima). Elas vinham acompanhadas de regras da árvore antiga, que
+   saíram em 11/09/2026 junto com o resto do CSS morto. */
 .pdz-chave-vaga { font-size: .76rem; }
 .pdz-chave-quando { font-size: .64rem; }
-
-@media (max-width: 575.98px) {
-    .pdz-arv,
-    .pdz-arv-linha {
-        grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
-    }
-    @supports (grid-template-columns: subgrid) {
-        .pdz-arv-linha { grid-template-columns: subgrid; }
-    }
-    .pdz-chave-vaga { font-size: .76rem; }
-}
 
 /* ── Aviso de AMBIENTE DE TESTE no portão do dev ───────────────────────────
    Listrado de obra e no topo da tela, antes do formulário. Não é enfeite: depois do
@@ -2410,15 +2463,45 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-chip-compacto a { min-width: 0; max-width: 100%; }
 
 /* ── Escudo do time, do lado do nome (11/09/2026) ──────────────────────────
-   `contain`, e nunca `cover`: escudo é PNG transparente de proporção LIVRE
+   `contain`, e nunca `cover`: escudo é imagem de proporção LIVRE
    (FormatoDeImagem.LogoTime só limita o lado maior), então o corte que serve
-   pra foto de rosto come a beirada de escudo largo. */
-.pdz-chip-escudo { width: 17px; height: 17px; object-fit: contain; flex: 0 0 auto; }
+   pra foto de rosto come a beirada de escudo largo.
 
-/* Na tabela do grupo o escudo é a ÚNICA pista do time (lá o nome do time fica
-   escondido) e a coluna tem ~180px — 14px cabe ao lado do nome truncado sem
-   roubar letra dele. */
-.pdz-chip-compacto .pdz-chip-escudo { width: 14px; height: 14px; }
+   ⚠️ A MOLDURA CLARA É O QUE IGUALA A FILEIRA (Felipe: "pq tem algumas
+   bandeirinhas sem fundo igual as demais"). Medidos os 17 escudos em uso no
+   torneio 26: só 3 são transparentes; os outros 14 trazem o fundo DENTRO do
+   arquivo — retângulo preto, azul-escuro, branco, e dois JPEG. Sem fundo no
+   CSS, cada um aparece como veio e a fileira fica salpicada.
+
+   Branco FIXO nos dois temas, e não `--pdz-surface`: os opacos são quase
+   todos claros por dentro: uma moldura que mudasse com o tema desigualaria
+   tudo de novo no escuro. `box-sizing` porque o padding é o respiro do logo
+   dentro da caixa — sem ele a caixa cresce e o alinhamento com o texto foge. */
+.pdz-chip-escudo {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    padding: 1px;
+    border: 1px solid rgba(28, 39, 66, .18);
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* Na tabela do grupo o escudo é a ÚNICA pista do time — lá o nome do time fica
+   escondido. Ele vai pro canto da foto, como no ao vivo (Felipe: "faça igual dos
+   jogos ao vivo, com o logo redondinho no canto da foto"), e encolhe junto: a
+   foto ali tem 26px contra os 36px do ao vivo, e o selo de 18px cobriria mais de
+   um terço do rosto. O tamanho abaixo vale também pro escudo ao lado do nome,
+   que é o que sobra numa tela compacta que não peça selo. */
+.pdz-chip-compacto .pdz-chip-escudo { width: 16px; height: 16px; }
+.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo {
+    width: 14px;
+    height: 14px;
+    right: -2px;
+    bottom: -2px;
+}
 
 /* O SELO: no card AO VIVO o escudo sai do lado do nome e vai pro canto da foto
    (Felipe, 11/09/2026: "e no ao vivo use esse do B"). Quem ancora o canto é a
@@ -2436,22 +2519,31 @@ button, a, input, select { touch-action: manipulation; }
     position: absolute;
     right: -3px;
     bottom: -3px;
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
     padding: 1px;
+    border: 0;
     border-radius: 50%;
-    background: var(--pdz-navy-fixed);
-    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .5);
+    /* ⚠️ CLARO, e não o navy que ele nasceu tendo: o card é navy, e escudo
+       escuro sobre selo escuro some — o "Compass", preto, desaparecia dentro
+       do próprio selo. O anel escuro é o que separa o selo da foto atrás. */
+    background: #fff;
+    box-shadow: 0 0 0 1.5px rgba(16, 24, 45, .55);
 }
 
 /* O escudo na LISTA de jogos (Agendadas/Finalizadas): inline, do tamanho do nome
    que ele acompanha — lá o nome da dupla é uma linha de texto, não um chip. */
 .pdz-jl-escudo {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     object-fit: contain;
-    vertical-align: -2px;
+    vertical-align: -3px;
     margin-left: 4px;
+    box-sizing: border-box;
+    padding: 1px;
+    border: 1px solid rgba(28, 39, 66, .18);
+    border-radius: 4px;
+    background: #fff;
 }
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
@@ -2510,13 +2602,107 @@ button, a, input, select { touch-action: manipulation; }
    brilho e a costura — em texto ("saque") ela competiria com o nome da dupla. */
 .pdz-bolinha {
     display: inline-block;
+    position: relative;
     flex: 0 0 auto;
-    width: .7rem;
-    height: .7rem;
+    width: .85rem;
+    height: .85rem;
     border-radius: 50%;
+    overflow: hidden;
     background: radial-gradient(circle at 32% 30%, #f4ff8a 0%, #d8e94a 45%, #b6c92f 100%);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .18) inset, 0 0 6px rgba(216, 233, 74, .55);
     vertical-align: middle;
+}
+
+/* A COSTURA, que é o que faz a bolinha LER como bola de padel e não como um ponto amarelo
+   qualquer (🗣️ Felipe, 11/09/2026: "voce consegue fazer a imagem de uma bolinha de tenis?").
+   São dois círculos maiores que a bola, empurrados pra fora nas laterais: só o arco de cada um
+   cruza a face, e o `overflow: hidden` da bola corta o resto.
+
+   ⚠️ SEM ARQUIVO DE IMAGEM DE PROPÓSITO. Um .png custaria uma requisição por página, uma
+   entrada a mais no service worker e uma versão pra manter em duas resoluções — pra desenhar
+   dois arcos. O degrau da escada que resolve aqui é o CSS. */
+.pdz-bolinha::before,
+.pdz-bolinha::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    bottom: -30%;
+    width: 100%;
+    border: 1.5px solid rgba(255, 255, 255, .82);
+    border-radius: 50%;
+}
+
+.pdz-bolinha::before { left: -62%; }
+.pdz-bolinha::after { right: -62%; }
+
+/* ── O QUIQUE ──────────────────────────────────────────────────────────────
+   Só na bola de quem ESTÁ sacando, e só `transform` (o navegador anima isso na GPU, sem
+   recalcular layout nenhum): são no máximo uns poucos cards ao vivo por torneio, então o custo
+   é o mesmo da bolinha pulsante do "AO VIVO" que já vive no mesmo card.
+
+   `transform-origin: bottom` é o que faz o esmagamento parecer peso batendo no chão em vez de
+   a bola encolhendo no ar. */
+.pdz-bolinha-quica {
+    transform-origin: bottom center;
+    animation: pdz-quica 1.5s cubic-bezier(.3, 0, .5, 1) infinite;
+}
+
+@keyframes pdz-quica {
+    0% { transform: translateY(0) scale(1, 1); }
+    8% { transform: translateY(0) scale(1.18, .82); }
+    22% { transform: translateY(-.3rem) scale(.94, 1.06); }
+    50% { transform: translateY(-.42rem) scale(1, 1); }
+    78% { transform: translateY(-.3rem) scale(.97, 1.03); }
+    100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* ⚠️ Quem pediu menos movimento no sistema NÃO recebe a bola quicando. Animação infinita é
+   justamente o tipo que incomoda quem marcou essa preferência — e a informação (de que lado
+   está a bola) não depende do movimento pra chegar. */
+@media (prefers-reduced-motion: reduce) {
+    .pdz-bolinha-quica { animation: none; }
+}
+
+/* A bola APAGADA do outro lado: é o alvo de "passar o saque pra cá". Contorno, não bola —
+   duas bolas acesas no mesmo card não diriam quem está sacando, que é a única pergunta que
+   este desenho existe pra responder. */
+.pdz-bolinha-apagada {
+    background: none;
+    box-shadow: 0 0 0 1.5px var(--pdz-border) inset;
+    opacity: .55;
+}
+
+.pdz-bolinha-apagada::before,
+.pdz-bolinha-apagada::after { display: none; }
+
+/* O alvo de toque tem 40px, e não os 13px da bola: o organizador troca o saque de pé, com o
+   celular numa mão e a quadra rolando — é o mesmo motivo dos botões de 48px da Mesa.
+   `touch-action: manipulation` tira o atraso de 300ms do duplo-toque. */
+.pdz-saque-forma {
+    flex: 0 0 auto;
+    margin: 0;
+    display: flex;
+}
+
+.pdz-saque-toque {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.pdz-saque-toque:hover .pdz-bolinha-apagada { opacity: .95; }
+
+.pdz-saque-toque:focus-visible {
+    outline: 2px solid var(--pdz-lime);
+    outline-offset: 2px;
+    border-radius: 50%;
 }
 
 /* ---- Escolha de quem saca, no Controle de Placar ---- */

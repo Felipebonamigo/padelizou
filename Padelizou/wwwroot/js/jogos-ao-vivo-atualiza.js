@@ -45,6 +45,11 @@
         // js/placar-ao-vivo.js.
         if (window.pdzSalvandoPlacar) return true;
 
+        // Mesma razão, outro dado: a troca de saque indo pro servidor (js/saque-ao-vivo.js).
+        // Trocar o cabeçalho aqui devolveria a bolinha pro lado velho na frente de quem
+        // acabou de mover ela.
+        if (window.pdzTrocandoSaque) return true;
+
         var ativo = document.activeElement;
         if (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName)) return true;
 
