@@ -1,0 +1,84 @@
+@model Padelizou.Services.OQuePrecisaParaClassificar.Quadro
+@using Padelizou.Services
+@* O MIOLO do painel "o que cada um precisa pra classificar", quando falta UM jogo no grupo.
+
+   Vive numa parcial porque DUAS telas o desenham: o card do grupo na página do torneio (num
+   pop-up, 11/09/2026) e a tela de Classificação (aberto no lugar, desde 13/08/2026). Duas
+   cópias seriam duas verdades sobre a mesma régua — e a segunda envelhece calada no dia em que
+   o desempate mudar, prometendo vaga que o chaveamento não vai dar.
+
+   ⚠️ A parcial desenha só o CONTEÚDO: quem embrulha em modal ou em collapse é quem chama. É o
+   que permite as duas telas terem aberturas diferentes sem ter dois painéis. *@
+@{
+    // Nome INTEIRO na linha de cada dupla — é uma lista de três itens, e é nela que a pessoa
+    // procura o próprio nome.
+    //
+    // ⚠️ Na TABELA de cenários vai o nome CURTO (`Situacao.NomeCurto`, do serviço): ali cada
+    // célula lista duas duplas ao lado de uma frase que já usa o nome curto, e o nome inteiro
+    // fazia cada linha ocupar três alturas no celular — conferido no Chromium a 430px.
+    string NomeDaDupla(Padelizou.Models.Dupla d) => d.NomeDeExibicao;
+
+    string Selo(OQuePrecisaParaClassificar.Estado estado) => estado switch
+    {
+        OQuePrecisaParaClassificar.Estado.JaClassificado => "bg-success",
+        OQuePrecisaParaClassificar.Estado.SemChance => "bg-secondary",
+        _ => "bg-warning text-dark",
+    };
+
+    string Rotulo(OQuePrecisaParaClassificar.Estado estado) => estado switch
+    {
+        OQuePrecisaParaClassificar.Estado.JaClassificado => "Classificado",
+        OQuePrecisaParaClassificar.Estado.SemChance => "Sem chance",
+        _ => "Depende",
+    };
+}
+
+<p class="small text-muted mb-3">
+    Falta um jogo:
+    <strong>@NomeDaDupla(Model.Lado1) x @NomeDaDupla(Model.Lado2)</strong>.
+</p>
+
+@* A RESPOSTA DIRETA, dupla por dupla — 🗣️ Felipe, 11/09/2026: *"fica a duvida de quantos games
+   precisa fazer para passar de fase"*. A tabela lá embaixo responde isso de lado (procure seu
+   nome nas linhas e deduza); esta lista responde de frente. *@
+<ul class="list-unstyled mb-3">
+    @foreach (var situacao in Model.Situacoes)
+    {
+        <li class="mb-2">
+            <span class="badge @Selo(situacao.Estado) me-1">@Rotulo(situacao.Estado)</span>
+            <strong class="small">@NomeDaDupla(situacao.Dupla)</strong>
+            <div class="small text-muted">@situacao.Frase</div>
+        </li>
+    }
+</ul>
+
+<div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+            <tr>
+                <th class="text-start">Se acontecer</th>
+                <th class="text-start">Classificam</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cenario in Model.Cenarios)
+            {
+                <tr>
+                    <td class="text-start">@cenario.Resultado</td>
+                    <td class="text-start fw-bold">
+                        @string.Join(", ", cenario.ClassificadosIds
+                            .Select(cid => Model.Situacoes.FirstOrDefault(s => s.Dupla.Id == cid))
+                            .Where(s => s != null)
+                            .Select(s => s!.NomeCurto))
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@* A régua é a mesma do chaveamento — dizer isso aqui evita a pergunta "e se o sistema
+   calcular diferente na hora?". *@
+<p class="small text-muted mt-2 mb-0">
+    Critério: vitórias, depois saldo de games, depois games a favor.
+</p>

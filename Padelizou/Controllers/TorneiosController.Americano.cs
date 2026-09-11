@@ -668,8 +668,19 @@ namespace Padelizou.Controllers
                          && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
                 .ToListAsync();
 
-            int passam = Math.Max(1, torneio.ClassificadosPorGrupo);
-            var formato = FormatoDaPartida.De(torneio, "Fase de Grupos");
+            // ⚠️ QUANTAS VAGAS: a régua única (ClassificacaoDeGrupos.VagasPorGrupo), que lê a
+            // CATEGORIA — a mesma que o AvancoDaChave lê pra montar o mata-mata de verdade.
+            //
+            // 🕳️ Até 11/09/2026 estava aqui `Math.Max(1, torneio.ClassificadosPorGrupo)`, e o
+            // campo do TORNEIO nasce 2 e nenhuma tela edita. Numa categoria de TIMES, onde o
+            // organizador escolhe de 1 a 4 por grupo em Times.cshtml, esta tela pintava 2 linhas
+            // de verde e simulava o painel com 2 enquanto a chave levava 4: o time em 3º lia que
+            // estava fora de uma vaga que ia receber. Ver VagasPorGrupoSaoUmaReguaSoTests.
+            var categoriaDaTela = await _context.Categorias
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TorneioId == id && c.Id == categoriaId);
+            int passam = ClassificacaoDeGrupos.VagasPorGrupo(categoriaDaTela);
+            var formato = FormatoDaPartida.De(torneio, FasesTorneio.FaseDeGrupos);
             var quadros = new Dictionary<string, OQuePrecisaParaClassificar.Quadro>();
 
             foreach (var grupo in duplas.GroupBy(d => d.Grupo!))
@@ -684,7 +695,9 @@ namespace Padelizou.Controllers
             }
 
             ViewBag.Torneio = torneio;
-            ViewBag.RegraClassificados = torneio.ClassificadosPorGrupo; // Para pintar de verde quem passa de fase
+            // O verde da tabela é `posicao <= N`: o MESMO N que o painel simula e que a chave
+            // usa. Eram dois números aqui, e o da tela discordava do chaveamento.
+            ViewBag.RegraClassificados = passam;
             ViewBag.OQueFalta = quadros;
             // O link do card da classificação precisa da categoria, e ela só chegava por
             // parâmetro — a view não tinha como remontar o próprio endereço.

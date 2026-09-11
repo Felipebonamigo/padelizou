@@ -43,6 +43,18 @@
 
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
     ViewData["Historico"] = historico;
+
+    // O ESCUDO DO TIME COMO SELO no canto da foto, na TABELA DO GRUPO. 🗣️ Felipe, 11/09/2026,
+    // com um print das duas tabelas: *"nessa parte aqui, dos grupos, faça igual dos jogos ao
+    // vivo, com o logo redondinho no canto da foto"*.
+    //
+    // ⚠️ A coluna da dupla é a mais apertada do site (180px, nome truncado com reticências): do
+    // lado do nome o escudo roubava letra de um nome que já estava cortado. No canto da foto
+    // não ocupa linha nenhuma.
+    //
+    // Mesmo mecanismo do card ao vivo (ver _JogosDoTorneio): quem muda é o HTML do chip, não só
+    // a posição no CSS — o selo nasce DENTRO da moldura da foto.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
     var pontosTimes = ViewBag.PontosTimes as List<PontosTimeTorneioVM> ?? new List<PontosTimeTorneioVM>();
     // Quem está olhando a página. Usado pra mostrar o botão de desistir só na própria
     // inscrição — nos cards dos outros ele seria um botão de tirar gente do torneio.
@@ -1264,7 +1276,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <i class="bi bi-people-fill" style="color: var(--padel-green);"></i>
                         <strong>Categoria de times:</strong>
                         @timesDaCategoria.Count de @(cat.QuantidadeTimes ?? timesDaCategoria.Count) times ·
-                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam @(cat.ClassificadosPorGrupo ?? 2) por grupo.
+                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                        @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(cat) por grupo.
                         Os times são cadastrados pelo organizador.
                     </div>
                     @if (timesDaCategoria.Any())
@@ -4493,7 +4506,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small mb-2">
                                 <strong style="color: var(--pdz-ink);">@catTimes.Nome</strong> —
                                 @catTimes.Duplas.Count(d => d.NomeTime != null) de @(catTimes.QuantidadeTimes ?? 0) times ·
-                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam @(catTimes.ClassificadosPorGrupo ?? 2)
+                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                                @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(catTimes)
                             </p>
                         }
                         <a asp-action="Times" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3">
@@ -5949,7 +5963,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             var duplasPorGrupo = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
                             var desenhoAtual = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
                                             ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
-                                                   gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2, duplasPorGrupo);
+                                                   gruposDaCategoria,
+                                                   Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                                   duplasPorGrupo);
 
                             if (desenhoAtual != null)
                             {
@@ -6007,6 +6023,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             }
                         }
 
+                        @{
+                            // O pop-up "O QUE CADA UM PRECISA PARA PASSAR" de cada grupo (🗣️ Felipe,
+                            // 11/09/2026, num print do Grupo B do 2ª Etapa ER Padel Tour: *"que o grupo
+                            // de 3, ja tiveram 2 jogos e falta um ... fica a duvida de quantos games
+                            // precisa fazer para passar de fase"*).
+                            //
+                            // A conta NÃO é daqui: vem pronta do controller, do mesmo motor que a tela
+                            // de Classificação já usava (Services/OQuePrecisaParaClassificar), que
+                            // simula o placar que falta e pergunta à régua oficial quem classifica.
+                            //
+                            // ⚠️ A chave é o Id DO GRUPO, não o nome: "Grupo A" existe em toda
+                            // categoria, e por nome o card da 4ª mostraria o que a 2ª precisa fazer.
+                            var oQuePrecisaPorGrupo = ViewBag.OQuePrecisaPorGrupo
+                                as Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>
+                                ?? new Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>();
+                        }
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -6017,10 +6049,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
-                                                <table class="table table-hover table-borderless mb-0 text-center align-middle">
+                                                <table class="table table-hover table-borderless mb-0 text-center align-middle pdz-grupo-tabela">
                                                     <thead class="table-light text-muted small">
                                                         <tr>
-                                                            <th class="text-start ps-3" style="width: 50%;">Dupla</th>
+                                                            @* Sem largura declarada de propósito: em `table-layout: fixed` esta é a
+                                                               coluna que recebe toda a sobra do card (as de J/V/D/SG pedem os poucos
+                                                               pixels de um número no site.css). O `width: 50%` que ficava aqui
+                                                               reservava METADE do card pros quatro dígitos. *@
+                                                            <th class="text-start ps-3">Dupla</th>
                                                             <th title="Jogos">J</th>
                                                             <th title="Vitórias" class="text-success">V</th>
                                                             <th title="Derrotas" class="text-danger">D</th>
@@ -6036,8 +6072,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 @* Compacto: avatar menor, clube escondido e nome truncando —
                                                                    nome quebrando em três linhas fazia cada linha do grupo
                                                                    ocupar três alturas. *@
-                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto" style="max-width: 180px;">
-                                                                    <partial name="_LadoDaPartida" model="dupla" />
+                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto">
+                                                                    <partial name="_LadoDaPartida" model="dupla" view-data="chipComSelo" />
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
@@ -6119,10 +6155,52 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </div>
                                             }
                                         </div>
+                                        @* Só no grupo em que falta UM jogo: antes disso não há
+                                           resposta pra dar, e depois o grupo já acabou. *@
+                                        @if (oQuePrecisaPorGrupo.ContainsKey(grupo.Id))
+                                        {
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-bold"
+                                                        type="button" data-bs-toggle="modal"
+                                                        data-bs-target="#oQuePrecisa-@grupo.Id">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    O que cada um precisa para passar
+                                                </button>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             }
                         </div>
+                        @* ── OS POP-UPS, UM POR GRUPO ──────────────────────────────────────────
+                           ⚠️ FORA DOS CARDS, e é por isso que existe este segundo laço em vez de
+                           o modal nascer junto do botão: `site.css` dá
+                           `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do
+                           grupo é exatamente isso. Ancestral com `transform` vira bloco de
+                           contenção do `position: fixed` — dentro do card, o pop-up ficaria preso
+                           ao card e do tamanho dele no instante em que o dedo encostasse. *@
+                        @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
+                        {
+                            if (oQuePrecisaPorGrupo.TryGetValue(grupo.Id, out var quadroDoGrupo))
+                            {
+                                <div class="modal fade" id="oQuePrecisa-@grupo.Id" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    @grupo.Nome — o que cada um precisa para passar
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <partial name="_OQuePrecisaParaClassificar" model="quadroDoGrupo" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
 
                         </div>
                         }
@@ -6144,7 +6222,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 @* O tamanho de cada grupo decide quem descansa — é assim que a
                                    prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
-                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2,
+                                    gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
                                     gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
 
                                 if (rodadasProjetadas.Count == 0)
@@ -6498,6 +6576,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>

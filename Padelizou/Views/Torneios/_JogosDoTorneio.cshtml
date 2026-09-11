@@ -452,8 +452,21 @@
                             </div>
 
                             @{
-                                bool ganhando1 = (jogo.GamesDupla1 ?? 0) > (jogo.GamesDupla2 ?? 0);
-                                bool ganhando2 = (jogo.GamesDupla2 ?? 0) > (jogo.GamesDupla1 ?? 0);
+                                // ⚠️ O VERDE É DE QUEM VENCEU, NÃO DE QUEM ESTÁ GANHANDO
+                                // (11/09/2026, Felipe num print de um 8 x 6 em quadra: "pq q
+                                // esse aqui ta o numero verde se o jogo n terminou?"). Aqui
+                                // morava um `games1 > games2`, então qualquer vantagem pintava
+                                // de lime — o mesmo lime que no card finalizado quer dizer
+                                // "venceu o jogo", duas cores iguais pra duas coisas diferentes.
+                                //
+                                // Quem responde é o servidor (Services/QuemVenceu.LadoJaDecidido,
+                                // entregue em CarregarViewBagJogosAsync): "decidido" tem soma ×
+                                // "até" e o desempate do "vencer por dois", e essa conta não
+                                // pode ter uma segunda cópia aqui.
+                                var vencedorDoJogo = (ViewBag.VencedorNoPlacar as Dictionary<int, int>)
+                                    ?.GetValueOrDefault(jogo.Id) ?? 0;
+                                bool venceu1 = vencedorDoJogo == 1;
+                                bool venceu2 = vencedorDoJogo == 2;
                                 // Quase todo jogo é 1 set até 9 games, então o games é o placar em
                                 // destaque. O set só aparece quando o jogo de fato virou 2 sets.
                                 bool mostrarSets = (jogo.SetsDupla1 ?? 0) > 0 || (jogo.SetsDupla2 ?? 0) > 0;
@@ -463,19 +476,30 @@
                                 // se o torneio sumiu do ViewBag — nunca é o limite de verdade.
                                 var tetosDoJogo = (ViewBag.TetoDeGames as Dictionary<int, (int Lado1, int Lado2)>)
                                     ?.GetValueOrDefault(jogo.Id) ?? (Lado1: 99, Lado2: 99);
+
+                                // Quem troca a bolinha de lado é exatamente quem já podia marcar
+                                // o saque pelo lápis — a mesma dupla de réguas que o POST do
+                                // Partidas/TrocarSaque confere de novo (PodeMarcarPlacarAsync).
+                                // Oferecer um alvo que o servidor vai recusar é desleixo que o
+                                // usuário paga.
+                                bool podeTrocarSaque = ehOrganizador
+                                    || Padelizou.Services.QuemMarcaOPlacar.Liberado(modoQuemMarca, meuId, jogo, ehInscritoDoTorneio);
                             }
                             @* A bolinha do saque: no padel, saber de quem é o saque é metade
-                               da leitura do jogo pra quem chega no meio de um game. Quem
-                               marca é o organizador, no Controle de Placar. *@
+                               da leitura do jogo pra quem chega no meio de um game.
+
+                               ⚠️ QUEM MARCA PLACAR TROCA DE LADO COM UM TOQUE (11/09/2026). O
+                               saque vira muitas vezes por jogo (🗣️ Felipe: "normalmente se vira
+                               após o 3º game, depois de 2 em 2, até finalizar a partida"), e até
+                               hoje cada troca custava abrir o Controle de Partida, salvar e
+                               voltar — por isso o campo vivia vazio e a bolinha não aparecia
+                               pra ninguém. Ver Views/Torneios/_BolinhaDoSaque.cshtml. *@
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla1" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
-                                <div class="pdz-live-placar @(ganhando1 ? "pdz-live-placar-ganhando" : "")">
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla1Id, podeTrocarSaque, Model.TargetAction)" />
+                                <div class="pdz-live-placar @(venceu1 ? "pdz-live-placar-venceu" : "")">
                                     @if (mostrarSets)
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla1 ?? 0)</span>
@@ -518,11 +542,8 @@
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla2" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
-                                <div class="pdz-live-placar @(ganhando2 ? "pdz-live-placar-ganhando" : "")">
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla2Id, podeTrocarSaque, Model.TargetAction)" />
+                                <div class="pdz-live-placar @(venceu2 ? "pdz-live-placar-venceu" : "")">
                                     @if (mostrarSets)
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla2 ?? 0)</span>

@@ -77,7 +77,7 @@
                         </div>
                         <div>
                             <label class="form-label small mb-0">Classificam</label>
-                            <input type="number" name="classificadosPorGrupo" min="1" max="4" value="@(categoria.ClassificadosPorGrupo ?? 2)"
+                            <input type="number" name="classificadosPorGrupo" min="1" max="4" value="@Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria)"
                                    class="form-control form-control-sm" style="width: 100px;" required />
                         </div>
                         <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
@@ -102,7 +102,7 @@
                 {
                     <p class="text-muted small mb-3">
                         @(categoria.QuantidadeGrupos ?? 1) grupo(s), todos contra todos dentro do grupo ·
-                        classificam @(categoria.ClassificadosPorGrupo ?? 2) por grupo pro mata-mata.
+                        classificam @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria) por grupo pro mata-mata.
                     </p>
                 }
 

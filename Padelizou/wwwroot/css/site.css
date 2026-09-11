@@ -940,7 +940,10 @@ a:hover { color: var(--pdz-lime-600); }
     border-radius: 6px;
     background: rgba(255, 255, 255, .12);
 }
-.pdz-live-placar-ganhando { color: var(--pdz-lime); }
+/* O lime é de QUEM VENCEU o jogo — nunca de quem está só na frente (11/09/2026). O card
+   finalizado usa esta mesma cor pra dizer "venceu"; pintar a vantagem de um jogo em quadra
+   com ela fazia a tela anunciar um fim que não aconteceu. */
+.pdz-live-placar-venceu { color: var(--pdz-lime); }
 .pdz-live-editar {
     color: rgba(255,255,255,.65);
     font-size: .78rem;
@@ -2013,6 +2016,36 @@ button, a, input, select { touch-action: manipulation; }
     margin: 0 auto;
 }
 
+/* ── Tabela do grupo: a sobra é do NOME, não dos números (11/09/2026) ───────
+   🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem
+   um pouco menos espaçados, para que caiba mais do nome das pessoas"*.
+
+   O chip compacto de 10/09 resolveu a ALTURA da linha (avatar menor, clube escondido,
+   nome truncando) e deixou a LARGURA de lado: com `table-layout: auto`, o navegador
+   devolvia toda a sobra do card pras quatro colunas de UM DÍGITO — "Augusto Ohlweiler"
+   saía "Augusto Ohl…" ao lado de um "0" com ~90px só pra ele.
+
+   ⚠️ Tirar o teto da célula da dupla sozinho NÃO resolveria: em layout `auto` a coluna
+   sem teto passa a pedir o nome INTEIRO (o chip é `white-space: nowrap`) e a tabela
+   estoura a `.table-responsive`. Quem reparte é o layout FIXO: as quatro pedem o que
+   precisam e a única sem largura declarada — a da dupla — fica com o resto. */
+.pdz-grupo-tabela { table-layout: fixed; }
+
+/* Um dígito não precisa de mais que isto, e o `.5rem` de cada lado que o Bootstrap dá a
+   toda célula (`--bs-table-cell-padding-x`) é mais largo que o dígito que ele emoldura. */
+.pdz-grupo-tabela th:not(:first-child),
+.pdz-grupo-tabela td:not(:first-child) {
+    width: 30px;
+    padding-left: .1rem;
+    padding-right: .1rem;
+}
+
+/* ⚠️ O SALDO É MAIS LARGO DE PROPÓSITO: ele guarda sinal + dois dígitos ("+12"), e em
+   layout fixo a célula NÃO cresce pelo conteúdo — apertado no tamanho de J/V/D, o número
+   sai cortado em vez de empurrar a coluna. */
+.pdz-grupo-tabela th:last-child,
+.pdz-grupo-tabela td:last-child { width: 42px; }
+
 /* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
    A tabela mostra V/D/SG; estes são os jogos que produziram (ou vão produzir)
    aqueles números. Ficam juntos de propósito: o placar já existia no sistema, só
@@ -2433,15 +2466,45 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-chip-compacto a { min-width: 0; max-width: 100%; }
 
 /* ── Escudo do time, do lado do nome (11/09/2026) ──────────────────────────
-   `contain`, e nunca `cover`: escudo é PNG transparente de proporção LIVRE
+   `contain`, e nunca `cover`: escudo é imagem de proporção LIVRE
    (FormatoDeImagem.LogoTime só limita o lado maior), então o corte que serve
-   pra foto de rosto come a beirada de escudo largo. */
-.pdz-chip-escudo { width: 17px; height: 17px; object-fit: contain; flex: 0 0 auto; }
+   pra foto de rosto come a beirada de escudo largo.
 
-/* Na tabela do grupo o escudo é a ÚNICA pista do time (lá o nome do time fica
-   escondido) e a coluna tem ~180px — 14px cabe ao lado do nome truncado sem
-   roubar letra dele. */
-.pdz-chip-compacto .pdz-chip-escudo { width: 14px; height: 14px; }
+   ⚠️ A MOLDURA CLARA É O QUE IGUALA A FILEIRA (Felipe: "pq tem algumas
+   bandeirinhas sem fundo igual as demais"). Medidos os 17 escudos em uso no
+   torneio 26: só 3 são transparentes; os outros 14 trazem o fundo DENTRO do
+   arquivo — retângulo preto, azul-escuro, branco, e dois JPEG. Sem fundo no
+   CSS, cada um aparece como veio e a fileira fica salpicada.
+
+   Branco FIXO nos dois temas, e não `--pdz-surface`: os opacos são quase
+   todos claros por dentro: uma moldura que mudasse com o tema desigualaria
+   tudo de novo no escuro. `box-sizing` porque o padding é o respiro do logo
+   dentro da caixa — sem ele a caixa cresce e o alinhamento com o texto foge. */
+.pdz-chip-escudo {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    padding: 1px;
+    border: 1px solid rgba(28, 39, 66, .18);
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* Na tabela do grupo o escudo é a ÚNICA pista do time — lá o nome do time fica
+   escondido. Ele vai pro canto da foto, como no ao vivo (Felipe: "faça igual dos
+   jogos ao vivo, com o logo redondinho no canto da foto"), e encolhe junto: a
+   foto ali tem 26px contra os 36px do ao vivo, e o selo de 18px cobriria mais de
+   um terço do rosto. O tamanho abaixo vale também pro escudo ao lado do nome,
+   que é o que sobra numa tela compacta que não peça selo. */
+.pdz-chip-compacto .pdz-chip-escudo { width: 16px; height: 16px; }
+.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo {
+    width: 14px;
+    height: 14px;
+    right: -2px;
+    bottom: -2px;
+}
 
 /* O SELO: no card AO VIVO o escudo sai do lado do nome e vai pro canto da foto
    (Felipe, 11/09/2026: "e no ao vivo use esse do B"). Quem ancora o canto é a
@@ -2459,22 +2522,31 @@ button, a, input, select { touch-action: manipulation; }
     position: absolute;
     right: -3px;
     bottom: -3px;
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
     padding: 1px;
+    border: 0;
     border-radius: 50%;
-    background: var(--pdz-navy-fixed);
-    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .5);
+    /* ⚠️ CLARO, e não o navy que ele nasceu tendo: o card é navy, e escudo
+       escuro sobre selo escuro some — o "Compass", preto, desaparecia dentro
+       do próprio selo. O anel escuro é o que separa o selo da foto atrás. */
+    background: #fff;
+    box-shadow: 0 0 0 1.5px rgba(16, 24, 45, .55);
 }
 
 /* O escudo na LISTA de jogos (Agendadas/Finalizadas): inline, do tamanho do nome
    que ele acompanha — lá o nome da dupla é uma linha de texto, não um chip. */
 .pdz-jl-escudo {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     object-fit: contain;
-    vertical-align: -2px;
+    vertical-align: -3px;
     margin-left: 4px;
+    box-sizing: border-box;
+    padding: 1px;
+    border: 1px solid rgba(28, 39, 66, .18);
+    border-radius: 4px;
+    background: #fff;
 }
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
@@ -2533,13 +2605,107 @@ button, a, input, select { touch-action: manipulation; }
    brilho e a costura — em texto ("saque") ela competiria com o nome da dupla. */
 .pdz-bolinha {
     display: inline-block;
+    position: relative;
     flex: 0 0 auto;
-    width: .7rem;
-    height: .7rem;
+    width: .85rem;
+    height: .85rem;
     border-radius: 50%;
+    overflow: hidden;
     background: radial-gradient(circle at 32% 30%, #f4ff8a 0%, #d8e94a 45%, #b6c92f 100%);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .18) inset, 0 0 6px rgba(216, 233, 74, .55);
     vertical-align: middle;
+}
+
+/* A COSTURA, que é o que faz a bolinha LER como bola de padel e não como um ponto amarelo
+   qualquer (🗣️ Felipe, 11/09/2026: "voce consegue fazer a imagem de uma bolinha de tenis?").
+   São dois círculos maiores que a bola, empurrados pra fora nas laterais: só o arco de cada um
+   cruza a face, e o `overflow: hidden` da bola corta o resto.
+
+   ⚠️ SEM ARQUIVO DE IMAGEM DE PROPÓSITO. Um .png custaria uma requisição por página, uma
+   entrada a mais no service worker e uma versão pra manter em duas resoluções — pra desenhar
+   dois arcos. O degrau da escada que resolve aqui é o CSS. */
+.pdz-bolinha::before,
+.pdz-bolinha::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    bottom: -30%;
+    width: 100%;
+    border: 1.5px solid rgba(255, 255, 255, .82);
+    border-radius: 50%;
+}
+
+.pdz-bolinha::before { left: -62%; }
+.pdz-bolinha::after { right: -62%; }
+
+/* ── O QUIQUE ──────────────────────────────────────────────────────────────
+   Só na bola de quem ESTÁ sacando, e só `transform` (o navegador anima isso na GPU, sem
+   recalcular layout nenhum): são no máximo uns poucos cards ao vivo por torneio, então o custo
+   é o mesmo da bolinha pulsante do "AO VIVO" que já vive no mesmo card.
+
+   `transform-origin: bottom` é o que faz o esmagamento parecer peso batendo no chão em vez de
+   a bola encolhendo no ar. */
+.pdz-bolinha-quica {
+    transform-origin: bottom center;
+    animation: pdz-quica 1.5s cubic-bezier(.3, 0, .5, 1) infinite;
+}
+
+@keyframes pdz-quica {
+    0% { transform: translateY(0) scale(1, 1); }
+    8% { transform: translateY(0) scale(1.18, .82); }
+    22% { transform: translateY(-.3rem) scale(.94, 1.06); }
+    50% { transform: translateY(-.42rem) scale(1, 1); }
+    78% { transform: translateY(-.3rem) scale(.97, 1.03); }
+    100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* ⚠️ Quem pediu menos movimento no sistema NÃO recebe a bola quicando. Animação infinita é
+   justamente o tipo que incomoda quem marcou essa preferência — e a informação (de que lado
+   está a bola) não depende do movimento pra chegar. */
+@media (prefers-reduced-motion: reduce) {
+    .pdz-bolinha-quica { animation: none; }
+}
+
+/* A bola APAGADA do outro lado: é o alvo de "passar o saque pra cá". Contorno, não bola —
+   duas bolas acesas no mesmo card não diriam quem está sacando, que é a única pergunta que
+   este desenho existe pra responder. */
+.pdz-bolinha-apagada {
+    background: none;
+    box-shadow: 0 0 0 1.5px var(--pdz-border) inset;
+    opacity: .55;
+}
+
+.pdz-bolinha-apagada::before,
+.pdz-bolinha-apagada::after { display: none; }
+
+/* O alvo de toque tem 40px, e não os 13px da bola: o organizador troca o saque de pé, com o
+   celular numa mão e a quadra rolando — é o mesmo motivo dos botões de 48px da Mesa.
+   `touch-action: manipulation` tira o atraso de 300ms do duplo-toque. */
+.pdz-saque-forma {
+    flex: 0 0 auto;
+    margin: 0;
+    display: flex;
+}
+
+.pdz-saque-toque {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.pdz-saque-toque:hover .pdz-bolinha-apagada { opacity: .95; }
+
+.pdz-saque-toque:focus-visible {
+    outline: 2px solid var(--pdz-lime);
+    outline-offset: 2px;
+    border-radius: 50%;
 }
 
 /* ---- Escolha de quem saca, no Controle de Placar ---- */
@@ -2689,26 +2855,35 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-live-input {
     width: 2.2em;
     text-align: center;
-    background: var(--pdz-surface);
+
+    /* ⚠️ FUNDO ESCURO FIXO, e não `var(--pdz-surface)` (11/09/2026). O cabeçalho do card é
+       escuro NOS DOIS TEMAS (gradiente navy em .pdz-live-header), mas este campo pegava o
+       token que SEGUE o tema da página — `#ffffff` no claro — com a tinta cravada em `#fff`
+       logo abaixo. No tema escuro os dois combinavam por coincidência; no CLARO era branco no
+       branco, e o placar simplesmente não aparecia (medido no navegador: `rgb(255,255,255)`
+       sobre `rgb(255,255,255)`). Quem mora num fundo fixo se pinta com cor fixa. */
+    background: var(--pdz-navy-fixed);
 
     /* ⚠️ `color: inherit` NÃO SERVE AQUI, e era o motivo de o placar ficar ruim de ler
        (Felipe, 21/08/2026). O pai (.pdz-live-placar) é branco a 55% de opacidade — cinza de
        propósito, porque LÁ o número é decoração ao lado dos nomes. Dentro da caixinha ele
        deixa de ser decoração: é o número que o organizador lê de pé, no balcão, com a quadra
        rolando, e é o que ele vai editar. Herdar os 55% apagava justamente o que precisa ser
-       lido. O verde de quem está ganhando continua vindo do pai, pela regra logo abaixo. */
+       lido. O verde de quem VENCEU continua vindo do pai, pela regra logo abaixo. */
     color: #fff;
 
     font-size: 1.9rem;
     font-weight: 800;
     line-height: 1.1;
-    border: 1px solid var(--pdz-border);
+    /* A borda acompanha o fundo: `var(--pdz-border)` é tinta escura a 9% no tema claro, que
+       sobre o card escuro não desenha caixa nenhuma. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 8px;
     padding: .05em .15em;
 }
 
-/* Quem está ganhando continua verde — agora com a cor CHEIA, não a 55% do pai. */
-.pdz-live-placar-ganhando .pdz-live-input { color: var(--pdz-lime); }
+/* Quem venceu continua verde — agora com a cor CHEIA, não a 55% do pai. */
+.pdz-live-placar-venceu .pdz-live-input { color: var(--pdz-lime); }
 
 .pdz-live-input:focus {
     outline: 2px solid var(--pdz-accent, #a3e635);
@@ -2733,10 +2908,13 @@ button, a, input, select { touch-action: manipulation; }
     width: 2.1rem;
     height: 2.1rem;
     flex: 0 0 auto;
-    border: 1px solid var(--pdz-border);
+    /* Mesmo motivo do campo ao lado (11/09/2026): estes botões moram no cabeçalho ESCURO do
+       card, que é escuro nos dois temas. Com os tokens que seguem o tema eles viravam dois
+       botões BRANCOS num card escuro — o contrário do defeito do campo, e a mesma causa. */
+    border: 1px solid rgba(255, 255, 255, .18);
     border-radius: 10px;
-    background: var(--pdz-surface);
-    color: var(--pdz-ink);
+    background: var(--pdz-navy-fixed);
+    color: #fff;
     font-size: 1.15rem;
     font-weight: 700;
     line-height: 1;

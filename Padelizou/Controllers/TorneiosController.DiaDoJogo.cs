@@ -332,18 +332,37 @@ namespace Padelizou.Controllers
             //
             // ⚠️ Pelo caminho `Categoria.TorneioId`, e não por `Partida.TorneioId`: é o mesmo
             // caminho do `Comunicar` aqui do lado, e o único que a categoria garante.
-            var agendadas = await _context.Partidas
+            var jogos = await _context.Partidas
                 .Include(p => p.Categoria)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.Categoria.TorneioId == id && p.Status == "Agendada")
+                .Where(p => p.Categoria.TorneioId == id)
                 .ToListAsync();
 
             ViewBag.JogosQueVem = OrdemNoHorario
-                .Ordenar(agendadas, Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Ordenar(jogos.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
                 .Select(l => l.Jogo!)
+                .ToList();
+
+            // O QUE JÁ COMEÇOU SAI DA FILA DE CIMA, MAS NÃO SOME DA TELA (11/09/2026).
+            //
+            // 🗣️ Felipe, com o ensaio do Er aberto: *"deixe apenas dos jogos que ainda não
+            // começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela
+            // minimazado como ja jogaram ou estão em jogo"*. Na primeira versão eles sumiam da
+            // tela inteira — e aí quem pusesse o jogo no ar antes de marcar a chegada perdia o
+            // caminho pro check-in daquela dupla, que só voltava pela lista de 64.
+            //
+            // ⚠️ AO VIVO ANTES DE FINALIZADO, e não uma ordem só: um está acontecendo AGORA (e
+            // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
+            // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
+            // mais recente pro mais antigo (placar lançado depois cai pro horário previsto).
+            ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
+                .OrderBy(p => p.HorarioInicioReal)
+                .Concat(jogos.Where(p => p.Status == "Finalizada")
+                    .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto)
+                    .ThenByDescending(p => p.Id))
                 .ToList();
 
             return View(torneio);

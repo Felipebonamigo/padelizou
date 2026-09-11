@@ -100,6 +100,29 @@
             </div>
         </div>
 
+        @* ── A PLANILHA ──────────────────────────────────────────────────────────────────
+           🗣️ "crie tambem uma opção de importar planilha se quiserem" (Felipe, 11/09/2026).
+           A terceira saída da mesma lista, pra quem vai ORGANIZAR em vez de postar: ordenar por
+           quadra, imprimir pro balcão, mandar a escala pro clube.
+
+           Os filtros vão no MESMO dicionário de rota da arte — uma segunda lista de parâmetros
+           escrita à mão é o que faria a planilha discordar da imagem logo abaixo dela. *@
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body">
+                <p class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                    <i class="bi bi-file-earmark-spreadsheet text-success"></i> Pra planilha
+                </p>
+                <a href="@Url.Action("JogosPlanilha", "Torneios", Model.Filtros)"
+                   class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="bi bi-download"></i> Baixar em planilha
+                </a>
+                <div class="form-text mt-2">
+                    Arquivo <code>.csv</code> com uma linha por jogo (data, hora, categoria, fase,
+                    local e as duas duplas). Abre no Excel, no Google Sheets e no Numbers.
+                </div>
+            </div>
+        </div>
+
         @* ── AS ARTES PRO INSTAGRAM ──────────────────────────────────────────────────────── *@
         <p class="fw-bold mb-2" style="color: var(--pdz-ink);">
             <i class="bi bi-instagram text-danger"></i> Pro story e pro feed

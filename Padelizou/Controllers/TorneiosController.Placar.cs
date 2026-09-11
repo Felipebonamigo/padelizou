@@ -201,6 +201,14 @@ namespace Padelizou.Controllers
                             games2 = g2,
                             teto1 = FormatoDaPartida.TetoDoLado(f, g1, g2),
                             teto2 = FormatoDaPartida.TetoDoLado(f, g2, g1),
+                            // E QUEM JÁ VENCEU — 1, 2 ou 0 pra "ainda tem jogo". É o verde do
+                            // card (11/09/2026). Sem ele na resposta, a cor só mudaria no HTML
+                            // da atualização automática, que NÃO roda com o cursor dentro do
+                            // campo (`estaOcupado` em jogos-ao-vivo-atualiza.js): quem digitasse
+                            // 9 e corrigisse pra 8 ficaria com o verde aceso do lado errado por
+                            // tempo indeterminado. Mesma régua do teto, mesmo motivo de ela vir
+                            // pronta do servidor.
+                            vencedor = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0,
                             aoVivo = p.Status == "AoVivo",
                         };
                     }),
