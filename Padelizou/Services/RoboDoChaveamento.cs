@@ -115,32 +115,60 @@ public class RoboDoChaveamento
         // Fase que não encadeia (grupos, Americano, Final) para aqui.
         if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
 
-        // Vencedores da fase + quem passou direto (bye), com a fase completa conferida lá
-        // dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
-        var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
-        if (avancam.Count < 2) return;
+        // As vagas da rodada seguinte, na ordem do quadro: vencedores desta fase (null onde o
+        // jogo ainda não acabou) e, na primeira rodada, quem passou direto. Ver
+        // Services/AvancoDaChave. Vazio = não há o que avançar.
+        var vagas = await AvancoDaChave.VagasDaProximaFaseAsync(_context, categoriaId, faseConcluida);
+        if (vagas.Count < 2) return;
 
         // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24 entrega
         // 16 (8 vencedores + 8 byes), que são Oitavas — e não as Quartas que o encadeamento
         // por NOME sugeriria. Quem manda é quanta gente sobrou.
-        var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
+        var proximaFase = ChaveamentoMataMata.NomeFase(vagas.Count);
 
-        // Nunca gera a próxima fase em duplicidade (dois finalizamentos quase simultâneos).
-        if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
+        // ── O AVANÇO PARCIAL (11/09/2026) ────────────────────────────────────────────────
+        // 🗣️ Felipe: *"terminou a primeira quarta de final, esse que já classificou, já vai a
+        // dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
+        //
+        // A rodada não nasce mais inteira: nasce jogo a jogo, à medida que as DUAS vagas de
+        // cada confronto ganham dono (`ParearVencedores` cruza a vaga i com a n-1-i, então a
+        // Semifinal 1 é "vencedor da Quartas 1 × última vaga" — e a última vaga costuma ser um
+        // bye, que já tem dono desde o sorteio).
+        //
+        // ⚠️ EM ORDEM DE QUADRO, E ISSO NÃO É CAPRICHO. O número de um jogo dentro da fase é a
+        // ordem de CRIAÇÃO (ReservasDeHorario.NumeroNaFase, por Id), e dela dependem o desenho
+        // da chave (Services/OrdemDoQuadro), a procedência da prévia ("Vencedor Semifinal 2") e
+        // a reserva de horário que o organizador fez no jogo previsto. Deixar a Semifinal 2
+        // nascer antes da 1 por ter terminado primeiro faria as três apontarem pro jogo errado.
+        // Por isso o laço PARA no primeiro confronto que ainda não dá pra montar, em vez de
+        // pular pro seguinte: o preço de uma vaga adiantada seria a chave inteira mentindo.
+        //
+        // ⚠️ E É ESTE CONTADOR que impede a fase de nascer duas vezes — dois finalizamentos
+        // quase simultâneos, ou o organizador reabrindo e refinalizando o mesmo jogo. Antes a
+        // guarda era "a próxima fase já existe?", que não serve mais: agora ela existe pela
+        // metade o tempo todo.
+        int jaCriados = await _context.Partidas
+            .CountAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase);
 
-        var novos = ChaveamentoMataMata.ParearVencedores(avancam)
-            // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
-            .Select(confronto => new Partida
+        var novos = new List<Partida>();
+        for (int i = jaCriados; i < vagas.Count / 2; i++)
+        {
+            if (vagas[i] is not int lado1 || vagas[vagas.Count - 1 - i] is not int lado2) break;
+
+            novos.Add(new Partida
             {
                 TorneioId = torneioId,
                 CategoriaId = categoriaId,
                 Fase = proximaFase,
                 Status = "Agendada",
-                Dupla1Id = confronto.Dupla1Id,
-                Dupla2Id = confronto.Dupla2Id,
+                Dupla1Id = lado1,
+                Dupla2Id = lado2,
+                // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
                 Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-            })
-            .ToList();
+            });
+        }
+
+        if (novos.Count == 0) return;
 
         await AgendarNaGradeAsync(novos, torneioId);
 
