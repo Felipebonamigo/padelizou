@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe: *"estou pensando em botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes, como ficaria? e como me indica colocar?"* — foram três maquetes (escudo junto do nome · selo na foto · bandeira da dupla inteira) e ele escolheu a primeira.
+>
+> ✅ **NADA DE BANCO, NADA DE CONSULTA NOVA.** `Jogador.Time` já vinha com `ThenInclude` em toda consulta de torneio que desenha o chip (`TorneiosController` 314-323 e 1244-1252) e o escudo é o `Time.Logo` que o cadastro de Times guarda desde sempre. O diff é **um `<img>` no `_JogadorChip.cshtml` + 19 linhas de CSS** — o degrau 2 da escada do CLAUDE.md resolvendo sozinho.
+>
+> 🎯 **UM ARQUIVO, QUATRO TELAS**: ao vivo, tabela do grupo, lista de inscritos e lista de duplas desenham o mesmo `_JogadorChip` — o escudo nasceu nas quatro de uma vez.
+>
+> ⚠️ **O ESCUDO FICA FORA DA LINHA DO CLUBE, E É A DECISÃO QUE IMPORTA AQUI.** Dentro do `<small class="pdz-chip-clube">` ele apareceria no ao vivo e **sumiria na tabela do grupo**, porque `.pdz-chip-compacto .pdz-chip-clube { display:none }` esconde aquela linha inteira desde que o compacto nasceu — e é justamente lá que o escudo é a **única** pista do time, porque o nome do time não é escrito. Então ele é irmão do bloco de texto, à direita do nome: uma posição só, que serve aos dois modos. Na maquete ele estava colado ao nome do time; a posição mudou pra não perder o compacto.
+>
+> ⚠️ **`object-fit: contain`, nunca `cover`** — escudo é PNG transparente de proporção LIVRE (`FormatoDeImagem.LogoTime` só limita o lado maior), e `cover` come a beirada de escudo largo. ⚠️ **E o `_LadoDaPartida` (categoria de times) e o `Times/Index` cortam o logo com `cover` ATÉ HOJE** — defeito anterior a este trabalho, deixado de pé de propósito: é outra tela, e uma coisa de cada vez.
+>
+> 🩹 **Chapinha clara só no card AO VIVO** (`.pdz-live-jogadores .pdz-chip-escudo`): lá o fundo é navy, e escudo escuro de fundo transparente desaparece nele.
+>
+> 🧪 **6.381 testes, 0 falhas (4 novos, em `EscudoDoTimeNoChipTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-chip-escudo"*, *"não achei a regra .pdz-chip-escudo no site.css"* e *"não achei o `<img>` do escudo no chip"*. **Um deles passou de primeira e foi reescrito até discriminar**: "o escudo fica fora da linha do clube" passa trivialmente num chip que não tem escudo nenhum, então ele agora exige primeiro que o escudo EXISTA.
+>
+> ⚠️ **A suíte não renderiza Razor** (ver `SeloDeCampeaoDaCategoriaTests`, seção 4), então os 4 testes são guarda de ARQUIVO: travam o que, desfeito, apaga o escudo da tela sem deixar nenhum outro teste vermelho. ⚠️ **Não foi visto no navegador** — sessão web, sem browser.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a lista de Agendadas/Finalizadas (`_JogoEmLinha`, onde não existe nome de time pra acompanhar o escudo — era a opção B) e o **cartão de imagem do WhatsApp** (`CartaoDosJogos`), onde escudo é desenho SkiaSharp e não HTML.
+
 > Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
 >
 > 🔤 **O SELETOR DE CATEGORIAS GANHOU ORDEM E ABRE NA CATEGORIA DE QUEM OLHA.** Duas queixas do Felipe sobre o seletor que subiu no `build-1024`: *"esta fora de ordem"* e *"venha sempre selecionado a categoria que o usuario esta cadastrado (se estiver em duas, vem na melhor delas 1>2>3>4)"*.
