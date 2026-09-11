@@ -61,6 +61,10 @@
     int? meuId = ViewBag.MeuId as int?;
     var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
+    // O link que a câmera de cada quadra está usando hoje — o modal da largada sugere ele ao
+    // escolher a quadra. A câmera é do LUGAR, não do jogo (Services/TransmissaoDaQuadra); a
+    // prioridade de lá (quem está em quadra > quem vem > histórico) é o que decide o empate.
+    var camerasPorQuadra = Padelizou.Services.TransmissaoDaQuadra.PorQuadra(aoVivoList.Concat(agendadasList));
     // As quadras que o torneio usa — a lista do "mudar de quadra".
     var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
     // Os horários que ESTE torneio usa — a lista do "definir horário" (Services/HorariosDaGrade).
@@ -90,12 +94,32 @@
             <span class="d-block">@TempData["ProximoJogoQuem"]</span>
             <small class="opacity-75">@TempData["ProximoJogoQuando"]</small>
         </div>
-        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-padel fw-bold">
+        @* MESMA REGRA DO PLAY DA LINHA (11/09/2026): com quadra, pergunta; sem quadra, abre o
+           modal pra escolher onde. Este botão nasceu antes da regra e botava o jogo no ar
+           direto -- um único botão de começar sem pergunta é a inconsistência que a pessoa
+           encontra no clique seguinte. *@
+        @{ var quadraDoProximo = TempData["ProximoJogoQuadra"] as string; }
+        @if (string.IsNullOrWhiteSpace(quadraDoProximo))
+        {
+            <button type="button" class="btn btn-padel fw-bold"
+                    data-bs-toggle="modal" data-bs-target="#modalIniciarJogo"
+                    data-jogo-id="@proximoJogoId"
+                    data-jogo-rotulo="@TempData["ProximoJogoQuem"]">
                 <i class="bi bi-play-fill"></i> Começar agora
             </button>
-        </form>
+        }
+        else
+        {
+            <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post"
+                  data-confirmar="O jogo entra AO VIVO na @quadraDoProximo e o cronômetro começa a contar agora."
+                  data-confirmar-titulo="Começar este jogo?"
+                  data-confirmar-ok="Começar">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-padel fw-bold">
+                    <i class="bi bi-play-fill"></i> Começar agora
+                </button>
+            </form>
+        }
     </div>
 }
 
@@ -439,18 +463,29 @@
                                 // se o torneio sumiu do ViewBag — nunca é o limite de verdade.
                                 var tetosDoJogo = (ViewBag.TetoDeGames as Dictionary<int, (int Lado1, int Lado2)>)
                                     ?.GetValueOrDefault(jogo.Id) ?? (Lado1: 99, Lado2: 99);
+
+                                // Quem troca a bolinha de lado é exatamente quem já podia marcar
+                                // o saque pelo lápis — a mesma dupla de réguas que o POST do
+                                // Partidas/TrocarSaque confere de novo (PodeMarcarPlacarAsync).
+                                // Oferecer um alvo que o servidor vai recusar é desleixo que o
+                                // usuário paga.
+                                bool podeTrocarSaque = ehOrganizador
+                                    || Padelizou.Services.QuemMarcaOPlacar.Liberado(modoQuemMarca, meuId, jogo, ehInscritoDoTorneio);
                             }
                             @* A bolinha do saque: no padel, saber de quem é o saque é metade
-                               da leitura do jogo pra quem chega no meio de um game. Quem
-                               marca é o organizador, no Controle de Placar. *@
+                               da leitura do jogo pra quem chega no meio de um game.
+
+                               ⚠️ QUEM MARCA PLACAR TROCA DE LADO COM UM TOQUE (11/09/2026). O
+                               saque vira muitas vezes por jogo (🗣️ Felipe: "normalmente se vira
+                               após o 3º game, depois de 2 em 2, até finalizar a partida"), e até
+                               hoje cada troca custava abrir o Controle de Partida, salvar e
+                               voltar — por isso o campo vivia vazio e a bolinha não aparecia
+                               pra ninguém. Ver Views/Torneios/_BolinhaDoSaque.cshtml. *@
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla1" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla1Id, podeTrocarSaque, Model.TargetAction)" />
                                 <div class="pdz-live-placar @(ganhando1 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
                                     {
@@ -494,10 +529,7 @@
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla2" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla2Id, podeTrocarSaque, Model.TargetAction)" />
                                 <div class="pdz-live-placar @(ganhando2 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
                                     {
@@ -1098,6 +1130,111 @@
                     Array.from(select.options).forEach(function (opcao) {
                         opcao.hidden = opcao.getAttribute('data-quadra') === atual && atual !== '';
                     });
+                });
+            });
+        </script>
+
+        @* MODAL: a LARGADA de um jogo que ainda não tem quadra (11/09/2026).
+
+           🗣️ Felipe: "quando nao tem quadra definida, coloque para escolher a quadra e deixe a
+           opção de colocar link da transmissão tambem nesse pop up, e ai iniciar a partida".
+
+           Duas decisões no mesmo gesto, porque é o gesto do balcão: a quadra vagou, quem entra
+           é este jogo, e se tem câmera ali o link já vai junto. Quadra ocupada no mesmo horário
+           não é recusada — as duas trocam de lugar, igual ao "mudar de quadra"
+           (Services/TrocaDeQuadra). Quem já TEM quadra nem chega aqui: o verde só pergunta. *@
+        <div class="modal fade" id="modalIniciarJogo" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Partidas" asp-action="ColocarNoAr" method="post" class="modal-content">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" id="largadaJogoId" value="" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-play-fill"></i> Começar o jogo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Jogo escolhido: <strong id="largadaJogoRotulo">—</strong>
+                        </p>
+
+                        @if (quadrasDoTorneio.Count == 0)
+                        {
+                            <p class="mb-0">
+                                Este torneio não tem quadras cadastradas — o jogo começa sem quadra,
+                                e você pode dizer onde foi depois, pelo Controle de Partida.
+                            </p>
+                        }
+                        else
+                        {
+                            <label class="form-label fw-bold" for="largadaQuadra">Em qual quadra?</label>
+                            <select name="nomeQuadra" id="largadaQuadra" class="form-select" required>
+                                <option value="">Escolha a quadra...</option>
+                                @foreach (var nome in quadrasDoTorneio)
+                                {
+                                    @* A câmera é da QUADRA, não do jogo (Services/TransmissaoDaQuadra):
+                                       escolher a quadra já traz o link que ela está usando hoje. *@
+                                    <option value="@nome" data-camera="@(camerasPorQuadra.GetValueOrDefault(nome))">@nome</option>
+                                }
+                            </select>
+                            <div class="form-text mb-3">
+                                Se já tiver jogo nessa quadra neste horário, os dois trocam de lugar.
+                            </div>
+                        }
+
+                        <label class="form-label fw-bold" for="largadaLink">Link da transmissão (opcional)</label>
+                        <input type="url" name="linkTransmissao" id="largadaLink" class="form-control"
+                               placeholder="https://..." />
+                        <div class="form-text">
+                            Preenchido sozinho quando a quadra escolhida já está transmitindo. O que você
+                            escrever aqui vale mais que o palpite.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-play-fill"></i> Começar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão da linha diz qual jogo é; a quadra escolhida diz qual link sugerir.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalIniciarJogo');
+                if (!modal) return;
+
+                var quadra = document.getElementById('largadaQuadra');
+                var link = document.getElementById('largadaLink');
+                // O link que o JOGO já tinha manda enquanto a pessoa não escolhe quadra, e é o
+                // que ela vê ao abrir: sugerir a câmera por cima de um link já gravado seria
+                // trocar o que alguém escolheu por um palpite.
+                var doJogo = '';
+
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    document.getElementById('largadaJogoId').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('largadaJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    doJogo = botao.getAttribute('data-jogo-link') || '';
+                    if (quadra) quadra.value = '';
+                    link.value = doJogo;
+                });
+
+                if (!quadra) return;
+                quadra.addEventListener('change', function () {
+                    var opcao = quadra.options[quadra.selectedIndex];
+                    var camera = (opcao && opcao.getAttribute('data-camera')) || '';
+
+                    // ⚠️ Só preenche o que está VAZIO ou o que a própria sugestão anterior pôs.
+                    // Sem isto, trocar de quadra depois de colar um link à mão apagaria o link
+                    // colado — em silêncio, no meio do balcão.
+                    if (link.value === '' || link.value === link.dataset.sugerido) {
+                        link.value = camera || doJogo;
+                        link.dataset.sugerido = camera || doJogo;
+                    }
                 });
             });
         </script>

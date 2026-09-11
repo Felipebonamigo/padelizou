@@ -187,7 +187,13 @@ namespace Padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> VerVotos(int partidaId)
         {
+            // ⚠️ O `partidaId` vem congelado no HTML do botão, e o jogo não: regerar a chave,
+            // regerar o americano e mudar um resultado do mata-mata APAGAM partidas. Quem estava
+            // com a lista aberta na hora fica com um botão apontando pro que não existe mais —
+            // e isso é 404, não erro do sistema (foram três 500 no vigia em 11/09/2026).
             var votantes = await _palpites.ObterVotantesAsync(partidaId);
+            if (votantes == null) return NotFound();
+
             return Json(votantes);
         }
 
@@ -270,6 +276,9 @@ namespace Padelizou.Controllers
             if (proxima == null) return;
 
             TempData["ProximoJogoId"] = proxima.Id;
+            // O nome CRU da quadra, além da frase: é ele que diz se o aviso pode perguntar
+            // direto ("começar na Quadra 1?") ou se precisa abrir o modal pra escolher onde.
+            TempData["ProximoJogoQuadra"] = proxima.NomeQuadra;
             TempData["ProximoJogoOnde"] = string.IsNullOrWhiteSpace(proxima.NomeQuadra)
                 ? "A quadra vagou"
                 : $"A {proxima.NomeQuadra} vagou";
@@ -288,13 +297,39 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ColocarNoAr(int id, string? voltarPara = null)
+        //
+        // ⚠️ `nomeQuadra` e `linkTransmissao` (11/09/2026) existem porque no "por ordem de
+        // liberação" o jogo chega em quadra SEM quadra, de propósito: quem joga é quem a quadra
+        // que vagou chamar. Dizer onde é custava uma segunda tela, no pior momento do dia.
+        public async Task<IActionResult> ColocarNoAr(int id, string? voltarPara = null,
+            string? nomeQuadra = null, string? linkTransmissao = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
             // Régua de MARCAR, não a da mesa: dar a largada no próprio jogo é parte de
             // marcar o placar quando o organizador abriu essa porta.
             if (!await PodeMarcarPlacarAsync(partida)) return Forbid();
+
+            // A quadra só é escolhida na LARGADA, e só pra jogo que ainda NÃO tem uma. Jogo com
+            // quadra já tem a tela de mudar de quadra, que sabe avisar quem perdeu o lugar;
+            // deixar este POST remanejar seria uma segunda porta pro mesmo estrago, sem avisos.
+            if (!string.IsNullOrWhiteSpace(nomeQuadra)
+                && string.IsNullOrWhiteSpace(partida.NomeQuadra)
+                && partida.TorneioId.HasValue)
+            {
+                if (await DarAQuadraNaLargadaAsync(partida, nomeQuadra.Trim()) is { } motivo)
+                {
+                    // NÃO começa. Ver "no ar" e sair pra cuidar de outro jogo, com a quadra que
+                    // a pessoa acabou de escolher no chão, é pior do que não ter começado.
+                    TempData["Erro"] = motivo;
+                    return VoltarDaLargada(partida, id, voltarPara);
+                }
+            }
+
+            // O que foi DIGITADO ganha do que a câmera da quadra sugeriu: TransmissaoDaQuadra é
+            // um palpite bom, mas quem está no balcão olhando a tela sabe mais. Campo vazio não
+            // apaga link nenhum — pra TIRAR a transmissão existe o Controle de Partida.
+            if (!string.IsNullOrWhiteSpace(linkTransmissao)) partida.LinkTransmissao = linkTransmissao.Trim();
 
             // Idempotente: dois toques no botão (celular, dedo grande, 3G lento) não podem
             // zerar o cronômetro de uma partida que já começou.
@@ -304,10 +339,17 @@ namespace Padelizou.Controllers
                 partida.HorarioInicioReal ??= DateTime.Now;
                 partida.HorarioFimReal = null;
                 partida.SendoTransmitida = !string.IsNullOrEmpty(partida.LinkTransmissao);
+                // Jogo em quadra tem alguém sacando (Services/SaqueDoJogo). Qual dupla é
+                // indiferente — o card é que não pode nascer sem bolinha.
+                SaqueDoJogo.DefinirNaLargada(partida);
 
-                await _context.SaveChangesAsync();
                 TempData["Sucesso"] = "Partida no ar!";
             }
+
+            // ⚠️ O SAVE SAIU DE DENTRO DO `if`. Quadra e link são gravados ANTES dele, e num
+            // jogo que já estava no ar o `if` não roda -- a escolha morria na memória, sem erro
+            // nenhum. Sem mudança pendente isto não toca no banco.
+            await _context.SaveChangesAsync();
 
             // Partida fora de torneio não tem lista de Jogos pra onde voltar.
             //
@@ -316,12 +358,76 @@ namespace Padelizou.Controllers
             // do organizador — a mesma queixa que o salvar placar e o trocar quadra já
             // resolveram. Lista fechada de destinos: campo de formulário nunca vira
             // redirecionamento pra qualquer lugar.
+            return VoltarDaLargada(partida, id, voltarPara);
+        }
+
+        // A QUADRA ESCOLHIDA NA LARGADA. Null = deu certo; texto = o motivo, na língua de quem
+        // organiza (mesmo contrato do TrocaDeQuadra.MotivoParaNaoMudar).
+        //
+        // ⚠️ ATALHO DELIBERADO: esta orquestração é irmã da de TorneiosController.TrocarQuadra —
+        // mesma sequência de ocupante, reserva e câmera, chamando os mesmos helpers. Não foi
+        // extraída porque o TrocarQuadra é código do DIA DE JOGO, em produção, com torneio
+        // rodando (11/09/2026): mexer nele pra servir um botão novo é exatamente o que quebra o
+        // dia. O teto: se aparecer uma TERCEIRA porta, ou se as duas precisarem divergir numa
+        // regra, aí vale extrair as duas de uma vez. Enquanto forem duas, os testes de
+        // IniciarEscolhendoAQuadraTests e os de troca de quadra seguram as duas pontas.
+        private async Task<string?> DarAQuadraNaLargadaAsync(Partida partida, string quadra)
+        {
+            var torneioId = partida.TorneioId!.Value;
+            var doTorneio = await _context.Partidas.Where(p => p.TorneioId == torneioId).ToListAsync();
+
+            // A lista de nomes é a MESMA que a grade e o "mudar de quadra" usam: o que os jogos
+            // já escrevem, completado pelo cadastro (Services/NomesDeQuadra). Uma lista própria
+            // aqui seria a quarta porta do nome de quadra — a terceira está documentada no
+            // ControlePlacar, e nome fora da lista some da grade e atrai link de homônima.
+            var nosJogos = doTorneio
+                .Where(p => !string.IsNullOrWhiteSpace(p.NomeQuadra))
+                .Select(p => p.NomeQuadra!)
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            var quadras = NomesDeQuadra.Disponiveis(
+                nosJogos,
+                await _context.Quadras.Where(q => q.TorneioId == torneioId).Select(q => q.Nome).ToListAsync(),
+                await _context.Torneios.Where(t => t.Id == torneioId).Select(t => t.QuantidadeQuadras).FirstOrDefaultAsync());
+
+            if (TrocaDeQuadra.MotivoParaNaoMudar(partida, quadra, torneioId, quadras) is { } motivo)
+                return motivo;
+
+            var ocupante = TrocaDeQuadra.QuemOcupa(partida, quadra, doTorneio);
+
+            // A quadra pode estar RESERVADA pra uma eliminatória que ainda vai nascer
+            // (Models/ReservaDeHorario): olhando só os jogos reais ela parece livre, o jogo entra
+            // e a final nasce em cima dele. Mesma saída do dono real — a reserva cede o lugar e
+            // fica com a quadra que este jogo tinha, que na largada é nenhuma.
+            if (ocupante == null)
+            {
+                var reservas = await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
+                var reservada = ReservasDeHorario.QuemReservou(reservas,
+                    doTorneio.Select(p => (p.CategoriaId, p.Fase)).ToHashSet(),
+                    partida.HorarioPrevisto, quadra);
+
+                if (reservada != null) reservada.NomeQuadra = partida.NomeQuadra;
+            }
+
+            // A câmera é da QUADRA e não viaja com o jogo — o mapa sai dos jogos como estão
+            // AGORA, antes da troca (Services/TransmissaoDaQuadra).
+            TrocaDeQuadra.Mudar(partida, quadra, ocupante, TransmissaoDaQuadra.PorQuadra(doTorneio));
+            return null;
+        }
+
+        // Pra onde a largada volta — o mesmo destino do caminho feliz, escrito uma vez só.
+        // Lista fechada: campo de formulário nunca vira redirecionamento pra qualquer lugar.
+        private IActionResult VoltarDaLargada(Partida partida, int id, string? voltarPara)
+        {
             if (!partida.TorneioId.HasValue) return RedirectToAction("ControlePlacar", new { id });
 
             return voltarPara == "Details"
                 ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId.Value }, fragment: "jogosDoTorneio")
                 : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value });
         }
+
 
         // DESFAZER o play: o jogo volta pra fila como se nunca tivesse sido chamado.
         // De celular, no balcão, com fila esperando, tocar no play do jogo de baixo acontece —
@@ -587,6 +693,9 @@ namespace Padelizou.Controllers
             partida.VencedorId = null;
             partida.HorarioFimReal = null;
             partida.HorarioInicioReal ??= DateTime.Now;
+            // Reabrir devolve o jogo PRA QUADRA, e jogo em quadra tem alguém sacando: sem isto
+            // o placar corrigido volta ao vivo com o card sem bolinha (Services/SaqueDoJogo).
+            SaqueDoJogo.DefinirNaLargada(partida);
 
             // Reabrir um W.O. desfaz o W.O. junto: o jogo volta a ser um jogo por acontecer,
             // e o placar convencional que ficou na tela é pra ser corrigido, não mantido.
@@ -602,6 +711,50 @@ namespace Padelizou.Controllers
             return partida.TorneioId.HasValue
                 ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
                 : RedirectToAction("ControlePlacar", new { id });
+        }
+
+        // PASSAR O SAQUE PRA OUTRA DUPLA, de um toque, no próprio card AO VIVO.
+        //
+        // 🗣️ Felipe, 11/09/2026: *"permita o organizador/marcador alterar a bolinha"* — e o
+        // contexto de por que isso não podia morar só na tela do lápis: *"normalmente (nao é
+        // sempre), se marca a bolinha na primeira virada de quadra (normalmente se vira após o
+        // 3º game, depois de 2 em 2, até finalizar a partida)"*. Ou seja: o saque muda MUITAS
+        // vezes por jogo, e cada mudança não pode custar abrir tela, salvar e voltar.
+        //
+        // ⚠️ NÃO automatizei a virada a cada game de propósito: ele mesmo disse que "não é
+        // sempre" (tie-break, dupla que erra a ordem, jogo que retoma depois da chuva). Régua
+        // automática aqui escreveria na tela do torcedor uma informação que ninguém conferiu.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarSaque(int id, int duplaId, string? voltarPara = null)
+        {
+            var partida = await _context.Partidas.FindAsync(id);
+            if (partida == null) return NotFound();
+
+            // A MESMA régua de quem já podia marcar saque pelo Controle de Partida: organização,
+            // marcador do torneio, admin, e quem o organizador liberou (Services/QuemMarcaOPlacar).
+            // Uma régua própria aqui seria a quarta porta do mesmo dado.
+            if (!await PodeMarcarPlacarAsync(partida)) return Forbid();
+
+            // ⚠️ SÓ JOGO EM QUADRA. A bolinha responde "quem está sacando AGORA" — num jogo
+            // agendado ela promete o que não existe, e é exatamente o estado que o
+            // Services/DesfazerDoJogo limpa quando o jogo sai da quadra.
+            if (partida.Status != "AoVivo") return BadRequest();
+            if (!SaqueDoJogo.EhDesteJogo(partida, duplaId)) return BadRequest();
+
+            partida.DuplaSacandoId = duplaId;
+            await _context.SaveChangesAsync();
+
+            // Quem veio por `fetch` (o toque na bolinha, que não recarrega a página) leva o
+            // estado gravado de volta em JSON — o servidor tem a última palavra, igual ao −/+
+            // do placar. E o TIPO da resposta é o sinal de sucesso do outro lado: sessão
+            // vencida responde 302 pra tela de login, que o `fetch` segue e entrega como 200.
+            if (Request.Headers.XRequestedWith == "XMLHttpRequest")
+                return Json(new { partidaId = partida.Id, duplaSacandoId = partida.DuplaSacandoId });
+
+            // Sem JavaScript o toque é um POST comum: volta pra lista de onde veio.
+            return VoltarDaLargada(partida, id, voltarPara);
         }
 
         // POST: Partidas/ControlePlacar/5
@@ -703,12 +856,10 @@ namespace Padelizou.Controllers
                 partida.SetsDupla2 = null;
             }
 
-            // Quem saca só pode ser uma das duas duplas DESTE jogo. Vazio = não mostrar.
-            // Sem essa checagem, um POST montado à mão apontaria a bolinha do saque pra uma
-            // dupla de outra partida, e a tela mostraria um nome que não está em quadra.
-            partida.DuplaSacandoId = duplaSacandoId == partida.Dupla1Id || duplaSacandoId == partida.Dupla2Id
-                ? duplaSacandoId
-                : null;
+            // Quem saca só pode ser uma das duas duplas DESTE jogo (Services/SaqueDoJogo).
+            // Vazio = "não mostrar", e ele continua valendo pro jogo JÁ em quadra: é a saída de
+            // quem não sabe quem está sacando e prefere não mentir pro torcedor.
+            partida.DuplaSacandoId = SaqueDoJogo.EhDesteJogo(partida, duplaSacandoId) ? duplaSacandoId : null;
 
             // Aplica o link (e a quadra) a todos os PRÓXIMOS jogos da mesma quadra — a câmera
             // costuma cobrir a quadra o dia inteiro. Só toca jogos ainda não finalizados; os que
@@ -735,6 +886,13 @@ namespace Padelizou.Controllers
                 partida.HorarioInicioReal ??= DateTime.Now;
                 partida.HorarioFimReal = null;
                 partida.SendoTransmitida = !string.IsNullOrEmpty(linkTransmissao);
+
+                // ⚠️ A LARGADA VENCE O CAMPO VAZIO DO FORMULÁRIO, e é DEPOIS dele de propósito.
+                // O "Não mostrar" desta tela vem PRÉ-MARCADO em todo jogo que nunca teve saque
+                // — tratá-lo como escolha aqui seria o vazio voltando pela porta dos fundos, em
+                // quem deu a largada por este <select> sem nem olhar pra bolinha. Com o jogo já
+                // no ar o `if` não roda, e aí o "Não mostrar" é escolha de verdade e é obedecido.
+                SaqueDoJogo.DefinirNaLargada(partida);
             }
             else if (status == "Finalizada" && partida.Status != "Finalizada")
             {

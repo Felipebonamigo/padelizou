@@ -3,6 +3,7 @@ using Padelizou.Models;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 using SkiaSharp;
+using System.Text;
 using Xunit;
 using JogoQueVem = Padelizou.Services.ProximasFasesDaChave.JogoQueVem;
 using Lado = Padelizou.Services.ProximasFasesDaChave.Lado;
@@ -129,39 +130,60 @@ public class CompartilharListaDeJogosTests
         previa ? "2º Grupo B" : $"Rival{i} / Colega{i}",
         previa);
 
-    // ⚠️ AS PARTES SAEM EQUILIBRADAS, e não "oito e o resto": 9 jogos em 8 + 1 deixava a segunda
-    // arte com uma linha perdida no meio do card — visto na prévia, não no teste. 11 vira 6 + 5.
+    // ⚠️ AS PARTES SAEM EQUILIBRADAS, e não "o teto e o resto": 9 jogos em 8 + 1 deixava a
+    // segunda arte com uma linha perdida no meio do card — visto na prévia, não no teste.
+    //
+    // ⚠️ E O TETO SUBIU DE 8 PRA 14 (11/09/2026). 🗣️ Felipe: *"tente fazer com que na imagem
+    // caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*. Um sábado de
+    // torneio grande virava quatro artes do mesmo dia; agora o dia inteiro costuma caber numa.
     [Fact]
     public void Divide_uma_arte_por_dia_e_dia_cheio_em_partes_equilibradas()
     {
-        // De 20 em 20 minutos: 11 jogos de 50 em 50 a partir das 18h atravessam a meia-noite, e o
+        // De 20 em 20 minutos: 15 jogos de 50 em 50 a partir das 18h atravessam a meia-noite, e o
         // "dia" vira dois — foi o primeiro vermelho deste teste, no dado e não no código.
-        var jogos = Enumerable.Range(1, 11).Select(i => Jogo(Sexta.AddMinutes(i * 20), i))
+        var jogos = Enumerable.Range(1, 15).Select(i => Jogo(Sexta.AddMinutes(i * 20), i))
             .Concat(Enumerable.Range(1, 3).Select(i => Jogo(Sabado.AddMinutes(i * 20), i)))
             .ToList();
 
         var artes = CartaoDosJogos.Dividir(jogos);
 
         Assert.Equal(3, artes.Count);
-        Assert.Equal((Sexta.Date, 1, 2, 6), (artes[0].Dia, artes[0].Parte, artes[0].Partes, artes[0].Jogos.Count));
-        Assert.Equal((Sexta.Date, 2, 2, 5), (artes[1].Dia, artes[1].Parte, artes[1].Partes, artes[1].Jogos.Count));
+        Assert.Equal((Sexta.Date, 1, 2, 8), (artes[0].Dia, artes[0].Parte, artes[0].Partes, artes[0].Jogos.Count));
+        Assert.Equal((Sexta.Date, 2, 2, 7), (artes[1].Dia, artes[1].Parte, artes[1].Partes, artes[1].Jogos.Count));
         Assert.Equal((Sabado.Date, 1, 1, 3), (artes[2].Dia, artes[2].Parte, artes[2].Partes, artes[2].Jogos.Count));
 
         // A ordem dentro da arte é a da fila — a arte 2 continua de onde a 1 parou.
-        Assert.Equal("Jogador7 / Parceiro7", artes[1].Jogos[0].Lado1Curto);
+        Assert.Equal("Jogador9 / Parceiro9", artes[1].Jogos[0].Lado1Curto);
+    }
+
+    // O dia que CABE sai inteiro numa arte só — é o pedido de 11/09/2026, e é o caso comum:
+    // uma categoria num sábado raramente passa de catorze jogos.
+    [Fact]
+    public void Dia_de_catorze_jogos_cabe_numa_arte_so()
+    {
+        var artes = CartaoDosJogos.Dividir(
+            Enumerable.Range(1, CartaoDosJogos.MaximoDeJogos).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
+
+        Assert.Single(artes);
+        Assert.Equal(CartaoDosJogos.MaximoDeJogos, artes[0].Jogos.Count);
+        Assert.Equal(1, artes[0].Partes);
+        // Parte única não numera: "sex 11/09", e não "sex 11/09 (1 de 1)".
+        Assert.Equal("sex 11/09", artes[0].Rotulo);
     }
 
     [Fact]
-    public void Nove_jogos_viram_cinco_e_quatro_e_dezesseis_viram_oito_e_oito()
+    public void Passando_do_teto_as_partes_ficam_do_mesmo_tamanho()
     {
-        var nove = CartaoDosJogos.Dividir(Enumerable.Range(1, 9).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
-        Assert.Equal(new[] { 5, 4 }, nove.Select(a => a.Jogos.Count));
+        var quinze = CartaoDosJogos.Dividir(Enumerable.Range(1, 15).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
+        Assert.Equal(new[] { 8, 7 }, quinze.Select(a => a.Jogos.Count));
 
-        var dezesseis = CartaoDosJogos.Dividir(Enumerable.Range(1, 16).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
-        Assert.Equal(new[] { 8, 8 }, dezesseis.Select(a => a.Jogos.Count));
+        var vinte = CartaoDosJogos.Dividir(Enumerable.Range(1, 20).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
+        Assert.Equal(new[] { 10, 10 }, vinte.Select(a => a.Jogos.Count));
 
-        var dezessete = CartaoDosJogos.Dividir(Enumerable.Range(1, 17).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
-        Assert.Equal(new[] { 6, 6, 5 }, dezessete.Select(a => a.Jogos.Count));
+        // 29 num dia é o sábado inteiro de um torneio grande sem filtro nenhum: três artes,
+        // e nenhuma delas com uma linha sobrando.
+        var vinteENove = CartaoDosJogos.Dividir(Enumerable.Range(1, 29).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
+        Assert.Equal(new[] { 10, 10, 9 }, vinteENove.Select(a => a.Jogos.Count));
     }
 
     // Torneio por ordem de liberação sem hora nenhuma: os jogos não têm dia, e ainda assim
@@ -183,12 +205,30 @@ public class CompartilharListaDeJogosTests
     [Fact]
     public void Arte_em_partes_diz_qual_parte_e()
     {
-        var jogos = Enumerable.Range(1, 9).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+        var jogos = Enumerable.Range(1, 15).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
 
         var artes = CartaoDosJogos.Dividir(jogos);
 
         Assert.Equal("sex 11/09 (1 de 2)", artes[0].Rotulo);
         Assert.Equal("sex 11/09 (2 de 2)", artes[1].Rotulo);
+    }
+
+    // O que a arte escreve no alto: o DIA em tamanho de título (é a pergunta de quem vê o
+    // story) e, embaixo, o recorte — ou a palavra "JOGOS" quando a lista é o torneio inteiro,
+    // pra o card não abrir sem dizer do que se trata.
+    [Fact]
+    public void O_alto_da_arte_diz_o_dia_e_o_recorte()
+    {
+        var artes = CartaoDosJogos.Dividir(
+            Enumerable.Range(1, 15).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList());
+
+        Assert.Equal("SEX 11/09", CartaoDosJogos.TituloDoDia(artes[0]));
+        Assert.Equal("LOS CORNETEIROS  ·  1 DE 2", CartaoDosJogos.Subtitulo("Los Corneteiros", artes[0]));
+        Assert.Equal("LOS CORNETEIROS  ·  2 DE 2", CartaoDosJogos.Subtitulo("Los Corneteiros", artes[1]));
+
+        var inteira = CartaoDosJogos.Dividir(new List<JogoDaLista> { Jogo(Sexta, 1) });
+        Assert.Equal("JOGOS", CartaoDosJogos.Subtitulo(null, inteira[0]));
+        Assert.Equal("SEM DATA", CartaoDosJogos.TituloDoDia(CartaoDosJogos.Dividir(new List<JogoDaLista> { Jogo(null, 1) })[0]));
     }
 
     [Fact]
@@ -224,6 +264,61 @@ public class CompartilharListaDeJogosTests
 
         // O dia aparece UMA vez, como cabeçalho — não em cada linha.
         Assert.Equal(1, linhas.Count(l => l == "*sex 11/09*"));
+    }
+
+    // 🗣️ Felipe, 11/09/2026: *"adicione o espaço de uma linha nos textos, por jogo, para nao
+    // ficar amontoado"*. Uma lista de doze jogos era um bloco de 24 linhas coladas no grupo do
+    // WhatsApp, e achar o próprio jogo dentro dela exigia contar de dois em dois.
+    //
+    // ⚠️ O TEXTO INTEIRO ESTÁ ESCRITO AQUI de propósito: a forma da mensagem É o recurso, e um
+    // punhado de `Contains` não travaria o que quebra — uma linha em branco a mais ou a menos.
+    [Fact]
+    public void Cada_jogo_vem_separado_por_uma_linha_em_branco()
+    {
+        var jogos = new List<JogoDaLista>
+        {
+            Jogo(Sexta, 1),
+            Jogo(Sexta.AddMinutes(50), 2),
+            Jogo(Sabado, 3, previa: true),
+        };
+
+        var texto = TextoDaLista.Montar("Torneio de Teste", "Los Corneteiros", jogos, "https://x");
+
+        Assert.Equal(string.Join("\n", new[]
+        {
+            "*Torneio de Teste* — Los Corneteiros",
+            "",
+            "*sex 11/09*",
+            "",
+            "18:00 · 6ª Masculina · Grupo A · Er Padel",
+            "Jogador 1 da Silva / Parceiro 1 Souza x Rival 1 Pereira / Colega 1 Antunes",
+            "",
+            "18:50 · 6ª Masculina · Grupo A · Er Padel",
+            "Jogador 2 da Silva / Parceiro 2 Souza x Rival 2 Pereira / Colega 2 Antunes",
+            "",
+            "*sáb 12/09*",
+            "",
+            "09:00 · 6ª Masculina · Quartas de Final 3 · Er Padel · prévia",
+            "1º Grupo A x 2º Grupo B",
+            "",
+            "Lista completa e atualizada: https://x",
+        }), texto);
+    }
+
+    // Nunca DUAS em branco seguidas: o WhatsApp não colapsa linha vazia, e o buraco duplo faz a
+    // mensagem parecer cortada no envio (a mesma razão da linha que some no convite do torneio).
+    [Fact]
+    public void Nunca_ha_duas_linhas_em_branco_seguidas()
+    {
+        var jogos = Enumerable.Range(1, 6)
+            .Select(i => Jogo((i <= 3 ? Sexta : Sabado).AddMinutes(i * 20), i))
+            .ToList();
+
+        var linhas = TextoDaLista.Montar("T", null, jogos, "https://x").Split('\n');
+
+        for (var i = 1; i < linhas.Length; i++)
+            Assert.False(linhas[i].Length == 0 && linhas[i - 1].Length == 0,
+                $"Duas linhas em branco seguidas na posição {i}.");
     }
 
     [Fact]
@@ -267,6 +362,78 @@ public class CompartilharListaDeJogosTests
             clube: null, quadra: "Quadra 1", fase: FasesTorneio.FaseDeGrupos);
 
         Assert.Equal("meus jogos · Quadra 1 · fase de grupos", frase);
+    }
+
+    // ── A planilha ─────────────────────────────────────────────────────────────────────────
+
+    // 🗣️ Felipe, 11/09/2026: *"crie tambem uma opção de importar planilha se quiserem"*. O
+    // organizador que quer ORGANIZAR a lista (ordenar por quadra, imprimir, mandar pro clube)
+    // não quer um texto nem uma arte — quer as colunas. CSV porque é o que toda planilha abre
+    // (Excel, Google Sheets, Numbers) sem pacote novo no projeto: é o degrau 3 da escada.
+    [Fact]
+    public void A_planilha_tem_o_cabecalho_e_uma_linha_por_jogo()
+    {
+        var jogos = new List<JogoDaLista> { Jogo(Sexta, 1), Jogo(Sabado, 2, previa: true) };
+
+        var linhas = PlanilhaDaLista.Montar(jogos).Split("\r\n");
+
+        Assert.Equal("Data;Hora;Categoria;Fase;Local;Dupla 1;Dupla 2;Situação", linhas[0]);
+        Assert.Equal("11/09/2026;18:00;6ª Masculina;Grupo A;Er Padel;"
+                   + "Jogador 1 da Silva / Parceiro 1 Souza;Rival 1 Pereira / Colega 1 Antunes;Marcado", linhas[1]);
+        // A prévia diz que é prévia aqui também: uma coluna "1º Grupo A" sem aviso vira uma
+        // dupla inventada quando alguém filtra a planilha.
+        Assert.Equal("12/09/2026;09:00;6ª Masculina;Quartas de Final 2;Er Padel;"
+                   + "1º Grupo A;2º Grupo B;Prévia", linhas[2]);
+        Assert.Equal(4, linhas.Length);          // cabeçalho + 2 jogos + a linha final vazia
+        Assert.Equal("", linhas[3]);
+    }
+
+    // ⚠️ PONTO-E-VÍRGULA, e não vírgula: o Excel em português lê o CSV pelo separador de lista
+    // do Windows, que aqui é ";" — com vírgula a planilha inteira cai numa coluna só, e quem
+    // abre não tem como saber por quê.
+    [Fact]
+    public void O_separador_e_ponto_e_virgula()
+    {
+        Assert.Equal(";", PlanilhaDaLista.Separador);
+    }
+
+    // ⚠️ COM BOM. Sem ele o Excel lê o arquivo como Latin-1 e "6ª Masculina" vira "6Âª
+    // Masculina" na tela de quem abre — o defeito clássico de CSV em português.
+    [Fact]
+    public void O_arquivo_comeca_com_BOM_e_e_utf8()
+    {
+        var bytes = PlanilhaDaLista.EmBytes("6ª");
+
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, bytes.Take(3).ToArray());
+        Assert.Equal("6ª", new UTF8Encoding(false).GetString(bytes.Skip(3).ToArray()));
+    }
+
+    // Campo com o separador, com aspas ou com quebra de linha vai entre aspas, e as aspas de
+    // dentro dobram (RFC 4180). Sem isto, um clube chamado "Er Padel; Loja 7" empurra o resto
+    // da linha uma coluna pra direita, calado.
+    [Fact]
+    public void Campo_com_separador_ou_aspas_vai_entre_aspas()
+    {
+        var jogo = new JogoDaLista(Sexta, "Open", "Grupo A", "Er Padel; Loja \"7\"",
+            "Ana & Bia", "Carla\ne Dani", "Ana / Bia", "Carla / Dani", false);
+
+        var linha = PlanilhaDaLista.Montar(new List<JogoDaLista> { jogo }).Split("\r\n")[1];
+
+        Assert.Contains("\"Er Padel; Loja \"\"7\"\"\"", linha);
+        Assert.Contains("\"Carla\ne Dani\"", linha);
+        // O que não tem nada de especial não ganha aspas — planilha cheia de aspas é ilegível
+        // pra quem abre o arquivo no bloco de notas.
+        Assert.Contains(";Ana & Bia;", linha);
+    }
+
+    // Torneio por ordem de liberação: sem data e sem hora, a linha diz a palavra da tela em vez
+    // de deixar duas colunas vazias que parecem dado perdido.
+    [Fact]
+    public void Jogo_sem_horario_diz_por_ordem_na_planilha()
+    {
+        var linha = PlanilhaDaLista.Montar(new List<JogoDaLista> { Jogo(null, 1) }).Split("\r\n")[1];
+
+        Assert.StartsWith(";por ordem;", linha);
     }
 
     // ── O desenho ──────────────────────────────────────────────────────────────────────────
@@ -431,6 +598,42 @@ public class CompartilharListaDeJogosTests
         Assert.IsType<NotFoundResult>(await deFora.CompartilharJogos(torneio.Id, Fontes()));
     }
 
+    // A planilha passa pela MESMA porta da arte e do texto — é a mesma lista.
+    [Fact]
+    public async Task A_planilha_passa_pela_mesma_porta_da_lista()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var intruso = new Jogador { Nome = "Intruso", Cpf = "99900000088" };
+        ctx.Jogadores.Add(intruso);
+        await ctx.SaveChangesAsync();
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        Assert.IsType<NotFoundResult>(
+            await TestInfra.NovoTorneiosController(ctx, intruso.Id).JogosPlanilha(torneio.Id));
+
+        var arquivo = Assert.IsType<FileContentResult>(
+            await TestInfra.NovoTorneiosController(ctx, org.Id).JogosPlanilha(torneio.Id));
+        Assert.Equal("text/csv", arquivo.ContentType);
+        Assert.EndsWith(".csv", arquivo.FileDownloadName);
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, arquivo.FileContents.Take(3).ToArray());
+        Assert.Contains("Data;Hora;Categoria", new UTF8Encoding(false).GetString(arquivo.FileContents));
+    }
+
+    // ⚠️ A PLANILHA NÃO DEPENDE DA POPPINS. A arte se desliga sem a fonte (ver FonteDoCartao);
+    // amarrar as três saídas ao mesmo `if` tiraria do organizador a lista em colunas por um
+    // motivo que só vale pro desenho.
+    [Fact]
+    public async Task Sem_fonte_a_planilha_continua_saindo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        Assert.IsType<FileContentResult>(await controller.JogosPlanilha(torneio.Id));
+    }
+
     // Sem a Poppins o card sairia mudo (ver FonteDoCartao) — 404, e não imagem em branco.
     [Fact]
     public async Task Sem_fonte_a_imagem_nao_existe()
@@ -461,6 +664,20 @@ public class CompartilharListaDeJogosTests
         var trecho = fonte[botao..fonte.IndexOf(")", botao, StringComparison.Ordinal)];
         foreach (var filtro in new[] { "timeFiltroId", "categoriaFiltroIds", "soMeusJogos", "clubeFiltroId", "quadraFiltro", "faseFiltro" })
             Assert.Contains(filtro, trecho);
+    }
+
+    // As três saídas ficam na MESMA tela: texto, planilha e arte. A planilha leva os mesmos
+    // filtros — sem eles, "baixar esta lista" baixaria outra.
+    [Fact]
+    public void A_tela_de_compartilhar_oferece_a_planilha_com_os_filtros()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "CompartilharJogos.cshtml"));
+
+        var link = fonte.IndexOf("JogosPlanilha", StringComparison.Ordinal);
+        Assert.True(link > 0, "A tela não oferece a planilha.");
+        // Os filtros vão no mesmo dicionário de rota que a arte usa — uma segunda lista de
+        // parâmetros escrita à mão é o que faz a planilha discordar da imagem ao lado dela.
+        Assert.Contains("Model.Filtros", fonte[(link - 200)..(link + 200)]);
     }
 
     private static string PastaDoProjeto()

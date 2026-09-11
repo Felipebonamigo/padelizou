@@ -28,6 +28,18 @@ async function palpitarPlacar(el) {
         souDupla1 ? perdedor : vencedor);
 }
 
+// ABRIR AS FICHAS DE NOVO. Só tela: trocar de ideia sobre o placar não é palpite nenhum até
+// a ficha ser tocada, e um POST aqui gravaria uma intenção que a pessoa ainda não teve.
+function trocarPlacar(el) {
+    const bloco = el.closest('.pdz-palpite-placar');
+    if (!bloco) return;
+
+    const resumo = bloco.querySelector('.pdz-palpite-placar-resumo');
+    const fichas = bloco.querySelector('.pdz-palpite-fichas');
+    if (resumo) resumo.style.display = 'none';
+    if (fichas) fichas.style.display = 'block';
+}
+
 // O ÚNICO lugar que fala com o servidor. Voto e placar são o mesmo POST porque são o mesmo
 // palpite: duas rotas gravariam a mesma linha por caminhos diferentes, e é assim que nasce a
 // linha com voto de uma dupla e placar da outra.
@@ -197,6 +209,20 @@ function atualizarPlacarDoPalpite(container, data) {
         const meuVencedor = temPlacar ? Math.max(data.meuPlacarLado1, data.meuPlacarLado2) : null;
         const meuPerdedor = temPlacar ? Math.min(data.meuPlacarLado1, data.meuPlacarLado2) : null;
 
+        // ⚠️ DEPOIS DE ESCOLHER, AS FICHAS SE RECOLHEM (11/09/2026 — 🗣️ Felipe: *"podemos
+        // 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*). Fica o
+        // resumo com o placar escolhido; as fichas voltam pelo "trocar", sem passar pelo
+        // servidor. Null-safe pelo motivo de sempre: nem toda apresentação tem os dois.
+        const resumo = bloco.querySelector('.pdz-palpite-placar-resumo');
+        const fichas = bloco.querySelector('.pdz-palpite-fichas');
+        if (resumo && fichas) {
+            resumo.style.display = temPlacar ? 'flex' : 'none';
+            fichas.style.display = temPlacar ? 'none' : 'block';
+
+            const escrito = resumo.querySelector('.pdz-resumo-placar');
+            if (escrito && temPlacar) escrito.innerText = meuVencedor + ' x ' + meuPerdedor;
+        }
+
         bloco.querySelectorAll('.pdz-ficha-placar').forEach(function (ficha) {
             const escolhida = temPlacar
                 && Number(ficha.dataset.vencedor) === meuVencedor
@@ -237,6 +263,19 @@ async function verVotos(partidaId, nome1, nome2) {
     modal.show();
 
     const response = await fetch('/Partidas/VerVotos?partidaId=' + partidaId);
+
+    // ⚠️ OLHAR O `ok` ANTES DO `json()` — 11/09/2026. O jogo apagado (chave regerada com esta
+    // lista aberta) responde 404, e a resposta de erro NÃO é JSON: sem esta guarda o parse
+    // estoura, ninguém pega a promessa, e o modal fica em "Carregando..." pra sempre. Em
+    // produção o dedo bateu três vezes no mesmo minuto por causa disso.
+    if (!response.ok) {
+        lista1.innerHTML = '<div class="small text-danger">' + (response.status === 404
+            ? 'Este jogo saiu da lista — atualize a página.'
+            : 'Não foi possível carregar quem votou. Tente de novo.') + '</div>';
+        lista2.innerHTML = '';
+        return;
+    }
+
     const data = await response.json();
 
     // ⚠️ Nome e foto vêm do CADASTRO de quem votou — texto de gente, não do sistema. Como esta

@@ -231,13 +231,39 @@
                 @if (!Model.Finalizada)
                 {
                     @* Verde, não vermelho: play vermelho é o botão do YouTube (lê como
-                       "assistir") e vermelho é a cor do destrutivo no resto do site. *@
-                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
+                       "assistir") e vermelho é a cor do destrutivo no resto do site.
+
+                       ⚠️ SEM QUADRA, O VERDE NÃO COMEÇA: ele PERGUNTA ONDE (11/09/2026). No "por
+                       ordem de liberação" o jogo chega aqui sem lugar de propósito — quem joga é
+                       quem a quadra que vagou chamar —, e dizer onde era custava voltar, achar o
+                       jogo na lista e abrir o modal de mudar de quadra. Duas telas pra uma
+                       decisão só, no minuto em que tem gente esperando em quadra.
+
+                       Com quadra não há o que preencher, e formulário pra confirmar o que já
+                       está decidido é atrito: cai na pergunta seca do confirmar.js. *@
+                    @if (string.IsNullOrWhiteSpace(jogo.NomeQuadra))
+                    {
+                        <button type="button" class="btn btn-sm btn-success"
+                                data-bs-toggle="modal" data-bs-target="#modalIniciarJogo"
+                                data-jogo-id="@jogo.Id"
+                                data-jogo-rotulo="@rotuloDoJogo"
+                                data-jogo-link="@jogo.LinkTransmissao"
+                                title="Começar o jogo" aria-label="Começar o jogo">
                             <i class="bi bi-play-fill"></i>
                         </button>
-                    </form>
+                    }
+                    else
+                    {
+                        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post"
+                              data-confirmar="O jogo entra AO VIVO na @jogo.NomeQuadra e o cronômetro começa a contar agora."
+                              data-confirmar-titulo="Começar este jogo?"
+                              data-confirmar-ok="Começar">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                        </form>
+                    }
                     <button type="button" class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
                             data-jogo-id="@jogo.Id"
@@ -469,18 +495,38 @@
         @if (podeVotar && r != null && r.PlacaresDoFormato.Count > 0)
         {
             <div class="pdz-palpite-placar mt-1" style="display: @(r.MeuVotoDuplaId != null ? "block" : "none");">
-                <div class="small text-muted mb-1">
-                    E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                @* ⚠️ DEPOIS DE ESCOLHER, AS FICHAS SE RECOLHEM (11/09/2026). 🗣️ Felipe, num print do
+                   cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem
+                   podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*.
+                   Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já
+                   cumpriu o papel dela.
+                   ⚠️ Quem decide qual dos dois nasce aberto é o DADO (`PalpiteiOPlacar`), e não o JS
+                   depois de carregar: senão a tela piscaria a fileira inteira a cada F5. *@
+@* ⚠️ SEM `d-flex` (visto no navegador, 11/09/2026): as utilitárias do Bootstrap são
+                   `!important`, e `.d-flex` ganha do `style.display = 'none'` que o JS escreve — o
+                   resumo ficava na tela ao lado das fichas reabertas. O `flex` vem do próprio
+                   `style`, que é o mesmo lugar de onde ele some. *@
+                <div class="pdz-palpite-placar-resumo small text-muted align-items-center gap-2"
+                     style="display: @(r.PalpiteiOPlacar ? "flex" : "none");">
+                    <span>Seu palpite: <strong class="pdz-resumo-placar">@meuVencedor x @meuPerdedor</strong></span>
+                    <button type="button" class="btn btn-link btn-sm p-0 pdz-trocar-placar"
+                            onclick="trocarPlacar(this)">trocar</button>
                 </div>
-                <div class="d-flex flex-wrap gap-1">
-                    @foreach (var placar in r.PlacaresDoFormato)
-                    {
-                        bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
-                        <button type="button"
-                                class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
-                                data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
-                                onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
-                    }
+
+                <div class="pdz-palpite-fichas" style="display: @(r.PalpiteiOPlacar ? "none" : "block");">
+                    <div class="small text-muted mb-1">
+                        E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var placar in r.PlacaresDoFormato)
+                        {
+                            bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                            <button type="button"
+                                    class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                                    data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                                    onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                        }
+                    </div>
                 </div>
             </div>
         }
