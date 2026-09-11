@@ -187,7 +187,13 @@ namespace Padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> VerVotos(int partidaId)
         {
+            // ⚠️ O `partidaId` vem congelado no HTML do botão, e o jogo não: regerar a chave,
+            // regerar o americano e mudar um resultado do mata-mata APAGAM partidas. Quem estava
+            // com a lista aberta na hora fica com um botão apontando pro que não existe mais —
+            // e isso é 404, não erro do sistema (foram três 500 no vigia em 11/09/2026).
             var votantes = await _palpites.ObterVotantesAsync(partidaId);
+            if (votantes == null) return NotFound();
+
             return Json(votantes);
         }
 

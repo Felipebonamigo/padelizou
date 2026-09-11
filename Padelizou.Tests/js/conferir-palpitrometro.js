@@ -107,10 +107,26 @@ function servidor(atrasos = {}) {
     return { posts, fetchFalso, cruzou: () => cruzaram };
 }
 
-function carregar(fetchFalso) {
+// ── O MODAL "QUEM VOTOU" ──────────────────────────────────────────────────────────────────
+// Ele não vive dentro do cartão: fala com `document.getElementById` e com o `bootstrap`. Por
+// isso um DOM falso separado, e não mais um pedaço do `palpitrometro()` de cima.
+function telaDoModal() {
+    const els = {};
+    for (const id of ['modalVerVotos', 'modalVerVotosNome1', 'modalVerVotosNome2',
+                      'modalVerVotosLista1', 'modalVerVotosLista2']) {
+        els[id] = elemento();
+    }
+    return {
+        els,
+        document: { getElementById: id => els[id] || null },
+        bootstrap: { Modal: { getOrCreateInstance: () => ({ show() { } }) } },
+    };
+}
+
+function carregar(fetchFalso, tela) {
     const montar = new Function('fetch', 'alert', 'cabecalhoAntifalsificacao', 'document', 'bootstrap',
-        fonte + '\n; return { votarPalpite, palpitarPlacar, retirarPalpite, trocarPlacar };');
-    return montar(fetchFalso, () => { }, h => h, undefined, undefined);
+        fonte + '\n; return { votarPalpite, palpitarPlacar, retirarPalpite, trocarPlacar, verVotos };');
+    return montar(fetchFalso, () => { }, h => h, tela && tela.document, tela && tela.bootstrap);
 }
 
 // ── AS CONFERÊNCIAS ───────────────────────────────────────────────────────────────────────
@@ -224,6 +240,53 @@ function confere(nome, condicao, detalhe) {
         // intenção que a pessoa ainda não teve.
         confere('o "trocar" NÃO fala com o servidor', s.posts.length === postsAntes,
                 `mandou ${s.posts.length - postsAntes} POST(s)`);
+    }
+
+    // 7. O JOGO QUE SUMIU ENQUANTO A PÁGINA ESTAVA ABERTA — 11/09/2026, três
+    //    `InvalidOperationException` em `GET /Partidas/VerVotos` no mesmo minuto, em produção.
+    //
+    //    ⚠️ O servidor agora responde 404 (jogo apagado não é defeito), mas SEM esta metade o
+    //    conserto seria pela metade: o `response.json()` sem olhar o `ok` estoura no HTML da
+    //    página de erro, o modal fica em "Carregando..." pra sempre e o dedo bate de novo — é
+    //    exatamente por isso que foram TRÊS erros no mesmo minuto, e não um.
+    {
+        const tela = telaDoModal();
+        const js = carregar(async () => ({
+            ok: false, status: 404,
+            json: async () => { throw new Error('a página de erro é HTML, não JSON'); },
+        }), tela);
+
+        let estourou = null;
+        try {
+            await js.verVotos('9999', 'Dupla A', 'Dupla B');
+        } catch (e) {
+            estourou = e;
+        }
+
+        const mostrado = tela.els['modalVerVotosLista1'].innerHTML;
+        confere('jogo apagado: o modal AVISA, em vez de ficar em "Carregando..."',
+                !estourou && !mostrado.includes('Carregando') && mostrado.includes('atualize a página'),
+                estourou ? `estourou: ${estourou.message}` : `mostrou "${mostrado}"`);
+    }
+
+    // 8. E o aviso não pode ter comido o caminho feliz: com 200 na mão, o modal continua
+    //    listando quem votou dos dois lados.
+    {
+        const tela = telaDoModal();
+        const js = carregar(async () => ({
+            ok: true,
+            json: async () => ({
+                votantesDupla1: [{ nome: 'Ana Pasinato', placarVencedor: 6, placarPerdedor: 4 }],
+                votantesDupla2: [],
+            }),
+        }), tela);
+
+        await js.verVotos('7', 'Dupla A', 'Dupla B');
+
+        confere('com 200 o modal lista quem votou',
+                tela.els['modalVerVotosLista1'].innerHTML.includes('Ana Pasinato')
+                && tela.els['modalVerVotosNome1'].innerText === 'Dupla A · 1',
+                `lista="${tela.els['modalVerVotosLista1'].innerHTML}", titulo="${tela.els['modalVerVotosNome1'].innerText}"`);
     }
 
     console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);

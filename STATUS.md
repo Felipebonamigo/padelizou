@@ -32,13 +32,87 @@
 >
 > ⚠️ **OS JOGOS JÁ NO AR NÃO GANHAM BOLINHA RETROATIVA** — a regra vale na largada. Os dois do print do Felipe só terão saque quando alguém tocar na bola apagada (ou o jogo for reaberto).
 >
-> 🧹 `CACHE_NAME` do service worker subiu pra `v27` (o `site.css` mudou).
+> 🧹 **`CACHE_NAME` do service worker foi pra `v28`, e o motivo vale a linha:** dois branches do mesmo dia subiram `v26` → `v27` independentemente (o do escudo/chave e este), e o **git juntou os dois sem conflito**, como se fosse a mesma mudança. O número ficaria igual com **dois `site.css` diferentes** — e quem tivesse guardado o primeiro `v27` nunca baixaria o segundo: a bolinha simplesmente não apareceria pra quem usa o app instalado, **sem erro em lugar nenhum**. Achado no merge com o `main`, não em teste.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
+>
+> 🖥️📱 **SÃO DOIS DESENHOS DA MESMA CHAVE**, e é isso que o Felipe pediu textualmente: *"no pc, é de cima pra baixo e no mobile é arrastavel da esquerda pra direita"*. No computador a árvore desce, com a primeira rodada no alto e o troféu no pé. No celular ela deita: a rodada atual ocupa **66% da tela** e a seguinte fica **espiando na beirada**, com as linhas já chegando nela — é o que responde *"ganhei, e agora?"* sem tocar em nada. O encaixe é `scroll-snap`, **sem uma linha de JS**.
+>
+> ⚠️ **UMA CONTA SÓ PROS DOIS** (`Services/ArvoreDaChave`): largura de um jogo = soma das larguras dos que o alimentam; coluna = a faixa onde ele começa, andando da final pra trás. No computador isso vira **coluna** da grade, no celular vira **linha** — e até a ligação usa as mesmas duas porcentagens, com o CSS só trocando o eixo. Duas contas divergiriam no dia em que o cruzamento mudasse, e os dois desenhos contariam histórias diferentes.
+>
+> 🕳️ **`space-around` NÃO RESOLVERIA O CELULAR, e parece que resolveria.** Com **5 grupos** a segunda rodada tem **MAIS** jogos que a primeira (2 jogos + 6 byes = 8 entrantes = 4 jogos), então qualquer geometria que suponha "a próxima tem metade" aponta pro lugar errado. A conta de coluna/largura acerta porque não supõe nada.
+>
+> 🕳️ **O DEFEITO QUE QUASE FOI PRO AR CALADO: cultura.** As porcentagens da ligação vão num atributo `style`, e em **pt-BR** um `double` sai `16,667` — o navegador **descarta a declaração inteira sem erro nenhum**. O quadro apareceria em produção com os cartões certos e **zero linhas**. Travado em `ArvoreDaChaveTests.A_ligacao_sai_com_PONTO_decimal_em_qualquer_cultura`, e ⚠️ **o teste precisou de SETE grupos**: com 4 ou 6 a chave fica simétrica, toda porcentagem sai inteira e o teste **passava mesmo com a formatação errada** — foi falsificado, visto passar, e refeito até discriminar.
+>
+> ⚠️ **A ORDEM DA RODADA NÃO É A NUMÉRICA**: numa chave de 4 a primeira rodada sai **1, 4, 2, 3**, porque o jogo 5 nasce do 1 e do 4. Desenhar em ordem numérica faria as linhas cruzarem no meio do quadro. Isso obrigou o casamento com a projeção (hora e quadra) a **ficar no `Details.cshtml`**, na ordem da projeção, e ser entregue ao partial por número GLOBAL do jogo — casar lá dentro pegaria o jogo errado.
+>
+> ♻️ **O CARTÃO É O `.pdz-chave-vaga` DA CHAVE DE VERDADE**, e não um só da prévia: no dia em que os grupos acabam a tela não muda de cara, os cartões só ganham nome e placar. Foi o degrau 2 da escada do CLAUDE.md pagando sozinho — as ~90 linhas de `.pdz-chave-projetada-*` **foram embora inteiras**.
+>
+> 🧹 **E LEVARAM JUNTO O CSS MORTO DA ÁRVORE DE 05/08/2026**: 27 regras `.pdz-arv*` sem view nenhuma desde que aquela tentativa foi abandonada (ela crescia pra LARGURA — 16 jogos numa chave de 32 —, esta cresce pra baixo e deita no celular). ⚠️ **Duas regras daquele bloco NÃO eram mortas** e ficaram: `.pdz-chave-vaga { font-size: .76rem }` e `.pdz-chave-quando { font-size: .64rem }` valem hoje na chave real, e sair com elas teria encolhido a chave de verdade sem ninguém pedir.
+>
+> 🚫 **SEM SELO DE BYE** (🗣️ *"só não precisa colocar que folgou na primeira rodada"*): quem passou direto aparece **só pelo nome**, e a **ausência de linha** chegando na vaga é o que conta que ele não jogou a rodada anterior. O sufixo `(passou direto)` continua no `ChaveProjetada` pra quem lê a prévia em lista.
+>
+> 🧪 **6.438 testes, 0 falhas (36 novos: 31 de `ArvoreDaChaveTests` + 5 de guarda)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: os 26 de `ArvoreDaChaveTests` em *"o tipo ArvoreDaChave não existe"*, e os 5 de `QuadroDaPreviaTemOsDoisDesenhosTests` **falsificados um a um** (tirei o `d-none d-md-block`, tirei o bloco do celular, devolvi o sufixo, tirei o `scroll-snap`, e troquei o seletor da final por uma classe só). ⚠️ **CINCO TESTES DE FONTE DE OUTRAS ÁREAS FORAM REAPONTADOS, NÃO APAGADOS** (`QuadroDaChaveCasaPorNumero`, `DiaDaSemanaNaoCabeNaArvoreDaChave`, `GuardaDoLugarNasTelasDeChave`, `PreviaDizOClubeNaTela`, `FiltroDeJogosNaoAtrapalhaAsOutrasTelas`): eles ancoravam em `pdz-chave-projetada-*` dentro do `Details.cshtml`, e o código mudou de lugar — o que cada um guarda continua igual, e dois ficaram **mais fortes** (o do dia da semana passou a varrer o arquivo inteiro em vez de uma janela de texto).
+>
+> 🕳️ **A FINAL PERDEU O DESTAQUE NA PRIMEIRA TENTATIVA, por especificidade**: `.pdz-arv-final` sozinha empata com `.pdz-chave-vaga`, que define `border` e mora **mais abaixo** no arquivo — então vencia, e o realce sumia calado. O seletor virou `.pdz-chave-vaga.pdz-arv-final`. Achado **no navegador**, não na suíte.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (Chromium headless, app de verdade contra Postgres local, torneio semeado com 6 e com 16 grupos, temas claro e escuro): a árvore de 4 colunas sai na ordem **1, 4, 2, 3** com os cotovelos nos centros certos; a de **16 colunas (32 duplas, "Primeira Rodada")** desenha as 5 fases e rola dentro de si; e a 390px a deitada mostra a rodada atual com a seguinte espiando, **sem rolagem lateral da página**.
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v27`**: o `site.css` está na lista do service worker, e sem subir o `CACHE_NAME` quem já abriu o site continuaria com o CSS velho — o quadro novo chegaria sem as regras que o desenham.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a **chave de verdade** (`_ChaveDoMataMata`) continua em fases empilhadas, sem linhas — levar a árvore pras duas telas foi recomendado e **não** aprovado, e é uma tarefa própria. E o polimento do cartão que apareceu nas maquetes (número em selo lime, hora com mais peso) ficou fora pelo mesmo motivo: ele mora no cartão COMPARTILHADO, então mexeria na chave real junto.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
+>
+> 🕳️ **É A MESMA QUEIXA DE 08/08/2026 QUE CRIOU A BORDA DAS `.pdz-pills`** — as pills de dentro (Ao Vivo/Agendadas/Finalizadas) foram atendidas e a barra de CIMA ficou como o Bootstrap a desenha: `.nav-tabs .nav-link { border: 1px solid transparent }`, com cor de borda **só na ativa**. Por isso, no print, "Jogos" era a única que parecia botão e Inscritos, Chaves e Grupos, Times e Palpiteiros eram texto solto.
+>
+> ⚠️ **A ATIVA É ANEL LIMA, E NÃO PREENCHIMENTO LIMA COMO NAS PILLS — escolha, não esquecimento.** Esta barra tem abas com cor PRÓPRIA: "Gerenciar Torneio" é `text-danger` (`!important`) e "Inscreva-se" é verde sobre navy (inline). As duas vencem qualquer `color` que a regra da ativa escrevesse, e vermelho sobre lima não se lê. Fica anel lima + fundo `--pdz-surface-alt`, que não disputa cor com ninguém.
+>
+> ⚠️ **A LINHA DA `nav-tabs` SAIU JUNTO** (`border-bottom: 0`) **e o `margin-bottom: -1px` do Bootstrap foi zerado**: aquele desenho existe pra aba de MEIA caixa se fundir na linha. Com as cinco viradas caixa fechada, a linha passaria cortando todas. Tem teste, com o motivo escrito.
+>
+> 🧪 **6.434 testes, 0 falhas (4 novos, em `ContornoDasAbasDoTorneioTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-abas`"*, *"Não achei a regra `.pdz-abas .nav-link.active`"* e no `border:` da regra existente, que só tinha `width` e `white-space`.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas a 430px e a 900px**: cinco caixas contornadas, ativa com anel lima, "Gerenciar Torneio" vermelho e "Inscreva-se" verde legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS, não o Razor.
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
 >
 > 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1081-abc4fe3`** (runs 221 e 224), **o mesmo artefato nos dois**, com a tag explícita. PR #197. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, e com o ANTES medido**: `GET /Partidas/VerVotos?partidaId=99999999` em produção respondia **500** às 16h41 e responde **404** às 16h43. Sem `partidaId` (o caso do robô, que chega como zero): **404** também. O `/js/palpitrometro.js` servido traz as duas frases da guarda nos dois ambientes. `/healthz` **200** em `dev` e `prod`.
+>
+> ⚠️ **A TAG FOI EXPLÍCITA POR NECESSIDADE, NÃO POR CAPRICHO**: o PR #198 (contorno das abas, outra sessão) entrou no `main` **um minuto** depois do #197. "O mais recente" teria levado pra produção um trabalho que não era deste bloco e que não tinha passado por `dev`.
+>
+> ⚠️ **O `build-1081` carregou junto o que estava represado desde o `build-1074`**: o #195 (aviso de quadra vaga) e o #196 (só STATUS). O `deploy.sh` instala o build INTEIRO — não existe publicar um commit só.
+>
+> 🕳️ **O PRIMEIRO DEPLOY EM PROD FALHOU, e vale saber por quê**: `ssh: connect to host port 22: Connection timed out` (exit 255, run 222). Morreu no SSH, **antes** do `deploy.sh` — produção ficou intacta, sem estado pela metade (conferido: ainda 500 e `healthz` 200 depois da falha). A causa provável é o deploy em `dev` de OUTRA sessão no **mesmo segundo**, contra o **mesmo VPS**: o `concurrency` do `deploy.yml` é `deploy-${ambiente}`, então `dev` e `prod` não esperam um pelo outro, embora sejam a mesma máquina. Uma retentativa resolveu.
+>
+> ⚠️ **O environment `prod` NÃO pediu aprovação** — o job foi direto pro `Publicar`. O `infra/vps/README.md` diz que a trava mora em Settings → Environments → `prod` → Required reviewers, e não no yml. **Ou ela não está configurada, ou não vale pra quem dispara.** Fica registrado: hoje um deploy em produção sai sem ninguém confirmar.
+>
+> ⏳ **~~NO BRANCH `claude/new-session-6j9ybe`~~ — publicado.** **Sem migration.**
+>
+> 🕳️ **O VIGIA PEGOU: três `InvalidOperationException` em `GET /Partidas/VerVotos`, 08:49, no mesmo minuto** — *"Partida não encontrada."*. 📱 Felipe mandou o print do registro de erros.
+>
+> ✅ **Jogo que não existe (mais) agora é 404, e não 500.** O `partidaId` fica congelado no HTML do botão enquanto a aba estiver aberta; o jogo, não — **regerar a chave, regerar o americano e mudar resultado do mata-mata apagam partidas** (`Partidas.RemoveRange`, em quatro pontos). O `ObterVotantesAsync` devolve **nulo** em vez de estourar, e o controller responde `NotFound()`.
+>
+> ⚠️ **As duas irmãs que GRAVAM continuam estourando, de propósito**: `RegistrarVotoAsync` e `RetirarPalpiteAsync` jogam `InvalidOperationException` porque quem chama precisa da FRASE pra mostrar ("esta partida já começou"). Numa LEITURA não há nada a dizer — id que não existe é 404.
+>
+> 🕳️ **E O 500 NÃO ERA A PIOR PARTE: o JS fazia `response.json()` sem olhar o `ok`.** A página de erro é HTML, o parse estourava, ninguém pegava a promessa — e o modal ficava em **"Carregando..." pra sempre**. É por isso que foram **TRÊS** erros no mesmo minuto e não um: o dedo bateu de novo. Agora o modal avisa *"Este jogo saiu da lista — atualize a página."* (e a guarda vale pra qualquer resposta não-ok, igual ao `falarComOServidor` que já fazia isso desde sempre).
+>
+> ⚠️ **QUAL id chegou, NÃO DÁ PRA SABER — e isso é escolha, não falha**: o vigia grava o CAMINHO e não a query (`IExceptionHandlerPathFeature.Path`), senão `/Auth/RedefinirSenha?token=…` passaria a gravar token de senha numa tabela que a tela do admin mostra. A causa acima é o candidato mais provável, não um fato provado; o 404 cobre igual o outro caminho — requisição **sem** `partidaId` chega como zero.
+>
+> 🧪 **6.432 testes, 0 falhas (2 novos)** + **2 conferências novas** no `conferir-palpitrometro.js` (15 no total, e o modal entrou no DOM falso pela primeira vez). Vistos vermelhos antes: *"System.InvalidOperationException : Partida não encontrada."* (o erro do print, reproduzido) e *"estourou: a página de erro é HTML, não JSON"*. As duas travas anti-correção-grande-demais foram **falsificadas**: `NotFound()` solto na ação acusa na hora, e forçar o aviso com 200 na mão também.
+>
+> ⚠️ **`Assert.NotNull` em 6 chamadas antigas do `ObterVotantesAsync`** — CS8602 é erro aqui, e a prova é a guarda, nunca o `!`.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser. O que se provou é o 404 do servidor e o desvio do JS contra um DOM falso.
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
 >

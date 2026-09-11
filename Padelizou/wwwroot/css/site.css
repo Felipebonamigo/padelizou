@@ -21,6 +21,9 @@
     --pdz-surface: #ffffff;
     --pdz-surface-alt: #f4f7fc;
     --pdz-border: rgba(28, 39, 66, .09);
+    /* A linha que liga os jogos na árvore da chave. A borda comum (9% de alpha) existe pra
+       separar caixa de fundo; traço que atravessa o quadro precisa ser visto de relance. */
+    --pdz-linha-chave: rgba(28, 39, 66, .28);
 
     /* Navy fixo — não muda com o tema (usado em fundos/detalhes que sempre precisam ficar escuros,
        tipo os painéis "Ranking Global" e cabeçalhos de card com texto branco em cima). */
@@ -55,6 +58,7 @@
     --pdz-surface: #1a2338;
     --pdz-surface-alt: #212c46;
     --pdz-border: rgba(231, 236, 247, .10);
+    --pdz-linha-chave: rgba(231, 236, 247, .30);
 
     --pdz-shadow-sm: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .25);
     --pdz-shadow-md: 0 6px 18px rgba(0, 0, 0, .35), 0 2px 6px rgba(0, 0, 0, .25);
@@ -1646,187 +1650,248 @@ button, a, input, select { touch-action: manipulation; }
    palpite de verdade. */
 .pdz-palpite-vazio { opacity: .45; }
 
-/* Prévia do mata-mata em COLUNAS por rodada, uma ao lado da outra — o caminho até a
-   final se lê da esquerda pra direita, como um chaveamento de verdade. */
-.pdz-chave-projetada-rodadas {
-    display: flex;
-    gap: 1rem;
+/* ── A PRÉVIA DO MATA-MATA COMO ÁRVORE ─────────────────────────────────────
+   O caminho até a final com as LINHAS mostrando de onde vem cada vaga, no lugar das quatro
+   colunas soltas que a tela teve até 11/09/2026.
+
+   SÃO DOIS DESENHOS DA MESMA CHAVE, e a escolha é do Felipe:
+     · computador (`.pdz-arv`) — de cima pra baixo, a chave inteira à vista;
+     · celular (`.pdz-chd`)    — deitada e arrastável da esquerda pra direita, a rodada atual em
+                                 dois terços da tela e a seguinte espiando na beirada, como a
+                                 chave da Libertadores no Google.
+
+   ⚠️ A GEOMETRIA DOS DOIS É A MESMA CONTA (Services/ArvoreDaChave): coluna e largura de cada
+   jogo. No computador viram COLUNAS da grade, no celular LINHAS — e a ligação usa as mesmas
+   porcentagens, só trocando o eixo. Marcação em Views/Torneios/_ChaveProjetadaArvore.cshtml.
+
+   ⚠️ A ÁRVORE ANTERIOR (também `.pdz-arv`) foi tentada e abandonada em 05/08/2026 porque
+   crescia pra LARGURA: numa chave de 32 ela tinha 16 jogos de largura e não cabia em tela
+   nenhuma. Ficou de CSS morto até hoje, sem view nenhuma, e o que está aqui é outra coisa —
+   esta cresce pra baixo no computador e é arrastável no celular, que são as duas direções em
+   que a tela tem espaço de sobra. */
+
+/* ---- COMPUTADOR: de cima pra baixo ---- */
+.pdz-arv-rolagem {
     overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
     padding-bottom: .5rem;
 }
 
-.pdz-chave-projetada-rodada {
-    flex: 0 0 15rem;
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-}
-
-@media (max-width: 767.98px) {
-    /* No celular as colunas cortavam no meio ("QUARTAS DE F...") sem nenhuma
-       pista de rolagem — Semifinal e Final ficavam invisíveis. Empilhadas, como
-       a chave de verdade (_ChaveDoMataMata) já faz: as duas ganham a mesma cara. */
-    .pdz-chave-projetada-rodadas {
-        flex-direction: column;
-        overflow-x: visible;
-        gap: 1.1rem;
-    }
-
-    .pdz-chave-projetada-rodada { flex: 1 1 auto; }
-}
-
-.pdz-chave-projetada-fase {
-    font-size: .72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--pdz-muted);
-}
-
-/* Mesma anatomia da vaga da chave de verdade (.pdz-chave-vaga): etiqueta fina em cima
-   com número, hora e quadra, e os dois lados embaixo ocupando a largura toda.
-
-   Era um flex de duas colunas — número à esquerda, um bloco com TUDO à direita. Como o
-   bloco encolhia até o conteúdo, ele descolava do número e ia parar no canto direito do
-   cartão, deixando um vão no meio e os nomes soltos longe do quadro. */
-.pdz-chave-projetada-jogo {
-    padding: .45rem .6rem;
-    border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
-    border-radius: 10px;
-    background: var(--pdz-surface-alt);
-    color: var(--pdz-ink);
-    font-size: .82rem;
-    line-height: 1.35;
-}
-
-/* Hora e quadra do jogo projetado. Menor e mais apagada que os lados: quem olha o quadro
-   procura primeiro QUEM joga; o quando vem logo depois, e é a metade que faltava — o
-   jogador precisa saber a que horas voltar e pra qual quadra ir. */
-.pdz-chave-projetada-quando {
-    display: flex;
-    align-items: center;
-    gap: .35rem;
-    font-size: .68rem;
-    font-weight: 600;
-    letter-spacing: .02em;
-    color: var(--pdz-muted);
-    margin-bottom: .2rem;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-/* Encostada na direita, como na chave real: hora e quadra são duas informações
-   diferentes, e emendadas no meio da linha viravam uma frase só. */
-.pdz-chave-projetada-quadra { margin-left: auto; font-weight: 700; }
-
-.pdz-chave-projetada-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 1.15rem;
-    height: 1.15rem;
-    border-radius: 50%;
-    background: var(--pdz-surface);
-    border: 1px solid var(--pdz-border);
-    color: var(--pdz-muted);
-    font-size: .62rem;
-    font-weight: 700;
-}
-
-.pdz-chave-projetada-lado {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* O de baixo apagado, igual à chave real: dá pra ler o confronto de relance sem
-   confundir as duas linhas. */
-.pdz-chave-projetada-lado-2 { color: var(--pdz-muted); }
-
-/* ── Chaveamento do mata-mata: ÁRVORE de cima pra baixo ────────────────────
-   A primeira rodada no topo, cada fase numa linha abaixo ligada por linhas que
-   mostram de onde vem cada vaga, e a final no pé com o troféu.
-
-   Vale pra TODO mata-mata — o pós-grupos e o que é só mata-mata usam o mesmo
-   componente, então os dois têm exatamente a mesma cara.
-
-   Uma grade de N colunas (N = vagas da primeira linha). Cada fase abaixo tem metade
-   das vagas, e cada vaga ocupa o DOBRO de colunas — é isso que a centraliza sobre os
-   dois jogos que a alimentam, sem cálculo de pixel.
-
-   ⚠️ A rolagem lateral é UMA só, no container de fora. Uma rolagem por linha
-   desalinharia as colunas: a semifinal deixaria de ficar embaixo das quartas que a
-   alimentam, e as linhas de ligação apontariam pro nada.
-   Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
-.pdz-arv-rolagem {
-    overflow-x: auto;
-    padding-bottom: .5rem;
-}
-
+/* Uma grade de N colunas (N = jogos da rodada mais larga). Cada vaga ocupa as colunas dos jogos
+   que a alimentam, e é isso que a centraliza sobre eles — sem uma conta de pixel. */
 .pdz-arv {
     display: grid;
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr));
+    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(8.5rem, 1fr));
     min-width: min-content;
 }
 
-.pdz-arv-fase,
-.pdz-arv-linha {
-    grid-column: 1 / -1;       /* rótulo e linha ocupam a largura toda da grade */
-}
-
-.pdz-arv-linha {
-    display: grid;
-    grid-template-columns: subgrid;   /* herda as colunas do pai: tudo alinhado */
-}
-
-@supports not (grid-template-columns: subgrid) {
-    .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr)); }
-}
-
 .pdz-arv-fase {
-    font-size: .64rem;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: .45rem;
+    font-size: .72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .05em;
-    color: var(--pdz-muted);
-    margin: .5rem 0 .2rem;
+    color: var(--pdz-ink);
+    border-bottom: 1px solid var(--pdz-border);
+    padding-bottom: .3rem;
+    margin: .85rem .25rem .1rem;
 }
+
+.pdz-arv > .pdz-arv-fase:first-child { margin-top: 0; }
+
+.pdz-arv-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
 
 .pdz-arv-celula {
-    padding: 0 .25rem;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    padding: 0 .25rem;
 }
 
-/* A ligação com os dois pais logo acima: dois cotovelos que se encontram no meio e
-   um talo que desce até esta vaga. Tudo em porcentagem da PRÓPRIA célula, então
-   funciona igual numa vaga de 2 colunas e numa de 8. */
+.pdz-arv-celula > .pdz-chave-vaga { flex: 1 1 auto; }
+
+/* A ligação com os jogos de cima, desenhada em % da PRÓPRIA célula: o `::before` é uma caixa
+   que vai do centro de um alimentador ao do outro (`--a` e `--hw`) e desenha os dois talos mais
+   a linha que os junta; o `::after` desce do meio até esta vaga. Funciona igual numa vaga de 2
+   colunas e numa de 16, porque não há nenhum pixel na conta. */
 .pdz-arv-liga {
     position: relative;
     display: block;
-    height: 14px;
+    flex: 0 0 22px;
+    height: 22px;
 }
 
-.pdz-arv-liga::before,
+.pdz-arv-liga::before {
+    content: "";
+    position: absolute;
+    left: var(--a);
+    width: var(--hw);
+    top: 0;
+    height: 50%;
+    border: 2px solid var(--pdz-linha-chave);
+    border-top: 0;
+}
+
 .pdz-arv-liga::after {
     content: "";
     position: absolute;
-    top: 0;
-    height: 50%;
-    width: 25%;
-    border-bottom: 2px solid var(--pdz-border);
-}
-
-.pdz-arv-liga::before { left: 25%; border-left: 2px solid var(--pdz-border); }
-.pdz-arv-liga::after  { left: 50%; border-right: 2px solid var(--pdz-border); }
-
-.pdz-arv-liga > i {
-    position: absolute;
     left: 50%;
+    margin-left: -1px;
     top: 50%;
     height: 50%;
-    border-left: 2px solid var(--pdz-border);
+    border-left: 2px solid var(--pdz-linha-chave);
+}
+
+/* Vaga alimentada por UM jogo só — o outro lado passou direto. Talo reto: não há dois pontos
+   pra juntar, e o cotovelo desenharia um bico apontando pro nada. */
+.pdz-arv-liga-reta::before { display: none; }
+.pdz-arv-liga-reta::after { top: 0; height: 100%; }
+
+.pdz-arv-trofeu-celula { grid-column: 1 / -1; }
+
+/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
+
+   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
+   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
+   destaque sumiria calado. */
+.pdz-chave-vaga.pdz-arv-final {
+    border-color: var(--padel-green);
+    background: rgba(163, 216, 39, .10);
+}
+
+/* ---- CELULAR: deitada, arrastável da esquerda pra direita ---- */
+.pdz-chd { display: flex; flex-direction: column; gap: .55rem; }
+
+.pdz-chd-fichas {
+    display: flex;
+    gap: .35rem;
+    overflow-x: auto;
+    padding-bottom: .3rem;
+    scrollbar-width: none;
+}
+
+.pdz-chd-fichas::-webkit-scrollbar { display: none; }
+
+.pdz-chd-ficha {
+    flex: 0 0 auto;
+    font-size: .66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .32rem .7rem;
+    border-radius: 999px;
+    border: 1px solid var(--pdz-border);
+    background: var(--pdz-surface);
+    color: var(--pdz-muted);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.pdz-chd-ficha:hover { color: var(--pdz-ink); border-color: var(--padel-green); }
+
+/* O trilho: cada rodada ocupa dois terços da largura, então a SEGUINTE fica espiando na
+   beirada — é ela que responde "ganhei, e agora?" antes de alguém arrastar. O encaixe é
+   `scroll-snap`, sem uma linha de JS. */
+.pdz-chd-trilho {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding-bottom: .5rem;
+}
+
+.pdz-chd-trilho::-webkit-scrollbar { display: none; }
+
+/* Espaço no fim: sem ele a última rodada nunca chega ao começo da tela, porque o trilho para
+   de rolar quando o conteúdo acaba. */
+.pdz-chd-trilho::after { content: ""; flex: 0 0 34%; }
+
+.pdz-chd-rodada {
+    flex: 0 0 66%;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pdz-chd-cab {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--pdz-ink);
+    border-bottom: 1px solid var(--pdz-border);
+    padding: 0 .25rem .3rem;
+    margin-bottom: .35rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Todas as rodadas têm o MESMO número de linhas (a largura da chave), então as faixas ficam
+   alinhadas de uma coluna pra outra e a ligação aponta pro cartão certo. Quem ocupa mais de
+   uma faixa é a vaga que junta duas — e é assim que ela nasce centralizada. */
+.pdz-chd-grade {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-rows: repeat(var(--pdz-chd-linhas), minmax(3.9rem, 1fr));
+}
+
+.pdz-chd-celula {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: .15rem .25rem;
+}
+
+.pdz-chd-celula > .pdz-chave-vaga { flex: 1 1 auto; min-width: 0; }
+
+/* A MESMA ligação do computador com os eixos trocados: o cotovelo entra pela esquerda. */
+.pdz-chd-liga {
+    position: relative;
+    flex: 0 0 16px;
+    align-self: stretch;
+}
+
+.pdz-chd-liga::before {
+    content: "";
+    position: absolute;
+    top: var(--a);
+    height: var(--hw);
+    left: 0;
+    width: 50%;
+    border: 2px solid var(--pdz-linha-chave);
+    border-left: 0;
+}
+
+.pdz-chd-liga::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    margin-top: -1px;
+    left: 50%;
+    right: 0;
+    border-top: 2px solid var(--pdz-linha-chave);
+}
+
+.pdz-chd-liga-reta::before { display: none; }
+.pdz-chd-liga-reta::after { left: 0; }
+
+.pdz-chd-rodada-trofeu { flex: 0 0 60%; }
+.pdz-chd-rodada-trofeu .pdz-chave-trofeu { padding: .5rem .4rem; }
+
+.pdz-chd-dica {
+    font-size: .68rem;
+    color: var(--pdz-muted);
+    text-align: center;
+    margin: 0;
 }
 
 /* ---- A vaga ----
@@ -1913,23 +1978,6 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-chave-venceu { color: var(--padel-green); font-weight: 700; }
 
-/* De onde vem quem vai ocupar a vaga. A LINHA já mostra isso; o número é só a
-   confirmação pra quem está procurando o próprio jogo. */
-.pdz-arv-vem {
-    display: inline-flex;
-    align-items: center;
-    gap: .2rem;
-    font-size: .66rem;
-    color: var(--pdz-muted);
-}
-
-/* Quem passou direto: vaga com cara de "já está dentro", sem placar nem horário. */
-.pdz-arv-bye {
-    border-style: solid;
-    border-color: var(--pdz-lime);
-    background: var(--pdz-surface-alt);
-}
-
 .pdz-chave-selobye {
     font-size: .55rem;
     font-weight: 700;
@@ -1963,14 +2011,6 @@ button, a, input, select { touch-action: manipulation; }
     border: 1px solid var(--pdz-border);
     max-width: 16rem;
     margin: 0 auto;
-}
-
-@media (max-width: 575.98px) {
-    .pdz-arv { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
-    @supports not (grid-template-columns: subgrid) {
-        .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
-    }
-    .pdz-chave-vaga { font-size: .68rem; }
 }
 
 /* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
@@ -2019,32 +2059,15 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-ink);
 }
 
-/* Legibilidade acima de "caber": no celular a chave NÃO encolhe o cartão — ele mantém
-   largura e fonte confortáveis e a chave rola de lado. Espremer pra caber na tela
-   deixava o cartão com 90px e fonte de 10px, com os nomes truncados em nada; rolar é
-   um incômodo, não conseguir ler é um defeito. */
-.pdz-arv,
-.pdz-arv-linha {
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
-}
+/* Legibilidade acima de "caber": o cartão da chave mantém fonte confortável em qualquer
+   largura. Espremer pra caber na tela deixava o cartão com 90px e fonte de 10px, com os nomes
+   truncados em nada — rolar é um incômodo, não conseguir ler é um defeito.
 
-@supports (grid-template-columns: subgrid) {
-    .pdz-arv-linha { grid-template-columns: subgrid; }
-}
-
+   ⚠️ ESTAS DUAS REGRAS VALEM DE VERDADE e são a fonte final do cartão da chave (a base é
+   `.pdz-chave-vaga`, mais acima). Elas vinham acompanhadas de regras da árvore antiga, que
+   saíram em 11/09/2026 junto com o resto do CSS morto. */
 .pdz-chave-vaga { font-size: .76rem; }
 .pdz-chave-quando { font-size: .64rem; }
-
-@media (max-width: 575.98px) {
-    .pdz-arv,
-    .pdz-arv-linha {
-        grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
-    }
-    @supports (grid-template-columns: subgrid) {
-        .pdz-arv-linha { grid-template-columns: subgrid; }
-    }
-    .pdz-chave-vaga { font-size: .76rem; }
-}
 
 /* ── Aviso de AMBIENTE DE TESTE no portão do dev ───────────────────────────
    Listrado de obra e no topo da tela, antes do formulário. Não é enfeite: depois do
@@ -2291,12 +2314,59 @@ button, a, input, select { touch-action: manipulation; }
    Mesmo remédio das pills, aplicado às `nav-tabs` da página do torneio. Do
    tamanho do próprio texto, cinco abas viravam TRÊS linhas irregulares no
    celular do organizador (142px, 178px e 75px de vão) — e tela com buraco não
-   parece arrumada, parece quebrada. */
+   parece arrumada, parece quebrada.
+
+   CONTORNO EM TODAS (Felipe, 11/09/2026): *"deixar pelo menos desenhado o
+   contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil
+   pro usuario ver q é uma aba"*. É a MESMA queixa de 08/08/2026 que deu
+   borda às `.pdz-pills` — as pills de dentro (Ao Vivo/Agendadas/Finalizadas)
+   foram atendidas e a barra de cima ficou como o Bootstrap a desenha:
+   `border: 1px solid transparent` na inativa, cor de borda só na ativa. Com
+   isso só a aba escolhida parecia botão; as outras quatro, texto solto.
+
+   A LINHA DA `nav-tabs` SAI JUNTO. Ela existe pra que a aba ativa — de meia
+   caixa, cantos arredondados só em cima — se FUNDA nela, e por isso o
+   Bootstrap ainda puxa cada aba 1px pra baixo (`margin-bottom: -1px`). Com as
+   cinco viradas caixa fechada, essa linha passa cortando todas e a borda de
+   baixo de cada uma fica 1px fora do lugar. */
+.pdz-abas {
+    border-bottom: 0;
+    /* Coladas, o contorno de uma é o da vizinha e volta o "onde termina esta e
+       começa a outra". É também o vão que o `calc(50% - .25rem)` de duas por
+       linha, ali embaixo, já supunha existir. */
+    gap: .25rem;
+}
+
 .pdz-abas .nav-item { flex: 1 1 auto; }
 
 .pdz-abas .nav-link {
     width: 100%;
     white-space: nowrap;
+    margin-bottom: 0;
+    border: 1px solid var(--pdz-border);
+    border-radius: .5rem;
+}
+
+/* `:focus` junto do `:hover` porque o Bootstrap trata os dois na MESMA regra
+   (`.nav-tabs .nav-link:hover, :focus`) e pinta a borda de cinza: sem isto, a
+   aba que ficou com o foco depois do clique seria a única de cor diferente. */
+.pdz-abas .nav-link:hover,
+.pdz-abas .nav-link:focus {
+    border-color: var(--pdz-lime);
+}
+
+/* A ATIVA: anel lima + superfície. Contornar todas tira justamente o que a
+   distinguia (era a única com cor de borda), e cinco caixas iguais não dizem
+   onde a pessoa está.
+
+   ⚠️ ANEL, E NÃO PREENCHIMENTO LIMA como nas pills — escolha, não esquecimento.
+   Esta barra tem abas que carregam cor PRÓPRIA: "Gerenciar Torneio" é
+   `text-danger` e "Inscreva-se" é verde sobre navy, as duas vencendo (por
+   `!important` e por estilo inline) qualquer cor que a regra da ativa
+   escrevesse. Vermelho sobre lima não se lê. */
+.pdz-abas .nav-link.active {
+    background-color: var(--pdz-surface-alt);
+    border-color: var(--pdz-lime);
 }
 
 @media (max-width: 430px) {

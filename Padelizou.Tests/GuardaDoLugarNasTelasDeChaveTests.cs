@@ -24,7 +24,9 @@ public class GuardaDoLugarNasTelasDeChaveTests
     // final ta sem clube"* — a hora das quartas foi digitada na mão, a reserva nasce sem quadra
     // (TorneiosController.DefinirHorario) e o `if (!IsNullOrEmpty(previsto.Quadra))` calava o
     // cartão inteiro. Ao lado, os cards de grupo diziam "Radar" e "Er Padel" pelo carimbo.
-    [InlineData("Torneios/Details.cshtml", "pdz-chave-projetada-quadra")]
+    // A prévia do mata-mata. Desde 11/09/2026 ela usa o MESMO cartão da chave de verdade
+    // (`.pdz-chave-quadra`), num partial próprio — não existe mais uma etiqueta só dela.
+    [InlineData("Torneios/_ChaveProjetadaArvore.cshtml", "pdz-chave-quadra")]
     public void O_lugar_do_jogo_e_guardado_pela_etiqueta_e_nao_pela_quadra(string view, string classe)
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", view));

@@ -263,6 +263,19 @@ async function verVotos(partidaId, nome1, nome2) {
     modal.show();
 
     const response = await fetch('/Partidas/VerVotos?partidaId=' + partidaId);
+
+    // ⚠️ OLHAR O `ok` ANTES DO `json()` — 11/09/2026. O jogo apagado (chave regerada com esta
+    // lista aberta) responde 404, e a resposta de erro NÃO é JSON: sem esta guarda o parse
+    // estoura, ninguém pega a promessa, e o modal fica em "Carregando..." pra sempre. Em
+    // produção o dedo bateu três vezes no mesmo minuto por causa disso.
+    if (!response.ok) {
+        lista1.innerHTML = '<div class="small text-danger">' + (response.status === 404
+            ? 'Este jogo saiu da lista — atualize a página.'
+            : 'Não foi possível carregar quem votou. Tente de novo.') + '</div>';
+        lista2.innerHTML = '';
+        return;
+    }
+
     const data = await response.json();
 
     // ⚠️ Nome e foto vêm do CADASTRO de quem votou — texto de gente, não do sistema. Como esta

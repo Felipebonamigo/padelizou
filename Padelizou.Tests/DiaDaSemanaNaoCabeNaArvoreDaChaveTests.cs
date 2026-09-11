@@ -28,6 +28,9 @@ public class DiaDaSemanaNaoCabeNaArvoreDaChaveTests
 {
     [Theory]
     [InlineData("_ChaveDoMataMata.cshtml", "a vaga da chave")]
+    // Desde 11/09/2026 a PRÉVIA usa o mesmo cartão, no partial da árvore — então a mesma régua
+    // vale pros dois, e a prova de que ela vale ali é esta linha e não um teste separado.
+    [InlineData("_ChaveProjetadaArvore.cshtml", "a vaga da prévia")]
     public void A_vaga_da_chave_nao_carrega_o_dia_da_semana(string arquivo, string qualLinha)
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", arquivo));
@@ -36,32 +39,24 @@ public class DiaDaSemanaNaoCabeNaArvoreDaChaveTests
             $"O dia da semana voltou pra {qualLinha}: ele come o nome do clube, que é cortado sem reticências.");
     }
 
-    [Fact]
-    public void A_chave_projetada_do_Details_tambem_nao()
-    {
-        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
-
-        // O `Details.cshtml` tem DUAS datas de jogo: o mini-jogo do grupo (que comporta o dia) e
-        // a chave projetada (que não). Por isso a checagem é no trecho da projetada, e não no
-        // arquivo inteiro — travar o arquivo todo proibiria também a linha que cabe.
-        var inicio = fonte.IndexOf("pdz-chave-projetada-quando", StringComparison.Ordinal);
-        Assert.True(inicio >= 0, "Não achei a linha da chave projetada.");
-
-        var fim = fonte.IndexOf("pdz-chave-projetada-lado", inicio, StringComparison.Ordinal);
-        Assert.True(fim > inicio, "Não achei o fim da linha da chave projetada.");
-
-        Assert.DoesNotContain("DiaDaSemana.Curto", fonte[inicio..fim], StringComparison.Ordinal);
-    }
+    // ⚠️ O TESTE QUE FICAVA AQUI RECORTAVA UM TRECHO DO `Details.cshtml` pela classe
+    // `pdz-chave-projetada-quando`, porque a prévia era markup solto no meio de um arquivo que
+    // tem OUTRA data de jogo (o mini-jogo do grupo, onde o dia da semana cabe e fica). Em
+    // 11/09/2026 a prévia virou um partial com o cartão da chave de verdade: o recorte deixou de
+    // ser necessário, e o arquivo inteiro entrou na Theory acima — que é uma trava mais forte,
+    // porque pega o arquivo todo em vez de uma janela de texto.
 
     [Fact]
-    public void As_duas_linhas_continuam_sem_reticencias_e_com_a_quadra_por_ultimo()
+    public void A_linha_da_vaga_continua_sem_reticencias_e_com_a_quadra_por_ultimo()
     {
         // A régua acima só faz sentido enquanto ESTAS duas coisas forem verdade. No dia em que
         // alguém der `text-overflow: ellipsis` à linha (ou tirar o `margin-left: auto` da
         // quadra), a conta muda e a proibição precisa ser reavaliada — e é este teste que avisa.
         var css = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "wwwroot", "css", "site.css"));
 
-        foreach (var regra in new[] { ".pdz-chave-quando", ".pdz-chave-projetada-quando" })
+        // É UMA LINHA SÓ desde 11/09/2026: a prévia passou a usar `.pdz-chave-quando`, a mesma
+        // da chave de verdade, e a régua que valia pras duas passou a ter um lugar só pra morar.
+        foreach (var regra in new[] { ".pdz-chave-quando" })
         {
             var inicio = css.IndexOf(regra + " {", StringComparison.Ordinal);
             Assert.True(inicio >= 0, $"Não achei a regra {regra}.");
@@ -72,7 +67,6 @@ public class DiaDaSemanaNaoCabeNaArvoreDaChaveTests
         }
 
         Assert.Contains(".pdz-chave-quadra { margin-left: auto;", css);
-        Assert.Contains(".pdz-chave-projetada-quadra { margin-left: auto;", css);
     }
 
     private static string PastaDoProjeto() => Path.Combine(RaizDoRepo(), "Padelizou");
