@@ -25,7 +25,7 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
 
-> **11/09/2026** — 🛡️ **A CHAPINHA DO ESCUDO VALE EM TODO CANTO, E AS COLUNAS DE NÚMERO ENCOLHERAM.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, NÃO publicado — esperando o Felipe ver o render.** **Sem migration.**
+> **11/09/2026** — 🛡️ **A CHAPINHA DO ESCUDO VALE EM TODO CANTO, E AS COLUNAS DE NÚMERO ENCOLHERAM.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
 >
 > 🗣️ Felipe, com o print da Fase de Grupos: *"alguns escudos estão com fundo branco, consegue arrumar?"* e *"acho que dá pra diminuir o tamanho do J V D SG da coluna, pra caber mais do nome"*.
 >
@@ -43,7 +43,7 @@
 >
 > 🧪 **6.414 testes, 0 falhas** (9 novos) + os dois conferidores de JS verdes.
 >
-> ⚠️ **AGUARDANDO DECISÃO:** os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto. Uniforme, mas é visual novo pra eles — o Felipe viu o render e decide.
+> ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
 
 
 > **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
