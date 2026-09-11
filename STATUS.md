@@ -1,4 +1,16 @@
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
+>
+> 🔒 **O `dev` continua sem conferência por fora** (o gate de Acesso Antecipado redireciona o site inteiro lá): a evidência é o job `deploy → dev` verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho — mais o `/healthz` 200.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO PELA TERCEIRA VEZ NESTA SESSÃO** (`ac46898`: zero checks criados). Gatilho manual de novo. ⚠️ **Já são cinco ocorrências registradas neste arquivo** (26/08, 10/09 e três hoje) — se doer mais uma vez, vale investigar o `ci.yml` em vez de seguir apertando o botão.
+>
+> ✅ **E OS DOIS DISPAROS DE DEPLOY CRIARAM RUN DESTA VEZ** — conferido pelo run **e pelo nome do job** (`deploy → dev`, `deploy → prod`), que é o que prova o ambiente: o `204 queued` sozinho não garante nada (a nota de 10/09 e a de hoje mais cedo).
+>
+> 🧪 **6.565 testes, 0 falhas** depois de mesclar o `main` duas vezes no caminho (PRs #221 e #223, de sessões paralelas).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
 >
 > 🖼️ **"TUDO NUMA IMAGEM SÓ": A LISTA INTEIRA NUM PNG ALTO, ESCOLHIDO NA TELA.** 🗣️ Felipe: *"da para por a opção, para o jogador selecionar se nao quer todos os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a ressalva, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse"*.
 >
