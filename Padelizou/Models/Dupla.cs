@@ -170,9 +170,22 @@ public partial class Dupla
 
     // O nome que as telas mostram, seja time ou dupla. Defensivo com as navegações:
     // consulta sem Include não pode estourar a página inteira por causa de um rótulo.
+    //
+    // CADA UM PELO PRIMEIRO E PELO ÚLTIMO NOME (11/09/2026). 🗣️ Felipe, com o print da semifinal
+    // do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o
+    // primeiro e o ultimo para nao ficar muito espaçado"*. Esta era a última régua de nome de dupla
+    // que ainda escrevia o nome INTEIRO — `NomeDaDupla.De` e `Jogador.ComoChamar` já encurtavam —, e
+    // é ela que escreve a vaga do quadro projetado: "Marcelo Carvalho Prestes & Enio Gilberto M…",
+    // cortado no meio, sobrando justo o nome do meio, que é o que menos identifica alguém.
+    //
+    // ⚠️ CURTO, mas SEM APELIDO: não é `ComoChamar`. O parêntese ("Anderson Schwaab (Deco)") cresce
+    // de volta o que esta mudança encurtou, e este rótulo nunca teve apelido — quem quer os dois
+    // usa `NomeDaDupla.De`, que é a régua das ARTES.
     [NotMapped]
     public string NomeDeExibicao => NomeTime
         ?? (Jogador1 == null ? $"Dupla {Id}"
-            : Jogador2 == null ? Jogador1.NomeNaTela
-            : $"{Jogador1.NomeNaTela} & {Jogador2.NomeNaTela}");
+            : Jogador2 == null ? Curto(Jogador1)
+            : $"{Curto(Jogador1)} & {Curto(Jogador2)}");
+
+    private static string Curto(Jogador jogador) => Padelizou.Services.NomeBonito.Curto(jogador.Nome);
 }
