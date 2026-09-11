@@ -323,6 +323,15 @@ public partial class Torneio
     public DateTime AberturaDaGrade =>
         (DataInicio ?? DateTime.Today).Date.Add(HoraInicioDoDia);
     public int TamanhoGrupo { get; set; } = 3;
+
+    // ⚠️ NINGUÉM LÊ ISTO DESDE 11/09/2026 — quem manda em quantos passam de cada grupo é
+    // `Categoria.ClassificadosPorGrupo`, pela régua única `ClassificacaoDeGrupos.VagasPorGrupo`.
+    // A coluna fica porque dropar pede migration, e a `DuplicacaoDeTorneio` ainda a copia.
+    //
+    // 🕳️ Era a tela `/Torneios/Classificacao` que lia daqui, e ela discordava do chaveamento:
+    // este campo nasce 2 e NENHUMA tela o edita, então numa categoria de TIMES com 4 passando a
+    // tela pintava 2 linhas de verde. Se um dia isto virar o PADRÃO do torneio, o lugar é dentro
+    // da régua — e atenção: mudar lá muda a CHAVE de todo torneio cuja coluna não seja 2.
     public int ClassificadosPorGrupo { get; set; } = 2;
 
     // OBSOLETO — mantido só para não dropar a coluna em produção (evita janela de erro
