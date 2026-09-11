@@ -160,11 +160,15 @@ public class QuadroDaChaveCasaPorNumeroTests
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml"));
 
-        var inicio = fonte.IndexOf("pdz-chave-projetada-rodadas", StringComparison.Ordinal);
-        Assert.True(inicio >= 0, "Não achei o quadro da chave prevista (pdz-chave-projetada-rodadas) na página do torneio.");
+        // ⚠️ AS ÂNCORAS MUDARAM EM 11/09/2026, o que elas guardam não: o quadro virou uma ÁRVORE
+        // num partial (_ChaveProjetadaArvore), e o casamento com a projeção ficou aqui, no
+        // `Details.cshtml`, de propósito — a árvore reordena os jogos (a primeira rodada sai
+        // 1, 4, 2, 3), então casar lá dentro, na ordem do desenho, pegaria o jogo errado.
+        var inicio = fonte.IndexOf("var previstosDoQuadro", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, "Não achei o casamento da chave prevista (previstosDoQuadro) na página do torneio.");
 
-        var fim = fonte.IndexOf("pdz-chave-projetada-lado-2", inicio, StringComparison.Ordinal);
-        Assert.True(fim > inicio, "Não achei o fim do cartão da prévia (pdz-chave-projetada-lado-2).");
+        var fim = fonte.IndexOf("_ChaveProjetadaArvore", inicio, StringComparison.Ordinal);
+        Assert.True(fim > inicio, "Não achei o partial que recebe o quadro (_ChaveProjetadaArvore).");
 
         return fonte[inicio..fim];
     }

@@ -6156,92 +6156,60 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </div>
 
                                     @* HORA e QUADRA vêm da MESMA projeção da aba Jogos
-                                       (Services/ProximasFasesDaChave). Recalcular aqui daria
-                                       uma segunda conta, e duas contas divergem no dia em que
-                                       a regra mudar — a tela do quadro diria uma hora e a
-                                       lista de jogos diria outra.
+                                       (Services/ProximasFasesDaChave). Recalcular aqui daria uma segunda
+                                       conta, e duas contas divergem no dia em que a regra mudar — a tela
+                                       do quadro diria uma hora e a lista de jogos diria outra.
 
-                                       O casamento é por (fase, NÚMERO do jogo) — nunca por
-                                       posição na lista.
-
-                                       ⚠️ POR POSIÇÃO ESTAVA ERRADO, e o comentário que ficou aqui
-                                       até 10/09/2026 dizia por quê sem perceber: "os dois saem do
-                                       mesmo motor de chaveamento, na mesma ordem". Saem do mesmo
-                                       motor; NÃO chegam na mesma ordem. `ProjetarProximasFasesAsync`
-                                       termina com `OrderBy(j => j.Horario)`, e uma RESERVA do
-                                       organizador (Models/ReservaDeHorario, o "trocar horário" de
-                                       uma prévia) grava a hora escolhida sem mover o cursor da
-                                       grade — de propósito. Reservando a Semifinal 1 pra depois da
-                                       2, a lista chega com a 2 na frente e a vaga da 1 mostrava a
-                                       hora e a quadra da 2. Travado em
-                                       QuadroDaChaveCasaPorNumeroTests.
-
-                                       ⚠️ E LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
-                                       `JogosQueVem` é a lista da ABA JOGOS e os filtros dela
-                                       (clube, quadra, fase, "meus jogos") a recortam — com uma
-                                       semifinal fora, o quadro mostrava confronto que não existe.
-                                       Procurar pelo número resolve os dois de uma vez: não importa
-                                       quem recortou nem quem reordenou. *@
+                                       ⚠️ LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
+                                       `JogosQueVem` é a lista da ABA JOGOS e os filtros dela (clube,
+                                       quadra, fase, "meus jogos") a recortam — com uma semifinal fora, o
+                                       quadro mostrava confronto que não existe. *@
                                     var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
                                             as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
                                         ?.Where(j => j.Categoria == categoria.Nome)
                                         .GroupBy(j => j.Fase)
                                         .ToDictionary(g => g.Key, g => g.ToList());
 
-                                    <div class="pdz-chave-projetada-rodadas">
-                                        @foreach (var rodada in rodadasProjetadas)
-                                        {
-                                            <div class="pdz-chave-projetada-rodada">
-                                                <div class="pdz-chave-projetada-fase">@rodada.Fase</div>
-                                                @for (int i = 0; i < rodada.Jogos.Count; i++)
-                                                {
-                                                    var jogo = rodada.Jogos[i];
-                                                    var previsto = projecaoDaCategoria != null
-                                                        && projecaoDaCategoria.TryGetValue(rodada.Fase, out var daFase)
-                                                        ? daFase.FirstOrDefault(j => j.Numero == i + 1) : null;
+                                    @* O casamento é por (fase, NÚMERO do jogo DENTRO DA FASE) — nunca por
+                                       posição na lista. `ProximasFasesDaChave.Agendar` numera por fase
+                                       (`Numero = i + 1`), e é por isso que a busca compara com `i + 1`.
 
-                                                    @* Número junto da hora, na etiqueta de cima, e os
-                                                       lados soltos ocupando a largura toda — a mesma
-                                                       anatomia da vaga da chave de verdade
-                                                       (_ChaveDoMataMata). Com o número numa coluna
-                                                       própria os nomes eram empurrados pro canto
-                                                       direito do cartão, longe do quadro. *@
-                                                    <div class="pdz-chave-projetada-jogo">
-                                                        <div class="pdz-chave-projetada-quando">
-                                                            <span class="pdz-chave-projetada-num">@jogo.Numero</span>
-                                                            @if (previsto?.Horario is DateTime quando)
-                                                            {
-                                                                @* ⚠️ SEM o dia da semana (medido): aqui é
-                                                                   PIOR que na vaga da chave — a 390px o
-                                                                   "sex " faz "Er Padel" perder 49px de 49,
-                                                                   isto é, o clube some inteiro e sem
-                                                                   reticências. Ver
-                                                                   DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
-                                                                <span>@quando.ToString("dd/MM HH:mm")</span>
-                                                                @* A GUARDA É A ETIQUETA, E NÃO A QUADRA (10/09/2026) — a mesma
-                                                                   correção que os cards de grupo e as vagas da chave receberam,
-                                                                   e que este cartão ficou sem. 🗣️ *"quartas de final ta sem
-                                                                   clube"*: a hora daquelas quartas foi digitada na mão, hora
-                                                                   digitada não traz quadra, e o `IsNullOrEmpty(Quadra)` calava
-                                                                   o cartão inteiro — inclusive o clube, que o jogo previsto
-                                                                   sabe (ProximasFasesDaChave, ClubeId). *@
-                                                                @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondeJoga)
-                                                                {
-                                                                    <span class="pdz-chave-projetada-quadra">@ondeJoga</span>
-                                                                }
-                                                            }
-                                                            else
-                                                            {
-                                                                <span>a definir</span>
-                                                            }
-                                                        </div>
-                                                        <span class="pdz-chave-projetada-lado">@jogo.Lado1</span>
-                                                        <span class="pdz-chave-projetada-lado pdz-chave-projetada-lado-2">@jogo.Lado2</span>
-                                                    </div>
-                                                }
-                                            </div>
+                                       ⚠️ POR POSIÇÃO ESTAVA ERRADO, e o comentário que ficou aqui até
+                                       10/09/2026 dizia por quê sem perceber: "os dois saem do mesmo motor
+                                       de chaveamento, na mesma ordem". Saem do mesmo motor; NÃO chegam na
+                                       mesma ordem. `ProjetarProximasFasesAsync` termina com
+                                       `OrderBy(j => j.Horario)`, e uma RESERVA do organizador
+                                       (Models/ReservaDeHorario, o "trocar horário" de uma prévia) grava a
+                                       hora escolhida sem mover o cursor da grade — de propósito.
+                                       Reservando a Semifinal 1 pra depois da 2, a lista chega com a 2 na
+                                       frente e a vaga da 1 mostrava a hora e a quadra da 2. Travado em
+                                       QuadroDaChaveCasaPorNumeroTests.
+
+                                       ⚠️ E A ÁRVORE REORDENA DE NOVO: no quadro, a primeira rodada sai
+                                       1, 4, 2, 3 (ver Services/ArvoreDaChave), então o mapa é montado
+                                       AQUI, na ordem da projeção, e entregue ao partial por número GLOBAL
+                                       do jogo. Casar lá dentro, na ordem da árvore, pegaria o jogo errado. *@
+                                    var previstosDoQuadro = new Dictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>();
+                                    foreach (var rodada in rodadasProjetadas)
+                                    {
+                                        List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>? daFase = null;
+                                        projecaoDaCategoria?.TryGetValue(rodada.Fase, out daFase);
+
+                                        for (int i = 0; i < rodada.Jogos.Count; i++)
+                                        {
+                                            var previsto = daFase?.FirstOrDefault(j => j.Numero == i + 1);
+                                            if (previsto != null)
+                                            {
+                                                previstosDoQuadro[rodada.Jogos[i].Numero] = previsto;
+                                            }
                                         }
-                                    </div>
+                                    }
+
+                                    @* O quadro com as linhas: no computador de cima pra baixo, no celular
+                                       deitado e arrastável. A geometria dos dois é a mesma conta —
+                                       ver Services/ArvoreDaChave e Views/Torneios/_ChaveProjetadaArvore. *@
+                                    <partial name="_ChaveProjetadaArvore"
+                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro)" />
                                 }
                             }
                             else

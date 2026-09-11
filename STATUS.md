@@ -1,7 +1,37 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
+>
+> 🖥️📱 **SÃO DOIS DESENHOS DA MESMA CHAVE**, e é isso que o Felipe pediu textualmente: *"no pc, é de cima pra baixo e no mobile é arrastavel da esquerda pra direita"*. No computador a árvore desce, com a primeira rodada no alto e o troféu no pé. No celular ela deita: a rodada atual ocupa **66% da tela** e a seguinte fica **espiando na beirada**, com as linhas já chegando nela — é o que responde *"ganhei, e agora?"* sem tocar em nada. O encaixe é `scroll-snap`, **sem uma linha de JS**.
+>
+> ⚠️ **UMA CONTA SÓ PROS DOIS** (`Services/ArvoreDaChave`): largura de um jogo = soma das larguras dos que o alimentam; coluna = a faixa onde ele começa, andando da final pra trás. No computador isso vira **coluna** da grade, no celular vira **linha** — e até a ligação usa as mesmas duas porcentagens, com o CSS só trocando o eixo. Duas contas divergiriam no dia em que o cruzamento mudasse, e os dois desenhos contariam histórias diferentes.
+>
+> 🕳️ **`space-around` NÃO RESOLVERIA O CELULAR, e parece que resolveria.** Com **5 grupos** a segunda rodada tem **MAIS** jogos que a primeira (2 jogos + 6 byes = 8 entrantes = 4 jogos), então qualquer geometria que suponha "a próxima tem metade" aponta pro lugar errado. A conta de coluna/largura acerta porque não supõe nada.
+>
+> 🕳️ **O DEFEITO QUE QUASE FOI PRO AR CALADO: cultura.** As porcentagens da ligação vão num atributo `style`, e em **pt-BR** um `double` sai `16,667` — o navegador **descarta a declaração inteira sem erro nenhum**. O quadro apareceria em produção com os cartões certos e **zero linhas**. Travado em `ArvoreDaChaveTests.A_ligacao_sai_com_PONTO_decimal_em_qualquer_cultura`, e ⚠️ **o teste precisou de SETE grupos**: com 4 ou 6 a chave fica simétrica, toda porcentagem sai inteira e o teste **passava mesmo com a formatação errada** — foi falsificado, visto passar, e refeito até discriminar.
+>
+> ⚠️ **A ORDEM DA RODADA NÃO É A NUMÉRICA**: numa chave de 4 a primeira rodada sai **1, 4, 2, 3**, porque o jogo 5 nasce do 1 e do 4. Desenhar em ordem numérica faria as linhas cruzarem no meio do quadro. Isso obrigou o casamento com a projeção (hora e quadra) a **ficar no `Details.cshtml`**, na ordem da projeção, e ser entregue ao partial por número GLOBAL do jogo — casar lá dentro pegaria o jogo errado.
+>
+> ♻️ **O CARTÃO É O `.pdz-chave-vaga` DA CHAVE DE VERDADE**, e não um só da prévia: no dia em que os grupos acabam a tela não muda de cara, os cartões só ganham nome e placar. Foi o degrau 2 da escada do CLAUDE.md pagando sozinho — as ~90 linhas de `.pdz-chave-projetada-*` **foram embora inteiras**.
+>
+> 🧹 **E LEVARAM JUNTO O CSS MORTO DA ÁRVORE DE 05/08/2026**: 27 regras `.pdz-arv*` sem view nenhuma desde que aquela tentativa foi abandonada (ela crescia pra LARGURA — 16 jogos numa chave de 32 —, esta cresce pra baixo e deita no celular). ⚠️ **Duas regras daquele bloco NÃO eram mortas** e ficaram: `.pdz-chave-vaga { font-size: .76rem }` e `.pdz-chave-quando { font-size: .64rem }` valem hoje na chave real, e sair com elas teria encolhido a chave de verdade sem ninguém pedir.
+>
+> 🚫 **SEM SELO DE BYE** (🗣️ *"só não precisa colocar que folgou na primeira rodada"*): quem passou direto aparece **só pelo nome**, e a **ausência de linha** chegando na vaga é o que conta que ele não jogou a rodada anterior. O sufixo `(passou direto)` continua no `ChaveProjetada` pra quem lê a prévia em lista.
+>
+> 🧪 **6.438 testes, 0 falhas (36 novos: 31 de `ArvoreDaChaveTests` + 5 de guarda)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: os 26 de `ArvoreDaChaveTests` em *"o tipo ArvoreDaChave não existe"*, e os 5 de `QuadroDaPreviaTemOsDoisDesenhosTests` **falsificados um a um** (tirei o `d-none d-md-block`, tirei o bloco do celular, devolvi o sufixo, tirei o `scroll-snap`, e troquei o seletor da final por uma classe só). ⚠️ **CINCO TESTES DE FONTE DE OUTRAS ÁREAS FORAM REAPONTADOS, NÃO APAGADOS** (`QuadroDaChaveCasaPorNumero`, `DiaDaSemanaNaoCabeNaArvoreDaChave`, `GuardaDoLugarNasTelasDeChave`, `PreviaDizOClubeNaTela`, `FiltroDeJogosNaoAtrapalhaAsOutrasTelas`): eles ancoravam em `pdz-chave-projetada-*` dentro do `Details.cshtml`, e o código mudou de lugar — o que cada um guarda continua igual, e dois ficaram **mais fortes** (o do dia da semana passou a varrer o arquivo inteiro em vez de uma janela de texto).
+>
+> 🕳️ **A FINAL PERDEU O DESTAQUE NA PRIMEIRA TENTATIVA, por especificidade**: `.pdz-arv-final` sozinha empata com `.pdz-chave-vaga`, que define `border` e mora **mais abaixo** no arquivo — então vencia, e o realce sumia calado. O seletor virou `.pdz-chave-vaga.pdz-arv-final`. Achado **no navegador**, não na suíte.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (Chromium headless, app de verdade contra Postgres local, torneio semeado com 6 e com 16 grupos, temas claro e escuro): a árvore de 4 colunas sai na ordem **1, 4, 2, 3** com os cotovelos nos centros certos; a de **16 colunas (32 duplas, "Primeira Rodada")** desenha as 5 fases e rola dentro de si; e a 390px a deitada mostra a rodada atual com a seguinte espiando, **sem rolagem lateral da página**.
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v27`**: o `site.css` está na lista do service worker, e sem subir o `CACHE_NAME` quem já abriu o site continuaria com o CSS velho — o quadro novo chegaria sem as regras que o desenham.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a **chave de verdade** (`_ChaveDoMataMata`) continua em fases empilhadas, sem linhas — levar a árvore pras duas telas foi recomendado e **não** aprovado, e é uma tarefa própria. E o polimento do cartão que apareceu nas maquetes (número em selo lime, hora com mais peso) ficou fora pelo mesmo motivo: ele mora no cartão COMPARTILHADO, então mexeria na chave real junto.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
 >
