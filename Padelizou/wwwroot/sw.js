@@ -7,7 +7,7 @@
 // "mesma mudança", sem conflito. O número ficaria igual com DOIS site.css diferentes, e quem
 // tivesse guardado o primeiro v27 nunca baixaria o segundo: a bolinha do saque simplesmente
 // não apareceria pra quem usa o app instalado, sem erro nenhum em lugar nenhum.
-const CACHE_NAME = "padelizou-static-v28";
+const CACHE_NAME = "padelizou-static-v29";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

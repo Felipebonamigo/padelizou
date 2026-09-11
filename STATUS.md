@@ -1,4 +1,28 @@
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/eager-euler-q1xnm4`, ainda não publicado.** **Sem migration.**
+>
+> 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
+>
+> 🎯 **Ele não se perdeu — a régua era `(jogo.GamesDupla1 ?? 0) > (jogo.GamesDupla2 ?? 0)`, escrita no Razor:** QUALQUER vantagem pintava de lime, desde o 1 x 0. E é o MESMO lime que o card finalizado usa pra dizer "venceu o jogo" — duas cores iguais pra duas coisas diferentes, na mesma tela. Quem lê acredita na mais forte, e a tela anunciava um fim que não aconteceu.
+>
+> ⏱️ **E O VERDE ATRASAVA — a metade do defeito que o print não mostra.** A classe só nascia no HTML do servidor: o −/+ salva por `fetch` e atualizava o NÚMERO, nunca a COR. Um 9 x 8 corrigido pra 8 x 8 ficava com o EMPATE pintado de verde do lado de cima. A atualização automática arrumaria no tique de 20s — **mas ela não roda com o cursor dentro do campo** (`estaOcupado`, em `jogos-ao-vivo-atualiza.js`): quem DIGITA em vez de tocar no −/+ ficava com a cor errada por tempo indeterminado.
+>
+> ♻️ **A RÉGUA NOVA NÃO É UMA TERCEIRA CONTA** — é a composição das duas que já existiam, numa linha só (`Services/QuemVenceu.LadoJaDecidido`): `FormatoDaPartida.PodeEncerrar` diz se o jogo está DECIDIDO e `QuemVenceu.Lado` diz a favor de QUEM. Escrever um `games1 >= 9` no Razor ou no JS seria o `limiteGames: 9` cravado voltando pela terceira porta. **Quem responde é o SERVIDOR nos dois caminhos**: `ViewBag.VencedorNoPlacar` no HTML e um campo `vencedor` na resposta JSON do salvar — e é este segundo que conserta o atraso, porque o JS passa a ter o que obedecer sem esperar a atualização automática.
+>
+> ✅ **O que muda na quadra:** até 9 → o 8 x 6 fica branco e só o 9 acende; até 4 → o 3 x 3 (que estende o limite pra 5) não acende ninguém; soma de 7 → o 6 x 0 ainda tem um game pra jogar, o 4 x 3 fecha; **soma par empatada (7 x 7) → ninguém verde**, que é onde "ganhando" e "venceu" mais divergem. Com sets em jogo, o set decide — a mesma ordem do `QuemVenceu.Da` que finaliza a partida.
+>
+> 🧪 **6.512 testes, 0 falhas (11 novos, em `VerdeSoDeQuemVenceuTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'QuemVenceu' does not contain a definition for 'LadoJaDecidido'"* (12×, os testes de régua), o JSON sem `"vencedor":1`, a view ainda com o `>` no Razor, o JS sem `linha.vencedor` e o CSS sem `.pdz-live-placar-venceu`.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`), logado como marcador num jogo até 9: **9 x 6 → o 9 em `rgb(163, 216, 39)`; um toque no − → 8 x 6 com os DOIS em branco, sem recarga; toque no + → lime de volta na hora.** O empate 8 x 8, que era o caso que ficava preso, sai com os dois brancos.
+>
+> 🧹 **`CACHE_NAME` do service worker foi pra `v29`** — `site.css` e `placar-ao-vivo.js` mudaram, e sem virar o número quem usa o app instalado continuaria com o verde velho, sem erro em lugar nenhum.
+>
+> 🐛 **ACHADO DE CARONA, e NÃO foi mexido — é outro trabalho:** no **tema CLARO** o campo de placar do card AO VIVO é **branco no branco**. Conferido no navegador: `color: rgb(255,255,255)` sobre `background-color: rgb(255,255,255)`, porque o `.pdz-live-input` fixa `#fff` no texto e pega `var(--pdz-surface)` no fundo — que vale `#ffffff` no tema claro. O número do placar simplesmente não aparece pra quem não usa o tema escuro, e vem de linhas de 21/08/2026 que este trabalho não tocou.
+
+# Padelizou — Status e Roadmap
+
+> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
 >
 > 📤 **O "COMPARTILHAR ESTA LISTA" GANHOU AS TRÊS COISAS QUE O FELIPE PEDIU DEPOIS DE USAR.** 🗣️ *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"* · *"crie tambem uma opção de importar planilha se quiserem"* · *"tente fazer com que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
 >
@@ -15,10 +39,6 @@
 > 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`): a tela abre com as três saídas, o texto vem com o respiro, e o **clique no "Baixar em planilha" baixou `jogos-torneio-dos-amigos-2026.csv` de verdade** — conferido byte a byte (BOM `EF BB BF`, `;`, CRLF, acento certo).
 >
 > 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
-
-# Padelizou — Status e Roadmap
-
-> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 >
 > **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
 >
