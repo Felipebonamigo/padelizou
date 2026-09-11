@@ -390,6 +390,72 @@ public class PalpiteComPlacarTests
     }
 
     [Fact]
+    public async Task Um_palpite_SOZINHO_nao_vira_leitura_da_galera()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        await servico.RegistrarVotoAsync(partida.Id,
+            (await NovoTorcedorAsync(ctx, "55522000001")).Id, duplas[0].Id, 6, 4);
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        // 🗣️ Felipe, 11/09/2026, apontando a frase num jogo com 3 de 8: *"aqui por que tem isso?
+        // nao sei se faz muito sentido"*. Com UM palpite não há leitura nenhuma pra dar — é só o
+        // primeiro que chegou, anunciado como se fosse a opinião da galera.
+        //
+        // ⚠️ O LIMIAR MORA NO SERVIÇO, e não na view: as duas telas e o JS que repinta depois do
+        // voto leem o MESMO resumo. Escrito na view seria a terceira cópia da régua, e a linha
+        // voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`.
+        Assert.False(resumo.TemPlacarMaisPalpitado);
+        Assert.Equal(0, resumo.PlacarMaisPalpitadoVotos);
+
+        // ⚠️ O palpite continua CONTADO — ele vale ponto e aparece no modal. O que não existe é
+        // a leitura coletiva.
+        Assert.Equal(1, resumo.PalpitesComPlacar);
+    }
+
+    [Fact]
+    public async Task Placares_todos_DIFERENTES_nao_tem_mais_palpitado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        foreach (var (games1, games2, cpf) in new[] { (6, 4, "55523000001"), (6, 2, "55523000002"), (6, 0, "55523000003") })
+            await servico.RegistrarVotoAsync(partida.Id,
+                (await NovoTorcedorAsync(ctx, cpf)).Id, duplas[0].Id, games1, games2);
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        // Três palpites, três placares: o "mais palpitado" seria um empate de 1 a 1 a 1 resolvido
+        // pelo desempate interno — a tela anunciaria como consenso o que é sorteio.
+        Assert.False(resumo.TemPlacarMaisPalpitado);
+        Assert.Equal(3, resumo.PalpitesComPlacar);
+    }
+
+    [Fact]
+    public async Task DOIS_palpites_no_mesmo_placar_ja_sao_leitura_da_galera()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        foreach (var cpf in new[] { "55524000001", "55524000002" })
+            await servico.RegistrarVotoAsync(partida.Id,
+                (await NovoTorcedorAsync(ctx, cpf)).Id, duplas[0].Id, 6, 4);
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        // O limiar é DOIS, e não uma proporção: "maioria dos palpites" esconderia a leitura num
+        // jogo com 20 palpites espalhados, que é justamente onde saber o mais votado interessa.
+        // Com a contagem ao lado ("2 de 5"), quem lê julga o peso sozinho.
+        Assert.True(resumo.TemPlacarMaisPalpitado);
+        Assert.Equal(2, resumo.PlacarMaisPalpitadoVotos);
+    }
+
+    [Fact]
     public async Task O_placar_mais_palpitado_sai_na_ORIENTACAO_DO_JOGO()
     {
         using var ctx = TestInfra.NovoContexto();

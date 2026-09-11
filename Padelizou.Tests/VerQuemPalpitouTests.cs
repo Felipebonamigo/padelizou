@@ -30,13 +30,16 @@ public class VerQuemPalpitouTests
 
         var votantes = await servico.ObterVotantesAsync(partida.Id);
 
-        var comPlacar = votantes.VotantesDupla1.Single(v => v.Nome == "Cravou o Placar");
+        // ⚠️ "Cravou o Placar" chega na tela como "Cravou Placar" desde 11/09/2026: o nome passou
+        // a sair pelo `NomeBonito.Curto` (primeiro + último). Quem manda no que se procura aqui é
+        // o que a tela MOSTRA — e isso está travado em O_nome_do_votante_sai_ABREVIADO.
+        var comPlacar = votantes.VotantesDupla1.Single(v => v.Nome == "Cravou Placar");
         Assert.Equal(6, comPlacar.PlacarVencedor);
         Assert.Equal(4, comPlacar.PlacarPerdedor);
 
         // ⚠️ Palpitar o placar é OPCIONAL e continua sendo — quem só disse quem vence aparece
         // sem placar nenhum, e não com um "0 x 0" inventado.
-        var semPlacar = votantes.VotantesDupla1.Single(v => v.Nome == "So o Vencedor");
+        var semPlacar = votantes.VotantesDupla1.Single(v => v.Nome == "So Vencedor");
         Assert.Null(semPlacar.PlacarVencedor);
         Assert.Null(semPlacar.PlacarPerdedor);
     }
@@ -61,6 +64,50 @@ public class VerQuemPalpitouTests
         var linha = Assert.Single(votantes.VotantesDupla2);
         Assert.Equal(6, linha.PlacarVencedor);
         Assert.Equal(4, linha.PlacarPerdedor);
+    }
+
+    [Fact]
+    public async Task A_lista_do_modal_vem_EM_ORDEM_DE_PLACAR_com_os_iguais_juntos()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, duplas) = await MontarJogoAgendadoAsync(ctx);
+        var servico = new PalpiteService(ctx);
+
+        // Chegam fora de ordem, de propósito — é a ordem de quem palpitou primeiro.
+        // ⚠️ Nomes de DUAS palavras: o modal abrevia pelo `NomeBonito.Curto` (primeiro + último),
+        // e um "Zeca do 6x4" voltaria como "Zeca 6x4" — o teste falharia pelo nome, não pela
+        // ordem, que é o que ele guarda.
+        var chutes = new (string nome, string cpf, int? g1, int? g2)[]
+        {
+            ("Zeca Quatro", "55560000001", 6, 4),
+            ("Ana Nada",    "55560000002", null, null),
+            ("Bia Zero",    "55560000003", 6, 0),
+            ("Caio Quatro", "55560000004", 6, 4),
+            ("Davi Sete",   "55560000005", 7, 5),
+        };
+
+        foreach (var (nome, cpf, g1, g2) in chutes)
+        {
+            var jogador = await NovoTorcedorAsync(ctx, nome, cpf);
+            await servico.RegistrarVotoAsync(partida.Id, jogador.Id, duplas[0].Id, g1, g2);
+        }
+
+        var votantes = (await servico.ObterVotantesAsync(partida.Id)).VotantesDupla1;
+
+        // 🗣️ Felipe, 11/09/2026: *"coloque em ordem de placar, por exemplo, se colocaram o placar
+        // igual, deixe próximo"*. Com 14 nomes numa coluna, achar quem apostou o mesmo que você
+        // era ler a lista inteira.
+        //
+        // ⚠️ A ORDEM É A DAS FICHAS DA TELA (`PlacaresPossiveis.Do`): do mais folgado ao mais
+        // apertado — 6x0, 6x4, 6x4, 7x5. Inventar outra aqui faria a mesma lista de placares
+        // aparecer em duas ordens diferentes na mesma página.
+        //
+        // ⚠️ E quem NÃO palpitou placar vai pro fim: sem placar não há lugar na escala, e
+        // intercalar essa gente quebraria os grupos que a ordem acabou de juntar.
+        // Bia (6x0) · Caio e Zeca (6x4, juntos, em ordem de nome) · Davi (7x5) · Ana (sem placar).
+        Assert.Equal(
+            new[] { "Bia Zero", "Caio Quatro", "Zeca Quatro", "Davi Sete", "Ana Nada" },
+            votantes.Select(v => v.Nome));
     }
 
     [Fact]
@@ -106,6 +153,66 @@ public class VerQuemPalpitouTests
     }
 
     [Fact]
+    public void A_frase_do_consenso_nao_diz_mais_que_CRAVA()
+    {
+        // 🗣️ Felipe, 11/09/2026: *"aqui por que tem isso? nao sei se faz muito sentido"* — num
+        // jogo em que a frase dizia "A galera crava 9 x 5 (3 de 8)".
+        //
+        // ⚠️ "Cravar" é o verbo do RANKING: acertar o placar exato, depois do jogo, valendo 3
+        // pontos. Emprestá-lo pra uma aposta de 3 em 8 faz a tela anunciar veredito onde há
+        // pluralidade — e usa a mesma palavra pra duas coisas diferentes.
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        {
+            var fonte = Ler("Views", "Torneios", arquivo);
+
+            Assert.Contains("Placar mais palpitado", fonte);
+            Assert.DoesNotContain("A galera crava", fonte);
+        }
+    }
+
+    [Fact]
+    public void A_linha_do_consenso_NASCE_no_DOM_mesmo_sem_consenso()
+    {
+        // ⚠️ Ela precisa existir escondida, e não ser gerada por um `@if` do Razor: com o limiar
+        // de dois palpites (11/09/2026), o caso mais comum de a linha PASSAR a existir é
+        // justamente o seu palpite formando o par — e o `atualizarPalpitrometro` só sabe mostrar
+        // um elemento que já está na página. Sem isso, a leitura da galera só apareceria no F5.
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        {
+            var fonte = Ler("Views", "Torneios", arquivo);
+
+            // A TAG, e não a primeira menção: o comentário logo acima também cita a classe.
+            var inicio = fonte.IndexOf("pdz-palpite-consenso\"", StringComparison.Ordinal);
+            Assert.True(inicio >= 0, $"Não achei a tag da linha do consenso em {arquivo}.");
+
+            // O `display` sai do dado, na própria tag — é a chave que o JS vira depois do voto.
+            var trecho = fonte[inicio..Math.Min(fonte.Length, inicio + 220)];
+            Assert.Contains("style=\"display:", trecho);
+            Assert.Contains("TemPlacarMaisPalpitado", trecho);
+        }
+    }
+
+    [Fact]
+    public void Cada_votante_do_modal_e_uma_CAIXA_com_o_placar_no_mesmo_lugar()
+    {
+        // 🗣️ Felipe, 11/09/2026, num print do modal com 14 nomes numa coluna: *"deixe um
+        // 'quadrado' ou algo assim, fica dificil ver quem fez o que nessa tela"*.
+        //
+        // 🕳️ Eram linhas soltas, sem moldura, e o placar só existia em ALGUMAS delas — a coluna
+        // da direita ficava esburacada e o olho não sabia onde procurar. Com 14 palpites a lista
+        // vira um bloco de texto.
+        var js = Ler("wwwroot", "js", "palpitrometro.js");
+
+        // A moldura de cada linha.
+        Assert.Contains("rounded", js);
+        Assert.Contains("border", js);
+
+        // ⚠️ E o lugar do placar é SEMPRE o mesmo: quem não palpitou placar leva um traço, em
+        // vez de deixar o buraco que faz a coluna da direita parecer defeito.
+        Assert.Contains("sem-placar", js);
+    }
+
+    [Fact]
     public void O_modal_desenha_o_placar_de_cada_votante()
     {
         var js = Ler("wwwroot", "js", "palpitrometro.js");
@@ -113,6 +220,116 @@ public class VerQuemPalpitouTests
         // Os nomes vêm do JSON do /Partidas/VerVotos, em camelCase.
         Assert.Contains("placarVencedor", js);
         Assert.Contains("placarPerdedor", js);
+    }
+
+    // ─────────────────────────── COMO O NOME APARECE ───────────────────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe, no print do modal já empilhado: *"temos q tentar por o nome em uma
+    // linha, talvez abreviar, e tambem talvez tenhamos q corrigir o case sensitive, pra nao ficar
+    // tudo maiusculo e nem tudo minusculo"*.
+    //
+    // 🕳️ O `Montar` do PalpiteService era o ÚNICO ponto do palpitrômetro que escrevia
+    // `Jogador.Nome` cru. Duas linhas acima, no mesmo arquivo, o "Cravaram o placar" já passava
+    // pelo `NomeBonito` — então o mesmo torneio mostrava "JOAO EGIDIO FERREIRA DA ROCHA" numa
+    // frase e "Joao Rocha" na outra.
+
+    [Fact]
+    public async Task O_nome_do_votante_sai_ABREVIADO_e_com_a_caixa_arrumada()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, duplas) = await MontarJogoAgendadoAsync(ctx);
+        var servico = new PalpiteService(ctx);
+
+        var gritado = await NovoTorcedorAsync(ctx, "JOAO EGIDIO FERREIRA DA ROCHA", "55540000005");
+        var sussurrado = await NovoTorcedorAsync(ctx, "ana zenker pasinato", "55540000006");
+
+        await servico.RegistrarVotoAsync(partida.Id, gritado.Id, duplas[0].Id, 6, 4);
+        await servico.RegistrarVotoAsync(partida.Id, sussurrado.Id, duplas[0].Id, 6, 0);
+
+        var votantes = await servico.ObterVotantesAsync(partida.Id);
+        var nomes = votantes.VotantesDupla1.Select(v => v.Nome).OrderBy(n => n).ToList();
+
+        // Primeiro + último, e a caixa arrumada: é o mesmo `NomeBonito.Curto` do resto do site.
+        Assert.Equal(new[] { "Ana Pasinato", "Joao Rocha" }, nomes);
+    }
+
+    [Fact]
+    public async Task Quem_digitou_o_nome_DE_PROPOSITO_com_maiuscula_no_meio_nao_perde_ela()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, duplas) = await MontarJogoAgendadoAsync(ctx);
+        var servico = new PalpiteService(ctx);
+
+        // ⚠️ Arrumar caixa NÃO pode passar rolo compressor: "DiCaprio" viraria "Dicaprio", que é
+        // estragar justamente o nome de quem se deu ao trabalho de digitar certo.
+        var cuidadoso = await NovoTorcedorAsync(ctx, "Leonardo DiCaprio", "55540000007");
+        await servico.RegistrarVotoAsync(partida.Id, cuidadoso.Id, duplas[0].Id);
+
+        var votantes = await servico.ObterVotantesAsync(partida.Id);
+        var linha = Assert.Single(votantes.VotantesDupla1);
+        Assert.Equal("Leonardo DiCaprio", linha.Nome);
+    }
+
+    [Fact]
+    public void O_nome_do_votante_ocupa_UMA_LINHA_so()
+    {
+        var js = Ler("wwwroot", "js", "palpitrometro.js");
+
+        var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
+        // ⚠️ A janela cresceu em 11/09/2026 junto com a função (a caixa de cada votante e o traço
+        // de quem não palpitou placar). Quando ela ficar curta o teste falha por CORTE, não por
+        // defeito — o sintoma é "Sub-string not found" com o código certo na frente.
+        var trecho = js[inicio..Math.Min(js.Length, inicio + 3600)];
+
+        // ⚠️ `text-truncate` sozinho não corta nada dentro de um flex: sem `min-width:0` o item
+        // se recusa a encolher abaixo do conteúdo e quem sai empurrado é a ficha do placar.
+        Assert.Contains("text-truncate", trecho);
+        Assert.Contains("min-width:0", trecho);
+    }
+
+    // ─────────────────────────── O LAYOUT NO CELULAR ───────────────────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe, num print do modal aberto no celular: *"estou com esse visual
+    // estourado, ajuste"*. 🕳️ As duas duplas dividiam a largura em `col-6` FIXO: num modal de
+    // ~360px sobravam ~150px por coluna pra foto (28px) + nome + ficha do placar. "Deivid
+    // Francisco dos Santos" virava três linhas, e a foto — item de flex, que encolhe por padrão —
+    // saía achatada em vez de redonda.
+
+    [Fact]
+    public void No_celular_as_duas_duplas_do_modal_EMPILHAM_em_vez_de_dividir_a_largura()
+    {
+        var fonte = Ler("Views", "Torneios", "_ModalVerVotos.cshtml");
+
+        // `col-6` sem ponto de quebra é a coluna fixa que espremia o nome no celular.
+        Assert.DoesNotContain("\"col-6\"", fonte);
+        Assert.Equal(2, Contagem(fonte, "class=\"col-12 col-sm-6\""));
+    }
+
+    [Fact]
+    public void O_modal_rola_por_DENTRO_em_vez_de_esticar_a_tela()
+    {
+        // Empilhar dobra a altura da lista: sem isto o modal cresce pra fora da tela e o título
+        // (com o X de fechar) sobe junto — no print ele já ocupava a tela inteira com 15 votos.
+        var fonte = Ler("Views", "Torneios", "_ModalVerVotos.cshtml");
+
+        Assert.Contains("modal-dialog-scrollable", fonte);
+    }
+
+    [Fact]
+    public void A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM()
+    {
+        var js = Ler("wwwroot", "js", "palpitrometro.js");
+
+        var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
+        // Mesma nota do teste acima: janela curta reprova por CORTE, não por defeito.
+        var trecho = js[inicio..Math.Min(js.Length, inicio + 3600)];
+
+        // ⚠️ `width:28px` num filho de flex é só o TAMANHO BASE: sem travar o encolhimento a foto
+        // redonda vira oval quando o nome é longo, e o "9 x 0" quebra em duas linhas.
+        Assert.Contains("rounded-circle flex-shrink-0", trecho);
+        Assert.Contains("text-nowrap", trecho);
     }
 
     // ─────────────────────────── INFRA ───────────────────────────
@@ -147,6 +364,14 @@ public class VerQuemPalpitouTests
         ctx.Jogadores.Add(torcedor);
         await ctx.SaveChangesAsync();
         return torcedor;
+    }
+
+    private static int Contagem(string fonte, string alvo)
+    {
+        var total = 0;
+        for (var i = fonte.IndexOf(alvo, StringComparison.Ordinal); i >= 0;
+             i = fonte.IndexOf(alvo, i + alvo.Length, StringComparison.Ordinal)) total++;
+        return total;
     }
 
     private static string Ler(params string[] caminho) =>

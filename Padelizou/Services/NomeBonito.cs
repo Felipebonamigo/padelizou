@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace Padelizou.Services;
 
 // Como o nome APARECE na tela. Não mexe no que está gravado.
@@ -68,12 +71,51 @@ public static class NomeBonito
         if (alcunha.Length == 0) return curto;
         if (curto.Length == 0) return alcunha;
 
-        // Apelido igual ao nome curto não vira "José Silva (José Silva)". Acontece com quem
-        // preenche o apelido repetindo o nome pra "garantir".
-        if (string.Equals(alcunha, curto, StringComparison.CurrentCultureIgnoreCase)) return curto;
+        // Apelido que não acrescenta nada não vira parêntese. Cobre desde quem repete o nome
+        // inteiro "pra garantir" ("Marcos Coelho (Marcos Coelho)") até o apelido que é só um
+        // pedaço do nome ("Paulo Pujol (Pujol)", "Bruna Vargas (Bru)").
+        if (JaEstaNoNome(alcunha, nome)) return curto;
 
         return $"{curto} ({alcunha})";
     }
+
+    // O apelido ACRESCENTA alguma coisa? Só não acrescenta quando cada pedaço dele já é o começo
+    // de alguma palavra do nome COMPLETO — inclusive dos nomes do meio, que a abreviação tira da
+    // tela mas continuam sendo a pessoa ("ana zenker pasinato" apelidada de "Ana Zenker").
+    //
+    // ⚠️ Isto NÃO revoga a decisão de 06/08/2026 explicada em ComApelido: apelido continua
+    // aparecendo porque não identifica ninguém de fora da turma. O que sai daqui é só o que a
+    // tela já estava dizendo duas vezes — metade do ranking de palpiteiros quebrava em duas
+    // linhas por causa de um parêntese que repetia o sobrenome (print do Felipe, 11/09/2026).
+    //
+    // "Juju" sobrevive porque "Juliano" não começa com "juju"; "Zeca", porque "José" não começa
+    // com "zeca". É essa a linha entre apelido de verdade e eco do nome.
+    private static bool JaEstaNoNome(string apelido, string? nome)
+    {
+        var palavrasDoNome = Pedacos(nome);
+        var palavrasDoApelido = Pedacos(apelido);
+
+        if (palavrasDoNome.Count == 0 || palavrasDoApelido.Count == 0) return false;
+
+        return palavrasDoApelido.All(
+            a => palavrasDoNome.Any(n => n.StartsWith(a, StringComparison.Ordinal)));
+    }
+
+    private static List<string> Pedacos(string? texto) =>
+        (texto ?? "")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(SemAcento)
+            .Where(p => p.Length > 0)
+            .ToList();
+
+    // ⚠️ Sem acento e sem caixa dos dois lados: quem digita o apelido quase nunca acentua, e
+    // "Lais" tem que encontrar "Laís" — senão a regra falha justamente nos nomes brasileiros.
+    private static string SemAcento(string palavra) =>
+        new string(palavra
+            .Normalize(NormalizationForm.FormD)
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            .ToArray())
+        .ToLowerInvariant();
 
     // SÓ O APELIDO — e o nome curto quando não há apelido.
     //

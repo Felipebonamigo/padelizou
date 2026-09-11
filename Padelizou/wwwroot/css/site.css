@@ -2362,6 +2362,24 @@ button, a, input, select { touch-action: manipulation; }
 }
 .pdz-chip-compacto a { min-width: 0; max-width: 100%; }
 
+/* ── Escudo do time, do lado do nome (11/09/2026) ──────────────────────────
+   `contain`, e nunca `cover`: escudo é PNG transparente de proporção LIVRE
+   (FormatoDeImagem.LogoTime só limita o lado maior), então o corte que serve
+   pra foto de rosto come a beirada de escudo largo. */
+.pdz-chip-escudo { width: 17px; height: 17px; object-fit: contain; flex: 0 0 auto; }
+
+/* Na tabela do grupo o escudo é a ÚNICA pista do time (lá o nome do time fica
+   escondido) e a coluna tem ~180px — 14px cabe ao lado do nome truncado sem
+   roubar letra dele. */
+.pdz-chip-compacto .pdz-chip-escudo { width: 14px; height: 14px; }
+
+/* No card AO VIVO o fundo é navy, e escudo escuro de fundo transparente
+   desaparece nele. A chapinha clara vale só ali. */
+.pdz-live-jogadores .pdz-chip-escudo {
+    background: rgba(255, 255, 255, .92);
+    border-radius: 4px;
+    padding: 1px;
+}
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
    nome não se explica sozinho — e o próprio conceito de chave (quem perde sai, de onde

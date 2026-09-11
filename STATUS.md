@@ -1,20 +1,82 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (23h51 e 23h52 UTC — runs 204 e 205). PR #179. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
 >
-> ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DO ER (`/Torneios/Details/26`, 830 KB de HTML baixados do `prod`)** — e não só o `/healthz`:
-> - **"Palpiteiros" acima das abas: 0** (era 1). Na página inteira: **2** — a aba e o link do painel, que é exatamente o desenho novo.
-> - **`Cartaz pra divulgar` e `Ver as fotos do torneio` com `title=`**, e as duas frases antigas **dentro do atributo**, não como texto: `title="Arte pronta pra postar, com o QR que leva direto pra cá."` e `title="Publicadas pelo organizador — abre fora do Padelizou."`.
-> - **Zero `<small>` e zero `</div>` entre os dois botões** — prova estrutural de que dividem a MESMA linha.
-> - **`Abrir em página própria`: 1** — a página cheia não ficou órfã.
-> - `/healthz` **HTTP 200** e corpo **`ok`** nos dois domínios.
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
 >
-> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e isso é novo aqui:** ele tem o portão de **Acesso Antecipado**, então anônimo é redirecionado pra `/AcessoAntecipado/Entrar` e o HTML do torneio nunca chega (o primeiro `curl` voltou **0 bytes** justamente por isso). No `dev` a conferência externa possível é o `/healthz` e os estáticos; a **visual é no `prod`**, que é aberto. Vale lembrar antes de alguém prometer "conferi no dev" de novo.
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NESTE BRANCH** (nem no push nem no PR), enquanto rodava normalmente nos branches das outras sessões — mesmo sintoma de 26/08. Foi disparado **na mão** (Actions → CI → Run workflow), que é exatamente o que o `workflow_dispatch` do `ci.yml` existe pra cobrir: runs 1055 e 1056, verdes no sha exato que foi mesclado.
 >
-> 🔁 **O `main` ANDOU DUAS VEZES no meio** (PRs #178 e #180, de outra sessão — o #178 entrou minutos antes do meu merge). Publiquei **pela tag** `build-1040-e57d577`, com o sha7 conferido contra o meu merge `e57d5775`, e não por "o mais recente".
+> 🗣️ **"A GALERA CRAVA" PROMETIA MAIS DO QUE ENTREGAVA.** Felipe, apontando a frase num jogo com **3 de 8**: *"aqui por que tem isso? nao sei se faz muito sentido"*. Dois problemas, e ele tinha razão nos dois.
 >
-> ⚠️ **A LISTAGEM DE RELEASES VEM ORDENADA POR NOME, NÃO POR DATA.** `build-997` aparece **antes** de `build-1040` na primeira página — pegar "a primeira" publica um build de quatro horas atrás. Ordene por `published_at` e confira o sha7.
+> 1️⃣ **NÃO EXISTIA LIMIAR**: a linha mostrava o placar mais votado mesmo sendo **1 de 8** — o palpite de uma pessoa anunciado como leitura da galera. Pior: com todos os placares diferentes, o "mais palpitado" era o **desempate interno** decidindo por sorteio qual 1 a 1 a 1 ganhava a frase. Agora só existe a partir de **dois palpites no mesmo placar** (`PalpiteService.MinimoParaOMaisPalpitado`).
+>
+> ⚠️ **O limiar mora no SERVIÇO, não na view**: as duas telas e o JS que repinta depois do voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a linha voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`. ⚠️ **E é DOIS, não uma proporção**: exigir maioria esconderia a leitura num jogo com 20 palpites espalhados, que é justamente onde saber o mais votado interessa — a contagem ao lado ("2 de 3") é o que deixa quem lê julgar o peso.
+>
+> 2️⃣ **"CRAVAR" É O VERBO DO RANKING** (acertar o placar exato, depois do jogo, valendo 3 pontos). Emprestá-lo pra uma aposta fazia a tela anunciar veredito e usava a mesma palavra pra duas coisas. Virou **"Placar mais palpitado: 6 x 4 (2 de 3)"**.
+>
+> 🕳️ **O LIMIAR ESCANCAROU UM DEFEITO ANTIGO DA LISTA**: lá a linha era gerada por um `@if` do Razor, então ela só existia se já houvesse consenso — e o caso mais comum de passar a haver é **o seu palpite formando o par**. O `atualizarPalpitrometro` só sabe mostrar elemento que já está no DOM: sem F5, a leitura nunca aparecia. Agora ela nasce escondida, como no cartão grande. ⚠️ O CS8602 que isso gerou foi tratado com `r?.`, **não com `!`** — a linha passou a ser desenhada também no jogo sem palpite nenhum.
+>
+> 🔢 **E A LISTA DO MODAL SAI EM ORDEM DE PLACAR.** 🗣️ Felipe: *"coloque em ordem de placar, por exemplo, se colocaram o placar igual, deixe próximo"*. A ordem é a **das fichas da tela** (`PlacaresPossiveis.Do`: do mais folgado ao mais apertado — 6x0, 6x3, 6x4, 6x4, 6x4, 7x5), e quem **não** palpitou placar vai pro fim: sem placar não há lugar na escala, e intercalar essa gente quebraria justamente os grupos que a ordem acaba de juntar. Ordenação TOTAL (vai até o nome), senão a mesma lista troca de ordem entre duas aberturas do mesmo modal.
+>
+> 🔲 **E O MODAL GANHOU CAIXAS.** 🗣️ Felipe, num print com 14 nomes numa coluna: *"deixe um 'quadrado' ou algo assim, fica dificil ver quem fez o que nessa tela"*. Cada votante virou uma linha com moldura; quem **não** palpitou placar leva um traço no lugar da ficha (a coluna da direita esburacada parecia defeito); e o nome de cada dupla ganhou a contagem (`Bianca / Eduardo · 3`), que é o que diz de cara pra que lado a galera pendeu.
+>
+> 🧪 **6.405 testes, 0 falhas (6 novos; o resto veio do `main`).** Vistos vermelhos antes: os do limiar em *"Assert.False() Failure"*, o da redação em *"Sub-string not found: Placar mais palpitado"*, o da linha no DOM em *"Not found: style=\"display:"*, e o do modal em *"Not found: border"*. ⚠️ **Dois testes da sessão paralela foram ATUALIZADOS, não apagados** (`O_nome_do_votante_ocupa_UMA_LINHA_so` e `A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM`): a janela de 2.400 caracteres que eles liam a partir do `montarLista` ficou curta com os comentários novos — eles reprovavam por **corte**, com o código certo na frente. A janela foi pra 3.600 e ganhou a nota dizendo isso.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
+
+> **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.**
+>
+> 🗣️ Felipe: *"estou pensando em botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes, como ficaria? e como me indica colocar?"* — foram três maquetes (escudo junto do nome · selo na foto · bandeira da dupla inteira) e ele escolheu a primeira.
+>
+> ✅ **NADA DE BANCO, NADA DE CONSULTA NOVA.** `Jogador.Time` já vinha com `ThenInclude` em toda consulta de torneio que desenha o chip (`TorneiosController` 314-323 e 1244-1252) e o escudo é o `Time.Logo` que o cadastro de Times guarda desde sempre. O diff é **um `<img>` no `_JogadorChip.cshtml` + 19 linhas de CSS** — o degrau 2 da escada do CLAUDE.md resolvendo sozinho.
+>
+> 🎯 **UM ARQUIVO, QUATRO TELAS**: ao vivo, tabela do grupo, lista de inscritos e lista de duplas desenham o mesmo `_JogadorChip` — o escudo nasceu nas quatro de uma vez.
+>
+> ⚠️ **O ESCUDO FICA FORA DA LINHA DO CLUBE, E É A DECISÃO QUE IMPORTA AQUI.** Dentro do `<small class="pdz-chip-clube">` ele apareceria no ao vivo e **sumiria na tabela do grupo**, porque `.pdz-chip-compacto .pdz-chip-clube { display:none }` esconde aquela linha inteira desde que o compacto nasceu — e é justamente lá que o escudo é a **única** pista do time, porque o nome do time não é escrito. Então ele é irmão do bloco de texto, à direita do nome: uma posição só, que serve aos dois modos. Na maquete ele estava colado ao nome do time; a posição mudou pra não perder o compacto.
+>
+> ⚠️ **`object-fit: contain`, nunca `cover`** — escudo é PNG transparente de proporção LIVRE (`FormatoDeImagem.LogoTime` só limita o lado maior), e `cover` come a beirada de escudo largo. ⚠️ **E o `_LadoDaPartida` (categoria de times) e o `Times/Index` cortam o logo com `cover` ATÉ HOJE** — defeito anterior a este trabalho, deixado de pé de propósito: é outra tela, e uma coisa de cada vez.
+>
+> 🩹 **Chapinha clara só no card AO VIVO** (`.pdz-live-jogadores .pdz-chip-escudo`): lá o fundo é navy, e escudo escuro de fundo transparente desaparece nele.
+>
+> 🧪 **6.381 testes, 0 falhas (4 novos, em `EscudoDoTimeNoChipTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-chip-escudo"*, *"não achei a regra .pdz-chip-escudo no site.css"* e *"não achei o `<img>` do escudo no chip"*. **Um deles passou de primeira e foi reescrito até discriminar**: "o escudo fica fora da linha do clube" passa trivialmente num chip que não tem escudo nenhum, então ele agora exige primeiro que o escudo EXISTA.
+>
+> ⚠️ **A suíte não renderiza Razor** (ver `SeloDeCampeaoDaCategoriaTests`, seção 4), então os 4 testes são guarda de ARQUIVO: travam o que, desfeito, apaga o escudo da tela sem deixar nenhum outro teste vermelho. ⚠️ **Não foi visto no navegador** — sessão web, sem browser.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz **186 escudos** (`class="pdz-chip-escudo"`) de **17 times distintos**, cada um com `alt`/`title` do nome — o primeiro deles é literalmente `/uploads/logos-time/bandeiraer.jpeg`, a bandeira que o pedido citou.
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA, e a Regra 3 só valeu pela metade**: o `dev` está atrás do gate de Acesso Antecipado, então anônimo não abre página nenhuma lá — a prova em `dev` é o job verde e o `/healthz` 200; a prova do escudo é o HTML de `prod`. **O olhar humano sobre o visual (tamanho, peso, escudo escuro no card navy) continua pendente.**
+>
+> ⚠️ **Um escudo real é JPEG, não PNG transparente** (`bandeiraer.jpeg`): a chapinha clara do card ao vivo fica atrás de um retângulo opaco, sem prejuízo — mas quem cadastrar logo JPEG vai ver um quadradinho de fundo branco no tema escuro.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a lista de Agendadas/Finalizadas (`_JogoEmLinha`, onde não existe nome de time pra acompanhar o escudo — era a opção B) e o **cartão de imagem do WhatsApp** (`CartaoDosJogos`), onde escudo é desenho SkiaSharp e não HTML.
+
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
+>
+> 🔤 **O SELETOR DE CATEGORIAS GANHOU ORDEM E ABRE NA CATEGORIA DE QUEM OLHA.** Duas queixas do Felipe sobre o seletor que subiu no `build-1024`: *"esta fora de ordem"* e *"venha sempre selecionado a categoria que o usuario esta cadastrado (se estiver em duas, vem na melhor delas 1>2>3>4)"*.
+>
+> 🕳️ **A LISTA SAÍA NA ORDEM DO BANCO.** O `Include` do controller devolve as categorias como foram CRIADAS, e o seletor herdou isso das pills — que já vinham assim desde sempre. Agora sai pela `CategoriaNaTela.Ordem`, a régua que as outras listas de categoria do site já usam.
+>
+> ⚠️ **E ESSA RÉGUA MUDOU DE CABEÇA PRA BAIXO — VALE PRO SITE INTEIRO.** Ela agrupava por sexo desde 08/08 (todas as masculinas, depois todas as femininas); com as duas escadas no mesmo torneio isso empurra a 3ª Feminina pra **depois** da 6ª Masculina, que é o defeito de 08/08 de novo, uma escada adiante. Passa a ser **por nível, com a masculina na frente da feminina do mesmo degrau** — a ordem que o Felipe escolheu entre as três possíveis. No ER: `3ªM → 3ªF → 4ªM → 5ªM → 5ªF → 6ªM → 6ªF`. Uma régua só, porque duas ordens pra mesma lista é o defeito, não o remédio.
+>
+> ⚠️ **DOIS TESTES QUE GRAVAVAM O AGRUPAMENTO POR SEXO MUDARAM JUNTO, DE PROPÓSITO** (`OrdemDasCategoriasTests`, `PaginaDeTimesTests`), com o porquê escrito ao lado. O que eles guardam continua de pé: a ordem não é a de criação, e o elenco do time segue a régua do site — a régua é que mudou.
+>
+> 🎯 **`Services/CategoriaQueAbre` decide qual categoria a aba abre**, e *"a melhor"* é a **primeira da ordem de tela, sem critério novo**: depois da mudança acima aquela régua já lidera pelo nível, que é o "1>2>3>4" pedido. Conta também quem é o **segundo** da dupla — metade das inscrições do site é gente que foi chamada, não que chamou. Quem não está em nenhuma das listadas (o organizador, o anônimo) vê a primeira.
+>
+> ⚠️ **A MARCAÇÃO VEM DO SERVIDOR NAS DUAS PONTAS** (a `<option>` selecionada e o painel aceso): deixar pro JS acertar depois pintaria a chave errada por um instante a cada abertura. E a **memória por torneio continua vencendo numa troca manual** — quem mudou de categoria e salvou algo lá não é devolvido, que era o pedido do `build-1024`. O "sempre" vale na chegada.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz as 7 categorias do ER **na ordem nova**, com `selected="selected"` na `cat-89` e o painel `cat-89` em `show active` — as duas pontas casando. ⚠️ **O "abre na MINHA categoria" não foi visto no ar**: anônimo não tem categoria, e a sessão não tem browser pra logar. O que existe é teste de unidade sobre a régua (`CategoriaQueAbreNasChavesTests`).
+>
+> 🧪 **6.365 testes, 0 falhas (11 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes — e **um foi reescrito até discriminar**: o teste da ordem passava de primeira porque a mesma chamada já existia noutro trecho da view, e só passou a provar algo olhando a DECLARAÇÃO do `comChave`.
+>
+> 🪜 **A LIÇÃO DO DIA, e ela é o degrau 2 da escada deste arquivo:** a ordenação certa já existia escrita (`CategoriaNaTela.Ordem`, de 08/08) e eu não a procurei ao montar o seletor — o `<select>` nasceu com a ordem do banco porque copiou o que as pills faziam. *"Já existe algo equivalente aqui?"* vale também pro que a tela ANTIGA fazia errado: herdar o comportamento dela não é reuso.
+
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a régua agora diz *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1, e errar o vencedor vale 0"*, e o aviso conta **341 palpites** esperando resultado. `/healthz` 200 nos dois ambientes.
 >
@@ -45,6 +107,14 @@
 > ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
 
 > **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (PR #179) — o registro do deploy e o que foi conferido no ar estão na entrada do topo. **Sem migration.**
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DO ER (`/Torneios/Details/26`, 830 KB de HTML baixados do `prod`)** — e não só o `/healthz`:
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e isso é novo aqui:** ele tem o portão de **Acesso Antecipado**, então anônimo é redirecionado pra `/AcessoAntecipado/Entrar` e o HTML do torneio nunca chega (o primeiro `curl` voltou **0 bytes** justamente por isso). No `dev` a conferência externa possível é o `/healthz` e os estáticos; a **visual é no `prod`**, que é aberto. Vale lembrar antes de alguém prometer "conferi no dev" de novo.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES no meio** (PRs #178 e #180, de outra sessão — o #178 entrou minutos antes do meu merge). Publiquei **pela tag** `build-1040-e57d577`, com o sha7 conferido contra o meu merge `e57d5775`, e não por "o mais recente".
+>
+> ⚠️ **A LISTAGEM DE RELEASES VEM ORDENADA POR NOME, NÃO POR DATA.** `build-997` aparece **antes** de `build-1040` na primeira página — pegar "a primeira" publica um build de quatro horas atrás. Ordene por `published_at` e confira o sha7.
 >
 > 🗣️ Felipe, com o print do 2ª Etapa ER Padel Tour no celular: *"estou achando muito poluído essa tela, muita informação"*. Contados, eram **DEZ blocos** entre o topo e o primeiro jogo. E, olhando a lista: *"palpiteiros me parece duplicado, não?"*.
 >

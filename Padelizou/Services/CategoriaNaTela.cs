@@ -31,13 +31,22 @@ public static class CategoriaNaTela
         return texto.Trim();
     }
 
-    // A ordem em que as categorias se leem: primeiro as masculinas da mais forte pra mais
-    // fraca, depois as femininas na mesma escada, depois mista e casais.
+    // A ordem em que as categorias se leem: pelo NÍVEL, da mais forte pra mais fraca, com a
+    // masculina na frente da feminina do mesmo degrau — e mista e casais fechando a lista.
+    //
+    // ⚠️ ATÉ 10/09/2026 ERA AO CONTRÁRIO: agrupava por sexo primeiro (todas as masculinas, e só
+    // então as femininas). 🗣️ Felipe, olhando o seletor de "Chaves e Grupos" do 2ª Etapa ER
+    // Padel Tour: *"esta fora de ordem"*. Num torneio com as duas escadas, agrupar por sexo
+    // empurra a 3ª Feminina pra DEPOIS da 6ª Masculina — quem procura a chave da 3ª acha duas
+    // escadas de níveis em vez de uma.
+    //
+    // ⚠️ A COMPARAÇÃO É A ORDEM DOS CAMPOS DA TUPLA — é `Nivel` primeiro por isso, e não por
+    // acaso. Trocar os dois de lugar muda a ordem de todas as listas de categoria do site.
     //
     // ⚠️ Deduzida do NOME, e não de um campo, porque a `Categoria` DO TORNEIO não guarda tipo
     // nem nível — ela copia só nome e código do catálogo. É a mesma limitação que faz
     // SexoDoJogador casar pelo nome.
-    public static (int Grupo, int Nivel, string Nome) Ordem(string? nome)
+    public static (int Nivel, int Grupo, string Nome) Ordem(string? nome)
     {
         var texto = (nome ?? "").Trim();
 
@@ -47,7 +56,7 @@ public static class CategoriaNaTela
             FaixasDePadelimetro.EhMista(texto) ? 2 :
             FaixasDePadelimetro.EhCasal(texto) ? 3 : 4;
 
-        return (grupo, Nivel(texto), texto);
+        return (Nivel(texto), grupo, texto);
     }
 
     // De que escada a categoria é: "Masculino", "Feminino" — ou null pra Mista e Casais, que

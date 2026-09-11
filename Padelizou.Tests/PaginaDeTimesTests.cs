@@ -34,10 +34,14 @@ public class PaginaDeTimesTests
             new Membro("Rafael", "Open Masculina"),
             new Membro("Camila", "4ª Categoria Feminina"));
 
-        // Masculinas da mais forte pra mais fraca, depois as femininas — a mesma escada de
-        // CategoriaNaTela, que é o que o resto do site usa.
+        // Da mais forte pra mais fraca, com a masculina na frente da feminina do mesmo degrau —
+        // a mesma escada de CategoriaNaTela, que é o que o resto do site usa.
+        //
+        // ⚠️ A 4ª Feminina passou a vir ANTES da 6ª Masculina em 10/09/2026, quando o
+        // agrupamento por sexo daquela régua caiu (🗣️ Felipe: *"esta fora de ordem"*). O que
+        // este teste guarda é o elenco seguir a régua do site — e ele segue, a régua é que mudou.
         Assert.Equal(
-            new[] { "Open Masculina", "6ª Masculina", "4ª Feminina" },
+            new[] { "Open Masculina", "4ª Feminina", "6ª Masculina" },
             grupos.Select(g => g.Curto));
     }
 

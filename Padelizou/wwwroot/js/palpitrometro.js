@@ -224,8 +224,10 @@ async function verVotos(partidaId, nome1, nome2) {
     const modalEl = document.getElementById('modalVerVotos');
     if (!modalEl) return;
 
-    document.getElementById('modalVerVotosNome1').innerText = nome1;
-    document.getElementById('modalVerVotosNome2').innerText = nome2;
+    const titulo1 = document.getElementById('modalVerVotosNome1');
+    const titulo2 = document.getElementById('modalVerVotosNome2');
+    titulo1.innerText = nome1;
+    titulo2.innerText = nome2;
     const lista1 = document.getElementById('modalVerVotosLista1');
     const lista2 = document.getElementById('modalVerVotosLista2');
     lista1.innerHTML = '<div class="text-muted small">Carregando...</div>';
@@ -253,18 +255,41 @@ async function verVotos(partidaId, nome1, nome2) {
 
             // ⚠️ O placar é OPCIONAL e continua sendo: quem só disse quem vence aparece só com o
             // nome. Um "0 x 0" no lugar do vazio inventaria um palpite que ninguém deu.
+            // ⚠️ `flex-shrink-0` e `text-nowrap`: a ficha é o ÚLTIMO item da linha e, sem travar,
+            // o nome longo a espremia até o "9 x 0" quebrar em duas linhas.
             var placar = v.placarVencedor != null && v.placarPerdedor != null
-                ? '<span class="badge bg-success-subtle text-success-emphasis ms-auto">'
+                ? '<span class="badge bg-success-subtle text-success-emphasis ms-auto flex-shrink-0 text-nowrap">'
                     + v.placarVencedor + ' x ' + v.placarPerdedor
                     + (v.placarEmSets ? ' <span class="fw-normal">sets</span>' : '')
                     + '</span>'
-                : '';
+                // ⚠️ QUEM NÃO PALPITOU PLACAR LEVA UM TRAÇO, e não o vazio de antes: com metade
+                // das linhas sem ficha, a coluna da direita ficava esburacada e parecia defeito.
+                // O lugar do placar é sempre o mesmo, e o olho corre a lista numa passada.
+                : '<span class="ms-auto flex-shrink-0 small text-body-secondary pdz-votante-sem-placar"'
+                    + ' title="Palpitou só quem vence">–</span>';
 
-            return '<div class="d-flex align-items-center gap-2 mb-2"><img src="' + foto
-                + '" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;"><span>'
-                + texto(v.nome) + '</span>' + placar + '</div>';
+            // ⚠️ `width:28px` num filho de flex é só o tamanho BASE — ele encolhe por padrão, e a
+            // foto redonda saía oval ao lado de nome comprido.
+            //
+            // O nome vem ABREVIADO do servidor (NomeBonito.Curto), então o corte quase nunca
+            // dispara — ele é a rede pro nome longo em tela estreita. ⚠️ `text-truncate` sozinho
+            // não corta nada aqui: num flex o item se recusa a encolher abaixo do próprio
+            // conteúdo, e sem `min-width:0` quem sai empurrado pra fora é a ficha do placar.
+            // ⚠️ CADA VOTANTE É UMA CAIXA (11/09/2026). 🗣️ Felipe, num print do modal com 14
+            // nomes em coluna: *"deixe um 'quadrado' ou algo assim, fica dificil ver quem fez o
+            // que nessa tela"*. Sem moldura, catorze linhas viram um bloco de texto — e é a
+            // borda que faz o par nome↔placar ler como uma coisa só.
+            return '<div class="d-flex align-items-center gap-2 mb-2 p-2 border rounded-3 pdz-votante"><img src="' + foto
+                + '" class="rounded-circle flex-shrink-0" style="width:28px;height:28px;object-fit:cover;">'
+                + '<span class="text-truncate" style="min-width:0;">' + texto(v.nome) + '</span>'
+                + placar + '</div>';
         }).join('');
     }
+
+    // A contagem ao lado do nome da dupla: é ela que diz de cara pra que lado a galera pendeu —
+    // a barra do palpitrômetro fica fora do modal.
+    titulo1.innerText = nome1 + ' · ' + (data.votantesDupla1 || []).length;
+    titulo2.innerText = nome2 + ' · ' + (data.votantesDupla2 || []).length;
 
     lista1.innerHTML = montarLista(data.votantesDupla1);
     lista2.innerHTML = montarLista(data.votantesDupla2);
