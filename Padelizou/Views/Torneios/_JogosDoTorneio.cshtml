@@ -400,7 +400,12 @@
                    botões) e não encostar no <iframe> da transmissão. Ver
                    js/jogos-ao-vivo-atualiza.js. *@
                 <div class="col-md-6 mb-3">
-                    <div class="pdz-live-card shadow-sm" data-partida-id="@jogo.Id">
+                    @* `id="jogo-N"`: o DESTINO do card do jogo lá na aba Grupos (Felipe,
+                       11/09/2026 — "permita clicar no aovivo e ir para a pagina do aovivo aonde
+                       esta o jogo"). Fica no card inteiro, e não num pedaço dele: é o card que
+                       precisa entrar na tela. Quem leva até aqui é o pdzIrProJogoDaHash, no fim
+                       do Details.cshtml. *@
+                    <div class="pdz-live-card shadow-sm" id="jogo-@jogo.Id" data-partida-id="@jogo.Id">
                         <div class="pdz-live-header">
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <span class="pdz-live-badge"><span class="pdz-live-dot"></span> AO VIVO</span>
