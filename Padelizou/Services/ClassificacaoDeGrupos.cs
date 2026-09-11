@@ -93,6 +93,37 @@ public static class ClassificacaoDeGrupos
             .ThenBy(x => x.Dupla.Id)
             .ToList();
 
+    // ── O CORTE FOI ESPORTIVO, OU FOI SORTEIO? ───────────────────────────────────────────
+    //
+    // O `Ordenar` acima sempre responde a MESMA coisa — é o que o `ThenBy(Id)` no fim garante.
+    // Mas quando o empate sobrevive aos três critérios esportivos (vitórias, saldo, games a
+    // favor), quem passa sai da ORDEM DE CADASTRO, e isso não é mérito de quadra.
+    //
+    // 🗣️ Felipe achou o caso olhando o painel no ar (11/09/2026): *"e esse caso aqui se for os
+    // 3 jogos 9x4 e houver empate?"*. Num grupo de 3 com os três jogos 9x4, as três terminam
+    // com 1 vitória, saldo 0 e 13 games a favor — empate perfeito.
+    //
+    // ⚠️ ISTO NÃO MUDA A RÉGUA, e é de propósito: o `ThenBy(Id)` fica, porque melhor um sorteio
+    // ESTÁVEL do que um que muda de ideia entre duas telas (a razão está escrita acima). O que
+    // esta função existe pra permitir é o painel DIZER que foi sorteio, em vez de apresentar
+    // cara-ou-coroa como eliminação esportiva.
+    //
+    // Devolve vazio quando o corte foi decidido na quadra.
+    public static List<Linha> EmpateNoCorte(IReadOnlyList<Linha> ranking, int passam)
+    {
+        var vazio = new List<Linha>();
+        if (passam <= 0 || passam >= ranking.Count) return vazio;
+
+        var ultimaQuePassa = ranking[passam - 1];
+        bool EmpataComElá(Linha l) =>
+            l.Vitorias == ultimaQuePassa.Vitorias
+            && l.Saldo == ultimaQuePassa.Saldo
+            && l.GamesPro == ultimaQuePassa.GamesPro;
+
+        // O corte só é sorteio se quem ficou de FORA empata com quem passou em tudo.
+        return EmpataComElá(ranking[passam]) ? ranking.Where(EmpataComElá).ToList() : vazio;
+    }
+
     public static List<ChaveamentoMataMata.Classificado> Calcular(
         IEnumerable<Dupla> duplasComGrupo,
         IReadOnlyList<Partida> partidasDeGrupo,

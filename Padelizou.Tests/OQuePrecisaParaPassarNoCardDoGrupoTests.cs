@@ -29,11 +29,14 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
 {
     private static readonly FormatoDaPartida.Formato Ate9 = new(1, 9);
 
-    private static Dupla Dupla(int id, string nome) => new()
+    // Com PARCEIRO: o nome curto de dupla é "primeiro nome / primeiro nome", e uma dupla de um
+    // só vira "Marcelo / parceiro" — que não é o que estas frases estão conferindo.
+    private static Dupla Dupla(int id, string nome, string parceiro = "Parceiro") => new()
     {
         Id = id,
         Grupo = "B",
         Jogador1 = new Jogador { Nome = nome, Cpf = $"9990000000{id}", Login = $"j{id}" },
+        Jogador2 = new Jogador { Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
@@ -55,7 +58,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
     // quando o Paulo vence por 4.
     private static (Dupla[] Duplas, Partida[] Jogos) GrupoBDoPrint()
     {
-        var duplas = new[] { Dupla(1, "Marcelo"), Dupla(2, "Eder"), Dupla(3, "Paulo") };
+        var duplas = new[] { Dupla(1, "Marcelo", "Enio"), Dupla(2, "Eder", "Augusto"), Dupla(3, "Paulo", "Arthur") };
         var jogos = new[]
         {
             Jogo(2, 3, 9, 4),      // Eder/Augusto 9 x 4 Paulo/Arthur
@@ -80,6 +83,7 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         // em 3º os dois outros precisariam terminar acima de +2, e o jogo que falta dá no máximo
         // uma vitória pra cada um deles.
         Assert.Equal(OQuePrecisaParaClassificar.Estado.JaClassificado, Da(quadro, 2).Estado);
+        Assert.Equal("Já classificado. Não depende deste jogo.", Da(quadro, 2).Frase);
     }
 
     [Fact]
@@ -89,11 +93,17 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
 
         var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
 
-        // ⚠️ 5, e não 4: vencendo por 4 (9x5) o Paulo empata o saldo com o Marcelo em −1, e o
-        // desempate seguinte — games a favor — fica com o Marcelo, 14 a 13. É EXATAMENTE a
-        // conta que ninguém faz de cabeça na beira da quadra, e a razão do pedido.
+        // ⚠️ O PLACAR, E NÃO A MARGEM. 🗣️ Felipe, vendo "por 5 games ou mais" no ar: *"seria 4 e
+        // 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais
+        // facil"*. "Margem 5" obriga quem lê a converter pra placar de cabeça, na beira da
+        // quadra — que é exatamente o trabalho que a tela existe pra poupar.
+        //
+        // ⚠️ E O CONTRA-EXEMPLO É METADE DA FRASE: o "9x5 não basta" é o que mata a dúvida de
+        // um game que o Felipe levantou. Vencendo por 4 (9x5) o Paulo empata o saldo com o
+        // Marcelo em −1, e o desempate seguinte — games a favor — fica com o Marcelo, 14 a 13.
         Assert.Equal(OQuePrecisaParaClassificar.Estado.Depende, Da(quadro, 3).Estado);
-        Assert.Equal("Passa vencendo por 5 games ou mais.", Da(quadro, 3).Frase);
+        Assert.Equal("Só passa vencendo por 9x4 ou mais folgado — 9x5 não basta.",
+            Da(quadro, 3).Frase);
     }
 
     [Fact]
@@ -103,13 +113,19 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
 
         var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
 
-        // Vencer basta; e mesmo perdendo ele passa, desde que a derrota seja por até 4 games.
+        // ⚠️ O PLACAR NA VOZ DE QUEM PERDE: "5x9", os meus games na frente. Escrever "9x5" aqui
+        // (a orientação do vencedor) inverteria o sentido justamente pra quem está lendo sobre
+        // a PRÓPRIA derrota.
         Assert.Equal(OQuePrecisaParaClassificar.Estado.Depende, Da(quadro, 1).Estado);
-        Assert.Equal("Passa vencendo ou se Paulo vencer por até 4 games.", Da(quadro, 1).Frase);
+        Assert.Equal(
+            "Vencendo, passa com qualquer placar. Perdendo, o pior placar que ainda serve é 5x9 — 4x9 já elimina.",
+            Da(quadro, 1).Frase);
 
-        // O nome que vai pra coluna "Classificam" da tabela sai daqui, e é o CURTO: a regra
-        // vivia copiada na view da Classificação, onde podia divergir da frase ao lado.
-        Assert.Equal("Marcelo", Da(quadro, 1).NomeCurto);
+        // ⚠️ O NOME É O MESMO DA LISTA DE JOGOS LOGO ABAIXO DA TABELA ("Marcelo / Enio"), e não
+        // mais o `Jogador1.ComoChamar`. No print do Felipe a MESMA dupla aparecia de três
+        // jeitos na mesma tela: nome completo dos dois na lista, "Marcelo Prestes" na tabela e
+        // "Paulo Prass (Batata)" na frase. Uma tela, um nome.
+        Assert.Equal("Marcelo / Enio", Da(quadro, 1).NomeCurto);
     }
 
     [Fact]
@@ -152,9 +168,66 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
 
         var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9)!;
 
-        Assert.Equal("Passa vencendo.", Da(quadro, 1).Frase);
-        Assert.Equal("Passa vencendo.", Da(quadro, 2).Frase);
+        // Vitória serve, derrota não — e nenhum placar precisa ser citado, porque nenhum deles
+        // muda a resposta. Citar um aqui só daria número pra decorar à toa.
+        Assert.Equal("Passa vencendo, com qualquer placar. Qualquer derrota elimina.", Da(quadro, 1).Frase);
+        Assert.Equal("Passa vencendo, com qualquer placar. Qualquer derrota elimina.", Da(quadro, 2).Frase);
         Assert.Equal(OQuePrecisaParaClassificar.Estado.SemChance, Da(quadro, 3).Estado);
+    }
+
+
+    // ═══════════════ O EMPATE TOTAL ═══════════════
+    //
+    // 🗣️ Felipe, olhando o pop-up no ar: *"e esse caso aqui se for os 3 jogos 9x4 e houver
+    // empate?"*.
+    //
+    // 🕳️ ELE ACHOU O BURACO. Com os três jogos 9x4 num grupo de 3, as três duplas terminam com
+    // 1 vitória, saldo 0 e 13 games a favor — **empate em TODOS os critérios esportivos**. Quem
+    // passa sai do 4º desempate do `ClassificacaoDeGrupos`, que é `ThenBy(Dupla.Id)`: ordem de
+    // cadastro no banco. Está assumido lá ("o Id no fim não é critério esportivo"), e é a
+    // escolha certa pra régua — melhor um sorteio ESTÁVEL do que um que muda entre duas telas.
+    //
+    // ⚠️ MAS O PAINEL NÃO PODE APRESENTAR ISSO COMO ELIMINAÇÃO ESPORTIVA. Antes desta correção
+    // ele dizia "Passa vencendo por 6 games ou mais" e ponto — quem lia entendia que o 9x4
+    // eliminava por mérito, quando na verdade é cara ou coroa. Prometer (ou negar) vaga sem
+    // dizer que é sorteio é a mesma mentira que o serviço existe pra impedir.
+    [Fact]
+    public void O_empate_total_e_dito_com_todas_as_letras()
+    {
+        // Circular e todos 9x4: Ana bate Bia, Bia bate Cadu, falta Cadu x Ana.
+        var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
+        var jogos = new[] { Jogo(1, 2, 9, 4), Jogo(2, 3, 9, 4), Jogo(3, 1, null, null) };
+
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+
+        // O 9x4 do Cadu é o placar que empata tudo — e é ele que o aviso precisa nomear.
+        var empate = Assert.Single(quadro.EmpatesNoCorte);
+        Assert.Contains("9x4", empate.Placar);
+        Assert.Equal(1, empate.Vitorias);
+        Assert.Equal(0, empate.Saldo);
+        Assert.Equal(13, empate.GamesPro);
+        Assert.Equal(3, empate.Empatadas.Count);
+    }
+
+    [Fact]
+    public void Sem_empate_no_corte_nao_ha_aviso_nenhum()
+    {
+        // O grupo do print do Felipe: o corte é esportivo em todo placar (o desempate morre no
+        // saldo ou nos games a favor). Aviso aqui seria ruído sobre uma decisão que foi justa.
+        var (duplas, jogos) = GrupoBDoPrint();
+
+        Assert.Empty(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!.EmpatesNoCorte);
+    }
+
+    [Fact]
+    public void A_parcial_avisa_do_empate_total()
+    {
+        var parcial = TestInfra.SemComentarios(
+            File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_OQuePrecisaParaClassificar.cshtml")));
+
+        Assert.Contains("Model.EmpatesNoCorte", parcial);
+        // A palavra que o organizador precisa ler pra saber que a decisão não é da quadra.
+        Assert.Contains("ordem de inscrição", parcial);
     }
 
     // ═══════════════ A TELA ═══════════════
@@ -204,22 +277,62 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         Assert.DoesNotContain("Se acontecer", classificacao);
     }
 
+    // 🗣️ Felipe, vendo o pop-up no ar: *"ta meio confuso aqui, nao ficou claro para mim"*.
+    //
+    // A tabela "Se acontecer / Classificam" dizia a MESMA coisa que as linhas de cima, em outra
+    // ordem e com outro nome de dupla — e era metade da confusão. Com o placar na linha de cada
+    // dupla ela virou repetição pura.
     [Fact]
-    public void A_parcial_desenha_a_linha_de_cada_dupla_e_a_tabela_de_cenarios()
+    public void A_parcial_desenha_a_linha_de_cada_dupla_e_NAO_a_tabela()
     {
         var parcial = TestInfra.SemComentarios(
             File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "_OQuePrecisaParaClassificar.cshtml")));
 
         Assert.Contains("Model.Situacoes", parcial);
-        Assert.Contains("Model.Cenarios", parcial);
+        Assert.Contains("situacao.NomeCurto", parcial);
 
-        // ⚠️ NOME CURTO na coluna "Classificam", e nome inteiro só na lista de cima. Cada célula
-        // dali lista DUAS duplas ao lado de uma frase que já usa o nome curto; com o nome
-        // inteiro, cada linha da tabela ocupava três alturas no celular (visto no Chromium a
-        // 430px). E o nome curto sai do SERVIÇO — a regra vivia copiada na view.
-        Assert.Contains("s!.NomeCurto", parcial);
-        // A régua escrita na tela evita a pergunta "e se o sistema calcular diferente na hora?".
-        Assert.Contains("saldo de games", parcial);
+        Assert.DoesNotContain("Model.Cenarios", parcial);
+        Assert.DoesNotContain("Se acontecer", parcial);
+
+        // ⚠️ UM NOME SÓ NA TELA: o `NomeDeExibicao` (nome completo dos dois) era o que fazia
+        // "Marcelo Carvalho Prestes & Enio Gilberto Mendes da Silva Junior" ocupar duas linhas
+        // em cima de uma frase que chamava a mesma dupla de "Marcelo Prestes".
+        Assert.DoesNotContain("NomeDeExibicao", parcial);
+    }
+
+    // ⚠️ O nome curto de dupla tem UMA casa (`Dupla.NomeCurto`), e a view do torneio come de lá.
+    // Ele vivia como `Func` local no Details.cshtml; o serviço tinha a própria versão, com outra
+    // resposta. Duas regras de nome é como a mesma dupla ganha dois nomes na mesma tela.
+    [Fact]
+    public void O_nome_curto_da_dupla_tem_uma_casa_so()
+    {
+        var detalhes = TestInfra.SemComentarios(Details());
+
+        // A view DELEGA; o único caso que sobra aqui é o que é da tela — a vaga do mata-mata
+        // que ainda não tem dono.
+        Assert.Contains("d?.NomeCurto ?? \"A definir\"", detalhes);
+
+        // ⚠️ O que não pode voltar é a MONTAGEM do nome da dupla. (Os dois
+        // `ComoChamar.Split(' ')[0]` que ainda existem no arquivo são outra pergunta: primeiro
+        // nome de UM jogador, nas listas de "fica de fora" e "entra sem parceiro".)
+        Assert.DoesNotContain("$\"{p1} / {p2}\"", detalhes);
+    }
+
+    [Fact]
+    public void O_nome_curto_e_o_primeiro_nome_de_cada_um()
+    {
+        var dupla = new Dupla
+        {
+            Jogador1 = new Jogador { Nome = "Marcelo Carvalho Prestes", Cpf = "99900000001" },
+            Jogador2 = new Jogador { Nome = "Enio Gilberto Mendes da Silva Junior", Cpf = "99900000002" },
+        };
+
+        Assert.Equal("Marcelo / Enio", dupla.NomeCurto);
+
+        // Time tem nome próprio; e inscrição sem parceiro diz o que é, em vez de "?".
+        Assert.Equal("ER Padel", new Dupla { NomeTime = "ER Padel" }.NomeCurto);
+        Assert.Equal("Marcelo / parceiro",
+            new Dupla { Jogador1 = new Jogador { Nome = "Marcelo Carvalho Prestes", Cpf = "99900000001" } }.NomeCurto);
     }
 
     // ═══════════════ O CONTROLLER ENTREGA O QUADRO ═══════════════

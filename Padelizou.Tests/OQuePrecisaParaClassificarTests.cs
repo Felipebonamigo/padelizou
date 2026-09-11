@@ -16,11 +16,15 @@ public class OQuePrecisaParaClassificarTests
 {
     private static readonly FormatoDaPartida.Formato Ate9 = new(1, 9);
 
-    private static Dupla Dupla(int id, string nome) => new()
+    // ⚠️ COM PARCEIRO desde 11/09/2026: o nome que os cenários usam virou `Dupla.NomeCurto`
+    // ("Bia / Bruna"), o MESMO da lista de jogos do grupo. Era `Jogador1.ComoChamar`, e o
+    // pop-up acabava chamando a mesma dupla de três jeitos na mesma tela.
+    private static Dupla Dupla(int id, string nome, string parceiro = "Parceiro") => new()
     {
         Id = id,
         Grupo = "A",
         Jogador1 = new Jogador { Nome = nome, Cpf = $"9990000000{id}", Login = $"j{id}" },
+        Jogador2 = new Jogador { Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
@@ -90,8 +94,8 @@ public class OQuePrecisaParaClassificarTests
         // Dois cenários e nenhum a mais: vitória de um, vitória do outro.
         Assert.Equal(2, quadro.Cenarios.Count);
         Assert.All(quadro.Cenarios, c => Assert.DoesNotContain("por", c.Resultado));
-        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Bia vencer" && c.ClassificadosIds.Contains(2));
-        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Cadu vencer" && c.ClassificadosIds.Contains(3));
+        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Bia / Parceiro vencer" && c.ClassificadosIds.Contains(2));
+        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Cadu / Parceiro vencer" && c.ClassificadosIds.Contains(3));
     }
 
     // ⚠️ O TESTE QUE JUSTIFICA A FEATURE. Aqui a resposta é contraintuitiva e ninguém acerta de
@@ -118,15 +122,15 @@ public class OQuePrecisaParaClassificarTests
         Assert.Equal("Ana", Assert.Single(quadro.JaClassificados).Jogador1!.Nome);
         Assert.Empty(quadro.SemChance);
 
-        var porMargem = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 2 games ou mais");
+        var porMargem = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 2 games ou mais");
         Assert.Contains(2, porMargem.ClassificadosIds);   // Bia entra
         Assert.DoesNotContain(3, porMargem.ClassificadosIds);
 
-        var soPorUm = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 1 game");
+        var soPorUm = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 1 game");
         Assert.DoesNotContain(2, soPorUm.ClassificadosIds);  // venceu e ficou fora
         Assert.Contains(3, soPorUm.ClassificadosIds);
 
-        var cadu = quadro.Cenarios.Single(c => c.Resultado == "Cadu vencer");
+        var cadu = quadro.Cenarios.Single(c => c.Resultado == "Cadu / Parceiro vencer");
         Assert.Contains(3, cadu.ClassificadosIds);
     }
 
@@ -161,7 +165,7 @@ public class OQuePrecisaParaClassificarTests
             duplas, jogados.Append(Jogo(2, 3, null, null)).ToList(), 2, Ate9)!;
 
         // Bia vence por 2 (9x7): o painel diz que ela entra…
-        var prometido = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 2 games ou mais");
+        var prometido = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 2 games ou mais");
 
         // …e a régua oficial, com o jogo REALMENTE 9x7, diz a mesma coisa.
         var deVerdade = ClassificacaoDeGrupos

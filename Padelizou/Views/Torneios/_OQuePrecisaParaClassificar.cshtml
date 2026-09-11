@@ -1,23 +1,19 @@
 @model Padelizou.Services.OQuePrecisaParaClassificar.Quadro
 @using Padelizou.Services
-@* O MIOLO do painel "o que cada um precisa pra classificar", quando falta UM jogo no grupo.
+@* O MIOLO do painel "o que cada um precisa pra passar", quando falta UM jogo no grupo.
 
    Vive numa parcial porque DUAS telas o desenham: o card do grupo na página do torneio (num
-   pop-up, 11/09/2026) e a tela de Classificação (aberto no lugar, desde 13/08/2026). Duas
-   cópias seriam duas verdades sobre a mesma régua — e a segunda envelhece calada no dia em que
-   o desempate mudar, prometendo vaga que o chaveamento não vai dar.
+   pop-up) e a tela de Classificação (aberto no lugar). Duas cópias seriam duas verdades sobre
+   a mesma régua — e a segunda envelhece calada no dia em que o desempate mudar.
 
-   ⚠️ A parcial desenha só o CONTEÚDO: quem embrulha em modal ou em collapse é quem chama. É o
-   que permite as duas telas terem aberturas diferentes sem ter dois painéis. *@
+   ⚠️ A parcial desenha só o CONTEÚDO: quem embrulha em modal ou em collapse é quem chama.
+
+   ⚠️ 11/09/2026 — A TABELA "SE ACONTECER / CLASSIFICAM" SAIU DAQUI. 🗣️ Felipe, vendo o pop-up
+   no ar: *"ta meio confuso aqui, nao ficou claro para mim"*. Ela dizia a MESMA coisa que as
+   linhas de cima, em outra ordem e com outro nome de dupla — e com o placar na linha de cada
+   uma, virou repetição pura. O `Quadro.Cenarios` continua existindo: é a representação da
+   régua que os testes conferem, não dado de tela. *@
 @{
-    // Nome INTEIRO na linha de cada dupla — é uma lista de três itens, e é nela que a pessoa
-    // procura o próprio nome.
-    //
-    // ⚠️ Na TABELA de cenários vai o nome CURTO (`Situacao.NomeCurto`, do serviço): ali cada
-    // célula lista duas duplas ao lado de uma frase que já usa o nome curto, e o nome inteiro
-    // fazia cada linha ocupar três alturas no celular — conferido no Chromium a 430px.
-    string NomeDaDupla(Padelizou.Models.Dupla d) => d.NomeDeExibicao;
-
     string Selo(OQuePrecisaParaClassificar.Estado estado) => estado switch
     {
         OQuePrecisaParaClassificar.Estado.JaClassificado => "bg-success",
@@ -35,50 +31,52 @@
 
 <p class="small text-muted mb-3">
     Falta um jogo:
-    <strong>@NomeDaDupla(Model.Lado1) x @NomeDaDupla(Model.Lado2)</strong>.
+    @* ⚠️ NOME CURTO, o mesmo da lista de jogos logo abaixo da tabela do grupo. O nome completo
+       dos dois ("Marcelo Carvalho Prestes & Enio Gilberto Mendes da Silva Junior") ocupava duas
+       linhas aqui e outras duas em cada dupla da lista. *@
+    <strong>@Model.Lado1.NomeCurto</strong> × <strong>@Model.Lado2.NomeCurto</strong>
 </p>
 
-@* A RESPOSTA DIRETA, dupla por dupla — 🗣️ Felipe, 11/09/2026: *"fica a duvida de quantos games
-   precisa fazer para passar de fase"*. A tabela lá embaixo responde isso de lado (procure seu
-   nome nas linhas e deduza); esta lista responde de frente. *@
-<ul class="list-unstyled mb-3">
+<ul class="list-unstyled mb-0">
     @foreach (var situacao in Model.Situacoes)
     {
-        <li class="mb-2">
-            <span class="badge @Selo(situacao.Estado) me-1">@Rotulo(situacao.Estado)</span>
-            <strong class="small">@NomeDaDupla(situacao.Dupla)</strong>
-            <div class="small text-muted">@situacao.Frase</div>
+        <li class="mb-3">
+            <div>
+                <span class="badge @Selo(situacao.Estado) me-1">@Rotulo(situacao.Estado)</span>
+                <strong>@situacao.NomeCurto</strong>
+            </div>
+            <div class="small text-muted mt-1">@situacao.Frase</div>
         </li>
     }
 </ul>
 
-<div class="table-responsive">
-    <table class="table table-sm mb-0 align-middle">
-        <thead class="table-light">
-            <tr>
-                <th class="text-start">Se acontecer</th>
-                <th class="text-start">Classificam</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var cenario in Model.Cenarios)
-            {
-                <tr>
-                    <td class="text-start">@cenario.Resultado</td>
-                    <td class="text-start fw-bold">
-                        @string.Join(", ", cenario.ClassificadosIds
-                            .Select(cid => Model.Situacoes.FirstOrDefault(s => s.Dupla.Id == cid))
-                            .Where(s => s != null)
-                            .Select(s => s!.NomeCurto))
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-</div>
+@* ── O CORTE QUE NÃO SAI DA QUADRA ────────────────────────────────────────────────────────
+   🗣️ Felipe, olhando o painel no ar: *"e esse caso aqui se for os 3 jogos 9x4 e houver
+   empate?"*. Num grupo de 3 com os três jogos 9x4, as três terminam com 1 vitória, saldo 0 e
+   13 games a favor — empate em tudo o que é esportivo. Hoje quem passa sai da ordem de
+   cadastro, e o painel dizia "passa vencendo por 6 ou mais" como se fosse mérito de quadra. *@
+@if (Model.EmpatesNoCorte.Count > 0)
+{
+    <div class="alert alert-warning small mt-3 mb-0 py-2">
+        <strong>⚠️ Tem placar que termina em empate total.</strong>
+        @foreach (var empate in Model.EmpatesNoCorte)
+        {
+            <div class="mt-1">
+                Com <strong>@empate.Placar</strong>,
+                @string.Join(", ", empate.Empatadas.Select(d => d.NomeCurto))
+                ficam iguais em tudo: @empate.Vitorias vitória@(empate.Vitorias == 1 ? "" : "s"),
+                saldo @empate.Saldo e @empate.GamesPro games a favor.
+            </div>
+        }
+        <div class="mt-1">
+            Nesse caso o sistema desempata pela <strong>ordem de inscrição</strong>, que não é
+            critério esportivo — vale combinar o desempate antes de o jogo começar.
+        </div>
+    </div>
+}
 
 @* A régua é a mesma do chaveamento — dizer isso aqui evita a pergunta "e se o sistema
    calcular diferente na hora?". *@
-<p class="small text-muted mt-2 mb-0">
+<p class="small text-muted mt-3 mb-0">
     Critério: vitórias, depois saldo de games, depois games a favor.
 </p>
