@@ -2533,10 +2533,6 @@ button, a, input, select { touch-action: manipulation; }
 
 /* O escudo na LISTA de jogos (Agendadas/Finalizadas): inline, do tamanho do nome
    que ele acompanha — lá o nome da dupla é uma linha de texto, não um chip. */
-/* ⚠️ A CHAPINHA VALE AQUI TAMBÉM. O pedido do Felipe (11/09/2026) não tinha tela: *"alguns
-   escudos estão com fundo branco"*. São os MESMOS arquivos da tabela do grupo — 10 dos 17 com
-   fundo assado, 8 com desenho escuro que sumiria sem ela. Altura fixa e largura livre pelo
-   mesmo motivo de lá: caixa quadrada em escudo largo desenha o quadrado branco de novo. */
 .pdz-jl-escudo {
     width: 16px;
     height: 16px;
@@ -2549,7 +2545,6 @@ button, a, input, select { touch-action: manipulation; }
     border-radius: 4px;
     background: #fff;
 }
-
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
    nome não se explica sozinho — e o próprio conceito de chave (quem perde sai, de onde
