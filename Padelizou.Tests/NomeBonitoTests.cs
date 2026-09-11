@@ -202,6 +202,49 @@ public class NomeBonitoTests
         Assert.Equal("Marcos Coelho", NomeBonito.ComApelido("Marcos Coelho", "marcos coelho"));
     }
 
+    // ─────────────── APELIDO QUE NÃO ACRESCENTA NADA ───────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe, no print do ranking de palpiteiros: *"aqui tem o mesmo problema,
+    // talvez tenhamos q rever isso no sistema inteiro"*. 🕳️ Metade da tabela quebrava em duas
+    // linhas por causa do parêntese — e o parêntese não dizia nada novo: "Paulo Pujol (Pujol)",
+    // "Bruna Vargas (Bru)", "Bibiana Bottin (Bibi)", "Caroline Tedesco (Carol Tedesco)".
+    //
+    // A regra de 06/08/2026 ("apelido não identifica ninguém de fora da turma") continua de pé:
+    // o que sai é só o apelido que JÁ ESTÁ no nome, e nada mais.
+
+    [Theory]
+    // Apelido igual a uma palavra do nome.
+    [InlineData("Paulo Ricardo Pujol", "Pujol", "Paulo Pujol")]
+    [InlineData("Alexandre Medina", "Medina", "Alexandre Medina")]
+    // Apelido que é o começo de uma palavra do nome.
+    [InlineData("Bruna Vargas", "Bru", "Bruna Vargas")]
+    [InlineData("Bibiana Bottin", "Bibi", "Bibiana Bottin")]
+    [InlineData("Guilherme Drachler Bagesteiro", "Bages", "Guilherme Bagesteiro")]
+    // Apelido de duas palavras, todas cobertas.
+    [InlineData("Caroline Tedesco", "Carol Tedesco", "Caroline Tedesco")]
+    // ⚠️ O nome do MEIO some da abreviação mas continua valendo aqui: "zenker" está no cadastro,
+    // então "(Ana Zenker)" não traz letra nova pra tela.
+    [InlineData("ana zenker pasinato", "Ana Zenker", "Ana Pasinato")]
+    // Acento não pode fazer diferença: quem digita o apelido raramente acentua.
+    [InlineData("Laís Rodrigues", "Lais", "Laís Rodrigues")]
+    public void Apelido_que_ja_esta_no_nome_nao_vira_parentese(string nome, string apelido, string esperado)
+    {
+        Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
+    }
+
+    [Theory]
+    // ⚠️ O CONTRÁRIO É O QUE IMPORTA: apelido de verdade não pode sumir. "Juju" não é começo de
+    // "Juliano" (J-u-l ≠ J-u-j), e é assim que a quadra chama a pessoa.
+    [InlineData("Juliano Bender", "Juju", "Juliano Bender (Juju)")]
+    [InlineData("José Carlos da Silva", "Zeca", "José Silva (Zeca)")]
+    [InlineData("Otávio Wunsch Junior", "Tavinho", "Otávio Wunsch (Tavinho)")]
+    // "Charls" é mais CURTO que "Charlinho": o nome não começa com o apelido, então fica.
+    [InlineData("charls gustavio polese", "CHARLINHO", "Charls Polese (Charlinho)")]
+    public void Apelido_que_a_quadra_usa_CONTINUA_aparecendo(string nome, string apelido, string esperado)
+    {
+        Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
+    }
+
     [Fact]
     public void Nome_de_uma_palavra_so_nao_quebra()
     {
