@@ -2373,12 +2373,38 @@ button, a, input, select { touch-action: manipulation; }
    roubar letra dele. */
 .pdz-chip-compacto .pdz-chip-escudo { width: 14px; height: 14px; }
 
-/* No card AO VIVO o fundo é navy, e escudo escuro de fundo transparente
-   desaparece nele. A chapinha clara vale só ali. */
-.pdz-live-jogadores .pdz-chip-escudo {
-    background: rgba(255, 255, 255, .92);
-    border-radius: 4px;
+/* O SELO: no card AO VIVO o escudo sai do lado do nome e vai pro canto da foto
+   (Felipe, 11/09/2026: "e no ao vivo use esse do B"). Quem ancora o canto é a
+   moldura da foto — é ela que tem `relative`, e não o chip inteiro: com o chip,
+   um nome que quebra em duas linhas no celular arrasta o selo junto.
+
+   Fundo navy e anel claro porque o card é navy: escudo de fundo transparente
+   sumiria nele, e escudo claro sem anel se mistura com a foto atrás. */
+.pdz-chip-foto-selo {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+.pdz-chip-foto-selo .pdz-chip-escudo {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 17px;
+    height: 17px;
     padding: 1px;
+    border-radius: 50%;
+    background: var(--pdz-navy-fixed);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .5);
+}
+
+/* O escudo na LISTA de jogos (Agendadas/Finalizadas): inline, do tamanho do nome
+   que ele acompanha — lá o nome da dupla é uma linha de texto, não um chip. */
+.pdz-jl-escudo {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    vertical-align: -2px;
+    margin-left: 4px;
 }
 
 /* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
