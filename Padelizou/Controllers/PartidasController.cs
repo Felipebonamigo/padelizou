@@ -270,6 +270,9 @@ namespace Padelizou.Controllers
             if (proxima == null) return;
 
             TempData["ProximoJogoId"] = proxima.Id;
+            // O nome CRU da quadra, além da frase: é ele que diz se o aviso pode perguntar
+            // direto ("começar na Quadra 1?") ou se precisa abrir o modal pra escolher onde.
+            TempData["ProximoJogoQuadra"] = proxima.NomeQuadra;
             TempData["ProximoJogoOnde"] = string.IsNullOrWhiteSpace(proxima.NomeQuadra)
                 ? "A quadra vagou"
                 : $"A {proxima.NomeQuadra} vagou";

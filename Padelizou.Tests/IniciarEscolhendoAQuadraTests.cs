@@ -270,4 +270,43 @@ public class IniciarEscolhendoAQuadraTests
         }
         throw new DirectoryNotFoundException("Não achei as views de Torneios.");
     }
+
+    // ⚠️ O AVISO DE QUADRA VAGA É A MESMA LARGADA, e ficou de fora da primeira versão: ele
+    // botava o jogo no ar direto, sem perguntar nada e sem oferecer a quadra. Um único botão
+    // de começar sem pergunta é a inconsistência que a pessoa encontra no clique seguinte.
+    [Fact]
+    public void O_aviso_de_quadra_vaga_tambem_passa_pela_pergunta()
+    {
+        var fonte = JogosDoTorneio();
+
+        var aviso = fonte.IndexOf("ProximoJogoId", StringComparison.Ordinal);
+        Assert.True(aviso >= 0, "Não achei o aviso de quadra vaga.");
+
+        var trecho = fonte.Substring(aviso, 2000);
+        Assert.Contains("data-confirmar", trecho);
+        // Sem quadra ele abre o mesmo modal da linha, e não um segundo caminho.
+        Assert.Contains("modalIniciarJogo", trecho);
+    }
+
+    // O nome CRU da quadra, e não a frase "A Quadra 1 vagou": é ele que decide se o aviso
+    // pergunta ou abre o modal.
+    [Fact]
+    public void O_aviso_sabe_o_nome_da_quadra_do_proximo_jogo()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Controllers", "PartidasController.cs"));
+
+        Assert.Contains("ProximoJogoQuadra", fonte);
+    }
+
+    private static string PastaDoProjeto()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var alvo = Path.Combine(dir.FullName, "Padelizou", "Views");
+            if (Directory.Exists(alvo)) return Path.Combine(dir.FullName, "Padelizou");
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException("Não achei a pasta do projeto.");
+    }
 }
