@@ -2013,6 +2013,36 @@ button, a, input, select { touch-action: manipulation; }
     margin: 0 auto;
 }
 
+/* ── Tabela do grupo: a sobra é do NOME, não dos números (11/09/2026) ───────
+   🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem
+   um pouco menos espaçados, para que caiba mais do nome das pessoas"*.
+
+   O chip compacto de 10/09 resolveu a ALTURA da linha (avatar menor, clube escondido,
+   nome truncando) e deixou a LARGURA de lado: com `table-layout: auto`, o navegador
+   devolvia toda a sobra do card pras quatro colunas de UM DÍGITO — "Augusto Ohlweiler"
+   saía "Augusto Ohl…" ao lado de um "0" com ~90px só pra ele.
+
+   ⚠️ Tirar o teto da célula da dupla sozinho NÃO resolveria: em layout `auto` a coluna
+   sem teto passa a pedir o nome INTEIRO (o chip é `white-space: nowrap`) e a tabela
+   estoura a `.table-responsive`. Quem reparte é o layout FIXO: as quatro pedem o que
+   precisam e a única sem largura declarada — a da dupla — fica com o resto. */
+.pdz-grupo-tabela { table-layout: fixed; }
+
+/* Um dígito não precisa de mais que isto, e o `.5rem` de cada lado que o Bootstrap dá a
+   toda célula (`--bs-table-cell-padding-x`) é mais largo que o dígito que ele emoldura. */
+.pdz-grupo-tabela th:not(:first-child),
+.pdz-grupo-tabela td:not(:first-child) {
+    width: 30px;
+    padding-left: .1rem;
+    padding-right: .1rem;
+}
+
+/* ⚠️ O SALDO É MAIS LARGO DE PROPÓSITO: ele guarda sinal + dois dígitos ("+12"), e em
+   layout fixo a célula NÃO cresce pelo conteúdo — apertado no tamanho de J/V/D, o número
+   sai cortado em vez de empurrar a coluna. */
+.pdz-grupo-tabela th:last-child,
+.pdz-grupo-tabela td:last-child { width: 42px; }
+
 /* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
    A tabela mostra V/D/SG; estes são os jogos que produziram (ou vão produzir)
    aqueles números. Ficam juntos de propósito: o placar já existia no sistema, só

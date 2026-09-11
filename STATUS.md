@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** ⏳ **NO BRANCH `claude/wonderful-pasteur-bkqy9o`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
+>
+> 🕳️ **A CAUSA NÃO ERA O PADDING, ERA O `table-layout: auto`.** As quatro colunas não tinham largura declarada: o navegador repartia **toda a sobra do card** entre elas, e a célula da dupla ainda carregava `max-width: 180px` — teto que a impedia de aceitar a sobra. Resultado medido no print do Felipe (janela de ~1700px): **cada número com 46–69px** e o nome preso em 127px, virando "Augusto Ohl…".
+>
+> 📐 **A CORREÇÃO É UMA PROPRIEDADE, NÃO UMA CONTA:** `table-layout: fixed` na tabela, `30px` em J/V/D e `42px` no SG, e a coluna da dupla **sem largura declarada** — em layout fixo, a única coluna sem largura fica com todo o resto. Foi o degrau 4 da escada do CLAUDE.md (recurso nativo da plataforma) resolvendo sozinho: nenhuma media query, nenhum JS, nenhuma conta de porcentagem.
+>
+> ⚠️ **TIRAR O TETO DE 180px SOZINHO NÃO RESOLVERIA, e parece que resolveria** — em layout `auto` a coluna sem teto passa a pedir o **nome inteiro** (o chip é `white-space: nowrap`) e a tabela estoura a `.table-responsive`, trocando nome cortado por rolagem lateral. ⚠️ E **o SG é mais largo que J/V/D de propósito**: em layout fixo a célula **não cresce pelo conteúdo**, então apertá-lo no tamanho dos outros cortaria o "+12" em vez de empurrar a coluna.
+>
+> 📊 **MEDIDO NO CHROMIUM, ANTES E DEPOIS LADO A LADO** (Playwright, a marcação real com `bootstrap.min.css` + `site.css` de verdade, nos dois temas): na largura do print, o nome foi de **207px → 282px** de coluna (**127 → 200px** de texto visível) e os quatro números de **46/46/46/69 → 30/30/30/42**; "Augusto Ohlweiler", "Paulo Prass (Parceiro)" e "Arthur Prass (Junior)" **deixaram de ser cortados**. A 1350px o nome vai de 180 → 222px; a **390px**, de 180 → 199px — ⚠️ **no celular o ganho é pequeno (~19px)**, porque lá o limite é a tela e não o repartir. **Nenhuma das larguras rola de lado.**
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v28`**: o `site.css` está na lista do service worker, e sem subir o `CACHE_NAME` quem já abriu o site continuaria com o CSS velho — a tabela chegaria sem as regras que a repartem.
+>
+> 🧪 **6.473 testes, 0 falhas (4 novos, em `EspacoDoNomeNaTabelaDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-grupo-tabela`"* e nos dois guardas da view; depois **falsificados um a um** (devolvi o `width: 50%` ao cabeçalho, troquei `fixed` por `auto`, igualei o SG a J/V/D). ⚠️ **O guarda da view apaga os COMENTÁRIOS antes de conferir**: o `width: 50%` que este trabalho tirou está citado na prosa que explica por que ele saiu, e o teste ficava vermelho pela explicação em vez da marcação.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a `Classificacao.cshtml` (a outra tela com J/V/D/SG) **já declara** 40/40/40/50px nas suas colunas e não tem o defeito; e o `ps-3` da coluna da dupla — 16px de recuo que no celular valeriam mais três letras — não foi mexido, porque alinha o nome com o resto do card.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
