@@ -253,16 +253,21 @@ async function verVotos(partidaId, nome1, nome2) {
 
             // ⚠️ O placar é OPCIONAL e continua sendo: quem só disse quem vence aparece só com o
             // nome. Um "0 x 0" no lugar do vazio inventaria um palpite que ninguém deu.
+            // ⚠️ `flex-shrink-0` e `text-nowrap`: a ficha é o ÚLTIMO item da linha e, sem travar,
+            // o nome longo a espremia até o "9 x 0" quebrar em duas linhas.
             var placar = v.placarVencedor != null && v.placarPerdedor != null
-                ? '<span class="badge bg-success-subtle text-success-emphasis ms-auto">'
+                ? '<span class="badge bg-success-subtle text-success-emphasis ms-auto flex-shrink-0 text-nowrap">'
                     + v.placarVencedor + ' x ' + v.placarPerdedor
                     + (v.placarEmSets ? ' <span class="fw-normal">sets</span>' : '')
                     + '</span>'
                 : '';
 
+            // ⚠️ `width:28px` num filho de flex é só o tamanho BASE — ele encolhe por padrão, e a
+            // foto redonda saía oval ao lado de nome comprido. `text-break` no nome porque o que
+            // sobra de largura pertence a ele, e um nome sem espaço não pode vazar do modal.
             return '<div class="d-flex align-items-center gap-2 mb-2"><img src="' + foto
-                + '" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;"><span>'
-                + texto(v.nome) + '</span>' + placar + '</div>';
+                + '" class="rounded-circle flex-shrink-0" style="width:28px;height:28px;object-fit:cover;">'
+                + '<span class="text-break">' + texto(v.nome) + '</span>' + placar + '</div>';
         }).join('');
     }
 

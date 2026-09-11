@@ -1,20 +1,25 @@
 @* Modal compartilhado "Ver quem votou" do Palpitrômetro.
    O título mudou em 10/09/2026, quando cada linha passou a mostrar TAMBÉM o placar que a
-   pessoa palpitou: "quem votou em quem" já não era o que a tela mostrava. *@
+   pessoa palpitou: "quem votou em quem" já não era o que a tela mostrava.
+
+   ⚠️ 11/09/2026 — as duas duplas EMPILHAM no celular (`col-12 col-sm-6`). Em `col-6` fixo
+   sobravam ~150px por coluna num modal de celular: foto + nome + ficha do placar não cabiam,
+   e nome de três palavras virava três linhas. Empilhar dobra a altura, daí o
+   `modal-dialog-scrollable`: a lista rola por dentro e o X de fechar fica sempre na tela. *@
 <div class="modal fade" id="modalVerVotos" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title fw-bold"><i class="bi bi-graph-up"></i> Quem palpitou o quê</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row">
-                    <div class="col-6">
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6">
                         <p class="fw-bold small mb-2" id="modalVerVotosNome1"></p>
                         <div id="modalVerVotosLista1"></div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-12 col-sm-6">
                         <p class="fw-bold small mb-2" id="modalVerVotosNome2"></p>
                         <div id="modalVerVotosLista2"></div>
                     </div>

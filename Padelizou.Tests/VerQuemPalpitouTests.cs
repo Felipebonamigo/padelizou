@@ -115,6 +115,49 @@ public class VerQuemPalpitouTests
         Assert.Contains("placarPerdedor", js);
     }
 
+    // ─────────────────────────── O LAYOUT NO CELULAR ───────────────────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe, num print do modal aberto no celular: *"estou com esse visual
+    // estourado, ajuste"*. 🕳️ As duas duplas dividiam a largura em `col-6` FIXO: num modal de
+    // ~360px sobravam ~150px por coluna pra foto (28px) + nome + ficha do placar. "Deivid
+    // Francisco dos Santos" virava três linhas, e a foto — item de flex, que encolhe por padrão —
+    // saía achatada em vez de redonda.
+
+    [Fact]
+    public void No_celular_as_duas_duplas_do_modal_EMPILHAM_em_vez_de_dividir_a_largura()
+    {
+        var fonte = Ler("Views", "Torneios", "_ModalVerVotos.cshtml");
+
+        // `col-6` sem ponto de quebra é a coluna fixa que espremia o nome no celular.
+        Assert.DoesNotContain("\"col-6\"", fonte);
+        Assert.Equal(2, Contagem(fonte, "class=\"col-12 col-sm-6\""));
+    }
+
+    [Fact]
+    public void O_modal_rola_por_DENTRO_em_vez_de_esticar_a_tela()
+    {
+        // Empilhar dobra a altura da lista: sem isto o modal cresce pra fora da tela e o título
+        // (com o X de fechar) sobe junto — no print ele já ocupava a tela inteira com 15 votos.
+        var fonte = Ler("Views", "Torneios", "_ModalVerVotos.cshtml");
+
+        Assert.Contains("modal-dialog-scrollable", fonte);
+    }
+
+    [Fact]
+    public void A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM()
+    {
+        var js = Ler("wwwroot", "js", "palpitrometro.js");
+
+        var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
+        var trecho = js[inicio..Math.Min(js.Length, inicio + 2400)];
+
+        // ⚠️ `width:28px` num filho de flex é só o TAMANHO BASE: sem travar o encolhimento a foto
+        // redonda vira oval quando o nome é longo, e o "9 x 0" quebra em duas linhas.
+        Assert.Contains("rounded-circle flex-shrink-0", trecho);
+        Assert.Contains("text-nowrap", trecho);
+    }
+
     // ─────────────────────────── INFRA ───────────────────────────
 
     private static async Task<(Partida partida, List<Dupla> duplas)> MontarJogoAgendadoAsync(
@@ -147,6 +190,14 @@ public class VerQuemPalpitouTests
         ctx.Jogadores.Add(torcedor);
         await ctx.SaveChangesAsync();
         return torcedor;
+    }
+
+    private static int Contagem(string fonte, string alvo)
+    {
+        var total = 0;
+        for (var i = fonte.IndexOf(alvo, StringComparison.Ordinal); i >= 0;
+             i = fonte.IndexOf(alvo, i + alvo.Length, StringComparison.Ordinal)) total++;
+        return total;
     }
 
     private static string Ler(params string[] caminho) =>
