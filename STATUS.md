@@ -62,6 +62,8 @@
 >
 > ⚠️ **O `dev` NÃO TEM PROVA VISUAL ANÔNIMA** — está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. Lá a prova é `/healthz` **200** e o `/css/site.css` servido com as regras novas e sem o CSS morto.
 >
+> 🔁 **E LOGO DEPOIS OUTRA SESSÃO PUBLICOU POR CIMA** (deploys 228 e 229, `build-1092-bbdb0bb`), o que é bom e vale registrar: aquele build nasceu do `main` que já carregava esta chave, então a árvore **continua no ar** — reconferido agora, com o `site.css` de prod trazendo `.pdz-chd-trilho` e **zero** de `pdz-chave-projetada`, e o `sw.js` já em `v28`. Ou seja: o que está em produção hoje é o `build-1092`, não o `1088` que eu publiquei — a chave é a mesma, o resto veio junto.
+>
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
 > 🖥️📱 **SÃO DOIS DESENHOS DA MESMA CHAVE**, e é isso que o Felipe pediu textualmente: *"no pc, é de cima pra baixo e no mobile é arrastavel da esquerda pra direita"*. No computador a árvore desce, com a primeira rodada no alto e o troféu no pé. No celular ela deita: a rodada atual ocupa **66% da tela** e a seguinte fica **espiando na beirada**, com as linhas já chegando nela — é o que responde *"ganhei, e agora?"* sem tocar em nada. O encaixe é `scroll-snap`, **sem uma linha de JS**.
