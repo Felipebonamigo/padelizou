@@ -294,14 +294,9 @@ public class ChaveDiretaTests
         await ctx.SaveChangesAsync();
 
         // Segundo jogo da primeira rodada finalizado quase junto com o primeiro — ou o
-<<<<<<< HEAD
-        // organizador reabrindo e finalizando de novo. A pergunta se repete.
-        var denovo = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
-=======
         // organizador reabrindo e finalizando de novo. O robô roda de novo.
-        await new RoboDoChaveamento(ctx).AvancarFaseAsync(
+        await new RoboDoChaveamento(ctx, TestInfra.EstatisticasFalsas()).AvancarFaseAsync(
             categoria.Id, null, ChaveamentoMataMata.PrimeiraRodada);
->>>>>>> origin/main
 
         // Nada de uma Quartas montada por cima das Oitavas que estão em quadra — o bug do
         // Interno de 05/08/2026 —, e nenhuma oitava a mais.

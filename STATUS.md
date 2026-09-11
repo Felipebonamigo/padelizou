@@ -83,10 +83,6 @@
 >
 > 🖥️ **UI RODADA**: com 25 jogos semeados no banco local, a tela mostrou **3 artes**, o alternador apareceu, e o clique em "Tudo numa imagem só" devolveu **`image/png` de 413 KB, 1080×2332**, com `public, max-age=3600`. As faixas dos dois dias aparecem no meio da imagem.
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
 > **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
 >
 > 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.

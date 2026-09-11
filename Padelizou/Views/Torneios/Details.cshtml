@@ -6251,9 +6251,20 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 var jogosDeGrupoDaCategoria = (ViewBag.JogosDeGrupo as List<Padelizou.Models.Partida>
                                                                ?? new List<Padelizou.Models.Partida>())
                                     .Where(p => p.CategoriaId == categoria.Id).ToList();
+                                @* ⚠️ Os pontos do desempate vêm do CONTROLLER (buscá-los aqui
+                                   exigiria await, que a view não tem). Sem eles, um grupo que
+                                   terminou empatado em tudo poria nesta vaga um nome diferente
+                                   do que o robô vai pôr. *@
+                                var pontosDoDesempate =
+                                    (ViewBag.PontosDoDesempatePorCategoria
+                                        as Dictionary<int, IReadOnlyDictionary<int, int>>)
+                                    ?.GetValueOrDefault(categoria.Id)
+                                    ?? Padelizou.Services.ClassificacaoDeGrupos.SemPontos;
+
                                 var jaConhecidosNoQuadro = Padelizou.Services.ClassificadosJaConhecidos.De(
                                     gruposEmOrdem, jogosDeGrupoDaCategoria,
-                                    Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria));
+                                    Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                    pontosDoDesempate);
 
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
                                     gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),

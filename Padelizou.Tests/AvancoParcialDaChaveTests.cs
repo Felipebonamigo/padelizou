@@ -55,7 +55,7 @@ public class AvancoParcialDaChaveTests
         var quartas = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Quartas de Final")
             .OrderBy(p => p.Id).ToListAsync();
-        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id);
+        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking);
 
         Assert.Equal(2, quartas.Count);
         Assert.Equal(2, byes.Count);
@@ -170,7 +170,7 @@ public class AvancoParcialDaChaveTests
         var deMataMata = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && (p.Fase == "Quartas de Final" || p.Fase == "Semifinal"))
             .ToListAsync();
-        var byesAgora = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id);
+        var byesAgora = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking);
 
         var previa = ProximasFasesDaChave.Montar(
             deMataMata.Select(p => new ProximasFasesDaChave.PartidaDaChave(

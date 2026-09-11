@@ -163,7 +163,15 @@ public class RoboDoChaveamento
         // A régua única de quantas vagas cada grupo dá (ClassificacaoDeGrupos.VagasPorGrupo) —
         // o `?? 2` na mão tem gate mecânico desde 11/09/2026.
         int classificamPorGrupo = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
+
         var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+
+        // Os pontos do desempate de grupo, buscados só se algum grupo empatar até o ranking
+        // (ClassificacaoDeGrupos). Aqui a conta PRECISA bater com a do mata-mata definitivo —
+        // é este método que cria os jogos da abertura desenhada.
+        var pontosDoDesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
+            _estatisticas.ObterPontosPorJogadorAsync);
 
         // O desenho serve pra ESTA categoria? A conferência é sobre o conjunto de vagas
         // (colocação × grupo), que não depende de resultado nenhum — então ela pode ser feita
@@ -171,7 +179,7 @@ public class RoboDoChaveamento
         // motor, como sempre: a categoria nunca fica sem mata-mata por causa de um texto torto.
         var provisorios = ClassificacaoDeGrupos.Calcular(
             duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
-            classificamPorGrupo);
+            pontosDoDesempate, classificamPorGrupo);
         if (CruzamentoDoMataMata.Conferir(desenho, provisorios) != null)
         {
             // Desenho que não serve NÃO adianta nada, mas também não pode atrapalhar: a
@@ -210,7 +218,7 @@ public class RoboDoChaveamento
         var prontos = ClassificacaoDeGrupos.Calcular(
             duplasDosGrupos.Where(d => idsDeGrupoFechado.Contains(d.Id)).ToList(),
             partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
-            classificamPorGrupo);
+            pontosDoDesempate, classificamPorGrupo);
 
         var novos = new List<Partida>();
         for (int i = jaCriados; i < desenho.Confrontos.Count; i++)

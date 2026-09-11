@@ -1126,6 +1126,7 @@ namespace Padelizou.Controllers
             // Os jogos de grupo COM as duplas carregadas: é deles que sai o nome de quem já
             // classificou (Services/ClassificadosJaConhecidos). A lista recebida pode vir
             // filtrada por time ou categoria, e meia fase de grupos daria meia classificação.
+            var pontosDoDesempatePorCategoria = new Dictionary<int, IReadOnlyDictionary<int, int>>();
             var jogosDeGrupoPorCategoria = (await _context.Partidas
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
@@ -1170,6 +1171,17 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
+                // ⚠️ O ranking do desempate de grupo, e ele vai TAMBÉM pra view: o
+                // `ClassificadosJaConhecidos.De` é síncrono e a prévia da chave o chama de
+                // dentro do Razor, que não tem como buscar. Ordenar lá sem os pontos poria na
+                // vaga um nome diferente do que o robô vai pôr — a tela prometendo um confronto
+                // que o sábado não faz. Buscado só se algum grupo empatar até o ranking.
+                var pontosParaODesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                    categoria.GruposTorneio.Select(g => (IReadOnlyList<Dupla>)g.Duplas.ToList()).ToList(),
+                    jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
+                    _estatisticas.ObterPontosPorJogadorAsync);
+                pontosDoDesempatePorCategoria[categoria.Id] = pontosParaODesempate;
+
                 DateTime? fimDosGrupos =
                     fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
                         ? fim : null;
@@ -1189,7 +1201,8 @@ namespace Padelizou.Controllers
                     ClassificadosJaConhecidos.De(
                         gruposEmOrdem,
                         jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
-                        ClassificacaoDeGrupos.VagasPorGrupo(categoria))));
+                        ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                        pontosParaODesempate)));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
@@ -1219,6 +1232,10 @@ namespace Padelizou.Controllers
                     porCategoria.First().Categoria.Nome,
                     porCategoria.Key));
             }
+
+            // A prévia da chave é desenhada no Razor, e o `ClassificadosJaConhecidos.De` de lá
+            // precisa dos MESMOS pontos que o robô usa — ver o comentário no laço acima.
+            ViewBag.PontosDoDesempatePorCategoria = pontosDoDesempatePorCategoria;
 
             if (cadeias.Count == 0) return new();
 
