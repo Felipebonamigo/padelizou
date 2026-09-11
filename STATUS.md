@@ -94,6 +94,16 @@
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
 
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`** (runs 270 e 271, 20h28 e 20h29 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #228. ✅ **SEM MIGRATION**.
+>
+> ⏱️ **O que entrou daqui: as Finalizadas dizendo começo, fim e duração** (`Services/DuracaoDoJogo`) — e a régua do "quando o jogo aconteceu" com os TRÊS passos, igual ao resto do sistema.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; o `/css/site.css` de produção traz `.pdz-jl-quando .pdz-jl-durou` com `grid-column: 1 / -1`; o `/sw.js` traz o `v32`; e em `padelizou.com.br/Torneios/Jogos/23` os **13 jogos finalizados saem com a linha da duração**, na ordem certa: `11:20 · 11:00 · 10:59 · 10:09 · 10:08 · 09:49 · 09:49 · 09:29 · 09:27`, e aí os quatro **sem carimbo de fim** ordenados pela LARGADA real (`começou 08:55 · 08:46 · 08:29 · 08:28`) — que é exatamente o passo do meio que faltava na régua, funcionando em dado de verdade.
+>
+> ⚠️ **DUAS SESSÕES PUBLICANDO NO MESMO MINUTO, e a lição é da ORDEM DOS BUILDS.** O `main` andou três vezes durante este ciclo (PRs #224, #227 e #228) e outra sessão instalou o `build-1171` no `dev` **3 minutos antes** do meu disparo do `build-1170`. Como o 1170 é ANTERIOR, instalá-lo **tirou o #224 do `dev`** por dois minutos. Consertado publicando o `build-1171-3686b36` (que contém os dois) nos dois ambientes. 👉 **A regra que fica: com o `main` andando, publique o build MAIS NOVO que contenha o seu commit, nunca o do seu próprio merge** — "o meu build" é o instinto errado aqui, porque deploy não mescla: ele troca o symlink inteiro.
+>
+> 🕳️ **E uma armadilha de MEDIR TEMPO desta sessão, que custou um run cancelado à toa**: esperar com `sleep` em segundo plano e consultar a API no mesmo turno **não é esperar**. O run tinha 2 minutos de vida quando eu li "25 minutos" comparando o `started_at` do passo com o relógio de um turno depois — cancelei um CI saudável. Espera de verdade é bloquear até a espera terminar (`until [ -s arquivo ]`), e só então consultar.
+
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
