@@ -6123,11 +6123,41 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                         var ganhou1 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla1Id;
                                                         var ganhou2 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla2Id;
 
-                                                        <div class="pdz-grupo-jogo @(noAr ? "pdz-grupo-jogo-aovivo" : "")">
+                                                        @* ⚠️ SEMPRE <a>, COM HREF SÓ NO JOGO EM QUADRA (Felipe, 11/09/2026:
+                                                           *"permita clicar no aovivo e ir para a pagina do aovivo aonde
+                                                           esta o jogo"*). O card grande mora na MESMA página, na aba
+                                                           Jogos — por isso uma hash, e não uma URL: nada recarrega e o
+                                                           <iframe> da transmissão não reinicia (é o motivo de
+                                                           js/jogos-ao-vivo-atualiza.js existir). Quem leva até lá é o
+                                                           pdzIrProJogoDaHash, no fim deste arquivo.
+
+                                                           `href` nulo o Razor NÃO escreve, e <a> sem href é texto comum:
+                                                           sem foco, sem cursor de mão e sem destino. É o que mantém um
+                                                           elemento só pros três estados do card, em vez de duplicar o
+                                                           miolo inteiro num if. *@
+                                                        <a class="pdz-grupo-jogo @(noAr ? "pdz-grupo-jogo-aovivo" : "")"
+                                                           href="@(noAr ? $"#jogo-{jogoDoGrupo.Id}" : null)">
                                                             <div class="pdz-grupo-jogo-quando">
                                                                 @if (noAr)
                                                                 {
                                                                     <span class="pdz-chave-aovivo">● AO VIVO</span>
+                                                                }
+                                                                else if (acabou)
+                                                                {
+                                                                    @* 🗣️ *"o que estiver finalizado deixe um circulo
+                                                                       parecido com o do aovivo, só que outra cor"*. Antes
+                                                                       eram DOIS estados na tela — bolinha vermelha ou uma
+                                                                       data — e a data é a MESMA do jogo que acabou e do
+                                                                       que ainda vai acontecer: "sex 11/09 19:40" não
+                                                                       dizia se era história ou agenda.
+
+                                                                       O selo toma o LUGAR da data, e não anda ao lado
+                                                                       dela: esta linha é `nowrap; overflow: hidden` SEM
+                                                                       reticências e a etiqueta do lugar é a última
+                                                                       (`margin-left: auto`) — os dois juntos comeriam o
+                                                                       "Er Padel · Arena Nclass" calado, que é o defeito
+                                                                       medido na árvore da chave em 11/09. *@
+                                                                    <span class="pdz-chave-encerrado">● ENCERRADO</span>
                                                                 }
                                                                 else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
                                                                 {
@@ -6150,7 +6180,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla2)</span>
                                                                 <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla2?.ToString() ?? "0") : "–")</span>
                                                             </div>
-                                                        </div>
+                                                        </a>
                                                     }
                                                 </div>
                                             }
@@ -7317,4 +7347,69 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var aba = document.querySelector('#torneioTabs [data-bs-target="' + location.hash + '"]');
         if (aba) bootstrap.Tab.getOrCreateInstance(aba).show();
     });
+</script>
+
+@*
+    A HASH `#jogo-123` LEVA AO CARD GRANDE DAQUELE JOGO.
+
+    🗣️ Felipe, 11/09/2026, com o print do Grupo C: *"permita clicar no aovivo e ir para a
+    pagina do aovivo aonde esta o jogo"*. O card pequeno do grupo e o card grande com placar,
+    cronômetro e palpitrômetro moram na MESMA página, em abas diferentes — daí uma hash, e não
+    uma URL nova: nada recarrega, o <iframe> da transmissão não reinicia (é o motivo de
+    js/jogos-ao-vivo-atualiza.js existir) e o botão de voltar devolve a pessoa ao grupo.
+
+    ⚠️ DUAS ABAS, E SÓ DEPOIS O ROLAR: o card está dentro da sub-aba de uma aba. Elemento em
+    `display: none` não tem posição na tela, e `scrollIntoView` nele não rola nada.
+
+    ⚠️ `hashchange` ALÉM do DOMContentLoaded: clicar numa hash com a página já aberta não
+    dispara carregamento nenhum. Sem ele o primeiro clique funcionaria (a hash muda com a
+    página nascendo) e o segundo — voltar e clicar noutro jogo — não faria nada.
+
+    ⚠️ ESTE SCRIPT RODA DEPOIS do js/jogos-abas.js, que restaura a sub-aba lembrada da sessão:
+    `DOMContentLoaded` só dispara quando todo <script src> do corpo já executou. É essa ordem
+    que faz o clique vencer a memória — quem pediu ESTE jogo não quer a aba de ontem.
+*@
+<script>
+    // ⚠️ `depois` NÃO É ENFEITE: `Tab.show()` do Bootstrap 5 é ASSÍNCRONO quando há animação.
+    // Ele tira o `active` da aba velha, espera os 150ms do fade DELA e só então acende a nova —
+    // então, na linha seguinte ao `show()`, o painel de destino ainda é `display: none`, o card
+    // dentro dele mede 0x0 e `scrollIntoView` num elemento sem posição não rola nada. Quem
+    // desliga animação no sistema (`prefers-reduced-motion`) não veria o defeito, e é
+    // exatamente o tipo de coisa que passa no teste de quem desenvolveu e falha no celular de
+    // quem usa. `shown.bs.tab` é o aviso de que o painel existe na tela.
+    function pdzMostrarAba(lista, alvo, depois) {
+        var botao = document.querySelector(lista + ' [data-bs-target="' + alvo + '"]');
+        if (!botao) return;
+
+        // Já é a aba aberta: nenhum evento vai nascer, e esperar por ele seria esperar pra
+        // sempre.
+        if (botao.classList.contains('active')) {
+            if (depois) depois();
+            return;
+        }
+
+        if (depois) botao.addEventListener('shown.bs.tab', depois, { once: true });
+        bootstrap.Tab.getOrCreateInstance(botao).show();
+    }
+
+    function pdzIrProJogoDaHash() {
+        // O formato é conferido antes de virar seletor: a hash é texto que qualquer um põe na
+        // URL, e `querySelector` com lixo dentro estoura.
+        if (!/^#jogo-\d+$/.test(location.hash) || !window.bootstrap) return;
+
+        var alvo = location.hash;
+
+        pdzMostrarAba('#torneioTabs', '#jogosDoTorneio', function () {
+            pdzMostrarAba('#jogosTabs', '#aovivo', function () {
+                // O card pode não estar na página: os filtros da aba Jogos (clube, quadra,
+                // fase, "meus jogos") recortam a lista do ao vivo. Abrir a aba certa já é o
+                // destino possível — o silêncio aqui é o comportamento, não um erro engolido.
+                var card = document.querySelector(alvo);
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', pdzIrProJogoDaHash);
+    window.addEventListener('hashchange', pdzIrProJogoDaHash);
 </script>
