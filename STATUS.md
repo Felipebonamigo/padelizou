@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
+>
+> 🕳️ **CAUSA: `viewport-fit=cover` + `position: fixed`.** O `_Layout` pede a tela inteira (instalado, o app pinta atrás do relógio e da bateria) e o `site.css` já paga essa conta pro CORPO da página — mas o `.modal` é `fixed` e **não herda nada disso**. Com a lista longa o diálogo encosta no topo do aparelho, e o botão de fechar vai parar na faixa onde o toque não chega.
+>
+> ✅ **`padding-top/bottom: env(safe-area-inset-*)` no `.modal`** — e é ali, e não no `.modal-dialog`: com `box-sizing: border-box` o padding **encolhe** a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura, e o fim da lista sairia por baixo. ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de rolagem) e não encosta no topo/rodapé — por isso os dois não brigam.
+>
+> 🪗 **E CADA DUPLA DO MODAL DOBRA SOZINHA.** 🗣️ *"permita minimizar pela 'dupla' apostada tambem"*: com 15 nomes de um lado, ver a outra dupla exigia rolar a lista inteira. O cabeçalho virou **botão** (`<button>`, não `<p onclick>` — recolher é ação, e ação sem botão não chega pra teclado nem pra leitor de tela), com a seta girando pelo **`aria-expanded`**: um só estado, lido pelo leitor de tela E pelo CSS.
+>
+> ⚠️ **O MODAL É UM SÓ, reusado por todos os jogos da lista** — então ele **desdobra os dois lados a cada abertura**. Sem isso, um lado dobrado num jogo continuaria dobrado no próximo, escondendo gente que ninguém mandou esconder. Tem conferência no `conferir-palpitrometro.js`.
+>
+> 🧪 **6.471 testes, 0 falhas (2 novos)** + **14 conferências** no JS (1 nova). Vistos vermelhos antes: *"Não achei a regra do `.modal` no site.css"* e *"Not found: alternarVotantes("*. ⚠️ O DOM falso do modal (da sessão paralela) ganhou `querySelectorAll` — sem ele a conferência estourava em *"document.querySelectorAll is not a function"*, que é o mock incompleto e não o código.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
