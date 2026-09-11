@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO DE NOVO** neste branch (nem no push nem no PR), pela segunda vez hoje — disparado na mão pelo `workflow_dispatch`, runs 1131 e 1134. E o `main` andou **duas vezes** durante o ciclo (PRs #213, #214 e #215): as duas mesclas conflitaram só no `STATUS.md`, no lugar de sempre.
 >
 > 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
 >
