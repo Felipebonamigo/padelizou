@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1082-4fc7938`** (16h41 e 16h44 UTC — runs 223 e 225), **o mesmo artefato nos dois**, com a tag explícita. PR #198. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois e o `/css/site.css` servido com **126.374 bytes** nos dois (era 124.143 em `prod` antes), trazendo a regra `.pdz-abas .nav-link.active { background-color: var(--pdz-surface-alt); border-color: var(--pdz-lime); }`.
+>
+> ⚠️ **O `build-1082` LEVA JUNTO O `build-1081`** (PR #197, o "quem votou" 404 de outra sessão, que entrou no `main` um minuto antes deste): o merge deste PR nasceu por cima dele. Uma sessão paralela já tinha subido o **1081** em `prod` às 16h42 — o 1082 é superset dele (`git merge-base --is-ancestor` conferido antes de disparar), então nada foi desfeito.
 >
 > 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
 >
