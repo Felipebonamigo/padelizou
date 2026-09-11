@@ -317,7 +317,10 @@ public class PalpiteService : IPalpiteService
 
         return new VotanteVM
         {
-            Nome = v.Jogador.Nome,
+            // ⚠️ `Curto`, e não `Jogador.Nome`: "JOAO EGIDIO FERREIRA DA ROCHA" ocupava três
+            // linhas do modal no celular, e o mesmo torneio escrevia o nome de dois jeitos —
+            // o "Cravaram o placar" logo acima já passa pelo NomeBonito desde sempre.
+            Nome = NomeBonito.Curto(v.Jogador.Nome),
             FotoPerfil = v.Jogador.FotoPerfil,
             PlacarVencedor = palpitado.Existe ? Math.Max(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
             PlacarPerdedor = palpitado.Existe ? Math.Min(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,

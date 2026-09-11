@@ -263,11 +263,16 @@ async function verVotos(partidaId, nome1, nome2) {
                 : '';
 
             // ⚠️ `width:28px` num filho de flex é só o tamanho BASE — ele encolhe por padrão, e a
-            // foto redonda saía oval ao lado de nome comprido. `text-break` no nome porque o que
-            // sobra de largura pertence a ele, e um nome sem espaço não pode vazar do modal.
+            // foto redonda saía oval ao lado de nome comprido.
+            //
+            // O nome vem ABREVIADO do servidor (NomeBonito.Curto), então o corte quase nunca
+            // dispara — ele é a rede pro nome longo em tela estreita. ⚠️ `text-truncate` sozinho
+            // não corta nada aqui: num flex o item se recusa a encolher abaixo do próprio
+            // conteúdo, e sem `min-width:0` quem sai empurrado pra fora é a ficha do placar.
             return '<div class="d-flex align-items-center gap-2 mb-2"><img src="' + foto
                 + '" class="rounded-circle flex-shrink-0" style="width:28px;height:28px;object-fit:cover;">'
-                + '<span class="text-break">' + texto(v.nome) + '</span>' + placar + '</div>';
+                + '<span class="text-truncate" style="min-width:0;">' + texto(v.nome) + '</span>'
+                + placar + '</div>';
         }).join('');
     }
 
