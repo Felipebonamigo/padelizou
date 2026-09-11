@@ -2,7 +2,15 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`**, **o mesmo artefato nos dois**, pela tag explícita no campo `build` (runs 270 e 271, 20h28 UTC). PR #224. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR:** `/healthz` **200** nos dois ambientes, e o LOG DO RUN diz o que instalou — *"==> Feito. build-1171-3686b36 no ar em prod"*, com `BUILD: build-1171-3686b36` no ambiente de cada job. O `head_sha` do run é o REF do workflow, não o pacote: quem prova o artefato é o log.
+>
+> 🕳️ **UM DISPARO CRIOU TRÊS RUNS** (267, 268 e 269, todos `deploy → dev`, mesmo build). Idempotente, então não houve estrago — mas é o contrário da nota de 10/09 (o `204 queued` que não criava run nenhum). **A régua vale nos dois sentidos: confira os runs que EXISTEM, nem mais nem menos do que você pediu.**
+>
+> ⚠️ **E UMA SESSÃO PARALELA PUBLICOU ESTE MESMO COMMIT** em `dev` e `prod` (270 e 271) meio minuto depois dos meus. Desta vez foi inofensivo — o `main` não tinha andado, então o build mais recente ERA o meu. Não foi sorte gerenciada: é a mesma colisão de 11/09 que trocou o `site.css` de lugar.
+>
+> 🔴 **O `dev` deu 502 no meio da rodada de deploys** e voltou 200 sozinho: era o serviço reiniciando com dois deploys em voo. Healthcheck logo depois de publicar mede o restart, não a saúde.
 >
 > ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
 >
