@@ -495,7 +495,11 @@
 >
 > 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
 
-> **10/09/2026** — ⏳ **NO BRANCH `claude/wizardly-archimedes-um7u3v` (PR #166), ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910200606_FusaoDeTimesComNomeIgual` — funde dados e cria índice único; **não tem desfazer**).
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`.** PR #166, mesclado às **17h31** de Brasília (`e106aaa`). ⚠️ **TEM MIGRATION** (`20260910202102_FusaoDeTimesComNomeIgual` — funde dados e cria índice único; **não tem desfazer**).
+>
+> 📦 **QUEM LEVOU A MIGRATION AO AR NÃO FOI UM DEPLOY DESTA SESSÃO** — foi o `build-1022-35ba247` do PR #169, disparado por outra sessão 6 minutos depois do merge: **`dev` às 17h37** (run 198) e **`prod` às 17h40** (run 199). A Regra 3 foi respeitada por **três minutos**, e por acaso, não por desenho: quem dispara o deploy leva junto tudo o que estiver no `main`, e ninguém coordena isso. Fica anotado como o risco real de mesclar migration com várias sessões publicando no mesmo minuto — **merge de migration e deploy deveriam andar juntos, ou o intervalo de teste em `dev` é o que sobrar entre dois cliques alheios.**
+>
+> ✅ **CONFERIDO NO AR, em 11/09 às 05h50 de Brasília, lendo `padelizou.com.br/Torneios/Details/26` de dentro da sessão:** a aba Times tem **18 times e ZERO colisões** ignorando caixa e acento. O `Er padel` sumiu e o **`ER Padel` está com 23 jogadores e 343 pontos** — exatamente os 21+2 e 318+25 previstos. É verificação independente, e não o `deploy.sh` atestando a si mesmo.
 >
 > 🛡️ **DOIS TIMES COM O MESMO NOME DEIXARAM DE SER POSSÍVEIS — A TRAVA AGORA É DO BANCO.** 🗣️ Felipe: *"não deixa mais dois times com nome idêntico existirem, tem q mesclar, não pode ser diferente apenas pelo case sensitive"*.
 >
