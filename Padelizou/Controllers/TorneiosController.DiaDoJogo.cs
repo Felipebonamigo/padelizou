@@ -357,11 +357,11 @@ namespace Padelizou.Controllers
             // ⚠️ AO VIVO ANTES DE FINALIZADO, e não uma ordem só: um está acontecendo AGORA (e
             // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
             // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
-            // mais recente pro mais antigo (placar lançado depois cai pro horário previsto).
+            // mais recente pro mais antigo (a régua inteira está em Services/DuracaoDoJogo).
             ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
                 .OrderBy(p => p.HorarioInicioReal)
                 .Concat(jogos.Where(p => p.Status == "Finalizada")
-                    .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto)
+                    .OrderByDescending(DuracaoDoJogo.Quando)
                     .ThenByDescending(p => p.Id))
                 .ToList();
 
