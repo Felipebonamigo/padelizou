@@ -91,6 +91,29 @@ namespace Padelizou.Controllers
                 png, $"jogos-{CartoesController.Arquivo(lista.Value.Torneio.Nome)}-{CartoesController.Arquivo(arte.Rotulo)}.png");
         }
 
+        // A MESMA LISTA EM COLUNAS, pro Excel/Google Sheets (11/09/2026).
+        //
+        // ⚠️ SEM `FonteDoCartao`, e isso é decisão: a arte se desliga quando a Poppins falta (ver
+        // FonteDoCartao), e amarrar a planilha ao mesmo `if` tiraria do organizador a lista em
+        // colunas por um motivo que só vale pro desenho.
+        [HttpGet]
+        public async Task<IActionResult> JogosPlanilha(int id,
+            int? timeFiltroId = null, int[]? categoriaFiltroIds = null, bool soMeusJogos = false,
+            int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null,
+            bool comPrevias = false)
+        {
+            var lista = await ListaParaCompartilharAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
+                clubeFiltroId, quadraFiltro, faseFiltro, comPrevias);
+            if (lista == null) return NotFound();
+
+            var csv = PlanilhaDaLista.EmBytes(PlanilhaDaLista.Montar(lista.Value.Jogos));
+
+            // ⚠️ `attachment` (é o que o `File(..., nome)` faz), e não o `inline` dos cards: aqui
+            // o destino é o disco de quem baixa, não a prévia de um link. Nome ASCII pela mesma
+            // peneira dos cards — cabeçalho HTTP não aguenta o "ª" de "6ª Categoria".
+            return File(csv, "text/csv", $"jogos-{CartoesController.Arquivo(lista.Value.Torneio.Nome)}.csv");
+        }
+
         // A lista, pela MESMA porta e pela MESMA montagem da aba Jogos. Nula quando não há o
         // que compartilhar: torneio inexistente, oculto pra quem olha, cancelado, ou chave
         // ainda em aprovação pra quem não organiza (aí a aba também está vazia).

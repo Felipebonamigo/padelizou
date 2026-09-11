@@ -1,13 +1,66 @@
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 📤 **O "COMPARTILHAR ESTA LISTA" GANHOU AS TRÊS COISAS QUE O FELIPE PEDIU DEPOIS DE USAR.** 🗣️ *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"* · *"crie tambem uma opção de importar planilha se quiserem"* · *"tente fazer com que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
+>
+> 1️⃣ **UMA LINHA EM BRANCO ENTRE CADA JOGO NO TEXTO.** Doze jogos eram 24 linhas coladas no grupo, e achar o seu exigia contar de dois em dois. A linha vem **ANTES** de cada jogo, e não depois — é o que garante que ela nunca dobre com a do cabeçalho do dia nem com a do link do fim. O teste escreve **a mensagem inteira** em vez de um punhado de `Contains`: a forma do texto É o recurso, e é uma linha em branco a mais ou a menos que a quebra.
+>
+> 2️⃣ **A PLANILHA (`/Torneios/JogosPlanilha`)**: a mesma lista em colunas — Data, Hora, Categoria, Fase, Local, Dupla 1, Dupla 2, Situação. ⚠️ **Entendi "importar planilha" como o lado de QUEM ABRE** (o organizador leva a grade pro Excel dele), e não como subir uma planilha pra criar jogos — esse seria outro recurso, `architectural`, e está anotado abaixo. ⚠️ **CSV e não XLSX: é o degrau 3 da escada** — abre no Excel, no Google Sheets e no Numbers sem UMA dependência nova (ClosedXML entraria no publish e no backup pra entregar o mesmo conteúdo com negrito). **BOM + `;` + CRLF**, os três por motivo: sem BOM o Excel lê "6ª" como "6Âª"; com vírgula a planilha inteira cai numa coluna só no Windows em português. ⚠️ **A planilha NÃO depende da Poppins** — a arte se desliga sem a fonte, e amarrar as três saídas ao mesmo `if` tiraria as colunas por um motivo que só vale pro desenho.
+>
+> 3️⃣ **A ARTE PASSOU DE 8 PRA 14 JOGOS, e o espaço saiu do CABEÇALHO.** Ele gastava 600 dos 1350px em logo grande + "JOGOS" em corpo 96 + pílula do dia + recorte — quatro blocos pra dizer duas coisas. Agora **o título É o dia** ("SEX 11/09", que é a pergunta de quem vê o story) e o recorte vem embaixo numa linha lime: 260px no lugar de 600, e a lista ficou com os outros 340. ⚠️ **A pílula lime saiu** — é a única peça da família que este card não tem; o dia em corpo 76 dentro dela viraria a faixa de 120px que o pedido manda devolver pra lista.
+>
+> 👁️ **E DE NOVO FOI OLHAR A ARTE QUE PEGOU O DEFEITO** (a quarta vez que este arquivo registra isso): com a faixa maior e o teto de linha antigo, **três jogos viravam três frases perdidas no meio de um card vazio** — o defeito do pódio da panelinha, de volta por outra porta. O teto da altura da linha subiu pra 160 e o corpo acompanha (20 a 40): lista curta sai com linhas GRANDES, lista cheia cai pros 56px da conta. Um segundo tropeço foi meu, no DADO do teste: 14 jogos de 40 em 40 minutos a partir das 18h **atravessam a meia-noite**, viram dois dias e a arte "de 14" saiu com 9.
+>
+> 🧪 **6.448 testes, 0 falhas (12 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'PlanilhaDaLista' does not exist"*, *"'TorneiosController' does not contain a definition for 'JogosPlanilha'"* e o texto sem as linhas em branco.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`): a tela abre com as três saídas, o texto vem com o respiro, e o **clique no "Baixar em planilha" baixou `jogos-torneio-dos-amigos-2026.csv` de verdade** — conferido byte a byte (BOM `EF BB BF`, `;`, CRLF, acento certo).
+>
+> 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
+
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1088-e61686c`** (runs 226 e 227 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #199. ✅ **SEM MIGRATION.**
 >
-> ✅ **CONFERIDO NO AR EM PROD, anônimo, na página de verdade** (`/Torneios/Details/26`, 7 categorias): **7 quadros de cima pra baixo** (`pdz-arv-rolagem`) e **7 deitados** (`pdz-chd-trilho`), **43 ligações** desenhadas, **zero** ocorrência de `pdz-chave-projetada` (o quadro velho) e **zero** de "passou direto". O `/sw.js` está em `padelizou-static-v27` e o `/css/site.css` servido traz as regras novas sem nada do CSS morto.
+> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
 >
-> 🔢 **E A PORCENTAGEM DA LIGAÇÃO CHEGOU COM PONTO** no HTML de produção (`--a:25%;--hw:50%`) — é a prova no ar do defeito de cultura que o teste dos sete grupos pega. Com vírgula, o quadro estaria lá sem nenhuma linha.
+> 🎾 **A BOLINHA DO SAQUE APARECEU — DEPOIS DE 37 DIAS INVISÍVEL.** 🗣️ Felipe, num print do card AO VIVO: *"Nao esta exibindo a bolinha verde de quem esta sacando, é algum erro?"*
 >
-> 🖥️ **E VISTO EM TELA**, renderizando o HTML de produção com o `site.css` de produção: no computador as duas semifinais se juntam na final com o cotovelo, a final sai destacada em lime e o troféu fecha embaixo; a 390px a semifinal ocupa dois terços e a final fica espiando na beirada, com a linha já chegando nela. ⚠️ **O `dev` continua sem prova visual anônima** (gate de Acesso Antecipado: `/Torneios/Details/26` responde 302) — lá a prova é `/healthz` 200 e o CSS servido.
+> 🕳️ **O DEFEITO NÃO ERA DE DESENHO, ERA DE DADO — E É O TIPO MAIS CARO: a feature no ar sem NENHUM caminho que a alimente.** O card sempre soube desenhar a bolinha (`_JogosDoTorneio.cshtml`, desde 05/08). O que não existia era quem gravasse `Partida.DuplaSacandoId`: o **único** lugar do site era o POST do Controle de Partida, que **já nasce marcado em "Não mostrar"** e que ninguém abre com cinco quadras rolando. Nem a Mesa de Controle nem o −/+ do card tocavam no campo. Resultado: campo nulo em 100% dos jogos, bolinha em 0% das telas, por 37 dias, **sem um teste sequer** (`grep pdz-bolinha Padelizou.Tests/` voltava vazio).
+>
+> 🎯 **REGRA NOVA, decidida pelo Felipe: jogo que ENTRA EM QUADRA sai com alguém sacando.** 🗣️ *"tanto faz em quem começar a bolinha, mas tem q ter em alguem"*. Qual dupla é indiferente de propósito — quem saca primeiro é sorteio na quadra e o servidor não tem como saber. Fica com a **dupla de cima**, e o organizador corrige num toque.
+>
+> ⚠️ **SÃO TRÊS PORTAS PRA QUADRA, e todas as três chamam a MESMA régua** (`Services/SaqueDoJogo.DefinirNaLargada`): o play (`ColocarNoAr`), o `<select>` de status do Controle de Partida e o `ReabrirPartida`. Régua copiada em três lugares é exatamente como a autorização de organizador virou três verdades que precisam andar juntas.
+>
+> ⚠️ **E A LARGADA VENCE O CAMPO VAZIO DO FORMULÁRIO, DE PROPÓSITO.** O "Não mostrar" do Controle de Partida vem **pré-marcado** em todo jogo que nunca teve saque — tratá-lo como escolha deixaria o vazio voltar pela porta dos fundos, em quem dá a largada por aquele `<select>` sem olhar pra bolinha. Com o jogo **já** no ar o `if` não roda, e aí "Não mostrar" é escolha de verdade e é obedecida (é a saída de quem não sabe quem está sacando: bolinha errada na tela do torcedor é pior que bolinha nenhuma). **Tem teste dos dois lados.**
+>
+> 👆 **UM TOQUE TROCA O SAQUE, no próprio card.** 🗣️ *"permita o organizador/marcador alterar a bolinha"* — e o porquê de não poder morar só no lápis: *"normalmente se vira após o 3º game, depois de 2 em 2, até finalizar a partida"*. Do lado de quem não saca nasce uma **bola apagada** (contorno), que é o alvo. `Partidas/TrocarSaque` confere **a mesma régua** do lápis (`PodeMarcarPlacarAsync`: organização, marcador, admin e quem o torneio liberou), recusa dupla de outro jogo e recusa jogo fora de quadra.
+>
+> ⚠️ **NÃO AUTOMATIZEI A VIRADA a cada game** — o próprio Felipe escreveu *"(nao é sempre)"*. Régua automática escreveria na tela do torcedor uma informação que ninguém conferiu.
+>
+> ⚠️ **O TOQUE É UM `<form>` DE VERDADE**, não um `<span>` com `onclick`: sem JavaScript ele continua trocando o saque por POST + volta. O `js/saque-ao-vivo.js` só **intercepta** — recarga ali reiniciaria o `<iframe>` da transmissão e jogaria a tela pro topo, os dois defeitos que o −/+ já tinha deixado de causar.
+>
+> ⚠️ **BANDEIRA PRÓPRIA (`pdzTrocandoSaque`), e não a `pdzSalvandoPlacar` do placar.** Compartilhar abriria uma corrida: game salvando junto com troca de saque, e quem terminasse primeiro baixaria a bandeira do outro — a atualização automática entraria no meio do salvamento que continua em pé e devolveria o placar velho pra tela, que é exatamente o que essas bandeiras existem pra impedir. **As duas pontas têm teste**: levantar sem ninguém ler (ou ler sem ninguém levantar) falha CALADO.
+>
+> 🎾 **A BOLA VIROU BOLA: costura e quique, em CSS puro.** 🗣️ *"voce consegue fazer a imagem de uma bolinha de tenis? se possivel ela 'quicando' na tela? ou isso seria ruim pro sistema?"* — não é ruim, e **sem arquivo de imagem**: a costura são dois círculos maiores que a bola cortados pelo `overflow: hidden`, e o quique é `@keyframes` só de `transform` (a GPU anima, sem recalcular layout). Um `.png` custaria uma requisição por página, uma entrada no service worker e duas resoluções pra manter — pra desenhar dois arcos. ⚠️ **`prefers-reduced-motion: reduce` não recebe o quique**: animação infinita é justamente o tipo que incomoda quem marcou essa preferência, e a informação não depende do movimento.
+>
+> ♻️ **O `<span>` da bolinha virou o parcial `_BolinhaDoSaque`**: as duas linhas do card desenham a mesma coisa, e duas cópias seriam duas verdades sobre título, tamanho e alvo de toque. Mesma razão do `_EscudoDoTime`.
+>
+> 🧪 **6.446 testes, 0 falhas (16 novos, em `SaqueSempreDefinidoTests`)** + `conferir-palpitrometro.js` verde. **13 vistos vermelhos antes da correção**, cada um pelo motivo dele (*"Expected: 1, Actual: null"* na largada, *"Expected: 2, Actual: 0"* no card, arquivo inexistente pro parcial e pro JS, `NotImplementedException` no `TrocarSaque`). Os **3 que nasceram verdes foram falsificados um a um**: trocando `??=` por `=` cai o "não mexe no saque que já tinha dono"; tirando a chamada de dentro do `if` da transição cai o "Não mostrar"; apagando a leitura da bandeira no `jogos-ao-vivo-atualiza.js` cai o teste da corrida. ⚠️ **E o Razor É compilado no build** — conferido de propósito com um campo inexistente no parcial, que quebrou o build: o parcial novo e a tupla estão type-checked, não só lidos como texto.
+>
+> ⚠️ **NADA FOI VISTO NUMA TELA** — sessão web, sem browser, e a suíte não renderiza Razor. **A costura e o quique seguem pendentes do olho do Felipe**: tamanho da bola (13px), amplitude do pulo (~7px) e se o movimento não compete com a bolinha pulsante do "AO VIVO", que vive no mesmo card.
+>
+> ⚠️ **OS JOGOS JÁ NO AR NÃO GANHAM BOLINHA RETROATIVA** — a regra vale na largada. Os dois do print do Felipe só terão saque quando alguém tocar na bola apagada (ou o jogo for reaberto).
+>
+> 🧹 **`CACHE_NAME` do service worker foi pra `v28`, e o motivo vale a linha:** dois branches do mesmo dia subiram `v26` → `v27` independentemente (o do escudo/chave e este), e o **git juntou os dois sem conflito**, como se fosse a mesma mudança. O número ficaria igual com **dois `site.css` diferentes** — e quem tivesse guardado o primeiro `v27` nunca baixaria o segundo: a bolinha simplesmente não apareceria pra quem usa o app instalado, **sem erro em lugar nenhum**. Achado no merge com o `main`, não em teste.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1088-e61686c`** (runs 226 e 227 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #199. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, na página de verdade** (`/Torneios/Details/26`, 7 categorias): **7 quadros de cima pra baixo** (`pdz-arv-rolagem`) e **7 deitados** (`pdz-chd-trilho`), **43 ligações** desenhadas, **zero** ocorrência de `pdz-chave-projetada` (o quadro velho) e **zero** de "passou direto".
+>
+> 🔢 **E A PORCENTAGEM DA LIGAÇÃO CHEGOU COM PONTO** no HTML de produção (`--a:25%;--hw:50%`) — é a prova no ar do defeito de cultura que o teste dos sete grupos pega. Com vírgula, o quadro estaria no ar sem nenhuma linha.
+>
+> 🖥️ **E VISTO EM TELA**, renderizando o HTML de produção com o `site.css` de produção: no computador as duas semifinais se juntam na final com o cotovelo, a final sai destacada em lime e o troféu fecha embaixo; a 390px a semifinal ocupa dois terços e a final fica espiando na beirada, com a linha já chegando nela.
+>
+> ⚠️ **O `dev` NÃO TEM PROVA VISUAL ANÔNIMA** — está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. Lá a prova é `/healthz` **200** e o `/css/site.css` servido com as regras novas e sem o CSS morto.
 >
 > 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
 >
