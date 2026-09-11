@@ -1,4 +1,18 @@
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
+>
+> 🕳️ **NA PRIMEIRA VERSÃO ELES SUMIAM DA TELA INTEIRA** (a consulta filtrava `Status == "Agendada"`), e isso tinha um custo que só aparece operando: quem põe o jogo no ar **antes** de marcar a chegada perde o caminho pro check-in daquela dupla — ela só volta pela lista de 64. Agora o jogo que começou ou acabou tem endereço: o bloco **"Já jogaram ou estão em jogo (N)"**, fechado, no fim da tela, com o mesmo botão dentro.
+>
+> ⚠️ **AO VIVO NA FRENTE DO FINALIZADO**, e não uma ordem só: um está acontecendo AGORA e ainda pode precisar de correção, o outro é histórico. Dentro de cada grupo, a ordem é a da aba Jogos — o ao vivo pela largada, o finalizado pelo fim (placar lançado depois cai pro horário previsto).
+>
+> ♻️ **O CARTÃO DO JOGO VIROU PARCIAL** (`_JogoNoCheckIn.cshtml`), porque agora ele é desenhado nos dois blocos. O que muda entre eles é só o SELO, e ele sai do `Status` — escrever dois cartões parecidos pra isso é exatamente como duas telas passam a divergir na primeira mudança. O formulário que grava presença segue num arquivo só (`_LinhaDoCheckIn`), e o teste trava isso nos três lugares onde a linha aparece.
+>
+> 🧪 **6.508 testes, 0 falhas (11 na tela do check-in, 4 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: *"Não achei o bloco de quem já jogou / está em jogo"* e `ViewData["JogosQueJaRolaram"]` nulo. ⚠️ **Dois testes foram derrubados sem querer** ao reescrever o arquivo (a busca por âncora comeu o que havia entre elas) — percebido pela contagem cair de 11 pra 9, e restaurados no mesmo turno.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser aqui. O `dev` é quem mostra.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er (`/Torneios/CompartilharJogos/26`)**: a página responde **200** com o botão **"Baixar em planilha"**; a planilha baixa de verdade (**`text/csv`, 6.624 bytes, 56 jogos**, `attachment; filename=jogos-2-etapa-er-padel-tour-ept.csv`, com o BOM `EF BB BF` e `;`); e a arte `parte=1` sai em **PNG de 242 KB com 14 jogos** — a mesma sexta que antes precisava de duas imagens. 📉 **A prova do teto novo está na própria página: as partes caíram de SEIS pra TRÊS.**
 >

@@ -81,7 +81,7 @@ public class CheckInPorJogoTests
     }
 
     [Fact]
-    public async Task Jogo_ao_vivo_e_finalizado_ficam_de_fora()
+    public async Task Jogo_ao_vivo_e_finalizado_saem_da_fila_de_cima()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador, jogos) = Montar(ctx);
@@ -92,6 +92,42 @@ public class CheckInPorJogoTests
 
         Assert.DoesNotContain(jogos[3], fila.Select(p => p.Id));   // ao vivo
         Assert.DoesNotContain(jogos[4], fila.Select(p => p.Id));   // finalizada
+    }
+
+    [Fact]
+    public async Task O_que_ja_comecou_vai_pro_bloco_do_fim_com_o_ao_vivo_na_frente()
+    {
+        // 🗣️ Felipe, 11/09/2026: *"deixe apenas dos jogos que ainda não começaram, se os jogos
+        // ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou
+        // estão em jogo"*. Antes eles sumiam da tela inteira — quem marcasse o jogo como
+        // começado perdia o caminho pro check-in daquela dupla.
+        //
+        // Ao vivo antes de finalizado: um está acontecendo AGORA, o outro é histórico.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, organizador, jogos) = Montar(ctx);
+
+        var view = Assert.IsType<ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, organizador.Id).CheckIn(torneio.Id));
+        var doFim = Assert.IsAssignableFrom<List<Partida>>(view.ViewData["JogosQueJaRolaram"]);
+
+        Assert.Equal(new[] { jogos[3], jogos[4] }, doFim.Select(p => p.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task O_bloco_do_fim_tambem_vem_com_as_duplas_carregadas()
+    {
+        // Ele desenha a mesma linha de check-in, com o mesmo botão: sem os Includes a tela
+        // estouraria justamente no bloco que ninguém abre no ensaio.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, organizador, _) = Montar(ctx);
+
+        var view = Assert.IsType<ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, organizador.Id).CheckIn(torneio.Id));
+        var primeiro = Assert.IsAssignableFrom<List<Partida>>(view.ViewData["JogosQueJaRolaram"]).First();
+
+        Assert.NotNull(primeiro.Dupla1?.Jogador1);
+        Assert.NotNull(primeiro.Dupla2?.Jogador1);
+        Assert.NotNull(primeiro.Categoria);
     }
 
     [Fact]
@@ -138,26 +174,50 @@ public class CheckInPorJogoTests
     }
 
     [Fact]
+    public void O_bloco_do_que_ja_rolou_nasce_fechado_e_fica_no_fim_da_tela()
+    {
+        var fonte = Ler("Torneios/CheckIn.cshtml");
+        int jogos = fonte.IndexOf("JogosQueVem", StringComparison.Ordinal);
+        int resto = fonte.IndexOf("id=\"restoDoTorneio\"", StringComparison.Ordinal);
+        int jaRolou = fonte.IndexOf("id=\"jaJogaram\"", StringComparison.Ordinal);
+
+        Assert.True(jaRolou >= 0, "Não achei o bloco de quem já jogou / está em jogo.");
+        Assert.True(jogos < jaRolou, "Ele não pode vir antes da fila dos jogos que ainda não começaram.");
+        Assert.True(resto < jaRolou, "Pedido: no FIM da tela — depois do resto do torneio.");
+
+        Assert.Contains("data-bs-toggle=\"collapse\"", fonte[Math.Max(0, jaRolou - 900)..jaRolou]);
+        Assert.DoesNotContain("show", fonte[jaRolou..(jaRolou + 60)]);
+    }
+
+    [Fact]
     public void O_botao_de_presenca_mora_num_lugar_so()
     {
-        // A mesma linha é desenhada dentro do jogo e na lista de baixo. Duas cópias do
-        // formulário divergiriam na primeira mudança — e é ele que grava presença.
+        // A mesma linha é desenhada em três lugares: nos jogos que vêm, no bloco do fim e na
+        // lista por categoria. Duas cópias do formulário que GRAVA presença divergiriam na
+        // primeira mudança — então ele existe uma vez só, no parcial da linha.
         var tela = Ler("Torneios/CheckIn.cshtml");
         var linha = Ler("Torneios/_LinhaDoCheckIn.cshtml");
+        var cartao = Ler("Torneios/_JogoNoCheckIn.cshtml");
 
         Assert.Contains("asp-action=\"MarcarCheckIn\"", linha);
         Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", tela);
+        Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", cartao);
 
-        var ocorrencias = tela.Split(Parcial).Length - 1;
-        Assert.True(ocorrencias >= 2, $"A linha do check-in devia ser reusada nos dois lugares; achei {ocorrencias}.");
+        // O cartão do jogo desenha as DUAS duplas...
+        Assert.Equal(2, cartao.Split(Parcial).Length - 1);
+        // ...e o cartão é o mesmo nos dois blocos de jogo da tela (o que vem e o que já rolou).
+        Assert.True(tela.Split("<partial name=\"_JogoNoCheckIn\"").Length - 1 >= 2,
+            "O cartão do jogo devia ser o mesmo na fila de cima e no bloco do fim.");
+        // A lista por categoria continua usando a linha direto.
+        Assert.Contains(Parcial, tela);
     }
 
     [Fact]
     public void A_lista_nao_volta_pro_topo_a_cada_marcacao()
     {
         // Marcar 64 duplas é 64 POSTs, e cada um redesenha a página do começo. É a mesma
-        // queixa que gerou o js/manter-posicao-na-lista.js hoje mais cedo, e a mesma peça
-        // resolve — por opt-in no formulário, como lá.
+        // queixa que gerou o js/manter-posicao-na-lista.js, e a mesma peça resolve — por
+        // opt-in no formulário, como lá.
         Assert.Contains("data-manter-posicao", Ler("Torneios/_LinhaDoCheckIn.cshtml"));
         Assert.Contains("js/manter-posicao-na-lista.js", Ler("Torneios/CheckIn.cshtml"));
     }
@@ -181,7 +241,7 @@ public class CheckInPorJogoTests
             .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
             .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
             .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-            .Where(p => p.Categoria.TorneioId == 1 && p.Status == "Agendada")
+            .Where(p => p.Categoria.TorneioId == 1)
             .ToQueryString();
 
         Assert.Contains("SELECT", sql);
