@@ -17,6 +17,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+>
+> 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
+>
+> 🕳️ **O QUE INCOMODAVA NÃO ERA O VERDE, ERA O HALO.** A primeira versão tinha um `box-shadow` de **6px** espalhando luz em volta (`rgba(216,233,74,.55)`) e um ponto especular forte no gradiente. Somados, leem como **luzinha acesa**, não como bola — e o olho vai nela antes de ir no placar, que é o oposto do que ela existe pra fazer.
+>
+> ✅ **Bola de padel é FOSCA: o que dá volume nela é a SOMBRA DE CONTATO embaixo-à-direita, não o reflexo.** São duas camadas de `radial-gradient` (a sombra por cima, o feltro por baixo), o halo caiu de 6px pra **2px** e a costura saiu do branco de farol pro **creme** (`rgba(250,250,236,.9)`). O amarelo optic é praticamente o mesmo — é ele que deixa a bola achável de relance no meio do jogo, e mexer nele era passar do ponto que o Felipe pediu.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (headless, com o `site.css` de verdade e o fundo navy do card ao vivo): quatro variantes renderizadas lado a lado no tamanho real (13px) e ampliadas, antes de escolher. **É a primeira coisa desta sessão que foi VISTA numa tela** — o resto foi tudo teste.
+>
+> 🧪 **6.558 testes, 0 falhas** + `conferir-palpitrometro.js` verde. **Sem teste novo, de propósito**: isto é gosto, não defeito — um `Assert` em código hexadecimal travaria a próxima troca de cor sem proteger nada. Os testes que já existem (`.pdz-bolinha-apagada` e `.pdz-saque-toque` no CSS) continuam segurando a estrutura.
+>
+> 🧹 **`CACHE_NAME` → `v31`** (mexeu no `site.css`). É a lição de hoje de manhã aplicada sem ninguém precisar lembrar.
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
@@ -76,11 +90,13 @@
 > ⚠️ **DECISÃO PENDENTE DO FELIPE**: `Torneio.ClassificadosPorGrupo` não é lido por ninguém agora — só a `DuplicacaoDeTorneio` o copia. Virar o padrão do torneio dentro da régua (⚠️ muda a CHAVE de todo torneio cuja coluna não seja 2) ou sair numa migration.
 >
 
-> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138). PR #213. ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138) **e em `prod` no `build-1148-c3ff4b3`** (run 34638587687). PR #213. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**; o `/css/site.css` servido traz as duas regras novas (`.pdz-live-placar-venceu`) e **zero** ocorrência de `pdz-live-placar-ganhando`; o `.pdz-live-input` e o `.pdz-live-passo` chegam com `background: var(--pdz-navy-fixed)`, `color: #fff` e borda `rgba(255,255,255,.18)`; o `/js/placar-ao-vivo.js` traz `linha.vencedor`; e o `/sw.js` já está em `padelizou-static-v30`. ⚠️ **A TELA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/...` responde 302. A prova visual do card é a local, com o app de verdade e o Chromium.
 >
-> ⏭️ **PROD NÃO FOI PUBLICADO** (Regra 3: testar no `dev` antes): `padelizou.com.br` continua pintando de verde quem está só GANHANDO, e com o placar invisível pra quem usa o tema claro. É um disparo só — Actions → Deploy → `ambiente: prod`, `build: build-1125-5f5c53d` —, e o environment `prod` ainda pede a aprovação obrigatória.
+> ✅ **E EM PROD TAMBÉM, DE CARONA NO DEPLOY DE OUTRA SESSÃO.** 🗣️ *"publica em prod tambem"* — e ao conferir antes de disparar, já estava lá: o `build-1148-c3ff4b3` foi pro `prod` às 19:23:52Z (*"Feito. build-1148-c3ff4b3 no ar em prod"*), e o merge deste trabalho é **ancestral** dele. Conferido no ar em `padelizou.com.br`: `/healthz` **200**, `/css/site.css` com as duas regras `.pdz-live-placar-venceu` e **zero** `pdz-live-placar-ganhando`, o `.pdz-live-input` com `background: var(--pdz-navy-fixed)` e borda `rgba(255,255,255,.18)`, o `/js/placar-ao-vivo.js` com `linha.vencedor` e o `/sw.js` em `padelizou-static-v30`.
+>
+> ⚠️ **NÃO DISPAREI UM SEGUNDO DEPLOY, e o motivo é a regra:** mandar o `build-1125-5f5c53d` (o meu) pro `prod` depois disso **rebaixaria** o ar — tiraria o #214, o #217 e tudo que entrou entre um e outro. **Num repositório com várias sessões publicando no mesmo dia, "publicar o meu build" e "publicar o mais recente" deixam de ser a mesma coisa** — conferir o que já está no ar ANTES de disparar é o que separa as duas.
 >
 > 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
 >
