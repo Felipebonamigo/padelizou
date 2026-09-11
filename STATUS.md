@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO CHEGOU NAS OUTRAS DUAS TELAS DE JOGO — E EM DUAS FORMAS DIFERENTES, POR ESCOLHA DO FELIPE.** Ele abriu a aba **Jogos** em produção, com o `build-1052` no ar, e pediu o resto: 🗣️ *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* e, olhando a maquete de novo, 🗣️ *"e no ao vivo use esse do B"*.
+>
+> 📋 **LISTA DE AGENDADAS/FINALIZADAS (`_JogoEmLinha`): escudo de 14px depois do nome de CADA jogador.** Os dois, e não só quem abre a dupla — numa dupla de times diferentes, um escudo só conta metade da história.
+>
+> ⚠️ **ALI O HTML É MONTADO EM STRING** (`HtmlContentBuilder.AppendHtml`), então o encoding que o Razor faz sozinho em `@atributo` **não acontece** — e o nome do time é texto que quem cadastra digita. `src` e `alt` passam por `WebUtility.HtmlEncode`; uma aspa no nome do time fecharia o atributo.
+>
+> 🎖️ **CARD AO VIVO: o escudo vira SELO no canto da foto**, fundo navy e anel claro (o card é navy — escudo transparente sumiria nele).
+>
+> ⚠️ **O SELO É SÓ DO AO VIVO, E ISSO CUSTOU UM MECANISMO**: o `_JogadorChip` é o MESMO parcial da tabela do grupo, da lista de inscritos e da lista de duplas, que continuam com o escudo do lado do nome. Quem acende é o card, por `view-data` (`EscudoComoSelo`). **Não dava pra ser só CSS**: o selo precisa nascer DENTRO da moldura da foto, que é quem ancora o canto — posicionado de fora, o canto vira número mágico e desalinha quando o nome quebra em duas linhas no celular.
+>
+> ♻️ **O `<img>` do escudo virou o parcial `_EscudoDoTime`**: dois lugares desenham o mesmo escudo, e duas cópias seriam duas verdades sobre `alt`, tamanho e `loading` — a segunda envelhece calada.
+>
+> ⚠️ **TRÊS TESTES DO CHIP MUDARAM DE ARQUIVO JUNTO, DE PROPÓSITO** (passaram a ler o parcial), com o porquê escrito ao lado. O que eles guardam não mudou: o escudo existe, sai do LOGO, nomeia o time e não fica na linha do clube.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, **104 escudos na lista de jogos** (`pdz-jl-escudo`) além dos **186 do chip** — o primeiro deles no jogo das 18:00 do print do Felipe: `<a href="/Jogadores/Perfil/402">Paulo Prass</a><img class="pdz-jl-escudo" src="/uploads/logos-time/bandeiraer.jpeg" alt="ER Padel" ...>`.
+>
+> ⚠️ **O SELO NÃO PÔDE SER PROVADO NO AR: não há jogo AO VIVO agora** (a aba marca "Ao Vivo (0)"), e sem card não há HTML pra conferir. O que se provou é que o **CSS novo está servido** (`.pdz-chip-foto-selo` em `/css/site.css`) e que os 6 testes travam o HTML. **A primeira partida que entrar no ar é o teste de verdade.**
+>
+> 🧪 **6.411 testes, 0 falhas (6 novos, em `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-jl-escudo"*, *"Not found: EscudoComoSelo"*, *"não achei o método Escudo(...) no _JogoEmLinha"* e *"não achei a moldura da foto com selo no chip"*.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser, e a suíte não renderiza Razor. Tamanho do selo (17px sobre foto de 36px) e do escudo da lista (14px) seguem pendentes do olho do Felipe.
+
 > Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
 >
 > 📣 **O CARTAZ SAIU DO TOPO NO DIA DO JOGO.** 🗣️ Felipe, na página do Er com o torneio rolando: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro lugar"*.
