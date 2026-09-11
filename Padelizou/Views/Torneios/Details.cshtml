@@ -1264,7 +1264,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <i class="bi bi-people-fill" style="color: var(--padel-green);"></i>
                         <strong>Categoria de times:</strong>
                         @timesDaCategoria.Count de @(cat.QuantidadeTimes ?? timesDaCategoria.Count) times ·
-                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam @(cat.ClassificadosPorGrupo ?? 2) por grupo.
+                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                        @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(cat) por grupo.
                         Os times são cadastrados pelo organizador.
                     </div>
                     @if (timesDaCategoria.Any())
@@ -4493,7 +4494,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small mb-2">
                                 <strong style="color: var(--pdz-ink);">@catTimes.Nome</strong> —
                                 @catTimes.Duplas.Count(d => d.NomeTime != null) de @(catTimes.QuantidadeTimes ?? 0) times ·
-                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam @(catTimes.ClassificadosPorGrupo ?? 2)
+                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                                @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(catTimes)
                             </p>
                         }
                         <a asp-action="Times" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3">
@@ -5949,7 +5951,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             var duplasPorGrupo = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
                             var desenhoAtual = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
                                             ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
-                                                   gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2, duplasPorGrupo);
+                                                   gruposDaCategoria,
+                                                   Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                                   duplasPorGrupo);
 
                             if (desenhoAtual != null)
                             {
@@ -6202,7 +6206,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 @* O tamanho de cada grupo decide quem descansa — é assim que a
                                    prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
-                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2,
+                                    gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
                                     gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
 
                                 if (rodadasProjetadas.Count == 0)

@@ -3,6 +3,26 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
 >
+> 🔲 **O NÚMERO DE VAGAS POR GRUPO VIROU RÉGUA ÚNICA, E A TELA DE CLASSIFICAÇÃO PAROU DE MENTIR.** 🗣️ Felipe, depois de eu reportar a divergência: *"sim, alinha a outra tela também"*.
+>
+> 🕳️ **NÃO ERA LATENTE: ERA DEFEITO NO AR EM CATEGORIA DE TIMES.** A tela `/Torneios/Classificacao` lia `torneio.ClassificadosPorGrupo` (nasce 2, nenhuma tela edita) e o `AvancoDaChave` — quem monta o mata-mata de verdade — lê o da CATEGORIA. Numa categoria de times, onde o organizador escolhe **de 1 a 4 por grupo** em `Times.cshtml`, isso quebrava duas coisas de uma vez: o **verde da tabela** (`posicao <= N`) marcava 2 linhas quando 4 passavam — **o time em 3º lia que estava fora de uma vaga que ia receber** — e o painel "o que cada um precisa" simulava o corte errado.
+>
+> ⚠️ **A CAUSA RAIZ NÃO ERA A TELA: ERA O NÚMERO NÃO TER CASA.** `Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)` estava escrito à mão em **dez lugares** — `AvancoDaChave`, `RoboDoChaveamento`, três pontos dos controllers e quatro views —, e nas views **sem** o `Math.Max(1, …)`. Consertar só a cópia que divergiu seria consertar o sintoma: a décima primeira cópia era questão de tempo.
+>
+> ♻️ **`ClassificacaoDeGrupos.VagasPorGrupo(Categoria?)`** — a régua do NÚMERO, ao lado do `Ordenar`, que é a régua da ORDEM. As duas metades da mesma pergunta no mesmo arquivo. Os dez lugares passaram a chamá-la; oito eram idênticos (refatoração pura) e as duas views de exibição **ganharam** o piso de 1 vaga que não tinham.
+>
+> 🚪 **E TEM GATE MECÂNICO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `O_numero_de_vagas_so_e_escrito_na_regua` varre todo `.cs` e `.cshtml` do projeto (fora Migrations) e quebra se o `?? 2` reaparecer na mão. Regra que depende de lembrança volta; esta não tem como.
+>
+> ⚠️ **`Torneio.ClassificadosPorGrupo` AGORA NÃO É LIDO POR NINGUÉM** — só a `DuplicacaoDeTorneio` ainda o copia. A coluna FICA (dropar pede migration, que é `architectural`), com o porquê escrito no próprio campo. **Decisão do Felipe pendente**: virar o padrão do torneio (dentro da régua) ou sair numa migration. ⚠️ Se virar padrão, **muda a CHAVE** de todo torneio cuja coluna não seja 2.
+>
+> ⚠️ **ALINHAR FOI A TELA → CHAVEAMENTO, e não o contrário** — por isso o fallback é `?? 2` e não o campo do torneio: pôr o do torneio de padrão mudaria o mata-mata de torneios que já existem, o oposto do que foi pedido.
+>
+> 🧪 **6.456 testes, 0 falhas (7 novos, em `VagasPorGrupoSaoUmaReguaSoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"'ClassificacaoDeGrupos' does not contain a definition for 'VagasPorGrupo'"*, no `RegraClassificados` **2 onde tinha que ser 3**, no painel simulando com 2 vagas, e o gate listando os dez arquivos com a cópia na mão.
+>
+> ⚠️ **Sem migration. Nada visto em tela** — o que se provou é o número que o controller entrega, não o verde desenhado.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
 > 🔲 **"O QUE CADA UM PRECISA PARA PASSAR" CHEGOU AO CARD DO GRUPO, EM POP-UP.** 🗣️ Felipe, num print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o grupo de 3, ja tiveram 2 jogos e falta um, exiba botão 'O que cada um precisa para passar' e nele abre um pop up, explicando qual placar cada um precisa fazer para passar, por que as vezes cada dupla ganha um jogo ou enfim, e fica a duvida de quantos games precisa fazer para passar de fase"*.
 >
 > ♻️ **O MOTOR JÁ EXISTIA — e é o MESMO pedido, de 13/08/2026.** `Services/OQuePrecisaParaClassificar` simula todo placar possível do jogo que falta e pergunta à régua oficial (`ClassificacaoDeGrupos`, a que monta a chave) quem classifica em cada um. Só que vivia na tela `/Torneios/Classificacao` e **não** no card do grupo — que é de onde o print foi tirado. **Nenhuma matemática nova**: o trabalho foi levar o painel pra lá.
@@ -21,7 +41,7 @@
 >
 > 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas, a 430px e a 1100px**: pop-up centrado, sem rolagem horizontal, as três linhas de dupla legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS e o `position: fixed`, não o Razor.
 >
-> ⚠️ **DIVERGÊNCIA LATENTE, ANOTADA E NÃO CONSERTADA**: a tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
+> ⚠️ **DIVERGÊNCIA ANOTADA E NÃO CONSERTADA — ✅ CONSERTADA NO BLOCO ACIMA, no mesmo dia** (e era pior do que eu disse aqui: em categoria de TIMES já estava no ar). A tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
 
 > **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
 >

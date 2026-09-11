@@ -977,10 +977,10 @@ namespace Padelizou.Controllers
                 // TODA categoria do torneio, e um dicionário por nome faria o card da 4ª
                 // Masculina mostrar o que a 2ª precisa fazer.
                 //
-                // ⚠️ QUANTOS PASSAM sai de `categoria.ClassificadosPorGrupo ?? 2` — o MESMO
-                // número que o AvancoDaChave usa pra montar o mata-mata de verdade. Simular com
-                // outro promete vaga que a chave não vai dar, que é o defeito exato que o
-                // serviço foi escrito pra impedir.
+                // ⚠️ QUANTOS PASSAM sai da régua única (`ClassificacaoDeGrupos.VagasPorGrupo`) —
+                // o MESMO número que o AvancoDaChave usa pra montar o mata-mata de verdade.
+                // Simular com outro promete vaga que a chave não vai dar, que é o defeito exato
+                // que o serviço foi escrito pra impedir.
                 var oQuePrecisaPorGrupo = new Dictionary<int, OQuePrecisaParaClassificar.Quadro>();
                 // O formato é do TORNEIO por fase (Services/FormatoDaPartida) — a categoria não
                 // tem o próprio, então a pergunta é feita uma vez só.
@@ -988,7 +988,7 @@ namespace Padelizou.Controllers
 
                 foreach (var categoria in torneio.Categorias)
                 {
-                    int passamDaCategoria = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+                    int passamDaCategoria = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
 
                     foreach (var grupo in categoria.GruposTorneio)
                     {
@@ -1111,7 +1111,7 @@ namespace Padelizou.Controllers
                 var gruposEmOrdem = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
                 cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
                     gruposEmOrdem.Select(g => g.Nome).ToList(),
-                    Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
+                    ClassificacaoDeGrupos.VagasPorGrupo(categoria),
                     fimDosGrupos,
                     categoria.Nome,
                     categoria.Id,
