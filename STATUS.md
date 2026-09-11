@@ -51,7 +51,11 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
-> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** 🚀 **PUBLICADO em `dev` no `build-1156-f0c45da`** (run 258 do Deploy, 19h57 UTC), com a tag explícita. PR #223. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, por `curl`**: o `/css/site.css` servido pelo `dev` traz `.pdz-live-palpite { padding: .5rem 1.1rem 1rem; }` e o `/healthz` responde **200**. ⚠️ **O Razor não pôde ser conferido no `dev` e não é defeito**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve **302** pro `/AcessoAntecipado/Entrar` para quem é anônimo. Quem provou a marcação foi o Chromium, medindo os dois cards lado a lado. ⏳ **Não foi publicado em `prod`.**
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES NO CICLO** (PRs #222 e #223, mesclados com dois minutos de diferença). O `dev` foi publicado com o **build do #223** (`f0c45da`), e não com o mais recente: publicar o `build-1158-243ffe5` levaria junto o trabalho da outra sessão, que ninguém pediu pra subir. Nenhum deploy foi revertido — os quatro últimos (runs 254–257) eram todos do `2c50186`, anterior aos dois merges.
 >
 > 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
 >
