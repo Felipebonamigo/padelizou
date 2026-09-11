@@ -28,7 +28,7 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> CompartilharJogos(int id, [FromServices] FonteDoCartao fontes,
             int? timeFiltroId = null, int[]? categoriaFiltroIds = null, bool soMeusJogos = false,
             int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null,
-            bool comPrevias = false)
+            bool comPrevias = false, bool umaImagem = false)
         {
             var lista = await ListaParaCompartilharAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
                 clubeFiltroId, quadraFiltro, faseFiltro, comPrevias);
@@ -63,6 +63,11 @@ namespace Padelizou.Controllers
                 ComPrevias: comPrevias,
                 TemPrevias: lista.Value.TemPrevias,
                 FonteDisponivel: fontes.Disponivel,
+                CabeNumaImagemSo: CartaoDosJogos.CabeNumaImagemSo(lista.Value.Jogos),
+                // A escolha do formato é de tela: ela não muda a lista, só o que a página mostra.
+                // Por isso fica FORA de `filtros` — quem monta o link da imagem acrescenta o
+                // `tudo=true` na hora, e a planilha e o texto nem sabem que ela existe.
+                UmaImagem: umaImagem,
                 Filtros: filtros);
 
             return View(vm);
@@ -73,7 +78,7 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> JogosImagem(int id, [FromServices] FonteDoCartao fontes,
             int? timeFiltroId = null, int[]? categoriaFiltroIds = null, bool soMeusJogos = false,
             int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null,
-            bool comPrevias = false, int parte = 1)
+            bool comPrevias = false, int parte = 1, bool tudo = false)
         {
             // A recusa por falta de fonte vem ANTES de qualquer consulta, e é 404 e não uma
             // imagem em branco — mesma razão de todos os cards (ver FonteDoCartao).
@@ -82,6 +87,19 @@ namespace Padelizou.Controllers
             var lista = await ListaParaCompartilharAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
                 clubeFiltroId, quadraFiltro, faseFiltro, comPrevias);
             if (lista == null) return NotFound();
+
+            // A LISTA INTEIRA NUMA IMAGEM SÓ (11/09/2026) — o mesmo endpoint, porque é a mesma
+            // lista e a mesma porta; o que muda é o recorte do desenho. Recusa quando não cabe
+            // legível (ver CartaoDosJogos.CabeNumaImagemSo): imagem ilegível é pior que três.
+            if (tudo)
+            {
+                if (!CartaoDosJogos.CabeNumaImagemSo(lista.Value.Jogos)) return NotFound();
+
+                var inteira = CartaoDosJogos.DesenharTudo(
+                    lista.Value.Grade, lista.Value.Jogos, fontes, _env.WebRootPath);
+                return EntregaDeCard.Png(Response,
+                    inteira, $"jogos-{CartoesController.Arquivo(lista.Value.Torneio.Nome)}.png");
+            }
 
             var arte = lista.Value.Grade.Artes.ElementAtOrDefault(parte - 1);
             if (arte == null) return NotFound();

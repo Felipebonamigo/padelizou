@@ -364,6 +364,74 @@ public class CompartilharListaDeJogosTests
         Assert.Equal("meus jogos · Quadra 1 · fase de grupos", frase);
     }
 
+    // ── A imagem única (a lista inteira num PNG alto) ─────────────────────────────────────
+
+    // 🗣️ Felipe, 11/09/2026: *"da para por a opção, para o jogador selecionar se nao quer todos
+    // os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a
+    // ressalva dele, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis
+    // se diminuisse ou organizasse"*.
+    //
+    // ⚠️ ENTÃO A IMAGEM CRESCE EM ALTURA, NUNCA ESPREME. Espremer 40 jogos nos 1350px do story
+    // daria linha de 19px — a lista inteira numa imagem que ninguém lê, que é exatamente o que a
+    // ressalva proíbe. A linha fica no tamanho legível e o PNG fica mais alto, que é o print da
+    // grade que o pessoal já manda no grupo.
+    [Fact]
+    public void A_altura_cresce_com_os_jogos_e_com_os_dias()
+    {
+        // ⚠️ VINTE, e não dez: com dez jogos a conta cai no PISO de 1350 (o formato do story) e a
+        // diferença deixaria de medir a fórmula — foi o primeiro vermelho deste teste, no dado.
+        var umDia = Enumerable.Range(1, 20).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+        var doisDias = umDia.Concat(Enumerable.Range(1, 10).Select(i => Jogo(Sabado.AddMinutes(i), i))).ToList();
+
+        var alturaDeUm = CartaoDosJogos.AlturaDaImagemUnica(umDia);
+        var alturaDeDois = CartaoDosJogos.AlturaDaImagemUnica(doisDias);
+
+        // Dez jogos a mais e um dia a mais: dez linhas mais a faixa do dia.
+        Assert.Equal(alturaDeUm + 10 * CartaoDosJogos.AlturaDaLinhaNaImagemUnica + CartaoDosJogos.AlturaDaFaixaDoDia,
+            alturaDeDois);
+
+        // Uma lista curta não encolhe o PNG abaixo do card de sempre: a arte de 4 jogos continua
+        // sendo 1080×1350, que é o formato que o Instagram espera.
+        var curta = Enumerable.Range(1, 4).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+        Assert.Equal(CartaoCompartilhavel.Altura, CartaoDosJogos.AlturaDaImagemUnica(curta));
+    }
+
+    // ⚠️ A RESSALVA DO FELIPE VIRA UM TETO, e o teto é o que faz a opção SUMIR em vez de entregar
+    // uma imagem ilegível. Quem passa dele continua com as partes, que é o caminho que sempre deu
+    // certo.
+    [Fact]
+    public void Lista_grande_demais_nao_cabe_numa_imagem_so()
+    {
+        var normal = Enumerable.Range(1, 56).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+        Assert.True(CartaoDosJogos.CabeNumaImagemSo(normal), "56 jogos (o torneio do Er inteiro) têm que caber.");
+
+        var absurda = Enumerable.Range(1, 400).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+        Assert.False(CartaoDosJogos.CabeNumaImagemSo(absurda));
+        Assert.True(CartaoDosJogos.AlturaDaImagemUnica(absurda) > CartaoDosJogos.AlturaMaxima);
+    }
+
+    // Os blocos são por DIA, na ordem da fila — é o que põe "SÁB 12/09" no meio da imagem, em vez
+    // de uma lista corrida em que ninguém acha onde um dia acaba e o outro começa.
+    [Fact]
+    public void A_imagem_unica_agrupa_por_dia_na_ordem_da_fila()
+    {
+        var jogos = new List<JogoDaLista>
+        {
+            Jogo(Sexta, 1), Jogo(Sexta.AddMinutes(20), 2),
+            Jogo(Sabado, 3),
+            Jogo(null, 4),
+        };
+
+        var blocos = CartaoDosJogos.BlocosPorDia(jogos);
+
+        Assert.Equal(3, blocos.Count);
+        Assert.Equal("SEX 11/09", blocos[0].Rotulo);
+        Assert.Equal(2, blocos[0].Jogos.Count);
+        Assert.Equal("SÁB 12/09", blocos[1].Rotulo);
+        // Torneio por ordem, sem hora: vai no fim, como na fila e como nas partes.
+        Assert.Equal("SEM DATA", blocos[2].Rotulo);
+    }
+
     // ── A planilha ─────────────────────────────────────────────────────────────────────────
 
     // 🗣️ Felipe, 11/09/2026: *"crie tambem uma opção de importar planilha se quiserem"*. O
@@ -524,6 +592,45 @@ public class CompartilharListaDeJogosTests
         Assert.True(PixelsClaros(png) > 300);
     }
 
+    [Fact]
+    public void A_imagem_unica_desenha_alta_e_com_letra_de_verdade()
+    {
+        var jogos = Enumerable.Range(1, 20).Select(i => Jogo(Sexta.AddMinutes(i), i))
+            .Concat(Enumerable.Range(1, 6).Select(i => Jogo(Sabado.AddMinutes(i), i, previa: i % 2 == 0)))
+            .ToList();
+        var grade = Grade(jogos);
+
+        var png = CartaoDosJogos.DesenharTudo(grade, jogos, Fontes(), WebRoot());
+
+        using var imagem = SKBitmap.Decode(png);
+        Assert.NotNull(imagem);
+        Assert.Equal(CartaoCompartilhavel.Largura, imagem.Width);
+        Assert.Equal(CartaoDosJogos.AlturaDaImagemUnica(jogos), imagem.Height);
+        // Bem mais alta que o card de sempre: é o ponto do recurso.
+        Assert.True(imagem.Height > CartaoCompartilhavel.Altura);
+
+        int claros = 0;
+        for (int x = 0; x < imagem.Width; x += 2)
+            for (int y = 0; y < imagem.Height; y += 2)
+            {
+                var c = imagem.GetPixel(x, y);
+                if (c.Red > 200 && c.Green > 200 && c.Blue > 200) claros++;
+            }
+        Assert.True(claros > 1000, $"Só {claros} pixels claros — o texto não rasterizou.");
+    }
+
+    // A lista curta cabe no formato de sempre, e aí a imagem única É o card de sempre: 1080×1350.
+    // Sem isto, uma lista de três jogos viraria um PNG alto com um vão enorme embaixo.
+    [Fact]
+    public void Lista_curta_sai_no_formato_do_story()
+    {
+        var jogos = Enumerable.Range(1, 4).Select(i => Jogo(Sexta.AddMinutes(i), i)).ToList();
+
+        using var imagem = SKBitmap.Decode(CartaoDosJogos.DesenharTudo(Grade(jogos), jogos, Fontes(), WebRoot()));
+
+        Assert.Equal(CartaoCompartilhavel.Altura, imagem!.Height);
+    }
+
     // ── O controller: a mesma porta da aba Jogos ──────────────────────────────────────────
 
     // 🗣️ "nao deixe q nada vaze sem ser publicado" (Felipe, 09/09/2026). A aba esvazia a lista
@@ -596,6 +703,26 @@ public class CompartilharListaDeJogosTests
 
         Assert.IsType<NotFoundResult>(await deFora.JogosImagem(torneio.Id, Fontes()));
         Assert.IsType<NotFoundResult>(await deFora.CompartilharJogos(torneio.Id, Fontes()));
+    }
+
+    // A imagem única passa pela MESMA porta e pelo MESMO endpoint das partes — muda o recorte,
+    // não a régua.
+    [Fact]
+    public async Task A_imagem_unica_sai_pelo_mesmo_endpoint_e_pela_mesma_porta()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var intruso = new Jogador { Nome = "Intruso", Cpf = "99900000077" };
+        ctx.Jogadores.Add(intruso);
+        await ctx.SaveChangesAsync();
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        Assert.IsType<NotFoundResult>(
+            await TestInfra.NovoTorneiosController(ctx, intruso.Id).JogosImagem(torneio.Id, Fontes(), tudo: true));
+
+        var imagem = Assert.IsType<FileContentResult>(
+            await TestInfra.NovoTorneiosController(ctx, org.Id).JogosImagem(torneio.Id, Fontes(), tudo: true));
+        Assert.Equal("image/png", imagem.ContentType);
     }
 
     // A planilha passa pela MESMA porta da arte e do texto — é a mesma lista.
@@ -678,6 +805,18 @@ public class CompartilharListaDeJogosTests
         // Os filtros vão no mesmo dicionário de rota que a arte usa — uma segunda lista de
         // parâmetros escrita à mão é o que faz a planilha discordar da imagem ao lado dela.
         Assert.Contains("Model.Filtros", fonte[(link - 200)..(link + 200)]);
+    }
+
+    // O alternador entre "uma por dia" e "tudo numa imagem só" — e ele só faz sentido quando a
+    // lista não cabe numa arte só.
+    [Fact]
+    public void A_tela_oferece_a_imagem_unica()
+    {
+        var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "CompartilharJogos.cshtml"));
+
+        Assert.Contains("Model.CabeNumaImagemSo", fonte);
+        Assert.Contains("tudo", fonte);
+        Assert.Contains("Tudo numa imagem", fonte);
     }
 
     private static string PastaDoProjeto()

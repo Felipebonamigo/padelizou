@@ -41,16 +41,20 @@ public static class CartaoCompartilhavel
 
     // O fundo da marca: navy escurecendo pra baixo, com o brilho lime no alto à direita — o
     // mesmo gesto do `radial-gradient` do tema escuro do site.
-    public static void Fundo(SKCanvas canvas)
+    //
+    // ⚠️ `altura` existe por causa da IMAGEM ÚNICA da lista de jogos (11/09/2026), que cresce pra
+    // baixo em vez de espremer a lista: sem o parâmetro, o gradiente terminava em 1350 e o resto
+    // do PNG saía preto.
+    public static void Fundo(SKCanvas canvas, int altura = Altura)
     {
         using (var tinta = new SKPaint { IsAntialias = true })
         {
             tinta.Shader = SKShader.CreateLinearGradient(
-                new SKPoint(0, 0), new SKPoint(0, Altura),
+                new SKPoint(0, 0), new SKPoint(0, altura),
                 new[] { Navy, NavyEscuro },
                 new float[] { 0f, 1f },
                 SKShaderTileMode.Clamp);
-            canvas.DrawRect(new SKRect(0, 0, Largura, Altura), tinta);
+            canvas.DrawRect(new SKRect(0, 0, Largura, altura), tinta);
         }
 
         using (var brilho = new SKPaint { IsAntialias = true })
@@ -60,7 +64,7 @@ public static class CartaoCompartilhavel
                 new[] { Lime.WithAlpha(48), Lime.WithAlpha(0) },
                 new float[] { 0f, 1f },
                 SKShaderTileMode.Clamp);
-            canvas.DrawRect(new SKRect(0, 0, Largura, Altura), brilho);
+            canvas.DrawRect(new SKRect(0, 0, Largura, altura), brilho);
         }
     }
 
@@ -75,11 +79,12 @@ public static class CartaoCompartilhavel
     // O rodapé assinado. É a única parte do card que precisa converter quem VÊ em quem ENTRA,
     // então ele carrega o endereço e não o nome: "Padelizou" sozinho não é clicável na cabeça
     // de ninguém.
-    public static void Rodape(SKCanvas canvas, FonteDoCartao fontes, string endereco = "padelizou.com.br")
+    public static void Rodape(SKCanvas canvas, FonteDoCartao fontes, string endereco = "padelizou.com.br",
+        int altura = Altura)
     {
         using var tinta = new SKPaint { Color = Lime, IsAntialias = true };
         using var fonte = new SKFont(fontes.Media, 34);
-        canvas.DrawText(endereco, Largura / 2f, Altura - 58, SKTextAlign.Center, fonte, tinta);
+        canvas.DrawText(endereco, Largura / 2f, altura - 58, SKTextAlign.Center, fonte, tinta);
     }
 
     // ── Texto ──────────────────────────────────────────────────────────────────────────────
@@ -429,9 +434,9 @@ public static class CartaoCompartilhavel
     // PNG e não WebP (que é o formato de tudo que o `ImagemEnviada` grava): aqui o arquivo não
     // fica guardado, então peso importa menos que ABRIR EM TUDO — e o destino dele é a galeria
     // do celular e o compartilhamento do WhatsApp, onde o WebP ainda tropeça em aparelho velho.
-    public static byte[] EmPng(Action<SKCanvas> desenhar)
+    public static byte[] EmPng(Action<SKCanvas> desenhar, int altura = Altura)
     {
-        using var bitmap = new SKBitmap(Largura, Altura);
+        using var bitmap = new SKBitmap(Largura, altura);
         using (var canvas = new SKCanvas(bitmap))
         {
             desenhar(canvas);
