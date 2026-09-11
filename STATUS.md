@@ -30,6 +30,41 @@
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
 
 > **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
+
+>
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/tender-allen-odkzo9`, ainda não publicado.** **Sem migration.**
+>
+> 🔕 **UM BOTÃO QUE CALA O SISTEMA INTEIRO.** 🗣️ Felipe: *"crie um botão para desabilitar todas notificações no painel admin"*. Perguntado sobre o alcance, escolheu **push + e-mail + WhatsApp, com a Caixa de Avisos continuando a ser gravada**, e **só o admin raiz** mexendo. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA numa tabela que já existe).
+>
+> 🕳️ **O BURACO QUE ELE FECHA É O ENVIO EM FUGA** — um job novo despejando aviso na base toda, um torneio duplicado avisando todo mundo de novo. Até aqui a única saída era **ssh no servidor mais restart do serviço**, e o momento em que isso é preciso é exatamente o momento em que ninguém tem o notebook na mão. É o mesmo raciocínio do portão de acesso (05/08), e por isso é o mesmo MOLDE: chave/valor em `ConfiguracaoDoSistema`, singleton com a cópia em memória, banco como fonte da verdade — **a decisão sobrevive ao deploy**, que é o teste que justifica a tabela em vez de um `bool` em memória.
+>
+> ✅ **O CORTE É NUM LUGAR SÓ: `PushNotificationService.EntregarAgoraAsync`.** É o funil por onde passa todo aviso do sistema, então o botão vale pros **~30 pontos que geram aviso** sem que nenhum deles saiba que ele existe — e o próximo aviso a nascer já nasce obedecendo. Cortar nos 30 seria a mesma regra escrita 30 vezes, e a 31ª esqueceria dela.
+>
+> ⚠️ **MUDO É "NÃO INCOMODA", NÃO É "APAGA": a Caixa de Avisos continua sendo gravada.** É o único canal que não depende de entrega nenhuma (é só abrir o app), e gravar ali não toca no celular de ninguém — então religar devolve o histórico inteiro, em vez de um buraco que ninguém reconstrói depois. **O que passou NÃO é reenviado**, e a tela diz isso com todas as letras.
+>
+> ⚠️ **O PLACAR AO VIVO É A EXCEÇÃO: mudo, ele é descartado INTEIRO.** Ele é `ApenasPush` e por projeto não entra na caixa (16/08) — placar de meia hora atrás não vale ser guardado pra depois.
+>
+> ⚠️ **AQUI NÃO EXISTE PADRÃO VINDO DO systemd, ao contrário do portão** — e é escolha, não esquecimento: um sistema mudo é estado de EXCEÇÃO sempre, e uma chave de configuração pra isso seria uma forma de subir um ambiente calado sem ninguém ter decidido calar. O sintoma disso ("ninguém recebe nada") é dos mais caros de diagnosticar, porque cada canal falha por conta própria o tempo todo e a suspeita nunca cai no interruptor.
+>
+> 🚨 **E POR ISSO O ESTADO MUDO GRITA EM TRÊS LUGARES**: faixa vermelha no topo do painel **pra qualquer admin** (não só pro raiz que apertou), a gaveta "Ferramentas e ajustes" **abrindo sozinha** com selo `avisos MUDOS`, e uma faixa na tela de **Teste de aviso**. Portão fechado gera "não consigo entrar"; silêncio não gera sintoma nenhum — sem isso, a chave ficaria ligada por dias.
+>
+> ⚠️ **O TESTE DIRIGIDO NÃO OBEDECE AO SILÊNCIO, de propósito**: ele é uma pessoa escolhida a dedo pelo próprio admin que apertou o botão, e é a única forma de conferir se um canal está de pé enquanto o sistema está calado. O risco disso é o admin ler *"Enviado!"* e concluir que os avisos do sistema estão saindo — daí a faixa naquela tela.
+>
+> 🧪 **6.569 testes, 0 falhas (11 novos, em `BotaoDoSilencioDeAvisosTests`)** + `conferir-palpitrometro.js` verde. **Os 7 vistos vermelhos antes**, pelos motivos certos: não gravava, não recusava o administrador nomeado, o e-mail saía e o push era tentado. 🔬 **A pegadinha de testar PUSH**: ele sai por HTTP direto do `WebPushClient`, sem interface no meio pra substituir — o que delata a TENTATIVA é o **log** (a inscrição do teste tem chave de mentira, então qualquer envio estoura no `catch` que registra). **Os dois lados estão testados**: sem o par de controle, uma mudança que matasse o push inteiro passaria como "o silêncio funciona".
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA** — o painel exige banco e login, e não há Postgres nesta sessão. O que foi conferido: o Razor **compila** (as views são compiladas no build em Release) e a suíte inteira passa.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`**, **o mesmo artefato nos dois**, pela tag explícita no campo `build` (runs 270 e 271, 20h28 UTC). PR #224. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR:** `/healthz` **200** nos dois ambientes, e o LOG DO RUN diz o que instalou — *"==> Feito. build-1171-3686b36 no ar em prod"*, com `BUILD: build-1171-3686b36` no ambiente de cada job. O `head_sha` do run é o REF do workflow, não o pacote: quem prova o artefato é o log.
+>
+> 🕳️ **UM DISPARO CRIOU TRÊS RUNS** (267, 268 e 269, todos `deploy → dev`, mesmo build). Idempotente, então não houve estrago — mas é o contrário da nota de 10/09 (o `204 queued` que não criava run nenhum). **A régua vale nos dois sentidos: confira os runs que EXISTEM, nem mais nem menos do que você pediu.**
+>
+> ⚠️ **E UMA SESSÃO PARALELA PUBLICOU ESTE MESMO COMMIT** em `dev` e `prod` (270 e 271) meio minuto depois dos meus. Desta vez foi inofensivo — o `main` não tinha andado, então o build mais recente ERA o meu. Não foi sorte gerenciada: é a mesma colisão de 11/09 que trocou o `site.css` de lugar.
+>
+> 🔴 **O `dev` deu 502 no meio da rodada de deploys** e voltou 200 sozinho: era o serviço reiniciando com dois deploys em voo. Healthcheck logo depois de publicar mede o restart, não a saúde.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
 >
 > ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
 >
@@ -57,6 +92,11 @@
 >
 > 🧪 **6.575 testes, 0 falhas (18 novos, em `AvancoParcialDaChaveTests`, `AvancoParcialDosGruposTests` e `NomeNaVagaAssimQueOGrupoFechaTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia), *"The collection contained 2 items"* (a fase seguinte nascia por cima) e *"Assert.Contains() Failure: Item not found"* (o nome não chegava na vaga).
 
+<<<<<<< HEAD
+=======
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+
+>>>>>>> origin/main
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
@@ -332,7 +372,6 @@
 > ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM POR REGEX FROUXO, e o conserto vale pro próximo**: `\.pdz-chip-foto-selo \.pdz-chip-escudo` passou a casar também com `.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo` no dia em que essa regra nasceu — e o teste passou a medir o seletor errado. Levaram **âncora de início de linha** (`^` com `RegexOptions.Multiline`). Guarda de CSS por regex precisa ancorar o seletor.
 >
 > 🧹 **E O TÍTULO DESTE ARQUIVO VOLTOU PRO TOPO**: um merge de hoje deixou uma entrada inteira ACIMA do `# Padelizou — Status e Roadmap`, e o diário passou a começar no meio. A entrada não se perdeu — está logo abaixo, na ordem.
-
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
 >
@@ -636,7 +675,6 @@
 >
 > ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
 
-
 > **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
@@ -686,7 +724,6 @@
 > 🧪 **6.365 testes, 0 falhas (11 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes — e **um foi reescrito até discriminar**: o teste da ordem passava de primeira porque a mesma chamada já existia noutro trecho da view, e só passou a provar algo olhando a DECLARAÇÃO do `comChave`.
 >
 > 🪜 **A LIÇÃO DO DIA, e ela é o degrau 2 da escada deste arquivo:** a ordenação certa já existia escrita (`CategoriaNaTela.Ordem`, de 08/08) e eu não a procurei ao montar o seletor — o `<select>` nasceu com a ordem do banco porque copiou o que as pills faziam. *"Já existe algo equivalente aqui?"* vale também pro que a tela ANTIGA fazia errado: herdar o comportamento dela não é reuso.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
 >
@@ -746,7 +783,6 @@
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A economia de linhas está raciocinada da estrutura, **não medida**. E os filtros (o maior ganho isolado: 4 dropdowns viram 1 botão) **ficaram de fora de propósito**: o Er começa amanhã e o Felipe vai operar esta tela o fim de semana inteiro; mudar onde ficam os filtros no sábado de manhã atrapalha quem já decorou o caminho.
 
-
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
 >
 > 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
@@ -776,7 +812,6 @@
 > 🧹 **O `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** — marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar. Removido neste PR.
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `workflow_dispatch` do `prod` publicou sem pedir aprovação.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
 >
@@ -883,7 +918,6 @@
 > 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
 >
 > ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
@@ -1594,7 +1628,6 @@
 >
 > ⚠️ **O QUE NÃO MUDOU, DE PROPÓSITO:** **dinheiro** — a dupla já era de duas pessoas e continua sendo, valor congelado e "Pago" intactos (`precisaCobrarOSegundo` só vale quando o antigo era nulo); a régua do **próprio jogador**; e o aviso de **"mesma pessoa em dois jogos no mesmo horário"**, que segue sendo achado do **Conferir grade** (`AuditoriaDaGrade.PessoaEmDoisJogos`) e **decisão de produto em aberto** — a mesma anotada em 09/09 pro definir. ⏭️ **No Er:** depois de publicar, trocar o parceiro do Paulo e **rodar o Conferir grade** — se o Arthur já estiver na chave de outra categoria, é lá que o choque de horário aparece.
 
-
 > **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-880-aca0a92`** (22h48 e 22h49 de Brasília). PR #116, os dois erros do print do prod logo depois do build-875 — e o deploy de `prod` **levou junto o PR #115** (inscrição solo, da sessão paralela) — em `dev` ele já estava desde 22h25, pelo `build-878-dbf8af0` que a sessão paralela instalou (run 123, só `dev`); `prod` pulou do 875 pro 880. **Sem migration.**
 >
 > 🕐 **UM JOGO DE GRUPO RETARDATÁRIO NÃO SEGURA MAIS AS ELIMINATÓRIAS DO TORNEIO INTEIRO.** 🗣️ *"os jogos estao terminando no sabado 19:40 por que? nao deveria, é pra ir ate as 23h"*. Os grupos fechavam 19h40 de sábado e UM jogo de grupo (3ª Feminina, Grupo B) caía em 08h de domingo — impedimento ou concentração da dupla. A barreira de posto era o `Max` dos horários, então TODAS as eliminatórias esperavam esse jogo e a noite de sábado ficava vazia: o oposto do *"a menos que fique horario vazio"* que abriu a ordem das fases. Agora o fim de um posto é o fim do **BLOCO** dele (`OrdemDasFases.FimDoBloco`): um horário inteiro vazio seguido de **menos de uma rodada** de jogos separa os retardatários. Os três lugares que calculam barreira leem a mesma função (`LevasDaGrade`, `ProximasFasesDaChave`, `AuditoriaDaGrade`), e o **Conferir grade ganhou a regra "Jogo retardatário"** — é o jogo pra mexer na mão.
@@ -1758,7 +1791,6 @@
 > ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A etiqueta nova aparece na primeira linha de cada jogo, ao lado da categoria e do grupo; vale um print.
 >
 > ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e a etiqueta só fala depois dele.** Os 97 jogos do 2º Etapa estão **sem quadra E com duas sedes** — nada no banco diz em qual clube cada um é, então a linha continua calada lá **de propósito**. O caminho escolhido (opção **a**): em **Planejamento de quadras**, cadastrar as 4 quadras com o **local** de cada uma (nome com o clube dentro — "Quadra 1 Er", "Quadra 1 Radar", senão o salvamento recusa o repetido) e a **janela** do Radar se ele for alugado por hora; depois **Refazer grade**, na aba de jogos. `SalvarQuadraDoPlanejamento` reescreve `QuantidadeQuadras` = número de linhas, então 4 quadras dão **4 vagas por horário — 2 em cada clube**, que é exatamente o que ele descreveu. E vale conferir **em que clube cada categoria joga** (Pagamentos › Quadras e sedes): sem isso a folga de deslocamento é regra **mole** e cede, mandando a mesma dupla de um clube pro outro entre dois jogos.
-
 
 > Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
 >
