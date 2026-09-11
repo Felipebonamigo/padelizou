@@ -53,9 +53,6 @@ public static class CartaoDosJogos
     private const float PrimeiraLinhaY = 336;
     private const float UltimaLinhaY = 1120;
 
-    private const float DivisoriaY = 1160;
-    private const float TorneioY = 1205;
-    private const float LegendaY = 1248;
 
     // Catorze jogos com DUAS linhas cada (contexto em cima, confronto embaixo). Era OITO até o
     // cabeçalho encolher; com 784px de faixa, catorze ainda dá corpo 22 no confronto — legível
@@ -163,15 +160,176 @@ public static class CartaoDosJogos
         return arte.Partes > 1 ? $"{texto}  ·  {arte.Parte} DE {arte.Partes}" : texto;
     }
 
+    // ───────────────────────── A LISTA INTEIRA NUMA IMAGEM SÓ ─────────────────────────
+
+    // 🗣️ Felipe, 11/09/2026: *"da para por a opção, para o jogador selecionar se nao quer todos os
+    // jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — mandar uma
+    // imagem no grupo é mais fácil do que mandar três em sequência.
+    //
+    // ⚠️ E A RESSALVA DELE É A REGRA DESTE BLOCO: *"a menos que tenha muitos jogos que nao ficariam
+    // visiveis se diminuisse ou organizasse"*. Por isso a imagem **CRESCE PRA BAIXO** e nunca
+    // espreme: espremer 40 jogos nos 1350px do story daria linha de 19px — a lista inteira numa
+    // imagem que ninguém lê. Passando do teto de altura, a opção deixa de existir (ver
+    // <see cref="CabeNumaImagemSo"/>) e quem precisa dela continua com as partes.
+    //
+    // ⚠️ ESTE FORMATO NÃO É O DO STORY. 1080×4000 no story sai cortado; ele é feito pro WhatsApp e
+    // pro Telegram, onde a imagem abre e dá pra dar zoom. É por isso que a tela oferece os dois, e
+    // não troca um pelo outro.
+
+    /// <summary>Um dia dentro da imagem única: a faixa com o dia e os jogos dele.</summary>
+    public sealed record BlocoDoDia(string Rotulo, List<JogoDaLista> Jogos);
+
+    public const float AlturaDaLinhaNaImagemUnica = 64;
+
+    // A faixa do dia já traz o respiro de cima — assim a conta da altura é uma soma simples, sem
+    // "mais 16 entre blocos" que ninguém lembra de incluir.
+    public const float AlturaDaFaixaDoDia = 76;
+
+    private const float TopoDaListaNaImagemUnica = 350;
+
+    // O pé, medido a partir da BASE — as mesmas distâncias do card de sempre, pra os dois formatos
+    // terminarem igual.
+    private const float RodapeDaImagemUnica = 230;
+
+    /// <summary>
+    /// O teto de altura do PNG. Acima disso a imagem vira um arquivo que o WhatsApp reamostra e o
+    /// celular engasga pra abrir — e uma imagem que não abre não é mais fácil que três que abrem.
+    /// </summary>
+    public const int AlturaMaxima = 10000;
+
+    /// <summary>Os dias da lista, na ordem da fila. "Sem data" (torneio por ordem) fica no fim.</summary>
+    public static List<BlocoDoDia> BlocosPorDia(IReadOnlyList<JogoDaLista> jogos) =>
+        jogos.GroupBy(j => j.Horario?.Date)
+            .Select(g => new BlocoDoDia(TextoDaLista.Dia(g.Key).ToUpperInvariant(), g.ToList()))
+            .ToList();
+
+    /// <summary>
+    /// A altura do PNG da lista inteira. Nunca menor que o card de sempre: uma lista de quatro
+    /// jogos continua saindo 1080×1350, que é o formato que o Instagram espera.
+    /// </summary>
+    public static int AlturaDaImagemUnica(IReadOnlyList<JogoDaLista> jogos)
+    {
+        var blocos = BlocosPorDia(jogos);
+        float conteudo = blocos.Sum(b => AlturaDaFaixaDoDia + b.Jogos.Count * AlturaDaLinhaNaImagemUnica);
+        return Math.Max(CartaoCompartilhavel.Altura,
+            (int)Math.Ceiling(TopoDaListaNaImagemUnica + conteudo + RodapeDaImagemUnica));
+    }
+
+    /// <summary>A lista inteira cabe numa imagem só sem virar ilegível?</summary>
+    public static bool CabeNumaImagemSo(IReadOnlyList<JogoDaLista> jogos) =>
+        jogos.Count > 0 && AlturaDaImagemUnica(jogos) <= AlturaMaxima;
+
+    public static byte[] DesenharTudo(
+        GradeDesenhavel grade, IReadOnlyList<JogoDaLista> jogos, FonteDoCartao fontes, string webRootPath)
+    {
+        var logo = CartaoCompartilhavel.LerDaMarca(webRootPath, CartaoDeCampeao.LogoDaMarca);
+        var blocos = BlocosPorDia(jogos);
+        int altura = AlturaDaImagemUnica(jogos);
+
+        try
+        {
+            return CartaoCompartilhavel.EmPng(canvas =>
+            {
+                CartaoCompartilhavel.Fundo(canvas, altura);
+                CartaoCompartilhavel.FaixaDoTopo(canvas);
+
+                CartaoCompartilhavel.Logo(canvas, logo, CartaoCompartilhavel.Largura / 2f, 86, 64);
+                CartaoCompartilhavel.TextoCentralizado(
+                    canvas, "P A D E L I Z O U", 152, fontes.Media, 26,
+                    CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - 160);
+
+                // Aqui o título NÃO é o dia (a imagem tem vários), é o que a lista é.
+                CartaoCompartilhavel.TextoCentralizado(
+                    canvas, "JOGOS", 236, fontes.Forte, 76,
+                    CartaoCompartilhavel.Branco, CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 40);
+
+                CartaoCompartilhavel.TextoCentralizado(
+                    canvas, string.IsNullOrWhiteSpace(grade.Recorte) ? "TODOS OS JOGOS" : grade.Recorte.ToUpperInvariant(),
+                    292, fontes.Media, 30, CartaoCompartilhavel.Lime,
+                    CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 18);
+
+                // Sobrando espaço (lista curta no formato mínimo), o bloco desce até o meio em vez
+                // de ficar pendurado no alto com um vão embaixo.
+                float conteudo = blocos.Sum(b => AlturaDaFaixaDoDia + b.Jogos.Count * AlturaDaLinhaNaImagemUnica);
+                float disponivel = altura - TopoDaListaNaImagemUnica - RodapeDaImagemUnica;
+                float y = TopoDaListaNaImagemUnica + Math.Max(0, (disponivel - conteudo) / 2f);
+
+                foreach (var bloco in blocos)
+                {
+                    FaixaDoDia(canvas, fontes, bloco.Rotulo, y);
+                    y += AlturaDaFaixaDoDia;
+
+                    foreach (var jogo in bloco.Jogos)
+                    {
+                        Linha(canvas, fontes, jogo, y, AlturaDaLinhaNaImagemUnica);
+                        y += AlturaDaLinhaNaImagemUnica;
+                    }
+                }
+
+                Evento(canvas, fontes, grade, altura);
+                CartaoCompartilhavel.Rodape(canvas, fontes, altura: altura);
+            }, altura);
+        }
+        finally
+        {
+            logo?.Dispose();
+        }
+    }
+
+    // A pílula lime com o dia, à esquerda — é ela que separa "sexta" de "sábado" no meio de uma
+    // imagem longa. Volta aqui a pílula que o card do story perdeu pro espaço.
+    private static void FaixaDoDia(SKCanvas canvas, FonteDoCartao fontes, string rotulo, float topo)
+    {
+        const float alturaDaPilula = 50;
+        float centroY = topo + AlturaDaFaixaDoDia - alturaDaPilula / 2f - 4;
+
+        using var fonte = new SKFont(fontes.Forte, 30);
+        float largura = fonte.MeasureText(rotulo) + 56;
+
+        using (var tinta = new SKPaint { Color = CartaoCompartilhavel.Lime, IsAntialias = true })
+        {
+            var pilula = new SKRect(MargemH, centroY - alturaDaPilula / 2f,
+                MargemH + largura, centroY + alturaDaPilula / 2f);
+            canvas.DrawRoundRect(pilula, alturaDaPilula / 2f, alturaDaPilula / 2f, tinta);
+        }
+
+        using (var tinta = new SKPaint { Color = CartaoCompartilhavel.Navy, IsAntialias = true })
+        {
+            var metricas = fonte.Metrics;
+            canvas.DrawText(rotulo, MargemH + 28, centroY - (metricas.Ascent + metricas.Descent) / 2f,
+                SKTextAlign.Left, fonte, tinta);
+        }
+    }
+
     private static void Jogos(SKCanvas canvas, FonteDoCartao fontes, List<JogoDaLista> jogos)
     {
         if (jogos.Count == 0) return;
 
         float faixa = UltimaLinhaY - PrimeiraLinhaY;
         float alturaDoJogo = Math.Min(faixa / jogos.Count, AlturaMaximaDoJogo);
+
+        // Centralizado na faixa: a arte de três jogos não fica com o bloco no alto e um vão
+        // embaixo (o defeito do pódio da panelinha, 25/08/2026).
+        float y = PrimeiraLinhaY + (faixa - alturaDoJogo * jogos.Count) / 2f;
+
+        foreach (var jogo in jogos)
+        {
+            Linha(canvas, fontes, jogo, y, alturaDoJogo);
+            y += alturaDoJogo;
+        }
+    }
+
+    // UMA LINHA DA LISTA — a caixa, a hora à esquerda, o contexto pequeno em cima e o confronto
+    // embaixo.
+    //
+    // ⚠️ É UM MÉTODO SÓ porque os DOIS formatos desenham a mesma linha: o card do story (uma arte
+    // por dia) e a imagem única da lista inteira. Duas cópias divergiriam na primeira mudança — e
+    // a lista postada num formato passaria a não bater com a do outro.
+    private static void Linha(SKCanvas canvas, FonteDoCartao fontes, JogoDaLista jogo, float topo, float altura)
+    {
         // O corpo acompanha a altura da linha, entre 20 (catorze jogos) e 40 (a lista curta, com
         // espaço de sobra). O `Texto` ainda encolhe sozinho o nome de dupla que não couber.
-        float corpo = Math.Clamp(alturaDoJogo * 0.40f, 20f, 40f);
+        float corpo = Math.Clamp(altura * 0.40f, 20f, 40f);
         float corpoDoContexto = Math.Max(16f, corpo * 0.62f);
         float corpoDaHora = corpo * 1.15f;
 
@@ -182,53 +340,44 @@ public static class CartaoDosJogos
         float xTexto = xHora + larguraDaHora + 14;
         float larguraDoTexto = CartaoCompartilhavel.Largura - MargemH - xTexto - 20;
 
-        // Centralizado na faixa: a arte de três jogos não fica com o bloco no alto e um vão
-        // embaixo (o defeito do pódio da panelinha, 25/08/2026).
-        float y = PrimeiraLinhaY + (faixa - alturaDoJogo * jogos.Count) / 2f;
+        float centroY = topo + altura / 2f;
 
-        foreach (var jogo in jogos)
+        // A caixa da linha. A prévia é mais apagada: ela ainda não existe.
+        using (var fundo = new SKPaint
         {
-            float centroY = y + alturaDoJogo / 2f;
-
-            // A caixa da linha. A prévia é mais apagada: ela ainda não existe.
-            using (var fundo = new SKPaint
-            {
-                Color = CartaoCompartilhavel.Branco.WithAlpha((byte)(jogo.Previa ? 7 : 14)),
-                IsAntialias = true,
-            })
-            {
-                var caixa = new SKRect(
-                    MargemH, y + alturaDoJogo * 0.06f,
-                    CartaoCompartilhavel.Largura - MargemH, y + alturaDoJogo * 0.94f);
-                canvas.DrawRoundRect(caixa, 14, 14, fundo);
-            }
-
-            // A hora, na linha de base do centro da caixa.
-            using (var fonteDaHora = new SKFont(fontes.Forte, corpoDaHora))
-            {
-                var metricas = fonteDaHora.Metrics;
-                float linhaDeBase = centroY - (metricas.Ascent + metricas.Descent) / 2f;
-                CartaoCompartilhavel.TextoAEsquerda(
-                    canvas, TextoDaLista.Quando(jogo), xHora, linhaDeBase, fontes.Forte, corpoDaHora,
-                    jogo.Previa ? CartaoCompartilhavel.Apagado : CartaoCompartilhavel.Lime,
-                    larguraDaHora, tamanhoMinimo: 16);
-            }
-
-            // Duas linhas: o contexto pequeno em cima, o confronto embaixo — a forma do card de
-            // resultados, pelo mesmo motivo: uma linha só com hora, categoria, fase, lugar e
-            // quatro nomes passa de setenta caracteres e cai pro corpo mínimo.
-            CartaoCompartilhavel.TextoAEsquerda(
-                canvas, Contexto(jogo).ToUpperInvariant(), xTexto, centroY - corpo * 0.30f,
-                fontes.Media, corpoDoContexto, CartaoCompartilhavel.Apagado, larguraDoTexto, tamanhoMinimo: 12);
-
-            CartaoCompartilhavel.TextoAEsquerda(
-                canvas, $"{jogo.Lado1Curto}  x  {jogo.Lado2Curto}", xTexto, centroY + corpo * 0.92f,
-                fontes.Media, corpo,
-                jogo.Previa ? CartaoCompartilhavel.Apagado : CartaoCompartilhavel.Branco,
-                larguraDoTexto, tamanhoMinimo: 14);
-
-            y += alturaDoJogo;
+            Color = CartaoCompartilhavel.Branco.WithAlpha((byte)(jogo.Previa ? 7 : 14)),
+            IsAntialias = true,
+        })
+        {
+            var caixa = new SKRect(
+                MargemH, topo + altura * 0.06f,
+                CartaoCompartilhavel.Largura - MargemH, topo + altura * 0.94f);
+            canvas.DrawRoundRect(caixa, 14, 14, fundo);
         }
+
+        // A hora, na linha de base do centro da caixa.
+        using (var fonteDaHora = new SKFont(fontes.Forte, corpoDaHora))
+        {
+            var metricas = fonteDaHora.Metrics;
+            float linhaDeBase = centroY - (metricas.Ascent + metricas.Descent) / 2f;
+            CartaoCompartilhavel.TextoAEsquerda(
+                canvas, TextoDaLista.Quando(jogo), xHora, linhaDeBase, fontes.Forte, corpoDaHora,
+                jogo.Previa ? CartaoCompartilhavel.Apagado : CartaoCompartilhavel.Lime,
+                larguraDaHora, tamanhoMinimo: 16);
+        }
+
+        // Duas linhas: o contexto pequeno em cima, o confronto embaixo — a forma do card de
+        // resultados, pelo mesmo motivo: uma linha só com hora, categoria, fase, lugar e
+        // quatro nomes passa de setenta caracteres e cai pro corpo mínimo.
+        CartaoCompartilhavel.TextoAEsquerda(
+            canvas, Contexto(jogo).ToUpperInvariant(), xTexto, centroY - corpo * 0.30f,
+            fontes.Media, corpoDoContexto, CartaoCompartilhavel.Apagado, larguraDoTexto, tamanhoMinimo: 12);
+
+        CartaoCompartilhavel.TextoAEsquerda(
+            canvas, $"{jogo.Lado1Curto}  x  {jogo.Lado2Curto}", xTexto, centroY + corpo * 0.92f,
+            fontes.Media, corpo,
+            jogo.Previa ? CartaoCompartilhavel.Apagado : CartaoCompartilhavel.Branco,
+            larguraDoTexto, tamanhoMinimo: 14);
     }
 
     // As etiquetas da linha, SEM a hora (ela tem coluna própria aqui).
@@ -240,22 +389,27 @@ public static class CartaoDosJogos
         return string.Join("  ·  ", partes.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
 
-    private static void Evento(SKCanvas canvas, FonteDoCartao fontes, GradeDesenhavel grade)
+    private static void Evento(SKCanvas canvas, FonteDoCartao fontes, GradeDesenhavel grade,
+        int altura = CartaoCompartilhavel.Altura)
     {
+        // As distâncias são medidas da BASE, e não do topo: é o que faz a imagem única terminar
+        // igual ao card de sempre, por mais alta que ela seja.
+        float divisoriaY = altura - 190, torneioY = altura - 145, legendaY = altura - 102;
+
         using (var tinta = new SKPaint { Color = CartaoCompartilhavel.Apagado.WithAlpha(90), IsAntialias = true })
         {
             var meio = CartaoCompartilhavel.Largura / 2f;
-            canvas.DrawRect(new SKRect(meio - 90, DivisoriaY, meio + 90, DivisoriaY + 2), tinta);
+            canvas.DrawRect(new SKRect(meio - 90, divisoriaY, meio + 90, divisoriaY + 2), tinta);
         }
 
         CartaoCompartilhavel.TextoCentralizado(
-            canvas, grade.Torneio.ToUpperInvariant(), TorneioY, fontes.Media, 40,
+            canvas, grade.Torneio.ToUpperInvariant(), torneioY, fontes.Media, 40,
             CartaoCompartilhavel.Branco, CartaoCompartilhavel.Largura - 140, tamanhoMinimo: 24);
 
         if (!string.IsNullOrWhiteSpace(grade.Clube))
         {
             CartaoCompartilhavel.TextoCentralizado(
-                canvas, grade.Clube, LegendaY, fontes.Normal, 32,
+                canvas, grade.Clube, legendaY, fontes.Normal, 32,
                 CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - 140);
         }
     }
