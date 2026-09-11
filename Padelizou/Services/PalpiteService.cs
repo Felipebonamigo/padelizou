@@ -345,6 +345,29 @@ public class PalpiteService : IPalpiteService
         };
     }
 
+    // A lista de um lado do modal, EM ORDEM DE PLACAR (11/09/2026). 🗣️ Felipe: *"coloque em ordem
+    // de placar, por exemplo, se colocaram o placar igual, deixe próximo"*. Com 14 nomes numa
+    // coluna, achar quem apostou o mesmo que você era ler a lista inteira.
+    //
+    // ⚠️ A ORDEM É A DAS FICHAS DA TELA (ver PlacaresPossiveis.Do): do mais folgado ao mais
+    // apertado — 6x0, 6x1, …, 6x5, 7x5. Inventar outra aqui faria a mesma lista de placares
+    // aparecer em duas ordens diferentes na mesma página.
+    //
+    // ⚠️ Quem NÃO palpitou placar vai pro FIM: sem placar não há lugar na escala, e intercalar
+    // essa gente quebraria justamente os grupos que a ordem acaba de juntar.
+    //
+    // ⚠️ A ordenação é TOTAL (vai até o nome) pela razão de sempre: ordenação parcial faz a lista
+    // trocar de ordem entre duas aberturas do MESMO modal, e ninguém reporta isso como defeito —
+    // só desconfia da tela.
+    private static List<VotanteVM> EmOrdemDePlacar(IEnumerable<PalpitePartida> votos) =>
+        votos
+            .Select(Montar)
+            .OrderBy(v => v.PlacarVencedor == null)
+            .ThenBy(v => v.PlacarPerdedor)
+            .ThenBy(v => v.PlacarVencedor)
+            .ThenBy(v => v.Nome, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
@@ -357,8 +380,8 @@ public class PalpiteService : IPalpiteService
 
         return new VotantesPartidaVM
         {
-            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id).Select(Montar).ToList(),
-            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id).Select(Montar).ToList()
+            VotantesDupla1 = EmOrdemDePlacar(votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)),
+            VotantesDupla2 = EmOrdemDePlacar(votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id))
         };
     }
 }

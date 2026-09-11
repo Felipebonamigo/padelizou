@@ -67,6 +67,50 @@ public class VerQuemPalpitouTests
     }
 
     [Fact]
+    public async Task A_lista_do_modal_vem_EM_ORDEM_DE_PLACAR_com_os_iguais_juntos()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, duplas) = await MontarJogoAgendadoAsync(ctx);
+        var servico = new PalpiteService(ctx);
+
+        // Chegam fora de ordem, de propósito — é a ordem de quem palpitou primeiro.
+        // ⚠️ Nomes de DUAS palavras: o modal abrevia pelo `NomeBonito.Curto` (primeiro + último),
+        // e um "Zeca do 6x4" voltaria como "Zeca 6x4" — o teste falharia pelo nome, não pela
+        // ordem, que é o que ele guarda.
+        var chutes = new (string nome, string cpf, int? g1, int? g2)[]
+        {
+            ("Zeca Quatro", "55560000001", 6, 4),
+            ("Ana Nada",    "55560000002", null, null),
+            ("Bia Zero",    "55560000003", 6, 0),
+            ("Caio Quatro", "55560000004", 6, 4),
+            ("Davi Sete",   "55560000005", 7, 5),
+        };
+
+        foreach (var (nome, cpf, g1, g2) in chutes)
+        {
+            var jogador = await NovoTorcedorAsync(ctx, nome, cpf);
+            await servico.RegistrarVotoAsync(partida.Id, jogador.Id, duplas[0].Id, g1, g2);
+        }
+
+        var votantes = (await servico.ObterVotantesAsync(partida.Id)).VotantesDupla1;
+
+        // 🗣️ Felipe, 11/09/2026: *"coloque em ordem de placar, por exemplo, se colocaram o placar
+        // igual, deixe próximo"*. Com 14 nomes numa coluna, achar quem apostou o mesmo que você
+        // era ler a lista inteira.
+        //
+        // ⚠️ A ORDEM É A DAS FICHAS DA TELA (`PlacaresPossiveis.Do`): do mais folgado ao mais
+        // apertado — 6x0, 6x4, 6x4, 7x5. Inventar outra aqui faria a mesma lista de placares
+        // aparecer em duas ordens diferentes na mesma página.
+        //
+        // ⚠️ E quem NÃO palpitou placar vai pro fim: sem placar não há lugar na escala, e
+        // intercalar essa gente quebraria os grupos que a ordem acabou de juntar.
+        // Bia (6x0) · Caio e Zeca (6x4, juntos, em ordem de nome) · Davi (7x5) · Ana (sem placar).
+        Assert.Equal(
+            new[] { "Bia Zero", "Caio Quatro", "Zeca Quatro", "Davi Sete", "Ana Nada" },
+            votantes.Select(v => v.Nome));
+    }
+
+    [Fact]
     public async Task Em_jogo_de_dois_SETS_o_modal_diz_que_o_palpite_e_em_sets()
     {
         using var ctx = TestInfra.NovoContexto();
