@@ -1664,114 +1664,27 @@ button, a, input, select { touch-action: manipulation; }
    O caminho até a final com as LINHAS mostrando de onde vem cada vaga, no lugar das quatro
    colunas soltas que a tela teve até 11/09/2026.
 
-   SÃO DOIS DESENHOS DA MESMA CHAVE, e a escolha é do Felipe:
-     · computador (`.pdz-arv`) — de cima pra baixo, a chave inteira à vista;
-     · celular (`.pdz-chd`)    — deitada e arrastável da esquerda pra direita, a rodada atual em
-                                 dois terços da tela e a seguinte espiando na beirada, como a
-                                 chave da Libertadores no Google.
+   É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA (`.pdz-chd`), nas duas telas. O que muda por
+   largura é só o TRILHO:
+     · celular    — cada rodada em 66% da tela, com encaixe (`scroll-snap`): a seguinte fica
+                    espiando na beirada, como a chave da Libertadores no Google;
+     · computador — rodada de largura FIXA e a chave inteira à vista, sem encaixe nenhum.
 
-   ⚠️ A GEOMETRIA DOS DOIS É A MESMA CONTA (Services/ArvoreDaChave): coluna e largura de cada
-   jogo. No computador viram COLUNAS da grade, no celular LINHAS — e a ligação usa as mesmas
-   porcentagens, só trocando o eixo. Marcação em Views/Torneios/_ChaveProjetadaArvore.cshtml.
+   ⚠️ A GEOMETRIA É A CONTA DE Services/ArvoreDaChave com o eixo deitado: "coluna/largura" de lá
+   viram linha inicial e quantas linhas a vaga ocupa. Marcação em
+   Views/Torneios/_ChaveProjetadaArvore.cshtml.
 
-   ⚠️ A ÁRVORE ANTERIOR (também `.pdz-arv`) foi tentada e abandonada em 05/08/2026 porque
-   crescia pra LARGURA: numa chave de 32 ela tinha 16 jogos de largura e não cabia em tela
-   nenhuma. Ficou de CSS morto até hoje, sem view nenhuma, e o que está aqui é outra coisa —
-   esta cresce pra baixo no computador e é arrastável no celular, que são as duas direções em
-   que a tela tem espaço de sobra. */
+   ⚠️ AQUI MORAVA UM SEGUNDO DESENHO, `.pdz-arv`, de cima pra baixo no computador — uma grade de
+   N colunas, N = jogos da rodada mais larga. Ele foi apagado em 11/09/2026, no mesmo dia em que
+   nasceu, porque é ele que produzia o ESTICADO do print do Felipe: com 2 grupos a chave tem 2
+   colunas, cada uma metade do monitor, e o cartão de "1º do Grupo A" ficava com ~870px. Deitado,
+   a coluna tem 17rem e a chave cresce pro lado — que é a direção onde sobra espaço.
 
-/* ---- COMPUTADOR: de cima pra baixo ---- */
-.pdz-arv-rolagem {
-    overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
-    padding-bottom: .5rem;
-}
+   ⚠️ E ANTES DELE, em 05/08/2026, houve OUTRO `.pdz-arv` — aquele deitava mas punha cada JOGO
+   numa coluna (16 colunas numa chave de 32). Aqui é a RODADA que é coluna: 32 duplas dão 5
+   colunas, não 16. Os dois erros anteriores são o mesmo erro, e é este parágrafo que evita o
+   terceiro. */
 
-/* Uma grade de N colunas (N = jogos da rodada mais larga). Cada vaga ocupa as colunas dos jogos
-   que a alimentam, e é isso que a centraliza sobre eles — sem uma conta de pixel. */
-.pdz-arv {
-    display: grid;
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(8.5rem, 1fr));
-    min-width: min-content;
-}
-
-.pdz-arv-fase {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: baseline;
-    gap: .45rem;
-    font-size: .72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--pdz-ink);
-    border-bottom: 1px solid var(--pdz-border);
-    padding-bottom: .3rem;
-    margin: .85rem .25rem .1rem;
-}
-
-.pdz-arv > .pdz-arv-fase:first-child { margin-top: 0; }
-
-.pdz-arv-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
-
-.pdz-arv-celula {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding: 0 .25rem;
-}
-
-.pdz-arv-celula > .pdz-chave-vaga { flex: 1 1 auto; }
-
-/* A ligação com os jogos de cima, desenhada em % da PRÓPRIA célula: o `::before` é uma caixa
-   que vai do centro de um alimentador ao do outro (`--a` e `--hw`) e desenha os dois talos mais
-   a linha que os junta; o `::after` desce do meio até esta vaga. Funciona igual numa vaga de 2
-   colunas e numa de 16, porque não há nenhum pixel na conta. */
-.pdz-arv-liga {
-    position: relative;
-    display: block;
-    flex: 0 0 22px;
-    height: 22px;
-}
-
-.pdz-arv-liga::before {
-    content: "";
-    position: absolute;
-    left: var(--a);
-    width: var(--hw);
-    top: 0;
-    height: 50%;
-    border: 2px solid var(--pdz-linha-chave);
-    border-top: 0;
-}
-
-.pdz-arv-liga::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    margin-left: -1px;
-    top: 50%;
-    height: 50%;
-    border-left: 2px solid var(--pdz-linha-chave);
-}
-
-/* Vaga alimentada por UM jogo só — o outro lado passou direto. Talo reto: não há dois pontos
-   pra juntar, e o cotovelo desenharia um bico apontando pro nada. */
-.pdz-arv-liga-reta::before { display: none; }
-.pdz-arv-liga-reta::after { top: 0; height: 100%; }
-
-.pdz-arv-trofeu-celula { grid-column: 1 / -1; }
-
-/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
-
-   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
-   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
-   destaque sumiria calado. */
-.pdz-chave-vaga.pdz-arv-final {
-    border-color: var(--padel-green);
-    background: rgba(163, 216, 39, .10);
-}
-
-/* ---- CELULAR: deitada, arrastável da esquerda pra direita ---- */
 .pdz-chd { display: flex; flex-direction: column; gap: .55rem; }
 
 .pdz-chd-fichas {
@@ -1845,6 +1758,9 @@ button, a, input, select { touch-action: manipulation; }
     overflow: hidden;
 }
 
+/* A contagem de jogos ao lado do nome da fase: mesmo peso do cabeçalho, cor de apoio. */
+.pdz-chd-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
+
 /* Todas as rodadas têm o MESMO número de linhas (a largura da chave), então as faixas ficam
    alinhadas de uma coluna pra outra e a ligação aponta pro cartão certo. Quem ocupa mais de
    uma faixa é a vaga que junta duas — e é assim que ela nasce centralizada. */
@@ -1902,6 +1818,39 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-muted);
     text-align: center;
     margin: 0;
+}
+
+@media (min-width: 768px) { /* prévia do mata-mata no computador */
+    /* A CHAVE INTEIRA À VISTA, e o cartão com TAMANHO. `fit-content` + margem automática
+       centraliza enquanto cabe e vira 100% quando não cabe — `justify-content: center` num
+       container que rola esconderia o começo da chave, sem barra pra voltar. */
+    .pdz-chd-trilho {
+        width: fit-content;
+        max-width: 100%;
+        margin-inline: auto;
+        scroll-snap-type: none;   /* encaixe é gesto de dedo; com mouse ele só atrapalha */
+    }
+
+    /* Sem a folga do fim: ela existe pro celular alcançar a última rodada rolando. */
+    .pdz-chd-trilho::after { content: none; }
+
+    /* 📏 17rem, MEDIDO NO CHROMIUM com este arquivo a 1440px, e não escolhido no olho: a linha
+       `.pdz-chave-quando` é `nowrap; overflow: hidden` SEM reticências, então cartão apertado
+       come o nome do clube calado. Cartão de 264px → "Er Padel · Arena Loja 7" cabe inteiro;
+       a 16rem já perde 3px, a 13rem perde 51. Ver QuadroDaPreviaDeitaNasDuasTelasTests. */
+    .pdz-chd-rodada { flex: 0 0 17rem; }
+
+    .pdz-chd-rodada-trofeu { flex: 0 0 9rem; }
+}
+
+/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
+
+   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
+   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
+   destaque sumiria calado. */
+.pdz-chave-vaga.pdz-arv-final {
+    border-color: var(--padel-green);
+    background: rgba(163, 216, 39, .10);
 }
 
 /* ---- A vaga ----
