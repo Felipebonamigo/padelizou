@@ -104,6 +104,56 @@ public class EscudoDoTimeNosJogosTests
         Assert.Contains("position: absolute", selo.Groups[1].Value);
     }
 
+    // ── A MOLDURA QUE IGUALA AS BANDEIRINHAS ───────────────────────────────────────────────
+    //
+    // 🗣️ Felipe, com o escudo já no ar: *"pq tem algumas bandeirinhas sem fundo igual as demais
+    // ainda"*.
+    //
+    // 🕳️ O DEFEITO NÃO ERA DO DEPLOY, ERA DO ARQUIVO DE CADA LOGO. Medidos os 17 escudos em uso
+    // no torneio 26: só 3 têm fundo transparente; os outros 14 trazem fundo DENTRO da imagem —
+    // retângulo preto (Compass, Chakra, Os Loberos), azul-escuro (Operados), branco (Dez Padel),
+    // e dois JPEG. Sem fundo nenhum no CSS, cada um aparece como veio e a fileira fica salpicada.
+    //
+    // ✅ A moldura clara é o que iguala: todo escudo vira a MESMA caixinha, com o logo `contain`
+    // dentro. Não deixa todos da mesma cor — isso só editando as imagens —, mas dá a todos a
+    // mesma forma, o mesmo tamanho e o mesmo contorno, nos dois temas.
+
+    [Fact]
+    public void Todo_escudo_tem_fundo_claro_proprio()
+    {
+        var css = LerDaWeb("wwwroot", "css", "site.css");
+
+        foreach (var classe in new[] { @"\.pdz-chip-escudo", @"\.pdz-jl-escudo" })
+        {
+            var regra = Regex.Match(css, classe + @"\s*\{([^}]*)\}", RegexOptions.Singleline);
+            Assert.True(regra.Success, $"não achei a regra {classe} no site.css");
+
+            // Fundo claro FIXO nos dois temas: os logos opacos são quase todos brancos por
+            // dentro — uma moldura que mudasse com o tema desigualaria de novo no escuro.
+            Assert.Matches(new Regex(@"background:\s*(#fff\b|#ffffff\b|white\b)", RegexOptions.IgnoreCase),
+                           regra.Groups[1].Value);
+            Assert.Contains("border", regra.Groups[1].Value);
+        }
+    }
+
+    [Fact]
+    public void O_selo_do_ao_vivo_tambem_e_claro_e_nao_navy()
+    {
+        var css = LerDaWeb("wwwroot", "css", "site.css");
+
+        // O selo nasceu com fundo navy (o card é navy). Com os logos de verdade isso apaga os
+        // escuros — o "Compass", preto sobre navy, some dentro do próprio selo.
+        var selo = Regex.Match(css, @"\.pdz-chip-foto-selo \.pdz-chip-escudo\s*\{([^}]*)\}", RegexOptions.Singleline);
+
+        Assert.True(selo.Success, "não achei a regra do selo no site.css");
+
+        // O VALOR da propriedade, não o texto da regra: o comentário ao lado explica por que o
+        // navy saiu, e um `DoesNotContain("navy")` cru se enganaria com a própria explicação.
+        var fundo = Regex.Match(selo.Groups[1].Value, @"background:\s*([^;]+);");
+        Assert.True(fundo.Success, "o selo precisa declarar um fundo próprio");
+        Assert.Matches(new Regex(@"^(#fff|#ffffff|white)$", RegexOptions.IgnoreCase), fundo.Groups[1].Value.Trim());
+    }
+
     private static string LerDaWeb(params string[] caminho)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
