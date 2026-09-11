@@ -18,6 +18,13 @@ public class OrdemDasCategoriasTests
     {
         // O caso exato da tela: a 4ª Feminina foi criada por último e tem que aparecer ANTES
         // da 5ª Feminina, não no fim de tudo.
+        //
+        // ⚠️ O AGRUPAMENTO POR SEXO CAIU EM 10/09/2026 e este teste mudou junto, de propósito:
+        // 🗣️ Felipe, olhando o seletor de "Chaves e Grupos" do 2ª Etapa ER Padel Tour, *"esta
+        // fora de ordem"* — e, entre as três ordens possíveis, escolheu a por NÍVEL com a
+        // masculina na frente. Com as duas escadas no mesmo torneio, agrupar por sexo empurrava
+        // a 4ª Feminina pra depois da 7ª Masculina: o defeito de 08/08 de novo, uma escada
+        // adiante. O que este teste guarda continua sendo o mesmo: a ordem não é a de CRIAÇÃO.
         var ordenadas = Ordenar(
             "4ª Categoria Masculina", "5ª Categoria Masculina", "6ª Categoria Masculina",
             "7ª Categoria Masculina", "5ª Categoria Feminina", "6ª Categoria Feminina",
@@ -25,10 +32,10 @@ public class OrdemDasCategoriasTests
 
         Assert.Equal(new[]
         {
-            "4ª Categoria Masculina", "5ª Categoria Masculina", "6ª Categoria Masculina",
-            "7ª Categoria Masculina",
-            "4ª Categoria Feminina", "5ª Categoria Feminina", "6ª Categoria Feminina",
-            "7ª Categoria Feminina",
+            "4ª Categoria Masculina", "4ª Categoria Feminina",
+            "5ª Categoria Masculina", "5ª Categoria Feminina",
+            "6ª Categoria Masculina", "6ª Categoria Feminina",
+            "7ª Categoria Masculina", "7ª Categoria Feminina",
         }, ordenadas);
     }
 
