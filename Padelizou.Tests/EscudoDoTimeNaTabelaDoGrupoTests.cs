@@ -54,6 +54,23 @@ public class EscudoDoTimeNaTabelaDoGrupoTests
         Assert.DoesNotContain(".pdz-live-jogadores .pdz-chip-escudo", Css());
     }
 
+    [Fact]
+    public void A_LISTA_de_jogos_ganha_a_mesma_chapinha()
+    {
+        // 🕳️ O escudo aparece em TRÊS lugares, e a reclamação do Felipe não era sobre um deles:
+        // *"alguns escudos estão com fundo branco"*, sem dizer tela. O `.pdz-jl-escudo` (lista
+        // de Agendadas/Finalizadas) nasceu numa sessão paralela no mesmo dia e ficou de fora —
+        // os mesmos 10 arquivos de fundo branco assado aparecem lá também.
+        //
+        // O terceiro lugar é o selo no canto da foto do card AO VIVO
+        // (`.pdz-chip-foto-selo .pdz-chip-escudo`), e esse NÃO entra: ele tem fundo navy e anel
+        // claro por decisão da outra sessão, aprovada à parte ("e no ao vivo use esse do B").
+        var regra = Bloco(Css(), ".pdz-jl-escudo");
+
+        Assert.Contains("background", regra);
+        Assert.Contains("border-radius", regra);
+    }
+
     [Theory]
     [InlineData("Jogos")]
     [InlineData("Vitórias")]

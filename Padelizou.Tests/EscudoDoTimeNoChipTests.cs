@@ -15,20 +15,29 @@ namespace Padelizou.Tests;
 // ⚠️ A SUÍTE NÃO RENDERIZA RAZOR (ver SeloDeCampeaoDaCategoriaTests, seção 4: "a única rede é
 // ler o arquivo"). Então o que se trava aqui é o ARQUIVO, e só as decisões que, desfeitas,
 // apagam o escudo da tela sem deixar nenhum outro teste vermelho.
+//
+// ⚠️ TRÊS DESTES TESTES MUDARAM DE ARQUIVO no mesmo dia, DE PROPÓSITO: o <img> do escudo saiu
+// do chip e virou o parcial `_EscudoDoTime`, porque o card ao vivo passou a desenhar o mesmo
+// escudo como SELO no canto da foto (ver EscudoDoTimeNosJogosTests) e duas cópias do <img>
+// seriam duas verdades sobre alt, tamanho e lazy. O que eles guardam continua igual: o escudo
+// existe, sai do LOGO, nomeia o time e não fica na linha do clube — mudou onde ele mora.
 public class EscudoDoTimeNoChipTests
 {
     [Fact]
     public void O_chip_do_jogador_desenha_o_escudo_do_time()
     {
-        var view = LerDaWeb("Views", "Torneios", "_JogadorChip.cshtml");
+        var parcial = LerDaWeb("Views", "Torneios", "_EscudoDoTime.cshtml");
 
         // A condição olha o LOGO, não o time: time sem logo cadastrado (o estado dos 44
         // importados do ranking) daria <img src=""> — ícone quebrado em toda linha da tabela.
-        Assert.Matches(new Regex(@"IsNullOrEmpty\([^)]*\.Logo\)"), view);
+        Assert.Matches(new Regex(@"IsNullOrEmpty\([^)]*\.Logo\)"), parcial);
 
-        var img = Regex.Match(view, @"<img[^>]*pdz-chip-escudo[^>]*>", RegexOptions.Singleline);
-        Assert.True(img.Success, "não achei o <img> do escudo no chip");
+        var img = Regex.Match(parcial, @"<img[^>]*pdz-chip-escudo[^>]*>", RegexOptions.Singleline);
+        Assert.True(img.Success, "não achei o <img> do escudo no parcial _EscudoDoTime");
         Assert.Matches(new Regex(@"src=""@[^""]*\.Logo"""), img.Value);
+
+        // E o chip precisa CHAMAR o parcial: escudo que ninguém desenha não aparece na tela.
+        Assert.Contains("_EscudoDoTime", LerDaWeb("Views", "Torneios", "_JogadorChip.cshtml"));
     }
 
     [Fact]
@@ -41,25 +50,25 @@ public class EscudoDoTimeNoChipTests
         // time não é escrito.
         // ⚠️ A exigência de que o escudo EXISTA é o que faz este teste discriminar: sem ela ele
         // passaria verde com o chip de antes, onde não há escudo nenhum pra estar no lugar errado.
-        Assert.Contains("pdz-chip-escudo", view);
+        Assert.Contains("_EscudoDoTime", view);
 
         var linhaDoClube = Regex.Match(view, @"<small[^>]*pdz-chip-clube[^>]*>(.*?)</small>",
                                        RegexOptions.Singleline);
 
         Assert.True(linhaDoClube.Success, "não achei a linha do clube (<small class=\"… pdz-chip-clube\">) no chip");
-        Assert.DoesNotContain("pdz-chip-escudo", linhaDoClube.Groups[1].Value);
+        Assert.DoesNotContain("_EscudoDoTime", linhaDoClube.Groups[1].Value);
     }
 
     [Fact]
     public void O_escudo_nomeia_o_time_pra_quem_nao_ve_o_texto()
     {
-        var view = LerDaWeb("Views", "Torneios", "_JogadorChip.cshtml");
+        var parcial = LerDaWeb("Views", "Torneios", "_EscudoDoTime.cshtml");
 
         // No modo compacto o nome do time não é escrito em lugar nenhum: sem o alt, o escudo é
         // um desenho sem legenda pra quem usa leitor de tela.
-        var img = Regex.Match(view, @"<img[^>]*pdz-chip-escudo[^>]*>", RegexOptions.Singleline);
+        var img = Regex.Match(parcial, @"<img[^>]*pdz-chip-escudo[^>]*>", RegexOptions.Singleline);
 
-        Assert.True(img.Success, "não achei o <img> do escudo no chip");
+        Assert.True(img.Success, "não achei o <img> do escudo no parcial _EscudoDoTime");
         Assert.Matches(new Regex(@"alt=""@[^""]*\.Nome"""), img.Value);
     }
 

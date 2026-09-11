@@ -43,6 +43,14 @@
 >
 > 🧪 **6.414 testes, 0 falhas** (9 novos) + os dois conferidores de JS verdes.
 >
+> 🕳️ **E O MERGE COM O `main` QUASE MATOU O ARQUIVO EM SILÊNCIO.** Outra sessão mexeu no MESMO trecho no mesmo dia (o selo no canto da foto do card AO VIVO e o `.pdz-jl-escudo` da lista de jogos). Resolvendo o conflito eu **engoli o `}` que fechava o `.pdz-jl-escudo`** — 613 `{` para 612 `}`. Dali pra baixo, toda regra virou declaração solta dentro dela: `.pdz-col-num` e `.pdz-tabela-grupo` **deixaram de existir**.
+>
+> ⚠️ **E A SUÍTE PASSOU VERDE COM O ARQUIVO QUEBRADO: 6.421 testes, 0 falhas.** São 104 arquivos de teste que leem fonte com `File.ReadAllText` e procuram substring — **nenhum PARSEIA nada**. "A regra está escrita no arquivo" continuava verdadeiro enquanto "a regra é aplicada pelo navegador" tinha deixado de ser. Quem pegou foi contar chaves à mão, depois de o `grep` mostrar um comentário onde devia estar um `}`.
+>
+> ✅ **VIROU GATE: `CssNaoPodeFicarQuebradoTests`** — chaves balanceadas (ignorando comentário, que aqui é fartíssimo) e nenhum bloco de regra com mais de 2.500 caracteres, que é o desenho de um `}` faltando quando duas somem e uma sobra. Visto vermelho no arquivo quebrado, com a mensagem *"613 `{` para 612 `}`"*, antes de devolver a chave.
+>
+> ✅ **A CHAPINHA FOI TAMBÉM PRA LISTA DE JOGOS** (`.pdz-jl-escudo`): o pedido do Felipe não tinha tela — *"alguns escudos estão com fundo branco"* —, e são os mesmos 10 arquivos. O selo do card AO VIVO ficou **de fora de propósito**: ele tem fundo navy e anel claro por decisão da outra sessão, aprovada à parte (*"e no ao vivo use esse do B"*), e o seletor dela é mais específico, então as duas convivem sem brigar.
+>
 > ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
 
 
