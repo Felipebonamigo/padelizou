@@ -90,6 +90,7 @@ public class ConsentimentoDoWhatsAppTests
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             PorteiroDeTeste.Saida(),
+            new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 
         await new DesfazerOptInHerdado(ctx, servico).RodarAsync();
