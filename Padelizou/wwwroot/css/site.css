@@ -1943,6 +1943,13 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-chave-quadra { margin-left: auto; font-weight: 700; }
 .pdz-chave-aovivo { color: #d9534f; font-weight: 700; }
 
+/* O TERCEIRO ESTADO do card (Felipe, 11/09/2026: "o que estiver finalizado deixe um circulo
+   parecido com o do aovivo, só que outra cor"). Verde de sinal, e NÃO o lime da marca: o lime
+   sobre o card claro tem contraste de 1,8:1 — ilegível em corpo .62rem —, e ele já é a cor de
+   quem VENCEU (.pdz-chave-venceu), na linha logo abaixo. Fixo nos dois temas pelo mesmo motivo
+   do vermelho do ao vivo, e medido na mesma faixa dele (3,2:1 no claro, 4,0:1 no escuro). */
+.pdz-chave-encerrado { color: #2e9e5b; font-weight: 700; }
+
 .pdz-chave-num {
     display: inline-flex;
     align-items: center;
@@ -2070,6 +2077,24 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-grupo-jogo-aovivo {
     border-color: #d9534f;
     box-shadow: 0 0 0 2px rgba(217, 83, 79, .15);
+}
+
+/* O CARD INTEIRO É O ALVO DO TOQUE, e não só a bolinha "AO VIVO": no celular a linha do
+   "quando" tem 10px de altura, e mirar nela é o tipo de alvo que se erra três vezes antes de
+   acertar. O elemento é sempre <a> (ver Details.cshtml) — sem href ele não é link nenhum, daí
+   o `[href]` nas regras que acendem. */
+a.pdz-grupo-jogo {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.pdz-grupo-jogo[href] { cursor: pointer; }
+
+a.pdz-grupo-jogo[href]:hover,
+a.pdz-grupo-jogo[href]:focus-visible {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 3px rgba(217, 83, 79, .35);
 }
 
 .pdz-grupo-jogo-quando {
@@ -3299,6 +3324,50 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-ver-votos:focus .pdz-consenso-placar {
     color: var(--padel-green);
     text-decoration: underline;
+}
+
+/* ── MODAL NO APP INSTALADO: o X não pode ficar debaixo do relógio ──────────────────
+   🗣️ Felipe, 11/09/2026, num print do iPhone com o modal "Quem palpitou o quê" aberto:
+   *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*.
+
+   O `_Layout` pede `viewport-fit=cover` — instalado, o app usa a tela INTEIRA, inclusive
+   atrás do relógio e da bateria. O corpo da página já paga essa conta (ver as regras de
+   `env(safe-area-inset-*)` lá em cima), mas o `.modal` é `position: fixed` e não herda nada
+   disso: com a lista longa o diálogo encosta no topo do aparelho e o botão de fechar vai
+   parar debaixo da barra de status, onde o toque não chega.
+
+   ⚠️ Aqui, e não no `.modal-dialog`: com `box-sizing: border-box` o `padding` do `.modal`
+   encolhe a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a
+   lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura,
+   e o fim da lista sairia por baixo.
+
+   ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de
+   rolagem) e não encosta no topo/rodapé — por isso estes dois não brigam com ele. */
+.modal {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* O cabeçalho de cada dupla no modal é um BOTÃO que dobra aquele lado — parece texto até o
+   hover, como o "N voto(s)" do palpitrômetro. */
+.pdz-votantes-dupla {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+}
+
+.pdz-votantes-seta {
+    transition: transform .15s ease;
+    display: inline-block;
+}
+
+.pdz-votantes-dupla[aria-expanded="false"] .pdz-votantes-seta {
+    transform: rotate(-90deg);
 }
 
 /* ── Capa do torneio no card: INTEIRA, nunca cortada ─────────────────────────────

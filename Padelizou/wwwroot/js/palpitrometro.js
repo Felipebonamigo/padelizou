@@ -246,6 +246,21 @@ function atualizarPlacarDoPalpite(container, data) {
     if (votosEl) votosEl.innerText = '(' + data.placarMaisPalpitadoVotos + ' de ' + data.palpitesComPlacar + ')';
 }
 
+// DOBRAR UM LADO DO MODAL (11/09/2026 — 🗣️ Felipe: *"permita minimizar pela 'dupla' apostada
+// tambem"*). Só tela: a lista já veio inteira do servidor, e recolher não muda palpite nenhum.
+//
+// ⚠️ Quem guarda o estado é o `aria-expanded` do próprio botão — o leitor de tela lê dali, e o
+// CSS gira a seta pelo mesmo atributo. Uma classe à parte seria um segundo estado pra manter
+// em dia, e é assim que a seta começa a apontar pro lado errado.
+function alternarVotantes(botao, idDaLista) {
+    const lista = document.getElementById(idDaLista);
+    if (!lista) return;
+
+    const aberto = botao.getAttribute('aria-expanded') !== 'false';
+    botao.setAttribute('aria-expanded', aberto ? 'false' : 'true');
+    lista.hidden = aberto;
+}
+
 async function verVotos(partidaId, nome1, nome2) {
     const modalEl = document.getElementById('modalVerVotos');
     if (!modalEl) return;
@@ -258,6 +273,12 @@ async function verVotos(partidaId, nome1, nome2) {
     const lista2 = document.getElementById('modalVerVotosLista2');
     lista1.innerHTML = '<div class="text-muted small">Carregando...</div>';
     lista2.innerHTML = '';
+
+    // ⚠️ O modal é UM só, reusado por todos os jogos da lista: sem isto, um lado dobrado num
+    // jogo continuaria dobrado no próximo, escondendo gente que ninguém mandou esconder.
+    lista1.hidden = false;
+    lista2.hidden = false;
+    document.querySelectorAll('.pdz-votantes-dupla').forEach(b => b.setAttribute('aria-expanded', 'true'));
 
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();

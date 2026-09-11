@@ -2,7 +2,62 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 >
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/eager-euler-q1xnm4`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
+>
+> 🕳️ **CAUSA: `viewport-fit=cover` + `position: fixed`.** O `_Layout` pede a tela inteira (instalado, o app pinta atrás do relógio e da bateria) e o `site.css` já paga essa conta pro CORPO da página — mas o `.modal` é `fixed` e **não herda nada disso**. Com a lista longa o diálogo encosta no topo do aparelho, e o botão de fechar vai parar na faixa onde o toque não chega.
+>
+> ✅ **`padding-top/bottom: env(safe-area-inset-*)` no `.modal`** — e é ali, e não no `.modal-dialog`: com `box-sizing: border-box` o padding **encolhe** a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura, e o fim da lista sairia por baixo. ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de rolagem) e não encosta no topo/rodapé — por isso os dois não brigam.
+>
+> 🪗 **E CADA DUPLA DO MODAL DOBRA SOZINHA.** 🗣️ *"permita minimizar pela 'dupla' apostada tambem"*: com 15 nomes de um lado, ver a outra dupla exigia rolar a lista inteira. O cabeçalho virou **botão** (`<button>`, não `<p onclick>` — recolher é ação, e ação sem botão não chega pra teclado nem pra leitor de tela), com a seta girando pelo **`aria-expanded`**: um só estado, lido pelo leitor de tela E pelo CSS.
+>
+> ⚠️ **O MODAL É UM SÓ, reusado por todos os jogos da lista** — então ele **desdobra os dois lados a cada abertura**. Sem isso, um lado dobrado num jogo continuaria dobrado no próximo, escondendo gente que ninguém mandou esconder. Tem conferência no `conferir-palpitrometro.js`.
+>
+> 🧪 **6.471 testes, 0 falhas (2 novos)** + **14 conferências** no JS (1 nova). Vistos vermelhos antes: *"Não achei a regra do `.modal` no site.css"* e *"Not found: alternarVotantes("*. ⚠️ O DOM falso do modal (da sessão paralela) ganhou `querySelectorAll` — sem ele a conferência estourava em *"document.querySelectorAll is not a function"*, que é o mock incompleto e não o código.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/exciting-rubin-ga3ovw`.** **Sem migration.**
+>
+> 🎯 **O CARD DO JOGO, DENTRO DO CARD DO GRUPO, GANHOU DESTINO E TERCEIRO ESTADO.** 🗣️ Felipe, com o print do Grupo C: *"permita clicar no aovivo e ir para a pagina do aovivo aonde esta o jogo"* · *"e o que estiver finalizado deixe um circulo parecido com o do aovivo, só que outra cor q mostre q foi finalizado, direfernte do aovivo e do aguardando ainda"*.
+>
+> 1️⃣ **O JOGO EM QUADRA VIRA LINK PRO CARD GRANDE.** Card pequeno e card grande moram na MESMA página, em abas diferentes — então é uma **hash** (`#jogo-123`), e não uma URL nova: nada recarrega e o `<iframe>` da transmissão não reinicia, que é o motivo de o `jogos-ao-vivo-atualiza.js` existir. O elemento é **sempre `<a>`, com `href` só no jogo ao vivo** (`href` nulo o Razor não escreve, e `<a>` sem href é texto comum) — um elemento só pros três estados, em vez do miolo duplicado num `if`. O alvo do toque é o **card inteiro**: no celular a linha do "quando" tem 10px.
+>
+> 2️⃣ **O TERCEIRO ESTADO: `● ENCERRADO`, verde.** Antes eram DOIS na tela — bolinha vermelha ou uma data — e a data é a MESMA do jogo que acabou e do que ainda vai acontecer: "sex 11/09 19:40" não dizia se era história ou agenda. ⚠️ **Verde de sinal (`#2e9e5b`), e NÃO o lime da marca**: o lime sobre o card claro dá contraste de **1,8:1** em corpo `.62rem`, e ele já é a cor de quem VENCEU, na linha logo abaixo. O selo toma o **lugar** da data porque a linha é `nowrap; overflow: hidden` sem reticências — os dois juntos comeriam o "Er Padel · Arena Nclass" calado, que é o defeito medido na árvore da chave hoje de manhã.
+>
+> 🕳️ **A VERDADE ESTRUTURAL QUE ESTE TRABALHO DEIXA: `Tab.show()` DO BOOTSTRAP É ASSÍNCRONO.** Ele tira o `active` da aba velha, **espera os 150ms do fade dela** e só então acende a nova. Na linha seguinte ao `show()` o painel de destino ainda é `display: none`, o card mede 0x0 e `scrollIntoView` num elemento sem posição não rola nada. Quem desliga animação no sistema (`prefers-reduced-motion`) nunca veria — é o defeito que passa na máquina de quem escreveu e falha no celular de quem usa. Por isso o `pdzMostrarAba` recebe um `depois` e só chama no `shown.bs.tab` (e direto, quando a aba já é a ativa: ali evento nenhum nasce).
+>
+> 👀 **E DE NOVO FOI OLHAR A TELA**, no Chromium do container, com o `site.css` e o `bootstrap.bundle.min.js` de verdade: as duas abas abrindo, o card centralizado (`scrollY` 585, card no 397 de uma janela de 613) e os três estados nos dois temas.
+>
+> 🕳️ **ARMADILHA NOVA PRA QUEM MEDIR TELA NO HEADLESS, e custou meia hora**: o Bootstrap declara `:root { scroll-behavior: smooth }`, e **rolagem suave não termina** com `--virtual-time-budget` — `window.scrollTo(0, 500)` devolve `scrollY = 0` e parece defeito do código. A página sem Bootstrap rolava; a com Bootstrap, não. Quem for medir ROLAGEM: force `scroll-behavior: auto` **na página de medição**, nunca no site.
+>
+> 🧪 **6.556 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1121-dc88f91`** (runs 243 e 244, 18h30 e 18h33 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #212. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o botão **"O que cada um precisa para passar"** no card do grupo, com o pop-up que diz a cada dupla qual placar ela precisa fazer; e as **vagas por grupo viraram régua única** (`ClassificacaoDeGrupos.VagasPorGrupo`), que conserta a tela de Classificação discordando do chaveamento em categoria de TIMES.
+>
+> ✅ **CONFERIDO NO AR** (`padelizou.com.br/Torneios/Details/26`, anônimo, por `curl`): **8 botões** e **8 modais** `oQuePrecisa-*` na página — um por grupo com um jogo faltando. `/healthz` **200** nos dois ambientes. O pop-up do Grupo A (`oQuePrecisa-122`) veio com o texto certo montado de dado real: *"Falta um jogo: Marcos Coelho & Marcio Rafael x Marcelo Konflanz & Milton Portolan"*, os dois com o selo **Classificado** e o cenário **"Qualquer resultado"**.
+>
+> ⚠️ **O CAMINHO "DEPENDE" — o do print do Felipe — NÃO FOI VISTO NO AR, e é por falta de caso, não por falha**: os 8 grupos com um jogo faltando estão todos no estado em que o último jogo não decide vaga nenhuma. A frase *"Passa vencendo por 5 games ou mais"* está provada pelos 13 testes e pelo Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade**.
+>
+> ⚠️ **O `dev` SÓ FOI PROVADO PELO `/healthz`**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve 302 pro login para quem é anônimo. Quem provou o Razor foi a `prod`.
+>
+> 🧪 **6.530 testes, 0 falhas (20 novos)** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (dois merges: o `main` andou no meio do CI).
+>
+> 🕳️ **O TÍTULO E A LINHA "DOCUMENTO VIVO" DESTE ARQUIVO FORAM RESTAURADOS AQUI.** O merge do PR #213 (`06465fc`, resolvendo conflito contra o meu #212) comeu as duas primeiras linhas — e uma delas é justamente a que manda toda sessão atualizar o STATUS ao fim do bloco. Conflito no topo deste arquivo é rotina (toda sessão escreve ali); **resolver mantendo as duas entradas e o cabeçalho** é o que não pode se perder.
+>
+> ⚠️ **DECISÃO PENDENTE DO FELIPE**: `Torneio.ClassificadosPorGrupo` não é lido por ninguém agora — só a `DuplicacaoDeTorneio` o copia. Virar o padrão do torneio dentro da régua (⚠️ muda a CHAVE de todo torneio cuja coluna não seja 2) ou sair numa migration.
+>
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138). PR #213. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**; o `/css/site.css` servido traz as duas regras novas (`.pdz-live-placar-venceu`) e **zero** ocorrência de `pdz-live-placar-ganhando`; o `.pdz-live-input` e o `.pdz-live-passo` chegam com `background: var(--pdz-navy-fixed)`, `color: #fff` e borda `rgba(255,255,255,.18)`; o `/js/placar-ao-vivo.js` traz `linha.vencedor`; e o `/sw.js` já está em `padelizou-static-v30`. ⚠️ **A TELA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/...` responde 302. A prova visual do card é a local, com o app de verdade e o Chromium.
+>
+> ⏭️ **PROD NÃO FOI PUBLICADO** (Regra 3: testar no `dev` antes): `padelizou.com.br` continua pintando de verde quem está só GANHANDO, e com o placar invisível pra quem usa o tema claro. É um disparo só — Actions → Deploy → `ambiente: prod`, `build: build-1125-5f5c53d` —, e o environment `prod` ainda pede a aprovação obrigatória.
 >
 > 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
 >
