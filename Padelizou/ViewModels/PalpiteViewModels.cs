@@ -1,6 +1,6 @@
 namespace Padelizou.ViewModels;
 
-// Resumo de votos do palpitrômetro de uma partida.
+// Resumo de votos do palpitômetro de uma partida.
 public class PalpiteResumoVM
 {
     public int PartidaId { get; set; }
@@ -45,7 +45,7 @@ public class PalpiteResumoVM
     public List<string> CravaramOPlacar { get; set; } = new();
 }
 
-// Lista de quem votou em quem, pro botão "ver quem votou" do palpitrômetro.
+// Lista de quem votou em quem, pro botão "ver quem votou" do palpitômetro.
 public class VotantesPartidaVM
 {
     public List<VotanteVM> VotantesDupla1 { get; set; } = new();

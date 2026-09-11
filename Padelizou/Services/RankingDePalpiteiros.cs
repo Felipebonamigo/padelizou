@@ -3,9 +3,9 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// QUEM MAIS ACERTA NO PALPITRÔMETRO — no torneio, no hub do Ranking e no perfil.
+// QUEM MAIS ACERTA NO PALPITÔMETRO — no torneio, no hub do Ranking e no perfil.
 //
-// O palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU: a
+// O palpitômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU: a
 // tela mostrava a barra antes do jogo, um "galera acertou/errou" depois, e o palpite de cada
 // pessoa morria ali. Este ranking é derivado do que JÁ estava gravado — por isso ele nasce com
 // o histórico inteiro, sem migração de dados e sem começar zerado.
@@ -16,7 +16,7 @@ namespace Padelizou.Services;
 //
 // 🚫 QUEM JOGA A PARTIDA NÃO ENTRA NA CONTA DELA. Os quatro em quadra são os únicos que podem
 // MUDAR o resultado do próprio palpite. Continuam podendo votar (e o voto conta na barra do
-// palpitrômetro, que é opinião pública); só não conta no ranking — nem no acerto, nem no
+// palpitômetro, que é opinião pública); só não conta no ranking — nem no acerto, nem no
 // total. ⚠️ **Em categoria de TIMES não exclui ninguém**: ali o `Jogador1` da linha é o
 // organizador que cadastrou o time, não quem entra em quadra, e excluir por ali tiraria o
 // acerto de quem nem jogou.
@@ -568,7 +568,7 @@ public sealed class PalpiteirosDoTorneio
     // Quantos palpites deste torneio vieram COM placar.
     //
     // ⚠️ É daqui que a tela decide se fala em cravar placar — e é uma pergunta feita AO DADO,
-    // nunca a um interruptor. Torneio jogado antes de o placar existir no palpitrômetro tem
+    // nunca a um interruptor. Torneio jogado antes de o placar existir no palpitômetro tem
     // zero aqui pra sempre, e mostrar a ele uma régua de "cravou 3" seria explicar um jeito de
     // pontuar que ninguém daquele torneio teve como usar. Mesma lição do "a janela é lida do
     // relógio" do MVP: estado derivado do dado não fica errado quando o mundo muda.

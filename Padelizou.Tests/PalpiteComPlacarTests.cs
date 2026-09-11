@@ -407,7 +407,7 @@ public class PalpiteComPlacarTests
         //
         // ⚠️ O LIMIAR MORA NO SERVIÇO, e não na view: as duas telas e o JS que repinta depois do
         // voto leem o MESMO resumo. Escrito na view seria a terceira cópia da régua, e a linha
-        // voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`.
+        // voltaria a aparecer sozinha no primeiro `atualizarPalpitometro`.
         Assert.False(resumo.TemPlacarMaisPalpitado);
         Assert.Equal(0, resumo.PlacarMaisPalpitadoVotos);
 
