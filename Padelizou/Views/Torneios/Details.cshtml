@@ -5731,7 +5731,20 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         // (chave que existe e ninguém alcança).
         Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
             (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
-        var comChave = Model.Categorias.Where(temChaveParaMostrar).ToList();
+
+        // ⚠️ NA ORDEM DE TELA DO SITE (`CategoriaNaTela.Ordem`), e não na de criação: 🗣️ Felipe,
+        // vendo o seletor no ar, *"esta fora de ordem"*. O `Include` do controller devolve as
+        // categorias na ordem do BANCO, e o seletor herdou isso das pills — que já vinham assim.
+        // A régua é a de lá, e não uma conta local: duas ordens pra mesma lista fariam esta tela
+        // discordar das outras. (Foi esta queixa que virou a ordem daquela régua de cabeça pra
+        // baixo no mesmo dia — os níveis agora andam juntos, em vez de agrupados por sexo.)
+        var comChave = Model.Categorias.Where(temChaveParaMostrar)
+            .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)).ToList();
+
+        // A categoria que a aba ABRE: a do jogador que está olhando, a melhor delas se estiver
+        // em duas (🗣️ *"se estiver em duas, vem na melhor delas 1>2>3>4"*). O porquê e os
+        // empates moram no Services/CategoriaQueAbre.
+        var categoriaQueAbre = Padelizou.Services.CategoriaQueAbre.Escolher(comChave, meuIdNaPagina);
 
         <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
             @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
@@ -5762,7 +5775,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         data-torneio-id="@Model.Id" aria-label="Escolher a categoria">
                     @foreach (var categoria in comChave)
                     {
-                        <option value="cat-@(categoria.Id)">@categoria.Nome</option>
+                        <option value="cat-@(categoria.Id)" selected="@(categoria.Id == categoriaQueAbre?.Id ? "selected" : null)">@categoria.Nome</option>
                     }
                 </select>
             }
@@ -5776,15 +5789,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         <!-- CONTEÚDO DOS GRUPOS POR CATEGORIA -->
         <div class="tab-content" id="painelDasCategorias">
-            @{
-                var primeiraCatContent = true;
-            }
             @foreach (var categoria in Model.Categorias)
             {
                 if (temChaveParaMostrar(categoria))
                 {
                     ViewData["CategoriaAtual"] = categoria.Nome;
-                    <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="region" aria-label="@categoria.Nome">
+                    @* Aceso é o painel da categoria que ABRE — antes era sempre o primeiro da
+                       lista, o que agora nem seria o mesmo que a <option> escolhida lá em cima. *@
+                    <div class="tab-pane fade @(categoria.Id == categoriaQueAbre?.Id ? "show active" : "")" id="cat-@(categoria.Id)" role="region" aria-label="@categoria.Nome">
                         <!-- O cruzamento mata-mata é gerado automaticamente (TorneiosController.ProcessarMataMataAutomatico)
                              assim que a última partida da Fase de Grupos dessa categoria é finalizada — sem botão manual. -->
                         @{
@@ -6245,7 +6257,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         </div>
                         </div> @* fim do d-flex flex-column que ordena chave/grupos *@
                     </div>
-                    primeiraCatContent = false;
                 }
             }
         </div>

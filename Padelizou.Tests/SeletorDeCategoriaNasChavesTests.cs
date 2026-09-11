@@ -76,6 +76,36 @@ public class SeletorDeCategoriaNasChavesTests
         Assert.Contains("id=\"cat-@(categoria.Id)\" role=\"region\" aria-label=\"@categoria.Nome\"", fonte);
     }
 
+    // 🗣️ Felipe, vendo o seletor no ar: *"esta fora de ordem"*. A lista saía na ordem em que as
+    // categorias foram CRIADAS — o mesmo defeito de 08/08 que fez nascer o CategoriaNaTela.Ordem.
+    [Fact]
+    public void As_categorias_saem_na_ordem_de_tela_do_site()
+    {
+        // Na DECLARAÇÃO do comChave, e não em qualquer lugar da tela: a mesma chamada já existe
+        // noutro trecho do arquivo, e um Contains solto passaria sem o seletor ter sido tocado.
+        var fonte = Details();
+        var inicio = fonte.IndexOf("var comChave =", StringComparison.Ordinal);
+        Assert.True(inicio >= 0, "Sumiu a lista comChave, que é quem alimenta o seletor.");
+        var declaracao = fonte[inicio..(fonte.IndexOf(';', inicio) + 1)];
+
+        Assert.Contains("CategoriaNaTela.Ordem(c.Nome)", declaracao);
+    }
+
+    // 🗣️ *"venha sempre selecionado a categoria que o usuario esta cadastrado"*. Tem que vir
+    // MARCADA DO SERVIDOR, nas duas pontas: a <option> escolhida e o painel aceso. Deixar pro JS
+    // acertar depois pintaria a chave errada por um instante a cada abertura.
+    [Fact]
+    public void A_categoria_que_abre_vem_marcada_do_servidor_nas_duas_pontas()
+    {
+        var fonte = Details();
+
+        Assert.Contains("CategoriaQueAbre.Escolher(comChave", fonte);
+        Assert.Contains("categoria.Id == categoriaQueAbre?.Id ? \"selected\" : null", fonte);
+        Assert.Contains("categoria.Id == categoriaQueAbre?.Id ? \"show active\" : \"\"", fonte);
+        // A primeira da lista deixou de mandar: era ela que abria a tela antes.
+        Assert.DoesNotContain("primeiraCatContent", fonte);
+    }
+
     [Fact]
     public void A_tela_carrega_o_js_do_seletor()
     {
