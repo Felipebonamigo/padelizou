@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🗣️ **"A GALERA CRAVA" PROMETIA MAIS DO QUE ENTREGAVA.** Felipe, apontando a frase num jogo com **3 de 8**: *"aqui por que tem isso? nao sei se faz muito sentido"*. Dois problemas, e ele tinha razão nos dois.
+>
+> 1️⃣ **NÃO EXISTIA LIMIAR**: a linha mostrava o placar mais votado mesmo sendo **1 de 8** — o palpite de uma pessoa anunciado como leitura da galera. Pior: com todos os placares diferentes, o "mais palpitado" era o **desempate interno** decidindo por sorteio qual 1 a 1 a 1 ganhava a frase. Agora só existe a partir de **dois palpites no mesmo placar** (`PalpiteService.MinimoParaOMaisPalpitado`).
+>
+> ⚠️ **O limiar mora no SERVIÇO, não na view**: as duas telas e o JS que repinta depois do voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a linha voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`. ⚠️ **E é DOIS, não uma proporção**: exigir maioria esconderia a leitura num jogo com 20 palpites espalhados, que é justamente onde saber o mais votado interessa — a contagem ao lado ("2 de 3") é o que deixa quem lê julgar o peso.
+>
+> 2️⃣ **"CRAVAR" É O VERBO DO RANKING** (acertar o placar exato, depois do jogo, valendo 3 pontos). Emprestá-lo pra uma aposta fazia a tela anunciar veredito e usava a mesma palavra pra duas coisas. Virou **"Placar mais palpitado: 6 x 4 (2 de 3)"**.
+>
+> 🕳️ **O LIMIAR ESCANCAROU UM DEFEITO ANTIGO DA LISTA**: lá a linha era gerada por um `@if` do Razor, então ela só existia se já houvesse consenso — e o caso mais comum de passar a haver é **o seu palpite formando o par**. O `atualizarPalpitrometro` só sabe mostrar elemento que já está no DOM: sem F5, a leitura nunca aparecia. Agora ela nasce escondida, como no cartão grande. ⚠️ O CS8602 que isso gerou foi tratado com `r?.`, **não com `!`** — a linha passou a ser desenhada também no jogo sem palpite nenhum.
+>
+> 🔲 **E O MODAL GANHOU CAIXAS.** 🗣️ Felipe, num print com 14 nomes numa coluna: *"deixe um 'quadrado' ou algo assim, fica dificil ver quem fez o que nessa tela"*. Cada votante virou uma linha com moldura; quem **não** palpitou placar leva um traço no lugar da ficha (a coluna da direita esburacada parecia defeito); e o nome de cada dupla ganhou a contagem (`Bianca / Eduardo · 3`), que é o que diz de cara pra que lado a galera pendeu.
+>
+> 🧪 **6.400 testes, 0 falhas (5 novos).** Vistos vermelhos antes: os do limiar em *"Assert.False() Failure"*, o da redação em *"Sub-string not found: Placar mais palpitado"*, o da linha no DOM em *"Not found: style=\"display:"*, e o do modal em *"Not found: border"*. ⚠️ **Dois testes da sessão paralela foram ATUALIZADOS, não apagados** (`O_nome_do_votante_ocupa_UMA_LINHA_so` e `A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM`): a janela de 2.400 caracteres que eles liam a partir do `montarLista` ficou curta com os comentários novos — eles reprovavam por **corte**, com o código certo na frente. A janela foi pra 3.600 e ganhou a nota dizendo isso.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
 >
 > 🔤 **O SELETOR DE CATEGORIAS GANHOU ORDEM E ABRE NA CATEGORIA DE QUEM OLHA.** Duas queixas do Felipe sobre o seletor que subiu no `build-1024`: *"esta fora de ordem"* e *"venha sempre selecionado a categoria que o usuario esta cadastrado (se estiver em duas, vem na melhor delas 1>2>3>4)"*.
 >

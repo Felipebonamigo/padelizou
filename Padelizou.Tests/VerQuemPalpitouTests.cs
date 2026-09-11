@@ -109,6 +109,66 @@ public class VerQuemPalpitouTests
     }
 
     [Fact]
+    public void A_frase_do_consenso_nao_diz_mais_que_CRAVA()
+    {
+        // 🗣️ Felipe, 11/09/2026: *"aqui por que tem isso? nao sei se faz muito sentido"* — num
+        // jogo em que a frase dizia "A galera crava 9 x 5 (3 de 8)".
+        //
+        // ⚠️ "Cravar" é o verbo do RANKING: acertar o placar exato, depois do jogo, valendo 3
+        // pontos. Emprestá-lo pra uma aposta de 3 em 8 faz a tela anunciar veredito onde há
+        // pluralidade — e usa a mesma palavra pra duas coisas diferentes.
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        {
+            var fonte = Ler("Views", "Torneios", arquivo);
+
+            Assert.Contains("Placar mais palpitado", fonte);
+            Assert.DoesNotContain("A galera crava", fonte);
+        }
+    }
+
+    [Fact]
+    public void A_linha_do_consenso_NASCE_no_DOM_mesmo_sem_consenso()
+    {
+        // ⚠️ Ela precisa existir escondida, e não ser gerada por um `@if` do Razor: com o limiar
+        // de dois palpites (11/09/2026), o caso mais comum de a linha PASSAR a existir é
+        // justamente o seu palpite formando o par — e o `atualizarPalpitrometro` só sabe mostrar
+        // um elemento que já está na página. Sem isso, a leitura da galera só apareceria no F5.
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        {
+            var fonte = Ler("Views", "Torneios", arquivo);
+
+            // A TAG, e não a primeira menção: o comentário logo acima também cita a classe.
+            var inicio = fonte.IndexOf("pdz-palpite-consenso\"", StringComparison.Ordinal);
+            Assert.True(inicio >= 0, $"Não achei a tag da linha do consenso em {arquivo}.");
+
+            // O `display` sai do dado, na própria tag — é a chave que o JS vira depois do voto.
+            var trecho = fonte[inicio..Math.Min(fonte.Length, inicio + 220)];
+            Assert.Contains("style=\"display:", trecho);
+            Assert.Contains("TemPlacarMaisPalpitado", trecho);
+        }
+    }
+
+    [Fact]
+    public void Cada_votante_do_modal_e_uma_CAIXA_com_o_placar_no_mesmo_lugar()
+    {
+        // 🗣️ Felipe, 11/09/2026, num print do modal com 14 nomes numa coluna: *"deixe um
+        // 'quadrado' ou algo assim, fica dificil ver quem fez o que nessa tela"*.
+        //
+        // 🕳️ Eram linhas soltas, sem moldura, e o placar só existia em ALGUMAS delas — a coluna
+        // da direita ficava esburacada e o olho não sabia onde procurar. Com 14 palpites a lista
+        // vira um bloco de texto.
+        var js = Ler("wwwroot", "js", "palpitrometro.js");
+
+        // A moldura de cada linha.
+        Assert.Contains("rounded", js);
+        Assert.Contains("border", js);
+
+        // ⚠️ E o lugar do placar é SEMPRE o mesmo: quem não palpitou placar leva um traço, em
+        // vez de deixar o buraco que faz a coluna da direita parecer defeito.
+        Assert.Contains("sem-placar", js);
+    }
+
+    [Fact]
     public void O_modal_desenha_o_placar_de_cada_votante()
     {
         var js = Ler("wwwroot", "js", "palpitrometro.js");
@@ -173,7 +233,10 @@ public class VerQuemPalpitouTests
 
         var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
-        var trecho = js[inicio..Math.Min(js.Length, inicio + 2400)];
+        // ⚠️ A janela cresceu em 11/09/2026 junto com a função (a caixa de cada votante e o traço
+        // de quem não palpitou placar). Quando ela ficar curta o teste falha por CORTE, não por
+        // defeito — o sintoma é "Sub-string not found" com o código certo na frente.
+        var trecho = js[inicio..Math.Min(js.Length, inicio + 3600)];
 
         // ⚠️ `text-truncate` sozinho não corta nada dentro de um flex: sem `min-width:0` o item
         // se recusa a encolher abaixo do conteúdo e quem sai empurrado é a ficha do placar.
@@ -216,7 +279,8 @@ public class VerQuemPalpitouTests
 
         var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
-        var trecho = js[inicio..Math.Min(js.Length, inicio + 2400)];
+        // Mesma nota do teste acima: janela curta reprova por CORTE, não por defeito.
+        var trecho = js[inicio..Math.Min(js.Length, inicio + 3600)];
 
         // ⚠️ `width:28px` num filho de flex é só o TAMANHO BASE: sem travar o encolhimento a foto
         // redonda vira oval quando o nome é longo, e o "9 x 0" quebra em duas linhas.

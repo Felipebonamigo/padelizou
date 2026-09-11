@@ -462,7 +462,12 @@
             </div>
         }
 
-        @if (r != null && r.TemPlacarMaisPalpitado)
+        @* ⚠️ SEM `@if`: a linha NASCE na página, escondida quando ainda não há leitura da galera
+           (o mesmo desenho do cartão grande). Com o limiar de dois palpites no mesmo placar, o
+           caso mais comum de ela passar a existir é o SEU palpite formando o par — e o
+           `atualizarPalpitrometro` só sabe mostrar um elemento que já está no DOM. Gerada por
+           `@if`, a leitura da galera só apareceria no F5. *@
+        @if (mostraPalpitrometro)
         {
             @* 🗣️ Felipe, 10/09/2026, com esta frase marcada num print: *"tambem permita clicar
                e ver quem colocou o palpitometro e qual o placar"*. Ela é o lugar mais natural
@@ -471,7 +476,8 @@
                ⚠️ O `div` externo CONTINUA sendo o `pdz-palpite-consenso`: é ele que o JS acha
                pra mostrar/esconder e pra reescrever o placar depois do voto. O botão vai por
                dentro, senão o `style.display` do JS mandaria no botão e não na linha. *@
-            <div class="mt-1 small text-muted pdz-palpite-consenso">
+            <div class="mt-1 small text-muted pdz-palpite-consenso"
+                 style="display: @(r != null && r.TemPlacarMaisPalpitado ? "block" : "none");">
                 <button type="button" class="pdz-ver-votos"
                         data-partida-id="@jogo.Id"
                         data-nome1="@NomeDaDupla(jogo.Dupla1)"
@@ -479,8 +485,11 @@
                         title="Ver quem palpitou e o placar de cada um"
                         onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
                     <i class="bi bi-people"></i>
-                    A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-                    <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+                    @* ⚠️ `r?.` e não `r!.`: agora que a linha nasce escondida, ela é desenhada
+                       também no jogo sem palpite nenhum (`r` nulo). Os números ficam vazios, e
+                       quem os escreve na hora de mostrar é o JS. *@
+                    Placar mais palpitado: <strong class="pdz-consenso-placar">@r?.PlacarMaisPalpitadoLado1 x @r?.PlacarMaisPalpitadoLado2</strong>
+                    <span class="pdz-consenso-votos">(@(r?.PlacarMaisPalpitadoVotos ?? 0) de @(r?.PalpitesComPlacar ?? 0))</span>
                 </button>
             </div>
         }

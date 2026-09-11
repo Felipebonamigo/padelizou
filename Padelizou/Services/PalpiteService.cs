@@ -13,6 +13,9 @@ public class PalpiteService : IPalpiteService
         _context = context;
     }
 
+    // Quantos palpites no MESMO placar fazem uma leitura da galera. Ver o comentário no cálculo.
+    public const int MinimoParaOMaisPalpitado = 2;
+
     public async Task<Dictionary<int, PalpiteResumoVM>> ObterResumosAsync(IEnumerable<int> partidaIds, int? jogadorId)
     {
         var ids = partidaIds.ToList();
@@ -69,12 +72,26 @@ public class PalpiteService : IPalpiteService
             // O placar mais palpitado. ⚠️ A ordenação é TOTAL (votos, depois os dois lados):
             // com dois placares empatados, uma ordenação parcial faria a frase da tela trocar
             // sozinha entre dois carregamentos da mesma página.
+            //
+            // ⚠️ E SÓ EXISTE A PARTIR DE DOIS PALPITES NO MESMO PLACAR (11/09/2026). 🗣️ Felipe,
+            // apontando a frase num jogo com 3 de 8: *"aqui por que tem isso? nao sei se faz
+            // muito sentido"*. Sem limiar a tela anunciava como leitura da galera o palpite de
+            // UMA pessoa — e, com todos os placares diferentes, o "mais palpitado" era o
+            // desempate interno decidindo por sorteio qual 1 a 1 a 1 ganhava a frase.
+            //
+            // ⚠️ O limiar mora AQUI, e não na view: as duas telas e o JS que repinta depois do
+            // voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a
+            // linha voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`.
+            //
+            // ⚠️ É DOIS, e não uma proporção: exigir maioria esconderia a leitura num jogo com
+            // 20 palpites espalhados, que é justamente onde saber o mais votado interessa. A
+            // contagem ao lado ("2 de 5") é o que deixa quem lê julgar o peso.
             var maisPalpitado = comPlacar
                 .GroupBy(placar => (placar.Lado1, placar.Lado2))
                 .OrderByDescending(g => g.Count())
                 .ThenByDescending(g => g.Key.Lado1)
                 .ThenByDescending(g => g.Key.Lado2)
-                .FirstOrDefault();
+                .FirstOrDefault(g => g.Count() >= MinimoParaOMaisPalpitado);
 
             resultado[p.Id] = new PalpiteResumoVM
             {
