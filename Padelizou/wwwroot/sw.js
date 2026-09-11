@@ -19,7 +19,7 @@
 // as duas pontas escreveram o mesmo número. Quem avisou foi o comentário acima, que conflitou:
 // é literalmente a pista que o v29 deixou escrita aqui pra quem viesse depois. **Quem sobe o
 // número confere o `main` ANTES de escolher qual.**
-const CACHE_NAME = "padelizou-static-v30";
+const CACHE_NAME = "padelizou-static-v31";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

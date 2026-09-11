@@ -27,7 +27,53 @@
 >
 > ⚠️ **E O RANKING SE MOVE** (escolha do Felipe, com o custo na mesa): uma dupla pode passar à frente da outra semana que vem por ter jogado outro torneio, então a mesma tabela, com os mesmos jogos, pode mudar de 2º colocado depois de a chave estar montada. A alternativa era congelar o número no sorteio (migration), e ele preferiu entregar sem. O teto: o que vale é a chave já gerada.
 
-> **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
+>
+> 🔒 **O `dev` continua sem conferência por fora** (o gate de Acesso Antecipado redireciona o site inteiro lá): a evidência é o job `deploy → dev` verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho — mais o `/healthz` 200.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO PELA TERCEIRA VEZ NESTA SESSÃO** (`ac46898`: zero checks criados). Gatilho manual de novo. ⚠️ **Já são cinco ocorrências registradas neste arquivo** (26/08, 10/09 e três hoje) — se doer mais uma vez, vale investigar o `ci.yml` em vez de seguir apertando o botão.
+>
+> ✅ **E OS DOIS DISPAROS DE DEPLOY CRIARAM RUN DESTA VEZ** — conferido pelo run **e pelo nome do job** (`deploy → dev`, `deploy → prod`), que é o que prova o ambiente: o `204 queued` sozinho não garante nada (a nota de 10/09 e a de hoje mais cedo).
+>
+> 🧪 **6.565 testes, 0 falhas** depois de mesclar o `main` duas vezes no caminho (PRs #221 e #223, de sessões paralelas).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 🖼️ **"TUDO NUMA IMAGEM SÓ": A LISTA INTEIRA NUM PNG ALTO, ESCOLHIDO NA TELA.** 🗣️ Felipe: *"da para por a opção, para o jogador selecionar se nao quer todos os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a ressalva, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse"*.
+>
+> ⚠️ **A IMAGEM CRESCE PRA BAIXO, NUNCA ESPREME — a ressalva dele É a regra do recurso.** Espremer 33 jogos nos 1350px do story daria linha de 23px: a lista inteira numa imagem que ninguém lê, exatamente o que ele proibiu. A linha fica em 64px (legível) e o PNG fica alto: **33 jogos em 2 dias = 1080×2844**, onde hoje saem **quatro** artes. Os dias viram **pílulas lime** no meio da imagem (a pílula que o card do story perdeu pro espaço, de volta onde ela serve).
+>
+> 🚧 **O TETO É DE 10.000px, E É ELE QUE FAZ A OPÇÃO SUMIR** em vez de entregar imagem ilegível: acima disso o WhatsApp reamostra e o celular engasga — *"uma imagem que não abre não é mais fácil que três que abrem"*. Passando do teto, a tela **diz por quê** e sugere filtrar; quem precisa continua com as partes. ~150 jogos é o limite prático (o Er inteiro tem 97).
+>
+> 🎛️ **A ESCOLHA É DE TELA, e por isso mora FORA de `Filtros`** (`umaImagem` na query da página, `tudo=true` no endpoint da imagem). A planilha e o texto nem sabem que ela existe — e o alternador só aparece quando há **mais de uma arte**: com uma só, os dois botões dariam a mesma imagem.
+>
+> ♻️ **A LINHA DO JOGO VIROU UM MÉTODO SÓ** (`CartaoDosJogos.Linha`), usado pelos dois formatos. Duas cópias divergiriam na primeira mudança, e a lista postada num formato passaria a não bater com a do outro. O `CartaoCompartilhavel` ganhou **altura** em `Fundo`, `Rodape` e `EmPng` (o padrão continua 1350): sem isso o gradiente terminava em 1350 e o resto do PNG saía **preto**. E o pé passou a ser medido **da base**, pros dois formatos terminarem igual.
+>
+> 🧪 **6.565 testes, 0 falhas (7 novos)** + `conferir-palpitrometro.js` verde. Vermelho visto antes: *"'CartaoDosJogos' does not contain a definition for 'AlturaDaImagemUnica'"*. E um vermelho **no dado, não na regra**: medi a diferença de altura com 10 jogos, que caem no **piso de 1350** (o formato do story) — com 20 a conta mede o que devia medir.
+>
+> 🖥️ **UI RODADA**: com 25 jogos semeados no banco local, a tela mostrou **3 artes**, o alternador apareceu, e o clique em "Tudo numa imagem só" devolveu **`image/png` de 413 KB, 1080×2332**, com `public, max-age=3600`. As faixas dos dois dias aparecem no meio da imagem.
+
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+>
+> 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
+>
+> 🕳️ **O QUE INCOMODAVA NÃO ERA O VERDE, ERA O HALO.** A primeira versão tinha um `box-shadow` de **6px** espalhando luz em volta (`rgba(216,233,74,.55)`) e um ponto especular forte no gradiente. Somados, leem como **luzinha acesa**, não como bola — e o olho vai nela antes de ir no placar, que é o oposto do que ela existe pra fazer.
+>
+> ✅ **Bola de padel é FOSCA: o que dá volume nela é a SOMBRA DE CONTATO embaixo-à-direita, não o reflexo.** São duas camadas de `radial-gradient` (a sombra por cima, o feltro por baixo), o halo caiu de 6px pra **2px** e a costura saiu do branco de farol pro **creme** (`rgba(250,250,236,.9)`). O amarelo optic é praticamente o mesmo — é ele que deixa a bola achável de relance no meio do jogo, e mexer nele era passar do ponto que o Felipe pediu.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (headless, com o `site.css` de verdade e o fundo navy do card ao vivo): quatro variantes renderizadas lado a lado no tamanho real (13px) e ampliadas, antes de escolher. **É a primeira coisa desta sessão que foi VISTA numa tela** — o resto foi tudo teste.
+>
+> 🧪 **6.558 testes, 0 falhas** + `conferir-palpitrometro.js` verde. **Sem teste novo, de propósito**: isto é gosto, não defeito — um `Assert` em código hexadecimal travaria a próxima troca de cor sem proteger nada. Os testes que já existem (`.pdz-bolinha-apagada` e `.pdz-saque-toque` no CSS) continuam segurando a estrutura.
+>
+> 🧹 **`CACHE_NAME` → `v31`** (mexeu no `site.css`). É a lição de hoje de manhã aplicada sem ninguém precisar lembrar.
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO DE NOVO** neste branch (nem no push nem no PR), pela segunda vez hoje — disparado na mão pelo `workflow_dispatch`, runs 1131 e 1134. E o `main` andou **duas vezes** durante o ciclo (PRs #213, #214 e #215): as duas mesclas conflitaram só no `STATUS.md`, no lugar de sempre.
 >
 > 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
 >
@@ -43,9 +89,43 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
+> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** ⏳ **NO BRANCH `claude/inspiring-goodall-ihmmb1`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com o print da prévia de 2 grupos ocupando o monitor inteiro: *"ficou muito esticado, nao tem pq e fica feio, deixe em um tamanho normal que fique bonito"* — e, logo depois, *"Talvez seja melhor fazer tambem da esquerda pra direita, ao inves de cima para baixo, ficará mais alinhado"*.
+>
+> 🕳️ **O ESTICADO NÃO ERA UM `width` ESQUECIDO: ERA A GEOMETRIA.** O quadro do computador (`.pdz-arv`) era uma grade de **N colunas, N = jogos da rodada mais larga**. Com 2 grupos são **2 colunas**, cada uma metade do monitor — cartão de **~870px** pra escrever "1º do Grupo A", e a final ocupando as duas. Nenhum cap de largura conserta isso sozinho: com o cartão capado em 17rem os dois cartões ficam **centralizados em meia tela cada**, com 700px de linha de ligação entre eles. **Foi renderizado e olhado antes de escolher.**
+>
+> ✅ **AGORA É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA NAS DUAS TELAS.** A rodada é uma **coluna de 17rem** e o que muda por largura é só o TRILHO: no celular encaixa (`scroll-snap`) com a seguinte espiando na beirada; no computador (`@media (min-width: 768px)`) a chave inteira está à vista, sem encaixe, centralizada por `width: fit-content` + `margin-inline: auto`. **O `.pdz-arv` inteiro foi apagado** — marcação e CSS.
+>
+> ⚠️ **`justify-content: center` NÃO SERVE AQUI**: num container que rola, ele esconde o COMEÇO do conteúdo e não há barra pra voltar. `fit-content` + margem automática centraliza enquanto cabe e vira 100% quando não cabe — medido: a chave de 8 jogos a 800px rola até o fim e volta com a primeira rodada em x=24.
+>
+> 📏 **17rem POR RODADA, MEDIDO, não escolhido no olho.** A linha `.pdz-chave-quando` é `nowrap; overflow: hidden` **sem reticências**, então cartão apertado come o nome do clube calado. Cartão de 264px → `Er Padel · Arena Loja 7` inteiro nos 15 cartões da chave de 16. A 16rem já perde **3px**; a 15rem, **19px**; a 13rem, **51px**. E o desenho antigo, na chave de 8 jogos a 1440px, dava cartão de **166px** — cortava o clube em todas as oitavas.
+>
+> 🧪 **6.559 testes, 0 falhas** + as 2 conferências do JS verdes. O `QuadroDaPreviaTemOsDoisDesenhosTests` (que travava "no pc é de cima pra baixo") virou `QuadroDaPreviaDeitaNasDuasTelasTests`. **3 vistos vermelhos antes da correção**: *"Not found: class=\"pdz-chd\""*, *"Não achei o @media da prévia no computador"* e *"Not found: pdz-chd-fichas d-md-none"*.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, nos dois temas, a 1440px / 820px / 390px: cartão 264px e **corte 0** no computador; celular **sem mudança nenhuma** (o `@media` começa em 768px). ⚠️ **A armadilha do headless de novo**: `.pdz-chd-trilho` tem `scroll-behavior: smooth`, e o `:root { scroll-behavior: auto }` da página de medição **não alcança** — a rolagem não terminava e o trilho parecia travado em `scrollLeft = 0`. Quem for medir rolagem DELE tem que forçar `auto` **no seletor dele**.
+
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
+>
+> 🕳️ **A CAUSA É UMA VARIÁVEL QUE NÃO EXISTE — e é verdade estrutural, não caso isolado.** O Bootstrap 5.3 escreve `.card-body { padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x) }` e declara as duas variáveis **dentro da regra do `.card`**. O card do Ao Vivo é `.pdz-live-card`, casa nossa — ali as duas não existem, a declaração inteira fica inválida no cálculo e o padding cai pro **valor inicial: zero**. Sem erro, sem aviso: o bloco encosta nos quatro lados. **Vale igual pra `.card-header`, `.card-footer` e `.card-img-overlay`.**
+>
+> ⚠️ **E SÓ DAVA NO COMPUTADOR**, que é por que durou: o `site.css` tem `.card-body { padding: 1.15rem !important }` dentro do `@media (max-width: 767px)` — no celular o `!important` tapava o buraco.
+>
+> ✅ **`.pdz-live-palpite { padding: .5rem 1.1rem 1rem }`** no lugar do `card-body pt-2`. O 1.1rem não foi escolhido: é o do `.pdz-live-header` e o do `.pdz-live-video-label`, e é o que alinha o "Palpitrômetro" com o "Transmissão" logo acima. Nada de ensinar as variáveis do `.card` ao cartão — seria carregar um componente inteiro pra pegar dois números.
+>
+> 🔎 **"VEJA SE TEM MAIS ALGO ASSIM": varri as 8 famílias do Bootstrap cujo espaçamento vem de variável do pai** (`card-*`, `accordion-*`, `modal-*`, `list-group-item`, `dropdown-item`, `toast-body`, `nav-link`, `page-link`) em todas as views, com pilha de tags. **Deram 28 apontamentos e um só é defeito** — este. Os 27 restantes são template dentro de `<script>` (o pai nasce no JS, noutro lugar da página), partial cujo pai está no chamador (`_SetasDaOrdem`, `_LinhaDoCheckIn`, `_PessoaNaRede`, `MenuDesafios`) e `.nav-link` dentro de `.navbar-nav`, que declara as vars dele.
+>
+> 🚦 **GATE MECÂNICO NOVO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `Nenhuma_view_usa_peca_de_card_fora_de_um_card` monta a pilha de tags de toda `.cshtml` e quebra se uma peça de card aparecer sem `.card` por cima. Só a família `card-*` — é a que quebrou, e é a única que hoje dá **zero** falso positivo. Comentário do Razor e `<script>` ficam de fora.
+>
+> 🧪 **6.564 testes, 0 falhas (6 novos, em `PalpitrometroColadoNaBordaTests`)** + **14 conferências** no JS. Os 6 vistos vermelhos antes, pelos motivos certos: *"Sub-string found: card-body"*, *"não achei a regra .pdz-live-palpite no site.css"* (×3) e o gate apontando exatamente `_JogosDoTorneio.cshtml:659` — **um só**, que é a prova de que não tinha mais nenhum.
+>
+> 🖥️ **MEDIDO NO CHROMIUM**, com o `site.css` e o `bootstrap.min.css` de verdade, os dois cards lado a lado: a 1280px o "Palpitrômetro" saiu de **1,0px** da borda pra **18,6px** — os mesmos 18,6px do "Transmissão" — e o "12 voto(s)" de **5px** pra **21px** do fim do card. Abaixo de 768px, onde o `!important` já tapava: 18,3px → **17,5px**, agora batendo com o rótulo da transmissão em vez de 0,8px fora.
+
 > **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
 
-> **11/09/2026** — ⏳ **NO BRANCH `claude/exciting-rubin-ga3ovw`.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1132-17beb25`** (runs 246 e 247). PR #214. ✅ **SEM MIGRATION.**
 >
 > 🎯 **O CARD DO JOGO, DENTRO DO CARD DO GRUPO, GANHOU DESTINO E TERCEIRO ESTADO.** 🗣️ Felipe, com o print do Grupo C: *"permita clicar no aovivo e ir para a pagina do aovivo aonde esta o jogo"* · *"e o que estiver finalizado deixe um circulo parecido com o do aovivo, só que outra cor q mostre q foi finalizado, direfernte do aovivo e do aguardando ainda"*.
 >
@@ -58,6 +138,10 @@
 > 👀 **E DE NOVO FOI OLHAR A TELA**, no Chromium do container, com o `site.css` e o `bootstrap.bundle.min.js` de verdade: as duas abas abrindo, o card centralizado (`scrollY` 585, card no 397 de uma janela de 613) e os três estados nos dois temas.
 >
 > 🕳️ **ARMADILHA NOVA PRA QUEM MEDIR TELA NO HEADLESS, e custou meia hora**: o Bootstrap declara `:root { scroll-behavior: smooth }`, e **rolagem suave não termina** com `--virtual-time-budget` — `window.scrollTo(0, 500)` devolve `scrollY = 0` e parece defeito do código. A página sem Bootstrap rolava; a com Bootstrap, não. Quem for medir ROLAGEM: force `scroll-behavior: auto` **na página de medição**, nunca no site.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **56 cards de jogo do grupo já saindo como `<a class="pdz-grupo-jogo">`**, o `pdzIrProJogoDaHash` na página e a regra `.pdz-chave-encerrado { color: #2e9e5b }` no `/css/site.css` servido.
+>
+> ⚠️ **OS DOIS ESTADOS NOVOS NÃO PUDERAM SER VISTOS EM PRODUÇÃO, e não é defeito: é o DADO.** No minuto do deploy o Er estava com os **56 jogos de grupo agendados** — zero ao vivo e zero finalizado (`pdz-chave-venceu`, `pdz-grupo-jogo-aovivo` e `href="#jogo-"`: todos em 0). Sem jogo naqueles status, o `href` e o selo não têm quando nascer. A prova visual é a do Chromium acima; **a de produção fica pra próxima rodada de jogos** — quem passar por aqui com o torneio rolando, confira.
 >
 > 🧪 **6.556 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
 
@@ -78,11 +162,13 @@
 > ⚠️ **DECISÃO PENDENTE DO FELIPE**: `Torneio.ClassificadosPorGrupo` não é lido por ninguém agora — só a `DuplicacaoDeTorneio` o copia. Virar o padrão do torneio dentro da régua (⚠️ muda a CHAVE de todo torneio cuja coluna não seja 2) ou sair numa migration.
 >
 
-> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138). PR #213. ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138) **e em `prod` no `build-1148-c3ff4b3`** (run 34638587687). PR #213. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**; o `/css/site.css` servido traz as duas regras novas (`.pdz-live-placar-venceu`) e **zero** ocorrência de `pdz-live-placar-ganhando`; o `.pdz-live-input` e o `.pdz-live-passo` chegam com `background: var(--pdz-navy-fixed)`, `color: #fff` e borda `rgba(255,255,255,.18)`; o `/js/placar-ao-vivo.js` traz `linha.vencedor`; e o `/sw.js` já está em `padelizou-static-v30`. ⚠️ **A TELA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/...` responde 302. A prova visual do card é a local, com o app de verdade e o Chromium.
 >
-> ⏭️ **PROD NÃO FOI PUBLICADO** (Regra 3: testar no `dev` antes): `padelizou.com.br` continua pintando de verde quem está só GANHANDO, e com o placar invisível pra quem usa o tema claro. É um disparo só — Actions → Deploy → `ambiente: prod`, `build: build-1125-5f5c53d` —, e o environment `prod` ainda pede a aprovação obrigatória.
+> ✅ **E EM PROD TAMBÉM, DE CARONA NO DEPLOY DE OUTRA SESSÃO.** 🗣️ *"publica em prod tambem"* — e ao conferir antes de disparar, já estava lá: o `build-1148-c3ff4b3` foi pro `prod` às 19:23:52Z (*"Feito. build-1148-c3ff4b3 no ar em prod"*), e o merge deste trabalho é **ancestral** dele. Conferido no ar em `padelizou.com.br`: `/healthz` **200**, `/css/site.css` com as duas regras `.pdz-live-placar-venceu` e **zero** `pdz-live-placar-ganhando`, o `.pdz-live-input` com `background: var(--pdz-navy-fixed)` e borda `rgba(255,255,255,.18)`, o `/js/placar-ao-vivo.js` com `linha.vencedor` e o `/sw.js` em `padelizou-static-v30`.
+>
+> ⚠️ **NÃO DISPAREI UM SEGUNDO DEPLOY, e o motivo é a regra:** mandar o `build-1125-5f5c53d` (o meu) pro `prod` depois disso **rebaixaria** o ar — tiraria o #214, o #217 e tudo que entrou entre um e outro. **Num repositório com várias sessões publicando no mesmo dia, "publicar o meu build" e "publicar o mais recente" deixam de ser a mesma coisa** — conferir o que já está no ar ANTES de disparar é o que separa as duas.
 >
 > 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
 >
@@ -227,7 +313,13 @@
 >
 > 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
 
-> **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** ⏳ **NO BRANCH `claude/wonderful-pasteur-bkqy9o`.** ✅ **SEM MIGRATION.**
+> **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1105-1eedb7c`** (runs 235 e 236 do Deploy, 17h42 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #207. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, NA PÁGINA DE VERDADE E COM RÉGUA** — o HTML anônimo de `padelizou.com.br/Torneios/Details/26` (939 KB) renderizado no Chromium com o **`site.css` servido por produção**: **24 tabelas** de grupo com `pdz-grupo-tabela`, **zero** `max-width: 180px`, e as colunas medidas em **265 / 30 / 30 / 30 / 42 px** a 1700px. Dos **128 nomes** da tela, **só 1 ainda trunca** ("Arthur Prass (Batatinha)"); a 390px a coluna do nome fica com 152px e nenhuma tabela rola de lado. `/healthz` **200** e `sw.js` em **`padelizou-static-v29`** nos dois ambientes.
+>
+> ⚠️ **O `prod` FOI DISPARADO POR OUTRA SESSÃO, 21 SEGUNDOS DEPOIS DO MEU `dev` — e com a MESMA tag.** Deu certo por coincidência: o `build-1105` era o mais recente, então o "mais recente" dela e o meu nome explícito apontavam pro mesmo pacote. Com um merge a mais no meio, teriam apontado pra pacotes diferentes, e `dev` e `prod` divergiriam sem ninguém notar. **Quatro sessões publicando no mesmo dia pedem a tag explícita SEMPRE** — o `deploy.yml` só serializa por ambiente (`concurrency: deploy-<ambiente>`), não escolhe versão por você.
+>
+> 🔴 **O JOB "Pacote de deploy" DO CI FICOU VERMELHO, E O PACOTE ESTÁ CERTO:** o release `build-1105-1eedb7c` foi criado com sucesso e o passo seguinte — o que apaga releases fora dos 20 últimos — morreu em `HTTP 404: Reference does not exist (.../tags/build-1050-a22347e)`, com `exit 123` do `xargs`. É **corrida entre runs simultâneos**: outro run já tinha apagado aquela tag, e o `gh release delete` de quem chegou depois não encontra mais nada. Não afeta artefato nem deploy; **o conserto é tolerar a tag ausente na limpeza** (um `|| true` no `xargs`, ou conferir antes de apagar), e ficou pendente.
 >
 > 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
 >
