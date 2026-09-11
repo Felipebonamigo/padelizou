@@ -94,12 +94,32 @@
             <span class="d-block">@TempData["ProximoJogoQuem"]</span>
             <small class="opacity-75">@TempData["ProximoJogoQuando"]</small>
         </div>
-        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-padel fw-bold">
+        @* MESMA REGRA DO PLAY DA LINHA (11/09/2026): com quadra, pergunta; sem quadra, abre o
+           modal pra escolher onde. Este botão nasceu antes da regra e botava o jogo no ar
+           direto -- um único botão de começar sem pergunta é a inconsistência que a pessoa
+           encontra no clique seguinte. *@
+        @{ var quadraDoProximo = TempData["ProximoJogoQuadra"] as string; }
+        @if (string.IsNullOrWhiteSpace(quadraDoProximo))
+        {
+            <button type="button" class="btn btn-padel fw-bold"
+                    data-bs-toggle="modal" data-bs-target="#modalIniciarJogo"
+                    data-jogo-id="@proximoJogoId"
+                    data-jogo-rotulo="@TempData["ProximoJogoQuem"]">
                 <i class="bi bi-play-fill"></i> Começar agora
             </button>
-        </form>
+        }
+        else
+        {
+            <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post"
+                  data-confirmar="O jogo entra AO VIVO na @quadraDoProximo e o cronômetro começa a contar agora."
+                  data-confirmar-titulo="Começar este jogo?"
+                  data-confirmar-ok="Começar">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-padel fw-bold">
+                    <i class="bi bi-play-fill"></i> Começar agora
+                </button>
+            </form>
+        }
     </div>
 }
 
