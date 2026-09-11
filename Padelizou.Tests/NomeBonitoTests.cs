@@ -280,6 +280,19 @@ public class NomeBonitoTests
             "Nome de pessoa escrito cru no perfil:\n" + string.Join("\n", cruas));
     }
 
+    [Fact]
+    public void O_apelido_no_perfil_tambem_passa_pelo_NomeBonito()
+    {
+        // 🗣️ "mas o apelido redundante fora, aparece se eu for no perfil da pessoa?" — aparece,
+        // e é pra aparecer: ali ele é o CAMPO do cadastro, não enfeite do nome. 🕳️ Só que saía
+        // cru: quem digitou "PUJOL" via "PUJOL" gritado logo embaixo de um nome com a caixa já
+        // arrumada, desencontrado na mesma linha de código.
+        var fonte = File.ReadAllText(CaminhoDoPerfil());
+
+        Assert.DoesNotContain("\"@Model.jogador.Apelido\"", fonte);
+        Assert.Contains("NomeBonito.Formatar(Model.jogador.Apelido)", fonte);
+    }
+
     private static string CaminhoDoPerfil()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

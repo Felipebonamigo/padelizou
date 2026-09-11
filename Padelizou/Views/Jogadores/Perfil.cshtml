@@ -39,7 +39,11 @@
             @Model.jogador.NomeNaTela
             @if (!string.IsNullOrWhiteSpace(Model.jogador.Apelido))
             {
-                <span class="d-block fs-6 fw-normal text-muted">"@Model.jogador.Apelido"</span>
+                @* ⚠️ O apelido é um CAMPO do cadastro aqui, e não o parêntese colado no nome das
+                   listas: ele aparece sempre, mesmo quando repete o sobrenome, porque é desta
+                   tela que a pessoa o edita. Só a caixa se arruma — senão um "PUJOL" digitado
+                   em caixa alta grita embaixo de um nome já formatado. *@
+                <span class="d-block fs-6 fw-normal text-muted">"@Padelizou.Services.NomeBonito.Formatar(Model.jogador.Apelido)"</span>
             }
             @if (!perfilBloqueado && (int)ViewBag.Titulos > 0)
             {
