@@ -191,6 +191,22 @@
                 @* Torneio por ordem de liberação: não há hora, e inventar uma seria mentir. *@
                 <strong>por ordem</strong>
             }
+
+            @* COMEÇOU, TERMINOU E QUANTO DUROU, debaixo do horário previsto (Felipe,
+               11/09/2026: "coloque também o tempo de duração da partida, em baixo do horario
+               previsto (...) mas nao pode ocupar muito a tela, nao podemos poluir muito").
+
+               ⚠️ É também o que torna LEGÍVEL a ordem das Finalizadas: a lista é ordenada pelo
+               fim real, e o card mostrava só o horário PREVISTO — quem varria a tela lia
+               "21:20 · 20:30 · 22:05" e concluía que a ordem tinha quebrado. Ver
+               Services/DuracaoDoJogo, que é a mesma régua dos dois.
+
+               Uma linha de ~20 caracteres em .7rem, e NULA no jogo que não entrou em quadra:
+               a lista de Agendadas, que usa este mesmo card, não ganha nada. *@
+            @if (Padelizou.Services.DuracaoDoJogo.Rotulo(jogo) is { } duracao)
+            {
+                <span class="pdz-jl-durou">@duracao</span>
+            }
         </span>
 
         <span class="pdz-jl-etiquetas">
