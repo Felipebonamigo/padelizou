@@ -1,4 +1,23 @@
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/eager-euler-q1xnm4`, ainda não publicado.** **Sem migration.**
+# Padelizou — Status e Roadmap
+
+> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1121-dc88f91`** (runs 243 e 244, 18h30 e 18h33 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #212. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o botão **"O que cada um precisa para passar"** no card do grupo, com o pop-up que diz a cada dupla qual placar ela precisa fazer; e as **vagas por grupo viraram régua única** (`ClassificacaoDeGrupos.VagasPorGrupo`), que conserta a tela de Classificação discordando do chaveamento em categoria de TIMES.
+>
+> ✅ **CONFERIDO NO AR** (`padelizou.com.br/Torneios/Details/26`, anônimo, por `curl`): **8 botões** e **8 modais** `oQuePrecisa-*` na página — um por grupo com um jogo faltando. `/healthz` **200** nos dois ambientes. O pop-up do Grupo A (`oQuePrecisa-122`) veio com o texto certo montado de dado real: *"Falta um jogo: Marcos Coelho & Marcio Rafael x Marcelo Konflanz & Milton Portolan"*, os dois com o selo **Classificado** e o cenário **"Qualquer resultado"**.
+>
+> ⚠️ **O CAMINHO "DEPENDE" — o do print do Felipe — NÃO FOI VISTO NO AR, e é por falta de caso, não por falha**: os 8 grupos com um jogo faltando estão todos no estado em que o último jogo não decide vaga nenhuma. A frase *"Passa vencendo por 5 games ou mais"* está provada pelos 13 testes e pelo Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade**.
+>
+> ⚠️ **O `dev` SÓ FOI PROVADO PELO `/healthz`**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve 302 pro login para quem é anônimo. Quem provou o Razor foi a `prod`.
+>
+> 🧪 **6.530 testes, 0 falhas (20 novos)** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (dois merges: o `main` andou no meio do CI).
+>
+> 🕳️ **O TÍTULO E A LINHA "DOCUMENTO VIVO" DESTE ARQUIVO FORAM RESTAURADOS AQUI.** O merge do PR #213 (`06465fc`, resolvendo conflito contra o meu #212) comeu as duas primeiras linhas — e uma delas é justamente a que manda toda sessão atualizar o STATUS ao fim do bloco. Conflito no topo deste arquivo é rotina (toda sessão escreve ali); **resolver mantendo as duas entradas e o cabeçalho** é o que não pode se perder.
+>
+> ⚠️ **DECISÃO PENDENTE DO FELIPE**: `Torneio.ClassificadosPorGrupo` não é lido por ninguém agora — só a `DuplicacaoDeTorneio` o copia. Virar o padrão do torneio dentro da régua (⚠️ muda a CHAVE de todo torneio cuja coluna não seja 2) ou sair numa migration.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/eager-euler-q1xnm4`, ainda não publicado.** **Sem migration.**
 >
 > 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
 >
