@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
+>
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+>
+> 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
+>
+> 🕳️ **O QUE INCOMODAVA NÃO ERA O VERDE, ERA O HALO.** A primeira versão tinha um `box-shadow` de **6px** espalhando luz em volta (`rgba(216,233,74,.55)`) e um ponto especular forte no gradiente. Somados, leem como **luzinha acesa**, não como bola — e o olho vai nela antes de ir no placar, que é o oposto do que ela existe pra fazer.
+>
+> ✅ **Bola de padel é FOSCA: o que dá volume nela é a SOMBRA DE CONTATO embaixo-à-direita, não o reflexo.** São duas camadas de `radial-gradient` (a sombra por cima, o feltro por baixo), o halo caiu de 6px pra **2px** e a costura saiu do branco de farol pro **creme** (`rgba(250,250,236,.9)`). O amarelo optic é praticamente o mesmo — é ele que deixa a bola achável de relance no meio do jogo, e mexer nele era passar do ponto que o Felipe pediu.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (headless, com o `site.css` de verdade e o fundo navy do card ao vivo): quatro variantes renderizadas lado a lado no tamanho real (13px) e ampliadas, antes de escolher. **É a primeira coisa desta sessão que foi VISTA numa tela** — o resto foi tudo teste.
+>
+> 🧪 **6.558 testes, 0 falhas** + `conferir-palpitrometro.js` verde. **Sem teste novo, de propósito**: isto é gosto, não defeito — um `Assert` em código hexadecimal travaria a próxima troca de cor sem proteger nada. Os testes que já existem (`.pdz-bolinha-apagada` e `.pdz-saque-toque` no CSS) continuam segurando a estrutura.
+>
+> 🧹 **`CACHE_NAME` → `v31`** (mexeu no `site.css`). É a lição de hoje de manhã aplicada sem ninguém precisar lembrar.
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
 >
