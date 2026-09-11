@@ -6242,9 +6242,24 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 var gruposDaCategoria = gruposEmOrdem.Select(g => g.Nome).ToList();
                                 @* O tamanho de cada grupo decide quem descansa — é assim que a
                                    prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
+                                @* E com o CRUZAMENTO DESENHADO, quando existe: sem ele o quadro
+                                   mostrava a semeadura do motor numa categoria que tem desenho,
+                                   prometendo um confronto que o sorteio não faria. *@
+                                @* 🗣️ *"o Grupo B já está definido, então já pode mudar, na
+                                   semifinal o 1º do B e o 2º do B"* — fechado o grupo, a
+                                   colocação vira NOME. Ver Services/ClassificadosJaConhecidos. *@
+                                var jogosDeGrupoDaCategoria = (ViewBag.JogosDeGrupo as List<Padelizou.Models.Partida>
+                                                               ?? new List<Padelizou.Models.Partida>())
+                                    .Where(p => p.CategoriaId == categoria.Id).ToList();
+                                var jaConhecidosNoQuadro = Padelizou.Services.ClassificadosJaConhecidos.De(
+                                    gruposEmOrdem, jogosDeGrupoDaCategoria,
+                                    Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria));
+
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
                                     gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
-                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
+                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
+                                    categoria.CruzamentoDoMataMata,
+                                    jaConhecidosNoQuadro);
 
                                 if (rodadasProjetadas.Count == 0)
                                 {

@@ -90,56 +90,59 @@ public static class QuadroDoMataMata
             var faseAtual = ordemDasFases[i];
             var reais = jogos.Where(j => j.Fase == faseAtual).OrderBy(j => j.Id).ToList();
             var vagas = new List<Vaga>();
-            string nomeDaFase;
 
-            if (reais.Count > 0)
+            if (reais.Count == 0 && entrantes.Count < 2) break;
+
+            // Fase com jogo REAL fica com o nome dos próprios jogos — com bye ela tem MENOS
+            // jogos que o quadro promete, e batizá-la pela contagem rebaixaria uma Primeira
+            // Rodada de 2 jogos a "Semifinal". Fase só futura é batizada pelo tamanho (vagas ×
+            // 2 lados), senão uma chave curta termina com a final rotulada "Quartas".
+            string nomeDaFase = reais.Count > 0 ? faseAtual : ChaveamentoMataMata.NomeFase(entrantes.Count);
+
+            // ⚠️ QUANTOS JOGOS ESTA FASE TEM QUANDO CHEIA — e não quantos já existem. Desde o
+            // avanço parcial (11/09/2026, Services/AvancoDaChave) uma fase fica um tempo PELA
+            // METADE: a Semifinal 1 nasce assim que a Quartas 1 termina, com a 2 ainda em
+            // quadra. Lendo só `reais.Count`, o quadro perderia a Semifinal 2 e a Final — e a
+            // chave pararia de mostrar o caminho justamente pra quem acabou de classificar.
+            // `Max` com os reais é rede: dado torto que traga mais jogo do que a rodada
+            // anterior comporta aparece no quadro em vez de sumir dele.
+            int esperados = Math.Max(reais.Count, entrantes.Count / 2);
+
+            var proximos = new List<Lado>();
+
+            for (int k = 0; k < esperados; k++)
             {
-                // Fase REAL fica com o nome dos próprios jogos — com bye ela tem MENOS
-                // jogos que o quadro promete, e batizá-la pela contagem rebaixaria uma
-                // Primeira Rodada de 2 jogos a "Semifinal".
-                nomeDaFase = faseAtual;
-
-                for (int k = 0; k < reais.Count; k++)
+                Vaga vaga;
+                if (k < reais.Count)
                 {
                     var jogo = reais[k];
-                    vagas.Add(new Vaga(numero, jogo, null, null, MeuJogo(jogo)));
-                    ondeEsta[numero] = (nomeDaFase, k + 1);
+                    vaga = new Vaga(numero, jogo, null, null, MeuJogo(jogo));
                     reaisTraduzidos.Add(new MeusJogos.JogoReal(
                         categoria, nomeDaFase, k + 1, MeuJogo(jogo), Perdido(jogo)));
-                    numero++;
+                    proximos.Add(new Lado(numero, null, VencedoraDe(jogo)));
                 }
-
-                entrantes = vagas
-                    .Select(v => new Lado(v.Numero, null, VencedoraDe(v.Jogo!)))
-                    .ToList();
-                // Os byes "somem sozinhos" quando a fase seguinte vira real (a dupla
-                // passa a ter jogo), então repetir o AddRange a cada fase real é inócuo.
-                entrantes.AddRange(byes.Select(b => new Lado(null, b)));
-            }
-            else
-            {
-                int quantos = entrantes.Count / 2;
-                if (quantos == 0) break;
-
-                // Fase FUTURA não tem jogos ainda: o nome sai do tamanho (vagas × 2
-                // lados), senão uma chave curta termina com a final rotulada "Quartas".
-                nomeDaFase = ChaveamentoMataMata.NomeFase(quantos * 2);
-
-                var proximos = new List<Lado>();
-                for (int k = 0; k < quantos; k++)
+                else
                 {
-                    var vaga = new Vaga(numero, null,
+                    vaga = new Vaga(numero, null,
                         entrantes[k], entrantes[entrantes.Count - 1 - k], EhMinha: false);
-                    vagas.Add(vaga);
-                    ondeEsta[numero] = (nomeDaFase, k + 1);
                     projetadosTraduzidos.Add(new ProximasFasesDaChave.JogoQueVem(
                         categoria, nomeDaFase, k + 1, null,
                         Traduzir(vaga.Lado1!), Traduzir(vaga.Lado2!)));
-                    proximos.Add(new Lado(vaga.Numero, null));
-                    numero++;
+                    proximos.Add(new Lado(numero, null));
                 }
-                entrantes = proximos;
+
+                vagas.Add(vaga);
+                ondeEsta[numero] = (nomeDaFase, k + 1);
+                numero++;
             }
+
+            // ⚠️ O BYE ENTRA UMA VEZ SÓ, na fase seguinte à que ele folgou. Antes o `AddRange`
+            // se repetia em toda fase real e era inócuo porque a lista de byes se esvaziava
+            // sozinha assim que a segunda fase nascia. Ela não se esvazia mais — é estável de
+            // propósito, pra sobreviver ao avanço parcial (ver AvancoDaChave) —, então quem
+            // filtra é aqui: sem isto, a Final sairia com quatro entrantes.
+            if (i == primeira) proximos.AddRange(byes.Select(b => new Lado(null, b)));
+            entrantes = proximos;
 
             fases.Add(new Fase(nomeDaFase, vagas));
 

@@ -2970,10 +2970,18 @@ a.pdz-grupo-jogo[href]:focus-visible {
     margin-bottom: .5rem;
 }
 
+/* ⚠️ GRID, E NÃO FLEX COM QUEBRA (11/09/2026). A linha da duração precisa cair EMBAIXO da
+   hora, e o jeito óbvio — `flex-wrap: wrap` mais um filho de `flex-basis: 100%` — MEDE errado:
+   sem largura definida, o navegador dimensiona a caixa pelo max-content SOMANDO os dois numa
+   linha só, e ela passava de 119px pra 237px. Medido no Chromium: a 600px de tela isso
+   empurrava as etiquetas de categoria/fase/quadra pra uma segunda linha que antes não existia
+   — exatamente o "não podemos poluir muito" do pedido. No grid a largura é a da MAIOR linha. */
 .pdz-jl-quando {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
     align-items: baseline;
-    gap: .35rem;
+    gap: .1rem .35rem;
     color: var(--pdz-ink);
     font-size: .82rem;
 }
@@ -2986,6 +2994,23 @@ a.pdz-grupo-jogo[href]:focus-visible {
    nenhum. Quem lê está de pé, no clube, com o celular numa mão. */
 .pdz-jl-quando strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .pdz-jl-quando span { color: var(--pdz-muted); font-size: .8rem; }
+
+/* COMEÇOU–TERMINOU · DUROU, debaixo do horário previsto (Felipe, 11/09/2026). É o dado que
+   EXPLICA a ordem das Finalizadas, que é pelo fim real — sem ele a lista parecia embaralhada.
+
+   ⚠️ O seletor precisa dos DOIS pontos (`.pdz-jl-quando .pdz-jl-durou`): `.pdz-jl-quando span`
+   ali em cima é classe + tipo, e empataria com uma classe sozinha — no empate ganha quem vem
+   depois, e a fonte da duração viraria a de .8rem da data.
+
+   `grid-column: 1 / -1` é o que põe a linha inteira embaixo da hora e do dia; `nowrap` impede
+   que "19:42–20:31 · 49 min" quebre no meio num celular estreito. */
+.pdz-jl-quando .pdz-jl-durou {
+    grid-column: 1 / -1;
+    color: var(--pdz-muted);
+    font-size: .7rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
 
 .pdz-jl-etiquetas {
     display: flex;
