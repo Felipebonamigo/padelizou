@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **"O QUE CADA UM PRECISA PARA PASSAR" CHEGOU AO CARD DO GRUPO, EM POP-UP.** 🗣️ Felipe, num print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o grupo de 3, ja tiveram 2 jogos e falta um, exiba botão 'O que cada um precisa para passar' e nele abre um pop up, explicando qual placar cada um precisa fazer para passar, por que as vezes cada dupla ganha um jogo ou enfim, e fica a duvida de quantos games precisa fazer para passar de fase"*.
+>
+> ♻️ **O MOTOR JÁ EXISTIA — e é o MESMO pedido, de 13/08/2026.** `Services/OQuePrecisaParaClassificar` simula todo placar possível do jogo que falta e pergunta à régua oficial (`ClassificacaoDeGrupos`, a que monta a chave) quem classifica em cada um. Só que vivia na tela `/Torneios/Classificacao` e **não** no card do grupo — que é de onde o print foi tirado. **Nenhuma matemática nova**: o trabalho foi levar o painel pra lá.
+>
+> 🆕 **O QUE FALTAVA PRO PEDIDO SER ATENDIDO DE FRENTE: A LINHA DE CADA DUPLA.** A tabela de cenários responde de lado (ache seu nome nas linhas e deduza). No Grupo B do print: **Eder/Augusto — "Já classificado"**; **Marcelo/Enio — "Passa vencendo ou se Paulo vencer por até 4 games"**; **Paulo/Arthur — "Passa vencendo por 5 games ou mais"**.
+>
+> ⚠️ **É 5, E NÃO 4 — e é exatamente por isso que o pedido existe.** Vencendo por 4 (9x5) o Paulo empata o saldo com o Marcelo em **−1**, e o 3º critério, games a favor, fica com o Marcelo: **14 a 13**. Ninguém faz essa conta de cabeça na beira da quadra.
+>
+> ♻️ **UMA PARCIAL SÓ (`_OQuePrecisaParaClassificar`) PRAS DUAS TELAS**, e o nome CURTO da dupla saiu da view pro serviço — a regra vivia copiada na Classificação, onde podia divergir da frase ao lado dela na mesma linha da tabela. A Classificação continua abrindo NO LUGAR (collapse) e o card abre em pop-up: **quem embrulha é quem chama**. O rótulo do botão virou um só, o do Felipe.
+>
+> ⚠️ **QUANTOS PASSAM SAI DE `categoria.ClassificadosPorGrupo ?? 2`** — o MESMO número do `AvancoDaChave`, que monta o mata-mata de verdade. A trava é `[Theory]` com 1 e 2 vagas, e precisa ser: `torneio.ClassificadosPorGrupo` nasce 2 e nenhuma tela o edita, então um painel que lesse o do TORNEIO passaria calado num teste só de duas vagas.
+>
+> 🕳️ **O MODAL NÃO PODE NASCER DENTRO DO CARD, e isso custou um SEGUNDO laço no Razor.** `site.css:712` dá `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do grupo é exatamente isso — ancestral com `transform` vira bloco de contenção do `position: fixed`. **Medido no Chromium**: dentro do card o pop-up virou **294x452 dentro de um card de 296px**; fora dele cobre a viewport inteira mesmo com o card sob o mouse.
+>
+> 🧪 **6.449 testes, 0 falhas (13 novos, em `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"The type name 'Situacao' does not exist"*, no `ViewBag.OQuePrecisaPorGrupo` nulo e nas três buscas de marcação. **Duas travas falsificadas**: trocar o campo das vagas pelo do torneio derruba o caso de 1 vaga, e juntar os dois laços do Razor derruba a conta de laços.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas, a 430px e a 1100px**: pop-up centrado, sem rolagem horizontal, as três linhas de dupla legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS e o `position: fixed`, não o Razor.
+>
+> ⚠️ **DIVERGÊNCIA LATENTE, ANOTADA E NÃO CONSERTADA**: a tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
 >
 > 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
 >

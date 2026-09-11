@@ -6007,6 +6007,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             }
                         }
 
+                        @{
+                            // O pop-up "O QUE CADA UM PRECISA PARA PASSAR" de cada grupo (🗣️ Felipe,
+                            // 11/09/2026, num print do Grupo B do 2ª Etapa ER Padel Tour: *"que o grupo
+                            // de 3, ja tiveram 2 jogos e falta um ... fica a duvida de quantos games
+                            // precisa fazer para passar de fase"*).
+                            //
+                            // A conta NÃO é daqui: vem pronta do controller, do mesmo motor que a tela
+                            // de Classificação já usava (Services/OQuePrecisaParaClassificar), que
+                            // simula o placar que falta e pergunta à régua oficial quem classifica.
+                            //
+                            // ⚠️ A chave é o Id DO GRUPO, não o nome: "Grupo A" existe em toda
+                            // categoria, e por nome o card da 4ª mostraria o que a 2ª precisa fazer.
+                            var oQuePrecisaPorGrupo = ViewBag.OQuePrecisaPorGrupo
+                                as Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>
+                                ?? new Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>();
+                        }
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -6119,10 +6135,52 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </div>
                                             }
                                         </div>
+                                        @* Só no grupo em que falta UM jogo: antes disso não há
+                                           resposta pra dar, e depois o grupo já acabou. *@
+                                        @if (oQuePrecisaPorGrupo.ContainsKey(grupo.Id))
+                                        {
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-bold"
+                                                        type="button" data-bs-toggle="modal"
+                                                        data-bs-target="#oQuePrecisa-@grupo.Id">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    O que cada um precisa para passar
+                                                </button>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             }
                         </div>
+                        @* ── OS POP-UPS, UM POR GRUPO ──────────────────────────────────────────
+                           ⚠️ FORA DOS CARDS, e é por isso que existe este segundo laço em vez de
+                           o modal nascer junto do botão: `site.css` dá
+                           `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do
+                           grupo é exatamente isso. Ancestral com `transform` vira bloco de
+                           contenção do `position: fixed` — dentro do card, o pop-up ficaria preso
+                           ao card e do tamanho dele no instante em que o dedo encostasse. *@
+                        @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
+                        {
+                            if (oQuePrecisaPorGrupo.TryGetValue(grupo.Id, out var quadroDoGrupo))
+                            {
+                                <div class="modal fade" id="oQuePrecisa-@grupo.Id" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    @grupo.Nome — o que cada um precisa para passar
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <partial name="_OQuePrecisaParaClassificar" model="quadroDoGrupo" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
 
                         </div>
                         }

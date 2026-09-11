@@ -947,7 +947,11 @@ namespace Padelizou.Controllers
                 // da classificação. Sem isso a tabela dizia "V 0 · D 0 · SG 0" sem nenhuma
                 // pista de quais jogos faltavam — e o placar já estava no sistema, só não
                 // aparecia onde a pessoa estava olhando.
-                ViewBag.JogosDeGrupo = await _context.Partidas
+                //
+                // ⚠️ Numa VARIÁVEL, e não só no ViewBag: o painel logo abaixo come da mesma
+                // lista, e ler de volta do `dynamic` seria um cast sem rede — mudou o tipo aqui,
+                // o erro só aparece em tempo de execução, na página mais visitada do site.
+                var todosOsJogosDeGrupo = await _context.Partidas
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                     .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
@@ -956,6 +960,50 @@ namespace Padelizou.Controllers
                              && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
                     .OrderBy(p => p.HorarioPrevisto).ThenBy(p => p.Id)
                     .ToListAsync();
+                ViewBag.JogosDeGrupo = todosOsJogosDeGrupo;
+
+                // "O QUE CADA UM PRECISA PARA PASSAR", por grupo — 🗣️ Felipe, 11/09/2026, num
+                // print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o
+                // grupo de 3, ja tiveram 2 jogos e falta um, exiba botão ... explicando qual
+                // placar cada um precisa fazer para passar ... fica a duvida de quantos games
+                // precisa fazer para passar de fase"*.
+                //
+                // O painel já existia na tela de Classificação desde 13/08/2026 (mesmo pedido,
+                // mesma conta): o que faltava era ele estar ONDE o print foi tirado. Motor único
+                // em Services/OQuePrecisaParaClassificar, que simula o placar que falta e
+                // pergunta à régua oficial quem classifica — nenhuma régua nova aqui.
+                //
+                // ⚠️ A CHAVE DO DICIONÁRIO É O Id DO GRUPO, e não o nome: "Grupo A" existe em
+                // TODA categoria do torneio, e um dicionário por nome faria o card da 4ª
+                // Masculina mostrar o que a 2ª precisa fazer.
+                //
+                // ⚠️ QUANTOS PASSAM sai de `categoria.ClassificadosPorGrupo ?? 2` — o MESMO
+                // número que o AvancoDaChave usa pra montar o mata-mata de verdade. Simular com
+                // outro promete vaga que a chave não vai dar, que é o defeito exato que o
+                // serviço foi escrito pra impedir.
+                var oQuePrecisaPorGrupo = new Dictionary<int, OQuePrecisaParaClassificar.Quadro>();
+                // O formato é do TORNEIO por fase (Services/FormatoDaPartida) — a categoria não
+                // tem o próprio, então a pergunta é feita uma vez só.
+                var formatoDosGrupos = FormatoDaPartida.De(torneio, FasesTorneio.FaseDeGrupos);
+
+                foreach (var categoria in torneio.Categorias)
+                {
+                    int passamDaCategoria = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+
+                    foreach (var grupo in categoria.GruposTorneio)
+                    {
+                        var idsDoGrupo = grupo.Duplas.Select(d => d.Id).ToHashSet();
+                        var doGrupo = todosOsJogosDeGrupo
+                            .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
+                            .ToList();
+
+                        if (OQuePrecisaParaClassificar.Montar(
+                                grupo.Duplas.ToList(), doGrupo, passamDaCategoria, formatoDosGrupos) is { } quadro)
+                            oQuePrecisaPorGrupo[grupo.Id] = quadro;
+                    }
+                }
+
+                ViewBag.OQuePrecisaPorGrupo = oQuePrecisaPorGrupo;
             }
 
             // SEGUIR O TORNEIO: o botão só existe pra quem JÁ ESTÁ INSCRITO (pedido do Felipe,
