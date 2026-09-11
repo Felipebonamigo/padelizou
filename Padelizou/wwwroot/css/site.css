@@ -2436,10 +2436,19 @@ button, a, input, select { touch-action: manipulation; }
     background: #fff;
 }
 
-/* Na tabela do grupo o escudo é a ÚNICA pista do time (lá o nome do time fica
-   escondido) e a coluna tem ~180px — 14px cabe ao lado do nome truncado sem
-   roubar letra dele. */
+/* Na tabela do grupo o escudo é a ÚNICA pista do time — lá o nome do time fica
+   escondido. Ele vai pro canto da foto, como no ao vivo (Felipe: "faça igual dos
+   jogos ao vivo, com o logo redondinho no canto da foto"), e encolhe junto: a
+   foto ali tem 26px contra os 36px do ao vivo, e o selo de 18px cobriria mais de
+   um terço do rosto. O tamanho abaixo vale também pro escudo ao lado do nome,
+   que é o que sobra numa tela compacta que não peça selo. */
 .pdz-chip-compacto .pdz-chip-escudo { width: 16px; height: 16px; }
+.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo {
+    width: 14px;
+    height: 14px;
+    right: -2px;
+    bottom: -2px;
+}
 
 /* O SELO: no card AO VIVO o escudo sai do lado do nome e vai pro canto da foto
    (Felipe, 11/09/2026: "e no ao vivo use esse do B"). Quem ancora o canto é a
