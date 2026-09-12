@@ -3,7 +3,7 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
 
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+> Última atualização: **12/09/2026** — 🛑 **SEGURADO ATÉ 02:30 DE 13/09 — NÃO MESCLAR, NÃO PUBLICAR.** O PR #287 está em **draft** de propósito: tem **migration** e tem **torneio rolando** (🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* · *"ele para hoje a meia noite/1 da manha e recomeça as 8 da manha de amanha"*). A publicação está agendada pro lembrete `trig_016694tELZ1FWDUirHGahfQD`, na janela sem jogos. **Isto vale também pra qualquer varredura automática**: o bloco está pronto e verde, e mesmo assim não vai agora. ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
 >
 > 🗣️ Dois pedidos que viraram **um bloco só**: *"na parte do checkin, quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima"* e, em seguida, *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"*.
 >
