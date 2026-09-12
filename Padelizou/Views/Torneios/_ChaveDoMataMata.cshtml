@@ -62,8 +62,9 @@
     }
 
     // A explicação do quadro, com os números DESTA chave. Sem ela, quem abre a tela vê
-    // "folgou a 1ª rodada" ao lado de um nome e não tem como saber por que aquela dupla
-    // ganhou a folga — nem que isso é normal em qualquer chaveamento.
+    // "folgou a 1ª" ao lado de um nome e não tem como saber por que aquela dupla ganhou a
+    // folga — nem que isso é normal em qualquer chaveamento. É esta caixa que carrega a
+    // explicação, e é por ela existir que a marca do cartão pode ser miúda.
     int duplasNaChave = 0, folgaram = 0;
     string faseDaFolga = "";
     if (temJogoReal && fases.Count > 0)
@@ -164,17 +165,25 @@
             {
                 @foreach (var lado in new[] { vaga.Lado1, vaga.Lado2 })
                 {
-                    @* O selo conta POR QUE aquele nome já está numa fase que ainda não
-                       aconteceu — a pergunta é a mesma nos dois casos, muda só a resposta.
-                       "Bye" é jargão de tabela de torneio: quem não é do meio não faz ideia
-                       do que significa, e era a única palavra da tela que precisava ser
-                       explicada. Na prévia não há selo nenhum: lá NINGUÉM tem nome, e a
-                       ausência de linha já conta quem passou direto. *@
+                    @* A marca conta POR QUE aquele nome já está numa fase que ainda não
+                       aconteceu. "Bye" é jargão de tabela de torneio: quem não é do meio não
+                       faz ideia do que significa, e era a única palavra da tela que precisava
+                       ser explicada — por isso ela é por extenso, e curta.
+
+                       ⚠️ MIÚDA E APAGADA, e não uma pílula. 🗣️ Felipe, com a chave nova no ar:
+                       *"esse 'folgou a primeira rodada' nao ficou legal"* e, logo depois, *"até
+                       pode ter algo, mas menor, que nao fique chamando tanto a atenção"*. Era
+                       lime com texto marinho em caixa alta — o MESMO verde que nesta tela quer
+                       dizer "o seu caminho", quatro vezes numa chave de 12 duplas. O estilo
+                       está travado em ChaveRealDesenhadaComoArvoreTests.
+
+                       Na prévia não aparece nenhuma: lá ninguém tem nome ainda, e a ausência de
+                       linha chegando na vaga já conta quem passou direto. *@
                     <span class="pdz-chave-lado @(lado?.ComNome != null || lado?.Rotulo != null ? "" : "text-muted")">
                         <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
                         @if (lado?.EhBye == true)
                         {
-                            <span class="pdz-chave-selobye">folgou a 1ª rodada</span>
+                            <span class="pdz-chave-selobye">folgou a 1ª</span>
                         }
                         else if (lado?.JaVenceu != null)
                         {
