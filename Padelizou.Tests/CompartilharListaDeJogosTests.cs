@@ -56,7 +56,7 @@ public class CompartilharListaDeJogosTests
         var jogo = P(1, Sexta, "Grupo D",
             D(J("Pedro Kirchner"), J("Carlos Morais")),
             D(J("Evandro Cunha"), J("Marcos Silva")));
-        var fila = OrdemNoHorario.Ordenar(new[] { jogo }, new[] { Previa(Sabado) });
+        var fila = OrdemNoHorario.Ordenar(new[] { jogo }, new[] { Previa(Sabado) }, new Dictionary<int, DateTime>());
 
         var lista = ListaDeJogos.Montar(fila, sedes: null, comPrevias: true);
 
@@ -87,7 +87,7 @@ public class CompartilharListaDeJogosTests
     public void Sem_previas_a_lista_so_tem_jogo_marcado()
     {
         var jogo = P(1, Sexta, "Grupo D", D(J("Ana Souza"), J("Bia Lima")), D(J("Carla Reis"), J("Dani Alves")));
-        var fila = OrdemNoHorario.Ordenar(new[] { jogo }, new[] { Previa(Sabado) });
+        var fila = OrdemNoHorario.Ordenar(new[] { jogo }, new[] { Previa(Sabado) }, new Dictionary<int, DateTime>());
 
         var lista = ListaDeJogos.Montar(fila, sedes: null, comPrevias: false);
 
@@ -102,7 +102,7 @@ public class CompartilharListaDeJogosTests
     {
         var jogo = P(1, Sexta, "Grupo A", D(J("Pedro Kirchner"), null), D(J("Ana Souza"), J("Bia Lima")));
 
-        var lista = ListaDeJogos.Montar(OrdemNoHorario.Ordenar(new[] { jogo }, Array.Empty<JogoQueVem>()), null, false);
+        var lista = ListaDeJogos.Montar(OrdemNoHorario.Ordenar(new[] { jogo }, Array.Empty<JogoQueVem>(), new Dictionary<int, DateTime>()), null, false);
 
         Assert.Equal("Pedro Kirchner / parceiro", lista[0].Lado1);
         Assert.Equal("Pedro / parceiro", lista[0].Lado1Curto);
@@ -114,7 +114,7 @@ public class CompartilharListaDeJogosTests
         var time = new Dupla { NomeTime = "Los Corneteiros", Jogador1 = J("Organizador"), Jogador1Id = 1 };
         var jogo = P(1, Sexta, "Rodada 1", time, D(J("Ana Souza"), J("Bia Lima")));
 
-        var lista = ListaDeJogos.Montar(OrdemNoHorario.Ordenar(new[] { jogo }, Array.Empty<JogoQueVem>()), null, false);
+        var lista = ListaDeJogos.Montar(OrdemNoHorario.Ordenar(new[] { jogo }, Array.Empty<JogoQueVem>(), new Dictionary<int, DateTime>()), null, false);
 
         Assert.Equal("Los Corneteiros", lista[0].Lado1);
         Assert.Equal("Los Corneteiros", lista[0].Lado1Curto);

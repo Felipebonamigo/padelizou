@@ -1373,6 +1373,28 @@ namespace Padelizou.Controllers
         // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
         // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
         // pros dois lugares não divergirem.
+        // QUEM JÁ CHEGOU, jogadorId → hora. É o que decide a ORDEM dentro do horário desde
+        // 12/09/2026 (Services/OrdemNoHorario): jogo com todos presentes vem antes de jogo que
+        // ainda espera alguém, porque o segundo não pode começar.
+        //
+        // ⚠️ SÓ ONDE A CHAMADA ESTÁ LIGADA. A guarda de `EhOrganizador` que existia aqui CAIU: a
+        // ordem da lista é a mesma pra todo mundo — o organizador, o jogador e o texto que vai pro
+        // grupo do WhatsApp —, e duas contas de "quem vem antes" é o que esta régua existe pra
+        // impedir. As bolinhas continuam presas ao organizador, no _JogoEmLinha.
+        private async Task<Dictionary<int, DateTime>> ChegadasDoTorneioAsync(int torneioId)
+        {
+            bool usaCheckIn = await _context.Torneios
+                .Where(t => t.Id == torneioId)
+                .Select(t => t.UsaCheckIn)
+                .FirstOrDefaultAsync();
+
+            if (!usaCheckIn) return new Dictionary<int, DateTime>();
+
+            return await _context.Presencas
+                .Where(p => p.TorneioId == torneioId)
+                .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm);
+        }
+
         private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
             FiltroDeJogos? sequencia = null)
         {
@@ -1507,8 +1529,10 @@ namespace Padelizou.Controllers
             // horario, siga a ordem automatica de a 1 vir antes da 2, mas permita q o usuario edite"*.
             // É a MESMA régua que as setas ↑↓ usam pra achar o vizinho: duas contas de "quem vem
             // antes" fariam a seta mover o jogo pra um lugar diferente do que a tela mostrou.
+            var chegadas = await ChegadasDoTorneioAsync(torneioId);
+
             ViewBag.Agendadas = OrdemNoHorario
-                .Ordenar(partidas.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Ordenar(partidas.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>(), chegadas)
                 .Select(l => l.Jogo!)
                 .ToList();
 
@@ -1678,14 +1702,9 @@ namespace Padelizou.Controllers
             // logo abaixo.
             ViewBag.UsaCheckIn = torneioDaTela?.UsaCheckIn == true;
 
-            // QUEM JÁ CHEGOU — só pra quem opera o dia e só onde a chamada está ligada. Sem as
-            // duas guardas, toda visita anônima à página mais visitada do site pagaria uma
-            // consulta que ninguém vai enxergar.
-            ViewBag.ChegadasNoTorneio = ViewBag.UsaCheckIn == true && ViewBag.EhOrganizador == true
-                ? await _context.Presencas
-                    .Where(p => p.TorneioId == torneioId)
-                    .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm)
-                : new Dictionary<int, DateTime>();
+            // A MESMA leitura que ordenou a lista lá em cima — não uma segunda consulta. Ver
+            // ChegadasDoTorneioAsync pro motivo de a guarda de organizador ter saído daqui.
+            ViewBag.ChegadasNoTorneio = chegadas;
 
             // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
             // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima

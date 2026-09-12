@@ -342,7 +342,8 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             ViewBag.JogosQueVem = OrdemNoHorario
-                .Ordenar(jogos.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
+                .Ordenar(jogos.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>(),
+                    await ChegadasDoTorneioAsync(id))
                 .Select(l => l.Jogo!)
                 .ToList();
 

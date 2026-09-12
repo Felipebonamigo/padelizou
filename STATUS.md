@@ -3,7 +3,13 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
 
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📱 **"ABRIR O APP E O AO VIVO ESTAR DESATUALIZADO" ERAM DOIS DEFEITOS, E OS DOIS FORAM REPRODUZIDOS.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1319-41b1e57`** (runs 34713252321 e 34713302769), **o mesmo artefato nos dois**. PR #275. **Sem migration.** 📱 **ABRIR O APP MOSTRA O AO VIVO DE AGORA.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**; o `jogos-ao-vivo-atualiza.js` servido já com o `torneioEmAndamento`, o `visibilitychange` e o seletor `#agendadas .pdz-jl`; e o `sw.js` em **`padelizou-static-v37`** — o número precisava subir justamente porque o público da queixa é quem tem o app instalado.
+>
+> ⏳ **EM CURSO NO BRANCH, NÃO PUBLICADO**: a ordem por presença dentro do horário (🗣️ *"quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar"*) está escrita e verde, **mas segurada de propósito**. 🗣️ Ele perguntou em seguida: *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"* — **herda sim**, a chave é `(TorneioId, JogadorId)` e isso está escrito no modelo como decisão. Publicar a ordenação em cima da presença herdada marcaria como "pronto pra começar" um jogo cujos jogadores marcaram em OUTRO jogo. Os dois viraram **um bloco só**, e o bloco é **`architectural`** (a PK vira `(PartidaId, JogadorId)` — migration): design escrito, quatro decisões dele tomadas, **aguardando o "pode ir"**.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📱 **"ABRIR O APP E O AO VIVO ESTAR DESATUALIZADO" ERAM DOIS DEFEITOS, E OS DOIS FORAM REPRODUZIDOS.**
 >
 > 🗣️ Felipe: *"Pessoal que tem o app no celular, disse q ao abrir ele fica desatualizado as vezes no aovivo, isso tambem foi mexido hoje ? se não, temos q ver"*. **Não tinha sido** — o de hoje era com a página JÁ aberta.
 >

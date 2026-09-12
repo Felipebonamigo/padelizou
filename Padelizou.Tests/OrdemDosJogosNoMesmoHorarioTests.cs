@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Padelizou.Models;
 using Padelizou.Services;
@@ -41,7 +42,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     public void Sem_ordem_gravada_a_Semifinal_1_vem_antes_da_Semifinal_2()
     {
         // De propósito na ordem errada: é assim que o Postgres pode devolver depois de um UPDATE.
-        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(2, Dez40), Jogo(1, Dez40) }, Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(2, Dez40), Jogo(1, Dez40) }, Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { 1, 2 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -49,7 +50,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     [Fact]
     public void O_horario_manda_antes_de_qualquer_desempate()
     {
-        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Onze30), Jogo(2, Dez40) }, Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Onze30), Jogo(2, Dez40) }, Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -61,7 +62,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     {
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dez40, ordem: 2), Jogo(2, Dez40, ordem: 1) },
-            Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+            Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -74,7 +75,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     {
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dez40), Jogo(2, Dez40, ordem: 1) },
-            Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+            Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -86,7 +87,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     {
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dez40, ordem: 2) },
-            new[] { Previa(1, Dez40, ordem: 1) });
+            new[] { Previa(1, Dez40, ordem: 1) }, new Dictionary<int, DateTime>());
 
         Assert.Null(linhas[0].Jogo);
         Assert.NotNull(linhas[0].Previsto);
@@ -99,7 +100,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     [Fact]
     public void Sem_ordem_gravada_o_jogo_real_vem_antes_da_previa()
     {
-        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Dez40) }, new[] { Previa(1, Dez40) });
+        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Dez40) }, new[] { Previa(1, Dez40) }, new Dictionary<int, DateTime>());
 
         Assert.Equal(1, linhas[0].Jogo!.Id);
         Assert.NotNull(linhas[1].Previsto);
@@ -117,7 +118,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
                 Previa(2, Dez40, categoria: 9, fase: "Semifinal"),
                 Previa(1, Dez40, categoria: 9, fase: "Semifinal"),
                 Previa(1, Dez40, categoria: 3, fase: "Semifinal"),
-            });
+            }, new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { (3, 1), (9, 1), (9, 2) },
             linhas.Select(l => (l.Previsto!.CategoriaId!.Value, l.Previsto!.Numero)));
@@ -139,7 +140,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
         var a = Jogo(1, Dez40);
         var b = Jogo(2, Dez40);
         var c = Jogo(3, Dez40);
-        var linhas = OrdemNoHorario.Ordenar(new[] { a, b, c }, Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+        var linhas = OrdemNoHorario.Ordenar(new[] { a, b, c }, Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         var numerar = OrdemNoHorario.Materializar(linhas, linhas[0], linhas[1]).ToList();
 
@@ -151,7 +152,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     {
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dez40, ordem: 1), Jogo(2, Dez40, ordem: 2) },
-            Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+            Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Empty(OrdemNoHorario.Materializar(linhas, linhas[0], linhas[1]));
     }
@@ -163,7 +164,7 @@ public class OrdemDosJogosNoMesmoHorarioTests
     {
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dez40), Jogo(2, Onze30) },
-            Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+            Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Empty(OrdemNoHorario.Materializar(linhas, linhas[0], linhas[1]));
     }

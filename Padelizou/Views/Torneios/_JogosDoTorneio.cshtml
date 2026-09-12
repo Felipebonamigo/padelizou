@@ -1006,7 +1006,8 @@
                devolvesse — e ela muda sozinha depois de um UPDATE. É a MESMA régua que as setas
                ↑↓ usam pra achar o vizinho: duas contas de "quem vem antes" fariam a seta mover o
                jogo pra um lugar diferente do que esta lista mostrou. *@
-            var linhasAgendadas = Padelizou.Services.OrdemNoHorario.Ordenar(agendadasList, jogosQueVem);
+            var linhasAgendadas = Padelizou.Services.OrdemNoHorario.Ordenar(agendadasList, jogosQueVem,
+                ViewData["ChegadasNoTorneio"] as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>());
         }
 
         <div class="pdz-jogos-lista">

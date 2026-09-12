@@ -36,19 +36,45 @@ public static class OrdemNoHorario
             : null;
     }
 
+    // QUEM JÁ CHEGOU INTEIRO JOGA PRIMEIRO (12/09/2026).
+    //
+    // 🗣️ Felipe, num print de dois jogos das 16:20: *"quando houverem 2 ou mais jogos no mesmo
+    // horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla
+    // Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima se
+    // tornando o primeiro das 16:20 da lista"*.
+    //
+    // 🎯 É FÍSICO, NÃO PREFERÊNCIA: jogo em que falta gente não PODE começar, e deixá-lo no topo
+    // faz o organizador chamar uma quadra que vai esperar. Sem chamada ligada o dicionário chega
+    // vazio, ninguém está completo, e a fila é exatamente a de antes.
+    private static int PresencaIncompleta(Linha linha, IReadOnlyDictionary<int, DateTime> chegadas)
+    {
+        // A prévia não tem jogadores: não pode "estar completa" nem subir por isso.
+        if (linha.Jogo is not Partida jogo) return 1;
+
+        return PresencaNoDia.DuplaCompleta(jogo.Dupla1, chegadas)
+            && PresencaNoDia.DuplaCompleta(jogo.Dupla2, chegadas) ? 0 : 1;
+    }
+
     // O desempate, em ordem de importância:
     //
-    //   1. o HORÁRIO — quem separa dois jogos é a hora, antes de tudo;
-    //   2. a ORDEM GRAVADA, e o automático (nulo) vai pro fim: a numeração é 1..k a partir do topo
+    //   1. o HORÁRIO — quem separa dois jogos é a hora, antes de tudo. A presença NÃO fura isto:
+    //      "primeiro a jogar" é dentro do horário dele;
+    //   2. a PRESENÇA COMPLETA (12/09/2026): quem tem os quatro na quadra vem antes de quem ainda
+    //      espera alguém. Fica ACIMA da ordem gravada — decisão do Felipe, perguntada antes de
+    //      escrever — porque jogo incompleto não pode começar, e entre os completos (ou entre os
+    //      incompletos) a ordem dele volta a mandar normalmente;
+    //   3. a ORDEM GRAVADA, e o automático (nulo) vai pro fim: a numeração é 1..k a partir do topo
     //      do horário, então "sem número" só pode significar "abaixo dos numerados". É o que faz
     //      um jogo recém-nascido cair no fim em vez de furar a fila que o organizador montou;
-    //   3. jogo REAL antes de PRÉVIA — é o que a tela já fazia (a lista concatenava um depois do
+    //   4. jogo REAL antes de PRÉVIA — é o que a tela já fazia (a lista concatenava um depois do
     //      outro), e mudar isso sem pedido seria inventar regra;
-    //   4. o Id do jogo real. É ele que numera a fase (ReservasDeHorario.NumeroNaFase), então
+    //   5. o Id do jogo real. É ele que numera a fase (ReservasDeHorario.NumeroNaFase), então
     //      ordenar por Id É "a Semifinal 1 antes da Semifinal 2", que é o padrão pedido;
-    //   5. na prévia, categoria → fase → número, que é a mesma coisa do outro lado.
-    private static (DateTime, int, int, int, int, int) Chave(Linha linha) => (
+    //   6. na prévia, categoria → fase → número, que é a mesma coisa do outro lado.
+    private static (DateTime, int, int, int, int, int, int) Chave(
+        Linha linha, IReadOnlyDictionary<int, DateTime> chegadas) => (
         linha.Horario ?? DateTime.MaxValue,
+        PresencaIncompleta(linha, chegadas),
         linha.Ordem ?? int.MaxValue,
         linha.Jogo != null ? 0 : 1,
         linha.Jogo?.Id ?? linha.Previsto?.CategoriaId ?? int.MaxValue,
@@ -56,11 +82,20 @@ public static class OrdemNoHorario
         linha.Previsto?.Numero ?? 0);
 
     /// <summary>A fila da aba Jogos: os agendados e as prévias, na ordem em que a tela os mostra.</summary>
+    /// <param name="chegadas">
+    /// jogadorId → hora da chegada. ⚠️ SEM VALOR PADRÃO DE PROPÓSITO: é o compilador que obriga
+    /// cada tela a dizer o que sabe da presença. Um parâmetro opcional deixaria uma chamada
+    /// esquecida ordenar diferente das outras em silêncio — e "duas contas de quem vem antes" é
+    /// exatamente o que esta classe existe pra impedir. Dicionário vazio = sem chamada ligada, e
+    /// aí a fila é a de sempre.
+    /// </param>
     public static List<Linha> Ordenar(
-        IEnumerable<Partida> agendados, IEnumerable<ProximasFasesDaChave.JogoQueVem> previstos) =>
+        IEnumerable<Partida> agendados,
+        IEnumerable<ProximasFasesDaChave.JogoQueVem> previstos,
+        IReadOnlyDictionary<int, DateTime> chegadas) =>
         agendados.Select(p => new Linha(p.HorarioPrevisto, p, null))
             .Concat(previstos.Select(j => new Linha(j.Horario, null, j)))
-            .OrderBy(Chave)
+            .OrderBy(l => Chave(l, chegadas))
             .ToList();
 
     /// <summary>

@@ -123,7 +123,7 @@ public class MoverJogoNaLinhaTests
 
         var fila = OrdemNoHorario.Ordenar(
             await c.Ctx.Partidas.AsNoTracking().Where(p => p.TorneioId == c.Torneio.Id).ToListAsync(),
-            Array.Empty<ProximasFasesDaChave.JogoQueVem>());
+            Array.Empty<ProximasFasesDaChave.JogoQueVem>(), new Dictionary<int, DateTime>());
 
         Assert.Equal(new[] { "AAA", "BBB", "CCC", "TARDE" }, fila.Select(l => l.Jogo!.Codigo));
     }
