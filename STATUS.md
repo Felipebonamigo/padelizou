@@ -1,9 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois ambientes**, que é mais forte que o healthcheck: o `/css/site.css` responde com `box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55) inset` na `.pdz-bolinha-apagada`, **zero** ocorrências de `--pdz-border` naquela regra e **zero** `opacity` nela; o `sw.js` em **`padelizou-static-v34`**; `/healthz` **200** nos dois.
+>
+> 🕳️ **E UM TOMBO DE DEPLOY QUE VALE A LINHA, porque quase derrubou trabalho de outra sessão.** Esta sessão publicou `build-1250-27ffbf8` em `prod` (run 294, 12h22) **43 segundos depois** de outra sessão ter publicado `build-1251-27042f9` no mesmo `prod` (run 293, 12h21) — e o 1250 é **anterior** ao 1251: o PR #254 saiu do ar sem ninguém pedir, **sem erro em lugar nenhum**. Corrigido em 2 minutos subindo o 1251 nos dois.
+>
+> 🔴 **O DEPLOY DO `dev` FALHOU NA PRIMEIRA TENTATIVA, E A CAUSA NÃO É DESTA MUDANÇA**: o secret **`VPS_KNOWN_HOSTS` não existe**, então o workflow cai no caminho de reserva (`ssh-keyscan` na hora, com `::warning::` no log) — e ali ele voltou **vazio**, derrubando o passo "Preparar o acesso ao VPS". O `Publicar` foi **pulado**, então o `dev` ficou intacto; a 2ª tentativa passou. ⚠️ **É uma bomba-relógio, não um azar**: enquanto o secret não existir, todo deploy depende de um `ssh-keyscan` responder na hora, e um dia ele não responde no meio de uma correção urgente. O passo a passo pra definir o secret está em `infra/vps/README.md`.
+>
+> ⚠️ **A REGRA QUE FALTAVA: conferir o `main` ANTES de escolher a tag não basta — o que vale é conferir os DEPLOYS.** A tag explícita no campo `build` existe pra garantir "o mesmo artefato nos dois ambientes", e é exatamente ela que congela uma foto do `main` que pode envelhecer entre o merge e o dispatch. Num dia de sessões paralelas, isso são minutos. **Antes de disparar: olhe o último run do `deploy.yml` daquele ambiente; se for mais NOVO que a sua tag, publique o build mais novo (ele já contém o seu), nunca o seu.** É o mesmo raciocínio do `CACHE_NAME` do service worker — duas pontas escrevendo ao mesmo tempo, e a colisão passa calada.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/mudar-bolinha-saque-mwiss3`, ainda não publicado.** **Sem migration.** 🎾 **O ALVO DE PASSAR O SAQUE ESTAVA NA TELA E NÃO DAVA PRA VER.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`.** **Sem migration.** 🎾 **O ALVO DE PASSAR O SAQUE ESTAVA NA TELA E NÃO DAVA PRA VER.** PR #253.
 >
 > 🗣️ Felipe, com um print do card AO VIVO em que ele é o organizador (tem −/+, Finalizar, lápis e desfazer): *"Permita aqui tambem mudar a bolinha de qual dupla esta sacando"*.
 >
