@@ -30,8 +30,118 @@ function pdzFileiraDoJogo(partidaId) {
     return document.querySelector('.pdz-reacoes[data-partida-id="' + partidaId + '"]');
 }
 
-// ── ABRIR O PAINEL ───────────────────────────────────────────────────────────────────────────
-// Chamado pela pílula E pelo botão do teclado: os dois abrem a mesma coisa, e é de propósito.
+// ── A BARRA RÁPIDA (12/09/2026) ──────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, com um print do WhatsApp: *"os emojis tem q abrir igual esse do whats com o teclado
+// de emojis"*. Lá o toque abre uma FILEIRA curta ancorada na mensagem — seis de um toque e um
+// "+" que troca pelo teclado inteiro. É o que este bloco faz.
+//
+// ⚠️ CADA SUPERFÍCIE COM UM TRABALHO SÓ, que é o desenho do WhatsApp: a barra REAGE, o teclado
+// ESCOLHE, e o painel mostra QUEM colocou o quê. Empilhar tudo num modal só foi o que fez o
+// painel abrir cheio de coisa e sem alvo de toque, o defeito de mais cedo hoje.
+function abrirBarraDeReacao(el) {
+    const fileira = el.closest('.pdz-reacoes');
+    if (!fileira) return;
+
+    // Sem login não há o que reagir: o painel é quem sabe dizer "entre para reagir".
+    if (fileira.dataset.logado !== 'true') return verQuemReagiu(el);
+
+    // Toque de novo no mesmo botão fecha — é o comportamento que o dedo espera de um popover.
+    if (fileira.querySelector('.pdz-reacao-barra')) return fecharBarras();
+
+    fecharBarras();
+    pdzReacaoPartidaId = fileira.dataset.partidaId;
+
+    const atalhos = (window.pdzTecladoDeEmoji && window.pdzTecladoDeEmoji.atalhos())
+        // Antes de o teclado chegar (ele vem sob demanda), a barra usa o padrão de padel.
+        || ['🔥', '👏', '😂', '😮', '💪', '🎾'];
+
+    const barra = document.createElement('div');
+    barra.className = 'pdz-reacao-barra';
+    barra.innerHTML = atalhos.map(function (e) {
+        return '<button type="button" class="pdz-reacao-atalho" data-emoji="' + pdzTexto(e) + '"'
+            + ' aria-label="Reagir com ' + pdzTexto(e) + '"'
+            + ' onclick="reagirDaBarra(this)">' + pdzTexto(e) + '</button>';
+    }).join('') + '<button type="button" class="pdz-reacao-mais" aria-label="Abrir o teclado de emoji"'
+        + ' title="Mais emoji" onclick="abrirTecladoDeEmoji(this)">+</button>';
+
+    fileira.appendChild(barra);
+}
+
+function fecharBarras() {
+    document.querySelectorAll('.pdz-reacao-barra').forEach(function (b) { b.remove(); });
+}
+
+// Um toque fora fecha a barra, como qualquer popover. ⚠️ No `document` e com `capture`, senão o
+// próprio clique que ABRE a barra a fecharia em seguida ao subir a árvore.
+document.addEventListener('click', function (ev) {
+    if (ev.target.closest('.pdz-reacoes')) return;
+    fecharBarras();
+});
+
+function reagirDaBarra(el) {
+    const emoji = el.dataset.emoji;
+    fecharBarras();
+    return pdzFalarComOServidor('/Partidas/Reagir', emoji);
+}
+
+// ── O TECLADO INTEIRO, SOB DEMANDA ───────────────────────────────────────────────────────────
+//
+// ⚠️ O `<script>` do teclado NÃO está no Razor: a página do torneio em produção tem 1,08 MB de
+// HTML e já puxa 28 arquivos de JS/CSS. O teclado é a única parte que a maioria nunca abre —
+// carregá-lo junto faria todo mundo pagar por ele. Chega no primeiro toque no "+", e uma vez só.
+let pdzTecladoPedido = null;
+
+function carregarTeclado() {
+    if (window.pdzTecladoDeEmoji) return Promise.resolve();
+    if (pdzTecladoPedido) return pdzTecladoPedido;
+
+    pdzTecladoPedido = new Promise(function (ok, falhou) {
+        const tag = document.createElement('script');
+        // A versão vem do próprio <script> desta página, pro Service Worker não servir JS velho.
+        const meu = document.querySelector('script[src*="reacoes-do-jogo.js"]');
+        const versao = meu && meu.src.indexOf('?') >= 0 ? meu.src.slice(meu.src.indexOf('?')) : '';
+        tag.src = '/js/teclado-de-emoji.js' + versao;
+        tag.onload = ok;
+        // ⚠️ Rede ruim no ginásio é o caso normal aqui: sem este `onerror` o "+" ficaria girando
+        // pra sempre, que é a mesma família do "Carregando..." eterno do modal de votos.
+        tag.onerror = function () { pdzTecladoPedido = null; falhou(new Error('teclado não carregou')); };
+        document.head.appendChild(tag);
+    });
+    return pdzTecladoPedido;
+}
+
+async function abrirTecladoDeEmoji(el) {
+    const fileira = el.closest('.pdz-reacoes');
+    if (fileira) pdzReacaoPartidaId = fileira.dataset.partidaId;
+    fecharBarras();
+
+    const modalEl = document.getElementById('modalTecladoEmoji');
+    const alvo = document.getElementById('tecladoEmojiCorpo');
+    if (!modalEl || !alvo) {
+        console.error('[reacoes] não achei o #modalTecladoEmoji — a página não registrou o teclado?');
+        alert('Não consegui abrir o teclado de emoji nesta tela. Atualize a página; se continuar, me avise.');
+        return;
+    }
+
+    alvo.innerHTML = '<div class="text-muted small p-3">Carregando os emoji...</div>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+    try {
+        await carregarTeclado();
+    } catch (e) {
+        alvo.innerHTML = '<div class="small text-danger p-3">Não consegui carregar o teclado. Tente de novo.</div>';
+        return;
+    }
+
+    window.pdzTecladoDeEmoji.montar(alvo, function (emoji) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        pdzFalarComOServidor('/Partidas/Reagir', emoji);
+    });
+}
+
+// ── ABRIR O PAINEL DE QUEM REAGIU ────────────────────────────────────────────────────────────
+// Chamado pelas PÍLULAS: é o "ao clicar no emoji, veja quem colocou o que".
 async function verQuemReagiu(el) {
     const fileira = el.closest('.pdz-reacoes');
 
@@ -230,7 +340,7 @@ function pdzPintarFileiraDoCartao(resumo) {
     // `conferir-reacoes-do-jogo.js` casando os dois.
     fileira.innerHTML = pilulas
         + '<button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"'
-        + ' aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">'
+        + ' aria-label="Reagir com um emoji" onclick="abrirBarraDeReacao(this)">'
         + '<span class="pdz-reacao-emoji" aria-hidden="true">🙂</span></button>';
 }
 

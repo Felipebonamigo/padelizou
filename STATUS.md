@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+>
+> 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🔑 **TECLADO NOSSO, E ISSO NÃO FOI ESCOLHA DE GOSTO**: não existe `package.json` em lugar nenhum deste repositório. Um picker de npm traria package.json, lockfile e cadeia de suprimentos inteira (ver `SUPPLY-CHAIN.md`) por um componente de tela — é o degrau 5 da escada do `CLAUDE.md` dizendo não. **~350 emoji curados em 8 categorias**, escolha do Felipe entre três opções (a alternativa era o conjunto Unicode completo, ~1.800, que seria tabela grande mantida à mão e sem fonte oficial pra atualizar).
+>
+> 👆 **CADA SUPERFÍCIE COM UM TRABALHO SÓ, que é o desenho do WhatsApp**: a **barra** reage (6 atalhos de um toque + o `+`), o **teclado** escolhe, o **painel** mostra quem colocou o quê. Empilhar os três num modal só foi exatamente o que fez o painel abrir cheio de coisa e sem alvo de toque, o defeito de mais cedo hoje — os atalhos e o campo de texto **saíram** do painel.
+>
+> ⚡ **CARREGADO SOB DEMANDA, e não é otimização prematura**: a página do torneio em produção tem **1,08 MB** de HTML e já puxa **28** arquivos de JS/CSS. O teclado é a única parte que a maioria nunca abre — o `<script>` **não está no Razor**, é o JS que o injeta no primeiro toque no `+`, uma vez só, com a mesma versão do arquivo pai (senão o Service Worker serviria JS velho). Tem `onerror`: rede ruim no ginásio é o caso normal aqui, e sem ele o `+` giraria pra sempre, a mesma família do "Carregando..." eterno de 11/09.
+>
+> 🔗 **A PONTE ENTRE O JS E O C# TEM TESTE**: `TODO_emoji_do_teclado_passa_pela_peneira_do_servidor` roda os ~350 emoji da tabela pelo `EmojiDeReacao.Normalizar`. Um só que não passasse seria um botão que responde *"isso não é um emoji"* na cara de quem tocou — e é a peneira que recusa `+`, `^` e pontuação legada (`‼️`, `↔️`), então eles não podem estar na grade. Nada mais casa esses dois lados.
+>
+> 🔎 **Busca SEM ACENTO** (`normalize('NFD')`): quem digita "coracao" acha "coração" — **18 resultados**, visto no Chromium. E **FREQUENTES** no `localStorage`, com todo acesso em `try/catch`: aba privada estoura no `localStorage`, e o teclado inteiro morreria por uma lista de conveniência.
+>
+> 👁️ **VISTO RODANDO NO CHROMIUM**, com o JS/CSS/Bootstrap do repositório: barra rápida **264×44px** com 6 atalhos e o `+`; teclado chegando **sob demanda** com **555 botões** e **8 abas**; busca funcionando. ⚠️ E um ajuste saiu daí: no celular sobrava faixa vazia embaixo (altura fixa dentro do `modal-fullscreen-sm-down`), com as abas flutuando no meio do nada em vez de no rodapé.
+>
 > Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1297-51ecc21`** (runs **316** e **317**), **o mesmo artefato nos dois**, com a tag explícita. PRs #272 e #273. **COM MIGRATION** (`ReacoesDaPartida`).
 >
 > ✅ **E AQUI A CONFERÊNCIA FINALMENTE FOI DE VERDADE, porque `prod` NÃO tem o gate de Acesso Antecipado** — o que travou a checagem do `build-1288` a manhã inteira. No `Torneios/Details/26` servido por produção: **60 fileiras `.pdz-reacoes`**, 60 botões, o `#modalQuemReagiu` na página e o `/js/reacoes-do-jogo.js` referenciado com hash de versão.

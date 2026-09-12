@@ -1,4 +1,4 @@
-@* Painel de reações do jogo — 12/09/2026.
+﻿@* Painel de reações do jogo — 12/09/2026.
    🗣️ Felipe: *"e ao clicar no emoji, veja quem colocou o que, igual no whats app"*, com o print
    do painel do WhatsApp: a contagem no topo, as pílulas, e a lista de quem reagiu com o emoji
    de cada um do lado.
@@ -29,31 +29,16 @@
 
                 @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <div class="pdz-reacao-teclado mb-3">
-                        <div class="small text-muted mb-1">Reagir com outro emoji</div>
-                        <div class="pdz-reacao-atalhos mb-2">
-                            @* Atalhos pro que mais se usa num jogo de padel. Não é lista fechada:
-                               o campo ao lado aceita qualquer emoji. *@
-                            @foreach (var atalho in new[] { "🔥", "👏", "😂", "😱", "💪", "🎾" })
-                            {
-                                <button type="button" class="pdz-reacao-atalho" data-emoji="@atalho"
-                                        aria-label="Reagir com @atalho"
-                                        onclick="reagirComEmoji(this.dataset.emoji)">@atalho</button>
-                            }
-                        </div>
-                        <div class="input-group input-group-sm">
-                            @* ⚠️ `maxlength` igual ao teto da coluna (EmojiDeReacao.TamanhoMaximo):
-                               é conveniência de tela, e o servidor confere de novo. *@
-                            <input type="text" class="form-control" id="modalQuemReagiuCampo"
-                                   maxlength="@Padelizou.Services.EmojiDeReacao.TamanhoMaximo"
-                                   autocomplete="off" placeholder="Cole ou digite um emoji"
-                                   aria-label="Emoji da sua reação">
-                            <button type="button" class="btn btn-outline-secondary" onclick="reagirDoCampo()">
-                                Reagir
-                            </button>
-                        </div>
-                        <div class="small text-danger mt-1" id="modalQuemReagiuErro" hidden></div>
-                    </div>
+                    @* ⚠️ OS ATALHOS E O CAMPO SAÍRAM DAQUI (12/09/2026): quem escolhe emoji agora
+                       é o TECLADO, e o painel voltou a ter um trabalho só — mostrar quem colocou
+                       o quê. É o desenho do WhatsApp, onde a barra reage, o teclado escolhe e o
+                       painel lista; empilhar os três aqui foi o que fez este modal abrir cheio de
+                       coisa e sem alvo de toque. *@
+                    <button type="button" class="btn btn-sm btn-outline-secondary mb-3"
+                            onclick="abrirTecladoDeEmoji(this)">
+                        <span class="pdz-reacao-emoji" aria-hidden="true">🙂</span> Reagir com outro emoji
+                    </button>
+                    <div class="small text-danger mt-1" id="modalQuemReagiuErro" hidden></div>
                 }
                 else
                 {
