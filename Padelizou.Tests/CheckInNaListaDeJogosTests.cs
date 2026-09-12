@@ -200,7 +200,7 @@ public class CheckInNaListaDeJogosTests
         // 🗣️ *"uma bolinha do lado de cada nome"*: ela nasce ANTES dos rostos, na ponta
         // esquerda da linha — é assim que as duas viram uma coluna que se varre de cima a
         // baixo, como na tela de Check-in. Empurrada pro fim da linha, ela brigaria com a
-        // porcentagem do palpitrômetro, que já mora lá.
+        // porcentagem do palpitômetro, que já mora lá.
         var fonte = Ler("_JogoEmLinha.cshtml");
 
         int bolinha1 = fonte.IndexOf("<partial name=\"_BotaoDoCheckIn\"", StringComparison.Ordinal);
