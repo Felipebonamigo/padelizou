@@ -36,11 +36,20 @@
         } catch (e) { return null; }
     }
 
+    // A MESMA MEMÓRIA, EMPRESTADA A QUEM RECARREGA POR CONTA PRÓPRIA (12/09/2026). 🗣️ Felipe:
+    // *"quando atualizar, mantem na altura q tava a pagina no scroll"*. O atualizador automático
+    // (js/jogos-ao-vivo-atualiza.js) ainda recarrega no caso em que não consegue remendar a tela,
+    // e ali não há `submit` nenhum pra ouvir. Fica exposto AQUI, e não copiado lá, porque a chave
+    // é uma só: duas cópias da string viram duas memórias diferentes no dia em que uma mudar.
+    window.pdzGuardarPosicaoNaLista = function () {
+        guardar(String(window.scrollY || window.pageYOffset || 0));
+    };
+
     document.addEventListener("submit", function (evento) {
         var formulario = evento.target;
         if (!formulario || !formulario.hasAttribute || !formulario.hasAttribute("data-manter-posicao")) return;
 
-        guardar(String(window.scrollY || window.pageYOffset || 0));
+        window.pdzGuardarPosicaoNaLista();
     }, true);
 
     // No `load`, e não no DOMContentLoaded: o navegador ainda pula pra âncora do endereço

@@ -1,7 +1,39 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** ⏳ **Commitado, NÃO publicado** — falta build + `Deploy`. **COM MIGRATION** (`ReacoesDaPartida`, gerada em worktree limpo, `has-pending-model-changes` sem pendência).
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+>
+> 🗣️ Felipe, sobre a correção da entrada anterior: *"E quando atualizar, mantem na altura q tava a pagina no scroll. E nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar carregar?"*
+>
+> 🕳️ **O QUE SOBRAVA DE RECARREGAMENTO.** O atualizador de 20s já trocava só os pedaços (cabeçalho do cartão, Agendadas, Finalizadas) — menos num caso: quando a **lista de jogos em quadra mudava**, ele dava `location.reload()`. O motivo estava escrito no próprio arquivo e era real: *"cada cartão pode conter um `<iframe>` de transmissão, e mover ou reescrever iframe é recarregá-lo"*. Num sábado com cinco quadras isso é o tempo todo — e é a mesma queixa de 08/08 (*"o youtube está parando sozinho aqui do nada"*) por outra porta.
+>
+> ✅ **A SAÍDA ERA UMA DISTINÇÃO QUE FALTAVA: inserir e remover NÃO é mover.** Quem continua em quadra não é tocado, e nem quem entra nem quem sai tem vídeo a preservar (o que entra nasce agora; o que sai levou o dele junto). Então o painel virou remendo cartão a cartão dentro da grade `#pdzAoVivoCartoes`: o cartão que falta entra **antes do próximo cartão que já está na tela** (a ordem é a do servidor), o que sobra sai com a coluna dele. **Zero recarregamentos.**
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (CDP + Postgres de verdade), com a página aberta o tempo todo**: com o jogo 9100 em quadra **e um `<iframe>` marcado à mão** (`f.__marca='EU MESMO'`), o 9200 entrou em quadra no banco → `0 cargas de página`, grade virou `9100,9200`, **a marca do iframe sobreviveu** (mesmo elemento), aba `#aovivo`, rolagem `299 → 300px`, `Agendadas (1) → (0)` e a barra recontando `1 jogo(s) → 2 jogo(s)`. Depois o 9100 terminou → `0 cargas`, grade `9200`, aba e rolagem intactas.
+>
+> ✅ **E A ROLAGEM.** O recarregamento que sobrou (caminho de escape, quando a grade não está na página) passa por `recarregarMantendoARolagem`, que empresta a memória do `js/manter-posicao-na-lista.js` — **exposta como `window.pdzGuardarPosicaoNaLista`, não copiada**: duas cópias da chave viram duas memórias diferentes no dia em que uma mudar.
+>
+> ⚠️ **QUEM ESTÁ EM OUTRA ABA TAMBÉM GANHA O REMENDO**, de graça: antes o cartão velho ficava lá até ele voltar pro Ao Vivo. O que **não** acontece é a tela dele sumir — isso continua valendo.
+>
+> ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
+>
+> 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
+>
+> 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.
+>
+> 🕳️ **DEFEITO 1 — A MEMÓRIA DE ABA NUNCA RODOU NESTA TELA, E ISSO É MEDIDO.** O `js/jogos-abas.js` existe desde 08/08/2026 pra lembrar a aba escolhida. No HTML entregue da página do torneio ele sai na **linha 3941** e o `bootstrap.bundle.js` na **4736** — os scripts da lista de jogos são emitidos no CORPO da página e o Bootstrap só chega no fim, pelo `_Layout`. O `if (!pills || !window.bootstrap) return` disparava **sempre**, em silêncio. Conferido no navegador com CDP: depois de clicar em "Finalizadas", `sessionStorage` **vazio** e **ZERO ouvintes** no `#jogosTabs`. Um mês de recurso morto sem uma linha de erro em lugar nenhum.
+>
+> 🕳️ **DEFEITO 2 — QUEM PUXAVA O GATILHO**: o atualizador de 20 em 20 segundos dá `location.reload()` quando a lista de jogos EM QUADRA muda (jogo entrou, jogo acabou) — num sábado, o tempo todo. Somado ao defeito 1, o organizador era teleportado pro Ao Vivo de onde quer que estivesse.
+>
+> ✅ **AS DUAS CORREÇÕES.** (1) O `jogos-abas.js` faz tudo depois do `DOMContentLoaded` — que só dispara quando todo script síncrono já rodou, o Bootstrap incluso, esteja ele onde estiver; e o ouvinte que GRAVA não depende mais do Bootstrap (só o restaurar depende). (2) A barra de cima (`#torneioTabs`) passou a ser lembrada também, com chave própria — era ela que faltava pro caso da aba Palpiteiros, e ela **não tinha `data-torneio-id`**, então a chave nasceria sem o número do torneio. (3) O atualizador só recarrega **pra quem está olhando os cartões ao vivo** (aba mãe Jogos aberta **e** sub-aba Ao Vivo ativa); pra quem está em outro lugar o tique passa em silêncio e segue atualizando só os blocos sem vídeo.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR, no cenário exato dele**: nas Finalizadas, com um jogo em quadra TERMINANDO no banco, três tiques do atualizador (65s) — **zero recarregamentos**, ficou nas Finalizadas, e a lista ainda se atualizou sozinha embaixo (`Finalizadas (1)` → `(2)`). E o roteiro completo: clicar em Finalizadas → recarregar → continua lá; clicar numa aba mãe → recarregar → continua lá; mudar filtro → continua lá.
+>
+> 🧪 **6.850 testes, 0 falhas (4 novos em `AbaQueFicaOndeEstaTests`)** + **5** conferidores de JS verdes — o novo é o `conferir-abas-que-ficam.js`, que roda o script **na ordem de produção (sem Bootstrap)**. Um conferidor que definisse o Bootstrap antes passaria com o defeito de pé, que é como ele sobreviveu um mês.
+
+> **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** ⏳ **Commitado, NÃO publicado** — falta build + `Deploy`. **COM MIGRATION** (`ReacoesDaPartida`, gerada em worktree limpo, `has-pending-model-changes` sem pendência).
 >
 > 🗣️ Felipe, com um print do `Torneios/Details/26` na aba Finalizadas e outro do Discord: *"aqui, a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no discord, com emojis"*. Na sequência, com o print do painel de reações do WhatsApp: *"e ao clicar no emoji, veja quem colocou o que, igual no whats app"*.
 >
