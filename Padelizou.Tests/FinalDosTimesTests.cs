@@ -111,10 +111,12 @@ public class FinalDosTimesTests
         var duplas = ctx.Duplas.ToList();
         var jogos = ctx.Partidas.ToList();
 
-        var normal = ClassificacaoDeGrupos.Calcular(duplas, jogos, 2);
-        var aoContrario = ClassificacaoDeGrupos.Calcular(Enumerable.Reverse(duplas).ToList(), jogos, 2);
+        var normal = ClassificacaoDeGrupos.Calcular(duplas, jogos, ClassificacaoDeGrupos.SemPontos, 2);
+        var aoContrario = ClassificacaoDeGrupos.Calcular(
+            Enumerable.Reverse(duplas).ToList(), jogos, ClassificacaoDeGrupos.SemPontos, 2);
         var porNome = ClassificacaoDeGrupos.Calcular(
-            duplas.OrderBy(d => d.NomeTime, StringComparer.Ordinal).ToList(), jogos, 2);
+            duplas.OrderBy(d => d.NomeTime, StringComparer.Ordinal).ToList(), jogos,
+            ClassificacaoDeGrupos.SemPontos, 2);
 
         string Resumo(IEnumerable<ChaveamentoMataMata.Classificado> c) =>
             string.Join(", ", c.Select(x => $"{x.Grupo}{x.Posicao}={x.DuplaId}"));
@@ -125,8 +127,15 @@ public class FinalDosTimesTests
         // E o desempate é o que a régua promete: games PRÓ desempata o saldo empatado.
         // Target.it fez 7 games, Argentus 7 e Valandro 6 — a Valandro é a que fica de fora.
         var doGrupoA = normal.Where(c => c.Grupo == "A").Select(c => c.DuplaId).ToList();
-        Assert.Equal(new[] { ids["CredHub"], ids["Target.it"] }, doGrupoA);
         Assert.DoesNotContain(ids["Valandro"], doGrupoA);
+
+        // ⚠️ A 2ª VAGA MUDOU EM 11/09/2026, E ESTE É O CASO QUE A MOTIVOU. Sobrando Target.it e
+        // Argentus empatadas em vitórias, saldo E games a favor, a vaga saía do `ThenBy(Id)` —
+        // ordem de cadastro — e ficava com a Target.it por ter Id menor. Agora empate de DUAS
+        // é decidido no CONFRONTO DIRETO (regra do Felipe), e a Argentus venceu a Target.it
+        // neste grupo. É a mesma régua que este arquivo inteiro existe pra proteger, agora
+        // respondendo por mérito de quadra em vez de por ordem de inscrição.
+        Assert.Equal(new[] { ids["CredHub"], ids["Argentus"] }, doGrupoA.ToArray());
     }
 
     // CAUSA 2. Quadro CHEIO não tem bye — nem que a classificação diga o contrário.
@@ -155,12 +164,12 @@ public class FinalDosTimesTests
         Semifinal(ids["ST Led"], ids["Valandro"], ids["ST Led"]);
         await ctx.SaveChangesAsync();
 
-        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id);
+        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking);
         Assert.Empty(byes);
 
         // E, por consequência, a final é entre os DOIS vencedores de semifinal — nada de um
         // terceiro nome aparecendo do nada.
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Semifinal");
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Semifinal", TestInfra.SemPontosDoRanking);
         Assert.Equal(new[] { ids["CredHub"], ids["ST Led"] }.OrderBy(x => x),
                      avancam.OrderBy(x => x));
     }
@@ -206,11 +215,11 @@ public class FinalDosTimesTests
             });
         await ctx.SaveChangesAsync();
 
-        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id);
+        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking);
         Assert.Equal(8, byes.Count);
 
         // 8 vencedores + 8 byes = as 16 duplas das oitavas.
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
         Assert.Equal(16, avancam.Count);
         Assert.Equal(16, avancam.Distinct().Count());
     }

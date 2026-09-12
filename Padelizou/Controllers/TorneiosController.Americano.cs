@@ -649,13 +649,20 @@ namespace Padelizou.Controllers
             // existe pra unificar, e viva justamente onde o jogador olha: num empate que
             // sobrevivesse ao saldo, a tela mostrava um 2º colocado e o chaveamento montava a
             // chave com OUTRO. Agora as duas respondem a mesma coisa por construção.
+            // ⚠️ O ranking do desempate: UMA consulta, e só se algum grupo desta categoria
+            // empatar até ele. Sem empate perfeito, esta tela não paga nada por isso.
+            var gruposDeDuplas = duplas.GroupBy(d => d.Grupo!)
+                .Select(g => (IReadOnlyList<Dupla>)g.ToList()).ToList();
+            var pontosDosGrupos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                gruposDeDuplas, partidas, _estatisticas.ObterPontosPorJogadorAsync);
+
             var porGrupo = listaClassificacao.ToDictionary(c => c.Dupla.Id);
             var classificacaoFinal = duplas
                 .GroupBy(d => d.Grupo!)
                 .OrderBy(g => g.Key)
                 .ToDictionary(
                     g => g.Key,
-                    g => ClassificacaoDeGrupos.Ordenar(g.ToList(), partidas)
+                    g => ClassificacaoDeGrupos.Ordenar(g.ToList(), partidas, pontosDosGrupos)
                             .Select(linha => porGrupo[linha.Dupla.Id])
                             .ToList()
                 );
@@ -690,7 +697,8 @@ namespace Padelizou.Controllers
                     .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
                     .ToList();
 
-                var quadro = OQuePrecisaParaClassificar.Montar(grupo.ToList(), doGrupo, passam, formato);
+                var quadro = OQuePrecisaParaClassificar.Montar(grupo.ToList(), doGrupo, passam, formato,
+                    pontosDosGrupos);
                 if (quadro != null) quadros[grupo.Key] = quadro;
             }
 

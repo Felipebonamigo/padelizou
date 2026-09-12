@@ -1990,7 +1990,7 @@ namespace Padelizou.Controllers
         // porque a OUTRA tela que finaliza partida (PartidasController, o Controle de Placar
         // em tela cheia) precisa exatamente das mesmas regras. Enquanto cada controller teve a
         // sua cópia, o chaveamento do torneio dependia de POR ONDE o placar foi lançado.
-        private RoboDoChaveamento Robo => new(_context);
+        private RoboDoChaveamento Robo => new(_context, _estatisticas);
 
         // Quem de fato ocupa a quadra quando cada dupla joga: as DUAS pessoas dela.
         private static Dictionary<int, int[]> OcupantesPorDupla(IEnumerable<Dupla> duplas) =>

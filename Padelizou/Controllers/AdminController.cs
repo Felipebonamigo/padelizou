@@ -90,6 +90,7 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(
             [FromServices] PortaoDeAcesso portao,
+            [FromServices] SilencioDeAvisos silencio,
             [FromServices] Microsoft.Extensions.Options.IOptions<AcessoAntecipadoSettings> acessoAntecipado)
         {
             var admin = await ObterJogadorAdminAsync();
@@ -115,6 +116,7 @@ namespace padelizou.Controllers
             ViewBag.EhRaiz = admin.IsAdminRaiz;
             ViewBag.PortaoLigado = portao.EstaHabilitado(acessoAntecipado.Value);
             ViewBag.PortaoDecididoAqui = portao.DecididoPeloAdmin;
+            ViewBag.AvisosMudos = silencio.Ligado;
 
             // Quantos estão no WhatsApp sem nunca terem pedido. O card só aparece enquanto
             // houver alguém — feito o acerto, ele some sozinho e não vira enfeite permanente.
@@ -1187,6 +1189,39 @@ namespace padelizou.Controllers
 
             _logger?.LogWarning("Portão de acesso antecipado {Estado} pelo admin {AdminId}.",
                 habilitar ? "LIGADO" : "DESLIGADO", admin.Id);
+
+            return RedirectToAction("Index");
+        }
+
+        // O SILÊNCIO GERAL, ligado e desligado daqui.
+        //
+        // Mudo, nenhum push, e-mail ou WhatsApp sai do sistema — a Caixa de Avisos continua
+        // sendo gravada, então religar não perde recado nenhum (ver Services/SilencioDeAvisos).
+        // É o botão do envio em fuga, e ele existe porque a alternativa era ssh no servidor
+        // mais restart do serviço, que não se faz do celular.
+        //
+        // ⚠️ Só o admin RAIZ, mesma régua do portão: calar o sistema inteiro é tão global
+        // quanto abrir o cadastro pro mundo, e administrador nomeado entra pra operar o dia a
+        // dia. E o estranho aqui é o estado LIGADO ser o normal — um sistema mudo não reclama,
+        // não aparece em log e ninguém percebe até faltar um aviso que importava.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarSilencioDeAvisos(
+            [FromServices] SilencioDeAvisos silencio, bool silenciar)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            await silencio.DefinirAsync(_context, silenciar, admin.Id);
+
+            TempData["Sucesso"] = silenciar
+                ? "Avisos SILENCIADOS: nenhum push, e-mail ou WhatsApp sai do sistema. A Caixa "
+                  + "de Avisos continua sendo gravada — religar não perde nada do que passou."
+                : "Avisos RELIGADOS: push, e-mail e WhatsApp voltam a sair. O que ficou guardado "
+                  + "enquanto estava mudo NÃO é reenviado — quem abrir o app vê na Caixa de Avisos.";
+
+            _logger?.LogWarning("Avisos {Estado} pelo admin {AdminId}.",
+                silenciar ? "SILENCIADOS" : "RELIGADOS", admin.Id);
 
             return RedirectToAction("Index");
         }

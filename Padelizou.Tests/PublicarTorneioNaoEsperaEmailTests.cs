@@ -113,5 +113,6 @@ public class PublicarTorneioNaoEsperaEmailTests
             email,
             Microsoft.Extensions.Options.Options.Create(new SiteSettings { Url = "https://padelizou.com.br" }),
             PorteiroDeTeste.Saida(),
+            new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 }

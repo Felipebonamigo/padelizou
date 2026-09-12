@@ -87,7 +87,7 @@ public class QuemVenceuTests
         var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync();
         var deGrupo = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Status == "Finalizada").ToListAsync();
-        var classificacao = ClassificacaoDeGrupos.Calcular(duplas, deGrupo, 2);
+        var classificacao = ClassificacaoDeGrupos.Calcular(duplas, deGrupo, ClassificacaoDeGrupos.SemPontos, 2);
 
         var vencedora = classificacao.FirstOrDefault(c => c.DuplaId == depois.Dupla1Id);
         var perdedora = classificacao.FirstOrDefault(c => c.DuplaId == depois.Dupla2Id);

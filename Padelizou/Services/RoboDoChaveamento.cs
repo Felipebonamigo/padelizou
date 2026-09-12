@@ -26,8 +26,15 @@ namespace Padelizou.Services;
 public class RoboDoChaveamento
 {
     private readonly DbPadelContext _context;
+    // Os pontos do ranking, pro desempate de grupo (ClassificacaoDeGrupos). Consultados só
+    // quando algum grupo empata até eles — ver PontosSePrecisarAsync.
+    private readonly IEstatisticasService _estatisticas;
 
-    public RoboDoChaveamento(DbPadelContext context) => _context = context;
+    public RoboDoChaveamento(DbPadelContext context, IEstatisticasService estatisticas)
+    {
+        _context = context;
+        _estatisticas = estatisticas;
+    }
 
     // ===================================================================================
     // ROBÔ 1: FIM DA FASE DE GRUPOS → primeira rodada do mata-mata
@@ -100,8 +107,10 @@ public class RoboDoChaveamento
         // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
         //    — a mesma que a tela de classificação e a detecção de bye usam.
         var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
+        var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasFinalizadas, _estatisticas.ObterPontosPorJogadorAsync);
         var classificados = ClassificacaoDeGrupos.Calcular(
-            duplasDosGrupos, partidasFinalizadas, classificamPorGrupo);
+            duplasDosGrupos, partidasFinalizadas, pontos, classificamPorGrupo);
 
         // 2. Motor único de chaveamento: TODO classificado avança; o quadro cresce pra caber
         //    todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes não ganham
@@ -154,7 +163,15 @@ public class RoboDoChaveamento
         // A régua única de quantas vagas cada grupo dá (ClassificacaoDeGrupos.VagasPorGrupo) —
         // o `?? 2` na mão tem gate mecânico desde 11/09/2026.
         int classificamPorGrupo = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
+
         var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+
+        // Os pontos do desempate de grupo, buscados só se algum grupo empatar até o ranking
+        // (ClassificacaoDeGrupos). Aqui a conta PRECISA bater com a do mata-mata definitivo —
+        // é este método que cria os jogos da abertura desenhada.
+        var pontosDoDesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
+            _estatisticas.ObterPontosPorJogadorAsync);
 
         // O desenho serve pra ESTA categoria? A conferência é sobre o conjunto de vagas
         // (colocação × grupo), que não depende de resultado nenhum — então ela pode ser feita
@@ -162,7 +179,7 @@ public class RoboDoChaveamento
         // motor, como sempre: a categoria nunca fica sem mata-mata por causa de um texto torto.
         var provisorios = ClassificacaoDeGrupos.Calcular(
             duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
-            classificamPorGrupo);
+            pontosDoDesempate, classificamPorGrupo);
         if (CruzamentoDoMataMata.Conferir(desenho, provisorios) != null)
         {
             // Desenho que não serve NÃO adianta nada, mas também não pode atrapalhar: a
@@ -201,7 +218,7 @@ public class RoboDoChaveamento
         var prontos = ClassificacaoDeGrupos.Calcular(
             duplasDosGrupos.Where(d => idsDeGrupoFechado.Contains(d.Id)).ToList(),
             partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
-            classificamPorGrupo);
+            pontosDoDesempate, classificamPorGrupo);
 
         var novos = new List<Partida>();
         for (int i = jaCriados; i < desenho.Confrontos.Count; i++)
@@ -252,7 +269,8 @@ public class RoboDoChaveamento
         // As vagas da rodada seguinte, na ordem do quadro: vencedores desta fase (null onde o
         // jogo ainda não acabou) e, na primeira rodada, quem passou direto. Ver
         // Services/AvancoDaChave. Vazio = não há o que avançar.
-        var vagas = await AvancoDaChave.VagasDaProximaFaseAsync(_context, categoriaId, faseConcluida);
+        var vagas = await AvancoDaChave.VagasDaProximaFaseAsync(_context, categoriaId, faseConcluida,
+            _estatisticas.ObterPontosPorJogadorAsync);
         if (vagas.Count < 2) return;
 
         // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24 entrega

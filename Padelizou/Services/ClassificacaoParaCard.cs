@@ -37,7 +37,8 @@ public sealed record GrupoClassificado(
 public static class ClassificacaoParaCard
 {
     public static async Task<List<GrupoClassificado>> DaCategoriaAsync(
-        DbPadelContext contexto, int torneioId, int categoriaId)
+        DbPadelContext contexto, int torneioId, int categoriaId,
+        BuscarPontosDoRanking buscarPontos)
     {
         var vazio = new List<GrupoClassificado>();
 
@@ -89,12 +90,21 @@ public static class ClassificacaoParaCard
                      && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
             .ToListAsync();
 
-        return duplas
+        var porGrupo = duplas
             .GroupBy(d => d.Grupo!)
             .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        // ⚠️ UMA consulta de pontos pro card inteiro, e só se algum grupo empatar até o
+        // ranking. Dentro do `Select` não dava pra esperar — por isso o laço.
+        var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            porGrupo.Select(g => (IReadOnlyList<Dupla>)g.ToList()).ToList(), partidas, buscarPontos);
+
+        return porGrupo
             .Select(g =>
             {
-                var ordenadas = ClassificacaoDeGrupos.Ordenar(g.ToList(), partidas);
+                var doGrupo = g.ToList();
+                var ordenadas = ClassificacaoDeGrupos.Ordenar(doGrupo, partidas, pontos);
 
                 return new GrupoClassificado(
                     Grupo: g.Key,

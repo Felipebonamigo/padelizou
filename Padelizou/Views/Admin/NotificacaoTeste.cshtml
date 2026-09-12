@@ -1,6 +1,10 @@
 @model Padelizou.ViewModels.TesteDeNotificacaoVM
 @using Padelizou.Services
 @using Padelizou.ViewModels
+@* Singleton do DI, mesmo caminho do medidor de WhatsApp no painel: é lido só aqui, e vir pelo
+   ViewBag obrigaria as TRÊS ações que renderizam esta tela a lembrar de preencher — a que
+   esquecesse mentiria calada. *@
+@inject Padelizou.Services.SilencioDeAvisos Silencio
 @{
     ViewData["Title"] = "Teste de aviso - Painel Admin - Padelizou";
 }
@@ -15,6 +19,23 @@
             quem vai receber, confere, e só então manda.
         </p>
     </div>
+
+    @* ⚠️ O TESTE NÃO OBEDECE AO SILÊNCIO GERAL, e é de propósito: ele é uma pessoa escolhida a
+       dedo pelo próprio admin que apertou o botão, e é a ÚNICA forma de conferir se um canal
+       está de pé enquanto o sistema está calado. O que não pode acontecer é o admin ler
+       "Enviado!" aqui e concluir que os avisos do sistema estão saindo — daí esta faixa. *@
+    @if (Silencio.Ligado)
+    {
+        <div class="alert alert-danger border-0 shadow-sm">
+            <h6 class="fw-bold mb-1"><i class="bi bi-bell-slash-fill"></i> Os avisos do sistema estão SILENCIADOS</h6>
+            <p class="mb-0 small">
+                Este teste <strong>sai assim mesmo</strong> — ele é dirigido a uma pessoa e serve
+                pra conferir o canal. Mas nenhum aviso do <strong>sistema</strong> está saindo:
+                "Enviado!" aqui não quer dizer que os torneios estão avisando ninguém. Religar
+                fica no <a asp-controller="Admin" asp-action="Index">Painel Admin</a>.
+            </p>
+        </div>
+    }
 
     @if (Model.Erro != null)
     {

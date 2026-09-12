@@ -35,7 +35,7 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
         using var ctx = TestInfra.NovoContexto();
         var (grupos, jogos) = DoisGruposDeTresAsync(ctx, fecharB: true);
 
-        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2);
+        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos);
 
         // O Grupo B fechou: 1º e 2º têm nome.
         Assert.True(conhecidos.ContainsKey(("Grupo B", 1)));
@@ -54,11 +54,12 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
         using var ctx = TestInfra.NovoContexto();
         var (grupos, jogos) = DoisGruposDeTresAsync(ctx, fecharB: true);
 
-        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2);
+        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos);
 
         var duplasDoB = grupos.Single(g => g.Nome == "Grupo B").Duplas.ToList();
         var ranking = ClassificacaoDeGrupos.Ordenar(
-            duplasDoB, jogos.Where(p => duplasDoB.Any(d => d.Id == p.Dupla1Id)).ToList());
+            duplasDoB, jogos.Where(p => duplasDoB.Any(d => d.Id == p.Dupla1Id)).ToList(),
+            ClassificacaoDeGrupos.SemPontos);
 
         Assert.Equal(ranking[0].Dupla.NomeDeExibicao, conhecidos[("Grupo B", 1)]);
         Assert.Equal(ranking[1].Dupla.NomeDeExibicao, conhecidos[("Grupo B", 2)]);
@@ -75,7 +76,7 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
         ultimo.Status = "AoVivo";
         ultimo.VencedorId = null;
 
-        Assert.Empty(ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2));
+        Assert.Empty(ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos));
     }
 
     // Só as vagas que CLASSIFICAM ganham nome: o 3º de um grupo de 3 não entra em quadro nenhum.
@@ -85,7 +86,7 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
         using var ctx = TestInfra.NovoContexto();
         var (grupos, jogos) = DoisGruposDeTresAsync(ctx, fecharB: true);
 
-        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2);
+        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos);
 
         Assert.False(conhecidos.ContainsKey(("Grupo B", 3)));
     }
@@ -97,7 +98,7 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (grupos, jogos) = DoisGruposDeTresAsync(ctx, fecharB: true);
-        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2);
+        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos);
 
         var rodadas = ChaveProjetada.MontarCompleta(
             grupos.Select(g => g.Nome).ToList(), 2,
@@ -147,7 +148,8 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
 
         var duplasDoB = await ctx.Duplas.Include(d => d.Jogador1).Include(d => d.Jogador2)
             .Where(d => idsDoB.Contains(d.Id)).ToListAsync();
-        var rankingDoB = ClassificacaoDeGrupos.Ordenar(duplasDoB, jogosDoB);
+        var rankingDoB = ClassificacaoDeGrupos.Ordenar(duplasDoB, jogosDoB,
+            ClassificacaoDeGrupos.SemPontos);
 
         ctx.ChangeTracker.Clear();
 
