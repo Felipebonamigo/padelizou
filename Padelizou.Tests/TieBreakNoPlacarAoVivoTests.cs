@@ -188,10 +188,16 @@ public class TieBreakNoPlacarAoVivoTests
     }
 
     [Fact]
-    public async Task Array_de_pontos_mais_curto_que_o_de_jogos_nao_estoura()
+    public async Task Array_de_pontos_desalinhado_nao_estoura_e_nao_grava_ponto_nenhum()
     {
-        // POST recortado (tela antiga, requisição montada à mão): o que falta fica como está,
-        // em vez de derrubar o salvamento dos games de todas as quadras.
+        // POST recortado (tela antiga, requisição montada à mão): os games entram e os pontos
+        // ficam como estão, em vez de derrubar o salvamento das quadras todas.
+        //
+        // ⚠️ NENHUM ponto entra, nem o do primeiro jogo (12/09/2026). Este teste aceitava o
+        // array mais curto pelo índice que desse — e aceitar "o que dá" num array casado por
+        // ÍNDICE é o mesmo que escolher em qual jogo escrever no chute: com o card mandando um
+        // `pontos1` a mais, era a contagem do primeiro jogo que ia parar no segundo. Lote
+        // torto não grava contagem; o placar de games, que tem trava própria na entrada, segue.
         var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(2);
         using var _ = ctx;
 
@@ -205,8 +211,9 @@ public class TieBreakNoPlacarAoVivoTests
         var primeiro = await ctx.Partidas.FindAsync(aoVivo[0].Id);
         var segundo = await ctx.Partidas.FindAsync(aoVivo[1].Id);
 
-        Assert.Equal(3, primeiro!.PontosTieBreak1);
+        Assert.Null(primeiro!.PontosTieBreak1);
         Assert.Null(segundo!.PontosTieBreak1);
-        Assert.Equal(5, segundo.GamesDupla1);     // e o placar de games do segundo entrou
+        Assert.Equal(8, primeiro.GamesDupla1);    // e o placar de games dos dois entrou
+        Assert.Equal(5, segundo.GamesDupla1);
     }
 }

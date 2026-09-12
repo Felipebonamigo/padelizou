@@ -121,9 +121,16 @@ public class TieBreakNaTelaTests
         // e só o segundo em tie-break, `pontos1[0]` chegaria como se fosse do primeiro.
         var view = LerDaWeb("Views", "Torneios", "_JogosDoTorneio.cshtml");
 
-        Assert.Contains("@if (!emTieBreak)", view);
+        // Fase SEM tie-break: o campo escondido é o único caminho dos pontos.
         Assert.Contains("<input type=\"hidden\" name=\"pontos1\"", view);
         Assert.Contains("<input type=\"hidden\" name=\"pontos2\"", view);
+
+        // Fase COM tie-break: quem viaja é o contador do bloco, que existe no HTML mesmo fora
+        // do 8x8 (escondido). ⚠️ E aí o escondido NÃO pode existir junto — os dois no mesmo
+        // card mandam dois `pontos1` e desalinham o lote inteiro. Ver
+        // PlacarAoVivoNaoAtropelaOVizinhoTests.
+        Assert.Contains("@if (!temBlocoDeTieBreak)", view);
+        Assert.DoesNotContain("@if (!emTieBreak)", view);
     }
 
     [Fact]

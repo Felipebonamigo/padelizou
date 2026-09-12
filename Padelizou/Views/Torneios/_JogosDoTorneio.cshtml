@@ -509,6 +509,20 @@
                                     && Padelizou.Services.TieBreakDoJogo.EmAndamento(
                                            formatoAoVivo, jogo.GamesDupla1 ?? 0, jogo.GamesDupla2 ?? 0);
 
+                                // ESTE CARD DESENHA O BLOCO DO TIE-BREAK? A resposta vale por
+                                // duas: ela decide o bloco (que nasce ESCONDIDO fora do 8x8) e
+                                // decide o campo escondido dos pontos, logo acima.
+                                //
+                                // ⚠️ UMA CONDIÇÃO SÓ, E A OUTRA É A NEGAÇÃO DELA (12/09/2026).
+                                // Os dois são campos do POST em lote, que casa `partidaId[]`
+                                // com `pontos1[]` por ÍNDICE — e `hidden` não tira campo
+                                // nenhum do POST. Enquanto o escondido saía por "está em
+                                // tie-break AGORA?", todo card de fase com tie-break fora do
+                                // 8x8 mandava DOIS `pontos1`: com duas quadras no ar, o índice
+                                // escorregava e o segundo jogo recebia a contagem do primeiro.
+                                bool temBlocoDeTieBreak = formatoAoVivo != null
+                                    && Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo);
+
                                 // O placar que o fechamento escreve (9x8). Nulo = ainda não dá
                                 // pra fechar — 7-6 não fecha, porque o tie-break também se vence
                                 // por dois. Quem decide é a régua; o botão só obedece.
@@ -559,7 +573,7 @@
                                            é inofensivo (o servidor grava o mesmo número de volta).
                                            Em tie-break, os contadores visíveis lá embaixo tomam o
                                            lugar destes dois — mesmo `name`, uma entrada só. *@
-                                        @if (!emTieBreak)
+                                        @if (!temBlocoDeTieBreak)
                                         {
                                             <input type="hidden" name="pontos1" value="@pontosTb1" form="pdzPlacaresAoVivo" />
                                             <input type="hidden" name="pontos2" value="@pontosTb2" form="pdzPlacaresAoVivo" />
@@ -643,10 +657,13 @@
                                atualização automática troca: é o que faz os pontos subirem na tela
                                de quem está em casa sem ninguém recarregar nada.
 
-                               `formatoAoVivo != null` explícito, e não herdado de um bool: é o
-                               compilador que precisa saber, e foi esse o padrão que gerou 6 dos 7
-                               CS8602 de produção (CLAUDE.md). *@
-                            @if (formatoAoVivo != null && Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo))
+                               `formatoAoVivo != null` explícito AO LADO do bool, e não herdado
+                               dele: um bool que capturou a checagem não ensina nada ao
+                               compilador, e foi esse o padrão que gerou 6 dos 7 CS8602 de
+                               produção (CLAUDE.md). Quem responde "tem bloco?" é o
+                               `temBlocoDeTieBreak`, pra a condição do campo escondido poder ser
+                               a negação EXATA desta. *@
+                            @if (temBlocoDeTieBreak && formatoAoVivo != null)
                             {
                                 <div class="pdz-live-tiebreak" data-tiebreak="@jogo.Id" hidden="@(!emTieBreak)">
                                     <div class="pdz-live-tiebreak-titulo">

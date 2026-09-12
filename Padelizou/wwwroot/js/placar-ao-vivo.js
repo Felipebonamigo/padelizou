@@ -23,9 +23,15 @@
 // o reload REINICIA o <iframe> da transmissão, que é o defeito que a atualização automática
 // acabou de deixar de causar (ver js/jogos-ao-vivo-atualiza.js).
 //
-// Agora o mesmo formulário vai por `fetch`: o servidor recebe exatamente o que recebia antes
-// (é o `FormData` do form inteiro, com o token do antiforgery dentro), e a tela não sai do
-// lugar. O que a pessoa vê é o card dizendo "salvando…" e depois "salvo".
+// Agora o mesmo formulário vai por `fetch` e a tela não sai do lugar: o que a pessoa vê é o
+// card dizendo "salvando…" e depois "salvo".
+//
+// ⚠️ E O QUE VIAJA É SÓ O CARD QUE FOI TOCADO (12/09/2026). O corpo era o `FormData` do
+// formulário INTEIRO — que, por causa do `form="pdzPlacaresAoVivo"` nos campos de cada card, é
+// TODA quadra no ar. Com dois marcadores no mesmo torneio, o toque de um reescrevia a quadra
+// do outro com o número que ESTA tela tinha, até 20 segundos velho: o game do vizinho voltava
+// pro valor anterior sem erro em lugar nenhum, e quem perdia o trabalho era quem não tocou em
+// nada. Ver `corpoDoLote` e Padelizou.Tests/js/conferir-placar-ao-vivo.js.
 //
 // A view não escreve JavaScript nenhum: ela põe os botões com data-passo e este arquivo faz
 // o resto — o mesmo padrão de confirmar.js.
@@ -51,7 +57,33 @@
     var enviando = false;
     var pendente = false;
     var agendado = null;
-    var cardsMexidos = [];
+
+    // OS CARDS COM TOQUE AINDA NÃO CONFIRMADO PELO SERVIDOR — a fila deste aparelho.
+    //
+    // ⚠️ ELA É O QUE VAI NO POST, e nada além dela (12/09/2026). O formulário do lote reúne
+    // TODAS as quadras no ar: os campos moram dentro dos cards e se ligam a ele por
+    // `form="pdzPlacaresAoVivo"`, então `new FormData(form)` — que era o corpo daqui — mandava
+    // o torneio inteiro a cada toque, com o valor que ESTA tela tinha. Com dois marcadores
+    // trabalhando, o toque de um reescrevia a quadra do outro com um placar de até 20 segundos
+    // atrás (o intervalo da atualização automática é quem traz o do vizinho). Quem via o game
+    // sumir era justamente quem não tocou em nada, e não havia erro em lugar nenhum.
+    var mexidos = [];
+
+    function marcarMexido(card) {
+        if (!card || mexidos.indexOf(card) !== -1) return;
+        mexidos.push(card);
+        // A bandeira fica no CARD porque quem também precisa dela é a atualização automática
+        // (js/jogos-ao-vivo-atualiza.js): entre o dedo e o POST há o meio segundo do debounce,
+        // e trocar o cabeçalho nesse vão devolve o número velho — que é o que o POST lê em
+        // seguida. O toque sumiria inteiro.
+        card.setAttribute("data-pdz-mexido", "");
+    }
+
+    // A marca só sai quando o servidor confirmou E ninguém tocou no card de novo no meio do
+    // caminho.
+    function confirmar(card) {
+        if (mexidos.indexOf(card) === -1) card.removeAttribute("data-pdz-mexido");
+    }
 
     // Escreve na tela o placar que o servidor gravou. Só mexe no campo que a pessoa NÃO está
     // editando naquele instante — corrigir por baixo do dedo dela apagaria o que ela está
@@ -159,28 +191,66 @@
         }
     }
 
-    function marcarTodos(estado, texto) {
-        cardsMexidos.forEach(function (card) { avisar(card, estado, texto); });
+    function marcarTodos(lote, estado, texto) {
+        lote.forEach(function (card) { avisar(card, estado, texto); });
+    }
+
+    // O CORPO DO POST: os campos do próprio formulário (o token do antiforgery, o id do
+    // torneio, o recorte da tela) mais os campos DOS CARDS DO LOTE — e só deles.
+    var CAMPOS_DO_CARD = ["partidaId", "games1", "games2", "pontos1", "pontos2"];
+
+    function corpoDoLote(form, lote) {
+        var dados = new FormData();
+
+        // `form.querySelectorAll` pega só o que está DENTRO do formulário — os campos dos cards
+        // estão fora dele, ligados pelo atributo `form`, e é exatamente o que não pode entrar
+        // sozinho.
+        Array.prototype.forEach.call(form.querySelectorAll("input"), function (campo) {
+            if (campo.name) dados.append(campo.name, campo.value);
+        });
+
+        // ⚠️ UM CAMPO DE CADA NOME POR CARD, na mesma ordem em todos: o servidor casa
+        // `partidaId[]` com `games1[]` e `pontos1[]` por ÍNDICE, e uma entrada a mais em
+        // qualquer um dos arrays grava o placar de um jogo no outro.
+        //
+        // O `.pdz-live-input` vem primeiro de propósito: é o campo que a pessoa toca e o mesmo
+        // que a resposta do servidor reescreve (ver aplicarPlacarDoServidor). O segundo
+        // seletor é pro `partidaId`, que é escondido e não tem a classe.
+        lote.forEach(function (card) {
+            CAMPOS_DO_CARD.forEach(function (nome) {
+                var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]')
+                    || card.querySelector('[name="' + nome + '"]');
+                if (campo) dados.append(nome, campo.value);
+            });
+        });
+
+        return dados;
     }
 
     function enviarAgora() {
         var form = formulario();
         if (!form) return;
 
-        // Um POST por vez. Toque que chega no meio do envio não é perdido: ele marca
-        // `pendente` e o próximo envio sai com o valor mais novo da tela.
+        // Um POST por vez. Toque que chega no meio do envio não é perdido: ele entra em
+        // `mexidos`, marca `pendente` e o envio seguinte sai com o valor mais novo da tela.
         if (enviando) { pendente = true; return; }
+
+        // O que vai NESTE POST sai da fila agora: um toque que chegue enquanto ele viaja
+        // reentra por cima, e é a fila que decide se a marca do card pode sair no fim.
+        var lote = mexidos.slice();
+        if (lote.length === 0) return;
+        mexidos = [];
 
         enviando = true;
         // ⚠️ Trava a atualização automática enquanto o placar está indo: ela troca o
         // cabeçalho do card pelo HTML do servidor, e o servidor ainda não sabe deste game —
         // o número recém-marcado voltaria pro valor velho na frente da pessoa.
         window.pdzSalvandoPlacar = true;
-        marcarTodos("indo", "salvando…");
+        marcarTodos(lote, "indo", "salvando…");
 
         window.fetch(form.action, {
             method: "POST",
-            body: new FormData(form),
+            body: corpoDoLote(form, lote),
             credentials: "same-origin",
             // O cabeçalho é o que pede a resposta em JSON — e é o JSON que prova que salvou.
             headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -199,27 +269,35 @@
                 // ar. Com a recarga, a tela voltava do servidor já certa; sem ela, seria a
                 // tela mentindo sobre o que está gravado.
                 aplicarPlacarDoServidor(dados && dados.placares);
-                marcarTodos("ok", "salvo");
+                marcarTodos(lote, "ok", "salvo");
+                lote.forEach(confirmar);
                 // O "salvo" some sozinho; o card volta a ser só o card.
-                window.setTimeout(function () { marcarTodos("", ""); cardsMexidos = []; }, 2500);
+                window.setTimeout(function () { marcarTodos(lote, "", ""); }, 2500);
             })
             .catch(function () {
                 // ⚠️ Falha PRECISA aparecer. O placar continua na tela (não se apaga o que a
                 // pessoa marcou), mas ela tem que saber que o servidor não recebeu — senão é
                 // o "editei e não salvou" de novo, agora silencioso porque não há recarga
                 // pra denunciar.
-                marcarTodos("erro", "não salvou — toque de novo");
+                marcarTodos(lote, "erro", "não salvou — toque de novo");
+                // NADA é descartado: o card volta pra fila, e o toque seguinte (ou o "Salvar
+                // placares") tenta de novo com o que está na tela.
+                lote.forEach(marcarMexido);
             })
             .then(function () {
                 enviando = false;
-                window.pdzSalvandoPlacar = pendente;
+                window.pdzSalvandoPlacar = false;
+                // ⚠️ Quem manda reenviar é o TOQUE que chegou no meio do caminho, e nunca a
+                // fila em si: o card que voltou pra fila por falha de rede também está nela, e
+                // reenviar por isso seria um laço apertado contra o servidor justamente na hora
+                // em que a internet do clube está ruim. O que tira o card de lá é o toque
+                // seguinte (ou o "Salvar placares"), com o aviso "não salvou" na tela até lá.
                 if (pendente) { pendente = false; enviarAgora(); }
             });
     }
 
     function agendarEnvio(campo) {
-        var card = campo && campo.closest ? campo.closest(".pdz-live-card") : null;
-        if (card && cardsMexidos.indexOf(card) === -1) cardsMexidos.push(card);
+        marcarMexido(campo && campo.closest ? campo.closest(".pdz-live-card") : null);
 
         window.clearTimeout(agendado);
         agendado = window.setTimeout(enviarAgora, ESPERA_MS);
@@ -302,7 +380,7 @@
         // ABSOLUTO (9 x 8), então o segundo toque dá exatamente no mesmo lugar — a mesma razão
         // pela qual a fila da Mesa guarda placar inteiro e não "+1". Desabilitar deixaria o botão
         // MORTO quando o POST falha, que é justamente quando a pessoa precisa tocar de novo.
-        cardsMexidos = [card];
+        marcarMexido(card);
         window.clearTimeout(agendado);
         enviarAgora();
     });
@@ -345,10 +423,20 @@
         if (!window.fetch) return;   // navegador sem fetch: deixa o envio de sempre acontecer
 
         e.preventDefault();
-
-        // Salvar a mão pede resposta em todos os cards, e não só nos que foram tocados.
-        cardsMexidos = Array.prototype.slice.call(document.querySelectorAll(".pdz-live-card"));
         window.clearTimeout(agendado);
+
+        // ⚠️ O BOTÃO SALVA O QUE FOI EDITADO, e não a tela inteira (12/09/2026). Ele era o
+        // caminho mais direto pro defeito que este arquivo acabou de tirar do −/+: mandar
+        // "por garantia" o placar das quadras que ninguém tocou é reescrever o trabalho do
+        // outro marcador com um número velho. Sem card mexido não há o que salvar — e dizer
+        // isso é mais honesto que um "salvo" que não gravou nada.
+        if (mexidos.length === 0) {
+            var todos = Array.prototype.slice.call(document.querySelectorAll(".pdz-live-card"));
+            marcarTodos(todos, "ok", "nada mudou");
+            window.setTimeout(function () { marcarTodos(todos, "", ""); }, 2500);
+            return;
+        }
+
         enviarAgora();
     });
 })();
