@@ -12,7 +12,11 @@
 >
 > 🕳️ **O CI DISPAROU SOZINHO nas duas pontas desta vez** (PR e `main`) — depois de cinco falhas registradas neste arquivo (26/08, 10/09 e três em 11/09). Nada mudou no `ci.yml`; fica o registro pra próxima vez que doer.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1201-44a1ff6`** (runs 284 e 285, 00h34 e 00h36 de Brasília), **o mesmo artefato nos dois**, com a tag explícita no formulário do Deploy — e não o "mais recente", justamente porque outra sessão publicou no `prod` sete minutos antes. PR #236. ✅ **SEM MIGRATION** (só CSS e uma classe de grid).
+> 
+> ✅ **CONFERIDO NO AR, nos dois ambientes, buscando o CSS servido** (`/css/site.css`, anônimo, `curl`): `.pdz-live-placar` com `flex-shrink: 0`, `.pdz-live-input` com `width: 1.7em`, `.pdz-live-jogadores .pdz-chip-texto` com `min-width: 0` e o `overflow-wrap: break-word` do nome. `/healthz` **200** nos dois.
+> 
+> ⚠️ **O `col-lg-6` NÃO FOI VISTO NO AR, por falta de caso**: na hora da conferência não havia NENHUM jogo ao vivo (`pdz-live-card` aparece 0 vez no `/Torneios/Details/26`), e é só dentro desse bloco que a classe é escrita. Os 24 `col-md-6` que a página ainda mostra são de outras partes do `Details.cshtml`, que ninguém pediu pra mexer. O primeiro jogo em quadra é o teste de verdade.
 >
 > 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
 >
