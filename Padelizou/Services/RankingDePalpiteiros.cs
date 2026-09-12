@@ -64,6 +64,14 @@ public static class RankingDePalpiteiros
         var emAberto = await EmAbertoAsync(contexto, torneioId);
         var linhas = Mesclar(apuracao.Linhas, emAberto.Linhas);
 
+        // QUEM DISPUTA O TORNEIO (12/09/2026). 🗣️ Felipe, com o print da aba aberta: *"aqui no
+        // palpitometro, coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"*.
+        //
+        // ⚠️ UMA consulta pro torneio inteiro, e não uma pergunta por linha: com 30 palpiteiros
+        // seriam 30 idas ao banco na página mais visitada do site.
+        var jogando = await QuemJogaAsync(contexto, torneioId);
+        foreach (var linha in linhas) linha.JogaOTorneio = jogando.Contains(linha.JogadorId);
+
         return new PalpiteirosDoTorneio
         {
             TorneioId = torneio.Id,
@@ -588,6 +596,46 @@ public static class RankingDePalpiteiros
                 v.DuplaEscolhidaId, v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
             .ToList();
 
+    // ── QUEM DISPUTA O TORNEIO ────────────────────────────────────────────────────────────
+    //
+    // As inscrições VALENDO deste torneio, só as duas colunas de jogador.
+    //
+    // ⚠️ FILTRO ANTES DA PROJEÇÃO, como manda a lição de 19/08/2026: `Where` depois do `Select`
+    // faz o EF procurar a coluna no objeto projetado e a página responde 500 com a suíte verde.
+    // Pública porque é ela que `QuemJogaOTorneioNoPalpitometroTests` compila contra o Npgsql —
+    // o InMemory da suíte não traduz nada, e esta consulta atravessa a navegação `Categoria`.
+    //
+    // ⚠️ LISTA DE ESPERA FORA (escolha do Felipe): quem espera vaga ainda não joga, e um selo
+    // "jogando" nele promete um adversário que pode nunca entrar em quadra.
+    //
+    // ⚠️ TIME FORA pela régua de sempre — a MESMA do `EmQuadraAsync` logo abaixo: na linha de
+    // time o `Jogador1Id` é o organizador que cadastrou (coluna NOT NULL), não quem joga.
+    // Contá-lo marcaria a mesma pessoa como jogadora de todo torneio de times que ela inscreveu.
+    public static IQueryable<QuemJoga> ConsultaDeQuemJoga(DbPadelContext contexto, int torneioId) =>
+        contexto.Duplas
+            .AsNoTracking()
+            .Where(d => d.Categoria.TorneioId == torneioId
+                        && d.NomeTime == null
+                        && !d.EmListaDeEspera)
+            .Select(d => new QuemJoga(d.Jogador1Id, d.Jogador2Id));
+
+    // Os ids de quem disputa. Vazio é resposta legítima: torneio só de times, ou sem inscrição.
+    public static async Task<HashSet<int>> QuemJogaAsync(DbPadelContext contexto, int torneioId)
+    {
+        var duplas = await ConsultaDeQuemJoga(contexto, torneioId).ToListAsync();
+
+        var ids = new HashSet<int>();
+        foreach (var d in duplas)
+        {
+            ids.Add(d.Jogador1Id);
+            // NULO = inscrito sozinho, ainda procurando parceiro. A vaga é dele e ele entra no
+            // sorteio (ver Dupla.Jogador2Id) — só não há um segundo nome pra marcar.
+            if (d.Jogador2Id is int parceiro) ids.Add(parceiro);
+        }
+
+        return ids;
+    }
+
     // Quem estava EM QUADRA em cada dupla. Consultado à parte de propósito: pendurar as duas
     // duplas na projeção da partida traria quatro navegações obrigatórias num JOIN só, e é a
     // linha inteira que some quando uma delas falta.
@@ -642,6 +690,10 @@ public static class RankingDePalpiteiros
     }
 }
 
+// As duas colunas de jogador de uma inscrição valendo — o que a pergunta "quem joga o torneio"
+// precisa do banco, e nada mais.
+public sealed record QuemJoga(int Jogador1Id, int? Jogador2Id);
+
 // Uma partida já pronta pra apuração.
 public sealed record PartidaApurada(
     int Id, int? TorneioId, int? VencedorId, int Dupla1Id, int Dupla2Id,
@@ -678,6 +730,14 @@ public sealed class PalpiteiroNoRanking
     // Quantos palpites deste jogador entraram na conta (jogo terminado, e fora os do próprio
     // jogo dele).
     public int Palpites { get; set; }
+
+    // ESTA PESSOA DISPUTA O TORNEIO? (12/09/2026 — 🗣️ Felipe: *"coloque um filtro, para ver se a
+    // pessoa esta jogando o torneio ou nao"*.)
+    //
+    // ⚠️ SÓ O RANKING DO TORNEIO preenche isto. No hub e no perfil a tabela soma VÁRIOS
+    // torneios, e "joga o torneio" não tem sujeito lá — por isso o padrão é `false` e a tela de
+    // lá não pergunta (ver TabelaDePalpiteirosVM.MostrarQuemJoga).
+    public bool JogaOTorneio { get; set; }
 
     // Palpites em jogos que ainda NÃO terminaram — os que vão virar ponto, e ainda não são.
     //
