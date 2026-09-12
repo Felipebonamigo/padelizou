@@ -186,6 +186,13 @@ public class FiltroPorFaseNoPalpitometroTests
         ctx.Partidas.Remove(final);
         await ctx.SaveChangesAsync();
 
+        // ⚠️ COM PALPITE NO GRUPO, e isto passou a ser necessário quando o recorte deixou de
+        // sair das FASES DAS PARTIDAS e passou a sair das fases COM PALPITE (o 404 visto no ar
+        // no Er). A intenção do teste é a mesma; o cenário é que ficou honesto — sem palpite
+        // não há tabela, e sem tabela não há filtro a oferecer.
+        var torcedor = await NovoTorcedorAsync(ctx, "Palpitou no Grupo", "55530000007");
+        await PalpitarAsync(ctx, grupo, torcedor.Id, grupo.Dupla1Id, 6, 4);
+
         var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, null);
 
         Assert.Equal(new[] { FaseDoPalpitometro.Tudo, FaseDoPalpitometro.Grupos }, ranking!.RecortesComJogo);
@@ -199,7 +206,12 @@ public class FiltroPorFaseNoPalpitometroTests
     public async Task Torneio_com_grupos_e_final_oferece_os_tres_recortes()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, _, _) = await MontarDoisJogosAsync(ctx);
+        var (torneio, _, grupo, final) = await MontarDoisJogosAsync(ctx);
+
+        // Palpite nas DUAS fases — é o que faz as duas terem tabela pra mostrar.
+        var torcedor = await NovoTorcedorAsync(ctx, "Palpitou nas Duas", "55530000008");
+        await PalpitarAsync(ctx, grupo, torcedor.Id, grupo.Dupla1Id, 6, 4);
+        await PalpitarAsync(ctx, final, torcedor.Id, final.Dupla1Id, 6, 4);
 
         var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, null);
 
@@ -207,6 +219,52 @@ public class FiltroPorFaseNoPalpitometroTests
             new[] { FaseDoPalpitometro.Tudo, FaseDoPalpitometro.Grupos, FaseDoPalpitometro.MataMata, FaseDoPalpitometro.Finais },
             ranking!.RecortesComJogo);
         Assert.True(ranking.MostrarFiltroDeFase);
+    }
+
+    // 🕳️ DEFEITO VISTO NO AR, no `prod`, no torneio do Er, MINUTOS DEPOIS DE PUBLICAR: o botão
+    // "Mata-mata" aparecia e `?fasePalpiteiros=matamata` respondia **404**. As fases de chave
+    // existiam (por isso o botão), mas ninguém tinha palpitado em nenhuma delas — e a página
+    // devolve 404 quando não há linha nenhuma, por decisão do MVP ("uma página dizendo 'nada
+    // aqui' é um link que só sabe decepcionar").
+    //
+    // ⚠️ BOTÃO QUE LEVA A ERRO É PIOR QUE BOTÃO QUE NÃO EXISTE, e a régua do projeto já dizia
+    // isso em outras palavras: o recorte some por DADO. Só que o dado certo não é "existe jogo
+    // nesta fase", é "existe PALPITE nesta fase" — é o palpite que faz a tabela ter linha.
+    [Fact]
+    public async Task Fase_que_existe_mas_ONDE_NINGUEM_PALPITOU_nao_e_oferecida()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, grupo, final) = await MontarDoisJogosAsync(ctx);
+
+        // Palpite SÓ no jogo de grupo. A final existe, terminou, e ninguém palpitou nela.
+        var torcedor = await NovoTorcedorAsync(ctx, "Só nos Grupos", "55530000005");
+        await PalpitarAsync(ctx, grupo, torcedor.Id, grupo.Dupla1Id, 6, 4);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, null);
+
+        Assert.Equal(new[] { FaseDoPalpitometro.Tudo, FaseDoPalpitometro.Grupos }, ranking!.RecortesComJogo);
+        Assert.False(ranking.MostrarFiltroDeFase);
+    }
+
+    [Fact]
+    public async Task E_o_recorte_oferecido_NUNCA_devolve_tabela_vazia()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, grupo, final) = await MontarDoisJogosAsync(ctx);
+
+        var torcedor = await NovoTorcedorAsync(ctx, "Palpitou nos Dois", "55530000006");
+        await PalpitarAsync(ctx, grupo, torcedor.Id, grupo.Dupla1Id, 6, 4);
+        await PalpitarAsync(ctx, final, torcedor.Id, final.Dupla1Id, 6, 4);
+
+        var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, null);
+
+        // ⚠️ A TRAVA DE VERDADE: todo recorte que a tela oferece tem que ter linha. É ela que
+        // impede o 404 no clique, independente de como os recortes passem a ser escolhidos.
+        foreach (var recorte in ranking!.RecortesComJogo)
+        {
+            var doRecorte = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, null, recorte);
+            Assert.True(doRecorte!.TemRanking, $"o recorte `{recorte}` é oferecido e não tem linha nenhuma");
+        }
     }
 
     [Fact]
@@ -240,6 +298,10 @@ public class FiltroPorFaseNoPalpitometroTests
 
         Assert.Contains("SELECT", RankingDePalpiteiros.ConsultaDePartidas(ctx, filtro).ToQueryString());
         Assert.Contains("SELECT", RankingDePalpiteiros.ConsultaDePartidasEmAberto(ctx, filtro).ToQueryString());
+
+        // A das FASES COM PALPITE atravessa a navegação `Partida` a partir do palpite — e ela é
+        // quem decide os botões, então um erro de tradução aqui derruba a aba inteira.
+        Assert.Contains("SELECT", RankingDePalpiteiros.ConsultaDasFasesComPalpite(ctx, torneioId: 1).ToQueryString());
     }
 
     // ─────────────────── 5. O QUE A TELA DESENHA ───────────────────
