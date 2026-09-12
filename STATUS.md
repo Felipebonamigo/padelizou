@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
+
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
+>
+> ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br/Torneios/Details/26`, anônimo, `curl`), que é mais forte que o healthcheck: a página traz **`Eder Marcos`** e **`Marcelo Prestes`** (6 ocorrências cada) e **ZERO** de *"Eder Cristiano"*, *"Marcelo Carvalho"* ou *"Enio Gilberto"*. `/healthz` **200** nos dois ambientes.
+>
+> 🕳️ **UMA LINHA, PORQUE O ENCURTADOR JÁ EXISTIA:** `NomeBonito.Curto` (primeiro + último, com partícula e sufixo de geração viajando colados no sobrenome) é de 06/08 e já era usado por `Jogador.ComoChamar` e `NomeDaDupla.De`. **`Dupla.NomeDeExibicao` era a única régua de nome de dupla que ainda escrevia o nome inteiro** (`NomeNaTela`) — e é ela que escreve a vaga do quadro projetado (`ClassificadosJaConhecidos`), o bye da chave (`QuadroDoMataMata`), o push de "seu próximo jogo", o check-in e as caixas de seleção da Mesa de Controle. Todos encurtaram juntos, que é o ponto de ter uma régua só.
+>
+> ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES. Ele CONVIVE com o `Dupla.NomeCurto` que outra sessão criou no mesmo dia (só o primeiro nome, *"Marcelo / Enio"*, pras listas densas): são dois níveis de aperto, não duas respostas pra mesma pergunta.
+>
+> 🧪 **6.637 testes, 0 falhas (3 novos)** + `conferir-palpitometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"*, na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+>
+> 🕳️ **DOIS DEPLOYS DESTA SESSÃO FORAM PRA VALA, e a lição é de RELÓGIO:** os runs 280 e 281 saíram com `head_sha` do meu merge e mesmo assim instalaram **`build-1197-c4856a9`** — o release `build-1199` só foi publicado às 03h24m59, DEPOIS do deploy de `dev` (03h22) e DURANTE o de `prod` (03h24m49). **`head_sha` do run não é o que está no ar**; quem diz é a linha *"==> Feito. build-N no ar em AMBIENTE"* do log. Foi por ler o log que os runs 282/283 saíram com a tag explícita.
+>
+> ⚠️ **E O `main` ANDOU 27 COMMITS DURANTE ESTE TRABALHO** (PRs #234, #235 e #236, de sessões paralelas), com **duas** rodadas de conflito no `STATUS.md` e uma terceira no próprio branch — outra sessão empurrou um merge do `main` dentro dele enquanto eu resolvia o meu. Reconciliado com merge, nunca com `--force`.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
 >
 > 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
 >
