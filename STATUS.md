@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
 >
 > 🗣️ Felipe, depois de ver a bolinha por dupla: *"Mas é tem um check para cada jogador da dupla?"* — e, com a resposta: *"Mude para um check por jogador, por que é assim que controla check in"*. Escolheu também o formato (**A**, check ao lado de cada nome), e mandou publicar ao terminar.
 >
@@ -18,6 +18,10 @@
 > 🚧 **TIME FICA DE FORA** (cai no desenho antigo): ali a linha não tem nome de pessoa, tem nome de equipe. Chamada por jogador em torneio de times é outro pedido.
 >
 > 🧪 **6.771 testes, 0 falhas (16 novos, em `PresencaPorJogadorTests`)** + os 4 conferidores de JS verdes.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (mais forte que ler número de run — outras três sessões publicaram no mesmo intervalo): o `site.css` de **`padelizou.com.br`** e de **`dev`** traz `.pdz-jl-par` (5×), `.pdz-jl-jogador` (2×) e `.pdz-jl-checkin { color: var(--pdz-muted) }` — as classes que só existem depois desta mudança. `/healthz` **200** nos dois, e `Torneios/Details/26` (o ER, 64 duplas) responde **200**: a migration rodou na base de verdade, com torneio em andamento, sem derrubar a página.
+>
+> 👀 **E DESTA VEZ A TELA FOI VISTA, não só testada**: o app subiu nesta sessão contra um Postgres local, logado como organizador — aba Jogos no computador e no celular, tela de Check-in, e o POST de marcar/desfazer indo e voltando com a âncora certa. As fotos foram pro Felipe. **O que continua não visto é o tema ESCURO no aparelho dele** (o site reaplica o tema guardado, e o headless não tem esse estado): lá a garantia é o teste de contraste.
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/share-button-photo-download-ee9mlj`, ainda não publicado.** **Sem migration.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
 >
