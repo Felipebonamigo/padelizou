@@ -428,6 +428,27 @@ public class ReacoesNoJogoTests
         Assert.Contains("/Partidas/QuemReagiu", js);
     }
 
+    // ⚠️ O BOTÃO EXISTE EM DOIS LUGARES E OS DOIS TÊM QUE DIZER A MESMA COISA: o Razor desenha
+    // a fileira na primeira carga, e o JS a REPINTA depois de cada reação. Divergiram uma vez
+    // (12/09/2026): o Razor já era o rostinho sem caixa e o JS ainda montava o
+    // `<i class="bi bi-emoji-smile">` de borda — o botão trocava de cara no primeiro toque e
+    // só voltava no F5. Nenhum dos dois está errado sozinho, e é por isso que passa batido.
+    [Fact]
+    public void O_botao_de_abrir_e_IGUAL_no_Razor_e_na_repintura_do_JS()
+    {
+        var razor = Ler("Views", "Torneios", "_ReacoesDoJogo.cshtml");
+        var js = Ler("wwwroot", "js", "reacoes-do-jogo.js");
+
+        // Sem caixa: o botão saiu do seletor compartilhado das pílulas (ver site.css).
+        var css = Ler("wwwroot", "css", "site.css");
+        Assert.DoesNotContain(".pdz-reacao-abrir,\n.pdz-reacao-atalho {", css);
+
+        // E o desenho é o mesmo emoji nos dois lados, não um ícone num e emoji no outro.
+        Assert.Contains("pdz-reacao-emoji", razor[razor.IndexOf("pdz-reacao-abrir", StringComparison.Ordinal)..]);
+        Assert.Contains("pdz-reacao-emoji\" aria-hidden=\"true\">🙂", js);
+        Assert.DoesNotContain("bi-emoji-smile", js);
+    }
+
     // ⚠️ O NOME VEM DO CADASTRO — texto de gente, montado com innerHTML no modal. Sem escapar,
     // um nome com "<" quebra a lista e um nome montado de propósito injeta marcação. É a mesma
     // guarda que o modal de votos já tem (palpitometro.js).

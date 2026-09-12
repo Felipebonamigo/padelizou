@@ -224,10 +224,14 @@ function pdzPintarFileiraDoCartao(resumo) {
     // ⚠️ O BOTÃO DO TECLADO É REMONTADO JUNTO e continua sendo o último: ele é o que sobra num
     // jogo sem reação nenhuma, e perdê-lo aqui deixaria o cartão sem caminho de volta depois de
     // a pessoa tirar a única reação que existia.
+    // ⚠️ ESTE MARKUP É CÓPIA DO `_ReacoesDoJogo.cshtml` e tem que andar junto com ele: quem
+    // reagir repinta a fileira por aqui, então um botão diferente aqui significa que o desenho
+    // troca de cara no primeiro toque e volta ao normal só no F5. Tem conferência no
+    // `conferir-reacoes-do-jogo.js` casando os dois.
     fileira.innerHTML = pilulas
         + '<button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"'
         + ' aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">'
-        + '<i class="bi bi-emoji-smile"></i></button>';
+        + '<span class="pdz-reacao-emoji" aria-hidden="true">🙂</span></button>';
 }
 
 function pdzMostrarErro(mensagem) {
