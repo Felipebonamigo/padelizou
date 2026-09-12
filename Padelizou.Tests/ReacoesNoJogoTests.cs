@@ -263,7 +263,7 @@ public class ReacoesNoJogoTests
         await servico.ReagirAsync(partida.Id, bia.Id, "😂");
         await servico.ReagirAsync(partida.Id, ana.Id, "🔥");
 
-        var quem = await servico.ObterQuemReagiuAsync(partida.Id);
+        var quem = await servico.ObterQuemReagiuAsync(partida.Id, null);
 
         Assert.NotNull(quem);
         Assert.Equal(3, quem!.Linhas.Count);
@@ -275,6 +275,71 @@ public class ReacoesNoJogoTests
         Assert.Contains("Bibiana Ritter", quem.Linhas.Select(l => l.Nome));
     }
 
+    // ⚠️ O PAINEL PRECISA ABRIR JÁ COM AS PÍLULAS, e isto é defeito visto no Chromium em
+    // 12/09/2026: eu só pintava a fileira do painel DEPOIS de um POST, então ao abrir ela vinha
+    // vazia — e era nela que o desenho mandava somar e tirar a minha reação ("no cartão a
+    // pílula abre o painel; dentro do painel ela soma ou tira"). Sem as pílulas ali, a única
+    // saída era digitar de novo um emoji que já estava na tela.
+    //
+    // Por isso o "quem reagiu" devolve as DUAS coisas no mesmo GET: as pílulas contadas (com o
+    // `EuReagi`, que é o que decide entre somar e tirar) e a lista de quem colocou o quê. Duas
+    // chamadas pra pintar um painel só é como as duas metades saem de sincronia.
+    [Fact]
+    public async Task Quem_reagiu_devolve_TAMBEM_as_pilulas_com_o_meu_marcado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var partida = await MontarJogoAsync(ctx);
+        var servico = new ReacaoService(ctx);
+        var eu = await NovoTorcedorAsync(ctx, "Eu", "66660000030");
+        var outro = await NovoTorcedorAsync(ctx, "Outro", "66660000031");
+
+        await servico.ReagirAsync(partida.Id, eu.Id, "🔥");
+        await servico.ReagirAsync(partida.Id, outro.Id, "🔥");
+        await servico.ReagirAsync(partida.Id, outro.Id, "😂");
+
+        var quem = await servico.ObterQuemReagiuAsync(partida.Id, eu.Id);
+
+        Assert.NotNull(quem);
+        Assert.Equal(2, quem!.Reacoes.Count);
+
+        var fogo = quem.Reacoes.Single(r => r.Emoji == EmojiDeReacao.Normalizar("🔥"));
+        Assert.Equal(2, fogo.Total);
+        Assert.True(fogo.EuReagi);
+
+        var riso = quem.Reacoes.Single(r => r.Emoji == EmojiDeReacao.Normalizar("😂"));
+        Assert.Equal(1, riso.Total);
+        Assert.False(riso.EuReagi);
+    }
+
+    [Fact]
+    public async Task Quem_reagiu_SEM_LOGIN_nao_marca_pilula_nenhuma()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var partida = await MontarJogoAsync(ctx);
+        var servico = new ReacaoService(ctx);
+        var alguem = await NovoTorcedorAsync(ctx, "Alguém", "66660000032");
+        await servico.ReagirAsync(partida.Id, alguem.Id, "🔥");
+
+        var quem = await servico.ObterQuemReagiuAsync(partida.Id, null);
+
+        Assert.False(Assert.Single(quem!.Reacoes).EuReagi);
+    }
+
+    // E a tela: o JS tem que pintar as pílulas na MESMA passada em que pinta a lista.
+    [Fact]
+    public void O_JS_pinta_as_pilulas_ao_ABRIR_o_painel()
+    {
+        var js = Ler("wwwroot", "js", "reacoes-do-jogo.js");
+
+        var pintarLista = js.IndexOf("function pdzPintarLista", StringComparison.Ordinal);
+        Assert.True(pintarLista >= 0);
+
+        var fim = js.IndexOf("\nfunction ", pintarLista + 1, StringComparison.Ordinal);
+        var corpo = fim < 0 ? js[pintarLista..] : js[pintarLista..fim];
+
+        Assert.Contains("pdzPintarPilulas", corpo);
+    }
+
     [Fact]
     public async Task Quem_reagiu_num_jogo_apagado_e_NULO_pro_controller_virar_404()
     {
@@ -283,22 +348,62 @@ public class ReacoesNoJogoTests
 
         // 11/09/2026: o mesmo botão do `VerVotos` gerou três 500 no vigia porque o jogo tinha
         // sido apagado embaixo da lista aberta. 404 é resposta, 500 é defeito.
-        Assert.Null(await servico.ObterQuemReagiuAsync(9999));
+        Assert.Null(await servico.ObterQuemReagiuAsync(9999, null));
     }
 
     // ─────────────────── O QUE SÓ EXISTE NA TELA ───────────────────
 
+    // 🗣️ Felipe, 12/09/2026, depois do merge: *"crie a reação tambem para agendados e o ao
+    // vivo"*. Já estava nas três — mas o teste que eu tinha escrito **não provava isso**: ele
+    // só perguntava se a string `_ReacoesDoJogo` existia em cada ARQUIVO. Como o
+    // `_JogosDoTorneio.cshtml` tem as três sub-abas dentro dele, dava pra tirar a fileira do
+    // card do AO VIVO e o teste continuava verde.
+    //
+    // ⚠️ É a família de defeito que este projeto já viveu com o "desfazer o play": o botão
+    // existia só na LINHA, e o card do Ao Vivo — que é markup PRÓPRIO — ficou sem ele. Teste
+    // que mede presença no arquivo não pega isso; tem que medir presença POR ABA.
     [Fact]
-    public void A_fileira_de_reacoes_esta_nas_DUAS_apresentacoes_do_jogo()
+    public void A_fileira_de_reacoes_esta_nas_TRES_ABAS_e_nao_so_no_arquivo()
     {
-        // O card do AO VIVO e a linha (Agendadas/Finalizadas) são markups diferentes, e é assim
-        // que um botão nasce só numa das duas — foi o que aconteceu com o "desfazer o play".
-        // 🗣️ "a cada jogo": as três abas.
-        foreach (var arquivo in new[] { "_JogosDoTorneio.cshtml", "_JogoEmLinha.cshtml" })
+        var fonte = Ler("Views", "Torneios", "_JogosDoTorneio.cshtml");
+
+        // O AO VIVO tem a chamada DELE: o card é markup próprio, não reusa a linha.
+        Assert.Contains("_ReacoesDoJogo", Secao(fonte, "AO VIVO"));
+
+        // Agendadas e Finalizadas chegam pela linha — então o que se cobra aqui é que cada uma
+        // delas desenhe o `_JogoEmLinha`, e que a linha carregue a fileira (asserção abaixo).
+        Assert.Contains("_JogoEmLinha", Secao(fonte, "AGENDADAS"));
+        Assert.Contains("_JogoEmLinha", Secao(fonte, "FINALIZADAS"));
+
+        Assert.Contains("_ReacoesDoJogo", Ler("Views", "Torneios", "_JogoEmLinha.cshtml"));
+    }
+
+    // ⚠️ E O RESUMO PRECISA CHEGAR NAS DUAS QUE PASSAM PELA LINHA: sem o argumento, a fileira
+    // renderiza com `null` e o cartão fica com contagem zerada em vez das reações que existem —
+    // erro que não quebra tela nenhuma e por isso passa batido.
+    [Fact]
+    public void As_duas_listas_da_LINHA_recebem_o_resumo_das_reacoes()
+    {
+        var fonte = Ler("Views", "Torneios", "_JogosDoTorneio.cshtml");
+
+        foreach (var aba in new[] { "AGENDADAS", "FINALIZADAS" })
         {
-            var fonte = Ler("Views", "Torneios", arquivo);
-            Assert.Contains("_ReacoesDoJogo", fonte);
+            var secao = Secao(fonte, aba);
+            var chamada = secao.Split('\n').FirstOrDefault(l => l.Contains("_JogoEmLinha\" model"));
+            Assert.NotNull(chamada);
+            Assert.Contains("reacoes.GetValueOrDefault(jogo.Id)", chamada!);
         }
+    }
+
+    // O trecho de UMA sub-aba do `_JogosDoTorneio.cshtml`, entre o marcador dela e o próximo.
+    // Os marcadores (`<!-- SUB-ABA: X -->`) já existiam no arquivo — não nasceram pro teste.
+    private static string Secao(string fonte, string aba)
+    {
+        var inicio = fonte.IndexOf("SUB-ABA: " + aba, StringComparison.Ordinal);
+        Assert.True(inicio >= 0, $"Não achei a sub-aba {aba} em _JogosDoTorneio.cshtml.");
+
+        var proximo = fonte.IndexOf("SUB-ABA:", inicio + 1, StringComparison.Ordinal);
+        return proximo < 0 ? fonte[inicio..] : fonte[inicio..proximo];
     }
 
     [Fact]

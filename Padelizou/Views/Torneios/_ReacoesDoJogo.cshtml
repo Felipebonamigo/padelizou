@@ -1,4 +1,4 @@
-@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.ReacoesDaPartidaVM? reacoes, int? meuId)
+﻿@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.ReacoesDaPartidaVM? reacoes, int? meuId)
 @{
     var r = Model.reacoes ?? new Padelizou.ViewModels.ReacoesDaPartidaVM { PartidaId = Model.partida.Id };
     bool logado = Model.meuId.HasValue;
@@ -32,10 +32,21 @@
             <span class="pdz-reacao-conta">@pilula.Total</span>
         </button>
     }
-    @* O botão do teclado. Fica DEPOIS das pílulas, como no WhatsApp e no Discord, e é o único
-       elemento da fileira num jogo que ninguém reagiu ainda. *@
-    <button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"
-            aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">
-        <i class="bi bi-emoji-smile"></i>
+    @* O botão do teclado. Fica DEPOIS das pílulas, como no WhatsApp e no Discord.
+       ⚠️ COM RÓTULO ENQUANTO NINGUÉM REAGIU, e só o rostinho depois (🗣️ Felipe, 12/09/2026:
+       *"e esse botão esta muito feio"*). O primeiro desenho era um ícone sozinho dentro de uma
+       borda — medido no Chromium, dava **18,5px de largura**: um fiapo que não diz o que faz e
+       que o dedo erra. Com reação na fileira o convite já não é necessário: as pílulas contam a
+       história e o rótulo só roubaria a largura que o celular não tem.
+       ⚠️ EMOJI, não `<i class="bi">`: a fileira toda é emoji, e o ícone de traço do Bootstrap
+       ficava de outra família visual ao lado das pílulas. *@
+    <button type="button" class="pdz-reacao-abrir @(r.Reacoes.Count == 0 ? "pdz-reacao-abrir-convite" : "")"
+            title="Reagir com um emoji" aria-label="Reagir com um emoji"
+            onclick="verQuemReagiu(this)">
+        <span class="pdz-reacao-emoji" aria-hidden="true">🙂</span>
+        @if (r.Reacoes.Count == 0)
+        {
+            <span class="pdz-reacao-convite">Reagir</span>
+        }
     </button>
 </div>

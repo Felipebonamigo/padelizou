@@ -4028,7 +4028,30 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-reacao-minha .pdz-reacao-conta { color: inherit; }
 
-.pdz-reacao-abrir { padding: .1rem .55rem; color: var(--pdz-muted); }
+/* O BOTÃO QUE ABRE O PAINEL. 🗣️ Felipe, 12/09/2026: *"e esse botão esta muito feio"* — o
+   primeiro desenho era um ícone de traço sozinho dentro de uma borda, e medido no Chromium
+   dava 18,5px de largura: um fiapo que não diz o que faz.
+
+   Enquanto ninguém reagiu ele vem COM RÓTULO ("🙂 Reagir"), que é o convite; com pílulas na
+   fileira ele encolhe pro rostinho, porque aí as pílulas já contam a história e o rótulo só
+   roubaria largura no celular. */
+.pdz-reacao-abrir {
+    gap: .3rem;
+    padding: .1rem .6rem;
+    color: var(--pdz-muted);
+    /* Tracejada: convida sem competir com as pílulas, que são o dado. */
+    border-style: dashed;
+}
+
+.pdz-reacao-abrir-convite { padding-right: .7rem; }
+
+.pdz-reacao-convite { font-size: .8rem; }
+
+.pdz-reacao-abrir:hover,
+.pdz-reacao-abrir:focus-visible {
+    border-style: solid;
+    color: var(--bs-body-color);
+}
 
 /* ── O PAINEL "QUEM COLOCOU O QUÊ" ───────────────────────────────────────────────── */
 .pdz-reacoes-no-painel { margin-top: 0; }
