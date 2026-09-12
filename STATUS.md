@@ -1,7 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/blissful-archimedes-j1rak0`.** **Sem migration.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
+
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er** (`/Torneios/Palpiteiros/26`): **83 palpiteiros**, **61 com o selo "jogando"** e **22 de fora**, os três botões do filtro de linha presentes, e o `/js/filtro-de-palpiteiros.js` respondendo **200** nos dois ambientes. "Todas as fases" e "Chaves e grupos" dão a mesma tabela lá, porque todo jogo apurado do Er é de grupo.
+>
+> 🕳️ **E A CONFERÊNCIA POR CONTEÚDO ACHOU UM DEFEITO MEU, MINUTOS DEPOIS DE PUBLICAR: `?fasePalpiteiros=matamata` respondia 404 no Er, com o botão na tela.** As fases de chave já EXISTEM (a chave foi sorteada), então o botão aparecia; mas **ninguém palpitou nelas ainda**, a tabela ficava sem linha e a página devolve 404 por decisão do MVP (*"uma página dizendo 'nada aqui' é um link que só sabe decepcionar"*).
+>
+> ♻️ **A CORREÇÃO É DE UMA PALAVRA NA PERGUNTA: o dado certo não é "existe JOGO nesta fase", é "existe PALPITE nesta fase"** — é o palpite que faz a tabela ter linha. `RecortesComJogoAsync` passou a sair de `ConsultaDasFasesComPalpite` (que atravessa a navegação `Partida` a partir do palpite, e por isso também foi compilada contra o Npgsql). **Botão que leva a erro é pior que botão que não existe**, e a régua do projeto já dizia isso em outras palavras: o recorte some por DADO.
+>
+> 🔒 **A TRAVA NOVA É GERAL, não do caso**: um teste varre TODO recorte que a tela oferece e exige que ele tenha linha (*"o recorte `matamata` é oferecido e não tem linha nenhuma"*). Ele segura o 404 independente de como os recortes passem a ser escolhidos amanhã. ⚠️ **Dois testes antigos foram ATUALIZADOS, não apagados**: eles montavam torneio com partida e sem palpite nenhum, cenário que a régua nova (corretamente) deixou de oferecer filtro — a intenção deles continua travada, e o comentário de cada um diz por que o cenário mudou.
+>
+> ⚠️ **O 404 SOBRA SÓ PRA URL DIGITADA NA MÃO** (`?fasePalpiteiros=matamata` num torneio sem palpite de mata-mata), e é o mesmo 404 de sempre da página sem linha: ninguém é convidado a clicar nele. Reproduzido no navegador local antes da correção (`404`) e depois (nenhum botão oferecido, `200` no que existe).
+>
+> 🧪 **6.952 testes, 0 falhas (3 novos nesta correção, 42 no dia)** + os 9 conferidores de JS verdes. Vermelho visto antes da correção: *"Assert.Equal() Failure: Collections differ · Expected: [tudo, grupos] · Actual: [tudo, grupos, matamata, finais]"*.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/blissful-archimedes-j1rak0`.** **Sem migration.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
 >
 > 🗣️ Felipe, com o print da 4ª Categoria Masculina do ER já no mata-mata: *"e ele mudou o visual quando terminou a chave, era para manter como estava, tava bom"*.
 >

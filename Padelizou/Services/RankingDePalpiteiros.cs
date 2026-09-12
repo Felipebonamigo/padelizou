@@ -609,25 +609,35 @@ public static class RankingDePalpiteiros
     // ── QUAIS RECORTES DE FASE ESTE TORNEIO TEM ───────────────────────────────────────────
     //
     // ⚠️ SAI DO DADO, como as colunas da tabela: torneio que não passou da fase de grupos não
-    // oferece "Mata-mata", e sem final jogada não oferece "Apenas finais". Botão que entrega
-    // tabela vazia é pior que botão que não existe — ele parece defeito.
+    // oferece "Mata-mata", e sem palpite em final não oferece "Apenas finais".
     //
-    // ⚠️ Carrega as FASES DISTINTAS (uma consulta curta, no máximo uma dúzia de linhas), e não
-    // uma contagem por recorte: seriam quatro idas ao banco na página mais visitada do site
-    // pra responder o que uma responde.
+    // 🕳️ E O DADO CERTO É O **PALPITE**, NÃO O JOGO — defeito visto no ar, no Er, minutos depois
+    // de publicar: a primeira versão olhava as fases das PARTIDAS, então o botão "Mata-mata"
+    // aparecia assim que a chave era sorteada. Só que a tabela se faz de palpite: sem nenhum,
+    // ela fica vazia e a página responde **404** por decisão do MVP. O botão levava a erro —
+    // e botão que leva a erro é pior que botão que não existe.
+    //
+    // ⚠️ Carrega as FASES DISTINTAS onde há palpite (uma consulta curta, no máximo uma dúzia de
+    // linhas), e não uma contagem por recorte: seriam quatro idas ao banco na página mais
+    // visitada do site pra responder o que uma responde.
     public static async Task<string[]> RecortesComJogoAsync(DbPadelContext contexto, int torneioId)
     {
-        var fases = await contexto.Partidas
-            .AsNoTracking()
-            .Where(p => p.TorneioId == torneioId)
-            .Select(p => p.Fase)
-            .Distinct()
-            .ToListAsync();
+        var fases = await ConsultaDasFasesComPalpite(contexto, torneioId).ToListAsync();
 
         return FaseDoPalpitometro.Todos
             .Where(recorte => fases.Any(fase => FaseDoPalpitometro.Contem(recorte, fase)))
             .ToArray();
     }
+
+    // ⚠️ Atravessa a navegação `Partida` a partir do palpite — o mesmo caminho da pergunta
+    // barata `PalpitesDoTorneio`, e o mesmo risco: o InMemory da suíte não traduz nada. Pública
+    // pra ser compilada contra o Npgsql em FiltroPorFaseNoPalpitometroTests.
+    public static IQueryable<string> ConsultaDasFasesComPalpite(DbPadelContext contexto, int torneioId) =>
+        contexto.PalpitesPartida
+            .AsNoTracking()
+            .Where(v => v.Partida.TorneioId == torneioId)
+            .Select(v => v.Partida.Fase)
+            .Distinct();
 
     // ── QUEM DISPUTA O TORNEIO ────────────────────────────────────────────────────────────
     //
