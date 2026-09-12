@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1325-39b1760`** (runs **330** e **331**), **o mesmo artefato nos dois**, com a tag explícita. PR #285. **Sem migration.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `/js/teclado-de-emoji.js` servido com **33.010 bytes**, **555 emoji** e **8 categorias** na tabela, a busca sem acento e as FREQUENTES dentro dele. No `Torneios/Details/26` de produção: **60 fileiras**, os **60** botões chamando `abrirBarraDeReacao`, o painel e o modal do teclado na página — e o `teclado-de-emoji.js` **ausente do HTML**, que é o ponto: ele vem sob demanda.
+>
+> 🖱️ **E CLICADO NO HTML QUE O PRÓPRIO `prod` GEROU** (espelho local da página + 29 assets de produção, porque o Chromium não sai por este proxy): a barra abriu com **6 atalhos**, o **+** trouxe o teclado **sob demanda**, **555 botões** e **8 abas** na grade, e a busca por "fogo" achou o 🔥. Sem erro de página.
 >
 > 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
