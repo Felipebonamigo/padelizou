@@ -1,7 +1,31 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1259-e628547`** (runs 34696948334 e 34697160645), **o mesmo artefato nos dois**, com a tag explícita. PRs #258 e #259. **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+>
+> 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
+>
+> 🕳️ **AS DUAS ESTAVAM EM QUADRA, UMA CONTRA A OUTRA.** O jogo 568 estava **AO VIVO** (começou 10:24, transmissão no ar), e o painel leu o placar parcial como resultado final: com a Vania à frente, deu a vaga a ela e eliminou a Bibiana. **Conferido no HTML de `prod` nesta sessão, com o jogo ainda rolando**: às 11:10 o placar era **5 x 6 pra Bibiana** e o mesmo pop-up já dizia o contrário — *"Bibiana / Caroline — Depende: passa se Cristina / Marina vencer"*. O painel trocou de resposta no meio do jogo, e a dupla "sem chance" voltou a ter chance.
+>
+> 🔬 **A CAUSA É UMA PERGUNTA MAL FEITA, e ela estava escrita como escolha**: o serviço decidia o que já tinha sido jogado com `QuemVenceu.Da(p) != null` — *"'Jogado' é ter vencedor pela régua única, **não é o Status**"*. Só que `QuemVenceu` responde SIM pra qualquer placar desigual, e placar de jogo em andamento é desigual quase o tempo todo. O comentário resolvia o caso do 0x0 finalizado e **abria este**: faltava o E. Agora são as duas metades — `Status == "Finalizada"` **e** ter vencedor.
+>
+> ⚠️ **O SERVIÇO VIZINHO JÁ PERGUNTAVA CERTO**: o `ClassificadosJaConhecidos` (que põe nome na chave projetada) pula grupo com jogo em quadra, com esta linha de comentário — *"e grupo com jogo em quadra também não"*. Duas respostas pra mesma pergunta, e a que o jogador lê na beira da quadra era a errada.
+>
+> 👁️ **E A TELA DENUNCIAVA A CONTRADIÇÃO NO MESMO CARD**: a tabela do grupo, logo acima do botão, soma só partidas **finalizadas** (`TorneiosController`) e mostrava a Bibiana com **J1 V0 D1 −6**; o pop-up logo abaixo dava a ela uma vitória que ninguém tinha ganhado.
+>
+> ✅ **O QUE MUDA NA TELA**: jogo em quadra é jogo **por jogar**. Com dois jogos em aberto (o de quadra + o agendado, que é o caso do print) o painel **não aparece** — não havia o que responder. Quando o jogo em quadra for o **único** que falta, o painel aparece e **simula aquele jogo**, que é justamente quando ele serve mais.
+>
+> ✅ **E O PAINEL SAIU DO GRUPO DE DUAS DUPLAS** (🗣️ Felipe, na sequência: *"so deve aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*). O grupo de 2 tem **um jogo só**: o painel aparecia nele **antes de a bola quicar**, listando as duas duplas como "Já classificado" — com duas vagas, as duas passam mesmo perdendo. **São 8 dos 24 grupos deste torneio.** A régua nova é *"o grupo já decidiu alguma coisa"* (`jogados.Count == 0` → sem painel), e não *"o grupo tem 3 duplas"*: com um jogo faltando as duas dão no mesmo resultado, e esta não promete nada quando a grade do grupo está incompleta. **No grupo de 4 o painel continua aparecendo** quando falta o último jogo — mesma pergunta, mesma resposta.
+>
+> 👁️ **CONFERIDO NO AR POR CONTEÚDO, com o torneio rolando** — e aqui dá, ao contrário do `build-1259`: o que mudou é markup que TODO mundo vê. O `Torneios/Details/26` em `prod` tinha **12 painéis** antes e tem **8** agora. Os 8 que ficaram são todos grupo de 3 com **2 jogos encerrados**; os 4 que saíram são os grupos de 2 e os de 3 com jogo em quadra + outro em aberto — que é o card do print. `/healthz` **200** nos dois ambientes.
+>
+> 🎾 **E O CASO MAIS DELICADO FOI VISTO FUNCIONANDO**: no Grupo C da categoria, o jogo que falta **está AO VIVO neste minuto**, e o painel diz *"Depende — Passa vencendo, com qualquer placar. Qualquer derrota elimina."* pras duas duplas, em vez de dar a vaga a quem está na frente no parcial. É o outro lado da régua: jogo em quadra não some do painel, ele é **simulado**.
+>
+> ⚠️ **E UMA BOMBA-RELÓGIO DESCOBERTA NO CAMINHO: o deploy em `prod` NÃO PAROU PRA APROVAÇÃO.** O `infra/vps/README.md` manda marcar **Required reviewers** no environment `prod` (*"é aqui que mora a trava do prod"*), e avisa que, se o environment não existir, o GitHub cria sozinho **sem regra nenhuma**. Foi o que aconteceu: o run 302 saiu do `queued` direto pro `success` em **17 segundos**, sem pedir nada. **Hoje qualquer deploy em produção sai sem confirmação de ninguém** — inclusive um disparado por engano. O passo pra fechar isso é Settings → Environments → `prod` → Required reviewers.
+>
+> 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1259-e628547`** (runs 34696948334 e 34697160645), **o mesmo artefato nos dois**, com a tag explícita. PRs #258 e #259. **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
 >
 > 🗣️ Felipe, com o check-in por jogador no ar: *"Ao marcar de confirmar na tela, ele sai da tela, ele tem q sempre se manter na tela da alteracao"*.
 >
@@ -24,24 +48,6 @@
 > ✅ **CONFERIDO NO AR**: `/healthz` **200** nos dois; em `prod`, `Torneios/Details/26` e `Torneios/Jogos/26` (o ER, 64 duplas) respondem **200**. ⚠️ **E AQUI A CONFERÊNCIA POR CONTEÚDO NÃO SE APLICA**, ao contrário do `build-1243`: o que mudou é markup que só nasce pra ORGANIZADOR LOGADO (o campo escondido) e o redirect do servidor — nada disso é visível a `curl` anônimo, e o `/healthz` só devolve "ok", sem número de build. A prova aqui é o run com a tag explícita mais as telas respondendo.
 >
 > 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
-
-> **12/09/2026** — ⏳ **NO BRANCH `claude/isso-parece-errado-6gpkee`, ainda não publicado.** **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
->
-> 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
->
-> 🕳️ **AS DUAS ESTAVAM EM QUADRA, UMA CONTRA A OUTRA.** O jogo 568 estava **AO VIVO** (começou 10:24, transmissão no ar), e o painel leu o placar parcial como resultado final: com a Vania à frente, deu a vaga a ela e eliminou a Bibiana. **Conferido no HTML de `prod` nesta sessão, com o jogo ainda rolando**: às 11:10 o placar era **5 x 6 pra Bibiana** e o mesmo pop-up já dizia o contrário — *"Bibiana / Caroline — Depende: passa se Cristina / Marina vencer"*. O painel trocou de resposta no meio do jogo, e a dupla "sem chance" voltou a ter chance.
->
-> 🔬 **A CAUSA É UMA PERGUNTA MAL FEITA, e ela estava escrita como escolha**: o serviço decidia o que já tinha sido jogado com `QuemVenceu.Da(p) != null` — *"'Jogado' é ter vencedor pela régua única, **não é o Status**"*. Só que `QuemVenceu` responde SIM pra qualquer placar desigual, e placar de jogo em andamento é desigual quase o tempo todo. O comentário resolvia o caso do 0x0 finalizado e **abria este**: faltava o E. Agora são as duas metades — `Status == "Finalizada"` **e** ter vencedor.
->
-> ⚠️ **O SERVIÇO VIZINHO JÁ PERGUNTAVA CERTO**: o `ClassificadosJaConhecidos` (que põe nome na chave projetada) pula grupo com jogo em quadra, com esta linha de comentário — *"e grupo com jogo em quadra também não"*. Duas respostas pra mesma pergunta, e a que o jogador lê na beira da quadra era a errada.
->
-> 👁️ **E A TELA DENUNCIAVA A CONTRADIÇÃO NO MESMO CARD**: a tabela do grupo, logo acima do botão, soma só partidas **finalizadas** (`TorneiosController`) e mostrava a Bibiana com **J1 V0 D1 −6**; o pop-up logo abaixo dava a ela uma vitória que ninguém tinha ganhado.
->
-> ✅ **O QUE MUDA NA TELA**: jogo em quadra é jogo **por jogar**. Com dois jogos em aberto (o de quadra + o agendado, que é o caso do print) o painel **não aparece** — não havia o que responder. Quando o jogo em quadra for o **único** que falta, o painel aparece e **simula aquele jogo**, que é justamente quando ele serve mais.
->
-> ✅ **E O PAINEL SAIU DO GRUPO DE DUAS DUPLAS** (🗣️ Felipe, na sequência: *"so deve aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*). O grupo de 2 tem **um jogo só**: o painel aparecia nele **antes de a bola quicar**, listando as duas duplas como "Já classificado" — com duas vagas, as duas passam mesmo perdendo. **São 8 dos 24 grupos deste torneio.** A régua nova é *"o grupo já decidiu alguma coisa"* (`jogados.Count == 0` → sem painel), e não *"o grupo tem 3 duplas"*: com um jogo faltando as duas dão no mesmo resultado, e esta não promete nada quando a grade do grupo está incompleta. **No grupo de 4 o painel continua aparecendo** quando falta o último jogo — mesma pergunta, mesma resposta.
->
-> 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
 >
