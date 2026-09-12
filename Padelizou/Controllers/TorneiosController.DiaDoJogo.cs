@@ -358,6 +358,25 @@ namespace Padelizou.Controllers
             // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
             // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
             // mais recente pro mais antigo (a régua inteira está em Services/DuracaoDoJogo).
+            // QUEM JÁ CHEGOU, e o contador em PESSOAS (12/09/2026). A barra dizia "0 de 64
+            // presentes" contando duplas; agora quem é marcado é gente, e contar dupla deixaria
+            // metade das chegadas invisível na única linha que resume a tela.
+            //
+            // ⚠️ DISTINTO por jogador: quem joga duas categorias aparece em duas duplas e é UMA
+            // pessoa no clube — contá-la duas vezes faria o total nunca fechar.
+            var chegadas = await _context.Presencas
+                .Where(p => p.TorneioId == id)
+                .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm);
+            ViewBag.Chegadas = chegadas;
+
+            var jogadoresInscritos = torneio.Categorias
+                .SelectMany(c => c.Duplas.Where(d => !d.EmListaDeEspera))
+                .SelectMany(PresencaNoDia.IdsDa)
+                .ToHashSet();
+
+            ViewBag.TotalDeJogadores = jogadoresInscritos.Count;
+            ViewBag.JogadoresPresentes = jogadoresInscritos.Count(chegadas.ContainsKey);
+
             ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
                 .OrderBy(p => p.HorarioInicioReal)
                 .Concat(jogos.Where(p => p.Status == "Finalizada")
@@ -368,31 +387,48 @@ namespace Padelizou.Controllers
             return View(torneio);
         }
 
-        // `voltarPara`: quem marcou a chegada PELA LISTA DE JOGOS volta pra ela (12/09/2026).
-        // 🗣️ Felipe: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"* — e uma
-        // marcação que larga o organizador na tela de Check-in é justamente tirá-lo da lista que
-        // ele estava operando. Sem o parâmetro nada muda: o botão da tela de Check-in não passa
-        // nada e continua caindo nela mesma.
+        // A CHAMADA É POR PESSOA (12/09/2026). 🗣️ Felipe: *"Mude para um check por jogador, por
+        // que é assim que controla check in"*. A linha nasce em `PresencaNoTorneio`, com chave
+        // (TorneioId, JogadorId) — um check vale pro torneio inteiro, inclusive nas outras
+        // categorias em que a pessoa joga.
+        //
+        // `voltarPara`: quem marcou pela LISTA DE JOGOS volta pra ela, em vez de ser largado na
+        // tela de Check-in. Sem o parâmetro nada muda — o botão de lá não passa nada.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> MarcarCheckIn(int duplaId, bool presente, string? voltarPara = null)
+        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int torneioId, bool presente, string? voltarPara = null)
         {
-            var dupla = await _context.Duplas
-                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
-                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
 
-            if (dupla == null) return NotFound();
-
-            int torneioId = dupla.Categoria.TorneioId;
             if (!await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            if (!dupla.Categoria.Torneio.UsaCheckIn)
+            if (!torneio.UsaCheckIn)
             {
                 TempData["Erro"] = "O check-in está desligado neste torneio.";
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
-            dupla.CheckInEm = presente ? DateTime.Now : null;
+            // ⚠️ REGRA 0: `jogadorId` chega por campo de formulário. Sem esta checagem um
+            // organizador carimbaria presença de gente que não está inscrita aqui — lixo no banco
+            // com cara de dado bom, e um contador que nunca fecha.
+            bool jogaAqui = await _context.Duplas.AnyAsync(d =>
+                                d.Categoria.TorneioId == torneioId
+                                && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+                         || await _context.InscricoesAmericanas.AnyAsync(i =>
+                                i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId);
+            if (!jogaAqui) return NotFound();
+
+            // Linha existe = chegou. Ler antes de gravar deixa o clique duplo idempotente; a PK
+            // composta é quem segura a corrida de verdade, um andar abaixo.
+            var jaEstava = await _context.Presencas
+                .FirstOrDefaultAsync(p => p.TorneioId == torneioId && p.JogadorId == jogadorId);
+
+            if (presente && jaEstava == null)
+                _context.Presencas.Add(new PresencaNoTorneio { TorneioId = torneioId, JogadorId = jogadorId });
+            else if (!presente && jaEstava != null)
+                _context.Presencas.Remove(jaEstava);
+
             await _context.SaveChangesAsync();
 
             // ⚠️ LISTA FECHADA, como no PartidasController.VoltarDaLargada: `voltarPara` chega por
