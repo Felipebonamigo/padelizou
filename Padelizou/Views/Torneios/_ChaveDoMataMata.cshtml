@@ -1,24 +1,46 @@
-@model (List<Padelizou.Models.Partida> Jogos, List<Padelizou.Models.Dupla> Byes, int? MeuJogadorId)
+@model (List<Padelizou.Services.QuadroDoMataMata.Fase> Fases, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>? Previstos, List<Padelizou.Models.Dupla> Byes, int Categoria)
 @*
-    O mata-mata em FASES EMPILHADAS: cada fase é uma seção, de cima pra baixo, com os jogos
-    em cartões numa grade que se adapta à largura — 3-4 por linha no desktop, 1-2 no celular.
+    A CHAVE DO MATA-MATA — um desenho só, com ou sem jogo criado.
 
-    A ÁRVORE com linhas de ligação foi tentada e abandonada de propósito (05/08/2026): num
-    quadro de 32 ela tem 16 jogos de largura, e não existe tela em que isso caiba legível —
-    no celular virava rolagem infinita com cartões de 90px. O caminho até a final quem conta
-    é a PROCEDÊNCIA escrita em cada vaga ("Quem ganhar o jogo 3"), com os jogos numerados: dá
-    pra seguir o próprio trajeto sem precisar de geometria nenhuma.
+    É UMA ÁRVORE DEITADA DA ESQUERDA PRA DIREITA, nas duas telas: a rodada é uma COLUNA de
+    largura fixa e as LINHAS de ligação mostram de onde vem cada vaga. O que muda por tamanho
+    de tela é só o trilho — encaixe e arrasto no celular, e nada disso no computador, onde a
+    chave inteira cabe.
 
-    Vale pra TODO mata-mata — o pós-grupos e o que é só mata-mata usam este mesmo
-    componente, então os dois têm exatamente a mesma cara.
+    ⚠️ ATÉ 12/09/2026 ERAM DOIS DESENHOS, e a aba trocava de um pro outro sozinha no dia em
+    que o mata-mata nascia: a prévia era esta árvore e a chave de verdade virava fases
+    empilhadas em cartões, num partial só dela. 🗣️ Felipe, com a 4ª Masculina do ER já no
+    mata-mata: *"e ele mudou o visual quando terminou a chave, era para manter como estava,
+    tava bom"*. O STATUS.md de 11/09 prometia exatamente isso — "no dia em que os grupos
+    acabam a tela não muda de cara, os cartões só ganham nome e placar" — e a promessa valia
+    só pro CARTÃO: o esqueleto ao redor dele era outro arquivo. Agora é este, pros dois, e
+    ChaveRealDesenhadaComoArvoreTests trava que continue sendo um só.
 
-    A MONTAGEM (numeração, pareamento, nome das fases, byes nomeados na fase em que entram
-    e o caminho do jogador logado) mora em Services/QuadroDoMataMata — aqui é só o desenho.
+    ⚠️ A GEOMETRIA É A CONTA DE Services/ArvoreDaChave, com o eixo deitado: "coluna/largura"
+    de lá viram linha inicial e quantas linhas a vaga ocupa. A ligação usa as mesmas
+    porcentagens (--a, --hw). Conta repetida na view divergiria no dia em que a regra do
+    cruzamento mudasse.
+
+    ⚠️ QUEM PASSOU DIRETO NÃO GANHA SELO NA PRÉVIA (pedido do Felipe): aparece só pelo nome, e
+    a ausência de linha chegando na vaga é o que conta que ele não jogou a rodada anterior. Na
+    chave de verdade o selo FICA, porque ali a mesma fase mistura vaga com jogo e vaga futura.
+
+    O conteúdo (numeração, pareamento, nome das fases, byes nomeados na fase em que entram, o
+    caminho do jogador logado e a tradução da prévia) mora em Services/QuadroDoMataMata — aqui
+    é só o desenho.
 *@
 @{
+    var fases = Model.Fases ?? new List<QuadroDoMataMata.Fase>();
+    var previstos = Model.Previstos ?? new Dictionary<int, ProximasFasesDaChave.JogoQueVem>();
     var byes = Model.Byes ?? new List<Padelizou.Models.Dupla>();
-    var fases = Padelizou.Services.QuadroDoMataMata.Montar(
-        Model.Jogos ?? new List<Padelizou.Models.Partida>(), byes, Model.MeuJogadorId);
+
+    var quadro = QuadroDoMataMata.Geometria(fases);
+    var porNumero = fases.SelectMany(f => f.Vagas).ToDictionary(v => v.Numero);
+
+    // Chave de VERDADE ou prévia: a única diferença estrutural é haver jogo criado. É ela que
+    // decide o tracejado e a caixa de ajuda — na prévia TODAS as vagas estão sem dono, e
+    // tracejar todas não separa nada, só deixa o quadro inteiro com cara de rascunho.
+    bool temJogoReal = porNumero.Values.Any(v => v.Jogo != null);
 
     string NomeDaDupla(Padelizou.Models.Dupla? d)
     {
@@ -31,19 +53,21 @@
 
     // "Quem ganhar o jogo 3", não "Vencedor do jogo 3": é como a pessoa fala e pergunta
     // ("quem ganhar aquele jogo pega quem?"), e não parece um campo de formulário.
-    string RotuloDoLado(Padelizou.Services.QuadroDoMataMata.Lado? lado)
+    string RotuloDoLado(QuadroDoMataMata.Lado? lado)
     {
         if (lado == null) return "A definir";
+        if (lado.Rotulo is { } daPrevia) return daPrevia;
         if (lado.ComNome is { } dona) return NomeDaDupla(dona);
         return $"Quem ganhar o jogo {lado.VemDoJogo}";
     }
 
     // A explicação do quadro, com os números DESTA chave. Sem ela, quem abre a tela vê
-    // "folgou a 1ª rodada" ao lado de um nome e não tem como saber por que aquela dupla
-    // ganhou a folga — nem que isso é normal em qualquer chaveamento.
+    // "folgou a 1ª" ao lado de um nome e não tem como saber por que aquela dupla ganhou a
+    // folga — nem que isso é normal em qualquer chaveamento. É esta caixa que carrega a
+    // explicação, e é por ela existir que a marca do cartão pode ser miúda.
     int duplasNaChave = 0, folgaram = 0;
     string faseDaFolga = "";
-    if (fases.Count > 0)
+    if (temJogoReal && fases.Count > 0)
     {
         var abertura = fases[0];
         folgaram = byes.Count;
@@ -59,150 +83,233 @@
 
     // A legenda do caminho pintado só aparece pra quem tem caminho — pra todo mundo que
     // abre o quadro deslogado (ou torcendo), ela seria uma frase sobre nada.
-    bool temCaminho = fases.Any(f => f.Vagas.Any(v => v.EhMinha));
+    bool temCaminho = porNumero.Values.Any(v => v.EhMinha);
+
+    // A final é a vaga que ninguém alimenta — o fim do caminho que o quadro inteiro existe
+    // pra contar. O destaque fica na vaga AINDA SEM JOGO: com jogo, quem destaca é o placar,
+    // e o verde da final apagaria o anel de "seu jogo" e o vermelho do ao vivo (ele tem duas
+    // classes no seletor, então vence os dois).
+    var numeroDaFinal = quadro.Rodadas.Count > 0 && quadro.Rodadas[^1].Vagas.Count > 0
+        ? quadro.Rodadas[^1].Vagas[^1].Jogo.Numero : 0;
 }
 
-@if (fases.Count == 0)
+@if (quadro.Rodadas.Count == 0)
 {
     return;
 }
 
-<div class="pdz-mm">
-    <div class="pdz-mm-ajuda">
-        <i class="bi bi-info-circle"></i>
-        <span>
-            Quem perde está fora. Cada jogo é numerado — nas fases que ainda não aconteceram
-            está escrito de qual jogo sai cada vaga.
-            @if (folgaram > 0)
-            {
-                <text>
-                    São <strong>@duplasNaChave duplas</strong> e a chave tem
-                    <strong>@(duplasNaChave + folgaram) lugares</strong>, então
-                    <strong>@folgaram</strong> @(folgaram == 1 ? "dupla folga" : "duplas folgam")
-                    a primeira rodada e @(folgaram == 1 ? "entra" : "entram")
-                    direto @(string.IsNullOrEmpty(faseDaFolga) ? "na fase seguinte" : $"n{(faseDaFolga == "Final" ? "a" : "as")} {faseDaFolga.ToLowerInvariant()}").
-                </text>
-            }
-            @if (temCaminho)
-            {
-                <text>
-                    Em <strong style="color: var(--padel-green);">verde</strong>, o seu caminho:
-                    os seus jogos e os que ainda podem ser seus.
-                </text>
-            }
-        </span>
-    </div>
-
-    @foreach (var fase in fases)
+@{
+    void Cartao(QuadroDoMataMata.Vaga vaga)
     {
-        <div class="pdz-mm-fase">
-            <div class="pdz-mm-titulo">
-                @fase.Nome
-                <span class="pdz-mm-conta">@fase.Vagas.Count @(fase.Vagas.Count == 1 ? "jogo" : "jogos")</span>
-            </div>
+        var jogo = vaga.Jogo;
+        var previsto = previstos.TryGetValue(vaga.Numero, out var p) ? p : null;
+        var aoVivo = jogo?.Status == "AoVivo";
+        var venceu1 = jogo != null && jogo.VencedorId == jogo.Dupla1Id;
+        var venceu2 = jogo != null && jogo.VencedorId == jogo.Dupla2Id;
 
-            <div class="pdz-mm-grade">
-                @foreach (var vaga in fase.Vagas)
+        var quando = jogo?.HorarioPrevisto ?? previsto?.Horario;
+
+        <div class="pdz-chave-vaga @(jogo == null && temJogoReal ? "pdz-chave-vaga-vazia" : "") @(vaga.EhMinha ? "pdz-chave-vaga-minha" : "") @(aoVivo ? "pdz-chave-vaga-aovivo" : "") @(jogo == null && vaga.Numero == numeroDaFinal ? "pdz-arv-final" : "")">
+            <div class="pdz-chave-quando">
+                <span class="pdz-chave-num">@vaga.Numero</span>
+                @if (vaga.EhMinha)
                 {
-                    var jogo = vaga.Jogo;
-                    if (jogo != null)
-                    {
-                        var venceu1 = jogo.VencedorId == jogo.Dupla1Id;
-                        var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
-                        var aoVivo = jogo.Status == "AoVivo";
-
-                        <div class="pdz-chave-vaga @(vaga.EhMinha ? "pdz-chave-vaga-minha" : "") @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
-                            <div class="pdz-chave-quando">
-                                <span class="pdz-chave-num">@vaga.Numero</span>
-                                @if (vaga.EhMinha)
-                                {
-                                    <span class="pdz-chave-selomeu">seu jogo</span>
-                                }
-                                @if (aoVivo)
-                                {
-                                    <span class="pdz-chave-aovivo">● AO VIVO</span>
-                                }
-                                else if (jogo.HorarioPrevisto is DateTime h)
-                                {
-                                    @* ⚠️ SEM o dia da semana, e MEDIDO: esta linha é `nowrap;
-                                       overflow: hidden` SEM reticências, e a etiqueta de quadra
-                                       é a última (`margin-left: auto`). No Chromium com o CSS
-                                       real, a 390px, na coluna mínima da grade, o "sex " faz
-                                       "Er Padel" perder 23px dos 45 — o nome do clube encurta
-                                       calado. Quem quer o dia da semana tem ele na LISTA de
-                                       jogos, onde a linha quebra. Ver
-                                       DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
-                                    <span>@h.ToString("dd/MM HH:mm")</span>
-                                }
-                                else
-                                {
-                                    <span>por ordem</span>
-                                }
-                                @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId, jogo.ClubeId) is { } ondeJoga)
-                                {
-                                    <span class="pdz-chave-quadra">@ondeJoga</span>
-                                }
-                            </div>
-                            <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
-                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
-                                <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
-                            </span>
-                            <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
-                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
-                                <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
-                            </span>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="pdz-chave-vaga pdz-chave-vaga-vazia @(vaga.EhMinha ? "pdz-chave-vaga-minha" : "")">
-                            <div class="pdz-chave-quando">
-                                <span class="pdz-chave-num">@vaga.Numero</span>
-                                @if (vaga.EhMinha)
-                                {
-                                    <span class="pdz-chave-selomeu">pode ser seu</span>
-                                }
-                                <span>a definir</span>
-                            </div>
-                            @foreach (var lado in new[] { vaga.Lado1, vaga.Lado2 })
-                            {
-                                @* O selo conta POR QUE aquele nome já está numa fase que ainda
-                                   não aconteceu — a pergunta é a mesma nos dois casos, muda só
-                                   a resposta. "Bye" é jargão de tabela de torneio: quem não é
-                                   do meio não faz ideia do que significa, e era a única palavra
-                                   da tela que precisava ser explicada. *@
-                                <span class="pdz-chave-lado @(lado?.ComNome != null ? "" : "text-muted")">
-                                    <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
-                                    @if (lado?.EhBye == true)
-                                    {
-                                        <span class="pdz-chave-selobye">folgou a 1ª rodada</span>
-                                    }
-                                    else if (lado?.JaVenceu != null)
-                                    {
-                                        <span class="pdz-chave-selovem">venceu o jogo @lado.VemDoJogo</span>
-                                    }
-                                </span>
-                            }
-                        </div>
-                    }
+                    <span class="pdz-chave-selomeu">@(jogo != null ? "seu jogo" : "pode ser seu")</span>
+                }
+                @if (aoVivo)
+                {
+                    <span class="pdz-chave-aovivo">● AO VIVO</span>
+                }
+                else if (quando is DateTime h)
+                {
+                    @* ⚠️ SEM o dia da semana, e MEDIDO: esta linha é `nowrap; overflow: hidden`
+                       SEM reticências, e a etiqueta de quadra é a última (`margin-left: auto`).
+                       No Chromium com o CSS real, a 390px, na coluna mínima da grade, o "sex "
+                       faz "Er Padel" perder 23px dos 45 — o nome do clube encurta calado. Quem
+                       quer o dia da semana tem ele na LISTA de jogos, onde a linha quebra. Ver
+                       DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
+                    <span>@h.ToString("dd/MM HH:mm")</span>
+                }
+                else
+                {
+                    <span>@(jogo != null ? "por ordem" : "a definir")</span>
+                }
+                @{
+                    // ⚠️ A guarda é a ETIQUETA, e não a quadra: hora digitada na mão não traz
+                    // quadra, e um IsNullOrEmpty aqui calaria o cartão inteiro — inclusive o
+                    // clube, que o jogo (real ou previsto) sabe. Ver
+                    // GuardaDoLugarNasTelasDeChaveTests e PreviaDizOClubeNaTelaTests.
+                    var ondeJoga = jogo != null
+                        ? LugarDoJogo.Etiqueta(ViewData.Sedes(), jogo.NomeQuadra, jogo.CategoriaId, jogo.ClubeId)
+                        : previsto == null ? null
+                        : LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId);
+                }
+                @if (ondeJoga is { } lugar)
+                {
+                    <span class="pdz-chave-quadra">@lugar</span>
                 }
             </div>
+
+            @if (jogo != null)
+            {
+                <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
+                    <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
+                </span>
+                <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
+                    <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
+                </span>
+            }
+            else
+            {
+                @foreach (var lado in new[] { vaga.Lado1, vaga.Lado2 })
+                {
+                    @* A marca conta POR QUE aquele nome já está numa fase que ainda não
+                       aconteceu. "Bye" é jargão de tabela de torneio: quem não é do meio não
+                       faz ideia do que significa, e era a única palavra da tela que precisava
+                       ser explicada — por isso ela é por extenso, e curta.
+
+                       ⚠️ MIÚDA E APAGADA, e não uma pílula. 🗣️ Felipe, com a chave nova no ar:
+                       *"esse 'folgou a primeira rodada' nao ficou legal"* e, logo depois, *"até
+                       pode ter algo, mas menor, que nao fique chamando tanto a atenção"*. Era
+                       lime com texto marinho em caixa alta — o MESMO verde que nesta tela quer
+                       dizer "o seu caminho", quatro vezes numa chave de 12 duplas. O estilo
+                       está travado em ChaveRealDesenhadaComoArvoreTests.
+
+                       Na prévia não aparece nenhuma: lá ninguém tem nome ainda, e a ausência de
+                       linha chegando na vaga já conta quem passou direto. *@
+                    <span class="pdz-chave-lado @(lado?.ComNome != null || lado?.Rotulo != null ? "" : "text-muted")">
+                        <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
+                        @if (lado?.EhBye == true)
+                        {
+                            <span class="pdz-chave-selobye">folgou a 1ª</span>
+                        }
+                        else if (lado?.JaVenceu != null)
+                        {
+                            <span class="pdz-chave-selovem">venceu o jogo @lado.VemDoJogo</span>
+                        }
+                    </span>
+                }
+            }
+        </div>
+    }
+}
+
+<div class="pdz-chd">
+    @if (temJogoReal)
+    {
+        <div class="pdz-mm-ajuda">
+            <i class="bi bi-info-circle"></i>
+            <span>
+                Quem perde está fora. Cada jogo é numerado — nas fases que ainda não aconteceram
+                está escrito de qual jogo sai cada vaga.
+                @if (folgaram > 0)
+                {
+                    <text>
+                        São <strong>@duplasNaChave duplas</strong> e a chave tem
+                        <strong>@(duplasNaChave + folgaram) lugares</strong>, então
+                        <strong>@folgaram</strong> @(folgaram == 1 ? "dupla folga" : "duplas folgam")
+                        a primeira rodada e @(folgaram == 1 ? "entra" : "entram")
+                        direto @(string.IsNullOrEmpty(faseDaFolga) ? "na fase seguinte" : $"n{(faseDaFolga == "Final" ? "a" : "as")} {faseDaFolga.ToLowerInvariant()}").
+                    </text>
+                }
+                @if (temCaminho)
+                {
+                    <text>
+                        Em <strong style="color: var(--padel-green);">verde</strong>, o seu caminho:
+                        os seus jogos e os que ainda podem ser seus.
+                    </text>
+                }
+            </span>
         </div>
     }
 
-    <div class="pdz-chave-trofeu">
-        @if (campea != null)
+    @* Atalho de rodada e dica de arrasto só no celular: no computador não há gesto nenhum
+       pra atalhar, e a chave inteira já está na tela.
+
+       ⚠️ O ID CARREGA A CATEGORIA, e não é enfeite: este partial é desenhado UMA VEZ POR
+       CATEGORIA (Details.cshtml, dentro do laço dos `.tab-pane`), e com `pdz-chd-rodada-@r` as
+       sete do ER escreviam os mesmos quatro ids. `href="#..."` acha o PRIMEIRO do documento —
+       que mora num painel escondido, e rolar pra invisível não faz nada. Era metade do
+       *"as vezes n funciona"* de 12/09/2026.
+
+       ⚠️ E QUEM ROLA É `js/chave-fichas.js`, NÃO A ÂNCORA: o trilho é `scroll-snap` mandatório
+       e a navegação por âncora alinha com `inline: nearest`, que para ENTRE dois pontos de
+       encaixe — o snap puxava de volta e a ficha parava uma rodada atrás. O `href` fica como
+       caminho de teclado e como o que sobra sem JS. Travado em
+       FichasDaChaveLevamARodadaCertaTests. *@
+    <nav class="pdz-chd-fichas d-md-none" aria-label="Ir para uma rodada do mata-mata">
+        @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
-            <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
-                 width="110" height="114" class="rounded-3" />
-            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-            <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
+            <a class="pdz-chd-ficha" href="#pdz-chd-@(Model.Categoria)-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
         }
-        else
+    </nav>
+
+    @* ── O QUADRO: deitado da esquerda pra direita, nas duas telas ──────────────────
+       Cada RODADA é uma coluna e cada vaga ocupa as LINHAS dos jogos que a alimentam — é isso
+       que a centraliza sobre eles, sem cálculo de pixel. A conta é a de Services/ArvoreDaChave:
+       o que lá é "coluna/largura" aqui vira linha inicial e quantas linhas ocupa.
+
+       ⚠️ ERA DE CIMA PRA BAIXO NO COMPUTADOR até 11/09/2026, e o Felipe desfez no mesmo dia
+       (*"melhor fazer também da esquerda pra direita, ficará mais alinhado"*). O desenho antigo
+       era uma grade de N colunas, N = jogos da rodada mais larga: com 2 grupos davam 2 colunas,
+       cada uma METADE do monitor — cartão de ~870px pra escrever "1º do Grupo A". Deitado, a
+       coluna tem largura fixa (17rem, medida) e a chave cresce pro lado, que é onde a rodada a
+       mais cabe.
+
+       ⚠️ POR QUE NÃO É `space-around` DENTRO DA RODADA: parece que bastaria espalhar os
+       cartões. Não basta — com 5 grupos a segunda rodada tem MAIS jogos que a primeira (2 jogos
+       + 6 byes = 8 entrantes = 4 jogos), e qualquer geometria que suponha "a próxima tem
+       metade" aponta pro lugar errado. A conta de linha/altura acerta os dois casos porque não
+       supõe nada. *@
+    <div class="pdz-chd-trilho">
+        @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
-            <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #e0a800;"></i>
-            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-            <div class="text-muted small">Aguardando...</div>
+            var rodada = quadro.Rodadas[r];
+            <div class="pdz-chd-rodada" id="pdz-chd-@(Model.Categoria)-rodada-@r">
+                <div class="pdz-chd-cab">
+                    @rodada.Fase
+                    <span class="pdz-chd-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
+                </div>
+                <div class="pdz-chd-grade" style="--pdz-chd-linhas:@quadro.Colunas">
+                    @foreach (var posicao in rodada.Vagas)
+                    {
+                        <div class="pdz-chd-celula" style="grid-row:@(posicao.Coluna + 1) / span @posicao.Largura">
+                            @if (quadro.Ligacao(posicao) is { } liga)
+                            {
+                                <span class="pdz-chd-liga @(liga.Reta ? "pdz-chd-liga-reta" : "")" style="@liga.Estilo"></span>
+                            }
+                            @{ Cartao(porNumero[posicao.Jogo.Numero]); }
+                        </div>
+                    }
+                </div>
+            </div>
         }
+        @* O troféu fecha o caminho, na altura da final. *@
+        <div class="pdz-chd-rodada pdz-chd-rodada-trofeu">
+            <div class="pdz-chd-cab">Campeão</div>
+            <div class="pdz-chd-grade" style="--pdz-chd-linhas:1">
+                <div class="pdz-chd-celula" style="grid-row:1">
+                    <span class="pdz-chd-liga pdz-chd-liga-reta"></span>
+                    <div class="pdz-chave-trofeu">
+                        @if (campea != null)
+                        {
+                            <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
+                                 width="96" height="100" class="rounded-3" />
+                            <div class="fw-bold mt-1" style="color: var(--pdz-ink);">Campeão</div>
+                            <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
+                        }
+                        else
+                        {
+                            <i class="bi bi-trophy-fill" style="font-size: 2rem; color: #e0a800;"></i>
+                            <div class="fw-bold mt-1" style="color: var(--pdz-ink);">Campeão</div>
+                            <div class="text-muted small">Aguardando...</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <p class="pdz-chd-dica d-md-none">Arraste de lado: a rodada seguinte encaixa.</p>
 </div>

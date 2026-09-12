@@ -36,7 +36,14 @@
 // segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo — rodar o
 // JavaScript velho por mais uma abertura ali é um game perdido. Conferido no `origin/main`
 // ANTES de escolher o número (estava em v35).
-const CACHE_NAME = "padelizou-static-v36";
+// ⚠️ v37 pelo mesmo motivo do v35 e do v36, agora pelo `jogos-ao-vivo-atualiza.js` de novo — e
+// desta vez o arquivo mudado É a correção de quem usa o app instalado. 🗣️ Felipe: *"Pessoal que
+// tem o app no celular, disse q ao abrir ele fica desatualizado as vezes no aovivo"*. Deixar o
+// número parado seria entregar a correção justamente pra quem não a receberia na próxima
+// abertura: o arquivo não está na lista abaixo, mas cai na regra de `isStaticAsset`, que serve a
+// CÓPIA GUARDADA e só busca a nova em segundo plano. Conferido no `origin/main` ANTES de escolher
+// o número (estava em v36).
+const CACHE_NAME = "padelizou-static-v37";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

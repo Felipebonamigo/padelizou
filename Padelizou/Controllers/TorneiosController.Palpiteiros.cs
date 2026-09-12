@@ -13,8 +13,12 @@ namespace Padelizou.Controllers
     {
         // A tabela. Pública, como a do MVP: ver quem acertou é justamente o que faz a página
         // valer a pena compartilhar no grupo do torneio.
+        // ⚠️ O `fasePalpiteiros` (12/09/2026) usa o MESMO nome na aba do Details, e é isso que
+        // deixa a partial trocar uma chave só sem saber em qual das duas telas ela está. Valor
+        // desconhecido cai em "todas as fases" (ver FaseDoPalpitometro.Normalizar) — ele vem da
+        // query string, ou seja, de fora.
         [HttpGet]
-        public async Task<IActionResult> Palpiteiros(int id)
+        public async Task<IActionResult> Palpiteiros(int id, string? fasePalpiteiros = null)
         {
             int? meuId = User.Identity?.IsAuthenticated == true
                 ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
@@ -26,7 +30,7 @@ namespace Padelizou.Controllers
             if (torneio == null || !await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, meuId))
                 return NotFound();
 
-            var ranking = await RankingDePalpiteiros.DoTorneioAsync(_context, id, meuId);
+            var ranking = await RankingDePalpiteiros.DoTorneioAsync(_context, id, meuId, fasePalpiteiros);
 
             // ⚠️ 404 e não uma tela vazia, como no MVP: torneio sem jogo terminado (ou sem
             // palpite nenhum) não tem NADA pra mostrar, e uma página dizendo "nada aqui" é um

@@ -152,6 +152,9 @@ public static class TestInfra
     // O encerramento de partida (Padelímetro, robôs de chaveamento, avisos) é o MESMO objeto
     // pras duas telas — de verdade, não dublê: os testes que rodam o torneio inteiro só provam
     // alguma coisa se o que roda aqui for o que roda em produção.
+    public static VarreduraDaChave NovaVarreduraDaChave(DbPadelContext ctx) =>
+        new(ctx, EstatisticasFalsas(), NullLogger<VarreduraDaChave>.Instance);
+
     public static EncerramentoDaPartida NovoEncerramento(
         DbPadelContext ctx, IPushNotificationService? push = null) =>
         new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),

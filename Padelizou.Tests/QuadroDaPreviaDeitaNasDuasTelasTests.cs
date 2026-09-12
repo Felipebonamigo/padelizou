@@ -41,7 +41,7 @@ public class QuadroDaPreviaDeitaNasDuasTelasTests
 {
     private static string Partial() =>
         File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Torneios",
-                                      "_ChaveProjetadaArvore.cshtml"));
+                                      "_ChaveDoMataMata.cshtml"));
 
     private static string Css() =>
         File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "wwwroot", "css", "site.css"));
@@ -122,7 +122,12 @@ public class QuadroDaPreviaDeitaNasDuasTelasTests
         // conta isso é a AUSÊNCIA de linha chegando na vaga — o selo era a mesma informação
         // escrita duas vezes. O sufixo continua existindo em ChaveProjetada pra quem lê a
         // prévia em lista, onde não há linha nenhuma pra explicar.
-        Assert.Contains("\" (passou direto)\", \"\"", Partial());
+        //
+        // ⚠️ O CORTE MUDOU DE LUGAR em 12/09/2026, junto com a tradução da prévia: saiu da view
+        // e foi pro montador (QuadroDoMataMata.DaPrevia), que é quem passou a produzir o rótulo.
+        var montador = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Services",
+                                                     "QuadroDoMataMata.cs"));
+        Assert.Contains("\" (passou direto)\", \"\"", montador);
     }
 
     [Fact]
