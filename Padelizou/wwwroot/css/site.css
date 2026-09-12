@@ -2954,6 +2954,107 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-live-passo:active { transform: scale(.94); }
 
+/* ══ A CONTAGEM DO TIE-BREAK no card ao vivo (12/09/2026) ══════════════════════════════
+   🗣️ Felipe: *"ao ficar 8x8, deveria aparecer uma contagem de tie break"*. O bloco nasce
+   DENTRO do cabeçalho escuro do card, então ele se pinta com cor fixa, e não com token que
+   segue o tema — é a mesma lição do `.pdz-live-input` (branco no branco no tema claro). */
+.pdz-live-tiebreak {
+    margin-top: .75rem;
+    padding: .6rem .7rem;
+    border-radius: 12px;
+    /* Destacado do placar sem competir com ele: o jogo continua sendo os games. */
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255, 255, 255, .18);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+/* ⚠️ `display:flex` acima vence o atributo `hidden` do HTML, que é como o JavaScript esconde
+   o bloco no instante em que o tie-break fecha (a atualização automática só passa 15s
+   depois). Sem esta linha, "escondido" não esconderia nada. */
+.pdz-live-tiebreak[hidden] { display: none; }
+
+.pdz-live-tiebreak-titulo {
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--pdz-lime);
+}
+
+.pdz-live-tiebreak-linha {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem;
+    /* 430px de celular com dois contadores: deixar quebrar é melhor que apertar o alvo do
+       dedo, que é exatamente o que os botões −/+ existem pra evitar. */
+    flex-wrap: wrap;
+}
+
+.pdz-live-tiebreak-lado {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+}
+
+.pdz-live-tiebreak-quem {
+    font-size: .78rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, .75);
+    /* Nome longo não empurra o contador pra fora da tela. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 7.5rem;
+}
+
+.pdz-live-tiebreak-x {
+    font-weight: 800;
+    color: rgba(255, 255, 255, .45);
+}
+
+/* O número de quem só está OLHANDO (a maioria: o card é público). */
+.pdz-live-tiebreak-pontos {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+/* O ponto do tie-break é menor que o game de propósito: o placar do JOGO continua sendo o
+   número grande, e o tie-break é o detalhe de dentro dele. */
+.pdz-live-tiebreak-input { font-size: 1.45rem; }
+
+.pdz-live-tiebreak-fechar {
+    border: 0;
+    border-radius: 10px;
+    padding: .5rem .7rem;
+    font-weight: 800;
+    font-size: .9rem;
+    background: var(--pdz-lime);
+    color: #0b1220;
+    width: 100%;
+}
+
+.pdz-live-tiebreak-fechar:active { transform: scale(.98); }
+
+.pdz-live-tiebreak-dica {
+    font-size: .72rem;
+    color: rgba(255, 255, 255, .6);
+    line-height: 1.35;
+}
+
+/* Depois de fechado: o card conta COMO saiu, sem ocupar o espaço do bloco inteiro. */
+.pdz-live-tiebreak-feito {
+    margin-top: .5rem;
+    font-size: .74rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, .7);
+}
+
 /* Enquanto o POST vai e a página não voltou: o segundo toque mandaria o mesmo game de novo,
    e no 3G do clube isso acontece. */
 .pdz-live-passo:disabled { opacity: .45; }

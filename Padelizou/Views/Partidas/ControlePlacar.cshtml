@@ -168,6 +168,68 @@
                             </div>
                         </div>
 
+                        @* ══ A CONTAGEM DO TIE-BREAK (Felipe, 12/09/2026) ════════════════════
+                           🗣️ *"ao ficar 8x8, deveria aparecer uma contagem de tie break, que pode
+                           ir até 7 ou até 10, depende do torneio"*.
+
+                           Aparece só em torneio que configurou o tie-break, e só em fase onde ele
+                           PODE acontecer — quem responde é Services/TieBreakDoJogo, com a régua da
+                           paridade que já existe (num jogo até 6, o 5x5 vai pro 7º game e
+                           tie-break nenhum acontece).
+
+                           ⚠️ Fica visível mesmo antes do 8x8, e é de propósito: esta é a tela de
+                           CORRIGIR — o tie-break de um jogo que já fechou se acerta aqui. Esconder
+                           até o placar empatar deixaria a correção sem porta. O card ao vivo é o
+                           contrário: lá ele nasce no 8x8 e some quando fecha, porque lá se marca
+                           com a quadra rolando. *@
+                        @if (Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formato))
+                        {
+                            var noTieBreak = Padelizou.Services.TieBreakDoJogo.EmAndamento(
+                                formato, Model.GamesDupla1 ?? 0, Model.GamesDupla2 ?? 0);
+
+                            <div class="p-3 rounded-3 border mb-3 @(noTieBreak ? "border-success" : "")">
+                                <label class="form-label fw-bold mb-1">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    Tie-break — até @formato.PontosTieBreak pontos
+                                </label>
+                                <p class="small text-body-secondary mb-2">
+                                    @if (noTieBreak)
+                                    {
+                                        <strong>O jogo está @(formato.Games - 1)x@(formato.Games - 1): é tie-break agora.</strong>
+                                        <text>
+                                            Fecha com @formato.PontosTieBreak pontos e <strong>2 de frente</strong>
+                                            (@(formato.PontosTieBreak)x@(formato.PontosTieBreak - 1) não fecha) — e quem
+                                            fechar leva o @(formato.Games)º game, ou seja, o placar vira
+                                            @(formato.Games) x @(formato.Games - 1).
+                                        </text>
+                                    }
+                                    else
+                                    {
+                                        <text>
+                                            Vale quando o jogo chega a <strong>@(formato.Games - 1)x@(formato.Games - 1)</strong>.
+                                            Quem fecha o tie-break leva o @(formato.Games)º game — o placar de games é o
+                                            que decide o jogo, aqui fica só a contagem.
+                                        </text>
+                                    }
+                                </p>
+                                <div class="row text-center align-items-center">
+                                    <div class="col-5">
+                                        <label class="small text-body-secondary d-block text-truncate">@Model.Dupla1.NomeCurto</label>
+                                        <input type="number" name="pontosTieBreak1" value="@(Model.PontosTieBreak1 ?? 0)"
+                                               class="form-control form-control-lg text-center fw-bold" min="0"
+                                               max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos" />
+                                    </div>
+                                    <div class="col-2"><span class="text-muted fw-bold">X</span></div>
+                                    <div class="col-5">
+                                        <label class="small text-body-secondary d-block text-truncate">@Model.Dupla2.NomeCurto</label>
+                                        <input type="number" name="pontosTieBreak2" value="@(Model.PontosTieBreak2 ?? 0)"
+                                               class="form-control form-control-lg text-center fw-bold" min="0"
+                                               max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
                         @* A regra da fase, escrita: sem isso o organizador não tem como saber
                            por que o campo para em 4 — e "para em 4" era justamente o que a tela
                            NÃO fazia, com max="9" cravado independente do que ele configurou. *@

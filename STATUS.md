@@ -151,6 +151,37 @@
 > 🧪 **6.643 testes, 0 falhas** (13 novos, em `PlacarAoVivoNaTelaDeBloqueioTests` e no novo `CartaoDoPlacarAoVivoTests`) + `conferir-palpitrometro.js` verde. Os testes foram escritos ANTES e vistos falhar: primeiro por resultado errado (o título vinha *"Placar ao vivo"* e o corpo trazia o placar), depois por "não existe" (o card, o endpoint, o `NomeDaDupla` público). Dois testes antigos mudaram de lado junto — o que exigia "encerrado" no título passou a exigir no corpo —, com o motivo escrito na linha. O card foi **conferido em PNG de verdade**, nos dois estados e com nome comprido de dupla.
 >
 > ⚠️ **`sw.js` foi de `v32` pra `v33`** — sem o bump, o aparelho que já tem o service worker guardado continuaria com o de antes e a imagem nunca apareceria, sem nada quebrar em teste nenhum do servidor. O combinado tem gate dos dois lados (o C# manda `image`, o `sw.js` lê `data.image`), no molde do teste da sonda muda.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/focused-cannon-1ibguc`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`TieBreakEmPontos`, cinco colunas novas, `defaultValue: 0` — ver abaixo por que isso é o que protege o ER).
+>
+> 🎾 **O TIE-BREAK DO 8x8 VIROU CONTAGEM DE PONTOS, NO PLACAR AO VIVO.** 🗣️ Felipe: *"temos um problema no sistema, que no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem de tie break, que pode ir até 7 ou até 10, depende do torneio"* — e, em seguida: *"mas adicione essa opção nos proximos jogos do ER tambem"*.
+>
+> 🕳️ **O BURACO: "tie-break" aqui dentro era só uma PALAVRA EM COMENTÁRIO.** O 9º game do jogo até 9 ganhou esse apelido porque é ele que desempata o 8x8 (está escrito assim em `FormatoDaPartida`, `PlacaresPossiveis`, `mesa-offline.js` e mais três lugares), e **ponto nenhum era contado em lugar nenhum**. Na quadra conta-se 7 (ou 10) pontos de verdade, e o placar ao vivo não tinha onde mostrá-los: quem acompanhava de casa via "8 x 8" congelado no momento mais disputado do jogo.
+>
+> ⚖️ **AS CINCO DECISÕES DELE** (pedido classificado como **architectural** — gera migration —, design escrito e aprovado antes de qualquer código):
+> 1. **O alvo é POR FASE**, como Sets e Games já são: `PontosTieBreakGrupos/MataMata/Final`. É o que permite 7 nos grupos e **super tie-break de 10** na decisão.
+> 2. **Quem fecha o tie-break leva o ÚLTIMO GAME (9x8).** ⚠️ É a decisão que segura o resto do sistema: `QuemVenceu`, `ClassificacaoDeGrupos`, saldo de games, desempate de grupo, Padelímetro, chave e a API de torneios **não sabem que tie-break existe, e não precisam saber**. A alternativa (games ficam 8x8 e o vencedor sai dos pontos) obrigaria a mexer em todos eles, com o ER rodando.
+> 3. **Só em fase de número ÍMPAR de games.** No jogo até 4 o 3x3 continua indo pro 5º game — o "vencer por dois" que já está em quadra não muda.
+> 4. **O tie-break também se vence por dois**: 7-6 continua, 8-6 fecha. O alvo não é teto seco.
+> 5. **Torneio que já existe nasce DESLIGADO** (a migration grava 0): nada muda pra quem está em quadra hoje. Torneio novo nasce com 7.
+>
+> 🧩 **A RÉGUA É UMA SÓ: `Services/TieBreakDoJogo`** — está em tie-break? dá pra fechar? com que placar? A paridade **não é recalculada lá**: ela pergunta ao `FormatoDaPartida.TetoDeGames` se o limite estende (no até 9 o teto continua 9 e o tie-break entra; no até 4 o teto vira 5 e não entra). Escrever `% 2` de novo seria a segunda cópia — o erro do `limiteGames: 9` que viveu cravado no JavaScript.
+>
+> 📱 **ONDE APARECE**: card **AO VIVO** (dentro do `.pdz-live-header`, que é o pedaço que a atualização automática troca — o público vê os pontos subirem sem recarregar nada), **tela cheia** do Controle de Partida (é lá que se CORRIGE um tie-break já fechado), **Mesa de Controle offline** (a contagem atravessa a fila do `localStorage` como o game atravessa), **push de quem segue o jogo** e a **linha do jogo finalizado** ("tie-break 7-5").
+>
+> ⚠️ **DOIS DEFEITOS DE TELA QUE O CAMINHO DESENTERROU, os dois corrigidos com teste visto falhar:**
+> • **O `aplicarPlacarDoServidor` achava os campos por ÍNDICE** (`campos[0]`/`campos[1]` sobre todos os `.pdz-live-input` do card). Com os dois campos novos, índice virou acoplamento com a ORDEM do HTML — mover o bloco do tie-break pra cima do placar passaria a escrever o game no campo de pontos, **calado**. Agora acha por `name`.
+> • **O `VoltarParaAgendado` não apagava a contagem.** Jogo tirado da quadra e chamado de novo voltaria 0 x 0 com "tie-break 7-5" pendurado embaixo — número que ninguém sabe de onde veio, que é justamente o que aquele método existe pra evitar (mesmo motivo do saque, que já era apagado lá).
+>
+> 🕳️ **E UM TERCEIRO, QUE SÓ APARECERIA NA QUADRA**: o bloco do tie-break **não pode depender da atualização automática pra nascer** — ela não roda com o cursor dentro de um campo (`estaOcupado`), e quem marca o 8º game está com o dedo exatamente ali. O bloco é renderizado **sempre** que a fase comporta tie-break, escondido, e acende na resposta do PRÓPRIO POST que marcou o game. Quem responde "está em tie-break? dá pra fechar? com que placar? com que etiqueta?" é o servidor, a cada salvamento — o JavaScript só obedece.
+>
+> ⚠️ **A ARMADILHA QUE A ESCOLHA 3 CRIA, escrita na tela**: o padrão da **final é 6 games (par)**, onde o tie-break **nunca acontece**. Configurar 10 ali fica inerte, então a aba de gestão avisa na cara quando o número da fase é par (`TieBreakDoJogo.AFaseComporta`, que é a pergunta da tela de configuração, separada do `PodeAcontecer`).
+>
+> 🔲 **PARA LIGAR NO 2ª ETAPA ER**, depois do deploy: *Gerenciar torneio → Formato das partidas → Tie-break no empate*. A régua é lida **ao vivo** pela fase de cada jogo, então vale pros **próximos** jogos na hora; placar já gravado não muda. (Não tenho banco de produção na sessão web — é um clique.)
+>
+> 🧪 **6.696 testes, 0 falhas (66 novos)** + `conferir-palpitrometro.js` verde + `has-pending-model-changes` sem pendência. Os novos estão em `TieBreakDoJogoTests` (a régua), `TieBreakNoPlacarAoVivoTests` (o POST em lote, inclusive o desalinhamento de array), `TieBreakNaTelaTests` (as guardas de tela: bloco desenhado fora do tie-break, campo por nome, a Mesa não recopiando a paridade) e dois em `PlacarAoVivoNaTelaDeBloqueioTests`.
+>
+> ⚠️ **NÃO CONFERIDO EM NAVEGADOR**: esta sessão não tem browser. O que está provado é a suíte e a leitura do fluxo; o 8x8 na tela do celular, no ER, é o teste de verdade.
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.

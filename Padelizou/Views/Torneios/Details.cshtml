@@ -4137,6 +4137,33 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseGrupos"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseGrupos" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakGrupos" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakGrupos <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakGrupos == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakGrupos == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Grupo A")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseGrupos games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -4148,6 +4175,33 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseMataMata"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseMataMata" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakMataMata" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakMataMata <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakMataMata == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakMataMata == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Quartas de Final")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseMataMata games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -4159,6 +4213,33 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseFinal"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseFinal" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakFinal" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakFinal <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakFinal == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakFinal == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Final")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseFinal games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
                                         </div>
                                     </div>
                                 </div>
@@ -4166,6 +4247,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     É o limite que a <strong>Mesa de Controle</strong> respeita ao marcar o placar.
                                     Mudar aqui vale pros jogos que ainda vão ser marcados — placar já registrado não muda.
                                     "Mata-mata" cobre a primeira rodada, oitavas e quartas.
+                                    <br />
+                                    O <strong>tie-break</strong> aparece no placar ao vivo quando o jogo empata a um game
+                                    do fim (8x8 num jogo até 9). Quem fecha a contagem leva o último game — o placar de
+                                    games continua sendo o que decide o jogo, a classificação e o Padelímetro.
                                 </div>
                             </div>
 

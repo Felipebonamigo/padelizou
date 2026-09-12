@@ -130,6 +130,18 @@ public class AvisoDePlacarAoVivo
             .Where(t => !string.IsNullOrWhiteSpace(t));
         var corpo = string.Join(" · ", new[] { estado }.Concat(contexto));
 
+        // ⚠️ A CONTAGEM DO TIE-BREAK ENTRA NO CORPO (12/09/2026). Em tie-break os GAMES param de
+        // mudar — ficam 8 x 8 até alguém fechar —, e cada ponto marcado chama este aviso de novo.
+        // Sem os pontos aqui, a notificação é REESCRITA com texto idêntico (a tag atualiza a
+        // anterior) e o seguidor vê a tela congelada em "8 x 8" exatamente no momento mais
+        // disputado do jogo — o oposto do "placar que o Google mostra na tela de bloqueio" que
+        // este caminho existe pra imitar.
+        //
+        // Fica depois do fechamento também, de propósito: "9 x 8 · tie-break 7-5" é a melhor
+        // frase que este push pode mandar quando o jogo acaba assim.
+        if (TieBreakDoJogo.Houve(partida.PontosTieBreak1, partida.PontosTieBreak2))
+            corpo += $" · {TieBreakDoJogo.Etiqueta(partida.PontosTieBreak1, partida.PontosTieBreak2)}";
+
         return (titulo, corpo);
     }
 }

@@ -102,7 +102,17 @@ namespace Padelizou.Controllers
             return View(new Torneio
             {
                 PrecoInscricao = 150m,
-                FormaPagamento = conectado ? "OnlinePix" : "Externo"
+                FormaPagamento = conectado ? "OnlinePix" : "Externo",
+                // TORNEIO NOVO NASCE COM TIE-BREAK DE 7 (Felipe, 12/09/2026) — é o que se joga na
+                // quadra no 8x8. ⚠️ Aqui, e NÃO como inicializador da propriedade no modelo: o
+                // `dotnet ef migrations add` não lê inicializador, e um `= 7` lá geraria uma
+                // migration com `defaultValue: 0` que BACKFILLA as linhas antigas com o valor
+                // errado — foi o que aconteceu duas vezes em 22/08 (ver o gate dos defaults de
+                // bool). Torneio que já existe fica desligado, como combinado; quem nasce agora
+                // nasce com a contagem.
+                PontosTieBreakGrupos = TieBreakDoJogo.PontosPadrao,
+                PontosTieBreakMataMata = TieBreakDoJogo.PontosPadrao,
+                PontosTieBreakFinal = TieBreakDoJogo.PontosPadrao
             });
         }
 
@@ -634,12 +644,23 @@ namespace Padelizou.Controllers
                 torneio.GamesFaseMataMata = torneio.GamesFaseGrupos;
                 torneio.SetsFaseFinal = torneio.SetsFaseGrupos;
                 torneio.GamesFaseFinal = torneio.GamesFaseGrupos;
+                // O tie-break faz parte do formato: "todas as partidas com a mesma regra"
+                // incluiria o número de pontos do 8x8, e deixá-lo de fora daria um torneio com
+                // contagem nos grupos e nenhuma na final, sem ninguém ter pedido.
+                torneio.PontosTieBreakMataMata = torneio.PontosTieBreakGrupos;
+                torneio.PontosTieBreakFinal = torneio.PontosTieBreakGrupos;
             }
 
             // Como contar os games decide teto de placar e "já dá pra encerrar?", então um
             // valor inventado num POST montado à mão não pode passar: o que não for "Soma"
             // vira o "Ate" de sempre, que é o comportamento histórico.
             torneio.ContagemDeGames = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
+
+            // Mesmo motivo, pro alvo do tie-break: número negativo ou absurdo num POST montado
+            // à mão cai em "desligado", que é o comportamento de sempre (ver TieBreakDoJogo).
+            torneio.PontosTieBreakGrupos = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakGrupos);
+            torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakMataMata);
+            torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakFinal);
 
             // O torneio nasce ABERTO, a não ser que o organizador diga que ainda não quer
             // receber ninguém. Montar categoria, quadra e preço com o formulário já aceitando
@@ -1226,6 +1247,16 @@ namespace Padelizou.Controllers
             // Nulo = aba antiga sem o campo: a contagem gravada FICA. Trocar pra "Ate" por
             // omissão mudaria a regra do jogo de um torneio em andamento, calado.
             string? contagemDeGames = null,
+            // ATÉ QUANTOS PONTOS VAI O TIE-BREAK, por fase (12/09/2026). Nulo = a aba não tem o
+            // campo (aberta antes deste deploy): o que está gravado FICA. Zero é "desligado", e
+            // é um valor que o organizador escolhe de propósito — por isso nulo e zero não podem
+            // significar a mesma coisa aqui.
+            //
+            // ⚠️ Editável com o torneio RODANDO, e é o caso de uso: ligar a contagem valendo
+            // pros próximos jogos. Placar já gravado não muda — o que muda é o que a tela
+            // oferece daqui pra frente, igual ao número de games logo acima.
+            int? pontosTieBreakGrupos = null, int? pontosTieBreakMataMata = null,
+            int? pontosTieBreakFinal = null,
             // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
             // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
             string? formaPagamento = null,
@@ -1498,6 +1529,10 @@ namespace Padelizou.Controllers
             torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
             torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
             torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
+
+            torneio.PontosTieBreakGrupos = TieBreakDoJogo.AlvoValido(pontosTieBreakGrupos ?? torneio.PontosTieBreakGrupos);
+            torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(pontosTieBreakMataMata ?? torneio.PontosTieBreakMataMata);
+            torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(pontosTieBreakFinal ?? torneio.PontosTieBreakFinal);
 
             // Só troca a contagem se o campo veio E é um valor que existe: um "Soma" mal
             // digitado virando "Ate" em silêncio mudaria como a Mesa fecha todo jogo.
