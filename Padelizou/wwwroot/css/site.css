@@ -3358,7 +3358,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
    são até 194 deles na tela, e 194 pílulas cinzas seriam a lista inteira virando botão.
 
    ⚠️ Alvo de toque de 30px com ícone de 18px — abaixo disso o dedo erra a bolinha de
-   cima no celular, que é onde esta lista é usada. */
+   cima no celular, que é onde esta lista é usada.
+
+   ⚠️ A COR SAI DE `--pdz-muted`, E NUNCA DE `--pdz-border`. A primeira versão usou a borda
+   e o Felipe não achou o botão no ar ("Mas eu nao achei aonde q marca o checkin"): no tema
+   escuro `--pdz-border` é `rgba(231, 236, 247, .10)` — dez por cento de alpha, que separa
+   caixa de fundo e desaparece quando vira ÍCONE em cima de card escuro. É o mesmo tombo que
+   criou o `--pdz-linha-chave`. `--pdz-muted` é contrastado nos dois temas. */
 .pdz-jl-checkin {
     flex: 0 0 auto;
     display: inline-flex;
@@ -3370,7 +3376,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--pdz-border);
+    color: var(--pdz-muted);
     font-size: 1.1rem;
     line-height: 1;
     cursor: pointer;
