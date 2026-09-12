@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
+>
+> 🗣️ Felipe, com o print da prévia no celular: *"Esse botao de oitavas quartas semi e final, as vezes n funciona"*. **Eram DOIS defeitos somados, e é daí que vinha o "às vezes"** — os dois medidos no Chromium a 412px com o `site.css` de verdade, antes de qualquer correção.
+>
+> 🕳️ **1. ID REPETIDO.** O `_ChaveProjetadaArvore` é desenhado **uma vez por categoria** (dentro do laço dos `.tab-pane` do `Details.cshtml`), e todas escreviam `id="pdz-chd-rodada-0..N"`. `href="#pdz-chd-rodada-1"` acha o **primeiro do documento** — que mora no painel de OUTRA categoria, escondido por `display: none`, e rolar pra invisível não faz nada. Num torneio de duas ou mais categorias com prévia (**o ER tem sete**) NENHUMA ficha funcionava, fora as da primeira do DOM: `scrollLeft` ficou em **0 nos quatro cliques**.
+>
+> 🕳️ **2. O ENCAIXE DESFAZIA O PULO.** O trilho é `scroll-snap-type: x mandatory` e a navegação por âncora alinha com `inline: nearest` — o mínimo pra caber. A rodada ocupa 66% da tela, então esse mínimo para ENTRE dois pontos de encaixe e o snap puxa de volta pro anterior. Com uma categoria só (ids já únicos, portanto): **QUARTAS não saía do lugar, SEMIFINAL parava nas QUARTAS, FINAL parava na SEMIFINAL** — sempre uma rodada atrás. De quebra, a âncora rolava a PÁGINA (scrollY **0 → 639**) e levava a própria barra de fichas pra fora da tela.
+>
+> ✅ **A CORREÇÃO**: o `id` da rodada passou a carregar a **categoria** (o partial recebe `categoria.Id` no modelo) e nasceu `wwwroot/js/chave-fichas.js`, que rola o **trilho da própria categoria** no lugar da âncora. O `preventDefault()` é o conserto do 2: rolando na mão, a parada é **exatamente** o ponto de encaixe e o snap não tem o que desfazer — e o pulo vertical some junto. O `href` fica como caminho de teclado e como o que sobra sem JS.
+>
+> ✅ **CONFERIDO NO CHROMIUM DEPOIS**, na mesma página de duas categorias: os quatro botões param em **0 · 272 · 544 · 816** (o começo de cada rodada), `scrollY` fica em **0** e a URL não ganha `#`.
+>
+> 🧪 **6.633 testes, 0 falhas** (3 novos em `FichasDaChaveLevamARodadaCertaTests`) + os **três** `conferir-*.js` verdes, incluindo o novo `conferir-fichas-da-chave.js` — DOM falso, sem dependência, no molde do `conferir-abas-recolhidas.js`.
+>
+> ⚠️ **RESSALVA**: nada disto foi visto no aparelho do Felipe, só no Chromium a 412px. É CSS/JS de tela, sem migration e sem tocar em régua de autorização nem em dinheiro.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
 >

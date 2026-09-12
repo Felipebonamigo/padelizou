@@ -6344,8 +6344,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     @* O quadro com as linhas: no computador de cima pra baixo, no celular
                                        deitado e arrastável. A geometria dos dois é a mesma conta —
                                        ver Services/ArvoreDaChave e Views/Torneios/_ChaveProjetadaArvore. *@
+                                    @* ⚠️ A CATEGORIA VAI JUNTO porque o `id` de cada rodada é
+                                       construído com ela: este partial é desenhado uma vez por
+                                       categoria e, com id repetido, as fichas do celular pulavam
+                                       pro painel escondido da primeira. Ver
+                                       FichasDaChaveLevamARodadaCertaTests. *@
                                     <partial name="_ChaveProjetadaArvore"
-                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro)" />
+                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro, categoria.Id)" />
                                 }
                             }
                             else
@@ -6369,6 +6374,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         @* Troca o painel visível e LEMBRA a escolha (o porquê está no arquivo). *@
         <script src="~/js/seletor-de-categoria.js" asp-append-version="true"></script>
+        @* As fichas de rodada da prévia do mata-mata rolam o trilho da PRÓPRIA categoria — a
+           navegação por âncora parava uma rodada atrás por causa do encaixe. *@
+        <script src="~/js/chave-fichas.js" asp-append-version="true"></script>
         } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
       }
       else
