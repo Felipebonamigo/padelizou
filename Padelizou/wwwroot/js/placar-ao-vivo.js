@@ -95,6 +95,18 @@
             var card = document.querySelector('.pdz-live-card[data-partida-id="' + linha.partidaId + '"]');
             if (!card) return;
 
+            // ⚠️ CARD COM TOQUE MAIS NOVO QUE ESTA RESPOSTA NÃO É CORRIGIDO (Felipe,
+            // 12/09/2026: *"estou clicando pra marcar, aparece salvo, mas nao salva as
+            // vezes"*). O servidor está respondendo sobre o placar de ANTES do toque: escrever
+            // aqui apaga o game que a pessoa acabou de marcar — e o POST seguinte lê o campo
+            // JÁ REVERTIDO e manda o número velho de volta. O toque some inteiro, com a tarja
+            // dizendo "salvo".
+            //
+            // É o caminho que a internet ruim escancara: quanto mais devagar a resposta volta,
+            // mais toques cabem no vão entre o envio e ela. `mexidos` é justamente a lista de
+            // quem tocou depois do POST sair.
+            if (mexidos.indexOf(card) !== -1) return;
+
             // ⚠️ O VERDE ANDA JUNTO COM O NÚMERO (11/09/2026). A classe só nascia no HTML
             // do servidor, então um 9 x 8 corrigido pra 8 x 8 ficava com o empate pintado de
             // verde: a atualização automática arrumaria no tique seguinte, mas ela NÃO roda
@@ -199,6 +211,74 @@
     // torneio, o recorte da tela) mais os campos DOS CARDS DO LOTE — e só deles.
     var CAMPOS_DO_CARD = ["partidaId", "games1", "games2", "pontos1", "pontos2"];
 
+    // O valor que ESTE card está mandando pra um campo. O `.pdz-live-input` vem primeiro de
+    // propósito: é o campo que a pessoa toca e o mesmo que a resposta do servidor reescreve
+    // (ver aplicarPlacarDoServidor). O segundo seletor é pro `partidaId`, que é escondido e
+    // não tem a classe.
+    function valorDe(card, nome) {
+        var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]')
+            || card.querySelector('[name="' + nome + '"]');
+        return campo ? campo.value : null;
+    }
+
+    // O QUE ESTE POST ESTÁ AFIRMANDO, card a card — é contra isto que a resposta é conferida
+    // antes de a tela dizer "salvo".
+    function oQueVaiNoLote(lote) {
+        return lote.map(function (card) {
+            return {
+                card: card,
+                id: valorDe(card, "partidaId"),
+                games1: valorDe(card, "games1"),
+                games2: valorDe(card, "games2"),
+            };
+        });
+    }
+
+    // A RESPOSTA É A PROVA, e o "salvo" só sai dela (Felipe, 12/09/2026: *"estou clicando pra
+    // marcar, aparece salvo, mas nao salva as vezes"*). Aqui se dizia "salvo" por ter chegado
+    // um JSON — e JSON chega também quando o servidor PULOU o card de propósito. Devolve os
+    // cards que continuam devendo.
+    function conferirResposta(afirmado, placares) {
+        var porId = {};
+        (placares || []).forEach(function (linha) { porId[String(linha.partidaId)] = linha; });
+
+        var refazer = [];
+        var salvos = [];
+
+        afirmado.forEach(function (item) {
+            var linha = porId[item.id];
+
+            // O servidor não citou este jogo: 200 com JSON não é prova de que ELE entrou.
+            if (!linha) {
+                avisar(item.card, "erro", "não salvou — toque de novo");
+                refazer.push(item.card);
+                return;
+            }
+
+            // Saiu do ar entre a tela carregar e o toque — alguém finalizou noutro aparelho. O
+            // servidor pula o card DE PROPÓSITO (sobrescrever jogo encerrado é o que faz
+            // resultado sumir), e tocar de novo não adianta: este não volta pra fila.
+            if (linha.aoVivo === false) {
+                avisar(item.card, "erro", "este jogo saiu do ar");
+                return;
+            }
+
+            // O servidor CORRIGE o que recebe: o teto da fase manda, e numa soma de 5 um 6
+            // vira 4. ⚠️ O número corrigido nem sempre chega à tela — não se escreve por baixo
+            // de quem está digitando (ver aplicarNumero) —, então quem conta é a tarja.
+            if (String(linha.games1) !== item.games1 || String(linha.games2) !== item.games2) {
+                avisar(item.card, "ok", "salvo como " + linha.games1 + " x " + linha.games2);
+                salvos.push(item.card);
+                return;
+            }
+
+            avisar(item.card, "ok", "salvo");
+            salvos.push(item.card);
+        });
+
+        return { refazer: refazer, salvos: salvos };
+    }
+
     function corpoDoLote(form, lote) {
         var dados = new FormData();
 
@@ -212,15 +292,10 @@
         // ⚠️ UM CAMPO DE CADA NOME POR CARD, na mesma ordem em todos: o servidor casa
         // `partidaId[]` com `games1[]` e `pontos1[]` por ÍNDICE, e uma entrada a mais em
         // qualquer um dos arrays grava o placar de um jogo no outro.
-        //
-        // O `.pdz-live-input` vem primeiro de propósito: é o campo que a pessoa toca e o mesmo
-        // que a resposta do servidor reescreve (ver aplicarPlacarDoServidor). O segundo
-        // seletor é pro `partidaId`, que é escondido e não tem a classe.
         lote.forEach(function (card) {
             CAMPOS_DO_CARD.forEach(function (nome) {
-                var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]')
-                    || card.querySelector('[name="' + nome + '"]');
-                if (campo) dados.append(nome, campo.value);
+                var valor = valorDe(card, nome);
+                if (valor !== null) dados.append(nome, valor);
             });
         });
 
@@ -240,6 +315,9 @@
         var lote = mexidos.slice();
         if (lote.length === 0) return;
         mexidos = [];
+
+        // Lido AGORA, no mesmo instante do corpo do POST: é o que a resposta tem que confirmar.
+        var afirmado = oQueVaiNoLote(lote);
 
         enviando = true;
         // ⚠️ Trava a atualização automática enquanto o placar está indo: ela troca o
@@ -269,10 +347,15 @@
                 // ar. Com a recarga, a tela voltava do servidor já certa; sem ela, seria a
                 // tela mentindo sobre o que está gravado.
                 aplicarPlacarDoServidor(dados && dados.placares);
-                marcarTodos(lote, "ok", "salvo");
+
+                var conferido = conferirResposta(afirmado, dados && dados.placares);
                 lote.forEach(confirmar);
-                // O "salvo" some sozinho; o card volta a ser só o card.
-                window.setTimeout(function () { marcarTodos(lote, "", ""); }, 2500);
+                // O que o servidor não confirmou continua devendo, como se a rede tivesse
+                // caído: nada é descartado calado.
+                conferido.refazer.forEach(marcarMexido);
+                // ⚠️ Só o "salvo" some sozinho. Aviso de erro FICA na tela — ele é a única
+                // pista de que aquele toque não virou placar.
+                window.setTimeout(function () { marcarTodos(conferido.salvos, "", ""); }, 2500);
             })
             .catch(function () {
                 // ⚠️ Falha PRECISA aparecer. O placar continua na tela (não se apaga o que a

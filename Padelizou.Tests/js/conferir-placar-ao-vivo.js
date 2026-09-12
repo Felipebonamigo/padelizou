@@ -59,7 +59,6 @@ function elemento(tag, atributos, filhos) {
         tagName: tag.toUpperCase(),
         filhos: filhos || [],
         pai: null,
-        value: attrs.value === undefined ? '' : String(attrs.value),
         textContent: '',
         hidden: false,
         disabled: false,
@@ -69,6 +68,15 @@ function elemento(tag, atributos, filhos) {
         hasAttribute: (n) => n in attrs,
         removeAttribute: (n) => { delete attrs[n]; },
     };
+
+    // ⚠️ `input.value` é SEMPRE string no navegador, inclusive depois de `campo.value = 4`
+    // (o −/+ escreve número). Um DOM falso que guardasse o número cru faria uma comparação com
+    // `String(...)` falhar aqui e passar em produção — ou o contrário, que é pior.
+    let valor = attrs.value === undefined ? '' : String(attrs.value);
+    Object.defineProperty(no, 'value', {
+        get: () => valor,
+        set: (v) => { valor = String(v); },
+    });
 
     function classes() { return (attrs.class || '').split(/\s+/).filter(Boolean); }
     function escrever(lista) { attrs.class = lista.join(' '); }
@@ -168,8 +176,26 @@ function pagina(cards) {
     let relogio = [];
     let seq = 0;
     const chamadas = [];
-    let resposta = () => ({ salvos: 1, placares: [] });
+    // Nulo = servidor fiel: devolve exatamente o que recebeu. É o que o de verdade faz quando
+    // o placar cabe no formato da fase — e é a resposta contra a qual o card decide se diz
+    // "salvo", então o padrão aqui não pode ser uma lista vazia.
+    let resposta = null;
     let falhar = false;
+
+    function ecoDoServidor(corpo) {
+        const ids = corpo.getAll('partidaId');
+        const games1 = corpo.getAll('games1');
+        const games2 = corpo.getAll('games2');
+        return {
+            salvos: ids.length,
+            placares: ids.map((id, i) => ({
+                partidaId: Number(id),
+                games1: Number(games1[i]),
+                games2: Number(games2[i]),
+                aoVivo: true,
+            })),
+        };
+    }
 
     const janela = {
         setTimeout(fn, ms) { relogio.push({ id: ++seq, fn, ms }); return seq; },
@@ -180,7 +206,7 @@ function pagina(cards) {
             return Promise.resolve({
                 ok: true,
                 headers: { get: () => 'application/json' },
-                json: () => Promise.resolve(resposta()),
+                json: () => Promise.resolve(resposta ? resposta() : ecoDoServidor(opcoes.body)),
             });
         },
     };
@@ -357,6 +383,81 @@ function clicarNoMais(tela, card, nome) {
         // E o aviso some sozinho, como o "salvo": o card volta a ser só o card.
         tela.correrTimers();
         conferir('e o aviso some sozinho', a.querySelector('.pdz-live-salvo').textContent === '');
+    }
+
+    // 7. O "SALVO" TEM QUE SER VERDADE (Felipe, 12/09/2026: *"estou clicando pra marcar,
+    //    aparece salvo, mas nao salva as vezes"*). O servidor CORRIGE o que recebe — o teto da
+    //    fase manda, e numa soma de 5 um 6 vira 4 —, e o card dizia "salvo" sem olhar a
+    //    resposta. Pior: o número corrigido não chega nem à tela quando o dedo está no campo
+    //    (não se escreve por baixo de quem digita), então o card ficava com o número que a
+    //    pessoa marcou, a tarja verde e um placar diferente no banco.
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+        tela.responder(() => ({
+            salvos: 1,
+            placares: [{ partidaId: 101, games1: 4, games2: 2, aoVivo: true }],
+        }));
+
+        // O dedo fica no campo: é o caso em que a tela NÃO é corrigida e só a tarja pode avisar.
+        clicarNoMais(tela, a, 'games1');   // manda 4... e o servidor devolve 4? não: pede 4, grava 4
+        tela.correrTimers();
+        await assentar();
+        conferir('placar que o servidor gravou igual ao que foi mandado diz só "salvo"',
+            a.querySelector('.pdz-live-salvo').textContent === 'salvo');
+    }
+
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+        tela.responder(() => ({
+            salvos: 1,
+            placares: [{ partidaId: 101, games1: 2, games2: 2, aoVivo: true }],
+        }));
+
+        clicarNoMais(tela, a, 'games1');   // manda 4, o servidor grava 2
+        tela.correrTimers();
+        await assentar();
+
+        conferir('placar corrigido pelo servidor aparece na tarja',
+            a.querySelector('.pdz-live-salvo').textContent === 'salvo como 2 x 2');
+    }
+
+    // 8. JOGO QUE SAIU DO AR entre a tela carregar e o toque (alguém finalizou noutro
+    //    aparelho): o servidor PULA o card calado, e o "salvo" era mentira inteira.
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+        tela.responder(() => ({
+            salvos: 0,
+            placares: [{ partidaId: 101, games1: 3, games2: 2, aoVivo: false }],
+        }));
+
+        clicarNoMais(tela, a, 'games1');
+        tela.correrTimers();
+        await assentar();
+
+        conferir('jogo fora do ar não diz "salvo"',
+            a.querySelector('.pdz-live-salvo').textContent === 'este jogo saiu do ar');
+        conferir('e aparece como erro',
+            a.querySelector('.pdz-live-salvo').className.indexOf('pdz-live-salvo-erro') !== -1);
+        conferir('sem ficar na fila (tentar de novo não adianta)', !a.hasAttribute('data-pdz-mexido'));
+    }
+
+    // 9. RESPOSTA QUE NEM CITA O CARD: 200 com JSON, mas sem prova de que aquele jogo entrou.
+    //    Silêncio não é confirmação — o card continua na fila e a tarja avisa.
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+        tela.responder(() => ({ salvos: 0, placares: [] }));
+
+        clicarNoMais(tela, a, 'games1');
+        tela.correrTimers();
+        await assentar();
+
+        conferir('card sem resposta do servidor não diz "salvo"',
+            a.querySelector('.pdz-live-salvo').textContent === 'não salvou — toque de novo');
+        conferir('e continua na fila', a.hasAttribute('data-pdz-mexido'));
     }
 
     console.log('');
