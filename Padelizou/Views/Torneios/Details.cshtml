@@ -6227,6 +6227,68 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             }
                         }
 
+                        @* ═══ REFAZER O MATA-MATA COMO ESTAVA PREVISTO (12/09/2026) ════════════
+                           🗣️ Felipe, com o ER em quadra e os jogadores cobrando: "acho que o chaveamento
+                           se perdeu... era primeiro da F contra o segundo da E" · "tem q respeitar o que
+                           estava como chaveamento previsto antes" · "mas é em todas as categorias".
+
+                           A prévia era montada com campanha ZERADA e a chave real com a campanha de
+                           verdade — mesmo motor, entradas diferentes. Do `AprovarChaves` em diante isso
+                           não acontece mais (o cruzamento previsto congela na aprovação); este botão é
+                           pro torneio que já tinha sido aprovado antes disso.
+
+                           ⚠️ Aparece só DEPOIS de publicada — antes disso quem manda é o bloco de
+                           chaveamento à mão, logo acima. A ação recusa de novo do lado de lá. *@
+                        @if (ViewBag.PodeAprovarChaves == true
+                             && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
+                             && categoria.GruposTorneio.Count > 0)
+                        {
+                            var gruposPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
+                            var tamanhosPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
+                            var previsto = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                                        ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
+                                               gruposPrevisto,
+                                               Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                               tamanhosPrevisto);
+
+                            if (previsto != null)
+                            {
+                                <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Refazer o mata-mata como estava previsto
+                                        </h6>
+                                        <p class="small text-muted mb-2">
+                                            Devolve a primeira eliminatória ao cruzamento que a prévia mostrava.
+                                            <strong>Horários e quadras ficam como estão</strong> — só as duplas mudam de lugar.
+                                            Se algum jogo do mata-mata já começou, nada é mexido.
+                                        </p>
+                                        <div class="mb-2">
+                                            @foreach (var confronto in previsto.Confrontos)
+                                            {
+                                                <div class="small">@confronto.Lado1.Rotulo <span class="text-muted">×</span> @confronto.Lado2.Rotulo</div>
+                                            }
+                                            @foreach (var bye in previsto.Byes)
+                                            {
+                                                <div class="small text-muted">@bye.Rotulo — passa direto (bye)</div>
+                                            }
+                                        </div>
+                                        <form asp-controller="Torneios" asp-action="RefazerMataMataComoPrevisto" method="post"
+                                              data-confirmar-titulo="Refazer o mata-mata da @categoria.Nome?"
+                                              data-confirmar="As duplas voltam ao cruzamento previsto. Quem já viu o adversário antigo NÃO é avisado — avise no grupo. Os palpites dos jogos que mudarem são apagados."
+                                              data-confirmar-ok="Refazer">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Refazer como previsto
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        }
+
                         @{
                             // O pop-up "O QUE CADA UM PRECISA PARA PASSAR" de cada grupo (🗣️ Felipe,
                             // 11/09/2026, num print do Grupo B do 2ª Etapa ER Padel Tour: *"que o grupo

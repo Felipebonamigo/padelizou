@@ -19,6 +19,27 @@
 >
 > 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
 
+
+> **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
+>
+> 🗣️ Felipe, com dois prints da mesma tela em dias diferentes: *"acho que o chaveamento se perdeu, por que ontem eu tinha visto e estava diferente"* · *"era primeiro da F contra o segundo da E ou algo assim"* · *"tem q respeitar o q estava previsto"* · *"pelo jeito aconteceu com todas as categorias"* · *"pessoal esta me cobrando"*.
+>
+> 🕳️ **PRÉVIA E SORTEIO SEMPRE PASSARAM PELO MESMO MOTOR — COM ENTRADAS DIFERENTES.** `ChaveProjetada.Montar` alimenta `MontarPrimeiraFase` com `Vitorias: 0, Saldo: 0` (ninguém jogou ainda), então o desempate entre os 2ºs cai no `ThenBy(c => c.Grupo)`, **alfabético**. O robô alimenta o mesmo método com a campanha de verdade (`ChaveamentoMataMata.cs:122`). Mesmo motor, saídas diferentes — e a promessa que o jogador leu na véspera não valia nada.
+>
+> 🔬 **REPRODUZIDO RODANDO O CÓDIGO DE PRODUÇÃO, dos dois lados.** Na 4ª Masculina (6 grupos, tamanhos 2·2·3·3·3·3) a prévia reconstruída hoje sai **idêntica ao print de ontem**, jogo por jogo (`1ºE × 2ºF | 1ºF × 2ºE | 2ºA × 2ºD | 2ºB × 2ºC`, byes `1ºA·1ºB·1ºC·1ºD`); e a chave real, realimentada com a campanha do print, sai **idêntica ao print de hoje** (`1ºE × 2ºB`, `1ºF × 2ºA`, `2ºC × 2ºF`). Não houve regeração nem perda: `RoboDoChaveamento.cs:92` só monta com a fase de grupos inteira fechada e `:97-99` impede montar duas vezes.
+>
+> ⚠️ **OS BYES NÃO DIVERGEM, E É POR ISSO QUE PASSOU DESPERCEBIDO.** `OrdemDosByes` ordena por posição, jogos no grupo e nome do grupo — nenhum é campanha. As **quartas do ER saíram idênticas à prévia**; só a primeira rodada embaralhou. Quem conferisse pelo meio do quadro não veria nada errado.
+>
+> ✅ **A SAÍDA FOI CONGELAR, NÃO RECALCULAR — degrau 2 da escada, sem conta nova.** O cruzamento previsto já sabia se escrever (`CruzamentoDoMataMata.Padrao`, que sai da própria `ChaveProjetada`) e o motor já sabia obedecê-lo (`MontarPrimeiraFase` lê o desenho **antes** de semear). Faltava gravá-lo no instante em que a prévia deixa de ser rascunho e vira promessa pública: o `AprovarChaves`. **Só em categoria sem desenho** — sobrescrever apagaria a escolha de quem desenhou à mão.
+>
+> 🔧 **E UM BOTÃO PRO TORNEIO QUE JÁ ESTAVA RODANDO** (`RefazerMataMataComoPrevisto`, um por categoria): reescreve **só `Dupla1Id`/`Dupla2Id`** das partidas da abertura. Horário, quadra, código, status e placar ficam. ⚠️ **TUDO OU NADA**: recusa inteiro se algum jogo de grupo está aberto, se a chave já passou da abertura, se **um** jogo do mata-mata já saiu do papel (régua única `AprovacaoDeChaves.JaSaiuDoPapel`), se a contagem não bate ou se alguma vaga não resolve — consertar metade deixaria dupla em dois jogos e dupla em nenhum.
+>
+> 🗳️ **O PALPITE É A ÚNICA COISA QUE CAI JUNTO, e precisa cair:** `PalpitePartida.DuplaEscolhidaId` é o **único** ponto do modelo que amarra uma partida a uma dupla específica (varrido em `Models/*.cs`). Trocada a dupla, o voto apontaria pra quem não está mais no jogo. Apagados **só dos jogos que mudaram** — e os ids são colhidos **antes** de mutar, senão a pergunta "mudou?" responde "sim" pra todos.
+>
+> 🧪 **6.912 testes, 0 falhas (7 novos em `ChaveRespeitaOPrevistoTests`)** + os **8** conferidores de JS verdes. **Vistos vermelhos antes**, pelos motivos certos: `Expected: "1A×2C|1B×2D|1C×2A|1D×2B" / Actual: null` (não congelava) e — o defeito do Felipe em teste — `Expected: [1A×2C, 1B×2D, 1C×2A, 1D×2B] / Actual: [1A×2D, 1C×2A, 1D×2B, 1B×2C]`; os quatro do botão por *"não existe"*.
+>
+> ⚠️ **NÃO AVISA NINGUÉM.** Quem já tinha lido o adversário antigo não recebe push — a mensagem da tela diz isso e manda avisar no grupo. Foi escolha de escopo sob pressa, não esquecimento.
+
 > **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
 >
 > 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.

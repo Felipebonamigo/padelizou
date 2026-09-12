@@ -616,7 +616,9 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> AprovarChaves(int id, bool? avisarJogadores = null)
         {
-            var torneio = await _context.Torneios.FirstOrDefaultAsync(t => t.Id == id);
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
             if (torneio.Status != AprovacaoDeChaves.Pendente)
             {
@@ -626,6 +628,24 @@ namespace Padelizou.Controllers
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             bool avisar = avisarJogadores ?? torneio.ChavesAvisadasEm == null;
+
+            // ⚠️ AQUI A PRÉVIA DEIXA DE SER RASCUNHO E VIRA PROMESSA — então é aqui que ela
+            // CONGELA (12/09/2026).
+            //
+            // 🗣️ Felipe, com o ER rolando e os jogadores cobrando: *"acho que o chaveamento se
+            // perdeu... era primeiro da F contra o segundo da E"* · *"ele tem q respeitar o q
+            // estava previsto"*.
+            //
+            // 🕳️ Prévia e sorteio sempre passaram pelo mesmo motor, mas com ENTRADAS diferentes:
+            // a prévia manda `Vitorias: 0, Saldo: 0` (ninguém jogou), e aí o desempate entre os
+            // 2ºs cai no nome do grupo; o sorteio manda a campanha de verdade. Mesmo motor,
+            // saídas diferentes — na 4ª Masculina o jogo 1 prometia `1ºE × 2ºF` e saiu `1ºE × 2ºB`.
+            // Os byes NÃO divergem (OrdemDosByes não olha campanha), o que fez o defeito passar
+            // despercebido: as quartas saíam idênticas e só a primeira rodada embaralhava.
+            //
+            // Nada de conta nova: `Padrao` é a própria prévia escrita como desenho, e
+            // `MontarPrimeiraFase` já lê o desenho antes de semear. Só faltava gravar.
+            CongelarOCruzamentoPrevisto(torneio);
 
             torneio.Status = "Fase de Grupos";
 
@@ -648,6 +668,39 @@ namespace Padelizou.Controllers
                 ? "Chaves aprovadas — já estão visíveis pra todo mundo, e os jogadores foram avisados."
                 : "Chaves aprovadas — já estão visíveis pra todo mundo. Ninguém foi avisado de novo.";
             return RedirectToAction("Details", new { id });
+        }
+
+        /// <summary>
+        /// Grava em cada categoria o cruzamento que a PRÉVIA está mostrando, pra que a chave de
+        /// verdade não possa sair diferente do que foi prometido.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ SÓ EM QUEM NÃO TEM DESENHO. Categoria que o organizador desenhou à mão já mandou —
+        /// sobrescrever aqui apagaria a escolha dele no momento em que ele aperta "aprovar".
+        ///
+        /// ⚠️ É EXATAMENTE O QUE A TELA JÁ MOSTRA: o bloco "Chaveamento da primeira eliminatória"
+        /// do Details.cshtml abre o campo com `CruzamentoDoMataMata.Padrao(...)` sobre os mesmos
+        /// três argumentos. Uma segunda régua aqui faria a tela e o congelamento discordarem —
+        /// que é a forma deste defeito.
+        ///
+        /// Categoria sem grupo (Americano, chave direta) e desenho que não se escreve devolvem
+        /// null e ficam como estavam: quem não tem mata-mata de grupos não tem o que congelar.
+        /// </remarks>
+        private static void CongelarOCruzamentoPrevisto(Torneio torneio)
+        {
+            foreach (var categoria in torneio.Categorias)
+            {
+                if (categoria.CruzamentoDoMataMata != null) continue;
+                if (categoria.GruposTorneio.Count == 0) continue;
+
+                var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
+                var desenho = CruzamentoDoMataMata.Padrao(
+                    grupos.Select(g => g.Nome).ToList(),
+                    ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                    grupos.Select(g => g.Duplas.Count).ToList());
+
+                if (desenho != null) categoria.CruzamentoDoMataMata = desenho.Escrever();
+            }
         }
 
         // RECOLHE a chave publicada: `Fase de Grupos` → `Chaves em Aprovação`, com o sorteio
@@ -852,6 +905,159 @@ namespace Padelizou.Controllers
             TempData[avisos.Count > 0 ? "Aviso" : "Sucesso"] =
                 $"{categoria.Nome}: chaveamento desenhado. "
                 + (avisos.Count > 0 ? "⚠️ " + string.Join(" ", avisos) : "A prévia já mostra o caminho novo.");
+
+            return ParaAsChaves(id);
+        }
+
+        // REFAZER A ABERTURA DO MATA-MATA COMO ELA ESTAVA PREVISTA — o conserto do torneio que já
+        // está rodando com a chave errada.
+        //
+        // 🗣️ Felipe, 12/09/2026, com o ER em quadra: *"tem q respeitar o que estava como
+        // chaveamento previsto antes"* · *"mas é em todas as categorias"* · *"pessoal esta me
+        // cobrando"*.
+        //
+        // O `CongelarOCruzamentoPrevisto` do `AprovarChaves` fecha o buraco pro PRÓXIMO torneio.
+        // Este botão é pro torneio que já foi aprovado antes dele existir: a chave já nasceu
+        // embaralhada e as partidas estão no banco, com horário e quadra que o organizador
+        // montou e que o jogador já leu.
+        //
+        // ⚠️ SÓ AS DUPLAS MUDAM DE LUGAR. Horário, quadra, código e ordem do jogo ficam como
+        // estão — é a diferença entre corrigir o cruzamento e refazer a grade por cima de quem
+        // já se organizou.
+        //
+        // ⚠️ TUDO OU NADA, e é a guarda que importa: se UM jogo da abertura já começou, ninguém é
+        // reescrito. Consertar a outra metade deixaria uma dupla marcada em dois jogos e outra em
+        // nenhum — a bola que já rolou fixa o resto da chave junto com ela.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RefazerMataMataComoPrevisto(int id, int categoriaId)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var categoria = torneio.Categorias.FirstOrDefault(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+
+            // O previsto: o desenho da categoria quando existe, senão o que a prévia mostra —
+            // que é a MESMA chamada do bloco de chaveamento no Details.cshtml.
+            var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
+            var desenho = CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                       ?? CruzamentoDoMataMata.Padrao(
+                              grupos.Select(g => g.Nome).ToList(),
+                              ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                              grupos.Select(g => g.Duplas.Count).ToList());
+
+            if (desenho == null)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: esta categoria não tem mata-mata de grupos pra refazer.";
+                return ParaAsChaves(id);
+            }
+
+            var partidas = await _context.Partidas
+                .Where(p => p.CategoriaId == categoriaId)
+                .OrderBy(p => p.Id)
+                .ToListAsync();
+
+            static bool EhDeGrupo(Partida p) => p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ");
+            var deGrupo = partidas.Where(EhDeGrupo).ToList();
+            var doMataMata = partidas.Where(p => !EhDeGrupo(p)).ToList();
+
+            if (doMataMata.Count == 0)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: o mata-mata desta categoria ainda não foi montado — "
+                                 + "não há o que refazer.";
+                return ParaAsChaves(id);
+            }
+
+            // A classificação final precisa estar fechada: é dela que sai quem é "2º do Grupo C".
+            if (deGrupo.Any(p => p.Status != "Finalizada"))
+            {
+                TempData["Erro"] = $"{categoria.Nome}: ainda tem jogo de grupo em aberto — "
+                                 + "a colocação final não está decidida.";
+                return ParaAsChaves(id);
+            }
+
+            // Só a ABERTURA. Se a chave já passou da primeira rodada, mexer nela reescreveria o
+            // caminho de quem já venceu.
+            var abertura = CruzamentoDoMataMata.NomeDaAbertura(desenho);
+            if (doMataMata.Any(p => p.Fase != abertura))
+            {
+                TempData["Erro"] = $"{categoria.Nome}: a chave já passou da {abertura.ToLowerInvariant()} — "
+                                 + "não dá mais pra refazer o cruzamento.";
+                return ParaAsChaves(id);
+            }
+
+            // A régua única de "a bola já rolou neste jogo" (Services/AprovacaoDeChaves).
+            if (doMataMata.Any(p => p.Status != "Agendada" || p.HorarioInicioReal != null))
+            {
+                TempData["Erro"] = $"{categoria.Nome}: já tem jogo do mata-mata em andamento ou finalizado — "
+                                 + "refazer agora deixaria dupla em dois jogos e dupla em nenhum.";
+                return ParaAsChaves(id);
+            }
+
+            if (doMataMata.Count != desenho.Confrontos.Count)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: a chave no ar tem {doMataMata.Count} jogo(s) e o previsto "
+                                 + $"tem {desenho.Confrontos.Count} — os formatos não batem.";
+                return ParaAsChaves(id);
+            }
+
+            var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+            var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                duplasDosGrupos, deGrupo, _estatisticas.ObterPontosPorJogadorAsync);
+            var classificados = ClassificacaoDeGrupos.Calcular(
+                duplasDosGrupos, deGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria));
+
+            // Resolve o quadro INTEIRO antes de gravar qualquer coisa — de novo o tudo-ou-nada.
+            var novosLados = new List<(Partida Jogo, int Lado1, int Lado2)>();
+            for (int i = 0; i < desenho.Confrontos.Count; i++)
+            {
+                var confronto = desenho.Confrontos[i];
+                if (CruzamentoDoMataMata.IdDaVaga(confronto.Lado1, classificados) is not int lado1
+                    || CruzamentoDoMataMata.IdDaVaga(confronto.Lado2, classificados) is not int lado2)
+                {
+                    TempData["Erro"] = $"{categoria.Nome}: não consegui dizer quem é "
+                                     + $"{confronto.Lado1.Rotulo} ou {confronto.Lado2.Rotulo}. Nada foi mudado.";
+                    return ParaAsChaves(id);
+                }
+                novosLados.Add((doMataMata[i], lado1, lado2));
+            }
+
+            // ⚠️ OS IDS SÃO COLHIDOS ANTES DE MUTAR. Perguntar "mudou?" depois da atribuição
+            // responde "sim" pra todo mundo — inclusive pros jogos que já estavam certos.
+            var idsMudados = new List<int>();
+            foreach (var (jogo, lado1, lado2) in novosLados)
+            {
+                if (jogo.Dupla1Id == lado1 && jogo.Dupla2Id == lado2) continue;
+                idsMudados.Add(jogo.Id);
+                jogo.Dupla1Id = lado1;
+                jogo.Dupla2Id = lado2;
+            }
+            int mudaram = idsMudados.Count;
+
+            // ⚠️ O PALPITE APONTA PRA DUPLA ESCOLHIDA (Models/PalpitePartida.DuplaEscolhidaId).
+            // Trocada a dupla do jogo, o voto ficaria apontando pra quem não está mais nele — e o
+            // palpitômetro contaria um confronto que deixou de existir.
+            var palpites = await _context.PalpitesPartida
+                .Where(p => idsMudados.Contains(p.PartidaId))
+                .ToListAsync();
+            _context.PalpitesPartida.RemoveRange(palpites);
+
+            // Grava o desenho junto: sem isso, o próximo jogo finalizado que chamasse o robô
+            // montaria de novo pela campanha, e o conserto duraria até o próximo placar.
+            categoria.CruzamentoDoMataMata = desenho.Escrever();
+
+            await _context.SaveChangesAsync();
+
+            TempData[mudaram > 0 ? "Sucesso" : "Aviso"] = mudaram > 0
+                ? $"{categoria.Nome}: {mudaram} jogo(s) voltaram ao cruzamento previsto. "
+                + "Horários e quadras ficaram como estavam. ⚠️ Quem já tinha visto o adversário antigo "
+                + "não foi avisado — avise no grupo."
+                : $"{categoria.Nome}: a chave já estava igual ao previsto. Nada mudou.";
 
             return ParaAsChaves(id);
         }
