@@ -312,6 +312,7 @@
                               data-confirmar="O jogo entra AO VIVO na @jogo.NomeQuadra e o cronômetro começa a contar agora."
                               data-confirmar-titulo="Começar este jogo?"
                               data-confirmar-ok="Começar">
+                    <partial name="_CampoDosFiltros" />
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
                                 <i class="bi bi-play-fill"></i>
@@ -397,6 +398,7 @@
                     @* O mesmo play do organizador: dar a largada no próprio jogo faz parte
                        de marcar o placar quando o torneio abriu essa porta. *@
                     <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
+                    <partial name="_CampoDosFiltros" />
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
                             <i class="bi bi-play-fill"></i>

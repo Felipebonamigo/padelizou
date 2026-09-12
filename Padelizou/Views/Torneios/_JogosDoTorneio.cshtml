@@ -114,6 +114,7 @@
                   data-confirmar="O jogo entra AO VIVO na @quadraDoProximo e o cronômetro começa a contar agora."
                   data-confirmar-titulo="Começar este jogo?"
                   data-confirmar-ok="Começar">
+                    <partial name="_CampoDosFiltros" />
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-padel fw-bold">
                     <i class="bi bi-play-fill"></i> Começar agora
@@ -353,6 +354,7 @@
         @if (ehOrganizador && aoVivoList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="SalvarPlacaresAoVivo" method="post" id="pdzPlacaresAoVivo">
+                    <partial name="_CampoDosFiltros" />
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
             </form>
@@ -765,6 +767,7 @@
                                           data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
                                           data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
                                           data-confirmar-ok="Finalizar">
+                    <partial name="_CampoDosFiltros" />
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="partidaId" value="@jogo.Id" />
                                         <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -882,6 +885,7 @@
                nada — só troca jogos de lugar enquanto isso derrubar pontos do Conferir grade.
                Ver Services/ReparoDaGrade. *@
             <form asp-controller="Torneios" asp-action="AjustarHorarios" method="post" class="mb-3">
+                    <partial name="_CampoDosFiltros" />
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -996,6 +1000,7 @@
         <div class="modal fade" id="modalTrocarHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoA" id="trocaJogoA" value="" />
@@ -1152,6 +1157,7 @@
         <div class="modal fade" id="modalDefinirHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="DefinirHorario" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogo" id="definirJogo" value="" />
@@ -1265,6 +1271,7 @@
         <div class="modal fade" id="modalTrocarQuadra" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoId" id="quadraJogoId" value="" />
@@ -1342,6 +1349,7 @@
         <div class="modal fade" id="modalIniciarJogo" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Partidas" asp-action="ColocarNoAr" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" id="largadaJogoId" value="" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />

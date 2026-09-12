@@ -13,9 +13,13 @@
 >
 > 🔬 **UMA SUSPEITA MEDIDA EM VEZ DE CHUTADA**: com DUAS categorias marcadas, o valor de rota é um `string[]`, e eu esperava que a geração de URL escrevesse `System.String[]`. **Não escreve** — expande em `categoriaFiltroIds=910&categoriaFiltroIds=911`, conferido no navegador. A implementação ficou como estava.
 >
-> 🚧 **OS VIZINHOS DE BARRA CONTINUAM DERRUBANDO O FILTRO** — ▶ largada, 📍 quadra, ⇄ horário e as setas ↑↓ passam pelo `VoltarDaLargada` e pelos modais, que ainda voltam nus. A régua nova já serve os quatro; é trocar o redirect e pôr o campo no formulário. **Não foi feito junto de propósito** (Regra 5, e diff no fluxo do placar com torneio rodando).
+> ✅ **E OS VIZINHOS DE BARRA ENTRARAM JUNTO** (🗣️ *"Quando corrigir, publique"*, à pergunta se eu estendia): ▶ largada, 📍 quadra, ⇄ trocar horário, 🕐 definir horário, as setas ↑↓, o ✏️ placar, o ajustar horários, o refazer grade e o salvar placares do ao vivo. **São só DOIS funis** — `TorneiosController.VoltarPara` e `PartidasController.VoltarDaLargada`, mais o retorno do `ControlePlacar` —, então trocar o redirect em três lugares alcançou os onze formulários. O campo virou parcial de uma linha (`_CampoDosFiltros`): dez cópias divergem na primeira vez que alguém renomear.
 >
-> 🧪 **6.793 testes, 0 falhas (15 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador nos dois casos: uma categoria e duas.
+> 🚧 **O QUE FICOU DE FORA, e não é o mesmo problema**: `VoltarParaAgendado` e `ReabrirPartida` sempre mandam pra `/Torneios/Jogos`, mesmo pra quem clicou pela página do torneio — trocam de TELA, não de recorte. É outro defeito, mais antigo, e mexer nele muda navegação que ninguém reclamou.
+>
+> 🔒 **GATE**: `Todo_formulario_que_volta_pra_lista_leva_os_filtros` varre as quatro views, recorta comentário Razor (que cita `<form>` em prosa e produzia falso positivo) e reprova formulário que manda `voltarPara` sem levar o recorte. O botão novo da barra vai nascer copiando o vizinho, e este campo é justamente o que se esquece: ele não aparece na tela, então nada denuncia a falta até alguém se perder com a lista filtrada.
+>
+> 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
 
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
 >

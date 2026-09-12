@@ -302,7 +302,7 @@ namespace Padelizou.Controllers
         // liberação" o jogo chega em quadra SEM quadra, de propósito: quem joga é quem a quadra
         // que vagou chamar. Dizer onde é custava uma segunda tela, no pior momento do dia.
         public async Task<IActionResult> ColocarNoAr(int id, string? voltarPara = null,
-            string? nomeQuadra = null, string? linkTransmissao = null)
+            string? nomeQuadra = null, string? linkTransmissao = null, string? filtros = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
@@ -322,7 +322,7 @@ namespace Padelizou.Controllers
                     // NÃO começa. Ver "no ar" e sair pra cuidar de outro jogo, com a quadra que
                     // a pessoa acabou de escolher no chão, é pior do que não ter começado.
                     TempData["Erro"] = motivo;
-                    return VoltarDaLargada(partida, id, voltarPara);
+                    return VoltarDaLargada(partida, id, voltarPara, filtros);
                 }
             }
 
@@ -358,7 +358,7 @@ namespace Padelizou.Controllers
             // do organizador — a mesma queixa que o salvar placar e o trocar quadra já
             // resolveram. Lista fechada de destinos: campo de formulário nunca vira
             // redirecionamento pra qualquer lugar.
-            return VoltarDaLargada(partida, id, voltarPara);
+            return VoltarDaLargada(partida, id, voltarPara, filtros);
         }
 
         // A QUADRA ESCOLHIDA NA LARGADA. Null = deu certo; texto = o motivo, na língua de quem
@@ -419,13 +419,20 @@ namespace Padelizou.Controllers
 
         // Pra onde a largada volta — o mesmo destino do caminho feliz, escrito uma vez só.
         // Lista fechada: campo de formulário nunca vira redirecionamento pra qualquer lugar.
-        private IActionResult VoltarDaLargada(Partida partida, int id, string? voltarPara)
+        // ⚠️ `filtros` desde 12/09/2026: o recorte da tela volta junto. 🗣️ Felipe: *"ele sai da
+        // tela, ele tem q sempre se manter na tela da alteracao"*. Com a grade filtrada numa
+        // categoria, dar a largada devolvia o torneio inteiro por cima dela. Lista fechada de
+        // chaves em Services/FiltrosDaListaDeJogos — campo de formulário não monta rota.
+        private IActionResult VoltarDaLargada(Partida partida, int id, string? voltarPara, string? filtros = null)
         {
             if (!partida.TorneioId.HasValue) return RedirectToAction("ControlePlacar", new { id });
 
+            var rota = FiltrosDaListaDeJogos.Reaproveitar(filtros);
+            rota["id"] = partida.TorneioId.Value;
+
             return voltarPara == "Details"
-                ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId.Value }, fragment: "jogosDoTorneio")
-                : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value });
+                ? RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", "Torneios", rota);
         }
 
 
@@ -727,7 +734,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TrocarSaque(int id, int duplaId, string? voltarPara = null)
+        public async Task<IActionResult> TrocarSaque(int id, int duplaId, string? voltarPara = null, string? filtros = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
@@ -754,7 +761,7 @@ namespace Padelizou.Controllers
                 return Json(new { partidaId = partida.Id, duplaSacandoId = partida.DuplaSacandoId });
 
             // Sem JavaScript o toque é um POST comum: volta pra lista de onde veio.
-            return VoltarDaLargada(partida, id, voltarPara);
+            return VoltarDaLargada(partida, id, voltarPara, filtros);
         }
 
         // POST: Partidas/ControlePlacar/5
@@ -764,7 +771,7 @@ namespace Padelizou.Controllers
         // `voltarPara`: o organizador que veio da página do torneio volta pra ela. Sem isto,
         // mudar quadra ou qualquer informação aqui o despejava em /Torneios/Jogos — as abas
         // mãe (Inscritos, Grupos, Chaves) sumiam e ele achava que tinha perdido o caminho.
-        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null,
+        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null, string? filtros = null,
             // A CONTAGEM DO TIE-BREAK (12/09/2026). Nulo = a tela não mandou o campo — aba aberta
             // antes deste deploy, ou torneio sem tie-break configurado. Nesse caso o que está
             // gravado FICA: zerar aqui apagaria a contagem da quadra num salvar que só queria
@@ -1042,9 +1049,14 @@ namespace Padelizou.Controllers
             // Volta pra tela de onde o organizador veio (a página do torneio tem as abas mãe;
             // /Torneios/Jogos é só a lista). Lista fechada de destinos: campo de formulário
             // nunca pode virar redirecionamento pra qualquer lugar.
+            // ⚠️ E o RECORTE da lista volta junto (12/09/2026) — o mesmo `filtros` do
+            // VoltarDaLargada aqui em cima, por Services/FiltrosDaListaDeJogos.
+            var rotaDaVolta = FiltrosDaListaDeJogos.Reaproveitar(filtros);
+            rotaDaVolta["id"] = partida.TorneioId;
+
             return voltarPara == "Details"
-                ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId }, fragment: "jogosDoTorneio")
-                : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });
+                ? RedirectToAction("Details", "Torneios", rotaDaVolta, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", "Torneios", rotaDaVolta);
         }
 
     }
