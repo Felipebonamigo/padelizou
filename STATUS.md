@@ -2,7 +2,17 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/practical-pasteur-p4zmnd`, ainda não publicado.** **Sem migration.**
+>
+> ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
+>
+> 🕳️ **UMA LINHA, PORQUE O ENCURTADOR JÁ EXISTIA:** `NomeBonito.Curto` (primeiro + último, com partícula e sufixo de geração viajando colados no sobrenome) é de 06/08 e já era usado por `Jogador.ComoChamar` e `NomeDaDupla.De`. **`Dupla.NomeDeExibicao` era a única régua de nome de dupla que ainda escrevia o nome inteiro** (`NomeNaTela`) — e é justamente ela que escreve a vaga do quadro projetado (`ClassificadosJaConhecidos`), o bye da chave (`QuadroDoMataMata`), o push de "seu próximo jogo", o check-in e as caixas de seleção da Mesa de Controle. Todos encurtaram juntos, que é o ponto de ter uma régua só.
+>
+> ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES.
+>
+> 🧪 **6.633 testes, 0 falhas (3 novos)** — com o `main` de hoje dentro (o desempate novo e o `Dupla.NomeCurto` de outra sessão, que é primeiro nome de cada um pras listas densas e continua valendo: o que encurtou aqui é o `NomeDeExibicao`) — + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"* na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
 >
 > 🔤 **O NOME PERDEU O ERRE: PALPITRÔMETRO → PALPITÔMETRO.** 🗣️ Felipe, com um print da lista de jogos e o rótulo circulado: *"ta escrito 'palpitrometro' aqui"*. Perguntado se era só o texto da tela ou o código inteiro: **o código inteiro**.
 >
