@@ -41,7 +41,9 @@
 >
 > 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1278-6b39924`** (runs **309** e **310**), **o mesmo artefato nos dois**, com a tag explícita. PR #268. **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `sw.js` em **`padelizou-static-v36`**, o `mesa-offline.js` servido já com `idadeMs` e a tarja de recusa, e o `placar-ao-vivo.js` com o `NAO_TOQUEI`. ⚠️ **A TAG 1278 JÁ CONTÉM O `build-1275`** da outra sessão (os filtros recolhidos da aba Jogos): o `main` andou durante o CI deste PR, eu mesclei antes e **revalidei** — 6.860 testes. Publicar o 1278 não derruba o trabalho deles, que é o tombo de 12h22 de hoje ao contrário.
 >
 > 🗣️ *"corrige a mesa de controle também"*. É o item que ficou aberto nos dois builds de hoje, e são **três** defeitos no mesmo caminho.
 >
