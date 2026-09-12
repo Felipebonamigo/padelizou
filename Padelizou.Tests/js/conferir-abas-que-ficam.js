@@ -447,6 +447,130 @@ async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
     ok(emOutraAba.recarregou === 0, 'em outra aba, nada recarrega');
     ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
 
+    await aAlturaDaListaVolta();
+
     console.log(falhas === 0 ? '\nTUDO VERDE\n' : '\n' + falhas + ' FALHA(S)\n');
     process.exit(falhas === 0 ? 0 : 1);
 })();
+
+// ── FILTRAR NÃO JOGA A PÁGINA PRO TOPO ────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 12/09/2026: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem,
+// tinha q aparece na aba meus jogos ja"*.
+//
+// 🕳️ O `js/manter-posicao-na-lista.js` guarda a altura desde 10/09, mas **só no `submit`** — e o
+// "Meus jogos" é um `<a>`, de propósito: liga/desliga de um toque. Link não dispara `submit`,
+// então o clique passava batido e a página renascia no começo, com a barra de pagamento na tela
+// e a lista de jogos lá embaixo. Os cinco selects do painel de filtros tinham o mesmo buraco por
+// outro caminho: `form.submit()` chamado por JS **não dispara o evento `submit`** — quem dispara
+// é `requestSubmit()`.
+const FONTE_POSICAO = fs.readFileSync(
+    process.argv[4] || 'Padelizou/wwwroot/js/manter-posicao-na-lista.js', 'utf8');
+
+// `atributo`: null = link sem opt-in; '' = modo ALTURA; '#algo' = modo ELEMENTO.
+function paginaComLista(atributo) {
+    const guardado = {};
+    let rolou = null;
+    let trouxeProTela = null;
+
+    const link = elemento(atributo === null ? {} : { 'data-manter-posicao': atributo }, ['btn']);
+    link.tagName = 'A';
+    const icone = elemento({});                       // o <i> DENTRO do link: é nele que o dedo
+    icone.parentNode = link;                          // encosta no celular, não no <a>.
+    const fechar = (el, sel) => (sel === 'a[data-manter-posicao]'
+        ? (atributo !== null && (el === link || el.parentNode === link) ? link : null) : null);
+    link.closest = (sel) => fechar(link, sel);
+    icone.closest = (sel) => fechar(icone, sel);
+
+    const barra = elemento({});
+    barra.scrollIntoView = () => { trouxeProTela = '#filtroJogos'; };
+
+    const doc = {
+        _ouvintes: {},
+        addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+        disparar(t, ev) { (this._ouvintes[t] || []).forEach((f) => f(ev)); },
+        querySelector: (sel) => (sel === '#filtroJogos' ? barra : null),
+    };
+    const win = {
+        document: doc,
+        location: { pathname: '/Torneios/Details/26' },
+        scrollY: 1240,
+        sessionStorage: {
+            getItem: (k) => (k in guardado ? guardado[k] : null),
+            setItem: (k, v) => { guardado[k] = String(v); },
+            removeItem: (k) => { delete guardado[k]; },
+        },
+        requestAnimationFrame: (f) => f(),
+        scrollTo: (x, y) => { rolou = y; },
+        addEventListener(t, f) { doc.addEventListener(t, f); },
+        _guardado: guardado,
+        _icone: icone,
+        _rolou: () => rolou,
+        _trouxeProTela: () => trouxeProTela,
+    };
+    const f = new Function('window', 'document', FONTE_POSICAO);
+    f(win, doc);
+    return win;
+}
+
+const CLIQUE = { button: 0, defaultPrevented: false, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+
+async function aAlturaDaListaVolta() {
+    console.log('── FILTRAR NÃO JOGA A PÁGINA PRO TOPO ──────────────────────────────────────');
+
+    const CHAVE = 'pdz-posicao-na-lista:/Torneios/Details/26';
+
+    // 1. O "Meus jogos" pede o modo ELEMENTO: traz a BARRA DE FILTROS de volta pra tela, e não
+    //    uma altura em pixels.
+    //
+    //    ⚠️ POR QUE NÃO A ALTURA — foi medido no navegador, num celular de 390px: com "Meus
+    //    jogos" ligado a lista cai de 97 jogos pra 3, o documento encolhe, e a rolagem guardada
+    //    não existe mais na página nova. A barra estava a 27px do topo da tela antes do clique e
+    //    voltava a 315px — o começo da página, que é exatamente a queixa dele.
+    const porElemento = paginaComLista('#filtroJogos');
+    porElemento.document.disparar('click', Object.assign({ target: porElemento._icone }, CLIQUE));
+    ok(porElemento._guardado[CHAVE] === '#filtroJogos',
+        'clicar no "Meus jogos" guarda a BARRA a trazer de volta (guardou: ' + porElemento._guardado[CHAVE] + ')');
+
+    porElemento.document.disparar('load', {});
+    ok(porElemento._trouxeProTela() === '#filtroJogos', 'na volta, a barra de filtros é trazida pra tela');
+    ok(porElemento._rolou() === null, 'e nenhuma altura em pixels é aplicada por cima');
+    ok(porElemento._guardado[CHAVE] === undefined, 'a memória é lida UMA vez e apagada');
+
+    // 2. O modo ALTURA continua valendo pra quem não muda o tamanho da lista (o check-in, a
+    //    troca de horário): atributo sem valor.
+    const porAltura = paginaComLista('');
+    porAltura.document.disparar('click', Object.assign({ target: porAltura._icone }, CLIQUE));
+    ok(porAltura._guardado[CHAVE] === '1240',
+        'sem valor no atributo, o que se guarda é a altura (guardou: ' + porAltura._guardado[CHAVE] + ')');
+    porAltura.document.disparar('load', {});
+    ok(porAltura._rolou() === 1240, 'a página volta na altura em que estava (' + porAltura._rolou() + ')');
+
+    // 3. Link SEM o atributo continua não guardando nada: é opt-in, e uma ação que leva pra
+    //    outra tela não quer voltar pra uma posição que já não quer dizer nada.
+    const semAtributo = paginaComLista(null);
+    semAtributo.document.disparar('click', Object.assign({ target: semAtributo._icone }, CLIQUE));
+    ok(Object.keys(semAtributo._guardado).length === 0, 'link sem o atributo não guarda nada');
+
+    // 4. Abrir em nova aba (ctrl/cmd, ou o botão do meio) NÃO é sair da tela: guardar aqui
+    //    deixaria uma memória órfã pra atropelar a próxima visita a esta página.
+    const novaAba = paginaComLista('#filtroJogos');
+    novaAba.document.disparar('click', Object.assign({}, CLIQUE, { target: novaAba._icone, ctrlKey: true }));
+    novaAba.document.disparar('click', Object.assign({}, CLIQUE, { target: novaAba._icone, button: 1 }));
+    ok(Object.keys(novaAba._guardado).length === 0, 'abrir em nova aba não deixa memória órfã guardada');
+
+    // 5. Seletor que não é `#id` simples não vira `querySelector`: o valor é lido de volta do
+    //    sessionStorage, que é da origem inteira, e não só do que este arquivo escreveu.
+    const forjado = paginaComLista('#filtroJogos');
+    forjado.sessionStorage.setItem(CHAVE, 'a[href],*');
+    forjado.document.disparar('load', {});
+    ok(forjado._trouxeProTela() === null, 'valor guardado que não é #id simples é ignorado');
+
+    // 5. O select do painel de filtros aplica por JS, e `form.submit()` NÃO dispara `submit`.
+    //    Isto aqui é leitura de fonte porque o defeito mora no Razor, não neste arquivo.
+    const razor = fs.readFileSync('Padelizou/Views/Torneios/_JogosDoTorneio.cshtml', 'utf8');
+    ok(!/onchange="this\.form\.submit\(\)"/.test(razor),
+        'nenhum select aplica com form.submit() (que não dispara o evento submit)');
+    ok((razor.match(/requestSubmit\(\)/g) || []).length >= 5,
+        'os cinco filtros do painel aplicam com requestSubmit(), que dispara o submit');
+}
