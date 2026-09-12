@@ -84,7 +84,7 @@ Antes de escrever, suba esta escada e **pare no primeiro degrau que resolve** �
 subindo "por garantia". Os degraus estão escritos com o que este projeto tem, não em genérico:
 
 1. **Isso precisa existir?** Se é especulativo, pule e diga em uma linha que pulou.
-2. **Já existe algo equivalente aqui?** São 69 controllers e ~4.800 testes — reimplementar o
+2. **Já existe algo equivalente aqui?** São 74 controllers e ~6.860 testes — reimplementar o
    que está a dois arquivos de distância é a forma mais comum de complexidade inútil. O card
    de marcadores reusou `_BuscaOrganizador` no modo genérico em vez de nascer de novo.
 3. **A BCL do .NET já faz?** LINQ, `decimal`, `TimeSpan`, `Uri`, `StringComparison`.
@@ -153,14 +153,15 @@ sem ter rodado o comando **naquele mesmo turno** e lido a saída. "Deveria funci
 
 ```bash
 dotnet build Padelizou.slnx -c Release --nologo
-dotnet test Padelizou.slnx -c Release --no-build --nologo   # ~35-40s, ~4750 testes
+dotnet test Padelizou.slnx -c Release --no-build --nologo   # ~1min30, ~6.860 testes
 for c in Padelizou.Tests/js/conferir-*.js; do node "$c" || break; done   # o JS que o dotnet test não vê
 ```
 
 O `node` é o único passo de JS: o `dotnet test` não enxerga arquivo `.js`, e o CI reprova o
 build se qualquer conferidor cair — ele varre o mesmo glob, então conferidor novo entra
-sozinho. Quem mexer em JS com conferidor (`palpitometro`, `abas-recolhidas`, `chave-fichas`,
-`palpites-do-palpiteiro`, `placar-ao-vivo`) roda antes de commitar.
+sozinho. Quem mexer em JS com conferidor (hoje são **6**: `abas-recolhidas`, `fichas-da-chave`,
+`mesa-offline`, `palpites-do-palpiteiro`, `palpitometro`, `placar-ao-vivo`) roda antes de
+commitar.
 
 Zero teste vermelho pra commitar. Sem terminal/browser pra ver a UI nesta sessão — não
 declare "funciona" sem rodar a suíte.
@@ -187,7 +188,7 @@ declare "funciona" sem rodar a suíte.
 - **Migration**: gerar sempre em worktree limpo; conferir com
   `dotnet ef migrations has-pending-model-changes` antes de commitar (o CI já roda isso).
 - **Todo defeito corrigido vira teste de regressão** — é assim que a suíte foi de ~1000 pra
-  ~4750 testes, e é o que faz o STATUS.md confiável: se algo quebrou antes, tem teste hoje.
+  ~6.860 testes, e é o que faz o STATUS.md confiável: se algo quebrou antes, tem teste hoje.
 
 ## Publicar
 
