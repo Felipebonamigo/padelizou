@@ -125,9 +125,11 @@ public partial class Dupla
     // métricas de uso do admin (inscrições por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;
 
-    // Check-in no dia do torneio: a dupla apareceu. Nulo = ainda não fez check-in.
-    // Serve pro organizador ver quem falta antes de começar, e evitar W.O. surpresa.
-    public DateTime? CheckInEm { get; set; }
+    // ⚠️ O CHECK-IN SAIU DAQUI EM 12/09/2026. Era `CheckInEm` — uma coluna que respondia "a dupla
+    // apareceu" —, e virou linha em `PresencaNoTorneio`, chave (TorneioId, JogadorId).
+    // 🗣️ Felipe: *"Mude para um check por jogador, por que é assim que controla check in"*.
+    // "Essa dupla chegou?" agora é DERIVADO (Services/PresencaNoDia.DuplaCompleta) — manter a
+    // coluna como cache seria a segunda verdade sobre a mesma pergunta.
 
     // Último lembrete de "você ainda não pagou" já enviado, guardado como o MARCO em dias que
     // faltavam pro prazo (ver Services/LembreteDeInscricaoNaoPaga). Nulo = nenhum ainda.
@@ -170,9 +172,42 @@ public partial class Dupla
 
     // O nome que as telas mostram, seja time ou dupla. Defensivo com as navegações:
     // consulta sem Include não pode estourar a página inteira por causa de um rótulo.
+    //
+    // CADA UM PELO PRIMEIRO E PELO ÚLTIMO NOME (11/09/2026). 🗣️ Felipe, com o print da semifinal
+    // do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o
+    // primeiro e o ultimo para nao ficar muito espaçado"*. Esta era a última régua de nome de dupla
+    // que ainda escrevia o nome INTEIRO — `NomeDaDupla.De` e `Jogador.ComoChamar` já encurtavam —, e
+    // é ela que escreve a vaga do quadro projetado: "Marcelo Carvalho Prestes & Enio Gilberto M…",
+    // cortado no meio, sobrando justo o nome do meio, que é o que menos identifica alguém.
+    //
+    // ⚠️ CURTO, mas SEM APELIDO: não é `ComoChamar`. O parêntese ("Anderson Schwaab (Deco)") cresce
+    // de volta o que esta mudança encurtou, e este rótulo nunca teve apelido — quem quer os dois
+    // usa `NomeDaDupla.De`, que é a régua das ARTES.
     [NotMapped]
     public string NomeDeExibicao => NomeTime
         ?? (Jogador1 == null ? $"Dupla {Id}"
-            : Jogador2 == null ? Jogador1.NomeNaTela
-            : $"{Jogador1.NomeNaTela} & {Jogador2.NomeNaTela}");
+            : Jogador2 == null ? Curto(Jogador1)
+            : $"{Curto(Jogador1)} & {Curto(Jogador2)}");
+
+    private static string Curto(Jogador jogador) => Padelizou.Services.NomeBonito.Curto(jogador.Nome);
+
+    // O nome de dupla que cabe numa LINHA: primeiro nome de cada um — "Marcelo / Enio".
+    //
+    // Usado nas listas densas (jogos do grupo, chaveamento, o painel do que falta pra
+    // classificar). O `NomeDeExibicao` acima é primeiro + último sobrenome dos dois — já curto,
+    // mas ainda quatro palavras: numa lista densa ele estoura a largura e trunca os DOIS lados.
+    //
+    // ⚠️ ESTA REGRA VIVIA COPIADA EM TRÊS LUGARES, com três respostas: um `Func` local no
+    // Details.cshtml ("Marcelo / Enio"), o `NomeCurto` do OQuePrecisaParaClassificar
+    // (`Jogador1.ComoChamar`, que dá "Paulo Prass (Batata)") e o `NomeDeExibicao` na lista do
+    // pop-up. 🗣️ Felipe, 11/09/2026, vendo o resultado no ar: *"ta meio confuso aqui, nao ficou
+    // claro para mim"* — a MESMA dupla aparecia com três nomes na mesma tela.
+    //
+    // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha ENTRA na chave, então este
+    // texto é coisa que o inscrito lê sobre si mesmo. "Paulo / ?" parece dado corrompido.
+    [NotMapped]
+    public string NomeCurto => EhTime
+        ? NomeTime ?? "Time"
+        : $"{Jogador1?.ComoChamar.Split(' ')[0] ?? "?"} / "
+          + (Jogador2 == null ? "parceiro" : Jogador2.ComoChamar.Split(' ')[0]);
 }

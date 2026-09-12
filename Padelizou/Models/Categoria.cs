@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Padelizou.Models;
 
 using padelizou.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 [Table("Categoria")]
 public partial class Categoria
@@ -114,6 +115,20 @@ public partial class Categoria
     // à noite normalmente. A régua e o recorte por fase moram em Services/EliminatoriaNoSabado
     // e em GradeDeJogos.Encaixar.
     public bool EliminatoriaNoSabadoANoite { get; set; } = true;
+
+    // ---- O CHAVEAMENTO DESENHADO À MÃO (10/09/2026) ----
+    //
+    // 🗣️ *"permita alterar na mao o chaveamento, como funciona a chave de cada um, se o primeiro
+    // passar quem enfrenta"* — e, junto: *"cuidado para nao mexer nada no que ja tem do ER hoje,
+    // isso é para os próximos torneios"*.
+    //
+    // ⚠️ NULL É O COMPORTAMENTO DE HOJE, e é isso que cumpre a segunda frase: toda categoria que
+    // já existe no banco nasce e continua null, e nenhum caminho de código novo passa por ela.
+    // Preenchido, é o cruzamento da PRIMEIRA eliminatória por colocação ("1A×2C|1B×2D;bye:1E").
+    // Da segunda fase em diante o quadro é geometria, não escolha — ver Services/
+    // CruzamentoDoMataMata, que também lê, valida e avisa.
+    [StringLength(2000)]
+    public string? CruzamentoDoMataMata { get; set; }
 
     // ---- TRANSBORDO PRA SEDE EXTRA (08/09/2026) ----
     //

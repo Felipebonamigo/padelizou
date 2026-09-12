@@ -3,9 +3,25 @@
     ViewData["Title"] = $"Check-in — {Model.Nome}";
 
     var todas = Model.Categorias.SelectMany(c => c.Duplas).Where(d => !d.EmListaDeEspera).ToList();
-    int presentes = todas.Count(d => d.CheckInEm != null);
-    int faltam = todas.Count - presentes;
-    int pct = todas.Count == 0 ? 0 : (int)Math.Round(presentes * 100.0 / todas.Count);
+
+    // A CONTA É EM PESSOAS DESDE 12/09/2026 — quem é marcado é gente, não par (🗣️ "Mude para um
+    // check por jogador"). Contar duplas deixava metade das chegadas invisível justamente na
+    // única linha que resume a tela: com um dos dois no clube, a dupla ainda contava zero.
+    //
+    // ⚠️ Os números vêm do CONTROLLER, e não de uma conta aqui: quem joga duas categorias
+    // aparece em duas duplas e é UMA pessoa no clube — a contagem precisa ser distinta por
+    // jogador, e refazê-la na view seria a segunda régua.
+    var chegadas = ViewBag.Chegadas as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>();
+    int total = ViewBag.TotalDeJogadores as int? ?? 0;
+    int presentes = ViewBag.JogadoresPresentes as int? ?? 0;
+    int faltam = total - presentes;
+    int pct = total == 0 ? 0 : (int)Math.Round(presentes * 100.0 / total);
+
+    @* A fila já vem ordenada do controller (Services/OrdemNoHorario, a mesma da aba Jogos).
+       Reordenar aqui seria a segunda conta de "quem vem antes" — e é assim que duas telas
+       passam a discordar sobre a mesma grade. *@
+    var jogos = ViewBag.JogosQueVem as List<Padelizou.Models.Partida> ?? new List<Padelizou.Models.Partida>();
+    var jaRolaram = ViewBag.JogosQueJaRolaram as List<Padelizou.Models.Partida> ?? new List<Padelizou.Models.Partida>();
 }
 
 <div class="container mt-4 mb-5">
@@ -19,10 +35,11 @@
         </a>
     </div>
 
-    <!-- Barra de presença -->
+    @* A barra conta o TORNEIO INTEIRO, e não os jogos mostrados: é a resposta de "falta muita
+       gente?", que não muda porque a tela agora começa pelos jogos. *@
     <div class="card border-0 shadow-sm mb-4 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @todas.Count presentes</span>
+            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @total jogadores presentes</span>
             <span class="badge rounded-pill @(faltam == 0 ? "bg-success" : "bg-warning text-dark")">
                 @(faltam == 0 ? "todos chegaram" : $"{faltam} faltando")
             </span>
@@ -32,68 +49,122 @@
         </div>
     </div>
 
-    @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+    @* ── OS JOGOS QUE VÊM ──────────────────────────────────────────────────────────────
+       🗣️ Felipe, 10/09/2026, com o Er em "0 de 64 presentes": *"acho que aqui teria q mudar,
+       por próximos jogos, e ver se as pessoas chegaram, e nao todos"*. A lista por categoria
+       responde "quem está inscrito"; no dia, a pergunta é "quem joga agora já chegou?".
+
+       ⚠️ O `GroupBy` NÃO reordena: em LINQ to Objects os grupos saem na ordem em que
+       aparecem, e a fila já chegou ordenada. Um `OrderBy` aqui seria a régua duplicada. *@
+    @if (jogos.Any())
     {
-        @* NomeDeExibicao ordena time pelo nome do TIME (o Jogador1 da linha é o organizador). *@
-        var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera)
-            .OrderBy(d => d.NomeTime ?? d.Jogador1.ComoChamar).ToList();
-        if (!duplas.Any()) { continue; }
+        foreach (var doHorario in jogos.GroupBy(j => j.HorarioPrevisto))
+        {
+            <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
+                <i class="bi bi-clock"></i>
+                @if (doHorario.Key is DateTime quando)
+                {
+                    <text>@Padelizou.Services.DiaDaSemana.Curto(quando) @quando.ToString("dd/MM 'às' HH:mm")</text>
+                }
+                else
+                {
+                    @* Torneio "por ordem de liberação" pode ter jogo sem hora: ele vai pro fim
+                       da fila (OrdemNoHorario) e ganha o rótulo em vez de um cabeçalho vazio. *@
+                    <text>Sem horário definido</text>
+                }
+                <span class="text-muted small fw-normal">
+                    (@doHorario.Count() @(doHorario.Count() == 1 ? "jogo" : "jogos"))
+                </span>
+            </h6>
 
-        <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
-            @cat.Nome
-            <span class="text-muted small fw-normal">
-                (@duplas.Count(d => d.CheckInEm != null)/@duplas.Count)
-            </span>
-        </h6>
-
-        <div class="list-group shadow-sm">
-            @foreach (var d in duplas)
+            foreach (var jogo in doHorario)
             {
-                bool chegou = d.CheckInEm != null;
-                <div class="list-group-item d-flex align-items-center gap-3 @(chegou ? "bg-light" : "")">
-                    <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle") fs-4"
-                       style="color: @(chegou ? "var(--padel-green)" : "#ccc");"></i>
-                    <div class="flex-grow-1 overflow-hidden">
-                        <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">
-                            @if (d.EhTime)
-                            {
-                                <span><i class="bi bi-people-fill"></i> @d.NomeTime</span>
-                            }
-                            else
-                            {
-                                @d.Jogador1.ComoChamar
-                                @if (d.Jogador2 != null)
-                                {
-                                    <span>/ @d.Jogador2.ComoChamar</span>
-                                }
-                                else
-                                {
-                                    <em class="text-muted small">/ sem parceiro</em>
-                                }
-                            }
-                        </span>
-                        @if (chegou)
-                        {
-                            <small class="text-muted">chegou @d.CheckInEm!.Value.ToString("HH:mm")</small>
-                        }
-                    </div>
-                    <form asp-action="MarcarCheckIn" method="post" class="flex-shrink-0">
-                        <input type="hidden" name="duplaId" value="@d.Id" />
-                        <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
-                        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
-                            @(chegou ? "Desfazer" : "Chegou")
-                        </button>
-                    </form>
+                <partial name="_JogoNoCheckIn" model="(jogo, chegadas)" />
+            }
+        }
+    }
+    else
+    {
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Nenhum jogo agendado — enquanto a chave não sai, a chamada é a lista de baixo.</p>
+        </div>
+    }
+
+    @* ── O RESTO DO TORNEIO ────────────────────────────────────────────────────────────
+       A lista por categoria continua inteira aqui, fechada: é o que serve pra marcar quem
+       chegou cedo e só joga à tarde, e pra conferir uma categoria de ponta a ponta. Fechada
+       porque, com 64 duplas, aberta ela voltaria a ser o assunto da tela. *@
+    <div class="mt-4">
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button"
+                data-bs-toggle="collapse" data-bs-target="#restoDoTorneio"
+                aria-expanded="false" aria-controls="restoDoTorneio">
+            <i class="bi bi-list-ul"></i> Resto do torneio — todas as duplas (@presentes/@total)
+        </button>
+
+        <div class="collapse mt-3" id="restoDoTorneio">
+            @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+            {
+                @* NomeDeExibicao ordena time pelo nome do TIME (o Jogador1 da linha é o organizador). *@
+                var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera)
+                    .OrderBy(d => d.NomeTime ?? d.Jogador1.ComoChamar).ToList();
+                if (!duplas.Any()) { continue; }
+
+                var jogadoresDaCategoria = duplas.SelectMany(Padelizou.Services.PresencaNoDia.IdsDa).ToList();
+                <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
+                    @cat.Nome
+                    <span class="text-muted small fw-normal">
+                        (@jogadoresDaCategoria.Count(chegadas.ContainsKey)/@jogadoresDaCategoria.Count)
+                    </span>
+                </h6>
+
+                <div class="list-group shadow-sm">
+                    @foreach (var d in duplas)
+                    {
+                        <partial name="_LinhaDoCheckIn" model="(d, Model.Id, chegadas)" />
+                    }
+                </div>
+            }
+
+            @if (!todas.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
+                    <p class="mb-0">Nenhuma dupla confirmada ainda.</p>
                 </div>
             }
         </div>
-    }
+    </div>
 
-    @if (!todas.Any())
+    @* ── O QUE JÁ COMEÇOU OU JÁ ACABOU ─────────────────────────────────────────────────
+       🗣️ Felipe, 11/09/2026: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja
+       começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão
+       em jogo"*.
+
+       ⚠️ FECHADO, MAS PRESENTE. Na primeira versão estes jogos sumiam da tela inteira, e quem
+       pusesse o jogo no ar antes de marcar a chegada perdia o caminho pro check-in daquela
+       dupla — só voltava pela lista de 64. O botão continua aqui dentro, igual ao de cima. *@
+    @if (jaRolaram.Any())
     {
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
-            <p class="mb-0">Nenhuma dupla confirmada ainda.</p>
+        <div class="mt-3">
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#jaJogaram"
+                    aria-expanded="false" aria-controls="jaJogaram">
+                <i class="bi bi-check2-square"></i> Já jogaram ou estão em jogo (@jaRolaram.Count)
+            </button>
+
+            <div class="collapse mt-3" id="jaJogaram">
+                @foreach (var jogo in jaRolaram)
+                {
+                    <partial name="_JogoNoCheckIn" model="(jogo, chegadas)" />
+                }
+            </div>
         </div>
     }
 </div>
+
+@section Scripts {
+    @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
+       o organizador fica preso no JS velho indefinidamente. *@
+    <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
+}

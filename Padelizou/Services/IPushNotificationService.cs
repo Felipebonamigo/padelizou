@@ -24,5 +24,9 @@ public interface IPushNotificationService
     // do mesmo jogo (mesma tag = mesmo aviso trocando de conteúdo, não empilhando) — sem ela
     // cada game viraria um aviso novo na tela de bloqueio. Não passa pela Caixa de Avisos nem
     // manda e-mail: ver Services/AvisoDePlacarAoVivo pro porquê e pra quem chama isto.
-    Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag);
+    //
+    // `imagem` é o CARD do placar (Services/CartaoDoPlacarAoVivo): no Android, puxando a
+    // notificação pra baixo, ela mostra o PNG em vez de duas linhas de texto.
+    Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag,
+        string? imagem);
 }

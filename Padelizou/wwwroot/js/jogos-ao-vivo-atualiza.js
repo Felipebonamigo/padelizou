@@ -45,6 +45,11 @@
         // js/placar-ao-vivo.js.
         if (window.pdzSalvandoPlacar) return true;
 
+        // Mesma razão, outro dado: a troca de saque indo pro servidor (js/saque-ao-vivo.js).
+        // Trocar o cabeçalho aqui devolveria a bolinha pro lado velho na frente de quem
+        // acabou de mover ela.
+        if (window.pdzTrocandoSaque) return true;
+
         var ativo = document.activeElement;
         if (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName)) return true;
 
@@ -86,6 +91,13 @@
             // levaria junto o aviso "não salvou" — o erro sumiria da tela sem ter sido
             // resolvido. Quem marca esse estado é o js/placar-ao-vivo.js.
             if (atual.querySelector(".pdz-live-salvo-erro")) return;
+
+            // ⚠️ E card com TOQUE AINDA NÃO ENTREGUE também (12/09/2026). Entre o dedo e o
+            // POST há o meio segundo do debounce que junta a rajada de toques, e neste vão
+            // nada aqui estava travado: trocar o cabeçalho devolvia o número velho — que é
+            // exatamente o que o POST lê meio segundo depois. O game marcado sumia inteiro,
+            // sem erro em lugar nenhum. Quem levanta a bandeira é o js/placar-ao-vivo.js.
+            if (atual.hasAttribute("data-pdz-mexido")) return;
 
             var id = atual.getAttribute("data-partida-id");
             var fresco = novo.querySelector('.pdz-live-card[data-partida-id="' + id + '"]');

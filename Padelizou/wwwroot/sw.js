@@ -2,7 +2,41 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v26";
+// ⚠️ v28 PORQUE O v27 FOI USADO DUAS VEZES (11/09/2026). Dois branches subiram v26 → v27
+// no mesmo dia — o do escudo/chave e o da bolinha do saque —, e o git juntou os dois como
+// "mesma mudança", sem conflito. O número ficaria igual com DOIS site.css diferentes, e quem
+// tivesse guardado o primeiro v27 nunca baixaria o segundo: a bolinha do saque simplesmente
+// não apareceria pra quem usa o app instalado, sem erro nenhum em lugar nenhum.
+//
+// ⚠️ E v29 PELO MESMO MOTIVO, no mesmo dia: aquele branch subiu v27 → v28 antes de mesclar o
+// `main`, que já tinha ido a v28 pela bolinha do saque — e o v28 JÁ ESTÁ EM PRODUÇÃO com
+// outro `site.css`. Mantê-lo deixaria a tabela do grupo repartida do jeito velho pra quem já
+// guardou aquele v28, sem erro nenhum. O conflito aqui é a única pista: quando o git NÃO
+// conflita (as duas pontas escrevem o mesmo número), a colisão passa calada.
+//
+// ⚠️ E v30 PELA TERCEIRA VEZ, no MESMO DIA (verde do card AO VIVO). Este branch tinha subido
+// pra v29 antes de mesclar o `main`, que já estava em v29 — e o `const` NÃO conflitou, porque
+// as duas pontas escreveram o mesmo número. Quem avisou foi o comentário acima, que conflitou:
+// é literalmente a pista que o v29 deixou escrita aqui pra quem viesse depois. **Quem sobe o
+// número confere o `main` ANTES de escolher qual.**
+//
+// ⚠️ v34: o anel da bola apagada do saque (o alvo de "passar o saque pra cá") era invisível no
+// card AO VIVO — e o arquivo que conserta isso é o `site.css`, que está na lista abaixo. Sem
+// virar o número, quem usa o app instalado continuaria com o alvo apagado, sem erro em lugar
+// nenhum. Conferido no `origin/main` ANTES de escolher o número, como manda o parágrafo acima.
+// ⚠️ v35 POR UM ARQUIVO QUE NÃO ESTÁ NA LISTA, e é o caso que o parágrafo de cima não cobria:
+// o `placar-ao-vivo.js` e o `jogos-ao-vivo-atualiza.js` não são `STATIC_ASSETS`, mas caem na
+// regra de baixo (`isStaticAsset`), que serve a CÓPIA GUARDADA e só busca a nova em segundo
+// plano — quem tem o app instalado rodaria o JavaScript velho por mais uma abertura. Como o
+// que mudou é o salvamento do placar de quem está marcando AGORA, essa abertura é um game
+// perdido. Virar o número apaga o cache inteiro no `activate` e a próxima carga vem da rede.
+// Conferido no `origin/main` ANTES de escolher o número (estava em v34).
+// ⚠️ v36 pelo mesmo motivo do v35, agora pelo `mesa-offline.js`: ele também não está na lista
+// abaixo, mas cai na regra de `isStaticAsset`, que serve a CÓPIA GUARDADA e só busca a nova em
+// segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo — rodar o
+// JavaScript velho por mais uma abertura ali é um game perdido. Conferido no `origin/main`
+// ANTES de escolher o número (estava em v35).
+const CACHE_NAME = "padelizou-static-v36";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
@@ -160,6 +194,13 @@ self.addEventListener("push", (event) => {
     opcoes.renotify = false;
     opcoes.silent = true;
   }
+
+  // O CARD DO PLACAR (12/09/2026). 🗣️ Felipe, com o print da bolha do Google e o do placar na
+  // Dynamic Island: "as notificações estao acontecendo, mas eu queria algo tipo esses prints".
+  // Os dois exigem app nativo; `image` é o que a notificação da WEB tem — no Android, puxando-a
+  // pra baixo, ela abre este PNG (Services/CartaoDoPlacarAoVivo). Onde não houver suporte, a
+  // chave é ignorada e sobra o texto de sempre: nada quebra.
+  if (data.image) opcoes.image = data.image;
 
   event.waitUntil(self.registration.showNotification(data.title, opcoes));
 });

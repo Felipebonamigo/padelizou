@@ -16,14 +16,23 @@ namespace Padelizou.Tests;
 // VIEW — a data do jogo dizendo o dia — nenhum teste de comportamento alcança.
 public class DiaDaSemanaNaDataDoJogoTests
 {
-    // As seis telas em que a data de um JOGO chega ao jogador. Todas passam a dizer o dia da
-    // semana: uma que ficasse de fora seria a tela em que ele volta a ter que adivinhar.
+    // As telas em que a data de um JOGO chega ao jogador E A LINHA COMPORTA o dia da semana.
+    //
+    // ⚠️ A ÁRVORE DA CHAVE FICOU DE FORA, e não por esquecimento — foi MEDIDO no Chromium com o
+    // `site.css` real, a 390px, na coluna mínima da grade (`minmax(6.5rem, 1fr)`): as linhas
+    // `.pdz-chave-quando` e `.pdz-chave-projetada-quando` são `nowrap; overflow: hidden` SEM
+    // reticências, e a etiqueta de quadra/clube é a última (`margin-left: auto`), então é ela
+    // que some. Com o dia da semana, a vaga da chave corta **23px dos 45** de "Er Padel" e a
+    // prévia corta **49 de 49** — o clube desaparece inteiro, calado. Trocar o nome do clube
+    // por três letras é um mau negócio numa tela que existe pra dizer ONDE é o jogo.
+    //
+    // O mini-jogo do grupo entra: a linha dele tem 351px na mesma medição, e "Er Padel" fica
+    // inteiro com ou sem o dia. Ver `DiaDaSemanaNaoCabeNaArvoreDaChaveTests`.
     public static TheoryData<string, string> ViewsComDataDeJogo() => new()
     {
         { Path.Combine("Views", "Torneios", "_JogoEmLinha.cshtml"), "lista de Agendadas/Finalizadas" },
         { Path.Combine("Views", "Torneios", "_JogoQueVem.cshtml"), "prévia da fase que vem" },
-        { Path.Combine("Views", "Torneios", "_ChaveDoMataMata.cshtml"), "vaga da chave" },
-        { Path.Combine("Views", "Torneios", "Details.cshtml"), "jogos do grupo e chave projetada" },
+        { Path.Combine("Views", "Torneios", "Details.cshtml"), "mini-jogo do grupo" },
     };
 
     [Theory]
@@ -70,15 +79,15 @@ public class DiaDaSemanaNaDataDoJogoTests
         {
             (Path.Combine("Views", "Torneios", "_JogoEmLinha.cshtml"), 1),
             (Path.Combine("Views", "Torneios", "_JogoQueVem.cshtml"), 1),
-            (Path.Combine("Views", "Torneios", "_ChaveDoMataMata.cshtml"), 1),
-            (Path.Combine("Views", "Torneios", "Details.cshtml"), 2),
+            (Path.Combine("Views", "Torneios", "Details.cshtml"), 1),
         })
         {
             var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), caminho));
 
             var comDia = Contagem(fonte, "DiaDaSemana.Curto");
-            Assert.True(comDia >= quantas,
-                $"{caminho}: esperava {quantas} data(s) de jogo com o dia da semana, achei {comDia}.");
+            Assert.True(comDia == quantas,
+                $"{caminho}: esperava EXATAMENTE {quantas} data(s) de jogo com o dia da semana, achei {comDia}. "
+                + "A mais provavelmente é uma linha da árvore da chave, onde ele come o nome do clube.");
         }
     }
 

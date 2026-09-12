@@ -16,6 +16,17 @@
     // Pra onde o POST das setas volta (a aba de onde se clicou). Fora do atributo `model=""` de
     // propósito: aspas dentro de aspas quebram o parser do Razor.
     var voltarParaAqui = ViewData["TargetAction"] as string;
+
+    // O RÓTULO DO JOGO nos modais (⇄, relógio, quadra) e o horário no formato do
+    // `<input type="datetime-local">`. Eram a mesma expressão copiada em três botões; viraram
+    // variável quando o quarto uso (o menu ⋯) apareceu — e porque `model=""` de partial não
+    // aceita aspas dentro, pela mesma razão do `voltarParaAqui` aqui em cima.
+    var rotuloDoJogo = $"{jogo.Codigo} · {jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário"} · {jogo.Dupla1.NomeDeExibicao} x {jogo.Dupla2.NomeDeExibicao}";
+    var horarioDoJogoNoInput = jogo.HorarioPrevisto?.ToString("yyyy-MM-dd'T'HH:mm") ?? "";
+    var referenciaDoJogo = jogo.Id.ToString();
+    // As setas ↑↓ do menu só em jogo AGENDADO: mover quem está em quadra é reescrever o que
+    // está acontecendo. O menu em si continua no AO VIVO, por causa do relógio.
+    var ehAgendado = jogo.Status == "Agendada";
     var g1 = jogo.GamesDupla1 ?? 0;
     var g2 = jogo.GamesDupla2 ?? 0;
     var venceu1 = Model.Finalizada && g1 > g2;
@@ -25,14 +36,14 @@
     bool temPalpite = r != null && r.TotalVotos > 0;
     bool podeVotar = jogo.Status == "Agendada" && Model.MeuId.HasValue;
 
-    // O palpitrômetro aparece em TODO jogo que ainda vai acontecer, com ou sem voto, e nos
+    // O palpitômetro aparece em TODO jogo que ainda vai acontecer, com ou sem voto, e nos
     // que acabaram só se alguém palpitou (aí ele é histórico).
     //
     // Antes ele dependia de haver voto OU de estar logado — e o resultado era uma lista
     // salpicada, com o bloco aparecendo em dois jogos e sumindo em dez, do lado de jogos
     // idênticos. Quem visita deslogado é justamente quem ainda pode virar usuário: ver a
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
-    bool mostraPalpitrometro = temPalpite || jogo.Status == "Agendada";
+    bool mostraPalpitometro = temPalpite || jogo.Status == "Agendada";
 
     // NOME E SOBRENOME, não só o primeiro nome (Felipe, 08/08/2026): "aqui no americano está
     // difícil de entender quem é quem".
@@ -68,6 +79,44 @@
             ViewData["QuemMarcaPlacar"] as string, Model.MeuId, jogo,
             ViewData["EhInscritoDoTorneio"] as bool? ?? false);
 
+    // A BOLINHA DO CHECK-IN, do lado do nome de cada dupla (12/09/2026).
+    //
+    // 🗣️ Felipe, num print desta lista no celular: *"Temos q por uma forma de fazer o checkin
+    // nessa tela por jogo"*, e escolhendo o formato: *"uma bolinha do lado de cada nome, apenas o
+    // organizador ve"*.
+    //
+    // 🕳️ A presença já existia e já era por jogo (a tela de Check-in virou fila de jogos em
+    // 10/09) — o que faltava era o CAMINHO: quem está aqui chamando quadra, dando a largada e
+    // marcando placar tinha que sair da lista, marcar na outra tela e voltar. No sábado de manhã
+    // as duas perguntas ("quem joga agora?" e "essa dupla chegou?") são feitas na mesma linha.
+    //
+    // ⚠️ UMA BOLINHA POR JOGADOR desde 12/09/2026 (🗣️ *"Mude para um check por jogador, por que é
+    // assim que controla check in"*): quem chega é uma pessoa por vez, e o organizador precisa
+    // saber QUAL dos dois falta pra ligar pra pessoa certa em vez de pro parceiro que já está no
+    // clube. A presença mora em `PresencaNoTorneio`, com chave (torneio, jogador) — um check só
+    // vale nas outras categorias da mesma pessoa.
+    //
+    // As três condições juntas, e cada uma por um motivo diferente:
+    //   • `Model.EhOrganizador` — é a régua do DIA DE JOGO (PodeOperarODiaDeJogoAsync), a mesma
+    //     que já liga o ▶, o ✏️ e o 📍 desta linha e a mesma da tela de Check-in. Inventar uma
+    //     segunda aqui seria o marcador ganhar o play e perder a chamada.
+    //   • `UsaCheckIn` — torneio que desligou a chamada não ganha bolinha nenhuma; oferecer e
+    //     recusar depois é fazer o organizador descobrir a regra pelo erro.
+    //   • `ehAgendado` — jogo em quadra ou encerrado já respondeu a pergunta por outra via. Quem
+    //     precisar corrigir tem o bloco do fim da tela de Check-in.
+    bool bolinhaDoCheckIn = Model.EhOrganizador
+        && ViewData["UsaCheckIn"] as bool? == true
+        && ehAgendado;
+
+    var chegadas = ViewData["ChegadasNoTorneio"] as IReadOnlyDictionary<int, DateTime>
+                   ?? new Dictionary<int, DateTime>();
+    @* ⚠️ `jogo.Categoria.TorneioId` SEM `?.`, e não é descuido: esta view desreferencia
+       `jogo.Categoria.Nome` direto em duas etiquetas mais abaixo, e um `?.` aqui ENSINA ao
+       compilador que a navegação pode ser nula — as duas linhas antigas viram CS8602 (que é
+       ERRO desde 22/08). Ou a categoria está carregada pra view inteira, ou não está.
+       O caminho por categoria é também o único que o torneio garante (ver MarcarCheckIn). *@
+    int torneioDaLinha = jogo.Categoria.TorneioId;
+
     // A bolinha do saque só em jogo EM QUADRA. Ela responde "quem está sacando AGORA" —
     // numa partida agendada não há saque nenhum, e o campo pode vir preenchido de um
     // "colocar no ar" desfeito ou de um placar corrigido depois. Em jogo finalizado ela
@@ -81,6 +130,27 @@
 @functions {
     private static string Foto(Padelizou.Models.Jogador? j) =>
         string.IsNullOrEmpty(j?.FotoPerfil) ? "/img/default-avatar.png" : j!.FotoPerfil!;
+
+    // O ESCUDO DO TIME, do lado do nome. 🗣️ Felipe, 11/09/2026, olhando a aba Jogos em
+    // produção: *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano
+    // A"*. Aqui não há nome de time escrito — o escudo é a pista inteira, e por isso leva o
+    // nome no alt e no title.
+    //
+    // ⚠️ HtmlEncode no src E no alt: esta linha é montada em STRING (HtmlContentBuilder), então
+    // o encoding que o Razor faz sozinho em `@atributo` NÃO acontece aqui — e o nome do time é
+    // texto que quem cadastra digita. Uma aspa nele fecharia o atributo.
+    //
+    // Só quem tem logo cadastrado desenha: os 44 times importados do ranking nasceram sem
+    // nenhum, e `src=""` é ícone quebrado repetido em 97 linhas.
+    private static string Escudo(Padelizou.Models.Jogador? j)
+    {
+        var time = j?.Time;
+        if (time == null || string.IsNullOrEmpty(time.Logo)) return "";
+
+        var src = System.Net.WebUtility.HtmlEncode(time.Logo);
+        var nome = System.Net.WebUtility.HtmlEncode(time.Nome);
+        return $"<img class=\"pdz-jl-escudo\" src=\"{src}\" alt=\"{nome}\" title=\"{nome}\" loading=\"lazy\" />";
+    }
 }
 
 @* Um lado da partida: rostos e nomes, CADA JOGADOR clicável pro perfil dele.
@@ -115,11 +185,13 @@
 
         html.AppendHtml("<span class=\"pdz-jl-nome\">");
         html.AppendHtml($"<a href=\"/Jogadores/Perfil/{d.Jogador1Id}\">").Append(NomeCurto(d.Jogador1)).AppendHtml("</a>");
+        html.AppendHtml(Escudo(d.Jogador1));
         html.AppendHtml("<span class=\"pdz-jl-barra\"> / </span>");
 
         if (d.Jogador2Id is int segundo)
         {
             html.AppendHtml($"<a href=\"/Jogadores/Perfil/{segundo}\">").Append(NomeCurto(d.Jogador2)).AppendHtml("</a>");
+            html.AppendHtml(Escudo(d.Jogador2));
         }
         else
         {
@@ -156,6 +228,22 @@
             {
                 @* Torneio por ordem de liberação: não há hora, e inventar uma seria mentir. *@
                 <strong>por ordem</strong>
+            }
+
+            @* COMEÇOU, TERMINOU E QUANTO DUROU, debaixo do horário previsto (Felipe,
+               11/09/2026: "coloque também o tempo de duração da partida, em baixo do horario
+               previsto (...) mas nao pode ocupar muito a tela, nao podemos poluir muito").
+
+               ⚠️ É também o que torna LEGÍVEL a ordem das Finalizadas: a lista é ordenada pelo
+               fim real, e o card mostrava só o horário PREVISTO — quem varria a tela lia
+               "21:20 · 20:30 · 22:05" e concluía que a ordem tinha quebrado. Ver
+               Services/DuracaoDoJogo, que é a mesma régua dos dois.
+
+               Uma linha de ~20 caracteres em .7rem, e NULA no jogo que não entrou em quadra:
+               a lista de Agendadas, que usa este mesmo card, não ganha nada. *@
+            @if (Padelizou.Services.DuracaoDoJogo.Rotulo(jogo) is { } duracao)
+            {
+                <span class="pdz-jl-durou">@duracao</span>
             }
         </span>
 
@@ -197,38 +285,46 @@
                 @if (!Model.Finalizada)
                 {
                     @* Verde, não vermelho: play vermelho é o botão do YouTube (lê como
-                       "assistir") e vermelho é a cor do destrutivo no resto do site. *@
-                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
+                       "assistir") e vermelho é a cor do destrutivo no resto do site.
+
+                       ⚠️ SEM QUADRA, O VERDE NÃO COMEÇA: ele PERGUNTA ONDE (11/09/2026). No "por
+                       ordem de liberação" o jogo chega aqui sem lugar de propósito — quem joga é
+                       quem a quadra que vagou chamar —, e dizer onde era custava voltar, achar o
+                       jogo na lista e abrir o modal de mudar de quadra. Duas telas pra uma
+                       decisão só, no minuto em que tem gente esperando em quadra.
+
+                       Com quadra não há o que preencher, e formulário pra confirmar o que já
+                       está decidido é atrito: cai na pergunta seca do confirmar.js. *@
+                    @if (string.IsNullOrWhiteSpace(jogo.NomeQuadra))
+                    {
+                        <button type="button" class="btn btn-sm btn-success"
+                                data-bs-toggle="modal" data-bs-target="#modalIniciarJogo"
+                                data-jogo-id="@jogo.Id"
+                                data-jogo-rotulo="@rotuloDoJogo"
+                                data-jogo-link="@jogo.LinkTransmissao"
+                                title="Começar o jogo" aria-label="Começar o jogo">
                             <i class="bi bi-play-fill"></i>
                         </button>
-                    </form>
-                    @* ↑↓: mover o jogo UMA linha. Vizinho em outro horário → o slot inteiro troca
-                       (hora + quadra + clube); vizinho no mesmo horário → troca a posição dentro
-                       dele (Services/OrdemNoHorario). Só em jogo agendado: mover quem está em
-                       quadra seria reescrever o que está acontecendo. *@
-                    @if (jogo.Status == "Agendada" && jogo.TorneioId is int torneioDaLinha)
+                    }
+                    else
                     {
-                        <partial name="_SetasDaOrdem" model="(torneioDaLinha, jogo.Id.ToString(), voltarParaAqui)" />
+                        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post"
+                              data-confirmar="O jogo entra AO VIVO na @jogo.NomeQuadra e o cronômetro começa a contar agora."
+                              data-confirmar-titulo="Começar este jogo?"
+                              data-confirmar-ok="Começar">
+                    <partial name="_CampoDosFiltros" />
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                        </form>
                     }
                     <button type="button" class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
                             data-jogo-id="@jogo.Id"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                            data-jogo-rotulo="@rotuloDoJogo"
                             title="Trocar horário" aria-label="Trocar horário">
                         <i class="bi bi-arrow-left-right"></i>
-                    </button>
-                    @* Definir o horário NA MÃO (10/09/2026): a troca acima precisa de outro jogo
-                       pra trocar de lugar; aqui o organizador digita a hora. Mesmo modal pro
-                       torneio inteiro, em _JogosDoTorneio. *@
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="modal" data-bs-target="#modalDefinirHorario"
-                            data-jogo-id="@jogo.Id"
-                            data-jogo-horario="@(jogo.HorarioPrevisto?.ToString("yyyy-MM-dd'T'HH:mm") ?? "")"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
-                            title="Definir horário na mão" aria-label="Definir horário na mão">
-                        <i class="bi bi-clock"></i>
                     </button>
                 }
                 @* Mudar SÓ a quadra. Trocar horário arrasta o slot inteiro (hora + quadra), e
@@ -240,7 +336,7 @@
                             data-bs-toggle="modal" data-bs-target="#modalTrocarQuadra"
                             data-jogo-id="@jogo.Id"
                             data-jogo-quadra="@jogo.NomeQuadra"
-                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                            data-jogo-rotulo="@rotuloDoJogo"
                             title="Mudar de quadra" aria-label="Mudar de quadra">
                         <i class="bi bi-geo-alt"></i>
                     </button>
@@ -279,6 +375,19 @@
                    aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">
                     <i class="bi bi-pencil"></i>
                 </a>
+                @* ⋯ — o relógio (definir horário na mão) e as setas ↑↓ moram aqui desde
+                   10/09/2026 (🗣️ *"tira o ⇄ e o relogio pra um menu ⋯"*, depois corrigido pra
+                   *"relogio e as setas"*). Fica por ÚLTIMO na barra, que é onde todo mundo
+                   procura um ⋯, e só enquanto o jogo não acabou: em jogo finalizado não há
+                   horário pra marcar nem linha pra subir.
+
+                   ⚠️ As setas SÓ em jogo agendado — mover quem está em quadra seria reescrever
+                   o que está acontecendo. O menu continua existindo no AO VIVO por causa do
+                   relógio, e é por isso que a decisão vem daqui e não de dentro da partial. *@
+                @if (!Model.Finalizada)
+                {
+                    <partial name="_MenuDoJogo" model="(jogo.TorneioId, referenciaDoJogo, voltarParaAqui, horarioDoJogoNoInput, rotuloDoJogo, ehAgendado)" />
+                }
             </span>
         }
         else if (podeMarcarSemSerDaMesa)
@@ -289,6 +398,7 @@
                     @* O mesmo play do organizador: dar a largada no próprio jogo faz parte
                        de marcar o placar quando o torneio abriu essa porta. *@
                     <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
+                    <partial name="_CampoDosFiltros" />
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
                             <i class="bi bi-play-fill"></i>
@@ -324,25 +434,25 @@
     @* As duas duplas EMPILHADAS, uma por linha, em qualquer tamanho de tela.
        Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
        pra ler o confronto. Empilhado, cada dupla é uma linha com rosto, nome e — quando há
-       palpitrômetro — a PORCENTAGEM DELA na ponta: assim o número aponta pra uma dupla, em
+       palpitômetro — a PORCENTAGEM DELA na ponta: assim o número aponta pra uma dupla, em
        vez de o leitor ter que adivinhar se os 100% da esquerda são de quem está em cima.
 
-       O container do palpitrômetro abraça as duas linhas + a barra porque o JS que vota e
-       atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitrometro.js). *@
+       O container do palpitômetro abraça as duas linhas + a barra porque o JS que vota e
+       atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitometro.js). *@
     @* ⚠️ `pdz-palpite-linha` NÃO é decoração: é a marca que diz ao JS que esta é a versão
-       EM LINHA do palpitrômetro. Sem ela, o atualizarPalpitrometro cai no comportamento do
+       EM LINHA do palpitômetro. Sem ela, o atualizarPalpitometro cai no comportamento do
        cartão grande — carimba a setinha e ESCONDE o lado perdedor. Na linha isso apagava uma
        das duas porcentagens depois do voto, e como a porcentagem é o próprio botão, sumia
-       junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitrometro.js. *@
+       junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitometro.js. *@
     @{
         int? meuVencedor = r != null && r.PalpiteiOPlacar ? Math.Max(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
         int? meuPerdedor = r != null && r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
         string moedaDoPlacar = r != null && r.PlacarEmSets ? "sets" : "games";
     }
-    <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
-         @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\" data-dupla1-id=\"{jogo.Dupla1Id}\" data-meu-voto=\"{r?.MeuVotoDuplaId}\"") : null)>
+    <div class="pdz-jl-corpo @(mostraPalpitometro ? "pdz-palpitometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
+         @(mostraPalpitometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\" data-dupla1-id=\"{jogo.Dupla1Id}\" data-meu-voto=\"{r?.MeuVotoDuplaId}\"") : null)>
 
-        @if (mostraPalpitrometro)
+        @if (mostraPalpitometro)
         {
             @* O rótulo fica em cima da COLUNA de porcentagens, não numa linha própria
                embaixo: ali ele nomeia os números que estão logo abaixo dele, e a linha
@@ -350,7 +460,7 @@
                ocupando uma altura inteira pra dizer o que os dois números já dizem. *@
             <div class="pdz-jl-palpite-topo">
                 <span class="pdz-palpite-rotulo">
-                    <i class="bi bi-graph-up"></i> PALPITRÔMETRO
+                    <i class="bi bi-graph-up"></i> PALPITÔMETRO
                     <span class="pdz-palpite-ajuda">
                         @if (Model.Finalizada)
                         {
@@ -365,7 +475,7 @@
                             <a asp-controller="Auth" asp-action="Login">· entre pra palpitar</a>
                         }
                     </span>
-                    @* "Ver quem votou" existia só no cartão grande. Na lista o palpitrômetro
+                    @* "Ver quem votou" existia só no cartão grande. Na lista o palpitômetro
                        virava um número anônimo — e metade da graça dele é justamente saber
                        QUEM apostou contra você. Vale nas agendadas e nas finalizadas: depois
                        do jogo é que se cobra quem errou o palpite. *@
@@ -383,12 +493,54 @@
                     {
                         <span class="pdz-total-votos">· 0 voto(s)</span>
                     }
+                    @* RETIRAR (10/09/2026 — 🗣️ *"tambem permita retirar o palpite colocado"*).
+                       Só pra quem pode votar: a janela de retirar é a MESMA de palpitar, e o
+                       servidor recusa depois que o jogo começa. Nasce escondido pra quem ainda
+                       não palpitou, e o JS mostra/esconde sozinho a cada palpite — sem F5. *@
+                    @if (podeVotar)
+                    {
+                        <button type="button" class="pdz-ver-votos pdz-retirar-palpite"
+                                title="Retirar meu palpite" onclick="retirarPalpite(this)"
+                                hidden="@(r?.MeuVotoDuplaId == null)">
+                            · <span class="text-danger">retirar</span>
+                        </button>
+                    }
                 </span>
             </div>
         }
 
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
-            @LadoDaDupla(jogo.Dupla1)
+            @* COM CHAMADA LIGADA, O PAR SE ABRE: cada jogador ganha rosto, nome e a SUA bolinha,
+               na ponta esquerda — medido no Chromium, é a única disposição em que dá pra saber de
+               quem é o check (rostos sobrepostos não têm dono). Sem chamada, a linha é a de
+               sempre, byte por byte: quem não organiza não paga nada por isto.
+
+               ⚠️ Escrito duas vezes, uma por dupla, e não num parcial: `Foto`, `Escudo` e
+               `NomeCurto` são @@functions DESTE arquivo, e movê-las pra fora mexeria no escudo de
+               todas as listas de jogo — diff grande num lugar que não é o assunto.
+
+               ⚠️ TIME FICA DE FORA (cai no `LadoDaDupla`): ali a linha não tem nome de pessoa,
+               tem nome de equipe. Chamada por jogador em torneio de times é outro pedido. *@
+            @if (bolinhaDoCheckIn && !jogo.Dupla1.EhTime)
+            {
+                <span class="pdz-jl-par">
+                    @{ bool primeiroDoLado1 = true; }
+                    @foreach (var j in Padelizou.Services.PresencaNoDia.JogadoresDa(jogo.Dupla1))
+                    {
+                        if (!primeiroDoLado1) { <span class="pdz-jl-barra">/</span> }
+                        primeiroDoLado1 = false;
+                        <span class="pdz-jl-jogador">
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, torneioDaLinha, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(j.Id, chegadas), true, voltarParaAqui)" />
+                            <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
+                            <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
+                        </span>
+                    }
+                </span>
+            }
+            else
+            {
+                @LadoDaDupla(jogo.Dupla1)
+            }
             @if (sacandoAgora == jogo.Dupla1Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
@@ -397,7 +549,7 @@
             {
                 <span class="pdz-jl-games">@g1</span>
             }
-            @if (mostraPalpitrometro)
+            @if (mostraPalpitometro)
             {
                 <span class="pdz-palpite-pct text-success @(r?.MeuVotoDuplaId == jogo.Dupla1Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
                       data-pct="1" data-dupla-id="@jogo.Dupla1Id" data-votavel="@podeVotar.ToString().ToLower()"
@@ -406,7 +558,26 @@
         </div>
 
         <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
-            @LadoDaDupla(jogo.Dupla2)
+            @if (bolinhaDoCheckIn && !jogo.Dupla2.EhTime)
+            {
+                <span class="pdz-jl-par">
+                    @{ bool primeiroDoLado2 = true; }
+                    @foreach (var j in Padelizou.Services.PresencaNoDia.JogadoresDa(jogo.Dupla2))
+                    {
+                        if (!primeiroDoLado2) { <span class="pdz-jl-barra">/</span> }
+                        primeiroDoLado2 = false;
+                        <span class="pdz-jl-jogador">
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, torneioDaLinha, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(j.Id, chegadas), true, voltarParaAqui)" />
+                            <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
+                            <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
+                        </span>
+                    }
+                </span>
+            }
+            else
+            {
+                @LadoDaDupla(jogo.Dupla2)
+            }
             @if (sacandoAgora == jogo.Dupla2Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
@@ -415,7 +586,7 @@
             {
                 <span class="pdz-jl-games">@g2</span>
             }
-            @if (mostraPalpitrometro)
+            @if (mostraPalpitometro)
             {
                 <span class="pdz-palpite-pct text-primary @(r?.MeuVotoDuplaId == jogo.Dupla2Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
                       data-pct="2" data-dupla-id="@jogo.Dupla2Id" data-votavel="@podeVotar.ToString().ToLower()"
@@ -423,34 +594,88 @@
             }
         </div>
 
-        @* ── O PLACAR (mesmo bloco do cartão grande — ver _Palpitrometro.cshtml) ──────────
+        @* COMO O 9x8 SAIU (12/09/2026): sem esta linha, um jogo decidido no tie-break fica
+           indistinguível de um 9x8 jogado game a game — e a contagem que o sistema passou a
+           guardar não apareceria em nenhuma tela depois do jogo terminar. Só em jogo que
+           REALMENTE teve tie-break: ver Services/TieBreakDoJogo.Houve. *@
+        @if (Model.Finalizada && Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))
+        {
+            <div class="small text-body-secondary mt-1">
+                <i class="bi bi-arrow-left-right"></i> @Padelizou.Services.TieBreakDoJogo.Etiqueta(jogo.PontosTieBreak1, jogo.PontosTieBreak2)
+            </div>
+        }
+
+        @* ── O PLACAR (mesmo bloco do cartão grande — ver _Palpitometro.cshtml) ──────────
            Só aparece DEPOIS do voto e é OPCIONAL: palpitar continua sendo um toque no nome,
            e quem quiser dá o segundo escolhendo a ficha. *@
         @if (podeVotar && r != null && r.PlacaresDoFormato.Count > 0)
         {
             <div class="pdz-palpite-placar mt-1" style="display: @(r.MeuVotoDuplaId != null ? "block" : "none");">
-                <div class="small text-muted mb-1">
-                    E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                @* ⚠️ DEPOIS DE ESCOLHER, AS FICHAS SE RECOLHEM (11/09/2026). 🗣️ Felipe, num print do
+                   cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem
+                   podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*.
+                   Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já
+                   cumpriu o papel dela.
+                   ⚠️ Quem decide qual dos dois nasce aberto é o DADO (`PalpiteiOPlacar`), e não o JS
+                   depois de carregar: senão a tela piscaria a fileira inteira a cada F5. *@
+@* ⚠️ SEM `d-flex` (visto no navegador, 11/09/2026): as utilitárias do Bootstrap são
+                   `!important`, e `.d-flex` ganha do `style.display = 'none'` que o JS escreve — o
+                   resumo ficava na tela ao lado das fichas reabertas. O `flex` vem do próprio
+                   `style`, que é o mesmo lugar de onde ele some. *@
+                <div class="pdz-palpite-placar-resumo small text-muted align-items-center gap-2"
+                     style="display: @(r.PalpiteiOPlacar ? "flex" : "none");">
+                    <span>Seu palpite: <strong class="pdz-resumo-placar">@meuVencedor x @meuPerdedor</strong></span>
+                    <button type="button" class="btn btn-link btn-sm p-0 pdz-trocar-placar"
+                            onclick="trocarPlacar(this)">trocar</button>
                 </div>
-                <div class="d-flex flex-wrap gap-1">
-                    @foreach (var placar in r.PlacaresDoFormato)
-                    {
-                        bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
-                        <button type="button"
-                                class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
-                                data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
-                                onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
-                    }
+
+                <div class="pdz-palpite-fichas" style="display: @(r.PalpiteiOPlacar ? "none" : "block");">
+                    <div class="small text-muted mb-1">
+                        E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var placar in r.PlacaresDoFormato)
+                        {
+                            bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                            <button type="button"
+                                    class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                                    data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                                    onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                        }
+                    </div>
                 </div>
             </div>
         }
 
-        @if (r != null && r.TemPlacarMaisPalpitado)
+        @* ⚠️ SEM `@if`: a linha NASCE na página, escondida quando ainda não há leitura da galera
+           (o mesmo desenho do cartão grande). Com o limiar de dois palpites no mesmo placar, o
+           caso mais comum de ela passar a existir é o SEU palpite formando o par — e o
+           `atualizarPalpitometro` só sabe mostrar um elemento que já está no DOM. Gerada por
+           `@if`, a leitura da galera só apareceria no F5. *@
+        @if (mostraPalpitometro)
         {
-            <div class="mt-1 small text-muted pdz-palpite-consenso">
-                <i class="bi bi-people"></i>
-                A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-                <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+            @* 🗣️ Felipe, 10/09/2026, com esta frase marcada num print: *"tambem permita clicar
+               e ver quem colocou o palpitometro e qual o placar"*. Ela é o lugar mais natural
+               pra perguntar "quem foi que cravou?", e era texto morto — o único caminho pro
+               modal era o "N voto(s)" lá em cima.
+               ⚠️ O `div` externo CONTINUA sendo o `pdz-palpite-consenso`: é ele que o JS acha
+               pra mostrar/esconder e pra reescrever o placar depois do voto. O botão vai por
+               dentro, senão o `style.display` do JS mandaria no botão e não na linha. *@
+            <div class="mt-1 small text-muted pdz-palpite-consenso"
+                 style="display: @(r != null && r.TemPlacarMaisPalpitado ? "block" : "none");">
+                <button type="button" class="pdz-ver-votos"
+                        data-partida-id="@jogo.Id"
+                        data-nome1="@NomeDaDupla(jogo.Dupla1)"
+                        data-nome2="@NomeDaDupla(jogo.Dupla2)"
+                        title="Ver quem palpitou e o placar de cada um"
+                        onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                    <i class="bi bi-people"></i>
+                    @* ⚠️ `r?.` e não `r!.`: agora que a linha nasce escondida, ela é desenhada
+                       também no jogo sem palpite nenhum (`r` nulo). Os números ficam vazios, e
+                       quem os escreve na hora de mostrar é o JS. *@
+                    Placar mais palpitado: <strong class="pdz-consenso-placar">@r?.PlacarMaisPalpitadoLado1 x @r?.PlacarMaisPalpitadoLado2</strong>
+                    <span class="pdz-consenso-votos">(@(r?.PlacarMaisPalpitadoVotos ?? 0) de @(r?.PalpitesComPlacar ?? 0))</span>
+                </button>
             </div>
         }
 

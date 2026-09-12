@@ -16,6 +16,1586 @@
 > 🌐 **A CONSULTA DELES É LIBERADA POR IP — o do nosso VPS (`179.197.233.184`, que serve `dev` E `prod`).** Consequência: **não dá pra chamar do localhost nem de uma sessão da web** (esta sessão levou 403 no CONNECT do proxy, mas mesmo sem proxy o IP recusaria). O payload se pega com `curl` **por SSH de dentro do VPS** — está o comando no `PROSMART.md`. É o primeiro passo, e não depende de a ProSmart responder nada.
 >
 > ⏭️ **O QUE FALTA:** o payload de exemplo com jogo rolando (dá pra pegar sozinho, pelo SSH) e a **doc do endpoint de envio** (essa não tem contorno — endereço e corpo não se inventam). Sem a doc, a metade do envio não sai; e sem o envio, a leitura não deve sair. ⚠️ **E não existe `dev` da TV deles**: a Regra 3 não tem equivalente do outro lado, então foi pedida uma quadra de teste — senão o primeiro ensaio do envio é ao vivo, num sábado, na frente da sala.
+> **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+>
+> 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
+>
+> ✅ **FICAM NA LINHA: `Meus jogos` e `Filtros`.** Os cinco selects moram num `collapse` do Bootstrap (o mesmo recolhido do "editar torneio" e do CheckIn — nada de painel de JS próprio). O botão **só aparece quando há o que recolher**: torneio de um clube, uma quadra e uma categoria não ganha painel vazio, que é a mesma régua do "Meus jogos" só existir pra quem tem jogo ali.
+>
+> ⚠️ **PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA** — é a mesma "tela mentindo sobre o filtro escolhido" que já tinha tirado o botão "Filtrar" daqui. Por isso duas coisas ficaram **fora** do recolhido: o **contador no próprio botão** (`Filtros (2)`, e ele fica verde) e o **`Limpar filtros`**. Quem abre a tela já filtrada por URL vê meia lista e tem a saída na mão.
+>
+> 🔑 **O `Limpar` passou a valer pros CINCO filtros**, não só pros três da sequência (clube/quadra/fase): categoria e time filtravam sem oferecer saída nenhuma. O contador conta **dimensão, não escolha** — três categorias marcadas continuam sendo um filtro só, que é como quem lê o número entende.
+>
+> ⚠️ **O `collapse` mora DENTRO do `<form id="filtroJogos">`**: select escondido por CSS continua viajando no GET (só `disabled` não viaja), mas select fora do formulário não viaja nunca. E o auto-submit das Categorias segue no `hidden.bs.dropdown` — evento diferente do `hidden.bs.collapse`, então fechar o painel não recarrega a página.
+>
+> 🧪 **6.855 testes, 0 falhas (9 novos)** + os 5 conferidores de JS verdes. Os 9 foram **vistos vermelhos** em *"Não achei o painel recolhido #filtrosDosJogos"*. São testes de FONTE (`FiltrosRecolhidosNaListaDeJogosTests`), como a bolinha do Ao Vivo: a suíte não renderiza Razor, e o painel é markup puro. Um deles casa as tags `<div>` pra provar que cada select está **dentro** do recolhido — e não só depois dele, que passaria com o painel fechado no meio.
+>
+> ⚠️ **NÃO VISTO RODANDO NUM BROWSER** — a sessão não tem tela. O que está travado por teste é o markup; o comportamento do recolhido no celular é o que precisa de olho no `dev`.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+>
+> 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
+>
+> 🕳️ **AS DUAS ESTAVAM EM QUADRA, UMA CONTRA A OUTRA.** O jogo 568 estava **AO VIVO** (começou 10:24, transmissão no ar), e o painel leu o placar parcial como resultado final: com a Vania à frente, deu a vaga a ela e eliminou a Bibiana. **Conferido no HTML de `prod` nesta sessão, com o jogo ainda rolando**: às 11:10 o placar era **5 x 6 pra Bibiana** e o mesmo pop-up já dizia o contrário — *"Bibiana / Caroline — Depende: passa se Cristina / Marina vencer"*. O painel trocou de resposta no meio do jogo, e a dupla "sem chance" voltou a ter chance.
+>
+> 🔬 **A CAUSA É UMA PERGUNTA MAL FEITA, e ela estava escrita como escolha**: o serviço decidia o que já tinha sido jogado com `QuemVenceu.Da(p) != null` — *"'Jogado' é ter vencedor pela régua única, **não é o Status**"*. Só que `QuemVenceu` responde SIM pra qualquer placar desigual, e placar de jogo em andamento é desigual quase o tempo todo. O comentário resolvia o caso do 0x0 finalizado e **abria este**: faltava o E. Agora são as duas metades — `Status == "Finalizada"` **e** ter vencedor.
+>
+> ⚠️ **O SERVIÇO VIZINHO JÁ PERGUNTAVA CERTO**: o `ClassificadosJaConhecidos` (que põe nome na chave projetada) pula grupo com jogo em quadra, com esta linha de comentário — *"e grupo com jogo em quadra também não"*. Duas respostas pra mesma pergunta, e a que o jogador lê na beira da quadra era a errada.
+>
+> 👁️ **E A TELA DENUNCIAVA A CONTRADIÇÃO NO MESMO CARD**: a tabela do grupo, logo acima do botão, soma só partidas **finalizadas** (`TorneiosController`) e mostrava a Bibiana com **J1 V0 D1 −6**; o pop-up logo abaixo dava a ela uma vitória que ninguém tinha ganhado.
+>
+> ✅ **O QUE MUDA NA TELA**: jogo em quadra é jogo **por jogar**. Com dois jogos em aberto (o de quadra + o agendado, que é o caso do print) o painel **não aparece** — não havia o que responder. Quando o jogo em quadra for o **único** que falta, o painel aparece e **simula aquele jogo**, que é justamente quando ele serve mais.
+>
+> ✅ **E O PAINEL SAIU DO GRUPO DE DUAS DUPLAS** (🗣️ Felipe, na sequência: *"so deve aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*). O grupo de 2 tem **um jogo só**: o painel aparecia nele **antes de a bola quicar**, listando as duas duplas como "Já classificado" — com duas vagas, as duas passam mesmo perdendo. **São 8 dos 24 grupos deste torneio.** A régua nova é *"o grupo já decidiu alguma coisa"* (`jogados.Count == 0` → sem painel), e não *"o grupo tem 3 duplas"*: com um jogo faltando as duas dão no mesmo resultado, e esta não promete nada quando a grade do grupo está incompleta. **No grupo de 4 o painel continua aparecendo** quando falta o último jogo — mesma pergunta, mesma resposta.
+>
+> 👁️ **CONFERIDO NO AR POR CONTEÚDO, com o torneio rolando** — e aqui dá, ao contrário do `build-1259`: o que mudou é markup que TODO mundo vê. O `Torneios/Details/26` em `prod` tinha **12 painéis** antes e tem **8** agora. Os 8 que ficaram são todos grupo de 3 com **2 jogos encerrados**; os 4 que saíram são os grupos de 2 e os de 3 com jogo em quadra + outro em aberto — que é o card do print. `/healthz` **200** nos dois ambientes.
+>
+> 🎾 **E O CASO MAIS DELICADO FOI VISTO FUNCIONANDO**: no Grupo C da categoria, o jogo que falta **está AO VIVO neste minuto**, e o painel diz *"Depende — Passa vencendo, com qualquer placar. Qualquer derrota elimina."* pras duas duplas, em vez de dar a vaga a quem está na frente no parcial. É o outro lado da régua: jogo em quadra não some do painel, ele é **simulado**.
+>
+> ⚠️ **E UMA BOMBA-RELÓGIO DESCOBERTA NO CAMINHO: o deploy em `prod` NÃO PAROU PRA APROVAÇÃO.** O `infra/vps/README.md` manda marcar **Required reviewers** no environment `prod` (*"é aqui que mora a trava do prod"*), e avisa que, se o environment não existir, o GitHub cria sozinho **sem regra nenhuma**. Foi o que aconteceu: o run 302 saiu do `queued` direto pro `success` em **17 segundos**, sem pedir nada. **Hoje qualquer deploy em produção sai sem confirmação de ninguém** — inclusive um disparado por engano. O passo pra fechar isso é Settings → Environments → `prod` → Required reviewers.
+>
+> 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+>
+> 🗣️ *"corrige a mesa de controle também"*. É o item que ficou aberto nos dois builds de hoje, e são **três** defeitos no mesmo caminho.
+>
+> 1️⃣ **A ORDEM ENTRE DOIS PLACARES SAÍA DO RELÓGIO DE CADA APARELHO** (`Date.now()` de quem marcou, gravado em `PlacarMarcadoEm`). Relógio de celular erra: um aparelho **adiantado** carimbava a partida com uma hora no futuro e **todo toque do outro era recusado a partir dali** — não por um toque, mas *para sempre*. ✅ Agora o aparelho manda a **IDADE** do toque (*"isto foi marcado há 8 segundos"*), medida com o próprio relógio dele, e quem ancora é o `DateTime.Now` do servidor: o erro absoluto **se cancela**, e os dois aparelhos voltam a ser comparáveis. ⚠️ A idade é medida **na hora de entregar**, não na hora do toque — é isso que faz o toque preso numa fila offline cair, do lado do servidor, no instante em que ELE ACONTECEU, e não no instante em que a rede voltou. De quebra, a reentrega continua idempotente: a idade cresce junto com a espera.
+>
+> 2️⃣ **A FILA AFIRMAVA O PLACAR INTEIRO A CADA TOQUE**, o mesmo defeito da lista AO VIVO (`build-1270`) na outra tela: o aparelho do vizinho reescrevia o lado que ninguém tocou com o número da tela dele — de **minutos** atrás, se ele esteve sem sinal. ✅ A fila passou a guardar **quais lados foram tocados**, e o lado não tocado viaja como **-1**. ⚠️ O placar continua **absoluto**, e não "+1": incremento reentregue dobraria o game, que é a razão de esta fila existir assim. O que mudou é *quais lados ele afirma*.
+>
+> 3️⃣ **RECUSA SUMIA COM A TARJA VERDE.** O servidor responde **200** dizendo "já existe um placar mais novo"; a Mesa adotava o placar dele, **esvaziava a fila** e seguia mostrando **"Placar sincronizado"**. A pior combinação possível: o número voltava sozinho na frente de quem marcou e a tela dizia que estava tudo certo. ✅ Agora a tarja diz *"Não valeu: … O placar na tela é o do servidor."*
+>
+> 🧪 **6.851 testes, 0 falhas (5 novos em `PlacarDaMesaTests`)**, os quatro de defeito **vistos vermelhos** (`Expected: 7, Actual: 0` no lado não tocado; `Expected: 4, Actual: 0` no aparelho travado pelo relógio do vizinho). Mais o **6º conferidor de JS**, `conferir-mesa-offline.js`, com DOM falso, `localStorage` falso, **relógio controlável** e temporizador controlável — 12 conferências, e a da idade exercita o caso inteiro: toque com a rede caída, 8 segundos depois a rede volta, e o corpo sai com `idadeMs=8000`.
+>
+> ⚠️ **UM TESTE ANTIGO FOI REESCRITO**: `Placar_impossivel_e_domado_pras_bordas` cobrava negativo virando **zero**, e negativo agora é "não toquei". Como cinto de segurança contra requisição montada à mão isso é **mais forte**, não menos: um `-1` forjado agora não apaga placar nenhum, onde antes zerava o lado.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v36`**: o `mesa-offline.js` também não está em `STATIC_ASSETS`, mas cai na regra de `isStaticAsset`, que serve a cópia guardada e busca a nova em segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo. Conferido no `origin/main` antes de escolher o número (estava em v35).
+>
+> 🔒 **COMPATIBILIDADE NOS DOIS SENTIDOS**: fila gravada antes deste deploy não tem os campos tocados nem a idade — ela afirma tudo e é lida pelo epoch, como sempre foi (tem teste). E item gravado por esta versão não quebra uma tela antiga que volte do cache.
+>
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1270-7be46a7`** (runs **305** e **306**), **o mesmo artefato nos dois**, com a tag explícita. PR #264. **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200** e o `/js/placar-ao-vivo.js` servido já com o `NAO_TOQUEI`. ℹ️ O `sw.js` FICOU em `padelizou-static-v35` de propósito: ele subiu no `build-1268` e o cache velho já foi descartado lá; virar de novo só jogaria fora a cópia nova, sem ganho nenhum.
+>
+> 🗣️ Felipe, logo depois de o `build-1268` subir: *"mas estavamos tambem com problema q quando um de um lado marcava e o outro junto asvezes, um deles nao pegava, vc corrigiu isso tambem ? vai parar de oscilar ?"*. **Não tinha** — o 1268 resolveu quadra DIFERENTE; este resolve o MESMO jogo.
+>
+> 🕳️ **O CARD MANDAVA OS DOIS LADOS EM TODO POST.** Um marcador de cada lado da quadra, cada um no "+" da sua dupla: o aparelho de A manda `6 x 3`, o de B — com a tela de até 20 segundos atrás, que é o tique da atualização automática — manda `5 x 4`, e o servidor grava `5 x 4`. **O 6 de A some.** O último POST ganhava **nos dois lados**, mesmo que cada um tivesse tocado só no seu, e a tela de quem perdeu voltava pro número velho no tique seguinte. É a oscilação.
+>
+> ✅ **A CORREÇÃO É O "NÃO TOQUEI"**: o lado que ninguém tocou viaja como **-1**, e o servidor o deixa com o que está no banco. Sem relógio de aparelho (o defeito aberto da Mesa é exatamente esse) e sem "quem chegou por último ganha": cada aparelho afirma **só o número que a pessoa marcou**. O par continua sendo validado junto — numa soma de 7, o lado que veio precisa caber ao lado do que está gravado —, então a peneira do `FormatoDaPartida` recebe os dois.
+>
+> 🔑 **A FILA DO APARELHO VIROU POR CAMPO, não por card** — é o que sabe qual lado foi tocado. Quem mexe nos dois de propósito (o botão de **fechar o tie-break**, que escreve o 9x8 inteiro) marca os dois na mão. E o ponto do tie-break segue a mesma régua: no 8x8 cada mesário conta o ponto do seu lado.
+>
+> ⚠️ **UMA ENTRADA POR CARD EM CADA ARRAY, SEMPRE.** O `-1` também cobre campo que **não está na tela** (HTML velho em cache): antes, um campo ausente simplesmente não entrava no POST e **desalinhava o lote inteiro** — os jogos depois dele recebiam o placar do vizinho. É a mesma família do `pontos1` duplicado de manhã, pela ponta oposta.
+>
+> 🧪 **6.846 testes, 0 falhas (4 novos)**, os três de defeito **vistos vermelhos** com o lado não tocado chegando a **0** (`Expected: 6, Actual: 0`), e um quarto guardando a compatibilidade: **aba aberta antes deste deploy manda os dois números de sempre e continua gravando os dois** — o `-1` é acréscimo, não troca de contrato. Mais 10 conferências novas no `conferir-placar-ao-vivo.js` (**44** no total), vistas vermelhas em *"o lado NÃO tocado vai como -1"*.
+>
+> ⚠️ **DUAS CONFERÊNCIAS ANTIGAS DO JS FORAM REESCRITAS** porque afirmavam o que acabou de mudar: elas cobravam o lado não tocado viajando **com o número da tela**, que é o defeito com outro nome.
+>
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1268-b731733`** (runs **303** e **304**), **o mesmo artefato nos dois**, com a tag explícita. PR #263. **Sem migration.** 🧑‍⚖️ **O PLACAR DE UM CARD PAROU DE ESCREVER NA QUADRA DO VIZINHO.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `sw.js` em **`padelizou-static-v35`** e o `/js/placar-ao-vivo.js` servido já com `corpoDoLote`, `conferirResposta` e `data-pdz-mexido`.
+>
+> 🗣️ Felipe: *"Um dos marcadores está reclamando que ao marcar nao esta salvando na hora, pode ser internet ruim e os outros marcando junto"*. Tela confirmada com ele: a **lista AO VIVO**, a dos cards com −/+.
+>
+> 🕳️ **SÃO DOIS DEFEITOS NO MESMO POST EM LOTE, e os dois terminam no mesmo lugar**: o número que o marcador tocou volta pro valor velho, **sem erro em lugar nenhum**.
+>
+> 1️⃣ **O APARELHO MANDAVA O FORMULÁRIO INTEIRO A CADA TOQUE.** Os campos de cada card se ligam ao formulário do lote por `form="pdzPlacaresAoVivo"` (embrulhar os cards não dá — o palpitômetro já tem formulário lá dentro), então `new FormData(form)` é **TODA quadra no ar**, com o valor que AQUELA tela tem — até 20 segundos velho, que é o tique da atualização automática. Dois marcadores trabalhando, e o toque de um reescrevia a quadra do outro. ⚠️ **Quem perde o game é quem NÃO tocou em nada**, e por isso ninguém achava o culpado: a tela de quem marcou diz "salvo", porque ela salvou mesmo. Internet ruim não é a causa, é o **multiplicador** — quanto mais tique de atualização falha, mais velho é o placar que o vizinho reenvia por cima.
+>
+> 2️⃣ **O CARD MANDAVA DOIS `pontos1`**, e isto nasceu hoje de manhã com o tie-break. O campo escondido do lote saía por `@if (!emTieBreak)` e o **bloco** do tie-break é renderizado sempre que a fase o comporta (escondido fora do 8x8) — e **`hidden` não tira campo nenhum do POST**. Com duas quadras no ar, `pontos1` chega mais comprido que `partidaId` e o índice escorrega: **o segundo jogo recebe a contagem do primeiro**, zerando um tie-break em andamento a cada toque. A condição do escondido virou a **negação exata** da do bloco (`temBlocoDeTieBreak`), e o servidor passou a **recusar lote desalinhado** em vez de gravar pelo índice que der.
+>
+> 🩹 **E A CORRIDA DE MEIO SEGUNDO, de quebra**: entre o dedo e o POST há o debounce de 450ms que junta a rajada de toques, e nesse vão a atualização automática **não estava travada** — ela trocava o cabeçalho pelo HTML do servidor (que ainda não sabe do game), e o POST que saía em seguida lia o campo **já revertido**. O toque sumia inteiro. Agora o card carrega `data-pdz-mexido` desde o toque até o servidor confirmar, e a atualização automática não encosta nele — mesma ideia do `.pdz-live-salvo-erro` que já existia ali.
+>
+> 🗣️ **E AÍ O FELIPE VIU ACONTECER COM ELE**: *"E agora eu tambem, estou clicando pra marcar, aparece salvo, mas nao salva as vezes"*. A frase mudou o alvo: **"aparece salvo" é a tela mentindo**, e isso tem causa própria.
+>
+> 🕳️ **A RESPOSTA DO POST APAGAVA O TOQUE QUE VEIO DEPOIS DELE.** Toda resposta traz o placar gravado e a tela o escreve de volta nos campos (`aplicarPlacarDoServidor` — existe pra mostrar a correção do servidor, que numa soma de 5 transforma 6 em 4). Só que ela respondia sobre o placar de **ANTES** do toque seguinte: quem tocasse no "+" enquanto o POST viajava via o número voltar — e o POST seguinte lia o campo **já revertido** e mandava o valor velho de volta. ⚠️ **Internet ruim escancara**: quanto mais devagar a resposta volta, mais toques cabem no vão. Agora resposta não corrige card que tem toque mais novo que ela.
+>
+> 🔇 **E O "SALVO" SÓ SAI DA PROVA, não do 200.** O card dizia "salvo" por ter chegado um JSON — e chega JSON também quando o servidor **pulou** aquele jogo de propósito (`Status != "AoVivo"`: alguém finalizou noutro aparelho). Agora cada card confere a resposta contra o que ELE mandou: jogo fora do ar diz *"este jogo saiu do ar"*, jogo que a resposta nem cita diz *"não salvou — toque de novo"* e **volta pra fila**, e placar que o servidor corrigiu diz *"salvo como 4 x 2"* — porque o número corrigido **nem sempre chega à tela**: não se escreve por baixo de quem está digitando, e aí só a tarja pode contar.
+>
+> 🎣 **OS DOIS FORAM ACHADOS PELO CONFERIDOR, não por leitura** — o de apagar o toque caiu no teste *"e leva o valor mais novo"*, que existia desde a primeira rodada e só ficou vermelho quando o servidor falso passou a **devolver o que recebeu** em vez de uma lista vazia. ⚠️ E antes dele um susto que valeu a linha: o mesmo teste acusava por `input.value` guardar **número** no DOM falso, quando no navegador ele é **sempre string** — DOM falso infiel dá defeito que só existe no teste, ou pior, esconde o que existe em produção. Corrigido o falso, o vermelho continuou: era defeito de verdade.
+>
+> 🧪 **6.842 testes, 0 falhas** (4 novos em `PlacarAoVivoNaoAtropelaOVizinhoTests`, **três vistos vermelhos** — o mais claro é o tie-break do segundo jogo chegando a **0 em vez de 6**) + **o 5º conferidor de JS**, `conferir-placar-ao-vivo.js`, com DOM falso no Node: **34 conferências**, vistas vermelhas em *"o POST leva o card tocado"* (levava a quadra do vizinho junto), *"e leva o valor mais novo"* e nas quatro do "salvo" mentiroso. ⚠️ **O `FormData` do DOM falso é fiel ao do navegador de propósito** — recebendo o formulário, ele recolhe todo campo ligado a ele, inclusive os que estão fora. Um de mentira mais simpático esconderia exatamente o defeito.
+>
+> 🎣 **E O CONFERIDOR PEGOU UM DEFEITO DA PRÓPRIA CORREÇÃO, antes de ele ir pro ar**: a primeira versão reenviava a fila assim que o POST terminava, e card que volta pra fila por **falha de rede** também está nela — um laço apertado contra o servidor justamente quando a internet do clube está ruim. O conferidor travou em 60s em vez de passar. Quem manda reenviar voltou a ser só o **toque** que chegou no meio do caminho.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v35`**, e este é um caso que o parágrafo de cima do arquivo não cobria: os dois `.js` **não estão em `STATIC_ASSETS`**, mas caem na regra de `isStaticAsset`, que serve a **cópia guardada** e só busca a nova em segundo plano. Quem tem o app instalado rodaria o JavaScript velho por mais uma abertura — e aqui essa abertura é um game perdido. Conferido no `origin/main` antes de escolher o número (estava em v34).
+>
+> ⚠️ **DOIS TESTES ANTIGOS FORAM REESCRITOS porque a premissa deles caiu com a correção**, e isso vale a linha: `Array_de_pontos_mais_curto_que_o_de_jogos_nao_estoura` afirmava que o array curto grava o que dá — e "o que dá" num array casado por ÍNDICE é escolher no chute em qual jogo escrever; `Os_pontos_viajam_no_POST_mesmo_fora_do_tie_break` cobrava o `@if (!emTieBreak)`, que É o defeito 2. Os dois passaram a cobrar a exclusão mútua dos dois campos.
+>
+> 🚧 **O QUE FICOU DE FORA, e é outra tela**: a **Mesa de Controle** decide conflito por `marcadoEm`, o **relógio do APARELHO** de quem marcou. Dois celulares no mesmo jogo com relógios diferentes, e o que está atrasado tem todo toque recusado (`"já existe um placar mais novo"`) — a Mesa **adota o placar do servidor e esvazia a fila calada**, com a tarja verde dizendo "Placar sincronizado". É o mesmo sintoma por outro caminho, e mexer nele é trocar a régua de ordenação: fica pro Felipe decidir.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1259-e628547`** (runs 34696948334 e 34697160645), **o mesmo artefato nos dois**, com a tag explícita. PRs #258 e #259. **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
+>
+> 🗣️ Felipe, com o check-in por jogador no ar: *"Ao marcar de confirmar na tela, ele sai da tela, ele tem q sempre se manter na tela da alteracao"*.
+>
+> 🕳️ **REPRODUZIDO NO NAVEGADOR, com o app rodando nesta sessão**: filtrado numa categoria a aba dizia **"Agendadas (2)"** com 2 jogos; depois de marcar uma chegada, **"Agendadas (3)"** com 3 — o redirect voltava pra `Details` **nu**, sem a query string, e a grade inteira do torneio voltava por cima do recorte. A rolagem até era restaurada no mesmo pixel, o que **piora**: mesmo lugar da tela, outra lista embaixo. Na ER, com 12 categorias e 97 jogos, é perder o lugar.
+>
+> ⚠️ **O TETO ESTAVA ESCRITO NO CÓDIGO** desde a primeira versão (*"o filtro da tela NÃO volta junto"*), herdado do `VoltarDaLargada`. **Escrever o teto não é o mesmo que ele não incomodar** — e este incomodou em menos de uma hora.
+>
+> ✅ **A CORREÇÃO**: o formulário leva a query da tela num campo escondido, e o servidor reaproveita **só as seis chaves** que `Details`/`Jogos` já recebem por parâmetro (`Services/FiltrosDaListaDeJogos`). Lista fechada pelo mesmo motivo do `voltarPara`: campo de formulário não escolhe controller, action, area nem id de torneio. Teto de 1000 caracteres — campo escondido é campo editável, e uma query gigante viraria um redirect que nenhum navegador aceita.
+>
+> 🔬 **UMA SUSPEITA MEDIDA EM VEZ DE CHUTADA**: com DUAS categorias marcadas, o valor de rota é um `string[]`, e eu esperava que a geração de URL escrevesse `System.String[]`. **Não escreve** — expande em `categoriaFiltroIds=910&categoriaFiltroIds=911`, conferido no navegador. A implementação ficou como estava.
+>
+> ✅ **E OS VIZINHOS DE BARRA ENTRARAM JUNTO** (🗣️ *"Quando corrigir, publique"*, à pergunta se eu estendia): ▶ largada, 📍 quadra, ⇄ trocar horário, 🕐 definir horário, as setas ↑↓, o ✏️ placar, o ajustar horários, o refazer grade e o salvar placares do ao vivo. **São só DOIS funis** — `TorneiosController.VoltarPara` e `PartidasController.VoltarDaLargada`, mais o retorno do `ControlePlacar` —, então trocar o redirect em três lugares alcançou os onze formulários. O campo virou parcial de uma linha (`_CampoDosFiltros`): dez cópias divergem na primeira vez que alguém renomear.
+>
+> 🚧 **O QUE FICOU DE FORA, e não é o mesmo problema**: `VoltarParaAgendado` e `ReabrirPartida` sempre mandam pra `/Torneios/Jogos`, mesmo pra quem clicou pela página do torneio — trocam de TELA, não de recorte. É outro defeito, mais antigo, e mexer nele muda navegação que ninguém reclamou.
+>
+> 🔒 **GATE**: `Todo_formulario_que_volta_pra_lista_leva_os_filtros` varre as quatro views, recorta comentário Razor (que cita `<form>` em prosa e produzia falso positivo) e reprova formulário que manda `voltarPara` sem levar o recorte. O botão novo da barra vai nascer copiando o vizinho, e este campo é justamente o que se esquece: ele não aparece na tela, então nada denuncia a falta até alguém se perder com a lista filtrada.
+>
+> ⚠️ **O DEPLOY EM `dev` FALHOU NA PRIMEIRA TENTATIVA, E NÃO FOI O CÓDIGO**: o passo de SSH morreu em `ssh-keyscan` — `VPS_KNOWN_HOSTS` não está definido, então o workflow busca a chave do servidor na hora, e ela voltou vazia. Morreu **antes** de qualquer passo de deploy. Os dois ambientes respondiam `/healthz` 200 no mesmo minuto (VPS de pé), então foi tropeço de rede runner↔VPS: **uma** re-execução, que passou. 🚧 **O secret `VPS_KNOWN_HOSTS` continua vazio** — enquanto estiver, todo deploy depende de um `ssh-keyscan` dar certo na hora, e este foi o primeiro a não dar.
+>
+> ✅ **CONFERIDO NO AR**: `/healthz` **200** nos dois; em `prod`, `Torneios/Details/26` e `Torneios/Jogos/26` (o ER, 64 duplas) respondem **200**. ⚠️ **E AQUI A CONFERÊNCIA POR CONTEÚDO NÃO SE APLICA**, ao contrário do `build-1243`: o que mudou é markup que só nasce pra ORGANIZADOR LOGADO (o campo escondido) e o redirect do servidor — nada disso é visível a `curl` anônimo, e o `/healthz` só devolve "ok", sem número de build. A prova aqui é o run com a tag explícita mais as telas respondendo.
+>
+> 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois ambientes**, que é mais forte que o healthcheck: o `/css/site.css` responde com `box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55) inset` na `.pdz-bolinha-apagada`, **zero** ocorrências de `--pdz-border` naquela regra e **zero** `opacity` nela; o `sw.js` em **`padelizou-static-v34`**; `/healthz` **200** nos dois.
+>
+> 🕳️ **E UM TOMBO DE DEPLOY QUE VALE A LINHA, porque quase derrubou trabalho de outra sessão.** Esta sessão publicou `build-1250-27ffbf8` em `prod` (run 294, 12h22) **43 segundos depois** de outra sessão ter publicado `build-1251-27042f9` no mesmo `prod` (run 293, 12h21) — e o 1250 é **anterior** ao 1251: o PR #254 saiu do ar sem ninguém pedir, **sem erro em lugar nenhum**. Corrigido em 2 minutos subindo o 1251 nos dois.
+>
+> 🔴 **O DEPLOY DO `dev` FALHOU NA PRIMEIRA TENTATIVA, E A CAUSA NÃO É DESTA MUDANÇA**: o secret **`VPS_KNOWN_HOSTS` não existe**, então o workflow cai no caminho de reserva (`ssh-keyscan` na hora, com `::warning::` no log) — e ali ele voltou **vazio**, derrubando o passo "Preparar o acesso ao VPS". O `Publicar` foi **pulado**, então o `dev` ficou intacto; a 2ª tentativa passou. ⚠️ **É uma bomba-relógio, não um azar**: enquanto o secret não existir, todo deploy depende de um `ssh-keyscan` responder na hora, e um dia ele não responde no meio de uma correção urgente. O passo a passo pra definir o secret está em `infra/vps/README.md`.
+>
+> ⚠️ **A REGRA QUE FALTAVA: conferir o `main` ANTES de escolher a tag não basta — o que vale é conferir os DEPLOYS.** A tag explícita no campo `build` existe pra garantir "o mesmo artefato nos dois ambientes", e é exatamente ela que congela uma foto do `main` que pode envelhecer entre o merge e o dispatch. Num dia de sessões paralelas, isso são minutos. **Antes de disparar: olhe o último run do `deploy.yml` daquele ambiente; se for mais NOVO que a sua tag, publique o build mais novo (ele já contém o seu), nunca o seu.** É o mesmo raciocínio do `CACHE_NAME` do service worker — duas pontas escrevendo ao mesmo tempo, e a colisão passa calada.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`.** **Sem migration.** 🎾 **O ALVO DE PASSAR O SAQUE ESTAVA NA TELA E NÃO DAVA PRA VER.** PR #253.
+>
+> 🗣️ Felipe, com um print do card AO VIVO em que ele é o organizador (tem −/+, Finalizar, lápis e desfazer): *"Permita aqui tambem mudar a bolinha de qual dupla esta sacando"*.
+>
+> 🕳️ **ELE JÁ PODIA — DESDE 11/09.** O `_BolinhaDoSaque` desenha um `<form>` de 40px do lado de CADA dupla, e o −/+ do print sai do **mesmo `ehOrganizador`** que liga o `podeTrocarSaque`: o alvo estava renderizado nas duas linhas do card dele. O que não existia era o **anel da bola apagada**. Ele saía de `var(--pdz-border)`, que **segue o tema da página** — e o `.pdz-live-header` é navy **fixo nos dois**. No tema claro esse token vale `rgba(28, 39, 66, .09)`: **navy a 9% em cima de navy**, ainda por baixo de um `opacity: .55`.
+>
+> 📐 **MEDIDO NO PRÓPRIO PRINT DO FELIPE, ANTES DE MEXER EM QUALQUER COISA**: os 41×41px onde a bola devia estar são uma cor **chapada**, `(36, 44, 67)` — mínimo igual ao máximo em 1.681 pixels. Não é "difícil de ver": é **1,01:1**.
+>
+> ⚠️ **É A TERCEIRA VEZ DO MESMO TOKEN**, sempre pelo mesmo raciocínio: `--pdz-border` parece "o cinza discreto do tema" e é o cinza de **uma linha de 1px**. Já apagou a bolinha do check-in (hoje de manhã) e a linha da chave (que virou o `--pdz-linha-chave`). Aqui ele nem devia ser token de tema: o cabeçalho do card é escuro nos dois, então o anel virou **branco fixo a 55%** — a mesma linguagem do `.pdz-live-versus` e do `.pdz-live-seguir`, que moram nele. E **o `opacity` saiu**: opacidade baixa apaga tanto quanto alpha baixo, e era ela que multiplicava o defeito.
+>
+> 👁️ **E DESTA VEZ FOI VISTO NUMA TELA.** Tem Chromium nesta sessão: o card foi remontado com o `site.css` de verdade, antes e depois, nos dois temas. O "antes" **reproduz o print do Felipe**, linha vazia inclusive. Medido no pixel do navegador: **1,04:1 → 5,36:1** no claro, **1,19:1 → 5,36:1** no escuro, e o mesmo `#9ba0aa` nos dois — que é a prova de que o anel parou de seguir o tema.
+>
+> 🧪 **6.781 testes, 0 falhas (3 novos, em `AlvoDeTrocarOSaqueEVisivelTests`)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**, com o número na mensagem (*"anel #27314b sobre a linha do card #27324b dá 1.01:1"*). O teste resolve os `var()`, compõe o alpha do anel **e o `opacity` da regra** contra o fundo real da linha do card (o pedaço mais claro do gradiente + o branco a 5% da faixa) e cobra 3:1, o mínimo da WCAG pra componente não-textual. **Mede o que o olho vê, não nome de token** — proibir `--pdz-border` numa linha travaria a solução de hoje em vez do defeito.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v34`** — o `site.css` está na lista do service worker, e sem virar o número quem usa o app instalado continuaria com o alvo apagado, **sem erro em lugar nenhum**. Conferido no `origin/main` antes de escolher o número (estava em v33).
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+>
+> 🗣️ Felipe, depois de ver a bolinha por dupla: *"Mas é tem um check para cada jogador da dupla?"* — e, com a resposta: *"Mude para um check por jogador, por que é assim que controla check in"*. Escolheu também o formato (**A**, check ao lado de cada nome), e mandou publicar ao terminar.
+>
+> 🕳️ **`Dupla.CheckInEm` RESPONDIA A PERGUNTA ERRADA.** Ela dizia "a dupla apareceu", que é o que o W.O. precisa e não é o que a mesa faz no sábado: quem chega é uma pessoa por vez, e o organizador precisa saber **qual dos dois** falta pra ligar pra pessoa certa em vez de pro parceiro que já está no clube.
+>
+> ⚠️ **A CHAVE NOVA É `(TorneioId, JogadorId)`, E ISSO É METADE DO DESENHO**: quem chegou ao clube chegou pro torneio INTEIRO. Quem joga 5ª Masculina e Mista faz **um** check, e ele vale nos jogos das duas — com a presença pendurada na dupla, a mesma pessoa seria marcada duas vezes e as telas discordariam sobre ela estar no clube. Linha existe = chegou; desfazer é apagar. **PK composta**, molde do `TorneioMarcador`: é o banco segurando o clique duplo, sem uma linha de C# (escada do CLAUDE.md, degrau 4).
+>
+> ⚠️ **"DUPLA PRESENTE" VIROU DERIVADO** — todos os jogadores dela marcados, **um só** na inscrição sem parceiro — e mora numa régua única (`Services/PresencaNoDia`). Manter a coluna antiga como cache seria a segunda verdade sobre a mesma pergunta. O contador da tela passou a contar **PESSOAS** ("1 de 4 jogadores presentes"), distinto por jogador; o selo do cartão virou **"os quatro chegaram"**.
+>
+> ✅ **A MIGRATION FOI RODADA CONTRA UM POSTGRES DE VERDADE, IDA E VOLTA** (Postgres 16 efêmero nesta sessão, com dado antigo semeado). O EF gerou o `DropColumn` **antes** do `CreateTable` — nessa ordem a coluna com quem já chegou morre antes de existir pra onde copiar; a ordem foi trocada à mão: **cria → copia → derruba**. E o `INSERT` leva `GROUP BY` + `MIN`: quem está marcado em DUAS categorias geraria chave duplicada e derrubaria a migration inteira (o caso estava no dado de teste). Conferido: 5 duplas viram 6 presenças, a pessoa das duas categorias vira **uma** linha com a chegada mais antiga, a inscrição sem parceiro vira uma linha só e o `Down` remonta a coluna.
+>
+> 📱 **O LAYOUT FOI MEDIDO, NÃO CHUTADO** (Chromium por CDP — o `--window-size` do headless mente abaixo de 500px). No computador o par cabe numa linha; **no celular cada jogador vira uma linha** (dois checks de 30px + dois rostos + dois nomes não cabem em 390px), com a % acompanhando o **par** — sem esse nível, as quatro linhas viram quatro entradas soltas e ninguém lê "dupla × dupla". Um jogo passa de 2 pra 4 linhas no celular: **~30% mais tela por jogo**.
+>
+> 🚧 **TIME FICA DE FORA** (cai no desenho antigo): ali a linha não tem nome de pessoa, tem nome de equipe. Chamada por jogador em torneio de times é outro pedido.
+>
+> 🧪 **6.771 testes, 0 falhas (16 novos, em `PresencaPorJogadorTests`)** + os 4 conferidores de JS verdes.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (mais forte que ler número de run — outras três sessões publicaram no mesmo intervalo): o `site.css` de **`padelizou.com.br`** e de **`dev`** traz `.pdz-jl-par` (5×), `.pdz-jl-jogador` (2×) e `.pdz-jl-checkin { color: var(--pdz-muted) }` — as classes que só existem depois desta mudança. `/healthz` **200** nos dois, e `Torneios/Details/26` (o ER, 64 duplas) responde **200**: a migration rodou na base de verdade, com torneio em andamento, sem derrubar a página.
+>
+> 👀 **E DESTA VEZ A TELA FOI VISTA, não só testada**: o app subiu nesta sessão contra um Postgres local, logado como organizador — aba Jogos no computador e no celular, tela de Check-in, e o POST de marcar/desfazer indo e voltando com a âncora certa. As fotos foram pro Felipe. **O que continua não visto é o tema ESCURO no aparelho dele** (o site reaplica o tema guardado, e o headless não tem esse estado): lá a garantia é o teste de contraste.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/share-button-photo-download-ee9mlj`, ainda não publicado.** **Sem migration.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1234-8521354`** (runs 288 e 289, 11h04 e 11h06 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #248. ✅ **SEM MIGRATION.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
+>
+> 🗣️ Felipe, com o print da tela "Tudo numa imagem só" no celular: *"O botao compartilhar nao esta funcionando. E o baixar foto fica travado numa pagina de pre visualizacao depois q envia a foto"*. **Eram DOIS defeitos independentes, e os dois falhavam CALADOS.**
+>
+> 🕳️ **1. O `return;` NO MEIO DA VIEW MATAVA A SEÇÃO DE SCRIPTS.** O `CompartilharJogos.cshtml` usava um `return;` no fim do ramo "tudo numa imagem só" pra evitar o `else` do ramo "uma por dia". Em Razor, `@section` **é uma chamada** — o `DefineSection(...)` é gerado na posição em que a seção aparece no arquivo — e o `@section Scripts` mora na ÚLTIMA linha. Um `return` antes dela simplesmente não a executa, e o `@await RenderSectionAsync("Scripts", required: false)` do `_Layout` responde com **silêncio**, não com erro. Resultado: naquela tela (e SÓ nela) o `compartilhar-card.js` **nunca carregava** — e o "Compartilhar" é um `<button>` sem `href`, com todo o comportamento no script. Junto morria o `compartilhar-texto.js`, que é quem faz o "Copiar o texto" da mesma página. **Conferido no C# gerado** (`-p:EmitCompilerGeneratedFiles=true`): `return;` na linha 590 do `ExecuteAsync`, `DefineSection("Scripts", …)` na 742.
+>
+> 🕳️ **2. O "BAIXAR" APONTAVA PRA URL DA PRÉVIA.** O endpoint da arte responde `Content-Disposition: inline` de propósito — é disso que vivem a meta `og:image` (a prévia do link no WhatsApp) e o `<img>` da própria tela. O botão apontava pra **essa mesma URL**, contando com o atributo `download` do `<a>` pra virar download. **Esse atributo é uma DICA**: WebView de app, navegador de dentro do Instagram/WhatsApp e PWA em modo `standalone` ignoram e NAVEGAM — e a "página de pré-visualização" do relato é literalmente o PNG cru aberto no lugar da tela, sem barra de endereço e sem botão de voltar.
+>
+> ✅ **AS CORREÇÕES**: o `return;` virou `else`, e o `@section` voltou a ser alcançável; e nasceu `EntregaDeCard.LinkParaBaixar`, que marca o pedido na própria URL (`?baixar=1`) pro `EntregaDeCard.Png` responder **`attachment`** — o único cabeçalho que nenhum navegador trata como sugestão. O `inline` continua sendo o padrão, porque a prévia do link depende dele: **quem escolhe é a URL, não uma troca seca**. Os **12 botões "Baixar"** das 11 telas de arte passaram pela régua, e o caminho de reserva do `compartilhar-card.js` também.
+>
+> 🚧 **O GATE QUE ACHOU MAIS DOIS**: `Nenhuma_view_define_secao_depois_de_um_return_de_razor` varre as views, recorta `<script>` e comentário Razor, e reprova seção declarada depois de um `return;` de Razor. Pegou o `Torneios/jogos.cshtml` e o `ClubeGestao/Ocupacao.cshtml` — nos dois o `return` é guarda de estado vazio (tela sem o que mostrar, script sem o que fazer), então **não havia sintoma**, mas o próximo script a entrar ali nasceria morto. A seção subiu pro topo nos dois, que é o ponto do arquivo que todo caminho executa. O `Aulas/Financeiro.cshtml` já tinha topado nisto em outra sessão e contornado com `<script>` inline — o comentário dele está lá, e é a prova de que a armadilha repete.
+>
+> 🧪 **6.764 testes, 0 falhas (7 novos)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: *"Expected start: attachment; / String: inline; filename=…"*, o gate nomeando `Torneios/CompartilharJogos.cshtml`, e os 11 arquivos com botão de baixar apontando pra URL crua. O gate foi **reconferido depois da correção**, com o `return;` recolocado na mão: volta a reprovar nomeando a mesma view.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br`, anônimo, `curl`), que é mais forte que o healthcheck. O cabeçalho da arte, na MESMA URL, com e sem o pedido:
+>
+> ```
+> SEM ?baixar   → content-disposition: inline;     filename="torneio-2-etapa-er-padel-tour-ept.png"
+> COM ?baixar=1 → content-disposition: attachment; filename="torneio-2-etapa-er-padel-tour-ept.png"
+> ```
+>
+> E a tela que estava quebrada (`/Torneios/CompartilharJogos?id=26&umaImagem=true`) agora traz **`compartilhar-card.js` e `compartilhar-texto.js`** — os dois que o `return;` engolia — e o botão "Baixar" sai com `…&tudo=True&baixar=1`. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **`dev` NÃO DÁ PRA CONFERIR POR `curl`**: tudo lá responde 302 pro `/AcessoAntecipado/Entrar`. Em `dev` a prova é a linha *"==> Feito. build-1234-8521354 no ar em dev"* do log + `/healthz` 200; a conferência por conteúdo é a de `prod`.
+>
+> 🕳️ **E O `head_sha` DO RUN 289 NÃO É O QUE FOI INSTALADO**: ele mostra o merge do PR #250, de outra sessão, que entrou no `main` entre o meu deploy de `dev` e o de `prod`. Quem diz o que está no ar é a linha *"==> Feito. build-N no ar em AMBIENTE"* — a mesma lição de 12/09 que mandou dois deploys pra vala, e o motivo de os dois runs terem saído com a tag explícita.
+>
+> ⚠️ **RESSALVA — NADA DISTO FOI VISTO NO APARELHO DO FELIPE.** Não há navegador nesta sessão. O defeito 1 está provado no código gerado (é mecânico, não é palpite). O defeito 2 é leitura do relato: o `attachment` é o cabeçalho certo pra um botão chamado "Baixar" independentemente de qual navegador ignorava o atributo `download`, mas **quem confirma que o travamento acabou é o celular dele**. É JS/Razor/cabeçalho HTTP, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
+>
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 👁️ **A BOLINHA DO CHECK-IN ESTAVA INVISÍVEL NO TEMA ESCURO — SÓ CSS.**
+>
+> 🗣️ Felipe, depois do `build-1231-12c7ad7` no ar (a bolinha subiu junto, no PR #242): *"Mas eu nao achei aonde q marca o checkin"*.
+>
+> 🕳️ **ELA ESTAVA LÁ, DESENHADA A 10% DE ALPHA.** A cor do círculo de "ainda não chegou" saía de `var(--pdz-border)`, que no tema escuro é `rgba(231, 236, 247, .10)` — alpha de BORDA, feito pra separar caixa de fundo numa linha de 1px. Virando ÍCONE em cima de card escuro, não existe pra quem olha. Passou por 6.643 testes verdes porque nenhum deles enxerga: a bolinha estava no HTML certo, na guarda certa, no lugar certo.
+>
+> ⚠️ **A ARMADILHA É O NOME DO TOKEN, e por isso virou teste**: `--pdz-border` parece "o cinza discreto do tema" e é o cinza de uma linha fina. Cor de coisa que precisa ser VISTA sai de `--pdz-muted` (#6a7891 claro / #9aa7c4 escuro). É o mesmo tombo que criou o `--pdz-linha-chave` — a borda de 9% sumia ao atravessar o quadro da chave.
+>
+> ⚠️ **A OUTRA METADE DO "NÃO ACHEI" PODE SER O INTERRUPTOR**, e essa não é defeito: sem `UsaCheckIn` ligado no torneio, a bolinha não nasce (de propósito). O sinal de um segundo: se o torneio não tem o botão **Check-in** nas ferramentas do organizador, a chave está desligada — liga em **Editar Dados do Torneio → "Usar check-in no dia do torneio?"**.
+>
+> 🧪 **6.759 testes, 0 falhas (2 novos, de contraste, escritos antes e vistos falhar)** + os 4 conferidores de JS verdes. **Continua sem browser nesta sessão.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1231-12c7ad7`** (runs 286 e 287, 04h43 e 04h45 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #247. ✅ **SEM MIGRATION.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**, que é mais forte que o healthcheck: em `padelizou.com.br/Torneios/Details/26` (anônimo, `curl`, 1,03 MB de HTML) são **79 nomes** com `verPalpitesDoPalpiteiro(`, **um** `modalPalpitesDoPalpiteiro` e **um** `js/palpites-do-palpiteiro.js`. O `/js/palpites-do-palpiteiro.js` responde **200** nos dois ambientes e o `/healthz` **200** nos dois.
+>
+> 🎯 **E A LISTA FOI LIDA NO AR, com dado de verdade**: `GET /Torneios/PalpitesDoPalpiteiro/26?jogadorId=61` devolve **Marcos Coelho — 20 pontos, 10 de 14 acertos, 3 cravadas, 27 esperando resultado**, os mesmos números da linha dele na tabela do print do Felipe. As 42 linhas fecham a conta sozinhas: 14 apuradas + 27 em aberto + **1 marcada "não conta"** — o Grupo A da 4ª Masculina, em que ele palpitou no PRÓPRIO jogo (*"Marcos / Marcio"*). É a régua de quem está em quadra funcionando em produção, e é o caso que mais rendeu teste. Um exemplo da faixa do meio no ar: palpitou **9 x 6**, deu **9 x 5** → **2 pontos**.
+>
+> ⚠️ **O PR FOI ABERTO E MESCLADO POR OUTRA SESSÃO** (a "varredura das sessões", #247, 04h30 UTC) enquanto esta ainda escrevia — quando fui abrir o meu, o GitHub respondeu *"No commits between main and claude/view-results-layout-fix-dbahs6"*. O `main` andou **30 commits** durante o trabalho (#241 a #247), e o `build-1231` leva todos eles juntos, não só este.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/final-separation-1084lc`, ainda não publicado.** ⚠️ **COM MIGRATION** (`FinalComRegraPropria`). 🏆 **A FINAL PODE TER REGRA PRÓPRIA, SEPARADA DAS SEMIS.**
+>
+> 🗣️ Felipe, com o print da tela de formato no celular: *"aqui a final tem q ser separada da semi ou tem algum modo que a final é separada?"*. **Não tinha** — `SetsFaseFinal`/`GamesFaseFinal`/`PontosTieBreakFinal` regem semifinal E final juntas desde que o formato por fase existe, e o `FormatoDaPartida` diz isso em comentário ("ninguém configura uma semifinal com regra de oitavas"). O que faltava era a exceção: decisão em 3 sets, ou com super tie-break de 10, com as semis seguindo curtas.
+>
+> ✅ **TRÊS COLUNAS NOVAS** — `SetsSoDaFinal`, `GamesSoDaFinal`, `PontosTieBreakSoDaFinal` — e **um `if` no `FormatoDaPartida.De`**, que é o único tradutor fase → formato do projeto. Por isso Mesa de Controle, placar ao vivo, tela cheia, palpite/Palpitômetro, WO, tie-break e salvar-em-lote pegaram a regra nova sem UMA linha de mudança: as 14 chamadas já passavam por lá.
+>
+> 🔑 **O INTERRUPTOR É O `GamesSoDaFinal`, e não um `bool`**: zero = "não configurado", que é a mesma leitura que o `Valido` já fazia das colunas antigas — e é o que a migration grava em toda linha existente, **sem backfill nenhum**. Um `bool FinalSeparada` poderia discordar do número gravado (ligado com zero games) e criar duas verdades sobre o mesmo jogo. A caixa da tela é **derivada** daqui, não persistida. Sets e tie-break da final só são lidos com o games positivo, senão uma linha meio configurada de uma edição anterior reviveria um desvio desligado.
+>
+> ❌ **A ALTERNATIVA RECUSADA** foi renomear `FaseFinal` → só semifinal e **copiar os valores** pras colunas novas: fica simétrico com as outras fases, mas põe um `UPDATE` em dado de produção cujo modo de falha é silencioso — backfill que não roda joga toda final configurada pro padrão de 9 games, sem avisar ninguém. Herança por zero não tem esse estado.
+>
+> 🕳️ **DOIS DEFEITOS ACHADOS NO CAMINHO, os dois na tela.** (1) O card da criação se chamava **"A Grande Final"** e MENTIA: os campos dele alongavam as duas semis junto, e nada na tela dizia isso — virou "Semifinais e Final". (2) O aviso de paridade do tie-break das semis perguntava por `De(Model, "Final")`, que **passou a devolver a decisão** quando o desvio está ligado; agora pergunta por `"Semifinal"`, que é o campo logo acima dele.
+>
+> 🐛 **E UM DEFEITO MEU, COMETIDO E CORRIGIDO NA MESMA SESSÃO**: escrevi o `<input type="hidden" value="false">` **antes** da caixa. Desmarcar funcionava, marcar não — chegam os dois valores e o binder fica com o **primeiro**, então ligar a regra da final gravava `false`, calado. Virou teste (`Na_gestao_o_hidden_da_caixa_vem_DEPOIS_dela`), **visto vermelho com a ordem invertida de propósito** antes de restaurar. A ordem certa é a do `avisarJogadores` e do `permiteMultiplasCategorias`.
+>
+> 🧪 **6.776 testes, 0 falhas (21 novos em `FinalComRegraPropriaTests`)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: "Expected 9, Actual 6" na régua da final, "Expected 0, Actual 3" no desmarcar, o gate da duplicação nomeando as três propriedades sem lado, e a recusa de games zerado que só apareceu depois que a gravação entrou.
+>
+> ⚠️ **RESSALVA**: **nada disto foi visto em navegador** — não há Chromium nesta sessão. A ordem do par caixa+hidden está travada por teste que lê o `.cshtml`, mas o **model binder em si não é exercitado** pelos testes (eles chamam a action direto); o que garante essa parte é o padrão já usado em dois lugares do repo. **Tem migration**, então o deploy em `dev` precisa rodar antes do `prod`.
+>
+> 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
+>
+> 🕳️ **A TABELA MOSTRAVA O RESULTADO DA CONTA E NADA DE ONDE ELE VEM** — "20 pontos, 41 em aberto", e o nome levava direto pro perfil. O caminho CONTRÁRIO já existia desde 10/09 (o modal "quem palpitou o quê" abre a partir de UM JOGO e lista todo mundo); faltava o que parte da PESSOA.
+>
+> ✅ **O QUE FOI FEITO**: `RankingDePalpiteiros.DoPalpiteiroNoTorneioAsync` devolve um jogo por linha — em quem a pessoa apostou, com que placar, o que deu e quanto valeu; `GET /Torneios/PalpitesDoPalpiteiro/{id}?jogadorId=` serve isso em JSON, atrás da **mesma porta de visibilidade** do `Details` (torneio oculto responde 404); e o nome virou `<button>` que abre um modal — só na tabela do TORNEIO. **No hub do Ranking o nome continua indo pro perfil**, porque lá a tabela soma vários torneios e não existe "os palpites dela neste torneio" pra mostrar.
+>
+> 📐 **"SEM QUEBRAR A TELA" VIROU REGRA MECÂNICA, não intenção**: modal com `modal-dialog-scrollable` (a lista rola por dentro, o X fica sempre visível) em vez de linha que cresce dentro da tabela — com 41 palpites, a linha expandida empurra a tabela inteira pra fora do celular. Dentro de cada caixa, os três textos longos (categoria, dupla escolhida, adversária) truncam com `min-width: 0` e as fichas levam `flex-shrink-0`; o conferidor de JS **conta os três** e reprova se um sumir. É a mesma receita do modal de quem votou, onde o nome comprido empurrava a ficha "9 x 0" pra fora da linha.
+>
+> 🔗 **A CONTA É A MESMA DO RANKING, e agora por construção**: a conferência de um palpite saiu de dentro do `Apurar` pra um `Conferir` que os dois chamam, e a exclusão de quem estava em quadra passa pela mesma `EmQuadraAsync`. Tem teste dedicado (`Os_totais_da_lista_sao_EXATAMENTE_os_da_linha_da_tabela`): se o modal e a tabela discordarem, a tela que explica a conta é a que desmente a conta. O jogo de quem **estava em quadra aparece marcado "não conta"** em vez de sumir — sumir faria a pessoa procurar um palpite que ela lembra de ter dado.
+>
+> 🧪 **6.662 testes, 0 falhas (18 novos)** + os **quatro** `conferir-*.js` verdes, incluindo o novo `conferir-palpites-do-palpiteiro.js` (DOM falso, sem dependência). Vermelhos vistos antes: o placar saindo invertido pra quem apostou na Dupla 2 (*"Expected: 6 / Actual: 4"*), a cravada do próprio jogador contando ponto (*"Expected: 0 / Actual: 3"*), o `NotFoundResult` que não veio com o torneio oculto, e o nome com `<` entrando cru no `innerHTML`.
+>
+> ⚠️ **RESSALVA**: **nada disto foi visto em navegador** — não há Chromium nesta sessão. As travas de layout são as do conferidor (classes e `min-width`), não medida de pixel como no card ao vivo. É CSS/JS/consulta de tela, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
+>
+> 🔓 **E É PÚBLICO, de propósito**: a lista não expõe nada que já não estivesse na tela — o modal de 10/09 mostra nome e placar de todo mundo, jogo a jogo. Isto é a mesma informação virada do outro lado.
+>
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
+>
+> 🗣️ Felipe, com o print da prévia no celular: *"Esse botao de oitavas quartas semi e final, as vezes n funciona"*. **Eram DOIS defeitos somados, e é daí que vinha o "às vezes"** — os dois medidos no Chromium a 412px com o `site.css` de verdade, antes de qualquer correção.
+>
+> 🕳️ **1. ID REPETIDO.** O `_ChaveProjetadaArvore` é desenhado **uma vez por categoria** (dentro do laço dos `.tab-pane` do `Details.cshtml`), e todas escreviam `id="pdz-chd-rodada-0..N"`. `href="#pdz-chd-rodada-1"` acha o **primeiro do documento** — que mora no painel de OUTRA categoria, escondido por `display: none`, e rolar pra invisível não faz nada. Num torneio de duas ou mais categorias com prévia (**o ER tem sete**) NENHUMA ficha funcionava, fora as da primeira do DOM: `scrollLeft` ficou em **0 nos quatro cliques**.
+>
+> 🕳️ **2. O ENCAIXE DESFAZIA O PULO.** O trilho é `scroll-snap-type: x mandatory` e a navegação por âncora alinha com `inline: nearest` — o mínimo pra caber. A rodada ocupa 66% da tela, então esse mínimo para ENTRE dois pontos de encaixe e o snap puxa de volta pro anterior. Com uma categoria só (ids já únicos, portanto): **QUARTAS não saía do lugar, SEMIFINAL parava nas QUARTAS, FINAL parava na SEMIFINAL** — sempre uma rodada atrás. De quebra, a âncora rolava a PÁGINA (scrollY **0 → 639**) e levava a própria barra de fichas pra fora da tela.
+>
+> ✅ **A CORREÇÃO**: o `id` da rodada passou a carregar a **categoria** (o partial recebe `categoria.Id` no modelo) e nasceu `wwwroot/js/chave-fichas.js`, que rola o **trilho da própria categoria** no lugar da âncora. O `preventDefault()` é o conserto do 2: rolando na mão, a parada é **exatamente** o ponto de encaixe e o snap não tem o que desfazer — e o pulo vertical some junto. O `href` fica como caminho de teclado e como o que sobra sem JS.
+>
+> ✅ **CONFERIDO NO CHROMIUM DEPOIS**, na mesma página de duas categorias: os quatro botões param em **0 · 272 · 544 · 816** (o começo de cada rodada), `scrollY` fica em **0** e a URL não ganha `#`.
+>
+> 🧪 **6.633 testes, 0 falhas** (3 novos em `FichasDaChaveLevamARodadaCertaTests`) + os **três** `conferir-*.js` verdes, incluindo o novo `conferir-fichas-da-chave.js` — DOM falso, sem dependência, no molde do `conferir-abas-recolhidas.js`.
+>
+> ⚠️ **RESSALVA**: nada disto foi visto no aparelho do Felipe, só no Chromium a 412px. É CSS/JS de tela, sem migration e sem tocar em régua de autorização nem em dinheiro.
+>
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
+>
+> ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br/Torneios/Details/26`, anônimo, `curl`), que é mais forte que o healthcheck: a página traz **`Eder Marcos`** e **`Marcelo Prestes`** (6 ocorrências cada) e **ZERO** de *"Eder Cristiano"*, *"Marcelo Carvalho"* ou *"Enio Gilberto"*. `/healthz` **200** nos dois ambientes.
+>
+> 🕳️ **UMA LINHA, PORQUE O ENCURTADOR JÁ EXISTIA:** `NomeBonito.Curto` (primeiro + último, com partícula e sufixo de geração viajando colados no sobrenome) é de 06/08 e já era usado por `Jogador.ComoChamar` e `NomeDaDupla.De`. **`Dupla.NomeDeExibicao` era a única régua de nome de dupla que ainda escrevia o nome inteiro** (`NomeNaTela`) — e é ela que escreve a vaga do quadro projetado (`ClassificadosJaConhecidos`), o bye da chave (`QuadroDoMataMata`), o push de "seu próximo jogo", o check-in e as caixas de seleção da Mesa de Controle. Todos encurtaram juntos, que é o ponto de ter uma régua só.
+>
+> ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES. Ele CONVIVE com o `Dupla.NomeCurto` que outra sessão criou no mesmo dia (só o primeiro nome, *"Marcelo / Enio"*, pras listas densas): são dois níveis de aperto, não duas respostas pra mesma pergunta.
+>
+> 🧪 **6.637 testes, 0 falhas (3 novos)** + `conferir-palpitometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"*, na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+>
+> 🕳️ **DOIS DEPLOYS DESTA SESSÃO FORAM PRA VALA, e a lição é de RELÓGIO:** os runs 280 e 281 saíram com `head_sha` do meu merge e mesmo assim instalaram **`build-1197-c4856a9`** — o release `build-1199` só foi publicado às 03h24m59, DEPOIS do deploy de `dev` (03h22) e DURANTE o de `prod` (03h24m49). **`head_sha` do run não é o que está no ar**; quem diz é a linha *"==> Feito. build-N no ar em AMBIENTE"* do log. Foi por ler o log que os runs 282/283 saíram com a tag explícita.
+>
+> ⚠️ **E O `main` ANDOU 27 COMMITS DURANTE ESTE TRABALHO** (PRs #234, #235 e #236, de sessões paralelas), com **duas** rodadas de conflito no `STATUS.md` e uma terceira no próprio branch — outra sessão empurrou um merge do `main` dentro dele enquanto eu resolvia o meu. Reconciliado com merge, nunca com `--force`.
+
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1197-c4856a9`** (runs 280 e 281, 00h22 e 00h25 de Brasília), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #234, o **"palpitômetro sem o erre"**. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO, no `prod`, anônimo, no torneio do Er** (`/Torneios/Details/26`, 996 KB de HTML): **56 rótulos `PALPITÔMETRO`**, **56 `pdz-palpitometro`** e **ZERO ocorrência de "palpitr"** na página inteira. O `/js/palpitometro.js` responde **200** e traz o `atualizarPalpitometro`; o `/js/palpitrometro.js` antigo responde **404**. `/healthz` **200** nos dois ambientes.
+>
+> 🔒 **No `dev` a conferência é mais fraca, e por um motivo conhecido**: o gate de Acesso Antecipado redireciona o site inteiro, então o arquivo antigo dá **302** em vez de 404. O que vale ali é o `/js/palpitometro.js` **200**, o job `deploy → dev` verde (e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho) e o `/healthz` 200.
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES DEPOIS DESTE BUILD e o que subiu NÃO leva os dois**: os PRs **#235** (nome da dupla: primeiro e último) e **#236** (bolinha do placar), de sessões paralelas, entraram no `main` mas **não estão no `build-1197`** — quem publicar em seguida leva os três juntos. O deploy foi conferido como **estritamente pra frente** antes de sair (o `698e54c` que estava no `prod` é ancestral do `c4856a9`), justamente pra não derrubar trabalho de ninguém.
+>
+> 🕳️ **O CI DISPAROU SOZINHO nas duas pontas desta vez** (PR e `main`) — depois de cinco falhas registradas neste arquivo (26/08, 10/09 e três em 11/09). Nada mudou no `ci.yml`; fica o registro pra próxima vez que doer.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1201-44a1ff6`** (runs 284 e 285, 00h34 e 00h36 de Brasília), **o mesmo artefato nos dois**, com a tag explícita no formulário do Deploy — e não o "mais recente", justamente porque outra sessão publicou no `prod` sete minutos antes. PR #236. ✅ **SEM MIGRATION** (só CSS e uma classe de grid).
+> 
+> ✅ **CONFERIDO NO AR, nos dois ambientes, buscando o CSS servido** (`/css/site.css`, anônimo, `curl`): `.pdz-live-placar` com `flex-shrink: 0`, `.pdz-live-input` com `width: 1.7em`, `.pdz-live-jogadores .pdz-chip-texto` com `min-width: 0` e o `overflow-wrap: break-word` do nome. `/healthz` **200** nos dois.
+> 
+> ⚠️ **O `col-lg-6` NÃO FOI VISTO NO AR, por falta de caso**: na hora da conferência não havia NENHUM jogo ao vivo (`pdz-live-card` aparece 0 vez no `/Torneios/Details/26`), e é só dentro desse bloco que a classe é escrita. Os 24 `col-md-6` que a página ainda mostra são de outras partes do `Details.cshtml`, que ninguém pediu pra mexer. O primeiro jogo em quadra é o teste de verdade.
+>
+> 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
+>
+> 🕳️ **A CAUSA NÃO ERA A BOLINHA, ERA UM `min-width` ESCRITO À MÃO.** O bloco do placar (`.pdz-live-placar`) alinha à direita e encolhia como todo item de flex; o piso que o navegador dá de graça pra ele não encolher abaixo do próprio conteúdo (`min-width: auto`) estava DESLIGADO por um `min-width: 2.4rem` na regra. Com o `−  [4]  +` do organizador dentro, o bloco recebia menos do que precisava — e, alinhado à direita, **o que não coube vazou pela ESQUERDA**, bem em cima da bola.
+>
+> 📏 **MEDIDO NO CHROMIUM DESTA SESSÃO** (harness com o `site.css` de verdade, a 393px = o iPhone do print): 133,2px de conteúdo num bloco de 97,2px, e o `−` começando **14,6px antes de a bola terminar**. Na faixa do `col-md-6` (768–991px, card de 336px) a invasão era de **37,1px — a bola inteira debaixo do botão**. Depois da correção: **folga de 21,4px em todas as larguras de 320 a 1440px**, e nenhum transbordo pra direita (o nome também não encosta na bola).
+>
+> 🔧 **SÃO QUATRO MEXIDAS, E AS QUATRO SÃO A MESMA CONTA DE LARGURA**: (1) `.pdz-live-placar` ganhou `flex-shrink: 0`; (2) o nome passou a poder ceder (`min-width: 0` + `overflow-wrap: break-word` no chip DENTRO do card ao vivo) — senão o conserto só trocava o dono do transbordo, com o nome vazando pra direita em cima da mesma bola; (3) o campo do placar foi de `2.2em` pra `1.7em` (63px → 48px), que é o que devolve ao nome o pixel de que ele precisa pra não partir no meio da palavra ("Bittencour / t", visto no navegador) — dois dígitos continuam cabendo; (4) o card virou `col-lg-6`: entre 768 e 991px duas colunas deixavam cada card com 336px, 60px MENOS que o celular.
+>
+> 🧪 **6.638 testes, 0 falhas (4 novos, em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`)** — já com o `main` de hoje dentro, que trouxe o palpitômetro sem o erre (PR #234) — + `conferir-palpitometro.js` e `conferir-abas-recolhidas.js` verdes. O teste que importa é o do ORÇAMENTO: ele soma, lendo o próprio `site.css`, quanto a bolinha e o contador comem de um card de 393px e reprova se sobrar menos que o nome — é a régua que impede o card de voltar a se resolver empilhando uma coisa em cima da outra.
+>
+> ⚠️ **O TETO, ESCRITO NO CSS**: num celular de **320px** o nome de quem MARCA placar fica com ~70px e empilha feio (card de ~767px de altura). Pro torcedor não muda nada — lá o bloco continua sendo um número de 2.4rem, com 153px de nome no mesmo 320px. A saída, se doer: descer o placar pra linha de baixo num `@media (max-width: 359.98px)`.
+>
+> ⚠️ **NÃO RODEI A PÁGINA DE VERDADE** (sem banco nesta sessão): a conferência foi num harness com o HTML do card copiado do Razor e o `site.css` do repositório, no Chromium do container.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/practical-pasteur-p4zmnd`, ainda não publicado.** **Sem migration.**
+>
+> ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
+>
+> 🕳️ **UMA LINHA, PORQUE O ENCURTADOR JÁ EXISTIA:** `NomeBonito.Curto` (primeiro + último, com partícula e sufixo de geração viajando colados no sobrenome) é de 06/08 e já era usado por `Jogador.ComoChamar` e `NomeDaDupla.De`. **`Dupla.NomeDeExibicao` era a única régua de nome de dupla que ainda escrevia o nome inteiro** (`NomeNaTela`) — e é justamente ela que escreve a vaga do quadro projetado (`ClassificadosJaConhecidos`), o bye da chave (`QuadroDoMataMata`), o push de "seu próximo jogo", o check-in e as caixas de seleção da Mesa de Controle. Todos encurtaram juntos, que é o ponto de ter uma régua só.
+>
+> ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES.
+>
+> 🧪 **6.633 testes, 0 falhas (3 novos)** — com o `main` de hoje dentro (o desempate novo e o `Dupla.NomeCurto` de outra sessão, que é primeiro nome de cada um pras listas densas e continua valendo: o que encurtou aqui é o `NomeDeExibicao`) — + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"* na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
+>
+> 🔤 **O NOME PERDEU O ERRE: PALPITRÔMETRO → PALPITÔMETRO.** 🗣️ Felipe, com um print da lista de jogos e o rótulo circulado: *"ta escrito 'palpitrometro' aqui"*. Perguntado se era só o texto da tela ou o código inteiro: **o código inteiro**.
+>
+> 🕳️ **A palavra é `palpite` + `-ômetro`** — bafômetro, velocímetro, palpitômetro. O erre nunca teve de onde sair: entrou no primeiro arquivo (19/08/2026) e foi copiado por **41 arquivos, 148 ocorrências**. O próprio Felipe sempre escreveu *"palpitometro"* nos pedidos dele (as citações de 10/09 estão aqui neste arquivo); a tela é que respondia com erre.
+>
+> 📦 **Quatro arquivos renomeados com `git mv`** (histórico preservado): `wwwroot/js/palpitrometro.js` → `palpitometro.js`, `Views/Torneios/_Palpitrometro.cshtml` → `_Palpitometro.cshtml`, `PalpitrometroColadoNaBordaTests.cs` → `PalpitometroColadoNaBordaTests.cs` e `Padelizou.Tests/js/conferir-palpitrometro.js` → `conferir-palpitometro.js`. Junto vieram a classe `.pdz-palpitrometro` → `.pdz-palpitometro` (CSS, views e os `closest()` do JS), as funções `atualizarPalpitrometro`/`mostraPalpitrometro`, e as **três páginas de marketing da raiz** (`APRESENTACAO.html`, `JOGADORES.html`, `ORGANIZADOR-TORNEIO.html`), que também diziam o nome pro público.
+>
+> ✅ **O CI não precisou de uma linha**, e é mérito de uma decisão de 10/09: o passo "Conferir as travas de JS" **varre `Padelizou.Tests/js/conferir-*.js`** em vez de citar arquivo pelo nome. Renomear o conferidor mexeu só no comentário dele.
+>
+> ⚠️ **O `STATUS.md` NÃO foi reescrito, de propósito:** é diário datado, e entrada de agosto que cita `conferir-palpitrometro.js` é registro do que aconteceu — reescrever o passado tiraria o único jeito de achar aquele trabalho depois. Por isso o gate ignora `.md`.
+>
+> 🔒 **GATE NOVO (`OPalpitometroPerdeuOErreTests`, 4 testes), porque o caminho de volta é o copiar-colar:** um arquivo que nasça de um antigo traz o nome errado junto. Ele varre **conteúdo E nome de arquivo** de todo `.cs/.cshtml/.js/.css/.html/.yml` fora de `bin`/`obj`/`lib`, e ainda exige que o rótulo **continue existindo** nas duas telas (senão apagar o palpitômetro passaria no gate). Ele **se exclui da varredura** — é o único arquivo que cita o defeito, na frase do Felipe e no nome antigo do conferidor.
+>
+> 🧪 **6.607 testes, 0 falhas (4 novos)** + `conferir-palpitometro.js` (16 conferências) e `conferir-abas-recolhidas.js` (11) verdes. Os 4 vistos vermelhos antes, cada um pelo motivo dele: a lista das **148 ocorrências**, os **4 nomes de arquivo** com erre, *"Not found: PALPITÔMETRO"* na lista de jogos e o `_Palpitometro.cshtml` que ainda não existia.
+
+> **11/09/2026** — 🚀 **O BOTÃO QUE CALA OS AVISOS ESTÁ EM `dev` E `prod`.** PR #229, mesclado em `43b814c`, release **`build-1186-43b814c`**. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA na `ConfiguracaoDoSistema`, que já existia).
+>
+> 📦 **PUBLIQUEI O `build-1186` nos dois** — `dev` no run **272** (20h49 UTC) e `prod` no run **274** (20h53 UTC), o mesmo artefato, com a tag explícita, Regra 3 respeitada (dev primeiro).
+>
+> ⚠️ **MAS O QUE ESTÁ NO AR AGORA É O `build-1192-9fd88f2`** (runs **278** e **279**, 21h06 UTC, nos dois ambientes) — **quatro sessões paralelas publicaram builds mais novos por cima**, na ordem `1186` → `1188` → `1190` → `1192`. Conferido que `9fd88f2` **descende de `43b814c`** e que as **cinco peças estão na árvore publicada**: `SilencioDeAvisos.cs`, o `_silencio.Ligado` na entrega, a ação `AlternarSilencioDeAvisos`, o botão no `/Admin` e a faixa no Teste de aviso. `/healthz` **200** nos dois.
+>
+> 🔑 **A LIÇÃO DO DIA, e ela é sobre PROVA, não sobre deploy:** com N sessões publicando, *"publiquei o build X"* envelhece em dois minutos — a única afirmação que continua verdadeira é **"o que está no ar contém o meu trabalho"**, e ela se prova por **conteúdo** (`git merge-base --is-ancestor` mais um `grep` nas peças, no commit do build servido), nunca pelo run verde. Run verde prova que o deploy *dele* funcionou, não que o seu código está lá.
+>
+> 🚨 **E O QUASE-ACIDENTE QUE ISSO ESCONDE: DUAS PUBLICAÇÕES EM `prod` A DOIS MINUTOS DE DISTÂNCIA, de sessões diferentes** (runs 274 e 275). Deu certo por **sorte de ordem** — a de trás era mais NOVA. Se tivesse sido mais velha, o `prod` voltaria pra antes do #229 **com todos os runs verdes**, e o sintoma seria "o botão sumiu do painel" sem uma linha vermelha em lugar nenhum. O `concurrency` do `deploy.yml` serializa por ambiente, e **serializar não é ordenar por versão**: ele impede dois deploys ao mesmo tempo, não um deploy velho depois de um novo.
+>
+> 🕳️ **O `STATUS.md` DO `main` ESTAVA QUEBRADO, e não era meu**: dois blocos do diário moravam **acima** do título `# Padelizou — Status e Roadmap`, de uma sessão paralela. Consertado na resolução do conflito (título, "Documento vivo", "Última atualização", entradas em ordem reversa). ⚠️ Um `git merge` **não protege a estrutura de um arquivo** — ele casa linha com linha, e num diário onde todo mundo escreve no topo o resultado natural do 3-way merge é blocos fora do lugar. Vale conferir o topo do arquivo, e não só a ausência de `<<<<<<<`, depois de cada mescla. (Outra sessão também deixou marcador de conflito solto, corrigido no `125b7df`.)
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO no primeiro push deste branch** (zero checks criados; disparado na mão, run 1172). ⚠️ **Sexta ocorrência registrada** — deixou de ser acaso e virou característica do repositório. Depois do segundo push ele passou a disparar normalmente.
+>
+> ⚠️ **O `main` ANDOU QUATRO VEZES durante o ciclo** (PRs #224, #228, #230, #231, #232). Duas mesclas na mão, e a suíte inteira rodada depois de cada uma: **6.614 testes, 0 falhas** na árvore final. Uma automação também atualizou o branch sozinha — conferi que a árvore dela era **byte a byte** igual à minha (`git diff` vazio) antes de alinhar, sem force-push.
+>
+> 🖥️ ⚠️ **CONTINUA NÃO VISTO NUMA TELA, e desta vez nem em produção dá pra conferir por fora**: o diff inteiro deste trabalho está **atrás de login** (`/Admin`), então **não existe sonda anônima** que prove o botão renderizando — ao contrário dos cards de torneio de ontem, que o `curl` pegava. A prova que há é código, 6.614 testes e `/healthz` 200. **Quem abrir o painel, confira o card "Avisos do sistema"** e a faixa vermelha quando ele estiver mudo.
+
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
+>
+> ⭕ **O CHECK-IN CABE NA ABA JOGOS AGORA — UMA BOLINHA DO LADO DE CADA DUPLA.** 🗣️ Felipe, num print da aba Jogos no celular: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"*. Perguntado sobre o formato, escolheu *"uma bolinha do lado de cada nome, apenas o organizador ve"*, e **só nos jogos que ainda não começaram**.
+>
+> 🕳️ **O BURACO ERA DE CAMINHO, NÃO DE DADO.** A presença já existia e já era por jogo (a tela de Check-in virou fila de jogos em 10/09). O que faltava: quem está na aba Jogos chamando quadra, dando a largada e marcando placar tinha que **sair da lista, marcar na outra tela e voltar** — e no sábado de manhã "quem joga agora?" e "essa dupla chegou?" são a mesma linha, no mesmo minuto.
+>
+> ✅ **AS TRÊS CONDIÇÕES DA BOLINHA**, cada uma por um motivo: `PodeOperarODiaDeJogoAsync` (a MESMA régua que já liga o ▶, o ✏️ e o 📍 da linha, e a mesma da tela de Check-in — inventar uma segunda aqui seria o marcador ganhar o play e perder a chamada) · `UsaCheckIn` (torneio que desligou a chamada não ganha bolinha; oferecer e recusar depois é ensinar a regra pelo erro) · `Agendada` (o que está em quadra ou acabou já respondeu por outra via, e o bloco do fim da tela de Check-in continua lá pra corrigir).
+>
+> ⚠️ **O FORMULÁRIO QUE GRAVA PRESENÇA DESCEU UM DEGRAU, pra `_BotaoDoCheckIn`** — e é dele que saem as DUAS roupas: a pílula "Chegou"/"Desfazer" da tela de Check-in e a bolinha da lista de jogos. O que muda entre elas é a aparência; o POST é o mesmo. Duas cópias de um formulário que escreve no banco divergiriam na primeira mudança, e o `CheckInPorJogoTests` que guardava esse "num lugar só" foi atualizado pro endereço novo, com o motivo escrito.
+>
+> ⚠️ **`MarcarCheckIn` GANHOU `voltarPara`, EM LISTA FECHADA** (`Details` → `#jogosDoTorneio`, `Jogos`, e qualquer outra coisa cai no Check-in de sempre) — o mesmo molde do `PartidasController.VoltarDaLargada`: campo de formulário nunca vira redirecionamento pra onde o cliente pedir. Sem o parâmetro, nada muda: o botão da tela de Check-in continua caindo nela.
+>
+> ⚠️ **TETO ANOTADO NO CÓDIGO**: o filtro da tela (categoria, time, quadra, "só meus jogos") **não volta junto** — o mesmo teto do `VoltarDaLargada`, que é o vizinho de botão deste. A rolagem, essa, fica onde estava (`data-manter-posicao`).
+>
+> 🧪 **6.654 testes, 0 falhas (13 novos, em `CheckInNaListaDeJogosTests`), com o `main` de agora dentro** + `conferir-palpitrometro.js` verde. ⚠️ **SEM BROWSER NESTA SESSÃO** — a bolinha (30px de alvo, ícone de 18px, verde cheia = chegou / cinza vazada = não) está provada por teste de fonte e pela suíte, **não vista na tela**.
+
+> ⚠️ **DOIS COMENTÁRIOS PRECISARAM DE AJUSTE PRA CONVIVER COM O #234**, que entrou depois desta branch nascer: o gate `OPalpitometroPerdeuOErreTests` reprova arquivo de código que escreva o nome com erre, e `CheckInNaListaDeJogosTests.cs:203`, `_JogoEmLinha.cshtml:498` e o comentário do bloco novo no `site.css` citavam *palpitrômetro*. Trocado pela grafia atual. Sem isso, a mescla levava o `main` a vermelho — cada lado passava sozinho, só a soma falhava.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/google-football-scoreboard-e467gq`, ainda não publicado.** **Sem migration** (nada em `Models/`).
+>
+> 📲 **A NOTIFICAÇÃO DO PLACAR AO VIVO GANHOU O PLACAR NO TÍTULO E UM CARD DESENHADO.** 🗣️ Felipe, primeiro: *"Eu botei seguindo e na aparece o placar igual do futebol do google"*; depois, com dois prints — a bolha de placar do app do Google na tela inicial do Android e o placar da Copa na Dynamic Island do iPhone: *"as notificações estao acontecendo, mas eu queria algo tipo esses prints, tem como ?"*.
+>
+> ❌ **A RESPOSTA PROS DOIS PRINTS É NÃO, e o motivo é de plataforma, não de esforço**: a bolha é desenhada pelo **app do Google**, com dado do Google — nem app nativo de terceiro cria aquilo; e a Dynamic Island é **Live Activity (ActivityKit)**, que exige **app nativo iOS**. É a mesma resposta de 16/08, agora com o print na mesa. O caminho que chegaria lá é um app Android **nativo** (não a casca TWA) com FCM e *Live Update* — **um segundo código pra manter**, exatamente o que o `ANDROID.md` decidiu não ter.
+>
+> ✅ **O QUE DEU PRA FAZER, e é o que a notificação da WEB tem**: (1) o **placar foi pro TÍTULO** — a linha que o Android mostra com a notificação recolhida. Até aqui o título era *"Placar ao vivo"*, três palavras que não dizem nada de relance, e o placar ficava no corpo: quem olhava o celular de longe lia o rótulo e precisava abrir pra saber o jogo. Agora sai *"Juliano/Gabriel 4 × 2 Paulo/Vitor"*, com o estado (**Ao vivo** / **Jogo encerrado** · categoria · fase) descendo pro corpo. (2) A `image` do `showNotification` passou a levar um **PNG 1080×540** (`Services/CartaoDoPlacarAoVivo`): puxando a notificação pra baixo, aparece o card com os dois nomes, os games em corpo 96 e a pílula **AO VIVO**/**ENCERRADO** — quem está na frente em lime e no peso forte.
+>
+> 🪜 **O card é degrau 2 da escada, não código novo**: reusa `CartaoCompartilhavel` (fundo da marca, faixa do topo, pílula, texto que encolhe até caber) e o `EntregaDeCard` do cache. O que nasceu foi o layout — e ele é **DEITADO de propósito**: o Android recorta a `image` em ~2:1, e o 1080×1350 dos cards de story chegaria cortado pelo meio, sumindo justamente com a linha de baixo, que é o placar da segunda dupla.
+>
+> 🔁 **O ENDEREÇO DO CARD MUDA A CADA GAME** (`?p=4-2`, com `-f` quando finalizada) **e isso não é enfeite**: a resposta é `Cache-Control: public, max-age=3600` (é ela que faz UM desenho servir os N seguidores), e sem trocar de endereço o celular mostraria o card do placar anterior embaixo de um título já atualizado. O trecho depois do `?` **não é entrada de nada** — o desenho sai do banco.
+>
+> 🔒 **O PNG é ABERTO (sem `[Authorize]`) e TORNEIO OCULTO NÃO SAI — nem pro organizador.** Quem busca a imagem é o **navegador ao desenhar a notificação**, não uma tela com sessão: exigir login deixaria sem imagem justamente quem o aviso existe pra alcançar. E como a resposta é `public`, ela não pode mudar conforme quem pede — resposta pública que varia por usuário é como um cache no caminho entrega o card de um torneio escondido. O teto: **seguidor de torneio oculto recebe o aviso com o placar no texto, sem a imagem.**
+>
+> 🧩 **UMA RÉGUA SÓ PRO NOME DA DUPLA** (`AvisoDePlacarAoVivo.NomeDaDupla`, que era privada): o **texto** da notificação e o **desenho** do card saem dela. Duas cópias divergiriam no primeiro ajuste, e o estrago apareceria dentro da MESMA notificação — um nome no título, outro na imagem logo abaixo. Tem teste prendendo isso.
+>
+> 🚫 **BOTÃO NA NOTIFICAÇÃO FICOU DE FORA, e o motivo é mecânico**: "Parar de seguir" precisaria de um POST do service worker, que **não tem DOM** e portanto não alcança o `__RequestVerificationToken` — o filtro global de antiforgery (`AutoValidateAntiforgeryTokenAttribute`) recusaria. Abrir exceção nele por causa de um botão é afrouxar um portão de segurança por conveniência. E "Abrir jogo" seria o botão que o toque na própria notificação já faz.
+>
+> 📱 **NO IPHONE NADA MUDA NA IMAGEM**: o iOS ignora a `image` da notificação. O placar no título, esse sim, vale nos dois.
+>
+> 🧪 **6.643 testes, 0 falhas** (13 novos, em `PlacarAoVivoNaTelaDeBloqueioTests` e no novo `CartaoDoPlacarAoVivoTests`) + `conferir-palpitrometro.js` verde. Os testes foram escritos ANTES e vistos falhar: primeiro por resultado errado (o título vinha *"Placar ao vivo"* e o corpo trazia o placar), depois por "não existe" (o card, o endpoint, o `NomeDaDupla` público). Dois testes antigos mudaram de lado junto — o que exigia "encerrado" no título passou a exigir no corpo —, com o motivo escrito na linha. O card foi **conferido em PNG de verdade**, nos dois estados e com nome comprido de dupla.
+>
+> ⚠️ **`sw.js` foi de `v32` pra `v33`** — sem o bump, o aparelho que já tem o service worker guardado continuaria com o de antes e a imagem nunca apareceria, sem nada quebrar em teste nenhum do servidor. O combinado tem gate dos dois lados (o C# manda `image`, o `sw.js` lê `data.image`), no molde do teste da sonda muda.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/focused-cannon-1ibguc`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`TieBreakEmPontos`, cinco colunas novas, `defaultValue: 0` — ver abaixo por que isso é o que protege o ER).
+>
+> 🎾 **O TIE-BREAK DO 8x8 VIROU CONTAGEM DE PONTOS, NO PLACAR AO VIVO.** 🗣️ Felipe: *"temos um problema no sistema, que no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem de tie break, que pode ir até 7 ou até 10, depende do torneio"* — e, em seguida: *"mas adicione essa opção nos proximos jogos do ER tambem"*.
+>
+> 🕳️ **O BURACO: "tie-break" aqui dentro era só uma PALAVRA EM COMENTÁRIO.** O 9º game do jogo até 9 ganhou esse apelido porque é ele que desempata o 8x8 (está escrito assim em `FormatoDaPartida`, `PlacaresPossiveis`, `mesa-offline.js` e mais três lugares), e **ponto nenhum era contado em lugar nenhum**. Na quadra conta-se 7 (ou 10) pontos de verdade, e o placar ao vivo não tinha onde mostrá-los: quem acompanhava de casa via "8 x 8" congelado no momento mais disputado do jogo.
+>
+> ⚖️ **AS CINCO DECISÕES DELE** (pedido classificado como **architectural** — gera migration —, design escrito e aprovado antes de qualquer código):
+> 1. **O alvo é POR FASE**, como Sets e Games já são: `PontosTieBreakGrupos/MataMata/Final`. É o que permite 7 nos grupos e **super tie-break de 10** na decisão.
+> 2. **Quem fecha o tie-break leva o ÚLTIMO GAME (9x8).** ⚠️ É a decisão que segura o resto do sistema: `QuemVenceu`, `ClassificacaoDeGrupos`, saldo de games, desempate de grupo, Padelímetro, chave e a API de torneios **não sabem que tie-break existe, e não precisam saber**. A alternativa (games ficam 8x8 e o vencedor sai dos pontos) obrigaria a mexer em todos eles, com o ER rodando.
+> 3. **Só em fase de número ÍMPAR de games.** No jogo até 4 o 3x3 continua indo pro 5º game — o "vencer por dois" que já está em quadra não muda.
+> 4. **O tie-break também se vence por dois**: 7-6 continua, 8-6 fecha. O alvo não é teto seco.
+> 5. **Torneio que já existe nasce DESLIGADO** (a migration grava 0): nada muda pra quem está em quadra hoje. Torneio novo nasce com 7.
+>
+> 🧩 **A RÉGUA É UMA SÓ: `Services/TieBreakDoJogo`** — está em tie-break? dá pra fechar? com que placar? A paridade **não é recalculada lá**: ela pergunta ao `FormatoDaPartida.TetoDeGames` se o limite estende (no até 9 o teto continua 9 e o tie-break entra; no até 4 o teto vira 5 e não entra). Escrever `% 2` de novo seria a segunda cópia — o erro do `limiteGames: 9` que viveu cravado no JavaScript.
+>
+> 📱 **ONDE APARECE**: card **AO VIVO** (dentro do `.pdz-live-header`, que é o pedaço que a atualização automática troca — o público vê os pontos subirem sem recarregar nada), **tela cheia** do Controle de Partida (é lá que se CORRIGE um tie-break já fechado), **Mesa de Controle offline** (a contagem atravessa a fila do `localStorage` como o game atravessa), **push de quem segue o jogo** e a **linha do jogo finalizado** ("tie-break 7-5").
+>
+> ⚠️ **DOIS DEFEITOS DE TELA QUE O CAMINHO DESENTERROU, os dois corrigidos com teste visto falhar:**
+> • **O `aplicarPlacarDoServidor` achava os campos por ÍNDICE** (`campos[0]`/`campos[1]` sobre todos os `.pdz-live-input` do card). Com os dois campos novos, índice virou acoplamento com a ORDEM do HTML — mover o bloco do tie-break pra cima do placar passaria a escrever o game no campo de pontos, **calado**. Agora acha por `name`.
+> • **O `VoltarParaAgendado` não apagava a contagem.** Jogo tirado da quadra e chamado de novo voltaria 0 x 0 com "tie-break 7-5" pendurado embaixo — número que ninguém sabe de onde veio, que é justamente o que aquele método existe pra evitar (mesmo motivo do saque, que já era apagado lá).
+>
+> 🕳️ **E UM TERCEIRO, QUE SÓ APARECERIA NA QUADRA**: o bloco do tie-break **não pode depender da atualização automática pra nascer** — ela não roda com o cursor dentro de um campo (`estaOcupado`), e quem marca o 8º game está com o dedo exatamente ali. O bloco é renderizado **sempre** que a fase comporta tie-break, escondido, e acende na resposta do PRÓPRIO POST que marcou o game. Quem responde "está em tie-break? dá pra fechar? com que placar? com que etiqueta?" é o servidor, a cada salvamento — o JavaScript só obedece.
+>
+> ⚠️ **A ARMADILHA QUE A ESCOLHA 3 CRIA, escrita na tela**: o padrão da **final é 6 games (par)**, onde o tie-break **nunca acontece**. Configurar 10 ali fica inerte, então a aba de gestão avisa na cara quando o número da fase é par (`TieBreakDoJogo.AFaseComporta`, que é a pergunta da tela de configuração, separada do `PodeAcontecer`).
+>
+> 🔲 **PARA LIGAR NO 2ª ETAPA ER**, depois do deploy: *Gerenciar torneio → Formato das partidas → Tie-break no empate*. A régua é lida **ao vivo** pela fase de cada jogo, então vale pros **próximos** jogos na hora; placar já gravado não muda. (Não tenho banco de produção na sessão web — é um clique.)
+>
+> 🧪 **6.696 testes, 0 falhas (66 novos)** + `conferir-palpitrometro.js` verde + `has-pending-model-changes` sem pendência. Os novos estão em `TieBreakDoJogoTests` (a régua), `TieBreakNoPlacarAoVivoTests` (o POST em lote, inclusive o desalinhamento de array), `TieBreakNaTelaTests` (as guardas de tela: bloco desenhado fora do tie-break, campo por nome, a Mesa não recopiando a paridade) e dois em `PlacarAoVivoNaTelaDeBloqueioTests`.
+>
+> ⚠️ **NÃO CONFERIDO EM NAVEGADOR**: esta sessão não tem browser. O que está provado é a suíte e a leitura do fluxo; o 8x8 na tela do celular, no ER, é o teste de verdade.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/cool-davinci-tqwqxv`, ainda não publicado.** **Sem migration.**
+>
+> 🌙 **"SEU JOGO É O PRÓXIMO!" ÀS 00:03 PARA UM JOGO DAS 08:00.** 🗣️ Felipe, com o print do push na mão: *"o proximo jogo deve ser só as 8 da manha, nao deveria exibir isso"*. O aviso que chegou: *"A Arena Loja 7 — Er Padel vagou — seu jogo é o próximo. Fique por perto."*
+>
+> 🕳️ **A REGRA NÃO TINHA TETO NENHUM PRA FRENTE.** `AvisosDoDiaDeJogo.ProximaAposTerminar` pegava *a primeira agendada da mesma quadra*, sem olhar o relógio — então ela **sempre acha alguém** enquanto o torneio tiver jogo restando, inclusive o de amanhã de manhã. O último jogo da noite não faz a quadra vagar pra ninguém: ele FECHA o dia. E "fique por perto" a 8 horas de distância é instrução ativamente errada, de madrugada, no celular de quatro pessoas por quadra.
+>
+> ⏱️ **O CORTE É SÓ PRA FRENTE: `AntecedenciaMaxima = 1h`** (escolha do Felipe entre 1h/2h/3h). Horário no passado continua **sem limite nenhum** — atraso é a razão de este aviso existir, e o jogo das 09:00 que vai começar às 13:00 é exatamente quem precisa ouvir que a quadra vagou. O `agora` virou **parâmetro obrigatório**: quem chama é obrigado a dizer que horas são, em vez de o teto sumir por um default esquecido.
+>
+> ✅ **A TELA DO ORGANIZADOR NÃO MUDA.** `ProximaNaQuadra` (o banner "A Quadra 3 vagou — próximo: Fulano × Beltrano [Começar agora]") segue sem teto, de propósito: ele é sugestão pra quem está olhando a Mesa de Controle e pode chamar o jogo quando quiser — o push é que não pode mandar ninguém se levantar à toa.
+>
+> 🧪 **6.633 testes, 0 falhas (3 novos em `AvisosDoDiaDeJogoTests`)** + `conferir-palpitrometro.js` verde. Os dois testes do teto foram **vistos falhando** antes da correção (`Expected: null`, veio a partida das 08:00); o terceiro trava o lado do atraso, que não podia regredir.
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br/Torneios/Details/26`, anônimo, `curl`) — mais forte do que ler número de run, porque outras sessões estavam publicando no mesmo minuto: **8 botões**, **8 modais**, **zero** "Se acontecer" (a tabela saiu) e **8 rodapés** com *"confronto direto"* (a régua nova escrita na tela). O nome curto chegou: *"Falta um jogo: Marcos / Marcio × Marcelo / Milton"*. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **O CAMINHO "DEPENDE" SEGUE SEM SER VISTO NO AR, por falta de caso**: os 8 grupos com um jogo faltando estão todos em "já classificado". A frase *"Só passa vencendo por 9x4 ou mais folgado — 9x5 não basta"* está provada por teste e no Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade** — e o mesmo vale pro aviso de sorteio.
+>
+> 🕳️ **O `STATUS.md` DESTE REPO ESTÁ EM CORRIDA ENTRE SESSÕES, e isso custou 4 rodadas de merge.** O `main` andou 26 + 9 + 2 + 2 commits durante um único ciclo de CI, e o topo deste arquivo conflita em TODA sessão. Duas vezes o arquivo chegou malformado no `main` (entrada acima do título, cabeçalho "Documento vivo" comido) e uma vez um marcador `<<<<<<<` passou pelo build — porque `.md` não compila. **Quem resolver conflito aqui: confira `grep -c '^<<<<<<<' STATUS.md` antes de commitar.**
+>
+> 🧪 **6.630 testes, 0 falhas** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (o avanço parcial da chave incluído — o `QuemAvancaAsync` virou `VagasDaProximaFaseAsync` no meio do caminho, e os pontos do desempate passaram a atravessar ele).
+>
+> ⚠️ **AS DUAS RESSALVAS DO DESEMPATE CONTINUAM VALENDO** (ver a entrada do branch, abaixo): o ranking é lido **ao vivo**, então a mesma tabela pode mudar de 2º colocado semana que vem — o que vale é a chave já gerada; e os critérios novos só disparam onde antes era ordem de cadastro, então nenhum grupo decidido na quadra mudou.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.** ⚠️ **MEXE NA RÉGUA QUE MONTA O MATA-MATA, com torneio rodando** — ver a ressalva no fim.
+>
+> 🔲 **O DESEMPATE DE GRUPO GANHOU CONFRONTO DIRETO E RANKING — E O POP-UP PASSOU A FALAR EM PLACAR.** 🗣️ Felipe, em quatro mensagens seguidas olhando a tela no ar: *"ta meio confuso aqui, nao ficou claro para mim"* · *"seria 4 e 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais facil"* · *"e esse caso aqui se for os 3 jogos 9x4 e houver empate?"* · *"e se empatar entre apenas 2 duplas, passa quem venceu o confronto direto"* · *"e empate entre os 3, passa quem esta na frente no ranking, se não tiver ninguem com pontuação ainda, faça sorteio"*.
+>
+> 🕳️ **ELE ACHOU UM BURACO DE VERDADE.** Com os três jogos 9x4 num grupo de 3, as três duplas terminam com **1 vitória, saldo 0 e 13 games a favor** — empate em tudo o que era critério. Quem passava saía do `ThenBy(Dupla.Id)`: **ordem de cadastro no banco**. E o painel apresentava isso como eliminação esportiva ("passa vencendo por 6 games ou mais"), sem dizer que era cara-ou-coroa.
+>
+> ⚖️ **A RÉGUA NOVA, entre "games a favor" e o sorteio**: empate de **DUAS** duplas → **confronto direto**; de **TRÊS ou mais** → **ranking anual** (soma dos pontos dos dois jogadores); e **sorteio** quando nem isso separa. Nenhum grupo que se decide na quadra muda de resultado.
+>
+> 🎯 **A REGRA DELE RESOLVE A OBJEÇÃO DE 05/08/2026**, que estava escrita no próprio arquivo: confronto direto tinha sido recusado porque num empate de TRÊS ele é circular (A ganhou de B, B de C, C de A). Separar por TAMANHO do empate é o que o faz funcionar — entre duas nunca há circularidade.
+>
+> ✅ **E O CASO HISTÓRICO MUDOU DE RESPOSTA, pra melhor**: no grupo A dos TIMES do Interno de 05/08 (Target.it e Argentus empatadas em tudo), a 2ª vaga saía por Id e ficava com a Target.it. Agora sai no confronto direto, e é da **Argentus — que venceu a Target.it**. `FinalDosTimesTests` foi atualizado com o motivo escrito.
+>
+> ⚠️ **O SORTEIO É FNV-1a À MÃO, e não `string.GetHashCode()`**: o hash de string do .NET é **aleatorizado por processo**, então usá-lo faria a régua responder uma coisa antes do deploy e outra depois, com os mesmos jogos — a chave de ontem deixaria de casar com a tabela de hoje. A ordem de saída está **cravada em teste**, conferida contra uma implementação independente do FNV-1a. E ele não é mais a ordem de inscrição, que favorecia quem se inscreveu primeiro.
+>
+> 💰 **O RANKING É LIDO AO VIVO, e só onde precisa.** Buscar pontos custa DUAS consultas (`Jogador.PontuacaoGlobal` é campo morto), e a página do torneio é a mais visitada do site — 24 grupos no 2ª Etapa ER. Então a régua expõe `PrecisaDePontos`, e as telas só pagam nos grupos que empatam até o ranking. O `BuscarPontosDoRanking` (delegate com a assinatura do `ObterPontosPorJogadorAsync`) é o que deixa os serviços ESTÁTICOS — `AvancoDaChave`, `ClassificacaoParaCard` — alcançarem o ranking sem DI e sem uma segunda cópia daquela consulta.
+>
+> 📱 **O POP-UP**: a frase de cada dupla passou a nomear o **placar** ("Só passa vencendo por 9x4 ou mais folgado — **9x5 não basta**"), a tabela "Se acontecer/Classificam" saiu (dizia o mesmo em outra ordem), e o nome de dupla virou **um só** na tela — `Dupla.NomeCurto`, "Marcelo / Enio", o mesmo da lista de jogos. Antes a MESMA dupla aparecia de três jeitos no mesmo pop-up.
+>
+> ⚠️ **A FRASE CURTA TEM TRAVA**: ela só sai quando o conjunto que classifica é um **prefixo** do melhor pro pior resultado da dupla. "9x4 ou mais folgado" afirma que todo placar melhor também classifica, e o desempate por games a favor pode furar isso — furou, cai na descrição por blocos, mais longa e sempre verdadeira.
+>
+> 🧪 **6.574 testes, 0 falhas (33 novos, em `DesempateDoGrupoTests`, `VagasPorGrupoSaoUmaReguaSoTests` e `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Conferido no Chromium a 430px.
+>
+> ⚠️ **RESSALVA QUE PRECISA SER LIDA ANTES DE PUBLICAR**: isto muda a `ClassificacaoDeGrupos`, que alimenta o `AvancoDaChave` (monta o mata-mata), o robô, a prévia da chave, a tela de Classificação, a tabela do grupo e os Cartões — **com o 2ª Etapa ER rodando**. O efeito é limitado aos grupos em EMPATE PERFEITO (no resto a resposta é idêntica), e conferi na produção que **nenhum grupo está nesse estado hoje** (os 16 "empatados" da varredura são grupos com J0, que ainda não jogaram). Mas se algum grupo empatado já tiver chave montada, a recontagem pode discordar dela.
+>
+> ⚠️ **E O RANKING SE MOVE** (escolha do Felipe, com o custo na mesa): uma dupla pode passar à frente da outra semana que vem por ter jogado outro torneio, então a mesma tabela, com os mesmos jogos, pode mudar de 2º colocado depois de a chave estar montada. A alternativa era congelar o número no sorteio (migration), e ele preferiu entregar sem. O teto: o que vale é a chave já gerada.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
+
+>
+> **11/09/2026** — 🚀 **PUBLICADO** (ver a entrada do topo: release `build-1186-43b814c`, PR #229). **Sem migration.**
+>
+> 🔕 **UM BOTÃO QUE CALA O SISTEMA INTEIRO.** 🗣️ Felipe: *"crie um botão para desabilitar todas notificações no painel admin"*. Perguntado sobre o alcance, escolheu **push + e-mail + WhatsApp, com a Caixa de Avisos continuando a ser gravada**, e **só o admin raiz** mexendo. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA numa tabela que já existe).
+>
+> 🕳️ **O BURACO QUE ELE FECHA É O ENVIO EM FUGA** — um job novo despejando aviso na base toda, um torneio duplicado avisando todo mundo de novo. Até aqui a única saída era **ssh no servidor mais restart do serviço**, e o momento em que isso é preciso é exatamente o momento em que ninguém tem o notebook na mão. É o mesmo raciocínio do portão de acesso (05/08), e por isso é o mesmo MOLDE: chave/valor em `ConfiguracaoDoSistema`, singleton com a cópia em memória, banco como fonte da verdade — **a decisão sobrevive ao deploy**, que é o teste que justifica a tabela em vez de um `bool` em memória.
+>
+> ✅ **O CORTE É NUM LUGAR SÓ: `PushNotificationService.EntregarAgoraAsync`.** É o funil por onde passa todo aviso do sistema, então o botão vale pros **~30 pontos que geram aviso** sem que nenhum deles saiba que ele existe — e o próximo aviso a nascer já nasce obedecendo. Cortar nos 30 seria a mesma regra escrita 30 vezes, e a 31ª esqueceria dela.
+>
+> ⚠️ **MUDO É "NÃO INCOMODA", NÃO É "APAGA": a Caixa de Avisos continua sendo gravada.** É o único canal que não depende de entrega nenhuma (é só abrir o app), e gravar ali não toca no celular de ninguém — então religar devolve o histórico inteiro, em vez de um buraco que ninguém reconstrói depois. **O que passou NÃO é reenviado**, e a tela diz isso com todas as letras.
+>
+> ⚠️ **O PLACAR AO VIVO É A EXCEÇÃO: mudo, ele é descartado INTEIRO.** Ele é `ApenasPush` e por projeto não entra na caixa (16/08) — placar de meia hora atrás não vale ser guardado pra depois.
+>
+> ⚠️ **AQUI NÃO EXISTE PADRÃO VINDO DO systemd, ao contrário do portão** — e é escolha, não esquecimento: um sistema mudo é estado de EXCEÇÃO sempre, e uma chave de configuração pra isso seria uma forma de subir um ambiente calado sem ninguém ter decidido calar. O sintoma disso ("ninguém recebe nada") é dos mais caros de diagnosticar, porque cada canal falha por conta própria o tempo todo e a suspeita nunca cai no interruptor.
+>
+> 🚨 **E POR ISSO O ESTADO MUDO GRITA EM TRÊS LUGARES**: faixa vermelha no topo do painel **pra qualquer admin** (não só pro raiz que apertou), a gaveta "Ferramentas e ajustes" **abrindo sozinha** com selo `avisos MUDOS`, e uma faixa na tela de **Teste de aviso**. Portão fechado gera "não consigo entrar"; silêncio não gera sintoma nenhum — sem isso, a chave ficaria ligada por dias.
+>
+> ⚠️ **O TESTE DIRIGIDO NÃO OBEDECE AO SILÊNCIO, de propósito**: ele é uma pessoa escolhida a dedo pelo próprio admin que apertou o botão, e é a única forma de conferir se um canal está de pé enquanto o sistema está calado. O risco disso é o admin ler *"Enviado!"* e concluir que os avisos do sistema estão saindo — daí a faixa naquela tela.
+>
+> 🧪 **6.569 testes, 0 falhas (11 novos, em `BotaoDoSilencioDeAvisosTests`)** + `conferir-palpitrometro.js` verde. **Os 7 vistos vermelhos antes**, pelos motivos certos: não gravava, não recusava o administrador nomeado, o e-mail saía e o push era tentado. 🔬 **A pegadinha de testar PUSH**: ele sai por HTTP direto do `WebPushClient`, sem interface no meio pra substituir — o que delata a TENTATIVA é o **log** (a inscrição do teste tem chave de mentira, então qualquer envio estoura no `catch` que registra). **Os dois lados estão testados**: sem o par de controle, uma mudança que matasse o push inteiro passaria como "o silêncio funciona".
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA** — o painel exige banco e login, e não há Postgres nesta sessão. O que foi conferido: o Razor **compila** (as views são compiladas no build em Release) e a suíte inteira passa.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`**, **o mesmo artefato nos dois**, pela tag explícita no campo `build` (runs 270 e 271, 20h28 UTC). PR #224. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR:** `/healthz` **200** nos dois ambientes, e o LOG DO RUN diz o que instalou — *"==> Feito. build-1171-3686b36 no ar em prod"*, com `BUILD: build-1171-3686b36` no ambiente de cada job. O `head_sha` do run é o REF do workflow, não o pacote: quem prova o artefato é o log.
+>
+> 🕳️ **UM DISPARO CRIOU TRÊS RUNS** (267, 268 e 269, todos `deploy → dev`, mesmo build). Idempotente, então não houve estrago — mas é o contrário da nota de 10/09 (o `204 queued` que não criava run nenhum). **A régua vale nos dois sentidos: confira os runs que EXISTEM, nem mais nem menos do que você pediu.**
+>
+> ⚠️ **E UMA SESSÃO PARALELA PUBLICOU ESTE MESMO COMMIT** em `dev` e `prod` (270 e 271) meio minuto depois dos meus. Desta vez foi inofensivo — o `main` não tinha andado, então o build mais recente ERA o meu. Não foi sorte gerenciada: é a mesma colisão de 11/09 que trocou o `site.css` de lugar.
+>
+> 🔴 **O `dev` deu 502 no meio da rodada de deploys** e voltou 200 sozinho: era o serviço reiniciando com dois deploys em voo. Healthcheck logo depois de publicar mede o restart, não a saúde.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+>
+> ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
+>
+> 🕳️ **NÃO OCORRIA, e em dois lugares:** `AvancoDaChave.QuemAvancaAsync` devolvia lista VAZIA se qualquer partida da fase não estivesse finalizada, e `MontarMataMataDosGruposAsync` saía na primeira linha enquanto houvesse um jogo de grupo aberto. Numa categoria de 8 duplas (2 quartas + 2 byes) a dupla que venceu às 10h ficava sem jogo até as 13h — com o adversário dela conhecido desde o sorteio, porque quem a espera FOLGOU a rodada.
+>
+> 1️⃣ **MATA-MATA (vale pra todo torneio).** A lista de vagas agora sai COM BURACO (`VagasDaProximaFaseAsync`, `null` = vaga sem dono) e o robô cria os confrontos cujas DUAS vagas já têm dono. ⚠️ **A geometria entrega menos do que a frase sugere**: `ParearVencedores` cruza a vaga i com a n-1-i, então a Semifinal 1 é *"vencedor da Quartas 1 × última vaga"* — o jogo nasce quando as duas vagas são conhecidas, o que pode ser UMA quarta só quando a outra vaga é um bye (o caso mais comum, porque 3 grupos dão 2 jogos e 2 byes).
+>
+> 2️⃣ **GRUPOS: só com o CRUZAMENTO DESENHADO** (decisão do Felipe entre três saídas). Sem desenho, quem o 1º do Grupo A enfrenta sai da campanha COMPARADA de todos os grupos — enquanto o Grupo D joga não dá pra saber se ele é o melhor ou o pior primeiro colocado, e o jogo criado cedo teria que ser desfeito. Com o desenho a vaga é por COLOCAÇÃO e fica conhecida quando os dois grupos dela fecham. ✅ **O Er não muda: `CruzamentoDoMataMata` é null nele, e null continua sendo o caminho de sempre, letra por letra.**
+>
+> ⚠️ **NASCE EM ORDEM DE QUADRO, e isso é regra, não capricho:** o jogo 2 de uma fase só nasce depois do 1. O número de um jogo dentro da fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave (`OrdemDoQuadro`), a procedência da prévia (*"Vencedor Semifinal 2"*) e a reserva de horário que o organizador fez no jogo previsto. Deixar a Semifinal 2 nascer antes da 1 por ter terminado primeiro faria as três apontarem pro jogo errado. **O preço: quando a metade de baixo da chave fecha primeiro, ela espera a de cima.**
+>
+> 🕳️ **O BYE VIROU RESPOSTA ESTÁVEL, e foi a parte perigosa.** `ByesDaCategoriaAsync` se esgotava sozinha (olhava TODAS as fases, então quando a segunda nascia os byes já tinham jogo). Isso só funcionava com a fase seguinte nascendo INTEIRA: com meia semifinal no ar os byes sumiriam da conta, a lista de vagas cairia de 4 pra 2, `NomeFase(2)` diria "Final" e o robô montaria a decisão por cima de uma semifinal pela metade — **o bug do Interno de 05/08/2026 por outra porta**. Agora ela é ancorada na primeira rodada e não muda mais; quem não quer bye em fase adiantada filtra onde DESENHA (`QuadroDoMataMata` e `ProximasFasesDaChave` só os somam na primeira fase).
+>
+> 🔒 **E DUAS TRAVAS NOVAS, as duas vistas falhando antes de existirem:** (a) com a fase de grupos ABERTA não há bye nem vaga — sem isso o jogo de abertura solitário virava uma segunda fase (o teste pegou: *"the collection contained 2 items"*); (b) a trava de "fase já avançada" saiu da lista de vagas e virou a contagem dos jogos que a fase seguinte JÁ TEM, no robô. O teste do bug do Interno foi reescrito no nível do ROBÔ, que é onde o defeito acontecia — no nível do helper ele media a mecânica antiga.
+>
+> 🖥️ **A TELA PRECISOU ACOMPANHAR, senão o recurso escondia o caminho de quem classificou:** `QuadroDoMataMata` e `ProximasFasesDaChave` passaram a desenhar/projetar fase PELA METADE (sem isso a Semifinal 2 e a Final sumiam), a projeção passou a partir da PRIMEIRA fase em vez da mais adiantada, e categoria com grupos abertos continua sendo projetada por COLOCAÇÃO. 🕳️ De quebra, a prévia da aba de chaves ignorava o cruzamento desenhado (`MontarCompleta` nunca recebeu o campo) — prometia a semeadura do motor numa categoria que tem desenho.
+>
+> ⏰ **O HORÁRIO NÃO MUDOU (decisão do Felipe):** o jogo que nasce cedo entra na grade com o piso de hoje (depois do último jogo da fase anterior da categoria). No "por ordem de liberação" quem chama é o balcão, então na prática ele já pode ser chamado antes; mexer em `LevasDaGrade.PisoDaCategoria` ficou de fora de propósito.
+>
+> 🏷️ **3️⃣ E A COLOCAÇÃO VIRA NOME ASSIM QUE O GRUPO FECHA.** 🗣️ Felipe, com o print do Er na mão (Grupo B encerrado, Grupo A sem jogar): *"Avança sim, pq o grupo b esta definido, tem q por o 1º e 2º nas semifinais"* · *"sempre que um grupo finalizar, igual da foto, o Grupo B já está definido, então já pode mudar"*. A chave era escrita por colocação até o ÚLTIMO jogo da CATEGORIA acabar — com o Grupo B encerrado, *"2º do Grupo B"* já tinha nome, sobrenome e foto no sistema, e o quadro seguia na frase genérica. Agora `Services/ClassificadosJaConhecidos` responde quem já É cada vaga, e a prévia (lista de jogos e aba de chaves) escreve o nome.
+>
+> ⚠️ **ISSO É RÓTULO, NÃO PARTIDA** — eu errei o alvo na primeira resposta e o Felipe corrigiu. O JOGO da semifinal continua nascendo só com os dois lados (`Partida.Dupla1Id`/`Dupla2Id` são NOT NULL; vaga vazia exigiria migration). E **por grupo FECHADO, nunca por jogo solto**: no meio do grupo a dupla em 1º com um jogo a menos cai pra 2º na rodada seguinte, e o quadro trocaria de nome a cada placar.
+>
+> 🕳️ **E NUMA CATEGORIA DE 2 GRUPOS O JOGO NÃO NASCE MESMO, por geometria:** as duas semifinais cruzam A com B (`1ºA × 2ºB` e `1ºB × 2ºA`), então toda vaga do quadro depende dos DOIS grupos. O ganho de criar jogo cedo aparece com 3+ grupos (onde há bye) ou dentro do mata-mata; o ganho de mostrar NOME aparece em qualquer formato.
+>
+> 🧪 **6.575 testes, 0 falhas (18 novos, em `AvancoParcialDaChaveTests`, `AvancoParcialDosGruposTests` e `NomeNaVagaAssimQueOGrupoFechaTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia), *"The collection contained 2 items"* (a fase seguinte nascia por cima) e *"Assert.Contains() Failure: Item not found"* (o nome não chegava na vaga).
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`** (runs 270 e 271, 20h28 e 20h29 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #228. ✅ **SEM MIGRATION**.
+>
+> ⏱️ **O que entrou daqui: as Finalizadas dizendo começo, fim e duração** (`Services/DuracaoDoJogo`) — e a régua do "quando o jogo aconteceu" com os TRÊS passos, igual ao resto do sistema.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; o `/css/site.css` de produção traz `.pdz-jl-quando .pdz-jl-durou` com `grid-column: 1 / -1`; o `/sw.js` traz o `v32`; e em `padelizou.com.br/Torneios/Jogos/23` os **13 jogos finalizados saem com a linha da duração**, na ordem certa: `11:20 · 11:00 · 10:59 · 10:09 · 10:08 · 09:49 · 09:49 · 09:29 · 09:27`, e aí os quatro **sem carimbo de fim** ordenados pela LARGADA real (`começou 08:55 · 08:46 · 08:29 · 08:28`) — que é exatamente o passo do meio que faltava na régua, funcionando em dado de verdade.
+>
+> ⚠️ **DUAS SESSÕES PUBLICANDO NO MESMO MINUTO, e a lição é da ORDEM DOS BUILDS.** O `main` andou três vezes durante este ciclo (PRs #224, #227 e #228) e outra sessão instalou o `build-1171` no `dev` **3 minutos antes** do meu disparo do `build-1170`. Como o 1170 é ANTERIOR, instalá-lo **tirou o #224 do `dev`** por dois minutos. Consertado publicando o `build-1171-3686b36` (que contém os dois) nos dois ambientes. 👉 **A regra que fica: com o `main` andando, publique o build MAIS NOVO que contenha o seu commit, nunca o do seu próprio merge** — "o meu build" é o instinto errado aqui, porque deploy não mescla: ele troca o symlink inteiro.
+>
+> 🕳️ **E uma armadilha de MEDIR TEMPO desta sessão, que custou um run cancelado à toa**: esperar com `sleep` em segundo plano e consultar a API no mesmo turno **não é esperar**. O run tinha 2 minutos de vida quando eu li "25 minutos" comparando o `started_at` do passo com o relógio de um turno depois — cancelei um CI saudável. Espera de verdade é bloquear até a espera terminar (`until [ -s arquivo ]`), e só então consultar.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er**: a página traz o alternador (`umaImagem=True`/`False`) e `/Torneios/JogosImagem/26?tudo=true` devolve **`image/png` de 748 KB, 1080×4316** — **os 56 jogos dos dois dias numa imagem só**, com as pílulas `SEX 11/09` e `SÁB 12/09` separando os blocos, tudo legível. É o caso real que motivou o pedido.
+>
+> 🔒 **O `dev` continua sem conferência por fora** (o gate de Acesso Antecipado redireciona o site inteiro lá): a evidência é o job `deploy → dev` verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho — mais o `/healthz` 200.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO PELA TERCEIRA VEZ NESTA SESSÃO** (`ac46898`: zero checks criados). Gatilho manual de novo. ⚠️ **Já são cinco ocorrências registradas neste arquivo** (26/08, 10/09 e três hoje) — se doer mais uma vez, vale investigar o `ci.yml` em vez de seguir apertando o botão.
+>
+> ✅ **E OS DOIS DISPAROS DE DEPLOY CRIARAM RUN DESTA VEZ** — conferido pelo run **e pelo nome do job** (`deploy → dev`, `deploy → prod`), que é o que prova o ambiente: o `204 queued` sozinho não garante nada (a nota de 10/09 e a de hoje mais cedo).
+>
+> 🧪 **6.565 testes, 0 falhas** depois de mesclar o `main` duas vezes no caminho (PRs #221 e #223, de sessões paralelas).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 🖼️ **"TUDO NUMA IMAGEM SÓ": A LISTA INTEIRA NUM PNG ALTO, ESCOLHIDO NA TELA.** 🗣️ Felipe: *"da para por a opção, para o jogador selecionar se nao quer todos os jogos na lista em uma imagem apenas, dividindo e cabendo, por que é mais facil"* — e a ressalva, no mesmo fôlego: *"a menos que tenha muitos jogos que nao ficariam visiveis se diminuisse ou organizasse"*.
+>
+> ⚠️ **A IMAGEM CRESCE PRA BAIXO, NUNCA ESPREME — a ressalva dele É a regra do recurso.** Espremer 33 jogos nos 1350px do story daria linha de 23px: a lista inteira numa imagem que ninguém lê, exatamente o que ele proibiu. A linha fica em 64px (legível) e o PNG fica alto: **33 jogos em 2 dias = 1080×2844**, onde hoje saem **quatro** artes. Os dias viram **pílulas lime** no meio da imagem (a pílula que o card do story perdeu pro espaço, de volta onde ela serve).
+>
+> 🚧 **O TETO É DE 10.000px, E É ELE QUE FAZ A OPÇÃO SUMIR** em vez de entregar imagem ilegível: acima disso o WhatsApp reamostra e o celular engasga — *"uma imagem que não abre não é mais fácil que três que abrem"*. Passando do teto, a tela **diz por quê** e sugere filtrar; quem precisa continua com as partes. ~150 jogos é o limite prático (o Er inteiro tem 97).
+>
+> 🎛️ **A ESCOLHA É DE TELA, e por isso mora FORA de `Filtros`** (`umaImagem` na query da página, `tudo=true` no endpoint da imagem). A planilha e o texto nem sabem que ela existe — e o alternador só aparece quando há **mais de uma arte**: com uma só, os dois botões dariam a mesma imagem.
+>
+> ♻️ **A LINHA DO JOGO VIROU UM MÉTODO SÓ** (`CartaoDosJogos.Linha`), usado pelos dois formatos. Duas cópias divergiriam na primeira mudança, e a lista postada num formato passaria a não bater com a do outro. O `CartaoCompartilhavel` ganhou **altura** em `Fundo`, `Rodape` e `EmPng` (o padrão continua 1350): sem isso o gradiente terminava em 1350 e o resto do PNG saía **preto**. E o pé passou a ser medido **da base**, pros dois formatos terminarem igual.
+>
+> 🧪 **6.565 testes, 0 falhas (7 novos)** + `conferir-palpitrometro.js` verde. Vermelho visto antes: *"'CartaoDosJogos' does not contain a definition for 'AlturaDaImagemUnica'"*. E um vermelho **no dado, não na regra**: medi a diferença de altura com 10 jogos, que caem no **piso de 1350** (o formato do story) — com 20 a conta mede o que devia medir.
+>
+> 🖥️ **UI RODADA**: com 25 jogos semeados no banco local, a tela mostrou **3 artes**, o alternador apareceu, e o clique em "Tudo numa imagem só" devolveu **`image/png` de 413 KB, 1080×2332**, com `public, max-age=3600`. As faixas dos dois dias aparecem no meio da imagem.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/bolinha-verde-saque-2jdsfo`, ainda não publicado.** **Sem migration.**
+>
+> 🎾 **A BOLINHA DO SAQUE VIROU FELTRO EM VEZ DE LED.** 🗣️ Felipe, com ela já no ar: *"achei a bolinha um verde muito brilhante"* e, escolhendo o rumo: *"só diminui um pouco o brilho e deixa ela bem parecida com uma bola de tenis/padel"*.
+>
+> 🕳️ **O QUE INCOMODAVA NÃO ERA O VERDE, ERA O HALO.** A primeira versão tinha um `box-shadow` de **6px** espalhando luz em volta (`rgba(216,233,74,.55)`) e um ponto especular forte no gradiente. Somados, leem como **luzinha acesa**, não como bola — e o olho vai nela antes de ir no placar, que é o oposto do que ela existe pra fazer.
+>
+> ✅ **Bola de padel é FOSCA: o que dá volume nela é a SOMBRA DE CONTATO embaixo-à-direita, não o reflexo.** São duas camadas de `radial-gradient` (a sombra por cima, o feltro por baixo), o halo caiu de 6px pra **2px** e a costura saiu do branco de farol pro **creme** (`rgba(250,250,236,.9)`). O amarelo optic é praticamente o mesmo — é ele que deixa a bola achável de relance no meio do jogo, e mexer nele era passar do ponto que o Felipe pediu.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (headless, com o `site.css` de verdade e o fundo navy do card ao vivo): quatro variantes renderizadas lado a lado no tamanho real (13px) e ampliadas, antes de escolher. **É a primeira coisa desta sessão que foi VISTA numa tela** — o resto foi tudo teste.
+>
+> 🧪 **6.558 testes, 0 falhas** + `conferir-palpitrometro.js` verde. **Sem teste novo, de propósito**: isto é gosto, não defeito — um `Assert` em código hexadecimal travaria a próxima troca de cor sem proteger nada. Os testes que já existem (`.pdz-bolinha-apagada` e `.pdz-saque-toque` no CSS) continuam segurando a estrutura.
+>
+> 🧹 **`CACHE_NAME` → `v31`** (mexeu no `site.css`). É a lição de hoje de manhã aplicada sem ninguém precisar lembrar.
+> **11/09/2026** — ⏱️ **AS FINALIZADAS DIZEM QUE HORAS COMEÇARAM, QUE HORAS ACABARAM E QUANTO DURARAM.** ⏳ **NO BRANCH `claude/affectionate-euler-4yl8p5`.** ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com as Finalizadas do 2ª Etapa ER PADEL TOUR na tela: *"as finalizadas tem q ficar em ordem da mais recente finalizada para mais tempo atras"* e, na sequência: *"coloque também o tempo de duração da partida, em baixo do horario previsto, coloque que horario começou e que horario terminou mas nao pode ocupar muito a tela, nao podemos poluir muito"*.
+>
+> 🕳️ **OS DOIS PEDIDOS SÃO O MESMO DEFEITO, VISTO DE FORA — e o primeiro já estava "certo".** A lista ordena pelo fim real desde 08/08/2026 (há teste). Só que o card mostra o **horário PREVISTO**, e só ele: quem varre a tela lê `21:20 · 20:30 · 22:05` e conclui que a ordem quebrou, porque **a grandeza que ordena não estava escrita em lugar nenhum**. Mostrar começo e fim é o que torna a ordem legível — por isso a régua e o rótulo nasceram no MESMO arquivo, `Services/DuracaoDoJogo`.
+>
+> ✅ **MAS TINHA DEFEITO DE VERDADE NA RÉGUA: ela tinha DOIS passos, e o resto do sistema usa TRÊS.** Era `HorarioFimReal ?? HorarioPrevisto`; `EstatisticasService`, `MvpDoTorneio` e `EnqueteDoTorneio` usam `?? HorarioInicioReal ??` no meio. O jogo que entrou em quadra às 21:30 e teve o placar lançado **sem carimbo de fim** voltava pro horário do SORTEIO e afundava **abaixo de jogos que acabaram antes de ele começar**. Reproduzido em teste antes da correção: esperado `[1,3,2]`, veio `[3,2,1]`. Agora a régua é uma só, e as **duas** telas (aba Jogos e Dia do Jogo) apontam pra ela.
+>
+> 🎨 **O RÓTULO: `21:24–22:13 · 49 min`**, em `.7rem` cinza, debaixo da hora. Nulo em quem não entrou em quadra — o MESMO card desenha as Agendadas, e lá ele não escreve nada. Sem os dois carimbos vira `começou 19:42` / `terminou 20:05`; com os carimbos trocados (correção na mão) mostra só a faixa, porque `-12 min` na tela é pior que silêncio. A duração sai de `Partida.MinutosDecorridos`, a MESMA propriedade do cronômetro do AO VIVO.
+>
+> 🕳️ **ARMADILHA NOVA, MEDIDA NO CHROMIUM: `flex-wrap: wrap` + filho `flex-basis: 100%` MEDE ERRADO.** É o jeito óbvio de quebrar linha dentro de um flex, e funciona — mas numa caixa **sem largura definida** o navegador dimensiona pelo `max-content` **somando os dois numa linha só**: a caixa da hora pulou de **119px pra 237px**. A **600px de tela** isso empurrava as etiquetas de categoria/fase/quadra pra uma segunda linha que antes não existia — exatamente o "não podemos poluir muito" do pedido. Trocado por **grid** (`grid-template-columns: auto auto` + `grid-column: 1 / -1` na duração), onde a largura é a da MAIOR linha: 119px em 390, 520, 600 e 700px, igual ao de antes.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, em cinco larguras (390 · 520 · 600 · 700 · 1100): a duração nasce em `y=44`, abaixo da hora em `y=23`; a caixa não cresce; o card AGENDADO continua sem a linha.
+>
+> 🧪 **6.572 testes, 0 falhas (14 novos, em `DuracaoDoJogoNaListaTests`)** + `conferir-palpitrometro.js` verde. Três vermelhos vistos antes da correção: a ordem `[3,2,1]`, *"Not found: DuracaoDoJogo.Rotulo"* e *"Não achei a regra `.pdz-jl-quando .pdz-jl-durou` no site.css"*.
+>
+> 🧹 **`CACHE_NAME` → `v32`** (mexeu no `site.css`).
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1138-c876695`** (19h05 e 19h06 UTC — runs 248 e 249), **o mesmo artefato nos dois**, com a tag explícita. PR #216. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR**: o `/js/palpitrometro.js` servido traz o `alternarVotantes`, e o `/css/site.css` traz o `safe-area-inset-top` dentro da regra do `.modal`. `/healthz` 200 nos dois ambientes.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO DE NOVO** neste branch (nem no push nem no PR), pela segunda vez hoje — disparado na mão pelo `workflow_dispatch`, runs 1131 e 1134. E o `main` andou **duas vezes** durante o ciclo (PRs #213, #214 e #215): as duas mesclas conflitaram só no `STATUS.md`, no lugar de sempre.
+>
+> 🔴 **BUG NO APP INSTALADO: O X DE FECHAR FICAVA DEBAIXO DO RELÓGIO.** 🗣️ Felipe, num print do iPhone com o modal "Quem palpitou o quê" aberto e 15 nomes: *"bug, o X de fechar, fica em cima da bateria e nao conseguimos fechar"*. **Não dava pra fechar o modal.**
+>
+> 🕳️ **CAUSA: `viewport-fit=cover` + `position: fixed`.** O `_Layout` pede a tela inteira (instalado, o app pinta atrás do relógio e da bateria) e o `site.css` já paga essa conta pro CORPO da página — mas o `.modal` é `fixed` e **não herda nada disso**. Com a lista longa o diálogo encosta no topo do aparelho, e o botão de fechar vai parar na faixa onde o toque não chega.
+>
+> ✅ **`padding-top/bottom: env(safe-area-inset-*)` no `.modal`** — e é ali, e não no `.modal-dialog`: com `box-sizing: border-box` o padding **encolhe** a caixa de 100% de altura, então o `modal-dialog-scrollable` recalcula sozinho e a lista rola dentro do que sobrou. Margem no diálogo empurraria pra baixo sem tirar altura, e o fim da lista sairia por baixo. ⚠️ O Bootstrap escreve `padding-left/right` inline no `.modal` (compensação da barra de rolagem) e não encosta no topo/rodapé — por isso os dois não brigam.
+>
+> 🪗 **E CADA DUPLA DO MODAL DOBRA SOZINHA.** 🗣️ *"permita minimizar pela 'dupla' apostada tambem"*: com 15 nomes de um lado, ver a outra dupla exigia rolar a lista inteira. O cabeçalho virou **botão** (`<button>`, não `<p onclick>` — recolher é ação, e ação sem botão não chega pra teclado nem pra leitor de tela), com a seta girando pelo **`aria-expanded`**: um só estado, lido pelo leitor de tela E pelo CSS.
+>
+> ⚠️ **O MODAL É UM SÓ, reusado por todos os jogos da lista** — então ele **desdobra os dois lados a cada abertura**. Sem isso, um lado dobrado num jogo continuaria dobrado no próximo, escondendo gente que ninguém mandou esconder. Tem conferência no `conferir-palpitrometro.js`.
+>
+> 🧪 **6.471 testes, 0 falhas (2 novos)** + **14 conferências** no JS (1 nova). Vistos vermelhos antes: *"Não achei a regra do `.modal` no site.css"* e *"Not found: alternarVotantes("*. ⚠️ O DOM falso do modal (da sessão paralela) ganhou `querySelectorAll` — sem ele a conferência estourava em *"document.querySelectorAll is not a function"*, que é o mock incompleto e não o código.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
+
+> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264 do Deploy, 20h18 e 20h20 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #227. ✅ **SEM MIGRATION.**
+>
+> 🗣️ Felipe, com o print da prévia de 2 grupos ocupando o monitor inteiro: *"ficou muito esticado, nao tem pq e fica feio, deixe em um tamanho normal que fique bonito"* — e, logo depois, *"Talvez seja melhor fazer tambem da esquerda pra direita, ao inves de cima para baixo, ficará mais alinhado"*.
+>
+> 🕳️ **O ESTICADO NÃO ERA UM `width` ESQUECIDO: ERA A GEOMETRIA.** O quadro do computador (`.pdz-arv`) era uma grade de **N colunas, N = jogos da rodada mais larga**. Com 2 grupos são **2 colunas**, cada uma metade do monitor — cartão de **~870px** pra escrever "1º do Grupo A", e a final ocupando as duas. Nenhum cap de largura conserta isso sozinho: com o cartão capado em 17rem os dois cartões ficam **centralizados em meia tela cada**, com 700px de linha de ligação entre eles. **Foi renderizado e olhado antes de escolher.**
+>
+> ✅ **AGORA É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA NAS DUAS TELAS.** A rodada é uma **coluna de 17rem** e o que muda por largura é só o TRILHO: no celular encaixa (`scroll-snap`) com a seguinte espiando na beirada; no computador (`@media (min-width: 768px)`) a chave inteira está à vista, sem encaixe, centralizada por `width: fit-content` + `margin-inline: auto`. **O `.pdz-arv` inteiro foi apagado** — marcação e CSS.
+>
+> ⚠️ **`justify-content: center` NÃO SERVE AQUI**: num container que rola, ele esconde o COMEÇO do conteúdo e não há barra pra voltar. `fit-content` + margem automática centraliza enquanto cabe e vira 100% quando não cabe — medido: a chave de 8 jogos a 800px rola até o fim e volta com a primeira rodada em x=24.
+>
+> 📏 **17rem POR RODADA, MEDIDO, não escolhido no olho.** A linha `.pdz-chave-quando` é `nowrap; overflow: hidden` **sem reticências**, então cartão apertado come o nome do clube calado. Cartão de 264px → `Er Padel · Arena Loja 7` inteiro nos 15 cartões da chave de 16. A 16rem já perde **3px**; a 15rem, **19px**; a 13rem, **51px**. E o desenho antigo, na chave de 8 jogos a 1440px, dava cartão de **166px** — cortava o clube em todas as oitavas.
+>
+> 🧪 **6.559 testes, 0 falhas** + as 2 conferências do JS verdes. O `QuadroDaPreviaTemOsDoisDesenhosTests` (que travava "no pc é de cima pra baixo") virou `QuadroDaPreviaDeitaNasDuasTelasTests`. **3 vistos vermelhos antes da correção**: *"Not found: class=\"pdz-chd\""*, *"Não achei o @media da prévia no computador"* e *"Not found: pdz-chd-fichas d-md-none"*.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, nos dois temas, a 1440px / 820px / 390px: cartão 264px e **corte 0** no computador; celular **sem mudança nenhuma** (o `@media` começa em 768px). ⚠️ **A armadilha do headless de novo**: `.pdz-chd-trilho` tem `scroll-behavior: smooth`, e o `:root { scroll-behavior: auto }` da página de medição **não alcança** — a rolagem não terminava e o trilho parecia travado em `scrollLeft = 0`. Quem for medir rolagem DELE tem que forçar `auto` **no seletor dele**.
+>
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, por `curl`** (`padelizou.com.br/Torneios/Details/26`): **7 quadros deitados** (`pdz-chd-trilho`), **13 ligações** desenhadas com **ponto** decimal (`--a:25%;--hw:50%`), **7 fichas e 7 dicas com `d-md-none`**, e **zero** `pdz-arv-rolagem` — o desenho de cima pra baixo saiu do ar. No `/css/site.css` servido: o `@media`, o `flex: 0 0 17rem` e o `.pdz-chd-conta`, com **zero** regra `.pdz-arv` de layout. `/healthz` **200** nos dois ambientes.
+>
+> 👀 **E A PROVA VISUAL É DE PRODUÇÃO, não de maquete**: o primeiro quadro foi RECORTADO do HTML que prod serve e renderizado no Chromium com o `site-prod.css` baixado do ar — cartão de **264px, corte 0** nos dois temas. É a MESMA categoria do print do Felipe (2 grupos, jogos 1/2/3, 13:50 · 14:40 · 18:00, Er Padel · Arena Loja 7), agora deitada.
+>
+> ⚠️ **DOIS DEPLOYS CORRERAM EM PARALELO** (outra sessão publicou o `3686b36` às 20h22, run 265). O `head_sha` de um `workflow_dispatch` é o `main` do minuto do disparo, e **não** o artefato instalado — quem manda é o input `build`. Foi por isso que o run 264 aparece com o sha da outra sessão; o que está no ar foi conferido pelo conteúdo servido, não pela listagem de runs.
+
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** 🚀 **PUBLICADO em `dev` no `build-1156-f0c45da`** (run 258 do Deploy, 19h57 UTC), com a tag explícita. PR #223. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, por `curl`**: o `/css/site.css` servido pelo `dev` traz `.pdz-live-palpite { padding: .5rem 1.1rem 1rem; }` e o `/healthz` responde **200**. ⚠️ **O Razor não pôde ser conferido no `dev` e não é defeito**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve **302** pro `/AcessoAntecipado/Entrar` para quem é anônimo. Quem provou a marcação foi o Chromium, medindo os dois cards lado a lado. ⏳ **Não foi publicado em `prod`.**
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES NO CICLO** (PRs #222 e #223, mesclados com dois minutos de diferença). O `dev` foi publicado com o **build do #223** (`f0c45da`), e não com o mais recente: publicar o `build-1158-243ffe5` levaria junto o trabalho da outra sessão, que ninguém pediu pra subir. Nenhum deploy foi revertido — os quatro últimos (runs 254–257) eram todos do `2c50186`, anterior aos dois merges.
+>
+> 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
+>
+> 🕳️ **A CAUSA É UMA VARIÁVEL QUE NÃO EXISTE — e é verdade estrutural, não caso isolado.** O Bootstrap 5.3 escreve `.card-body { padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x) }` e declara as duas variáveis **dentro da regra do `.card`**. O card do Ao Vivo é `.pdz-live-card`, casa nossa — ali as duas não existem, a declaração inteira fica inválida no cálculo e o padding cai pro **valor inicial: zero**. Sem erro, sem aviso: o bloco encosta nos quatro lados. **Vale igual pra `.card-header`, `.card-footer` e `.card-img-overlay`.**
+>
+> ⚠️ **E SÓ DAVA NO COMPUTADOR**, que é por que durou: o `site.css` tem `.card-body { padding: 1.15rem !important }` dentro do `@media (max-width: 767px)` — no celular o `!important` tapava o buraco.
+>
+> ✅ **`.pdz-live-palpite { padding: .5rem 1.1rem 1rem }`** no lugar do `card-body pt-2`. O 1.1rem não foi escolhido: é o do `.pdz-live-header` e o do `.pdz-live-video-label`, e é o que alinha o "Palpitrômetro" com o "Transmissão" logo acima. Nada de ensinar as variáveis do `.card` ao cartão — seria carregar um componente inteiro pra pegar dois números.
+>
+> 🔎 **"VEJA SE TEM MAIS ALGO ASSIM": varri as 8 famílias do Bootstrap cujo espaçamento vem de variável do pai** (`card-*`, `accordion-*`, `modal-*`, `list-group-item`, `dropdown-item`, `toast-body`, `nav-link`, `page-link`) em todas as views, com pilha de tags. **Deram 28 apontamentos e um só é defeito** — este. Os 27 restantes são template dentro de `<script>` (o pai nasce no JS, noutro lugar da página), partial cujo pai está no chamador (`_SetasDaOrdem`, `_LinhaDoCheckIn`, `_PessoaNaRede`, `MenuDesafios`) e `.nav-link` dentro de `.navbar-nav`, que declara as vars dele.
+>
+> 🚦 **GATE MECÂNICO NOVO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `Nenhuma_view_usa_peca_de_card_fora_de_um_card` monta a pilha de tags de toda `.cshtml` e quebra se uma peça de card aparecer sem `.card` por cima. Só a família `card-*` — é a que quebrou, e é a única que hoje dá **zero** falso positivo. Comentário do Razor e `<script>` ficam de fora.
+>
+> 🧪 **6.564 testes, 0 falhas (6 novos, em `PalpitrometroColadoNaBordaTests`)** + **14 conferências** no JS. Os 6 vistos vermelhos antes, pelos motivos certos: *"Sub-string found: card-body"*, *"não achei a regra .pdz-live-palpite no site.css"* (×3) e o gate apontando exatamente `_JogosDoTorneio.cshtml:659` — **um só**, que é a prova de que não tinha mais nenhum.
+>
+> 🖥️ **MEDIDO NO CHROMIUM**, com o `site.css` e o `bootstrap.min.css` de verdade, os dois cards lado a lado: a 1280px o "Palpitrômetro" saiu de **1,0px** da borda pra **18,6px** — os mesmos 18,6px do "Transmissão" — e o "12 voto(s)" de **5px** pra **21px** do fim do card. Abaixo de 768px, onde o `!important` já tapava: 18,3px → **17,5px**, agora batendo com o rótulo da transmissão em vez de 0,8px fora.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** ⏳ **NO BRANCH `claude/blissful-mayer-qcleb6`.** ✅ **SEM MIGRATION.**
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1132-17beb25`** (runs 246 e 247). PR #214. ✅ **SEM MIGRATION.**
+>
+> 🎯 **O CARD DO JOGO, DENTRO DO CARD DO GRUPO, GANHOU DESTINO E TERCEIRO ESTADO.** 🗣️ Felipe, com o print do Grupo C: *"permita clicar no aovivo e ir para a pagina do aovivo aonde esta o jogo"* · *"e o que estiver finalizado deixe um circulo parecido com o do aovivo, só que outra cor q mostre q foi finalizado, direfernte do aovivo e do aguardando ainda"*.
+>
+> 1️⃣ **O JOGO EM QUADRA VIRA LINK PRO CARD GRANDE.** Card pequeno e card grande moram na MESMA página, em abas diferentes — então é uma **hash** (`#jogo-123`), e não uma URL nova: nada recarrega e o `<iframe>` da transmissão não reinicia, que é o motivo de o `jogos-ao-vivo-atualiza.js` existir. O elemento é **sempre `<a>`, com `href` só no jogo ao vivo** (`href` nulo o Razor não escreve, e `<a>` sem href é texto comum) — um elemento só pros três estados, em vez do miolo duplicado num `if`. O alvo do toque é o **card inteiro**: no celular a linha do "quando" tem 10px.
+>
+> 2️⃣ **O TERCEIRO ESTADO: `● ENCERRADO`, verde.** Antes eram DOIS na tela — bolinha vermelha ou uma data — e a data é a MESMA do jogo que acabou e do que ainda vai acontecer: "sex 11/09 19:40" não dizia se era história ou agenda. ⚠️ **Verde de sinal (`#2e9e5b`), e NÃO o lime da marca**: o lime sobre o card claro dá contraste de **1,8:1** em corpo `.62rem`, e ele já é a cor de quem VENCEU, na linha logo abaixo. O selo toma o **lugar** da data porque a linha é `nowrap; overflow: hidden` sem reticências — os dois juntos comeriam o "Er Padel · Arena Nclass" calado, que é o defeito medido na árvore da chave hoje de manhã.
+>
+> 🕳️ **A VERDADE ESTRUTURAL QUE ESTE TRABALHO DEIXA: `Tab.show()` DO BOOTSTRAP É ASSÍNCRONO.** Ele tira o `active` da aba velha, **espera os 150ms do fade dela** e só então acende a nova. Na linha seguinte ao `show()` o painel de destino ainda é `display: none`, o card mede 0x0 e `scrollIntoView` num elemento sem posição não rola nada. Quem desliga animação no sistema (`prefers-reduced-motion`) nunca veria — é o defeito que passa na máquina de quem escreveu e falha no celular de quem usa. Por isso o `pdzMostrarAba` recebe um `depois` e só chama no `shown.bs.tab` (e direto, quando a aba já é a ativa: ali evento nenhum nasce).
+>
+> 👀 **E DE NOVO FOI OLHAR A TELA**, no Chromium do container, com o `site.css` e o `bootstrap.bundle.min.js` de verdade: as duas abas abrindo, o card centralizado (`scrollY` 585, card no 397 de uma janela de 613) e os três estados nos dois temas.
+>
+> 🕳️ **ARMADILHA NOVA PRA QUEM MEDIR TELA NO HEADLESS, e custou meia hora**: o Bootstrap declara `:root { scroll-behavior: smooth }`, e **rolagem suave não termina** com `--virtual-time-budget` — `window.scrollTo(0, 500)` devolve `scrollY = 0` e parece defeito do código. A página sem Bootstrap rolava; a com Bootstrap, não. Quem for medir ROLAGEM: force `scroll-behavior: auto` **na página de medição**, nunca no site.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **56 cards de jogo do grupo já saindo como `<a class="pdz-grupo-jogo">`**, o `pdzIrProJogoDaHash` na página e a regra `.pdz-chave-encerrado { color: #2e9e5b }` no `/css/site.css` servido.
+>
+> ⚠️ **OS DOIS ESTADOS NOVOS NÃO PUDERAM SER VISTOS EM PRODUÇÃO, e não é defeito: é o DADO.** No minuto do deploy o Er estava com os **56 jogos de grupo agendados** — zero ao vivo e zero finalizado (`pdz-chave-venceu`, `pdz-grupo-jogo-aovivo` e `href="#jogo-"`: todos em 0). Sem jogo naqueles status, o `href` e o selo não têm quando nascer. A prova visual é a do Chromium acima; **a de produção fica pra próxima rodada de jogos** — quem passar por aqui com o torneio rolando, confira.
+>
+> 🧪 **6.556 testes, 0 falhas (7 novos, em `CardDoJogoNoGrupoTests`; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"não achei a abertura do card do jogo do grupo"*, *"não achei a regra .pdz-chave-encerrado no site.css"* e *"não achei o pdzIrProJogoDaHash no Details"*.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1121-dc88f91`** (runs 243 e 244, 18h30 e 18h33 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #212. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o botão **"O que cada um precisa para passar"** no card do grupo, com o pop-up que diz a cada dupla qual placar ela precisa fazer; e as **vagas por grupo viraram régua única** (`ClassificacaoDeGrupos.VagasPorGrupo`), que conserta a tela de Classificação discordando do chaveamento em categoria de TIMES.
+>
+> ✅ **CONFERIDO NO AR** (`padelizou.com.br/Torneios/Details/26`, anônimo, por `curl`): **8 botões** e **8 modais** `oQuePrecisa-*` na página — um por grupo com um jogo faltando. `/healthz` **200** nos dois ambientes. O pop-up do Grupo A (`oQuePrecisa-122`) veio com o texto certo montado de dado real: *"Falta um jogo: Marcos Coelho & Marcio Rafael x Marcelo Konflanz & Milton Portolan"*, os dois com o selo **Classificado** e o cenário **"Qualquer resultado"**.
+>
+> ⚠️ **O CAMINHO "DEPENDE" — o do print do Felipe — NÃO FOI VISTO NO AR, e é por falta de caso, não por falha**: os 8 grupos com um jogo faltando estão todos no estado em que o último jogo não decide vaga nenhuma. A frase *"Passa vencendo por 5 games ou mais"* está provada pelos 13 testes e pelo Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade**.
+>
+> ⚠️ **O `dev` SÓ FOI PROVADO PELO `/healthz`**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve 302 pro login para quem é anônimo. Quem provou o Razor foi a `prod`.
+>
+> 🧪 **6.530 testes, 0 falhas (20 novos)** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (dois merges: o `main` andou no meio do CI).
+>
+> 🕳️ **O TÍTULO E A LINHA "DOCUMENTO VIVO" DESTE ARQUIVO FORAM RESTAURADOS AQUI.** O merge do PR #213 (`06465fc`, resolvendo conflito contra o meu #212) comeu as duas primeiras linhas — e uma delas é justamente a que manda toda sessão atualizar o STATUS ao fim do bloco. Conflito no topo deste arquivo é rotina (toda sessão escreve ali); **resolver mantendo as duas entradas e o cabeçalho** é o que não pode se perder.
+>
+> ⚠️ **DECISÃO PENDENTE DO FELIPE**: `Torneio.ClassificadosPorGrupo` não é lido por ninguém agora — só a `DuplicacaoDeTorneio` o copia. Virar o padrão do torneio dentro da régua (⚠️ muda a CHAVE de todo torneio cuja coluna não seja 2) ou sair numa migration.
+>
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` no `build-1125-5f5c53d`** (run 34634626138) **e em `prod` no `build-1148-c3ff4b3`** (run 34638587687). PR #213. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, em `dev`**: `/healthz` **200**; o `/css/site.css` servido traz as duas regras novas (`.pdz-live-placar-venceu`) e **zero** ocorrência de `pdz-live-placar-ganhando`; o `.pdz-live-input` e o `.pdz-live-passo` chegam com `background: var(--pdz-navy-fixed)`, `color: #fff` e borda `rgba(255,255,255,.18)`; o `/js/placar-ao-vivo.js` traz `linha.vencedor`; e o `/sw.js` já está em `padelizou-static-v30`. ⚠️ **A TELA em si não dá pra ver anônimo** — o `dev` está atrás do gate de Acesso Antecipado e `/Torneios/...` responde 302. A prova visual do card é a local, com o app de verdade e o Chromium.
+>
+> ✅ **E EM PROD TAMBÉM, DE CARONA NO DEPLOY DE OUTRA SESSÃO.** 🗣️ *"publica em prod tambem"* — e ao conferir antes de disparar, já estava lá: o `build-1148-c3ff4b3` foi pro `prod` às 19:23:52Z (*"Feito. build-1148-c3ff4b3 no ar em prod"*), e o merge deste trabalho é **ancestral** dele. Conferido no ar em `padelizou.com.br`: `/healthz` **200**, `/css/site.css` com as duas regras `.pdz-live-placar-venceu` e **zero** `pdz-live-placar-ganhando`, o `.pdz-live-input` com `background: var(--pdz-navy-fixed)` e borda `rgba(255,255,255,.18)`, o `/js/placar-ao-vivo.js` com `linha.vencedor` e o `/sw.js` em `padelizou-static-v30`.
+>
+> ⚠️ **NÃO DISPAREI UM SEGUNDO DEPLOY, e o motivo é a regra:** mandar o `build-1125-5f5c53d` (o meu) pro `prod` depois disso **rebaixaria** o ar — tiraria o #214, o #217 e tudo que entrou entre um e outro. **Num repositório com várias sessões publicando no mesmo dia, "publicar o meu build" e "publicar o mais recente" deixam de ser a mesma coisa** — conferir o que já está no ar ANTES de disparar é o que separa as duas.
+>
+> 🟢 **O VERDE DO CARD AO VIVO É DE QUEM VENCEU, E NÃO DE QUEM ESTÁ NA FRENTE.** 🗣️ Felipe, num print de um 8 x 6 em quadra: *"pq q esse aqui ta o numero verde se o jogo n terminou? acho que ele se perdeu quando eu diminui do 9"*.
+>
+> 🎯 **Ele não se perdeu — a régua era `(jogo.GamesDupla1 ?? 0) > (jogo.GamesDupla2 ?? 0)`, escrita no Razor:** QUALQUER vantagem pintava de lime, desde o 1 x 0. E é o MESMO lime que o card finalizado usa pra dizer "venceu o jogo" — duas cores iguais pra duas coisas diferentes, na mesma tela. Quem lê acredita na mais forte, e a tela anunciava um fim que não aconteceu.
+>
+> ⏱️ **E O VERDE ATRASAVA — a metade do defeito que o print não mostra.** A classe só nascia no HTML do servidor: o −/+ salva por `fetch` e atualizava o NÚMERO, nunca a COR. Um 9 x 8 corrigido pra 8 x 8 ficava com o EMPATE pintado de verde do lado de cima. A atualização automática arrumaria no tique de 20s — **mas ela não roda com o cursor dentro do campo** (`estaOcupado`, em `jogos-ao-vivo-atualiza.js`): quem DIGITA em vez de tocar no −/+ ficava com a cor errada por tempo indeterminado.
+>
+> ♻️ **A RÉGUA NOVA NÃO É UMA TERCEIRA CONTA** — é a composição das duas que já existiam, numa linha só (`Services/QuemVenceu.LadoJaDecidido`): `FormatoDaPartida.PodeEncerrar` diz se o jogo está DECIDIDO e `QuemVenceu.Lado` diz a favor de QUEM. Escrever um `games1 >= 9` no Razor ou no JS seria o `limiteGames: 9` cravado voltando pela terceira porta. **Quem responde é o SERVIDOR nos dois caminhos**: `ViewBag.VencedorNoPlacar` no HTML e um campo `vencedor` na resposta JSON do salvar — e é este segundo que conserta o atraso, porque o JS passa a ter o que obedecer sem esperar a atualização automática.
+>
+> ✅ **O que muda na quadra:** até 9 → o 8 x 6 fica branco e só o 9 acende; até 4 → o 3 x 3 (que estende o limite pra 5) não acende ninguém; soma de 7 → o 6 x 0 ainda tem um game pra jogar, o 4 x 3 fecha; **soma par empatada (7 x 7) → ninguém verde**, que é onde "ganhando" e "venceu" mais divergem. Com sets em jogo, o set decide — a mesma ordem do `QuemVenceu.Da` que finaliza a partida.
+>
+> 🧪 **6.549 testes, 0 falhas (19 novos; o resto veio do `main`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'QuemVenceu' does not contain a definition for 'LadoJaDecidido'"* (12×, os testes de régua), o JSON sem `"vencedor":1`, a view ainda com o `>` no Razor, o JS sem `linha.vencedor` e o CSS sem `.pdz-live-placar-venceu`.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`), logado como marcador num jogo até 9: **9 x 6 → o 9 em `rgb(163, 216, 39)`; um toque no − → 8 x 6 com os DOIS em branco, sem recarga; toque no + → lime de volta na hora.** O empate 8 x 8, que era o caso que ficava preso, sai com os dois brancos.
+>
+> 🧹 **`CACHE_NAME` do service worker foi pra `v30`, e é a TERCEIRA colisão do mesmo dia:** eu tinha escrito `v29` antes de mesclar o `main`, que já estava em `v29` — e o `const` **NÃO conflitou**, porque as duas pontas escreveram o mesmo número. Quem denunciou foi o **comentário** logo acima dele, que conflitou: é literalmente a pista que a colisão anterior deixou escrita ali pra quem viesse depois. Sem isso, `site.css` e `placar-ao-vivo.js` novos ficariam guardados sob um nome que o app instalado já tem, e o verde velho continuaria no ar sem erro em lugar nenhum. **Quem sobe o número confere o `main` ANTES de escolher qual.**
+>
+> 🌗 **E O ACHADO DE CARONA FOI CONSERTADO NO MESMO BLOCO (🗣️ *"conserta isso tambem"*): o placar do card AO VIVO era BRANCO NO BRANCO no tema claro.** Medido no navegador antes: `color: rgb(255,255,255)` sobre `background-color: rgb(255,255,255)` — o organizador que não usa o tema escuro via **caixas vazias** no lugar dos games, desde 21/08/2026, sem erro em lugar nenhum.
+>
+> 🕳️ **A CAUSA É UMA MISTURA DE DOIS MUNDOS, e vale mais que o conserto:** o cabeçalho do card é escuro **nos dois temas** (o gradiente navy de `.pdz-live-header`), mas o campo e os botões −/+ que moram nele pegavam `var(--pdz-surface)` / `var(--pdz-ink)` — tokens que SEGUEM o tema da página. No escuro combinavam por coincidência; no claro o número sumia e o −/+ virava dois botões brancos gritando num card escuro. **Quem mora num fundo fixo se pinta com cor fixa** (`--pdz-navy-fixed`, que existe exatamente pra isso).
+>
+> 🧪 **O teste MEDE CONTRASTE, não nome de token** (`PlacarDoCardAoVivoLegivelNosDoisTemasTests`): resolve os `var()` pelos dois temas, calcula o contraste da WCAG e exige ≥ 3:1 (texto grande) — mais a régua da causa, que é a cor do placar **não mudar com o tema**. Proibir `var(--pdz-surface)` numa linha travaria a solução de hoje; o que não pode voltar é o número ilegível. **Vermelho visto antes: *"ficou ilegível no tema claro: tinta #fff sobre fundo #ffffff dá 1.00:1"*** e *"`background` de `.pdz-live-passo` muda com o tema (#ffffff no claro, #1a2338 no escuro)"*. ⚠️ **Dois enganos do próprio teste foram pegos porque o número medido não batia**: o seletor casava dentro de `.pdz-live-placar-venceu .pdz-live-input` (media o lime achando que media o branco) e a citação `` `color: inherit` `` DENTRO de um comentário do CSS abria uma declaração falsa que engolia a de verdade.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR nos dois temas, depois:** `[−][9][+]` sai **idêntico** no claro e no escuro — `rgb(163,216,39)` no 9, `rgb(255,255,255)` no 6 e nos botões, todos sobre `rgb(28,39,66)`.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **O NÚMERO DE VAGAS POR GRUPO VIROU RÉGUA ÚNICA, E A TELA DE CLASSIFICAÇÃO PAROU DE MENTIR.** 🗣️ Felipe, depois de eu reportar a divergência: *"sim, alinha a outra tela também"*.
+>
+> 🕳️ **NÃO ERA LATENTE: ERA DEFEITO NO AR EM CATEGORIA DE TIMES.** A tela `/Torneios/Classificacao` lia `torneio.ClassificadosPorGrupo` (nasce 2, nenhuma tela edita) e o `AvancoDaChave` — quem monta o mata-mata de verdade — lê o da CATEGORIA. Numa categoria de times, onde o organizador escolhe **de 1 a 4 por grupo** em `Times.cshtml`, isso quebrava duas coisas de uma vez: o **verde da tabela** (`posicao <= N`) marcava 2 linhas quando 4 passavam — **o time em 3º lia que estava fora de uma vaga que ia receber** — e o painel "o que cada um precisa" simulava o corte errado.
+>
+> ⚠️ **A CAUSA RAIZ NÃO ERA A TELA: ERA O NÚMERO NÃO TER CASA.** `Math.Max(1, categoria.ClassificadosPorGrupo ?? 2)` estava escrito à mão em **dez lugares** — `AvancoDaChave`, `RoboDoChaveamento`, três pontos dos controllers e quatro views —, e nas views **sem** o `Math.Max(1, …)`. Consertar só a cópia que divergiu seria consertar o sintoma: a décima primeira cópia era questão de tempo.
+>
+> ♻️ **`ClassificacaoDeGrupos.VagasPorGrupo(Categoria?)`** — a régua do NÚMERO, ao lado do `Ordenar`, que é a régua da ORDEM. As duas metades da mesma pergunta no mesmo arquivo. Os dez lugares passaram a chamá-la; oito eram idênticos (refatoração pura) e as duas views de exibição **ganharam** o piso de 1 vaga que não tinham.
+>
+> 🚪 **E TEM GATE MECÂNICO**, no espírito do `GateDeAutorizacaoDosPostsTests`: `O_numero_de_vagas_so_e_escrito_na_regua` varre todo `.cs` e `.cshtml` do projeto (fora Migrations) e quebra se o `?? 2` reaparecer na mão. Regra que depende de lembrança volta; esta não tem como.
+>
+> ⚠️ **`Torneio.ClassificadosPorGrupo` AGORA NÃO É LIDO POR NINGUÉM** — só a `DuplicacaoDeTorneio` ainda o copia. A coluna FICA (dropar pede migration, que é `architectural`), com o porquê escrito no próprio campo. **Decisão do Felipe pendente**: virar o padrão do torneio (dentro da régua) ou sair numa migration. ⚠️ Se virar padrão, **muda a CHAVE** de todo torneio cuja coluna não seja 2.
+>
+> ⚠️ **ALINHAR FOI A TELA → CHAVEAMENTO, e não o contrário** — por isso o fallback é `?? 2` e não o campo do torneio: pôr o do torneio de padrão mudaria o mata-mata de torneios que já existem, o oposto do que foi pedido.
+>
+> 🧪 **6.456 testes, 0 falhas (7 novos, em `VagasPorGrupoSaoUmaReguaSoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"'ClassificacaoDeGrupos' does not contain a definition for 'VagasPorGrupo'"*, no `RegraClassificados` **2 onde tinha que ser 3**, no painel simulando com 2 vagas, e o gate listando os dez arquivos com a cópia na mão.
+>
+> ⚠️ **Sem migration. Nada visto em tela** — o que se provou é o número que o controller entrega, não o verde desenhado.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **"O QUE CADA UM PRECISA PARA PASSAR" CHEGOU AO CARD DO GRUPO, EM POP-UP.** 🗣️ Felipe, num print do Grupo B do 2ª Etapa ER Padel Tour: *"quando chegar nessa parte, que o grupo de 3, ja tiveram 2 jogos e falta um, exiba botão 'O que cada um precisa para passar' e nele abre um pop up, explicando qual placar cada um precisa fazer para passar, por que as vezes cada dupla ganha um jogo ou enfim, e fica a duvida de quantos games precisa fazer para passar de fase"*.
+>
+> ♻️ **O MOTOR JÁ EXISTIA — e é o MESMO pedido, de 13/08/2026.** `Services/OQuePrecisaParaClassificar` simula todo placar possível do jogo que falta e pergunta à régua oficial (`ClassificacaoDeGrupos`, a que monta a chave) quem classifica em cada um. Só que vivia na tela `/Torneios/Classificacao` e **não** no card do grupo — que é de onde o print foi tirado. **Nenhuma matemática nova**: o trabalho foi levar o painel pra lá.
+>
+> 🆕 **O QUE FALTAVA PRO PEDIDO SER ATENDIDO DE FRENTE: A LINHA DE CADA DUPLA.** A tabela de cenários responde de lado (ache seu nome nas linhas e deduza). No Grupo B do print: **Eder/Augusto — "Já classificado"**; **Marcelo/Enio — "Passa vencendo ou se Paulo vencer por até 4 games"**; **Paulo/Arthur — "Passa vencendo por 5 games ou mais"**.
+>
+> ⚠️ **É 5, E NÃO 4 — e é exatamente por isso que o pedido existe.** Vencendo por 4 (9x5) o Paulo empata o saldo com o Marcelo em **−1**, e o 3º critério, games a favor, fica com o Marcelo: **14 a 13**. Ninguém faz essa conta de cabeça na beira da quadra.
+>
+> ♻️ **UMA PARCIAL SÓ (`_OQuePrecisaParaClassificar`) PRAS DUAS TELAS**, e o nome CURTO da dupla saiu da view pro serviço — a regra vivia copiada na Classificação, onde podia divergir da frase ao lado dela na mesma linha da tabela. A Classificação continua abrindo NO LUGAR (collapse) e o card abre em pop-up: **quem embrulha é quem chama**. O rótulo do botão virou um só, o do Felipe.
+>
+> ⚠️ **QUANTOS PASSAM SAI DE `categoria.ClassificadosPorGrupo ?? 2`** — o MESMO número do `AvancoDaChave`, que monta o mata-mata de verdade. A trava é `[Theory]` com 1 e 2 vagas, e precisa ser: `torneio.ClassificadosPorGrupo` nasce 2 e nenhuma tela o edita, então um painel que lesse o do TORNEIO passaria calado num teste só de duas vagas.
+>
+> 🕳️ **O MODAL NÃO PODE NASCER DENTRO DO CARD, e isso custou um SEGUNDO laço no Razor.** `site.css:712` dá `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do grupo é exatamente isso — ancestral com `transform` vira bloco de contenção do `position: fixed`. **Medido no Chromium**: dentro do card o pop-up virou **294x452 dentro de um card de 296px**; fora dele cobre a viewport inteira mesmo com o card sob o mouse.
+>
+> 🧪 **6.449 testes, 0 falhas (13 novos, em `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"The type name 'Situacao' does not exist"*, no `ViewBag.OQuePrecisaPorGrupo` nulo e nas três buscas de marcação. **Duas travas falsificadas**: trocar o campo das vagas pelo do torneio derruba o caso de 1 vaga, e juntar os dois laços do Razor derruba a conta de laços.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas, a 430px e a 1100px**: pop-up centrado, sem rolagem horizontal, as três linhas de dupla legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS e o `position: fixed`, não o Razor.
+>
+> ⚠️ **DIVERGÊNCIA ANOTADA E NÃO CONSERTADA — ✅ CONSERTADA NO BLOCO ACIMA, no mesmo dia** (e era pior do que eu disse aqui: em categoria de TIMES já estava no ar). A tela `/Torneios/Classificacao` simula com `torneio.ClassificadosPorGrupo` e o chaveamento usa `categoria.ClassificadosPorGrupo ?? 2`. Hoje as duas dão 2 (nenhuma tela edita a do torneio), então **não há defeito no ar** — mas no dia em que a do torneio virar editável, aquela tela promete vaga que a chave não dá. O card do grupo já nasce na régua certa.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/practical-noether-taebda`, ainda não publicado.** **Sem migration.**
+>
+> ⏭️ **O CHECK-IN MOSTRA SÓ O QUE AINDA NÃO COMEÇOU; O RESTO VAI PRO FIM, FECHADO.** 🗣️ Felipe, com o ensaio do Er aberto em `dev`: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela minimazado como ja jogaram ou estão em jogo"*.
+>
+> 🕳️ **NA PRIMEIRA VERSÃO ELES SUMIAM DA TELA INTEIRA** (a consulta filtrava `Status == "Agendada"`), e isso tinha um custo que só aparece operando: quem põe o jogo no ar **antes** de marcar a chegada perde o caminho pro check-in daquela dupla — ela só volta pela lista de 64. Agora o jogo que começou ou acabou tem endereço: o bloco **"Já jogaram ou estão em jogo (N)"**, fechado, no fim da tela, com o mesmo botão dentro.
+>
+> ⚠️ **AO VIVO NA FRENTE DO FINALIZADO**, e não uma ordem só: um está acontecendo AGORA e ainda pode precisar de correção, o outro é histórico. Dentro de cada grupo, a ordem é a da aba Jogos — o ao vivo pela largada, o finalizado pelo fim (placar lançado depois cai pro horário previsto).
+>
+> ♻️ **O CARTÃO DO JOGO VIROU PARCIAL** (`_JogoNoCheckIn.cshtml`), porque agora ele é desenhado nos dois blocos. O que muda entre eles é só o SELO, e ele sai do `Status` — escrever dois cartões parecidos pra isso é exatamente como duas telas passam a divergir na primeira mudança. O formulário que grava presença segue num arquivo só (`_LinhaDoCheckIn`), e o teste trava isso nos três lugares onde a linha aparece.
+>
+> 🧪 **6.508 testes, 0 falhas (11 na tela do check-in, 4 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: *"Não achei o bloco de quem já jogou / está em jogo"* e `ViewData["JogosQueJaRolaram"]` nulo. ⚠️ **Dois testes foram derrubados sem querer** ao reescrever o arquivo (a busca por âncora comeu o que havia entre elas) — percebido pela contagem cair de 11 pra 9, e restaurados no mesmo turno.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser aqui. O `dev` é quem mostra.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
+> **11/09/2026** — 🚀 **O ESCUDO DO TIME ESTÁ COMPLETO NO AR, em `dev` E `prod`, no `build-1105-1eedb7c`.** PRs #185, #189 e #201. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **QUATRO TELAS, TRÊS PEDIDOS DO FELIPE NO MESMO DIA**, cada um olhando em produção o resultado do anterior:
+>
+> 1. *"botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes"* → escudo no `_JogadorChip` (`build-1052`).
+> 2. *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* + *"e no ao vivo use esse do B"* → escudo na lista de jogos e SELO no card ao vivo (`build-1062`).
+> 3. *"pq tem algumas bandeirinhas sem fundo igual as demais ainda"* + *"nessa parte aqui, dos grupos, faça igual dos jogos ao vivo, com o logo redondinho no canto da foto"* → moldura clara em todos e selo também na tabela do grupo (`build-1105`).
+>
+> 🕳️ **A QUEIXA DAS "BANDEIRINHAS SEM FUNDO" NÃO ERA DEPLOY FALTANDO — ERA O ARQUIVO DE CADA LOGO.** Baixados e medidos os **17 escudos em uso no torneio 26**: só **3** têm fundo transparente; os outros 14 trazem o fundo DENTRO da imagem, e bem diferentes entre si — retângulo preto (Compass, Chakra, Os Loberos), azul-escuro (Operados), branco (Dez Padel, Porto) e dois JPEG. Sem fundo no CSS, cada um aparece como veio e a fileira fica salpicada.
+>
+> ✅ **A moldura clara é o que iguala**: branco FIXO nos dois temas (os opacos são quase todos claros por dentro — moldura que mudasse com o tema desigualaria de novo no escuro), borda de 1px, cantos de 4px, `contain` dentro. Não deixa todos da mesma COR — isso só editando as imagens —, mas dá a todos a mesma forma e o mesmo contorno.
+>
+> 🎖️ **O SELO É DO AO VIVO E DA TABELA DO GRUPO, e de mais ninguém.** O `_JogadorChip` é o mesmo parcial de quatro telas; quem quer o selo avisa por `view-data` (`EscudoComoSelo`), porque o que muda é o HTML — o selo nasce DENTRO da moldura da foto, que é quem ancora o canto quando o nome quebra em duas linhas. Ele encolhe de 18px pra 14px no compacto: lá a foto tem 26px contra 36px do ao vivo.
+>
+> ⚠️ **O selo nasceu NAVY e virou branco no mesmo dia**: com os logos de verdade o fundo escuro apagava os escuros — o "Compass", preto sobre navy, sumia dentro do próprio selo.
+>
+> 👀 **A SESSÃO WEB PASSOU A VER A TELA, e isso mudou o diagnóstico.** O Chromium do container (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome --headless=new --screenshot`, sem Playwright e sem servidor) renderiza um HTML local com o `site.css` do projeto e os **logos e fotos baixados de produção**. Foi assim que *"algumas bandeirinhas sem fundo"* virou a contagem 3-de-17 acima, em vez de chute.
+>
+> 🕳️ **A LIÇÃO CARA DO DIA: DUAS SESSÕES NO MESMO `site.css`.** O `build-1099` (do PR #201) foi publicado em `prod` e **sobrescrito 15 segundos depois** pelo `build-1098-9db8a22`, de outra frente — e aquele build **não tinha as linhas da moldura**: elas se perderam numa resolução de conflito no PR #204. O `main` ficou certo (outra sessão restaurou em `e5b4fab`), mas o AR ficou uma versão atrás sem ninguém notar. O conserto foi publicar o **`main` inteiro**, e não reempurrar o build antigo. É o que o `ONDAS-PARALELAS.md` já diz: **duas tarefas só rodam juntas se os arquivos são disjuntos** — e `site.css` não era.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`, DEPOIS de todos os deploys da rodada**: `/healthz` **200** nos dois ambientes; em `padelizou.com.br/Torneios/Details/26`, **93 selos** na tabela dos grupos (`pdz-chip-foto-selo`), **104 escudos** na lista de jogos (`pdz-jl-escudo`) e **186** ao lado do nome — com a moldura (`background:#fff` + borda) no `/css/site.css` servido.
+>
+> 🧪 **6.440 testes, 0 falhas (12 novos no dia, em `EscudoDoTimeNoChipTests` e `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde.
+>
+> ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM POR REGEX FROUXO, e o conserto vale pro próximo**: `\.pdz-chip-foto-selo \.pdz-chip-escudo` passou a casar também com `.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo` no dia em que essa regra nasceu — e o teste passou a medir o seletor errado. Levaram **âncora de início de linha** (`^` com `RegexOptions.Multiline`). Guarda de CSS por regex precisa ancorar o seletor.
+>
+> 🧹 **E O TÍTULO DESTE ARQUIVO VOLTOU PRO TOPO**: um merge de hoje deixou uma entrada inteira ACIMA do `# Padelizou — Status e Roadmap`, e o diário passou a começar no meio. A entrada não se perdeu — está logo abaixo, na ordem.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er (`/Torneios/CompartilharJogos/26`)**: a página responde **200** com o botão **"Baixar em planilha"**; a planilha baixa de verdade (**`text/csv`, 6.624 bytes, 56 jogos**, `attachment; filename=jogos-2-etapa-er-padel-tour-ept.csv`, com o BOM `EF BB BF` e `;`); e a arte `parte=1` sai em **PNG de 242 KB com 14 jogos** — a mesma sexta que antes precisava de duas imagens. 📉 **A prova do teto novo está na própria página: as partes caíram de SEIS pra TRÊS.**
+>
+> 🔒 **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e não é defeito**: o gate de **Acesso Antecipado** redireciona TODA a aplicação lá (o `/Torneios/Details/26` responde o mesmo 302 pro `/AcessoAntecipado/Entrar`). A evidência no `dev` é o run verde — e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho se o `/healthz` não responder — mais o `/healthz` 200 chamado por fora.
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO DUAS VEZES NESTE PR** (`fbd25b6` e `7b55897`: zero checks criados, enquanto outros branches rodavam no mesmo minuto). É o quadro de 26/08 e de 10/09; resolvido pelo **gatilho manual** do `ci.yml` (Actions → CI → Run workflow no branch), que devolveu verde no SHA certo. **As duas gambiarras continuam proibidas**: commit vazio e fechar/reabrir o PR.
+>
+> 📌 **E UM DISPARO DE DEPLOY FALHOU CALADO DE NOVO** — o `workflow_dispatch` do `prod` respondeu `204 queued` e **não criou run** (mesma nota de 10/09). Não foi refeito porque, no minuto seguinte, a sessão paralela publicou o `build-1099`, que já carrega este código: o `prod` está no ar com ele, conferido acima. **Quem disparar um deploy: confira que o run EXISTE, o 204 não garante nada.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES entre o PR e o merge** (PRs #202, #203 e o #201 depois). Cada vez: mescla, resolve o `STATUS.md`, roda a suíte inteira — **6.497 testes, 0 falhas** na última.
+>
+> 🧹 **CICATRIZ DESTA SESSÃO, e é de processo:** eu commitei `STATUS.md` **com os marcadores de conflito dentro** (`<<<<<<< HEAD`) porque encadeei `git add && git commit` depois de um script que **abortou no meio** — o `&&` só olha o comando anterior, e o `git add` "resolve" o conflito aos olhos do git. Corrigido no commit seguinte. **A lição: depois de resolver conflito, conferir o arquivo ANTES do `add`** — e o que enganou o script foi uma entrada antiga do próprio `STATUS.md` que CITA um marcador dentro de uma frase, então a busca tem que ser por LINHA inteira, nunca por substring.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/keen-ride-sn27ye`, ainda não publicado.** **Sem migration.**
+>
+> 📤 **O "COMPARTILHAR ESTA LISTA" GANHOU AS TRÊS COISAS QUE O FELIPE PEDIU DEPOIS DE USAR.** 🗣️ *"adicione o espaço de uma linha nos textos, por jogo, para nao ficar amontoado"* · *"crie tambem uma opção de importar planilha se quiserem"* · *"tente fazer com que na imagem caiba mais jogos, para que não precise varias imagens do mesmo conteudo"*.
+>
+> 1️⃣ **UMA LINHA EM BRANCO ENTRE CADA JOGO NO TEXTO.** Doze jogos eram 24 linhas coladas no grupo, e achar o seu exigia contar de dois em dois. A linha vem **ANTES** de cada jogo, e não depois — é o que garante que ela nunca dobre com a do cabeçalho do dia nem com a do link do fim. O teste escreve **a mensagem inteira** em vez de um punhado de `Contains`: a forma do texto É o recurso, e é uma linha em branco a mais ou a menos que a quebra.
+>
+> 2️⃣ **A PLANILHA (`/Torneios/JogosPlanilha`)**: a mesma lista em colunas — Data, Hora, Categoria, Fase, Local, Dupla 1, Dupla 2, Situação. ⚠️ **Entendi "importar planilha" como o lado de QUEM ABRE** (o organizador leva a grade pro Excel dele), e não como subir uma planilha pra criar jogos — esse seria outro recurso, `architectural`, e está anotado abaixo. ⚠️ **CSV e não XLSX: é o degrau 3 da escada** — abre no Excel, no Google Sheets e no Numbers sem UMA dependência nova (ClosedXML entraria no publish e no backup pra entregar o mesmo conteúdo com negrito). **BOM + `;` + CRLF**, os três por motivo: sem BOM o Excel lê "6ª" como "6Âª"; com vírgula a planilha inteira cai numa coluna só no Windows em português. ⚠️ **A planilha NÃO depende da Poppins** — a arte se desliga sem a fonte, e amarrar as três saídas ao mesmo `if` tiraria as colunas por um motivo que só vale pro desenho.
+>
+> 3️⃣ **A ARTE PASSOU DE 8 PRA 14 JOGOS, e o espaço saiu do CABEÇALHO.** Ele gastava 600 dos 1350px em logo grande + "JOGOS" em corpo 96 + pílula do dia + recorte — quatro blocos pra dizer duas coisas. Agora **o título É o dia** ("SEX 11/09", que é a pergunta de quem vê o story) e o recorte vem embaixo numa linha lime: 260px no lugar de 600, e a lista ficou com os outros 340. ⚠️ **A pílula lime saiu** — é a única peça da família que este card não tem; o dia em corpo 76 dentro dela viraria a faixa de 120px que o pedido manda devolver pra lista.
+>
+> 👁️ **E DE NOVO FOI OLHAR A ARTE QUE PEGOU O DEFEITO** (a quarta vez que este arquivo registra isso): com a faixa maior e o teto de linha antigo, **três jogos viravam três frases perdidas no meio de um card vazio** — o defeito do pódio da panelinha, de volta por outra porta. O teto da altura da linha subiu pra 160 e o corpo acompanha (20 a 40): lista curta sai com linhas GRANDES, lista cheia cai pros 56px da conta. Um segundo tropeço foi meu, no DADO do teste: 14 jogos de 40 em 40 minutos a partir das 18h **atravessam a meia-noite**, viram dois dias e a arte "de 14" saiu com 9.
+>
+> 🧪 **6.448 testes, 0 falhas (12 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'PlanilhaDaLista' does not exist"*, *"'TorneiosController' does not contain a definition for 'JogosPlanilha'"* e o texto sem as linhas em branco.
+>
+> 🖥️ **UI RODADA de dentro da sessão** (Postgres local + Playwright, a receita do `TRABALHAR-FORA.md`): a tela abre com as três saídas, o texto vem com o respiro, e o **clique no "Baixar em planilha" baixou `jogos-torneio-dos-amigos-2026.csv` de verdade** — conferido byte a byte (BOM `EF BB BF`, `;`, CRLF, acento certo).
+>
+> 📋 **FICOU DE FORA, e é decisão a tomar:** **importar** uma planilha pra CRIAR a grade (o caminho inverso). É `architectural` pela régua deste arquivo — grava dado, mexe na grade e precisa de uma tela de conferência antes de gravar —, então é design escrito e aprovado antes de código.
+
+> **11/09/2026** — 📏 **NA TABELA DO GRUPO, A SOBRA PASSOU A SER DO NOME, E NÃO DOS NÚMEROS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1105-1eedb7c`** (runs 235 e 236 do Deploy, 17h42 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #207. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, NA PÁGINA DE VERDADE E COM RÉGUA** — o HTML anônimo de `padelizou.com.br/Torneios/Details/26` (939 KB) renderizado no Chromium com o **`site.css` servido por produção**: **24 tabelas** de grupo com `pdz-grupo-tabela`, **zero** `max-width: 180px`, e as colunas medidas em **265 / 30 / 30 / 30 / 42 px** a 1700px. Dos **128 nomes** da tela, **só 1 ainda trunca** ("Arthur Prass (Batatinha)"); a 390px a coluna do nome fica com 152px e nenhuma tabela rola de lado. `/healthz` **200** e `sw.js` em **`padelizou-static-v29`** nos dois ambientes.
+>
+> ⚠️ **O `prod` FOI DISPARADO POR OUTRA SESSÃO, 21 SEGUNDOS DEPOIS DO MEU `dev` — e com a MESMA tag.** Deu certo por coincidência: o `build-1105` era o mais recente, então o "mais recente" dela e o meu nome explícito apontavam pro mesmo pacote. Com um merge a mais no meio, teriam apontado pra pacotes diferentes, e `dev` e `prod` divergiriam sem ninguém notar. **Quatro sessões publicando no mesmo dia pedem a tag explícita SEMPRE** — o `deploy.yml` só serializa por ambiente (`concurrency: deploy-<ambiente>`), não escolhe versão por você.
+>
+> 🔴 **O JOB "Pacote de deploy" DO CI FICOU VERMELHO, E O PACOTE ESTÁ CERTO:** o release `build-1105-1eedb7c` foi criado com sucesso e o passo seguinte — o que apaga releases fora dos 20 últimos — morreu em `HTTP 404: Reference does not exist (.../tags/build-1050-a22347e)`, com `exit 123` do `xargs`. É **corrida entre runs simultâneos**: outro run já tinha apagado aquela tag, e o `gh release delete` de quem chegou depois não encontra mais nada. Não afeta artefato nem deploy; **o conserto é tolerar a tag ausente na limpeza** (um `|| true` no `xargs`, ou conferir antes de apagar), e ficou pendente.
+>
+> 🗣️ Felipe, com um print da Fase de Grupos: *"Quero que os numeros com J V D SG fiquem um pouco menos espaçados, para que caiba mais do nome das pessoas"* — e a pergunta junto: *"eu acho que ja solicitei isso em alguma sessão, mas n sei se foi feito ou publicado"*. ⚠️ **NÃO TINHA SIDO**: o que existia era o **chip compacto de 10/09** (avatar 36→26px, clube escondido, nome truncando), que tratou a **ALTURA** da linha — nome de três palavras ocupava três alturas — e **nunca tocou na largura das colunas**. A queixa de agora é a outra metade, e é nova.
+>
+> 🕳️ **A CAUSA NÃO ERA O PADDING, ERA O `table-layout: auto`.** As quatro colunas não tinham largura declarada: o navegador repartia **toda a sobra do card** entre elas, e a célula da dupla ainda carregava `max-width: 180px` — teto que a impedia de aceitar a sobra. Resultado medido no print do Felipe (janela de ~1700px): **cada número com 46–69px** e o nome preso em 127px, virando "Augusto Ohl…".
+>
+> 📐 **A CORREÇÃO É UMA PROPRIEDADE, NÃO UMA CONTA:** `table-layout: fixed` na tabela, `30px` em J/V/D e `42px` no SG, e a coluna da dupla **sem largura declarada** — em layout fixo, a única coluna sem largura fica com todo o resto. Foi o degrau 4 da escada do CLAUDE.md (recurso nativo da plataforma) resolvendo sozinho: nenhuma media query, nenhum JS, nenhuma conta de porcentagem.
+>
+> ⚠️ **TIRAR O TETO DE 180px SOZINHO NÃO RESOLVERIA, e parece que resolveria** — em layout `auto` a coluna sem teto passa a pedir o **nome inteiro** (o chip é `white-space: nowrap`) e a tabela estoura a `.table-responsive`, trocando nome cortado por rolagem lateral. ⚠️ E **o SG é mais largo que J/V/D de propósito**: em layout fixo a célula **não cresce pelo conteúdo**, então apertá-lo no tamanho dos outros cortaria o "+12" em vez de empurrar a coluna.
+>
+> 📊 **MEDIDO NO CHROMIUM, ANTES E DEPOIS LADO A LADO** (Playwright, a marcação real com `bootstrap.min.css` + `site.css` de verdade, nos dois temas): na largura do print, o nome foi de **207px → 282px** de coluna (**127 → 200px** de texto visível) e os quatro números de **46/46/46/69 → 30/30/30/42**; "Augusto Ohlweiler", "Paulo Prass (Parceiro)" e "Arthur Prass (Junior)" **deixaram de ser cortados**. A 1350px o nome vai de 180 → 222px; a **390px**, de 180 → 199px — ⚠️ **no celular o ganho é pequeno (~19px)**, porque lá o limite é a tela e não o repartir. **Nenhuma das larguras rola de lado.**
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v29`, E O NÚMERO CUSTOU UM CONFLITO PRA APARECER.** Este branch subiu v27 → **v28** antes de mesclar o `main`, que já tinha ido a v28 pela bolinha do saque — e ⚠️ **aquele v28 JÁ ESTÁ EM PRODUÇÃO com outro `site.css`**. Manter o número deixaria a tabela repartida do jeito velho pra quem já guardou aquele v28, **sem erro nenhum em lugar nenhum**. ⚠️ Aqui o git conflitou (o `main` trouxe um comentário novo na mesma linha) e a colisão apareceu; **quando as duas pontas escrevem só o mesmo número, ele mescla limpo e a colisão passa calada** — foi o que aconteceu no v27, duas vezes no mesmo dia.
+>
+> 🔀 **MESCLADO COM O `main` DEPOIS DE TRÊS PRs DE OUTRAS SESSÕES** (#201 moldura clara do escudo, #204 selo do escudo na tabela do grupo, #202 bolinha do saque). O conflito no `Details.cshtml` era na MESMA linha: o `main` trocou o parcial por `view-data="chipComSelo"` e este trabalho tirou o `max-width: 180px` da célula — as duas mudanças ficaram. **Medido de novo depois da mescla**, e os números acima se mantiveram; com o escudo virando selo na foto, o texto visível a 1350px sobe de 122 → 164px.
+>
+> 🧪 **6.505 testes, 0 falhas (4 novos, em `EspacoDoNomeNaTabelaDoGrupoTests`; os outros 28 vieram no `main`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-grupo-tabela`"* e nos dois guardas da view; depois **falsificados um a um** (devolvi o `width: 50%` ao cabeçalho, troquei `fixed` por `auto`, igualei o SG a J/V/D). ⚠️ **O guarda da view apaga os COMENTÁRIOS antes de conferir**: o `width: 50%` que este trabalho tirou está citado na prosa que explica por que ele saiu, e o teste ficava vermelho pela explicação em vez da marcação.
+>
+> ⚠️ **EXISTE UM PR ABERTO QUE FAZ A MESMA COISA — o #190** (*"Chapinha no escudo em todo canto, e colunas de número estreitas"*, branch `claude/sleepy-davinci-4t72i2`, de 11/09 14h13, **nunca mesclado**). Então o Felipe tinha razão ao perguntar *"já solicitei isso?"*: **foi pedido e feito, mas nunca publicado**. ⚠️ **A minha busca inicial não o encontrou** porque olhei o `git log --all` de um clone **sem aquele branch** e o `STATUS.md` do `main` — e trabalho que só existe em PR aberto não está em nenhum dos dois. Chegou no MESMO desenho por conta própria (`table-layout: fixed`, 30px, e a mesma armadilha do `max-width` que vira rolagem lateral); ele leva junto a chapinha do escudo, que o #201 já resolveu de outro jeito e **já está no `main`**. **Decisão do Felipe**: o #190 agora está duplicado nas duas metades e o razoável é fechá-lo.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a `Classificacao.cshtml` (a outra tela com J/V/D/SG) **já declara** 40/40/40/50px nas suas colunas e não tem o defeito; e o `ps-3` da coluna da dupla — 16px de recuo que no celular valeriam mais três letras — não foi mexido, porque alinha o nome com o resto do card.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1092-bbdb0bb`** (runs 228 e 229, 17h20 e 17h22 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #202. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, anônimo, nos DOIS ambientes**: `/healthz` **200**; `sw.js` em **`padelizou-static-v28`**; `/js/saque-ao-vivo.js` servido (**6.858 bytes**); e o `/css/site.css` com `pdz-bolinha-quica`, `pdz-bolinha-apagada`, `pdz-saque-toque` e o bloco `prefers-reduced-motion`.
+>
+> ⚠️ **A BOLINHA EM SI NÃO PÔDE SER PROVADA NO AR: não há jogo AO VIVO agora.** `/Torneios/Details/26` em produção marca **"Ao Vivo (0)"** (97 agendadas, 0 finalizadas), e sem card não há bolinha no HTML. O que se provou é que o mecanismo está servido e que a página carrega o `saque-ao-vivo.js` com o hash novo. **A primeira partida que entrar no ar é o teste de verdade** — e aí a bolinha nasce sozinha, que é justamente a mudança.
+>
+> ⚠️ **O CI NÃO RODOU NAS DUAS PRIMEIRAS TENTATIVAS, e a causa vale guardar: PR conflitado não gera check NENHUM.** O `main` andou três vezes enquanto este branch existia (PRs #199, #201, #203, de outra sessão), e com o merge-ref impossível o GitHub não cria run — nem vermelho, NENHUM. Fica parecido com o apagão de eventos de 26/08, mas não é: o conserto é mesclar o `main`, não o `workflow_dispatch`. **Sintoma pra reconhecer: `mergeable_state: "dirty"` + `total_count: 0` em check-runs.**
+>
+> 🎾 **A BOLINHA DO SAQUE APARECEU — DEPOIS DE 37 DIAS INVISÍVEL.** 🗣️ Felipe, num print do card AO VIVO: *"Nao esta exibindo a bolinha verde de quem esta sacando, é algum erro?"*
+>
+> 🕳️ **O DEFEITO NÃO ERA DE DESENHO, ERA DE DADO — E É O TIPO MAIS CARO: a feature no ar sem NENHUM caminho que a alimente.** O card sempre soube desenhar a bolinha (`_JogosDoTorneio.cshtml`, desde 05/08). O que não existia era quem gravasse `Partida.DuplaSacandoId`: o **único** lugar do site era o POST do Controle de Partida, que **já nasce marcado em "Não mostrar"** e que ninguém abre com cinco quadras rolando. Nem a Mesa de Controle nem o −/+ do card tocavam no campo. Resultado: campo nulo em 100% dos jogos, bolinha em 0% das telas, por 37 dias, **sem um teste sequer** (`grep pdz-bolinha Padelizou.Tests/` voltava vazio).
+>
+> 🎯 **REGRA NOVA, decidida pelo Felipe: jogo que ENTRA EM QUADRA sai com alguém sacando.** 🗣️ *"tanto faz em quem começar a bolinha, mas tem q ter em alguem"*. Qual dupla é indiferente de propósito — quem saca primeiro é sorteio na quadra e o servidor não tem como saber. Fica com a **dupla de cima**, e o organizador corrige num toque.
+>
+> ⚠️ **SÃO TRÊS PORTAS PRA QUADRA, e todas as três chamam a MESMA régua** (`Services/SaqueDoJogo.DefinirNaLargada`): o play (`ColocarNoAr`), o `<select>` de status do Controle de Partida e o `ReabrirPartida`. Régua copiada em três lugares é exatamente como a autorização de organizador virou três verdades que precisam andar juntas.
+>
+> ⚠️ **E A LARGADA VENCE O CAMPO VAZIO DO FORMULÁRIO, DE PROPÓSITO.** O "Não mostrar" do Controle de Partida vem **pré-marcado** em todo jogo que nunca teve saque — tratá-lo como escolha deixaria o vazio voltar pela porta dos fundos, em quem dá a largada por aquele `<select>` sem olhar pra bolinha. Com o jogo **já** no ar o `if` não roda, e aí "Não mostrar" é escolha de verdade e é obedecida (é a saída de quem não sabe quem está sacando: bolinha errada na tela do torcedor é pior que bolinha nenhuma). **Tem teste dos dois lados.**
+>
+> 👆 **UM TOQUE TROCA O SAQUE, no próprio card.** 🗣️ *"permita o organizador/marcador alterar a bolinha"* — e o porquê de não poder morar só no lápis: *"normalmente se vira após o 3º game, depois de 2 em 2, até finalizar a partida"*. Do lado de quem não saca nasce uma **bola apagada** (contorno), que é o alvo. `Partidas/TrocarSaque` confere **a mesma régua** do lápis (`PodeMarcarPlacarAsync`: organização, marcador, admin e quem o torneio liberou), recusa dupla de outro jogo e recusa jogo fora de quadra.
+>
+> ⚠️ **NÃO AUTOMATIZEI A VIRADA a cada game** — o próprio Felipe escreveu *"(nao é sempre)"*. Régua automática escreveria na tela do torcedor uma informação que ninguém conferiu.
+>
+> ⚠️ **O TOQUE É UM `<form>` DE VERDADE**, não um `<span>` com `onclick`: sem JavaScript ele continua trocando o saque por POST + volta. O `js/saque-ao-vivo.js` só **intercepta** — recarga ali reiniciaria o `<iframe>` da transmissão e jogaria a tela pro topo, os dois defeitos que o −/+ já tinha deixado de causar.
+>
+> ⚠️ **BANDEIRA PRÓPRIA (`pdzTrocandoSaque`), e não a `pdzSalvandoPlacar` do placar.** Compartilhar abriria uma corrida: game salvando junto com troca de saque, e quem terminasse primeiro baixaria a bandeira do outro — a atualização automática entraria no meio do salvamento que continua em pé e devolveria o placar velho pra tela, que é exatamente o que essas bandeiras existem pra impedir. **As duas pontas têm teste**: levantar sem ninguém ler (ou ler sem ninguém levantar) falha CALADO.
+>
+> 🎾 **A BOLA VIROU BOLA: costura e quique, em CSS puro.** 🗣️ *"voce consegue fazer a imagem de uma bolinha de tenis? se possivel ela 'quicando' na tela? ou isso seria ruim pro sistema?"* — não é ruim, e **sem arquivo de imagem**: a costura são dois círculos maiores que a bola cortados pelo `overflow: hidden`, e o quique é `@keyframes` só de `transform` (a GPU anima, sem recalcular layout). Um `.png` custaria uma requisição por página, uma entrada no service worker e duas resoluções pra manter — pra desenhar dois arcos. ⚠️ **`prefers-reduced-motion: reduce` não recebe o quique**: animação infinita é justamente o tipo que incomoda quem marcou essa preferência, e a informação não depende do movimento.
+>
+> ♻️ **O `<span>` da bolinha virou o parcial `_BolinhaDoSaque`**: as duas linhas do card desenham a mesma coisa, e duas cópias seriam duas verdades sobre título, tamanho e alvo de toque. Mesma razão do `_EscudoDoTime`.
+>
+> 🧪 **6.446 testes, 0 falhas (16 novos, em `SaqueSempreDefinidoTests`)** + `conferir-palpitrometro.js` verde. **13 vistos vermelhos antes da correção**, cada um pelo motivo dele (*"Expected: 1, Actual: null"* na largada, *"Expected: 2, Actual: 0"* no card, arquivo inexistente pro parcial e pro JS, `NotImplementedException` no `TrocarSaque`). Os **3 que nasceram verdes foram falsificados um a um**: trocando `??=` por `=` cai o "não mexe no saque que já tinha dono"; tirando a chamada de dentro do `if` da transição cai o "Não mostrar"; apagando a leitura da bandeira no `jogos-ao-vivo-atualiza.js` cai o teste da corrida. ⚠️ **E o Razor É compilado no build** — conferido de propósito com um campo inexistente no parcial, que quebrou o build: o parcial novo e a tupla estão type-checked, não só lidos como texto.
+>
+> ⚠️ **NADA FOI VISTO NUMA TELA** (segue valendo depois da publicação) — sessão web, sem browser, e a suíte não renderiza Razor. **A costura e o quique seguem pendentes do olho do Felipe**: tamanho da bola (13px), amplitude do pulo (~7px) e se o movimento não compete com a bolinha pulsante do "AO VIVO", que vive no mesmo card.
+>
+> ⚠️ **OS JOGOS JÁ NO AR NÃO GANHAM BOLINHA RETROATIVA** — a regra vale na largada. Os dois do print do Felipe só terão saque quando alguém tocar na bola apagada (ou o jogo for reaberto).
+>
+> 🧹 **`CACHE_NAME` do service worker foi pra `v28`, e o motivo vale a linha:** dois branches do mesmo dia subiram `v26` → `v27` independentemente (o do escudo/chave e este), e o **git juntou os dois sem conflito**, como se fosse a mesma mudança. O número ficaria igual com **dois `site.css` diferentes** — e quem tivesse guardado o primeiro `v27` nunca baixaria o segundo: a bolinha simplesmente não apareceria pra quem usa o app instalado, **sem erro em lugar nenhum**. Achado no merge com o `main`, não em teste.
+
+> **11/09/2026** — 🌳 **A PRÉVIA DO MATA-MATA VIROU UMA CHAVE DE VERDADE, COM AS LINHAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1088-e61686c`** (runs 226 e 227 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #199. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, na página de verdade** (`/Torneios/Details/26`, 7 categorias): **7 quadros de cima pra baixo** (`pdz-arv-rolagem`) e **7 deitados** (`pdz-chd-trilho`), **43 ligações** desenhadas, **zero** ocorrência de `pdz-chave-projetada` (o quadro velho) e **zero** de "passou direto".
+>
+> 🔢 **E A PORCENTAGEM DA LIGAÇÃO CHEGOU COM PONTO** no HTML de produção (`--a:25%;--hw:50%`) — é a prova no ar do defeito de cultura que o teste dos sete grupos pega. Com vírgula, o quadro estaria no ar sem nenhuma linha.
+>
+> 🖥️ **E VISTO EM TELA**, renderizando o HTML de produção com o `site.css` de produção: no computador as duas semifinais se juntam na final com o cotovelo, a final sai destacada em lime e o troféu fecha embaixo; a 390px a semifinal ocupa dois terços e a final fica espiando na beirada, com a linha já chegando nela.
+>
+> ⚠️ **O `dev` NÃO TEM PROVA VISUAL ANÔNIMA** — está atrás do gate de Acesso Antecipado e `/Torneios/Details/26` responde **302**. Lá a prova é `/healthz` **200** e o `/css/site.css` servido com as regras novas e sem o CSS morto.
+>
+> 🔁 **E LOGO DEPOIS OUTRA SESSÃO PUBLICOU POR CIMA** (deploys 228 e 229, `build-1092-bbdb0bb`), o que é bom e vale registrar: aquele build nasceu do `main` que já carregava esta chave, então a árvore **continua no ar** — reconferido agora, com o `site.css` de prod trazendo `.pdz-chd-trilho` e **zero** de `pdz-chave-projetada`, e o `sw.js` já em `v28`. Ou seja: o que está em produção hoje é o `build-1092`, não o `1088` que eu publiquei — a chave é a mesma, o resto veio junto.
+>
+> 🗣️ Felipe, com o print das quatro colunas soltas: *"é possivel fazer algo visuamente mais bonito aqui?"*. Foram **cinco maquetes** até fechar, e o desenho saiu da terceira rodada de conversa: *"gostei da opção Chave ligada com o desenho da chave mas tem como fazer de cima para baixo?"*, depois *"o visual para mobile não [ficou bom]"*, e por fim, com um print da Libertadores no Google: *"acho que no mobile pode ser algo parecido com o q tem no google hoje, que arrasta para o lado"*.
+>
+> 🖥️📱 **SÃO DOIS DESENHOS DA MESMA CHAVE**, e é isso que o Felipe pediu textualmente: *"no pc, é de cima pra baixo e no mobile é arrastavel da esquerda pra direita"*. No computador a árvore desce, com a primeira rodada no alto e o troféu no pé. No celular ela deita: a rodada atual ocupa **66% da tela** e a seguinte fica **espiando na beirada**, com as linhas já chegando nela — é o que responde *"ganhei, e agora?"* sem tocar em nada. O encaixe é `scroll-snap`, **sem uma linha de JS**.
+>
+> ⚠️ **UMA CONTA SÓ PROS DOIS** (`Services/ArvoreDaChave`): largura de um jogo = soma das larguras dos que o alimentam; coluna = a faixa onde ele começa, andando da final pra trás. No computador isso vira **coluna** da grade, no celular vira **linha** — e até a ligação usa as mesmas duas porcentagens, com o CSS só trocando o eixo. Duas contas divergiriam no dia em que o cruzamento mudasse, e os dois desenhos contariam histórias diferentes.
+>
+> 🕳️ **`space-around` NÃO RESOLVERIA O CELULAR, e parece que resolveria.** Com **5 grupos** a segunda rodada tem **MAIS** jogos que a primeira (2 jogos + 6 byes = 8 entrantes = 4 jogos), então qualquer geometria que suponha "a próxima tem metade" aponta pro lugar errado. A conta de coluna/largura acerta porque não supõe nada.
+>
+> 🕳️ **O DEFEITO QUE QUASE FOI PRO AR CALADO: cultura.** As porcentagens da ligação vão num atributo `style`, e em **pt-BR** um `double` sai `16,667` — o navegador **descarta a declaração inteira sem erro nenhum**. O quadro apareceria em produção com os cartões certos e **zero linhas**. Travado em `ArvoreDaChaveTests.A_ligacao_sai_com_PONTO_decimal_em_qualquer_cultura`, e ⚠️ **o teste precisou de SETE grupos**: com 4 ou 6 a chave fica simétrica, toda porcentagem sai inteira e o teste **passava mesmo com a formatação errada** — foi falsificado, visto passar, e refeito até discriminar.
+>
+> ⚠️ **A ORDEM DA RODADA NÃO É A NUMÉRICA**: numa chave de 4 a primeira rodada sai **1, 4, 2, 3**, porque o jogo 5 nasce do 1 e do 4. Desenhar em ordem numérica faria as linhas cruzarem no meio do quadro. Isso obrigou o casamento com a projeção (hora e quadra) a **ficar no `Details.cshtml`**, na ordem da projeção, e ser entregue ao partial por número GLOBAL do jogo — casar lá dentro pegaria o jogo errado.
+>
+> ♻️ **O CARTÃO É O `.pdz-chave-vaga` DA CHAVE DE VERDADE**, e não um só da prévia: no dia em que os grupos acabam a tela não muda de cara, os cartões só ganham nome e placar. Foi o degrau 2 da escada do CLAUDE.md pagando sozinho — as ~90 linhas de `.pdz-chave-projetada-*` **foram embora inteiras**.
+>
+> 🧹 **E LEVARAM JUNTO O CSS MORTO DA ÁRVORE DE 05/08/2026**: 27 regras `.pdz-arv*` sem view nenhuma desde que aquela tentativa foi abandonada (ela crescia pra LARGURA — 16 jogos numa chave de 32 —, esta cresce pra baixo e deita no celular). ⚠️ **Duas regras daquele bloco NÃO eram mortas** e ficaram: `.pdz-chave-vaga { font-size: .76rem }` e `.pdz-chave-quando { font-size: .64rem }` valem hoje na chave real, e sair com elas teria encolhido a chave de verdade sem ninguém pedir.
+>
+> 🚫 **SEM SELO DE BYE** (🗣️ *"só não precisa colocar que folgou na primeira rodada"*): quem passou direto aparece **só pelo nome**, e a **ausência de linha** chegando na vaga é o que conta que ele não jogou a rodada anterior. O sufixo `(passou direto)` continua no `ChaveProjetada` pra quem lê a prévia em lista.
+>
+> 🧪 **6.438 testes, 0 falhas (36 novos: 31 de `ArvoreDaChaveTests` + 5 de guarda)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes: os 26 de `ArvoreDaChaveTests` em *"o tipo ArvoreDaChave não existe"*, e os 5 de `QuadroDaPreviaTemOsDoisDesenhosTests` **falsificados um a um** (tirei o `d-none d-md-block`, tirei o bloco do celular, devolvi o sufixo, tirei o `scroll-snap`, e troquei o seletor da final por uma classe só). ⚠️ **CINCO TESTES DE FONTE DE OUTRAS ÁREAS FORAM REAPONTADOS, NÃO APAGADOS** (`QuadroDaChaveCasaPorNumero`, `DiaDaSemanaNaoCabeNaArvoreDaChave`, `GuardaDoLugarNasTelasDeChave`, `PreviaDizOClubeNaTela`, `FiltroDeJogosNaoAtrapalhaAsOutrasTelas`): eles ancoravam em `pdz-chave-projetada-*` dentro do `Details.cshtml`, e o código mudou de lugar — o que cada um guarda continua igual, e dois ficaram **mais fortes** (o do dia da semana passou a varrer o arquivo inteiro em vez de uma janela de texto).
+>
+> 🕳️ **A FINAL PERDEU O DESTAQUE NA PRIMEIRA TENTATIVA, por especificidade**: `.pdz-arv-final` sozinha empata com `.pdz-chave-vaga`, que define `border` e mora **mais abaixo** no arquivo — então vencia, e o realce sumia calado. O seletor virou `.pdz-chave-vaga.pdz-arv-final`. Achado **no navegador**, não na suíte.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (Chromium headless, app de verdade contra Postgres local, torneio semeado com 6 e com 16 grupos, temas claro e escuro): a árvore de 4 colunas sai na ordem **1, 4, 2, 3** com os cotovelos nos centros certos; a de **16 colunas (32 duplas, "Primeira Rodada")** desenha as 5 fases e rola dentro de si; e a 390px a deitada mostra a rodada atual com a seguinte espiando, **sem rolagem lateral da página**.
+>
+> 🔁 **`sw.js` FOI PRA `padelizou-static-v27`**: o `site.css` está na lista do service worker, e sem subir o `CACHE_NAME` quem já abriu o site continuaria com o CSS velho — o quadro novo chegaria sem as regras que o desenham.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a **chave de verdade** (`_ChaveDoMataMata`) continua em fases empilhadas, sem linhas — levar a árvore pras duas telas foi recomendado e **não** aprovado, e é uma tarefa própria. E o polimento do cartão que apareceu nas maquetes (número em selo lime, hora com mais peso) ficou fora pelo mesmo motivo: ele mora no cartão COMPARTILHADO, então mexeria na chave real junto.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/game-tabs-outline-taiuul`, ainda não publicado.** **Sem migration.**
+>
+> 🔲 **AS ABAS DE TOPO DA PÁGINA DO TORNEIO GANHARAM CONTORNO.** 🗣️ Felipe, num print do 2ª Etapa ER Padel Tour: *"Acho q temos q deixar pelo menos desenhado o contorno das abinhas do jogos inscritos e as demais, pra ficar mais facil pro usuario ver q é uma aba"*.
+>
+> 🕳️ **É A MESMA QUEIXA DE 08/08/2026 QUE CRIOU A BORDA DAS `.pdz-pills`** — as pills de dentro (Ao Vivo/Agendadas/Finalizadas) foram atendidas e a barra de CIMA ficou como o Bootstrap a desenha: `.nav-tabs .nav-link { border: 1px solid transparent }`, com cor de borda **só na ativa**. Por isso, no print, "Jogos" era a única que parecia botão e Inscritos, Chaves e Grupos, Times e Palpiteiros eram texto solto.
+>
+> ⚠️ **A ATIVA É ANEL LIMA, E NÃO PREENCHIMENTO LIMA COMO NAS PILLS — escolha, não esquecimento.** Esta barra tem abas com cor PRÓPRIA: "Gerenciar Torneio" é `text-danger` (`!important`) e "Inscreva-se" é verde sobre navy (inline). As duas vencem qualquer `color` que a regra da ativa escrevesse, e vermelho sobre lima não se lê. Fica anel lima + fundo `--pdz-surface-alt`, que não disputa cor com ninguém.
+>
+> ⚠️ **A LINHA DA `nav-tabs` SAIU JUNTO** (`border-bottom: 0`) **e o `margin-bottom: -1px` do Bootstrap foi zerado**: aquele desenho existe pra aba de MEIA caixa se fundir na linha. Com as cinco viradas caixa fechada, a linha passaria cortando todas. Tem teste, com o motivo escrito.
+>
+> 🧪 **6.434 testes, 0 falhas (4 novos, em `ContornoDasAbasDoTorneioTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Não achei a regra `.pdz-abas`"*, *"Não achei a regra `.pdz-abas .nav-link.active`"* e no `border:` da regra existente, que só tinha `width` e `white-space`.
+>
+> 🖥️ **CONFERIDO NO CHROMIUM** (Playwright, a mesma marcação com o `bootstrap.min.css` + `site.css` de verdade), **nos dois temas a 430px e a 900px**: cinco caixas contornadas, ativa com anel lima, "Gerenciar Torneio" vermelho e "Inscreva-se" verde legíveis. ⚠️ **Não foi a página real** (sessão web, sem banco) — o que se provou é a cascata do CSS, não o Razor.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` nos `build-1067-d2e44be` e `build-1074-e64eb3c`** (14h48/14h49 e 15h16/15h17 UTC — runs 217 a 220), **o mesmo artefato nos dois ambientes em cada um**, com a tag explícita. PRs #192 e #193. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU**: o **recolhimento das fichas de placar** depois da escolha (com o conserto do `d-flex` `!important`) e o **cartaz saindo do topo** no dia do jogo, indo pro card de ferramentas do organizador.
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): **zero** "Cartaz pra divulgar" na página do Er, e o `/js/palpitrometro.js` servido já traz o `pdz-palpite-placar-resumo`. `/healthz` 200 nos dois ambientes.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1081-abc4fe3`** (runs 221 e 224), **o mesmo artefato nos dois**, com a tag explícita. PR #197. ✅ **SEM MIGRATION.**
+>
+> ✅ **PROVADO NO AR, e com o ANTES medido**: `GET /Partidas/VerVotos?partidaId=99999999` em produção respondia **500** às 16h41 e responde **404** às 16h43. Sem `partidaId` (o caso do robô, que chega como zero): **404** também. O `/js/palpitrometro.js` servido traz as duas frases da guarda nos dois ambientes. `/healthz` **200** em `dev` e `prod`.
+>
+> ⚠️ **A TAG FOI EXPLÍCITA POR NECESSIDADE, NÃO POR CAPRICHO**: o PR #198 (contorno das abas, outra sessão) entrou no `main` **um minuto** depois do #197. "O mais recente" teria levado pra produção um trabalho que não era deste bloco e que não tinha passado por `dev`.
+>
+> ⚠️ **O `build-1081` carregou junto o que estava represado desde o `build-1074`**: o #195 (aviso de quadra vaga) e o #196 (só STATUS). O `deploy.sh` instala o build INTEIRO — não existe publicar um commit só.
+>
+> 🕳️ **O PRIMEIRO DEPLOY EM PROD FALHOU, e vale saber por quê**: `ssh: connect to host port 22: Connection timed out` (exit 255, run 222). Morreu no SSH, **antes** do `deploy.sh` — produção ficou intacta, sem estado pela metade (conferido: ainda 500 e `healthz` 200 depois da falha). A causa provável é o deploy em `dev` de OUTRA sessão no **mesmo segundo**, contra o **mesmo VPS**: o `concurrency` do `deploy.yml` é `deploy-${ambiente}`, então `dev` e `prod` não esperam um pelo outro, embora sejam a mesma máquina. Uma retentativa resolveu.
+>
+> ⚠️ **O environment `prod` NÃO pediu aprovação** — o job foi direto pro `Publicar`. O `infra/vps/README.md` diz que a trava mora em Settings → Environments → `prod` → Required reviewers, e não no yml. **Ou ela não está configurada, ou não vale pra quem dispara.** Fica registrado: hoje um deploy em produção sai sem ninguém confirmar.
+>
+> ⏳ **~~NO BRANCH `claude/new-session-6j9ybe`~~ — publicado.** **Sem migration.**
+>
+> 🕳️ **O VIGIA PEGOU: três `InvalidOperationException` em `GET /Partidas/VerVotos`, 08:49, no mesmo minuto** — *"Partida não encontrada."*. 📱 Felipe mandou o print do registro de erros.
+>
+> ✅ **Jogo que não existe (mais) agora é 404, e não 500.** O `partidaId` fica congelado no HTML do botão enquanto a aba estiver aberta; o jogo, não — **regerar a chave, regerar o americano e mudar resultado do mata-mata apagam partidas** (`Partidas.RemoveRange`, em quatro pontos). O `ObterVotantesAsync` devolve **nulo** em vez de estourar, e o controller responde `NotFound()`.
+>
+> ⚠️ **As duas irmãs que GRAVAM continuam estourando, de propósito**: `RegistrarVotoAsync` e `RetirarPalpiteAsync` jogam `InvalidOperationException` porque quem chama precisa da FRASE pra mostrar ("esta partida já começou"). Numa LEITURA não há nada a dizer — id que não existe é 404.
+>
+> 🕳️ **E O 500 NÃO ERA A PIOR PARTE: o JS fazia `response.json()` sem olhar o `ok`.** A página de erro é HTML, o parse estourava, ninguém pegava a promessa — e o modal ficava em **"Carregando..." pra sempre**. É por isso que foram **TRÊS** erros no mesmo minuto e não um: o dedo bateu de novo. Agora o modal avisa *"Este jogo saiu da lista — atualize a página."* (e a guarda vale pra qualquer resposta não-ok, igual ao `falarComOServidor` que já fazia isso desde sempre).
+>
+> ⚠️ **QUAL id chegou, NÃO DÁ PRA SABER — e isso é escolha, não falha**: o vigia grava o CAMINHO e não a query (`IExceptionHandlerPathFeature.Path`), senão `/Auth/RedefinirSenha?token=…` passaria a gravar token de senha numa tabela que a tela do admin mostra. A causa acima é o candidato mais provável, não um fato provado; o 404 cobre igual o outro caminho — requisição **sem** `partidaId` chega como zero.
+>
+> 🧪 **6.432 testes, 0 falhas (2 novos)** + **2 conferências novas** no `conferir-palpitrometro.js` (15 no total, e o modal entrou no DOM falso pela primeira vez). Vistos vermelhos antes: *"System.InvalidOperationException : Partida não encontrada."* (o erro do print, reproduzido) e *"estourou: a página de erro é HTML, não JSON"*. As duas travas anti-correção-grande-demais foram **falsificadas**: `NotFound()` solto na ação acusa na hora, e forçar o aviso com 200 na mão também.
+>
+> ⚠️ **`Assert.NotNull` em 6 chamadas antigas do `ObterVotantesAsync`** — CS8602 é erro aqui, e a prova é a guarda, nunca o `!`.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser. O que se provou é o 404 do servidor e o desvio do JS contra um DOM falso.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1062-76051e8`** (runs 215 e 216), **o mesmo artefato nos dois**, com a tag explícita. PR #189. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO CHEGOU NAS OUTRAS DUAS TELAS DE JOGO — E EM DUAS FORMAS DIFERENTES, POR ESCOLHA DO FELIPE.** Ele abriu a aba **Jogos** em produção, com o `build-1052` no ar, e pediu o resto: 🗣️ *"aqui nos jogos tambem coloque as bandeiras igual tinha me mostrado no plano A"* e, olhando a maquete de novo, 🗣️ *"e no ao vivo use esse do B"*.
+>
+> 📋 **LISTA DE AGENDADAS/FINALIZADAS (`_JogoEmLinha`): escudo de 14px depois do nome de CADA jogador.** Os dois, e não só quem abre a dupla — numa dupla de times diferentes, um escudo só conta metade da história.
+>
+> ⚠️ **ALI O HTML É MONTADO EM STRING** (`HtmlContentBuilder.AppendHtml`), então o encoding que o Razor faz sozinho em `@atributo` **não acontece** — e o nome do time é texto que quem cadastra digita. `src` e `alt` passam por `WebUtility.HtmlEncode`; uma aspa no nome do time fecharia o atributo.
+>
+> 🎖️ **CARD AO VIVO: o escudo vira SELO no canto da foto**, fundo navy e anel claro (o card é navy — escudo transparente sumiria nele).
+>
+> ⚠️ **O SELO É SÓ DO AO VIVO, E ISSO CUSTOU UM MECANISMO**: o `_JogadorChip` é o MESMO parcial da tabela do grupo, da lista de inscritos e da lista de duplas, que continuam com o escudo do lado do nome. Quem acende é o card, por `view-data` (`EscudoComoSelo`). **Não dava pra ser só CSS**: o selo precisa nascer DENTRO da moldura da foto, que é quem ancora o canto — posicionado de fora, o canto vira número mágico e desalinha quando o nome quebra em duas linhas no celular.
+>
+> ♻️ **O `<img>` do escudo virou o parcial `_EscudoDoTime`**: dois lugares desenham o mesmo escudo, e duas cópias seriam duas verdades sobre `alt`, tamanho e `loading` — a segunda envelhece calada.
+>
+> ⚠️ **TRÊS TESTES DO CHIP MUDARAM DE ARQUIVO JUNTO, DE PROPÓSITO** (passaram a ler o parcial), com o porquê escrito ao lado. O que eles guardam não mudou: o escudo existe, sai do LOGO, nomeia o time e não fica na linha do clube.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, **104 escudos na lista de jogos** (`pdz-jl-escudo`) além dos **186 do chip** — o primeiro deles no jogo das 18:00 do print do Felipe: `<a href="/Jogadores/Perfil/402">Paulo Prass</a><img class="pdz-jl-escudo" src="/uploads/logos-time/bandeiraer.jpeg" alt="ER Padel" ...>`.
+>
+> ⚠️ **O SELO NÃO PÔDE SER PROVADO NO AR: não há jogo AO VIVO agora** (a aba marca "Ao Vivo (0)"), e sem card não há HTML pra conferir. O que se provou é que o **CSS novo está servido** (`.pdz-chip-foto-selo` em `/css/site.css`) e que os 6 testes travam o HTML. **A primeira partida que entrar no ar é o teste de verdade.**
+>
+> 🧪 **6.411 testes, 0 falhas (6 novos, em `EscudoDoTimeNosJogosTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-jl-escudo"*, *"Not found: EscudoComoSelo"*, *"não achei o método Escudo(...) no _JogoEmLinha"* e *"não achei a moldura da foto com selo no chip"*.
+>
+> ⚠️ **Nada foi visto numa tela** — sessão web, sem browser, e a suíte não renderiza Razor. Tamanho do selo (17px sobre foto de 36px) e do escudo da lista (14px) seguem pendentes do olho do Felipe.
+
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 📣 **O CARTAZ SAIU DO TOPO NO DIA DO JOGO.** 🗣️ Felipe, na página do Er com o torneio rolando: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro lugar"*.
+>
+> 🕳️ **O QR DO CARTAZ LEVA PRA INSCRIÇÃO** — com a chave publicada ela já fechou. O botão era a primeira coisa que 100+ jogadores viam antes dos jogos, chamando pra uma porta que não existe mais.
+>
+> ✅ **Ele MUDA DE LUGAR, não some**: com a chave no ar vai pro card **Ferramentas do organizador** (que nessa hora já é o topo da tela pra quem organiza); antes dela fica onde sempre esteve, **pra todo mundo** — cada inscrito que chama a turma no grupo é divulgação que não custa nada. Os dois lugares são gateados pelo **mesmo** `AprovacaoDeChaves.ChavePublicada`, então nunca aparecem juntos: é o mesmo desenho que o próprio card já usa desde 10/09.
+>
+> ⚠️ **A LINHA DE BOTÕES DO TOPO USA A MESMA RÉGUA**: sem somar a condição no `@if` de fora, um torneio publicado sem convite nem fotos desenharia um `d-flex` vazio — faixa de margem sem nada dentro. Tem teste.
+>
+> ⚠️ **`DivulgacaoDoTorneio.PodeDivulgar` continua dona da pergunta "este torneio vira cartaz?"** (cancelado e finalizado não viram). São duas réguas com donos diferentes, e nenhuma foi diluída na outra.
+>
+> 🧪 **6.415 testes, 0 falhas (3 novos).** Vistos vermelhos antes em *"Not found: cartazNoTopo"* e *"Not found: Cartaz pra divulgar"* (no card). Os testes de topo da sessão paralela (`TopoDaPaginaDoTorneioEnxutoTests`) seguem verdes — a marcação continua lá, o que mudou é a condição.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, 430px), os dois papéis: **anônimo** não vê cartaz nenhum na página; **organizador** vê **um** só, dentro do card de ferramentas.
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/nice-bohr-ya3r37`, ainda não publicado.** **Sem migration.**
+>
+> 🪗 **AS FICHAS DE PLACAR SE RECOLHEM DEPOIS DA ESCOLHA.** 🗣️ Felipe, num print do cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*. Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já tinha cumprido o papel.
+>
+> ✅ **Fica uma linha só — "Seu palpite: 6 x 2 · trocar"** —, e o **"trocar"** reabre a fileira **sem falar com o servidor**: mudar de ideia não é palpite até a ficha ser tocada, e um POST ali gravaria uma intenção que a pessoa ainda não teve. Quem votou e **não** escolheu placar continua vendo as fichas abertas, como antes.
+>
+> ⚠️ **Quem decide qual dos dois nasce aberto é o DADO** (`PalpiteiOPlacar`), não o JS depois de carregar — senão a tela piscaria a fileira inteira a cada F5.
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE NENHUM TESTE PEGARIA: `d-flex` do Bootstrap é `!important`.** O resumo nascia com essa classe, então o `style.display = 'none'` que o JS escreve **perdia** pro `!important` — depois do "trocar", o resumo ficava na tela ao lado das fichas reabertas. O `inline` dizia `none` e o `computado` dizia `flex`; foi assim que apareceu. A classe saiu, o `flex` passou a vir do próprio `style` (mesmo lugar de onde ele some), e o teste de fonte agora **proíbe** `d-flex` naquela tag, com o motivo escrito.
+>
+> 🧪 **6.406 testes, 0 falhas (1 novo)** + **4 conferências novas** no `conferir-palpitrometro.js` (13 no total). Vistos vermelhos antes: *"Not found: pdz-palpite-placar-resumo"* e, depois do achado do navegador, *"Assert.DoesNotContain() Failure: Sub-string found"* pro `d-flex`. A conferência do recolhimento foi **falsificada**: fixando `display` nos dois elementos, ela acusa na hora.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1058-2f88ece`** (13h00 e 13h01 UTC — runs 213 e 214), **o mesmo artefato nos dois**, com a tag explícita. PR #186. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a frase virou **"Placar mais palpitado"** em toda a lista (zero ocorrência de "A galera crava"), e o limiar **calou 4 linhas** que anunciavam o palpite de uma pessoa só — 52 das 56 seguem mostrando leitura de verdade. O `/js/palpitrometro.js` servido já traz a caixa por votante (`pdz-votante`).
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NESTE BRANCH** (nem no push nem no PR), enquanto rodava normalmente nos branches das outras sessões — mesmo sintoma de 26/08. Foi disparado **na mão** (Actions → CI → Run workflow), que é exatamente o que o `workflow_dispatch` do `ci.yml` existe pra cobrir: runs 1055 e 1056, verdes no sha exato que foi mesclado.
+>
+> 🗣️ **"A GALERA CRAVA" PROMETIA MAIS DO QUE ENTREGAVA.** Felipe, apontando a frase num jogo com **3 de 8**: *"aqui por que tem isso? nao sei se faz muito sentido"*. Dois problemas, e ele tinha razão nos dois.
+>
+> 1️⃣ **NÃO EXISTIA LIMIAR**: a linha mostrava o placar mais votado mesmo sendo **1 de 8** — o palpite de uma pessoa anunciado como leitura da galera. Pior: com todos os placares diferentes, o "mais palpitado" era o **desempate interno** decidindo por sorteio qual 1 a 1 a 1 ganhava a frase. Agora só existe a partir de **dois palpites no mesmo placar** (`PalpiteService.MinimoParaOMaisPalpitado`).
+>
+> ⚠️ **O limiar mora no SERVIÇO, não na view**: as duas telas e o JS que repinta depois do voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a linha voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`. ⚠️ **E é DOIS, não uma proporção**: exigir maioria esconderia a leitura num jogo com 20 palpites espalhados, que é justamente onde saber o mais votado interessa — a contagem ao lado ("2 de 3") é o que deixa quem lê julgar o peso.
+>
+> 2️⃣ **"CRAVAR" É O VERBO DO RANKING** (acertar o placar exato, depois do jogo, valendo 3 pontos). Emprestá-lo pra uma aposta fazia a tela anunciar veredito e usava a mesma palavra pra duas coisas. Virou **"Placar mais palpitado: 6 x 4 (2 de 3)"**.
+>
+> 🕳️ **O LIMIAR ESCANCAROU UM DEFEITO ANTIGO DA LISTA**: lá a linha era gerada por um `@if` do Razor, então ela só existia se já houvesse consenso — e o caso mais comum de passar a haver é **o seu palpite formando o par**. O `atualizarPalpitrometro` só sabe mostrar elemento que já está no DOM: sem F5, a leitura nunca aparecia. Agora ela nasce escondida, como no cartão grande. ⚠️ O CS8602 que isso gerou foi tratado com `r?.`, **não com `!`** — a linha passou a ser desenhada também no jogo sem palpite nenhum.
+>
+> 🔢 **E A LISTA DO MODAL SAI EM ORDEM DE PLACAR.** 🗣️ Felipe: *"coloque em ordem de placar, por exemplo, se colocaram o placar igual, deixe próximo"*. A ordem é a **das fichas da tela** (`PlacaresPossiveis.Do`: do mais folgado ao mais apertado — 6x0, 6x3, 6x4, 6x4, 6x4, 7x5), e quem **não** palpitou placar vai pro fim: sem placar não há lugar na escala, e intercalar essa gente quebraria justamente os grupos que a ordem acaba de juntar. Ordenação TOTAL (vai até o nome), senão a mesma lista troca de ordem entre duas aberturas do mesmo modal.
+>
+> 🔲 **E O MODAL GANHOU CAIXAS.** 🗣️ Felipe, num print com 14 nomes numa coluna: *"deixe um 'quadrado' ou algo assim, fica dificil ver quem fez o que nessa tela"*. Cada votante virou uma linha com moldura; quem **não** palpitou placar leva um traço no lugar da ficha (a coluna da direita esburacada parecia defeito); e o nome de cada dupla ganhou a contagem (`Bianca / Eduardo · 3`), que é o que diz de cara pra que lado a galera pendeu.
+>
+> 🧪 **6.405 testes, 0 falhas (6 novos; o resto veio do `main`).** Vistos vermelhos antes: os do limiar em *"Assert.False() Failure"*, o da redação em *"Sub-string not found: Placar mais palpitado"*, o da linha no DOM em *"Not found: style=\"display:"*, e o do modal em *"Not found: border"*. ⚠️ **Dois testes da sessão paralela foram ATUALIZADOS, não apagados** (`O_nome_do_votante_ocupa_UMA_LINHA_so` e `A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM`): a janela de 2.400 caracteres que eles liam a partir do `montarLista` ficou curta com os comentários novos — eles reprovavam por **corte**, com o código certo na frente. A janela foi pra 3.600 e ganhou a nota dizendo isso.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR** (app local, logado, 430px), os três de uma vez: com 6x4(1) e 6x3(1) a linha existe no DOM e fica **escondida**; ao dar o meu 6x4 ela **aparece sem F5** dizendo *"Placar mais palpitado: 6 x 4 (2 de 3)"*; e o modal abre com as caixas, o traço do Bruno (que não palpitou placar) e as contagens nos cabeçalhos. Zero erro de JS no console.
+
+> **11/09/2026** — 🛡️ **A CHAPINHA DO ESCUDO VALE EM TODO CANTO, E AS COLUNAS DE NÚMERO ENCOLHERAM.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print da Fase de Grupos: *"alguns escudos estão com fundo branco, consegue arrumar?"* e *"acho que dá pra diminuir o tamanho do J V D SG da coluna, pra caber mais do nome"*.
+>
+> 🕳️ **O FUNDO BRANCO NÃO ESTÁ NO CSS: ESTÁ DENTRO DOS ARQUIVOS.** Baixei os 17 escudos do torneio do ar e medi os quatro cantos de cada um: **10 têm fundo branco assado** (cantos opacos e claros), 4 têm fundo colorido, e **só 3 são transparentes**. Dois dos dez são **`.jpeg`** — formato que **não tem canal alpha**, então ali o fundo opaco é garantido por construção. O comentário que vivia no CSS dizia *"escudo é PNG transparente"* e errava em 14 dos 17: **nenhum é PNG**.
+>
+> ⚠️ **E TIRAR O BRANCO SERIA O CONSERTO ERRADO**, além de impossível em CSS (que não apaga pixel dentro de arquivo): **8 dos 17 têm desenho escuro** (luminância média < 70) e sumiriam no navy da página. É a mesma lição que o próprio `site.css` já tinha aprendido no card AO VIVO — *"escudo escuro de fundo transparente desaparece nele"* —, só que lá a chapinha valia **só ali**. O que incomoda no print não é o branco: é ele aparecer em **alguns**. Chapinha em todos vira decisão em vez de acidente, e o branco **puro** (`#fff`, não translúcido) faz o fundo já assado dos dez se fundir com ela sem deixar borda.
+>
+> ⚠️ **ALTURA FIXA, LARGURA LIVRE.** Com os dois lados fixos, escudo largo dentro de caixa quadrada deixa barra de chapinha em cima e embaixo — o quadrado branco de novo, agora desenhado por nós. Com a largura solta a caixa segue a proporção da imagem.
+>
+> 📏 **AS COLUNAS, MEDIDAS DENTRO DO NAVEGADOR** (Chromium, CSS real, janela de 500px): antes `Dupla=212px` com as quatro de número somando **211px**; depois `Dupla=305px` com elas somando **120px**. **+93px pro nome (+44%)**, e `rolagem=nao` nos dois.
+>
+> 🕳️ **O RENDER PEGOU UM DEFEITO QUE TESTE NENHUM PEGARIA.** Tirar o `max-width: 180px` da célula do nome fazia o OPOSTO do pedido: com largura automática a coluna **cresce** pra caber "Marcelo Konfidera" inteiro, a tabela passa do cartão e o `.table-responsive` vira **rolagem horizontal** — pior que truncar. Resolvido com `table-layout: fixed`, e isso virou teste (visto vermelho antes).
+>
+> ✅ **Ferramenta nova que vale registrar:** dá pra renderizar um pedaço da tela **sem subir o app** — HTML estático com o `site.css` de verdade, os assets reais baixados do ar, `<html data-bs-theme="dark">`, e o Chromium de `/opt/pw-browsers` com `--screenshot`. Mais barato que Postgres + build, e foi ele que achou o defeito acima. Instrumentar as larguras com um `<script>` que escreve no DOM e ler com `--dump-dom` dá o número, não a impressão.
+>
+> 🧪 **6.414 testes, 0 falhas** (9 novos) + os dois conferidores de JS verdes.
+>
+> 🔁 **E CHEGOU PRIMEIRO NAS COLUNAS TAMBÉM — os DOIS pedidos deste bloco eram duplicata.** A versão delas (`.pdz-grupo-tabela`) faz o mesmo que a minha e **melhor**: pegou que o **SG precisa de 42px**, porque guarda sinal + dois dígitos (`+12`) e em `table-layout: fixed` a célula **não cresce pelo conteúdo** — meus 30px uniformes **cortariam** o saldo no primeiro jogo com diferença de dois dígitos. Descartei minha implementação e os testes dela.
+>
+> ✅ **DO MEU TRABALHO SOBROU UMA COISA SÓ, e ela não veio do pedido: o `CssNaoPodeFicarQuebradoTests`.** Ele nasceu porque eu quebrei o arquivo duas vezes resolvendo conflito, e porque 6.421 testes passaram verde por cima do estrago. Esse buraco não era meu nem delas: é de todo mundo que mexer em CSS aqui.
+>
+> ⚠️ **O CUSTO REAL DO DIA, escrito pra não se repetir:** trabalhei duas vezes num conserto que já estava em voo, e das duas a outra sessão mesclou antes. O `ONDAS-PARALELAS.md` cobre tarefas de uma MESMA onda; não cobre sessões que o Felipe abre no celular ao longo do dia. **Antes de começar qualquer coisa visual: `git fetch origin main && git log origin/main --oneline -25`** — os títulos de commit deste repo são descritivos o bastante pra ver o assunto em voo. Custa cinco segundos e teria poupado as duas rodadas.
+>
+> 🔁 **E A OUTRA SESSÃO CHEGOU PRIMEIRO NOS ESCUDOS.** O Felipe fez o MESMO pedido às duas no mesmo dia — pra mim *"alguns escudos estão com fundo branco"*, pra ela *"pq tem algumas bandeirinhas sem fundo igual as demais"*. Ela mediu os MESMOS 17 escudos do torneio 26, chegou aos MESMOS números (3 transparentes, 14 com fundo dentro do arquivo, dois JPEG), decidiu a MESMA coisa (moldura branca fixa nos dois temas) e **mesclou antes**. No merge eu fiquei com a versão dela — quadrada, 18px, com borda — e **descartei a minha** (altura fixa, largura livre, abraçando o escudo). Os quatro testes que travavam o MEU desenho saíram junto: teste meu brigando com o que já está no ar é teste errado. Deste PR sobrou o que era de fato meu: **as colunas** e **o gate de CSS**.
+>
+> ⚠️ **O QUE ISSO CUSTOU, e é a lição:** duas sessões mediram os mesmos 17 arquivos, escreveram o mesmo comentário e resolveram o mesmo problema em paralelo. O `ONDAS-PARALELAS.md` manda conferir se os arquivos são disjuntos — mas isso é entre TAREFAS de uma mesma onda, e não entre sessões que o Felipe abre no celular ao longo do dia. Antes de começar trabalho visual, vale um `git log origin/main --oneline -20` só pra ver se o assunto já está em voo.
+>
+> 🕳️ **E O MERGE COM O `main` QUASE MATOU O ARQUIVO EM SILÊNCIO.** Outra sessão mexeu no MESMO trecho no mesmo dia (o selo no canto da foto do card AO VIVO e o `.pdz-jl-escudo` da lista de jogos). Resolvendo o conflito eu **engoli o `}` que fechava o `.pdz-jl-escudo`** — 613 `{` para 612 `}`. Dali pra baixo, toda regra virou declaração solta dentro dela: `.pdz-col-num` e `.pdz-tabela-grupo` **deixaram de existir**.
+>
+> ⚠️ **E A SUÍTE PASSOU VERDE COM O ARQUIVO QUEBRADO: 6.421 testes, 0 falhas.** São 104 arquivos de teste que leem fonte com `File.ReadAllText` e procuram substring — **nenhum PARSEIA nada**. "A regra está escrita no arquivo" continuava verdadeiro enquanto "a regra é aplicada pelo navegador" tinha deixado de ser. Quem pegou foi contar chaves à mão, depois de o `grep` mostrar um comentário onde devia estar um `}`.
+>
+> ✅ **VIROU GATE: `CssNaoPodeFicarQuebradoTests`** — chaves balanceadas (ignorando comentário, que aqui é fartíssimo) e nenhum bloco de regra com mais de 2.500 caracteres, que é o desenho de um `}` faltando quando duas somem e uma sobra. Visto vermelho no arquivo quebrado, com a mensagem *"613 `{` para 612 `}`"*, antes de devolver a chave.
+>
+> ✅ **A CHAPINHA FOI TAMBÉM PRA LISTA DE JOGOS** (`.pdz-jl-escudo`): o pedido do Felipe não tinha tela — *"alguns escudos estão com fundo branco"* —, e são os mesmos 10 arquivos. O selo do card AO VIVO ficou **de fora de propósito**: ele tem fundo navy e anel claro por decisão da outra sessão, aprovada à parte (*"e no ao vivo use esse do B"*), e o seletor dela é mais específico, então as duas convivem sem brigar.
+>
+> ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
+
+> **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
+>
+> 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.**
+>
+> 🗣️ Felipe: *"estou pensando em botar as bandeiras dos times para exibir nos jogos do torneio, do lado dos nomes, como ficaria? e como me indica colocar?"* — foram três maquetes (escudo junto do nome · selo na foto · bandeira da dupla inteira) e ele escolheu a primeira.
+>
+> ✅ **NADA DE BANCO, NADA DE CONSULTA NOVA.** `Jogador.Time` já vinha com `ThenInclude` em toda consulta de torneio que desenha o chip (`TorneiosController` 314-323 e 1244-1252) e o escudo é o `Time.Logo` que o cadastro de Times guarda desde sempre. O diff é **um `<img>` no `_JogadorChip.cshtml` + 19 linhas de CSS** — o degrau 2 da escada do CLAUDE.md resolvendo sozinho.
+>
+> 🎯 **UM ARQUIVO, QUATRO TELAS**: ao vivo, tabela do grupo, lista de inscritos e lista de duplas desenham o mesmo `_JogadorChip` — o escudo nasceu nas quatro de uma vez.
+>
+> ⚠️ **O ESCUDO FICA FORA DA LINHA DO CLUBE, E É A DECISÃO QUE IMPORTA AQUI.** Dentro do `<small class="pdz-chip-clube">` ele apareceria no ao vivo e **sumiria na tabela do grupo**, porque `.pdz-chip-compacto .pdz-chip-clube { display:none }` esconde aquela linha inteira desde que o compacto nasceu — e é justamente lá que o escudo é a **única** pista do time, porque o nome do time não é escrito. Então ele é irmão do bloco de texto, à direita do nome: uma posição só, que serve aos dois modos. Na maquete ele estava colado ao nome do time; a posição mudou pra não perder o compacto.
+>
+> ⚠️ **`object-fit: contain`, nunca `cover`** — escudo é PNG transparente de proporção LIVRE (`FormatoDeImagem.LogoTime` só limita o lado maior), e `cover` come a beirada de escudo largo. ⚠️ **E o `_LadoDaPartida` (categoria de times) e o `Times/Index` cortam o logo com `cover` ATÉ HOJE** — defeito anterior a este trabalho, deixado de pé de propósito: é outra tela, e uma coisa de cada vez.
+>
+> 🩹 **Chapinha clara só no card AO VIVO** (`.pdz-live-jogadores .pdz-chip-escudo`): lá o fundo é navy, e escudo escuro de fundo transparente desaparece nele.
+>
+> 🧪 **6.381 testes, 0 falhas (4 novos, em `EscudoDoTimeNoChipTests`)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes em *"Not found: pdz-chip-escudo"*, *"não achei a regra .pdz-chip-escudo no site.css"* e *"não achei o `<img>` do escudo no chip"*. **Um deles passou de primeira e foi reescrito até discriminar**: "o escudo fica fora da linha do clube" passa trivialmente num chip que não tem escudo nenhum, então ele agora exige primeiro que o escudo EXISTA.
+>
+> ⚠️ **A suíte não renderiza Razor** (ver `SeloDeCampeaoDaCategoriaTests`, seção 4), então os 4 testes são guarda de ARQUIVO: travam o que, desfeito, apaga o escudo da tela sem deixar nenhum outro teste vermelho. ⚠️ **Não foi visto no navegador** — sessão web, sem browser.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz **186 escudos** (`class="pdz-chip-escudo"`) de **17 times distintos**, cada um com `alt`/`title` do nome — o primeiro deles é literalmente `/uploads/logos-time/bandeiraer.jpeg`, a bandeira que o pedido citou.
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA, e a Regra 3 só valeu pela metade**: o `dev` está atrás do gate de Acesso Antecipado, então anônimo não abre página nenhuma lá — a prova em `dev` é o job verde e o `/healthz` 200; a prova do escudo é o HTML de `prod`. **O olhar humano sobre o visual (tamanho, peso, escudo escuro no card navy) continua pendente.**
+>
+> ⚠️ **Um escudo real é JPEG, não PNG transparente** (`bandeiraer.jpeg`): a chapinha clara do card ao vivo fica atrás de um retângulo opaco, sem prejuízo — mas quem cadastrar logo JPEG vai ver um quadradinho de fundo branco no tema escuro.
+>
+> ⏭️ **FICOU DE FORA, de propósito**: a lista de Agendadas/Finalizadas (`_JogoEmLinha`, onde não existe nome de time pra acompanhar o escudo — era a opção B) e o **cartão de imagem do WhatsApp** (`CartaoDosJogos`), onde escudo é desenho SkiaSharp e não HTML.
+
+> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1044-677c0fa`** (runs 206 e 207), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #181. ✅ **SEM MIGRATION.**
+>
+> 🔤 **O SELETOR DE CATEGORIAS GANHOU ORDEM E ABRE NA CATEGORIA DE QUEM OLHA.** Duas queixas do Felipe sobre o seletor que subiu no `build-1024`: *"esta fora de ordem"* e *"venha sempre selecionado a categoria que o usuario esta cadastrado (se estiver em duas, vem na melhor delas 1>2>3>4)"*.
+>
+> 🕳️ **A LISTA SAÍA NA ORDEM DO BANCO.** O `Include` do controller devolve as categorias como foram CRIADAS, e o seletor herdou isso das pills — que já vinham assim desde sempre. Agora sai pela `CategoriaNaTela.Ordem`, a régua que as outras listas de categoria do site já usam.
+>
+> ⚠️ **E ESSA RÉGUA MUDOU DE CABEÇA PRA BAIXO — VALE PRO SITE INTEIRO.** Ela agrupava por sexo desde 08/08 (todas as masculinas, depois todas as femininas); com as duas escadas no mesmo torneio isso empurra a 3ª Feminina pra **depois** da 6ª Masculina, que é o defeito de 08/08 de novo, uma escada adiante. Passa a ser **por nível, com a masculina na frente da feminina do mesmo degrau** — a ordem que o Felipe escolheu entre as três possíveis. No ER: `3ªM → 3ªF → 4ªM → 5ªM → 5ªF → 6ªM → 6ªF`. Uma régua só, porque duas ordens pra mesma lista é o defeito, não o remédio.
+>
+> ⚠️ **DOIS TESTES QUE GRAVAVAM O AGRUPAMENTO POR SEXO MUDARAM JUNTO, DE PROPÓSITO** (`OrdemDasCategoriasTests`, `PaginaDeTimesTests`), com o porquê escrito ao lado. O que eles guardam continua de pé: a ordem não é a de criação, e o elenco do time segue a régua do site — a régua é que mudou.
+>
+> 🎯 **`Services/CategoriaQueAbre` decide qual categoria a aba abre**, e *"a melhor"* é a **primeira da ordem de tela, sem critério novo**: depois da mudança acima aquela régua já lidera pelo nível, que é o "1>2>3>4" pedido. Conta também quem é o **segundo** da dupla — metade das inscrições do site é gente que foi chamada, não que chamou. Quem não está em nenhuma das listadas (o organizador, o anônimo) vê a primeira.
+>
+> ⚠️ **A MARCAÇÃO VEM DO SERVIDOR NAS DUAS PONTAS** (a `<option>` selecionada e o painel aceso): deixar pro JS acertar depois pintaria a chave errada por um instante a cada abertura. E a **memória por torneio continua vencendo numa troca manual** — quem mudou de categoria e salvou algo lá não é devolvido, que era o pedido do `build-1024`. O "sempre" vale na chegada.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes e, em `padelizou.com.br/Torneios/Details/26`, o HTML traz as 7 categorias do ER **na ordem nova**, com `selected="selected"` na `cat-89` e o painel `cat-89` em `show active` — as duas pontas casando. ⚠️ **O "abre na MINHA categoria" não foi visto no ar**: anônimo não tem categoria, e a sessão não tem browser pra logar. O que existe é teste de unidade sobre a régua (`CategoriaQueAbreNasChavesTests`).
+>
+> 🧪 **6.365 testes, 0 falhas (11 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes — e **um foi reescrito até discriminar**: o teste da ordem passava de primeira porque a mesma chamada já existia noutro trecho da view, e só passou a provar algo olhando a DECLARAÇÃO do `comChave`.
+>
+> 🪜 **A LIÇÃO DO DIA, e ela é o degrau 2 da escada deste arquivo:** a ordenação certa já existia escrita (`CategoriaNaTela.Ordem`, de 08/08) e eu não a procurei ao montar o seletor — o `<select>` nasceu com a ordem do banco porque copiou o que as pills faziam. *"Já existe algo equivalente aqui?"* vale também pro que a tela ANTIGA fazia errado: herdar o comportamento dela não é reuso.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR** (`/Torneios/Details/26`, anônimo): a régua agora diz *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1, e errar o vencedor vale 0"*, e o aviso conta **341 palpites** esperando resultado. `/healthz` 200 nos dois ambientes.
+>
+> 🏷️ **PRIMEIRA TAG COM O `--target` VALENDO**: a `build-1039-cd13be1` aponta pro `cd13be1`, o próprio merge do PR — nome e alvo dizendo o mesmo commit.
+>
+> 🎯 **A RÉGUA DA TELA ESCONDIA OS 3 PONTOS DO PLACAR EXATO — durante o torneio inteiro do Er.** 🗣️ Felipe, olhando a aba Palpiteiros no ar, com **332 palpites esperando resultado**: *"E tem bonificação pra quem acerta o placar exato? tem que ter uma pontuação pra quem acerta o vencedor, e mais pra quem acerta o placar exato"*.
+>
+> ✅ **A pontuação SEMPRE existiu** (`PontosDoPalpite`, desde 08/2026): **cravou 3 · chegou perto 2 · só o vencedor 1 · errou 0**. Quem não estava contando era a TELA.
+>
+> 🕳️ **CAUSA: `PalpitesComPlacar` só somava palpite de jogo APURADO** — é ele que a régua consulta pra decidir se ensina a cravada, e a pergunta é feita ao dado de propósito (torneio jogado antes de o placar existir não deve aprender uma regra que ninguém teve como usar). Só que **no modo participação, que nasceu hoje, não há nada apurado**: o número era zero e a régua dizia *"cada jogo em que você acertou quem venceu vale 1 ponto; errar vale 0"* com centenas de palpites de placar já dados. **Defeito que a estreia do modo participação criou** — antes dele a aba nem existia antes do primeiro resultado.
+>
+> ✅ **Agora `PalpitesComPlacar` = apurado + em aberto.** A pergunta continua sendo ao dado: torneio em que ninguém palpitou placar segue sem falar em cravar.
+>
+> 🧪 **6.354 testes, 0 falhas (3 novos).** Visto vermelho antes em *"Assert.Equal() Failure: Values differ"* (0 em vez de 1). Conferido no navegador local, no modo participação: a régua passou a dizer *"cravar o placar vale 3, chegar perto (errar por um game) vale 2, acertar só quem venceu vale 1"*.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #175).** **Sem migration.** ⚠️ **Não precisa de deploy**: é mudança de `ci.yml`, que vale a partir do build seguinte ao merge — não há artefato novo pra instalar.
+>
+> 🏷️ **A TAG DO BUILD PASSA A APONTAR PRO COMMIT QUE ELA NOMEIA.** 🗣️ Felipe, depois do deploy do palpitrômetro: *"arruma essa tag do ci tambem"*.
+>
+> 🕳️ **O `gh release create` nascia SEM `--target`**, e aí o `gh` cria a tag apontando pro topo do branch padrão **naquele instante** — não pro commit que o run compilou. Com dois merges perto, a tag passa a apontar pro commit do outro: o `build-1011-ea86749` ficou apontando pro `f3170fe`, o merge do PR #164, que entrou **4 minutos** depois do #168.
+>
+> ⚠️ **NADA DO QUE FOI PUBLICADO ESTAVA ERRADO, e isso importa pra dimensionar o conserto**: o `deploy.sh` baixa o **tarball** do release (`releases/download/$TAG/padelizou.tar.gz`) e, quando recebe um sha, procura pelo **nome** da tag — e o nome sempre saiu do `github.sha`. O que quebrava era a **procedência**: `git show` na tag mostra um commit que não é o do pacote. Pista errada justamente no dia em que algo deu errado.
+>
+> 🧪 **6.351 testes, 0 falhas (2 novos, em `TagDoBuildApontaProCommitTests` — o PRIMEIRO teste da suíte a ler `.github/`).** Visto vermelho antes em *"Not found: --target"*. O segundo teste trava o par que tem que concordar: o **nome** da tag e o **alvo** dela saem do mesmo `github.sha` — `--target` com `github.ref` ou `main` reintroduziria o defeito com outro nome, porque os dois também são "o topo agora".
+>
+> ✅ **CONFERIDO NO PIPELINE DE VERDADE**, que é a única prova que vale aqui: o merge deste PR (`75cb1e7`) gerou a **`build-1032-75cb1e7`**, e a tag aponta pro `75cb1e7` — nome e alvo dizendo o mesmo commit.
+>
+> ⚠️ **Só vale do próximo build em diante.** As tags já criadas continuam como estão; a `build-1011-ea86749` segue apontando pro `f3170fe`.
+
+> **10/09/2026** — 🧹 **O TOPO DA PÁGINA DO TORNEIO PERDE PESO, E O "PALPITEIROS" ERA DUPLICATA MESMO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1040-e57d577`** (PR #179) — o registro do deploy e o que foi conferido no ar estão na entrada do topo. **Sem migration.**
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DO ER (`/Torneios/Details/26`, 830 KB de HTML baixados do `prod`)** — e não só o `/healthz`:
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR POR FORA, e isso é novo aqui:** ele tem o portão de **Acesso Antecipado**, então anônimo é redirecionado pra `/AcessoAntecipado/Entrar` e o HTML do torneio nunca chega (o primeiro `curl` voltou **0 bytes** justamente por isso). No `dev` a conferência externa possível é o `/healthz` e os estáticos; a **visual é no `prod`**, que é aberto. Vale lembrar antes de alguém prometer "conferi no dev" de novo.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES no meio** (PRs #178 e #180, de outra sessão — o #178 entrou minutos antes do meu merge). Publiquei **pela tag** `build-1040-e57d577`, com o sha7 conferido contra o meu merge `e57d5775`, e não por "o mais recente".
+>
+> ⚠️ **A LISTAGEM DE RELEASES VEM ORDENADA POR NOME, NÃO POR DATA.** `build-997` aparece **antes** de `build-1040` na primeira página — pegar "a primeira" publica um build de quatro horas atrás. Ordene por `published_at` e confira o sha7.
+>
+> 🗣️ Felipe, com o print do 2ª Etapa ER Padel Tour no celular: *"estou achando muito poluído essa tela, muita informação"*. Contados, eram **DEZ blocos** entre o topo e o primeiro jogo. E, olhando a lista: *"palpiteiros me parece duplicado, não?"*.
+>
+> 🕳️ **ESTAVA, E LITERALMENTE.** Um BOTÃO no topo (`asp-action="Palpiteiros"`, página cheia) e uma ABA (`#palpiteiros`) — mesmo ícone, mesmo nome, mesmo portão (`TemRankingDePalpiteiros`) e **o mesmo parcial desenhado dos dois lados** (`_RankingDePalpiteiros`). O botão era o mais antigo; a aba nasceu em **07/09** a pedido dele e ninguém tirou o botão — tanto que o comentário da aba dizia *"a mesma checagem barata que já decide o botão lá em cima"*: quem escreveu **viu** o botão e o deixou.
+>
+> ⚠️ **MAS `Details.cshtml` ERA O ÚNICO LUGAR DO SISTEMA QUE LINKAVA PRA `/Torneios/Palpiteiros`** (conferido: nenhum outro `.cshtml` ou `.cs` aponta pra ação). Tirar o botão e parar aí deixaria a página **órfã** — alcançável só por quem digitasse a URL, sendo que ela existe justamente pra ser mandada no grupo (o comentário do `_RankingDePalpiteiros` diz isso: "pode ser aberta direto de um link"). O link foi pra **dentro do painel da aba**: quem já está olhando o ranking é exatamente quem quer a URL.
+>
+> ✅ **AS TRÊS APARAS:** o botão duplicado saiu; as legendas permanentes viraram `title` (*"Arte pronta pra postar…"*, *"Publicadas pelo organizador…"* — legenda fixa ensina na PRIMEIRA visita e é ruído em todas as outras, mesma troca do "Sugestão ou bug" de hoje); e **Cartaz + Convidar + Fotos passaram a dividir UMA linha**. Os blocos de Cartaz e Fotos ficavam ~130 linhas separados no arquivo, mas **coladinhos na tela** — só o modal do convite, invisível, os separava.
+>
+> 🧪 **6.359 testes, 0 falhas** + os dois conferidores de JS verdes. Seis testes novos em `TopoDaPaginaDoTorneioEnxutoTests`, todos vistos vermelhos antes e **cada um falsificado por mutação depois**: devolver o botão ao topo, tirar o link do painel, tirar o link do painel **e** pô-lo fora dele, apagar o `title`, separar Cartaz e Fotos em duas linhas, e devolver uma legenda fixa. Seis mutações, seis vermelhos.
+>
+> 🕳️ **A PRIMEIRA VERSÃO DE UM DELES CAIU NO `</i>`.** `LastIndexOf('<', i)` a partir do rótulo acha a tag do ÍCONE, não a do botão — o teste acusou `String: "</i"`. Corrigido pra procurar o `<a `/`<button ` que envolve.
+>
+> ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM, e os dois estavam CERTOS:**
+> - `FotosDoTorneioTests` cobra que o campo cru apareça **UMA vez só** na tela (o formulário da gestão). Meu comentário novo o soletrava — e o `SemComentarioRazor` dele tira `@* *@`, **não** `//`. Reescrevi o comentário pra não soletrar, e ele agora diz por quê. **A mesma armadilha do dia, ao contrário**: em vez de o comentário fazer um teste passar, fez um teste falhar.
+> - `RankingEmAbertoNaTela.O_botao_do_torneio_nao_promete_ACERTO...` vigiava a legenda do botão que saiu. **ATUALIZADO, NÃO APAGADO** (precedente de 10/09): a intenção — a página não promete "quem mais acertou" na véspera — virou cobrança sobre a **página inteira**, e foi falsificada (pendurar "— quem mais acertou" no rótulo da aba deixa vermelho).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A economia de linhas está raciocinada da estrutura, **não medida**. E os filtros (o maior ganho isolado: 4 dropdowns viram 1 botão) **ficaram de fora de propósito**: o Er começa amanhã e o Felipe vai operar esta tela o fim de semana inteiro; mudar onde ficam os filtros no sábado de manhã atrapalha quem já decorou o caminho.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
+>
+> 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
+>
+> 🕳️ **A BARRA ESTAVA CERTA — PRO OUTRO USO.** `.pdz-pills` foi desenhada em 08/08 pras abas FIXAS (Ao Vivo / Agendadas / Finalizadas), e lá `flex: 1 1 auto` é o acerto: elas preenchem a linha e não sobra buraco. Numa lista de tamanho **variável** o mesmo acerto vira defeito — a sétima categoria caía sozinha na segunda linha e esticava pela largura inteira, virando uma faixa verde que parece título, não aba escolhida. Com as **12 categorias** que o ER já teve, eram quatro linhas de botão antes do primeiro grupo.
+>
+> ⚠️ **POR ISSO O `.pdz-pills` NÃO FOI TOCADO**: quem muda de desenho é só esta lista, a única de tamanho variável da tela. Mexer no CSS compartilhado consertaria uma tela e mexeria em quatro.
+>
+> ✅ **`<select>` nativo** (degrau 4 da escada do CLAUDE.md): no celular quem abre é o seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela. Fica **na linha do título**, então a troca **devolve** uma linha de altura em vez de custar uma.
+>
+> 💾 **A CATEGORIA ESCOLHIDA SOBREVIVE AO SALVAR** (`js/seletor-de-categoria.js`): dentro dela se troca dupla de grupo e se desenha o chaveamento à mão, e cada POST redesenhava a página na PRIMEIRA categoria — com 12, era caçar a sua de novo a cada gravação. `sessionStorage` **por torneio**, mesma forma e mesmo motivo do `js/jogos-abas.js` de 08/08.
+>
+> ⚠️ **UMA RÉGUA SÓ decide quem entra na tela** (`temChaveParaMostrar`, com o `comChave` derivado dela): duas contas dariam opção sem painel — escolher a categoria e não ver nada — ou painel sem opção, que é chave desenhada e inalcançável. Tem teste contando que a condição está escrita **uma vez**.
+>
+> 🧩 **Categoria única não ganha seletor** (controle que não escolhe nada): fica o nome. E o painel deixou de se anunciar como `role="tabpanel"` — sem barra de abas o papel ficou órfão; virou `region` com o nome da categoria.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl` desta sessão**: `/healthz` **200** em `dev` e `prod`, o `/js/seletor-de-categoria.js` servido nos dois é o arquivo novo, e em `padelizou.com.br/Torneios/Details/26` o HTML traz **as 7 categorias do ER como `<option>`** (`cat-89` a `cat-97`), **nenhum `id="categoriaPills"`**, um painel `role="region"` para cada opção e a página abrindo na primeira (`cat-89`) — ou seja, seletor e painel casam no ar, e não só no teste.
+>
+> ⚠️ **ESTE RELEASE LEVOU JUNTO A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`): a mudança daqui é só Razor + JS, mas o build aplica aquela migration no startup. Não foi um deploy "sem migration".
+>
+> 🧪 **6.346 testes, 0 falhas (10 novos)** + `conferir-palpitrometro.js` verde, com o `main` mesclado; `has-pending-model-changes` → *"No changes"*. Vistos vermelhos antes, um a um — e **dois foram reescritos até discriminar**: o do `sessionStorage` passava com o arquivo JS vazio, e o da abertura passava por causa da chamada que já existia no `change`.
+>
+> 🕳️ **UM DEFEITO ACHADO RELENDO O DIFF, e coberto:** num F5 o navegador restaura o valor do `<select>` sozinho (*form restoration*) e não restaura junto a classe do painel, que vem do servidor sempre na primeira categoria — sem sincronizar na abertura, o seletor diria "6ª Feminina" com a chave da 3ª Masculina desenhada embaixo.
+>
+> 🔀 **O `main` ANDOU DUAS VEZES entre o CI e o merge** (PRs #166, #169 e #170). Conflito só no `STATUS.md`, e a suíte foi rodada por cima a cada mesclagem.
+>
+> 🧹 **O `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** — marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar. Removido neste PR.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `workflow_dispatch` do `prod` publicou sem pedir aprovação.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl` desta sessão**: `/healthz` 200 em `dev` e `prod`; `/js/compartilhar-texto.js` servido nos dois (é o arquivo que só existe neste build); no `prod`, `/Torneios/CompartilharJogos/26` (o Er) responde **200 com 6 artes e o alternador "Também os previstos"**, e `/Torneios/JogosImagem/26?parte=1` devolve **`image/png` de 198 KB**.
+>
+> 🔁 **O `main` ANDOU QUATRO VEZES entre abrir o PR e mesclar** (PRs #164, #166, #167/#168, #170 — e o #171 entrou depois do merge, antes do deploy do `prod`). Cada vez: mescla, resolve o STATUS, roda a suíte (6.322 verdes na última). O merge pelo GitHub recusou duas vezes com *"has merge conflicts"* onde o `ort` local mesclava limpo — a saída foi empurrar a mesclagem local e esperar o CI dela. ⚠️ **A tag `build-1022-35ba247` foi pedida explicitamente no `prod`** porque o run 199 já nasceu com o `main` em `fa11f18` (PR #171): "o mais recente" teria publicado outro artefato no `prod` do que no `dev`.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `prod` não parou pedindo aprovação.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #171) e PUBLICADO no `build-1024-fa11f18`** — o registro completo (o porquê da troca, o que foi conferido no ar e as ressalvas) é a entrada do topo.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #169) e PUBLICADO no `build-1022-35ba247`** — o registro do deploy é a entrada do topo. **Sem migration.**
+>
+> 📤 **A ABA JOGOS GANHOU "COMPARTILHAR ESTA LISTA": texto pro grupo do WhatsApp e arte 1080×1350 pro story, com os filtros da tela.** 🗣️ Felipe, num print da aba filtrada por "Los Corneteiros" no 2ª Etapa ER PADEL TOUR: *"no final da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"* — *"Algo que fique bom para compartilhar no insta tambem"* — *"terá q questionar se vale apenas os jogos ja marcados ou se os possiveis tambem (por que o mata mata nao ta definido)"*.
+>
+> ✅ **O que existe**: um botão no FIM da lista de agendados (pra todo mundo, não só organizador — a decisão do cartaz) que leva a `/Torneios/CompartilharJogos/{id}?…filtros…`. Lá: (1) a pergunta **"Só os jogos marcados / Também os previstos"**, que só aparece quando há prévia na lista, padrão *só os marcados*; (2) o **texto pro WhatsApp** (`*torneio* — recorte`, um cabeçalho por dia, `18:00 · 6ª Masculina · Grupo D · Er Padel` + `Pedro Kirchner / Carlos Morais x …`, prévia marcada *prévia*, e no fim o link da lista com os filtros), com "Mandar no WhatsApp" (`wa.me`, e no celular o menu nativo — `js/compartilhar-texto.js`) e "Copiar"; (3) **uma arte por dia** (`CartaoDosJogos`, família de divulgação, cache público), até **8 jogos** por arte e dia cheio dividido em partes **equilibradas** (9 → 5 + 4, 11 → 6 + 5 — a versão "8 e o resto" deixava uma linha órfã, visto na prévia).
+>
+> ⚠️ **A LISTA É A DA TELA, LETRA POR LETRA, e é por isso que o card mora no `TorneiosController` e não no `CartoesController`.** `ListaDeJogos.Montar` não consulta banco: recebe a fila que `CarregarViewBagJogosAsync` + `OrdemNoHorario` já montaram e só traduz pras palavras da linha (`CategoriaNaTela.Curto`, `LugarDoJogo.Etiqueta`, o "parceiro" da vaga em aberto, `NomeDaDupla.Compacto` na arte). Uma segunda régua de "quais jogos" seria a que vazaria: o portão da chave em aprovação (09/09, *"nao deixe q nada vaze"*) mora naquele método, e aqui vira **404** pra quem não organiza — teste visto barrar. Torneio oculto e cancelado também 404. O `Png()` do CartoesController virou `Services/EntregaDeCard`, pra os dois controllers responderem com o MESMO cabeçalho.
+>
+> 🧪 **6.275 testes, 0 falhas (25 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes: *"'JogoDaLista' could not be found"* (nada existia), depois *8 + 1* na divisão. Um teste confere que **a Poppins tem glifo** pra cada caractere que o card acrescenta (x · ª Á º /) — sem fallback, caractere sem glifo sai como espaço em branco calado. ✅ **As artes foram geradas em PNG e OLHADAS** (a lição de 25/08): 8 jogos, 4 com prévia, 1 órfão (que virou o equilíbrio) e "sem data" (torneio por ordem sem hora). ✅ Conferido num projeto à parte que o `Url.Action` com `int[]` (as categorias) emite `categoriaFiltroIds=3&categoriaFiltroIds=5` e que array vazio some da URL.
+>
+> 🖥️ **RODEI A UI DE DENTRO DA SESSÃO** (a receita do `TRABALHAR-FORA.md`, descoberta pela sessão do palpitrômetro hoje): Postgres 16 local, `dotnet run` com o DadosDemo, Playwright a 430px no *Torneio dos Amigos 2026*. O botão sai com `categoriaFiltroIds=7&categoriaFiltroIds=8&soMeusJogos=False`; a página abre, o texto vem certo, o `wa.me` carrega o texto, o PNG responde **200 `image/png`, `public, max-age=3600`, `inline; filename="jogos-torneio-dos-amigos-2026-qui-10-09.png"`**, o Copiar diz *Copiado!*, e parte 99 e torneio inexistente dão 404. 🕳️ **E O NAVEGADOR PEGOU O QUE A SUÍTE NÃO PEGARIA**: a arte vazava 6px pela direita do card no celular — o `max-width: 380px` inline vence o `img-fluid`. Corrigido com `min(380px, 100%)` **só nesta página**; as páginas irmãs de `Views/Cartoes` têm o mesmo inline e o mesmo vazamento, e ficaram como estão pra não alargar o PR.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1011-ea86749`** (17h13 e 17h15 de Brasília — runs 196 e 197), **o mesmo artefato nos dois**, com a tag explícita no campo `build` (e não "o mais recente"). PR #168. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as três coisas do palpitrômetro pedidas na véspera do Er** — o ranking aparecendo antes do primeiro jogo (modo participação), o modal dizendo **quem palpitou o quê** (com o placar de cada um, e a frase "A galera crava" virando botão), e o **retirar o palpite** (`POST /Partidas/RetirarPalpite`).
+>
+> ✅ **CONFERIDO NO AR, no torneio do Er (`/Torneios/Details/26`, anônimo)**: a aba Palpiteiros existe, o aviso diz *"Ainda não há jogo apurado"*, a conta é de **116 palpites esperando resultado**, a coluna **Em aberto** está na tabela, e são **33 frases de consenso clicáveis** entre os 56 palpitrômetros da lista. No `dev` e no `prod`, o `/js/palpitrometro.js` servido já traz `RetirarPalpite` e `placarVencedor`; `/healthz` responde 200 nos dois.
+>
+> 🕳️ **ACHADO NO CAMINHO — O NOME DA TAG DE BUILD PODE MENTIR SOBRE O COMMIT.** O `ci.yml` cria o release com `gh release create "$tag" ... ` **sem `--target`**, então o **tarball** sai do `github.sha` (certo) mas a **tag git** nasce apontando pro topo do `main` naquele instante. O PR #164 entrou 4 minutos depois do #168 e a tag `build-1011-ea86749` ficou apontando pro merge dele (`f3170fe`). ⚠️ **Não trocou o que foi publicado** — o pacote instalado é o do #168, e o #164 era só `STATUS.md` —, mas a procedência fica enganosa e um dia vai custar uma investigação. O conserto é uma linha: `--target "${{ github.sha }}"`.
+
+> **10/09/2026** — ✅ **MESCLADO no `main` (PR #168) e PUBLICADO no `build-1011-ea86749`** — o registro do deploy é a entrada acima. **Sem migration.**
+>
+> 🎯 **O PALPITRÔMETRO GANHOU AS TRÊS COISAS QUE FALTAVAM, na véspera do Er.** 🗣️ Felipe, com o 2ª Etapa ER PADEL TOUR no ar e **41 jogos já votados**: *"acho que o ranking do palpitometro ja tem que aparecer"*; depois, num print da lista com a frase "A galera crava 9 x 7 (1 de 3)" marcada: *"tambem permita clicar e ver quem colocou o palpitometro e qual o placar, tambem permita retirar o palpite colocado"*.
+>
+> 1️⃣ **O RANKING APARECE ANTES DO PRIMEIRO JOGO.** A aba e o botão só nasciam quando um jogo **com palpite** terminava — ou seja, na véspera do torneio, que é justamente quando todo mundo palpita, não existia tela nenhuma. Cada linha ganhou o **EM ABERTO** (palpites de jogos que ainda não terminaram), com a **mesma exclusão de quem está em quadra** que a apuração já fazia: sem ela o número encolheria sozinho quando o jogo terminasse. Enquanto nada foi apurado a tela é de **participação** — ordenada por quem mais palpitou, sem pódio, com "·" no lugar da posição (tabela de zeros não tem líder) e o aviso de que a pontuação começa no primeiro resultado. Depois disso a ordem volta a ser a de pontos e a coluna Em aberto fica ao lado, porque 🗣️ *"todo jogo pode ser palpitado até começar"*.
+>
+> ⚠️ **O EM ABERTO É DO TORNEIO E SÓ DELE.** O hub do Ranking e o selo do perfil somam pontos de vários torneios — enchê-los de gente com zero ponto trocaria um ranking por lista de presença, e o selo diria "0 pt" pra quem nunca pontuou. Tem teste travando os dois.
+>
+> ✅ **De quebra, morreu o falso-positivo documentado**: o gate da aba passou a ser o **ranking pronto** (`TemRanking`) em vez de "existe palpite em jogo terminado". Torneio em que só os 4 jogadores da própria partida palpitaram mostrava o botão e a página respondia **404**.
+>
+> 2️⃣ **O MODAL DIZ QUEM PALPITOU O QUÊ.** Ele existia desde sempre e mostrava só o NOME. Agora cada linha traz o placar palpitado, **vencedor × perdedor** — no banco ele mora na orientação do jogo, mas a pessoa é listada DEBAIXO da dupla em que votou, e ali "4 x 6" diria que ela apostou na derrota de quem escolheu. A **frase do consenso virou o segundo caminho pro modal** (era texto morto), nas duas apresentações. ⚠️ E o nome/foto passaram a ser **escapados** antes do `innerHTML`: vêm do cadastro de quem votou.
+>
+> 3️⃣ **DÁ PRA RETIRAR O PALPITE.** Dava pra trocar de dupla e trocar a ficha; não dava pra sair — quem tocou sem querer (o alvo é um nome no meio de 97 jogos) não tinha caminho de volta. `POST /Partidas/RetirarPalpite`, com **[HttpPost] + [Authorize] + dono ESTRUTURAL** (a linha é achada por `(partida, jogador)` e o jogador vem da claim — não existe parâmetro por onde pedir o palpite alheio). A janela é a **mesma** do palpitar. O placar sai junto, senão "a galera crava 6x4" seguiria contando palpite que não existe. Na tela o "retirar" só aparece pra quem palpitou e **some sozinho** depois. ⚠️ O pedido vai pela **MESMA fila** do voto (a linha do pedido agora carrega a rota): soltos, votar e retirar mexem na mesma linha do banco e se cruzam — e a tela terminaria pintada pelo que respondeu por último, com **o palpite reaparecendo depois de retirado**.
+>
+> 🖥️ **RODEI A UI — E ISSO É NOVO.** Dezenas de entradas aqui fecham com "⚠️ NÃO RODEI A UI". O container da sessão web tem **PostgreSQL 16 e Chromium/Playwright**: o app sobe local com o DadosDemo, e dá pra clicar de verdade. Conferido a 430px e a 1200px, logado: o consenso abre o modal com os placares (`Diego 6 x 4 · Lucas 6 x 3 · Bruno sem placar`), o retirar apaga a linha no banco e some da tela sem F5, e a aba mostra o modo participação e depois o ranking com pontos. **A receita está no `TRABALHAR-FORA.md`.**
+>
+> 🕳️ **E O NAVEGADOR PEGOU UM DEFEITO QUE A SUÍTE NÃO PEGARIA**: a 1200px a tabela do modo participação vinha com **PALPITES 0 · ACERTOS 0 · % 0% · PONTOS 0** em toda linha — a "fileira de zeros" que a régua da coluna "Cravadas" condena. As quatro colunas somem enquanto nada foi apurado.
+>
+> 🔀 **O `main` ANDOU no meio do caminho** (PRs #162, #163 e #165, de sessões paralelas) e foi mesclado aqui antes do CI: conflito só no `STATUS.md`, no lugar de sempre — nenhuma linha de código, e o `Details.cshtml` mesclou sozinho. Com o `main` junto são **6.272 testes, 0 falhas**.
+>
+> 🧪 **6.235 testes, 0 falhas (27 novos) + 9 conferências no `conferir-palpitrometro.js` (4 novas).** Vistos vermelhos antes: os de serviço em *"does not contain a definition for 'EmAberto'"* e *"...'RetirarPalpiteAsync'"*, os de tela em *"Not found: Em aberto"*, *"Not found: ModoParticipacao"* e *"Not found: MostrarApuracao"*. ⚠️ As conferências novas do JS passaram de primeira e foram **FALSIFICADAS**: com o retirar furando a fila, *"a tela termina SEM palpite"* acusa `meuVoto=10` — exatamente o palpite reaparecendo. ⚠️ Um teste antigo foi **ATUALIZADO, não apagado** (`Jogo_que_ainda_NAO_terminou_fica_fora_da_conta`): a intenção dele — jogo não terminado não PONTUA — continua travada; o que mudou é que agora ele também aparece, em aberto.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1005-3156b46`** (16h48 e 16h50 de Brasília — runs 192 e 193). PR #165. **Sem migration.**
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA, dos dois lados:** `/healthz` **200** em `padelizou.com.br` e em `dev.padelizou.com.br`, e `/Torneios/CheckIn/26` respondendo **302 pro login** nos dois (e não 500) — a rota nova está de pé e fechada pra quem não entrou. O proxy desta sessão, que passou o dia devolvendo 403 pro domínio, voltou a deixar passar; a nota de "não dá pra conferir por fora" **não vale mais pra este deploy**.
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERÊNCIA É A APARÊNCIA.** 302 e 200 dizem que a tela responde, não que ela está certa: o desenho dos blocos por horário, o cartão de cada jogo e o "Resto do torneio" fechado só se conferem abrindo a página logado — e esta sessão não tem navegador.
+>
+> 📋 **O CHECK-IN PASSA A SER DESENHADO PELOS JOGOS QUE VÊM, e não pela lista de inscritos.** 🗣️ Felipe, com `/Torneios/CheckIn/26` aberto no 2ª Etapa ER PADEL TOUR — *"0 de 64 presentes"*, 64 duplas em 12 categorias: *"acho que aqui teria q mudar, por próximos jogos, e ver se as pessoas chegaram, e nao todos"*.
+>
+> 🕳️ **A TELA RESPONDIA A PERGUNTA DA VÉSPERA.** "Quem está inscrito" é a lista por categoria; no sábado de manhã a pergunta é **"quem joga agora já chegou?"** — e com 64 duplas achar as duas do jogo das 8h era rolar a lista inteira cruzando de cabeça com a grade. A informação existia e não estava onde se decide o W.O.
+>
+> ✅ **AGORA A TELA É A FILA DO DIA**: blocos por horário (`sáb 12/09 às 08:00`), cada jogo com as duas duplas e o "Chegou" em cada uma, e o jogo com as duas presentes apagado com o selo *"os dois chegaram"*. A lista por categoria continua inteira embaixo, **fechada**, em "Resto do torneio" — é ela que serve pra marcar quem chegou cedo e joga à tarde.
+>
+> ⚠️ **A ORDEM É A MESMA DA ABA JOGOS** (`Services/OrdemNoHorario`: hora → posição gravada → Id). Duas contas de "quem vem antes" fariam as duas telas mostrarem ordens diferentes pra mesma grade — a lição de hoje de manhã, aplicada antes de doer. E o `GroupBy` da view **não reordena**: em LINQ to Objects os grupos saem na ordem em que aparecem, e a fila já chega ordenada.
+>
+> ⚠️ **SÓ "Agendada".** Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos dois a pergunta do check-in já foi respondida por outra via. A **prévia** (eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela não sabe quem joga, então não há quem marcar.
+>
+> ♻️ **A LINHA DA CHAMADA VIROU UM PARCIAL** (`_LinhaDoCheckIn.cshtml`), porque agora ela é desenhada em dois lugares — dentro do jogo e na lista de baixo. Duas cópias do formulário que GRAVA presença divergiriam na primeira mudança. De brinde, ela ganhou `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenhava a página do topo (`js/manter-posicao-na-lista.js`, a peça de hoje de manhã, pela mesma queixa).
+>
+> 🧪 **6.250 testes, 0 falhas (9 novos)** + o `conferir-palpitrometro.js` verde. Vistos vermelhos antes: `ViewData["JogosQueVem"]` nulo, *"A tela não lê a fila dos jogos"* e *"Could not find file '_LinhaDoCheckIn.cshtml'"*. A consulta nova tem **teste de tradução Npgsql** (`ToQueryString`, o padrão de 19/08): ela filtra pela navegação `Categoria.TorneioId`, e o InMemory do resto da suíte não traduz nada.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão e o proxy recusa o domínio. O que dá pra afirmar é o que o teste lê da fonte e do controller, e que o Razor compila.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1001-28f2256`** (16h15 e 16h16 — runs 190 e 191). PR #163, o **chaveamento desenhado à mão**. ⚠️ **TEM MIGRATION** (`ChaveamentoManual`: coluna nullable em `Categoria`) — o `deploy.sh` aplica no startup. Este release leva junto o **PR #162** da sessão paralela.
+>
+> 🗺️ **O ORGANIZADOR PASSA A DESENHAR QUEM CRUZA COM QUEM NA PRIMEIRA ELIMINATÓRIA.** 🗣️ *"permita alterar na mao o chaveamento, como funciona a chave de cada um, se o primeiro passar quem enfrenta, etc (obviamente que apenas organizadores e adm do sistema podem fazer isso)"*.
+>
+> 🔒 **E FOI A OUTRA FRASE DELE QUE DESENHOU A SOLUÇÃO:** *"cuidado para nao mexer nada no que ja tem do ER hoje, isso é para os próximos torneios"*. `Categoria.CruzamentoDoMataMata` é campo **novo e ANULÁVEL**, e **null quer dizer "o motor decide" — o comportamento de hoje, letra por letra**. A migration só ADICIONA a coluna: nenhum dado tocado, e toda categoria existente continua null. **A promessa está travada por teste, não por confiança:** com null a chave sai idêntica à de antes em 4, 6, 8 e 12 vagas, e desenho CORROMPIDO no banco também cai no motor — nunca numa categoria sem mata-mata.
+>
+> ⚙️ **SÓ A PRIMEIRA RODADA, e o motivo é estrutural:** da segunda em diante o quadro é GEOMETRIA, não escolha (a lista [vencedores na ordem dos jogos, byes] cruzada primeiro × último até a final, `AvancoDaChave`). Deixar editar aquilo permitiria desenhar uma chave que **não fecha**. Editando a primeira, o caminho inteiro muda junto — que é exatamente o *"se o primeiro passar quem enfrenta"* do pedido. A decisão mora DENTRO de `ChaveamentoMataMata.MontarPrimeiraFase`, o motor único por onde passam a prévia e o mata-mata de verdade: assim a tela e o sábado dizem a mesma coisa.
+>
+> ✅ **Quem pode: `EhOrganizadorAsync`, que JÁ inclui admin raiz e geral** — é exatamente o que o pedido descreve, e inventar uma segunda régua criaria a QUARTA trava de autorização do sistema (as três atuais já se dessincronizaram uma vez, em 31/07). **Janela:** só enquanto a chave espera aprovação, mesma régua do "trocar duplas de grupo". **Metades** (dois do mesmo grupo se reencontrando antes da final): **avisa e deixa passar**, decisão dele — mesma postura do Conferir grade.
+>
+> 🖊️ **O campo abre com o desenho que o MOTOR faria, não vazio** — abrir a tela e salvar sem mexer produz a MESMA chave. Apagar tudo e salvar devolve a categoria pro motor: é o desfazer desta tela. Formato legível de propósito (`1A×2C|1B×2D;bye:1E`), porque quem for ler o banco às 3h da manhã de um torneio precisa entender sem abrir o código.
+>
+> ⚠️ **TRÊS TESTES MEUS ESTAVAM ERRADOS, E O CÓDIGO CERTO NOS TRÊS.** A geometria da chave é contraintuitiva: **com 4 jogos, quem se encontra na semifinal é o jogo 1 com o jogo 4** (o cruzamento é primeiro × último), não os vizinhos — eu afirmei o contrário duas vezes. E `Conferir` devolve o MOTIVO pra não usar o desenho, não o desenho. A lição ficou escrita nos testes: quando a régua e o teste discordam sobre geometria de chave, desconfie do teste primeiro.
+>
+> 🧪 **6.075 testes, 0 falhas (29 novos).** `has-pending-model-changes` → "No changes".
+>
+> ⚠️ **O DEPLOY FALHOU UMA VEZ NO ACESSO SSH AO VPS** (run 189, `dev`) — antes de instalar qualquer coisa, então nada mudou em nenhum ambiente. Passou na segunda. É a terceira vez nesta sessão que o SSH do deploy cai sozinho; se virar rotina, vale investigar o `ssh-keyscan` do workflow.
+>
+> ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — décima primeira sessão seguida.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`** (16h04 e 16h10 de Brasília — runs 187 e 188). PR #161. ✅ **SEM MIGRATION.**
+>
+> 📍 **O CLUBE VOLTOU AO CARTÃO DA PRÉVIA DO MATA-MATA** — o pedido dos dois prints do Er (*"quartas de final ta sem clube"*, *"tem uma parte com e uma sem"*). O que a correção é está na entrada logo abaixo.
+>
+> ✅ **`/healthz` CONFERIDO POR FORA NOS DOIS: HTTP 200, corpo `ok`** (`dev.padelizou.com.br` e `padelizou.com.br`, por `curl` desta sessão). É verificação independente, e não só o healthcheck que o próprio `deploy.sh` faz — os dois runs também saíram verdes com *"==> Feito. build-997-6b6dc3d no ar"*.
+>
+> 🔓 **O `prod` NÃO PAROU PEDINDO APROVAÇÃO.** O `deploy.yml` aponta pro environment `prod` justamente pra isso, mas nesta conta a regra de revisores não está ligada: o run foi direto do dispatch ao deploy, em 20 segundos. Fica anotado porque a sessão anunciou o clique e ele não veio — quem publicar daqui não deve esperar por ele.
+>
+> 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
+>
+> ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA, dos dois lados: 200 em `dev` e em `prod`.** Mais que isso: o `site.css` servido pelos dois já traz `\.pdz-jl-setas { display: flex; flex-direction: column; }` — ou seja, o que está no ar é **este** build, e não só "um deploy que terminou verde". 📌 **O proxy da sessão web deixou passar o domínio agora**, depois de recusar com `CONNECT tunnel failed, response 403` nos deploys de mais cedo. Fica anotado que a recusa é **intermitente**, não uma regra fixa do ambiente: vale tentar antes de declarar que não dá.
+>
+> ⚠️ **O CI NÃO DISPAROU SOZINHO NUM DOS COMMITS, e o repo já tinha remédio pra isso.** O `21a5d21` ficou sem **nenhum** check criado (nem vermelho: nenhum) enquanto outras sessões rodavam normalmente no mesmo minuto — o mesmo quadro de 26/08 que fez nascer o `workflow_dispatch` do `ci.yml`. Resolvido pelo gatilho manual (Actions → CI → Run workflow no branch), que devolveu verde no SHA certo. **As duas gambiarras óbvias continuam proibidas**: commit vazio e fechar/reabrir o PR.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES ENTRE O CI E O MERGE** (PRs #158 e #160, de outras sessões). Cada vez: mescla, resolve o STATUS, roda a suíte de novo. A publicação foi **pela tag** `build-992-57053f2`, e não por "o mais recente" — mesma regra da tarde: quem já mesclou publica pelo nome do build, senão leva junto o que outra sessão ainda não quis publicar.
+>
+
+> **10/09/2026** — 🦺 **UM CINTO PRO `:has()` E UM COMENTÁRIO QUE VIROU MENTIRA.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration.**
+>
+> Os dois itens que sobraram da revisão adversarial do PR #167 (69 agentes, 21 achados brutos, 5 sobreviventes — os 5 eram os falso-verdes, já corrigidos no PR #173).
+>
+> 🕳️ **O COMENTÁRIO DO CARD DO PIX PROMETIA O QUE A TELA NÃO FAZ MAIS.** Ele dizia: *"uma marcação errada dele não pode deixar o jogador sem caminho pra pagar"* — verdade enquanto o card RECOLHIA. Depois que ele passou a SUMIR com a chave publicada, marcação errada de `Pago` deixa o jogador exatamente sem caminho. O texto agora separa os dois tempos e **nomeia o custo**, em vez de prometer o antigo. Comentário que promete o que o código não faz foi o defeito mais repetido da sessão: quatro vezes.
+>
+> 🦺 **O `:has()` GANHOU CINTO — `wwwroot/js/abas-recolhidas.js`.** As duas linhas do `site.css` são **regras separadas**: `.pdz-aba-recolhida { display: none }` vale em qualquer navegador; `.pdz-aba-recolhida:has(> .nav-link.active) { display: block }` é **descartada inteira** por quem não entende `:has()`. Sem a segunda, a aba ativa fica invisível — o estrago que ela existe pra impedir. E o alvo não é hipotético: o app **é o próprio site** numa casca TWA (`ANDROID.md:3`), logo roda no WebView do aparelho.
+>
+> ⚠️ **O CINTO SE CALA ONDE O `:has()` FUNCIONA** (`CSS.supports("selector(:has(*))")`). Dois mecanismos ligados fazendo a mesma coisa é a segunda fonte da verdade que um dia diverge — e o CSS é o caminho bom: resolve **antes da primeira pintura**, então a barra não salta depois de desenhada. Ele escuta `shown.bs.tab`, que cobre os três caminhos de uma vez: clique na aba, `.click()` dos atalhos do Painel, e o `Tab...show()` do script da hash.
+>
+> ✅ **E O TESTE DELE É DE COMPORTAMENTO, NÃO DE TEXTO** — `Padelizou.Tests/js/conferir-abas-recolhidas.js`, DOM falso no Node, o padrão que o `conferir-palpitrometro.js` já tinha. Depois de uma sessão inteira consertando asserção sobre texto-fonte, valeu registrar: onde dá pra rodar o código, rodar o código. Onze conferências, incluindo trocar de aba (a anterior tem que voltar a se recolher, senão a barra junta aba solta a cada clique) e `window.CSS` indefinido.
+>
+> 🕳️ **O CI RODAVA UM CONFERIDOR SÓ, PELO NOME.** O passo citava `conferir-palpitrometro.js` na mão — o segundo teria nascido **fora do CI** sem ninguém notar. Agora ele **varre** `Padelizou.Tests/js/conferir-*.js`, mantendo a disciplina de não usar cano (com cano, conferência vermelha passa por verde) e a anotação `::error::`. Arquivo de teste que nunca roda é pior que nenhum: parece cobertura.
+>
+> 🧪 **6.350 testes, 0 falhas** + os dois conferidores de JS verdes. Vermelhos vistos antes: o do Node em *"ENOENT: no such file or directory, `abas-recolhidas.js`"*, e o do elo nas DUAS mutações (tirar a tag `<script>`, e tirar só o `asp-append-version`). O do Node também foi falsificado depois: sem a memória `dataset.pdzRecolhe`, 2 falhas.
+>
+> ⚠️ **UM TROPEÇO MEU, PORQUE ELE VAI SE REPETIR:** rodei `git checkout -- Details.cshtml` pra reverter uma mutação e levei junto a correção de comentário que ainda **não estava commitada**. Perdi as duas edições do arquivo e refiz. Mutação em arquivo com trabalho não commitado se reverte por **cópia** (`cp` de um backup), nunca por `git checkout`.
+>
+> 🔎 **REFUTADO POR MIM, e vale escrever pra ninguém "consertar" depois:** o achado de que o `sw.js` precisaria subir o `CACHE_NAME` por causa do `site.css` **não morde**. O `_Layout.cshtml:197` usa `asp-append-version`, o prod serve `/css/site.css?v=t_AbC-6PH…`, e o `sw.js:113` faz `caches.match(request)` **sem `ignoreSearch`** — hash novo é cache miss e vai pra rede. O `CACHE_NAME` importa pros arquivos servidos **sem** hash (logo, fonte, `offline.html`).
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O comportamento do cinto está provado no Node contra DOM falso; o navegador de verdade, e principalmente um WebView **sem** `:has()`, ninguém abriu.
+
+> **10/09/2026** — 🧪 **SEIS TESTES MEUS ERAM FALSO-VERDE, E QUEM PROVOU FOI MUTAÇÃO, NÃO LEITURA.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`.** **Sem migration, e sem uma linha de código de produção alterada** — logo, nada a publicar: o que está no ar segue sendo o `build-1008-14383b5`.
+>
+> 🗣️ Felipe, depois de eu relatar o que a revisão adversarial achou: *"corrige os testes falso-verde"*.
+>
+> 🕳️ **O MÉTODO: instalar o defeito e ver o teste passar.** Sete mutações, uma por teste, rodadas ANTES de qualquer conserto. Seis ficaram verdes com o defeito dentro — inclusive o teste que eu tinha escrito **naquele mesmo dia pra travar a correção das abas**:
+>
+> | Mutação | O que ela instala | Antes |
+> |---|---|---|
+> | `? "pdz-aba-recolhida" : ""` → `? "" : "…"` | aba some ANTES de publicar e volta depois | 🟢 passava |
+> | `@if (…ChavePublicada)` → `@if (!…)` | atalho só existe quando as abas já estão na barra | 🟢 passava |
+> | `display: block` → `display: none` | aba ativa continua invisível | 🟢 passava |
+> | apagar o rótulo do atalho de Pagamentos | atalho sem texto | 🟢 passava |
+> | `ApareceParaMim(Model, true)` | card do Pix VOLTA pro dia de jogo | 🟢 passava |
+> | `ApareceParaMim(torneio, true)` | a consulta a mais volta pra toda abertura | 🟢 passava |
+>
+> ⚠️ **AS DUAS CAUSAS, e nenhuma é distração:** (1) `Assert.Contains` de dois literais **não fixa a polaridade** de um ternário que contém os dois; e (2) buscar `"…ChavePublicada(Model)"` deixa o **`!` fora da string**. Some a isso o `Contains` que acha a coisa procurada **no comentário** logo acima do código — armadilha que mordeu QUATRO vezes numa sessão só.
+>
+> ✅ **`TestInfra.SemComentarios`** — era a **segunda** cópia (vinha do `TelasDeAulaSemRodinhaDeDataTests`) e a terceira ia nascer aqui. Subiu pro infra compartilhado e a antiga passou a delegar. São **104 arquivos de teste** que leem fonte com `File.ReadAllText`; a armadilha é da casa, não deste PR.
+>
+> 🕳️ **E TIRAR COMENTÁRIO NÃO RESOLVEU UM DELES — o painel tem 196 MIL caracteres.** `O_painel_Gerenciar_Torneio_oferece_as_duas` procurava "Pagamentos e impedimentos" no painel inteiro, onde a frase aparece **três vezes**: no comentário que cita o Felipe, no atalho, e em **texto de verdade da página** (`<strong>Pagamentos e impedimentos › Quadras e sedes</strong>`). Só o segundo conserto pegou: a asserção mudou de lugar — passou a olhar **o que está escrito DENTRO do `<button>`**, achado pelo `getElementById` dele. Instrumentar em vez de chutar (Regra 6) foi o que mostrou isso; a primeira tentativa continuou verde.
+>
+> ✅ **`DevoAlguma` ganhou teste contra dado real** — a propriedade que decide se o card SOBREVIVE à publicação não tinha nenhum. Comentar o `minhas.AddRange(americanas)` deixava a suíte inteira verde e o jogador de Americano que não pagou sem caminho pro Pix no dia do jogo. Agora fica vermelho (conferido).
+>
+> 🧪 **6.300 testes, 0 falhas.** As SETE mutações agora dão vermelho, mais a oitava (`AddRange(americanas)`). `node conferir-palpitrometro.js` verde.
+>
+> ⚠️ **O QUE NÃO ENTROU AQUI, e continua de pé:** depois de publicado, uma marcação errada de `Pago` pelo organizador **apaga** o card em vez de recolher — a pessoa fica sem caminho pro Pix —, e o comentário do `<details>` ainda afirma o contrário ("recolhe, não some… marcação errada não pode deixar o jogador sem caminho pra pagar"). Idem o parceiro que entra numa inscrição sozinha já marcada como paga. São defeitos de COMPORTAMENTO, não de teste; o Felipe pediu os testes.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1008-14383b5`** (20h08 e 20h09 UTC — runs 194 e 195). PR #167. **Sem migration.**
+>
+> ✅ **CONFERIDO POR FORA, NOS DOIS:** `/healthz` devolveu **HTTP 200** e corpo **`ok`** em `padelizou.com.br` e em `dev.padelizou.com.br`. E mais que isso — o `site.css` servido pelos dois já traz `.pdz-aba-recolhida:has(> .nav-link.active) { display: block; }`, ou seja, **é ESTE build que está no ar**, e não só "um deploy que terminou verde".
+>
+> ⚠️ **O `prod` NÃO PEDIU APROVAÇÃO.** O `infra/vps/README.md:159` manda marcar *Required reviewers* no environment `prod`, e eu avisei o Felipe que o deploy ficaria pendente esperando ele. Não ficou: o run 195 foi de ponta a ponta em **11 segundos** (20:09:46 → 20:09:57), sem parada. Ou o environment `prod` não existe com a trava, ou o dono do repo se auto-aprova. **Fica anotado como coisa a conferir** — a trava documentada e a trava real não são a mesma.
+>
+> 🔁 **O `main` ANDOU DUAS VEZES**: PR #165 (check-in) antes do meu CI, e PR #168 (palpitrômetro) entre o meu merge e o deploy. Publiquei **pela tag** `build-1008-14383b5`, e não por "o mais recente" — senão o `prod` levava junto o #168, que a outra sessão ainda não quis publicar.
+>
+> 📍 **A PRIMEIRA COISA DA TELA DO TORNEIO PASSA A SER O JOGO.** 🗣️ Felipe, com a página aberta no celular: *"acho que podemos remover a parte de Pix do organizador quando o torneio já foi publicado, teoricamente já pagaram, e aí fica melhor a visão da tela, porque atualmente, quando abro o site a primeira coisa que queria ver é os jogos ao vivo"* e *"Os menus Pagamentos e impedimentos e Planejamento de quadras, também pode mover para dentro do Gerenciar torneio, depois que foi publicada as chaves"*. **Duas coisas, o mesmo problema:** publicada a chave, o topo da página continuava sendo sobre INSCRIÇÃO — card de cobrança e duas abas de preparação — enquanto quem abre quer placar.
+>
+> ✅ **`PixDoOrganizador.ApareceParaMim(torneio, devoAlguma)`** — o card sai depois de publicado, e a régua de "publicado" é a `AprovacaoDeChaves.ChavePublicada` que a aba "Chaves e Grupos" já usa (nenhuma quarta cópia da lista de status). As duas abas viram **atalho dentro do Painel de Controle**, e o botão delas **continua no DOM, só recolhido**.
+>
+> ⚠️ **"TEORICAMENTE JÁ PAGARAM" NÃO É "TODOS PAGARAM", e a diferença tem dono no código:** quem ainda deve continua vendo o card depois de publicado. Não é caso de canto — `PromoverDaListaDeEsperaAsync` tira o próximo da fila **sempre que uma vaga abre, inclusive quando o organizador remove uma dupla no dia do jogo**, e há mais três portas (aceitar convite, aceitar pedido do mural, troca de parceiro pelo organizador) que fazem alguém entrar num torneio já publicado devendo. No "por fora", `Details.cshtml:837` é o **único caminho que o próprio jogador alcança** pra chave Pix: nenhum e-mail, push ou lembrete a carrega (o `LembreteDeInscricaoNaoPaga.VigiaEsteTorneio` **exige** `EhPeloSite`, então torneio por fora não recebe lembrete nenhum). ⚠️ **Existe um segundo caminho, e ele não substitui o card:** o botão "Cobrar no WhatsApp" (`Details.cshtml:4995`) manda a chave junto — mas depende de **o organizador clicar**, um a um, e vive dentro do painel de inscritos. Tirar o card dessa pessoa seria dizer "pague" sem dizer pra quem, e deixar o caminho na mão de outro.
+>
+> 🕳️ **O MAPEAMENTO PEGOU UM DEFEITO NA MINHA PRÓPRIA IMPLEMENTAÇÃO, e ele era exatamente o oposto do pedido.** A classe `pdz-aba-recolhida` tinha nascido no `<button class="nav-link">` — mas quem é filho do flex é o `<li class="nav-item">`, e o `site.css` lhe dá `flex: 1 1 auto` e **metade da linha até 430px**. Com `display:none` só no botão, sobravam **dois `<li>` VAZIOS reivindicando 50% da largura cada**: uma faixa em branco no topo do celular, no lugar exato de onde o card do Pix acabou de sair. A classe foi pro `<li>`, e o "reaparece quando é a aba ativa" virou `:has(> .nav-link.active)` — `.pdz-aba-recolhida.active` **nunca casaria**, porque as duas classes não vivem no mesmo elemento (quem ganha `.active` é o botão filho, é o Bootstrap que põe).
+>
+> ⚠️ **O BOTÃO NÃO PODE SER APAGADO: são TREZE redirects**, não cinco como o primeiro comentário dizia (`TorneiosController.Inscricoes.cs` 615, 621, 653, 690, 695, 722, 761, 802, 820, 892, 924, 950, 977), mais o link `asp-fragment="pagamentos"` do `Planejamento.cshtml:494`. O script do fim do `Details.cshtml` abre a aba procurando `#torneioTabs [data-bs-target="..."]` — apagado o botão, o seletor não acha nada, **o script sai calado** e o organizador cai na aba padrão toda vez que mexe num impedimento.
+>
+> ✅ **E O CONTROLLER VOLTOU A USAR A MESMA RÉGUA DA VIEW.** O `Aparece` mora no serviço justamente pra não existirem duas — o comentário dele diz isso com todas as letras. Com a view perguntando `ApareceParaMim` e o controller parado no `Aparece`, no **dia do jogo** (quando mais gente abre a página mais pesada do site) quem já pagou carregava do banco o criador do torneio pra alimentar um card que a view não desenha. Agora a busca do contato fica atrás do mesmo portão; **visitante deslogado depois de publicado não faz consulta nenhuma**.
+>
+> ⚠️ **Os dois atalhos ficam FORA do `<fieldset disabled="@gestaoSoLeitura">`** (linhas 2244/2248 contra 2290): o assistente do sistema em modo leitura continua alcançando as duas telas. E o `onclick` clica no **botão real**, não num `data-bs-toggle` próprio — o Bootstrap desativa os irmãos procurando o `nav` **ancestral** do elemento clicado, e um botão fora do `#torneioTabs` abriria este painel sem fechar o que estava aberto.
+>
+> 🧪 **6.275 testes, 0 falhas (2 arquivos novos meus: `CardDoPixSaiDaTelaDepoisDePublicadoTests` e `AbasDeGestaoVaoParaDentroDoGerenciarTests`; os outros 8 vieram do `main`, mesclado aqui — PR #165 — e a suíte rodou de novo depois).** Vistos vermelhos antes: os **cinco** da troca de elemento (`Assert.Contains() Failure ... String: "<li class="nav-item" role="presentation""`, e o inverso no botão) e o do portão do controller (*"A busca do contato precisa estar atrás do MESMO `ApareceParaMim` que a view usa"*). ⚠️ **Um teste desta mesma leva já tinha sido pego falso-verde** na revisão adversarial: `No_Americano_DE_DUPLAS_a_dupla_continua_sendo_a_inscricao` usava dupla NÃO paga cobrando `False` — passava idêntico com o defeito que dizia travar (excluir a família Americano inteira dá lista vazia → `false` pra todo mundo). Virou dupla PAGA cobrando `True`.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A suíte inteira passa e o Razor compila; a faixa em branco descrita acima foi deduzida do CSS (`site.css:2295` e `:2305`), **não medida**. Confere no `dev` antes do `prod`.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/admiring-brown-77o0oq`, ainda não publicado.** **Sem migration.**
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-997-6b6dc3d`.** PR #161. ✅ **SEM MIGRATION.**
+
+>
+> 📍 **A PRÉVIA DO MATA-MATA VOLTOU A DIZER O CLUBE DO JOGO.** 🗣️ Felipe, em dois prints do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de final ta sem clube"* e, no segundo, *"tem uma parte com e uma sem"*. As quartas mostravam só `12/09 18:50`; as oitavas de sábado à noite, só `sáb 12/09 17:10` — com a semi e a final ao lado dizendo **Er Padel · Arena Loja 7** e os cards de grupo, logo acima, dizendo **Radar** e **Er Padel**.
+>
+> 🕳️ **O JOGO PREVISTO FICA SEM QUADRA POR DOIS CAMINHOS, E NOS DOIS FICAVA SEM CLUBE JUNTO.** (1) **Hora digitada na mão**: o `DefinirHorario` grava a reserva com `NomeQuadra = null` — *"o robô escolhe"* — e daí em diante a prévia não tinha mais nada pra dizer o lugar. (2) **Sem nome de quadra sobrando no horário**: a projeção **conta** vagas pelas quadras abertas do cadastro (`QuadrasAbertasEm`) e **nomeia** pela lista de quadras em uso (`QuadrasEmUsoAsync`, que completa o cadastro só até `QuantidadeQuadras`); com menos nomes do que quadras abertas, o jogo cabe na conta e não sobra nome — o caso que o `NomesDeQuadra` já descrevia, e o das oitavas do print.
+>
+> ⚠️ **NO "POR ORDEM" ISSO APAGA O LUGAR INTEIRO.** O Er é por ordem de liberação: a quadra é apagada de propósito (quem chama é o balcão) e o **clube é a única resposta que existe** — 🗣️ *"nao precisa ter a quadra definida, mas o clube sempre tem q estar definido"*.
+>
+> ✅ **`JogoQueVem.ClubeId`, carimbado pela MESMA linha dos jogos reais** (`OrdemDeLiberacao.CarimbarOClube`): o clube é o da **quadra escolhida** e, sem quadra que responda, o **do torneio**. É o que a reserva sem quadra vai virar quando nascer — ela pula o encaixe (`paraEncaixar = candidatos.Except(reservados)`) e o carimbo lhe dá o clube do torneio. **Sem hora E sem quadra continua sem clube**: ninguém pôs esse jogo em lugar nenhum, e escrever o principal seria chute (o aviso de `ClubeQueACategoriaDetermina`).
+>
+> 🔁 **E O CARTÃO DA PRÉVIA ERA A QUARTA TELA DO "a guarda é a etiqueta, e não a quadra"** (10/09) — ficou de fora das três corrigidas, e o `if (!IsNullOrEmpty(previsto.Quadra))` calava o cartão inteiro, clube incluído. As **três** telas que desenham prévia passam a pedir a etiqueta completa (quadra, categoria e clube): o cartão do quadro, a linha da aba Jogos e a opção do modal de troca. `GuardaDoLugarNasTelasDeChaveTests` ganhou a quarta linha.
+>
+> 🧪 **6.208 testes, 0 falhas (6 novos meus; o resto veio do `main`, mesclado aqui antes de fechar).** Vistos vermelhos antes: os de comportamento em *"Values differ: Expected 1, Actual null"*, o da guarda em *"IsNullOrEmpty"* e os três de fonte no regex da etiqueta de 4 argumentos. **Falsificados depois**: sem o `?? ClubePrincipalId` caem o da hora na mão e o do horário sem nome sobrando — este acusando *"Oitavas de Final 4 12/09 20:30, Oitavas de Final 5 12/09 20:30"*, o mesmo desenho do print; trocando a quadra pelo principal cai o do carimbo pela quadra (a manhã inteira no Radar sairia escrita "Er Padel").
+>
+> ⚠️ **DUAS COISAS QUE FICARAM DE PÉ, e não são desta correção:** a prévia ainda **promete quadra que não vai existir** no torneio por ordem (os jogos reais nascem sem quadra; o quadro mostra "Arena Loja 7"), e ela ainda **põe jogo num horário em que nenhuma quadra está livre** — a grade de verdade escorrega pro horário seguinte (`GradeDeJogos.TemOndeJogar`), a projeção não (o `SemLugar` só olha o nome quando a categoria está presa a um clube). É o que faz um cartão ter quadra e o vizinho não. Mexer nisso muda **horário** de jogo previsto a dois dias do torneio — decisão do Felipe, não desta sessão.
+>
+> ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. O que dá pra afirmar: a suíte inteira passa e o Razor **compila** (provado de propósito: um símbolo inexistente plantado no bloco novo deu `CS0103` em `Details.cshtml(6084)`). A tela em si só se confere no `dev`.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (PR #159). ✅ **SEM MIGRATION.** O registro do deploy — horários, runs e o que foi conferido por fora — está na entrada do topo.
+>
+> ⋯ **O RELÓGIO E AS SETAS SAÍRAM DA BARRA PRO MENU.** 🗣️ Felipe, vendo a barra de 7 botões quebrar em duas linhas no celular: *"tira o ⇄ e o relogio pra um menu ⋯"* — e, corrigindo qual par sai, *"relogio e as setas"*.
+>
+> ✅ **O CORTE É POR QUANDO A AÇÃO ACONTECE, e é o que faz a escolha dele fechar.** Fica na barra o trabalho do **dia de jogo**, com o clube esperando: ▶ começar, ⇄ trocar de horário com outro jogo (choveu, a dupla não veio), 📍 mudar de quadra, ✏️ marcar placar — um toque cada. Vai pro menu o trabalho de **antes**, montando a grade sentado: o relógio (digitar a hora) e as setas ↑↓.
+>
+> 📏 **MEDIDO NO CHROMIUM, e a barra agora é UMA linha de 360px pra cima** (era duas desde as setas). Aos 320px continuam duas: 5 botões de 48px pedem 259px e o cartão oferece 221px — não tem conta que resolva sem encolher o alvo de dedo.
+>
+> 🕳️ **A MEDIÇÃO PEGOU UM DEFEITO QUE O TESTE NÃO PEGARIA: o menu aberto media 356px** e encostava nas duas bordas de um celular de 390px. Causa: `.pdz-jl-setas` continuava `display: flex` — a regra que servia na barra punha "Subir uma linha" e "Descer uma linha" **lado a lado**. Virou `flex-direction: column` e o menu foi pra 222px. ⚠️ Sem abrir o menu no navegador isso passaria: o Razor está certo, o CSS é que estava aplicando uma regra de outro contexto.
+>
+> ⚠️ **AS SETAS GANHARAM RÓTULO ESCRITO** ("Subir uma linha" / "Descer uma linha"). Na barra, ↑ e ↓ lado a lado se explicavam; numa lista vertical, "↑" sozinho não diz nem para onde nem o quê.
+>
+> ⚠️ **O CUSTO CAI JUSTAMENTE SOBRE O PEDIDO DE ONTEM, e fica dito:** arrumar sete semifinais na seta agora é **abrir o menu sete vezes** — cada POST recarrega a página e o menu fecha junto. Foi a escolha dele com a barra estourando; se pesar no domingo do Er, o caminho de volta é trazer as setas pra barra e mandar o 📍 pro menu.
+>
+> 🧪 **6.206 testes, 0 falhas (5 novos, em `MenuDeMaisAcoesDoJogoTests`; os outros 29 vieram do `main`).** Vistos vermelhos antes: os cinco de uma vez — `_MenuDoJogo.cshtml` não existia (erro de I/O) e as duas telas não citavam o menu. ⚠️ **Três testes antigos quebraram e foram ATUALIZADOS, não apagados** (`SetasDaOrdemNaTelaTests` ×2 e `DefinirHorarioNaMaoTests`): a intenção deles — a seta e o relógio **chegam na tela** — continua travada, agora seguindo a cadeia `_JogoEmLinha → _MenuDoJogo → _SetasDaOrdem`. Cobrar só o menu deixaria passar um **menu vazio**, que é o mesmo defeito de quando a prévia ficou semanas sem botão de horário.
+
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-988-7b37450`** (15h27 e 15h29 de Brasília — runs 183 e 184). PR #155. **Sem migration.**
+>
+> ⚠️ **O `main` ANDOU TRÊS VEZES DURANTE A ABERTURA DO PR** — #149, #152 e #154; depois #156 e #157; depois #158 —, e o `STATUS.md` conflitou nas três. Duas tentativas de merge foram recusadas com `405 Pull Request has merge conflicts` antes de a terceira passar. 📌 **A lição prática, com quatro sessões mergeando na mesma tarde:** o conflito não é o código, é este arquivo — cada mescla foi resolvida ficando com a minha entrada no topo e as do `main` logo abaixo, e a última ainda tirou um cabeçalho órfão que a anterior deixou (a entrada do `focused-euler` já tinha vindo do `main` com o cabeçalho dele).
+>
+> ⚠️ **O CI NÃO RODOU NO HEAD FINAL DO PR, e isso precisa estar escrito.** Os dois runs verdes foram no `5a10995` (983 e 984); o head mesclado (`1d79c23`) só acrescentou a resolução do `STATUS.md` e a remoção do cabeçalho órfão — **nenhuma mudança de código** —, e eu mergeei sem um terceiro run porque o `main` andava a cada poucos minutos. O que rodou aqui antes do merge: a suíte inteira (**6.201, 0 falhas**) e o `has-pending-model-changes` do CI (*"No changes have been made to the model since the last migration"*). O CI do `main` (run 988) fechou verde no commit de merge, que é o que gerou o release — sem ele não haveria o que instalar.
+>
+> ⚠️ **O BUILD FOI PEDIDO PELO NOME nos dois ambientes** (`build-988-7b37450`, e não "o mais recente"): entre o release e o deploy entrou o PR #159 no `main`, e "o mais recente" teria instalado outra coisa. 📌 E o de sempre: o `build-988` leva junto tudo que estava no `main` antes do meu merge — os PRs #156, #157 e #158 das sessões paralelas.
+>
+> 🔎 **O `/healthz` NÃO FOI CONFERIDO POR FORA DAQUI** — o proxy desta sessão devolve 403 pros dois domínios. Quem atesta é o `deploy.sh` (rollback automático se não vier 200), e os dois logs dizem *"==> Feito. build-988-7b37450 no ar em dev"* e *"...no ar em prod"*. É evidência de verdade, mas não é verificação independente.
+>
+> 🧰 **AS FERRAMENTAS DO ORGANIZADOR VIRARAM A PRIMEIRA COISA DA TELA, DEPOIS QUE A CHAVE É PUBLICADA.** 🗣️ Felipe, com o Er no ar e depois de perguntar onde ficava a lista de chamada: *"acho que a ferramentas do organizador tem q ser a primeira coisa da tela, depois que as chaves foram publicadas"*.
+>
+> 🕳️ **O card era o ÚLTIMO bloco do Painel de Controle** — atrás do status, do sorteio, dos organizadores, dos marcadores e do formulário inteiro de editar o torneio —, e o painel só abre depois de um clique na aba "Gerenciar Torneio". No dia do jogo, o caminho mais longo até as três telas que só servem naquele dia: **check-in, financeiro e relatório** (mais o "avisar todo mundo", que é do mesmo card e vai junto).
+>
+> ✅ **Ele MUDA DE LUGAR, não ganha uma cópia.** O card virou `Views/Torneios/_FerramentasDoOrganizador.cshtml`: com a chave publicada é renderizado logo abaixo do cabeçalho do torneio; antes disso, segue no fim do painel, onde sempre esteve. Dois cards iguais divergiriam na primeira mudança — o parcial é o que garante **um lugar de cada vez**.
+>
+> ⚠️ **LOGO ABAIXO DO CABEÇALHO, e não encostado nas abas.** Entre um ponto e outro moram o cartaz, o convite, o grupo do WhatsApp, as fotos, os cards de campeão, o pódio, o MVP, o mural e os palpiteiros — tudo que um torneio no ar acumula. "Antes das abas" ainda seria uma rolagem no sábado de manhã; acima do cabeçalho, a tela deixaria de dizer de que torneio ela fala. O teste trava as **duas** pontas.
+>
+> ⚠️ **O `<fieldset disabled>` FOI JUNTO.** O card saiu de dentro da casca do painel, que é o que desliga tudo pro **assistente do sistema** (`ViewBag.GestaoSoLeitura`). Sem repetir a casca no lugar novo, ele ganharia o "Avisar todo mundo" LIGADO e descobriria a recusa só depois de escrever a mensagem — o `Comunicar` exige `EhOrganizadorAsync` no servidor, então era UI mentindo, não buraco de acesso.
+>
+> ✅ **"A CHAVE JÁ É PÚBLICA?" VIROU RÉGUA ÚNICA**: `AprovacaoDeChaves.ChavePublicada(torneio)` — a irmã, do lado do TORNEIO, do predicado `Publicada` que já existia do lado da PARTIDA. Aquele só sabe dizer "não está esperando aprovação", o que é verdade também num torneio de inscrições abertas, que não tem chave nenhuma. A aba "Chaves e Grupos" passou a perguntar por ela em vez da lista de status escrita na view.
+>
+> 🔀 **O `main` DE HOJE TROUXE A MESMA LISTA DE STATUS ESCRITA DE NOVO, e a mescla juntou as duas.** Outra sessão criou `Services/AbaDeChavesEGrupos` no mesmo dia (o botão "Chaves e Grupos" da lista de jogos, pedido do Deivid), com `"Fase de Grupos" or "Mata-Mata" or "Finalizado"` copiado. O conflito era literalmente as duas versões da mesma linha do `@if` da aba: ficou a **dele** na view, e o `Existe` dele passou a chamar o `ChavePublicada` daqui. Uma lista só, dois chamadores — cópias que concordam hoje divergem na primeira mudança, e aí o botão promete uma aba que o Details não desenha.
+>
+> 🧪 **6.201 testes, 0 falhas (19 novos meus; o resto veio do `main` — PRs #149, #152, #154, #156 e #157, mesclados duas vezes durante a abertura do PR).** Vistos vermelhos antes: *"'AprovacaoDeChaves' does not contain a definition for 'ChavePublicada'"*; depois, com o card já no topo, *"As ferramentas têm que vir antes do cartaz e do resto da página"* — a primeira colocação parava encostada nas abas; e, depois da mescla, o `AbaDeChavesEGrupos` ainda com a lista própria.
+>
+> ⚠️ **NÃO RODEI A UI** — esta sessão não tem browser, e o proxy devolve 403 pro domínio (conferido hoje: `CONNECT tunnel failed, response 403` em `padelizou.com.br` **e** em `dev.padelizou.com.br`). O que dá pra afirmar é o que o teste lê da fonte e que o Razor do parcial compila; a tela em si só se confere no `dev`.
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-976-658d281`** (15h05 e 15h06 de Brasília — runs 179 e 180, os dois com a tag **explícita** no input `build`, e não "a mais recente"). PR #153. ✅ **SEM MIGRATION.**
+>
+> 🔔 **O QUE SUBIU: as duas travas do clique duplo do palpitrômetro** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`) — **mais o primeiro passo de Node do `ci.yml`**. Fecha o `DbUpdateException em POST /Partidas/Votar` que chegou por push de erro às 13h52.
+>
+> 📦 **ESTE BUILD NÃO LEVA CARONA DE CÓDIGO, e isso foi conferido, não presumido:** `git diff --name-only build-970..build-976` devolve **7 arquivos, todos deste PR** (mais o `STATUS.md`). Os PRs #149 e #154, que entraram no `main` entre um build e outro, são **registro de STATUS, sem código**. Os PRs #144–#148 já tinham ido ao ar nos builds 952/958/962/970 das sessões paralelas — ou seja, o alerta de "leva junto tudo que entrou antes" **não se aplicou desta vez**.
+>
+> ✅ **E DESTA VEZ DEU PRA CONFERIR POR FORA — a primeira verificação independente desde que a nota do proxy existe.** O proxy desta sessão **não** bloqueou o domínio: `/healthz` **200** em `dev` e em `prod`, e o `palpitrometro.js` servido pelos dois já traz a trava (`palpiteEmVoo` aparece **4×**; **antes** do deploy o prod servia **0**, que é a medida de que o arquivo velho saiu do ar). 📌 **A lição é sobre a nota, não sobre o site:** "o proxy bloqueia `padelizou.com.br`" é estado **de sessão**, não regra do ambiente — a próxima sessão testa em vez de assumir que não dá.
+>
+> 🧪 **CI verde no PR, e o passo novo rodou no runner de verdade** — passo 9, `Conferir a trava de clique do palpitrômetro (JS)`, `success`, com o `Dizer QUAL teste caiu` `skipped` do lado (que é o desenho: ele só aparece quando a suíte cai). **6.179 testes, 0 falhas** no estado já mesclado com o `main`.
+>
+> ⚠️ **O `main` andou DUAS VEZES no meio do caminho** (PRs #149, #152, #154 de sessões paralelas), e as duas vezes o conflito foi só no `STATUS.md`, no mesmo lugar: o cabeçalho "Última atualização". A resolução é mecânica e vale anotar — **o bloco novo fica no topo com o cabeçalho, e o que estava lá vira entrada datada normal**. Nenhuma linha de código conflitou nas duas mesclas.
+>
+>
+> **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-981-978401d`** (15h18 de Brasília — runs 181 e 182 do Deploy). PR #157, o dia da semana que comia o nome do clube na árvore da chave. **Sem migration.**
+>
+> ✅ **E DESTA VEZ O `/healthz` FOI CONFERIDO POR FORA:** `HTTP 200`, corpo `ok`, nos **dois** domínios, por `curl` daqui — verificação independente, e não só o healthcheck do próprio `deploy.sh`. As entradas anteriores desta sessão não conseguiram (o proxy bloqueava o domínio) e ficaram só com o job verde; a diferença estava dita lá e some aqui. Como o `/healthz` deste app também confere o schema, o 200 diz que o modelo EF do build novo casa com o banco.
+>
+> 🕳️ **O QUE ESTE BUILD CONSERTA É UMA REGRESSÃO QUE ESTAVA NO AR DESDE O `build-961`** — minha, publicada de manhã e achada pela revisão adversarial do meu próprio diff, que terminou **depois** do deploy. Na árvore da chave o `sex ` empurrava a etiqueta de quadra/clube pra fora de uma linha `nowrap; overflow: hidden` **sem reticências**: medido no Chromium a 390px, a vaga da chave perdia **23px dos 45** de "Er Padel" e a chave projetada perdia **49 de 49** — o clube sumia inteiro, calado. O dia da semana ficou onde cabe (listas de jogos e mini-jogo do grupo, medido em 351px de linha).
+>
+> 📌 **A LIÇÃO DE PROCESSO É SOBRE A ORDEM:** a revisão do diff rodou em paralelo ao CI e **não terminou antes do merge**. Mesclar sem esperar por ela custou um build errado no ar por ~45 minutos. Revisão que não bloqueia o merge é revisão que chega tarde.
+>
+> 🔁 **E A REVISÃO PEGOU UM TERCEIRO COMENTÁRIO MEU AFIRMANDO O INVERSO DO CÓDIGO** — o do `PixDoOrganizador` dizia que excluir a família inteira do Americano "recolheria o card de quem nunca pagou". É o oposto: sem o bloco, `minhas` fica vazia, o `Count > 0` dá falso e o método devolve `false` pra **todo mundo**, pago ou não — o card **nunca recolhe** naquele formato. Ninguém perde o caminho de pagar (é o lado seguro), mas a funcionalidade morre calada. Três comentários errados num dia é padrão, não azar: **o comentário que explica um `if` merece a mesma desconfiança que o `if`.**
+>
+> 📌 **UMA LIÇÃO SOBRE COMO EU RODEI A REVISÃO, pra quem repetir:** dos 13 achados, 12 aparecem como "derrubados" pelos céticos — e **não porque fossem falsos**, mas porque eu **corrigi o código enquanto a verificação rodava**, e eles foram olhar uma árvore já consertada. Verificação adversarial precisa rodar contra um commit CONGELADO; do contrário o placar mente nos dois sentidos.
+>
+> ⏱️ **E UMA ARMADILHA DESTE AMBIENTE, PRA NÃO SE PERDER:** os `sleep` da sessão web **não consomem tempo real de mundo** — o relógio do sandbox congela e a espera é creditada sem que o GitHub ande. Eu li isso como "o runner está lento" e queimei dezenas de consultas em laço; o `main` não tinha andado um merge sequer. Quem precisa esperar CI aqui **agenda um check-in** (`send_later`, que roda no servidor, em tempo real) e encerra o turno — não fica em laço de polling.
 >
 > **10/09/2026** — ⏳ **NO BRANCH `claude/new-session-fkxxz8`, ainda não publicado.** ✅ **SEM MIGRATION**: o índice único que segura tudo isto existe desde a `InitialPostgres` (23/07). São **duas travas pro mesmo clique duplo** — a do servidor (`PalpiteService`) e a da tela (`palpitrometro.js`).
 >
@@ -41,8 +1621,6 @@
 >
 > 🧪 **Os dois caminhos do passo foram rodados aqui, com o corpo do YAML extraído e executado em `bash -e`:** com o `palpitrometro.js` corrigido, `TUDO VERDE` e `exit=0`; com o `palpitrometro.js` de antes da trava (`git show HEAD~1`), as 3 conferências vermelhas viram 3 `::error::JS:` e `exit=1`. ⚠️ **Não é o CI de verdade** (não dá pra rodar o Actions daqui) — é o mesmo script no mesmo shell.
 >
-> **10/09/2026** — ⏳ **NO BRANCH `claude/friendly-newton-z1aptk`, ainda não publicado.** ✅ **SEM MIGRATION** — é uma linha de CSS.
->
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-970-8847871`** (14h51 e 14h53 de Brasília — runs 176 e 178). PR #152. ✅ **SEM MIGRATION.**
 >
 > 🔴 **O "RECALCULAR HORÁRIOS" SAIU DA LISTA DE JOGOS E FOI PRO PAINEL DE CONTROLE.** 🗣️ Felipe, num print da aba Partidas do 2ª Etapa ER PADEL TOUR: *"mude esse botao recalcular horarios, para o lado desse do 'recolher as chaves' se nao alguem pode clicar sem querer ali"*.
@@ -65,7 +1643,6 @@
 >
 > 🕳️ **E FICA ANOTADA UMA ARMADILHA NOVA DA API DE ACTIONS: a listagem de runs atrasa.** Disparei o `dev`, recebi `204`, listei os runs e **não achei o meu** — concluí que o 204 não tinha virado run (é a lição que o STATUS já registrava) e disparei de novo. Os dois viraram run: **176 e 177, o mesmo `build-970` instalado duas vezes seguidas no `dev`**. Sem dano (é o mesmo pacote), mas o certo é **esperar e reconsultar** antes de redisparar: `204` continua não sendo prova, e a ausência na listagem também não é prova do contrário. Quem confirma de verdade é o **log do job** (`==> Feito. build-970-8847871 no ar em dev`), não a lista.
 
-
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-958-b949a3d`** (14h28 e 14h30 de Brasília — runs 170 e 171). PR #147. ✅ **SEM MIGRATION** — é uma linha de CSS.
 >
 > 📌 **O BUILD FOI PEDIDO PELO NOME, e não como "o mais recente" — de propósito.** Entre o merge deste PR e o deploy, o #145 (*Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR*) entrou no `main`. Publicar `build-958-b949a3d` leva **exatamente** o que subiu no `dev` e o que esta sessão testou; o #145 fica pra quem o escreveu publicar. É a lição de hoje de manhã aplicada ao contrário: com duas sessões mesclando na mesma tarde, quem quiser segurar algo fora do prod segura o **merge** — e quem já mesclou, publica **pela tag**, não pelo topo.
@@ -84,7 +1661,33 @@
 >
 > 🧪 **6.126 testes, 0 falhas (2 novos, em `AcoesDoJogoNoCelularTests`; os outros 3 vieram do `main`, do PR #144).** Visto vermelho antes: *"Assert.Matches() Failure: Pattern not found"* — a regra não declarava `flex-wrap`. ⚠️ A regex exige `display: flex` **no mesmo bloco**: sem essa âncora ela passaria com a quebra escrita só dentro do `@media`, deixando de pé o vazamento da faixa de 576px pra baixo de ~700px (32px pra fora aos 430px, medidos).
 
+> **10/09/2026** — 📏 **A REVISÃO DEPOIS DO DEPLOY: O DIA DA SEMANA COMIA O NOME DO CLUBE NA ÁRVORE DA CHAVE, e três testes meus provavam menos do que diziam.** ⏳ **NO BRANCH `claude/sleepy-davinci-4t72i2`, ainda não publicado.** ✅ **SEM MIGRATION.**
+>
+> A revisão adversarial do PR #145 terminou **depois** de ele já estar em `dev` e `prod` (`build-961`), e o que sobrou dela não era cosmético.
+>
+> 🕳️ **O DIA DA SEMANA (pedido do Emerson) NÃO CABE NA ÁRVORE DA CHAVE — e foi MEDIDO, não estimado.** No Chromium com o `site.css` real, a 390px, na coluna mínima da grade (`.pdz-arv` é `minmax(6.5rem, 1fr)` no celular):
+>
+> | linha | sem o dia | com o dia |
+> |---|---|---|
+> | vaga da chave (`.pdz-chave-quando`) | pede 130px, cabe 127 → "Er Padel" perde **3px de 45** | perde **23px de 45** |
+> | chave projetada (`.pdz-chave-projetada-quando`) | pede 149px, cabe 123 → perde **27px de 49** | perde **49 de 49 — o clube SOME** |
+> | mini-jogo do grupo (`.pdz-grupo-jogo-quando`) | inteiro (a linha tem 351px) | **inteiro** |
+>
+> ⚠️ **O QUE FAZ ISSO SER SILENCIOSO:** as duas linhas da árvore são `white-space: nowrap; overflow: hidden` **sem `text-overflow: ellipsis`**, e a etiqueta de quadra/clube é a última (`margin-left: auto`) — então é ela que encurta, sem reticências e sem rolagem. Numa tela que existe pra dizer QUANDO e ONDE, trocar o ONDE por três letras é o pior lado da troca. O dia da semana **saiu** das duas linhas da árvore e **fica** nas listas de jogos e no mini-jogo do grupo, que é onde a medição diz que cabe.
+>
+> 📌 **FICA ANOTADO E NÃO CORRIGIDO:** a chave projetada **já cortava 27px antes desta mudança**. É defeito pré-existente e é outra tarefa (reticências, ou repensar a linha) — alargar este PR pra ele seria mudar o assunto.
+>
+> 🔴 **E TRÊS TESTES MEUS PROVAVAM MENOS DO QUE DIZIAM.** O pior era a "contraprova" do `AmericanoDuplas`: ela usava uma dupla **não paga** e cobrava `False` — e **passava igual com o defeito que dizia travar**, porque excluindo a família inteira do Americano a lista fica VAZIA e o método devolve `False` pelo motivo errado. Agora a inscrição é **paga** e a asserção é `True`: só há um jeito de passar, que é enxergar a dupla. Os outros dois: o `Assert.Contains("Chaves e Grupos")` era satisfeito pelo **comentário Razor** acima do botão (a mesma armadilha do `<details>`, duas vezes no mesmo dia), e a bolinha do Ao Vivo era travada por **distância em caracteres** (`< 400`, quando a real é 65) — virou régua estrutural, sem número mágico.
+>
+> 🕳️ **E NADA LIGAVA O SERVIÇO À TELA:** apagar as duas linhas do controller deixava a suíte inteira verde, o `ViewBag.JaPagueiNesteTorneio` chegava nulo e o card nunca recolhia — o pedido do Emerson morrendo em silêncio com dez testes verdes em cima. Agora tem trava.
+>
+> ✍️ **Dois comentários meus afirmavam coisas falsas, e comentário errado é pior que comentário nenhum:** o do CSS dizia que a data era "menor que a etiqueta ao lado" (em pixels ela era **maior** — .72 contra .68; o que a fazia LER menor era a etiqueta ter peso 700 e fundo), e o do `DiaDaSemana` dizia que "agora existe uma lista só" enquanto sobrava uma **terceira cópia** em `Views/Aulas/MeusHorarios.cshtml` (capitalizada e indexada por `HorarioDaTurma.DiaSemana`, contrato diferente — unificar é outra tarefa). Os dois reescritos.
+>
+> 🧪 **6.175 testes, 0 falhas (15 novos).** Três vistos vermelhos antes da correção ("o dia da semana voltou pra a vaga da chave", "esperava EXATAMENTE 1 e achei 2", a projetada) e três **falsificados** um a um: excluindo a família inteira do Americano cai a contraprova, apagando a linha do controller cai a trava da tela, e fechando o `@if` antes da bolinha cai a régua da bolinha.
+>
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
 > **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
 >
@@ -105,6 +1708,37 @@
 > ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
 >
 > 🔎 **O QUE ATESTA O HEALTHCHECK É O `deploy.sh`, e a diferença precisa ser dita:** os dois runs saíram verdes com `==> Feito. build-962-e8de81d no ar` e o script dá rollback sozinho se o `/healthz` não devolve 200 — evidência de verdade, mas **não** verificação independente. O proxy desta sessão bloqueia `padelizou.com.br`, então o `/healthz` não foi conferido por fora. **A UI também não foi clicada**: sem browser aqui, o que se pode afirmar é o que o teste lê.
+
+> **10/09/2026** — ⏳ **NO BRANCH `claude/wizardly-archimedes-um7u3v` (PR #166), ainda não publicado.** ⚠️ **TEM MIGRATION** (`20260910200606_FusaoDeTimesComNomeIgual` — funde dados e cria índice único; **não tem desfazer**).
+>
+> 🛡️ **DOIS TIMES COM O MESMO NOME DEIXARAM DE SER POSSÍVEIS — A TRAVA AGORA É DO BANCO.** 🗣️ Felipe: *"não deixa mais dois times com nome idêntico existirem, tem q mesclar, não pode ser diferente apenas pelo case sensitive"*.
+>
+> 🔎 **ACHADO NUMA VARREDURA SÓ-LEITURA DA PRODUÇÃO** (primeira sessão com acesso HTTP ao `padelizou.com.br` — ver a entrada da política de rede abaixo). A aba **Times** do 2ª Etapa ER PADEL TOUR listava **`ER Padel` (21 jogadores, 318 pts)** e **`Er padel` (2 jogadores, 25 pts)** como cadastros DIFERENTES, com o pódio partido entre as duas linhas. Os dois do segundo: **Camila Lopes** (a própria organizadora) e **Ivone Peixoto**.
+>
+> 🕳️ **A REGRA JÁ EXISTIA; UM DOS TRÊS CAMINHOS NÃO A APLICAVA.** `AdminController.CriarTime` recusa nome repetido — e o comentário dele já descrevia este estrago antes de acontecer: *"com dois SINDAQUA na base, cada pessoa cai num dos dois pelo acaso da consulta — e metade do time fica pendurada no cadastro errado, em silêncio"*. `AuthController.DefinirTimeAsync` acha por nome sem diferenciar maiúscula e ENTRA no que existe. Já o bloco `ehDonoTime` do `EditarPerfil` fazia `new Time { Nome = nomeTime.Trim() }` **direto**. E o mesmo trecho **piorava o conserto**: quem já tinha time e digitasse o nome de outro caía em `meuTime.Nome = ...` e renomeava, produzindo dois times com o nome IDÊNTICO.
+>
+> ✅ **A TRAVA FOI PRO BANCO, e é o degrau 4 da escada deste arquivo** (*chave/índice do banco em vez de checar duplicata em C#*): índice único em **`lower(btrim("Nome"))`**. Vale pros três caminhos de uma vez — e pro quarto que alguém escrever daqui a seis meses sem ler nada disso. Índice por expressão, então vai em SQL cru e fica **fora do snapshot** do EF; o `has-pending-model-changes` continua limpo porque o modelo não mudou.
+>
+> ⚠️ **A ORDEM DENTRO DA MIGRATION É O QUE FAZ O DEPLOY PASSAR: funde primeiro, indexa depois.** Com a duplicata viva o índice não aplica — se ele viesse antes, a migration falharia, o `/healthz` daria 503 (ele confere migration pendente) e o `deploy.sh` faria rollback sozinho.
+>
+> ⚠️ **RECUSAR SOZINHO PRENDERIA A PESSOA** — ela digita o nome do próprio clube, o banco diz não, e ela não tem como chegar no cadastro certo. Por isso **funde**: sobrevive o de **mais jogadores** (empate, menor `Id`), que é o mesmo critério que o projeto já usa pra grafias de cidade (*"entre duas grafias empatadas, ganha a que mais gente escreveu"*).
+>
+> ⚠️ **ADMINISTRAÇÃO NUNCA É HERDADA NUMA FUSÃO, e essa é a parte que mais importa.** Quem comandava o absorvido não passa a comandar o sobrevivente: a Camila mandava em 2 pessoas e herdar daria a ela o comando de 21. **Reparo de dado não pode virar promoção** — mesma razão pela qual digitar no cadastro o nome de um time existente não dá cargo nenhum. Quem administrava o sobrevivente segue administrando. Time que ficar sem nenhum cai no estado dos 44 importados do ranking, e um admin concede o primeiro.
+>
+> ⚠️ **O NOME DO SOBREVIVENTE NÃO MUDA.** Como a colisão é por `lower(btrim(nome))`, o que a pessoa digitou só difere na caixa ou em espaço — e aplicá-lo deixaria alguém trocar a grafia de um time que não administra, só por saber como ele se chama.
+>
+> 🧪 **6.311 testes, 0 falhas com o `main` mesclado (14 novos: `FusaoDeTimesTests` + `TimeDuplicadoNoPerfilTests`).** Vistos vermelhos antes: *"The collection contained 2 items"* (o segundo time nascendo), *"Expected ViewResult, Actual RedirectToActionResult"* (o rename passando), *"Assert.Empty() Failure"* (o cargo saindo na duplicata) e `CS0103: FusaoDeTimes does not exist`. **Falsificado depois**: trocar o desempate por "ganha o primeiro argumento" derruba 2 testes; fazer a administração ser herdada derruba 2.
+>
+> 🐘 **A MIGRATION FOI RODADA CONTRA UM POSTGRES 16 DE VERDADE, e não só contra o InMemory** — que é o buraco de 19/08 escrito neste arquivo. Base criada do zero pelas migrations, semeada com as três grafias (`ER Padel`, `Er padel`, `  er padel  `) mais um time de controle. Depois: **um** time com **24** jogadores, sedes 1+2+3 sem repetir, só o administrador do sobrevivente de pé, a transferência que virava `10 → 10` apagada, e o time de controle intacto. O índice recusa `'er padel'` **e** `' ER PADEL '`, e aceita nome novo. `Down()` derruba o índice e reaplicar funciona.
+>
+> 🕳️ **O `Down()` NÃO DESFAZ A FUSÃO** — os absorvidos foram apagados e não há registro de quem era de quem. Voltar a migration devolve a permissão de repetir nome, não os cadastros. Quem precisar deles vai no backup do dia.
+>
+> ⚠️ **Atalho nomeado:** dois salvamentos simultâneos com o mesmo nome novo passam os dois pela checagem em C# e o segundo bate no índice — vira erro 500, não duplicata. Sem retry de propósito; o conserto, se doer, é capturar `DbUpdateException` e reentrar por `FundirAsync`.
+>
+> 🌐 **E ESTA FOI A PRIMEIRA SESSÃO WEB COM ACESSO AO SITE NO AR.** O `padelizou.com.br` era 403 no proxy de egresso porque o ambiente de nuvem estava no nível **Trusted** (allowlist fechada: GitHub, npm, pypi). Felipe trocou pra **Personalizado** em claude.ai/code → ícone de nuvem → **Nuvem** → engrenagem do ambiente, com `padelizou.com.br` e `dev.padelizou.com.br` em **Domínios permitidos** e a caixa **"Também incluir lista padrão de gerenciadores de pacotes comuns"** marcada (sem ela o `dotnet restore` do hook perde o NuGet e os 4 plugins não instalam). ⚠️ **Pegou nesta mesma sessão, sem abrir outra** — o container tinha acabado de ser reprovisionado. **Continua fora de alcance em qualquer política: banco e SSH** (raw TCP não passa pelo proxy) e **tela logada** (precisa de credencial).
+>
+> 📋 **A varredura só-leitura do torneio do Er passou em tudo o mais**: 97 jogos (56 reais + 41 prévias), 24 grupos com o número exato de confrontos de todos-contra-todos (zero repetido, zero faltando), 64 duplas inscritas = 64 em jogo, 128 perfis linkados **todos** com 200, zero conflito de quadra, zero jogador em dois jogos no mesmo horário, e nenhum mata-mata antes do jogo que o alimenta. **Duas coisas ficaram anotadas e não viraram trabalho**: o **Radar** tem pico de **3 jogos simultâneos sem quadra atribuída** (19 jogos no sábado — conferir se cabe), e a página do torneio entrega **759 KB de HTML** numa requisição, que é a que os jogadores abrem no celular.
+>
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-952-db104ce`** (14h10 e 14h14 de Brasília — runs 168 e 169). PR #144. **Sem migration.**
 >
@@ -496,7 +2130,6 @@
 >
 > ⚠️ **O QUE NÃO MUDOU, DE PROPÓSITO:** **dinheiro** — a dupla já era de duas pessoas e continua sendo, valor congelado e "Pago" intactos (`precisaCobrarOSegundo` só vale quando o antigo era nulo); a régua do **próprio jogador**; e o aviso de **"mesma pessoa em dois jogos no mesmo horário"**, que segue sendo achado do **Conferir grade** (`AuditoriaDaGrade.PessoaEmDoisJogos`) e **decisão de produto em aberto** — a mesma anotada em 09/09 pro definir. ⏭️ **No Er:** depois de publicar, trocar o parceiro do Paulo e **rodar o Conferir grade** — se o Arthur já estiver na chave de outra categoria, é lá que o choque de horário aparece.
 
-
 > **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-880-aca0a92`** (22h48 e 22h49 de Brasília). PR #116, os dois erros do print do prod logo depois do build-875 — e o deploy de `prod` **levou junto o PR #115** (inscrição solo, da sessão paralela) — em `dev` ele já estava desde 22h25, pelo `build-878-dbf8af0` que a sessão paralela instalou (run 123, só `dev`); `prod` pulou do 875 pro 880. **Sem migration.**
 >
 > 🕐 **UM JOGO DE GRUPO RETARDATÁRIO NÃO SEGURA MAIS AS ELIMINATÓRIAS DO TORNEIO INTEIRO.** 🗣️ *"os jogos estao terminando no sabado 19:40 por que? nao deveria, é pra ir ate as 23h"*. Os grupos fechavam 19h40 de sábado e UM jogo de grupo (3ª Feminina, Grupo B) caía em 08h de domingo — impedimento ou concentração da dupla. A barreira de posto era o `Max` dos horários, então TODAS as eliminatórias esperavam esse jogo e a noite de sábado ficava vazia: o oposto do *"a menos que fique horario vazio"* que abriu a ordem das fases. Agora o fim de um posto é o fim do **BLOCO** dele (`OrdemDasFases.FimDoBloco`): um horário inteiro vazio seguido de **menos de uma rodada** de jogos separa os retardatários. Os três lugares que calculam barreira leem a mesma função (`LevasDaGrade`, `ProximasFasesDaChave`, `AuditoriaDaGrade`), e o **Conferir grade ganhou a regra "Jogo retardatário"** — é o jogo pra mexer na mão.
@@ -660,7 +2293,6 @@
 > ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A etiqueta nova aparece na primeira linha de cada jogo, ao lado da categoria e do grupo; vale um print.
 >
 > ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e a etiqueta só fala depois dele.** Os 97 jogos do 2º Etapa estão **sem quadra E com duas sedes** — nada no banco diz em qual clube cada um é, então a linha continua calada lá **de propósito**. O caminho escolhido (opção **a**): em **Planejamento de quadras**, cadastrar as 4 quadras com o **local** de cada uma (nome com o clube dentro — "Quadra 1 Er", "Quadra 1 Radar", senão o salvamento recusa o repetido) e a **janela** do Radar se ele for alugado por hora; depois **Refazer grade**, na aba de jogos. `SalvarQuadraDoPlanejamento` reescreve `QuantidadeQuadras` = número de linhas, então 4 quadras dão **4 vagas por horário — 2 em cada clube**, que é exatamente o que ele descreveu. E vale conferir **em que clube cada categoria joga** (Pagamentos › Quadras e sedes): sem isso a folga de deslocamento é regra **mole** e cede, mandando a mesma dupla de um clube pro outro entre dois jogos.
-
 
 > Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
 >

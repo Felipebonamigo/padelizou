@@ -4,6 +4,24 @@
     var torneio = ViewBag.Torneio as Torneio;
 }
 
+@* ⚠️ A SEÇÃO SOBE PRO TOPO PORQUE ESTA VIEW TEM UM `return` DE GUARDA MAIS ABAIXO
+   (12/09/2026). Em Razor, `@@section` é uma CHAMADA executada na ordem do arquivo — um
+   `return` antes dela nunca a executa, e o `RenderSectionAsync(..., required: false)`
+   do layout responde com silêncio em vez de erro. Foi assim que a tela de compartilhar
+   os jogos ficou sem o script do botão "Compartilhar". *@
+@section Scripts {
+    <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
+    <script src="~/js/palpitometro.js" asp-append-version="true"></script>
+    @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
+       o organizador fica preso no JS velho indefinidamente. *@
+    <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
+    <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
+}
+
 @if (torneio == null)
 {
     @* `as` devolve nulo se a ação esquecer de preencher a ViewBag — e aí a página inteira caía
@@ -49,14 +67,3 @@
 <partial name="_JogosDoTorneio" model='("Jogos", torneio.Id)' />
 
 <partial name="_ModalVerVotos" />
-@section Scripts {
-    <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
-    <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
-    @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
-       o organizador fica preso no JS velho indefinidamente. *@
-    <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
-    <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
-    <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
-    <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
-    <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
-}

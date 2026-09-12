@@ -43,6 +43,18 @@
 
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
     ViewData["Historico"] = historico;
+
+    // O ESCUDO DO TIME COMO SELO no canto da foto, na TABELA DO GRUPO. 🗣️ Felipe, 11/09/2026,
+    // com um print das duas tabelas: *"nessa parte aqui, dos grupos, faça igual dos jogos ao
+    // vivo, com o logo redondinho no canto da foto"*.
+    //
+    // ⚠️ A coluna da dupla é a mais apertada do site (180px, nome truncado com reticências): do
+    // lado do nome o escudo roubava letra de um nome que já estava cortado. No canto da foto
+    // não ocupa linha nenhuma.
+    //
+    // Mesmo mecanismo do card ao vivo (ver _JogosDoTorneio): quem muda é o HTML do chip, não só
+    // a posição no CSS — o selo nasce DENTRO da moldura da foto.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
     var pontosTimes = ViewBag.PontosTimes as List<PontosTimeTorneioVM> ?? new List<PontosTimeTorneioVM>();
     // Quem está olhando a página. Usado pra mostrar o botão de desistir só na própria
     // inscrição — nos cards dos outros ele seria um botão de tirar gente do torneio.
@@ -80,20 +92,11 @@
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.ComVagaEmAberto(c.Duplas))
         .ToList();
 
-    // Nome curto de dupla: primeiro nome de cada um. Usado nas listas densas (jogos do
-    // grupo, chaveamento), onde nome completo estoura a largura e trunca os DOIS lados.
-    Func<Padelizou.Models.Dupla?, string> NomeCurtoDaDupla = d =>
-    {
-        if (d == null) return "A definir";
-        if (d.EhTime) return d.NomeTime ?? "Time";
-        var p1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
-        // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha passou a ENTRAR na chave,
-        // então este texto virou coisa que o inscrito lê sobre si mesmo, na tabela do grupo.
-        // "Paulo / ?" parece dado corrompido; "Paulo / parceiro" diz o que é — vaga em aberto,
-        // esperando o segundo nome. Cabe no orçamento de ~17 caracteres da coluna da chave.
-        var p2 = d.Jogador2 == null ? "parceiro" : d.Jogador2.ComoChamar.Split(' ')[0];
-        return $"{p1} / {p2}";
-    };
+    // Nome curto de dupla. A REGRA mora em `Dupla.NomeCurto` desde 11/09/2026 — ela vivia aqui
+    // e o serviço do "o que falta pra classificar" tinha a própria versão, com outra resposta:
+    // a mesma dupla ganhava dois nomes na mesma tela. Aqui sobra só o caso que é DA TELA: a
+    // vaga do mata-mata que ainda não tem dono.
+    Func<Padelizou.Models.Dupla?, string> NomeCurtoDaDupla = d => d?.NomeCurto ?? "A definir";
 
     // Texto da confirmação de sortear as chaves (o modal em _ModalConfirmar).
     // Quem fica de fora aparece POR NOME: "3 inscritos" não deixa ninguém reconhecer o amigo
@@ -313,6 +316,32 @@
     </p>
 }
 
+@* AS FERRAMENTAS DO DIA SÃO A PRIMEIRA COISA DA TELA depois que a chave é publicada (10/09/2026).
+   🗣️ Felipe, com o torneio do Er no ar: *"acho que a ferramentas do organizador tem q ser a
+   primeira coisa da tela, depois que as chaves foram publicadas"*. Elas eram o ÚLTIMO bloco do
+   Painel de Controle, atrás do sorteio, dos organizadores e do formulário de editar o torneio —
+   e o painel só abre depois de um clique na aba. No dia do jogo, o caminho mais longo até as
+   três telas que só servem naquele dia.
+
+   ⚠️ LOGO ABAIXO DO CABEÇALHO, e não encostado nas abas: entre um e outro moram o cartaz, o
+   convite, o grupo do WhatsApp, as fotos, os cards de campeão, o pódio, o MVP, o mural e os
+   palpiteiros — tudo que o torneio no ar acumula. Ali embaixo o card ainda seria uma rolagem.
+   Acima do cabeçalho, não: a tela ficaria sem dizer de que torneio ela fala.
+
+   ⚠️ MESMA RÉGUA da aba "Chaves e Grupos" (AprovacaoDeChaves.ChavePublicada): antes de publicar
+   o trabalho é montar o torneio, e o card fica onde sempre esteve.
+
+   ⚠️ O `<fieldset disabled>` é o do painel, repetido aqui de propósito: fora dele o assistente
+   do sistema (ViewBag.GestaoSoLeitura) ganharia o "Avisar todo mundo" LIGADO, e descobriria a
+   recusa só depois de escrever a mensagem — o Comunicar exige EhOrganizadorAsync no servidor. *@
+@if (ViewBag.PodeGerenciar == true && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+{
+    <fieldset disabled="@(ViewBag.GestaoSoLeitura == true)" class="border-0 p-0 m-0">
+        <partial name="_FerramentasDoOrganizador" model="Model" />
+    </fieldset>
+}
+
+
 @* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
    grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
 @if (!string.IsNullOrWhiteSpace(Model.RecadoAosInscritos))
@@ -342,39 +371,67 @@
    pelo seu próprio serviço; a linha só existe quando algum dos dois tem o que mostrar. *@
 @{
     var podeDivulgar = Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status);
+
+    // ⚠️ O CARTAZ SAI DAQUI QUANDO A CHAVE É PUBLICADA (11/09/2026). 🗣️ Felipe, na página do Er
+    // no dia do torneio: *"tambem oculte esse 'cartaz pra divulgar' ou coloque ele em outro
+    // lugar"*. O QR dele leva pra INSCRIÇÃO — com a chave no ar ela fechou, e o botão vira a
+    // primeira coisa que 100+ jogadores veem antes dos jogos, sem servir a nenhum deles.
+    //
+    // Ele não some: passa pro card de ferramentas do organizador, gateado pelo MESMO predicado
+    // — dois lugares possíveis, um de cada vez, como o próprio card já faz. Antes da chave fica
+    // aqui e pra TODO MUNDO, que é a decisão de sempre: cada inscrito que chama a turma no grupo
+    // é divulgação que não custa nada.
+    var cartazNoTopo = podeDivulgar && !Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model);
     var podeConvidar = Padelizou.Services.ConviteProTorneio.PodeConvidar(Model.Status);
+
+    // As FOTOS entram nesta mesma linha, e por isso o link é resolvido aqui em cima. O bloco
+    // delas ficava ~130 linhas abaixo (só o modal do convite, invisível, separava os dois na
+    // tela), então eram DUAS linhas de um botão cada onde cabe uma de dois.
+    //
+    // O Padelizou não hospeda a imagem: guarda o endereço de onde o fotógrafo publicou, e quem
+    // confere se esse endereço serve é o serviço — a view nunca põe o campo cru num href, ou a
+    // conferência deixa de existir.
+    //
+    // ⚠️ E ESTE COMENTÁRIO NÃO SOLETRA O NOME DO CAMPO DE PROPÓSITO: o
+    // `FotosDoTorneioTests` cobra que ele apareça UMA vez só na tela (o formulário da gestão),
+    // e o `SemComentarioRazor` dele tira `@* *@` mas não `//`. Escrever o nome aqui derrubava
+    // aquele teste — foi o que aconteceu na primeira versão desta linha.
+    var linkDasFotos = Padelizou.Services.FotosDoTorneio.LinkPara(Model);
 }
-@if (podeDivulgar || podeConvidar)
+@* ⚠️ A EXPLICAÇÃO DE CADA BOTÃO VIVE NO `title`, E NÃO NUMA LINHA FIXA EMBAIXO (Felipe,
+   10/09/2026: *"estou achando muito poluído essa tela, muita informação"*). Eram três botões
+   empilhados com uma legenda cada — seis linhas antes do primeiro jogo. Legenda permanente
+   ensina na PRIMEIRA visita e é ruído em todas as outras; mesma troca já feita hoje no
+   "Sugestão ou bug" do rodapé. *@
+@if (cartazNoTopo || podeConvidar || linkDasFotos != null)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        @if (podeDivulgar)
+        @if (cartazNoTopo)
         {
             <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
-               class="btn btn-outline-primary rounded-pill px-3">
+               class="btn btn-outline-primary rounded-pill px-3"
+               title="Arte pronta pra postar, com o QR que leva direto pra cá.">
                 <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
             </a>
         }
         @if (podeConvidar)
         {
             <button type="button" class="btn btn-success rounded-pill px-3"
-                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio">
+                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio"
+                    title="Manda o link da inscrição pra quem você quer no torneio.">
                 <i class="bi bi-person-plus-fill"></i> Convidar
             </button>
         }
-        <small class="text-muted">
-            @if (podeDivulgar && podeConvidar)
-            {
-                @:Cartaz pra postar; convite pra mandar no privado, com o link da inscrição.
-            }
-            else if (podeDivulgar)
-            {
-                @:Arte pronta pra postar, com o QR que leva direto pra cá.
-            }
-            else
-            {
-                @:Manda o link da inscrição pra quem você quer no torneio.
-            }
-        </small>
+        @* PRA TODO MUNDO, de propósito, ao contrário dos dois de cima: álbum de torneio é
+           divulgação — quem não jogou ver a foto é o que puxa gente pro próximo. *@
+        @if (linkDasFotos != null)
+        {
+            <a href="@linkDasFotos" target="_blank" rel="noopener noreferrer"
+               class="btn btn-outline-primary rounded-pill px-3"
+               title="Publicadas pelo organizador — abre fora do Padelizou.">
+                <i class="bi bi-camera-fill"></i> Ver as fotos do torneio
+            </a>
+        }
     </div>
 }
 
@@ -467,26 +524,6 @@
         </a>
         <small class="text-muted">
             É onde o organizador avisa mudança de horário e chama pra quadra.
-        </small>
-    </div>
-}
-
-@* ── AS FOTOS DO TORNEIO ──────────────────────────────────────────────────────────────
-   O oposto do bloco acima, e de propósito: este botão é PRA TODO MUNDO. Álbum de torneio
-   é divulgação — quem não jogou ver a foto é justamente o que puxa gente pro próximo.
-
-   O Padelizou não hospeda a imagem: guarda o endereço de onde o fotógrafo publicou. Quem
-   confere se esse endereço serve é o serviço, na hora de mostrar — a view nunca lê
-   Model.LinkDasFotos num href, ou a conferência deixa de existir. *@
-@if (Padelizou.Services.FotosDoTorneio.LinkPara(Model) is { } linkDasFotos)
-{
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a href="@linkDasFotos" target="_blank" rel="noopener noreferrer"
-           class="btn btn-outline-primary rounded-pill px-3">
-            <i class="bi bi-camera-fill"></i> Ver as fotos do torneio
-        </a>
-        <small class="text-muted">
-            Publicadas pelo organizador — abre fora do Padelizou.
         </small>
     </div>
 }
@@ -630,23 +667,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 }
 
 @* ── OS PALPITEIROS ───────────────────────────────────────────────────────────────────
-   O Palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem
-   ACERTOU. O ranking é derivado do que já estava lá — por isso nasce com histórico.
+   O Palpitômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU.
+   O ranking é derivado do que já estava lá — por isso nasce com histórico.
 
-   ⚠️ Quem responde "já tem o que mostrar?" é o CONTROLLER, pelo mesmo motivo do MVP: a
-   view não tem as partidas do torneio em mãos, e a conta feita aqui esconderia o link em
-   silêncio, sempre. *@
-@if (ViewBag.TemRankingDePalpiteiros == true)
-{
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="btn btn-outline-success rounded-pill px-3">
-            <i class="bi bi-graph-up"></i> Palpiteiros
-        </a>
-        <small class="text-muted">
-            Quem mais acertou no Palpitrômetro.
-        </small>
-    </div>
-}
+   🗣️ Felipe, 10/09/2026, olhando a lista de botões do topo: *"palpiteiros me parece
+   duplicado, não?"*. Estava: havia um BOTÃO aqui, pra página cheia (/Torneios/Palpiteiros), e
+   uma ABA logo abaixo (#palpiteiros) — o mesmo ícone, o mesmo nome, o mesmo portão
+   (`TemRankingDePalpiteiros`) e o MESMO parcial desenhado dos dois lados
+   (`_RankingDePalpiteiros`). O botão era o mais antigo; a aba nasceu em 07/09 a pedido dele
+   ("deixe uma aba no torneio para verificar o ranking do palpitômetro") e o botão ficou —
+   tanto que o comentário da aba diz "a mesma checagem barata que já decide o botão lá em
+   cima". Duas portas idênticas não são escolha, são hesitação cobrada de quem só queria ver
+   o jogo.
+
+   ✅ FICOU A ABA, que é o que ele pediu e mantém a pessoa na tela. O link pra página cheia
+   foi pra DENTRO do painel dela: `Details.cshtml` era o ÚNICO lugar do sistema que apontava
+   pra /Torneios/Palpiteiros, e tirar o botão sem mais nada deixaria a página alcançável só
+   por quem digitasse a URL — ela existe justamente pra ser mandada no grupo. *@
 
 @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
    "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
@@ -738,7 +775,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@
-@if (Padelizou.Services.PixDoOrganizador.Aparece(Model))
+@if (Padelizou.Services.PixDoOrganizador.ApareceParaMim(Model, ViewBag.DevoAlgumaNesteTorneio == true))
 {
     @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
        MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
@@ -755,10 +792,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
        da tela.
 
-       ⚠️ `<details>` E NÃO UM `if` QUE APAGA. Quem diz que a inscrição está paga é o
-       organizador virando o `Pago` na mão (muita gente paga em dinheiro na quadra); uma
-       marcação errada dele não pode deixar o jogador sem caminho pra pagar. Recolhido, a
-       chave continua a um toque.
+       ⚠️ `<details>` E NÃO UM `if` QUE APAGA — **ENQUANTO A CHAVE NÃO SAI**. Quem diz que a
+       inscrição está paga é o organizador virando o `Pago` na mão (muita gente paga em
+       dinheiro na quadra), e antes de publicar uma marcação errada dele não tira o caminho de
+       ninguém: recolhido, a chave continua a um toque.
+
+       ⚠️ DEPOIS DE PUBLICADO A PROMESSA ACIMA NÃO VALE MAIS, e isso é escolha, não descuido
+       (Felipe, 10/09/2026: *"remover a parte de Pix do organizador quando o torneio já foi
+       publicado"*). O portão de cima é o `ApareceParaMim`: publicada a chave, o card só existe
+       pra quem o sistema acha que DEVE. Marcado como pago por engano, o jogador fica sem
+       caminho pro Pix nesta tela — o conserto é o organizador desmarcar o `Pago`, e o caminho
+       que sobra pra ele é o botão "Cobrar no WhatsApp" da aba Pagamentos. O comentário antigo
+       daqui seguia prometendo o contrário; ficava a documentação de um comportamento que a
+       tela não tem mais.
 
        O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
        aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
@@ -980,7 +1026,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        Financeiro.cshtml já usa pro ajudante. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+    @* ⚠️ RECOLHIDA, E NÃO APAGADA, depois que a chave sai (Felipe, 10/09/2026: "pode mover para
+       dentro do Gerenciar torneio, depois que foi publicada as chaves"). O botão CONTINUA no
+       DOM porque TREZE redirects do servidor voltam com o fragmento `#pagamentos`
+       (TorneiosController.Inscricoes: impedimento, sedes, janela da sede, cobrança) e a tela
+       cheia do Planejamento tem um link `asp-fragment="pagamentos"`. O script do fim deste
+       arquivo abre a aba procurando `#torneioTabs [data-bs-target="..."]`: apagado o botão, o
+       seletor não acha nada, o script sai calado e o organizador cai na aba padrão toda vez
+       que mexe num impedimento.
+
+       ⚠️ A classe vai no <li>, e NÃO no <button>: quem é filho do flex é o <li> — o site.css
+       dá `flex: 1 1 auto` a ele, e metade da linha até 430px. Escondendo só o botão, sobra um
+       <li> VAZIO reivindicando a largura — dois deles, uma faixa em branco no celular. Ela
+       REAPARECE quando esta é a aba ativa (o `:has()` do site.css), senão o painel abriria com
+       a barra sem nada marcado. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="pagamentos-tab" data-bs-toggle="tab" data-bs-target="#pagamentos" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
             </button>
@@ -1000,7 +1060,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        celular do organizador. *@
     @if (ViewBag.PodeGerenciar == true)
     {
-        <li class="nav-item" role="presentation">
+        @* Recolhe junto com a de Pagamentos, e pelo mesmo motivo — ver a nota lá em cima. *@
+        <li class="nav-item @(AprovacaoDeChaves.ChavePublicada(Model) ? "pdz-aba-recolhida" : "")" role="presentation">
             <button class="nav-link fw-bold" id="planejamento-tab" data-bs-toggle="tab" data-bs-target="#planejamento" type="button" role="tab" style="color: var(--pdz-ink);">
                 <i class="bi bi-calendar-range"></i> Planejamento de quadras
             </button>
@@ -1206,7 +1267,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <i class="bi bi-people-fill" style="color: var(--padel-green);"></i>
                         <strong>Categoria de times:</strong>
                         @timesDaCategoria.Count de @(cat.QuantidadeTimes ?? timesDaCategoria.Count) times ·
-                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam @(cat.ClassificadosPorGrupo ?? 2) por grupo.
+                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                        @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(cat) por grupo.
                         Os times são cadastrados pelo organizador.
                     </div>
                     @if (timesDaCategoria.Any())
@@ -1508,6 +1570,40 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                       class="border rounded p-2 pdz-form-parceiro"
                                                       data-categoria="@dupla.CategoriaId">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
+
+                                                    @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
+                                                       nesse caso de agora"* — o Alexandre era o `Jogador1`, e o botão só sabia
+                                                       trocar o segundo nome. Sem este seletor o servidor aceita `saiId` e ninguém
+                                                       tem como mandá-lo: é a mudança sem caminho, o defeito de 09/09 ao contrário.
+
+                                                       ⚠️ `dupla.Jogador2 != null` e não `dupla.Completa`: as duas dizem a mesma
+                                                       coisa, mas só a primeira ensina ao compilador que o `.NomeNaTela` logo
+                                                       abaixo não é nulo (CS8602 é ERRO aqui desde 22/08). O `Jogador1` entra na
+                                                       mesma checagem mesmo sendo declarado não-nulo: um `dupla.Jogador1?.` mais
+                                                       acima neste bloco já marcou a variável como talvez-nula pro resto do escopo —
+                                                       e a checagem tem que ser direta no ponto de uso.
+
+                                                       ⚠️ O `name` se REPETE em toda dupla da página, e pode: cada caixa destas é um
+                                                       <form> próprio, e o navegador posta só os campos do formulário enviado. O
+                                                       `id` é que precisa do sufixo — e do prefixo, porque quem organiza vê as DUAS
+                                                       telas na mesma página. *@
+                                                    @if (dupla.Jogador1 != null && dupla.Jogador2 != null)
+                                                    {
+                                                        <div class="mb-2">
+                                                            <div class="small text-muted mb-1">Quem sai da dupla?</div>
+                                                            @* O segundo nome vem marcado: é a troca de sempre, e a que mais acontece. *@
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="radio" name="saiId" checked
+                                                                       value="@dupla.Jogador2Id" id="meuSai2-@dupla.Id" />
+                                                                <label class="form-check-label small" for="meuSai2-@dupla.Id">@dupla.Jogador2.NomeNaTela</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="radio" name="saiId"
+                                                                       value="@dupla.Jogador1Id" id="meuSai1-@dupla.Id" />
+                                                                <label class="form-check-label small" for="meuSai1-@dupla.Id">@dupla.Jogador1.NomeNaTela</label>
+                                                            </div>
+                                                        </div>
+                                                    }
 
                                                     @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
                                                        motivo: ninguém sabe o CPF do parceiro de cabeça — o
@@ -2178,6 +2274,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var gestaoSoLeitura = ViewBag.GestaoSoLeitura == true;
         <div class="tab-pane fade" id="admin" role="tabpanel">
             <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
+
+            @* ── AS DUAS FERRAMENTAS DO ANTES, RECOLHIDAS PRA CÁ ──────────────────────────
+               🗣️ Felipe, 10/09/2026: *"Os menus Pagamentos e impedimentos e Planejamento de
+               quadras, também pode mover para dentro do Gerenciar torneio, depois que foi
+               publicada as chaves."*
+
+               As duas são ferramentas do ANTES: o impedimento alimenta o sorteio e o
+               planejamento decide quantas quadras alugar. Publicada a chave, elas viram duas
+               abas entre quem abre a página e o placar — e a barra do organizador tem NOVE.
+
+               ⚠️ SÓ AQUI DEPOIS DE PUBLICAR: antes, as abas continuam na barra, e repetir o
+               atalho seria dois caminhos pro mesmo lugar na mesma tela.
+
+               ⚠️ `.click()` NO BOTÃO REAL, e não um `data-bs-toggle` daqui: o Bootstrap
+               desativa os irmãos procurando o `nav` ANCESTRAL do elemento clicado. Um botão
+               fora do `#torneioTabs` abriria este painel SEM fechar o que estava aberto —
+               dois painéis na tela ao mesmo tempo. Clicar no botão de verdade é o caminho
+               que o Bootstrap já sabe percorrer. *@
+            @if (AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('pagamentos-tab').click();">
+                        <i class="bi bi-cash-coin"></i> Pagamentos e impedimentos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                            onclick="document.getElementById('planejamento-tab').click();">
+                        <i class="bi bi-calendar-range"></i> Planejamento de quadras
+                    </button>
+                </div>
+            }
 
             @* A DÍVIDA NÃO SOME DA TELA DE QUEM DEVE (08/09/2026). Depois de "sortear agora,
                pagar depois", o bloco da taxa lá embaixo desaparece — as chaves já saíram, e
@@ -4044,6 +4171,33 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseGrupos"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseGrupos" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakGrupos" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakGrupos <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakGrupos == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakGrupos == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Grupo A")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseGrupos games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -4055,6 +4209,33 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseMataMata"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseMataMata" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakMataMata" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakMataMata <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakMataMata == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakMataMata == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Quartas de Final")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseMataMata games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -4066,13 +4247,99 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <label class="small text-muted">Games por set</label>
                                             <input type="number" min="1" max="99" name="gamesFaseFinal"
                                                    class="form-control form-control-sm" value="@Model.GamesFaseFinal" />
+                                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK desta fase
+                                               (Felipe, 12/09/2026). ⚠️ Editável com o torneio
+                                               RODANDO, e é o caso de uso: ligar a contagem valendo
+                                               pros PRÓXIMOS jogos. Placar já gravado não muda. *@
+                                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                                            <select name="pontosTieBreakFinal" class="form-select form-select-sm">
+                                                <option value="0" selected="@(Model.PontosTieBreakFinal <= 0)">Sem contagem</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                        selected="@(Model.PontosTieBreakFinal == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                        selected="@(Model.PontosTieBreakFinal == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                            </select>
+                                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: em fase de
+                                               número PAR de games o tie-break NUNCA acontece — o
+                                               5x5 de um jogo até 6 vai pro 7º game. Quem responde é
+                                               a régua (TieBreakDoJogo.AFaseComporta), com a mesma
+                                               paridade do teto de games. *@
+                                            @* ⚠️ Pergunta por "Semifinal", e não por "Final" como era
+                                               até 12/09/2026: com a regra própria ligada, "Final" passou a
+                                               devolver o formato da DECISÃO, e este aviso é sobre o número
+                                               de games que está no campo LOGO ACIMA — o das semis. *@
+                                            @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Semifinal")))
+                                            {
+                                                <small class="text-warning d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Com <strong>@Model.GamesFaseFinal games</strong> (número par) o tie-break
+                                                    não entra: o empate na penúltima já vai pro game seguinte.
+                                                    Vale em número <strong>ímpar</strong>.
+                                                </small>
+                                            }
+
+                                            @* A FINAL SOZINHA (Felipe, 12/09/2026). Fica DENTRO deste
+                                               card, e não numa quarta coluna, porque as três colunas já
+                                               apertam no celular — e porque o desvio é exceção do bloco
+                                               das semis, não uma quarta fase. Ver Torneio.GamesSoDaFinal. *@
+                                            <hr class="my-2" />
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="finalSeparada" id="pdzFinalSeparada"
+                                                       checked="@(Model.GamesSoDaFinal > 0)"
+                                                       onchange="document.getElementById('pdzRegraDaFinal').hidden = !this.checked;" />
+                                                @* O hidden vem DEPOIS da caixa, como no `avisarJogadores`:
+                                                   desmarcada, a caixa não manda nada, e sem ele o servidor
+                                                   leria silêncio — que aqui significa "aba antiga, mantenha
+                                                   o que está gravado", e não "desliguei". Marcada, chegam os
+                                                   dois valores e o binder fica com o PRIMEIRO. *@
+                                                <input type="hidden" name="finalSeparada" value="false" />
+                                                <label class="form-check-label small fw-bold" for="pdzFinalSeparada">
+                                                    A final tem regra própria
+                                                </label>
+                                            </div>
+                                            <div id="pdzRegraDaFinal" hidden="@(Model.GamesSoDaFinal <= 0)" class="mt-2">
+                                                <label class="small text-muted">Sets (só da final)</label>
+                                                <input type="number" min="1" max="5" name="setsSoDaFinal"
+                                                       class="form-control form-control-sm mb-2"
+                                                       value="@(Model.GamesSoDaFinal > 0 ? Model.SetsSoDaFinal : Model.SetsFaseFinal)" />
+                                                <label class="small text-muted">Games por set (só da final)</label>
+                                                <input type="number" min="1" max="99" name="gamesSoDaFinal"
+                                                       class="form-control form-control-sm"
+                                                       value="@(Model.GamesSoDaFinal > 0 ? Model.GamesSoDaFinal : Model.GamesFaseFinal)" />
+                                                <label class="small text-muted mt-2">Tie-break no empate (só da final)</label>
+                                                <select name="pontosTieBreakSoDaFinal" class="form-select form-select-sm">
+                                                    <option value="0" selected="@(Model.PontosTieBreakSoDaFinal <= 0)">Sem contagem</option>
+                                                    <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                            selected="@(Model.PontosTieBreakSoDaFinal == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                    <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                            selected="@(Model.PontosTieBreakSoDaFinal == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                                </select>
+                                                @if (Model.GamesSoDaFinal > 0
+                                                     && !Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                            Padelizou.Services.FormatoDaPartida.De(Model, "Final")))
+                                                {
+                                                    <small class="text-warning d-block mt-1">
+                                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                                        Com <strong>@Model.GamesSoDaFinal games</strong> (número par) o tie-break
+                                                        não entra nem na final. Vale em número <strong>ímpar</strong>.
+                                                    </small>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="small text-muted mt-2">
                                     É o limite que a <strong>Mesa de Controle</strong> respeita ao marcar o placar.
                                     Mudar aqui vale pros jogos que ainda vão ser marcados — placar já registrado não muda.
-                                    "Mata-mata" cobre a primeira rodada, oitavas e quartas.
+                                    "Mata-mata" cobre a primeira rodada, oitavas e quartas, e
+                                    "Semifinais e final" cobre as duas — a não ser que a final tenha
+                                    regra própria, e aí ela vale só pra decisão.
+                                    <br />
+                                    O <strong>tie-break</strong> aparece no placar ao vivo quando o jogo empata a um game
+                                    do fim (8x8 num jogo até 9). Quem fecha a contagem leva o último game — o placar de
+                                    games continua sendo o que decide o jogo, a classificação e o Padelímetro.
                                 </div>
                             </div>
 
@@ -4166,73 +4433,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             </div>
 
-            <!-- FERRAMENTAS DO DIA -->
-            <div class="card bg-light border-0 shadow-sm mt-4">
-                <div class="card-body">
-                    <h6 class="fw-bold text-muted text-uppercase mb-3">Ferramentas do organizador</h6>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        @* Nem todo torneio quer lista de chamada: num interno de 8 duplas o
-                           organizador conhece todo mundo de vista. O interruptor está em
-                           Editar Dados do Torneio. *@
-                        @if (Model.UsaCheckIn)
-                        {
-                            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
-                                <i class="bi bi-clipboard-check"></i> Check-in do dia
-                            </a>
-                        }
-                        @* Pra quem ajuda, a mesma tela é só a caderneta — prometer "Financeiro"
-                           seria mandá-lo procurar números que ele não vai encontrar. *@
-                        <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            @if (ViewBag.PodeVerDinheiro == true)
-                            {
-                                <i class="bi bi-cash-stack"></i> <text>Financeiro</text>
-                            }
-                            else
-                            {
-                                <i class="bi bi-journal-check"></i> <text>Quem já acertou</text>
-                            }
-                        </a>
-                        <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            <i class="bi bi-file-earmark-text"></i> Relatório / PDF
-                        </a>
-                    </div>
-
-                    <!-- COMUNICADO EM MASSA -->
-                    <div class="border-top pt-3">
-                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                            <i class="bi bi-megaphone-fill"></i> Avisar todo mundo
-                        </h6>
-                        <p class="small text-muted">
-                            Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
-                        </p>
-                        <form asp-action="Comunicar" method="post"
-                              data-confirmar-titulo="Avisar todo mundo?"
-                              data-confirmar="A mensagem sai agora por notificação, e-mail e WhatsApp pra todos os inscritos. Não dá pra desfazer."
-                              data-confirmar-ok="Enviar aviso">
-                            <input type="hidden" name="id" value="@Model.Id" />
-                            <div class="row g-2">
-                                <div class="col-12 col-md-4">
-                                    <select name="categoriaId" class="form-select form-select-sm">
-                                        <option value="">Todas as categorias</option>
-                                        @foreach (var c in Model.Categorias)
-                                        {
-                                            <option value="@c.Id">@c.Nome</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-8">
-                                    <input type="text" name="mensagem" class="form-control form-control-sm"
-                                           maxlength="180" required
-                                           placeholder="Ex: As chaves saíram! Confira seu horário." />
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
-                                <i class="bi bi-send"></i> Enviar aviso
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @* Com a chave publicada elas sobem pro TOPO da página (o bloco antes das abas);
+               até lá o lugar é aqui, no fim do painel — quem ainda não publicou está montando
+               o torneio, não operando o dia dele. Um lugar de cada vez, nunca os dois. *@
+            @if (!Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
+            {
+                <partial name="_FerramentasDoOrganizador" model="Model" />
+            }
 
             <!-- NÓS REGISTRAMOS OS RESULTADOS PRA VOCÊ -->
             @{
@@ -4464,7 +4671,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small mb-2">
                                 <strong style="color: var(--pdz-ink);">@catTimes.Nome</strong> —
                                 @catTimes.Duplas.Count(d => d.NomeTime != null) de @(catTimes.QuantidadeTimes ?? 0) times ·
-                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam @(catTimes.ClassificadosPorGrupo ?? 2)
+                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam
+                                @Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(catTimes)
                             </p>
                         }
                         <a asp-action="Times" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3">
@@ -4686,6 +4894,41 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                   class="bg-white border rounded p-2 pdz-form-parceiro"
                                                   data-categoria="@dupla.CategoriaId">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
+
+                                                @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
+                                                   nesse caso de agora"* — o Alexandre era o `Jogador1`, e o botão só sabia
+                                                   trocar o segundo nome. Sem este seletor o servidor aceita `saiId` e ninguém
+                                                   tem como mandá-lo: é a mudança sem caminho, o defeito de 09/09 ao contrário.
+
+                                                   ⚠️ `dupla.Jogador2 != null` e não `dupla.Completa`: as duas dizem a mesma
+                                                   coisa, mas só a primeira ensina ao compilador que o `.NomeNaTela` logo
+                                                   abaixo não é nulo (CS8602 é ERRO aqui desde 22/08). O `Jogador1` entra na
+                                                   mesma checagem porque a cópia gêmea deste bloco, no card do próprio inscrito,
+                                                   PRECISA dela: um `dupla.Jogador1?.` mais acima de lá marca a variável como
+                                                   talvez-nula pro resto do escopo. Bloco gêmeo que diverge numa linha é o que a
+                                                   próxima sessão conserta num só.
+
+                                                   ⚠️ O `name` se REPETE em toda dupla da página, e pode: cada caixa destas é um
+                                                   <form> próprio, e o navegador posta só os campos do formulário enviado. O
+                                                   `id` é que precisa do sufixo — e do prefixo, porque quem organiza vê as DUAS
+                                                   telas na mesma página. *@
+                                                @if (dupla.Jogador1 != null && dupla.Jogador2 != null)
+                                                {
+                                                    <div class="mb-2">
+                                                        <div class="small text-muted mb-1">Quem sai da dupla?</div>
+                                                        @* O segundo nome vem marcado: é a troca de sempre, e a que mais acontece. *@
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="saiId" checked
+                                                                   value="@dupla.Jogador2Id" id="sai2-@dupla.Id" />
+                                                            <label class="form-check-label small" for="sai2-@dupla.Id">@dupla.Jogador2.NomeNaTela</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="saiId"
+                                                                   value="@dupla.Jogador1Id" id="sai1-@dupla.Id" />
+                                                            <label class="form-check-label small" for="sai1-@dupla.Id">@dupla.Jogador1.NomeNaTela</label>
+                                                        </div>
+                                                    </div>
+                                                }
 
                                                 @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
                                                    motivo: ninguém sabe o CPF do parceiro de cabeça — o
@@ -5651,11 +5894,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
         </div>
     }
-    <!-- ABA: PALPITEIROS (ranking do Palpitrômetro) -->
+    <!-- ABA: PALPITEIROS (ranking do Palpitômetro) -->
     @if (ViewBag.TemRankingDePalpiteiros == true)
     {
         <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
             <partial name="_RankingDePalpiteiros" model="(Padelizou.Services.PalpiteirosDoTorneio)ViewBag.RankingDePalpiteiros" />
+
+            @* A ÚNICA porta pra página cheia desde que o botão do topo saiu (10/09/2026). Ela
+               não é enfeite: é o endereço que se manda no grupo do WhatsApp, e o parcial acima
+               foi extraído justamente pra ela poder "ser aberta direto de um link". Aqui
+               embaixo ela não custa nada a quem só quer ver o ranking, e está à mão de quem
+               quer o link — que é a mesma pessoa. *@
+            <div class="text-center mt-3">
+                <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="small text-muted">
+                    <i class="bi bi-box-arrow-up-right"></i> Abrir em página própria (pra mandar no grupo)
+                </a>
+            </div>
         </div>
     }
     <!-- ABA: CHAVES E GRUPOS -->
@@ -5692,52 +5946,84 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         }
         else
         {
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        // (Já estamos dentro do bloco de código do `else`: daqui as declarações vão soltas, sem `@{`.)
+        //
+        // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
+        // sorteados OU chave direta (que nunca terá grupo, só o mata-mata puro —
+        // sem isto ela não ganhava aba nenhuma e a chave dela ficava invisível).
+        //
+        // ⚠️ UMA RÉGUA SÓ, e é esta: o seletor lá embaixo escolhe entre as categorias desta
+        // lista e os painéis são desenhados pelo MESMO predicado. Duas contas de "quem entra
+        // na tela" dariam opção sem painel (escolher e não ver nada) ou painel sem opção
+        // (chave que existe e ninguém alcança).
+        Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
+            (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
+
+        // ⚠️ NA ORDEM DE TELA DO SITE (`CategoriaNaTela.Ordem`), e não na de criação: 🗣️ Felipe,
+        // vendo o seletor no ar, *"esta fora de ordem"*. O `Include` do controller devolve as
+        // categorias na ordem do BANCO, e o seletor herdou isso das pills — que já vinham assim.
+        // A régua é a de lá, e não uma conta local: duas ordens pra mesma lista fariam esta tela
+        // discordar das outras. (Foi esta queixa que virou a ordem daquela régua de cabeça pra
+        // baixo no mesmo dia — os níveis agora andam juntos, em vez de agrupados por sexo.)
+        var comChave = Model.Categorias.Where(temChaveParaMostrar)
+            .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)).ToList();
+
+        // A categoria que a aba ABRE: a do jogador que está olhando, a melhor delas se estiver
+        // em duas (🗣️ *"se estiver em duas, vem na melhor delas 1>2>3>4"*). O porquê e os
+        // empates moram no Services/CategoriaQueAbre.
+        var categoriaQueAbre = Padelizou.Services.CategoriaQueAbre.Escolher(comChave, meuIdNaPagina);
+
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
             @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
                de uma tela que também mostra a chave — e numa chave direta (sem grupo
                nenhum) virava mentira. *@
             <h4 class="mb-0 fw-bold" style="color: var(--pdz-ink);">
                 <i class="bi bi-layout-split"></i> Chaves e Grupos
             </h4>
+
+            @* ── A ESCOLHA DA CATEGORIA (10/09/2026) ───────────────────────────────────
+               🗣️ Felipe, no 2ª Etapa ER Padel Tour, 7 categorias: *"visualmente nao ta legal
+               isso aqui tambem, acho que um drop com select seria melhor, não?"*.
+
+               Era a barra `.pdz-pills`, e ela está CERTA pro que foi desenhada: 3-4 abas fixas,
+               onde `flex: 1 1 auto` (site.css) preenche a linha e não sobra buraco. Numa lista
+               de tamanho VARIÁVEL o mesmo acerto vira defeito — a sétima categoria caía sozinha
+               na segunda linha e esticava pela largura inteira, virando uma faixa verde que
+               parece título, não aba escolhida. Com as 12 categorias que o ER já teve, eram
+               quatro linhas de botão antes do primeiro grupo. Por isso quem muda é ESTA lista,
+               e não o `.pdz-pills`, que continua servindo as abas fixas.
+
+               `<select>` nativo, degrau 4 da escada do CLAUDE.md: no celular quem abre é o
+               seletor do próprio sistema, que rola sozinho — a lista cresce sem tomar a tela,
+               e some a conta de "quantas cabem por linha". *@
+            @if (comChave.Count > 1)
+            {
+                <select class="form-select fw-bold w-auto mw-100" id="seletorDeCategoria"
+                        data-torneio-id="@Model.Id" aria-label="Escolher a categoria">
+                    @foreach (var categoria in comChave)
+                    {
+                        <option value="cat-@(categoria.Id)" selected="@(categoria.Id == categoriaQueAbre?.Id ? "selected" : null)">@categoria.Nome</option>
+                    }
+                </select>
+            }
+            else if (comChave.Count == 1)
+            {
+                @* Uma categoria só: o select seria um controle que não escolhe nada. O nome
+                   fica, porque é ele que diz de quem é a chave desenhada logo abaixo. *@
+                <span class="fw-bold" style="color: var(--pdz-ink);">@comChave[0].Nome</span>
+            }
         </div>
 
-        <!-- MENU DE CATEGORIAS (Rolagem Horizontal para Celular) -->
-        <ul class="nav nav-pills pdz-pills mb-4" id="categoriaPills" role="tablist">
-            @{
-                var primeiraCat = true;
-                // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
-                // sorteados OU chave direta (que nunca terá grupo, só o mata-mata puro —
-                // sem isto ela não ganhava aba nenhuma e a chave dela ficava invisível).
-                Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
-                    (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
-            }
-            @foreach (var categoria in Model.Categorias)
-            {
-                if (temChaveParaMostrar(categoria))
-                {
-                    <li class="nav-item me-2" role="presentation">
-                        <button class="nav-link rounded-pill fw-bold border @(primeiraCat ? "active" : "")"
-                                id="cat-@(categoria.Id)-tab" data-bs-toggle="pill" data-bs-target="#cat-@(categoria.Id)"
-                                type="button" role="tab">
-                            @categoria.Nome
-                        </button>
-                    </li>
-                    primeiraCat = false;
-                }
-            }
-        </ul>
-
         <!-- CONTEÚDO DOS GRUPOS POR CATEGORIA -->
-        <div class="tab-content" id="categoriaPillsContent">
-            @{
-                var primeiraCatContent = true;
-            }
+        <div class="tab-content" id="painelDasCategorias">
             @foreach (var categoria in Model.Categorias)
             {
                 if (temChaveParaMostrar(categoria))
                 {
                     ViewData["CategoriaAtual"] = categoria.Nome;
-                    <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
+                    @* Aceso é o painel da categoria que ABRE — antes era sempre o primeiro da
+                       lista, o que agora nem seria o mesmo que a <option> escolhida lá em cima. *@
+                    <div class="tab-pane fade @(categoria.Id == categoriaQueAbre?.Id ? "show active" : "")" id="cat-@(categoria.Id)" role="region" aria-label="@categoria.Nome">
                         <!-- O cruzamento mata-mata é gerado automaticamente (TorneiosController.ProcessarMataMataAutomatico)
                              assim que a última partida da Fase de Grupos dessa categoria é finalizada — sem botão manual. -->
                         @{
@@ -5791,6 +6077,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     @* Refazer os horários virou ESCOLHA (rádio abaixo) — ver o porquê em
                                        TorneiosController.TrocarDuplasDeGrupo. O confirm fala dos DOIS caminhos:
                                        afirmar "recalcula tudo" quando talvez não recalcule seria pior que calar. *@
+                                    @* ⚠️ O CHAVEAMENTO À MÃO fica logo abaixo deste bloco (procure por
+                                       SalvarCruzamento): as duas coisas se decidem olhando os mesmos grupos. *@
                                     <form asp-controller="Torneios" asp-action="TrocarDuplasDeGrupo" method="post"
                                           class="row g-2 align-items-end"
                                           data-confirmar-titulo="Trocar as duas de grupo?"
@@ -5856,6 +6144,101 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
                         }
+                        @* ═══ O CHAVEAMENTO DESENHADO À MÃO (10/09/2026) ═══════════════════════
+                           🗣️ "permita alterar na mao o chaveamento, como funciona a chave de cada um,
+                           se o primeiro passar quem enfrenta" — e "cuidado para nao mexer nada no que
+                           ja tem do ER hoje, isso é para os próximos torneios".
+
+                           ⚠️ O campo abre com o desenho QUE O MOTOR FARIA (CruzamentoDoMataMata.Padrao),
+                           e não vazio: abrir a tela e salvar sem mexer produz a MESMA chave de antes.
+                           Vazio, o sistema volta a montar sozinho — é o desfazer desta tela.
+
+                           Régua de quem vê: a mesma do bloco acima (organizador ou admin, chave ainda
+                           esperando aprovação). A ação recusa de novo do lado de lá. *@
+                        @if (Model.Status == Padelizou.Services.AprovacaoDeChaves.Pendente
+                             && ViewBag.PodeAprovarChaves == true
+                             && categoria.GruposTorneio.Count > 0)
+                        {
+                            var gruposDaCategoria = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
+                            var duplasPorGrupo = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
+                            var desenhoAtual = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                                            ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
+                                                   gruposDaCategoria,
+                                                   Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                                   duplasPorGrupo);
+
+                            if (desenhoAtual != null)
+                            {
+                                <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                            <i class="bi bi-diagram-3"></i> Chaveamento da primeira eliminatória
+                                        </h6>
+                                        <p class="small text-muted mb-2">
+                                            Quem cruza com quem quando os grupos acabarem — e, por consequência, o
+                                            caminho de cada um até a final.
+                                            @if (categoria.CruzamentoDoMataMata == null)
+                                            {
+                                                <span>Hoje quem monta é o sistema; o que está aí embaixo é o que ele faria.</span>
+                                            }
+                                            else
+                                            {
+                                                <strong>Este chaveamento foi desenhado à mão.</strong>
+                                            }
+                                        </p>
+
+                                        <form asp-controller="Torneios" asp-action="SalvarCruzamento" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <input type="hidden" name="categoriaId" value="@categoria.Id" />
+
+                                            <div class="mb-2">
+                                                @foreach (var confronto in desenhoAtual.Confrontos)
+                                                {
+                                                    <div class="small">@confronto.Lado1.Rotulo <span class="text-muted">×</span> @confronto.Lado2.Rotulo</div>
+                                                }
+                                                @foreach (var bye in desenhoAtual.Byes)
+                                                {
+                                                    <div class="small text-muted">@bye.Rotulo — passa direto (bye)</div>
+                                                }
+                                            </div>
+
+                                            <label class="form-label small fw-bold mb-1" for="cruzamento-@categoria.Id">
+                                                Desenho (formato <code>1A×2C|1B×2D;bye:1E</code>)
+                                            </label>
+                                            <input type="text" class="form-control font-monospace mb-2"
+                                                   id="cruzamento-@categoria.Id" name="texto"
+                                                   value="@desenhoAtual.Escrever()" />
+                                            <div class="form-text mb-2">
+                                                <code>1A</code> é o 1º do Grupo A. Toda vaga que classifica precisa aparecer
+                                                uma vez — em jogo ou em bye. <strong>Apague tudo e salve</strong> pra voltar
+                                                ao chaveamento do sistema.
+                                            </div>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
+                                                <i class="bi bi-diagram-3"></i> Salvar chaveamento
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        @{
+                            // O pop-up "O QUE CADA UM PRECISA PARA PASSAR" de cada grupo (🗣️ Felipe,
+                            // 11/09/2026, num print do Grupo B do 2ª Etapa ER Padel Tour: *"que o grupo
+                            // de 3, ja tiveram 2 jogos e falta um ... fica a duvida de quantos games
+                            // precisa fazer para passar de fase"*).
+                            //
+                            // A conta NÃO é daqui: vem pronta do controller, do mesmo motor que a tela
+                            // de Classificação já usava (Services/OQuePrecisaParaClassificar), que
+                            // simula o placar que falta e pergunta à régua oficial quem classifica.
+                            //
+                            // ⚠️ A chave é o Id DO GRUPO, não o nome: "Grupo A" existe em toda
+                            // categoria, e por nome o card da 4ª mostraria o que a 2ª precisa fazer.
+                            var oQuePrecisaPorGrupo = ViewBag.OQuePrecisaPorGrupo
+                                as Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>
+                                ?? new Dictionary<int, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>();
+                        }
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -5866,10 +6249,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
-                                                <table class="table table-hover table-borderless mb-0 text-center align-middle">
+                                                <table class="table table-hover table-borderless mb-0 text-center align-middle pdz-grupo-tabela">
                                                     <thead class="table-light text-muted small">
                                                         <tr>
-                                                            <th class="text-start ps-3" style="width: 50%;">Dupla</th>
+                                                            @* Sem largura declarada de propósito: em `table-layout: fixed` esta é a
+                                                               coluna que recebe toda a sobra do card (as de J/V/D/SG pedem os poucos
+                                                               pixels de um número no site.css). O `width: 50%` que ficava aqui
+                                                               reservava METADE do card pros quatro dígitos. *@
+                                                            <th class="text-start ps-3">Dupla</th>
                                                             <th title="Jogos">J</th>
                                                             <th title="Vitórias" class="text-success">V</th>
                                                             <th title="Derrotas" class="text-danger">D</th>
@@ -5885,8 +6272,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 @* Compacto: avatar menor, clube escondido e nome truncando —
                                                                    nome quebrando em três linhas fazia cada linha do grupo
                                                                    ocupar três alturas. *@
-                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto" style="max-width: 180px;">
-                                                                    <partial name="_LadoDaPartida" model="dupla" />
+                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto">
+                                                                    <partial name="_LadoDaPartida" model="dupla" view-data="chipComSelo" />
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
@@ -5936,11 +6323,41 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                         var ganhou1 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla1Id;
                                                         var ganhou2 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla2Id;
 
-                                                        <div class="pdz-grupo-jogo @(noAr ? "pdz-grupo-jogo-aovivo" : "")">
+                                                        @* ⚠️ SEMPRE <a>, COM HREF SÓ NO JOGO EM QUADRA (Felipe, 11/09/2026:
+                                                           *"permita clicar no aovivo e ir para a pagina do aovivo aonde
+                                                           esta o jogo"*). O card grande mora na MESMA página, na aba
+                                                           Jogos — por isso uma hash, e não uma URL: nada recarrega e o
+                                                           <iframe> da transmissão não reinicia (é o motivo de
+                                                           js/jogos-ao-vivo-atualiza.js existir). Quem leva até lá é o
+                                                           pdzIrProJogoDaHash, no fim deste arquivo.
+
+                                                           `href` nulo o Razor NÃO escreve, e <a> sem href é texto comum:
+                                                           sem foco, sem cursor de mão e sem destino. É o que mantém um
+                                                           elemento só pros três estados do card, em vez de duplicar o
+                                                           miolo inteiro num if. *@
+                                                        <a class="pdz-grupo-jogo @(noAr ? "pdz-grupo-jogo-aovivo" : "")"
+                                                           href="@(noAr ? $"#jogo-{jogoDoGrupo.Id}" : null)">
                                                             <div class="pdz-grupo-jogo-quando">
                                                                 @if (noAr)
                                                                 {
                                                                     <span class="pdz-chave-aovivo">● AO VIVO</span>
+                                                                }
+                                                                else if (acabou)
+                                                                {
+                                                                    @* 🗣️ *"o que estiver finalizado deixe um circulo
+                                                                       parecido com o do aovivo, só que outra cor"*. Antes
+                                                                       eram DOIS estados na tela — bolinha vermelha ou uma
+                                                                       data — e a data é a MESMA do jogo que acabou e do
+                                                                       que ainda vai acontecer: "sex 11/09 19:40" não
+                                                                       dizia se era história ou agenda.
+
+                                                                       O selo toma o LUGAR da data, e não anda ao lado
+                                                                       dela: esta linha é `nowrap; overflow: hidden` SEM
+                                                                       reticências e a etiqueta do lugar é a última
+                                                                       (`margin-left: auto`) — os dois juntos comeriam o
+                                                                       "Er Padel · Arena Nclass" calado, que é o defeito
+                                                                       medido na árvore da chave em 11/09. *@
+                                                                    <span class="pdz-chave-encerrado">● ENCERRADO</span>
                                                                 }
                                                                 else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
                                                                 {
@@ -5963,15 +6380,57 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                 <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla2)</span>
                                                                 <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla2?.ToString() ?? "0") : "–")</span>
                                                             </div>
-                                                        </div>
+                                                        </a>
                                                     }
                                                 </div>
                                             }
                                         </div>
+                                        @* Só no grupo em que falta UM jogo: antes disso não há
+                                           resposta pra dar, e depois o grupo já acabou. *@
+                                        @if (oQuePrecisaPorGrupo.ContainsKey(grupo.Id))
+                                        {
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-bold"
+                                                        type="button" data-bs-toggle="modal"
+                                                        data-bs-target="#oQuePrecisa-@grupo.Id">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    O que cada um precisa para passar
+                                                </button>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                             }
                         </div>
+                        @* ── OS POP-UPS, UM POR GRUPO ──────────────────────────────────────────
+                           ⚠️ FORA DOS CARDS, e é por isso que existe este segundo laço em vez de
+                           o modal nascer junto do botão: `site.css` dá
+                           `transform: translateY(-5px)` no hover de `.card.h-100`, e o card do
+                           grupo é exatamente isso. Ancestral com `transform` vira bloco de
+                           contenção do `position: fixed` — dentro do card, o pop-up ficaria preso
+                           ao card e do tamanho dele no instante em que o dedo encostasse. *@
+                        @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
+                        {
+                            if (oQuePrecisaPorGrupo.TryGetValue(grupo.Id, out var quadroDoGrupo))
+                            {
+                                <div class="modal fade" id="oQuePrecisa-@grupo.Id" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold">
+                                                    <i class="bi bi-question-circle"></i>
+                                                    @grupo.Nome — o que cada um precisa para passar
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <partial name="_OQuePrecisaParaClassificar" model="quadroDoGrupo" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
 
                         </div>
                         }
@@ -5992,9 +6451,35 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 var gruposDaCategoria = gruposEmOrdem.Select(g => g.Nome).ToList();
                                 @* O tamanho de cada grupo decide quem descansa — é assim que a
                                    prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
+                                @* E com o CRUZAMENTO DESENHADO, quando existe: sem ele o quadro
+                                   mostrava a semeadura do motor numa categoria que tem desenho,
+                                   prometendo um confronto que o sorteio não faria. *@
+                                @* 🗣️ *"o Grupo B já está definido, então já pode mudar, na
+                                   semifinal o 1º do B e o 2º do B"* — fechado o grupo, a
+                                   colocação vira NOME. Ver Services/ClassificadosJaConhecidos. *@
+                                var jogosDeGrupoDaCategoria = (ViewBag.JogosDeGrupo as List<Padelizou.Models.Partida>
+                                                               ?? new List<Padelizou.Models.Partida>())
+                                    .Where(p => p.CategoriaId == categoria.Id).ToList();
+                                @* ⚠️ Os pontos do desempate vêm do CONTROLLER (buscá-los aqui
+                                   exigiria await, que a view não tem). Sem eles, um grupo que
+                                   terminou empatado em tudo poria nesta vaga um nome diferente
+                                   do que o robô vai pôr. *@
+                                var pontosDoDesempate =
+                                    (ViewBag.PontosDoDesempatePorCategoria
+                                        as Dictionary<int, IReadOnlyDictionary<int, int>>)
+                                    ?.GetValueOrDefault(categoria.Id)
+                                    ?? Padelizou.Services.ClassificacaoDeGrupos.SemPontos;
+
+                                var jaConhecidosNoQuadro = Padelizou.Services.ClassificadosJaConhecidos.De(
+                                    gruposEmOrdem, jogosDeGrupoDaCategoria,
+                                    Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                    pontosDoDesempate);
+
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
-                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2,
-                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
+                                    gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
+                                    categoria.CruzamentoDoMataMata,
+                                    jaConhecidosNoQuadro);
 
                                 if (rodadasProjetadas.Count == 0)
                                 {
@@ -6016,79 +6501,65 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </div>
 
                                     @* HORA e QUADRA vêm da MESMA projeção da aba Jogos
-                                       (Services/ProximasFasesDaChave). Recalcular aqui daria
-                                       uma segunda conta, e duas contas divergem no dia em que
-                                       a regra mudar — a tela do quadro diria uma hora e a
-                                       lista de jogos diria outra.
+                                       (Services/ProximasFasesDaChave). Recalcular aqui daria uma segunda
+                                       conta, e duas contas divergem no dia em que a regra mudar — a tela
+                                       do quadro diria uma hora e a lista de jogos diria outra.
 
-                                       O casamento é por (fase, NÚMERO do jogo) — nunca por
-                                       posição na lista.
-
-                                       ⚠️ POR POSIÇÃO ESTAVA ERRADO, e o comentário que ficou aqui
-                                       até 10/09/2026 dizia por quê sem perceber: "os dois saem do
-                                       mesmo motor de chaveamento, na mesma ordem". Saem do mesmo
-                                       motor; NÃO chegam na mesma ordem. `ProjetarProximasFasesAsync`
-                                       termina com `OrderBy(j => j.Horario)`, e uma RESERVA do
-                                       organizador (Models/ReservaDeHorario, o "trocar horário" de
-                                       uma prévia) grava a hora escolhida sem mover o cursor da
-                                       grade — de propósito. Reservando a Semifinal 1 pra depois da
-                                       2, a lista chega com a 2 na frente e a vaga da 1 mostrava a
-                                       hora e a quadra da 2. Travado em
-                                       QuadroDaChaveCasaPorNumeroTests.
-
-                                       ⚠️ E LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
-                                       `JogosQueVem` é a lista da ABA JOGOS e os filtros dela
-                                       (clube, quadra, fase, "meus jogos") a recortam — com uma
-                                       semifinal fora, o quadro mostrava confronto que não existe.
-                                       Procurar pelo número resolve os dois de uma vez: não importa
-                                       quem recortou nem quem reordenou. *@
+                                       ⚠️ LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
+                                       `JogosQueVem` é a lista da ABA JOGOS e os filtros dela (clube,
+                                       quadra, fase, "meus jogos") a recortam — com uma semifinal fora, o
+                                       quadro mostrava confronto que não existe. *@
                                     var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
                                             as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
                                         ?.Where(j => j.Categoria == categoria.Nome)
                                         .GroupBy(j => j.Fase)
                                         .ToDictionary(g => g.Key, g => g.ToList());
 
-                                    <div class="pdz-chave-projetada-rodadas">
-                                        @foreach (var rodada in rodadasProjetadas)
-                                        {
-                                            <div class="pdz-chave-projetada-rodada">
-                                                <div class="pdz-chave-projetada-fase">@rodada.Fase</div>
-                                                @for (int i = 0; i < rodada.Jogos.Count; i++)
-                                                {
-                                                    var jogo = rodada.Jogos[i];
-                                                    var previsto = projecaoDaCategoria != null
-                                                        && projecaoDaCategoria.TryGetValue(rodada.Fase, out var daFase)
-                                                        ? daFase.FirstOrDefault(j => j.Numero == i + 1) : null;
+                                    @* O casamento é por (fase, NÚMERO do jogo DENTRO DA FASE) — nunca por
+                                       posição na lista. `ProximasFasesDaChave.Agendar` numera por fase
+                                       (`Numero = i + 1`), e é por isso que a busca compara com `i + 1`.
 
-                                                    @* Número junto da hora, na etiqueta de cima, e os
-                                                       lados soltos ocupando a largura toda — a mesma
-                                                       anatomia da vaga da chave de verdade
-                                                       (_ChaveDoMataMata). Com o número numa coluna
-                                                       própria os nomes eram empurrados pro canto
-                                                       direito do cartão, longe do quadro. *@
-                                                    <div class="pdz-chave-projetada-jogo">
-                                                        <div class="pdz-chave-projetada-quando">
-                                                            <span class="pdz-chave-projetada-num">@jogo.Numero</span>
-                                                            @if (previsto?.Horario is DateTime quando)
-                                                            {
-                                                                <span>@DiaDaSemana.Curto(quando) @quando.ToString("dd/MM HH:mm")</span>
-                                                                @if (!string.IsNullOrEmpty(previsto.Quadra))
-                                                                {
-                                                                    <span class="pdz-chave-projetada-quadra">@LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra)</span>
-                                                                }
-                                                            }
-                                                            else
-                                                            {
-                                                                <span>a definir</span>
-                                                            }
-                                                        </div>
-                                                        <span class="pdz-chave-projetada-lado">@jogo.Lado1</span>
-                                                        <span class="pdz-chave-projetada-lado pdz-chave-projetada-lado-2">@jogo.Lado2</span>
-                                                    </div>
-                                                }
-                                            </div>
+                                       ⚠️ POR POSIÇÃO ESTAVA ERRADO, e o comentário que ficou aqui até
+                                       10/09/2026 dizia por quê sem perceber: "os dois saem do mesmo motor
+                                       de chaveamento, na mesma ordem". Saem do mesmo motor; NÃO chegam na
+                                       mesma ordem. `ProjetarProximasFasesAsync` termina com
+                                       `OrderBy(j => j.Horario)`, e uma RESERVA do organizador
+                                       (Models/ReservaDeHorario, o "trocar horário" de uma prévia) grava a
+                                       hora escolhida sem mover o cursor da grade — de propósito.
+                                       Reservando a Semifinal 1 pra depois da 2, a lista chega com a 2 na
+                                       frente e a vaga da 1 mostrava a hora e a quadra da 2. Travado em
+                                       QuadroDaChaveCasaPorNumeroTests.
+
+                                       ⚠️ E A ÁRVORE REORDENA DE NOVO: no quadro, a primeira rodada sai
+                                       1, 4, 2, 3 (ver Services/ArvoreDaChave), então o mapa é montado
+                                       AQUI, na ordem da projeção, e entregue ao partial por número GLOBAL
+                                       do jogo. Casar lá dentro, na ordem da árvore, pegaria o jogo errado. *@
+                                    var previstosDoQuadro = new Dictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>();
+                                    foreach (var rodada in rodadasProjetadas)
+                                    {
+                                        List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>? daFase = null;
+                                        projecaoDaCategoria?.TryGetValue(rodada.Fase, out daFase);
+
+                                        for (int i = 0; i < rodada.Jogos.Count; i++)
+                                        {
+                                            var previsto = daFase?.FirstOrDefault(j => j.Numero == i + 1);
+                                            if (previsto != null)
+                                            {
+                                                previstosDoQuadro[rodada.Jogos[i].Numero] = previsto;
+                                            }
                                         }
-                                    </div>
+                                    }
+
+                                    @* O quadro com as linhas: no computador de cima pra baixo, no celular
+                                       deitado e arrastável. A geometria dos dois é a mesma conta —
+                                       ver Services/ArvoreDaChave e Views/Torneios/_ChaveProjetadaArvore. *@
+                                    @* ⚠️ A CATEGORIA VAI JUNTO porque o `id` de cada rodada é
+                                       construído com ela: este partial é desenhado uma vez por
+                                       categoria e, com id repetido, as fichas do celular pulavam
+                                       pro painel escondido da primeira. Ver
+                                       FichasDaChaveLevamARodadaCertaTests. *@
+                                    <partial name="_ChaveProjetadaArvore"
+                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro, categoria.Id)" />
                                 }
                             }
                             else
@@ -6106,10 +6577,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         </div>
                         </div> @* fim do d-flex flex-column que ordena chave/grupos *@
                     </div>
-                    primeiraCatContent = false;
                 }
             }
         </div>
+
+        @* Troca o painel visível e LEMBRA a escolha (o porquê está no arquivo). *@
+        <script src="~/js/seletor-de-categoria.js" asp-append-version="true"></script>
+        @* As fichas de rodada da prévia do mata-mata rolam o trilho da PRÓPRIA categoria — a
+           navegação por âncora parava uma rodada atrás por causa do encaixe. *@
+        <script src="~/js/chave-fichas.js" asp-append-version="true"></script>
         } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
       }
       else
@@ -6361,13 +6837,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 {
     <partial name="_ModalVerVotos" />
     <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
-    <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
+    <script src="~/js/palpitometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
     <script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
+    @* O cinto das abas recolhidas: só assume onde o `:has()` do site.css não existe (o WebView
+       do app Android). Ver o cabeçalho do arquivo. *@
+    <script src="~/js/abas-recolhidas.js" asp-append-version="true"></script>
 }
 
 <script>
@@ -7101,4 +7581,69 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var aba = document.querySelector('#torneioTabs [data-bs-target="' + location.hash + '"]');
         if (aba) bootstrap.Tab.getOrCreateInstance(aba).show();
     });
+</script>
+
+@*
+    A HASH `#jogo-123` LEVA AO CARD GRANDE DAQUELE JOGO.
+
+    🗣️ Felipe, 11/09/2026, com o print do Grupo C: *"permita clicar no aovivo e ir para a
+    pagina do aovivo aonde esta o jogo"*. O card pequeno do grupo e o card grande com placar,
+    cronômetro e palpitômetro moram na MESMA página, em abas diferentes — daí uma hash, e não
+    uma URL nova: nada recarrega, o <iframe> da transmissão não reinicia (é o motivo de
+    js/jogos-ao-vivo-atualiza.js existir) e o botão de voltar devolve a pessoa ao grupo.
+
+    ⚠️ DUAS ABAS, E SÓ DEPOIS O ROLAR: o card está dentro da sub-aba de uma aba. Elemento em
+    `display: none` não tem posição na tela, e `scrollIntoView` nele não rola nada.
+
+    ⚠️ `hashchange` ALÉM do DOMContentLoaded: clicar numa hash com a página já aberta não
+    dispara carregamento nenhum. Sem ele o primeiro clique funcionaria (a hash muda com a
+    página nascendo) e o segundo — voltar e clicar noutro jogo — não faria nada.
+
+    ⚠️ ESTE SCRIPT RODA DEPOIS do js/jogos-abas.js, que restaura a sub-aba lembrada da sessão:
+    `DOMContentLoaded` só dispara quando todo <script src> do corpo já executou. É essa ordem
+    que faz o clique vencer a memória — quem pediu ESTE jogo não quer a aba de ontem.
+*@
+<script>
+    // ⚠️ `depois` NÃO É ENFEITE: `Tab.show()` do Bootstrap 5 é ASSÍNCRONO quando há animação.
+    // Ele tira o `active` da aba velha, espera os 150ms do fade DELA e só então acende a nova —
+    // então, na linha seguinte ao `show()`, o painel de destino ainda é `display: none`, o card
+    // dentro dele mede 0x0 e `scrollIntoView` num elemento sem posição não rola nada. Quem
+    // desliga animação no sistema (`prefers-reduced-motion`) não veria o defeito, e é
+    // exatamente o tipo de coisa que passa no teste de quem desenvolveu e falha no celular de
+    // quem usa. `shown.bs.tab` é o aviso de que o painel existe na tela.
+    function pdzMostrarAba(lista, alvo, depois) {
+        var botao = document.querySelector(lista + ' [data-bs-target="' + alvo + '"]');
+        if (!botao) return;
+
+        // Já é a aba aberta: nenhum evento vai nascer, e esperar por ele seria esperar pra
+        // sempre.
+        if (botao.classList.contains('active')) {
+            if (depois) depois();
+            return;
+        }
+
+        if (depois) botao.addEventListener('shown.bs.tab', depois, { once: true });
+        bootstrap.Tab.getOrCreateInstance(botao).show();
+    }
+
+    function pdzIrProJogoDaHash() {
+        // O formato é conferido antes de virar seletor: a hash é texto que qualquer um põe na
+        // URL, e `querySelector` com lixo dentro estoura.
+        if (!/^#jogo-\d+$/.test(location.hash) || !window.bootstrap) return;
+
+        var alvo = location.hash;
+
+        pdzMostrarAba('#torneioTabs', '#jogosDoTorneio', function () {
+            pdzMostrarAba('#jogosTabs', '#aovivo', function () {
+                // O card pode não estar na página: os filtros da aba Jogos (clube, quadra,
+                // fase, "meus jogos") recortam a lista do ao vivo. Abrir a aba certa já é o
+                // destino possível — o silêncio aqui é o comportamento, não um erro engolido.
+                var card = document.querySelector(alvo);
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', pdzIrProJogoDaHash);
+    window.addEventListener('hashchange', pdzIrProJogoDaHash);
 </script>

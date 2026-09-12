@@ -10,6 +10,7 @@ using padelizou.Controllers;   // AuthController ficou no namespace legado, em m
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace Padelizou.Tests;
 
@@ -154,16 +155,18 @@ public static class TestInfra
     public static EncerramentoDaPartida NovoEncerramento(
         DbPadelContext ctx, IPushNotificationService? push = null) =>
         new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),
-            NullLogger<EncerramentoDaPartida>.Instance);
+            NullLogger<EncerramentoDaPartida>.Instance, EstatisticasFalsas());
 
+    // `palpites` entra de fora pra quem precisa do serviço DE VERDADE (o modal "quem votou"
+    // responde 404 lendo o banco — com o dublê a ação nunca chega no caminho que interessa).
     public static PartidasController NovoPartidasController(DbPadelContext ctx, int? usuarioLogadoId,
-        IPushNotificationService? push = null)
+        IPushNotificationService? push = null, IPalpiteService? palpites = null)
     {
         push ??= Substitute.For<IPushNotificationService>();
 
         var controller = new PartidasController(
             ctx,
-            Substitute.For<IPalpiteService>(),
+            palpites ?? Substitute.For<IPalpiteService>(),
             push,
             NullLogger<PartidasController>.Instance,
             NovoEncerramento(ctx, push));
@@ -450,6 +453,43 @@ public static class TestInfra
         ctx.SaveChanges();
 
         return (torneio, categoria, organizador);
+    }
+
+    // ── O RANKING DO DESEMPATE, NOS TESTES ──────────────────────────────────────────────
+    //
+    // Quase todo teste daqui monta grupos que se decidem NA QUADRA — vitórias, saldo ou games
+    // a favor —, e pra esses o ranking nunca é consultado. Estes dois dizem isso de forma
+    // explícita, em vez de um `null` que passaria despercebido.
+    //
+    // ⚠️ Quem testa DESEMPATE (DesempateDoGrupoTests) monta os pontos de verdade. Um teste que
+    // usasse isto pra afirmar quem classificou num empate perfeito estaria testando o sorteio.
+    public static Task<Dictionary<int, int>> SemPontosDoRanking(IEnumerable<int> jogadorIds) =>
+        Task.FromResult(jogadorIds.Distinct().ToDictionary(id => id, _ => 0));
+
+    public static IEstatisticasService EstatisticasFalsas()
+    {
+        var falso = Substitute.For<IEstatisticasService>();
+        falso.ObterPontosPorJogadorAsync(Arg.Any<IEnumerable<int>>())
+            .Returns(call => SemPontosDoRanking(call.Arg<IEnumerable<int>>()));
+        return falso;
+    }
+
+    // ── O TEXTO QUE O CÓDIGO DIZ, SEM O QUE O COMENTÁRIO EXPLICA ────────────────────────
+    // São 104 arquivos de teste aqui que leem fonte com `File.ReadAllText` e procuram
+    // substring. Esse padrão tem uma armadilha própria, e ela já mordeu QUATRO vezes numa
+    // sessão só (10/09/2026): o comentário acima do código cita a coisa procurada — o pedido
+    // do Felipe, o nome do método, a classe CSS — e o `Assert.Contains` acha ali, com o código
+    // apagado. O teste fica verde defendendo a documentação em vez do comportamento.
+    //
+    // Pior: quando enfim falha, a saída mais barata é apagar o comentário. O conserto certo é
+    // este — a busca passa a enxergar só o que EXECUTA.
+    //
+    // ⚠️ Só linha que COMEÇA com `//`, mais os blocos Razor `@* *@`: cortar no `//` do meio da
+    // linha levaria junto o `https://` de uma URL dentro de string.
+    public static string SemComentarios(string fonte)
+    {
+        var semRazor = Regex.Replace(fonte, @"@\*.*?\*@", "", RegexOptions.Singleline);
+        return Regex.Replace(semRazor, @"^[ \t]*//.*$", "", RegexOptions.Multiline);
     }
 
     // Dá um placar à partida (games) e finaliza pelo fluxo real do controller.

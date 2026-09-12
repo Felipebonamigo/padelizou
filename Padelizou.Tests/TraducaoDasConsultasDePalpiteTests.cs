@@ -4,7 +4,7 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// AS CONSULTAS DO PALPITRÔMETRO REALMENTE VIRAM SQL?
+// AS CONSULTAS DO PALPITÔMETRO REALMENTE VIRAM SQL?
 //
 // 🕳️ O buraco que estes testes fecham: **o banco InMemory do resto da suíte não traduz nada**.
 // Lá tudo é objeto em memória, então uma consulta que o Postgres recusaria passa lisa — e
@@ -52,6 +52,19 @@ public class TraducaoDasConsultasDePalpiteTests
         Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidas(ctx, p => p.TorneioId == 1));
 
     [Fact]
+    public void As_partidas_EM_ABERTO_de_UM_TORNEIO_viram_SQL() =>
+        // O caminho do "em aberto" (10/09/2026): os jogos do torneio que ainda NÃO foram
+        // apurados. Mesma armadilha do irmão acima — o filtro de quem chama tem que entrar
+        // ANTES da projeção pro record, senão o EF não acha a coluna.
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidasEmAberto(ctx, p => p.TorneioId == 1));
+
+    [Fact]
+    public void A_pergunta_barata_de_EXISTE_PALPITE_NESTE_TORNEIO_vira_SQL() =>
+        // É ela que decide se a aba Palpiteiros existe, em TODA visita à página do torneio —
+        // a mais visitada do site. Atravessa a navegação `Partida` pra chegar no TorneioId.
+        Traduz(ctx => RankingDePalpiteiros.PalpitesDoTorneio(ctx, torneioId: 1));
+
+    [Fact]
     public void As_partidas_de_uma_LISTA_DE_IDS_viram_SQL()
     {
         // O caminho do hub e do perfil: parte-se dos palpites e buscam-se aquelas partidas.
@@ -71,6 +84,24 @@ public class TraducaoDasConsultasDePalpiteTests
     {
         var ids = new List<int> { 7 };
         Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(ctx, v => ids.Contains(v.JogadorId)));
+    }
+
+    [Fact]
+    public void Os_palpites_de_UM_JOGADOR_NUM_TORNEIO_viram_SQL() =>
+        // A lista que o modal da tabela abre (12/09/2026): os palpites de UMA pessoa NESTE
+        // torneio. Atravessa a navegação `Partida` pra chegar no `TorneioId` — o mesmo salto da
+        // pergunta barata ali em cima, agora com o jogador junto.
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(
+            ctx, v => v.JogadorId == 7 && v.Partida.TorneioId == 1));
+
+    [Fact]
+    public void Os_JOGOS_da_lista_de_um_palpiteiro_viram_SQL()
+    {
+        // A outra metade do modal: os jogos daqueles palpites, com categoria e as duas duplas
+        // (quatro jogadores). São quatro `Include`/`ThenInclude` encadeados — se um dia um deles
+        // apontar pra navegação que não existe, é aqui que estoura, e não na primeira visita.
+        var ids = new List<int> { 1, 2, 3 };
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDosJogosDoPalpiteiro(ctx, ids));
     }
 
     [Fact]

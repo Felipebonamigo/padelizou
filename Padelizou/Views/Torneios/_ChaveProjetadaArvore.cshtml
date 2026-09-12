@@ -1,0 +1,162 @@
+@model (Padelizou.Services.ArvoreDaChave.Quadro Quadro, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem> Previstos, int Categoria)
+@*
+    A PRÉVIA do mata-mata como ÁRVORE — o caminho até a final com as linhas mostrando de onde
+    vem cada vaga, no lugar das quatro colunas soltas que a tela tinha até 11/09/2026.
+
+    É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA, nas duas telas (Felipe, 11/09/2026:
+    *"melhor fazer também da esquerda pra direita, ficará mais alinhado"*, desfazendo a escolha
+    de horas antes, de cima pra baixo no computador). A rodada é uma COLUNA de largura fixa; o
+    que muda por tamanho de tela é só o trilho — encaixe e arrasto no celular, e nada disso no
+    computador, onde a chave inteira cabe.
+
+    ⚠️ A GEOMETRIA É A CONTA DE Services/ArvoreDaChave, com o eixo deitado: "coluna/largura" de
+    lá viram linha inicial e quantas linhas a vaga ocupa. A ligação usa as mesmas porcentagens
+    (--a, --hw). Conta repetida na view divergiria no dia em que a regra do cruzamento mudasse.
+
+    ⚠️ QUEM PASSOU DIRETO NÃO GANHA SELO (pedido do Felipe): aparece só pelo nome, e a ausência
+    de linha chegando na vaga é o que conta que ele não jogou a rodada anterior.
+*@
+@{
+    var quadro = Model.Quadro;
+    var previstos = Model.Previstos;
+
+    // O sufixo "(passou direto)" existe pra quem lê a prévia em LISTA, onde não há linha nenhuma
+    // pra explicar por que aquele nome já está numa fase que não aconteceu. Na árvore a linha
+    // explica, e o Felipe pediu pra tirar. O texto vem de ChaveProjetada.MontarCompleta.
+    string Rotulo(string lado) => lado.Replace(" (passou direto)", "", StringComparison.Ordinal);
+
+    // A final é a vaga da última rodada — a única que ninguém alimenta. Ganha destaque porque é
+    // o fim do caminho que o quadro inteiro existe pra contar.
+    var numeroDaFinal = quadro.Rodadas.Count > 0 ? quadro.Rodadas[^1].Vagas[^1].Jogo.Numero : 0;
+}
+
+@if (quadro.Rodadas.Count == 0)
+{
+    return;
+}
+
+@{
+    // O cartão da vaga — o MESMO `.pdz-chave-vaga` da chave de verdade (_ChaveDoMataMata), com
+    // as mesmas classes. Reusar em vez de criar um cartão só da prévia é o que faz a tela não
+    // mudar de cara no dia em que o mata-mata começa: os cartões só ganham nome e placar.
+    void Cartao(Padelizou.Services.ArvoreDaChave.Vaga vaga)
+    {
+        var jogo = vaga.Jogo;
+        var previsto = previstos.TryGetValue(jogo.Numero, out var p) ? p : null;
+
+        @* Cartão SÓLIDO, e não o `pdz-chave-vaga-vazia` (tracejado) da chave real: ali o
+           tracejado distingue a vaga sem dono das que já têm jogo, e aqui TODAS estão sem dono —
+           tracejar as onze não separa nada e deixa o quadro inteiro com cara de rascunho. *@
+        <div class="pdz-chave-vaga @(jogo.Numero == numeroDaFinal ? "pdz-arv-final" : "")">
+            <div class="pdz-chave-quando">
+                <span class="pdz-chave-num">@jogo.Numero</span>
+                @if (previsto?.Horario is DateTime quando)
+                {
+                    @* ⚠️ SEM o dia da semana, e medido: esta linha é `nowrap; overflow: hidden`
+                       sem reticências, e a etiqueta de quadra é a última (`margin-left: auto`),
+                       então é o nome do clube que encurta calado. Ver
+                       DiaDaSemanaNaoCabeNaArvoreDaChaveTests. *@
+                    <span>@quando.ToString("dd/MM HH:mm")</span>
+                    @* A GUARDA É A ETIQUETA, E NÃO A QUADRA: hora digitada na mão não traz quadra,
+                       e um `IsNullOrEmpty(Quadra)` aqui calava o cartão inteiro — inclusive o
+                       clube, que o jogo previsto sabe (ProximasFasesDaChave, ClubeId). *@
+                    @if (LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondeJoga)
+                    {
+                        <span class="pdz-chave-quadra">@ondeJoga</span>
+                    }
+                }
+                else
+                {
+                    <span>a definir</span>
+                }
+            </div>
+            <span class="pdz-chave-lado">
+                <span class="pdz-chave-nome">@Rotulo(jogo.Lado1)</span>
+            </span>
+            <span class="pdz-chave-lado text-muted">
+                <span class="pdz-chave-nome">@Rotulo(jogo.Lado2)</span>
+            </span>
+        </div>
+    }
+}
+
+@* ── O QUADRO: deitado da esquerda pra direita, nas duas telas ──────────────────
+   Cada RODADA é uma coluna e cada vaga ocupa as LINHAS dos jogos que a alimentam — é isso que
+   a centraliza sobre eles, sem cálculo de pixel. A conta é a de Services/ArvoreDaChave: o que
+   lá é "coluna/largura" aqui vira linha inicial e quantas linhas ocupa.
+
+   ⚠️ ERA DE CIMA PRA BAIXO NO COMPUTADOR até 11/09/2026, e o Felipe desfez no mesmo dia
+   (*"melhor fazer também da esquerda pra direita, ficará mais alinhado"*). O desenho antigo era
+   uma grade de N colunas, N = jogos da rodada mais larga: com 2 grupos davam 2 colunas, cada
+   uma METADE do monitor — cartão de ~870px pra escrever "1º do Grupo A". Deitado, a coluna tem
+   largura fixa (17rem, medida) e a chave cresce pro lado, que é onde a rodada a mais cabe.
+
+   ⚠️ POR QUE NÃO É `space-around` DENTRO DA RODADA: parece que bastaria espalhar os cartões.
+   Não basta — com 5 grupos a segunda rodada tem MAIS jogos que a primeira (2 jogos + 6 byes =
+   8 entrantes = 4 jogos), e qualquer geometria que suponha "a próxima tem metade" aponta pro
+   lugar errado. A conta de linha/altura acerta os dois casos porque não supõe nada.
+
+   O que muda por tamanho de tela é só o TRILHO: no celular ele encaixa (`scroll-snap`, sem JS)
+   com a rodada seguinte espiando na beirada; no computador a chave inteira está à vista. *@
+<div class="pdz-chd">
+    @* Atalho de rodada e dica de arrasto só no celular: no computador não há gesto nenhum
+       pra atalhar, e a chave inteira já está na tela.
+
+       ⚠️ O ID CARREGA A CATEGORIA, e não é enfeite: este partial é desenhado UMA VEZ POR
+       CATEGORIA (Details.cshtml, dentro do laço dos `.tab-pane`), e com `pdz-chd-rodada-@r` as
+       sete do ER escreviam os mesmos quatro ids. `href="#..."` acha o PRIMEIRO do documento —
+       que mora num painel escondido, e rolar pra invisível não faz nada. Era metade do
+       *"as vezes n funciona"* de 12/09/2026.
+
+       ⚠️ E QUEM ROLA É `js/chave-fichas.js`, NÃO A ÂNCORA: o trilho é `scroll-snap` mandatório
+       e a navegação por âncora alinha com `inline: nearest`, que para ENTRE dois pontos de
+       encaixe — o snap puxava de volta e a ficha parava uma rodada atrás. O `href` fica como
+       caminho de teclado e como o que sobra sem JS. Travado em
+       FichasDaChaveLevamARodadaCertaTests. *@
+    <nav class="pdz-chd-fichas d-md-none" aria-label="Ir para uma rodada do mata-mata">
+        @for (int r = 0; r < quadro.Rodadas.Count; r++)
+        {
+            <a class="pdz-chd-ficha" href="#pdz-chd-@(Model.Categoria)-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
+        }
+    </nav>
+
+    <div class="pdz-chd-trilho">
+        @for (int r = 0; r < quadro.Rodadas.Count; r++)
+        {
+            var rodada = quadro.Rodadas[r];
+            <div class="pdz-chd-rodada" id="pdz-chd-@(Model.Categoria)-rodada-@r">
+                <div class="pdz-chd-cab">
+                    @rodada.Fase
+                    <span class="pdz-chd-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
+                </div>
+                <div class="pdz-chd-grade" style="--pdz-chd-linhas:@quadro.Colunas">
+                    @foreach (var vaga in rodada.Vagas)
+                    {
+                        <div class="pdz-chd-celula" style="grid-row:@(vaga.Coluna + 1) / span @vaga.Largura">
+                            @if (quadro.Ligacao(vaga) is { } liga)
+                            {
+                                <span class="pdz-chd-liga @(liga.Reta ? "pdz-chd-liga-reta" : "")" style="@liga.Estilo"></span>
+                            }
+                            @{ Cartao(vaga); }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        @* O troféu fecha o caminho, na altura da final. *@
+        <div class="pdz-chd-rodada pdz-chd-rodada-trofeu">
+            <div class="pdz-chd-cab">Campeão</div>
+            <div class="pdz-chd-grade" style="--pdz-chd-linhas:1">
+                <div class="pdz-chd-celula" style="grid-row:1">
+                    <span class="pdz-chd-liga pdz-chd-liga-reta"></span>
+                    <div class="pdz-chave-trofeu">
+                        <i class="bi bi-trophy-fill" style="font-size: 2rem; color: #e0a800;"></i>
+                        <div class="fw-bold mt-1" style="color: var(--pdz-ink);">Campeão</div>
+                        <div class="text-muted small">Aguardando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <p class="pdz-chd-dica d-md-none">Arraste de lado: a rodada seguinte encaixa.</p>
+</div>

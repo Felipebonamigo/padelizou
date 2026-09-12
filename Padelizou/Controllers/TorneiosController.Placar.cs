@@ -54,14 +54,47 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> SincronizarPlacar(int partidaId, int games1, int games2,
-            int sets1, int sets2, long marcadoEm)
+            int sets1, int sets2, long marcadoEm, long? idadeMs = null,
+            // A CONTAGEM DO TIE-BREAK (12/09/2026). Nulos = fila gravada antes deste deploy (ou
+            // Mesa de torneio sem tie-break): o placar de games continua entrando e o que está
+            // gravado aqui fica. Zerar por ausência apagaria a contagem que está na quadra.
+            int? pontosTieBreak1 = null, int? pontosTieBreak2 = null)
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
             if (partida.TorneioId == null || !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            // O formato da FASE só é buscado quando o aparelho mandou ponto de tie-break: a Mesa
+            // chama esta rota a cada toque, e uma consulta a mais por game é latência na quadra
+            // — que é justamente o que o caminho offline-first existe pra não pagar.
+            // ⚠️ `>= 0` e não `!= null` (12/09/2026): desde que a Mesa manda -1 no lado que
+            // ninguém tocou, os dois campos chegam SEMPRE preenchidos — e a condição antiga
+            // faria a consulta a cada toque, que é exatamente a latência que este caminho
+            // existe pra não pagar.
+            var formatoDaMesa = pontosTieBreak1 >= 0 || pontosTieBreak2 >= 0
+                ? FormatoDaPartida.De(await _context.Torneios.FindAsync(partida.TorneioId.Value), partida.Fase)
+                : null;
+
+            // ⚠️ QUEM ORDENA DOIS PLACARES É O RELÓGIO DO SERVIDOR, e não o do aparelho
+            // (12/09/2026). O `marcadoEm` é o `Date.now()` de quem marcou, e relógio de celular
+            // erra: um aparelho adiantado carimbava a partida com uma hora no futuro e **todo
+            // toque do outro era recusado a partir dali** — a Mesa adotava o placar do servidor,
+            // esvaziava a fila e seguia mostrando a tarja verde de "Placar sincronizado".
+            //
+            // ✅ O aparelho passa a mandar a IDADE do toque ("isto foi marcado há 5 segundos"),
+            // medida com o próprio relógio dele — diferença entre dois instantes do MESMO
+            // aparelho é confiável mesmo com a hora errada. Ancorando no `DateTime.Now` daqui, o
+            // erro absoluto se cancela e os dois aparelhos voltam a ser comparáveis. É também o
+            // que mantém a reentrega idempotente: a idade cresce junto com a espera, então o
+            // mesmo toque reenviado dez segundos depois volta a cair no mesmo instante.
+            //
+            // Fila gravada ANTES deste deploy não tem idade e continua lendo pelo epoch.
+            var quandoFoiMarcado = idadeMs is long idade && idade >= 0
+                ? DateTime.Now.AddMilliseconds(-idade)
+                : DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime;
+
             var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
-                DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime);
+                quandoFoiMarcado, pontosTieBreak1, pontosTieBreak2, formatoDaMesa);
 
             if (resultado.Aplicado)
             {
@@ -83,6 +116,10 @@ namespace Padelizou.Controllers
                 games2 = partida.GamesDupla2,
                 sets1 = partida.SetsDupla1,
                 sets2 = partida.SetsDupla2,
+                // A contagem volta junto: quando o servidor recusa (já tem placar mais novo), a
+                // Mesa adota o estado dele — e o tie-break faz parte do placar.
+                pontos1 = partida.PontosTieBreak1 ?? 0,
+                pontos2 = partida.PontosTieBreak2 ?? 0,
                 finalizada = partida.Status == "Finalizada"
             });
         }
@@ -106,7 +143,15 @@ namespace Padelizou.Controllers
         [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarPlacaresAoVivo(
-            int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null)
+            int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null,
+            // OS PONTOS DO TIE-BREAK (12/09/2026), array paralelo aos de cima — o card manda
+            // sempre, inclusive escondido, pra não desalinhar os índices do lote (ver o
+            // comentário em _JogosDoTorneio.cshtml).
+            //
+            // Nulo = tela aberta ANTES deste deploy: o placar de games continua salvando
+            // normalmente e os pontos gravados ficam como estão. Tratar ausência como zero
+            // apagaria um tie-break em andamento no primeiro toque de quem não recarregou.
+            int[]? pontos1 = null, int[]? pontos2 = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -153,9 +198,54 @@ namespace Padelizou.Controllers
                 // digitar 9 seria um placar que aquele jogo não pode ter — e numa soma de 7,
                 // 5x5 também não.
                 var formato = FormatoDaPartida.De(torneio, partida.Fase);
-                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, games1[i], games2[i]);
 
-                if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2) continue;
+                // ⚠️ LADO NEGATIVO É "NÃO TOQUEI NESTE" (12/09/2026), e fica com o que está no
+                // banco. 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um
+                // deles nao pegava"* — o card mandava OS DOIS lados em todo POST, então dois
+                // aparelhos no MESMO jogo se atropelavam: o segundo a chegar, montado com a
+                // tela de até 20 segundos atrás, devolvia o lado do primeiro pro número velho.
+                // O último POST ganhava nos dois lados, mesmo que cada um tivesse tocado só no
+                // seu.
+                //
+                // O par continua sendo validado JUNTO (numa soma de 7, o lado que veio precisa
+                // caber ao lado do que está gravado), por isso a peneira recebe os dois.
+                //
+                // Aba aberta antes deste deploy manda os dois números de sempre e segue
+                // gravando os dois: o negativo é acréscimo, não troca de contrato.
+                int pedido1 = games1[i] < 0 ? partida.GamesDupla1 ?? 0 : games1[i];
+                int pedido2 = games2[i] < 0 ? partida.GamesDupla2 ?? 0 : games2[i];
+                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, pedido1, pedido2);
+
+                // OS PONTOS DO TIE-BREAK. ⚠️ Só entram onde o tie-break PODE acontecer
+                // (Services/TieBreakDoJogo): num torneio com a contagem desligada, ou numa fase
+                // de número par, um `pontos1` montado à mão não grava nada.
+                //
+                // ⚠️ E SÓ COM O LOTE ALINHADO (12/09/2026): os pontos viajam em arrays
+                // paralelos casados por ÍNDICE com `partidaId[]`, e array de tamanho diferente
+                // não é "um pouco menos de dado" — é a contagem de um jogo gravada no outro,
+                // calada. É a mesma trava que os games já tinham na entrada; a diferença é que
+                // `i < pontos1.Length` aceitava array mais COMPRIDO, que é exatamente o que um
+                // card com dois campos `pontos1` produzia (ver _JogosDoTorneio.cshtml).
+                bool mexeuNosPontos = false;
+                if (TieBreakDoJogo.PodeAcontecer(formato)
+                    && pontos1 != null && pontos2 != null
+                    && pontos1.Length == partidaId.Length && pontos2.Length == partidaId.Length)
+                {
+                    // Mesmo "não toquei" dos games, e pelo mesmo motivo: no 8x8 cada mesário
+                    // conta o ponto do seu lado, e mandar o lado alheio junto é reescrevê-lo.
+                    int p1 = pontos1[i] < 0
+                        ? partida.PontosTieBreak1 ?? 0
+                        : TieBreakDoJogo.PontoValido(pontos1[i]);
+                    int p2 = pontos2[i] < 0
+                        ? partida.PontosTieBreak2 ?? 0
+                        : TieBreakDoJogo.PontoValido(pontos2[i]);
+
+                    mexeuNosPontos = partida.PontosTieBreak1 != p1 || partida.PontosTieBreak2 != p2;
+                    partida.PontosTieBreak1 = p1;
+                    partida.PontosTieBreak2 = p2;
+                }
+
+                if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2 && !mexeuNosPontos) continue;
 
                 partida.GamesDupla1 = g1;
                 partida.GamesDupla2 = g2;
@@ -201,7 +291,22 @@ namespace Padelizou.Controllers
                             games2 = g2,
                             teto1 = FormatoDaPartida.TetoDoLado(f, g1, g2),
                             teto2 = FormatoDaPartida.TetoDoLado(f, g2, g1),
+                            // E QUEM JÁ VENCEU — 1, 2 ou 0 pra "ainda tem jogo". É o verde do
+                            // card (11/09/2026). Sem ele na resposta, a cor só mudaria no HTML
+                            // da atualização automática, que NÃO roda com o cursor dentro do
+                            // campo (`estaOcupado` em jogos-ao-vivo-atualiza.js): quem digitasse
+                            // 9 e corrigisse pra 8 ficaria com o verde aceso do lado errado por
+                            // tempo indeterminado. Mesma régua do teto, mesmo motivo de ela vir
+                            // pronta do servidor.
+                            vencedor = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0,
                             aoVivo = p.Status == "AoVivo",
+                            // E O TIE-BREAK (12/09/2026), pelo mesmo motivo do teto e do
+                            // vencedor: "este jogo está em tie-break?" é pergunta de régua, e a
+                            // resposta VIRA no instante em que o 9º game é escrito. Sem ela na
+                            // resposta, o bloco "TIE-BREAK" ficaria em cima de um 9 x 8 já
+                            // decidido até a próxima atualização automática — que nem roda com o
+                            // cursor dentro de um campo (`estaOcupado`).
+                            tieBreak = TieBreakNaResposta(f, p, g1, g2),
                         };
                     }),
                 });
@@ -212,6 +317,38 @@ namespace Padelizou.Controllers
                 : $"{mexidos} placar(es) salvos.";
 
             return VoltarPara(voltarPara, id);
+        }
+
+        // TUDO O QUE A TELA PRECISA SABER SOBRE O TIE-BREAK DESTE JOGO, respondido pelo servidor
+        // (12/09/2026). Vai na resposta de cada salvamento pelo mesmo motivo do teto e do
+        // vencedor: as três perguntas — "está em tie-break?", "já dá pra fechar?" e "com que
+        // placar?" — são de régua (Services/TieBreakDoJogo), e a resposta VIRA no mesmo toque
+        // que marca o ponto.
+        //
+        // ⚠️ Reescrever isso em JavaScript seria a segunda cópia da regra, que é como o
+        // `limiteGames: 9` cravado no JS sobreviveu tanto tempo. Até a ETIQUETA vem daqui, pra
+        // "tie-break 7-5" ter um formato só no projeto.
+        private static object TieBreakNaResposta(FormatoDaPartida.Formato formato, Partida p, int games1, int games2)
+        {
+            bool emAndamento = TieBreakDoJogo.EmAndamento(formato, games1, games2);
+            int pontos1 = p.PontosTieBreak1 ?? 0, pontos2 = p.PontosTieBreak2 ?? 0;
+
+            // O placar do fechamento só existe DENTRO do tie-break: fora dele, um 7-5 guardado de
+            // um jogo que já fechou não pode voltar a oferecer "fechar em 9x8".
+            var fechamento = emAndamento
+                ? TieBreakDoJogo.GamesAoFechar(formato, pontos1, pontos2)
+                : null;
+
+            return new
+            {
+                emAndamento,
+                pontos1,
+                pontos2,
+                houve = TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2),
+                etiqueta = TieBreakDoJogo.Etiqueta(pontos1, pontos2),
+                fecha1 = fechamento?.Games1,
+                fecha2 = fechamento?.Games2,
+            };
         }
 
         // Pra onde ir depois de encerrar. Quem finaliza pela MESA continua na Mesa; quem
@@ -399,6 +536,68 @@ namespace Padelizou.Controllers
             }
 
             return Json(new { seguindo = false });
+        }
+
+        // O CARD QUE A NOTIFICAÇÃO ABRE (12/09/2026).
+        //
+        // 🗣️ Felipe, com a notificação já chegando e dois prints na mão — a bolha de placar do
+        // app do Google e o placar da Copa na Dynamic Island: *"as notificações estao
+        // acontecendo, mas eu queria algo tipo esses prints, tem como ?"*. Os dois exigem app
+        // NATIVO (ver Services/CartaoDoPlacarAoVivo); o que a notificação da web tem é a
+        // `image`, e é este PNG.
+        //
+        // ⚠️ ABERTO, SEM `[Authorize]`, e de propósito: quem busca esta imagem é o NAVEGADOR ao
+        // desenhar a notificação, não uma tela com sessão — exigir login aqui deixaria a
+        // notificação sem imagem justamente em quem ela é pra alcançar. O placar ao vivo já é
+        // público na página do torneio; aqui ele sai desenhado.
+        //
+        // ⚠️ TORNEIO OCULTO NÃO SAI, e nem pra quem ENXERGA o torneio (organizador, admin,
+        // inscrito — os três escapes do VisibilidadeDoTorneio). A resposta é
+        // `Cache-Control: public` — é ela que faz um desenho servir os N seguidores em vez de
+        // um por pedido —, e resposta pública que muda conforme quem pede é exatamente como um
+        // cache no caminho entrega o card de um torneio escondido pra quem não devia ver. O
+        // teto: seguidor de torneio oculto recebe o aviso com o placar no texto, sem a imagem.
+        [HttpGet]
+        public async Task<IActionResult> CartaoDoPlacarAoVivo(int id, [FromServices] FonteDoCartao fontes)
+        {
+            // A recusa por falta de fonte vem ANTES de qualquer consulta, e é 404 e não uma
+            // imagem em branco — mesma régua de todos os cards (ver FonteDoCartao).
+            if (!fontes.Disponivel) return NotFound();
+
+            var partida = await _context.Partidas
+                .AsNoTracking()
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (partida?.TorneioId == null) return NotFound();
+
+            var torneio = await _context.Torneios.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == partida.TorneioId);
+            if (torneio == null || torneio.Oculto) return NotFound();
+
+            var contexto = string.Join(" · ", new[]
+                {
+                    CategoriaNaTela.Curto(partida.Categoria?.Nome),
+                    partida.Fase,
+                }.Where(t => !string.IsNullOrWhiteSpace(t)));
+
+            // Qualificado inteiro porque a AÇÃO tem o mesmo nome do serviço — e o nome da ação
+            // é o endereço que o push manda no `image`, então quem cede é a chamada, não a rota.
+            var png = Services.CartaoDoPlacarAoVivo.Desenhar(new PlacarParaCard(
+                // Os nomes saem da MESMA régua do texto da notificação — ver
+                // AvisoDePlacarAoVivo.NomeDaDupla.
+                AvisoDePlacarAoVivo.NomeDaDupla(partida.Dupla1),
+                AvisoDePlacarAoVivo.NomeDaDupla(partida.Dupla2),
+                partida.GamesDupla1 ?? 0,
+                partida.GamesDupla2 ?? 0,
+                Encerrado: partida.Status == "Finalizada",
+                Contexto: contexto), fontes);
+
+            return EntregaDeCard.Png(Response, png, $"placar-{partida.Id}.png");
         }
 
         // ===================== FINANCEIRO DO TORNEIO =====================

@@ -99,6 +99,20 @@ public partial class Partida
     // internet não pode atropelar um mais novo vindo de outro aparelho.
     public DateTime? PlacarMarcadoEm { get; set; }
 
+    // A CONTAGEM DO TIE-BREAK, em pontos (Felipe, 12/09/2026). Nulo = o tie-break nem começou.
+    //
+    // Existe porque o placar ao vivo é desenhado pelo SERVIDOR e chega ao público por
+    // atualização automática: um número que vive só na tela de quem marca não chega a quem está
+    // olhando de casa. É o mesmo motivo de `DuplaSacandoId` ser coluna.
+    //
+    // ⚠️ Estes pontos NÃO decidem a partida: quem fecha o tie-break leva o último game, e são os
+    // GAMES que dizem quem venceu (9x8). Ver Services/TieBreakDoJogo — a decisão está escrita lá,
+    // e é ela que mantém classificação, saldo de games, Padelímetro e chave fora desta história.
+    // O que fica aqui é a memória do que aconteceu na quadra, pro card poder dizer
+    // "9 x 8, tie-break 7-5".
+    public int? PontosTieBreak1 { get; set; }
+    public int? PontosTieBreak2 { get; set; }
+
     // Qual dupla está SACANDO agora. Nulo = ninguém marcou (jogo que não começou, ou
     // organizador que não usa).
     //

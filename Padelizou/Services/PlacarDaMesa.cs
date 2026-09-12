@@ -24,8 +24,12 @@ public static class PlacarDaMesa
     // Mesma trava que sempre existiu na Mesa (contagem de games não passa de 9).
     public const int LimiteDeGames = 9;
 
+    // `pontosTieBreak1/2` e `formato` (12/09/2026): a contagem do 8x8 também atravessa a fila
+    // offline — o mesário marca ponto no celular sem sinal como marca game. Nulos = fila
+    // gravada antes deste deploy, ou Mesa de torneio sem tie-break: o que está no banco fica.
     public static Resultado Aplicar(Partida partida, int games1, int games2, int sets1, int sets2,
-        DateTime marcadoEm)
+        DateTime marcadoEm, int? pontosTieBreak1 = null, int? pontosTieBreak2 = null,
+        FormatoDaPartida.Formato? formato = null)
     {
         // Partida encerrada não aceita placar da fila: finalizar dispara mata-mata, carimba
         // fases e avisa gente — um placar velho preso num celular não pode reabrir nada disso.
@@ -39,12 +43,32 @@ public static class PlacarDaMesa
         if (partida.PlacarMarcadoEm != null && marcadoEm <= partida.PlacarMarcadoEm.Value)
             return Resultado.Recusado("já existe um placar mais novo");
 
-        partida.GamesDupla1 = Math.Clamp(games1, 0, LimiteDeGames);
-        partida.GamesDupla2 = Math.Clamp(games2, 0, LimiteDeGames);
-        partida.SetsDupla1 = Math.Max(0, sets1);
-        partida.SetsDupla2 = Math.Max(0, sets2);
+        // ⚠️ LADO NEGATIVO É "NÃO TOQUEI NESTE" (12/09/2026), e fica com o que está gravado.
+        // 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um deles nao
+        // pegava"*. A fila mandava o placar INTEIRO em todo toque, então o aparelho do vizinho
+        // reescrevia o lado que ninguém tinha tocado com o número da tela DELE — de minutos
+        // atrás, se ele estava sem sinal. É a mesma correção da lista AO VIVO.
+        //
+        // ⚠️ E o placar ABSOLUTO continua: o que muda é quais lados ele afirma, não o "+1" —
+        // incremento reentregue dobraria o game, que é o motivo de esta fila existir assim.
+        partida.GamesDupla1 = games1 < 0 ? partida.GamesDupla1 : Math.Clamp(games1, 0, LimiteDeGames);
+        partida.GamesDupla2 = games2 < 0 ? partida.GamesDupla2 : Math.Clamp(games2, 0, LimiteDeGames);
+        partida.SetsDupla1 = sets1 < 0 ? partida.SetsDupla1 : Math.Max(0, sets1);
+        partida.SetsDupla2 = sets2 < 0 ? partida.SetsDupla2 : Math.Max(0, sets2);
         partida.PlacarMarcadoEm = marcadoEm;
         partida.SendoTransmitida = true;
+
+        // ⚠️ Os pontos só entram onde o tie-break PODE acontecer (TieBreakDoJogo.PodeAcontecer):
+        // alvo configurado, contagem "até" e fase de número ímpar. Sem o formato na mão, não se
+        // grava — é a mesma recusa que o POST em lote e a tela cheia fazem, e ela vale aqui
+        // também porque a fila pode reentregar um corpo montado à mão.
+        if ((pontosTieBreak1 >= 0 || pontosTieBreak2 >= 0)
+            && formato != null && TieBreakDoJogo.PodeAcontecer(formato))
+        {
+            // Mesmo "não toquei" dos games: no 8x8 cada mesário conta o ponto do seu lado.
+            if (pontosTieBreak1 >= 0) partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1.Value);
+            if (pontosTieBreak2 >= 0) partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2.Value);
+        }
 
         return Resultado.Ok;
     }

@@ -23,18 +23,28 @@ namespace Padelizou.Services;
 // a mesma coisa.
 public static class ChaveProjetada
 {
-    // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é.
-    public record Vaga(int Posicao, string Grupo)
+    // Uma vaga do quadro: "2º do Grupo B" antes de se saber quem é — e o NOME da dupla assim que
+    // o grupo dela fecha (11/09/2026, ver Services/ClassificadosJaConhecidos).
+    //
+    // 🗣️ Felipe, com o Grupo B encerrado e o A sem jogar: *"tem q por o 1º e 2º nas semifinais"*.
+    // Fechado o grupo, "2º do Grupo B" já tem nome no sistema — e a frase genérica no lugar dele
+    // é a tela escondendo o que ela sabe de quem acabou de classificar.
+    public record Vaga(int Posicao, string Grupo, string? Nome = null)
     {
-        public string Rotulo => $"{Posicao}º do {Grupo}";
+        public string Rotulo => Nome ?? $"{Posicao}º do {Grupo}";
     }
 
     public record ConfrontoProjetado(Vaga Lado1, Vaga Lado2);
 
     // Fase vazia = não dá pra projetar (grupo de menos). `Byes` são as vagas que pulam a
     // primeira rodada — os melhores, na mesma regra do sorteio de verdade.
+    // `jaConhecidos` (por (grupo, colocação)) troca a colocação pelo NOME da dupla nos grupos que
+    // já fecharam — ver Services/ClassificadosJaConhecidos. Vazio = a chave inteira por colocação,
+    // como era.
     public static (string Fase, List<ConfrontoProjetado> Confrontos, List<Vaga> Byes) Montar(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
+        string? cruzamentoDesenhado = null,
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
         if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>(), new List<Vaga>());
 
@@ -50,7 +60,9 @@ public static class ChaveProjetada
             for (int posicao = 1; posicao <= passam; posicao++)
             {
                 int id = posicao * 1000 + g;
-                vagas[id] = new Vaga(posicao, grupos[g]);
+                vagas[id] = new Vaga(posicao, grupos[g],
+                    jaConhecidos != null && jaConhecidos.TryGetValue((grupos[g], posicao), out var nome)
+                        ? nome : null);
 
                 // Campanha zerada em todo mundo: sem jogo jogado não há o que comparar, e
                 // inventar números faria a prévia parecer mais certa do que é. O que a prévia
@@ -63,7 +75,8 @@ public static class ChaveProjetada
             }
         }
 
-        var (fase, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, passam);
+        var (fase, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(
+            classificados, passam, cruzamentoDesenhado);
 
         return (fase,
             confrontos.Select(c => new ConfrontoProjetado(vagas[c.Dupla1Id], vagas[c.Dupla2Id])).ToList(),
@@ -72,7 +85,12 @@ public static class ChaveProjetada
 
     // ---- O caminho inteiro, da primeira fase à final ----
 
-    public record JogoProjetado(int Numero, string Lado1, string Lado2);
+    // `VemDoJogoN` é o número do jogo que produz aquele lado — nulo quando o lado é uma
+    // COLOCAÇÃO (primeira rodada) ou quem passou direto. É o que liga os jogos numa árvore:
+    // sem isso, quem desenha o quadro teria que adivinhar a ligação lendo o texto do rótulo,
+    // que é tradução pra humano e não dado. Ver Services/ArvoreDaChave.
+    public record JogoProjetado(int Numero, string Lado1, string Lado2,
+                                int? VemDoJogo1 = null, int? VemDoJogo2 = null);
     public record RodadaProjetada(string Fase, List<JogoProjetado> Jogos);
 
     // A primeira rodada sai por colocação ("1º do Grupo A x 2º do Grupo D"); da segunda em
@@ -84,9 +102,16 @@ public static class ChaveProjetada
     // último — o mesmo AvancoDaChave + ParearVencedores. Duas contas divergiriam no dia em
     // que a regra mudasse, e o mapa prometeria um cruzamento que a chave não faria.
     public static List<RodadaProjetada> MontarCompleta(
-        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null)
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2, IReadOnlyList<int>? duplasPorGrupo = null,
+        // O cruzamento desenhado à mão (Models/Categoria.CruzamentoDoMataMata). Nulo = o motor
+        // decide, como sempre. Sem ele o quadro da aba de chaves desenhava a semeadura do motor
+        // numa categoria que TEM desenho — prometendo um confronto que o sorteio não faria.
+        string? cruzamentoDesenhado = null,
+        // Os nomes que já não são promessa (Services/ClassificadosJaConhecidos).
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
     {
-        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo, duplasPorGrupo);
+        var (fase, primeiraRodada, byes) = Montar(
+            grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
         if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
 
         var rodadas = new List<RodadaProjetada>();
@@ -97,21 +122,26 @@ public static class ChaveProjetada
             jogos.Add(new JogoProjetado(proximoNumero++, confronto.Lado1.Rotulo, confronto.Lado2.Rotulo));
         rodadas.Add(new RodadaProjetada(fase, jogos));
 
-        // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes.
-        var entrantes = jogos.Select(j => $"Vencedor do jogo {j.Numero}").ToList();
-        entrantes.AddRange(byes.Select(b => $"{b.Rotulo} (passou direto)"));
+        // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes. O vencedor
+        // carrega o NÚMERO do jogo de onde vem; o bye não vem de jogo nenhum.
+        var entrantes = jogos
+            .Select(j => (Rotulo: $"Vencedor do jogo {j.Numero}", VemDoJogo: (int?)j.Numero))
+            .ToList();
+        entrantes.AddRange(byes.Select(b => (Rotulo: $"{b.Rotulo} (passou direto)", VemDoJogo: (int?)null)));
 
         while (entrantes.Count > 1)
         {
             var jogosDaRodada = new List<JogoProjetado>();
-            var proximos = new List<string>();
+            var proximos = new List<(string Rotulo, int? VemDoJogo)>();
 
             // O pareamento do robô: primeiro x último da lista de quem avança.
             for (int i = 0; i < entrantes.Count / 2; i++)
             {
-                var jogo = new JogoProjetado(proximoNumero++, entrantes[i], entrantes[entrantes.Count - 1 - i]);
+                var (lado1, lado2) = (entrantes[i], entrantes[entrantes.Count - 1 - i]);
+                var jogo = new JogoProjetado(proximoNumero++, lado1.Rotulo, lado2.Rotulo,
+                                             lado1.VemDoJogo, lado2.VemDoJogo);
                 jogosDaRodada.Add(jogo);
-                proximos.Add($"Vencedor do jogo {jogo.Numero}");
+                proximos.Add((Rotulo: $"Vencedor do jogo {jogo.Numero}", VemDoJogo: (int?)jogo.Numero));
             }
 
             rodadas.Add(new RodadaProjetada(ChaveamentoMataMata.NomeFase(entrantes.Count), jogosDaRodada));

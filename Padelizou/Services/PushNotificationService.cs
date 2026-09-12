@@ -16,11 +16,13 @@ public class PushNotificationService : IPushNotificationService
     private readonly IEmailService _email;
     private readonly SiteSettings _site;
     private readonly PorteiroDaSaida _porteiro;
+    private readonly SilencioDeAvisos _silencio;
     private readonly ILogger<PushNotificationService> _logger;
 
     public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
         IWhatsAppService whatsApp, FilaDeWhatsApp fila, FilaDeAvisos filaDeAvisos, IEmailService email,
-        IOptions<SiteSettings> siteOptions, PorteiroDaSaida porteiro, ILogger<PushNotificationService> logger)
+        IOptions<SiteSettings> siteOptions, PorteiroDaSaida porteiro, SilencioDeAvisos silencio,
+        ILogger<PushNotificationService> logger)
     {
         _context = context;
         _whatsApp = whatsApp;
@@ -29,6 +31,7 @@ public class PushNotificationService : IPushNotificationService
         _email = email;
         _site = siteOptions.Value;
         _porteiro = porteiro;
+        _silencio = silencio;
         _logger = logger;
         var settings = vapidOptions.Value;
         _vapidDetails = new VapidDetails(settings.Subject, settings.PublicKey, settings.PrivateKey);
@@ -55,13 +58,25 @@ public class PushNotificationService : IPushNotificationService
     // deveria chamar isto direto — de dentro de uma requisição, use EnviarParaJogadorAsync.
     public async Task EntregarAgoraAsync(AvisoPendente aviso)
     {
+        // O SILÊNCIO GERAL do painel corta AQUI, e num lugar só: este é o funil por onde passa
+        // todo aviso do sistema, então o botão vale pros ~30 pontos que geram aviso sem que
+        // nenhum deles precise saber que ele existe — e o próximo aviso a nascer já nasce
+        // obedecendo. Ver Services/SilencioDeAvisos.
+        //
+        // ⚠️ Lido UMA vez, numa variável: com duas leituras, um clique no painel no meio da
+        // entrega poderia mandar o e-mail e engolir o push do MESMO aviso.
+        var mudo = _silencio.Ligado;
+
         // PLACAR AO VIVO sai por um caminho À PARTE, mais curto: só o push, com a TAG que
         // substitui o aviso anterior do mesmo jogo. Sem este desvio, um jogo de 9 games viraria
         // 9 linhas na Caixa de Avisos e 9 e-mails — a régua dos outros canais (caixa sempre,
         // e-mail por padrão) foi pensada pra recado, não pra um placar que se atualiza sozinho.
         if (aviso.ApenasPush)
         {
-            await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url, aviso.Tag);
+            // Mudo, o placar ao vivo é descartado INTEIRO — e é o certo: ele é só push e não
+            // entra na caixa, e placar de meia hora atrás não vale ser guardado pra depois.
+            if (!mudo)
+                await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url, aviso.Tag, aviso.Imagem);
             return;
         }
 
@@ -73,14 +88,20 @@ public class PushNotificationService : IPushNotificationService
         // O WhatsApp é a exceção: só vai quando o aviso PEDIU (ver AlcanceDoAviso). Ele tem
         // um custo que os outros não têm — a Meta restringe o número — e por isso é o único
         // canal onde o silêncio é o padrão.
-        if (aviso.Alcance.VaiNoWhatsApp())
+        if (!mudo && aviso.Alcance.VaiNoWhatsApp())
             await EnviarWhatsAppAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
 
         // A CAIXA DE ENTRADA vem PRIMEIRO, e é o único canal que não pode falhar em silêncio.
         // Push depende de aparelho registrado (4 em 128), e-mail depende de cota do provedor,
         // WhatsApp depende de chip pareado — os três já falharam num dia só. A tela de
         // Notificações é o canal que não depende de entrega nenhuma: é só abrir o app.
+        //
+        // ⚠️ E É POR ISSO QUE O SILÊNCIO NÃO A ALCANÇA: mudo é "não incomoda", não "apaga".
+        // Guardar aqui não toca no celular de ninguém, e é o que faz religar devolver o
+        // histórico inteiro em vez de um buraco que ninguém consegue reconstruir depois.
         await GuardarNaCaixaDeEntradaAsync(aviso);
+
+        if (mudo) return;
 
         // O e-mail é o único canal que um aviso pode dispensar (ver AlcanceDoAviso.AppSemEmail):
         // bilhete social não vale uma entrada na caixa de e-mail de ninguém.
@@ -146,7 +167,7 @@ public class PushNotificationService : IPushNotificationService
     // anterior do mesmo jogo (mesma tag) em vez de empilhar, e pra tocar o aparelho em
     // silêncio nas atualizações (ver wwwroot/sw.js). Nula, o comportamento de sempre.
     private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url,
-        string? tag = null)
+        string? tag = null, string? imagem = null)
     {
         // O push é o único canal que não sabe pra QUEM está mandando: a inscrição é de um
         // aparelho. Então aqui a pergunta custa uma consulta — e ela só é feita quando o
@@ -164,7 +185,9 @@ public class PushNotificationService : IPushNotificationService
 
         if (subscriptions.Count == 0) return 0;
 
-        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/", tag });
+        // `image` é o card do placar ao vivo — o sw.js entrega essa chave pro showNotification,
+        // e no Android ela vira a imagem que a notificação abre. Nula em todo o resto.
+        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/", tag, image = imagem });
         var client = new WebPushClient();
         var entregues = 0;
 
@@ -304,10 +327,11 @@ public class PushNotificationService : IPushNotificationService
     // Enfileira, não envia — mesmo motivo do EnviarParaJogadorAsync: quem marca um game não
     // pode ficar esperando N chamadas de push por seguidor antes da tela voltar. `ApenasPush`
     // é o que muda o caminho na entrega (ver EntregarAgoraAsync).
-    public Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag)
+    public Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag,
+        string? imagem)
     {
         _filaDeAvisos.Enfileirar(new AvisoPendente(jogadorId, titulo, corpo, url, AlcanceDoAviso.SoApp,
-            Tag: tag, ApenasPush: true));
+            Tag: tag, ApenasPush: true, Imagem: imagem));
         return Task.CompletedTask;
     }
 

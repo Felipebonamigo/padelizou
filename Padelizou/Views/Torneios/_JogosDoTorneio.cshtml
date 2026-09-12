@@ -25,6 +25,15 @@
 }
 @{
     var aoVivoList = ViewBag.AoVivo as List<Partida> ?? new();
+
+    // O ESCUDO DO TIME COMO SELO, e só no card AO VIVO. 🗣️ Felipe, 11/09/2026: *"e no ao vivo
+    // use esse do B"* — ali o escudo sai do lado do nome e vai pro canto da foto.
+    //
+    // ⚠️ Vai por view-data, e não por uma classe no CSS, porque o que muda é o HTML: o selo
+    // nasce DENTRO da moldura da foto (ver _JogadorChip). E fica preso a ESTE card: o mesmo
+    // chip desenha a tabela do grupo, a lista de inscritos e a lista de duplas, que continuam
+    // com o escudo do lado do nome.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
     // Placar ao vivo na tela de bloqueio — quais destes jogos EU já sigo (server, não JS: ver
     // TorneiosController.CarregarViewBagJogosAsync pro porquê).
     var partidasQueSigo = ViewBag.PartidasQueSigo as HashSet<int> ?? new HashSet<int>();
@@ -52,6 +61,10 @@
     int? meuId = ViewBag.MeuId as int?;
     var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
+    // O link que a câmera de cada quadra está usando hoje — o modal da largada sugere ele ao
+    // escolher a quadra. A câmera é do LUGAR, não do jogo (Services/TransmissaoDaQuadra); a
+    // prioridade de lá (quem está em quadra > quem vem > histórico) é o que decide o empate.
+    var camerasPorQuadra = Padelizou.Services.TransmissaoDaQuadra.PorQuadra(aoVivoList.Concat(agendadasList));
     // As quadras que o torneio usa — a lista do "mudar de quadra".
     var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
     // Os horários que ESTE torneio usa — a lista do "definir horário" (Services/HorariosDaGrade).
@@ -81,12 +94,33 @@
             <span class="d-block">@TempData["ProximoJogoQuem"]</span>
             <small class="opacity-75">@TempData["ProximoJogoQuando"]</small>
         </div>
-        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-padel fw-bold">
+        @* MESMA REGRA DO PLAY DA LINHA (11/09/2026): com quadra, pergunta; sem quadra, abre o
+           modal pra escolher onde. Este botão nasceu antes da regra e botava o jogo no ar
+           direto -- um único botão de começar sem pergunta é a inconsistência que a pessoa
+           encontra no clique seguinte. *@
+        @{ var quadraDoProximo = TempData["ProximoJogoQuadra"] as string; }
+        @if (string.IsNullOrWhiteSpace(quadraDoProximo))
+        {
+            <button type="button" class="btn btn-padel fw-bold"
+                    data-bs-toggle="modal" data-bs-target="#modalIniciarJogo"
+                    data-jogo-id="@proximoJogoId"
+                    data-jogo-rotulo="@TempData["ProximoJogoQuem"]">
                 <i class="bi bi-play-fill"></i> Começar agora
             </button>
-        </form>
+        }
+        else
+        {
+            <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post"
+                  data-confirmar="O jogo entra AO VIVO na @quadraDoProximo e o cronômetro começa a contar agora."
+                  data-confirmar-titulo="Começar este jogo?"
+                  data-confirmar-ok="Começar">
+                    <partial name="_CampoDosFiltros" />
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-padel fw-bold">
+                    <i class="bi bi-play-fill"></i> Começar agora
+                </button>
+            </form>
+        }
     </div>
 }
 
@@ -136,8 +170,34 @@
     bool temFiltroDeClube = clubesFiltro.Count > 1;
     bool temFiltroDeQuadra = quadrasParaFiltrar.Count > 1;
     bool temFiltroDeFase = fasesFiltro.Count > 1;
+
+    // 🗣️ Felipe, 12/09/2026, num print da aba no celular: *"aqui esta muito poluito, muitos
+    // botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de
+    // um botão 'filtros'"*. Eram seis controles em quatro linhas antes do primeiro jogo — no
+    // dia de jogo a tela abria com a régua em vez de com a bola.
+    //
+    // "Meus jogos" fica fora (liga/desliga de um toque, e é o recorte que mais gente usa); os
+    // outros cinco moram dentro do painel recolhido. O botão só existe se houver o que
+    // recolher — abrir um painel vazio é a mesma decepção do botão que não faz nada.
+    bool temFiltroRecolhido = temFiltroDeTime || temFiltroDeClube || temFiltroDeQuadra
+        || temFiltroDeFase || temFiltroDeCategoria;
+
+    // ⚠️ PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA: sem este contador no
+    // botão, quem escolheu uma quadra recarrega a página, vê meia lista e não tem como
+    // descobrir por quê. Conta DIMENSÃO, não escolha — três categorias marcadas continuam
+    // sendo um filtro só, que é como quem lê "Filtros (2)" entende o número.
+    //
+    // ⚠️ E conta sem olhar se o select correspondente está na tela: o que o número promete é o
+    // estado da LISTA, não o do painel. Filtro que veio pela URL num torneio de um clube só
+    // recorta os jogos do mesmo jeito, e some do "Limpar" se não for contado aqui.
+    int filtrosAtivos =
+        ((ViewBag.TimeAtual as int?) != null ? 1 : 0)
+        + (filtroSequencia.ClubeId != null ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(filtroSequencia.Quadra) ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(filtroSequencia.Fase) ? 1 : 0)
+        + (categoriaFiltroAtual.Length > 0 ? 1 : 0);
 }
-@if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui || temFiltroDeClube || temFiltroDeQuadra || temFiltroDeFase)
+@if (tenhoJogoAqui || temFiltroRecolhido)
 {
     <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <input type="hidden" name="id" value="@Model.TorneioId" />
@@ -161,78 +221,101 @@
             </a>
         }
 
-        @if (temFiltroDeTime)
+        @if (temFiltroRecolhido)
         {
-            <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
-                <option value="">Todos os Times</option>
-            </select>
+            @* O `collapse` do Bootstrap, e não um painel de JS próprio: a página já carrega o
+               bundle dele e o mesmo recolhido desenha o "editar torneio" e o CheckIn. *@
+            <button class="btn @(filtrosAtivos > 0 ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#filtrosDosJogos"
+                    aria-expanded="false" aria-controls="filtrosDosJogos">
+                <i class="bi bi-sliders"></i>
+                Filtros@(filtrosAtivos > 0 ? $" ({filtrosAtivos})" : "")
+            </button>
         }
 
-        @* A sequência por clube, por quadra e por fase — aplica sozinha ao escolher, como o
-           time. A opção da quadra leva o clube junto ("Er Padel · Arena 1"), a mesma etiqueta
-           da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
-        @if (temFiltroDeClube)
+        @if (filtrosAtivos > 0)
         {
-            <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
-                <option value="">Todos os clubes</option>
-                @foreach (var clube in clubesFiltro)
-                {
-                    <option value="@clube.Id" selected="@(filtroSequencia.ClubeId == clube.Id)">@clube.Nome</option>
-                }
-            </select>
-        }
-
-        @if (temFiltroDeQuadra)
-        {
-            <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
-                <option value="">Todas as quadras</option>
-                @foreach (var nomeDaQuadra in quadrasParaFiltrar)
-                {
-                    <option value="@nomeDaQuadra"
-                            selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
-                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), nomeDaQuadra) ?? nomeDaQuadra)
-                    </option>
-                }
-            </select>
-        }
-
-        @if (temFiltroDeFase)
-        {
-            <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
-                <option value="">Todas as fases</option>
-                @foreach (var fase in fasesFiltro)
-                {
-                    <option value="@fase.Valor" selected="@(fase.Valor == filtroSequencia.Fase?.Trim())">@fase.Rotulo</option>
-                }
-            </select>
-        }
-
-        @if (filtroSequencia.Ativo)
-        {
-            @* Volta pra lista inteira — todos os filtros, não só estes três: é o que "limpar" diz. *@
+            @* Fora do recolhido de propósito: é a saída de quem abriu a tela já filtrada e não
+               sabe por que a lista encolheu. Volta pra lista inteira — todos os filtros, não
+               só os três da sequência: é o que "limpar" diz. *@
             <a asp-action="@Model.TargetAction" asp-route-id="@Model.TorneioId"
                class="btn btn-link btn-sm text-decoration-none px-1">
                 <i class="bi bi-x-circle"></i> Limpar filtros
             </a>
         }
 
-        @if (temFiltroDeCategoria)
-        {
-            <div class="dropdown">
-                <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                    Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
-                </button>
-                <ul class="dropdown-menu p-2" style="min-width: 220px;">
-                    @foreach (var cat in categoriasDoTorneio)
-                    {
-                        <li class="form-check ms-1">
-                            <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
-                            <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
-                        </li>
-                    }
-                </ul>
+        @* `w-100` joga o painel pra própria linha dentro do flex do formulário — aberto, ele
+           não empurra o "Meus jogos" pra fora da primeira linha no celular.
+
+           ⚠️ DENTRO DO <form>: select escondido por CSS continua viajando no GET (só
+           `disabled` não viaja), mas select FORA do formulário não viaja nunca. *@
+        <div class="collapse w-100" id="filtrosDosJogos">
+            <div class="d-flex align-items-center gap-2 flex-wrap pt-2">
+                @if (temFiltroDeTime)
+                {
+                    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
+                        <option value="">Todos os Times</option>
+                    </select>
+                }
+
+                @* A sequência por clube, por quadra e por fase — aplica sozinha ao escolher, como o
+                   time. A opção da quadra leva o clube junto ("Er Padel · Arena 1"), a mesma etiqueta
+                   da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
+                @if (temFiltroDeClube)
+                {
+                    <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
+                        <option value="">Todos os clubes</option>
+                        @foreach (var clube in clubesFiltro)
+                        {
+                            <option value="@clube.Id" selected="@(filtroSequencia.ClubeId == clube.Id)">@clube.Nome</option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeQuadra)
+                {
+                    <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
+                        <option value="">Todas as quadras</option>
+                        @foreach (var nomeDaQuadra in quadrasParaFiltrar)
+                        {
+                            <option value="@nomeDaQuadra"
+                                    selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
+                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), nomeDaQuadra) ?? nomeDaQuadra)
+                            </option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeFase)
+                {
+                    <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
+                        <option value="">Todas as fases</option>
+                        @foreach (var fase in fasesFiltro)
+                        {
+                            <option value="@fase.Valor" selected="@(fase.Valor == filtroSequencia.Fase?.Trim())">@fase.Rotulo</option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeCategoria)
+                {
+                    <div class="dropdown">
+                        <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
+                        </button>
+                        <ul class="dropdown-menu p-2" style="min-width: 220px;">
+                            @foreach (var cat in categoriasDoTorneio)
+                            {
+                                <li class="form-check ms-1">
+                                    <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
+                                    <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
             </div>
-        }
+        </div>
     </form>
 
     <script>
@@ -313,13 +396,14 @@
 
            O formulário fica VAZIO de propósito: os campos moram dentro dos cards e se ligam
            a ele por `form="pdzPlacaresAoVivo"`. Embrulhar os cards não daria — o
-           palpitrômetro já tem formulário lá dentro, e formulário aninhado é HTML inválido.
+           palpitômetro já tem formulário lá dentro, e formulário aninhado é HTML inválido.
 
            A tela cheia continua existindo e não é redundante: é lá que se marca SET, quem
            saca, quadra, link e o FINALIZAR. *@
         @if (ehOrganizador && aoVivoList.Count > 0)
         {
             <form asp-controller="Torneios" asp-action="SalvarPlacaresAoVivo" method="post" id="pdzPlacaresAoVivo">
+                    <partial name="_CampoDosFiltros" />
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
             </form>
@@ -366,8 +450,18 @@
                    cartão correspondente pra trocar só o cabeçalho (placar, cronômetro,
                    botões) e não encostar no <iframe> da transmissão. Ver
                    js/jogos-ao-vivo-atualiza.js. *@
-                <div class="col-md-6 mb-3">
-                    <div class="pdz-live-card shadow-sm" data-partida-id="@jogo.Id">
+                @* `col-lg-6`, e não `col-md-6` (12/09/2026): entre 768 e 991px o Bootstrap dá
+                   720px ao container, e dois cards por linha deixavam cada um com 336px — 60px
+                   MENOS que o celular do print. Era a faixa onde o −/+ mais invadia a bolinha
+                   do saque (37,1px, a bola inteira debaixo do botão). Duas colunas só quando a
+                   linha comporta duas de verdade. *@
+                <div class="col-lg-6 mb-3">
+                    @* `id="jogo-N"`: o DESTINO do card do jogo lá na aba Grupos (Felipe,
+                       11/09/2026 — "permita clicar no aovivo e ir para a pagina do aovivo aonde
+                       esta o jogo"). Fica no card inteiro, e não num pedaço dele: é o card que
+                       precisa entrar na tela. Quem leva até aqui é o pdzIrProJogoDaHash, no fim
+                       do Details.cshtml. *@
+                    <div class="pdz-live-card shadow-sm" id="jogo-@jogo.Id" data-partida-id="@jogo.Id">
                         <div class="pdz-live-header">
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <span class="pdz-live-badge"><span class="pdz-live-dot"></span> AO VIVO</span>
@@ -419,8 +513,21 @@
                             </div>
 
                             @{
-                                bool ganhando1 = (jogo.GamesDupla1 ?? 0) > (jogo.GamesDupla2 ?? 0);
-                                bool ganhando2 = (jogo.GamesDupla2 ?? 0) > (jogo.GamesDupla1 ?? 0);
+                                // ⚠️ O VERDE É DE QUEM VENCEU, NÃO DE QUEM ESTÁ GANHANDO
+                                // (11/09/2026, Felipe num print de um 8 x 6 em quadra: "pq q
+                                // esse aqui ta o numero verde se o jogo n terminou?"). Aqui
+                                // morava um `games1 > games2`, então qualquer vantagem pintava
+                                // de lime — o mesmo lime que no card finalizado quer dizer
+                                // "venceu o jogo", duas cores iguais pra duas coisas diferentes.
+                                //
+                                // Quem responde é o servidor (Services/QuemVenceu.LadoJaDecidido,
+                                // entregue em CarregarViewBagJogosAsync): "decidido" tem soma ×
+                                // "até" e o desempate do "vencer por dois", e essa conta não
+                                // pode ter uma segunda cópia aqui.
+                                var vencedorDoJogo = (ViewBag.VencedorNoPlacar as Dictionary<int, int>)
+                                    ?.GetValueOrDefault(jogo.Id) ?? 0;
+                                bool venceu1 = vencedorDoJogo == 1;
+                                bool venceu2 = vencedorDoJogo == 2;
                                 // Quase todo jogo é 1 set até 9 games, então o games é o placar em
                                 // destaque. O set só aparece quando o jogo de fato virou 2 sets.
                                 bool mostrarSets = (jogo.SetsDupla1 ?? 0) > 0 || (jogo.SetsDupla2 ?? 0) > 0;
@@ -430,26 +537,73 @@
                                 // se o torneio sumiu do ViewBag — nunca é o limite de verdade.
                                 var tetosDoJogo = (ViewBag.TetoDeGames as Dictionary<int, (int Lado1, int Lado2)>)
                                     ?.GetValueOrDefault(jogo.Id) ?? (Lado1: 99, Lado2: 99);
+
+                                // Quem troca a bolinha de lado é exatamente quem já podia marcar
+                                // o saque pelo lápis — a mesma dupla de réguas que o POST do
+                                // Partidas/TrocarSaque confere de novo (PodeMarcarPlacarAsync).
+                                // Oferecer um alvo que o servidor vai recusar é desleixo que o
+                                // usuário paga.
+                                bool podeTrocarSaque = ehOrganizador
+                                    || Padelizou.Services.QuemMarcaOPlacar.Liberado(modoQuemMarca, meuId, jogo, ehInscritoDoTorneio);
+
+                                // ── O TIE-BREAK DESTE JOGO (Felipe, 12/09/2026) ──────────────
+                                // A view não sabe o que é 8x8: quem responde é
+                                // Services/TieBreakDoJogo, a partir do formato da FASE que o
+                                // controller entrega pronto. Mesma regra do teto e do verde.
+                                var formatoAoVivo = (ViewBag.FormatoDoJogo as Dictionary<int, Padelizou.Services.FormatoDaPartida.Formato>)
+                                    ?.GetValueOrDefault(jogo.Id);
+                                int pontosTb1 = jogo.PontosTieBreak1 ?? 0;
+                                int pontosTb2 = jogo.PontosTieBreak2 ?? 0;
+                                bool emTieBreak = formatoAoVivo != null
+                                    && Padelizou.Services.TieBreakDoJogo.EmAndamento(
+                                           formatoAoVivo, jogo.GamesDupla1 ?? 0, jogo.GamesDupla2 ?? 0);
+
+                                // ESTE CARD DESENHA O BLOCO DO TIE-BREAK? A resposta vale por
+                                // duas: ela decide o bloco (que nasce ESCONDIDO fora do 8x8) e
+                                // decide o campo escondido dos pontos, logo acima.
+                                //
+                                // ⚠️ UMA CONDIÇÃO SÓ, E A OUTRA É A NEGAÇÃO DELA (12/09/2026).
+                                // Os dois são campos do POST em lote, que casa `partidaId[]`
+                                // com `pontos1[]` por ÍNDICE — e `hidden` não tira campo
+                                // nenhum do POST. Enquanto o escondido saía por "está em
+                                // tie-break AGORA?", todo card de fase com tie-break fora do
+                                // 8x8 mandava DOIS `pontos1`: com duas quadras no ar, o índice
+                                // escorregava e o segundo jogo recebia a contagem do primeiro.
+                                bool temBlocoDeTieBreak = formatoAoVivo != null
+                                    && Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo);
+
+                                // O placar que o fechamento escreve (9x8). Nulo = ainda não dá
+                                // pra fechar — 7-6 não fecha, porque o tie-break também se vence
+                                // por dois. Quem decide é a régua; o botão só obedece.
+                                // ⚠️ `formatoAoVivo != null` AQUI, e não herdado do `emTieBreak`:
+                                // um bool que capturou a checagem não ensina nada ao compilador
+                                // (CLAUDE.md), e o `!` calaria o aviso sem provar nada.
+                                var fechamentoDoTb = formatoAoVivo != null && emTieBreak
+                                    ? Padelizou.Services.TieBreakDoJogo.GamesAoFechar(formatoAoVivo, pontosTb1, pontosTb2)
+                                    : null;
                             }
                             @* A bolinha do saque: no padel, saber de quem é o saque é metade
-                               da leitura do jogo pra quem chega no meio de um game. Quem
-                               marca é o organizador, no Controle de Placar. *@
+                               da leitura do jogo pra quem chega no meio de um game.
+
+                               ⚠️ QUEM MARCA PLACAR TROCA DE LADO COM UM TOQUE (11/09/2026). O
+                               saque vira muitas vezes por jogo (🗣️ Felipe: "normalmente se vira
+                               após o 3º game, depois de 2 em 2, até finalizar a partida"), e até
+                               hoje cada troca custava abrir o Controle de Partida, salvar e
+                               voltar — por isso o campo vivia vazio e a bolinha não aparecia
+                               pra ninguém. Ver Views/Torneios/_BolinhaDoSaque.cshtml. *@
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
-                                    <partial name="_LadoDaPartida" model="jogo.Dupla1" />
+                                    <partial name="_LadoDaPartida" model="jogo.Dupla1" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
-                                <div class="pdz-live-placar @(ganhando1 ? "pdz-live-placar-ganhando" : "")">
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla1Id, podeTrocarSaque, Model.TargetAction)" />
+                                <div class="pdz-live-placar @(venceu1 ? "pdz-live-placar-venceu" : "")">
                                     @if (mostrarSets)
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla1 ?? 0)</span>
                                     }
                                     @if (ehOrganizador)
                                     {
-                                        @* `form="..."` em vez de embrulhar os cards: o palpitrômetro
+                                        @* `form="..."` em vez de embrulhar os cards: o palpitômetro
                                            já tem formulário dentro do card, e formulário aninhado é
                                            HTML inválido — o navegador desmonta e o POST sai capenga.
 
@@ -458,6 +612,21 @@
                                            Cada toque JÁ SALVA (ver js/placar-ao-vivo.js) — "editei e
                                            não marcou" é o pior jeito de falhar num placar. *@
                                         <input type="hidden" name="partidaId" value="@jogo.Id" form="pdzPlacaresAoVivo" />
+                                        @* ⚠️ OS PONTOS DO TIE-BREAK VIAJAM SEMPRE, mesmo sem
+                                           tie-break em andamento (12/09/2026). O POST do card é em
+                                           LOTE — `partidaId[]`, `games1[]`, `games2[]` casam por
+                                           ÍNDICE —, então um campo que só existe em alguns cards
+                                           desalinharia tudo: com três jogos no ar e só o segundo em
+                                           tie-break, `pontos1[0]` chegaria como se fosse do
+                                           primeiro. Escondido, ele reenvia o valor já gravado, que
+                                           é inofensivo (o servidor grava o mesmo número de volta).
+                                           Em tie-break, os contadores visíveis lá embaixo tomam o
+                                           lugar destes dois — mesmo `name`, uma entrada só. *@
+                                        @if (!temBlocoDeTieBreak)
+                                        {
+                                            <input type="hidden" name="pontos1" value="@pontosTb1" form="pdzPlacaresAoVivo" />
+                                            <input type="hidden" name="pontos2" value="@pontosTb2" form="pdzPlacaresAoVivo" />
+                                        }
                                         <span class="pdz-live-contador">
                                             <button type="button" class="pdz-live-passo" data-passo="-1"
                                                     aria-label="Menos um game">−</button>
@@ -483,13 +652,10 @@
 
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
-                                    <partial name="_LadoDaPartida" model="jogo.Dupla2" />
+                                    <partial name="_LadoDaPartida" model="jogo.Dupla2" view-data="chipComSelo" />
                                 </div>
-                                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
-                                {
-                                    <span class="pdz-bolinha" title="Sacando"></span>
-                                }
-                                <div class="pdz-live-placar @(ganhando2 ? "pdz-live-placar-ganhando" : "")">
+                                <partial name="_BolinhaDoSaque" model="(jogo, jogo.Dupla2Id, podeTrocarSaque, Model.TargetAction)" />
+                                <div class="pdz-live-placar @(venceu2 ? "pdz-live-placar-venceu" : "")">
                                     @if (mostrarSets)
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla2 ?? 0)</span>
@@ -512,6 +678,137 @@
                                     }
                                 </div>
                             </div>
+
+                            @* ══ A CONTAGEM DO TIE-BREAK (Felipe, 12/09/2026) ════════════════════
+                               🗣️ *"no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem
+                               de tie break, que pode ir até 7 ou até 10, depende do torneio"*.
+
+                               Nasce e morre com o placar, e a view não sabe o que é 8x8: quem
+                               responde é Services/TieBreakDoJogo a partir do formato da FASE, que
+                               o controller já entrega pronto (ViewBag.FormatoDoJogo) — mesma regra
+                               do teto e do verde de quem venceu.
+
+                               ⚠️ FICA DENTRO DO `.pdz-live-header`, e isso não é acidente de
+                               posição: é esse o pedaço que a atualização automática troca de 15 em
+                               15 segundos (js/jogos-ao-vivo-atualiza.js). É o que faz os pontos
+                               subirem na tela de quem está em casa sem ninguém recarregar nada —
+                               fora dele, o tie-break existiria só pra quem marca. *@
+                            @* ⚠️ O BLOCO É RENDERIZADO SEMPRE que a fase comporta tie-break, e
+                               nasce ESCONDIDO fora dele — não é desenhado só no 8x8. O motivo é a
+                               trava da atualização automática: ela NÃO roda com o cursor dentro de
+                               um campo (`estaOcupado` em jogos-ao-vivo-atualiza.js), e quem marca o
+                               8º game está justamente com o dedo no campo do placar. Se o bloco
+                               dependesse dela pra nascer, o tie-break não apareceria — por 15
+                               segundos, ou por tempo indeterminado. Existindo no HTML, ele acende
+                               na RESPOSTA do próprio POST que marcou o game.
+
+                               ⚠️ E fica dentro do `.pdz-live-header`, que é o pedaço que a
+                               atualização automática troca: é o que faz os pontos subirem na tela
+                               de quem está em casa sem ninguém recarregar nada.
+
+                               `formatoAoVivo != null` explícito AO LADO do bool, e não herdado
+                               dele: um bool que capturou a checagem não ensina nada ao
+                               compilador, e foi esse o padrão que gerou 6 dos 7 CS8602 de
+                               produção (CLAUDE.md). Quem responde "tem bloco?" é o
+                               `temBlocoDeTieBreak`, pra a condição do campo escondido poder ser
+                               a negação EXATA desta. *@
+                            @if (temBlocoDeTieBreak && formatoAoVivo != null)
+                            {
+                                <div class="pdz-live-tiebreak" data-tiebreak="@jogo.Id" hidden="@(!emTieBreak)">
+                                    <div class="pdz-live-tiebreak-titulo">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                        TIE-BREAK · até @formatoAoVivo.PontosTieBreak pontos
+                                    </div>
+
+                                    @* Os dois lados na MESMA ORDEM das duplas acima — é o que
+                                       dispensa repetir os nomes num card que já está cheio. *@
+                                    <div class="pdz-live-tiebreak-linha">
+                                        <span class="pdz-live-tiebreak-lado">
+                                            <span class="pdz-live-tiebreak-quem">@jogo.Dupla1.NomeCurto</span>
+                                            @if (ehOrganizador)
+                                            {
+                                                <span class="pdz-live-contador">
+                                                    <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                            aria-label="Menos um ponto no tie-break">−</button>
+                                                    <input type="number" class="pdz-live-games pdz-live-input pdz-live-tiebreak-input"
+                                                           inputmode="numeric" name="pontos1" value="@pontosTb1"
+                                                           min="0" max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos"
+                                                           form="pdzPlacaresAoVivo"
+                                                           aria-label="Pontos do tie-break de @jogo.Dupla1.NomeDeExibicao" />
+                                                    <button type="button" class="pdz-live-passo" data-passo="1"
+                                                            aria-label="Mais um ponto no tie-break">+</button>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pdz-live-tiebreak-pontos" data-tiebreak-pontos="1">@pontosTb1</span>
+                                            }
+                                        </span>
+                                        <span class="pdz-live-tiebreak-x">×</span>
+                                        <span class="pdz-live-tiebreak-lado">
+                                            <span class="pdz-live-tiebreak-quem">@jogo.Dupla2.NomeCurto</span>
+                                            @if (ehOrganizador)
+                                            {
+                                                <span class="pdz-live-contador">
+                                                    <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                            aria-label="Menos um ponto no tie-break">−</button>
+                                                    <input type="number" class="pdz-live-games pdz-live-input pdz-live-tiebreak-input"
+                                                           inputmode="numeric" name="pontos2" value="@pontosTb2"
+                                                           min="0" max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos"
+                                                           form="pdzPlacaresAoVivo"
+                                                           aria-label="Pontos do tie-break de @jogo.Dupla2.NomeDeExibicao" />
+                                                    <button type="button" class="pdz-live-passo" data-passo="1"
+                                                            aria-label="Mais um ponto no tie-break">+</button>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pdz-live-tiebreak-pontos" data-tiebreak-pontos="2">@pontosTb2</span>
+                                            }
+                                        </span>
+                                    </div>
+
+                                    @if (ehOrganizador)
+                                    {
+                                        @* O FECHAMENTO. ⚠️ Escreve o último game (9x8) nos campos de
+                                           games deste card — e NÃO finaliza a partida: encerrar
+                                           continua sendo o Finalizar de sempre, com a confirmação
+                                           dele.
+
+                                           ⚠️ Os números vêm do SERVIDOR (data-games1/2), e o botão
+                                           também nasce escondido: "dá pra fechar?" e "com que
+                                           placar?" são perguntas de régua
+                                           (TieBreakDoJogo.GamesAoFechar), que conhece o limite da
+                                           fase — num jogo até 5 o fechamento é 5x4, não 9x8. O
+                                           js/placar-ao-vivo.js só reescreve o que o servidor
+                                           respondeu. *@
+                                        <button type="button" class="pdz-live-tiebreak-fechar"
+                                                data-fechar-tiebreak="@jogo.Id"
+                                                data-games1="@(fechamentoDoTb?.Games1)" data-games2="@(fechamentoDoTb?.Games2)"
+                                                hidden="@(fechamentoDoTb == null)">
+                                            <i class="bi bi-check2-circle"></i>
+                                            <span class="pdz-live-tiebreak-fechar-texto">@(fechamentoDoTb is { } fecha
+                                                ? $"Fechar o tie-break em {fecha.Games1} x {fecha.Games2}"
+                                                : "Fechar o tie-break")</span>
+                                        </button>
+                                        <div class="pdz-live-tiebreak-dica">
+                                            Fecha com @formatoAoVivo.PontosTieBreak pontos e <strong>2 de frente</strong> —
+                                            @(formatoAoVivo.PontosTieBreak)x@(formatoAoVivo.PontosTieBreak - 1) não fecha.
+                                        </div>
+                                    }
+                                </div>
+
+                                @* O tie-break já fechou: o placar de games conta o RESULTADO e esta
+                                   linha conta COMO ele saiu. Escondida durante o tie-break (o bloco
+                                   acima já está dizendo a mesma coisa, maior) e fora de um jogo que
+                                   nunca teve contagem. O texto é escrito pelo servidor — aqui e na
+                                   resposta do POST —, então a etiqueta tem um formato só. *@
+                                <div class="pdz-live-tiebreak-feito" data-tiebreak-feito="@jogo.Id"
+                                     hidden="@(emTieBreak || !Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span class="pdz-live-tiebreak-feito-texto">@Padelizou.Services.TieBreakDoJogo.Etiqueta(pontosTb1, pontosTb2)</span>
+                                </div>
+                            }
 
                             @* Só organizador: o torcedor via um "Editar jogo" que não era
                                dele (a rota recusa, mas o convite já passava desleixo). *@
@@ -536,6 +833,7 @@
                                           data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
                                           data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
                                           data-confirmar-ok="Finalizar">
+                    <partial name="_CampoDosFiltros" />
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="partidaId" value="@jogo.Id" />
                                         <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -595,10 +893,18 @@
                         @* Só quando alguém palpitou: em jogo ao vivo não se vota mais, e o
                            bloco com barra vazia + "0%" + "0 voto(s)" parecia defeito. É a
                            mesma regra que a versão em linha já segue. *@
+                        @* ⚠️ `pdz-live-palpite`, e NÃO `card-body` (11/09/2026): este cartão é
+                           `.pdz-live-card`, casa nossa. O Bootstrap declara o padding do
+                           `.card-body` com `var(--bs-card-spacer-x/y)`, e as duas variáveis só
+                           nascem na regra do `.card` — fora de um, a declaração inteira é
+                           inválida e o padding vira ZERO, calado. O bloco encostava nas bordas
+                           do cartão (🗣️ Felipe: *"essa parte aqui ta muito colada no card"*), e
+                           só no computador: o `.card-body { padding: 1.15rem !important }` do
+                           `@@media (max-width: 767px)` tapava o buraco no celular. *@
                         @if (palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
                         {
-                            <div class="card-body pt-2">
-                                <partial name="_Palpitrometro" model="(jogo, resumoPalpite, meuId)" />
+                            <div class="pdz-live-palpite">
+                                <partial name="_Palpitometro" model="(jogo, resumoPalpite, meuId)" />
                             </div>
                         }
                     </div>
@@ -645,6 +951,7 @@
                nada — só troca jogos de lugar enquanto isso derrubar pontos do Conferir grade.
                Ver Services/ReparoDaGrade. *@
             <form asp-controller="Torneios" asp-action="AjustarHorarios" method="post" class="mb-3">
+                    <partial name="_CampoDosFiltros" />
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
                 <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -667,7 +974,7 @@
         }
 
         @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela
-           cada um. O cartão cheio (placar gigante + palpitrômetro aberto) fica só no AO VIVO,
+           cada um. O cartão cheio (placar gigante + palpitômetro aberto) fica só no AO VIVO,
            que é onde a tela tem um assunto só. *@
         @* As fases que ainda vão ser montadas entram AQUI, na ordem do horário, junto com os
            jogos marcados — não num bloco à parte. O horário delas sai da duração configurada
@@ -695,6 +1002,38 @@
                 }
             }
         </div>
+
+        @* ── COMPARTILHAR ESTA LISTA ───────────────────────────────────────────────────────
+           🗣️ Felipe, 10/09/2026, num print desta aba filtrada por "Los Corneteiros": *"no final
+           da lista, criar um botão 'compartilhar lista' para o usuario poder mandar no grupo d
+           whats dele, a lista selecionada, ou até uma imagem para compartilhar na rede social"*.
+
+           NO FIM, e não junto dos filtros: quem chega aqui já rolou a lista e conferiu que ela é
+           a que quer mandar. E PRA TODO MUNDO (não só organizador): cada inscrito que manda a
+           grade no grupo do time é divulgação que não custa nada — a decisão do cartaz.
+
+           ⚠️ Leva TODOS os filtros da tela. Sem eles, "compartilhar esta lista" compartilharia
+           outra. Só quando há lista: chave em aprovação chega vazia pra quem não organiza (o
+           portão de CarregarViewBagJogosAsync), e aí o botão nem existe. *@
+        @if (linhasAgendadas.Count > 0 && ViewBag.ChaveAindaNaoPublicada != true)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <a href="@Url.Action("CompartilharJogos", "Torneios", new {
+                        id = Model.TorneioId,
+                        timeFiltroId = ViewBag.TimeAtual as int?,
+                        categoriaFiltroIds = categoriaFiltroAtual,
+                        soMeusJogos,
+                        clubeFiltroId = filtroSequencia.ClubeId,
+                        quadraFiltro = filtroSequencia.Quadra,
+                        faseFiltro = filtroSequencia.Fase })"
+                   class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="bi bi-share-fill"></i> Compartilhar esta lista
+                </a>
+                <small class="text-muted">
+                    Texto pro grupo do WhatsApp ou arte pro story, com os filtros de cima.
+                </small>
+            </div>
+        }
     </div>
 
     <!-- SUB-ABA: FINALIZADAS -->
@@ -727,6 +1066,7 @@
         <div class="modal fade" id="modalTrocarHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoA" id="trocaJogoA" value="" />
@@ -785,7 +1125,7 @@
                                             var referencia = Padelizou.Services.ReferenciaDoJogo.Prevista(categoriaPrevista, previsto.Fase, previsto.Numero).ToString();
                                             <option value="@referencia" data-jogo-id="@referencia">
                                                 @quandoPrevisto.ToString("HH:mm")
-                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
+                                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), previsto.Quadra, previsto.CategoriaId, previsto.ClubeId) is { } ondePrevisto ? $"· {ondePrevisto}" : "")
                                                 · @CategoriaNaTela.Curto(previsto.Categoria) · @previsto.FaseNumerada (prévia)
                                             </option>
                                         }
@@ -883,6 +1223,7 @@
         <div class="modal fade" id="modalDefinirHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="DefinirHorario" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogo" id="definirJogo" value="" />
@@ -996,6 +1337,7 @@
         <div class="modal fade" id="modalTrocarQuadra" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoId" id="quadraJogoId" value="" />
@@ -1057,6 +1399,112 @@
                     Array.from(select.options).forEach(function (opcao) {
                         opcao.hidden = opcao.getAttribute('data-quadra') === atual && atual !== '';
                     });
+                });
+            });
+        </script>
+
+        @* MODAL: a LARGADA de um jogo que ainda não tem quadra (11/09/2026).
+
+           🗣️ Felipe: "quando nao tem quadra definida, coloque para escolher a quadra e deixe a
+           opção de colocar link da transmissão tambem nesse pop up, e ai iniciar a partida".
+
+           Duas decisões no mesmo gesto, porque é o gesto do balcão: a quadra vagou, quem entra
+           é este jogo, e se tem câmera ali o link já vai junto. Quadra ocupada no mesmo horário
+           não é recusada — as duas trocam de lugar, igual ao "mudar de quadra"
+           (Services/TrocaDeQuadra). Quem já TEM quadra nem chega aqui: o verde só pergunta. *@
+        <div class="modal fade" id="modalIniciarJogo" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Partidas" asp-action="ColocarNoAr" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" id="largadaJogoId" value="" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-play-fill"></i> Começar o jogo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Jogo escolhido: <strong id="largadaJogoRotulo">—</strong>
+                        </p>
+
+                        @if (quadrasDoTorneio.Count == 0)
+                        {
+                            <p class="mb-0">
+                                Este torneio não tem quadras cadastradas — o jogo começa sem quadra,
+                                e você pode dizer onde foi depois, pelo Controle de Partida.
+                            </p>
+                        }
+                        else
+                        {
+                            <label class="form-label fw-bold" for="largadaQuadra">Em qual quadra?</label>
+                            <select name="nomeQuadra" id="largadaQuadra" class="form-select" required>
+                                <option value="">Escolha a quadra...</option>
+                                @foreach (var nome in quadrasDoTorneio)
+                                {
+                                    @* A câmera é da QUADRA, não do jogo (Services/TransmissaoDaQuadra):
+                                       escolher a quadra já traz o link que ela está usando hoje. *@
+                                    <option value="@nome" data-camera="@(camerasPorQuadra.GetValueOrDefault(nome))">@nome</option>
+                                }
+                            </select>
+                            <div class="form-text mb-3">
+                                Se já tiver jogo nessa quadra neste horário, os dois trocam de lugar.
+                            </div>
+                        }
+
+                        <label class="form-label fw-bold" for="largadaLink">Link da transmissão (opcional)</label>
+                        <input type="url" name="linkTransmissao" id="largadaLink" class="form-control"
+                               placeholder="https://..." />
+                        <div class="form-text">
+                            Preenchido sozinho quando a quadra escolhida já está transmitindo. O que você
+                            escrever aqui vale mais que o palpite.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="bi bi-play-fill"></i> Começar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão da linha diz qual jogo é; a quadra escolhida diz qual link sugerir.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalIniciarJogo');
+                if (!modal) return;
+
+                var quadra = document.getElementById('largadaQuadra');
+                var link = document.getElementById('largadaLink');
+                // O link que o JOGO já tinha manda enquanto a pessoa não escolhe quadra, e é o
+                // que ela vê ao abrir: sugerir a câmera por cima de um link já gravado seria
+                // trocar o que alguém escolheu por um palpite.
+                var doJogo = '';
+
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    document.getElementById('largadaJogoId').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('largadaJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    doJogo = botao.getAttribute('data-jogo-link') || '';
+                    if (quadra) quadra.value = '';
+                    link.value = doJogo;
+                });
+
+                if (!quadra) return;
+                quadra.addEventListener('change', function () {
+                    var opcao = quadra.options[quadra.selectedIndex];
+                    var camera = (opcao && opcao.getAttribute('data-camera')) || '';
+
+                    // ⚠️ Só preenche o que está VAZIO ou o que a própria sugestão anterior pôs.
+                    // Sem isto, trocar de quadra depois de colar um link à mão apagaria o link
+                    // colado — em silêncio, no meio do balcão.
+                    if (link.value === '' || link.value === link.dataset.sugerido) {
+                        link.value = camera || doJogo;
+                        link.dataset.sugerido = camera || doJogo;
+                    }
                 });
             });
         </script>

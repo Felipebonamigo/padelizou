@@ -1,0 +1,56 @@
+@using Padelizou.Services
+@model (Padelizou.Models.Dupla? Dupla, int TorneioId, IReadOnlyDictionary<int, DateTime> Chegadas)
+
+@* UMA DUPLA NA CHAMADA: os jogadores dela, um por linha, cada um com o seu botão.
+
+   Vive num parcial porque a MESMA dupla é desenhada em dois lugares desde 10/09/2026 — dentro do
+   jogo que vem, na fila do dia, e na lista por categoria do "Resto do torneio".
+
+   ⚠️ ERA UMA LINHA POR DUPLA ATÉ 12/09/2026. 🗣️ Felipe: *"Mude para um check por jogador, por que
+   é assim que controla check in"*. O par continua sendo o bloco (é ele que joga), mas quem tem
+   estado é a pessoa — e é o nome dela que o organizador procura quando falta alguém.
+
+   ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e o
+   `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
+
+@if (Model.Dupla == null) { return; }
+
+@{
+    var jogadores = PresencaNoDia.JogadoresDa(Model.Dupla).ToList();
+    bool completa = PresencaNoDia.DuplaCompleta(Model.Dupla, Model.Chegadas);
+}
+
+<div class="list-group-item px-2 @(completa ? "bg-light" : "")">
+    @if (Model.Dupla.EhTime)
+    {
+        @* Time não é um par de pessoas com nome próprio na linha — é uma equipe. O nome dela
+           encabeça o bloco pra que os checks abaixo tenham dono. *@
+        <div class="fw-bold small mb-1" style="color: var(--pdz-ink);">
+            <i class="bi bi-people-fill"></i> @Model.Dupla.NomeTime
+        </div>
+    }
+
+    @foreach (var jogador in jogadores)
+    {
+        var chegouEm = PresencaNoDia.ChegouEm(jogador.Id, Model.Chegadas);
+
+        <div class="d-flex align-items-center gap-3 py-1">
+            <i class="bi @(chegouEm != null ? "bi-check-circle-fill" : "bi-circle") fs-5"
+               style="color: @(chegouEm != null ? "var(--padel-green)" : "var(--pdz-muted)");"></i>
+            <div class="flex-grow-1 overflow-hidden">
+                <span class="d-block text-truncate" style="color: var(--pdz-ink);">@jogador.ComoChamar</span>
+                @if (chegouEm != null)
+                {
+                    <small class="text-muted">chegou @chegouEm.Value.ToString("HH:mm")</small>
+                }
+            </div>
+            <partial name="_BotaoDoCheckIn"
+                     model="new Padelizou.ViewModels.BotaoDeCheckInVM(jogador.Id, Model.TorneioId, jogador.ComoChamar, chegouEm, false, null)" />
+        </div>
+    }
+
+    @if (Model.Dupla.Jogador2 == null && !Model.Dupla.EhTime)
+    {
+        <div class="small text-muted ps-2">sem parceiro — a vaga joga assim mesmo</div>
+    }
+</div>

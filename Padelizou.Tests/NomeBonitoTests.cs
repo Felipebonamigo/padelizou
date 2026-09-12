@@ -108,7 +108,43 @@ public class NomeBonitoTests
             Jogador2 = new Jogador { Nome = "henderson takahama", Cpf = "22255588846" },
         };
 
-        Assert.Equal("Alan da Silveira Machado & Henderson Takahama", dupla.NomeDeExibicao);
+        // Arrumados E CURTOS: a caixa vira a de lista e o nome do meio sai (ver o teste abaixo).
+        Assert.Equal("Alan Machado & Henderson Takahama", dupla.NomeDeExibicao);
+    }
+
+    // 🗣️ Felipe, 11/09/2026, com o print da semifinal do Er na mão: *"quando a pessoa tiver 3
+    // nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar
+    // muito espaçado"*.
+    //
+    // 🕳️ `NomeDeExibicao` era a ÚNICA régua de nome de dupla que ainda escrevia o nome inteiro
+    // (`NomeNaTela`), enquanto `NomeDaDupla.De` e `Jogador.ComoChamar` já encurtavam — e é ela que
+    // escreve a vaga do quadro projetado: "Marcelo Carvalho Prestes & Enio Gilberto M…", cortado
+    // no meio, sobrando justo o nome do meio, que é o que menos identifica alguém.
+    [Fact]
+    public void Na_dupla_o_nome_de_tres_palavras_fica_com_o_primeiro_e_o_ultimo()
+    {
+        var dupla = new Dupla
+        {
+            Codigo = "D2",
+            Jogador1 = new Jogador { Nome = "EDER CRISTIANO MARCOS", Cpf = "11144477735" },
+            Jogador2 = new Jogador { Nome = "augusto ohlweiler", Cpf = "22255588846" },
+        };
+
+        Assert.Equal("Eder Marcos & Augusto Ohlweiler", dupla.NomeDeExibicao);
+    }
+
+    // A dupla com a vaga em aberto continua dizendo SÓ o nome de quem existe — o que encurta é o
+    // nome, não a regra de 09/09/2026 (ver NomeDaDuplaIncompletaTests).
+    [Fact]
+    public void Dupla_com_vaga_em_aberto_encurta_o_nome_de_quem_esta()
+    {
+        var dupla = new Dupla
+        {
+            Codigo = "D3",
+            Jogador1 = new Jogador { Nome = "Marcelo Carvalho Prestes", Cpf = "11144477735" },
+        };
+
+        Assert.Equal("Marcelo Prestes", dupla.NomeDeExibicao);
     }
 
     [Fact]
@@ -200,6 +236,111 @@ public class NomeBonitoTests
         // Acontece com quem preenche o apelido repetindo o nome "pra garantir" — e
         // "Marcos Coelho (Marcos Coelho)" é o tipo de coisa que faz a tela parecer quebrada.
         Assert.Equal("Marcos Coelho", NomeBonito.ComApelido("Marcos Coelho", "marcos coelho"));
+    }
+
+    // ─────────────── APELIDO QUE NÃO ACRESCENTA NADA ───────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe, no print do ranking de palpiteiros: *"aqui tem o mesmo problema,
+    // talvez tenhamos q rever isso no sistema inteiro"*. 🕳️ Metade da tabela quebrava em duas
+    // linhas por causa do parêntese — e o parêntese não dizia nada novo: "Paulo Pujol (Pujol)",
+    // "Bruna Vargas (Bru)", "Bibiana Bottin (Bibi)", "Caroline Tedesco (Carol Tedesco)".
+    //
+    // A regra de 06/08/2026 ("apelido não identifica ninguém de fora da turma") continua de pé:
+    // o que sai é só o apelido que JÁ ESTÁ no nome, e nada mais.
+
+    [Theory]
+    // Apelido igual a uma palavra do nome.
+    [InlineData("Paulo Ricardo Pujol", "Pujol", "Paulo Pujol")]
+    [InlineData("Alexandre Medina", "Medina", "Alexandre Medina")]
+    // Apelido que é o começo de uma palavra do nome.
+    [InlineData("Bruna Vargas", "Bru", "Bruna Vargas")]
+    [InlineData("Bibiana Bottin", "Bibi", "Bibiana Bottin")]
+    [InlineData("Guilherme Drachler Bagesteiro", "Bages", "Guilherme Bagesteiro")]
+    // Apelido de duas palavras, todas cobertas.
+    [InlineData("Caroline Tedesco", "Carol Tedesco", "Caroline Tedesco")]
+    // ⚠️ O nome do MEIO some da abreviação mas continua valendo aqui: "zenker" está no cadastro,
+    // então "(Ana Zenker)" não traz letra nova pra tela.
+    [InlineData("ana zenker pasinato", "Ana Zenker", "Ana Pasinato")]
+    // Acento não pode fazer diferença: quem digita o apelido raramente acentua.
+    [InlineData("Laís Rodrigues", "Lais", "Laís Rodrigues")]
+    public void Apelido_que_ja_esta_no_nome_nao_vira_parentese(string nome, string apelido, string esperado)
+    {
+        Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
+    }
+
+    [Theory]
+    // ⚠️ O CONTRÁRIO É O QUE IMPORTA: apelido de verdade não pode sumir. "Juju" não é começo de
+    // "Juliano" (J-u-l ≠ J-u-j), e é assim que a quadra chama a pessoa.
+    [InlineData("Juliano Bender", "Juju", "Juliano Bender (Juju)")]
+    [InlineData("José Carlos da Silva", "Zeca", "José Silva (Zeca)")]
+    [InlineData("Otávio Wunsch Junior", "Tavinho", "Otávio Wunsch (Tavinho)")]
+    // "Charls" é mais CURTO que "Charlinho": o nome não começa com o apelido, então fica.
+    [InlineData("charls gustavio polese", "CHARLINHO", "Charls Polese (Charlinho)")]
+    public void Apelido_que_a_quadra_usa_CONTINUA_aparecendo(string nome, string apelido, string esperado)
+    {
+        Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
+    }
+
+    // ─────────────── O PERFIL É ONDE O NOME COMPLETO MORA ───────────────
+    //
+    // 11/09/2026 — 🗣️ Felipe: *"e ai so quando abrir o perfil vera o nome completo?"*. É isso
+    // mesmo — e a pergunta descobriu o buraco: o perfil imprimia `jogador.Nome` CRU, então era
+    // justamente ali, na página feita pra mostrar o nome inteiro, que "JOAO EGIDIO FERREIRA DA
+    // ROCHA" aparecia gritando.
+    //
+    // ⚠️ Teste de FONTE: a suíte não renderiza Razor. O que se trava aqui é que nenhuma linha do
+    // perfil escreve nome de PESSOA sem passar pelo NomeBonito — o completo continua completo,
+    // só a caixa se arruma.
+
+    [Fact]
+    public void O_perfil_nao_escreve_nome_de_pessoa_sem_passar_pelo_NomeBonito()
+    {
+        var linhas = File.ReadAllLines(CaminhoDoPerfil());
+        var cruas = new List<string>();
+
+        for (var i = 0; i < linhas.Length; i++)
+        {
+            // `\.Nome\b` não casa com `.NomeNaTela` nem `.NomeComApelido`: depois de "Nome"
+            // vem letra, e ali não há fronteira de palavra. Sobra só o acesso cru.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(
+                    linhas[i], @"\b(jogador|Autor|Oponente|Parceiro)\.Nome\b")) continue;
+
+            // Passar o nome cru PRA DENTRO do NomeBonito é o jeito certo — é o que a linha do
+            // "para falar com ..." já fazia antes de tudo isto.
+            if (linhas[i].Contains("NomeBonito.", StringComparison.Ordinal)) continue;
+
+            cruas.Add($"linha {i + 1}: {linhas[i].Trim()}");
+        }
+
+        Assert.True(cruas.Count == 0,
+            "Nome de pessoa escrito cru no perfil:\n" + string.Join("\n", cruas));
+    }
+
+    [Fact]
+    public void O_apelido_no_perfil_tambem_passa_pelo_NomeBonito()
+    {
+        // 🗣️ "mas o apelido redundante fora, aparece se eu for no perfil da pessoa?" — aparece,
+        // e é pra aparecer: ali ele é o CAMPO do cadastro, não enfeite do nome. 🕳️ Só que saía
+        // cru: quem digitou "PUJOL" via "PUJOL" gritado logo embaixo de um nome com a caixa já
+        // arrumada, desencontrado na mesma linha de código.
+        var fonte = File.ReadAllText(CaminhoDoPerfil());
+
+        Assert.DoesNotContain("\"@Model.jogador.Apelido\"", fonte);
+        Assert.Contains("NomeBonito.Formatar(Model.jogador.Apelido)", fonte);
+    }
+
+    private static string CaminhoDoPerfil()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var alvo = Path.Combine(dir.FullName, "Padelizou", "Views", "Jogadores", "Perfil.cshtml");
+            if (File.Exists(alvo)) return alvo;
+            dir = dir.Parent;
+        }
+
+        throw new FileNotFoundException(
+            "Não achei o Perfil.cshtml subindo a partir de " + AppContext.BaseDirectory);
     }
 
     [Fact]

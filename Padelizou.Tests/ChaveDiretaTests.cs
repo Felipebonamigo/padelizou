@@ -87,7 +87,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
 
         // 8 vencedores + 8 byes = 16, que é o quadro das Oitavas.
         Assert.Equal(16, avancam.Count);
@@ -118,7 +118,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
 
         Assert.Empty(avancam);
     }
@@ -138,7 +138,7 @@ public class ChaveDiretaTests
 
         // As Oitavas acontecem: agora TODA dupla viva tem partida, então a regra do bye
         // ("quem não tem jogo passou direto") precisa se esgotar sozinha.
-        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
         foreach (var confronto in ChaveamentoMataMata.ParearVencedores(dezesseis))
         {
             ctx.Partidas.Add(new Partida
@@ -154,7 +154,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Oitavas de Final");
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Oitavas de Final", TestInfra.SemPontosDoRanking);
 
         Assert.Equal(8, avancam.Count);   // 8 vencedores e nenhum bye reaproveitado
         Assert.Equal("Quartas de Final", ChaveamentoMataMata.NomeFase(avancam.Count));
@@ -198,7 +198,7 @@ public class ChaveDiretaTests
         });
         await ctx.SaveChangesAsync();
 
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Semifinal");
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Semifinal", TestInfra.SemPontosDoRanking);
 
         Assert.Equal(new[] { jogam[0], jogam[2] }, avancam);
         Assert.DoesNotContain(semParceiro.Id, avancam);
@@ -257,11 +257,11 @@ public class ChaveDiretaTests
     // O bug do Interno de 05/08/2026: quartas de final montadas com os 8 vencedores da
     // PRIMEIRA RODADA cruzados entre si (1×8, 2×7, 3×6, 4×5), com as oitavas ainda em quadra.
     //
-    // Uma fase completa continua completa pra sempre, então todo finalizar posterior refaz
-    // esta pergunta — e a resposta MUDA sozinha: os byes só contam enquanto o mata-mata tem
-    // uma fase só, e depois que as oitavas nascem os mesmos 16 viram 8. NomeFase(8) é
-    // "Quartas de Final", que ainda não existia, então a guarda de duplicidade do chamador
-    // deixava passar.
+    // Uma fase completa continua completa pra sempre, então todo finalizar posterior manda o
+    // robô refazer a conta. A trava é ele contar os jogos que a fase seguinte JÁ TEM: com as 8
+    // oitavas no lugar, não há vaga nenhuma pra criar. Até 11/09/2026 a trava era a lista de
+    // quem avança ficar vazia — não serve mais, porque agora a fase seguinte existe pela
+    // metade o tempo todo (avanço parcial, ver AvancoParcialDaChaveTests).
     [Fact]
     public async Task Fase_ja_avancada_nao_avanca_de_novo()
     {
@@ -275,7 +275,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
         Assert.Equal(16, dezesseis.Count);
 
         // As oitavas nascem e vão pra quadra — nenhuma terminou ainda.
@@ -294,10 +294,16 @@ public class ChaveDiretaTests
         await ctx.SaveChangesAsync();
 
         // Segundo jogo da primeira rodada finalizado quase junto com o primeiro — ou o
-        // organizador reabrindo e finalizando de novo. A pergunta se repete.
-        var denovo = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        // organizador reabrindo e finalizando de novo. O robô roda de novo.
+        await new RoboDoChaveamento(ctx, TestInfra.EstatisticasFalsas()).AvancarFaseAsync(
+            categoria.Id, null, ChaveamentoMataMata.PrimeiraRodada);
 
-        Assert.Empty(denovo);
+        // Nada de uma Quartas montada por cima das Oitavas que estão em quadra — o bug do
+        // Interno de 05/08/2026 —, e nenhuma oitava a mais.
+        Assert.Empty(ctx.Partidas.Where(p => p.CategoriaId == categoria.Id
+                                          && p.Fase == "Quartas de Final").ToList());
+        Assert.Equal(8, ctx.Partidas.Count(p => p.CategoriaId == categoria.Id
+                                             && p.Fase == "Oitavas de Final"));
     }
 
     // A guarda não pode travar o avanço legítimo: quando as oitavas de fato terminam, as
@@ -315,7 +321,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada, TestInfra.SemPontosDoRanking);
         foreach (var confronto in ChaveamentoMataMata.ParearVencedores(dezesseis))
         {
             ctx.Partidas.Add(new Partida
@@ -331,7 +337,7 @@ public class ChaveDiretaTests
         }
         await ctx.SaveChangesAsync();
 
-        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Oitavas de Final");
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Oitavas de Final", TestInfra.SemPontosDoRanking);
 
         Assert.Equal(8, avancam.Count);
         Assert.Equal("Quartas de Final", ChaveamentoMataMata.NomeFase(avancam.Count));

@@ -15,6 +15,8 @@ namespace Padelizou.Services;
 //   • Semifinal e Final   → o formato de decisão. Semifinal entra aqui de propósito: quem
 //     escreve "as semis e a final são mais longas" está descrevendo as duas, e ninguém
 //     configura uma semifinal com regra de oitavas;
+//   • Final, quando o torneio configurou a regra PRÓPRIA dela (`GamesSoDaFinal > 0`) → esse
+//     desvio ganha da linha acima, e só ele: a semifinal continua no formato de decisão;
 //   • o resto do mata-mata (Primeira Rodada, Oitavas, Quartas) → o formato eliminatório.
 public static class FormatoDaPartida
 {
@@ -23,7 +25,13 @@ public static class FormatoDaPartida
 
     // `Contagem` diz o que o número de Games significa: "Ate" (quem chegar primeiro) ou
     // "Soma" (joga-se esse total e acabou). Ver ContagemDeGamesDoTorneio.
-    public record Formato(int Sets, int Games, string Contagem = ContagemDeGamesDoTorneio.Ate)
+    //
+    // `PontosTieBreak` é o alvo da CONTAGEM DE PONTOS do 8x8 — 7, 10, ou zero pra desligado
+    // (ver TieBreakDoJogo). Entra aqui, e não num segundo tradutor de fase, porque "até quantos
+    // pontos vai o tie-break desta partida?" é a mesma pergunta que "até quantos games?": a
+    // resposta sai da FASE, e este é o único lugar do projeto que traduz fase → formato.
+    public record Formato(int Sets, int Games, string Contagem = ContagemDeGamesDoTorneio.Ate,
+                          int PontosTieBreak = TieBreakDoJogo.Desligado)
     {
         public bool EhSoma => ContagemDeGamesDoTorneio.EhSoma(Contagem);
     }
@@ -37,20 +45,38 @@ public static class FormatoDaPartida
         // pediu isso — quando pedirem, vira coluna por fase como Sets e Games já são.
         var contagem = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
 
+        // A FINAL PODE TER REGRA PRÓPRIA (Felipe, 12/09/2026): decisão em 3 sets, ou com super
+        // tie-break, enquanto as semifinais seguem curtas. Quem decide se existe desvio é o
+        // GAMES da final — zero é "não configurado", a mesma leitura que o `Valido` logo abaixo
+        // faz das colunas antigas, e é o que está gravado em todo torneio anterior a isto.
+        //
+        // ⚠️ Lido CRU, e não pelo `Formato` já validado: é o `Valido` que transforma zero em 9,
+        // então perguntar depois dele nunca acharia uma final "não configurada".
+        //
+        // ⚠️ E a checagem é do games, não do sets nem do tie-break: zero no tie-break é um valor
+        // que o organizador escolhe de propósito ("sem contagem"), e zero em sets sem zero em
+        // games seria uma linha meio configurada. Um interruptor só. Ver Torneio.GamesSoDaFinal.
+        if (fase == "Final" && torneio.GamesSoDaFinal > 0)
+            return Valido(torneio.SetsSoDaFinal, torneio.GamesSoDaFinal, contagem, torneio.PontosTieBreakSoDaFinal);
+
+        // Sem desvio, a final volta pro bloco das semis — que é como o torneio inteiro sempre
+        // funcionou, e continua sendo o caso da esmagadora maioria.
         if (fase is "Semifinal" or "Final")
-            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem);
+            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem, torneio.PontosTieBreakFinal);
 
         if (FasesTorneio.EhFaseDeGrupos(fase) || (fase?.StartsWith("Americano") ?? false))
-            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem);
+            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem, torneio.PontosTieBreakGrupos);
 
-        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem);
+        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem, torneio.PontosTieBreakMataMata);
     }
 
     // Torneio antigo (ou criado por formulário incompleto) tem zero gravado nessas colunas.
     // Zero viraria uma Mesa onde não dá pra marcar nem um game — melhor cair no padrão do
     // que travar a quadra.
-    private static Formato Valido(int sets, int games, string contagem) =>
-        new(sets > 0 ? sets : SetsPadrao, games > 0 ? games : GamesPadrao, contagem);
+    private static Formato Valido(int sets, int games, string contagem, int pontosDoTieBreak) =>
+        new(sets > 0 ? sets : SetsPadrao, games > 0 ? games : GamesPadrao, contagem,
+            // Coluna negativa ou absurda cai em "desligado" — ver TieBreakDoJogo.AlvoValido.
+            TieBreakDoJogo.AlvoValido(pontosDoTieBreak));
 
     // Até onde o placar pode ir NESTE momento — o limite não é um teto seco.
     //

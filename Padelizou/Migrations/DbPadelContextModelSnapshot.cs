@@ -718,6 +718,10 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("CruzamentoDoMataMata")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<bool>("DeTimes")
                         .HasColumnType("boolean");
 
@@ -1277,9 +1281,6 @@ namespace Padelizou.Migrations
 
                     b.Property<int>("CategoriaId")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("CheckInEm")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Codigo")
                         .HasMaxLength(50)
@@ -2785,6 +2786,12 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("PlacarMarcadoEm")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<int?>("PontosTieBreak1")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PontosTieBreak2")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("SendoTransmitida")
                         .HasColumnType("boolean");
 
@@ -2884,6 +2891,24 @@ namespace Padelizou.Migrations
                         .IsUnique();
 
                     b.ToTable("PrecoDeTurma");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
+                {
+                    b.Property<int>("TorneioId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ChegouEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("TorneioId", "JogadorId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("PresencaNoTorneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
@@ -3474,6 +3499,9 @@ namespace Padelizou.Migrations
                     b.Property<int>("GamesFaseMataMata")
                         .HasColumnType("integer");
 
+                    b.Property<int>("GamesSoDaFinal")
+                        .HasColumnType("integer");
+
                     b.Property<TimeSpan>("HoraFimDoDia")
                         .HasColumnType("interval");
 
@@ -3541,6 +3569,18 @@ namespace Padelizou.Migrations
                     b.Property<bool>("PermiteMultiplasCategorias")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("PontosTieBreakFinal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PontosTieBreakGrupos")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PontosTieBreakMataMata")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PontosTieBreakSoDaFinal")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("PontuaNoRankingAmericano")
                         .HasColumnType("boolean");
 
@@ -3589,6 +3629,9 @@ namespace Padelizou.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("SetsFaseMataMata")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SetsSoDaFinal")
                         .HasColumnType("integer");
 
                     b.Property<string>("Status")
@@ -5168,6 +5211,25 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("LocalAula");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                        .WithMany()
+                        .HasForeignKey("TorneioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Torneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>

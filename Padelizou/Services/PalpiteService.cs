@@ -13,6 +13,9 @@ public class PalpiteService : IPalpiteService
         _context = context;
     }
 
+    // Quantos palpites no MESMO placar fazem uma leitura da galera. Ver o comentário no cálculo.
+    public const int MinimoParaOMaisPalpitado = 2;
+
     public async Task<Dictionary<int, PalpiteResumoVM>> ObterResumosAsync(IEnumerable<int> partidaIds, int? jogadorId)
     {
         var ids = partidaIds.ToList();
@@ -69,12 +72,26 @@ public class PalpiteService : IPalpiteService
             // O placar mais palpitado. ⚠️ A ordenação é TOTAL (votos, depois os dois lados):
             // com dois placares empatados, uma ordenação parcial faria a frase da tela trocar
             // sozinha entre dois carregamentos da mesma página.
+            //
+            // ⚠️ E SÓ EXISTE A PARTIR DE DOIS PALPITES NO MESMO PLACAR (11/09/2026). 🗣️ Felipe,
+            // apontando a frase num jogo com 3 de 8: *"aqui por que tem isso? nao sei se faz
+            // muito sentido"*. Sem limiar a tela anunciava como leitura da galera o palpite de
+            // UMA pessoa — e, com todos os placares diferentes, o "mais palpitado" era o
+            // desempate interno decidindo por sorteio qual 1 a 1 a 1 ganhava a frase.
+            //
+            // ⚠️ O limiar mora AQUI, e não na view: as duas telas e o JS que repinta depois do
+            // voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a
+            // linha voltaria a aparecer sozinha no primeiro `atualizarPalpitometro`.
+            //
+            // ⚠️ É DOIS, e não uma proporção: exigir maioria esconderia a leitura num jogo com
+            // 20 palpites espalhados, que é justamente onde saber o mais votado interessa. A
+            // contagem ao lado ("2 de 5") é o que deixa quem lê julgar o peso.
             var maisPalpitado = comPlacar
                 .GroupBy(placar => (placar.Lado1, placar.Lado2))
                 .OrderByDescending(g => g.Count())
                 .ThenByDescending(g => g.Key.Lado1)
                 .ThenByDescending(g => g.Key.Lado2)
-                .FirstOrDefault();
+                .FirstOrDefault(g => g.Count() >= MinimoParaOMaisPalpitado);
 
             resultado[p.Id] = new PalpiteResumoVM
             {
@@ -179,7 +196,7 @@ public class PalpiteService : IPalpiteService
         catch (DbUpdateException) when (ehLinhaNova)
         {
             // ⚠️ CLIQUE DUPLO: os dois POSTs leram "esse jogador ainda não votou" e os dois
-            // tentaram INSERIR — o palpitrômetro não tem trava de clique, e cada requisição tem o
+            // tentaram INSERIR — o palpitômetro não tem trava de clique, e cada requisição tem o
             // próprio DbContext. Quem segura é o índice único (PartidaId, JogadorId), e está certo
             // que seja ele (mesma decisão do chamado do mural em DuplasController). O que faltava
             // era o serviço saber PERDER a corrida: quem chega depois grava por cima, porque o
@@ -196,6 +213,44 @@ public class PalpiteService : IPalpiteService
             if (doGemeo == null) throw;
 
             Escrever(doGemeo, duplaEscolhidaId, placar);
+            await _context.SaveChangesAsync();
+        }
+
+        var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
+        return resumos[partidaId];
+    }
+
+    // RETIRAR O PALPITE (10/09/2026). 🗣️ Felipe: *"tambem permita retirar o palpite colocado"*.
+    //
+    // 🕳️ Dava pra TROCAR de dupla e trocar a ficha do placar, mas não pra sair: uma vez tocado o
+    // nome, aquele palpite ficava na barra e no ranking pra sempre. Quem tocou sem querer — e o
+    // alvo é um nome no meio de uma lista de 97 jogos — não tinha caminho de volta.
+    //
+    // ⚠️ A JANELA É A MESMA DO PALPITAR, e não uma régua nova: 🗣️ *"todo jogo pode ser palpitado
+    // até começar"*. Começou, a aposta está valendo — sair ali seria desistir vendo o primeiro
+    // game. Uma segunda régua aqui também deixaria a tela poder retirar o que não pode trocar.
+    //
+    // ⚠️ IDEMPOTENTE: o toque duplo manda dois POSTs, e o segundo chega com a linha já apagada.
+    // Estourar ali daria alerta vermelho a quem conseguiu exatamente o que queria — mesma lição
+    // da corrida do clique duplo no votar.
+    public async Task<PalpiteResumoVM> RetirarPalpiteAsync(int partidaId, int jogadorId)
+    {
+        var partida = await _context.Partidas.FindAsync(partidaId);
+        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+        if (partida.Status != "Agendada")
+            throw new InvalidOperationException("Esta partida já começou — não é mais possível mudar o palpite.");
+
+        // ⚠️ A CHECAGEM DE DONO É ESTRUTURAL (Regra 0): a linha é procurada por (partida,
+        // jogador), e o jogador vem da claim de quem está logado. Não existe caminho por onde
+        // pedir a retirada do palpite de outra pessoa — nem com um POST montado à mão.
+        var meu = await _context.PalpitesPartida
+            .FirstOrDefaultAsync(v => v.PartidaId == partidaId && v.JogadorId == jogadorId);
+
+        if (meu != null)
+        {
+            // O placar palpitado mora na MESMA linha do voto e sai junto: deixá-lo pra trás
+            // faria a frase "a galera crava 6x4" continuar contando um palpite que não existe.
+            _context.PalpitesPartida.Remove(meu);
             await _context.SaveChangesAsync();
         }
 
@@ -267,10 +322,72 @@ public class PalpiteService : IPalpiteService
             .ToDictionaryAsync(t => t.Id);
     }
 
-    public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
+    // Uma linha do modal "quem votou em quem", com o placar que a pessoa palpitou.
+    //
+    // ⚠️ MAIOR × MENOR é o que orienta o placar pelo VOTO: a validação do RegistrarVoto já
+    // garante que o placar aponta a dupla escolhida, então o maior dos dois lados é sempre o
+    // dela. Comparar lado a lado precisaria saber de que lado a pessoa está — e é exatamente a
+    // conta que a tela já faz pra marcar a ficha escolhida.
+    private static VotanteVM Montar(PalpitePartida v)
+    {
+        var palpitado = PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2);
+
+        return new VotanteVM
+        {
+            // ⚠️ `Curto`, e não `Jogador.Nome`: "JOAO EGIDIO FERREIRA DA ROCHA" ocupava três
+            // linhas do modal no celular, e o mesmo torneio escrevia o nome de dois jeitos —
+            // o "Cravaram o placar" logo acima já passa pelo NomeBonito desde sempre.
+            Nome = NomeBonito.Curto(v.Jogador.Nome),
+            FotoPerfil = v.Jogador.FotoPerfil,
+            PlacarVencedor = palpitado.Existe ? Math.Max(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarPerdedor = palpitado.Existe ? Math.Min(palpitado.Lado1!.Value, palpitado.Lado2!.Value) : null,
+            PlacarEmSets = palpitado.EmSets,
+        };
+    }
+
+    // A lista de um lado do modal, EM ORDEM DE PLACAR (11/09/2026). 🗣️ Felipe: *"coloque em ordem
+    // de placar, por exemplo, se colocaram o placar igual, deixe próximo"*. Com 14 nomes numa
+    // coluna, achar quem apostou o mesmo que você era ler a lista inteira.
+    //
+    // ⚠️ A ORDEM É A DAS FICHAS DA TELA (ver PlacaresPossiveis.Do): do mais folgado ao mais
+    // apertado — 6x0, 6x1, …, 6x5, 7x5. Inventar outra aqui faria a mesma lista de placares
+    // aparecer em duas ordens diferentes na mesma página.
+    //
+    // ⚠️ Quem NÃO palpitou placar vai pro FIM: sem placar não há lugar na escala, e intercalar
+    // essa gente quebraria justamente os grupos que a ordem acaba de juntar.
+    //
+    // ⚠️ A ordenação é TOTAL (vai até o nome) pela razão de sempre: ordenação parcial faz a lista
+    // trocar de ordem entre duas aberturas do MESMO modal, e ninguém reporta isso como defeito —
+    // só desconfia da tela.
+    private static List<VotanteVM> EmOrdemDePlacar(IEnumerable<PalpitePartida> votos) =>
+        votos
+            .Select(Montar)
+            .OrderBy(v => v.PlacarVencedor == null)
+            .ThenBy(v => v.PlacarPerdedor)
+            .ThenBy(v => v.PlacarVencedor)
+            .ThenBy(v => v.Nome, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    // ⚠️ Devolve NULO quando o jogo não existe mais, e NÃO estoura como as irmãs aqui de cima.
+    //
+    // As duas que gravam (`RegistrarVotoAsync`, `RetirarPalpiteAsync`) jogam
+    // InvalidOperationException porque quem chama precisa da FRASE pra mostrar: "esta partida já
+    // começou", "dupla inválida". Aqui não há nada a dizer — é uma leitura, e a resposta certa
+    // pra um id que não existe é 404, não 500.
+    //
+    // 11/09/2026: era exatamente a diferença que faltava. Três `InvalidOperationException` no
+    // vigia em `GET /Partidas/VerVotos`, no mesmo minuto.
+    //
+    // ⚠️ QUAL id chegou, não dá pra saber: o registro do vigia guarda o CAMINHO e não a query
+    // (`IExceptionHandlerPathFeature.Path`), e é de propósito — `/Auth/RedefinirSenha?token=…`
+    // passaria a gravar token de redefinição de senha numa tabela que a tela do admin mostra.
+    // O candidato mais provável é o botão apontando pro jogo apagado (regerar a chave, regerar
+    // o americano e mudar resultado do mata-mata fazem `Partidas.RemoveRange`), e o 404 cobre
+    // igual o outro caminho: requisição SEM `partidaId` chega aqui como zero.
+    public async Task<VotantesPartidaVM?> ObterVotantesAsync(int partidaId)
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
-        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+        if (partida == null) return null;
 
         var votos = await _context.PalpitesPartida
             .Include(v => v.Jogador)
@@ -279,10 +396,8 @@ public class PalpiteService : IPalpiteService
 
         return new VotantesPartidaVM
         {
-            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList(),
-            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id)
-                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList()
+            VotantesDupla1 = EmOrdemDePlacar(votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)),
+            VotantesDupla2 = EmOrdemDePlacar(votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id))
         };
     }
 }

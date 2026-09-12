@@ -1,6 +1,6 @@
 namespace Padelizou.ViewModels;
 
-// Resumo de votos do palpitrômetro de uma partida.
+// Resumo de votos do palpitômetro de uma partida.
 public class PalpiteResumoVM
 {
     public int PartidaId { get; set; }
@@ -45,7 +45,7 @@ public class PalpiteResumoVM
     public List<string> CravaramOPlacar { get; set; } = new();
 }
 
-// Lista de quem votou em quem, pro botão "ver quem votou" do palpitrômetro.
+// Lista de quem votou em quem, pro botão "ver quem votou" do palpitômetro.
 public class VotantesPartidaVM
 {
     public List<VotanteVM> VotantesDupla1 { get; set; } = new();
@@ -56,6 +56,22 @@ public class VotanteVM
 {
     public string Nome { get; set; } = null!;
     public string? FotoPerfil { get; set; }
+
+    // O PLACAR QUE ESTA PESSOA PALPITOU (10/09/2026 — 🗣️ Felipe: *"permita clicar e ver quem
+    // colocou o palpitometro e qual o placar"*).
+    //
+    // ⚠️ VENCEDOR × PERDEDOR, e não lado 1 × lado 2: no banco o placar mora na orientação do
+    // JOGO, mas o modal lista a pessoa DEBAIXO da dupla em que ela votou — ali um "4 x 6" diria
+    // que ela apostou na derrota de quem escolheu. É a mesma orientação da ficha que ela tocou.
+    //
+    // ⚠️ NULO nos dois = não palpitou placar, que é o palpite de sempre e continua valendo.
+    public int? PlacarVencedor { get; set; }
+    public int? PlacarPerdedor { get; set; }
+
+    // A moeda daquele palpite: sets ou games. Vem do PALPITE, não do formato de hoje — o
+    // organizador pode editar o formato depois, e aí "2 x 0" sem a moeda viraria um placar de
+    // games que nenhum jogo termina.
+    public bool PlacarEmSets { get; set; }
 }
 
 // A tabela dos palpiteiros, pronta pra partial. A página do TORNEIO e a aba do hub usam a
@@ -68,7 +84,26 @@ public record TabelaDePalpiteirosVM(
     // A coluna "Cravadas" só existe onde houve palpite COM placar. Ela some por dado, nunca por
     // interruptor: num recorte em que ninguém teve como palpitar placar, ela seria uma fileira
     // de zeros explicando um jeito de pontuar que não existia ali.
-    bool MostrarCravadas)
+    bool MostrarCravadas,
+
+    // A coluna "Em aberto" — palpites que ainda esperam resultado. Como a de cima, ela some por
+    // DADO: no hub (que soma torneios já jogados) e num torneio acabado não há pendente nenhum,
+    // e uma fileira de zeros ocuparia a largura que o celular não tem.
+    bool MostrarEmAberto = false,
+
+    // As colunas da APURAÇÃO — palpites contados, acertos, aproveitamento e pontos. Somem
+    // enquanto nenhum jogo do torneio foi apurado: ali elas só sabem dizer zero, e uma tabela
+    // de zeros parece conta quebrada em vez de véspera (visto no navegador, 10/09/2026).
+    bool MostrarApuracao = true,
+
+    // DE QUE TORNEIO É ESTA TABELA — e só com ele o nome vira o botão que abre "o que esta
+    // pessoa palpitou" (12/09/2026).
+    //
+    // ⚠️ NULO NO HUB DO RANKING, de propósito: lá a tabela soma VÁRIOS torneios, e não existe
+    // "os palpites dela neste torneio" pra mostrar. Ali o nome continua sendo o link do perfil,
+    // que é o que sempre foi. Não é interruptor de tela: é a pergunta "existe um torneio aqui?"
+    // feita ao dado que a página já tem.
+    int? TorneioId = null)
 {
     public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
 }

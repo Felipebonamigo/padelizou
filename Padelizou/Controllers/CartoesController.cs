@@ -48,10 +48,6 @@ public class CartoesController : Controller
         _estatisticas = estatisticas;
     }
 
-    // Uma hora. Curto o bastante pra o card do ano acompanhar quem jogou hoje, longo o bastante
-    // pra um grupo de WhatsApp inteiro abrir a mesma prévia sem redesenhar.
-    private const int SegundosDeCache = 3600;
-
     // "Este torneio pode virar arte pra qualquer um?" — a porta do torneio OCULTO, na borda
     // que menos parece uma porta.
     //
@@ -75,16 +71,12 @@ public class CartoesController : Controller
     // a OUTRA pessoa — o que num card de torneio é o objetivo (é dele que a prévia do WhatsApp
     // vive) e num card de grupo privado é vazamento. Quem passa `false` ganha `private`: o cache
     // continua existindo, só que dentro do navegador de quem pediu.
-    private FileContentResult Png(byte[] bytes, string nomeDoArquivo, bool publico = true)
-    {
-        Response.Headers.CacheControl = $"{(publico ? "public" : "private")}, max-age={SegundosDeCache}";
-
-        // O nome sugerido na hora de salvar. `inline` e não `attachment`: a imagem precisa
-        // ABRIR no navegador (é assim que a prévia do link funciona e é assim que a pessoa
-        // segura o dedo pra salvar no celular). O download forçado fica no botão da tela.
-        Response.Headers.ContentDisposition = $"inline; filename=\"{nomeDoArquivo}\"";
-        return File(bytes, "image/png");
-    }
+    //
+    // A política mora em Services/EntregaDeCard desde 10/09/2026, porque o card da lista de
+    // jogos sai do TorneiosController (é desenhado da lista que só ele monta) e precisa
+    // responder com o MESMO cabeçalho — duas cópias divergiriam na primeira mudança.
+    private FileContentResult Png(byte[] bytes, string nomeDoArquivo, bool publico = true) =>
+        EntregaDeCard.Png(Response, bytes, nomeDoArquivo, publico);
 
     // ───────────────────────── O CARD DE CAMPEÃO ─────────────────────────
 
@@ -440,7 +432,8 @@ public class CartoesController : Controller
         if (torneio == null) return NotFound();
         if (!await PodeVirarArteAsync(id)) return NotFound();
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId,
+                _estatisticas.ObterPontosPorJogadorAsync);
 
         ViewBag.Torneio = torneio;
         ViewBag.CategoriaId = categoriaId;
@@ -453,7 +446,8 @@ public class CartoesController : Controller
     {
         if (!_fontes.Disponivel) return NotFound();
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(_context, id, categoriaId,
+                _estatisticas.ObterPontosPorJogadorAsync);
         var oGrupo = grupos.FirstOrDefault(g => g.Grupo == grupo);
         if (oGrupo == null || !oGrupo.TemOQueMostrar) return NotFound();
         if (!await PodeVirarArteAsync(id)) return NotFound();

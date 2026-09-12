@@ -38,7 +38,7 @@ public class ProximoDaQuadraPorClubeTests
         var noRadar = Jogo("Agendada", null, Sabado.AddMinutes(100), Radar); // 09:40, 6a Fem, Radar
         var noEr = Jogo("Agendada", null, Sabado.AddMinutes(150), Er);       // 10:30, Er Padel
 
-        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { noRadar, noEr });
+        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { noRadar, noEr }, Sabado.AddMinutes(100));
 
         Assert.NotNull(escolhida);
         Assert.Equal(noEr.Id, escolhida!.Id);
@@ -67,7 +67,7 @@ public class ProximoDaQuadraPorClubeTests
         var terminada = Jogo("Finalizada", "Arena 3", Sabado, Er);
         var noEr = Jogo("Agendada", null, Sabado.AddMinutes(150), Er);
 
-        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { noEr });
+        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { noEr }, Sabado.AddMinutes(100));
 
         Assert.NotNull(escolhida);
     }

@@ -18,7 +18,13 @@ public static class AbaDeChavesEGrupos
     // Chave sorteada e pública. "Chaves em Aprovação" é o caso de fronteira: os jogos já
     // existem no banco, mas pro jogador é como se o sorteio não tivesse saído — só quem
     // aprova enxerga a aba, e por isso só pra ele o caminho pode ser oferecido.
+    //
+    // ⚠️ A LISTA DE STATUS NÃO MORA AQUI: o primeiro termo é `AprovacaoDeChaves.ChavePublicada`,
+    // a mesma régua que decide onde ficam as ferramentas do organizador na página do torneio
+    // (10/09/2026). As duas nasceram no mesmo dia com a lista escrita duas vezes — cópias que
+    // concordam hoje divergem na primeira mudança, e aí este botão promete uma aba que o
+    // Details não desenha. O que é SÓ daqui é o segundo termo.
     public static bool Existe(Torneio torneio, bool podeAprovarChaves) =>
-        torneio.Status is "Fase de Grupos" or "Mata-Mata" or "Finalizado"
+        AprovacaoDeChaves.ChavePublicada(torneio)
         || (torneio.Status == AprovacaoDeChaves.Pendente && podeAprovarChaves);
 }

@@ -102,7 +102,17 @@ namespace Padelizou.Controllers
             return View(new Torneio
             {
                 PrecoInscricao = 150m,
-                FormaPagamento = conectado ? "OnlinePix" : "Externo"
+                FormaPagamento = conectado ? "OnlinePix" : "Externo",
+                // TORNEIO NOVO NASCE COM TIE-BREAK DE 7 (Felipe, 12/09/2026) — é o que se joga na
+                // quadra no 8x8. ⚠️ Aqui, e NÃO como inicializador da propriedade no modelo: o
+                // `dotnet ef migrations add` não lê inicializador, e um `= 7` lá geraria uma
+                // migration com `defaultValue: 0` que BACKFILLA as linhas antigas com o valor
+                // errado — foi o que aconteceu duas vezes em 22/08 (ver o gate dos defaults de
+                // bool). Torneio que já existe fica desligado, como combinado; quem nasce agora
+                // nasce com a contagem.
+                PontosTieBreakGrupos = TieBreakDoJogo.PontosPadrao,
+                PontosTieBreakMataMata = TieBreakDoJogo.PontosPadrao,
+                PontosTieBreakFinal = TieBreakDoJogo.PontosPadrao
             });
         }
 
@@ -368,7 +378,16 @@ namespace Padelizou.Controllers
             // até hoje.
             int[]? clubesDoTorneio = null,
             string[]? clubesQuadras = null,
-            string[]? clubesCategorias = null)
+            string[]? clubesCategorias = null,
+            // A CAIXA "a final tem regra própria" (12/09/2026). ⚠️ Ela precisa vir no POST
+            // porque ESCONDER NÃO É NÃO ENVIAR: o `<div hidden>` da tela manda o valor padrão
+            // dos campos igual, e sem esta pergunta todo torneio novo nasceria com uma final
+            // de 9 games que ninguém pediu. Ver Torneio.GamesSoDaFinal.
+            //
+            // `bool` normal (e não `bool?` como na edição) porque aqui não existe dado gravado
+            // a preservar: o torneio está nascendo, e o pior caso da caixa ausente é ele nascer
+            // sem o desvio — que é o padrão de qualquer jeito.
+            bool finalSeparada = false)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -634,12 +653,40 @@ namespace Padelizou.Controllers
                 torneio.GamesFaseMataMata = torneio.GamesFaseGrupos;
                 torneio.SetsFaseFinal = torneio.SetsFaseGrupos;
                 torneio.GamesFaseFinal = torneio.GamesFaseGrupos;
+                // O tie-break faz parte do formato: "todas as partidas com a mesma regra"
+                // incluiria o número de pontos do 8x8, e deixá-lo de fora daria um torneio com
+                // contagem nos grupos e nenhuma na final, sem ninguém ter pedido.
+                torneio.PontosTieBreakMataMata = torneio.PontosTieBreakGrupos;
+                torneio.PontosTieBreakFinal = torneio.PontosTieBreakGrupos;
+                // "Todas as partidas com a mesma regra" inclui a final: deixar o desvio dela
+                // de pé aqui daria um torneio de formato único com uma decisão de 3 sets que
+                // ninguém pediu. Zero é o que desliga o desvio — ver Torneio.GamesSoDaFinal.
+                torneio.SetsSoDaFinal = 0;
+                torneio.GamesSoDaFinal = 0;
+                torneio.PontosTieBreakSoDaFinal = 0;
+            }
+
+            // Caixa desmarcada: o desvio da final não existe, e os campos que vieram
+            // escondidos junto com ela não gravam nada. Zero é o que desliga — ver
+            // Torneio.GamesSoDaFinal. (O formato único, logo acima, já zerou por conta dele.)
+            if (!finalSeparada)
+            {
+                torneio.SetsSoDaFinal = 0;
+                torneio.GamesSoDaFinal = 0;
+                torneio.PontosTieBreakSoDaFinal = 0;
             }
 
             // Como contar os games decide teto de placar e "já dá pra encerrar?", então um
             // valor inventado num POST montado à mão não pode passar: o que não for "Soma"
             // vira o "Ate" de sempre, que é o comportamento histórico.
             torneio.ContagemDeGames = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
+
+            // Mesmo motivo, pro alvo do tie-break: número negativo ou absurdo num POST montado
+            // à mão cai em "desligado", que é o comportamento de sempre (ver TieBreakDoJogo).
+            torneio.PontosTieBreakGrupos = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakGrupos);
+            torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakMataMata);
+            torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakFinal);
+            torneio.PontosTieBreakSoDaFinal = TieBreakDoJogo.AlvoValido(torneio.PontosTieBreakSoDaFinal);
 
             // O torneio nasce ABERTO, a não ser que o organizador diga que ainda não quer
             // receber ninguém. Montar categoria, quadra e preço com o formulário já aceitando
@@ -1226,6 +1273,26 @@ namespace Padelizou.Controllers
             // Nulo = aba antiga sem o campo: a contagem gravada FICA. Trocar pra "Ate" por
             // omissão mudaria a regra do jogo de um torneio em andamento, calado.
             string? contagemDeGames = null,
+            // ATÉ QUANTOS PONTOS VAI O TIE-BREAK, por fase (12/09/2026). Nulo = a aba não tem o
+            // campo (aberta antes deste deploy): o que está gravado FICA. Zero é "desligado", e
+            // é um valor que o organizador escolhe de propósito — por isso nulo e zero não podem
+            // significar a mesma coisa aqui.
+            //
+            // ⚠️ Editável com o torneio RODANDO, e é o caso de uso: ligar a contagem valendo
+            // pros próximos jogos. Placar já gravado não muda — o que muda é o que a tela
+            // oferece daqui pra frente, igual ao número de games logo acima.
+            int? pontosTieBreakGrupos = null, int? pontosTieBreakMataMata = null,
+            int? pontosTieBreakFinal = null,
+            // A FINAL COM REGRA PRÓPRIA (12/09/2026). Ver Torneio.GamesSoDaFinal.
+            //
+            // ⚠️ `bool?` e NÃO `bool`, pelo mesmo motivo do `usaVotacaoDeMvp` lá em cima:
+            // caixa desmarcada não vai no POST, então um `bool` normal não distingue "o
+            // organizador desmarcou" de "esta aba foi aberta antes do deploy". O segundo caso
+            // APAGARIA a regra da final de quem só queria trocar o nome do torneio, calado.
+            // Nulo = o campo não veio, e o que está gravado FICA.
+            bool? finalSeparada = null,
+            int? setsSoDaFinal = null, int? gamesSoDaFinal = null,
+            int? pontosTieBreakSoDaFinal = null,
             // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
             // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
             string? formaPagamento = null,
@@ -1345,7 +1412,12 @@ namespace Padelizou.Controllers
             // descobriria com a quadra ocupada.
             var formatoPedido = new[] {
                 setsFaseGrupos, gamesFaseGrupos, setsFaseMataMata,
-                gamesFaseMataMata, setsFaseFinal, gamesFaseFinal };
+                gamesFaseMataMata, setsFaseFinal, gamesFaseFinal,
+                // A regra própria da final entra na MESMA recusa, e só quando ela está ligada:
+                // com a caixa desmarcada esses campos vêm em branco de propósito, e recusar
+                // ali travaria a edição de quem nem usa o desvio.
+                finalSeparada == true ? setsSoDaFinal : null,
+                finalSeparada == true ? gamesSoDaFinal : null };
             if (formatoPedido.Any(v => v is <= 0))
             {
                 TempData["Erro"] = "Sets e games precisam ser pelo menos 1.";
@@ -1498,6 +1570,28 @@ namespace Padelizou.Controllers
             torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
             torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
             torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
+
+            torneio.PontosTieBreakGrupos = TieBreakDoJogo.AlvoValido(pontosTieBreakGrupos ?? torneio.PontosTieBreakGrupos);
+            torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(pontosTieBreakMataMata ?? torneio.PontosTieBreakMataMata);
+            torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(pontosTieBreakFinal ?? torneio.PontosTieBreakFinal);
+
+            // A REGRA PRÓPRIA DA FINAL. Os três só mexem quando a caixa VEIO no formulário —
+            // nulo é a aba antiga em cache, e aí o que está gravado fica (ver o comentário na
+            // assinatura). Desmarcada, zera o trio inteiro: meio configurado é o estado que
+            // faria uma edição futura reviver um desvio que o organizador desligou.
+            if (finalSeparada == true)
+            {
+                torneio.SetsSoDaFinal = setsSoDaFinal ?? torneio.SetsSoDaFinal;
+                torneio.GamesSoDaFinal = gamesSoDaFinal ?? torneio.GamesSoDaFinal;
+                torneio.PontosTieBreakSoDaFinal =
+                    TieBreakDoJogo.AlvoValido(pontosTieBreakSoDaFinal ?? torneio.PontosTieBreakSoDaFinal);
+            }
+            else if (finalSeparada == false)
+            {
+                torneio.SetsSoDaFinal = 0;
+                torneio.GamesSoDaFinal = 0;
+                torneio.PontosTieBreakSoDaFinal = 0;
+            }
 
             // Só troca a contagem se o campo veio E é um valor que existe: um "Soma" mal
             // digitado virando "Ate" em silêncio mudaria como a Mesa fecha todo jogo.

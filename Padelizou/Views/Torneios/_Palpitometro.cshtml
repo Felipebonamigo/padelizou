@@ -27,10 +27,10 @@
     int? meuPerdedor = r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
     string moeda = r.PlacarEmSets ? "sets" : "games";
 }
-<div class="pdz-palpitrometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
+<div class="pdz-palpitometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
      data-dupla1-id="@Model.partida.Dupla1Id" data-meu-voto="@meuVoto">
     <div class="d-flex justify-content-between align-items-center mb-1">
-        <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitrômetro</small>
+        <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitômetro</small>
         @if (finalizada && r.TotalVotos > 0)
         {
             <small class="@(galeraAcertou ? "text-success" : "text-danger") fw-bold">
@@ -70,33 +70,60 @@
 
        ⚠️ E é OPCIONAL de propósito. Palpitar continua sendo um toque no nome; quem quiser dá
        o segundo. Exigir o placar pra votar derrubaria a participação, que é o que faz a barra
-       do palpitrômetro valer alguma coisa. *@
+       do palpitômetro valer alguma coisa. *@
     @if (votavel && r.PlacaresDoFormato.Count > 0)
     {
         <div class="pdz-palpite-placar mt-2" style="display: @(meuVoto != null ? "block" : "none");">
-            <div class="small text-muted mb-1">
-                E o placar? <span class="text-body-secondary">(em @moeda, de quem você acha que vence)</span>
+            @* ⚠️ DEPOIS DE ESCOLHER, AS FICHAS SE RECOLHEM (11/09/2026). 🗣️ Felipe, num print do
+               cartão com as nove fichas ainda abertas debaixo do palpite dele: *"acho que tambem
+               podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*.
+               Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira que já
+               cumpriu o papel dela.
+               ⚠️ Quem decide qual dos dois nasce aberto é o DADO (`PalpiteiOPlacar`), e não o JS
+               depois de carregar: senão a tela piscaria a fileira inteira a cada F5. *@
+@* ⚠️ SEM `d-flex` (visto no navegador, 11/09/2026): as utilitárias do Bootstrap são
+               `!important`, e `.d-flex` ganha do `style.display = 'none'` que o JS escreve — o
+               resumo ficava na tela ao lado das fichas reabertas. O `flex` vem do próprio
+               `style`, que é o mesmo lugar de onde ele some. *@
+            <div class="pdz-palpite-placar-resumo small text-muted align-items-center gap-2"
+                 style="display: @(r.PalpiteiOPlacar ? "flex" : "none");">
+                <span>Seu palpite: <strong class="pdz-resumo-placar">@meuVencedor x @meuPerdedor</strong></span>
+                <button type="button" class="btn btn-link btn-sm p-0 pdz-trocar-placar"
+                        onclick="trocarPlacar(this)">trocar</button>
             </div>
-            <div class="d-flex flex-wrap gap-1">
-                @foreach (var placar in r.PlacaresDoFormato)
-                {
-                    bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
-                    <button type="button"
-                            class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
-                            data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
-                            onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
-                }
+
+            <div class="pdz-palpite-fichas" style="display: @(r.PalpiteiOPlacar ? "none" : "block");">
+                <div class="small text-muted mb-1">
+                    E o placar? <span class="text-body-secondary">(em @moeda, de quem você acha que vence)</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var placar in r.PlacaresDoFormato)
+                    {
+                        bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                        <button type="button"
+                                class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                                data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                                onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                    }
+                </div>
             </div>
         </div>
     }
 
     @* A leitura da galera sobre o placar. A CONTAGEM anda junto: "crava 6x4" com 3 de 12
        palpites promete um consenso que não existe — com o número ao lado, quem lê julga. *@
+    @* Clicável, como a irmã da versão em linha: daqui se vê QUEM cravou aquele placar. O
+       `div` de fora continua sendo o alvo do JS (display + reescrita do placar). *@
     <div class="text-center mt-1 small text-muted pdz-palpite-consenso"
          style="display: @(r.TemPlacarMaisPalpitado ? "block" : "none");">
-        <i class="bi bi-people"></i>
-        A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-        <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+        <button type="button" class="pdz-ver-votos"
+                data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2"
+                title="Ver quem palpitou e o placar de cada um"
+                onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+            <i class="bi bi-people"></i>
+            Placar mais palpitado: <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+            <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+        </button>
     </div>
 
     @if (finalizada && r.CravaramOPlacar.Count > 0)
@@ -121,6 +148,15 @@
         {
             <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2" onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
                 Ver quem votou
+            </button>
+        }
+        @* Mesma régua da versão em linha: a janela de retirar é a de palpitar, e o botão nasce
+           escondido pra quem não palpitou. *@
+        @if (votavel)
+        {
+            <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger pdz-retirar-palpite"
+                    onclick="retirarPalpite(this)" hidden="@(meuVoto == null)">
+                Retirar meu palpite
             </button>
         }
     </div>

@@ -18,13 +18,57 @@ public static class OQuePrecisaParaClassificar
     // Um bloco de resultados que dá no MESMO conjunto de classificados.
     public record Cenario(string Resultado, IReadOnlyList<int> ClassificadosIds);
 
+    // Em que pé cada dupla está a UM jogo do fim.
+    public enum Estado { JaClassificado, SemChance, Depende }
+
+    // A resposta direta da pergunta do Felipe (11/09/2026): *"fica a duvida de quantos games
+    // precisa fazer para passar de fase"*. A tabela de cenários responde isso de lado — a
+    // pessoa procura o próprio nome nas linhas e deduz; esta frase responde de frente.
+    //
+    // ⚠️ Ela NÃO é uma segunda conta: sai dos mesmos blocos de cenário que a régua oficial já
+    // decidiu. Escrever aqui um "se tem mais vitória então passa" seria exatamente a régua
+    // paralela que este arquivo inteiro existe pra impedir.
+    //
+    // ⚠️ `NomeCurto` é o `Dupla.NomeCurto` — "Marcelo / Enio", o MESMO da lista de jogos do
+    // grupo. Havia três formas do mesmo nome na mesma tela (nome completo dos dois na lista,
+    // `Jogador1.ComoChamar` nas frases, nome curto na tabela), e foi metade da queixa do Felipe:
+    // *"ta meio confuso aqui, nao ficou claro para mim"*.
+    public record Situacao(Dupla Dupla, Estado Estado, string Frase, string NomeCurto);
+
     public record Quadro(
         Partida JogoQueFalta,
         Dupla Lado1,
         Dupla Lado2,
         IReadOnlyList<Cenario> Cenarios,
         IReadOnlyList<Dupla> JaClassificados,
-        IReadOnlyList<Dupla> SemChance);
+        IReadOnlyList<Dupla> SemChance,
+        IReadOnlyList<Situacao> Situacoes,
+        IReadOnlyList<EmpateNoCorte> EmpatesNoCorte);
+
+    // O corte do grupo terminou empatado em TUDO o que é esportivo — vitórias, saldo e games a
+    // favor. Quem passa então sai do `ThenBy(Id)` do ClassificacaoDeGrupos: ordem de cadastro.
+    //
+    // ⚠️ O painel PRECISA dizer isso. 🗣️ Felipe achou o caso olhando a tela no ar: *"e esse caso
+    // aqui se for os 3 jogos 9x4 e houver empate?"* — e ele está certo: num grupo de 3 com os
+    // três jogos 9x4, as três ficam com 1 vitória, saldo 0 e 13 games a favor. Apresentar isso
+    // como "passa vencendo por 6 ou mais" faz cara-ou-coroa passar por eliminação esportiva.
+    public record EmpateNoCorte(
+        string Placar, IReadOnlyList<Dupla> Empatadas, int Vitorias, int Saldo, int GamesPro);
+
+    // Um trecho contíguo de placares que dá no mesmo conjunto de classificados, com a frase
+    // pronta em três vozes: a da tabela, em MARGEM ("Paulo vencer por até 4 games"), e as duas
+    // em PLACAR, que é o que a linha de cada dupla mostra.
+    //
+    // ⚠️ A MARGEM SÓ SOBREVIVE NO `Cenarios`, que nenhuma tela desenha mais. 🗣️ Felipe, vendo
+    // "por 5 games ou mais" no ar: *"seria 4 e 5 games de diferença? nao sei, ficou confuso,
+    // talvez se colocar o placar fica mais facil"*. Quem lê não deve ter que converter margem
+    // em placar de cabeça na beira da quadra.
+    private record Bloco(
+        int Vencedor,
+        string Frase,
+        string ComPlacar,
+        string EmPrimeiraPessoa,
+        HashSet<int> Classificados);
 
     // Devolve null quando não é hora de mostrar: 0 jogos restantes (grupo acabou), 2 ou mais
     // (ainda não dá pra falar em "o que precisa"), ou o jogo que falta sem as duas duplas.
@@ -32,15 +76,49 @@ public static class OQuePrecisaParaClassificar
         IReadOnlyList<Dupla> duplasDoGrupo,
         IReadOnlyList<Partida> partidasDoGrupo,
         int classificamPorGrupo,
-        FormatoDaPartida.Formato formato)
+        FormatoDaPartida.Formato formato,
+        IReadOnlyDictionary<int, int> pontosPorJogador)
     {
-        // "Jogado" é ter vencedor pela régua única — não é o Status. Um jogo marcado como
-        // finalizado 0x0 não decidiu nada, e contá-lo como jogado faria o painel simular o
-        // grupo errado.
-        var jogados = partidasDoGrupo.Where(p => QuemVenceu.Da(p) != null).ToList();
-        var faltando = partidasDoGrupo.Where(p => QuemVenceu.Da(p) == null).ToList();
+        // "Jogado" é ter ACABADO **e** ter vencedor pela régua única — as duas coisas, e cada
+        // metade veio de um defeito de produção:
+        //
+        // • O vencedor, porque um jogo marcado como finalizado 0x0 não decidiu nada, e
+        //   contá-lo como jogado faria o painel simular o grupo errado (ver Services/QuemVenceu).
+        // • O `Status`, porque `QuemVenceu` responde SIM pra qualquer placar desigual — e o
+        //   placar de um jogo EM QUADRA é desigual quase o tempo todo. 🗣️ Felipe, 12/09/2026,
+        //   num print do Grupo B da 6ª Feminina: *"Isso parece errado, é meio impossivel"*. O
+        //   jogo estava 5 x 6 ao vivo e o painel já dizia "Vania / Eliane — Já classificado" e
+        //   "Bibiana / Caroline — Sem chance" com as duas em quadra, uma contra a outra. Oito
+        //   minutos depois o placar virou e o pop-up trocou de resposta.
+        //
+        // ⚠️ Um jogo em quadra é um jogo POR JOGAR: se for o único em aberto, é ele que o
+        // painel simula (e o placar parcial não entra em conta nenhuma); com outro em aberto
+        // junto, são dois faltando e não há painel. É a mesma régua do serviço vizinho que
+        // preenche a chave projetada — `ClassificadosJaConhecidos` já perguntava pelo Status
+        // ("grupo com jogo em quadra também não"), este não perguntava.
+        //
+        // ⚠️ E vale pro jogo REABERTO pra correção, que é o mesmo estado: `Reabrir` devolve o
+        // jogo pra quadra (Status AoVivo) mantendo o placar na tela, sem vencedor.
+        bool Decidido(Partida p) => p.Status == "Finalizada" && QuemVenceu.Da(p) != null;
+
+        var jogados = partidasDoGrupo.Where(Decidido).ToList();
+        var faltando = partidasDoGrupo.Where(p => !Decidido(p)).ToList();
 
         if (faltando.Count != 1) return null;
+
+        // E o grupo precisa já ter DECIDIDO alguma coisa. 🗣️ Felipe, 12/09/2026: *"so deve
+        // aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*.
+        //
+        // 🕳️ O grupo de DUAS duplas tem um jogo só: o painel aparecia nele antes de a bola
+        // quicar, listando as duas como "Já classificado" (com duas vagas, as duas passam mesmo
+        // perdendo). São 8 dos 24 grupos do 2ª Etapa ER Padel Tour. Não é resposta errada — é
+        // uma pergunta que ninguém fez, no lugar onde se procura o que ainda dá pra FAZER.
+        //
+        // ⚠️ A régua é esta, e não "o grupo tem 3 duplas": com um jogo faltando as duas dão no
+        // mesmo resultado (o grupo de 3 tem sempre dois encerrados; o de 2, zero), e esta não
+        // promete nada quando a grade do grupo está incompleta. No grupo de 4 o painel continua
+        // aparecendo quando falta o último jogo — é a mesma pergunta, com a mesma resposta.
+        if (jogados.Count == 0) return null;
 
         var jogo = faltando[0];
         var lado1 = duplasDoGrupo.FirstOrDefault(d => d.Id == jogo.Dupla1Id);
@@ -52,56 +130,200 @@ public static class OQuePrecisaParaClassificar
             .ToList();
         if (possiveis.Count == 0) return null;
 
-        // Para cada placar possível, quem a RÉGUA OFICIAL classifica.
-        var simulados = possiveis
-            .Select(r => (r.g1, r.g2, Classificados: ClassificadosCom(duplasDoGrupo, jogados, jogo, r.g1, r.g2, classificamPorGrupo)))
-            .ToList();
+        // Para cada placar possível, quem a RÉGUA OFICIAL classifica — e se o corte foi
+        // esportivo ou caiu no desempate por ordem de cadastro.
+        int passam = Math.Max(1, classificamPorGrupo);
+        var simulados = new List<(int g1, int g2, HashSet<int> Classificados)>();
+        var empates = new List<EmpateNoCorte>();
 
-        var todos = duplasDoGrupo.ToList();
+        foreach (var r in possiveis)
+        {
+            var ranking = RankingCom(duplasDoGrupo, jogados, jogo, r.g1, r.g2, pontosPorJogador);
+            simulados.Add((r.g1, r.g2, ranking.Take(passam).Select(l => l.Dupla.Id).ToHashSet()));
+
+            if (ClassificacaoDeGrupos.EmpateNoCorte(ranking, passam,
+                    ComOJogoSimulado(jogados, jogo, r.g1, r.g2), pontosPorJogador)
+                is { Count: > 0 } empatadas)
+                empates.Add(new EmpateNoCorte(
+                    PlacarDoJogo(lado1, lado2, r.g1, r.g2),
+                    empatadas.Select(l => l.Dupla).ToList(),
+                    empatadas[0].Vitorias, empatadas[0].Saldo, empatadas[0].GamesPro));
+        }
+
+        // NA ORDEM DA TABELA, e pela régua oficial: o pop-up abre em cima do card do grupo, e
+        // duas ordens pra mesma lista fariam a pessoa procurar o próprio nome duas vezes.
+        var todos = ClassificacaoDeGrupos.Ordenar(duplasDoGrupo, jogados, pontosPorJogador)
+            .Select(l => l.Dupla).ToList();
         var jaClassificados = todos.Where(d => simulados.All(s => s.Classificados.Contains(d.Id))).ToList();
         var semChance = todos.Where(d => simulados.All(s => !s.Classificados.Contains(d.Id))).ToList();
 
+        var blocos = Blocos(simulados, lado1, lado2);
+
         return new Quadro(jogo, lado1, lado2,
-            Blocos(simulados, lado1, lado2), jaClassificados, semChance);
+            Cenarios(blocos, simulados), jaClassificados, semChance,
+            Situacoes(todos, jaClassificados, semChance, blocos, lado1, lado2, jogo, simulados),
+            empates);
     }
 
-    private static HashSet<int> ClassificadosCom(
-        IReadOnlyList<Dupla> duplas, List<Partida> jogados, Partida jogo, int g1, int g2, int passam)
+    // A linha de cada dupla. Os três estados são excludentes por construção: quem classifica em
+    // TODOS os cenários já está dentro, quem não classifica em NENHUM está fora, e só o resto
+    // tem placar a fazer.
+    private static List<Situacao> Situacoes(
+        List<Dupla> todos, List<Dupla> jaClassificados, List<Dupla> semChance,
+        List<Bloco> blocos, Dupla lado1, Dupla lado2, Partida jogo,
+        List<(int g1, int g2, HashSet<int> Classificados)> simulados)
+    {
+        var situacoes = new List<Situacao>();
+
+        foreach (var dupla in todos)
+        {
+            if (jaClassificados.Any(d => d.Id == dupla.Id))
+            {
+                situacoes.Add(new Situacao(dupla, Estado.JaClassificado,
+                    "Já classificado. Não depende deste jogo.", dupla.NomeCurto));
+                continue;
+            }
+
+            if (semChance.Any(d => d.Id == dupla.Id))
+            {
+                situacoes.Add(new Situacao(dupla, Estado.SemChance,
+                    "Não passa — nenhum resultado deste jogo muda isso.", dupla.NomeCurto));
+                continue;
+            }
+
+            // QUEM VAI JOGAR ganha a frase curta, com o placar de corte e o placar que já não
+            // serve. É a resposta que o Felipe pediu, e ela só existe pra quem está em quadra.
+            if (FraseDeQuemJoga(dupla.Id, jogo, simulados) is { } curta)
+            {
+                situacoes.Add(new Situacao(dupla, Estado.Depende, curta, dupla.NomeCurto));
+                continue;
+            }
+
+            // O resto (quem NÃO joga este jogo, e o caso raro em que classificar não melhora
+            // com o placar) cai na descrição por blocos: "Passa se Fulano vencer por 9x4 ou
+            // mais folgado". O próprio jogo primeiro — quem lê quer saber o que ELA pode fazer
+            // antes de saber o que precisa torcer.
+            var partes = blocos
+                .Where(b => b.Classificados.Contains(dupla.Id))
+                .OrderBy(b => LadoDa(b.Vencedor, lado1, lado2) == dupla.Id ? 0 : 1)
+                .Select(b => LadoDa(b.Vencedor, lado1, lado2) == dupla.Id
+                    ? b.EmPrimeiraPessoa
+                    : $"se {b.ComPlacar}")
+                .ToList();
+
+            situacoes.Add(new Situacao(dupla, Estado.Depende,
+                $"Passa {string.Join(" ou ", partes)}.", dupla.NomeCurto));
+        }
+
+        return situacoes;
+    }
+
+    // A frase de quem VAI JOGAR, na voz dela e em PLACAR: o pior resultado que ainda serve, e o
+    // primeiro que já não serve. O contra-exemplo é metade da frase — é ele que mata a dúvida de
+    // UM game (🗣️ *"seria 4 e 5 games de diferença?"*).
+    //
+    // Devolve null quando a frase curta não pode ser dita: a dupla não joga este jogo, ou o
+    // conjunto que classifica NÃO é um prefixo do melhor pro pior resultado dela.
+    //
+    // ⚠️ A TRAVA DO PREFIXO NÃO É ZELO EXCESSIVO. "9x4 ou mais folgado" afirma que TODO placar
+    // melhor que 9x4 também classifica. Em toda mesa real isso vale (saldo cresce com a margem),
+    // mas o desempate por games a favor pode furar — e aí a frase prometeria uma vaga que a
+    // régua não dá, que é o defeito exato que este arquivo existe pra impedir. Furou, cai na
+    // descrição por blocos, que é mais longa e sempre verdadeira.
+    private static string? FraseDeQuemJoga(
+        int duplaId, Partida jogo, List<(int g1, int g2, HashSet<int> Classificados)> simulados)
+    {
+        bool souLado1 = jogo.Dupla1Id == duplaId;
+        if (!souLado1 && jogo.Dupla2Id != duplaId) return null;
+
+        // Do MEU melhor resultado pro pior.
+        var meus = simulados
+            .Select(s => (Meus: souLado1 ? s.g1 : s.g2,
+                          Dele: souLado1 ? s.g2 : s.g1,
+                          Passo: s.Classificados.Contains(duplaId)))
+            .OrderByDescending(x => x.Meus - x.Dele)
+            .ToList();
+
+        int quantos = meus.TakeWhile(x => x.Passo).Count();
+        if (quantos == 0 || quantos == meus.Count) return null;       // sem chance / já dentro
+        if (meus.Skip(quantos).Any(x => x.Passo)) return null;        // não é prefixo
+
+        var limite = meus[quantos - 1];
+        var fora = meus[quantos];
+        string P((int Meus, int Dele, bool Passo) x) => $"{x.Meus}x{x.Dele}";
+
+        // Ainda serve perdendo: toda vitória passa, e a derrota tem um teto.
+        if (limite.Meus < limite.Dele)
+            return "Vencendo, passa com qualquer placar. "
+                 + $"Perdendo, o pior placar que ainda serve é {P(limite)} — {P(fora)} já elimina.";
+
+        // O limite é a vitória mais apertada que existe: vencer basta, perder não.
+        if (fora.Meus < fora.Dele)
+            return "Passa vencendo, com qualquer placar. Qualquer derrota elimina.";
+
+        return $"Só passa vencendo por {P(limite)} ou mais folgado — {P(fora)} não basta.";
+    }
+
+    private static int LadoDa(int vencedor, Dupla lado1, Dupla lado2) =>
+        vencedor == 1 ? lado1.Id : lado2.Id;
+
+    private static List<Cenario> Cenarios(
+        List<Bloco> blocos, List<(int g1, int g2, HashSet<int> Classificados)> simulados)
+    {
+        // O caso mais importante de todos, e o mais fácil de perder no meio de uma tabela: o
+        // jogo não muda nada. Quem lê isso guarda a raquete sem ansiedade.
+        var primeiro = simulados[0].Classificados;
+        if (simulados.All(s => s.Classificados.SetEquals(primeiro)))
+            return new List<Cenario> { new("Qualquer resultado", primeiro.ToList()) };
+
+        return blocos.Select(b => new Cenario(b.Frase, b.Classificados.ToList())).ToList();
+    }
+
+    // ⚠️ `Ordenar`, e não `Calcular`: é a MESMA régua (o `Calcular` é este ranking cortado nos N
+    // primeiros), e é o ranking inteiro que permite perguntar se o corte foi esportivo. Continua
+    // valendo a regra do arquivo: aqui não há nenhum `>` comparando vitórias.
+    // As partidas do grupo COM o placar simulado — o `EmpateNoCorte` precisa delas pra saber
+    // se o confronto direto resolve, e o jogo que falta é justamente um dos confrontos.
+    private static List<Partida> ComOJogoSimulado(List<Partida> jogados, Partida jogo, int g1, int g2) =>
+        // ⚠️ CÓPIA da partida, nunca a instância que veio do banco: mexer nela deixaria o
+        // objeto rastreado pelo EF com um placar inventado, e bastaria um SaveChanges de
+        // qualquer outro ponto da requisição pra gravar um resultado que ninguém jogou.
+        new List<Partida>(jogados)
+        {
+            new Partida
+            {
+                Id = jogo.Id,
+                Dupla1Id = jogo.Dupla1Id,
+                Dupla2Id = jogo.Dupla2Id,
+                GamesDupla1 = g1,
+                GamesDupla2 = g2,
+                Fase = jogo.Fase,
+            }
+        };
+
+    private static List<ClassificacaoDeGrupos.Linha> RankingCom(
+        IReadOnlyList<Dupla> duplas, List<Partida> jogados, Partida jogo, int g1, int g2,
+        IReadOnlyDictionary<int, int> pontosPorJogador)
     {
         // ⚠️ CÓPIA da partida, nunca a instância que veio do banco: mexer nela deixaria o
         // objeto rastreado pelo EF com um placar inventado, e bastaria um SaveChanges de
         // qualquer outro ponto da requisição pra gravar um resultado que ninguém jogou.
-        var simulada = new Partida
-        {
-            Id = jogo.Id,
-            Dupla1Id = jogo.Dupla1Id,
-            Dupla2Id = jogo.Dupla2Id,
-            GamesDupla1 = g1,
-            GamesDupla2 = g2,
-            Fase = jogo.Fase,
-        };
-
-        var comEsteResultado = new List<Partida>(jogados) { simulada };
-
-        return ClassificacaoDeGrupos.Calcular(duplas, comEsteResultado, passam)
-            .Select(c => c.DuplaId)
-            .ToHashSet();
+        return ClassificacaoDeGrupos.Ordenar(
+            duplas, ComOJogoSimulado(jogados, jogo, g1, g2), pontosPorJogador);
     }
+
+    // "Cadu / Dedé vence por 9x4" — o placar sempre na orientação do VENCEDOR.
+    private static string PlacarDoJogo(Dupla lado1, Dupla lado2, int g1, int g2) =>
+        g1 > g2
+            ? $"{lado1.NomeCurto} vence por {g1}x{g2}"
+            : $"{lado2.NomeCurto} vence por {g2}x{g1}";
 
     // Junta placares vizinhos que dão no mesmo conjunto de classificados, pra tela não virar
     // uma lista de 20 linhas dizendo a mesma coisa.
-    private static List<Cenario> Blocos(
+    private static List<Bloco> Blocos(
         List<(int g1, int g2, HashSet<int> Classificados)> simulados, Dupla lado1, Dupla lado2)
     {
-        // O caso mais importante de todos, e o mais fácil de perder no meio de uma tabela:
-        // o jogo não muda nada. Quem lê isso guarda a raquete sem ansiedade.
-        var primeiro = simulados[0].Classificados;
-        if (simulados.All(s => s.Classificados.SetEquals(primeiro)))
-        {
-            return new List<Cenario> { new("Qualquer resultado", primeiro.ToList()) };
-        }
-
-        var cenarios = new List<Cenario>();
+        var blocos = new List<Bloco>();
 
         // Os blocos são formados DENTRO de cada vencedor. Um bloco que atravessasse o 0 daria
         // uma frase impossível de ler ("da vitória da B por 2 até a da A por 3").
@@ -109,14 +331,16 @@ public static class OQuePrecisaParaClassificar
         {
             var doLado = simulados
                 .Where(s => (vencedor == 1 && s.g1 > s.g2) || (vencedor == 2 && s.g2 > s.g1))
-                .Select(s => (Margem: Math.Abs(s.g1 - s.g2), s.Classificados))
+                .Select(s => (Margem: Math.Abs(s.g1 - s.g2),
+                              Placar: $"{Math.Max(s.g1, s.g2)}x{Math.Min(s.g1, s.g2)}",
+                              s.Classificados))
                 .OrderBy(s => s.Margem)
                 .ToList();
             if (doLado.Count == 0) continue;
 
             int menorPossivel = doLado.First().Margem;
             int maiorPossivel = doLado.Last().Margem;
-            var nome = NomeCurto(vencedor == 1 ? lado1 : lado2);
+            var nome = (vencedor == 1 ? lado1 : lado2).NomeCurto;
 
             int i = 0;
             while (i < doLado.Count)
@@ -125,28 +349,43 @@ public static class OQuePrecisaParaClassificar
                 var conjunto = doLado[i].Classificados;
                 while (i < doLado.Count && doLado[i].Classificados.SetEquals(conjunto)) i++;
 
-                cenarios.Add(new Cenario(
-                    Frase(nome, doLado[inicio].Margem, doLado[i - 1].Margem, menorPossivel, maiorPossivel),
-                    conjunto.ToList()));
+                int de = doLado[inicio].Margem, ate = doLado[i - 1].Margem;
+                // O APERTADO é o placar da menor margem do bloco; o FOLGADO, o da maior.
+                string apertado = doLado[inicio].Placar, folgado = doLado[i - 1].Placar;
+                blocos.Add(new Bloco(vencedor,
+                    Frase(nome, de, ate, menorPossivel, maiorPossivel),
+                    $"{nome} vencer{EmPlacar(de, ate, menorPossivel, maiorPossivel, apertado, folgado)}",
+                    $"vencendo{EmPlacar(de, ate, menorPossivel, maiorPossivel, apertado, folgado)}",
+                    conjunto));
             }
         }
 
-        return cenarios;
+        return blocos;
     }
 
-    private static string Frase(string nome, int de, int ate, int menorPossivel, int maiorPossivel)
+    private static string Frase(string nome, int de, int ate, int menorPossivel, int maiorPossivel) =>
+        $"{nome} vencer{Margem(de, ate, menorPossivel, maiorPossivel)}";
+
+    // O mesmo trecho em PLACAR, que é o que a linha de cada dupla diz. "por 9x4 ou mais
+    // folgado" responde direto; "por 5 games ou mais" manda a pessoa converter de cabeça.
+    private static string EmPlacar(
+        int de, int ate, int menorPossivel, int maiorPossivel, string apertado, string folgado)
     {
-        if (de == menorPossivel && ate == maiorPossivel) return $"{nome} vencer";
-        if (de == ate) return $"{nome} vencer por {de} game{(de == 1 ? "" : "s")}";
-        if (ate == maiorPossivel) return $"{nome} vencer por {de} game{(de == 1 ? "" : "s")} ou mais";
-        if (de == menorPossivel) return $"{nome} vencer por até {ate} games";
-        return $"{nome} vencer por {de} a {ate} games";
+        if (de == menorPossivel && ate == maiorPossivel) return "";
+        if (de == ate) return $" por {apertado}";
+        if (ate == maiorPossivel) return $" por {apertado} ou mais folgado";
+        if (de == menorPossivel) return $" no máximo por {folgado}";
+        return $" de {folgado} a {apertado}";
     }
 
-    private static string NomeCurto(Dupla dupla) =>
-        dupla.EhTime && !string.IsNullOrWhiteSpace(dupla.NomeTime)
-            ? dupla.NomeTime!
-            : dupla.Jogador1?.ComoChamar ?? $"Dupla {dupla.Id}";
+    private static string Margem(int de, int ate, int menorPossivel, int maiorPossivel)
+    {
+        if (de == menorPossivel && ate == maiorPossivel) return "";
+        if (de == ate) return $" por {de} game{(de == 1 ? "" : "s")}";
+        if (ate == maiorPossivel) return $" por {de} game{(de == 1 ? "" : "s")} ou mais";
+        if (de == menorPossivel) return $" por até {ate} games";
+        return $" por {de} a {ate} games";
+    }
 
     // Todos os placares com que este jogo PODE terminar, no formato do torneio.
     //

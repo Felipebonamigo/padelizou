@@ -35,6 +35,18 @@ public static class AprovacaoDeChaves
     public static readonly System.Linq.Expressions.Expression<Func<Models.Partida, bool>> Publicada =
         p => p.Categoria.Torneio.Status != Pendente;
 
+    // A CHAVE DESTE TORNEIO JÁ É PÚBLICA? — a irmã do predicado acima, do lado do TORNEIO.
+    //
+    // `Publicada` responde por PARTIDA e só sabe dizer "não está esperando aprovação" — o que é
+    // verdade também num torneio com inscrições abertas, que não tem chave nenhuma. Quem
+    // pergunta pela TELA precisa da outra metade: já existe chave sorteada E ela já saiu.
+    //
+    // A lista é a mesma que já decidia a aba "Chaves e Grupos" na view (e agora ela pergunta
+    // aqui): "Mata-Mata" é histórico — nada no código grava esse status hoje —, e fica porque
+    // torneio antigo de produção pode carregá-lo.
+    public static bool ChavePublicada(Models.Torneio torneio) =>
+        torneio.Status is "Fase de Grupos" or "Mata-Mata" or "Finalizado";
+
     // ── RECOLHER: o caminho de volta, `Fase de Grupos` → `Chaves em Aprovação` ──────────────
     //
     // 🗣️ Felipe, 10/09/2026: *"permita recolocar o torneio em fase fechada, ou já tem isso?"*

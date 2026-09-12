@@ -1,0 +1,16 @@
+@* O RECORTE DA TELA, VIAJANDO NO FORMULÁRIO (12/09/2026).
+
+   🗣️ Felipe: *"Ao marcar de confirmar na tela, ele sai da tela, ele tem q sempre se manter na
+   tela da alteracao"*. Toda ação do organizador é POST → redirect → GET, e o redirect voltava
+   pra lista NUA: com a grade filtrada numa categoria, cada clique devolvia o torneio inteiro
+   por cima do recorte.
+
+   ⚠️ UMA LINHA NUM PARCIAL, e não a linha copiada em dez formulários: o nome do campo
+   (`filtros`) precisa bater com o parâmetro das ações, e dez cópias divergem na primeira vez
+   que alguém renomear. É também o que o gate procura
+   (VoltarPraListaFiltradaTests.Todo_formulario_que_volta_pra_lista_leva_os_filtros).
+
+   ⚠️ O servidor só reaproveita as chaves que ele mesmo conhece — Services/FiltrosDaListaDeJogos,
+   lista fechada. Campo escondido é campo editável: sem a peneira, o cliente montaria a rota do
+   redirect. *@
+<input type="hidden" name="filtros" value="@Padelizou.Services.FiltrosDaListaDeJogos.Atual(Context.Request)" />

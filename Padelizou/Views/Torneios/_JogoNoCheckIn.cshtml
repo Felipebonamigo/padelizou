@@ -1,0 +1,46 @@
+@using Padelizou.Services
+@model (Padelizou.Models.Partida? Jogo, IReadOnlyDictionary<int, DateTime> Chegadas)
+
+@* UM JOGO NA TELA DE CHECK-IN: a etiqueta da categoria/fase e as duas duplas, cada jogador com o
+   seu botão. É o mesmo cartão na fila de cima (o que ainda não começou) e no bloco fechado do
+   fim (o que já começou ou acabou) — daí ele viver num parcial.
+
+   ⚠️ O SELO SAI DO STATUS, e é a única coisa que muda entre os dois lugares. Escrever dois
+   cartões parecidos pra isso é como as duas telas passam a divergir na primeira mudança.
+
+   ⚠️ "OS QUATRO CHEGARAM" desde 12/09/2026: a presença é da pessoa, e o jogo só está pronto
+   quando as duas duplas estão completas (Services/PresencaNoDia). *@
+
+@if (Model.Jogo == null) { return; }
+
+@{
+    var jogo = Model.Jogo;
+    bool prontoPraComecar = PresencaNoDia.DuplaCompleta(jogo.Dupla1, Model.Chegadas)
+                         && PresencaNoDia.DuplaCompleta(jogo.Dupla2, Model.Chegadas);
+    bool jaComecou = jogo.Status != "Agendada";
+    int torneioId = jogo.Categoria?.TorneioId ?? jogo.TorneioId ?? 0;
+}
+
+<div class="card border-0 shadow-sm mb-2 @(prontoPraComecar || jaComecou ? "opacity-50" : "")">
+    <div class="card-body p-2">
+        <div class="small text-muted mb-1 d-flex flex-wrap align-items-center gap-2">
+            <span class="text-truncate">@jogo.Categoria?.Nome · @jogo.Fase</span>
+            @if (jogo.Status == "AoVivo")
+            {
+                <span class="badge rounded-pill bg-danger"><i class="bi bi-broadcast"></i> no ar</span>
+            }
+            else if (jogo.Status == "Finalizada")
+            {
+                <span class="badge rounded-pill bg-secondary">jogo encerrado</span>
+            }
+            else if (prontoPraComecar)
+            {
+                <span class="badge rounded-pill bg-success">os quatro chegaram</span>
+            }
+        </div>
+        <div class="list-group list-group-flush">
+            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla1, torneioId, Model.Chegadas)" />
+            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla2, torneioId, Model.Chegadas)" />
+        </div>
+    </div>
+</div>

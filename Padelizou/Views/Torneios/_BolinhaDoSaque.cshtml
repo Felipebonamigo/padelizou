@@ -1,0 +1,42 @@
+@model (Padelizou.Models.Partida Jogo, int DuplaId, bool PodeTrocar, string? VoltarPara)
+@*
+    A BOLINHA DO SAQUE, do lado da dupla que está sacando.
+
+    No padel saber de quem é o saque é metade da leitura do jogo pra quem chega no meio de um
+    game ou acompanha de fora — e é por isso que ela não é texto: "saque" escrito ali competiria
+    com o nome da dupla pelo mesmo olhar.
+
+    ⚠️ UM PARCIAL, USADO NAS DUAS LINHAS DO CARD. Duas cópias deste HTML seriam duas verdades
+    sobre título, tamanho e alvo de toque, e a segunda envelhece calada — é a mesma razão de
+    existir do _EscudoDoTime.
+
+    ⚠️ E É FORMULÁRIO DE VERDADE, não um <span> com `onclick`: sem JavaScript o toque ainda
+    troca o saque (POST, volta pra lista), igual ao play e ao finalizar. O js/saque-ao-vivo.js
+    só INTERCEPTA o envio pra não recarregar a página — recarga aqui reiniciaria o <iframe> da
+    transmissão e jogaria a tela pro topo, os dois defeitos que o −/+ já deixou de causar.
+*@
+@{
+    bool sacando = Model.Jogo.DuplaSacandoId == Model.DuplaId;
+}
+@if (Model.PodeTrocar)
+{
+    <form asp-controller="Partidas" asp-action="TrocarSaque" method="post" class="pdz-saque-forma">
+        <input type="hidden" name="id" value="@Model.Jogo.Id" />
+        <input type="hidden" name="duplaId" value="@Model.DuplaId" />
+        <input type="hidden" name="voltarPara" value="@Model.VoltarPara" />
+        @* A bolinha APAGADA do outro lado é o alvo: sem ela não há onde tocar pra passar o
+           saque, e o organizador cairia de volta na tela do lápis. Ela é contorno, não bola —
+           duas bolas acesas no mesmo card não diriam quem está sacando. *@
+        <button type="submit" class="pdz-saque-toque"
+                aria-pressed="@(sacando ? "true" : "false")"
+                title="@(sacando ? "Está sacando" : "Passar o saque pra esta dupla")"
+                aria-label="@(sacando ? "Está sacando" : "Passar o saque pra esta dupla")">
+            <span class="pdz-bolinha @(sacando ? "pdz-bolinha-quica" : "pdz-bolinha-apagada")"></span>
+        </button>
+    </form>
+}
+else if (sacando)
+{
+    @* Torcedor não ganha alvo de toque: só a bolinha de quem está sacando. *@
+    <span class="pdz-bolinha pdz-bolinha-quica" title="Está sacando"></span>
+}

@@ -23,9 +23,15 @@
 // o reload REINICIA o <iframe> da transmissão, que é o defeito que a atualização automática
 // acabou de deixar de causar (ver js/jogos-ao-vivo-atualiza.js).
 //
-// Agora o mesmo formulário vai por `fetch`: o servidor recebe exatamente o que recebia antes
-// (é o `FormData` do form inteiro, com o token do antiforgery dentro), e a tela não sai do
-// lugar. O que a pessoa vê é o card dizendo "salvando…" e depois "salvo".
+// Agora o mesmo formulário vai por `fetch` e a tela não sai do lugar: o que a pessoa vê é o
+// card dizendo "salvando…" e depois "salvo".
+//
+// ⚠️ E O QUE VIAJA É SÓ O CARD QUE FOI TOCADO (12/09/2026). O corpo era o `FormData` do
+// formulário INTEIRO — que, por causa do `form="pdzPlacaresAoVivo"` nos campos de cada card, é
+// TODA quadra no ar. Com dois marcadores no mesmo torneio, o toque de um reescrevia a quadra
+// do outro com o número que ESTA tela tinha, até 20 segundos velho: o game do vizinho voltava
+// pro valor anterior sem erro em lugar nenhum, e quem perdia o trabalho era quem não tocou em
+// nada. Ver `corpoDoLote` e Padelizou.Tests/js/conferir-placar-ao-vivo.js.
 //
 // A view não escreve JavaScript nenhum: ela põe os botões com data-passo e este arquivo faz
 // o resto — o mesmo padrão de confirmar.js.
@@ -51,7 +57,62 @@
     var enviando = false;
     var pendente = false;
     var agendado = null;
-    var cardsMexidos = [];
+
+    // OS CARDS COM TOQUE AINDA NÃO CONFIRMADO PELO SERVIDOR — a fila deste aparelho.
+    //
+    // ⚠️ ELA É O QUE VAI NO POST, e nada além dela (12/09/2026). O formulário do lote reúne
+    // TODAS as quadras no ar: os campos moram dentro dos cards e se ligam a ele por
+    // `form="pdzPlacaresAoVivo"`, então `new FormData(form)` — que era o corpo daqui — mandava
+    // o torneio inteiro a cada toque, com o valor que ESTA tela tinha. Com dois marcadores
+    // trabalhando, o toque de um reescrevia a quadra do outro com um placar de até 20 segundos
+    // atrás (o intervalo da atualização automática é quem traz o do vizinho). Quem via o game
+    // sumir era justamente quem não tocou em nada, e não havia erro em lugar nenhum.
+    // ⚠️ E A FILA É POR CAMPO, não por card (12/09/2026). 🗣️ Felipe: *"quando um de um lado
+    // marcava e o outro junto as vezes, um deles nao pegava"*. Com os dois lados viajando em
+    // todo POST, dois aparelhos no MESMO jogo se atropelavam: o segundo a chegar devolvia o
+    // lado do primeiro pro número da tela dele, de até 20 segundos atrás. Agora o lado que
+    // ninguém tocou vai como `NAO_TOQUEI` e o servidor não encosta nele.
+    var mexidos = [];   // [{card, campos: ["games1", ...]}]
+
+    function naFila(card) {
+        for (var i = 0; i < mexidos.length; i++) if (mexidos[i].card === card) return mexidos[i];
+        return null;
+    }
+
+    function marcarMexido(card, nome) {
+        if (!card) return;
+        var item = naFila(card);
+        if (!item) {
+            item = { card: card, campos: [] };
+            mexidos.push(item);
+        }
+        if (nome && item.campos.indexOf(nome) === -1) item.campos.push(nome);
+        // A bandeira fica no CARD porque quem também precisa dela é a atualização automática
+        // (js/jogos-ao-vivo-atualiza.js): entre o dedo e o POST há o meio segundo do debounce,
+        // e trocar o cabeçalho nesse vão devolve o número velho — que é o que o POST lê em
+        // seguida. O toque sumiria inteiro.
+        card.setAttribute("data-pdz-mexido", "");
+    }
+
+    // O que não chegou ao servidor volta pra fila com os MESMOS campos — requeue que perdesse
+    // a lista mandaria o card inteiro na tentativa seguinte, que é o atropelo de volta.
+    function devolverPraFila(item) {
+        var atual = naFila(item.card);
+        if (!atual) { mexidos.push(item); item.card.setAttribute("data-pdz-mexido", ""); return; }
+        item.campos.forEach(function (nome) {
+            if (atual.campos.indexOf(nome) === -1) atual.campos.push(nome);
+        });
+    }
+
+    // A marca só sai quando o servidor confirmou E ninguém tocou no card de novo no meio do
+    // caminho.
+    function confirmar(item) {
+        if (!naFila(item.card)) item.card.removeAttribute("data-pdz-mexido");
+    }
+
+    function cardsDo(lote) {
+        return lote.map(function (item) { return item.card; });
+    }
 
     // Escreve na tela o placar que o servidor gravou. Só mexe no campo que a pessoa NÃO está
     // editando naquele instante — corrigir por baixo do dedo dela apagaria o que ela está
@@ -63,46 +124,256 @@
             var card = document.querySelector('.pdz-live-card[data-partida-id="' + linha.partidaId + '"]');
             if (!card) return;
 
-            var campos = card.querySelectorAll(".pdz-live-input");
-            var tetos = [linha.teto1, linha.teto2];
-            [linha.games1, linha.games2].forEach(function (valor, i) {
-                var campo = campos[i];
-                if (!campo) return;
+            // ⚠️ CARD COM TOQUE MAIS NOVO QUE ESTA RESPOSTA NÃO É CORRIGIDO (Felipe,
+            // 12/09/2026: *"estou clicando pra marcar, aparece salvo, mas nao salva as
+            // vezes"*). O servidor está respondendo sobre o placar de ANTES do toque: escrever
+            // aqui apaga o game que a pessoa acabou de marcar — e o POST seguinte lê o campo
+            // JÁ REVERTIDO e manda o número velho de volta. O toque some inteiro, com a tarja
+            // dizendo "salvo".
+            //
+            // É o caminho que a internet ruim escancara: quanto mais devagar a resposta volta,
+            // mais toques cabem no vão entre o envio e ela. `mexidos` é justamente a lista de
+            // quem tocou depois do POST sair.
+            if (naFila(card)) return;
 
-                // ⚠️ O TETO É ATUALIZADO MESMO COM O CAMPO EM FOCO, ao contrário do valor: o
-                // valor não se mexe embaixo do dedo de quem está digitando, mas o limite não é
-                // digitação — é regra, e ela muda com o placar (num jogo até 4, o 3x3 estende
-                // pra 5). Deixar o `max` velho aqui travaria o "+" no game do desempate.
-                if (typeof tetos[i] === "number") campo.setAttribute("max", tetos[i]);
+            // ⚠️ O VERDE ANDA JUNTO COM O NÚMERO (11/09/2026). A classe só nascia no HTML
+            // do servidor, então um 9 x 8 corrigido pra 8 x 8 ficava com o empate pintado de
+            // verde: a atualização automática arrumaria no tique seguinte, mas ela NÃO roda
+            // com o cursor dentro do campo (`estaOcupado` em jogos-ao-vivo-atualiza.js) — quem
+            // digita em vez de tocar no −/+ ficava com a cor errada por tempo indeterminado.
+            //
+            // ⚠️ Quem VENCEU é decidido pelo SERVIDOR e vem na resposta: a régua tem soma ×
+            // "até" e o desempate do "vencer por dois" (Services/QuemVenceu.LadoJaDecidido).
+            // Comparar games1 com games2 aqui seria a segunda cópia da régua — o mesmo erro do
+            // `limiteGames: 9` que já viveu cravado neste arquivo.
+            var lados = card.querySelectorAll(".pdz-live-placar");
+            if (lados.length === 2 && typeof linha.vencedor === "number") {
+                lados[0].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 1);
+                lados[1].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 2);
+            }
 
-                if (campo === document.activeElement) return;
-                if (String(valor) !== campo.value) campo.value = valor;
-            });
+            // ⚠️ OS CAMPOS SÃO ACHADOS POR `name`, E NÃO POR ÍNDICE (12/09/2026). Aqui era
+            // `campos[0]`/`campos[1]` sobre TODOS os `.pdz-live-input` do card — e o card
+            // acabou de ganhar dois campos novos, os pontos do tie-break. Índice é um
+            // acoplamento com a ORDEM do HTML: no dia em que o bloco do tie-break subisse pra
+            // cima do placar, o game do jogo passaria a ser escrito no campo de pontos, calado.
+            // O `name` é o mesmo que o POST já usa.
+            function campoDo(nome) {
+                return card.querySelector('.pdz-live-input[name="' + nome + '"]');
+            }
+
+            aplicarNumero(campoDo("games1"), linha.games1, linha.teto1);
+            aplicarNumero(campoDo("games2"), linha.games2, linha.teto2);
+
+            // O TIE-BREAK (12/09/2026). Os pontos e a EXISTÊNCIA do bloco vêm prontos do
+            // servidor: "este jogo está em tie-break?" é pergunta de régua
+            // (Services/TieBreakDoJogo), e a resposta vira no instante em que o 9º game é
+            // escrito — reescrever a conta aqui seria a segunda cópia, o erro do `limiteGames: 9`.
+            if (linha.tieBreak) {
+                aplicarNumero(campoDo("pontos1"), linha.tieBreak.pontos1, null);
+                aplicarNumero(campoDo("pontos2"), linha.tieBreak.pontos2, null);
+
+                aplicarTieBreak(card, linha.tieBreak);
+            }
         });
     }
 
-    function marcarTodos(estado, texto) {
-        cardsMexidos.forEach(function (card) { avisar(card, estado, texto); });
+    // Um número que o servidor mandou, aplicado a um campo da tela.
+    //
+    // ⚠️ O TETO É ATUALIZADO MESMO COM O CAMPO EM FOCO, ao contrário do valor: o valor não se
+    // mexe embaixo do dedo de quem está digitando, mas o limite não é digitação — é regra, e
+    // ela muda com o placar (num jogo até 4, o 3x3 estende pra 5). Deixar o `max` velho
+    // travaria o "+" no game do desempate.
+    function aplicarNumero(campo, valor, teto) {
+        if (!campo || typeof valor !== "number") return;
+
+        if (typeof teto === "number") campo.setAttribute("max", teto);
+
+        if (campo === document.activeElement) return;
+        if (String(valor) !== campo.value) campo.value = valor;
+    }
+
+    // O BLOCO DO TIE-BREAK OBEDECENDO AO SERVIDOR (12/09/2026).
+    //
+    // Ele existe no HTML de todo jogo cuja fase comporta tie-break, escondido — existir é uma
+    // coisa, APARECER é outra. O motivo de não esperar a atualização automática: ela não roda com
+    // o cursor dentro de um campo (`estaOcupado` em jogos-ao-vivo-atualiza.js), e quem marca o 8º
+    // game está com o dedo no campo do placar. Acendendo o bloco na resposta do próprio POST, o
+    // tie-break aparece no toque que o criou.
+    //
+    // ⚠️ Nenhuma decisão é tomada aqui: "está em tie-break?", "já dá pra fechar?", "com que
+    // placar?" e até o TEXTO da etiqueta vêm prontos de Services/TieBreakDoJogo. Reescrever essa
+    // régua em JavaScript seria a segunda cópia — o erro do `limiteGames: 9` cravado.
+    function aplicarTieBreak(card, tb) {
+        var bloco = card.querySelector("[data-tiebreak]");
+        if (bloco) bloco.hidden = !tb.emAndamento;
+
+        // A linha "tie-break 7-5" é o DEPOIS: entra quando o bloco sai, e só em jogo que teve
+        // contagem.
+        var feito = card.querySelector("[data-tiebreak-feito]");
+        if (feito) {
+            feito.hidden = tb.emAndamento || !tb.houve;
+            var etiqueta = feito.querySelector(".pdz-live-tiebreak-feito-texto");
+            if (etiqueta && tb.etiqueta) etiqueta.textContent = tb.etiqueta;
+        }
+
+        // O botão de fechar só existe pra quem marca placar.
+        var fechar = card.querySelector("[data-fechar-tiebreak]");
+        if (!fechar) return;
+
+        var temFechamento = typeof tb.fecha1 === "number" && typeof tb.fecha2 === "number";
+        fechar.hidden = !tb.emAndamento || !temFechamento;
+
+        if (temFechamento) {
+            fechar.setAttribute("data-games1", tb.fecha1);
+            fechar.setAttribute("data-games2", tb.fecha2);
+            var rotulo = fechar.querySelector(".pdz-live-tiebreak-fechar-texto");
+            if (rotulo) rotulo.textContent = "Fechar o tie-break em " + tb.fecha1 + " x " + tb.fecha2;
+        }
+    }
+
+    function marcarTodos(lote, estado, texto) {
+        lote.forEach(function (card) { avisar(card, estado, texto); });
+    }
+
+    // O CORPO DO POST: os campos do próprio formulário (o token do antiforgery, o id do
+    // torneio, o recorte da tela) mais os campos DOS CARDS DO LOTE — e só deles.
+    var CAMPOS_DO_CARD = ["games1", "games2", "pontos1", "pontos2"];
+
+    // "Não toquei neste lado" — o servidor deixa como está no banco (ver
+    // TorneiosController.SalvarPlacaresAoVivo). Negativo porque placar não é negativo: não
+    // existe número legítimo que colida com o combinado.
+    var NAO_TOQUEI = "-1";
+
+    // O valor que ESTE card está mandando pra um campo. O `.pdz-live-input` vem primeiro de
+    // propósito: é o campo que a pessoa toca e o mesmo que a resposta do servidor reescreve
+    // (ver aplicarPlacarDoServidor). O segundo seletor é pro `partidaId`, que é escondido e
+    // não tem a classe.
+    function valorDe(card, nome) {
+        var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]')
+            || card.querySelector('[name="' + nome + '"]');
+        return campo ? campo.value : null;
+    }
+
+    // O QUE ESTE POST ESTÁ AFIRMANDO, card a card — é contra isto que a resposta é conferida
+    // antes de a tela dizer "salvo". ⚠️ Só o lado TOCADO entra: o outro não foi afirmado, e
+    // cobrar do servidor um número que ninguém mandou daria "não salvou" toda vez que o
+    // aparelho do vizinho mexesse no outro lado.
+    function oQueVaiNoLote(lote) {
+        return lote.map(function (item) {
+            return {
+                card: item.card,
+                id: valorDe(item.card, "partidaId"),
+                games1: item.campos.indexOf("games1") !== -1 ? valorDe(item.card, "games1") : null,
+                games2: item.campos.indexOf("games2") !== -1 ? valorDe(item.card, "games2") : null,
+            };
+        });
+    }
+
+    // A RESPOSTA É A PROVA, e o "salvo" só sai dela (Felipe, 12/09/2026: *"estou clicando pra
+    // marcar, aparece salvo, mas nao salva as vezes"*). Aqui se dizia "salvo" por ter chegado
+    // um JSON — e JSON chega também quando o servidor PULOU o card de propósito. Devolve os
+    // cards que continuam devendo.
+    function conferirResposta(afirmado, placares) {
+        var porId = {};
+        (placares || []).forEach(function (linha) { porId[String(linha.partidaId)] = linha; });
+
+        var refazer = [];
+        var salvos = [];
+
+        afirmado.forEach(function (item, i) {
+            var linha = porId[item.id];
+
+            // O servidor não citou este jogo: 200 com JSON não é prova de que ELE entrou.
+            if (!linha) {
+                avisar(item.card, "erro", "não salvou — toque de novo");
+                refazer.push(i);
+                return;
+            }
+
+            // Saiu do ar entre a tela carregar e o toque — alguém finalizou noutro aparelho. O
+            // servidor pula o card DE PROPÓSITO (sobrescrever jogo encerrado é o que faz
+            // resultado sumir), e tocar de novo não adianta: este não volta pra fila.
+            if (linha.aoVivo === false) {
+                avisar(item.card, "erro", "este jogo saiu do ar");
+                return;
+            }
+
+            // O servidor CORRIGE o que recebe: o teto da fase manda, e numa soma de 5 um 6
+            // vira 4. ⚠️ O número corrigido nem sempre chega à tela — não se escreve por baixo
+            // de quem está digitando (ver aplicarNumero) —, então quem conta é a tarja.
+            var diferente = (item.games1 !== null && String(linha.games1) !== item.games1)
+                || (item.games2 !== null && String(linha.games2) !== item.games2);
+            if (diferente) {
+                avisar(item.card, "ok", "salvo como " + linha.games1 + " x " + linha.games2);
+                salvos.push(item.card);
+                return;
+            }
+
+            avisar(item.card, "ok", "salvo");
+            salvos.push(item.card);
+        });
+
+        return { refazer: refazer, salvos: salvos };
+    }
+
+    function corpoDoLote(form, lote) {
+        var dados = new FormData();
+
+        // `form.querySelectorAll` pega só o que está DENTRO do formulário — os campos dos cards
+        // estão fora dele, ligados pelo atributo `form`, e é exatamente o que não pode entrar
+        // sozinho.
+        Array.prototype.forEach.call(form.querySelectorAll("input"), function (campo) {
+            if (campo.name) dados.append(campo.name, campo.value);
+        });
+
+        // ⚠️ UMA ENTRADA DE CADA NOME POR CARD, SEMPRE: o servidor casa `partidaId[]` com
+        // `games1[]` e `pontos1[]` por ÍNDICE, e um campo que só existe em alguns cards
+        // desalinha o lote inteiro — os jogos depois dele recebem o placar do vizinho. Por
+        // isso o `NAO_TOQUEI` também cobre campo que não está na tela (HTML velho em cache):
+        // ele diz "não mexa", que é a leitura certa dos dois casos.
+        lote.forEach(function (item) {
+            var id = valorDe(item.card, "partidaId");
+            if (id === null) return;   // card sem identidade não entra: ele é que desalinharia
+
+            dados.append("partidaId", id);
+            CAMPOS_DO_CARD.forEach(function (nome) {
+                var tocado = item.campos.indexOf(nome) !== -1;
+                var valor = tocado ? valorDe(item.card, nome) : null;
+                dados.append(nome, valor === null ? NAO_TOQUEI : valor);
+            });
+        });
+
+        return dados;
     }
 
     function enviarAgora() {
         var form = formulario();
         if (!form) return;
 
-        // Um POST por vez. Toque que chega no meio do envio não é perdido: ele marca
-        // `pendente` e o próximo envio sai com o valor mais novo da tela.
+        // Um POST por vez. Toque que chega no meio do envio não é perdido: ele entra em
+        // `mexidos`, marca `pendente` e o envio seguinte sai com o valor mais novo da tela.
         if (enviando) { pendente = true; return; }
+
+        // O que vai NESTE POST sai da fila agora: um toque que chegue enquanto ele viaja
+        // reentra por cima, e é a fila que decide se a marca do card pode sair no fim.
+        var lote = mexidos.slice();
+        if (lote.length === 0) return;
+        mexidos = [];
+
+        // Lido AGORA, no mesmo instante do corpo do POST: é o que a resposta tem que confirmar.
+        var afirmado = oQueVaiNoLote(lote);
 
         enviando = true;
         // ⚠️ Trava a atualização automática enquanto o placar está indo: ela troca o
         // cabeçalho do card pelo HTML do servidor, e o servidor ainda não sabe deste game —
         // o número recém-marcado voltaria pro valor velho na frente da pessoa.
         window.pdzSalvandoPlacar = true;
-        marcarTodos("indo", "salvando…");
+        marcarTodos(cardsDo(lote), "indo", "salvando…");
 
         window.fetch(form.action, {
             method: "POST",
-            body: new FormData(form),
+            body: corpoDoLote(form, lote),
             credentials: "same-origin",
             // O cabeçalho é o que pede a resposta em JSON — e é o JSON que prova que salvou.
             headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -121,27 +392,41 @@
                 // ar. Com a recarga, a tela voltava do servidor já certa; sem ela, seria a
                 // tela mentindo sobre o que está gravado.
                 aplicarPlacarDoServidor(dados && dados.placares);
-                marcarTodos("ok", "salvo");
-                // O "salvo" some sozinho; o card volta a ser só o card.
-                window.setTimeout(function () { marcarTodos("", ""); cardsMexidos = []; }, 2500);
+
+                var conferido = conferirResposta(afirmado, dados && dados.placares);
+                lote.forEach(confirmar);
+                // O que o servidor não confirmou continua devendo, como se a rede tivesse
+                // caído: nada é descartado calado — e volta com os MESMOS campos.
+                conferido.refazer.forEach(function (i) { devolverPraFila(lote[i]); });
+                // ⚠️ Só o "salvo" some sozinho. Aviso de erro FICA na tela — ele é a única
+                // pista de que aquele toque não virou placar.
+                window.setTimeout(function () { marcarTodos(conferido.salvos, "", ""); }, 2500);
             })
             .catch(function () {
                 // ⚠️ Falha PRECISA aparecer. O placar continua na tela (não se apaga o que a
                 // pessoa marcou), mas ela tem que saber que o servidor não recebeu — senão é
                 // o "editei e não salvou" de novo, agora silencioso porque não há recarga
                 // pra denunciar.
-                marcarTodos("erro", "não salvou — toque de novo");
+                marcarTodos(cardsDo(lote), "erro", "não salvou — toque de novo");
+                // NADA é descartado: o card volta pra fila com os campos que ele devia, e o
+                // toque seguinte (ou o "Salvar placares") tenta de novo.
+                lote.forEach(devolverPraFila);
             })
             .then(function () {
                 enviando = false;
-                window.pdzSalvandoPlacar = pendente;
+                window.pdzSalvandoPlacar = false;
+                // ⚠️ Quem manda reenviar é o TOQUE que chegou no meio do caminho, e nunca a
+                // fila em si: o card que voltou pra fila por falha de rede também está nela, e
+                // reenviar por isso seria um laço apertado contra o servidor justamente na hora
+                // em que a internet do clube está ruim. O que tira o card de lá é o toque
+                // seguinte (ou o "Salvar placares"), com o aviso "não salvou" na tela até lá.
                 if (pendente) { pendente = false; enviarAgora(); }
             });
     }
 
     function agendarEnvio(campo) {
-        var card = campo && campo.closest ? campo.closest(".pdz-live-card") : null;
-        if (card && cardsMexidos.indexOf(card) === -1) cardsMexidos.push(card);
+        marcarMexido(campo && campo.closest ? campo.closest(".pdz-live-card") : null,
+                     campo ? campo.getAttribute("name") : null);
 
         window.clearTimeout(agendado);
         agendado = window.setTimeout(enviarAgora, ESPERA_MS);
@@ -192,6 +477,47 @@
         passo(botao);
     });
 
+    // FECHAR O TIE-BREAK (12/09/2026): escreve o último game (9 x 8) nos campos de games do
+    // próprio card e manda o lote — games novos e pontos do tie-break no MESMO POST, porque
+    // estão no mesmo formulário.
+    //
+    // ⚠️ O placar do fechamento vem do SERVIDOR (`data-games1`/`data-games2`): qual game o
+    // tie-break escreve é pergunta de régua (Services/TieBreakDoJogo.GamesAoFechar), que sabe
+    // do limite da fase — num jogo até 5 o fechamento é 5x4, e não 9x8.
+    //
+    // ⚠️ E NÃO FINALIZA NADA. Encerrar continua sendo o botão Finalizar, com a confirmação
+    // dele: o que este botão faz é marcar o game que a quadra acabou de jogar.
+    document.addEventListener("click", function (e) {
+        var botao = e.target.closest ? e.target.closest("[data-fechar-tiebreak]") : null;
+        if (!botao || botao.disabled) return;
+
+        e.preventDefault();
+
+        var card = botao.closest(".pdz-live-card");
+        if (!card) return;
+
+        ["games1", "games2"].forEach(function (nome, i) {
+            var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]');
+            var valor = botao.getAttribute(i === 0 ? "data-games1" : "data-games2");
+            // `if (valor)` e não `!== null`: atributo ausente no HTML vem como string VAZIA, e
+            // `campo.value = ""` APAGARIA o placar do jogo. O fechamento nunca é zero (o lado
+            // perdedor fica com `Games - 1`, que num tie-break é pelo menos 2).
+            if (campo && valor) campo.value = valor;
+        });
+
+        // ⚠️ O botão NÃO é desabilitado aqui, e isso é escolha: o fechamento escreve um placar
+        // ABSOLUTO (9 x 8), então o segundo toque dá exatamente no mesmo lugar — a mesma razão
+        // pela qual a fila da Mesa guarda placar inteiro e não "+1". Desabilitar deixaria o botão
+        // MORTO quando o POST falha, que é justamente quando a pessoa precisa tocar de novo.
+        // ⚠️ AQUI OS DOIS LADOS FORAM TOCADOS: o fechamento escreve o placar inteiro
+        // (9 x 8), então os dois games vão com número — o "não toquei" é por CAMPO, e este
+        // botão mexe nos dois.
+        marcarMexido(card, "games1");
+        marcarMexido(card, "games2");
+        window.clearTimeout(agendado);
+        enviarAgora();
+    });
+
     // Tocar no campo já SELECIONA o número. Sem isto o cursor cai ao lado do "0" e a pessoa
     // digita "04" — ou apaga primeiro e digita depois, dois toques pra marcar um game, de pé
     // e com a quadra rolando. Vale pro clique e pro foco por teclado.
@@ -230,10 +556,20 @@
         if (!window.fetch) return;   // navegador sem fetch: deixa o envio de sempre acontecer
 
         e.preventDefault();
-
-        // Salvar a mão pede resposta em todos os cards, e não só nos que foram tocados.
-        cardsMexidos = Array.prototype.slice.call(document.querySelectorAll(".pdz-live-card"));
         window.clearTimeout(agendado);
+
+        // ⚠️ O BOTÃO SALVA O QUE FOI EDITADO, e não a tela inteira (12/09/2026). Ele era o
+        // caminho mais direto pro defeito que este arquivo acabou de tirar do −/+: mandar
+        // "por garantia" o placar das quadras que ninguém tocou é reescrever o trabalho do
+        // outro marcador com um número velho. Sem card mexido não há o que salvar — e dizer
+        // isso é mais honesto que um "salvo" que não gravou nada.
+        if (mexidos.length === 0) {
+            var todos = Array.prototype.slice.call(document.querySelectorAll(".pdz-live-card"));
+            marcarTodos(todos, "ok", "nada mudou");
+            window.setTimeout(function () { marcarTodos(todos, "", ""); }, 2500);
+            return;
+        }
+
         enviarAgora();
     });
 })();

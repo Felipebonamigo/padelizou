@@ -138,6 +138,28 @@ public partial class Torneio
     public int SetsFaseFinal { get; set; }
     public int GamesFaseFinal { get; set; }
 
+    // A FINAL SOZINHA, quando ela não joga a mesma regra das semifinais (Felipe, 12/09/2026).
+    //
+    // 🗣️ *"aqui a final tem q ser separada da semi ou tem algum modo que a final é separada?"* —
+    // não tinha. As três colunas `...FaseFinal` acima regem SEMIFINAL E FINAL juntas, e é isso
+    // que continua valendo por padrão: quem escreve "as semis e a final são mais longas" está
+    // descrevendo as duas. Estas três são o DESVIO, pra decisão em 3 sets ou com super
+    // tie-break enquanto as semis seguem curtas.
+    //
+    // ⚠️ QUEM É O INTERRUPTOR É O `GamesSoDaFinal`: zero = "não configurado", e aí a final
+    // segue as semis — a mesma leitura que o `FormatoDaPartida.Valido` já faz das colunas
+    // antigas, e o que está gravado em todo torneio que existia antes disto (a migration não
+    // faz backfill nenhum, e é de propósito). Sets e tie-break daqui só são lidos quando ele é
+    // positivo, senão uma linha meio configurada de uma edição anterior mudaria a final de um
+    // torneio que voltou pro modo simples.
+    //
+    // ⚠️ E NÃO EXISTE UM `bool FinalSeparada` de propósito: um interruptor separado poderia
+    // discordar do número gravado (ligado com zero games), e aí passariam a existir duas
+    // verdades sobre o mesmo jogo. A caixa da tela é derivada daqui, não persistida.
+    public int SetsSoDaFinal { get; set; }
+    public int GamesSoDaFinal { get; set; }
+    public int PontosTieBreakSoDaFinal { get; set; }
+
     // COMO os games da partida são contados (Felipe, 08/08/2026). Os números acima dizem
     // QUANTOS; este diz o que esse número significa:
     //
@@ -150,6 +172,24 @@ public partial class Torneio
     // grava esse valor nas linhas antigas. Ver Services/FormatoDaPartida, que é quem
     // traduz isto em teto de placar e em "já dá pra encerrar?".
     public string ContagemDeGames { get; set; } = Padelizou.Services.ContagemDeGamesDoTorneio.Ate;
+
+    // ATÉ QUANTOS PONTOS VAI O TIE-BREAK, por fase (Felipe, 12/09/2026).
+    //
+    // 🗣️ *"no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem de tie break, que pode
+    // ir até 7 ou até 10, depende do torneio"*. Zero = DESLIGADO, e é o que a migration grava em
+    // todo torneio que já existe: o 8x8 segue se resolvendo no 9º game marcado na mão, sem que
+    // nada mude pra quem está em quadra hoje.
+    //
+    // É POR FASE, como Sets e Games já são (e ao contrário do `ContagemDeGames`, que é do
+    // torneio inteiro): o super tie-break de 10 pontos é justamente o que costuma aparecer só na
+    // decisão. Quem traduz fase → número é o `FormatoDaPartida`, como sempre.
+    //
+    // ⚠️ SÓ VALE EM FASE DE NÚMERO ÍMPAR DE GAMES. Num jogo até 6 o 5x5 continua indo pro 7º
+    // game (o "vencer por dois" que já está em quadra), então um 10 gravado aqui fica INERTE —
+    // e as telas avisam. Ver Services/TieBreakDoJogo.PodeAcontecer.
+    public int PontosTieBreakGrupos { get; set; }
+    public int PontosTieBreakMataMata { get; set; }
+    public int PontosTieBreakFinal { get; set; }
     // O clube PRINCIPAL do torneio — o que o organizador escolheu na criação, o que aparece no
     // cartaz e o que responde por toda quadra que não disse outro (ver `Quadra.ClubeId`).
     // Continua obrigatório e continua sendo um só: torneio de duas sedes tem uma sede-sede.
@@ -323,6 +363,15 @@ public partial class Torneio
     public DateTime AberturaDaGrade =>
         (DataInicio ?? DateTime.Today).Date.Add(HoraInicioDoDia);
     public int TamanhoGrupo { get; set; } = 3;
+
+    // ⚠️ NINGUÉM LÊ ISTO DESDE 11/09/2026 — quem manda em quantos passam de cada grupo é
+    // `Categoria.ClassificadosPorGrupo`, pela régua única `ClassificacaoDeGrupos.VagasPorGrupo`.
+    // A coluna fica porque dropar pede migration, e a `DuplicacaoDeTorneio` ainda a copia.
+    //
+    // 🕳️ Era a tela `/Torneios/Classificacao` que lia daqui, e ela discordava do chaveamento:
+    // este campo nasce 2 e NENHUMA tela o edita, então numa categoria de TIMES com 4 passando a
+    // tela pintava 2 linhas de verde. Se um dia isto virar o PADRÃO do torneio, o lugar é dentro
+    // da régua — e atenção: mudar lá muda a CHAVE de todo torneio cuja coluna não seja 2.
     public int ClassificadosPorGrupo { get; set; } = 2;
 
     // OBSOLETO — mantido só para não dropar a coluna em produção (evita janela de erro
