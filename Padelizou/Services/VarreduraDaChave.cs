@@ -51,10 +51,17 @@ public class VarreduraDaChave
     /// </summary>
     public async Task<int> PassarAsync(CancellationToken ct)
     {
-        // Só torneio EM ANDAMENTO. "Chaves em Aprovação" não tem chave pública pra montar, e
-        // "Finalizado" acabou — varrer os dois seria mexer no passado de alguém.
+        // ⚠️ EXCLUI O QUE PRECISA SER EXCLUÍDO, EM VEZ DE ADIVINHAR O NOME DO STATUS
+        // (12/09/2026). A primeira versão varria só `Status == "Fase de Grupos"` — e qualquer
+        // outro estado de torneio em andamento (o histórico "Mata-Mata", por exemplo) saía da
+        // varredura EM SILÊNCIO, que é exatamente o defeito que esta classe existe pra matar.
+        // Chave não publicada não tem mata-mata pra montar; torneio finalizado e cancelado são
+        // passado. O resto entra — os robôs são guardados, então varrer à toa não faz nada.
         var torneios = await _context.Torneios
-            .Where(t => t.Status == "Fase de Grupos")
+            .Where(t => t.Status != AprovacaoDeChaves.Pendente
+                     && t.Status != "Finalizado"
+                     && t.Status != "Inscrições Abertas"
+                     && !t.Status.StartsWith("Cancelado"))
             .Select(t => t.Id)
             .ToListAsync(ct);
 
@@ -71,8 +78,13 @@ public class VarreduraDaChave
 
             // Uma consulta só pro torneio inteiro, projetada: a decisão de quem precisa do robô
             // é feita em memória, e só quem precisa paga uma ida ao banco.
+            // ⚠️ PELO CAMINHO `Categoria.Torneio`, E NÃO POR `Partida.TorneioId` — o mesmo
+            // motivo que `AprovacaoDeChaves.Publicada` já traz escrito ao lado: aquele campo é
+            // ANULÁVEL (jogo avulso não tem torneio) e a categoria é obrigatória. A primeira
+            // versão filtrava por `p.TorneioId`, e uma partida de torneio com o campo frouxo
+            // sumia da varredura — a categoria ficava travada pra sempre, em silêncio.
             var partidas = await _context.Partidas
-                .Where(p => p.TorneioId == torneioId)
+                .Where(p => p.Categoria.TorneioId == torneioId)
                 .Select(p => new { p.CategoriaId, p.Fase, p.Status })
                 .ToListAsync(ct);
 

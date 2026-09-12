@@ -61,6 +61,22 @@
 >
 > ⚠️ **A LIÇÃO PRA PRÓXIMA SESSÃO: `204 queued` não é deploy, e "o healthz responde 200" não é prova de qual código está rodando.** O que prova é o **log do job** (ele imprime a tag instalada) mais a ancestralidade do commit. As duas coisas juntas — e não o relógio.
 
+> **12/09/2026** — 🫥 **QUEM FOLGOU A PRIMEIRA RODADA SUMIA DA PROJEÇÃO — E A VARREDURA ESTAVA CEGA.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Dois defeitos achados COM O ER EM QUADRA, os dois calados.**
+>
+> 🗣️ Felipe, com o print de "Meus jogos": *"aqui tambem nao esta aparecendo"* — a lista mandava o vencedor das Oitavas 2 direto pra uma **"Semifinal 2"** contra o vencedor das Oitavas 3. E, no quadro: *"aquele 'a definir' do horario do jogo nao é verdade, ja esta definido desde o chaveamento"*.
+>
+> 🕳️ **DEFEITO 1 — O BYE ERA ENGOLIDO POR UM `.Where(n => n != null)`.** Em `ProjetarProximasFasesAsync` o dicionário de nomes nascia só das duplas que aparecem em partida de mata-mata JÁ EXISTENTE — e **quem folgou a primeira rodada não aparece em nenhuma: é isso que o torna bye**. Os quatro byes da 4ª Masculina eram descartados sem uma linha de log, e a projeção rodava com 4 lados em vez de 8.
+>
+> ⚠️ **O ESTRAGO NÃO É "UMA FASE A MENOS NO FIM"** — o nome de cada fase sai de QUANTA GENTE SOBROU (`ChaveamentoMataMata.NomeFase`), então a fase seguinte inteira era **rebatizada**: as Quartas viravam "Semifinal" e levavam junto a hora reservada das Quartas. Na tela, `08:50` aparecia como semifinal sendo o slot da quartas. Conferido no ar: a projeção da 4ª tinha **só 3 jogos** (Semi 1, Semi 2, Final) em vez de 7.
+>
+> ✅ **O ROBÔ NUNCA PASSOU POR ALI**, e é por isso que a chave de verdade saiu certa: ele vai por `AvancoDaChave.ByesDaCategoriaAsync` **com IDs**. Quem mentia era só a PREVISÃO — e ela é o que o jogador lê pra saber a que horas voltar. O `Where` silencioso virou um rótulo que dá na vista (`Dupla {id}`): bye sem nome agora aparece feio em vez de reescrever o quadro.
+>
+> 🕳️ **DEFEITO 2 — A VARREDURA DE ONTEM À NOITE NÃO ENXERGAVA NADA**, e foi pega no ar (rodou dois tiques sem destravar a 3ª Masculina e a 6ª Feminina). Dois erros meus, os dois de escolha de caminho: (a) filtrava `p.TorneioId`, que é **anulável** — o próprio `AprovacaoDeChaves.Publicada` já escolhe `p.Categoria.Torneio` por causa disso, **com o porquê escrito ao lado**, e eu passei direto; (b) varria só `Status == "Fase de Grupos"`, adivinhando o nome do estado em vez de excluir o que precisa ser excluído (chave não publicada, finalizado, cancelado, inscrições abertas).
+>
+> 🧪 **6.984 testes, 0 falhas (9 novos)** + os **8** conferidores de JS verdes: `ByeNaoSomeDaProjecaoTests` (2, vistos vermelhos em *"Expected: 2 / Actual: 0"* — a semifinal não existia — e *"Item not found"* pro nome do bye), mais 3 em `VarreduraDaChaveTests` e 3 de **tradução** (`TraducaoDaVarreduraDaChaveTests`): a consulta nova navega `p.Categoria.TorneioId`, dois níveis, que é exatamente a forma que o InMemory não valida.
+>
+> ⚠️ **E A LIÇÃO DO CI, DE NOVO**: a primeira versão da varredura pedia o `RoboDoChaveamento` por injeção. Ele **não está registrado** — quem precisa faz `new`. Passou nos 6.976 testes e quebrou no `dotnet ef`, único gate que monta o service provider. **Defeito de composição é invisível na suíte daqui.**
+
 > **12/09/2026** — 🩹 **A CHAVE QUE FICOU PRA TRÁS AGORA É MONTADA SOZINHA.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Conserto do incidente do ER de hoje: duas categorias com os grupos fechados e o mata-mata não montado, em silêncio.**
 >
 > 🗣️ Felipe, olhando a lista de jogos no meio do torneio: *"é que eles ja não são mais prévias, no momento que elas passaram de chave (terminou os jogos da chave) ele se torna real e não prévia"*.
