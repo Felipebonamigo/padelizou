@@ -68,6 +68,8 @@
 > 👀 **E DESTA VEZ A TELA FOI VISTA, não só testada**: o app subiu nesta sessão contra um Postgres local, logado como organizador — aba Jogos no computador e no celular, tela de Check-in, e o POST de marcar/desfazer indo e voltando com a âncora certa. As fotos foram pro Felipe. **O que continua não visto é o tema ESCURO no aparelho dele** (o site reaplica o tema guardado, e o headless não tem esse estado): lá a garantia é o teste de contraste.
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/share-button-photo-download-ee9mlj`, ainda não publicado.** **Sem migration.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1234-8521354`** (runs 288 e 289, 11h04 e 11h06 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #248. ✅ **SEM MIGRATION.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
 >
 > 🗣️ Felipe, com o print da tela "Tudo numa imagem só" no celular: *"O botao compartilhar nao esta funcionando. E o baixar foto fica travado numa pagina de pre visualizacao depois q envia a foto"*. **Eram DOIS defeitos independentes, e os dois falhavam CALADOS.**
 >
@@ -80,6 +82,19 @@
 > 🚧 **O GATE QUE ACHOU MAIS DOIS**: `Nenhuma_view_define_secao_depois_de_um_return_de_razor` varre as views, recorta `<script>` e comentário Razor, e reprova seção declarada depois de um `return;` de Razor. Pegou o `Torneios/jogos.cshtml` e o `ClubeGestao/Ocupacao.cshtml` — nos dois o `return` é guarda de estado vazio (tela sem o que mostrar, script sem o que fazer), então **não havia sintoma**, mas o próximo script a entrar ali nasceria morto. A seção subiu pro topo nos dois, que é o ponto do arquivo que todo caminho executa. O `Aulas/Financeiro.cshtml` já tinha topado nisto em outra sessão e contornado com `<script>` inline — o comentário dele está lá, e é a prova de que a armadilha repete.
 >
 > 🧪 **6.764 testes, 0 falhas (7 novos)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: *"Expected start: attachment; / String: inline; filename=…"*, o gate nomeando `Torneios/CompartilharJogos.cshtml`, e os 11 arquivos com botão de baixar apontando pra URL crua. O gate foi **reconferido depois da correção**, com o `return;` recolocado na mão: volta a reprovar nomeando a mesma view.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br`, anônimo, `curl`), que é mais forte que o healthcheck. O cabeçalho da arte, na MESMA URL, com e sem o pedido:
+>
+> ```
+> SEM ?baixar   → content-disposition: inline;     filename="torneio-2-etapa-er-padel-tour-ept.png"
+> COM ?baixar=1 → content-disposition: attachment; filename="torneio-2-etapa-er-padel-tour-ept.png"
+> ```
+>
+> E a tela que estava quebrada (`/Torneios/CompartilharJogos?id=26&umaImagem=true`) agora traz **`compartilhar-card.js` e `compartilhar-texto.js`** — os dois que o `return;` engolia — e o botão "Baixar" sai com `…&tudo=True&baixar=1`. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **`dev` NÃO DÁ PRA CONFERIR POR `curl`**: tudo lá responde 302 pro `/AcessoAntecipado/Entrar`. Em `dev` a prova é a linha *"==> Feito. build-1234-8521354 no ar em dev"* do log + `/healthz` 200; a conferência por conteúdo é a de `prod`.
+>
+> 🕳️ **E O `head_sha` DO RUN 289 NÃO É O QUE FOI INSTALADO**: ele mostra o merge do PR #250, de outra sessão, que entrou no `main` entre o meu deploy de `dev` e o de `prod`. Quem diz o que está no ar é a linha *"==> Feito. build-N no ar em AMBIENTE"* — a mesma lição de 12/09 que mandou dois deploys pra vala, e o motivo de os dois runs terem saído com a tag explícita.
 >
 > ⚠️ **RESSALVA — NADA DISTO FOI VISTO NO APARELHO DO FELIPE.** Não há navegador nesta sessão. O defeito 1 está provado no código gerado (é mecânico, não é palpite). O defeito 2 é leitura do relato: o `attachment` é o cabeçalho certo pra um botão chamado "Baixar" independentemente de qual navegador ignorava o atributo `download`, mas **quem confirma que o travamento acabou é o celular dele**. É JS/Razor/cabeçalho HTTP, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
 >
