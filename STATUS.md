@@ -16,7 +16,9 @@
 >
 > 🧪 **6.952 testes, 0 falhas (3 novos nesta correção, 42 no dia)** + os 9 conferidores de JS verdes. Vermelho visto antes da correção: *"Assert.Equal() Failure: Collections differ · Expected: [tudo, grupos] · Actual: [tudo, grupos, matamata, finais]"*.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/blissful-archimedes-j1rak0`.** **Sem migration.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1305-af4927a`** (runs 321 e 322 do Deploy), **o mesmo artefato nos dois**, com a tag explícita. PR #278. ✅ **SEM MIGRATION.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**, no painel da **4ª Categoria Masculina do 2ª Etapa ER** — a categoria do print: `/healthz` **200** nos dois ambientes e, em `prod`, o painel veio com **1 trilho e 4 rodadas** (Oitavas · Quartas · Semifinal · Final, mais o Campeão), **11 cartões de vaga, 8 linhas de ligação**, as 4 fichas de rodada do celular, o troféu, os 4 selos *folgou a 1ª rodada* — e **ZERO** `pdz-mm-grade`/`pdz-mm-fase`, que era o esqueleto antigo. ⚠️ O `dev` está atrás do portão de Acesso Antecipado, então lá a conferência é só o `/healthz`.
 >
 > 🗣️ Felipe, com o print da 4ª Categoria Masculina do ER já no mata-mata: *"e ele mudou o visual quando terminou a chave, era para manter como estava, tava bom"*.
 >
