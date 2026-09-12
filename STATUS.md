@@ -2,7 +2,6 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
-
 > Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er** (`/Torneios/Palpiteiros/26`): **83 palpiteiros**, **61 com o selo "jogando"** e **22 de fora**, os três botões do filtro de linha presentes, e o `/js/filtro-de-palpiteiros.js` respondendo **200** nos dois ambientes. "Todas as fases" e "Chaves e grupos" dão a mesma tabela lá, porque todo jogo apurado do Er é de grupo.
@@ -16,6 +15,24 @@
 > ⚠️ **O 404 SOBRA SÓ PRA URL DIGITADA NA MÃO** (`?fasePalpiteiros=matamata` num torneio sem palpite de mata-mata), e é o mesmo 404 de sempre da página sem linha: ninguém é convidado a clicar nele. Reproduzido no navegador local antes da correção (`404`) e depois (nenhum botão oferecido, `200` no que existe).
 >
 > 🧪 **6.952 testes, 0 falhas (3 novos nesta correção, 42 no dia)** + os 9 conferidores de JS verdes. Vermelho visto antes da correção: *"Assert.Equal() Failure: Collections differ · Expected: [tudo, grupos] · Actual: [tudo, grupos, matamata, finais]"*.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/blissful-archimedes-j1rak0`.** **Sem migration.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
+>
+> 🗣️ Felipe, com o print da 4ª Categoria Masculina do ER já no mata-mata: *"e ele mudou o visual quando terminou a chave, era para manter como estava, tava bom"*.
+>
+> 🕳️ **A ABA TINHA DOIS DESENHOS E TROCAVA DE UM PRO OUTRO SOZINHA.** Antes dos grupos acabarem, a prévia era a árvore deitada com as linhas de ligação (`_ChaveProjetadaArvore`); no instante em que o mata-mata nascia, a mesma aba virava fases empilhadas em cartões (`_ChaveDoMataMata`), sem linha nenhuma. ⚠️ **E o STATUS de 11/09 prometia exatamente o contrário** — *"no dia em que os grupos acabam a tela não muda de cara, os cartões só ganham nome e placar"*: a promessa valia só pro CARTÃO, que era o mesmo `.pdz-chave-vaga`. O ESQUELETO ao redor dele era outro arquivo, com outra geometria — e é o esqueleto que se vê.
+>
+> ✅ **UM PARTIAL SÓ**, `_ChaveDoMataMata`, usado pelos dois caminhos do `Details.cshtml`. A prévia é a chave **sem nenhum jogo criado**, e `QuadroDoMataMata.DaPrevia` só a traduz pro formato do quadro; a geometria continua sendo a conta única de `ArvoreDaChave`, que passou a receber o ESQUELETO (número do jogo + de quais jogos ele vem) em vez do tipo da projeção. As ~160 linhas do partial da prévia foram embora inteiras.
+>
+> 🔑 **O DADO QUE FALTAVA: a procedência da vaga REAL.** O quadro calculava de qual jogo vem cada lado e **jogava fora assim que a vaga virava partida** — sem isso a linha que chega na semifinal real não tem onde se prender. Agora `Vaga.VemDoJogo1/2` vale pros dois casos, com o mesmo pareamento primeiro × último do robô.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (Chromium + Postgres de verdade), no cenário do print**: 12 duplas, oitavas com 4 jogos e 4 byes. A 1440px a chave inteira cabe (trilho 1232px, cartão de **264px** — os 17rem medidos em 11/09) e a 390px ela arrasta com encaixe (trilho 321px, conteúdo 1147px, cartão 204px); **a página não rola de lado em nenhum dos dois** e **nenhuma linha `.pdz-chave-quando` corta o nome do clube**. Com o jogo 1 finalizado e o 2 em quadra: vencedor em verde com 6×3, anel vermelho e "● AO VIVO" no outro, e a quarta mostrando **"venceu o jogo 1"** antes de a rodada fechar. A prévia (3 grupos) saiu igual à de antes: 5 vagas, 4 ligações, cartão sólido, sem a caixa de ajuda.
+>
+> ⚠️ **O QUE MUDOU DE PROPÓSITO NA CHAVE REAL, além do esqueleto**: a vaga da FINAL ainda sem jogo ganhou o destaque verde que a prévia já tinha (com jogo ela não ganha — o verde apagaria o anel de "seu jogo" e o vermelho do ao vivo, porque `.pdz-chave-vaga.pdz-arv-final` tem duas classes no seletor). ⚠️ **atalho deliberado**: a vaga futura da chave real continua dizendo "a definir" em vez da hora prevista — casar `ViewBag.ProjecaoCompleta` com a numeração global do quadro é outra tarefa, e essa hora já está na aba Jogos.
+>
+> 🧪 **6.962 testes, 0 falhas (6 novos em `ChaveRealDesenhadaComoArvoreTests`)** + os **8** conferidores de JS verdes. ⚠️ **O número já é DEPOIS de trazer o `origin/main`**: ele andou durante este trabalho (PRs #276 e #277 — um deles na MESMA área, o cruzamento que a chave promete), e a suíte foi revalidada inteira com o código deles junto — 6.909 no branch sozinho, 6.962 com o `main`. O conflito foi só no `STATUS.md`, no cabeçalho de sempre. Vistos vermelhos antes, por *"não existe"*: `Vaga.VemDoJogo1`, `QuadroDoMataMata.Geometria` e `QuadroDoMataMata.DaPrevia`. Os dois testes de fonte travam o que a queixa pede: o `Details` desenha os dois casos com **o mesmo partial** (e o da prévia não existe mais) e esse partial usa o trilho da árvore, não as fases empilhadas. Seis testes de guarda que apontavam pro arquivo apagado foram **repontados, com as asserções intactas**.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
 >
@@ -92,6 +109,27 @@
 > ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
 >
 > 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
+
+
+> **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
+>
+> 🗣️ Felipe, com dois prints da mesma tela em dias diferentes: *"acho que o chaveamento se perdeu, por que ontem eu tinha visto e estava diferente"* · *"era primeiro da F contra o segundo da E ou algo assim"* · *"tem q respeitar o q estava previsto"* · *"pelo jeito aconteceu com todas as categorias"* · *"pessoal esta me cobrando"*.
+>
+> 🕳️ **PRÉVIA E SORTEIO SEMPRE PASSARAM PELO MESMO MOTOR — COM ENTRADAS DIFERENTES.** `ChaveProjetada.Montar` alimenta `MontarPrimeiraFase` com `Vitorias: 0, Saldo: 0` (ninguém jogou ainda), então o desempate entre os 2ºs cai no `ThenBy(c => c.Grupo)`, **alfabético**. O robô alimenta o mesmo método com a campanha de verdade (`ChaveamentoMataMata.cs:122`). Mesmo motor, saídas diferentes — e a promessa que o jogador leu na véspera não valia nada.
+>
+> 🔬 **REPRODUZIDO RODANDO O CÓDIGO DE PRODUÇÃO, dos dois lados.** Na 4ª Masculina (6 grupos, tamanhos 2·2·3·3·3·3) a prévia reconstruída hoje sai **idêntica ao print de ontem**, jogo por jogo (`1ºE × 2ºF | 1ºF × 2ºE | 2ºA × 2ºD | 2ºB × 2ºC`, byes `1ºA·1ºB·1ºC·1ºD`); e a chave real, realimentada com a campanha do print, sai **idêntica ao print de hoje** (`1ºE × 2ºB`, `1ºF × 2ºA`, `2ºC × 2ºF`). Não houve regeração nem perda: `RoboDoChaveamento.cs:92` só monta com a fase de grupos inteira fechada e `:97-99` impede montar duas vezes.
+>
+> ⚠️ **OS BYES NÃO DIVERGEM, E É POR ISSO QUE PASSOU DESPERCEBIDO.** `OrdemDosByes` ordena por posição, jogos no grupo e nome do grupo — nenhum é campanha. As **quartas do ER saíram idênticas à prévia**; só a primeira rodada embaralhou. Quem conferisse pelo meio do quadro não veria nada errado.
+>
+> ✅ **A SAÍDA FOI CONGELAR, NÃO RECALCULAR — degrau 2 da escada, sem conta nova.** O cruzamento previsto já sabia se escrever (`CruzamentoDoMataMata.Padrao`, que sai da própria `ChaveProjetada`) e o motor já sabia obedecê-lo (`MontarPrimeiraFase` lê o desenho **antes** de semear). Faltava gravá-lo no instante em que a prévia deixa de ser rascunho e vira promessa pública: o `AprovarChaves`. **Só em categoria sem desenho** — sobrescrever apagaria a escolha de quem desenhou à mão.
+>
+> 🔧 **E UM BOTÃO PRO TORNEIO QUE JÁ ESTAVA RODANDO** (`RefazerMataMataComoPrevisto`, um por categoria): reescreve **só `Dupla1Id`/`Dupla2Id`** das partidas da abertura. Horário, quadra, código, status e placar ficam. ⚠️ **TUDO OU NADA**: recusa inteiro se algum jogo de grupo está aberto, se a chave já passou da abertura, se **um** jogo do mata-mata já saiu do papel (régua única `AprovacaoDeChaves.JaSaiuDoPapel`), se a contagem não bate ou se alguma vaga não resolve — consertar metade deixaria dupla em dois jogos e dupla em nenhum.
+>
+> 🗳️ **O PALPITE É A ÚNICA COISA QUE CAI JUNTO, e precisa cair:** `PalpitePartida.DuplaEscolhidaId` é o **único** ponto do modelo que amarra uma partida a uma dupla específica (varrido em `Models/*.cs`). Trocada a dupla, o voto apontaria pra quem não está mais no jogo. Apagados **só dos jogos que mudaram** — e os ids são colhidos **antes** de mutar, senão a pergunta "mudou?" responde "sim" pra todos.
+>
+> 🧪 **6.912 testes, 0 falhas (7 novos em `ChaveRespeitaOPrevistoTests`)** + os **8** conferidores de JS verdes. **Vistos vermelhos antes**, pelos motivos certos: `Expected: "1A×2C|1B×2D|1C×2A|1D×2B" / Actual: null` (não congelava) e — o defeito do Felipe em teste — `Expected: [1A×2C, 1B×2D, 1C×2A, 1D×2B] / Actual: [1A×2D, 1C×2A, 1D×2B, 1B×2C]`; os quatro do botão por *"não existe"*.
+>
+> ⚠️ **NÃO AVISA NINGUÉM.** Quem já tinha lido o adversário antigo não recebe push — a mensagem da tela diz isso e manda avisar no grupo. Foi escolha de escopo sob pressa, não esquecimento.
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
 >

@@ -167,8 +167,8 @@ public class QuadroDaChaveCasaPorNumeroTests
         var inicio = fonte.IndexOf("var previstosDoQuadro", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei o casamento da chave prevista (previstosDoQuadro) na página do torneio.");
 
-        var fim = fonte.IndexOf("_ChaveProjetadaArvore", inicio, StringComparison.Ordinal);
-        Assert.True(fim > inicio, "Não achei o partial que recebe o quadro (_ChaveProjetadaArvore).");
+        var fim = fonte.IndexOf("<partial name=\"_ChaveDoMataMata\"", inicio, StringComparison.Ordinal);
+        Assert.True(fim > inicio, "Não achei o partial que recebe o quadro (_ChaveDoMataMata).");
 
         return fonte[inicio..fim];
     }
