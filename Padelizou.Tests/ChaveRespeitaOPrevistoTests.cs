@@ -285,4 +285,24 @@ public class ChaveRespeitaOPrevistoTests
 
         Assert.IsType<Microsoft.AspNetCore.Mvc.ForbidResult>(resultado);
     }
+    [Fact]
+    public async Task Refazer_diz_QUAIS_jogos_mudaram_e_o_que_eles_eram()
+    {
+        // 🗣️ Felipe: *"me passe uma lista dos jogos q estavam errados e foram corrigidos"* — pra
+        // avisar o pessoal. Um contador ("3 jogos") não serve: ele precisa dos nomes, e depois do
+        // clique não há mais como saber o que era antes.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
+        await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
+        await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.RefazerMataMataComoPrevisto(torneio.Id, categoria.Id);
+
+        var recado = $"{controller.TempData["Sucesso"]}";
+        Assert.Contains("Jogo 1:", recado);
+        Assert.Contains("era", recado);
+        // O nome de quem saiu do jogo 1, e não só um número.
+        Assert.Matches(@"Jogo 1: .+ × .+ \(era .+ × .+\)", recado);
+    }
 }

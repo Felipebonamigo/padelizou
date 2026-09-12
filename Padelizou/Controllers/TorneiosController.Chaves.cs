@@ -933,8 +933,14 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RefazerMataMataComoPrevisto(int id, int categoriaId)
         {
+            // Os jogadores entram na consulta por causa do RECADO: `Dupla.NomeDeExibicao` cai pra
+            // "Dupla 47" sem eles, e é justamente a lista de quem mudou que o organizador leva
+            // pro grupo do WhatsApp.
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias).ThenInclude(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+                    .ThenInclude(d => d.Jogador1)
+                .Include(t => t.Categorias).ThenInclude(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+                    .ThenInclude(d => d.Jogador2)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
@@ -1027,12 +1033,25 @@ namespace Padelizou.Controllers
                 novosLados.Add((doMataMata[i], lado1, lado2));
             }
 
+            // O nome de cada dupla ANTES de qualquer troca — depois de mutar não há mais como
+            // dizer o que o jogo era, e é isso que o organizador precisa levar pro grupo.
+            var nomePorDupla = duplasDosGrupos.ToDictionary(d => d.Id, d => d.NomeDeExibicao);
+            string Nome(int duplaId) => nomePorDupla.TryGetValue(duplaId, out var n) ? n : $"Dupla {duplaId}";
+
             // ⚠️ OS IDS SÃO COLHIDOS ANTES DE MUTAR. Perguntar "mudou?" depois da atribuição
             // responde "sim" pra todo mundo — inclusive pros jogos que já estavam certos.
             var idsMudados = new List<int>();
-            foreach (var (jogo, lado1, lado2) in novosLados)
+            var recado = new List<string>();
+            for (int i = 0; i < novosLados.Count; i++)
             {
+                var (jogo, lado1, lado2) = novosLados[i];
                 if (jogo.Dupla1Id == lado1 && jogo.Dupla2Id == lado2) continue;
+
+                // O número do jogo na fase é a ordem de criação (ReservasDeHorario.NumeroNaFase,
+                // por Id) — a mesma que o quadro desenha e que o jogador lê na tela.
+                recado.Add($"Jogo {i + 1}: {Nome(lado1)} × {Nome(lado2)} "
+                         + $"(era {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)})");
+
                 idsMudados.Add(jogo.Id);
                 jogo.Dupla1Id = lado1;
                 jogo.Dupla2Id = lado2;
@@ -1054,9 +1073,10 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             TempData[mudaram > 0 ? "Sucesso" : "Aviso"] = mudaram > 0
-                ? $"{categoria.Nome}: {mudaram} jogo(s) voltaram ao cruzamento previsto. "
-                + "Horários e quadras ficaram como estavam. ⚠️ Quem já tinha visto o adversário antigo "
-                + "não foi avisado — avise no grupo."
+                ? $"{categoria.Nome}: {mudaram} jogo(s) voltaram ao cruzamento previsto — "
+                + string.Join(" · ", recado)
+                + ". Horários e quadras ficaram como estavam. ⚠️ Quem já tinha visto o adversário "
+                + "antigo não foi avisado — avise no grupo."
                 : $"{categoria.Nome}: a chave já estava igual ao previsto. Nada mudou.";
 
             return ParaAsChaves(id);
