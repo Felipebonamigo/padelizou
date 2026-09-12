@@ -2,7 +2,18 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
+
+> Última atualização: **12/09/2026** — 🚀 **O CONSERTO DO 404 DO RECORTE ESTÁ NO AR, em `dev` E `prod`, no `build-1309-67f2a13`** (runs 323 e 324, 15h17 de Brasília). PR #279. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er — e a conferência é a INVARIANTE, não a tela**: `grupos` → botão **e** página **200**; `matamata` → botão **e** **200**; `finais` → **sem botão** e 404 (o 404 sobra só pra quem digita a URL na mão, e é o mesmo da página sem linha). Antes do conserto, medido meia hora antes: `matamata` tinha botão e respondia **404**. `/healthz` **200** nos dois ambientes.
+>
+> 🕳️ **O DEPLOY QUE EU DISPAREI NÃO CRIOU RUN — mais uma ocorrência do "204 queued não garante nada"** (a nota de 11/09). Pedi o `build-1308-b1086ff` em `dev` às 15h15 e **nenhum run apareceu**; os runs 321-324 daquele minuto eram todos de sessões paralelas. ⚠️ **Já são seis ocorrências registradas neste arquivo** entre CI e deploy que não disparam sozinhos.
+>
+> ♻️ **E FOI UMA SESSÃO PARALELA QUE PUBLICOU O MEU CONSERTO, sem saber**: ela mesclou o PR #280 depois do meu #279, então o `67f2a13` dela **contém** o `b1086ff` meu, e o build dela levou os dois. Conferido pelo LOG do deploy (*"==> Feito. build-1309-67f2a13 no ar em prod"*) e por `git merge-base --is-ancestor` — não pelo horário, que aqui não prova nada.
+>
+> ⚠️ **A LIÇÃO PRA PRÓXIMA SESSÃO: `204 queued` não é deploy, e "o healthz responde 200" não é prova de qual código está rodando.** O que prova é o **log do job** (ele imprime a tag instalada) mais a ancestralidade do commit. As duas coisas juntas — e não o relógio.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er** (`/Torneios/Palpiteiros/26`): **83 palpiteiros**, **61 com o selo "jogando"** e **22 de fora**, os três botões do filtro de linha presentes, e o `/js/filtro-de-palpiteiros.js` respondendo **200** nos dois ambientes. "Todas as fases" e "Chaves e grupos" dão a mesma tabela lá, porque todo jogo apurado do Er é de grupo.
 >
