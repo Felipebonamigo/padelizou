@@ -37,7 +37,7 @@
 > ⚠️ **RESSALVA**: nada disto foi visto no aparelho do Felipe, só no Chromium a 412px. É CSS/JS de tela, sem migration e sem tocar em régua de autorização nem em dinheiro.
 >
 
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
 >
 > ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
 >
@@ -64,7 +64,11 @@
 >
 > 🕳️ **O CI DISPAROU SOZINHO nas duas pontas desta vez** (PR e `main`) — depois de cinco falhas registradas neste arquivo (26/08, 10/09 e três em 11/09). Nada mudou no `ci.yml`; fica o registro pra próxima vez que doer.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1201-44a1ff6`** (runs 284 e 285, 00h34 e 00h36 de Brasília), **o mesmo artefato nos dois**, com a tag explícita no formulário do Deploy — e não o "mais recente", justamente porque outra sessão publicou no `prod` sete minutos antes. PR #236. ✅ **SEM MIGRATION** (só CSS e uma classe de grid).
+> 
+> ✅ **CONFERIDO NO AR, nos dois ambientes, buscando o CSS servido** (`/css/site.css`, anônimo, `curl`): `.pdz-live-placar` com `flex-shrink: 0`, `.pdz-live-input` com `width: 1.7em`, `.pdz-live-jogadores .pdz-chip-texto` com `min-width: 0` e o `overflow-wrap: break-word` do nome. `/healthz` **200** nos dois.
+> 
+> ⚠️ **O `col-lg-6` NÃO FOI VISTO NO AR, por falta de caso**: na hora da conferência não havia NENHUM jogo ao vivo (`pdz-live-card` aparece 0 vez no `/Torneios/Details/26`), e é só dentro desse bloco que a classe é escrita. Os 24 `col-md-6` que a página ainda mostra são de outras partes do `Details.cshtml`, que ninguém pediu pra mexer. O primeiro jogo em quadra é o teste de verdade.
 >
 > 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
 >
@@ -106,6 +110,66 @@
 >
 > 🧪 **6.607 testes, 0 falhas (4 novos)** + `conferir-palpitometro.js` (16 conferências) e `conferir-abas-recolhidas.js` (11) verdes. Os 4 vistos vermelhos antes, cada um pelo motivo dele: a lista das **148 ocorrências**, os **4 nomes de arquivo** com erre, *"Not found: PALPITÔMETRO"* na lista de jogos e o `_Palpitometro.cshtml` que ainda não existia.
 
+> **11/09/2026** — 🚀 **O BOTÃO QUE CALA OS AVISOS ESTÁ EM `dev` E `prod`.** PR #229, mesclado em `43b814c`, release **`build-1186-43b814c`**. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA na `ConfiguracaoDoSistema`, que já existia).
+>
+> 📦 **PUBLIQUEI O `build-1186` nos dois** — `dev` no run **272** (20h49 UTC) e `prod` no run **274** (20h53 UTC), o mesmo artefato, com a tag explícita, Regra 3 respeitada (dev primeiro).
+>
+> ⚠️ **MAS O QUE ESTÁ NO AR AGORA É O `build-1192-9fd88f2`** (runs **278** e **279**, 21h06 UTC, nos dois ambientes) — **quatro sessões paralelas publicaram builds mais novos por cima**, na ordem `1186` → `1188` → `1190` → `1192`. Conferido que `9fd88f2` **descende de `43b814c`** e que as **cinco peças estão na árvore publicada**: `SilencioDeAvisos.cs`, o `_silencio.Ligado` na entrega, a ação `AlternarSilencioDeAvisos`, o botão no `/Admin` e a faixa no Teste de aviso. `/healthz` **200** nos dois.
+>
+> 🔑 **A LIÇÃO DO DIA, e ela é sobre PROVA, não sobre deploy:** com N sessões publicando, *"publiquei o build X"* envelhece em dois minutos — a única afirmação que continua verdadeira é **"o que está no ar contém o meu trabalho"**, e ela se prova por **conteúdo** (`git merge-base --is-ancestor` mais um `grep` nas peças, no commit do build servido), nunca pelo run verde. Run verde prova que o deploy *dele* funcionou, não que o seu código está lá.
+>
+> 🚨 **E O QUASE-ACIDENTE QUE ISSO ESCONDE: DUAS PUBLICAÇÕES EM `prod` A DOIS MINUTOS DE DISTÂNCIA, de sessões diferentes** (runs 274 e 275). Deu certo por **sorte de ordem** — a de trás era mais NOVA. Se tivesse sido mais velha, o `prod` voltaria pra antes do #229 **com todos os runs verdes**, e o sintoma seria "o botão sumiu do painel" sem uma linha vermelha em lugar nenhum. O `concurrency` do `deploy.yml` serializa por ambiente, e **serializar não é ordenar por versão**: ele impede dois deploys ao mesmo tempo, não um deploy velho depois de um novo.
+>
+> 🕳️ **O `STATUS.md` DO `main` ESTAVA QUEBRADO, e não era meu**: dois blocos do diário moravam **acima** do título `# Padelizou — Status e Roadmap`, de uma sessão paralela. Consertado na resolução do conflito (título, "Documento vivo", "Última atualização", entradas em ordem reversa). ⚠️ Um `git merge` **não protege a estrutura de um arquivo** — ele casa linha com linha, e num diário onde todo mundo escreve no topo o resultado natural do 3-way merge é blocos fora do lugar. Vale conferir o topo do arquivo, e não só a ausência de `<<<<<<<`, depois de cada mescla. (Outra sessão também deixou marcador de conflito solto, corrigido no `125b7df`.)
+>
+> 🕳️ **O CI NÃO DISPAROU SOZINHO no primeiro push deste branch** (zero checks criados; disparado na mão, run 1172). ⚠️ **Sexta ocorrência registrada** — deixou de ser acaso e virou característica do repositório. Depois do segundo push ele passou a disparar normalmente.
+>
+> ⚠️ **O `main` ANDOU QUATRO VEZES durante o ciclo** (PRs #224, #228, #230, #231, #232). Duas mesclas na mão, e a suíte inteira rodada depois de cada uma: **6.614 testes, 0 falhas** na árvore final. Uma automação também atualizou o branch sozinha — conferi que a árvore dela era **byte a byte** igual à minha (`git diff` vazio) antes de alinhar, sem force-push.
+>
+> 🖥️ ⚠️ **CONTINUA NÃO VISTO NUMA TELA, e desta vez nem em produção dá pra conferir por fora**: o diff inteiro deste trabalho está **atrás de login** (`/Admin`), então **não existe sonda anônima** que prove o botão renderizando — ao contrário dos cards de torneio de ontem, que o `curl` pegava. A prova que há é código, 6.614 testes e `/healthz` 200. **Quem abrir o painel, confira o card "Avisos do sistema"** e a faixa vermelha quando ele estiver mudo.
+
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
+>
+> ⭕ **O CHECK-IN CABE NA ABA JOGOS AGORA — UMA BOLINHA DO LADO DE CADA DUPLA.** 🗣️ Felipe, num print da aba Jogos no celular: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"*. Perguntado sobre o formato, escolheu *"uma bolinha do lado de cada nome, apenas o organizador ve"*, e **só nos jogos que ainda não começaram**.
+>
+> 🕳️ **O BURACO ERA DE CAMINHO, NÃO DE DADO.** A presença já existia e já era por jogo (a tela de Check-in virou fila de jogos em 10/09). O que faltava: quem está na aba Jogos chamando quadra, dando a largada e marcando placar tinha que **sair da lista, marcar na outra tela e voltar** — e no sábado de manhã "quem joga agora?" e "essa dupla chegou?" são a mesma linha, no mesmo minuto.
+>
+> ✅ **AS TRÊS CONDIÇÕES DA BOLINHA**, cada uma por um motivo: `PodeOperarODiaDeJogoAsync` (a MESMA régua que já liga o ▶, o ✏️ e o 📍 da linha, e a mesma da tela de Check-in — inventar uma segunda aqui seria o marcador ganhar o play e perder a chamada) · `UsaCheckIn` (torneio que desligou a chamada não ganha bolinha; oferecer e recusar depois é ensinar a regra pelo erro) · `Agendada` (o que está em quadra ou acabou já respondeu por outra via, e o bloco do fim da tela de Check-in continua lá pra corrigir).
+>
+> ⚠️ **O FORMULÁRIO QUE GRAVA PRESENÇA DESCEU UM DEGRAU, pra `_BotaoDoCheckIn`** — e é dele que saem as DUAS roupas: a pílula "Chegou"/"Desfazer" da tela de Check-in e a bolinha da lista de jogos. O que muda entre elas é a aparência; o POST é o mesmo. Duas cópias de um formulário que escreve no banco divergiriam na primeira mudança, e o `CheckInPorJogoTests` que guardava esse "num lugar só" foi atualizado pro endereço novo, com o motivo escrito.
+>
+> ⚠️ **`MarcarCheckIn` GANHOU `voltarPara`, EM LISTA FECHADA** (`Details` → `#jogosDoTorneio`, `Jogos`, e qualquer outra coisa cai no Check-in de sempre) — o mesmo molde do `PartidasController.VoltarDaLargada`: campo de formulário nunca vira redirecionamento pra onde o cliente pedir. Sem o parâmetro, nada muda: o botão da tela de Check-in continua caindo nela.
+>
+> ⚠️ **TETO ANOTADO NO CÓDIGO**: o filtro da tela (categoria, time, quadra, "só meus jogos") **não volta junto** — o mesmo teto do `VoltarDaLargada`, que é o vizinho de botão deste. A rolagem, essa, fica onde estava (`data-manter-posicao`).
+>
+> 🧪 **6.654 testes, 0 falhas (13 novos, em `CheckInNaListaDeJogosTests`), com o `main` de agora dentro** + `conferir-palpitrometro.js` verde. ⚠️ **SEM BROWSER NESTA SESSÃO** — a bolinha (30px de alvo, ícone de 18px, verde cheia = chegou / cinza vazada = não) está provada por teste de fonte e pela suíte, **não vista na tela**.
+
+> ⚠️ **DOIS COMENTÁRIOS PRECISARAM DE AJUSTE PRA CONVIVER COM O #234**, que entrou depois desta branch nascer: o gate `OPalpitometroPerdeuOErreTests` reprova arquivo de código que escreva o nome com erre, e `CheckInNaListaDeJogosTests.cs:203`, `_JogoEmLinha.cshtml:498` e o comentário do bloco novo no `site.css` citavam *palpitrômetro*. Trocado pela grafia atual. Sem isso, a mescla levava o `main` a vermelho — cada lado passava sozinho, só a soma falhava.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/google-football-scoreboard-e467gq`, ainda não publicado.** **Sem migration** (nada em `Models/`).
+>
+> 📲 **A NOTIFICAÇÃO DO PLACAR AO VIVO GANHOU O PLACAR NO TÍTULO E UM CARD DESENHADO.** 🗣️ Felipe, primeiro: *"Eu botei seguindo e na aparece o placar igual do futebol do google"*; depois, com dois prints — a bolha de placar do app do Google na tela inicial do Android e o placar da Copa na Dynamic Island do iPhone: *"as notificações estao acontecendo, mas eu queria algo tipo esses prints, tem como ?"*.
+>
+> ❌ **A RESPOSTA PROS DOIS PRINTS É NÃO, e o motivo é de plataforma, não de esforço**: a bolha é desenhada pelo **app do Google**, com dado do Google — nem app nativo de terceiro cria aquilo; e a Dynamic Island é **Live Activity (ActivityKit)**, que exige **app nativo iOS**. É a mesma resposta de 16/08, agora com o print na mesa. O caminho que chegaria lá é um app Android **nativo** (não a casca TWA) com FCM e *Live Update* — **um segundo código pra manter**, exatamente o que o `ANDROID.md` decidiu não ter.
+>
+> ✅ **O QUE DEU PRA FAZER, e é o que a notificação da WEB tem**: (1) o **placar foi pro TÍTULO** — a linha que o Android mostra com a notificação recolhida. Até aqui o título era *"Placar ao vivo"*, três palavras que não dizem nada de relance, e o placar ficava no corpo: quem olhava o celular de longe lia o rótulo e precisava abrir pra saber o jogo. Agora sai *"Juliano/Gabriel 4 × 2 Paulo/Vitor"*, com o estado (**Ao vivo** / **Jogo encerrado** · categoria · fase) descendo pro corpo. (2) A `image` do `showNotification` passou a levar um **PNG 1080×540** (`Services/CartaoDoPlacarAoVivo`): puxando a notificação pra baixo, aparece o card com os dois nomes, os games em corpo 96 e a pílula **AO VIVO**/**ENCERRADO** — quem está na frente em lime e no peso forte.
+>
+> 🪜 **O card é degrau 2 da escada, não código novo**: reusa `CartaoCompartilhavel` (fundo da marca, faixa do topo, pílula, texto que encolhe até caber) e o `EntregaDeCard` do cache. O que nasceu foi o layout — e ele é **DEITADO de propósito**: o Android recorta a `image` em ~2:1, e o 1080×1350 dos cards de story chegaria cortado pelo meio, sumindo justamente com a linha de baixo, que é o placar da segunda dupla.
+>
+> 🔁 **O ENDEREÇO DO CARD MUDA A CADA GAME** (`?p=4-2`, com `-f` quando finalizada) **e isso não é enfeite**: a resposta é `Cache-Control: public, max-age=3600` (é ela que faz UM desenho servir os N seguidores), e sem trocar de endereço o celular mostraria o card do placar anterior embaixo de um título já atualizado. O trecho depois do `?` **não é entrada de nada** — o desenho sai do banco.
+>
+> 🔒 **O PNG é ABERTO (sem `[Authorize]`) e TORNEIO OCULTO NÃO SAI — nem pro organizador.** Quem busca a imagem é o **navegador ao desenhar a notificação**, não uma tela com sessão: exigir login deixaria sem imagem justamente quem o aviso existe pra alcançar. E como a resposta é `public`, ela não pode mudar conforme quem pede — resposta pública que varia por usuário é como um cache no caminho entrega o card de um torneio escondido. O teto: **seguidor de torneio oculto recebe o aviso com o placar no texto, sem a imagem.**
+>
+> 🧩 **UMA RÉGUA SÓ PRO NOME DA DUPLA** (`AvisoDePlacarAoVivo.NomeDaDupla`, que era privada): o **texto** da notificação e o **desenho** do card saem dela. Duas cópias divergiriam no primeiro ajuste, e o estrago apareceria dentro da MESMA notificação — um nome no título, outro na imagem logo abaixo. Tem teste prendendo isso.
+>
+> 🚫 **BOTÃO NA NOTIFICAÇÃO FICOU DE FORA, e o motivo é mecânico**: "Parar de seguir" precisaria de um POST do service worker, que **não tem DOM** e portanto não alcança o `__RequestVerificationToken` — o filtro global de antiforgery (`AutoValidateAntiforgeryTokenAttribute`) recusaria. Abrir exceção nele por causa de um botão é afrouxar um portão de segurança por conveniência. E "Abrir jogo" seria o botão que o toque na própria notificação já faz.
+>
+> 📱 **NO IPHONE NADA MUDA NA IMAGEM**: o iOS ignora a `image` da notificação. O placar no título, esse sim, vale nos dois.
+>
+> 🧪 **6.643 testes, 0 falhas** (13 novos, em `PlacarAoVivoNaTelaDeBloqueioTests` e no novo `CartaoDoPlacarAoVivoTests`) + `conferir-palpitrometro.js` verde. Os testes foram escritos ANTES e vistos falhar: primeiro por resultado errado (o título vinha *"Placar ao vivo"* e o corpo trazia o placar), depois por "não existe" (o card, o endpoint, o `NomeDaDupla` público). Dois testes antigos mudaram de lado junto — o que exigia "encerrado" no título passou a exigir no corpo —, com o motivo escrito na linha. O card foi **conferido em PNG de verdade**, nos dois estados e com nome comprido de dupla.
+>
+> ⚠️ **`sw.js` foi de `v32` pra `v33`** — sem o bump, o aparelho que já tem o service worker guardado continuaria com o de antes e a imagem nunca apareceria, sem nada quebrar em teste nenhum do servidor. O combinado tem gate dos dois lados (o C# manda `image`, o `sw.js` lê `data.image`), no molde do teste da sonda muda.
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
@@ -151,7 +215,7 @@
 > **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
 
 >
-> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/tender-allen-odkzo9`, ainda não publicado.** **Sem migration.**
+> **11/09/2026** — 🚀 **PUBLICADO** (ver a entrada do topo: release `build-1186-43b814c`, PR #229). **Sem migration.**
 >
 > 🔕 **UM BOTÃO QUE CALA O SISTEMA INTEIRO.** 🗣️ Felipe: *"crie um botão para desabilitar todas notificações no painel admin"*. Perguntado sobre o alcance, escolheu **push + e-mail + WhatsApp, com a Caixa de Avisos continuando a ser gravada**, e **só o admin raiz** mexendo. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA numa tabela que já existe).
 >
@@ -324,7 +388,11 @@
 >
 > ⚠️ **DOIS DEPLOYS CORRERAM EM PARALELO** (outra sessão publicou o `3686b36` às 20h22, run 265). O `head_sha` de um `workflow_dispatch` é o `main` do minuto do disparo, e **não** o artefato instalado — quem manda é o input `build`. Foi por isso que o run 264 aparece com o sha da outra sessão; o que está no ar foi conferido pelo conteúdo servido, não pela listagem de runs.
 
-> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
+> **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** 🚀 **PUBLICADO em `dev` no `build-1156-f0c45da`** (run 258 do Deploy, 19h57 UTC), com a tag explícita. PR #223. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR, por `curl`**: o `/css/site.css` servido pelo `dev` traz `.pdz-live-palpite { padding: .5rem 1.1rem 1rem; }` e o `/healthz` responde **200**. ⚠️ **O Razor não pôde ser conferido no `dev` e não é defeito**: lá o gate de Acesso Antecipado está ligado e `/Torneios/Details/26` devolve **302** pro `/AcessoAntecipado/Entrar` para quem é anônimo. Quem provou a marcação foi o Chromium, medindo os dois cards lado a lado. ⏳ **Não foi publicado em `prod`.**
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES NO CICLO** (PRs #222 e #223, mesclados com dois minutos de diferença). O `dev` foi publicado com o **build do #223** (`f0c45da`), e não com o mais recente: publicar o `build-1158-243ffe5` levaria junto o trabalho da outra sessão, que ninguém pediu pra subir. Nenhum deploy foi revertido — os quatro últimos (runs 254–257) eram todos do `2c50186`, anterior aos dois merges.
 >
 > 🗣️ Felipe, num print do card do jogo ao vivo, com o círculo vermelho em volta do rótulo e da barra: *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
 >
