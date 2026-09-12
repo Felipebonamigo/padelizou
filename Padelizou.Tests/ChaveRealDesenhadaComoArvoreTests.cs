@@ -159,6 +159,45 @@ public class ChaveRealDesenhadaComoArvoreTests
             "O partial só da prévia voltou a existir: são dois desenhos de novo.");
     }
 
+    // 🗣️ Felipe, com a chave nova no ar: *"esse 'folgou a primeira rodada' nao ficou legal"* e,
+    // logo depois, *"até pode ter algo, mas menor, que nao fique chamando tanto a atenção"*.
+    //
+    // 🕳️ O QUE CHAMAVA ATENÇÃO ERA A COR, e não a informação: o selo era uma pílula `--pdz-lime`
+    // com texto marinho em CAIXA ALTA — o mesmo verde que nesta tela significa **o seu caminho**
+    // (`.pdz-chave-vaga-minha`, `.pdz-chave-selomeu`). Numa chave de 12 duplas eram quatro
+    // pílulas verdes disputando o olho com o caminho pintado de quem está olhando.
+    //
+    // ✅ A marca FICA, miúda e apagada: texto pequeno na cor de apoio, sem fundo e sem caixa
+    // alta. Quem procura acha; quem está seguindo o próprio caminho não tropeça nela.
+    [Fact]
+    public void Quem_folgou_a_primeira_rodada_tem_uma_marca_discreta()
+    {
+        var partial = File.ReadAllText(Path.Combine(Views(), "_ChaveDoMataMata.cshtml"));
+        var css = File.ReadAllText(Path.Combine(Views(), "..", "..", "wwwroot", "css", "site.css"));
+
+        Assert.Contains("pdz-chave-selobye", partial);
+
+        // ⚠️ UMA REGRA SÓ. Havia DUAS `.pdz-chave-selobye` no arquivo, em lugares distantes, e a
+        // de baixo vencia calada — mexer na de cima não mudava nada na tela.
+        Assert.Equal(1, Vezes(css, ".pdz-chave-selobye {"));
+
+        var inicio = css.IndexOf(".pdz-chave-selobye {", StringComparison.Ordinal);
+        var regra = css[inicio..css.IndexOf('}', inicio)];
+
+        // O que fazia a marca gritar: fundo lime e caixa alta. Nenhum dos dois volta.
+        Assert.DoesNotContain("background", regra);
+        Assert.DoesNotContain("text-transform: uppercase", regra);
+
+        // E ela fica na cor de apoio — nunca no verde, que aqui quer dizer outra coisa.
+        Assert.Contains("var(--pdz-muted)", regra);
+        Assert.DoesNotContain("--pdz-lime", regra);
+        Assert.DoesNotContain("--padel-green", regra);
+
+        // ⚠️ E o selo de PROCEDÊNCIA fica como está: "venceu o jogo 4" é outra coisa — é o nome
+        // de quem JÁ passou aparecendo antes de a rodada fechar, e nenhuma linha conta isso.
+        Assert.Contains("pdz-chave-selovem", partial);
+    }
+
     [Fact]
     public void A_chave_usa_o_trilho_da_arvore_e_nao_as_fases_empilhadas()
     {

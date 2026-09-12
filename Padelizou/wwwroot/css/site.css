@@ -1975,19 +1975,30 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-chave-venceu { color: var(--padel-green); font-weight: 700; }
 
+/* Quem folgou a primeira rodada: uma MARCA, não uma pílula.
+
+   🗣️ Felipe, com a chave nova no ar: *"esse 'folgou a primeira rodada' nao ficou legal"* e, logo
+   depois, *"até pode ter algo, mas menor, que nao fique chamando tanto a atenção"*.
+
+   ⚠️ ERA `--pdz-lime` COM TEXTO MARINHO EM CAIXA ALTA — o mesmo verde que nesta tela significa
+   "o seu caminho" (`.pdz-chave-vaga-minha`, `.pdz-chave-selomeu`). Numa chave de 12 duplas eram
+   quatro pílulas verdes disputando o olho com o caminho pintado de quem está olhando. O que
+   incomodava era a COR, não a informação: agora é texto miúdo na cor de apoio, sem fundo e sem
+   caixa alta.
+
+   ⚠️ E É UMA REGRA SÓ: havia duas `.pdz-chave-selobye` neste arquivo, distantes uma da outra, e
+   a de baixo vencia calada — mexer na de cima não mudava nada na tela. Travado em
+   ChaveRealDesenhadaComoArvoreTests. */
 .pdz-chave-selobye {
+    flex: 0 0 auto;
     font-size: .55rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    padding: .02rem .35rem;
-    border-radius: 999px;
-    color: var(--pdz-navy-fixed);
-    background: var(--pdz-lime);
+    color: var(--pdz-muted);
+    white-space: nowrap;
 }
 
-/* "Seu jogo" / "pode ser seu" — o selo do caminho pintado. Invertido do selo de bye
-   (que é marinho no verde) pros dois não parecerem a mesma coisa lado a lado. */
+/* "Seu jogo" / "pode ser seu" — o selo do caminho pintado. É o ÚNICO selo verde da vaga
+   desde 12/09/2026: o de quem folgou a primeira rodada saiu (🗣️ *"esse 'folgou a primeira
+   rodada' nao ficou legal"*), e sem ele o verde volta a significar uma coisa só. */
 .pdz-chave-selomeu {
     font-size: .55rem;
     font-weight: 700;
@@ -2594,21 +2605,6 @@ a.pdz-grupo-jogo[href]:focus-visible {
     color: var(--pdz-muted);
     background: var(--pdz-surface-alt);
     border: 1px solid var(--pdz-border);
-}
-
-/* O selo de quem folgou: texto por extenso, não sigla. Cabe porque a vaga futura tem
-   uma linha só de nome. */
-.pdz-chave-selobye {
-    flex: 0 0 auto;
-    font-size: .58rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    padding: .05rem .4rem;
-    border-radius: 999px;
-    color: var(--pdz-navy-fixed);
-    background: var(--pdz-lime);
-    white-space: nowrap;
 }
 
 /* ── Bolinha do saque ──────────────────────────────────────────────────────
