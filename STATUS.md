@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+>
+> 🗣️ Felipe, num print do `Torneios/Details/26?soMeusJogos=true` no celular, com a barra de pagamento ocupando a tela e a lista lá embaixo: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem, tinha q aparece na aba meus jogos ja"*.
+>
+> 🕳️ **DOIS BURACOS NO MESMO OPT-IN, e nenhum dos dois dava erro.** O `js/manter-posicao-na-lista.js` guarda a posição desde 10/09, mas só escutava `submit` — e (1) o **"Meus jogos" é um `<a>`**, de propósito (liga/desliga de um toque), e link não dispara `submit`; (2) os **cinco selects do painel** aplicam por JS, e **`form.submit()` chamado por código NÃO dispara o evento `submit`** — quem dispara é `requestSubmit()`. Os dois caminhos passavam batido, calados.
+>
+> 🔬 **E A ALTURA EM PIXELS NÃO SERVIA AQUI — foi medido, não deduzido.** Com "Meus jogos" ligado a lista cai de 97 jogos pra 3 e o documento encolhe: no celular de 390px o `scrollY` guardado deixou de existir na página nova, e o navegador truncou no fim dela. **Medido no navegador: `scrollY = 588`, `maxScroll = 588`** — a página já estava no fundo e a barra parava a **315px** do topo da tela.
+>
+> ✅ **DUAS MEMÓRIAS, E QUEM ESCREVE O BOTÃO ESCOLHE.** `data-manter-posicao` (sem valor) continua sendo a **altura**, que é o certo pra ação que não muda o tamanho da lista (check-in, trocar horário). `data-manter-posicao="#filtroJogos"` traz **aquele elemento** de volta pra tela, com o `scrollIntoView` da plataforma — imune ao documento encolher. É o modo dos três controles da barra: Meus jogos, Limpar filtros e o formulário dos filtros.
+>
+> ⚠️ **O VALOR É LIDO DE VOLTA DO `sessionStorage`, que é da ORIGEM inteira** — não só do que este arquivo escreveu. Por isso só passa por `querySelector` o que casar com `^#[A-Za-z][\w-]*$`: seletor de outra forma é ignorado, e tem checagem pra isso.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (CDP, 390×844, organizador logado)**: barra de filtros a 27px do topo da tela antes do clique; depois do clique ela fica **VISÍVEL a 315px** — e a mesma medida diz onde ela estaria **sem** a memória: **903px, fora de uma tela de 844px**. O select do painel também: aplicou o filtro (prova de que o `requestSubmit` disparou) e a barra ficou a 273px.
+>
+> 🧪 **6.906 testes, 0 falhas (1 novo)** + os 8 conferidores de JS. A quarta seção do `conferir-abas-que-ficam.js` (11 checagens) foi vista vermelha em 4 — inclusive *"guardou: undefined"* no clique do link. Ela cobre os dois modos, o clique no `<i>` de DENTRO do botão (que é onde o dedo encosta), e o ctrl+clique / botão do meio, que **não** podem deixar memória órfã pra atropelar a próxima visita.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1291-d769c7f`** (runs 34706992454 e 34707040519), **o mesmo artefato nos dois**. PR #267. **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `jogos-ao-vivo-atualiza.js` servido já com o `remendarAoVivo` e o `recarregarMantendoARolagem`, e o HTML de `prod` com o `id="pdzAoVivoCartoes"` na grade.
 >
 > 🗣️ Felipe, sobre a correção da entrada anterior: *"E quando atualizar, mantem na altura q tava a pagina no scroll. E nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar carregar?"*
 >
