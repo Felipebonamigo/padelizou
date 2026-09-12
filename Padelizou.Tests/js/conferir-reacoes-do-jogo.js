@@ -34,7 +34,13 @@ function tela() {
     const fileiras = {};
     function fileira(partidaId) {
         if (!fileiras[partidaId]) {
-            fileiras[partidaId] = Object.assign(elemento(), { dataset: { partidaId: String(partidaId) } });
+            const f = Object.assign(elemento(), {
+                dataset: { partidaId: String(partidaId), logado: 'true' },
+                filhos: [],
+                appendChild(x) { this.filhos.push(x); },
+                querySelector: () => null,
+            });
+            fileiras[partidaId] = f;
         }
         return fileiras[partidaId];
     }
@@ -44,6 +50,12 @@ function tela() {
         fileira,
         fileiras,
         // A pílula do cartão: o que o `onclick` do Razor entrega ao `verQuemReagiu`.
+        // O 🙂 do cartão: o que o `onclick` do Razor entrega ao `abrirBarraDeReacao`.
+        botaoDeAbrir: (partidaId) => ({
+            dataset: {},
+            classList: { contains: () => false },
+            closest: () => fileira(partidaId),
+        }),
         pilulaDoCartao: (partidaId, emoji) => ({
             dataset: { emoji, eu: 'false' },
             classList: { contains: () => false },
@@ -60,6 +72,12 @@ function tela() {
                 const m = /data-partida-id="(\d+)"/.exec(sel);
                 return m ? (fileiras[m[1]] || null) : null;
             },
+            // A barra rápida fecha com um toque fora — o ouvinte é registrado no CARREGAMENTO
+            // do arquivo, então sem isto o teclado nem carrega.
+            querySelectorAll: () => [],
+            addEventListener() { },
+            createElement: () => Object.assign(elemento(), { remove() { } }),
+            head: { appendChild() { } },
         },
         bootstrap: { Modal: { getOrCreateInstance: () => ({ show() { } }) } },
     };
@@ -97,11 +115,13 @@ function servidor(respostas = {}, atrasos = {}) {
 }
 
 function carregar(fetchFalso, t) {
-    const montar = new Function('fetch', 'alert', 'cabecalhoAntifalsificacao', 'document', 'bootstrap',
-        fonte + '\n; return { verQuemReagiu, alternarMinhaReacao, reagirComEmoji, reagirDoCampo };');
+    // `window` entra porque a barra pergunta se o teclado (carregado SOB DEMANDA) já chegou —
+    // e aqui ele nunca chegou, que é justamente o caso do primeiro toque de qualquer pessoa.
+    const montar = new Function('fetch', 'alert', 'cabecalhoAntifalsificacao', 'document', 'bootstrap', 'window',
+        fonte + '\n; return { verQuemReagiu, alternarMinhaReacao, reagirComEmoji, abrirBarraDeReacao, reagirDaBarra };');
     return montar(fetchFalso, () => { throw new Error('alert() não deveria ser usado aqui'); },
         h => Object.assign({ RequestVerificationToken: 'carimbo' }, h || {}),
-        t.document, t.bootstrap);
+        t.document, t.bootstrap, { pdzTecladoDeEmoji: null });
 }
 
 // ── AS CONFERÊNCIAS ───────────────────────────────────────────────────────────────────────
@@ -270,31 +290,13 @@ function confere(nome, condicao, detalhe) {
         const js = carregar(s.fetchFalso, t);
         await js.verQuemReagiu(t.pilulaDoCartao(26, '🔥'));
 
-        t.els.modalQuemReagiuCampo.value = 'legal';
-        await js.reagirDoCampo();
+        await js.reagirComEmoji('legal');
 
         confere('a recusa do servidor aparece no painel',
                 t.els.modalQuemReagiuErro.textContent === 'Isso não é um emoji.'
                 && t.els.modalQuemReagiuErro.hidden === false,
                 t.els.modalQuemReagiuErro.textContent);
-        confere('o texto recusado FICA no campo, pra pessoa corrigir',
-                t.els.modalQuemReagiuCampo.value === 'legal', t.els.modalQuemReagiuCampo.value);
-    }
 
-    // 9. O CAMPO VAZIO NÃO MANDA NADA. Sem isto, o toque no "Reagir" sem digitar gastaria um
-    //    POST pra receber "isso não é um emoji" de volta.
-    {
-        const t = tela();
-        const s = servidor();
-        const js = carregar(s.fetchFalso, t);
-        await js.verQuemReagiu(t.pilulaDoCartao(26, '🔥'));
-        const antes = s.chamadas.length;
-
-        t.els.modalQuemReagiuCampo.value = '   ';
-        await js.reagirDoCampo();
-
-        confere('campo vazio não gasta POST', s.chamadas.length === antes,
-                s.chamadas.length + ' vs ' + antes);
     }
 
     // 10. UM POST POR VEZ. ⚠️ Duas respostas fora de ordem repintariam a fileira com a
@@ -344,6 +346,55 @@ function confere(nome, condicao, detalhe) {
         try { await js.reagirComEmoji('👏'); } catch (e) { estourou = true; }
 
         confere('reagir com o cartão fora da tela não estoura', !estourou);
+    }
+
+    // 13. O 🙂 DO CARTÃO ABRE A BARRA RÁPIDA, e não o painel — 🗣️ *"os emojis tem q abrir
+    //     igual esse do whats"*. Seis atalhos de um toque mais o "+" que troca pelo teclado.
+    {
+        const t = tela();
+        const s = servidor();
+        const js = carregar(s.fetchFalso, t);
+
+        js.abrirBarraDeReacao(t.botaoDeAbrir(26));
+
+        const barra = t.fileira(26).filhos[0];
+        confere('o toque no rostinho abre a barra rápida', !!barra && /pdz-reacao-barra/.test(barra.className || ''),
+                barra ? barra.className : 'nenhuma barra');
+        const atalhos = (barra.innerHTML.match(/pdz-reacao-atalho/g) || []).length;
+        confere('a barra traz SEIS atalhos de um toque', atalhos === 6, atalhos + ' atalho(s)');
+        confere('e o "+" que abre o teclado inteiro',
+                barra.innerHTML.indexOf('abrirTecladoDeEmoji') >= 0, barra.innerHTML.slice(-120));
+    }
+
+    // 14. TOCAR NUM ATALHO REAGE DIRETO, sem passar pelo painel: é o um-toque do WhatsApp.
+    {
+        const t = tela();
+        const s = servidor();
+        const js = carregar(s.fetchFalso, t);
+        js.abrirBarraDeReacao(t.botaoDeAbrir(26));
+
+        await js.reagirDaBarra({ dataset: { emoji: '🔥' } });
+
+        const post = s.chamadas.filter(c => c.metodo === 'POST').pop();
+        confere('o atalho da barra grava a reação daquele jogo',
+                post && post.url === '/Partidas/Reagir'
+                && post.corpo.indexOf('partidaId=26') >= 0
+                && post.corpo.indexOf('emoji=' + encodeURIComponent('🔥')) >= 0,
+                post && post.corpo);
+    }
+
+    // 15. SEM LOGIN A BARRA NÃO APARECE — ela só sabe reagir, e reagir exige conta. Quem abre
+    //     sem login cai no painel, que é quem sabe dizer "entre para reagir".
+    {
+        const t = tela();
+        const s = servidor();
+        const js = carregar(s.fetchFalso, t);
+        t.fileira(99).dataset.logado = 'false';
+
+        js.abrirBarraDeReacao(t.botaoDeAbrir(99));
+
+        confere('sem login o rostinho não abre a barra', t.fileira(99).filhos.length === 0,
+                t.fileira(99).filhos.length + ' filho(s)');
     }
 
     console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);
