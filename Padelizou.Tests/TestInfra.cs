@@ -155,7 +155,7 @@ public static class TestInfra
     public static EncerramentoDaPartida NovoEncerramento(
         DbPadelContext ctx, IPushNotificationService? push = null) =>
         new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),
-            NullLogger<EncerramentoDaPartida>.Instance);
+            NullLogger<EncerramentoDaPartida>.Instance, EstatisticasFalsas());
 
     // `palpites` entra de fora pra quem precisa do serviço DE VERDADE (o modal "quem votou"
     // responde 404 lendo o banco — com o dublê a ação nunca chega no caminho que interessa).
@@ -453,6 +453,25 @@ public static class TestInfra
         ctx.SaveChanges();
 
         return (torneio, categoria, organizador);
+    }
+
+    // ── O RANKING DO DESEMPATE, NOS TESTES ──────────────────────────────────────────────
+    //
+    // Quase todo teste daqui monta grupos que se decidem NA QUADRA — vitórias, saldo ou games
+    // a favor —, e pra esses o ranking nunca é consultado. Estes dois dizem isso de forma
+    // explícita, em vez de um `null` que passaria despercebido.
+    //
+    // ⚠️ Quem testa DESEMPATE (DesempateDoGrupoTests) monta os pontos de verdade. Um teste que
+    // usasse isto pra afirmar quem classificou num empate perfeito estaria testando o sorteio.
+    public static Task<Dictionary<int, int>> SemPontosDoRanking(IEnumerable<int> jogadorIds) =>
+        Task.FromResult(jogadorIds.Distinct().ToDictionary(id => id, _ => 0));
+
+    public static IEstatisticasService EstatisticasFalsas()
+    {
+        var falso = Substitute.For<IEstatisticasService>();
+        falso.ObterPontosPorJogadorAsync(Arg.Any<IEnumerable<int>>())
+            .Returns(call => SemPontosDoRanking(call.Arg<IEnumerable<int>>()));
+        return falso;
     }
 
     // ── O TEXTO QUE O CÓDIGO DIZ, SEM O QUE O COMENTÁRIO EXPLICA ────────────────────────

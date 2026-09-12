@@ -94,7 +94,8 @@ public class CartaoDaClassificacaoTests
         await JogoAsync(ctx, torneio, categoria, "A", ana, eva, 6, 4);
         await JogoAsync(ctx, torneio, categoria, "A", carla, eva, 6, 3);
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking);
 
         var grupoA = Assert.Single(grupos);
         Assert.Equal("A", grupoA.Grupo);
@@ -122,7 +123,8 @@ public class CartaoDaClassificacaoTests
         await JogoAsync(ctx, torneio, categoria, "A", a1, a2, 6, 1);
         await JogoAsync(ctx, torneio, categoria, "B", b1, b2, 6, 0);
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking);
 
         Assert.Equal(new[] { "A", "B" }, grupos.Select(g => g.Grupo));
     }
@@ -139,7 +141,8 @@ public class CartaoDaClassificacaoTests
         await DuplaAsync(ctx, categoria, "Ana Souza", "Bia Lima", "A");
         await DuplaAsync(ctx, categoria, "Carla Reis", "Dani Alves", "A");
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking);
 
         var grupoA = Assert.Single(grupos);
         Assert.False(grupoA.TemOQueMostrar);
@@ -168,7 +171,8 @@ public class CartaoDaClassificacaoTests
         });
         await ctx.SaveChangesAsync();
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking);
 
         Assert.False(Assert.Single(grupos).TemOQueMostrar);
     }
@@ -206,7 +210,8 @@ public class CartaoDaClassificacaoTests
         });
         await ctx.SaveChangesAsync();
 
-        var grupoA = Assert.Single(await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id));
+        var grupoA = Assert.Single(await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking));
 
         // A Eva não jogou nada que conte: sem jogos, sem saldo, e no fim da tabela.
         var eva = grupoA.Linhas.Single(l => l.Dupla.StartsWith("Eva"));
@@ -229,7 +234,8 @@ public class CartaoDaClassificacaoTests
 
         await DuplaAsync(ctx, categoria, "Ana Souza", "Bia Lima", null!);
 
-        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id);
+        var grupos = await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking);
 
         Assert.Empty(grupos);
     }
@@ -247,7 +253,8 @@ public class CartaoDaClassificacaoTests
         torneio.Status = CancelamentoDoTorneio.Status;
         await ctx.SaveChangesAsync();
 
-        Assert.Empty(await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id));
+        Assert.Empty(await ClassificacaoParaCard.DaCategoriaAsync(ctx, torneio.Id, categoria.Id,
+            TestInfra.SemPontosDoRanking));
     }
 
     // ── O desenho ──────────────────────────────────────────────────────────────────────

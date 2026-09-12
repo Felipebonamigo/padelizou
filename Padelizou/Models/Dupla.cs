@@ -188,4 +188,24 @@ public partial class Dupla
             : $"{Curto(Jogador1)} & {Curto(Jogador2)}");
 
     private static string Curto(Jogador jogador) => Padelizou.Services.NomeBonito.Curto(jogador.Nome);
+
+    // O nome de dupla que cabe numa LINHA: primeiro nome de cada um — "Marcelo / Enio".
+    //
+    // Usado nas listas densas (jogos do grupo, chaveamento, o painel do que falta pra
+    // classificar). O `NomeDeExibicao` acima é primeiro + último sobrenome dos dois — já curto,
+    // mas ainda quatro palavras: numa lista densa ele estoura a largura e trunca os DOIS lados.
+    //
+    // ⚠️ ESTA REGRA VIVIA COPIADA EM TRÊS LUGARES, com três respostas: um `Func` local no
+    // Details.cshtml ("Marcelo / Enio"), o `NomeCurto` do OQuePrecisaParaClassificar
+    // (`Jogador1.ComoChamar`, que dá "Paulo Prass (Batata)") e o `NomeDeExibicao` na lista do
+    // pop-up. 🗣️ Felipe, 11/09/2026, vendo o resultado no ar: *"ta meio confuso aqui, nao ficou
+    // claro para mim"* — a MESMA dupla aparecia com três nomes na mesma tela.
+    //
+    // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha ENTRA na chave, então este
+    // texto é coisa que o inscrito lê sobre si mesmo. "Paulo / ?" parece dado corrompido.
+    [NotMapped]
+    public string NomeCurto => EhTime
+        ? NomeTime ?? "Time"
+        : $"{Jogador1?.ComoChamar.Split(' ')[0] ?? "?"} / "
+          + (Jogador2 == null ? "parceiro" : Jogador2.ComoChamar.Split(' ')[0]);
 }

@@ -10,9 +10,86 @@
 >
 > ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES.
 >
-> 🧪 **6.606 testes, 0 falhas (3 novos)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"* na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+> 🧪 **6.633 testes, 0 falhas (3 novos)** — com o `main` de hoje dentro (o desempate novo e o `Dupla.NomeCurto` de outra sessão, que é primeiro nome de cada um pras listas densas e continua valendo: o que encurtou aqui é o `NomeDeExibicao`) — + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"* na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (`padelizou.com.br/Torneios/Details/26`, anônimo, `curl`) — mais forte do que ler número de run, porque outras sessões estavam publicando no mesmo minuto: **8 botões**, **8 modais**, **zero** "Se acontecer" (a tabela saiu) e **8 rodapés** com *"confronto direto"* (a régua nova escrita na tela). O nome curto chegou: *"Falta um jogo: Marcos / Marcio × Marcelo / Milton"*. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **O CAMINHO "DEPENDE" SEGUE SEM SER VISTO NO AR, por falta de caso**: os 8 grupos com um jogo faltando estão todos em "já classificado". A frase *"Só passa vencendo por 9x4 ou mais folgado — 9x5 não basta"* está provada por teste e no Chromium; **o primeiro grupo apertado que aparecer é o teste de verdade** — e o mesmo vale pro aviso de sorteio.
+>
+> 🕳️ **O `STATUS.md` DESTE REPO ESTÁ EM CORRIDA ENTRE SESSÕES, e isso custou 4 rodadas de merge.** O `main` andou 26 + 9 + 2 + 2 commits durante um único ciclo de CI, e o topo deste arquivo conflita em TODA sessão. Duas vezes o arquivo chegou malformado no `main` (entrada acima do título, cabeçalho "Documento vivo" comido) e uma vez um marcador `<<<<<<<` passou pelo build — porque `.md` não compila. **Quem resolver conflito aqui: confira `grep -c '^<<<<<<<' STATUS.md` antes de commitar.**
+>
+> 🧪 **6.630 testes, 0 falhas** + `conferir-palpitrometro.js` verde, com o `main` de hoje dentro (o avanço parcial da chave incluído — o `QuemAvancaAsync` virou `VagasDaProximaFaseAsync` no meio do caminho, e os pontos do desempate passaram a atravessar ele).
+>
+> ⚠️ **AS DUAS RESSALVAS DO DESEMPATE CONTINUAM VALENDO** (ver a entrada do branch, abaixo): o ranking é lido **ao vivo**, então a mesma tabela pode mudar de 2º colocado semana que vem — o que vale é a chave já gerada; e os critérios novos só disparam onde antes era ordem de cadastro, então nenhum grupo decidido na quadra mudou.
+>
+> **11/09/2026** — ⏳ **NO BRANCH `claude/upbeat-tesla-7dkucc`, ainda não publicado.** **Sem migration.** ⚠️ **MEXE NA RÉGUA QUE MONTA O MATA-MATA, com torneio rodando** — ver a ressalva no fim.
+>
+> 🔲 **O DESEMPATE DE GRUPO GANHOU CONFRONTO DIRETO E RANKING — E O POP-UP PASSOU A FALAR EM PLACAR.** 🗣️ Felipe, em quatro mensagens seguidas olhando a tela no ar: *"ta meio confuso aqui, nao ficou claro para mim"* · *"seria 4 e 5 games de diferença? nao sei, ficou confuso, talvez se colocar o placar fica mais facil"* · *"e esse caso aqui se for os 3 jogos 9x4 e houver empate?"* · *"e se empatar entre apenas 2 duplas, passa quem venceu o confronto direto"* · *"e empate entre os 3, passa quem esta na frente no ranking, se não tiver ninguem com pontuação ainda, faça sorteio"*.
+>
+> 🕳️ **ELE ACHOU UM BURACO DE VERDADE.** Com os três jogos 9x4 num grupo de 3, as três duplas terminam com **1 vitória, saldo 0 e 13 games a favor** — empate em tudo o que era critério. Quem passava saía do `ThenBy(Dupla.Id)`: **ordem de cadastro no banco**. E o painel apresentava isso como eliminação esportiva ("passa vencendo por 6 games ou mais"), sem dizer que era cara-ou-coroa.
+>
+> ⚖️ **A RÉGUA NOVA, entre "games a favor" e o sorteio**: empate de **DUAS** duplas → **confronto direto**; de **TRÊS ou mais** → **ranking anual** (soma dos pontos dos dois jogadores); e **sorteio** quando nem isso separa. Nenhum grupo que se decide na quadra muda de resultado.
+>
+> 🎯 **A REGRA DELE RESOLVE A OBJEÇÃO DE 05/08/2026**, que estava escrita no próprio arquivo: confronto direto tinha sido recusado porque num empate de TRÊS ele é circular (A ganhou de B, B de C, C de A). Separar por TAMANHO do empate é o que o faz funcionar — entre duas nunca há circularidade.
+>
+> ✅ **E O CASO HISTÓRICO MUDOU DE RESPOSTA, pra melhor**: no grupo A dos TIMES do Interno de 05/08 (Target.it e Argentus empatadas em tudo), a 2ª vaga saía por Id e ficava com a Target.it. Agora sai no confronto direto, e é da **Argentus — que venceu a Target.it**. `FinalDosTimesTests` foi atualizado com o motivo escrito.
+>
+> ⚠️ **O SORTEIO É FNV-1a À MÃO, e não `string.GetHashCode()`**: o hash de string do .NET é **aleatorizado por processo**, então usá-lo faria a régua responder uma coisa antes do deploy e outra depois, com os mesmos jogos — a chave de ontem deixaria de casar com a tabela de hoje. A ordem de saída está **cravada em teste**, conferida contra uma implementação independente do FNV-1a. E ele não é mais a ordem de inscrição, que favorecia quem se inscreveu primeiro.
+>
+> 💰 **O RANKING É LIDO AO VIVO, e só onde precisa.** Buscar pontos custa DUAS consultas (`Jogador.PontuacaoGlobal` é campo morto), e a página do torneio é a mais visitada do site — 24 grupos no 2ª Etapa ER. Então a régua expõe `PrecisaDePontos`, e as telas só pagam nos grupos que empatam até o ranking. O `BuscarPontosDoRanking` (delegate com a assinatura do `ObterPontosPorJogadorAsync`) é o que deixa os serviços ESTÁTICOS — `AvancoDaChave`, `ClassificacaoParaCard` — alcançarem o ranking sem DI e sem uma segunda cópia daquela consulta.
+>
+> 📱 **O POP-UP**: a frase de cada dupla passou a nomear o **placar** ("Só passa vencendo por 9x4 ou mais folgado — **9x5 não basta**"), a tabela "Se acontecer/Classificam" saiu (dizia o mesmo em outra ordem), e o nome de dupla virou **um só** na tela — `Dupla.NomeCurto`, "Marcelo / Enio", o mesmo da lista de jogos. Antes a MESMA dupla aparecia de três jeitos no mesmo pop-up.
+>
+> ⚠️ **A FRASE CURTA TEM TRAVA**: ela só sai quando o conjunto que classifica é um **prefixo** do melhor pro pior resultado da dupla. "9x4 ou mais folgado" afirma que todo placar melhor também classifica, e o desempate por games a favor pode furar isso — furou, cai na descrição por blocos, mais longa e sempre verdadeira.
+>
+> 🧪 **6.574 testes, 0 falhas (33 novos, em `DesempateDoGrupoTests`, `VagasPorGrupoSaoUmaReguaSoTests` e `OQuePrecisaParaPassarNoCardDoGrupoTests`)** + `conferir-palpitrometro.js` verde. Conferido no Chromium a 430px.
+>
+> ⚠️ **RESSALVA QUE PRECISA SER LIDA ANTES DE PUBLICAR**: isto muda a `ClassificacaoDeGrupos`, que alimenta o `AvancoDaChave` (monta o mata-mata), o robô, a prévia da chave, a tela de Classificação, a tabela do grupo e os Cartões — **com o 2ª Etapa ER rodando**. O efeito é limitado aos grupos em EMPATE PERFEITO (no resto a resposta é idêntica), e conferi na produção que **nenhum grupo está nesse estado hoje** (os 16 "empatados" da varredura são grupos com J0, que ainda não jogaram). Mas se algum grupo empatado já tiver chave montada, a recontagem pode discordar dela.
+>
+> ⚠️ **E O RANKING SE MOVE** (escolha do Felipe, com o custo na mesa): uma dupla pode passar à frente da outra semana que vem por ter jogado outro torneio, então a mesma tabela, com os mesmos jogos, pode mudar de 2º colocado depois de a chave estar montada. A alternativa era congelar o número no sorteio (migration), e ele preferiu entregar sem. O teto: o que vale é a chave já gerada.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
 
 > **11/09/2026** — ⏳ **NO BRANCH `claude/wonderful-rubin-szuqg6`, ainda não publicado.** **Sem migration.**
+
+>
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/tender-allen-odkzo9`, ainda não publicado.** **Sem migration.**
+>
+> 🔕 **UM BOTÃO QUE CALA O SISTEMA INTEIRO.** 🗣️ Felipe: *"crie um botão para desabilitar todas notificações no painel admin"*. Perguntado sobre o alcance, escolheu **push + e-mail + WhatsApp, com a Caixa de Avisos continuando a ser gravada**, e **só o admin raiz** mexendo. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA numa tabela que já existe).
+>
+> 🕳️ **O BURACO QUE ELE FECHA É O ENVIO EM FUGA** — um job novo despejando aviso na base toda, um torneio duplicado avisando todo mundo de novo. Até aqui a única saída era **ssh no servidor mais restart do serviço**, e o momento em que isso é preciso é exatamente o momento em que ninguém tem o notebook na mão. É o mesmo raciocínio do portão de acesso (05/08), e por isso é o mesmo MOLDE: chave/valor em `ConfiguracaoDoSistema`, singleton com a cópia em memória, banco como fonte da verdade — **a decisão sobrevive ao deploy**, que é o teste que justifica a tabela em vez de um `bool` em memória.
+>
+> ✅ **O CORTE É NUM LUGAR SÓ: `PushNotificationService.EntregarAgoraAsync`.** É o funil por onde passa todo aviso do sistema, então o botão vale pros **~30 pontos que geram aviso** sem que nenhum deles saiba que ele existe — e o próximo aviso a nascer já nasce obedecendo. Cortar nos 30 seria a mesma regra escrita 30 vezes, e a 31ª esqueceria dela.
+>
+> ⚠️ **MUDO É "NÃO INCOMODA", NÃO É "APAGA": a Caixa de Avisos continua sendo gravada.** É o único canal que não depende de entrega nenhuma (é só abrir o app), e gravar ali não toca no celular de ninguém — então religar devolve o histórico inteiro, em vez de um buraco que ninguém reconstrói depois. **O que passou NÃO é reenviado**, e a tela diz isso com todas as letras.
+>
+> ⚠️ **O PLACAR AO VIVO É A EXCEÇÃO: mudo, ele é descartado INTEIRO.** Ele é `ApenasPush` e por projeto não entra na caixa (16/08) — placar de meia hora atrás não vale ser guardado pra depois.
+>
+> ⚠️ **AQUI NÃO EXISTE PADRÃO VINDO DO systemd, ao contrário do portão** — e é escolha, não esquecimento: um sistema mudo é estado de EXCEÇÃO sempre, e uma chave de configuração pra isso seria uma forma de subir um ambiente calado sem ninguém ter decidido calar. O sintoma disso ("ninguém recebe nada") é dos mais caros de diagnosticar, porque cada canal falha por conta própria o tempo todo e a suspeita nunca cai no interruptor.
+>
+> 🚨 **E POR ISSO O ESTADO MUDO GRITA EM TRÊS LUGARES**: faixa vermelha no topo do painel **pra qualquer admin** (não só pro raiz que apertou), a gaveta "Ferramentas e ajustes" **abrindo sozinha** com selo `avisos MUDOS`, e uma faixa na tela de **Teste de aviso**. Portão fechado gera "não consigo entrar"; silêncio não gera sintoma nenhum — sem isso, a chave ficaria ligada por dias.
+>
+> ⚠️ **O TESTE DIRIGIDO NÃO OBEDECE AO SILÊNCIO, de propósito**: ele é uma pessoa escolhida a dedo pelo próprio admin que apertou o botão, e é a única forma de conferir se um canal está de pé enquanto o sistema está calado. O risco disso é o admin ler *"Enviado!"* e concluir que os avisos do sistema estão saindo — daí a faixa naquela tela.
+>
+> 🧪 **6.569 testes, 0 falhas (11 novos, em `BotaoDoSilencioDeAvisosTests`)** + `conferir-palpitrometro.js` verde. **Os 7 vistos vermelhos antes**, pelos motivos certos: não gravava, não recusava o administrador nomeado, o e-mail saía e o push era tentado. 🔬 **A pegadinha de testar PUSH**: ele sai por HTTP direto do `WebPushClient`, sem interface no meio pra substituir — o que delata a TENTATIVA é o **log** (a inscrição do teste tem chave de mentira, então qualquer envio estoura no `catch` que registra). **Os dois lados estão testados**: sem o par de controle, uma mudança que matasse o push inteiro passaria como "o silêncio funciona".
+>
+> ⚠️ **NÃO FOI VISTO NUMA TELA** — o painel exige banco e login, e não há Postgres nesta sessão. O que foi conferido: o Razor **compila** (as views são compiladas no build em Release) e a suíte inteira passa.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`**, **o mesmo artefato nos dois**, pela tag explícita no campo `build` (runs 270 e 271, 20h28 UTC). PR #224. ✅ **SEM MIGRATION.**
+>
+> ✅ **CONFERIDO NO AR:** `/healthz` **200** nos dois ambientes, e o LOG DO RUN diz o que instalou — *"==> Feito. build-1171-3686b36 no ar em prod"*, com `BUILD: build-1171-3686b36` no ambiente de cada job. O `head_sha` do run é o REF do workflow, não o pacote: quem prova o artefato é o log.
+>
+> 🕳️ **UM DISPARO CRIOU TRÊS RUNS** (267, 268 e 269, todos `deploy → dev`, mesmo build). Idempotente, então não houve estrago — mas é o contrário da nota de 10/09 (o `204 queued` que não criava run nenhum). **A régua vale nos dois sentidos: confira os runs que EXISTEM, nem mais nem menos do que você pediu.**
+>
+> ⚠️ **E UMA SESSÃO PARALELA PUBLICOU ESTE MESMO COMMIT** em `dev` e `prod` (270 e 271) meio minuto depois dos meus. Desta vez foi inofensivo — o `main` não tinha andado, então o build mais recente ERA o meu. Não foi sorte gerenciada: é a mesma colisão de 11/09 que trocou o `site.css` de lugar.
+>
+> 🔴 **O `dev` deu 502 no meio da rodada de deploys** e voltou 200 sozinho: era o serviço reiniciando com dois deploys em voo. Healthcheck logo depois de publicar mede o restart, não a saúde.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
 >
 > ⏩ **A CHAVE PAROU DE ESPERAR A RODADA INTEIRA.** 🗣️ *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros grupos/chaves para ir avançando, ou por exemplo terminou a primeira quarta de final, esse que já classificou, já vai a dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
 >
@@ -40,7 +117,17 @@
 >
 > 🧪 **6.575 testes, 0 falhas (18 novos, em `AvancoParcialDaChaveTests`, `AvancoParcialDosGruposTests` e `NomeNaVagaAssimQueOGrupoFechaTests`)** + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Assert.Single() Failure: The collection was empty"* (a semifinal não nascia), *"Assert.NotEmpty() Failure"* (o jogo de abertura não nascia), *"The collection contained 2 items"* (a fase seguinte nascia por cima) e *"Assert.Contains() Failure: Item not found"* (o nome não chegava na vaga).
 
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264). PR #227. ✅ **SEM MIGRATION.** A prévia do mata-mata agora deita da esquerda pra direita também no computador, com a rodada em 17rem — o cartão de ~870px que o Felipe viu esticado acabou.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1171-3686b36`** (runs 270 e 271, 20h28 e 20h29 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #228. ✅ **SEM MIGRATION**.
 >
+> ⏱️ **O que entrou daqui: as Finalizadas dizendo começo, fim e duração** (`Services/DuracaoDoJogo`) — e a régua do "quando o jogo aconteceu" com os TRÊS passos, igual ao resto do sistema.
+>
+> ✅ **CONFERIDO NO AR, anônimo, por `curl`**: `/healthz` **200** nos dois ambientes; o `/css/site.css` de produção traz `.pdz-jl-quando .pdz-jl-durou` com `grid-column: 1 / -1`; o `/sw.js` traz o `v32`; e em `padelizou.com.br/Torneios/Jogos/23` os **13 jogos finalizados saem com a linha da duração**, na ordem certa: `11:20 · 11:00 · 10:59 · 10:09 · 10:08 · 09:49 · 09:49 · 09:29 · 09:27`, e aí os quatro **sem carimbo de fim** ordenados pela LARGADA real (`começou 08:55 · 08:46 · 08:29 · 08:28`) — que é exatamente o passo do meio que faltava na régua, funcionando em dado de verdade.
+>
+> ⚠️ **DUAS SESSÕES PUBLICANDO NO MESMO MINUTO, e a lição é da ORDEM DOS BUILDS.** O `main` andou três vezes durante este ciclo (PRs #224, #227 e #228) e outra sessão instalou o `build-1171` no `dev` **3 minutos antes** do meu disparo do `build-1170`. Como o 1170 é ANTERIOR, instalá-lo **tirou o #224 do `dev`** por dois minutos. Consertado publicando o `build-1171-3686b36` (que contém os dois) nos dois ambientes. 👉 **A regra que fica: com o `main` andando, publique o build MAIS NOVO que contenha o seu commit, nunca o do seu próprio merge** — "o meu build" é o instinto errado aqui, porque deploy não mescla: ele troca o symlink inteiro.
+>
+> 🕳️ **E uma armadilha de MEDIR TEMPO desta sessão, que custou um run cancelado à toa**: esperar com `sleep` em segundo plano e consultar a API no mesmo turno **não é esperar**. O run tinha 2 minutos de vida quando eu li "25 minutos" comparando o `started_at` do passo com o relógio de um turno depois — cancelei um CI saudável. Espera de verdade é bloquear até a espera terminar (`until [ -s arquivo ]`), e só então consultar.
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1158-243ffe5`** (17h00 e 17h01 de Brasília — runs 260 e 261), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #222, o **"Tudo numa imagem só"**. ✅ **SEM MIGRATION.**
 >
@@ -121,7 +208,7 @@
 >
 > 🖥️ **CONFERIDO NO NAVEGADOR** a 390px, com a barra de status do iPhone **simulada** (`padding` de 47px no `.modal`, porque o `env()` é zero no headless): o X de fechar nasce em **y = 105**, bem abaixo da faixa de 0–47. E o dobrar: lista some, `aria-expanded` vira `false`, clicar de novo devolve.
 
-> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** ⏳ **NO BRANCH `claude/inspiring-goodall-ihmmb1`.** ✅ **SEM MIGRATION.**
+> **11/09/2026** — 🪜 **A PRÉVIA DO MATA-MATA DEITOU TAMBÉM NO COMPUTADOR, E O CARTÃO GANHOU TAMANHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1166-6087ad5`** (runs 263 e 264 do Deploy, 20h18 e 20h20 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #227. ✅ **SEM MIGRATION.**
 >
 > 🗣️ Felipe, com o print da prévia de 2 grupos ocupando o monitor inteiro: *"ficou muito esticado, nao tem pq e fica feio, deixe em um tamanho normal que fique bonito"* — e, logo depois, *"Talvez seja melhor fazer tambem da esquerda pra direita, ao inves de cima para baixo, ficará mais alinhado"*.
 >
@@ -136,6 +223,12 @@
 > 🧪 **6.559 testes, 0 falhas** + as 2 conferências do JS verdes. O `QuadroDaPreviaTemOsDoisDesenhosTests` (que travava "no pc é de cima pra baixo") virou `QuadroDaPreviaDeitaNasDuasTelasTests`. **3 vistos vermelhos antes da correção**: *"Not found: class=\"pdz-chd\""*, *"Não achei o @media da prévia no computador"* e *"Not found: pdz-chd-fichas d-md-none"*.
 >
 > 🖥️ **CONFERIDO NO CHROMIUM** com o `site.css` de verdade, nos dois temas, a 1440px / 820px / 390px: cartão 264px e **corte 0** no computador; celular **sem mudança nenhuma** (o `@media` começa em 768px). ⚠️ **A armadilha do headless de novo**: `.pdz-chd-trilho` tem `scroll-behavior: smooth`, e o `:root { scroll-behavior: auto }` da página de medição **não alcança** — a rolagem não terminava e o trilho parecia travado em `scrollLeft = 0`. Quem for medir rolagem DELE tem que forçar `auto` **no seletor dele**.
+>
+> ✅ **CONFERIDO NO AR EM PROD, anônimo, por `curl`** (`padelizou.com.br/Torneios/Details/26`): **7 quadros deitados** (`pdz-chd-trilho`), **13 ligações** desenhadas com **ponto** decimal (`--a:25%;--hw:50%`), **7 fichas e 7 dicas com `d-md-none`**, e **zero** `pdz-arv-rolagem` — o desenho de cima pra baixo saiu do ar. No `/css/site.css` servido: o `@media`, o `flex: 0 0 17rem` e o `.pdz-chd-conta`, com **zero** regra `.pdz-arv` de layout. `/healthz` **200** nos dois ambientes.
+>
+> 👀 **E A PROVA VISUAL É DE PRODUÇÃO, não de maquete**: o primeiro quadro foi RECORTADO do HTML que prod serve e renderizado no Chromium com o `site-prod.css` baixado do ar — cartão de **264px, corte 0** nos dois temas. É a MESMA categoria do print do Felipe (2 grupos, jogos 1/2/3, 13:50 · 14:40 · 18:00, Er Padel · Arena Loja 7), agora deitada.
+>
+> ⚠️ **DOIS DEPLOYS CORRERAM EM PARALELO** (outra sessão publicou o `3686b36` às 20h22, run 265). O `head_sha` de um `workflow_dispatch` é o `main` do minuto do disparo, e **não** o artefato instalado — quem manda é o input `build`. Foi por isso que o run 264 aparece com o sha da outra sessão; o que está no ar foi conferido pelo conteúdo servido, não pela listagem de runs.
 
 > **11/09/2026** — 📏 **O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NAS BORDAS.** ⏳ **NO BRANCH `claude/determined-carson-radarh`.** ✅ **SEM MIGRATION.**
 >
@@ -311,7 +404,6 @@
 > ⚠️ **DOIS TESTES ANTIGOS QUEBRARAM POR REGEX FROUXO, e o conserto vale pro próximo**: `\.pdz-chip-foto-selo \.pdz-chip-escudo` passou a casar também com `.pdz-chip-compacto .pdz-chip-foto-selo .pdz-chip-escudo` no dia em que essa regra nasceu — e o teste passou a medir o seletor errado. Levaram **âncora de início de linha** (`^` com `RegexOptions.Multiline`). Guarda de CSS por regex precisa ancorar o seletor.
 >
 > 🧹 **E O TÍTULO DESTE ARQUIVO VOLTOU PRO TOPO**: um merge de hoje deixou uma entrada inteira ACIMA do `# Padelizou — Status e Roadmap`, e o diário passou a começar no meio. A entrada não se perdeu — está logo abaixo, na ordem.
-
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod`**: o `dev` no **`build-1098-9db8a22`** (14h31, run 231) e o `prod` no **`build-1099-c9af0e4`**, que **contém** o mesmo merge (runs 232 e 233, de uma sessão paralela, 14h32). PR #204 — o respiro no texto, a planilha e os 14 jogos por arte. ✅ **SEM MIGRATION.**
 >
@@ -615,7 +707,6 @@
 >
 > ✅ **DECIDIDO PELO FELIPE, depois de ver o render:** vai assim mesmo. Os 5 escudos de fundo **preto** (Compass, Chakra, Los Corneteiros, Os Loberos, Operados) ganham moldura branca em volta de um quadrado preto — uniforme, e ele preferiu isso a marcar no banco quais logos são escuros (campo novo pra um problema visual) ou a pedir aos times que reenviem o arquivo.
 
-
 > **11/09/2026** — 🛡️ **O ESCUDO DO TIME APARECE AO LADO DO NOME NOS JOGOS.** ⏳ **NO BRANCH `claude/dreamy-franklin-go1hcs`.** ✅ **SEM MIGRATION.**
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1052-cbe7cd8`** (runs 211 e 212), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #185. ✅ **SEM MIGRATION.**
@@ -665,7 +756,6 @@
 > 🧪 **6.365 testes, 0 falhas (11 novos)** + `conferir-palpitrometro.js` verde. Vistos vermelhos antes — e **um foi reescrito até discriminar**: o teste da ordem passava de primeira porque a mesma chamada já existia noutro trecho da view, e só passou a provar algo olhando a DECLARAÇÃO do `comChave`.
 >
 > 🪜 **A LIÇÃO DO DIA, e ela é o degrau 2 da escada deste arquivo:** a ordenação certa já existia escrita (`CategoriaNaTela.Ordem`, de 08/08) e eu não a procurei ao montar o seletor — o `<select>` nasceu com a ordem do banco porque copiou o que as pills faziam. *"Já existe algo equivalente aqui?"* vale também pro que a tela ANTIGA fazia errado: herdar o comportamento dela não é reuso.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1039-cd13be1`** (23h45 e 23h46 UTC — runs 202 e 203), **o mesmo artefato nos dois**, com a tag explícita. PR #178. ✅ **SEM MIGRATION.**
 >
@@ -725,7 +815,6 @@
 >
 > ⚠️ **NÃO RODEI A UI** — sem browser nesta sessão. A economia de linhas está raciocinada da estrutura, **não medida**. E os filtros (o maior ganho isolado: 4 dropdowns viram 1 botão) **ficaram de fora de propósito**: o Er começa amanhã e o Felipe vai operar esta tela o fim de semana inteiro; mudar onde ficam os filtros no sábado de manhã atrapalha quem já decorou o caminho.
 
-
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1024-fa11f18`** (17h48 e 17h49 de Brasília — runs 200 e 201), **o mesmo artefato nos dois**, com a tag explícita no campo `build`. PR #171.
 >
 > 🔽 **AS CATEGORIAS DE "Chaves e Grupos" VIRARAM UM `<select>`.** 🗣️ Felipe, com o 2ª Etapa ER Padel Tour aberto na aba (7 categorias): *"visualmente nao ta legal isso aqui tambem, acho que um drop com select seria melhor, não?"*.
@@ -755,7 +844,6 @@
 > 🧹 **O `STATUS.md` do `main` tinha um `<<<<<<< HEAD` solto** — marcador de conflito commitado por engano por outra sessão, sem `=======` nem `>>>>>>>` pra fechar. Removido neste PR.
 >
 > ⚠️ **A TRAVA DO PROD CONTINUA DESLIGADA** — o `workflow_dispatch` do `prod` publicou sem pedir aprovação.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1022-35ba247`** (17h37 e 17h40 de Brasília — runs 198 e 199), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #169, o **"Compartilhar esta lista"** da aba Jogos. ✅ **Sem migration minha** — ⚠️ **mas o build LEVA A MIGRATION DO PR #166** (`FusaoDeTimesComNomeIgual`, da sessão `wizardly-archimedes`, mesclada no `main` 5 minutos antes): no `prod` ela funde o "Er padel" (2 pessoas) no "ER Padel" (21) e cria o índice único, **sem desfazer**. O `/healthz` do `deploy.sh` passou nos dois ambientes, ou seja, a migration aplicou.
 >
@@ -862,7 +950,6 @@
 > 🔁 **O `main` ANDOU TRÊS VEZES no meio do caminho** (PRs #159/#160 antes do merge, #162 e #163 depois). O CI **não disparou sozinho** no PR #161 na primeira volta — chamado na mão por `workflow_dispatch`, o mesmo remédio de 26/08 —, e a publicação foi **pela tag** `build-997-6b6dc3d`: pedir "o mais recente" levaria pro ar o PR #163 (chaveamento desenhado à mão), que é de outra sessão e não passou por aqui.
 >
 > ⚠️ **A UI SEGUE SEM SER CLICADA** — sem browser nesta sessão. O que está provado é a suíte (6.213), o CI verde nos dois SHAs e o `/healthz` de fora; **o cartão da prévia com o clube só se confere abrindo o quadro do Er no `dev`**.
-
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-992-57053f2`** (15h35 e 15h37 de Brasília — runs 185 e 186). PR #159. ✅ **SEM MIGRATION.**
 >
@@ -1573,7 +1660,6 @@
 >
 > ⚠️ **O QUE NÃO MUDOU, DE PROPÓSITO:** **dinheiro** — a dupla já era de duas pessoas e continua sendo, valor congelado e "Pago" intactos (`precisaCobrarOSegundo` só vale quando o antigo era nulo); a régua do **próprio jogador**; e o aviso de **"mesma pessoa em dois jogos no mesmo horário"**, que segue sendo achado do **Conferir grade** (`AuditoriaDaGrade.PessoaEmDoisJogos`) e **decisão de produto em aberto** — a mesma anotada em 09/09 pro definir. ⏭️ **No Er:** depois de publicar, trocar o parceiro do Paulo e **rodar o Conferir grade** — se o Arthur já estiver na chave de outra categoria, é lá que o choque de horário aparece.
 
-
 > **09/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-880-aca0a92`** (22h48 e 22h49 de Brasília). PR #116, os dois erros do print do prod logo depois do build-875 — e o deploy de `prod` **levou junto o PR #115** (inscrição solo, da sessão paralela) — em `dev` ele já estava desde 22h25, pelo `build-878-dbf8af0` que a sessão paralela instalou (run 123, só `dev`); `prod` pulou do 875 pro 880. **Sem migration.**
 >
 > 🕐 **UM JOGO DE GRUPO RETARDATÁRIO NÃO SEGURA MAIS AS ELIMINATÓRIAS DO TORNEIO INTEIRO.** 🗣️ *"os jogos estao terminando no sabado 19:40 por que? nao deveria, é pra ir ate as 23h"*. Os grupos fechavam 19h40 de sábado e UM jogo de grupo (3ª Feminina, Grupo B) caía em 08h de domingo — impedimento ou concentração da dupla. A barreira de posto era o `Max` dos horários, então TODAS as eliminatórias esperavam esse jogo e a noite de sábado ficava vazia: o oposto do *"a menos que fique horario vazio"* que abriu a ordem das fases. Agora o fim de um posto é o fim do **BLOCO** dele (`OrdemDasFases.FimDoBloco`): um horário inteiro vazio seguido de **menos de uma rodada** de jogos separa os retardatários. Os três lugares que calculam barreira leem a mesma função (`LevasDaGrade`, `ProximasFasesDaChave`, `AuditoriaDaGrade`), e o **Conferir grade ganhou a regra "Jogo retardatário"** — é o jogo pra mexer na mão.
@@ -1737,7 +1823,6 @@
 > ⚠️ **O QUE ISTO NÃO PROVA:** os jobs passaram e o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200 — mas **nada foi visto renderizado**. A etiqueta nova aparece na primeira linha de cada jogo, ao lado da categoria e do grupo; vale um print.
 >
 > ⏭️ **O PRÓXIMO PASSO É DO FELIPE, e a etiqueta só fala depois dele.** Os 97 jogos do 2º Etapa estão **sem quadra E com duas sedes** — nada no banco diz em qual clube cada um é, então a linha continua calada lá **de propósito**. O caminho escolhido (opção **a**): em **Planejamento de quadras**, cadastrar as 4 quadras com o **local** de cada uma (nome com o clube dentro — "Quadra 1 Er", "Quadra 1 Radar", senão o salvamento recusa o repetido) e a **janela** do Radar se ele for alugado por hora; depois **Refazer grade**, na aba de jogos. `SalvarQuadraDoPlanejamento` reescreve `QuantidadeQuadras` = número de linhas, então 4 quadras dão **4 vagas por horário — 2 em cada clube**, que é exatamente o que ele descreveu. E vale conferir **em que clube cada categoria joga** (Pagamentos › Quadras e sedes): sem isso a folga de deslocamento é regra **mole** e cede, mandando a mesma dupla de um clube pro outro entre dois jogos.
-
 
 > Última atualização: **09/09/2026** — 📍 **A LISTA DE JOGOS PASSOU A DIZER ONDE É O JOGO — LOCAL SEMPRE, QUADRA QUANDO HÁ.**
 >

@@ -302,6 +302,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
             fila, email,
             Options.Create(new SiteSettings { Url = "https://padelizou.com.br" }),
             PorteiroDeTeste.Saida(),
+            new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 
         await servico.EnviarPlacarAoVivoAsync(7, "Placar ao vivo", "4 x 3", "/x", "partida-1");

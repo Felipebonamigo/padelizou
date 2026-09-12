@@ -49,8 +49,13 @@ public static class AvancoDaChave
     // ByesDaCategoriaAsync, muda os lados lá — e a semifinal volta a juntar o mesmo grupo.
     //
     // Lista VAZIA = não há o que avançar: a fase não existe, ou o quadro já passou dela.
+    //
+    // `buscarPontos`: o ranking do desempate de grupo, consultado só se algum grupo empatar
+    // até ele (ver ClassificacaoDeGrupos.PontosSePrecisarAsync). Chega até aqui porque o BYE
+    // sai da classificação, e a conta precisa bater com a do chaveamento.
     public static async Task<List<int?>> VagasDaProximaFaseAsync(
-        DbPadelContext context, int categoriaId, string faseConcluida)
+        DbPadelContext context, int categoriaId, string faseConcluida,
+        BuscarPontosDoRanking buscarPontos)
     {
         var daCategoria = await context.Partidas
             .Where(p => p.CategoriaId == categoriaId)
@@ -93,7 +98,8 @@ public static class AvancoDaChave
         // O bye é coisa da PRIMEIRA rodada do mata-mata: quem folgou entra na SEGUNDA fase e
         // pronto. Somá-lo em qualquer outra ressuscitaria gente a cada rodada.
         if (faseConcluida == PrimeiraFaseDeMataMata(fasesDaCategoria))
-            vagas.AddRange((await ByesDaCategoriaAsync(context, categoriaId)).Select(id => (int?)id));
+            vagas.AddRange((await ByesDaCategoriaAsync(context, categoriaId, buscarPontos))
+                .Select(id => (int?)id));
 
         return vagas;
     }
@@ -101,9 +107,10 @@ public static class AvancoDaChave
     // A fase inteira decidida, ou nada. É a pergunta de antes do avanço parcial, e continua
     // valendo pra quem precisa do quadro FECHADO — não do que já dá pra montar.
     public static async Task<List<int>> QuemAvancaAsync(
-        DbPadelContext context, int categoriaId, string faseConcluida)
+        DbPadelContext context, int categoriaId, string faseConcluida,
+        BuscarPontosDoRanking buscarPontos)
     {
-        var vagas = await VagasDaProximaFaseAsync(context, categoriaId, faseConcluida);
+        var vagas = await VagasDaProximaFaseAsync(context, categoriaId, faseConcluida, buscarPontos);
         return vagas.Any(v => v == null)
             ? new List<int>()
             : vagas.Select(v => v!.Value).ToList();
@@ -137,7 +144,12 @@ public static class AvancoDaChave
     //    de mata-mata, e sem essa régua ela entraria nas oitavas de carona, ressuscitada.
     // Público porque o DESENHO da chave também precisa saber quem descansou: sem isso as
     // duplas de bye somem do quadro — jogam a fase seguinte e não aparecem em lugar nenhum.
-    public static async Task<List<int>> ByesDaCategoriaAsync(DbPadelContext context, int categoriaId)
+    // `buscarPontos`: o ranking só é consultado se algum grupo empatar até ele
+    // (ClassificacaoDeGrupos.PontosSePrecisarAsync). Aqui a conta PRECISA bater com a do
+    // chaveamento — é este método que diz quem descansou, e divergir dele foi o defeito de
+    // 05/08 descrito logo abaixo.
+    public static async Task<List<int>> ByesDaCategoriaAsync(
+        DbPadelContext context, int categoriaId, BuscarPontosDoRanking buscarPontos)
     {
         var categoria = await context.Categorias
             .AsNoTracking()
@@ -218,8 +230,10 @@ public static class AvancoDaChave
             // grupo de cima), a mesma com que a primeira fase escolheu quem descansa: é essa
             // ordem que a semeadura usa pra saber de que lado da chave cada bye cai.
             var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
+            var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                duplas, partidasDeGrupo, buscarPontos);
             noQuadro = ChaveamentoMataMata.OrdemDosByes(ClassificacaoDeGrupos.Calcular(
-                    duplas, partidasDeGrupo, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
+                    duplas, partidasDeGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
                 .Select(c => c.DuplaId)
                 .ToList();
         }

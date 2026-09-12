@@ -182,7 +182,7 @@ public class SemifinalNaoJuntaOMesmoGrupoTests
             .OrderBy(p => p.Id).ToListAsync();
         Assert.Equal(2, quartas.Count);
 
-        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id);
+        var byes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, categoria.Id, TestInfra.SemPontosDoRanking);
         Assert.Equal(2, byes.Count);
 
         var grupoDe = (await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync())
@@ -249,7 +249,7 @@ public class SemifinalNaoJuntaOMesmoGrupoTests
         }
 
         var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync();
-        var classificados = ClassificacaoDeGrupos.Calcular(duplas, jogosDeGrupo).ToDictionary(c => c.DuplaId);
+        var classificados = ClassificacaoDeGrupos.Calcular(duplas, jogosDeGrupo, ClassificacaoDeGrupos.SemPontos).ToDictionary(c => c.DuplaId);
         Assert.Equal(4, classificados.Count);
 
         var semis = await ctx.Partidas

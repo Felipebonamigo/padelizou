@@ -16,11 +16,15 @@ public class OQuePrecisaParaClassificarTests
 {
     private static readonly FormatoDaPartida.Formato Ate9 = new(1, 9);
 
-    private static Dupla Dupla(int id, string nome) => new()
+    // ⚠️ COM PARCEIRO desde 11/09/2026: o nome que os cenários usam virou `Dupla.NomeCurto`
+    // ("Bia / Bruna"), o MESMO da lista de jogos do grupo. Era `Jogador1.ComoChamar`, e o
+    // pop-up acabava chamando a mesma dupla de três jeitos na mesma tela.
+    private static Dupla Dupla(int id, string nome, string parceiro = "Parceiro") => new()
     {
         Id = id,
         Grupo = "A",
         Jogador1 = new Jogador { Nome = nome, Cpf = $"9990000000{id}", Login = $"j{id}" },
+        Jogador2 = new Jogador { Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
@@ -38,7 +42,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, null, null), Jogo(1, 3, null, null), Jogo(2, 3, null, null) };
 
-        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9));
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
     }
 
     [Fact]
@@ -47,7 +51,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, null, null), Jogo(2, 3, null, null) };
 
-        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9));
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
     }
 
     [Fact]
@@ -56,7 +60,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), Jogo(2, 3, 9, 7) };
 
-        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9));
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
     }
 
     // ⚠️ "Jogado" é ter VENCEDOR pela régua única, não é o Status. Um jogo finalizado 0x0 não
@@ -69,7 +73,7 @@ public class OQuePrecisaParaClassificarTests
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 0, 0), Jogo(2, 3, null, null) };
 
         // Dois sem vencedor → ainda não é hora.
-        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9));
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
     }
 
     // ===================== O CASO DO FELIPE: 2 DE 3 JOGADOS =====================
@@ -82,7 +86,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), Jogo(2, 3, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         Assert.Equal("Ana", Assert.Single(quadro.JaClassificados).Jogador1!.Nome);
         Assert.Empty(quadro.SemChance);
@@ -90,8 +94,8 @@ public class OQuePrecisaParaClassificarTests
         // Dois cenários e nenhum a mais: vitória de um, vitória do outro.
         Assert.Equal(2, quadro.Cenarios.Count);
         Assert.All(quadro.Cenarios, c => Assert.DoesNotContain("por", c.Resultado));
-        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Bia vencer" && c.ClassificadosIds.Contains(2));
-        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Cadu vencer" && c.ClassificadosIds.Contains(3));
+        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Bia / Parceiro vencer" && c.ClassificadosIds.Contains(2));
+        Assert.Contains(quadro.Cenarios, c => c.Resultado == "Cadu / Parceiro vencer" && c.ClassificadosIds.Contains(3));
     }
 
     // ⚠️ O TESTE QUE JUSTIFICA A FEATURE. Aqui a resposta é contraintuitiva e ninguém acerta de
@@ -112,21 +116,21 @@ public class OQuePrecisaParaClassificarTests
             Jogo(2, 3, null, null),
         };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // A Ana passa em qualquer cenário; ninguém está eliminado.
         Assert.Equal("Ana", Assert.Single(quadro.JaClassificados).Jogador1!.Nome);
         Assert.Empty(quadro.SemChance);
 
-        var porMargem = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 2 games ou mais");
+        var porMargem = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 2 games ou mais");
         Assert.Contains(2, porMargem.ClassificadosIds);   // Bia entra
         Assert.DoesNotContain(3, porMargem.ClassificadosIds);
 
-        var soPorUm = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 1 game");
+        var soPorUm = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 1 game");
         Assert.DoesNotContain(2, soPorUm.ClassificadosIds);  // venceu e ficou fora
         Assert.Contains(3, soPorUm.ClassificadosIds);
 
-        var cadu = quadro.Cenarios.Single(c => c.Resultado == "Cadu vencer");
+        var cadu = quadro.Cenarios.Single(c => c.Resultado == "Cadu / Parceiro vencer");
         Assert.Contains(3, cadu.ClassificadosIds);
     }
 
@@ -139,7 +143,7 @@ public class OQuePrecisaParaClassificarTests
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), Jogo(2, 3, null, null) };
 
         // Só UM classifica: a Ana já é a primeira ganhando quem ganhar.
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 1, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         var unico = Assert.Single(quadro.Cenarios);
         Assert.Equal("Qualquer resultado", unico.Resultado);
@@ -158,14 +162,15 @@ public class OQuePrecisaParaClassificarTests
         var jogados = new[] { Jogo(1, 2, 9, 7), Jogo(3, 1, 9, 8) };
 
         var quadro = OQuePrecisaParaClassificar.Montar(
-            duplas, jogados.Append(Jogo(2, 3, null, null)).ToList(), 2, Ate9)!;
+            duplas, jogados.Append(Jogo(2, 3, null, null)).ToList(), 2, Ate9,
+            ClassificacaoDeGrupos.SemPontos)!;
 
         // Bia vence por 2 (9x7): o painel diz que ela entra…
-        var prometido = quadro.Cenarios.Single(c => c.Resultado == "Bia vencer por 2 games ou mais");
+        var prometido = quadro.Cenarios.Single(c => c.Resultado == "Bia / Parceiro vencer por 2 games ou mais");
 
         // …e a régua oficial, com o jogo REALMENTE 9x7, diz a mesma coisa.
         var deVerdade = ClassificacaoDeGrupos
-            .Calcular(duplas, jogados.Append(Jogo(2, 3, 9, 7)).ToList(), 2)
+            .Calcular(duplas, jogados.Append(Jogo(2, 3, 9, 7)).ToList(), ClassificacaoDeGrupos.SemPontos, 2)
             .Select(c => c.DuplaId)
             .ToHashSet();
 
@@ -182,7 +187,7 @@ public class OQuePrecisaParaClassificarTests
         var queFalta = Jogo(2, 3, null, null);
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), queFalta };
 
-        OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9);
+        OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos);
 
         Assert.Null(queFalta.GamesDupla1);
         Assert.Null(queFalta.GamesDupla2);
@@ -196,7 +201,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 9, 3), Jogo(1, 3, 9, 5), Jogo(2, 3, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos)!;
 
         // Todo cenário nomeia um vencedor — nenhum fala em empate.
         Assert.All(quadro.Cenarios, c => Assert.Contains("vencer", c.Resultado));
@@ -211,7 +216,7 @@ public class OQuePrecisaParaClassificarTests
         var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia"), Dupla(3, "Cadu") };
         var jogos = new[] { Jogo(1, 2, 5, 2), Jogo(1, 3, 4, 3), Jogo(2, 3, null, null) };
 
-        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, soma7)!;
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, soma7, ClassificacaoDeGrupos.SemPontos)!;
 
         Assert.NotEmpty(quadro.Cenarios);
         Assert.All(quadro.Cenarios, c => Assert.NotEmpty(c.ClassificadosIds));

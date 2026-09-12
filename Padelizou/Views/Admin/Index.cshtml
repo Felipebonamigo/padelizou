@@ -7,6 +7,7 @@
     var ehRaiz = (bool)ViewBag.EhRaiz;
     var portaoLigado = (bool)ViewBag.PortaoLigado;
     var portaoDecididoAqui = (bool)ViewBag.PortaoDecididoAqui;
+    var avisosMudos = (bool)ViewBag.AvisosMudos;
 
     // O texto da confirmação sai daqui, e não de um `@(...)` dentro do atributo onsubmit:
     // condicional com aspas dentro de atributo é o tipo de linha que quebra na primeira
@@ -14,6 +15,10 @@
     var avisoDoPortao = portaoLigado
         ? "Desligar o portão? O site fica ABERTO: qualquer pessoa entra e se cadastra sem senha."
         : "Ligar o portão? Quem não tem conta volta a precisar da senha compartilhada.";
+
+    var avisoDoSilencio = avisosMudos
+        ? "Religar os avisos? Push, e-mail e WhatsApp voltam a sair a partir de agora."
+        : "Silenciar TODOS os avisos? Ninguém recebe push, e-mail nem WhatsApp até você religar.";
 }
 
 <div class="container mt-4 mb-5">
@@ -46,6 +51,31 @@
                 @if (checadoEm != null)
                 {
                     <text>Conferido às @checadoEm.Value.ToString("HH:mm").</text>
+                }
+            </p>
+        </div>
+    }
+
+    @* O SISTEMA ESTÁ MUDO. Aqui em cima e pra QUALQUER admin, não só pro raiz que apertou o
+       botão: sistema calado é o único estado do painel que não produz sintoma nenhum — o
+       portão fechado gera "não consigo entrar", e o silêncio não gera nada. Sem esta faixa, a
+       pergunta "por que ninguém recebeu o aviso do torneio?" seria respondida caçando cota de
+       e-mail e chip de WhatsApp, que é o caminho longo pra uma chave que está bem aqui. *@
+    @if (avisosMudos)
+    {
+        <div class="alert alert-danger border-0 shadow-sm">
+            <h5 class="fw-bold mb-1"><i class="bi bi-bell-slash-fill"></i> Os avisos estão SILENCIADOS</h5>
+            <p class="mb-0 small">
+                Nenhum push, e-mail ou WhatsApp sai do sistema enquanto isto durar. A
+                <strong>Caixa de Avisos continua sendo gravada</strong> — quem abrir o app vê o
+                que perdeu —, mas nada toca no celular de ninguém.
+                @if (ehRaiz)
+                {
+                    <text>Religar fica em <strong>Ferramentas e ajustes</strong>, logo abaixo.</text>
+                }
+                else
+                {
+                    <text>Só o administrador raiz religa.</text>
                 }
             </p>
         </div>
@@ -289,13 +319,17 @@
        ⚠️ Ela abre SOZINHA quando o portão está ligado. É a mesma disciplina do alarme do
        canal, logo acima: dado normal fica quieto, estado anormal se apresenta. Site trancado
        sem ninguém perceber é exatamente o que uma gaveta fechada causaria. *@
-    <details class="mt-4" open="@(ehRaiz && portaoLigado ? "open" : null)">
+    <details class="mt-4" open="@(ehRaiz && (portaoLigado || avisosMudos) ? "open" : null)">
         <summary class="fw-bold" style="color: var(--pdz-ink); cursor: pointer;">
             <i class="bi bi-tools"></i> Ferramentas e ajustes
             <span class="text-muted small fw-normal">— testes de aviso@(ehRaiz ? ", administradores e o portão do site" : "")</span>
             @if (ehRaiz && portaoLigado)
             {
                 <span class="badge text-bg-warning ms-1">portão FECHADO</span>
+            }
+            @if (ehRaiz && avisosMudos)
+            {
+                <span class="badge text-bg-danger ms-1">avisos MUDOS</span>
             }
         </summary>
 
@@ -341,6 +375,62 @@
 
         @if (ehRaiz)
         {
+            @* O SILÊNCIO GERAL. Do lado do portão e na largura inteira pelo mesmo motivo: os
+               dois são chaves do sistema INTEIRO, não ajuste de uma tela. É o botão do envio
+               em fuga — um job novo despejando aviso na base toda, um torneio duplicado
+               avisando todo mundo de novo —, e a alternativa até aqui era ssh no servidor.
+
+               ⚠️ O estado normal aqui é o SILENCIOSO na tela e barulhento na vida: falando,
+               o card fica discreto; mudo, ele fica vermelho e não deixa esquecer. É o inverso
+               do portão, onde o estado que preocupa é o ligado. *@
+            <div class="row g-3 mt-1">
+            <div class="col-12">
+                <div class="card shadow-sm border-0 h-100 @(avisosMudos ? "border-danger border-2" : "")">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            <i class="bi @(avisosMudos ? "bi-bell-slash-fill" : "bi-bell-fill")"></i>
+                            Avisos do sistema
+                        </h5>
+
+                        @if (avisosMudos)
+                        {
+                            <p class="mb-1">
+                                <span class="badge text-bg-danger">MUDOS</span>
+                                Ninguém recebe push, e-mail nem WhatsApp.
+                            </p>
+                            <p class="text-muted small mb-3">
+                                A Caixa de Avisos <strong>continua sendo gravada</strong>: quem abrir o app
+                                vê tudo o que aconteceu. Religar volta a entregar dali pra frente — o que
+                                passou enquanto estava mudo <strong>não é reenviado</strong>.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="mb-1">
+                                <span class="badge text-bg-success">FALANDO</span>
+                                Push, e-mail e WhatsApp saindo normalmente.
+                            </p>
+                            <p class="text-muted small mb-3">
+                                Silenciar cala <strong>todos</strong> os avisos do sistema de uma vez, sem
+                                deploy e sem mexer na preferência de ninguém. É pra estancar envio em fuga —
+                                e o que for gerado enquanto estiver mudo fica só na Caixa de Avisos.
+                            </p>
+                        }
+
+                        <form asp-controller="Admin" asp-action="AlternarSilencioDeAvisos" method="post"
+                              onsubmit="return confirm('@avisoDoSilencio');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="silenciar" value="@((!avisosMudos).ToString().ToLowerInvariant())" />
+                            <button type="submit" class="btn btn-sm rounded-pill px-3 @(avisosMudos ? "btn-padel" : "btn-outline-danger")">
+                                <i class="bi @(avisosMudos ? "bi-bell-fill" : "bi-bell-slash")"></i>
+                                @(avisosMudos ? "Religar os avisos" : "Silenciar todos os avisos")
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            </div>
+
             @* O PORTÃO. Por último e na largura inteira de propósito: é o único botão deste
                painel que muda quem consegue ENTRAR no site, e um card de meia largura não
                carrega esse peso. O estado atual vem escrito em letra grande porque a pergunta
