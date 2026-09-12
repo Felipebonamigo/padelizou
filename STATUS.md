@@ -18,6 +18,16 @@
 >
 > ⚠️ **E O `main` ANDOU 27 COMMITS DURANTE ESTE TRABALHO** (PRs #234, #235 e #236, de sessões paralelas), com **duas** rodadas de conflito no `STATUS.md` e uma terceira no próprio branch — outra sessão empurrou um merge do `main` dentro dele enquanto eu resolvia o meu. Reconciliado com merge, nunca com `--force`.
 
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1197-c4856a9`** (runs 280 e 281, 00h22 e 00h25 de Brasília), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #234, o **"palpitômetro sem o erre"**. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO, no `prod`, anônimo, no torneio do Er** (`/Torneios/Details/26`, 996 KB de HTML): **56 rótulos `PALPITÔMETRO`**, **56 `pdz-palpitometro`** e **ZERO ocorrência de "palpitr"** na página inteira. O `/js/palpitometro.js` responde **200** e traz o `atualizarPalpitometro`; o `/js/palpitrometro.js` antigo responde **404**. `/healthz` **200** nos dois ambientes.
+>
+> 🔒 **No `dev` a conferência é mais fraca, e por um motivo conhecido**: o gate de Acesso Antecipado redireciona o site inteiro, então o arquivo antigo dá **302** em vez de 404. O que vale ali é o `/js/palpitometro.js` **200**, o job `deploy → dev` verde (e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho) e o `/healthz` 200.
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES DEPOIS DESTE BUILD e o que subiu NÃO leva os dois**: os PRs **#235** (nome da dupla: primeiro e último) e **#236** (bolinha do placar), de sessões paralelas, entraram no `main` mas **não estão no `build-1197`** — quem publicar em seguida leva os três juntos. O deploy foi conferido como **estritamente pra frente** antes de sair (o `698e54c` que estava no `prod` é ancestral do `c4856a9`), justamente pra não derrubar trabalho de ninguém.
+>
+> 🕳️ **O CI DISPAROU SOZINHO nas duas pontas desta vez** (PR e `main`) — depois de cinco falhas registradas neste arquivo (26/08, 10/09 e três em 11/09). Nada mudou no `ci.yml`; fica o registro pra próxima vez que doer.
+
 > **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
 >
 > 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
