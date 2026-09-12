@@ -47,7 +47,7 @@ public class ProximoDaQuadraTests
         var terminou = Jogo(1, "Quadra 3", "20:00", "Finalizada");
         var jaAvisado = Jogo(2, "Quadra 3", "20:11", avisoEnviado: DateTime.Parse("2026-08-05 20:00"));
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminou, new[] { jaAvisado }));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminou, new[] { jaAvisado }, DateTime.Parse("2026-08-05 20:00")));
         Assert.NotNull(AvisosDoDiaDeJogo.ProximaNaQuadra(terminou, new[] { jaAvisado }));
     }
 

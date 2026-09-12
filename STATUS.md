@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/cool-davinci-tqwqxv`, ainda não publicado.** **Sem migration.**
+>
+> 🌙 **"SEU JOGO É O PRÓXIMO!" ÀS 00:03 PARA UM JOGO DAS 08:00.** 🗣️ Felipe, com o print do push na mão: *"o proximo jogo deve ser só as 8 da manha, nao deveria exibir isso"*. O aviso que chegou: *"A Arena Loja 7 — Er Padel vagou — seu jogo é o próximo. Fique por perto."*
+>
+> 🕳️ **A REGRA NÃO TINHA TETO NENHUM PRA FRENTE.** `AvisosDoDiaDeJogo.ProximaAposTerminar` pegava *a primeira agendada da mesma quadra*, sem olhar o relógio — então ela **sempre acha alguém** enquanto o torneio tiver jogo restando, inclusive o de amanhã de manhã. O último jogo da noite não faz a quadra vagar pra ninguém: ele FECHA o dia. E "fique por perto" a 8 horas de distância é instrução ativamente errada, de madrugada, no celular de quatro pessoas por quadra.
+>
+> ⏱️ **O CORTE É SÓ PRA FRENTE: `AntecedenciaMaxima = 1h`** (escolha do Felipe entre 1h/2h/3h). Horário no passado continua **sem limite nenhum** — atraso é a razão de este aviso existir, e o jogo das 09:00 que vai começar às 13:00 é exatamente quem precisa ouvir que a quadra vagou. O `agora` virou **parâmetro obrigatório**: quem chama é obrigado a dizer que horas são, em vez de o teto sumir por um default esquecido.
+>
+> ✅ **A TELA DO ORGANIZADOR NÃO MUDA.** `ProximaNaQuadra` (o banner "A Quadra 3 vagou — próximo: Fulano × Beltrano [Começar agora]") segue sem teto, de propósito: ele é sugestão pra quem está olhando a Mesa de Controle e pode chamar o jogo quando quiser — o push é que não pode mandar ninguém se levantar à toa.
+>
+> 🧪 **6.633 testes, 0 falhas (3 novos em `AvisosDoDiaDeJogoTests`)** + `conferir-palpitrometro.js` verde. Os dois testes do teto foram **vistos falhando** antes da correção (`Expected: null`, veio a partida das 08:00); o terceiro trava o lado do atraso, que não podia regredir.
+>
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
 >
