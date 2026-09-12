@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1275-1c8aae8`** (runs **307** e **308**), **o mesmo artefato nos dois**, com a tag explícita. PR #266. **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO no `prod`**: `/healthz` **200** nos dois, e o `Torneios/Details/26` servido com **1** painel `#filtrosDosJogos`, **1** botão que o abre (`bi-sliders`, `aria-expanded="false"` — nasce fechado) e os **cinco** filtros dentro dele (`timeFiltroId`, `clubeFiltroId`, `quadraFiltro`, `faseFiltro`, `categoriaFiltroIds`).
+>
+> ⚠️ **A CONFERÊNCIA POR CONTEÚDO SÓ DEU NO `prod`, e é uma assimetria que vale lembrar**: o `dev` está atrás do gate de Acesso Antecipado e devolve **302** pro `/AcessoAntecipado/Entrar` pra quem chega anônimo. O `prod` é público, então é ele que dá pra ler por `curl` — o contrário do que a intuição diz. E sendo markup do Razor, nenhum arquivo estático (`sw.js`, `/js/*`) serviria de prova como nos builds anteriores.
+>
+> ℹ️ **O `Meus jogos` NÃO aparece na busca anônima, e está certo**: ele só existe pra quem tem jogo no torneio (`tenhoJogoAqui`), e o `curl` chega deslogado. É o único pedaço que precisa de olho logado.
+>
+> ⚠️ **A BOMBA-RELÓGIO DO `prod` CONTINUA DE PÉ, e agora já são três deploys**: o run **308** saiu do `queued` pro `success` em **16 segundos**, **sem parar pra aprovação de ninguém** — o mesmo que o run 302 fez em 17s e que o `infra/vps/README.md` avisa desde sempre (*"é aqui que mora a trava do prod"*). Hoje qualquer deploy em produção sai sem confirmação, inclusive um disparado por engano. O passo pra fechar: Settings → Environments → `prod` → **Required reviewers**.
 >
 > 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
 >
