@@ -1,4 +1,4 @@
-@model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada, Padelizou.ViewModels.PalpiteResumoVM? Palpites, int? MeuId)
+﻿@model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada, Padelizou.ViewModels.PalpiteResumoVM? Palpites, int? MeuId, Padelizou.ViewModels.ReacoesDaPartidaVM? Reacoes)
 @*
     Um jogo na lista de Agendadas / Finalizadas.
 
@@ -688,5 +688,9 @@
             </div>
         }
 
+        @* REAGIR COM EMOJI (12/09/2026) — no rodapé do cartão, que é onde o WhatsApp e o
+           Discord põem a reação: depois do assunto, nunca antes dele. 🗣️ *"a cada jogo"*, então
+           está nas DUAS apresentações — aqui (Agendadas/Finalizadas) e no cartão do Ao Vivo. *@
+        <partial name="_ReacoesDoJogo" model="(jogo, Model.Reacoes, Model.MeuId)" />
     </div>
 </div>

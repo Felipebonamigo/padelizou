@@ -1,7 +1,40 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** ⏳ **Commitado, NÃO publicado** — falta build + `Deploy`. **COM MIGRATION** (`ReacoesDaPartida`, gerada em worktree limpo, `has-pending-model-changes` sem pendência).
+>
+> 🗣️ Felipe, com um print do `Torneios/Details/26` na aba Finalizadas e outro do Discord: *"aqui, a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no discord, com emojis"*. Na sequência, com o print do painel de reações do WhatsApp: *"e ao clicar no emoji, veja quem colocou o que, igual no whats app"*.
+>
+> 🧭 **`architectural` PELA PRÓPRIA RÉGUA DO `CLAUDE.md`** (gera migration): design escrito e aprovado antes de qualquer código. **Duas decisões foram dele**, perguntadas antes de escrever:
+>
+> 1. **Teclado de emoji LIVRE**, não paleta fechada — qualquer emoji que a pessoa digitar. (As alternativas oferecidas eram 6 fixos de padel ou os 8 do print do Discord.)
+> 2. **A fileira do cartão nasce só com o que JÁ TEM**, mais um botão 😀. Num jogo sem reação sobra o botão e nada mais — é a régua do palpitômetro, que não aparece sem voto, e evita o que ele já tinha apontado nas fichas de placar em 11/09 (*"pra nao ficar poluindo a tela"*).
+>
+> 🔑 **A ESCOLHA 1 É O QUE MOVE O TRABALHO PRO SERVIDOR.** Com lista fechada, "isso é emoji?" se responde comparando com a lista; sem ela, a coluna aceita o texto que o POST mandar — e um POST montado à mão gravaria *"PAGUE AQUI: bit.ly/…"* como reação de um jogo que o torneio inteiro lê. Nasceu `Services/EmojiDeReacao`, e a régua dele **não é uma lista de emoji**: (a) **um grafema só**, medido pelo `StringInfo` da BCL, que quebra por UAX#29 — 🇧🇷 (dois indicadores regionais), 👨‍👩‍👧 (ZWJ), 👍🏽 (tom de pele) e 1️⃣ (keycap) são um grafema cada, e `🔥🔥` são dois; (b) **todo code point é de emoji** — símbolo **fora do ASCII**, ou uma das peças que montam emoji; (c) **pelo menos um símbolo de verdade**, senão um seletor de variação solto passaria. O `> 0x7F` não é detalhe: sem ele, `+` (Sm), `^` (Sk) e `<` passariam pela categoria.
+>
+> 🔗 **E A NORMALIZAÇÃO NÃO É FRESCURA DE FORMATO**: 👍 e 👍️ (com o VS16 invisível no fim) chegam de teclados diferentes e são o MESMO desenho. Sem normalizar, o cartão mostraria **duas pílulas idênticas de 1 voto cada**, e quem clicasse na "outra" juraria que a reação dele sumiu. Grava-se a forma LONGA: o seletor é inócuo em quem já nasce colorido (👍) e é justamente o que faz o ❤ virar ❤️ em vez de um coração preto na fileira.
+>
+> 🔒 **A CHAVE COMPOSTA `(PartidaId, JogadorId, Emoji)` É A REGRA "uma reação por pessoa por emoji"** — ela não está num `if`. É o degrau 4 da escada (recurso nativo da plataforma), a mesma forma da PK de `TorneioMarcador`, e o `DbUpdateException em POST /Partidas/Votar` de 10/09 é exatamente o que ela evita. ⚠️ **O EMOJI ENTRA NA CHAVE de propósito, diferente do palpite**: lá o voto é UM (trocar de dupla troca a linha); aqui reagir com 🔥 não tira o 👏.
+>
+> 🤝 **DUAS AÇÕES IDEMPOTENTES, NÃO UM TOGGLE**: `Reagir` e `TirarReacao`, mesma forma do Curtir/Descurtir do mural. Num toggle, o toque duplo num alvo de 32px deixaria a pessoa **sem** reação enquanto a tela diz que ela reagiu. Regra 0 nas duas: `[HttpPost]` + `[Authorize]` + dono — e o dono é **estrutural**, porque a linha é achada por (partida, jogador, emoji) e o jogador vem da claim.
+>
+> 👆 **O DESENHO DO TOQUE, EM UMA FRASE: no cartão a pílula ABRE o painel; dentro do painel a pílula SOMA ou TIRA a minha.** É o WhatsApp, que é o que ele pediu em *"ao clicar no emoji"* — e um toque que somasse no cartão e outro que abrisse no painel seriam **dois significados pro mesmo alvo de 32px**. O "toque para remover" fica escrito na pílula que é minha.
+>
+> 🖐️ **ESTÁ NAS DUAS APRESENTAÇÕES**, porque *"a cada jogo"* são as três abas e o cartão do **Ao Vivo é markup próprio**, não o da linha — é exatamente assim que um botão nasce em duas das três (foi o que aconteceu com o "desfazer o play", que existia só na linha).
+>
+> ⚡ **CARGA EM LOTE**, do lado do `ViewBag.Palpites`: esta lista tem 97 cartões, e perguntar jogo a jogo é como uma tela vira 97 idas ao banco.
+>
+> 🧪 **6.900 testes, 0 falhas (40 novos)** + os **7** conferidores de JS verdes (o novo, `conferir-reacoes-do-jogo.js`, tem 21 conferências). ⚠️ **O número já é DEPOIS de trazer o `origin/main`**: o `main` andou 7 commits durante este trabalho (`build-1275` e `build-1278`, de duas sessões paralelas), e a suíte foi revalidada inteira com o código delas junto — 6.886 no branch sozinho, 6.900 com o `main`. Vistos vermelhos antes da implementação, por *"não existe"*: `EmojiDeReacao`, `ReacaoService`, `ReacoesDaPartida`, o partial e o JS. Entre eles, os dois de tradução (`ToQueryString` contra Npgsql) pela consulta de "quem reagiu", que navega pro `Jogador` **dentro** da projeção — o EF InMemory da suíte não traduz nada, e foi assim que 19/08 estourou só em produção.
+>
+> ⚠️ **CONFLITO DE `STATUS.md` RESOLVIDO MANTENDO AS DUAS ENTRADAS** — a minha entrou como header e a da sessão `wizardly-tesla-pkr17q` desceu um nível, com o texto dela intacto (só o rótulo "Última atualização", que é único, saiu). O topo do arquivo foi conferido depois do merge, e não só a ausência de `<<<<<<<`: a lição de 11/09 é que o 3-way merge casa linha com linha e num diário onde todo mundo escreve no topo o resultado natural é bloco fora de lugar.
+>
+> ℹ️ **`sw.js` FICA em `padelizou-static-v36`** (o `main` já o virou pro 36 no `build-1268`): o `site.css` é servido com `asp-append-version`, então o hash novo já fura o cache sozinho, e o `reacoes-do-jogo.js` não está no `STATIC_ASSETS`. Virar a versão de novo só jogaria fora a cópia nova que o 1268 acabou de guardar.
+>
+> ⚠️ **NÃO CONFERIDO NO NAVEGADOR** — esta sessão não tem browser nem Postgres. O que foi provado: build limpo (Razor compila em build — verificado com erro proposital no partial novo), suíte inteira verde, os 6 conferidores de JS, e a migration sem pendência de modelo. **Falta ver a fileira num cartão de verdade antes de `prod`.**
+>
+> ⚠️ **A BOMBA-RELÓGIO DE `prod` CONTINUA ABERTA** (herdada da entrada abaixo): o environment `prod` não tem **Required reviewers**, e o run 302 saiu do `queued` pro `success` em 17 segundos sem pedir nada. Settings → Environments → `prod` → Required reviewers.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
 >
 > 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
 >

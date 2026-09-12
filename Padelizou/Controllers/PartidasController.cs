@@ -11,6 +11,7 @@ namespace Padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IPalpiteService _palpites;
+        private readonly IReacaoService _reacoes;
         private readonly IPushNotificationService _pushService;
         private readonly ILogger<PartidasController> _logger;
         private readonly EncerramentoDaPartida _encerramento;
@@ -18,12 +19,14 @@ namespace Padelizou.Controllers
         public PartidasController(
             DbPadelContext context,
             IPalpiteService palpites,
+            IReacaoService reacoes,
             IPushNotificationService pushService,
             ILogger<PartidasController> logger,
             EncerramentoDaPartida encerramento)
         {
             _context = context;
             _palpites = palpites;
+            _reacoes = reacoes;
             _pushService = pushService;
             _logger = logger;
             _encerramento = encerramento;
@@ -195,6 +198,61 @@ namespace Padelizou.Controllers
             if (votantes == null) return NotFound();
 
             return Json(votantes);
+        }
+
+        // ── REAGIR COM EMOJI (12/09/2026) ────────────────────────────────────────────────
+        //
+        // 🗣️ Felipe: *"aqui, a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no
+        // discord, com emojis"* e *"e ao clicar no emoji, veja quem colocou o que, igual no
+        // whats app"*.
+        //
+        // ⚠️ REGRA 0: [HttpPost] + [Authorize] + dono. A checagem de dono é ESTRUTURAL — o
+        // serviço acha a linha por (partida, jogador, emoji) e o jogador vem da claim, então
+        // não há parâmetro por onde reagir no lugar de outra pessoa. O carimbo
+        // antifalsificação vem do filtro global (Program.cs).
+        //
+        // ⚠️ DUAS AÇÕES, e não um toggle só — mesma forma do Curtir/Descurtir do mural. As
+        // duas são idempotentes, então o segundo POST do toque duplo não desfaz o primeiro:
+        // num toggle, o toque duplo num alvo de 32px deixaria a pessoa SEM reação enquanto a
+        // tela diz que ela reagiu.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> Reagir(int partidaId, string? emoji)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            try
+            {
+                return Json(await _reacoes.ReagirAsync(partidaId, jogadorId, emoji));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // A frase importa: a recusa mais comum é "isso não é um emoji", e é sobre o que
+                // a pessoa acabou de digitar no campo. O painel a mostra ao lado do campo.
+                return BadRequest(new { sucesso = false, erro = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> TirarReacao(int partidaId, string? emoji)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            return Json(await _reacoes.TirarReacaoAsync(partidaId, jogadorId, emoji));
+        }
+
+        // GET: Partidas/QuemReagiu — quem colocou o quê (público, como o VerVotos).
+        //
+        // ⚠️ 404 QUANDO O JOGO NÃO EXISTE MAIS, e não 500: o `partidaId` vem congelado no HTML
+        // do botão e regerar a chave APAGA partidas. Quem está com a lista velha aberta aponta
+        // pro que não existe — e isso é resposta, não defeito (foram três 500 no vigia em
+        // 11/09 pela mesma porta, no botão de ver quem votou).
+        [HttpGet]
+        public async Task<IActionResult> QuemReagiu(int partidaId)
+        {
+            var quem = await _reacoes.ObterQuemReagiuAsync(partidaId);
+            if (quem == null) return NotFound();
+
+            return Json(quem);
         }
 
         public IActionResult Index()

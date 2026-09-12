@@ -1,4 +1,4 @@
-@using Padelizou.ViewModels
+﻿@using Padelizou.ViewModels
 @using JogoQueVem = Padelizou.Services.ProximasFasesDaChave.JogoQueVem
 @model (string TargetAction, int TorneioId)
 @functions {
@@ -58,6 +58,8 @@
     bool ehInscritoDoTorneio = ViewBag.EhInscritoDoTorneio == true;
     bool defaultAoVivo = aoVivoList.Count > 0;
     var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
+    // As reações com emoji, no mesmo lote (ver TorneiosController.CarregarViewBagJogosAsync).
+    var reacoes = ViewBag.Reacoes as Dictionary<int, ReacoesDaPartidaVM> ?? new Dictionary<int, ReacoesDaPartidaVM>();
     int? meuId = ViewBag.MeuId as int?;
     var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
@@ -907,6 +909,17 @@
                                 <partial name="_Palpitometro" model="(jogo, resumoPalpite, meuId)" />
                             </div>
                         }
+
+                        @* REAGIR COM EMOJI (12/09/2026). 🗣️ *"a cada jogo"* — e o cartão do AO
+                           VIVO é markup PRÓPRIO, não o da linha: é exatamente assim que um botão
+                           nasce em duas das três abas (foi o que aconteceu com o "desfazer o
+                           play", que existia só na linha).
+                           ⚠️ `pdz-live-palpite` pelo mesmo motivo do bloco acima: fora de um
+                           `.card`, o padding do `.card-body` vira ZERO calado e o bloco encosta
+                           na borda do cartão. *@
+                        <div class="pdz-live-palpite">
+                            <partial name="_ReacoesDoJogo" model="(jogo, reacoes.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
                     </div>
                 </div>
             }
@@ -994,7 +1007,7 @@
             {
                 if (linha.Jogo is Partida jogo)
                 {
-                    <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                    <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId, reacoes.GetValueOrDefault(jogo.Id))" />
                 }
                 else if (linha.Previsto is JogoQueVem porvir)
                 {
@@ -1047,7 +1060,7 @@
         <div class="pdz-jogos-lista">
             @foreach (var jogo in finalizadasList)
             {
-                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, true, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, true, palpites.GetValueOrDefault(jogo.Id), meuId, reacoes.GetValueOrDefault(jogo.Id))" />
             }
         </div>
     </div>
