@@ -3964,6 +3964,112 @@ a.pdz-grupo-jogo[href]:focus-visible {
     text-decoration-color: currentColor;
 }
 
+/* ── REAGIR COM EMOJI NO JOGO (12/09/2026) ──────────────────────────────────────────
+   🗣️ Felipe: *"a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no discord, com
+   emojis"* e *"ao clicar no emoji, veja quem colocou o que, igual no whats app"*.
+
+   A fileira nasce só com o que já tem: num jogo sem reação sobra o botão do teclado, e mais
+   nada. Numa lista de 97 cartões, é o que mantém a tela quieta. */
+.pdz-reacoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .25rem;
+    margin-top: .5rem;
+}
+
+/* A pílula: emoji + contagem. Alvo de 32px de altura — é o mínimo que o dedo acerta numa
+   lista rolando, e foi o tamanho que os botões do placar ao vivo já provaram. */
+.pdz-reacao-pilula,
+.pdz-reacao-abrir,
+.pdz-reacao-atalho {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    min-height: 32px;
+    padding: .1rem .5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-tertiary-bg);
+    color: inherit;
+    font-size: .85rem;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.pdz-reacao-pilula:hover,
+.pdz-reacao-abrir:hover,
+.pdz-reacao-atalho:hover {
+    border-color: var(--padel-green);
+}
+
+/* A MINHA reação, marcada. É o que o JS lê pra decidir entre somar e tirar — a classe não é
+   só cor: `pdz-reacao-minha` é o estado. */
+.pdz-reacao-minha {
+    border-color: var(--padel-green);
+    background: color-mix(in srgb, var(--padel-green) 18%, transparent);
+    font-weight: 600;
+}
+
+/* ⚠️ O EMOJI NÃO HERDA A FONTE DO TEXTO: sem uma pilha que termine nas fontes de emoji do
+   sistema, um Linux sem elas desenha o quadradinho vazio — e o mesmo card fica sem sentido
+   pra quem abre do desktop. */
+.pdz-reacao-emoji,
+.pdz-reacao-emoji-linha,
+.pdz-reacao-atalho {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
+    font-size: 1rem;
+}
+
+.pdz-reacao-conta {
+    font-variant-numeric: tabular-nums;
+    color: var(--pdz-muted);
+}
+
+.pdz-reacao-minha .pdz-reacao-conta { color: inherit; }
+
+.pdz-reacao-abrir { padding: .1rem .55rem; color: var(--pdz-muted); }
+
+/* ── O PAINEL "QUEM COLOCOU O QUÊ" ───────────────────────────────────────────────── */
+.pdz-reacoes-no-painel { margin-top: 0; }
+
+.pdz-reacao-atalhos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem;
+}
+
+.pdz-reacao-linha {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .35rem 0;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.pdz-reacao-linha:first-child { border-top: 0; }
+
+.pdz-reacao-foto {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* ⚠️ `min-width: 0` no nome e `flex-shrink: 0` no emoji: o emoji é o último item da linha e,
+   sem travar, um nome de três palavras o espremia até ele quebrar pra outra linha — é a
+   mesma correção que a ficha de placar do modal de votos já levou em 11/09. */
+.pdz-reacao-nome {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .9rem;
+}
+
+.pdz-reacao-emoji-linha { flex-shrink: 0; font-size: 1.15rem; }
 /* ── O SELO "JOGANDO" DA TABELA DE PALPITEIROS (12/09/2026) ────────────────────────────
    🗣️ Felipe: *"coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"* — o
    filtro isola o grupo, este selo responde por linha, com "Todos" ativo.

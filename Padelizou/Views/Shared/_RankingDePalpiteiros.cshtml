@@ -39,7 +39,13 @@
 
    ⚠️ E A ÂNCORA VEM DE QUEM CHAMA: dentro da página do torneio o link tem que voltar pra ABA
    dos palpiteiros (`#palpiteiros`), senão filtrar joga o leitor no topo, na primeira aba. Na
-   página cheia não há aba, e ela não manda âncora nenhuma. *@
+   página cheia não há aba, e ela não manda âncora nenhuma.
+
+   ⚠️ E NÃO É O `manter-posicao-na-lista.js` (12/09/2026, PR #274, "filtrar não joga mais a
+   página pro topo") de propósito: aquele mecanismo é pra POST → redirect → GET de FORMULÁRIO,
+   com memória em sessionStorage e opt-in no `<form>`. Aqui o recorte é navegação por LINK, e a
+   âncora do próprio navegador já faz o trabalho — sem JS, sem memória, e funcionando com o
+   link colado no WhatsApp, que é o caso que a página cheia existe pra atender. *@
 @if (Model.MostrarFiltroDeFase)
 {
     var ancora = ViewData["AncoraDosPalpiteiros"] as string ?? "";

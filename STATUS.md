@@ -1,7 +1,106 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+>
+> 🗣️ Felipe, num print do `Torneios/Details/26?soMeusJogos=true` no celular, com a barra de pagamento ocupando a tela e a lista lá embaixo: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem, tinha q aparece na aba meus jogos ja"*.
+>
+> 🕳️ **DOIS BURACOS NO MESMO OPT-IN, e nenhum dos dois dava erro.** O `js/manter-posicao-na-lista.js` guarda a posição desde 10/09, mas só escutava `submit` — e (1) o **"Meus jogos" é um `<a>`**, de propósito (liga/desliga de um toque), e link não dispara `submit`; (2) os **cinco selects do painel** aplicam por JS, e **`form.submit()` chamado por código NÃO dispara o evento `submit`** — quem dispara é `requestSubmit()`. Os dois caminhos passavam batido, calados.
+>
+> 🔬 **E A ALTURA EM PIXELS NÃO SERVIA AQUI — foi medido, não deduzido.** Com "Meus jogos" ligado a lista cai de 97 jogos pra 3 e o documento encolhe: no celular de 390px o `scrollY` guardado deixou de existir na página nova, e o navegador truncou no fim dela. **Medido no navegador: `scrollY = 588`, `maxScroll = 588`** — a página já estava no fundo e a barra parava a **315px** do topo da tela.
+>
+> ✅ **DUAS MEMÓRIAS, E QUEM ESCREVE O BOTÃO ESCOLHE.** `data-manter-posicao` (sem valor) continua sendo a **altura**, que é o certo pra ação que não muda o tamanho da lista (check-in, trocar horário). `data-manter-posicao="#filtroJogos"` traz **aquele elemento** de volta pra tela, com o `scrollIntoView` da plataforma — imune ao documento encolher. É o modo dos três controles da barra: Meus jogos, Limpar filtros e o formulário dos filtros.
+>
+> ⚠️ **O VALOR É LIDO DE VOLTA DO `sessionStorage`, que é da ORIGEM inteira** — não só do que este arquivo escreveu. Por isso só passa por `querySelector` o que casar com `^#[A-Za-z][\w-]*$`: seletor de outra forma é ignorado, e tem checagem pra isso.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (CDP, 390×844, organizador logado)**: barra de filtros a 27px do topo da tela antes do clique; depois do clique ela fica **VISÍVEL a 315px** — e a mesma medida diz onde ela estaria **sem** a memória: **903px, fora de uma tela de 844px**. O select do painel também: aplicou o filtro (prova de que o `requestSubmit` disparou) e a barra ficou a 273px.
+>
+> 🧪 **6.906 testes, 0 falhas (1 novo)** + os 8 conferidores de JS. A quarta seção do `conferir-abas-que-ficam.js` (11 checagens) foi vista vermelha em 4 — inclusive *"guardou: undefined"* no clique do link. Ela cobre os dois modos, o clique no `<i>` de DENTRO do botão (que é onde o dedo encosta), e o ctrl+clique / botão do meio, que **não** podem deixar memória órfã pra atropelar a próxima visita.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1291-d769c7f`** (runs 34706992454 e 34707040519), **o mesmo artefato nos dois**. PR #267. **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `jogos-ao-vivo-atualiza.js` servido já com o `remendarAoVivo` e o `recarregarMantendoARolagem`, e o HTML de `prod` com o `id="pdzAoVivoCartoes"` na grade.
+>
+> 🗣️ Felipe, sobre a correção da entrada anterior: *"E quando atualizar, mantem na altura q tava a pagina no scroll. E nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar carregar?"*
+>
+> 🕳️ **O QUE SOBRAVA DE RECARREGAMENTO.** O atualizador de 20s já trocava só os pedaços (cabeçalho do cartão, Agendadas, Finalizadas) — menos num caso: quando a **lista de jogos em quadra mudava**, ele dava `location.reload()`. O motivo estava escrito no próprio arquivo e era real: *"cada cartão pode conter um `<iframe>` de transmissão, e mover ou reescrever iframe é recarregá-lo"*. Num sábado com cinco quadras isso é o tempo todo — e é a mesma queixa de 08/08 (*"o youtube está parando sozinho aqui do nada"*) por outra porta.
+>
+> ✅ **A SAÍDA ERA UMA DISTINÇÃO QUE FALTAVA: inserir e remover NÃO é mover.** Quem continua em quadra não é tocado, e nem quem entra nem quem sai tem vídeo a preservar (o que entra nasce agora; o que sai levou o dele junto). Então o painel virou remendo cartão a cartão dentro da grade `#pdzAoVivoCartoes`: o cartão que falta entra **antes do próximo cartão que já está na tela** (a ordem é a do servidor), o que sobra sai com a coluna dele. **Zero recarregamentos.**
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (CDP + Postgres de verdade), com a página aberta o tempo todo**: com o jogo 9100 em quadra **e um `<iframe>` marcado à mão** (`f.__marca='EU MESMO'`), o 9200 entrou em quadra no banco → `0 cargas de página`, grade virou `9100,9200`, **a marca do iframe sobreviveu** (mesmo elemento), aba `#aovivo`, rolagem `299 → 300px`, `Agendadas (1) → (0)` e a barra recontando `1 jogo(s) → 2 jogo(s)`. Depois o 9100 terminou → `0 cargas`, grade `9200`, aba e rolagem intactas.
+>
+> ✅ **E A ROLAGEM.** O recarregamento que sobrou (caminho de escape, quando a grade não está na página) passa por `recarregarMantendoARolagem`, que empresta a memória do `js/manter-posicao-na-lista.js` — **exposta como `window.pdzGuardarPosicaoNaLista`, não copiada**: duas cópias da chave viram duas memórias diferentes no dia em que uma mudar.
+>
+> ⚠️ **QUEM ESTÁ EM OUTRA ABA TAMBÉM GANHA O REMENDO**, de graça: antes o cartão velho ficava lá até ele voltar pro Ao Vivo. O que **não** acontece é a tela dele sumir — isso continua valendo.
+>
+> ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
+>
+> 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
+>
+> 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.
+>
+> 🕳️ **DEFEITO 1 — A MEMÓRIA DE ABA NUNCA RODOU NESTA TELA, E ISSO É MEDIDO.** O `js/jogos-abas.js` existe desde 08/08/2026 pra lembrar a aba escolhida. No HTML entregue da página do torneio ele sai na **linha 3941** e o `bootstrap.bundle.js` na **4736** — os scripts da lista de jogos são emitidos no CORPO da página e o Bootstrap só chega no fim, pelo `_Layout`. O `if (!pills || !window.bootstrap) return` disparava **sempre**, em silêncio. Conferido no navegador com CDP: depois de clicar em "Finalizadas", `sessionStorage` **vazio** e **ZERO ouvintes** no `#jogosTabs`. Um mês de recurso morto sem uma linha de erro em lugar nenhum.
+>
+> 🕳️ **DEFEITO 2 — QUEM PUXAVA O GATILHO**: o atualizador de 20 em 20 segundos dá `location.reload()` quando a lista de jogos EM QUADRA muda (jogo entrou, jogo acabou) — num sábado, o tempo todo. Somado ao defeito 1, o organizador era teleportado pro Ao Vivo de onde quer que estivesse.
+>
+> ✅ **AS DUAS CORREÇÕES.** (1) O `jogos-abas.js` faz tudo depois do `DOMContentLoaded` — que só dispara quando todo script síncrono já rodou, o Bootstrap incluso, esteja ele onde estiver; e o ouvinte que GRAVA não depende mais do Bootstrap (só o restaurar depende). (2) A barra de cima (`#torneioTabs`) passou a ser lembrada também, com chave própria — era ela que faltava pro caso da aba Palpiteiros, e ela **não tinha `data-torneio-id`**, então a chave nasceria sem o número do torneio. (3) O atualizador só recarrega **pra quem está olhando os cartões ao vivo** (aba mãe Jogos aberta **e** sub-aba Ao Vivo ativa); pra quem está em outro lugar o tique passa em silêncio e segue atualizando só os blocos sem vídeo.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR, no cenário exato dele**: nas Finalizadas, com um jogo em quadra TERMINANDO no banco, três tiques do atualizador (65s) — **zero recarregamentos**, ficou nas Finalizadas, e a lista ainda se atualizou sozinha embaixo (`Finalizadas (1)` → `(2)`). E o roteiro completo: clicar em Finalizadas → recarregar → continua lá; clicar numa aba mãe → recarregar → continua lá; mudar filtro → continua lá.
+>
+> 🧪 **6.850 testes, 0 falhas (4 novos em `AbaQueFicaOndeEstaTests`)** + **5** conferidores de JS verdes — o novo é o `conferir-abas-que-ficam.js`, que roda o script **na ordem de produção (sem Bootstrap)**. Um conferidor que definisse o Bootstrap antes passaria com o defeito de pé, que é como ele sobreviveu um mês.
+
+> **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** ⏳ **Commitado, NÃO publicado** — falta build + `Deploy`. **COM MIGRATION** (`ReacoesDaPartida`, gerada em worktree limpo, `has-pending-model-changes` sem pendência).
+>
+> 🗣️ Felipe, com um print do `Torneios/Details/26` na aba Finalizadas e outro do Discord: *"aqui, a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no discord, com emojis"*. Na sequência, com o print do painel de reações do WhatsApp: *"e ao clicar no emoji, veja quem colocou o que, igual no whats app"*.
+>
+> 🧭 **`architectural` PELA PRÓPRIA RÉGUA DO `CLAUDE.md`** (gera migration): design escrito e aprovado antes de qualquer código. **Duas decisões foram dele**, perguntadas antes de escrever:
+>
+> 1. **Teclado de emoji LIVRE**, não paleta fechada — qualquer emoji que a pessoa digitar. (As alternativas oferecidas eram 6 fixos de padel ou os 8 do print do Discord.)
+> 2. **A fileira do cartão nasce só com o que JÁ TEM**, mais um botão 😀. Num jogo sem reação sobra o botão e nada mais — é a régua do palpitômetro, que não aparece sem voto, e evita o que ele já tinha apontado nas fichas de placar em 11/09 (*"pra nao ficar poluindo a tela"*).
+>
+> 🔑 **A ESCOLHA 1 É O QUE MOVE O TRABALHO PRO SERVIDOR.** Com lista fechada, "isso é emoji?" se responde comparando com a lista; sem ela, a coluna aceita o texto que o POST mandar — e um POST montado à mão gravaria *"PAGUE AQUI: bit.ly/…"* como reação de um jogo que o torneio inteiro lê. Nasceu `Services/EmojiDeReacao`, e a régua dele **não é uma lista de emoji**: (a) **um grafema só**, medido pelo `StringInfo` da BCL, que quebra por UAX#29 — 🇧🇷 (dois indicadores regionais), 👨‍👩‍👧 (ZWJ), 👍🏽 (tom de pele) e 1️⃣ (keycap) são um grafema cada, e `🔥🔥` são dois; (b) **todo code point é de emoji** — símbolo **fora do ASCII**, ou uma das peças que montam emoji; (c) **pelo menos um símbolo de verdade**, senão um seletor de variação solto passaria. O `> 0x7F` não é detalhe: sem ele, `+` (Sm), `^` (Sk) e `<` passariam pela categoria.
+>
+> 🔗 **E A NORMALIZAÇÃO NÃO É FRESCURA DE FORMATO**: 👍 e 👍️ (com o VS16 invisível no fim) chegam de teclados diferentes e são o MESMO desenho. Sem normalizar, o cartão mostraria **duas pílulas idênticas de 1 voto cada**, e quem clicasse na "outra" juraria que a reação dele sumiu. Grava-se a forma LONGA: o seletor é inócuo em quem já nasce colorido (👍) e é justamente o que faz o ❤ virar ❤️ em vez de um coração preto na fileira.
+>
+> 🔒 **A CHAVE COMPOSTA `(PartidaId, JogadorId, Emoji)` É A REGRA "uma reação por pessoa por emoji"** — ela não está num `if`. É o degrau 4 da escada (recurso nativo da plataforma), a mesma forma da PK de `TorneioMarcador`, e o `DbUpdateException em POST /Partidas/Votar` de 10/09 é exatamente o que ela evita. ⚠️ **O EMOJI ENTRA NA CHAVE de propósito, diferente do palpite**: lá o voto é UM (trocar de dupla troca a linha); aqui reagir com 🔥 não tira o 👏.
+>
+> 🤝 **DUAS AÇÕES IDEMPOTENTES, NÃO UM TOGGLE**: `Reagir` e `TirarReacao`, mesma forma do Curtir/Descurtir do mural. Num toggle, o toque duplo num alvo de 32px deixaria a pessoa **sem** reação enquanto a tela diz que ela reagiu. Regra 0 nas duas: `[HttpPost]` + `[Authorize]` + dono — e o dono é **estrutural**, porque a linha é achada por (partida, jogador, emoji) e o jogador vem da claim.
+>
+> 👆 **O DESENHO DO TOQUE, EM UMA FRASE: no cartão a pílula ABRE o painel; dentro do painel a pílula SOMA ou TIRA a minha.** É o WhatsApp, que é o que ele pediu em *"ao clicar no emoji"* — e um toque que somasse no cartão e outro que abrisse no painel seriam **dois significados pro mesmo alvo de 32px**. O "toque para remover" fica escrito na pílula que é minha.
+>
+> 🖐️ **ESTÁ NAS DUAS APRESENTAÇÕES**, porque *"a cada jogo"* são as três abas e o cartão do **Ao Vivo é markup próprio**, não o da linha — é exatamente assim que um botão nasce em duas das três (foi o que aconteceu com o "desfazer o play", que existia só na linha).
+>
+> ⚡ **CARGA EM LOTE**, do lado do `ViewBag.Palpites`: esta lista tem 97 cartões, e perguntar jogo a jogo é como uma tela vira 97 idas ao banco.
+>
+> 🧪 **6.900 testes, 0 falhas (40 novos)** + os **7** conferidores de JS verdes (o novo, `conferir-reacoes-do-jogo.js`, tem 21 conferências). ⚠️ **O número já é DEPOIS de trazer o `origin/main`**: o `main` andou 7 commits durante este trabalho (`build-1275` e `build-1278`, de duas sessões paralelas), e a suíte foi revalidada inteira com o código delas junto — 6.886 no branch sozinho, 6.900 com o `main`. Vistos vermelhos antes da implementação, por *"não existe"*: `EmojiDeReacao`, `ReacaoService`, `ReacoesDaPartida`, o partial e o JS. Entre eles, os dois de tradução (`ToQueryString` contra Npgsql) pela consulta de "quem reagiu", que navega pro `Jogador` **dentro** da projeção — o EF InMemory da suíte não traduz nada, e foi assim que 19/08 estourou só em produção.
+>
+> ⚠️ **CONFLITO DE `STATUS.md` RESOLVIDO MANTENDO AS DUAS ENTRADAS** — a minha entrou como header e a da sessão `wizardly-tesla-pkr17q` desceu um nível, com o texto dela intacto (só o rótulo "Última atualização", que é único, saiu). O topo do arquivo foi conferido depois do merge, e não só a ausência de `<<<<<<<`: a lição de 11/09 é que o 3-way merge casa linha com linha e num diário onde todo mundo escreve no topo o resultado natural é bloco fora de lugar.
+>
+> ℹ️ **`sw.js` FICA em `padelizou-static-v36`** (o `main` já o virou pro 36 no `build-1268`): o `site.css` é servido com `asp-append-version`, então o hash novo já fura o cache sozinho, e o `reacoes-do-jogo.js` não está no `STATIC_ASSETS`. Virar a versão de novo só jogaria fora a cópia nova que o 1268 acabou de guardar.
+>
+> ⚠️ **NÃO CONFERIDO NO NAVEGADOR** — esta sessão não tem browser nem Postgres. O que foi provado: build limpo (Razor compila em build — verificado com erro proposital no partial novo), suíte inteira verde, os 6 conferidores de JS, e a migration sem pendência de modelo. **Falta ver a fileira num cartão de verdade antes de `prod`.**
+>
+> ⚠️ **A BOMBA-RELÓGIO DE `prod` CONTINUA ABERTA** (herdada da entrada abaixo): o environment `prod` não tem **Required reviewers**, e o run 302 saiu do `queued` pro `success` em 17 segundos sem pedir nada. Settings → Environments → `prod` → Required reviewers.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+>
+> 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
+>
+> ✅ **FICAM NA LINHA: `Meus jogos` e `Filtros`.** Os cinco selects moram num `collapse` do Bootstrap (o mesmo recolhido do "editar torneio" e do CheckIn — nada de painel de JS próprio). O botão **só aparece quando há o que recolher**: torneio de um clube, uma quadra e uma categoria não ganha painel vazio, que é a mesma régua do "Meus jogos" só existir pra quem tem jogo ali.
+>
+> ⚠️ **PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA** — é a mesma "tela mentindo sobre o filtro escolhido" que já tinha tirado o botão "Filtrar" daqui. Por isso duas coisas ficaram **fora** do recolhido: o **contador no próprio botão** (`Filtros (2)`, e ele fica verde) e o **`Limpar filtros`**. Quem abre a tela já filtrada por URL vê meia lista e tem a saída na mão.
+>
+> 🔑 **O `Limpar` passou a valer pros CINCO filtros**, não só pros três da sequência (clube/quadra/fase): categoria e time filtravam sem oferecer saída nenhuma. O contador conta **dimensão, não escolha** — três categorias marcadas continuam sendo um filtro só, que é como quem lê o número entende.
+>
+> ⚠️ **O `collapse` mora DENTRO do `<form id="filtroJogos">`**: select escondido por CSS continua viajando no GET (só `disabled` não viaja), mas select fora do formulário não viaja nunca. E o auto-submit das Categorias segue no `hidden.bs.dropdown` — evento diferente do `hidden.bs.collapse`, então fechar o painel não recarrega a página.
+>
+> 🧪 **6.855 testes, 0 falhas (9 novos)** + os 5 conferidores de JS verdes. Os 9 foram **vistos vermelhos** em *"Não achei o painel recolhido #filtrosDosJogos"*. São testes de FONTE (`FiltrosRecolhidosNaListaDeJogosTests`), como a bolinha do Ao Vivo: a suíte não renderiza Razor, e o painel é markup puro. Um deles casa as tags `<div>` pra provar que cada select está **dentro** do recolhido — e não só depois dele, que passaria com o painel fechado no meio.
+>
+> ⚠️ **NÃO VISTO RODANDO NUM BROWSER** — a sessão não tem tela. O que está travado por teste é o markup; o comportamento do recolhido no celular é o que precisa de olho no `dev`.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
 >
 > 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
 >
@@ -25,7 +124,29 @@
 >
 > 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1278-6b39924`** (runs **309** e **310**), **o mesmo artefato nos dois**, com a tag explícita. PR #268. **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `sw.js` em **`padelizou-static-v36`**, o `mesa-offline.js` servido já com `idadeMs` e a tarja de recusa, e o `placar-ao-vivo.js` com o `NAO_TOQUEI`. ⚠️ **A TAG 1278 JÁ CONTÉM O `build-1275`** da outra sessão (os filtros recolhidos da aba Jogos): o `main` andou durante o CI deste PR, eu mesclei antes e **revalidei** — 6.860 testes. Publicar o 1278 não derruba o trabalho deles, que é o tombo de 12h22 de hoje ao contrário.
+>
+> 🗣️ *"corrige a mesa de controle também"*. É o item que ficou aberto nos dois builds de hoje, e são **três** defeitos no mesmo caminho.
+>
+> 1️⃣ **A ORDEM ENTRE DOIS PLACARES SAÍA DO RELÓGIO DE CADA APARELHO** (`Date.now()` de quem marcou, gravado em `PlacarMarcadoEm`). Relógio de celular erra: um aparelho **adiantado** carimbava a partida com uma hora no futuro e **todo toque do outro era recusado a partir dali** — não por um toque, mas *para sempre*. ✅ Agora o aparelho manda a **IDADE** do toque (*"isto foi marcado há 8 segundos"*), medida com o próprio relógio dele, e quem ancora é o `DateTime.Now` do servidor: o erro absoluto **se cancela**, e os dois aparelhos voltam a ser comparáveis. ⚠️ A idade é medida **na hora de entregar**, não na hora do toque — é isso que faz o toque preso numa fila offline cair, do lado do servidor, no instante em que ELE ACONTECEU, e não no instante em que a rede voltou. De quebra, a reentrega continua idempotente: a idade cresce junto com a espera.
+>
+> 2️⃣ **A FILA AFIRMAVA O PLACAR INTEIRO A CADA TOQUE**, o mesmo defeito da lista AO VIVO (`build-1270`) na outra tela: o aparelho do vizinho reescrevia o lado que ninguém tocou com o número da tela dele — de **minutos** atrás, se ele esteve sem sinal. ✅ A fila passou a guardar **quais lados foram tocados**, e o lado não tocado viaja como **-1**. ⚠️ O placar continua **absoluto**, e não "+1": incremento reentregue dobraria o game, que é a razão de esta fila existir assim. O que mudou é *quais lados ele afirma*.
+>
+> 3️⃣ **RECUSA SUMIA COM A TARJA VERDE.** O servidor responde **200** dizendo "já existe um placar mais novo"; a Mesa adotava o placar dele, **esvaziava a fila** e seguia mostrando **"Placar sincronizado"**. A pior combinação possível: o número voltava sozinho na frente de quem marcou e a tela dizia que estava tudo certo. ✅ Agora a tarja diz *"Não valeu: … O placar na tela é o do servidor."*
+>
+> 🧪 **6.851 testes, 0 falhas (5 novos em `PlacarDaMesaTests`)**, os quatro de defeito **vistos vermelhos** (`Expected: 7, Actual: 0` no lado não tocado; `Expected: 4, Actual: 0` no aparelho travado pelo relógio do vizinho). Mais o **6º conferidor de JS**, `conferir-mesa-offline.js`, com DOM falso, `localStorage` falso, **relógio controlável** e temporizador controlável — 12 conferências, e a da idade exercita o caso inteiro: toque com a rede caída, 8 segundos depois a rede volta, e o corpo sai com `idadeMs=8000`.
+>
+> ⚠️ **UM TESTE ANTIGO FOI REESCRITO**: `Placar_impossivel_e_domado_pras_bordas` cobrava negativo virando **zero**, e negativo agora é "não toquei". Como cinto de segurança contra requisição montada à mão isso é **mais forte**, não menos: um `-1` forjado agora não apaga placar nenhum, onde antes zerava o lado.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v36`**: o `mesa-offline.js` também não está em `STATIC_ASSETS`, mas cai na regra de `isStaticAsset`, que serve a cópia guardada e busca a nova em segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo. Conferido no `origin/main` antes de escolher o número (estava em v35).
+>
+> 🔒 **COMPATIBILIDADE NOS DOIS SENTIDOS**: fila gravada antes deste deploy não tem os campos tocados nem a idade — ela afirma tudo e é lida pelo epoch, como sempre foi (tem teste). E item gravado por esta versão não quebra uma tela antiga que volte do cache.
+>
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1270-7be46a7`** (runs **305** e **306**), **o mesmo artefato nos dois**, com a tag explícita. PR #264. **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200** e o `/js/placar-ao-vivo.js` servido já com o `NAO_TOQUEI`. ℹ️ O `sw.js` FICOU em `padelizou-static-v35` de propósito: ele subiu no `build-1268` e o cache velho já foi descartado lá; virar de novo só jogaria fora a cópia nova, sem ganho nenhum.
 >
 > 🗣️ Felipe, logo depois de o `build-1268` subir: *"mas estavamos tambem com problema q quando um de um lado marcava e o outro junto asvezes, um deles nao pegava, vc corrigiu isso tambem ? vai parar de oscilar ?"*. **Não tinha** — o 1268 resolveu quadra DIFERENTE; este resolve o MESMO jogo.
 >

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -193,6 +193,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
+builder.Services.AddScoped<IReacaoService, ReacaoService>();
 builder.Services.AddScoped<IPadelimetroService, PadelimetroService>();
 // Ranking Americano (Trilha C do RANKING.md): serviço próprio, e não mais uma consulta do
 // EstatisticasService — os dois rankings não se somam, e misturá-los no mesmo serviço seria

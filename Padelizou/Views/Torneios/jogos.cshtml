@@ -1,4 +1,4 @@
-@using Padelizou.ViewModels
+﻿@using Padelizou.ViewModels
 @{
     ViewData["Title"] = "Jogos do Torneio";
     var torneio = ViewBag.Torneio as Torneio;
@@ -12,6 +12,7 @@
 @section Scripts {
     <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
     <script src="~/js/palpitometro.js" asp-append-version="true"></script>
+    <script src="~/js/reacoes-do-jogo.js" asp-append-version="true"></script>
     @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
        o organizador fica preso no JS velho indefinidamente. *@
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
@@ -67,3 +68,4 @@
 <partial name="_JogosDoTorneio" model='("Jogos", torneio.Id)' />
 
 <partial name="_ModalVerVotos" />
+<partial name="_ModalQuemReagiu" />
