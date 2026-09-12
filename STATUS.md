@@ -25,6 +25,28 @@
 >
 > 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** 🧑‍⚖️ **O PLACAR DE UM CARD PAROU DE ESCREVER NA QUADRA DO VIZINHO.**
+>
+> 🗣️ Felipe: *"Um dos marcadores está reclamando que ao marcar nao esta salvando na hora, pode ser internet ruim e os outros marcando junto"*. Tela confirmada com ele: a **lista AO VIVO**, a dos cards com −/+.
+>
+> 🕳️ **SÃO DOIS DEFEITOS NO MESMO POST EM LOTE, e os dois terminam no mesmo lugar**: o número que o marcador tocou volta pro valor velho, **sem erro em lugar nenhum**.
+>
+> 1️⃣ **O APARELHO MANDAVA O FORMULÁRIO INTEIRO A CADA TOQUE.** Os campos de cada card se ligam ao formulário do lote por `form="pdzPlacaresAoVivo"` (embrulhar os cards não dá — o palpitômetro já tem formulário lá dentro), então `new FormData(form)` é **TODA quadra no ar**, com o valor que AQUELA tela tem — até 20 segundos velho, que é o tique da atualização automática. Dois marcadores trabalhando, e o toque de um reescrevia a quadra do outro. ⚠️ **Quem perde o game é quem NÃO tocou em nada**, e por isso ninguém achava o culpado: a tela de quem marcou diz "salvo", porque ela salvou mesmo. Internet ruim não é a causa, é o **multiplicador** — quanto mais tique de atualização falha, mais velho é o placar que o vizinho reenvia por cima.
+>
+> 2️⃣ **O CARD MANDAVA DOIS `pontos1`**, e isto nasceu hoje de manhã com o tie-break. O campo escondido do lote saía por `@if (!emTieBreak)` e o **bloco** do tie-break é renderizado sempre que a fase o comporta (escondido fora do 8x8) — e **`hidden` não tira campo nenhum do POST**. Com duas quadras no ar, `pontos1` chega mais comprido que `partidaId` e o índice escorrega: **o segundo jogo recebe a contagem do primeiro**, zerando um tie-break em andamento a cada toque. A condição do escondido virou a **negação exata** da do bloco (`temBlocoDeTieBreak`), e o servidor passou a **recusar lote desalinhado** em vez de gravar pelo índice que der.
+>
+> 🩹 **E A CORRIDA DE MEIO SEGUNDO, de quebra**: entre o dedo e o POST há o debounce de 450ms que junta a rajada de toques, e nesse vão a atualização automática **não estava travada** — ela trocava o cabeçalho pelo HTML do servidor (que ainda não sabe do game), e o POST que saía em seguida lia o campo **já revertido**. O toque sumia inteiro. Agora o card carrega `data-pdz-mexido` desde o toque até o servidor confirmar, e a atualização automática não encosta nele — mesma ideia do `.pdz-live-salvo-erro` que já existia ali.
+>
+> 🧪 **6.842 testes, 0 falhas** (4 novos em `PlacarAoVivoNaoAtropelaOVizinhoTests`, **três vistos vermelhos** — o mais claro é o tie-break do segundo jogo chegando a **0 em vez de 6**) + **o 5º conferidor de JS**, `conferir-placar-ao-vivo.js`, com DOM falso no Node: visto vermelho em *"o POST leva o card tocado"*, porque levava a quadra do vizinho junto. ⚠️ **O `FormData` do DOM falso é fiel ao do navegador de propósito** — recebendo o formulário, ele recolhe todo campo ligado a ele, inclusive os que estão fora. Um de mentira mais simpático esconderia exatamente o defeito.
+>
+> 🎣 **E O CONFERIDOR PEGOU UM DEFEITO DA PRÓPRIA CORREÇÃO, antes de ele ir pro ar**: a primeira versão reenviava a fila assim que o POST terminava, e card que volta pra fila por **falha de rede** também está nela — um laço apertado contra o servidor justamente quando a internet do clube está ruim. O conferidor travou em 60s em vez de passar. Quem manda reenviar voltou a ser só o **toque** que chegou no meio do caminho.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v35`**, e este é um caso que o parágrafo de cima do arquivo não cobria: os dois `.js` **não estão em `STATIC_ASSETS`**, mas caem na regra de `isStaticAsset`, que serve a **cópia guardada** e só busca a nova em segundo plano. Quem tem o app instalado rodaria o JavaScript velho por mais uma abertura — e aqui essa abertura é um game perdido. Conferido no `origin/main` antes de escolher o número (estava em v34).
+>
+> ⚠️ **DOIS TESTES ANTIGOS FORAM REESCRITOS porque a premissa deles caiu com a correção**, e isso vale a linha: `Array_de_pontos_mais_curto_que_o_de_jogos_nao_estoura` afirmava que o array curto grava o que dá — e "o que dá" num array casado por ÍNDICE é escolher no chute em qual jogo escrever; `Os_pontos_viajam_no_POST_mesmo_fora_do_tie_break` cobrava o `@if (!emTieBreak)`, que É o defeito 2. Os dois passaram a cobrar a exclusão mútua dos dois campos.
+>
+> 🚧 **O QUE FICOU DE FORA, e é outra tela**: a **Mesa de Controle** decide conflito por `marcadoEm`, o **relógio do APARELHO** de quem marcou. Dois celulares no mesmo jogo com relógios diferentes, e o que está atrasado tem todo toque recusado (`"já existe um placar mais novo"`) — a Mesa **adota o placar do servidor e esvazia a fila calada**, com a tarja verde dizendo "Placar sincronizado". É o mesmo sintoma por outro caminho, e mexer nele é trocar a régua de ordenação: fica pro Felipe decidir.
+
 > **12/09/2026** — ⏳ **NO BRANCH `claude/isso-parece-errado-6gpkee`, ainda não publicado.** **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
 >
 > 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
