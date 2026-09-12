@@ -13,6 +13,26 @@
 >
 > ⚠️ **A LIÇÃO PRA PRÓXIMA SESSÃO: `204 queued` não é deploy, e "o healthz responde 200" não é prova de qual código está rodando.** O que prova é o **log do job** (ele imprime a tag instalada) mais a ancestralidade do commit. As duas coisas juntas — e não o relógio.
 
+> **12/09/2026** — 🩹 **A CHAVE QUE FICOU PRA TRÁS AGORA É MONTADA SOZINHA.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Conserto do incidente do ER de hoje: duas categorias com os grupos fechados e o mata-mata não montado, em silêncio.**
+>
+> 🗣️ Felipe, olhando a lista de jogos no meio do torneio: *"é que eles ja não são mais prévias, no momento que elas passaram de chave (terminou os jogos da chave) ele se torna real e não prévia"*.
+>
+> 🕳️ **NÃO ERA DEFEITO DE CHAVEAMENTO — ERA DE ENTREGA.** `MontarMataMataDosGruposAsync` só roda no INSTANTE em que um jogo de grupo é finalizado (`EncerramentoDaPartida`), e **nada tentava de novo** se aquela chamada se perdesse. Bateu com os dois restarts de deploy do dia (17:49 e 18:17): o placar gravou, o processo morreu antes do robô, e a categoria ficou parada esperando um evento que não volta. 3ª Masculina e 6ª Feminina, as duas com a fase de grupos TODA fechada.
+>
+> 🔬 **A CAUSA FOI ISOLADA POR REPRODUÇÃO, não por palpite**: as duas formas exatas foram rodadas contra o código no ar e montam certo (`2 grupos de 3` → `1A×2B\|1B×2A` → Semifinal; `grupos 2·3·3` → `2A×2C\|1C×2B;bye:1A,1B` → Quartas). O robô **não rodou** — não falhou.
+>
+> ⚠️ **É O SINTOMA MAIS CARO QUE EXISTE: nenhuma exceção, nenhum log, nenhum teste vermelho.** A tela mostra a PRÉVIA, que é uma tela legítima, e só quem conhece o torneio percebe que aquilo já devia ter virado chave. Mesma família do "sistema mudo" de 11/09 — o estado errado não gera sintoma nenhum.
+>
+> ✅ **`Services/VarreduraDaChave` + o serviço de fundo**, 45s depois de subir e a cada 3 minutos. A espera inicial curta é o ponto: o modo de falha que isto conserta é a chamada morrer junto com o processo, então a passada logo após o restart é a que pega o estrago do deploy anterior.
+>
+> ♻️ **NENHUMA RÉGUA NOVA** — a varredura chama os MESMOS dois robôs, que já são guardados contra rodar duas vezes (`mataMataJaGerado` e o contador `jaCriados`). Conserto de entrega, não de chaveamento. Cobre os dois buracos iguais: grupos→mata-mata e fase→fase seguinte.
+>
+> 🔒 **SOB A MESMA TRAVA DO ENCERRAMENTO** (`UmDeCadaVezPorTorneioAsync`), e ela não é opcional: a varredura e um placar sendo lançado na Mesa no mesmo segundo montariam a fase duas vezes — exatamente o buraco que aquela trava existe pra fechar. Só torneio em **"Fase de Grupos"**: aprovação pendente não tem chave pública, e finalizado é passado dos outros.
+>
+> 🩹 **O CONTORNO QUE VALEU HOJE, e vale registrar porque não depende de deploy**: corrigir o placar de qualquer jogo de grupo já finalizado da categoria re-dispara o robô (`PartidasController.cs:665`). É seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`.
+>
+> 🧪 **6.976 testes, 0 falhas (4 novos em `VarreduraDaChaveTests`)** + os **8** conferidores de JS verdes. ⚠️ **A DISCRIMINAÇÃO FOI CONFERIDA NEUTRALIZANDO as duas chamadas do robô**: os dois testes de comportamento ficam vermelhos, e os dois de GUARDA ("não monta de novo o que já está montado", "não encosta em torneio que nem sorteou") seguem verdes — que é o papel deles, pegar varredura que faz DEMAIS.
+
 > **12/09/2026** — 🕐 **A CHAVE DE VERDADE VOLTOU A MOSTRAR A HORA DAS FASES QUE AINDA NÃO ACONTECERAM.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.**
 >
 > 🗣️ Felipe, com o print da 4ª Masculina em quadra: *"esse a definir nao é uma verdade, ele ja tem horario previsto"*.
@@ -27,7 +47,7 @@
 >
 > 🧪 **6.972 testes, 0 falhas (4 novos em `HorarioPrevistoNaChaveMontadaTests`)** + os **8** conferidores de JS verdes. ⚠️ **UM DELES NASCEU FRACO E FOI REFEITO**: a primeira versão procurava `"Horario"` em qualquer lugar antes do `"a definir"` e **passava com o defeito de pé** — `jogo.HorarioPrevisto` aparece bem antes, no cartão do jogo que já existe. Visto passar contra o arquivo antigo, refeito pra olhar DENTRO do bloco da vaga vazia, e então conferido nos dois sentidos: **4 vermelhos sem a correção, 4 verdes com**.
 >
-> 🚨 **ACHADO DE PRODUÇÃO, NÃO CONSERTADO — PRECISA DE DECISÃO.** Duas categorias do ER (3ª Masculina e 6ª Feminina) ficaram com a **fase de grupos TODA fechada e o mata-mata não montado**, em silêncio. A causa não é o chaveamento: `MontarMataMataDosGruposAsync` só roda **no instante em que um jogo de grupo é finalizado** (`EncerramentoDaPartida`), e **nada tenta de novo** se aquela chamada se perder. O horário bate com os dois restarts de deploy de hoje (17:49 e 18:17). Reproduzido em teste que as duas formas montam certo com o código no ar (`1A×2B|1B×2A` → Semifinal; `2A×2C|1C×2B;bye:1A,1B` → Quartas), então o robô não rodou — não falhou. 🩹 **Contorno sem deploy**: corrigir o placar de qualquer jogo de grupo já finalizado daquela categoria re-dispara o robô (`PartidasController.cs:665`), e é seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`. **O conserto de verdade (uma varredura que monte o que ficou pra trás) não foi feito: é trabalho novo, no meio do torneio dele.**
+> 🚨 **ACHADO DE PRODUÇÃO — ✅ CONSERTADO NA ENTRADA ACIMA, no mesmo dia.** Duas categorias do ER (3ª Masculina e 6ª Feminina) ficaram com a **fase de grupos TODA fechada e o mata-mata não montado**, em silêncio. A causa não é o chaveamento: `MontarMataMataDosGruposAsync` só roda **no instante em que um jogo de grupo é finalizado** (`EncerramentoDaPartida`), e **nada tenta de novo** se aquela chamada se perder. O horário bate com os dois restarts de deploy de hoje (17:49 e 18:17). Reproduzido em teste que as duas formas montam certo com o código no ar (`1A×2B|1B×2A` → Semifinal; `2A×2C|1C×2B;bye:1A,1B` → Quartas), então o robô não rodou — não falhou. 🩹 **Contorno sem deploy**: corrigir o placar de qualquer jogo de grupo já finalizado daquela categoria re-dispara o robô (`PartidasController.cs:665`), e é seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`. **O conserto de verdade (uma varredura que monte o que ficou pra trás) não foi feito: é trabalho novo, no meio do torneio dele.**
 
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
 >
