@@ -24,13 +24,31 @@
 >
 > ⚡ **CARGA EM LOTE**, do lado do `ViewBag.Palpites`: esta lista tem 97 cartões, e perguntar jogo a jogo é como uma tela vira 97 idas ao banco.
 >
-> 🧪 **6.886 testes, 0 falhas (40 novos)** + os **6** conferidores de JS verdes (o novo, `conferir-reacoes-do-jogo.js`, tem 21 conferências). Vistos vermelhos antes da implementação, por *"não existe"*: `EmojiDeReacao`, `ReacaoService`, `ReacoesDaPartida`, o partial e o JS. Entre eles, os dois de tradução (`ToQueryString` contra Npgsql) pela consulta de "quem reagiu", que navega pro `Jogador` **dentro** da projeção — o EF InMemory da suíte não traduz nada, e foi assim que 19/08 estourou só em produção.
+> 🧪 **6.900 testes, 0 falhas (40 novos)** + os **7** conferidores de JS verdes (o novo, `conferir-reacoes-do-jogo.js`, tem 21 conferências). ⚠️ **O número já é DEPOIS de trazer o `origin/main`**: o `main` andou 7 commits durante este trabalho (`build-1275` e `build-1278`, de duas sessões paralelas), e a suíte foi revalidada inteira com o código delas junto — 6.886 no branch sozinho, 6.900 com o `main`. Vistos vermelhos antes da implementação, por *"não existe"*: `EmojiDeReacao`, `ReacaoService`, `ReacoesDaPartida`, o partial e o JS. Entre eles, os dois de tradução (`ToQueryString` contra Npgsql) pela consulta de "quem reagiu", que navega pro `Jogador` **dentro** da projeção — o EF InMemory da suíte não traduz nada, e foi assim que 19/08 estourou só em produção.
 >
-> ℹ️ **`sw.js` FICA em `padelizou-static-v35`**: o `site.css` é servido com `asp-append-version`, então o hash novo já fura o cache sozinho, e o `reacoes-do-jogo.js` não está no `STATIC_ASSETS`. Virar a versão só jogaria fora cópia boa.
+> ⚠️ **CONFLITO DE `STATUS.md` RESOLVIDO MANTENDO AS DUAS ENTRADAS** — a minha entrou como header e a da sessão `wizardly-tesla-pkr17q` desceu um nível, com o texto dela intacto (só o rótulo "Última atualização", que é único, saiu). O topo do arquivo foi conferido depois do merge, e não só a ausência de `<<<<<<<`: a lição de 11/09 é que o 3-way merge casa linha com linha e num diário onde todo mundo escreve no topo o resultado natural é bloco fora de lugar.
+>
+> ℹ️ **`sw.js` FICA em `padelizou-static-v36`** (o `main` já o virou pro 36 no `build-1268`): o `site.css` é servido com `asp-append-version`, então o hash novo já fura o cache sozinho, e o `reacoes-do-jogo.js` não está no `STATIC_ASSETS`. Virar a versão de novo só jogaria fora a cópia nova que o 1268 acabou de guardar.
 >
 > ⚠️ **NÃO CONFERIDO NO NAVEGADOR** — esta sessão não tem browser nem Postgres. O que foi provado: build limpo (Razor compila em build — verificado com erro proposital no partial novo), suíte inteira verde, os 6 conferidores de JS, e a migration sem pendência de modelo. **Falta ver a fileira num cartão de verdade antes de `prod`.**
 >
 > ⚠️ **A BOMBA-RELÓGIO DE `prod` CONTINUA ABERTA** (herdada da entrada abaixo): o environment `prod` não tem **Required reviewers**, e o run 302 saiu do `queued` pro `success` em 17 segundos sem pedir nada. Settings → Environments → `prod` → Required reviewers.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+>
+> 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
+>
+> ✅ **FICAM NA LINHA: `Meus jogos` e `Filtros`.** Os cinco selects moram num `collapse` do Bootstrap (o mesmo recolhido do "editar torneio" e do CheckIn — nada de painel de JS próprio). O botão **só aparece quando há o que recolher**: torneio de um clube, uma quadra e uma categoria não ganha painel vazio, que é a mesma régua do "Meus jogos" só existir pra quem tem jogo ali.
+>
+> ⚠️ **PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA** — é a mesma "tela mentindo sobre o filtro escolhido" que já tinha tirado o botão "Filtrar" daqui. Por isso duas coisas ficaram **fora** do recolhido: o **contador no próprio botão** (`Filtros (2)`, e ele fica verde) e o **`Limpar filtros`**. Quem abre a tela já filtrada por URL vê meia lista e tem a saída na mão.
+>
+> 🔑 **O `Limpar` passou a valer pros CINCO filtros**, não só pros três da sequência (clube/quadra/fase): categoria e time filtravam sem oferecer saída nenhuma. O contador conta **dimensão, não escolha** — três categorias marcadas continuam sendo um filtro só, que é como quem lê o número entende.
+>
+> ⚠️ **O `collapse` mora DENTRO do `<form id="filtroJogos">`**: select escondido por CSS continua viajando no GET (só `disabled` não viaja), mas select fora do formulário não viaja nunca. E o auto-submit das Categorias segue no `hidden.bs.dropdown` — evento diferente do `hidden.bs.collapse`, então fechar o painel não recarrega a página.
+>
+> 🧪 **6.855 testes, 0 falhas (9 novos)** + os 5 conferidores de JS verdes. Os 9 foram **vistos vermelhos** em *"Não achei o painel recolhido #filtrosDosJogos"*. São testes de FONTE (`FiltrosRecolhidosNaListaDeJogosTests`), como a bolinha do Ao Vivo: a suíte não renderiza Razor, e o painel é markup puro. Um deles casa as tags `<div>` pra provar que cada select está **dentro** do recolhido — e não só depois dele, que passaria com o painel fechado no meio.
+>
+> ⚠️ **NÃO VISTO RODANDO NUM BROWSER** — a sessão não tem tela. O que está travado por teste é o markup; o comportamento do recolhido no celular é o que precisa de olho no `dev`.
 
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
 >
@@ -56,6 +74,24 @@
 >
 > 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+>
+> 🗣️ *"corrige a mesa de controle também"*. É o item que ficou aberto nos dois builds de hoje, e são **três** defeitos no mesmo caminho.
+>
+> 1️⃣ **A ORDEM ENTRE DOIS PLACARES SAÍA DO RELÓGIO DE CADA APARELHO** (`Date.now()` de quem marcou, gravado em `PlacarMarcadoEm`). Relógio de celular erra: um aparelho **adiantado** carimbava a partida com uma hora no futuro e **todo toque do outro era recusado a partir dali** — não por um toque, mas *para sempre*. ✅ Agora o aparelho manda a **IDADE** do toque (*"isto foi marcado há 8 segundos"*), medida com o próprio relógio dele, e quem ancora é o `DateTime.Now` do servidor: o erro absoluto **se cancela**, e os dois aparelhos voltam a ser comparáveis. ⚠️ A idade é medida **na hora de entregar**, não na hora do toque — é isso que faz o toque preso numa fila offline cair, do lado do servidor, no instante em que ELE ACONTECEU, e não no instante em que a rede voltou. De quebra, a reentrega continua idempotente: a idade cresce junto com a espera.
+>
+> 2️⃣ **A FILA AFIRMAVA O PLACAR INTEIRO A CADA TOQUE**, o mesmo defeito da lista AO VIVO (`build-1270`) na outra tela: o aparelho do vizinho reescrevia o lado que ninguém tocou com o número da tela dele — de **minutos** atrás, se ele esteve sem sinal. ✅ A fila passou a guardar **quais lados foram tocados**, e o lado não tocado viaja como **-1**. ⚠️ O placar continua **absoluto**, e não "+1": incremento reentregue dobraria o game, que é a razão de esta fila existir assim. O que mudou é *quais lados ele afirma*.
+>
+> 3️⃣ **RECUSA SUMIA COM A TARJA VERDE.** O servidor responde **200** dizendo "já existe um placar mais novo"; a Mesa adotava o placar dele, **esvaziava a fila** e seguia mostrando **"Placar sincronizado"**. A pior combinação possível: o número voltava sozinho na frente de quem marcou e a tela dizia que estava tudo certo. ✅ Agora a tarja diz *"Não valeu: … O placar na tela é o do servidor."*
+>
+> 🧪 **6.851 testes, 0 falhas (5 novos em `PlacarDaMesaTests`)**, os quatro de defeito **vistos vermelhos** (`Expected: 7, Actual: 0` no lado não tocado; `Expected: 4, Actual: 0` no aparelho travado pelo relógio do vizinho). Mais o **6º conferidor de JS**, `conferir-mesa-offline.js`, com DOM falso, `localStorage` falso, **relógio controlável** e temporizador controlável — 12 conferências, e a da idade exercita o caso inteiro: toque com a rede caída, 8 segundos depois a rede volta, e o corpo sai com `idadeMs=8000`.
+>
+> ⚠️ **UM TESTE ANTIGO FOI REESCRITO**: `Placar_impossivel_e_domado_pras_bordas` cobrava negativo virando **zero**, e negativo agora é "não toquei". Como cinto de segurança contra requisição montada à mão isso é **mais forte**, não menos: um `-1` forjado agora não apaga placar nenhum, onde antes zerava o lado.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v36`**: o `mesa-offline.js` também não está em `STATIC_ASSETS`, mas cai na regra de `isStaticAsset`, que serve a cópia guardada e busca a nova em segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo. Conferido no `origin/main` antes de escolher o número (estava em v35).
+>
+> 🔒 **COMPATIBILIDADE NOS DOIS SENTIDOS**: fila gravada antes deste deploy não tem os campos tocados nem a idade — ela afirma tudo e é lida pelo epoch, como sempre foi (tem teste). E item gravado por esta versão não quebra uma tela antiga que volte do cache.
+>
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1270-7be46a7`** (runs **305** e **306**), **o mesmo artefato nos dois**, com a tag explícita. PR #264. **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200** e o `/js/placar-ao-vivo.js` servido já com o `NAO_TOQUEI`. ℹ️ O `sw.js` FICOU em `padelizou-static-v35` de propósito: ele subiu no `build-1268` e o cache velho já foi descartado lá; virar de novo só jogaria fora a cópia nova, sem ganho nenhum.

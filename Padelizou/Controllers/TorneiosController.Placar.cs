@@ -54,7 +54,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> SincronizarPlacar(int partidaId, int games1, int games2,
-            int sets1, int sets2, long marcadoEm,
+            int sets1, int sets2, long marcadoEm, long? idadeMs = null,
             // A CONTAGEM DO TIE-BREAK (12/09/2026). Nulos = fila gravada antes deste deploy (ou
             // Mesa de torneio sem tie-break): o placar de games continua entrando e o que está
             // gravado aqui fica. Zerar por ausência apagaria a contagem que está na quadra.
@@ -67,13 +67,34 @@ namespace Padelizou.Controllers
             // O formato da FASE só é buscado quando o aparelho mandou ponto de tie-break: a Mesa
             // chama esta rota a cada toque, e uma consulta a mais por game é latência na quadra
             // — que é justamente o que o caminho offline-first existe pra não pagar.
-            var formatoDaMesa = pontosTieBreak1 != null || pontosTieBreak2 != null
+            // ⚠️ `>= 0` e não `!= null` (12/09/2026): desde que a Mesa manda -1 no lado que
+            // ninguém tocou, os dois campos chegam SEMPRE preenchidos — e a condição antiga
+            // faria a consulta a cada toque, que é exatamente a latência que este caminho
+            // existe pra não pagar.
+            var formatoDaMesa = pontosTieBreak1 >= 0 || pontosTieBreak2 >= 0
                 ? FormatoDaPartida.De(await _context.Torneios.FindAsync(partida.TorneioId.Value), partida.Fase)
                 : null;
 
+            // ⚠️ QUEM ORDENA DOIS PLACARES É O RELÓGIO DO SERVIDOR, e não o do aparelho
+            // (12/09/2026). O `marcadoEm` é o `Date.now()` de quem marcou, e relógio de celular
+            // erra: um aparelho adiantado carimbava a partida com uma hora no futuro e **todo
+            // toque do outro era recusado a partir dali** — a Mesa adotava o placar do servidor,
+            // esvaziava a fila e seguia mostrando a tarja verde de "Placar sincronizado".
+            //
+            // ✅ O aparelho passa a mandar a IDADE do toque ("isto foi marcado há 5 segundos"),
+            // medida com o próprio relógio dele — diferença entre dois instantes do MESMO
+            // aparelho é confiável mesmo com a hora errada. Ancorando no `DateTime.Now` daqui, o
+            // erro absoluto se cancela e os dois aparelhos voltam a ser comparáveis. É também o
+            // que mantém a reentrega idempotente: a idade cresce junto com a espera, então o
+            // mesmo toque reenviado dez segundos depois volta a cair no mesmo instante.
+            //
+            // Fila gravada ANTES deste deploy não tem idade e continua lendo pelo epoch.
+            var quandoFoiMarcado = idadeMs is long idade && idade >= 0
+                ? DateTime.Now.AddMilliseconds(-idade)
+                : DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime;
+
             var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
-                DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime,
-                pontosTieBreak1, pontosTieBreak2, formatoDaMesa);
+                quandoFoiMarcado, pontosTieBreak1, pontosTieBreak2, formatoDaMesa);
 
             if (resultado.Aplicado)
             {
