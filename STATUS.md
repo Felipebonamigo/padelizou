@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1259-e628547`** (runs 34696948334 e 34697160645), **o mesmo artefato nos dois**, com a tag explícita. PRs #258 e #259. **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
 >
 > 🗣️ Felipe, com o check-in por jogador no ar: *"Ao marcar de confirmar na tela, ele sai da tela, ele tem q sempre se manter na tela da alteracao"*.
 >
@@ -18,6 +18,10 @@
 > 🚧 **O QUE FICOU DE FORA, e não é o mesmo problema**: `VoltarParaAgendado` e `ReabrirPartida` sempre mandam pra `/Torneios/Jogos`, mesmo pra quem clicou pela página do torneio — trocam de TELA, não de recorte. É outro defeito, mais antigo, e mexer nele muda navegação que ninguém reclamou.
 >
 > 🔒 **GATE**: `Todo_formulario_que_volta_pra_lista_leva_os_filtros` varre as quatro views, recorta comentário Razor (que cita `<form>` em prosa e produzia falso positivo) e reprova formulário que manda `voltarPara` sem levar o recorte. O botão novo da barra vai nascer copiando o vizinho, e este campo é justamente o que se esquece: ele não aparece na tela, então nada denuncia a falta até alguém se perder com a lista filtrada.
+>
+> ⚠️ **O DEPLOY EM `dev` FALHOU NA PRIMEIRA TENTATIVA, E NÃO FOI O CÓDIGO**: o passo de SSH morreu em `ssh-keyscan` — `VPS_KNOWN_HOSTS` não está definido, então o workflow busca a chave do servidor na hora, e ela voltou vazia. Morreu **antes** de qualquer passo de deploy. Os dois ambientes respondiam `/healthz` 200 no mesmo minuto (VPS de pé), então foi tropeço de rede runner↔VPS: **uma** re-execução, que passou. 🚧 **O secret `VPS_KNOWN_HOSTS` continua vazio** — enquanto estiver, todo deploy depende de um `ssh-keyscan` dar certo na hora, e este foi o primeiro a não dar.
+>
+> ✅ **CONFERIDO NO AR**: `/healthz` **200** nos dois; em `prod`, `Torneios/Details/26` e `Torneios/Jogos/26` (o ER, 64 duplas) respondem **200**. ⚠️ **E AQUI A CONFERÊNCIA POR CONTEÚDO NÃO SE APLICA**, ao contrário do `build-1243`: o que mudou é markup que só nasce pra ORGANIZADOR LOGADO (o campo escondido) e o redirect do servidor — nada disso é visível a `curl` anônimo, e o `/healthz` só devolve "ok", sem número de build. A prova aqui é o run com a tag explícita mais as telas respondendo.
 >
 > 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
 
