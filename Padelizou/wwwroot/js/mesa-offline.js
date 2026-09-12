@@ -17,6 +17,9 @@ const MesaOffline = (function () {
     let fila = {};              // partidaId -> {placar: {...estado, marcadoEm}, finalizar: ms|null}
     let enviando = false;
     let timerDebounce = null;
+    // O motivo da última recusa do servidor, ou null. Ele é o que impede a tarja verde de
+    // aparecer em cima de um toque que não virou placar.
+    let recusado = null;
 
     // ---------- fila persistente ----------
 
@@ -75,7 +78,9 @@ const MesaOffline = (function () {
 
     function atualizarBadge(erroDeRede) {
         const n = pendencias();
-        if (n === 0) badge("Placar sincronizado", "pdz-mesa-ok");
+        // Recusa vence o "sincronizado": a fila até esvaziou, mas o toque NÃO virou placar.
+        if (n === 0 && recusado) badge("Não valeu: " + recusado + ". O placar na tela é o do servidor.", "pdz-mesa-offline");
+        else if (n === 0) badge("Placar sincronizado", "pdz-mesa-ok");
         else if (erroDeRede) badge(`Sem internet — ${n} mudança(s) guardada(s) no aparelho. Pode continuar marcando.`, "pdz-mesa-offline");
         else badge(`Sincronizando ${n} mudança(s)...`, "pdz-mesa-enviando");
     }
@@ -183,8 +188,18 @@ const MesaOffline = (function () {
             if (btn) { btn.classList.replace("btn-dark", "btn-success"); btn.classList.add("shadow-lg"); }
         }
 
+        // ⚠️ A FILA GUARDA QUAIS LADOS FORAM TOCADOS (12/09/2026). 🗣️ Felipe, sobre dois
+        // marcadores trabalhando juntos: *"quando um de um lado marcava e o outro junto as
+        // vezes, um deles nao pegava"*. O placar inteiro continua na fila — é o que torna a
+        // reentrega segura —, mas o POST passa a AFIRMAR só o que esta pessoa marcou: mandar
+        // os dois lados fazia o aparelho do vizinho reescrever o lado que ninguém tocou com o
+        // número da tela dele, de minutos atrás se ele esteve sem sinal.
         fila[id] = fila[id] || {};
-        fila[id].placar = { ...e, marcadoEm: Date.now() };
+        const guardado = fila[id].placar;
+        const campos = guardado && guardado.campos ? guardado.campos.slice() : [];
+        if (campos.indexOf(campo) === -1) campos.push(campo);
+
+        fila[id].placar = { ...e, marcadoEm: Date.now(), campos };
         salvarFila();
         atualizarBadge(false);
 
@@ -212,6 +227,7 @@ const MesaOffline = (function () {
         if (enviando) return;
         if (pendencias() === 0) { atualizarBadge(false); return; }
         enviando = true;
+        recusado = null;
         atualizarBadge(false);
 
         try {
@@ -222,13 +238,33 @@ const MesaOffline = (function () {
                 // vencedor a partir do que está no banco.
                 if (item.placar) {
                     const p = item.placar;
-                    const corpo = `partidaId=${id}&games1=${p.games1}&games2=${p.games2}` +
-                        `&sets1=${p.sets1}&sets2=${p.sets2}&marcadoEm=${p.marcadoEm}` +
+
+                    // O lado que esta pessoa NÃO tocou viaja como -1 e o servidor o deixa com o
+                    // que está gravado. ⚠️ Item de fila gravado ANTES deste deploy não tem
+                    // `campos`: ele afirma tudo, como sempre afirmou.
+                    const lado = (nome) =>
+                        (!p.campos || p.campos.indexOf(nome) !== -1) ? p[nome] : -1;
+
+                    // ⚠️ A IDADE DO TOQUE, e não o relógio do aparelho — medida AGORA, na hora
+                    // de entregar. Diferença entre dois instantes do MESMO aparelho é confiável
+                    // mesmo com a hora errada; o epoch absoluto não é, e era ele que ordenava
+                    // dois placares: um celular adiantado carimbava a partida no futuro e todo
+                    // toque do outro aparelho era recusado a partir dali, calado.
+                    //
+                    // Medir na entrega é o que faz o toque preso numa fila offline cair, do
+                    // lado do servidor, no instante em que ELE ACONTECEU — e não no instante em
+                    // que a rede voltou. O `marcadoEm` continua indo pra fila gravada por uma
+                    // versão anterior desta tela.
+                    const idadeMs = Math.max(0, Date.now() - p.marcadoEm);
+
+                    const corpo = `partidaId=${id}&games1=${lado("games1")}&games2=${lado("games2")}` +
+                        `&sets1=${lado("sets1")}&sets2=${lado("sets2")}` +
+                        `&marcadoEm=${p.marcadoEm}&idadeMs=${idadeMs}` +
                         // A contagem do tie-break viaja no mesmo corpo. O servidor só a grava
                         // onde a fase permite (Services/TieBreakDoJogo), então mandar sempre é
                         // inofensivo — e mandar SÓ às vezes deixaria um item de fila velho,
                         // reentregue depois, apagando o que já foi contado.
-                        `&pontosTieBreak1=${p.pontos1 || 0}&pontosTieBreak2=${p.pontos2 || 0}`;
+                        `&pontosTieBreak1=${lado("pontos1")}&pontosTieBreak2=${lado("pontos2")}`;
                     const r = await fetch("/Torneios/SincronizarPlacar", {
                         method: "POST",
                         headers: cabecalhoAntifalsificacao({ "Content-Type": "application/x-www-form-urlencoded" }),
@@ -246,6 +282,13 @@ const MesaOffline = (function () {
                             pontos1: resposta.pontos1 || 0, pontos2: resposta.pontos2 || 0,
                         };
                         desenhar(id);
+
+                        // ⚠️ RECUSA APARECE (12/09/2026). O toque não virou placar — a tela
+                        // acabou de voltar pro número do servidor na frente de quem marcou —, e
+                        // a fila era esvaziada com a tarja VERDE de "Placar sincronizado". Era
+                        // a pior combinação possível: o número sumia e a tela dizia que estava
+                        // tudo certo.
+                        recusado = resposta.motivo || "o servidor já tinha um placar mais novo";
                     }
                     delete item.placar;
                     salvarFila();
@@ -313,7 +356,7 @@ const MesaOffline = (function () {
         carregarFila();
         for (const id of Object.keys(fila)) {
             if (fila[id].placar && estado[id]) {
-                const { marcadoEm, ...placar } = fila[id].placar;
+                const { marcadoEm, campos, ...placar } = fila[id].placar;
                 // ⚠️ Item de fila gravado ANTES do tie-break existir não tem `pontos1/pontos2`:
                 // sem o padrão, o span mostraria "undefined" e o primeiro toque no "+" faria NaN.
                 // O item novo traz as chaves e vence o padrão.

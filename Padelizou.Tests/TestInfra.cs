@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -167,6 +167,9 @@ public static class TestInfra
         var controller = new PartidasController(
             ctx,
             palpites ?? Substitute.For<IPalpiteService>(),
+            // Reações DE VERDADE (não dublê): as três ações lêem e gravam no banco, e com o
+            // dublê o resumo volta nulo — o teste passaria sem nunca chegar no que importa.
+            new ReacaoService(ctx),
             push,
             NullLogger<PartidasController>.Instance,
             NovoEncerramento(ctx, push));
@@ -303,6 +306,7 @@ public static class TestInfra
             ctx,
             new EstatisticasService(ctx),
             Substitute.For<IPalpiteService>(),
+            new ReacaoService(ctx),
             Substitute.For<IWebHostEnvironment>(),
             push,
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),

@@ -97,6 +97,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
     public DbSet<CurtidaDoComentario> CurtidasDoComentario { get; set; }
+
+    // As reações com emoji de cada jogo (o "tipo o Discord" do Felipe, 12/09/2026).
+    public DbSet<ReacaoDaPartida> ReacoesDaPartida { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
 
     // A caixa de entrada de avisos do jogador (a tela "Notificações"). Ver AvisoDoJogador.
@@ -1684,6 +1687,41 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DuplaEscolhidaId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── AS REAÇÕES DO JOGO (12/09/2026) ──────────────────────────────────────────────
+        modelBuilder.Entity<ReacaoDaPartida>(entity =>
+        {
+            // ⚠️ A CHAVE COMPOSTA É A REGRA, não um índice de enfeite: "uma reação por pessoa
+            // por emoji" mora aqui, e não num `if` de C# que o clique duplo escapa (é o degrau
+            // 4 da escada do CLAUDE.md — a mesma forma da PK de TorneioMarcador).
+            entity.HasKey(e => new { e.PartidaId, e.JogadorId, e.Emoji });
+
+            // O teto da coluna vem da peneira (Services/EmojiDeReacao.TamanhoMaximo): a
+            // sequência mais longa que existe de verdade é a bandeira de subdivisão, com 14
+            // unidades UTF-16. Sem limite, a chave primária aceitaria texto de qualquer tamanho.
+            entity.Property(e => e.Emoji).HasMaxLength(Padelizou.Services.EmojiDeReacao.TamanhoMaximo);
+
+            // Ler as reações de uma lista de 97 jogos é UMA consulta por PartidaId — e a chave
+            // composta já começa por ele, então o índice da PK é o que serve essa leitura.
+            // Este aqui é o outro lado: apagar a conta de quem reagiu.
+            entity.HasIndex(e => e.JogadorId);
+
+            // ⚠️ OS DOIS EM CASCADE, como CurtidaDoComentario: as FKs vão pra tabelas
+            // DIFERENTES (Partida e Jogador) e se encontram aqui por caminhos independentes, e
+            // o Postgres lida com caminho múltiplo de cascade sem reclamar (o conflito de
+            // "multiple cascade paths" que obrigou o Restrict do PalpitePartida é do SQL
+            // Server). Regerar a chave apaga partidas — e apagar a partida tem que levar as
+            // reações dela, senão sobra linha órfã apontando pro que não existe.
+            entity.HasOne(e => e.Partida)
+                .WithMany()
+                .HasForeignKey(e => e.PartidaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PushSubscriptionJogador>(entity =>

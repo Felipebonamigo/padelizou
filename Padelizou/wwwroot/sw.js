@@ -31,7 +31,12 @@
 // que mudou é o salvamento do placar de quem está marcando AGORA, essa abertura é um game
 // perdido. Virar o número apaga o cache inteiro no `activate` e a próxima carga vem da rede.
 // Conferido no `origin/main` ANTES de escolher o número (estava em v34).
-const CACHE_NAME = "padelizou-static-v35";
+// ⚠️ v36 pelo mesmo motivo do v35, agora pelo `mesa-offline.js`: ele também não está na lista
+// abaixo, mas cai na regra de `isStaticAsset`, que serve a CÓPIA GUARDADA e só busca a nova em
+// segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo — rodar o
+// JavaScript velho por mais uma abertura ali é um game perdido. Conferido no `origin/main`
+// ANTES de escolher o número (estava em v35).
+const CACHE_NAME = "padelizou-static-v36";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

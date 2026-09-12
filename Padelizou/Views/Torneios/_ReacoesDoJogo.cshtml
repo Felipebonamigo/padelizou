@@ -1,0 +1,41 @@
+@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.ReacoesDaPartidaVM? reacoes, int? meuId)
+@{
+    var r = Model.reacoes ?? new Padelizou.ViewModels.ReacoesDaPartidaVM { PartidaId = Model.partida.Id };
+    bool logado = Model.meuId.HasValue;
+}
+@* ── REAGIR COM EMOJI (12/09/2026) ────────────────────────────────────────────────────────
+   🗣️ Felipe: *"aqui, a cada jogo, permita a pessoa 'reagir' tipo o que tem aqui no discord,
+   com emojis"*, e na sequência *"e ao clicar no emoji, veja quem colocou o que, igual no
+   whats app"*.
+
+   ⚠️ A FILEIRA NASCE SÓ COM O QUE JÁ TEM — decisão dele entre as duas opções. Num jogo sem
+   reação nenhuma sobra o botão do teclado e mais nada: são 97 cartões nesta lista, e paleta
+   aberta em cada um é a poluição que ele já tinha apontado nas fichas de placar em 11/09
+   (*"podemos 'minimizar' os placares depois de votado, pra nao ficar poluindo a tela"*).
+
+   ⚠️ E A PÍLULA ABRE O PAINEL em vez de somar +1 no toque — é o desenho do WhatsApp, que foi
+   o que ele pediu em "ao clicar no emoji". Somar e tirar acontecem DENTRO do painel, nas
+   mesmas pílulas, com o "toque para remover" escrito na sua linha. Um toque que somasse aqui
+   e outro que abrisse ali seriam dois significados pro mesmo alvo de 32px.
+
+   ⚠️ `<button>` e não `<span onclick>`: reagir é ação, e ação sem botão não chega pra quem
+   navega por teclado nem pro leitor de tela. É a mesma lição do cabeçalho que dobra o modal
+   de votos. *@
+<div class="pdz-reacoes" data-partida-id="@Model.partida.Id" data-logado="@logado.ToString().ToLower()">
+    @foreach (var pilula in r.Reacoes)
+    {
+        <button type="button" class="pdz-reacao-pilula @(pilula.EuReagi ? "pdz-reacao-minha" : "")"
+                data-emoji="@pilula.Emoji" data-eu="@pilula.EuReagi.ToString().ToLower()"
+                title="Ver quem reagiu"
+                onclick="verQuemReagiu(this)">
+            <span class="pdz-reacao-emoji">@pilula.Emoji</span>
+            <span class="pdz-reacao-conta">@pilula.Total</span>
+        </button>
+    }
+    @* O botão do teclado. Fica DEPOIS das pílulas, como no WhatsApp e no Discord, e é o único
+       elemento da fileira num jogo que ninguém reagiu ainda. *@
+    <button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"
+            aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">
+        <i class="bi bi-emoji-smile"></i>
+    </button>
+</div>
