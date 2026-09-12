@@ -2691,11 +2691,21 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 /* A bola APAGADA do outro lado: é o alvo de "passar o saque pra cá". Contorno, não bola —
    duas bolas acesas no mesmo card não diriam quem está sacando, que é a única pergunta que
-   este desenho existe pra responder. */
+   este desenho existe pra responder.
+
+   ⚠️ BRANCO FIXO, E NÃO `var(--pdz-border)` (12/09/2026). 🗣️ Felipe, num print em que ele é o
+   organizador do card: *"Permita aqui tambem mudar a bolinha de qual dupla esta sacando"* — e
+   ele já podia: o <form> de 40px estava renderizado nas duas linhas, só que este anel não
+   existia pra quem olha. `--pdz-border` SEGUE O TEMA DA PÁGINA e o `.pdz-live-header` é navy
+   nos DOIS, então no tema claro o anel virava `rgba(28, 39, 66, .09)` — navy a 9% em cima de
+   navy, ainda por baixo de um `opacity: .55`. Medido no print: 1,01:1, uma cor chapada.
+
+   ⚠️ E SEM `opacity`: um `opacity` baixo apaga tanto quanto um alpha baixo, e era ele que
+   multiplicava o defeito. O que segura o "discreto" agora é o alpha do próprio branco — a
+   mesma linguagem do resto do cabeçalho escuro (.pdz-live-versus, .pdz-live-seguir). */
 .pdz-bolinha-apagada {
     background: none;
-    box-shadow: 0 0 0 1.5px var(--pdz-border) inset;
-    opacity: .55;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55) inset;
 }
 
 .pdz-bolinha-apagada::before,
@@ -2723,7 +2733,9 @@ a.pdz-grupo-jogo[href]:focus-visible {
     touch-action: manipulation;
 }
 
-.pdz-saque-toque:hover .pdz-bolinha-apagada { opacity: .95; }
+/* No hover o anel ACENDE em vez de ganhar opacidade: com o alpha morando na própria cor, um
+   `opacity` aqui só diluiria de volta o que a linha de cima acabou de tornar visível. */
+.pdz-saque-toque:hover .pdz-bolinha-apagada { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .95) inset; }
 
 .pdz-saque-toque:focus-visible {
     outline: 2px solid var(--pdz-lime);

@@ -19,7 +19,12 @@
 // as duas pontas escreveram o mesmo número. Quem avisou foi o comentário acima, que conflitou:
 // é literalmente a pista que o v29 deixou escrita aqui pra quem viesse depois. **Quem sobe o
 // número confere o `main` ANTES de escolher qual.**
-const CACHE_NAME = "padelizou-static-v33";
+//
+// ⚠️ v34: o anel da bola apagada do saque (o alvo de "passar o saque pra cá") era invisível no
+// card AO VIVO — e o arquivo que conserta isso é o `site.css`, que está na lista abaixo. Sem
+// virar o número, quem usa o app instalado continuaria com o alvo apagado, sem erro em lugar
+// nenhum. Conferido no `origin/main` ANTES de escolher o número, como manda o parágrafo acima.
+const CACHE_NAME = "padelizou-static-v34";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
