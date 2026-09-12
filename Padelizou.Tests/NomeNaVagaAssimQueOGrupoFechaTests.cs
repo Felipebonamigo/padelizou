@@ -115,6 +115,27 @@ public class NomeNaVagaAssimQueOGrupoFechaTests
         Assert.Contains("2º do Grupo A", lados);
     }
 
+    // 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome
+    // sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. Na vaga
+    // do quadro o nome inteiro não cabe — "Marcelo Carvalho Prestes & Enio Gilberto M…" era cortado
+    // no meio, e o pedaço que sobrava era o nome do MEIO, o que menos identifica alguém.
+    [Fact]
+    public void O_nome_da_vaga_sai_pelo_primeiro_e_pelo_ultimo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupos, jogos) = DoisGruposDeTresAsync(ctx, fecharB: true);
+
+        // A dupla de menor Id do Grupo B vence os dois jogos dela: é o 1º do grupo.
+        var primeira = grupos.Single(g => g.Nome == "Grupo B").Duplas.OrderBy(d => d.Id).First();
+        primeira.Jogador1!.Nome = "EDER CRISTIANO MARCOS";
+        primeira.Jogador2!.Nome = "augusto ohlweiler";
+        ctx.SaveChanges();
+
+        var conhecidos = ClassificadosJaConhecidos.De(grupos, jogos, vagasPorGrupo: 2, ClassificacaoDeGrupos.SemPontos);
+
+        Assert.Equal("Eder Marcos & Augusto Ohlweiler", conhecidos[("Grupo B", 1)]);
+    }
+
     // ── A lista de jogos, pelo caminho de verdade ───────────────────────────────────────────
 
     [Fact]

@@ -104,7 +104,7 @@ conferir de verdade publicando no `dev`.
 Dá — e por meses a gente achou que não dava: dezenas de entradas do `STATUS.md` fecham
 com "⚠️ NÃO RODEI A UI". O container da sessão web tem **PostgreSQL 16** e **Chromium com
 Playwright** instalados. O app sobe local, com dados de demonstração, e o Claude clica na
-tela de verdade — foi assim que a tabela do palpitrômetro apareceu com uma fileira de
+tela de verdade — foi assim que a tabela do palpitômetro apareceu com uma fileira de
 zeros que nenhum teste da suíte pegaria.
 
 ```bash
