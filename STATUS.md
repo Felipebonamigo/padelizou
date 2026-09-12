@@ -1,8 +1,60 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1197-c4856a9`** (runs 280 e 281, 00h22 e 00h25 de Brasília), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #234, o **"palpitômetro sem o erre"**. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
-> Última atualização: **11/09/2026** — 🚀 **O BOTÃO QUE CALA OS AVISOS ESTÁ EM `dev` E `prod`.** PR #229, mesclado em `43b814c`, release **`build-1186-43b814c`**. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA na `ConfiguracaoDoSistema`, que já existia).
+> ✅ **CONFERIDO NO AR POR CONTEÚDO, no `prod`, anônimo, no torneio do Er** (`/Torneios/Details/26`, 996 KB de HTML): **56 rótulos `PALPITÔMETRO`**, **56 `pdz-palpitometro`** e **ZERO ocorrência de "palpitr"** na página inteira. O `/js/palpitometro.js` responde **200** e traz o `atualizarPalpitometro`; o `/js/palpitrometro.js` antigo responde **404**. `/healthz` **200** nos dois ambientes.
+>
+> 🔒 **No `dev` a conferência é mais fraca, e por um motivo conhecido**: o gate de Acesso Antecipado redireciona o site inteiro, então o arquivo antigo dá **302** em vez de 404. O que vale ali é o `/js/palpitometro.js` **200**, o job `deploy → dev` verde (e verde ali é o healthcheck do próprio `deploy.sh`, que dá rollback sozinho) e o `/healthz` 200.
+>
+> ⚠️ **O `main` ANDOU DUAS VEZES DEPOIS DESTE BUILD e o que subiu NÃO leva os dois**: os PRs **#235** (nome da dupla: primeiro e último) e **#236** (bolinha do placar), de sessões paralelas, entraram no `main` mas **não estão no `build-1197`** — quem publicar em seguida leva os três juntos. O deploy foi conferido como **estritamente pra frente** antes de sair (o `698e54c` que estava no `prod` é ancestral do `c4856a9`), justamente pra não derrubar trabalho de ninguém.
+>
+> 🕳️ **O CI DISPAROU SOZINHO nas duas pontas desta vez** (PR e `main`) — depois de cinco falhas registradas neste arquivo (26/08, 10/09 e três em 11/09). Nada mudou no `ci.yml`; fica o registro pra próxima vez que doer.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
+>
+> 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
+>
+> 🕳️ **A CAUSA NÃO ERA A BOLINHA, ERA UM `min-width` ESCRITO À MÃO.** O bloco do placar (`.pdz-live-placar`) alinha à direita e encolhia como todo item de flex; o piso que o navegador dá de graça pra ele não encolher abaixo do próprio conteúdo (`min-width: auto`) estava DESLIGADO por um `min-width: 2.4rem` na regra. Com o `−  [4]  +` do organizador dentro, o bloco recebia menos do que precisava — e, alinhado à direita, **o que não coube vazou pela ESQUERDA**, bem em cima da bola.
+>
+> 📏 **MEDIDO NO CHROMIUM DESTA SESSÃO** (harness com o `site.css` de verdade, a 393px = o iPhone do print): 133,2px de conteúdo num bloco de 97,2px, e o `−` começando **14,6px antes de a bola terminar**. Na faixa do `col-md-6` (768–991px, card de 336px) a invasão era de **37,1px — a bola inteira debaixo do botão**. Depois da correção: **folga de 21,4px em todas as larguras de 320 a 1440px**, e nenhum transbordo pra direita (o nome também não encosta na bola).
+>
+> 🔧 **SÃO QUATRO MEXIDAS, E AS QUATRO SÃO A MESMA CONTA DE LARGURA**: (1) `.pdz-live-placar` ganhou `flex-shrink: 0`; (2) o nome passou a poder ceder (`min-width: 0` + `overflow-wrap: break-word` no chip DENTRO do card ao vivo) — senão o conserto só trocava o dono do transbordo, com o nome vazando pra direita em cima da mesma bola; (3) o campo do placar foi de `2.2em` pra `1.7em` (63px → 48px), que é o que devolve ao nome o pixel de que ele precisa pra não partir no meio da palavra ("Bittencour / t", visto no navegador) — dois dígitos continuam cabendo; (4) o card virou `col-lg-6`: entre 768 e 991px duas colunas deixavam cada card com 336px, 60px MENOS que o celular.
+>
+> 🧪 **6.638 testes, 0 falhas (4 novos, em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`)** — já com o `main` de hoje dentro, que trouxe o palpitômetro sem o erre (PR #234) — + `conferir-palpitometro.js` e `conferir-abas-recolhidas.js` verdes. O teste que importa é o do ORÇAMENTO: ele soma, lendo o próprio `site.css`, quanto a bolinha e o contador comem de um card de 393px e reprova se sobrar menos que o nome — é a régua que impede o card de voltar a se resolver empilhando uma coisa em cima da outra.
+>
+> ⚠️ **O TETO, ESCRITO NO CSS**: num celular de **320px** o nome de quem MARCA placar fica com ~70px e empilha feio (card de ~767px de altura). Pro torcedor não muda nada — lá o bloco continua sendo um número de 2.4rem, com 153px de nome no mesmo 320px. A saída, se doer: descer o placar pra linha de baixo num `@media (max-width: 359.98px)`.
+>
+> ⚠️ **NÃO RODEI A PÁGINA DE VERDADE** (sem banco nesta sessão): a conferência foi num harness com o HTML do card copiado do Razor e o `site.css` do repositório, no Chromium do container.
+
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/practical-pasteur-p4zmnd`, ainda não publicado.** **Sem migration.**
+>
+> ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
+>
+> 🕳️ **UMA LINHA, PORQUE O ENCURTADOR JÁ EXISTIA:** `NomeBonito.Curto` (primeiro + último, com partícula e sufixo de geração viajando colados no sobrenome) é de 06/08 e já era usado por `Jogador.ComoChamar` e `NomeDaDupla.De`. **`Dupla.NomeDeExibicao` era a única régua de nome de dupla que ainda escrevia o nome inteiro** (`NomeNaTela`) — e é justamente ela que escreve a vaga do quadro projetado (`ClassificadosJaConhecidos`), o bye da chave (`QuadroDoMataMata`), o push de "seu próximo jogo", o check-in e as caixas de seleção da Mesa de Controle. Todos encurtaram juntos, que é o ponto de ter uma régua só.
+>
+> ⚠️ **CURTO, MAS SEM APELIDO — de propósito, e está comentado no código**: não virou `ComoChamar`. O parêntese (*"Anderson Schwaab (Deco)"*) cresceria de volta o que a mudança encurtou, e este rótulo nunca teve apelido. Quem quer os dois continua em `NomeDaDupla.De`, a régua das ARTES.
+>
+> 🧪 **6.633 testes, 0 falhas (3 novos)** — com o `main` de hoje dentro (o desempate novo e o `Dupla.NomeCurto` de outra sessão, que é primeiro nome de cada um pras listas densas e continua valendo: o que encurtou aqui é o `NomeDeExibicao`) — + `conferir-palpitrometro.js` verde. Vermelhos vistos antes da correção: *"Expected: Eder Marcos & Augusto Ohlweiler / Actual: Eder Cristiano Marcos & Augusto Ohlweiler"* na régua (`NomeBonitoTests`) e na vaga do quadro (`NomeNaVagaAssimQueOGrupoFechaTests`).
+
+> **11/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
+>
+> 🔤 **O NOME PERDEU O ERRE: PALPITRÔMETRO → PALPITÔMETRO.** 🗣️ Felipe, com um print da lista de jogos e o rótulo circulado: *"ta escrito 'palpitrometro' aqui"*. Perguntado se era só o texto da tela ou o código inteiro: **o código inteiro**.
+>
+> 🕳️ **A palavra é `palpite` + `-ômetro`** — bafômetro, velocímetro, palpitômetro. O erre nunca teve de onde sair: entrou no primeiro arquivo (19/08/2026) e foi copiado por **41 arquivos, 148 ocorrências**. O próprio Felipe sempre escreveu *"palpitometro"* nos pedidos dele (as citações de 10/09 estão aqui neste arquivo); a tela é que respondia com erre.
+>
+> 📦 **Quatro arquivos renomeados com `git mv`** (histórico preservado): `wwwroot/js/palpitrometro.js` → `palpitometro.js`, `Views/Torneios/_Palpitrometro.cshtml` → `_Palpitometro.cshtml`, `PalpitrometroColadoNaBordaTests.cs` → `PalpitometroColadoNaBordaTests.cs` e `Padelizou.Tests/js/conferir-palpitrometro.js` → `conferir-palpitometro.js`. Junto vieram a classe `.pdz-palpitrometro` → `.pdz-palpitometro` (CSS, views e os `closest()` do JS), as funções `atualizarPalpitrometro`/`mostraPalpitrometro`, e as **três páginas de marketing da raiz** (`APRESENTACAO.html`, `JOGADORES.html`, `ORGANIZADOR-TORNEIO.html`), que também diziam o nome pro público.
+>
+> ✅ **O CI não precisou de uma linha**, e é mérito de uma decisão de 10/09: o passo "Conferir as travas de JS" **varre `Padelizou.Tests/js/conferir-*.js`** em vez de citar arquivo pelo nome. Renomear o conferidor mexeu só no comentário dele.
+>
+> ⚠️ **O `STATUS.md` NÃO foi reescrito, de propósito:** é diário datado, e entrada de agosto que cita `conferir-palpitrometro.js` é registro do que aconteceu — reescrever o passado tiraria o único jeito de achar aquele trabalho depois. Por isso o gate ignora `.md`.
+>
+> 🔒 **GATE NOVO (`OPalpitometroPerdeuOErreTests`, 4 testes), porque o caminho de volta é o copiar-colar:** um arquivo que nasça de um antigo traz o nome errado junto. Ele varre **conteúdo E nome de arquivo** de todo `.cs/.cshtml/.js/.css/.html/.yml` fora de `bin`/`obj`/`lib`, e ainda exige que o rótulo **continue existindo** nas duas telas (senão apagar o palpitômetro passaria no gate). Ele **se exclui da varredura** — é o único arquivo que cita o defeito, na frase do Felipe e no nome antigo do conferidor.
+>
+> 🧪 **6.607 testes, 0 falhas (4 novos)** + `conferir-palpitometro.js` (16 conferências) e `conferir-abas-recolhidas.js` (11) verdes. Os 4 vistos vermelhos antes, cada um pelo motivo dele: a lista das **148 ocorrências**, os **4 nomes de arquivo** com erre, *"Not found: PALPITÔMETRO"* na lista de jogos e o `_Palpitometro.cshtml` que ainda não existia.
+
+> **11/09/2026** — 🚀 **O BOTÃO QUE CALA OS AVISOS ESTÁ EM `dev` E `prod`.** PR #229, mesclado em `43b814c`, release **`build-1186-43b814c`**. ✅ **SEM MIGRATION** (nada em `Models/`; o que nasce é uma LINHA na `ConfiguracaoDoSistema`, que já existia).
 >
 > 📦 **PUBLIQUEI O `build-1186` nos dois** — `dev` no run **272** (20h49 UTC) e `prod` no run **274** (20h53 UTC), o mesmo artefato, com a tag explícita, Regra 3 respeitada (dev primeiro).
 >

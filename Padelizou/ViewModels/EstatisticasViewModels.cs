@@ -238,7 +238,7 @@ public class RankingHubVM
     // claim nenhuma — é o mesmo arranjo da votação de MVP.
     public int? EuId { get; set; }
 
-    // Aba PALPITEIROS: quem mais acerta no palpitrômetro (Services/PontosDoPalpite), com o
+    // Aba PALPITEIROS: quem mais acerta no palpitômetro (Services/PontosDoPalpite), com o
     // mesmo filtro regional do resto do hub.
     //
     // ⚠️ É a segunda aba que NÃO sai de resultado de chave — ela mede quem LÊ os jogos, não
