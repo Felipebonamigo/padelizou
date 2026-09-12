@@ -48,8 +48,27 @@
                         <img src="@(string.IsNullOrEmpty(linha.Foto) ? "/img/default-avatar.png" : linha.Foto)"
                              alt="" class="rounded-circle me-1"
                              style="width:24px;height:24px;object-fit:cover;" />
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@linha.JogadorId"
-                           class="text-decoration-none" style="color: var(--pdz-ink);">@linha.Nome</a>
+                        @* ⚠️ NO TORNEIO O NOME ABRE OS PALPITES; no hub ele continua indo pro
+                           perfil (12/09/2026 — 🗣️ Felipe: *"ai clicar no nome, permita ver os
+                           resultados q a pessoa colocou"*). Lá a tabela soma vários torneios e
+                           não existe "os palpites dela neste torneio" pra mostrar.
+                           ⚠️ `<button>` e não `<a onclick>`: abrir o modal é ação, e ação em
+                           link é o que leva quem navega por teclado (e o leitor de tela) a um
+                           destino que não existe. O caminho do perfil não some — ele está no
+                           rodapé do modal. *@
+                        @if (Model.TorneioId is int torneioId)
+                        {
+                            <button type="button" class="btn btn-link p-0 align-baseline fw-semibold text-start text-decoration-none"
+                                    style="color: var(--pdz-ink);"
+                                    title="Ver o que @linha.Nome palpitou neste torneio"
+                                    data-torneio-id="@torneioId" data-jogador-id="@linha.JogadorId" data-nome="@linha.Nome"
+                                    onclick="verPalpitesDoPalpiteiro(this.dataset.torneioId, this.dataset.jogadorId, this.dataset.nome)">@linha.Nome</button>
+                        }
+                        else
+                        {
+                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@linha.JogadorId"
+                               class="text-decoration-none" style="color: var(--pdz-ink);">@linha.Nome</a>
+                        }
                         @if (souEu)
                         {
                             <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
@@ -80,3 +99,10 @@
         </tbody>
     </table>
 </div>
+
+@* O modal que o nome abre — UM por página, reusado por todas as linhas. Só onde há torneio:
+   no hub o nome continua sendo o link do perfil, e um modal sem quem o abra seria HTML morto. *@
+@if (Model.TorneioId != null)
+{
+    <partial name="_ModalPalpitesDoPalpiteiro" />
+}

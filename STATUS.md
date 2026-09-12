@@ -1,7 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/view-results-layout-fix-dbahs6`, ainda não publicado.** **Sem migration.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
+>
+> 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
+>
+> 🕳️ **A TABELA MOSTRAVA O RESULTADO DA CONTA E NADA DE ONDE ELE VEM** — "20 pontos, 41 em aberto", e o nome levava direto pro perfil. O caminho CONTRÁRIO já existia desde 10/09 (o modal "quem palpitou o quê" abre a partir de UM JOGO e lista todo mundo); faltava o que parte da PESSOA.
+>
+> ✅ **O QUE FOI FEITO**: `RankingDePalpiteiros.DoPalpiteiroNoTorneioAsync` devolve um jogo por linha — em quem a pessoa apostou, com que placar, o que deu e quanto valeu; `GET /Torneios/PalpitesDoPalpiteiro/{id}?jogadorId=` serve isso em JSON, atrás da **mesma porta de visibilidade** do `Details` (torneio oculto responde 404); e o nome virou `<button>` que abre um modal — só na tabela do TORNEIO. **No hub do Ranking o nome continua indo pro perfil**, porque lá a tabela soma vários torneios e não existe "os palpites dela neste torneio" pra mostrar.
+>
+> 📐 **"SEM QUEBRAR A TELA" VIROU REGRA MECÂNICA, não intenção**: modal com `modal-dialog-scrollable` (a lista rola por dentro, o X fica sempre visível) em vez de linha que cresce dentro da tabela — com 41 palpites, a linha expandida empurra a tabela inteira pra fora do celular. Dentro de cada caixa, os três textos longos (categoria, dupla escolhida, adversária) truncam com `min-width: 0` e as fichas levam `flex-shrink-0`; o conferidor de JS **conta os três** e reprova se um sumir. É a mesma receita do modal de quem votou, onde o nome comprido empurrava a ficha "9 x 0" pra fora da linha.
+>
+> 🔗 **A CONTA É A MESMA DO RANKING, e agora por construção**: a conferência de um palpite saiu de dentro do `Apurar` pra um `Conferir` que os dois chamam, e a exclusão de quem estava em quadra passa pela mesma `EmQuadraAsync`. Tem teste dedicado (`Os_totais_da_lista_sao_EXATAMENTE_os_da_linha_da_tabela`): se o modal e a tabela discordarem, a tela que explica a conta é a que desmente a conta. O jogo de quem **estava em quadra aparece marcado "não conta"** em vez de sumir — sumir faria a pessoa procurar um palpite que ela lembra de ter dado.
+>
+> 🧪 **6.662 testes, 0 falhas (18 novos)** + os **quatro** `conferir-*.js` verdes, incluindo o novo `conferir-palpites-do-palpiteiro.js` (DOM falso, sem dependência). Vermelhos vistos antes: o placar saindo invertido pra quem apostou na Dupla 2 (*"Expected: 6 / Actual: 4"*), a cravada do próprio jogador contando ponto (*"Expected: 0 / Actual: 3"*), o `NotFoundResult` que não veio com o torneio oculto, e o nome com `<` entrando cru no `innerHTML`.
+>
+> ⚠️ **RESSALVA**: **nada disto foi visto em navegador** — não há Chromium nesta sessão. As travas de layout são as do conferidor (classes e `min-width`), não medida de pixel como no card ao vivo. É CSS/JS/consulta de tela, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
+>
+> 🔓 **E É PÚBLICO, de propósito**: a lista não expõe nada que já não estivesse na tela — o modal de 10/09 mostra nome e placar de todo mundo, jogo a jogo. Isto é a mesma informação virada do outro lado.
+>
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
 >
 > 🗣️ Felipe, com o print da prévia no celular: *"Esse botao de oitavas quartas semi e final, as vezes n funciona"*. **Eram DOIS defeitos somados, e é daí que vinha o "às vezes"** — os dois medidos no Chromium a 412px com o `site.css` de verdade, antes de qualquer correção.
 >

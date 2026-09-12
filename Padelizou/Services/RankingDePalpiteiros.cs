@@ -226,6 +226,130 @@ public static class RankingDePalpiteiros
         return apuracao.Linhas.FirstOrDefault();
     }
 
+    // ── 4. O QUE UMA PESSOA PALPITOU NESTE TORNEIO ────────────────────────────────────────
+    //
+    // 12/09/2026 — 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome,
+    // permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
+    //
+    // É a EXPLICAÇÃO da linha da tabela: os mesmos palpites que viraram aqueles pontos, um por
+    // jogo, com o que a pessoa disse ao lado do que deu. Mora aqui e não num serviço novo
+    // porque a conta TEM que ser a mesma — `Conferir` + `PontosDoPalpite.De` + a mesma exclusão
+    // de quem estava em quadra. Duas contas separadas acabariam discordando na mesma tela, e a
+    // que explica seria a que desmente.
+    //
+    // ⚠️ NÃO expõe nada que já não fosse público: o modal "quem palpitou o quê" lista nome e
+    // placar de todo mundo, jogo a jogo, desde 10/09/2026. Isto é a mesma informação virada do
+    // outro lado — por pessoa em vez de por jogo.
+    //
+    // Null = esta pessoa não palpitou NADA neste torneio (quem chama responde 404).
+    public static async Task<PalpitesDoPalpiteiro?> DoPalpiteiroNoTorneioAsync(
+        DbPadelContext contexto, int torneioId, int jogadorId)
+    {
+        var palpites = await MaterializarAsync(contexto,
+            v => v.JogadorId == jogadorId && v.Partida.TorneioId == torneioId);
+        if (palpites.Count == 0) return null;
+
+        var partidaIds = palpites.Select(v => v.PartidaId).Distinct().ToList();
+        var jogos = await ConsultaDosJogosDoPalpiteiro(contexto, partidaIds).ToListAsync();
+        var porId = jogos.ToDictionary(p => p.Id);
+
+        var duplaIds = jogos.SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).Distinct().ToList();
+        var emQuadra = await EmQuadraAsync(contexto, duplaIds);
+
+        // (quando o jogo é, a linha) — o horário só serve pra ordenar e não vai pra tela.
+        var linhas = new List<(DateTime? Quando, PalpiteNaLista Linha)>();
+
+        foreach (var palpite in palpites)
+        {
+            if (!porId.TryGetValue(palpite.PartidaId, out var jogo)) continue;
+
+            var partida = new PartidaApurada(jogo.Id, jogo.TorneioId, jogo.VencedorId,
+                jogo.Dupla1Id, jogo.Dupla2Id, jogo.GamesDupla1, jogo.GamesDupla2,
+                jogo.SetsDupla1, jogo.SetsDupla2, jogo.MotivoDoEncerramento);
+
+            // Mesma pergunta da apuração, na mesma ordem: o jogo terminou COM vencedor?
+            bool apurado = jogo.Status == PartidaFinalizada && jogo.VencedorId != null;
+
+            var jogadoresDaPartida = new HashSet<int>(emQuadra.GetValueOrDefault(jogo.Dupla1Id, new HashSet<int>()));
+            jogadoresDaPartida.UnionWith(emQuadra.GetValueOrDefault(jogo.Dupla2Id, new HashSet<int>()));
+            bool estavaEmQuadra = jogadoresDaPartida.Contains(jogadorId);
+
+            var conferido = Conferir(palpite, partida);
+            bool escolheuLado1 = palpite.DuplaEscolhidaId == jogo.Dupla1Id;
+
+            // O PLACAR DE VERDADE, na moeda certa: quem palpitou placar é conferido contra a
+            // moeda DELE (é o que `Conferir` já resolveu); quem não palpitou lê o jogo como ele
+            // é — e num jogo de 2+ sets isso são SETS, não os games do set em andamento.
+            var real = conferido.PalpitouOPlacar
+                ? new PlacarPalpitado(conferido.PlacarLado1, conferido.PlacarLado2, conferido.EmSets)
+                : PlacaresPossiveis.Lido(jogo.GamesDupla1, jogo.GamesDupla2, jogo.SetsDupla1, jogo.SetsDupla2);
+
+            linhas.Add((jogo.HorarioPrevisto, new PalpiteNaLista(
+                PartidaId: jogo.Id,
+                Categoria: jogo.Categoria?.Nome ?? "",
+                Fase: jogo.Fase,
+                Escolhida: NomeDaLinha(escolheuLado1 ? jogo.Dupla1 : jogo.Dupla2, palpite.DuplaEscolhidaId),
+                Adversaria: NomeDaLinha(escolheuLado1 ? jogo.Dupla2 : jogo.Dupla1,
+                    escolheuLado1 ? jogo.Dupla2Id : jogo.Dupla1Id),
+                PalpitouEscolhida: escolheuLado1 ? conferido.PalpitouLado1 : conferido.PalpitouLado2,
+                PalpitouAdversaria: escolheuLado1 ? conferido.PalpitouLado2 : conferido.PalpitouLado1,
+                EmSets: conferido.PalpitouOPlacar ? conferido.EmSets : real.EmSets,
+                Apurado: apurado,
+                EstavaEmQuadra: estavaEmQuadra,
+                Acertou: apurado && jogo.VencedorId == palpite.DuplaEscolhidaId,
+                // ⚠️ Ponto só em jogo apurado e só pra quem não estava em quadra — as duas
+                // portas da apuração, na mesma ordem. Sem a segunda, a soma da lista passaria a
+                // discordar da linha da tabela justamente pra quem joga E palpita.
+                Pontos: apurado && !estavaEmQuadra ? PontosDoPalpite.De(conferido) : 0,
+                // ⚠️ Placar só do jogo APURADO: a Mesa grava game a game, e mostrar o parcial de
+                // um jogo no ar ao lado do palpite diria "você errou" antes de o jogo acabar.
+                PlacarEscolhida: !apurado ? null : escolheuLado1 ? real.Lado1 : real.Lado2,
+                PlacarAdversaria: !apurado ? null : escolheuLado1 ? real.Lado2 : real.Lado1)));
+        }
+
+        return new PalpitesDoPalpiteiro
+        {
+            TorneioId = torneioId,
+            JogadorId = jogadorId,
+            Jogador = palpites[0].Nome,
+            Foto = palpites[0].Foto,
+            // ⚠️ O QUE JÁ VALEU PONTO PRIMEIRO, e a ordenação é TOTAL (vai até o id da partida):
+            // ordenação parcial faz a lista trocar de ordem entre duas aberturas do mesmo modal,
+            // e ninguém reporta isso como defeito — só desconfia da tela.
+            Linhas = linhas
+                .OrderBy(l => l.Linha.Apurado ? 0 : 1)
+                .ThenBy(l => l.Quando ?? DateTime.MaxValue)
+                .ThenBy(l => l.Linha.PartidaId)
+                .Select(l => l.Linha)
+                .ToList(),
+        };
+    }
+
+    // O nome da dupla na linha da lista: o CURTO ("Marcelo / Enio"), que é o mesmo da lista de
+    // jogos e do painel de classificação — e o que cabe numa linha de celular.
+    //
+    // ⚠️ Defensivo com a navegação ausente pelo motivo de sempre: consulta sem a dupla não pode
+    // derrubar a lista inteira por causa de um rótulo.
+    private static string NomeDaLinha(Models.Dupla? dupla, int duplaId) =>
+        dupla?.NomeCurto ?? $"Dupla {duplaId}";
+
+    // Os jogos de uma lista de ids, com o que a LISTA DE UM PALPITEIRO precisa escrever: a
+    // categoria, a fase e o nome das duas duplas.
+    //
+    // ⚠️ `Include` e não projeção com navegação obrigatória: navegação obrigatória dentro de um
+    // `Select` vira INNER JOIN e some com a linha inteira quando o outro lado falta — aqui são
+    // quatro jogadores por jogo, e o `Jogador2` é legitimamente nulo na inscrição sem parceiro.
+    public static IQueryable<Partida> ConsultaDosJogosDoPalpiteiro(
+        DbPadelContext contexto, List<int> partidaIds) =>
+        contexto.Partidas
+            .AsNoTracking()
+            .Where(p => partidaIds.Contains(p.Id))
+            .Include(p => p.Categoria)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2);
+
     // ── O NÚCLEO ──────────────────────────────────────────────────────────────────────────
 
     public sealed record Apuracao(List<PalpiteiroNoRanking> Linhas, int JogosApurados, int PalpitesComPlacar);
@@ -262,25 +386,8 @@ public static class RankingDePalpiteiros
             {
                 if (jogadoresDaPartida.Contains(palpite.JogadorId)) continue;
 
-                // ⚠️ A MOEDA É DITADA PELO PALPITE, não pelo formato de hoje. Quem palpitou em
-                // games é conferido contra os games; quem palpitou em sets, contra os sets.
-                // Parece o mesmo, mas não é: o organizador pode editar o formato do torneio
-                // DEPOIS de o palpite estar gravado, e aí perguntar ao formato compararia o que
-                // a pessoa disse com um placar que ela não tinha como estar respondendo.
-                var palpitado = PlacaresPossiveis.Lido(
-                    palpite.GamesDupla1, palpite.GamesDupla2, palpite.SetsDupla1, palpite.SetsDupla2);
-
-                int pontos = PontosDoPalpite.De(new PalpiteConferido
-                {
-                    DuplaEscolhidaId = palpite.DuplaEscolhidaId,
-                    VencedorId = partida.VencedorId,
-                    PalpitouLado1 = palpitado.Lado1,
-                    PalpitouLado2 = palpitado.Lado2,
-                    PlacarLado1 = palpitado.EmSets ? partida.SetsDupla1 : partida.GamesDupla1,
-                    PlacarLado2 = palpitado.EmSets ? partida.SetsDupla2 : partida.GamesDupla2,
-                    EmSets = palpitado.EmSets,
-                    PorWo = partida.MotivoDoEncerramento == EncerramentoPorWo.Motivo,
-                });
+                var conferido = Conferir(palpite, partida);
+                int pontos = PontosDoPalpite.De(conferido);
 
                 if (!porJogador.TryGetValue(palpite.JogadorId, out var linha))
                 {
@@ -297,13 +404,42 @@ public static class RankingDePalpiteiros
                 linha.Pontos += pontos;
                 if (pontos > 0) linha.Acertos++;
                 if (pontos == PontosDoPalpite.Cravou) linha.Cravadas++;
-                if (palpitado.Existe) palpitesComPlacar++;
+                if (conferido.PalpitouOPlacar) palpitesComPlacar++;
 
                 partidasQueContaram.Add(partida.Id);
             }
         }
 
         return new Apuracao(Classificar(porJogador.Values), partidasQueContaram.Count, palpitesComPlacar);
+    }
+
+    // UM palpite × o jogo dele, prontos pra régua.
+    //
+    // ⚠️ A MOEDA É DITADA PELO PALPITE, não pelo formato de hoje. Quem palpitou em games é
+    // conferido contra os games; quem palpitou em sets, contra os sets. Parece o mesmo, mas não
+    // é: o organizador pode editar o formato do torneio DEPOIS de o palpite estar gravado, e aí
+    // perguntar ao formato compararia o que a pessoa disse com um placar que ela não tinha como
+    // estar respondendo.
+    //
+    // Saiu de dentro do `Apurar` em 12/09/2026, quando a LISTA DE UM PALPITEIRO passou a
+    // conferir palpite por palpite: duas leituras do mesmo palpite acabam discordando, e aí a
+    // tela que explica a conta é justamente a que desmente a conta.
+    public static PalpiteConferido Conferir(PalpiteApurado palpite, PartidaApurada partida)
+    {
+        var palpitado = PlacaresPossiveis.Lido(
+            palpite.GamesDupla1, palpite.GamesDupla2, palpite.SetsDupla1, palpite.SetsDupla2);
+
+        return new PalpiteConferido
+        {
+            DuplaEscolhidaId = palpite.DuplaEscolhidaId,
+            VencedorId = partida.VencedorId,
+            PalpitouLado1 = palpitado.Lado1,
+            PalpitouLado2 = palpitado.Lado2,
+            PlacarLado1 = palpitado.EmSets ? partida.SetsDupla1 : partida.GamesDupla1,
+            PlacarLado2 = palpitado.EmSets ? partida.SetsDupla2 : partida.GamesDupla2,
+            EmSets = palpitado.EmSets,
+            PorWo = partida.MotivoDoEncerramento == EncerramentoPorWo.Motivo,
+        };
     }
 
     // A ordem da tabela: PONTOS, aproveitamento, nome, id.
@@ -455,7 +591,7 @@ public static class RankingDePalpiteiros
     // Quem estava EM QUADRA em cada dupla. Consultado à parte de propósito: pendurar as duas
     // duplas na projeção da partida traria quatro navegações obrigatórias num JOIN só, e é a
     // linha inteira que some quando uma delas falta.
-    private static async Task<Dictionary<int, HashSet<int>>> EmQuadraAsync(
+    public static async Task<Dictionary<int, HashSet<int>>> EmQuadraAsync(
         DbPadelContext contexto, List<int> duplaIds)
     {
         var duplas = await contexto.Duplas
@@ -586,4 +722,71 @@ public sealed class PalpiteirosDoTorneio
     // palpitou. É pergunta feita AO DADO, como o `PalpitesComPlacar` ali em cima — nada de
     // interruptor: no minuto em que o primeiro jogo termina, a tela vira ranking sozinha.
     public bool ModoParticipacao => JogosApurados == 0;
+}
+
+// ─────────────────────── O QUE UMA PESSOA PALPITOU NUM TORNEIO ───────────────────────
+//
+// A lista que o modal da tabela de palpiteiros mostra (12/09/2026). 🗣️ Felipe: *"ai clicar no
+// nome, permita ver os resultados q a pessoa colocou"*.
+//
+// ⚠️ OS TOTAIS SÃO DERIVADOS DAS LINHAS, e não campos gravados: é o que garante que a soma do
+// modal seja a MESMA da linha da tabela. Guardar os dois em lugares diferentes é como eles
+// passam a discordar — e aí a tela que explica a conta é a que desmente a conta.
+public sealed class PalpitesDoPalpiteiro
+{
+    public int TorneioId { get; set; }
+    public int JogadorId { get; set; }
+    public string Jogador { get; set; } = "";
+    public string? Foto { get; set; }
+
+    public List<PalpiteNaLista> Linhas { get; set; } = new();
+
+    public int Pontos => Linhas.Where(l => l.Conta).Sum(l => l.Pontos);
+    public int Acertos => Linhas.Count(l => l.Conta && l.Apurado && l.Pontos > 0);
+    public int Cravadas => Linhas.Count(l => l.Conta && l.Pontos == PontosDoPalpite.Cravou);
+
+    // Os que JÁ valeram ponto (ou zero) — a mesma contagem da coluna "Palpites" da tabela.
+    public int Palpites => Linhas.Count(l => l.Conta && l.Apurado);
+
+    // Os que ainda esperam resultado — a mesma contagem da coluna "Em aberto".
+    public int EmAberto => Linhas.Count(l => l.Conta && !l.Apurado);
+}
+
+// UM palpite na lista: o que a pessoa disse, o que deu, e quanto valeu.
+//
+// ⚠️ TUDO NA ORIENTAÇÃO DA DUPLA ESCOLHIDA (ela primeiro), palpite e resultado — é o que deixa
+// comparar um com o outro sem virar a cabeça. No banco os dois moram na orientação do JOGO
+// (lado 1 = Dupla1), e ali "4 x 6" no palpite de quem escolheu a Dupla 2 diria que ela apostou
+// na própria derrota. Mesma régua do modal de quem votou.
+public sealed record PalpiteNaLista(
+    int PartidaId,
+    string Categoria,
+    string Fase,
+    string Escolhida,
+    string Adversaria,
+
+    // NULO nos dois = palpitou só quem vence, que é o palpite de sempre e continua valendo.
+    int? PalpitouEscolhida,
+    int? PalpitouAdversaria,
+
+    // A moeda daquele palpite: sets ou games (ver PlacaresPossiveis).
+    bool EmSets,
+
+    // O jogo já terminou com vencedor? Enquanto não, não há ponto nem placar pra mostrar.
+    bool Apurado,
+
+    // A pessoa estava EM QUADRA neste jogo — o palpite dela aparece, mas não conta (é a mesma
+    // exclusão do ranking). Aparecer é de propósito: sumir com a linha faria ela procurar um
+    // palpite que lembra de ter dado.
+    bool EstavaEmQuadra,
+
+    bool Acertou,
+    int Pontos,
+
+    int? PlacarEscolhida,
+    int? PlacarAdversaria)
+{
+    public bool Conta => !EstavaEmQuadra;
+    public bool PalpitouOPlacar => PalpitouEscolhida != null && PalpitouAdversaria != null;
+    public bool TemPlacarReal => PlacarEscolhida != null && PlacarAdversaria != null;
 }
