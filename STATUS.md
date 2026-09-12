@@ -20,7 +20,7 @@
 > 🔓 **E É PÚBLICO, de propósito**: a lista não expõe nada que já não estivesse na tela — o modal de 10/09 mostra nome e placar de todo mundo, jogo a jogo. Isto é a mesma informação virada do outro lado.
 >
 
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
+> **12/09/2026** — ⏳ **NO BRANCH `claude/button-rounds-bug-n9s7gk`, ainda não publicado.** **Sem migration.** 🔘 **AS FICHAS DE RODADA DA PRÉVIA DO MATA-MATA VOLTARAM A FUNCIONAR.**
 >
 > 🗣️ Felipe, com o print da prévia no celular: *"Esse botao de oitavas quartas semi e final, as vezes n funciona"*. **Eram DOIS defeitos somados, e é daí que vinha o "às vezes"** — os dois medidos no Chromium a 412px com o `site.css` de verdade, antes de qualquer correção.
 >
