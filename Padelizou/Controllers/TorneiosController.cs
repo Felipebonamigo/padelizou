@@ -920,6 +920,23 @@ namespace Padelizou.Controllers
                     .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
                     .Where(p => p.TorneioId == id && fasesMataMata.Contains(p.Fase))
                     .ToListAsync();
+
+                // ⚠️ ABERTURA PELA METADE NÃO VIRA QUADRO. Desde o avanço parcial dos grupos
+                // (11/09/2026) a primeira eliminatória nasce jogo a jogo, à medida que cada grupo
+                // fecha. O desenho do quadro lê a fase pelos jogos que existem, então dois de oito
+                // vira um quadro de dois — uma "Final" entre os dois primeiros a classificar. Até
+                // a fase de grupos fechar, a aba mostra a PRÉVIA por colocação (que é o desenho
+                // inteiro, e diz a verdade); os jogos já criados aparecem na lista de jogos, com
+                // nome e sobrenome, como qualquer jogo real.
+                var gruposEmAbertoNaChave = await _context.Partidas
+                    .Where(p => p.TorneioId == id && p.Status != "Finalizada"
+                             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                    .Select(p => p.CategoriaId)
+                    .Distinct()
+                    .ToListAsync();
+                partidasMataMata = partidasMataMata
+                    .Where(p => !gruposEmAbertoNaChave.Contains(p.CategoriaId))
+                    .ToList();
                 ViewBag.MataMataPorCategoria = partidasMataMata
                     .GroupBy(p => p.CategoriaId)
                     .ToDictionary(g => g.Key, g => g.ToList());
@@ -930,7 +947,8 @@ namespace Padelizou.Controllers
                 var byesPorCategoria = new Dictionary<int, List<Dupla>>();
                 foreach (var categoriaId in ((Dictionary<int, List<Partida>>)ViewBag.MataMataPorCategoria).Keys)
                 {
-                    var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, categoriaId);
+                    var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, categoriaId,
+                        _estatisticas.ObterPontosPorJogadorAsync);
                     if (byeIds.Count == 0) continue;
 
                     var duplasDeBye = await _context.Duplas
@@ -997,8 +1015,16 @@ namespace Padelizou.Controllers
                             .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
                             .ToList();
 
+                        // ⚠️ Os pontos do ranking só são buscados no grupo que empata até
+                        // eles (duas consultas). Esta é a página mais visitada do site, com 24
+                        // grupos no 2ª Etapa ER — buscar sempre custaria caro por nada.
+                        var doGrupoDuplas = grupo.Duplas.ToList();
+                        var pontosDoGrupo = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                            doGrupoDuplas, doGrupo, _estatisticas.ObterPontosPorJogadorAsync);
+
                         if (OQuePrecisaParaClassificar.Montar(
-                                grupo.Duplas.ToList(), doGrupo, passamDaCategoria, formatoDosGrupos) is { } quadro)
+                                doGrupoDuplas, doGrupo, passamDaCategoria, formatoDosGrupos,
+                                pontosDoGrupo) is { } quadro)
                             oQuePrecisaPorGrupo[grupo.Id] = quadro;
                     }
                 }
@@ -1076,8 +1102,49 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return new();
 
-            var deMataMata = partidas.Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)).ToList();
+            // ⚠️ CATEGORIA COM A FASE DE GRUPOS ABERTA CONTINUA SENDO PROJETADA POR COLOCAÇÃO,
+            // mesmo já tendo jogo de mata-mata. Desde o avanço parcial dos grupos (11/09/2026,
+            // RoboDoChaveamento.MontarAberturaDesenhadaAsync) a abertura nasce jogo a jogo: lida
+            // pela outra entrada (`Montar`, que parte dos jogos que existem), meia abertura viraria
+            // um quadro de dois — e a tela prometeria uma Final entre os dois primeiros a
+            // classificar. Do BANCO, e não da lista recebida: ela pode vir filtrada por time ou
+            // categoria, e um jogo de grupo pendente que o filtro tirou faria a categoria parecer
+            // fechada.
+            var gruposEmAberto = await _context.Partidas
+                .Where(p => p.TorneioId == torneioId && p.Status != "Finalizada"
+                         && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                .Select(p => p.CategoriaId)
+                .Distinct()
+                .ToListAsync();
+
+            var deMataMata = partidas
+                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
+                         && !gruposEmAberto.Contains(p.CategoriaId))
+                .ToList();
             var cadeias = new List<ProximasFasesDaChave.CadeiaDeFases>();
+
+            // Os jogos de grupo COM as duplas carregadas: é deles que sai o nome de quem já
+            // classificou (Services/ClassificadosJaConhecidos). A lista recebida pode vir
+            // filtrada por time ou categoria, e meia fase de grupos daria meia classificação.
+            var pontosDoDesempatePorCategoria = new Dictionary<int, IReadOnlyDictionary<int, int>>();
+            var jogosDeGrupoPorCategoria = (await _context.Partidas
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                    .Where(p => p.TorneioId == torneioId
+                             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                    .ToListAsync())
+                .GroupBy(p => p.CategoriaId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // Quantos jogos da abertura já nasceram em cada categoria que ainda está em grupos:
+            // a prévia promete só o que FALTA, sem repetir o que já está na lista de jogos.
+            var aberturaJaCriada = partidas
+                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
+                         && gruposEmAberto.Contains(p.CategoriaId))
+                .GroupBy(p => p.CategoriaId)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             // Categoria AINDA NA FASE DE GRUPOS: não há jogo de mata-mata nenhum de onde
             // partir, então a projeção começa nas COLOCAÇÕES ("1º do Grupo A × 2º do Grupo
@@ -1104,6 +1171,17 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
+                // ⚠️ O ranking do desempate de grupo, e ele vai TAMBÉM pra view: o
+                // `ClassificadosJaConhecidos.De` é síncrono e a prévia da chave o chama de
+                // dentro do Razor, que não tem como buscar. Ordenar lá sem os pontos poria na
+                // vaga um nome diferente do que o robô vai pôr — a tela prometendo um confronto
+                // que o sábado não faz. Buscado só se algum grupo empatar até o ranking.
+                var pontosParaODesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                    categoria.GruposTorneio.Select(g => (IReadOnlyList<Dupla>)g.Duplas.ToList()).ToList(),
+                    jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
+                    _estatisticas.ObterPontosPorJogadorAsync);
+                pontosDoDesempatePorCategoria[categoria.Id] = pontosParaODesempate;
+
                 DateTime? fimDosGrupos =
                     fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
                         ? fim : null;
@@ -1115,14 +1193,24 @@ namespace Padelizou.Controllers
                     fimDosGrupos,
                     categoria.Nome,
                     categoria.Id,
-                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList()));
+                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
+                    categoria.CruzamentoDoMataMata,
+                    aberturaJaCriada.GetValueOrDefault(categoria.Id),
+                    // 🗣️ *"o Grupo B já está definido, então já pode mudar, na semifinal o 1º do
+                    // B e o 2º do B"*: fechado o grupo, a colocação vira nome na prévia.
+                    ClassificadosJaConhecidos.De(
+                        gruposEmOrdem,
+                        jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
+                        ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                        pontosParaODesempate)));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
             // duplas que nunca vão se enfrentar.
             foreach (var porCategoria in deMataMata.GroupBy(p => p.CategoriaId))
             {
-                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key);
+                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key,
+                    _estatisticas.ObterPontosPorJogadorAsync);
                 var nomePorDupla = porCategoria
                     .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
                     .DistinctBy(d => d.Id)
@@ -1144,6 +1232,10 @@ namespace Padelizou.Controllers
                     porCategoria.First().Categoria.Nome,
                     porCategoria.Key));
             }
+
+            // A prévia da chave é desenhada no Razor, e o `ClassificadosJaConhecidos.De` de lá
+            // precisa dos MESMOS pontos que o robô usa — ver o comentário no laço acima.
+            ViewBag.PontosDoDesempatePorCategoria = pontosDoDesempatePorCategoria;
 
             if (cadeias.Count == 0) return new();
 
@@ -1393,10 +1485,13 @@ namespace Padelizou.Controllers
                     .Select(s => s.PartidaId)
                     .ToListAsync()).ToHashSet()
                 : new HashSet<int>();
-            // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
-            // de flutuar em ordem arbitrária no meio da lista.
+            // DA MAIS RECENTE FINALIZADA PRA MAIS ANTIGA (Felipe, 11/09/2026). A régua do
+            // "quando este jogo aconteceu" é uma só e mora em Services/DuracaoDoJogo — aqui ela
+            // parava em `HorarioFimReal ?? HorarioPrevisto`, sem o passo do meio: o jogo que
+            // entrou em quadra e teve o placar lançado sem carimbo de fim voltava pro horário do
+            // SORTEIO e afundava abaixo de jogos que acabaram antes de ele começar.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
-                .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
+                .OrderByDescending(DuracaoDoJogo.Quando).ThenByDescending(p => p.Id).ToList();
             // ⚠️ A FILA SAI DE Services/OrdemNoHorario, E NÃO DE UM `OrderBy(HorarioPrevisto)` SOLTO
             // (10/09/2026). Aquele ordenava só pela hora, sobre uma lista que veio do Postgres SEM
             // `ORDER BY`: dois jogos no mesmo minuto saíam na ordem que o banco quisesse — e ela
@@ -1615,7 +1710,7 @@ namespace Padelizou.Controllers
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }
 
-            // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
+            // PALPITÔMETRO: resumo de votos de cada partida exibida, num único lote.
             int? meuId = User.Identity?.IsAuthenticated == true
                 ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
                 : null;

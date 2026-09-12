@@ -913,6 +913,18 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-live-jogadores a,
 .pdz-live-jogadores a * { color: #fff !important; }
 .pdz-live-jogadores small { opacity: .7; }
+/* ⚠️ O NOME É QUEM CEDE O ESPAÇO NESTA LINHA (12/09/2026). O `min-width: 0` do bloco acima
+   não chega até aqui: dentro do chip, o texto é item de flex com `min-width: auto` e exige a
+   palavra inteira — então ele vazava PRA DIREITA, em cima da mesma bolinha do saque que o
+   −/+ invadia pela esquerda. Trocar um transbordo pelo outro não é conserto.
+   Não vale pra tabela do grupo, que tem a solução dela (`.pdz-chip-compacto`, com reticências
+   em vez de quebra): aqui o nome tem duas linhas pra usar, e cortá-lo seria pior. */
+.pdz-live-jogadores .pdz-chip-texto { min-width: 0; }
+/* E `break-word` porque nome de uma palavra só (um sobrenome comprido) ignora `min-width: 0`:
+   sem poder quebrar DENTRO da palavra, ela sai da caixa do mesmo jeito. Só no aperto — o
+   `break-word` não muda a largura que o texto PEDE, só o que ele faz quando não recebe. */
+.pdz-live-jogadores .pdz-chip-nome,
+.pdz-live-jogadores .pdz-chip-clube { overflow-wrap: break-word; }
 .pdz-live-placar {
     /* Sets e games LADO A LADO (antes o games ficava empilhado embaixo). */
     display: flex;
@@ -925,6 +937,25 @@ a:hover { color: var(--pdz-lime-600); }
     min-width: 2.4rem;
     text-align: center;
     line-height: 1;
+
+    /* ⚠️ E NÃO ENCOLHE (12/09/2026 — 🗣️ Felipe, num print do jogo ao vivo: "A bolinha ta em
+       cima do placar"). Item de flex encolhe por padrão, e o piso que o navegador dá de graça
+       pra isso não passar do conteúdo (`min-width: auto`) estava DESLIGADO pelo `min-width:
+       2.4rem` da linha acima — que existe pro card do torcedor, onde aqui mora só um número.
+       Com o −/+ do organizador dentro, o bloco encolhia pra menos do que ele: medido no
+       Chromium a 393px, 133,2px de conteúdo num bloco de 97,2px.
+
+       E o transbordo sai pelo lado ERRADO: com `justify-content: flex-end` o que não cabe
+       vaza pela ESQUERDA, que é onde está a bolinha do saque — o `−` começava 14,6px antes de
+       a bola terminar (37,1px na faixa do tablet, onde a bola sumia inteira debaixo dele).
+       Quem cede o espaço agora é o nome, que sabe quebrar linha.
+
+       ⚠️ O TETO DESTA ESCOLHA: num celular de 320px o nome do ORGANIZADOR fica com ~70px e
+       empilha feio (o card vai a ~767px de altura). Fica assim de propósito — quem vê o −/+ é
+       só quem marca placar, e pro torcedor o bloco continua sendo um número de 2.4rem (nome
+       com 153px no mesmo 320px, medido). A saída, se um dia doer: descer o placar pra linha
+       de baixo num `@media (max-width: 359.98px)`. */
+    flex-shrink: 0;
 }
 /* Games = placar principal (0 a 9). Sets = secundário, menor, ao lado. */
 .pdz-live-games {
@@ -958,11 +989,11 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-live-video iframe { border: 0; }
 
-/* O palpitrômetro, embaixo da transmissão. O padding é DELE, e não do `.card-body` do
+/* O palpitômetro, embaixo da transmissão. O padding é DELE, e não do `.card-body` do
    Bootstrap: `.pdz-live-card` não é `.card`, então lá dentro `--bs-card-spacer-x/y` não
    existem e o padding do `.card-body` cai pra zero sem avisar (11/09/2026). Os 1.1rem dos
    lados são os mesmos do `.pdz-live-header` e do `.pdz-live-video-label` — é o que alinha o
-   rótulo "Palpitrômetro" com o "Transmissão" logo acima. */
+   rótulo "Palpitômetro" com o "Transmissão" logo acima. */
 .pdz-live-palpite { padding: .5rem 1.1rem 1rem; }
 
 /* Fundo suave usado em vários cards utilitários */
@@ -1174,7 +1205,7 @@ button, a, input, select { touch-action: manipulation; }
 }
 .bracket-team.winner .team-name { font-weight: 800 !important; }
 
-/* Palpitrômetro */
+/* Palpitômetro */
 .palpite-opcao.votavel {
     cursor: pointer;
     border-radius: 6px;
@@ -1183,7 +1214,7 @@ button, a, input, select { touch-action: manipulation; }
     transition: background-color .15s ease;
 }
 .palpite-opcao.votavel:hover { background-color: var(--pdz-navy-50, #eef2f8); }
-.pdz-palpitrometro .progress-bar { transition: width .3s ease; }
+.pdz-palpitometro .progress-bar { transition: width .3s ease; }
 .pdz-palpite-barra-wrap { position: relative; padding-top: 18px; }
 .pdz-palpite-pct-badge {
     position: absolute;
@@ -1478,7 +1509,7 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-confirmar-ok.pdz-confirmar-ok-perigo:hover { background: #c9302c; }
 
 /* ── Jogo em linha (Agendadas e Finalizadas) ───────────────────────────────
-   O cartão grande — placar gigante, chips com foto, palpitrômetro aberto — é pra UM
+   O cartão grande — placar gigante, chips com foto, palpitômetro aberto — é pra UM
    jogo acontecendo agora, onde a tela tem um assunto só. Numa lista de 48 agendados
    ele virava uma parede: cada jogo ocupava meia tela e ver a grade do dia exigia
    rolar sem parar. Aqui cabe o que se procura numa lista: quando, contra quem, e se
@@ -1491,7 +1522,7 @@ button, a, input, select { touch-action: manipulation; }
 
 /* ── Jogo em linha (Agendadas/Finalizadas — Views/Torneios/_JogoEmLinha) ──────
    Duplas LADO A LADO com o "×" no meio (é como se lê um confronto em qualquer
-   lugar) e o palpitrômetro embaixo, ocupando a linha inteira.
+   lugar) e o palpitômetro embaixo, ocupando a linha inteira.
    Bloco ÚNICO de propósito: este componente já teve duas definições concorrentes
    neste arquivo, e a metade morta escondia o porquê de o "×" flutuar no meio. */
 .pdz-jogo-linha {
@@ -1614,9 +1645,9 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-jogo-linha-time:not(.pdz-jogo-linha-time-esq) .pdz-jogo-linha-games { order: 2; }
 }
 
-/* Palpitrômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
+/* Palpitômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
    entre elas. A versão grande (Ao Vivo) mostra só o lado que lidera; aqui os dois
-   números SÃO o palpitrômetro. Comportamento em wwwroot/js/palpitrometro.js. */
+   números SÃO o palpitômetro. Comportamento em wwwroot/js/palpitometro.js. */
 .pdz-palpite-linha {
     display: flex;
     align-items: center;
@@ -1664,114 +1695,27 @@ button, a, input, select { touch-action: manipulation; }
    O caminho até a final com as LINHAS mostrando de onde vem cada vaga, no lugar das quatro
    colunas soltas que a tela teve até 11/09/2026.
 
-   SÃO DOIS DESENHOS DA MESMA CHAVE, e a escolha é do Felipe:
-     · computador (`.pdz-arv`) — de cima pra baixo, a chave inteira à vista;
-     · celular (`.pdz-chd`)    — deitada e arrastável da esquerda pra direita, a rodada atual em
-                                 dois terços da tela e a seguinte espiando na beirada, como a
-                                 chave da Libertadores no Google.
+   É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA (`.pdz-chd`), nas duas telas. O que muda por
+   largura é só o TRILHO:
+     · celular    — cada rodada em 66% da tela, com encaixe (`scroll-snap`): a seguinte fica
+                    espiando na beirada, como a chave da Libertadores no Google;
+     · computador — rodada de largura FIXA e a chave inteira à vista, sem encaixe nenhum.
 
-   ⚠️ A GEOMETRIA DOS DOIS É A MESMA CONTA (Services/ArvoreDaChave): coluna e largura de cada
-   jogo. No computador viram COLUNAS da grade, no celular LINHAS — e a ligação usa as mesmas
-   porcentagens, só trocando o eixo. Marcação em Views/Torneios/_ChaveProjetadaArvore.cshtml.
+   ⚠️ A GEOMETRIA É A CONTA DE Services/ArvoreDaChave com o eixo deitado: "coluna/largura" de lá
+   viram linha inicial e quantas linhas a vaga ocupa. Marcação em
+   Views/Torneios/_ChaveProjetadaArvore.cshtml.
 
-   ⚠️ A ÁRVORE ANTERIOR (também `.pdz-arv`) foi tentada e abandonada em 05/08/2026 porque
-   crescia pra LARGURA: numa chave de 32 ela tinha 16 jogos de largura e não cabia em tela
-   nenhuma. Ficou de CSS morto até hoje, sem view nenhuma, e o que está aqui é outra coisa —
-   esta cresce pra baixo no computador e é arrastável no celular, que são as duas direções em
-   que a tela tem espaço de sobra. */
+   ⚠️ AQUI MORAVA UM SEGUNDO DESENHO, `.pdz-arv`, de cima pra baixo no computador — uma grade de
+   N colunas, N = jogos da rodada mais larga. Ele foi apagado em 11/09/2026, no mesmo dia em que
+   nasceu, porque é ele que produzia o ESTICADO do print do Felipe: com 2 grupos a chave tem 2
+   colunas, cada uma metade do monitor, e o cartão de "1º do Grupo A" ficava com ~870px. Deitado,
+   a coluna tem 17rem e a chave cresce pro lado — que é a direção onde sobra espaço.
 
-/* ---- COMPUTADOR: de cima pra baixo ---- */
-.pdz-arv-rolagem {
-    overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
-    padding-bottom: .5rem;
-}
+   ⚠️ E ANTES DELE, em 05/08/2026, houve OUTRO `.pdz-arv` — aquele deitava mas punha cada JOGO
+   numa coluna (16 colunas numa chave de 32). Aqui é a RODADA que é coluna: 32 duplas dão 5
+   colunas, não 16. Os dois erros anteriores são o mesmo erro, e é este parágrafo que evita o
+   terceiro. */
 
-/* Uma grade de N colunas (N = jogos da rodada mais larga). Cada vaga ocupa as colunas dos jogos
-   que a alimentam, e é isso que a centraliza sobre eles — sem uma conta de pixel. */
-.pdz-arv {
-    display: grid;
-    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(8.5rem, 1fr));
-    min-width: min-content;
-}
-
-.pdz-arv-fase {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: baseline;
-    gap: .45rem;
-    font-size: .72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--pdz-ink);
-    border-bottom: 1px solid var(--pdz-border);
-    padding-bottom: .3rem;
-    margin: .85rem .25rem .1rem;
-}
-
-.pdz-arv > .pdz-arv-fase:first-child { margin-top: 0; }
-
-.pdz-arv-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
-
-.pdz-arv-celula {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding: 0 .25rem;
-}
-
-.pdz-arv-celula > .pdz-chave-vaga { flex: 1 1 auto; }
-
-/* A ligação com os jogos de cima, desenhada em % da PRÓPRIA célula: o `::before` é uma caixa
-   que vai do centro de um alimentador ao do outro (`--a` e `--hw`) e desenha os dois talos mais
-   a linha que os junta; o `::after` desce do meio até esta vaga. Funciona igual numa vaga de 2
-   colunas e numa de 16, porque não há nenhum pixel na conta. */
-.pdz-arv-liga {
-    position: relative;
-    display: block;
-    flex: 0 0 22px;
-    height: 22px;
-}
-
-.pdz-arv-liga::before {
-    content: "";
-    position: absolute;
-    left: var(--a);
-    width: var(--hw);
-    top: 0;
-    height: 50%;
-    border: 2px solid var(--pdz-linha-chave);
-    border-top: 0;
-}
-
-.pdz-arv-liga::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    margin-left: -1px;
-    top: 50%;
-    height: 50%;
-    border-left: 2px solid var(--pdz-linha-chave);
-}
-
-/* Vaga alimentada por UM jogo só — o outro lado passou direto. Talo reto: não há dois pontos
-   pra juntar, e o cotovelo desenharia um bico apontando pro nada. */
-.pdz-arv-liga-reta::before { display: none; }
-.pdz-arv-liga-reta::after { top: 0; height: 100%; }
-
-.pdz-arv-trofeu-celula { grid-column: 1 / -1; }
-
-/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
-
-   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
-   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
-   destaque sumiria calado. */
-.pdz-chave-vaga.pdz-arv-final {
-    border-color: var(--padel-green);
-    background: rgba(163, 216, 39, .10);
-}
-
-/* ---- CELULAR: deitada, arrastável da esquerda pra direita ---- */
 .pdz-chd { display: flex; flex-direction: column; gap: .55rem; }
 
 .pdz-chd-fichas {
@@ -1845,6 +1789,9 @@ button, a, input, select { touch-action: manipulation; }
     overflow: hidden;
 }
 
+/* A contagem de jogos ao lado do nome da fase: mesmo peso do cabeçalho, cor de apoio. */
+.pdz-chd-conta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--pdz-muted); }
+
 /* Todas as rodadas têm o MESMO número de linhas (a largura da chave), então as faixas ficam
    alinhadas de uma coluna pra outra e a ligação aponta pro cartão certo. Quem ocupa mais de
    uma faixa é a vaga que junta duas — e é assim que ela nasce centralizada. */
@@ -1902,6 +1849,39 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-muted);
     text-align: center;
     margin: 0;
+}
+
+@media (min-width: 768px) { /* prévia do mata-mata no computador */
+    /* A CHAVE INTEIRA À VISTA, e o cartão com TAMANHO. `fit-content` + margem automática
+       centraliza enquanto cabe e vira 100% quando não cabe — `justify-content: center` num
+       container que rola esconderia o começo da chave, sem barra pra voltar. */
+    .pdz-chd-trilho {
+        width: fit-content;
+        max-width: 100%;
+        margin-inline: auto;
+        scroll-snap-type: none;   /* encaixe é gesto de dedo; com mouse ele só atrapalha */
+    }
+
+    /* Sem a folga do fim: ela existe pro celular alcançar a última rodada rolando. */
+    .pdz-chd-trilho::after { content: none; }
+
+    /* 📏 17rem, MEDIDO NO CHROMIUM com este arquivo a 1440px, e não escolhido no olho: a linha
+       `.pdz-chave-quando` é `nowrap; overflow: hidden` SEM reticências, então cartão apertado
+       come o nome do clube calado. Cartão de 264px → "Er Padel · Arena Loja 7" cabe inteiro;
+       a 16rem já perde 3px, a 13rem perde 51. Ver QuadroDaPreviaDeitaNasDuasTelasTests. */
+    .pdz-chd-rodada { flex: 0 0 17rem; }
+
+    .pdz-chd-rodada-trofeu { flex: 0 0 9rem; }
+}
+
+/* A final fecha o caminho: é a única vaga do quadro que ninguém alimenta.
+
+   ⚠️ DUAS CLASSES NO SELETOR, e não `.pdz-arv-final` sozinha: `.pdz-chave-vaga` também define
+   `border` e mora MAIS ABAIXO neste arquivo, então com a mesma especificidade ela venceria e o
+   destaque sumiria calado. */
+.pdz-chave-vaga.pdz-arv-final {
+    border-color: var(--padel-green);
+    background: rgba(163, 216, 39, .10);
 }
 
 /* ---- A vaga ----
@@ -2237,7 +2217,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-mm-fase:last-of-type .pdz-chave-vaga { font-size: .85rem; }
 
-/* O palpitrômetro em linha precisa PARECER clicável — antes ele era só um "50%" solto,
+/* O palpitômetro em linha precisa PARECER clicável — antes ele era só um "50%" solto,
    com o conjunto a 45% de opacidade quando ninguém tinha votado. Lido como desabilitado:
    a pessoa clicava, o voto entrava e a barra continuava apagada, então ela concluía que
    não era permitido palpitar. Agora quem pode votar vê uma pílula de verdade. */
@@ -2267,7 +2247,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     border-color: var(--pdz-lime);
 }
 
-/* ---- O bloco do palpitrômetro (embaixo do jogo em linha) ---- */
+/* ---- O bloco do palpitômetro (embaixo do jogo em linha) ---- */
 .pdz-palpite-bloco {
     margin-top: .5rem;
     padding-top: .45rem;
@@ -2294,7 +2274,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-palpite-total { margin-left: auto; font-weight: 700; }
 
-/* Na linha inteira o palpitrômetro respira: a barra ocupa o espaço todo. */
+/* Na linha inteira o palpitômetro respira: a barra ocupa o espaço todo. */
 .pdz-palpite-bloco .pdz-palpite-linha { flex: 1 1 auto; gap: .5rem; }
 .pdz-palpite-bloco .pdz-palpite-barra { display: block; height: 8px; }
 .pdz-palpite-bloco .pdz-palpite-pct { font-size: .76rem; min-width: 2.6rem; }
@@ -2896,7 +2876,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
    porque quem digita no balcão está de pé, com o celular numa mão — campo pequeno aqui é
    erro de digitação com a quadra esperando. */
 .pdz-live-input {
-    width: 2.2em;
+    /* 1.7em = 48px, e não os 2.2em (63px) de antes (12/09/2026). Travado o bloco do placar
+       contra o encolhimento, a largura dele virou ORÇAMENTO: no celular de 393px sobram
+       ~299px pra linha inteira, e cada pixel daqui sai do nome do jogador. O campo guarda no
+       máximo dois dígitos (o teto de games mais alto do sistema) e 48px sobram pra eles —
+       enquanto 2.2em deixavam o nome mais comprido de hoje partir no meio da palavra
+       ("Bittencour / t", visto no Chromium). O alvo do dedo continua sendo o −/+ do lado. */
+    width: 1.7em;
     text-align: center;
 
     /* ⚠️ FUNDO ESCURO FIXO, e não `var(--pdz-surface)` (11/09/2026). O cabeçalho do card é
@@ -3021,10 +3007,18 @@ a.pdz-grupo-jogo[href]:focus-visible {
     margin-bottom: .5rem;
 }
 
+/* ⚠️ GRID, E NÃO FLEX COM QUEBRA (11/09/2026). A linha da duração precisa cair EMBAIXO da
+   hora, e o jeito óbvio — `flex-wrap: wrap` mais um filho de `flex-basis: 100%` — MEDE errado:
+   sem largura definida, o navegador dimensiona a caixa pelo max-content SOMANDO os dois numa
+   linha só, e ela passava de 119px pra 237px. Medido no Chromium: a 600px de tela isso
+   empurrava as etiquetas de categoria/fase/quadra pra uma segunda linha que antes não existia
+   — exatamente o "não podemos poluir muito" do pedido. No grid a largura é a da MAIOR linha. */
 .pdz-jl-quando {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
     align-items: baseline;
-    gap: .35rem;
+    gap: .1rem .35rem;
     color: var(--pdz-ink);
     font-size: .82rem;
 }
@@ -3037,6 +3031,23 @@ a.pdz-grupo-jogo[href]:focus-visible {
    nenhum. Quem lê está de pé, no clube, com o celular numa mão. */
 .pdz-jl-quando strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .pdz-jl-quando span { color: var(--pdz-muted); font-size: .8rem; }
+
+/* COMEÇOU–TERMINOU · DUROU, debaixo do horário previsto (Felipe, 11/09/2026). É o dado que
+   EXPLICA a ordem das Finalizadas, que é pelo fim real — sem ele a lista parecia embaralhada.
+
+   ⚠️ O seletor precisa dos DOIS pontos (`.pdz-jl-quando .pdz-jl-durou`): `.pdz-jl-quando span`
+   ali em cima é classe + tipo, e empataria com uma classe sozinha — no empate ganha quem vem
+   depois, e a fonte da duração viraria a de .8rem da data.
+
+   `grid-column: 1 / -1` é o que põe a linha inteira embaixo da hora e do dia; `nowrap` impede
+   que "19:42–20:31 · 49 min" quebre no meio num celular estreito. */
+.pdz-jl-quando .pdz-jl-durou {
+    grid-column: 1 / -1;
+    color: var(--pdz-muted);
+    font-size: .7rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
 
 .pdz-jl-etiquetas {
     display: flex;
@@ -3204,7 +3215,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 /* ── Confronto EMPILHADO na lista, em qualquer tamanho de tela ─────────────
    Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
    pra ler quem joga contra quem. Empilhado, cada dupla é uma linha — rosto, nome e,
-   quando há palpitrômetro, a PORCENTAGEM DELA na ponta direita. É isso que faz o
+   quando há palpitômetro, a PORCENTAGEM DELA na ponta direita. É isso que faz o
    número apontar pra uma dupla, em vez de o leitor adivinhar se os 100% da esquerda
    são de quem está em cima. */
 .pdz-jl-corpo {
@@ -3213,7 +3224,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     gap: .2rem;
 
     /* O corpo carrega `pdz-palpite-linha` porque é assim que o JS reconhece a versão em
-       linha do palpitrômetro (ver _JogoEmLinha). Aquela classe foi desenhada pra uma faixa
+       linha do palpitômetro (ver _JogoEmLinha). Aquela classe foi desenhada pra uma faixa
        horizontal e traz `align-items: center` + `flex-basis`, que aqui centralizariam as
        linhas do confronto em vez de esticá-las. Anulados na fonte pra ninguém precisar
        descobrir isso de novo. */
@@ -3240,7 +3251,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-jl-dupla .pdz-jl-games { margin-left: auto; }
 .pdz-jl-dupla .pdz-jl-games + .pdz-palpite-pct { margin-left: .5rem; }
 
-/* Rodapé do palpitrômetro: o rótulo, a barra e o total de votos numa linha fina. */
+/* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */
 .pdz-jl-palpite {
     display: flex;
     align-items: center;
@@ -3285,7 +3296,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     .pdz-palpite-ajuda { display: none; }
 }
 
-/* O rótulo do palpitrômetro EM CIMA da coluna de porcentagens — ali ele nomeia os
+/* O rótulo do palpitômetro EM CIMA da coluna de porcentagens — ali ele nomeia os
    números que estão logo abaixo. Antes era um rodapé com rótulo + barra + votos:
    uma altura inteira de linha pra dizer o que os dois números já dizem. */
 .pdz-jl-palpite-topo {
@@ -3367,7 +3378,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 }
 
 /* O cabeçalho de cada dupla no modal é um BOTÃO que dobra aquele lado — parece texto até o
-   hover, como o "N voto(s)" do palpitrômetro. */
+   hover, como o "N voto(s)" do palpitômetro. */
 .pdz-votantes-dupla {
     border: 0;
     background: none;

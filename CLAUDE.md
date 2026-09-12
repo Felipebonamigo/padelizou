@@ -154,11 +154,11 @@ sem ter rodado o comando **naquele mesmo turno** e lido a saída. "Deveria funci
 ```bash
 dotnet build Padelizou.slnx -c Release --nologo
 dotnet test Padelizou.slnx -c Release --no-build --nologo   # ~35-40s, ~4750 testes
-node Padelizou.Tests/js/conferir-palpitrometro.js          # o JS que o dotnet test não vê
+node Padelizou.Tests/js/conferir-palpitometro.js          # o JS que o dotnet test não vê
 ```
 
 O `node` é o único passo de JS: o `dotnet test` não enxerga arquivo `.js`, e o CI reprova o
-build se esta conferência cair. Quem mexer no `palpitrometro.js` roda antes de commitar.
+build se esta conferência cair. Quem mexer no `palpitometro.js` roda antes de commitar.
 
 Zero teste vermelho pra commitar. Sem terminal/browser pra ver a UI nesta sessão — não
 declare "funciona" sem rodar a suíte.

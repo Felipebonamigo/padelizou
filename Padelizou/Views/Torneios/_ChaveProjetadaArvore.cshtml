@@ -1,23 +1,17 @@
-@model (Padelizou.Services.ArvoreDaChave.Quadro Quadro, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem> Previstos)
+@model (Padelizou.Services.ArvoreDaChave.Quadro Quadro, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem> Previstos, int Categoria)
 @*
     A PRÉVIA do mata-mata como ÁRVORE — o caminho até a final com as linhas mostrando de onde
     vem cada vaga, no lugar das quatro colunas soltas que a tela tinha até 11/09/2026.
 
-    SÃO DOIS DESENHOS DA MESMA CHAVE, e a escolha é do Felipe (11/09/2026):
-      · computador — de cima pra baixo, a chave inteira à vista;
-      · celular    — DEITADA e arrastável da esquerda pra direita, a rodada atual ocupando dois
-                     terços da tela e a seguinte espiando na beirada, como a chave da
-                     Libertadores no Google. É o que responde "ganhei, e agora?" sem tocar em nada.
+    É UM DESENHO SÓ, DEITADO DA ESQUERDA PRA DIREITA, nas duas telas (Felipe, 11/09/2026:
+    *"melhor fazer também da esquerda pra direita, ficará mais alinhado"*, desfazendo a escolha
+    de horas antes, de cima pra baixo no computador). A rodada é uma COLUNA de largura fixa; o
+    que muda por tamanho de tela é só o trilho — encaixe e arrasto no celular, e nada disso no
+    computador, onde a chave inteira cabe.
 
-    ⚠️ OS DOIS SAEM DA MESMA CONTA (Services/ArvoreDaChave): coluna e largura de cada jogo. No
-    computador elas viram COLUNAS da grade; no celular, LINHAS. Até a ligação usa as mesmas quatro
-    porcentagens (--a, --b, --hl, --hw) — o CSS só troca o eixo. Duas contas divergiriam no dia em
-    que a regra do cruzamento mudasse, e aí os dois desenhos contariam histórias diferentes.
-
-    ⚠️ POR QUE NÃO É `space-around` NO CELULAR: parece que bastaria espalhar os cartões de cada
-    rodada. Não basta — com 5 grupos a segunda rodada tem MAIS jogos que a primeira (2 jogos + 6
-    byes = 8 entrantes = 4 jogos), e qualquer geometria que suponha "a próxima tem metade" aponta
-    pro lugar errado. A conta de coluna/largura acerta os dois casos porque não supõe nada.
+    ⚠️ A GEOMETRIA É A CONTA DE Services/ArvoreDaChave, com o eixo deitado: "coluna/largura" de
+    lá viram linha inicial e quantas linhas a vaga ocupa. A ligação usa as mesmas porcentagens
+    (--a, --hw). Conta repetida na view divergiria no dia em que a regra do cruzamento mudasse.
 
     ⚠️ QUEM PASSOU DIRETO NÃO GANHA SELO (pedido do Felipe): aparece só pelo nome, e a ausência
     de linha chegando na vaga é o que conta que ele não jogou a rodada anterior.
@@ -86,51 +80,43 @@
     }
 }
 
-@* ── COMPUTADOR: de cima pra baixo ───────────────────────────────────────────────
-   Uma grade de N colunas (N = jogos da rodada mais larga). Cada vaga ocupa as colunas dos jogos
-   que a alimentam, e é isso que a centraliza sobre eles — sem cálculo de pixel. O rótulo da fase
-   e cada faixa de vagas ganham LINHA EXPLÍCITA: com posicionamento automático, uma vaga larga
-   empurraria a seguinte pra linha de baixo. *@
-<div class="pdz-arv-rolagem d-none d-md-block">
-    <div class="pdz-arv" style="--pdz-arv-colunas:@quadro.Colunas">
-        @for (int r = 0; r < quadro.Rodadas.Count; r++)
-        {
-            var rodada = quadro.Rodadas[r];
-            <div class="pdz-arv-fase" style="grid-row:@(2 * r + 1)">
-                @rodada.Fase
-                <span class="pdz-arv-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
-            </div>
-            @foreach (var vaga in rodada.Vagas)
-            {
-                <div class="pdz-arv-celula" style="grid-row:@(2 * r + 2);grid-column:@(vaga.Coluna + 1) / span @vaga.Largura">
-                    @if (quadro.Ligacao(vaga) is { } liga)
-                    {
-                        <span class="pdz-arv-liga @(liga.Reta ? "pdz-arv-liga-reta" : "")" style="@liga.Estilo"></span>
-                    }
-                    @{ Cartao(vaga); }
-                </div>
-            }
-        }
-        <div class="pdz-arv-celula pdz-arv-trofeu-celula" style="grid-row:@(2 * quadro.Rodadas.Count + 1)">
-            <span class="pdz-arv-liga pdz-arv-liga-reta"></span>
-            <div class="pdz-chave-trofeu">
-                <i class="bi bi-trophy-fill" style="font-size: 2.4rem; color: #e0a800;"></i>
-                <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-                <div class="text-muted small">Aguardando...</div>
-            </div>
-        </div>
-    </div>
-</div>
+@* ── O QUADRO: deitado da esquerda pra direita, nas duas telas ──────────────────
+   Cada RODADA é uma coluna e cada vaga ocupa as LINHAS dos jogos que a alimentam — é isso que
+   a centraliza sobre eles, sem cálculo de pixel. A conta é a de Services/ArvoreDaChave: o que
+   lá é "coluna/largura" aqui vira linha inicial e quantas linhas ocupa.
 
-@* ── CELULAR: deitada, arrastável da esquerda pra direita ────────────────────────
-   A MESMA árvore com os eixos trocados: o que no computador é coluna, aqui é linha. Cada rodada
-   é uma coluna de 66% da tela — a seguinte fica espiando na beirada, que é o que mostra pra onde
-   o vencedor vai antes de alguém arrastar. O encaixe é `scroll-snap`, sem JS. *@
-<div class="pdz-chd d-md-none">
-    <nav class="pdz-chd-fichas" aria-label="Ir para uma rodada do mata-mata">
+   ⚠️ ERA DE CIMA PRA BAIXO NO COMPUTADOR até 11/09/2026, e o Felipe desfez no mesmo dia
+   (*"melhor fazer também da esquerda pra direita, ficará mais alinhado"*). O desenho antigo era
+   uma grade de N colunas, N = jogos da rodada mais larga: com 2 grupos davam 2 colunas, cada
+   uma METADE do monitor — cartão de ~870px pra escrever "1º do Grupo A". Deitado, a coluna tem
+   largura fixa (17rem, medida) e a chave cresce pro lado, que é onde a rodada a mais cabe.
+
+   ⚠️ POR QUE NÃO É `space-around` DENTRO DA RODADA: parece que bastaria espalhar os cartões.
+   Não basta — com 5 grupos a segunda rodada tem MAIS jogos que a primeira (2 jogos + 6 byes =
+   8 entrantes = 4 jogos), e qualquer geometria que suponha "a próxima tem metade" aponta pro
+   lugar errado. A conta de linha/altura acerta os dois casos porque não supõe nada.
+
+   O que muda por tamanho de tela é só o TRILHO: no celular ele encaixa (`scroll-snap`, sem JS)
+   com a rodada seguinte espiando na beirada; no computador a chave inteira está à vista. *@
+<div class="pdz-chd">
+    @* Atalho de rodada e dica de arrasto só no celular: no computador não há gesto nenhum
+       pra atalhar, e a chave inteira já está na tela.
+
+       ⚠️ O ID CARREGA A CATEGORIA, e não é enfeite: este partial é desenhado UMA VEZ POR
+       CATEGORIA (Details.cshtml, dentro do laço dos `.tab-pane`), e com `pdz-chd-rodada-@r` as
+       sete do ER escreviam os mesmos quatro ids. `href="#..."` acha o PRIMEIRO do documento —
+       que mora num painel escondido, e rolar pra invisível não faz nada. Era metade do
+       *"as vezes n funciona"* de 12/09/2026.
+
+       ⚠️ E QUEM ROLA É `js/chave-fichas.js`, NÃO A ÂNCORA: o trilho é `scroll-snap` mandatório
+       e a navegação por âncora alinha com `inline: nearest`, que para ENTRE dois pontos de
+       encaixe — o snap puxava de volta e a ficha parava uma rodada atrás. O `href` fica como
+       caminho de teclado e como o que sobra sem JS. Travado em
+       FichasDaChaveLevamARodadaCertaTests. *@
+    <nav class="pdz-chd-fichas d-md-none" aria-label="Ir para uma rodada do mata-mata">
         @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
-            <a class="pdz-chd-ficha" href="#pdz-chd-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
+            <a class="pdz-chd-ficha" href="#pdz-chd-@(Model.Categoria)-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
         }
     </nav>
 
@@ -138,10 +124,10 @@
         @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
             var rodada = quadro.Rodadas[r];
-            <div class="pdz-chd-rodada" id="pdz-chd-rodada-@r">
+            <div class="pdz-chd-rodada" id="pdz-chd-@(Model.Categoria)-rodada-@r">
                 <div class="pdz-chd-cab">
                     @rodada.Fase
-                    <span class="pdz-arv-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
+                    <span class="pdz-chd-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
                 </div>
                 <div class="pdz-chd-grade" style="--pdz-chd-linhas:@quadro.Colunas">
                     @foreach (var vaga in rodada.Vagas)
@@ -172,5 +158,5 @@
             </div>
         </div>
     </div>
-    <p class="pdz-chd-dica">Arraste de lado: a rodada seguinte encaixa.</p>
+    <p class="pdz-chd-dica d-md-none">Arraste de lado: a rodada seguinte encaixa.</p>
 </div>

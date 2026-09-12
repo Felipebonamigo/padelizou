@@ -43,7 +43,7 @@ public class ModalDeVotantesNoAppInstaladoTests
         // chega pra quem navega por teclado nem pro leitor de tela.
         Assert.Contains("<button", modal);
 
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
         Assert.Contains("function alternarVotantes", js);
 
         // A seta que diz se aquele lado está aberto ou fechado — sem ela o cabeçalho é um botão

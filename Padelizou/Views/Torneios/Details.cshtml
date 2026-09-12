@@ -92,20 +92,11 @@
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.ComVagaEmAberto(c.Duplas))
         .ToList();
 
-    // Nome curto de dupla: primeiro nome de cada um. Usado nas listas densas (jogos do
-    // grupo, chaveamento), onde nome completo estoura a largura e trunca os DOIS lados.
-    Func<Padelizou.Models.Dupla?, string> NomeCurtoDaDupla = d =>
-    {
-        if (d == null) return "A definir";
-        if (d.EhTime) return d.NomeTime ?? "Time";
-        var p1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
-        // ⚠️ "parceiro", e não "?" (09/09/2026): a inscrição sozinha passou a ENTRAR na chave,
-        // então este texto virou coisa que o inscrito lê sobre si mesmo, na tabela do grupo.
-        // "Paulo / ?" parece dado corrompido; "Paulo / parceiro" diz o que é — vaga em aberto,
-        // esperando o segundo nome. Cabe no orçamento de ~17 caracteres da coluna da chave.
-        var p2 = d.Jogador2 == null ? "parceiro" : d.Jogador2.ComoChamar.Split(' ')[0];
-        return $"{p1} / {p2}";
-    };
+    // Nome curto de dupla. A REGRA mora em `Dupla.NomeCurto` desde 11/09/2026 — ela vivia aqui
+    // e o serviço do "o que falta pra classificar" tinha a própria versão, com outra resposta:
+    // a mesma dupla ganhava dois nomes na mesma tela. Aqui sobra só o caso que é DA TELA: a
+    // vaga do mata-mata que ainda não tem dono.
+    Func<Padelizou.Models.Dupla?, string> NomeCurtoDaDupla = d => d?.NomeCurto ?? "A definir";
 
     // Texto da confirmação de sortear as chaves (o modal em _ModalConfirmar).
     // Quem fica de fora aparece POR NOME: "3 inscritos" não deixa ninguém reconhecer o amigo
@@ -676,7 +667,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 }
 
 @* ── OS PALPITEIROS ───────────────────────────────────────────────────────────────────
-   O Palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU.
+   O Palpitômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU.
    O ranking é derivado do que já estava lá — por isso nasce com histórico.
 
    🗣️ Felipe, 10/09/2026, olhando a lista de botões do topo: *"palpiteiros me parece
@@ -5694,7 +5685,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
         </div>
     }
-    <!-- ABA: PALPITEIROS (ranking do Palpitrômetro) -->
+    <!-- ABA: PALPITEIROS (ranking do Palpitômetro) -->
     @if (ViewBag.TemRankingDePalpiteiros == true)
     {
         <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
@@ -6251,9 +6242,35 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 var gruposDaCategoria = gruposEmOrdem.Select(g => g.Nome).ToList();
                                 @* O tamanho de cada grupo decide quem descansa — é assim que a
                                    prévia dá o bye a quem o robô dá (ChaveProjetada, 10/09/2026). *@
+                                @* E com o CRUZAMENTO DESENHADO, quando existe: sem ele o quadro
+                                   mostrava a semeadura do motor numa categoria que tem desenho,
+                                   prometendo um confronto que o sorteio não faria. *@
+                                @* 🗣️ *"o Grupo B já está definido, então já pode mudar, na
+                                   semifinal o 1º do B e o 2º do B"* — fechado o grupo, a
+                                   colocação vira NOME. Ver Services/ClassificadosJaConhecidos. *@
+                                var jogosDeGrupoDaCategoria = (ViewBag.JogosDeGrupo as List<Padelizou.Models.Partida>
+                                                               ?? new List<Padelizou.Models.Partida>())
+                                    .Where(p => p.CategoriaId == categoria.Id).ToList();
+                                @* ⚠️ Os pontos do desempate vêm do CONTROLLER (buscá-los aqui
+                                   exigiria await, que a view não tem). Sem eles, um grupo que
+                                   terminou empatado em tudo poria nesta vaga um nome diferente
+                                   do que o robô vai pôr. *@
+                                var pontosDoDesempate =
+                                    (ViewBag.PontosDoDesempatePorCategoria
+                                        as Dictionary<int, IReadOnlyDictionary<int, int>>)
+                                    ?.GetValueOrDefault(categoria.Id)
+                                    ?? Padelizou.Services.ClassificacaoDeGrupos.SemPontos;
+
+                                var jaConhecidosNoQuadro = Padelizou.Services.ClassificadosJaConhecidos.De(
+                                    gruposEmOrdem, jogosDeGrupoDaCategoria,
+                                    Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                    pontosDoDesempate);
+
                                 var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
                                     gruposDaCategoria, Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
-                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList());
+                                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
+                                    categoria.CruzamentoDoMataMata,
+                                    jaConhecidosNoQuadro);
 
                                 if (rodadasProjetadas.Count == 0)
                                 {
@@ -6327,8 +6344,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     @* O quadro com as linhas: no computador de cima pra baixo, no celular
                                        deitado e arrastável. A geometria dos dois é a mesma conta —
                                        ver Services/ArvoreDaChave e Views/Torneios/_ChaveProjetadaArvore. *@
+                                    @* ⚠️ A CATEGORIA VAI JUNTO porque o `id` de cada rodada é
+                                       construído com ela: este partial é desenhado uma vez por
+                                       categoria e, com id repetido, as fichas do celular pulavam
+                                       pro painel escondido da primeira. Ver
+                                       FichasDaChaveLevamARodadaCertaTests. *@
                                     <partial name="_ChaveProjetadaArvore"
-                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro)" />
+                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro, categoria.Id)" />
                                 }
                             }
                             else
@@ -6352,6 +6374,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         @* Troca o painel visível e LEMBRA a escolha (o porquê está no arquivo). *@
         <script src="~/js/seletor-de-categoria.js" asp-append-version="true"></script>
+        @* As fichas de rodada da prévia do mata-mata rolam o trilho da PRÓPRIA categoria — a
+           navegação por âncora parava uma rodada atrás por causa do encaixe. *@
+        <script src="~/js/chave-fichas.js" asp-append-version="true"></script>
         } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
       }
       else
@@ -6603,7 +6628,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 {
     <partial name="_ModalVerVotos" />
     <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
-    <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
+    <script src="~/js/palpitometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
     <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
@@ -7354,7 +7379,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
     🗣️ Felipe, 11/09/2026, com o print do Grupo C: *"permita clicar no aovivo e ir para a
     pagina do aovivo aonde esta o jogo"*. O card pequeno do grupo e o card grande com placar,
-    cronômetro e palpitrômetro moram na MESMA página, em abas diferentes — daí uma hash, e não
+    cronômetro e palpitômetro moram na MESMA página, em abas diferentes — daí uma hash, e não
     uma URL nova: nada recarrega, o <iframe> da transmissão não reinicia (é o motivo de
     js/jogos-ao-vivo-atualiza.js existir) e o botão de voltar devolve a pessoa ao grupo.
 

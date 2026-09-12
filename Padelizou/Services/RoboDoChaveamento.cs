@@ -26,8 +26,15 @@ namespace Padelizou.Services;
 public class RoboDoChaveamento
 {
     private readonly DbPadelContext _context;
+    // Os pontos do ranking, pro desempate de grupo (ClassificacaoDeGrupos). Consultados só
+    // quando algum grupo empata até eles — ver PontosSePrecisarAsync.
+    private readonly IEstatisticasService _estatisticas;
 
-    public RoboDoChaveamento(DbPadelContext context) => _context = context;
+    public RoboDoChaveamento(DbPadelContext context, IEstatisticasService estatisticas)
+    {
+        _context = context;
+        _estatisticas = estatisticas;
+    }
 
     // ===================================================================================
     // ROBÔ 1: FIM DA FASE DE GRUPOS → primeira rodada do mata-mata
@@ -41,6 +48,40 @@ public class RoboDoChaveamento
 
         if (categoria == null) return;
 
+        var partidasDeGrupo = await _context.Partidas
+            .Where(p => p.CategoriaId == categoriaId
+                     && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+            .ToListAsync();
+
+        // ── O AVANÇO PARCIAL DOS GRUPOS (11/09/2026) ─────────────────────────────────────
+        // 🗣️ Felipe: *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase
+        // conforme a classificação, não precisa necessariamente terminar todos os jogos dos
+        // outros grupos/chaves"*.
+        //
+        // ⚠️ SÓ COM O CRUZAMENTO DESENHADO, e por uma razão de régua: sem desenho, quem o 1º do
+        // Grupo A enfrenta sai da campanha COMPARADA de todos os grupos (MontarPrimeiraFase
+        // semeia o melhor contra o pior) — enquanto o Grupo D joga não dá pra saber se o 1º do A
+        // é o melhor ou o pior primeiro colocado, e o jogo criado cedo teria que ser desfeito.
+        // Com o desenho (Services/CruzamentoDoMataMata) a vaga é por COLOCAÇÃO, e fica conhecida
+        // no instante em que os dois grupos dela fecham. Decisão do Felipe entre as três saídas
+        // possíveis: vale só com desenho — sem ele o torneio (o Er) continua letra por letra.
+        if (CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata) is { } desenho)
+        {
+            await MontarAberturaDesenhadaAsync(categoria, torneioId, desenho, partidasDeGrupo);
+            return;
+        }
+
+        await MontarMataMataDosGruposSemDesenhoAsync(categoria, torneioId, partidasDeGrupo);
+    }
+
+    // O caminho de SEMPRE: a fase de grupos inteira fecha e o motor semeia a primeira rodada
+    // pela campanha comparada dos grupos. É o que vale pra toda categoria sem cruzamento
+    // desenhado — o Er inclusive.
+    private async Task MontarMataMataDosGruposSemDesenhoAsync(
+        Categoria categoria, int? torneioId, List<Partida> partidasDeGrupo)
+    {
+        int categoriaId = categoria.Id;
+
         // ⚠️ A FASE DE GRUPOS PRECISA TER ACABADO — e quem confere é o robô, não quem chama.
         //
         // A classificação (ClassificacaoDeGrupos) responde com o que tem: chamada no meio da
@@ -48,17 +89,9 @@ public class RoboDoChaveamento
         // sobre jogos que ainda nem aconteceram. Enquanto esta guarda ficou no CHAMADOR, uma
         // das duas telas a tinha e a outra podia não ter — que é o mesmo defeito que este
         // arquivo existe pra fechar.
-        bool aindaTemJogoDeGrupo = await _context.Partidas.AnyAsync(p =>
-            p.CategoriaId == categoriaId
-            && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
-            && p.Status != "Finalizada");
-        if (aindaTemJogoDeGrupo) return;
+        if (partidasDeGrupo.Any(p => p.Status != "Finalizada")) return;
 
-        var partidasFinalizadas = await _context.Partidas
-            .Where(p => p.CategoriaId == categoriaId
-                     && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
-                     && p.Status == "Finalizada")
-            .ToListAsync();
+        var partidasFinalizadas = partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList();
 
         // Evita gerar a chave duas vezes (ex: dois finalizamentos quase simultâneos).
         bool mataMataJaGerado = await _context.Partidas.AnyAsync(p =>
@@ -74,8 +107,10 @@ public class RoboDoChaveamento
         // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
         //    — a mesma que a tela de classificação e a detecção de bye usam.
         var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
+        var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasFinalizadas, _estatisticas.ObterPontosPorJogadorAsync);
         var classificados = ClassificacaoDeGrupos.Calcular(
-            duplasDosGrupos, partidasFinalizadas, classificamPorGrupo);
+            duplasDosGrupos, partidasFinalizadas, pontos, classificamPorGrupo);
 
         // 2. Motor único de chaveamento: TODO classificado avança; o quadro cresce pra caber
         //    todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes não ganham
@@ -107,6 +142,122 @@ public class RoboDoChaveamento
         await _context.SaveChangesAsync();
     }
 
+    // A ABERTURA DO MATA-MATA QUANDO O CRUZAMENTO FOI DESENHADO — grupo a grupo.
+    //
+    // O desenho diz o quadro inteiro por COLOCAÇÃO ("1A×2C|1B×2D;bye:1E"), então cada jogo
+    // depende só dos SEUS dois grupos: fechados os dois, a vaga tem dono e o jogo pode ir pra
+    // quadra enquanto o resto da categoria ainda joga.
+    //
+    // ⚠️ EM ORDEM DE QUADRO, como no avanço de fase: o jogo 2 só nasce depois do 1. A numeração
+    // da fase é a ordem de criação (ReservasDeHorario.NumeroNaFase, por Id) e dela dependem o
+    // desenho da chave, a procedência da prévia e a reserva de horário do organizador. Por isso
+    // o laço PARA no primeiro confronto que ainda não dá pra montar em vez de pular pro seguinte.
+    //
+    // ⚠️ E NADA AVANÇA ENQUANTO ESTA FASE ESTIVER PELA METADE — a trava mora em AvancoDaChave
+    // (sem a fase de grupos fechada não há bye nem vaga). Sem ela, um jogo de abertura terminado
+    // sozinho viraria uma lista de UMA vaga, que o robô de progressão batizaria de "Final".
+    private async Task MontarAberturaDesenhadaAsync(
+        Categoria categoria, int? torneioId, CruzamentoDoMataMata.Mapa desenho,
+        List<Partida> partidasDeGrupo)
+    {
+        // A régua única de quantas vagas cada grupo dá (ClassificacaoDeGrupos.VagasPorGrupo) —
+        // o `?? 2` na mão tem gate mecânico desde 11/09/2026.
+        int classificamPorGrupo = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
+
+        var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+
+        // Os pontos do desempate de grupo, buscados só se algum grupo empatar até o ranking
+        // (ClassificacaoDeGrupos). Aqui a conta PRECISA bater com a do mata-mata definitivo —
+        // é este método que cria os jogos da abertura desenhada.
+        var pontosDoDesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
+            _estatisticas.ObterPontosPorJogadorAsync);
+
+        // O desenho serve pra ESTA categoria? A conferência é sobre o conjunto de vagas
+        // (colocação × grupo), que não depende de resultado nenhum — então ela pode ser feita
+        // com a classificação provisória. Desenho que não serve é descartado e quem decide é o
+        // motor, como sempre: a categoria nunca fica sem mata-mata por causa de um texto torto.
+        var provisorios = ClassificacaoDeGrupos.Calcular(
+            duplasDosGrupos, partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
+            pontosDoDesempate, classificamPorGrupo);
+        if (CruzamentoDoMataMata.Conferir(desenho, provisorios) != null)
+        {
+            // Desenho que não serve NÃO adianta nada, mas também não pode atrapalhar: a
+            // categoria volta a ser exatamente o que era antes de alguém desenhar — espera a
+            // fase de grupos inteira e o motor semeia. (O `MontarPrimeiraFase` lá dentro faz a
+            // mesma conferência e cai na mesma decisão: uma régua só.)
+            if (partidasDeGrupo.Any(p => p.Status != "Finalizada")) return;
+
+            await MontarMataMataDosGruposSemDesenhoAsync(categoria, torneioId, partidasDeGrupo);
+            return;
+        }
+
+        string nomeFase = CruzamentoDoMataMata.NomeDaAbertura(desenho);
+
+        // Quadro já passou da abertura: não se mexe mais nela. Não acontece hoje (nada avança
+        // com a abertura pela metade), e é barato garantir.
+        if (await _context.Partidas.AnyAsync(p =>
+                p.CategoriaId == categoria.Id
+                && p.Fase != nomeFase
+                && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))) return;
+
+        int jaCriados = await _context.Partidas
+            .CountAsync(p => p.CategoriaId == categoria.Id && p.Fase == nomeFase);
+        if (jaCriados >= desenho.Confrontos.Count) return;
+
+        // A classificação SÓ DOS GRUPOS QUE FECHARAM. Um grupo em andamento devolve pódio
+        // provisório (ClassificacaoDeGrupos responde com o que tem), e um jogo criado a partir
+        // dele seria desfeito no próximo placar — por isso ele fica de fora da conta, e a vaga
+        // dele volta nula.
+        var idsDeGrupoFechado = categoria.GruposTorneio
+            .Where(g => GrupoFechado(g, partidasDeGrupo))
+            .SelectMany(g => g.Duplas)
+            .Select(d => d.Id)
+            .ToHashSet();
+
+        var prontos = ClassificacaoDeGrupos.Calcular(
+            duplasDosGrupos.Where(d => idsDeGrupoFechado.Contains(d.Id)).ToList(),
+            partidasDeGrupo.Where(p => p.Status == "Finalizada").ToList(),
+            pontosDoDesempate, classificamPorGrupo);
+
+        var novos = new List<Partida>();
+        for (int i = jaCriados; i < desenho.Confrontos.Count; i++)
+        {
+            var confronto = desenho.Confrontos[i];
+            if (CruzamentoDoMataMata.IdDaVaga(confronto.Lado1, prontos) is not int lado1
+                || CruzamentoDoMataMata.IdDaVaga(confronto.Lado2, prontos) is not int lado2) break;
+
+            novos.Add(new Partida
+            {
+                TorneioId = torneioId,
+                CategoriaId = categoria.Id,
+                Dupla1Id = lado1,
+                Dupla2Id = lado2,
+                Status = "Agendada",   // Nasce agendada para ir para a Mesa de Controle!
+                Fase = nomeFase,
+                Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()   // NOT NULL no banco
+            });
+        }
+
+        if (novos.Count == 0) return;
+
+        await AgendarNaGradeAsync(novos, torneioId);
+
+        _context.Partidas.AddRange(novos);
+        await _context.SaveChangesAsync();
+    }
+
+    // O grupo acabou? Grupo SEM jogo nenhum (uma dupla só) conta como fechado — senão a vaga
+    // dele nunca resolveria e o mata-mata da categoria não sairia jamais.
+    private static bool GrupoFechado(padelizou.Models.GrupoTorneio grupo, IReadOnlyList<Partida> partidasDeGrupo)
+    {
+        var doGrupo = grupo.Duplas.Select(d => d.Id).ToHashSet();
+
+        return partidasDeGrupo
+            .Where(p => doGrupo.Contains(p.Dupla1Id) || doGrupo.Contains(p.Dupla2Id))
+            .All(p => p.Status == "Finalizada");
+    }
+
     // ===================================================================================
     // ROBÔ 2: PROGRESSÃO — Primeira Rodada → Oitavas → Quartas → Semifinal → Final
     // ===================================================================================
@@ -115,32 +266,61 @@ public class RoboDoChaveamento
         // Fase que não encadeia (grupos, Americano, Final) para aqui.
         if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
 
-        // Vencedores da fase + quem passou direto (bye), com a fase completa conferida lá
-        // dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
-        var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
-        if (avancam.Count < 2) return;
+        // As vagas da rodada seguinte, na ordem do quadro: vencedores desta fase (null onde o
+        // jogo ainda não acabou) e, na primeira rodada, quem passou direto. Ver
+        // Services/AvancoDaChave. Vazio = não há o que avançar.
+        var vagas = await AvancoDaChave.VagasDaProximaFaseAsync(_context, categoriaId, faseConcluida,
+            _estatisticas.ObterPontosPorJogadorAsync);
+        if (vagas.Count < 2) return;
 
         // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24 entrega
         // 16 (8 vencedores + 8 byes), que são Oitavas — e não as Quartas que o encadeamento
         // por NOME sugeriria. Quem manda é quanta gente sobrou.
-        var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
+        var proximaFase = ChaveamentoMataMata.NomeFase(vagas.Count);
 
-        // Nunca gera a próxima fase em duplicidade (dois finalizamentos quase simultâneos).
-        if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
+        // ── O AVANÇO PARCIAL (11/09/2026) ────────────────────────────────────────────────
+        // 🗣️ Felipe: *"terminou a primeira quarta de final, esse que já classificou, já vai a
+        // dupla para a semi, mesmo que as outras quartas não tenham finalizado"*.
+        //
+        // A rodada não nasce mais inteira: nasce jogo a jogo, à medida que as DUAS vagas de
+        // cada confronto ganham dono (`ParearVencedores` cruza a vaga i com a n-1-i, então a
+        // Semifinal 1 é "vencedor da Quartas 1 × última vaga" — e a última vaga costuma ser um
+        // bye, que já tem dono desde o sorteio).
+        //
+        // ⚠️ EM ORDEM DE QUADRO, E ISSO NÃO É CAPRICHO. O número de um jogo dentro da fase é a
+        // ordem de CRIAÇÃO (ReservasDeHorario.NumeroNaFase, por Id), e dela dependem o desenho
+        // da chave (Services/OrdemDoQuadro), a procedência da prévia ("Vencedor Semifinal 2") e
+        // a reserva de horário que o organizador fez no jogo previsto. Deixar a Semifinal 2
+        // nascer antes da 1 por ter terminado primeiro faria as três apontarem pro jogo errado.
+        // Por isso o laço PARA no primeiro confronto que ainda não dá pra montar, em vez de
+        // pular pro seguinte: o preço de uma vaga adiantada seria a chave inteira mentindo.
+        //
+        // ⚠️ E É ESTE CONTADOR que impede a fase de nascer duas vezes — dois finalizamentos
+        // quase simultâneos, ou o organizador reabrindo e refinalizando o mesmo jogo. Antes a
+        // guarda era "a próxima fase já existe?", que não serve mais: agora ela existe pela
+        // metade o tempo todo.
+        int jaCriados = await _context.Partidas
+            .CountAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase);
 
-        var novos = ChaveamentoMataMata.ParearVencedores(avancam)
-            // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
-            .Select(confronto => new Partida
+        var novos = new List<Partida>();
+        for (int i = jaCriados; i < vagas.Count / 2; i++)
+        {
+            if (vagas[i] is not int lado1 || vagas[vagas.Count - 1 - i] is not int lado2) break;
+
+            novos.Add(new Partida
             {
                 TorneioId = torneioId,
                 CategoriaId = categoriaId,
                 Fase = proximaFase,
                 Status = "Agendada",
-                Dupla1Id = confronto.Dupla1Id,
-                Dupla2Id = confronto.Dupla2Id,
+                Dupla1Id = lado1,
+                Dupla2Id = lado2,
+                // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
                 Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-            })
-            .ToList();
+            });
+        }
+
+        if (novos.Count == 0) return;
 
         await AgendarNaGradeAsync(novos, torneioId);
 

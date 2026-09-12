@@ -231,5 +231,6 @@ public class PorteiroDaSaidaTests
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             porteiro,
+            new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 }

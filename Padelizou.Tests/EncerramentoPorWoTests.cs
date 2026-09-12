@@ -163,7 +163,7 @@ public class EncerramentoPorWoTests
         EncerramentoPorWo.Registrar(partida, d1.Id, FormatoDe(ctx, partida));
         ctx.SaveChanges();
 
-        var tabela = ClassificacaoDeGrupos.Ordenar(new[] { d1, d2 }, new[] { partida });
+        var tabela = ClassificacaoDeGrupos.Ordenar(new[] { d1, d2 }, new[] { partida }, ClassificacaoDeGrupos.SemPontos);
 
         Assert.Equal(d2.Id, tabela[0].Dupla.Id);
         Assert.Equal(1, tabela[0].Vitorias);

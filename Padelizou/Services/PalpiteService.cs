@@ -81,7 +81,7 @@ public class PalpiteService : IPalpiteService
             //
             // ⚠️ O limiar mora AQUI, e não na view: as duas telas e o JS que repinta depois do
             // voto leem o mesmo resumo. Escrito na view seria a terceira cópia da régua, e a
-            // linha voltaria a aparecer sozinha no primeiro `atualizarPalpitrometro`.
+            // linha voltaria a aparecer sozinha no primeiro `atualizarPalpitometro`.
             //
             // ⚠️ É DOIS, e não uma proporção: exigir maioria esconderia a leitura num jogo com
             // 20 palpites espalhados, que é justamente onde saber o mais votado interessa. A
@@ -196,7 +196,7 @@ public class PalpiteService : IPalpiteService
         catch (DbUpdateException) when (ehLinhaNova)
         {
             // ⚠️ CLIQUE DUPLO: os dois POSTs leram "esse jogador ainda não votou" e os dois
-            // tentaram INSERIR — o palpitrômetro não tem trava de clique, e cada requisição tem o
+            // tentaram INSERIR — o palpitômetro não tem trava de clique, e cada requisição tem o
             // próprio DbContext. Quem segura é o índice único (PartidaId, JogadorId), e está certo
             // que seja ele (mesma decisão do chamado do mural em DuplasController). O que faltava
             // era o serviço saber PERDER a corrida: quem chega depois grava por cima, porque o

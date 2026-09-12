@@ -326,6 +326,10 @@ builder.Services.AddSingleton<FilaDeAvisos>();
 // O portão de acesso antecipado: padrão no systemd, chave de virada no banco. Singleton
 // porque o middleware lê isto em TODA requisição — ver Services/PortaoDeAcesso.
 builder.Services.AddSingleton<PortaoDeAcesso>();
+// O silêncio geral dos avisos, pelo mesmo motivo de ser singleton: é lido na entrega de TODO
+// aviso, e um `SELECT` por aviso pra ler um booleano seria caro à toa — ver
+// Services/SilencioDeAvisos.
+builder.Services.AddSingleton<SilencioDeAvisos>();
 builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
@@ -402,6 +406,10 @@ using (var scope = app.Services.CreateScope())
     // Precisa vir DEPOIS do Migrate (a tabela pode ter acabado de nascer) e ANTES da primeira
     // requisição — o middleware do portão roda antes do roteamento e lê isto da memória.
     await scope.ServiceProvider.GetRequiredService<PortaoDeAcesso>().CarregarAsync(db);
+
+    // O silêncio dos avisos, mesma razão de vir DEPOIS do Migrate: sem isto, um deploy feito
+    // com o sistema calado o faria voltar a falar sozinho no primeiro restart.
+    await scope.ServiceProvider.GetRequiredService<SilencioDeAvisos>().CarregarAsync(db);
 
     // As duas "Iniciantes" nascem DESLIGADAS (Ativa: false): saíram do catálogo que as telas
     // oferecem. Não são apagadas porque torneio, preferência de jogador e aviso guardam o Id
