@@ -67,11 +67,26 @@
     // trabalhando, o toque de um reescrevia a quadra do outro com um placar de até 20 segundos
     // atrás (o intervalo da atualização automática é quem traz o do vizinho). Quem via o game
     // sumir era justamente quem não tocou em nada, e não havia erro em lugar nenhum.
-    var mexidos = [];
+    // ⚠️ E A FILA É POR CAMPO, não por card (12/09/2026). 🗣️ Felipe: *"quando um de um lado
+    // marcava e o outro junto as vezes, um deles nao pegava"*. Com os dois lados viajando em
+    // todo POST, dois aparelhos no MESMO jogo se atropelavam: o segundo a chegar devolvia o
+    // lado do primeiro pro número da tela dele, de até 20 segundos atrás. Agora o lado que
+    // ninguém tocou vai como `NAO_TOQUEI` e o servidor não encosta nele.
+    var mexidos = [];   // [{card, campos: ["games1", ...]}]
 
-    function marcarMexido(card) {
-        if (!card || mexidos.indexOf(card) !== -1) return;
-        mexidos.push(card);
+    function naFila(card) {
+        for (var i = 0; i < mexidos.length; i++) if (mexidos[i].card === card) return mexidos[i];
+        return null;
+    }
+
+    function marcarMexido(card, nome) {
+        if (!card) return;
+        var item = naFila(card);
+        if (!item) {
+            item = { card: card, campos: [] };
+            mexidos.push(item);
+        }
+        if (nome && item.campos.indexOf(nome) === -1) item.campos.push(nome);
         // A bandeira fica no CARD porque quem também precisa dela é a atualização automática
         // (js/jogos-ao-vivo-atualiza.js): entre o dedo e o POST há o meio segundo do debounce,
         // e trocar o cabeçalho nesse vão devolve o número velho — que é o que o POST lê em
@@ -79,10 +94,24 @@
         card.setAttribute("data-pdz-mexido", "");
     }
 
+    // O que não chegou ao servidor volta pra fila com os MESMOS campos — requeue que perdesse
+    // a lista mandaria o card inteiro na tentativa seguinte, que é o atropelo de volta.
+    function devolverPraFila(item) {
+        var atual = naFila(item.card);
+        if (!atual) { mexidos.push(item); item.card.setAttribute("data-pdz-mexido", ""); return; }
+        item.campos.forEach(function (nome) {
+            if (atual.campos.indexOf(nome) === -1) atual.campos.push(nome);
+        });
+    }
+
     // A marca só sai quando o servidor confirmou E ninguém tocou no card de novo no meio do
     // caminho.
-    function confirmar(card) {
-        if (mexidos.indexOf(card) === -1) card.removeAttribute("data-pdz-mexido");
+    function confirmar(item) {
+        if (!naFila(item.card)) item.card.removeAttribute("data-pdz-mexido");
+    }
+
+    function cardsDo(lote) {
+        return lote.map(function (item) { return item.card; });
     }
 
     // Escreve na tela o placar que o servidor gravou. Só mexe no campo que a pessoa NÃO está
@@ -105,7 +134,7 @@
             // É o caminho que a internet ruim escancara: quanto mais devagar a resposta volta,
             // mais toques cabem no vão entre o envio e ela. `mexidos` é justamente a lista de
             // quem tocou depois do POST sair.
-            if (mexidos.indexOf(card) !== -1) return;
+            if (naFila(card)) return;
 
             // ⚠️ O VERDE ANDA JUNTO COM O NÚMERO (11/09/2026). A classe só nascia no HTML
             // do servidor, então um 9 x 8 corrigido pra 8 x 8 ficava com o empate pintado de
@@ -209,7 +238,12 @@
 
     // O CORPO DO POST: os campos do próprio formulário (o token do antiforgery, o id do
     // torneio, o recorte da tela) mais os campos DOS CARDS DO LOTE — e só deles.
-    var CAMPOS_DO_CARD = ["partidaId", "games1", "games2", "pontos1", "pontos2"];
+    var CAMPOS_DO_CARD = ["games1", "games2", "pontos1", "pontos2"];
+
+    // "Não toquei neste lado" — o servidor deixa como está no banco (ver
+    // TorneiosController.SalvarPlacaresAoVivo). Negativo porque placar não é negativo: não
+    // existe número legítimo que colida com o combinado.
+    var NAO_TOQUEI = "-1";
 
     // O valor que ESTE card está mandando pra um campo. O `.pdz-live-input` vem primeiro de
     // propósito: é o campo que a pessoa toca e o mesmo que a resposta do servidor reescreve
@@ -222,14 +256,16 @@
     }
 
     // O QUE ESTE POST ESTÁ AFIRMANDO, card a card — é contra isto que a resposta é conferida
-    // antes de a tela dizer "salvo".
+    // antes de a tela dizer "salvo". ⚠️ Só o lado TOCADO entra: o outro não foi afirmado, e
+    // cobrar do servidor um número que ninguém mandou daria "não salvou" toda vez que o
+    // aparelho do vizinho mexesse no outro lado.
     function oQueVaiNoLote(lote) {
-        return lote.map(function (card) {
+        return lote.map(function (item) {
             return {
-                card: card,
-                id: valorDe(card, "partidaId"),
-                games1: valorDe(card, "games1"),
-                games2: valorDe(card, "games2"),
+                card: item.card,
+                id: valorDe(item.card, "partidaId"),
+                games1: item.campos.indexOf("games1") !== -1 ? valorDe(item.card, "games1") : null,
+                games2: item.campos.indexOf("games2") !== -1 ? valorDe(item.card, "games2") : null,
             };
         });
     }
@@ -245,13 +281,13 @@
         var refazer = [];
         var salvos = [];
 
-        afirmado.forEach(function (item) {
+        afirmado.forEach(function (item, i) {
             var linha = porId[item.id];
 
             // O servidor não citou este jogo: 200 com JSON não é prova de que ELE entrou.
             if (!linha) {
                 avisar(item.card, "erro", "não salvou — toque de novo");
-                refazer.push(item.card);
+                refazer.push(i);
                 return;
             }
 
@@ -266,7 +302,9 @@
             // O servidor CORRIGE o que recebe: o teto da fase manda, e numa soma de 5 um 6
             // vira 4. ⚠️ O número corrigido nem sempre chega à tela — não se escreve por baixo
             // de quem está digitando (ver aplicarNumero) —, então quem conta é a tarja.
-            if (String(linha.games1) !== item.games1 || String(linha.games2) !== item.games2) {
+            var diferente = (item.games1 !== null && String(linha.games1) !== item.games1)
+                || (item.games2 !== null && String(linha.games2) !== item.games2);
+            if (diferente) {
                 avisar(item.card, "ok", "salvo como " + linha.games1 + " x " + linha.games2);
                 salvos.push(item.card);
                 return;
@@ -289,13 +327,20 @@
             if (campo.name) dados.append(campo.name, campo.value);
         });
 
-        // ⚠️ UM CAMPO DE CADA NOME POR CARD, na mesma ordem em todos: o servidor casa
-        // `partidaId[]` com `games1[]` e `pontos1[]` por ÍNDICE, e uma entrada a mais em
-        // qualquer um dos arrays grava o placar de um jogo no outro.
-        lote.forEach(function (card) {
+        // ⚠️ UMA ENTRADA DE CADA NOME POR CARD, SEMPRE: o servidor casa `partidaId[]` com
+        // `games1[]` e `pontos1[]` por ÍNDICE, e um campo que só existe em alguns cards
+        // desalinha o lote inteiro — os jogos depois dele recebem o placar do vizinho. Por
+        // isso o `NAO_TOQUEI` também cobre campo que não está na tela (HTML velho em cache):
+        // ele diz "não mexa", que é a leitura certa dos dois casos.
+        lote.forEach(function (item) {
+            var id = valorDe(item.card, "partidaId");
+            if (id === null) return;   // card sem identidade não entra: ele é que desalinharia
+
+            dados.append("partidaId", id);
             CAMPOS_DO_CARD.forEach(function (nome) {
-                var valor = valorDe(card, nome);
-                if (valor !== null) dados.append(nome, valor);
+                var tocado = item.campos.indexOf(nome) !== -1;
+                var valor = tocado ? valorDe(item.card, nome) : null;
+                dados.append(nome, valor === null ? NAO_TOQUEI : valor);
             });
         });
 
@@ -324,7 +369,7 @@
         // cabeçalho do card pelo HTML do servidor, e o servidor ainda não sabe deste game —
         // o número recém-marcado voltaria pro valor velho na frente da pessoa.
         window.pdzSalvandoPlacar = true;
-        marcarTodos(lote, "indo", "salvando…");
+        marcarTodos(cardsDo(lote), "indo", "salvando…");
 
         window.fetch(form.action, {
             method: "POST",
@@ -351,8 +396,8 @@
                 var conferido = conferirResposta(afirmado, dados && dados.placares);
                 lote.forEach(confirmar);
                 // O que o servidor não confirmou continua devendo, como se a rede tivesse
-                // caído: nada é descartado calado.
-                conferido.refazer.forEach(marcarMexido);
+                // caído: nada é descartado calado — e volta com os MESMOS campos.
+                conferido.refazer.forEach(function (i) { devolverPraFila(lote[i]); });
                 // ⚠️ Só o "salvo" some sozinho. Aviso de erro FICA na tela — ele é a única
                 // pista de que aquele toque não virou placar.
                 window.setTimeout(function () { marcarTodos(conferido.salvos, "", ""); }, 2500);
@@ -362,10 +407,10 @@
                 // pessoa marcou), mas ela tem que saber que o servidor não recebeu — senão é
                 // o "editei e não salvou" de novo, agora silencioso porque não há recarga
                 // pra denunciar.
-                marcarTodos(lote, "erro", "não salvou — toque de novo");
-                // NADA é descartado: o card volta pra fila, e o toque seguinte (ou o "Salvar
-                // placares") tenta de novo com o que está na tela.
-                lote.forEach(marcarMexido);
+                marcarTodos(cardsDo(lote), "erro", "não salvou — toque de novo");
+                // NADA é descartado: o card volta pra fila com os campos que ele devia, e o
+                // toque seguinte (ou o "Salvar placares") tenta de novo.
+                lote.forEach(devolverPraFila);
             })
             .then(function () {
                 enviando = false;
@@ -380,7 +425,8 @@
     }
 
     function agendarEnvio(campo) {
-        marcarMexido(campo && campo.closest ? campo.closest(".pdz-live-card") : null);
+        marcarMexido(campo && campo.closest ? campo.closest(".pdz-live-card") : null,
+                     campo ? campo.getAttribute("name") : null);
 
         window.clearTimeout(agendado);
         agendado = window.setTimeout(enviarAgora, ESPERA_MS);
@@ -463,7 +509,11 @@
         // ABSOLUTO (9 x 8), então o segundo toque dá exatamente no mesmo lugar — a mesma razão
         // pela qual a fila da Mesa guarda placar inteiro e não "+1". Desabilitar deixaria o botão
         // MORTO quando o POST falha, que é justamente quando a pessoa precisa tocar de novo.
-        marcarMexido(card);
+        // ⚠️ AQUI OS DOIS LADOS FORAM TOCADOS: o fechamento escreve o placar inteiro
+        // (9 x 8), então os dois games vão com número — o "não toquei" é por CAMPO, e este
+        // botão mexe nos dois.
+        marcarMexido(card, "games1");
+        marcarMexido(card, "games2");
         window.clearTimeout(agendado);
         enviarAgora();
     });

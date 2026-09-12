@@ -25,7 +25,25 @@
 >
 > 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** 🧑‍⚖️ **O PLACAR DE UM CARD PAROU DE ESCREVER NA QUADRA DO VIZINHO.**
+> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
+>
+> 🗣️ Felipe, logo depois de o `build-1268` subir: *"mas estavamos tambem com problema q quando um de um lado marcava e o outro junto asvezes, um deles nao pegava, vc corrigiu isso tambem ? vai parar de oscilar ?"*. **Não tinha** — o 1268 resolveu quadra DIFERENTE; este resolve o MESMO jogo.
+>
+> 🕳️ **O CARD MANDAVA OS DOIS LADOS EM TODO POST.** Um marcador de cada lado da quadra, cada um no "+" da sua dupla: o aparelho de A manda `6 x 3`, o de B — com a tela de até 20 segundos atrás, que é o tique da atualização automática — manda `5 x 4`, e o servidor grava `5 x 4`. **O 6 de A some.** O último POST ganhava **nos dois lados**, mesmo que cada um tivesse tocado só no seu, e a tela de quem perdeu voltava pro número velho no tique seguinte. É a oscilação.
+>
+> ✅ **A CORREÇÃO É O "NÃO TOQUEI"**: o lado que ninguém tocou viaja como **-1**, e o servidor o deixa com o que está no banco. Sem relógio de aparelho (o defeito aberto da Mesa é exatamente esse) e sem "quem chegou por último ganha": cada aparelho afirma **só o número que a pessoa marcou**. O par continua sendo validado junto — numa soma de 7, o lado que veio precisa caber ao lado do que está gravado —, então a peneira do `FormatoDaPartida` recebe os dois.
+>
+> 🔑 **A FILA DO APARELHO VIROU POR CAMPO, não por card** — é o que sabe qual lado foi tocado. Quem mexe nos dois de propósito (o botão de **fechar o tie-break**, que escreve o 9x8 inteiro) marca os dois na mão. E o ponto do tie-break segue a mesma régua: no 8x8 cada mesário conta o ponto do seu lado.
+>
+> ⚠️ **UMA ENTRADA POR CARD EM CADA ARRAY, SEMPRE.** O `-1` também cobre campo que **não está na tela** (HTML velho em cache): antes, um campo ausente simplesmente não entrava no POST e **desalinhava o lote inteiro** — os jogos depois dele recebiam o placar do vizinho. É a mesma família do `pontos1` duplicado de manhã, pela ponta oposta.
+>
+> 🧪 **6.846 testes, 0 falhas (4 novos)**, os três de defeito **vistos vermelhos** com o lado não tocado chegando a **0** (`Expected: 6, Actual: 0`), e um quarto guardando a compatibilidade: **aba aberta antes deste deploy manda os dois números de sempre e continua gravando os dois** — o `-1` é acréscimo, não troca de contrato. Mais 10 conferências novas no `conferir-placar-ao-vivo.js` (**44** no total), vistas vermelhas em *"o lado NÃO tocado vai como -1"*.
+>
+> ⚠️ **DUAS CONFERÊNCIAS ANTIGAS DO JS FORAM REESCRITAS** porque afirmavam o que acabou de mudar: elas cobravam o lado não tocado viajando **com o número da tela**, que é o defeito com outro nome.
+>
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1268-b731733`** (runs **303** e **304**), **o mesmo artefato nos dois**, com a tag explícita. PR #263. **Sem migration.** 🧑‍⚖️ **O PLACAR DE UM CARD PAROU DE ESCREVER NA QUADRA DO VIZINHO.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**, o `sw.js` em **`padelizou-static-v35`** e o `/js/placar-ao-vivo.js` servido já com `corpoDoLote`, `conferirResposta` e `data-pdz-mexido`.
 >
 > 🗣️ Felipe: *"Um dos marcadores está reclamando que ao marcar nao esta salvando na hora, pode ser internet ruim e os outros marcando junto"*. Tela confirmada com ele: a **lista AO VIVO**, a dos cards com −/+.
 >
