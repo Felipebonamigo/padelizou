@@ -1,6 +1,6 @@
 namespace Padelizou.Services;
 
-// QUAIS PLACARES FECHAM UM JOGO NESTE FORMATO — a lista que o palpitrômetro oferece.
+// QUAIS PLACARES FECHAM UM JOGO NESTE FORMATO — a lista que o palpitômetro oferece.
 //
 // 🎯 Existe pra que palpitar placar seja ESCOLHER, e não digitar. Dois campos numéricos no
 // celular são dois toques, um teclado por cima da tela e a porta aberta pra "6 x 9" — placar

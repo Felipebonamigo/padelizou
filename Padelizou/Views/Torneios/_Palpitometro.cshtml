@@ -27,10 +27,10 @@
     int? meuPerdedor = r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
     string moeda = r.PlacarEmSets ? "sets" : "games";
 }
-<div class="pdz-palpitrometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
+<div class="pdz-palpitometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
      data-dupla1-id="@Model.partida.Dupla1Id" data-meu-voto="@meuVoto">
     <div class="d-flex justify-content-between align-items-center mb-1">
-        <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitrômetro</small>
+        <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitômetro</small>
         @if (finalizada && r.TotalVotos > 0)
         {
             <small class="@(galeraAcertou ? "text-success" : "text-danger") fw-bold">
@@ -70,7 +70,7 @@
 
        ⚠️ E é OPCIONAL de propósito. Palpitar continua sendo um toque no nome; quem quiser dá
        o segundo. Exigir o placar pra votar derrubaria a participação, que é o que faz a barra
-       do palpitrômetro valer alguma coisa. *@
+       do palpitômetro valer alguma coisa. *@
     @if (votavel && r.PlacaresDoFormato.Count > 0)
     {
         <div class="pdz-palpite-placar mt-2" style="display: @(meuVoto != null ? "block" : "none");">
