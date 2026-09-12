@@ -101,6 +101,50 @@ public class ChaveRespeitaOPrevistoTests
         }
     }
 
+    // Reproduz o estado em que o ER acordou em 12/09: a chave montada pelo motor ANTIGO, semeada
+    // pela CAMPANHA, e a categoria sem desenho nenhum.
+    //
+    // ⚠️ PRECISOU EXISTIR PORQUE A CORREÇÃO FUNCIONOU. Depois que o robô passou a seguir sempre o
+    // previsto, o cenário "a chave já saiu embaralhada" deixou de ser produzível por ele — mas
+    // está gravado no banco de quem jogou antes da correção, que é justamente quem o botão
+    // conserta. Sem isto, os testes do botão passariam sem nunca terem visto uma chave errada.
+    private static async Task EmbaralharComoOErEstavaAsync(DbPadelContext ctx, int categoriaId)
+    {
+        var categoria = await ctx.Categorias
+            .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+            .FirstAsync(c => c.Id == categoriaId);
+
+        var duplas = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+        var finalizadas = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoriaId
+                     && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
+                     && p.Status == "Finalizada")
+            .ToListAsync();
+
+        int passam = ClassificacaoDeGrupos.VagasPorGrupo(categoria);
+        var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+            duplas, finalizadas, TestInfra.SemPontosDoRanking);
+        var classificados = ClassificacaoDeGrupos.Calcular(duplas, finalizadas, pontos, passam);
+
+        // Sem cruzamento desenhado: a semeadura pela campanha, letra por letra como era.
+        var (_, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, passam);
+
+        var mataMata = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoriaId
+                     && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+            .OrderBy(p => p.Id)
+            .ToListAsync();
+
+        for (int i = 0; i < mataMata.Count && i < confrontos.Count; i++)
+        {
+            mataMata[i].Dupla1Id = confrontos[i].Dupla1Id;
+            mataMata[i].Dupla2Id = confrontos[i].Dupla2Id;
+        }
+
+        categoria.CruzamentoDoMataMata = null;   // como o ER acordou
+        await ctx.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Aprovar_congela_o_cruzamento_previsto_na_categoria()
     {
@@ -170,6 +214,7 @@ public class ChaveRespeitaOPrevistoTests
         var previsto = PrevistoAsync(comGrupos);
 
         await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        await EmbaralharComoOErEstavaAsync(ctx, categoria.Id);
 
         // O estado do ER: a chave saiu diferente do prometido.
         Assert.NotEqual(previsto, await RealAsync(ctx, comGrupos));
@@ -202,6 +247,7 @@ public class ChaveRespeitaOPrevistoTests
         var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
         await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
         await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        await EmbaralharComoOErEstavaAsync(ctx, categoria.Id);
 
         await TestInfra.NovoTorneiosController(ctx, org.Id)
             .RefazerMataMataComoPrevisto(torneio.Id, categoria.Id);
@@ -217,6 +263,7 @@ public class ChaveRespeitaOPrevistoTests
         var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
         await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
         await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        await EmbaralharComoOErEstavaAsync(ctx, categoria.Id);
 
         var quartas = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Quartas de Final")
@@ -250,6 +297,7 @@ public class ChaveRespeitaOPrevistoTests
         var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
         await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
         await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        await EmbaralharComoOErEstavaAsync(ctx, categoria.Id);
 
         var jogo = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Quartas de Final")
@@ -295,6 +343,7 @@ public class ChaveRespeitaOPrevistoTests
         var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
         await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
         await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        await EmbaralharComoOErEstavaAsync(ctx, categoria.Id);
 
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
         await controller.RefazerMataMataComoPrevisto(torneio.Id, categoria.Id);
@@ -304,5 +353,93 @@ public class ChaveRespeitaOPrevistoTests
         Assert.Contains("era", recado);
         // O nome de quem saiu do jogo 1, e não só um número.
         Assert.Matches(@"Jogo 1: .+ × .+ \(era .+ × .+\)", recado);
+    }
+    [Fact]
+    public async Task Refazer_antes_do_mata_mata_existir_CONGELA_o_previsto()
+    {
+        // 🗣️ Felipe, no meio do ER, com o print da 5ª Masculina: *"Recebi essa mensagem em outra
+        // categoria, mas acho que quer dizer q nao precisava mexer?"* — a mensagem era *"o
+        // mata-mata desta categoria ainda não foi montado — não há o que refazer"*.
+        //
+        // 🕳️ NÃO ERA "ESTÁ TUDO CERTO": era "o defeito ainda VAI acontecer nesta". O torneio foi
+        // aprovado antes do congelamento existir, então a categoria está com o desenho nulo — e
+        // no instante em que o último jogo de grupo acabasse, o robô semearia pela campanha e
+        // embaralharia a chave de novo, ao vivo. Recusar aqui era deixar a armadilha armada.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
+        await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
+
+        var comGrupos = await ctx.Categorias
+            .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+            .FirstAsync(c => c.Id == categoria.Id);
+        var previsto = PrevistoAsync(comGrupos);
+
+        // Grupos ainda rolando: não existe uma partida de mata-mata sequer.
+        Assert.Empty(await ctx.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Quartas de Final")
+            .ToListAsync());
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id)
+            .RefazerMataMataComoPrevisto(torneio.Id, categoria.Id);
+
+        var salva = await ctx.Categorias.AsNoTracking().FirstAsync(c => c.Id == categoria.Id);
+        Assert.Equal("1A×2C|1B×2D|1C×2A|1D×2B", salva.CruzamentoDoMataMata);
+
+        // ⚠️ O QUE REALMENTE IMPORTA: quando os grupos acabarem, a chave nasce como prometido.
+        await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+        Assert.Equal(previsto, await RealAsync(ctx, comGrupos));
+    }
+    [Fact]
+    public async Task Chave_publicada_sai_como_previsto_mesmo_sem_ninguem_clicar_em_nada()
+    {
+        // 🗣️ Felipe: *"temos q garantir q congele sempre dps q as chaves forem publicadas, a
+        // menos q eu solicite alguma alteração"*.
+        //
+        // ⚠️ ESTE É O TESTE QUE VALE PELO RESTO. O congelamento no `AprovarChaves` só alcança
+        // quem for aprovado DAQUI PRA FRENTE — o ER foi aprovado antes dele existir, e todo
+        // torneio publicado na semana passada também. Sem esta garantia no próprio robô, cada
+        // categoria dependeria de alguém lembrar de clicar num botão antes do último jogo do
+        // grupo acabar. Aqui NINGUÉM clica em nada.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
+        await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
+
+        var comGrupos = await ctx.Categorias
+            .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+            .FirstAsync(c => c.Id == categoria.Id);
+        var previsto = PrevistoAsync(comGrupos);
+        Assert.Null(comGrupos.CruzamentoDoMataMata);   // como o ER acordou hoje
+
+        await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+
+        Assert.Equal(previsto, await RealAsync(ctx, comGrupos));
+    }
+
+    [Fact]
+    public async Task O_desenho_do_organizador_continua_mandando()
+    {
+        // "a menos q eu solicite alguma alteração" — quem desenhou à mão mandou, e a garantia
+        // acima não pode passar por cima dele. Sem este par, a régua nova viraria uma forma de
+        // apagar a escolha do organizador em silêncio.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = await TorneioSorteadoAsync(ctx);
+
+        // Desenho deliberadamente DIFERENTE do que o motor faria (o padrão é 1A×2C|1B×2D|...).
+        categoria.CruzamentoDoMataMata = "1A×2B|1B×2A|1C×2D|1D×2C";
+        await ctx.SaveChangesAsync();
+        await PublicarComoAntesDaCorrecaoAsync(ctx, torneio);
+
+        var comGrupos = await ctx.Categorias
+            .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
+            .FirstAsync(c => c.Id == categoria.Id);
+
+        await EncerrarOsGruposAsync(ctx, torneio, categoria, org.Id);
+
+        Assert.Equal(
+            new[] { "1º do Grupo A × 2º do Grupo B", "1º do Grupo B × 2º do Grupo A",
+                    "1º do Grupo C × 2º do Grupo D", "1º do Grupo D × 2º do Grupo C" },
+            await RealAsync(ctx, comGrupos));
+        Assert.Equal("1A×2B|1B×2A|1C×2D|1D×2C",
+            (await ctx.Categorias.AsNoTracking().FirstAsync(c => c.Id == categoria.Id)).CruzamentoDoMataMata);
     }
 }
