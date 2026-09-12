@@ -913,6 +913,18 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-live-jogadores a,
 .pdz-live-jogadores a * { color: #fff !important; }
 .pdz-live-jogadores small { opacity: .7; }
+/* ⚠️ O NOME É QUEM CEDE O ESPAÇO NESTA LINHA (12/09/2026). O `min-width: 0` do bloco acima
+   não chega até aqui: dentro do chip, o texto é item de flex com `min-width: auto` e exige a
+   palavra inteira — então ele vazava PRA DIREITA, em cima da mesma bolinha do saque que o
+   −/+ invadia pela esquerda. Trocar um transbordo pelo outro não é conserto.
+   Não vale pra tabela do grupo, que tem a solução dela (`.pdz-chip-compacto`, com reticências
+   em vez de quebra): aqui o nome tem duas linhas pra usar, e cortá-lo seria pior. */
+.pdz-live-jogadores .pdz-chip-texto { min-width: 0; }
+/* E `break-word` porque nome de uma palavra só (um sobrenome comprido) ignora `min-width: 0`:
+   sem poder quebrar DENTRO da palavra, ela sai da caixa do mesmo jeito. Só no aperto — o
+   `break-word` não muda a largura que o texto PEDE, só o que ele faz quando não recebe. */
+.pdz-live-jogadores .pdz-chip-nome,
+.pdz-live-jogadores .pdz-chip-clube { overflow-wrap: break-word; }
 .pdz-live-placar {
     /* Sets e games LADO A LADO (antes o games ficava empilhado embaixo). */
     display: flex;
@@ -925,6 +937,25 @@ a:hover { color: var(--pdz-lime-600); }
     min-width: 2.4rem;
     text-align: center;
     line-height: 1;
+
+    /* ⚠️ E NÃO ENCOLHE (12/09/2026 — 🗣️ Felipe, num print do jogo ao vivo: "A bolinha ta em
+       cima do placar"). Item de flex encolhe por padrão, e o piso que o navegador dá de graça
+       pra isso não passar do conteúdo (`min-width: auto`) estava DESLIGADO pelo `min-width:
+       2.4rem` da linha acima — que existe pro card do torcedor, onde aqui mora só um número.
+       Com o −/+ do organizador dentro, o bloco encolhia pra menos do que ele: medido no
+       Chromium a 393px, 133,2px de conteúdo num bloco de 97,2px.
+
+       E o transbordo sai pelo lado ERRADO: com `justify-content: flex-end` o que não cabe
+       vaza pela ESQUERDA, que é onde está a bolinha do saque — o `−` começava 14,6px antes de
+       a bola terminar (37,1px na faixa do tablet, onde a bola sumia inteira debaixo dele).
+       Quem cede o espaço agora é o nome, que sabe quebrar linha.
+
+       ⚠️ O TETO DESTA ESCOLHA: num celular de 320px o nome do ORGANIZADOR fica com ~70px e
+       empilha feio (o card vai a ~767px de altura). Fica assim de propósito — quem vê o −/+ é
+       só quem marca placar, e pro torcedor o bloco continua sendo um número de 2.4rem (nome
+       com 153px no mesmo 320px, medido). A saída, se um dia doer: descer o placar pra linha
+       de baixo num `@media (max-width: 359.98px)`. */
+    flex-shrink: 0;
 }
 /* Games = placar principal (0 a 9). Sets = secundário, menor, ao lado. */
 .pdz-live-games {
@@ -2845,7 +2876,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
    porque quem digita no balcão está de pé, com o celular numa mão — campo pequeno aqui é
    erro de digitação com a quadra esperando. */
 .pdz-live-input {
-    width: 2.2em;
+    /* 1.7em = 48px, e não os 2.2em (63px) de antes (12/09/2026). Travado o bloco do placar
+       contra o encolhimento, a largura dele virou ORÇAMENTO: no celular de 393px sobram
+       ~299px pra linha inteira, e cada pixel daqui sai do nome do jogador. O campo guarda no
+       máximo dois dígitos (o teto de games mais alto do sistema) e 48px sobram pra eles —
+       enquanto 2.2em deixavam o nome mais comprido de hoje partir no meio da palavra
+       ("Bittencour / t", visto no Chromium). O alvo do dedo continua sendo o −/+ do lado. */
+    width: 1.7em;
     text-align: center;
 
     /* ⚠️ FUNDO ESCURO FIXO, e não `var(--pdz-surface)` (11/09/2026). O cabeçalho do card é

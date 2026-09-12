@@ -399,7 +399,12 @@
                    cartão correspondente pra trocar só o cabeçalho (placar, cronômetro,
                    botões) e não encostar no <iframe> da transmissão. Ver
                    js/jogos-ao-vivo-atualiza.js. *@
-                <div class="col-md-6 mb-3">
+                @* `col-lg-6`, e não `col-md-6` (12/09/2026): entre 768 e 991px o Bootstrap dá
+                   720px ao container, e dois cards por linha deixavam cada um com 336px — 60px
+                   MENOS que o celular do print. Era a faixa onde o −/+ mais invadia a bolinha
+                   do saque (37,1px, a bola inteira debaixo do botão). Duas colunas só quando a
+                   linha comporta duas de verdade. *@
+                <div class="col-lg-6 mb-3">
                     @* `id="jogo-N"`: o DESTINO do card do jogo lá na aba Grupos (Felipe,
                        11/09/2026 — "permita clicar no aovivo e ir para a pagina do aovivo aonde
                        esta o jogo"). Fica no card inteiro, e não num pedaço dele: é o card que
