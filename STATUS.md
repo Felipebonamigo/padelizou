@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` no `build-1288-cc6083c`** (run **311**), com a tag explícita. PR #272. **COM MIGRATION** (`ReacoesDaPartida`). ⏳ **`prod` NÃO** — falta ver a fileira num cartão de verdade.
+> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1297-51ecc21`** (runs **316** e **317**), **o mesmo artefato nos dois**, com a tag explícita. PRs #272 e #273. **COM MIGRATION** (`ReacoesDaPartida`).
+>
+> ✅ **E AQUI A CONFERÊNCIA FINALMENTE FOI DE VERDADE, porque `prod` NÃO tem o gate de Acesso Antecipado** — o que travou a checagem do `build-1288` a manhã inteira. No `Torneios/Details/26` servido por produção: **60 fileiras `.pdz-reacoes`**, 60 botões, o `#modalQuemReagiu` na página e o `/js/reacoes-do-jogo.js` referenciado com hash de versão.
+>
+> 🔑 **A MIGRATION ESTÁ PROVADA, NÃO INFERIDA**: `GET /Partidas/QuemReagiu?partidaId=569` devolveu **`{"reacoes":[],"linhas":[]}` com 200** contra o Postgres de produção. Sem a tabela isso seria 500. E jogo inexistente responde **404**, não 500 — a lição dos três 500 do vigia em 11/09.
+>
+> 🖱️ **E O BOTÃO FOI CLICADO NO HTML QUE O PRÓPRIO `prod` GEROU.** O Chromium não sai por este proxy, então o caminho foi o inverso: espelhei a página e os 28 assets de produção num servidor local e cliquei ali. Resultado: `verQuemReagiu` carregado, **o painel abriu**, título "2 reações", pílula no painel, nomes na lista, e o campo de emoji ausente (como deve ser pra anônimo). Botão medido: **32×32px de alvo, `border: none`, fundo transparente, `border-radius: 0`, `opacity: .5`**.
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO, no que dá sem login**: `/healthz` **200**, o `/js/reacoes-do-jogo.js` servido com **10.463 bytes** e as três rotas dentro dele (`Reagir`, `TirarReacao`, `QuemReagiu`), e o `/css/site.css` já com as **8** regras das pílulas.
 >
