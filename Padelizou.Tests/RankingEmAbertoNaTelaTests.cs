@@ -2,7 +2,7 @@ using Xunit;
 
 namespace Padelizou.Tests;
 
-// 10/09/2026 — O RANKING DO PALPITRÔMETRO ANTES DO PRIMEIRO JOGO. 🗣️ Felipe, com o 2ª Etapa
+// 10/09/2026 — O RANKING DO PALPITÔMETRO ANTES DO PRIMEIRO JOGO. 🗣️ Felipe, com o 2ª Etapa
 // ER PADEL TOUR no ar e 41 jogos já votados: *"acho que o ranking do palpitometro ja tem que
 // aparecer"* — e, sobre o palpite que ainda não virou ponto, *"todo jogo pode ser palpitado
 // até começar"*.
