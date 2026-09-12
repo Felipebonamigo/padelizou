@@ -196,7 +196,7 @@
                              style="max-width: min(380px, 100%);" />
 
                         <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
-                            <a href="@inteira" download="@arquivoInteiro"
+                            <a href="@EntregaDeCard.LinkParaBaixar(inteira)" download="@arquivoInteiro"
                                class="btn btn-outline-primary rounded-pill px-3">
                                 <i class="bi bi-download"></i> Baixar
                             </a>
@@ -208,43 +208,49 @@
                         </div>
                     </div>
                 </div>
-
-                return;
             }
-
-            <p class="text-muted small mb-3">
-                Uma arte por dia@(Model.Grade.Artes.Any(a => a.Partes > 1) ? " — dia com mais de " + Padelizou.Services.CartaoDosJogos.MaximoDeJogos + " jogos sai em partes" : ""). Salve no celular e poste em sequência.
-            </p>
-
-            foreach (var arte in Model.Grade.Artes)
+            else
             {
-                var imagem = Url.Action("JogosImagem", "Torneios",
-                    new RouteValueDictionary(Model.Filtros) { ["parte"] = arte.Parte });
-                var arquivo = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(arte.Rotulo)}.png";
+                @* ⚠️ `else`, E NÃO UM `return` NO FIM DO RAMO DE CIMA (12/09/2026). Em Razor,
+                   `@@section` é uma CHAMADA executada na ordem do arquivo: um `return` antes dela
+                   simplesmente não a executa, e o `RenderSectionAsync(..., required: false)` do
+                   layout responde com silêncio. Era isso que deixava a tela "tudo numa imagem só"
+                   SEM o compartilhar-card.js — e o botão "Compartilhar", que é um `<button>` sem
+                   href, sem nada pra fazer. *@
+                <p class="text-muted small mb-3">
+                    Uma arte por dia@(Model.Grade.Artes.Any(a => a.Partes > 1) ? " — dia com mais de " + Padelizou.Services.CartaoDosJogos.MaximoDeJogos + " jogos sai em partes" : ""). Salve no celular e poste em sequência.
+                </p>
 
-                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                    <div class="card-body">
-                        <div class="fw-bold mb-3" style="color: var(--pdz-ink);">@arte.Rotulo</div>
+                foreach (var arte in Model.Grade.Artes)
+                {
+                    var imagem = Url.Action("JogosImagem", "Torneios",
+                        new RouteValueDictionary(Model.Filtros) { ["parte"] = arte.Parte });
+                    var arquivo = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(arte.Rotulo)}.png";
 
-                        @* loading="lazy" pelo mesmo motivo dos outros cards: são PNGs de ~1080px, e
-                           carregar todos de uma vez no 4G do clube trava a página. *@
-                        <img src="@imagem" alt="Jogos de @arte.Rotulo"
-                             class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
-                             style="max-width: min(380px, 100%);" />
+                    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                        <div class="card-body">
+                            <div class="fw-bold mb-3" style="color: var(--pdz-ink);">@arte.Rotulo</div>
 
-                        <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
-                            <a href="@imagem" download="@arquivo"
-                               class="btn btn-outline-primary rounded-pill px-3">
-                                <i class="bi bi-download"></i> Baixar
-                            </a>
-                            <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
-                                    data-imagem="@imagem" data-arquivo="@arquivo"
-                                    data-titulo="Jogos — @arte.Rotulo">
-                                <i class="bi bi-share-fill"></i> Compartilhar
-                            </button>
+                            @* loading="lazy" pelo mesmo motivo dos outros cards: são PNGs de ~1080px, e
+                               carregar todos de uma vez no 4G do clube trava a página. *@
+                            <img src="@imagem" alt="Jogos de @arte.Rotulo"
+                                 class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                                 style="max-width: min(380px, 100%);" />
+
+                            <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                                <a href="@EntregaDeCard.LinkParaBaixar(imagem)" download="@arquivo"
+                                   class="btn btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-download"></i> Baixar
+                                </a>
+                                <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                        data-imagem="@imagem" data-arquivo="@arquivo"
+                                        data-titulo="Jogos — @arte.Rotulo">
+                                    <i class="bi bi-share-fill"></i> Compartilhar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                }
             }
         }
     }
