@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+>
+> 🗣️ Felipe, sobre a correção da entrada anterior: *"E quando atualizar, mantem na altura q tava a pagina no scroll. E nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar carregar?"*
+>
+> 🕳️ **O QUE SOBRAVA DE RECARREGAMENTO.** O atualizador de 20s já trocava só os pedaços (cabeçalho do cartão, Agendadas, Finalizadas) — menos num caso: quando a **lista de jogos em quadra mudava**, ele dava `location.reload()`. O motivo estava escrito no próprio arquivo e era real: *"cada cartão pode conter um `<iframe>` de transmissão, e mover ou reescrever iframe é recarregá-lo"*. Num sábado com cinco quadras isso é o tempo todo — e é a mesma queixa de 08/08 (*"o youtube está parando sozinho aqui do nada"*) por outra porta.
+>
+> ✅ **A SAÍDA ERA UMA DISTINÇÃO QUE FALTAVA: inserir e remover NÃO é mover.** Quem continua em quadra não é tocado, e nem quem entra nem quem sai tem vídeo a preservar (o que entra nasce agora; o que sai levou o dele junto). Então o painel virou remendo cartão a cartão dentro da grade `#pdzAoVivoCartoes`: o cartão que falta entra **antes do próximo cartão que já está na tela** (a ordem é a do servidor), o que sobra sai com a coluna dele. **Zero recarregamentos.**
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (CDP + Postgres de verdade), com a página aberta o tempo todo**: com o jogo 9100 em quadra **e um `<iframe>` marcado à mão** (`f.__marca='EU MESMO'`), o 9200 entrou em quadra no banco → `0 cargas de página`, grade virou `9100,9200`, **a marca do iframe sobreviveu** (mesmo elemento), aba `#aovivo`, rolagem `299 → 300px`, `Agendadas (1) → (0)` e a barra recontando `1 jogo(s) → 2 jogo(s)`. Depois o 9100 terminou → `0 cargas`, grade `9200`, aba e rolagem intactas.
+>
+> ✅ **E A ROLAGEM.** O recarregamento que sobrou (caminho de escape, quando a grade não está na página) passa por `recarregarMantendoARolagem`, que empresta a memória do `js/manter-posicao-na-lista.js` — **exposta como `window.pdzGuardarPosicaoNaLista`, não copiada**: duas cópias da chave viram duas memórias diferentes no dia em que uma mudar.
+>
+> ⚠️ **QUEM ESTÁ EM OUTRA ABA TAMBÉM GANHA O REMENDO**, de graça: antes o cartão velho ficava lá até ele voltar pro Ao Vivo. O que **não** acontece é a tela dele sumir — isso continua valendo.
+>
+> ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
+>
+> 🧪 **6.860 testes, 0 falhas (1 novo)** + **6** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
 >
 > 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.
 >

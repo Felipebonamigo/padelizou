@@ -45,12 +45,30 @@ public class AbaQueFicaOndeEstaTests
         // A trava fica no JS e é conferida de verdade pelo conferir-abas-que-ficam.js. Aqui só
         // se garante que ela não sumiu numa limpeza: `location.reload()` sem guarda nenhuma é o
         // defeito de volta, e nenhum teste em C# enxerga isso.
+        //
+        // 12/09/2026: o recarregamento virou CAMINHO DE ESCAPE (só quando o remendo cartão a
+        // cartão não dá), e passa por `recarregarMantendoARolagem` pra guardar a altura da
+        // página antes de sumir com ela.
         var js = File.ReadAllText(Path.Combine(RaizDoRepo(),
             "Padelizou", "wwwroot", "js", "jogos-ao-vivo-atualiza.js"));
 
         Assert.Contains("olhandoOAoVivo", js);
-        Assert.Matches(new Regex(@"if\s*\(olhandoOAoVivo\(\)\)\s*\{\s*window\.location\.reload\(\);",
+        Assert.Matches(new Regex(@"if\s*\(olhandoOAoVivo\(\)\)\s*\{\s*recarregarMantendoARolagem\(\);",
             RegexOptions.Singleline), js);
+    }
+
+    [Fact]
+    public void A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura()
+    {
+        // 🗣️ Felipe, 12/09/2026: *"quando entrar ou sair um jogo do aovivo, ele apenas adicionar
+        // na tela sem precisar carregar"*. O js/jogos-ao-vivo-atualiza.js insere e remove cartão
+        // dentro de `#pdzAoVivoCartoes`. Sem o id no Razor ele não acha a grade, cai no caminho
+        // de escape e a página volta a recarregar inteira — sem erro nenhum no console e sem
+        // teste vermelho em lugar nenhum, porque o escape FUNCIONA. Só o Felipe veria, no
+        // sábado, o YouTube parando sozinho de novo.
+        var fonte = File.ReadAllText(Path.Combine(PastaDasViews(), "_JogosDoTorneio.cshtml"));
+
+        Assert.Matches(new Regex(@"<div class=""row"" id=""pdzAoVivoCartoes"">"), fonte);
     }
 
     [Fact]

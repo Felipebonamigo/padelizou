@@ -440,7 +440,12 @@
             </div>
         }
 
-        <div class="row">
+        @* ⚠️ `id="pdzAoVivoCartoes"` NÃO é enfeite: é por ele que o js/jogos-ao-vivo-atualiza.js
+           acha a grade pra INSERIR o cartão de quem entrou em quadra e REMOVER o de quem saiu,
+           sem recarregar a página (Felipe, 12/09/2026 — "quando entrar ou sair um jogo do aovivo,
+           ele apenas adicionar na tela sem precisar carregar"). O contrato com o JS: cada cartão
+           é embrulhado por UMA coluna, e é a coluna que entra e sai da grade. *@
+        <div class="row" id="pdzAoVivoCartoes">
             @foreach (var jogo in aoVivoList)
             {
                 var youtubeId = ExtrairYoutubeId(jogo.LinkTransmissao);

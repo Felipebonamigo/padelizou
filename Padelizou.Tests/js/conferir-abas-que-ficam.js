@@ -255,6 +255,7 @@ function paginaComAoVivo(aoVivoVisivel, idsAgora, idsNoServidor) {
     const respostaDoServidor = docFalso(idsNoServidor, true);
 
     let recarregou = 0;
+    let guardouARolagem = 0;
     const win = {
         document: doc,
         hidden: false,
@@ -263,7 +264,9 @@ function paginaComAoVivo(aoVivoVisivel, idsAgora, idsNoServidor) {
         getSelection: () => '',
         fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
         DOMParser: function () { this.parseFromString = () => respostaDoServidor; },
+        pdzGuardarPosicaoNaLista: () => { guardouARolagem++; },
         _recarregou: () => recarregou,
+        _guardouARolagem: () => guardouARolagem,
     };
     return win;
 }
@@ -277,17 +280,172 @@ async function tique(win) {
     await new Promise((r) => setTimeout(r, 30));
 }
 
+// ⚠️ ESTAS DUAS PÁGINAS NÃO TÊM A GRADE `#pdzAoVivoCartoes`: são o CAMINHO DE ESCAPE, o que
+// sobrou do comportamento antigo pra quando o remendo cartão a cartão não é possível. O remendo
+// em si está na terceira seção, com a grade de verdade.
 (async function () {
-    // 1. Quem ESTÁ olhando o Ao Vivo: a lista mudou debaixo dele, recarregar é o certo.
+    // 1. Quem ESTÁ olhando o Ao Vivo: a lista mudou debaixo dele e não deu pra remendar —
+    //    recarregar é o certo, guardando a altura da rolagem.
     const olhando = paginaComAoVivo(true, ['10'], ['10', '11']);
     await tique(olhando);
-    ok(olhando._recarregou() === 1, 'com a pessoa NO Ao Vivo, a mudança de jogos em quadra recarrega');
+    ok(olhando._recarregou() === 1, 'sem a grade, com a pessoa NO Ao Vivo, a mudança recarrega');
+    ok(olhando._guardouARolagem() === 1,
+        'o recarregamento guarda a altura da página pra devolver a pessoa onde ela estava');
 
     // 2. Quem está em OUTRA aba (Finalizadas, Palpiteiros): a tela dele não pode sumir.
     const emOutraAba = paginaComAoVivo(false, ['10'], ['10', '11']);
     await tique(emOutraAba);
     ok(emOutraAba._recarregou() === 0,
         'com a pessoa em outra aba, a mudança NÃO recarrega a página debaixo dela');
+
+})();
+
+console.log('── JOGO QUE ENTRA OU SAI DO AO VIVO NÃO RECARREGA A PÁGINA ─────────────────');
+
+// 🗣️ Felipe: *"nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os
+// placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar
+// carregar?"*  Dá — e o que segurava era o <iframe> da transmissão: MOVER ou reescrever um iframe
+// é recarregá-lo. Inserir um cartão novo e remover um que saiu não move os que ficam.
+//
+// ⚠️ O TESTE GUARDA OS IFRAMES DOS SOBREVIVENTES: cada cartão carrega um objeto `video` com um
+// contador de "quantas vezes fui recarregado". Se o remendo mover ou reescrever o cartão de quem
+// continua em quadra, o contador sobe — e é isso que o Felipe viu em 08/08 ("o youtube está
+// parando sozinho aqui do nada").
+
+// ⚠️ O DOM FALSO COPIA A GRADE DE VERDADE, e não uma simplificação dela:
+//     #aovivo  >  #pdzAoVivoCartoes (.row)  >  .col-lg-6  >  .pdz-live-card
+// É a COLUNA que entra e sai da grade, não o cartão pelado. Um teste com o cartão solto no
+// painel passaria com um remendo que na página real não acha o que remover.
+function cartaoVivo(id) {
+    const el = elemento({ 'data-partida-id': String(id) }, ['pdz-live-card']);
+    el.video = { recarregou: 0 };
+    el.hasAttribute = () => false;
+    el.querySelector = (sel) => (sel === '.pdz-live-header' ? el._header || (el._header = elemento({})) : null);
+    const col = elemento({}, ['col-lg-6']);
+    col.cartao = el;
+    el.parentNode = col;
+    return col;
+}
+
+// A grade com filhos de verdade: dá pra inserir, remover e contar.
+function grade(colunas) {
+    const row = elemento({}, ['row']);
+    row.filhos = colunas.slice();
+    colunas.forEach((c) => { c.parentNode = row; });
+    row.removeChild = (no) => { row.filhos = row.filhos.filter((f) => f !== no); };
+    row.insertBefore = (no, ref) => {
+        const i = ref ? row.filhos.indexOf(ref) : -1;
+        if (i < 0) row.filhos.push(no); else row.filhos.splice(i, 0, no);
+        no.parentNode = row;
+        // Quem já estava NÃO é tocado: inserir não recarrega vídeo de ninguém.
+    };
+    row.querySelector = (sel) => {
+        const m = /\[data-partida-id="(\d+)"\]/.exec(sel);
+        const achada = m && row.filhos.find((c) => c.cartao.getAttribute('data-partida-id') === m[1]);
+        return achada ? achada.cartao : null;
+    };
+    row.querySelectorAll = (sel) => (sel === '.pdz-live-card' ? row.filhos.map((c) => c.cartao) : []);
+    return row;
+}
+
+// O painel inteiro. Trocar o `innerHTML` dele REINICIA todo vídeo que estava dentro — é
+// exatamente o que o Felipe viu em 08/08 ("o youtube está parando sozinho aqui do nada"), e o
+// contador é o que denuncia um remendo que reescreve em vez de inserir.
+function painel(row) {
+    const pane = elemento({}, ['tab-pane']);
+    Object.defineProperty(pane, 'innerHTML', {
+        get: () => row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')).join(','),
+        set: () => {
+            row.filhos.forEach((c) => { c.cartao.video.recarregou++; });
+            row.filhos = [];
+        },
+    });
+    return pane;
+}
+
+function documentoDeJogos(ids, aoVivoVisivel) {
+    const row = grade(ids.map(cartaoVivo));
+    const pane = painel(row);
+    const doc = {
+        hidden: false, readyState: 'complete', activeElement: null, _ouvintes: {},
+        addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+        getElementById: (id) => (id === 'jogosTabsContent' ? elemento({}) : null),
+        importNode: (no) => no,
+        querySelector: (sel) => {
+            if (sel === '.pdz-live-card') return row.filhos.length ? row.filhos[0].cartao : null;
+            if (sel === '.modal.show') return null;
+            if (sel === '#aovivo') return pane;
+            if (sel === '#aovivo.active') return aoVivoVisivel ? pane : null;
+            if (sel === '#jogosDoTorneio') return null;   // /Torneios/Jogos: a lista É a página
+            if (sel === '#pdzAoVivoCartoes') return row;
+            if (/\.pdz-live-card\[data-partida-id="\d+"\]/.test(sel)) return row.querySelector(sel);
+            return null;
+        },
+        querySelectorAll: (sel) => (sel === '.pdz-live-card' ? row.querySelectorAll(sel) : []),
+    };
+    doc._row = row;
+    return doc;
+}
+
+async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
+    const doc = documentoDeJogos(idsAgora, aoVivoVisivel);
+    const respostaDoServidor = documentoDeJogos(idsNoServidor, true);
+    let recarregou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Jogos/901', reload: () => { recarregou++; } },
+        setInterval: (fn) => { win._tique = fn; return 1; },
+        getSelection: () => '',
+        fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
+        DOMParser: function () { this.parseFromString = () => respostaDoServidor; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+    win._tique();
+    await new Promise((r) => setTimeout(r, 30));
+    return {
+        recarregou,
+        naTela: doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        videosRecarregados: doc._row.filhos.reduce((n, c) => n + c.cartao.video.recarregou, 0),
+    };
+}
+
+(async function () {
+    // 1. Um jogo ENTRA em quadra: aparece na tela, sem recarregar e sem mexer no vídeo de quem já estava.
+    const entrou = await tiqueComCartoes(['10'], ['10', '11'], true);
+    ok(entrou.recarregou === 0, 'jogo que ENTRA no ao vivo não recarrega a página');
+    ok(entrou.naTela.join(',') === '10,11', 'o jogo que entrou aparece na tela, na ordem do servidor');
+    ok(entrou.videosRecarregados === 0, 'o vídeo de quem já estava em quadra não é reiniciado');
+
+    // 2. Um jogo entra NO MEIO da grade: a ordem é a do servidor (quadra 1, 2, 3...), e não
+    //    "o novo no fim". Inserir sempre no fim passaria no caso 1 e erraria aqui.
+    const noMeio = await tiqueComCartoes(['10', '30'], ['10', '20', '30'], true);
+    ok(noMeio.naTela.join(',') === '10,20,30', 'o jogo que entrou no meio entra no meio');
+    ok(noMeio.videosRecarregados === 0, 'inserir no meio não reinicia o vídeo dos vizinhos');
+
+    // 3. Um jogo SAI de quadra (acabou): some da tela, sem recarregar.
+    const saiu = await tiqueComCartoes(['10', '11'], ['11'], true);
+    ok(saiu.recarregou === 0, 'jogo que SAI do ao vivo não recarrega a página');
+    ok(saiu.naTela.join(',') === '11', 'o jogo que acabou some da tela');
+    ok(saiu.videosRecarregados === 0, 'o vídeo de quem continua em quadra não é reiniciado');
+
+    // 4. Troca completa (acabaram os dois, entraram outros dois): ninguém sobrevive, mas
+    //    continua sem recarregamento.
+    const trocouTudo = await tiqueComCartoes(['10', '11'], ['12', '13'], true);
+    ok(trocouTudo.recarregou === 0, 'trocar os jogos todos de uma vez não recarrega');
+    ok(trocouTudo.naTela.join(',') === '12,13', 'a grade fica com os jogos novos, na ordem');
+
+    // 5. O ÚLTIMO jogo sai: aí não há vídeo a preservar e o painel inteiro pode ser trocado
+    //    (é o que traz o "Nenhum jogo rolando no momento").
+    const esvaziou = await tiqueComCartoes(['10'], [], true);
+    ok(esvaziou.recarregou === 0, 'o último jogo sair também não recarrega a página');
+    ok(esvaziou.naTela.length === 0, 'a grade fica vazia quando acaba o último jogo');
+
+    // 6. Quem está em OUTRA aba também ganha os cartões novos — de graça, sem a tela sumir.
+    //    Antes o remendo nem era tentado pra ele: os cartões ficavam velhos até ele voltar.
+    const emOutraAba = await tiqueComCartoes(['10'], ['10', '11'], false);
+    ok(emOutraAba.recarregou === 0, 'em outra aba, nada recarrega');
+    ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
 
     console.log(falhas === 0 ? '\nTUDO VERDE\n' : '\n' + falhas + ' FALHA(S)\n');
     process.exit(falhas === 0 ? 0 : 1);
