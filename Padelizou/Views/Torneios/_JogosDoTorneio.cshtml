@@ -201,7 +201,8 @@
 }
 @if (tenhoJogoAqui || temFiltroRecolhido)
 {
-    <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" data-manter-posicao="#filtroJogos"
+          class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <input type="hidden" name="id" value="@Model.TorneioId" />
         @* Escolher uma categoria não pode desligar o "meus jogos" sem ninguém pedir. *@
         <input type="hidden" name="soMeusJogos" value="@soMeusJogos.ToString().ToLowerInvariant()" />
@@ -217,6 +218,7 @@
                asp-route-quadraFiltro="@filtroSequencia.Quadra"
                asp-route-faseFiltro="@filtroSequencia.Fase"
                asp-route-soMeusJogos="@(soMeusJogos ? "false" : "true")"
+               data-manter-posicao="#filtroJogos"
                class="btn @(soMeusJogos ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3">
                 <i class="bi @(soMeusJogos ? "bi-person-check-fill" : "bi-person")"></i>
                 Meus jogos
@@ -240,7 +242,7 @@
             @* Fora do recolhido de propósito: é a saída de quem abriu a tela já filtrada e não
                sabe por que a lista encolheu. Volta pra lista inteira — todos os filtros, não
                só os três da sequência: é o que "limpar" diz. *@
-            <a asp-action="@Model.TargetAction" asp-route-id="@Model.TorneioId"
+            <a asp-action="@Model.TargetAction" asp-route-id="@Model.TorneioId" data-manter-posicao="#filtroJogos"
                class="btn btn-link btn-sm text-decoration-none px-1">
                 <i class="bi bi-x-circle"></i> Limpar filtros
             </a>
@@ -255,7 +257,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap pt-2">
                 @if (temFiltroDeTime)
                 {
-                    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
+                    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.requestSubmit()">
                         <option value="">Todos os Times</option>
                     </select>
                 }
@@ -265,7 +267,7 @@
                    da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
                 @if (temFiltroDeClube)
                 {
-                    <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
+                    <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.requestSubmit()" aria-label="Clube">
                         <option value="">Todos os clubes</option>
                         @foreach (var clube in clubesFiltro)
                         {
@@ -276,7 +278,7 @@
 
                 @if (temFiltroDeQuadra)
                 {
-                    <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
+                    <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.requestSubmit()" aria-label="Quadra">
                         <option value="">Todas as quadras</option>
                         @foreach (var nomeDaQuadra in quadrasParaFiltrar)
                         {
@@ -290,7 +292,7 @@
 
                 @if (temFiltroDeFase)
                 {
-                    <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
+                    <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.requestSubmit()" aria-label="Fase">
                         <option value="">Todas as fases</option>
                         @foreach (var fase in fasesFiltro)
                         {
@@ -330,7 +332,7 @@
             var estadoInicial = new URLSearchParams(new FormData(form)).toString();
             form.addEventListener('hidden.bs.dropdown', function () {
                 if (new URLSearchParams(new FormData(form)).toString() !== estadoInicial) {
-                    form.submit();
+                    form.requestSubmit();
                 }
             });
         });
@@ -442,7 +444,12 @@
             </div>
         }
 
-        <div class="row">
+        @* ⚠️ `id="pdzAoVivoCartoes"` NÃO é enfeite: é por ele que o js/jogos-ao-vivo-atualiza.js
+           acha a grade pra INSERIR o cartão de quem entrou em quadra e REMOVER o de quem saiu,
+           sem recarregar a página (Felipe, 12/09/2026 — "quando entrar ou sair um jogo do aovivo,
+           ele apenas adicionar na tela sem precisar carregar"). O contrato com o JS: cada cartão
+           é embrulhado por UMA coluna, e é a coluna que entra e sai da grade. *@
+        <div class="row" id="pdzAoVivoCartoes">
             @foreach (var jogo in aoVivoList)
             {
                 var youtubeId = ExtrairYoutubeId(jogo.LinkTransmissao);

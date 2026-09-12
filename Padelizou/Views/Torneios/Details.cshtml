@@ -985,7 +985,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 @* `pdz-abas`: as abas preenchem a linha em vez de ficarem do tamanho do texto.
    Soltas, elas deixavam três linhas irregulares no celular do organizador — 142px,
    178px e 75px de vão — e a tela parecia quebrada. *@
-<ul class="nav nav-tabs pdz-abas" id="torneioTabs" role="tablist">
+@* ⚠️ `data-torneio-id` NÃO é enfeite: é a chave com que o js/jogos-abas.js lembra em que aba
+   esta pessoa estava, por TORNEIO — quem opera dois no mesmo dia não herda a aba de um no
+   outro. Sem o atributo a chave nasce sem número e os dois torneios dividem a mesma memória.
+   (12/09/2026: a barra de baixo já tinha; esta não, e foi por isso que a aba mãe não voltava.) *@
+<ul class="nav nav-tabs pdz-abas" id="torneioTabs" role="tablist" data-torneio-id="@Model.Id">
     <li class="nav-item" role="presentation">
         <button class="nav-link fw-bold @(torneioComecou ? "" : "active")" id="inscritos-tab" data-bs-toggle="tab" data-bs-target="#inscritos" type="button" role="tab" style="color: var(--pdz-ink);">
             <i class="bi bi-people-fill"></i> Inscritos
