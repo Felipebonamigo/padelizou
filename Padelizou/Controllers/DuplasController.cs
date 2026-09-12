@@ -602,9 +602,9 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
         }
 
-        // Define ou troca o parceiro de uma inscrição já feita. Qualquer um dos dois
-        // integrantes pode fazer isso (e o organizador também), a qualquer momento — quem
-        // sai é avisado, quem entra também.
+        // Define ou troca um dos dois nomes de uma inscrição já feita. Qualquer um dos dois
+        // integrantes pode fazer isso (e o organizador também) — quem sai é avisado, quem entra
+        // também. `saiId` escolhe QUAL dos dois sai; sem ele é o segundo nome, como sempre foi.
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> TrocarParceiro(int duplaId, string cpfNovoParceiro, string? nomeNovoParceiro,
@@ -613,7 +613,8 @@ namespace Padelizou.Controllers
             // Parceiro escolhido pelo NOME, na lista de sugestões. Mesma porta que a inscrição
             // já tinha (Create.jogador2Id): quem define o parceiro depois sabe o nome dele, não
             // o CPF — e o organizador, corrigindo a inscrição de outra pessoa, muito menos.
-            int? novoParceiroId = null)
+            int? novoParceiroId = null,
+            int? saiId = null)
         {
             var jogadorLogadoId = ObterJogadorIdLogado();
             if (jogadorLogadoId == null) return Forbid();
@@ -649,6 +650,60 @@ namespace Padelizou.Controllers
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
             bool ehOrganizador = await UsuarioEhOrganizadorAsync(torneioId);
             if (!ehDaDupla && !ehOrganizador) return Forbid();
+
+            // ⚠️ QUAL DOS DOIS NOMES SAI (12/09/2026). Até aqui esta ação escrevia UMA linha,
+            // `dupla.Jogador2Id = novo.Id`: o titular não tinha como sair.
+            // 🗣️ Felipe, no card de uma dupla paga: *"precisamos mudar o alexandre nesse caso de
+            // agora"* — o Alexandre era o `Jogador1`, e o único caminho que sobrava era remover a
+            // inscrição e refazê-la, perdendo vaga na chave, lugar na grade e o pagamento. É a
+            // mesma perda que a janela larga do organizador (10/09) tinha acabado de eliminar
+            // pro OUTRO dos dois nomes.
+            //
+            // ⚠️ NENHUMA RÉGUA NOVA, e isso é decisão e não economia. 🗣️ Felipe: *"antes de fechar
+            // as chaves organizador e os dois da dupla, depois que fechar, só o organizador"* —
+            // que é letra por letra o par que a janela logo abaixo já aplicava. Uma terceira
+            // régua seria mais uma cópia pra dessincronizar (ver a Mesa de Controle em 31/07).
+            //
+            // Sem `saiId` é o segundo nome, como sempre foi: todo formulário anterior a hoje
+            // posta assim, e nada muda pra eles.
+            bool tirarOTitular = saiId != null && saiId == dupla.Jogador1Id;
+
+            // `saiId` é campo de formulário, e portanto entrada de fora: um id que não é de
+            // nenhum dos dois não pode cair no "então é o segundo nome" e trocar, calado, um
+            // nome que ninguém pediu pra trocar.
+            if (saiId != null && !tirarOTitular && saiId != dupla.Jogador2Id)
+            {
+                TempData["Erro"] = "Essa pessoa não está nesta inscrição.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
+            // QUEM FICA é o par de quem entra — e é contra ele que as checagens daqui pra baixo
+            // comparam: o "não pode ser você mesmo" e a régua de sexo de Mista/Casais.
+            // QUEM SAI é lido AGORA, antes de qualquer escrita, porque é ele quem recebe o aviso
+            // e quem aparece na mensagem de sucesso.
+            //
+            // ⚠️ O `if` em vez de um ternário com `!` é o que prova ao compilador que
+            // `dupla.Jogador2` não é nulo aqui (CS8602 é erro desde 22/08, e `!` cala o
+            // compilador sem mudar o risco).
+            Jogador fica;
+            Jogador? antigo;
+            if (tirarOTitular)
+            {
+                if (dupla.Jogador2 == null)
+                {
+                    TempData["Erro"] = "Essa inscrição está sem parceiro — o caso é definir "
+                        + "o que falta, não tirar quem está.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                fica = dupla.Jogador2;
+                antigo = dupla.Jogador1;
+            }
+            else
+            {
+                fica = dupla.Jogador1;
+                antigo = dupla.Jogador2;
+            }
 
             // ⚠️ DUAS JANELAS DIFERENTES, e a diferença é o coração da mudança de 09/09/2026:
             // esta ação faz DUAS coisas na mesma porta — DEFINIR o segundo nome que falta e
@@ -722,9 +777,15 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
-            if (cpf == dupla.Jogador1.Cpf)
+            // Contra QUEM FICA, e não contra o `Jogador1` fixo: tirando o titular, quem não pode
+            // se repetir é o parceiro que ficou. Sem isto a inscrição terminaria com a mesma
+            // pessoa nos dois campos — uma dupla de um só, passando por completa em toda
+            // consulta que lê `Completa`.
+            if (cpf == fica.Cpf)
             {
-                TempData["Erro"] = "O parceiro não pode ser você mesmo.";
+                TempData["Erro"] = tirarOTitular
+                    ? $"{fica.ComoChamar} já está nesta inscrição — escolha outra pessoa."
+                    : "O parceiro não pode ser você mesmo.";
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
@@ -751,13 +812,17 @@ namespace Padelizou.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            if (novo.Id == dupla.Jogador2Id)
+            // Escolher quem está saindo é pedir pra não mudar nada — e é `antigo`, não o
+            // `Jogador2Id` fixo, porque quem sai agora pode ser o titular.
+            if (novo.Id == antigo?.Id)
             {
-                TempData["Sucesso"] = $"{novo.Nome} já é o parceiro desta inscrição.";
+                TempData["Sucesso"] = tirarOTitular
+                    ? $"{novo.Nome} já está nesta inscrição."
+                    : $"{novo.Nome} já é o parceiro desta inscrição.";
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
-            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio, novo, juntarComInscricaoSolo);
+            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio, novo, juntarComInscricaoSolo, fica);
             if (impedimento != null)
             {
                 TempData["Erro"] = impedimento;
@@ -771,7 +836,6 @@ namespace Padelizou.Controllers
                     await InscricaoRepetida.ProcurarAsync(_context, dupla.CategoriaId, new[] { novo.Id }, ignorarDuplaId: dupla.Id))
                 : new List<InscricaoRepetida.Achado>();
 
-            var antigo = dupla.Jogador2;
             var jaEstavaPaga = dupla.Pago;
 
             // ⚠️ A conta do parceiro é feita ANTES de gravá-lo na dupla. Depois, esta própria
@@ -784,6 +848,24 @@ namespace Padelizou.Controllers
             var segundoRepete = precisaCobrarOSegundo
                 && await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novo.Id,
                        absorvidas.Select(a => a.DuplaId).Distinct());
+
+            // QUEM FICA SOBE PRO LUGAR DO TITULAR, e daqui pra baixo é a troca do segundo nome
+            // de sempre. 🗣️ Felipe escolheu assim pra que `Jogador1` continue querendo dizer
+            // alguma coisa — o mais antigo dos dois que estão na inscrição — em vez de virar
+            // mera posição. Ranking, Padelímetro e estatística leem os DOIS campos
+            // (`Jogador1Id` ou `Jogador2Id`), então o que não pode em hipótese nenhuma é o
+            // nome que saiu sobrar num deles.
+            //
+            // ⚠️ SÓ A FK, e a navegação `dupla.Jogador1` vem de graça: o ChangeTracker a arruma
+            // no `SaveChangesAsync` logo abaixo, e `AvisarTrocaDeParceiroAsync` — que monta o
+            // aviso com `dupla.Jogador1.Nome` — só roda DEPOIS disso. Medido, não suposto: sem
+            // esta ordem o push chegaria ao Alexandre dizendo que o Alexandre trocou de
+            // parceiro. Quem segura a ordem é
+            // `O_aviso_de_quem_saiu_nomeia_quem_FICOU_e_nao_quem_saiu`.
+            if (tirarOTitular)
+            {
+                dupla.Jogador1Id = fica.Id;
+            }
 
             dupla.Jogador2Id = novo.Id;
 
@@ -831,8 +913,12 @@ namespace Padelizou.Controllers
         // Separar as duas cópias deixaria o caminho do convite mais frouxo que o outro — e
         // é justamente o caminho aberto por link, o que qualquer um alcança.
         // Devolve a mensagem do impedimento, ou null quando pode entrar.
+        // `quemFicaNaDupla` é o par de quem entra. Só o caminho do TrocarParceiro sabe disso —
+        // lá quem sai pode ser o titular (12/09/2026), e aí quem fica é o Jogador2. Quem não
+        // passa (o aceite de convite) cai na dedução de sempre, logo abaixo.
         private async Task<string?> MotivoParaNaoSerParceiroAsync(
-            Dupla dupla, Torneio torneio, Jogador candidato, bool juntarComInscricaoSolo = false)
+            Dupla dupla, Torneio torneio, Jogador candidato, bool juntarComInscricaoSolo = false,
+            Jogador? quemFicaNaDupla = null)
         {
             // Não pode já estar em outra dupla desta MESMA categoria. Mas "já está inscrito"
             // tem dois sabores muito diferentes (ver Services/InscricaoRepetida): com dupla
@@ -884,7 +970,8 @@ namespace Padelizou.Controllers
             //
             // O par é o candidato com quem FICA na dupla — quando o titular é o próprio
             // candidato (troca do parceiro 2), quem fica é o Jogador1.
-            var quemFica = dupla.Jogador1Id == candidato.Id ? dupla.Jogador2 : dupla.Jogador1;
+            var quemFica = quemFicaNaDupla
+                ?? (dupla.Jogador1Id == candidato.Id ? dupla.Jogador2 : dupla.Jogador1);
             if (SexoDoJogador.MotivoParaNaoEntrar(dupla.Categoria.Nome, candidato, quemFica) is { } motivoSexo)
                 return motivoSexo;
 
