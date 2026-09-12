@@ -22,6 +22,67 @@
     bool comPlacar = Model.PalpitesComPlacar > 0;
 }
 
+@* ── O RECORTE DE FASE ──────────────────────────────────────────────────────────────────
+   12/09/2026 — 🗣️ Felipe: *"também no palpitometro, colocar um filtro 'por chaves' 'Por mata
+   mata' 'Apenas finais'"*.
+
+   ⚠️ VEM ANTES DO PÓDIO de propósito: o recorte é um RANKING PRÓPRIO (escolha do Felipe), e
+   quem muda é a tabela INTEIRA — pódio, régua e posições. Botão embaixo do pódio faria o
+   leitor ver o campeão do torneio e só depois descobrir que podia recortar.
+
+   ⚠️ LINK, e não botão de JS: esta conta é do SERVIDOR. Os pontos do mata-mata são outra
+   apuração, não um subconjunto de linhas — um `onclick` prometeria filtro instantâneo e
+   entregaria o número do torneio inteiro debaixo do rótulo da fase.
+
+   ⚠️ A URL PRESERVA A QUERY QUE JÁ ESTAVA LÁ (os filtros de jogos do Details, por exemplo) e
+   troca só o `fasePalpiteiros`. Montar de novo do zero apagaria o resto sem avisar.
+
+   ⚠️ E A ÂNCORA VEM DE QUEM CHAMA: dentro da página do torneio o link tem que voltar pra ABA
+   dos palpiteiros (`#palpiteiros`), senão filtrar joga o leitor no topo, na primeira aba. Na
+   página cheia não há aba, e ela não manda âncora nenhuma. *@
+@if (Model.MostrarFiltroDeFase)
+{
+    var ancora = ViewData["AncoraDosPalpiteiros"] as string ?? "";
+    var demaisParametros = Context.Request.Query
+        .Where(p => p.Key != "fasePalpiteiros")
+        .SelectMany(p => p.Value.Select(valor => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(valor ?? "")}"))
+        .ToList();
+
+    string UrlDoRecorte(string recorte)
+    {
+        var partes = new List<string>(demaisParametros);
+        // "Todas as fases" é o padrão: ele sai da URL em vez de virar `?fasePalpiteiros=tudo`.
+        if (recorte != Padelizou.Services.FaseDoPalpitometro.Tudo)
+            partes.Add("fasePalpiteiros=" + recorte);
+
+        return Context.Request.Path
+            + (partes.Count > 0 ? "?" + string.Join("&", partes) : "")
+            + ancora;
+    }
+
+    <div class="pdz-filtro-de-fase btn-group btn-group-sm mb-3 flex-wrap" role="group"
+         aria-label="Recortar o ranking por fase">
+        @foreach (var recorte in Model.RecortesComJogo)
+        {
+            bool aceso = recorte == Model.Recorte;
+            <a href="@UrlDoRecorte(recorte)" class="btn btn-outline-secondary @(aceso ? "active" : "")"
+               aria-current="@(aceso ? "true" : null)">@Padelizou.Services.FaseDoPalpitometro.Rotulo(recorte)</a>
+        }
+    </div>
+
+    @if (Model.Recorte != Padelizou.Services.FaseDoPalpitometro.Tudo)
+    {
+        @* ⚠️ A TELA DIZ QUE ESTÁ RECORTADA. Sem esta linha, um pódio de três nomes com 3 pontos
+           parece o ranking do torneio inteiro com a conta quebrada — e quem chega por link
+           compartilhado não viu ninguém clicar em botão nenhum. *@
+        <p class="small text-muted mb-3">
+            <i class="bi bi-funnel"></i>
+            Só <strong>@Padelizou.Services.FaseDoPalpitometro.NaFrase(Model.Recorte)</strong> —
+            os pontos, os acertos e as posições aqui são só desta parte do torneio.
+        </p>
+    }
+}
+
 @* ── O PÓDIO ────────────────────────────────────────────────────────────────────────────
    Só quando há gente com ponto: um pódio de zeros anuncia campeão de nada. *@
 @if (lider != null && lider.Pontos > 0)
