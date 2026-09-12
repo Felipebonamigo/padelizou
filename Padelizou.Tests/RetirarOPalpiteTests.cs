@@ -100,7 +100,7 @@ public class RetirarOPalpiteTests
     [Fact]
     public void O_botao_de_retirar_existe_nas_duas_apresentacoes_e_so_pra_quem_palpitou()
     {
-        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
             var fonte = Ler("Views", "Torneios", arquivo);
 
@@ -116,7 +116,7 @@ public class RetirarOPalpiteTests
     [Fact]
     public void A_tela_esconde_o_retirar_de_quem_nao_tem_mais_palpite()
     {
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
 
         Assert.Contains("pdz-retirar-palpite", js);
         Assert.Contains("/Partidas/RetirarPalpite", js);

@@ -1,4 +1,4 @@
-@model (Padelizou.Services.ArvoreDaChave.Quadro Quadro, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem> Previstos)
+@model (Padelizou.Services.ArvoreDaChave.Quadro Quadro, IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem> Previstos, int Categoria)
 @*
     A PRÉVIA do mata-mata como ÁRVORE — o caminho até a final com as linhas mostrando de onde
     vem cada vaga, no lugar das quatro colunas soltas que a tela tinha até 11/09/2026.
@@ -100,11 +100,23 @@
    com a rodada seguinte espiando na beirada; no computador a chave inteira está à vista. *@
 <div class="pdz-chd">
     @* Atalho de rodada e dica de arrasto só no celular: no computador não há gesto nenhum
-       pra atalhar, e a chave inteira já está na tela. *@
+       pra atalhar, e a chave inteira já está na tela.
+
+       ⚠️ O ID CARREGA A CATEGORIA, e não é enfeite: este partial é desenhado UMA VEZ POR
+       CATEGORIA (Details.cshtml, dentro do laço dos `.tab-pane`), e com `pdz-chd-rodada-@r` as
+       sete do ER escreviam os mesmos quatro ids. `href="#..."` acha o PRIMEIRO do documento —
+       que mora num painel escondido, e rolar pra invisível não faz nada. Era metade do
+       *"as vezes n funciona"* de 12/09/2026.
+
+       ⚠️ E QUEM ROLA É `js/chave-fichas.js`, NÃO A ÂNCORA: o trilho é `scroll-snap` mandatório
+       e a navegação por âncora alinha com `inline: nearest`, que para ENTRE dois pontos de
+       encaixe — o snap puxava de volta e a ficha parava uma rodada atrás. O `href` fica como
+       caminho de teclado e como o que sobra sem JS. Travado em
+       FichasDaChaveLevamARodadaCertaTests. *@
     <nav class="pdz-chd-fichas d-md-none" aria-label="Ir para uma rodada do mata-mata">
         @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
-            <a class="pdz-chd-ficha" href="#pdz-chd-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
+            <a class="pdz-chd-ficha" href="#pdz-chd-@(Model.Categoria)-rodada-@r">@quadro.Rodadas[r].Fase.Replace(" de Final", "", StringComparison.Ordinal)</a>
         }
     </nav>
 
@@ -112,7 +124,7 @@
         @for (int r = 0; r < quadro.Rodadas.Count; r++)
         {
             var rodada = quadro.Rodadas[r];
-            <div class="pdz-chd-rodada" id="pdz-chd-rodada-@r">
+            <div class="pdz-chd-rodada" id="pdz-chd-@(Model.Categoria)-rodada-@r">
                 <div class="pdz-chd-cab">
                     @rodada.Fase
                     <span class="pdz-chd-conta">@rodada.Vagas.Count @(rodada.Vagas.Count == 1 ? "jogo" : "jogos")</span>
