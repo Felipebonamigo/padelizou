@@ -4,7 +4,7 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// AS CONSULTAS DO PALPITRÔMETRO REALMENTE VIRAM SQL?
+// AS CONSULTAS DO PALPITÔMETRO REALMENTE VIRAM SQL?
 //
 // 🕳️ O buraco que estes testes fecham: **o banco InMemory do resto da suíte não traduz nada**.
 // Lá tudo é objeto em memória, então uma consulta que o Postgres recusaria passa lisa — e

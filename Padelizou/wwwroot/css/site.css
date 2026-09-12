@@ -989,11 +989,11 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-live-video iframe { border: 0; }
 
-/* O palpitrômetro, embaixo da transmissão. O padding é DELE, e não do `.card-body` do
+/* O palpitômetro, embaixo da transmissão. O padding é DELE, e não do `.card-body` do
    Bootstrap: `.pdz-live-card` não é `.card`, então lá dentro `--bs-card-spacer-x/y` não
    existem e o padding do `.card-body` cai pra zero sem avisar (11/09/2026). Os 1.1rem dos
    lados são os mesmos do `.pdz-live-header` e do `.pdz-live-video-label` — é o que alinha o
-   rótulo "Palpitrômetro" com o "Transmissão" logo acima. */
+   rótulo "Palpitômetro" com o "Transmissão" logo acima. */
 .pdz-live-palpite { padding: .5rem 1.1rem 1rem; }
 
 /* Fundo suave usado em vários cards utilitários */
@@ -1205,7 +1205,7 @@ button, a, input, select { touch-action: manipulation; }
 }
 .bracket-team.winner .team-name { font-weight: 800 !important; }
 
-/* Palpitrômetro */
+/* Palpitômetro */
 .palpite-opcao.votavel {
     cursor: pointer;
     border-radius: 6px;
@@ -1214,7 +1214,7 @@ button, a, input, select { touch-action: manipulation; }
     transition: background-color .15s ease;
 }
 .palpite-opcao.votavel:hover { background-color: var(--pdz-navy-50, #eef2f8); }
-.pdz-palpitrometro .progress-bar { transition: width .3s ease; }
+.pdz-palpitometro .progress-bar { transition: width .3s ease; }
 .pdz-palpite-barra-wrap { position: relative; padding-top: 18px; }
 .pdz-palpite-pct-badge {
     position: absolute;
@@ -1509,7 +1509,7 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-confirmar-ok.pdz-confirmar-ok-perigo:hover { background: #c9302c; }
 
 /* ── Jogo em linha (Agendadas e Finalizadas) ───────────────────────────────
-   O cartão grande — placar gigante, chips com foto, palpitrômetro aberto — é pra UM
+   O cartão grande — placar gigante, chips com foto, palpitômetro aberto — é pra UM
    jogo acontecendo agora, onde a tela tem um assunto só. Numa lista de 48 agendados
    ele virava uma parede: cada jogo ocupava meia tela e ver a grade do dia exigia
    rolar sem parar. Aqui cabe o que se procura numa lista: quando, contra quem, e se
@@ -1522,7 +1522,7 @@ button, a, input, select { touch-action: manipulation; }
 
 /* ── Jogo em linha (Agendadas/Finalizadas — Views/Torneios/_JogoEmLinha) ──────
    Duplas LADO A LADO com o "×" no meio (é como se lê um confronto em qualquer
-   lugar) e o palpitrômetro embaixo, ocupando a linha inteira.
+   lugar) e o palpitômetro embaixo, ocupando a linha inteira.
    Bloco ÚNICO de propósito: este componente já teve duas definições concorrentes
    neste arquivo, e a metade morta escondia o porquê de o "×" flutuar no meio. */
 .pdz-jogo-linha {
@@ -1645,9 +1645,9 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-jogo-linha-time:not(.pdz-jogo-linha-time-esq) .pdz-jogo-linha-games { order: 2; }
 }
 
-/* Palpitrômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
+/* Palpitômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
    entre elas. A versão grande (Ao Vivo) mostra só o lado que lidera; aqui os dois
-   números SÃO o palpitrômetro. Comportamento em wwwroot/js/palpitrometro.js. */
+   números SÃO o palpitômetro. Comportamento em wwwroot/js/palpitometro.js. */
 .pdz-palpite-linha {
     display: flex;
     align-items: center;
@@ -2217,7 +2217,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-mm-fase:last-of-type .pdz-chave-vaga { font-size: .85rem; }
 
-/* O palpitrômetro em linha precisa PARECER clicável — antes ele era só um "50%" solto,
+/* O palpitômetro em linha precisa PARECER clicável — antes ele era só um "50%" solto,
    com o conjunto a 45% de opacidade quando ninguém tinha votado. Lido como desabilitado:
    a pessoa clicava, o voto entrava e a barra continuava apagada, então ela concluía que
    não era permitido palpitar. Agora quem pode votar vê uma pílula de verdade. */
@@ -2247,7 +2247,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     border-color: var(--pdz-lime);
 }
 
-/* ---- O bloco do palpitrômetro (embaixo do jogo em linha) ---- */
+/* ---- O bloco do palpitômetro (embaixo do jogo em linha) ---- */
 .pdz-palpite-bloco {
     margin-top: .5rem;
     padding-top: .45rem;
@@ -2274,7 +2274,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-palpite-total { margin-left: auto; font-weight: 700; }
 
-/* Na linha inteira o palpitrômetro respira: a barra ocupa o espaço todo. */
+/* Na linha inteira o palpitômetro respira: a barra ocupa o espaço todo. */
 .pdz-palpite-bloco .pdz-palpite-linha { flex: 1 1 auto; gap: .5rem; }
 .pdz-palpite-bloco .pdz-palpite-barra { display: block; height: 8px; }
 .pdz-palpite-bloco .pdz-palpite-pct { font-size: .76rem; min-width: 2.6rem; }
@@ -3215,7 +3215,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 /* ── Confronto EMPILHADO na lista, em qualquer tamanho de tela ─────────────
    Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
    pra ler quem joga contra quem. Empilhado, cada dupla é uma linha — rosto, nome e,
-   quando há palpitrômetro, a PORCENTAGEM DELA na ponta direita. É isso que faz o
+   quando há palpitômetro, a PORCENTAGEM DELA na ponta direita. É isso que faz o
    número apontar pra uma dupla, em vez de o leitor adivinhar se os 100% da esquerda
    são de quem está em cima. */
 .pdz-jl-corpo {
@@ -3224,7 +3224,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     gap: .2rem;
 
     /* O corpo carrega `pdz-palpite-linha` porque é assim que o JS reconhece a versão em
-       linha do palpitrômetro (ver _JogoEmLinha). Aquela classe foi desenhada pra uma faixa
+       linha do palpitômetro (ver _JogoEmLinha). Aquela classe foi desenhada pra uma faixa
        horizontal e traz `align-items: center` + `flex-basis`, que aqui centralizariam as
        linhas do confronto em vez de esticá-las. Anulados na fonte pra ninguém precisar
        descobrir isso de novo. */
@@ -3251,7 +3251,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-jl-dupla .pdz-jl-games { margin-left: auto; }
 .pdz-jl-dupla .pdz-jl-games + .pdz-palpite-pct { margin-left: .5rem; }
 
-/* Rodapé do palpitrômetro: o rótulo, a barra e o total de votos numa linha fina. */
+/* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */
 .pdz-jl-palpite {
     display: flex;
     align-items: center;
@@ -3296,7 +3296,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     .pdz-palpite-ajuda { display: none; }
 }
 
-/* O rótulo do palpitrômetro EM CIMA da coluna de porcentagens — ali ele nomeia os
+/* O rótulo do palpitômetro EM CIMA da coluna de porcentagens — ali ele nomeia os
    números que estão logo abaixo. Antes era um rodapé com rótulo + barra + votos:
    uma altura inteira de linha pra dizer o que os dois números já dizem. */
 .pdz-jl-palpite-topo {
@@ -3378,7 +3378,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
 }
 
 /* O cabeçalho de cada dupla no modal é um BOTÃO que dobra aquele lado — parece texto até o
-   hover, como o "N voto(s)" do palpitrômetro. */
+   hover, como o "N voto(s)" do palpitômetro. */
 .pdz-votantes-dupla {
     border: 0;
     background: none;

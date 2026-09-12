@@ -5,7 +5,7 @@
 // ⚠️ O `dotnet test` NÃO enxerga este arquivo — quem roda é o CI, no passo que varre
 // `Padelizou.Tests/js/conferir-*.js`, e ele reprova o build. Rode à mão antes de commitar.
 //
-// Sem dependência nenhuma, mesmo motivo do conferir-palpitrometro.js: este repositório não tem
+// Sem dependência nenhuma, mesmo motivo do conferir-palpitometro.js: este repositório não tem
 // npm (ver SUPPLY-CHAIN.md) e não vai ganhar uma árvore de terceiros por 100 linhas.
 //
 // O QUE ELE GUARDA. As abas "Pagamentos e impedimentos" e "Planejamento de quadras" saem da

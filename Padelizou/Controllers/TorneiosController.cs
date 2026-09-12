@@ -1710,7 +1710,7 @@ namespace Padelizou.Controllers
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }
 
-            // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
+            // PALPITÔMETRO: resumo de votos de cada partida exibida, num único lote.
             int? meuId = User.Identity?.IsAuthenticated == true
                 ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
                 : null;

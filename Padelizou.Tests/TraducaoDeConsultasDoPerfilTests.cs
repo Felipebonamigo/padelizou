@@ -6,7 +6,7 @@ namespace Padelizou.Tests;
 // A consulta por jogador que EstatisticasService.CarregarPartidasFinalizadasAsync passou a
 // fazer em 21/08/2026 (perfil: Confrontos e Parceiros) REALMENTE vira SQL?
 //
-// Mesmo buraco que TraducaoDasConsultasDePalpiteTests fecha do lado do palpitrômetro: o banco
+// Mesmo buraco que TraducaoDasConsultasDePalpiteTests fecha do lado do palpitômetro: o banco
 // InMemory do resto da suíte não traduz nada — uma consulta que o Postgres recusaria passa
 // lisa por 4 mil testes verdes e só estoura na primeira visita real ao perfil. `ToQueryString()`
 // compila a consulta sem abrir conexão nenhuma; ver o cabeçalho daquele arquivo para o porquê

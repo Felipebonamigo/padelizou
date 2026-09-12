@@ -88,7 +88,7 @@ jobs:
       # falhasse antes dele, o job anunciaria "a suíte falhou mas nenhum teste aparece como
       # Failed" — mensagem falsa, porque a suíte nem teria rodado.
       #
-      # O que ele guarda: a trava de clique do palpitrômetro (10/09/2026 — `DbUpdateException
+      # O que ele guarda: a trava de clique do palpitômetro (10/09/2026 — `DbUpdateException
       # em POST /Partidas/Votar`, dois POSTs do mesmo dedo). O `dotnet test` não enxerga um
       # arquivo .js, então até aqui a única metade testada do conserto era a do servidor.
       #
@@ -97,7 +97,7 @@ jobs:
       # hoje não tem nada de npm (ver SUPPLY-CHAIN.md) não ganha uma árvore de terceiros por
       # causa de uma conferência de 150 linhas.
       # ⚠️ VARRE A PASTA, não cita arquivo pelo nome. Até 10/09/2026 este passo chamava o
-      # `conferir-palpitrometro.js` na mão, e o segundo conferidor que nasceu
+      # `conferir-palpitometro.js` na mão, e o segundo conferidor que nasceu
       # (`conferir-abas-recolhidas.js`) teria ficado FORA do CI sem ninguém notar — um arquivo
       # de teste que nunca roda é pior que nenhum, porque parece cobertura.
       - name: Conferir as travas de JS

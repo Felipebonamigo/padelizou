@@ -140,7 +140,7 @@
                 </p>
             }
 
-            @* 🔮 O PALPITRÔMETRO. Só existe pra quem já teve um palpite contado — e a régua de
+            @* 🔮 O PALPITÔMETRO. Só existe pra quem já teve um palpite contado — e a régua de
                "contado" é a mesma do ranking (Services/PontosDoPalpite): jogo terminado, e nunca
                o palpite de quem estava em quadra naquele jogo.
 
@@ -154,8 +154,8 @@
                        class="text-decoration-none">
                         <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis"
                               style="font-size:.9rem;"
-                              title="Palpites no palpitrômetro dos torneios: cravar o placar vale 3, chegar perto 2, acertar só quem venceu 1. Quem está em quadra não pontua no próprio jogo.">
-                            🔮 @palpites.Pontos pt@(palpites.Pontos == 1 ? "" : "s") no palpitrômetro ·
+                              title="Palpites no palpitômetro dos torneios: cravar o placar vale 3, chegar perto 2, acertar só quem venceu 1. Quem está em quadra não pontua no próprio jogo.">
+                            🔮 @palpites.Pontos pt@(palpites.Pontos == 1 ? "" : "s") no palpitômetro ·
                             @palpites.Acertos de @palpites.Palpites@(palpites.Cravadas > 0 ? $" · {palpites.Cravadas} cravada(s)" : "")
                         </span>
                     </a>

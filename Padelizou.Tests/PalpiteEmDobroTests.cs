@@ -7,8 +7,8 @@ namespace Padelizou.Tests;
 
 // DOIS "VOTAR" DO MESMO JOGADOR NO MESMO JOGO, AO MESMO TEMPO, NÃO PODEM DERRUBAR O PALPITE.
 //
-// Erro em produção (10/09/2026): `DbUpdateException em POST /Partidas/Votar`. O palpitrômetro
-// não tem trava de clique no `palpitrometro.js` — um toque duplo no nome da dupla, duas abas ou
+// Erro em produção (10/09/2026): `DbUpdateException em POST /Partidas/Votar`. O palpitômetro
+// não tem trava de clique no `palpitometro.js` — um toque duplo no nome da dupla, duas abas ou
 // o voto seguido da ficha de placar disparam DOIS POSTs. Cada requisição tem o PRÓPRIO
 // DbContext: as duas leem "esse jogador ainda não votou", as duas INSEREM, e o índice único
 // `IX_PalpitePartida_PartidaId_JogadorId` (que existe desde a migration inicial) recusa a
@@ -119,7 +119,7 @@ public class PalpiteEmDobroTests
 
         var resumo = await servico.RegistrarVotoAsync(partidaId, torcedorId, dupla1Id);
 
-        // Um voto só na tela — e não um 500 no lugar do palpitrômetro.
+        // Um voto só na tela — e não um 500 no lugar do palpitômetro.
         Assert.Equal(1, resumo.TotalVotos);
         Assert.Equal(dupla1Id, resumo.MeuVotoDuplaId);
 

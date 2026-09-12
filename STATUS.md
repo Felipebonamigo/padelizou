@@ -11,11 +11,27 @@
 >
 > 🔧 **SÃO QUATRO MEXIDAS, E AS QUATRO SÃO A MESMA CONTA DE LARGURA**: (1) `.pdz-live-placar` ganhou `flex-shrink: 0`; (2) o nome passou a poder ceder (`min-width: 0` + `overflow-wrap: break-word` no chip DENTRO do card ao vivo) — senão o conserto só trocava o dono do transbordo, com o nome vazando pra direita em cima da mesma bola; (3) o campo do placar foi de `2.2em` pra `1.7em` (63px → 48px), que é o que devolve ao nome o pixel de que ele precisa pra não partir no meio da palavra ("Bittencour / t", visto no navegador) — dois dígitos continuam cabendo; (4) o card virou `col-lg-6`: entre 768 e 991px duas colunas deixavam cada card com 336px, 60px MENOS que o celular.
 >
-> 🧪 **6.634 testes, 0 falhas (4 novos, em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`)** + `conferir-palpitrometro.js` e `conferir-abas-recolhidas.js` verdes. O teste que importa é o do ORÇAMENTO: ele soma, lendo o próprio `site.css`, quanto a bolinha e o contador comem de um card de 393px e reprova se sobrar menos que o nome — é a régua que impede o card de voltar a se resolver empilhando uma coisa em cima da outra.
+> 🧪 **6.638 testes, 0 falhas (4 novos, em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`)** — já com o `main` de hoje dentro, que trouxe o palpitômetro sem o erre (PR #234) — + `conferir-palpitometro.js` e `conferir-abas-recolhidas.js` verdes. O teste que importa é o do ORÇAMENTO: ele soma, lendo o próprio `site.css`, quanto a bolinha e o contador comem de um card de 393px e reprova se sobrar menos que o nome — é a régua que impede o card de voltar a se resolver empilhando uma coisa em cima da outra.
 >
 > ⚠️ **O TETO, ESCRITO NO CSS**: num celular de **320px** o nome de quem MARCA placar fica com ~70px e empilha feio (card de ~767px de altura). Pro torcedor não muda nada — lá o bloco continua sendo um número de 2.4rem, com 153px de nome no mesmo 320px. A saída, se doer: descer o placar pra linha de baixo num `@media (max-width: 359.98px)`.
 >
 > ⚠️ **NÃO RODEI A PÁGINA DE VERDADE** (sem banco nesta sessão): a conferência foi num harness com o HTML do card copiado do Razor e o `site.css` do repositório, no Chromium do container.
+
+> Última atualização: **11/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
+>
+> 🔤 **O NOME PERDEU O ERRE: PALPITRÔMETRO → PALPITÔMETRO.** 🗣️ Felipe, com um print da lista de jogos e o rótulo circulado: *"ta escrito 'palpitrometro' aqui"*. Perguntado se era só o texto da tela ou o código inteiro: **o código inteiro**.
+>
+> 🕳️ **A palavra é `palpite` + `-ômetro`** — bafômetro, velocímetro, palpitômetro. O erre nunca teve de onde sair: entrou no primeiro arquivo (19/08/2026) e foi copiado por **41 arquivos, 148 ocorrências**. O próprio Felipe sempre escreveu *"palpitometro"* nos pedidos dele (as citações de 10/09 estão aqui neste arquivo); a tela é que respondia com erre.
+>
+> 📦 **Quatro arquivos renomeados com `git mv`** (histórico preservado): `wwwroot/js/palpitrometro.js` → `palpitometro.js`, `Views/Torneios/_Palpitrometro.cshtml` → `_Palpitometro.cshtml`, `PalpitrometroColadoNaBordaTests.cs` → `PalpitometroColadoNaBordaTests.cs` e `Padelizou.Tests/js/conferir-palpitrometro.js` → `conferir-palpitometro.js`. Junto vieram a classe `.pdz-palpitrometro` → `.pdz-palpitometro` (CSS, views e os `closest()` do JS), as funções `atualizarPalpitrometro`/`mostraPalpitrometro`, e as **três páginas de marketing da raiz** (`APRESENTACAO.html`, `JOGADORES.html`, `ORGANIZADOR-TORNEIO.html`), que também diziam o nome pro público.
+>
+> ✅ **O CI não precisou de uma linha**, e é mérito de uma decisão de 10/09: o passo "Conferir as travas de JS" **varre `Padelizou.Tests/js/conferir-*.js`** em vez de citar arquivo pelo nome. Renomear o conferidor mexeu só no comentário dele.
+>
+> ⚠️ **O `STATUS.md` NÃO foi reescrito, de propósito:** é diário datado, e entrada de agosto que cita `conferir-palpitrometro.js` é registro do que aconteceu — reescrever o passado tiraria o único jeito de achar aquele trabalho depois. Por isso o gate ignora `.md`.
+>
+> 🔒 **GATE NOVO (`OPalpitometroPerdeuOErreTests`, 4 testes), porque o caminho de volta é o copiar-colar:** um arquivo que nasça de um antigo traz o nome errado junto. Ele varre **conteúdo E nome de arquivo** de todo `.cs/.cshtml/.js/.css/.html/.yml` fora de `bin`/`obj`/`lib`, e ainda exige que o rótulo **continue existindo** nas duas telas (senão apagar o palpitômetro passaria no gate). Ele **se exclui da varredura** — é o único arquivo que cita o defeito, na frase do Felipe e no nome antigo do conferidor.
+>
+> 🧪 **6.607 testes, 0 falhas (4 novos)** + `conferir-palpitometro.js` (16 conferências) e `conferir-abas-recolhidas.js` (11) verdes. Os 4 vistos vermelhos antes, cada um pelo motivo dele: a lista das **148 ocorrências**, os **4 nomes de arquivo** com erre, *"Not found: PALPITÔMETRO"* na lista de jogos e o `_Palpitometro.cshtml` que ainda não existia.
 
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
