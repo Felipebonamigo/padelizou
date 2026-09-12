@@ -50,6 +50,15 @@ namespace Padelizou.Migrations
             // publicação a tela do dia fica como estava — ninguém perde check no meio de um
             // torneio em andamento —, e o passado não ganha carimbo que ninguém deu.
             //
+            // ⚠️ E SÓ DENTRO DO MESMO DIA, que apareceu ao marcar a hora de publicar: o torneio do
+            // Felipe atravessa dois dias (para à meia-noite, recomeça às 8h). Sem esta linha, a
+            // publicação de madrugada carimbaria os jogos de AMANHÃ com as chegadas de HOJE — e
+            // às 8h a tela abriria com gente "presente" que está dormindo em casa. Seria a
+            // herança que esta migration existe pra matar, dando o último suspiro.
+            //
+            // `HorarioPrevisto IS NULL` passa de propósito: torneio "por ordem de liberação" não
+            // tem hora, e ali o dia é o próprio dia do evento.
+            //
             // ⚠️ `MIN` + `GROUP BY`: a mesma pessoa pode aparecer pelas DUAS duplas do mesmo jogo
             // (não deveria, e a chave antiga não impedia). Sem o agrupamento isso vira
             // duplicate-key na PK nova e a migration morre no meio — foi exatamente o que
@@ -64,6 +73,8 @@ namespace Padelizou.Migrations
                 FROM "PresencaNoTorneio" pt
                 JOIN "Categoria" c ON c."TorneioId" = pt."TorneioId"
                 JOIN "Partida" p ON p."CategoriaId" = c."Id" AND p."Status" <> 'Finalizada'
+                                AND (p."HorarioPrevisto" IS NULL
+                                     OR p."HorarioPrevisto"::date = pt."ChegouEm"::date)
                 JOIN "Dupla" d ON d."Id" IN (p."Dupla1Id", p."Dupla2Id")
                 CROSS JOIN LATERAL (VALUES (d."Jogador1Id"), (d."Jogador2Id")) AS x("JogadorId")
                 WHERE x."JogadorId" = pt."JogadorId"
