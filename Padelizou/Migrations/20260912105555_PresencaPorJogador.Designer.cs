@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260912105555_PresencaPorJogador")]
+    partial class PresencaPorJogador
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3499,9 +3502,6 @@ namespace Padelizou.Migrations
                     b.Property<int>("GamesFaseMataMata")
                         .HasColumnType("integer");
 
-                    b.Property<int>("GamesSoDaFinal")
-                        .HasColumnType("integer");
-
                     b.Property<TimeSpan>("HoraFimDoDia")
                         .HasColumnType("interval");
 
@@ -3578,9 +3578,6 @@ namespace Padelizou.Migrations
                     b.Property<int>("PontosTieBreakMataMata")
                         .HasColumnType("integer");
 
-                    b.Property<int>("PontosTieBreakSoDaFinal")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("PontuaNoRankingAmericano")
                         .HasColumnType("boolean");
 
@@ -3629,9 +3626,6 @@ namespace Padelizou.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("SetsFaseMataMata")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SetsSoDaFinal")
                         .HasColumnType("integer");
 
                     b.Property<string>("Status")

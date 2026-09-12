@@ -1,7 +1,66 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/final-separation-1084lc`, ainda não publicado.** ⚠️ **COM MIGRATION** (`FinalComRegraPropria`). 🏆 **A FINAL PODE TER REGRA PRÓPRIA, SEPARADA DAS SEMIS.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+>
+> 🗣️ Felipe, depois de ver a bolinha por dupla: *"Mas é tem um check para cada jogador da dupla?"* — e, com a resposta: *"Mude para um check por jogador, por que é assim que controla check in"*. Escolheu também o formato (**A**, check ao lado de cada nome), e mandou publicar ao terminar.
+>
+> 🕳️ **`Dupla.CheckInEm` RESPONDIA A PERGUNTA ERRADA.** Ela dizia "a dupla apareceu", que é o que o W.O. precisa e não é o que a mesa faz no sábado: quem chega é uma pessoa por vez, e o organizador precisa saber **qual dos dois** falta pra ligar pra pessoa certa em vez de pro parceiro que já está no clube.
+>
+> ⚠️ **A CHAVE NOVA É `(TorneioId, JogadorId)`, E ISSO É METADE DO DESENHO**: quem chegou ao clube chegou pro torneio INTEIRO. Quem joga 5ª Masculina e Mista faz **um** check, e ele vale nos jogos das duas — com a presença pendurada na dupla, a mesma pessoa seria marcada duas vezes e as telas discordariam sobre ela estar no clube. Linha existe = chegou; desfazer é apagar. **PK composta**, molde do `TorneioMarcador`: é o banco segurando o clique duplo, sem uma linha de C# (escada do CLAUDE.md, degrau 4).
+>
+> ⚠️ **"DUPLA PRESENTE" VIROU DERIVADO** — todos os jogadores dela marcados, **um só** na inscrição sem parceiro — e mora numa régua única (`Services/PresencaNoDia`). Manter a coluna antiga como cache seria a segunda verdade sobre a mesma pergunta. O contador da tela passou a contar **PESSOAS** ("1 de 4 jogadores presentes"), distinto por jogador; o selo do cartão virou **"os quatro chegaram"**.
+>
+> ✅ **A MIGRATION FOI RODADA CONTRA UM POSTGRES DE VERDADE, IDA E VOLTA** (Postgres 16 efêmero nesta sessão, com dado antigo semeado). O EF gerou o `DropColumn` **antes** do `CreateTable` — nessa ordem a coluna com quem já chegou morre antes de existir pra onde copiar; a ordem foi trocada à mão: **cria → copia → derruba**. E o `INSERT` leva `GROUP BY` + `MIN`: quem está marcado em DUAS categorias geraria chave duplicada e derrubaria a migration inteira (o caso estava no dado de teste). Conferido: 5 duplas viram 6 presenças, a pessoa das duas categorias vira **uma** linha com a chegada mais antiga, a inscrição sem parceiro vira uma linha só e o `Down` remonta a coluna.
+>
+> 📱 **O LAYOUT FOI MEDIDO, NÃO CHUTADO** (Chromium por CDP — o `--window-size` do headless mente abaixo de 500px). No computador o par cabe numa linha; **no celular cada jogador vira uma linha** (dois checks de 30px + dois rostos + dois nomes não cabem em 390px), com a % acompanhando o **par** — sem esse nível, as quatro linhas viram quatro entradas soltas e ninguém lê "dupla × dupla". Um jogo passa de 2 pra 4 linhas no celular: **~30% mais tela por jogo**.
+>
+> 🚧 **TIME FICA DE FORA** (cai no desenho antigo): ali a linha não tem nome de pessoa, tem nome de equipe. Chamada por jogador em torneio de times é outro pedido.
+>
+> 🧪 **6.771 testes, 0 falhas (16 novos, em `PresencaPorJogadorTests`)** + os 4 conferidores de JS verdes.
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO** (mais forte que ler número de run — outras três sessões publicaram no mesmo intervalo): o `site.css` de **`padelizou.com.br`** e de **`dev`** traz `.pdz-jl-par` (5×), `.pdz-jl-jogador` (2×) e `.pdz-jl-checkin { color: var(--pdz-muted) }` — as classes que só existem depois desta mudança. `/healthz` **200** nos dois, e `Torneios/Details/26` (o ER, 64 duplas) responde **200**: a migration rodou na base de verdade, com torneio em andamento, sem derrubar a página.
+>
+> 👀 **E DESTA VEZ A TELA FOI VISTA, não só testada**: o app subiu nesta sessão contra um Postgres local, logado como organizador — aba Jogos no computador e no celular, tela de Check-in, e o POST de marcar/desfazer indo e voltando com a âncora certa. As fotos foram pro Felipe. **O que continua não visto é o tema ESCURO no aparelho dele** (o site reaplica o tema guardado, e o headless não tem esse estado): lá a garantia é o teste de contraste.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/share-button-photo-download-ee9mlj`, ainda não publicado.** **Sem migration.** 📤 **OS DOIS BOTÕES DEBAIXO DA ARTE VOLTARAM A FUNCIONAR.**
+>
+> 🗣️ Felipe, com o print da tela "Tudo numa imagem só" no celular: *"O botao compartilhar nao esta funcionando. E o baixar foto fica travado numa pagina de pre visualizacao depois q envia a foto"*. **Eram DOIS defeitos independentes, e os dois falhavam CALADOS.**
+>
+> 🕳️ **1. O `return;` NO MEIO DA VIEW MATAVA A SEÇÃO DE SCRIPTS.** O `CompartilharJogos.cshtml` usava um `return;` no fim do ramo "tudo numa imagem só" pra evitar o `else` do ramo "uma por dia". Em Razor, `@section` **é uma chamada** — o `DefineSection(...)` é gerado na posição em que a seção aparece no arquivo — e o `@section Scripts` mora na ÚLTIMA linha. Um `return` antes dela simplesmente não a executa, e o `@await RenderSectionAsync("Scripts", required: false)` do `_Layout` responde com **silêncio**, não com erro. Resultado: naquela tela (e SÓ nela) o `compartilhar-card.js` **nunca carregava** — e o "Compartilhar" é um `<button>` sem `href`, com todo o comportamento no script. Junto morria o `compartilhar-texto.js`, que é quem faz o "Copiar o texto" da mesma página. **Conferido no C# gerado** (`-p:EmitCompilerGeneratedFiles=true`): `return;` na linha 590 do `ExecuteAsync`, `DefineSection("Scripts", …)` na 742.
+>
+> 🕳️ **2. O "BAIXAR" APONTAVA PRA URL DA PRÉVIA.** O endpoint da arte responde `Content-Disposition: inline` de propósito — é disso que vivem a meta `og:image` (a prévia do link no WhatsApp) e o `<img>` da própria tela. O botão apontava pra **essa mesma URL**, contando com o atributo `download` do `<a>` pra virar download. **Esse atributo é uma DICA**: WebView de app, navegador de dentro do Instagram/WhatsApp e PWA em modo `standalone` ignoram e NAVEGAM — e a "página de pré-visualização" do relato é literalmente o PNG cru aberto no lugar da tela, sem barra de endereço e sem botão de voltar.
+>
+> ✅ **AS CORREÇÕES**: o `return;` virou `else`, e o `@section` voltou a ser alcançável; e nasceu `EntregaDeCard.LinkParaBaixar`, que marca o pedido na própria URL (`?baixar=1`) pro `EntregaDeCard.Png` responder **`attachment`** — o único cabeçalho que nenhum navegador trata como sugestão. O `inline` continua sendo o padrão, porque a prévia do link depende dele: **quem escolhe é a URL, não uma troca seca**. Os **12 botões "Baixar"** das 11 telas de arte passaram pela régua, e o caminho de reserva do `compartilhar-card.js` também.
+>
+> 🚧 **O GATE QUE ACHOU MAIS DOIS**: `Nenhuma_view_define_secao_depois_de_um_return_de_razor` varre as views, recorta `<script>` e comentário Razor, e reprova seção declarada depois de um `return;` de Razor. Pegou o `Torneios/jogos.cshtml` e o `ClubeGestao/Ocupacao.cshtml` — nos dois o `return` é guarda de estado vazio (tela sem o que mostrar, script sem o que fazer), então **não havia sintoma**, mas o próximo script a entrar ali nasceria morto. A seção subiu pro topo nos dois, que é o ponto do arquivo que todo caminho executa. O `Aulas/Financeiro.cshtml` já tinha topado nisto em outra sessão e contornado com `<script>` inline — o comentário dele está lá, e é a prova de que a armadilha repete.
+>
+> 🧪 **6.764 testes, 0 falhas (7 novos)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: *"Expected start: attachment; / String: inline; filename=…"*, o gate nomeando `Torneios/CompartilharJogos.cshtml`, e os 11 arquivos com botão de baixar apontando pra URL crua. O gate foi **reconferido depois da correção**, com o `return;` recolocado na mão: volta a reprovar nomeando a mesma view.
+>
+> ⚠️ **RESSALVA — NADA DISTO FOI VISTO NO APARELHO DO FELIPE.** Não há navegador nesta sessão. O defeito 1 está provado no código gerado (é mecânico, não é palpite). O defeito 2 é leitura do relato: o `attachment` é o cabeçalho certo pra um botão chamado "Baixar" independentemente de qual navegador ignorava o atributo `download`, mas **quem confirma que o travamento acabou é o celular dele**. É JS/Razor/cabeçalho HTTP, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
+>
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 👁️ **A BOLINHA DO CHECK-IN ESTAVA INVISÍVEL NO TEMA ESCURO — SÓ CSS.**
+>
+> 🗣️ Felipe, depois do `build-1231-12c7ad7` no ar (a bolinha subiu junto, no PR #242): *"Mas eu nao achei aonde q marca o checkin"*.
+>
+> 🕳️ **ELA ESTAVA LÁ, DESENHADA A 10% DE ALPHA.** A cor do círculo de "ainda não chegou" saía de `var(--pdz-border)`, que no tema escuro é `rgba(231, 236, 247, .10)` — alpha de BORDA, feito pra separar caixa de fundo numa linha de 1px. Virando ÍCONE em cima de card escuro, não existe pra quem olha. Passou por 6.643 testes verdes porque nenhum deles enxerga: a bolinha estava no HTML certo, na guarda certa, no lugar certo.
+>
+> ⚠️ **A ARMADILHA É O NOME DO TOKEN, e por isso virou teste**: `--pdz-border` parece "o cinza discreto do tema" e é o cinza de uma linha fina. Cor de coisa que precisa ser VISTA sai de `--pdz-muted` (#6a7891 claro / #9aa7c4 escuro). É o mesmo tombo que criou o `--pdz-linha-chave` — a borda de 9% sumia ao atravessar o quadro da chave.
+>
+> ⚠️ **A OUTRA METADE DO "NÃO ACHEI" PODE SER O INTERRUPTOR**, e essa não é defeito: sem `UsaCheckIn` ligado no torneio, a bolinha não nasce (de propósito). O sinal de um segundo: se o torneio não tem o botão **Check-in** nas ferramentas do organizador, a chave está desligada — liga em **Editar Dados do Torneio → "Usar check-in no dia do torneio?"**.
+>
+> 🧪 **6.759 testes, 0 falhas (2 novos, de contraste, escritos antes e vistos falhar)** + os 4 conferidores de JS verdes. **Continua sem browser nesta sessão.**
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1231-12c7ad7`** (runs 286 e 287, 04h43 e 04h45 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #247. ✅ **SEM MIGRATION.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**, que é mais forte que o healthcheck: em `padelizou.com.br/Torneios/Details/26` (anônimo, `curl`, 1,03 MB de HTML) são **79 nomes** com `verPalpitesDoPalpiteiro(`, **um** `modalPalpitesDoPalpiteiro` e **um** `js/palpites-do-palpiteiro.js`. O `/js/palpites-do-palpiteiro.js` responde **200** nos dois ambientes e o `/healthz` **200** nos dois.
+>
+> 🎯 **E A LISTA FOI LIDA NO AR, com dado de verdade**: `GET /Torneios/PalpitesDoPalpiteiro/26?jogadorId=61` devolve **Marcos Coelho — 20 pontos, 10 de 14 acertos, 3 cravadas, 27 esperando resultado**, os mesmos números da linha dele na tabela do print do Felipe. As 42 linhas fecham a conta sozinhas: 14 apuradas + 27 em aberto + **1 marcada "não conta"** — o Grupo A da 4ª Masculina, em que ele palpitou no PRÓPRIO jogo (*"Marcos / Marcio"*). É a régua de quem está em quadra funcionando em produção, e é o caso que mais rendeu teste. Um exemplo da faixa do meio no ar: palpitou **9 x 6**, deu **9 x 5** → **2 pontos**.
+>
+> ⚠️ **O PR FOI ABERTO E MESCLADO POR OUTRA SESSÃO** (a "varredura das sessões", #247, 04h30 UTC) enquanto esta ainda escrevia — quando fui abrir o meu, o GitHub respondeu *"No commits between main and claude/view-results-layout-fix-dbahs6"*. O `main` andou **30 commits** durante o trabalho (#241 a #247), e o `build-1231` leva todos eles juntos, não só este.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/final-separation-1084lc`, ainda não publicado.** ⚠️ **COM MIGRATION** (`FinalComRegraPropria`). 🏆 **A FINAL PODE TER REGRA PRÓPRIA, SEPARADA DAS SEMIS.**
 >
 > 🗣️ Felipe, com o print da tela de formato no celular: *"aqui a final tem q ser separada da semi ou tem algum modo que a final é separada?"*. **Não tinha** — `SetsFaseFinal`/`GamesFaseFinal`/`PontosTieBreakFinal` regem semifinal E final juntas desde que o formato por fase existe, e o `FormatoDaPartida` diz isso em comentário ("ninguém configura uma semifinal com regra de oitavas"). O que faltava era a exceção: decisão em 3 sets, ou com super tie-break de 10, com as semis seguindo curtas.
 >
@@ -18,7 +77,6 @@
 > 🧪 **6.776 testes, 0 falhas (21 novos em `FinalComRegraPropriaTests`)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: "Expected 9, Actual 6" na régua da final, "Expected 0, Actual 3" no desmarcar, o gate da duplicação nomeando as três propriedades sem lado, e a recusa de games zerado que só apareceu depois que a gravação entrou.
 >
 > ⚠️ **RESSALVA**: **nada disto foi visto em navegador** — não há Chromium nesta sessão. A ordem do par caixa+hidden está travada por teste que lê o `.cshtml`, mas o **model binder em si não é exercitado** pelos testes (eles chamam a action direto); o que garante essa parte é o padrão já usado em dois lugares do repo. **Tem migration**, então o deploy em `dev` precisa rodar antes do `prod`.
->
 >
 > 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
 >

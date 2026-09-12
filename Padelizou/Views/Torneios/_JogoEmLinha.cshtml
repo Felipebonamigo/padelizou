@@ -90,6 +90,12 @@
     // marcando placar tinha que sair da lista, marcar na outra tela e voltar. No sábado de manhã
     // as duas perguntas ("quem joga agora?" e "essa dupla chegou?") são feitas na mesma linha.
     //
+    // ⚠️ UMA BOLINHA POR JOGADOR desde 12/09/2026 (🗣️ *"Mude para um check por jogador, por que é
+    // assim que controla check in"*): quem chega é uma pessoa por vez, e o organizador precisa
+    // saber QUAL dos dois falta pra ligar pra pessoa certa em vez de pro parceiro que já está no
+    // clube. A presença mora em `PresencaNoTorneio`, com chave (torneio, jogador) — um check só
+    // vale nas outras categorias da mesma pessoa.
+    //
     // As três condições juntas, e cada uma por um motivo diferente:
     //   • `Model.EhOrganizador` — é a régua do DIA DE JOGO (PodeOperarODiaDeJogoAsync), a mesma
     //     que já liga o ▶, o ✏️ e o 📍 desta linha e a mesma da tela de Check-in. Inventar uma
@@ -101,6 +107,15 @@
     bool bolinhaDoCheckIn = Model.EhOrganizador
         && ViewData["UsaCheckIn"] as bool? == true
         && ehAgendado;
+
+    var chegadas = ViewData["ChegadasNoTorneio"] as IReadOnlyDictionary<int, DateTime>
+                   ?? new Dictionary<int, DateTime>();
+    @* ⚠️ `jogo.Categoria.TorneioId` SEM `?.`, e não é descuido: esta view desreferencia
+       `jogo.Categoria.Nome` direto em duas etiquetas mais abaixo, e um `?.` aqui ENSINA ao
+       compilador que a navegação pode ser nula — as duas linhas antigas viram CS8602 (que é
+       ERRO desde 22/08). Ou a categoria está carregada pra view inteira, ou não está.
+       O caminho por categoria é também o único que o torneio garante (ver MarcarCheckIn). *@
+    int torneioDaLinha = jogo.Categoria.TorneioId;
 
     // A bolinha do saque só em jogo EM QUADRA. Ela responde "quem está sacando AGORA" —
     // numa partida agendada não há saque nenhum, e o campo pode vir preenchido de um
@@ -493,14 +508,37 @@
         }
 
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
-            @* A BOLINHA VEM ANTES DOS ROSTOS, na ponta esquerda: é assim que as duas viram uma
-               coluna que se varre de cima a baixo, como na tela de Check-in. Do outro lado ela
-               brigaria com a porcentagem do palpitômetro, que já mora na direita. *@
-            @if (bolinhaDoCheckIn)
+            @* COM CHAMADA LIGADA, O PAR SE ABRE: cada jogador ganha rosto, nome e a SUA bolinha,
+               na ponta esquerda — medido no Chromium, é a única disposição em que dá pra saber de
+               quem é o check (rostos sobrepostos não têm dono). Sem chamada, a linha é a de
+               sempre, byte por byte: quem não organiza não paga nada por isto.
+
+               ⚠️ Escrito duas vezes, uma por dupla, e não num parcial: `Foto`, `Escudo` e
+               `NomeCurto` são @@functions DESTE arquivo, e movê-las pra fora mexeria no escudo de
+               todas as listas de jogo — diff grande num lugar que não é o assunto.
+
+               ⚠️ TIME FICA DE FORA (cai no `LadoDaDupla`): ali a linha não tem nome de pessoa,
+               tem nome de equipe. Chamada por jogador em torneio de times é outro pedido. *@
+            @if (bolinhaDoCheckIn && !jogo.Dupla1.EhTime)
             {
-                <partial name="_BotaoDoCheckIn" model="(jogo.Dupla1, true, voltarParaAqui)" />
+                <span class="pdz-jl-par">
+                    @{ bool primeiroDoLado1 = true; }
+                    @foreach (var j in Padelizou.Services.PresencaNoDia.JogadoresDa(jogo.Dupla1))
+                    {
+                        if (!primeiroDoLado1) { <span class="pdz-jl-barra">/</span> }
+                        primeiroDoLado1 = false;
+                        <span class="pdz-jl-jogador">
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, torneioDaLinha, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(j.Id, chegadas), true, voltarParaAqui)" />
+                            <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
+                            <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
+                        </span>
+                    }
+                </span>
             }
-            @LadoDaDupla(jogo.Dupla1)
+            else
+            {
+                @LadoDaDupla(jogo.Dupla1)
+            }
             @if (sacandoAgora == jogo.Dupla1Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
@@ -518,11 +556,26 @@
         </div>
 
         <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
-            @if (bolinhaDoCheckIn)
+            @if (bolinhaDoCheckIn && !jogo.Dupla2.EhTime)
             {
-                <partial name="_BotaoDoCheckIn" model="(jogo.Dupla2, true, voltarParaAqui)" />
+                <span class="pdz-jl-par">
+                    @{ bool primeiroDoLado2 = true; }
+                    @foreach (var j in Padelizou.Services.PresencaNoDia.JogadoresDa(jogo.Dupla2))
+                    {
+                        if (!primeiroDoLado2) { <span class="pdz-jl-barra">/</span> }
+                        primeiroDoLado2 = false;
+                        <span class="pdz-jl-jogador">
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, torneioDaLinha, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(j.Id, chegadas), true, voltarParaAqui)" />
+                            <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
+                            <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
+                        </span>
+                    }
+                </span>
             }
-            @LadoDaDupla(jogo.Dupla2)
+            else
+            {
+                @LadoDaDupla(jogo.Dupla2)
+            }
             @if (sacandoAgora == jogo.Dupla2Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>

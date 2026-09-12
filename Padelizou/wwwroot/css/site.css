@@ -3358,7 +3358,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
    são até 194 deles na tela, e 194 pílulas cinzas seriam a lista inteira virando botão.
 
    ⚠️ Alvo de toque de 30px com ícone de 18px — abaixo disso o dedo erra a bolinha de
-   cima no celular, que é onde esta lista é usada. */
+   cima no celular, que é onde esta lista é usada.
+
+   ⚠️ A COR SAI DE `--pdz-muted`, E NUNCA DE `--pdz-border`. A primeira versão usou a borda
+   e o Felipe não achou o botão no ar ("Mas eu nao achei aonde q marca o checkin"): no tema
+   escuro `--pdz-border` é `rgba(231, 236, 247, .10)` — dez por cento de alpha, que separa
+   caixa de fundo e desaparece quando vira ÍCONE em cima de card escuro. É o mesmo tombo que
+   criou o `--pdz-linha-chave`. `--pdz-muted` é contrastado nos dois temas. */
 .pdz-jl-checkin {
     flex: 0 0 auto;
     display: inline-flex;
@@ -3370,7 +3376,7 @@ a.pdz-grupo-jogo[href]:focus-visible {
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--pdz-border);
+    color: var(--pdz-muted);
     font-size: 1.1rem;
     line-height: 1;
     cursor: pointer;
@@ -3380,6 +3386,42 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-jl-checkin:focus-visible { background: var(--pdz-surface-alt); }
 
 .pdz-jl-checkin-chegou { color: var(--padel-green); }
+
+/* O PAR, quando a chamada está ligada (12/09/2026). Com um check POR JOGADOR os rostos saem de
+   cima um do outro e cada um cola no seu nome — sobrepostos, não dá pra saber de quem é o check.
+   O par continua sendo UMA COISA (`.pdz-jl-par`) porque é ele que a porcentagem do palpitômetro
+   acompanha: sem esse nível, no celular as quatro linhas viram quatro entradas soltas e ninguém
+   lê mais "dupla × dupla".
+
+   ⚠️ `flex: 1 1 auto; min-width: 0` nos DOIS níveis, senão o par vira uma caixa de ~600px que
+   estica o cartão pra fora da tela — medido no Chromium a 390px antes de existir esta linha. */
+.pdz-jl-par {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pdz-jl-jogador {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.pdz-jl-jogador .pdz-jl-nome { flex: 0 1 auto; min-width: 0; }
+.pdz-jl-par .pdz-jl-barra { flex: 0 0 auto; color: var(--pdz-muted); }
+
+@media (max-width: 575.98px) {
+    /* Dois checks de 30px, dois rostos de 26px e dois nomes não cabem em 390px sem picotar o
+       sobrenome de todo mundo (medido). Cada jogador vira uma linha; a % fica centrada no par,
+       e o vão entre duplas dobra pra separar um par do outro. */
+    .pdz-jl-par { flex-direction: column; align-items: flex-start; gap: .1rem; }
+    .pdz-jl-par .pdz-jl-barra { display: none; }
+    .pdz-jl-corpo { gap: .5rem; }
+}
 
 /* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */
 .pdz-jl-palpite {
