@@ -162,6 +162,108 @@ public class VoltarPraListaFiltradaTests
         Assert.Contains("FiltrosDaListaDeJogos.Atual", fonte);
     }
 
+    // ── OS VIZINHOS DE BARRA (12/09/2026, segunda rodada) ────────────────────────────────
+    //
+    // 🗣️ Felipe, depois de a chegada parar de perder o recorte: *"Quando corrigir, publique"* —
+    // à pergunta sobre estender pro ▶, 📍, ⇄ e as setas. São os botões que moram na MESMA barra
+    // e faziam a MESMA coisa: devolver a grade inteira por cima da categoria filtrada.
+    //
+    // ⚠️ SÃO DOIS FUNIS, e é por isso que a mudança é pequena: `TorneiosController.VoltarPara`
+    // (modais de horário/quadra, setas, ajustar horários, salvar placares) e
+    // `PartidasController.VoltarDaLargada` (largada e saque), mais o retorno do ControlePlacar.
+    // Trocar o redirect nos três alcança os dez botões.
+
+    [Fact]
+    public async Task A_troca_de_quadra_volta_pro_mesmo_recorte()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Fase de Grupos");
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+        var jogo = new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = categoria.Id,
+            Dupla1Id = duplas[0].Id, Dupla2Id = duplas[1].Id,
+            Fase = "Fase de Grupos", Status = "Agendada", Codigo = "QQQ111", NomeQuadra = "Quadra 1",
+        };
+        ctx.Partidas.Add(jogo);
+        ctx.SaveChanges();
+
+        var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
+            .TrocarQuadra(torneio.Id, jogo.Id, "Quadra 2", voltarPara: "Details", filtros: "?categoriaFiltroIds=7");
+
+        var redir = Assert.IsType<RedirectToActionResult>(resultado);
+        Assert.Equal("Details", redir.ActionName);
+        Assert.Equal("jogosDoTorneio", redir.Fragment);
+        Assert.Equal("7", redir.RouteValues!["categoriaFiltroIds"]);
+    }
+
+    [Fact]
+    public async Task A_largada_volta_pro_mesmo_recorte()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Fase de Grupos");
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+        var jogo = new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = categoria.Id,
+            Dupla1Id = duplas[0].Id, Dupla2Id = duplas[1].Id,
+            Fase = "Fase de Grupos", Status = "Agendada", Codigo = "LLL111", NomeQuadra = "Quadra 1",
+        };
+        ctx.Partidas.Add(jogo);
+        ctx.SaveChanges();
+
+        var resultado = await TestInfra.NovoPartidasController(ctx, organizador.Id)
+            .ColocarNoAr(jogo.Id, voltarPara: "Details", filtros: "?quadraFiltro=Quadra+1");
+
+        var redir = Assert.IsType<RedirectToActionResult>(resultado);
+        Assert.Equal("Details", redir.ActionName);
+        Assert.Equal("jogosDoTorneio", redir.Fragment);
+        Assert.Equal("Quadra 1", redir.RouteValues!["quadraFiltro"]);
+    }
+
+    // ── O GATE ───────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Todo_formulario_que_volta_pra_lista_leva_os_filtros()
+    {
+        // ⚠️ ESTE É O TESTE QUE IMPORTA DAQUI A UM MÊS. O botão novo da barra vai nascer copiando
+        // o vizinho, e o `filtros` é justamente o campo que se esquece — ele não aparece na tela,
+        // então nada denuncia a falta até alguém marcar algo com a lista filtrada e se perder.
+        //
+        // A régua: formulário que manda `voltarPara` está voltando PRA LISTA, e lista tem
+        // recorte. Quem volta pra lista leva o recorte junto.
+        var faltando = new List<string>();
+
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_JogosDoTorneio.cshtml", "_SetasDaOrdem.cshtml", "_BotaoDoCheckIn.cshtml" })
+        {
+            var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", arquivo));
+
+            // ⚠️ COMENTÁRIO RAZOR FORA DA CONTA: `@* ... *@` desta pasta cita `<form>` em prosa
+            // (o _SetasDaOrdem explica por que o formulário cabe dentro do dropdown), e sem
+            // recortar isso o gate acusa um formulário que não existe. Mesma armadilha do gate
+            // das seções: varrer HTML com regex exige tirar o que só PARECE HTML.
+            var semComentario = System.Text.RegularExpressions.Regex.Replace(
+                fonte, @"@\*.*?\*@", m => new string(' ', m.Length),
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            // Cada <form ...> ... </form> do arquivo, um por vez.
+            foreach (System.Text.RegularExpressions.Match form in
+                     System.Text.RegularExpressions.Regex.Matches(semComentario, @"<form\b.*?</form>",
+                         System.Text.RegularExpressions.RegexOptions.Singleline))
+            {
+                bool voltaPraLista = form.Value.Contains("voltarPara", StringComparison.Ordinal);
+                bool levaFiltros = form.Value.Contains("_CampoDosFiltros", StringComparison.Ordinal)
+                                || form.Value.Contains("name=\"filtros\"", StringComparison.Ordinal);
+
+                if (voltaPraLista && !levaFiltros)
+                    faltando.Add($"{arquivo}: {form.Value[..Math.Min(120, form.Value.Length)].ReplaceLineEndings(" ")}");
+            }
+        }
+
+        Assert.True(faltando.Count == 0,
+            "Formulário que volta pra lista sem levar o recorte da tela:\n" + string.Join("\n", faltando));
+    }
+
     private static string PastaDoProjeto()
     {
         var pasta = AppContext.BaseDirectory;

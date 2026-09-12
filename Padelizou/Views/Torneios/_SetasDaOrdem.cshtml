@@ -28,6 +28,7 @@
    sete rolagens até reencontrar a linha. *@
 <form asp-controller="Torneios" asp-action="MoverNoHorario" method="post" class="pdz-jl-setas"
       data-manter-posicao>
+                    <partial name="_CampoDosFiltros" />
     @Html.AntiForgeryToken()
     <input type="hidden" name="id" value="@Model.TorneioId" />
     <input type="hidden" name="jogo" value="@Model.Referencia" />

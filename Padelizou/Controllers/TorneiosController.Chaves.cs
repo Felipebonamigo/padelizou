@@ -1026,7 +1026,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RefazerGrade(int id, string? voltarPara = null)
+        public async Task<IActionResult> RefazerGrade(int id, string? voltarPara = null, string? filtros = null)
         {
             // Marcador entra: remendar a grade quando o dia atrasa é trabalho da mesa. O
             // SORTEIO (GerarChaves) continua só de organizador — refazer grade não muda
@@ -1045,7 +1045,7 @@ namespace Padelizou.Controllers
                 TempData["Erro"] = todos.Count == 0
                     ? "Não há jogos pra remarcar: sorteie as chaves primeiro."
                     : "Todos os jogos já foram jogados ou estão em quadra — não há horário pra recalcular.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             var (remarcar, intocados) = await RecalcularAGradeAsync(torneio, todos);
@@ -1060,7 +1060,7 @@ namespace Padelizou.Controllers
                   (intocados.Count > 0 ? $"Os {intocados.Count} já jogados ou em quadra não mudaram. " : "") +
                   "Os confrontos não mudaram.";
 
-            return VoltarPara(voltarPara, id);
+            return VoltarPara(voltarPara, id, filtros);
         }
 
         // De onde o recálculo parte.
@@ -1178,13 +1178,28 @@ namespace Padelizou.Controllers
         //
         // Lista fechada de destinos de propósito: `voltarPara` vem do formulário, e um campo
         // de formulário nunca pode virar redirecionamento pra qualquer lugar.
-        private IActionResult VoltarPara(string? voltarPara, int id) =>
-            voltarPara == "Details"
+        // ⚠️ E O RECORTE DA TELA VOLTA JUNTO desde 12/09/2026 (`filtros`). 🗣️ Felipe: *"ele sai da
+        // tela, ele tem q sempre se manter na tela da alteracao"*. Voltar pra aba certa não basta
+        // se a lista que aparece lá não é a que ele estava olhando: com a grade filtrada numa
+        // categoria, todo clique devolvia o torneio inteiro por cima do recorte. Quem peneira o
+        // que pode virar rota é Services/FiltrosDaListaDeJogos, em lista fechada.
+        //
+        // Este é um dos DOIS funis de volta pra lista (o outro é
+        // PartidasController.VoltarDaLargada) — por isso a mudança aqui alcança de uma vez o
+        // trocar horário, o definir horário, a troca de quadra, as setas ↑↓, o ajustar horários
+        // e o salvar placares do ao vivo.
+        private IActionResult VoltarPara(string? voltarPara, int id, string? filtros = null)
+        {
+            var rota = FiltrosDaListaDeJogos.Reaproveitar(filtros);
+            rota["id"] = id;
+
+            return voltarPara == "Details"
                 // Com âncora: a página do torneio abre já na aba de jogos, que é de onde a
                 // pessoa saiu. Sem ela, voltar pra Details jogaria o organizador na primeira
                 // aba e ele teria que caçar a lista de novo.
-                ? RedirectToAction("Details", "Torneios", new { id }, fragment: "jogosDoTorneio")
-                : RedirectToAction("Jogos", new { id });
+                ? RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", rota);
+        }
 
         // Mudar a QUADRA de um jogo sem mexer na hora. A troca de horário arrasta o slot
         // inteiro (hora + quadra) e quase nunca era o que o organizador queria: a quadra 3
@@ -1257,7 +1272,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AjustarHorarios(int id, string? voltarPara = null)
+        public async Task<IActionResult> AjustarHorarios(int id, string? voltarPara = null, string? filtros = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -1281,13 +1296,13 @@ namespace Padelizou.Controllers
                   + $"{resultado.AchadosAntes} para {resultado.AchadosDepois} ponto(s). "
                   + "Nenhum horário foi refeito — só trocas.";
 
-            return VoltarPara(voltarPara, id);
+            return VoltarPara(voltarPara, id, filtros);
         }
 
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null)
+        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null, string? filtros = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -1298,7 +1313,7 @@ namespace Padelizou.Controllers
             if (TrocaDeQuadra.MotivoParaNaoMudar(jogo, quadra, id, quadras) is { } motivo)
             {
                 TempData["Erro"] = motivo;
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
@@ -1342,7 +1357,7 @@ namespace Padelizou.Controllers
                        ? " A transmissão saiu junto: a nova quadra não tem câmera cadastrada."
                        : " A transmissão passou a ser a da nova quadra.");
 
-            return VoltarPara(voltarPara, id);
+            return VoltarPara(voltarPara, id, filtros);
         }
 
         // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a
@@ -1362,7 +1377,7 @@ namespace Padelizou.Controllers
         // com o motivo, em vez de gravar uma promessa que a tela ia desmentir.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> TrocarHorario(int id, string? jogoA, string? jogoB, string? voltarPara = null)
+        public async Task<IActionResult> TrocarHorario(int id, string? jogoA, string? jogoB, string? voltarPara = null, string? filtros = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -1371,10 +1386,10 @@ namespace Padelizou.Controllers
             if (refA == null || refB == null)
             {
                 TempData["Erro"] = "Não encontrei um dos jogos.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
-            return await TrocarSlotsAsync(id, refA, refB, voltarPara);
+            return await TrocarSlotsAsync(id, refA, refB, voltarPara, filtros);
         }
 
         // AS SETAS ↑↓ DA LINHA: mover um jogo UMA posição na lista (10/09/2026).
@@ -1393,7 +1408,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MoverNoHorario(int id, string? jogo, string? direcao, string? voltarPara = null)
+        public async Task<IActionResult> MoverNoHorario(int id, string? jogo, string? direcao, string? voltarPara = null, string? filtros = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -1402,7 +1417,7 @@ namespace Padelizou.Controllers
             if (passo == 0 || referencia == null)
             {
                 TempData["Erro"] = "Não entendi pra onde mover o jogo.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             var fila = await FilaDaAbaJogosAsync(id);
@@ -1410,7 +1425,7 @@ namespace Padelizou.Controllers
             if (onde < 0)
             {
                 TempData["Erro"] = "Não encontrei o jogo na lista — a página pode estar velha. Recarregue e tente de novo.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             int vizinho = onde + passo;
@@ -1419,7 +1434,7 @@ namespace Padelizou.Controllers
                 TempData["Erro"] = passo < 0
                     ? "Este jogo já é o primeiro da lista."
                     : "Este jogo já é o último da lista.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             // Prévia de projeção antiga (sem categoria) não tem referência — e por isso não tem
@@ -1429,10 +1444,10 @@ namespace Padelizou.Controllers
             {
                 TempData["Erro"] = "O jogo logo " + (passo < 0 ? "acima" : "abaixo")
                     + " é uma prévia sem categoria — não dá pra trocar com ele.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
-            return await TrocarSlotsAsync(id, referencia, doVizinho, voltarPara);
+            return await TrocarSlotsAsync(id, referencia, doVizinho, voltarPara, filtros);
         }
 
         // A FILA DA ABA JOGOS, do jeito que a TELA a desenha — jogos agendados e prévias, na mesma
@@ -1456,7 +1471,7 @@ namespace Padelizou.Controllers
         // hora, quadra, clube — e a POSIÇÃO dentro do horário, que é o que faz a troca entre dois
         // jogos do mesmo horário significar alguma coisa.
         private async Task<IActionResult> TrocarSlotsAsync(int id, ReferenciaDoJogo refA, ReferenciaDoJogo refB,
-            string? voltarPara)
+            string? voltarPara, string? filtros = null)
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
@@ -1491,7 +1506,7 @@ namespace Padelizou.Controllers
             if (TrocaDeHorario.MotivoParaNaoTrocar(ladoA, ladoB, id, sedes) is { } motivo)
             {
                 TempData["Erro"] = motivo;
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             // O CONFERIR GRADE ANTES DA MEXIDA. 🗣️ *"avise se atrapalhar algo com ficar 2 jogos
@@ -1620,7 +1635,7 @@ namespace Padelizou.Controllers
                 {
                     TempData["Erro"] = $"Não dá pra pôr {lado.Rotulo} às {slot.Horario:dd/MM HH:mm}: nesse horário a fase " +
                         "anterior dessa categoria ainda não terminou. Troque com um jogo mais tarde.";
-                    return VoltarPara(voltarPara, id);
+                    return VoltarPara(voltarPara, id, filtros);
                 }
             }
 
@@ -1667,7 +1682,7 @@ namespace Padelizou.Controllers
                 TempData["Sucesso"] += $" {selo} Conferir grade — {impacto.Texto}.";
             }
 
-            return VoltarPara(voltarPara, id);
+            return VoltarPara(voltarPara, id, filtros);
         }
 
         // Definir o horário de UM jogo na mão, digitando a hora. 🗣️ *"permita tambem, trocar o
@@ -1679,7 +1694,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DefinirHorario(int id, string? jogo, DateTime? horario, string? voltarPara = null)
+        public async Task<IActionResult> DefinirHorario(int id, string? jogo, DateTime? horario, string? voltarPara = null, string? filtros = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -1687,12 +1702,12 @@ namespace Padelizou.Controllers
             if (referencia == null)
             {
                 TempData["Erro"] = "Não encontrei o jogo.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
             if (horario is not DateTime hora)
             {
                 TempData["Erro"] = "Escolha um horário.";
-                return VoltarPara(voltarPara, id);
+                return VoltarPara(voltarPara, id, filtros);
             }
 
             var torneio = await _context.Torneios.FindAsync(id);
@@ -1717,7 +1732,7 @@ namespace Padelizou.Controllers
                 if (previsto == null)
                 {
                     TempData["Erro"] = "Não encontrei esse jogo previsto.";
-                    return VoltarPara(voltarPara, id);
+                    return VoltarPara(voltarPara, id, filtros);
                 }
 
                 var reserva = reservas.FirstOrDefault(r =>
@@ -1743,7 +1758,7 @@ namespace Padelizou.Controllers
                 if (real == null || motivo != null)
                 {
                     TempData["Erro"] = motivo ?? "Não encontrei o jogo.";
-                    return VoltarPara(voltarPara, id);
+                    return VoltarPara(voltarPara, id, filtros);
                 }
 
                 var quadras = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
@@ -1764,7 +1779,7 @@ namespace Padelizou.Controllers
                 {
                     TempData["Erro"] = $"Não dá pra pôr {rotulo} às {hora:dd/MM HH:mm}: nesse horário a fase " +
                         "anterior dessa categoria ainda não terminou. Escolha uma hora mais tarde.";
-                    return VoltarPara(voltarPara, id);
+                    return VoltarPara(voltarPara, id, filtros);
                 }
             }
 
@@ -1790,7 +1805,7 @@ namespace Padelizou.Controllers
                     ". A fase anterior passou desse horário — o jogo volta pra grade.";
             }
 
-            return VoltarPara(voltarPara, id);
+            return VoltarPara(voltarPara, id, filtros);
         }
 
         // Push de "chaves publicadas". É o momento em que o torneio deixa de ser uma lista de
