@@ -12,9 +12,15 @@
 (function () {
     'use strict';
 
+    // ⚠️ O `?baixar=1` É O QUE FAZ O DOWNLOAD SER DOWNLOAD (12/09/2026). O atributo `download`
+    // do `<a>` é uma DICA: WebView de app, navegador de dentro do Instagram/WhatsApp e PWA em
+    // modo `standalone` ignoram e NAVEGAM — e como a arte responde `inline`, a pessoa fica presa
+    // no PNG cru, sem barra de endereço e sem voltar. Com o parâmetro o servidor responde
+    // `Content-Disposition: attachment`, que nenhum navegador trata como sugestão. Mesmo nome
+    // que o `EntregaDeCard.Download` do C# — quem muda um muda o outro.
     function baixar(url, arquivo) {
         var a = document.createElement('a');
-        a.href = url;
+        a.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'baixar=1';
         a.download = arquivo;
         document.body.appendChild(a);
         a.click();
