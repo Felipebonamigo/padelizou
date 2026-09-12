@@ -9,7 +9,7 @@ namespace Padelizou.Services;
 // `ApenasPush` pula caixa de entrada, e-mail e WhatsApp — é acompanhamento em tempo real, não
 // recado que precise ficar guardado. Ver Services/AvisoDePlacarAoVivo.
 public record AvisoPendente(int JogadorId, string Titulo, string Corpo, string? Url, AlcanceDoAviso Alcance,
-    string? Tag = null, bool ApenasPush = false);
+    string? Tag = null, bool ApenasPush = false, string? Imagem = null);
 
 // A fila de saída dos avisos. Fica entre quem GERA o aviso e quem ENTREGA.
 //

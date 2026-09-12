@@ -1,0 +1,53 @@
+@model (Padelizou.Models.Dupla? Dupla, bool Bolinha, string? VoltarPara)
+
+@* O BOTÃO QUE GRAVA PRESENÇA — um só, em duas roupas.
+
+   Ele é desenhado em dois lugares desde 12/09/2026: a linha da tela de Check-in (pílula escrita,
+   "Chegou"/"Desfazer") e a bolinha na aba Jogos, do lado do nome de cada dupla. O que muda entre
+   os dois é a APARÊNCIA; o que é gravado é o mesmo POST.
+
+   ⚠️ POR ISSO ELE VIVE AQUI, e não copiado nos dois. Duas cópias do formulário que ESCREVE no
+   banco divergiriam na primeira mudança — e é a mesma razão pela qual a linha da tela de Check-in
+   já morava num parcial desde 10/09.
+
+   ⚠️ `voltarPara` diz de qual tela o clique saiu, pra ele voltar pra lá em vez de cair sempre na
+   tela de Check-in. O servidor trata isso como LISTA FECHADA (TorneiosController.MarcarCheckIn):
+   campo de formulário não vira redirecionamento pra qualquer lugar.
+
+   ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e o
+   `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
+
+@if (Model.Dupla == null) { return; }
+
+@{
+    bool chegou = Model.Dupla.CheckInEm != null;
+    string rotulo = chegou
+        ? $"Chegou {Model.Dupla.CheckInEm!.Value:HH:mm} — toque pra desfazer"
+        : "Marcar que chegou";
+}
+
+@* ⚠️ `data-manter-posicao`: marcar presença é um POST que redesenha a página do começo, e numa
+   lista de 97 jogos (ou de 64 duplas) isso custa uma rolagem a cada clique.
+   Ver wwwroot/js/manter-posicao-na-lista.js. *@
+<form asp-controller="Torneios" asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
+    <input type="hidden" name="duplaId" value="@Model.Dupla.Id" />
+    <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
+    @if (!string.IsNullOrEmpty(Model.VoltarPara))
+    {
+        <input type="hidden" name="voltarPara" value="@Model.VoltarPara" />
+    }
+
+    @if (Model.Bolinha)
+    {
+        <button type="submit" class="pdz-jl-checkin @(chegou ? "pdz-jl-checkin-chegou" : "")"
+                title="@rotulo" aria-label="@rotulo">
+            <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle")"></i>
+        </button>
+    }
+    else
+    {
+        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+            @(chegou ? "Desfazer" : "Chegou")
+        </button>
+    }
+</form>
