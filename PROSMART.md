@@ -167,6 +167,23 @@ teste, o primeiro ensaio do envio acontece ao vivo, num sábado. É o motivo de 
 6. Servidor deles fora do ar / JSON estranho → a partida segue como estava, sem exceção.
 7. Torneio com a integração desligada → nenhuma requisição sai.
 
+## 🅿️ Por que está PARADO (12/09/2026)
+
+O PR fica **aberto e fora do `main`** por decisão do Felipe, e não por falta de trabalho.
+
+🗣️ *"esse ainda não vamos publicar, vamos esperar um proximo torneio"* — e o motivo:
+🗣️ *"são poucas quadras e clubes q tem essa opção"*.
+
+⚠️ **É o argumento mais forte do documento inteiro, e ele reforça a decisão 3.** A integração só
+vale onde o equipamento existe — hoje, o Er Padel. Um alcance desse tamanho não justifica nada
+automático, nada ligado por padrão, e nenhuma pressa: o custo de errar (placar de um jogo na
+partida de outro, chave avançando sozinha) é pago por um torneio de verdade, e o ganho é uma
+quadra a menos pra digitar. **Enquanto for assim, opt-in explícito por torneio é a única forma
+que fecha a conta.**
+
+⏭️ **O que destrava:** a doc do endpoint de envio chegar **e** existir um torneio pra ensaiar.
+Nenhum dos dois depende de código nosso — nada aqui está bloqueado esperando implementação.
+
 ## Histórico
 
 - **10/09/2026** — a ProSmart mandou o GET. Sete respostas deles: `startTime` null = não
