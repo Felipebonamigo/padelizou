@@ -79,22 +79,84 @@
                 lados[1].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 2);
             }
 
-            var campos = card.querySelectorAll(".pdz-live-input");
-            var tetos = [linha.teto1, linha.teto2];
-            [linha.games1, linha.games2].forEach(function (valor, i) {
-                var campo = campos[i];
-                if (!campo) return;
+            // ⚠️ OS CAMPOS SÃO ACHADOS POR `name`, E NÃO POR ÍNDICE (12/09/2026). Aqui era
+            // `campos[0]`/`campos[1]` sobre TODOS os `.pdz-live-input` do card — e o card
+            // acabou de ganhar dois campos novos, os pontos do tie-break. Índice é um
+            // acoplamento com a ORDEM do HTML: no dia em que o bloco do tie-break subisse pra
+            // cima do placar, o game do jogo passaria a ser escrito no campo de pontos, calado.
+            // O `name` é o mesmo que o POST já usa.
+            function campoDo(nome) {
+                return card.querySelector('.pdz-live-input[name="' + nome + '"]');
+            }
 
-                // ⚠️ O TETO É ATUALIZADO MESMO COM O CAMPO EM FOCO, ao contrário do valor: o
-                // valor não se mexe embaixo do dedo de quem está digitando, mas o limite não é
-                // digitação — é regra, e ela muda com o placar (num jogo até 4, o 3x3 estende
-                // pra 5). Deixar o `max` velho aqui travaria o "+" no game do desempate.
-                if (typeof tetos[i] === "number") campo.setAttribute("max", tetos[i]);
+            aplicarNumero(campoDo("games1"), linha.games1, linha.teto1);
+            aplicarNumero(campoDo("games2"), linha.games2, linha.teto2);
 
-                if (campo === document.activeElement) return;
-                if (String(valor) !== campo.value) campo.value = valor;
-            });
+            // O TIE-BREAK (12/09/2026). Os pontos e a EXISTÊNCIA do bloco vêm prontos do
+            // servidor: "este jogo está em tie-break?" é pergunta de régua
+            // (Services/TieBreakDoJogo), e a resposta vira no instante em que o 9º game é
+            // escrito — reescrever a conta aqui seria a segunda cópia, o erro do `limiteGames: 9`.
+            if (linha.tieBreak) {
+                aplicarNumero(campoDo("pontos1"), linha.tieBreak.pontos1, null);
+                aplicarNumero(campoDo("pontos2"), linha.tieBreak.pontos2, null);
+
+                aplicarTieBreak(card, linha.tieBreak);
+            }
         });
+    }
+
+    // Um número que o servidor mandou, aplicado a um campo da tela.
+    //
+    // ⚠️ O TETO É ATUALIZADO MESMO COM O CAMPO EM FOCO, ao contrário do valor: o valor não se
+    // mexe embaixo do dedo de quem está digitando, mas o limite não é digitação — é regra, e
+    // ela muda com o placar (num jogo até 4, o 3x3 estende pra 5). Deixar o `max` velho
+    // travaria o "+" no game do desempate.
+    function aplicarNumero(campo, valor, teto) {
+        if (!campo || typeof valor !== "number") return;
+
+        if (typeof teto === "number") campo.setAttribute("max", teto);
+
+        if (campo === document.activeElement) return;
+        if (String(valor) !== campo.value) campo.value = valor;
+    }
+
+    // O BLOCO DO TIE-BREAK OBEDECENDO AO SERVIDOR (12/09/2026).
+    //
+    // Ele existe no HTML de todo jogo cuja fase comporta tie-break, escondido — existir é uma
+    // coisa, APARECER é outra. O motivo de não esperar a atualização automática: ela não roda com
+    // o cursor dentro de um campo (`estaOcupado` em jogos-ao-vivo-atualiza.js), e quem marca o 8º
+    // game está com o dedo no campo do placar. Acendendo o bloco na resposta do próprio POST, o
+    // tie-break aparece no toque que o criou.
+    //
+    // ⚠️ Nenhuma decisão é tomada aqui: "está em tie-break?", "já dá pra fechar?", "com que
+    // placar?" e até o TEXTO da etiqueta vêm prontos de Services/TieBreakDoJogo. Reescrever essa
+    // régua em JavaScript seria a segunda cópia — o erro do `limiteGames: 9` cravado.
+    function aplicarTieBreak(card, tb) {
+        var bloco = card.querySelector("[data-tiebreak]");
+        if (bloco) bloco.hidden = !tb.emAndamento;
+
+        // A linha "tie-break 7-5" é o DEPOIS: entra quando o bloco sai, e só em jogo que teve
+        // contagem.
+        var feito = card.querySelector("[data-tiebreak-feito]");
+        if (feito) {
+            feito.hidden = tb.emAndamento || !tb.houve;
+            var etiqueta = feito.querySelector(".pdz-live-tiebreak-feito-texto");
+            if (etiqueta && tb.etiqueta) etiqueta.textContent = tb.etiqueta;
+        }
+
+        // O botão de fechar só existe pra quem marca placar.
+        var fechar = card.querySelector("[data-fechar-tiebreak]");
+        if (!fechar) return;
+
+        var temFechamento = typeof tb.fecha1 === "number" && typeof tb.fecha2 === "number";
+        fechar.hidden = !tb.emAndamento || !temFechamento;
+
+        if (temFechamento) {
+            fechar.setAttribute("data-games1", tb.fecha1);
+            fechar.setAttribute("data-games2", tb.fecha2);
+            var rotulo = fechar.querySelector(".pdz-live-tiebreak-fechar-texto");
+            if (rotulo) rotulo.textContent = "Fechar o tie-break em " + tb.fecha1 + " x " + tb.fecha2;
+        }
     }
 
     function marcarTodos(estado, texto) {
@@ -206,6 +268,43 @@
 
         e.preventDefault();
         passo(botao);
+    });
+
+    // FECHAR O TIE-BREAK (12/09/2026): escreve o último game (9 x 8) nos campos de games do
+    // próprio card e manda o lote — games novos e pontos do tie-break no MESMO POST, porque
+    // estão no mesmo formulário.
+    //
+    // ⚠️ O placar do fechamento vem do SERVIDOR (`data-games1`/`data-games2`): qual game o
+    // tie-break escreve é pergunta de régua (Services/TieBreakDoJogo.GamesAoFechar), que sabe
+    // do limite da fase — num jogo até 5 o fechamento é 5x4, e não 9x8.
+    //
+    // ⚠️ E NÃO FINALIZA NADA. Encerrar continua sendo o botão Finalizar, com a confirmação
+    // dele: o que este botão faz é marcar o game que a quadra acabou de jogar.
+    document.addEventListener("click", function (e) {
+        var botao = e.target.closest ? e.target.closest("[data-fechar-tiebreak]") : null;
+        if (!botao || botao.disabled) return;
+
+        e.preventDefault();
+
+        var card = botao.closest(".pdz-live-card");
+        if (!card) return;
+
+        ["games1", "games2"].forEach(function (nome, i) {
+            var campo = card.querySelector('.pdz-live-input[name="' + nome + '"]');
+            var valor = botao.getAttribute(i === 0 ? "data-games1" : "data-games2");
+            // `if (valor)` e não `!== null`: atributo ausente no HTML vem como string VAZIA, e
+            // `campo.value = ""` APAGARIA o placar do jogo. O fechamento nunca é zero (o lado
+            // perdedor fica com `Games - 1`, que num tie-break é pelo menos 2).
+            if (campo && valor) campo.value = valor;
+        });
+
+        // ⚠️ O botão NÃO é desabilitado aqui, e isso é escolha: o fechamento escreve um placar
+        // ABSOLUTO (9 x 8), então o segundo toque dá exatamente no mesmo lugar — a mesma razão
+        // pela qual a fila da Mesa guarda placar inteiro e não "+1". Desabilitar deixaria o botão
+        // MORTO quando o POST falha, que é justamente quando a pessoa precisa tocar de novo.
+        cardsMexidos = [card];
+        window.clearTimeout(agendado);
+        enviarAgora();
     });
 
     // Tocar no campo já SELECIONA o número. Sem isto o cursor cai ao lado do "0" e a pessoa

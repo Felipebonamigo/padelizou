@@ -104,6 +104,50 @@
                                     </div>
                                 </div>
                             </div>
+                            @* ══ A CONTAGEM DO TIE-BREAK (Felipe, 12/09/2026) ════════════════
+                               🗣️ *"ao ficar 8x8, deveria aparecer uma contagem de tie break, que
+                               pode ir até 7 ou até 10, depende do torneio"*.
+
+                               ⚠️ Nasce ESCONDIDO e quem o acende é o JavaScript, não o servidor:
+                               a Mesa funciona sem internet, e o 8x8 pode acontecer com o celular
+                               sem sinal nenhum. Quem decide é `emTieBreak` no mesa-offline.js, que
+                               pergunta a paridade pro mesmo teto de games que já estava lá.
+
+                               Os dois números moram em `pontosA_`/`pontosB_` pelo mesmo contrato
+                               dos games (`gamesA_`/`gamesB_`): o estado é lido da tela no iniciar
+                               e reescrito por `desenhar`. *@
+                            <div id="tieBreak_@partida.Id" class="mt-2 p-3 rounded border border-success bg-light" hidden>
+                                <div class="fw-bold small text-success text-center mb-2">
+                                    <i class="bi bi-arrow-left-right"></i> TIE-BREAK
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-center">
+                                        <small class="text-muted d-block fw-bold text-truncate" style="max-width: 8rem">@partida.Dupla1.NomeCurto</small>
+                                        <div class="btn-group">
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'pontos1', -1)" class="btn pdz-mesa-passo pdz-mesa-passo-menos">−</button>
+                                            <span class="pdz-mesa-numero" id="pontosA_@partida.Id">@(partida.PontosTieBreak1 ?? 0)</span>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'pontos1', 1)" class="btn pdz-mesa-passo pdz-mesa-passo-mais">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block fw-bold text-truncate" style="max-width: 8rem">@partida.Dupla2.NomeCurto</small>
+                                        <div class="btn-group">
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'pontos2', -1)" class="btn pdz-mesa-passo pdz-mesa-passo-menos">−</button>
+                                            <span class="pdz-mesa-numero" id="pontosB_@partida.Id">@(partida.PontosTieBreak2 ?? 0)</span>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'pontos2', 1)" class="btn pdz-mesa-passo pdz-mesa-passo-mais">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                @* O atalho de fechar: marca o último game pra quem fechou o
+                                   tie-break — o mesmo toque do "+" do game, com o nome do que
+                                   está acontecendo. NÃO finaliza a partida. *@
+                                <button type="button" id="tieBreakFechar_@partida.Id" hidden
+                                        onclick="MesaOffline.fecharTieBreak(@partida.Id)"
+                                        class="btn btn-success w-100 fw-bold mt-3">
+                                    <i class="bi bi-check2-circle"></i> Fechar o tie-break (marca o último game)
+                                </button>
+                            </div>
+
                             <form asp-action="FinalizarPartida" method="post" class="mt-3" onsubmit="return MesaOffline.finalizar(event, @partida.Id)">
                                 <input type="hidden" name="partidaId" value="@partida.Id" />
                                 <button type="submit" class="btn btn-dark w-100 fw-bold" id="btnFim_@partida.Id">
@@ -148,7 +192,15 @@
     // aqui, e o que ele escolhia no cadastro não valia em lugar nenhum.
     var torneioDaMesa = ViewBag.Torneio as Padelizou.Models.Torneio;
     var partidasDaMesa = (Model ?? Enumerable.Empty<Padelizou.Models.Partida>())
-        .Select(p => $"{{id:{p.Id},games:{Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p.Fase).Games}}}");
+        .Select(p =>
+        {
+            // O alvo do tie-break vai por partida pelo mesmo motivo do limite de games: é
+            // configuração por FASE ("7 nos grupos, 10 na final"). Zero = desligado, que é o
+            // torneio que não usa contagem — e a Mesa então nem desenha o bloco.
+            var f = Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p.Fase);
+            int alvo = Padelizou.Services.TieBreakDoJogo.PodeAcontecer(f) ? f.PontosTieBreak : 0;
+            return $"{{id:{p.Id},games:{f.Games},tieBreak:{alvo}}}";
+        });
 
     // A CONTAGEM é do torneio inteiro (não muda por fase), então vai uma vez só. Vem do
     // mesmo serviço que o servidor usa pra validar — se a Mesa decidisse isso sozinha,

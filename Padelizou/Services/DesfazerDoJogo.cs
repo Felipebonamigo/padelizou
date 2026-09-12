@@ -83,6 +83,13 @@ public static class DesfazerDoJogo
         jogo.SetsDupla2 = null;
         jogo.VencedorId = null;
 
+        // ⚠️ A CONTAGEM DO TIE-BREAK VAI COM O PLACAR (12/09/2026). Ela é contagem DE UM placar:
+        // sem isto, o jogo tirado da quadra e chamado de novo voltaria 0 x 0 com um "tie-break
+        // 7-5" pendurado embaixo — número que ninguém sabe de onde veio, que é justamente o que
+        // este método existe pra evitar. Mesmo motivo do saque, logo abaixo.
+        jogo.PontosTieBreak1 = null;
+        jogo.PontosTieBreak2 = null;
+
         // Quem saca é coisa de jogo EM ANDAMENTO. Deixar o campo preenchido punha a bolinha
         // do saque numa partida que ainda não começou — e ela promete uma informação que não
         // existe: ninguém está sacando numa quadra vazia.

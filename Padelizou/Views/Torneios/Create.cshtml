@@ -1272,6 +1272,25 @@
                             <input type="number" asp-for="SetsFaseGrupos" class="form-control mb-2" value="1" required />
                             <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseGrupos" class="form-control" value="9" required />
+                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK do torneio (Felipe,
+                               12/09/2026). `<select>` e não campo livre: são dois valores de
+                               quadra (7 e 10), e digitar número aqui só abriria porta pra
+                               tie-break de 3. *@
+                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                            <select asp-for="PontosTieBreakGrupos" class="form-select">
+                                <option value="0">Sem contagem — o último game decide</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
+                            </select>
+                            @* ⚠️ O AVISO QUE EVITA A CONFIANÇA ERRADA: o tie-break só acontece em
+                               fase de número ÍMPAR de games. Num jogo até 6 o 5x5 vai pro 7º game
+                               (o "vencer por dois" do padel) e a contagem configurada fica inerte.
+                               Dizer isso aqui é mais barato que descobrir na quadra. *@
+                            <small class="text-muted d-block mt-1">
+                                Só vale em número <strong>ímpar</strong> de games: num jogo até 9, o
+                                8x8 vira tie-break. Em número par (até 6) o 5x5 já vai pro 7º game,
+                                e a contagem não entra.
+                            </small>
                         </div>
                     </div>
 
@@ -1283,6 +1302,16 @@
                             <input type="number" asp-for="SetsFaseMataMata" class="form-control mb-2" value="1" />
                             <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseMataMata" class="form-control" value="9" />
+                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK do mata-mata (Felipe,
+                               12/09/2026). `<select>` e não campo livre: são dois valores de
+                               quadra (7 e 10), e digitar número aqui só abriria porta pra
+                               tie-break de 3. *@
+                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                            <select asp-for="PontosTieBreakMataMata" class="form-select">
+                                <option value="0">Sem contagem — o último game decide</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
+                            </select>
                         </div>
                     </div>
 
@@ -1293,6 +1322,16 @@
                             <input type="number" asp-for="SetsFaseFinal" class="form-control mb-2" value="3" />
                             <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseFinal" class="form-control" value="6" />
+                            @* ATÉ QUANTOS PONTOS VAI O TIE-BREAK do decisão (Felipe,
+                               12/09/2026). `<select>` e não campo livre: são dois valores de
+                               quadra (7 e 10), e digitar número aqui só abriria porta pra
+                               tie-break de 3. *@
+                            <label class="small text-muted mt-2">Tie-break no empate</label>
+                            <select asp-for="PontosTieBreakFinal" class="form-select">
+                                <option value="0">Sem contagem — o último game decide</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
+                                <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
+                            </select>
                         </div>
                     </div>
                 </div>
