@@ -1224,10 +1224,41 @@ namespace Padelizou.Controllers
                     .DistinctBy(d => d.Id)
                     .ToDictionary(d => d.Id, d => d.NomeDeExibicao);
 
+                // ⚠️ O NOME DO BYE NÃO ESTÁ NAS PARTIDAS — É ISSO QUE O TORNA BYE (12/09/2026).
+                //
+                // 🗣️ Felipe, com o print de "Meus jogos" no meio do ER: *"aqui tambem nao esta
+                // aparecendo"* — a lista mandava o vencedor das Oitavas 2 direto pra uma
+                // "Semifinal" contra o vencedor das Oitavas 3. As QUARTAS tinham sumido.
+                //
+                // 🕳️ O dicionário acima é montado só com quem aparece em partida de mata-mata JÁ
+                // EXISTENTE, e quem folgou a primeira rodada não aparece em nenhuma. O
+                // `.Where(n => n != null)` que ficava aqui descartava os quatro byes **em
+                // silêncio**, e a projeção rodava com metade dos lados. O estrago não é "uma fase
+                // a menos no fim": o nome de cada fase sai de QUANTA GENTE SOBROU
+                // (ChaveamentoMataMata.NomeFase), então a fase seguinte inteira era rebatizada —
+                // a Quartas virava "Semifinal" e levava junto a hora reservada da Quartas.
+                //
+                // O robô nunca passou por aqui (ele vai por `ByesDaCategoriaAsync` com IDs), por
+                // isso a chave de verdade saía certa e só a PREVISÃO mentia — que é justamente o
+                // que o jogador lê pra saber a que horas voltar.
+                var semNome = byeIds.Where(id => !nomePorDupla.ContainsKey(id)).ToList();
+                if (semNome.Count > 0)
+                {
+                    var duplasDeFora = await _context.Duplas
+                        .Include(d => d.Jogador1)
+                        .Include(d => d.Jogador2)
+                        .Where(d => semNome.Contains(d.Id))
+                        .ToListAsync();
+
+                    foreach (var dupla in duplasDeFora)
+                        nomePorDupla[dupla.Id] = dupla.NomeDeExibicao;
+                }
+
+                // Sem `Where` silencioso: um bye que ainda assim não tenha nome vira um rótulo
+                // que DÁ NA VISTA, em vez de sumir e reescrever o quadro inteiro.
                 var byes = byeIds
-                    .Select(id => nomePorDupla.TryGetValue(id, out var nome) ? nome : null)
-                    .Where(n => n != null)
-                    .ToList()!;
+                    .Select(id => nomePorDupla.TryGetValue(id, out var nome) ? nome : $"Dupla {id}")
+                    .ToList();
 
                 cadeias.Add(ProximasFasesDaChave.Montar(
                     porCategoria.Select(p => new ProximasFasesDaChave.PartidaDaChave(

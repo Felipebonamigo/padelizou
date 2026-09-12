@@ -126,4 +126,68 @@ public class VarreduraDaChaveTests
 
         Assert.Empty(await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync());
     }
+    // ⚠️ A VARREDURA NÃO PODE DEPENDER DE `Partida.TorneioId` (12/09/2026, achado no ar).
+    //
+    // A primeira versão consultava `p.TorneioId == torneioId`. `Partida.TorneioId` é ANULÁVEL
+    // (jogo avulso não tem torneio) e `Categoria.TorneioId` é obrigatório — o próprio
+    // `AprovacaoDeChaves.Publicada` já escolhe o caminho `p.Categoria.Torneio` por causa disso,
+    // com o porquê escrito ao lado. Uma partida de torneio com esse campo nulo por qualquer
+    // motivo sumia da varredura, e a categoria ficava travada para sempre.
+    [Fact]
+    public async Task Enxerga_a_partida_mesmo_sem_TorneioId_preenchido()
+    {
+        var (ctx, torneio, categoria, _) = await TorneioComGruposFechadosAsync();
+        using var _ctx = ctx;
+
+        await ApagarOMataMataAsync(ctx, categoria.Id);
+
+        // O campo frouxo: a categoria continua apontando pro torneio, que é o que importa.
+        foreach (var p in await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync())
+        {
+            p.TorneioId = null;
+        }
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovaVarreduraDaChave(ctx).PassarAsync(default);
+
+        Assert.NotEmpty(await MataMataAsync(ctx, categoria.Id));
+    }
+
+    // ⚠️ E NÃO PODE DEPENDER DO NOME EXATO DO STATUS. A primeira versão só varria
+    // `Status == "Fase de Grupos"`; qualquer outro estado de torneio em andamento (o histórico
+    // "Mata-Mata", por exemplo) saía da varredura em silêncio — e "em silêncio" é o defeito
+    // que esta classe inteira existe pra matar. O que se exclui é o que PRECISA ser excluído:
+    // chave não publicada, torneio finalizado e torneio cancelado.
+    [Fact]
+    public async Task Varre_torneio_em_andamento_que_nao_se_chama_Fase_de_Grupos()
+    {
+        var (ctx, torneio, categoria, _) = await TorneioComGruposFechadosAsync();
+        using var _ctx = ctx;
+
+        await ApagarOMataMataAsync(ctx, categoria.Id);
+
+        torneio.Status = "Mata-Mata";   // o status histórico que ainda existe em produção
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovaVarreduraDaChave(ctx).PassarAsync(default);
+
+        Assert.NotEmpty(await MataMataAsync(ctx, categoria.Id));
+    }
+
+    [Fact]
+    public async Task Nao_varre_torneio_com_a_chave_ainda_esperando_aprovacao()
+    {
+        var (ctx, torneio, categoria, _) = await TorneioComGruposFechadosAsync();
+        using var _ctx = ctx;
+
+        await ApagarOMataMataAsync(ctx, categoria.Id);
+
+        torneio.Status = AprovacaoDeChaves.Pendente;
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovaVarreduraDaChave(ctx).PassarAsync(default);
+
+        // Chave que ninguém publicou não tem mata-mata pra montar.
+        Assert.Empty(await MataMataAsync(ctx, categoria.Id));
+    }
 }
