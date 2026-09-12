@@ -2,6 +2,24 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1243-b35b60c`** (runs 34691174040 e 34691388929), **o mesmo artefato nos dois**, com a tag explícita. PR #251. ⚠️ **COM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/mudar-bolinha-saque-mwiss3`, ainda não publicado.** **Sem migration.** 🎾 **O ALVO DE PASSAR O SAQUE ESTAVA NA TELA E NÃO DAVA PRA VER.**
+>
+> 🗣️ Felipe, com um print do card AO VIVO em que ele é o organizador (tem −/+, Finalizar, lápis e desfazer): *"Permita aqui tambem mudar a bolinha de qual dupla esta sacando"*.
+>
+> 🕳️ **ELE JÁ PODIA — DESDE 11/09.** O `_BolinhaDoSaque` desenha um `<form>` de 40px do lado de CADA dupla, e o −/+ do print sai do **mesmo `ehOrganizador`** que liga o `podeTrocarSaque`: o alvo estava renderizado nas duas linhas do card dele. O que não existia era o **anel da bola apagada**. Ele saía de `var(--pdz-border)`, que **segue o tema da página** — e o `.pdz-live-header` é navy **fixo nos dois**. No tema claro esse token vale `rgba(28, 39, 66, .09)`: **navy a 9% em cima de navy**, ainda por baixo de um `opacity: .55`.
+>
+> 📐 **MEDIDO NO PRÓPRIO PRINT DO FELIPE, ANTES DE MEXER EM QUALQUER COISA**: os 41×41px onde a bola devia estar são uma cor **chapada**, `(36, 44, 67)` — mínimo igual ao máximo em 1.681 pixels. Não é "difícil de ver": é **1,01:1**.
+>
+> ⚠️ **É A TERCEIRA VEZ DO MESMO TOKEN**, sempre pelo mesmo raciocínio: `--pdz-border` parece "o cinza discreto do tema" e é o cinza de **uma linha de 1px**. Já apagou a bolinha do check-in (hoje de manhã) e a linha da chave (que virou o `--pdz-linha-chave`). Aqui ele nem devia ser token de tema: o cabeçalho do card é escuro nos dois, então o anel virou **branco fixo a 55%** — a mesma linguagem do `.pdz-live-versus` e do `.pdz-live-seguir`, que moram nele. E **o `opacity` saiu**: opacidade baixa apaga tanto quanto alpha baixo, e era ela que multiplicava o defeito.
+>
+> 👁️ **E DESTA VEZ FOI VISTO NUMA TELA.** Tem Chromium nesta sessão: o card foi remontado com o `site.css` de verdade, antes e depois, nos dois temas. O "antes" **reproduz o print do Felipe**, linha vazia inclusive. Medido no pixel do navegador: **1,04:1 → 5,36:1** no claro, **1,19:1 → 5,36:1** no escuro, e o mesmo `#9ba0aa` nos dois — que é a prova de que o anel parou de seguir o tema.
+>
+> 🧪 **6.781 testes, 0 falhas (3 novos, em `AlvoDeTrocarOSaqueEVisivelTests`)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**, com o número na mensagem (*"anel #27314b sobre a linha do card #27324b dá 1.01:1"*). O teste resolve os `var()`, compõe o alpha do anel **e o `opacity` da regra** contra o fundo real da linha do card (o pedaço mais claro do gradiente + o branco a 5% da faixa) e cobra 3:1, o mínimo da WCAG pra componente não-textual. **Mede o que o olho vê, não nome de token** — proibir `--pdz-border` numa linha travaria a solução de hoje em vez do defeito.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v34`** — o `site.css` está na lista do service worker, e sem virar o número quem usa o app instalado continuaria com o alvo apagado, **sem erro em lugar nenhum**. Conferido no `origin/main` antes de escolher o número (estava em v33).
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
 >
 > 🗣️ Felipe, depois de ver a bolinha por dupla: *"Mas é tem um check para cada jogador da dupla?"* — e, com a resposta: *"Mude para um check por jogador, por que é assim que controla check in"*. Escolheu também o formato (**A**, check ao lado de cada nome), e mandou publicar ao terminar.
 >
