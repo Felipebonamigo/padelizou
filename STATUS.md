@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/view-results-layout-fix-dbahs6`, ainda não publicado.** **Sem migration.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1231-12c7ad7`** (runs 286 e 287, 04h43 e 04h45 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #247. ✅ **SEM MIGRATION.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**, que é mais forte que o healthcheck: em `padelizou.com.br/Torneios/Details/26` (anônimo, `curl`, 1,03 MB de HTML) são **79 nomes** com `verPalpitesDoPalpiteiro(`, **um** `modalPalpitesDoPalpiteiro` e **um** `js/palpites-do-palpiteiro.js`. O `/js/palpites-do-palpiteiro.js` responde **200** nos dois ambientes e o `/healthz` **200** nos dois.
+>
+> 🎯 **E A LISTA FOI LIDA NO AR, com dado de verdade**: `GET /Torneios/PalpitesDoPalpiteiro/26?jogadorId=61` devolve **Marcos Coelho — 20 pontos, 10 de 14 acertos, 3 cravadas, 27 esperando resultado**, os mesmos números da linha dele na tabela do print do Felipe. As 42 linhas fecham a conta sozinhas: 14 apuradas + 27 em aberto + **1 marcada "não conta"** — o Grupo A da 4ª Masculina, em que ele palpitou no PRÓPRIO jogo (*"Marcos / Marcio"*). É a régua de quem está em quadra funcionando em produção, e é o caso que mais rendeu teste. Um exemplo da faixa do meio no ar: palpitou **9 x 6**, deu **9 x 5** → **2 pontos**.
+>
+> ⚠️ **O PR FOI ABERTO E MESCLADO POR OUTRA SESSÃO** (a "varredura das sessões", #247, 04h30 UTC) enquanto esta ainda escrevia — quando fui abrir o meu, o GitHub respondeu *"No commits between main and claude/view-results-layout-fix-dbahs6"*. O `main` andou **30 commits** durante o trabalho (#241 a #247), e o `build-1231` leva todos eles juntos, não só este.
 >
 > 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
 >
