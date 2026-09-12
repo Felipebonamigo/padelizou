@@ -90,6 +90,40 @@ public class OQuePrecisaParaClassificarTests
         Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
     }
 
+    // ═══════════════ O GRUPO QUE NÃO TEM O QUE RESPONDER ═══════════════
+    //
+    // 🗣️ Felipe, 12/09/2026, olhando o card do Grupo B: *"so deve aparecer depois q finalizar o
+    // segundo jogo do grupo e se tiverem 3"*.
+    //
+    // 🕳️ O GRUPO DE DUAS DUPLAS TEM UM JOGO SÓ — e o painel aparecia nele ANTES de a bola
+    // quicar: um jogo faltando, nenhum jogado, e as duas duplas listadas como "Já classificado"
+    // (com duas vagas, as duas passam mesmo perdendo). No 2ª Etapa ER Padel Tour são 8 grupos
+    // assim, de 24. Não é resposta errada — é uma pergunta que ninguém fez, no lugar onde a
+    // pessoa procura o que precisa FAZER.
+    //
+    // ⚠️ A régua é "o grupo já decidiu alguma coisa", e não "o grupo tem 3 duplas": as duas dão
+    // no mesmo resultado (com um jogo faltando, o grupo de 3 tem sempre dois encerrados e o de
+    // 2 tem zero), e esta não mente quando a grade do grupo está incompleta.
+    [Fact]
+    public void Grupo_de_duas_duplas_nao_ganha_painel()
+    {
+        var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia") };
+        var jogos = new[] { Jogo(1, 2, null, null) };
+
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
+    // E nem quando o único jogo do grupo está EM QUADRA — é o mesmo grupo de 2, com a bola
+    // rolando.
+    [Fact]
+    public void Grupo_de_duas_duplas_com_o_jogo_em_quadra_tambem_nao()
+    {
+        var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia") };
+        var jogos = new[] { EmQuadra(1, 2, 4, 3) };
+
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
     // ═══════════════ O JOGO QUE AINDA ESTÁ EM QUADRA ═══════════════
     //
     // 🗣️ Felipe, 12/09/2026, num print do pop-up do Grupo B da 6ª Feminina (2ª Etapa ER Padel

@@ -106,6 +106,20 @@ public static class OQuePrecisaParaClassificar
 
         if (faltando.Count != 1) return null;
 
+        // E o grupo precisa já ter DECIDIDO alguma coisa. 🗣️ Felipe, 12/09/2026: *"so deve
+        // aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*.
+        //
+        // 🕳️ O grupo de DUAS duplas tem um jogo só: o painel aparecia nele antes de a bola
+        // quicar, listando as duas como "Já classificado" (com duas vagas, as duas passam mesmo
+        // perdendo). São 8 dos 24 grupos do 2ª Etapa ER Padel Tour. Não é resposta errada — é
+        // uma pergunta que ninguém fez, no lugar onde se procura o que ainda dá pra FAZER.
+        //
+        // ⚠️ A régua é esta, e não "o grupo tem 3 duplas": com um jogo faltando as duas dão no
+        // mesmo resultado (o grupo de 3 tem sempre dois encerrados; o de 2, zero), e esta não
+        // promete nada quando a grade do grupo está incompleta. No grupo de 4 o painel continua
+        // aparecendo quando falta o último jogo — é a mesma pergunta, com a mesma resposta.
+        if (jogados.Count == 0) return null;
+
         var jogo = faltando[0];
         var lado1 = duplasDoGrupo.FirstOrDefault(d => d.Id == jogo.Dupla1Id);
         var lado2 = duplasDoGrupo.FirstOrDefault(d => d.Id == jogo.Dupla2Id);
