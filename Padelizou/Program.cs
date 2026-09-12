@@ -333,6 +333,13 @@ builder.Services.AddSingleton<PortaoDeAcesso>();
 builder.Services.AddSingleton<SilencioDeAvisos>();
 builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
+
+// A CHAVE QUE FICOU PRA TRÁS (12/09/2026). O robô do chaveamento só roda no instante em
+// que um jogo de grupo é finalizado; se aquela chamada se perder — um restart no meio, que
+// foi o que aconteceu no ER —, a categoria fica sem mata-mata em SILÊNCIO. Esta varredura é
+// a segunda chance. Ver Services/VarreduraDaChave.
+builder.Services.AddScoped<VarreduraDaChave>();
+builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
