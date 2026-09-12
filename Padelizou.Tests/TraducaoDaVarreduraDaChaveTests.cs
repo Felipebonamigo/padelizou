@@ -65,4 +65,70 @@ public class TraducaoDaVarreduraDaChaveTests
             .Include(d => d.Jogador2)
             .Where(d => ids.Contains(d.Id)));
     }
+    // ⚠️ O DEFEITO QUE DERRUBOU A MESA NO MEIO DO ER (12/09/2026).
+    //
+    // `MontarAberturaDesenhadaAsync` perguntava ao BANCO se a categoria já tem fase além da
+    // abertura usando um método C#:
+    //
+    //     .AnyAsync(p => p.CategoriaId == id && p.Fase != nomeFase
+    //                 && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+    //
+    // O Postgres recusa: *"Translation of method 'ChaveamentoMataMata.EhFaseDeMataMata'
+    // failed"*. O EF InMemory da suíte executa o método em memória sem reclamar, então os
+    // ~7.000 testes passavam e só produção estourava — a mesma família de 19/08/2026.
+    //
+    // 🕳️ E ELE ERA LATENTE: essa linha só era alcançada por categoria com cruzamento DESENHADO
+    // à mão, e nenhuma tinha. No instante em que o desenho passou a valer pra todas
+    // (12/09, o congelamento), a guarda virou o caminho de todo mundo e a Mesa passou a dar
+    // erro ao finalizar jogo — `POST /Partidas/ControlePlacar` e `POST /Torneios/FinalizarPartida`.
+    //
+    // O projeto já conhecia a armadilha: ver o comentário em Services/ClassificacaoParaCard.
+    [Fact]
+    public void A_guarda_de_fase_alem_da_abertura_traduz()
+    {
+        Traduz(ctx => ctx.Partidas
+            .Where(p => p.CategoriaId == 1
+                     && p.Fase != "Quartas de Final"
+                     && p.Fase != "Fase de Grupos"
+                     && !p.Fase.StartsWith("Grupo ")));
+    }
+
+    [Fact]
+    public void O_metodo_de_fase_NAO_pode_entrar_numa_consulta_ao_banco()
+    {
+        // A prova de que o perigo é real, e o motivo de a guarda acima ser escrita inline:
+        // este é o SQL que produção recusou.
+        using var ctx = ContextoPostgres();
+
+        var erro = Assert.Throws<InvalidOperationException>(() =>
+            ctx.Partidas
+               .Where(p => p.CategoriaId == 1 && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+               .ToQueryString());
+
+        Assert.Contains("could not be translated", erro.Message, StringComparison.Ordinal);
+    }
+    // O gate mecânico: a fonte do robô não pode mandar o método de fase pro banco. Teste de
+    // FONTE porque a suíte roda em EF InMemory, que traduz tudo em memória — nenhum teste de
+    // comportamento daqui pega isso, e foi assim que passou pros ~7.000.
+    [Fact]
+    public void O_robo_nao_manda_o_metodo_de_fase_pro_banco()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "Padelizou", "Services")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+
+        var fonte = TestInfra.SemComentarios(
+            File.ReadAllText(Path.Combine(dir!.FullName, "Padelizou", "Services", "RoboDoChaveamento.cs")));
+
+        // `AnyAsync`/`CountAsync`/`Where` que citem o método são consulta ao banco: o Postgres
+        // recusa. Em lista já materializada o método é bem-vindo — por isso a busca é pelo
+        // par "Async(" + método, e não pelo método sozinho.
+        foreach (var trecho in fonte.Split("Async(p =>").Skip(1))
+        {
+            var ate = trecho[..Math.Min(400, trecho.Length)];
+            Assert.DoesNotContain("EhFaseDeMataMata", ate, StringComparison.Ordinal);
+            Assert.DoesNotContain("EhFaseDeGrupos", ate, StringComparison.Ordinal);
+        }
+    }
 }
