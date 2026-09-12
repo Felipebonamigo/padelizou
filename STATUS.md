@@ -1,7 +1,9 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1294-97f9651`** (runs 34708075905 e 34708135567), **o mesmo artefato nos dois**. PR #274. **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**: `/healthz` **200** nos dois; o `manter-posicao-na-lista.js` servido já com o `scrollIntoView` e o ouvinte de `click`; e no HTML de `prod` o `data-manter-posicao="#filtroJogos"` e **5 `requestSubmit()`**, com **zero** `this.form.submit()` sobrando. ⚠️ Em `dev` a conferência é só pelo JS: o portão de Acesso Antecipado devolve **302** pra quem não está logado, então o HTML não sai pra um `curl` anônimo.
 >
 > 🗣️ Felipe, num print do `Torneios/Details/26?soMeusJogos=true` no celular, com a barra de pagamento ocupando a tela e a lista lá embaixo: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem, tinha q aparece na aba meus jogos ja"*.
 >
