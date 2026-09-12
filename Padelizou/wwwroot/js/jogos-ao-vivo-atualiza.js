@@ -25,7 +25,9 @@
 //     que o problema original.
 //   • NÃO atualiza com a aba em segundo plano: o organizador deixa a Mesa aberta no notebook
 //     e mexe no celular; gastar bateria e 3G do clube ali não ajuda ninguém.
-//   • Só onde há jogo AO VIVO. Torneio parado não precisa de nada disso.
+//   • Só enquanto ainda há o que acontecer: jogo em quadra OU jogo agendado que pode entrar.
+//     Torneio com tudo finalizado não precisa de nada disso, e para sozinho.
+//   • ABRIR O APP mostra o agora: a volta pro primeiro plano busca na hora, sem esperar o ciclo.
 //   • Rede que falhou é silêncio, não erro: tenta de novo no tique seguinte.
 (function () {
     "use strict";
@@ -77,6 +79,23 @@
 
     function temJogoAoVivo() {
         return document.querySelector(".pdz-live-card") !== null;
+    }
+
+    // AINDA HÁ O QUE ACONTECER NESTE TORNEIO? (12/09/2026)
+    //
+    // 🗣️ Felipe: *"Pessoal que tem o app no celular, disse q ao abrir ele fica desatualizado as
+    // vezes no aovivo"*.
+    //
+    // 🕳️ Até aqui o relógio só ligava com jogo JÁ em quadra na hora em que a página carregou —
+    // e esta era a ÚNICA linha do arquivo que agendava alguma coisa. Quem abre o app de manhã,
+    // antes da primeira partida, nunca ligava o relógio: medido no navegador, a tela ficou em
+    // "Ao Vivo (0)" com um jogo em quadra no banco, e ficaria assim para sempre.
+    //
+    // ⚠️ MAS TAMBÉM NÃO É "SEMPRE": torneio com tudo finalizado não pode buscar a página de 20
+    // em 20 segundos até a pessoa fechar a aba. A régua é "ainda há o que acontecer" — jogo em
+    // quadra, ou jogo agendado que pode entrar. Quando o último acaba, os dois param sozinhos.
+    function torneioEmAndamento() {
+        return temJogoAoVivo() || document.querySelector("#agendadas .pdz-jl") !== null;
     }
 
     // A PESSOA ESTÁ MESMO OLHANDO OS CARTÕES AO VIVO? (12/09/2026)
@@ -138,17 +157,23 @@
         if (!grade || !gradeNova) return false;
 
         var frescos = cartoes(gradeNova);
+        var atuais = cartoes(grade);
 
-        // O ÚLTIMO jogo saiu de quadra: não sobra vídeo pra proteger, e o painel inteiro carrega
-        // coisas que também mudam (o "Nenhum jogo rolando no momento", a barra de salvar
-        // placares). Trocar o painel de uma vez é mais simples e não custa nada aqui.
-        if (frescos.length === 0) {
+        // NENHUM CARTÃO DE UM LADO OU DO OUTRO: o painel inteiro carrega coisas que mudam junto
+        // com o primeiro e com o último jogo — o "Nenhum jogo rolando no momento" e a barra de
+        // salvar placares —, e não há vídeo a proteger: de um lado porque cartão nenhum existe,
+        // do outro porque quem sai leva o dele junto. Trocar o painel de uma vez resolve os dois.
+        //
+        // ⚠️ O LADO VAZIO NA TELA é o caso de quem abriu o app antes do primeiro jogo (12/09):
+        // sem ele, o primeiro cartão entraria na grade e o "Nenhum jogo rolando no momento"
+        // ficaria em cima dele, dizendo o contrário do que a tela mostra.
+        if (frescos.length === 0 || atuais.length === 0) {
             trocar(document.querySelector("#aovivo"), novo.querySelector("#aovivo"));
             return true;
         }
 
         // 1. Quem saiu de quadra sai da tela, com a coluna dele.
-        cartoes(grade).forEach(function (atual) {
+        atuais.forEach(function (atual) {
             if (cartaoDe(gradeNova, atual.getAttribute("data-partida-id"))) return;
             var coluna = colunaDo(atual);
             if (coluna && coluna.parentNode) coluna.parentNode.removeChild(coluna);
@@ -224,11 +249,13 @@
     }
 
     var buscando = false;
+    var ultimaBusca = 0;
 
     function tique() {
-        if (buscando || document.hidden || estaOcupado() || !temJogoAoVivo()) return;
+        if (buscando || document.hidden || estaOcupado() || !torneioEmAndamento()) return;
 
         buscando = true;
+        ultimaBusca = Date.now();
         window.fetch(window.location.href, { credentials: "same-origin" })
             .then(function (resposta) {
                 return resposta.ok ? resposta.text() : Promise.reject(resposta.status);
@@ -261,5 +288,31 @@
             .then(function () { buscando = false; });
     }
 
-    if (temJogoAoVivo() && window.fetch) window.setInterval(tique, SEGUNDOS * 1000);
+    // ABRIR O APP MOSTRA O AGORA, E NÃO O DE 20 SEGUNDOS ATRÁS (12/09/2026).
+    //
+    // O tique é barrado enquanto `document.hidden`, e isso é certo: o organizador deixa a Mesa
+    // aberta no notebook e mexe no celular, e gastar bateria e 3G do clube ali não ajuda
+    // ninguém. Só que ao VOLTAR ninguém acordava a tela — ela esperava o próximo ciclo.
+    //
+    // 🔬 Medido no navegador: app escondido de t=2s a t=50s com ZERO buscas (certo), volta em
+    // t=51s, e a única busca só em t=57s — 7 segundos desatualizado depois de abrir, com teto
+    // no ciclo inteiro de 20s. No celular é pior: Android e iOS CONGELAM o timer em segundo
+    // plano, então o próximo tique pode demorar bem mais do que os 20s de um relógio que
+    // continuou andando.
+    //
+    // ⚠️ COM UM MÍNIMO ENTRE BUSCAS: cada busca é a PÁGINA INTEIRA (mais de 1MB no torneio
+    // grande). Alternar de aba no computador dispara `visibilitychange` a cada ida e volta, e
+    // sem esta trava viraria uma rajada.
+    var MINIMO_ENTRE_BUSCAS = 3000;
+
+    function aoVoltarProPrimeiroPlano() {
+        if (document.hidden) return;
+        if (Date.now() - ultimaBusca < MINIMO_ENTRE_BUSCAS) return;
+        tique();
+    }
+
+    if (torneioEmAndamento() && window.fetch) {
+        window.setInterval(tique, SEGUNDOS * 1000);
+        document.addEventListener("visibilitychange", aoVoltarProPrimeiroPlano);
+    }
 })();

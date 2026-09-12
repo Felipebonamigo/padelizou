@@ -355,24 +355,38 @@ function painel(row) {
     const pane = elemento({}, ['tab-pane']);
     Object.defineProperty(pane, 'innerHTML', {
         get: () => row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')).join(','),
-        set: () => {
-            row.filhos.forEach((c) => { c.cartao.video.recarregou++; });
-            row.filhos = [];
+        // ⚠️ O CONTADOR ATRAVESSA A REESCRITA. Se ele zerasse junto com os nós, trocar o painel
+        // inteiro numa mudança de N pra M passaria batido — e é justamente o defeito que esta
+        // seção existe pra pegar: o vídeo de quem continua em quadra reiniciando.
+        set: (v) => {
+            const antes = {};
+            row.filhos.forEach((c) => {
+                antes[c.cartao.getAttribute('data-partida-id')] = c.cartao.video.recarregou + 1;
+            });
+            row.filhos = String(v || '').split(',').filter(Boolean).map((id) => {
+                const col = cartaoVivo(id);
+                col.cartao.video.recarregou = antes[id] || 0;
+                col.parentNode = row;
+                return col;
+            });
         },
     });
     return pane;
 }
 
-function documentoDeJogos(ids, aoVivoVisivel) {
+function documentoDeJogos(ids, aoVivoVisivel, agendados) {
     const row = grade(ids.map(cartaoVivo));
     const pane = painel(row);
+    const umAgendado = elemento({}, ['pdz-jl']);
     const doc = {
         hidden: false, readyState: 'complete', activeElement: null, _ouvintes: {},
         addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+        disparar(t) { (this._ouvintes[t] || []).forEach((f) => f({})); },
         getElementById: (id) => (id === 'jogosTabsContent' ? elemento({}) : null),
         importNode: (no) => no,
         querySelector: (sel) => {
             if (sel === '.pdz-live-card') return row.filhos.length ? row.filhos[0].cartao : null;
+            if (sel === '#agendadas .pdz-jl') return agendados ? umAgendado : null;
             if (sel === '.modal.show') return null;
             if (sel === '#aovivo') return pane;
             if (sel === '#aovivo.active') return aoVivoVisivel ? pane : null;
@@ -448,6 +462,7 @@ async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
     ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
 
     await aAlturaDaListaVolta();
+    await abrirOAppMostraOAgora();
 
     console.log(falhas === 0 ? '\nTUDO VERDE\n' : '\n' + falhas + ' FALHA(S)\n');
     process.exit(falhas === 0 ? 0 : 1);
@@ -573,4 +588,90 @@ async function aAlturaDaListaVolta() {
         'nenhum select aplica com form.submit() (que não dispara o evento submit)');
     ok((razor.match(/requestSubmit\(\)/g) || []).length >= 5,
         'os cinco filtros do painel aplicam com requestSubmit(), que dispara o submit');
+}
+
+
+// ── ABRIR O APP MOSTRA O AGORA ────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 12/09/2026: *"Pessoal que tem o app no celular, disse q ao abrir ele fica
+// desatualizado as vezes no aovivo"*.
+//
+// 🕳️ DOIS BURACOS, os dois reproduzidos no navegador antes de escrever isto.
+//
+// 1. O RELÓGIO SÓ LIGAVA SE JÁ HOUVESSE JOGO EM QUADRA NA HORA EM QUE A PÁGINA CARREGOU:
+//    `if (temJogoAoVivo() && window.fetch) setInterval(...)` era a ÚNICA linha do arquivo que
+//    agendava. Quem abre o app de manhã, antes do primeiro jogo, nunca ligava o relógio.
+//    Medido: abri com "Ao Vivo (0)", pus um jogo em quadra no banco, e 26s depois a tela
+//    continuava "Ao Vivo (0)" — e continuaria para sempre.
+//
+// 2. NADA ACORDAVA A TELA AO VOLTAR PRO PRIMEIRO PLANO: `visibilitychange`, `pageshow` e
+//    `focus` não apareciam em NENHUM arquivo do site (grep = zero). O tique é barrado enquanto
+//    `document.hidden`, o que é certo — não se gasta 3G no bolso de ninguém —, mas ao voltar a
+//    tela esperava o próximo ciclo. Medido: escondido de t=2s a t=50s com zero buscas (certo),
+//    volta em t=51s, e a única busca só em t=57s: **7 segundos desatualizado depois de abrir**,
+//    com teto no ciclo inteiro de 20s. E no celular é pior, porque Android e iOS CONGELAM o
+//    timer em segundo plano em vez de deixá-lo rodar em falso.
+//
+// ⚠️ "ainda há o que acontecer" É JOGO EM QUADRA **OU** JOGO AGENDADO, e não "sempre": torneio
+// com tudo finalizado não pode ficar buscando a página de 20 em 20 segundos para sempre.
+function appAberto(idsAgora, idsNoServidor, agendadosAgora, agendadosNoServidor) {
+    const doc = documentoDeJogos(idsAgora, true, agendadosAgora);
+    const resposta = documentoDeJogos(idsNoServidor, true, agendadosNoServidor);
+    let buscas = 0;
+    let agendou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Details/901', reload: () => {} },
+        setInterval: (fn) => { win._tique = fn; agendou++; return 1; },
+        getSelection: () => '',
+        fetch: () => { buscas++; return Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }); },
+        DOMParser: function () { this.parseFromString = () => resposta; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+
+    const respirar = () => new Promise((r) => setTimeout(r, 30));
+    return {
+        win,
+        agendou: () => agendou,
+        buscas: () => buscas,
+        naTela: () => doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        tique: async () => { if (win._tique) win._tique(); await respirar(); },
+        esconder: async () => { doc.hidden = true; doc.disparar('visibilitychange'); await respirar(); },
+        mostrar: async () => { doc.hidden = false; doc.disparar('visibilitychange'); await respirar(); },
+    };
+}
+
+async function abrirOAppMostraOAgora() {
+    console.log('── ABRIR O APP MOSTRA O AGORA ──────────────────────────────────────────────');
+
+    // 1. Chegou no clube de manhã: nenhum jogo em quadra, mas há jogo agendado. O relógio
+    //    TEM que ligar, senão a tela nunca descobre que a primeira partida começou.
+    const deManha = appAberto([], ['10'], 1, 1);
+    ok(deManha.agendou() === 1, 'sem jogo em quadra mas COM jogo agendado, o atualizador se agenda');
+
+    await deManha.tique();
+    ok(deManha.naTela().join(',') === '10',
+        'e o primeiro jogo a entrar em quadra aparece sozinho (' + deManha.naTela().join(',') + ')');
+
+    // 2. Torneio acabado: nada em quadra, nada agendado. Aí o relógio NÃO liga — ninguém fica
+    //    buscando a página de 20 em 20 segundos num torneio de mês passado.
+    const acabado = appAberto([], [], 0, 0);
+    ok(acabado.agendou() === 0, 'torneio com tudo finalizado não agenda busca nenhuma');
+
+    // 3. O app volta do segundo plano: a tela atualiza NA HORA, sem esperar o ciclo de 20s.
+    const noBolso = appAberto(['10'], ['10', '11'], 1, 1);
+    await noBolso.esconder();
+    ok(noBolso.buscas() === 0, 'com o app escondido, nenhuma busca acontece');
+
+    await noBolso.mostrar();
+    ok(noBolso.buscas() === 1, 'ao voltar pro primeiro plano, a tela busca na hora (sem esperar o ciclo)');
+    ok(noBolso.naTela().join(',') === '10,11',
+        'e o jogo que entrou enquanto o app estava no bolso já aparece (' + noBolso.naTela().join(',') + ')');
+
+    // 4. Alternar de aba não vira rajada de buscas: cada uma delas é a PÁGINA INTEIRA (1MB em
+    //    prod). Duas voltas seguidas valem uma busca só.
+    await noBolso.esconder();
+    await noBolso.mostrar();
+    ok(noBolso.buscas() === 1, 'voltar de novo em seguida NÃO dispara uma segunda busca');
 }

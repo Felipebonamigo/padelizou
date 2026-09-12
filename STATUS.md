@@ -3,7 +3,31 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
 
-> Última atualização: **12/09/2026** — 🚀 **O CONSERTO DO 404 DO RECORTE ESTÁ NO AR, em `dev` E `prod`, no `build-1309-67f2a13`** (runs 323 e 324, 15h17 de Brasília). PR #279. ✅ **SEM MIGRATION.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📱 **"ABRIR O APP E O AO VIVO ESTAR DESATUALIZADO" ERAM DOIS DEFEITOS, E OS DOIS FORAM REPRODUZIDOS.**
+>
+> 🗣️ Felipe: *"Pessoal que tem o app no celular, disse q ao abrir ele fica desatualizado as vezes no aovivo, isso tambem foi mexido hoje ? se não, temos q ver"*. **Não tinha sido** — o de hoje era com a página JÁ aberta.
+>
+> 🚫 **NÃO É O CACHE DO APP, e isso foi conferido antes de procurar em outro lugar**: o `sw.js` manda toda navegação pra rede (`request.mode === "navigate"` → `fetch` sempre) e só cai na tela offline quando a rede falha. Página nunca vem guardada.
+>
+> 🕳️ **DEFEITO 1 — PERMANENTE, e é o pior.** `if (temJogoAoVivo() && window.fetch) window.setInterval(...)` era a **única linha do arquivo que agendava alguma coisa**: o relógio só ligava se já houvesse jogo em quadra **no instante em que a página carregou**. Quem abre o app de manhã, antes da primeira partida, nunca ligava o relógio. 🔬 Reproduzido no navegador com Postgres de verdade: abri em `Ao Vivo (0)`, pus um jogo em quadra no banco, e **26s depois a tela continuava `Ao Vivo (0)`** — e continuaria para sempre.
+>
+> 🕳️ **DEFEITO 2 — até 20s ao voltar pro app.** `visibilitychange`, `pageshow` e `focus` não apareciam em **nenhum** arquivo do site (grep = zero). O tique é barrado enquanto `document.hidden` (certo: ninguém quer gastar 3G no bolso), mas ao voltar ninguém acordava a tela. 🔬 Medido: escondido de t=2s a t=50s com **zero buscas** (certo), volta em t=51s, **única busca em t=57s** — 7 segundos desatualizado depois de abrir, com teto no ciclo inteiro. No celular é pior, porque Android e iOS **congelam** o timer em segundo plano em vez de deixá-lo rodar em falso; essa metade não dá pra medir daqui e não está sendo afirmada como número.
+>
+> ✅ **A RÉGUA NOVA É "ainda há o que acontecer"**, decidida pelo Felipe entre três opções: jogo em quadra **ou** jogo agendado (`#agendadas .pdz-jl`). Torneio com tudo finalizado não fica buscando a página pra sempre — para sozinho. E `visibilitychange` acorda a tela **na hora** ao voltar pro primeiro plano, com um **mínimo de 3s entre buscas**: cada busca é a PÁGINA INTEIRA (mais de 1MB no torneio grande), e alternar de aba no computador dispararia uma rajada sem isso.
+>
+> ✅ **E O PAINEL VAZIO → COM JOGO** passou a trocar o `#aovivo` inteiro, como o caso simétrico do último jogo saindo: sem isso o primeiro cartão entraria na grade com o *"Nenhum jogo rolando no momento"* em cima dele, dizendo o contrário do que a tela mostra.
+>
+> 🔬 **DEPOIS DA CORREÇÃO, os dois cenários no navegador**: (1) abriu em `Ao Vivo (0)`, jogo entrou → **cartão aparece sozinho, `Ao Vivo (1)`**; (2) app 50s no bolso, jogo entrou, voltou em t=51s → **a busca acontece em t=51s**, no mesmo segundo, e o cartão está na tela em t=53s.
+>
+> ⚠️ **UMA MEDIÇÃO MINHA FOI INVÁLIDA E É BOM SABER POR QUÊ**: a primeira rodada depois da correção deu "ainda desatualizado". O motivo era um **processo velho do app de pé há 1h33** — o comando de reinício não tinha `pkill`, o novo nem subiu, e eu medi contra o binário antigo. `ps -eo pid,etime` foi o que denunciou. É a mesma armadilha de mais cedo nesta sessão. **Reiniciar não é subir outro: é matar o que está na porta.**
+>
+> 🔐 **`sw.js` v36 → v37.** O `jogos-ao-vivo-atualiza.js` não está no `STATIC_ASSETS`, mas cai na regra de `isStaticAsset`, que serve a cópia guardada e só busca a nova em segundo plano. Deixar o número parado seria entregar a correção justamente pra quem não a receberia na próxima abertura — que é exatamente o público da queixa. Conferido no `origin/main` ANTES de escolher o número (estava em v36).
+>
+> 🧪 **6.907 testes, 0 falhas (1 novo)** + os 8 conferidores de JS. A quinta seção do `conferir-abas-que-ficam.js` foi vista vermelha em **5**, e o teste em C# vermelho em *"Not found: #agendadas .pdz-jl"* — ele trava as **três peças que precisam concordar** (o id do painel no Razor, a classe da linha de jogo no partial, e o seletor no JS), porque se qualquer uma derivar o relógio deixa de ligar em silêncio.
+>
+> ⚠️ **O DOM FALSO DO CONFERIDOR FICOU MAIS FIEL DE QUEBRA**: o `innerHTML` do painel agora **reconstrói** os filhos, e o contador de "fui recarregado" **atravessa** a reescrita. Sem isso, um remendo que trocasse o painel inteiro numa mudança de N pra M zeraria os contadores junto com os nós e passaria verde — perdendo justamente a trava do `<iframe>` que aquela seção existe pra manter.
+
+> **12/09/2026** — 🚀 **O CONSERTO DO 404 DO RECORTE ESTÁ NO AR, em `dev` E `prod`, no `build-1309-67f2a13`** (runs 323 e 324, 15h17 de Brasília). PR #279. ✅ **SEM MIGRATION.**
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er — e a conferência é a INVARIANTE, não a tela**: `grupos` → botão **e** página **200**; `matamata` → botão **e** **200**; `finais` → **sem botão** e 404 (o 404 sobra só pra quem digita a URL na mão, e é o mesmo da página sem linha). Antes do conserto, medido meia hora antes: `matamata` tinha botão e respondia **404**. `/healthz` **200** nos dois ambientes.
 >
@@ -107,7 +131,9 @@
 >
 > 🗣️ **E ELE PERGUNTOU DEPOIS DO MERGE**: *"crie a reação tambem para agendados e o ao vivo"*. **Já estava nas três** (Ao Vivo no card próprio, linha 921 do `_JogosDoTorneio`; Agendadas e Finalizadas pelo `_JogoEmLinha`, linhas 1010 e 1063) — mas **o teste que eu tinha escrito não provava isso**: ele só perguntava se a string `_ReacoesDoJogo` existia em cada ARQUIVO, e as três sub-abas moram no MESMO arquivo. Dava pra mover a fileira do card do Ao Vivo pra outra seção e o teste continuava verde. É a família do "desfazer o play", que existia só na linha. 🔬 **A troca foi VISTA VERMELHA com a regressão que o teste antigo deixava passar**: a chamada removida do card do Ao Vivo e a string ainda presente no arquivo (num comentário) — o novo `A_fileira_de_reacoes_esta_nas_TRES_ABAS_e_nao_so_no_arquivo` falha, o antigo passaria. Mais um segundo teste cobrando que as duas listas da linha recebam o RESUMO (`reacoes.GetValueOrDefault`): sem o argumento a fileira renderiza com `null` e o cartão mostra contagem zerada, erro que não quebra tela nenhuma.
 
-> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1294-97f9651`** (runs 34708075905 e 34708135567), **o mesmo artefato nos dois**. PR #274. **Sem migration.** 🔎 **FILTRAR NÃO JOGA MAIS A PÁGINA PRO TOPO.**
+>
+> ✅ **CONFERIDO NO AR POR CONTEÚDO**: `/healthz` **200** nos dois; o `manter-posicao-na-lista.js` servido já com o `scrollIntoView` e o ouvinte de `click`; e no HTML de `prod` o `data-manter-posicao="#filtroJogos"` e **5 `requestSubmit()`**, com **zero** `this.form.submit()` sobrando. ⚠️ Em `dev` a conferência é só pelo JS: o portão de Acesso Antecipado devolve **302** pra quem não está logado, então o HTML não sai pra um `curl` anônimo.
 >
 > 🗣️ Felipe, num print do `Torneios/Details/26?soMeusJogos=true` no celular, com a barra de pagamento ocupando a tela e a lista lá embaixo: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem, tinha q aparece na aba meus jogos ja"*.
 >
