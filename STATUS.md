@@ -1,7 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+> Última atualização: **12/09/2026** — 🟡 **DESENHO ESCRITO, NADA IMPLEMENTADO.** No branch `claude/serene-rubin-1lhgi4`. **Sem migration** — mas o desenho PEDE uma, e é isso que o classifica como **architectural**.
+>
+> 🖥️ **INTEGRAÇÃO COM A PROSMART: O PLACAR DA QUADRA E A TV.** 🗣️ Felipe: *"a prosmart me mandou o get do serviço dela, aquela q tem o placar na quadra e uma tv ao fundo. Conseguimos usar?"* O desenho inteiro está em **`PROSMART.md`** (novo). Nenhuma linha de código existe — a régua do `CLAUDE.md` manda aprovar o design antes, porque a coisa gera migration e cria um **segundo escritor de placar** por fora de `PodeControlarPlacarAsync`.
+>
+> 🔑 **A DESCOBERTA QUE MUDA O DESENHO: O ENVIO É PRÉ-REQUISITO DA LEITURA.** Eles têm duas portas — ler o que está na quadra (`getCourtInfo`) e mandar nomes/fotos/categoria/fase pra TV. Parecem independentes; não são. **Se somos nós que mandamos os nomes, nós somos donos da string** — e aí a leitura de volta vira conferência exata em vez de casar "J. Silva" com "João da Silva Neto" na unha. Não bateu, não grava. ⚠️ **Implementar a leitura sozinha é o caminho pra gravar o placar de um jogo na partida de outro, calado.**
+>
+> 🛑 **`matchStatus` SOZINHO NÃO SEPARA QUADRA VAZIA DE JOGO ROLANDO** — `inProgress` cobre os dois, por definição deles. Quem separa é o `startTime` (null = não começou). **O estado é o PAR.** E o estrago de ler só um campo não é o placar (0x0 antes do jogo é inofensivo): é carimbar `HorarioInicioReal` numa quadra vazia, o que dispara sozinho o push *"seu jogo é o próximo"*, o card do Ao Vivo e o aviso de atraso — no sábado de manhã.
+>
+> ✅ **AS QUATRO DECISÕES (todas do Felipe, 12/09):** (1) o `completed` deles **NÃO** finaliza a partida aqui — `EncerramentoDaPartida` avança a chave, move o Padelímetro dos 4 jogadores e dispara push, e nada disso pode pender de um campo de terceiro; a Mesa confirma. (2) **A quadra manda até o organizador tocar** no placar; daí a Mesa manda até o fim do jogo (`PlacarMarcadoEm` já é quem arbitra). (3) **Escolha por torneio, desligada por padrão.** (4) **Os nomes sobem pra TV quando o jogo é chamado na Mesa** — clique que ele já dá hoje.
+>
+> ⏰ **A HORA VEM EM EPOCH UTC E AQUI SE GRAVA HORA LOCAL.** `1789067564021` = 10/09 19:12:44 UTC = 16:12:44 de Brasília (conferido). 🛑 **A conversão não pode ser `ToLocalTime()`**: o fuso do VPS *"não está garantido em lugar nenhum do código"* (o próprio `CLAUDE.md` diz), e amarrar a correção do dado a uma config de máquina que ninguém verifica é o defeito esperando o dia do reprovisionamento. São Paulo entra explícito no código.
+>
+> 🌐 **A CONSULTA DELES É LIBERADA POR IP — o do nosso VPS (`179.197.233.184`, que serve `dev` E `prod`).** Consequência: **não dá pra chamar do localhost nem de uma sessão da web** (esta sessão levou 403 no CONNECT do proxy, mas mesmo sem proxy o IP recusaria). O payload se pega com `curl` **por SSH de dentro do VPS** — está o comando no `PROSMART.md`. É o primeiro passo, e não depende de a ProSmart responder nada.
+>
+> ⏭️ **O QUE FALTA:** o payload de exemplo com jogo rolando (dá pra pegar sozinho, pelo SSH) e a **doc do endpoint de envio** (essa não tem contorno — endereço e corpo não se inventam). Sem a doc, a metade do envio não sai; e sem o envio, a leitura não deve sair. ⚠️ **E não existe `dev` da TV deles**: a Regra 3 não tem equivalente do outro lado, então foi pedida uma quadra de teste — senão o primeiro ensaio do envio é ao vivo, num sábado, na frente da sala.
+> **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
 >
 > 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
 >
