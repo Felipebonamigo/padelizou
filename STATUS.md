@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
+>
+> ⭕ **O CHECK-IN CABE NA ABA JOGOS AGORA — UMA BOLINHA DO LADO DE CADA DUPLA.** 🗣️ Felipe, num print da aba Jogos no celular: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"*. Perguntado sobre o formato, escolheu *"uma bolinha do lado de cada nome, apenas o organizador ve"*, e **só nos jogos que ainda não começaram**.
+>
+> 🕳️ **O BURACO ERA DE CAMINHO, NÃO DE DADO.** A presença já existia e já era por jogo (a tela de Check-in virou fila de jogos em 10/09). O que faltava: quem está na aba Jogos chamando quadra, dando a largada e marcando placar tinha que **sair da lista, marcar na outra tela e voltar** — e no sábado de manhã "quem joga agora?" e "essa dupla chegou?" são a mesma linha, no mesmo minuto.
+>
+> ✅ **AS TRÊS CONDIÇÕES DA BOLINHA**, cada uma por um motivo: `PodeOperarODiaDeJogoAsync` (a MESMA régua que já liga o ▶, o ✏️ e o 📍 da linha, e a mesma da tela de Check-in — inventar uma segunda aqui seria o marcador ganhar o play e perder a chamada) · `UsaCheckIn` (torneio que desligou a chamada não ganha bolinha; oferecer e recusar depois é ensinar a regra pelo erro) · `Agendada` (o que está em quadra ou acabou já respondeu por outra via, e o bloco do fim da tela de Check-in continua lá pra corrigir).
+>
+> ⚠️ **O FORMULÁRIO QUE GRAVA PRESENÇA DESCEU UM DEGRAU, pra `_BotaoDoCheckIn`** — e é dele que saem as DUAS roupas: a pílula "Chegou"/"Desfazer" da tela de Check-in e a bolinha da lista de jogos. O que muda entre elas é a aparência; o POST é o mesmo. Duas cópias de um formulário que escreve no banco divergiriam na primeira mudança, e o `CheckInPorJogoTests` que guardava esse "num lugar só" foi atualizado pro endereço novo, com o motivo escrito.
+>
+> ⚠️ **`MarcarCheckIn` GANHOU `voltarPara`, EM LISTA FECHADA** (`Details` → `#jogosDoTorneio`, `Jogos`, e qualquer outra coisa cai no Check-in de sempre) — o mesmo molde do `PartidasController.VoltarDaLargada`: campo de formulário nunca vira redirecionamento pra onde o cliente pedir. Sem o parâmetro, nada muda: o botão da tela de Check-in continua caindo nela.
+>
+> ⚠️ **TETO ANOTADO NO CÓDIGO**: o filtro da tela (categoria, time, quadra, "só meus jogos") **não volta junto** — o mesmo teto do `VoltarDaLargada`, que é o vizinho de botão deste. A rolagem, essa, fica onde estava (`data-manter-posicao`).
+>
+> 🧪 **6.643 testes, 0 falhas (13 novos, em `CheckInNaListaDeJogosTests`)** + `conferir-palpitrometro.js` verde. ⚠️ **SEM BROWSER NESTA SESSÃO** — a bolinha (30px de alvo, ícone de 18px, verde cheia = chegou / cinza vazada = não) está provada por teste de fonte e pela suíte, **não vista na tela**.
+
+> **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.
 >
