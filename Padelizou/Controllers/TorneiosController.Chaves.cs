@@ -972,10 +972,22 @@ namespace Padelizou.Controllers
             var deGrupo = partidas.Where(EhDeGrupo).ToList();
             var doMataMata = partidas.Where(p => !EhDeGrupo(p)).ToList();
 
+            // ⚠️ MATA-MATA QUE AINDA NÃO EXISTE NÃO É "NADA A FAZER" — É A HORA CERTA DE CONGELAR.
+            //
+            // 🗣️ Felipe, no meio do ER, com o print da 5ª Masculina: *"acho que quer dizer q nao
+            // precisava mexer?"*. Não: os grupos dela ainda estavam rolando, e a categoria estava
+            // com o desenho nulo porque o torneio foi aprovado antes do congelamento existir.
+            // Recusar aqui deixava a armadilha armada pro momento em que o último jogo do grupo
+            // acabasse. (O robô também congela sozinho — ver RoboDoChaveamento; aqui o
+            // organizador consegue ver o desenho na tela antes disso, e mudá-lo se quiser.)
             if (doMataMata.Count == 0)
             {
-                TempData["Erro"] = $"{categoria.Nome}: o mata-mata desta categoria ainda não foi montado — "
-                                 + "não há o que refazer.";
+                categoria.CruzamentoDoMataMata = desenho.Escrever();
+                await _context.SaveChangesAsync();
+
+                TempData["Sucesso"] = $"{categoria.Nome}: o mata-mata ainda não foi montado — os grupos "
+                                    + "não acabaram. O cruzamento previsto ficou congelado: quando eles "
+                                    + "acabarem, a chave nasce exatamente como a prévia mostra.";
                 return ParaAsChaves(id);
             }
 

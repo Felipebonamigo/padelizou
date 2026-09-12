@@ -54,6 +54,24 @@
 >
 > 🖥️ **E AS CONSULTAS FORAM COMPILADAS CONTRA O NPGSQL** (`ToQueryString`), porque o InMemory da suíte não traduz nada: a de "quem joga" atravessa a navegação `Categoria`, e os quatro recortes usam `StartsWith`.
 
+> **12/09/2026** — 🔒 **E AGORA CONGELA SEMPRE, SEM DEPENDER DE NINGUÉM CLICAR.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Segunda metade da correção da chave — a primeira (build-1301) não bastava, e o ER provou isso em 40 minutos.**
+>
+> 🗣️ Felipe, com o print da 5ª Masculina dizendo *"o mata-mata desta categoria ainda não foi montado — não há o que refazer"*: *"acho que quer dizer q nao precisava mexer? foi apenas na 4ª masc q deu problema?"* — e, na sequência: *"temos q garantir q congele sempre dps q as chaves forem publicadas, a menos q eu solicite alguma alteração"*.
+>
+> 🕳️ **O BURACO DO build-1301: ELE SÓ CONGELAVA NA APROVAÇÃO.** O ER foi aprovado *antes* do congelamento existir, então as 7 categorias estavam com `CruzamentoDoMataMata` **nulo** — e o botão de refazer, numa categoria cujo mata-mata ainda não nasceu, dizia "não há o que refazer" e **não gravava nada**. Ou seja: as 6 categorias ainda em fase de grupos continuavam com a armadilha armada, e cada uma ia embaralhar sozinha no instante em que o último jogo do grupo dela acabasse. Congelar na aprovação conserta o próximo torneio; não conserta o que já está em quadra.
+>
+> 🔬 **O ESTADO REAL DO ER, LIDO DA PÁGINA PÚBLICA** (`curl` anônimo em `/Torneios/Details/26`, 1,1 MB de HTML, cada nome do quadro cruzado com a classificação dos grupos): **só a 4ª Masculina tinha mata-mata montado** — as outras 6 ainda estavam com a prévia na tela. E a 4ª, depois de o Felipe apertar o botão, estava **idêntica ao previsto**: `1ºE × 2ºF`, `1ºF × 2ºE`, `2ºA × 2ºD`, `2ºB × 2ºC`, byes `1ºD·1ºC·1ºB·1ºA`, com os horários (17:10, 18:00, 18:50) intactos. O botão funcionou; o que faltava era o resto do torneio.
+>
+> ✅ **A GARANTIA MUDOU DE LUGAR: saiu do clique e foi pro ROBÔ.** `MontarMataMataDosGruposAsync` agora lê o desenho e, **quando não há nenhum, calcula o `CruzamentoDoMataMata.Padrao` e o GRAVA** antes de montar. "Seguir o previsto" e "seguir o desenho" viraram a mesma coisa — uma régua só, e ninguém precisa lembrar de apertar nada antes do último jogo do grupo. O `Ler` vem primeiro: **quem desenhou à mão continua mandando**, que é o *"a menos que eu solicite alguma alteração"* (travado em `O_desenho_do_organizador_continua_mandando`).
+>
+> 🔁 **E O BOTÃO PAROU DE RECUSAR quando o mata-mata ainda não existe**: nessa situação ele congela o previsto e diz isso, em vez de mandar o organizador embora achando que estava tudo certo.
+>
+> ⚠️ **ISSO LIGA O AVANÇO PARCIAL DOS GRUPOS PRA TODA CATEGORIA**, não só pras desenhadas — o jogo nasce assim que os DOIS grupos dele fecham. É o pedido de 11/09, agora valendo em todo lugar. Efeito colateral desejado, mas efeito colateral: está escrito no código pra ninguém descobrir na quadra.
+>
+> 🔄 **UM TESTE ANTIGO FOI REESCRITO, E ISSO PRECISA SER LIDO COMO REVERSÃO DE DECISÃO, NÃO COMO TESTE ADAPTADO.** `AvancoParcialDosGruposTests.Sem_desenho_a_chave_continua_esperando_todos_os_grupos` travava a regra de 11/09 (*"vale só com desenho — o Er continua letra por letra"*). Foi **essa** regra que deixou o Er embaralhado, e o Felipe a reverteu no meio do torneio. O teste virou `Sem_desenho_a_chave_segue_o_previsto_e_avanca_por_grupo_do_mesmo_jeito`, e o cabeçalho da classe conta a virada.
+>
+> 🧪 **6.961 testes, 0 falhas (14 em `ChaveRespeitaOPrevistoTests`)** + os **8** conferidores de JS verdes. ⚠️ **O `EmbaralharComoOErEstavaAsync` precisou nascer porque a correção funcionou**: com o robô seguindo sempre o previsto, o cenário "a chave já saiu embaralhada" deixou de ser produzível por ele — mas é o que está gravado no banco de quem jogou antes, e é quem o botão conserta. Sem esse helper, os testes do botão passariam **sem nunca terem visto uma chave errada**.
+
 > **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` no `build-1288-cc6083c`** (run **311**), com a tag explícita. PR #272. **COM MIGRATION** (`ReacoesDaPartida`). ⏳ **`prod` NÃO** — falta ver a fileira num cartão de verdade.
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO, no que dá sem login**: `/healthz` **200**, o `/js/reacoes-do-jogo.js` servido com **10.463 bytes** e as três rotas dentro dele (`Reagir`, `TirarReacao`, `QuemReagiu`), e o `/css/site.css` já com as **8** regras das pílulas.
@@ -111,7 +129,7 @@
 > 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
 
 
-> **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
+> **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** 🚀 **PUBLICADO em `prod` no `build-1301-3c4c262`** (PR #276, deploy 318, direto em prod a pedido do Felipe com o torneio em quadra).** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
 >
 > 🗣️ Felipe, com dois prints da mesma tela em dias diferentes: *"acho que o chaveamento se perdeu, por que ontem eu tinha visto e estava diferente"* · *"era primeiro da F contra o segundo da E ou algo assim"* · *"tem q respeitar o q estava previsto"* · *"pelo jeito aconteceu com todas as categorias"* · *"pessoal esta me cobrando"*.
 >
