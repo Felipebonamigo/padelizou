@@ -4,9 +4,9 @@ using Xunit;
 
 namespace Padelizou.Tests;
 
-// 11/09/2026 — O PALPITRÔMETRO DO CARD AO VIVO ESTAVA COLADO NA BORDA.
+// 11/09/2026 — O PALPITÔMETRO DO CARD AO VIVO ESTAVA COLADO NA BORDA.
 //
-// 🗣️ Felipe, num print do card do jogo ao vivo com o palpitrômetro embaixo da transmissão:
+// 🗣️ Felipe, num print do card do jogo ao vivo com o palpitômetro embaixo da transmissão:
 // *"essa parte aqui ta muito colada no card, arrume e veja se tem mais algo assim"*.
 //
 // 🕳️ A CAUSA É UMA VARIÁVEL QUE NÃO EXISTE. O Bootstrap 5.3 escreve o padding do `.card-body`
@@ -26,28 +26,28 @@ namespace Padelizou.Tests;
 // A correção não é ensinar as variáveis ao card (seria carregar o componente errado inteiro):
 // é o bloco ter o padding DELE, alinhado com o cabeçalho e com o rótulo da transmissão, que já
 // usam 1.1rem de cada lado.
-public class PalpitrometroColadoNaBordaTests
+public class PalpitometroColadoNaBordaTests
 {
     // ── 1. O BLOCO TEM RESPIRO, E ALINHADO COM O RESTO DO CARD ─────────────────────────────
 
     [Fact]
-    public void O_palpitrometro_do_card_ao_vivo_nao_usa_card_body()
+    public void O_palpitometro_do_card_ao_vivo_nao_usa_card_body()
     {
-        var bloco = AberturaDoBlocoDoPalpitrometro();
+        var bloco = AberturaDoBlocoDoPalpitometro();
 
         Assert.DoesNotContain("card-body", bloco);
     }
 
     [Fact]
-    public void O_bloco_do_palpitrometro_tem_a_classe_que_carrega_o_padding()
+    public void O_bloco_do_palpitometro_tem_a_classe_que_carrega_o_padding()
     {
-        Assert.Contains("pdz-live-palpite", AberturaDoBlocoDoPalpitrometro());
+        Assert.Contains("pdz-live-palpite", AberturaDoBlocoDoPalpitometro());
     }
 
     // O número não é escolhido aqui: ele é o do cabeçalho. Travar "1.1rem" na mão deixaria os
     // dois livres pra se separarem no dia em que um mudasse — e desalinhado é o defeito.
     [Fact]
-    public void O_padding_lateral_do_palpitrometro_e_o_mesmo_do_cabecalho_do_card()
+    public void O_padding_lateral_do_palpitometro_e_o_mesmo_do_cabecalho_do_card()
     {
         Assert.Equal(PaddingLateralDe(".pdz-live-header"), PaddingLateralDe(".pdz-live-palpite"));
     }
@@ -141,12 +141,12 @@ public class PalpitrometroColadoNaBordaTests
     // Troca o trecho por espaços: some do markup sem mexer na contagem de linhas.
     private static string Apagar(Match m) => Regex.Replace(m.Value, @"[^\n]", " ");
 
-    private static string AberturaDoBlocoDoPalpitrometro()
+    private static string AberturaDoBlocoDoPalpitometro()
     {
         var view = LerDaWeb("Views", "Torneios", "_JogosDoTorneio.cshtml");
-        var bloco = Regex.Match(view, @"<div class=""[^""]*"">\s*<partial name=""_Palpitrometro""");
+        var bloco = Regex.Match(view, @"<div class=""[^""]*"">\s*<partial name=""_Palpitometro""");
 
-        Assert.True(bloco.Success, "não achei o bloco que embrulha o _Palpitrometro no card ao vivo");
+        Assert.True(bloco.Success, "não achei o bloco que embrulha o _Palpitometro no card ao vivo");
         return bloco.Value;
     }
 

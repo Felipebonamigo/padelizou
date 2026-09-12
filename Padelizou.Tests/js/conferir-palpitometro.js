@@ -1,9 +1,9 @@
-// A TRAVA DE CLIQUE DO PALPITRÔMETRO, conferida contra um DOM falso no Node.
+// A TRAVA DE CLIQUE DO PALPITÔMETRO, conferida contra um DOM falso no Node.
 //
-//     node Padelizou.Tests/js/conferir-palpitrometro.js
+//     node Padelizou.Tests/js/conferir-palpitometro.js
 //
 // ⚠️ O `dotnet test` NÃO enxerga este arquivo — quem roda é o CI, no passo "Conferir a trava
-// de clique do palpitrômetro (JS)" do `ci.yml`, e ele reprova o build. Rode à mão antes de
+// de clique do palpitômetro (JS)" do `ci.yml`, e ele reprova o build. Rode à mão antes de
 // commitar: descobrir pelo PR vermelho custa um ciclo.
 //
 // Sem dependência nenhuma de propósito: `require('fs')` e mais nada — nem no CI, que usa o
@@ -16,7 +16,7 @@
 // em `PalpiteEmDobroTests`; esta aqui é a metade da tela.
 const fs = require('fs');
 
-const fonte = fs.readFileSync(process.argv[2] || 'Padelizou/wwwroot/js/palpitrometro.js', 'utf8');
+const fonte = fs.readFileSync(process.argv[2] || 'Padelizou/wwwroot/js/palpitometro.js', 'utf8');
 
 // ── O DOM FALSO ───────────────────────────────────────────────────────────────────────────
 function elemento() {
@@ -27,7 +27,7 @@ function elemento() {
     };
 }
 
-function palpitrometro(partidaId, dupla1Id, meuVoto) {
+function palpitometro(partidaId, dupla1Id, meuVoto) {
     const filhos = {};
     for (const sel of ['[data-pct="1"]', '[data-pct="2"]', '[data-bar="1"]', '[data-bar="2"]',
                        '.pdz-total-votos', '.pdz-palpite-placar', '.pdz-palpite-consenso',
@@ -109,7 +109,7 @@ function servidor(atrasos = {}) {
 
 // ── O MODAL "QUEM VOTOU" ──────────────────────────────────────────────────────────────────
 // Ele não vive dentro do cartão: fala com `document.getElementById` e com o `bootstrap`. Por
-// isso um DOM falso separado, e não mais um pedaço do `palpitrometro()` de cima.
+// isso um DOM falso separado, e não mais um pedaço do `palpitometro()` de cima.
 function telaDoModal() {
     const els = {};
     for (const id of ['modalVerVotos', 'modalVerVotosNome1', 'modalVerVotosNome2',
@@ -150,7 +150,7 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor({ 0: 30 });
         const js = carregar(s.fetchFalso);
-        const { toque } = palpitrometro(7, 10);
+        const { toque } = palpitometro(7, 10);
         const el = toque(10);
         const a = js.votarPalpite(el);
         const b = js.votarPalpite(el);   // o dedo bateu duas vezes
@@ -164,7 +164,7 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor({ 0: 40, 1: 1 });   // o primeiro demora; sem fila ele pinta por último
         const js = carregar(s.fetchFalso);
-        const { container, toque, ficha } = palpitrometro(7, 10, '10');
+        const { container, toque, ficha } = palpitometro(7, 10, '10');
         const a = js.votarPalpite(toque(10));
         const b = js.palpitarPlacar(ficha(6, 4));
         await Promise.all([a, b]);
@@ -185,8 +185,8 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor({ 0: 30, 1: 30 });
         const js = carregar(s.fetchFalso);
-        const um = palpitrometro(7, 10);
-        const outro = palpitrometro(8, 20);
+        const um = palpitometro(7, 10);
+        const outro = palpitometro(8, 20);
         await Promise.all([js.votarPalpite(um.toque(10)), js.votarPalpite(outro.toque(20))]);
         confere('dois jogos diferentes falam ao mesmo tempo', s.posts.length === 2 && s.cruzou(),
                 `${s.posts.length} POSTs, cruzaram=${s.cruzou()}`);
@@ -199,7 +199,7 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor({ 0: 40, 1: 1 });   // o voto demora; sem fila ele pinta por último
         const js = carregar(s.fetchFalso);
-        const { container, toque, retirar } = palpitrometro(7, 10, '10');
+        const { container, toque, retirar } = palpitometro(7, 10, '10');
 
         const a = js.votarPalpite(toque(10));
         const b = js.retirarPalpite(retirar());
@@ -217,7 +217,7 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor({ 0: 30 });
         const js = carregar(s.fetchFalso);
-        const { retirar } = palpitrometro(7, 10, '10');
+        const { retirar } = palpitometro(7, 10, '10');
         const el = retirar();
         await Promise.all([js.retirarPalpite(el), js.retirarPalpite(el)]);
         confere('toque duplo no retirar manda UM POST', s.posts.length === 1, `mandou ${s.posts.length}`);
@@ -227,7 +227,7 @@ function confere(nome, condicao, detalhe) {
     {
         const s = servidor();
         const js = carregar(s.fetchFalso);
-        const { filhos, ficha, trocar } = palpitrometro(7, 10, '10');
+        const { filhos, ficha, trocar } = palpitometro(7, 10, '10');
 
         await js.palpitarPlacar(ficha(6, 4));
 

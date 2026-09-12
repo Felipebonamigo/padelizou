@@ -147,7 +147,7 @@ public class VerQuemPalpitouTests
     {
         // 🗣️ O print do Felipe marcou exatamente esta frase. Ela é o lugar mais natural pra
         // perguntar "quem cravou?", e até agora era texto morto.
-        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
             var fonte = Ler("Views", "Torneios", arquivo);
 
@@ -168,7 +168,7 @@ public class VerQuemPalpitouTests
         // ⚠️ "Cravar" é o verbo do RANKING: acertar o placar exato, depois do jogo, valendo 3
         // pontos. Emprestá-lo pra uma aposta de 3 em 8 faz a tela anunciar veredito onde há
         // pluralidade — e usa a mesma palavra pra duas coisas diferentes.
-        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
             var fonte = Ler("Views", "Torneios", arquivo);
 
@@ -182,9 +182,9 @@ public class VerQuemPalpitouTests
     {
         // ⚠️ Ela precisa existir escondida, e não ser gerada por um `@if` do Razor: com o limiar
         // de dois palpites (11/09/2026), o caso mais comum de a linha PASSAR a existir é
-        // justamente o seu palpite formando o par — e o `atualizarPalpitrometro` só sabe mostrar
+        // justamente o seu palpite formando o par — e o `atualizarPalpitometro` só sabe mostrar
         // um elemento que já está na página. Sem isso, a leitura da galera só apareceria no F5.
-        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
             var fonte = Ler("Views", "Torneios", arquivo);
 
@@ -208,7 +208,7 @@ public class VerQuemPalpitouTests
         // 🕳️ Eram linhas soltas, sem moldura, e o placar só existia em ALGUMAS delas — a coluna
         // da direita ficava esburacada e o olho não sabia onde procurar. Com 14 palpites a lista
         // vira um bloco de texto.
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
 
         // A moldura de cada linha.
         Assert.Contains("rounded", js);
@@ -229,7 +229,7 @@ public class VerQuemPalpitouTests
         // Numa lista de 97 jogos, cada cartão votado carregava uma fileira inteira de fichas que
         // já cumpriu o papel dela. Fica o resumo — "Seu palpite: 9 x 6 · trocar" —, e as fichas
         // voltam no clique em "trocar", sem passar pelo servidor.
-        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitrometro.cshtml" })
+        foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
             var fonte = Ler("Views", "Torneios", arquivo);
 
@@ -254,7 +254,7 @@ public class VerQuemPalpitouTests
     [Fact]
     public void O_modal_desenha_o_placar_de_cada_votante()
     {
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
 
         // Os nomes vêm do JSON do /Partidas/VerVotos, em camelCase.
         Assert.Contains("placarVencedor", js);
@@ -267,7 +267,7 @@ public class VerQuemPalpitouTests
     // linha, talvez abreviar, e tambem talvez tenhamos q corrigir o case sensitive, pra nao ficar
     // tudo maiusculo e nem tudo minusculo"*.
     //
-    // 🕳️ O `Montar` do PalpiteService era o ÚNICO ponto do palpitrômetro que escrevia
+    // 🕳️ O `Montar` do PalpiteService era o ÚNICO ponto do palpitômetro que escrevia
     // `Jogador.Nome` cru. Duas linhas acima, no mesmo arquivo, o "Cravaram o placar" já passava
     // pelo `NomeBonito` — então o mesmo torneio mostrava "JOAO EGIDIO FERREIRA DA ROCHA" numa
     // frase e "Joao Rocha" na outra.
@@ -314,7 +314,7 @@ public class VerQuemPalpitouTests
     [Fact]
     public void O_nome_do_votante_ocupa_UMA_LINHA_so()
     {
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
 
         var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
@@ -360,7 +360,7 @@ public class VerQuemPalpitouTests
     [Fact]
     public void A_foto_e_a_ficha_do_placar_do_votante_nao_ENCOLHEM()
     {
-        var js = Ler("wwwroot", "js", "palpitrometro.js");
+        var js = Ler("wwwroot", "js", "palpitometro.js");
 
         var inicio = js.IndexOf("function montarLista", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei a montagem da lista de votantes.");
