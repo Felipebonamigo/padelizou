@@ -20,10 +20,11 @@ namespace Padelizou.Tests;
 // mesa faz no sábado: quem chega é uma pessoa por vez, e o organizador precisa saber QUAL dos dois
 // falta pra ligar pra pessoa certa em vez de pro parceiro que já está no clube.
 //
-// ⚠️ A CHAVE É (TorneioId, JogadorId), E ISSO É METADE DO DESIGN: quem chegou ao clube chegou pro
-// torneio INTEIRO. Quem joga 5ª Masculina e Mista faz UM check, e ele vale nos jogos das duas —
-// com a presença pendurada na dupla, a mesma pessoa teria que ser marcada duas vezes, e as duas
-// telas discordariam sobre ela estar no clube.
+// ⚠️ A CHAVE ERA (TorneioId, JogadorId) E DUROU MEIO DIA. No mesmo 12/09 o Felipe perguntou *"e o
+// checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado
+// jogo a jogo"* — e virou **(PartidaId, JogadorId)**. O que este arquivo guarda é a parte que
+// sobreviveu: o check é da PESSOA, não da dupla. Que ele é de UM JOGO mora no
+// PresencaSeparadaPorJogoTests.
 //
 // ⚠️ PK COMPOSTA, e não `bool Presente` numa coluna: é o banco segurando o clique duplo, o mesmo
 // molde do `TorneioMarcador` (ver a escada do CLAUDE.md, degrau 4). Linha existe = chegou;
@@ -72,27 +73,29 @@ public class PresencaPorJogadorTests
     public async Task Marcar_um_jogador_grava_a_presenca_dele_e_nao_a_do_parceiro()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
         var dupla = duplas[0];
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
 
         await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+            .MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
 
-        Assert.True(ctx.Presencas.Any(p => p.TorneioId == torneio.Id && p.JogadorId == dupla.Jogador1Id));
-        Assert.False(ctx.Presencas.Any(p => p.TorneioId == torneio.Id && p.JogadorId == dupla.Jogador2Id));
+        Assert.True(ctx.Presencas.Any(p => p.PartidaId == jogo.Id && p.JogadorId == dupla.Jogador1Id));
+        Assert.False(ctx.Presencas.Any(p => p.PartidaId == jogo.Id && p.JogadorId == dupla.Jogador2Id));
     }
 
     [Fact]
     public async Task Desfazer_apaga_a_linha()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: false);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: false);
 
-        Assert.Empty(ctx.Presencas.Where(p => p.TorneioId == torneio.Id));
+        Assert.Empty(ctx.Presencas.Where(p => p.PartidaId == jogo.Id));
     }
 
     [Fact]
@@ -101,49 +104,21 @@ public class PresencaPorJogadorTests
         // O dedo escorrega no balcão e o POST sai duas vezes. A PK composta não deixa nascer a
         // segunda linha — e aqui se cobra que o código não ESTOURE tentando.
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
 
-        Assert.Single(ctx.Presencas.Where(p => p.TorneioId == torneio.Id));
+        Assert.Single(ctx.Presencas.Where(p => p.PartidaId == jogo.Id));
     }
 
-    [Fact]
-    public async Task Um_check_so_vale_pras_duas_categorias_da_mesma_pessoa()
-    {
-        // O CORAÇÃO DO DESENHO. Quem joga 5ª Masculina e Mista chega ao clube UMA vez.
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, categoria, organizador, duplas) = Montar(ctx);
-
-        var segunda = new Categoria { Nome = "Mista", Codigo = "MIS", TorneioId = torneio.Id };
-        ctx.Categorias.Add(segunda);
-        ctx.SaveChanges();
-
-        // A MESMA pessoa (Jogador1 da dupla 0) inscrita também na Mista, com outro parceiro.
-        var outroParceiro = TestInfra.NovoJogador(777);
-        ctx.Jogadores.Add(outroParceiro);
-        ctx.SaveChanges();
-        var naMista = new Dupla
-        {
-            CategoriaId = segunda.Id,
-            Jogador1Id = duplas[0].Jogador1Id,
-            Jogador2Id = outroParceiro.Id,
-        };
-        ctx.Duplas.Add(naMista);
-        ctx.SaveChanges();
-
-        await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
-
-        var presentes = ctx.Presencas.Where(p => p.TorneioId == torneio.Id).Select(p => p.JogadorId).ToHashSet();
-
-        // Uma linha só, e ela responde "presente" nas duas inscrições dele.
-        Assert.Single(presentes);
-        Assert.Contains(duplas[0].Jogador1Id, presentes);
-        Assert.Contains(naMista.Jogador1Id, presentes);
-    }
+    // ⚠️ AQUI VIVIA O `Um_check_so_vale_pras_duas_categorias_da_mesma_pessoa`, e ele foi APAGADO
+    // no mesmo dia em que nasceu: afirmava que um check valia pros dois jogos da mesma pessoa, que
+    // é exatamente o defeito que o Felipe mandou tirar horas depois. O contrário dele está no
+    // PresencaSeparadaPorJogoTests — um teste que trava o comportamento errado é pior que teste
+    // nenhum, porque a próxima sessão o lê como decisão.
 
     // ── QUEM PODE ────────────────────────────────────────────────────────────────────────
 
@@ -151,13 +126,14 @@ public class PresencaPorJogadorTests
     public async Task Quem_nao_opera_o_dia_nao_grava()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, _, duplas) = Montar(ctx);
+        var (torneio, categoria, _, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var estranho = TestInfra.NovoJogador(999);
         ctx.Jogadores.Add(estranho);
         ctx.SaveChanges();
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, estranho.Id)
-            .MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
+            .MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
 
         Assert.IsType<ForbidResult>(resultado);
         Assert.Empty(ctx.Presencas);
@@ -170,13 +146,14 @@ public class PresencaPorJogadorTests
         // organizador podia carimbar presença de gente que não está inscrita — lixo no banco
         // com a cara de dado bom.
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, _) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var deFora = TestInfra.NovoJogador(888);
         ctx.Jogadores.Add(deFora);
         ctx.SaveChanges();
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(deFora.Id, torneio.Id, presente: true);
+            .MarcarCheckIn(deFora.Id, jogo.Id, presente: true);
 
         Assert.IsType<NotFoundResult>(resultado);
         Assert.Empty(ctx.Presencas);
@@ -186,10 +163,11 @@ public class PresencaPorJogadorTests
     public async Task Com_o_check_in_desligado_o_clique_direto_e_recusado()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx, usaCheckIn: false);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx, usaCheckIn: false);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
+            .MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
 
         var redir = Assert.IsType<RedirectToActionResult>(resultado);
         Assert.Equal("Details", redir.ActionName);
@@ -206,10 +184,11 @@ public class PresencaPorJogadorTests
     public async Task O_clique_volta_pra_tela_de_onde_saiu(string? voltarPara, string acao, string? ancora)
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true, voltarPara: voltarPara);
+            .MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true, voltarPara: voltarPara);
 
         var redir = Assert.IsType<RedirectToActionResult>(resultado);
         Assert.Equal(acao, redir.ActionName);
@@ -226,9 +205,9 @@ public class PresencaPorJogadorTests
         var (_, _, _, duplas) = Montar(ctx);
         var dupla = duplas[0];
 
-        Assert.False(PresencaNoDia.DuplaCompleta(dupla, Chegaram()));
-        Assert.False(PresencaNoDia.DuplaCompleta(dupla, Chegaram(dupla.Jogador1Id)));
-        Assert.True(PresencaNoDia.DuplaCompleta(dupla, Chegaram(dupla.Jogador1Id, dupla.Jogador2Id!.Value)));
+        Assert.False(PresencaNoDia.DuplaCompleta(JogoDaRegua, dupla, Chegaram()));
+        Assert.False(PresencaNoDia.DuplaCompleta(JogoDaRegua, dupla, Chegaram(dupla.Jogador1Id)));
+        Assert.True(PresencaNoDia.DuplaCompleta(JogoDaRegua, dupla, Chegaram(dupla.Jogador1Id, dupla.Jogador2Id!.Value)));
     }
 
     [Fact]
@@ -245,8 +224,8 @@ public class PresencaPorJogadorTests
         ctx.Duplas.Add(semParceiro);
         ctx.SaveChanges();
 
-        Assert.False(PresencaNoDia.DuplaCompleta(semParceiro, Chegaram()));
-        Assert.True(PresencaNoDia.DuplaCompleta(semParceiro, Chegaram(sozinho.Id)));
+        Assert.False(PresencaNoDia.DuplaCompleta(JogoDaRegua, semParceiro, Chegaram()));
+        Assert.True(PresencaNoDia.DuplaCompleta(JogoDaRegua, semParceiro, Chegaram(sozinho.Id)));
     }
 
     [Fact]
@@ -254,7 +233,7 @@ public class PresencaPorJogadorTests
     {
         // A prévia do mata-mata tem lado sem dono, e a linha do jogo chama esta régua pros dois
         // lados sem perguntar.
-        Assert.False(PresencaNoDia.DuplaCompleta(null, Chegaram()));
+        Assert.False(PresencaNoDia.DuplaCompleta(JogoDaRegua, null, Chegaram()));
         Assert.Empty(PresencaNoDia.JogadoresDa(null));
     }
 
@@ -265,26 +244,31 @@ public class PresencaPorJogadorTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, organizador, duplas) = Montar(ctx);
-        Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
 
         var view = Assert.IsType<ViewResult>(await controller.Jogos(torneio.Id, null, null));
-        var chegadas = Assert.IsAssignableFrom<IReadOnlyDictionary<int, DateTime>>(view.ViewData["ChegadasNoTorneio"]);
+        var chegadas = Assert.IsAssignableFrom<IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime>>(
+            view.ViewData["ChegadasNoTorneio"]);
 
-        Assert.True(chegadas.ContainsKey(duplas[0].Jogador1Id));
-        Assert.False(chegadas.ContainsKey(duplas[0].Jogador2Id!.Value));
+        Assert.True(chegadas.ContainsKey((jogo.Id, duplas[0].Jogador1Id)));
+        Assert.False(chegadas.ContainsKey((jogo.Id, duplas[0].Jogador2Id!.Value)));
     }
 
     [Fact]
     public async Task A_tela_de_check_in_conta_JOGADORES_e_nao_duplas()
     {
-        // 2 duplas = 4 pessoas. Com um jogador marcado, a barra diz 1 de 4 — não "0 de 2"
-        // (a dupla incompleta) nem "1 de 2".
+        // Um jogo com 2 duplas = 4 VAGAS de check-in. Com um jogador marcado, a barra diz 1 de 4.
+        //
+        // ⚠️ O DENOMINADOR PASSOU A SER VAGA (jogo × jogador), e não pessoa (12/09/2026): com a
+        // presença por jogo, quem joga duas categorias tem DOIS checks a dar, e contá-lo uma vez
+        // faria a barra fechar com gente ainda por marcar.
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, _, organizador, duplas) = Montar(ctx);
+        var (torneio, categoria, organizador, duplas) = Montar(ctx);
+        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, torneio.Id, presente: true);
+        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
 
         var view = Assert.IsType<ViewResult>(await controller.CheckIn(torneio.Id));
 
@@ -330,8 +314,10 @@ public class PresencaPorJogadorTests
 
     // Açúcar dos testes da régua: quem chegou, com uma hora qualquer — a régua não olha a hora,
     // só a presença da chave.
-    private static Dictionary<int, DateTime> Chegaram(params int[] ids) =>
-        ids.ToDictionary(id => id, _ => new DateTime(2026, 9, 12, 8, 12, 0));
+    private const int JogoDaRegua = 1;
+
+    private static Dictionary<(int PartidaId, int JogadorId), DateTime> Chegaram(params int[] ids) =>
+        ids.ToDictionary(id => (PartidaId: JogoDaRegua, JogadorId: id), _ => new DateTime(2026, 9, 12, 8, 12, 0));
 
     private static string Ler(string view) =>
         File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", view));

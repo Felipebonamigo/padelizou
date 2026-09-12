@@ -46,13 +46,16 @@ public static class OrdemNoHorario
     // 🎯 É FÍSICO, NÃO PREFERÊNCIA: jogo em que falta gente não PODE começar, e deixá-lo no topo
     // faz o organizador chamar uma quadra que vai esperar. Sem chamada ligada o dicionário chega
     // vazio, ninguém está completo, e a fila é exatamente a de antes.
-    private static int PresencaIncompleta(Linha linha, IReadOnlyDictionary<int, DateTime> chegadas)
+    private static int PresencaIncompleta(
+        Linha linha, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> chegadas)
     {
         // A prévia não tem jogadores: não pode "estar completa" nem subir por isso.
         if (linha.Jogo is not Partida jogo) return 1;
 
-        return PresencaNoDia.DuplaCompleta(jogo.Dupla1, chegadas)
-            && PresencaNoDia.DuplaCompleta(jogo.Dupla2, chegadas) ? 0 : 1;
+        // ⚠️ A presença é DAQUELE jogo (Models/PresencaNoJogo). Perguntar só pela pessoa faria o
+        // jogo das 19:00 subir por causa do check feito no jogo das 15:30.
+        return PresencaNoDia.DuplaCompleta(jogo.Id, jogo.Dupla1, chegadas)
+            && PresencaNoDia.DuplaCompleta(jogo.Id, jogo.Dupla2, chegadas) ? 0 : 1;
     }
 
     // O desempate, em ordem de importância:
@@ -72,7 +75,7 @@ public static class OrdemNoHorario
     //      ordenar por Id É "a Semifinal 1 antes da Semifinal 2", que é o padrão pedido;
     //   6. na prévia, categoria → fase → número, que é a mesma coisa do outro lado.
     private static (DateTime, int, int, int, int, int, int) Chave(
-        Linha linha, IReadOnlyDictionary<int, DateTime> chegadas) => (
+        Linha linha, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> chegadas) => (
         linha.Horario ?? DateTime.MaxValue,
         PresencaIncompleta(linha, chegadas),
         linha.Ordem ?? int.MaxValue,
@@ -83,7 +86,7 @@ public static class OrdemNoHorario
 
     /// <summary>A fila da aba Jogos: os agendados e as prévias, na ordem em que a tela os mostra.</summary>
     /// <param name="chegadas">
-    /// jogadorId → hora da chegada. ⚠️ SEM VALOR PADRÃO DE PROPÓSITO: é o compilador que obriga
+    /// (partidaId, jogadorId) → hora da chegada. ⚠️ SEM VALOR PADRÃO DE PROPÓSITO: é o compilador que obriga
     /// cada tela a dizer o que sabe da presença. Um parâmetro opcional deixaria uma chamada
     /// esquecida ordenar diferente das outras em silêncio — e "duas contas de quem vem antes" é
     /// exatamente o que esta classe existe pra impedir. Dicionário vazio = sem chamada ligada, e
@@ -92,7 +95,7 @@ public static class OrdemNoHorario
     public static List<Linha> Ordenar(
         IEnumerable<Partida> agendados,
         IEnumerable<ProximasFasesDaChave.JogoQueVem> previstos,
-        IReadOnlyDictionary<int, DateTime> chegadas) =>
+        IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> chegadas) =>
         agendados.Select(p => new Linha(p.HorarioPrevisto, p, null))
             .Concat(previstos.Select(j => new Linha(j.Horario, null, j)))
             .OrderBy(l => Chave(l, chegadas))

@@ -61,16 +61,18 @@ public class GestaoTorneioClubeTests
         // pré-condição deste teste, senão ele passaria a medir a recusa, não a marcação.
         torneio.UsaCheckIn = true;
         await ctx.SaveChangesAsync();
-        var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
+        var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
 
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        // Por JOGADOR desde 12/09/2026: a linha nasce em PresencaNoTorneio, chave
-        // (torneio, pessoa), e desfazer é apagá-la.
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        // Por JOGADOR E POR JOGO desde 12/09/2026: a linha nasce em PresencaNoJogo, chave
+        // (partida, pessoa), e desfazer é apagá-la.
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
         Assert.Single(ctx.Presencas);
 
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: false);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: false);
         Assert.Empty(ctx.Presencas);
     }
 
@@ -83,14 +85,16 @@ public class GestaoTorneioClubeTests
         // este teste afirma. Desligado, ele passaria mesmo se a checagem de dono sumisse.
         torneio.UsaCheckIn = true;
         await ctx.SaveChangesAsync();
-        var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
+        var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
 
         var intruso = new Jogador { Nome = "Intruso", Cpf = "77777777777" };
         ctx.Jogadores.Add(intruso);
         ctx.SaveChanges();
 
         var controller = TestInfra.NovoTorneiosController(ctx, intruso.Id);
-        var resultado = await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        var resultado = await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
 
         Assert.IsType<ForbidResult>(resultado);
         Assert.Empty(ctx.Presencas);

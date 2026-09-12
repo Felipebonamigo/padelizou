@@ -163,7 +163,8 @@ namespace Padelizou.Controllers
             // ⚠️ A MESMA FILA DA TELA (OrdemNoHorario): duas contas de "quem vem antes" fariam o
             // grupo do WhatsApp receber a grade numa ordem diferente da que a pessoa viu.
             var fila = OrdemNoHorario.Ordenar(agendadas, previstos,
-                ViewBag.ChegadasNoTorneio as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>());
+                ViewBag.ChegadasNoTorneio as IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime>
+                    ?? new Dictionary<(int, int), DateTime>());
             var sedes = ViewData.Sedes();
             var jogos = ListaDeJogos.Montar(fila, sedes, comPrevias);
 

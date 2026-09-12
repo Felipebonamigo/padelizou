@@ -359,24 +359,27 @@ namespace Padelizou.Controllers
             // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
             // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
             // mais recente pro mais antigo (a régua inteira está em Services/DuracaoDoJogo).
-            // QUEM JÁ CHEGOU, e o contador em PESSOAS (12/09/2026). A barra dizia "0 de 64
-            // presentes" contando duplas; agora quem é marcado é gente, e contar dupla deixaria
-            // metade das chegadas invisível na única linha que resume a tela.
+            // QUEM JÁ CHEGOU, POR JOGO (12/09/2026). 🗣️ *"tem q ser separado jogo a jogo"*. A
+            // barra dizia "0 de 64" contando duplas; depois passou a contar pessoas; agora conta
+            // CHECKS — um por pessoa por jogo, que é o que a chamada de fato pede no sábado.
             //
-            // ⚠️ DISTINTO por jogador: quem joga duas categorias aparece em duas duplas e é UMA
-            // pessoa no clube — contá-la duas vezes faria o total nunca fechar.
+            // ⚠️ E o total ignora jogo FINALIZADO: a pergunta do check-in daquele jogo já foi
+            // respondida em quadra, e mantê-lo no denominador faria a barra andar pra trás ao
+            // longo do dia, nunca fechando.
             var chegadas = await _context.Presencas
-                .Where(p => p.TorneioId == id)
-                .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm);
+                .Where(p => p.Partida.Categoria.TorneioId == id)
+                .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
             ViewBag.Chegadas = chegadas;
 
-            var jogadoresInscritos = torneio.Categorias
-                .SelectMany(c => c.Duplas.Where(d => !d.EmListaDeEspera))
-                .SelectMany(PresencaNoDia.IdsDa)
+            var porJogar = jogos.Where(p => p.Status != "Finalizada").ToList();
+
+            var vagasDeCheckIn = porJogar
+                .SelectMany(p => PresencaNoDia.IdsDa(p.Dupla1).Concat(PresencaNoDia.IdsDa(p.Dupla2))
+                    .Select(j => (PartidaId: p.Id, JogadorId: j)))
                 .ToHashSet();
 
-            ViewBag.TotalDeJogadores = jogadoresInscritos.Count;
-            ViewBag.JogadoresPresentes = jogadoresInscritos.Count(chegadas.ContainsKey);
+            ViewBag.TotalDeJogadores = vagasDeCheckIn.Count;
+            ViewBag.JogadoresPresentes = vagasDeCheckIn.Count(chegadas.ContainsKey);
 
             ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
                 .OrderBy(p => p.HorarioInicioReal)
@@ -388,18 +391,31 @@ namespace Padelizou.Controllers
             return View(torneio);
         }
 
-        // A CHAMADA É POR PESSOA (12/09/2026). 🗣️ Felipe: *"Mude para um check por jogador, por
-        // que é assim que controla check in"*. A linha nasce em `PresencaNoTorneio`, com chave
-        // (TorneioId, JogadorId) — um check vale pro torneio inteiro, inclusive nas outras
-        // categorias em que a pessoa joga.
+        // A CHAMADA É POR PESSOA E POR JOGO (12/09/2026). 🗣️ Felipe: *"Mude para um check por
+        // jogador, por que é assim que controla check in"* e, horas depois, *"e o checkin, ele
+        // herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado
+        // jogo a jogo"*. A linha nasce em `PresencaNoJogo`, com chave (PartidaId, JogadorId): o
+        // check responde "esta pessoa está aqui pra ESTE jogo?", e nada mais.
         //
         // `voltarPara`: quem marcou pela LISTA DE JOGOS volta pra ela, em vez de ser largado na
         // tela de Check-in. Sem o parâmetro nada muda — o botão de lá não passa nada.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int torneioId, bool presente,
+        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int partidaId, bool presente,
             string? voltarPara = null, string? filtros = null)
         {
+            // ⚠️ REGRA 0, PRIMEIRA METADE: o `partidaId` chega por campo de formulário, então é
+            // dele que sai o torneio — e não de um segundo campo que poderia discordar. Carregar
+            // as duplas aqui é o que permite a checagem de dono logo abaixo sem uma segunda ida.
+            var partida = await _context.Partidas
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .FirstOrDefaultAsync(p => p.Id == partidaId);
+            if (partida == null) return NotFound();
+
+            int torneioId = partida.TorneioId ?? await _context.Categorias
+                .Where(c => c.Id == partida.CategoriaId).Select(c => c.TorneioId).FirstOrDefaultAsync();
+
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return NotFound();
 
@@ -411,23 +427,23 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
-            // ⚠️ REGRA 0: `jogadorId` chega por campo de formulário. Sem esta checagem um
-            // organizador carimbaria presença de gente que não está inscrita aqui — lixo no banco
-            // com cara de dado bom, e um contador que nunca fecha.
-            bool jogaAqui = await _context.Duplas.AnyAsync(d =>
-                                d.Categoria.TorneioId == torneioId
-                                && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-                         || await _context.InscricoesAmericanas.AnyAsync(i =>
-                                i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId);
-            if (!jogaAqui) return NotFound();
+            // ⚠️ REGRA 0, SEGUNDA METADE: o `jogadorId` também chega por campo de formulário, e
+            // agora a pergunta é mais estreita do que "joga neste torneio?" — é "joga NESTE
+            // JOGO?". Sem isto, o organizador carimbaria a Carla no jogo das outras: lixo no
+            // banco com cara de dado bom, e um jogo subindo no topo do horário sem ninguém em
+            // quadra (Services/OrdemNoHorario ordena por presença desde hoje).
+            bool jogaNesteJogo =
+                PresencaNoDia.IdsDa(partida.Dupla1).Contains(jogadorId)
+                || PresencaNoDia.IdsDa(partida.Dupla2).Contains(jogadorId);
+            if (!jogaNesteJogo) return NotFound();
 
             // Linha existe = chegou. Ler antes de gravar deixa o clique duplo idempotente; a PK
             // composta é quem segura a corrida de verdade, um andar abaixo.
             var jaEstava = await _context.Presencas
-                .FirstOrDefaultAsync(p => p.TorneioId == torneioId && p.JogadorId == jogadorId);
+                .FirstOrDefaultAsync(p => p.PartidaId == partidaId && p.JogadorId == jogadorId);
 
             if (presente && jaEstava == null)
-                _context.Presencas.Add(new PresencaNoTorneio { TorneioId = torneioId, JogadorId = jogadorId });
+                _context.Presencas.Add(new PresencaNoJogo { PartidaId = partidaId, JogadorId = jogadorId });
             else if (!presente && jaEstava != null)
                 _context.Presencas.Remove(jaEstava);
 

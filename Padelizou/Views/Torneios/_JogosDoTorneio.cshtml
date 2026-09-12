@@ -1007,7 +1007,8 @@
                ↑↓ usam pra achar o vizinho: duas contas de "quem vem antes" fariam a seta mover o
                jogo pra um lugar diferente do que esta lista mostrou. *@
             var linhasAgendadas = Padelizou.Services.OrdemNoHorario.Ordenar(agendadasList, jogosQueVem,
-                ViewData["ChegadasNoTorneio"] as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>());
+                ViewData["ChegadasNoTorneio"] as IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime>
+                    ?? new Dictionary<(int, int), DateTime>());
         }
 
         <div class="pdz-jogos-lista">

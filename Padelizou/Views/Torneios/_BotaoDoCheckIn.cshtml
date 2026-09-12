@@ -8,7 +8,9 @@
 
    ⚠️ POR ISSO ELE VIVE AQUI, e não copiado nos dois. Duas cópias do formulário que ESCREVE no
    banco divergiriam na primeira mudança — e a primeira mudança veio três horas depois de ele
-   nascer, quando a presença deixou de ser da dupla e virou da PESSOA.
+   nascer, quando a presença deixou de ser da dupla e virou da PESSOA. A segunda veio no mesmo
+   dia, quando ela deixou de ser do torneio e virou do JOGO: o campo escondido daqui passou de
+   `torneioId` pra `partidaId`, e foi a única linha que precisou mudar nas duas telas.
 
    ⚠️ `voltarPara` diz de qual tela o clique saiu, pra ele voltar pra lá em vez de cair sempre na
    tela de Check-in. O servidor trata isso como LISTA FECHADA (TorneiosController.MarcarCheckIn):
@@ -29,7 +31,7 @@
    Ver wwwroot/js/manter-posicao-na-lista.js. *@
 <form asp-controller="Torneios" asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
     <input type="hidden" name="jogadorId" value="@Model.JogadorId" />
-    <input type="hidden" name="torneioId" value="@Model.TorneioId" />
+    <input type="hidden" name="partidaId" value="@Model.PartidaId" />
     <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
     @if (!string.IsNullOrEmpty(Model.VoltarPara))
     {

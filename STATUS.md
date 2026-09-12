@@ -3,7 +3,29 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 
 
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1319-41b1e57`** (runs 34713252321 e 34713302769), **o mesmo artefato nos dois**. PR #275. **Sem migration.** 📱 **ABRIR O APP MOSTRA O AO VIVO DE AGORA.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+>
+> 🗣️ Dois pedidos que viraram **um bloco só**: *"na parte do checkin, quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima"* e, em seguida, *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"*.
+>
+> 🕳️ **HERDAVA, E ESTAVA ESCRITO NO MODELO COMO DECISÃO** — de manhã: a chave era `(TorneioId, JogadorId)` porque *"quem chegou ao clube chegou pro torneio INTEIRO"*. O sábado desmente: quem joga 5ª Masculina às 15:30 e Mista às 19:00 aparecia verde nas duas ao marcar a primeira, e o organizador das 19:00 lia "todos presentes" para gente que já tinha ido embora.
+>
+> ⚠️ **POR ISSO OS DOIS ANDAM JUNTOS**: publicar a ordem por presença em cima da herança faria o jogo das 19:00 subir pro topo do horário porque os quatro marcaram nos jogos da tarde. O defeito entraria pela porta da frente.
+>
+> ✅ **A chave virou `(PartidaId, JogadorId)`** (`Models/PresencaNoJogo`). Um check responde uma pergunta só: *"esta pessoa está aqui pra ESTE jogo?"*. Cascade na Partida, de propósito — refazer a grade apaga partidas e leva os checks delas junto, que é o certo e é o que impede o "Refazer grade" de estourar por uma tabela que ninguém olha.
+>
+> ✅ **A ORDEM**, com as duas decisões dele perguntadas antes de escrever: presença completa entra **entre o horário e a ordem gravada à mão** — jogo em que falta gente não PODE começar, e deixá-lo no topo faz chamar uma quadra que vai esperar; e a nova ordem vale **pra todo mundo**, porque o `CompartilharJogos` já tinha escrito que duas contas de "quem vem antes" não podem existir. `Ordenar` recebe `chegadas` como parâmetro **obrigatório**: o compilador é o gate, e ligou seis chamadas (a lista, as setas ↑↓, o ⇄, o dia de jogo, o texto do grupo).
+>
+> ✅ **A TELA DE CHECK-IN PERDEU O "RESTO DO TORNEIO — TODAS AS DUPLAS"**, e não por corte: o bloco de cima já traz **todos** os agendados e o de baixo os que estão em quadra ou acabaram. Mantê-lo seria desenhar os mesmos jogos uma terceira vez, com um contador de gente numa tela que agora conta **vaga** (jogador × jogo). Quem chega cedo não perdeu nada — o jogo dela está no bloco de cima desde que a grade existe.
+>
+> 🔬 **A MIGRATION FOI RODADA COM DADOS DENTRO, num Postgres de verdade.** O EF gerou o `DropTable` **antes** do `CreateTable` de novo — a tabela velha morreria levando os checks do dia. Reordenada na mão: criar → copiar → apagar. Semeados três checks antigos; depois da migration: o do jogador cujo único jogo estava **Finalizada** não foi copiado (decisão dele), os outros dois viraram linha do jogo certo **com a hora original**, e a tabela velha sumiu.
+>
+> 🔬 **E CONFERIDO NO NAVEGADOR, no cenário exato**: a mesma dupla jogando 15:30 e 16:20. Marcar um jogador no jogo das 15:30 → `verdes: 1` lá e **`verdes: 0`** no das 16:20, com **uma linha só** no banco, do jogo certo. Depois, completando o jogo que estava **EMBAIXO** das 16:20: a ordem foi de `9200 → 9300` para **`9300 → 9200`**, e o das 15:30 continuou na frente de tudo — a presença não fura o horário.
+>
+> ⚠️ **A CONSULTA GANHOU DUAS NAVEGAÇÕES** (`p.Partida.Categoria.TorneioId`) e por isso ganhou `TraducaoDaPresencaPorJogoTests`: o EF InMemory não valida SQL, e a leitura agora é da página mais visitada do site. Compilada com `ToQueryString()` contra o Npgsql.
+>
+> 🧪 **6.985 testes, 0 falhas** + os 9 conferidores de JS. Vermelhos vistos antes em cada etapa. **E UM TESTE FOI APAGADO DE PROPÓSITO**: o `Um_check_so_vale_pras_duas_categorias_da_mesma_pessoa`, escrito de manhã, afirmava exatamente o defeito — teste que trava o comportamento errado é pior que teste nenhum, porque a próxima sessão o lê como decisão.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1319-41b1e57`** (runs 34713252321 e 34713302769), **o mesmo artefato nos dois**. PR #275. **Sem migration.** 📱 **ABRIR O APP MOSTRA O AO VIVO DE AGORA.**
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200**; o `jogos-ao-vivo-atualiza.js` servido já com o `torneioEmAndamento`, o `visibilitychange` e o seletor `#agendadas .pdz-jl`; e o `sw.js` em **`padelizou-static-v37`** — o número precisava subir justamente porque o público da queixa é quem tem o app instalado.
 >

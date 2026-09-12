@@ -1381,18 +1381,22 @@ namespace Padelizou.Controllers
         // ordem da lista é a mesma pra todo mundo — o organizador, o jogador e o texto que vai pro
         // grupo do WhatsApp —, e duas contas de "quem vem antes" é o que esta régua existe pra
         // impedir. As bolinhas continuam presas ao organizador, no _JogoEmLinha.
-        private async Task<Dictionary<int, DateTime>> ChegadasDoTorneioAsync(int torneioId)
+        private async Task<Dictionary<(int PartidaId, int JogadorId), DateTime>> ChegadasDoTorneioAsync(int torneioId)
         {
             bool usaCheckIn = await _context.Torneios
                 .Where(t => t.Id == torneioId)
                 .Select(t => t.UsaCheckIn)
                 .FirstOrDefaultAsync();
 
-            if (!usaCheckIn) return new Dictionary<int, DateTime>();
+            if (!usaCheckIn) return new Dictionary<(int, int), DateTime>();
 
+            // ⚠️ O CAMINHO É PELA CATEGORIA, e não por `Partida.TorneioId`: aquela coluna é
+            // anulável e nem toda partida a preenche — a categoria é quem sempre sabe de que
+            // torneio o jogo é. Consulta de dois níveis: conferida com ToQueryString contra o
+            // Npgsql (o EF InMemory não valida SQL), ver TraducaoDaPresencaPorJogoTests.
             return await _context.Presencas
-                .Where(p => p.TorneioId == torneioId)
-                .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm);
+                .Where(p => p.Partida.Categoria.TorneioId == torneioId)
+                .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
         }
 
         private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,

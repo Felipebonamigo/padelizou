@@ -116,7 +116,7 @@ public class OrdemDaPreviaNoHorarioTests
     public async Task Subir_uma_previa_no_mesmo_horario_troca_a_posicao_das_duas()
     {
         var c = Montar();
-        var antes = OrdemNoHorario.Ordenar(Array.Empty<Partida>(), (await PreviaAsync(c)).Where(j => j.Fase == "Final"), new Dictionary<int, DateTime>());
+        var antes = OrdemNoHorario.Ordenar(Array.Empty<Partida>(), (await PreviaAsync(c)).Where(j => j.Fase == "Final"), new Dictionary<(int, int), DateTime>());
         var segunda = antes[1].Previsto!;
 
         var controller = Controller(c);
@@ -125,7 +125,7 @@ public class OrdemDaPreviaNoHorarioTests
 
         Assert.Null(controller.TempData["Erro"]);
 
-        var depois = OrdemNoHorario.Ordenar(Array.Empty<Partida>(), (await PreviaAsync(c)).Where(j => j.Fase == "Final"), new Dictionary<int, DateTime>());
+        var depois = OrdemNoHorario.Ordenar(Array.Empty<Partida>(), (await PreviaAsync(c)).Where(j => j.Fase == "Final"), new Dictionary<(int, int), DateTime>());
         Assert.Equal(segunda.CategoriaId, depois[0].Previsto!.CategoriaId);
         Assert.Equal(1, depois[0].Previsto!.OrdemNoHorario);
         Assert.Equal(2, depois[1].Previsto!.OrdemNoHorario);

@@ -48,10 +48,16 @@ public class OrdemPelaPresencaNoHorarioTests
         Dupla2 = Par(id * 10 + 2, id * 10 + 3),
     };
 
-    private static Dictionary<int, DateTime> Chegaram(params int[] jogadores) =>
-        jogadores.ToDictionary(j => j, _ => Chegou);
-
     private static int[] Todos(int jogo) => new[] { jogo * 10, jogo * 10 + 1, jogo * 10 + 2, jogo * 10 + 3 };
+
+    // ⚠️ A CHAVE É (PartidaId, JogadorId): a presença é do JOGO (Models/PresencaNoJogo). Marcar
+    // "o jogador 20 chegou" sem dizer PRA QUE JOGO é a herança que o Felipe mandou tirar.
+    private static Dictionary<(int PartidaId, int JogadorId), DateTime> Presentes(params int[] jogos) =>
+        jogos.SelectMany(j => Todos(j).Select(p => (PartidaId: j, JogadorId: p)))
+             .ToDictionary(k => k, _ => Chegou);
+
+    private static Dictionary<(int PartidaId, int JogadorId), DateTime> NoJogo(int jogo, params int[] jogadores) =>
+        jogadores.ToDictionary(j => (PartidaId: jogo, JogadorId: j), _ => Chegou);
 
     private static IEnumerable<ProximasFasesDaChave.JogoQueVem> SemPrevia() =>
         Array.Empty<ProximasFasesDaChave.JogoQueVem>();
@@ -63,7 +69,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dezesseis20), Jogo(2, Dezesseis20) },
             SemPrevia(),
-            Chegaram(Todos(2)));
+            Presentes(2));
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -72,12 +78,10 @@ public class OrdemPelaPresencaNoHorarioTests
     [Fact]
     public void Faltando_uma_pessoa_o_jogo_nao_sobe()
     {
-        var quaseTodos = Todos(2).Take(3).ToArray();
-
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dezesseis20), Jogo(2, Dezesseis20) },
             SemPrevia(),
-            Chegaram(quaseTodos));
+            NoJogo(2, Todos(2).Take(3).ToArray()));
 
         Assert.Equal(new[] { 1, 2 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -89,7 +93,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(2, Dezesseis20), Jogo(1, Dezesseis20) },
             SemPrevia(),
-            Chegaram(Todos(1).Concat(Todos(2)).ToArray()));
+            Presentes(1, 2));
 
         Assert.Equal(new[] { 1, 2 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -101,7 +105,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Quinze30), Jogo(2, Dezesseis20) },
             SemPrevia(),
-            Chegaram(Todos(2)));
+            Presentes(2));
 
         Assert.Equal(new[] { 1, 2 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -114,7 +118,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dezesseis20, ordem: 1), Jogo(2, Dezesseis20, ordem: 2) },
             SemPrevia(),
-            Chegaram(Todos(2)));
+            Presentes(2));
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -126,7 +130,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dezesseis20, ordem: 2), Jogo(2, Dezesseis20, ordem: 1) },
             SemPrevia(),
-            Chegaram(Todos(1).Concat(Todos(2)).ToArray()));
+            Presentes(1, 2));
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -142,7 +146,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(1, Dezesseis20), sozinha },
             SemPrevia(),
-            Chegaram(20, 22, 23));
+            NoJogo(2, 20, 22, 23));
 
         Assert.Equal(new[] { 2, 1 }, linhas.Select(l => l.Jogo!.Id));
     }
@@ -157,7 +161,7 @@ public class OrdemPelaPresencaNoHorarioTests
             new ProximasFasesDaChave.Lado("Vencedor SF2"),
             CategoriaId: 9, OrdemNoHorario: null);
 
-        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Dezesseis20) }, new[] { previa }, Chegaram(Todos(1)));
+        var linhas = OrdemNoHorario.Ordenar(new[] { Jogo(1, Dezesseis20) }, new[] { previa }, Presentes(1));
 
         Assert.NotNull(linhas[0].Jogo);
         Assert.NotNull(linhas[1].Previsto);
@@ -171,7 +175,7 @@ public class OrdemPelaPresencaNoHorarioTests
         var linhas = OrdemNoHorario.Ordenar(
             new[] { Jogo(2, Dezesseis20), Jogo(1, Dezesseis20) },
             SemPrevia(),
-            new Dictionary<int, DateTime>());
+            new Dictionary<(int, int), DateTime>());
 
         Assert.Equal(new[] { 1, 2 }, linhas.Select(l => l.Jogo!.Id));
     }

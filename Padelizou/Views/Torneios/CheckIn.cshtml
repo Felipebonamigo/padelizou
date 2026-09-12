@@ -2,16 +2,17 @@
 @{
     ViewData["Title"] = $"Check-in — {Model.Nome}";
 
-    var todas = Model.Categorias.SelectMany(c => c.Duplas).Where(d => !d.EmListaDeEspera).ToList();
-
-    // A CONTA É EM PESSOAS DESDE 12/09/2026 — quem é marcado é gente, não par (🗣️ "Mude para um
-    // check por jogador"). Contar duplas deixava metade das chegadas invisível justamente na
-    // única linha que resume a tela: com um dos dois no clube, a dupla ainda contava zero.
+    // A CONTA É EM VAGAS DE CHECK-IN — uma por jogador POR JOGO — desde 12/09/2026. Ela já foi
+    // em duplas ("0 de 64"), depois em pessoas (🗣️ *"Mude para um check por jogador"*), e agora
+    // em vagas, porque o check passou a ser do JOGO (🗣️ *"tem q ser separado jogo a jogo"*): quem
+    // joga duas categorias tem DOIS checks a dar, e contá-lo uma vez faria a barra fechar com
+    // gente ainda por marcar.
     //
-    // ⚠️ Os números vêm do CONTROLLER, e não de uma conta aqui: quem joga duas categorias
-    // aparece em duas duplas e é UMA pessoa no clube — a contagem precisa ser distinta por
-    // jogador, e refazê-la na view seria a segunda régua.
-    var chegadas = ViewBag.Chegadas as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>();
+    // ⚠️ Os números vêm do CONTROLLER, e não de uma conta aqui — refazê-los na view seria a
+    // segunda régua. E o denominador ignora jogo FINALIZADO: a pergunta do check-in daquele jogo
+    // já foi respondida em quadra.
+    var chegadas = ViewBag.Chegadas as IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime>
+                   ?? new Dictionary<(int, int), DateTime>();
     int total = ViewBag.TotalDeJogadores as int? ?? 0;
     int presentes = ViewBag.JogadoresPresentes as int? ?? 0;
     int faltam = total - presentes;
@@ -39,7 +40,7 @@
        gente?", que não muda porque a tela agora começa pelos jogos. *@
     <div class="card border-0 shadow-sm mb-4 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @total jogadores presentes</span>
+            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @total presenças confirmadas</span>
             <span class="badge rounded-pill @(faltam == 0 ? "bg-success" : "bg-warning text-dark")">
                 @(faltam == 0 ? "todos chegaram" : $"{faltam} faltando")
             </span>
@@ -91,50 +92,18 @@
         </div>
     }
 
-    @* ── O RESTO DO TORNEIO ────────────────────────────────────────────────────────────
-       A lista por categoria continua inteira aqui, fechada: é o que serve pra marcar quem
-       chegou cedo e só joga à tarde, e pra conferir uma categoria de ponta a ponta. Fechada
-       porque, com 64 duplas, aberta ela voltaria a ser o assunto da tela. *@
-    <div class="mt-4">
-        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button"
-                data-bs-toggle="collapse" data-bs-target="#restoDoTorneio"
-                aria-expanded="false" aria-controls="restoDoTorneio">
-            <i class="bi bi-list-ul"></i> Resto do torneio — todas as duplas (@presentes/@total)
-        </button>
+    @* ── AQUI VIVIA O "RESTO DO TORNEIO — TODAS AS DUPLAS" ─────────────────────────────
+       Uma lista por categoria, dupla a dupla, fechada num collapse. Ela existia porque a
+       presença era do TORNEIO: marcar ali respondia por todos os jogos da pessoa.
 
-        <div class="collapse mt-3" id="restoDoTorneio">
-            @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
-            {
-                @* NomeDeExibicao ordena time pelo nome do TIME (o Jogador1 da linha é o organizador). *@
-                var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera)
-                    .OrderBy(d => d.NomeTime ?? d.Jogador1.ComoChamar).ToList();
-                if (!duplas.Any()) { continue; }
+       🗣️ Felipe, 12/09/2026: *"o checkin ... nao deveria [herdar], tem q ser separado jogo a
+       jogo"*, e a tela deveria virar lista de JOGOS. Ela JÁ É: o bloco de cima traz todos os
+       agendados e o de baixo todos os que estão em quadra ou acabaram — juntos, o torneio
+       inteiro, jogo a jogo. Manter o "resto" como terceira lista seria desenhar os mesmos jogos
+       uma segunda vez, com um contador que conta gente numa tela onde o que se conta é vaga.
 
-                var jogadoresDaCategoria = duplas.SelectMany(Padelizou.Services.PresencaNoDia.IdsDa).ToList();
-                <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
-                    @cat.Nome
-                    <span class="text-muted small fw-normal">
-                        (@jogadoresDaCategoria.Count(chegadas.ContainsKey)/@jogadoresDaCategoria.Count)
-                    </span>
-                </h6>
-
-                <div class="list-group shadow-sm">
-                    @foreach (var d in duplas)
-                    {
-                        <partial name="_LinhaDoCheckIn" model="(d, Model.Id, chegadas)" />
-                    }
-                </div>
-            }
-
-            @if (!todas.Any())
-            {
-                <div class="text-center text-muted py-5">
-                    <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
-                    <p class="mb-0">Nenhuma dupla confirmada ainda.</p>
-                </div>
-            }
-        </div>
-    </div>
+       ⚠️ NADA SE PERDE PRA QUEM CHEGA CEDO: o jogo dela está no bloco de cima desde que a grade
+       existe, por mais tarde que seja o horário. O que sumiu foi a régua velha, não o caminho. *@
 
     @* ── O QUE JÁ COMEÇOU OU JÁ ACABOU ─────────────────────────────────────────────────
        🗣️ Felipe, 11/09/2026: *"deixe apenas dos jogos que ainda não começaram, se os jogos ja

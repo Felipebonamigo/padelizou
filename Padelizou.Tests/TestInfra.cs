@@ -382,6 +382,27 @@ public static class TestInfra
 
     // A pasta com a Poppins de verdade. Card sem fonte responde 404 ANTES de qualquer regra
     // (ver CartoesController), então um teste de porta com fonte dublada testaria o 404 errado.
+    // UM JOGO ENTRE DUAS DUPLAS — o mínimo pra marcar presença desde 12/09/2026, quando a
+    // chamada passou a ser por PARTIDA (Models/PresencaNoJogo). Antes bastava o torneio.
+    public static Partida NovoJogo(DbPadelContext ctx, Categoria categoria, Dupla a, Dupla b,
+        string status = "Agendada", DateTime? horario = null)
+    {
+        var jogo = new Partida
+        {
+            TorneioId = categoria.TorneioId,
+            CategoriaId = categoria.Id,
+            Dupla1Id = a.Id,
+            Dupla2Id = b.Id,
+            Fase = "Fase de Grupos",
+            Status = status,
+            HorarioPrevisto = horario ?? new DateTime(2026, 9, 12, 8, 0, 0),
+            Codigo = Guid.NewGuid().ToString()[..6].ToUpper(),
+        };
+        ctx.Partidas.Add(jogo);
+        ctx.SaveChanges();
+        return jogo;
+    }
+
     public static string PastaDasFontesDeVerdade()
     {
         var pasta = AppContext.BaseDirectory;
