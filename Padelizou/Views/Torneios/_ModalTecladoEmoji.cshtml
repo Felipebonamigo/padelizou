@@ -1,0 +1,21 @@
+@* O TECLADO DE EMOJI — 12/09/2026.
+   🗣️ Felipe, com um print do WhatsApp: *"os emojis tem q abrir igual esse do whats com o teclado
+   de emojis"*.
+
+   ⚠️ A CASCA É VAZIA de propósito: quem a preenche é o `teclado-de-emoji.js`, carregado SOB
+   DEMANDA no primeiro toque no "+". A página do torneio em produção tem 1,08 MB de HTML e já
+   puxa 28 arquivos — os ~350 emoji não podem pesar pra quem nunca abre o teclado.
+
+   ⚠️ `modal-fullscreen-sm-down`: no celular o teclado ocupa a tela inteira, como o do WhatsApp.
+   Num diálogo centrado sobraria uma tira de grade rolando dentro de outra rolagem. *@
+<div class="modal fade" id="modalTecladoEmoji" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold">Escolha um emoji</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="tecladoEmojiCorpo"></div>
+        </div>
+    </div>
+</div>
