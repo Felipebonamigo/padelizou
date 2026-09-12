@@ -280,7 +280,9 @@ function clicarNoMais(tela, card, nome) {
         conferir('o POST leva o card tocado', corpo.getAll('partidaId').join() === '101');
         conferir('e NÃO leva a quadra do vizinho', corpo.getAll('partidaId').indexOf('202') === -1);
         conferir('o game tocado vai com o valor novo', corpo.getAll('games1').join() === '4');
-        conferir('games2 do card tocado vai junto', corpo.getAll('games2').join() === '2');
+        // ⚠️ O lado que ninguém tocou vai como "não toquei", e não com o número da tela: é o
+        // que impede dois aparelhos no MESMO jogo de se atropelarem (conferência 10).
+        conferir('o lado não tocado do card viaja como -1', corpo.getAll('games2').join() === '-1');
         conferir('um pontos1 por card, casado por índice', corpo.getAll('pontos1').length === 1);
         conferir('o token do antiforgery vai sempre', corpo.getAll('__RequestVerificationToken').join() === 'tok');
         conferir('o id do torneio vai sempre', corpo.getAll('id').join() === '7');
@@ -302,8 +304,8 @@ function clicarNoMais(tela, card, nome) {
         const corpo = corpoDe(tela, 0);
         conferir('os dois cards tocados vão no mesmo POST',
             corpo.getAll('partidaId').join() === '101,202');
-        conferir('games1 casa por índice', corpo.getAll('games1').join() === '4,5');
-        conferir('games2 casa por índice', corpo.getAll('games2').join() === '2,6');
+        conferir('games1 casa por índice', corpo.getAll('games1').join() === '4,-1');
+        conferir('games2 casa por índice', corpo.getAll('games2').join() === '-1,6');
         conferir('pontos1 tem uma entrada por card', corpo.getAll('pontos1').length === 2);
     }
 
@@ -458,6 +460,79 @@ function clicarNoMais(tela, card, nome) {
         conferir('card sem resposta do servidor não diz "salvo"',
             a.querySelector('.pdz-live-salvo').textContent === 'não salvou — toque de novo');
         conferir('e continua na fila', a.hasAttribute('data-pdz-mexido'));
+    }
+
+    // 10. DOIS MARCADORES NO MESMO JOGO, UM DE CADA LADO (Felipe, 12/09/2026: *"quando um de
+    //     um lado marcava e o outro junto as vezes, um deles nao pegava"*). O card mandava os
+    //     DOIS lados em todo POST, então o segundo a chegar devolvia o lado do primeiro pro
+    //     número da tela dele — de até 20 segundos atrás. Agora o lado não tocado viaja como
+    //     -1 e o servidor não encosta nele.
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+
+        clicarNoMais(tela, a, 'games1');
+        tela.correrTimers();
+        await assentar();
+
+        const corpo = corpoDe(tela, 0);
+        conferir('o lado tocado vai com o número', corpo.getAll('games1').join() === '4');
+        conferir('o lado NÃO tocado vai como -1', corpo.getAll('games2').join() === '-1');
+        conferir('e os pontos do tie-break também', corpo.getAll('pontos1').join() === '-1');
+        conferir('nos dois lados', corpo.getAll('pontos2').join() === '-1');
+    }
+
+    // 11. TOCOU NOS DOIS LADOS: os dois vão com número. O "não toquei" é por CAMPO, não por card.
+    {
+        const a = card(101, 3, 2);
+        const tela = pagina([a]);
+
+        clicarNoMais(tela, a, 'games1');
+        clicarNoMais(tela, a, 'games2');
+        tela.correrTimers();
+        await assentar();
+
+        const corpo = corpoDe(tela, 0);
+        conferir('tocou nos dois, os dois vão', corpo.getAll('games1').join() === '4'
+            && corpo.getAll('games2').join() === '3');
+    }
+
+    // 12. O PONTO DO TIE-BREAK segue a mesma régua — no 8x8 cada mesário conta o ponto do seu
+    //     lado, e mandar o do outro junto é reescrevê-lo.
+    {
+        const a = card(101, 8, 8, 5, 3);
+        const tela = pagina([a]);
+
+        clicarNoMais(tela, a, 'pontos1');
+        tela.correrTimers();
+        await assentar();
+
+        const corpo = corpoDe(tela, 0);
+        conferir('o ponto tocado vai com o número', corpo.getAll('pontos1').join() === '6');
+        conferir('o ponto do outro lado vai como -1', corpo.getAll('pontos2').join() === '-1');
+        conferir('e os games, que ninguém tocou, também', corpo.getAll('games1').join() === '-1'
+            && corpo.getAll('games2').join() === '-1');
+    }
+
+    // 13. UMA ENTRADA POR CARD EM CADA ARRAY, sempre — é o que casa `partidaId[]` com
+    //     `games1[]` por índice. Card sem o campo na tela (HTML velho em cache) não pode
+    //     simplesmente sumir do array: ele desalinharia todos os jogos depois dele.
+    {
+        const a = card(101, 3, 2);
+        const b = card(202, 5, 5);
+        const tela = pagina([a, b]);
+
+        clicarNoMais(tela, a, 'games1');
+        clicarNoMais(tela, b, 'games2');
+        tela.correrTimers();
+        await assentar();
+
+        const corpo = corpoDe(tela, 0);
+        conferir('dois cards, duas entradas em cada array',
+            corpo.getAll('partidaId').length === 2 && corpo.getAll('games1').length === 2
+            && corpo.getAll('games2').length === 2 && corpo.getAll('pontos1').length === 2);
+        conferir('e cada um só com o lado que tocou',
+            corpo.getAll('games1').join() === '4,-1' && corpo.getAll('games2').join() === '-1,6');
     }
 
     console.log('');

@@ -95,6 +95,114 @@ public class PlacarAoVivoNaoAtropelaOVizinhoTests
     }
 
     [Fact]
+    public async Task Dois_aparelhos_no_MESMO_jogo_nao_se_atropelam()
+    {
+        // 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um deles nao
+        // pegava"*. Um marcador de cada lado da quadra, cada um no "+" da SUA dupla.
+        //
+        // 🕳️ O card mandava OS DOIS LADOS em todo POST, então o segundo a chegar — montado com
+        // a tela de até 20 segundos atrás — devolvia o lado do primeiro pro número velho. O
+        // último POST ganhava nos dois lados, mesmo que cada um tivesse tocado só no seu, e a
+        // tela de quem perdeu oscilava no tique seguinte.
+        //
+        // Agora o aparelho manda **-1** no lado que não tocou, e o servidor o deixa como está.
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1);
+        using var _ = ctx;
+
+        var jogo = aoVivo[0];
+        jogo.GamesDupla1 = 5;
+        jogo.GamesDupla2 = 3;
+        await ctx.SaveChangesAsync();
+
+        // Aparelho A toca no + da dupla 1: 5 → 6, e não encosta na dupla 2.
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { jogo.Id },
+            games1: new[] { 6 }, games2: new[] { -1 }, voltarPara: null);
+
+        // Aparelho B, com a tela ainda em 5 x 3, toca no + da dupla 2: 3 → 4.
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { jogo.Id },
+            games1: new[] { -1 }, games2: new[] { 4 }, voltarPara: null);
+
+        var depois = await ctx.Partidas.FindAsync(jogo.Id);
+        Assert.Equal(6, depois!.GamesDupla1);   // o toque de A sobreviveu ao POST de B
+        Assert.Equal(4, depois.GamesDupla2);
+    }
+
+    [Fact]
+    public async Task Lado_nao_tocado_nao_vira_zero()
+    {
+        // O -1 é "não toquei", e não "apague". Sem a leitura certa ele cairia no
+        // `Math.Max(0, ...)` do FormatoDaPartida e zeraria o placar da quadra.
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1);
+        using var _ = ctx;
+
+        var jogo = aoVivo[0];
+        jogo.GamesDupla1 = 7;
+        jogo.GamesDupla2 = 2;
+        jogo.PontosTieBreak1 = 5;
+        jogo.PontosTieBreak2 = 4;
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { jogo.Id },
+            games1: new[] { -1 }, games2: new[] { -1 }, voltarPara: null,
+            pontos1: new[] { -1 }, pontos2: new[] { -1 });
+
+        var depois = await ctx.Partidas.FindAsync(jogo.Id);
+        Assert.Equal(7, depois!.GamesDupla1);
+        Assert.Equal(2, depois.GamesDupla2);
+        Assert.Equal(5, depois.PontosTieBreak1);
+        Assert.Equal(4, depois.PontosTieBreak2);
+    }
+
+    [Fact]
+    public async Task O_ponto_do_tie_break_tambem_respeita_o_lado_nao_tocado()
+    {
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1);
+        using var _ = ctx;
+
+        var jogo = aoVivo[0];
+        jogo.GamesDupla1 = 8;
+        jogo.GamesDupla2 = 8;
+        jogo.PontosTieBreak1 = 3;
+        jogo.PontosTieBreak2 = 3;
+        await ctx.SaveChangesAsync();
+
+        // Um marca o ponto de um lado; o outro, do outro lado, com a tela em 3 x 3.
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { jogo.Id },
+            games1: new[] { -1 }, games2: new[] { -1 }, voltarPara: null,
+            pontos1: new[] { 4 }, pontos2: new[] { -1 });
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { jogo.Id },
+            games1: new[] { -1 }, games2: new[] { -1 }, voltarPara: null,
+            pontos1: new[] { -1 }, pontos2: new[] { 4 });
+
+        var depois = await ctx.Partidas.FindAsync(jogo.Id);
+        Assert.Equal(4, depois!.PontosTieBreak1);
+        Assert.Equal(4, depois.PontosTieBreak2);
+    }
+
+    [Fact]
+    public async Task Aba_antiga_que_manda_os_dois_lados_continua_gravando_os_dois()
+    {
+        // Aba aberta ANTES deste deploy não conhece o -1: ela manda os dois números de sempre,
+        // e tem que continuar salvando os dois. O -1 é acréscimo, não troca de contrato.
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1);
+        using var _ = ctx;
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SalvarPlacaresAoVivo(
+            torneio.Id, new[] { aoVivo[0].Id },
+            games1: new[] { 4 }, games2: new[] { 2 }, voltarPara: null);
+
+        var depois = await ctx.Partidas.FindAsync(aoVivo[0].Id);
+        Assert.Equal(4, depois!.GamesDupla1);
+        Assert.Equal(2, depois.GamesDupla2);
+    }
+
+    [Fact]
     public void O_card_tem_um_campo_de_pontos_so()
     {
         // ⚠️ O bloco do tie-break é renderizado SEMPRE que a fase o comporta (ele nasce

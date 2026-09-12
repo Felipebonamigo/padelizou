@@ -177,7 +177,23 @@ namespace Padelizou.Controllers
                 // digitar 9 seria um placar que aquele jogo não pode ter — e numa soma de 7,
                 // 5x5 também não.
                 var formato = FormatoDaPartida.De(torneio, partida.Fase);
-                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, games1[i], games2[i]);
+
+                // ⚠️ LADO NEGATIVO É "NÃO TOQUEI NESTE" (12/09/2026), e fica com o que está no
+                // banco. 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um
+                // deles nao pegava"* — o card mandava OS DOIS lados em todo POST, então dois
+                // aparelhos no MESMO jogo se atropelavam: o segundo a chegar, montado com a
+                // tela de até 20 segundos atrás, devolvia o lado do primeiro pro número velho.
+                // O último POST ganhava nos dois lados, mesmo que cada um tivesse tocado só no
+                // seu.
+                //
+                // O par continua sendo validado JUNTO (numa soma de 7, o lado que veio precisa
+                // caber ao lado do que está gravado), por isso a peneira recebe os dois.
+                //
+                // Aba aberta antes deste deploy manda os dois números de sempre e segue
+                // gravando os dois: o negativo é acréscimo, não troca de contrato.
+                int pedido1 = games1[i] < 0 ? partida.GamesDupla1 ?? 0 : games1[i];
+                int pedido2 = games2[i] < 0 ? partida.GamesDupla2 ?? 0 : games2[i];
+                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, pedido1, pedido2);
 
                 // OS PONTOS DO TIE-BREAK. ⚠️ Só entram onde o tie-break PODE acontecer
                 // (Services/TieBreakDoJogo): num torneio com a contagem desligada, ou numa fase
@@ -194,8 +210,14 @@ namespace Padelizou.Controllers
                     && pontos1 != null && pontos2 != null
                     && pontos1.Length == partidaId.Length && pontos2.Length == partidaId.Length)
                 {
-                    int p1 = TieBreakDoJogo.PontoValido(pontos1[i]);
-                    int p2 = TieBreakDoJogo.PontoValido(pontos2[i]);
+                    // Mesmo "não toquei" dos games, e pelo mesmo motivo: no 8x8 cada mesário
+                    // conta o ponto do seu lado, e mandar o lado alheio junto é reescrevê-lo.
+                    int p1 = pontos1[i] < 0
+                        ? partida.PontosTieBreak1 ?? 0
+                        : TieBreakDoJogo.PontoValido(pontos1[i]);
+                    int p2 = pontos2[i] < 0
+                        ? partida.PontosTieBreak2 ?? 0
+                        : TieBreakDoJogo.PontoValido(pontos2[i]);
 
                     mexeuNosPontos = partida.PontosTieBreak1 != p1 || partida.PontosTieBreak2 != p2;
                     partida.PontosTieBreak1 = p1;
