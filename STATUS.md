@@ -27,7 +27,7 @@
 
 
 
-> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
+> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** 🚀 **PUBLICADO em `prod` no `build-1329-88c5932`** (PR #288, deploy 333). **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
 >
 > ```
 > InvalidOperationException — POST /Partidas/ControlePlacar/572
@@ -47,6 +47,8 @@
 > 🔒 **E NASCEU O GATE MECÂNICO** (`O_robo_nao_manda_o_metodo_de_fase_pro_banco`): varre a fonte do robô e quebra se `EhFaseDeMataMata`/`EhFaseDeGrupos` aparecerem a menos de 400 caracteres de um `Async(p =>`. Em lista já materializada o método é bem-vindo — por isso a busca é pelo PAR, não pelo método sozinho. Mais dois de tradução por `ToQueryString`, um deles provando que a forma antiga estoura.
 >
 > 🧪 **6.993 testes, 0 falhas (3 novos)** + os **8** conferidores de JS verdes. O gate foi **visto vermelho** em *"Assert.DoesNotContain() Failure: Sub-string found"* antes da correção.
+>
+> ✅ **CONFERIDO NO AR, E A VARREDURA PROVOU OS DOIS CONSERTOS DE UMA VEZ.** 45 s depois do deploy ela destravou sozinha **quatro** categorias que estavam esperando (3ª Masculina, 5ª Masculina, 5ª Feminina e 6ª Feminina) — nenhum clique. Li a página pública e cruzei cada nome do quadro com a classificação dos grupos: **as 7 categorias batem com o previsto**, jogo por jogo. Finalizar jogo voltou a funcionar.
 >
 > 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
 
