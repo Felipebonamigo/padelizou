@@ -79,11 +79,30 @@ public static class OQuePrecisaParaClassificar
         FormatoDaPartida.Formato formato,
         IReadOnlyDictionary<int, int> pontosPorJogador)
     {
-        // "Jogado" é ter vencedor pela régua única — não é o Status. Um jogo marcado como
-        // finalizado 0x0 não decidiu nada, e contá-lo como jogado faria o painel simular o
-        // grupo errado.
-        var jogados = partidasDoGrupo.Where(p => QuemVenceu.Da(p) != null).ToList();
-        var faltando = partidasDoGrupo.Where(p => QuemVenceu.Da(p) == null).ToList();
+        // "Jogado" é ter ACABADO **e** ter vencedor pela régua única — as duas coisas, e cada
+        // metade veio de um defeito de produção:
+        //
+        // • O vencedor, porque um jogo marcado como finalizado 0x0 não decidiu nada, e
+        //   contá-lo como jogado faria o painel simular o grupo errado (ver Services/QuemVenceu).
+        // • O `Status`, porque `QuemVenceu` responde SIM pra qualquer placar desigual — e o
+        //   placar de um jogo EM QUADRA é desigual quase o tempo todo. 🗣️ Felipe, 12/09/2026,
+        //   num print do Grupo B da 6ª Feminina: *"Isso parece errado, é meio impossivel"*. O
+        //   jogo estava 5 x 6 ao vivo e o painel já dizia "Vania / Eliane — Já classificado" e
+        //   "Bibiana / Caroline — Sem chance" com as duas em quadra, uma contra a outra. Oito
+        //   minutos depois o placar virou e o pop-up trocou de resposta.
+        //
+        // ⚠️ Um jogo em quadra é um jogo POR JOGAR: se for o único em aberto, é ele que o
+        // painel simula (e o placar parcial não entra em conta nenhuma); com outro em aberto
+        // junto, são dois faltando e não há painel. É a mesma régua do serviço vizinho que
+        // preenche a chave projetada — `ClassificadosJaConhecidos` já perguntava pelo Status
+        // ("grupo com jogo em quadra também não"), este não perguntava.
+        //
+        // ⚠️ E vale pro jogo REABERTO pra correção, que é o mesmo estado: `Reabrir` devolve o
+        // jogo pra quadra (Status AoVivo) mantendo o placar na tela, sem vencedor.
+        bool Decidido(Partida p) => p.Status == "Finalizada" && QuemVenceu.Da(p) != null;
+
+        var jogados = partidasDoGrupo.Where(Decidido).ToList();
+        var faltando = partidasDoGrupo.Where(p => !Decidido(p)).ToList();
 
         if (faltando.Count != 1) return null;
 
