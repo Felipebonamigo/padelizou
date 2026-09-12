@@ -5902,6 +5902,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     @if (ViewBag.TemRankingDePalpiteiros == true)
     {
         <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
+            @* ⚠️ A ÂNCORA DA ABA, pro filtro de fase do parcial voltar PRA CÁ (12/09/2026).
+               O recorte por fase recarrega a página (a conta é do servidor), e sem esta linha
+               cada clique jogaria o leitor no topo, na primeira aba — longe da tabela que ele
+               estava lendo. A página cheia não manda âncora nenhuma: lá não há aba. *@
+            @{ ViewData["AncoraDosPalpiteiros"] = "#palpiteiros"; }
             <partial name="_RankingDePalpiteiros" model="(Padelizou.Services.PalpiteirosDoTorneio)ViewBag.RankingDePalpiteiros" />
 
             @* A ÚNICA porta pra página cheia desde que o botão do topo saiu (10/09/2026). Ela
@@ -6220,6 +6225,68 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </div>
                                             <button type="submit" class="btn btn-outline-primary btn-sm fw-bold">
                                                 <i class="bi bi-diagram-3"></i> Salvar chaveamento
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        @* ═══ REFAZER O MATA-MATA COMO ESTAVA PREVISTO (12/09/2026) ════════════
+                           🗣️ Felipe, com o ER em quadra e os jogadores cobrando: "acho que o chaveamento
+                           se perdeu... era primeiro da F contra o segundo da E" · "tem q respeitar o que
+                           estava como chaveamento previsto antes" · "mas é em todas as categorias".
+
+                           A prévia era montada com campanha ZERADA e a chave real com a campanha de
+                           verdade — mesmo motor, entradas diferentes. Do `AprovarChaves` em diante isso
+                           não acontece mais (o cruzamento previsto congela na aprovação); este botão é
+                           pro torneio que já tinha sido aprovado antes disso.
+
+                           ⚠️ Aparece só DEPOIS de publicada — antes disso quem manda é o bloco de
+                           chaveamento à mão, logo acima. A ação recusa de novo do lado de lá. *@
+                        @if (ViewBag.PodeAprovarChaves == true
+                             && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
+                             && categoria.GruposTorneio.Count > 0)
+                        {
+                            var gruposPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
+                            var tamanhosPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
+                            var previsto = Padelizou.Services.CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata)
+                                        ?? Padelizou.Services.CruzamentoDoMataMata.Padrao(
+                                               gruposPrevisto,
+                                               Padelizou.Services.ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                               tamanhosPrevisto);
+
+                            if (previsto != null)
+                            {
+                                <div class="card border-0 shadow-sm mb-4" style="background: var(--bs-tertiary-bg, #f8f9fa);">
+                                    <div class="card-body">
+                                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Refazer o mata-mata como estava previsto
+                                        </h6>
+                                        <p class="small text-muted mb-2">
+                                            Devolve a primeira eliminatória ao cruzamento que a prévia mostrava.
+                                            <strong>Horários e quadras ficam como estão</strong> — só as duplas mudam de lugar.
+                                            Se algum jogo do mata-mata já começou, nada é mexido.
+                                        </p>
+                                        <div class="mb-2">
+                                            @foreach (var confronto in previsto.Confrontos)
+                                            {
+                                                <div class="small">@confronto.Lado1.Rotulo <span class="text-muted">×</span> @confronto.Lado2.Rotulo</div>
+                                            }
+                                            @foreach (var bye in previsto.Byes)
+                                            {
+                                                <div class="small text-muted">@bye.Rotulo — passa direto (bye)</div>
+                                            }
+                                        </div>
+                                        <form asp-controller="Torneios" asp-action="RefazerMataMataComoPrevisto" method="post"
+                                              data-confirmar-titulo="Refazer o mata-mata da @categoria.Nome?"
+                                              data-confirmar="As duplas voltam ao cruzamento previsto. Quem já viu o adversário antigo NÃO é avisado — avise no grupo. Os palpites dos jogos que mudarem são apagados."
+                                              data-confirmar-ok="Refazer">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Refazer como previsto
                                             </button>
                                         </form>
                                     </div>

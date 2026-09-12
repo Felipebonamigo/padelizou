@@ -3981,7 +3981,6 @@ a.pdz-grupo-jogo[href]:focus-visible {
 /* A pílula: emoji + contagem. Alvo de 32px de altura — é o mínimo que o dedo acerta numa
    lista rolando, e foi o tamanho que os botões do placar ao vivo já provaram. */
 .pdz-reacao-pilula,
-.pdz-reacao-abrir,
 .pdz-reacao-atalho {
     display: inline-flex;
     align-items: center;
@@ -3998,7 +3997,6 @@ a.pdz-grupo-jogo[href]:focus-visible {
 }
 
 .pdz-reacao-pilula:hover,
-.pdz-reacao-abrir:hover,
 .pdz-reacao-atalho:hover {
     border-color: var(--padel-green);
 }
@@ -4028,7 +4026,39 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-reacao-minha .pdz-reacao-conta { color: inherit; }
 
-.pdz-reacao-abrir { padding: .1rem .55rem; color: var(--pdz-muted); }
+/* O BOTÃO QUE ABRE O PAINEL — 🗣️ Felipe, 12/09/2026: *"coloque um botão menor, sem o quadrado
+   ao redor"*. Dois desenhos errados antes deste: um ícone de traço dentro de uma borda, que
+   media 18,5px de largura e não dizia o que fazia; e um "🙂 Reagir" de 83px, grande demais
+   num rodapé que já carrega palpitômetro e "cravaram o placar".
+
+   ⚠️ FORA DO BLOCO DAS PÍLULAS de propósito, e não sobrescrevendo-o: a borda e o fundo vinham
+   daquele seletor compartilhado, e apagá-los aqui com `border: 0` deixaria duas regras
+   discutindo a aparência do mesmo botão.
+
+   ⚠️ O QUADRADO SAIU DA VISTA, NÃO DO DEDO: o `padding` mantém os 32px de alvo. Numa lista de
+   97 cartões que rola, alvo do tamanho do desenho é toque perdido — e o desenho aqui tem
+   ~17px. */
+.pdz-reacao-abrir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0 .15rem;
+    border: 0;
+    background: none;
+    color: inherit;
+    line-height: 1;
+    cursor: pointer;
+    /* Apagado enquanto ninguém pede atenção a ele: o dado da fileira são as pílulas. */
+    opacity: .5;
+    transition: opacity .15s ease;
+}
+
+.pdz-reacao-abrir .pdz-reacao-emoji { font-size: .95rem; }
+
+.pdz-reacao-abrir:hover,
+.pdz-reacao-abrir:focus-visible { opacity: 1; }
 
 /* ── O PAINEL "QUEM COLOCOU O QUÊ" ───────────────────────────────────────────────── */
 .pdz-reacoes-no-painel { margin-top: 0; }
@@ -4070,3 +4100,21 @@ a.pdz-grupo-jogo[href]:focus-visible {
 }
 
 .pdz-reacao-emoji-linha { flex-shrink: 0; font-size: 1.15rem; }
+/* ── O SELO "JOGANDO" DA TABELA DE PALPITEIROS (12/09/2026) ────────────────────────────
+   🗣️ Felipe: *"coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"* — o
+   filtro isola o grupo, este selo responde por linha, com "Todos" ativo.
+
+   ⚠️ Lime de FUNDO CLARO com tinta escura, e não o `--pdz-lime` cheio: a linha de quem está
+   olhando já é `table-success` (verde), e um selo verde sólido em cima dela desaparece. As
+   duas marcas da linha ("você" e "jogando") precisam se distinguir uma da outra. */
+.pdz-selo-jogando {
+    background: color-mix(in srgb, var(--pdz-lime) 22%, transparent);
+    color: #4d6b00;
+    font-weight: 600;
+}
+
+/* No escuro a tinta de baixo contraste do claro vira ilegível: ali o lime é a LETRA. */
+:root[data-bs-theme="dark"] .pdz-selo-jogando {
+    background: color-mix(in srgb, var(--pdz-lime) 18%, transparent);
+    color: var(--pdz-lime-300);
+}

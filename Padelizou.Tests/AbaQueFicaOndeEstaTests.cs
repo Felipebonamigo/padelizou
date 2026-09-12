@@ -72,6 +72,28 @@ public class AbaQueFicaOndeEstaTests
     }
 
     [Fact]
+    public void A_barra_de_filtros_guarda_a_altura_da_pagina()
+    {
+        // 🗣️ Felipe, 12/09/2026: *"quando eu clico em meu jogos, a pagina sobe la para o inicio
+        // tambem, tinha q aparece na aba meus jogos ja"*.
+        //
+        // O `js/manter-posicao-na-lista.js` é OPT-IN por `data-manter-posicao` — quem sabe se a
+        // ação volta pra mesma tela é quem escreveu o botão. Sem o atributo o clique passa
+        // batido e a página renasce no começo, e nada nesta suíte enxergaria isso: o
+        // comportamento do JS está travado no conferir-abas-que-ficam.js, mas o atributo é
+        // markup, e markup só some em silêncio.
+        var fonte = File.ReadAllText(Path.Combine(PastaDasViews(), "_JogosDoTorneio.cshtml"));
+
+        var meusJogos = Regex.Match(fonte, @"<a[^>]*asp-route-soMeusJogos[^>]*>", RegexOptions.Singleline);
+        Assert.True(meusJogos.Success, "Não achei o link do \"Meus jogos\".");
+        Assert.Contains("data-manter-posicao", meusJogos.Value);
+
+        var formulario = Regex.Match(fonte, @"<form[^>]*id=""filtroJogos""[^>]*>", RegexOptions.Singleline);
+        Assert.True(formulario.Success, "Não achei o formulário dos filtros.");
+        Assert.Contains("data-manter-posicao", formulario.Value);
+    }
+
+    [Fact]
     public void A_memoria_de_aba_nao_depende_do_bootstrap_pra_gravar()
     {
         // A armadilha que matou o recurso por um mês: o script roda ANTES do bootstrap.bundle.js

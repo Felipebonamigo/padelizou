@@ -106,4 +106,20 @@ public record TabelaDePalpiteirosVM(
     int? TorneioId = null)
 {
     public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
+
+    // QUEM JOGA O TORNEIO — o selo na linha e os três botões de filtro (12/09/2026 — 🗣️ Felipe:
+    // *"coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"*).
+    //
+    // ⚠️ SOME POR DADO, como as colunas acima, e são TRÊS perguntas numa:
+    //   · existe torneio aqui? (no hub a tabela soma vários, e "joga o torneio" não tem sujeito);
+    //   · tem alguém jogando?  (torneio só de times, ou tabela só de torcida: nada a marcar);
+    //   · tem alguém de fora?  (se TODOS jogam, o selo em toda linha não distingue nada e dois
+    //     dos três botões dariam a mesma tabela).
+    public bool MostrarQuemJoga =>
+        TorneioId != null
+        && Linhas.Any(l => l.JogaOTorneio)
+        && Linhas.Any(l => !l.JogaOTorneio);
+
+    public int QuantosJogam => Linhas.Count(l => l.JogaOTorneio);
+    public int QuantosDeFora => Linhas.Count - QuantosJogam;
 }
