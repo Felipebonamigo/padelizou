@@ -13,6 +13,22 @@
 >
 > ⚠️ **A LIÇÃO PRA PRÓXIMA SESSÃO: `204 queued` não é deploy, e "o healthz responde 200" não é prova de qual código está rodando.** O que prova é o **log do job** (ele imprime a tag instalada) mais a ancestralidade do commit. As duas coisas juntas — e não o relógio.
 
+> **12/09/2026** — 🕐 **A CHAVE DE VERDADE VOLTOU A MOSTRAR A HORA DAS FASES QUE AINDA NÃO ACONTECERAM.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print da 4ª Masculina em quadra: *"esse a definir nao é uma verdade, ele ja tem horario previsto"*.
+>
+> 🕳️ **ERA UM ATALHO DELIBERADO, ESCRITO NO PRÓPRIO `Details.cshtml`** — e é assim que ele deve ser lido: *"a vaga FUTURA da chave de verdade continua dizendo 'a definir' em vez da hora prevista (o `null` no lugar dos previstos) — casar `ViewBag.ProjecaoCompleta` com a numeração global do quadro é outra tarefa"*. Antes de a primeira rodada nascer, a PRÉVIA mostrava `12/09 23:00 · Arena Nclass` nas quartas; no instante em que ela nasceu, o MESMO partial passou a receber `null` e as mesmas vagas viraram "a definir". A informação existia, já estava na aba Jogos, e já tinha sido mostrada ao jogador na véspera.
+>
+> ✅ **O `projecaoDaCategoria` SAIU DE DENTRO DO `if`** e agora serve aos dois quadros — a prévia e a chave de verdade. O mapa novo (`previstosDaChave`) casa por **(fase, número DENTRO da fase)** e entrega por **número GLOBAL da vaga**, que é a régua do mapa da prévia, ali do lado.
+>
+> ⚠️ **POR NÚMERO, NUNCA POR POSIÇÃO** — é a armadilha de 10/09 (`QuadroDaChaveCasaPorNumeroTests`): `ProjetarProximasFasesAsync` termina com `OrderBy(j => j.Horario)`, então uma RESERVA fora de ordem faz a posição na lista deixar de ser o número do jogo, e a vaga da Semifinal 1 mostraria a hora da 2.
+>
+> 🧹 **O COMENTÁRIO DO ATALHO SAIU NO MESMO COMMIT, e isso tem teste** (`O_atalho_deliberado_saiu_junto_com_o_atalho`): comentário que descreve um atalho que não existe mais é pior que comentário nenhum — a próxima sessão lê "continua dizendo a definir" e vai procurar um defeito já consertado.
+>
+> 🧪 **6.972 testes, 0 falhas (4 novos em `HorarioPrevistoNaChaveMontadaTests`)** + os **8** conferidores de JS verdes. ⚠️ **UM DELES NASCEU FRACO E FOI REFEITO**: a primeira versão procurava `"Horario"` em qualquer lugar antes do `"a definir"` e **passava com o defeito de pé** — `jogo.HorarioPrevisto` aparece bem antes, no cartão do jogo que já existe. Visto passar contra o arquivo antigo, refeito pra olhar DENTRO do bloco da vaga vazia, e então conferido nos dois sentidos: **4 vermelhos sem a correção, 4 verdes com**.
+>
+> 🚨 **ACHADO DE PRODUÇÃO, NÃO CONSERTADO — PRECISA DE DECISÃO.** Duas categorias do ER (3ª Masculina e 6ª Feminina) ficaram com a **fase de grupos TODA fechada e o mata-mata não montado**, em silêncio. A causa não é o chaveamento: `MontarMataMataDosGruposAsync` só roda **no instante em que um jogo de grupo é finalizado** (`EncerramentoDaPartida`), e **nada tenta de novo** se aquela chamada se perder. O horário bate com os dois restarts de deploy de hoje (17:49 e 18:17). Reproduzido em teste que as duas formas montam certo com o código no ar (`1A×2B|1B×2A` → Semifinal; `2A×2C|1C×2B;bye:1A,1B` → Quartas), então o robô não rodou — não falhou. 🩹 **Contorno sem deploy**: corrigir o placar de qualquer jogo de grupo já finalizado daquela categoria re-dispara o robô (`PartidasController.cs:665`), e é seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`. **O conserto de verdade (uma varredura que monte o que ficou pra trás) não foi feito: é trabalho novo, no meio do torneio dele.**
+
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
 >
 > ✅ **CONFERIDO NO AR, no `prod`, anônimo, no torneio do Er** (`/Torneios/Palpiteiros/26`): **83 palpiteiros**, **61 com o selo "jogando"** e **22 de fora**, os três botões do filtro de linha presentes, e o `/js/filtro-de-palpiteiros.js` respondendo **200** nos dois ambientes. "Todas as fases" e "Chaves e grupos" dão a mesma tabela lá, porque todo jogo apurado do Er é de grupo.

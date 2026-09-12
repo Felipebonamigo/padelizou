@@ -6511,6 +6511,29 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <i class="bi bi-diagram-3-fill text-danger me-2"></i> Fase Final (Mata-Mata)
                             </h4>
 
+                            @{
+                                @* HORA e QUADRA das fases que ainda não aconteceram — a MESMA projeção
+                                   da aba Jogos (Services/ProximasFasesDaChave), reservas do organizador
+                                   incluídas. Recalcular aqui daria uma segunda conta, e duas contas
+                                   divergem no dia em que a regra mudar.
+
+                                   ⚠️ LÊ `ProjecaoCompleta`, E NÃO `JogosQueVem` (10/09/2026):
+                                   `JogosQueVem` é a lista da ABA JOGOS e os filtros dela (clube, quadra,
+                                   fase, "meus jogos") a recortam — com uma semifinal fora, o quadro
+                                   mostrava confronto que não existe.
+
+                                   ⚠️ FICA FORA DO `if` desde 12/09/2026, porque os DOIS quadros usam:
+                                   a prévia e a chave de verdade. Enquanto morava dentro do ramo da
+                                   prévia, a chave montada recebia `null` e toda vaga futura dizia
+                                   "a definir" — 🗣️ *"esse a definir nao é uma verdade, ele ja tem
+                                   horario previsto"*. *@
+                                var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
+                                        as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
+                                    ?.Where(j => j.Categoria == categoria.Nome)
+                                    .GroupBy(j => j.Fase)
+                                    .ToDictionary(g => g.Key, g => g.ToList());
+                            }
+
                             @if (!fasesPresentes.Any())
                             {
                                 @* Prévia por COLOCAÇÃO. "Ainda não começou" é verdade e é
@@ -6580,11 +6603,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                        `JogosQueVem` é a lista da ABA JOGOS e os filtros dela (clube,
                                        quadra, fase, "meus jogos") a recortam — com uma semifinal fora, o
                                        quadro mostrava confronto que não existe. *@
-                                    var projecaoDaCategoria = (ViewBag.ProjecaoCompleta
-                                            as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
-                                        ?.Where(j => j.Categoria == categoria.Nome)
-                                        .GroupBy(j => j.Fase)
-                                        .ToDictionary(g => g.Key, g => g.ToList());
 
                                     @* O casamento é por (fase, NÚMERO do jogo DENTRO DA FASE) — nunca por
                                        posição na lista. `ProximasFasesDaChave.Agendar` numera por fase
@@ -6644,17 +6662,42 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                    do quadro. O jogador logado vai junto pro quadro pintar o
                                    caminho dele. Ver Views/Torneios/_ChaveDoMataMata.
 
-                                   ⚠️ atalho deliberado: a vaga FUTURA da chave de verdade
-                                   continua dizendo "a definir" em vez da hora prevista (o
-                                   `null` no lugar dos previstos) — casar `ViewBag.ProjecaoCompleta`
-                                   com a numeração global do quadro é outra tarefa, e a hora
-                                   dessas vagas já está na aba Jogos. *@
+                                   A vaga FUTURA (quartas, semi, final que ainda não nasceram) leva a
+                                   hora e a quadra PREVISTAS, iguais às que a aba Jogos já mostra —
+                                   ver o mapa logo abaixo. *@
                                 var byesDict = ViewBag.ByesPorCategoria as Dictionary<int, List<Padelizou.Models.Dupla>>;
                                 var byesDaCategoria = (byesDict != null && byesDict.ContainsKey(categoria.Id))
                                     ? byesDict[categoria.Id] : new List<Padelizou.Models.Dupla>();
                                 int? meuJogadorIdNoQuadro = ViewBag.MeuJogadorId as int?;
+
+                                var quadroDeVerdade = Padelizou.Services.QuadroDoMataMata.Montar(
+                                    jogosMata, byesDaCategoria, meuJogadorIdNoQuadro);
+
+                                @* O casamento é por (fase, NÚMERO do jogo DENTRO DA FASE) e a entrega é
+                                   por número GLOBAL da vaga — a mesma régua do mapa da prévia, logo
+                                   acima, e pelo mesmo motivo: `ProjetarProximasFasesAsync` termina com
+                                   `OrderBy(j => j.Horario)`, então uma RESERVA fora de ordem faz a
+                                   posição na lista deixar de ser o número do jogo, e a vaga da
+                                   Semifinal 1 mostraria a hora da 2. Ver QuadroDaChaveCasaPorNumeroTests
+                                   e HorarioPrevistoNaChaveMontadaTests. *@
+                                var previstosDaChave = new Dictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>();
+                                foreach (var faseDoQuadro in quadroDeVerdade)
+                                {
+                                    List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>? daFase = null;
+                                    projecaoDaCategoria?.TryGetValue(faseDoQuadro.Nome, out daFase);
+
+                                    for (int i = 0; i < faseDoQuadro.Vagas.Count; i++)
+                                    {
+                                        var previstoDaVaga = daFase?.FirstOrDefault(j => j.Numero == i + 1);
+                                        if (previstoDaVaga != null)
+                                        {
+                                            previstosDaChave[faseDoQuadro.Vagas[i].Numero] = previstoDaVaga;
+                                        }
+                                    }
+                                }
+
                                 <partial name="_ChaveDoMataMata"
-                                         model="(Padelizou.Services.QuadroDoMataMata.Montar(jogosMata, byesDaCategoria, meuJogadorIdNoQuadro), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>?)null, byesDaCategoria, categoria.Id)" />
+                                         model="(quadroDeVerdade, (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>?)previstosDaChave, byesDaCategoria, categoria.Id)" />
                             }
                         </div>
                         </div> @* fim do d-flex flex-column que ordena chave/grupos *@
