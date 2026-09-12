@@ -1,7 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` no `build-1288-cc6083c`** (run **311**), com a tag explícita. PR #272. **COM MIGRATION** (`ReacoesDaPartida`). ⏳ **`prod` NÃO** — falta ver a fileira num cartão de verdade.
+
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/gracious-babbage-2jjhtv`, ainda não publicado.** **Sem migration.**
+>
+> 🔎 **DOIS FILTROS NA ABA PALPITEIROS, E ELES SÃO DE NATUREZAS DIFERENTES — é a lição desta entrada.** 🗣️ Felipe, com o print da aba aberta: *"aqui no palpitometro, coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"*; e, em seguida: *"também no palpitometro, colocar um filtro 'por chaves' 'Por mata mata' 'Apenas finais'"*.
+>
+> 1️⃣ **JOGANDO / DE FORA esconde LINHA, no navegador.** Três botões (`Todos (7) · Jogando (4) · De fora (3)`) e um selo lime **jogando** na linha de quem disputa. As linhas já vêm todas no HTML, então filtrar não vai ao servidor — e **não renumera**: a posição é a do torneio inteiro, porque quem filtra quer saber quem está na frente DELE na tabela de verdade.
+>
+> 2️⃣ **POR FASE muda os NÚMEROS, no servidor.** `Todas as fases · Chaves e grupos · Mata-mata · Apenas finais`, e cada recorte é um **ranking próprio** (escolha do Felipe): pontos, acertos, % , posições e pódio recalculados. ⚠️ **Por isso é LINK, não JS** — os pontos de "só o mata-mata" são outra apuração, não um subconjunto de linhas; um `onclick` prometeria filtro instantâneo e entregaria o número do torneio inteiro debaixo do rótulo da fase. A tela **diz** que está recortada (*"Só as finais — os pontos, os acertos e as posições aqui são só desta parte do torneio"*), senão um pódio de 3 pontos parece o ranking geral com a conta quebrada.
+>
+> ♻️ **NENHUMA RÉGUA NOVA, e isso foi o trabalho de leitura:** "quem joga" é a MESMA do `EmQuadraAsync` (jogadores das duplas **não-time**, fora da lista de espera — num time o `Jogador1Id` é o organizador que cadastrou, e marcá-lo viraria a mesma pessoa "jogando" em todo torneio de times que ela inscreveu); "é grupo?" é o `FasesTorneio.EhFaseDeGrupos`, que já conhecia as **duas** formas gravadas no banco (`"Fase de Grupos"` dos seeds antigos e `"Grupo A"` do `GerarChaves`). Régua nova aqui deixaria o torneio antigo fora do recorte, caladinho.
+>
+> 🧭 **A ÂNCORA É A NATIVA (`#palpiteiros`), e NÃO o `manter-posicao-na-lista.js`** que o PR #274 ampliou hoje: aquele é pra POST → redirect → GET de formulário, com sessionStorage e opt-in; aqui é navegação por LINK, e a âncora do navegador resolve sem JS — inclusive com o link colado no WhatsApp, que é o caso que a página cheia existe pra atender. Os dois nomes de parâmetro são separados de propósito: `faseFiltro` recorta a LISTA DE JOGOS, `fasePalpiteiros` recorta o RANKING.
+>
+> 🕳️ **O NAVEGADOR PEGOU DOIS DEFEITOS QUE A SUÍTE NÃO PEGARIA** (a receita do `TRABALHAR-FORA.md`, com Postgres local, DadosDemo e `INSERT` na mão): (a) **contraste medido**, não olhado — a contagem dentro dos botões saiu em **3,02:1** (inativo) e **3,43:1** (ativo), abaixo do mínimo de **4,5:1** do WCAG AA pra texto pequeno, primeiro por `text-body-secondary` e depois por `opacity-75`; com a cor cheia do botão foi a **4,71:1 / 4,69:1**; (b) a frase do recorte usava o RÓTULO do botão e escrevia *"Só apenas finais"* — rótulo e texto corrido viraram duas escritas separadas (`Rotulo` e `NaFrase`), porque o "Apenas" do botão é o que o distingue do "Mata-mata" ao lado.
+>
+> ⚠️ **CADA FILTRO SOME POR DADO, nunca por interruptor**: o de jogando exige torneio + alguém jogando + alguém de fora (no hub do Ranking, que soma vários torneios, nunca aparece); o de fase exige **dois recortes específicos** — um torneio que só teve fase de grupos não oferece nada, porque "Todas as fases" e "Chaves e grupos" dariam a mesma tabela. Essa contagem **derrubou o teste primeiro**: `Length > 1` contava o "tudo", que existe sempre.
+>
+> 🧪 **6.945 testes, 0 falhas (39 novos: 19 em `QuemJogaOTorneioNoPalpitometroTests` e 20 em `FiltroPorFaseNoPalpitometroTests`)** + **10 conferências novas** no `conferir-filtro-de-palpiteiros.js`, **falsificadas uma a uma** (inverter o recorte, "Todos" parar de devolver tudo, todos os botões acesos, tirar a guarda do escopo, buscar linha no `document` em vez do escopo, `aria-pressed` fixo). Vistos vermelhos antes: *"does not contain a definition for 'JogaOTorneio'"*, *"'ConsultaDeQuemJoga'"*, *"'MostrarQuemJoga'"*, *"'FaseDoPalpitometro' does not exist"*, o *"Sub-string found"* do contraste e o `MostrarFiltroDeFase` verdadeiro onde devia ser falso. **Dois vermelhos eram do TESTE, não do código** e estão anotados nele: o inscrito palpitando num jogo em que ele mesmo está em quadra (palpite que não entra na conta, tabela vazia) e uma soma minha que empatava os dois palpiteiros em 4 — empate não demonstra a inversão que o teste existe pra provar.
+>
+> 🖥️ **E AS CONSULTAS FORAM COMPILADAS CONTRA O NPGSQL** (`ToQueryString`), porque o InMemory da suíte não traduz nada: a de "quem joga" atravessa a navegação `Categoria`, e os quatro recortes usam `StartsWith`.
+
+> **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` no `build-1288-cc6083c`** (run **311**), com a tag explícita. PR #272. **COM MIGRATION** (`ReacoesDaPartida`). ⏳ **`prod` NÃO** — falta ver a fileira num cartão de verdade.
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO, no que dá sem login**: `/healthz` **200**, o `/js/reacoes-do-jogo.js` servido com **10.463 bytes** e as três rotas dentro dele (`Reagir`, `TirarReacao`, `QuemReagiu`), e o `/css/site.css` já com as **8** regras das pílulas.
 >

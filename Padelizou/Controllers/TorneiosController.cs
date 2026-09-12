@@ -308,7 +308,11 @@ namespace Padelizou.Controllers
         // `clubeFiltroId`, `quadraFiltro` e `faseFiltro`: a sequência de jogos por clube, quadra
         // e fase (Services/FiltroDeJogos). Chegam do formulário da aba Jogos; vazio = sem recorte.
         public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
-            int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null)
+            int? clubeFiltroId = null, string? quadraFiltro = null, string? faseFiltro = null,
+            // ⚠️ NOME PRÓPRIO, e não o `faseFiltro` acima: aquele recorta a LISTA DE JOGOS, este
+            // recorta o ranking dos palpiteiros (12/09/2026). Juntar os dois faria filtrar os
+            // jogos mexer na tabela de outra aba.
+            string? fasePalpiteiros = null)
         {
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias)
@@ -408,7 +412,8 @@ namespace Padelizou.Controllers
             ViewBag.TemRankingDePalpiteiros = false;
             if (await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
             {
-                var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(_context, id, ObterJogadorIdLogado());
+                var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(
+                    _context, id, ObterJogadorIdLogado(), fasePalpiteiros);
                 ViewBag.RankingDePalpiteiros = palpiteirosDoTorneio;
                 ViewBag.TemRankingDePalpiteiros = palpiteirosDoTorneio?.TemRanking == true;
             }

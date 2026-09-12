@@ -5902,6 +5902,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     @if (ViewBag.TemRankingDePalpiteiros == true)
     {
         <div class="tab-pane fade" id="palpiteiros" role="tabpanel">
+            @* ⚠️ A ÂNCORA DA ABA, pro filtro de fase do parcial voltar PRA CÁ (12/09/2026).
+               O recorte por fase recarrega a página (a conta é do servidor), e sem esta linha
+               cada clique jogaria o leitor no topo, na primeira aba — longe da tabela que ele
+               estava lendo. A página cheia não manda âncora nenhuma: lá não há aba. *@
+            @{ ViewData["AncoraDosPalpiteiros"] = "#palpiteiros"; }
             <partial name="_RankingDePalpiteiros" model="(Padelizou.Services.PalpiteirosDoTorneio)ViewBag.RankingDePalpiteiros" />
 
             @* A ÚNICA porta pra página cheia desde que o botão do topo saiu (10/09/2026). Ela
