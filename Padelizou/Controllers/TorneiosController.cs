@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +15,7 @@ namespace Padelizou.Controllers
         private readonly DbPadelContext _context;
         private readonly IEstatisticasService _estatisticas;
         private readonly IPalpiteService _palpites;
+        private readonly IReacaoService _reacoes;
         private readonly IWebHostEnvironment _env;
         // Sem IEmailService de propósito: e-mail daqui sai pela FilaDeAvisos, junto do push
         // (EnviarParaJogadorAsync enfileira os dois canais). SMTP dentro da requisição foi o
@@ -31,6 +32,7 @@ namespace Padelizou.Controllers
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
+            IReacaoService reacoes,
             IWebHostEnvironment env, IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
@@ -43,6 +45,7 @@ namespace Padelizou.Controllers
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
+            _reacoes = reacoes;
             _env = env;
             _pushService = pushService;
             _pagamentos = pagamentos;
@@ -1740,6 +1743,12 @@ namespace Padelizou.Controllers
                 : null;
             ViewBag.MeuId = meuId;
             ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
+
+            // REAÇÕES COM EMOJI (12/09/2026): as reações de cada jogo da tela, no MESMO
+            // desenho de lote do palpitômetro logo acima. 🗣️ *"a cada jogo, permita a pessoa
+            // 'reagir'"* — e "a cada jogo" nesta lista são 97 cartões: perguntar jogo a jogo
+            // é como uma tela vira 97 idas ao banco.
+            ViewBag.Reacoes = await _reacoes.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
 
             // QUEM MARCA PLACAR: a escolha do organizador (Services/QuemMarcaOPlacar) chega
             // às listas pra desenhar o lápis de quem a régua liberar — e cada POST confere
