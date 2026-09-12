@@ -25,8 +25,10 @@ public class PreviaDizOClubeNaTelaTests
 {
     [Theory]
     // O cartão da prévia no quadro do mata-mata — o do print. Mora no partial da árvore desde
-    // 11/09/2026; antes era markup solto no meio do `Details.cshtml`.
-    [InlineData("Torneios/_ChaveProjetadaArvore.cshtml", "previsto")]
+    // 11/09/2026; antes era markup solto no meio do `Details.cshtml`. E desde 12/09/2026 esse
+    // partial é o MESMO da chave de verdade, que desenha o jogo previsto e o jogo real com um
+    // cálculo só de etiqueta.
+    [InlineData("Torneios/_ChaveDoMataMata.cshtml", "previsto")]
     // A opção "trocar com qual jogo?" do modal de horário, no mesmo arquivo da lista.
     [InlineData("Torneios/_JogosDoTorneio.cshtml", "previsto")]
     // A linha do jogo previsto na aba Jogos.

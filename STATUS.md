@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/blissful-archimedes-j1rak0`.** **Sem migration.** 🌳 **A CHAVE DE VERDADE VOLTOU A TER AS LINHAS: UM DESENHO SÓ, ANTES E DEPOIS DO MATA-MATA NASCER.**
+>
+> 🗣️ Felipe, com o print da 4ª Categoria Masculina do ER já no mata-mata: *"e ele mudou o visual quando terminou a chave, era para manter como estava, tava bom"*.
+>
+> 🕳️ **A ABA TINHA DOIS DESENHOS E TROCAVA DE UM PRO OUTRO SOZINHA.** Antes dos grupos acabarem, a prévia era a árvore deitada com as linhas de ligação (`_ChaveProjetadaArvore`); no instante em que o mata-mata nascia, a mesma aba virava fases empilhadas em cartões (`_ChaveDoMataMata`), sem linha nenhuma. ⚠️ **E o STATUS de 11/09 prometia exatamente o contrário** — *"no dia em que os grupos acabam a tela não muda de cara, os cartões só ganham nome e placar"*: a promessa valia só pro CARTÃO, que era o mesmo `.pdz-chave-vaga`. O ESQUELETO ao redor dele era outro arquivo, com outra geometria — e é o esqueleto que se vê.
+>
+> ✅ **UM PARTIAL SÓ**, `_ChaveDoMataMata`, usado pelos dois caminhos do `Details.cshtml`. A prévia é a chave **sem nenhum jogo criado**, e `QuadroDoMataMata.DaPrevia` só a traduz pro formato do quadro; a geometria continua sendo a conta única de `ArvoreDaChave`, que passou a receber o ESQUELETO (número do jogo + de quais jogos ele vem) em vez do tipo da projeção. As ~160 linhas do partial da prévia foram embora inteiras.
+>
+> 🔑 **O DADO QUE FALTAVA: a procedência da vaga REAL.** O quadro calculava de qual jogo vem cada lado e **jogava fora assim que a vaga virava partida** — sem isso a linha que chega na semifinal real não tem onde se prender. Agora `Vaga.VemDoJogo1/2` vale pros dois casos, com o mesmo pareamento primeiro × último do robô.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR (Chromium + Postgres de verdade), no cenário do print**: 12 duplas, oitavas com 4 jogos e 4 byes. A 1440px a chave inteira cabe (trilho 1232px, cartão de **264px** — os 17rem medidos em 11/09) e a 390px ela arrasta com encaixe (trilho 321px, conteúdo 1147px, cartão 204px); **a página não rola de lado em nenhum dos dois** e **nenhuma linha `.pdz-chave-quando` corta o nome do clube**. Com o jogo 1 finalizado e o 2 em quadra: vencedor em verde com 6×3, anel vermelho e "● AO VIVO" no outro, e a quarta mostrando **"venceu o jogo 1"** antes de a rodada fechar. A prévia (3 grupos) saiu igual à de antes: 5 vagas, 4 ligações, cartão sólido, sem a caixa de ajuda.
+>
+> ⚠️ **O QUE MUDOU DE PROPÓSITO NA CHAVE REAL, além do esqueleto**: a vaga da FINAL ainda sem jogo ganhou o destaque verde que a prévia já tinha (com jogo ela não ganha — o verde apagaria o anel de "seu jogo" e o vermelho do ao vivo, porque `.pdz-chave-vaga.pdz-arv-final` tem duas classes no seletor). ⚠️ **atalho deliberado**: a vaga futura da chave real continua dizendo "a definir" em vez da hora prevista — casar `ViewBag.ProjecaoCompleta` com a numeração global do quadro é outra tarefa, e essa hora já está na aba Jogos.
+>
+> 🧪 **6.909 testes, 0 falhas (6 novos em `ChaveRealDesenhadaComoArvoreTests`)** + os **8** conferidores de JS verdes. Vistos vermelhos antes, por *"não existe"*: `Vaga.VemDoJogo1`, `QuadroDoMataMata.Geometria` e `QuadroDoMataMata.DaPrevia`. Os dois testes de fonte travam o que a queixa pede: o `Details` desenha os dois casos com **o mesmo partial** (e o da prévia não existe mais) e esse partial usa o trilho da árvore, não as fases empilhadas. Seis testes de guarda que apontavam pro arquivo apagado foram **repontados, com as asserções intactas**.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **O AO VIVO NÃO RECARREGA MAIS A PÁGINA — NEM QUANDO UM JOGO ENTRA OU SAI DE QUADRA.**
 >
 > 🗣️ Felipe, sobre a correção da entrada anterior: *"E quando atualizar, mantem na altura q tava a pagina no scroll. E nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar carregar?"*
 >

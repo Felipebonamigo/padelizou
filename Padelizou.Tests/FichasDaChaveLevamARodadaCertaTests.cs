@@ -38,7 +38,7 @@ public class FichasDaChaveLevamARodadaCertaTests
 {
     private static string Partial() =>
         File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Torneios",
-                                      "_ChaveProjetadaArvore.cshtml"));
+                                      "_ChaveDoMataMata.cshtml"));
 
     private static string Details() =>
         File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Views", "Torneios", "Details.cshtml"));
@@ -73,8 +73,11 @@ public class FichasDaChaveLevamARodadaCertaTests
     {
         var details = Details();
 
-        // O partial só consegue montar o id único se quem o desenha entregar a categoria.
-        Assert.Contains("previstosDoQuadro, categoria.Id)", details);
+        // O partial só consegue montar o id único se quem o desenha entregar a categoria — e
+        // são DUAS chamadas desde 12/09/2026 (a prévia e a chave de verdade usam o mesmo
+        // partial), então as duas precisam entregar.
+        Assert.Equal(2, details.Split("<partial name=\"_ChaveDoMataMata\"").Length - 1);
+        Assert.Equal(2, details.Split("categoria.Id)\" />").Length - 1);
 
         // Sem o script carregado, a ficha volta a ser âncora pura — e volta o "às vezes".
         Assert.Contains("~/js/chave-fichas.js", details);
