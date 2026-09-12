@@ -36,14 +36,14 @@
     bool temPalpite = r != null && r.TotalVotos > 0;
     bool podeVotar = jogo.Status == "Agendada" && Model.MeuId.HasValue;
 
-    // O palpitrômetro aparece em TODO jogo que ainda vai acontecer, com ou sem voto, e nos
+    // O palpitômetro aparece em TODO jogo que ainda vai acontecer, com ou sem voto, e nos
     // que acabaram só se alguém palpitou (aí ele é histórico).
     //
     // Antes ele dependia de haver voto OU de estar logado — e o resultado era uma lista
     // salpicada, com o bloco aparecendo em dois jogos e sumindo em dez, do lado de jogos
     // idênticos. Quem visita deslogado é justamente quem ainda pode virar usuário: ver a
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
-    bool mostraPalpitrometro = temPalpite || jogo.Status == "Agendada";
+    bool mostraPalpitometro = temPalpite || jogo.Status == "Agendada";
 
     // NOME E SOBRENOME, não só o primeiro nome (Felipe, 08/08/2026): "aqui no americano está
     // difícil de entender quem é quem".
@@ -417,25 +417,25 @@
     @* As duas duplas EMPILHADAS, uma por linha, em qualquer tamanho de tela.
        Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
        pra ler o confronto. Empilhado, cada dupla é uma linha com rosto, nome e — quando há
-       palpitrômetro — a PORCENTAGEM DELA na ponta: assim o número aponta pra uma dupla, em
+       palpitômetro — a PORCENTAGEM DELA na ponta: assim o número aponta pra uma dupla, em
        vez de o leitor ter que adivinhar se os 100% da esquerda são de quem está em cima.
 
-       O container do palpitrômetro abraça as duas linhas + a barra porque o JS que vota e
-       atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitrometro.js). *@
+       O container do palpitômetro abraça as duas linhas + a barra porque o JS que vota e
+       atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitometro.js). *@
     @* ⚠️ `pdz-palpite-linha` NÃO é decoração: é a marca que diz ao JS que esta é a versão
-       EM LINHA do palpitrômetro. Sem ela, o atualizarPalpitrometro cai no comportamento do
+       EM LINHA do palpitômetro. Sem ela, o atualizarPalpitometro cai no comportamento do
        cartão grande — carimba a setinha e ESCONDE o lado perdedor. Na linha isso apagava uma
        das duas porcentagens depois do voto, e como a porcentagem é o próprio botão, sumia
-       junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitrometro.js. *@
+       junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitometro.js. *@
     @{
         int? meuVencedor = r != null && r.PalpiteiOPlacar ? Math.Max(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
         int? meuPerdedor = r != null && r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
         string moedaDoPlacar = r != null && r.PlacarEmSets ? "sets" : "games";
     }
-    <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
-         @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\" data-dupla1-id=\"{jogo.Dupla1Id}\" data-meu-voto=\"{r?.MeuVotoDuplaId}\"") : null)>
+    <div class="pdz-jl-corpo @(mostraPalpitometro ? "pdz-palpitometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
+         @(mostraPalpitometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\" data-dupla1-id=\"{jogo.Dupla1Id}\" data-meu-voto=\"{r?.MeuVotoDuplaId}\"") : null)>
 
-        @if (mostraPalpitrometro)
+        @if (mostraPalpitometro)
         {
             @* O rótulo fica em cima da COLUNA de porcentagens, não numa linha própria
                embaixo: ali ele nomeia os números que estão logo abaixo dele, e a linha
@@ -443,7 +443,7 @@
                ocupando uma altura inteira pra dizer o que os dois números já dizem. *@
             <div class="pdz-jl-palpite-topo">
                 <span class="pdz-palpite-rotulo">
-                    <i class="bi bi-graph-up"></i> PALPITRÔMETRO
+                    <i class="bi bi-graph-up"></i> PALPITÔMETRO
                     <span class="pdz-palpite-ajuda">
                         @if (Model.Finalizada)
                         {
@@ -458,7 +458,7 @@
                             <a asp-controller="Auth" asp-action="Login">· entre pra palpitar</a>
                         }
                     </span>
-                    @* "Ver quem votou" existia só no cartão grande. Na lista o palpitrômetro
+                    @* "Ver quem votou" existia só no cartão grande. Na lista o palpitômetro
                        virava um número anônimo — e metade da graça dele é justamente saber
                        QUEM apostou contra você. Vale nas agendadas e nas finalizadas: depois
                        do jogo é que se cobra quem errou o palpite. *@
@@ -509,7 +509,7 @@
             {
                 <span class="pdz-jl-games">@g1</span>
             }
-            @if (mostraPalpitrometro)
+            @if (mostraPalpitometro)
             {
                 <span class="pdz-palpite-pct text-success @(r?.MeuVotoDuplaId == jogo.Dupla1Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
                       data-pct="1" data-dupla-id="@jogo.Dupla1Id" data-votavel="@podeVotar.ToString().ToLower()"
@@ -531,7 +531,7 @@
             {
                 <span class="pdz-jl-games">@g2</span>
             }
-            @if (mostraPalpitrometro)
+            @if (mostraPalpitometro)
             {
                 <span class="pdz-palpite-pct text-primary @(r?.MeuVotoDuplaId == jogo.Dupla2Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
                       data-pct="2" data-dupla-id="@jogo.Dupla2Id" data-votavel="@podeVotar.ToString().ToLower()"
@@ -539,7 +539,7 @@
             }
         </div>
 
-        @* ── O PLACAR (mesmo bloco do cartão grande — ver _Palpitrometro.cshtml) ──────────
+        @* ── O PLACAR (mesmo bloco do cartão grande — ver _Palpitometro.cshtml) ──────────
            Só aparece DEPOIS do voto e é OPCIONAL: palpitar continua sendo um toque no nome,
            e quem quiser dá o segundo escolhendo a ficha. *@
         @if (podeVotar && r != null && r.PlacaresDoFormato.Count > 0)
@@ -584,9 +584,9 @@
         @* ⚠️ SEM `@if`: a linha NASCE na página, escondida quando ainda não há leitura da galera
            (o mesmo desenho do cartão grande). Com o limiar de dois palpites no mesmo placar, o
            caso mais comum de ela passar a existir é o SEU palpite formando o par — e o
-           `atualizarPalpitrometro` só sabe mostrar um elemento que já está no DOM. Gerada por
+           `atualizarPalpitometro` só sabe mostrar um elemento que já está no DOM. Gerada por
            `@if`, a leitura da galera só apareceria no F5. *@
-        @if (mostraPalpitrometro)
+        @if (mostraPalpitometro)
         {
             @* 🗣️ Felipe, 10/09/2026, com esta frase marcada num print: *"tambem permita clicar
                e ver quem colocou o palpitometro e qual o placar"*. Ela é o lugar mais natural

@@ -1,7 +1,7 @@
 async function votarPalpite(el) {
     if (el.dataset.votavel !== 'true') return;
 
-    const container = el.closest('.pdz-palpitrometro');
+    const container = el.closest('.pdz-palpitometro');
 
     // ⚠️ Trocar de dupla vai SEM placar, e o servidor apaga o que estava gravado. É de
     // propósito: o placar velho apontava a outra dupla, e mantê-lo deixaria a linha dizendo
@@ -13,7 +13,7 @@ async function votarPalpite(el) {
 // dono: se eu votei na Dupla 1, o vencedor é o lado 1; se votei na Dupla 2, ele é o lado 2.
 // O servidor recebe sempre na orientação do JOGO, que é a mesma das colunas da partida.
 async function palpitarPlacar(el) {
-    const container = el.closest('.pdz-palpitrometro');
+    const container = el.closest('.pdz-palpitometro');
     const meuVoto = container.dataset.meuVoto;
 
     // Sem voto não há lado pro placar — a tela já esconde as fichas, isto é o cinto.
@@ -59,7 +59,7 @@ async function enviarPalpite(container, duplaId, placar1, placar2) {
 // com o que respondeu por último — o palpite reaparecendo depois de retirado. Quem decide se
 // dá pra retirar é o servidor (só enquanto o jogo está agendado).
 async function retirarPalpite(el) {
-    const container = el.closest('.pdz-palpitrometro');
+    const container = el.closest('.pdz-palpitometro');
     if (!container) return;
 
     return enfileirar(container, '/Partidas/RetirarPalpite?partidaId=' + container.dataset.partidaId);
@@ -100,7 +100,7 @@ async function enfileirar(container, pedido) {
             delete container.dataset.palpitePendente;
         }
     } finally {
-        // A trava se solta aconteça o que acontecer. Travado pra sempre, o palpitrômetro
+        // A trava se solta aconteça o que acontecer. Travado pra sempre, o palpitômetro
         // deixaria de aceitar toque até o F5 — pior do que o erro que derrubou o envio.
         delete container.dataset.palpiteEmVoo;
         delete container.dataset.palpitePendente;
@@ -126,17 +126,17 @@ async function falarComOServidor(container, pedido) {
     }
 
 
-    atualizarPalpitrometro(container, data);
+    atualizarPalpitometro(container, data);
 }
 
-function atualizarPalpitrometro(container, data) {
+function atualizarPalpitometro(container, data) {
     const badge1 = container.querySelector('[data-pct="1"]');
     const badge2 = container.querySelector('[data-pct="2"]');
     const dupla1Lidera = data.percentualDupla1 >= data.percentualDupla2;
 
-    // Duas apresentações do MESMO palpitrômetro. No cartão grande só o lado que lidera
+    // Duas apresentações do MESMO palpitômetro. No cartão grande só o lado que lidera
     // mostra o número, com uma seta apontando a barra. Na LINHA das listas os dois números
-    // ficam sempre à vista, um de cada lado — ali eles são o palpitrômetro inteiro, e
+    // ficam sempre à vista, um de cada lado — ali eles são o palpitômetro inteiro, e
     // esconder um deixaria a linha dizendo pela metade.
     const emLinha = container.classList.contains('pdz-palpite-linha');
 
@@ -178,7 +178,7 @@ function atualizarPalpitrometro(container, data) {
         botao.hidden = data.meuVotoDuplaId == null;
     });
 
-    // Saiu do zero: o estado "ninguém palpitou" some. Sem isto o palpitrômetro continuava
+    // Saiu do zero: o estado "ninguém palpitou" some. Sem isto o palpitômetro continuava
     // com cara de apagado DEPOIS do voto, e quem acabou de votar concluía que não tinha
     // funcionado — foi o que aconteceu no Interno.
     if (data.totalVotos > 0) container.classList.remove('pdz-palpite-vazio');
@@ -190,7 +190,7 @@ function atualizarPalpitrometro(container, data) {
 }
 
 // A parte do PLACAR: as fichas e a frase da galera. Tudo aqui é null-safe porque a versão EM
-// LINHA do palpitrômetro não tem nada disto — e foi um null-check faltando neste arquivo que
+// LINHA do palpitômetro não tem nada disto — e foi um null-check faltando neste arquivo que
 // já fez o voto ir pro servidor sem a tela mexer, que é o pior dos dois mundos.
 function atualizarPlacarDoPalpite(container, data) {
     // Quem sou eu agora, pra próxima ficha saber de que lado orientar o placar.
@@ -347,7 +347,7 @@ async function verVotos(partidaId, nome1, nome2) {
     }
 
     // A contagem ao lado do nome da dupla: é ela que diz de cara pra que lado a galera pendeu —
-    // a barra do palpitrômetro fica fora do modal.
+    // a barra do palpitômetro fica fora do modal.
     titulo1.innerText = nome1 + ' · ' + (data.votantesDupla1 || []).length;
     titulo2.innerText = nome2 + ' · ' + (data.votantesDupla2 || []).length;
 
