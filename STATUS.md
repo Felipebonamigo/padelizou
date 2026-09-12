@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/wizardly-tesla-pkr17q`, indo pro `dev`.** **Sem migration.** 🎛️ **OS FILTROS DA ABA JOGOS VIRARAM UM BOTÃO SÓ.**
+>
+> 🗣️ Felipe, num print da aba Jogos no celular: *"aqui esta muito poluito, muitos botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de um botão 'filtros'"*. Eram **seis controles em quatro linhas** — Meus jogos, Todos os Times, Todos os clubes, Todas as quadras, Todas as fases e Categorias — antes das abas Ao Vivo/Agendadas/Finalizadas e do primeiro card de jogo. No dia de jogo a tela abria com a régua em vez de com a bola.
+>
+> ✅ **FICAM NA LINHA: `Meus jogos` e `Filtros`.** Os cinco selects moram num `collapse` do Bootstrap (o mesmo recolhido do "editar torneio" e do CheckIn — nada de painel de JS próprio). O botão **só aparece quando há o que recolher**: torneio de um clube, uma quadra e uma categoria não ganha painel vazio, que é a mesma régua do "Meus jogos" só existir pra quem tem jogo ali.
+>
+> ⚠️ **PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA** — é a mesma "tela mentindo sobre o filtro escolhido" que já tinha tirado o botão "Filtrar" daqui. Por isso duas coisas ficaram **fora** do recolhido: o **contador no próprio botão** (`Filtros (2)`, e ele fica verde) e o **`Limpar filtros`**. Quem abre a tela já filtrada por URL vê meia lista e tem a saída na mão.
+>
+> 🔑 **O `Limpar` passou a valer pros CINCO filtros**, não só pros três da sequência (clube/quadra/fase): categoria e time filtravam sem oferecer saída nenhuma. O contador conta **dimensão, não escolha** — três categorias marcadas continuam sendo um filtro só, que é como quem lê o número entende.
+>
+> ⚠️ **O `collapse` mora DENTRO do `<form id="filtroJogos">`**: select escondido por CSS continua viajando no GET (só `disabled` não viaja), mas select fora do formulário não viaja nunca. E o auto-submit das Categorias segue no `hidden.bs.dropdown` — evento diferente do `hidden.bs.collapse`, então fechar o painel não recarrega a página.
+>
+> 🧪 **6.855 testes, 0 falhas (9 novos)** + os 5 conferidores de JS verdes. Os 9 foram **vistos vermelhos** em *"Não achei o painel recolhido #filtrosDosJogos"*. São testes de FONTE (`FiltrosRecolhidosNaListaDeJogosTests`), como a bolinha do Ao Vivo: a suíte não renderiza Razor, e o painel é markup puro. Um deles casa as tags `<div>` pra provar que cada select está **dentro** do recolhido — e não só depois dele, que passaria com o painel fechado no meio.
+>
+> ⚠️ **NÃO VISTO RODANDO NUM BROWSER** — a sessão não tem tela. O que está travado por teste é o markup; o comportamento do recolhido no celular é o que precisa de olho no `dev`.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
 >
 > 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
 >

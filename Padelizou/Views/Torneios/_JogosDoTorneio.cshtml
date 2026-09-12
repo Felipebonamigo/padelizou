@@ -170,8 +170,34 @@
     bool temFiltroDeClube = clubesFiltro.Count > 1;
     bool temFiltroDeQuadra = quadrasParaFiltrar.Count > 1;
     bool temFiltroDeFase = fasesFiltro.Count > 1;
+
+    // 🗣️ Felipe, 12/09/2026, num print da aba no celular: *"aqui esta muito poluito, muitos
+    // botoes. Acho que poe apenas um Meus jogos e os outros todos coloca minimizado dentro de
+    // um botão 'filtros'"*. Eram seis controles em quatro linhas antes do primeiro jogo — no
+    // dia de jogo a tela abria com a régua em vez de com a bola.
+    //
+    // "Meus jogos" fica fora (liga/desliga de um toque, e é o recorte que mais gente usa); os
+    // outros cinco moram dentro do painel recolhido. O botão só existe se houver o que
+    // recolher — abrir um painel vazio é a mesma decepção do botão que não faz nada.
+    bool temFiltroRecolhido = temFiltroDeTime || temFiltroDeClube || temFiltroDeQuadra
+        || temFiltroDeFase || temFiltroDeCategoria;
+
+    // ⚠️ PAINEL FECHADO NÃO PODE ESCONDER QUE A LISTA ESTÁ FILTRADA: sem este contador no
+    // botão, quem escolheu uma quadra recarrega a página, vê meia lista e não tem como
+    // descobrir por quê. Conta DIMENSÃO, não escolha — três categorias marcadas continuam
+    // sendo um filtro só, que é como quem lê "Filtros (2)" entende o número.
+    //
+    // ⚠️ E conta sem olhar se o select correspondente está na tela: o que o número promete é o
+    // estado da LISTA, não o do painel. Filtro que veio pela URL num torneio de um clube só
+    // recorta os jogos do mesmo jeito, e some do "Limpar" se não for contado aqui.
+    int filtrosAtivos =
+        ((ViewBag.TimeAtual as int?) != null ? 1 : 0)
+        + (filtroSequencia.ClubeId != null ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(filtroSequencia.Quadra) ? 1 : 0)
+        + (!string.IsNullOrWhiteSpace(filtroSequencia.Fase) ? 1 : 0)
+        + (categoriaFiltroAtual.Length > 0 ? 1 : 0);
 }
-@if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui || temFiltroDeClube || temFiltroDeQuadra || temFiltroDeFase)
+@if (tenhoJogoAqui || temFiltroRecolhido)
 {
     <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <input type="hidden" name="id" value="@Model.TorneioId" />
@@ -195,78 +221,101 @@
             </a>
         }
 
-        @if (temFiltroDeTime)
+        @if (temFiltroRecolhido)
         {
-            <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
-                <option value="">Todos os Times</option>
-            </select>
+            @* O `collapse` do Bootstrap, e não um painel de JS próprio: a página já carrega o
+               bundle dele e o mesmo recolhido desenha o "editar torneio" e o CheckIn. *@
+            <button class="btn @(filtrosAtivos > 0 ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#filtrosDosJogos"
+                    aria-expanded="false" aria-controls="filtrosDosJogos">
+                <i class="bi bi-sliders"></i>
+                Filtros@(filtrosAtivos > 0 ? $" ({filtrosAtivos})" : "")
+            </button>
         }
 
-        @* A sequência por clube, por quadra e por fase — aplica sozinha ao escolher, como o
-           time. A opção da quadra leva o clube junto ("Er Padel · Arena 1"), a mesma etiqueta
-           da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
-        @if (temFiltroDeClube)
+        @if (filtrosAtivos > 0)
         {
-            <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
-                <option value="">Todos os clubes</option>
-                @foreach (var clube in clubesFiltro)
-                {
-                    <option value="@clube.Id" selected="@(filtroSequencia.ClubeId == clube.Id)">@clube.Nome</option>
-                }
-            </select>
-        }
-
-        @if (temFiltroDeQuadra)
-        {
-            <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
-                <option value="">Todas as quadras</option>
-                @foreach (var nomeDaQuadra in quadrasParaFiltrar)
-                {
-                    <option value="@nomeDaQuadra"
-                            selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
-                        @(LugarDoJogo.Etiqueta(ViewData.Sedes(), nomeDaQuadra) ?? nomeDaQuadra)
-                    </option>
-                }
-            </select>
-        }
-
-        @if (temFiltroDeFase)
-        {
-            <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
-                <option value="">Todas as fases</option>
-                @foreach (var fase in fasesFiltro)
-                {
-                    <option value="@fase.Valor" selected="@(fase.Valor == filtroSequencia.Fase?.Trim())">@fase.Rotulo</option>
-                }
-            </select>
-        }
-
-        @if (filtroSequencia.Ativo)
-        {
-            @* Volta pra lista inteira — todos os filtros, não só estes três: é o que "limpar" diz. *@
+            @* Fora do recolhido de propósito: é a saída de quem abriu a tela já filtrada e não
+               sabe por que a lista encolheu. Volta pra lista inteira — todos os filtros, não
+               só os três da sequência: é o que "limpar" diz. *@
             <a asp-action="@Model.TargetAction" asp-route-id="@Model.TorneioId"
                class="btn btn-link btn-sm text-decoration-none px-1">
                 <i class="bi bi-x-circle"></i> Limpar filtros
             </a>
         }
 
-        @if (temFiltroDeCategoria)
-        {
-            <div class="dropdown">
-                <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                    Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
-                </button>
-                <ul class="dropdown-menu p-2" style="min-width: 220px;">
-                    @foreach (var cat in categoriasDoTorneio)
-                    {
-                        <li class="form-check ms-1">
-                            <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
-                            <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
-                        </li>
-                    }
-                </ul>
+        @* `w-100` joga o painel pra própria linha dentro do flex do formulário — aberto, ele
+           não empurra o "Meus jogos" pra fora da primeira linha no celular.
+
+           ⚠️ DENTRO DO <form>: select escondido por CSS continua viajando no GET (só
+           `disabled` não viaja), mas select FORA do formulário não viaja nunca. *@
+        <div class="collapse w-100" id="filtrosDosJogos">
+            <div class="d-flex align-items-center gap-2 flex-wrap pt-2">
+                @if (temFiltroDeTime)
+                {
+                    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
+                        <option value="">Todos os Times</option>
+                    </select>
+                }
+
+                @* A sequência por clube, por quadra e por fase — aplica sozinha ao escolher, como o
+                   time. A opção da quadra leva o clube junto ("Er Padel · Arena 1"), a mesma etiqueta
+                   da linha, porque num torneio de dois clubes "Quadra 1" sozinha não diz de onde. *@
+                @if (temFiltroDeClube)
+                {
+                    <select name="clubeFiltroId" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Clube">
+                        <option value="">Todos os clubes</option>
+                        @foreach (var clube in clubesFiltro)
+                        {
+                            <option value="@clube.Id" selected="@(filtroSequencia.ClubeId == clube.Id)">@clube.Nome</option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeQuadra)
+                {
+                    <select name="quadraFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Quadra">
+                        <option value="">Todas as quadras</option>
+                        @foreach (var nomeDaQuadra in quadrasParaFiltrar)
+                        {
+                            <option value="@nomeDaQuadra"
+                                    selected="@string.Equals(nomeDaQuadra, filtroSequencia.Quadra?.Trim(), StringComparison.OrdinalIgnoreCase)">
+                                @(LugarDoJogo.Etiqueta(ViewData.Sedes(), nomeDaQuadra) ?? nomeDaQuadra)
+                            </option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeFase)
+                {
+                    <select name="faseFiltro" class="form-select" style="width: auto;" onchange="this.form.submit()" aria-label="Fase">
+                        <option value="">Todas as fases</option>
+                        @foreach (var fase in fasesFiltro)
+                        {
+                            <option value="@fase.Valor" selected="@(fase.Valor == filtroSequencia.Fase?.Trim())">@fase.Rotulo</option>
+                        }
+                    </select>
+                }
+
+                @if (temFiltroDeCategoria)
+                {
+                    <div class="dropdown">
+                        <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
+                        </button>
+                        <ul class="dropdown-menu p-2" style="min-width: 220px;">
+                            @foreach (var cat in categoriasDoTorneio)
+                            {
+                                <li class="form-check ms-1">
+                                    <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
+                                    <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
             </div>
-        }
+        </div>
     </form>
 
     <script>
