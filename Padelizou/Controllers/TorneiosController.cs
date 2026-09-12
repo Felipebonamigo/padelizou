@@ -1670,6 +1670,15 @@ namespace Padelizou.Controllers
             // logo abaixo.
             ViewBag.UsaCheckIn = torneioDaTela?.UsaCheckIn == true;
 
+            // QUEM JÁ CHEGOU — só pra quem opera o dia e só onde a chamada está ligada. Sem as
+            // duas guardas, toda visita anônima à página mais visitada do site pagaria uma
+            // consulta que ninguém vai enxergar.
+            ViewBag.ChegadasNoTorneio = ViewBag.UsaCheckIn == true && ViewBag.EhOrganizador == true
+                ? await _context.Presencas
+                    .Where(p => p.TorneioId == torneioId)
+                    .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm)
+                : new Dictionary<int, DateTime>();
+
             // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
             // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima
             // da tela. Oferecer o botão e negá-lo em seguida é fazer o organizador descobrir a

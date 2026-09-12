@@ -3,9 +3,19 @@
     ViewData["Title"] = $"Check-in — {Model.Nome}";
 
     var todas = Model.Categorias.SelectMany(c => c.Duplas).Where(d => !d.EmListaDeEspera).ToList();
-    int presentes = todas.Count(d => d.CheckInEm != null);
-    int faltam = todas.Count - presentes;
-    int pct = todas.Count == 0 ? 0 : (int)Math.Round(presentes * 100.0 / todas.Count);
+
+    // A CONTA É EM PESSOAS DESDE 12/09/2026 — quem é marcado é gente, não par (🗣️ "Mude para um
+    // check por jogador"). Contar duplas deixava metade das chegadas invisível justamente na
+    // única linha que resume a tela: com um dos dois no clube, a dupla ainda contava zero.
+    //
+    // ⚠️ Os números vêm do CONTROLLER, e não de uma conta aqui: quem joga duas categorias
+    // aparece em duas duplas e é UMA pessoa no clube — a contagem precisa ser distinta por
+    // jogador, e refazê-la na view seria a segunda régua.
+    var chegadas = ViewBag.Chegadas as IReadOnlyDictionary<int, DateTime> ?? new Dictionary<int, DateTime>();
+    int total = ViewBag.TotalDeJogadores as int? ?? 0;
+    int presentes = ViewBag.JogadoresPresentes as int? ?? 0;
+    int faltam = total - presentes;
+    int pct = total == 0 ? 0 : (int)Math.Round(presentes * 100.0 / total);
 
     @* A fila já vem ordenada do controller (Services/OrdemNoHorario, a mesma da aba Jogos).
        Reordenar aqui seria a segunda conta de "quem vem antes" — e é assim que duas telas
@@ -29,7 +39,7 @@
        gente?", que não muda porque a tela agora começa pelos jogos. *@
     <div class="card border-0 shadow-sm mb-4 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @todas.Count presentes</span>
+            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @total jogadores presentes</span>
             <span class="badge rounded-pill @(faltam == 0 ? "bg-success" : "bg-warning text-dark")">
                 @(faltam == 0 ? "todos chegaram" : $"{faltam} faltando")
             </span>
@@ -69,7 +79,7 @@
 
             foreach (var jogo in doHorario)
             {
-                <partial name="_JogoNoCheckIn" model="jogo" />
+                <partial name="_JogoNoCheckIn" model="(jogo, chegadas)" />
             }
         }
     }
@@ -89,7 +99,7 @@
         <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button"
                 data-bs-toggle="collapse" data-bs-target="#restoDoTorneio"
                 aria-expanded="false" aria-controls="restoDoTorneio">
-            <i class="bi bi-list-ul"></i> Resto do torneio — todas as duplas (@presentes/@todas.Count)
+            <i class="bi bi-list-ul"></i> Resto do torneio — todas as duplas (@presentes/@total)
         </button>
 
         <div class="collapse mt-3" id="restoDoTorneio">
@@ -100,17 +110,18 @@
                     .OrderBy(d => d.NomeTime ?? d.Jogador1.ComoChamar).ToList();
                 if (!duplas.Any()) { continue; }
 
+                var jogadoresDaCategoria = duplas.SelectMany(Padelizou.Services.PresencaNoDia.IdsDa).ToList();
                 <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
                     @cat.Nome
                     <span class="text-muted small fw-normal">
-                        (@duplas.Count(d => d.CheckInEm != null)/@duplas.Count)
+                        (@jogadoresDaCategoria.Count(chegadas.ContainsKey)/@jogadoresDaCategoria.Count)
                     </span>
                 </h6>
 
                 <div class="list-group shadow-sm">
                     @foreach (var d in duplas)
                     {
-                        <partial name="_LinhaDoCheckIn" model="d" />
+                        <partial name="_LinhaDoCheckIn" model="(d, Model.Id, chegadas)" />
                     }
                 </div>
             }
@@ -145,7 +156,7 @@
             <div class="collapse mt-3" id="jaJogaram">
                 @foreach (var jogo in jaRolaram)
                 {
-                    <partial name="_JogoNoCheckIn" model="jogo" />
+                    <partial name="_JogoNoCheckIn" model="(jogo, chegadas)" />
                 }
             </div>
         </div>

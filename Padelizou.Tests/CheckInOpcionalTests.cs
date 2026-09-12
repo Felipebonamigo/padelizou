@@ -59,10 +59,11 @@ public class CheckInOpcionalTests
         var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(dupla.Id, presente: true);
+            .MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
 
         Assert.IsType<RedirectToActionResult>(resultado);
-        Assert.Null((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        // A presença é linha em PresencaNoTorneio desde 12/09/2026 — desligado, ela não nasce.
+        Assert.Empty(ctx.Presencas);
     }
 
     [Fact]
@@ -73,11 +74,11 @@ public class CheckInOpcionalTests
         var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(dupla.Id, presente: true);
-        Assert.NotNull((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        Assert.Single(ctx.Presencas);
 
-        await controller.MarcarCheckIn(dupla.Id, presente: false);
-        Assert.Null((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: false);
+        Assert.Empty(ctx.Presencas);
     }
 
     [Fact]

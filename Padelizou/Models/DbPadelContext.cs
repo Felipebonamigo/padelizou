@@ -30,6 +30,8 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<CategoriaPadrao> CategoriasPadrao { get; set; }
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public virtual DbSet<TorneioMarcador> TorneioMarcadores { get; set; }
+    // Quem já chegou ao clube, uma linha por PESSOA por torneio (Models/PresencaNoTorneio).
+    public virtual DbSet<PresencaNoTorneio> Presencas { get; set; }
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
@@ -349,6 +351,23 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(tm => tm.JogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        // O CHECK-IN, uma linha por (torneio, pessoa). A PK composta é o que segura o clique
+        // duplo no balcão — sem uma linha de C# pra isso. Jogador em Restrict pela mesma razão
+        // das outras tabelas de vínculo: um segundo caminho de cascade a partir de Jogador é o
+        // conflito já visto em JogoSemanal/CandidaturaParceiro. Torneio em Cascade porque a
+        // presença não sobrevive ao torneio que a gerou.
+        modelBuilder.Entity<PresencaNoTorneio>(entity =>
+        {
+            entity.HasKey(p => new { p.TorneioId, p.JogadorId });
+            entity.HasOne(p => p.Jogador)
+                .WithMany()
+                .HasForeignKey(p => p.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(p => p.Torneio)
+                .WithMany()
+                .HasForeignKey(p => p.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Clube>(entity =>
         {
