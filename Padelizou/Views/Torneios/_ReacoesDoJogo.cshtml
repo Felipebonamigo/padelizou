@@ -1,4 +1,4 @@
-@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.ReacoesDaPartidaVM? reacoes, int? meuId)
+﻿@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.ReacoesDaPartidaVM? reacoes, int? meuId)
 @{
     var r = Model.reacoes ?? new Padelizou.ViewModels.ReacoesDaPartidaVM { PartidaId = Model.partida.Id };
     bool logado = Model.meuId.HasValue;
@@ -32,10 +32,18 @@
             <span class="pdz-reacao-conta">@pilula.Total</span>
         </button>
     }
-    @* O botão do teclado. Fica DEPOIS das pílulas, como no WhatsApp e no Discord, e é o único
-       elemento da fileira num jogo que ninguém reagiu ainda. *@
+    @* O botão que abre o painel. Fica DEPOIS das pílulas, como no WhatsApp e no Discord.
+       ⚠️ SEM CAIXA E PEQUENO (🗣️ Felipe, 12/09/2026: *"coloque um botão menor, sem o quadrado
+       ao redor"*). Passou por dois desenhos errados antes: um ícone de traço dentro de uma
+       borda, que media **18,5px de largura** e não dizia o que fazia; e depois um `🙂 Reagir`
+       de 83px, que era grande demais pra um rodapé que já tem palpitômetro e "cravaram o
+       placar". Agora é o rostinho sozinho, apagado até o toque.
+       ⚠️ O QUADRADO SAIU DA VISTA, NÃO DO DEDO: o `padding` continua garantindo os 32px de
+       alvo (ver site.css) — numa lista que rola, alvo do tamanho do desenho é toque perdido.
+       ⚠️ EMOJI, não `<i class="bi">`: a fileira toda é emoji, e o ícone de traço do Bootstrap
+       ficava de outra família visual ao lado das pílulas. *@
     <button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"
             aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">
-        <i class="bi bi-emoji-smile"></i>
+        <span class="pdz-reacao-emoji" aria-hidden="true">🙂</span>
     </button>
 </div>

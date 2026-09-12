@@ -25,7 +25,10 @@ public static class QuadroDoMataMata
     // dois cartões acima. A PARTIDA da fase seguinte continua nascendo só quando a rodada
     // fecha (Services/AvancoDaChave): meia chave viraria jogo sem adversário, e o
     // agendamento precisa da rodada inteira pra distribuir hora e quadra.
-    public record Lado(int? VemDoJogo, Dupla? DuplaDeBye, Dupla? JaVenceu = null)
+    // `Rotulo` é o texto pronto da PRÉVIA ("1º do Grupo A"), onde ninguém tem nome ainda —
+    // é o que deixa a chave sem jogo criado entrar neste mesmo formato, e a tela ser uma só
+    // antes e depois do mata-mata nascer (12/09/2026).
+    public record Lado(int? VemDoJogo, Dupla? DuplaDeBye, Dupla? JaVenceu = null, string? Rotulo = null)
     {
         public bool EhBye => DuplaDeBye != null;
 
@@ -37,7 +40,14 @@ public static class QuadroDoMataMata
     // Uma vaga do quadro: jogo REAL (Jogo != null) ou vaga futura (Lado1/Lado2).
     // `EhMinha` é o caminho do jogador logado — jogo em que ele está (inclusive o que já
     // perdeu: faz parte do trajeto), ou vaga futura que ainda pode ser dele.
-    public record Vaga(int Numero, Partida? Jogo, Lado? Lado1, Lado? Lado2, bool EhMinha);
+    //
+    // ⚠️ `VemDoJogoN` VALE TAMBÉM PRA VAGA COM JOGO, e é o que faltava até 12/09/2026: a
+    // procedência era calculada e jogada fora assim que a vaga virava partida, então a
+    // semifinal real não tinha onde prender a linha que chega nela. É o esqueleto que
+    // Services/ArvoreDaChave lê pra posicionar o quadro. Nulo = ninguém alimenta aquele
+    // lado — primeira rodada, ou quem folgou.
+    public record Vaga(int Numero, Partida? Jogo, Lado? Lado1, Lado? Lado2, bool EhMinha,
+                       int? VemDoJogo1 = null, int? VemDoJogo2 = null);
 
     public record Fase(string Nome, List<Vaga> Vagas);
 
@@ -112,19 +122,26 @@ public static class QuadroDoMataMata
 
             for (int k = 0; k < esperados; k++)
             {
+                // De onde vem cada lado desta vaga — o mesmo pareamento primeiro x último,
+                // tenha ela virado jogo ou não. Vazio na primeira fase (ninguém alimenta) e
+                // nulo no lado de quem folgou.
+                var de1 = k < entrantes.Count ? entrantes[k] : null;
+                var de2 = k < entrantes.Count ? entrantes[entrantes.Count - 1 - k] : null;
+
                 Vaga vaga;
                 if (k < reais.Count)
                 {
                     var jogo = reais[k];
-                    vaga = new Vaga(numero, jogo, null, null, MeuJogo(jogo));
+                    vaga = new Vaga(numero, jogo, null, null, MeuJogo(jogo),
+                                    de1?.VemDoJogo, de2?.VemDoJogo);
                     reaisTraduzidos.Add(new MeusJogos.JogoReal(
                         categoria, nomeDaFase, k + 1, MeuJogo(jogo), Perdido(jogo)));
                     proximos.Add(new Lado(numero, null, VencedoraDe(jogo)));
                 }
                 else
                 {
-                    vaga = new Vaga(numero, null,
-                        entrantes[k], entrantes[entrantes.Count - 1 - k], EhMinha: false);
+                    vaga = new Vaga(numero, null, de1, de2, EhMinha: false,
+                                    de1?.VemDoJogo, de2?.VemDoJogo);
                     projetadosTraduzidos.Add(new ProximasFasesDaChave.JogoQueVem(
                         categoria, nomeDaFase, k + 1, null,
                         Traduzir(vaga.Lado1!), Traduzir(vaga.Lado2!)));
@@ -170,4 +187,35 @@ public static class QuadroDoMataMata
 
         return fases;
     }
+
+    // ── A PRÉVIA NO MESMO FORMATO ───────────────────────────────────────────────────
+    //
+    // Chave sem nenhum jogo criado: os lados são o TEXTO da colocação ("1º do Grupo A") e a
+    // procedência vem pronta de Services/ChaveProjetada. Traduzir aqui, e não desenhar a
+    // prévia num partial só dela, é o que faz a aba não mudar de cara no dia em que o
+    // mata-mata nasce — 🗣️ *"era para manter como estava, tava bom"* (12/09/2026).
+    public static List<Fase> DaPrevia(IReadOnlyList<ChaveProjetada.RodadaProjetada> rodadas) =>
+        rodadas.Select(r => new Fase(r.Fase, r.Jogos.Select(j => new Vaga(
+            j.Numero, null,
+            new Lado(j.VemDoJogo1, null, null, SemPassouDireto(j.Lado1)),
+            new Lado(j.VemDoJogo2, null, null, SemPassouDireto(j.Lado2)),
+            EhMinha: false, j.VemDoJogo1, j.VemDoJogo2)).ToList())).ToList();
+
+    // O sufixo "(passou direto)" existe pra quem lê a prévia em LISTA, onde não há linha
+    // nenhuma pra explicar por que aquele nome já está numa fase que não aconteceu. No
+    // quadro a AUSÊNCIA de linha chegando na vaga explica, e o Felipe pediu pra tirar
+    // (11/09/2026): era a mesma informação escrita duas vezes.
+    private static string SemPassouDireto(string lado) =>
+        lado.Replace(" (passou direto)", "", StringComparison.Ordinal);
+
+    // ── ONDE CADA VAGA FICA ─────────────────────────────────────────────────────────
+    //
+    // A conta é de Services/ArvoreDaChave e é UMA só: o que sai daqui é o esqueleto (número
+    // do jogo e de quais jogos ele vem). Prévia e chave de verdade passam pelo mesmo lugar.
+    public static ArvoreDaChave.Quadro Geometria(IReadOnlyList<Fase> fases) =>
+        ArvoreDaChave.Montar(fases
+            .Select(f => new ArvoreDaChave.RodadaDeNos(f.Nome, f.Vagas
+                .Select(v => new ArvoreDaChave.No(v.Numero, v.VemDoJogo1, v.VemDoJogo2))
+                .ToList()))
+            .ToList());
 }

@@ -65,12 +65,54 @@ public class RoboDoChaveamento
         // Com o desenho (Services/CruzamentoDoMataMata) a vaga é por COLOCAÇÃO, e fica conhecida
         // no instante em que os dois grupos dela fecham. Decisão do Felipe entre as três saídas
         // possíveis: vale só com desenho — sem ele o torneio (o Er) continua letra por letra.
-        if (CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata) is { } desenho)
+        // ── A CHAVE SEMPRE SAI COMO A PRÉVIA PROMETEU (12/09/2026) ───────────────────────
+        //
+        // 🗣️ Felipe, com o ER em quadra: *"temos q garantir q congele sempre dps q as chaves
+        // forem publicadas, a menos q eu solicite alguma alteração"*.
+        //
+        // 🕳️ O CONGELAMENTO NA APROVAÇÃO NÃO BASTA, e é por isso que a garantia mora AQUI
+        // também. Ele só alcança quem for aprovado daqui pra frente — o ER foi aprovado antes
+        // de ele existir, e todo torneio já publicado idem. Sem esta linha, cada categoria
+        // dependeria de alguém lembrar de apertar um botão ANTES do último jogo do grupo
+        // acabar; quem esquecesse ganhava a chave embaralhada de volta, ao vivo. O `Padrao` é
+        // a própria prévia escrita como desenho, então "seguir o previsto" e "seguir o
+        // desenho" viraram a mesma coisa — uma régua só.
+        //
+        // ⚠️ QUEM DESENHOU À MÃO CONTINUA MANDANDO: o `Ler` vem primeiro e o `Padrao` só entra
+        // quando não há desenho nenhum. É o *"a menos que eu solicite alguma alteração"*.
+        //
+        // ⚠️ E ISSO LIGA O AVANÇO PARCIAL DOS GRUPOS pra toda categoria, não só pras
+        // desenhadas — o jogo nasce assim que os DOIS grupos dele fecham, que é o pedido de
+        // 11/09/2026. Efeito colateral desejado, mas efeito colateral: está escrito aqui pra
+        // ninguém descobrir isso na quadra.
+        var desenho = CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata);
+
+        if (desenho == null)
+        {
+            var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
+            desenho = CruzamentoDoMataMata.Padrao(
+                grupos.Select(g => g.Nome).ToList(),
+                ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                grupos.Select(g => g.Duplas.Count).ToList());
+
+            // Gravado, e não só usado: é o que a tela mostra ao organizador e o que ele edita
+            // se quiser outra coisa. Um cruzamento que existe só dentro desta chamada seria
+            // invisível pra quem precisa conferi-lo.
+            if (desenho != null)
+            {
+                categoria.CruzamentoDoMataMata = desenho.Escrever();
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        if (desenho != null)
         {
             await MontarAberturaDesenhadaAsync(categoria, torneioId, desenho, partidasDeGrupo);
             return;
         }
 
+        // Sobra pra quem não tem grupo de onde tirar vaga (categoria sem GruposTorneio): o
+        // `Padrao` devolve null e quem decide é o motor de sempre.
         await MontarMataMataDosGruposSemDesenhoAsync(categoria, torneioId, partidasDeGrupo);
     }
 

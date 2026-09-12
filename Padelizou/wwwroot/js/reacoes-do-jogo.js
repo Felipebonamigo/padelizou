@@ -34,10 +34,19 @@ function pdzFileiraDoJogo(partidaId) {
 // Chamado pela pílula E pelo botão do teclado: os dois abrem a mesma coisa, e é de propósito.
 async function verQuemReagiu(el) {
     const fileira = el.closest('.pdz-reacoes');
-    if (!fileira) return;
 
+    // ⚠️ NADA AQUI PODE FALHAR CALADO — 🗣️ Felipe, 12/09/2026: *"estou clicando no botao e nao
+    // acontece nada"*. Este `return` silencioso era a única coisa entre um toque e o vazio: se
+    // a página desenha a fileira mas esquece o `<partial name="_ModalQuemReagiu" />`, ou se o
+    // markup mudar de classe, o clique não faz nada e não sobra pista NENHUMA — nem no console.
+    // Uma tela que não pode cumprir a ação precisa dizer isso, não encolher os ombros.
     const modalEl = document.getElementById('modalQuemReagiu');
-    if (!modalEl) return;
+    if (!fileira || !modalEl) {
+        const falta = !fileira ? 'a fileira .pdz-reacoes' : 'o painel #modalQuemReagiu';
+        console.error('[reacoes] não achei ' + falta + ' — a página não registrou o painel?');
+        alert('Não consegui abrir as reações nesta tela. Atualize a página; se continuar, me avise.');
+        return;
+    }
 
     pdzReacaoPartidaId = fileira.dataset.partidaId;
 
@@ -78,6 +87,11 @@ function pdzPintarLista(dados) {
 
     // A contagem no topo, como no print: "1 reação" / "N reações".
     if (titulo) titulo.textContent = linhas.length === 1 ? '1 reação' : linhas.length + ' reações';
+
+    // ⚠️ AS PÍLULAS NA MESMA PASSADA DA LISTA: é nelas que se soma e se tira, e antes disto o
+    // painel abria com a fileira VAZIA — a única saída era digitar de novo um emoji que já
+    // estava na tela (visto no Chromium, 12/09/2026).
+    pdzPintarPilulas(dados);
 
     if (linhas.length === 0) {
         lista.innerHTML = '<div class="text-muted small">Ninguém reagiu a este jogo ainda.</div>';
@@ -210,10 +224,14 @@ function pdzPintarFileiraDoCartao(resumo) {
     // ⚠️ O BOTÃO DO TECLADO É REMONTADO JUNTO e continua sendo o último: ele é o que sobra num
     // jogo sem reação nenhuma, e perdê-lo aqui deixaria o cartão sem caminho de volta depois de
     // a pessoa tirar a única reação que existia.
+    // ⚠️ ESTE MARKUP É CÓPIA DO `_ReacoesDoJogo.cshtml` e tem que andar junto com ele: quem
+    // reagir repinta a fileira por aqui, então um botão diferente aqui significa que o desenho
+    // troca de cara no primeiro toque e volta ao normal só no F5. Tem conferência no
+    // `conferir-reacoes-do-jogo.js` casando os dois.
     fileira.innerHTML = pilulas
         + '<button type="button" class="pdz-reacao-abrir" title="Reagir com um emoji"'
         + ' aria-label="Reagir com um emoji" onclick="verQuemReagiu(this)">'
-        + '<i class="bi bi-emoji-smile"></i></button>';
+        + '<span class="pdz-reacao-emoji" aria-hidden="true">🙂</span></button>';
 }
 
 function pdzMostrarErro(mensagem) {

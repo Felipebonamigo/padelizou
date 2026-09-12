@@ -72,6 +72,33 @@ public class AbaQueFicaOndeEstaTests
     }
 
     [Fact]
+    public void O_relogio_do_ao_vivo_reconhece_jogo_agendado_na_tela()
+    {
+        // 🗣️ Felipe, 12/09/2026: *"Pessoal que tem o app no celular, disse q ao abrir ele fica
+        // desatualizado as vezes no aovivo"*.
+        //
+        // O relógio de 20s só liga enquanto AINDA HÁ O QUE ACONTECER — jogo em quadra ou jogo
+        // agendado —, e a segunda metade dessa régua é lida do HTML com `#agendadas .pdz-jl`.
+        // São TRÊS peças que precisam concordar: o id do painel, a classe da linha de jogo e o
+        // seletor no JS. Se qualquer uma derivar, o relógio deixa de ligar pra quem abre o app
+        // antes do primeiro jogo — em silêncio, e sem nenhum outro teste enxergando: a tela
+        // simplesmente fica em "Ao Vivo (0)" o dia inteiro, que é a queixa original.
+        var lista = File.ReadAllText(Path.Combine(PastaDasViews(), "_JogosDoTorneio.cshtml"));
+        Assert.Matches(new Regex(@"id=""agendadas"""), lista);
+
+        var linha = File.ReadAllText(Path.Combine(PastaDasViews(), "_JogoEmLinha.cshtml"));
+        Assert.Matches(new Regex(@"<div class=""pdz-jl[ @""]"), linha);
+
+        var js = File.ReadAllText(Path.Combine(RaizDoRepo(),
+            "Padelizou", "wwwroot", "js", "jogos-ao-vivo-atualiza.js"));
+        Assert.Contains("#agendadas .pdz-jl", js);
+
+        // E a volta pro primeiro plano precisa continuar acordando a tela: sem este ouvinte,
+        // abrir o app volta a mostrar o de até 20 segundos atrás.
+        Assert.Contains("visibilitychange", js);
+    }
+
+    [Fact]
     public void A_barra_de_filtros_guarda_a_altura_da_pagina()
     {
         // 🗣️ Felipe, 12/09/2026: *"quando eu clico em meu jogos, a pagina sobe la para o inicio

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 using Padelizou.ViewModels;
 
@@ -17,7 +17,7 @@ public interface IReacaoService
     Task<Dictionary<int, ReacoesDaPartidaVM>> ObterResumosAsync(IEnumerable<int> partidaIds, int? jogadorId);
     Task<ReacoesDaPartidaVM> ReagirAsync(int partidaId, int jogadorId, string? emoji);
     Task<ReacoesDaPartidaVM> TirarReacaoAsync(int partidaId, int jogadorId, string? emoji);
-    Task<QuemReagiuVM?> ObterQuemReagiuAsync(int partidaId);
+    Task<QuemReagiuVM?> ObterQuemReagiuAsync(int partidaId, int? jogadorId);
 }
 
 public class ReacaoService : IReacaoService
@@ -131,7 +131,7 @@ public class ReacaoService : IReacaoService
     // ⚠️ Devolve NULO quando o jogo não existe mais, e NÃO estoura como as duas que gravam —
     // é a mesma divisão do PalpiteService: o controller vira isso em 404, e o JS já sabe dizer
     // "este jogo saiu da lista". 404 é resposta; 500 é defeito.
-    public async Task<QuemReagiuVM?> ObterQuemReagiuAsync(int partidaId)
+    public async Task<QuemReagiuVM?> ObterQuemReagiuAsync(int partidaId, int? jogadorId)
     {
         if (!await _context.Partidas.AnyAsync(p => p.Id == partidaId)) return null;
 
@@ -142,6 +142,9 @@ public class ReacaoService : IReacaoService
 
         return new QuemReagiuVM
         {
+            // As MESMAS pílulas do cartão, pro painel abrir já com onde tocar.
+            Reacoes = (await ObterResumosAsync(new[] { partidaId }, jogadorId))[partidaId].Reacoes,
+
             // A MESMA ORDEM DAS PÍLULAS do card — quem clicou numa pílula procura aquele emoji
             // na lista, e duas ordens diferentes pras mesmas reações fariam ele procurar duas
             // vezes. Dentro de cada emoji, quem reagiu primeiro vem primeiro.

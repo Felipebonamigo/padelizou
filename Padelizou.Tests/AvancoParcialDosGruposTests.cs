@@ -11,16 +11,19 @@ namespace Padelizou.Tests;
 // fase conforme a classificação, não precisa necessariamente terminar todos os jogos dos outros
 // grupos/chaves para ir avançando"*.
 //
-// ⚠️ ISSO SÓ DÁ PRA FAZER COM O CRUZAMENTO DESENHADO, e a razão é a régua de hoje, não uma
-// limitação técnica. Sem desenho, quem o 1º do Grupo A enfrenta sai da campanha COMPARADA de
-// todos os grupos (ChaveamentoMataMata.MontarPrimeiraFase semeia o melhor contra o pior):
-// enquanto o Grupo D joga, não dá pra saber se o 1º do A é o melhor ou o pior primeiro
-// colocado — e um jogo criado cedo teria que ser desfeito. Com o desenho
-// (Services/CruzamentoDoMataMata) a vaga é por COLOCAÇÃO ("1º do A × 2º do C"), então ela fica
-// conhecida no instante em que aqueles dois grupos fecham.
+// ⚠️ ISSO SÓ DÁ PRA FAZER COM A VAGA DITA POR COLOCAÇÃO. Semeando pela campanha COMPARADA de
+// todos os grupos (ChaveamentoMataMata.MontarPrimeiraFase põe o melhor contra o pior), enquanto
+// o Grupo D joga não dá pra saber se o 1º do A é o melhor ou o pior primeiro colocado — e um
+// jogo criado cedo teria que ser desfeito. Com o cruzamento previsto a vaga é "1º do A × 2º do
+// C", e fica conhecida no instante em que aqueles dois grupos fecham.
 //
-// Decisão do Felipe em 11/09/2026, escolhendo entre as três saídas: vale só com desenho —
-// torneio sem desenho (o Er) continua letra por letra como era.
+// 🔄 A RÉGUA MUDOU EM 12/09/2026, e este cabeçalho mudou com ela. Até aqui valia "só com
+// desenho — torneio sem desenho (o Er) continua letra por letra"; o Er passou o sábado inteiro
+// com a chave embaralhada por causa desse "continua letra por letra", e o Felipe reverteu no
+// meio do torneio: *"temos q garantir q congele sempre dps q as chaves forem publicadas, a
+// menos q eu solicite alguma alteração"*. Agora TODA categoria segue o cruzamento previsto
+// (RoboDoChaveamento congela o CruzamentoDoMataMata.Padrao quando não há desenho), então o
+// avanço parcial vale pra todas — e não só pras desenhadas à mão.
 public class AvancoParcialDosGruposTests
 {
     // 8 duplas → 3 grupos (A com 2 duplas, B e C com 3), 6 classificados num quadro de 8:
@@ -118,8 +121,13 @@ public class AvancoParcialDosGruposTests
     // ⚠️ A TRAVA DO ER. Sem desenho, nada muda: dois grupos fechados e o mata-mata continua sem
     // nascer, porque a semeadura por campanha ainda não tem como saber quem é o melhor 1º.
     [Fact]
-    public async Task Sem_desenho_a_chave_continua_esperando_todos_os_grupos()
+    public async Task Sem_desenho_a_chave_segue_o_previsto_e_avanca_por_grupo_do_mesmo_jeito()
     {
+        // 🔄 ESTE TESTE TRAVAVA O OPOSTO ATÉ 12/09/2026 (`Sem_desenho_a_chave_continua_esperando_
+        // todos_os_grupos`) — e foi essa regra que deixou o Er embaralhado. Categoria sem desenho
+        // agora congela o cruzamento previsto no próprio robô, então ela avança por grupo igual a
+        // quem desenhou à mão. Não é o teste que foi adaptado pra passar: é a decisão de produto
+        // que virou, no meio do torneio, e o teste que passou a travar a decisão nova.
         var (ctx, _, categoria, controller, mapa) = await SorteadoComDesenhoAsync();
         using var _ctx = ctx;
 
@@ -129,7 +137,13 @@ public class AvancoParcialDosGruposTests
         await FecharGruposAsync(ctx, controller, categoria,
             new[] { mapa.Confrontos[0].Lado1.Grupo, mapa.Confrontos[0].Lado2.Grupo }.Distinct().ToList());
 
-        Assert.Empty(await AberturaAsync(ctx, categoria.Id));
+        // O jogo NASCE — e é o confronto que a prévia prometia, não o que a campanha daria.
+        var abertura = await AberturaAsync(ctx, categoria.Id);
+        Assert.Single(abertura);
+
+        // E o desenho ficou gravado, que é o que impede a próxima finalização de desembaralhar.
+        var salva = await ctx.Categorias.AsNoTracking().FirstAsync(c => c.Id == categoria.Id);
+        Assert.Equal(mapa.Escrever(), salva.CruzamentoDoMataMata);
     }
 
     // ⚠️ E A PRIMEIRA RODADA PELA METADE NÃO AVANÇA. Com 1 dos 2 jogos criados e ele terminado,

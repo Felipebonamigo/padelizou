@@ -2,11 +2,16 @@ using System.Globalization;
 
 namespace Padelizou.Services;
 
-// A GEOMETRIA da prévia do mata-mata: onde cada jogo fica no quadro, e quanto ele ocupa.
+// A GEOMETRIA do mata-mata: onde cada jogo fica no quadro, e quanto ele ocupa.
 //
-// A tela desenha a mesma chave de dois jeitos — no computador de cima pra baixo, no celular
-// deitada e arrastável da esquerda pra direita. Os dois saem DESTE cálculo: desenho é CSS,
-// posição é conta, e conta repetida em duas views diverge no dia em que a regra mudar.
+// Vale pra chave INTEIRA — a prévia (nenhum jogo criado ainda) e a de verdade saem daqui,
+// porque desde 12/09/2026 as duas são o mesmo desenho: a aba trocava de esqueleto no dia em
+// que o mata-mata nascia, e 🗣️ *"era para manter como estava, tava bom"*. A entrada é só o
+// ESQUELETO da chave (número do jogo e de quais jogos ele vem), que os dois montadores têm:
+// Services/ChaveProjetada pra prévia e Services/QuadroDoMataMata pros jogos reais.
+//
+// Desenho é CSS, posição é conta, e conta repetida em duas views diverge no dia em que a
+// regra mudar.
 //
 // A régua é uma só e cabe em duas linhas:
 //
@@ -26,8 +31,16 @@ namespace Padelizou.Services;
 // uma vaga sem linha chegando de cima — que é exatamente o que "passou direto" significa.
 public static class ArvoreDaChave
 {
+    // O ESQUELETO de um jogo do quadro: o número dele e de quais jogos saem os dois lados
+    // (nulo = colocação da primeira rodada, ou quem passou direto). É tudo de que a conta
+    // precisa — nome, placar e hora são do desenho, e é por isso que a prévia e a chave de
+    // verdade cabem na mesma geometria.
+    public record No(int Numero, int? VemDoJogo1, int? VemDoJogo2);
+
+    public record RodadaDeNos(string Fase, IReadOnlyList<No> Jogos);
+
     // Um jogo já posicionado. `Coluna` é base zero; o Razor soma 1 pro CSS.
-    public record Vaga(ChaveProjetada.JogoProjetado Jogo, int Coluna, int Largura);
+    public record Vaga(No Jogo, int Coluna, int Largura);
 
     public record Rodada(string Fase, List<Vaga> Vagas);
 
@@ -85,7 +98,14 @@ public static class ArvoreDaChave
 
     private static readonly Quadro Vazio = new(0, new List<Rodada>());
 
-    public static Quadro Montar(IReadOnlyList<ChaveProjetada.RodadaProjetada> rodadas)
+    // A prévia entra pelo formato dela — o resto do quadro é o mesmo cálculo.
+    public static Quadro Montar(IReadOnlyList<ChaveProjetada.RodadaProjetada> rodadas) =>
+        Montar(rodadas
+            .Select(r => new RodadaDeNos(r.Fase,
+                r.Jogos.Select(j => new No(j.Numero, j.VemDoJogo1, j.VemDoJogo2)).ToList()))
+            .ToList());
+
+    public static Quadro Montar(IReadOnlyList<RodadaDeNos> rodadas)
     {
         var jogos = rodadas.SelectMany(r => r.Jogos).ToList();
         if (jogos.Count == 0) return Vazio;
@@ -102,14 +122,14 @@ public static class ArvoreDaChave
         var raiz = jogos.FirstOrDefault(j => !consumidos.Contains(j.Numero));
         if (raiz == null) return Vazio;
 
-        List<ChaveProjetada.JogoProjetado> Alimentadores(ChaveProjetada.JogoProjetado jogo) =>
+        List<No> Alimentadores(No jogo) =>
             new[] { jogo.VemDoJogo1, jogo.VemDoJogo2 }
                 .Where(n => n.HasValue && porNumero.ContainsKey(n!.Value))
                 .Select(n => porNumero[n!.Value])
                 .ToList();
 
         var largura = new Dictionary<int, int>();
-        int Medir(ChaveProjetada.JogoProjetado jogo)
+        int Medir(No jogo)
         {
             var alimentadores = Alimentadores(jogo);
             int soma = alimentadores.Count == 0 ? 1 : alimentadores.Sum(Medir);
@@ -119,7 +139,7 @@ public static class ArvoreDaChave
         int colunas = Medir(raiz);
 
         var vagas = new Dictionary<int, Vaga>();
-        void Posicionar(ChaveProjetada.JogoProjetado jogo, int coluna)
+        void Posicionar(No jogo, int coluna)
         {
             vagas[jogo.Numero] = new Vaga(jogo, coluna, largura[jogo.Numero]);
             int cursor = coluna;
