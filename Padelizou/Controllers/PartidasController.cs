@@ -764,7 +764,12 @@ namespace Padelizou.Controllers
         // `voltarPara`: o organizador que veio da página do torneio volta pra ela. Sem isto,
         // mudar quadra ou qualquer informação aqui o despejava em /Torneios/Jogos — as abas
         // mãe (Inscritos, Grupos, Chaves) sumiam e ele achava que tinha perdido o caminho.
-        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null)
+        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null,
+            // A CONTAGEM DO TIE-BREAK (12/09/2026). Nulo = a tela não mandou o campo — aba aberta
+            // antes deste deploy, ou torneio sem tie-break configurado. Nesse caso o que está
+            // gravado FICA: zerar aqui apagaria a contagem da quadra num salvar que só queria
+            // trocar a quadra ou o link da câmera.
+            int? pontosTieBreak1 = null, int? pontosTieBreak2 = null)
         {
             // UM FINALIZAR DE CADA VEZ POR TORNEIO (ensaio do Er, 10/09/2026, anomalia C1 — ver
             // EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync): a trava vem ANTES do FindAsync,
@@ -805,6 +810,22 @@ namespace Padelizou.Controllers
 
             partida.GamesDupla1 = gamesDupla1;
             partida.GamesDupla2 = gamesDupla2;
+
+            // OS PONTOS DO TIE-BREAK. ⚠️ Só entram onde o tie-break PODE acontecer
+            // (Services/TieBreakDoJogo): alvo configurado, contagem "até" e fase de número
+            // ímpar. Num torneio sem contagem, um POST montado à mão não grava nada.
+            if (pontosTieBreak1 != null || pontosTieBreak2 != null)
+            {
+                var formatoDoTieBreak = FormatoDaPartida.De(
+                    partida.TorneioId is int idDoFormato ? await _context.Torneios.FindAsync(idDoFormato) : null,
+                    partida.Fase);
+
+                if (TieBreakDoJogo.PodeAcontecer(formatoDoTieBreak))
+                {
+                    partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1 ?? partida.PontosTieBreak1 ?? 0);
+                    partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2 ?? partida.PontosTieBreak2 ?? 0);
+                }
+            }
 
             // ⚠️ A TERCEIRA PORTA DO NOME DE QUADRA, e a mais silenciosa: aqui ele chega como
             // TEXTO LIVRE do formulário do placar. As outras duas (criar e editar torneio) já

@@ -489,6 +489,28 @@
                                 // usuário paga.
                                 bool podeTrocarSaque = ehOrganizador
                                     || Padelizou.Services.QuemMarcaOPlacar.Liberado(modoQuemMarca, meuId, jogo, ehInscritoDoTorneio);
+
+                                // ── O TIE-BREAK DESTE JOGO (Felipe, 12/09/2026) ──────────────
+                                // A view não sabe o que é 8x8: quem responde é
+                                // Services/TieBreakDoJogo, a partir do formato da FASE que o
+                                // controller entrega pronto. Mesma regra do teto e do verde.
+                                var formatoAoVivo = (ViewBag.FormatoDoJogo as Dictionary<int, Padelizou.Services.FormatoDaPartida.Formato>)
+                                    ?.GetValueOrDefault(jogo.Id);
+                                int pontosTb1 = jogo.PontosTieBreak1 ?? 0;
+                                int pontosTb2 = jogo.PontosTieBreak2 ?? 0;
+                                bool emTieBreak = formatoAoVivo != null
+                                    && Padelizou.Services.TieBreakDoJogo.EmAndamento(
+                                           formatoAoVivo, jogo.GamesDupla1 ?? 0, jogo.GamesDupla2 ?? 0);
+
+                                // O placar que o fechamento escreve (9x8). Nulo = ainda não dá
+                                // pra fechar — 7-6 não fecha, porque o tie-break também se vence
+                                // por dois. Quem decide é a régua; o botão só obedece.
+                                // ⚠️ `formatoAoVivo != null` AQUI, e não herdado do `emTieBreak`:
+                                // um bool que capturou a checagem não ensina nada ao compilador
+                                // (CLAUDE.md), e o `!` calaria o aviso sem provar nada.
+                                var fechamentoDoTb = formatoAoVivo != null && emTieBreak
+                                    ? Padelizou.Services.TieBreakDoJogo.GamesAoFechar(formatoAoVivo, pontosTb1, pontosTb2)
+                                    : null;
                             }
                             @* A bolinha do saque: no padel, saber de quem é o saque é metade
                                da leitura do jogo pra quem chega no meio de um game.
@@ -520,6 +542,21 @@
                                            Cada toque JÁ SALVA (ver js/placar-ao-vivo.js) — "editei e
                                            não marcou" é o pior jeito de falhar num placar. *@
                                         <input type="hidden" name="partidaId" value="@jogo.Id" form="pdzPlacaresAoVivo" />
+                                        @* ⚠️ OS PONTOS DO TIE-BREAK VIAJAM SEMPRE, mesmo sem
+                                           tie-break em andamento (12/09/2026). O POST do card é em
+                                           LOTE — `partidaId[]`, `games1[]`, `games2[]` casam por
+                                           ÍNDICE —, então um campo que só existe em alguns cards
+                                           desalinharia tudo: com três jogos no ar e só o segundo em
+                                           tie-break, `pontos1[0]` chegaria como se fosse do
+                                           primeiro. Escondido, ele reenvia o valor já gravado, que
+                                           é inofensivo (o servidor grava o mesmo número de volta).
+                                           Em tie-break, os contadores visíveis lá embaixo tomam o
+                                           lugar destes dois — mesmo `name`, uma entrada só. *@
+                                        @if (!emTieBreak)
+                                        {
+                                            <input type="hidden" name="pontos1" value="@pontosTb1" form="pdzPlacaresAoVivo" />
+                                            <input type="hidden" name="pontos2" value="@pontosTb2" form="pdzPlacaresAoVivo" />
+                                        }
                                         <span class="pdz-live-contador">
                                             <button type="button" class="pdz-live-passo" data-passo="-1"
                                                     aria-label="Menos um game">−</button>
@@ -571,6 +608,134 @@
                                     }
                                 </div>
                             </div>
+
+                            @* ══ A CONTAGEM DO TIE-BREAK (Felipe, 12/09/2026) ════════════════════
+                               🗣️ *"no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem
+                               de tie break, que pode ir até 7 ou até 10, depende do torneio"*.
+
+                               Nasce e morre com o placar, e a view não sabe o que é 8x8: quem
+                               responde é Services/TieBreakDoJogo a partir do formato da FASE, que
+                               o controller já entrega pronto (ViewBag.FormatoDoJogo) — mesma regra
+                               do teto e do verde de quem venceu.
+
+                               ⚠️ FICA DENTRO DO `.pdz-live-header`, e isso não é acidente de
+                               posição: é esse o pedaço que a atualização automática troca de 15 em
+                               15 segundos (js/jogos-ao-vivo-atualiza.js). É o que faz os pontos
+                               subirem na tela de quem está em casa sem ninguém recarregar nada —
+                               fora dele, o tie-break existiria só pra quem marca. *@
+                            @* ⚠️ O BLOCO É RENDERIZADO SEMPRE que a fase comporta tie-break, e
+                               nasce ESCONDIDO fora dele — não é desenhado só no 8x8. O motivo é a
+                               trava da atualização automática: ela NÃO roda com o cursor dentro de
+                               um campo (`estaOcupado` em jogos-ao-vivo-atualiza.js), e quem marca o
+                               8º game está justamente com o dedo no campo do placar. Se o bloco
+                               dependesse dela pra nascer, o tie-break não apareceria — por 15
+                               segundos, ou por tempo indeterminado. Existindo no HTML, ele acende
+                               na RESPOSTA do próprio POST que marcou o game.
+
+                               ⚠️ E fica dentro do `.pdz-live-header`, que é o pedaço que a
+                               atualização automática troca: é o que faz os pontos subirem na tela
+                               de quem está em casa sem ninguém recarregar nada.
+
+                               `formatoAoVivo != null` explícito, e não herdado de um bool: é o
+                               compilador que precisa saber, e foi esse o padrão que gerou 6 dos 7
+                               CS8602 de produção (CLAUDE.md). *@
+                            @if (formatoAoVivo != null && Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo))
+                            {
+                                <div class="pdz-live-tiebreak" data-tiebreak="@jogo.Id" hidden="@(!emTieBreak)">
+                                    <div class="pdz-live-tiebreak-titulo">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                        TIE-BREAK · até @formatoAoVivo.PontosTieBreak pontos
+                                    </div>
+
+                                    @* Os dois lados na MESMA ORDEM das duplas acima — é o que
+                                       dispensa repetir os nomes num card que já está cheio. *@
+                                    <div class="pdz-live-tiebreak-linha">
+                                        <span class="pdz-live-tiebreak-lado">
+                                            <span class="pdz-live-tiebreak-quem">@jogo.Dupla1.NomeCurto</span>
+                                            @if (ehOrganizador)
+                                            {
+                                                <span class="pdz-live-contador">
+                                                    <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                            aria-label="Menos um ponto no tie-break">−</button>
+                                                    <input type="number" class="pdz-live-games pdz-live-input pdz-live-tiebreak-input"
+                                                           inputmode="numeric" name="pontos1" value="@pontosTb1"
+                                                           min="0" max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos"
+                                                           form="pdzPlacaresAoVivo"
+                                                           aria-label="Pontos do tie-break de @jogo.Dupla1.NomeDeExibicao" />
+                                                    <button type="button" class="pdz-live-passo" data-passo="1"
+                                                            aria-label="Mais um ponto no tie-break">+</button>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pdz-live-tiebreak-pontos" data-tiebreak-pontos="1">@pontosTb1</span>
+                                            }
+                                        </span>
+                                        <span class="pdz-live-tiebreak-x">×</span>
+                                        <span class="pdz-live-tiebreak-lado">
+                                            <span class="pdz-live-tiebreak-quem">@jogo.Dupla2.NomeCurto</span>
+                                            @if (ehOrganizador)
+                                            {
+                                                <span class="pdz-live-contador">
+                                                    <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                            aria-label="Menos um ponto no tie-break">−</button>
+                                                    <input type="number" class="pdz-live-games pdz-live-input pdz-live-tiebreak-input"
+                                                           inputmode="numeric" name="pontos2" value="@pontosTb2"
+                                                           min="0" max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos"
+                                                           form="pdzPlacaresAoVivo"
+                                                           aria-label="Pontos do tie-break de @jogo.Dupla2.NomeDeExibicao" />
+                                                    <button type="button" class="pdz-live-passo" data-passo="1"
+                                                            aria-label="Mais um ponto no tie-break">+</button>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pdz-live-tiebreak-pontos" data-tiebreak-pontos="2">@pontosTb2</span>
+                                            }
+                                        </span>
+                                    </div>
+
+                                    @if (ehOrganizador)
+                                    {
+                                        @* O FECHAMENTO. ⚠️ Escreve o último game (9x8) nos campos de
+                                           games deste card — e NÃO finaliza a partida: encerrar
+                                           continua sendo o Finalizar de sempre, com a confirmação
+                                           dele.
+
+                                           ⚠️ Os números vêm do SERVIDOR (data-games1/2), e o botão
+                                           também nasce escondido: "dá pra fechar?" e "com que
+                                           placar?" são perguntas de régua
+                                           (TieBreakDoJogo.GamesAoFechar), que conhece o limite da
+                                           fase — num jogo até 5 o fechamento é 5x4, não 9x8. O
+                                           js/placar-ao-vivo.js só reescreve o que o servidor
+                                           respondeu. *@
+                                        <button type="button" class="pdz-live-tiebreak-fechar"
+                                                data-fechar-tiebreak="@jogo.Id"
+                                                data-games1="@(fechamentoDoTb?.Games1)" data-games2="@(fechamentoDoTb?.Games2)"
+                                                hidden="@(fechamentoDoTb == null)">
+                                            <i class="bi bi-check2-circle"></i>
+                                            <span class="pdz-live-tiebreak-fechar-texto">@(fechamentoDoTb is { } fecha
+                                                ? $"Fechar o tie-break em {fecha.Games1} x {fecha.Games2}"
+                                                : "Fechar o tie-break")</span>
+                                        </button>
+                                        <div class="pdz-live-tiebreak-dica">
+                                            Fecha com @formatoAoVivo.PontosTieBreak pontos e <strong>2 de frente</strong> —
+                                            @(formatoAoVivo.PontosTieBreak)x@(formatoAoVivo.PontosTieBreak - 1) não fecha.
+                                        </div>
+                                    }
+                                </div>
+
+                                @* O tie-break já fechou: o placar de games conta o RESULTADO e esta
+                                   linha conta COMO ele saiu. Escondida durante o tie-break (o bloco
+                                   acima já está dizendo a mesma coisa, maior) e fora de um jogo que
+                                   nunca teve contagem. O texto é escrito pelo servidor — aqui e na
+                                   resposta do POST —, então a etiqueta tem um formato só. *@
+                                <div class="pdz-live-tiebreak-feito" data-tiebreak-feito="@jogo.Id"
+                                     hidden="@(emTieBreak || !Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span class="pdz-live-tiebreak-feito-texto">@Padelizou.Services.TieBreakDoJogo.Etiqueta(pontosTb1, pontosTb2)</span>
+                                </div>
+                            }
 
                             @* Só organizador: o torcedor via um "Editar jogo" que não era
                                dele (a rota recusa, mas o convite já passava desleixo). *@

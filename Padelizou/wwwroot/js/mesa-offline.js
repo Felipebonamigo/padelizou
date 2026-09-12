@@ -12,7 +12,8 @@
 const MesaOffline = (function () {
     let torneioId, limiteGames, contagem, chaveFila;
     const limitePorPartida = {};
-    const estado = {};          // partidaId -> {games1, games2, sets1, sets2}
+    const alvoDoTieBreakPorPartida = {};   // partidaId -> pontos do tie-break (0 = desligado)
+    const estado = {};          // partidaId -> {games1, games2, sets1, sets2, pontos1, pontos2}
     let fila = {};              // partidaId -> {placar: {...estado, marcadoEm}, finalizar: ms|null}
     let enviando = false;
     let timerDebounce = null;
@@ -38,10 +39,31 @@ const MesaOffline = (function () {
 
     function desenhar(id) {
         const e = estado[id];
-        for (const [campo, elemento] of [["games1", "gamesA_"], ["games2", "gamesB_"], ["sets1", "setsA_"], ["sets2", "setsB_"]]) {
+        for (const [campo, elemento] of [["games1", "gamesA_"], ["games2", "gamesB_"], ["sets1", "setsA_"], ["sets2", "setsB_"],
+                                         ["pontos1", "pontosA_"], ["pontos2", "pontosB_"]]) {
             const span = document.getElementById(elemento + id);
             if (span) span.innerText = e[campo];
         }
+        desenharTieBreak(id);
+    }
+
+    // O BLOCO DO TIE-BREAK aparece e desaparece com o placar: nasce no 8x8 e sai quando o 9º
+    // game é marcado. Aqui, e não no servidor, porque a Mesa é offline-first — ela não pode
+    // esperar resposta pra mostrar o que a quadra está jogando agora.
+    function desenharTieBreak(id) {
+        const bloco = document.getElementById("tieBreak_" + id);
+        if (!bloco) return;
+
+        const ligado = emTieBreak(id);
+        bloco.hidden = !ligado;
+
+        // O atalho de fechar só aparece quando dá pra fechar (alvo alcançado com 2 de frente).
+        const fechar = document.getElementById("tieBreakFechar_" + id);
+        if (!fechar) return;
+
+        const lado = ladoQueFechaOTieBreak(id);
+        fechar.hidden = !ligado || lado === 0;
+        fechar.setAttribute("data-lado", String(lado));
     }
 
     function badge(texto, classe) {
@@ -89,6 +111,53 @@ const MesaOffline = (function () {
         return empatouNaPenultima ? limite + 1 : limite;
     }
 
+    // Até quantos pontos vai o tie-break DESTA partida — 0 = o torneio não usa contagem, ou a
+    // fase não tem tie-break (ver Services/TieBreakDoJogo). Vem do servidor por partida, como o
+    // limite de games: "grupos com tie-break de 7 e final de 10" é configuração por fase.
+    function alvoDoTieBreak(id) {
+        return alvoDoTieBreakPorPartida[id] || 0;
+    }
+
+    // O jogo está EM tie-break agora? Mesma régua de Services/TieBreakDoJogo.EmAndamento: o
+    // empate a um game do fim, e só onde o limite NÃO estende.
+    //
+    // ⚠️ A paridade não é recalculada aqui: quem responde "este limite estende?" é o
+    // `tetoDaPartida` logo acima, que é a cópia local do FormatoDaPartida. Num jogo até 4, o
+    // 3x3 estende pra 5 e tie-break nenhum acontece; no até 9, o teto continua 9 e é ali que
+    // ele entra. Escrever `% 2` de novo seria a terceira cópia da mesma regra.
+    function emTieBreak(id) {
+        const limite = limiteDaPartida(id);
+        const e = estado[id];
+
+        if (alvoDoTieBreak(id) <= 0 || contagem === "Soma" || limite <= 1) return false;
+        if (e.games1 !== limite - 1 || e.games2 !== limite - 1) return false;
+
+        return tetoDaPartida(id, "games1") === limite;
+    }
+
+    // Que lado pode FECHAR o tie-break agora (1, 2 ou 0 pra ninguém). ⚠️ Alcançar o alvo não
+    // basta: precisa de 2 pontos de frente — 7-6 continua, 8-6 fecha. Mesma régua de
+    // Services/TieBreakDoJogo.PodeFechar.
+    function ladoQueFechaOTieBreak(id) {
+        const alvo = alvoDoTieBreak(id);
+        const e = estado[id];
+        if (alvo <= 0) return 0;
+
+        const alcancou = e.pontos1 >= alvo || e.pontos2 >= alvo;
+        if (!alcancou || Math.abs(e.pontos1 - e.pontos2) < 2) return 0;
+
+        return e.pontos1 > e.pontos2 ? 1 : 2;
+    }
+
+    // FECHAR O TIE-BREAK: marca o último game pra quem fechou — o mesmo toque que o mesário
+    // daria no "+" do game, num botão que diz o que está fazendo. Não finaliza a partida:
+    // encerrar continua sendo o Finalizar.
+    function fecharTieBreak(id) {
+        const lado = ladoQueFechaOTieBreak(id);
+        if (lado === 0) return;
+        tocar(id, lado === 1 ? "games1" : "games2", 1);
+    }
+
     // O jogo já pode ser encerrado? Na soma fecha quando os games ACABAM (o total foi
     // jogado); no "até" quando alguém alcança o teto. É o que acende o botão de finalizar.
     function fechou(id) {
@@ -100,6 +169,9 @@ const MesaOffline = (function () {
 
     function tocar(id, campo, delta) {
         const e = estado[id];
+        // ⚠️ Ponto de tie-break NÃO tem teto no alvo: ele se vence por dois, então 8-6 e 9-7
+        // são placares legítimos num tie-break de 7. O 99 é só contra dedo preso no "+" — o
+        // mesmo teto que o servidor aplica (TieBreakDoJogo.TetoDosPontos).
         const limite = campo.startsWith("games") ? tetoDaPartida(id, campo) : 99;
         const fechouAntes = fechou(id);
         e[campo] = Math.min(limite, Math.max(0, e[campo] + delta));
@@ -151,7 +223,12 @@ const MesaOffline = (function () {
                 if (item.placar) {
                     const p = item.placar;
                     const corpo = `partidaId=${id}&games1=${p.games1}&games2=${p.games2}` +
-                        `&sets1=${p.sets1}&sets2=${p.sets2}&marcadoEm=${p.marcadoEm}`;
+                        `&sets1=${p.sets1}&sets2=${p.sets2}&marcadoEm=${p.marcadoEm}` +
+                        // A contagem do tie-break viaja no mesmo corpo. O servidor só a grava
+                        // onde a fase permite (Services/TieBreakDoJogo), então mandar sempre é
+                        // inofensivo — e mandar SÓ às vezes deixaria um item de fila velho,
+                        // reentregue depois, apagando o que já foi contado.
+                        `&pontosTieBreak1=${p.pontos1 || 0}&pontosTieBreak2=${p.pontos2 || 0}`;
                     const r = await fetch("/Torneios/SincronizarPlacar", {
                         method: "POST",
                         headers: cabecalhoAntifalsificacao({ "Content-Type": "application/x-www-form-urlencoded" }),
@@ -163,7 +240,11 @@ const MesaOffline = (function () {
                     // servidor estar NA FRENTE é sucesso — e a tela adota o placar dele.
                     const resposta = await r.json();
                     if (!resposta.aplicado) {
-                        estado[id] = { games1: resposta.games1, games2: resposta.games2, sets1: resposta.sets1, sets2: resposta.sets2 };
+                        estado[id] = {
+                            games1: resposta.games1, games2: resposta.games2,
+                            sets1: resposta.sets1, sets2: resposta.sets2,
+                            pontos1: resposta.pontos1 || 0, pontos2: resposta.pontos2 || 0,
+                        };
                         desenhar(id);
                     }
                     delete item.placar;
@@ -212,13 +293,19 @@ const MesaOffline = (function () {
         for (const item of config.partidas) {
             const id = (item && typeof item === "object") ? item.id : item;
             if (item && typeof item === "object" && item.games > 0) limitePorPartida[id] = item.games;
+            // O alvo do tie-break vem por partida pelo mesmo motivo do limite de games: é
+            // configuração por FASE (7 nos grupos, 10 na final). Ausente = desligado.
+            if (item && typeof item === "object" && item.tieBreak > 0) alvoDoTieBreakPorPartida[id] = item.tieBreak;
 
             estado[id] = {
                 games1: parseInt(document.getElementById("gamesA_" + id)?.innerText) || 0,
                 games2: parseInt(document.getElementById("gamesB_" + id)?.innerText) || 0,
                 sets1: parseInt(document.getElementById("setsA_" + id)?.innerText) || 0,
                 sets2: parseInt(document.getElementById("setsB_" + id)?.innerText) || 0,
+                pontos1: parseInt(document.getElementById("pontosA_" + id)?.innerText) || 0,
+                pontos2: parseInt(document.getElementById("pontosB_" + id)?.innerText) || 0,
             };
+            desenharTieBreak(id);
         }
 
         // A fila local é MAIS NOVA que o HTML do servidor: se a página recarregou (inclusive
@@ -227,7 +314,10 @@ const MesaOffline = (function () {
         for (const id of Object.keys(fila)) {
             if (fila[id].placar && estado[id]) {
                 const { marcadoEm, ...placar } = fila[id].placar;
-                estado[id] = placar;
+                // ⚠️ Item de fila gravado ANTES do tie-break existir não tem `pontos1/pontos2`:
+                // sem o padrão, o span mostraria "undefined" e o primeiro toque no "+" faria NaN.
+                // O item novo traz as chaves e vence o padrão.
+                estado[id] = { pontos1: 0, pontos2: 0, ...placar };
                 desenhar(id);
             }
         }
@@ -240,5 +330,5 @@ const MesaOffline = (function () {
         enviarFila();
     }
 
-    return { iniciar, tocar, finalizar };
+    return { iniciar, tocar, finalizar, fecharTieBreak };
 })();

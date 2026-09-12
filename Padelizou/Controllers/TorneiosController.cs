@@ -1633,6 +1633,12 @@ namespace Padelizou.Controllers
             // "decidido" tem soma × "até" e o desempate do "vencer por dois". Aqui só se
             // PERGUNTA (Services/QuemVenceu.LadoJaDecidido).
             var vencedores = new Dictionary<int, int>();
+
+            // E o FORMATO de cada jogo ao vivo, inteiro. É o que permite ao card perguntar
+            // "este jogo está em tie-break?" (Services/TieBreakDoJogo, 12/09/2026) sem que a
+            // view conheça número nenhum: ela recebe o formato da FASE e pergunta à régua.
+            // Mesmo motivo do teto e do vencedor — quem responde sobre formato é o servidor.
+            var formatos = new Dictionary<int, FormatoDaPartida.Formato>();
             if (torneioDaTela != null)
             {
                 foreach (var p in (List<Partida>)ViewBag.AoVivo)
@@ -1641,10 +1647,12 @@ namespace Padelizou.Controllers
                     int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
                     tetos[p.Id] = (FormatoDaPartida.TetoDoLado(f, g1, g2), FormatoDaPartida.TetoDoLado(f, g2, g1));
                     vencedores[p.Id] = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0;
+                    formatos[p.Id] = f;
                 }
             }
             ViewBag.TetoDeGames = tetos;
             ViewBag.VencedorNoPlacar = vencedores;
+            ViewBag.FormatoDoJogo = formatos;
 
             // Quem organiza vê os botões de mexer no jogo ("colocar no ar", editar placar).
             // Fica FORA do if do Americano de propósito: nasceu lá dentro, quando só o

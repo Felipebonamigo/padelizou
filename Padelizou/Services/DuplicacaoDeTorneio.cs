@@ -25,6 +25,11 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.SetsFaseFinal),
         nameof(Torneio.GamesFaseFinal),
         nameof(Torneio.ContagemDeGames),
+        // Até quantos pontos vai o tie-break do 8x8, por fase: é formato, como sets e games —
+        // a 2ª edição do mesmo torneio joga com a mesma regra de desempate.
+        nameof(Torneio.PontosTieBreakGrupos),
+        nameof(Torneio.PontosTieBreakMataMata),
+        nameof(Torneio.PontosTieBreakFinal),
         nameof(Torneio.TamanhoGrupo),
         nameof(Torneio.ClassificadosPorGrupo),
         nameof(Torneio.DesempateAmericano),

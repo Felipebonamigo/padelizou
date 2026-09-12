@@ -24,8 +24,12 @@ public static class PlacarDaMesa
     // Mesma trava que sempre existiu na Mesa (contagem de games não passa de 9).
     public const int LimiteDeGames = 9;
 
+    // `pontosTieBreak1/2` e `formato` (12/09/2026): a contagem do 8x8 também atravessa a fila
+    // offline — o mesário marca ponto no celular sem sinal como marca game. Nulos = fila
+    // gravada antes deste deploy, ou Mesa de torneio sem tie-break: o que está no banco fica.
     public static Resultado Aplicar(Partida partida, int games1, int games2, int sets1, int sets2,
-        DateTime marcadoEm)
+        DateTime marcadoEm, int? pontosTieBreak1 = null, int? pontosTieBreak2 = null,
+        FormatoDaPartida.Formato? formato = null)
     {
         // Partida encerrada não aceita placar da fila: finalizar dispara mata-mata, carimba
         // fases e avisa gente — um placar velho preso num celular não pode reabrir nada disso.
@@ -45,6 +49,17 @@ public static class PlacarDaMesa
         partida.SetsDupla2 = Math.Max(0, sets2);
         partida.PlacarMarcadoEm = marcadoEm;
         partida.SendoTransmitida = true;
+
+        // ⚠️ Os pontos só entram onde o tie-break PODE acontecer (TieBreakDoJogo.PodeAcontecer):
+        // alvo configurado, contagem "até" e fase de número ímpar. Sem o formato na mão, não se
+        // grava — é a mesma recusa que o POST em lote e a tela cheia fazem, e ela vale aqui
+        // também porque a fila pode reentregar um corpo montado à mão.
+        if ((pontosTieBreak1 != null || pontosTieBreak2 != null)
+            && formato != null && TieBreakDoJogo.PodeAcontecer(formato))
+        {
+            partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1 ?? partida.PontosTieBreak1 ?? 0);
+            partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2 ?? partida.PontosTieBreak2 ?? 0);
+        }
 
         return Resultado.Ok;
     }

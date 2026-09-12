@@ -150,6 +150,24 @@ public partial class Torneio
     // grava esse valor nas linhas antigas. Ver Services/FormatoDaPartida, que é quem
     // traduz isto em teto de placar e em "já dá pra encerrar?".
     public string ContagemDeGames { get; set; } = Padelizou.Services.ContagemDeGamesDoTorneio.Ate;
+
+    // ATÉ QUANTOS PONTOS VAI O TIE-BREAK, por fase (Felipe, 12/09/2026).
+    //
+    // 🗣️ *"no placar ao vivo, ao ficar 8x8, deveria aparecer uma contagem de tie break, que pode
+    // ir até 7 ou até 10, depende do torneio"*. Zero = DESLIGADO, e é o que a migration grava em
+    // todo torneio que já existe: o 8x8 segue se resolvendo no 9º game marcado na mão, sem que
+    // nada mude pra quem está em quadra hoje.
+    //
+    // É POR FASE, como Sets e Games já são (e ao contrário do `ContagemDeGames`, que é do
+    // torneio inteiro): o super tie-break de 10 pontos é justamente o que costuma aparecer só na
+    // decisão. Quem traduz fase → número é o `FormatoDaPartida`, como sempre.
+    //
+    // ⚠️ SÓ VALE EM FASE DE NÚMERO ÍMPAR DE GAMES. Num jogo até 6 o 5x5 continua indo pro 7º
+    // game (o "vencer por dois" que já está em quadra), então um 10 gravado aqui fica INERTE —
+    // e as telas avisam. Ver Services/TieBreakDoJogo.PodeAcontecer.
+    public int PontosTieBreakGrupos { get; set; }
+    public int PontosTieBreakMataMata { get; set; }
+    public int PontosTieBreakFinal { get; set; }
     // O clube PRINCIPAL do torneio — o que o organizador escolheu na criação, o que aparece no
     // cartaz e o que responde por toda quadra que não disse outro (ver `Quadra.ClubeId`).
     // Continua obrigatório e continua sendo um só: torneio de duas sedes tem uma sede-sede.

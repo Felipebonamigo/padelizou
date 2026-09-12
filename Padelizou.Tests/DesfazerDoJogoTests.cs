@@ -40,6 +40,27 @@ public class DesfazerDoJogoTests
     }
 
     [Fact]
+    public void Voltar_pra_agendado_apaga_a_contagem_do_tie_break_junto_com_o_placar()
+    {
+        // ⚠️ O tie-break tem que ir embora com os games (12/09/2026). Ele é contagem DE UM
+        // PLACAR: um jogo tirado da quadra e chamado de novo voltaria 0 x 0 com "tie-break 7-5"
+        // pendurado embaixo — número que ninguém sabe de onde veio, que é exatamente o que este
+        // método existe pra evitar. Mesmo motivo do saque, que já era apagado aqui.
+        var jogo = new Partida
+        {
+            Codigo = "AAA", Status = "AoVivo",
+            GamesDupla1 = 8, GamesDupla2 = 8,
+            PontosTieBreak1 = 7, PontosTieBreak2 = 5,
+        };
+
+        DesfazerDoJogo.VoltarParaAgendado(jogo);
+
+        Assert.Null(jogo.GamesDupla1);
+        Assert.Null(jogo.PontosTieBreak1);
+        Assert.Null(jogo.PontosTieBreak2);
+    }
+
+    [Fact]
     public void Jogo_finalizado_nao_volta_pra_agendado_por_esse_caminho()
     {
         // Pra esse existe o REABRIR, que desfaz a cascata. Voltar direto pra agendado deixaria

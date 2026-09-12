@@ -23,7 +23,13 @@ public static class FormatoDaPartida
 
     // `Contagem` diz o que o número de Games significa: "Ate" (quem chegar primeiro) ou
     // "Soma" (joga-se esse total e acabou). Ver ContagemDeGamesDoTorneio.
-    public record Formato(int Sets, int Games, string Contagem = ContagemDeGamesDoTorneio.Ate)
+    //
+    // `PontosTieBreak` é o alvo da CONTAGEM DE PONTOS do 8x8 — 7, 10, ou zero pra desligado
+    // (ver TieBreakDoJogo). Entra aqui, e não num segundo tradutor de fase, porque "até quantos
+    // pontos vai o tie-break desta partida?" é a mesma pergunta que "até quantos games?": a
+    // resposta sai da FASE, e este é o único lugar do projeto que traduz fase → formato.
+    public record Formato(int Sets, int Games, string Contagem = ContagemDeGamesDoTorneio.Ate,
+                          int PontosTieBreak = TieBreakDoJogo.Desligado)
     {
         public bool EhSoma => ContagemDeGamesDoTorneio.EhSoma(Contagem);
     }
@@ -38,19 +44,21 @@ public static class FormatoDaPartida
         var contagem = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
 
         if (fase is "Semifinal" or "Final")
-            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem);
+            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem, torneio.PontosTieBreakFinal);
 
         if (FasesTorneio.EhFaseDeGrupos(fase) || (fase?.StartsWith("Americano") ?? false))
-            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem);
+            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem, torneio.PontosTieBreakGrupos);
 
-        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem);
+        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem, torneio.PontosTieBreakMataMata);
     }
 
     // Torneio antigo (ou criado por formulário incompleto) tem zero gravado nessas colunas.
     // Zero viraria uma Mesa onde não dá pra marcar nem um game — melhor cair no padrão do
     // que travar a quadra.
-    private static Formato Valido(int sets, int games, string contagem) =>
-        new(sets > 0 ? sets : SetsPadrao, games > 0 ? games : GamesPadrao, contagem);
+    private static Formato Valido(int sets, int games, string contagem, int pontosDoTieBreak) =>
+        new(sets > 0 ? sets : SetsPadrao, games > 0 ? games : GamesPadrao, contagem,
+            // Coluna negativa ou absurda cai em "desligado" — ver TieBreakDoJogo.AlvoValido.
+            TieBreakDoJogo.AlvoValido(pontosDoTieBreak));
 
     // Até onde o placar pode ir NESTE momento — o limite não é um teto seco.
     //

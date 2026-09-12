@@ -54,14 +54,26 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> SincronizarPlacar(int partidaId, int games1, int games2,
-            int sets1, int sets2, long marcadoEm)
+            int sets1, int sets2, long marcadoEm,
+            // A CONTAGEM DO TIE-BREAK (12/09/2026). Nulos = fila gravada antes deste deploy (ou
+            // Mesa de torneio sem tie-break): o placar de games continua entrando e o que está
+            // gravado aqui fica. Zerar por ausência apagaria a contagem que está na quadra.
+            int? pontosTieBreak1 = null, int? pontosTieBreak2 = null)
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
             if (partida.TorneioId == null || !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            // O formato da FASE só é buscado quando o aparelho mandou ponto de tie-break: a Mesa
+            // chama esta rota a cada toque, e uma consulta a mais por game é latência na quadra
+            // — que é justamente o que o caminho offline-first existe pra não pagar.
+            var formatoDaMesa = pontosTieBreak1 != null || pontosTieBreak2 != null
+                ? FormatoDaPartida.De(await _context.Torneios.FindAsync(partida.TorneioId.Value), partida.Fase)
+                : null;
+
             var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
-                DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime);
+                DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime,
+                pontosTieBreak1, pontosTieBreak2, formatoDaMesa);
 
             if (resultado.Aplicado)
             {
@@ -83,6 +95,10 @@ namespace Padelizou.Controllers
                 games2 = partida.GamesDupla2,
                 sets1 = partida.SetsDupla1,
                 sets2 = partida.SetsDupla2,
+                // A contagem volta junto: quando o servidor recusa (já tem placar mais novo), a
+                // Mesa adota o estado dele — e o tie-break faz parte do placar.
+                pontos1 = partida.PontosTieBreak1 ?? 0,
+                pontos2 = partida.PontosTieBreak2 ?? 0,
                 finalizada = partida.Status == "Finalizada"
             });
         }
@@ -106,7 +122,15 @@ namespace Padelizou.Controllers
         [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SalvarPlacaresAoVivo(
-            int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null)
+            int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null,
+            // OS PONTOS DO TIE-BREAK (12/09/2026), array paralelo aos de cima — o card manda
+            // sempre, inclusive escondido, pra não desalinhar os índices do lote (ver o
+            // comentário em _JogosDoTorneio.cshtml).
+            //
+            // Nulo = tela aberta ANTES deste deploy: o placar de games continua salvando
+            // normalmente e os pontos gravados ficam como estão. Tratar ausência como zero
+            // apagaria um tie-break em andamento no primeiro toque de quem não recarregou.
+            int[]? pontos1 = null, int[]? pontos2 = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -155,7 +179,25 @@ namespace Padelizou.Controllers
                 var formato = FormatoDaPartida.De(torneio, partida.Fase);
                 var (g1, g2) = FormatoDaPartida.PlacarValido(formato, games1[i], games2[i]);
 
-                if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2) continue;
+                // OS PONTOS DO TIE-BREAK. ⚠️ Só entram onde o tie-break PODE acontecer
+                // (Services/TieBreakDoJogo): num torneio com a contagem desligada, ou numa fase
+                // de número par, um `pontos1` montado à mão não grava nada. E o índice é
+                // conferido: array mais curto (tela antiga, POST recortado) não estoura, só
+                // deixa os pontos como estão.
+                bool mexeuNosPontos = false;
+                if (TieBreakDoJogo.PodeAcontecer(formato)
+                    && pontos1 != null && pontos2 != null
+                    && i < pontos1.Length && i < pontos2.Length)
+                {
+                    int p1 = TieBreakDoJogo.PontoValido(pontos1[i]);
+                    int p2 = TieBreakDoJogo.PontoValido(pontos2[i]);
+
+                    mexeuNosPontos = partida.PontosTieBreak1 != p1 || partida.PontosTieBreak2 != p2;
+                    partida.PontosTieBreak1 = p1;
+                    partida.PontosTieBreak2 = p2;
+                }
+
+                if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2 && !mexeuNosPontos) continue;
 
                 partida.GamesDupla1 = g1;
                 partida.GamesDupla2 = g2;
@@ -210,6 +252,13 @@ namespace Padelizou.Controllers
                             // pronta do servidor.
                             vencedor = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0,
                             aoVivo = p.Status == "AoVivo",
+                            // E O TIE-BREAK (12/09/2026), pelo mesmo motivo do teto e do
+                            // vencedor: "este jogo está em tie-break?" é pergunta de régua, e a
+                            // resposta VIRA no instante em que o 9º game é escrito. Sem ela na
+                            // resposta, o bloco "TIE-BREAK" ficaria em cima de um 9 x 8 já
+                            // decidido até a próxima atualização automática — que nem roda com o
+                            // cursor dentro de um campo (`estaOcupado`).
+                            tieBreak = TieBreakNaResposta(f, p, g1, g2),
                         };
                     }),
                 });
@@ -220,6 +269,38 @@ namespace Padelizou.Controllers
                 : $"{mexidos} placar(es) salvos.";
 
             return VoltarPara(voltarPara, id);
+        }
+
+        // TUDO O QUE A TELA PRECISA SABER SOBRE O TIE-BREAK DESTE JOGO, respondido pelo servidor
+        // (12/09/2026). Vai na resposta de cada salvamento pelo mesmo motivo do teto e do
+        // vencedor: as três perguntas — "está em tie-break?", "já dá pra fechar?" e "com que
+        // placar?" — são de régua (Services/TieBreakDoJogo), e a resposta VIRA no mesmo toque
+        // que marca o ponto.
+        //
+        // ⚠️ Reescrever isso em JavaScript seria a segunda cópia da regra, que é como o
+        // `limiteGames: 9` cravado no JS sobreviveu tanto tempo. Até a ETIQUETA vem daqui, pra
+        // "tie-break 7-5" ter um formato só no projeto.
+        private static object TieBreakNaResposta(FormatoDaPartida.Formato formato, Partida p, int games1, int games2)
+        {
+            bool emAndamento = TieBreakDoJogo.EmAndamento(formato, games1, games2);
+            int pontos1 = p.PontosTieBreak1 ?? 0, pontos2 = p.PontosTieBreak2 ?? 0;
+
+            // O placar do fechamento só existe DENTRO do tie-break: fora dele, um 7-5 guardado de
+            // um jogo que já fechou não pode voltar a oferecer "fechar em 9x8".
+            var fechamento = emAndamento
+                ? TieBreakDoJogo.GamesAoFechar(formato, pontos1, pontos2)
+                : null;
+
+            return new
+            {
+                emAndamento,
+                pontos1,
+                pontos2,
+                houve = TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2),
+                etiqueta = TieBreakDoJogo.Etiqueta(pontos1, pontos2),
+                fecha1 = fechamento?.Games1,
+                fecha2 = fechamento?.Games2,
+            };
         }
 
         // Pra onde ir depois de encerrar. Quem finaliza pela MESA continua na Mesa; quem

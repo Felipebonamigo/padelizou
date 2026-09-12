@@ -79,6 +79,71 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
             Arg.Any<string>(), tag);
     }
 
+    // ⚠️ A CONTAGEM DO TIE-BREAK TEM QUE ENTRAR NO PUSH (12/09/2026). Em tie-break os GAMES
+    // param de mudar — ficam 8 x 8 até alguém fechar —, e cada ponto marcado dispara este aviso
+    // de novo. Sem os pontos no corpo, o seguidor recebe a mesma notificação "8 x 8" sete vezes
+    // seguidas (a tag atualiza a anterior, então na prática ele vê a tela congelada) exatamente
+    // no momento mais disputado do jogo. É o oposto do "placar que o Google mostra na tela de
+    // bloqueio" que este caminho existe pra imitar.
+    [Fact]
+    public async Task O_push_mostra_a_contagem_do_tie_break()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 4);
+        torneio.GamesFaseGrupos = 9;
+        torneio.PontosTieBreakGrupos = TieBreakDoJogo.PontosPadrao;
+        await ctx.SaveChangesAsync();
+
+        var doTorneio = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await doTorneio.GerarChaves(torneio.Id);
+        var jogo = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).OrderBy(p => p.Id).FirstAsync();
+        jogo.GamesDupla1 = 8;
+        jogo.GamesDupla2 = 8;
+        jogo.PontosTieBreak1 = 5;
+        jogo.PontosTieBreak2 = 3;
+
+        var fa = new Jogador { Nome = "Torcedor", Cpf = "77788899904" };
+        ctx.Jogadores.Add(fa);
+        await ctx.SaveChangesAsync();
+        ctx.Add(new SeguidorDePartida { JogadorId = fa.Id, PartidaId = jogo.Id });
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
+            Arg.Is<string>(c => c != null && c.Contains("8 x 8") && c.Contains("5-3")),
+            "/x", $"partida-{jogo.Id}");
+    }
+
+    [Fact]
+    public async Task Jogo_sem_tie_break_nao_ganha_texto_nenhum_a_mais()
+    {
+        // A grande maioria dos jogos nunca chega ao 8x8: o corpo do push continua sendo só o
+        // placar, sem um "tie-break 0-0" pendurado nele.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 4);
+        await ctx.SaveChangesAsync();
+
+        var doTorneio = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await doTorneio.GerarChaves(torneio.Id);
+        var jogo = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).OrderBy(p => p.Id).FirstAsync();
+        jogo.GamesDupla1 = 4;
+        jogo.GamesDupla2 = 3;
+
+        var fa = new Jogador { Nome = "Torcedor", Cpf = "77788899905" };
+        ctx.Jogadores.Add(fa);
+        await ctx.SaveChangesAsync();
+        ctx.Add(new SeguidorDePartida { JogadorId = fa.Id, PartidaId = jogo.Id });
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
+            Arg.Is<string>(c => c != null && !c.Contains("tie-break")), "/x", $"partida-{jogo.Id}");
+    }
+
     // Jogo sem seguidor nenhum — o caso comum — não pode custar a consulta cara (a partida com
     // as duas duplas carregadas). O teste prova o efeito observável: zero push.
     [Fact]
