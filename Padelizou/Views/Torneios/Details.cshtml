@@ -1571,6 +1571,40 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                       data-categoria="@dupla.CategoriaId">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
 
+                                                    @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
+                                                       nesse caso de agora"* — o Alexandre era o `Jogador1`, e o botão só sabia
+                                                       trocar o segundo nome. Sem este seletor o servidor aceita `saiId` e ninguém
+                                                       tem como mandá-lo: é a mudança sem caminho, o defeito de 09/09 ao contrário.
+
+                                                       ⚠️ `dupla.Jogador2 != null` e não `dupla.Completa`: as duas dizem a mesma
+                                                       coisa, mas só a primeira ensina ao compilador que o `.NomeNaTela` logo
+                                                       abaixo não é nulo (CS8602 é ERRO aqui desde 22/08). O `Jogador1` entra na
+                                                       mesma checagem mesmo sendo declarado não-nulo: um `dupla.Jogador1?.` mais
+                                                       acima neste bloco já marcou a variável como talvez-nula pro resto do escopo —
+                                                       e a checagem tem que ser direta no ponto de uso.
+
+                                                       ⚠️ O `name` se REPETE em toda dupla da página, e pode: cada caixa destas é um
+                                                       <form> próprio, e o navegador posta só os campos do formulário enviado. O
+                                                       `id` é que precisa do sufixo — e do prefixo, porque quem organiza vê as DUAS
+                                                       telas na mesma página. *@
+                                                    @if (dupla.Jogador1 != null && dupla.Jogador2 != null)
+                                                    {
+                                                        <div class="mb-2">
+                                                            <div class="small text-muted mb-1">Quem sai da dupla?</div>
+                                                            @* O segundo nome vem marcado: é a troca de sempre, e a que mais acontece. *@
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="radio" name="saiId" checked
+                                                                       value="@dupla.Jogador2Id" id="meuSai2-@dupla.Id" />
+                                                                <label class="form-check-label small" for="meuSai2-@dupla.Id">@dupla.Jogador2.NomeNaTela</label>
+                                                            </div>
+                                                            <div class="form-check form-check-inline">
+                                                                <input class="form-check-input" type="radio" name="saiId"
+                                                                       value="@dupla.Jogador1Id" id="meuSai1-@dupla.Id" />
+                                                                <label class="form-check-label small" for="meuSai1-@dupla.Id">@dupla.Jogador1.NomeNaTela</label>
+                                                            </div>
+                                                        </div>
+                                                    }
+
                                                     @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
                                                        motivo: ninguém sabe o CPF do parceiro de cabeça — o
                                                        organizador, corrigindo a inscrição de outra pessoa,
@@ -4805,6 +4839,41 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                   class="bg-white border rounded p-2 pdz-form-parceiro"
                                                   data-categoria="@dupla.CategoriaId">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
+
+                                                @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
+                                                   nesse caso de agora"* — o Alexandre era o `Jogador1`, e o botão só sabia
+                                                   trocar o segundo nome. Sem este seletor o servidor aceita `saiId` e ninguém
+                                                   tem como mandá-lo: é a mudança sem caminho, o defeito de 09/09 ao contrário.
+
+                                                   ⚠️ `dupla.Jogador2 != null` e não `dupla.Completa`: as duas dizem a mesma
+                                                   coisa, mas só a primeira ensina ao compilador que o `.NomeNaTela` logo
+                                                   abaixo não é nulo (CS8602 é ERRO aqui desde 22/08). O `Jogador1` entra na
+                                                   mesma checagem porque a cópia gêmea deste bloco, no card do próprio inscrito,
+                                                   PRECISA dela: um `dupla.Jogador1?.` mais acima de lá marca a variável como
+                                                   talvez-nula pro resto do escopo. Bloco gêmeo que diverge numa linha é o que a
+                                                   próxima sessão conserta num só.
+
+                                                   ⚠️ O `name` se REPETE em toda dupla da página, e pode: cada caixa destas é um
+                                                   <form> próprio, e o navegador posta só os campos do formulário enviado. O
+                                                   `id` é que precisa do sufixo — e do prefixo, porque quem organiza vê as DUAS
+                                                   telas na mesma página. *@
+                                                @if (dupla.Jogador1 != null && dupla.Jogador2 != null)
+                                                {
+                                                    <div class="mb-2">
+                                                        <div class="small text-muted mb-1">Quem sai da dupla?</div>
+                                                        @* O segundo nome vem marcado: é a troca de sempre, e a que mais acontece. *@
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="saiId" checked
+                                                                   value="@dupla.Jogador2Id" id="sai2-@dupla.Id" />
+                                                            <label class="form-check-label small" for="sai2-@dupla.Id">@dupla.Jogador2.NomeNaTela</label>
+                                                        </div>
+                                                        <div class="form-check form-check-inline">
+                                                            <input class="form-check-input" type="radio" name="saiId"
+                                                                   value="@dupla.Jogador1Id" id="sai1-@dupla.Id" />
+                                                            <label class="form-check-label small" for="sai1-@dupla.Id">@dupla.Jogador1.NomeNaTela</label>
+                                                        </div>
+                                                    </div>
+                                                }
 
                                                 @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
                                                    motivo: ninguém sabe o CPF do parceiro de cabeça — o
