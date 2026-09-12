@@ -25,6 +25,24 @@
 >
 > 🧪 **6.814 testes, 0 falhas (18 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador: check-in com uma categoria e com duas; e os três vizinhos (quadra, setas, largada) devolvendo `?categoriaFiltroIds=910`, `?categoriaFiltroIds=910&soMeusJogos=true` e `?quadraFiltro=Arena%20Nclass`.
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/isso-parece-errado-6gpkee`, ainda não publicado.** **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+>
+> 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
+>
+> 🕳️ **AS DUAS ESTAVAM EM QUADRA, UMA CONTRA A OUTRA.** O jogo 568 estava **AO VIVO** (começou 10:24, transmissão no ar), e o painel leu o placar parcial como resultado final: com a Vania à frente, deu a vaga a ela e eliminou a Bibiana. **Conferido no HTML de `prod` nesta sessão, com o jogo ainda rolando**: às 11:10 o placar era **5 x 6 pra Bibiana** e o mesmo pop-up já dizia o contrário — *"Bibiana / Caroline — Depende: passa se Cristina / Marina vencer"*. O painel trocou de resposta no meio do jogo, e a dupla "sem chance" voltou a ter chance.
+>
+> 🔬 **A CAUSA É UMA PERGUNTA MAL FEITA, e ela estava escrita como escolha**: o serviço decidia o que já tinha sido jogado com `QuemVenceu.Da(p) != null` — *"'Jogado' é ter vencedor pela régua única, **não é o Status**"*. Só que `QuemVenceu` responde SIM pra qualquer placar desigual, e placar de jogo em andamento é desigual quase o tempo todo. O comentário resolvia o caso do 0x0 finalizado e **abria este**: faltava o E. Agora são as duas metades — `Status == "Finalizada"` **e** ter vencedor.
+>
+> ⚠️ **O SERVIÇO VIZINHO JÁ PERGUNTAVA CERTO**: o `ClassificadosJaConhecidos` (que põe nome na chave projetada) pula grupo com jogo em quadra, com esta linha de comentário — *"e grupo com jogo em quadra também não"*. Duas respostas pra mesma pergunta, e a que o jogador lê na beira da quadra era a errada.
+>
+> 👁️ **E A TELA DENUNCIAVA A CONTRADIÇÃO NO MESMO CARD**: a tabela do grupo, logo acima do botão, soma só partidas **finalizadas** (`TorneiosController`) e mostrava a Bibiana com **J1 V0 D1 −6**; o pop-up logo abaixo dava a ela uma vitória que ninguém tinha ganhado.
+>
+> ✅ **O QUE MUDA NA TELA**: jogo em quadra é jogo **por jogar**. Com dois jogos em aberto (o de quadra + o agendado, que é o caso do print) o painel **não aparece** — não havia o que responder. Quando o jogo em quadra for o **único** que falta, o painel aparece e **simula aquele jogo**, que é justamente quando ele serve mais.
+>
+> ✅ **E O PAINEL SAIU DO GRUPO DE DUAS DUPLAS** (🗣️ Felipe, na sequência: *"so deve aparecer depois q finalizar o segundo jogo do grupo e se tiverem 3"*). O grupo de 2 tem **um jogo só**: o painel aparecia nele **antes de a bola quicar**, listando as duas duplas como "Já classificado" — com duas vagas, as duas passam mesmo perdendo. **São 8 dos 24 grupos deste torneio.** A régua nova é *"o grupo já decidiu alguma coisa"* (`jogados.Count == 0` → sem painel), e não *"o grupo tem 3 duplas"*: com um jogo faltando as duas dão no mesmo resultado, e esta não promete nada quando a grade do grupo está incompleta. **No grupo de 4 o painel continua aparecendo** quando falta o último jogo — mesma pergunta, mesma resposta.
+>
+> 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
+
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois ambientes**, que é mais forte que o healthcheck: o `/css/site.css` responde com `box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55) inset` na `.pdz-bolinha-apagada`, **zero** ocorrências de `--pdz-border` naquela regra e **zero** `opacity` nela; o `sw.js` em **`padelizou-static-v34`**; `/healthz` **200** nos dois.

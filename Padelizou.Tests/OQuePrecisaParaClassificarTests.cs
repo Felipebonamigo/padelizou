@@ -27,11 +27,25 @@ public class OQuePrecisaParaClassificarTests
         Jogador2 = new Jogador { Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
+    // ⚠️ COM `Status`, como em produção: o painel decide o que já foi jogado olhando pra ele,
+    // e uma partida de teste sem status nenhum esconderia justamente o defeito de 12/09/2026
+    // (jogo EM QUADRA contado como decidido). Jogo sem placar nasce "Agendada"; com placar,
+    // "Finalizada" — pro jogo em quadra existe o `EmQuadra` logo abaixo.
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
     {
         Dupla1Id = dupla1, Dupla2Id = dupla2,
         GamesDupla1 = g1, GamesDupla2 = g2,
         Fase = "Fase de Grupos",
+        Status = g1 == null && g2 == null ? "Agendada" : "Finalizada",
+    };
+
+    // O jogo que está ACONTECENDO: placar parcial na tela, nada decidido.
+    private static Partida EmQuadra(int dupla1, int dupla2, int g1, int g2) => new()
+    {
+        Dupla1Id = dupla1, Dupla2Id = dupla2,
+        GamesDupla1 = g1, GamesDupla2 = g2,
+        Fase = "Fase de Grupos",
+        Status = "AoVivo",
     };
 
     // ===================== QUANDO O PAINEL APARECE =====================
@@ -74,6 +88,110 @@ public class OQuePrecisaParaClassificarTests
 
         // Dois sem vencedor → ainda não é hora.
         Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
+    // ═══════════════ O GRUPO QUE NÃO TEM O QUE RESPONDER ═══════════════
+    //
+    // 🗣️ Felipe, 12/09/2026, olhando o card do Grupo B: *"so deve aparecer depois q finalizar o
+    // segundo jogo do grupo e se tiverem 3"*.
+    //
+    // 🕳️ O GRUPO DE DUAS DUPLAS TEM UM JOGO SÓ — e o painel aparecia nele ANTES de a bola
+    // quicar: um jogo faltando, nenhum jogado, e as duas duplas listadas como "Já classificado"
+    // (com duas vagas, as duas passam mesmo perdendo). No 2ª Etapa ER Padel Tour são 8 grupos
+    // assim, de 24. Não é resposta errada — é uma pergunta que ninguém fez, no lugar onde a
+    // pessoa procura o que precisa FAZER.
+    //
+    // ⚠️ A régua é "o grupo já decidiu alguma coisa", e não "o grupo tem 3 duplas": as duas dão
+    // no mesmo resultado (com um jogo faltando, o grupo de 3 tem sempre dois encerrados e o de
+    // 2 tem zero), e esta não mente quando a grade do grupo está incompleta.
+    [Fact]
+    public void Grupo_de_duas_duplas_nao_ganha_painel()
+    {
+        var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia") };
+        var jogos = new[] { Jogo(1, 2, null, null) };
+
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
+    // E nem quando o único jogo do grupo está EM QUADRA — é o mesmo grupo de 2, com a bola
+    // rolando.
+    [Fact]
+    public void Grupo_de_duas_duplas_com_o_jogo_em_quadra_tambem_nao()
+    {
+        var duplas = new[] { Dupla(1, "Ana"), Dupla(2, "Bia") };
+        var jogos = new[] { EmQuadra(1, 2, 4, 3) };
+
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
+    // ═══════════════ O JOGO QUE AINDA ESTÁ EM QUADRA ═══════════════
+    //
+    // 🗣️ Felipe, 12/09/2026, num print do pop-up do Grupo B da 6ª Feminina (2ª Etapa ER Padel
+    // Tour): *"Isso parece errado, é meio impossivel"*.
+    //
+    // 🕳️ E ERA. O painel dizia "Vania / Eliane — Já classificado" e "Bibiana / Caroline — Sem
+    // chance" ENQUANTO as duas estavam jogando uma contra a outra: o jogo 568 estava AO VIVO,
+    // 5 x 6 na parcial, e o painel leu o placar parcial como resultado final. Oito minutos
+    // depois o placar virou e o pop-up trocou de resposta — a Bibiana, "sem chance", voltou a
+    // depender do jogo. O painel eliminou uma dupla por causa de um game de vantagem no meio
+    // de um jogo em andamento.
+    //
+    // ⚠️ A CAUSA É UMA PERGUNTA MAL FEITA: "tem vencedor?" (`QuemVenceu`) responde SIM pra
+    // qualquer placar desigual, e placar parcial é desigual quase o tempo todo. Quem decide se
+    // ACABOU é o `Status` — e o serviço vizinho que preenche a chave projetada
+    // (`ClassificadosJaConhecidos`) já perguntava isso ("grupo com jogo em quadra também não").
+    // Este não perguntava.
+    //
+    // ⚠️ E A TELA DENUNCIAVA A CONTRADIÇÃO NO MESMO CARD: a tabela do grupo, que soma só
+    // partidas finalizadas (TorneiosController), mostrava a Bibiana com J1 V0 D1 −6; o pop-up
+    // logo abaixo dava a ela uma vitória que ninguém tinha ganhado.
+    [Fact]
+    public void Jogo_em_quadra_nao_conta_como_jogado()
+    {
+        // O Grupo B do print, número por número: 1 = Cristina/Marina, 2 = Vania/Eliane,
+        // 3 = Bibiana/Caroline.
+        var duplas = new[] { Dupla(1, "Cristina"), Dupla(2, "Vania"), Dupla(3, "Bibiana") };
+        var jogos = new[]
+        {
+            Jogo(3, 1, 3, 9),        // ENCERRADO: Bibiana/Caroline 3 x 9 Cristina/Marina
+            EmQuadra(2, 3, 5, 6),    // AO VIVO:   Vania/Eliane 5 x 6 Bibiana/Caroline
+            Jogo(2, 1, null, null),  // AGENDADO:  Vania/Eliane x Cristina/Marina
+        };
+
+        // FALTAM DOIS jogos, não um: o que está em quadra ainda não decidiu nada. Com dois em
+        // aberto não há painel nenhum a mostrar — que é a régua que este arquivo já tinha.
+        Assert.Null(OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos));
+    }
+
+    // O outro lado da mesma régua, e o que impede a "correção" preguiçosa de simplesmente
+    // esconder o painel quando existe jogo em quadra: se o jogo EM QUADRA é o único que falta,
+    // o painel é exatamente o que a pessoa na beira da quadra quer — e ele tem que simular
+    // aquele jogo, não dar o placar parcial por final.
+    [Fact]
+    public void O_jogo_em_quadra_e_o_que_o_painel_simula_quando_e_o_ultimo()
+    {
+        var duplas = new[] { Dupla(1, "Cristina"), Dupla(2, "Vania"), Dupla(3, "Bibiana") };
+        var emQuadra = EmQuadra(2, 3, 5, 6);
+        var jogos = new[]
+        {
+            Jogo(3, 1, 3, 9),   // Cristina venceu a Bibiana
+            Jogo(2, 1, 5, 9),   // Cristina venceu a Vania → 2 vitórias, já está dentro
+            emQuadra,           // Vania x Bibiana, 5 x 6 na parcial: decide a 2ª vaga
+        };
+
+        var quadro = OQuePrecisaParaClassificar.Montar(duplas, jogos, 2, Ate9, ClassificacaoDeGrupos.SemPontos);
+
+        Assert.NotNull(quadro);
+        Assert.Same(emQuadra, quadro!.JogoQueFalta);
+
+        // Quem está 6 x 5 na frente NÃO está classificado, e quem está atrás NÃO está
+        // eliminado: os dois dependem do fim do jogo, que é o que o placar da tela diz.
+        Assert.Equal(OQuePrecisaParaClassificar.Estado.JaClassificado,
+            quadro.Situacoes.Single(s => s.Dupla.Id == 1).Estado);
+        Assert.Equal(OQuePrecisaParaClassificar.Estado.Depende,
+            quadro.Situacoes.Single(s => s.Dupla.Id == 2).Estado);
+        Assert.Equal(OQuePrecisaParaClassificar.Estado.Depende,
+            quadro.Situacoes.Single(s => s.Dupla.Id == 3).Estado);
     }
 
     // ===================== O CASO DO FELIPE: 2 DE 3 JOGADOS =====================

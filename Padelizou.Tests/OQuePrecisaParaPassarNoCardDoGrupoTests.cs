@@ -42,11 +42,15 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
         Jogador2 = new Jogador { Id = 100 + id, Nome = parceiro, Cpf = $"9991000000{id}", Login = $"p{id}" },
     };
 
+    // ⚠️ COM `Status`, como no banco: desde 12/09/2026 o painel só dá um jogo por decidido se
+    // ele ESTIVER ENCERRADO (jogo em quadra não conta), e partida de teste sem status nenhum
+    // não seria mais o que a tela vê.
     private static Partida Jogo(int dupla1, int dupla2, int? g1, int? g2) => new()
     {
         Dupla1Id = dupla1, Dupla2Id = dupla2,
         GamesDupla1 = g1, GamesDupla2 = g2,
         Fase = "Grupo B",
+        Status = g1 == null && g2 == null ? "Agendada" : "Finalizada",
     };
 
     // ═══════════════ O GRUPO B DO PRINT, NÚMERO POR NÚMERO ═══════════════
@@ -391,6 +395,41 @@ public class OQuePrecisaParaPassarNoCardDoGrupoTests
             "o grupo em que falta um jogo ficou sem o painel");
         Assert.False(quadros.ContainsKey(grupoIntocado),
             "o grupo com três jogos por fazer não tem o que responder, e ganhou painel mesmo assim");
+    }
+
+    // 12/09/2026 — O GRUPO B DA 6ª FEMININA, PELA PORTA DE VERDADE. 🗣️ Felipe, num print do
+    // pop-up: *"Isso parece errado, é meio impossivel"*. O jogo 568 (Vania/Eliane x
+    // Bibiana/Caroline) estava AO VIVO, 5 x 6, e o painel já tratava aquilo como resultado:
+    // dizia quem estava classificado e quem estava sem chance com as duas ainda em quadra.
+    //
+    // ⚠️ Pela CONTROLLER, e não só pelo serviço: é ela que decide quais partidas entregar ao
+    // painel (todas as de grupo, incluindo as não finalizadas — de propósito, é a que falta que
+    // o painel simula), e o defeito só existe na presença dessa lista completa.
+    [Fact]
+    public async Task Grupo_com_jogo_em_quadra_nao_ganha_painel()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, grupoCheio, _, duplas, org) = GrupoDeTresNaReta(ctx);
+
+        // O jogo que estava encerrado volta PRA QUADRA com placar parcial — é o estado do jogo
+        // 568 no print (e o mesmo estado em que "Reabrir" deixa um jogo que vai ser corrigido:
+        // Status AoVivo, placar na tela, sem vencedor).
+        var emQuadra = ctx.Partidas.Single(p => p.Dupla1Id == duplas[1] && p.Dupla2Id == duplas[2]);
+        emQuadra.Status = "AoVivo";
+        emQuadra.GamesDupla1 = 5;
+        emQuadra.GamesDupla2 = 6;
+        emQuadra.VencedorId = null;
+        ctx.SaveChanges();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.Details(torneio.Id, timeFiltroId: null, categoriaFiltroIds: null);
+
+        var quadros = (Dictionary<int, OQuePrecisaParaClassificar.Quadro>)controller.ViewBag.OQuePrecisaPorGrupo;
+
+        // Faltam DOIS jogos: o que está em quadra e o que nem começou. Painel nenhum.
+        Assert.False(quadros.ContainsKey(grupoCheio),
+            "o painel respondeu por um grupo com jogo em quadra — foi o que disse 'Já classificado' " +
+            "e 'Sem chance' pras duas duplas que ainda estavam jogando uma contra a outra");
     }
 
     // A régua de QUANTOS passam é a do chaveamento (`categoria.ClassificadosPorGrupo ?? 2`, a
