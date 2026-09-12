@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📌 **A TELA PARA DE SUMIR DEBAIXO DE QUEM ESTÁ OLHANDO.**
+>
+> 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.
+>
+> 🕳️ **DEFEITO 1 — A MEMÓRIA DE ABA NUNCA RODOU NESTA TELA, E ISSO É MEDIDO.** O `js/jogos-abas.js` existe desde 08/08/2026 pra lembrar a aba escolhida. No HTML entregue da página do torneio ele sai na **linha 3941** e o `bootstrap.bundle.js` na **4736** — os scripts da lista de jogos são emitidos no CORPO da página e o Bootstrap só chega no fim, pelo `_Layout`. O `if (!pills || !window.bootstrap) return` disparava **sempre**, em silêncio. Conferido no navegador com CDP: depois de clicar em "Finalizadas", `sessionStorage` **vazio** e **ZERO ouvintes** no `#jogosTabs`. Um mês de recurso morto sem uma linha de erro em lugar nenhum.
+>
+> 🕳️ **DEFEITO 2 — QUEM PUXAVA O GATILHO**: o atualizador de 20 em 20 segundos dá `location.reload()` quando a lista de jogos EM QUADRA muda (jogo entrou, jogo acabou) — num sábado, o tempo todo. Somado ao defeito 1, o organizador era teleportado pro Ao Vivo de onde quer que estivesse.
+>
+> ✅ **AS DUAS CORREÇÕES.** (1) O `jogos-abas.js` faz tudo depois do `DOMContentLoaded` — que só dispara quando todo script síncrono já rodou, o Bootstrap incluso, esteja ele onde estiver; e o ouvinte que GRAVA não depende mais do Bootstrap (só o restaurar depende). (2) A barra de cima (`#torneioTabs`) passou a ser lembrada também, com chave própria — era ela que faltava pro caso da aba Palpiteiros, e ela **não tinha `data-torneio-id`**, então a chave nasceria sem o número do torneio. (3) O atualizador só recarrega **pra quem está olhando os cartões ao vivo** (aba mãe Jogos aberta **e** sub-aba Ao Vivo ativa); pra quem está em outro lugar o tique passa em silêncio e segue atualizando só os blocos sem vídeo.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR, no cenário exato dele**: nas Finalizadas, com um jogo em quadra TERMINANDO no banco, três tiques do atualizador (65s) — **zero recarregamentos**, ficou nas Finalizadas, e a lista ainda se atualizou sozinha embaixo (`Finalizadas (1)` → `(2)`). E o roteiro completo: clicar em Finalizadas → recarregar → continua lá; clicar numa aba mãe → recarregar → continua lá; mudar filtro → continua lá.
+>
+> 🧪 **6.850 testes, 0 falhas (4 novos em `AbaQueFicaOndeEstaTests`)** + **5** conferidores de JS verdes — o novo é o `conferir-abas-que-ficam.js`, que roda o script **na ordem de produção (sem Bootstrap)**. Um conferidor que definisse o Bootstrap antes passaria com o defeito de pé, que é como ele sobreviveu um mês.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1263-6ebc315`** (runs 301 e 302), **o mesmo artefato nos dois**, com a tag explícita. PR #261. **Sem migration.** 🏟️ **O PAINEL "O QUE CADA UM PRECISA PARA PASSAR" DAVA JOGO EM QUADRA POR TERMINADO.**
 >
 > 🗣️ Felipe, num print do pop-up do Grupo B da 6ª Feminina do 2ª Etapa ER Padel Tour, às 11:02: *"Isso parece errado, é meio impossivel"*. O painel dizia **"Vania / Eliane — Já classificado"** e **"Bibiana / Caroline — Sem chance"**.
 >

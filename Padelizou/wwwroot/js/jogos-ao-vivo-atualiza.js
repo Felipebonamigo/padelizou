@@ -78,6 +78,28 @@
         return document.querySelector(".pdz-live-card") !== null;
     }
 
+    // A PESSOA ESTÁ MESMO OLHANDO OS CARTÕES AO VIVO? (12/09/2026)
+    //
+    // 🗣️ Felipe, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele
+    // automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da
+    // tela que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso
+    // nao pode acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em
+    // algo"*.
+    //
+    // O recarregamento abaixo existe pra quem está lendo os cartões em quadra: o que ele lê
+    // acabou de mudar. Pra quem está em Finalizadas, em Palpiteiros ou mexendo num filtro, é a
+    // tela sumindo sozinha — e num sábado a lista de jogos em quadra muda o tempo todo.
+    //
+    // ⚠️ AS DUAS BARRAS PRECISAM ESTAR ABERTAS: a sub-aba `#aovivo` continua marcada como ativa
+    // mesmo com a aba MÃE (Jogos) fechada, então perguntar só por ela devolveria "sim" pra quem
+    // está em Palpiteiros — que é justamente o caso que ele relatou.
+    function olhandoOAoVivo() {
+        var paneJogos = document.querySelector("#jogosDoTorneio");
+        // Em /Torneios/Jogos não existe aba mãe: a lista É a página.
+        if (paneJogos && !document.querySelector("#jogosDoTorneio.active")) return false;
+        return document.querySelector("#aovivo.active") !== null;
+    }
+
     function trocar(atual, fresco) {
         if (atual && fresco && atual.innerHTML !== fresco.innerHTML) atual.innerHTML = fresco.innerHTML;
     }
@@ -141,8 +163,19 @@
                 if (estaOcupado()) return;
 
                 if (assinatura(novo) !== assinatura(document)) {
-                    window.location.reload();
-                    return;
+                    // ⚠️ SÓ RECARREGA PRA QUEM ESTÁ OLHANDO OS CARTÕES. Pra quem está em outra
+                    // aba, o tique passa em silêncio: os blocos sem vídeo (Agendadas,
+                    // Finalizadas, modais) seguem sendo atualizados abaixo, que é o que a tela
+                    // dele mostra. Os cartões em quadra ficam velhos até ele voltar pro Ao
+                    // Vivo — e aí o tique seguinte recarrega, com ele olhando.
+                    //
+                    // Trocar cartão por cartão em vez de recarregar seria o caminho "certo",
+                    // mas cada cartão pode conter um <iframe> de transmissão, e mover ou
+                    // reescrever iframe é recarregá-lo (é a razão de este arquivo existir).
+                    if (olhandoOAoVivo()) {
+                        window.location.reload();
+                        return;
+                    }
                 }
 
                 aplicar(novo);
