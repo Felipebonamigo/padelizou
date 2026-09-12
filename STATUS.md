@@ -18,6 +18,18 @@
 > ⚠️ **RESSALVA — NADA DISTO FOI VISTO NO APARELHO DO FELIPE.** Não há navegador nesta sessão. O defeito 1 está provado no código gerado (é mecânico, não é palpite). O defeito 2 é leitura do relato: o `attachment` é o cabeçalho certo pra um botão chamado "Baixar" independentemente de qual navegador ignorava o atributo `download`, mas **quem confirma que o travamento acabou é o celular dele**. É JS/Razor/cabeçalho HTTP, **sem migration**, sem tocar em régua de autorização nem em dinheiro.
 >
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 👁️ **A BOLINHA DO CHECK-IN ESTAVA INVISÍVEL NO TEMA ESCURO — SÓ CSS.**
+>
+> 🗣️ Felipe, depois do `build-1231-12c7ad7` no ar (a bolinha subiu junto, no PR #242): *"Mas eu nao achei aonde q marca o checkin"*.
+>
+> 🕳️ **ELA ESTAVA LÁ, DESENHADA A 10% DE ALPHA.** A cor do círculo de "ainda não chegou" saía de `var(--pdz-border)`, que no tema escuro é `rgba(231, 236, 247, .10)` — alpha de BORDA, feito pra separar caixa de fundo numa linha de 1px. Virando ÍCONE em cima de card escuro, não existe pra quem olha. Passou por 6.643 testes verdes porque nenhum deles enxerga: a bolinha estava no HTML certo, na guarda certa, no lugar certo.
+>
+> ⚠️ **A ARMADILHA É O NOME DO TOKEN, e por isso virou teste**: `--pdz-border` parece "o cinza discreto do tema" e é o cinza de uma linha fina. Cor de coisa que precisa ser VISTA sai de `--pdz-muted` (#6a7891 claro / #9aa7c4 escuro). É o mesmo tombo que criou o `--pdz-linha-chave` — a borda de 9% sumia ao atravessar o quadro da chave.
+>
+> ⚠️ **A OUTRA METADE DO "NÃO ACHEI" PODE SER O INTERRUPTOR**, e essa não é defeito: sem `UsaCheckIn` ligado no torneio, a bolinha não nasce (de propósito). O sinal de um segundo: se o torneio não tem o botão **Check-in** nas ferramentas do organizador, a chave está desligada — liga em **Editar Dados do Torneio → "Usar check-in no dia do torneio?"**.
+>
+> 🧪 **6.759 testes, 0 falhas (2 novos, de contraste, escritos antes e vistos falhar)** + os 4 conferidores de JS verdes. **Continua sem browser nesta sessão.**
+
 > **12/09/2026** — ⏳ **NO BRANCH `claude/view-results-layout-fix-dbahs6`, ainda não publicado.** **Sem migration.** 👆 **CLICAR NO NOME NA TABELA DE PALPITEIROS MOSTRA O QUE A PESSOA PALPITOU.**
 >
 > 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.

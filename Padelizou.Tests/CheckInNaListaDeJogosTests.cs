@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Padelizou.Models;
 using Xunit;
@@ -229,6 +230,38 @@ public class CheckInNaListaDeJogosTests
         Assert.Contains("ehAgendado", expressao);
     }
 
+    // ── A BOLINHA PRECISA SER VISTA ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void A_bolinha_de_quem_ainda_nao_chegou_e_visivel_no_tema_ESCURO()
+    {
+        // 🕳️ DEFEITO DE 12/09/2026, achado pelo Felipe no ar: *"Mas eu nao achei aonde q marca
+        // o checkin"*. Ela estava lá — desenhada com `var(--pdz-border)`, que no tema escuro é
+        // `rgba(231, 236, 247, .10)`: DEZ POR CENTO de alpha. Borda de 10% separa caixa de
+        // fundo; ícone de 10% em cima de card escuro não existe pra quem olha.
+        //
+        // ⚠️ A ARMADILHA É O NOME DO TOKEN, e é por isso que ela vale um teste: `--pdz-border`
+        // parece "o cinza discreto do tema" e é o cinza de UMA LINHA de 1px. Cor de coisa que
+        // precisa ser vista sai de `--pdz-muted` (#6a7891 no claro, #9aa7c4 no escuro), que é o
+        // token contrastado dos dois lados — o mesmo raciocínio do `--pdz-linha-chave`, que
+        // nasceu porque a borda de 9% sumia ao atravessar o quadro da chave.
+        var regra = Regex.Match(Css(), @"\.pdz-jl-checkin\s*\{[^}]*\}", RegexOptions.Singleline);
+
+        Assert.True(regra.Success, "A regra .pdz-jl-checkin sumiu do site.css.");
+        Assert.DoesNotMatch(new Regex(@"color:\s*var\(--pdz-border\)"), regra.Value);
+        Assert.Matches(new Regex(@"color:\s*var\(--pdz-muted\)"), regra.Value);
+    }
+
+    [Fact]
+    public void A_bolinha_de_quem_chegou_se_distingue_de_quem_nao_chegou()
+    {
+        // Verde cheia contra cinza vazada: se as duas fossem da mesma cor, a chamada viraria
+        // um teste de memória.
+        Assert.Matches(
+            new Regex(@"\.pdz-jl-checkin-chegou\s*\{[^}]*color:\s*var\(--padel-green\)", RegexOptions.Singleline),
+            Css());
+    }
+
     [Fact]
     public void Marcar_da_lista_nao_joga_a_tela_de_volta_pro_topo()
     {
@@ -239,6 +272,9 @@ public class CheckInNaListaDeJogosTests
 
     private static string Ler(string view) =>
         File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", view));
+
+    private static string Css() =>
+        File.ReadAllText(Path.Combine(PastaDoProjeto(), "wwwroot", "css", "site.css"));
 
     private static string PastaDoProjeto()
     {
