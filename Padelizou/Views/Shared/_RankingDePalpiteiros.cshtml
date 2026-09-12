@@ -99,8 +99,10 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
+        @* O `TorneioId` é o que faz o nome abrir "o que esta pessoa palpitou" (12/09/2026) —
+           sem ele, a tabela do hub continua mandando o nome pro perfil. *@
         <partial name="_TabelaDePalpiteiros"
-                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao))' />
+                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao, Model.TorneioId))' />
     </div>
 </div>
 

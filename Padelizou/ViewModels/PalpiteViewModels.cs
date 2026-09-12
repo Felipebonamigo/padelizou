@@ -94,7 +94,16 @@ public record TabelaDePalpiteirosVM(
     // As colunas da APURAÇÃO — palpites contados, acertos, aproveitamento e pontos. Somem
     // enquanto nenhum jogo do torneio foi apurado: ali elas só sabem dizer zero, e uma tabela
     // de zeros parece conta quebrada em vez de véspera (visto no navegador, 10/09/2026).
-    bool MostrarApuracao = true)
+    bool MostrarApuracao = true,
+
+    // DE QUE TORNEIO É ESTA TABELA — e só com ele o nome vira o botão que abre "o que esta
+    // pessoa palpitou" (12/09/2026).
+    //
+    // ⚠️ NULO NO HUB DO RANKING, de propósito: lá a tabela soma VÁRIOS torneios, e não existe
+    // "os palpites dela neste torneio" pra mostrar. Ali o nome continua sendo o link do perfil,
+    // que é o que sempre foi. Não é interruptor de tela: é a pergunta "existe um torneio aqui?"
+    // feita ao dado que a página já tem.
+    int? TorneioId = null)
 {
     public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
 }
