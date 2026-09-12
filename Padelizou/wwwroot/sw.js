@@ -19,7 +19,7 @@
 // as duas pontas escreveram o mesmo número. Quem avisou foi o comentário acima, que conflitou:
 // é literalmente a pista que o v29 deixou escrita aqui pra quem viesse depois. **Quem sobe o
 // número confere o `main` ANTES de escolher qual.**
-const CACHE_NAME = "padelizou-static-v32";
+const CACHE_NAME = "padelizou-static-v33";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
@@ -177,6 +177,13 @@ self.addEventListener("push", (event) => {
     opcoes.renotify = false;
     opcoes.silent = true;
   }
+
+  // O CARD DO PLACAR (12/09/2026). 🗣️ Felipe, com o print da bolha do Google e o do placar na
+  // Dynamic Island: "as notificações estao acontecendo, mas eu queria algo tipo esses prints".
+  // Os dois exigem app nativo; `image` é o que a notificação da WEB tem — no Android, puxando-a
+  // pra baixo, ela abre este PNG (Services/CartaoDoPlacarAoVivo). Onde não houver suporte, a
+  // chave é ignorada e sobra o texto de sempre: nada quebra.
+  if (data.image) opcoes.image = data.image;
 
   event.waitUntil(self.registration.showNotification(data.title, opcoes));
 });

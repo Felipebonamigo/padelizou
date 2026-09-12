@@ -76,7 +76,7 @@ public class PushNotificationService : IPushNotificationService
             // Mudo, o placar ao vivo é descartado INTEIRO — e é o certo: ele é só push e não
             // entra na caixa, e placar de meia hora atrás não vale ser guardado pra depois.
             if (!mudo)
-                await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url, aviso.Tag);
+                await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url, aviso.Tag, aviso.Imagem);
             return;
         }
 
@@ -167,7 +167,7 @@ public class PushNotificationService : IPushNotificationService
     // anterior do mesmo jogo (mesma tag) em vez de empilhar, e pra tocar o aparelho em
     // silêncio nas atualizações (ver wwwroot/sw.js). Nula, o comportamento de sempre.
     private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url,
-        string? tag = null)
+        string? tag = null, string? imagem = null)
     {
         // O push é o único canal que não sabe pra QUEM está mandando: a inscrição é de um
         // aparelho. Então aqui a pergunta custa uma consulta — e ela só é feita quando o
@@ -185,7 +185,9 @@ public class PushNotificationService : IPushNotificationService
 
         if (subscriptions.Count == 0) return 0;
 
-        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/", tag });
+        // `image` é o card do placar ao vivo — o sw.js entrega essa chave pro showNotification,
+        // e no Android ela vira a imagem que a notificação abre. Nula em todo o resto.
+        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/", tag, image = imagem });
         var client = new WebPushClient();
         var entregues = 0;
 
@@ -325,10 +327,11 @@ public class PushNotificationService : IPushNotificationService
     // Enfileira, não envia — mesmo motivo do EnviarParaJogadorAsync: quem marca um game não
     // pode ficar esperando N chamadas de push por seguidor antes da tela voltar. `ApenasPush`
     // é o que muda o caminho na entrega (ver EntregarAgoraAsync).
-    public Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag)
+    public Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag,
+        string? imagem)
     {
         _filaDeAvisos.Enfileirar(new AvisoPendente(jogadorId, titulo, corpo, url, AlcanceDoAviso.SoApp,
-            Tag: tag, ApenasPush: true));
+            Tag: tag, ApenasPush: true, Imagem: imagem));
         return Task.CompletedTask;
     }
 
