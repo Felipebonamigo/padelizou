@@ -87,6 +87,24 @@ public class TraducaoDasConsultasDePalpiteTests
     }
 
     [Fact]
+    public void Os_palpites_de_UM_JOGADOR_NUM_TORNEIO_viram_SQL() =>
+        // A lista que o modal da tabela abre (12/09/2026): os palpites de UMA pessoa NESTE
+        // torneio. Atravessa a navegação `Partida` pra chegar no `TorneioId` — o mesmo salto da
+        // pergunta barata ali em cima, agora com o jogador junto.
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(
+            ctx, v => v.JogadorId == 7 && v.Partida.TorneioId == 1));
+
+    [Fact]
+    public void Os_JOGOS_da_lista_de_um_palpiteiro_viram_SQL()
+    {
+        // A outra metade do modal: os jogos daqueles palpites, com categoria e as duas duplas
+        // (quatro jogadores). São quatro `Include`/`ThenInclude` encadeados — se um dia um deles
+        // apontar pra navegação que não existe, é aqui que estoura, e não na primeira visita.
+        var ids = new List<int> { 1, 2, 3 };
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDosJogosDoPalpiteiro(ctx, ids));
+    }
+
+    [Fact]
     public void TODOS_os_palpites_viram_SQL() =>
         // O caminho da aba do hub sem filtro regional.
         Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(ctx, v => true));
