@@ -1,14 +1,14 @@
-@model (Padelizou.Models.Dupla? Dupla, bool Bolinha, string? VoltarPara)
+@model Padelizou.ViewModels.BotaoDeCheckInVM
 
 @* O BOTÃO QUE GRAVA PRESENÇA — um só, em duas roupas.
 
-   Ele é desenhado em dois lugares desde 12/09/2026: a linha da tela de Check-in (pílula escrita,
-   "Chegou"/"Desfazer") e a bolinha na aba Jogos, do lado do nome de cada dupla. O que muda entre
-   os dois é a APARÊNCIA; o que é gravado é o mesmo POST.
+   Ele é desenhado em dois lugares: a linha da tela de Check-in (pílula escrita,
+   "Chegou"/"Desfazer") e a bolinha na aba Jogos, do lado do nome de cada jogador. O que muda
+   entre os dois é a APARÊNCIA; o que é gravado é o mesmo POST.
 
    ⚠️ POR ISSO ELE VIVE AQUI, e não copiado nos dois. Duas cópias do formulário que ESCREVE no
-   banco divergiriam na primeira mudança — e é a mesma razão pela qual a linha da tela de Check-in
-   já morava num parcial desde 10/09.
+   banco divergiriam na primeira mudança — e a primeira mudança veio três horas depois de ele
+   nascer, quando a presença deixou de ser da dupla e virou da PESSOA.
 
    ⚠️ `voltarPara` diz de qual tela o clique saiu, pra ele voltar pra lá em vez de cair sempre na
    tela de Check-in. O servidor trata isso como LISTA FECHADA (TorneiosController.MarcarCheckIn):
@@ -17,20 +17,19 @@
    ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e o
    `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
 
-@if (Model.Dupla == null) { return; }
-
 @{
-    bool chegou = Model.Dupla.CheckInEm != null;
+    bool chegou = Model.ChegouEm != null;
     string rotulo = chegou
-        ? $"Chegou {Model.Dupla.CheckInEm!.Value:HH:mm} — toque pra desfazer"
-        : "Marcar que chegou";
+        ? $"{Model.Nome} chegou {Model.ChegouEm!.Value:HH:mm} — toque pra desfazer"
+        : $"Marcar que {Model.Nome} chegou";
 }
 
 @* ⚠️ `data-manter-posicao`: marcar presença é um POST que redesenha a página do começo, e numa
-   lista de 97 jogos (ou de 64 duplas) isso custa uma rolagem a cada clique.
+   lista de 97 jogos (ou de 128 jogadores) isso custa uma rolagem a cada clique.
    Ver wwwroot/js/manter-posicao-na-lista.js. *@
 <form asp-controller="Torneios" asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
-    <input type="hidden" name="duplaId" value="@Model.Dupla.Id" />
+    <input type="hidden" name="jogadorId" value="@Model.JogadorId" />
+    <input type="hidden" name="torneioId" value="@Model.TorneioId" />
     <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
     @if (!string.IsNullOrEmpty(Model.VoltarPara))
     {
@@ -46,7 +45,8 @@
     }
     else
     {
-        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3"
+                aria-label="@rotulo">
             @(chegou ? "Desfazer" : "Chegou")
         </button>
     }

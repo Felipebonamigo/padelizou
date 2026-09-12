@@ -125,9 +125,11 @@ public partial class Dupla
     // métricas de uso do admin (inscrições por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;
 
-    // Check-in no dia do torneio: a dupla apareceu. Nulo = ainda não fez check-in.
-    // Serve pro organizador ver quem falta antes de começar, e evitar W.O. surpresa.
-    public DateTime? CheckInEm { get; set; }
+    // ⚠️ O CHECK-IN SAIU DAQUI EM 12/09/2026. Era `CheckInEm` — uma coluna que respondia "a dupla
+    // apareceu" —, e virou linha em `PresencaNoTorneio`, chave (TorneioId, JogadorId).
+    // 🗣️ Felipe: *"Mude para um check por jogador, por que é assim que controla check in"*.
+    // "Essa dupla chegou?" agora é DERIVADO (Services/PresencaNoDia.DuplaCompleta) — manter a
+    // coluna como cache seria a segunda verdade sobre a mesma pergunta.
 
     // Último lembrete de "você ainda não pagou" já enviado, guardado como o MARCO em dias que
     // faltavam pro prazo (ver Services/LembreteDeInscricaoNaoPaga). Nulo = nenhum ainda.

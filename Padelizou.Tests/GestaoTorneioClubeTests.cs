@@ -53,7 +53,7 @@ public class GestaoTorneioClubeTests
     // ---------- Check-in ----------
 
     [Fact]
-    public async Task Check_in_marca_e_desmarca_a_dupla()
+    public async Task Check_in_marca_e_desmarca_o_jogador()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Inscrições Abertas");
@@ -65,11 +65,13 @@ public class GestaoTorneioClubeTests
 
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(dupla.Id, presente: true);
-        Assert.NotNull((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        // Por JOGADOR desde 12/09/2026: a linha nasce em PresencaNoTorneio, chave
+        // (torneio, pessoa), e desfazer é apagá-la.
+        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        Assert.Single(ctx.Presencas);
 
-        await controller.MarcarCheckIn(dupla.Id, presente: false);
-        Assert.Null((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: false);
+        Assert.Empty(ctx.Presencas);
     }
 
     [Fact]
@@ -88,10 +90,10 @@ public class GestaoTorneioClubeTests
         ctx.SaveChanges();
 
         var controller = TestInfra.NovoTorneiosController(ctx, intruso.Id);
-        var resultado = await controller.MarcarCheckIn(dupla.Id, presente: true);
+        var resultado = await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
 
         Assert.IsType<ForbidResult>(resultado);
-        Assert.Null((await ctx.Duplas.FindAsync(dupla.Id))!.CheckInEm);
+        Assert.Empty(ctx.Presencas);
     }
 
     // ---------- Clube: bloqueio ----------

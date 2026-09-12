@@ -3387,6 +3387,42 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-jl-checkin-chegou { color: var(--padel-green); }
 
+/* O PAR, quando a chamada está ligada (12/09/2026). Com um check POR JOGADOR os rostos saem de
+   cima um do outro e cada um cola no seu nome — sobrepostos, não dá pra saber de quem é o check.
+   O par continua sendo UMA COISA (`.pdz-jl-par`) porque é ele que a porcentagem do palpitômetro
+   acompanha: sem esse nível, no celular as quatro linhas viram quatro entradas soltas e ninguém
+   lê mais "dupla × dupla".
+
+   ⚠️ `flex: 1 1 auto; min-width: 0` nos DOIS níveis, senão o par vira uma caixa de ~600px que
+   estica o cartão pra fora da tela — medido no Chromium a 390px antes de existir esta linha. */
+.pdz-jl-par {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pdz-jl-jogador {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.pdz-jl-jogador .pdz-jl-nome { flex: 0 1 auto; min-width: 0; }
+.pdz-jl-par .pdz-jl-barra { flex: 0 0 auto; color: var(--pdz-muted); }
+
+@media (max-width: 575.98px) {
+    /* Dois checks de 30px, dois rostos de 26px e dois nomes não cabem em 390px sem picotar o
+       sobrenome de todo mundo (medido). Cada jogador vira uma linha; a % fica centrada no par,
+       e o vão entre duplas dobra pra separar um par do outro. */
+    .pdz-jl-par { flex-direction: column; align-items: flex-start; gap: .1rem; }
+    .pdz-jl-par .pdz-jl-barra { display: none; }
+    .pdz-jl-corpo { gap: .5rem; }
+}
+
 /* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */
 .pdz-jl-palpite {
     display: flex;

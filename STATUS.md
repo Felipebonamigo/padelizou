@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 👁️ **A BOLINHA DO CHECK-IN ESTAVA INVISÍVEL NO TEMA ESCURO — SÓ CSS.**
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ⚠️ **TEM MIGRATION** (`PresencaPorJogador`): tabela nova + coluna derrubada, com conversão do dado. 🧍 **O CHECK-IN PASSA A SER POR JOGADOR.**
+>
+> 🗣️ Felipe, depois de ver a bolinha por dupla: *"Mas é tem um check para cada jogador da dupla?"* — e, com a resposta: *"Mude para um check por jogador, por que é assim que controla check in"*. Escolheu também o formato (**A**, check ao lado de cada nome), e mandou publicar ao terminar.
+>
+> 🕳️ **`Dupla.CheckInEm` RESPONDIA A PERGUNTA ERRADA.** Ela dizia "a dupla apareceu", que é o que o W.O. precisa e não é o que a mesa faz no sábado: quem chega é uma pessoa por vez, e o organizador precisa saber **qual dos dois** falta pra ligar pra pessoa certa em vez de pro parceiro que já está no clube.
+>
+> ⚠️ **A CHAVE NOVA É `(TorneioId, JogadorId)`, E ISSO É METADE DO DESENHO**: quem chegou ao clube chegou pro torneio INTEIRO. Quem joga 5ª Masculina e Mista faz **um** check, e ele vale nos jogos das duas — com a presença pendurada na dupla, a mesma pessoa seria marcada duas vezes e as telas discordariam sobre ela estar no clube. Linha existe = chegou; desfazer é apagar. **PK composta**, molde do `TorneioMarcador`: é o banco segurando o clique duplo, sem uma linha de C# (escada do CLAUDE.md, degrau 4).
+>
+> ⚠️ **"DUPLA PRESENTE" VIROU DERIVADO** — todos os jogadores dela marcados, **um só** na inscrição sem parceiro — e mora numa régua única (`Services/PresencaNoDia`). Manter a coluna antiga como cache seria a segunda verdade sobre a mesma pergunta. O contador da tela passou a contar **PESSOAS** ("1 de 4 jogadores presentes"), distinto por jogador; o selo do cartão virou **"os quatro chegaram"**.
+>
+> ✅ **A MIGRATION FOI RODADA CONTRA UM POSTGRES DE VERDADE, IDA E VOLTA** (Postgres 16 efêmero nesta sessão, com dado antigo semeado). O EF gerou o `DropColumn` **antes** do `CreateTable` — nessa ordem a coluna com quem já chegou morre antes de existir pra onde copiar; a ordem foi trocada à mão: **cria → copia → derruba**. E o `INSERT` leva `GROUP BY` + `MIN`: quem está marcado em DUAS categorias geraria chave duplicada e derrubaria a migration inteira (o caso estava no dado de teste). Conferido: 5 duplas viram 6 presenças, a pessoa das duas categorias vira **uma** linha com a chegada mais antiga, a inscrição sem parceiro vira uma linha só e o `Down` remonta a coluna.
+>
+> 📱 **O LAYOUT FOI MEDIDO, NÃO CHUTADO** (Chromium por CDP — o `--window-size` do headless mente abaixo de 500px). No computador o par cabe numa linha; **no celular cada jogador vira uma linha** (dois checks de 30px + dois rostos + dois nomes não cabem em 390px), com a % acompanhando o **par** — sem esse nível, as quatro linhas viram quatro entradas soltas e ninguém lê "dupla × dupla". Um jogo passa de 2 pra 4 linhas no celular: **~30% mais tela por jogo**.
+>
+> 🚧 **TIME FICA DE FORA** (cai no desenho antigo): ali a linha não tem nome de pessoa, tem nome de equipe. Chamada por jogador em torneio de times é outro pedido.
+>
+> 🧪 **6.771 testes, 0 falhas (16 novos, em `PresencaPorJogadorTests`)** + os 4 conferidores de JS verdes.
+
+> **12/09/2026** — 👁️ **A BOLINHA DO CHECK-IN ESTAVA INVISÍVEL NO TEMA ESCURO — SÓ CSS.**
 >
 > 🗣️ Felipe, depois do `build-1231-12c7ad7` no ar (a bolinha subiu junto, no PR #242): *"Mas eu nao achei aonde q marca o checkin"*.
 >
