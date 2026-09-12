@@ -43,7 +43,7 @@ public class AvisosDoDiaDeJogoTests
         var naOutraQuadra = Jogo("Agendada", "Quadra 2", Sabado.AddMinutes(10));
         var certa = Jogo("Agendada", "Quadra 1", Sabado.AddMinutes(50));
 
-        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { naOutraQuadra, certa });
+        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { naOutraQuadra, certa }, Sabado);
 
         Assert.Equal(certa.Id, escolhida!.Id);
     }
@@ -55,7 +55,7 @@ public class AvisosDoDiaDeJogoTests
         var depois = Jogo("Agendada", "Quadra 1", Sabado.AddHours(3));
         var agora = Jogo("Agendada", "Quadra 1", Sabado.AddMinutes(50));
 
-        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { depois, agora });
+        var escolhida = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { depois, agora }, Sabado);
 
         Assert.Equal(agora.Id, escolhida!.Id);
     }
@@ -68,7 +68,7 @@ public class AvisosDoDiaDeJogoTests
         var terminada = Jogo("Finalizada", null, Sabado);
         var proxima = Jogo("Agendada", null, Sabado.AddMinutes(50));
 
-        Assert.Equal(proxima.Id, AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { proxima })!.Id);
+        Assert.Equal(proxima.Id, AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { proxima }, Sabado)!.Id);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class AvisosDoDiaDeJogoTests
         var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
         var proxima = Jogo("Agendada", " quadra 1 ", Sabado.AddMinutes(50));
 
-        Assert.NotNull(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { proxima }));
+        Assert.NotNull(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { proxima }, Sabado));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class AvisosDoDiaDeJogoTests
         var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
         var jaAvisada = Jogo("Agendada", "Quadra 1", Sabado.AddMinutes(50), avisado: Sabado.AddMinutes(45));
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { jaAvisada }));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { jaAvisada }, Sabado));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class AvisosDoDiaDeJogoTests
         var aoVivo = Jogo("AoVivo", "Quadra 1", Sabado.AddMinutes(50));
         var acabada = Jogo("Finalizada", "Quadra 1", Sabado.AddMinutes(10));
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { aoVivo, acabada }));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { aoVivo, acabada }, Sabado));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class AvisosDoDiaDeJogoTests
         var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
         var semHorario = Jogo("Agendada", "Quadra 1", null);
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { semHorario }));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { semHorario }, Sabado));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class AvisosDoDiaDeJogoTests
     {
         var terminada = Jogo("Agendada", "Quadra 1", Sabado);
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { terminada }));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { terminada }, Sabado));
     }
 
     [Fact]
@@ -125,7 +125,46 @@ public class AvisosDoDiaDeJogoTests
     {
         var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
 
-        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, Array.Empty<Partida>()));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, Array.Empty<Partida>(), Sabado));
+    }
+
+    // ── Quanto à frente ainda é "o próximo" ───────────────────────────────────────────
+
+    [Fact]
+    public void Jogo_de_amanha_cedo_nao_e_avisado_pela_quadra_que_vagou_de_madrugada()
+    {
+        // 12/09/2026, 00:03 — o push chegou no celular do Felipe: "A Arena Loja 7 — Er Padel
+        // vagou — seu jogo é o próximo. Fique por perto." O jogo era às 08:00 da manhã. É o
+        // último jogo da noite terminando: a quadra não vagou pra ninguém, ela FECHOU o dia.
+        var meiaNoite = new DateTime(2026, 9, 12, 0, 3, 0);
+        var terminada = Jogo("Finalizada", "Arena Loja 7", meiaNoite.AddHours(-1));
+        var amanhaCedo = Jogo("Agendada", "Arena Loja 7", meiaNoite.Date.AddHours(8));
+
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { amanhaCedo }, meiaNoite));
+    }
+
+    [Fact]
+    public void Jogo_ATRASADO_continua_sendo_avisado_por_mais_que_seja_o_atraso()
+    {
+        // O teto é só pra FRENTE. Torneio atrasar é a razão de este aviso existir: o jogo das
+        // 09:00 que vai começar às 13:00 é exatamente quem precisa ouvir "a quadra vagou".
+        var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
+        var atrasado = Jogo("Agendada", "Quadra 1", Sabado.AddMinutes(50));
+
+        Assert.NotNull(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { atrasado },
+            Sabado.AddHours(4)));
+    }
+
+    [Fact]
+    public void Uma_hora_na_frente_ainda_e_o_proximo_e_uma_hora_e_um_minuto_ja_nao_e()
+    {
+        // A borda escrita, pra ninguém precisar deduzir de qual lado do sinal ela cai.
+        var terminada = Jogo("Finalizada", "Quadra 1", Sabado);
+        var naBorda = Jogo("Agendada", "Quadra 1", Sabado.AddHours(1));
+        var umMinutoDepois = Jogo("Agendada", "Quadra 1", Sabado.AddHours(1).AddMinutes(1));
+
+        Assert.NotNull(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { naBorda }, Sabado));
+        Assert.Null(AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, new[] { umMinutoDepois }, Sabado));
     }
 
     // ── Quem recebe ───────────────────────────────────────────────────────────────────

@@ -10,13 +10,30 @@ namespace Padelizou.Services;
 // verdade que a quadra vagou é a partida que acabou de terminar nela.
 public static class AvisosDoDiaDeJogo
 {
+    // Quanto à frente o horário previsto ainda faz "fique por perto" ser verdade. É teto só
+    // pra FRENTE: horário no passado é ATRASO, e atraso é a razão de este aviso existir —
+    // o jogo das 09:00 que vai começar às 13:00 é exatamente quem precisa ouvir que a quadra
+    // vagou, por mais tarde que seja.
+    //
+    // ⚠️ 12/09/2026, 00:03 — sem este teto o push saiu para quem joga às 08:00 DA MANHÃ:
+    // "A Arena Loja 7 — Er Padel vagou — seu jogo é o próximo. Fique por perto." O último
+    // jogo da noite não faz a quadra vagar pra ninguém, ele FECHA o dia; a regra "a primeira
+    // agendada da mesma quadra" sempre acha alguém enquanto o torneio tiver jogo restando.
+    public static readonly TimeSpan AntecedenciaMaxima = TimeSpan.FromHours(1);
+
     // Qual partida avisar quando `terminada` acaba.
     //
-    // Regra: a próxima agendada NA MESMA QUADRA. Quadra sem nome também casa com quadra sem
-    // nome — torneio pequeno costuma não nomear quadra nenhuma, e sem isso o aviso
-    // simplesmente nunca sairia pra eles.
-    public static Partida? ProximaAposTerminar(Partida terminada, IEnumerable<Partida> candidatas) =>
-        ProximaNaQuadra(terminada, candidatas.Where(p => p.AvisoProximoEnviadoEm == null));
+    // Regra: a próxima agendada NA MESMA QUADRA, desde que ela comece dentro da
+    // `AntecedenciaMaxima`. Quadra sem nome também casa com quadra sem nome — torneio pequeno
+    // costuma não nomear quadra nenhuma, e sem isso o aviso simplesmente nunca sairia pra eles.
+    //
+    // O corte é depois da escolha de propósito: a lista vem ordenada por horário, então se a
+    // primeira já está longe demais, todas as outras estão mais longe ainda.
+    public static Partida? ProximaAposTerminar(Partida terminada, IEnumerable<Partida> candidatas, DateTime agora) =>
+        ProximaNaQuadra(terminada, candidatas.Where(p => p.AvisoProximoEnviadoEm == null))
+            is { HorarioPrevisto: { } previsto } proxima && previsto - agora <= AntecedenciaMaxima
+                ? proxima
+                : null;
 
     // A mesma regra SEM a trava de "avisa uma vez só" — porque a tela não é um aviso.
     //

@@ -391,7 +391,7 @@ public class EncerramentoDaPartida
                 .Where(p => p.TorneioId == terminada.TorneioId && p.Status == "Agendada")
                 .ToListAsync();
 
-            var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas);
+            var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas, DateTime.Now);
             if (proxima == null) return;
 
             // O clube da quadra, pro aviso não mandar quem está no clube A correr pra uma quadra
