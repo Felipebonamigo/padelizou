@@ -27,6 +27,29 @@
 
 
 
+> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
+>
+> ```
+> InvalidOperationException — POST /Partidas/ControlePlacar/572
+> The LINQ expression 'DbSet<Partida>().Any(p => p.CategoriaId == @categoria_Id
+>   && p.Fase != @nomeFase && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))'
+>   could not be translated.
+> ```
+>
+> 🕳️ **`MontarAberturaDesenhadaAsync` perguntava ao BANCO com um método C# no predicado.** O Postgres recusa. Finalizar jogo passou a dar tela de erro pro organizador (`ControlePlacar` e `FinalizarPartida`), e as categorias com os grupos fechados ficaram **sem mata-mata**.
+>
+> ⚠️ **ERA LATENTE, E FUI EU QUE ACENDI.** Essa linha só era alcançada por categoria com cruzamento **desenhado à mão** — e nenhuma tinha. No instante em que o congelamento fez o desenho valer pra TODAS (horas antes, neste mesmo dia), a guarda virou o caminho de todo mundo. O defeito é de 11/09; quem o pôs no ar fui eu.
+>
+> ⚠️ **O EF InMemory DA SUÍTE EXECUTA O MÉTODO EM MEMÓRIA SEM RECLAMAR** — os 6.990 testes passavam. É **exatamente** a família de 19/08/2026, e o projeto já tinha a lição escrita em `Services/ClassificacaoParaCard` (*"A EXPRESSÃO DA FASE É INLINE, e não `FasesTorneio.EhFaseDeGrupos(p.Fase)`: o EF…"*). A lição estava lá; a varredura de quem mais fazia isso é que não existia.
+>
+> ✅ **A CORREÇÃO**: a consulta leva só o que o SQL entende (igualdade e `StartsWith`), traz as fases distintas e a pergunta acontece **com a lista na mão**.
+>
+> 🔒 **E NASCEU O GATE MECÂNICO** (`O_robo_nao_manda_o_metodo_de_fase_pro_banco`): varre a fonte do robô e quebra se `EhFaseDeMataMata`/`EhFaseDeGrupos` aparecerem a menos de 400 caracteres de um `Async(p =>`. Em lista já materializada o método é bem-vindo — por isso a busca é pelo PAR, não pelo método sozinho. Mais dois de tradução por `ToQueryString`, um deles provando que a forma antiga estoura.
+>
+> 🧪 **6.993 testes, 0 falhas (3 novos)** + os **8** conferidores de JS verdes. O gate foi **visto vermelho** em *"Assert.DoesNotContain() Failure: Sub-string found"* antes da correção.
+>
+> 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
+
 > **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📱 **"ABRIR O APP E O AO VIVO ESTAR DESATUALIZADO" ERAM DOIS DEFEITOS, E OS DOIS FORAM REPRODUZIDOS.**
 >
 > 🗣️ Felipe: *"Pessoal que tem o app no celular, disse q ao abrir ele fica desatualizado as vezes no aovivo, isso tambem foi mexido hoje ? se não, temos q ver"*. **Não tinha sido** — o de hoje era com a página JÁ aberta.
