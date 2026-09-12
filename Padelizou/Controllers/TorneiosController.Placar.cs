@@ -490,6 +490,68 @@ namespace Padelizou.Controllers
             return Json(new { seguindo = false });
         }
 
+        // O CARD QUE A NOTIFICAÇÃO ABRE (12/09/2026).
+        //
+        // 🗣️ Felipe, com a notificação já chegando e dois prints na mão — a bolha de placar do
+        // app do Google e o placar da Copa na Dynamic Island: *"as notificações estao
+        // acontecendo, mas eu queria algo tipo esses prints, tem como ?"*. Os dois exigem app
+        // NATIVO (ver Services/CartaoDoPlacarAoVivo); o que a notificação da web tem é a
+        // `image`, e é este PNG.
+        //
+        // ⚠️ ABERTO, SEM `[Authorize]`, e de propósito: quem busca esta imagem é o NAVEGADOR ao
+        // desenhar a notificação, não uma tela com sessão — exigir login aqui deixaria a
+        // notificação sem imagem justamente em quem ela é pra alcançar. O placar ao vivo já é
+        // público na página do torneio; aqui ele sai desenhado.
+        //
+        // ⚠️ TORNEIO OCULTO NÃO SAI, e nem pra quem ENXERGA o torneio (organizador, admin,
+        // inscrito — os três escapes do VisibilidadeDoTorneio). A resposta é
+        // `Cache-Control: public` — é ela que faz um desenho servir os N seguidores em vez de
+        // um por pedido —, e resposta pública que muda conforme quem pede é exatamente como um
+        // cache no caminho entrega o card de um torneio escondido pra quem não devia ver. O
+        // teto: seguidor de torneio oculto recebe o aviso com o placar no texto, sem a imagem.
+        [HttpGet]
+        public async Task<IActionResult> CartaoDoPlacarAoVivo(int id, [FromServices] FonteDoCartao fontes)
+        {
+            // A recusa por falta de fonte vem ANTES de qualquer consulta, e é 404 e não uma
+            // imagem em branco — mesma régua de todos os cards (ver FonteDoCartao).
+            if (!fontes.Disponivel) return NotFound();
+
+            var partida = await _context.Partidas
+                .AsNoTracking()
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (partida?.TorneioId == null) return NotFound();
+
+            var torneio = await _context.Torneios.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == partida.TorneioId);
+            if (torneio == null || torneio.Oculto) return NotFound();
+
+            var contexto = string.Join(" · ", new[]
+                {
+                    CategoriaNaTela.Curto(partida.Categoria?.Nome),
+                    partida.Fase,
+                }.Where(t => !string.IsNullOrWhiteSpace(t)));
+
+            // Qualificado inteiro porque a AÇÃO tem o mesmo nome do serviço — e o nome da ação
+            // é o endereço que o push manda no `image`, então quem cede é a chamada, não a rota.
+            var png = Services.CartaoDoPlacarAoVivo.Desenhar(new PlacarParaCard(
+                // Os nomes saem da MESMA régua do texto da notificação — ver
+                // AvisoDePlacarAoVivo.NomeDaDupla.
+                AvisoDePlacarAoVivo.NomeDaDupla(partida.Dupla1),
+                AvisoDePlacarAoVivo.NomeDaDupla(partida.Dupla2),
+                partida.GamesDupla1 ?? 0,
+                partida.GamesDupla2 ?? 0,
+                Encerrado: partida.Status == "Finalizada",
+                Contexto: contexto), fontes);
+
+            return EntregaDeCard.Png(Response, png, $"placar-{partida.Id}.png");
+        }
+
         // ===================== FINANCEIRO DO TORNEIO =====================
 
         // 3. API PARA O PÚBLICO LER O PLACAR AO VIVO (Atualiza a tela de quem tá assistindo)

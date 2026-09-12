@@ -8,7 +8,7 @@ namespace Padelizou.Middleware;
 // ⚠️ `Sec-Fetch-Mode: navigate` é a MESMA distinção que `wwwroot/sw.js` já faz do lado do
 // cliente (`request.mode === "navigate"`): é o cabeçalho que o navegador manda quando a
 // pessoa clicou um link ou digitou o endereço, e NÃO manda pra `<img>`, `<script>`, `fetch`
-// de polling (placar ao vivo, palpitrômetro) ou chamada de API. Sem esse filtro, cada
+// de polling (placar ao vivo, palpitômetro) ou chamada de API. Sem esse filtro, cada
 // atualização de 20s do placar ao vivo contaria como um acesso novo, e "acessos hoje"
 // mediria robô, não gente.
 //

@@ -153,7 +153,7 @@ public class JogadoresController : Controller
                 .ToListAsync();
         }
 
-        // 🔮 O selo do PALPITRÔMETRO. Público, como o resto do perfil — e nulo pra quem nunca
+        // 🔮 O selo do PALPITÔMETRO. Público, como o resto do perfil — e nulo pra quem nunca
         // teve um palpite contado, que é quando o perfil não desenha selo nenhum.
         //
         // ⚠️ Mesmo universo da aba do hub (torneio que o público enxerga): o número do selo e o
@@ -904,7 +904,7 @@ public class JogadoresController : Controller
                 meuId, portaDosDesafios.EmConstrucao, DateTime.Now);
         }
 
-        // Aba PALPITEIROS: quem mais acerta no palpitrômetro, com o MESMO filtro regional das
+        // Aba PALPITEIROS: quem mais acerta no palpitômetro, com o MESMO filtro regional das
         // outras abas. ⚠️ Ela não mede resultado de chave — mede quem lê os jogos —, então
         // entra junto com os Desafios na lista de exceções da frase-promessa do topo da tela.
         hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);

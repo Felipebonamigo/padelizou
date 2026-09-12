@@ -73,10 +73,11 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         await servico.AvisarSeguidoresAsync(jogo.Id, "/Torneios/Details/1");
 
         var tag = $"partida-{jogo.Id}";
-        await push.Received(1).EnviarPlacarAoVivoAsync(a.Id, Arg.Any<string>(),
-            Arg.Is<string>(c => c != null && c.Contains("4") && c.Contains("3")), "/Torneios/Details/1", tag);
+        await push.Received(1).EnviarPlacarAoVivoAsync(a.Id,
+            Arg.Is<string>(t => t != null && t.Contains("4") && t.Contains("3")),
+            Arg.Any<string>(), "/Torneios/Details/1", tag, Arg.Any<string>());
         await push.Received(1).EnviarPlacarAoVivoAsync(b.Id, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), tag);
+            Arg.Any<string>(), tag, Arg.Any<string>());
     }
 
     // ⚠️ A CONTAGEM DO TIE-BREAK TEM QUE ENTRAR NO PUSH (12/09/2026). Em tie-break os GAMES
@@ -111,9 +112,13 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         var push = Substitute.For<IPushNotificationService>();
         await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
 
-        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
-            Arg.Is<string>(c => c != null && c.Contains("8 x 8") && c.Contains("5-3")),
-            "/x", $"partida-{jogo.Id}");
+        // O placar mora no TÍTULO desde 12/09 (o card do placar ao vivo na notificação) e a
+        // contagem do tie-break, no corpo. Antes os dois ficavam no corpo — por isso a asserção
+        // olha os dois campos: é o encontro dos dois trabalhos que a tela de bloqueio mostra.
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
+            Arg.Is<string>(t => t != null && t.Contains("8 × 8")),
+            Arg.Is<string>(c => c != null && c.Contains("tie-break") && c.Contains("5-3")),
+            "/x", $"partida-{jogo.Id}", Arg.Any<string>());
     }
 
     [Fact]
@@ -141,7 +146,8 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
 
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
-            Arg.Is<string>(c => c != null && !c.Contains("tie-break")), "/x", $"partida-{jogo.Id}");
+            Arg.Is<string>(c => c != null && !c.Contains("tie-break")), "/x", $"partida-{jogo.Id}",
+            Arg.Any<string>());
     }
 
     // Jogo sem seguidor nenhum — o caso comum — não pode custar a consulta cara (a partida com
@@ -160,7 +166,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
 
         await push.DidNotReceiveWithAnyArgs().EnviarPlacarAoVivoAsync(
-            default, default!, default!, default!, default!);
+            default, default!, default!, default!, default!, default!);
     }
 
     // O jogo acabou: manda o placar FINAL e não deixa a linha pra trás — não há mais "ao
@@ -178,12 +184,221 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
         var push = Substitute.For<IPushNotificationService>();
         await new AvisoDePlacarAoVivo(ctx, push).AvisarFimEPararDeSeguirAsync(jogo.Id, "/x");
 
+        // ⚠️ O "encerrado" MUDOU DE LINHA em 12/09/2026, e é de propósito: o título passou a ser
+        // o PLACAR (ver a seção abaixo), porque é ele que o Android mostra na notificação
+        // recolhida. O estado do jogo desceu pro corpo, que é a segunda linha.
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
-            Arg.Is<string>(t => t != null && t.Contains("encerrado")),
-            Arg.Is<string>(c => c != null && c.Contains("9") && c.Contains("5")),
-            "/x", $"partida-{jogo.Id}");
+            Arg.Is<string>(t => t != null && t.Contains("9") && t.Contains("5")),
+            Arg.Is<string>(c => c != null && c.Contains("encerrado")),
+            "/x", $"partida-{jogo.Id}", Arg.Any<string>());
 
         Assert.False(await ctx.Set<SeguidorDePartida>().AnyAsync(s => s.PartidaId == jogo.Id));
+    }
+
+    // ===================== O PLACAR NA LINHA DE FORA (12/09/2026) =====================
+    //
+    // 🗣️ Felipe, com o jogo ao vivo na mão e a notificação chegando: *"as notificações estao
+    // acontecendo, mas eu queria algo tipo esses prints"* — a bolha do app do Google na tela
+    // inicial e o placar na Dynamic Island. Nenhum dos dois é alcançável por um site (a bolha é
+    // exclusiva do app do Google; a Dynamic Island é Live Activity, que exige app nativo iOS —
+    // ver STATUS.md de 16/08). O que dá pra fazer numa notificação da web é ISTO: o placar na
+    // linha que o Android mostra RECOLHIDA.
+    //
+    // Até aqui o título era "Placar ao vivo" — três palavras que não dizem nada de relance — e o
+    // placar ficava no corpo. Quem olha o celular de longe lia o rótulo, nunca o jogo.
+    [Fact]
+    public async Task O_titulo_traz_o_placar_pra_ler_sem_abrir_nada()
+    {
+        var (ctx, _, jogo, _, fa) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+        jogo.GamesDupla1 = 4;
+        jogo.GamesDupla2 = 2;
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
+            Arg.Is<string>(t => t != null && t.Contains("4") && t.Contains("×") && t.Contains("2")),
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    // E o corpo passa a ser o CONTEXTO: em que pé está o jogo e de que categoria/fase ele é.
+    // Sem isso a segunda linha da notificação repetiria o placar que já está no título.
+    [Fact]
+    public async Task O_corpo_diz_que_o_jogo_esta_ao_vivo()
+    {
+        var (ctx, _, jogo, _, fa) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
+            Arg.Is<string>(c => c != null && c.Contains("Ao vivo")),
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    // ===================== O CARD DENTRO DA NOTIFICAÇÃO =====================
+
+    // O push carrega o endereço do PNG (a `image` do showNotification): puxando a notificação
+    // pra baixo no Android, aparece o placar desenhado em vez de duas linhas de texto.
+    [Fact]
+    public async Task O_push_leva_o_card_do_placar_como_imagem()
+    {
+        var (ctx, _, jogo, _, fa) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<string>(i => i != null && i.Contains($"/Torneios/CartaoDoPlacarAoVivo/{jogo.Id}")));
+    }
+
+    // ⚠️ E O ENDEREÇO MUDA A CADA GAME. Sem isso o `Cache-Control` do card (uma hora, como todo
+    // card daqui) devolveria a imagem do placar ANTERIOR — a notificação diria 5×2 no título e
+    // mostraria 4×2 no desenho. O trecho depois do `?` não é entrada de nada: o desenho sai do
+    // banco; ele existe só pra separar uma versão do card da outra no cache.
+    [Fact]
+    public async Task O_endereco_do_card_muda_quando_o_placar_muda()
+    {
+        var (ctx, _, jogo, _, fa) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+
+        var push = Substitute.For<IPushNotificationService>();
+        var servico = new AvisoDePlacarAoVivo(ctx, push);
+
+        jogo.GamesDupla1 = 4;
+        jogo.GamesDupla2 = 2;
+        await ctx.SaveChangesAsync();
+        await servico.AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        jogo.GamesDupla1 = 5;
+        await ctx.SaveChangesAsync();
+        await servico.AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        var enderecos = push.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IPushNotificationService.EnviarPlacarAoVivoAsync))
+            .Select(c => (string?)c.GetArguments()[5])
+            .ToList();
+
+        Assert.Equal(2, enderecos.Count);
+        Assert.NotEqual(enderecos[0], enderecos[1]);
+    }
+
+    // ===================== O PNG =====================
+
+    [Fact]
+    public async Task O_endereco_do_card_entrega_um_png()
+    {
+        var (ctx, torneio, jogo, org, _) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+        jogo.GamesDupla1 = 4;
+        jogo.GamesDupla2 = 2;
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        var resposta = await controller.CartaoDoPlacarAoVivo(jogo.Id, new FonteDoCartao(PastaDasFontes()));
+
+        var arquivo = Assert.IsType<Microsoft.AspNetCore.Mvc.FileContentResult>(resposta);
+        Assert.Equal("image/png", arquivo.ContentType);
+        Assert.True(arquivo.FileContents.Length > 1000);
+    }
+
+    // ⚠️ TORNEIO OCULTO NÃO ENTREGA O CARD, e nem pro organizador (que ENXERGA o torneio):
+    // a resposta é `Cache-Control: public` — é ela que faz o mesmo desenho servir os N
+    // seguidores sem redesenhar —, e resposta pública que muda conforme quem pede é como um
+    // cache no caminho entrega o card de um torneio escondido pra quem não devia ver.
+    [Fact]
+    public async Task Torneio_oculto_nao_entrega_o_card()
+    {
+        var (ctx, torneio, jogo, org, _) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+        torneio.Oculto = true;
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        var resposta = await controller.CartaoDoPlacarAoVivo(jogo.Id, new FonteDoCartao(PastaDasFontes()));
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(resposta);
+    }
+
+    [Fact]
+    public async Task Jogo_que_nao_existe_nao_entrega_card()
+    {
+        var (ctx, _, _, org, _) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        var resposta = await controller.CartaoDoPlacarAoVivo(999999, new FonteDoCartao(PastaDasFontes()));
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(resposta);
+    }
+
+    // O nome da dupla no DESENHO é o mesmo do TEXTO da notificação — uma régua só
+    // (`AvisoDePlacarAoVivo.NomeDaDupla`). Duas cópias divergiriam no primeiro ajuste, e o
+    // estrago seria a notificação dizendo um nome no título e outro na imagem logo abaixo.
+    [Fact]
+    public async Task O_nome_da_dupla_no_card_e_o_mesmo_do_texto()
+    {
+        var (ctx, _, jogo, org, fa) = await ComUmJogoAoVivoESeguidorAsync();
+        using var _ = ctx;
+
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDePlacarAoVivo(ctx, push).AvisarSeguidoresAsync(jogo.Id, "/x");
+
+        var titulo = (string)push.ReceivedCalls()
+            .First(c => c.GetMethodInfo().Name == nameof(IPushNotificationService.EnviarPlacarAoVivoAsync))
+            .GetArguments()[1]!;
+
+        var comAsDuplas = await ctx.Partidas
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+            .FirstAsync(p => p.Id == jogo.Id);
+
+        Assert.Contains(AvisoDePlacarAoVivo.NomeDaDupla(comAsDuplas.Dupla1), titulo);
+    }
+
+    // O COMBINADO DA IMAGEM EXISTE DOS DOIS LADOS: o C# manda `image` no payload e o sw.js
+    // entrega essa chave pro showNotification. Quebrando de um lado só, a notificação volta a
+    // ser duas linhas de texto — e o defeito aparece no celular dos outros, nunca aqui. É o
+    // mesmo gate da sonda muda (VarreduraDeFantasmasTests).
+    [Fact]
+    public void O_combinado_do_card_existe_dos_dois_lados()
+    {
+        var servico = ArquivoDoApp(Path.Combine("Services", "PushNotificationService.cs"));
+        var sw = ArquivoDoApp(Path.Combine("wwwroot", "sw.js"));
+
+        Assert.Contains("image = imagem", servico);
+        Assert.True(sw.Contains("data.image"),
+            "O sw.js não passa mais a imagem pro showNotification — a notificação do placar "
+            + "volta a ser só texto, sem nada quebrar em teste nenhum do servidor.");
+    }
+
+    private static string ArquivoDoApp(string caminhoRelativo)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, "Padelizou", "Views")))
+                return File.ReadAllText(Path.Combine(dir.FullName, "Padelizou", caminhoRelativo));
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException("pasta do app não encontrada a partir do bin.");
+    }
+
+    private static string PastaDasFontes()
+    {
+        var pasta = AppContext.BaseDirectory;
+        for (int i = 0; i < 8 && pasta != null; i++)
+        {
+            var tentativa = Path.Combine(pasta, "Padelizou", "wwwroot", "fonts");
+            if (Directory.Exists(tentativa)) return tentativa;
+            pasta = Directory.GetParent(pasta)?.FullName;
+        }
+        throw new DirectoryNotFoundException("wwwroot/fonts não encontrado a partir do bin.");
     }
 
     // ===================== AS TRÊS PORTAS QUE MUDAM O PLACAR =====================
@@ -201,7 +416,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
             marcadoEm: DateTimeOffset.Now.ToUnixTimeMilliseconds());
 
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), $"partida-{jogo.Id}");
+            Arg.Any<string>(), $"partida-{jogo.Id}", Arg.Any<string>());
     }
 
     [Fact]
@@ -235,7 +450,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
 
         // Um aviso só, pro jogo que ele segue — não dois, e não pro jogo que ninguém segue.
         await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), $"partida-{aoVivo[1].Id}");
+            Arg.Any<string>(), $"partida-{aoVivo[1].Id}", Arg.Any<string>());
     }
 
     [Fact]
@@ -252,9 +467,9 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
 
         await controller.FinalizarPartida(jogo.Id);
 
-        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id,
-            Arg.Is<string>(t => t != null && t.Contains("encerrado")), Arg.Any<string>(), Arg.Any<string>(),
-            $"partida-{jogo.Id}");
+        await push.Received(1).EnviarPlacarAoVivoAsync(fa.Id, Arg.Any<string>(),
+            Arg.Is<string>(c => c != null && c.Contains("encerrado")), Arg.Any<string>(),
+            $"partida-{jogo.Id}", Arg.Any<string>());
         Assert.False(await ctx.Set<SeguidorDePartida>().AnyAsync(s => s.PartidaId == jogo.Id));
     }
 
@@ -370,7 +585,8 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
             new SilencioDeAvisos(),
             NullLogger<PushNotificationService>.Instance);
 
-        await servico.EnviarPlacarAoVivoAsync(7, "Placar ao vivo", "4 x 3", "/x", "partida-1");
+        await servico.EnviarPlacarAoVivoAsync(7, "Placar ao vivo", "4 x 3", "/x", "partida-1",
+            "/Torneios/CartaoDoPlacarAoVivo/1?p=4-3");
 
         Assert.True(fila.TentarLer(out var aviso));
         Assert.True(aviso!.ApenasPush);

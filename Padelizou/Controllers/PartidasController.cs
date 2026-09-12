@@ -115,7 +115,7 @@ namespace Padelizou.Controllers
             return await _context.Jogadores.AnyAsync(j => j.Id == jogadorId && j.IsAssistente);
         }
 
-        // POST: Partidas/Votar — palpitrômetro (voto do jogador logado em quem vai ganhar a partida)
+        // POST: Partidas/Votar — palpitômetro (voto do jogador logado em quem vai ganhar a partida)
         //
         // `placar1`/`placar2` são OPCIONAIS e vêm na orientação do jogo (lado 1 = Dupla1): sem
         // eles é o palpite de sempre, só de vencedor. Quem confere se aquele placar fecha um
@@ -127,7 +127,7 @@ namespace Padelizou.Controllers
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             try
             {
-                return Json(DoPalpitrometro(await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId, placar1, placar2)));
+                return Json(DoPalpitometro(await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId, placar1, placar2)));
             }
             catch (InvalidOperationException ex)
             {
@@ -151,7 +151,7 @@ namespace Padelizou.Controllers
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             try
             {
-                return Json(DoPalpitrometro(await _palpites.RetirarPalpiteAsync(partidaId, jogadorId)));
+                return Json(DoPalpitometro(await _palpites.RetirarPalpiteAsync(partidaId, jogadorId)));
             }
             catch (InvalidOperationException ex)
             {
@@ -159,11 +159,11 @@ namespace Padelizou.Controllers
             }
         }
 
-        // A resposta que a tela do palpitrômetro sabe pintar. UMA só, e é de propósito: votar,
-        // trocar a ficha e retirar terminam todos no mesmo `atualizarPalpitrometro` do JS —
+        // A resposta que a tela do palpitômetro sabe pintar. UMA só, e é de propósito: votar,
+        // trocar a ficha e retirar terminam todos no mesmo `atualizarPalpitometro` do JS —
         // dois formatos de resposta virariam dois caminhos de repintura, e o que faltasse num
         // deles ficaria congelado na tela até o F5.
-        private static object DoPalpitrometro(Padelizou.ViewModels.PalpiteResumoVM resumo) => new
+        private static object DoPalpitometro(Padelizou.ViewModels.PalpiteResumoVM resumo) => new
         {
             sucesso = true,
             votosDupla1 = resumo.VotosDupla1,
@@ -183,7 +183,7 @@ namespace Padelizou.Controllers
             palpitesComPlacar = resumo.PalpitesComPlacar
         };
 
-        // GET: Partidas/VerVotos — quem votou em quem no palpitrômetro (público, qualquer logado)
+        // GET: Partidas/VerVotos — quem votou em quem no palpitômetro (público, qualquer logado)
         [HttpGet]
         public async Task<IActionResult> VerVotos(int partidaId)
         {

@@ -346,7 +346,7 @@
 
            O formulário fica VAZIO de propósito: os campos moram dentro dos cards e se ligam
            a ele por `form="pdzPlacaresAoVivo"`. Embrulhar os cards não daria — o
-           palpitrômetro já tem formulário lá dentro, e formulário aninhado é HTML inválido.
+           palpitômetro já tem formulário lá dentro, e formulário aninhado é HTML inválido.
 
            A tela cheia continua existindo e não é redundante: é lá que se marca SET, quem
            saca, quadra, link e o FINALIZAR. *@
@@ -399,7 +399,12 @@
                    cartão correspondente pra trocar só o cabeçalho (placar, cronômetro,
                    botões) e não encostar no <iframe> da transmissão. Ver
                    js/jogos-ao-vivo-atualiza.js. *@
-                <div class="col-md-6 mb-3">
+                @* `col-lg-6`, e não `col-md-6` (12/09/2026): entre 768 e 991px o Bootstrap dá
+                   720px ao container, e dois cards por linha deixavam cada um com 336px — 60px
+                   MENOS que o celular do print. Era a faixa onde o −/+ mais invadia a bolinha
+                   do saque (37,1px, a bola inteira debaixo do botão). Duas colunas só quando a
+                   linha comporta duas de verdade. *@
+                <div class="col-lg-6 mb-3">
                     @* `id="jogo-N"`: o DESTINO do card do jogo lá na aba Grupos (Felipe,
                        11/09/2026 — "permita clicar no aovivo e ir para a pagina do aovivo aonde
                        esta o jogo"). Fica no card inteiro, e não num pedaço dele: é o card que
@@ -533,7 +538,7 @@
                                     }
                                     @if (ehOrganizador)
                                     {
-                                        @* `form="..."` em vez de embrulhar os cards: o palpitrômetro
+                                        @* `form="..."` em vez de embrulhar os cards: o palpitômetro
                                            já tem formulário dentro do card, e formulário aninhado é
                                            HTML inválido — o navegador desmonta e o POST sai capenga.
 
@@ -830,7 +835,7 @@
                         @if (palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
                         {
                             <div class="pdz-live-palpite">
-                                <partial name="_Palpitrometro" model="(jogo, resumoPalpite, meuId)" />
+                                <partial name="_Palpitometro" model="(jogo, resumoPalpite, meuId)" />
                             </div>
                         }
                     </div>
@@ -899,7 +904,7 @@
         }
 
         @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela
-           cada um. O cartão cheio (placar gigante + palpitrômetro aberto) fica só no AO VIVO,
+           cada um. O cartão cheio (placar gigante + palpitômetro aberto) fica só no AO VIVO,
            que é onde a tela tem um assunto só. *@
         @* As fases que ainda vão ser montadas entram AQUI, na ordem do horário, junto com os
            jogos marcados — não num bloco à parte. O horário delas sai da duração configurada

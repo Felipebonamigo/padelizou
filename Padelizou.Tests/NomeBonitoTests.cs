@@ -108,7 +108,43 @@ public class NomeBonitoTests
             Jogador2 = new Jogador { Nome = "henderson takahama", Cpf = "22255588846" },
         };
 
-        Assert.Equal("Alan da Silveira Machado & Henderson Takahama", dupla.NomeDeExibicao);
+        // Arrumados E CURTOS: a caixa vira a de lista e o nome do meio sai (ver o teste abaixo).
+        Assert.Equal("Alan Machado & Henderson Takahama", dupla.NomeDeExibicao);
+    }
+
+    // 🗣️ Felipe, 11/09/2026, com o print da semifinal do Er na mão: *"quando a pessoa tiver 3
+    // nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar
+    // muito espaçado"*.
+    //
+    // 🕳️ `NomeDeExibicao` era a ÚNICA régua de nome de dupla que ainda escrevia o nome inteiro
+    // (`NomeNaTela`), enquanto `NomeDaDupla.De` e `Jogador.ComoChamar` já encurtavam — e é ela que
+    // escreve a vaga do quadro projetado: "Marcelo Carvalho Prestes & Enio Gilberto M…", cortado
+    // no meio, sobrando justo o nome do meio, que é o que menos identifica alguém.
+    [Fact]
+    public void Na_dupla_o_nome_de_tres_palavras_fica_com_o_primeiro_e_o_ultimo()
+    {
+        var dupla = new Dupla
+        {
+            Codigo = "D2",
+            Jogador1 = new Jogador { Nome = "EDER CRISTIANO MARCOS", Cpf = "11144477735" },
+            Jogador2 = new Jogador { Nome = "augusto ohlweiler", Cpf = "22255588846" },
+        };
+
+        Assert.Equal("Eder Marcos & Augusto Ohlweiler", dupla.NomeDeExibicao);
+    }
+
+    // A dupla com a vaga em aberto continua dizendo SÓ o nome de quem existe — o que encurta é o
+    // nome, não a regra de 09/09/2026 (ver NomeDaDuplaIncompletaTests).
+    [Fact]
+    public void Dupla_com_vaga_em_aberto_encurta_o_nome_de_quem_esta()
+    {
+        var dupla = new Dupla
+        {
+            Codigo = "D3",
+            Jogador1 = new Jogador { Nome = "Marcelo Carvalho Prestes", Cpf = "11144477735" },
+        };
+
+        Assert.Equal("Marcelo Prestes", dupla.NomeDeExibicao);
     }
 
     [Fact]

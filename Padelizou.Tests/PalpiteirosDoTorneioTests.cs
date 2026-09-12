@@ -3,7 +3,7 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// OS PALPITEIROS: quem mais acertou no palpitrômetro do torneio.
+// OS PALPITEIROS: quem mais acertou no palpitômetro do torneio.
 //
 // O que estes testes guardam, em ordem de importância:
 //   · a RÉGUA — cravou 3, perto 2, vencedor 1, errou 0 — e o fato de ela ordenar por PONTOS,
@@ -43,7 +43,7 @@ public class PalpiteirosDoTorneioTests
     [Fact]
     public void Errar_o_vencedor_nao_vale_NADA_por_mais_perto_que_o_placar_esteja()
     {
-        // ⚠️ Escolheu a dupla 2 e escreveu o placar exato do jogo. Não pontua: o palpitrômetro
+        // ⚠️ Escolheu a dupla 2 e escreveu o placar exato do jogo. Não pontua: o palpitômetro
         // pergunta QUEM VENCE, e o placar é a segunda pergunta — quem erra a primeira errou.
         Assert.Equal(0, PontosDoPalpite.De(Palpite(escolheu: 2, 6, 4)));
     }
@@ -251,7 +251,7 @@ public class PalpiteirosDoTorneioTests
         var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
 
         // ⚠️ Os quatro em quadra são os únicos que podem MUDAR o resultado do próprio palpite.
-        // O voto continua gravado (e conta na barra do palpitrômetro); só não vale ponto.
+        // O voto continua gravado (e conta na barra do palpitômetro); só não vale ponto.
         Assert.Single(ranking!.Linhas);
         Assert.Equal(torcedor.Id, ranking.Linhas[0].JogadorId);
         Assert.Equal(1, ranking.Linhas[0].Pontos);
@@ -304,7 +304,7 @@ public class PalpiteirosDoTorneioTests
 
         // ⚠️ E esta é a metade nova (10/09/2026): ele APARECE, com o palpite em aberto. Antes a
         // tabela vinha vazia e a aba não existia até o primeiro jogo terminar — num torneio que
-        // começa amanhã, o palpitrômetro tinha 41 jogos votados e nenhuma tela pra mostrar quem
+        // começa amanhã, o palpitômetro tinha 41 jogos votados e nenhuma tela pra mostrar quem
         // estava participando.
         Assert.Equal(1, linha.EmAberto);
         Assert.True(ranking.TemRanking);
@@ -655,7 +655,7 @@ public class PalpiteirosDoTorneioTests
         var ranking = await RankingDePalpiteiros.DoTorneioAsync(ctx, torneio.Id, olhandoId: null);
 
         // ⚠️ A pergunta é feita AO DADO, nunca a um interruptor: torneio jogado antes de o
-        // placar existir no palpitrômetro tem zero aqui pra sempre, e mostrar a ele uma régua
+        // placar existir no palpitômetro tem zero aqui pra sempre, e mostrar a ele uma régua
         // de "cravou 3" explicaria um jeito de pontuar que ninguém daquele torneio teve.
         Assert.Equal(0, ranking!.PalpitesComPlacar);
         Assert.Equal(0, ranking.Linhas[0].Cravadas);

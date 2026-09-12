@@ -6,8 +6,9 @@
    do jogo que vem, na fila do dia, e na lista por categoria do "Resto do torneio". Duas cópias
    do formulário divergiriam na primeira mudança, e é ele que grava presença.
 
-   ⚠️ `data-manter-posicao`: marcar 64 duplas é 64 POSTs, e cada um redesenha a página do
-   começo (js/manter-posicao-na-lista.js). É a peça de hoje mais cedo, pela mesma queixa.
+   ⚠️ O BOTÃO QUE GRAVA saiu daqui em 12/09/2026 e foi pro `_BotaoDoCheckIn`: a aba Jogos passou
+   a marcar presença também, numa bolinha, e as duas roupas precisam gravar a MESMA coisa. O que
+   sobra aqui é a linha — nome, hora da chegada e o ícone do estado.
 
    ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e
    o `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
@@ -43,11 +44,6 @@
             <small class="text-muted">chegou @Model.CheckInEm!.Value.ToString("HH:mm")</small>
         }
     </div>
-    <form asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
-        <input type="hidden" name="duplaId" value="@Model.Id" />
-        <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
-        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
-            @(chegou ? "Desfazer" : "Chegou")
-        </button>
-    </form>
+    @* Sem `voltarPara`: quem clica aqui já está na tela de Check-in, e é pra ela que volta. *@
+    <partial name="_BotaoDoCheckIn" model="(Model, false, (string?)null)" />
 </div>

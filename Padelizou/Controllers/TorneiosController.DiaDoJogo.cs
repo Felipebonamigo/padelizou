@@ -368,9 +368,14 @@ namespace Padelizou.Controllers
             return View(torneio);
         }
 
+        // `voltarPara`: quem marcou a chegada PELA LISTA DE JOGOS volta pra ela (12/09/2026).
+        // 🗣️ Felipe: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"* — e uma
+        // marcação que larga o organizador na tela de Check-in é justamente tirá-lo da lista que
+        // ele estava operando. Sem o parâmetro nada muda: o botão da tela de Check-in não passa
+        // nada e continua caindo nela mesma.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> MarcarCheckIn(int duplaId, bool presente)
+        public async Task<IActionResult> MarcarCheckIn(int duplaId, bool presente, string? voltarPara = null)
         {
             var dupla = await _context.Duplas
                 .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
@@ -390,7 +395,22 @@ namespace Padelizou.Controllers
             dupla.CheckInEm = presente ? DateTime.Now : null;
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("CheckIn", new { id = torneioId });
+            // ⚠️ LISTA FECHADA, como no PartidasController.VoltarDaLargada: `voltarPara` chega por
+            // campo de formulário, e campo de formulário nunca vira redirecionamento pra qualquer
+            // lugar. Qualquer outro valor cai no destino de sempre.
+            //
+            // A âncora `#jogosDoTorneio` é o que faz a página do torneio voltar NA ABA JOGOS — sem
+            // ela o organizador reaparece no topo, na aba de sempre.
+            //
+            // atalho: o filtro da tela (categoria, time, quadra, "só meus jogos") NÃO volta junto —
+            // o mesmo teto do PartidasController.VoltarDaLargada, que é o vizinho de botão deste.
+            // A saída, quando incomodar, é a mesma pros dois: carregar a query string no POST.
+            return voltarPara switch
+            {
+                "Details" => RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "jogosDoTorneio"),
+                "Jogos" => RedirectToAction("Jogos", new { id = torneioId }),
+                _ => RedirectToAction("CheckIn", new { id = torneioId }),
+            };
         }
 
         // ===================== COMUNICADO EM MASSA =====================

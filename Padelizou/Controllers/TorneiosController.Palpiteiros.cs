@@ -5,7 +5,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // OS PALPITEIROS: quem mais acertou no palpitrômetro deste torneio.
+    // OS PALPITEIROS: quem mais acertou no palpitômetro deste torneio.
     //
     // Regra inteira em Services/PontosDoPalpite (quanto vale um palpite) e
     // Services/RankingDePalpiteiros (quem entra na conta) — aqui só entra o que é HTTP.

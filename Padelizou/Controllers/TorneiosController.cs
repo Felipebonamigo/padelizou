@@ -1663,6 +1663,13 @@ namespace Padelizou.Controllers
             // lote) é exatamente o trabalho dele — e cada POST confere de novo no servidor.
             ViewBag.EhOrganizador = await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0);
 
+            // O CHECK-IN LIGADO? É o que decide se a linha do jogo ganha a bolinha de presença do
+            // lado de cada dupla (12/09/2026, _JogoEmLinha). Torneio que desligou a chamada não
+            // ganha bolinha nenhuma — oferecer o botão e recusar o clique depois é fazer o
+            // organizador descobrir a regra pelo erro, o mesmo raciocínio do "recalcular horários"
+            // logo abaixo.
+            ViewBag.UsaCheckIn = torneioDaTela?.UsaCheckIn == true;
+
             // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
             // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima
             // da tela. Oferecer o botão e negá-lo em seguida é fazer o organizador descobrir a
@@ -1718,7 +1725,7 @@ namespace Padelizou.Controllers
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }
 
-            // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
+            // PALPITÔMETRO: resumo de votos de cada partida exibida, num único lote.
             int? meuId = User.Identity?.IsAuthenticated == true
                 ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
                 : null;
