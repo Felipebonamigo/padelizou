@@ -3251,6 +3251,35 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-jl-dupla .pdz-jl-games { margin-left: auto; }
 .pdz-jl-dupla .pdz-jl-games + .pdz-palpite-pct { margin-left: .5rem; }
 
+/* ── A BOLINHA DO CHECK-IN (12/09/2026) ────────────────────────────────────
+   Do lado do nome de cada dupla, na ponta esquerda da linha, e só pra quem opera o dia
+   de jogo. Botão de verdade (é um submit), mas sem cara de botão: numa lista de 97 jogos
+   são até 194 deles na tela, e 194 pílulas cinzas seriam a lista inteira virando botão.
+
+   ⚠️ Alvo de toque de 30px com ícone de 18px — abaixo disso o dedo erra a bolinha de
+   cima no celular, que é onde esta lista é usada. */
+.pdz-jl-checkin {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--pdz-border);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pdz-jl-checkin:hover,
+.pdz-jl-checkin:focus-visible { background: var(--pdz-surface-alt); }
+
+.pdz-jl-checkin-chegou { color: var(--padel-green); }
+
 /* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */
 .pdz-jl-palpite {
     display: flex;

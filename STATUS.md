@@ -18,7 +18,7 @@
 > ⚠️ **RESSALVA**: nada disto foi visto no aparelho do Felipe, só no Chromium a 412px. É CSS/JS de tela, sem migration e sem tocar em régua de autorização nem em dinheiro.
 >
 
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1199-a4803e8`** (runs 282 e 283, 03h29 UTC), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #235. ✅ **SEM MIGRATION.**
 >
 > ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
 >
@@ -109,6 +109,24 @@
 >
 > 🖥️ ⚠️ **CONTINUA NÃO VISTO NUMA TELA, e desta vez nem em produção dá pra conferir por fora**: o diff inteiro deste trabalho está **atrás de login** (`/Admin`), então **não existe sonda anônima** que prove o botão renderizando — ao contrário dos cards de torneio de ontem, que o `curl` pegava. A prova que há é código, 6.614 testes e `/healthz` 200. **Quem abrir o painel, confira o card "Avisos do sistema"** e a faixa vermelha quando ele estiver mudo.
 
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
+>
+> ⭕ **O CHECK-IN CABE NA ABA JOGOS AGORA — UMA BOLINHA DO LADO DE CADA DUPLA.** 🗣️ Felipe, num print da aba Jogos no celular: *"Temos q por uma forma de fazer o checkin nessa tela por jogo"*. Perguntado sobre o formato, escolheu *"uma bolinha do lado de cada nome, apenas o organizador ve"*, e **só nos jogos que ainda não começaram**.
+>
+> 🕳️ **O BURACO ERA DE CAMINHO, NÃO DE DADO.** A presença já existia e já era por jogo (a tela de Check-in virou fila de jogos em 10/09). O que faltava: quem está na aba Jogos chamando quadra, dando a largada e marcando placar tinha que **sair da lista, marcar na outra tela e voltar** — e no sábado de manhã "quem joga agora?" e "essa dupla chegou?" são a mesma linha, no mesmo minuto.
+>
+> ✅ **AS TRÊS CONDIÇÕES DA BOLINHA**, cada uma por um motivo: `PodeOperarODiaDeJogoAsync` (a MESMA régua que já liga o ▶, o ✏️ e o 📍 da linha, e a mesma da tela de Check-in — inventar uma segunda aqui seria o marcador ganhar o play e perder a chamada) · `UsaCheckIn` (torneio que desligou a chamada não ganha bolinha; oferecer e recusar depois é ensinar a regra pelo erro) · `Agendada` (o que está em quadra ou acabou já respondeu por outra via, e o bloco do fim da tela de Check-in continua lá pra corrigir).
+>
+> ⚠️ **O FORMULÁRIO QUE GRAVA PRESENÇA DESCEU UM DEGRAU, pra `_BotaoDoCheckIn`** — e é dele que saem as DUAS roupas: a pílula "Chegou"/"Desfazer" da tela de Check-in e a bolinha da lista de jogos. O que muda entre elas é a aparência; o POST é o mesmo. Duas cópias de um formulário que escreve no banco divergiriam na primeira mudança, e o `CheckInPorJogoTests` que guardava esse "num lugar só" foi atualizado pro endereço novo, com o motivo escrito.
+>
+> ⚠️ **`MarcarCheckIn` GANHOU `voltarPara`, EM LISTA FECHADA** (`Details` → `#jogosDoTorneio`, `Jogos`, e qualquer outra coisa cai no Check-in de sempre) — o mesmo molde do `PartidasController.VoltarDaLargada`: campo de formulário nunca vira redirecionamento pra onde o cliente pedir. Sem o parâmetro, nada muda: o botão da tela de Check-in continua caindo nela.
+>
+> ⚠️ **TETO ANOTADO NO CÓDIGO**: o filtro da tela (categoria, time, quadra, "só meus jogos") **não volta junto** — o mesmo teto do `VoltarDaLargada`, que é o vizinho de botão deste. A rolagem, essa, fica onde estava (`data-manter-posicao`).
+>
+> 🧪 **6.654 testes, 0 falhas (13 novos, em `CheckInNaListaDeJogosTests`), com o `main` de agora dentro** + `conferir-palpitrometro.js` verde. ⚠️ **SEM BROWSER NESTA SESSÃO** — a bolinha (30px de alvo, ícone de 18px, verde cheia = chegou / cinza vazada = não) está provada por teste de fonte e pela suíte, **não vista na tela**.
+
+> ⚠️ **DOIS COMENTÁRIOS PRECISARAM DE AJUSTE PRA CONVIVER COM O #234**, que entrou depois desta branch nascer: o gate `OPalpitometroPerdeuOErreTests` reprova arquivo de código que escreva o nome com erre, e `CheckInNaListaDeJogosTests.cs:203`, `_JogoEmLinha.cshtml:498` e o comentário do bloco novo no `site.css` citavam *palpitrômetro*. Trocado pela grafia atual. Sem isso, a mescla levava o `main` a vermelho — cada lado passava sozinho, só a soma falhava.
 > **11/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1188-698e54c`** (runs de 20h53 e 20h55 UTC), **o mesmo artefato nos dois**, com a tag explícita. PR #225. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > 🔔 **O QUE SUBIU**: o **desempate de grupo** novo (confronto direto entre duas duplas · ranking anual entre três ou mais · sorteio estável se nem isso separar) e o **pop-up "o que cada um precisa para passar" falando em PLACAR**, com um nome só por dupla e sem a tabela de cenários.

@@ -194,12 +194,20 @@ public class CheckInPorJogoTests
     {
         // A mesma linha é desenhada em três lugares: nos jogos que vêm, no bloco do fim e na
         // lista por categoria. Duas cópias do formulário que GRAVA presença divergiriam na
-        // primeira mudança — então ele existe uma vez só, no parcial da linha.
+        // primeira mudança — então ele existe uma vez só.
+        //
+        // ⚠️ O "lugar só" MUDOU DE ENDEREÇO em 12/09/2026: a aba Jogos passou a marcar presença
+        // numa bolinha do lado de cada dupla, e o formulário desceu mais um degrau, pro
+        // `_BotaoDoCheckIn` — de onde as duas roupas (a pílula "Chegou" daqui e a bolinha de lá)
+        // saem. A regra é a mesma; o que mudou é quem a guarda. Ver CheckInNaListaDeJogosTests.
         var tela = Ler("Torneios/CheckIn.cshtml");
         var linha = Ler("Torneios/_LinhaDoCheckIn.cshtml");
         var cartao = Ler("Torneios/_JogoNoCheckIn.cshtml");
+        var botao = Ler("Torneios/_BotaoDoCheckIn.cshtml");
 
-        Assert.Contains("asp-action=\"MarcarCheckIn\"", linha);
+        Assert.Contains("asp-action=\"MarcarCheckIn\"", botao);
+        Assert.Contains("<partial name=\"_BotaoDoCheckIn\"", linha);
+        Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", linha);
         Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", tela);
         Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", cartao);
 
@@ -217,8 +225,9 @@ public class CheckInPorJogoTests
     {
         // Marcar 64 duplas é 64 POSTs, e cada um redesenha a página do começo. É a mesma
         // queixa que gerou o js/manter-posicao-na-lista.js, e a mesma peça resolve — por
-        // opt-in no formulário, como lá.
-        Assert.Contains("data-manter-posicao", Ler("Torneios/_LinhaDoCheckIn.cshtml"));
+        // opt-in no formulário, como lá. O formulário mora em `_BotaoDoCheckIn` desde
+        // 12/09/2026, e o opt-in foi junto com ele.
+        Assert.Contains("data-manter-posicao", Ler("Torneios/_BotaoDoCheckIn.cshtml"));
         Assert.Contains("js/manter-posicao-na-lista.js", Ler("Torneios/CheckIn.cshtml"));
     }
 
