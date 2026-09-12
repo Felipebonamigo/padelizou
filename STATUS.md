@@ -18,6 +18,22 @@
 > ⚠️ **RESSALVA**: nada disto foi visto no aparelho do Felipe, só no Chromium a 412px. É CSS/JS de tela, sem migration e sem tocar em régua de autorização nem em dinheiro.
 >
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/bolinha-placar-nlk01z`, ainda não publicado.** **Sem migration** (só CSS e uma classe de grid).
+>
+> 🎾 **A BOLINHA DO SAQUE SAIU DE BAIXO DO −/+ NO CARD AO VIVO.** 🗣️ Felipe, com um print do jogo ao vivo no iPhone: *"A bolinha ta em cima do placar"*.
+>
+> 🕳️ **A CAUSA NÃO ERA A BOLINHA, ERA UM `min-width` ESCRITO À MÃO.** O bloco do placar (`.pdz-live-placar`) alinha à direita e encolhia como todo item de flex; o piso que o navegador dá de graça pra ele não encolher abaixo do próprio conteúdo (`min-width: auto`) estava DESLIGADO por um `min-width: 2.4rem` na regra. Com o `−  [4]  +` do organizador dentro, o bloco recebia menos do que precisava — e, alinhado à direita, **o que não coube vazou pela ESQUERDA**, bem em cima da bola.
+>
+> 📏 **MEDIDO NO CHROMIUM DESTA SESSÃO** (harness com o `site.css` de verdade, a 393px = o iPhone do print): 133,2px de conteúdo num bloco de 97,2px, e o `−` começando **14,6px antes de a bola terminar**. Na faixa do `col-md-6` (768–991px, card de 336px) a invasão era de **37,1px — a bola inteira debaixo do botão**. Depois da correção: **folga de 21,4px em todas as larguras de 320 a 1440px**, e nenhum transbordo pra direita (o nome também não encosta na bola).
+>
+> 🔧 **SÃO QUATRO MEXIDAS, E AS QUATRO SÃO A MESMA CONTA DE LARGURA**: (1) `.pdz-live-placar` ganhou `flex-shrink: 0`; (2) o nome passou a poder ceder (`min-width: 0` + `overflow-wrap: break-word` no chip DENTRO do card ao vivo) — senão o conserto só trocava o dono do transbordo, com o nome vazando pra direita em cima da mesma bola; (3) o campo do placar foi de `2.2em` pra `1.7em` (63px → 48px), que é o que devolve ao nome o pixel de que ele precisa pra não partir no meio da palavra ("Bittencour / t", visto no navegador) — dois dígitos continuam cabendo; (4) o card virou `col-lg-6`: entre 768 e 991px duas colunas deixavam cada card com 336px, 60px MENOS que o celular.
+>
+> 🧪 **6.638 testes, 0 falhas (4 novos, em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`)** — já com o `main` de hoje dentro, que trouxe o palpitômetro sem o erre (PR #234) — + `conferir-palpitometro.js` e `conferir-abas-recolhidas.js` verdes. O teste que importa é o do ORÇAMENTO: ele soma, lendo o próprio `site.css`, quanto a bolinha e o contador comem de um card de 393px e reprova se sobrar menos que o nome — é a régua que impede o card de voltar a se resolver empilhando uma coisa em cima da outra.
+>
+> ⚠️ **O TETO, ESCRITO NO CSS**: num celular de **320px** o nome de quem MARCA placar fica com ~70px e empilha feio (card de ~767px de altura). Pro torcedor não muda nada — lá o bloco continua sendo um número de 2.4rem, com 153px de nome no mesmo 320px. A saída, se doer: descer o placar pra linha de baixo num `@media (max-width: 359.98px)`.
+>
+> ⚠️ **NÃO RODEI A PÁGINA DE VERDADE** (sem banco nesta sessão): a conferência foi num harness com o HTML do card copiado do Razor e o `site.css` do repositório, no Chromium do container.
+
 > **11/09/2026** — ⏳ **NO BRANCH `claude/practical-pasteur-p4zmnd`, ainda não publicado.** **Sem migration.**
 >
 > ✂️ **O NOME DA DUPLA ENCURTOU: PRIMEIRO E ÚLTIMO.** 🗣️ Felipe, com o print da semifinal do Er: *"quando a pessoa tiver 3 nomes cadastradas, Nome sobrenome1 sobrenome2, pega só o primeiro e o ultimo para nao ficar muito espaçado"*. No quadro, *"Marcelo Carvalho Prestes & Enio Gilberto M…"* era cortado no meio — e o pedaço que sobrava era o nome do MEIO, que é o que menos identifica alguém.
