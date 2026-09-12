@@ -87,6 +87,24 @@
 > 🎯 **E A LISTA FOI LIDA NO AR, com dado de verdade**: `GET /Torneios/PalpitesDoPalpiteiro/26?jogadorId=61` devolve **Marcos Coelho — 20 pontos, 10 de 14 acertos, 3 cravadas, 27 esperando resultado**, os mesmos números da linha dele na tabela do print do Felipe. As 42 linhas fecham a conta sozinhas: 14 apuradas + 27 em aberto + **1 marcada "não conta"** — o Grupo A da 4ª Masculina, em que ele palpitou no PRÓPRIO jogo (*"Marcos / Marcio"*). É a régua de quem está em quadra funcionando em produção, e é o caso que mais rendeu teste. Um exemplo da faixa do meio no ar: palpitou **9 x 6**, deu **9 x 5** → **2 pontos**.
 >
 > ⚠️ **O PR FOI ABERTO E MESCLADO POR OUTRA SESSÃO** (a "varredura das sessões", #247, 04h30 UTC) enquanto esta ainda escrevia — quando fui abrir o meu, o GitHub respondeu *"No commits between main and claude/view-results-layout-fix-dbahs6"*. O `main` andou **30 commits** durante o trabalho (#241 a #247), e o `build-1231` leva todos eles juntos, não só este.
+
+> **12/09/2026** — ⏳ **NO BRANCH `claude/final-separation-1084lc`, ainda não publicado.** ⚠️ **COM MIGRATION** (`FinalComRegraPropria`). 🏆 **A FINAL PODE TER REGRA PRÓPRIA, SEPARADA DAS SEMIS.**
+>
+> 🗣️ Felipe, com o print da tela de formato no celular: *"aqui a final tem q ser separada da semi ou tem algum modo que a final é separada?"*. **Não tinha** — `SetsFaseFinal`/`GamesFaseFinal`/`PontosTieBreakFinal` regem semifinal E final juntas desde que o formato por fase existe, e o `FormatoDaPartida` diz isso em comentário ("ninguém configura uma semifinal com regra de oitavas"). O que faltava era a exceção: decisão em 3 sets, ou com super tie-break de 10, com as semis seguindo curtas.
+>
+> ✅ **TRÊS COLUNAS NOVAS** — `SetsSoDaFinal`, `GamesSoDaFinal`, `PontosTieBreakSoDaFinal` — e **um `if` no `FormatoDaPartida.De`**, que é o único tradutor fase → formato do projeto. Por isso Mesa de Controle, placar ao vivo, tela cheia, palpite/Palpitômetro, WO, tie-break e salvar-em-lote pegaram a regra nova sem UMA linha de mudança: as 14 chamadas já passavam por lá.
+>
+> 🔑 **O INTERRUPTOR É O `GamesSoDaFinal`, e não um `bool`**: zero = "não configurado", que é a mesma leitura que o `Valido` já fazia das colunas antigas — e é o que a migration grava em toda linha existente, **sem backfill nenhum**. Um `bool FinalSeparada` poderia discordar do número gravado (ligado com zero games) e criar duas verdades sobre o mesmo jogo. A caixa da tela é **derivada** daqui, não persistida. Sets e tie-break da final só são lidos com o games positivo, senão uma linha meio configurada de uma edição anterior reviveria um desvio desligado.
+>
+> ❌ **A ALTERNATIVA RECUSADA** foi renomear `FaseFinal` → só semifinal e **copiar os valores** pras colunas novas: fica simétrico com as outras fases, mas põe um `UPDATE` em dado de produção cujo modo de falha é silencioso — backfill que não roda joga toda final configurada pro padrão de 9 games, sem avisar ninguém. Herança por zero não tem esse estado.
+>
+> 🕳️ **DOIS DEFEITOS ACHADOS NO CAMINHO, os dois na tela.** (1) O card da criação se chamava **"A Grande Final"** e MENTIA: os campos dele alongavam as duas semis junto, e nada na tela dizia isso — virou "Semifinais e Final". (2) O aviso de paridade do tie-break das semis perguntava por `De(Model, "Final")`, que **passou a devolver a decisão** quando o desvio está ligado; agora pergunta por `"Semifinal"`, que é o campo logo acima dele.
+>
+> 🐛 **E UM DEFEITO MEU, COMETIDO E CORRIGIDO NA MESMA SESSÃO**: escrevi o `<input type="hidden" value="false">` **antes** da caixa. Desmarcar funcionava, marcar não — chegam os dois valores e o binder fica com o **primeiro**, então ligar a regra da final gravava `false`, calado. Virou teste (`Na_gestao_o_hidden_da_caixa_vem_DEPOIS_dela`), **visto vermelho com a ordem invertida de propósito** antes de restaurar. A ordem certa é a do `avisarJogadores` e do `permiteMultiplasCategorias`.
+>
+> 🧪 **6.776 testes, 0 falhas (21 novos em `FinalComRegraPropriaTests`)** + os **quatro** `conferir-*.js` verdes. Vermelhos vistos antes da correção: "Expected 9, Actual 6" na régua da final, "Expected 0, Actual 3" no desmarcar, o gate da duplicação nomeando as três propriedades sem lado, e a recusa de games zerado que só apareceu depois que a gravação entrou.
+>
+> ⚠️ **RESSALVA**: **nada disto foi visto em navegador** — não há Chromium nesta sessão. A ordem do par caixa+hidden está travada por teste que lê o `.cshtml`, mas o **model binder em si não é exercitado** pelos testes (eles chamam a action direto); o que garante essa parte é o padrão já usado em dois lugares do repo. **Tem migration**, então o deploy em `dev` precisa rodar antes do `prod`.
 >
 > 🗣️ Felipe, com o print da aba Palpiteiros no celular: *"ai clicar no nome, permita ver os resultados q a pessoa colocou mas de um modo que nao quebre a tela"*.
 >

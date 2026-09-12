@@ -1317,7 +1317,12 @@
 
                     <div class="col-md-4 fase-extra" style="display: none;">
                         <div class="card bg-light border-0 p-3 h-100">
-                            <h6 class="fw-bold text-danger">A Grande Final</h6>
+                            @* O TÍTULO DIZIA "A Grande Final" até 12/09/2026, e MENTIA: estes
+                               campos regem a semifinal também (ver FormatoDaPartida). Quem lesse
+                               o título e configurasse 3 sets aqui alongava as duas semis junto,
+                               sem nada na tela dizendo isso. Quem quer só a decisão diferente
+                               tem a caixa logo abaixo. *@
+                            <h6 class="fw-bold text-danger">Semifinais e Final</h6>
                             <label class="small text-muted mt-2">Quantidade de Sets</label>
                             <input type="number" asp-for="SetsFaseFinal" class="form-control mb-2" value="3" />
                             <label class="small text-muted pdz-rotulo-games">Games por Set</label>
@@ -1332,6 +1337,32 @@
                                 <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
                                 <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
                             </select>
+
+                            @* A FINAL SOZINHA (Felipe, 12/09/2026). Aqui o `asp-for` grava direto
+                               nas colunas do Torneio, então não existe o `hidden` de "false" que
+                               a tela de gestão precisa: na criação o torneio nasce com zero, e
+                               zero já é "a final segue as semis". Ver Torneio.GamesSoDaFinal. *@
+                            <hr class="my-2" />
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="finalSeparada"
+                                       name="finalSeparada" value="true"
+                                       onchange="document.getElementById('pdzRegraDaFinal').hidden = !this.checked;" />
+                                <label class="form-check-label small fw-bold" for="finalSeparada">
+                                    A final tem regra própria
+                                </label>
+                            </div>
+                            <div id="pdzRegraDaFinal" hidden class="mt-2">
+                                <label class="small text-muted">Sets (só da final)</label>
+                                <input type="number" asp-for="SetsSoDaFinal" class="form-control mb-2" value="3" />
+                                <label class="small text-muted pdz-rotulo-games">Games por Set (só da final)</label>
+                                <input type="number" asp-for="GamesSoDaFinal" class="form-control" value="9" />
+                                <label class="small text-muted mt-2">Tie-break no empate (só da final)</label>
+                                <select asp-for="PontosTieBreakSoDaFinal" class="form-select">
+                                    <option value="0">Sem contagem — o último game decide</option>
+                                    <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
+                                    <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>

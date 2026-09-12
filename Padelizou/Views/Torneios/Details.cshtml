@@ -4264,8 +4264,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                5x5 de um jogo até 6 vai pro 7º game. Quem responde é
                                                a régua (TieBreakDoJogo.AFaseComporta), com a mesma
                                                paridade do teto de games. *@
+                                            @* ⚠️ Pergunta por "Semifinal", e não por "Final" como era
+                                               até 12/09/2026: com a regra própria ligada, "Final" passou a
+                                               devolver o formato da DECISÃO, e este aviso é sobre o número
+                                               de games que está no campo LOGO ACIMA — o das semis. *@
                                             @if (!Padelizou.Services.TieBreakDoJogo.AFaseComporta(
-                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Final")))
+                                                     Padelizou.Services.FormatoDaPartida.De(Model, "Semifinal")))
                                             {
                                                 <small class="text-warning d-block mt-1">
                                                     <i class="bi bi-exclamation-triangle-fill"></i>
@@ -4274,13 +4278,64 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     Vale em número <strong>ímpar</strong>.
                                                 </small>
                                             }
+
+                                            @* A FINAL SOZINHA (Felipe, 12/09/2026). Fica DENTRO deste
+                                               card, e não numa quarta coluna, porque as três colunas já
+                                               apertam no celular — e porque o desvio é exceção do bloco
+                                               das semis, não uma quarta fase. Ver Torneio.GamesSoDaFinal. *@
+                                            <hr class="my-2" />
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="finalSeparada" id="pdzFinalSeparada"
+                                                       checked="@(Model.GamesSoDaFinal > 0)"
+                                                       onchange="document.getElementById('pdzRegraDaFinal').hidden = !this.checked;" />
+                                                @* O hidden vem DEPOIS da caixa, como no `avisarJogadores`:
+                                                   desmarcada, a caixa não manda nada, e sem ele o servidor
+                                                   leria silêncio — que aqui significa "aba antiga, mantenha
+                                                   o que está gravado", e não "desliguei". Marcada, chegam os
+                                                   dois valores e o binder fica com o PRIMEIRO. *@
+                                                <input type="hidden" name="finalSeparada" value="false" />
+                                                <label class="form-check-label small fw-bold" for="pdzFinalSeparada">
+                                                    A final tem regra própria
+                                                </label>
+                                            </div>
+                                            <div id="pdzRegraDaFinal" hidden="@(Model.GamesSoDaFinal <= 0)" class="mt-2">
+                                                <label class="small text-muted">Sets (só da final)</label>
+                                                <input type="number" min="1" max="5" name="setsSoDaFinal"
+                                                       class="form-control form-control-sm mb-2"
+                                                       value="@(Model.GamesSoDaFinal > 0 ? Model.SetsSoDaFinal : Model.SetsFaseFinal)" />
+                                                <label class="small text-muted">Games por set (só da final)</label>
+                                                <input type="number" min="1" max="99" name="gamesSoDaFinal"
+                                                       class="form-control form-control-sm"
+                                                       value="@(Model.GamesSoDaFinal > 0 ? Model.GamesSoDaFinal : Model.GamesFaseFinal)" />
+                                                <label class="small text-muted mt-2">Tie-break no empate (só da final)</label>
+                                                <select name="pontosTieBreakSoDaFinal" class="form-select form-select-sm">
+                                                    <option value="0" selected="@(Model.PontosTieBreakSoDaFinal <= 0)">Sem contagem</option>
+                                                    <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao"
+                                                            selected="@(Model.PontosTieBreakSoDaFinal == Padelizou.Services.TieBreakDoJogo.PontosPadrao)">Tie-break de 7 pontos</option>
+                                                    <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak"
+                                                            selected="@(Model.PontosTieBreakSoDaFinal == Padelizou.Services.TieBreakDoJogo.SuperTieBreak)">Super tie-break de 10</option>
+                                                </select>
+                                                @if (Model.GamesSoDaFinal > 0
+                                                     && !Padelizou.Services.TieBreakDoJogo.AFaseComporta(
+                                                            Padelizou.Services.FormatoDaPartida.De(Model, "Final")))
+                                                {
+                                                    <small class="text-warning d-block mt-1">
+                                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                                        Com <strong>@Model.GamesSoDaFinal games</strong> (número par) o tie-break
+                                                        não entra nem na final. Vale em número <strong>ímpar</strong>.
+                                                    </small>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="small text-muted mt-2">
                                     É o limite que a <strong>Mesa de Controle</strong> respeita ao marcar o placar.
                                     Mudar aqui vale pros jogos que ainda vão ser marcados — placar já registrado não muda.
-                                    "Mata-mata" cobre a primeira rodada, oitavas e quartas.
+                                    "Mata-mata" cobre a primeira rodada, oitavas e quartas, e
+                                    "Semifinais e final" cobre as duas — a não ser que a final tenha
+                                    regra própria, e aí ela vale só pra decisão.
                                     <br />
                                     O <strong>tie-break</strong> aparece no placar ao vivo quando o jogo empata a um game
                                     do fim (8x8 num jogo até 9). Quem fecha a contagem leva o último game — o placar de

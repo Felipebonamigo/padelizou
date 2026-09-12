@@ -24,6 +24,11 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.GamesFaseMataMata),
         nameof(Torneio.SetsFaseFinal),
         nameof(Torneio.GamesFaseFinal),
+        // A regra própria da final é formato, como sets e games das outras fases: a 2ª edição
+        // do mesmo torneio joga a decisão do mesmo jeito. Ver Torneio.GamesSoDaFinal.
+        nameof(Torneio.SetsSoDaFinal),
+        nameof(Torneio.GamesSoDaFinal),
+        nameof(Torneio.PontosTieBreakSoDaFinal),
         nameof(Torneio.ContagemDeGames),
         // Até quantos pontos vai o tie-break do 8x8, por fase: é formato, como sets e games —
         // a 2ª edição do mesmo torneio joga com a mesma regra de desempate.

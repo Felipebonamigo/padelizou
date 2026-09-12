@@ -138,6 +138,28 @@ public partial class Torneio
     public int SetsFaseFinal { get; set; }
     public int GamesFaseFinal { get; set; }
 
+    // A FINAL SOZINHA, quando ela não joga a mesma regra das semifinais (Felipe, 12/09/2026).
+    //
+    // 🗣️ *"aqui a final tem q ser separada da semi ou tem algum modo que a final é separada?"* —
+    // não tinha. As três colunas `...FaseFinal` acima regem SEMIFINAL E FINAL juntas, e é isso
+    // que continua valendo por padrão: quem escreve "as semis e a final são mais longas" está
+    // descrevendo as duas. Estas três são o DESVIO, pra decisão em 3 sets ou com super
+    // tie-break enquanto as semis seguem curtas.
+    //
+    // ⚠️ QUEM É O INTERRUPTOR É O `GamesSoDaFinal`: zero = "não configurado", e aí a final
+    // segue as semis — a mesma leitura que o `FormatoDaPartida.Valido` já faz das colunas
+    // antigas, e o que está gravado em todo torneio que existia antes disto (a migration não
+    // faz backfill nenhum, e é de propósito). Sets e tie-break daqui só são lidos quando ele é
+    // positivo, senão uma linha meio configurada de uma edição anterior mudaria a final de um
+    // torneio que voltou pro modo simples.
+    //
+    // ⚠️ E NÃO EXISTE UM `bool FinalSeparada` de propósito: um interruptor separado poderia
+    // discordar do número gravado (ligado com zero games), e aí passariam a existir duas
+    // verdades sobre o mesmo jogo. A caixa da tela é derivada daqui, não persistida.
+    public int SetsSoDaFinal { get; set; }
+    public int GamesSoDaFinal { get; set; }
+    public int PontosTieBreakSoDaFinal { get; set; }
+
     // COMO os games da partida são contados (Felipe, 08/08/2026). Os números acima dizem
     // QUANTOS; este diz o que esse número significa:
     //

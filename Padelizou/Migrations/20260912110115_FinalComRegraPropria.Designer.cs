@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260912110115_FinalComRegraPropria")]
+    partial class FinalComRegraPropria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1281,6 +1284,9 @@ namespace Padelizou.Migrations
 
                     b.Property<int>("CategoriaId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("CheckInEm")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Codigo")
                         .HasMaxLength(50)
@@ -2891,24 +2897,6 @@ namespace Padelizou.Migrations
                         .IsUnique();
 
                     b.ToTable("PrecoDeTurma");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
-                {
-                    b.Property<int>("TorneioId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("JogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("ChegouEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("TorneioId", "JogadorId");
-
-                    b.HasIndex("JogadorId");
-
-                    b.ToTable("PresencaNoTorneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
@@ -5211,25 +5199,6 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("LocalAula");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
-                {
-                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
-                        .WithMany()
-                        .HasForeignKey("JogadorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
-                        .WithMany()
-                        .HasForeignKey("TorneioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Jogador");
-
-                    b.Navigation("Torneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
