@@ -249,7 +249,11 @@ namespace Padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> QuemReagiu(int partidaId)
         {
-            var quem = await _reacoes.ObterQuemReagiuAsync(partidaId);
+            // ⚠️ `ObterJogadorIdLogado()` e NÃO `int.Parse` da claim: este GET é PÚBLICO (como o
+            // VerVotos), então anônimo chega aqui e a claim não existe. Sem login nenhuma pílula
+            // vem marcada, que é a resposta certa — quem não tem conta vê a contagem e não tem
+            // reação própria.
+            var quem = await _reacoes.ObterQuemReagiuAsync(partidaId, ObterJogadorIdLogado());
             if (quem == null) return NotFound();
 
             return Json(quem);

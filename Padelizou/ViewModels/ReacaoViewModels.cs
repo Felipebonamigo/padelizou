@@ -1,4 +1,4 @@
-namespace Padelizou.ViewModels;
+﻿namespace Padelizou.ViewModels;
 
 // As reações de UM jogo, prontas pra fileira do card — 12/09/2026.
 public class ReacoesDaPartidaVM
@@ -32,6 +32,12 @@ public class ReacaoContadaVM
 // painel do WhatsApp mostra.
 public class QuemReagiuVM
 {
+    // ⚠️ AS PÍLULAS VÊM NO MESMO PAYLOAD DA LISTA, e não é duplicação: o painel é onde se SOMA
+    // e se TIRA a reação (no cartão a pílula só abre o painel), então sem elas aqui o painel
+    // abria sem alvo de toque nenhum — defeito visto no Chromium em 12/09/2026. Duas chamadas
+    // pra pintar um painel só é como as duas metades saem de sincronia.
+    public List<ReacaoContadaVM> Reacoes { get; set; } = new();
+
     public List<QuemReagiuLinhaVM> Linhas { get; set; } = new();
 }
 
