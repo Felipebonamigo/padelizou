@@ -181,13 +181,18 @@ namespace Padelizou.Controllers
 
                 // OS PONTOS DO TIE-BREAK. ⚠️ Só entram onde o tie-break PODE acontecer
                 // (Services/TieBreakDoJogo): num torneio com a contagem desligada, ou numa fase
-                // de número par, um `pontos1` montado à mão não grava nada. E o índice é
-                // conferido: array mais curto (tela antiga, POST recortado) não estoura, só
-                // deixa os pontos como estão.
+                // de número par, um `pontos1` montado à mão não grava nada.
+                //
+                // ⚠️ E SÓ COM O LOTE ALINHADO (12/09/2026): os pontos viajam em arrays
+                // paralelos casados por ÍNDICE com `partidaId[]`, e array de tamanho diferente
+                // não é "um pouco menos de dado" — é a contagem de um jogo gravada no outro,
+                // calada. É a mesma trava que os games já tinham na entrada; a diferença é que
+                // `i < pontos1.Length` aceitava array mais COMPRIDO, que é exatamente o que um
+                // card com dois campos `pontos1` produzia (ver _JogosDoTorneio.cshtml).
                 bool mexeuNosPontos = false;
                 if (TieBreakDoJogo.PodeAcontecer(formato)
                     && pontos1 != null && pontos2 != null
-                    && i < pontos1.Length && i < pontos2.Length)
+                    && pontos1.Length == partidaId.Length && pontos2.Length == partidaId.Length)
                 {
                     int p1 = TieBreakDoJogo.PontoValido(pontos1[i]);
                     int p2 = TieBreakDoJogo.PontoValido(pontos2[i]);

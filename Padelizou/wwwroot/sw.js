@@ -24,7 +24,14 @@
 // card AO VIVO — e o arquivo que conserta isso é o `site.css`, que está na lista abaixo. Sem
 // virar o número, quem usa o app instalado continuaria com o alvo apagado, sem erro em lugar
 // nenhum. Conferido no `origin/main` ANTES de escolher o número, como manda o parágrafo acima.
-const CACHE_NAME = "padelizou-static-v34";
+// ⚠️ v35 POR UM ARQUIVO QUE NÃO ESTÁ NA LISTA, e é o caso que o parágrafo de cima não cobria:
+// o `placar-ao-vivo.js` e o `jogos-ao-vivo-atualiza.js` não são `STATIC_ASSETS`, mas caem na
+// regra de baixo (`isStaticAsset`), que serve a CÓPIA GUARDADA e só busca a nova em segundo
+// plano — quem tem o app instalado rodaria o JavaScript velho por mais uma abertura. Como o
+// que mudou é o salvamento do placar de quem está marcando AGORA, essa abertura é um game
+// perdido. Virar o número apaga o cache inteiro no `activate` e a próxima carga vem da rede.
+// Conferido no `origin/main` ANTES de escolher o número (estava em v34).
+const CACHE_NAME = "padelizou-static-v35";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
