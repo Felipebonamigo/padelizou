@@ -25,6 +25,24 @@
 >
 > 🧪 **6.838 testes, 0 falhas (5 novos)** + os 4 conferidores de JS verdes. Os três foram **vistos vermelhos antes da correção**: o Grupo B do print número por número devolvendo painel quando devia devolver `null`; o painel sumindo quando o jogo em quadra é o último (o outro lado da régua, que impede a "correção" de simplesmente esconder o painel); e o `Details` inteiro, pela controller, entregando quadro pra grupo com jogo em quadra. Os ajudantes de teste dos dois arquivos passaram a nascer com `Status`, como no banco.
 
+> **12/09/2026** — ⏳ **NO BRANCH `claude/marcadores-save-delay-b2l38c`, ainda não publicado.** **Sem migration.** ⏱️ **A MESA DE CONTROLE PAROU DE DEPENDER DO RELÓGIO DO CELULAR — E DE DESCARTAR TOQUE CALADA.**
+>
+> 🗣️ *"corrige a mesa de controle também"*. É o item que ficou aberto nos dois builds de hoje, e são **três** defeitos no mesmo caminho.
+>
+> 1️⃣ **A ORDEM ENTRE DOIS PLACARES SAÍA DO RELÓGIO DE CADA APARELHO** (`Date.now()` de quem marcou, gravado em `PlacarMarcadoEm`). Relógio de celular erra: um aparelho **adiantado** carimbava a partida com uma hora no futuro e **todo toque do outro era recusado a partir dali** — não por um toque, mas *para sempre*. ✅ Agora o aparelho manda a **IDADE** do toque (*"isto foi marcado há 8 segundos"*), medida com o próprio relógio dele, e quem ancora é o `DateTime.Now` do servidor: o erro absoluto **se cancela**, e os dois aparelhos voltam a ser comparáveis. ⚠️ A idade é medida **na hora de entregar**, não na hora do toque — é isso que faz o toque preso numa fila offline cair, do lado do servidor, no instante em que ELE ACONTECEU, e não no instante em que a rede voltou. De quebra, a reentrega continua idempotente: a idade cresce junto com a espera.
+>
+> 2️⃣ **A FILA AFIRMAVA O PLACAR INTEIRO A CADA TOQUE**, o mesmo defeito da lista AO VIVO (`build-1270`) na outra tela: o aparelho do vizinho reescrevia o lado que ninguém tocou com o número da tela dele — de **minutos** atrás, se ele esteve sem sinal. ✅ A fila passou a guardar **quais lados foram tocados**, e o lado não tocado viaja como **-1**. ⚠️ O placar continua **absoluto**, e não "+1": incremento reentregue dobraria o game, que é a razão de esta fila existir assim. O que mudou é *quais lados ele afirma*.
+>
+> 3️⃣ **RECUSA SUMIA COM A TARJA VERDE.** O servidor responde **200** dizendo "já existe um placar mais novo"; a Mesa adotava o placar dele, **esvaziava a fila** e seguia mostrando **"Placar sincronizado"**. A pior combinação possível: o número voltava sozinho na frente de quem marcou e a tela dizia que estava tudo certo. ✅ Agora a tarja diz *"Não valeu: … O placar na tela é o do servidor."*
+>
+> 🧪 **6.851 testes, 0 falhas (5 novos em `PlacarDaMesaTests`)**, os quatro de defeito **vistos vermelhos** (`Expected: 7, Actual: 0` no lado não tocado; `Expected: 4, Actual: 0` no aparelho travado pelo relógio do vizinho). Mais o **6º conferidor de JS**, `conferir-mesa-offline.js`, com DOM falso, `localStorage` falso, **relógio controlável** e temporizador controlável — 12 conferências, e a da idade exercita o caso inteiro: toque com a rede caída, 8 segundos depois a rede volta, e o corpo sai com `idadeMs=8000`.
+>
+> ⚠️ **UM TESTE ANTIGO FOI REESCRITO**: `Placar_impossivel_e_domado_pras_bordas` cobrava negativo virando **zero**, e negativo agora é "não toquei". Como cinto de segurança contra requisição montada à mão isso é **mais forte**, não menos: um `-1` forjado agora não apaga placar nenhum, onde antes zerava o lado.
+>
+> 🔁 **`sw.js` foi pra `padelizou-static-v36`**: o `mesa-offline.js` também não está em `STATIC_ASSETS`, mas cai na regra de `isStaticAsset`, que serve a cópia guardada e busca a nova em segundo plano. A Mesa é a tela de quem está com o celular na mão no meio do jogo. Conferido no `origin/main` antes de escolher o número (estava em v35).
+>
+> 🔒 **COMPATIBILIDADE NOS DOIS SENTIDOS**: fila gravada antes deste deploy não tem os campos tocados nem a idade — ela afirma tudo e é lida pelo epoch, como sempre foi (tem teste). E item gravado por esta versão não quebra uma tela antiga que volte do cache.
+>
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1270-7be46a7`** (runs **305** e **306**), **o mesmo artefato nos dois**, com a tag explícita. PR #264. **Sem migration.** 👐 **DOIS MARCADORES NO MESMO JOGO PARARAM DE SE ATROPELAR: CADA UM GRAVA SÓ O LADO QUE TOCOU.**
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois**: `/healthz` **200** e o `/js/placar-ao-vivo.js` servido já com o `NAO_TOQUEI`. ℹ️ O `sw.js` FICOU em `padelizou-static-v35` de propósito: ele subiu no `build-1268` e o cache velho já foi descartado lá; virar de novo só jogaria fora a cópia nova, sem ganho nenhum.
