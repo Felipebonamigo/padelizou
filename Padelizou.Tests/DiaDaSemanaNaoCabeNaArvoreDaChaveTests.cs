@@ -27,10 +27,10 @@ namespace Padelizou.Tests;
 public class DiaDaSemanaNaoCabeNaArvoreDaChaveTests
 {
     [Theory]
+    // ⚠️ ERAM DOIS ARQUIVOS até 12/09/2026 (a chave de verdade e a prévia). Viraram UM: a aba
+    // trocava de desenho no dia em que o mata-mata nascia, e o Felipe pediu pra manter como
+    // estava. A régua não mudou — mudou o número de lugares onde ela pode ser desfeita.
     [InlineData("_ChaveDoMataMata.cshtml", "a vaga da chave")]
-    // Desde 11/09/2026 a PRÉVIA usa o mesmo cartão, no partial da árvore — então a mesma régua
-    // vale pros dois, e a prova de que ela vale ali é esta linha e não um teste separado.
-    [InlineData("_ChaveProjetadaArvore.cshtml", "a vaga da prévia")]
     public void A_vaga_da_chave_nao_carrega_o_dia_da_semana(string arquivo, string qualLinha)
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", arquivo));

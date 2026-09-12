@@ -6621,29 +6621,40 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         }
                                     }
 
-                                    @* O quadro com as linhas: no computador de cima pra baixo, no celular
-                                       deitado e arrastável. A geometria dos dois é a mesma conta —
-                                       ver Services/ArvoreDaChave e Views/Torneios/_ChaveProjetadaArvore. *@
+                                    @* O quadro com as linhas — O MESMO PARTIAL da chave de verdade,
+                                       e não um só da prévia: é isso que faz a tela não mudar de
+                                       cara no dia em que o mata-mata nasce (12/09/2026, 🗣️ *"era
+                                       para manter como estava, tava bom"*). A prévia é a chave sem
+                                       nenhum jogo criado, e `DaPrevia` só a traduz pro formato do
+                                       quadro. Ver Services/ArvoreDaChave, Services/QuadroDoMataMata
+                                       e ChaveRealDesenhadaComoArvoreTests. *@
                                     @* ⚠️ A CATEGORIA VAI JUNTO porque o `id` de cada rodada é
                                        construído com ela: este partial é desenhado uma vez por
                                        categoria e, com id repetido, as fichas do celular pulavam
                                        pro painel escondido da primeira. Ver
                                        FichasDaChaveLevamARodadaCertaTests. *@
-                                    <partial name="_ChaveProjetadaArvore"
-                                             model="(Padelizou.Services.ArvoreDaChave.Montar(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)previstosDoQuadro, categoria.Id)" />
+                                    <partial name="_ChaveDoMataMata"
+                                             model="(Padelizou.Services.QuadroDoMataMata.DaPrevia(rodadasProjetadas), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>?)previstosDoQuadro, new List<Padelizou.Models.Dupla>(), categoria.Id)" />
                                 }
                             }
                             else
                             {
-                                @* Chaveamento completo, de cima pra baixo, com as duplas de
+                                @* A chave inteira na MESMA árvore da prévia, com as duplas de
                                    BYE nomeadas na fase em que entram — sem isso elas somem
                                    do quadro. O jogador logado vai junto pro quadro pintar o
-                                   caminho dele. Ver Views/Torneios/_ChaveDoMataMata. *@
+                                   caminho dele. Ver Views/Torneios/_ChaveDoMataMata.
+
+                                   ⚠️ atalho deliberado: a vaga FUTURA da chave de verdade
+                                   continua dizendo "a definir" em vez da hora prevista (o
+                                   `null` no lugar dos previstos) — casar `ViewBag.ProjecaoCompleta`
+                                   com a numeração global do quadro é outra tarefa, e a hora
+                                   dessas vagas já está na aba Jogos. *@
                                 var byesDict = ViewBag.ByesPorCategoria as Dictionary<int, List<Padelizou.Models.Dupla>>;
                                 var byesDaCategoria = (byesDict != null && byesDict.ContainsKey(categoria.Id))
                                     ? byesDict[categoria.Id] : new List<Padelizou.Models.Dupla>();
                                 int? meuJogadorIdNoQuadro = ViewBag.MeuJogadorId as int?;
-                                <partial name="_ChaveDoMataMata" model="(jogosMata, byesDaCategoria, meuJogadorIdNoQuadro)" />
+                                <partial name="_ChaveDoMataMata"
+                                         model="(Padelizou.Services.QuadroDoMataMata.Montar(jogosMata, byesDaCategoria, meuJogadorIdNoQuadro), (IReadOnlyDictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>?)null, byesDaCategoria, categoria.Id)" />
                             }
                         </div>
                         </div> @* fim do d-flex flex-column que ordena chave/grupos *@
