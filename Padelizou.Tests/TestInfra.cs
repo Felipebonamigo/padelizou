@@ -153,8 +153,7 @@ public static class TestInfra
     // pras duas telas — de verdade, não dublê: os testes que rodam o torneio inteiro só provam
     // alguma coisa se o que roda aqui for o que roda em produção.
     public static VarreduraDaChave NovaVarreduraDaChave(DbPadelContext ctx) =>
-        new(ctx, new RoboDoChaveamento(ctx, EstatisticasFalsas()),
-            NullLogger<VarreduraDaChave>.Instance);
+        new(ctx, EstatisticasFalsas(), NullLogger<VarreduraDaChave>.Instance);
 
     public static EncerramentoDaPartida NovoEncerramento(
         DbPadelContext ctx, IPushNotificationService? push = null) =>

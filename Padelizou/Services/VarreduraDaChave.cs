@@ -29,10 +29,17 @@ public class VarreduraDaChave
     private readonly RoboDoChaveamento _robo;
     private readonly ILogger<VarreduraDaChave> _logger;
 
-    public VarreduraDaChave(DbPadelContext context, RoboDoChaveamento robo, ILogger<VarreduraDaChave> logger)
+    // ⚠️ O ROBÔ É CONSTRUÍDO AQUI, e não injetado: `RoboDoChaveamento` NÃO está registrado no
+    // contêiner — quem precisa dele faz `new`, com o contexto e o ranking na mão (é o que o
+    // `EncerramentoDaPartida` faz, na linha 40). Pedi-lo por injeção compilou, passou na suíte
+    // inteira e quebrou no CI, no passo que valida o contêiner: *"Unable to resolve service for
+    // type 'RoboDoChaveamento'"*. A suíte não monta o service provider, então esta família de
+    // defeito é invisível aqui — só o `dotnet ef` do CI a enxerga.
+    public VarreduraDaChave(DbPadelContext context, IEstatisticasService estatisticas,
+        ILogger<VarreduraDaChave> logger)
     {
         _context = context;
-        _robo = robo;
+        _robo = new RoboDoChaveamento(context, estatisticas);
         _logger = logger;
     }
 

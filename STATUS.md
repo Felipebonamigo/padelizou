@@ -31,6 +31,8 @@
 >
 > 🩹 **O CONTORNO QUE VALEU HOJE, e vale registrar porque não depende de deploy**: corrigir o placar de qualquer jogo de grupo já finalizado da categoria re-dispara o robô (`PartidasController.cs:665`). É seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`.
 >
+> 🔴 **O CI PEGOU O QUE A SUÍTE INTEIRA NÃO PEGA, e a lição vale mais que a correção.** A primeira versão pedia o `RoboDoChaveamento` por INJEÇÃO. Compilou, passou nos 6.976 testes e quebrou no CI, no passo do `dotnet ef`: *"Unable to resolve service for type 'RoboDoChaveamento'"* — ele **não está registrado no contêiner**; quem precisa dele faz `new` com o contexto e o ranking na mão (`EncerramentoDaPartida:40`). ⚠️ **A suíte NÃO monta o service provider**, então defeito de composição é invisível aqui: o único gate é o `has-pending-model-changes` do CI, que valida o contêiner de lambuja. Reproduzido localmente (mesmo erro, letra por letra) e visto passar depois da correção — `dotnet tool install --global dotnet-ef --version 10.0.10` é o que falta nesta máquina pra rodar esse gate sem esperar o CI.
+>
 > 🧪 **6.976 testes, 0 falhas (4 novos em `VarreduraDaChaveTests`)** + os **8** conferidores de JS verdes. ⚠️ **A DISCRIMINAÇÃO FOI CONFERIDA NEUTRALIZANDO as duas chamadas do robô**: os dois testes de comportamento ficam vermelhos, e os dois de GUARDA ("não monta de novo o que já está montado", "não encosta em torneio que nem sorteou") seguem verdes — que é o papel deles, pegar varredura que faz DEMAIS.
 
 > **12/09/2026** — 🕐 **A CHAVE DE VERDADE VOLTOU A MOSTRAR A HORA DAS FASES QUE AINDA NÃO ACONTECERAM.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.**
