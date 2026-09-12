@@ -34,6 +34,11 @@
     @if (!string.IsNullOrEmpty(Model.VoltarPara))
     {
         <input type="hidden" name="voltarPara" value="@Model.VoltarPara" />
+        @* ⚠️ O RECORTE DA TELA VIAJA JUNTO. Sem isto, marcar uma chegada com a lista filtrada
+           numa categoria devolvia a grade inteira do torneio por cima dela — 🗣️ *"ele sai da
+           tela, ele tem q sempre se manter na tela da alteracao"*. O servidor só reaproveita as
+           chaves que ele mesmo conhece (Services/FiltrosDaListaDeJogos). *@
+        <input type="hidden" name="filtros" value="@Padelizou.Services.FiltrosDaListaDeJogos.Atual(Context.Request)" />
     }
 
     @if (Model.Bolinha)

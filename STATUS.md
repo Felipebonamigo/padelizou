@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
+> Última atualização: **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** **Sem migration.** 📍 **MARCAR A CHEGADA NÃO TIRA MAIS O ORGANIZADOR DA LISTA QUE ELE ESTAVA OLHANDO.**
+>
+> 🗣️ Felipe, com o check-in por jogador no ar: *"Ao marcar de confirmar na tela, ele sai da tela, ele tem q sempre se manter na tela da alteracao"*.
+>
+> 🕳️ **REPRODUZIDO NO NAVEGADOR, com o app rodando nesta sessão**: filtrado numa categoria a aba dizia **"Agendadas (2)"** com 2 jogos; depois de marcar uma chegada, **"Agendadas (3)"** com 3 — o redirect voltava pra `Details` **nu**, sem a query string, e a grade inteira do torneio voltava por cima do recorte. A rolagem até era restaurada no mesmo pixel, o que **piora**: mesmo lugar da tela, outra lista embaixo. Na ER, com 12 categorias e 97 jogos, é perder o lugar.
+>
+> ⚠️ **O TETO ESTAVA ESCRITO NO CÓDIGO** desde a primeira versão (*"o filtro da tela NÃO volta junto"*), herdado do `VoltarDaLargada`. **Escrever o teto não é o mesmo que ele não incomodar** — e este incomodou em menos de uma hora.
+>
+> ✅ **A CORREÇÃO**: o formulário leva a query da tela num campo escondido, e o servidor reaproveita **só as seis chaves** que `Details`/`Jogos` já recebem por parâmetro (`Services/FiltrosDaListaDeJogos`). Lista fechada pelo mesmo motivo do `voltarPara`: campo de formulário não escolhe controller, action, area nem id de torneio. Teto de 1000 caracteres — campo escondido é campo editável, e uma query gigante viraria um redirect que nenhum navegador aceita.
+>
+> 🔬 **UMA SUSPEITA MEDIDA EM VEZ DE CHUTADA**: com DUAS categorias marcadas, o valor de rota é um `string[]`, e eu esperava que a geração de URL escrevesse `System.String[]`. **Não escreve** — expande em `categoriaFiltroIds=910&categoriaFiltroIds=911`, conferido no navegador. A implementação ficou como estava.
+>
+> 🚧 **OS VIZINHOS DE BARRA CONTINUAM DERRUBANDO O FILTRO** — ▶ largada, 📍 quadra, ⇄ horário e as setas ↑↓ passam pelo `VoltarDaLargada` e pelos modais, que ainda voltam nus. A régua nova já serve os quatro; é trocar o redirect e pôr o campo no formulário. **Não foi feito junto de propósito** (Regra 5, e diff no fluxo do placar com torneio rodando).
+>
+> 🧪 **6.793 testes, 0 falhas (15 novos, em `VoltarPraListaFiltradaTests`)** + os 4 conferidores de JS verdes. Conferido no navegador nos dois casos: uma categoria e duas.
+
+> **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1251-27042f9`** (runs **295** no prod e **296** no dev, esta na 2ª tentativa), **o mesmo artefato nos dois**, pela tag explícita. Leva o **PR #253** (o alvo do saque) **e o #254** (tirar qualquer um dos dois nomes), que entraram no `main` com 3 minutos de diferença.
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO nos dois ambientes**, que é mais forte que o healthcheck: o `/css/site.css` responde com `box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55) inset` na `.pdz-bolinha-apagada`, **zero** ocorrências de `--pdz-border` naquela regra e **zero** `opacity` nela; o `sw.js` em **`padelizou-static-v34`**; `/healthz` **200** nos dois.
 >

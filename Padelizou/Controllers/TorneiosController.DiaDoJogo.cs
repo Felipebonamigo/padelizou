@@ -396,7 +396,8 @@ namespace Padelizou.Controllers
         // tela de Check-in. Sem o parâmetro nada muda — o botão de lá não passa nada.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int torneioId, bool presente, string? voltarPara = null)
+        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int torneioId, bool presente,
+            string? voltarPara = null, string? filtros = null)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return NotFound();
@@ -438,13 +439,19 @@ namespace Padelizou.Controllers
             // A âncora `#jogosDoTorneio` é o que faz a página do torneio voltar NA ABA JOGOS — sem
             // ela o organizador reaparece no topo, na aba de sempre.
             //
-            // atalho: o filtro da tela (categoria, time, quadra, "só meus jogos") NÃO volta junto —
-            // o mesmo teto do PartidasController.VoltarDaLargada, que é o vizinho de botão deste.
-            // A saída, quando incomodar, é a mesma pros dois: carregar a query string no POST.
+            // ⚠️ E O RECORTE DA TELA VOLTA JUNTO (12/09/2026). 🗣️ *"Ao marcar de confirmar na tela,
+            // ele sai da tela, ele tem q sempre se manter na tela da alteracao"*. Sem os filtros, a
+            // grade inteira voltava por cima da categoria que ele estava olhando — e a rolagem
+            // restaurada no mesmo pixel piorava: mesmo lugar, outra lista embaixo. Quem peneira o
+            // que pode virar rota é Services/FiltrosDaListaDeJogos, em lista fechada: campo de
+            // formulário não escolhe controller, action nem id de torneio.
+            var rota = FiltrosDaListaDeJogos.Reaproveitar(filtros);
+            rota["id"] = torneioId;
+
             return voltarPara switch
             {
-                "Details" => RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "jogosDoTorneio"),
-                "Jogos" => RedirectToAction("Jogos", new { id = torneioId }),
+                "Details" => RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio"),
+                "Jogos" => RedirectToAction("Jogos", rota),
                 _ => RedirectToAction("CheckIn", new { id = torneioId }),
             };
         }
