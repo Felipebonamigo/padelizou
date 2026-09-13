@@ -56,13 +56,16 @@ public class CheckInOpcionalTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: false);
-        var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
+        var duplas = await ctx.Duplas.Where(d => d.Categoria.TorneioId == torneio.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var categoria = await ctx.Categorias.FirstAsync(c => c.Id == dupla.CategoriaId);
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+            .MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
 
         Assert.IsType<RedirectToActionResult>(resultado);
-        // A presença é linha em PresencaNoTorneio desde 12/09/2026 — desligado, ela não nasce.
+        // A presença é linha em PresencaNoJogo desde 12/09/2026 — desligado, ela não nasce.
         Assert.Empty(ctx.Presencas);
     }
 
@@ -71,13 +74,16 @@ public class CheckInOpcionalTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: true);
-        var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
+        var duplas = await ctx.Duplas.Where(d => d.Categoria.TorneioId == torneio.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var categoria = await ctx.Categorias.FirstAsync(c => c.Id == dupla.CategoriaId);
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
         Assert.Single(ctx.Presencas);
 
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: false);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: false);
         Assert.Empty(ctx.Presencas);
     }
 

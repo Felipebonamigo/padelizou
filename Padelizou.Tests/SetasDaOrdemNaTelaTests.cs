@@ -69,7 +69,10 @@ public class SetasDaOrdemNaTelaTests
     {
         var fonte = View("_JogosDoTorneio.cshtml");
 
-        Assert.Contains("OrdemNoHorario.Ordenar(agendadasList, jogosQueVem)", fonte);
+        // ⚠️ O `chegadas` faz parte da régua desde 12/09/2026 (a ordem por presença): a tela tem
+        // que passar o que SABE de quem chegou, senão ela ordena diferente das setas de novo.
+        Assert.Contains("OrdemNoHorario.Ordenar(agendadasList, jogosQueVem,", fonte);
+        Assert.Contains("ChegadasNoTorneio", fonte);
         Assert.DoesNotContain(".OrderBy(x => x.Horario ?? DateTime.MaxValue)", fonte);
     }
 

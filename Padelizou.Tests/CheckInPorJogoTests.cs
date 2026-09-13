@@ -150,27 +150,25 @@ public class CheckInPorJogoTests
     // ── A TELA ───────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Os_jogos_vem_antes_do_resto_do_torneio()
+    public void A_tela_e_so_de_JOGOS_e_o_resto_do_torneio_nao_volta()
     {
+        // ⚠️ ESTE TESTE MUDOU DE LADO EM 12/09/2026, e é de propósito. Ele exigia o bloco
+        // "Resto do torneio — todas as duplas": uma lista por categoria, dupla a dupla, que fazia
+        // sentido enquanto a presença era do TORNEIO (marcar ali respondia por todos os jogos da
+        // pessoa).
+        //
+        // 🗣️ Felipe: *"o checkin ... nao deveria [herdar], tem q ser separado jogo a jogo"*, e a
+        // tela deveria virar lista de JOGOS. Ela já era: o bloco de cima traz TODOS os agendados
+        // e o de baixo os que estão em quadra ou acabaram. Manter o "resto" seria desenhar os
+        // mesmos jogos uma terceira vez, com um contador de gente numa tela que conta vaga.
+        //
+        // Quem chega cedo não perdeu nada: o jogo dela está no bloco de cima desde que a grade
+        // existe, por mais tarde que seja o horário.
         var fonte = Ler("Torneios/CheckIn.cshtml");
-        int jogos = fonte.IndexOf("JogosQueVem", StringComparison.Ordinal);
-        int resto = fonte.IndexOf("restoDoTorneio", StringComparison.Ordinal);
 
-        Assert.True(jogos >= 0, "A tela não lê a fila dos jogos.");
-        Assert.True(resto >= 0, "Sumiu o bloco com o resto do torneio — quem chega cedo não teria como ser marcado.");
-        Assert.True(jogos < resto, "Os jogos que vêm são o assunto da tela; a lista completa fica embaixo.");
-    }
-
-    [Fact]
-    public void O_resto_do_torneio_nasce_fechado()
-    {
-        // A lista das 64 duplas continua alcançável, mas não é mais o que a tela mostra de cara.
-        var fonte = Ler("Torneios/CheckIn.cshtml");
-        int resto = fonte.IndexOf("id=\"restoDoTorneio\"", StringComparison.Ordinal);
-        Assert.True(resto >= 0, "Não achei o bloco do resto do torneio.");
-
-        Assert.Contains("data-bs-toggle=\"collapse\"", fonte[Math.Max(0, resto - 900)..resto]);
-        Assert.DoesNotContain("show", fonte[resto..(resto + 60)]);
+        Assert.Contains("JogosQueVem", fonte);
+        Assert.DoesNotContain("restoDoTorneio", fonte);
+        Assert.DoesNotContain("Model.Categorias", fonte);
     }
 
     [Fact]
@@ -178,12 +176,10 @@ public class CheckInPorJogoTests
     {
         var fonte = Ler("Torneios/CheckIn.cshtml");
         int jogos = fonte.IndexOf("JogosQueVem", StringComparison.Ordinal);
-        int resto = fonte.IndexOf("id=\"restoDoTorneio\"", StringComparison.Ordinal);
         int jaRolou = fonte.IndexOf("id=\"jaJogaram\"", StringComparison.Ordinal);
 
         Assert.True(jaRolou >= 0, "Não achei o bloco de quem já jogou / está em jogo.");
         Assert.True(jogos < jaRolou, "Ele não pode vir antes da fila dos jogos que ainda não começaram.");
-        Assert.True(resto < jaRolou, "Pedido: no FIM da tela — depois do resto do torneio.");
 
         Assert.Contains("data-bs-toggle=\"collapse\"", fonte[Math.Max(0, jaRolou - 900)..jaRolou]);
         Assert.DoesNotContain("show", fonte[jaRolou..(jaRolou + 60)]);
@@ -192,9 +188,9 @@ public class CheckInPorJogoTests
     [Fact]
     public void O_botao_de_presenca_mora_num_lugar_so()
     {
-        // A mesma linha é desenhada em três lugares: nos jogos que vêm, no bloco do fim e na
-        // lista por categoria. Duas cópias do formulário que GRAVA presença divergiriam na
-        // primeira mudança — então ele existe uma vez só.
+        // A mesma linha é desenhada nos dois blocos de jogo da tela — o que vem e o que já
+        // rolou. Duas cópias do formulário que GRAVA presença divergiriam na primeira mudança —
+        // então ele existe uma vez só.
         //
         // ⚠️ O "lugar só" MUDOU DE ENDEREÇO em 12/09/2026: a aba Jogos passou a marcar presença
         // numa bolinha do lado de cada dupla, e o formulário desceu mais um degrau, pro
@@ -216,8 +212,9 @@ public class CheckInPorJogoTests
         // ...e o cartão é o mesmo nos dois blocos de jogo da tela (o que vem e o que já rolou).
         Assert.True(tela.Split("<partial name=\"_JogoNoCheckIn\"").Length - 1 >= 2,
             "O cartão do jogo devia ser o mesmo na fila de cima e no bloco do fim.");
-        // A lista por categoria continua usando a linha direto.
-        Assert.Contains(Parcial, tela);
+        // ⚠️ E A TELA NÃO DESENHA A LINHA DIRETO desde 12/09/2026: a lista por categoria saiu
+        // junto com a presença por torneio. Tudo passa pelo cartão do jogo.
+        Assert.DoesNotContain(Parcial, tela);
     }
 
     [Fact]

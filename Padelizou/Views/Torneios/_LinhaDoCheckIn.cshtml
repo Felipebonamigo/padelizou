@@ -1,5 +1,5 @@
 @using Padelizou.Services
-@model (Padelizou.Models.Dupla? Dupla, int TorneioId, IReadOnlyDictionary<int, DateTime> Chegadas)
+@model (Padelizou.Models.Dupla? Dupla, int PartidaId, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> Chegadas)
 
 @* UMA DUPLA NA CHAMADA: os jogadores dela, um por linha, cada um com o seu botão.
 
@@ -10,6 +10,10 @@
    é assim que controla check in"*. O par continua sendo o bloco (é ele que joga), mas quem tem
    estado é a pessoa — e é o nome dela que o organizador procura quando falta alguém.
 
+   ⚠️ E O ESTADO É POR JOGO desde o mesmo dia. 🗣️ *"o checkin ... nao deveria [herdar], tem q ser
+   separado jogo a jogo"*. Por isso o modelo carrega `PartidaId`, e não o torneio: esta MESMA dupla
+   aparece em mais de um jogo do dia, e cada um tem a sua resposta.
+
    ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e o
    `MarcarCheckIn` confere de novo no servidor a cada clique (PodeOperarODiaDeJogoAsync). *@
 
@@ -17,7 +21,7 @@
 
 @{
     var jogadores = PresencaNoDia.JogadoresDa(Model.Dupla).ToList();
-    bool completa = PresencaNoDia.DuplaCompleta(Model.Dupla, Model.Chegadas);
+    bool completa = PresencaNoDia.DuplaCompleta(Model.PartidaId, Model.Dupla, Model.Chegadas);
 }
 
 <div class="list-group-item px-2 @(completa ? "bg-light" : "")">
@@ -32,7 +36,7 @@
 
     @foreach (var jogador in jogadores)
     {
-        var chegouEm = PresencaNoDia.ChegouEm(jogador.Id, Model.Chegadas);
+        var chegouEm = PresencaNoDia.ChegouEm(Model.PartidaId, jogador.Id, Model.Chegadas);
 
         <div class="d-flex align-items-center gap-3 py-1">
             <i class="bi @(chegouEm != null ? "bi-check-circle-fill" : "bi-circle") fs-5"
@@ -45,7 +49,7 @@
                 }
             </div>
             <partial name="_BotaoDoCheckIn"
-                     model="new Padelizou.ViewModels.BotaoDeCheckInVM(jogador.Id, Model.TorneioId, jogador.ComoChamar, chegouEm, false, null)" />
+                     model="new Padelizou.ViewModels.BotaoDeCheckInVM(jogador.Id, Model.PartidaId, jogador.ComoChamar, chegouEm, false, null)" />
         </div>
     }
 

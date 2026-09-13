@@ -1702,7 +1702,8 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             var projetados = await ProjetarProximasFasesAsync(torneioId, partidas);
-            return OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados);
+            return OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados,
+                await ChegadasDoTorneioAsync(torneioId));
         }
 
         // O MIOLO DA TROCA, compartilhado pelo ⇄ e pelas setas ↑↓. Cada lado recebe o slot do outro:
@@ -1767,7 +1768,8 @@ namespace Padelizou.Controllers
             // "automático" devolve a mesma fila — era o ⇄ no-op que o Felipe reportou. Antes de
             // trocar, o prefixo do horário até o mais abaixo dos dois ganha número explícito; quem
             // está debaixo continua no automático, que já vem depois do manual.
-            var fila = OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados);
+            var fila = OrdemNoHorario.Ordenar(partidas.Where(p => p.Status == "Agendada"), projetados,
+                await ChegadasDoTorneioAsync(id));
             var linhaA = fila.FirstOrDefault(l => l.Referencia == refA);
             var linhaB = fila.FirstOrDefault(l => l.Referencia == refB);
             var numerados = linhaA != null && linhaB != null

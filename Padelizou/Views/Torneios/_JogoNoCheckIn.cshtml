@@ -1,5 +1,5 @@
 @using Padelizou.Services
-@model (Padelizou.Models.Partida? Jogo, IReadOnlyDictionary<int, DateTime> Chegadas)
+@model (Padelizou.Models.Partida? Jogo, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> Chegadas)
 
 @* UM JOGO NA TELA DE CHECK-IN: a etiqueta da categoria/fase e as duas duplas, cada jogador com o
    seu botão. É o mesmo cartão na fila de cima (o que ainda não começou) e no bloco fechado do
@@ -15,8 +15,8 @@
 
 @{
     var jogo = Model.Jogo;
-    bool prontoPraComecar = PresencaNoDia.DuplaCompleta(jogo.Dupla1, Model.Chegadas)
-                         && PresencaNoDia.DuplaCompleta(jogo.Dupla2, Model.Chegadas);
+    bool prontoPraComecar = PresencaNoDia.DuplaCompleta(jogo.Id, jogo.Dupla1, Model.Chegadas)
+                         && PresencaNoDia.DuplaCompleta(jogo.Id, jogo.Dupla2, Model.Chegadas);
     bool jaComecou = jogo.Status != "Agendada";
     int torneioId = jogo.Categoria?.TorneioId ?? jogo.TorneioId ?? 0;
 }
@@ -39,8 +39,8 @@
             }
         </div>
         <div class="list-group list-group-flush">
-            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla1, torneioId, Model.Chegadas)" />
-            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla2, torneioId, Model.Chegadas)" />
+            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla1, jogo.Id, Model.Chegadas)" />
+            <partial name="_LinhaDoCheckIn" model="(jogo.Dupla2, jogo.Id, Model.Chegadas)" />
         </div>
     </div>
 </div>
