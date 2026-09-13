@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/09/2026** — 📊 **A TABELA DO GRUPO CONTAVA JOGO DE MATA-MATA.** ⏳ **No branch `claude/intelligent-maxwell-teamap`, PR #289.** **Sem migration.**
+>
+> 🗣️ Felipe, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR, com o print do **Grupo F**: *"Outro problema, continua contando vitorias etc no mata mata"*. Grupo de 3 duplas, 3 jogos, **2 por dupla** — e a tabela dizia `J=3` pra duas delas.
+>
+> 🕳️ `TorneiosController.Details` carregava as partidas finalizadas **SEM FILTRO DE FASE** (`p.TorneioId == id && p.Status == "Finalizada"`) e a contabilidade grupo a grupo filtrava **só por dupla**. Enquanto a categoria estava nos grupos não havia o que somar errado; assim que a chave abriu, cada vitória de mata-mata entrou na linha do grupo — em **J**, em **V**, no **saldo de games** e, portanto, na **ORDEM**, que é ordenada por esses mesmos números.
+>
+> | Grupo F | na tela (J·V·D·SG) | só grupo (correto) |
+> |---|---|---|
+> | Felipe / Guilherme | 3 · 3 · 0 · **+11** | 2 · 2 · 0 · **+5** |
+> | Lucas / Henrique | 3 · 1 · 2 · **−2** | 2 · 1 · 1 · **0** |
+> | Maickel / Rodrigo | 2 · 0 · 2 · −5 | 2 · 0 · 2 · −5 (não jogou mata-mata) |
+>
+> Antes disso, no mesmo torneio: **4ª Masculina Grupo B** e **6ª Feminina Grupo A**, de DUAS duplas (um jogo só), mostrando `J=2` — e nos dois a 2ª do grupo aparecendo em **1º**.
+>
+> ✅ **A CHAVE NUNCA LEU ESSES NÚMEROS** — o robô recalcula a classificação a partir das partidas de grupo (`ClassificacaoDeGrupos`). O estrago era só na tela: a mais visitada do site, e a que o jogador usa pra saber se passou.
+>
+> 🔑 **O FILTRO ENTRA NA CONTABILIDADE, E NÃO NA CONSULTA**, e isso não é estilo: a mesma `partidasFinalizadas` alimenta o **MVP** algumas linhas acima, e lá **TODOS** os jogos do torneio são desejados — a votação abre 7 dias depois do último, mata-mata incluído. Filtrar na consulta trocaria um defeito por outro.
+>
+> 🔎 **ERA O ÚNICO LUGAR SEM O FILTRO**, conferido: `TorneiosController.Classificacao` (`TorneiosController.Americano.cs:610`) e `ClassificacaoParaCard.cs:87` já usavam a expressão inline de fase de grupo. E `Details.cs:449-462` é o **único** ponto do sistema que escreve `Dupla.Jogos/Vitorias/Derrotas/SaldoGames`, lido só em `Details.cshtml:6351-6362`.
+>
+> 🧪 **4 testes, escritos antes e VISTOS VERMELHOS** (`TabelaDoGrupoSoContaJogoDeGrupoTests`): `J=4` onde cabia 1, `V=3` onde cabia 0, e a ordem do grupo invertida. O cenário reproduz o flagrante — 8 duplas → grupos de 2, 3 e 3 → quadro de 8; a dupla que **perdeu** o único jogo do grupo de 2 ganha todas as de mata-mata, e a tabela vira. **6.997 testes verdes**, 9 conferidores JS verdes.
+>
 > Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
 >
 > 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
