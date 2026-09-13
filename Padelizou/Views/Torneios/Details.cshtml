@@ -4697,15 +4697,43 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     {
                         <p class="small text-muted">Pra adicionar um novo inscrito, use a aba <strong>Inscreva-se</strong>.</p>
                     }
+                    @* ACHAR UM INSCRITO SEM ROLAR A LISTA (13/09/2026). 🗣️ Felipe, com o print
+                       desta tela no celular: *"aqui no gerenciar escrito esta dificil achar,
+                       permita pesquisar por nome, coloque filtro por categoria"*.
+
+                       Filtro de TELA, no navegador — ver wwwroot/js/filtro-de-inscritos.js. A
+                       `.pdz-inscritos-filtraveis` é o escopo: a página tem DUAS listas destas
+                       (esta e a de Pagamentos), e sem o escopo digitar numa filtraria a outra. *@
+                    <div class="pdz-inscritos-filtraveis">
+                    @{
+                        @* Numa variável, e não dentro do atributo: o `>` do `PrecoInscricao > 0`
+                           no meio de um `model="..."` é exatamente o tipo de coisa que um dia
+                           alguém lê como fim de tag. *@
+                        var filtroDoGerenciar =
+                            (Model.Categorias.AsEnumerable(), Model.PrecoInscricao > 0);
+                    }
+                    <partial name="_FiltroDeInscritos" model="filtroDoGerenciar" />
                     @foreach (var cat in Model.Categorias)
                     {
+                        <div class="pdz-fi-bloco">
                         <p class="fw-bold small mb-2 mt-3">@cat.Nome</p>
                         @if (cat.Duplas.Any())
                         {
                             <ul class="list-group list-group-flush mb-2">
                                 @foreach (var dupla in cat.Duplas.OrderBy(d => d.EmListaDeEspera).ThenBy(d => d.Id))
                                 {
-                                    <li class="list-group-item bg-transparent px-0">
+                                    @* O que o filtro lê. `data-nome` leva o `ComoChamar` dos DOIS,
+                                       que é "Paulo Prass (Batata)" — nome completo e apelido na
+                                       mesma string, então procurar por qualquer um dos dois acha.
+                                       Quem tira o acento é o JS, não o servidor. *@
+                                    <li class="list-group-item bg-transparent px-0 pdz-fi-item"
+                                        data-nome="@(dupla.EhTime
+                                            ? dupla.NomeTime
+                                            : dupla.Jogador1.ComoChamar + (dupla.Jogador2 != null ? " " + dupla.Jogador2.ComoChamar : ""))"
+                                        data-categoria="@cat.Id"
+                                        data-pago="@(dupla.Pago ? "sim" : "nao")"
+                                        data-parceiro="@(dupla.EhTime || dupla.Completa ? "ok" : "falta")"
+                                        data-espera="@(dupla.EmListaDeEspera ? "sim" : "nao")">
                                     @*
                                         UMA linha só, com DOIS filhos: quem está inscrito à esquerda,
                                         a barra de ações à direita. Já foram três filhos num
@@ -5032,9 +5060,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         }
                         else
                         {
-                            <p class="small text-muted">Nenhuma dupla inscrita ainda.</p>
+                            @* ⚠️ O AVISO DE CATEGORIA VAZIA É UM `.pdz-fi-item` DE PROPÓSITO —
+                               sem nome, sem situação nenhuma. Assim ele some quando a pessoa
+                               digita um nome (a categoria vazia não tem esse nome) e continua
+                               aparecendo na lista inteira, que é quando o organizador precisa
+                               ver que ninguém entrou ali. Sem isso, ou o bloco vazio sumia
+                               sempre, ou sobrava um título solto em toda busca. *@
+                            <p class="small text-muted pdz-fi-item"
+                               data-nome="" data-categoria="@cat.Id"
+                               data-pago="sim" data-parceiro="ok" data-espera="nao">Nenhuma dupla inscrita ainda.</p>
                         }
+                        </div>
                     }
+                    <p class="small text-muted fst-italic pdz-fi-vazio d-none mb-0 mt-3">
+                        <i class="bi bi-search"></i> Ninguém bate com esse filtro.
+                    </p>
+                    </div>
                 </div>
             </div>
             </fieldset>
@@ -5172,6 +5213,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             }
 
+            @* A MESMA barra do "Gerenciar Inscritos", mesmo parcial, mesmo JS: são as mesmas
+               duplas, e aqui a lista é ainda mais comprida (toda dupla tem duas linhas).
+
+               ⚠️ A BARRA FICA FORA DO `<fieldset disabled>`, e a lista dentro. Filtrar não é
+               gravar nada — quem só pode olhar a gestão continua podendo procurar um nome.
+               (Na aba "Gerenciar Torneio" não dá: lá o fieldset abre no topo da aba inteira.) *@
+            <div class="pdz-inscritos-filtraveis">
+            @if (duplasPagamento.Any())
+            {
+                @* Só as categorias que TÊM alguém nesta lista — `duplasPagamento` já tirou os
+                   times, e uma categoria só de times viraria uma opção que não acha ninguém. *@
+                var filtroDosPagamentos =
+                    (duplasPagamento.Select(x => x.Categoria).Distinct().OrderBy(c => c.Nome).AsEnumerable(),
+                     Model.PrecoInscricao > 0);
+                <partial name="_FiltroDeInscritos" model="filtroDosPagamentos" />
+            }
+
             @* `<fieldset disabled>` desliga TUDO — marcar pago, editar impedimento — de uma vez
                só pra quem só pode OLHAR a gestão. O servidor é quem recusa de verdade
                (EhOrganizadorAsync); isto é só a tela não prometer o que ele não vai aceitar. *@
@@ -5184,6 +5242,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             {
                 foreach (var categoriaComDuplas in duplasPagamento.GroupBy(x => x.Categoria).OrderBy(g => g.Key.Nome))
                 {
+                    <div class="pdz-fi-bloco">
                     <p class="fw-bold small mb-2 mt-3">@categoriaComDuplas.Key.Nome</p>
                     <ul class="list-group list-group-flush mb-2">
                         @foreach (var x in categoriaComDuplas)
@@ -5194,7 +5253,15 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             var concentracao = dupla.ConcentrarJogosEm ?? Padelizou.Services.TurnoDeConcentracao.Nenhuma;
                             var conflito = Padelizou.Services.ConcentracaoDeJogos.Conflita(Model, dupla);
 
-                            <li class="list-group-item bg-transparent px-0 py-3">
+                            @* Os mesmos cinco atributos que a lista do "Gerenciar Inscritos"
+                               escreve — é o contrato com o filtro-de-inscritos.js. Aqui não há
+                               time (`duplasPagamento` já os tirou), então `EhTime` não entra. *@
+                            <li class="list-group-item bg-transparent px-0 py-3 pdz-fi-item"
+                                data-nome="@(dupla.Jogador1.ComoChamar + (dupla.Jogador2 != null ? " " + dupla.Jogador2.ComoChamar : ""))"
+                                data-categoria="@x.Categoria.Id"
+                                data-pago="@(dupla.Pago ? "sim" : "nao")"
+                                data-parceiro="@(dupla.Completa ? "ok" : "falta")"
+                                data-espera="@(dupla.EmListaDeEspera ? "sim" : "nao")">
                                 @* ── LINHA 1: quem é a dupla, e o dinheiro ──────────────── *@
                                 <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2">
                                     <span class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap pdz-inscrito-esquerda">
@@ -5354,9 +5421,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             </li>
                         }
                     </ul>
+                    </div>
                 }
             }
             </fieldset>
+            @if (duplasPagamento.Any())
+            {
+                <p class="small text-muted fst-italic pdz-fi-vazio d-none mb-0 mt-3">
+                    <i class="bi bi-search"></i> Ninguém bate com esse filtro.
+                </p>
+            }
+            </div>
             </div>
 
             @* ── SUB-ABA "ELIMINATÓRIAS" ──────────────────────────────────────────────────
@@ -6727,6 +6802,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        editor de sedes existe antes de o torneio começar, que é justamente quando o organizador
        ainda está acertando onde cada quadra fica. *@
     <script src="~/js/adicionar-local.js" asp-append-version="true"></script>
+    @if (ViewBag.PodeGerenciar == true)
+    {
+        @* Busca por nome, filtro por categoria e os atalhos de situação nas DUAS listas de
+           inscritos (Gerenciar Inscritos e Pagamentos). Só quem organiza tem essas listas na
+           página — pra todo mundo o arquivo seria bytes sem alvo. *@
+        <script src="~/js/filtro-de-inscritos.js" asp-append-version="true"></script>
+    }
     <!-- SCRIPT (Coloque no final do arquivo Details.cshtml) -->
     <script>
             function mostrarCategoriaInscritos(categoriaId) {
@@ -7679,6 +7761,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+    }
+
+    /* ALVO DE DEDO NA BARRA DE FILTRO (13/09/2026). Medido no Chromium a 390px, o atalho de
+       situação saía 92×31px — o `btn-sm` do Bootstrap. O padrão desta casa é 44px, escrito
+       duas vezes no site.css ("alvo de dedo"), e esta barra é justamente a que o organizador
+       usa com o celular na mão, de pé, no ginásio.
+
+       ⚠️ TODOS OS CONTROLES juntos, e não só o botão: o campo de busca vive num `input-group`
+       com o ícone de lupa ao lado — esticar um e não o outro desencontra os dois.
+
+       ⚠️ Só no celular. No desktop o ponteiro acerta 31px sem drama, e 44px numa barra de
+       filtro ficaria com cara de formulário principal da tela, que ela não é.
+
+       O CSS fica no corpo (e não no site.css) pelo mesmo motivo do bloco acima: é uma tela só.
+       A barra é um parcial usado DUAS vezes nesta página, mas este <style> é renderizado uma
+       vez e vale para as duas. */
+    @@media (max-width: 575.98px) {
+        .pdz-fi-barra .btn,
+        .pdz-fi-barra .form-control,
+        .pdz-fi-barra .form-select,
+        .pdz-fi-barra .input-group-text { min-height: 44px; }
     }
 </style>
 

@@ -1,0 +1,78 @@
+@model (IEnumerable<Padelizou.Models.Categoria> Categorias, bool ComPagamento)
+@*
+    A BARRA DE FILTRO DAS DUAS LISTAS DE INSCRITOS (13/09/2026).
+
+    🗣️ Felipe, com o print do "Gerenciar Inscritos" do 2ª Etapa ER PADEL TOUR: *"aqui no
+    gerenciar escrito esta dificil achar, permita pesquisar por nome, coloque filtro por
+    categoria, deixe melhor essa parte"*.
+
+    ⚠️ UM PARCIAL, e não a barra copiada nas duas listas: "Gerenciar Inscritos" e "Pagamentos e
+    impedimentos" mostram as MESMAS duplas de ângulos diferentes, e duas cópias divergem na
+    primeira vez que alguém mexer numa. Os nomes de classe (`pdz-fi-*`) são o contrato com o
+    wwwroot/js/filtro-de-inscritos.js — mudou aqui, muda lá e no conferidor.
+
+    ⚠️ NADA AQUI É AUTORIZAÇÃO. É um recorte de tela, no navegador, sobre linhas que o servidor
+    já decidiu mostrar — quem pode ver e quem pode gravar continua sendo decidido lá
+    (`ViewBag.PodeGerenciar`, `EhOrganizadorAsync`).
+
+    ⚠️ O TETO CONHECIDO: as duas listas ficam dentro do `<fieldset disabled>` que desliga a
+    gestão pra quem só pode OLHAR (`ViewBag.GestaoSoLeitura` — o assistente que não organiza
+    ESTE torneio), e o fieldset desliga também estes controles. Ele enxerga a lista inteira,
+    sem filtro. Saída, se um dia incomodar: tirar a barra de dentro do fieldset — não dá pra
+    reabilitar por JS, o estado de fieldset desabilitado vence o `disabled` do próprio campo.
+*@
+<div class="pdz-fi-barra mb-3">
+    <div class="row g-2">
+        <div class="col-12 col-sm">
+            @* `type="search"` e não `text`: é ele que dá o "x" de limpar no celular — a coisa
+               que a pessoa mais faz depois de achar quem procurava. *@
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control pdz-fi-busca"
+                       placeholder="Procurar por nome ou apelido"
+                       aria-label="Procurar inscrito por nome ou apelido"
+                       autocomplete="off" spellcheck="false" />
+            </div>
+        </div>
+        @* Categoria única não ganha seletor de categoria — seria um campo com uma opção só. *@
+        @if (Model.Categorias.Count() > 1)
+        {
+            <div class="col-12 col-sm-auto">
+                <select class="form-select form-select-sm pdz-fi-categoria" aria-label="Filtrar por categoria">
+                    <option value="">Todas as categorias</option>
+                    @foreach (var categoria in Model.Categorias)
+                    {
+                        <option value="@categoria.Id">@categoria.Nome</option>
+                    }
+                </select>
+            </div>
+        }
+    </div>
+
+    @* Os atalhos são os três recortes que o organizador faz na véspera: cobrar quem falta,
+       fechar dupla incompleta, chamar quem está na espera. `aria-pressed` porque a classe
+       `active` do Bootstrap é tinta e o leitor de tela não a lê.
+
+       ⚠️ `type="button"` em todos: a barra vive no meio de uma tela cheia de formulários, e um
+       botão sem type é botão de ENVIAR. *@
+    <div class="d-flex gap-2 flex-wrap mt-2" role="group" aria-label="Filtrar por situação">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill pdz-fi-situacao active"
+                data-situacao="todos" aria-pressed="true">Todos</button>
+        @* Torneio de graça não tem "não pago" pra filtrar. *@
+        @if (Model.ComPagamento)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill pdz-fi-situacao"
+                    data-situacao="naopagos" aria-pressed="false">
+                <i class="bi bi-cash-coin"></i> Não pagos
+            </button>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill pdz-fi-situacao"
+                data-situacao="semparceiro" aria-pressed="false">
+            <i class="bi bi-person-dash"></i> Sem parceiro
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill pdz-fi-situacao"
+                data-situacao="espera" aria-pressed="false">
+            <i class="bi bi-hourglass-split"></i> Lista de espera
+        </button>
+    </div>
+</div>

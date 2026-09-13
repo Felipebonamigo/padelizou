@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/09/2026** — 🔍 **ACHAR UM INSCRITO SEM ROLAR A LISTA: BUSCA POR NOME, FILTRO POR CATEGORIA E ATALHOS DE SITUAÇÃO.** ⏳ **No branch `claude/kind-darwin-rfymwf`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print do "Gerenciar Inscritos" do 2ª Etapa ER PADEL TOUR aberto no celular: *"aqui no gerenciar escrito esta dificil achar, permita pesquisar por nome, coloque filtro por categoria, deixe melhor essa parte"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🕳️ A lista é uma linha por dupla, categoria após categoria, sem nada por cima — achar "o Rafael" era rolar a tela inteira. **Escolha do Felipe entre as opções:** entram os atalhos de situação (**Todos / Não pagos / Sem parceiro / Lista de espera**), e a barra vale nas **DUAS** listas — "Gerenciar Inscritos" e "Pagamentos e impedimentos" —, que mostram as mesmas duplas de ângulos diferentes. Ficaram de fora o contador "X de Y" e a barra grudada no topo.
+>
+> 🔑 **NO NAVEGADOR, e isso não é preguiça de servidor**: as linhas JÁ vêm todas no HTML (a página do torneio em produção tem 1,08 MB). Filtrar no servidor recarregaria tudo isso, perderia a ABA e os painéis abertos — e quem está filtrando está num ginásio, com a internet do ginásio. Um parcial (`_FiltroDeInscritos.cshtml`) + `wwwroot/js/filtro-de-inscritos.js`, no molde do `filtro-de-palpiteiros.js`.
+>
+> ⚠️ **`d-none`, E NÃO O `hidden` DO IRMÃO — o navegador provou.** Lá as linhas são `<tr>`; aqui são `.list-group-item`, e **medido no Chromium o `display` computado é `block`**: regra de autor ganha do `[hidden]` da folha do navegador, e a linha "escondida" continuaria na tela. Copiar o irmão teria dado um filtro que não esconde nada.
+>
+> 🔑 **O CABEÇALHO DA CATEGORIA VAZIA SOME** — sem isso, buscar um nome deixa uma pilha de títulos e ninguém embaixo, pior que a lista comprida. E o **aviso de "nenhuma dupla inscrita ainda" é um `.pdz-fi-item` de propósito**, sem nome e sem situação: some quando se digita um nome, fica na lista inteira.
+>
+> 🧪 **30 conferências no `conferir-filtro-de-inscritos.js`, escritas ANTES e vistas VERMELHAS** (23 falhando contra um esqueleto vazio, pelos motivos certos): busca sem acento ("cezar" acha "Cézar"), dois termos somando (E, não OU — "felipe bage" acha a dupla), categoria e situação recortando junto, o escopo das duas listas, e o `aria-pressed`. Mais **5 testes de fonte** (`FiltroDeInscritosTests`) que guardam o **contrato Razor↔JS**: renomear uma classe num lado compila, não quebra teste nenhum e o filtro para de achar gente — falha calada, na tela que o organizador usa com o torneio em quadra. **Conferido que o gate discrimina**: renomeei `pdz-fi-busca` no parcial, build verde, teste VERMELHO.
+>
+> 🔎 **DOIS ACHADOS QUE SÓ O TESTE E O NAVEGADOR DERAM**: `data-categoria` **já existia** nesta view, nos formulários de trocar parceiro — contar atributo no arquivo inteiro era teste errado, a conta é dentro da tag. E o atalho saía **92×31px** no celular (o `btn-sm`), contra os **44px** que o `site.css` chama de "alvo de dedo" duas vezes: CSS só abaixo de 576px, e agora são 92×44.
+>
+> 👁️ **VISTO RODANDO NO CHROMIUM** a 390px e a 900px, com o Bootstrap do repositório, **claro e escuro**: busca por apelido ("batata" acha "Paulo Prass (Batata)"), o `x` de limpar do `type="search"`, o bloco da categoria sumindo e voltando, e a pílula ativa certa (o primeiro print pegou a transição de 0,15s do Bootstrap no meio — não era defeito). **7.018 testes verdes**, 10 conferidores JS verdes.
+>
 > Última atualização: **13/09/2026** — 📊 **A TABELA DO GRUPO CONTAVA JOGO DE MATA-MATA.** ⏳ **No branch `claude/intelligent-maxwell-teamap`, PR #289.** **Sem migration.**
 >
 > 🗣️ Felipe, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR, com o print do **Grupo F**: *"Outro problema, continua contando vitorias etc no mata mata"*. Grupo de 3 duplas, 3 jogos, **2 por dupla** — e a tabela dizia `J=3` pra duas delas.
