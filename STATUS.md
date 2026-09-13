@@ -1,9 +1,56 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+>
+> 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🔑 **TECLADO NOSSO, E ISSO NÃO FOI ESCOLHA DE GOSTO**: não existe `package.json` em lugar nenhum deste repositório. Um picker de npm traria package.json, lockfile e cadeia de suprimentos inteira (ver `SUPPLY-CHAIN.md`) por um componente de tela — é o degrau 5 da escada do `CLAUDE.md` dizendo não. **~350 emoji curados em 8 categorias**, escolha do Felipe entre três opções (a alternativa era o conjunto Unicode completo, ~1.800, que seria tabela grande mantida à mão e sem fonte oficial pra atualizar).
+>
+> 👆 **CADA SUPERFÍCIE COM UM TRABALHO SÓ, que é o desenho do WhatsApp**: a **barra** reage (6 atalhos de um toque + o `+`), o **teclado** escolhe, o **painel** mostra quem colocou o quê. Empilhar os três num modal só foi exatamente o que fez o painel abrir cheio de coisa e sem alvo de toque, o defeito de mais cedo hoje — os atalhos e o campo de texto **saíram** do painel.
+>
+> ⚡ **CARREGADO SOB DEMANDA, e não é otimização prematura**: a página do torneio em produção tem **1,08 MB** de HTML e já puxa **28** arquivos de JS/CSS. O teclado é a única parte que a maioria nunca abre — o `<script>` **não está no Razor**, é o JS que o injeta no primeiro toque no `+`, uma vez só, com a mesma versão do arquivo pai (senão o Service Worker serviria JS velho). Tem `onerror`: rede ruim no ginásio é o caso normal aqui, e sem ele o `+` giraria pra sempre, a mesma família do "Carregando..." eterno de 11/09.
+>
+> 🔗 **A PONTE ENTRE O JS E O C# TEM TESTE**: `TODO_emoji_do_teclado_passa_pela_peneira_do_servidor` roda os ~350 emoji da tabela pelo `EmojiDeReacao.Normalizar`. Um só que não passasse seria um botão que responde *"isso não é um emoji"* na cara de quem tocou — e é a peneira que recusa `+`, `^` e pontuação legada (`‼️`, `↔️`), então eles não podem estar na grade. Nada mais casa esses dois lados.
+>
+> 🔎 **Busca SEM ACENTO** (`normalize('NFD')`): quem digita "coracao" acha "coração" — **18 resultados**, visto no Chromium. E **FREQUENTES** no `localStorage`, com todo acesso em `try/catch`: aba privada estoura no `localStorage`, e o teclado inteiro morreria por uma lista de conveniência.
+>
+> 👁️ **VISTO RODANDO NO CHROMIUM**, com o JS/CSS/Bootstrap do repositório: barra rápida **264×44px** com 6 atalhos e o `+`; teclado chegando **sob demanda** com **555 botões** e **8 abas**; busca funcionando. ⚠️ E um ajuste saiu daí: no celular sobrava faixa vazia embaixo (altura fixa dentro do `modal-fullscreen-sm-down`), com as abas flutuando no meio do nada em vez de no rodapé.
+>
+> Última atualização: **12/09/2026** — 😂 **REAGIR COM EMOJI EM CADA JOGO, E O PAINEL DE QUEM COLOCOU O QUÊ.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1297-51ecc21`** (runs **316** e **317**), **o mesmo artefato nos dois**, com a tag explícita. PRs #272 e #273. **COM MIGRATION** (`ReacoesDaPartida`).
+>
+> ✅ **E AQUI A CONFERÊNCIA FINALMENTE FOI DE VERDADE, porque `prod` NÃO tem o gate de Acesso Antecipado** — o que travou a checagem do `build-1288` a manhã inteira. No `Torneios/Details/26` servido por produção: **60 fileiras `.pdz-reacoes`**, 60 botões, o `#modalQuemReagiu` na página e o `/js/reacoes-do-jogo.js` referenciado com hash de versão.
+>
+> 🔑 **A MIGRATION ESTÁ PROVADA, NÃO INFERIDA**: `GET /Partidas/QuemReagiu?partidaId=569` devolveu **`{"reacoes":[],"linhas":[]}` com 200** contra o Postgres de produção. Sem a tabela isso seria 500. E jogo inexistente responde **404**, não 500 — a lição dos três 500 do vigia em 11/09.
+>
+> 🖱️ **E O BOTÃO FOI CLICADO NO HTML QUE O PRÓPRIO `prod` GEROU.** O Chromium não sai por este proxy, então o caminho foi o inverso: espelhei a página e os 28 assets de produção num servidor local e cliquei ali. Resultado: `verQuemReagiu` carregado, **o painel abriu**, título "2 reações", pílula no painel, nomes na lista, e o campo de emoji ausente (como deve ser pra anônimo). Botão medido: **32×32px de alvo, `border: none`, fundo transparente, `border-radius: 0`, `opacity: .5`**.
 
 
-> Última atualização: **12/09/2026** — 🛑 **SEGURADO ATÉ 02:30 DE 13/09 — NÃO MESCLAR, NÃO PUBLICAR.** O PR #287 está em **draft** de propósito: tem **migration** e tem **torneio rolando** (🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* · *"ele para hoje a meia noite/1 da manha e recomeça as 8 da manha de amanha"*). A publicação está agendada pro lembrete `trig_016694tELZ1FWDUirHGahfQD`, na janela sem jogos. **Isto vale também pra qualquer varredura automática**: o bloco está pronto e verde, e mesmo assim não vai agora. ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+
+> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
+>
+> ```
+> InvalidOperationException — POST /Partidas/ControlePlacar/572
+> The LINQ expression 'DbSet<Partida>().Any(p => p.CategoriaId == @categoria_Id
+>   && p.Fase != @nomeFase && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))'
+>   could not be translated.
+> ```
+>
+> 🕳️ **`MontarAberturaDesenhadaAsync` perguntava ao BANCO com um método C# no predicado.** O Postgres recusa. Finalizar jogo passou a dar tela de erro pro organizador (`ControlePlacar` e `FinalizarPartida`), e as categorias com os grupos fechados ficaram **sem mata-mata**.
+>
+> ⚠️ **ERA LATENTE, E FUI EU QUE ACENDI.** Essa linha só era alcançada por categoria com cruzamento **desenhado à mão** — e nenhuma tinha. No instante em que o congelamento fez o desenho valer pra TODAS (horas antes, neste mesmo dia), a guarda virou o caminho de todo mundo. O defeito é de 11/09; quem o pôs no ar fui eu.
+>
+> ⚠️ **O EF InMemory DA SUÍTE EXECUTA O MÉTODO EM MEMÓRIA SEM RECLAMAR** — os 6.990 testes passavam. É **exatamente** a família de 19/08/2026, e o projeto já tinha a lição escrita em `Services/ClassificacaoParaCard` (*"A EXPRESSÃO DA FASE É INLINE, e não `FasesTorneio.EhFaseDeGrupos(p.Fase)`: o EF…"*). A lição estava lá; a varredura de quem mais fazia isso é que não existia.
+>
+> ✅ **A CORREÇÃO**: a consulta leva só o que o SQL entende (igualdade e `StartsWith`), traz as fases distintas e a pergunta acontece **com a lista na mão**.
+>
+> 🔒 **E NASCEU O GATE MECÂNICO** (`O_robo_nao_manda_o_metodo_de_fase_pro_banco`): varre a fonte do robô e quebra se `EhFaseDeMataMata`/`EhFaseDeGrupos` aparecerem a menos de 400 caracteres de um `Async(p =>`. Em lista já materializada o método é bem-vindo — por isso a busca é pelo PAR, não pelo método sozinho. Mais dois de tradução por `ToQueryString`, um deles provando que a forma antiga estoura.
+>
+> 🧪 **6.993 testes, 0 falhas (3 novos)** + os **8** conferidores de JS verdes. O gate foi **visto vermelho** em *"Assert.DoesNotContain() Failure: Sub-string found"* antes da correção.
+>
+> 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
+
+> **12/09/2026** — 🛑 **SEGURADO ATÉ 02:30 DE 13/09 — NÃO MESCLAR, NÃO PUBLICAR.** O PR #287 está em **draft** de propósito: tem **migration** e tem **torneio rolando** (🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* · *"ele para hoje a meia noite/1 da manha e recomeça as 8 da manha de amanha"*). A publicação está agendada pro lembrete `trig_016694tELZ1FWDUirHGahfQD`, na janela sem jogos. **Isto vale também pra qualquer varredura automática**: o bloco está pronto e verde, e mesmo assim não vai agora. ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
 >
 > 🗣️ Dois pedidos que viraram **um bloco só**: *"na parte do checkin, quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima"* e, em seguida, *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"*.
 >
@@ -66,6 +113,60 @@
 > ♻️ **E FOI UMA SESSÃO PARALELA QUE PUBLICOU O MEU CONSERTO, sem saber**: ela mesclou o PR #280 depois do meu #279, então o `67f2a13` dela **contém** o `b1086ff` meu, e o build dela levou os dois. Conferido pelo LOG do deploy (*"==> Feito. build-1309-67f2a13 no ar em prod"*) e por `git merge-base --is-ancestor` — não pelo horário, que aqui não prova nada.
 >
 > ⚠️ **A LIÇÃO PRA PRÓXIMA SESSÃO: `204 queued` não é deploy, e "o healthz responde 200" não é prova de qual código está rodando.** O que prova é o **log do job** (ele imprime a tag instalada) mais a ancestralidade do commit. As duas coisas juntas — e não o relógio.
+
+> **12/09/2026** — 🫥 **QUEM FOLGOU A PRIMEIRA RODADA SUMIA DA PROJEÇÃO — E A VARREDURA ESTAVA CEGA.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Dois defeitos achados COM O ER EM QUADRA, os dois calados.**
+>
+> 🗣️ Felipe, com o print de "Meus jogos": *"aqui tambem nao esta aparecendo"* — a lista mandava o vencedor das Oitavas 2 direto pra uma **"Semifinal 2"** contra o vencedor das Oitavas 3. E, no quadro: *"aquele 'a definir' do horario do jogo nao é verdade, ja esta definido desde o chaveamento"*.
+>
+> 🕳️ **DEFEITO 1 — O BYE ERA ENGOLIDO POR UM `.Where(n => n != null)`.** Em `ProjetarProximasFasesAsync` o dicionário de nomes nascia só das duplas que aparecem em partida de mata-mata JÁ EXISTENTE — e **quem folgou a primeira rodada não aparece em nenhuma: é isso que o torna bye**. Os quatro byes da 4ª Masculina eram descartados sem uma linha de log, e a projeção rodava com 4 lados em vez de 8.
+>
+> ⚠️ **O ESTRAGO NÃO É "UMA FASE A MENOS NO FIM"** — o nome de cada fase sai de QUANTA GENTE SOBROU (`ChaveamentoMataMata.NomeFase`), então a fase seguinte inteira era **rebatizada**: as Quartas viravam "Semifinal" e levavam junto a hora reservada das Quartas. Na tela, `08:50` aparecia como semifinal sendo o slot da quartas. Conferido no ar: a projeção da 4ª tinha **só 3 jogos** (Semi 1, Semi 2, Final) em vez de 7.
+>
+> ✅ **O ROBÔ NUNCA PASSOU POR ALI**, e é por isso que a chave de verdade saiu certa: ele vai por `AvancoDaChave.ByesDaCategoriaAsync` **com IDs**. Quem mentia era só a PREVISÃO — e ela é o que o jogador lê pra saber a que horas voltar. O `Where` silencioso virou um rótulo que dá na vista (`Dupla {id}`): bye sem nome agora aparece feio em vez de reescrever o quadro.
+>
+> 🕳️ **DEFEITO 2 — A VARREDURA DE ONTEM À NOITE NÃO ENXERGAVA NADA**, e foi pega no ar (rodou dois tiques sem destravar a 3ª Masculina e a 6ª Feminina). Dois erros meus, os dois de escolha de caminho: (a) filtrava `p.TorneioId`, que é **anulável** — o próprio `AprovacaoDeChaves.Publicada` já escolhe `p.Categoria.Torneio` por causa disso, **com o porquê escrito ao lado**, e eu passei direto; (b) varria só `Status == "Fase de Grupos"`, adivinhando o nome do estado em vez de excluir o que precisa ser excluído (chave não publicada, finalizado, cancelado, inscrições abertas).
+>
+> 🧪 **6.984 testes, 0 falhas (9 novos)** + os **8** conferidores de JS verdes: `ByeNaoSomeDaProjecaoTests` (2, vistos vermelhos em *"Expected: 2 / Actual: 0"* — a semifinal não existia — e *"Item not found"* pro nome do bye), mais 3 em `VarreduraDaChaveTests` e 3 de **tradução** (`TraducaoDaVarreduraDaChaveTests`): a consulta nova navega `p.Categoria.TorneioId`, dois níveis, que é exatamente a forma que o InMemory não valida.
+>
+> ⚠️ **E A LIÇÃO DO CI, DE NOVO**: a primeira versão da varredura pedia o `RoboDoChaveamento` por injeção. Ele **não está registrado** — quem precisa faz `new`. Passou nos 6.976 testes e quebrou no `dotnet ef`, único gate que monta o service provider. **Defeito de composição é invisível na suíte daqui.**
+
+> **12/09/2026** — 🩹 **A CHAVE QUE FICOU PRA TRÁS AGORA É MONTADA SOZINHA.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **Conserto do incidente do ER de hoje: duas categorias com os grupos fechados e o mata-mata não montado, em silêncio.**
+>
+> 🗣️ Felipe, olhando a lista de jogos no meio do torneio: *"é que eles ja não são mais prévias, no momento que elas passaram de chave (terminou os jogos da chave) ele se torna real e não prévia"*.
+>
+> 🕳️ **NÃO ERA DEFEITO DE CHAVEAMENTO — ERA DE ENTREGA.** `MontarMataMataDosGruposAsync` só roda no INSTANTE em que um jogo de grupo é finalizado (`EncerramentoDaPartida`), e **nada tentava de novo** se aquela chamada se perdesse. Bateu com os dois restarts de deploy do dia (17:49 e 18:17): o placar gravou, o processo morreu antes do robô, e a categoria ficou parada esperando um evento que não volta. 3ª Masculina e 6ª Feminina, as duas com a fase de grupos TODA fechada.
+>
+> 🔬 **A CAUSA FOI ISOLADA POR REPRODUÇÃO, não por palpite**: as duas formas exatas foram rodadas contra o código no ar e montam certo (`2 grupos de 3` → `1A×2B\|1B×2A` → Semifinal; `grupos 2·3·3` → `2A×2C\|1C×2B;bye:1A,1B` → Quartas). O robô **não rodou** — não falhou.
+>
+> ⚠️ **É O SINTOMA MAIS CARO QUE EXISTE: nenhuma exceção, nenhum log, nenhum teste vermelho.** A tela mostra a PRÉVIA, que é uma tela legítima, e só quem conhece o torneio percebe que aquilo já devia ter virado chave. Mesma família do "sistema mudo" de 11/09 — o estado errado não gera sintoma nenhum.
+>
+> ✅ **`Services/VarreduraDaChave` + o serviço de fundo**, 45s depois de subir e a cada 3 minutos. A espera inicial curta é o ponto: o modo de falha que isto conserta é a chamada morrer junto com o processo, então a passada logo após o restart é a que pega o estrago do deploy anterior.
+>
+> ♻️ **NENHUMA RÉGUA NOVA** — a varredura chama os MESMOS dois robôs, que já são guardados contra rodar duas vezes (`mataMataJaGerado` e o contador `jaCriados`). Conserto de entrega, não de chaveamento. Cobre os dois buracos iguais: grupos→mata-mata e fase→fase seguinte.
+>
+> 🔒 **SOB A MESMA TRAVA DO ENCERRAMENTO** (`UmDeCadaVezPorTorneioAsync`), e ela não é opcional: a varredura e um placar sendo lançado na Mesa no mesmo segundo montariam a fase duas vezes — exatamente o buraco que aquela trava existe pra fechar. Só torneio em **"Fase de Grupos"**: aprovação pendente não tem chave pública, e finalizado é passado dos outros.
+>
+> 🩹 **O CONTORNO QUE VALEU HOJE, e vale registrar porque não depende de deploy**: corrigir o placar de qualquer jogo de grupo já finalizado da categoria re-dispara o robô (`PartidasController.cs:665`). É seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`.
+>
+> 🔴 **O CI PEGOU O QUE A SUÍTE INTEIRA NÃO PEGA, e a lição vale mais que a correção.** A primeira versão pedia o `RoboDoChaveamento` por INJEÇÃO. Compilou, passou nos 6.976 testes e quebrou no CI, no passo do `dotnet ef`: *"Unable to resolve service for type 'RoboDoChaveamento'"* — ele **não está registrado no contêiner**; quem precisa dele faz `new` com o contexto e o ranking na mão (`EncerramentoDaPartida:40`). ⚠️ **A suíte NÃO monta o service provider**, então defeito de composição é invisível aqui: o único gate é o `has-pending-model-changes` do CI, que valida o contêiner de lambuja. Reproduzido localmente (mesmo erro, letra por letra) e visto passar depois da correção — `dotnet tool install --global dotnet-ef --version 10.0.10` é o que falta nesta máquina pra rodar esse gate sem esperar o CI.
+>
+> 🧪 **6.976 testes, 0 falhas (4 novos em `VarreduraDaChaveTests`)** + os **8** conferidores de JS verdes. ⚠️ **A DISCRIMINAÇÃO FOI CONFERIDA NEUTRALIZANDO as duas chamadas do robô**: os dois testes de comportamento ficam vermelhos, e os dois de GUARDA ("não monta de novo o que já está montado", "não encosta em torneio que nem sorteou") seguem verdes — que é o papel deles, pegar varredura que faz DEMAIS.
+
+> **12/09/2026** — 🕐 **A CHAVE DE VERDADE VOLTOU A MOSTRAR A HORA DAS FASES QUE AINDA NÃO ACONTECERAM.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print da 4ª Masculina em quadra: *"esse a definir nao é uma verdade, ele ja tem horario previsto"*.
+>
+> 🕳️ **ERA UM ATALHO DELIBERADO, ESCRITO NO PRÓPRIO `Details.cshtml`** — e é assim que ele deve ser lido: *"a vaga FUTURA da chave de verdade continua dizendo 'a definir' em vez da hora prevista (o `null` no lugar dos previstos) — casar `ViewBag.ProjecaoCompleta` com a numeração global do quadro é outra tarefa"*. Antes de a primeira rodada nascer, a PRÉVIA mostrava `12/09 23:00 · Arena Nclass` nas quartas; no instante em que ela nasceu, o MESMO partial passou a receber `null` e as mesmas vagas viraram "a definir". A informação existia, já estava na aba Jogos, e já tinha sido mostrada ao jogador na véspera.
+>
+> ✅ **O `projecaoDaCategoria` SAIU DE DENTRO DO `if`** e agora serve aos dois quadros — a prévia e a chave de verdade. O mapa novo (`previstosDaChave`) casa por **(fase, número DENTRO da fase)** e entrega por **número GLOBAL da vaga**, que é a régua do mapa da prévia, ali do lado.
+>
+> ⚠️ **POR NÚMERO, NUNCA POR POSIÇÃO** — é a armadilha de 10/09 (`QuadroDaChaveCasaPorNumeroTests`): `ProjetarProximasFasesAsync` termina com `OrderBy(j => j.Horario)`, então uma RESERVA fora de ordem faz a posição na lista deixar de ser o número do jogo, e a vaga da Semifinal 1 mostraria a hora da 2.
+>
+> 🧹 **O COMENTÁRIO DO ATALHO SAIU NO MESMO COMMIT, e isso tem teste** (`O_atalho_deliberado_saiu_junto_com_o_atalho`): comentário que descreve um atalho que não existe mais é pior que comentário nenhum — a próxima sessão lê "continua dizendo a definir" e vai procurar um defeito já consertado.
+>
+> 🧪 **6.972 testes, 0 falhas (4 novos em `HorarioPrevistoNaChaveMontadaTests`)** + os **8** conferidores de JS verdes. ⚠️ **UM DELES NASCEU FRACO E FOI REFEITO**: a primeira versão procurava `"Horario"` em qualquer lugar antes do `"a definir"` e **passava com o defeito de pé** — `jogo.HorarioPrevisto` aparece bem antes, no cartão do jogo que já existe. Visto passar contra o arquivo antigo, refeito pra olhar DENTRO do bloco da vaga vazia, e então conferido nos dois sentidos: **4 vermelhos sem a correção, 4 verdes com**.
+>
+> 🚨 **ACHADO DE PRODUÇÃO — ✅ CONSERTADO NA ENTRADA ACIMA, no mesmo dia.** Duas categorias do ER (3ª Masculina e 6ª Feminina) ficaram com a **fase de grupos TODA fechada e o mata-mata não montado**, em silêncio. A causa não é o chaveamento: `MontarMataMataDosGruposAsync` só roda **no instante em que um jogo de grupo é finalizado** (`EncerramentoDaPartida`), e **nada tenta de novo** se aquela chamada se perder. O horário bate com os dois restarts de deploy de hoje (17:49 e 18:17). Reproduzido em teste que as duas formas montam certo com o código no ar (`1A×2B|1B×2A` → Semifinal; `2A×2C|1C×2B;bye:1A,1B` → Quartas), então o robô não rodou — não falhou. 🩹 **Contorno sem deploy**: corrigir o placar de qualquer jogo de grupo já finalizado daquela categoria re-dispara o robô (`PartidasController.cs:665`), e é seguro — o Padelímetro é idempotente (`PadelimetroService.cs:66`) e o aviso é barrado por `acabouDeTerminar`. **O conserto de verdade (uma varredura que monte o que ficou pra trás) não foi feito: é trabalho novo, no meio do torneio dele.**
 
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1302-4168231`** (runs 319 e 320, 14h50 e 14h52 de Brasília), **o mesmo artefato nos dois**, pela tag explícita. PR #277, os **dois filtros da aba Palpiteiros**. ✅ **SEM MIGRATION.** ⏳ **E UMA CORREÇÃO EM CIMA DELE, ainda não publicada** (ver abaixo).
 >

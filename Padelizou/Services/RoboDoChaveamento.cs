@@ -238,10 +238,32 @@ public class RoboDoChaveamento
 
         // Quadro já passou da abertura: não se mexe mais nela. Não acontece hoje (nada avança
         // com a abertura pela metade), e é barato garantir.
-        if (await _context.Partidas.AnyAsync(p =>
-                p.CategoriaId == categoria.Id
-                && p.Fase != nomeFase
-                && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))) return;
+        // ⚠️ AS FASES VÊM PRIMEIRO, E A PERGUNTA É FEITA EM MEMÓRIA (12/09/2026).
+        //
+        // 💥 ISTO DERRUBOU A MESA NO MEIO DO ER. A pergunta era feita direto no banco, com o
+        // método C# dentro do predicado (`ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)`), e o
+        // Postgres recusa: *"Translation of method 'ChaveamentoMataMata.EhFaseDeMataMata'
+        // failed"*. Finalizar jogo passou a dar erro (`POST /Partidas/ControlePlacar`,
+        // `POST /Torneios/FinalizarPartida`) e as categorias ficaram sem mata-mata.
+        //
+        // 🕳️ E ERA LATENTE: esta linha só era alcançada por categoria com cruzamento DESENHADO
+        // à mão, e nenhuma tinha. No instante em que o desenho passou a valer pra todas (o
+        // congelamento, horas antes), ela virou o caminho de todo mundo.
+        //
+        // ⚠️ **O EF InMemory DA SUÍTE EXECUTA O MÉTODO EM MEMÓRIA SEM RECLAMAR** — os ~7.000
+        // testes passavam. É a mesma família de 19/08/2026, e o projeto já tinha a lição
+        // escrita em Services/ClassificacaoParaCard. Travado agora por
+        // `TraducaoDaVarreduraDaChaveTests.O_robo_nao_manda_o_metodo_de_fase_pro_banco`.
+        //
+        // A consulta leva só o que o SQL entende (igualdade e `StartsWith`); o resto do
+        // raciocínio acontece com a lista na mão.
+        var fasesDaCategoria = await _context.Partidas
+            .Where(p => p.CategoriaId == categoria.Id)
+            .Select(p => p.Fase)
+            .Distinct()
+            .ToListAsync();
+
+        if (fasesDaCategoria.Any(f => f != nomeFase && ChaveamentoMataMata.EhFaseDeMataMata(f))) return;
 
         int jaCriados = await _context.Partidas
             .CountAsync(p => p.CategoriaId == categoria.Id && p.Fase == nomeFase);

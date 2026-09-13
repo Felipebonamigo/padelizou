@@ -449,6 +449,95 @@ public class ReacoesNoJogoTests
         Assert.DoesNotContain("bi-emoji-smile", js);
     }
 
+    // ─────────────── O TECLADO DE EMOJI (12/09/2026) ───────────────
+    //
+    // 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da
+    // mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem
+    // q abrir igual esse do whats com o teclado de emojis"*.
+    //
+    // ⚠️ TECLADO NOSSO, e não biblioteca: não existe `package.json` em lugar nenhum deste
+    // repositório (ver SUPPLY-CHAIN.md), e os conferidores de JS são "sem dependência nenhuma de
+    // propósito". Um picker de npm traria package.json, lockfile e cadeia de suprimentos pra um
+    // projeto que hoje não tem nada disso.
+
+    [Fact]
+    public void O_teclado_mora_num_arquivo_PROPRIO_carregado_sob_demanda()
+    {
+        // ⚠️ SOB DEMANDA, e isto não é otimização prematura: a página do torneio em produção tem
+        // **1,08 MB** de HTML e já carrega 28 arquivos de JS/CSS. O teclado é a única parte que
+        // a maioria das pessoas nunca abre — carregá-lo junto faria todo mundo pagar por ele.
+        var js = Ler("wwwroot", "js", "reacoes-do-jogo.js");
+
+        Assert.Contains("teclado-de-emoji.js", js);
+        // E o `<script>` NÃO está no Razor: quem o injeta é o JS, no primeiro toque.
+        foreach (var arquivo in new[] { "_ReacoesDoJogo.cshtml", "_ModalQuemReagiu.cshtml" })
+            Assert.DoesNotContain("teclado-de-emoji.js", Ler("Views", "Torneios", arquivo));
+    }
+
+    [Fact]
+    public void A_barra_RAPIDA_tem_os_atalhos_e_o_mais()
+    {
+        var js = Ler("wwwroot", "js", "reacoes-do-jogo.js");
+
+        // A barra que abre no toque do 🙂: emoji de um toque + o "+" que troca pelo teclado.
+        Assert.Contains("pdz-reacao-barra", js);
+        Assert.Contains("pdz-reacao-mais", js);
+    }
+
+    [Fact]
+    public void O_teclado_tem_busca_frequentes_e_as_oito_categorias()
+    {
+        var js = Ler("wwwroot", "js", "teclado-de-emoji.js");
+
+        Assert.Contains("pdz-teclado-busca", js);
+        Assert.Contains("FREQUENTES", js);
+
+        // As oito abas do rodapé, na ordem do teclado do celular.
+        foreach (var categoria in new[] { "Rostos", "Gestos", "Pessoas", "Animais",
+                                          "Comida", "Esporte", "Objetos", "Símbolos" })
+            Assert.Contains(categoria, js);
+    }
+
+    // ⚠️ TODO EMOJI DO TECLADO PRECISA PASSAR PELA PENEIRA DO SERVIDOR. Um só que não passe é um
+    // botão que responde "isso não é um emoji" na cara de quem tocou — e a peneira é a que
+    // recusa `+`, `^` e pontuação legada, então a lista do teclado não pode conter nenhum deles.
+    // Este teste é a ponte entre o dado do JS e a régua do C#, que nada mais casa.
+    [Fact]
+    public void TODO_emoji_do_teclado_passa_pela_peneira_do_servidor()
+    {
+        var js = Ler("wwwroot", "js", "teclado-de-emoji.js");
+
+        var recusados = new List<string>();
+        foreach (var emoji in EmojisDoTeclado(js))
+            if (EmojiDeReacao.Normalizar(emoji) == null) recusados.Add(emoji);
+
+        Assert.True(recusados.Count == 0,
+            $"{recusados.Count} emoji do teclado seriam recusados pelo servidor: {string.Join(" ", recusados.Take(20))}");
+    }
+
+    [Fact]
+    public void O_teclado_tem_emoji_de_verdade_e_sem_repetido()
+    {
+        var lista = EmojisDoTeclado(Ler("wwwroot", "js", "teclado-de-emoji.js")).ToList();
+
+        // A escolha do Felipe foi "~350 curados": abaixo de 200 não é teclado, é paleta.
+        Assert.True(lista.Count >= 200, $"só {lista.Count} emoji no teclado");
+
+        // ⚠️ Repetido não é só desleixo: a contagem do cartão é POR EMOJI, então o mesmo desenho
+        // em duas categorias faz a pessoa achar que tocou em coisas diferentes.
+        var repetidos = lista.GroupBy(e => e).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        Assert.True(repetidos.Count == 0, $"emoji repetido no teclado: {string.Join(" ", repetidos)}");
+    }
+
+    // Os emoji que o arquivo do teclado declara, lidos dos literais `'…'` da tabela de dados.
+    private static IEnumerable<string> EmojisDoTeclado(string js)
+    {
+        // A tabela é `emoji: 'X', nome: '…'` — pegamos só o campo `emoji`.
+        foreach (System.Text.RegularExpressions.Match m in
+                 System.Text.RegularExpressions.Regex.Matches(js, @"\be:\s*'([^']+)'"))
+            yield return m.Groups[1].Value;
+    }
+
     // ⚠️ O NOME VEM DO CADASTRO — texto de gente, montado com innerHTML no modal. Sem escapar,
     // um nome com "<" quebra a lista e um nome montado de propósito injeta marcação. É a mesma
     // guarda que o modal de votos já tem (palpitometro.js).
