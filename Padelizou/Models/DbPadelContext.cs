@@ -1158,10 +1158,17 @@ public partial class DbPadelContext : DbContext
             entity.Property(e => e.Codigo)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.GamesDupla1).HasDefaultValue(0);
-            entity.Property(e => e.GamesDupla2).HasDefaultValue(0);
-            entity.Property(e => e.SetsDupla1).HasDefaultValue(0);
-            entity.Property(e => e.SetsDupla2).HasDefaultValue(0);
+            // ⚠️ SEM `HasDefaultValue(0)` NAS COLUNAS DE PLACAR (13/09/2026). As quatro são
+            // NULÁVEIS e o robô não escreve placar ao criar a partida — com o DEFAULT, o jogo
+            // nascia 0 x 0 no Postgres e a chave mostrava placar de jogo que não começou
+            // (🗣️ Felipe: *"Aqui esta aparecendo placar que ainda não comecou"*).
+            //
+            // `null` já era o "sem placar" do resto do sistema: `DesfazerDoJogo` zera pra null,
+            // `QuemVenceu.MotivoParaNaoFinalizar` e o `PadelimetroService` testam contra null.
+            // Com o DEFAULT, aquele guarda do QuemVenceu nascia morto — `0 != null`.
+            //
+            // ⚠️ A suíte NÃO pega a volta disto por comportamento: o EF InMemory ignora
+            // `HasDefaultValue`. Quem segura é `PlacarNaoNasceZeradoTests`, na anotação.
 
             entity.HasOne(d => d.Categoria).WithMany(p => p.Partidas)
                 .HasForeignKey(d => d.CategoriaId)
