@@ -286,110 +286,20 @@ namespace Padelizou.Controllers
             return View(vm);
         }
 
-        // ===================== CHECK-IN NO DIA =====================
-
-        // Lista de presença do torneio: quem já chegou, quem falta. Evita descobrir o
-        // W.O. só na hora de chamar o jogo.
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> CheckIn(int id)
-        {
-            // Marcador entra: "quem já chegou" é a pergunta da mesa, e é o check-in que
-            // alimenta o W.O. decidido com informação em vez de às cegas.
-            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
-
-            var torneio = await _context.Torneios
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
-                .FirstOrDefaultAsync(t => t.Id == id);
-
-            if (torneio == null) return NotFound();
-
-            // Desligado é desligado: esconder o botão não basta, porque o link antigo e o
-            // histórico do navegador continuam abrindo a tela.
-            if (!torneio.UsaCheckIn)
-            {
-                TempData["Erro"] = "O check-in está desligado neste torneio. Dá pra ligar em Editar Dados do Torneio.";
-                return RedirectToAction("Details", new { id });
-            }
-
-            // A FILA DOS JOGOS QUE VÊM — o assunto da tela desde 10/09/2026.
-            //
-            // 🗣️ Felipe, com o Er aberto em "0 de 64 presentes": *"acho que aqui teria q mudar,
-            // por próximos jogos, e ver se as pessoas chegaram, e nao todos"*. A lista por
-            // categoria responde "quem está inscrito"; no sábado de manhã a pergunta é "quem
-            // joga agora já chegou?", e com 64 duplas achar as duas do jogo das 8h era rolar a
-            // lista inteira cruzando de cabeça com a grade.
-            //
-            // ⚠️ A ORDEM É A MESMA DA ABA JOGOS (Services/OrdemNoHorario): hora → posição
-            // gravada → Id. Duas contas de "quem vem antes" fariam as duas telas mostrarem
-            // ordens diferentes pra mesma grade.
-            //
-            // ⚠️ Só "Agendada". Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos
-            // dois, a pergunta do check-in já foi respondida por outra via. E a PRÉVIA (a
-            // eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela
-            // não sabe quem joga, então não há quem marcar.
-            //
-            // ⚠️ Pelo caminho `Categoria.TorneioId`, e não por `Partida.TorneioId`: é o mesmo
-            // caminho do `Comunicar` aqui do lado, e o único que a categoria garante.
-            var jogos = await _context.Partidas
-                .Include(p => p.Categoria)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.Categoria.TorneioId == id)
-                .ToListAsync();
-
-            ViewBag.JogosQueVem = OrdemNoHorario
-                .Ordenar(jogos.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>(),
-                    await ChegadasDoTorneioAsync(id))
-                .Select(l => l.Jogo!)
-                .ToList();
-
-            // O QUE JÁ COMEÇOU SAI DA FILA DE CIMA, MAS NÃO SOME DA TELA (11/09/2026).
-            //
-            // 🗣️ Felipe, com o ensaio do Er aberto: *"deixe apenas dos jogos que ainda não
-            // começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela
-            // minimazado como ja jogaram ou estão em jogo"*. Na primeira versão eles sumiam da
-            // tela inteira — e aí quem pusesse o jogo no ar antes de marcar a chegada perdia o
-            // caminho pro check-in daquela dupla, que só voltava pela lista de 64.
-            //
-            // ⚠️ AO VIVO ANTES DE FINALIZADO, e não uma ordem só: um está acontecendo AGORA (e
-            // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
-            // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
-            // mais recente pro mais antigo (a régua inteira está em Services/DuracaoDoJogo).
-            // QUEM JÁ CHEGOU, POR JOGO (12/09/2026). 🗣️ *"tem q ser separado jogo a jogo"*. A
-            // barra dizia "0 de 64" contando duplas; depois passou a contar pessoas; agora conta
-            // CHECKS — um por pessoa por jogo, que é o que a chamada de fato pede no sábado.
-            //
-            // ⚠️ E o total ignora jogo FINALIZADO: a pergunta do check-in daquele jogo já foi
-            // respondida em quadra, e mantê-lo no denominador faria a barra andar pra trás ao
-            // longo do dia, nunca fechando.
-            var chegadas = await _context.Presencas
-                .Where(p => p.Partida.Categoria.TorneioId == id)
-                .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
-            ViewBag.Chegadas = chegadas;
-
-            var porJogar = jogos.Where(p => p.Status != "Finalizada").ToList();
-
-            var vagasDeCheckIn = porJogar
-                .SelectMany(p => PresencaNoDia.IdsDa(p.Dupla1).Concat(PresencaNoDia.IdsDa(p.Dupla2))
-                    .Select(j => (PartidaId: p.Id, JogadorId: j)))
-                .ToHashSet();
-
-            ViewBag.TotalDeJogadores = vagasDeCheckIn.Count;
-            ViewBag.JogadoresPresentes = vagasDeCheckIn.Count(chegadas.ContainsKey);
-
-            ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
-                .OrderBy(p => p.HorarioInicioReal)
-                .Concat(jogos.Where(p => p.Status == "Finalizada")
-                    .OrderByDescending(DuracaoDoJogo.Quando)
-                    .ThenByDescending(p => p.Id))
-                .ToList();
-
-            return View(torneio);
-        }
+        // ⚠️ AQUI VIVIA A AÇÃO `CheckIn` — a tela "Check-in do dia" —, e ela saiu em
+        // 13/09/2026. 🗣️ Felipe: *"acho que esse checkin aqui em cima tb nao precisa mais"*.
+        //
+        // A chamada mudou de casa no mesmo dia em que virou POR JOGO: ela acontece na BOLINHA
+        // do lado de cada jogador, na linha do jogo agendado, dentro da aba Jogos — onde o
+        // organizador já está olhando a grade. A tela separada listava os mesmos jogos uma
+        // segunda vez e cobrava um desvio pra chegar neles.
+        //
+        // ⚠️ O QUE SE PERDEU, e foi escolha dele: marcar presença em jogo que JÁ entrou em
+        // quadra ou já acabou. A bolinha da lista é só nos AGENDADOS (decisão de 12/09), e
+        // jogo que começou respondeu a pergunta em quadra — quem não apareceu levou W.O.
+        //
+        // O POST que grava (`MarcarCheckIn`) continua vivo logo abaixo: o que saiu foi a tela
+        // de leitura, não a escrita.
 
         // A CHAMADA É POR PESSOA E POR JOGO (12/09/2026). 🗣️ Felipe: *"Mude para um check por
         // jogador, por que é assim que controla check in"* e, horas depois, *"e o checkin, ele
@@ -465,11 +375,13 @@ namespace Padelizou.Controllers
             var rota = FiltrosDaListaDeJogos.Reaproveitar(filtros);
             rota["id"] = torneioId;
 
+            // ⚠️ O PADRÃO ERA A TELA DE CHECK-IN, e ela saiu em 13/09/2026 (🗣️ *"acho que esse
+            // checkin aqui em cima tb nao precisa mais"*). O destino de sobra passou a ser a
+            // página do torneio, na aba Jogos — que é de onde TODO clique de presença sai hoje.
             return voltarPara switch
             {
-                "Details" => RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio"),
                 "Jogos" => RedirectToAction("Jogos", rota),
-                _ => RedirectToAction("CheckIn", new { id = torneioId }),
+                _ => RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio"),
             };
         }
 

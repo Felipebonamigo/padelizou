@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/09/2026** — 📊 **A TABELA DO GRUPO CONTAVA JOGO DE MATA-MATA.** ⏳ **No branch `claude/intelligent-maxwell-teamap`, PR #289.** **Sem migration.**
+> Última atualização: **13/09/2026** — ⏳ **NO BRANCH, indo pro ar.** **Sem migration.** 🧹 **A TELA "CHECK-IN DO DIA" SAIU — A CHAMADA VIVE NA LINHA DO JOGO.**
+>
+> 🗣️ Felipe, num print das Ferramentas do Organizador: *"acho que esse checkin aqui em cima tb nao precisa mais"*. E, no mesmo fôlego, a pergunta que importava: *"mas tem q manter nos agendados, vc manteve?"* — **mantive**. São duas coisas diferentes, e só uma saiu.
+>
+> ✅ **O QUE FICA**: a bolinha do lado de cada jogador, na linha do jogo **agendado**, dentro da aba Jogos (`bolinhaDoCheckIn = EhOrganizador && UsaCheckIn && ehAgendado`). É ali que a chamada acontece desde 12/09, e não se encostou nela.
+>
+> 🧹 **O QUE SAI**: o botão nas Ferramentas do Organizador, o link do `Details`, a view `CheckIn.cshtml`, os parciais `_JogoNoCheckIn` e `_LinhaDoCheckIn`, e a ação `CheckIn` do controller. A tela listava os mesmos jogos uma segunda vez e cobrava um desvio pra chegar neles — foi o segundo pedaço dela a cair no mesmo dia (o "Resto do torneio" saiu de manhã).
+>
+> ⚠️ **O QUE SE PERDE, E FOI ESCOLHA DELE entre três opções**: marcar presença em jogo que **já entrou em quadra ou já acabou**. A bolinha é só nos agendados, e jogo que começou respondeu a pergunta em quadra — quem não apareceu levou W.O. Marcar depois só servia pra corrigir engano.
+>
+> 🔑 **O POST NÃO SAIU** — o `MarcarCheckIn` continua vivo, com a Regra 0 inteira. O que caiu foi a tela de LEITURA. Mas o **destino padrão** do redirect era ela: virou a página do torneio na aba Jogos, que é de onde todo clique de presença sai hoje.
+>
+> ⚠️ **UM TESTE MUDOU DE LADO**: o `O_card_mora_num_arquivo_so_e_leva_o_comunicado_junto` **exigia** o `asp-action="CheckIn"` no card. Agora ele exige a **ausência** — voltar a pendurar ali um atalho pra uma tela que não existe é 404 no card mais visível do organizador.
+>
+> 🧪 **6.996 testes, 0 falhas** + os 9 conferidores de JS. Três testes foram apagados de propósito, todos da tela que saiu, e cada um deixou no lugar um comentário dizendo onde a verdade dele foi morar: o `CheckInPorJogoTests` inteiro (o layout da tela), os dois de abrir/recusar do `CheckInOpcionalTests` (o interruptor nunca foi da tela, era da gravação — e os dois testes do POST já guardavam isso), e o contador `A_tela_de_check_in_conta_JOGADORES_e_nao_duplas` (a barra saiu junto com a tela).
+
+> **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+
+> **13/09/2026** — 📊 **A TABELA DO GRUPO CONTAVA JOGO DE MATA-MATA.** ⏳ **No branch `claude/intelligent-maxwell-teamap`, PR #289.** **Sem migration.**
 >
 > 🗣️ Felipe, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR, com o print do **Grupo F**: *"Outro problema, continua contando vitorias etc no mata mata"*. Grupo de 3 duplas, 3 jogos, **2 por dupla** — e a tabela dizia `J=3` pra duas delas.
 >
@@ -23,7 +41,7 @@
 >
 > 🧪 **4 testes, escritos antes e VISTOS VERMELHOS** (`TabelaDoGrupoSoContaJogoDeGrupoTests`): `J=4` onde cabia 1, `V=3` onde cabia 0, e a ordem do grupo invertida. O cenário reproduz o flagrante — 8 duplas → grupos de 2, 3 e 3 → quadro de 8; a dupla que **perdeu** o único jogo do grupo de 2 ganha todas as de mata-mata, e a tabela vira. **6.997 testes verdes**, 9 conferidores JS verdes.
 >
-> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+> **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
 >
 > 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
@@ -98,7 +116,17 @@
 >
 > 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
 
-> **12/09/2026** — 🛑 **SEGURADO ATÉ 02:30 DE 13/09 — NÃO MESCLAR, NÃO PUBLICAR.** O PR #287 está em **draft** de propósito: tem **migration** e tem **torneio rolando** (🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* · *"ele para hoje a meia noite/1 da manha e recomeça as 8 da manha de amanha"*). A publicação está agendada pro lembrete `trig_016694tELZ1FWDUirHGahfQD`, na janela sem jogos. **Isto vale também pra qualquer varredura automática**: o bloco está pronto e verde, e mesmo assim não vai agora. ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+> **13/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1334-97c7e68`** (runs 34735902560 e 34735937055), **o mesmo artefato nos dois**. PR #287. ⚠️ **COM MIGRATION** (`PresencaPorJogo`). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+>
+> ✅ **A PROVA DE QUE A MIGRATION APLICOU é o próprio `/healthz`**: ele devolve **503** quando há migration pendente (`Program.cs:598`, trava criada em 07/08 depois de três deploys verdes com o schema errado). Leu **200 três vezes seguidas** nos dois ambientes, e a página do torneio voltou **200 com 1,2 MB** e as contagens intactas (26 agendadas, 71 finalizadas, 0 ao vivo).
+>
+> 🕐 **PUBLICADO À NOITE, COM A QUADRA VAZIA, E ISSO FOI DECISÃO DELE.** 🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* — sim. O torneio atravessa dois dias; a janela abriu quando ele avisou *"terminou o dia, so tem jogo as 8 da manha"*. Antes de mesclar, conferido no ar: **Ao Vivo (0)**.
+>
+> 🛑 **E FOI PRECISO PROTEGER O PR DE UMA ROTINA DA CASA.** Existe uma varredura horária (`trig_01NZgLQ7b38eyEkjNNbpjVN2`) com a instrução *"mesclar e publicar é AUTORIZADO, sem perguntar de novo"* — ela teria pegado o #287 verde às 18h e levado a migration pro ar **no meio do torneio**. Travado em quatro frentes: PR em **draft** (o GitHub recusa mesclar draft — bloqueio mecânico, não pedido), título `[NÃO MESCLAR ATÉ 02:30]`, comentário no PR, e **a linha deste diário reescrita** — porque a varredura usa a frase *"NO BRANCH …, ainda não publicado"* como sinal de que um bloco fechou, e ela estava escrita exatamente assim. **Lição pra próxima migration: o diário é entrada de máquina, não só de gente.**
+>
+> ⚠️ **O CI NÃO DISPAROU EM TRÊS PUSHES SEGUIDOS** e só apareceu porque fui conferir — o head estava sem check nenhum. É a falha documentada no próprio `ci.yml` (26/08). Disparado à mão por `workflow_dispatch`. Sem isso, a janela da madrugada teria sido gasta esperando build.
+>
+> ⚠️ ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
 >
 > 🗣️ Dois pedidos que viraram **um bloco só**: *"na parte do checkin, quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima"* e, em seguida, *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"*.
 >

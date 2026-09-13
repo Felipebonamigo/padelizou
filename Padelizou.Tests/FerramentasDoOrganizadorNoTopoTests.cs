@@ -105,7 +105,11 @@ public class FerramentasDoOrganizadorNoTopoTests
         var parcial = Ler("Torneios/_FerramentasDoOrganizador.cshtml");
 
         Assert.Contains("Ferramentas do organizador", parcial);
-        Assert.Contains("asp-action=\"CheckIn\"", parcial);
+        // ⚠️ O "Check-in do dia" SAIU do card em 13/09/2026 (🗣️ *"acho que esse checkin aqui em
+        // cima tb nao precisa mais"*): a chamada vive na bolinha da linha do jogo, na aba Jogos.
+        // A ausência é cobrada, e não só não-exigida — voltar a pendurar um atalho pra uma tela
+        // que não existe é 404 no card mais visível do organizador.
+        Assert.DoesNotContain("asp-action=\"CheckIn\"", parcial);
         Assert.Contains("asp-action=\"Financeiro\"", parcial);
         Assert.Contains("asp-action=\"Relatorio\"", parcial);
         Assert.Contains("asp-action=\"Comunicar\"", parcial);
