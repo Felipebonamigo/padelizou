@@ -50,7 +50,17 @@
 >
 > 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
 
-> **12/09/2026** — 🛑 **SEGURADO ATÉ 02:30 DE 13/09 — NÃO MESCLAR, NÃO PUBLICAR.** O PR #287 está em **draft** de propósito: tem **migration** e tem **torneio rolando** (🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* · *"ele para hoje a meia noite/1 da manha e recomeça as 8 da manha de amanha"*). A publicação está agendada pro lembrete `trig_016694tELZ1FWDUirHGahfQD`, na janela sem jogos. **Isto vale também pra qualquer varredura automática**: o bloco está pronto e verde, e mesmo assim não vai agora. ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+> **13/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1334-97c7e68`** (runs 34735902560 e 34735937055), **o mesmo artefato nos dois**. PR #287. ⚠️ **COM MIGRATION** (`PresencaPorJogo`). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
+>
+> ✅ **A PROVA DE QUE A MIGRATION APLICOU é o próprio `/healthz`**: ele devolve **503** quando há migration pendente (`Program.cs:598`, trava criada em 07/08 depois de três deploys verdes com o schema errado). Leu **200 três vezes seguidas** nos dois ambientes, e a página do torneio voltou **200 com 1,2 MB** e as contagens intactas (26 agendadas, 71 finalizadas, 0 ao vivo).
+>
+> 🕐 **PUBLICADO À NOITE, COM A QUADRA VAZIA, E ISSO FOI DECISÃO DELE.** 🗣️ *"tem torneio rolando, talvez é melhor espera, nao?"* — sim. O torneio atravessa dois dias; a janela abriu quando ele avisou *"terminou o dia, so tem jogo as 8 da manha"*. Antes de mesclar, conferido no ar: **Ao Vivo (0)**.
+>
+> 🛑 **E FOI PRECISO PROTEGER O PR DE UMA ROTINA DA CASA.** Existe uma varredura horária (`trig_01NZgLQ7b38eyEkjNNbpjVN2`) com a instrução *"mesclar e publicar é AUTORIZADO, sem perguntar de novo"* — ela teria pegado o #287 verde às 18h e levado a migration pro ar **no meio do torneio**. Travado em quatro frentes: PR em **draft** (o GitHub recusa mesclar draft — bloqueio mecânico, não pedido), título `[NÃO MESCLAR ATÉ 02:30]`, comentário no PR, e **a linha deste diário reescrita** — porque a varredura usa a frase *"NO BRANCH …, ainda não publicado"* como sinal de que um bloco fechou, e ela estava escrita exatamente assim. **Lição pra próxima migration: o diário é entrada de máquina, não só de gente.**
+>
+> ⚠️ **O CI NÃO DISPAROU EM TRÊS PUSHES SEGUIDOS** e só apareceu porque fui conferir — o head estava sem check nenhum. É a falha documentada no próprio `ci.yml` (26/08). Disparado à mão por `workflow_dispatch`. Sem isso, a janela da madrugada teria sido gasta esperando build.
+>
+> ⚠️ ⚠️ **COM MIGRATION** (`PresencaPorJogo`, rodada num Postgres de verdade com dados dentro). 🎯 **O CHECK-IN VIROU DO JOGO, E O JOGO COMPLETO SOBE NO HORÁRIO.**
 >
 > 🗣️ Dois pedidos que viraram **um bloco só**: *"na parte do checkin, quando houverem 2 ou mais jogos no mesmo horario, coloque para 'primeiro' a jogar (desse determinado horario) ... digamos que a Carla Girardi chegue antes que as demais do segundo jogo do print, esse jogo vai pra cima"* e, em seguida, *"e o checkin, ele herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado jogo a jogo"*.
 >
