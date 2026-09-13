@@ -768,8 +768,13 @@ public class RoboDoChaveamento
                 && Pessoas(p).Intersect(minhas).Any());
         }
 
+        // ⚠️ O RELÓGIO DO TORNEIO ENTRA AQUI, e é o que faltava (13/09/2026): este é o ponto em
+        // que a reserva vira HORÁRIO DE JOGO DE VERDADE, e uma reserva de um horário que o
+        // torneio já deixou pra trás não pode ressuscitar. A prévia continua sem relógio — ela
+        // projeta um torneio que ainda vai acontecer inteiro.
         var (reservados, mortas) = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
-            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId), PessoaOcupada);
+            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId), PessoaOcupada,
+            relogioDoTorneio: ReservasDeHorario.RelogioDoTorneio(todos));
 
         // A reserva de um jogo que já saiu dela (trocado depois de nascer) morre aqui — quem chama
         // grava junto com a rodada nova. Ver ReservasDeHorario.Aplicar.

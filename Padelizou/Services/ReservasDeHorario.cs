@@ -24,8 +24,40 @@ public static class ReservasDeHorario
     // ⚠️ É a ÚNICA régua que a reserva respeita. A barreira de posto entre categorias ela
     // atravessa de propósito: entre categorias são pessoas diferentes, e a ordem das fases é
     // preferência do torneio — o organizador que reservou é quem decide a preferência.
-    public static bool Vale(DateTime reservado, DateTime? abreARodada) =>
-        abreARodada is not DateTime abre || reservado >= abre;
+    // ⚠️ E NUNCA NO PASSADO (13/09/2026). Os dois furos que esta linha tinha custaram caro no
+    // 2ª Etapa ER PADEL TOUR: semifinais nascidas no domingo de manhã foram parar em sábado
+    // 13:00 e 13:50 — antes das próprias quartas, em slots que estavam vazios só porque o
+    // torneio começou 17:10.
+    //
+    //   1. PISO NULO ERA SALVO-CONDUTO: `abreARodada is not DateTime` devolvia `true` sem
+    //      olhar mais nada. "Não há fase anterior a esperar" nunca quis dizer "pode ser ontem".
+    //   2. NÃO EXISTIA A PERGUNTA "isso já passou?".
+    //
+    // ⚠️ O PISO É O RELÓGIO DO TORNEIO, E NÃO `DateTime.Now` — e a diferença não é detalhe.
+    // Comparar com o relógio de parede quebra todo torneio cuja grade não é "hoje": a suíte
+    // inteira monta torneios em julho/2026, e quatro testes de reserva legítima caíram na
+    // primeira tentativa desta correção. O que importa não é que horas são no mundo, é ATÉ ONDE
+    // O TORNEIO JÁ CHEGOU — o fim do último jogo que aconteceu ou está em quadra.
+    //
+    // Reserva anterior a isso é reserva de um horário que o torneio já deixou pra trás.
+    //
+    // Nulo mantém o comportamento antigo, pra quem projeta sem torneio em andamento (a prévia
+    // do sorteio, que desenha um torneio que ainda vai acontecer inteiro).
+    public static bool Vale(DateTime reservado, DateTime? abreARodada, DateTime? relogioDoTorneio = null)
+    {
+        if (relogioDoTorneio is DateTime jaPassou && reservado < jaPassou) return false;
+
+        return abreARodada is not DateTime abre || reservado >= abre;
+    }
+
+    // ATÉ ONDE O TORNEIO JÁ CHEGOU: o horário do último jogo que já aconteceu ou está em quadra.
+    // Nulo = nada rolou ainda, e aí não há passado nenhum pra proteger.
+    public static DateTime? RelogioDoTorneio(IEnumerable<Partida> jogos) =>
+        jogos
+            .Where(p => (p.Status == "Finalizada" || p.Status == "AoVivo") && p.HorarioPrevisto != null)
+            .Select(p => (DateTime?)p.HorarioPrevisto!.Value)
+            .DefaultIfEmpty(null)
+            .Max();
 
     // O NÚMERO de cada jogo de mata-mata dentro da fase dele ("Quartas de Final 2"), por Id —
     // a ordem em que o robô grava a rodada, e a mesma com que a prévia e a tela citam o jogo
@@ -133,7 +165,7 @@ public static class ReservasDeHorario
     // duas quadras no mesmo minuto, morre, e o jogo vai pra grade como qualquer outro.
     public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
         IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe,
-        Func<Partida, DateTime, bool>? pessoaOcupada = null)
+        Func<Partida, DateTime, bool>? pessoaOcupada = null, DateTime? relogioDoTorneio = null)
     {
         var reservados = new List<Partida>();
         var mortas = new List<ReservaDeHorario>();
@@ -151,7 +183,7 @@ public static class ReservasDeHorario
                 continue;
             }
 
-            if (!Vale(reserva.Horario, abreARodadaDe(jogo))) continue;
+            if (!Vale(reserva.Horario, abreARodadaDe(jogo), relogioDoTorneio)) continue;
 
             if (jogo.HorarioPrevisto == null)
             {
