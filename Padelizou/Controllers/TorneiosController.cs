@@ -1054,6 +1054,63 @@ namespace Padelizou.Controllers
                 }
 
                 ViewBag.OQuePrecisaPorGrupo = oQuePrecisaPorGrupo;
+
+                // ── O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER ────────────
+                //
+                // 🗣️ Felipe, 13/09/2026, com as 7 categorias do ER já conferidas e o painel em
+                // todas elas: *"acho que podemos ocultar isso agora que resolveu, não?"*.
+                //
+                // A view pedia organizador + chave publicada + categoria com grupos, e nunca
+                // perguntava se a chave real já batia com o previsto. Ocultar de vez tiraria a
+                // saída de emergência; o que responde ao pedido é o painel sumir quando o
+                // clique não muda nada — e voltar sozinho se algo divergir de novo.
+                //
+                // ⚠️ MESMA RÉGUA DA AÇÃO (Services/RefazerComoPrevisto). Duas cópias voltariam
+                // a discordar: painel oferecendo o que o POST recusa, ou escondendo o conserto.
+                //
+                // ⚠️ SÓ PRA QUEM ORGANIZA, e é o que segura o custo: a conta roda por categoria
+                // e esta é a página mais visitada do site. Pra quem visita, o painel nem existe.
+                if (ehOrganizadorDeVerdade)
+                {
+                    var mataMataPorCategoria = (Dictionary<int, List<Partida>>)ViewBag.MataMataPorCategoria;
+                    var refazerPorCategoria = new Dictionary<int, bool>();
+
+                    foreach (var categoria in torneio.Categorias.Where(c => c.GruposTorneio.Count > 0))
+                    {
+                        var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
+                        var congelado = CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata);
+                        var desenho = congelado
+                                   ?? CruzamentoDoMataMata.Padrao(
+                                          grupos.Select(g => g.Nome).ToList(),
+                                          ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                                          grupos.Select(g => g.Duplas.Count).ToList());
+
+                        var deGrupo = todosOsJogosDeGrupo.Where(p => p.CategoriaId == categoria.Id).ToList();
+                        var doMataMata = mataMataPorCategoria.TryGetValue(categoria.Id, out var mm)
+                            ? mm.OrderBy(p => p.Id).ToList()
+                            : new List<Partida>();
+
+                        // A classificação só é necessária quando há chave montada pra comparar —
+                        // e aí os jogos de grupo já acabaram, então nunca há empate pendente de
+                        // desempate na quadra. Sem chave, a régua decide antes de olhar pra ela.
+                        var classificados = new List<ChaveamentoMataMata.Classificado>();
+                        if (doMataMata.Count > 0 && deGrupo.All(p => p.Status == "Finalizada"))
+                        {
+                            var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
+                            var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                                duplasDosGrupos, deGrupo, _estatisticas.ObterPontosPorJogadorAsync);
+                            classificados = ClassificacaoDeGrupos.Calcular(
+                                duplasDosGrupos, deGrupo, pontos,
+                                ClassificacaoDeGrupos.VagasPorGrupo(categoria)).ToList();
+                        }
+
+                        refazerPorCategoria[categoria.Id] = RefazerComoPrevisto.Avaliar(
+                            desenho, congelado != null, deGrupo, doMataMata, classificados)
+                            .ValeMostrarOPainel;
+                    }
+
+                    ViewBag.RefazerPrevistoPorCategoria = refazerPorCategoria;
+                }
             }
 
             // SEGUIR O TORNEIO: o botão só existe pra quem JÁ ESTÁ INSCRITO (pedido do Felipe,
