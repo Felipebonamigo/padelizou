@@ -980,6 +980,38 @@ namespace Padelizou.Controllers
             // Recusar aqui deixava a armadilha armada pro momento em que o último jogo do grupo
             // acabasse. (O robô também congela sozinho — ver RoboDoChaveamento; aqui o
             // organizador consegue ver o desenho na tela antes disso, e mudá-lo se quiser.)
+            // ⚠️ QUEM DECIDE É `Services/RefazerComoPrevisto`, A MESMA RÉGUA DO PAINEL que
+            // oferece este botão na página do torneio (13/09/2026). Enquanto as guardas moravam
+            // aqui dentro, o painel aparecia em toda categoria com chave publicada — inclusive
+            // nas que esta ação recusaria e nas que já estavam certas.
+            var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
+            var classificados = new List<ChaveamentoMataMata.Classificado>();
+            if (doMataMata.Count > 0 && deGrupo.All(p => p.Status == "Finalizada"))
+            {
+                var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
+                    duplasDosGrupos, deGrupo, _estatisticas.ObterPontosPorJogadorAsync);
+                classificados = ClassificacaoDeGrupos.Calcular(
+                    duplasDosGrupos, deGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria)).ToList();
+            }
+
+            var avaliacao = RefazerComoPrevisto.Avaliar(
+                desenho, CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata) != null,
+                deGrupo, doMataMata, classificados);
+
+            if (avaliacao.Recusa != null)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: {avaliacao.Recusa}";
+                return ParaAsChaves(id);
+            }
+
+            // ⚠️ MATA-MATA QUE AINDA NÃO EXISTE NÃO É "NADA A FAZER" — É A HORA CERTA DE CONGELAR.
+            //
+            // 🗣️ Felipe, no meio do ER, com o print da 5ª Masculina: *"acho que quer dizer q nao
+            // precisava mexer?"*. Não: os grupos dela ainda estavam rolando, e a categoria estava
+            // com o desenho nulo porque o torneio foi aprovado antes do congelamento existir.
+            // Recusar aqui deixava a armadilha armada pro momento em que o último jogo do grupo
+            // acabasse. (O robô também congela sozinho — ver RoboDoChaveamento; aqui o
+            // organizador consegue ver o desenho na tela antes disso, e mudá-lo se quiser.)
             if (doMataMata.Count == 0)
             {
                 categoria.CruzamentoDoMataMata = desenho.Escrever();
@@ -991,59 +1023,7 @@ namespace Padelizou.Controllers
                 return ParaAsChaves(id);
             }
 
-            // A classificação final precisa estar fechada: é dela que sai quem é "2º do Grupo C".
-            if (deGrupo.Any(p => p.Status != "Finalizada"))
-            {
-                TempData["Erro"] = $"{categoria.Nome}: ainda tem jogo de grupo em aberto — "
-                                 + "a colocação final não está decidida.";
-                return ParaAsChaves(id);
-            }
-
-            // Só a ABERTURA. Se a chave já passou da primeira rodada, mexer nela reescreveria o
-            // caminho de quem já venceu.
-            var abertura = CruzamentoDoMataMata.NomeDaAbertura(desenho);
-            if (doMataMata.Any(p => p.Fase != abertura))
-            {
-                TempData["Erro"] = $"{categoria.Nome}: a chave já passou da {abertura.ToLowerInvariant()} — "
-                                 + "não dá mais pra refazer o cruzamento.";
-                return ParaAsChaves(id);
-            }
-
-            // A régua única de "a bola já rolou neste jogo" (Services/AprovacaoDeChaves).
-            if (doMataMata.Any(p => p.Status != "Agendada" || p.HorarioInicioReal != null))
-            {
-                TempData["Erro"] = $"{categoria.Nome}: já tem jogo do mata-mata em andamento ou finalizado — "
-                                 + "refazer agora deixaria dupla em dois jogos e dupla em nenhum.";
-                return ParaAsChaves(id);
-            }
-
-            if (doMataMata.Count != desenho.Confrontos.Count)
-            {
-                TempData["Erro"] = $"{categoria.Nome}: a chave no ar tem {doMataMata.Count} jogo(s) e o previsto "
-                                 + $"tem {desenho.Confrontos.Count} — os formatos não batem.";
-                return ParaAsChaves(id);
-            }
-
-            var duplasDosGrupos = categoria.GruposTorneio.SelectMany(g => g.Duplas).ToList();
-            var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
-                duplasDosGrupos, deGrupo, _estatisticas.ObterPontosPorJogadorAsync);
-            var classificados = ClassificacaoDeGrupos.Calcular(
-                duplasDosGrupos, deGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria));
-
-            // Resolve o quadro INTEIRO antes de gravar qualquer coisa — de novo o tudo-ou-nada.
-            var novosLados = new List<(Partida Jogo, int Lado1, int Lado2)>();
-            for (int i = 0; i < desenho.Confrontos.Count; i++)
-            {
-                var confronto = desenho.Confrontos[i];
-                if (CruzamentoDoMataMata.IdDaVaga(confronto.Lado1, classificados) is not int lado1
-                    || CruzamentoDoMataMata.IdDaVaga(confronto.Lado2, classificados) is not int lado2)
-                {
-                    TempData["Erro"] = $"{categoria.Nome}: não consegui dizer quem é "
-                                     + $"{confronto.Lado1.Rotulo} ou {confronto.Lado2.Rotulo}. Nada foi mudado.";
-                    return ParaAsChaves(id);
-                }
-                novosLados.Add((doMataMata[i], lado1, lado2));
-            }
+            var novosLados = avaliacao.Mudancas.Select(m => (m.Jogo, m.Lado1, m.Lado2)).ToList();
 
             // O nome de cada dupla ANTES de qualquer troca — depois de mutar não há mais como
             // dizer o que o jogo era, e é isso que o organizador precisa levar pro grupo.
@@ -1051,17 +1031,15 @@ namespace Padelizou.Controllers
             string Nome(int duplaId) => nomePorDupla.TryGetValue(duplaId, out var n) ? n : $"Dupla {duplaId}";
 
             // ⚠️ OS IDS SÃO COLHIDOS ANTES DE MUTAR. Perguntar "mudou?" depois da atribuição
-            // responde "sim" pra todo mundo — inclusive pros jogos que já estavam certos.
+            // responde "sim" pra todo mundo — inclusive pros jogos que já estavam certos. É por
+            // isso que a comparação mora na régua, que roda antes de qualquer atribuição.
             var idsMudados = new List<int>();
             var recado = new List<string>();
-            for (int i = 0; i < novosLados.Count; i++)
+            foreach (var (jogo, lado1, lado2) in novosLados)
             {
-                var (jogo, lado1, lado2) = novosLados[i];
-                if (jogo.Dupla1Id == lado1 && jogo.Dupla2Id == lado2) continue;
-
                 // O número do jogo na fase é a ordem de criação (ReservasDeHorario.NumeroNaFase,
                 // por Id) — a mesma que o quadro desenha e que o jogador lê na tela.
-                recado.Add($"Jogo {i + 1}: {Nome(lado1)} × {Nome(lado2)} "
+                recado.Add($"Jogo {doMataMata.IndexOf(jogo) + 1}: {Nome(lado1)} × {Nome(lado2)} "
                          + $"(era {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)})");
 
                 idsMudados.Add(jogo.Id);
