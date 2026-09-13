@@ -419,14 +419,30 @@ namespace Padelizou.Controllers
             }
 
             // 2. Roda a contabilidade grupo por grupo
+            //
+            // ⚠️ SÓ JOGO DE GRUPO ENTRA AQUI, e o filtro é neste ponto e não na consulta de
+            // cima: a mesma `partidasFinalizadas` alimenta o MVP, que quer TODOS os jogos do
+            // torneio (a votação abre 7 dias depois do último, mata-mata incluído).
+            //
+            // 🗣️ Felipe, 13/09/2026, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR: um
+            // grupo de DUAS duplas (um jogo só) mostrando "J=2, 1V, 1D, +3" na 4ª Masculina, e
+            // com isso a 2ª do grupo aparecendo em 1º. Sem filtro de fase, cada vitória de
+            // mata-mata entrava na linha do grupo — em J, em V, no saldo, e portanto na ORDEM,
+            // que é ordenada por esses mesmos números. A chave nunca leu isso (o robô recalcula
+            // a classificação a partir das partidas de grupo), então o estrago era só na tela —
+            // a mais visitada do site, e a que o jogador usa pra saber se passou.
+            var partidasDeGrupo = partidasFinalizadas
+                .Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase))
+                .ToList();
+
             foreach (var categoria in torneio.Categorias)
             {
                 foreach (var grupo in categoria.GruposTorneio)
                 {
                     foreach (var dupla in grupo.Duplas)
                     {
-                        // Pega só os jogos onde esta dupla participou
-                        var meusJogos = partidasFinalizadas
+                        // Pega só os jogos DE GRUPO onde esta dupla participou
+                        var meusJogos = partidasDeGrupo
                             .Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id)
                             .ToList();
 

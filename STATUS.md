@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/09/2026** — 📊 **A TABELA DO GRUPO CONTAVA JOGO DE MATA-MATA.** ⏳ **No branch `claude/intelligent-maxwell-teamap`, PR #289.** **Sem migration.**
+>
+> 🗣️ Felipe, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR, com o print do **Grupo F**: *"Outro problema, continua contando vitorias etc no mata mata"*. Grupo de 3 duplas, 3 jogos, **2 por dupla** — e a tabela dizia `J=3` pra duas delas.
+>
+> 🕳️ `TorneiosController.Details` carregava as partidas finalizadas **SEM FILTRO DE FASE** (`p.TorneioId == id && p.Status == "Finalizada"`) e a contabilidade grupo a grupo filtrava **só por dupla**. Enquanto a categoria estava nos grupos não havia o que somar errado; assim que a chave abriu, cada vitória de mata-mata entrou na linha do grupo — em **J**, em **V**, no **saldo de games** e, portanto, na **ORDEM**, que é ordenada por esses mesmos números.
+>
+> | Grupo F | na tela (J·V·D·SG) | só grupo (correto) |
+> |---|---|---|
+> | Felipe / Guilherme | 3 · 3 · 0 · **+11** | 2 · 2 · 0 · **+5** |
+> | Lucas / Henrique | 3 · 1 · 2 · **−2** | 2 · 1 · 1 · **0** |
+> | Maickel / Rodrigo | 2 · 0 · 2 · −5 | 2 · 0 · 2 · −5 (não jogou mata-mata) |
+>
+> Antes disso, no mesmo torneio: **4ª Masculina Grupo B** e **6ª Feminina Grupo A**, de DUAS duplas (um jogo só), mostrando `J=2` — e nos dois a 2ª do grupo aparecendo em **1º**.
+>
+> ✅ **A CHAVE NUNCA LEU ESSES NÚMEROS** — o robô recalcula a classificação a partir das partidas de grupo (`ClassificacaoDeGrupos`). O estrago era só na tela: a mais visitada do site, e a que o jogador usa pra saber se passou.
+>
+> 🔑 **O FILTRO ENTRA NA CONTABILIDADE, E NÃO NA CONSULTA**, e isso não é estilo: a mesma `partidasFinalizadas` alimenta o **MVP** algumas linhas acima, e lá **TODOS** os jogos do torneio são desejados — a votação abre 7 dias depois do último, mata-mata incluído. Filtrar na consulta trocaria um defeito por outro.
+>
+> 🔎 **ERA O ÚNICO LUGAR SEM O FILTRO**, conferido: `TorneiosController.Classificacao` (`TorneiosController.Americano.cs:610`) e `ClassificacaoParaCard.cs:87` já usavam a expressão inline de fase de grupo. E `Details.cs:449-462` é o **único** ponto do sistema que escreve `Dupla.Jogos/Vitorias/Derrotas/SaldoGames`, lido só em `Details.cshtml:6351-6362`.
+>
+> 🧪 **4 testes, escritos antes e VISTOS VERMELHOS** (`TabelaDoGrupoSoContaJogoDeGrupoTests`): `J=4` onde cabia 1, `V=3` onde cabia 0, e a ordem do grupo invertida. O cenário reproduz o flagrante — 8 duplas → grupos de 2, 3 e 3 → quadro de 8; a dupla que **perdeu** o único jogo do grupo de 2 ganha todas as de mata-mata, e a tabela vira. **6.997 testes verdes**, 9 conferidores JS verdes.
+>
 > Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
 >
 > 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
@@ -27,7 +49,31 @@
 
 
 
-> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** ⏳ **NO BRANCH `claude/intelligent-maxwell-teamap`.** **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
+> **12/09/2026** — 📐 **DESENHO APROVADO E NÃO IMPLEMENTADO: "confronto definido já é jogo".** ⏸️ **Revertido de propósito no meio — leia por quê antes de retomar.** **PRECISA de migration.**
+>
+> 🗣️ Felipe, 12/09/2026, com o ER em quadra e o print da Quartas de Final 2 da 6ª Masculina definida e sem palpite: *"eu preciso que todo jogo com confronto definido ja seja possivel palpitar e começar se preciso, tratar ele como um jogo pronto para iniciar"*.
+>
+> 🕳️ **POR QUE NÃO É ASSIM HOJE.** O número do jogo dentro da fase **nunca foi guardado** — ele é DEDUZIDO da ordem de criação (`ReservasDeHorario.NumeroNaFase`: `OrderBy(Id)` dentro de categoria+fase). Enquanto o robô cria a rodada inteira de uma vez, isso é verdade de graça. Criar a Quartas 2 antes da Quartas 1 a transforma em "Quartas 1" — e o desenho da chave, o *"Vencedor Quartas 2"* da prévia e as **reservas de horário** do organizador (guardadas por categoria+fase+número) passam a apontar pro jogo errado. É por isso que o robô PARA no primeiro confronto que não dá pra montar, em vez de pular.
+>
+> ✅ **O DESENHO**: `Partida` ganha `NumeroNaFase int?` — **nulo = deduz pelo Id, letra por letra como hoje**, então nenhum jogo existente muda. O robô grava o número do confronto conforme o desenho ao criar, `NumeroNaFase` prefere o gravado, e o jogo passa a nascer assim que as DUAS vagas dele têm dono, em qualquer ordem. Migration aditiva (`AddColumn` anulável), instantânea no Postgres e reversível.
+>
+> ⛔ **FOI IMPLEMENTADO, VISTO FUNCIONAR, E REVERTIDO — e o motivo é o que importa pra próxima sessão.** Com o robô criando fora de ordem, a suíte acusou o que o design tinha previsto: **o número é LIDO em cinco lugares que assumem a ordem de criação**, e cada um deles é coração de chave —
+>
+> | onde | o que quebra se ficar por Id |
+> |---|---|
+> | `AvancoDaChave.cs:62` | **quem enfrenta quem** na fase seguinte |
+> | `QuadroDoMataMata.cs:101` | o desenho do quadro |
+> | `ProximasFasesDaChave.cs:117` | a projeção (*"Vencedor Semifinal 2"*) |
+> | `ChaveParaCard.cs:92` | o card da chave |
+> | `TorneiosController.cs:1359` | o "Meus jogos" |
+>
+> ⚠️ **A ESTIMATIVA QUE EU DEI AO FELIPE ESTAVA ERRADA**: eu disse "uma coluna nova, ~25 min". São uma coluna **mais cinco pontos de leitura no núcleo do chaveamento**, cada um com teste. Errar um deles mostra (ou monta) o confronto errado num torneio com gente em quadra — e o ganho da noite era o palpite em UM ou dois jogos. Revertido pela regra 6 do CLAUDE.md: a correção começou a se espalhar, então pare e questione em vez de insistir.
+>
+> 📋 **PRA RETOMAR** (fora de torneio, e com `dev` antes de `prod`): a régua única é `ReservasDeHorario.NumeroNaFase`, que já sabe conviver com os dois mundos — com ninguém numerado a resposta é **idêntica** à de hoje, o que torna a mudança um no-op pra todo dado existente. O trabalho é fazer os cinco leitores acima ordenarem por essa régua em vez de por `Id`, um de cada vez, com teste. E `AvancoParcialDaChaveTests.A_semifinal_2_nao_nasce_antes_da_1_mesmo_com_as_duas_vagas_conhecidas` trava a regra ANTIGA: ele é a decisão que o Felipe reverteu, e precisa ser reescrito junto — não apagado.
+>
+> 🩹 **O QUE RESOLVE HOJE, SEM CÓDIGO**: lançar o jogo de grupo que falta na categoria (6ª Masculina e 3ª Feminina, Grupo C) faz a fase inteira nascer de uma vez, com palpite em todos.
+
+> **12/09/2026** — 💥 **O MÉTODO C# DENTRO DA CONSULTA DERRUBOU A MESA NO MEIO DO ER.** 🚀 **PUBLICADO em `prod` no `build-1329-88c5932`** (PR #288, deploy 333). **Sem migration.** 📌 **A causa raiz das categorias travadas — achada no `Admin/Erros`, depois de CINCO hipóteses minhas morrerem testando.**
 >
 > ```
 > InvalidOperationException — POST /Partidas/ControlePlacar/572
@@ -47,6 +93,8 @@
 > 🔒 **E NASCEU O GATE MECÂNICO** (`O_robo_nao_manda_o_metodo_de_fase_pro_banco`): varre a fonte do robô e quebra se `EhFaseDeMataMata`/`EhFaseDeGrupos` aparecerem a menos de 400 caracteres de um `Async(p =>`. Em lista já materializada o método é bem-vindo — por isso a busca é pelo PAR, não pelo método sozinho. Mais dois de tradução por `ToQueryString`, um deles provando que a forma antiga estoura.
 >
 > 🧪 **6.993 testes, 0 falhas (3 novos)** + os **8** conferidores de JS verdes. O gate foi **visto vermelho** em *"Assert.DoesNotContain() Failure: Sub-string found"* antes da correção.
+>
+> ✅ **CONFERIDO NO AR, E A VARREDURA PROVOU OS DOIS CONSERTOS DE UMA VEZ.** 45 s depois do deploy ela destravou sozinha **quatro** categorias que estavam esperando (3ª Masculina, 5ª Masculina, 5ª Feminina e 6ª Feminina) — nenhum clique. Li a página pública e cruzei cada nome do quadro com a classificação dos grupos: **as 7 categorias batem com o previsto**, jogo por jogo. Finalizar jogo voltou a funcionar.
 >
 > 📋 **FICA PENDENTE, E É DECISÃO DO FELIPE**: *"se o confronto ja esta definido (as duas duplas decididas) ja permita que palpitem"*. Hoje o jogo nasce **em ordem de quadro** — a Quartas 2 espera a 1 — porque o número do jogo na fase É a ordem de criação (`ReservasDeHorario.NumeroNaFase`, por Id), e dela dependem o desenho da chave, a procedência da prévia e as reservas de horário do organizador. Criar fora de ordem exige a partida **carregar o número dela**: coluna nova, **migration**, `architectural`. Não foi feito no meio do torneio dele.
 
