@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** ⏳ **No branch `claude/cool-rubin-zoq4rv`.** **Sem migration.**
+> Última atualização: **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1352-dd13185`** (runs **342**, na 2ª tentativa, e **343**), **o mesmo artefato nos dois**, com a tag explícita. PR #294. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do próprio perfil e catorze etiquetas "Domingo · Noite", "Segunda · Manhã"… empilhadas: *"tem que fazer uma recurso 'Todos os dias, exceto...' e melhor isso"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
@@ -18,6 +18,13 @@
 > 🧪 **10 testes, escritos antes; os 2 do servidor VISTOS VERMELHOS** com o flagrante na saída (`DiaSemana = 9`, `Periodo = "Madrugada"`, e as 21 linhas gravadas). **7.023 testes verdes**, 9 conferidores JS verdes.
 >
 > 👁️ **VISTO NO CHROMIUM**, com o Bootstrap e o `site.css` do repositório, e **três ajustes saíram só de olhar**: os cabeçalhos de período saíam em caixa mista ao lado de um "DIA" em caixa-alta (o navegador zera `text-transform` dentro de `<button>`, e `font: inherit` não cobre isso); os atalhos não tinham NENHUMA pista de que eram clicáveis — ganharam sublinhado pontilhado; e os dois botões quebravam um por linha, **medido**: 205,8px + 8 de gap + 161,1px = **374,9px** numa linha de **356**. Daí o rótulo curto "Todos, exceto…" (**149,3px**), com o nome inteiro na dica abaixo da grade.
+>
+> ✅ **CONFERIDO NO `prod`, E COM DADO QUE JÁ ESTAVA LÁ**: o perfil **13** mostra **UMA** pílula — **`Terça a Quinta · Noite`** — onde o código de ontem mostraria **três**. Não é cenário montado: é preferência de gente real, e a regra de dias em sequência disparou sozinha nela. `/healthz` **200** nos dois ambientes, e o `site.css` servido por `padelizou.com.br` e por `dev.padelizou.com.br` já traz o `.pdz-atalho-horario`.
+>
+> ⚠️ **A PRIMEIRA TENTATIVA DO `dev` FALHOU, E NÃO FOI O CÓDIGO**: o passo "Preparar o acesso ao VPS" morreu no `ssh-keyscan` (5s sem resposta), o "Publicar" foi **PULADO** — nada chegou ao servidor — e o re-run passou com o keyscan respondendo em **1s**. A mensagem `ERRO: não consegui a chave pública do servidor` **NÃO APARECEU**, e o motivo importa: o shell é `bash -e`, então o `ssh-keyscan` saindo não-zero mata o passo ANTES do `if [ ! -s ~/.ssh/known_hosts ]` que a imprimiria. O diagnóstico escrito no yml não chega a quem precisa dele.
+>
+> 🔑 **A CAUSA DE FUNDO É O `VPS_KNOWN_HOSTS` AUSENTE.** Sem o secret, **todo** deploy depende de um `ssh-keyscan` ao vivo contra o VPS. O `infra/vps/README.md` chama o secret de opcional — e ele é —, mas ele é também o único passo do deploy que exige a rede responder naquele segundo. Com ele definido, a chave do servidor vem de valor fixo e este modo de falha some.
+>
 > **13/09/2026** — 🔍 **ACHAR UM INSCRITO SEM ROLAR A LISTA: BUSCA POR NOME, FILTRO POR CATEGORIA E ATALHOS DE SITUAÇÃO.** ⏳ **No branch `claude/kind-darwin-rfymwf`.** **Sem migration.**
 >
 > 🗣️ Felipe, com o print do "Gerenciar Inscritos" do 2ª Etapa ER PADEL TOUR aberto no celular: *"aqui no gerenciar escrito esta dificil achar, permita pesquisar por nome, coloque filtro por categoria, deixe melhor essa parte"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
