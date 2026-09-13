@@ -9,7 +9,6 @@
     var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
     var elogiosRecebidos = ViewBag.Elogios as List<ElogioResumoVM> ?? new();
     var catalogoElogios = ViewBag.CatalogoElogios as List<Padelizou.Services.TipoElogio> ?? new();
-    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
     @* Perfil FECHADO é conta excluída (LGPD). "Contato escondido" é a chave de perfil
        privado, que esconde Instagram e WhatsApp e mais nada — o resto do perfil é resultado
        de padel, que já está no ranking e nas chaves. Ver o comentário em JogadoresController. *@
@@ -339,11 +338,33 @@
             }
             @if (Model.jogador.JogadorDiasHorarios.Any())
             {
+                @* Uma pílula por combinação empilhava CATORZE etiquetas pra dizer "de manhã e à
+                   noite na semana, tarde e noite no fim de semana" — e era a única informação
+                   do card que ninguém lia até o fim. O resumo agrupa os dias com a mesma
+                   jornada e, quando o complemento é mais curto, vira "Todos os dias, exceto".
+                   Ver `Services/ResumoDeDiasEHorarios`. *@
+                var resumoHorarios = Padelizou.Services.ResumoDeDiasEHorarios.Resumir(
+                    Model.jogador.JogadorDiasHorarios.Select(dh => (dh.DiaSemana, dh.Periodo)));
+
                 <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.7rem;"><i class="bi bi-clock-history"></i> Dias e horários preferidos</small>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var dh in Model.jogador.JogadorDiasHorarios.OrderBy(d => d.DiaSemana))
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    @if (resumoHorarios.Exceto)
                     {
-                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@diasSemana[dh.DiaSemana] · @dh.Periodo</span>
+                        <span class="fw-bold small">Todos os dias, exceto</span>
+                    }
+                    @foreach (var pilula in resumoHorarios.Pilulas)
+                    {
+                        @* ⚠️ No modo "exceto" a pílula é o que a pessoa NÃO aceita. Com a mesma
+                           cara da pílula de preferência ela diria o CONTRÁRIO do que é pra quem
+                           bate o olho e não lê o "exceto" — daí o risco e o texto cortado. *@
+                        @if (resumoHorarios.Exceto)
+                        {
+                            <span class="badge rounded-pill bg-transparent text-danger-emphasis border border-danger-subtle px-3 py-2 text-decoration-line-through">@pilula</span>
+                        }
+                        else
+                        {
+                            <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@pilula</span>
+                        }
                     }
                 </div>
             }

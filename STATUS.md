@@ -1,7 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/09/2026** — 🔍 **ACHAR UM INSCRITO SEM ROLAR A LISTA: BUSCA POR NOME, FILTRO POR CATEGORIA E ATALHOS DE SITUAÇÃO.** ⏳ **No branch `claude/kind-darwin-rfymwf`.** **Sem migration.**
+> Última atualização: **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** ⏳ **No branch `claude/cool-rubin-zoq4rv`.** **Sem migration.**
+>
+> 🗣️ Felipe, com o print do próprio perfil e catorze etiquetas "Domingo · Noite", "Segunda · Manhã"… empilhadas: *"tem que fazer uma recurso 'Todos os dias, exceto...' e melhor isso"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🔑 **NÃO PRECISOU DE COLUNA NOVA, E É POR UM MOTIVO ESTRUTURAL**: o conjunto tem TAMANHO FIXO — 7 dias × 3 períodos = **21** —, então o COMPLEMENTO de uma escolha é tão exato quanto ela. "Todos, exceto domingo de manhã" são as mesmas 20 linhas de sempre, lidas do outro lado. Guardar um modo "exceto" no banco seria guardar duas verdades sobre o mesmo fato.
+>
+> 🔎 **E O QUE ENCURTA A LISTA NÃO É AGRUPAR POR DIA** (o print daria sete pílulas), é agrupar os dias que compartilham o MESMO conjunto de períodos: as catorze viram **"Fim de semana · Tarde e Noite"** e **"Segunda a Sexta · Manhã e Noite"**. **Duas pílulas.** A forma "exceto" só entra quando é ESTRITAMENTE mais curta — no empate ganha a direta, que diz o que a pessoa marcou sem pedir que quem lê inverta a frase (é o caso de "só as noites": 1 pílula dos dois lados).
+>
+> 👆 **NA GRADE DO EDITOR, "todos exceto" custava VINTE toques** — e o único atalho que existia, "Qualquer horário", **desmarca** tudo, que é o oposto. Agora: botão **"Todos, exceto…"** marca as 21, o **nome do dia** liga/desliga a linha e o **do período** a coluna. Dois toques.
+>
+> ⚠️ **E O SERVIDOR GRAVA ZERO LINHAS QUANDO AS 21 VÊM MARCADAS.** Não é economia: as três réguas de alcance do aviso (`GruposController:939`, `AvisosController:149`, `RaqueteLivreController:248`) já leem `!Any(...) || Any(casa)` — **nenhuma linha JÁ significa "aceita qualquer dia"**. Gravar as 21 seria 21 linhas por jogador pra dizer o que zero linha diz, e o perfil anunciaria uma restrição que não existe.
+>
+> 🕳️ **BURACO ACHADO NO CAMINHO**: o POST aceitava `9|Manhã` e `1|Madrugada` — `int.TryParse` e mais nada. Linha morta que nunca casaria com a consulta do aviso, mas que **CONTA**: bastava uma pro jogador deixar de ser "sem restrição" e **parar de receber convite**. `ResumoDeDiasEHorarios.Normalizar` é a peneira.
+>
+> 🧪 **10 testes, escritos antes; os 2 do servidor VISTOS VERMELHOS** com o flagrante na saída (`DiaSemana = 9`, `Periodo = "Madrugada"`, e as 21 linhas gravadas). **7.023 testes verdes**, 9 conferidores JS verdes.
+>
+> 👁️ **VISTO NO CHROMIUM**, com o Bootstrap e o `site.css` do repositório, e **três ajustes saíram só de olhar**: os cabeçalhos de período saíam em caixa mista ao lado de um "DIA" em caixa-alta (o navegador zera `text-transform` dentro de `<button>`, e `font: inherit` não cobre isso); os atalhos não tinham NENHUMA pista de que eram clicáveis — ganharam sublinhado pontilhado; e os dois botões quebravam um por linha, **medido**: 205,8px + 8 de gap + 161,1px = **374,9px** numa linha de **356**. Daí o rótulo curto "Todos, exceto…" (**149,3px**), com o nome inteiro na dica abaixo da grade.
+> **13/09/2026** — 🔍 **ACHAR UM INSCRITO SEM ROLAR A LISTA: BUSCA POR NOME, FILTRO POR CATEGORIA E ATALHOS DE SITUAÇÃO.** ⏳ **No branch `claude/kind-darwin-rfymwf`.** **Sem migration.**
 >
 > 🗣️ Felipe, com o print do "Gerenciar Inscritos" do 2ª Etapa ER PADEL TOUR aberto no celular: *"aqui no gerenciar escrito esta dificil achar, permita pesquisar por nome, coloque filtro por categoria, deixe melhor essa parte"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
