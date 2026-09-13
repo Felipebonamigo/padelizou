@@ -1475,12 +1475,23 @@ namespace padelizou.Controllers
                 _context.JogadorClubes.Add(new JogadorClube { JogadorId = jogadorId, ClubeId = clubeId });
             }
 
-            foreach (var diaHorario in diasHorariosSelecionados ?? Array.Empty<string>())
+            // ⚠️ A peneira do `Normalizar` é de fronteira de confiança, e não estilo: o POST pode
+            // trazer "9|Manhã" ou "1|Madrugada", que nunca casariam com a consulta do aviso
+            // (`d.Periodo == periodo`) — mas CONTARIAM, e basta uma linha morta pro jogador
+            // deixar de ser "sem restrição" e parar de receber convite.
+            var horariosEscolhidos = ResumoDeDiasEHorarios.Normalizar(diasHorariosSelecionados);
+
+            // As 21 combinações marcadas são "aceito qualquer horário" — exatamente o que
+            // NENHUMA linha já significa pras três réguas de alcance do aviso (GruposController,
+            // AvisosController, RaqueteLivreController: `!Any(...) || Any(casa)`). É o estado em
+            // que o botão "Todos os dias, exceto…" deixa a grade antes de a pessoa desmarcar o
+            // que não serve; gravar as 21 seria guardar 21 linhas por jogador pra dizer o que
+            // zero linha já diz, e ainda fazer o perfil anunciar uma restrição que não existe.
+            if (horariosEscolhidos.Count < ResumoDeDiasEHorarios.TotalDeCombinacoes)
             {
-                var partes = diaHorario.Split('|');
-                if (partes.Length == 2 && int.TryParse(partes[0], out var dia))
+                foreach (var (dia, periodo) in horariosEscolhidos)
                 {
-                    _context.JogadorDiasHorarios.Add(new JogadorDiaHorario { JogadorId = jogadorId, DiaSemana = dia, Periodo = partes[1] });
+                    _context.JogadorDiasHorarios.Add(new JogadorDiaHorario { JogadorId = jogadorId, DiaSemana = dia, Periodo = periodo });
                 }
             }
 

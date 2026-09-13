@@ -553,6 +553,33 @@ a:hover { color: var(--pdz-lime-600); }
     border-color: var(--pdz-lime-600);
 }
 
+/* O nome do dia e o do período viram atalho da linha e da coluna inteiras: "todos os dias,
+   exceto domingo de manhã" custava vinte toques, e agora custa dois. É <button> de verdade, e
+   não <td onclick>, porque assim o Tab chega nele e o leitor de tela anuncia um controle — mas
+   com a aparência do cabeçalho que ele substituiu, senão a grade viraria uma parede de botões. */
+.pdz-atalho-horario {
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    /* O navegador zera `text-transform` e `letter-spacing` dentro de <button>, e `font: inherit`
+       não cobre esses dois. Sem eles o cabeçalho do período saía em caixa mista, do lado de um
+       "DIA" em caixa-alta — o botão denunciava que era outra coisa. */
+    text-transform: inherit;
+    letter-spacing: inherit;
+    padding: .35rem .5rem;
+    min-height: 38px;
+    border-radius: .4rem;
+    cursor: pointer;
+    transition: background-color .12s ease;
+    /* A pista de que o texto é clicável. Sem ela o atalho existe e ninguém acha: o cabeçalho
+       continuava com a cara exata do cabeçalho inerte que sempre foi. */
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--pdz-border);
+}
+.pdz-atalho-horario:hover { background: rgba(163, 216, 39, .14); }
+
 /* No celular o submenu de "Jogos" nascia com 30px de altura — o padrão de alvo de toque é 44px,
    e os itens de primeiro nível do menu já têm 41px. Quem abre o menu está com o celular na mão,
    muitas vezes na beira da quadra.
