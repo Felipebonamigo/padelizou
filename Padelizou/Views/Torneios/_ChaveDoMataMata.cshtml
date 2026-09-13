@@ -154,11 +154,11 @@
             {
                 <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
                     <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
-                    <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
+                    <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla1)</span>
                 </span>
                 <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
                     <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
-                    <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
+                    <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla2)</span>
                 </span>
             }
             else
