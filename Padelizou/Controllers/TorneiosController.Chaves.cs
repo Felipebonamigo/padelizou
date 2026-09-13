@@ -970,7 +970,12 @@ namespace Padelizou.Controllers
 
             static bool EhDeGrupo(Partida p) => p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ");
             var deGrupo = partidas.Where(EhDeGrupo).ToList();
-            var doMataMata = partidas.Where(p => !EhDeGrupo(p)).ToList();
+
+            // ⚠️ NA ORDEM DO QUADRO, E NÃO POR Id (13/09/2026). A régua compara `doMataMata[i]`
+            // com `desenho.Confrontos[i]`, posição a posição — e desde que o jogo pode nascer
+            // fora de ordem, a ordem de criação não é mais a do quadro. Por Id, uma abertura
+            // criada fora de ordem faria esta ação reescrever as duplas dos jogos trocados.
+            var doMataMata = ReservasDeHorario.PorNumeroNaFase(partidas.Where(p => !EhDeGrupo(p)));
 
             // ⚠️ MATA-MATA QUE AINDA NÃO EXISTE NÃO É "NADA A FAZER" — É A HORA CERTA DE CONGELAR.
             //

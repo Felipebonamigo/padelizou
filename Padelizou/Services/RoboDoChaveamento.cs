@@ -351,25 +351,34 @@ public class RoboDoChaveamento
         // Semifinal 1 é "vencedor da Quartas 1 × última vaga" — e a última vaga costuma ser um
         // bye, que já tem dono desde o sorteio).
         //
-        // ⚠️ EM ORDEM DE QUADRO, E ISSO NÃO É CAPRICHO. O número de um jogo dentro da fase é a
-        // ordem de CRIAÇÃO (ReservasDeHorario.NumeroNaFase, por Id), e dela dependem o desenho
-        // da chave (Services/OrdemDoQuadro), a procedência da prévia ("Vencedor Semifinal 2") e
-        // a reserva de horário que o organizador fez no jogo previsto. Deixar a Semifinal 2
-        // nascer antes da 1 por ter terminado primeiro faria as três apontarem pro jogo errado.
-        // Por isso o laço PARA no primeiro confronto que ainda não dá pra montar, em vez de
-        // pular pro seguinte: o preço de uma vaga adiantada seria a chave inteira mentindo.
+        // ⚠️ O LAÇO PULA O QUE AINDA NÃO DÁ PRA MONTAR, EM VEZ DE PARAR (13/09/2026).
         //
-        // ⚠️ E É ESTE CONTADOR que impede a fase de nascer duas vezes — dois finalizamentos
-        // quase simultâneos, ou o organizador reabrindo e refinalizando o mesmo jogo. Antes a
-        // guarda era "a próxima fase já existe?", que não serve mais: agora ela existe pela
-        // metade o tempo todo.
-        int jaCriados = await _context.Partidas
-            .CountAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase);
+        // 🗣️ Felipe, com o print da Semifinal 2 da 4ª Masculina definida e sem palpite: *"O jogo
+        // ja está definido e nao esta aparecendo de novo"*. No ER, as Quartas 2 e 3 tinham
+        // acabado — o que define a Semifinal 2 inteira —, mas a Semifinal 1 esperava o jogo 8,
+        // que estava AO VIVO em 0 x 0. O `break` no i=0 impedia a 2 de nascer, e sem Partida
+        // não há palpite, não há iniciar, não há nada.
+        //
+        // O `break` não era descuido: enquanto o NÚMERO do jogo na fase fosse deduzido da ordem
+        // de criação, a Semifinal 2 nascida primeiro VIRARIA "Semifinal 1", e os sete pontos que
+        // leem esse número passariam a apontar pro jogo errado. Agora o número é GRAVADO
+        // (`Partida.NumeroNaFase`), então a ordem de criação deixou de significar alguma coisa.
+        //
+        // ⚠️ QUEM IMPEDE A FASE DE NASCER DUAS VEZES É O ÍNDICE ÚNICO
+        // (CategoriaId, Fase, NumeroNaFase) — ver DbPadelContext. O contador de antes era lido
+        // ANTES do INSERT, que é justamente a forma que dois encerramentos simultâneos
+        // atravessam. Este `ocupados` evita o trabalho no caso comum; o banco é quem garante.
+        var jaNaFase = await _context.Partidas
+            .Where(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)
+            .ToListAsync();
+        var ocupados = ReservasDeHorario.NumeroNaFase(jaNaFase).Values.ToHashSet();
 
         var novos = new List<Partida>();
-        for (int i = jaCriados; i < vagas.Count / 2; i++)
+        for (int i = 0; i < vagas.Count / 2; i++)
         {
-            if (vagas[i] is not int lado1 || vagas[vagas.Count - 1 - i] is not int lado2) break;
+            int numeroNaFase = i + 1;
+            if (ocupados.Contains(numeroNaFase)) continue;
+            if (vagas[i] is not int lado1 || vagas[vagas.Count - 1 - i] is not int lado2) continue;
 
             novos.Add(new Partida
             {
@@ -379,6 +388,7 @@ public class RoboDoChaveamento
                 Status = "Agendada",
                 Dupla1Id = lado1,
                 Dupla2Id = lado2,
+                NumeroNaFase = numeroNaFase,
                 // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
                 Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
             });

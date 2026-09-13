@@ -31,7 +31,37 @@ public static class ReservasDeHorario
     // a ordem em que o robô grava a rodada, e a mesma com que a prévia e a tela citam o jogo
     // ("Vencedor Quartas de Final 2"). É a chave da reserva do lado do jogo real.
     public static Dictionary<int, int> NumeroNaFase(IEnumerable<Partida> partidas) =>
-        NumeroNaFase(partidas.Select(p => (p.Id, p.CategoriaId, p.Fase)));
+        NumeroNaFase(partidas.Select(p => (p.Id, p.CategoriaId, p.Fase, p.NumeroNaFase)));
+
+    // Os jogos de UMA fase na ORDEM DO QUADRO — a ordem oficial, que desde 13/09/2026 não é
+    // mais a de criação. Os sete pontos que liam `OrderBy(p => p.Id)` passam por aqui.
+    //
+    // ⚠️ `daCategoria` tem que ser a categoria INTEIRA (ou ao menos a fase inteira): numerar
+    // um recorte faz a Semifinal 2 virar "Semifinal 1", que é o mesmo defeito que a sobrecarga
+    // de tuplas existe pra evitar.
+    // Os jogos de mata-mata de uma categoria na ordem do quadro DENTRO DE CADA FASE. Serve a
+    // quem compara posição a posição contra o desenho do cruzamento (o painel e a ação de
+    // "Refazer como previsto"), que só olham uma fase de cada vez.
+    public static List<Partida> PorNumeroNaFase(IEnumerable<Partida> jogos)
+    {
+        var todos = jogos as IReadOnlyCollection<Partida> ?? jogos.ToList();
+        var numero = NumeroNaFase(todos);
+        return todos
+            .OrderBy(p => numero.TryGetValue(p.Id, out var n) ? n : int.MaxValue)
+            .ThenBy(p => p.Id)
+            .ToList();
+    }
+
+    public static List<Partida> NaOrdemDaFase(IEnumerable<Partida> daCategoria, string fase)
+    {
+        var todos = daCategoria as IReadOnlyCollection<Partida> ?? daCategoria.ToList();
+        var numero = NumeroNaFase(todos);
+        return todos
+            .Where(p => p.Fase == fase)
+            .OrderBy(p => numero.TryGetValue(p.Id, out var n) ? n : int.MaxValue)
+            .ThenBy(p => p.Id)
+            .ToList();
+    }
 
     // A MESMA conta a partir só do que ela precisa (Id, categoria, fase) — 10/09/2026.
     //
@@ -41,11 +71,46 @@ public static class ReservasDeHorario
     // prévia, que não é recortada, continuar citando "Vencedor Semifinal 2". A referência
     // apontando pro jogo errado é pior que não numerar.
     public static Dictionary<int, int> NumeroNaFase(IEnumerable<(int Id, int CategoriaId, string Fase)> jogos) =>
+        NumeroNaFase(jogos.Select(j => (j.Id, j.CategoriaId, j.Fase, (int?)null)));
+
+    // ⚠️ O NÚMERO GRAVADO MANDA, e quem não tem é numerado por Id nas sobras — 13/09/2026.
+    //
+    // Desde que o jogo pode nascer fora de ordem (`Partida.NumeroNaFase`), a posição por Id
+    // deixou de ser a verdade. Mas o acervo inteiro tem número nulo, então a dedução antiga
+    // precisa continuar valendo palavra por palavra pra quem não tem.
+    //
+    // ⚠️ E A FASE PODE ESTAR MISTA por uma janela só: os jogos criados ANTES desta mudança
+    // (nulos) e os criados depois (numerados) na mesma fase. Isso tem conserto exato, e não
+    // aproximado: o `break` de antes garantia que os sem número são os PRIMEIROS do quadro,
+    // então dar a eles as menores sobras, em ordem de Id, recoloca cada um no seu lugar.
+    public static Dictionary<int, int> NumeroNaFase(
+        IEnumerable<(int Id, int CategoriaId, string Fase, int? Numero)> jogos) =>
         jogos
             .Where(j => ChaveamentoMataMata.EhFaseDeMataMata(j.Fase))
             .GroupBy(j => new { j.CategoriaId, j.Fase })
-            .SelectMany(g => g.OrderBy(j => j.Id).Select((j, i) => (j.Id, Numero: i + 1)))
+            .SelectMany(NumerarAFase)
             .ToDictionary(x => x.Id, x => x.Numero);
+
+    private static IEnumerable<(int Id, int Numero)> NumerarAFase(
+        IEnumerable<(int Id, int CategoriaId, string Fase, int? Numero)> daFase)
+    {
+        var lista = daFase.OrderBy(j => j.Id).ToList();
+        var ocupados = lista.Where(j => j.Numero is int).Select(j => j.Numero!.Value).ToHashSet();
+
+        int proximaSobra = 1;
+        foreach (var jogo in lista)
+        {
+            if (jogo.Numero is int gravado)
+            {
+                yield return (jogo.Id, gravado);
+                continue;
+            }
+
+            while (ocupados.Contains(proximaSobra)) proximaSobra++;
+            ocupados.Add(proximaSobra);
+            yield return (jogo.Id, proximaSobra);
+        }
+    }
 
     // O resultado de aplicar as reservas aos jogos reais: quem ficou com a hora da reserva (os
     // "intocados" do encaixe que vem depois — quem foi reservado não disputa vaga, e os outros

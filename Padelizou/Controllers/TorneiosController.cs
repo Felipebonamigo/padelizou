@@ -1086,8 +1086,11 @@ namespace Padelizou.Controllers
                                           grupos.Select(g => g.Duplas.Count).ToList());
 
                         var deGrupo = todosOsJogosDeGrupo.Where(p => p.CategoriaId == categoria.Id).ToList();
+                        // ⚠️ NA ORDEM DO QUADRO: a régua compara `doMataMata[i]` com
+                        // `desenho.Confrontos[i]`, posição a posição. Por Id, uma abertura
+                        // criada fora de ordem faria o painel acusar divergência que não existe.
                         var doMataMata = mataMataPorCategoria.TryGetValue(categoria.Id, out var mm)
-                            ? mm.OrderBy(p => p.Id).ToList()
+                            ? ReservasDeHorario.PorNumeroNaFase(mm)
                             : new List<Partida>();
 
                         // A classificação só é necessária quando há chave montada pra comparar —
@@ -1339,7 +1342,7 @@ namespace Padelizou.Controllers
                         // ⚠️ O "por ordem" TAMBÉM tem hora desde 09/09/2026 (ver
                         // Services/OrdemDeLiberacao) — escondê-la aqui deixaria a projeção das
                         // próximas fases muda justamente pro torneio que mais precisa dela.
-                        p.HorarioPrevisto)).ToList(),
+                        p.HorarioPrevisto, p.NumeroNaFase)).ToList(),
                     byes!,
                     porCategoria.First().Categoria.Nome,
                     porCategoria.Key));
@@ -1425,14 +1428,20 @@ namespace Padelizou.Controllers
             List<ProximasFasesDaChave.JogoQueVem> projetados, List<Partida> todas, int jogadorId)
         {
             // A ORDEM DENTRO DA FASE precisa ser a mesma que a projeção usou pra numerar
-            // ("Vencedor Quartas de Final 1"), que é a mesma do avanço de verdade: por Id.
+            // ("Vencedor Quartas de Final 1"), que é a mesma do avanço de verdade — e desde
+            // 13/09/2026 esse número sai do que está GRAVADO quando existe, não da ordem de Id.
+            var numeroNaFase = ReservasDeHorario.NumeroNaFase(todas);
             var reais = todas
                 .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
-                .GroupBy(p => new { p.CategoriaId, p.Fase })
-                .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => new MeusJogos.JogoReal(
-                    p.Categoria?.Nome ?? "", p.Fase, i + 1,
+                // ⚠️ `TryGetValue`, e não `[p.Id]`: indexar direto transformaria uma lista
+                // recortada (ou uma fase que o `EhFaseDeMataMata` e o `NumeroNaFase` lessem
+                // diferente um dia) em KeyNotFoundException na página do torneio. O 0 é inerte
+                // — nenhum número de fase é 0, então ele não casa com procedência nenhuma.
+                .Select(p => new MeusJogos.JogoReal(
+                    p.Categoria?.Nome ?? "", p.Fase,
+                    numeroNaFase.TryGetValue(p.Id, out var numero) ? numero : 0,
                     EstouNesteJogo(p, jogadorId),
-                    p.Status == "Finalizada" && p.VencedorId != null && !EstaNaDupla(p, p.VencedorId.Value, jogadorId))))
+                    p.Status == "Finalizada" && p.VencedorId != null && !EstaNaDupla(p, p.VencedorId.Value, jogadorId)))
                 .ToList();
 
             // Quem folgou a primeira rodada aparece na projeção pelo NOME, não por

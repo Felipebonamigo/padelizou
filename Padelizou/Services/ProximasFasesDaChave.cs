@@ -29,7 +29,11 @@ namespace Padelizou.Services;
 public static class ProximasFasesDaChave
 {
     // O que a projeção precisa saber de uma partida já existente.
-    public record PartidaDaChave(int Id, string Fase, string Dupla1, string Dupla2, DateTime? Horario);
+    // ⚠️ `NumeroNaFase` ANDA JUNTO desde 13/09/2026: sem ele a projeção voltaria a numerar a
+    // fase pela ordem de Id, e um jogo nascido fora de ordem seria citado pelo número errado
+    // ("Vencedor Semifinal 1" apontando pra Semifinal 2). Nulo = deduz, como sempre foi.
+    public record PartidaDaChave(int Id, string Fase, string Dupla1, string Dupla2, DateTime? Horario,
+                                 int? NumeroNaFase = null);
 
     // Um lado do confronto que ainda não tem dono: ou a dupla que passou direto (bye, e aí
     // tem nome), ou a procedência ("Vencedor Quartas de Final 1", "1º do Grupo A").
@@ -79,8 +83,19 @@ public static class ProximasFasesDaChave
     // (avanço parcial, 11/09/2026: a Semifinal 1 é real e só a 2 é projeção). Sem ele a
     // Semifinal 2 seria emitida como "Semifinal 1" e a reserva de horário do organizador, que
     // é guardada por (categoria, fase, número), cairia no jogo errado.
+    // ⚠️ OS NÚMEROS, E NÃO "O PRIMEIRO + CONTÍGUOS" (13/09/2026). Desde que o jogo nasce assim
+    // que as duas vagas dele têm dono, a parte REAL de uma fase deixou de ser um prefixo: pode
+    // ser a Semifinal 2 sozinha, com a 1 ainda por vir. Um "primeiro número" não descreve mais
+    // o que sobrou pra projetar, e a reserva de horário do organizador — guardada por
+    // (categoria, fase, número) — cairia no jogo errado.
+    //
+    // Nulo = 1..N contíguo, que é o caso de toda fase inteiramente futura.
     public record RodadaQueVem(string Fase, IReadOnlyList<(Lado Lado1, Lado Lado2)> Confrontos,
-                               int PrimeiroNumero = 1);
+                               IReadOnlyList<int>? NumerosExplicitos = null)
+    {
+        public IReadOnlyList<int> Numeros =>
+            NumerosExplicitos ?? Enumerable.Range(1, Confrontos.Count).ToList();
+    }
 
     // O caminho de UMA categoria até a final. `DepoisDe` é o último jogo que já tem hora e
     // que alimenta a primeira rodada projetada — dele sai a folga de abertura.
@@ -112,9 +127,18 @@ public static class ProximasFasesDaChave
         var primeiraFase = FaseMenosAdiantada(partidasDeMataMata);
         if (primeiraFase == null) return CadeiaDeFases.Vazia;
 
+        // A MESMA ordem do avanço de verdade — a do quadro, que desde 13/09/2026 sai do número
+        // gravado quando existe, e não da ordem de criação.
+        //
+        // A categoria é uma só aqui (o chamador agrupa antes), então o 0 fixo serve de chave
+        // de agrupamento: quem separa é a FASE.
+        var numeroNaFase = ReservasDeHorario.NumeroNaFase(
+            partidasDeMataMata.Select(p => (p.Id, 0, p.Fase, p.NumeroNaFase)));
+
         var daFase = partidasDeMataMata
             .Where(p => p.Fase == primeiraFase)
-            .OrderBy(p => p.Id)          // a MESMA ordem do avanço de verdade
+            .OrderBy(p => numeroNaFase.TryGetValue(p.Id, out var n) ? n : int.MaxValue)
+            .ThenBy(p => p.Id)
             .ToList();
 
         // Cada jogo da primeira fase entrega um vencedor — citado pelo NÚMERO dele naquela
@@ -127,7 +151,11 @@ public static class ProximasFasesDaChave
         // Quantos jogos cada fase JÁ TEM de verdade: a projeção não repete o que existe.
         var jaSaoReais = partidasDeMataMata
             .GroupBy(p => p.Fase)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(p => numeroNaFase.TryGetValue(p.Id, out var n) ? n : 0)
+                      .Where(n => n > 0)
+                      .ToHashSet());
 
         return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata),
             Encadear(lados, jaSaoReais), categoriaId);
@@ -171,7 +199,12 @@ public static class ProximasFasesDaChave
         var primeira = new RodadaQueVem(fase, confrontos
             .Skip(jaReais)
             .Select(c => (VagaDeGrupo(c.Lado1), VagaDeGrupo(c.Lado2)))
-            .ToList(), jaReais + 1);
+            .ToList(),
+            // A ABERTURA CONTINUA SENDO PREFIXO: ela nasce grupo a grupo, sempre em ordem de
+            // quadro (RoboDoChaveamento.MontarAberturaDesenhadaAsync), então "os `jaReais`
+            // primeiros" descreve exatamente o que já existe. Os números vão explícitos assim
+            // mesmo pra que a fase inteira fale a mesma língua.
+            Enumerable.Range(jaReais + 1, confrontos.Count - jaReais).ToList());
 
         var proximos = confrontos
             .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
@@ -200,7 +233,7 @@ public static class ProximasFasesDaChave
     // ocupa a vaga da rodada seguinte. Sem essa separação, a fase criada pela metade pelo
     // avanço parcial apareceria duas vezes na tela, ou sumiria inteira.
     private static List<RodadaQueVem> Encadear(
-        List<Lado> lados, IReadOnlyDictionary<string, int>? jaSaoReais = null)
+        List<Lado> lados, IReadOnlyDictionary<string, HashSet<int>>? jaSaoReais = null)
     {
         var rodadas = new List<RodadaQueVem>();
 
@@ -216,9 +249,20 @@ public static class ProximasFasesDaChave
             var fase = ChaveamentoMataMata.NomeFase(lados.Count);
             var confrontos = Parear(lados);
 
-            int reais = jaSaoReais?.GetValueOrDefault(fase) ?? 0;
-            if (reais < confrontos.Count)
-                rodadas.Add(new RodadaQueVem(fase, confrontos.Skip(reais).ToList(), reais + 1));
+            // ⚠️ POR NÚMERO, E NÃO POR CONTAGEM. Com o avanço fora de ordem, os jogos já reais
+            // de uma fase são um CONJUNTO qualquer de números — a Semifinal 2 pode existir com
+            // a 1 ainda por vir. `Skip(reais)` descartaria a 1 e emitiria a 2, que já existe:
+            // a tela mostraria o mesmo jogo duas vezes e esconderia o que falta.
+            var reais = jaSaoReais?.GetValueOrDefault(fase) ?? new HashSet<int>();
+            var faltam = confrontos
+                .Select((c, i) => (Confronto: c, Numero: i + 1))
+                .Where(x => !reais.Contains(x.Numero))
+                .ToList();
+
+            if (faltam.Count > 0)
+                rodadas.Add(new RodadaQueVem(fase,
+                    faltam.Select(x => x.Confronto).ToList(),
+                    faltam.Select(x => x.Numero).ToList()));
 
             lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1)).ToList();
 
@@ -330,9 +374,7 @@ public static class ProximasFasesDaChave
         foreach (var r in reservas ?? Array.Empty<HorarioReservado>())
         {
             var cadeiaQueEmite = vivas.FirstOrDefault(c => c.CategoriaId == r.CategoriaId
-                && c.Rodadas.Any(rod => rod.Fase == r.Fase
-                    && r.Numero >= rod.PrimeiroNumero
-                    && r.Numero < rod.PrimeiroNumero + rod.Confrontos.Count));
+                && c.Rodadas.Any(rod => rod.Fase == r.Fase && rod.Numeros.Contains(r.Numero)));
             if (cadeiaQueEmite == null) continue;
 
             // ⚠️ RESERVA QUE FICOU PRA TRÁS NÃO TOMA VAGA (revisão adversarial, 10/09/2026): a fase
@@ -515,7 +557,7 @@ public static class ProximasFasesDaChave
                 // A que deixou de ser (o torneio atrasou e a fase anterior passou dela) volta pra
                 // grade como qualquer jogo — e a tela mostra a hora possível, não a prometida.
                 if (cadeia.CategoriaId is int categoriaDaReserva
-                    && reservadas.Remove((categoriaDaReserva, rodada.Fase, rodada.PrimeiroNumero + i), out var reserva))
+                    && reservadas.Remove((categoriaDaReserva, rodada.Fase, rodada.Numeros[i]), out var reserva))
                 {
                     if (ReservasDeHorario.Vale(reserva.Horario, abreARodada))
                     {
@@ -549,7 +591,7 @@ public static class ProximasFasesDaChave
                     quando = h;
                 }
 
-                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, rodada.PrimeiroNumero + i, quando,
+                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, rodada.Numeros[i], quando,
                     rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra, cadeia.CategoriaId,
                     ClubeId: ClubeDoSlot(quando, quadra)));
 
