@@ -6238,9 +6238,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                            ⚠️ Aparece só DEPOIS de publicada — antes disso quem manda é o bloco de
                            chaveamento à mão, logo acima. A ação recusa de novo do lado de lá. *@
+                        @* ⚠️ E SÓ QUANDO O CLIQUE MUDA ALGUMA COISA (13/09/2026). 🗣️ Felipe, com
+                           as 7 categorias do ER já conferidas e o painel em todas: "acho que podemos
+                           ocultar isso agora que resolveu, não?". Quem decide é a MESMA régua da
+                           ação (Services/RefazerComoPrevisto), calculada no controller — duas cópias
+                           voltariam a discordar, e o painel prometeria o que o POST recusa. *@
+                        @{
+                            // ⚠️ Numa variável, e com CAST, antes do `if`: o `ViewBag` é `dynamic`,
+                            // e um `is ... out var` dentro de uma condição dinâmica não passa na
+                            // análise de atribuição definida do compilador (CS0165).
+                            var painelDeRefazer = ViewBag.RefazerPrevistoPorCategoria as Dictionary<int, bool>;
+                            bool mostraORefazer = painelDeRefazer != null
+                                && painelDeRefazer.TryGetValue(categoria.Id, out var vale) && vale;
+                        }
                         @if (ViewBag.PodeAprovarChaves == true
                              && Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model)
-                             && categoria.GruposTorneio.Count > 0)
+                             && categoria.GruposTorneio.Count > 0
+                             && mostraORefazer)
                         {
                             var gruposPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Nome).ToList();
                             var tamanhosPrevisto = categoria.GruposTorneio.OrderBy(g => g.Nome).Select(g => g.Duplas.Count).ToList();
