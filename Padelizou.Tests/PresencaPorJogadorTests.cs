@@ -179,8 +179,9 @@ public class PresencaPorJogadorTests
     [Theory]
     [InlineData("Details", "Details", "jogosDoTorneio")]
     [InlineData("Jogos", "Jogos", null)]
-    [InlineData(null, "CheckIn", null)]
-    [InlineData("https://exemplo.invalido/roubado", "CheckIn", null)]
+    // O destino de sobra virou a página do torneio quando a tela de Check-in saiu (13/09).
+    [InlineData(null, "Details", "jogosDoTorneio")]
+    [InlineData("https://exemplo.invalido/roubado", "Details", "jogosDoTorneio")]
     public async Task O_clique_volta_pra_tela_de_onde_saiu(string? voltarPara, string acao, string? ancora)
     {
         using var ctx = TestInfra.NovoContexto();
@@ -256,25 +257,10 @@ public class PresencaPorJogadorTests
         Assert.False(chegadas.ContainsKey((jogo.Id, duplas[0].Jogador2Id!.Value)));
     }
 
-    [Fact]
-    public async Task A_tela_de_check_in_conta_JOGADORES_e_nao_duplas()
-    {
-        // Um jogo com 2 duplas = 4 VAGAS de check-in. Com um jogador marcado, a barra diz 1 de 4.
-        //
-        // ⚠️ O DENOMINADOR PASSOU A SER VAGA (jogo × jogador), e não pessoa (12/09/2026): com a
-        // presença por jogo, quem joga duas categorias tem DOIS checks a dar, e contá-lo uma vez
-        // faria a barra fechar com gente ainda por marcar.
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, categoria, organizador, duplas) = Montar(ctx);
-        var jogo = Jogo(ctx, torneio, categoria, duplas[0], duplas[1]);
-        var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
-        await controller.MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true);
-
-        var view = Assert.IsType<ViewResult>(await controller.CheckIn(torneio.Id));
-
-        Assert.Equal(4, view.ViewData["TotalDeJogadores"]);
-        Assert.Equal(1, view.ViewData["JogadoresPresentes"]);
-    }
+    // ⚠️ AQUI VIVIA O `A_tela_de_check_in_conta_JOGADORES_e_nao_duplas` — o contador da barra
+    // "N de M presentes". A tela de Check-in saiu em 13/09/2026 (🗣️ *"acho que esse checkin
+    // aqui em cima tb nao precisa mais"*), e com ela a barra. O que sobrou é a bolinha na linha
+    // do jogo, que não conta nada: mostra o estado de cada pessoa naquele jogo, uma por uma.
 
     // ── A LINHA DO JOGO ──────────────────────────────────────────────────────────────────
 
@@ -294,7 +280,7 @@ public class PresencaPorJogadorTests
     public void O_formulario_que_grava_presenca_mora_num_lugar_so()
     {
         Assert.Contains("asp-action=\"MarcarCheckIn\"", Ler("_BotaoDoCheckIn.cshtml"));
-        foreach (var outra in new[] { "_JogoEmLinha.cshtml", "_LinhaDoCheckIn.cshtml", "CheckIn.cshtml", "_JogoNoCheckIn.cshtml" })
+        foreach (var outra in new[] { "_JogoEmLinha.cshtml", "_JogosDoTorneio.cshtml" })
             Assert.DoesNotContain("asp-action=\"MarcarCheckIn\"", Ler(outra));
     }
 

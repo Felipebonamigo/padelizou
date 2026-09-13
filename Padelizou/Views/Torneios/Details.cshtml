@@ -929,12 +929,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         <a asp-action="Jogos" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill">
             <i class="bi bi-list-ol"></i> Jogos
         </a>
-        @if (Model.UsaCheckIn)
-        {
-            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill">
-                <i class="bi bi-person-check"></i> Check-in
-            </a>
-        }
     </div>
 }
 
