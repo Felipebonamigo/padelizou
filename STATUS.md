@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
+> Última atualização: **13/09/2026** — ⏳ **NO BRANCH, indo pro ar.** **Sem migration.** 🧹 **A TELA "CHECK-IN DO DIA" SAIU — A CHAMADA VIVE NA LINHA DO JOGO.**
+>
+> 🗣️ Felipe, num print das Ferramentas do Organizador: *"acho que esse checkin aqui em cima tb nao precisa mais"*. E, no mesmo fôlego, a pergunta que importava: *"mas tem q manter nos agendados, vc manteve?"* — **mantive**. São duas coisas diferentes, e só uma saiu.
+>
+> ✅ **O QUE FICA**: a bolinha do lado de cada jogador, na linha do jogo **agendado**, dentro da aba Jogos (`bolinhaDoCheckIn = EhOrganizador && UsaCheckIn && ehAgendado`). É ali que a chamada acontece desde 12/09, e não se encostou nela.
+>
+> 🧹 **O QUE SAI**: o botão nas Ferramentas do Organizador, o link do `Details`, a view `CheckIn.cshtml`, os parciais `_JogoNoCheckIn` e `_LinhaDoCheckIn`, e a ação `CheckIn` do controller. A tela listava os mesmos jogos uma segunda vez e cobrava um desvio pra chegar neles — foi o segundo pedaço dela a cair no mesmo dia (o "Resto do torneio" saiu de manhã).
+>
+> ⚠️ **O QUE SE PERDE, E FOI ESCOLHA DELE entre três opções**: marcar presença em jogo que **já entrou em quadra ou já acabou**. A bolinha é só nos agendados, e jogo que começou respondeu a pergunta em quadra — quem não apareceu levou W.O. Marcar depois só servia pra corrigir engano.
+>
+> 🔑 **O POST NÃO SAIU** — o `MarcarCheckIn` continua vivo, com a Regra 0 inteira. O que caiu foi a tela de LEITURA. Mas o **destino padrão** do redirect era ela: virou a página do torneio na aba Jogos, que é de onde todo clique de presença sai hoje.
+>
+> ⚠️ **UM TESTE MUDOU DE LADO**: o `O_card_mora_num_arquivo_so_e_leva_o_comunicado_junto` **exigia** o `asp-action="CheckIn"` no card. Agora ele exige a **ausência** — voltar a pendurar ali um atalho pra uma tela que não existe é 404 no card mais visível do organizador.
+>
+> 🧪 **6.996 testes, 0 falhas** + os 9 conferidores de JS. Três testes foram apagados de propósito, todos da tela que saiu, e cada um deixou no lugar um comentário dizendo onde a verdade dele foi morar: o `CheckInPorJogoTests` inteiro (o layout da tela), os dois de abrir/recusar do `CheckInOpcionalTests` (o interruptor nunca foi da tela, era da gravação — e os dois testes do POST já guardavam isso), e o contador `A_tela_de_check_in_conta_JOGADORES_e_nao_duplas` (a barra saiu junto com a tela).
+
+> **12/09/2026** — ⌨️ **O TECLADO DE EMOJI, IGUAL AO DO WHATSAPP.** ⏳ **NO BRANCH `claude/practical-hawking-cimh77`, ainda não publicado.** **Sem migration.**
 >
 > 🗣️ Felipe, com um print do WhatsApp no celular — a barra de reação rápida por cima da mensagem e, embaixo, o teclado inteiro com busca, FREQUENTES e categorias: *"os emojis tem q abrir igual esse do whats com o teclado de emojis"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
