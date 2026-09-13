@@ -191,6 +191,64 @@ public class ConfrontoDefinidoJaEhJogoTests
             new[] { final.Dupla1Id, final.Dupla2Id }.OrderBy(x => x).ToArray());
     }
 
+    // ── E A PROMESSA INTEIRA, NÃO SÓ A LINHA NO BANCO ──────────────────────────────────
+    //
+    // 🗣️ Felipe, 13/09/2026: *"Lembre se q no momento que definir as duas duplas o jogo esta
+    // definido, e as pessoas ja podem palpitar e se o organizador quiser iniciar, ele pode
+    // tambem"*.
+    //
+    // A Partida existir é meio caminho. Estes dois testes fixam o que o pedido realmente é —
+    // que as DUAS PORTAS aceitem o jogo nascido fora de ordem. Hoje aceitam porque nenhuma
+    // delas olha a fase (o palpite exige `Status == "Agendada"`, a largada só checa
+    // autorização); amanhã alguém pode acrescentar uma trava de fase sem perceber que é
+    // justamente aqui que ela morderia.
+
+    [Fact]
+    public async Task As_pessoas_ja_podem_palpitar_no_jogo_nascido_fora_de_ordem()
+    {
+        var (ctx, torneio, categoria, orgId) = await ComAsQuartasMontadasAsync();
+        using var _ctx = ctx;
+
+        await VencerQuartaAsync(ctx, orgId, categoria.Id, 2, 9, 8);
+        await VencerQuartaAsync(ctx, orgId, categoria.Id, 3, 4, 9);
+
+        var semi = (await DaFaseAsync(ctx, categoria.Id, "Semifinal")).Single();
+
+        // Um palpiteiro que não está em nenhuma das duas duplas (os quatro jogadores da própria
+        // partida ficam de fora da conta do palpitômetro).
+        var dePalpiteiro = await ctx.Jogadores
+            .Where(j => j.Id != orgId)
+            .Select(j => j.Id)
+            .ToListAsync();
+        var duplasDaSemi = await ctx.Duplas
+            .Where(d => d.Id == semi.Dupla1Id || d.Id == semi.Dupla2Id)
+            .ToListAsync();
+        var dentro = duplasDaSemi.SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id }).ToHashSet();
+        int palpiteiro = dePalpiteiro.First(id => !dentro.Contains(id));
+
+        var resumo = await new PalpiteService(ctx).RegistrarVotoAsync(semi.Id, palpiteiro, semi.Dupla1Id);
+
+        Assert.Equal(1, resumo.TotalVotos);
+    }
+
+    [Fact]
+    public async Task E_o_organizador_pode_dar_a_largada_nele()
+    {
+        var (ctx, torneio, categoria, orgId) = await ComAsQuartasMontadasAsync();
+        using var _ctx = ctx;
+
+        await VencerQuartaAsync(ctx, orgId, categoria.Id, 2, 9, 8);
+        await VencerQuartaAsync(ctx, orgId, categoria.Id, 3, 4, 9);
+
+        var semi = (await DaFaseAsync(ctx, categoria.Id, "Semifinal")).Single();
+
+        await TestInfra.NovoPartidasController(ctx, orgId).ColocarNoAr(semi.Id);
+
+        var depois = await ctx.Partidas.FindAsync(semi.Id);
+        Assert.Equal("AoVivo", depois!.Status);
+        Assert.NotNull(depois.HorarioInicioReal);
+    }
+
     [Fact]
     public void Duas_partidas_nao_podem_ser_a_mesma_semifinal_2()
     {
