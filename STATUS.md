@@ -1,7 +1,45 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
+> Última atualização: **14/09/2026** — ✂️ **TRÊS CORTES E UM BECO: A ARTE CORTADA NA TELA, O NOME CORTADO DENTRO DO PNG E O "HTTP ERROR 400" DE QUEM VOTAVA NO MVP.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1366-15bf927`** (runs **34841285885** e **34841434159**), **o mesmo artefato nos dois**, com a tag explícita. PR #298. **Sem migration.**
+>
+> ⚠️ **O BUILD FOI FIXADO, E NÃO "O MAIS RECENTE"**: entre o merge e o deploy o `main` andou dois PRs (#297 no `build-1368`, #299 no `build-1369`). Subir o mais recente levaria pra produção trabalho de outra sessão que esta aqui não conferiu. **Os dois seguem mesclados e NÃO publicados** — quem for publicar a seguir leva os três juntos.
+>
+> 🗣️ Três prints do Felipe no mesmo dia, e **três defeitos diferentes**, o que só ficou claro medindo: *"Foto cortada aqui"*, *"Aqui tambem"* e *"Após votar no melhor do torneio"* / *"Na segunda tentativa deu bom"*.
+>
+> 🕳️ **1. A ARTE CORTADA ERA CSS, E É UMA ARMADILHA QUE JÁ TINHA MORDIDO ESTE REPOSITÓRIO** (a tela de erro, e o comentário dela está lá desde então): `img-fluid` põe `max-width:100%` por **classe**; `style="max-width: 380px"` é **inline**. Mesma propriedade, inline vence — a classe que deveria encolher estava simplesmente desligada. Medido no Chromium com o Bootstrap do repositório: a 390px a caixa tem **365,5px** e a arte sai com **380px**; a 320px, **101,8px** de sobra.
+>
+> ⚠️ **E O CORTE ERA INVISÍVEL**, que é o que o tornava caro: o cartão de fora tem `overflow-hidden`, então `scrollWidth == clientWidth` — **a página não rola de lado**, não há barra, não há gesto, não há pista. E `mx-auto` não centraliza o que não cabe, por isso só o lado DIREITO some. Quem vê acha que a arte é assim.
+>
+> 🔧 `max-width: min(Npx, 100%)` — idioma que **já existia aqui** (`CompartilharJogos.cshtml`), preferido ao `width:100%` da tela de erro porque não força upscale de imagem pequena (o QR do Pix agradece). **13 imagens, uma linha cada**: as 10 artes de `Views/Cartoes` (cortadas de verdade) e 3 com a mesma armadilha sem cortar ainda.
+>
+> 🕳️ **2. O PÓDIO CORTAVA DENTRO DO PNG, e isso é OUTRA COISA**: lá quem cortava era a tela e a arte baixada saía inteira; aqui o corte ia junto pro story. A causa é o chão do `TamanhoQueCabe`: ele encolhe por regra de três até caber, mas termina em `Math.Max(tamanhoMinimo, proporcional)` — **quando nem o mínimo cabe, devolve o mínimo assim mesmo** e o Skia pinta até a borda do canvas. Sem erro, sem log, sem reticências. A linha dos semifinalistas media **1205px numa caixa de 940**.
+>
+> 🔑 **ENCOLHER NÃO SALVAVA, E É QUESTÃO DE ORDEM DE GRANDEZA**: são QUATRO nomes nessa linha, e caber pediria corpo **18,7** — ilegível num story. O corte certo é a **dupla**, não a palavra (`QuebrarEmLinhas` separaria "Alexandre / Costa"): a dupla já é a unidade e o `·` existe só pra emendá-las. Linha única segue preferida enquanto couber **de verdade**, então pódio de nome curto sai idêntico ao que já saía.
+>
+> 🔎 **E O CARD DE CAMPEÕES JÁ VAZAVA, com dado DESTE torneio** — achado só porque o teste novo foi apontado pra ele. Na caixa de 920px, corpo 30: `Lucas Almeida (Foka) & Alexandre Costa (Camomila)` **917** (3px de folga), `Felipe Bonamigo & Guilherme Bagesteiro` **921**, `Alexandre Costa (Camomila) & Alexandre Longhi (Xandy)` **922**, `Anderson Schwaab (Andersinho) & Charls Polese (Charlinho)` **971**. **O que alonga é o APELIDO**: o `ComoChamar` já encurta "Anderson Matteus Schwaab" pra "Anderson Schwaab", mas "(Andersinho)" entra inteiro e nada o corta. Piso 30 → 24.
+>
+> ⚠️ **O `TamanhoQueCabe` NÃO FOI MEXIDO, e isso é decisão**: 44 chamadas de 12 cards passam por ele, e baixar o piso lá trocaria um defeito visível por doze invisíveis. Quem sabe o que fazer com "não coube" é quem DESENHA, e a resposta muda por card. O comentário de lá agora diz isso e aponta pro gate.
+>
+> 🕳️ **3. O 400 CRU DO CARIMBO — e o diagnóstico saiu por ELIMINAÇÃO, sem acesso ao log**: o `UseStatusCodePagesWithReExecute` só vale pra GET/HEAD (decisão de 18/08), então um GET com 400 viraria a tela amiga — **a tela crua do navegador só sai de um POST**. E no `POST /Torneios/VotarMvp` a única coisa que devolve 400 de corpo VAZIO é o carimbo global: o controller não é `[ApiController]` (sem 400 automático de binding), a trava devolve 429 **com** corpo, e não há `BadRequest()` nenhum no caminho.
+>
+> 🔑 **O VOTO NUNCA CHEGOU A SER GRAVADO**: o carimbo é filtro de **autorização**, corta antes da ação. Ninguém votou duas vezes — valeu o da segunda tentativa, e o motivo de ela dar certo é que reabrir a página emite carimbo novo.
+>
+> 🔧 Um `IAlwaysRunResultFilter` troca o 400 sem corpo por uma tela com menu, explicação e caminho de volta. `IResultFilter` comum **não serviria**: filtro de resultado normal não roda quando um filtro de autorização corta a requisição. O `IAntiforgeryValidationFailedResult` (em `Mvc.Core.Infrastructure`, não em `Mvc`) é o marcador que a própria documentação manda casar dentro de result filter.
+>
+> 🔒 **O QUE NÃO MUDOU, e é a régua pra ler o diff**: status continua **400**, ação continua sem rodar, **zero `[IgnoreAntiforgeryToken]` novo** — o `ProtecaoAntifalsificacaoTests` segue com as mesmas 3 isenções. Mudou o CORPO da resposta. ⚠️ E mexer no `UseStatusCodePagesWithReExecute` era o caminho óbvio e o **errado**: ele é GET/HEAD de propósito porque o re-execute preserva o método, e foi isso que fazia o webhook de pagamento responder 400 no lugar de 401.
+>
+> 🔑 **E SÓ PRA QUEM NAVEGA** (`Sec-Fetch-Mode: navigate`, a mesma distinção que o `RegistroDeAcessoMiddleware` e o `sw.js` já fazem): quem chama por `fetch` — o placar ao vivo, a Mesa — continua recebendo o **400 cru**. Devolver HTML pra quem só olha `resposta.ok` trocaria um defeito visível por um calado. ⚠️ O "voltar" sai do `Referer`, que é escrito pelo navegador de quem chama: só passa o **mesmo host**, e o que vai pro `href` é sempre caminho relativo. ⚠️ A tela **não** diz "sessão expirada" (a sessão dura 90 dias e não é ela que vence) e diz **"Nada foi gravado"** — quem cai ali acabou de tocar em Votar ou Pagar.
+>
+> 🧪 **3 arquivos de teste novos, todos vistos VERMELHOS antes**, cada um por um motivo diferente e certo: o de CSS **nomeando as 13 imagens**; o de PNG em **y=1003..1021**, a faixa exata da linha dos semifinalistas; e o do filtro com "não existe". ⚠️ **O terceiro foi conferido por FALSIFICAÇÃO, não por passar**: tirando a checagem de `Sec-Fetch-Mode` o teste do `fetch` fica vermelho, e trocando o 400 por 200 o da navegação. **7.045 testes verdes**, 10 conferidores JS verdes.
+>
+> 🔍 **O TESTE DO PNG OLHA PIXEL, e não a conta** — pela própria definição dele o `TamanhoQueCabe` está certo; o que está errado é o que **aparece na arte**, e a arte é o produto. Ele mede tinta na margem do PNG pronto, então trava o defeito sem depender de como ele venha a ser resolvido.
+>
+> ✅ **CONFERIDO NO `prod` COM DADO DE VERDADE, e não só com o status do workflow**: as **7 artes do pódio do torneio 26 baixadas da produção** e passadas pelo mesmo gate de margem — todas limpas dos dois lados; a página serve o teto novo em **7 categorias e zero do antigo**; `POST /Auth/Login` sem carimbo com `Sec-Fetch-Mode: navigate` → **400 `text/html` com 16.678 bytes**, "Nada foi gravado" e o botão apontando pro `/Torneios/Mvp/42` do Referer; o mesmo por `fetch` → **400 `content-length: 0`**; e com Referer de domínio de fora, **zero ocorrência dele na página**. `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR PELO CAMINHO ÓBVIO**: o portão de Acesso Antecipado redireciona (302) antes de o carimbo rodar, então o teste tem que sair por um caminho da lista de liberados (`/Auth/Login`). Quem for conferir isso de novo e vir 302, não é defeito — é o portão.
+>
+> **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
 >
 > 🗣️ Felipe, repassando um usuário: *"as vezes o video do youtube trava no site, nao sei se é algo do youtube ou do site"*. **É do site.** É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
