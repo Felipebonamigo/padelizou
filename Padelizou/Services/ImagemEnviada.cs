@@ -378,6 +378,15 @@ public sealed record FormatoDeImagem(int LadoMaximo, int Qualidade)
     // justamente o que aparece primeiro quando se comprime demais.
     public static readonly FormatoDeImagem LogoTime = new(512, 95);
 
+    // A FOTO QUE ENTRA NA ARTE DO JOGO PRO STORY (14/09/2026). Nunca vai pro disco: é o único
+    // formato daqui usado só pelo `Recodificar`, nunca pelo `SalvarAsync`.
+    //
+    // 1200 com a moldura medindo 900: a folga existe porque a foto é RECORTADA pelo centro
+    // (ver CartaoCompartilhavel.FotoEmMoldura) — encolher pra exatamente 900 deixaria a parte
+    // aproveitada abaixo do tamanho da moldura, e o recorte sairia ampliado e borrado. A
+    // qualidade é alta porque é uma foto de pessoa que vai ser vista em tela cheia.
+    public static readonly FormatoDeImagem FotoDaArte = new(1200, 90);
+
     // Banner no topo da página do torneio — o único que ocupa a largura toda da tela.
     public static readonly FormatoDeImagem CapaTorneio = new(1600, 82);
 }

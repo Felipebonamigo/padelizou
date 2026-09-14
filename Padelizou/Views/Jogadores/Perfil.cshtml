@@ -236,11 +236,17 @@
                  && (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular)))
             {
                 <div class="d-flex justify-content-center gap-2 flex-wrap">
-                    @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))
+                    @* ⚠️ O endereço e o texto saem de Services/ArrobaDoInstagram desde
+                       14/09/2026. Antes eram dois `TrimStart('@')` escritos à mão aqui, e o
+                       campo é TEXTO LIVRE no cadastro — o que estivesse guardado ia direto pro
+                       `href`. A régua confere a forma inteira (a do próprio Instagram), e o que
+                       não for @ de verdade não vira botão: link quebrado é pior que link nenhum,
+                       e "javascript:..." guardado no campo rodaria na sessão de quem clicasse. *@
+                    @if (Padelizou.Services.ArrobaDoInstagram.Link(Model.jogador.Instagram) is { } enderecoDoInstagram)
                     {
-                        <a href="https://instagram.com/@(Model.jogador.Instagram.TrimStart('@'))" target="_blank" rel="noopener"
+                        <a href="@enderecoDoInstagram" target="_blank" rel="noopener"
                            class="btn btn-sm btn-outline-secondary rounded-pill">
-                            <i class="bi bi-instagram"></i> @@@(Model.jogador.Instagram.TrimStart('@'))
+                            <i class="bi bi-instagram"></i> @Padelizou.Services.ArrobaDoInstagram.ParaMostrar(Model.jogador.Instagram)
                         </a>
                     }
                     @if (!string.IsNullOrWhiteSpace(Model.jogador.Celular))

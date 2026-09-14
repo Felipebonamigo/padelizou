@@ -1,0 +1,100 @@
+@model List<Padelizou.Models.Partida>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    ViewData["Title"] = $"Artes pro story — {torneio.Nome} - Padelizou";
+}
+@*
+    A LISTA DE JOGOS PRA GERAR ARTE (14/09/2026).
+
+    ⚠️ SEM `og:image` e SEM prévia de link, ao contrário das telas do CartoesController: a arte
+    imprime o @ de quatro pessoas, e a prévia é buscada pelo servidor da Meta SEM SESSÃO — é
+    exatamente por ali que o dado vazaria. Ver a taxonomia no cabeçalho do CartoesController.
+
+    O JOGO MAIS RECENTE EM CIMA, e a ordem é o recurso (ver JogosParaArte.DoTorneioAsync): quem
+    abre esta tela acabou de ver um jogo ser jogado e vai fotografar a dupla na rede.
+*@
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-action="Details" asp-route-id="@torneio.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-instagram"></i> Artes pro story
+    </h2>
+    <p class="text-muted">@torneio.Nome</p>
+
+    @if (!fonteDisponivel)
+    {
+        @* A recusa é explícita, e não uma tela vazia: sem os .ttf a arte sairia com todo texto
+           invisível no Linux, então preferimos não desenhar. Quem lê isto é o admin. *@
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela a arte sairia com
+                todos os textos invisíveis, então nenhuma é gerada.
+            </div>
+        </div>
+    }
+    else if (Model.Count == 0)
+    {
+        <div class="alert alert-light border rounded-4">
+            <strong>Este torneio ainda não tem jogos.</strong>
+            <div class="small text-muted">
+                A arte nasce de um jogo — ela leva a fase, a categoria e o @@ das duas duplas.
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small mb-3">
+            Escolha o jogo, tire a foto da dupla na rede e baixe a arte pronta. O @@ de cada
+            jogador entra sozinho quando está no cadastro dele.
+        </p>
+
+        @if (string.IsNullOrWhiteSpace(torneio.InstagramDoOrganizador))
+        {
+            @* O @ do torneio é opcional, e a tela diz onde se preenche em vez de deixar a
+               assinatura faltando sem explicação. *@
+            <div class="alert alert-light border rounded-4 small">
+                <i class="bi bi-info-circle"></i>
+                As artes vão sair <strong>sem o @@ de quem organiza</strong>. Para pôr o seu,
+                preencha <em>@@ do Instagram de quem divulga</em> em
+                <a asp-action="Details" asp-route-id="@torneio.Id" class="fw-semibold">Gerenciar Torneio</a>.
+            </div>
+        }
+
+        <div class="list-group">
+            @foreach (var jogo in Model)
+            {
+                <a asp-action="ArteDoJogo" asp-route-id="@jogo.Id"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
+                    <span>
+                        <span class="d-block fw-semibold" style="color: var(--pdz-ink);">
+                            @Padelizou.Services.DuplaNaTela.Nome(jogo.Dupla1?.Jogador1, jogo.Dupla1?.Jogador2)
+                            <span class="text-muted fw-normal">x</span>
+                            @Padelizou.Services.DuplaNaTela.Nome(jogo.Dupla2?.Jogador1, jogo.Dupla2?.Jogador2)
+                        </span>
+                        <span class="small text-muted">
+                            @Padelizou.Services.CategoriaNaTela.Curto(jogo.Categoria?.Nome)
+                            ·
+                            @Padelizou.Services.FaseNaTela.Rotulo(jogo.Fase, jogo.NumeroNaFase)
+                            @if (jogo.HorarioInicioReal != null)
+                            {
+                                <text>· @jogo.HorarioInicioReal.Value.ToString("dd/MM HH:mm")</text>
+                            }
+                            else if (jogo.HorarioPrevisto != null)
+                            {
+                                <text>· @jogo.HorarioPrevisto.Value.ToString("dd/MM HH:mm")</text>
+                            }
+                        </span>
+                    </span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+            }
+        </div>
+    }
+</div>
