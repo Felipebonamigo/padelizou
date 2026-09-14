@@ -44,6 +44,20 @@ public static class AlcanceDoPalpitometro
     public static string Normalizar(string? alcance) =>
         Existe(alcance) ? alcance! : Todas;
 
+    // A MESMA pergunta, com a preferência de QUEM OLHA junto (14/09/2026,
+    // Jogador.VerPalpitometro).
+    //
+    // ⚠️ É um `&&`, e a ordem das duas não importa justamente porque é: a preferência da pessoa
+    // só SUBTRAI do que o organizador liberou, nunca soma. Deixar ligado não faz aparecer o
+    // palpitômetro de um torneio que o organizou desligou.
+    //
+    // ⚠️ E ELA É UMA SOBRECARGA, não um terceiro valor do alcance: são duas decisões de donos
+    // diferentes — o organizador manda no torneio dele, a pessoa manda na tela dela. Uma coluna
+    // só não saberia dizer de quem foi o "não", e a tela de gestão passaria a mostrar a escolha
+    // de quem estivesse olhando.
+    public static bool Libera(string? alcance, string? nomeDaCategoria, bool aPessoaQuerVer) =>
+        aPessoaQuerVer && Libera(alcance, nomeDaCategoria);
+
     // A pergunta que a tela e o servidor fazem: esta categoria tem palpitômetro?
     public static bool Libera(string? alcance, string? nomeDaCategoria) =>
         Normalizar(alcance) switch

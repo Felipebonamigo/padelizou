@@ -26,6 +26,11 @@
     int? meuVencedor = r.PalpiteiOPlacar ? Math.Max(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
     int? meuPerdedor = r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
     string moeda = r.PlacarEmSets ? "sets" : "games";
+
+    // VER OS NOMES DE QUEM PALPITOU é escolha de quem olha (14/09/2026,
+    // Jogador.VerQuemPalpitou). Ausente (visitante deslogado), vale `true` — o padrão de
+    // sempre. Ela NÃO esconde a barra nem a contagem: some só a porta pros nomes.
+    bool verQuemPalpitou = ViewData["VerQuemPalpitou"] as bool? ?? true;
 }
 <div class="pdz-palpitometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
      data-dupla1-id="@Model.partida.Dupla1Id" data-meu-voto="@meuVoto">
@@ -116,14 +121,28 @@
        `div` de fora continua sendo o alvo do JS (display + reescrita do placar). *@
     <div class="text-center mt-1 small text-muted pdz-palpite-consenso"
          style="display: @(r.TemPlacarMaisPalpitado ? "block" : "none");">
-        <button type="button" class="pdz-ver-votos"
-                data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2"
-                title="Ver quem palpitou e o placar de cada um"
-                onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
-            <i class="bi bi-people"></i>
-            Placar mais palpitado: <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
-            <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
-        </button>
+        @* ⚠️ A leitura da galera FICA pra quem desligou os nomes — ela não é nome de ninguém.
+           O que sai é a porta pro modal, e as classes que o JS procura são as MESMAS nos dois
+           ramos, senão a linha congelaria no primeiro voto. Mesma decisão do _JogoEmLinha. *@
+        @if (verQuemPalpitou)
+        {
+            <button type="button" class="pdz-ver-votos"
+                    data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2"
+                    title="Ver quem palpitou e o placar de cada um"
+                    onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                <i class="bi bi-people"></i>
+                Placar mais palpitado: <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+                <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+            </button>
+        }
+        else
+        {
+            <span>
+                <i class="bi bi-people"></i>
+                Placar mais palpitado: <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+                <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+            </span>
+        }
     </div>
 
     @if (finalizada && r.CravaramOPlacar.Count > 0)
@@ -144,7 +163,9 @@
         {
             <small class="text-muted pdz-total-votos">@r.TotalVotos voto(s)</small>
         }
-        @if (r.TotalVotos > 0)
+        @* Aqui o botão some inteiro: ele é SÓ a porta pros nomes, não carrega informação
+           nenhuma junto — ao contrário da linha do placar mais palpitado logo acima. *@
+        @if (r.TotalVotos > 0 && verQuemPalpitou)
         {
             <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2" onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
                 Ver quem votou

@@ -410,7 +410,13 @@ namespace Padelizou.Controllers
             // conta), o botão aparecia e a página respondia 404. Agora as duas telas obedecem
             // ao mesmo `TemRanking`.
             ViewBag.TemRankingDePalpiteiros = false;
-            if (await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
+            // ⚠️ A PREFERÊNCIA DE QUEM OLHA ENTRA AQUI, ANTES DA CONTA (14/09/2026). Decisão do
+            // Felipe: desligar o palpitômetro no perfil some com TUDO, a aba de palpiteiros
+            // junto. Antes do `Any` de propósito — quem desligou não paga consulta nenhuma pra
+            // não ver aba nenhuma, que é a mesma economia que a `PortaDosDesafios` faz no
+            // HubDoRanking.
+            if ((await PreferenciaDoPalpitometro.DeAsync(_context, ObterJogadorIdLogado())).VerPalpitometro
+                && await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
             {
                 var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(
                     _context, id, ObterJogadorIdLogado(), fasePalpiteiros);
@@ -1700,6 +1706,12 @@ namespace Padelizou.Controllers
             // Uma vez só, aqui, porque é este método que abastece as DUAS telas que mostram jogo
             // (Details e Jogos) — e quem recusa o voto é o PalpiteService, no servidor.
             ViewBag.PalpitometroEm = AlcanceDoPalpitometro.Normalizar(torneioDaTela?.PalpitometroEm);
+
+            // E O QUE QUEM OLHA ESCOLHEU VER (14/09/2026, Services/PreferenciaDoPalpitometro).
+            // Só SUBTRAI do alcance acima; visitante deslogado recebe o padrão, que é ver tudo.
+            var euEOPalpitometro = await PreferenciaDoPalpitometro.DeAsync(_context, ObterJogadorIdLogado());
+            ViewBag.VerPalpitometro = euEOPalpitometro.VerPalpitometro;
+            ViewBag.VerQuemPalpitou = euEOPalpitometro.VerQuemPalpitou;
 
             ViewBag.QuemMarcaPlacar = torneioDaTela?.QuemMarcaPlacar;
             ViewBag.EhInscritoDoTorneio = meuId != null
