@@ -189,6 +189,49 @@ decreto), nós calibramos com dados reais: todo jogo de MISTA cruza as duas popu
 - **Regra do bicampeão** (legível por humanos, independe do número): campeão 2× da
   mesma categoria em 12 meses sobe automaticamente.
 
+### O RÓTULO da tela não é a trava (14/09/2026)
+
+⚠️ **Duas coisas diferentes, e confundi-las foi o defeito**: as portas acima decidem onde a
+pessoa PODE se inscrever (fase 3); o **rótulo** é o que a coluna "Faixa" escreve hoje, na fase
+1, quando nada trava. Até aqui o rótulo era `DoNivel(pdz)` — a faixa crua do número, sem folga
+nenhuma — e depois do PRIMEIRO torneio da história do Padelímetro **52 dos 128 jogadores (41%)
+apareceram numa faixa diferente da que jogaram**: 22 acima, 30 abaixo.
+
+🗣️ Felipe, vendo quatro "2ª" num torneio cuja categoria mais forte era a 3ª: *"a faixa está
+errada, essas pessoas estão com nível mais alto que estão jogando"* · *"foi apenas um torneio e
+estamos exigindo subir, acho que isso não pode ser assim"*.
+
+🕳️ **A causa é aritmética, não bug**: a faixa tem 100 de largura e o seed nasce no MEIO dela
+(3ª é 650–749 e entra em 700). São **50 pontos até o teto** — e este arquivo já dizia que "um
+fim de semana dominante rende +60 a +100". **+60 já é mais que 50**, então o campeão estreante
+era promovido SEMPRE, no primeiro torneio, o que contradiz o "nunca por um dia de sorte" escrito
+duas linhas acima. Medido no torneio real: de **−65 a +142** num fim de semana só (Alexandre
+Longhi, +142 em 5 jogos), contra os "+60 a +100" que este arquivo prometia.
+
+🔑 **A régua do rótulo, decidida com o Felipe em 14/09/2026:**
+
+- **Em calibração (menos de 10 jogos), o rótulo é a faixa da CATEGORIA QUE A PESSOA JOGA.** O
+  número corre por baixo normalmente; só o rótulo espera. É o mesmo julgamento que o `K = 40`
+  já faz — se o número ainda anda rápido porque é um chute, ele não pode estar renomeando
+  ninguém. E é o que faz valer o "1 ou 2 torneios dominados" em vez de sempre 1.
+- **Passada a calibração, o número manda, com folga de 50 PROS DOIS LADOS**: sobe com
+  `teto + 50`, desce com `piso − 50`. A de descida já existia escrita aqui e **não estava
+  ligada na tela**; a de subida é nova e simétrica.
+- **Sem categoria na escada** (quem só jogou mista, casal ou lendas): rótulo é a faixa crua do
+  número, como sempre foi — não há âncora de onde partir.
+- **"Faltam X pra subir de faixa" passa a medir o que muda o RÓTULO**, não a faixa crua. Um
+  número ao lado de um rótulo que ele não explica é a mesma mentira pequena de novo.
+
+⚠️ **Isto NÃO mexe no número de ninguém**: sem migration e sem replay, porque `Padelimetro` e
+`CampanhaNoPadelimetro` não são tocados. Em particular a `LinhaDeSubida` (teto + 1) continua
+como está — ela limita o BÔNUS DE CAMPANHA, que move o PDZ, e alargá-la mudaria o número.
+A folga do rótulo mora em `FolgaDoRotulo`, separada de propósito.
+
+⚠️ **O que ficou de fora, e é escolha**: a condição "e pelo menos 10 jogos desde que subiu" da
+histerese de descida **não** está no rótulo — ela exige guardar QUANDO cada um subiu, e isso é
+histórico que o `Jogador` não tem. A folga de 50 pontos cobre o pingue-pongue na prática; se um
+dia faltar, aí é migration e vira decisão de novo.
+
 ### Fases de lançamento (para não queimar o produto)
 
 1. **Mostrar** (fase atual): número no perfil, variação por jogo, "faltam X pra
