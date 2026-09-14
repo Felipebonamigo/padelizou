@@ -816,12 +816,12 @@ public class JogadoresController : Controller
         // O seletor "ver ranking de um torneio" é PÚBLICO, então ele obedece a mesma régua da
         // vitrine: torneio que ainda espera aprovação, oculto ou cancelado não pode aparecer
         // aqui. Sem esse filtro a lista mostrava TUDO que existe no banco — foi assim que um
-        // torneio de teste cancelado apareceu na tela pra qualquer visitante.
+        // torneio de teste cancelado apareceu na tela pra qualquer visitante. O `torneioId` da
+        // URL, lá embaixo, lê o MESMO método — duas cópias da condição é como uma delas fica pra trás.
         ViewBag.TorneiosList = (await _context.Torneios
                 .OrderByDescending(t => t.DataInicio)
                 .ToListAsync())
-            .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t)
-                        && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Where(PermissaoDeOrganizador.ApareceParaOPublico)
             .ToList();
 
         var hub = await _estatisticas.ObterRankingHubAsync(cidade, estado, periodo);
@@ -910,10 +910,15 @@ public class JogadoresController : Controller
         hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
+        //
+        // ⚠️ O `torneioId` da URL passa pela MESMA régua do seletor acima. Filtrar só a lista
+        // tirava o torneio do <select> e entregava nome e ranking a quem digitasse o número —
+        // oculto, cancelado ou esperando aprovação. Fora da vitrine conta como id que não
+        // existe: a página abre sem torneio selecionado e não confirma nada.
         if (torneioId.HasValue)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-            if (torneio != null)
+            if (torneio != null && PermissaoDeOrganizador.ApareceParaOPublico(torneio))
             {
                 hub.TorneioSelecionadoId = torneio.Id;
                 hub.TorneioSelecionadoNome = torneio.Nome;

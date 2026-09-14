@@ -23,6 +23,20 @@
 >
 > 3 testes novos, todos vistos vermelhos. **7.080 testes verdes**, 9 conferidores JS verdes.
 
+> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** ⏳ **AINDA NÃO PUBLICADO.** **Sem migration.**
+>
+> 🕳️ Em `/Jogadores/Ranking`, a lista "Ver ranking de um torneio…" passa pela régua da vitrine desde 07/08 — mas o parâmetro da URL não perguntava nada. Quem digitasse o número de um torneio **oculto**, **cancelado** ou **esperando aprovação** recebia o nome dele no título ("Ranking do torneio: …") e, no oculto e no esperando aprovação, a tabela inteira. **Pré-existente, não regressão.** Era verdade que "o torneio de teste não aparece na lista"; não era verdade que "o torneio de teste não aparece".
+>
+> 🔑 **NÃO NASCEU RÉGUA NOVA**: `PermissaoDeOrganizador.ApareceParaOPublico` (vitrine + não cancelado) já existia — é a do sitemap e das páginas de cidade. O seletor escrevia o mesmo par à mão; agora ele e o `torneioId` leem o **mesmo método**. `VisibilidadeDoTorneio.PodeAbrirAsync` foi descartada: só olha `Oculto`, e o cancelado passaria. Torneio fora da vitrine conta como id que não existe — a página abre sem torneio selecionado e não confirma nada. Nem o organizador vê o próprio torneio oculto por aqui, igual ao seletor, que nunca o ofereceu; o lugar dele é a página do torneio.
+>
+> ⚠️ **Cancelado vazava só o NOME**: as linhas dele já saem vazias do `EstatisticasService` (evento que não aconteceu não pontua, e a lista só traz quem pontuou). O teste do cancelado prende o nome; os do oculto e do esperando aprovação prendem nome **e** linhas, com a pré-condição de que o serviço devolve linhas pra aquele torneio — sem ela, "ranking vazio" passaria antes e depois da correção.
+>
+> ⚠️ **O pedido citava `Services/HubDoRanking.cs` e `GET /Cartoes/RankingImagem`, e nenhum dos dois existe** — nem no `main`, nem em ref nenhuma do git, nem em disco nesta máquina. O bloco ainda mora em `JogadoresController.Ranking`, e foi lá que a correção entrou. **Se a extração pro hub e a arte do ranking estiverem numa sessão ainda não mesclada, ela precisa levar esta checagem junto.** Os testes chamam a action do controller: uma extração que perder a trava fica vermelha.
+>
+> 🧪 4 testes novos, os três de bloqueio **vistos vermelhos** (`Expected: null`, `Actual: 1`), mais o controle de que torneio da vitrine continua abrindo pela URL. **7.084 testes, 0 falhas**, 7 avisos — os mesmos de antes.
+>
+> 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
+
 > Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
 > Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
@@ -2519,7 +2533,7 @@
 >
 > 🧪 **6.066 testes, 0 falhas (5 novos), 4 avisos — os mesmos de antes.** Os cinco vistos vermelhos antes, e **todos com confrontos FIXOS**: número que sai do `GerarChaves` mede sorte, não código. Dois na auditoria (o mesmo time em duas quadras; o mesmo time emendado), um no reparo (não trocar criando o choque de time) e dois na troca de horário (o clube da vaga sai da quadra; e o carimbo velho de "casa" não libera a vaga que é no externo), mais a contraprova de que **sem** quadra quem responde continua sendo o carimbo. **Sem migration.**
 >
-> ⏳ **AINDA NÃO PUBLICADO.**
+> ✅ **PUBLICADO em dev e prod no `build-940-b01797d`** (10/09/2026, 12h55 e 12h58 de Brasília, runs 157 e 158) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
 >
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
