@@ -1,6 +1,42 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 🎚️ **A FAIXA DO PADELÍMETRO TROCAVA COM UM TORNEIO SÓ, E A ABA VITÓRIAS PREMIAVA QUEM JOGOU MAIS.** 🚀 **PUBLICADO em `dev` E `prod`**: a ordem das Vitórias no `build-1416-591ea33` (runs **368** e **370**) e a faixa no `build-1422-799cc2b` (runs **375** e **376**). PRs #314 e #318. **Sem migration.**
+>
+> ## 1. A ordem da aba Vitórias
+>
+> 🗣️ Felipe: *"deveria estar como segunda opção quem tem maior aproveitamento — vitorias > aproveitamento > jogos"*.
+>
+> 🕳️ A ordem era `Vitórias ↓` e depois **`Jogos ↓`**, o INVERSO: com 5 vitórias, quem fez em 6 jogos (83%) aparecia ACIMA de quem fez em 5 (100%) — bem ao lado de uma coluna "Aproveit." que mostrava os dois números desmentindo a tabela.
+>
+> 🔑 **COM AS VITÓRIAS IGUAIS, "MAIOR APROVEITAMENTO" É "MENOS JOGOS"**: aproveitamento é V/J e, com V fixo, só cresce quando J diminui. O critério do meio virou `ThenBy(Jogos)` — **inteiro, sem divisão** —, que não arredonda pra discordar dos 83% que a coluna mostra. É também por isso que o terceiro critério pedido ("jogos") não desempata nada: **ele É o segundo**.
+>
+> ⚠️ Vale nas **QUATRO** tabelas que tinham a ordenação copiada (jogadores geral e por categoria, duplas geral e por categoria). A coluna "Aproveit." só aparece na geral de jogadores, mas deixar as outras três invertidas seria a tela discordando de si mesma — *"são os mesmos jogos vistos de três jeitos"*, diz o texto da aba.
+>
+> ✅ **CONFERIDO NA PRODUÇÃO**: 1º Longhi e 2º Zago (5 vit/5 jogos/**100%**) acima de 3º Bonamigo e 4º Bagesteiro (5 vit/6 jogos/**83%**). Antes era o contrário.
+>
+> ## 2. A faixa não troca com um torneio só
+>
+> 🗣️ Felipe, vendo quatro **"2ª"** num torneio cuja categoria mais forte era a **3ª**: *"a faixa está errada, essas pessoas estão com nível mais alto que estão jogando"* · *"foi apenas um torneio e estamos exigindo subir, acho que isso não pode ser assim"*.
+>
+> 📊 **MEDIDO, NÃO DEDUZIDO** — cruzei os 128 jogadores do Padelímetro em produção contra a categoria que cada um jogou: **52 (41%) estavam numa faixa diferente da que jogaram** — 22 acima, 30 abaixo, e **nenhum caso de 2+ faixas**. Isso é o que descartou bug de parsing e de seed: as categorias têm nome limpo e o motor estava coerente.
+>
+> 🕳️ **A CAUSA É ARITMÉTICA E ESTAVA NA RÉGUA ESCRITA**: a faixa tem 100 de largura e o seed nasce no MEIO dela (3ª é 650–749 e entra em 700) — são **50 pontos até o teto**. E o `RANKING.md` dizia, na mesma página, que *"um fim de semana dominante rende +60 a +100"*. **+60 já é mais que 50**, então o campeão estreante era promovido SEMPRE no primeiro torneio, contra o *"nunca por um dia de sorte"* escrito duas linhas acima. Medido de verdade: de **−65 a +142** num fim de semana (Longhi, +142 em 5 jogos — mais que uma faixa inteira).
+>
+> 🔑 **A RÉGUA NOVA**: em calibração (<10 jogos) o rótulo é a faixa da **categoria que a pessoa joga**; passada a calibração o número manda, com **folga de 50 pros dois lados**. É o mesmo julgamento que o `K = 40` já faz — número que anda rápido porque é chute não pode renomear ninguém. A folga de **descida** já existia escrita no RANKING.md e **nunca esteve ligada na tela** (`DoNivel` é busca pura): eram os 30 rebaixados sem ter descido.
+>
+> ⚠️ **NÃO MEXE NO NÚMERO DE NINGUÉM** — sem migration, sem replay. `Padelimetro` e `CampanhaNoPadelimetro` não foram tocados, e a `LinhaDeSubida` (teto+1) **continua como estava**: ela limita o BÔNUS DE CAMPANHA, que move o PDZ, e alargá-la mudaria o número de todo mundo. A folga do rótulo mora em `FolgaDoRotulo`, separada de propósito, **com teste cobrando que as duas não se unifiquem**.
+>
+> 🧪 8 testes novos, **6 vistos vermelhos no VALOR** e não só em "não existe": as funções foram plugadas primeiro com o comportamento ANTIGO, de propósito, pra provar que os testes pegam o defeito. Os casos são os números reais da produção.
+>
+> ✅ **CONFERIDO NA PRODUÇÃO, com os 128**: os fora de lugar caíram de **52 para 5**. Arthur Guex (802 PDZ) mostra **3ª** onde mostrava 2ª; Longhi (742) mostra **4ª** onde mostrava 3ª; Arthur Prass (635) mostra **3ª** onde mostrava 4ª.
+>
+> 🔎 **E OS 5 QUE SOBRARAM NÃO SÃO DEFEITO DESTA MUDANÇA — SÃO A ÂNCORA, e isto é achado novo**: o rótulo se ancora na **inscrição mais recente**, e essa consulta **(a) não exige que a categoria tenha sido JOGADA** e **(b) não tem desempate** quando o jogador está em duas categorias com a mesma `DataInicio`. Enio Silva é o flagrante: 760 PDZ, *em calibração (4 de 10 jogos)*, pontuou na **3ª** e o perfil diz **"faixa da 4ª"** — o congelamento funcionou (a faixa crua de 760 seria 2ª), mas a âncora apontou pra uma 4ª em que ele não pontuou. **Decisão em aberto pro Felipe**: ancorar na inscrição mais recente que gerou jogo contado, ou manter como está e aceitar que "onde ele se inscreveu por último" é a resposta.
+>
+> ⚠️ **NENHUM DOS DOIS FOI PUBLICADO POR ESTA SESSÃO**, e isso é registro: o `build-1416` subiu por outra sessão (o PR #315 dela foi mesclado DEPOIS do #314, então o artefato dela já continha esta mudança) e o `build-1422` foi publicado por outro agente minutos depois do merge. Nos dois casos disparar o build "certo" teria REGREDIDO trabalho alheio — o mesmo erro do run 348 hoje de manhã. **Antes de disparar deploy, conferir o que já está no ar.**
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. O que sustenta é a suíte (**7.243 verdes**) e a medição do HTML servido pela produção nos dois casos. Quem confirma na tela é o Felipe.
+>
 > Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1416-591ea33`** (deploy runs **368** e **370**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #315. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do card de avaliação do torneio: *"ali nao esta aparecendo a avaliação do padelizou no comentario e aqui tambem permita aparecer os comentarios do sistema, do clube e do torneio"* e, na sequência, *"ao clicar na avaliação (4,9) ali, permita eu ver quem votou"*.
