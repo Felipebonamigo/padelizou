@@ -25,9 +25,49 @@
 >
 > ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão pra clicar nos 17 botões. O que sustenta são os testes e as **duas artes geradas e OLHADAS** (o ranking de Times do print do Felipe e o pior caso de dupla com apelido nos dois, na 10ª posição — nomes inteiros, nada cortado). **Quem confirma na tela é o Felipe.**
 >
-> 🕳️ **E UM BURACO PRÉ-EXISTENTE ACHADO NO CAMINHO, não corrigido aqui**: `/Jogadores/Ranking?torneioId=N` não pergunta se o torneio pode aparecer — o SELETOR filtra oculto e cancelado, o parâmetro da URL não. Estava assim antes (foi movido verbatim pro `HubDoRanking`), e agora `/Cartoes/RankingImagem?aba=Torneio` herda a mesma falta. Mexer nisso é decisão de visibilidade, que sobe o nível pra **architectural** — fica como tarefa separada.
+> 🕳️ **UM BURACO PRÉ-EXISTENTE ACHADO NO CAMINHO — E CORRIGIDO POR OUTRA SESSÃO ENQUANTO ESTA RODAVA**: `/Jogadores/Ranking?torneioId=N` não perguntava se o torneio podia aparecer (o SELETOR filtrava oculto e cancelado; o parâmetro da URL, não). Virou tarefa, o Felipe a iniciou, e ela saiu no **PR #304** — `PermissaoDeOrganizador.ApareceParaOPublico`, régua que já existia.
+>
+> ⚠️ **E FOI O MERGE MAIS DELICADO DESTE TRABALHO, porque as duas sessões mexeram NA MESMA LINHA por motivos diferentes**: lá a trava nasceu dentro da ação `Ranking`; aqui a ação inteira virou o `HubDoRanking`. O git resolveu o arquivo e teria perdido a trava em silêncio — quem a carregou pro serviço foi decisão explícita, e o comentário de lá diz isso. Sem ela, o buraco reabriria **sem ninguém ter escrito uma linha pra isso**, e desta vez com uma porta nova: a arte do `/Cartoes/RankingImagem?aba=Torneio`, que sai com cache **público**.
+>
+> 🔑 **O QUE SEGUROU NÃO FOI ATENÇÃO, FOI O DESENHO DO TESTE DELES**: o `SeletorDoRankingTests` chama a **AÇÃO**, não o serviço — então ele enxerga a trava mesmo ela tendo mudado de arquivo. O autor do #304 previu exatamente isto no corpo do PR: *"uma extração que perder a trava fica vermelha"*. Ficou provado no caminho contrário: a suíte passou COM a trava carregada.
 >
 > **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
+
+> Última atualização: **14/09/2026** — ⭐ **DEPOIS DE VOTAR, A CÉDULA DO MVP SAI DA FRENTE E A ENQUETE APARECE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1378-5a2b443`** (runs **353** e **354**, o mesmo artefato nos dois, pedido pela tag). PR #303. **Sem migration.**
+>
+> 🗣️ Felipe: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🕳️ A cédula de um torneio real tem de **10 a 20 nomes**, e era ela que empurrava a enquete pra fora da tela — justamente o que a pessoa ainda TEM o que fazer depois de votar. Pior: o POST do voto voltava pro **topo** da página, então quem acabava de votar caía no cabeçalho e rolava a lista inteira de novo pra achar o passo seguinte.
+>
+> 🔑 **DUAS PONTAS, E AS DUAS SÃO DE PLATAFORMA** (degrau 4 da escada, não degrau 7): a lista virou **`<details>` nativo** recolhido por `VotacaoDeMvp.CedulaRecolhida` — o mesmo arranjo do card do Pix em `Details.cshtml`, com o `open` saindo por atributo condicional —, e o redirect do voto ACEITO ganhou **âncora** na enquete. **Zero JavaScript**: o acordeão é do navegador, e não há `scrollIntoView` nenhum.
+>
+> ⚠️ **RECOLHIDA, NUNCA APAGADA**: trocar o voto é promessa escrita nesta mesma tela (*"Você pode trocar enquanto a votação estiver aberta"*), e o `<summary>` deixa a lista a um toque — **`✓ Seu voto: Fulano — trocar`**.
+>
+> ⚠️ **E RECOLHE SÓ COM A VOTAÇÃO ABERTA.** Depois que ela encerra, a MESMA lista deixa de ser cédula e vira **APURAÇÃO** — recolher ali esconderia o placar de todo mundo, que é exatamente o que a tela passa a mostrar. É o segundo teste, e é a razão de `CedulaRecolhida` ser `Aberta && MeuVoto != null` e não só `MeuVoto != null`.
+>
+> ⚠️ **VOTO RECUSADO NÃO DESCE**: a mensagem que explica por que o voto não valeu está no ALTO da página, e a âncora esconderia justamente ela. E **a âncora nunca aponta pro vazio**: a enquete usa a MESMA janela do MVP (`EnqueteDoTorneio.Aberta` = `TemPosTorneio` + `DentroDaJanela`), então voto aceito **significa** enquete na tela — sem uma segunda ida ao banco pra confirmar.
+>
+> 🔒 O nome da âncora mora em `MvpDoTorneio.AncoraDaEnquete`, e não escrito à mão nas duas pontas: são o `id` do cartão e o fragmento do redirect, e renomear um lado faria o pulo virar um recarregamento no topo — **sem erro, sem teste vermelho, sem ninguém perceber**.
+>
+> 🧪 **E AQUI O TESTE FALHOU PELO MOTIVO ERRADO NA PRIMEIRA VEZ — O QUE É A PRÓPRIA LIÇÃO**: o teste da âncora nasceu com a data fixa dos vizinhos (`Domingo`, 09/08), mas o **controller lê `DateTime.Now`** — a janela já estava fechada, o voto voltava RECUSADO e o vermelho vinha do ramo errado. Com o cenário certo (`DateTime.Now.AddHours(-2)`) ele passou de primeira, então a correção foi **revertida de propósito** pra vê-lo falhar onde deve (`Expected: "avaliar" / Actual: null`). Teste que nunca se viu falhar pelo motivo certo não prova nada.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão. O que sustenta são os 3 testes e o `/healthz` **200** nos dois ambientes. **Quem confirma na tela é o Felipe** — e atenção: no 2ª Etapa ER PADEL TOUR a votação encerra **20/09 às 21h38**; depois disso a lista NÃO recolhe, e isso é a regra e não defeito.
+>
+> 3 testes novos, todos vistos vermelhos. **7.080 testes verdes**, 9 conferidores JS verdes.
+
+> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** ⏳ **AINDA NÃO PUBLICADO.** **Sem migration.**
+>
+> 🕳️ Em `/Jogadores/Ranking`, a lista "Ver ranking de um torneio…" passa pela régua da vitrine desde 07/08 — mas o parâmetro da URL não perguntava nada. Quem digitasse o número de um torneio **oculto**, **cancelado** ou **esperando aprovação** recebia o nome dele no título ("Ranking do torneio: …") e, no oculto e no esperando aprovação, a tabela inteira. **Pré-existente, não regressão.** Era verdade que "o torneio de teste não aparece na lista"; não era verdade que "o torneio de teste não aparece".
+>
+> 🔑 **NÃO NASCEU RÉGUA NOVA**: `PermissaoDeOrganizador.ApareceParaOPublico` (vitrine + não cancelado) já existia — é a do sitemap e das páginas de cidade. O seletor escrevia o mesmo par à mão; agora ele e o `torneioId` leem o **mesmo método**. `VisibilidadeDoTorneio.PodeAbrirAsync` foi descartada: só olha `Oculto`, e o cancelado passaria. Torneio fora da vitrine conta como id que não existe — a página abre sem torneio selecionado e não confirma nada. Nem o organizador vê o próprio torneio oculto por aqui, igual ao seletor, que nunca o ofereceu; o lugar dele é a página do torneio.
+>
+> ⚠️ **Cancelado vazava só o NOME**: as linhas dele já saem vazias do `EstatisticasService` (evento que não aconteceu não pontua, e a lista só traz quem pontuou). O teste do cancelado prende o nome; os do oculto e do esperando aprovação prendem nome **e** linhas, com a pré-condição de que o serviço devolve linhas pra aquele torneio — sem ela, "ranking vazio" passaria antes e depois da correção.
+>
+> ⚠️ **O pedido citava `Services/HubDoRanking.cs` e `GET /Cartoes/RankingImagem`, e nenhum dos dois existe** — nem no `main`, nem em ref nenhuma do git, nem em disco nesta máquina. O bloco ainda mora em `JogadoresController.Ranking`, e foi lá que a correção entrou. **Se a extração pro hub e a arte do ranking estiverem numa sessão ainda não mesclada, ela precisa levar esta checagem junto.** Os testes chamam a action do controller: uma extração que perder a trava fica vermelha.
+>
+> 🧪 4 testes novos, os três de bloqueio **vistos vermelhos** (`Expected: null`, `Actual: 1`), mais o controle de que torneio da vitrine continua abrindo pela URL. **7.084 testes, 0 falhas**, 7 avisos — os mesmos de antes.
+>
+> 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
 
 > Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
@@ -2525,7 +2565,7 @@
 >
 > 🧪 **6.066 testes, 0 falhas (5 novos), 4 avisos — os mesmos de antes.** Os cinco vistos vermelhos antes, e **todos com confrontos FIXOS**: número que sai do `GerarChaves` mede sorte, não código. Dois na auditoria (o mesmo time em duas quadras; o mesmo time emendado), um no reparo (não trocar criando o choque de time) e dois na troca de horário (o clube da vaga sai da quadra; e o carimbo velho de "casa" não libera a vaga que é no externo), mais a contraprova de que **sem** quadra quem responde continua sendo o carimbo. **Sem migration.**
 >
-> ⏳ **AINDA NÃO PUBLICADO.**
+> ✅ **PUBLICADO em dev e prod no `build-940-b01797d`** (10/09/2026, 12h55 e 12h58 de Brasília, runs 157 e 158) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
 >
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**

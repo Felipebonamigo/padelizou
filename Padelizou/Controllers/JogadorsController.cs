@@ -813,12 +813,12 @@ public class JogadoresController : Controller
         // O seletor "ver ranking de um torneio" é PÚBLICO, então ele obedece a mesma régua da
         // vitrine: torneio que ainda espera aprovação, oculto ou cancelado não pode aparecer
         // aqui. Sem esse filtro a lista mostrava TUDO que existe no banco — foi assim que um
-        // torneio de teste cancelado apareceu na tela pra qualquer visitante.
+        // torneio de teste cancelado apareceu na tela pra qualquer visitante. O `torneioId` da
+        // URL, lá embaixo, lê o MESMO método — duas cópias da condição é como uma delas fica pra trás.
         ViewBag.TorneiosList = (await _context.Torneios
                 .OrderByDescending(t => t.DataInicio)
                 .ToListAsync())
-            .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t)
-                        && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Where(PermissaoDeOrganizador.ApareceParaOPublico)
             .ToList();
 
         // ⚠️ AS LISTAS SAEM DO `HubDoRanking`, E NÃO DAQUI (14/09/2026). Elas eram montadas nesta

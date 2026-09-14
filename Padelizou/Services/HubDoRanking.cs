@@ -131,10 +131,23 @@ public sealed class HubDoRanking
         hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
+        //
+        // ⚠️ O `torneioId` da URL passa pela MESMA régua do seletor (que fica no controller).
+        // Filtrar só a lista tirava o torneio do <select> e entregava nome e ranking a quem
+        // digitasse o número — oculto, cancelado ou esperando aprovação. Fora da vitrine conta
+        // como id que não existe: a página abre sem torneio selecionado e não confirma nada.
+        //
+        // 🔑 A CHECAGEM VEIO DO PR #304 e ATRAVESSOU esta extração de propósito (14/09/2026).
+        // As duas sessões correram em paralelo: lá a trava nasceu na ação, aqui a ação virou
+        // este serviço. Perdê-la no merge deixaria o buraco reaberto sem ninguém ter escrito
+        // uma linha pra isso — e é a arte do `/Cartoes/RankingImagem?aba=Torneio` que sairia
+        // com o nome do torneio escondido dentro de um PNG com cache público.
+        // Quem vigia são os testes do #304, em `SeletorDoRankingTests`: eles chamam a AÇÃO, e
+        // por isso enxergam esta linha mesmo ela tendo mudado de arquivo.
         if (torneioId.HasValue)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-            if (torneio != null)
+            if (torneio != null && PermissaoDeOrganizador.ApareceParaOPublico(torneio))
             {
                 hub.TorneioSelecionadoId = torneio.Id;
                 hub.TorneioSelecionadoNome = torneio.Nome;
