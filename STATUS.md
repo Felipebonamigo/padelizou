@@ -39,7 +39,7 @@
 >
 > ⚠️ **O `dev` NÃO DÁ PRA CONFERIR PELO CAMINHO ÓBVIO**: o portão de Acesso Antecipado redireciona (302) antes de o carimbo rodar, então o teste tem que sair por um caminho da lista de liberados (`/Auth/Login`). Quem for conferir isso de novo e vir 302, não é defeito — é o portão.
 >
-> **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
+> **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1369-f3ddc25`** (deploy runs **347** e **349**), **o mesmo artefato nos dois**, com a tag explícita. PR #297. **Sem migration.**
 >
 > 🗣️ Felipe, repassando um usuário: *"as vezes o video do youtube trava no site, nao sei se é algo do youtube ou do site"*. **É do site.** É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
@@ -54,6 +54,12 @@
 > ⚠️ **O PREÇO É A ORDEM**: o cartão reaproveitado fica **onde o antigo estava**, e não onde o servidor o pôs — mover a coluna pra posição certa recarregaria o iframe, que é o defeito inteiro. Tem conferência escrita só pra travar essa troca (servidor manda "20, 11"; a tela mostra "11, 20", com o vídeo tocando). A ordem volta sozinha no próximo carregamento.
 >
 > 🔎 **O QUE FOI DESCARTADO, E MEDIDO EM PRODUÇÃO**: a busca de 20 em 20 segundos pesa **103,4 KB** (gzip do Caddy) no torneio **26**, o maior no ar — **1,17 MB** de HTML cru. São ~5 KB/s contra os 2-5 Mbps de uma live: **não é a busca que engasga o vídeo**. Fica de suspeito menor, pra outro dia, que **todos os iframes carregam de uma vez**, sem `loading="lazy"` nem fachada — cinco quadras transmitindo são cinco players do YouTube nascendo juntos no celular.
+>
+> ✅ **CONFERIDO NO QUE OS DOIS AMBIENTES SERVEM, e não só no "success" do workflow**: `dev.padelizou.com.br` e `padelizou.com.br` entregam o MESMO `js/jogos-ao-vivo-atualiza.js` — **21.420 bytes**, com `reaproveitar()`, `transmissaoDe()` e o seletor `.pdz-live-video iframe` dentro. `/healthz` **200** nos dois.
+>
+> ⚠️ **TRÊS SESSÕES PUBLICARAM AO MESMO TEMPO, e o `deploy.sh` NÃO SE RECUSA A INSTALAR UM BUILD MAIS VELHO** — ele instala a tag que você mandar, e pronto. Deu pra ver acontecendo: às 12:00 o `build-1368` (meu) entrou no `dev`; às 12:02 o `build-1366` de outra sessão entrou POR CIMA — o dev ficou dois minutos e doze segundos **sem** esta correção —; e às 12:03 o `build-1369` acertou tudo. No `prod` a mesma corrida: `build-1366` às 12:04:48, `build-1369` às 12:06:10. **Só não houve estrago porque o último a entrar foi o mais novo**, e o 1369 contém o 1366 e o 1368. Com a ordem invertida, o deploy de uma sessão apaga calado o trabalho da outra — e nada no caminho avisaria.
+>
+> ⚠️ **E O `prod` NÃO PAROU PRA PEDIR APROVAÇÃO.** O `infra/vps/README.md` diz que *"o `prod` para e espera sua aprovação"*, e as duas execuções de produção (349 e 350) foram do disparo ao `/healthz` sem um único passo de espera. Ou o *environment* `prod` não tem a regra de revisor configurada no GitHub, ou ela não se aplica a quem dispara. Como está, a única trava entre um clique e a produção é o rollback automático do `/healthz`.
 >
 > 👁️ **MEDIDO NO CHROMIUM, COM `<iframe>` DE VERDADE** — é a parte que o DOM falso não pode provar: se tirar e repor os IRMÃOS de um iframe o deixa mesmo em paz. A mesma página, o mesmo tique, as duas versões do arquivo lado a lado: **antes, o iframe carregou 2x** e o elemento na tela já era outro objeto; **agora carrega 1x** e é o MESMO elemento. E o cartão virou o jogo novo por inteiro — `id="jogo-11"`, cabeçalho "Jogo 11", palpitômetro do 11 —, com os filhos na ordem certa (`pdz-live-header | pdz-live-video | pdz-live-palpite`), o vídeo com 176px de altura na tela e **um** iframe na página, sem sobra nem duplicata.
 >
