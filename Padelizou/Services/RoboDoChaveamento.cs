@@ -741,10 +741,17 @@ public class RoboDoChaveamento
         var reservas = await ReservasDeHorario.DoTorneio(_context, torneioId.Value).ToListAsync();
         var candidatos = jogos.Concat(forasDeOrdem).ToList();
 
-        // O número do jogo dentro da fase: por Id nos que já existem, e pela ordem da lista na rodada
-        // que está nascendo — é a ordem em que `AddRange` grava, logo a ordem dos Ids de amanhã.
+        // O número do jogo dentro da fase: por Id nos que já existem, e o GRAVADO na rodada que
+        // está nascendo.
+        //
+        // ⚠️ ERA `jogos.IndexOf(p) + 1` ATÉ 13/09/2026, e isso virou defeito no dia em que o jogo
+        // passou a poder nascer fora de ordem (Partida.NumeroNaFase). A Semifinal 2 nascendo
+        // sozinha é o ÚNICO item da lista, então a posição diria "1" — e ela pegaria a reserva e a
+        // promessa da Semifinal 1, que ainda nem existe. O número gravado é a verdade; a posição
+        // na lista só serve de saída pra quem não tem (o jogo criado por caminho antigo).
         var numeroPorId = ReservasDeHorario.NumeroNaFase(todos);
-        int NumeroDe(Partida p) => p.Id == 0 ? jogos.IndexOf(p) + 1 : numeroPorId.GetValueOrDefault(p.Id);
+        int NumeroDe(Partida p) =>
+            p.NumeroNaFase ?? (p.Id == 0 ? jogos.IndexOf(p) + 1 : numeroPorId.GetValueOrDefault(p.Id));
         DateTime? AbreARodadaDe(int posto, int categoriaId) =>
             LevasDaGrade.PisoDaCategoria(torneio, jaMarcados, posto, categoriaId);
 
