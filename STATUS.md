@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
+> Última atualização: **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
+>
+> 🗣️ Felipe, repassando um usuário: *"as vezes o video do youtube trava no site, nao sei se é algo do youtube ou do site"*. **É do site.** É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🕳️ **O `<iframe>` É DO JOGO; A CÂMERA É DA QUADRA** — o `Services/TransmissaoDaQuadra.cs` já dizia com todas as letras (*"a câmera fica pendurada na quadra e transmite o dia inteiro — o link é uma propriedade do LUGAR"*). O jogo acabava, o remendo de 12/09 removia a coluna **com o player dentro** (`jogos-ao-vivo-atualiza.js`, "quem saiu sai") e o jogo seguinte da mesma quadra chegava com um player **novo** da **mesma** transmissão.
+>
+> 🔑 **E O EMBED NÃO TEM `autoplay`**: o player novo nasce PARADO, na miniatura da live — que numa câmera de quadra é um quadro da própria quadra. Na tela não parece cartão trocado, parece **vídeo travado**, com o play vermelho por cima. Uma vez por jogo daquela quadra: num Americano, a cada ~20 minutos. Quem estivesse em tela cheia também era jogado pra fora dela.
+>
+> ✅ **A CORREÇÃO É REAPROVEITAR O CARTÃO QUE SAI**: quando o que sai e o que entra têm o mesmo `src`, trocam-se só os filhos que **não** são o `.pdz-live-video`, e o `<iframe>` não é removido nem movido — a única forma de ele não recarregar. **Zero mudança visual**, só JS.
+>
+> ⚠️ **SÓ PEGA A TROCA QUE ACONTECE NO MESMO TIQUE**, e foi **escolha do Felipe** entre duas opções: quadra que fica um tempo sem ninguém em quadra perde o cartão (é a verdade — não há jogo ali) e o próximo nasce com player novo. A outra opção, que cobriria isso, era tirar a transmissão de dentro do cartão pra um painel **por quadra** — muda a tela, e ficou pra depois.
+>
+> ⚠️ **O PREÇO É A ORDEM**: o cartão reaproveitado fica **onde o antigo estava**, e não onde o servidor o pôs — mover a coluna pra posição certa recarregaria o iframe, que é o defeito inteiro. Tem conferência escrita só pra travar essa troca (servidor manda "20, 11"; a tela mostra "11, 20", com o vídeo tocando). A ordem volta sozinha no próximo carregamento.
+>
+> 🔎 **O QUE FOI DESCARTADO, E MEDIDO EM PRODUÇÃO**: a busca de 20 em 20 segundos pesa **103,4 KB** (gzip do Caddy) no torneio **26**, o maior no ar — **1,17 MB** de HTML cru. São ~5 KB/s contra os 2-5 Mbps de uma live: **não é a busca que engasga o vídeo**. Fica de suspeito menor, pra outro dia, que **todos os iframes carregam de uma vez**, sem `loading="lazy"` nem fachada — cinco quadras transmitindo são cinco players do YouTube nascendo juntos no celular.
+>
+> 👁️ **MEDIDO NO CHROMIUM, COM `<iframe>` DE VERDADE** — é a parte que o DOM falso não pode provar: se tirar e repor os IRMÃOS de um iframe o deixa mesmo em paz. A mesma página, o mesmo tique, as duas versões do arquivo lado a lado: **antes, o iframe carregou 2x** e o elemento na tela já era outro objeto; **agora carrega 1x** e é o MESMO elemento. E o cartão virou o jogo novo por inteiro — `id="jogo-11"`, cabeçalho "Jogo 11", palpitômetro do 11 —, com os filhos na ordem certa (`pdz-live-header | pdz-live-video | pdz-live-palpite`), o vídeo com 176px de altura na tela e **um** iframe na página, sem sobra nem duplicata.
+>
+> 🧪 **13 conferências novas no `conferir-abas-que-ficam.js`, escritas ANTES e vistas VERMELHAS** (4 falhando, com o flagrante na saída: *"nasceu 2x"*). O DOM falso ganhou **filhos de verdade** no cartão e passou a contar **nascimento de player por TRANSMISSÃO** — e essa é a parte que importa: as conferências velhas contam *cartão reescrito*, e um remendo que remove o cartão que acabou e insere o que entrou passa em **todas** elas e mesmo assim mata o player da quadra. Mais **3 testes de fonte** (`PlayerDaQuadraTests`) guardando o contrato Razor↔JS do `src` — que é a identidade da CÂMERA: um `?start=` ou um `&t=` por jogo faria o pareamento parar de casar, calado. **Conferido que o gate discrimina**: renomeei `pdz-live-video` na view, **build verde, 2 dos 3 testes VERMELHOS**. **7.037 testes verdes**, 10 conferidores JS verdes.
+>
+> **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
 >
 > 🗣️ Felipe, com as 7 categorias do ER já conferidas e o painel em todas: *"acho que podemos ocultar isso agora que resolveu, não?"*.
 >
@@ -33,7 +53,7 @@
 >
 > 13 testes, 8 vistos vermelhos.
 
-> Última atualização: **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1352-dd13185`** (runs **342**, na 2ª tentativa, e **343**), **o mesmo artefato nos dois**, com a tag explícita. PR #294. **Sem migration.**
+> **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1352-dd13185`** (runs **342**, na 2ª tentativa, e **343**), **o mesmo artefato nos dois**, com a tag explícita. PR #294. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do próprio perfil e catorze etiquetas "Domingo · Noite", "Segunda · Manhã"… empilhadas: *"tem que fazer uma recurso 'Todos os dias, exceto...' e melhor isso"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
 >
