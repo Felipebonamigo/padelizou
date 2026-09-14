@@ -52,6 +52,17 @@
                     <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
                 </a>
             }
+
+            @* AS ARTES PRO STORY (14/09/2026). Sem gate de chave publicada, ao contrário do
+               cartaz acima: o cartaz é DIVULGAÇÃO do que vai acontecer, e a arte é REGISTRO do
+               que acabou de acontecer na quadra — ela serve na fase de grupos do primeiro dia
+               e depende de existir jogo, não de existir chave. Quem recusa por falta de jogo é
+               a própria tela. *@
+            <a asp-action="ArtesDosJogos" asp-route-id="@Model.Id"
+               class="btn btn-sm btn-outline-primary rounded-pill px-3"
+               title="A arte de um jogo pro story: você tira a foto e o @@ das duplas já entra.">
+                <i class="bi bi-instagram"></i> Artes pro story
+            </a>
         </div>
 
         <!-- COMUNICADO EM MASSA -->

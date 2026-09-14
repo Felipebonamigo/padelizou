@@ -3894,6 +3894,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </small>
                                 </div>
 
+                                @* O @ DE QUEM DIVULGA (14/09/2026). Vizinho do link das fotos e do
+                                   grupo, e com a MESMA regra dos dois: campo em branco apaga.
+                                   ⚠️ É do TORNEIO e não do clube — a etapa de circuito divulga no @
+                                   do circuito, o interno do mesmo clube divulga no @ do clube. *@
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small" for="instagramDoOrganizador">
+                                        @@ do Instagram de quem divulga
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">@@</span>
+                                        <input type="text" name="instagramDoOrganizador"
+                                               id="instagramDoOrganizador" class="form-control"
+                                               maxlength="200" placeholder="er.padel"
+                                               value="@Model.InstagramDoOrganizador" />
+                                    </div>
+                                    <small class="text-muted">
+                                        Assina as <strong>Artes pro story</strong> de cada jogo. Pode ser
+                                        o @@ do clube ou o do circuito — cole o endereço ou digite só o
+                                        nome. Apague o campo pra tirar a assinatura.
+                                    </small>
+                                </div>
+
                                 <div class="col-12">
                                     <label class="form-label fw-bold small">Trocar Imagem de Capa</label>
                                     <input type="file" name="capa" class="form-control" accept="image/*" />
