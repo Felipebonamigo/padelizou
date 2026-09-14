@@ -3185,6 +3185,16 @@ a.pdz-grupo-jogo[href]:focus-visible {
     white-space: nowrap;
 }
 
+/* O horário que o sorteio prometeu, quando a realidade saiu diferente (14/09/2026). Riscado
+   porque é o que DEIXOU de valer — o número que vale é o grande, em cima. Discreto de propósito:
+   ele explica, não compete. */
+.pdz-jl-prometido {
+    display: block;
+    font-size: .7rem;
+    color: var(--pdz-muted);
+    text-decoration: line-through;
+}
+
 .pdz-jl-etiquetas {
     display: flex;
     align-items: center;

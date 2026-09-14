@@ -145,7 +145,19 @@ namespace Padelizou.Controllers
             if (recusa != null) TempData["Erro"] = recusa;
             else TempData["Sucesso"] = "Voto registrado! Dá pra trocar enquanto a votação estiver aberta.";
 
-            return RedirectToAction(nameof(Mvp), new { id });
+            // ⚠️ VOTO ACEITO DESCE PRA ENQUETE; VOTO RECUSADO FICA NO TOPO. Com a cédula
+            // recolhida (VotacaoDeMvp.CedulaRecolhida) a enquete já sobe sozinha, e a âncora
+            // fecha o caminho — a pessoa chega nela em vez de no cabeçalho da página.
+            //
+            // Na recusa a âncora seria um tiro no pé: a mensagem que explica por que o voto
+            // não valeu está no ALTO da tela, e descer esconderia justamente ela.
+            //
+            // ⚠️ A ÂNCORA NUNCA APONTA PRO VAZIO: a enquete usa a MESMA janela do MVP
+            // (EnqueteDoTorneio.Aberta = TemPosTorneio + DentroDaJanela), então voto aceito
+            // significa enquete na tela, sem precisar perguntar de novo ao banco.
+            return recusa != null
+                ? RedirectToAction(nameof(Mvp), new { id })
+                : RedirectToAction(nameof(Mvp), null, new { id }, MvpDoTorneio.AncoraDaEnquete);
         }
     }
 }
