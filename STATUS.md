@@ -1,6 +1,38 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
+>
+> 🗣️ Felipe: *"crie um botão para compartilhar o ranking"*. Perguntado, escolheu **arte PNG** (e não o link da tela) e **um botão por aba**; na segunda pergunta, **top 10** e a aba **Desafios junto**, como card fechado.
+>
+> 🔑 **UM CARD PRA QUATORZE LISTAS, e é a decisão que segurou o tamanho do trabalho**: todas as tabelas do Ranking têm a mesma forma — posição, quem, um número. O `CartaoDoRanking` desenha `1º Los Corneteiros · 1301 pts` na LINHA ÚNICA que o `CartaoDaClassificacao` já provou (tabela não é frase, e story não tem rolagem). Um desenho por aba seria quatorze lugares pra a próxima mudança de marca passar, e treze deles ficariam pra trás.
+>
+> 🔑 **E AS LISTAS SÃO AS MESMAS DA TELA, NÃO UMA SEGUNDA CONSULTA**: o `HubDoRanking` saiu extraído da ação `JogadorsController.Ranking` (108 linhas que viraram 6) e agora atende os dois. Montar só a lista da aba pedida era o caminho barato e o ERRADO — duas montagens do mesmo ranking divergiriam na primeira mudança de régua, e a divergência sairia **publicada**, numa arte dizendo que o time A é o primeiro enquanto a tela ao lado diz que é o B. Custa consultas; a alternativa custa confiança, e o card sai com uma hora de cache.
+>
+> ⚠️ **17 BOTÕES, NENHUM JS NOVO**: a classe `pdz-compartilhar` é a do `compartilhar-card.js`, que já resolve o caminho inteiro — menu nativo com o PNG anexado no celular, e **queda pro download** onde o `navigator.share` com arquivo não existe. Um partial só (`_BotaoCompartilharRanking`): copiado 17 vezes, o `data-titulo` de um ficaria pra trás na primeira mudança.
+>
+> ⚠️ **A URL É MONTADA EM C#, E ESSE É O DEFEITO CALADO DESTE TRABALHO**: o botão precisa pedir a arte **da tela aberta** — estado, cidades, torneio e período. Um botão que esquece um filtro não quebra, não loga e não fica feio: desenha, com capricho, o ranking do Brasil todo debaixo de uma tela que diz "Porto Alegre", e quem posta acha que postou a própria posição. Em `BotaoDeCompartilharRanking.Url` isso é conferível por teste; montado à mão em 17 `.cshtml`, seriam 17 chances de esquecer e nenhuma de perceber.
+>
+> ⚠️ **O `TemArte` É A GUARDA DE VAZIO NA RÉGUA DE QUEM DESENHA** — e não no `if` da tabela vizinha. Cada botão mora ao lado de uma tabela com a própria guarda; a primeira a discordar entregaria um botão que só sabe abrir 404.
+>
+> 🔒 **AS DUAS FAMÍLIAS NUM MÉTODO SÓ, E QUEM DECIDE É A ABA**: sete abas são de DIVULGAÇÃO (a tela é pública e o card é o convite pra entrar); a de Desafios é FECHADA. O `[Authorize]` não serviria nas duas direções — no método fecharia as sete, ausente não protegeria a oitava. Quem protege é a **mesma** `PortaDosDesafios` da tela: sem ela o `hub.Desafios` nasce nulo, o `Montar` devolve nulo e a ação responde 404. O `publico: false` do `Png()` sai da mesma pergunta.
+>
+> ⚠️ **`AbaDoRanking?` ANULÁVEL DE PROPÓSITO**: com o enum seco, um `?aba=lixo` não falha — o binder registra o erro, deixa o valor no DEFAULT e a pessoa recebe, sem aviso, a arte de OUTRA aba. Nula + `Enum.IsDefined`, o pedido torto vira 404.
+>
+> 🧪 **O CHÃO DO `TamanhoQueCabe` FOI TRATADO NA ORIGEM, e não depois do print**: o buraco de 14/09 (ele devolve o mínimo mesmo quando o mínimo não cabe, e o Skia pinta até a borda) foi endereçado com piso PRÓPRIO de 22 e **um tamanho só pra todas as linhas, o da mais longa** — cada linha encolhendo por conta própria não parece tabela, e numa lista ordenada tamanho de letra é lido como importância. Cada linha é medida **com a fonte em que vai sair**: a do líder é Bold, mais larga que a SemiBold no mesmo corpo.
+>
+> 🔬 **UM TESTE PASSOU DE PRIMEIRA, E ISSO ESTÁ REGISTRADO COMO NÃO-PROVA**: o da pílula. O que o sustenta é a MEDIÇÃO — no corpo 40 o pior recorte real mede **605px** ("Governador Celso Ramos") contra teto de **960**; a conta só vira ESTOURA lá pelos 50 caracteres. Por isso a pílula **não** ganhou código pra encolher: seria código pra um caso que não existe. E o gate foi **falsificado**, não só executado: com um recorte de 51 caracteres ele acusou **84 linhas** com tinta na margem.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão pra clicar nos 17 botões. O que sustenta são os testes e as **duas artes geradas e OLHADAS** (o ranking de Times do print do Felipe e o pior caso de dupla com apelido nos dois, na 10ª posição — nomes inteiros, nada cortado). **Quem confirma na tela é o Felipe.**
+>
+> 🕳️ **UM BURACO PRÉ-EXISTENTE ACHADO NO CAMINHO — E CORRIGIDO POR OUTRA SESSÃO ENQUANTO ESTA RODAVA**: `/Jogadores/Ranking?torneioId=N` não perguntava se o torneio podia aparecer (o SELETOR filtrava oculto e cancelado; o parâmetro da URL, não). Virou tarefa, o Felipe a iniciou, e ela saiu no **PR #304** — `PermissaoDeOrganizador.ApareceParaOPublico`, régua que já existia.
+>
+> ⚠️ **E FOI O MERGE MAIS DELICADO DESTE TRABALHO, porque as duas sessões mexeram NA MESMA LINHA por motivos diferentes**: lá a trava nasceu dentro da ação `Ranking`; aqui a ação inteira virou o `HubDoRanking`. O git resolveu o arquivo e teria perdido a trava em silêncio — quem a carregou pro serviço foi decisão explícita, e o comentário de lá diz isso. Sem ela, o buraco reabriria **sem ninguém ter escrito uma linha pra isso**, e desta vez com uma porta nova: a arte do `/Cartoes/RankingImagem?aba=Torneio`, que sai com cache **público**.
+>
+> 🔑 **O QUE SEGUROU NÃO FOI ATENÇÃO, FOI O DESENHO DO TESTE DELES**: o `SeletorDoRankingTests` chama a **AÇÃO**, não o serviço — então ele enxerga a trava mesmo ela tendo mudado de arquivo. O autor do #304 previu exatamente isto no corpo do PR: *"uma extração que perder a trava fica vermelha"*. Ficou provado no caminho contrário: a suíte passou COM a trava carregada.
+>
+> **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** ⏳ **No branch `claude/instagram-stories-art-button-54tbyf`.** **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
 >
 > 🗣️ Felipe, com o print de uma arte da semifinal do ER Padel Tour montada à mão: *"Conseguimos fazer um Botao no sistema, que ele ja crie essa arte e apenas tiremos a foto na hora para postarmos nos stories do instagram, colocando o @ da pessoa ja quando tiver no cadastro?"*.
@@ -332,8 +364,6 @@
 >
 > 🖱️ **E O BOTÃO FOI CLICADO NO HTML QUE O PRÓPRIO `prod` GEROU.** O Chromium não sai por este proxy, então o caminho foi o inverso: espelhei a página e os 28 assets de produção num servidor local e cliquei ali. Resultado: `verQuemReagiu` carregado, **o painel abriu**, título "2 reações", pílula no painel, nomes na lista, e o campo de emoji ausente (como deve ser pra anônimo). Botão medido: **32×32px de alvo, `border: none`, fundo transparente, `border-radius: 0`, `opacity: .5`**.
 
-
-
 > **12/09/2026** — 📐 **DESENHO APROVADO E NÃO IMPLEMENTADO: "confronto definido já é jogo".** ⏸️ **Revertido de propósito no meio — leia por quê antes de retomar.** **PRECISA de migration.**
 >
 > 🗣️ Felipe, 12/09/2026, com o ER em quadra e o print da Quartas de Final 2 da 6ª Masculina definida e sem palpite: *"eu preciso que todo jogo com confronto definido ja seja possivel palpitar e começar se preciso, tratar ele como um jogo pronto para iniciar"*.
@@ -642,7 +672,6 @@
 > ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
 >
 > 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
-
 
 > **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** 🚀 **PUBLICADO em `prod` no `build-1301-3c4c262`** (PR #276, deploy 318, direto em prod a pedido do Felipe com o torneio em quadra).** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
 >
@@ -1015,7 +1044,6 @@
 >
 > ⚠️ **E O `main` ANDOU 27 COMMITS DURANTE ESTE TRABALHO** (PRs #234, #235 e #236, de sessões paralelas), com **duas** rodadas de conflito no `STATUS.md` e uma terceira no próprio branch — outra sessão empurrou um merge do `main` dentro dele enquanto eu resolvia o meu. Reconciliado com merge, nunca com `--force`.
 
-
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1197-c4856a9`** (runs 280 e 281, 00h22 e 00h25 de Brasília), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #234, o **"palpitômetro sem o erre"**. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO, no `prod`, anônimo, no torneio do Er** (`/Torneios/Details/26`, 996 KB de HTML): **56 rótulos `PALPITÔMETRO`**, **56 `pdz-palpitometro`** e **ZERO ocorrência de "palpitr"** na página inteira. O `/js/palpitometro.js` responde **200** e traz o `atualizarPalpitometro`; o `/js/palpitrometro.js` antigo responde **404**. `/healthz` **200** nos dois ambientes.
@@ -1089,7 +1117,6 @@
 > ⚠️ **O `main` ANDOU QUATRO VEZES durante o ciclo** (PRs #224, #228, #230, #231, #232). Duas mesclas na mão, e a suíte inteira rodada depois de cada uma: **6.614 testes, 0 falhas** na árvore final. Uma automação também atualizou o branch sozinha — conferi que a árvore dela era **byte a byte** igual à minha (`git diff` vazio) antes de alinhar, sem force-push.
 >
 > 🖥️ ⚠️ **CONTINUA NÃO VISTO NUMA TELA, e desta vez nem em produção dá pra conferir por fora**: o diff inteiro deste trabalho está **atrás de login** (`/Admin`), então **não existe sonda anônima** que prove o botão renderizando — ao contrário dos cards de torneio de ontem, que o `curl` pegava. A prova que há é código, 6.614 testes e `/healthz` 200. **Quem abrir o painel, confira o card "Avisos do sistema"** e a faixa vermelha quando ele estiver mudo.
-
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
 >

@@ -1,0 +1,31 @@
+@model Padelizou.ViewModels.BotaoDeCompartilharRanking
+@*
+    O BOTÃO "COMPARTILHAR" DE UMA ABA DO RANKING (14/09/2026 — 🗣️ Felipe: *"crie um botão para
+    compartilhar o ranking"*, com um botão por aba).
+
+    ⚠️ UM PARTIAL, E NÃO O MARKUP REPETIDO: são 17 tabelas na tela do Ranking (oito abas, e
+    quatro delas com sub-abas). Copiado, o `data-titulo` de uma delas ficaria pra trás na
+    primeira mudança — e o defeito seria um story com o rótulo errado, que ninguém confere.
+
+    ⚠️ NENHUM JS NOVO. A classe `pdz-compartilhar` é a do `compartilhar-card.js`, que já resolve
+    o caminho inteiro: menu nativo com o PNG anexado no celular, e QUEDA PRO DOWNLOAD onde o
+    `navigator.share` com arquivo não existe (desktop, navegador antigo, http). Botão que não
+    faz nada é pior que botão que faz o caminho longo.
+
+    ⚠️ O endereço da arte NÃO é montado aqui — ele vem do `BotaoDeCompartilharRanking.Url`, em
+    C#, porque precisa carregar os filtros da tela (estado, cidades, torneio, período) e isso é
+    conferível por teste. Ver o comentário de lá.
+
+    ⚠️ E O `TemArte` É A GUARDA DE VAZIO, na régua de quem DESENHA e não no `if` da tabela
+    vizinha: aba sem ninguém neste recorte responderia 404, e são 17 lugares pra as duas
+    condições discordarem. Aqui há uma só.
+*@
+@if (Model.TemArte)
+{
+    <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 pdz-compartilhar"
+                data-imagem="@Model.Url" data-arquivo="@Model.Arquivo" data-titulo="@Model.Titulo">
+            <i class="bi bi-share-fill"></i> Compartilhar
+        </button>
+    </div>
+}
