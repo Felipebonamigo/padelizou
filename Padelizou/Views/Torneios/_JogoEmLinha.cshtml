@@ -43,7 +43,18 @@
     // salpicada, com o bloco aparecendo em dois jogos e sumindo em dez, do lado de jogos
     // idênticos. Quem visita deslogado é justamente quem ainda pode virar usuário: ver a
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
-    bool mostraPalpitometro = temPalpite || jogo.Status == "Agendada";
+    //
+    // ⚠️ E SÓ ONDE O ORGANIZADOR ABRIU (14/09/2026, Services/AlcanceDoPalpitometro): o torneio
+    // que desligou o palpitômetro — ou que só o quer num lado — não ganha o bloco aqui. A régua
+    // é do ALCANCE + o nome da categoria, e o alcance chega por view-data (o mesmo caminho do
+    // `UsaCheckIn`), montado uma vez só em TorneiosController.CarregarViewBagJogosAsync.
+    //
+    // ⚠️ Ausente, o view-data vale "Todas" (ver `Normalizar`): a lista renderizada de um lugar
+    // que esqueceu de mandar o alcance mostra o palpitômetro como sempre mostrou, em vez de
+    // sumir com ele em silêncio. Quem RECUSA o voto é o servidor, no PalpiteService.
+    bool palpitometroLiberado = Padelizou.Services.AlcanceDoPalpitometro.Libera(
+        ViewData["PalpitometroEm"] as string, jogo.Categoria.Nome);
+    bool mostraPalpitometro = palpitometroLiberado && (temPalpite || jogo.Status == "Agendada");
 
     // NOME E SOBRENOME, não só o primeiro nome (Felipe, 08/08/2026): "aqui no americano está
     // difícil de entender quem é quem".

@@ -171,6 +171,18 @@ public class PalpiteService : IPalpiteService
         if (duplaEscolhidaId != partida.Dupla1Id && duplaEscolhidaId != partida.Dupla2Id)
             throw new InvalidOperationException("Dupla inválida para esta partida.");
 
+        // ONDE O PALPITÔMETRO VALE (14/09/2026, Services/AlcanceDoPalpitometro). A tela já não
+        // desenha o bloco na categoria de fora — mas esconder não é fechar: o POST de
+        // /Partidas/Votar é montado à mão sem passar por view nenhuma, e quem estava com a
+        // lista aberta quando o organizador desligou continua com o botão na mão.
+        //
+        // ⚠️ SÓ O PALPITE NOVO. `RetirarPalpiteAsync` NÃO ganha esta trava de propósito: ela é
+        // sobre gravar aposta, e fechar a saída junto prenderia quem já palpitou a uma aposta
+        // que a tela nem mostra mais.
+        var palpitometro = await ConsultaDoPalpitometro(_context, partida.CategoriaId).FirstOrDefaultAsync();
+        if (!AlcanceDoPalpitometro.Libera(palpitometro?.Alcance, palpitometro?.Nome))
+            throw new InvalidOperationException("O palpitômetro não está aberto nesta categoria.");
+
         // ⚠️ TODA a validação do placar acontece AQUI, e não na tela. A tela oferece fichas com
         // os placares possíveis; quem RECUSA é o servidor — um POST montado à mão não passa por
         // view nenhuma, e é ele que gravaria o "6 x 9" que nenhum jogo termina.
@@ -307,6 +319,23 @@ public class PalpiteService : IPalpiteService
 
         return vazio with { Lado1 = lado1, Lado2 = lado2 };
     }
+
+    // O nome da categoria do jogo e o alcance do palpitômetro do torneio DELA, numa consulta só.
+    //
+    // ⚠️ O CAMINHO É PELA CATEGORIA, e não por `Partida.TorneioId`: aquela coluna é ANULÁVEL e
+    // nem toda partida a preenche (mesma razão de TorneiosController.ChegadasDoTorneioAsync). Por
+    // `TorneioId`, o jogo sem ela cairia em "torneio desconhecido" — que o `Normalizar` lê como
+    // "Todas" — e o palpitômetro desligado continuaria aceitando voto, calado.
+    //
+    // ⚠️ O `Where` vem ANTES do `Select`: filtrar depois de projetar é o erro de 19/08/2026, que
+    // o InMemory não pega. Esta consulta é conferida com ToQueryString contra o Npgsql — ver
+    // TraducaoDasConsultasDePalpiteTests.
+    public record PalpitometroDaCategoria(string Nome, string Alcance);
+
+    public static IQueryable<PalpitometroDaCategoria> ConsultaDoPalpitometro(DbPadelContext ctx, int categoriaId) =>
+        ctx.Categorias
+            .Where(c => c.Id == categoriaId)
+            .Select(c => new PalpitometroDaCategoria(c.Nome, c.Torneio.PalpitometroEm));
 
     private async Task<Torneio?> TorneioDaPartidaAsync(Partida partida) =>
         partida.TorneioId is int id ? await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id) : null;
