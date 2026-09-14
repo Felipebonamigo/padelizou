@@ -238,7 +238,7 @@ public class AvancoParcialDosGruposTests
 
         var abertura = cadeia.Rodadas[0];
         Assert.Single(abertura.Confrontos);          // só o jogo 2
-        Assert.Equal(2, abertura.PrimeiroNumero);    // e ele se chama "2", não "1"
+        Assert.Equal(new[] { 2 }, abertura.Numeros);  // e ele se chama "2", não "1"
         // Os dois rótulos são escritos por classes diferentes e têm que casar letra por letra:
         // "1º do Grupo A" (CruzamentoDoMataMata.Vaga) e "1º do Grupo A" (ChaveProjetada.Vaga).
         Assert.Equal(mapa.Confrontos[1].Lado1.Rotulo, abertura.Confrontos[0].Lado1.Rotulo);

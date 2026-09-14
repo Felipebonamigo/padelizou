@@ -436,6 +436,19 @@ public class FiltroDeJogosNaoAtrapalhaAsOutrasTelasTests
         var slots = (List<HorariosDaGrade.Slot>)controller.ViewBag.SlotsDaGrade;
 
         var noveECinquenta = slots.Single(s => s.Horario == c.GrupoNoEr.HorarioPrevisto);
-        Assert.Equal(1, noveECinquenta.Ocupadas);
+
+        // ⚠️ ERAM 1 ATÉ 13/09/2026, e a mudança é de verdade, não adaptação ao código: neste
+        // horário existem DOIS jogos — o de grupo, que está no banco, e a FINAL PREVISTA, que a
+        // projeção põe aqui (conferido imprimindo a lista). Com 2 quadras, o slot está cheio.
+        //
+        // 🗣️ Felipe, com o seletor aberto: *"as quadras nao estao livres, esta agendado para
+        // outros jogos, so nao estao definidos ainda quais serao, mas o horario e jogo ja
+        // existe"*. O 1 só era "certo" enquanto a prévia não contava — e era com esse 1 que o
+        // seletor oferecia uma vaga que não existia.
+        //
+        // O que este teste guarda continua o mesmo: a conta é do TORNEIO INTEIRO, e não do
+        // recorte da tela — por isso ele roda com o filtro de categoria ligado.
+        Assert.Equal(2, noveECinquenta.Ocupadas);
+        Assert.True(noveECinquenta.Lotado);
     }
 }

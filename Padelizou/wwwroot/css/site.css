@@ -3456,6 +3456,27 @@ a.pdz-grupo-jogo[href]:focus-visible {
     .pdz-jl-par { flex-direction: column; align-items: flex-start; gap: .1rem; }
     .pdz-jl-par .pdz-jl-barra { display: none; }
     .pdz-jl-corpo { gap: .5rem; }
+
+    /* O NOME DA DUPLA QUEBRA EM VEZ DE PICOTAR (14/09/2026).
+       🗣️ Felipe, com o print da lista de Finalizadas num celular menor: *"Os nomes em celulares
+       menores nao cabem, nao da pra saber quem é"* — "Marina Va…", "Débora Gonçalv…", "Lucas
+       Ped…".
+
+       O caminho SEM check-in (LadoDaDupla) põe a dupla inteira num `.pdz-jl-nome` só, com
+       `nowrap` + `ellipsis`. Como é ele que tem `flex: 1 1 auto`, é ele que absorve todo o aperto
+       da linha — e absorve escondendo sobrenome. Com rostos, escudo, placar e porcentagem na
+       mesma linha, medido no Chromium a 360px, não sobra largura pra dois nomes.
+
+       ⚠️ O `nowrap` NO `<a>` É O QUE IMPORTA: sem ele a quebra cai no meio do nome da pessoa
+       ("Cristina / Bassols"). Com ele, o único ponto de quebra é a barra entre os dois — que é
+       exatamente onde a linha deve dobrar. */
+    .pdz-jl-dupla .pdz-jl-nome {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .pdz-jl-dupla .pdz-jl-nome > a { white-space: nowrap; }
 }
 
 /* Rodapé do palpitômetro: o rótulo, a barra e o total de votos numa linha fina. */

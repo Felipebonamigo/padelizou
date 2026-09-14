@@ -1170,6 +1170,19 @@ public partial class DbPadelContext : DbContext
             // ⚠️ A suíte NÃO pega a volta disto por comportamento: o EF InMemory ignora
             // `HasDefaultValue`. Quem segura é `PlacarNaoNasceZeradoTests`, na anotação.
 
+            // ⚠️ DUAS PARTIDAS NÃO PODEM SER A MESMA "Semifinal 2" — e quem impede é o BANCO,
+            // não um `if` em C# (degrau 4 da escada do CLAUDE.md). Dois encerramentos quase
+            // simultâneos, ou o organizador reabrindo e refinalizando o mesmo jogo, chamam o
+            // robô duas vezes; antes o guarda era um contador lido antes do INSERT, que é
+            // exatamente a forma que uma corrida atravessa.
+            //
+            // ⚠️ NULO NÃO CONFLITA NO POSTGRES, e é isso que deixa o índice conviver com o
+            // acervo: todo jogo criado antes de 13/09/2026 tem `NumeroNaFase` nulo, e vários
+            // nulos na mesma fase são permitidos.
+            entity.HasIndex(e => new { e.CategoriaId, e.Fase, e.NumeroNaFase })
+                .IsUnique()
+                .HasDatabaseName("IX_Partida_Categoria_Fase_Numero");
+
             entity.HasOne(d => d.Categoria).WithMany(p => p.Partidas)
                 .HasForeignKey(d => d.CategoriaId)
                 .OnDelete(DeleteBehavior.ClientSetNull)

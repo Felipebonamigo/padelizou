@@ -60,10 +60,22 @@ public static class AvancoDaChave
         var daCategoria = await context.Partidas
             .Where(p => p.CategoriaId == categoriaId)
             .OrderBy(p => p.Id)
-            .Select(p => new { p.Id, p.Fase, p.Status, p.VencedorId })
+            .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.Status, p.VencedorId, p.NumeroNaFase })
             .ToListAsync();
 
-        var partidasDaFase = daCategoria.Where(p => p.Fase == faseConcluida).ToList();
+        // ⚠️ NA ORDEM DO QUADRO, E NÃO POR Id (13/09/2026). Desde que o jogo pode nascer fora de
+        // ordem, a posição na lista por Id não é mais o número dele na fase — e é a POSIÇÃO que
+        // decide quem enfrenta quem na rodada seguinte (`ParearVencedores` cruza i com n-1-i).
+        // Ler por Id aqui casaria a Semifinal 2 como se fosse a 1, e a Final sairia entre as
+        // duplas erradas, sem erro nenhum na tela.
+        var numeroNaFase = ReservasDeHorario.NumeroNaFase(
+            daCategoria.Select(p => (p.Id, p.CategoriaId, p.Fase, p.NumeroNaFase)));
+
+        var partidasDaFase = daCategoria
+            .Where(p => p.Fase == faseConcluida)
+            .OrderBy(p => numeroNaFase.TryGetValue(p.Id, out var n) ? n : int.MaxValue)
+            .ThenBy(p => p.Id)
+            .ToList();
         if (partidasDaFase.Count == 0) return new List<int?>();
 
         // ⚠️ COM A FASE DE GRUPOS ABERTA, A ABERTURA DO MATA-MATA AINDA ESTÁ CRESCENDO.

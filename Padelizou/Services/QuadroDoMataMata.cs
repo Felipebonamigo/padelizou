@@ -98,7 +98,7 @@ public static class QuadroDoMataMata
         for (int i = primeira; i < ordemDasFases.Length; i++)
         {
             var faseAtual = ordemDasFases[i];
-            var reais = jogos.Where(j => j.Fase == faseAtual).OrderBy(j => j.Id).ToList();
+            var reais = ReservasDeHorario.NaOrdemDaFase(jogos, faseAtual);
             var vagas = new List<Vaga>();
 
             if (reais.Count == 0 && entrantes.Count < 2) break;

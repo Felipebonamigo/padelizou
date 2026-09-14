@@ -35,6 +35,94 @@ public class AuditoriaDaGradeTests
     private static Partida Jogo(int d1, int d2, DateTime? quando, string fase = "Grupo A", string? quadra = null) =>
         new() { Codigo = "X", Fase = fase, CategoriaId = 1, Dupla1Id = d1, Dupla2Id = d2, HorarioPrevisto = quando, NomeQuadra = quadra };
 
+    // ⚠️ 🗣️ Felipe, 13/09/2026, no 2ª Etapa ER PADEL TOUR, com semifinais nascidas no domingo de
+    // manhã marcadas pra SÁBADO 13:00 — antes das próprias quartas: *"o chaveamento se perdeu dos
+    // horarios pré definidos de semi final"* · *"mas esta desordenado"*.
+    //
+    // Ele descobriu na mão, olhando a lista e estranhando a ordem. A conferência já tinha "Fase
+    // fora de ordem", mas nenhuma regra respondia a pergunta mais simples de todas: *este jogo
+    // que ainda não aconteceu está marcado num horário que já passou?*
+    //
+    // ⚠️ O PASSADO É O DO TORNEIO, e não `DateTime.Now` — mesma régua da reserva
+    // (ReservasDeHorario.RelogioDoTorneio), e pelo mesmo motivo: a suíte inteira monta torneios
+    // em julho/2026, e o relógio de parede acusaria todos eles.
+    [Fact]
+    public void Jogo_pendente_marcado_num_horario_que_o_torneio_ja_passou_e_acusado()
+    {
+        var torneio = Torneio();
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21), Dupla(3, 30, 31), Dupla(4, 40, 41) };
+
+        var jaJogou = Jogo(1, 2, Sabado.AddHours(10));
+        jaJogou.Status = "Finalizada";
+
+        // A semifinal do flagrante: nasceu depois, e foi parar ANTES do que já rolou.
+        var pendente = Jogo(3, 4, Sabado.AddHours(8), fase: "Semifinal");
+        pendente.Status = "Agendada";
+
+        var achados = AuditoriaDaGrade.Conferir(torneio, new[] { jaJogou, pendente }, duplas,
+            SedesDoTorneio.Nenhuma);
+
+        var achado = Assert.Single(achados, a => a.Regra == AuditoriaDaGrade.JogoNoPassado);
+        Assert.Contains("Semifinal", achado.Descricao);
+    }
+
+    [Fact]
+    public void Jogo_pendente_depois_do_que_ja_rolou_nao_e_acusado()
+    {
+        var torneio = Torneio();
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21), Dupla(3, 30, 31), Dupla(4, 40, 41) };
+
+        var jaJogou = Jogo(1, 2, Sabado.AddHours(10));
+        jaJogou.Status = "Finalizada";
+
+        var pendente = Jogo(3, 4, Sabado.AddHours(12), fase: "Semifinal");
+        pendente.Status = "Agendada";
+
+        var achados = AuditoriaDaGrade.Conferir(torneio, new[] { jaJogou, pendente }, duplas,
+            SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.JogoNoPassado);
+    }
+
+    // ⚠️ ACUSAR SEM CONSERTAR NÃO RESOLVE NADA, e foi o que aconteceu com o Felipe: ele apertou
+    // "Ajustar horários" e os jogos do passado continuaram lá. `ReparoDaGrade.Peso` devolve 0
+    // pra regra que ele não conhece — e peso 0 quer dizer "nenhuma troca resolve, não vira
+    // alvo". Sem esta linha, a regra nova seria um aviso decorativo.
+    [Fact]
+    public void O_reparo_trata_jogo_no_passado_como_impossibilidade_dura()
+    {
+        Assert.True(ReparoDaGrade.EhDuro(AuditoriaDaGrade.JogoNoPassado));
+
+        // Mais pesado que estar em dois jogos ao mesmo tempo: dois jogos no mesmo minuto pelo
+        // menos podem ser jogados atrasados; um jogo no passado não pode ser jogado nunca.
+        Assert.True(ReparoDaGrade.Peso(AuditoriaDaGrade.JogoNoPassado)
+                    > ReparoDaGrade.Peso(AuditoriaDaGrade.PessoaEmDoisJogos));
+
+        // Mas abaixo de "sem horário": jogo sem hora nenhuma some da grade inteira.
+        Assert.True(ReparoDaGrade.Peso(AuditoriaDaGrade.JogoNoPassado)
+                    < ReparoDaGrade.Peso(AuditoriaDaGrade.SemHorario));
+    }
+
+    [Fact]
+    public void O_jogo_que_ja_aconteceu_no_passado_nao_e_acusado()
+    {
+        // ⚠️ O GUARDA-CORPO QUE IMPORTA: a grade INTEIRA de um torneio que acabou está no
+        // passado. Acusar jogo finalizado encheria a conferência de ruído e esconderia o achado
+        // de verdade — que é sempre sobre um jogo que ainda VAI acontecer.
+        var torneio = Torneio();
+        var duplas = new[] { Dupla(1, 10, 11), Dupla(2, 20, 21), Dupla(3, 30, 31), Dupla(4, 40, 41) };
+
+        var cedo = Jogo(1, 2, Sabado.AddHours(8));
+        cedo.Status = "Finalizada";
+        var tarde = Jogo(3, 4, Sabado.AddHours(10));
+        tarde.Status = "Finalizada";
+
+        var achados = AuditoriaDaGrade.Conferir(torneio, new[] { cedo, tarde }, duplas,
+            SedesDoTorneio.Nenhuma);
+
+        Assert.DoesNotContain(achados, a => a.Regra == AuditoriaDaGrade.JogoNoPassado);
+    }
+
     // ⚠️ 🗣️ Felipe, 09/09/2026: *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio
     // termina no domingo dia 13"*. `Torneio.DataFim` existia desde sempre e o motor NUNCA a leu —
     // era um aviso na tela de previsão e mais nada. Agora a conferência a lê.
