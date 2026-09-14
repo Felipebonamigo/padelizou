@@ -59,9 +59,15 @@
             <div class="card-body">
                 @* A prévia é a arte SEM foto — o mesmo endereço que o botão "Baixar sem foto"
                    usa. É um GET, então ela é cacheável e não custa um desenho por olhada. *@
+                @* ⚠️ `min(280px, 100%)`, não `280px` seco: o `max-width` INLINE vence o
+                   `max-width:100%` do `img-fluid` (mesma propriedade, e inline tem
+                   prioridade), e num celular de 390px a caixa do cartão dá ~365px — a arte
+                   estouraria e o `overflow-hidden` comeria o lado direito SEM deixar a página
+                   rolar: nenhuma barra, nenhuma pista, e quem vê acha que a arte é assim.
+                   Quem trancou isso é o gate `ArteNaoCortadaNoCelularTests`. *@
                 <img src="@previa" alt="Arte do jogo @Model.Fase, sem foto"
                      class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
-                     style="max-width: 280px;" />
+                     style="max-width: min(280px, 100%);" />
 
                 <form asp-action="ArteDoJogoImagem" asp-route-id="@Model.PartidaId"
                       asp-route-baixar="1" method="post" enctype="multipart/form-data"

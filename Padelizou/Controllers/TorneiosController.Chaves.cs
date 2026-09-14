@@ -649,6 +649,20 @@ namespace Padelizou.Controllers
 
             torneio.Status = "Fase de Grupos";
 
+            // ⚠️ E A GRADE PREVISTA CONGELA NO MESMO INSTANTE (14/09/2026).
+            //
+            // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"o chaveamento fixo, os horarios
+            // fixos"* · *"o pessoal se programa para jogar por esses horarios"*.
+            //
+            // 🕳️ Congelar só o CRUZAMENTO resolvia metade: quem joga contra quem parava de mudar,
+            // mas A QUE HORAS continuava sendo recalculado no instante em que o jogo nascia. E a
+            // projeção NÃO É ESTÁVEL — medido: promete 14:40 enquanto a Semifinal é só promessa e
+            // 15:30 depois que as Quartas viram resultado, com o torneio andando no horário.
+            //
+            // ✅ Aqui a prévia deixa de ser rascunho e vira promessa; então é aqui que a hora dela
+            // vira linha gravada. Depois disso ninguém recalcula: lê.
+            await GravarAGradePrevistaAsync(torneio);
+
             // O carimbo vai junto do status, numa gravação só: é ele que faz a próxima aprovação
             // saber que a rajada já saiu uma vez. Ele marca o DISPARO — a entrega em si é por
             // fila e best-effort, e sempre foi (ver AvisarChavesPublicadasAsync).
@@ -668,6 +682,61 @@ namespace Padelizou.Controllers
                 ? "Chaves aprovadas — já estão visíveis pra todo mundo, e os jogadores foram avisados."
                 : "Chaves aprovadas — já estão visíveis pra todo mundo. Ninguém foi avisado de novo.";
             return RedirectToAction("Details", new { id });
+        }
+
+        /// <summary>
+        /// Grava a hora (e a quadra) de cada eliminatória que a PRÉVIA está prometendo, pra que o
+        /// jogo nasça no horário que o jogador leu — e não no que o encaixe daquele momento achar.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ REUSA O `ReservaDeHorario`, e isso é o degrau 2 da escada do CLAUDE.md: a tabela já
+        /// existe, é chaveada por `(categoria, fase, número)` — a MESMA numeração com que a prévia
+        /// cita o jogo — e já tem TRÊS consumidores obedecendo a ela: a prévia, o robô ao criar a
+        /// rodada, e o reencaixe quando outra categoria avança. Nada disso precisa de código novo.
+        ///
+        /// ⚠️ E O 3-EM-2 MORRE DE BRINDE: `ReservasDeHorario.AindaPorNascer` já injeta os slots
+        /// reservados no `intocados` do encaixe. Hoje ela não protege quase nada porque quase não
+        /// existem reservas; com o sorteio gravado, o robô passa a enxergar o que foi prometido às
+        /// OUTRAS categorias e para de marcar em cima — que é exatamente o que pôs três jogos num
+        /// horário de duas quadras no ER.
+        ///
+        /// ⚠️ NÃO SOBRESCREVE O QUE JÁ EXISTE: a PK composta faz re-gravar ser UPDATE, mas uma
+        /// reserva já gravada é escolha de alguém (o organizador mexeu na mão, ou uma aprovação
+        /// anterior já prometeu). A mão sempre ganha da promessa automática.
+        /// </remarks>
+        private async Task GravarAGradePrevistaAsync(Torneio torneio)
+        {
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+            var projecao = await Robo.ProjetarProximasFasesAsync(torneio.Id, jogos);
+
+            // ⚠️ O BANCO **E** O QUE JÁ ESTÁ NO TRACKER. Só o banco deixa passar a reserva que
+            // foi `Add`-ada e ainda não salva nesta mesma unidade de trabalho — e aí o segundo
+            // `Add` estoura com "another instance with the same key value is already being
+            // tracked", que é exceção na cara de quem clicou em "aprovar".
+            var doBanco = await _context.ReservasDeHorario
+                .Where(r => r.Categoria.TorneioId == torneio.Id)
+                .Select(r => new { r.CategoriaId, r.Fase, r.Numero })
+                .ToListAsync();
+
+            var gravadas = doBanco.Select(r => (r.CategoriaId, r.Fase, r.Numero))
+                .Concat(_context.ReservasDeHorario.Local.Select(r => (r.CategoriaId, r.Fase, r.Numero)))
+                .ToHashSet();
+
+            foreach (var jogo in projecao.Jogos)
+            {
+                if (jogo.CategoriaId is not int categoriaId) continue;
+                if (jogo.Horario is not DateTime quando) continue;
+                if (!gravadas.Add((categoriaId, jogo.Fase, jogo.Numero))) continue;
+
+                _context.ReservasDeHorario.Add(new ReservaDeHorario
+                {
+                    CategoriaId = categoriaId,
+                    Fase = jogo.Fase,
+                    Numero = jogo.Numero,
+                    Horario = quando,
+                    NomeQuadra = jogo.Quadra,
+                });
+            }
         }
 
         /// <summary>
@@ -1271,6 +1340,15 @@ namespace Padelizou.Controllers
 
             var (remarcar, intocados) = await RecalcularAGradeAsync(torneio, todos);
 
+            // ⚠️ E A PROMESSA É RE-GRAVADA (14/09/2026, escolha do Felipe). O recálculo APAGA as
+            // reservas — o aviso do botão diz isso —, e sem gravar de novo os horários voltariam a
+            // poder mudar sozinhos no nascimento: um buraco silencioso, aberto justamente pelo
+            // botão que existe pra arrumar a grade. O que sair daqui passa a ser o compromisso.
+            //
+            // Depois do SaveChanges de propósito: a promessa sai da grade JÁ remarcada, não da
+            // que estava no ar um instante atrás.
+            await _context.SaveChangesAsync();
+            await GravarAGradePrevistaAsync(torneio);
             await _context.SaveChangesAsync();
 
             var marcados = remarcar.Where(j => j.HorarioPrevisto != null).ToList();

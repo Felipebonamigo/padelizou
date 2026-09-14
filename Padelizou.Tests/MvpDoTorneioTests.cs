@@ -1,6 +1,8 @@
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using NSubstitute.Core;
+using Padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -646,6 +648,186 @@ public class MvpDoTorneioTests
         // O Jogador1Id da linha de TIME é o organizador que cadastrou — ele viraria candidato a
         // melhor jogador de um torneio que talvez nem tenha jogado.
         Assert.DoesNotContain(candidatos, c => c.JogadorId == organizador.Id);
+    }
+
+    // ─────────────────────────── A ORDEM DA CÉDULA ───────────────────────────
+
+    // Uma categoria com a dupla CAMPEÃ dela, e mais nada — é tudo que a cédula lê.
+    private static void CampeaDe(DbPadelContext ctx, Torneio torneio, string categoria,
+        string codigo, string nome1, string nome2)
+    {
+        var cat = new Categoria { Nome = categoria, Codigo = codigo, TorneioId = torneio.Id };
+        ctx.Categorias.Add(cat);
+        ctx.SaveChanges();
+
+        var j1 = new Jogador { Nome = nome1, Cpf = $"777{ctx.Jogadores.Count():D8}" };
+        var j2 = new Jogador { Nome = nome2, Cpf = $"778{ctx.Jogadores.Count() + 1:D8}" };
+        ctx.Jogadores.AddRange(j1, j2);
+        ctx.SaveChanges();
+
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = j1.Id, Jogador2Id = j2.Id,
+            UltimaFase = CampeoesDoTorneio.FaseDeCampeao,
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task A_cedula_sai_por_CATEGORIA_da_mais_forte_pra_mais_fraca_com_a_dupla_junta()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+
+        // 🗣️ Felipe, com o print da cédula do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer
+        // as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.
+        //
+        // ⚠️ Os nomes são os do print, e é o ALFABETO que os embaralha: "Alexandre" (4ª) vem
+        // antes de "Arthur" (3ª), e a dupla da 3ª Masculina ("Arthur" e "Lucas") sai com sete
+        // linhas de outras categorias entre os dois parceiros.
+        CampeaDe(ctx, torneio, "6ª Categoria Feminina", "C6F", "Cristina Bassols", "Marina Vacaro");
+        CampeaDe(ctx, torneio, "4ª Categoria Masculina", "C4M", "Alexandre Longhi", "Felipe Zago");
+        CampeaDe(ctx, torneio, "3ª Categoria Feminina", "C3F", "Gabriela Cortes", "Karina Munhos");
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+
+        var candidatos = await MvpDoTorneio.CandidatosAsync(ctx, torneio.Id);
+
+        // A ordem é a da CHAVE — a mesma `CategoriaNaTela.Ordem` do resto do site —, e cada
+        // dupla sai inteira antes da próxima começar.
+        Assert.Equal(new[]
+        {
+            "Arthur Guex", "Lucas Biehl",           // 3ª Masculina
+            "Gabriela Cortes", "Karina Munhos",     // 3ª Feminina
+            "Alexandre Longhi", "Felipe Zago",      // 4ª Masculina
+            "Cristina Bassols", "Marina Vacaro",    // 6ª Feminina
+        }, candidatos.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public async Task Campea_em_DUAS_categorias_entra_na_cedula_pela_MAIS_FORTE_delas()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+
+        CampeaDe(ctx, torneio, "7ª Categoria Masculina", "C7M", "Zeca Setima", "Yuri Setima");
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+
+        // O "Arthur" ganha também a mista — e a linha dele é UMA só (ver o teste acima).
+        var mista = new Categoria { Nome = "Categoria Mista A", Codigo = "MISTA", TorneioId = torneio.Id };
+        ctx.Categorias.Add(mista);
+        ctx.SaveChanges();
+
+        var arthur = ctx.Jogadores.First(j => j.Nome == "Arthur Guex");
+        var parceira = new Jogador { Nome = "Aline Mista", Cpf = "77900000001" };
+        ctx.Jogadores.Add(parceira);
+        ctx.SaveChanges();
+
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = mista.Id, Jogador1Id = arthur.Id, Jogador2Id = parceira.Id,
+            UltimaFase = CampeoesDoTorneio.FaseDeCampeao,
+        });
+        ctx.SaveChanges();
+
+        var candidatos = await MvpDoTorneio.CandidatosAsync(ctx, torneio.Id);
+
+        // ⚠️ Uma linha por PESSOA e a Mista é o degrau mais baixo — então o Arthur tem que
+        // entrar pela 3ª, com o parceiro dele, e não descer pro fim da lista arrastando a
+        // dupla da 3ª pra lá. Quem fica só é a parceira da mista, que é campeã só ali.
+        // Dentro da dupla a ordem é o nome (o "Jogador1" é só quem fez a inscrição, não o
+        // primeiro de nada) — por isso o Yuri vem antes do Zeca.
+        Assert.Equal(
+            new[] { "Arthur Guex", "Lucas Biehl", "Yuri Setima", "Zeca Setima", "Aline Mista" },
+            candidatos.Select(c => c.Nome));
+    }
+
+    // ────────────────── DEPOIS DE VOTAR, A CÉDULA SAI DA FRENTE ──────────────────
+    //
+    // 🗣️ Felipe, 14/09/2026: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e
+    // apareça na tela para avaliar o torneio"*.
+    //
+    // A cédula de um torneio real tem 10 a 20 nomes. Quem já votou não precisa dela na frente —
+    // e é ela que empurra a enquete pra fora da tela, que é a coisa que ainda falta fazer.
+
+    [Fact]
+    public async Task A_cedula_nasce_RECOLHIDA_pra_quem_ja_votou_e_ABERTA_pra_quem_nao_votou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var agora = Domingo.AddHours(1);
+
+        // Antes de votar: a cédula é o assunto da tela.
+        var antes = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, campea.Jogador2Id!.Value, agora);
+        Assert.True(antes!.Aberta);
+        Assert.Null(antes.MeuVoto);
+        Assert.False(antes.CedulaRecolhida);
+
+        // Vota no parceiro… quer dizer, no campeão da outra ponta da dupla.
+        var recusa = await MvpDoTorneio.VotarAsync(
+            ctx, torneio.Id, campea.Jogador2Id!.Value, campea.Jogador1Id, agora);
+        Assert.Null(recusa);
+
+        var depois = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, campea.Jogador2Id!.Value, agora);
+        Assert.Equal(campea.Jogador1Id, depois!.MeuVoto);
+        Assert.True(depois.CedulaRecolhida);
+    }
+
+    [Fact]
+    public async Task A_cedula_da_votacao_ENCERRADA_nao_recolhe_porque_ali_ela_e_a_APURACAO()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var votante = campea.Jogador2Id!.Value;
+
+        // Vota com a janela aberta…
+        await MvpDoTorneio.VotarAsync(ctx, torneio.Id, votante, campea.Jogador1Id, Domingo.AddHours(1));
+
+        // …e volta depois que ela fecha. ⚠️ Recolher aqui esconderia o PLACAR de todo mundo,
+        // que é justamente o que a tela passa a mostrar quando encerra.
+        var encerrada = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, votante, Domingo.AddDays(8));
+        Assert.True(encerrada!.Encerrada);
+        Assert.NotNull(encerrada.MeuVoto);
+        Assert.False(encerrada.CedulaRecolhida);
+    }
+
+    [Fact]
+    public async Task O_voto_aceito_volta_com_ANCORA_na_enquete_e_o_voto_RECUSADO_nao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        // ⚠️ O RELÓGIO AQUI É O DE VERDADE: o controller chama `DateTime.Now`, então o último
+        // jogo tem que ser há pouco — com a data fixa dos outros testes a janela já teria
+        // fechado e o voto voltaria RECUSADO, testando o ramo errado.
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, DateTime.Now.AddHours(-2));
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var votante = campea.Jogador2Id!.Value;
+
+        var controller = TestInfra.NovoTorneiosController(ctx, votante);
+        var aceito = Assert.IsType<RedirectToActionResult>(
+            await controller.VotarMvp(torneio.Id, campea.Jogador1Id));
+
+        // ⚠️ A ÂNCORA NUNCA APONTA PRO VAZIO: a enquete usa a MESMA janela do MVP
+        // (EnqueteDoTorneio.Aberta = TemPosTorneio + DentroDaJanela), então voto aceito
+        // significa enquete na tela. Sem isso a pessoa cai no topo da página e rola 20 nomes
+        // pra achar o que ainda falta fazer.
+        Assert.Equal(nameof(TorneiosController.Mvp), aceito.ActionName);
+        Assert.Equal(MvpDoTorneio.AncoraDaEnquete, aceito.Fragment);
+
+        // Votar em si mesmo é recusado — e aí a mensagem está no TOPO da página. Descer pra
+        // enquete esconderia o motivo de o voto não ter sido registrado.
+        var recusado = Assert.IsType<RedirectToActionResult>(
+            await controller.VotarMvp(torneio.Id, votante));
+        Assert.Null(recusado.Fragment);
     }
 
     // ─────────────────────────── O VOTO ───────────────────────────

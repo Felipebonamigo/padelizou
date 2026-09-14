@@ -51,7 +51,7 @@
         <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
             <div class="card-body">
                 <img src="@imagem" alt="Cartaz de divulgação do @Model.Nome"
-                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 380px;" />
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: min(380px, 100%);" />
 
                 <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
                     <a href="@EntregaDeCard.LinkParaBaixar(imagem)" download="@arquivo"

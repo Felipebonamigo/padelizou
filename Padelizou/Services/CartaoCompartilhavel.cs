@@ -144,6 +144,21 @@ public static class CartaoCompartilhavel
         // Regra de três direta em vez de laço: a largura do texto é linear no tamanho da fonte,
         // então uma conta chega onde vinte iterações chegariam.
         var proporcional = tamanho * (larguraMaxima / largura);
+
+        // ⚠️ QUANDO NEM O MÍNIMO CABE, ESTE `Math.Max` DEVOLVE UM TAMANHO QUE VAZA — e quem
+        // desenha não confere: o `DrawText` pinta até a borda do canvas e o resto do texto
+        // simplesmente não existe, sem erro, sem log e sem reticências. Foi assim que "Marcio
+        // Rafael Machado" virou "Marcio Rafae" na arte do pódio (14/09/2026, print do Felipe).
+        //
+        // Fica como está DE PROPÓSITO: quem sabe o que fazer com "não coube" é quem desenha, e
+        // a resposta muda por card — o pódio quebra a linha de semifinalistas por dupla
+        // (`CartaoDoPodio.LinhasDosSemifinalistas`), porque encolher quatro nomes até caber daria
+        // corpo 18,7 e nenhum story se lê assim. Baixar o piso aqui, num método que 44 chamadas
+        // de 12 cards usam, trocaria um defeito visível por doze invisíveis.
+        //
+        // ⚠️ O QUE FALTA, E ESTÁ ESCRITO PRA NÃO SE PERDER: quem chama precisa escolher um piso
+        // que CAIBA de verdade no pior nome real do card dele. Quem vigia isso é o
+        // `ArteNaoCortaNomeDentroDoPngTests`, que mede tinta na margem do PNG pronto.
         return Math.Max(tamanhoMinimo, proporcional);
     }
 

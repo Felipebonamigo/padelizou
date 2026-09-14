@@ -49,6 +49,35 @@ public static class CartaoDoPodio
     public static string? LinhaDosSemifinalistas(List<string> semifinalistas) =>
         semifinalistas.Count == 0 ? null : string.Join("   ·   ", semifinalistas);
 
+    // ⚠️ E QUANDO A LINHA ÚNICA NÃO CABE, VIRAM DUAS — 14/09/2026, print do Felipe na 4ª
+    // Masculina do 2ª Etapa ER Padel Tour: a linha morria em "Marcio Rafae".
+    //
+    // 🔑 ENCOLHER NÃO RESOLVIA, e o motivo é estrutural: `TamanhoQueCabe` termina em
+    // `Math.Max(tamanhoMinimo, proporcional)`, então quando nem o mínimo cabe ele devolve o
+    // mínimo assim mesmo e o Skia pinta até a borda do canvas — some com o resto sem erro, sem
+    // log e sem reticências. São QUATRO nomes aqui, contra dois nos degraus de cima; é a única
+    // linha do card que uma fonte menor nunca ia salvar.
+    //
+    // 🔑 O CORTE É A DUPLA, e não a palavra (`QuebrarEmLinhas` quebraria "Alexandre / Costa").
+    // A dupla já é a unidade — o `·` existe só pra emendá-las —, então desfazer a emenda é
+    // devolver a lista ao formato que ela sempre teve.
+    //
+    // A linha única continua sendo a preferida enquanto couber DE VERDADE (medida no
+    // `tamanhoMinimo`, que é o mesmo limite de antes): pódio de nome curto sai igualzinho ao
+    // que já saía, e só o caso que quebrava muda de forma.
+    public static List<string> LinhasDosSemifinalistas(
+        List<string> semifinalistas, SKTypeface? familia, float tamanho, float larguraMaxima,
+        float tamanhoMinimo)
+    {
+        var emUmaLinha = LinhaDosSemifinalistas(semifinalistas);
+        if (emUmaLinha == null) return new List<string>();
+
+        using var fonte = new SKFont(familia, tamanhoMinimo);
+        return fonte.MeasureText(emUmaLinha) <= larguraMaxima
+            ? new List<string> { emUmaLinha }
+            : new List<string>(semifinalistas);
+    }
+
     public static byte[] Desenhar(PodioDeCategoria podio, FonteDoCartao fontes, string webRootPath)
     {
         var logo = CartaoCompartilhavel.LerDaMarca(webRootPath, CartaoDeCampeao.LogoDaMarca);
@@ -80,13 +109,7 @@ public static class CartaoDoPodio
                     tamanhoDoNome: 46, corDoNome: CartaoCompartilhavel.Branco,
                     familiaDoNome: fontes.Media, corDoRotulo: CartaoCompartilhavel.Apagado);
 
-                var semis = LinhaDosSemifinalistas(podio.Semifinalistas);
-                if (semis != null)
-                {
-                    Degrau(canvas, fontes, "SEMIFINALISTAS", semis, RotuloSemisY, NomeSemisY,
-                        tamanhoDoNome: 34, corDoNome: CartaoCompartilhavel.Branco,
-                        familiaDoNome: fontes.Normal, corDoRotulo: CartaoCompartilhavel.Apagado);
-                }
+                DegrauDosSemifinalistas(canvas, fontes, podio);
 
                 Evento(canvas, fontes, podio);
 
@@ -115,6 +138,49 @@ public static class CartaoDoPodio
         CartaoCompartilhavel.TextoCentralizado(
             canvas, nome, nomeY, familiaDoNome, tamanhoDoNome,
             corDoNome, CartaoCompartilhavel.Largura - MargemH, tamanhoMinimo: 24);
+    }
+
+    // O terceiro degrau, que é o único que pode ocupar mais de uma linha.
+    private const float TamanhoDosSemis = 34;
+    private const float MinimoDosSemis = 24;
+    private const float Entrelinha = 1.24f;
+
+    // Respiro obrigatório antes da divisória: sem ele a segunda linha encostaria no traço, que
+    // é pior de ler do que uma fonte um pouco menor.
+    private const float FolgaAteADivisoria = 24;
+
+    private static void DegrauDosSemifinalistas(SKCanvas canvas, FonteDoCartao fontes, PodioDeCategoria podio)
+    {
+        var linhas = LinhasDosSemifinalistas(
+            podio.Semifinalistas, fontes.Normal, TamanhoDosSemis,
+            CartaoCompartilhavel.Largura - MargemH, MinimoDosSemis);
+
+        if (linhas.Count == 0) return;
+
+        CartaoCompartilhavel.TextoCentralizado(
+            canvas, "SEMIFINALISTAS", RotuloSemisY, fontes.Media, 32,
+            CartaoCompartilhavel.Apagado, CartaoCompartilhavel.Largura - MargemH);
+
+        // ⚠️ A ALTURA TAMBÉM TEM TETO, e não só a largura: com duas linhas sobra espaço de
+        // sobra, mas uma categoria com três semifinalistas (chave torta, W.O. na semi) empurra
+        // a última pra cima da divisória. Quem manda é a conta, não o número escolhido no olho.
+        var espaco = DivisoriaY - FolgaAteADivisoria - NomeSemisY;
+        var tamanho = linhas.Count <= 1
+            ? TamanhoDosSemis
+            : Math.Min(TamanhoDosSemis, espaco / ((linhas.Count - 1) * Entrelinha));
+
+        var y = NomeSemisY;
+        foreach (var linha in linhas)
+        {
+            // `tamanhoMinimo` bem abaixo do da linha única de propósito: aqui já é UMA dupla, e
+            // uma dupla sozinha nunca chega perto disso — o piso só existe pra que o último
+            // recurso seja letra pequena e INTEIRA, nunca nome cortado pela borda do canvas.
+            CartaoCompartilhavel.TextoCentralizado(
+                canvas, linha, y, fontes.Normal, tamanho, CartaoCompartilhavel.Branco,
+                CartaoCompartilhavel.Largura - MargemH, tamanhoMinimo: 14);
+
+            y += tamanho * Entrelinha;
+        }
     }
 
     private static void Evento(SKCanvas canvas, FonteDoCartao fontes, PodioDeCategoria podio)
