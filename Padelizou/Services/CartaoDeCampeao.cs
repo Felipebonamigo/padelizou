@@ -113,9 +113,28 @@ public static class CartaoDeCampeao
         // ⚠️ O nome é a linha que mais quebra card: "Anderson Schwaab (Deco) & Charls Polese"
         // passa de 45 caracteres, e num tamanho fixo vazaria pelas bordas. Quem escolhe o
         // tamanho aqui é a régua, dentro de uma margem de 80px de cada lado.
+        //
+        // ⚠️ O PISO ERA 30 E ESTAVA CURTO — medido com dado real deste projeto em 14/09/2026,
+        // quando o pódio foi flagrado cortando nome (ver `TamanhoQueCabe`). O piso só protege
+        // enquanto ele CABE; abaixo disso a função devolve um tamanho que vaza, e o Skia come o
+        // resto do nome calado. Na caixa de 920px, com corpo 30:
+        //     Lucas Almeida (Foka)  &  Alexandre Costa (Camomila)      917  → 3px de folga
+        //     Felipe Bonamigo  &  Guilherme Bagesteiro                 921  → JÁ VAZAVA
+        //     Alexandre Costa (Camomila)  &  Alexandre Longhi (Xandy)  922  → JÁ VAZAVA
+        //     Anderson Schwaab (Andersinho)  &  Charls Polese (Charlinho)  971  → vazava 51px
+        // São duplas do 2ª Etapa ER Padel Tour, não nome inventado pra teste.
+        //
+        // 🔑 O QUE ALONGA É O APELIDO, e não o nome: `ComoChamar` já encurta "Anderson Matteus
+        // Schwaab" pra "Anderson Schwaab", mas o "(Andersinho)" entra inteiro e nada o corta.
+        // Com apelido nos dois jogadores — comum aqui —, 30 não dá. O pior caso medido pede
+        // 28,4; 24 é o mesmo piso dos degraus do pódio e deixa folga pra um apelido a mais.
+        //
+        // ⚠️ ENCOLHER RESOLVE AQUI e não resolvia no pódio, e a diferença é de ordem de
+        // grandeza: são DUAS pessoas nesta linha (30 → 28,4, invisível) contra QUATRO na dos
+        // semifinalistas (24 → 18,7, ilegível). Lá a saída foi quebrar em linhas.
         CartaoCompartilhavel.TextoCentralizado(
             canvas, campeao.Nomes, 1000, fontes.Forte, 62,
-            CartaoCompartilhavel.LimeClaro, CartaoCompartilhavel.Largura - 160, tamanhoMinimo: 30);
+            CartaoCompartilhavel.LimeClaro, CartaoCompartilhavel.Largura - 160, tamanhoMinimo: 24);
     }
 
     private static void Evento(SKCanvas canvas, FonteDoCartao fontes, CampeaoDeCategoria campeao)

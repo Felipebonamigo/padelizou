@@ -113,7 +113,7 @@
         <div class="card border-0 shadow-sm rounded-4 mb-3">
             <div class="card-body">
                 <img src="@imagem" alt="@titulo em @Model.Ano"
-                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: min(420px, 100%);" />
 
                 <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
                     <a href="@EntregaDeCard.LinkParaBaixar(imagem)" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">

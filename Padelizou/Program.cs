@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Padelizou.Filtros;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
@@ -378,6 +379,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+    // E quando ele recusa, quem NAVEGA vê uma tela em vez do 400 sem corpo que o navegador
+    // desenha como "This page isn't working" — beco sem menu e sem volta, fotografado por um
+    // jogador votando no MVP em 14/09/2026. Não afrouxa o carimbo: o status segue 400 e a ação
+    // segue sem rodar; muda só o corpo da resposta, e só pra quem pediu navegando (quem chama
+    // por `fetch` continua recebendo o status cru). Ver Filtros/CarimboVencidoNaTela.
+    options.Filters.Add(new CarimboVencidoNaTela());
 
     // Todo campo de dinheiro é <input type="number">, e o navegador manda "79.90" mesmo
     // exibindo "79,90". Em pt-BR o "." é separador de MILHAR, então o binder padrão lia isso

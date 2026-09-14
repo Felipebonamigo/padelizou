@@ -54,7 +54,7 @@
                         @if (!string.IsNullOrEmpty(qrBase64))
                         {
                             <img src="data:image/png;base64,@qrBase64" alt="QR Code do Pix"
-                                 class="img-fluid rounded" style="max-width: 260px;" />
+                                 class="img-fluid rounded" style="max-width: min(260px, 100%);" />
                         }
 
                         <div class="small text-muted mt-2 mb-3">
