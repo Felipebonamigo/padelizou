@@ -101,26 +101,28 @@ public class OHorarioDoSorteioEPromessaTests
         return ReservasDeHorario.NaOrdemDaFase(todas, fase);
     }
 
-    // ⚠️ O ACHADO QUE BLOQUEIA A PROMESSA, e o motivo de ela não estar implementada ainda.
+    // ⚠️ DECISÃO REVERTIDA EM 14/09/2026 — E ESTE TESTE FOI REESCRITO, NÃO APAGADO.
     //
-    // A projeção NÃO É ESTÁVEL: com o torneio ANDANDO NO HORÁRIO, sem atraso nenhum, ela promete
-    // um horário enquanto a Semifinal é só promessa e OUTRO depois que as Quartas viram
-    // resultado. Medido aqui: 14:40 antes, 15:30 depois.
+    // Ele nasceu medindo o ACHADO que bloqueava a promessa: a projeção NÃO era estável. Com o
+    // torneio andando no horário, sem atraso nenhum, ela prometia 14:40 enquanto a Semifinal era
+    // só promessa e 15:30 depois que as Quartas viravam resultado. Ficou escrito ali que ele
+    // *"vai falhar no dia em que alguém tornar a projeção estável — que é quando o desenho
+    // simples volta a ser possível"*.
     //
-    // Isso derruba o desenho mais simples — "o robô pergunta à prévia onde prometeu e põe ali" —,
-    // porque não existe UMA resposta: depende de quando se pergunta. A promessa que o Felipe quer
-    // (*"os horarios das quadras dos sorteios"*) é a do SORTEIO, e ela precisa ser GRAVADA no
-    // momento em que a chave é aprovada, não recalculada na hora do nascimento.
+    // ✅ FOI HOJE. A aprovação da chave passou a GRAVAR a grade prevista como reserva
+    // (TorneiosController.Chaves.GravarAGradePrevistaAsync), e a promessa deixou de ser
+    // recalculada: é lida de uma linha. Medido no mesmo cenário — 14:40 antes, 14:40 depois.
     //
-    // Este teste existe pra que esse fato não se perca, e pra falhar no dia em que alguém tornar
-    // a projeção estável — aí o desenho simples volta a ser possível.
+    // O que ele garante agora é o que o Felipe pediu com todas as letras: *"o chaveamento fixo,
+    // os horarios fixos"*.
     [Fact]
-    public async Task A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado()
+    public async Task A_semifinal_nasce_no_horario_que_o_sorteio_prometeu()
     {
         var (ctx, torneio, categoria, orgId) = await ComAsQuartasMontadasAsync();
         using var _ctx = ctx;
 
-        var antes = (await PrometidoAsync(ctx, torneio.Id, categoria.Id))[("Semifinal", 1)];
+        var prometido = (await PrometidoAsync(ctx, torneio.Id, categoria.Id))[("Semifinal", 1)];
+        Assert.NotNull(prometido);
 
         foreach (var q in await DaFaseAsync(ctx, categoria.Id, "Quartas de Final"))
             await TestInfra.FinalizarComPlacarAsync(
@@ -128,8 +130,8 @@ public class OHorarioDoSorteioEPromessaTests
 
         var semi1 = (await DaFaseAsync(ctx, categoria.Id, "Semifinal"))[0];
 
-        // O torneio não atrasou — os jogos foram encerrados sem mexer em horário nenhum.
-        Assert.NotEqual(antes, semi1.HorarioPrevisto);
+        // O que estava escrito na tela é o que acontece.
+        Assert.Equal(prometido, semi1.HorarioPrevisto);
     }
 
     [Fact]

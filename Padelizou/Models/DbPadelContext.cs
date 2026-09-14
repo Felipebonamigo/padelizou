@@ -158,6 +158,47 @@ public partial class DbPadelContext : DbContext
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
     //        => optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DB_PADEL;Trusted_Connection=True;TrustServerCertificate=True;");
 
+    // ── O HORÁRIO DO SORTEIO SE CARIMBA SOZINHO, NO NASCIMENTO ──────────────────────────
+    //
+    // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"temos que seguir a grade prevista, por que o
+    // usuario se baseia [...] talvez devamos criar campos separados"*.
+    //
+    // ⚠️ AQUI, E NÃO EM CADA CAMINHO DE CRIAÇÃO — e isso é deliberado. Partida nasce em pelo menos
+    // cinco lugares (o sorteio, as duas entradas do robô, o Americano, o desempate), e um carimbo
+    // espalhado por cinco chamadas é um carimbo que a sexta vai esquecer. O que este campo promete
+    // é "escrito UMA VEZ, no nascimento" — que é exatamente um assunto do ciclo de vida da
+    // entidade, e o ciclo de vida mora aqui.
+    //
+    // ⚠️ SÓ EM QUEM ESTÁ NASCENDO (`Added`) E SÓ SE AINDA FOR NULO: jogo que já existe nunca tem o
+    // carimbo reescrito, que é a propriedade inteira do campo. Um `HorarioPrevisto` que muda depois
+    // é a operação do dia, e ela não mexe na promessa.
+    //
+    // ⚠️ E NASCER SEM HORA DEIXA O CARIMBO NULO, de propósito: torneio "por ordem de liberação"
+    // cria jogo sem horário, e não há promessa nenhuma a guardar. Nulo = a tela se comporta como
+    // antes desta mudança.
+    private void CarimbarOHorarioDoSorteio()
+    {
+        foreach (var entrada in ChangeTracker.Entries<Partida>())
+        {
+            if (entrada.State != EntityState.Added) continue;
+            if (entrada.Entity.HorarioDoSorteio != null) continue;
+
+            entrada.Entity.HorarioDoSorteio = entrada.Entity.HorarioPrevisto;
+        }
+    }
+
+    public override int SaveChanges()
+    {
+        CarimbarOHorarioDoSorteio();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(bool aceitarTodasAsMudancas, CancellationToken ct = default)
+    {
+        CarimbarOHorarioDoSorteio();
+        return base.SaveChangesAsync(aceitarTodasAsMudancas, ct);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Jogador>()
