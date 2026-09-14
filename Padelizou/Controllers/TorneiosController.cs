@@ -804,7 +804,16 @@ namespace Padelizou.Controllers
 
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
                 // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
-                ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+                var resumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+                ViewBag.ResumoDaEnquete = resumoDaEnquete;
+
+                // QUEM RESPONDEU, pra abrir ao clicar na média. Só consulta se houver resposta
+                // — a enorme maioria dos torneios não tem nenhuma, e uma segunda varredura da
+                // mesma tabela pra devolver lista vazia é custo sem resposta.
+                if (resumoDaEnquete.Respostas > 0)
+                {
+                    ViewBag.QuemAvaliou = await EnqueteDoTorneio.QuemAvaliouAsync(_context, id);
+                }
 
                 // O que escreveram, publicado ou não — inclusive o que é anônimo, que só
                 // existe pra estes olhos. ⚠️ Quem PUBLICA não é quem abre a tela: o assistente
