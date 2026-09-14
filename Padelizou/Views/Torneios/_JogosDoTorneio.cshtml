@@ -922,7 +922,7 @@
                            linha —, então a guarda precisa ser repetida aqui: um palpitômetro que
                            some da lista e continua no cartão ao vivo é pior que não ter o
                            interruptor. A régua é uma só; quem a repete é o `if`. *@
-                        @if (Padelizou.Services.AlcanceDoPalpitometro.Libera(ViewData["PalpitometroEm"] as string, jogo.Categoria.Nome)
+                        @if (Padelizou.Services.AlcanceDoPalpitometro.Libera(ViewData["PalpitometroEm"] as string, jogo.Categoria.Nome, ViewData["VerPalpitometro"] as bool? ?? true)
                              && palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
                         {
                             <div class="pdz-live-palpite">
