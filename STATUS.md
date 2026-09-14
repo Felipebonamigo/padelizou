@@ -1,6 +1,24 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — ⭐ **A CÉDULA DO MVP SAÍA NA ORDEM DO ALFABETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1369-f3ddc25`** (runs **347** e **349**, o mesmo artefato nos dois, com a tag explícita). PR #299. **Sem migration.**
+>
+> 🗣️ Felipe, com o print da votação do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.
+>
+> 🕳️ `MvpDoTorneio.CandidatosAsync` fechava com `OrderBy(c => c.Nome)` — e o nome não sabe nada de categoria. Os dois campeões da **3ª Masculina** saíam com **sete estranhos entre eles** (Arthur na 2ª linha, Lucas na 9ª), e a 4ª vinha antes da 3ª porque "Alexandre" vem antes de "Arthur". A tela dizia "vote em um dos campeões" e entregava uma lista telefônica.
+>
+> 🔑 **NÃO NASCEU RÉGUA NOVA**: quem manda é `CategoriaNaTela.Ordem`, a mesma do resto do site — e a mesma que o Felipe tinha acabado de ler certa em "Chaves e Grupos". Foi degrau 2 da escada (*já existe algo equivalente aqui?*), não degrau 7. A **DUPLA** entra como segundo critério: é ela que mantém os dois parceiros grudados se uma categoria tiver mais de uma linha de campeão. Nome e id fecham a **ordem TOTAL**, pra a lista não trocar de ordem entre dois carregamentos da mesma página.
+>
+> ⚠️ **A JUNÇÃO DE 11/08 SEGUE INTACTA, E FOI ELA QUE DEU O SEGUNDO TESTE**: campeã em DUAS categorias continua com UMA linha — e agora entra pela **mais forte** das duas, com o parceiro de lá. Sem esse cuidado ela ficaria onde a consulta a encontrou primeiro e **arrastaria a dupla inteira pro degrau errado**. Quem fica sozinha é a parceira da categoria mais fraca, que é campeã só ali — e isso é o certo, não sobra.
+>
+> 💰 Custo: uma coluna a mais na projeção (`d.Id`) e a ordenação em memória de 5 a 20 linhas. **Nenhuma consulta nova** — a lista já vinha inteira.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão. O que sustenta são os 2 testes (os dois **vistos vermelhos** na ordem alfabética, com o flagrante na saída) e o `/healthz` **200** nos dois ambientes. **Quem confirma na tela é o Felipe**, em `padelizou.com.br/Torneios/Mvp/26`.
+>
+> ⚠️ **O `prod` TINHA ACABADO DE RECEBER UM BUILD MAIS ANTIGO**: o run **348**, de outra sessão, instalou o `build-1366-15bf927` às 12:04 — depois de o 1368 e o 1369 já existirem. Não é erro do fluxo: **`build` vazio no formulário é "o mais recente" no instante do disparo**, e com três sessões mergeando em paralelo isso vira uma corrida. O 1369 foi pedido **pela tag**, e é o que está no ar nos dois. Publicar com a tag explícita deixou de ser detalhe.
+>
+> 2 testes novos, os dois vistos vermelhos. **7.063 testes verdes**, 9 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — 🎥 **O VÍDEO DA QUADRA PARAVA A CADA TROCA DE JOGO — E NÃO ERA O YOUTUBE.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
 >
 > 🗣️ Felipe, repassando um usuário: *"as vezes o video do youtube trava no site, nao sei se é algo do youtube ou do site"*. **É do site.** É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
