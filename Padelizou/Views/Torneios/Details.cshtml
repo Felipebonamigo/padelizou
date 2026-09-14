@@ -894,23 +894,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     </script>
 }
 
-@if (TempData["Sucesso"] != null)
-{
-    <div class="alert alert-success">@TempData["Sucesso"]</div>
-}
-@if (TempData["Erro"] != null)
-{
-    <div class="alert alert-danger">@TempData["Erro"]</div>
-}
-@* O "não coube, e foi por isto" do sorteio (Services/PorQueNaoCoube). Amarelo e não vermelho de
-   propósito: o sorteio SAIU, a grade existe e o torneio funciona — o que passou foi o prazo que o
-   organizador marcou, e a decisão de encurtar ou alugar mais quadra é dele. *@
-@if (TempData["Aviso"] != null)
-{
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Aviso"]
-    </div>
-}
+@* ⚠️ O `id` É CONTRATO COM O JS, e guarda uma falha calada (14/09/2026). O "Finalizar" do
+   cartão ao vivo agora vai por fetch pra não recarregar a página (recarga reinicia todo
+   <iframe> da tela). Só que o FinalizarPartida pode RECUSAR e mesmo assim redirecionar, com o
+   porquê aqui em `TempData["Erro"]` — que é de UMA LEITURA SÓ, e o fetch acabou de consumi-lo.
+   O js/jogos-ao-vivo-atualiza.js copia este bloco da resposta pra cá; sem o `id`, o organizador
+   aperta Finalizar, nada acontece e nada explica. Um <div> sem classe não muda nada na tela. *@
+<div id="pdzAvisoDaAcao">
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+    @* O "não coube, e foi por isto" do sorteio (Services/PorQueNaoCoube). Amarelo e não vermelho de
+       propósito: o sorteio SAIU, a grade existe e o torneio funciona — o que passou foi o prazo que o
+       organizador marcou, e a decisão de encurtar ou alugar mais quadra é dele. *@
+    @if (TempData["Aviso"] != null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Aviso"]
+        </div>
+    }
+</div>
 
 @* O ATALHO DO MARCADOR. Ele não tem o painel do organizador — sem esta faixa, o posto de
    trabalho dele (a Mesa de Controle) não teria porta nenhuma na página do torneio. Cada
@@ -7192,6 +7200,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
     <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/acao-do-cartao-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>

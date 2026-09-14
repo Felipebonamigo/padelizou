@@ -23,7 +23,43 @@
 >
 > 👁️ **SEM BROWSER NESTA SESSÃO** — o `<details>`, o alinhamento da tabela no celular e o triângulo do `<summary>` são **pro Felipe conferir na tela**.
 
-> Última atualização: **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
+> Última atualização: **14/09/2026** — 🎬 **O "FINALIZAR" RECARREGAVA A PÁGINA, E RECARGA REINICIA TODO `<iframe>` DA TELA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1410-c8ea3c5`** (deploy runs **366** e **367**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #311. **Sem migration.**
+>
+> 🗣️ Felipe, depois de recusar o painel por quadra: *"apenas queria q o video nao travasse, nao mude o layout"*. **O layout não mudou uma linha.**
+>
+> 🕳️ **DOIS BOTÕES FICARAM PRA TRÁS**: "Finalizar" e "Voltar pra agendado" eram POST comum — o navegador recarregava a página inteira. O `js/placar-ao-vivo.js` e o `js/saque-ao-vivo.js` já tinham tirado essa recarga do −/+ e da bolinha do saque (o `_BolinhaDoSaque.cshtml` até explica por quê: *"recarga aqui reiniciaria o `<iframe>` da transmissão"*); estes dois escaparam, e são os que o organizador mais aperta.
+>
+> 🔑 **E O ESTRAGO NÃO ERA NO JOGO DELE**: finalizar o jogo da **Quadra 1** parava o vídeo de quem estava assistindo à **Quadra 2**. Duas coisas sem nenhuma relação, ligadas só pela recarga.
+>
+> ✅ **CONFERIDO NO QUE OS DOIS AMBIENTES SERVEM**: `dev` e `prod` entregam arquivos **idênticos** — o `acao-do-cartao-ao-vivo.js` (**5.203 bytes**, com `.pdz-live-acao` e `#pdzAvisoDaAcao`) e o `jogos-ao-vivo-atualiza.js` (**23.891 bytes**, com `pdzAplicarRespostaDeAcao` e `pdzAcaoEmCurso`). `/healthz` **200** nos dois. Na página do torneio **26** em produção (1,26 MB de dado real) o `<script>` novo e o `id="pdzAvisoDaAcao"` estão lá.
+>
+> ⚠️ **E O QUE A VERIFICAÇÃO NÃO PROVA, dito com todas as letras**: naquela página vieram **ZERO** formulários com `pdz-live-acao` — fui atrás antes de declarar pronto, e o motivo é que o torneio está em *"Nenhum jogo rolando no momento"*, com zero cartões ao vivo; sem jogo em quadra não existe botão Finalizar pra etiquetar, e esses botões são só do organizador (a busca é anônima). **A etiqueta está provada nos testes e no Chromium, não na produção.** Fechar de verdade é um teste de um minuto que só o Felipe pode fazer: com um jogo em quadra, apertar Finalizar e ver se o vídeo da OUTRA quadra continua rodando.
+>
+> ⚠️ **O PR FICOU 8 MINUTOS SEM UM ÚNICO CHECK CRIADO — e não era o GitHub fora do ar.** O `ci.yml` documenta esse pânico (26/08, o PR #41 ficou 3 horas sem check nenhum), mas aqui o CI rodava normalmente no `main` ao mesmo tempo (runs 1403-1405). A causa era o `mergeable_state: dirty`: **com o PR conflitado, o evento de `pull_request` não gera run**. O check nasceu no segundo em que o conflito saiu. Parece pane e é fila.
+>
+> ⚠️ **QUATRO MESCLAS COM O `main` EM ~40 MINUTOS**, sempre o mesmo conflito (o topo deste arquivo) e **nunca uma linha de código**. Na terceira parei de contar linha na mão: a resolução virou um passo genérico que reconhece a entrada repetida pelo **TÍTULO**, não pela posição, e rebaixa as duas pontas do lado do `main`. **Auto-merge está DESLIGADO no repositório** — tentei ligar pro PR e o GitHub recusou, apontando Settings → General → Pull Requests. Ligar encerra essa dança; é configuração do repo e não foi mexida. (A sessão `018YzCEh` chegou à mesma conclusão hoje, por outro caminho.)
+>
+> ⚠️ **O `prod` NÃO PAROU PRA APROVAÇÃO OUTRA VEZ**, como já tinha acontecido de manhã e como o `infra/vps/README.md` promete que para. Terceiro registro do mesmo fato hoje, em duas sessões diferentes: a trava que o README e o `deploy.yml` descrevem **não age**.
+>
+> 👁️ **MEDIDO NO CHROMIUM, com o `confirmar.js`, o Bootstrap e o modal de verdade** — clicando no "sim" como a pessoa clica. **ANTES: 2 navegações**, a URL virou `/Torneios/FinalizarPartida` e o **iframe foi de 1 pra 0** (a página saiu, o vídeo com ela). **DEPOIS: 1 navegação** (só a carga inicial), a URL não mudou, **1 POST por fetch** e o **iframe ficou em 1**. O corpo do POST leva o `__RequestVerificationToken` e os campos escondidos — que é o que o DOM falso não podia provar.
+>
+> ⚠️ **A PRIMEIRA MEDIÇÃO NÃO DISCRIMINOU, E O MOTIVO VALE ANOTAR**: sem o markup do modal, o `confirmar.js` cai no `window.confirm`, que é **síncrono** — e `requestSubmit()` chamado de dentro do próprio evento de submit o navegador **ignora**. O cenário "antes" não recarregava, e um controle que não falha não prova nada. Com o modal do repositório, o caminho é assíncrono e o defeito apareceu.
+>
+> 🕳️ **DEFEITO DE BRINDE, ACHADO NO CAMINHO: a `jogos.cshtml` NUNCA mostrou `TempData["Erro"]`.** O organizador apertava Finalizar, o servidor recusava (*"a fase seguinte já começou"*, *"outro finalizar em curso"*) e a tela voltava igualzinha, **sem uma palavra**. Falha calada, na tela que ele usa com o torneio em quadra. Agora as duas telas têm o `#pdzAvisoDaAcao`.
+>
+> ⚠️ **E COM O FETCH ISSO FICARIA PIOR, não melhor**: `TempData` é de **uma leitura só**, e a resposta que o `fetch` engole **consome** o erro. Por isso o `pdzAplicarRespostaDeAcao` COPIA esse bloco pra tela — e o tique de 20s NÃO copia: ele buscaria um aviso vazio e apagaria sozinho a mensagem que a pessoa ainda está lendo.
+>
+> 🔑 **A PROVA DE QUE DEU CERTO É OUTRA AQUI.** Nos irmãos a resposta é JSON e exigir `content-type: json` separa "salvou" de "a sessão caiu e isto é a tela de login" — o `fetch` **segue** o 302. O `FinalizarPartida` responde com redirect pra PÁGINA, então a régua é a **lista de jogos estar na resposta**; sem ela, recarrega — que é exatamente o que teria acontecido sem a interceptação, e leva a pessoa pro login em vez de mentir que finalizou.
+>
+> ⚠️ **A MARCA `data-confirmado` PRECISA SAIR, e isso é buraco novo aberto pela própria correção**: sem recarga o formulário CONTINUA na tela, e a marca que o `confirmar.js` deixou faria o **próximo** Finalizar não perguntar nada — um toque sem volta.
+>
+> 🧪 **19 conferências novas** no `conferir-acao-do-cartao-ao-vivo.js` (conferidor novo, entra sozinho no glob do CI) + **8** no `conferir-abas-que-ficam.js`, **escritas ANTES**: 12 vistas vermelhas contra um esqueleto vazio e 8 contra o `pdzAplicarRespostaDeAcao` inexistente, pelos motivos certos. Mais **4 testes de fonte** (`AcaoDoCartaoAoVivoTests`) pro contrato Razor↔JS — **conferido que discriminam**: tirei `pdz-live-acao` de um formulário, build verde, **1 dos 4 vermelho**. **7.091 testes verdes**, 11 conferidores JS verdes.
+>
+> 🚧 **O QUE CONTINUA SEM SOLUÇÃO, e é escolha**: o intervalo entre jogos na quadra. O vídeo mora dentro do cartão, o cartão sai quando não há jogo em quadra, e não existe onde pôr o vídeo sem cartão. Só o painel por quadra resolveria — recusado por mexer no layout.
+>
+> **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** ⏳ **No branch `claude/instagram-stories-art-button-54tbyf`.** **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
+> **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
+> **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1403-2e2ddae`** (deploy runs **34859895639** e **34859903682**, **o mesmo artefato nos dois**, pedido pela tag). PR #306. **Sem migration.**
 >
 > 🗣️ Felipe: *"crie um botão para compartilhar o ranking"*. Perguntado, escolheu **arte PNG** (e não o link da tela) e **um botão por aba**; na segunda pergunta, **top 10** e a aba **Desafios junto**, como card fechado.
 >
@@ -53,9 +89,17 @@
 >
 > 🔑 **O QUE SEGUROU NÃO FOI ATENÇÃO, FOI O DESENHO DO TESTE DELES**: o `SeletorDoRankingTests` chama a **AÇÃO**, não o serviço — então ele enxerga a trava mesmo ela tendo mudado de arquivo. O autor do #304 previu exatamente isto no corpo do PR: *"uma extração que perder a trava fica vermelha"*. Ficou provado no caminho contrário: a suíte passou COM a trava carregada.
 >
+> ✅ **CONFERIDO NO `prod` COM DADO DE VERDADE, e não só com o status do workflow**: a página serve **37 botões** em **11 abas** (37 e não 17 porque os laços por categoria multiplicam); as **11 artes baixadas da produção** passaram pelo mesmo gate de margem — **todas limpas dos dois lados**, com nome real e apelido; `Cache-Control: public, max-age=3600` e `content-disposition: inline` no GET, `attachment` com `?baixar=1`. `/healthz` **200** nos dois ambientes.
+>
+> 🔒 **E AS DUAS TRAVAS CONFERIDAS DE FORA, sem login**: `?aba=DesafiosDuplas` → **404** (a `PortaDosDesafios` corta antes, sem `[Authorize]` no método) e `?aba=lixo` → **404** (o enum anulável + `Enum.IsDefined`, em vez de entregar a arte da aba *default*).
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERIR, e é o de sempre**: ninguém TOCOU nos 17 botões. O `navigator.share` com arquivo, a queda pro download e o menu nativo no celular vêm do `compartilhar-card.js`, que já roda nos outros cards — mas isso é herança, não medição. **Quem confirma no dedo é o Felipe.**
+>
+> ⚠️ **QUATRO MERGES DO `main` ATÉ CHEGAR LÁ** (#296, #304+#308, #305, #307): cinco sessões mergeando no mesmo dia. E a CI **não disparou sozinha em duas das pushes** — é o incidente que o próprio `ci.yml` documenta desde 26/08; as runs saíram por `workflow_dispatch`, e outra sessão precisou do mesmo recurso hoje.
+>
 > **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
 
-> Última atualização: **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1400-ca229b2`** (deploy runs **362** e **363**, `/healthz` 200 nos dois), **o mesmo pacote nos dois**, com a tag fixada explicitamente no disparo. PR #307. **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
+> **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1400-ca229b2`** (deploy runs **362** e **363**, `/healthz` 200 nos dois), **o mesmo pacote nos dois**, com a tag fixada explicitamente no disparo. PR #307. **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
 >
 > 🗣️ Felipe, com o print de uma arte da semifinal do ER Padel Tour montada à mão: *"Conseguimos fazer um Botao no sistema, que ele ja crie essa arte e apenas tiremos a foto na hora para postarmos nos stories do instagram, colocando o @ da pessoa ja quando tiver no cadastro?"*.
 >
@@ -156,7 +200,7 @@
 >
 > 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
 
-> Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
+> **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
 > Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
 >
