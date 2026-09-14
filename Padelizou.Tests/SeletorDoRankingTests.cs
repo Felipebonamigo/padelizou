@@ -39,10 +39,13 @@ public class SeletorDoRankingTests
 
         var view = Assert.IsType<ViewResult>(await controller.Ranking(
             clubeId: null, torneioId: null, cidade: null, estado: null, periodo: null,
-            padelimetro: new PadelimetroService(ctx),
-            rankingAmericano: americano,
-            portaDosDesafios: TestInfra.PortaDosDesafiosDe(ctx),
-            telaDeDesafios: new TelaDoRankingDeDesafios(ctx)));
+            // As listas do hub saem do `HubDoRanking` desde 14/09/2026 — a mesma montagem que a
+            // ARTE de compartilhar usa. Ver Services/HubDoRanking.
+            hubDoRanking: new HubDoRanking(
+                ctx, new EstatisticasService(ctx), new PadelimetroService(ctx),
+                americano,
+                TestInfra.PortaDosDesafiosDe(ctx),
+                new TelaDoRankingDeDesafios(ctx))));
 
         return (List<Torneio>)view.ViewData["TorneiosList"]!;
     }

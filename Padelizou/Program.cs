@@ -292,6 +292,9 @@ builder.Services.AddScoped<FechamentoDoDesafio>();
 // A tabela do ranking de desafios aparece em DUAS telas (a de lá e a aba do hub de ranking), e
 // por isso a montagem dela é um serviço — ver Services/TelaDoRankingDeDesafios.
 builder.Services.AddScoped<TelaDoRankingDeDesafios>();
+
+// A página do Ranking e a ARTE dela montam as mesmas listas — ver Services/HubDoRanking.
+builder.Services.AddScoped<HubDoRanking>();
 builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
 // O dono que recusa ou ignora 3 desafios em 14 dias perde o cinturão. É a metade da regra que
 // impede o campeão de virar um nome parado numa tela — ver Services/Cinturao.

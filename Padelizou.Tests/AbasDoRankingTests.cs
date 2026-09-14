@@ -42,10 +42,13 @@ public class AbasDoRankingTests
 
         var view = Assert.IsType<ViewResult>(await controller.Ranking(
             clubeId: null, torneioId: null, cidade: null, estado: null, periodo: periodo,
-            padelimetro: new PadelimetroService(ctx),
-            rankingAmericano: americano ?? AmericanoDublado(new RankingAmericanoVM(new(), new())),
-            portaDosDesafios: TestInfra.PortaDosDesafiosDe(ctx, desafiosHabilitados),
-            telaDeDesafios: new TelaDoRankingDeDesafios(ctx)));
+            // As listas do hub saem do `HubDoRanking` desde 14/09/2026 — a mesma montagem que a
+            // ARTE de compartilhar usa. Ver Services/HubDoRanking.
+            hubDoRanking: new HubDoRanking(
+                ctx, new EstatisticasService(ctx), new PadelimetroService(ctx),
+                americano ?? AmericanoDublado(new RankingAmericanoVM(new(), new())),
+                TestInfra.PortaDosDesafiosDe(ctx, desafiosHabilitados),
+                new TelaDoRankingDeDesafios(ctx))));
 
         return Assert.IsType<RankingHubVM>(view.Model);
     }

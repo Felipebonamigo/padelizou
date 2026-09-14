@@ -1,6 +1,34 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
+>
+> 🗣️ Felipe: *"crie um botão para compartilhar o ranking"*. Perguntado, escolheu **arte PNG** (e não o link da tela) e **um botão por aba**; na segunda pergunta, **top 10** e a aba **Desafios junto**, como card fechado.
+>
+> 🔑 **UM CARD PRA QUATORZE LISTAS, e é a decisão que segurou o tamanho do trabalho**: todas as tabelas do Ranking têm a mesma forma — posição, quem, um número. O `CartaoDoRanking` desenha `1º Los Corneteiros · 1301 pts` na LINHA ÚNICA que o `CartaoDaClassificacao` já provou (tabela não é frase, e story não tem rolagem). Um desenho por aba seria quatorze lugares pra a próxima mudança de marca passar, e treze deles ficariam pra trás.
+>
+> 🔑 **E AS LISTAS SÃO AS MESMAS DA TELA, NÃO UMA SEGUNDA CONSULTA**: o `HubDoRanking` saiu extraído da ação `JogadorsController.Ranking` (108 linhas que viraram 6) e agora atende os dois. Montar só a lista da aba pedida era o caminho barato e o ERRADO — duas montagens do mesmo ranking divergiriam na primeira mudança de régua, e a divergência sairia **publicada**, numa arte dizendo que o time A é o primeiro enquanto a tela ao lado diz que é o B. Custa consultas; a alternativa custa confiança, e o card sai com uma hora de cache.
+>
+> ⚠️ **17 BOTÕES, NENHUM JS NOVO**: a classe `pdz-compartilhar` é a do `compartilhar-card.js`, que já resolve o caminho inteiro — menu nativo com o PNG anexado no celular, e **queda pro download** onde o `navigator.share` com arquivo não existe. Um partial só (`_BotaoCompartilharRanking`): copiado 17 vezes, o `data-titulo` de um ficaria pra trás na primeira mudança.
+>
+> ⚠️ **A URL É MONTADA EM C#, E ESSE É O DEFEITO CALADO DESTE TRABALHO**: o botão precisa pedir a arte **da tela aberta** — estado, cidades, torneio e período. Um botão que esquece um filtro não quebra, não loga e não fica feio: desenha, com capricho, o ranking do Brasil todo debaixo de uma tela que diz "Porto Alegre", e quem posta acha que postou a própria posição. Em `BotaoDeCompartilharRanking.Url` isso é conferível por teste; montado à mão em 17 `.cshtml`, seriam 17 chances de esquecer e nenhuma de perceber.
+>
+> ⚠️ **O `TemArte` É A GUARDA DE VAZIO NA RÉGUA DE QUEM DESENHA** — e não no `if` da tabela vizinha. Cada botão mora ao lado de uma tabela com a própria guarda; a primeira a discordar entregaria um botão que só sabe abrir 404.
+>
+> 🔒 **AS DUAS FAMÍLIAS NUM MÉTODO SÓ, E QUEM DECIDE É A ABA**: sete abas são de DIVULGAÇÃO (a tela é pública e o card é o convite pra entrar); a de Desafios é FECHADA. O `[Authorize]` não serviria nas duas direções — no método fecharia as sete, ausente não protegeria a oitava. Quem protege é a **mesma** `PortaDosDesafios` da tela: sem ela o `hub.Desafios` nasce nulo, o `Montar` devolve nulo e a ação responde 404. O `publico: false` do `Png()` sai da mesma pergunta.
+>
+> ⚠️ **`AbaDoRanking?` ANULÁVEL DE PROPÓSITO**: com o enum seco, um `?aba=lixo` não falha — o binder registra o erro, deixa o valor no DEFAULT e a pessoa recebe, sem aviso, a arte de OUTRA aba. Nula + `Enum.IsDefined`, o pedido torto vira 404.
+>
+> 🧪 **O CHÃO DO `TamanhoQueCabe` FOI TRATADO NA ORIGEM, e não depois do print**: o buraco de 14/09 (ele devolve o mínimo mesmo quando o mínimo não cabe, e o Skia pinta até a borda) foi endereçado com piso PRÓPRIO de 22 e **um tamanho só pra todas as linhas, o da mais longa** — cada linha encolhendo por conta própria não parece tabela, e numa lista ordenada tamanho de letra é lido como importância. Cada linha é medida **com a fonte em que vai sair**: a do líder é Bold, mais larga que a SemiBold no mesmo corpo.
+>
+> 🔬 **UM TESTE PASSOU DE PRIMEIRA, E ISSO ESTÁ REGISTRADO COMO NÃO-PROVA**: o da pílula. O que o sustenta é a MEDIÇÃO — no corpo 40 o pior recorte real mede **605px** ("Governador Celso Ramos") contra teto de **960**; a conta só vira ESTOURA lá pelos 50 caracteres. Por isso a pílula **não** ganhou código pra encolher: seria código pra um caso que não existe. E o gate foi **falsificado**, não só executado: com um recorte de 51 caracteres ele acusou **84 linhas** com tinta na margem.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão pra clicar nos 17 botões. O que sustenta são os testes e as **duas artes geradas e OLHADAS** (o ranking de Times do print do Felipe e o pior caso de dupla com apelido nos dois, na 10ª posição — nomes inteiros, nada cortado). **Quem confirma na tela é o Felipe.**
+>
+> 🕳️ **E UM BURACO PRÉ-EXISTENTE ACHADO NO CAMINHO, não corrigido aqui**: `/Jogadores/Ranking?torneioId=N` não pergunta se o torneio pode aparecer — o SELETOR filtra oculto e cancelado, o parâmetro da URL não. Estava assim antes (foi movido verbatim pro `HubDoRanking`), e agora `/Cartoes/RankingImagem?aba=Torneio` herda a mesma falta. Mexer nisso é decisão de visibilidade, que sobe o nível pra **architectural** — fica como tarefa separada.
+>
+> **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — ⭐ **A CÉDULA DO MVP SAÍA NA ORDEM DO ALFABETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1369-f3ddc25`** (runs **347** e **349**, o mesmo artefato nos dois, com a tag explícita). PR #299. **Sem migration.**
 >
 > 🗣️ Felipe, com o print da votação do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.
