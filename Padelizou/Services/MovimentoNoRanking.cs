@@ -30,6 +30,37 @@ public static class MovimentoNoRanking
         public DateTime SomeEm => TerminouEm.AddDays(DiasNaTela);
     }
 
+    // O QUE O SELO DE UMA LINHA DIZ. São TRÊS estados, e dois deles vinham se confundindo.
+    //
+    // Isto era um `int?`, que só tem vaga pra dois: o número, e o `null` de "entrou agora". Aí
+    // "não havia ranking antes" era gravado com o MESMO 0 de "jogou e ficou onde estava" — e a
+    // tela desenhava um "–" dizendo *"Ficou na mesma posição"* pra uma tabela inteira em que
+    // ninguém tinha posição nenhuma. Foi o que apareceu na aba Padelímetro depois do primeiro
+    // torneio: 29 linhas garantindo a cada um que ele não tinha se mexido.
+    //
+    // É a MESMA mentira pequena que o `Novo` já existia pra não contar ("novo NÃO é +0", no
+    // _SeloDeMovimento), e que o comentário do `Aplicar` já mandava não contar ("Sem base, sem
+    // selo") — só faltava o estado pra dizer isso. Ver SeloSemBaseDeComparacaoTests.
+    //
+    // ⚠️ `SemBase` é o PRIMEIRO valor do enum de propósito: `default(Selo)` passa a ser o estado
+    // que não afirma nada. Linha que nunca passou pelo `Aplicar` cala a boca, em vez de herdar
+    // um "ficou parado" que ninguém mediu.
+    public enum EstadoDoSelo
+    {
+        SemBase = 0,   // não havia ranking antes: o primeiro torneio deste recorte
+        Novo,          // havia ranking antes, e esta linha não estava nele
+        Moveu,         // havia ranking antes, e esta linha estava nele — inclusive parada, com 0
+    }
+
+    public readonly record struct Selo(EstadoDoSelo Estado, int Posicoes = 0)
+    {
+        public static readonly Selo SemBase = new(EstadoDoSelo.SemBase);
+        public static readonly Selo Novo = new(EstadoDoSelo.Novo);
+
+        // `Posicoes` só quer dizer alguma coisa aqui dentro: >0 subiu, <0 desceu, 0 ficou.
+        public static Selo Moveu(int posicoes) => new(EstadoDoSelo.Moveu, posicoes);
+    }
+
     // O último torneio do RANKING OFICIAL (categoria, Padelímetro, times). Mesma régua do
     // `EstatisticasService.ContaNoRanking`, escrita pra consulta: restrito e Americano fora.
     public static Task<Janela?> DoOficialAsync(DbPadelContext ctx, DateTime agora) =>
@@ -76,20 +107,21 @@ public static class MovimentoNoRanking
     // A CONTA, e ela mora num lugar só. Já existia copiada em `AplicarMovimentoCategorias` e
     // `AplicarMovimentoTimes`, com a mesma lógica escrita duas vezes — e agora seriam cinco.
     //
-    // >0 subiu, <0 desceu, 0 igual, null = entrou agora no ranking.
-    //
-    // ⚠️ Lista "antes" VAZIA não vira "todo mundo é novo": é o primeiro torneio da história
-    // daquele ranking, e anunciar 40 estreias não informa nada. Sem base, sem selo.
-    // `ordemAntes` são as CHAVES na ordem em que estavam antes do torneio. Recebe chaves e não
-    // a lista inteira porque cada ranking guarda um tipo de linha diferente (jogador, time,
-    // nível), e o que a conta precisa é só "quem estava em que lugar".
+    // Os três estados estão no `Selo`, acima. `ordemAntes` são as CHAVES na ordem em que
+    // estavam antes do torneio. Recebe chaves e não a lista inteira porque cada ranking guarda
+    // um tipo de linha diferente (jogador, time, nível), e o que a conta precisa é só "quem
+    // estava em que lugar".
     public static void Aplicar<T, TChave>(
         IReadOnlyList<T> agora, IReadOnlyList<TChave> ordemAntes,
-        Func<T, TChave> chave, Action<T, int?> gravar) where TChave : notnull
+        Func<T, TChave> chave, Action<T, Selo> gravar) where TChave : notnull
     {
+        // ⚠️ Lista "antes" VAZIA não vira "todo mundo é novo" — é o primeiro torneio da história
+        // daquele ranking (ou da categoria recém-criada), e anunciar 40 estreias não informa
+        // nada. Também não vira "todo mundo ficou parado", que era o defeito: ninguém ficou
+        // onde estava, porque ninguém estava em lugar nenhum.
         if (ordemAntes.Count == 0)
         {
-            foreach (var item in agora) gravar(item, 0);
+            foreach (var item in agora) gravar(item, Selo.SemBase);
             return;
         }
 
@@ -99,8 +131,8 @@ public static class MovimentoNoRanking
         for (int i = 0; i < agora.Count; i++)
         {
             gravar(agora[i], posicaoAntes.TryGetValue(chave(agora[i]), out var pAntes)
-                ? pAntes - (i + 1)
-                : (int?)null);
+                ? Selo.Moveu(pAntes - (i + 1))
+                : Selo.Novo);
         }
     }
 }

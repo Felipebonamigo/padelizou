@@ -1,3 +1,4 @@
+@using Padelizou.Services
 @model Padelizou.ViewModels.SeloDeMovimentoVM
 @{
     // O SELO DE MOVIMENTO: quantas posições o último torneio fez esta pessoa (ou este time)
@@ -8,26 +9,41 @@
     // Sem seta: o sinal e a seta diziam a mesma coisa duas vezes, e no celular a coluna ficava
     // larga à toa. Verde pra cima, vermelho pra baixo — é a leitura que qualquer um faz sem
     // legenda nenhuma.
-    var mov = Model.Posicoes;
+    //
+    // ⚠️ SÃO TRÊS ESTADOS E QUATRO DESENHOS, e a diferença entre os dois "–" é só o title: um
+    // diz que a pessoa não saiu do lugar, o outro que não havia lugar de onde sair. Os estados
+    // vêm do Services/MovimentoNoRanking.Selo — ler `Posicoes` fora do `Moveu` não quer dizer
+    // nada, por isso os dois primeiros ramos vêm antes.
+    var selo = Model.Selo;
 }
 
-@if (mov == null)
+@if (selo.Estado == MovimentoNoRanking.EstadoDoSelo.SemBase)
 {
-    @* "novo" NÃO é "+0": um entrou agora no ranking (não havia posição anterior pra comparar),
-       o outro jogou e ficou onde estava. Trocar um pelo outro é uma mentira pequena que some
-       no meio da tabela e ninguém desconfia. *@
+    @* Primeiro torneio deste ranking (ou categoria criada agora): não existe posição anterior
+       pra ninguém, e a coluna inteira cai aqui. O traço é o mesmo do "ficou parado" de
+       propósito — o que muda é o que ele AFIRMA. Dizer "Ficou na mesma posição" numa tabela em
+       que ninguém tinha posição foi o defeito de 14/09/2026, e ele passou despercebido porque
+       um "–" no meio de outros 28 não chama atenção nenhuma. *@
+    <span class="pdz-mov pdz-mov-igual" title="Ainda não há posição anterior para comparar">–</span>
+}
+else if (selo.Estado == MovimentoNoRanking.EstadoDoSelo.Novo)
+{
+    @* "novo" NÃO é "+0": um entrou agora num ranking QUE JÁ EXISTIA, o outro jogou e ficou
+       onde estava. Trocar um pelo outro é uma mentira pequena que some no meio da tabela e
+       ninguém desconfia. ⚠️ E não é o mesmo que o ramo de cima: lá o ranking inteiro é que
+       não tinha passado anterior; aqui ele tinha, e esta pessoa é que não estava nele. *@
     <span class="pdz-mov pdz-mov-novo" title="Entrou agora no ranking">novo</span>
 }
-else if (mov == 0)
+else if (selo.Posicoes == 0)
 {
     <span class="pdz-mov pdz-mov-igual" title="Ficou na mesma posição">–</span>
 }
-else if (mov > 0)
+else if (selo.Posicoes > 0)
 {
-    <span class="pdz-mov pdz-mov-sobe" title="Subiu @mov posição(ões)">+@mov</span>
+    <span class="pdz-mov pdz-mov-sobe" title="Subiu @selo.Posicoes posição(ões)">+@selo.Posicoes</span>
 }
 else
 {
     @* O próprio número já vem com o menos. *@
-    <span class="pdz-mov pdz-mov-desce" title="Desceu @(-mov) posição(ões)">@mov</span>
+    <span class="pdz-mov pdz-mov-desce" title="Desceu @(-selo.Posicoes) posição(ões)">@selo.Posicoes</span>
 }

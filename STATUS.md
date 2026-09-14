@@ -25,6 +25,89 @@
 >
 > 🚧 **O QUE CONTINUA SEM SOLUÇÃO, e é escolha**: o intervalo entre jogos na quadra. O vídeo mora dentro do cartão, o cartão sai quando não há jogo em quadra, e não existe onde pôr o vídeo sem cartão. Só o painel por quadra resolveria — recusado por mexer no layout.
 >
+> **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** ⏳ **No branch `claude/instagram-stories-art-button-54tbyf`.** **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
+>
+> 🗣️ Felipe, com o print de uma arte da semifinal do ER Padel Tour montada à mão: *"Conseguimos fazer um Botao no sistema, que ele ja crie essa arte e apenas tiremos a foto na hora para postarmos nos stories do instagram, colocando o @ da pessoa ja quando tiver no cadastro?"*.
+>
+> 🪜 **QUASE TUDO JÁ EXISTIA, E É POR ISSO QUE O DIFF É PEQUENO PRO TAMANHO DO PEDIDO**: `Jogador.Instagram` já era campo do cadastro (`_PreferenciasFields.cshtml:42`) — o "@ quando tiver no cadastro" **não precisou de coluna**; a oficina de arte (`CartaoCompartilhavel`: fundo, faixa, texto que encolhe, pílula, rodapé) já sustenta 13 cards; `Partida.Fase` já é o "SEMIFINAL" do print; e o `ImagemEnviada.Recodificar` já era **público e sem tocar disco**, com o EXIF apagado e o endireitamento de foto de celular embutidos. O que nasceu novo foi a arte, as duas telas e UMA coluna.
+>
+> 🔑 **O PEDIDO SUBIU DE `bounded` PRA `architectural` NO MEIO, PELA REGRA DE MÃO ÚNICA**: o @ do clube (o `@er.padel` do print) não tinha campo em lugar nenhum — nem no `Clube`, nem no `Torneio`. Felipe escolheu criar o campo, e isso gera migration → design escrito e aprovado antes de qualquer código. `Torneio.InstagramDoOrganizador`, `text NULL`, sem backfill.
+>
+> 🏠 **AS AÇÕES MORAM NO `TorneiosController`, NÃO NO `CartoesController` — E A RAZÃO É A RÉGUA, NÃO A ARRUMAÇÃO.** Quem gera a arte é organizador **ou marcador** (é o marcador que está na quadra com o celular na hora da foto), e essa pergunta é `PodeOperarODiaDeJogoAsync`, **privada** daquele controller. Copiá-la pro controller dos cards criaria o **quarto** lugar de uma checagem que este arquivo já registra como precisando andar junto em três — a dessincronia de 31/07 que quebrou a Mesa de Controle. Precedente exato: o `CartaoDoPlacarAoVivo` mora no `TorneiosController.Placar.cs` pelo mesmo motivo.
+>
+> 🔒 **A DECISÃO MAIS DELICADA É A DO @, E ELA FOI PRO LADO CONSERVADOR**: story é a superfície **mais** pública que este sistema tem — mais que o perfil, que já esconde contato de quem está deslogado. `ContatoDoJogador.PodeMarcarNaArte` reusa a **mesma condição** do `PodeVerContato` (extraída pra um lugar só), **sem a exceção do dono**: quem marcou perfil privado não tem o @ impresso nem na arte que ele mesmo gera. Sem @ liberado sai o **nome**, que já é público (chave, ranking, classificação) — e a tela **diz o motivo** ("perfil privado", "pré-cadastro", "sem @ no cadastro"), porque causa invisível é causa que ninguém conserta.
+>
+> 🕳️ **ACHADO NO CAMINHO, E VALE MEMÓRIA: TODO `Jogador` SEM `SenhaHash` É `EhPreCadastro`** (`Jogador.cs:133`) — e **toda a `TestInfra` cria jogador sem senha**. Os primeiros testes da régua passaram/falharam pelo motivo ERRADO até os jogadores ganharem `SenhaHash = "hash-de-teste"` explícito. Quem for testar qualquer coisa que dependa de "esta pessoa tem conta" precisa dizer isso no cenário.
+>
+> 👁️ **VISTO NO PNG GERADO, E UM DEFEITO SAIU SÓ DE OLHAR**: as quatro marcações saíam em **quatro tamanhos diferentes** — cada linha encolhendo sozinha até caber, que é o certo pra um título e o errado pra uma coluna. **Medido**: `@guilhermebagesteiro` não cabe em 44px numa coluna de 406px (precisa de **33,8**), enquanto `@felipebonamigo` cabia — era esse par na mesma coluna. Agora o tamanho é **um**, o menor que serve pras quatro; o que varia é **cor e peso** (marcado × não marcado), que é informação. No caso apertado o desalinhamento ia de 44 a 26.
+>
+> 🎞️ **A FOTO ENTRA E SAI, NADA FICA**: `<input capture="environment">` abre a câmera de trás no celular, o POST devolve o PNG com `?baixar=1` (o `attachment` do `EntregaDeCard`, que é o conserto do *"o baixar foto fica travado numa pagina de pre visualizacao"* de 12/09) e a foto é descartada. Recortada pelo **centro** ("cover"), nunca esticada. `Cache-Control: **private**` — a arte carrega o @ de quatro pessoas.
+>
+> 🧪 **64 casos de teste novos, e os 5 que sustentam o recurso foram VISTOS VERMELHOS com defeito plantado**: a moldura ignorando a foto derrubou os dois testes de composição; a régua esquecendo o perfil privado derrubou os três de privacidade. O teste do "a foto aparece" olha a **cor no centro da moldura**, e não "gerou um PNG válido" — este último passaria verde com a foto ignorada, que é o recurso inteiro. **7.155 testes verdes** (depois do merge com o `main`), 10 conferidores JS verdes, `has-pending-model-changes` limpo.
+>
+> 🚧 **NO MERGE COM O `main`, UM GATE DE LÁ PEGOU UM DEFEITO REAL DAQUI**: `ArteNaoCortadaNoCelularTests` reprovou o `style="max-width: 280px"` da prévia — `max-width` **inline** vence o `max-width:100%` do `img-fluid` (mesma propriedade, inline tem prioridade), e num celular de 390px a caixa do cartão dá ~365px: a arte estourava e o `overflow-hidden` comia o lado direito **sem deixar a página rolar**. Sem barra, sem pista, e quem vê acha que a arte é assim. Virou `min(280px, 100%)`. O gate nasceu ontem por outro card e cobriu este de graça.
+>
+> ⚠️ **`DONE_WITH_CONCERNS` — DUAS RESSALVAS**: (1) **nada foi conferido no navegador nem em `dev`** nesta sessão; o que sustenta a aparência é o PNG gerado e lido aqui, e as duas telas Razor novas (`ArtesDosJogos`, `ArteDoJogo`) **não foram abertas** — só compiladas e cobertas por teste de conteúdo. (2) A arte sai **sem a logo do clube** que o print tem: é ausência de **campo** (`Clube` não tem coluna de logo), não de desenho.
+
+> Última atualização: **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
+> Última atualização: **14/09/2026** — 🎛️ **O "–" DO SELO DE MOVIMENTO DIZIA "FICOU NA MESMA POSIÇÃO" PRA QUEM NUNCA TEVE POSIÇÃO.** ⏸️ **MESCLAR E PUBLICAR É DECISÃO DO FELIPE — não peça isso a ninguém a partir desta linha.** Branch `claude/laughing-davinci-s0n5eg`. **Sem migration.**
+>
+> 🗣️ Felipe, com o print do Padelímetro no ar: *"como esta nosso ranking? o que isso quer dizer?"* — e a coluna **Torneio** estava inteira em "–", nas 29 linhas.
+>
+> 🕳️ `MovimentoNoRanking.Aplicar` gravava **`0`** quando a lista "antes" está vazia, e `0` é o MESMO valor de "jogou e ficou onde estava" — que o `_SeloDeMovimento` desenha como "–" com o title *"Ficou na mesma posição"*. Depois do primeiro torneio de um ranking, a tela garantia a 29 jogadores que eles não tinham se mexido, quando a verdade é que **não havia de onde se mexer**.
+>
+> 🔒 **O DEFEITO ESTAVA LACRADO POR UM TESTE QUE DIZIA O CONTRÁRIO DO PRÓPRIO NOME**: `Sem_base_de_comparacao_ninguem_ganha_selo` cobrava `Assert.Equal(0, ...)`, que é justamente o selo. O nome sempre esteve certo; a asserção é que congelou o buraco. E os dois comentários que apontavam pra cá já estavam escritos no repositório desde 08/08 — *"Sem base, sem selo"* no `Aplicar`, e *"novo NÃO é +0"* no partial.
+>
+> 🔧 `int?` só tem vaga pra DOIS estados (o número, e o `null` de "entrou agora"); os estados são **três**. Virou `MovimentoNoRanking.Selo` — `SemBase` / `Novo` / `Moveu(n)` —, com `SemBase = 0` no enum **de propósito**: `default(Selo)` passa a ser o estado que não afirma nada.
+>
+> 🗣️ **A ESCOLHA DO QUE APARECE FOI DELE**, entre sumir com a coluna e corrigir o texto: *"'–' com o title corrigido"*. O traço continua igual; o que muda é o que ele AFIRMA — agora **"Ainda não há posição anterior para comparar"**. E vale nas **5 tabelas** (categoria, Padelímetro, times, Americano individual e em duplas), porque a conta mora num lugar só: corrigir uma deixaria as outras quatro mentindo com o mesmo código. No ranking por categoria o caso também aparece em **categoria criada agora**, não só no primeiro torneio da história.
+>
+> 🧪 **2 testes vistos VERMELHOS antes**, e o flagrante do primeiro é a frase inteira: `Assert.NotEqual() Failure: Values are equal — Expected: Not 0, Actual: 0`. O terceiro (`Sem_base_tambem_nao_pode_se_confundir_com_NOVO`) **passou de primeira e isso está registrado**: ele não trava o defeito, trava a correção ERRADA — resolver empurrando a tabela inteira pro "novo", que é o que o comentário do `Aplicar` recusa desde 08/08.
+>
+> 🔍 **O teste do motor guarda `object?` de propósito**: o que ele cobra não é a representação do selo, é que "sem base" e "ficou parado" **não cheguem na tela como o mesmo valor**. Trocar o enum por outra coisa amanhã não o faz mentir. E o da tela conta `title="..."`, não a frase solta — a primeira versão contava a frase e **quebrou com o comentário que eu mesmo escrevi citando o defeito**, o que é o teste avisando que estava medindo prosa em vez do que o jogador lê.
+>
+> ✅ **O RAZOR É COMPILADO NO BUILD, E ISSO FOI CONFERIDO POR FALSIFICAÇÃO** (não por dedução): trocar `Model.Selo` por `Model.NaoExiste` no partial derruba o build com `CS1061`. É o que garante que os **5 pontos de render** foram checados de verdade contra a assinatura nova — o teste da tela só lê texto e sozinho não provaria isso. **7.080 testes verdes**, conferidores JS verdes.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão, ninguém viu o title na tela. **Quem confirma é o Felipe**, passando o mouse na coluna Torneio em `padelizou.com.br/Jogadores/Ranking`.
+>
+> 🧭 **E O QUE O PRINT DIZIA, que é como o defeito apareceu**: no Padelímetro todo PDZ sai em **par idêntico** (802/802, 760/760, 742/742…) porque `Aplicar` dá aos dois parceiros a MESMA expectativa, o MESMO fator de games e o MESMO resultado — só o K pode separá-los, e ele só muda no 10º jogo. **Dois jogadores que só jogaram juntos têm PDZ idêntico por construção**, e hoje o 1º lugar sai no desempate por nome. Nada disso foi mexido aqui; fica escrito porque é a leitura certa da tabela de hoje.
+>
+> Última atualização: **14/09/2026** — ⭐ **DEPOIS DE VOTAR, A CÉDULA DO MVP SAI DA FRENTE E A ENQUETE APARECE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1378-5a2b443`** (runs **353** e **354**, o mesmo artefato nos dois, pedido pela tag). PR #303. **Sem migration.**
+>
+> 🗣️ Felipe: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🕳️ A cédula de um torneio real tem de **10 a 20 nomes**, e era ela que empurrava a enquete pra fora da tela — justamente o que a pessoa ainda TEM o que fazer depois de votar. Pior: o POST do voto voltava pro **topo** da página, então quem acabava de votar caía no cabeçalho e rolava a lista inteira de novo pra achar o passo seguinte.
+>
+> 🔑 **DUAS PONTAS, E AS DUAS SÃO DE PLATAFORMA** (degrau 4 da escada, não degrau 7): a lista virou **`<details>` nativo** recolhido por `VotacaoDeMvp.CedulaRecolhida` — o mesmo arranjo do card do Pix em `Details.cshtml`, com o `open` saindo por atributo condicional —, e o redirect do voto ACEITO ganhou **âncora** na enquete. **Zero JavaScript**: o acordeão é do navegador, e não há `scrollIntoView` nenhum.
+>
+> ⚠️ **RECOLHIDA, NUNCA APAGADA**: trocar o voto é promessa escrita nesta mesma tela (*"Você pode trocar enquanto a votação estiver aberta"*), e o `<summary>` deixa a lista a um toque — **`✓ Seu voto: Fulano — trocar`**.
+>
+> ⚠️ **E RECOLHE SÓ COM A VOTAÇÃO ABERTA.** Depois que ela encerra, a MESMA lista deixa de ser cédula e vira **APURAÇÃO** — recolher ali esconderia o placar de todo mundo, que é exatamente o que a tela passa a mostrar. É o segundo teste, e é a razão de `CedulaRecolhida` ser `Aberta && MeuVoto != null` e não só `MeuVoto != null`.
+>
+> ⚠️ **VOTO RECUSADO NÃO DESCE**: a mensagem que explica por que o voto não valeu está no ALTO da página, e a âncora esconderia justamente ela. E **a âncora nunca aponta pro vazio**: a enquete usa a MESMA janela do MVP (`EnqueteDoTorneio.Aberta` = `TemPosTorneio` + `DentroDaJanela`), então voto aceito **significa** enquete na tela — sem uma segunda ida ao banco pra confirmar.
+>
+> 🔒 O nome da âncora mora em `MvpDoTorneio.AncoraDaEnquete`, e não escrito à mão nas duas pontas: são o `id` do cartão e o fragmento do redirect, e renomear um lado faria o pulo virar um recarregamento no topo — **sem erro, sem teste vermelho, sem ninguém perceber**.
+>
+> 🧪 **E AQUI O TESTE FALHOU PELO MOTIVO ERRADO NA PRIMEIRA VEZ — O QUE É A PRÓPRIA LIÇÃO**: o teste da âncora nasceu com a data fixa dos vizinhos (`Domingo`, 09/08), mas o **controller lê `DateTime.Now`** — a janela já estava fechada, o voto voltava RECUSADO e o vermelho vinha do ramo errado. Com o cenário certo (`DateTime.Now.AddHours(-2)`) ele passou de primeira, então a correção foi **revertida de propósito** pra vê-lo falhar onde deve (`Expected: "avaliar" / Actual: null`). Teste que nunca se viu falhar pelo motivo certo não prova nada.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão. O que sustenta são os 3 testes e o `/healthz` **200** nos dois ambientes. **Quem confirma na tela é o Felipe** — e atenção: no 2ª Etapa ER PADEL TOUR a votação encerra **20/09 às 21h38**; depois disso a lista NÃO recolhe, e isso é a regra e não defeito.
+>
+> 3 testes novos, todos vistos vermelhos. **7.080 testes verdes**, 9 conferidores JS verdes.
+
+> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** ⏳ **AINDA NÃO PUBLICADO.** **Sem migration.**
+>
+> 🕳️ Em `/Jogadores/Ranking`, a lista "Ver ranking de um torneio…" passa pela régua da vitrine desde 07/08 — mas o parâmetro da URL não perguntava nada. Quem digitasse o número de um torneio **oculto**, **cancelado** ou **esperando aprovação** recebia o nome dele no título ("Ranking do torneio: …") e, no oculto e no esperando aprovação, a tabela inteira. **Pré-existente, não regressão.** Era verdade que "o torneio de teste não aparece na lista"; não era verdade que "o torneio de teste não aparece".
+>
+> 🔑 **NÃO NASCEU RÉGUA NOVA**: `PermissaoDeOrganizador.ApareceParaOPublico` (vitrine + não cancelado) já existia — é a do sitemap e das páginas de cidade. O seletor escrevia o mesmo par à mão; agora ele e o `torneioId` leem o **mesmo método**. `VisibilidadeDoTorneio.PodeAbrirAsync` foi descartada: só olha `Oculto`, e o cancelado passaria. Torneio fora da vitrine conta como id que não existe — a página abre sem torneio selecionado e não confirma nada. Nem o organizador vê o próprio torneio oculto por aqui, igual ao seletor, que nunca o ofereceu; o lugar dele é a página do torneio.
+>
+> ⚠️ **Cancelado vazava só o NOME**: as linhas dele já saem vazias do `EstatisticasService` (evento que não aconteceu não pontua, e a lista só traz quem pontuou). O teste do cancelado prende o nome; os do oculto e do esperando aprovação prendem nome **e** linhas, com a pré-condição de que o serviço devolve linhas pra aquele torneio — sem ela, "ranking vazio" passaria antes e depois da correção.
+>
+> ⚠️ **O pedido citava `Services/HubDoRanking.cs` e `GET /Cartoes/RankingImagem`, e nenhum dos dois existe** — nem no `main`, nem em ref nenhuma do git, nem em disco nesta máquina. O bloco ainda mora em `JogadoresController.Ranking`, e foi lá que a correção entrou. **Se a extração pro hub e a arte do ranking estiverem numa sessão ainda não mesclada, ela precisa levar esta checagem junto.** Os testes chamam a action do controller: uma extração que perder a trava fica vermelha.
+>
+> 🧪 4 testes novos, os três de bloqueio **vistos vermelhos** (`Expected: null`, `Actual: 1`), mais o controle de que torneio da vitrine continua abrindo pela URL. **7.084 testes, 0 falhas**, 7 avisos — os mesmos de antes.
+>
+> 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
+
 > **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
 > Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
@@ -2521,7 +2604,7 @@
 >
 > 🧪 **6.066 testes, 0 falhas (5 novos), 4 avisos — os mesmos de antes.** Os cinco vistos vermelhos antes, e **todos com confrontos FIXOS**: número que sai do `GerarChaves` mede sorte, não código. Dois na auditoria (o mesmo time em duas quadras; o mesmo time emendado), um no reparo (não trocar criando o choque de time) e dois na troca de horário (o clube da vaga sai da quadra; e o carimbo velho de "casa" não libera a vaga que é no externo), mais a contraprova de que **sem** quadra quem responde continua sendo o carimbo. **Sem migration.**
 >
-> ⏳ **AINDA NÃO PUBLICADO.**
+> ✅ **PUBLICADO em dev e prod no `build-940-b01797d`** (10/09/2026, 12h55 e 12h58 de Brasília, runs 157 e 158) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
 >
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
