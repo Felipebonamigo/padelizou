@@ -52,12 +52,28 @@ public static class HorariosDaGrade
             if (jogo.HorarioPrevisto is DateTime quando)
                 ocupadas[quando] = ocupadas.GetValueOrDefault(quando) + 1;
 
+        // ⚠️ A PRÉVIA OCUPA A QUADRA (13/09/2026). Até aqui, `tambem` servia só pra o horário
+        // APARECER na lista — na hora de contar quantas quadras sobram, o jogo previsto sumia.
+        //
+        // 🗣️ Felipe, com o seletor aberto na Final da 5ª Feminina: *"as quadras nao estao livres,
+        // esta agendado para outros jogos, so nao estao definidos ainda quais serao, mas o
+        // horario e jogo ja existe"*. O seletor oferecia como vaga um horário que a chave já
+        // tinha prometido a outro jogo — e o organizador remarcava pra cima dele.
+        //
+        // É a mesma régua que o resto do sistema precisa aprender: *"o chaveamento fixo, os
+        // horarios fixos"*. Um jogo previsto pesa tanto quanto um jogo que já está no banco.
+        var daPrevia = (tambem ?? Enumerable.Empty<DateTime?>())
+            .Where(h => h != null)
+            .Select(h => h!.Value)
+            .ToList();
+
+        foreach (var quando in daPrevia)
+            ocupadas[quando] = ocupadas.GetValueOrDefault(quando) + 1;
+
         // ⚠️ O QUE JÁ EXISTE ENTRA MESMO FORA DO PASSO. Um jogo mexido na mão pras 20:13 não é
         // slot da grade — e sem ele na lista o seletor abriria sem nada marcado, dizendo por
-        // omissão que o jogo não tem hora. Vale igual pro horário de uma prévia (`tambem`).
-        var usados = ocupadas.Keys
-            .Concat((tambem ?? Enumerable.Empty<DateTime?>()).Where(h => h != null).Select(h => h!.Value))
-            .ToHashSet();
+        // omissão que o jogo não tem hora. Vale igual pro horário de uma prévia.
+        var usados = ocupadas.Keys.ToHashSet();
 
         var abertura = torneio.AberturaDaGrade;
         var ate = usados.DefaultIfEmpty(abertura).Max();

@@ -63,9 +63,12 @@ public class AvancoParcialDaChaveTests
         return (ctx, categoria, quartas, byes, controller);
     }
 
-    private static Task<List<Partida>> SemifinaisAsync(DbPadelContext ctx, int categoriaId) =>
-        ctx.Partidas.Where(p => p.CategoriaId == categoriaId && p.Fase == "Semifinal")
-            .OrderBy(p => p.Id).ToListAsync();
+    // ⚠️ NA ORDEM DO QUADRO, e não por Id (13/09/2026): desde que a Semifinal 2 pode nascer
+    // antes da 1, `semis[0]` só quer dizer "Semifinal 1" se a lista vier pelo NÚMERO.
+    private static async Task<List<Partida>> SemifinaisAsync(DbPadelContext ctx, int categoriaId) =>
+        ReservasDeHorario.NaOrdemDaFase(
+            await ctx.Partidas.Where(p => p.CategoriaId == categoriaId).ToListAsync(),
+            "Semifinal");
 
     // O pedido, na forma que a geometria permite: a Quartas 1 termina e a Semifinal 1 nasce na
     // hora, com a Quartas 2 ainda em quadra. O adversário já era conhecido — é o bye da vaga
@@ -112,21 +115,39 @@ public class AvancoParcialDaChaveTests
                      new HashSet<int> { semis[1].Dupla1Id, semis[1].Dupla2Id });
     }
 
-    // ⚠️ A TRAVA DA ORDEM. A Quartas 2 termina PRIMEIRO: a Semifinal 2 tem as duas vagas
-    // conhecidas (vencedor da Q2 e o bye 1), mas não pode nascer antes da Semifinal 1 — ela
-    // viraria a "Semifinal 1" na numeração, no desenho da chave e na reserva de horário.
+    // ⚠️ DECISÃO REVERTIDA EM 13/09/2026 — E ESTE TESTE FOI REESCRITO, NÃO APAGADO.
+    //
+    // Ele fixava a TRAVA DA ORDEM: a Semifinal 2, mesmo com as duas vagas conhecidas, não podia
+    // nascer antes da Semifinal 1, porque viraria a "Semifinal 1" na numeração, no desenho da
+    // chave e na reserva de horário. A trava era correta enquanto o número do jogo na fase
+    // fosse DEDUZIDO da ordem de criação.
+    //
+    // 🗣️ Felipe, 13/09, com o print da Semifinal 2 da 4ª Masculina definida e sem palpite: *"O
+    // jogo ja está definido e nao esta aparecendo de novo"*. O preço da trava era o jogador
+    // ficar sem palpitar num confronto que todo mundo já sabia qual era.
+    //
+    // ✅ `Partida.NumeroNaFase` tirou o motivo da trava: o número é GRAVADO, então a ordem de
+    // criação deixou de significar alguma coisa. O que este teste garante agora é o que a trava
+    // protegia — que a Semifinal 2 continue se chamando 2 — SEM impedir que ela nasça.
     [Fact]
-    public async Task A_semifinal_2_nao_nasce_antes_da_1_mesmo_com_as_duas_vagas_conhecidas()
+    public async Task A_semifinal_2_nasce_sozinha_e_continua_se_chamando_2()
     {
         var (ctx, categoria, quartas, byes, controller) = await AteAsQuartasAsync();
         using var _ = ctx;
 
         await TestInfra.FinalizarComPlacarAsync(ctx, controller, quartas[1], 9, 3);
 
-        Assert.Empty(await SemifinaisAsync(ctx, categoria.Id));
+        // Antes: `Assert.Empty`. Agora ela nasce — as duas vagas dela têm dono.
+        var soAsegunda = await SemifinaisAsync(ctx, categoria.Id);
+        var criada = Assert.Single(soAsegunda);
+        Assert.Equal(new HashSet<int> { quartas[1].VencedorId!.Value, byes[0] },
+                     new HashSet<int> { criada.Dupla1Id, criada.Dupla2Id });
 
-        // Terminada a Quartas 1, as duas nascem — e na ordem do quadro, não na de quem
-        // terminou primeiro.
+        // ⚠️ E O NOME DELA É O QUE A TRAVA EXISTIA PRA PROTEGER.
+        var todas = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
+        Assert.Equal(2, ReservasDeHorario.NumeroNaFase(todas)[criada.Id]);
+
+        // Terminada a Quartas 1, a Semifinal 1 entra no lugar dela — e o quadro lê 1, depois 2.
         await TestInfra.FinalizarComPlacarAsync(ctx, controller, quartas[0], 9, 3);
 
         var semis = await SemifinaisAsync(ctx, categoria.Id);

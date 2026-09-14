@@ -1086,8 +1086,11 @@ namespace Padelizou.Controllers
                                           grupos.Select(g => g.Duplas.Count).ToList());
 
                         var deGrupo = todosOsJogosDeGrupo.Where(p => p.CategoriaId == categoria.Id).ToList();
+                        // ⚠️ NA ORDEM DO QUADRO: a régua compara `doMataMata[i]` com
+                        // `desenho.Confrontos[i]`, posição a posição. Por Id, uma abertura
+                        // criada fora de ordem faria o painel acusar divergência que não existe.
                         var doMataMata = mataMataPorCategoria.TryGetValue(categoria.Id, out var mm)
-                            ? mm.OrderBy(p => p.Id).ToList()
+                            ? ReservasDeHorario.PorNumeroNaFase(mm)
                             : new List<Partida>();
 
                         // A classificação só é necessária quando há chave montada pra comparar —
@@ -1177,230 +1180,20 @@ namespace Padelizou.Controllers
         // `reservas` são os horários que o organizador reservou pra jogos previstos
         // (Models/ReservaDeHorario). Nulo = lê do banco; a troca de horário passa as dela pra
         // conferir a troca ANTES de gravar.
+        // A projeção das próximas fases mora no ROBÔ desde 13/09/2026 (ver
+        // RoboDoChaveamento.ProjetarProximasFasesAsync): é ele que cria as rodadas, e sem
+        // enxergar a prévia ele reencaixava o jogo em outro horário no instante em que o criava.
+        // Mesma delegação de QuadrasEmUsoAsync e SedesAsync.
         private async Task<List<ProximasFasesDaChave.JogoQueVem>> ProjetarProximasFasesAsync(
             int torneioId, List<Partida> partidas, IReadOnlyList<ReservaDeHorario>? reservas = null)
         {
-            var torneio = await _context.Torneios.FindAsync(torneioId);
-            if (torneio == null) return new();
+            var projecao = await Robo.ProjetarProximasFasesAsync(torneioId, partidas, reservas);
 
-            // ⚠️ CATEGORIA COM A FASE DE GRUPOS ABERTA CONTINUA SENDO PROJETADA POR COLOCAÇÃO,
-            // mesmo já tendo jogo de mata-mata. Desde o avanço parcial dos grupos (11/09/2026,
-            // RoboDoChaveamento.MontarAberturaDesenhadaAsync) a abertura nasce jogo a jogo: lida
-            // pela outra entrada (`Montar`, que parte dos jogos que existem), meia abertura viraria
-            // um quadro de dois — e a tela prometeria uma Final entre os dois primeiros a
-            // classificar. Do BANCO, e não da lista recebida: ela pode vir filtrada por time ou
-            // categoria, e um jogo de grupo pendente que o filtro tirou faria a categoria parecer
-            // fechada.
-            var gruposEmAberto = await _context.Partidas
-                .Where(p => p.TorneioId == torneioId && p.Status != "Finalizada"
-                         && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
-                .Select(p => p.CategoriaId)
-                .Distinct()
-                .ToListAsync();
-
-            var deMataMata = partidas
-                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
-                         && !gruposEmAberto.Contains(p.CategoriaId))
-                .ToList();
-            var cadeias = new List<ProximasFasesDaChave.CadeiaDeFases>();
-
-            // Os jogos de grupo COM as duplas carregadas: é deles que sai o nome de quem já
-            // classificou (Services/ClassificadosJaConhecidos). A lista recebida pode vir
-            // filtrada por time ou categoria, e meia fase de grupos daria meia classificação.
-            var pontosDoDesempatePorCategoria = new Dictionary<int, IReadOnlyDictionary<int, int>>();
-            var jogosDeGrupoPorCategoria = (await _context.Partidas
-                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
-                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
-                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
-                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                    .Where(p => p.TorneioId == torneioId
-                             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
-                    .ToListAsync())
-                .GroupBy(p => p.CategoriaId)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            // Quantos jogos da abertura já nasceram em cada categoria que ainda está em grupos:
-            // a prévia promete só o que FALTA, sem repetir o que já está na lista de jogos.
-            var aberturaJaCriada = partidas
-                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
-                         && gruposEmAberto.Contains(p.CategoriaId))
-                .GroupBy(p => p.CategoriaId)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            // Categoria AINDA NA FASE DE GRUPOS: não há jogo de mata-mata nenhum de onde
-            // partir, então a projeção começa nas COLOCAÇÕES ("1º do Grupo A × 2º do Grupo
-            // C"). Sem isto, só a chave direta mostrava o caminho até a final — ela já nasce
-            // com a primeira rodada criada, e as categorias de grupo apareciam sem mata-mata.
-            var comMataMata = deMataMata.Select(p => p.CategoriaId).ToHashSet();
-            var aindaEmGrupos = await _context.Categorias
-                // Com as duplas de cada grupo: o TAMANHO do grupo é o que diz quem descansa
-                // na prévia (ChaveProjetada), como no robô.
-                .Include(c => c.GruposTorneio).ThenInclude(g => g.Duplas)
-                .Where(c => c.TorneioId == torneioId && !c.ChaveDireta && !comMataMata.Contains(c.Id))
-                .ToListAsync();
-
-            // O mata-mata de uma categoria emenda no fim dos grupos DELA, não no fim dos
-            // grupos do torneio — é o mesmo lugar de onde o robô o agenda (ver
-            // AgendarNaGradeAsync). A categoria que fecha os grupos às 20h55 não tem por que
-            // esperar a que só fecha às 21h39: são pessoas diferentes e as quadras estão
-            // livres. Enquanto a conta era do torneio inteiro, a previsão empurrava TODAS as
-            // chaves pro fim e fazia o torneio parecer uma hora mais longo do que é.
-            var fimDosGruposPorCategoria = partidas
-                .Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase) && p.HorarioPrevisto != null)
-                .GroupBy(p => p.CategoriaId)
-                .ToDictionary(g => g.Key, g => g.Max(p => p.HorarioPrevisto!.Value));
-
-            foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
-            {
-                // ⚠️ O ranking do desempate de grupo, e ele vai TAMBÉM pra view: o
-                // `ClassificadosJaConhecidos.De` é síncrono e a prévia da chave o chama de
-                // dentro do Razor, que não tem como buscar. Ordenar lá sem os pontos poria na
-                // vaga um nome diferente do que o robô vai pôr — a tela prometendo um confronto
-                // que o sábado não faz. Buscado só se algum grupo empatar até o ranking.
-                var pontosParaODesempate = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
-                    categoria.GruposTorneio.Select(g => (IReadOnlyList<Dupla>)g.Duplas.ToList()).ToList(),
-                    jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
-                    _estatisticas.ObterPontosPorJogadorAsync);
-                pontosDoDesempatePorCategoria[categoria.Id] = pontosParaODesempate;
-
-                DateTime? fimDosGrupos =
-                    fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
-                        ? fim : null;
-
-                var gruposEmOrdem = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
-                cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
-                    gruposEmOrdem.Select(g => g.Nome).ToList(),
-                    ClassificacaoDeGrupos.VagasPorGrupo(categoria),
-                    fimDosGrupos,
-                    categoria.Nome,
-                    categoria.Id,
-                    gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
-                    categoria.CruzamentoDoMataMata,
-                    aberturaJaCriada.GetValueOrDefault(categoria.Id),
-                    // 🗣️ *"o Grupo B já está definido, então já pode mudar, na semifinal o 1º do
-                    // B e o 2º do B"*: fechado o grupo, a colocação vira nome na prévia.
-                    ClassificadosJaConhecidos.De(
-                        gruposEmOrdem,
-                        jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
-                        ClassificacaoDeGrupos.VagasPorGrupo(categoria),
-                        pontosParaODesempate)));
-            }
-
-            // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
-            // duplas que nunca vão se enfrentar.
-            foreach (var porCategoria in deMataMata.GroupBy(p => p.CategoriaId))
-            {
-                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key,
-                    _estatisticas.ObterPontosPorJogadorAsync);
-                var nomePorDupla = porCategoria
-                    .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
-                    .DistinctBy(d => d.Id)
-                    .ToDictionary(d => d.Id, d => d.NomeDeExibicao);
-
-                // ⚠️ O NOME DO BYE NÃO ESTÁ NAS PARTIDAS — É ISSO QUE O TORNA BYE (12/09/2026).
-                //
-                // 🗣️ Felipe, com o print de "Meus jogos" no meio do ER: *"aqui tambem nao esta
-                // aparecendo"* — a lista mandava o vencedor das Oitavas 2 direto pra uma
-                // "Semifinal" contra o vencedor das Oitavas 3. As QUARTAS tinham sumido.
-                //
-                // 🕳️ O dicionário acima é montado só com quem aparece em partida de mata-mata JÁ
-                // EXISTENTE, e quem folgou a primeira rodada não aparece em nenhuma. O
-                // `.Where(n => n != null)` que ficava aqui descartava os quatro byes **em
-                // silêncio**, e a projeção rodava com metade dos lados. O estrago não é "uma fase
-                // a menos no fim": o nome de cada fase sai de QUANTA GENTE SOBROU
-                // (ChaveamentoMataMata.NomeFase), então a fase seguinte inteira era rebatizada —
-                // a Quartas virava "Semifinal" e levava junto a hora reservada da Quartas.
-                //
-                // O robô nunca passou por aqui (ele vai por `ByesDaCategoriaAsync` com IDs), por
-                // isso a chave de verdade saía certa e só a PREVISÃO mentia — que é justamente o
-                // que o jogador lê pra saber a que horas voltar.
-                var semNome = byeIds.Where(id => !nomePorDupla.ContainsKey(id)).ToList();
-                if (semNome.Count > 0)
-                {
-                    var duplasDeFora = await _context.Duplas
-                        .Include(d => d.Jogador1)
-                        .Include(d => d.Jogador2)
-                        .Where(d => semNome.Contains(d.Id))
-                        .ToListAsync();
-
-                    foreach (var dupla in duplasDeFora)
-                        nomePorDupla[dupla.Id] = dupla.NomeDeExibicao;
-                }
-
-                // Sem `Where` silencioso: um bye que ainda assim não tenha nome vira um rótulo
-                // que DÁ NA VISTA, em vez de sumir e reescrever o quadro inteiro.
-                var byes = byeIds
-                    .Select(id => nomePorDupla.TryGetValue(id, out var nome) ? nome : $"Dupla {id}")
-                    .ToList();
-
-                cadeias.Add(ProximasFasesDaChave.Montar(
-                    porCategoria.Select(p => new ProximasFasesDaChave.PartidaDaChave(
-                        p.Id, p.Fase, p.Dupla1.NomeDeExibicao, p.Dupla2.NomeDeExibicao,
-                        // ⚠️ O "por ordem" TAMBÉM tem hora desde 09/09/2026 (ver
-                        // Services/OrdemDeLiberacao) — escondê-la aqui deixaria a projeção das
-                        // próximas fases muda justamente pro torneio que mais precisa dela.
-                        p.HorarioPrevisto)).ToList(),
-                    byes!,
-                    porCategoria.First().Categoria.Nome,
-                    porCategoria.Key));
-            }
-
-            // A prévia da chave é desenhada no Razor, e o `ClassificadosJaConhecidos.De` de lá
-            // precisa dos MESMOS pontos que o robô usa — ver o comentário no laço acima.
-            ViewBag.PontosDoDesempatePorCategoria = pontosDoDesempatePorCategoria;
-
-            if (cadeias.Count == 0) return new();
-
-            // As quadras são do TORNEIO, não da categoria: só dá pra dizer em qual quadra um
-            // jogo projetado cai depois de pôr todas as categorias na mesma grade, junto com
-            // o que já está marcado de verdade. Sem isso a tela prometia oito jogos no mesmo
-            // minuto num torneio de cinco quadras — e nenhum deles com quadra, porque não
-            // havia como saber qual.
-            var ocupadas = partidas
-                .Where(p => p.HorarioPrevisto != null)
-                // A FASE vai junto: é ela que diz o posto do jogo real, e é o que faz a prévia
-                // esperar a fase de grupos das OUTRAS categorias. Ver ProximasFasesDaChave.Agendar.
-                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra, p.Fase))
-                .ToList();
-
-            // As reservas do organizador — só as de fases que AINDA NÃO NASCERAM: a fase que já
-            // virou jogo real entra por `ocupadas`, e a reserva dela já foi consumida pelo robô.
-            reservas ??= await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
-            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
-            var reservadas = reservas
-                .Where(r => !fasesReais.Contains((r.CategoriaId, r.Fase)))
-                .Select(r => new ProximasFasesDaChave.HorarioReservado(r.CategoriaId, r.Fase, r.Numero, r.Horario, r.NomeQuadra))
-                .ToList();
-
-            // As SEDES vão junto: janela do local alugado e trava de clube da categoria são as
-            // mesmas da grade de verdade — sem elas a prévia prometia o Radar no domingo.
-            var projetados = ProximasFasesDaChave.Agendar(
-                cadeias,
-                new ProximasFasesDaChave.ConfiguracaoDaGrade(
-                    torneio.TempoPrevistoPartidaMinutos,
-                    torneio.QuantidadeQuadras,
-                    await QuadrasEmUsoAsync(torneioId),
-                    torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes,
-                    await SedesAsync(torneioId)),
-                ocupadas,
-                reservadas);
-
-            // A POSIÇÃO DENTRO DO HORÁRIO QUE O ORGANIZADOR GRAVOU PRA CADA PRÉVIA (10/09/2026).
-            // Ela mora na reserva, junto com a hora e a quadra dela — e é lida AQUI, e não dentro
-            // do motor da projeção: aquele decide QUANDO o jogo cai; em que posição da linha o
-            // organizador quer vê-lo é assunto da tela (Services/OrdemNoHorario).
-            var ordemReservada = reservas
-                .Where(r => r.OrdemNoHorario != null)
-                .ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero), r => r.OrdemNoHorario);
-
-            return projetados
-                .Select(j => j.CategoriaId is int categoria
-                             && ordemReservada.TryGetValue((categoria, j.Fase, j.Numero), out var ordem)
-                    ? j with { OrdemNoHorario = ordem }
-                    : j)
-                .OrderBy(j => j.Horario ?? DateTime.MaxValue)
-                .ToList();
+            // Os pontos do desempate voltam pela projeção e são postos no ViewBag AQUI — a prévia
+            // da chave é desenhada no Razor e o `ClassificadosJaConhecidos.De` de lá precisa dos
+            // MESMOS que o robô usou. Dentro do robô isso seria o motor conhecendo a tela.
+            ViewBag.PontosDoDesempatePorCategoria = projecao.PontosDoDesempate;
+            return projecao.Jogos;
         }
 
         // O jogador está NESTA dupla? Usado pra saber se ele venceu ou perdeu um jogo já
@@ -1425,14 +1218,20 @@ namespace Padelizou.Controllers
             List<ProximasFasesDaChave.JogoQueVem> projetados, List<Partida> todas, int jogadorId)
         {
             // A ORDEM DENTRO DA FASE precisa ser a mesma que a projeção usou pra numerar
-            // ("Vencedor Quartas de Final 1"), que é a mesma do avanço de verdade: por Id.
+            // ("Vencedor Quartas de Final 1"), que é a mesma do avanço de verdade — e desde
+            // 13/09/2026 esse número sai do que está GRAVADO quando existe, não da ordem de Id.
+            var numeroNaFase = ReservasDeHorario.NumeroNaFase(todas);
             var reais = todas
                 .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
-                .GroupBy(p => new { p.CategoriaId, p.Fase })
-                .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => new MeusJogos.JogoReal(
-                    p.Categoria?.Nome ?? "", p.Fase, i + 1,
+                // ⚠️ `TryGetValue`, e não `[p.Id]`: indexar direto transformaria uma lista
+                // recortada (ou uma fase que o `EhFaseDeMataMata` e o `NumeroNaFase` lessem
+                // diferente um dia) em KeyNotFoundException na página do torneio. O 0 é inerte
+                // — nenhum número de fase é 0, então ele não casa com procedência nenhuma.
+                .Select(p => new MeusJogos.JogoReal(
+                    p.Categoria?.Nome ?? "", p.Fase,
+                    numeroNaFase.TryGetValue(p.Id, out var numero) ? numero : 0,
                     EstouNesteJogo(p, jogadorId),
-                    p.Status == "Finalizada" && p.VencedorId != null && !EstaNaDupla(p, p.VencedorId.Value, jogadorId))))
+                    p.Status == "Finalizada" && p.VencedorId != null && !EstaNaDupla(p, p.VencedorId.Value, jogadorId)))
                 .ToList();
 
             // Quem folgou a primeira rodada aparece na projeção pelo NOME, não por

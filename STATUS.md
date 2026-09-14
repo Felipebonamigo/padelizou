@@ -21,6 +21,38 @@
 >
 > 🧪 **13 conferências novas no `conferir-abas-que-ficam.js`, escritas ANTES e vistas VERMELHAS** (4 falhando, com o flagrante na saída: *"nasceu 2x"*). O DOM falso ganhou **filhos de verdade** no cartão e passou a contar **nascimento de player por TRANSMISSÃO** — e essa é a parte que importa: as conferências velhas contam *cartão reescrito*, e um remendo que remove o cartão que acabou e insere o que entrou passa em **todas** elas e mesmo assim mata o player da quadra. Mais **3 testes de fonte** (`PlayerDaQuadraTests`) guardando o contrato Razor↔JS do `src` — que é a identidade da CÂMERA: um `?start=` ou um `&t=` por jogo faria o pareamento parar de casar, calado. **Conferido que o gate discrimina**: renomeei `pdz-live-video` na view, **build verde, 2 dos 3 testes VERMELHOS**. **7.037 testes verdes**, 10 conferidores JS verdes.
 >
+> **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
+>
+> 🗣️ Felipe, com as 7 categorias do ER já conferidas e o painel em todas: *"acho que podemos ocultar isso agora que resolveu, não?"*.
+>
+> 🕳️ A view pedia organizador + chave publicada + categoria com grupos, e **nunca perguntava se a chave real já batia com o previsto**. Pior que o ruído: oferecia o botão **inclusive onde o POST recusaria** — jogo do mata-mata já em quadra, chave passada da abertura, formato que não bate. Painel e ação eram duas cópias da mesma pergunta, e só uma sabia a resposta.
+>
+> ✅ **OCULTAR DE VEZ TIRARIA A SAÍDA DE EMERGÊNCIA.** O painel agora aparece **só quando o clique muda alguma coisa**: some sozinho e volta sozinho se algo divergir de novo. `Services/RefazerComoPrevisto` vira a régua única das duas pontas, e a ação foi reescrita em cima dela **mantendo as mensagens** — os 11 testes de `ChaveRespeitaOPrevistoTests` que já cobriam as recusas são a rede do refactor.
+>
+> 💰 **O CUSTO FICOU COM QUEM ORGANIZA**: a conta roda por categoria e esta é a página mais visitada do site, então só é feita pra organizador. Pra quem visita, o painel nem existe e nada é calculado.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: a conferência na página ao vivo é ANÔNIMA, e o painel é de organizador — ela não prova nada aqui (a página anônima saiu byte a byte idêntica à de antes, fora o token antifalsificação, que é o esperado). O que sustenta são os 6 testes, três deles chamando o `Details` de verdade como organizador. **Quem confirma na tela é o Felipe.**
+>
+> 6 testes novos, todos vistos vermelhos. **7.032 testes verdes**, 9 conferidores JS verdes.
+
+> Última atualização: **13/09/2026** — 0️⃣ **O JOGO NASCIA COM PLACAR 0 x 0.** 🚀 **PUBLICADO em `prod` no `build-1340-d5c5c43`** (deploy run 337, `/healthz` 200). PR #291. **COM MIGRATION** (`PlacarNaoNasceZerado`).
+>
+> 🗣️ Felipe, com o print de um jogo da chave que ainda não tinha sido chamado: *"Aqui esta aparecendo placar que ainda não comecou"*.
+>
+> 🕳️ `DbPadelContext` declarava `HasDefaultValue(0)` nas quatro colunas de placar. Elas são **nuláveis** e o robô **nunca escreve placar** ao criar a partida (`RoboDoChaveamento.cs:168`) — então o DEFAULT do banco preenchia `0`.
+>
+> 🔑 **`null` JÁ ERA O "SEM PLACAR" DO RESTO DO SISTEMA**, e aquela linha era a única que discordava: `DesfazerDoJogo.VoltarParaAgendado` zera pra `null`, `QuemVenceu.MotivoParaNaoFinalizar` e o `PadelimetroService` testam contra `null`, e as duas views da chave já escreviam `?? "–"`. A regra certa estava escrita; o dado é que nunca a satisfazia. **Não foi regra nova — foi tirar a linha que impedia a regra existente de funcionar.** E o guarda do `QuemVenceu` nascia morto: `0 != null`.
+>
+> 🛡️ **O UPDATE DA MIGRATION É PROVADAMENTE SEM PERDA**: as duas últimas condições (`COALESCE(...) = 0`) fazem dele um **troca-zero-por-nulo**. Nenhuma linha com número de verdade pode ser tocada, mesmo que as outras condições estivessem erradas. As três de cima são independentes e cada uma sozinha já protege o que importa — finalizado tem `VencedorId`, em quadra tem `HorarioInicioReal`, marcado pela Mesa tem `PlacarMarcadoEm`.
+>
+> ⚠️ **E AQUI ESTÁ A ARMADILHA QUE QUASE FEZ O TESTE NÃO VALER NADA: o EF InMemory IGNORA `HasDefaultValue`.** Conferido ANTES de escrever o teste — uma partida salva na suíte nasce com `null` **mesmo com o defeito presente**. Um teste comportamental (cria a partida, olha o placar) passaria verde defendendo nada. O gate olha a anotação `Relational:DefaultValue` no modelo, que é o que o Npgsql traduz em `DEFAULT 0` e o que atravessa os dois provedores. **É primo da lição de 19/08 (o InMemory não valida SQL) e merece a mesma memória.**
+>
+> 📏 `PlacarNaTela` vira a régua única da chave: `Agendada` → `–` **mesmo se o banco tiver 0 gravado** (a tela não depende da migration ter alcançado a linha), `AoVivo` → `0` (escolha do Felipe: é o que o card grande já mostra, e discordar poria a mesma informação em duas telas com dois valores), resto → o que tem, sem inventar zero.
+>
+> ✅ **CONFERIDO NA CHAVE AO VIVO**: 60 vagas — **30 com `–`** (os jogos não chamados, que antes mostravam `0`) e 30 com número. O único `0` que sobrou é o perdedor de um 9×0. A migration está **provada**, não suposta: o `/healthz` faz `GetPendingMigrationsAsync()` e devolve **503** se houver pendente (`Program.cs:605`) — 200 só sai com o banco em dia.
+>
+> 13 testes, 8 vistos vermelhos.
+
 > **13/09/2026** — 🗓️ **"TODOS OS DIAS, EXCETO…" — E O PERFIL PAROU DE EMPILHAR CATORZE PÍLULAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1352-dd13185`** (runs **342**, na 2ª tentativa, e **343**), **o mesmo artefato nos dois**, com a tag explícita. PR #294. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do próprio perfil e catorze etiquetas "Domingo · Noite", "Segunda · Manhã"… empilhadas: *"tem que fazer uma recurso 'Todos os dias, exceto...' e melhor isso"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
