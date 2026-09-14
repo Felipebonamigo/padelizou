@@ -2984,39 +2984,123 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <h6 class="fw-bold text-muted text-uppercase mb-2">
                             <i class="bi bi-chat-square-heart-fill"></i> Como o torneio foi avaliado
                         </h6>
-                        @if (enquete.TemMedia)
-                        {
-                            <div class="d-flex flex-wrap gap-4">
-                                <div>
-                                    <div class="small text-muted">O clube</div>
-                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaClube?.ToString("0.0")</div>
-                                </div>
-                                <div>
-                                    <div class="small text-muted">A organização</div>
-                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
-                                </div>
-                                @* A do sistema tem contagem própria (quem respondeu antes de a
-                                   pergunta existir não deu nota nenhuma ao Padelizou), então
-                                   ela pode faltar aqui mesmo com as outras duas na tela. *@
-                                @if (enquete.MediaSistema != null)
+                        @* ── CLICAR NA MÉDIA ABRE QUEM RESPONDEU ─────────────────────────
+                           `<details>` e não uma rota nova: a lista já veio com a página, e uma
+                           ação própria custaria [Authorize] + checagem de organizador pra
+                           entregar o que esta aba já tem na mão.
+
+                           ⚠️ O `<summary>` embrulha o bloco inteiro da média DE PROPÓSITO — o
+                           pedido era clicar no "4,9", e um link separado ao lado deixaria o
+                           número, que é onde a mão vai, inerte.
+
+                           A lista existe sempre que este cartão existe: as duas leituras saem
+                           da MESMA tabela, e o controller só a consulta com resposta > 0. *@
+                        @{
+                            var quemAvaliou = ViewBag.QuemAvaliou as List<Padelizou.Services.VotoNaEnquete>
+                                ?? new List<Padelizou.Services.VotoNaEnquete>();
+                        }
+                        @* O triângulo do `<summary>` fica: ele é o aviso de que dá pra abrir,
+                           e escondê-lo deixaria o texto sublinhado fazendo esse trabalho
+                           sozinho — é o mesmo arranjo do `<details>` da quadra preferencial. *@
+                        <details>
+                            <summary style="cursor: pointer;">
+                                @if (enquete.TemMedia)
                                 {
-                                    <div>
-                                        <div class="small text-muted">O Padelizou</div>
-                                        <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                    <div class="d-flex flex-wrap gap-4">
+                                        <div>
+                                            <div class="small text-muted">O clube</div>
+                                            <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaClube?.ToString("0.0")</div>
+                                        </div>
+                                        <div>
+                                            <div class="small text-muted">A organização</div>
+                                            <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
+                                        </div>
+                                        @* A do sistema tem contagem própria (quem respondeu antes de a
+                                           pergunta existir não deu nota nenhuma ao Padelizou), então
+                                           ela pode faltar aqui mesmo com as outras duas na tela. *@
+                                        @if (enquete.MediaSistema != null)
+                                        {
+                                            <div>
+                                                <div class="small text-muted">O Padelizou</div>
+                                                <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                            </div>
+                                        }
+                                        <div class="align-self-end small text-muted">
+                                            @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
+                                            <span class="ms-1 text-decoration-underline">— ver quem respondeu</span>
+                                        </div>
                                     </div>
                                 }
-                                <div class="align-self-end small text-muted">
-                                    @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
-                                </div>
+                                else
+                                {
+                                    <p class="small text-muted mb-0">
+                                        @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
+                                        a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                                        <span class="text-decoration-underline">Ver quem respondeu</span>
+                                    </p>
+                                }
+                            </summary>
+
+                            @* ⚠️ QUEM MARCOU "SEM O MEU NOME" ENTRA AQUI SEM NOME — e não é a
+                               view que esconde: o serviço não entrega. As notas dela aparecem,
+                               que é o que a tela de resposta combinou (o que fica sem nome é
+                               quem escreveu, não o que foi respondido). *@
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm align-middle mb-1">
+                                    <thead>
+                                        <tr class="small text-muted">
+                                            <th class="fw-normal">Quem respondeu</th>
+                                            <th class="fw-normal text-center">Clube</th>
+                                            <th class="fw-normal text-center">Organização</th>
+                                            <th class="fw-normal text-center">Padelizou</th>
+                                            <th class="fw-normal text-end">Quando</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var v in quemAvaliou)
+                                        {
+                                            <tr class="small">
+                                                <td>
+                                                    @if (v.Autor != null)
+                                                    {
+                                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@v.AutorId"
+                                                           class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
+                                                            @v.Autor
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">
+                                                            <i class="bi bi-incognito"></i> Sem identificação
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td class="text-center"><i class="bi bi-star-fill text-warning"></i> @v.NotaClube</td>
+                                                <td class="text-center"><i class="bi bi-star-fill text-warning"></i> @v.NotaOrganizacao</td>
+                                                @* Nula, e não zero: quem respondeu antes de a pergunta
+                                                   existir não deu nota nenhuma ao Padelizou. *@
+                                                <td class="text-center">
+                                                    @if (v.NotaSistema != null)
+                                                    {
+                                                        <text><i class="bi bi-star-fill text-warning"></i> @v.NotaSistema</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">—</span>
+                                                    }
+                                                </td>
+                                                <td class="text-end text-muted">@v.Quando.ToString("dd/MM")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
                             </div>
-                        }
-                        else
-                        {
                             <p class="small text-muted mb-0">
-                                @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
-                                a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                                O nome aparece de quem respondeu <strong>com o nome</strong>. Quem marcou
+                                "sem o meu nome" entra com as notas e sem identificação — foi o que
+                                combinamos com a pessoa na hora de responder.
                             </p>
-                        }
+                        </details>
 
                         @* ── O QUE ESCREVERAM ────────────────────────────────────────────
                            Tudo que tem texto, publicado ou não — e é o único lugar do sistema
@@ -3059,9 +3143,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 @c.Autor
                                             </a>
                                         }
+                                        @* A do Padelizou pode faltar: a pergunta nasceu depois
+                                           das primeiras respostas, e quem respondeu antes não
+                                           deu nota nenhuma ao sistema. *@
                                         <span class="small text-muted">
                                             <i class="bi bi-star-fill text-warning"></i> @c.NotaClube clube ·
                                             <i class="bi bi-star-fill text-warning"></i> @c.NotaOrganizacao organização
+                                            @if (c.NotaSistema != null)
+                                            {
+                                                <text>· <i class="bi bi-star-fill text-warning"></i> @c.NotaSistema Padelizou</text>
+                                            }
                                         </span>
                                         <span class="small text-muted ms-auto">@c.Quando.ToString("dd/MM")</span>
                                     </div>
@@ -3074,12 +3165,32 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     {
                                         <div class="small mb-1"><strong>Organização:</strong> @c.SobreAOrganizacao</div>
                                     }
+                                    @* ⚠️ ESTE NÃO VAI PRO MURAL — ele mora no Feedback do site
+                                       (a caixa com a moderação e o NPS do admin), e aparece
+                                       aqui porque quem escreveu leu que o texto chega "pra
+                                       quem organiza, pro clube e pro Padelizou". *@
+                                    @if (c.SobreOSistema != null)
+                                    {
+                                        <div class="small mb-1"><strong>Padelizou:</strong> @c.SobreOSistema</div>
+                                    }
 
+                                    @* O MURAL SÓ ACEITA O TEXTO DE CLUBE/ORGANIZAÇÃO. Quem
+                                       escreveu SÓ sobre o Padelizou aparece aqui (é o que a
+                                       tela de resposta prometeu) e não ganha botão nenhum: o
+                                       `PublicarAsync` recusaria, e botão que só sabe dar erro
+                                       é defeito com cara de recurso. *@
+                                    @{ var vaiParaOMural = c.SobreOClube != null || c.SobreAOrganizacao != null; }
                                     <div class="d-flex align-items-center gap-2 mt-2">
                                         @if (c.Publicado)
                                         {
                                             <span class="badge rounded-pill bg-success-subtle text-success-emphasis">
                                                 <i class="bi bi-eye"></i> No mural do torneio
+                                            </span>
+                                        }
+                                        else if (!vaiParaOMural)
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted border">
+                                                <i class="bi bi-eye-slash"></i> Só pra vocês — texto sobre o Padelizou não vai pro mural
                                             </span>
                                         }
                                         else
@@ -3089,7 +3200,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </span>
                                         }
 
-                                        @if (ViewBag.GestaoSoLeitura != true)
+                                        @if (ViewBag.GestaoSoLeitura != true && vaiParaOMural)
                                         {
                                             <form asp-controller="Torneios" asp-action="PublicarAvaliacao"
                                                   asp-route-id="@Model.Id" method="post" class="m-0">

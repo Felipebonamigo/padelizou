@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** **Sem migration.** Ainda **não publicado**.
+>
+> 🗣️ Felipe, com o print do card de avaliação do torneio: *"ali nao esta aparecendo a avaliação do padelizou no comentario e aqui tambem permita aparecer os comentarios do sistema, do clube e do torneio"* e, na sequência, *"ao clicar na avaliação (4,9) ali, permita eu ver quem votou"*.
+>
+> 🕳️ **O DEFEITO CALADO ERA MAIOR QUE O PEDIDO: QUEM ESCREVEU SÓ SOBRE O PADELIZOU SUMIA INTEIRO.** O texto sobre o sistema não mora na avaliação — ele vira linha em `FeedbackSite` (decisão de 18/08, pra não haver duas caixas de opinião sobre o sistema). O filtro do `ParaModerarAsync` perguntava por `ComentarioClube != null || ComentarioOrganizacao != null`, e a avaliação de quem só falou do Padelizou não tem NENHUM dos dois: a resposta não aparecia, a nota não aparecia, e **nada disso dava erro**. Quem organiza lia "21 respostas" e via 19.
+>
+> 🔑 **UM INTERRUPTOR SÓ, E ELE É O DICIONÁRIO**: o `LerAsync` ganhou `textosSobreOPadelizou`; quem o passa (só o `ParaModerarAsync`) vê nota e texto do sistema, quem não passa (o mural público, o painel do clube) recebe os dois **nulos**. É a mesma régua que já valia pro nome de quem é anônimo — *a view não tem como esquecer de esconder o que não veio*. Filtrar na view seria a promessa que a próxima view esquece.
+>
+> ⚡ **DUAS CONSULTAS EM VEZ DE UMA SUBCONSULTA CORRELATA**, de propósito: o `Contains` sobre lista local vira `IN (...)`, que o Postgres traduz sem surpresa. E entrou gate próprio — `TraducaoDasConsultasDaEnqueteTests`, três consultas compiladas com `ToQueryString()` contra Npgsql apontado pra lugar nenhum, porque o InMemory da suíte **não valida SQL** (o buraco de 19/08).
+>
+> 🖱️ **A MÉDIA VIROU `<summary>`, E O EMBRULHO É O PONTO**: o pedido era clicar **no 4,9**; um link "ver quem respondeu" ao lado deixaria o número — que é onde a mão vai — inerte. Zero JS, zero rota nova: a lista já vem com a página, e uma ação própria custaria `[Authorize]` + checagem de organizador pra entregar o que a aba já tem na mão. O `QuemAvaliouAsync` só é consultado com `Respostas > 0`.
+>
+> 🔒 **QUEM MARCOU "SEM O MEU NOME" ENTRA NA LISTA SEM NOME, SEM ID E SEM FOTO** — o serviço não os entrega, nem pra quem organiza. As notas dela aparecem: o que foi combinado é que ninguém vê **quem escreveu**, não que a resposta suma.
+>
+> ⚠️ **RESSALVA REGISTRADA, E ELA É DO DESENHO ANTIGO**: o "com o meu nome" é o **default** da tela de resposta, e a pergunta lá é *"E o que você escreveu, aparece como?"* — sobre o TEXTO. Quem respondeu só as estrelas nunca decidiu nada sobre aparecer, e agora aparece nominalmente nesta lista. Ela fica atrás da régua de quem modera (organizador, clube, admin), e não em superfície pública, mas **se isso incomodar, o conserto é na tela de resposta, não aqui**.
+>
+> 🚫 **BOTÃO QUE SÓ SABE DAR ERRO NÃO NASCEU**: o mural aceita texto de clube/organização e o `PublicarAsync` recusa o resto. Comentário só do Padelizou aparece com o motivo escrito no lugar do botão, em vez de um "Publicar no mural" que responderia *"Essa avaliação não tem texto pra publicar."*
+>
+> 🧪 **6 testes novos da regra + 3 gates de tradução**, e o gate foi **falsificado**: com um `ToString(formato)` plantado dentro do `Where`, ele acusou a consulta intraduzível; restaurado, os 33 testes da enquete voltaram ao verde. **7.194 testes verdes** na suíte inteira, 10 conferidores JS verdes.
+>
+> 👁️ **SEM BROWSER NESTA SESSÃO** — o `<details>`, o alinhamento da tabela no celular e o triângulo do `<summary>` são **pro Felipe conferir na tela**.
+
 > Última atualização: **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
 >
 > 🗣️ Felipe: *"crie um botão para compartilhar o ranking"*. Perguntado, escolheu **arte PNG** (e não o link da tela) e **um botão por aba**; na segunda pergunta, **top 10** e a aba **Desafios junto**, como card fechado.
