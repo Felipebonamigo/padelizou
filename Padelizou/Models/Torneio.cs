@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Padelizou.Models;
 
 using padelizou.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 [Table("Torneio")]
 public partial class Torneio
@@ -488,6 +489,19 @@ public partial class Torneio
     // quem não jogou ver as fotos é o ponto. Mas ele vira `href` na nossa página, então quem
     // decide se o endereço serve continua sendo o serviço, nunca a view.
     public string? LinkDasFotos { get; set; }
+
+    // O @ DO INSTAGRAM DE QUEM ORGANIZA (14/09/2026) — a assinatura da arte do jogo pro story.
+    //
+    // Nulo = a arte sai sem essa linha, e não com um "@" solto. Guarda o @ SEM o arroba na
+    // frente, normalizado por `Services/ArrobaDoInstagram` — que também é quem recusa o que não
+    // é @ de verdade, porque este valor é IMPRESSO numa imagem que vai pro Instagram.
+    //
+    // ⚠️ É do TORNEIO, e não do clube nem do organizador: o mesmo clube sedia etapa de circuito
+    // que divulga no @ do circuito e torneio interno que divulga no @ do clube. Guardar no
+    // Clube faria a etapa herdar o @ errado; guardar no Jogador poria o @ PESSOAL de quem
+    // organiza onde o print tem o do evento. (Viaja na duplicação — ver DuplicacaoDeTorneio.)
+    [StringLength(40)]
+    public string? InstagramDoOrganizador { get; set; }
 
     // ---- O que o inscrito quer saber e ninguém respondia ----
     // Duas datas PREVISTAS, não automáticas: quando as inscrições devem fechar e quando o

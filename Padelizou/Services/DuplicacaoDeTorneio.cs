@@ -40,6 +40,11 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.DesempateAmericano),
         nameof(Torneio.PontuaNoRankingAmericano),
 
+        // O @ de divulgação do evento: a 2ª etapa do circuito é anunciada no MESMO perfil. É
+        // estrutura como o clube — e o oposto do `LinkDasFotos`, que é o álbum daquele fim de
+        // semana e fica com a edição que passou.
+        nameof(Torneio.InstagramDoOrganizador),
+
         // Onde e como acontece
         nameof(Torneio.ClubeId),
         nameof(Torneio.LocalTorneio),

@@ -37,7 +37,38 @@ public static class ContatoDoJogador
         // e é o que o buscador rastreia. Nem é preciso ter conta pra chegar aqui.
         if (quemOlhaId == null) return false;
 
-        return !dono.Excluido && !dono.PerfilPrivado && !dono.EhPreCadastro;
+        return ContatoEhPublicavel(dono);
+    }
+
+    // AS TRÊS CONDIÇÕES, NUM LUGAR SÓ: conta viva, perfil aberto, conta assumida. Ficaram
+    // extraídas em 14/09/2026, quando a arte do story passou a precisar da MESMA pergunta por
+    // um caminho diferente — e a segunda escrita da mesma condição é a primeira a divergir.
+    private static bool ContatoEhPublicavel(Jogador dono) =>
+        !dono.Excluido && !dono.PerfilPrivado && !dono.EhPreCadastro;
+
+    // ⚠️ O @ PODE SER IMPRESSO NUMA ARTE QUE VAI PRO STORY? (14/09/2026)
+    //
+    // É a MESMA condição do `PodeVerContato` — com uma diferença deliberada: aqui NÃO existe a
+    // exceção do dono. O story não é a tela dele, é a superfície mais pública que este sistema
+    // tem (mais que o perfil, que já esconde o contato de quem está deslogado), e a arte é
+    // gerada por QUEM ORGANIZA, não por quem aparece nela. Quem marcou "perfil privado" não
+    // tem o @ impresso nem na arte que ele mesmo gera — o jeito de voltar a ser marcado é
+    // desmarcar a preferência, não o organizador decidir por ele.
+    //
+    // Sem @ liberado, a arte sai com o NOME, que já é público (chave, ranking, classificação).
+    public static bool PodeMarcarNaArte(Jogador dono) =>
+        ContatoEhPublicavel(dono) && ArrobaDoInstagram.Normalizar(dono.Instagram) != null;
+
+    // POR QUE não saiu marcado. A tela da arte mostra o motivo em vez de simplesmente sumir
+    // com o @: causa invisível é causa que ninguém conserta — e três dos quatro motivos aqui
+    // TÊM conserto (preencher o cadastro, desmarcar o perfil privado, assumir a conta).
+    public static string? MotivoParaNaoMarcar(Jogador dono)
+    {
+        if (dono.Excluido) return "conta excluída";
+        if (dono.EhPreCadastro) return "pré-cadastro";
+        if (dono.PerfilPrivado) return "perfil privado";
+
+        return ArrobaDoInstagram.Normalizar(dono.Instagram) == null ? "sem @ no cadastro" : null;
     }
 
     // Além da permissão, o botão precisa de um número: celular é campo opcional no cadastro, e
