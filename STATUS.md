@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — ⭐ **DEPOIS DE VOTAR, A CÉDULA DO MVP SAI DA FRENTE E A ENQUETE APARECE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1378-5a2b443`** (runs **353** e **354**, o mesmo artefato nos dois, pedido pela tag). PR #303. **Sem migration.**
+>
+> 🗣️ Felipe: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
+>
+> 🕳️ A cédula de um torneio real tem de **10 a 20 nomes**, e era ela que empurrava a enquete pra fora da tela — justamente o que a pessoa ainda TEM o que fazer depois de votar. Pior: o POST do voto voltava pro **topo** da página, então quem acabava de votar caía no cabeçalho e rolava a lista inteira de novo pra achar o passo seguinte.
+>
+> 🔑 **DUAS PONTAS, E AS DUAS SÃO DE PLATAFORMA** (degrau 4 da escada, não degrau 7): a lista virou **`<details>` nativo** recolhido por `VotacaoDeMvp.CedulaRecolhida` — o mesmo arranjo do card do Pix em `Details.cshtml`, com o `open` saindo por atributo condicional —, e o redirect do voto ACEITO ganhou **âncora** na enquete. **Zero JavaScript**: o acordeão é do navegador, e não há `scrollIntoView` nenhum.
+>
+> ⚠️ **RECOLHIDA, NUNCA APAGADA**: trocar o voto é promessa escrita nesta mesma tela (*"Você pode trocar enquanto a votação estiver aberta"*), e o `<summary>` deixa a lista a um toque — **`✓ Seu voto: Fulano — trocar`**.
+>
+> ⚠️ **E RECOLHE SÓ COM A VOTAÇÃO ABERTA.** Depois que ela encerra, a MESMA lista deixa de ser cédula e vira **APURAÇÃO** — recolher ali esconderia o placar de todo mundo, que é exatamente o que a tela passa a mostrar. É o segundo teste, e é a razão de `CedulaRecolhida` ser `Aberta && MeuVoto != null` e não só `MeuVoto != null`.
+>
+> ⚠️ **VOTO RECUSADO NÃO DESCE**: a mensagem que explica por que o voto não valeu está no ALTO da página, e a âncora esconderia justamente ela. E **a âncora nunca aponta pro vazio**: a enquete usa a MESMA janela do MVP (`EnqueteDoTorneio.Aberta` = `TemPosTorneio` + `DentroDaJanela`), então voto aceito **significa** enquete na tela — sem uma segunda ida ao banco pra confirmar.
+>
+> 🔒 O nome da âncora mora em `MvpDoTorneio.AncoraDaEnquete`, e não escrito à mão nas duas pontas: são o `id` do cartão e o fragmento do redirect, e renomear um lado faria o pulo virar um recarregamento no topo — **sem erro, sem teste vermelho, sem ninguém perceber**.
+>
+> 🧪 **E AQUI O TESTE FALHOU PELO MOTIVO ERRADO NA PRIMEIRA VEZ — O QUE É A PRÓPRIA LIÇÃO**: o teste da âncora nasceu com a data fixa dos vizinhos (`Domingo`, 09/08), mas o **controller lê `DateTime.Now`** — a janela já estava fechada, o voto voltava RECUSADO e o vermelho vinha do ramo errado. Com o cenário certo (`DateTime.Now.AddHours(-2)`) ele passou de primeira, então a correção foi **revertida de propósito** pra vê-lo falhar onde deve (`Expected: "avaliar" / Actual: null`). Teste que nunca se viu falhar pelo motivo certo não prova nada.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão. O que sustenta são os 3 testes e o `/healthz` **200** nos dois ambientes. **Quem confirma na tela é o Felipe** — e atenção: no 2ª Etapa ER PADEL TOUR a votação encerra **20/09 às 21h38**; depois disso a lista NÃO recolhe, e isso é a regra e não defeito.
+>
+> 3 testes novos, todos vistos vermelhos. **7.080 testes verdes**, 9 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
 > Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
