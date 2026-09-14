@@ -27,6 +27,7 @@
 >
 > **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** ⏳ **No branch `claude/instagram-stories-art-button-54tbyf`.** **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
 > **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** **Sem migration.** Ainda **não publicado**.
+> **14/09/2026** — 📤 **O RANKING VIROU ARTE: UM BOTÃO DE COMPARTILHAR EM CADA UMA DAS 17 TABELAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1403-2e2ddae`** (deploy runs **34859895639** e **34859903682**, **o mesmo artefato nos dois**, pedido pela tag). PR #306. **Sem migration.**
 >
 > 🗣️ Felipe: *"crie um botão para compartilhar o ranking"*. Perguntado, escolheu **arte PNG** (e não o link da tela) e **um botão por aba**; na segunda pergunta, **top 10** e a aba **Desafios junto**, como card fechado.
 >
@@ -55,6 +56,14 @@
 > ⚠️ **E FOI O MERGE MAIS DELICADO DESTE TRABALHO, porque as duas sessões mexeram NA MESMA LINHA por motivos diferentes**: lá a trava nasceu dentro da ação `Ranking`; aqui a ação inteira virou o `HubDoRanking`. O git resolveu o arquivo e teria perdido a trava em silêncio — quem a carregou pro serviço foi decisão explícita, e o comentário de lá diz isso. Sem ela, o buraco reabriria **sem ninguém ter escrito uma linha pra isso**, e desta vez com uma porta nova: a arte do `/Cartoes/RankingImagem?aba=Torneio`, que sai com cache **público**.
 >
 > 🔑 **O QUE SEGUROU NÃO FOI ATENÇÃO, FOI O DESENHO DO TESTE DELES**: o `SeletorDoRankingTests` chama a **AÇÃO**, não o serviço — então ele enxerga a trava mesmo ela tendo mudado de arquivo. O autor do #304 previu exatamente isto no corpo do PR: *"uma extração que perder a trava fica vermelha"*. Ficou provado no caminho contrário: a suíte passou COM a trava carregada.
+>
+> ✅ **CONFERIDO NO `prod` COM DADO DE VERDADE, e não só com o status do workflow**: a página serve **37 botões** em **11 abas** (37 e não 17 porque os laços por categoria multiplicam); as **11 artes baixadas da produção** passaram pelo mesmo gate de margem — **todas limpas dos dois lados**, com nome real e apelido; `Cache-Control: public, max-age=3600` e `content-disposition: inline` no GET, `attachment` com `?baixar=1`. `/healthz` **200** nos dois ambientes.
+>
+> 🔒 **E AS DUAS TRAVAS CONFERIDAS DE FORA, sem login**: `?aba=DesafiosDuplas` → **404** (a `PortaDosDesafios` corta antes, sem `[Authorize]` no método) e `?aba=lixo` → **404** (o enum anulável + `Enum.IsDefined`, em vez de entregar a arte da aba *default*).
+>
+> ⚠️ **O QUE CONTINUA SEM CONFERIR, e é o de sempre**: ninguém TOCOU nos 17 botões. O `navigator.share` com arquivo, a queda pro download e o menu nativo no celular vêm do `compartilhar-card.js`, que já roda nos outros cards — mas isso é herança, não medição. **Quem confirma no dedo é o Felipe.**
+>
+> ⚠️ **QUATRO MERGES DO `main` ATÉ CHEGAR LÁ** (#296, #304+#308, #305, #307): cinco sessões mergeando no mesmo dia. E a CI **não disparou sozinha em duas das pushes** — é o incidente que o próprio `ci.yml` documenta desde 26/08; as runs saíram por `workflow_dispatch`, e outra sessão precisou do mesmo recurso hoje.
 >
 > **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
 
