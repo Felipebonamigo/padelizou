@@ -1249,6 +1249,9 @@ namespace Padelizou.Controllers
             // Onde as fotos do torneio foram parar. Mesma regra: campo em branco APAGA o link
             // (e com ele o botão), que é como o organizador desfaz um álbum que saiu do ar.
             string? linkDasFotos = null,
+            // O @ de quem divulga o torneio, que assina a arte do jogo pro story. Mesma regra
+            // dos dois de cima: campo em branco APAGA — e aí a arte sai sem a linha dele.
+            string? instagramDoOrganizador = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
             bool usaCheckIn = false,
             // ⚠️ `bool?` e não `bool`, ao contrário do usaCheckIn logo acima — e a diferença
@@ -1404,6 +1407,15 @@ namespace Padelizou.Controllers
             if (FotosDoTorneio.ProblemaCom(linkDasFotos) is { } problemaFotos)
             {
                 TempData["Erro"] = problemaFotos;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // ⚠️ RECUSA, e não normalização pra nulo. Sem esta conferência um erro de digitação
+            // ("er padel", com espaço) viraria nulo em silêncio e APAGARIA o @ que estava certo —
+            // e a arte voltaria a sair sem assinatura sem ninguém ter pedido.
+            if (ArrobaDoInstagram.ProblemaCom(instagramDoOrganizador) is { } problemaDoArroba)
+            {
+                TempData["Erro"] = problemaDoArroba;
                 return RedirectToAction("Details", new { id });
             }
 
@@ -1715,6 +1727,7 @@ namespace Padelizou.Controllers
             // https na frente), pra o botão não depender de como o organizador colou.
             torneio.LinkGrupoWhatsApp = GrupoDoTorneioNoWhatsApp.Normalizar(linkGrupoWhatsApp);
             torneio.LinkDasFotos = FotosDoTorneio.Normalizar(linkDasFotos);
+            torneio.InstagramDoOrganizador = ArrobaDoInstagram.Normalizar(instagramDoOrganizador);
             torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
             torneio.PrevisaoChaveamento = previsaoChaveamento;
             // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".

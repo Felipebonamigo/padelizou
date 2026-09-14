@@ -250,11 +250,14 @@
                ainda vão acontecer citam este, e sem o número na etiqueta a referência
                "Vencedor Quartas de Final 2" não teria onde ser encontrada. Jogo de grupo não
                numera — o nome do grupo já identifica. *@
+            @* ⚠️ A régua mora em Services/FaseNaTela desde 14/09/2026: a arte do jogo pro
+               story precisa do MESMO rótulo, e duas cópias divergiriam de um jeito visível de
+               fora — a etiqueta daqui dizendo "Semifinal 2" e a arte postada dizendo
+               "Semifinal". *@
             @{
-                var faseNaTela = jogo.Fase != "Final"
-                                 && numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var n)
-                    ? $"{jogo.Fase} {n}"
-                    : jogo.Fase;
+                var faseNaTela = Padelizou.Services.FaseNaTela.Rotulo(
+                    jogo.Fase,
+                    numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var n) ? n : null);
             }
             <span class="pdz-jl-etiqueta pdz-jl-fase">@faseNaTela</span>
             @* ONDE É O JOGO — clube e quadra (Services/LugarDoJogo).

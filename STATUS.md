@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 📸 **A ARTE DO JOGO PRO STORY: VOCÊ TIRA A FOTO, O @ JÁ ENTRA.** ⏳ **No branch `claude/instagram-stories-art-button-54tbyf`.** **COM MIGRATION** (`InstagramDoOrganizadorNoTorneio`).
+>
+> 🗣️ Felipe, com o print de uma arte da semifinal do ER Padel Tour montada à mão: *"Conseguimos fazer um Botao no sistema, que ele ja crie essa arte e apenas tiremos a foto na hora para postarmos nos stories do instagram, colocando o @ da pessoa ja quando tiver no cadastro?"*.
+>
+> 🪜 **QUASE TUDO JÁ EXISTIA, E É POR ISSO QUE O DIFF É PEQUENO PRO TAMANHO DO PEDIDO**: `Jogador.Instagram` já era campo do cadastro (`_PreferenciasFields.cshtml:42`) — o "@ quando tiver no cadastro" **não precisou de coluna**; a oficina de arte (`CartaoCompartilhavel`: fundo, faixa, texto que encolhe, pílula, rodapé) já sustenta 13 cards; `Partida.Fase` já é o "SEMIFINAL" do print; e o `ImagemEnviada.Recodificar` já era **público e sem tocar disco**, com o EXIF apagado e o endireitamento de foto de celular embutidos. O que nasceu novo foi a arte, as duas telas e UMA coluna.
+>
+> 🔑 **O PEDIDO SUBIU DE `bounded` PRA `architectural` NO MEIO, PELA REGRA DE MÃO ÚNICA**: o @ do clube (o `@er.padel` do print) não tinha campo em lugar nenhum — nem no `Clube`, nem no `Torneio`. Felipe escolheu criar o campo, e isso gera migration → design escrito e aprovado antes de qualquer código. `Torneio.InstagramDoOrganizador`, `text NULL`, sem backfill.
+>
+> 🏠 **AS AÇÕES MORAM NO `TorneiosController`, NÃO NO `CartoesController` — E A RAZÃO É A RÉGUA, NÃO A ARRUMAÇÃO.** Quem gera a arte é organizador **ou marcador** (é o marcador que está na quadra com o celular na hora da foto), e essa pergunta é `PodeOperarODiaDeJogoAsync`, **privada** daquele controller. Copiá-la pro controller dos cards criaria o **quarto** lugar de uma checagem que este arquivo já registra como precisando andar junto em três — a dessincronia de 31/07 que quebrou a Mesa de Controle. Precedente exato: o `CartaoDoPlacarAoVivo` mora no `TorneiosController.Placar.cs` pelo mesmo motivo.
+>
+> 🔒 **A DECISÃO MAIS DELICADA É A DO @, E ELA FOI PRO LADO CONSERVADOR**: story é a superfície **mais** pública que este sistema tem — mais que o perfil, que já esconde contato de quem está deslogado. `ContatoDoJogador.PodeMarcarNaArte` reusa a **mesma condição** do `PodeVerContato` (extraída pra um lugar só), **sem a exceção do dono**: quem marcou perfil privado não tem o @ impresso nem na arte que ele mesmo gera. Sem @ liberado sai o **nome**, que já é público (chave, ranking, classificação) — e a tela **diz o motivo** ("perfil privado", "pré-cadastro", "sem @ no cadastro"), porque causa invisível é causa que ninguém conserta.
+>
+> 🕳️ **ACHADO NO CAMINHO, E VALE MEMÓRIA: TODO `Jogador` SEM `SenhaHash` É `EhPreCadastro`** (`Jogador.cs:133`) — e **toda a `TestInfra` cria jogador sem senha**. Os primeiros testes da régua passaram/falharam pelo motivo ERRADO até os jogadores ganharem `SenhaHash = "hash-de-teste"` explícito. Quem for testar qualquer coisa que dependa de "esta pessoa tem conta" precisa dizer isso no cenário.
+>
+> 👁️ **VISTO NO PNG GERADO, E UM DEFEITO SAIU SÓ DE OLHAR**: as quatro marcações saíam em **quatro tamanhos diferentes** — cada linha encolhendo sozinha até caber, que é o certo pra um título e o errado pra uma coluna. **Medido**: `@guilhermebagesteiro` não cabe em 44px numa coluna de 406px (precisa de **33,8**), enquanto `@felipebonamigo` cabia — era esse par na mesma coluna. Agora o tamanho é **um**, o menor que serve pras quatro; o que varia é **cor e peso** (marcado × não marcado), que é informação. No caso apertado o desalinhamento ia de 44 a 26.
+>
+> 🎞️ **A FOTO ENTRA E SAI, NADA FICA**: `<input capture="environment">` abre a câmera de trás no celular, o POST devolve o PNG com `?baixar=1` (o `attachment` do `EntregaDeCard`, que é o conserto do *"o baixar foto fica travado numa pagina de pre visualizacao"* de 12/09) e a foto é descartada. Recortada pelo **centro** ("cover"), nunca esticada. `Cache-Control: **private**` — a arte carrega o @ de quatro pessoas.
+>
+> 🧪 **64 casos de teste novos, e os 5 que sustentam o recurso foram VISTOS VERMELHOS com defeito plantado**: a moldura ignorando a foto derrubou os dois testes de composição; a régua esquecendo o perfil privado derrubou os três de privacidade. O teste do "a foto aparece" olha a **cor no centro da moldura**, e não "gerou um PNG válido" — este último passaria verde com a foto ignorada, que é o recurso inteiro. **7.125 testes verdes**, 10 conferidores JS verdes, `has-pending-model-changes` limpo.
+>
+> ⚠️ **`DONE_WITH_CONCERNS` — DUAS RESSALVAS**: (1) **nada foi conferido no navegador nem em `dev`** nesta sessão; o que sustenta a aparência é o PNG gerado e lido aqui, e as duas telas Razor novas (`ArtesDosJogos`, `ArteDoJogo`) **não foram abertas** — só compiladas e cobertas por teste de conteúdo. (2) A arte sai **sem a logo do clube** que o print tem: é ausência de **campo** (`Clube` não tem coluna de logo), não de desenho.
+
 > Última atualização: **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
 >
 > 🗣️ Felipe, com as 7 categorias do ER já conferidas e o painel em todas: *"acho que podemos ocultar isso agora que resolveu, não?"*.

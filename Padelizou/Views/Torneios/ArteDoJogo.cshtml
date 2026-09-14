@@ -1,0 +1,127 @@
+@model Padelizou.Services.JogoParaArte
+@{
+    var torneioId = (int)ViewBag.TorneioId;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    ViewData["Title"] = $"Arte do jogo — {Model.Fase} - Padelizou";
+
+    var previa = Url.Action("ArteDoJogoImagem", new { id = Model.PartidaId });
+
+    var semArroba = Model.Dupla1.Marcacoes.Concat(Model.Dupla2.Marcacoes)
+        .Where(m => !m.EhArroba && !string.IsNullOrWhiteSpace(m.Nome))
+        .ToList();
+}
+@*
+    A ARTE DE UM JOGO, E O CAMPO DA FOTO (14/09/2026).
+
+    ⚠️ SEM `og:image`, como a lista: a arte imprime o @ de quatro pessoas e a prévia de link é
+    buscada pelo servidor da Meta sem sessão nenhuma.
+
+    ⚠️ O BOTÃO QUE GERA JÁ LEVA `?baixar=1`, e isso é conserto de um defeito conhecido: o
+    atributo `download` do `<a>` é uma DICA que WebView de app, navegador de dentro do
+    Instagram e PWA em modo standalone ignoram — e, com a resposta `inline`, o que aparece é o
+    PNG cru no lugar da tela, sem barra de endereço e sem voltar (Felipe, 12/09/2026: *"o
+    baixar foto fica travado numa pagina de pre visualizacao"*). Quem escolhe é a URL, e quem
+    traduz o `?baixar=1` em `Content-Disposition: attachment` é o Services/EntregaDeCard.
+
+    ⚠️ `capture="environment"` no input: no celular ele abre a CÂMERA DE TRÁS direto, que é o
+    "tiramos a foto na hora" do pedido. No computador o atributo é ignorado e o campo continua
+    sendo um seletor de arquivo normal — nada a tratar.
+*@
+
+<div class="container mt-4 mb-5" style="max-width: 560px;">
+
+    <a asp-action="ArtesDosJogos" asp-route-id="@torneioId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar aos jogos
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">@Model.Fase</h2>
+    <p class="text-muted">@Model.Torneio · @Model.Categoria</p>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger rounded-4">@TempData["Erro"]</div>
+    }
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela a arte sairia com
+                todos os textos invisíveis, então nenhuma é gerada.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+            <div class="card-body">
+                @* A prévia é a arte SEM foto — o mesmo endereço que o botão "Baixar sem foto"
+                   usa. É um GET, então ela é cacheável e não custa um desenho por olhada. *@
+                <img src="@previa" alt="Arte do jogo @Model.Fase, sem foto"
+                     class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                     style="max-width: 280px;" />
+
+                <form asp-action="ArteDoJogoImagem" asp-route-id="@Model.PartidaId"
+                      asp-route-baixar="1" method="post" enctype="multipart/form-data"
+                      class="mt-3">
+                    <label class="form-label fw-bold small" for="fotoDoJogo">A foto do jogo</label>
+                    <input type="file" name="foto" id="fotoDoJogo" class="form-control"
+                           accept="image/*" capture="environment" required />
+                    <small class="text-muted d-block mt-2">
+                        A foto entra recortada pelo centro, então enquadre a dupla no meio. Ela
+                        <strong>não fica guardada</strong> no Padelizou: é usada pra desenhar a
+                        arte e descartada.
+                    </small>
+
+                    <button type="submit" class="btn btn-success rounded-pill px-4 mt-3 w-100">
+                        <i class="bi bi-download"></i> Gerar a arte com a foto
+                    </button>
+                </form>
+
+                <a href="@Padelizou.Services.EntregaDeCard.LinkParaBaixar(previa)"
+                   class="btn btn-outline-secondary rounded-pill px-3 mt-2 w-100">
+                    <i class="bi bi-crop"></i> Baixar sem foto (colo a foto no Instagram)
+                </a>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <div class="fw-bold small mb-2" style="color: var(--pdz-ink);">Quem vai marcado</div>
+                <div class="d-flex flex-wrap gap-4">
+                    @foreach (var lado in new[] { Model.Dupla1, Model.Dupla2 })
+                    {
+                        <div>
+                            @foreach (var marcacao in lado.Marcacoes)
+                            {
+                                <div class="small @(marcacao.EhArroba ? "fw-semibold" : "text-muted")">
+                                    @marcacao.Texto
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (semArroba.Count > 0)
+                {
+                    @* ⚠️ O MOTIVO APARECE, e isso é decisão: sumir com o @ em silêncio faria o
+                       organizador achar que o sistema não sabe marcar. Três dos quatro motivos
+                       TÊM conserto — preencher o cadastro, desmarcar o perfil privado, assumir
+                       a conta —, e nenhum deles é do organizador pra decidir. *@
+                    <hr />
+                    <div class="small text-muted">
+                        Saiu com o nome em vez do @@:
+                        @string.Join(" · ", semArroba.Select(m => $"{m.Nome} ({m.MotivoSemArroba})"))
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-lock-fill"></i>
+                        Quem marcou <strong>perfil privado</strong> não é marcado nem numa arte que
+                        você gera — o @@ volta quando a própria pessoa desmarca.
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
