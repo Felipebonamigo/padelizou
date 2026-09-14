@@ -58,7 +58,7 @@
 > ⚠️ **`DONE_WITH_CONCERNS` — DUAS RESSALVAS**: (1) **nada foi conferido no navegador nem em `dev`** nesta sessão; o que sustenta a aparência é o PNG gerado e lido aqui, e as duas telas Razor novas (`ArtesDosJogos`, `ArteDoJogo`) **não foram abertas** — só compiladas e cobertas por teste de conteúdo. (2) A arte sai **sem a logo do clube** que o print tem: é ausência de **campo** (`Clube` não tem coluna de logo), não de desenho.
 
 > Última atualização: **13/09/2026** — 🧹 **O PAINEL "REFAZER COMO PREVISTO" SÓ APARECE COM O QUE FAZER.** 🚀 **PUBLICADO em `prod` no `build-1349-6307348`** (deploy run 340, `/healthz` 200). PR #293. **Sem migration.**
-> Última atualização: **14/09/2026** — 🎛️ **O "–" DO SELO DE MOVIMENTO DIZIA "FICOU NA MESMA POSIÇÃO" PRA QUEM NUNCA TEVE POSIÇÃO.** ⏸️ **MESCLAR E PUBLICAR É DECISÃO DO FELIPE — não peça isso a ninguém a partir desta linha.** Branch `claude/laughing-davinci-s0n5eg`. **Sem migration.**
+> Última atualização: **14/09/2026** — 🎛️ **O "–" DO SELO DE MOVIMENTO DIZIA "FICOU NA MESMA POSIÇÃO" PRA QUEM NUNCA TEVE POSIÇÃO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1393-83eb73d`** (deploy runs **360** e **361**), **o mesmo artefato nos dois**, com a tag explícita. PR #305. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do Padelímetro no ar: *"como esta nosso ranking? o que isso quer dizer?"* — e a coluna **Torneio** estava inteira em "–", nas 29 linhas.
 >
@@ -76,7 +76,15 @@
 >
 > ✅ **O RAZOR É COMPILADO NO BUILD, E ISSO FOI CONFERIDO POR FALSIFICAÇÃO** (não por dedução): trocar `Model.Selo` por `Model.NaoExiste` no partial derruba o build com `CS1061`. É o que garante que os **5 pontos de render** foram checados de verdade contra a assinatura nova — o teste da tela só lê texto e sozinho não provaria isso. **7.080 testes verdes**, conferidores JS verdes.
 >
-> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão, ninguém viu o title na tela. **Quem confirma é o Felipe**, passando o mouse na coluna Torneio em `padelizou.com.br/Jogadores/Ranking`.
+> ✅ **CONFERIDO NO `prod` COM DADO DE VERDADE, e é o tipo de conferência que o `/healthz` não dá**: a página `/Jogadores/Ranking` servida pela produção traz **273 ocorrências** de `title="Ainda não há posição anterior para comparar"` e **ZERO** de `title="Ficou na mesma posição"` — e zero de "Subiu", "Desceu" e "novo". Os 273 são a tabela inteira das 5 abas: hoje NENHUM recorte tem base anterior, que é exatamente o estado que o defeito escondia. O cabeçalho da coluna confirma a janela: *"Posições ganhas ou perdidas em 2ª Etapa ER PADEL TOUR (EPT). Fica na tela até 20/09."* `/healthz` **200** nos dois ambientes.
+>
+> ⚠️ **O `dev` NÃO DÁ PRA CONFERIR ASSIM, e não é defeito**: o portão de Acesso Antecipado devolve a própria tela dele em `/Jogadores/Ranking` (HTTP 200, 3.275 bytes, `<title>Acesso Antecipado</title>`). O selo só existe na página do ranking, então a conferência com dado real só sai no `prod`, que é aberto. Mesma lição do bloco do carimbo, hoje mais cedo.
+>
+> 🔓 **E O `prod` NÃO PAROU PRA APROVAÇÃO** — o job entrou direto no passo "Publicar", sem `waiting`. O `infra/vps/README.md` diz que a trava vem do **environment `prod` no GitHub**, não do `deploy.yml`; pelo visto ela não está configurada. Não é achado deste trabalho, mas quem contar com ela pra segurar um deploy vai contar errado.
+>
+> ⚠️ **DUAS RODADAS DE CONFLITO ATÉ MESCLAR**, e a causa é estrutural: os PRs #304 e #308 entraram no `main` entre o CI verde e o merge, e **todo PR daqui escreve no topo deste arquivo** — então todo merge simultâneo conflita aqui. Resolvido as duas vezes mantendo os dois blocos, com a suíte inteira revalidada em cada uma (7.094 verdes na combinação).
+>
+> 🕳️ **E O CI NÃO NASCEU SOZINHO NO PR**: a abertura do #305 não gerou run nenhum (o #308, aberto DEPOIS, gerou). Foi preciso o `workflow_dispatch` do `ci.yml` — o gatilho manual que existe desde 26/08 exatamente pra isso. O `synchronize` do push seguinte já disparou normalmente.
 >
 > 🧭 **E O QUE O PRINT DIZIA, que é como o defeito apareceu**: no Padelímetro todo PDZ sai em **par idêntico** (802/802, 760/760, 742/742…) porque `Aplicar` dá aos dois parceiros a MESMA expectativa, o MESMO fator de games e o MESMO resultado — só o K pode separá-los, e ele só muda no 10º jogo. **Dois jogadores que só jogaram juntos têm PDZ idêntico por construção**, e hoje o 1º lugar sai no desempate por nome. Nada disso foi mexido aqui; fica escrito porque é a leitura certa da tabela de hoje.
 >
