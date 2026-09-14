@@ -54,6 +54,12 @@
         // acabou de mover ela.
         if (window.pdzTrocandoSaque) return true;
 
+        // E a ação inteira do cartão — Finalizar, "voltar pra agendado" — indo por fetch
+        // (js/acao-do-cartao-ao-vivo.js). Aqui não é o cabeçalho, é a LISTA: uma busca pedida
+        // ANTES do POST e chegando DEPOIS dele devolveria o jogo finalizado pra quadra, na
+        // frente de quem acabou de encerrá-lo.
+        if (window.pdzAcaoEmCurso) return true;
+
         var ativo = document.activeElement;
         if (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName)) return true;
 
@@ -320,6 +326,38 @@
             trocar(document.querySelector('#jogosTabs .nav-link[data-bs-target="' + alvo + '"]'), fresco);
         });
     }
+
+    // ── O FINALIZAR ENTREGA A PÁGINA AQUI, EM VEZ DE RECARREGAR (14/09/2026) ─────────────
+    //
+    // 🗣️ Felipe: *"apenas queria q o video nao travasse, nao mude o layout"*.
+    //
+    // "Finalizar" e "Voltar pra agendado" eram POST comum — recarga da página inteira, e recarga
+    // reinicia TODO <iframe> da tela: encerrar o jogo da Quadra 1 parava o vídeo de quem estava
+    // assistindo à Quadra 2, sem nenhuma relação entre as duas coisas. O
+    // js/acao-do-cartao-ao-vivo.js manda o POST por fetch e entrega AQUI o HTML que voltou — que
+    // é a MESMA página que o tique buscaria. Então são as mesmas regras de remendo, sem uma
+    // segunda busca e, o que importa mais, sem uma segunda cópia delas pra divergir um dia.
+    //
+    // ⚠️ DEVOLVE `false` QUANDO A RESPOSTA NÃO É ESTA TELA. Sessão vencida responde 302 pro
+    // login, o fetch SEGUE o desvio e entrega 200 com o HTML do login: `resposta.ok` diz que sim
+    // e nada foi finalizado. Quem chamou recarrega — e a pessoa cai no login, em vez de ficar
+    // com a lista de jogos remendada com pedaços de outra página.
+    //
+    // ⚠️ E COPIA O AVISO DO SERVIDOR, que o tique NÃO copia. O FinalizarPartida pode RECUSAR e
+    // mesmo assim redirecionar, pondo o porquê em TempData["Erro"] — que é de UMA LEITURA SÓ, e
+    // esta resposta acabou de consumi-lo. Sem esta linha o organizador aperta Finalizar, nada
+    // acontece e nada explica. No tique seria o contrário: ele buscaria um aviso vazio de 20 em
+    // 20 segundos e apagaria sozinho a mensagem que a pessoa ainda está lendo.
+    window.pdzAplicarRespostaDeAcao = function (html) {
+        var novo = new DOMParser().parseFromString(html, "text/html");
+        if (!novo.getElementById("jogosTabsContent")) return false;
+
+        if (assinatura(novo) !== assinatura(document) && !remendarAoVivo(novo)) return false;
+
+        aplicar(novo);
+        trocar(document.querySelector("#pdzAvisoDaAcao"), novo.querySelector("#pdzAvisoDaAcao"));
+        return true;
+    };
 
     var buscando = false;
     var ultimaBusca = 0;

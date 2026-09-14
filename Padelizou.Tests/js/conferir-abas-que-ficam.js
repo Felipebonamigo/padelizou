@@ -436,7 +436,8 @@ function painel(row, nascimentos) {
     return pane;
 }
 
-function documentoDeJogos(ids, aoVivoVisivel, agendados) {
+function documentoDeJogos(ids, aoVivoVisivel, agendados, extra) {
+    const opcoes = extra || {};
     const nascimentos = {};
     const row = grade(ids.map((spec) => cartaoVivo(spec, nascimentos)), nascimentos);
     // Os cartões que já estão na tela nasceram com a página: um player cada.
@@ -446,17 +447,25 @@ function documentoDeJogos(ids, aoVivoVisivel, agendados) {
     });
     const pane = painel(row, nascimentos);
     const umAgendado = elemento({}, ['pdz-jl']);
+
+    // O lugar onde o TempData["Erro"] do servidor aparece. Nasce com o que o `extra` mandar: no
+    // documento DA TELA é o que está na frente da pessoa; no do SERVIDOR, o que ele respondeu.
+    const aviso = elemento({ id: 'pdzAvisoDaAcao' });
+    aviso.innerHTML = opcoes.aviso || '';
     const doc = {
         hidden: false, readyState: 'complete', activeElement: null, _ouvintes: {},
         addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
         disparar(t) { (this._ouvintes[t] || []).forEach((f) => f({})); },
-        getElementById: (id) => (id === 'jogosTabsContent' ? elemento({}) : null),
+        // `semLista` é a tela de LOGIN entregue com 200 depois do 302 que o fetch seguiu: a
+        // página existe, mas não é esta. É a única prova que sobra quando a resposta é HTML.
+        getElementById: (id) => (id === 'jogosTabsContent' && !opcoes.semLista ? elemento({}) : null),
         importNode: (no) => no,
         querySelector: (sel) => {
             if (sel === '.pdz-live-card') return row.filhos.length ? row.filhos[0].cartao : null;
             if (sel === '#agendadas .pdz-jl') return agendados ? umAgendado : null;
             if (sel === '.modal.show') return null;
             if (sel === '#aovivo') return pane;
+            if (sel === '#pdzAvisoDaAcao') return aviso;
             if (sel === '#aovivo.active') return aoVivoVisivel ? pane : null;
             if (sel === '#jogosDoTorneio') return null;   // /Torneios/Jogos: a lista É a página
             if (sel === '#pdzAoVivoCartoes') return row;
@@ -467,6 +476,7 @@ function documentoDeJogos(ids, aoVivoVisivel, agendados) {
     };
     doc._row = row;
     doc._nascimentos = nascimentos;
+    doc._aviso = aviso;
     return doc;
 }
 
@@ -592,6 +602,79 @@ async function oPlayerDaQuadraSobreviveATrocaDeJogo() {
     ok(emOutraAba.recarregou === 0, 'em outra aba, nada recarrega');
     ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
 
+// ── O QUE O FINALIZAR REMENDA, AGORA QUE ELE NÃO RECARREGA (14/09/2026) ───────────────────
+//
+// 🗣️ Felipe: *"apenas queria q o video nao travasse, nao mude o layout"*.
+//
+// 🕳️ "Finalizar" e "Voltar pra agendado" eram POST comum: recarregavam a página inteira, e
+// recarga reinicia TODO <iframe> da tela — finalizar o jogo da Quadra 1 parava o vídeo de quem
+// assistia à Quadra 2. O js/acao-do-cartao-ao-vivo.js manda o POST por fetch e entrega o HTML da
+// resposta AQUI, pro mesmo remendo do tique de 20s. Este arquivo guarda o lado de cá.
+function telaDeAcao(idsAgora, idsNoServidor, doServidor) {
+    const doc = documentoDeJogos(idsAgora, true);
+    const resposta = documentoDeJogos(idsNoServidor, true, false, doServidor || {});
+    let recarregou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Jogos/901', reload: () => { recarregou++; } },
+        setInterval: (fn) => { win._tique = fn; return 1; },
+        getSelection: () => '',
+        fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
+        DOMParser: function () { this.parseFromString = () => resposta; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+    return {
+        doc, win, resposta,
+        recarregou: () => recarregou,
+        naTela: () => doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        players: () => doc._nascimentos,
+    };
+}
+
+async function oFinalizarRemendaSemRecarregar() {
+    console.log('── O FINALIZAR REMENDA A TELA EM VEZ DE RECARREGAR ──────────────────────────');
+
+    // 1. O caso do dia: duas quadras no ar, o organizador finaliza a da Quadra 1. O cartão dela
+    //    sai, e o VÍDEO DA QUADRA 2 — que não tem nada a ver com isso — não reinicia. Era esse
+    //    o estrago da recarga.
+    const t = telaDeAcao(['10|camaDaQuadra1', '20|camaDaQuadra2'], ['20|camaDaQuadra2']);
+    const aplicou = t.win.pdzAplicarRespostaDeAcao('<html>o servidor devolveu a página</html>');
+    ok(aplicou === true, 'a resposta que É esta tela é aplicada, e diz que foi');
+    ok(t.naTela().join(',') === '20', 'o jogo finalizado sai da grade sem recarregar a página');
+    ok(t.recarregou() === 0, 'e a página não recarrega');
+    ok((t.players()['https://www.youtube.com/embed/camaDaQuadra2'] || 0) === 1,
+        'o vídeo da OUTRA quadra não reinicia (é o defeito inteiro desta mudança)');
+
+    // 2. ⚠️ O MOTIVO DA RECUSA NÃO PODE SUMIR. O FinalizarPartida pode recusar e mesmo assim
+    //    RESPONDER COM REDIRECT, pondo o porquê em TempData["Erro"] — que é de uma leitura só.
+    //    O fetch segue o redirect e CONSOME esse TempData: sem copiar o aviso pra tela, o
+    //    organizador aperta Finalizar, nada acontece e nada explica. Falha calada, no sábado.
+    const recusou = telaDeAcao(['10'], ['10'], { aviso: '<div class="alert alert-danger">Jogo A3: a fase seguinte já começou</div>' });
+    recusou.win.pdzAplicarRespostaDeAcao('<html>com o erro dentro</html>');
+    ok(/a fase seguinte já começou/.test(recusou.doc._aviso.innerHTML),
+        'o motivo que o servidor deu aparece na tela (TempData é de uma leitura só — o fetch já o consumiu)');
+
+    // 3. Resposta 200 que NÃO é esta tela: sessão vencida devolve o HTML do LOGIN, e o fetch
+    //    entrega isso com `ok` true. Aplicar seria remendar a lista de jogos com pedaços de
+    //    outra página; devolver `false` faz quem chamou recarregar e cair no login.
+    const login = telaDeAcao(['10'], ['10'], { semLista: true });
+    const aplicouLogin = login.win.pdzAplicarRespostaDeAcao('<html>Entrar na sua conta</html>');
+    ok(aplicouLogin === false, 'resposta que não é esta tela é RECUSADA (devolve false)');
+    ok(login.naTela().join(',') === '10', 'e nada na tela é mexido com ela');
+
+    // 4. A atualização automática fica quieta enquanto a ação está indo. Ela busca a página de
+    //    20 em 20s; uma resposta PEDIDA ANTES do POST e CHEGANDO DEPOIS dele devolveria o jogo
+    //    finalizado pra quadra, na frente de quem acabou de encerrá-lo.
+    const durante = telaDeAcao(['10', '11'], ['11']);
+    durante.win.pdzAcaoEmCurso = true;
+    durante.win._tique();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(durante.naTela().join(',') === '10,11',
+        'com uma ação do cartão em curso, o tique de 20s não encosta na tela');
+}
+
+    await oFinalizarRemendaSemRecarregar();
     await oPlayerDaQuadraSobreviveATrocaDeJogo();
     await aAlturaDaListaVolta();
     await abrirOAppMostraOAgora();
