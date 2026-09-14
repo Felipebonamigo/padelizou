@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 🎛️ **O "–" DO SELO DE MOVIMENTO DIZIA "FICOU NA MESMA POSIÇÃO" PRA QUEM NUNCA TEVE POSIÇÃO.** ⏸️ **MESCLAR E PUBLICAR É DECISÃO DO FELIPE — não peça isso a ninguém a partir desta linha.** Branch `claude/laughing-davinci-s0n5eg`. **Sem migration.**
+>
+> 🗣️ Felipe, com o print do Padelímetro no ar: *"como esta nosso ranking? o que isso quer dizer?"* — e a coluna **Torneio** estava inteira em "–", nas 29 linhas.
+>
+> 🕳️ `MovimentoNoRanking.Aplicar` gravava **`0`** quando a lista "antes" está vazia, e `0` é o MESMO valor de "jogou e ficou onde estava" — que o `_SeloDeMovimento` desenha como "–" com o title *"Ficou na mesma posição"*. Depois do primeiro torneio de um ranking, a tela garantia a 29 jogadores que eles não tinham se mexido, quando a verdade é que **não havia de onde se mexer**.
+>
+> 🔒 **O DEFEITO ESTAVA LACRADO POR UM TESTE QUE DIZIA O CONTRÁRIO DO PRÓPRIO NOME**: `Sem_base_de_comparacao_ninguem_ganha_selo` cobrava `Assert.Equal(0, ...)`, que é justamente o selo. O nome sempre esteve certo; a asserção é que congelou o buraco. E os dois comentários que apontavam pra cá já estavam escritos no repositório desde 08/08 — *"Sem base, sem selo"* no `Aplicar`, e *"novo NÃO é +0"* no partial.
+>
+> 🔧 `int?` só tem vaga pra DOIS estados (o número, e o `null` de "entrou agora"); os estados são **três**. Virou `MovimentoNoRanking.Selo` — `SemBase` / `Novo` / `Moveu(n)` —, com `SemBase = 0` no enum **de propósito**: `default(Selo)` passa a ser o estado que não afirma nada.
+>
+> 🗣️ **A ESCOLHA DO QUE APARECE FOI DELE**, entre sumir com a coluna e corrigir o texto: *"'–' com o title corrigido"*. O traço continua igual; o que muda é o que ele AFIRMA — agora **"Ainda não há posição anterior para comparar"**. E vale nas **5 tabelas** (categoria, Padelímetro, times, Americano individual e em duplas), porque a conta mora num lugar só: corrigir uma deixaria as outras quatro mentindo com o mesmo código. No ranking por categoria o caso também aparece em **categoria criada agora**, não só no primeiro torneio da história.
+>
+> 🧪 **2 testes vistos VERMELHOS antes**, e o flagrante do primeiro é a frase inteira: `Assert.NotEqual() Failure: Values are equal — Expected: Not 0, Actual: 0`. O terceiro (`Sem_base_tambem_nao_pode_se_confundir_com_NOVO`) **passou de primeira e isso está registrado**: ele não trava o defeito, trava a correção ERRADA — resolver empurrando a tabela inteira pro "novo", que é o que o comentário do `Aplicar` recusa desde 08/08.
+>
+> 🔍 **O teste do motor guarda `object?` de propósito**: o que ele cobra não é a representação do selo, é que "sem base" e "ficou parado" **não cheguem na tela como o mesmo valor**. Trocar o enum por outra coisa amanhã não o faz mentir. E o da tela conta `title="..."`, não a frase solta — a primeira versão contava a frase e **quebrou com o comentário que eu mesmo escrevi citando o defeito**, o que é o teste avisando que estava medindo prosa em vez do que o jogador lê.
+>
+> ✅ **O RAZOR É COMPILADO NO BUILD, E ISSO FOI CONFERIDO POR FALSIFICAÇÃO** (não por dedução): trocar `Model.Selo` por `Model.NaoExiste` no partial derruba o build com `CS1061`. É o que garante que os **5 pontos de render** foram checados de verdade contra a assinatura nova — o teste da tela só lê texto e sozinho não provaria isso. **7.080 testes verdes**, conferidores JS verdes.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão, ninguém viu o title na tela. **Quem confirma é o Felipe**, passando o mouse na coluna Torneio em `padelizou.com.br/Jogadores/Ranking`.
+>
+> 🧭 **E O QUE O PRINT DIZIA, que é como o defeito apareceu**: no Padelímetro todo PDZ sai em **par idêntico** (802/802, 760/760, 742/742…) porque `Aplicar` dá aos dois parceiros a MESMA expectativa, o MESMO fator de games e o MESMO resultado — só o K pode separá-los, e ele só muda no 10º jogo. **Dois jogadores que só jogaram juntos têm PDZ idêntico por construção**, e hoje o 1º lugar sai no desempate por nome. Nada disso foi mexido aqui; fica escrito porque é a leitura certa da tabela de hoje.
+>
 > Última atualização: **14/09/2026** — ⭐ **A CÉDULA DO MVP SAÍA NA ORDEM DO ALFABETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1369-f3ddc25`** (runs **347** e **349**, o mesmo artefato nos dois, com a tag explícita). PR #299. **Sem migration.**
 >
 > 🗣️ Felipe, com o print da votação do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.

@@ -13,7 +13,7 @@ public class MovimentoNoRankingTests
     private sealed class Linha
     {
         public int Id { get; init; }
-        public int? Movimento { get; set; }
+        public MovimentoNoRanking.Selo Movimento { get; set; }
     }
 
     private static List<Linha> Lista(params int[] ids) => ids.Select(i => new Linha { Id = i }).ToList();
@@ -29,9 +29,9 @@ public class MovimentoNoRankingTests
 
         Aplicar(agora, 10, 20, 30);
 
-        Assert.Equal(2, agora[0].Movimento);    // 30: era 3º, virou 1º
-        Assert.Equal(0, agora[1].Movimento);    // 20: continua 2º
-        Assert.Equal(-2, agora[2].Movimento);   // 10: era 1º, virou 3º
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(2), agora[0].Movimento);    // 30: era 3º, virou 1º
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(0), agora[1].Movimento);    // 20: continua 2º
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(-2), agora[2].Movimento);   // 10: era 1º, virou 3º
     }
 
     [Fact]
@@ -44,19 +44,24 @@ public class MovimentoNoRankingTests
 
         Aplicar(agora, 10);
 
-        Assert.Equal(0, agora[0].Movimento);
-        Assert.Null(agora[1].Movimento);
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(0), agora[0].Movimento);
+        Assert.Equal(MovimentoNoRanking.Selo.Novo, agora[1].Movimento);
     }
 
     [Fact]
     public void Sem_base_de_comparacao_ninguem_ganha_selo()
     {
         // Primeiro torneio da história daquele ranking: anunciar 40 estreias não informa nada.
+        //
+        // ⚠️ 14/09/2026 — ESTE TESTE LACRAVA O DEFEITO: o nome dizia "ninguém ganha selo" e a
+        // asserção cobrava `0`, que é o selo "ficou na mesma posição". A tela então garantia a
+        // 29 jogadores que eles não tinham se mexido num ranking em que ninguém tinha posição.
+        // Agora o estado tem nome próprio, e a asserção diz o que o nome do teste sempre disse.
         var agora = Lista(1, 2, 3);
 
         Aplicar(agora);   // lista "antes" vazia
 
-        Assert.All(agora, l => Assert.Equal(0, l.Movimento));
+        Assert.All(agora, l => Assert.Equal(MovimentoNoRanking.Selo.SemBase, l.Movimento));
     }
 
     [Fact]
@@ -68,8 +73,8 @@ public class MovimentoNoRankingTests
 
         Aplicar(agora, 10, 20, 30);
 
-        Assert.Equal(0, agora[0].Movimento);
-        Assert.Equal(1, agora[1].Movimento);
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(0), agora[0].Movimento);
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(1), agora[1].Movimento);
     }
 
     // ── A JANELA: por quanto tempo o selo fica na tela ────────────────────────────────────
