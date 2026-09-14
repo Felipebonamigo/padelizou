@@ -1,6 +1,38 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 🎯 **O ORGANIZADOR DECIDE SE O TORNEIO TEM PALPITÔMETRO, E EM QUAIS CATEGORIAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1420-2e64a2d`** (deploy runs **373** e **374**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #317. **COM MIGRATION** (`PalpitometroPorCategoria`).
+>
+> 🗣️ Felipe: *"na parte de criar torneio, coloque la para o organizador decidir se vai habilitar o palpitometro ou nao, se vai ser apenas da masculina/feminina ou em ambos, deixe nascendo como permitido e nas tanto feminino como masculino"*.
+>
+> Na criação e na gestão, um rádio de quatro: **em todas as categorias** (o padrão), **só nas masculinas**, **só nas femininas**, **não usar**.
+>
+> 🔑 **UMA COLUNA SÓ (`Torneio.PalpitometroEm`), E É A DECISÃO QUE SEGURA O RESTO.** As duas perguntas do pedido cabem num valor — `Nenhuma` é a primeira respondida com não. Separadas num `bool` + um alcance, elas poderiam **discordar** (desligado com `"Feminina"` gravado ao lado), e aí passam a existir duas verdades sobre a mesma coisa e o resto do código escolhe em qual acreditar. Mesma decisão, e mesmo motivo, do `GamesSoDaFinal` ao recusar um `bool FinalSeparada`. É também o que deixa a tela ser rádio como o `quemMarcaPlacar`: **rádio manda sempre o marcado**, sem a pegadinha do `<input type="hidden">` que o par caixa+valor obriga — a mesma que o `usaVotacaoDeMvp` precisou documentar em três parágrafos.
+>
+> 🔑 **A RÉGUA DO SEXO É A DO PADELÍMETRO, NÃO UMA SEGUNDA**: `FaixasDePadelimetro.EhFeminina` já responde "esta categoria é feminina?" pelo **nome** — o único lugar onde esse dado existe, porque a `Categoria` **não tem coluna de sexo** (o nome é texto livre, e a API do Ranking RS nem confere sexo). Uma definição nova aqui divergiria da primeira no dia em que uma das duas mudasse: a tela mostraria o palpitômetro onde o Padelímetro diz que é feminina e o alcance diz que não.
+>
+> ⚖️ **PERGUNTADO, O FELIPE ESCOLHEU A RÉGUA BINÁRIA**: Mista, Casal e Lendas entram **junto com a masculina**. Exigir `"Masc"` escrito no nome deixaria essas três sem palpitômetro nas **duas** escolhas restritas — e o organizador que marcou "só masculinas" não teria como descobrir por quê.
+>
+> ⚠️ **ESCONDER NÃO É FECHAR**: o `PalpiteService.RegistrarVotoAsync` **recusa** o voto de categoria fora do alcance. O POST de `/Partidas/Votar` é montado à mão sem passar por view nenhuma, e quem estava com a lista aberta quando o organizador desligou continua com o botão na mão. O `RetirarPalpiteAsync` **não** ganhou a trava, de propósito: ela é sobre gravar aposta, e fechar a saída junto prenderia quem já palpitou a uma aposta que a tela nem mostra mais.
+>
+> ⚠️ **A CONSULTA VAI PELA CATEGORIA, NÃO POR `Partida.TorneioId`** — aquela coluna é ANULÁVEL e nem toda partida a preenche (mesma razão do `ChegadasDoTorneioAsync`). Por `TorneioId`, o jogo sem ela cairia em "torneio desconhecido", que o `Normalizar` lê como `Todas`, e o palpitômetro **desligado continuaria aceitando voto, calado**.
+>
+> ⚠️ **DESCONHECIDO VIRA `Todas`, NUNCA `Nenhuma`**: dois caminhos reais chegam com lixo — o backfill da migration e o POST montado à mão. Cair em "desligado" faria o recurso sumir, sem erro nenhum, do torneio de quem nunca abriu esta tela. Recurso que some calado é o que ninguém reporta.
+>
+> ⚠️ **A GUARDA DA TELA É REPETIDA NAS DUAS APRESENTAÇÕES** (`_JogoEmLinha` e o cartão do AO VIVO em `_JogosDoTorneio`), porque são markups PRÓPRIOS — foi assim que o "desfazer o play" nasceu só na linha. A régua é uma; quem repete é o `if`. Um palpitômetro que some da lista e continua no cartão ao vivo é pior que não ter o interruptor. O alcance chega por view-data, montado **uma vez** no `CarregarViewBagJogosAsync` (o caminho do `UsaCheckIn`), que abastece as duas telas de jogo.
+>
+> 🕳️ **UM CS8602 NOVO APARECEU E NÃO FOI CALADO COM `!`**: o `jogo.Categoria?.Nome` que eu escrevi ensinou o compilador a duvidar de algo que o arquivo inteiro já trata como certo — e quebrou TRÊS linhas pré-existentes que desreferenciam `jogo.Categoria.Nome` direto. O conserto foi **tirar a dúvida** (a navegação é não-anulável e vem sempre com `Include`), não silenciar o aviso.
+>
+> ⚠️ **`defaultValue: "Todas"` NA MIGRATION FOI ESCRITO À MÃO** — o EF gerou **string vazia**, a mesma armadilha da `VotacaoDeMvpOpcional`: ele olha o TIPO da coluna, não o inicializador da propriedade. O `Normalizar` ainda leria vazio como `Todas` (nada quebraria), mas o banco guardaria uma verdade que **nenhum dos quatro rádios da gestão consegue mostrar**.
+>
+> 🧪 **30 TESTES NOVOS, ESCRITOS ANTES E VISTOS VERMELHOS CONTRA UM ESQUELETO VAZIO**: 27 falharam pelo motivo certo. Os **5 que passaram de primeira são os CONTROLES** — o que NÃO pode mudar (o voto dentro do alcance, o palpite que sobrevive ao desligamento, a aba antiga que não mexe no gravado) —, e cada um tem o par vermelho que discrimina (`Na_CRIACAO_um_alcance_INVENTADO...` e `Na_GESTAO_o_organizador_muda_o_alcance_depois` estavam entre os 27). Mais um gate de tradução com `ToQueryString()` contra o Npgsql, porque **o InMemory não valida SQL**. **7.222 testes verdes**, 11 conferidores JS verdes, `has-pending-model-changes` limpo.
+>
+> ⚠️ **O QUE A VERIFICAÇÃO NÃO PROVA, dito com todas as letras**: o que sustenta é o **job de deploy verde** (o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200). O `/healthz` **200** nos dois **não distingue versão** — os dois já respondiam 200 antes, e esta leva **não criou rota nova** pra servir de sonda: tudo mudou na tela de criar torneio e na gestão, **atrás de login**. **Fechar de verdade é um teste de meio minuto que só o Felipe pode fazer**: num torneio de `dev` com uma categoria masculina e uma feminina, marcar "só nas masculinas" e ver o palpitômetro sumir da feminina e ficar na masculina.
+>
+> 🕳️ **ERRO MEU, REGISTRADO PORQUE A LIÇÃO É REAPROVEITÁVEL: CANCELEI UM RUN DE CI SAUDÁVEL.** Achei que o Actions estava travado e cancelei — **estava só mais lento** (o mesmo passo leva 78s no `main`). A conta errada veio de eu **somar os meus próprios `sleep` em background em vez de olhar o relógio**: eles rodam **em paralelo**, então o tempo decorrido é o do MAIOR, não a soma — "35 minutos" eram ~3. Custou um ciclo de CI. **Tempo decorrido se mede com `date`, ou com os carimbos do próprio GitHub; nunca somando timers.**
+>
+> ✅ **E O `prod` CONTINUA NÃO PARANDO PRA APROVAÇÃO** — **quarto registro do mesmo fato hoje**, agora em três sessões diferentes (PRs #313 e #316 já anotavam). O run **374** foi de enfileirado a verde em **17 segundos**, direto pro `Publicar`, sem esperar ninguém. A trava mora no environment `prod` (Settings → Environments), não no `deploy.yml`: **ela não está valendo.**
+
 > Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1416-591ea33`** (deploy runs **368** e **370**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #315. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do card de avaliação do torneio: *"ali nao esta aparecendo a avaliação do padelizou no comentario e aqui tambem permita aparecer os comentarios do sistema, do clube e do torneio"* e, na sequência, *"ao clicar na avaliação (4,9) ali, permita eu ver quem votou"*.
