@@ -411,6 +411,12 @@ namespace Padelizou.Controllers
                 ModelState.Remove(nameof(Torneio.QuemMarcaPlacar));
             }
 
+            // E o mesmo pro alcance do palpitômetro (Services/AlcanceDoPalpitometro). Texto
+            // desconhecido gravado deixaria a tela de gestão com os quatro rádios apagados, e
+            // ninguém descobriria o que o torneio faz sem abrir a lista de jogos.
+            torneio.PalpitometroEm = AlcanceDoPalpitometro.Normalizar(torneio.PalpitometroEm);
+            ModelState.Remove(nameof(Torneio.PalpitometroEm));
+
             // ── As recusas vêm ANTES de qualquer gravação ────────────────────────────────
             // Inclusive antes de achar-ou-criar o clube: recusar depois deixaria um clube
             // novo no catálogo a cada tentativa recusada.
@@ -1303,6 +1309,11 @@ namespace Padelizou.Controllers
             // campo: o modo gravado FICA. Editável a qualquer momento, inclusive no meio do
             // torneio — abrir pros jogadores quando a mesa aperta é o caso de uso.
             string? quemMarcaPlacar = null,
+            // Onde o palpitômetro vale (Services/AlcanceDoPalpitometro). Nulo = aba antiga sem
+            // o campo: o alcance gravado FICA. Editável a qualquer momento, inclusive com o
+            // torneio rolando — o palpite já dado continua gravado e contando no ranking, e o
+            // que muda é só o que a tela oferece daqui pra frente.
+            string? palpitometroEm = null,
             // "Só confirmo a inscrição depois de pago". Nulo = campo ausente (aba antiga, ou
             // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
             // gravado FICA.
@@ -1512,6 +1523,13 @@ namespace Padelizou.Controllers
             // desconhecido (POST montado à mão) não grava — o que está salvo fica.
             if (quemMarcaPlacar != null && QuemMarcaOPlacar.Existe(quemMarcaPlacar))
                 torneio.QuemMarcaPlacar = quemMarcaPlacar;
+
+            // ── Onde o palpitômetro vale — mesma régua do vizinho de cima ───────────────
+            // Alcance desconhecido (POST montado à mão, ou aba antiga sem o campo) não grava: o
+            // que está salvo fica. Aqui o `Normalizar` NÃO serve — ele devolveria "Todas" e um
+            // POST torto RELIGARIA o palpitômetro que o organizador desligou.
+            if (AlcanceDoPalpitometro.Existe(palpitometroEm))
+                torneio.PalpitometroEm = palpitometroEm!;
 
             // ── "Só confirmo a inscrição depois de pago", agora editável ────────────────
             // A chave só existia na tela de CRIAÇÃO, e o Editar nunca a lia — o mesmo buraco

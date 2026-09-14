@@ -1686,6 +1686,12 @@ namespace Padelizou.Controllers
             // tudo de novo no servidor (PartidasController). "Sou inscrito?" só é perguntado
             // ao banco no modo Inscritos, que é o único em que a resposta muda algo; nos
             // outros a régua da view decide por MeuId e pelas duplas já carregadas.
+            // ONDE O PALPITÔMETRO VALE (14/09/2026, Services/AlcanceDoPalpitometro): a escolha
+            // do organizador chega às listas pra que a categoria de fora não desenhe o bloco.
+            // Uma vez só, aqui, porque é este método que abastece as DUAS telas que mostram jogo
+            // (Details e Jogos) — e quem recusa o voto é o PalpiteService, no servidor.
+            ViewBag.PalpitometroEm = AlcanceDoPalpitometro.Normalizar(torneioDaTela?.PalpitometroEm);
+
             ViewBag.QuemMarcaPlacar = torneioDaTela?.QuemMarcaPlacar;
             ViewBag.EhInscritoDoTorneio = meuId != null
                 && torneioDaTela?.QuemMarcaPlacar == QuemMarcaOPlacar.Inscritos

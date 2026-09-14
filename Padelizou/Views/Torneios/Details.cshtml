@@ -3976,6 +3976,36 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
 
+                            @* O PALPITÔMETRO (14/09/2026, Services/AlcanceDoPalpitometro).
+                               Editável a qualquer momento, inclusive com o torneio rolando: o
+                               palpite já dado continua gravado e contando no ranking, e o que
+                               muda é o que a tela oferece daqui pra frente.
+
+                               ⚠️ Rádio de quatro, não caixa + alcance: dois campos separados
+                               poderiam discordar entre si. E rádio manda sempre o marcado — sem
+                               a pegadinha do hidden que a caixa do MVP aí em cima precisou. *@
+                            <label class="form-label fw-bold small mt-2 mb-1">Palpitômetro: quem a galera acha que ganha?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Todas" id="editPalpitometroTodas" @(Padelizou.Services.AlcanceDoPalpitometro.Normalizar(Model.PalpitometroEm) == Padelizou.Services.AlcanceDoPalpitometro.Todas ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroTodas">Em todas as categorias</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Masculina" id="editPalpitometroMasculina" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Masculina ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroMasculina">Só nas masculinas <span class="text-muted small">(mista e casal entram aqui)</span></label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Feminina" id="editPalpitometroFeminina" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Feminina ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroFeminina">Só nas femininas</label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Nenhuma" id="editPalpitometroNenhuma" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Nenhuma ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroNenhuma">Não usar palpitômetro</label>
+                                <div class="small text-muted">
+                                    Desligado, o bloco some dos jogos e ninguém palpita mais — os palpites
+                                    que já existirem ficam guardados e continuam valendo no ranking.
+                                </div>
+                            </div>
+
                             @* Quem pode marcar o placar (Services/QuemMarcaOPlacar). Editável a
                                qualquer momento — abrir pros jogadores no meio do dia, quando a
                                mesa aperta, é o caso de uso. Formulário escrito à mão como os
