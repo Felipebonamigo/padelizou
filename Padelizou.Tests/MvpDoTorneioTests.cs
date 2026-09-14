@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using NSubstitute.Core;
+using Padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -737,6 +739,95 @@ public class MvpDoTorneioTests
         Assert.Equal(
             new[] { "Arthur Guex", "Lucas Biehl", "Yuri Setima", "Zeca Setima", "Aline Mista" },
             candidatos.Select(c => c.Nome));
+    }
+
+    // ────────────────── DEPOIS DE VOTAR, A CÉDULA SAI DA FRENTE ──────────────────
+    //
+    // 🗣️ Felipe, 14/09/2026: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e
+    // apareça na tela para avaliar o torneio"*.
+    //
+    // A cédula de um torneio real tem 10 a 20 nomes. Quem já votou não precisa dela na frente —
+    // e é ela que empurra a enquete pra fora da tela, que é a coisa que ainda falta fazer.
+
+    [Fact]
+    public async Task A_cedula_nasce_RECOLHIDA_pra_quem_ja_votou_e_ABERTA_pra_quem_nao_votou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var agora = Domingo.AddHours(1);
+
+        // Antes de votar: a cédula é o assunto da tela.
+        var antes = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, campea.Jogador2Id!.Value, agora);
+        Assert.True(antes!.Aberta);
+        Assert.Null(antes.MeuVoto);
+        Assert.False(antes.CedulaRecolhida);
+
+        // Vota no parceiro… quer dizer, no campeão da outra ponta da dupla.
+        var recusa = await MvpDoTorneio.VotarAsync(
+            ctx, torneio.Id, campea.Jogador2Id!.Value, campea.Jogador1Id, agora);
+        Assert.Null(recusa);
+
+        var depois = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, campea.Jogador2Id!.Value, agora);
+        Assert.Equal(campea.Jogador1Id, depois!.MeuVoto);
+        Assert.True(depois.CedulaRecolhida);
+    }
+
+    [Fact]
+    public async Task A_cedula_da_votacao_ENCERRADA_nao_recolhe_porque_ali_ela_e_a_APURACAO()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var votante = campea.Jogador2Id!.Value;
+
+        // Vota com a janela aberta…
+        await MvpDoTorneio.VotarAsync(ctx, torneio.Id, votante, campea.Jogador1Id, Domingo.AddHours(1));
+
+        // …e volta depois que ela fecha. ⚠️ Recolher aqui esconderia o PLACAR de todo mundo,
+        // que é justamente o que a tela passa a mostrar quando encerra.
+        var encerrada = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, votante, Domingo.AddDays(8));
+        Assert.True(encerrada!.Encerrada);
+        Assert.NotNull(encerrada.MeuVoto);
+        Assert.False(encerrada.CedulaRecolhida);
+    }
+
+    [Fact]
+    public async Task O_voto_aceito_volta_com_ANCORA_na_enquete_e_o_voto_RECUSADO_nao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        // ⚠️ O RELÓGIO AQUI É O DE VERDADE: o controller chama `DateTime.Now`, então o último
+        // jogo tem que ser há pouco — com a data fixa dos outros testes a janela já teria
+        // fechado e o voto voltaria RECUSADO, testando o ramo errado.
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, DateTime.Now.AddHours(-2));
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var votante = campea.Jogador2Id!.Value;
+
+        var controller = TestInfra.NovoTorneiosController(ctx, votante);
+        var aceito = Assert.IsType<RedirectToActionResult>(
+            await controller.VotarMvp(torneio.Id, campea.Jogador1Id));
+
+        // ⚠️ A ÂNCORA NUNCA APONTA PRO VAZIO: a enquete usa a MESMA janela do MVP
+        // (EnqueteDoTorneio.Aberta = TemPosTorneio + DentroDaJanela), então voto aceito
+        // significa enquete na tela. Sem isso a pessoa cai no topo da página e rola 20 nomes
+        // pra achar o que ainda falta fazer.
+        Assert.Equal(nameof(TorneiosController.Mvp), aceito.ActionName);
+        Assert.Equal(MvpDoTorneio.AncoraDaEnquete, aceito.Fragment);
+
+        // Votar em si mesmo é recusado — e aí a mensagem está no TOPO da página. Descer pra
+        // enquete esconderia o motivo de o voto não ter sido registrado.
+        var recusado = Assert.IsType<RedirectToActionResult>(
+            await controller.VotarMvp(torneio.Id, votante));
+        Assert.Null(recusado.Fragment);
     }
 
     // ─────────────────────────── O VOTO ───────────────────────────
