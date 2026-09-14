@@ -963,6 +963,10 @@ namespace padelizou.Controllers
             _context.JogadorDiasHorarios.RemoveRange(_context.JogadorDiasHorarios.Where(x => x.JogadorId == jogadorId));
             _context.PushSubscriptionsJogador.RemoveRange(_context.PushSubscriptionsJogador.Where(x => x.JogadorId == jogadorId));
             _context.SeguidoresJogador.RemoveRange(_context.SeguidoresJogador.Where(x => x.SeguidorId == jogadorId));
+            // "Não quero seguir ninguém" e "não vou instalar o app" são escolhas DELA sobre o
+            // próprio uso — a mesma natureza das linhas acima, e pela mesma razão não ficam.
+            _context.PassosPuladosDoOnboarding.RemoveRange(
+                _context.PassosPuladosDoOnboarding.Where(x => x.JogadorId == jogadorId));
             _context.AvisosJogo.RemoveRange(_context.AvisosJogo.Where(x => x.CriadorId == jogadorId));
             _context.AvisosParceiro.RemoveRange(_context.AvisosParceiro.Where(x => x.CriadorId == jogadorId));
 
@@ -1345,6 +1349,12 @@ namespace padelizou.Controllers
             // está na tela deixa à vista as poucas que interessam — o resto continua a um
             // clique no seletor de UF.
             ViewBag.EstadoPreferido = jogador.Estado;
+
+            // QUANTOS PRIMEIROS PASSOS ELA PULOU (14/09/2026). É o único lugar de onde dá pra
+            // repor: o cartão some junto com o último passo pendente, então um botão de repor
+            // que morasse só dentro dele desapareceria exatamente com quem precisa dele.
+            ViewBag.PassosPuladosDoOnboarding = await _context.PassosPuladosDoOnboarding
+                .CountAsync(p => p.JogadorId == jogadorId);
 
             return View(jogador);
         }

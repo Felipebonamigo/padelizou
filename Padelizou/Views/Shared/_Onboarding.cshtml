@@ -2,6 +2,14 @@
 @*
     Primeiros passos. Só aparece enquanto houver passo pendente — quando o jogador termina
     tudo, o cartão some sozinho e o painel fica limpo.
+
+    Desde 14/09/2026 "terminar" também inclui PULAR: o passo pulado sai da lista e o cartão
+    fecha sem ele. Antes, quem usava só no computador nunca concluía "Instale o app" e ficava
+    com o cartão pra sempre. Quais passos têm saída: Services/PulosDoOnboarding. Repor o que
+    foi pulado: a tela de Preferências.
+
+    ⚠️ Este partial é renderizado na Home e no Perfil, e cada tela diz de onde veio pelo
+    ViewData["DeOnde"] — é o que faz o POST de pular devolver a pessoa pra onde ela estava.
 *@
 @if (!Model.Completo)
 {
@@ -31,11 +39,17 @@
                     <div class="fw-bold" style="color: var(--pdz-ink);">@proximo.Titulo</div>
                     <div class="small text-muted">@proximo.Explicacao</div>
                 </div>
-                @if (proximo.Controller != null)
-                {
-                    <a asp-controller="@proximo.Controller" asp-action="@proximo.Action"
-                       class="btn btn-sm btn-padel rounded-pill px-3 fw-bold text-nowrap">@proximo.TextoBotao</a>
-                }
+                <div class="d-flex flex-column align-items-end gap-1">
+                    @if (proximo.Controller != null)
+                    {
+                        <a asp-controller="@proximo.Controller" asp-action="@proximo.Action"
+                           class="btn btn-sm btn-padel rounded-pill px-3 fw-bold text-nowrap">@proximo.TextoBotao</a>
+                    }
+                    @if (proximo.PodeSerPulado)
+                    {
+                        <partial name="_OnboardingPular" model="proximo" />
+                    }
+                </div>
             </div>
 
             <ul class="list-unstyled mb-0 small">
@@ -45,11 +59,18 @@
                         <i class="bi @(passo.Concluido ? "bi-check-circle-fill" : "bi-circle")"
                            style="@(passo.Concluido ? "color: var(--padel-green);" : "opacity:.35;")"></i>
                         <span style="@(passo.Concluido ? "text-decoration: line-through;" : "")">@passo.Titulo</span>
-                        @if (!passo.Concluido && passo.Controller != null)
-                        {
-                            <a asp-controller="@passo.Controller" asp-action="@passo.Action"
-                               class="ms-auto text-decoration-none small">@passo.TextoBotao →</a>
-                        }
+                        <span class="ms-auto d-flex align-items-center gap-2">
+                            @if (!passo.Concluido && passo.Controller != null)
+                            {
+                                <a asp-controller="@passo.Controller" asp-action="@passo.Action"
+                                   class="text-decoration-none small">@passo.TextoBotao →</a>
+                            }
+                            @* Concluído não ganha "pular": não há o que tirar da lista. *@
+                            @if (!passo.Concluido && passo.PodeSerPulado)
+                            {
+                                <partial name="_OnboardingPular" model="passo" />
+                            }
+                        </span>
                     </li>
                 }
             </ul>

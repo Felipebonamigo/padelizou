@@ -165,7 +165,9 @@
         <div class="col-md-8">
             <h4 class="mb-3 fw-bold" style="color: var(--pdz-ink);">Meu Painel</h4>
 
-            @await Html.PartialAsync("_Onboarding", onboarding)
+            @* "perfil" diz ao POST de pular pra onde devolver a pessoa — ver _OnboardingPular. *@
+            @await Html.PartialAsync("_Onboarding", onboarding,
+                new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { { "DeOnde", "perfil" } })
 
             @if (evolucao.TemDados)
             {

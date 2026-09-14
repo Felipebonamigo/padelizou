@@ -1,6 +1,34 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — ⏭️ **DÁ PRA PULAR UM PASSO DOS PRIMEIROS PASSOS — E O CARTÃO QUE NUNCA SUMIA AGORA SOME.** ⏳ **Commitado, NÃO publicado** — falta build + `Deploy`. **COM MIGRATION** (`PularPassoDoOnboarding`, gerada em worktree limpo, `has-pending-model-changes` sem pendência).
+>
+> 🗣️ Feedback de usuário repassado pelo Felipe, sobre a home ter informação demais no celular: *"nos primeiros passos, por exemplo se eu não quero seguir ninguém, posso dar um 'Skip' no item"*.
+>
+> 🕳️ **NÃO ERA SÓ GOSTO, ERA DEFEITO**: os 5 passos são DERIVADOS DO DADO e não tinham saída. O *"Instale o app no celular"* só conclui com `InstalouAppEm` ou uma `PushSubscription` — **nenhum dos dois existe no computador**. Quem usa o Padelizou só no desktop nunca concluía, e o cartão ficava na Home E no Perfil para sempre.
+>
+> ⚖️ **O FELIPE ESCOLHEU O ALCANCE: só `Seguir` e `InstalarApp` podem ser pulados.** Perfil, categoria e torneio ficam de fora — são o que faz o app saber o que sugerir (dupla, nível, convite), e são justamente o que o cartão existe pra cobrar. A régua mora em `Services/PulosDoOnboarding`, **uma só**, lida pela tela E pelo POST: **esconder não é fechar**, e o POST é montado à mão em três segundos.
+>
+> 🔑 **O PASSO PRECISOU DE IDENTIDADE.** `PassoOnboardingVM` era só texto e posição; gravar "pulei este" exige nome estável. Nasceu o enum `PassoDoOnboarding` — e ele é gravado **PELO NOME, NÃO PELO NÚMERO** (`HasConversion<string>()`): com `int`, inserir um passo no meio do enum amanhã reescreveria, calado, o que cada pessoa pulou.
+>
+> 🔑 **CHAVE COMPOSTA `(JogadorId, Passo)`, degrau 4 da escada** — mesmo molde de `TorneioMarcador`, `PresencaNoJogo` e `ReacaoDaPartida`. A PK **é** a regra "pular duas vezes é pular uma"; o `if` de idempotência ao lado só evita o erro na cara de quem conseguiu o que queria. **O teste vermelho provou a PK**: sem o `if`, o segundo POST estourou `InvalidOperationException ... same key value for {'JogadorId', 'Passo'}`.
+>
+> ⚠️ **O PULADO SAI DA LISTA INTEIRA, não fica riscado nela**: `Total` cai junto, e é isso que deixa a barra fechar e o cartão sumir. Deixá-lo visível manteria o cartão eterno — que é o defeito, não a decoração dele.
+>
+> ⚠️ **E PULAR VENCE O DADO**: passo pulado continua fora **mesmo depois de cumprido**. Ele saiu por escolha dela; ressuscitá-lo faria o cartão voltar do nada no dia em que ela seguisse alguém.
+>
+> ⚠️ **CHAVE LIXO NÃO PODE BINDAR EM `0` (= `Perfil`) E PULAR O PASSO ERRADO, CALADO** — por isso `passo` chega como `string` e passa por `Enum.TryParse`, em vez de bindar como enum. E o destino da volta é **lista branca de três palavras** (`perfil`, `preferencias`, resto → Home): o cartão vive em duas telas, então o destino precisa viajar no POST — e destino de formulário usado como URL é redirect aberto.
+>
+> ♻️ **REPOR É NA TELA DE PREFERÊNCIAS** (escolha do Felipe), e **fora** do formulário grande de lá: é um COMANDO, não uma caixinha ligada/desligada — e formulário dentro de formulário o navegador descarta calado. O cartão some junto com o último passo pendente, então um botão de repor que morasse só dentro dele desapareceria exatamente com quem precisa dele.
+>
+> 🔒 **LGPD**: `ExcluirConta` passou a apagar os pulos junto com as outras preferências — "não quero seguir ninguém" é escolha dela sobre o próprio uso. **Este foi o único teste que passou de primeira, e por isso a correção foi APAGADA e refeita** (Regra 1): sem a linha, o vermelho é `Assert.Empty() Failure: Collection was not empty`.
+>
+> 🧪 **22 testes novos, 10 vistos vermelhos NO VALOR** e não em "não existe": a régua e o POST foram plugados primeiro com o comportamento ANTIGO de propósito (`PodeSerPulado => true`, serviço sem filtrar), pra provar que os testes pegam o defeito. `Passo_pulado_sai_da_lista`: esperava 4, veio **5**.
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. O que sustenta é a suíte (**7.283 verdes**) e os conferidores de JS. Quem confirma na tela é o Felipe.
+>
+> 📋 **OS OUTROS TRÊS PONTOS DO MESMO FEEDBACK CONTINUAM EM ABERTO**, com a leitura feita no código: **(a)** "avisos e primeiros passos lado a lado" — barato, mas no Bootstrap duas colunas viram duas linhas no celular, que é onde ele reclamou; **(b)** "arrastar pra reordenar" — briga com o scroll no toque e a ordem salva envelhece, porque quase todo bloco aparece/some conforme o dado; **(c)** "escolher o que mostrar" — **80% do ganho não precisa de preferência nenhuma**: a home do LOGADO ainda mostra "O que dizem do Padelizou" (`Views/Home/Index.cshtml:487`, sem gate de `logado`, ao contrário dos "Números da comunidade" logo acima) e a faixa "Você organiza, ensina ou tem um clube?" pra quem não tem papel — até **9 cards de vitrine de visitante** no fim de toda visita.
+>
 > Última atualização: **14/09/2026** — 🎚️ **A FAIXA DO PADELÍMETRO TROCAVA COM UM TORNEIO SÓ, E A ABA VITÓRIAS PREMIAVA QUEM JOGOU MAIS.** 🚀 **PUBLICADO em `dev` E `prod`**: a ordem das Vitórias no `build-1416-591ea33` (runs **368** e **370**) e a faixa no `build-1422-799cc2b` (runs **375** e **376**). PRs #314 e #318. **Sem migration.**
 >
 > ## 1. A ordem da aba Vitórias

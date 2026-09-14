@@ -178,7 +178,9 @@ else
         @* Jogador novo é guiado antes de qualquer outra coisa. Some quando completa. *@
         @if (Model.Onboarding != null)
         {
-            @await Html.PartialAsync("_Onboarding", Model.Onboarding)
+            @* "home" diz ao POST de pular pra onde devolver a pessoa — ver _OnboardingPular. *@
+            @await Html.PartialAsync("_Onboarding", Model.Onboarding,
+                new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { { "DeOnde", "home" } })
         }
 
         @*

@@ -50,6 +50,33 @@
                 </div>
             </div>
 
+            @* REPOR OS PRIMEIROS PASSOS QUE ELA PULOU (14/09/2026). Ver PassoPuladoDoOnboarding.
+
+               ⚠️ FORA do formulário de cima, e não mais uma caixinha dentro dele: isto é um
+               COMANDO ("mostra de novo"), não uma preferência ligada/desligada — e formulário
+               dentro de formulário o navegador descarta calado.
+
+               Some quando não há nada pulado: linha que aparece sempre vira paisagem. *@
+            @if (ViewBag.PassosPuladosDoOnboarding is int pulados && pulados > 0)
+            {
+                <div class="card shadow-sm border-0 mt-3">
+                    <div class="card-body p-4 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                        <div>
+                            <strong style="color: var(--pdz-ink);">
+                                <i class="bi bi-rocket-takeoff"></i> Primeiros passos
+                            </strong>
+                            <div class="small text-muted">
+                                Você pulou @pulados @(pulados == 1 ? "passo" : "passos"). Pode trazer de volta quando quiser.
+                            </div>
+                        </div>
+                        <form asp-controller="Onboarding" asp-action="MostrarTodos" method="post">
+                            <input type="hidden" name="de" value="preferencias" />
+                            <button type="submit" class="btn btn-outline-primary rounded-pill">Mostrar de novo</button>
+                        </form>
+                    </div>
+                </div>
+            }
+
             @* O RECIBO DO ACEITE. A prova de consentimento não serve de nada guardada só do
                nosso lado: quem aceitou tem direito de saber O QUE aceitou e QUANDO (LGPD,
                art. 9º). Quem se cadastrou antes de 10/08/2026 não tem registro, e a tela

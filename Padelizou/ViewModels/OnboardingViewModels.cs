@@ -1,3 +1,5 @@
+using Padelizou.Models;
+
 namespace Padelizou.ViewModels;
 
 // Primeiros passos do jogador novo. Some sozinho quando tudo está feito — não é uma tela,
@@ -19,6 +21,14 @@ public class OnboardingVM
 
 public class PassoOnboardingVM
 {
+    // A identidade do passo, estável entre versões — é por ela que "pulei este" é gravado.
+    // O título não serve: ele muda, e um passo pulado não pode virar outro por causa disso.
+    public PassoDoOnboarding Chave { get; set; }
+
+    // Nem todo passo tem saída. A régua é uma só (Services/PulosDoOnboarding), lida pela tela
+    // E pelo POST — esconder o botão não fecha o endpoint.
+    public bool PodeSerPulado => Padelizou.Services.PulosDoOnboarding.PodeSerPulado(Chave);
+
     public string Titulo { get; set; } = "";
     public string Explicacao { get; set; } = "";
     public string Icone { get; set; } = "bi-check-circle";

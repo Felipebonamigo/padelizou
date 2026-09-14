@@ -1,0 +1,21 @@
+@model Padelizou.ViewModels.PassoOnboardingVM
+@*
+    O "pular" de um passo dos Primeiros passos — 14/09/2026.
+
+    ⚠️ PARTIAL PRÓPRIA, e não markup repetida: o cartão mostra o mesmo botão em DOIS lugares
+    (o passo em destaque e a lista abaixo), e foi markup repetida que fez o "desfazer o play"
+    nascer só na linha e não no cartão ao vivo. Aqui quem repete é o `@@if` de fora, não o HTML.
+
+    Quem decide SE este botão existe é Services/PulosDoOnboarding — a mesma régua que o POST
+    usa pra recusar. Esconder não é fechar.
+*@
+<form asp-controller="Onboarding" asp-action="Pular" method="post" class="d-inline">
+    <input type="hidden" name="passo" value="@Model.Chave" />
+    @* Pra qual tela o POST volta. É uma PALAVRA e não uma URL: quem traduz é a lista branca
+       do OnboardingController — destino vindo do formulário usado como URL é redirect aberto. *@
+    <input type="hidden" name="de" value="@(ViewData["DeOnde"] as string ?? "home")" />
+    <button type="submit" class="btn btn-link btn-sm text-muted text-decoration-none p-0 small text-nowrap"
+            title="Tirar este passo da lista">
+        pular
+    </button>
+</form>

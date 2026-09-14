@@ -1471,54 +1471,75 @@ public class EstatisticasService : IEstatisticasService
         bool instalouApp = jogador.InstalouAppEm != null
             || await _context.PushSubscriptionsJogador.AnyAsync(s => s.JogadorId == jogadorId);
 
+        // OS PASSOS QUE ELA MANDOU TIRAR DA LISTA (14/09/2026). Ver PassoPuladoDoOnboarding.
+        //
+        // ⚠️ O PULADO SAI DA LISTA INTEIRA, não fica apagado nela: `Total` cai junto, e é isso
+        // que deixa a barra fechar e o cartão sumir. Deixá-lo visível e riscado manteria o
+        // cartão eterno — que é o defeito, não a decoração dele.
+        //
+        // ⚠️ E PULAR VENCE O DADO: um passo pulado continua fora mesmo depois de cumprido. O
+        // passo saiu por escolha dela; ressuscitá-lo faria o cartão voltar do nada no dia em
+        // que ela seguisse alguém, com o app discordando do que ela mandou.
+        var pulados = await _context.PassosPuladosDoOnboarding
+            .Where(p => p.JogadorId == jogadorId)
+            .Select(p => p.Passo)
+            .ToListAsync();
+
+        var passos = new List<PassoOnboardingVM>
+        {
+            new()
+            {
+                Chave = PassoDoOnboarding.Perfil,
+                Titulo = "Complete seu perfil",
+                Explicacao = "Foto, cidade e de que lado você joga — é assim que te acham pra formar dupla.",
+                Icone = "bi-person-badge",
+                TextoBotao = "Completar perfil",
+                Controller = "Auth", Action = "EditarPerfil",
+                Concluido = perfilCompleto,
+            },
+            new()
+            {
+                Chave = PassoDoOnboarding.Categoria,
+                Titulo = "Diga sua categoria",
+                Explicacao = "Serve pra te convidarem pros jogos do seu nível.",
+                Icone = "bi-bar-chart-steps",
+                TextoBotao = "Escolher categoria",
+                Controller = "Auth", Action = "Preferencias",
+                Concluido = temCategoria,
+            },
+            new()
+            {
+                Chave = PassoDoOnboarding.Seguir,
+                Titulo = "Siga outros jogadores",
+                Explicacao = "Você fica sabendo quando eles se inscrevem num torneio ou ganham um jogo.",
+                Icone = "bi-person-plus",
+                TextoBotao = "Buscar jogadores",
+                Controller = "Jogadores", Action = "Buscar",
+                Concluido = segueAlguem,
+            },
+            new()
+            {
+                Chave = PassoDoOnboarding.Torneio,
+                Titulo = "Entre num torneio",
+                Explicacao = "É onde você começa a pontuar no ranking.",
+                Icone = "bi-trophy",
+                TextoBotao = "Ver torneios",
+                Controller = "Torneios", Action = "Index",
+                Concluido = temInscricao,
+            },
+            new()
+            {
+                Chave = PassoDoOnboarding.InstalarApp,
+                Titulo = "Instale o app no celular",
+                Explicacao = "No iPhone: botão de compartilhar → \"Adicionar à Tela de Início\". No Android o próprio navegador oferece.",
+                Icone = "bi-phone",
+                Concluido = instalouApp,
+            },
+        };
+
         return new OnboardingVM
         {
-            Passos = new List<PassoOnboardingVM>
-            {
-                new()
-                {
-                    Titulo = "Complete seu perfil",
-                    Explicacao = "Foto, cidade e de que lado você joga — é assim que te acham pra formar dupla.",
-                    Icone = "bi-person-badge",
-                    TextoBotao = "Completar perfil",
-                    Controller = "Auth", Action = "EditarPerfil",
-                    Concluido = perfilCompleto,
-                },
-                new()
-                {
-                    Titulo = "Diga sua categoria",
-                    Explicacao = "Serve pra te convidarem pros jogos do seu nível.",
-                    Icone = "bi-bar-chart-steps",
-                    TextoBotao = "Escolher categoria",
-                    Controller = "Auth", Action = "Preferencias",
-                    Concluido = temCategoria,
-                },
-                new()
-                {
-                    Titulo = "Siga outros jogadores",
-                    Explicacao = "Você fica sabendo quando eles se inscrevem num torneio ou ganham um jogo.",
-                    Icone = "bi-person-plus",
-                    TextoBotao = "Buscar jogadores",
-                    Controller = "Jogadores", Action = "Buscar",
-                    Concluido = segueAlguem,
-                },
-                new()
-                {
-                    Titulo = "Entre num torneio",
-                    Explicacao = "É onde você começa a pontuar no ranking.",
-                    Icone = "bi-trophy",
-                    TextoBotao = "Ver torneios",
-                    Controller = "Torneios", Action = "Index",
-                    Concluido = temInscricao,
-                },
-                new()
-                {
-                    Titulo = "Instale o app no celular",
-                    Explicacao = "No iPhone: botão de compartilhar → \"Adicionar à Tela de Início\". No Android o próprio navegador oferece.",
-                    Icone = "bi-phone",
-                    Concluido = instalouApp,
-                },
-            }
+            Passos = passos.Where(p => !pulados.Contains(p.Chave)).ToList(),
         };
     }
 

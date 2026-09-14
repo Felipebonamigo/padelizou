@@ -105,6 +105,10 @@ public partial class DbPadelContext : DbContext
     // A caixa de entrada de avisos do jogador (a tela "Notificações"). Ver AvisoDoJogador.
     public DbSet<AvisoDoJogador> AvisosDoJogador { get; set; }
 
+    // Os passos dos "Primeiros passos" que a pessoa mandou tirar da lista. Ver
+    // PassoPuladoDoOnboarding e Services/PulosDoOnboarding.
+    public DbSet<PassoPuladoDoOnboarding> PassosPuladosDoOnboarding { get; set; }
+
     // Inscrições que o Ranking RS reprovou e que esperam a decisão do organizador.
     public DbSet<BloqueioDoRanking> BloqueiosDoRanking { get; set; }
 
@@ -1790,6 +1794,25 @@ public partial class DbPadelContext : DbContext
         modelBuilder.Entity<PushSubscriptionJogador>(entity =>
         {
             entity.HasIndex(e => e.Endpoint).IsUnique();
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PassoPuladoDoOnboarding>(entity =>
+        {
+            // ⚠️ A CHAVE COMPOSTA É A REGRA "pular duas vezes é pular uma", não um índice de
+            // enfeite: ela vive aqui e não num `if` de C# que o toque duplo escapa (degrau 4 da
+            // escada do CLAUDE.md — a mesma forma da PK de TorneioMarcador e ReacaoDaPartida).
+            entity.HasKey(e => new { e.JogadorId, e.Passo });
+
+            // ⚠️ GRAVADO PELO NOME, NÃO PELO NÚMERO. Com o `int` do enum, inserir um passo no
+            // meio de PassoDoOnboarding amanhã reescreveria, calado, o que cada pessoa pulou.
+            // O tamanho vem do maior nome que existe ("InstalarApp", 11) com folga — é chave
+            // primária, e sem limite o Postgres aceitaria texto de qualquer tamanho nela.
+            entity.Property(e => e.Passo).HasConversion<string>().HasMaxLength(30);
 
             entity.HasOne(e => e.Jogador)
                 .WithMany()
