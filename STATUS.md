@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** **Sem migration.** Ainda **não publicado**.
+> Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1416-591ea33`** (deploy runs **368** e **370**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #315. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do card de avaliação do torneio: *"ali nao esta aparecendo a avaliação do padelizou no comentario e aqui tambem permita aparecer os comentarios do sistema, do clube e do torneio"* e, na sequência, *"ao clicar na avaliação (4,9) ali, permita eu ver quem votou"*.
 >
@@ -22,6 +22,12 @@
 > 🧪 **6 testes novos da regra + 3 gates de tradução**, e o gate foi **falsificado**: com um `ToString(formato)` plantado dentro do `Where`, ele acusou a consulta intraduzível; restaurado, os 33 testes da enquete voltaram ao verde. **7.194 testes verdes** na suíte inteira, 10 conferidores JS verdes.
 >
 > 👁️ **SEM BROWSER NESTA SESSÃO** — o `<details>`, o alinhamento da tabela no celular e o triângulo do `<summary>` são **pro Felipe conferir na tela**.
+>
+> ⚠️ **O QUE A VERIFICAÇÃO DO DEPLOY PROVA, E O QUE ELA NÃO PROVA — registrado porque aqui o 200 vale menos que de costume.** O que sustenta é o **job verde**: o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, então verde = instalou e respondeu. O `/healthz` 200 nos dois, sozinho, **não distingue versão** (os dois já respondiam 200 antes), e aqui não havia a sonda das entregas anteriores: esta leva **não criou rota nova** — tudo mudou dentro da aba de gestão, atrás de login. Sem migration, o 200 também não prova migration nenhuma. **Quem confirma que o recurso está no ar é o Felipe abrindo a aba.**
+>
+> 🔌 **O `prod` FALHOU NA PRIMEIRA TENTATIVA, E NÃO FOI O PACOTE**: run **369** morreu em `ssh: connect to host *** port 22: Connection timed out` — a conexão nem abriu, o `deploy.sh` não chegou a rodar e o `prod` ficou intacto na versão anterior. O `dev` tinha passado com o MESMO pacote e o MESMO host 30 segundos antes. Um re-disparo (run **370**) saiu verde em 10 segundos. Fica o registro: **falha antes do script remoto não é falha do build** — olhe o passo em que morreu antes de suspeitar do pacote.
+>
+> ✅ **E O `prod` CONTINUA NÃO PARANDO PRA APROVAÇÃO** — confirmado outra vez nesta leva, como o PR #313 já tinha registrado: o job foi direto pro `Publicar` sem esperar ninguém. A trava mora no environment `prod` (Settings → Environments), não no `deploy.yml`; **ela não está valendo.**
 
 > Última atualização: **14/09/2026** — 🎬 **O "FINALIZAR" RECARREGAVA A PÁGINA, E RECARGA REINICIA TODO `<iframe>` DA TELA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1410-c8ea3c5`** (deploy runs **366** e **367**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #311. **Sem migration.**
 >
