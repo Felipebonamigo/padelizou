@@ -6,7 +6,7 @@
     <div class="card shadow-sm border-0">
         <div class="card-body text-center p-4">
             <img src="~/image/pnatinha-vazio.webp" asp-append-version="true" alt=""
-                 class="img-fluid mb-3" style="max-width: 180px;" />
+                 class="img-fluid mb-3" style="max-width: min(180px, 100%);" />
             <h4 class="fw-bold mb-2" style="color: var(--pdz-ink);">Esse convite não vale mais</h4>
             <p class="text-muted mb-4">@ViewBag.Erro</p>
             <a asp-controller="Torneios" asp-action="Index" class="btn btn-padel rounded-pill px-4">

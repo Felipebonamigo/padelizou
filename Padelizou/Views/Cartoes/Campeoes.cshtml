@@ -78,10 +78,18 @@
                     </div>
 
                     @* loading="lazy": num torneio de 12 categorias são 12 PNGs de ~1080px, e
-                       carregar todos de uma vez no 4G do clube trava a página. *@
+                       carregar todos de uma vez no 4G do clube trava a página.
+
+                       ⚠️ O `, 100%` do max-width NÃO é redundante com o `img-fluid`, e achar
+                       que é foi o defeito (14/09/2026, print do Felipe): `img-fluid` põe
+                       `max-width:100%` por CLASSE, e um `max-width: 380px` INLINE vence — mesma
+                       propriedade, inline tem prioridade. A arte ficava com 380px numa caixa de
+                       365,5px e o `overflow-hidden` do cartão comia 31,8px do lado DIREITO, sem
+                       a página rolar de lado: corte invisível. Vale pras 10 artes; quem vigia é
+                       o `ArteNaoCortadaNoCelularTests`. *@
                     <img src="@imagem" alt="Card dos campeões de @campeao.Categoria"
                          class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
-                         style="max-width: 380px;" />
+                         style="max-width: min(380px, 100%);" />
 
                     <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
                         <a href="@EntregaDeCard.LinkParaBaixar(imagem)" download="@arquivo"
