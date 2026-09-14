@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** ⏳ **AINDA NÃO PUBLICADO.** **Sem migration.**
+> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1385-8eea7b7`** (runs **356** e **357**, o mesmo artefato nos dois, com a tag explícita). PR #304. **Sem migration.**
 >
 > 🕳️ Em `/Jogadores/Ranking`, a lista "Ver ranking de um torneio…" passa pela régua da vitrine desde 07/08 — mas o parâmetro da URL não perguntava nada. Quem digitasse o número de um torneio **oculto**, **cancelado** ou **esperando aprovação** recebia o nome dele no título ("Ranking do torneio: …") e, no oculto e no esperando aprovação, a tabela inteira. **Pré-existente, não regressão.** Era verdade que "o torneio de teste não aparece na lista"; não era verdade que "o torneio de teste não aparece".
 >
@@ -14,6 +14,10 @@
 > 🧪 4 testes novos, os três de bloqueio **vistos vermelhos** (`Expected: null`, `Actual: 1`), mais o controle de que torneio da vitrine continua abrindo pela URL. **7.084 testes, 0 falhas**, 7 avisos — os mesmos de antes.
 >
 > 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
+>
+> ✅ **Conferido no VPS, nos dois ambientes**: link e `cwd` do processo no `build-1385-8eea7b7`, `NRestarts=0`, journal sem erro, `/healthz` 200, sem colisão no `.historico`. O `dev` levou junto a migration `HorarioDoSorteio` (#296), que o `prod` já tinha desde o `build-1381`.
+>
+> ⚠️ **O COMPORTAMENTO NÃO FOI VISTO NA TELA.** A leitura do banco de produção pra achar o id de um torneio oculto foi negada nesta sessão, e não houve outra tentativa. O que sustenta são os testes. **Quem confirma é o Felipe**, abrindo `/Jogadores/Ranking?torneioId=<id de um torneio oculto ou cancelado>` deslogado: o título "Ranking do torneio" não pode aparecer.
 
 > Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
