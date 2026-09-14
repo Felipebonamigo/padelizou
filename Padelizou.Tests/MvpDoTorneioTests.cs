@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using NSubstitute.Core;
 using Padelizou.Models;
@@ -646,6 +646,97 @@ public class MvpDoTorneioTests
         // O Jogador1Id da linha de TIME é o organizador que cadastrou — ele viraria candidato a
         // melhor jogador de um torneio que talvez nem tenha jogado.
         Assert.DoesNotContain(candidatos, c => c.JogadorId == organizador.Id);
+    }
+
+    // ─────────────────────────── A ORDEM DA CÉDULA ───────────────────────────
+
+    // Uma categoria com a dupla CAMPEÃ dela, e mais nada — é tudo que a cédula lê.
+    private static void CampeaDe(DbPadelContext ctx, Torneio torneio, string categoria,
+        string codigo, string nome1, string nome2)
+    {
+        var cat = new Categoria { Nome = categoria, Codigo = codigo, TorneioId = torneio.Id };
+        ctx.Categorias.Add(cat);
+        ctx.SaveChanges();
+
+        var j1 = new Jogador { Nome = nome1, Cpf = $"777{ctx.Jogadores.Count():D8}" };
+        var j2 = new Jogador { Nome = nome2, Cpf = $"778{ctx.Jogadores.Count() + 1:D8}" };
+        ctx.Jogadores.AddRange(j1, j2);
+        ctx.SaveChanges();
+
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = j1.Id, Jogador2Id = j2.Id,
+            UltimaFase = CampeoesDoTorneio.FaseDeCampeao,
+        });
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task A_cedula_sai_por_CATEGORIA_da_mais_forte_pra_mais_fraca_com_a_dupla_junta()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+
+        // 🗣️ Felipe, com o print da cédula do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer
+        // as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.
+        //
+        // ⚠️ Os nomes são os do print, e é o ALFABETO que os embaralha: "Alexandre" (4ª) vem
+        // antes de "Arthur" (3ª), e a dupla da 3ª Masculina ("Arthur" e "Lucas") sai com sete
+        // linhas de outras categorias entre os dois parceiros.
+        CampeaDe(ctx, torneio, "6ª Categoria Feminina", "C6F", "Cristina Bassols", "Marina Vacaro");
+        CampeaDe(ctx, torneio, "4ª Categoria Masculina", "C4M", "Alexandre Longhi", "Felipe Zago");
+        CampeaDe(ctx, torneio, "3ª Categoria Feminina", "C3F", "Gabriela Cortes", "Karina Munhos");
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+
+        var candidatos = await MvpDoTorneio.CandidatosAsync(ctx, torneio.Id);
+
+        // A ordem é a da CHAVE — a mesma `CategoriaNaTela.Ordem` do resto do site —, e cada
+        // dupla sai inteira antes da próxima começar.
+        Assert.Equal(new[]
+        {
+            "Arthur Guex", "Lucas Biehl",           // 3ª Masculina
+            "Gabriela Cortes", "Karina Munhos",     // 3ª Feminina
+            "Alexandre Longhi", "Felipe Zago",      // 4ª Masculina
+            "Cristina Bassols", "Marina Vacaro",    // 6ª Feminina
+        }, candidatos.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public async Task Campea_em_DUAS_categorias_entra_na_cedula_pela_MAIS_FORTE_delas()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+
+        CampeaDe(ctx, torneio, "7ª Categoria Masculina", "C7M", "Zeca Setima", "Yuri Setima");
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+
+        // O "Arthur" ganha também a mista — e a linha dele é UMA só (ver o teste acima).
+        var mista = new Categoria { Nome = "Categoria Mista A", Codigo = "MISTA", TorneioId = torneio.Id };
+        ctx.Categorias.Add(mista);
+        ctx.SaveChanges();
+
+        var arthur = ctx.Jogadores.First(j => j.Nome == "Arthur Guex");
+        var parceira = new Jogador { Nome = "Aline Mista", Cpf = "77900000001" };
+        ctx.Jogadores.Add(parceira);
+        ctx.SaveChanges();
+
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = mista.Id, Jogador1Id = arthur.Id, Jogador2Id = parceira.Id,
+            UltimaFase = CampeoesDoTorneio.FaseDeCampeao,
+        });
+        ctx.SaveChanges();
+
+        var candidatos = await MvpDoTorneio.CandidatosAsync(ctx, torneio.Id);
+
+        // ⚠️ Uma linha por PESSOA e a Mista é o degrau mais baixo — então o Arthur tem que
+        // entrar pela 3ª, com o parceiro dele, e não descer pro fim da lista arrastando a
+        // dupla da 3ª pra lá. Quem fica só é a parceira da mista, que é campeã só ali.
+        // Dentro da dupla a ordem é o nome (o "Jogador1" é só quem fez a inscrição, não o
+        // primeiro de nada) — por isso o Yuri vem antes do Zeca.
+        Assert.Equal(
+            new[] { "Arthur Guex", "Lucas Biehl", "Yuri Setima", "Zeca Setima", "Aline Mista" },
+            candidatos.Select(c => c.Nome));
     }
 
     // ─────────────────────────── O VOTO ───────────────────────────
