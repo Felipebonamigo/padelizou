@@ -33,6 +33,28 @@
 >
 > **7.103 testes verdes** antes desta leva; 9 testes novos (5 do card, 4 do botão) + o gate de 16 casos que cobre TODA aba do enum. 10 conferidores JS verdes.
 
+> Última atualização: **14/09/2026** — 🎛️ **O "–" DO SELO DE MOVIMENTO DIZIA "FICOU NA MESMA POSIÇÃO" PRA QUEM NUNCA TEVE POSIÇÃO.** ⏸️ **MESCLAR E PUBLICAR É DECISÃO DO FELIPE — não peça isso a ninguém a partir desta linha.** Branch `claude/laughing-davinci-s0n5eg`. **Sem migration.**
+>
+> 🗣️ Felipe, com o print do Padelímetro no ar: *"como esta nosso ranking? o que isso quer dizer?"* — e a coluna **Torneio** estava inteira em "–", nas 29 linhas.
+>
+> 🕳️ `MovimentoNoRanking.Aplicar` gravava **`0`** quando a lista "antes" está vazia, e `0` é o MESMO valor de "jogou e ficou onde estava" — que o `_SeloDeMovimento` desenha como "–" com o title *"Ficou na mesma posição"*. Depois do primeiro torneio de um ranking, a tela garantia a 29 jogadores que eles não tinham se mexido, quando a verdade é que **não havia de onde se mexer**.
+>
+> 🔒 **O DEFEITO ESTAVA LACRADO POR UM TESTE QUE DIZIA O CONTRÁRIO DO PRÓPRIO NOME**: `Sem_base_de_comparacao_ninguem_ganha_selo` cobrava `Assert.Equal(0, ...)`, que é justamente o selo. O nome sempre esteve certo; a asserção é que congelou o buraco. E os dois comentários que apontavam pra cá já estavam escritos no repositório desde 08/08 — *"Sem base, sem selo"* no `Aplicar`, e *"novo NÃO é +0"* no partial.
+>
+> 🔧 `int?` só tem vaga pra DOIS estados (o número, e o `null` de "entrou agora"); os estados são **três**. Virou `MovimentoNoRanking.Selo` — `SemBase` / `Novo` / `Moveu(n)` —, com `SemBase = 0` no enum **de propósito**: `default(Selo)` passa a ser o estado que não afirma nada.
+>
+> 🗣️ **A ESCOLHA DO QUE APARECE FOI DELE**, entre sumir com a coluna e corrigir o texto: *"'–' com o title corrigido"*. O traço continua igual; o que muda é o que ele AFIRMA — agora **"Ainda não há posição anterior para comparar"**. E vale nas **5 tabelas** (categoria, Padelímetro, times, Americano individual e em duplas), porque a conta mora num lugar só: corrigir uma deixaria as outras quatro mentindo com o mesmo código. No ranking por categoria o caso também aparece em **categoria criada agora**, não só no primeiro torneio da história.
+>
+> 🧪 **2 testes vistos VERMELHOS antes**, e o flagrante do primeiro é a frase inteira: `Assert.NotEqual() Failure: Values are equal — Expected: Not 0, Actual: 0`. O terceiro (`Sem_base_tambem_nao_pode_se_confundir_com_NOVO`) **passou de primeira e isso está registrado**: ele não trava o defeito, trava a correção ERRADA — resolver empurrando a tabela inteira pro "novo", que é o que o comentário do `Aplicar` recusa desde 08/08.
+>
+> 🔍 **O teste do motor guarda `object?` de propósito**: o que ele cobra não é a representação do selo, é que "sem base" e "ficou parado" **não cheguem na tela como o mesmo valor**. Trocar o enum por outra coisa amanhã não o faz mentir. E o da tela conta `title="..."`, não a frase solta — a primeira versão contava a frase e **quebrou com o comentário que eu mesmo escrevi citando o defeito**, o que é o teste avisando que estava medindo prosa em vez do que o jogador lê.
+>
+> ✅ **O RAZOR É COMPILADO NO BUILD, E ISSO FOI CONFERIDO POR FALSIFICAÇÃO** (não por dedução): trocar `Model.Selo` por `Model.NaoExiste` no partial derruba o build com `CS1061`. É o que garante que os **5 pontos de render** foram checados de verdade contra a assinatura nova — o teste da tela só lê texto e sozinho não provaria isso. **7.080 testes verdes**, conferidores JS verdes.
+>
+> ⚠️ **VERIFICAÇÃO INCOMPLETA, DE PROPÓSITO NO REGISTRO**: sem browser nesta sessão, ninguém viu o title na tela. **Quem confirma é o Felipe**, passando o mouse na coluna Torneio em `padelizou.com.br/Jogadores/Ranking`.
+>
+> 🧭 **E O QUE O PRINT DIZIA, que é como o defeito apareceu**: no Padelímetro todo PDZ sai em **par idêntico** (802/802, 760/760, 742/742…) porque `Aplicar` dá aos dois parceiros a MESMA expectativa, o MESMO fator de games e o MESMO resultado — só o K pode separá-los, e ele só muda no 10º jogo. **Dois jogadores que só jogaram juntos têm PDZ idêntico por construção**, e hoje o 1º lugar sai no desempate por nome. Nada disso foi mexido aqui; fica escrito porque é a leitura certa da tabela de hoje.
+>
 > Última atualização: **14/09/2026** — ⭐ **DEPOIS DE VOTAR, A CÉDULA DO MVP SAI DA FRENTE E A ENQUETE APARECE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1378-5a2b443`** (runs **353** e **354**, o mesmo artefato nos dois, pedido pela tag). PR #303. **Sem migration.**
 >
 > 🗣️ Felipe: *"para quando a pessoa selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. É `bounded`: sem migration, sem régua de autorização, sem dinheiro, sem contrato de API.
@@ -316,8 +338,6 @@
 > 🔑 **A MIGRATION ESTÁ PROVADA, NÃO INFERIDA**: `GET /Partidas/QuemReagiu?partidaId=569` devolveu **`{"reacoes":[],"linhas":[]}` com 200** contra o Postgres de produção. Sem a tabela isso seria 500. E jogo inexistente responde **404**, não 500 — a lição dos três 500 do vigia em 11/09.
 >
 > 🖱️ **E O BOTÃO FOI CLICADO NO HTML QUE O PRÓPRIO `prod` GEROU.** O Chromium não sai por este proxy, então o caminho foi o inverso: espelhei a página e os 28 assets de produção num servidor local e cliquei ali. Resultado: `verQuemReagiu` carregado, **o painel abriu**, título "2 reações", pílula no painel, nomes na lista, e o campo de emoji ausente (como deve ser pra anônimo). Botão medido: **32×32px de alvo, `border: none`, fundo transparente, `border-radius: 0`, `opacity: .5`**.
-
-
 
 > **12/09/2026** — 📐 **DESENHO APROVADO E NÃO IMPLEMENTADO: "confronto definido já é jogo".** ⏸️ **Revertido de propósito no meio — leia por quê antes de retomar.** **PRECISA de migration.**
 >
@@ -627,7 +647,6 @@
 > ⚠️ **O CONTRATO COM O RAZOR TEM GATE**: `id="pdzAoVivoCartoes"` na `<div class="row">` do painel. Sem ele o JS não acha a grade, cai no caminho de escape e a página **volta a recarregar inteira — sem erro no console e sem teste vermelho**, porque o escape funciona. Por isso existe o `A_grade_do_ao_vivo_tem_o_marcador_que_o_remendo_procura`, visto vermelho em *"Pattern not found in value"*.
 >
 > 🧪 **6.905 testes, 0 falhas (1 novo)** — 6.860 antes de mesclar o `main` com as reações por emoji, revalidados depois — + os **8** conferidores de JS verdes. A terceira seção do `conferir-abas-que-ficam.js` (13 checagens novas) **guarda o iframe dos sobreviventes**: cada cartão falso carrega um contador de "quantas vezes fui recarregado", e o `innerHTML` do painel sobe esse contador — um remendo que reescreva em vez de inserir fica vermelho. Vista vermelha antes (11 falhas contra o arquivo antigo), inclusive a que só um DOM falso com a grade de verdade (`#aovivo > .row > .col > .pdz-live-card`) pega: **o jogo que entra no MEIO entra no meio**, e não no fim.
-
 
 > **12/09/2026** — 🚨 **A CHAVE VOLTOU A RESPEITAR O QUE A PRÉVIA PROMETEU.** 🚀 **PUBLICADO em `prod` no `build-1301-3c4c262`** (PR #276, deploy 318, direto em prod a pedido do Felipe com o torneio em quadra).** **Sem migration.** 📌 **CORREÇÃO URGENTE — o 2ª Etapa ER estava em quadra com o mata-mata embaralhado em várias categorias.**
 >
@@ -1000,7 +1019,6 @@
 >
 > ⚠️ **E O `main` ANDOU 27 COMMITS DURANTE ESTE TRABALHO** (PRs #234, #235 e #236, de sessões paralelas), com **duas** rodadas de conflito no `STATUS.md` e uma terceira no próprio branch — outra sessão empurrou um merge do `main` dentro dele enquanto eu resolvia o meu. Reconciliado com merge, nunca com `--force`.
 
-
 > **12/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-1197-c4856a9`** (runs 280 e 281, 00h22 e 00h25 de Brasília), **o mesmo artefato nos dois**, pela tag explícita no campo `build`. PR #234, o **"palpitômetro sem o erre"**. ✅ **SEM MIGRATION** (o passo "Conferir migration pendente" do CI passou).
 >
 > ✅ **CONFERIDO NO AR POR CONTEÚDO, no `prod`, anônimo, no torneio do Er** (`/Torneios/Details/26`, 996 KB de HTML): **56 rótulos `PALPITÔMETRO`**, **56 `pdz-palpitometro`** e **ZERO ocorrência de "palpitr"** na página inteira. O `/js/palpitometro.js` responde **200** e traz o `atualizarPalpitometro`; o `/js/palpitrometro.js` antigo responde **404**. `/healthz` **200** nos dois ambientes.
@@ -1074,7 +1092,6 @@
 > ⚠️ **O `main` ANDOU QUATRO VEZES durante o ciclo** (PRs #224, #228, #230, #231, #232). Duas mesclas na mão, e a suíte inteira rodada depois de cada uma: **6.614 testes, 0 falhas** na árvore final. Uma automação também atualizou o branch sozinha — conferi que a árvore dela era **byte a byte** igual à minha (`git diff` vazio) antes de alinhar, sem force-push.
 >
 > 🖥️ ⚠️ **CONTINUA NÃO VISTO NUMA TELA, e desta vez nem em produção dá pra conferir por fora**: o diff inteiro deste trabalho está **atrás de login** (`/Admin`), então **não existe sonda anônima** que prove o botão renderizando — ao contrário dos cards de torneio de ontem, que o `curl` pegava. A prova que há é código, 6.614 testes e `/healthz` 200. **Quem abrir o painel, confira o card "Avisos do sistema"** e a faixa vermelha quando ele estiver mudo.
-
 
 > **12/09/2026** — ⏳ **NO BRANCH `claude/checkin-por-jogo-kshvrx`, ainda não publicado.** ✅ **SEM MIGRATION** (nada em `Models/` — a presença já era uma coluna: `Dupla.CheckInEm`).
 >
