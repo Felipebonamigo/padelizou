@@ -118,7 +118,14 @@ public class RemanejarDepoisDePublicadoTests
             maisTarde);
 
         Assert.Null(controller.TempData["Erro"]);
-        var reserva = Assert.Single(await ctx.ReservasDeHorario.ToListAsync());
+
+        // ⚠️ A RESERVA DAQUELE JOGO, e não "a única do mundo" (14/09/2026): desde que a aprovação
+        // da chave grava a grade prevista inteira, existem reservas para TODAS as eliminatórias.
+        // O `Assert.Single` sobre a tabela dizia, por acidente, que ninguém mais tinha promessa.
+        var reserva = Assert.Single(await ctx.ReservasDeHorario
+            .Where(r => r.CategoriaId == previa.CategoriaId!.Value
+                     && r.Fase == previa.Fase && r.Numero == previa.Numero)
+            .ToListAsync());
         Assert.Equal(maisTarde, reserva.Horario);
         Assert.Equal(previa.Fase, reserva.Fase);
     }

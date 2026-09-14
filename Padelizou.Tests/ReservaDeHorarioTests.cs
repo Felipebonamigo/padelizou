@@ -264,17 +264,34 @@ public class ReservaDeHorarioTests
 
     // ═══ QUEM APAGA A RESERVA ═══
 
+    // ⚠️ DECISÃO REVERTIDA EM 14/09/2026 — E ESTE TESTE FOI REESCRITO, NÃO APAGADO.
+    //
+    // Ele fixava "recalcular apaga as reservas e não deixa nenhuma": a reserva era um remendo por
+    // cima da grade, como a troca de dois jogos reais, e o recálculo desfazia os dois.
+    //
+    // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"o chaveamento fixo, os horarios fixos"*. Com
+    // a grade prevista virando promessa gravada na aprovação da chave, "não deixar nenhuma"
+    // passou a ser um BURACO: depois de recalcular, os horários voltariam a poder mudar sozinhos
+    // no nascimento — aberto justamente pelo botão que existe pra arrumar a grade.
+    //
+    // ✅ Perguntado sobre exatamente esse ponto, ele escolheu *"recalcula e RE-GRAVA a promessa"*.
+    // O que este teste garante agora é o que a regra antiga protegia — que a reserva ANTIGA não
+    // sobreviva ao recálculo — sem deixar o torneio sem promessa nenhuma.
     [Fact]
-    public async Task Refazer_grade_apaga_as_reservas()
+    public async Task Refazer_grade_apaga_a_reserva_antiga_e_grava_a_promessa_nova()
     {
-        // "Recalcular horários" refaz a grade do zero — e a reserva é um remendo por cima da
-        // grade, como a troca de dois jogos reais, que o recálculo também desfaz.
         var c = Montar();
         await ReservarAsync(c, c.A, "Final", 1, "22:00");
 
         await Controller(c).RefazerGrade(c.Torneio.Id);
 
-        Assert.Empty(await ReservasAsync(c));
+        var reservas = await ReservasAsync(c);
+
+        // Antes: `Assert.Empty`. A reserva das 22:00 não sobrevive — o remendo foi desfeito...
+        Assert.DoesNotContain(reservas, r => r.Horario == As("22:00"));
+
+        // ...mas o torneio NÃO fica sem promessa: a grade recalculada vira o novo compromisso.
+        Assert.NotEmpty(reservas);
     }
 
     [Fact]

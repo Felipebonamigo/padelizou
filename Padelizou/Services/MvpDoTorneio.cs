@@ -115,6 +115,12 @@ public static class MvpDoTorneio
 
     public const string StatusFinalizado = "Finalizado";
 
+    // ONDE A TELA CONTINUA DEPOIS DO VOTO. O nome mora aqui, e não solto no controller e na
+    // view, porque são as DUAS pontas de um mesmo pulo: o `id` do cartão da enquete e o
+    // fragmento do redirect. Escrito duas vezes, basta renomear um pra o pulo virar um
+    // recarregamento no topo — sem erro, sem teste vermelho, sem ninguém perceber.
+    public const string AncoraDaEnquete = "avaliar";
+
     // Quem ganhou. Devolve TODOS os empatados no topo, de propósito: inventar um critério de
     // desempate ("quem recebeu o voto primeiro") faria o sistema escolher um MVP por um motivo
     // que ninguém combinou. Dois MVPs é uma resposta honesta; um MVP arbitrário não é.
@@ -537,6 +543,19 @@ public sealed class VotacaoDeMvp
 
     public bool TemVencedor => Vencedores.Count > 0;
     public bool Empatou => Vencedores.Count > 1;
+
+    // A CÉDULA SAI DA FRENTE DE QUEM JÁ VOTOU. 🗣️ Felipe, 14/09/2026: *"para quando a pessoa
+    // selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. Um
+    // torneio real põe de 10 a 20 nomes aqui — é essa lista que empurra a enquete pra fora da
+    // tela, e a enquete é a coisa que a pessoa ainda TEM o que fazer.
+    //
+    // ⚠️ Recolhida, nunca apagada: trocar o voto é um direito que a tela promete em texto
+    // ("Você pode trocar enquanto a votação estiver aberta"), e fica a um toque no resumo.
+    //
+    // ⚠️ E SÓ COM A VOTAÇÃO ABERTA. Depois que ela encerra esta mesma lista deixa de ser
+    // cédula e vira APURAÇÃO — recolher ali esconderia o placar de todo mundo, que é
+    // exatamente o que a tela passa a mostrar.
+    public bool CedulaRecolhida => Aberta && MeuVoto != null;
 
     // O estado do torneio, pra quem precisa responder outra pergunta sobre a MESMA janela —
     // hoje a enquete do clube, que vale onde o MVP foi DESLIGADO pelo organizador. Sem isto o

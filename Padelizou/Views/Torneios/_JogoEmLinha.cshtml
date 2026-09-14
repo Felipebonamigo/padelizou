@@ -242,6 +242,25 @@
             {
                 <span class="pdz-jl-durou">@duracao</span>
             }
+
+            @* O QUE O SORTEIO TINHA PROMETIDO, quando a realidade saiu diferente (14/09/2026).
+               🗣️ Felipe: "temos que seguir a grade prevista, por que o usuario se baseia [...]
+               talvez devamos criar campos separados (Horario chaveamento, Horario atualizado)".
+
+               ⚠️ SÓ QUANDO DIFEREM. No caso normal — torneio no horário — os dois são a mesma
+               coisa, e repetir o mesmo horário duas vezes seria poluir o cartão sem dizer nada.
+               Nulo é jogo de antes desta mudança: some, como sempre foi.
+
+               É esta linha que responde a pergunta do jogador que se programou pelas 14:40 e
+               chegou às 16:20: mudou, e mudou a partir do quê. *@
+            @if (jogo.HorarioDoSorteio is DateTime prometido
+                 && jogo.HorarioPrevisto is DateTime agora
+                 && prometido != agora)
+            {
+                <span class="pdz-jl-prometido" title="Horário do sorteio">
+                    previsto @prometido.ToString("dd/MM HH:mm")
+                </span>
+            }
         </span>
 
         <span class="pdz-jl-etiquetas">

@@ -73,6 +73,21 @@ public partial class Partida
     // as DUAS vagas dele têm dono, em qualquer ordem.
     public int? NumeroNaFase { get; set; }
 
+    // O HORÁRIO QUE O SORTEIO PROMETEU — escrito UMA VEZ, quando o jogo nasce, e nunca mais.
+    //
+    // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"temos que seguir a grade prevista, por que o
+    // usuario se baseia [...] talvez devamos criar campos separados (Horario chaveamento, Horario
+    // atualizado)"*.
+    //
+    // `HorarioPrevisto` é a operação do dia: ele anda quando o torneio atrasa, quando o
+    // organizador remaneja, quando a grade é recalculada. Este aqui é a PROMESSA, e é a promessa
+    // que o jogador usou pra se programar — se ela sumisse junto, ninguém teria como saber que
+    // mudou, nem do quê pra quê.
+    //
+    // ⚠️ NULO = JOGO DE ANTES DESTA MUDANÇA, e a tela se comporta como sempre. É isso que torna a
+    // migration aditiva de verdade, e não só no schema.
+    public DateTime? HorarioDoSorteio { get; set; }
+
     public DateTime? HorarioInicioReal { get; set; }
     public DateTime? HorarioFimReal { get; set; }
 

@@ -23,6 +23,48 @@
 >
 > 🧭 **E O QUE O PRINT DIZIA, que é como o defeito apareceu**: no Padelímetro todo PDZ sai em **par idêntico** (802/802, 760/760, 742/742…) porque `Aplicar` dá aos dois parceiros a MESMA expectativa, o MESMO fator de games e o MESMO resultado — só o K pode separá-los, e ele só muda no 10º jogo. **Dois jogadores que só jogaram juntos têm PDZ idêntico por construção**, e hoje o 1º lugar sai no desempate por nome. Nada disso foi mexido aqui; fica escrito porque é a leitura certa da tabela de hoje.
 >
+> Última atualização: **14/09/2026** — 🙈 **O `?torneioId=` DO RANKING DEVOLVIA O TORNEIO QUE O SELETOR ESCONDIA.** ⏳ **AINDA NÃO PUBLICADO.** **Sem migration.**
+>
+> 🕳️ Em `/Jogadores/Ranking`, a lista "Ver ranking de um torneio…" passa pela régua da vitrine desde 07/08 — mas o parâmetro da URL não perguntava nada. Quem digitasse o número de um torneio **oculto**, **cancelado** ou **esperando aprovação** recebia o nome dele no título ("Ranking do torneio: …") e, no oculto e no esperando aprovação, a tabela inteira. **Pré-existente, não regressão.** Era verdade que "o torneio de teste não aparece na lista"; não era verdade que "o torneio de teste não aparece".
+>
+> 🔑 **NÃO NASCEU RÉGUA NOVA**: `PermissaoDeOrganizador.ApareceParaOPublico` (vitrine + não cancelado) já existia — é a do sitemap e das páginas de cidade. O seletor escrevia o mesmo par à mão; agora ele e o `torneioId` leem o **mesmo método**. `VisibilidadeDoTorneio.PodeAbrirAsync` foi descartada: só olha `Oculto`, e o cancelado passaria. Torneio fora da vitrine conta como id que não existe — a página abre sem torneio selecionado e não confirma nada. Nem o organizador vê o próprio torneio oculto por aqui, igual ao seletor, que nunca o ofereceu; o lugar dele é a página do torneio.
+>
+> ⚠️ **Cancelado vazava só o NOME**: as linhas dele já saem vazias do `EstatisticasService` (evento que não aconteceu não pontua, e a lista só traz quem pontuou). O teste do cancelado prende o nome; os do oculto e do esperando aprovação prendem nome **e** linhas, com a pré-condição de que o serviço devolve linhas pra aquele torneio — sem ela, "ranking vazio" passaria antes e depois da correção.
+>
+> ⚠️ **O pedido citava `Services/HubDoRanking.cs` e `GET /Cartoes/RankingImagem`, e nenhum dos dois existe** — nem no `main`, nem em ref nenhuma do git, nem em disco nesta máquina. O bloco ainda mora em `JogadoresController.Ranking`, e foi lá que a correção entrou. **Se a extração pro hub e a arte do ranking estiverem numa sessão ainda não mesclada, ela precisa levar esta checagem junto.** Os testes chamam a action do controller: uma extração que perder a trava fica vermelha.
+>
+> 🧪 4 testes novos, os três de bloqueio **vistos vermelhos** (`Expected: null`, `Actual: 1`), mais o controle de que torneio da vitrine continua abrindo pela URL. **7.084 testes, 0 falhas**, 7 avisos — os mesmos de antes.
+>
+> 📌 De carona: o bloco de 10/09 dos dois testes instáveis da grade (PR #137) deixou de dizer "AINDA NÃO PUBLICADO" — ele subiu no `build-940-b01797d`.
+
+> Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
+>
+> Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
+>
+> **1 · CONFRONTO DEFINIDO JÁ É JOGO.** 🗣️ *"eu preciso que todo jogo com confronto definido ja seja possivel palpitar e começar se preciso"*. O laço do robô PARAVA no primeiro confronto indefinido, então a Semifinal 2 — inteira decidida — não nascia porque a 1 esperava um jogo AO VIVO. `Partida.NumeroNaFase` grava o número em vez de deduzi-lo da ordem de criação; **nulo = deduz pelo Id, como sempre**, e nenhum jogo existente muda.
+>
+> ⚠️ **ERAM NOVE PONTOS DE LEITURA, NÃO OS CINCO DO DESENHO.** Dois só apareceram no `grep` (a numeração do "Meus jogos" e a comparação do painel "Refazer como previsto" — esta escrita por mim uma hora antes), e o **nono** só apareceu quando a promessa falhou no teste: `NumeroDe` numerava o jogo nascente pela POSIÇÃO NA LISTA, então a Semifinal 2 sozinha viraria "1" e pegaria a reserva da Semifinal 1. **A lição: quando a régua muda, o `grep` do velho critério é obrigatório, e a lista do desenho é chute até ele rodar.**
+>
+> 🔒 A trava de duplicata virou do BANCO: índice único `(CategoriaId, Fase, NumeroNaFase)`. O contador de antes era lido ANTES do INSERT, que é justamente a forma que dois encerramentos simultâneos atravessam. Nulo não conflita no Postgres, então o acervo inteiro convive com ele.
+>
+> **2 · A RESERVA NÃO RESSUSCITA HORÁRIO VENCIDO.** 🗣️ *"o chaveamento se perdeu dos horarios pré definidos de semi final"* — semifinais nascidas no domingo de manhã foram parar em **SÁBADO 13:00**, antes das próprias quartas. `LevasDaGrade.Encaixar` não consegue fazer isso (a leva começa em `MaisTarde(barreira, PisoDestaCategoria)`), então sobrava um caminho: `ReservasDeHorario.Aplicar`. O guarda dele tinha **dois furos na mesma linha** — piso nulo devolvia `true` sem olhar mais nada, e nunca existiu a pergunta *"isso já passou?"*.
+>
+> ⚠️ **O PISO É O RELÓGIO DO TORNEIO, NÃO `DateTime.Now`** — e isso não é detalhe: a primeira tentativa usou o relógio de parede e **quebrou 4 testes de reserva legítima**, porque a suíte monta torneios em julho/2026. O que importa é até onde o torneio chegou (último jogo finalizado ou em quadra).
+>
+> **3 · A PRÉVIA OCUPA A QUADRA.** 🗣️ *"as quadras nao estao livres, esta agendado para outros jogos"*. `HorariosDaGrade.Montar` contava só jogo real; o `tambem` (as eliminatórias previstas) servia pra o horário APARECER na lista e sumia da contagem — o seletor oferecia como vaga um horário que a chave já tinha prometido. Um teste existente esperava `Ocupadas = 1` e passou a esperar 2, **conferido imprimindo a lista** antes de aceitar.
+>
+> **4 · "CONFERIR A GRADE" ACUSA JOGO NO PASSADO** — e ⚠️ **acusar sem consertar não resolveria**: `ReparoDaGrade.Peso` devolve 0 pra regra desconhecida, e peso 0 quer dizer *"não vira alvo"*. Era por isso que o "Ajustar horários" deixava os jogos parados. Entra com peso 60.000, acima de "dois jogos ao mesmo tempo" (esses pelo menos podem ser jogados atrasados; um jogo no passado não pode ser jogado nunca).
+>
+> **5 · A PROJEÇÃO SAI DO CONTROLLER E VAI PRO ROBÔ.** Movimento puro — 7.056 testes antes e depois. Um `ViewBag` no meio do motor virou retorno.
+>
+> **6 · NO CELULAR MENOR, O NOME QUEBRA EM VEZ DE PICOTAR.** 🗣️ *"Os nomes em celulares menores nao cabem, nao da pra saber quem é"*. 👁️ **MEDIDO NO CHROMIUM** com um cartão REAL da página de produção: a 360px, antes `"Rebeca Gergen ▪ / Laí…"`; depois `"Rebeca Gergen /"` + `"Laís Rodrigues"`; a 600px idêntico. ⚠️ O `nowrap` no `<a>` é metade da correção — sem ele a quebra cairia em *"Cristina / Bassols"*, que é pior que picotar porque parece outra pessoa.
+>
+> ⚠️ **O QUE NÃO FOI FEITO, E POR QUÊ — LEIA ANTES DE RETOMAR.** 🗣️ Felipe: *"o chaveamento fixo, os horarios fixos"* · *"o pessoal se programa para jogar por esses horarios"*. A promessa **não foi implementada**, e o bloqueio é um achado medido: **A PROJEÇÃO NÃO É ESTÁVEL.** Com o torneio andando NO HORÁRIO, sem atraso nenhum, ela promete **14:40** enquanto a Semifinal é só promessa e **15:30** depois que as Quartas viram resultado. Isso derruba o desenho simples (*"o robô pergunta à prévia onde prometeu e põe ali"*), porque não existe UMA resposta — depende de quando se pergunta. A promessa pedida é a do **SORTEIO**, e precisa ser **gravada na aprovação da chave**. `OHorarioDoSorteioEPromessaTests.A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` fixa o fato e vai falhar no dia em que a projeção for estável — que é quando o desenho simples volta a ser possível.
+>
+> ⚠️ **E O CENÁRIO DE TESTE PRECISA DE DUAS CATEGORIAS.** Com uma só, a prévia e o encaixe concordam por coincidência e o defeito não aparece — a primeira versão daquele arquivo passou de primeira, o que não prova nada. A divergência é estrutural: a prévia guarda o horário das eliminatórias FUTURAS de todas as categorias, e o encaixe só enxerga jogo REAL. É daí que saem três jogos num horário de duas quadras.
+>
+> **7.061 testes verdes**, 10 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — ⭐ **A CÉDULA DO MVP SAÍA NA ORDEM DO ALFABETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1369-f3ddc25`** (runs **347** e **349**, o mesmo artefato nos dois, com a tag explícita). PR #299. **Sem migration.**
 >
 > 🗣️ Felipe, com o print da votação do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer as duplas uma em baixo da outra e em ordem da maior categoria para menor (3ª-7ª)"*.
@@ -2491,7 +2533,7 @@
 >
 > 🧪 **6.066 testes, 0 falhas (5 novos), 4 avisos — os mesmos de antes.** Os cinco vistos vermelhos antes, e **todos com confrontos FIXOS**: número que sai do `GerarChaves` mede sorte, não código. Dois na auditoria (o mesmo time em duas quadras; o mesmo time emendado), um no reparo (não trocar criando o choque de time) e dois na troca de horário (o clube da vaga sai da quadra; e o carimbo velho de "casa" não libera a vaga que é no externo), mais a contraprova de que **sem** quadra quem responde continua sendo o carimbo. **Sem migration.**
 >
-> ⏳ **AINDA NÃO PUBLICADO.**
+> ✅ **PUBLICADO em dev e prod no `build-940-b01797d`** (10/09/2026, 12h55 e 12h58 de Brasília, runs 157 e 158) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
 >
 
 > **10/09/2026** — 🚀 **PUBLICADO em `dev` E `prod` no `build-928-f7a160a`** (11h30 e 11h31 de Brasília — runs 154 e 155). PR #134. **Sem migration.**
