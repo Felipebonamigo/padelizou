@@ -1,13 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/09/2026** — 🎬 **O "FINALIZAR" RECARREGAVA A PÁGINA, E RECARGA REINICIA TODO `<iframe>` DA TELA.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.**
+> Última atualização: **14/09/2026** — 🎬 **O "FINALIZAR" RECARREGAVA A PÁGINA, E RECARGA REINICIA TODO `<iframe>` DA TELA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1410-c8ea3c5`** (deploy runs **366** e **367**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #311. **Sem migration.**
 >
 > 🗣️ Felipe, depois de recusar o painel por quadra: *"apenas queria q o video nao travasse, nao mude o layout"*. **O layout não mudou uma linha.**
 >
 > 🕳️ **DOIS BOTÕES FICARAM PRA TRÁS**: "Finalizar" e "Voltar pra agendado" eram POST comum — o navegador recarregava a página inteira. O `js/placar-ao-vivo.js` e o `js/saque-ao-vivo.js` já tinham tirado essa recarga do −/+ e da bolinha do saque (o `_BolinhaDoSaque.cshtml` até explica por quê: *"recarga aqui reiniciaria o `<iframe>` da transmissão"*); estes dois escaparam, e são os que o organizador mais aperta.
 >
 > 🔑 **E O ESTRAGO NÃO ERA NO JOGO DELE**: finalizar o jogo da **Quadra 1** parava o vídeo de quem estava assistindo à **Quadra 2**. Duas coisas sem nenhuma relação, ligadas só pela recarga.
+>
+> ✅ **CONFERIDO NO QUE OS DOIS AMBIENTES SERVEM**: `dev` e `prod` entregam arquivos **idênticos** — o `acao-do-cartao-ao-vivo.js` (**5.203 bytes**, com `.pdz-live-acao` e `#pdzAvisoDaAcao`) e o `jogos-ao-vivo-atualiza.js` (**23.891 bytes**, com `pdzAplicarRespostaDeAcao` e `pdzAcaoEmCurso`). `/healthz` **200** nos dois. Na página do torneio **26** em produção (1,26 MB de dado real) o `<script>` novo e o `id="pdzAvisoDaAcao"` estão lá.
+>
+> ⚠️ **E O QUE A VERIFICAÇÃO NÃO PROVA, dito com todas as letras**: naquela página vieram **ZERO** formulários com `pdz-live-acao` — fui atrás antes de declarar pronto, e o motivo é que o torneio está em *"Nenhum jogo rolando no momento"*, com zero cartões ao vivo; sem jogo em quadra não existe botão Finalizar pra etiquetar, e esses botões são só do organizador (a busca é anônima). **A etiqueta está provada nos testes e no Chromium, não na produção.** Fechar de verdade é um teste de um minuto que só o Felipe pode fazer: com um jogo em quadra, apertar Finalizar e ver se o vídeo da OUTRA quadra continua rodando.
+>
+> ⚠️ **O PR FICOU 8 MINUTOS SEM UM ÚNICO CHECK CRIADO — e não era o GitHub fora do ar.** O `ci.yml` documenta esse pânico (26/08, o PR #41 ficou 3 horas sem check nenhum), mas aqui o CI rodava normalmente no `main` ao mesmo tempo (runs 1403-1405). A causa era o `mergeable_state: dirty`: **com o PR conflitado, o evento de `pull_request` não gera run**. O check nasceu no segundo em que o conflito saiu. Parece pane e é fila.
+>
+> ⚠️ **QUATRO MESCLAS COM O `main` EM ~40 MINUTOS**, sempre o mesmo conflito (o topo deste arquivo) e **nunca uma linha de código**. Na terceira parei de contar linha na mão: a resolução virou um passo genérico que reconhece a entrada repetida pelo **TÍTULO**, não pela posição, e rebaixa as duas pontas do lado do `main`. **Auto-merge está DESLIGADO no repositório** — tentei ligar pro PR e o GitHub recusou, apontando Settings → General → Pull Requests. Ligar encerra essa dança; é configuração do repo e não foi mexida. (A sessão `018YzCEh` chegou à mesma conclusão hoje, por outro caminho.)
+>
+> ⚠️ **O `prod` NÃO PAROU PRA APROVAÇÃO OUTRA VEZ**, como já tinha acontecido de manhã e como o `infra/vps/README.md` promete que para. Terceiro registro do mesmo fato hoje, em duas sessões diferentes: a trava que o README e o `deploy.yml` descrevem **não age**.
 >
 > 👁️ **MEDIDO NO CHROMIUM, com o `confirmar.js`, o Bootstrap e o modal de verdade** — clicando no "sim" como a pessoa clica. **ANTES: 2 navegações**, a URL virou `/Torneios/FinalizarPartida` e o **iframe foi de 1 pra 0** (a página saiu, o vídeo com ela). **DEPOIS: 1 navegação** (só a carga inicial), a URL não mudou, **1 POST por fetch** e o **iframe ficou em 1**. O corpo do POST leva o `__RequestVerificationToken` e os campos escondidos — que é o que o DOM falso não podia provar.
 >
