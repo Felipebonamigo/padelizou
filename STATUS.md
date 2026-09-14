@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/09/2026** — 🔒 **O HORÁRIO DO SORTEIO É COMPROMISSO, E A GRADE PREVISTA NUNCA SE PERDE.** 🚀 **PUBLICADO em `prod` no `build-1381-d2dda49`** (deploy run 355, `/healthz` 200). PR #296. **COM MIGRATION** (`HorarioDoSorteio`).
+>
+> 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"é muito importante que o chaveamento pré definido seja seguido, por que o pessoal se baseia nisso para se programar, o chaveamento fixo, os horarios fixos"* · *"ele é obrigatoriamente obrigado a respeitar os horarios das quadras dos sorteios, pq o pessoal se programa para jogar por esses horarios mesmo com o checkin"*.
+>
+> ✅ **A PROMESSA É GRAVADA, NÃO RECALCULADA.** Aprovar a chave passa a gravar a hora de cada eliminatória prevista como `ReservaDeHorario` — **no mesmo instante em que o cruzamento congela**. Isso destrava o achado que bloqueava tudo em 13/09: não existe mais *"depende de quando se pergunta"*, porque não se pergunta mais, se lê.
+>
+> ♻️ **REUSOU O `ReservaDeHorario` INTEIRO** (degrau 2 da escada do `CLAUDE.md`). Ele já era chaveado por `(categoria, fase, número)` e já tinha **TRÊS consumidores obedecendo**: a prévia, o robô ao criar a rodada, e o reencaixe quando outra categoria avança. **Nenhum precisou de código novo.**
+>
+> 🎁 **E O 3-EM-2 MORREU DE BRINDE.** `ReservasDeHorario.AindaPorNascer` já injetava os slots reservados no `intocados` do encaixe — não protegia nada porque quase não existiam reservas. Com o sorteio gravado, o robô enxerga o que foi prometido às OUTRAS categorias e para de marcar em cima. Era essa a causa dos três jogos num horário de duas quadras.
+>
+> 💡 **OS DOIS CAMPOS SÃO IDEIA DO FELIPE, E SÃO MELHORES QUE O MEU DESENHO.** Eu tinha proposto DESLIZAR o horário quando o torneio atrasasse; ele respondeu *"temos que seguir a grade prevista, por que o usuario se baseia [...] talvez devamos criar campos separados (Horario chaveamento, Horario atualizado)"*. Deslizar resolve a operação e **PERDE A INFORMAÇÃO**: quem se programou pelas 14:40 vê 16:20 e não sabe do quê pra quê. Agora `Partida.HorarioDoSorteio` guarda a promessa e `HorarioPrevisto` segue sendo a operação do dia; o cartão mostra os dois, riscado e discreto, **só quando diferem**.
+>
+> ⚠️ **O CARIMBO MORA NO `SaveChanges` DO CONTEXTO, e é deliberado**: `Partida` nasce em pelo menos CINCO lugares (o sorteio, as duas entradas do robô, o Americano, o desempate), e carimbo espalhado por cinco chamadas é carimbo que a sexta esquece. *"Escrito uma vez, no nascimento"* é ciclo de vida da entidade, e ciclo de vida mora no contexto.
+>
+> 🔁 **Recalcular horários RE-GRAVA a promessa** (escolha do Felipe): sem isso, depois de recalcular os horários voltariam a poder mudar sozinhos — um buraco aberto justamente pelo botão que existe pra arrumar a grade.
+>
+> 🛡️ **Nulo = jogo de antes desta mudança**, e a tela se comporta como sempre. Vale só pra chave aprovada de agora em diante (escolha do Felipe): nenhum torneio existente muda sozinho.
+>
+> 🧪 **Dois testes que fixavam decisões agora revertidas foram REESCRITOS, não apagados** — `A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` (o achado que bloqueava, e que **previa a própria falha**: *"vai falhar no dia em que alguém tornar a projeção estável"* — foi hoje) e `Refazer_grade_apaga_as_reservas`.
+>
+> ⚠️ **NÃO CONFERIDO AO VIVO, E ISSO FICA REGISTRADO ASSIM**: não havia torneio novo em `prod` pra rodar o ciclo inteiro. O que sustenta são os **10 testes novos, todos vistos vermelhos antes**. **No próximo sorteio vale olhar uma vez**: aprovar a chave e conferir se os horários das eliminatórias na prévia continuam os mesmos depois que a primeira fase terminar.
+>
+> **7.087 testes verdes**, 10 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
 >
 > Seis correções saídas do 2ª Etapa ER PADEL TOUR, o torneio que expôs todas elas em um dia.
@@ -23,7 +47,7 @@
 >
 > **6 · NO CELULAR MENOR, O NOME QUEBRA EM VEZ DE PICOTAR.** 🗣️ *"Os nomes em celulares menores nao cabem, nao da pra saber quem é"*. 👁️ **MEDIDO NO CHROMIUM** com um cartão REAL da página de produção: a 360px, antes `"Rebeca Gergen ▪ / Laí…"`; depois `"Rebeca Gergen /"` + `"Laís Rodrigues"`; a 600px idêntico. ⚠️ O `nowrap` no `<a>` é metade da correção — sem ele a quebra cairia em *"Cristina / Bassols"*, que é pior que picotar porque parece outra pessoa.
 >
-> ⚠️ **O QUE NÃO FOI FEITO, E POR QUÊ — LEIA ANTES DE RETOMAR.** 🗣️ Felipe: *"o chaveamento fixo, os horarios fixos"* · *"o pessoal se programa para jogar por esses horarios"*. A promessa **não foi implementada**, e o bloqueio é um achado medido: **A PROJEÇÃO NÃO É ESTÁVEL.** Com o torneio andando NO HORÁRIO, sem atraso nenhum, ela promete **14:40** enquanto a Semifinal é só promessa e **15:30** depois que as Quartas viram resultado. Isso derruba o desenho simples (*"o robô pergunta à prévia onde prometeu e põe ali"*), porque não existe UMA resposta — depende de quando se pergunta. A promessa pedida é a do **SORTEIO**, e precisa ser **gravada na aprovação da chave**. `OHorarioDoSorteioEPromessaTests.A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` fixa o fato e vai falhar no dia em que a projeção for estável — que é quando o desenho simples volta a ser possível.
+> ✅ **RESOLVIDO EM 14/09 — ver a entrada do `build-1381` no topo.** O que segue era verdade quando foi escrito, e é o caminho que levou à solução; deixa de ser pendência. ⚠️ **O QUE NÃO FOI FEITO NAQUELE DIA, E POR QUÊ.** 🗣️ Felipe: *"o chaveamento fixo, os horarios fixos"* · *"o pessoal se programa para jogar por esses horarios"*. A promessa **não foi implementada**, e o bloqueio é um achado medido: **A PROJEÇÃO NÃO É ESTÁVEL.** Com o torneio andando NO HORÁRIO, sem atraso nenhum, ela promete **14:40** enquanto a Semifinal é só promessa e **15:30** depois que as Quartas viram resultado. Isso derruba o desenho simples (*"o robô pergunta à prévia onde prometeu e põe ali"*), porque não existe UMA resposta — depende de quando se pergunta. A promessa pedida é a do **SORTEIO**, e precisa ser **gravada na aprovação da chave**. `OHorarioDoSorteioEPromessaTests.A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` fixa o fato e vai falhar no dia em que a projeção for estável — que é quando o desenho simples volta a ser possível.
 >
 > ⚠️ **E O CENÁRIO DE TESTE PRECISA DE DUAS CATEGORIAS.** Com uma só, a prévia e o encaixe concordam por coincidência e o defeito não aparece — a primeira versão daquele arquivo passou de primeira, o que não prova nada. A divergência é estrutural: a prévia guarda o horário das eliminatórias FUTURAS de todas as categorias, e o encaixe só enxerga jogo REAL. É daí que saem três jogos num horário de duas quadras.
 >
