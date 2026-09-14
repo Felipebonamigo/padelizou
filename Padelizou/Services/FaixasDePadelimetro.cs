@@ -151,6 +151,56 @@ public static class FaixasDePadelimetro
         return escada[^1];
     }
 
+    // ── O RÓTULO QUE A TELA MOSTRA ───────────────────────────────────────────────────────
+    //
+    // ⚠️ ISTO NÃO É A TRAVA. As portas (LinhaDeSubida/LinhaDeDescida) decidem onde a pessoa
+    // PODE se inscrever na fase 3 e limitam o bônus de campanha, que mexe no NÚMERO. O que
+    // mora aqui é só o texto da coluna "Faixa" — mudar esta régua não move PDZ de ninguém,
+    // não pede migration e não pede replay. Régua completa em RANKING.md.
+    //
+    // 🕳️ POR QUE EXISTE (14/09/2026): o rótulo era `DoNivel(pdz)`, a faixa CRUA do número. No
+    // primeiro torneio da história do Padelímetro, 52 dos 128 jogadores (41%) apareceram numa
+    // faixa diferente da que jogaram — 22 acima, 30 abaixo. A causa é aritmética e não bug: a
+    // faixa tem 100 de largura e o seed nasce no MEIO dela (3ª é 650–749 e entra em 700), então
+    // bastam +50; e um fim de semana dominante rende +60 a +100 (medido: até +142). O campeão
+    // estreante era promovido SEMPRE, contra o "nunca por um dia de sorte" do próprio RANKING.md.
+    public const int FolgaDoRotulo = 50;
+
+    // Em calibração o rótulo é a faixa da categoria JOGADA; depois dela o número manda, com
+    // folga dos dois lados. Sem categoria na escada (só mista/casal/lendas, ou nome fora da
+    // convenção) não há âncora de onde partir — aí vale a faixa crua, como sempre valeu.
+    public static Faixa FaixaExibida(int nivel, string? categoriaQueJoga, int jogos)
+    {
+        bool feminina = EhFeminina(categoriaQueJoga);
+        var jogada = DaCategoria(categoriaQueJoga);
+        if (jogada == null) return DoNivel(nivel, feminina);
+
+        // O mesmo julgamento que o K = 40 já faz: se o número ainda anda rápido porque é um
+        // chute, ele não pode estar renomeando ninguém. O número corre por baixo do mesmo
+        // jeito — só o rótulo espera os 10 jogos.
+        if (Padelimetro.EmCalibracao(jogos)) return jogada;
+
+        return nivel > jogada.Teto + FolgaDoRotulo || nivel < jogada.Piso - FolgaDoRotulo
+            ? DoNivel(nivel, feminina)
+            : jogada;
+    }
+
+    // Quanto falta pro RÓTULO mudar — e não pra faixa crua. Um "faltam 8 pra subir" ao lado de
+    // um rótulo que não muda em 8 é a mesma mentira pequena que o selo de movimento contava.
+    // Nulo em calibração (a tela nem mostra a linha ali) e no topo da escada.
+    public static int? FaltaPraMudarDeFaixa(int nivel, string? categoriaQueJoga, int jogos)
+    {
+        var jogada = DaCategoria(categoriaQueJoga);
+        if (jogada == null) return FaltaPraSubir(nivel, EhFeminina(categoriaQueJoga));
+        if (Padelimetro.EmCalibracao(jogos)) return null;
+
+        // Ainda ancorado na categoria jogada: o que muda o rótulo é cruzar a FOLGA. Já fora
+        // dela, o rótulo virou o da faixa crua e o próximo degrau é o teto dela.
+        var exibida = FaixaExibida(nivel, categoriaQueJoga, jogos);
+        int teto = exibida == jogada ? jogada.Teto + FolgaDoRotulo : exibida.Teto;
+        return teto >= Padelimetro.Maximo ? null : teto + 1 - nivel;
+    }
+
     // Quanto falta pra cruzar o teto da faixa atual — o "faltam 40 pra 4ª" do perfil.
     // Nulo já no topo da escada.
     public static int? FaltaPraSubir(int nivel, bool feminina)
