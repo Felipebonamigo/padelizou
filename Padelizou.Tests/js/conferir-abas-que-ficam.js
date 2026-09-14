@@ -316,11 +316,64 @@ console.log('── JOGO QUE ENTRA OU SAI DO AO VIVO NÃO RECARREGA A PÁGINA �
 //     #aovivo  >  #pdzAoVivoCartoes (.row)  >  .col-lg-6  >  .pdz-live-card
 // É a COLUNA que entra e sai da grade, não o cartão pelado. Um teste com o cartão solto no
 // painel passaria com um remendo que na página real não acha o que remover.
-function cartaoVivo(id) {
-    const el = elemento({ 'data-partida-id': String(id) }, ['pdz-live-card']);
+//
+// ⚠️ E O CARTÃO TEM FILHOS DE VERDADE (14/09/2026), porque o remendo agora mexe DENTRO dele:
+// `.pdz-live-header` e, quando a quadra transmite, `.pdz-live-video` — irmãos, na ordem em que
+// o Razor os escreve. Um cartão sem filhos passaria com um remendo que reescreve o cartão
+// inteiro, que é exatamente o defeito.
+//
+// O PLAYER É DA QUADRA, NÃO DO JOGO (Services/TransmissaoDaQuadra.cs: "o link é uma propriedade
+// do LUGAR"). Então o número que o espectador sente não é "o cartão foi reescrito", é QUANTAS
+// VEZES O PLAYER DAQUELA TRANSMISSÃO NASCEU: o embed não tem `autoplay`, então player que nasce
+// é player parado na miniatura da live — que numa câmera de quadra é um quadro da própria
+// quadra. Na tela, isso é um vídeo travado.
+function blocoDeVideo(transmissao) {
+    const quadro = elemento({ src: 'https://www.youtube.com/embed/' + transmissao });
+    const bloco = elemento({}, ['pdz-live-video']);
+    bloco._iframe = quadro;
+    bloco.querySelector = (sel) => (sel === 'iframe' ? quadro : null);
+    return bloco;
+}
+
+function nascer(nascimentos, bloco) {
+    const src = bloco._iframe.getAttribute('src');
+    nascimentos[src] = (nascimentos[src] || 0) + 1;
+}
+
+// `spec` é o id do jogo, ou `id|transmissao` pra quadra que está no ar.
+function cartaoVivo(spec, nascimentos) {
+    const partes = String(spec).split('|');
+    const id = partes[0];
+    const transmissao = partes[1] || null;
+
+    const el = elemento({ 'data-partida-id': id, id: 'jogo-' + id }, ['pdz-live-card']);
     el.video = { recarregou: 0 };
     el.hasAttribute = () => false;
-    el.querySelector = (sel) => (sel === '.pdz-live-header' ? el._header || (el._header = elemento({})) : null);
+    el._transmissao = transmissao;
+
+    el.children = [elemento({}, ['pdz-live-header'])];
+    if (transmissao) el.children.push(blocoDeVideo(transmissao));
+
+    const primeiro = (classe) => el.children.filter((f) => f.classList.contains(classe))[0] || null;
+    el.querySelector = (sel) => {
+        if (sel === '.pdz-live-header') return primeiro('pdz-live-header');
+        if (sel === '.pdz-live-video') return primeiro('pdz-live-video');
+        if (sel === '.pdz-live-video iframe') {
+            const bloco = primeiro('pdz-live-video');
+            return bloco ? bloco.querySelector('iframe') : null;
+        }
+        return null;
+    };
+    el.removeChild = (no) => { el.children = el.children.filter((f) => f !== no); };
+    el.insertBefore = (no, ref) => {
+        const i = ref ? el.children.indexOf(ref) : -1;
+        if (i < 0) el.children.push(no); else el.children.splice(i, 0, no);
+        no.parentNode = el;
+        // Repor o bloco do vídeo em vez de deixá-lo onde está é um player novo — tirar e
+        // recolocar um <iframe> é recarregá-lo, igualzinho a movê-lo.
+        if (no.classList.contains('pdz-live-video')) nascer(nascimentos, no);
+    };
+
     const col = elemento({}, ['col-lg-6']);
     col.cartao = el;
     el.parentNode = col;
@@ -328,7 +381,7 @@ function cartaoVivo(id) {
 }
 
 // A grade com filhos de verdade: dá pra inserir, remover e contar.
-function grade(colunas) {
+function grade(colunas, nascimentos) {
     const row = elemento({}, ['row']);
     row.filhos = colunas.slice();
     colunas.forEach((c) => { c.parentNode = row; });
@@ -337,7 +390,11 @@ function grade(colunas) {
         const i = ref ? row.filhos.indexOf(ref) : -1;
         if (i < 0) row.filhos.push(no); else row.filhos.splice(i, 0, no);
         no.parentNode = row;
-        // Quem já estava NÃO é tocado: inserir não recarrega vídeo de ninguém.
+        // Quem já estava NÃO é tocado: inserir não recarrega vídeo de ninguém. Mas a COLUNA
+        // que entra traz o player dela junto, nascendo agora — e é isso que o vídeo da quadra
+        // sente quando o jogo dela troca de cartão.
+        const video = no.cartao.querySelector('.pdz-live-video');
+        if (video) nascer(nascimentos, video);
     };
     row.querySelector = (sel) => {
         const m = /\[data-partida-id="(\d+)"\]/.exec(sel);
@@ -351,10 +408,13 @@ function grade(colunas) {
 // O painel inteiro. Trocar o `innerHTML` dele REINICIA todo vídeo que estava dentro — é
 // exatamente o que o Felipe viu em 08/08 ("o youtube está parando sozinho aqui do nada"), e o
 // contador é o que denuncia um remendo que reescreve em vez de inserir.
-function painel(row) {
+function painel(row, nascimentos) {
     const pane = elemento({}, ['tab-pane']);
     Object.defineProperty(pane, 'innerHTML', {
-        get: () => row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')).join(','),
+        get: () => row.filhos
+            .map((c) => c.cartao.getAttribute('data-partida-id')
+                + (c.cartao._transmissao ? '|' + c.cartao._transmissao : ''))
+            .join(','),
         // ⚠️ O CONTADOR ATRAVESSA A REESCRITA. Se ele zerasse junto com os nós, trocar o painel
         // inteiro numa mudança de N pra M passaria batido — e é justamente o defeito que esta
         // seção existe pra pegar: o vídeo de quem continua em quadra reiniciando.
@@ -363,9 +423,11 @@ function painel(row) {
             row.filhos.forEach((c) => {
                 antes[c.cartao.getAttribute('data-partida-id')] = c.cartao.video.recarregou + 1;
             });
-            row.filhos = String(v || '').split(',').filter(Boolean).map((id) => {
-                const col = cartaoVivo(id);
-                col.cartao.video.recarregou = antes[id] || 0;
+            row.filhos = String(v || '').split(',').filter(Boolean).map((spec) => {
+                const col = cartaoVivo(spec, nascimentos);
+                const video = col.cartao.querySelector('.pdz-live-video');
+                if (video) nascer(nascimentos, video);
+                col.cartao.video.recarregou = antes[String(spec).split('|')[0]] || 0;
                 col.parentNode = row;
                 return col;
             });
@@ -375,8 +437,14 @@ function painel(row) {
 }
 
 function documentoDeJogos(ids, aoVivoVisivel, agendados) {
-    const row = grade(ids.map(cartaoVivo));
-    const pane = painel(row);
+    const nascimentos = {};
+    const row = grade(ids.map((spec) => cartaoVivo(spec, nascimentos)), nascimentos);
+    // Os cartões que já estão na tela nasceram com a página: um player cada.
+    row.filhos.forEach((c) => {
+        const video = c.cartao.querySelector('.pdz-live-video');
+        if (video) nascer(nascimentos, video);
+    });
+    const pane = painel(row, nascimentos);
     const umAgendado = elemento({}, ['pdz-jl']);
     const doc = {
         hidden: false, readyState: 'complete', activeElement: null, _ouvintes: {},
@@ -398,6 +466,7 @@ function documentoDeJogos(ids, aoVivoVisivel, agendados) {
         querySelectorAll: (sel) => (sel === '.pdz-live-card' ? row.querySelectorAll(sel) : []),
     };
     doc._row = row;
+    doc._nascimentos = nascimentos;
     return doc;
 }
 
@@ -421,7 +490,69 @@ async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
         recarregou,
         naTela: doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
         videosRecarregados: doc._row.filhos.reduce((n, c) => n + c.cartao.video.recarregou, 0),
+        players: doc._nascimentos,
     };
+}
+
+// ── O PLAYER DA QUADRA SOBREVIVE À TROCA DE JOGO (14/09/2026) ──────────────────────────────
+//
+// 🗣️ Um espectador, pelo Felipe: *"as vezes o video do youtube trava no site"*.
+//
+// 🕳️ O <iframe> é do JOGO; a câmera é da QUADRA. Quando o jogo acabava e o próximo entrava na
+// mesma quadra, o remendo removia a coluna COM o player dentro e inseria um player NOVO da
+// MESMA transmissão. O embed não tem `autoplay`, então o player novo nasce parado, na miniatura
+// da live — um quadro da própria quadra. Na tela: um vídeo travado, com o play vermelho por
+// cima. Uma vez por jogo daquela quadra, que num Americano é a cada ~20 minutos.
+//
+// ⚠️ O QUE O TESTE MEDE É O PLAYER, E NÃO O CARTÃO. As conferências de cima contam cartão
+// reescrito (`videosRecarregados`); um remendo que remove o cartão do jogo que acabou e insere
+// o do que entrou passa nelas todas — ninguém foi reescrito, cada um é um cartão diferente — e
+// mesmo assim mata o player da quadra. Por isso aqui a conta é por TRANSMISSÃO.
+function playerDe(resultado, transmissao) {
+    return resultado.players['https://www.youtube.com/embed/' + transmissao] || 0;
+}
+
+async function oPlayerDaQuadraSobreviveATrocaDeJogo() {
+    console.log('── O PLAYER DA QUADRA SOBREVIVE À TROCA DE JOGO ─────────────────────────────');
+
+    // 1. O jogo da quadra acaba e o próximo entra NO MESMO TIQUE: é a mesma câmera, o mesmo
+    //    `src`, e o player não pode nascer de novo.
+    const trocou = await tiqueComCartoes(['10|camaDaQuadra1'], ['11|camaDaQuadra1'], true);
+    ok(trocou.naTela.join(',') === '11', 'o jogo que entrou na quadra ocupa o lugar do que acabou');
+    ok(trocou.recarregou === 0, 'a troca de jogo na mesma quadra não recarrega a página');
+    ok(playerDe(trocou, 'camaDaQuadra1') === 1,
+        'a troca de jogo na mesma quadra NÃO faz nascer um player novo (nasceu '
+        + playerDe(trocou, 'camaDaQuadra1') + 'x)');
+
+    // 2. Duas quadras transmitindo e só uma trocando de jogo: a outra não é tocada. Um remendo
+    //    que reaproveitasse "o primeiro cartão que sair", sem olhar a transmissão, poria o jogo
+    //    da quadra 1 dentro do vídeo da quadra 2.
+    const duasQuadras = await tiqueComCartoes(
+        ['10|camaDaQuadra1', '20|camaDaQuadra2'], ['11|camaDaQuadra1', '20|camaDaQuadra2'], true);
+    ok(duasQuadras.naTela.join(',') === '11,20', 'com duas quadras, só a que trocou muda de jogo');
+    ok(playerDe(duasQuadras, 'camaDaQuadra1') === 1, 'o player da quadra que trocou de jogo não renasce');
+    ok(playerDe(duasQuadras, 'camaDaQuadra2') === 1, 'o player da quadra que não mexeu também não');
+
+    // 3. TRANSMISSÃO DIFERENTE NÃO SE REAPROVEITA. O cartão que entra é de outra câmera: o
+    //    player dele tem que nascer mesmo — reusar aqui mostraria a quadra errada.
+    const outraCamera = await tiqueComCartoes(['10|camaDaQuadra1'], ['11|camaDaQuadra2'], true);
+    ok(outraCamera.naTela.join(',') === '11', 'jogo de outra quadra entra na tela normalmente');
+    ok(playerDe(outraCamera, 'camaDaQuadra2') === 1, 'a câmera nova nasce (é outra transmissão)');
+    ok(playerDe(outraCamera, 'camaDaQuadra1') === 1, 'e a câmera velha não é ressuscitada');
+
+    // 4. Jogo novo SEM transmissão não herda o cartão de quem tinha — senão o vídeo da quadra
+    //    ficaria pendurado num jogo que não está sendo transmitido.
+    const semLink = await tiqueComCartoes(['10|camaDaQuadra1'], ['11'], true);
+    ok(semLink.naTela.join(',') === '11', 'jogo sem transmissão entra na tela normalmente');
+    ok(playerDe(semLink, 'camaDaQuadra1') === 1, 'e não faz nascer player nenhum');
+
+    // 5. O PREÇO É A ORDEM, e ele está escrito aqui de propósito. O cartão reaproveitado fica
+    //    ONDE O ANTIGO ESTAVA — mover a coluna pra posição do servidor recarregaria o iframe,
+    //    que é o defeito inteiro. Servidor manda "20, 11"; a tela mostra "11, 20", com o vídeo
+    //    tocando. A ordem volta sozinha no próximo carregamento da página.
+    const ordem = await tiqueComCartoes(['10|camaDaQuadra1', '20'], ['20', '11|camaDaQuadra1'], true);
+    ok(ordem.naTela.join(',') === '11,20', 'o cartão reaproveitado fica no lugar do antigo');
+    ok(playerDe(ordem, 'camaDaQuadra1') === 1, 'e o vídeo continua tocando, que é o que se comprou');
 }
 
 (async function () {
@@ -461,6 +592,7 @@ async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
     ok(emOutraAba.recarregou === 0, 'em outra aba, nada recarrega');
     ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
 
+    await oPlayerDaQuadraSobreviveATrocaDeJogo();
     await aAlturaDaListaVolta();
     await abrirOAppMostraOAgora();
 

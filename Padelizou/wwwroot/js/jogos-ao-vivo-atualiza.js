@@ -151,6 +151,59 @@
         return raiz.querySelector('.pdz-live-card[data-partida-id="' + id + '"]');
     }
 
+    // ── O PLAYER DA QUADRA NÃO MORRE QUANDO O JOGO DELA TROCA (14/09/2026) ───────────────
+    //
+    // 🗣️ Um espectador, pelo Felipe: *"as vezes o video do youtube trava no site"*.
+    //
+    // 🕳️ O <iframe> é do JOGO, mas a câmera é da QUADRA — o Services/TransmissaoDaQuadra.cs diz
+    // com todas as letras: *"a câmera fica pendurada na quadra e transmite o dia inteiro — o
+    // link é uma propriedade do LUGAR"*. Aí, quando o jogo acabava e o próximo entrava na mesma
+    // quadra, o passo "quem saiu sai" levava a coluna COM o player dentro e o passo "quem entrou
+    // aparece" trazia um player NOVO da MESMA transmissão.
+    //
+    // E o embed não tem `autoplay`: o player novo nasce PARADO, na miniatura da live — que numa
+    // câmera de quadra é um quadro da própria quadra. Na tela isso não parece um cartão trocado,
+    // parece o vídeo travado, com o play vermelho por cima. Uma vez por jogo daquela quadra.
+    //
+    // Então o cartão que sai é REAPROVEITADO quando o que entra traz a mesma transmissão: trocam-
+    // se os filhos que não são o vídeo, e o <iframe> não é removido nem movido — a única forma de
+    // ele não recarregar.
+    //
+    // ⚠️ SÓ PEGA A TROCA QUE ACONTECE NO MESMO TIQUE. Se a quadra ficar um tempo sem ninguém em
+    // quadra, o cartão sai (é a verdade: não há jogo ali) e o próximo nasce com player novo. Quem
+    // resolveria isso seria a transmissão morar num painel POR QUADRA, fora dos cartões.
+    //
+    // ⚠️ O PREÇO É A ORDEM: o cartão reaproveitado fica ONDE O ANTIGO ESTAVA, e não onde o
+    // servidor o pôs — mover a coluna pra posição certa recarregaria o iframe, que é justamente
+    // o que se está comprando. A ordem volta sozinha no próximo carregamento da página.
+    function transmissaoDe(cartao) {
+        var quadro = cartao.querySelector(".pdz-live-video iframe");
+        return quadro ? quadro.getAttribute("src") : null;
+    }
+
+    function reaproveitar(atual, fresco) {
+        var video = atual.querySelector(".pdz-live-video");
+
+        // Some com tudo, menos o vídeo. Ele é o único que não pode sair e voltar.
+        Array.prototype.slice.call(atual.children).forEach(function (filho) {
+            if (filho !== video) atual.removeChild(filho);
+        });
+
+        // E repõe os filhos do cartão fresco EM VOLTA dele: o que vem antes do vídeo entra antes
+        // dele; do vídeo em diante, anexado — e anexar não move quem já está.
+        var referencia = video;
+        Array.prototype.slice.call(fresco.children).forEach(function (filho) {
+            if (filho.classList.contains("pdz-live-video")) { referencia = null; return; }
+            atual.insertBefore(document.importNode(filho, true), referencia);
+        });
+
+        // Agora o cartão é o do jogo novo, pra todo mundo: pro remendo dos passos seguintes, pro
+        // cabeçalho que o `aplicar` troca de 20 em 20s e pra hash `#jogo-N` que vem da aba Grupos.
+        atual.setAttribute("data-partida-id", fresco.getAttribute("data-partida-id"));
+        var idNovo = fresco.getAttribute("id");
+        if (idNovo) atual.setAttribute("id", idNovo);
+    }
+
     function remendarAoVivo(novo) {
         var grade = document.querySelector("#pdzAoVivoCartoes");
         var gradeNova = novo.querySelector("#pdzAoVivoCartoes");
@@ -172,14 +225,34 @@
             return true;
         }
 
-        // 1. Quem saiu de quadra sai da tela, com a coluna dele.
+        // 1. A MESMA CÂMERA, OUTRO JOGO: o cartão que ia sair VIRA o que ia entrar, no lugar.
+        //    Vem antes dos dois passos de baixo de propósito — depois de remover a coluna não há
+        //    mais player a salvar.
+        var saindo = atuais.filter(function (c) {
+            return !cartaoDe(gradeNova, c.getAttribute("data-partida-id"));
+        });
+        frescos.forEach(function (fresco) {
+            if (cartaoDe(grade, fresco.getAttribute("data-partida-id"))) return;
+
+            var transmissao = transmissaoDe(fresco);
+            if (!transmissao) return;
+
+            for (var k = 0; k < saindo.length; k++) {
+                if (transmissaoDe(saindo[k]) !== transmissao) continue;
+                reaproveitar(saindo[k], fresco);
+                saindo.splice(k, 1);   // um cartão só é reaproveitado uma vez
+                return;
+            }
+        });
+
+        // 2. Quem saiu de quadra sai da tela, com a coluna dele.
         atuais.forEach(function (atual) {
             if (cartaoDe(gradeNova, atual.getAttribute("data-partida-id"))) return;
             var coluna = colunaDo(atual);
             if (coluna && coluna.parentNode) coluna.parentNode.removeChild(coluna);
         });
 
-        // 2. Quem entrou aparece, no lugar certo.
+        // 3. Quem entrou aparece, no lugar certo.
         for (var i = 0; i < frescos.length; i++) {
             var id = frescos[i].getAttribute("data-partida-id");
             if (cartaoDe(grade, id)) continue;
