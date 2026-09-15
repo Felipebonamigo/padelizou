@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **15/09/2026** — 📏 **OS NÚMEROS DO `CLAUDE.md` ESTAVAM ERRADOS, E ESTE É O ARQUIVO QUE DECIDE CERIMÔNIA.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.** Só documentação.
+> Última atualização: **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
+>
+> 🗣️ Felipe, depois de ver a correção da agenda: *"faz o mesmo na tela de ocupação do clube"*. É o achado que o bloco de baixo tinha deixado em aberto.
+>
+> 🕳️ Mesmo defeito, **outra estrutura**: aqui não é grade de `div`, é `<table>` dentro de `.table-responsive` (uma tabela por quadra, sete dias nas colunas). Rolando de lado, a coluna "Hora" ia embora e sobrava nome de reserva sem dizer de que horário era.
+>
+> 🔑 **O FUNDO É O `--bs-table-bg`, E ISSO É A DIFERENÇA DA OUTRA TELA.** O Bootstrap já pinta **toda célula** desta tabela com esse token (`.table > :not(caption) > * > *`), então repetir o `var(--pdz-surface)` da agenda pintaria a coluna congelada de um azul **diferente do resto da tabela** no tema escuro (`#1a2338` contra `#212529`). Ficou escrito na regra mesmo assim, em vez de deixado por conta do Bootstrap: a opacidade é o que faz o congelamento funcionar, e isso é regra, não herança feliz.
+>
+> 🔑 **A BORDA DIREITA É `box-shadow: inset`, NÃO `border-right`**: com o `border-collapse: collapse` do Reboot a borda pertence à TABELA, não à célula, e some justamente quando a célula congelada passa a flutuar sobre as outras.
+>
+> ⚠️ **QUEM CONGELA É A POSIÇÃO (`:first-child`), NÃO O CONTEÚDO.** Se um dia entrar uma coluna antes da hora, o congelamento muda de coluna sozinho e em silêncio. O terceiro teste existe só pra esse dia — e ele **passou de primeira**, porque é guarda de invariante que já valia, não teste da correção. Pra não ficar valendo por fé, a expressão foi rodada contra uma cópia da fonte com uma coluna "Quadra" inserida antes da hora: os dois casamentos deram `False`, que é o vermelho que ele daria nesse dia.
+>
+> 🧪 3 testes novos (`ColunaDaHoraNoMapaDeOcupacaoTests`); **os 2 da correção vistos vermelhos antes**, em "não há regra de CSS mirando a primeira coluna". **7.280 verdes** + conferidores JS (número já com os PRs #324, #327 e #328, que entraram no `main` durante este trabalho e foram mesclados aqui).
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**, de novo: nada visto renderizado.
+>
+> **15/09/2026** — 📏 **OS NÚMEROS DO `CLAUDE.md` ESTAVAM ERRADOS, E ESTE É O ARQUIVO QUE DECIDE CERIMÔNIA.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.** Só documentação.
 >
 > 🕳️ O degrau 2 da escada (*"já existe algo equivalente aqui?"*) usa o tamanho do projeto pra decidir se vale reimplementar. Ele dizia **69 controllers e ~4.800 testes**; a suíte media **7.264** neste turno. Subestimar em **2.400 testes** orienta mal toda sessão que lê a régua.
 >
@@ -57,7 +73,7 @@
 >
 > 🚨 **ACHADO NOVO, E NÃO É DESTE TRABALHO: A TRAVA DO PROD NÃO ESTÁ LIGADA.** O `infra/vps/README.md` diz que o environment `prod` tem **Required reviewers**, e avisa que sem ele "o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o deploy sai direto". É o que acontece hoje: o run **380** foi do disparo ao fim em **22 segundos**, sem parar pra aprovação — e os runs 374, 376 e 378 levaram os mesmos ~20s. Ou seja, **todo deploy em produção está saindo direto**, e não se percebe porque o job fica verde do mesmo jeito. Conserto em **Settings → Environments → prod → Required reviewers**; não tem nada a ver com o `deploy.yml`.
 >
-> 🔎 **A MESMA PLANILHA ESTÁ NO `ClubeGestao/Ocupacao`, E NÃO FOI TOCADA**: lá a coluna "Hora" é `<td>` de tabela dentro de `.table-responsive` e some do mesmo jeito ao rolar. **Não é a tela do professor** e ninguém reclamou dela — decisão em aberto pro Felipe: congelar lá também (é `position: sticky` numa célula, não o mesmo CSS) ou deixar.
+> 🔎 **A MESMA PLANILHA ESTAVA NO `ClubeGestao/Ocupacao`** — lá a coluna "Hora" é `<td>` de tabela dentro de `.table-responsive` e sumia do mesmo jeito ao rolar. ✅ **RESOLVIDO no mesmo dia** (Felipe: *"faz o mesmo na tela de ocupação do clube"*) — ver o bloco acima.
 >
 > Última atualização: **14/09/2026** — 🎚️ **A FAIXA DO PADELÍMETRO TROCAVA COM UM TORNEIO SÓ, E A ABA VITÓRIAS PREMIAVA QUEM JOGOU MAIS.** 🚀 **PUBLICADO em `dev` E `prod`**: a ordem das Vitórias no `build-1416-591ea33` (runs **368** e **370**) e a faixa no `build-1422-799cc2b` (runs **375** e **376**). PRs #314 e #318. **Sem migration.**
 >
