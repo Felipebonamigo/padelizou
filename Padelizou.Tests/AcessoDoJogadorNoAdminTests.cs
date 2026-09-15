@@ -66,12 +66,12 @@ public class AcessoDoJogadorNoAdminTests
         using var ctx = Base();
         ctx.Jogadores.Add(new Jogador
         {
-            Id = 2, Nome = "Lucas Almeida", Cpf = "01517900000",
+            Id = 2, Nome = "Lucas Almeida", Cpf = "11144477735",
             Login = "foka", Email = "lucas@exemplo.com", SenhaHash = "hash",
         });
         await ctx.SaveChangesAsync();
 
-        var vm = await Procurar(ctx, "01517900000");
+        var vm = await Procurar(ctx, "11144477735");
 
         Assert.Equal(SituacaoDeAcesso.PodeRecuperar, vm.Situacao);
         Assert.Equal("lucas@exemplo.com", vm.Achado!.Email);
@@ -87,11 +87,11 @@ public class AcessoDoJogadorNoAdminTests
         using var ctx = Base();
         ctx.Jogadores.Add(new Jogador
         {
-            Id = 2, Nome = "Inscrito Pelo Organizador", Cpf = "01517900000", SenhaHash = null,
+            Id = 2, Nome = "Inscrito Pelo Organizador", Cpf = "11144477735", SenhaHash = null,
         });
         await ctx.SaveChangesAsync();
 
-        var vm = await Procurar(ctx, "01517900000");
+        var vm = await Procurar(ctx, "11144477735");
 
         Assert.Equal(SituacaoDeAcesso.PreCadastro, vm.Situacao);
     }
@@ -104,12 +104,12 @@ public class AcessoDoJogadorNoAdminTests
         using var ctx = Base();
         ctx.Jogadores.Add(new Jogador
         {
-            Id = 2, Nome = "Inscrita Com Email", Cpf = "01517900000",
+            Id = 2, Nome = "Inscrita Com Email", Cpf = "11144477735",
             Email = "ela@exemplo.com", SenhaHash = null,
         });
         await ctx.SaveChangesAsync();
 
-        Assert.Equal(SituacaoDeAcesso.PreCadastro, (await Procurar(ctx, "01517900000")).Situacao);
+        Assert.Equal(SituacaoDeAcesso.PreCadastro, (await Procurar(ctx, "11144477735")).Situacao);
     }
 
     [Fact]
@@ -118,12 +118,12 @@ public class AcessoDoJogadorNoAdminTests
         using var ctx = Base();
         ctx.Jogadores.Add(new Jogador
         {
-            Id = 2, Nome = "Assumiu Sem Email", Cpf = "01517900000",
+            Id = 2, Nome = "Assumiu Sem Email", Cpf = "11144477735",
             Email = null, SenhaHash = "hash",
         });
         await ctx.SaveChangesAsync();
 
-        Assert.Equal(SituacaoDeAcesso.SemEmail, (await Procurar(ctx, "01517900000")).Situacao);
+        Assert.Equal(SituacaoDeAcesso.SemEmail, (await Procurar(ctx, "11144477735")).Situacao);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class AcessoDoJogadorNoAdminTests
         // como "é só se cadastrar de novo" — dizendo a quem foi embora que a porta continua
         // aberta. Aqui o admin chega pelo id, porque a busca (de propósito) não a alcança.
         using var ctx = Base();
-        var jogador = new Jogador { Id = 2, Nome = "Quem Saiu", Cpf = "01517900000", SenhaHash = "hash" };
+        var jogador = new Jogador { Id = 2, Nome = "Quem Saiu", Cpf = "11144477735", SenhaHash = "hash" };
         ctx.Jogadores.Add(jogador);
         await ctx.SaveChangesAsync();
 
@@ -185,7 +185,7 @@ public class AcessoDoJogadorNoAdminTests
     public async Task CPF_pela_metade_nao_varre_a_base()
     {
         using var ctx = Base();
-        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Alguém", Cpf = "01517900000", SenhaHash = "h" });
+        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Alguém", Cpf = "11144477735", SenhaHash = "h" });
         await ctx.SaveChangesAsync();
 
         var vm = await Procurar(ctx, "015179");
@@ -214,7 +214,7 @@ public class AcessoDoJogadorNoAdminTests
         ctx.Jogadores.Add(new Jogador { Id = 9, Nome = "Jogador Comum", Cpf = "33333333333", SenhaHash = "h" });
         await ctx.SaveChangesAsync();
 
-        var resposta = await Controlador(ctx, usuarioLogadoId: 9).Acesso("01517900000", null);
+        var resposta = await Controlador(ctx, usuarioLogadoId: 9).Acesso("11144477735", null);
 
         var redirect = Assert.IsType<RedirectToActionResult>(resposta);
         Assert.Equal("Perfil", redirect.ActionName);
@@ -226,10 +226,10 @@ public class AcessoDoJogadorNoAdminTests
         // Ele vê tudo e não muda nada — e esta tela não muda nada, então ele entra inteiro.
         using var ctx = Base();
         ctx.Jogadores.Add(new Jogador { Id = 9, Nome = "Foka", Cpf = "33333333333", SenhaHash = "h", IsAssistente = true });
-        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Alguém", Cpf = "01517900000", SenhaHash = "h", Email = "a@x.com" });
+        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Alguém", Cpf = "11144477735", SenhaHash = "h", Email = "a@x.com" });
         await ctx.SaveChangesAsync();
 
-        var vm = await Procurar(ctx, "01517900000", logadoId: 9);
+        var vm = await Procurar(ctx, "11144477735", logadoId: 9);
 
         Assert.Equal(2, vm.Achado!.Id);
     }

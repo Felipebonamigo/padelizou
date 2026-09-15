@@ -4,7 +4,7 @@ namespace Padelizou.Tests;
 
 // E-MAIL DIGITADO ERRADO NÃO ENTRA MAIS CALADO (28/08/2026).
 //
-// 🐛 O CASO REAL: o Pedro se cadastrou com `pedrojunior_1978@hotmial.com` — "hotmial", não
+// 🐛 O CASO REAL: um jogador se cadastrou com `jogador_1978@hotmial.com` — "hotmial", não
 // "hotmail". O `<input type="email">` da tela achou ótimo, porque a SINTAXE está perfeita: tem
 // arroba, tem domínio, tem ponto. E no servidor não havia validação nenhuma.
 //
@@ -22,7 +22,7 @@ public class EmailDoCadastroTests
 
     [Theory]
     [InlineData("felipe@padelizou.com.br")]
-    [InlineData("pedro.junior_1978@hotmail.com")]
+    [InlineData("jogador.junior_1978@hotmail.com")]
     [InlineData("a@b.co")]
     public void Endereco_bom_passa(string email) => Assert.Null(EmailDoCadastro.Problema(email));
 
@@ -37,17 +37,17 @@ public class EmailDoCadastroTests
     public void Endereco_quebrado_e_recusado(string email) =>
         Assert.NotNull(EmailDoCadastro.Problema(email));
 
-    // ── O caso do Pedro: sintaxe boa, domínio que não existe ──────────────────────────────
+    // ── O caso real:  sintaxe boa, domínio que não existe ──────────────────────────────
 
     [Fact]
-    public void O_erro_do_Pedro_e_recusado_e_a_mensagem_diz_o_certo()
+    public void O_erro_de_dominio_e_recusado_e_a_mensagem_diz_o_certo()
     {
-        var problema = EmailDoCadastro.Problema("pedrojunior_1978@hotmial.com");
+        var problema = EmailDoCadastro.Problema("jogador_1978@hotmial.com");
 
         Assert.NotNull(problema);
         // A mensagem tem que entregar o endereço PRONTO: mandar a pessoa "conferir o domínio"
         // é devolver pra ela o trabalho que a máquina acabou de fazer.
-        Assert.Contains("pedrojunior_1978@hotmail.com", problema);
+        Assert.Contains("jogador_1978@hotmail.com", problema);
     }
 
     [Theory]

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Padelizou.Tests;
 
-// 17/08/2026 — "o usuário do CPF 019.947.840-67 não está conseguindo recuperar sua senha".
+// 17/08/2026 — "o usuário do CPF 529.982.247-25 não está conseguindo recuperar sua senha".
 //
 // A tela de recuperar senha tinha TRÊS jeitos de falhar em silêncio, e os três terminavam na
 // mesma caixa verde "link a caminho":
@@ -22,7 +22,7 @@ namespace Padelizou.Tests;
 // chega nessa tela porque JÁ não consegue entrar — se ela sai de lá sem caminho, sai de vez.
 public class RecuperarSenhaPeloCpfTests
 {
-    private const string CpfDoJogador = "01994784067";
+    private const string CpfDoJogador = "52998224725";
 
     private static Jogador Semear(DbPadelContext ctx, string? email, string? login, string? senhaHash)
     {
@@ -42,9 +42,9 @@ public class RecuperarSenhaPeloCpfTests
     // ── A busca ───────────────────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData("01994784067")]
-    [InlineData("019.947.840-67")]   // colado do app do banco, com máscara
-    [InlineData("  01994784067  ")]  // espaço que o teclado do celular gruda
+    [InlineData("52998224725")]
+    [InlineData("529.982.247-25")]   // colado do app do banco, com máscara
+    [InlineData("  52998224725  ")]  // espaço que o teclado do celular gruda
     public async Task Acha_pelo_CPF_com_ou_sem_mascara(string digitado)
     {
         using var ctx = TestInfra.NovoContexto();
@@ -150,7 +150,7 @@ public class RecuperarSenhaPeloCpfTests
         using var ctx = TestInfra.NovoContexto();
         Semear(ctx, "lucas@exemplo.com", "lucas", "hash-qualquer");
 
-        var (vista, email) = await PedirRecuperacao(ctx, "019.947.840-67");
+        var (vista, email) = await PedirRecuperacao(ctx, "529.982.247-25");
 
         Assert.Equal(true, vista.ViewData["Enviado"]);
         await email.Received(1).EnviarAsync("lucas@exemplo.com", "Lucas Andrade",

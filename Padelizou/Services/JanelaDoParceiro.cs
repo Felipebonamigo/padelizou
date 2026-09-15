@@ -55,7 +55,7 @@ public static class JanelaDoParceiro
     // quem falta.
     //
     // 🗣️ Felipe, 10/09/2026, no card da 3ª do Er: *"troque o parceiro do paulo prass (er guex)
-    // pelo 03761230010 cpf Arthur Prass"*. A chave do Er já estava sorteada e trocar estava preso
+    // pelo [cpf removido] cpf Arthur Prass"*. A chave do Er já estava sorteada e trocar estava preso
     // em "Inscrições Abertas": o único caminho que sobrava era remover a inscrição e refazê-la —
     // que perde a vaga na chave, o lugar na grade e o pagamento já marcado.
     //

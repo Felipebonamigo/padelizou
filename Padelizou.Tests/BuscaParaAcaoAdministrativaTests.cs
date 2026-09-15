@@ -14,7 +14,7 @@ public class BuscaParaAcaoAdministrativaTests
         var ctx = TestInfra.NovoContexto();
         ctx.Jogadores.AddRange(
             new Jogador { Id = 1, Nome = "Lucas Almeida Coelho", Apelido = "Foka",
-                          Login = "foka", Email = "almeidalucascoelho@gmail.com", Cpf = "11111111111" },
+                          Login = "foka", Email = "foka@exemplo.com", Cpf = "11111111111" },
             new Jogador { Id = 2, Nome = "Lucas Pereira", Login = "lucasp",
                           Email = "lucasp@exemplo.com", Cpf = "22222222222" },
             new Jogador { Id = 3, Nome = "Ana Beatriz", Login = "ana",
@@ -30,7 +30,7 @@ public class BuscaParaAcaoAdministrativaTests
     [InlineData("foka")]
     [InlineData("FOKA")]
     [InlineData("  foka  ")]
-    [InlineData("almeidalucascoelho@gmail.com")]
+    [InlineData("foka@exemplo.com")]
     public async Task Login_e_email_acham_direto(string termo)
     {
         using var ctx = Base();

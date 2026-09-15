@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
+>
+> 🔍 **VEIO DE ONDE MENOS SE PROCURA: pedido de suporte copiado e colado.** Não houve descuido com segredo — o `appsettings.json` está no `.gitignore` e **nunca esteve no histórico** (conferido). O que vazou entrou pela porta da frente, com a melhor das intenções: documentar o caso real que fez cada correção existir. `JanelaDoParceiro.cs`, arquivo de PRODUÇÃO, carregava *"troque o parceiro do [fulano] pelo [cpf] cpf [beltrano]"* — nome e CPF de pessoa real. `RecuperarSenhaPeloCpfTests.cs` abria com *"o usuário do CPF [x] não está conseguindo recuperar sua senha"*.
+>
+> 🧾 **Eram 5 CPFs e 5 e-mails de gente real, em 12 arquivos** — 28 ocorrências só de CPF. Os CPFs viraram sintéticos nas fixtures; dentro de CITAÇÃO viraram `[cpf removido]`, porque trocar por um falso seria falsear a fala do Felipe.
+>
+> 🔒 **O GATE NOVO É `GateDeDadoPessoalTests`, e as duas metades dele têm forças diferentes** — está escrito lá pra ninguém confiar demais numa. **O CPF é REGRA de verdade:** dígito verificador válido fora da lista de sintéticos reprova, inclusive um que ninguém tenha visto ainda. Funciona porque a separação era limpa: os sintéticos da suíte são de padrão conhecido (`11144477735` em 58 arquivos), e **os 5 reais eram exatamente os fora de padrão**. **O e-mail é só LISTA DE CONHECIDOS:** trava a volta destes cinco e não sabe julgar um endereço novo — não dá pra separar `alguem@gmail.com` (fixture) de um endereço real olhando o domínio.
+>
+> 🙈 **A lista de proibidos é de SHA-256, não de texto.** Guardar os e-mails em claro num teste seria republicar exatamente o que o gate existe pra tirar. Pelo mesmo motivo a mensagem de falha mascara o CPF (`038…63`): gate que reprova no CI não pode imprimir o dado no log.
+>
+> ⚠️ **ISTO NÃO LIMPA O HISTÓRICO, E O HISTÓRICO É PÚBLICO.** O que já foi commitado continua nos commits antigos, clonável. O gate olha a árvore de trabalho — some daqui pra frente, e é o que dá pra travar num teste. Limpar o passado é reescrita de commits, decisão à parte.
+>
+> ⏭️ **DUAS COISAS FICARAM DE FORA, DE PROPÓSITO.** (1) **Nome de jogador continua no diário** ("Paulo Prass (Batata)", "Arthur Prass") — o site publica esses nomes numa página anônima, então o STATUS não expõe nada além do que `padelizou.com.br` já mostra; o que era leak era o nome COLADO no CPF, e esse par morreu. (2) `felipe.bonamigo@gmail.com`, em 5 arquivos, é do dono — decisão dele, não minha.
+>
+> **7.090 testes verdes** (os 3 do gate vistos VERMELHOS antes, listando as 28 ocorrências), 10 conferidores JS verdes.
+
 > Última atualização: **14/09/2026** — 🔒 **O HORÁRIO DO SORTEIO É COMPROMISSO, E A GRADE PREVISTA NUNCA SE PERDE.** 🚀 **PUBLICADO em `prod` no `build-1381-d2dda49`** (deploy run 355, `/healthz` 200). PR #296. **COM MIGRATION** (`HorarioDoSorteio`).
 >
 > 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"é muito importante que o chaveamento pré definido seja seguido, por que o pessoal se baseia nisso para se programar, o chaveamento fixo, os horarios fixos"* · *"ele é obrigatoriamente obrigado a respeitar os horarios das quadras dos sorteios, pq o pessoal se programa para jogar por esses horarios mesmo com o checkin"*.
@@ -2323,8 +2339,8 @@
 >
 > 🧪 **6.175 testes, 0 falhas (15 novos).** Três vistos vermelhos antes da correção ("o dia da semana voltou pra a vaga da chave", "esperava EXATAMENTE 1 e achei 2", a projetada) e três **falsificados** um a um: excluindo a família inteira do Americano cai a contraprova, apagando a linha do controller cai a trava da tela, e fechando o `@if` antes da bolinha cai a régua da bolinha.
 >
-> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
-> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf [removido], altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf [removido], altere seu nome mais uma vez antes de bloquear"*.
 
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
@@ -2341,7 +2357,7 @@
 >
 > 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
 >
-> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar `03842585063` → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
+> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar pelo CPF dela → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
 >
 > ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
 >
@@ -2754,7 +2770,7 @@
 
 > **10/09/2026** — 🔁 **O ORGANIZADOR TROCA O PARCEIRO DEPOIS DO SORTEIO, até a bola rolar.** ⚠️ **Ainda NÃO publicado** — branch `claude/paulo-prass-partner-update-nyoeah`. **Sem migration.**
 >
-> 🗣️ **Felipe, no card da 3ª do Er com a chave já sorteada:** *"troque o parceiro do paulo prass (er guex) pelo 03761230010 cpf Arthur Prass"*. TROCAR estava preso em `Status == "Inscrições Abertas"` **pra todo mundo**, então o único caminho que sobrava era remover a inscrição e refazê-la — perdendo a **vaga na chave**, o **lugar na grade** e o **pagamento já marcado**. É o outro lado exato do 09/09: lá abriu-se a janela pra **DEFINIR** o que falta, e o **TROCAR** ficou onde sempre esteve, escrito como decisão de propósito (*"o motivo antigo continua verdadeiro"*). Continua verdadeiro **pro jogador**; pro organizador, não era.
+> 🗣️ **Felipe, no card da 3ª do Er com a chave já sorteada:** *"troque o parceiro do paulo prass (er guex) pelo [cpf removido] cpf Arthur Prass"*. TROCAR estava preso em `Status == "Inscrições Abertas"` **pra todo mundo**, então o único caminho que sobrava era remover a inscrição e refazê-la — perdendo a **vaga na chave**, o **lugar na grade** e o **pagamento já marcado**. É o outro lado exato do 09/09: lá abriu-se a janela pra **DEFINIR** o que falta, e o **TROCAR** ficou onde sempre esteve, escrito como decisão de propósito (*"o motivo antigo continua verdadeiro"*). Continua verdadeiro **pro jogador**; pro organizador, não era.
 >
 > ⚠️ **É O MESMO PAR DE `AlteracaoDeImpedimento`, e foi ele que deu o desenho:** o **jogador** anda pelo **status** (trocar segue preso em "Inscrições Abertas" — depois do sorteio, sair da chave é assunto do organizador), o **organizador** anda pela **grade**, porque é ele quem a enxerga inteira e quem responde por ela. A régua nova é `JanelaDoParceiro.MotivoParaOrganizadorNaoTrocar`, vizinha da que já existia, e o teto comum às duas virou `OTetoDaJanela` — uma função só pra "cancelado / acabado / bola já rolou", com o verbo parametrizado.
 >
@@ -3870,8 +3886,8 @@
 > referenciar (`RecadoDaAula.cs`, `VagasDoDia.cs`, o teste deles e três logos) — grep no repo
 > inteiro devolvia zero fora dos próprios arquivos.
 >
-> 📧 **E O E-MAIL DO PEDRO JUNIOR FOI ARRUMADO NA MÃO**, depois da validação que subiu na
-> `build-724`: `pedrojunior_1978@hotmial.com` virou `fariaspadel@gmail.com`, o endereço que ele
+> 📧 **E O E-MAIL ERRADO DE UM JOGADOR FOI ARRUMADO NA MÃO**, depois da validação que subiu na
+> `build-724`: `jogador_1978@hotmial.com` virou o endereço que ele
 > confirmou. A validação (`EmailDoCadastro`, com **Damerau-Levenshtein** — Levenshtein comum
 > não pega `hotmial`↔`hotmail`, porque transposição custa 2) está nas duas portas: cadastro e
 > editar perfil. ⚠️ **Ela BLOQUEIA o typo**, não só avisa. Se um dia alguém tiver e-mail num

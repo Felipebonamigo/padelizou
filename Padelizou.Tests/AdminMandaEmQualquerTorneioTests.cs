@@ -34,7 +34,7 @@ public class AdminMandaEmQualquerTorneioTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Inscrições Abertas");
-        var admin = Adicionar(ctx, "Felipe", "02061197043", adminRaiz: true);
+        var admin = Adicionar(ctx, "Felipe", "52998224725", adminRaiz: true);
 
         var resultado = await TentarEncerrarAsync(ctx, torneio.Id, admin.Id);
 
