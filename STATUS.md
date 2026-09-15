@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
+> Última atualização: **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1450-7ec7a5d`** (deploy runs **385** e **386**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #325. **Sem migration.**
 >
 > 🗣️ Felipe, depois de ver a correção da agenda: *"faz o mesmo na tela de ocupação do clube"*. É o achado que o bloco de baixo tinha deixado em aberto.
 >
@@ -16,6 +16,10 @@
 > 🧪 3 testes novos (`ColunaDaHoraNoMapaDeOcupacaoTests`); **os 2 da correção vistos vermelhos antes**, em "não há regra de CSS mirando a primeira coluna". **7.280 verdes** + conferidores JS (número já com os PRs #324, #327 e #328, que entraram no `main` durante este trabalho e foram mesclados aqui).
 >
 > ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**, de novo: nada visto renderizado.
+> ⚠️ **PUBLIQUEI O `build-1450-7ec7a5d`, QUE NÃO É O DO MEU MERGE (1449) — E ISSO É DE PROPÓSITO.** Enquanto este trabalho rodava, o `main` andou **duas vezes** (PRs #324, #327, #269, #328 e depois o #329) e saíram quatro deploys de outras sessões. O 1450 é o TOPO do `main` e contém o meu commit mais o diário do #329: publicar o 1449 teria tirado do ar o que já estava lá. É o aviso de 14/09 aplicado — **conferir o que está no ar antes de disparar**, e escolher o build que não regride ninguém.
+>
+> 🚨 **A TRAVA DO PROD CONTINUA DESLIGADA**: o run 386 saiu do disparo ao fim em **19 segundos**, sem parar pra aprovação. Ver o bloco de hoje mais abaixo — o conserto é em **Settings → Environments → prod → Required reviewers**.
+>
 >
 > **15/09/2026** — 📏 **OS NÚMEROS DO `CLAUDE.md` ESTAVAM ERRADOS, E ESTE É O ARQUIVO QUE DECIDE CERIMÔNIA.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.** Só documentação.
 >
