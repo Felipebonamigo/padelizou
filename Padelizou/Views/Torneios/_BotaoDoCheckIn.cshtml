@@ -1,19 +1,24 @@
 @model Padelizou.ViewModels.BotaoDeCheckInVM
 
-@* O BOTÃO QUE GRAVA PRESENÇA — um só, em duas roupas.
+@* A BOLINHA QUE GRAVA PRESENÇA — uma só, num lugar só.
 
-   Ele é desenhado em dois lugares: a linha da tela de Check-in (pílula escrita,
-   "Chegou"/"Desfazer") e a bolinha na aba Jogos, do lado do nome de cada jogador. O que muda
-   entre os dois é a APARÊNCIA; o que é gravado é o mesmo POST.
+   Ela é desenhada duas vezes na linha do jogo (um lado da dupla de cada vez), do lado do nome
+   de cada jogador. O que muda entre uma e outra é o jogador; o que é gravado é o mesmo POST.
 
-   ⚠️ POR ISSO ELE VIVE AQUI, e não copiado nos dois. Duas cópias do formulário que ESCREVE no
-   banco divergiriam na primeira mudança — e a primeira mudança veio três horas depois de ele
-   nascer, quando a presença deixou de ser da dupla e virou da PESSOA. A segunda veio no mesmo
-   dia, quando ela deixou de ser do torneio e virou do JOGO: o campo escondido daqui passou de
+   ⚠️ POR ISSO ELA VIVE AQUI, e não copiada nos dois lados. Duas cópias do formulário que ESCREVE
+   no banco divergiriam na primeira mudança — e a primeira veio três horas depois de ele nascer,
+   quando a presença deixou de ser da dupla e virou da PESSOA. A segunda veio no mesmo dia,
+   quando ela deixou de ser do torneio e virou do JOGO: o campo escondido daqui passou de
    `torneioId` pra `partidaId`, e foi a única linha que precisou mudar nas duas telas.
 
+   ⚠️ AQUI VIVIA TAMBÉM A "PÍLULA ESCRITA" (Chegou/Desfazer), a roupa da tela de Check-in do dia.
+   Essa tela saiu em 13/09/2026 (🗣️ *"acho que esse checkin aqui em cima tb nao precisa mais"*) e
+   a pílula ficou sem nenhum chamador. Ela saiu em 15/09, quando o clique virou `fetch`: manter
+   uma segunda roupa que ninguém desenha obrigaria o JavaScript a saber pintar as duas, e a
+   metade que ninguém vê é a que quebra calada.
+
    ⚠️ `voltarPara` diz de qual tela o clique saiu, pra ele voltar pra lá em vez de cair sempre na
-   tela de Check-in. O servidor trata isso como LISTA FECHADA (TorneiosController.MarcarCheckIn):
+   página do torneio. O servidor trata isso como LISTA FECHADA (TorneiosController.MarcarCheckIn):
    campo de formulário não vira redirecionamento pra qualquer lugar.
 
    ⚠️ Sem `[Authorize]`/checagem aqui, de propósito: quem decide quem enxerga isto é a tela, e o
@@ -24,12 +29,25 @@
     string rotulo = chegou
         ? $"{Model.Nome} chegou {Model.ChegouEm!.Value:HH:mm} — toque pra desfazer"
         : $"Marcar que {Model.Nome} chegou";
+
+    @* O rótulo do OUTRO estado, pro JavaScript trocar os dois de lugar na hora do clique (a
+       bolinha pinta antes de o servidor responder, e o leitor de tela precisa acompanhar).
+       As palavras são escolhidas AQUI, numa view só — o js/checkin-sem-recarregar.js não tem
+       nenhuma cópia delas, e a hora da chegada só o servidor sabe. *@
+    string rotuloOutro = chegou
+        ? $"Marcar que {Model.Nome} chegou"
+        : $"{Model.Nome} chegou — toque pra desfazer";
 }
 
-@* ⚠️ `data-manter-posicao`: marcar presença é um POST que redesenha a página do começo, e numa
-   lista de 97 jogos (ou de 128 jogadores) isso custa uma rolagem a cada clique.
-   Ver wwwroot/js/manter-posicao-na-lista.js. *@
-<form asp-controller="Torneios" asp-action="MarcarCheckIn" method="post" class="flex-shrink-0" data-manter-posicao>
+@* ⚠️ `data-pdz-checkin` é o que o js/checkin-sem-recarregar.js procura: com ele o clique vira um
+   `fetch` e a página NÃO recarrega. Sem ele o clique cai no POST → 302 → página inteira, que é
+   mais de 1MB no torneio de 97 jogos — em silêncio, porque o caminho antigo funciona.
+
+   ⚠️ `data-manter-posicao` fica como o cinto do caminho SEM JavaScript (WebView velho, script que
+   não carregou): ali ainda há recarga, e a rolagem precisa voltar. Com o JavaScript de pé o
+   clique é barrado antes do `submit`, então ele nunca dispara. Ver wwwroot/js/manter-posicao-na-lista.js. *@
+<form asp-controller="Torneios" asp-action="MarcarCheckIn" method="post" class="flex-shrink-0"
+      data-pdz-checkin data-manter-posicao>
     <input type="hidden" name="jogadorId" value="@Model.JogadorId" />
     <input type="hidden" name="partidaId" value="@Model.PartidaId" />
     <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
@@ -43,18 +61,8 @@
         <input type="hidden" name="filtros" value="@Padelizou.Services.FiltrosDaListaDeJogos.Atual(Context.Request)" />
     }
 
-    @if (Model.Bolinha)
-    {
-        <button type="submit" class="pdz-jl-checkin @(chegou ? "pdz-jl-checkin-chegou" : "")"
-                title="@rotulo" aria-label="@rotulo">
-            <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle")"></i>
-        </button>
-    }
-    else
-    {
-        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3"
-                aria-label="@rotulo">
-            @(chegou ? "Desfazer" : "Chegou")
-        </button>
-    }
+    <button type="submit" class="pdz-jl-checkin @(chegou ? "pdz-jl-checkin-chegou" : "")"
+            title="@rotulo" aria-label="@rotulo" data-rotulo-outro="@rotuloOutro">
+        <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle")"></i>
+    </button>
 </form>
