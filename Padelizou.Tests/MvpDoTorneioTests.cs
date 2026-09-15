@@ -39,17 +39,67 @@ public class MvpDoTorneioTests
     // ─────────────────────────── A JANELA ───────────────────────────
 
     [Fact]
-    public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_sete_dias_depois_do_ultimo_jogo()
+    public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_24h_depois_do_ultimo_jogo()
     {
         // Logo depois do último jogo: aberta.
         Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1)));
 
-        // No sexto dia ainda dá.
-        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(6)));
+        // Na manhã seguinte ainda dá.
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(12)));
 
-        // No sétimo, fecha — e a partir daí o resultado aparece.
-        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(7)));
-        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(7)));
+        // Passadas as 24h, fecha — e a partir daí o resultado aparece.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(1)));
+        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(1)));
+    }
+
+    // ─────────────────── A JANELA DE 24h, E A DA ENQUETE QUE NÃO ENCOLHEU ───────────────────
+    //
+    // 🗣️ Felipe, 15/09/2026: *"7 dias é mt tempo, tem q ser 24h depois do ultimo jogo"*.
+    //
+    // ⚠️ E as duas janelas DEIXARAM DE SER A MESMA. Até aqui a enquete do clube reusava a
+    // janela do MVP; agora o MVP fecha em 24h e ela continua com a semana, porque quem depende
+    // dela é a coleta do "Melhor Clube do ano" de 2027 — encolher os dois seria cortar esse
+    // dado pela metade sem ninguém ter pedido.
+
+    [Fact]
+    public void A_votacao_do_MVP_fecha_24_HORAS_depois_do_ultimo_jogo()
+    {
+        // Na véspera de fechar ainda dá.
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(23)));
+
+        // Na hora exata fecha — e a partir daí o resultado aparece.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(24)));
+        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddHours(24)));
+
+        // E no dia seguinte segue fechada.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(25)));
+    }
+
+    [Fact]
+    public void Fechado_o_MVP_a_enquete_do_clube_CONTINUA_aberta_ate_a_semana_acabar()
+    {
+        // Três dias depois: o MVP já fechou…
+        var tresDias = Domingo.AddDays(3);
+        Assert.False(Aberta(true, "Finalizado", Domingo, tresDias));
+
+        // …e a enquete, que tem janela PRÓPRIA, ainda aceita resposta.
+        Assert.True(EnqueteDoTorneio.Aberta("Finalizado", Domingo, tresDias, FormatoDoTorneio.Padrao));
+
+        // Ela fecha no sétimo dia, como sempre foi.
+        Assert.False(EnqueteDoTorneio.Aberta(
+            "Finalizado", Domingo, Domingo.AddDays(EnqueteDoTorneio.DiasParaResponder),
+            FormatoDoTorneio.Padrao));
+    }
+
+    [Fact]
+    public void O_aviso_do_MVP_nao_promete_mais_prazo_de_dias()
+    {
+        // O push é UM só e leva as duas coisas. Com prazos diferentes, "vale por N dias"
+        // passaria a mentir sobre a cédula: ela fecha em 24h.
+        var corpo = MvpDoTorneio.CorpoDoAviso("2ª Etapa ER PADEL TOUR", temMvp: true);
+
+        Assert.Contains("24h", corpo);
+        Assert.DoesNotContain("7 dias", corpo);
     }
 
     [Fact]
@@ -247,7 +297,7 @@ public class MvpDoTorneioTests
         await ctx.SaveChangesAsync();
 
         var desligada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
         Assert.False(desligada!.Aberta);
         Assert.False(desligada.Encerrada);
         Assert.Empty(desligada.Vencedores);
@@ -259,7 +309,7 @@ public class MvpDoTorneioTests
         await ctx.SaveChangesAsync();
 
         var religada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
         Assert.True(religada!.Encerrada);
         var eleito = Assert.Single(religada.Vencedores);
         Assert.Equal(campea.Jogador1Id, eleito.JogadorId);
@@ -911,7 +961,7 @@ public class MvpDoTorneioTests
 
         var recusa = await MvpDoTorneio.VotarAsync(
             ctx, torneio.Id, vice.Jogador1Id, campea.Jogador1Id,
-            Domingo.AddDays(MvpDoTorneio.DiasParaVotar + 1));
+            Domingo.AddHours(MvpDoTorneio.HorasParaVotar + 1));
 
         Assert.NotNull(recusa);
         Assert.Empty(ctx.VotosDeMvp);
@@ -941,7 +991,7 @@ public class MvpDoTorneioTests
 
         // Depois que fecha, o resultado aparece inteiro.
         var fechada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
 
         Assert.True(fechada!.Encerrada);
         var eleito = Assert.Single(fechada.Vencedores);
@@ -999,10 +1049,12 @@ public class MvpDoTorneioTests
         await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos);
 
         // Com a votação ainda ABERTA não há eleito — mesma razão de a tela esconder o parcial.
-        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, Domingo.AddDays(1)));
+        // ⚠️ Uma hora depois, e não um dia: desde 15/09/2026 `AddDays(1)` é o instante EXATO em
+        // que a janela fecha, e o teste passaria a medir o outro lado da régua sem avisar.
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, Domingo.AddHours(1)));
 
         // Fechou: a campeã tem a conquista, o vice não.
-        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+        var depoisDeFechar = Domingo.AddHours(MvpDoTorneio.HorasParaVotar);
         Assert.Equal(1, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
         Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, vice.Jogador1Id, depoisDeFechar));
     }
@@ -1017,7 +1069,7 @@ public class MvpDoTorneioTests
         await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos - 1);
 
         Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(
-            ctx, campea.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar)));
+            ctx, campea.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar)));
     }
 
     [Fact]
@@ -1026,7 +1078,7 @@ public class MvpDoTorneioTests
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
         var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
-        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+        var depoisDeFechar = Domingo.AddHours(MvpDoTorneio.HorasParaVotar);
 
         // Cada campeão com o mínimo de votos, empatados no topo. Os votos entram direto na
         // tabela (a apuração lê a tabela; quem valida eleitor é o VotarAsync, na entrada).
