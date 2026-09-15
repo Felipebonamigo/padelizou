@@ -13,7 +13,7 @@
 >
 > 📌 **De onde veio**: o PR #270 (ProSmart, parado por decisão do Felipe desde 12/09) já trazia uma correção desses números — mas para **74 controllers e ~6.860 testes**, que hoje também estão errados. A correção foi refeita aqui com medição do turno, e **a parte de `CLAUDE.md` do #270 pode ser descartada quando ele for mesclado**.
 >
-> **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/checkin-por-jogo-kshvrx`, sem PR. **Sem migration.**
+> **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1439-a3b91ba`** (deploy runs **381** e **384**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #324. **Sem migration.**
 >
 > 🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina inteira, como estava acontecendo, isso foi alterado ?"* — **não tinha sido**, e a resposta honesta foi essa — e em seguida: *"sim, faça. o jogo tem q subir na hora"*.
 >
@@ -36,6 +36,10 @@
 > ⚠️ **O `data-manter-posicao` FICA NO FORMULÁRIO** — é o cinto de quem não tem `fetch` (WebView velho, script que não carregou): ali ainda há recarga. Com o JavaScript de pé o clique é barrado **antes do `submit`**, então nenhuma altura órfã sobra no `sessionStorage` pra atropelar a próxima visita (conferido no navegador: zero chaves).
 >
 > ⚠️ **SW `v37` → `v38`**: mudaram o `site.css` (está na lista) e o `jogos-ao-vivo-atualiza.js` (cai na regra de `isStaticAsset`, que serve a cópia guardada). Conferido no `origin/main` antes de escolher o número.
+>
+> ✅ **CONFERIDO POR CONTEÚDO NOS DOIS, e não pelo verde do workflow**: `/js/checkin-sem-recarregar.js` responde **200 com 8.449 bytes** em `dev` e em `prod` (o mesmo tamanho, que é o que prova ser o mesmo artefato), o `/sw.js` diz **`padelizou-static-v38`** nos dois, o `/healthz` do prod devolveu **200** três vezes, e um `POST /Torneios/MarcarCheckIn` sem login responde **401** — a Regra 0 de pé do outro lado. Antes do deploy o prod estava em `v37` e **404** no arquivo novo.
+>
+> ⚠️ **A TAG FOI FIXADA NO DISPARO, E NÃO "o mais recente"**: o `main` andou quatro PRs de outras sessões enquanto o CI deste rodava. O `build-1439-a3b91ba` é o release mais novo que **contém** o merge #324 (`56bee5e` é ancestral dele) — o que veio depois era só `STATUS.md` e `CLAUDE.md`. Deixar vazio arriscaria pegar um build que ainda estava sendo montado; fixar um mais antigo teria regredido trabalho alheio, que é o erro registrado em 14/09.
 >
 > 🔀 **O BRANCH FOI REFEITO A PARTIR DO `origin/main`**: o PR anterior dele já tinha sido mesclado, e o `main` andou 96 commits desde então. O único conflito foi no `estaOcupado`, onde a bandeira nova ficou ao lado do `pdzAcaoEmCurso` que chegou em 14/09.
 >
