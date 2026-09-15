@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/inspiring-carson-niywzp`, sem PR. **Sem migration.**
+>
+> 🗣️ Professor Gabriel, no WhatsApp (14/09, 20:34): *"qnd tu vai ver os horarios das aulas e tal, tu vai rolando pro lado e some os horarios"* · *"faz com a planilha pra continuar os horarios ali do lado"*.
+>
+> 🕳️ É a grade de Dia/Semana da `Aulas/MinhaAgenda` — a mesma que em 25/08 ganhou **um wrapper só** pra rolar inteira. Foi essa correção que criou esta: rolando inteira, a coluna das horas (`.pdz-grade-gutter`) rola junto. Sete dias de 96px não cabem em celular nenhum, então arrastar pra ver quinta e sexta levava embora **o único lugar da tela que diz que horas são aquelas faixas** — ficavam os cards de aula empilhados, sem hora nenhuma ao lado. A grade do mês não tem o problema (não tem coluna de hora), e a vista de lista escreve a hora em cada linha.
+>
+> 🔑 **PRIMEIRA COLUNA CONGELADA, COMO NA PLANILHA — `position: sticky` e mais nada de JS.** Três declarações que andam juntas, e nenhuma sozinha resolve: `sticky` + `left: 0` param a coluna no canto do wrapper que rola; `background: var(--pdz-surface)` a deixa **opaca** (sem ele os cards coloridos atravessam os números); e `z-index: 3` a põe acima do `.pdz-evento` (z-index: 2), que é quem passa por baixo. O `sticky` **substitui** o `position: relative` sem perder nada — ele também é elemento posicionado, então os `.pdz-hora-rotulo` absolutos continuam ancorados nele. A borda da coluna é `box-shadow: 1px 0 0`, não `border-right`: borda somaria 1px à borda esquerda do primeiro dia e duplicaria a linha parada.
+>
+> ⚠️ **O FUNDO SAI DO TOKEN DO CARD, NÃO DE UM `#fff` CRAVADO** — com `data-bs-theme="dark"` a coluna viraria uma faixa branca no meio de um card `#1a2338`. Tem teste cobrando isso.
+>
+> 🧪 3 testes novos (`ColunaDasHorasNaoSomeAoRolarTests`), **os três vistos vermelhos antes**, pelo motivo certo (a regra existia, faltavam sticky/z-index/fundo). São teste de FONTE, pelo mesmo motivo do `GradeDaAgendaRolaInteiraTests` ao lado: não há suíte de CSS aqui. **7.264 verdes** + os conferidores JS.
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. Quem confirma na tela é o Felipe (ou o próprio Gabriel).
+>
+> 🔎 **A MESMA PLANILHA ESTÁ NO `ClubeGestao/Ocupacao`, E NÃO FOI TOCADA**: lá a coluna "Hora" é `<td>` de tabela dentro de `.table-responsive` e some do mesmo jeito ao rolar. **Não é a tela do professor** e ninguém reclamou dela — decisão em aberto pro Felipe: congelar lá também (é `position: sticky` numa célula, não o mesmo CSS) ou deixar.
+>
 > Última atualização: **14/09/2026** — 🎚️ **A FAIXA DO PADELÍMETRO TROCAVA COM UM TORNEIO SÓ, E A ABA VITÓRIAS PREMIAVA QUEM JOGOU MAIS.** 🚀 **PUBLICADO em `dev` E `prod`**: a ordem das Vitórias no `build-1416-591ea33` (runs **368** e **370**) e a faixa no `build-1422-799cc2b` (runs **375** e **376**). PRs #314 e #318. **Sem migration.**
 >
 > ## 1. A ordem da aba Vitórias
