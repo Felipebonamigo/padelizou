@@ -45,7 +45,7 @@ public class AvisoDoMvpBackgroundService : BackgroundService
         // ⚠️ SEM varredura na subida, ao contrário do irmão que pergunta sobre não pagos. Um
         // deploy é um restart, e um restart não é notícia nenhuma pra quem jogou: varrer no
         // start faria o primeiro deploy depois deste código disparar o aviso de todo torneio
-        // que tivesse acabado nos últimos 7 dias, de uma vez. Esperar um tick custa 5 minutos.
+        // que tivesse acabado dentro da janela, de uma vez. Esperar um tick custa 5 minutos.
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
             await UmaVarreduraAsync(stoppingToken);
@@ -79,7 +79,7 @@ public class AvisoDoMvpBackgroundService : BackgroundService
         if (!MvpDoTorneio.HoraDeAvisar(agora)) return 0;
 
         // Só o que pode ter votação: finalizado, com o interruptor ligado e ainda sem aviso.
-        // O resto (a janela de 7 dias) depende do último jogo e é decidido logo abaixo.
+        // O resto (a janela de 24h) depende do último jogo e é decidido logo abaixo.
         var candidatos = await context.Torneios
             .Where(t => t.UsaVotacaoDeMvp
                      && t.AvisoDeMvpEnviadoEm == null

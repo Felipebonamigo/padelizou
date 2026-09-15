@@ -11,8 +11,9 @@ namespace Padelizou.Services;
 // — a mesma razão que fez o MVP sair em 2026.
 //
 // Decisões de desenho:
-// - A enquete mora na tela do MVP e usa a MESMA janela de 7 dias (o dono da janela é
-//   MvpDoTorneio.DentroDaJanela).
+// - A enquete mora na tela do MVP, mas o PRAZO É DELA: 7 dias (`DiasParaResponder`). Foram a
+//   mesma janela até 15/09/2026, quando o MVP encolheu pra 24h e esta ficou onde estava — a
+//   forma continua compartilhada (`MvpDoTorneio.DentroDaJanela`), a duração não.
 // - ⚠️ **O AMERICANO NÃO AVALIA** (decisão do Felipe, 17/08/2026): a enquete acompanha o MVP
 //   no que diz respeito ao FORMATO. A coleta do "Melhor Clube do ano" passa a sair só dos
 //   torneios normais — menos dado, e essa é a escolha dele, feita sabendo do trade-off.
@@ -44,6 +45,15 @@ public static class EnqueteDoTorneio
     // Mesmo espírito do MvpDoTorneio.VotosMinimos: abaixo disso não há "média", há uma pessoa.
     public const int RespostasParaMostrarMedia = 3;
 
+    // A SEMANA, E ELA É DAQUI (15/09/2026). Até esta data a enquete não tinha prazo próprio:
+    // usava o do MVP, que era o mesmo 7. Quando o MVP encolheu pra 24h — ele é sobre o calor do
+    // jogo que acabou —, este número FICOU, porque quem depende dele é outra coisa: a coleta
+    // do "Melhor Clube do ano" de 2027. Nota de clube não esfria em um dia, e cortar a janela
+    // aqui seria cortar um ano de dado pela metade de brinde, sem ninguém ter pedido.
+    public const int DiasParaResponder = 7;
+
+    private static readonly TimeSpan Janela = TimeSpan.FromDays(DiasParaResponder);
+
     // Cabe um parágrafo de verdade e não cabe um textão. O mesmo número está no `HasMaxLength`
     // do DbPadelContext e no `maxlength` da tela — as três réguas TÊM que ser a mesma, porque
     // o Postgres recusa `varchar` grande demais em vez de cortar.
@@ -58,7 +68,7 @@ public static class EnqueteDoTorneio
     public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora,
         string? formato) =>
         FormatoDoTorneio.TemPosTorneio(formato)
-        && MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
+        && MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora, Janela);
 
     public static bool MediaVisivel(int respostas) => respostas >= RespostasParaMostrarMedia;
 

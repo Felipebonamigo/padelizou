@@ -371,7 +371,7 @@ namespace Padelizou.Controllers
                 .Where(p => p.TorneioId == id && p.Status == "Finalizada")
                 .ToListAsync();
 
-            // A votação do MVP abre 7 dias depois do ÚLTIMO JOGO (ver Services/MvpDoTorneio).
+            // A votação do MVP fica aberta por 24h depois do ÚLTIMO JOGO (ver Services/MvpDoTorneio).
             //
             // ⚠️ Calculado AQUI e não na view: a view não tem as partidas em mãos — o Include
             // do torneio traz categorias, duplas e grupos, e `Categoria.Partidas` chegaria
@@ -422,7 +422,7 @@ namespace Padelizou.Controllers
             //
             // ⚠️ SÓ JOGO DE GRUPO ENTRA AQUI, e o filtro é neste ponto e não na consulta de
             // cima: a mesma `partidasFinalizadas` alimenta o MVP, que quer TODOS os jogos do
-            // torneio (a votação abre 7 dias depois do último, mata-mata incluído).
+            // torneio (a votação conta 24h a partir do último, mata-mata incluído).
             //
             // 🗣️ Felipe, 13/09/2026, na virada do primeiro dia do 2ª Etapa ER PADEL TOUR: um
             // grupo de DUAS duplas (um jogo só) mostrando "J=2, 1V, 1D, +3" na 4ª Masculina, e
