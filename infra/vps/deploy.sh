@@ -13,6 +13,7 @@
 #   - uploads, tokens do Google e appsettings.json vivem FORA das versões
 #     (em /opt/padelizou-shared/<env>/) — trocar de versão não apaga nada
 #   - se o /healthz não responder 200 depois do restart, volta sozinho
+#   - funciona com o repositório público OU privado (token em /opt/padelizou-deploy/github-token)
 set -euo pipefail
 
 REPO="Felipebonamigo/padelizou"
@@ -49,7 +50,61 @@ if [ -e "$LIVE" ] && [ ! -L "$LIVE" ]; then
   exit 1
 fi
 
-api() { curl -fsS "https://api.github.com/repos/$REPO/$1"; }
+# ── O ACESSO AO GITHUB ──────────────────────────────────────────────────────
+# Este script fala com o GitHub em dois pontos — a lista de releases, pra descobrir a tag, e
+# o download do pacote. Com o repositório PRIVADO, os dois respondem 404 sem credencial, e a
+# publicação simplesmente para no clique de Settings → Change visibility.
+#
+# O token mora num ARQUIVO no servidor, e não em variável de ambiente, porque o deploy roda
+# por dois caminhos que não herdam ambiente nenhum: o `ssh` do workflow e a mão no terminal.
+#
+# ⚠️ Sem o arquivo, o script funciona como sempre funcionou (repositório público). É de
+# propósito: assim o token entra no servidor ANTES de virar a chave da visibilidade, e sai
+# depois de ela voltar, sem existir um minuto em que o deploy não sai.
+ARQUIVO_TOKEN="${PADELIZOU_ARQUIVO_TOKEN:-/opt/padelizou-deploy/github-token}"
+TOKEN=""
+# O `tr` tira QUALQUER espaço, e não só o \n final: arquivo criado do Windows vem com \r no
+# fim, e um \r dentro do cabeçalho faz o GitHub recusar o token sem dizer por quê.
+if [ -r "$ARQUIVO_TOKEN" ]; then TOKEN=$(tr -d '[:space:]' < "$ARQUIVO_TOKEN"); fi
+
+# ⚠️ O token vai pela ENTRADA do curl (`-K -`), NUNCA em `-H` na linha de comando: argumento
+# de processo se lê com `ps` de qualquer usuário da máquina; o arquivo, 600 e do root, não.
+curl_github() {
+  if [ -n "$TOKEN" ]; then
+    printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" | curl -K - "$@"
+  else
+    curl "$@"
+  fi
+}
+
+api() { curl_github -fsS -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/$1"; }
+
+# ── 0. CONFERE O ACESSO ANTES DE PROCURAR QUALQUER BUILD ────────────────────
+# 404 de repositório privado é o MESMO código de "esse build não existe". Sem esta
+# conferência, um token vencido vira "não encontrei build pra ''" lá embaixo — mensagem que
+# manda investigar o CI, que está verde, e some com a tarde de quem for atrás. Aqui em cima,
+# antes de qualquer tag, o 404 só pode significar uma coisa.
+CODIGO=$(curl_github -sS -o /dev/null -w '%{http_code}' "https://api.github.com/repos/$REPO" || echo 000)
+case "$CODIGO" in
+  200) ;;
+  401|404)
+    echo "ERRO: o GitHub respondeu $CODIGO para $REPO."
+    if [ -z "$TOKEN" ]; then
+      echo "  O repositório está privado? Então falta o token em $ARQUIVO_TOKEN."
+      echo "  Como criar: seção 'Repositório privado' do infra/vps/README.md."
+    else
+      echo "  Existe token em $ARQUIVO_TOKEN, mas ele foi recusado — vencido, revogado, ou"
+      echo "  sem a permissão 'Contents: Read' NESTE repositório."
+    fi
+    exit 1 ;;
+  403)
+    echo "ERRO: 403 do GitHub. Sem token o limite é 60 requisições por hora por IP."
+    echo "  Se já existe token em $ARQUIVO_TOKEN, então ele está sem 'Contents: Read'."
+    exit 1 ;;
+  *)
+    echo "ERRO: não consegui falar com a api.github.com (código $CODIGO). Rede do servidor?"
+    exit 1 ;;
+esac
 
 # ── 1. Descobre qual build instalar ─────────────────────────────────────────
 TAG=""
@@ -89,10 +144,31 @@ mkdir -p "$MONTAGEM"
 # Sai limpo se o deploy morrer no meio: pasta de montagem não pode virar lixo permanente.
 trap 'rm -rf "$MONTAGEM"' EXIT
 
-curl -fL --retry 3 -o /tmp/padelizou-$TAG.tar.gz \
-  "https://github.com/$REPO/releases/download/$TAG/padelizou.tar.gz"
-tar -xzf /tmp/padelizou-$TAG.tar.gz -C "$MONTAGEM"
-rm -f /tmp/padelizou-$TAG.tar.gz
+# O anexo vem pelo endpoint de ASSET da API, e não pela URL de browser do release: aquela
+# responde 404 em repositório privado MESMO COM TOKEN — ela existe só pra quem está
+# deslogado. Como o endpoint da API serve os dois casos, aqui não há um "se privado": é um
+# caminho só, que não tem como enferrujar enquanto o repositório for público.
+#
+# ⚠️ O `Accept: application/octet-stream` é o que faz a API mandar os BYTES. Sem ele vem o
+# JSON que descreve o anexo, e o `tar` logo abaixo morre com "not in gzip format" — erro que
+# não fala de permissão nenhuma e manda investigar o pacote, que está inteiro.
+URL_ASSET=$(api "releases/tags/$TAG" \
+  | tr -d '\n' | tr '{' '\n' \
+  | grep '"name": *"padelizou\.tar\.gz"' \
+  | grep -oE 'https://api\.github\.com/repos/[^"]+/releases/assets/[0-9]+' \
+  | head -1 || true)
+
+if [ -z "$URL_ASSET" ]; then
+  echo "ERRO: o release $TAG existe, mas não tem o anexo padelizou.tar.gz."
+  echo "  O passo 'Criar release de build' do ci.yml morreu no meio? Confira em"
+  echo "  https://github.com/$REPO/releases/tag/$TAG"
+  exit 1
+fi
+
+PACOTE="/tmp/padelizou-$TAG.tar.gz"
+curl_github -fL --retry 3 -H "Accept: application/octet-stream" -o "$PACOTE" "$URL_ASSET"
+tar -xzf "$PACOTE" -C "$MONTAGEM"
+rm -f "$PACOTE"
 
 # ── 3. Conecta os dados persistentes (fora das versões) ─────────────────────
 rm -rf "$MONTAGEM/wwwroot/uploads"

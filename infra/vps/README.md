@@ -201,6 +201,61 @@ O `Padelizou/padelizou.service` deste repositório já leva `Environment=TZ=Amer
 — serve de referência pra quando o servidor for reprovisionado do zero, mas **não
 reaplica sozinho** no unit que já está rodando no VPS.
 
+### 5. Repositório privado — o token de leitura no servidor
+
+**Enquanto o repositório for público, não precisa de nada disto.** O `deploy.sh` funciona
+sem token; esta seção existe pro dia em que a visibilidade mudar.
+
+Privado, o GitHub responde **404** nos dois pontos em que o deploy fala com ele (a lista de
+releases e o download do pacote) — e 404 é o mesmo código de "esse build não existe". O
+script confere o acesso **antes** de procurar qualquer build justamente pra não trocar uma
+falha de permissão por uma caça a um problema que não existe no CI.
+
+**1. Crie um token de escopo mínimo** em **Settings → Developer settings → Personal access
+tokens → Fine-grained tokens → Generate new token**:
+
+| Campo | Valor |
+|---|---|
+| Repository access | **Only select repositories** → `padelizou` |
+| Repository permissions | **Contents: Read-only** — e mais nada |
+| Expiration | O prazo que você aceitar renovar |
+
+Read-only em Contents é o suficiente pra listar releases e baixar o anexo. Um token de conta
+inteira aqui daria, a quem tivesse o servidor, acesso a todos os seus repositórios.
+
+**2. Ponha no servidor**, sem deixar o valor no histórico do shell:
+
+```bash
+mkdir -p /opt/padelizou-deploy
+umask 077
+read -rsp 'Cole o token e dê Enter: ' T && printf '%s' "$T" > /opt/padelizou-deploy/github-token && unset T
+chmod 600 /opt/padelizou-deploy/github-token
+```
+
+O `read -rs` não ecoa o que você cola e o token não vira argumento de processo — o script
+também nunca o passa em `-H`, pelo mesmo motivo: argumento se lê com `ps`.
+
+**3. Leve o `deploy.sh` desta pasta pro servidor** — o script daqui não chega lá sozinho, e é
+a versão nova dele que sabe usar o token:
+
+```bash
+scp infra/vps/deploy.sh root@SEU_IP:/opt/padelizou-deploy/deploy.sh
+```
+
+**4. Confira antes de virar a chave.** Dispare um deploy no `dev`: se o token estiver errado
+ou faltando, o script para na primeira conferência, com a mensagem dizendo qual das duas
+coisas é, **antes** de encostar na versão que está no ar.
+
+⚠️ **A ordem importa: token primeiro, visibilidade depois.** Ao contrário, você fica com a
+publicação parada até subir no servidor — e o `rollback.sh` não substitui o deploy (ele volta
+pra versão que já está no disco, e só; nem precisa de token, por isso mesmo).
+
+⚠️ **Quando o token vencer, o deploy para** — com a mensagem certa, não calado. Renove no
+mesmo lugar e reescreva o arquivo; nada mais muda.
+
+O `ci.yml` não precisa de nada disso: dentro do Actions ele já usa o `github.token`, que vale
+para o repositório privado do mesmo jeito.
+
 ## Copiar um torneio do prod pro dev
 
 🗣️ **Felipe, 09/09/2026:** *"copie os dados de PRD para DEV do torneio do ER"*. O motivo é o

@@ -1,6 +1,55 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/09/2026** — 🔒 **O DEPLOY QUEBRARIA NO CLIQUE DE "TORNAR PRIVADO".** **NÃO PUBLICADO** — não tem o que publicar: o `deploy.sh` mora no VPS, não no pacote. **Sem migration.**
+>
+> 🗣️ Felipe: *"para meus projetos, é melhor torná-los privados? quanto custa?"* — a pergunta era de
+> preço; a resposta achou um buraco. Dos 8 repositórios, 6 já são privados; o `padelizou` é público.
+>
+> 🕳️ **O `deploy.sh` falava com o GitHub em dois pontos, e os DOIS iam sem credencial**: a lista de
+> releases (`api.github.com/repos/.../releases`) e o download do `padelizou.tar.gz`. Público, passa.
+> Privado, os dois respondem **404** e a publicação para — no clique de Settings → Change visibility,
+> sem aviso e sem nada vermelho antes. O `ci.yml` não tem o problema (usa o `github.token` do Actions)
+> e o `rollback.sh` também não (volta pra versão que já está no disco).
+>
+> 🔑 **O ANEXO PASSA A VIR PELO ENDPOINT DE ASSET DA API** (`/releases/assets/ID` com
+> `Accept: application/octet-stream`). A URL de browser do release **não funciona em repositório
+> privado NEM COM TOKEN** — é a armadilha do meio-conserto: pôr o cabeçalho e manter a URL antiga
+> parece pronto e continua quebrado. O endpoint da API serve os dois casos, então **não existe um
+> "se privado"** no script: é um caminho só, que não enferruja enquanto o repositório for público.
+>
+> 🔑 **O token mora num ARQUIVO no servidor** (`/opt/padelizou-deploy/github-token`, 600), e vai pela
+> **entrada** do curl (`-K -`), nunca em `-H`: argumento de processo se lê com `ps` de qualquer
+> usuário da máquina. **Sem o arquivo o script funciona como sempre** — de propósito, pra o token
+> entrar no servidor ANTES da virada e não existir um minuto sem deploy.
+>
+> ⚠️ **404 de repo privado é o MESMO código de "esse build não existe"** — por isso entrou uma
+> conferência de acesso ANTES de procurar qualquer tag. Sem ela, um token vencido vira "não encontrei
+> build pra ''" e manda investigar o CI, que está verde.
+>
+> 🧪 6 testes novos (`DeployComRepositorioPrivadoTests`), **os seis vistos vermelhos antes** e pelo
+> motivo certo (a URL de browser estava lá; `curl_github`, `ARQUIVO_TOKEN` e a conferência de acesso
+> não existiam). São teste de FONTE, como o `TagDoBuildApontaProCommitTests` ao lado: a suíte não
+> executa um deploy. **7.270 verdes** + os 11 conferidores JS.
+>
+> ✅ **CONFERIDO CONTRA A API DE VERDADE**, e não só lido: o parse do JSON devolveu
+> `.../releases/assets/565668226` pro `build-1433-f25bc09`, e o download com o `Accept` trouxe um
+> **gzip de 25,0 MB com 455 arquivos**, com os 3 que o script exige do pacote dentro (o
+> `appsettings.json`, o quarto, é symlink do `shared` e por isso não está no tarball).
+>
+> ⚠️ **NÃO ESTÁ NO AR, E O PASSO É MANUAL**: o servidor roda a cópia que está em
+> `/opt/padelizou-deploy/deploy.sh`. Commitar aqui não a atualiza — tem que fazer o `scp` (está no
+> passo 3 da seção nova do `infra/vps/README.md`). **Enquanto isso o deploy segue funcionando**,
+> porque o repositório ainda é público.
+>
+> ⚠️ **O 401 de token inválido não foi visto de verdade**: esta sessão sai por um proxy que
+> intercepta a `api.github.com`, então um token de mentira voltou 200. O que FOI conferido é o que
+> depende do script: o `curl -v` mostra o `Authorization: Bearer ...` saindo, vindo do `-K -`.
+>
+> 💵 **O preço da virada, medido**: `ci.yml` são 1.433 runs desde 17/07 (~24/dia, média de 4,39 min)
+> — ~3.600 min/mês contra os 2.000 grátis do plano Free, ou **~US$ 10/mês** a US$ 0,006/min. Em
+> semana cheia (42 runs/dia) vai a ~US$ 27. GitHub Pro (US$ 4, 3.000 min) quase não muda a conta.
+>
 > Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1431-f316449`** (deploy runs **379** e **380**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #322. **Sem migration.**
 >
 > 🗣️ Professor Gabriel, no WhatsApp (14/09, 20:34): *"qnd tu vai ver os horarios das aulas e tal, tu vai rolando pro lado e some os horarios"* · *"faz com a planilha pra continuar os horarios ali do lado"*.
