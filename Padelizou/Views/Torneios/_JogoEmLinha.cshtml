@@ -579,7 +579,7 @@
                         if (!primeiroDoLado1) { <span class="pdz-jl-barra">/</span> }
                         primeiroDoLado1 = false;
                         <span class="pdz-jl-jogador">
-                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, jogo.Id, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(jogo.Id, j.Id, chegadas), true, voltarParaAqui)" />
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, jogo.Id, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(jogo.Id, j.Id, chegadas), voltarParaAqui)" />
                             <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
                             <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
                         </span>
@@ -616,7 +616,7 @@
                         if (!primeiroDoLado2) { <span class="pdz-jl-barra">/</span> }
                         primeiroDoLado2 = false;
                         <span class="pdz-jl-jogador">
-                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, jogo.Id, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(jogo.Id, j.Id, chegadas), true, voltarParaAqui)" />
+                            <partial name="_BotaoDoCheckIn" model="new Padelizou.ViewModels.BotaoDeCheckInVM(j.Id, jogo.Id, j.ComoChamar, Padelizou.Services.PresencaNoDia.ChegouEm(jogo.Id, j.Id, chegadas), voltarParaAqui)" />
                             <img class="pdz-jl-rosto" src="@Foto(j)" alt="" loading="lazy" />
                             <span class="pdz-jl-nome"><a href="/Jogadores/Perfil/@j.Id">@NomeCurto(j)</a>@Html.Raw(Escudo(j))</span>
                         </span>

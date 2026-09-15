@@ -359,6 +359,19 @@ namespace Padelizou.Controllers
 
             await _context.SaveChangesAsync();
 
+            // ⚠️ QUEM CLICOU POR FETCH NÃO LEVA A PÁGINA INTEIRA DE VOLTA (15/09/2026).
+            // 🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina
+            // inteira"*. O desvio abaixo devolve mais de 1MB de HTML a cada bolinha, e são
+            // quatro por jogo — o js/checkin-sem-recarregar.js não usa nada disso: ele pede a
+            // lista nova UMA vez, no fim da rajada de cliques.
+            //
+            // ⚠️ E O 204 É A PROVA DE QUE GRAVOU, que é por isso que ele fica AQUI, depois do
+            // SaveChanges e depois das duas metades da Regra 0 — e não no topo da ação. Do outro
+            // lado, `resposta.ok` não serve de prova: sessão vencida responde 302 pra tela de
+            // login, o `fetch` segue o desvio e entrega 200 com o HTML do login. É o mesmo
+            // cuidado do SalvarPlacaresAoVivo, onde a prova é o JSON.
+            if (Request.Headers.XRequestedWith == "XMLHttpRequest") return NoContent();
+
             // ⚠️ LISTA FECHADA, como no PartidasController.VoltarDaLargada: `voltarPara` chega por
             // campo de formulário, e campo de formulário nunca vira redirecionamento pra qualquer
             // lugar. Qualquer outro valor cai no destino de sempre.

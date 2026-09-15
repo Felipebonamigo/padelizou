@@ -60,6 +60,12 @@
         // frente de quem acabou de encerrá-lo.
         if (window.pdzAcaoEmCurso) return true;
 
+        // E a presença indo pro servidor (js/checkin-sem-recarregar.js, 15/09/2026). Quem marca
+        // os quatro jogadores de um jogo dispara quatro POSTs em dois segundos; uma lista
+        // trocada no meio da rajada volta sem os cliques que ainda estão no ar, e a bolinha
+        // recém-pintada PISCA de volta pra cinza na frente de quem acabou de tocar nela.
+        if (window.pdzMarcandoCheckIn) return true;
+
         var ativo = document.activeElement;
         if (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName)) return true;
 
@@ -362,8 +368,11 @@
     var buscando = false;
     var ultimaBusca = 0;
 
+    // Devolve `true` quando a busca REALMENTE saiu, e `false` quando a tela estava ocupada ou
+    // já havia outra em curso. O relógio de 20s ignora a resposta — quem a usa é quem acabou de
+    // gravar alguma coisa e precisa da lista nova agora (ver a porta no fim do arquivo).
     function tique() {
-        if (buscando || document.hidden || estaOcupado() || !torneioEmAndamento()) return;
+        if (buscando || document.hidden || estaOcupado() || !torneioEmAndamento()) return false;
 
         buscando = true;
         ultimaBusca = Date.now();
@@ -397,6 +406,8 @@
             })
             .catch(function () { /* rede do clube caiu: o próximo tique tenta de novo */ })
             .then(function () { buscando = false; });
+
+        return true;
     }
 
     // ABRIR O APP MOSTRA O AGORA, E NÃO O DE 20 SEGUNDOS ATRÁS (12/09/2026).
@@ -421,6 +432,13 @@
         if (Date.now() - ultimaBusca < MINIMO_ENTRE_BUSCAS) return;
         tique();
     }
+
+    // A PORTA PRA QUEM ACABOU DE GRAVAR (15/09/2026). 🗣️ Felipe, sobre o check-in: *"o jogo tem
+    // q subir na hora"*. Quem faz o jogo completo subir pro topo do horário é a lista nova do
+    // servidor (Services/OrdemNoHorario) — e não uma segunda conta de ordem em JavaScript, que
+    // poderia discordar do banco. O js/checkin-sem-recarregar.js chama isto assim que o último
+    // POST da rajada é confirmado; a resposta `false` diz "agora não deu", e ele insiste.
+    if (window.fetch) window.pdzAtualizarAListaDeJogos = tique;
 
     if (torneioEmAndamento() && window.fetch) {
         window.setInterval(tique, SEGUNDOS * 1000);
