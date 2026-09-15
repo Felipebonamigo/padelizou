@@ -13,7 +13,7 @@
 >
 > ⚠️ **QUEM CONGELA É A POSIÇÃO (`:first-child`), NÃO O CONTEÚDO.** Se um dia entrar uma coluna antes da hora, o congelamento muda de coluna sozinho e em silêncio. O terceiro teste existe só pra esse dia — e ele **passou de primeira**, porque é guarda de invariante que já valia, não teste da correção. Pra não ficar valendo por fé, a expressão foi rodada contra uma cópia da fonte com uma coluna "Quadra" inserida antes da hora: os dois casamentos deram `False`, que é o vermelho que ele daria nesse dia.
 >
-> 🧪 3 testes novos (`ColunaDaHoraNoMapaDeOcupacaoTests`); **os 2 da correção vistos vermelhos antes**, em "não há regra de CSS mirando a primeira coluna". **7.267 verdes** + conferidores JS.
+> 🧪 3 testes novos (`ColunaDaHoraNoMapaDeOcupacaoTests`); **os 2 da correção vistos vermelhos antes**, em "não há regra de CSS mirando a primeira coluna". **7.280 verdes** + conferidores JS (número já com os PRs #324, #327 e #328, que entraram no `main` durante este trabalho e foram mesclados aqui).
 >
 > ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**, de novo: nada visto renderizado.
 >
