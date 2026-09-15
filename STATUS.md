@@ -296,10 +296,6 @@
 >
 > ✅ **Conferido no VPS, nos dois ambientes**: link e `cwd` do processo no `build-1385-8eea7b7`, `NRestarts=0`, journal sem erro, `/healthz` 200, sem colisão no `.historico`. O `dev` levou junto a migration `HorarioDoSorteio` (#296), que o `prod` já tinha desde o `build-1381`.
 >
-> ⚠️ **O COMPORTAMENTO NÃO FOI VISTO NA TELA.** A leitura do banco de produção pra achar o id de um torneio oculto foi negada naquela sessão, e não houve outra tentativa. O que sustenta são os testes. **Quem confirma é o Felipe**, abrindo `/Jogadores/Ranking?torneioId=<id de um torneio oculto ou cancelado>` deslogado: o título "Ranking do torneio" não pode aparecer.
->
-> ✅ **Conferido no VPS, nos dois ambientes**: link e `cwd` do processo no `build-1385-8eea7b7`, `NRestarts=0`, journal sem erro, `/healthz` 200, sem colisão no `.historico`. O `dev` levou junto a migration `HorarioDoSorteio` (#296), que o `prod` já tinha desde o `build-1381`.
->
 > ⚠️ **O COMPORTAMENTO NÃO FOI VISTO NA TELA.** A leitura do banco de produção pra achar o id de um torneio oculto foi negada nesta sessão, e não houve outra tentativa. O que sustenta são os testes. **Quem confirma é o Felipe**, abrindo `/Jogadores/Ranking?torneioId=<id de um torneio oculto ou cancelado>` deslogado: o título "Ranking do torneio" não pode aparecer.
 
 > **14/09/2026** — 🗓️ **A GRADE PARA DE MENTIR SOBRE HORÁRIO, E CONFRONTO DEFINIDO JÁ É JOGO.** 🚀 **PUBLICADO em `prod` no `build-1362-562a443`** (deploy run 344, `/healthz` 200). PR #295. **COM MIGRATION** (`ConfrontoDefinidoJaEhJogo`).
