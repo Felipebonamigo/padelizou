@@ -1,6 +1,32 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/checkin-por-jogo-kshvrx`, sem PR. **Sem migration.**
+>
+> 🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina inteira, como estava acontecendo, isso foi alterado ?"* — **não tinha sido**, e a resposta honesta foi essa — e em seguida: *"sim, faça. o jogo tem q subir na hora"*.
+>
+> 🕳️ **O QUE EXISTIA ERA DISFARCE DO SINTOMA.** Cada bolinha era um POST → 302 → **GET da página inteira**; o `data-manter-posicao` (12/09) devolvia a rolagem pra mesma altura DEPOIS da recarga, então *parecia* que a pessoa tinha ficado no lugar. A página sumia e renascia do mesmo jeito: o `<iframe>` da transmissão reiniciava junto, e **medido aqui: 368kB por clique**, quatro cliques por jogo.
+>
+> 🔑 **O CLIQUE VIRA `fetch`, E A ORDEM CONTINUA SENDO A DO SERVIDOR.** A bolinha pinta na hora, o POST vai em segundo plano, e a **lista nova é pedida uma vez só**, meio segundo depois do último toque da rajada — é ela que faz o jogo completo subir pro topo do horário (`Services/OrdemNoHorario`). **Não há uma segunda conta de ordem em JavaScript** que possa discordar do banco.
+>
+> ⚠️ **`resposta.ok` NÃO É PROVA DE QUE GRAVOU — A PROVA É O 204.** Sessão vencida responde 302 pra tela de login, o `fetch` SEGUE o desvio e entrega **200 com o HTML do login**: um check verde sem linha no banco, que é pior que a recarga. O `MarcarCheckIn` devolve `NoContent()` só pra quem chamou com `X-Requested-With`, e **depois** do `SaveChanges` e das duas metades da Regra 0 — atalho no topo da ação transformaria a checagem de dono em enfeite (tem teste cobrando isso).
+>
+> ⚠️ **A LISTA NÃO PODE SER TROCADA NO MEIO DA RAJADA.** Quem marca os quatro jogadores dispara quatro POSTs em dois segundos; uma lista pedida entre eles volta sem os cliques que ainda estão no ar, e a bolinha recém-pintada **pisca de volta pra cinza** na frente de quem acabou de tocar nela. A bandeira é `window.pdzMarcandoCheckIn`, lida pelo `estaOcupado` do `jogos-ao-vivo-atualiza.js` — a quarta irmã do `pdzSalvandoPlacar`, `pdzTrocandoSaque` e `pdzAcaoEmCurso`.
+>
+> ⚠️ **FALHA APARECE, E FICA.** Sem a recarga não há nada denunciando o que não gravou: a bolinha volta ao estado antigo, **vermelha** (`.pdz-jl-checkin-erro`), com o aviso no `title`/`aria-label`, até alguém tocar de novo.
+>
+> 🧹 **A "PÍLULA ESCRITA" (Chegou/Desfazer) SAIU**, e com ela o campo `Bolinha` do `BotaoDeCheckInVM`: era a roupa da tela de Check-in do dia, que saiu em 13/09 — estava sem nenhum chamador, e mantê-la obrigaria o JavaScript a saber pintar duas roupas, sendo que **a metade que ninguém vê é a que quebra calada**.
+>
+> 🧪 **10 testes C# novos** (`CheckInSemRecarregarTests`) + **um conferidor JS novo** (`conferir-checkin-sem-recarregar.js`, 47 conferências) + 6 conferências novas no `conferir-abas-que-ficam.js`. Todos vistos **vermelhos antes**, pelo motivo certo. **7.274 verdes** + os 12 conferidores JS.
+>
+> 🔬 **CONFERIDO NO NAVEGADOR DE VERDADE** (Chromium por CDP, app local contra Postgres), nas **duas** telas que desenham a bolinha (`Torneios/Details` aba Jogos e `Torneios/Jogos`): a página **não recarregou** (marca de vida sobreviveu, zero eventos de `load`), a **rolagem ficou em 400 → 400**, o jogo **subiu** pro topo das 16:20, os quatro POSTs voltaram **204 com corpo de 0 bytes**, e a rajada inteira custou **UMA** busca de 368kB em vez de quatro. Derrubando o cookie no meio: a bolinha ficou **vermelha**, o banco ficou **vazio** e a página seguiu de pé.
+>
+> ⚠️ **O `data-manter-posicao` FICA NO FORMULÁRIO** — é o cinto de quem não tem `fetch` (WebView velho, script que não carregou): ali ainda há recarga. Com o JavaScript de pé o clique é barrado **antes do `submit`**, então nenhuma altura órfã sobra no `sessionStorage` pra atropelar a próxima visita (conferido no navegador: zero chaves).
+>
+> ⚠️ **SW `v37` → `v38`**: mudaram o `site.css` (está na lista) e o `jogos-ao-vivo-atualiza.js` (cai na regra de `isStaticAsset`, que serve a cópia guardada). Conferido no `origin/main` antes de escolher o número.
+>
+> 🔀 **O BRANCH FOI REFEITO A PARTIR DO `origin/main`**: o PR anterior dele já tinha sido mesclado, e o `main` andou 96 commits desde então. O único conflito foi no `estaOcupado`, onde a bandeira nova ficou ao lado do `pdzAcaoEmCurso` que chegou em 14/09.
+>
 > Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1431-f316449`** (deploy runs **379** e **380**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #322. **Sem migration.**
 >
 > 🗣️ Professor Gabriel, no WhatsApp (14/09, 20:34): *"qnd tu vai ver os horarios das aulas e tal, tu vai rolando pro lado e some os horarios"* · *"faz com a planilha pra continuar os horarios ali do lado"*.

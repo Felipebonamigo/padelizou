@@ -678,6 +678,7 @@ async function oFinalizarRemendaSemRecarregar() {
     await oPlayerDaQuadraSobreviveATrocaDeJogo();
     await aAlturaDaListaVolta();
     await abrirOAppMostraOAgora();
+    await aPortaDoCheckIn();
 
     console.log(falhas === 0 ? '\nTUDO VERDE\n' : '\n' + falhas + ' FALHA(S)\n');
     process.exit(falhas === 0 ? 0 : 1);
@@ -889,4 +890,50 @@ async function abrirOAppMostraOAgora() {
     await noBolso.esconder();
     await noBolso.mostrar();
     ok(noBolso.buscas() === 1, 'voltar de novo em seguida NÃO dispara uma segunda busca');
+}
+
+// ── A PORTA QUE O CHECK-IN USA ────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 15/09/2026: *"sim, faça. o jogo tem q subir na hora"*.
+//
+// Quem faz o jogo completo subir pro topo do horário é a LISTA NOVA do servidor
+// (Services/OrdemNoHorario) — o js/checkin-sem-recarregar.js não recalcula ordem nenhuma. Pra
+// pedi-la sem esperar os 20 segundos do ciclo, este arquivo expõe `pdzAtualizarAListaDeJogos`.
+//
+// ⚠️ E EXPÕE COM RESPOSTA: `false` quer dizer "agora não deu" (tela ocupada, outra busca em
+// curso), e quem pediu insiste. Sem o retorno, o pedido sumiria calado e o jogo só subiria no
+// tique seguinte — que é exatamente o que o pedido existe pra não fazer.
+//
+// ⚠️ E A BANDEIRA `pdzMarcandoCheckIn` É A OUTRA METADE. Enquanto um POST de presença está no
+// ar, a tela NÃO pode ser trocada pelo HTML do servidor: ele ainda não sabe daquele clique, e
+// a bolinha recém-pintada piscaria de volta pra cinza na frente de quem acabou de tocar nela.
+// É a mesma trava do `pdzSalvandoPlacar`, pelo mesmo motivo.
+async function aPortaDoCheckIn() {
+    console.log('── A PORTA QUE O CHECK-IN USA ──────────────────────────────────────────────');
+
+    const p = appAberto(['10'], ['10', '11'], 1, 1);
+    ok(typeof p.win.pdzAtualizarAListaDeJogos === 'function',
+        'o atualizador expõe a porta que o check-in chama');
+
+    const saiu = p.win.pdzAtualizarAListaDeJogos();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(saiu === true, 'com a tela livre, o pedido sai e diz que saiu');
+    ok(p.buscas() === 1, 'e a lista nova é buscada na hora, sem esperar o ciclo de 20s');
+
+    // A BANDEIRA DO CHECK-IN: POST de presença no ar = ninguém troca a tela.
+    const marcando = appAberto(['10'], ['10', '11'], 1, 1);
+    marcando.win.pdzMarcandoCheckIn = true;
+
+    const recusou = marcando.win.pdzAtualizarAListaDeJogos();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(recusou === false, 'com um check-in no ar, o pedido é RECUSADO (pra quem pediu insistir)');
+    ok(marcando.buscas() === 0, 'e nada é buscado: a resposta do servidor ainda não sabe do clique');
+
+    await marcando.tique();
+    ok(marcando.buscas() === 0,
+        'o relógio de 20s também espera: trocar a tela agora apagaria a bolinha recém-pintada');
+
+    marcando.win.pdzMarcandoCheckIn = false;
+    await marcando.tique();
+    ok(marcando.buscas() === 1, 'baixada a bandeira, o relógio volta a trabalhar');
 }
