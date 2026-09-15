@@ -537,6 +537,24 @@ public partial class Torneio
     // `CheckInOpcional` teve, só que no sentido contrário.
     public bool UsaVotacaoDeMvp { get; set; } = true;
 
+    // ONDE O PALPITÔMETRO VALE neste torneio (Felipe, 14/09/2026). Quatro valores, em
+    // Services/AlcanceDoPalpitometro: "Nenhuma", "Todas", "Masculina", "Feminina".
+    //
+    // 🗣️ *"coloque la para o organizador decidir se vai habilitar o palpitometro ou nao, se vai
+    // ser apenas da masculina/feminina ou em ambos"*.
+    //
+    // ⚠️ NASCE EM `Todas` — 🗣️ *"deixe nascendo como permitido e nas tanto feminino como
+    // masculino"* —, que é exatamente o que o sistema sempre fez. O interruptor existe pro
+    // organizador que não quer a brincadeira, ou que só a quer de um lado do torneio.
+    //
+    // ⚠️ UMA COLUNA, E NÃO UM `bool` MAIS UM ALCANCE: as duas perguntas do pedido cabem num
+    // valor só, e dois campos separados poderiam discordar (desligado com "Feminina" ao lado).
+    // Mesma decisão, e mesmo motivo, do `GamesSoDaFinal` logo acima.
+    //
+    // ⚠️ Ligado também no que JÁ EXISTE: a migration grava "Todas" nas linhas antigas. O EF
+    // escreveria string vazia (ele olha o tipo, não o inicializador) — ver a nota lá.
+    public string PalpitometroEm { get; set; } = Padelizou.Services.AlcanceDoPalpitometro.Todas;
+
     // Quando o "vote no MVP" foi disparado pra quem jogou. Nulo = ainda não saiu.
     //
     // ⚠️ É esta coluna — e não o relógio — que garante UM aviso só. O varredor passa a cada

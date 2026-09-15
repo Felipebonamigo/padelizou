@@ -1,6 +1,94 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1431-f316449`** (deploy runs **379** e **380**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #322. **Sem migration.**
+>
+> 🗣️ Professor Gabriel, no WhatsApp (14/09, 20:34): *"qnd tu vai ver os horarios das aulas e tal, tu vai rolando pro lado e some os horarios"* · *"faz com a planilha pra continuar os horarios ali do lado"*.
+>
+> 🕳️ É a grade de Dia/Semana da `Aulas/MinhaAgenda` — a mesma que em 25/08 ganhou **um wrapper só** pra rolar inteira. Foi essa correção que criou esta: rolando inteira, a coluna das horas (`.pdz-grade-gutter`) rola junto. Sete dias de 96px não cabem em celular nenhum, então arrastar pra ver quinta e sexta levava embora **o único lugar da tela que diz que horas são aquelas faixas** — ficavam os cards de aula empilhados, sem hora nenhuma ao lado. A grade do mês não tem o problema (não tem coluna de hora), e a vista de lista escreve a hora em cada linha.
+>
+> 🔑 **PRIMEIRA COLUNA CONGELADA, COMO NA PLANILHA — `position: sticky` e mais nada de JS.** Três declarações que andam juntas, e nenhuma sozinha resolve: `sticky` + `left: 0` param a coluna no canto do wrapper que rola; `background: var(--pdz-surface)` a deixa **opaca** (sem ele os cards coloridos atravessam os números); e `z-index: 3` a põe acima do `.pdz-evento` (z-index: 2), que é quem passa por baixo. O `sticky` **substitui** o `position: relative` sem perder nada — ele também é elemento posicionado, então os `.pdz-hora-rotulo` absolutos continuam ancorados nele. A borda da coluna é `box-shadow: 1px 0 0`, não `border-right`: borda somaria 1px à borda esquerda do primeiro dia e duplicaria a linha parada.
+>
+> ⚠️ **O FUNDO SAI DO TOKEN DO CARD, NÃO DE UM `#fff` CRAVADO** — com `data-bs-theme="dark"` a coluna viraria uma faixa branca no meio de um card `#1a2338`. Tem teste cobrando isso.
+>
+> 🧪 3 testes novos (`ColunaDasHorasNaoSomeAoRolarTests`), **os três vistos vermelhos antes**, pelo motivo certo (a regra existia, faltavam sticky/z-index/fundo). São teste de FONTE, pelo mesmo motivo do `GradeDaAgendaRolaInteiraTests` ao lado: não há suíte de CSS aqui. **7.264 verdes** + os conferidores JS.
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. Quem confirma na tela é o Felipe (ou o próprio Gabriel).
+>
+> ✅ **CONFERIDO ANTES DE DISPARAR** (o aviso de 14/09): os dois ambientes estavam no `build-1429-90219b3`, que é exatamente o commit-pai deste trabalho — o pacote novo contém tudo o que já estava no ar. Depois do deploy, `/healthz` responde **200** nos dois.
+>
+> 🚨 **ACHADO NOVO, E NÃO É DESTE TRABALHO: A TRAVA DO PROD NÃO ESTÁ LIGADA.** O `infra/vps/README.md` diz que o environment `prod` tem **Required reviewers**, e avisa que sem ele "o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o deploy sai direto". É o que acontece hoje: o run **380** foi do disparo ao fim em **22 segundos**, sem parar pra aprovação — e os runs 374, 376 e 378 levaram os mesmos ~20s. Ou seja, **todo deploy em produção está saindo direto**, e não se percebe porque o job fica verde do mesmo jeito. Conserto em **Settings → Environments → prod → Required reviewers**; não tem nada a ver com o `deploy.yml`.
+>
+> 🔎 **A MESMA PLANILHA ESTÁ NO `ClubeGestao/Ocupacao`, E NÃO FOI TOCADA**: lá a coluna "Hora" é `<td>` de tabela dentro de `.table-responsive` e some do mesmo jeito ao rolar. **Não é a tela do professor** e ninguém reclamou dela — decisão em aberto pro Felipe: congelar lá também (é `position: sticky` numa célula, não o mesmo CSS) ou deixar.
+>
+> Última atualização: **14/09/2026** — 🎚️ **A FAIXA DO PADELÍMETRO TROCAVA COM UM TORNEIO SÓ, E A ABA VITÓRIAS PREMIAVA QUEM JOGOU MAIS.** 🚀 **PUBLICADO em `dev` E `prod`**: a ordem das Vitórias no `build-1416-591ea33` (runs **368** e **370**) e a faixa no `build-1422-799cc2b` (runs **375** e **376**). PRs #314 e #318. **Sem migration.**
+>
+> ## 1. A ordem da aba Vitórias
+>
+> 🗣️ Felipe: *"deveria estar como segunda opção quem tem maior aproveitamento — vitorias > aproveitamento > jogos"*.
+>
+> 🕳️ A ordem era `Vitórias ↓` e depois **`Jogos ↓`**, o INVERSO: com 5 vitórias, quem fez em 6 jogos (83%) aparecia ACIMA de quem fez em 5 (100%) — bem ao lado de uma coluna "Aproveit." que mostrava os dois números desmentindo a tabela.
+>
+> 🔑 **COM AS VITÓRIAS IGUAIS, "MAIOR APROVEITAMENTO" É "MENOS JOGOS"**: aproveitamento é V/J e, com V fixo, só cresce quando J diminui. O critério do meio virou `ThenBy(Jogos)` — **inteiro, sem divisão** —, que não arredonda pra discordar dos 83% que a coluna mostra. É também por isso que o terceiro critério pedido ("jogos") não desempata nada: **ele É o segundo**.
+>
+> ⚠️ Vale nas **QUATRO** tabelas que tinham a ordenação copiada (jogadores geral e por categoria, duplas geral e por categoria). A coluna "Aproveit." só aparece na geral de jogadores, mas deixar as outras três invertidas seria a tela discordando de si mesma — *"são os mesmos jogos vistos de três jeitos"*, diz o texto da aba.
+>
+> ✅ **CONFERIDO NA PRODUÇÃO**: 1º Longhi e 2º Zago (5 vit/5 jogos/**100%**) acima de 3º Bonamigo e 4º Bagesteiro (5 vit/6 jogos/**83%**). Antes era o contrário.
+>
+> ## 2. A faixa não troca com um torneio só
+>
+> 🗣️ Felipe, vendo quatro **"2ª"** num torneio cuja categoria mais forte era a **3ª**: *"a faixa está errada, essas pessoas estão com nível mais alto que estão jogando"* · *"foi apenas um torneio e estamos exigindo subir, acho que isso não pode ser assim"*.
+>
+> 📊 **MEDIDO, NÃO DEDUZIDO** — cruzei os 128 jogadores do Padelímetro em produção contra a categoria que cada um jogou: **52 (41%) estavam numa faixa diferente da que jogaram** — 22 acima, 30 abaixo, e **nenhum caso de 2+ faixas**. Isso é o que descartou bug de parsing e de seed: as categorias têm nome limpo e o motor estava coerente.
+>
+> 🕳️ **A CAUSA É ARITMÉTICA E ESTAVA NA RÉGUA ESCRITA**: a faixa tem 100 de largura e o seed nasce no MEIO dela (3ª é 650–749 e entra em 700) — são **50 pontos até o teto**. E o `RANKING.md` dizia, na mesma página, que *"um fim de semana dominante rende +60 a +100"*. **+60 já é mais que 50**, então o campeão estreante era promovido SEMPRE no primeiro torneio, contra o *"nunca por um dia de sorte"* escrito duas linhas acima. Medido de verdade: de **−65 a +142** num fim de semana (Longhi, +142 em 5 jogos — mais que uma faixa inteira).
+>
+> 🔑 **A RÉGUA NOVA**: em calibração (<10 jogos) o rótulo é a faixa da **categoria que a pessoa joga**; passada a calibração o número manda, com **folga de 50 pros dois lados**. É o mesmo julgamento que o `K = 40` já faz — número que anda rápido porque é chute não pode renomear ninguém. A folga de **descida** já existia escrita no RANKING.md e **nunca esteve ligada na tela** (`DoNivel` é busca pura): eram os 30 rebaixados sem ter descido.
+>
+> ⚠️ **NÃO MEXE NO NÚMERO DE NINGUÉM** — sem migration, sem replay. `Padelimetro` e `CampanhaNoPadelimetro` não foram tocados, e a `LinhaDeSubida` (teto+1) **continua como estava**: ela limita o BÔNUS DE CAMPANHA, que move o PDZ, e alargá-la mudaria o número de todo mundo. A folga do rótulo mora em `FolgaDoRotulo`, separada de propósito, **com teste cobrando que as duas não se unifiquem**.
+>
+> 🧪 8 testes novos, **6 vistos vermelhos no VALOR** e não só em "não existe": as funções foram plugadas primeiro com o comportamento ANTIGO, de propósito, pra provar que os testes pegam o defeito. Os casos são os números reais da produção.
+>
+> ✅ **CONFERIDO NA PRODUÇÃO, com os 128**: os fora de lugar caíram de **52 para 5**. Arthur Guex (802 PDZ) mostra **3ª** onde mostrava 2ª; Longhi (742) mostra **4ª** onde mostrava 3ª; Arthur Prass (635) mostra **3ª** onde mostrava 4ª.
+>
+> 🔎 **E OS 5 QUE SOBRARAM NÃO SÃO DEFEITO DESTA MUDANÇA — SÃO A ÂNCORA, e isto é achado novo**: o rótulo se ancora na **inscrição mais recente**, e essa consulta **(a) não exige que a categoria tenha sido JOGADA** e **(b) não tem desempate** quando o jogador está em duas categorias com a mesma `DataInicio`. Enio Silva é o flagrante: 760 PDZ, *em calibração (4 de 10 jogos)*, pontuou na **3ª** e o perfil diz **"faixa da 4ª"** — o congelamento funcionou (a faixa crua de 760 seria 2ª), mas a âncora apontou pra uma 4ª em que ele não pontuou. **Decisão em aberto pro Felipe**: ancorar na inscrição mais recente que gerou jogo contado, ou manter como está e aceitar que "onde ele se inscreveu por último" é a resposta.
+>
+> ⚠️ **NENHUM DOS DOIS FOI PUBLICADO POR ESTA SESSÃO**, e isso é registro: o `build-1416` subiu por outra sessão (o PR #315 dela foi mesclado DEPOIS do #314, então o artefato dela já continha esta mudança) e o `build-1422` foi publicado por outro agente minutos depois do merge. Nos dois casos disparar o build "certo" teria REGREDIDO trabalho alheio — o mesmo erro do run 348 hoje de manhã. **Antes de disparar deploy, conferir o que já está no ar.**
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. O que sustenta é a suíte (**7.243 verdes**) e a medição do HTML servido pela produção nos dois casos. Quem confirma na tela é o Felipe.
+>
+> Última atualização: **14/09/2026** — 🎯 **O ORGANIZADOR DECIDE SE O TORNEIO TEM PALPITÔMETRO, E EM QUAIS CATEGORIAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1420-2e64a2d`** (deploy runs **373** e **374**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #317. **COM MIGRATION** (`PalpitometroPorCategoria`).
+>
+> 🗣️ Felipe: *"na parte de criar torneio, coloque la para o organizador decidir se vai habilitar o palpitometro ou nao, se vai ser apenas da masculina/feminina ou em ambos, deixe nascendo como permitido e nas tanto feminino como masculino"*.
+>
+> Na criação e na gestão, um rádio de quatro: **em todas as categorias** (o padrão), **só nas masculinas**, **só nas femininas**, **não usar**.
+>
+> 🔑 **UMA COLUNA SÓ (`Torneio.PalpitometroEm`), E É A DECISÃO QUE SEGURA O RESTO.** As duas perguntas do pedido cabem num valor — `Nenhuma` é a primeira respondida com não. Separadas num `bool` + um alcance, elas poderiam **discordar** (desligado com `"Feminina"` gravado ao lado), e aí passam a existir duas verdades sobre a mesma coisa e o resto do código escolhe em qual acreditar. Mesma decisão, e mesmo motivo, do `GamesSoDaFinal` ao recusar um `bool FinalSeparada`. É também o que deixa a tela ser rádio como o `quemMarcaPlacar`: **rádio manda sempre o marcado**, sem a pegadinha do `<input type="hidden">` que o par caixa+valor obriga — a mesma que o `usaVotacaoDeMvp` precisou documentar em três parágrafos.
+>
+> 🔑 **A RÉGUA DO SEXO É A DO PADELÍMETRO, NÃO UMA SEGUNDA**: `FaixasDePadelimetro.EhFeminina` já responde "esta categoria é feminina?" pelo **nome** — o único lugar onde esse dado existe, porque a `Categoria` **não tem coluna de sexo** (o nome é texto livre, e a API do Ranking RS nem confere sexo). Uma definição nova aqui divergiria da primeira no dia em que uma das duas mudasse: a tela mostraria o palpitômetro onde o Padelímetro diz que é feminina e o alcance diz que não.
+>
+> ⚖️ **PERGUNTADO, O FELIPE ESCOLHEU A RÉGUA BINÁRIA**: Mista, Casal e Lendas entram **junto com a masculina**. Exigir `"Masc"` escrito no nome deixaria essas três sem palpitômetro nas **duas** escolhas restritas — e o organizador que marcou "só masculinas" não teria como descobrir por quê.
+>
+> ⚠️ **ESCONDER NÃO É FECHAR**: o `PalpiteService.RegistrarVotoAsync` **recusa** o voto de categoria fora do alcance. O POST de `/Partidas/Votar` é montado à mão sem passar por view nenhuma, e quem estava com a lista aberta quando o organizador desligou continua com o botão na mão. O `RetirarPalpiteAsync` **não** ganhou a trava, de propósito: ela é sobre gravar aposta, e fechar a saída junto prenderia quem já palpitou a uma aposta que a tela nem mostra mais.
+>
+> ⚠️ **A CONSULTA VAI PELA CATEGORIA, NÃO POR `Partida.TorneioId`** — aquela coluna é ANULÁVEL e nem toda partida a preenche (mesma razão do `ChegadasDoTorneioAsync`). Por `TorneioId`, o jogo sem ela cairia em "torneio desconhecido", que o `Normalizar` lê como `Todas`, e o palpitômetro **desligado continuaria aceitando voto, calado**.
+>
+> ⚠️ **DESCONHECIDO VIRA `Todas`, NUNCA `Nenhuma`**: dois caminhos reais chegam com lixo — o backfill da migration e o POST montado à mão. Cair em "desligado" faria o recurso sumir, sem erro nenhum, do torneio de quem nunca abriu esta tela. Recurso que some calado é o que ninguém reporta.
+>
+> ⚠️ **A GUARDA DA TELA É REPETIDA NAS DUAS APRESENTAÇÕES** (`_JogoEmLinha` e o cartão do AO VIVO em `_JogosDoTorneio`), porque são markups PRÓPRIOS — foi assim que o "desfazer o play" nasceu só na linha. A régua é uma; quem repete é o `if`. Um palpitômetro que some da lista e continua no cartão ao vivo é pior que não ter o interruptor. O alcance chega por view-data, montado **uma vez** no `CarregarViewBagJogosAsync` (o caminho do `UsaCheckIn`), que abastece as duas telas de jogo.
+>
+> 🕳️ **UM CS8602 NOVO APARECEU E NÃO FOI CALADO COM `!`**: o `jogo.Categoria?.Nome` que eu escrevi ensinou o compilador a duvidar de algo que o arquivo inteiro já trata como certo — e quebrou TRÊS linhas pré-existentes que desreferenciam `jogo.Categoria.Nome` direto. O conserto foi **tirar a dúvida** (a navegação é não-anulável e vem sempre com `Include`), não silenciar o aviso.
+>
+> ⚠️ **`defaultValue: "Todas"` NA MIGRATION FOI ESCRITO À MÃO** — o EF gerou **string vazia**, a mesma armadilha da `VotacaoDeMvpOpcional`: ele olha o TIPO da coluna, não o inicializador da propriedade. O `Normalizar` ainda leria vazio como `Todas` (nada quebraria), mas o banco guardaria uma verdade que **nenhum dos quatro rádios da gestão consegue mostrar**.
+>
+> 🧪 **30 TESTES NOVOS, ESCRITOS ANTES E VISTOS VERMELHOS CONTRA UM ESQUELETO VAZIO**: 27 falharam pelo motivo certo. Os **5 que passaram de primeira são os CONTROLES** — o que NÃO pode mudar (o voto dentro do alcance, o palpite que sobrevive ao desligamento, a aba antiga que não mexe no gravado) —, e cada um tem o par vermelho que discrimina (`Na_CRIACAO_um_alcance_INVENTADO...` e `Na_GESTAO_o_organizador_muda_o_alcance_depois` estavam entre os 27). Mais um gate de tradução com `ToQueryString()` contra o Npgsql, porque **o InMemory não valida SQL**. **7.222 testes verdes**, 11 conferidores JS verdes, `has-pending-model-changes` limpo.
+>
+> ⚠️ **O QUE A VERIFICAÇÃO NÃO PROVA, dito com todas as letras**: o que sustenta é o **job de deploy verde** (o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200). O `/healthz` **200** nos dois **não distingue versão** — os dois já respondiam 200 antes, e esta leva **não criou rota nova** pra servir de sonda: tudo mudou na tela de criar torneio e na gestão, **atrás de login**. **Fechar de verdade é um teste de meio minuto que só o Felipe pode fazer**: num torneio de `dev` com uma categoria masculina e uma feminina, marcar "só nas masculinas" e ver o palpitômetro sumir da feminina e ficar na masculina.
+>
+> 🕳️ **ERRO MEU, REGISTRADO PORQUE A LIÇÃO É REAPROVEITÁVEL: CANCELEI UM RUN DE CI SAUDÁVEL.** Achei que o Actions estava travado e cancelei — **estava só mais lento** (o mesmo passo leva 78s no `main`). A conta errada veio de eu **somar os meus próprios `sleep` em background em vez de olhar o relógio**: eles rodam **em paralelo**, então o tempo decorrido é o do MAIOR, não a soma — "35 minutos" eram ~3. Custou um ciclo de CI. **Tempo decorrido se mede com `date`, ou com os carimbos do próprio GitHub; nunca somando timers.**
+>
+> ✅ **E O `prod` CONTINUA NÃO PARANDO PRA APROVAÇÃO** — **quarto registro do mesmo fato hoje**, agora em três sessões diferentes (PRs #313 e #316 já anotavam). O run **374** foi de enfileirado a verde em **17 segundos**, direto pro `Publicar`, sem esperar ninguém. A trava mora no environment `prod` (Settings → Environments), não no `deploy.yml`: **ela não está valendo.**
+
 > Última atualização: **14/09/2026** — ⭐ **O PADELIZOU ENTROU NO CARD DO COMENTÁRIO, E A MÉDIA VIROU PORTA: CLICOU, VÊ QUEM RESPONDEU.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1416-591ea33`** (deploy runs **368** e **370**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #315. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do card de avaliação do torneio: *"ali nao esta aparecendo a avaliação do padelizou no comentario e aqui tambem permita aparecer os comentarios do sistema, do clube e do torneio"* e, na sequência, *"ao clicar na avaliação (4,9) ali, permita eu ver quem votou"*.

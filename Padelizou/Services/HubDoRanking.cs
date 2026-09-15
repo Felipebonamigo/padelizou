@@ -128,7 +128,14 @@ public sealed class HubDoRanking
         // Aba PALPITEIROS: quem mais acerta no palpitômetro, com o MESMO filtro regional das
         // outras abas. ⚠️ Ela não mede resultado de chave — mede quem lê os jogos —, então
         // entra junto com os Desafios na lista de exceções da frase-promessa do topo da tela.
-        hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
+        //
+        // ⚠️ E QUEM DESLIGOU O PALPITÔMETRO NO PERFIL NÃO A RECEBE (14/09/2026). Decisão do
+        // Felipe: desligar some com TUDO, esta aba junto. A guarda vem ANTES da consulta, pelo
+        // mesmo motivo da `PortaDosDesafios` logo acima — quem não vai ver a aba não paga a
+        // conta dela. E some o botão de compartilhar junto de graça: o `TemArte` já lê a lista
+        // vazia como "não há o que desenhar".
+        if ((await PreferenciaDoPalpitometro.DeAsync(_context, hub.EuId)).VerPalpitometro)
+            hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
         //

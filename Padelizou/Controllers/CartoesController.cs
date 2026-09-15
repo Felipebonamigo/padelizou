@@ -254,10 +254,10 @@ public class CartoesController : Controller
                 .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
                 .Select(d => d.Categoria.Nome)
                 .ToListAsync();
-            bool feminina = FaixasDePadelimetro.EhFeminina(
-                categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n)));
-
-            var rotulo = FaixasDePadelimetro.DoNivel(nivel, feminina).Rotulo;
+            // Mesmo rótulo do perfil e do ranking — a arte não pode dizer outra faixa.
+            var categoriaDaEscada = categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
+            var rotulo = FaixasDePadelimetro
+                .FaixaExibida(nivel, categoriaDaEscada, jogador.JogosDePadelimetro).Rotulo;
             faixa = rotulo == "Open" ? "Categoria Open" : $"{rotulo} categoria";
             emCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
         }

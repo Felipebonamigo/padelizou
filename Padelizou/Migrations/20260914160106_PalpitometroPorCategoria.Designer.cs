@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260914160106_PalpitometroPorCategoria")]
+    partial class PalpitometroPorCategoria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2089,12 +2092,6 @@ namespace Padelizou.Migrations
 
                     b.Property<int?>("UltimoLembreteDeAssinatura")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("VerPalpitometro")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("VerQuemPalpitou")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("VersaoDosTermosAceita")
                         .HasColumnType("text");

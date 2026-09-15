@@ -363,20 +363,21 @@ public class PadelimetroService : IPadelimetroService
             })
             .ToListAsync();
 
-        var escadaFeminina = new Dictionary<int, bool>();
+        // Guarda o NOME da categoria, e não só "é feminina": desde 14/09/2026 ela é a ÂNCORA
+        // do rótulo, não só a escolha da escada. Ver FaixasDePadelimetro.FaixaExibida.
+        var categoriaDeCadaUm = new Dictionary<int, string>();
         foreach (var i in inscricoes.OrderByDescending(i => i.Data)) // mais recente primeiro; a primeira vista vence
         {
             if (FaixasDePadelimetro.ForaDaEscada(i.Categoria)) continue;
-            bool feminina = FaixasDePadelimetro.EhFeminina(i.Categoria);
             foreach (var id in new[] { i.Jogador1Id, i.Jogador2Id ?? -1 })
-                if (id > 0 && ids.Contains(id) && !escadaFeminina.ContainsKey(id))
-                    escadaFeminina[id] = feminina;
+                if (id > 0 && ids.Contains(id) && !categoriaDeCadaUm.ContainsKey(id))
+                    categoriaDeCadaUm[id] = i.Categoria;
         }
 
         return jogadores.Select(j =>
         {
-            FaixasDePadelimetro.Faixa? faixa = escadaFeminina.TryGetValue(j.Id, out var feminina)
-                ? FaixasDePadelimetro.DoNivel(j.Padelimetro!.Value, feminina)
+            FaixasDePadelimetro.Faixa? faixa = categoriaDeCadaUm.TryGetValue(j.Id, out var categoria)
+                ? FaixasDePadelimetro.FaixaExibida(j.Padelimetro!.Value, categoria, j.JogosDePadelimetro)
                 : null;
             return new PadelimetroLinhaVM
             {

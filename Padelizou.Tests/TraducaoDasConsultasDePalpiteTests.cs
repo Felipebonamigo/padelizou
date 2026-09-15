@@ -48,6 +48,13 @@ public class TraducaoDasConsultasDePalpiteTests
     }
 
     [Fact]
+    public void O_ALCANCE_DO_PALPITOMETRO_da_categoria_vira_SQL() =>
+        // 14/09/2026: a consulta que o `RegistrarVotoAsync` faz pra saber se ESTA categoria tem
+        // palpitômetro. Atravessa uma navegação (Categoria → Torneio) dentro da projeção, que é
+        // exatamente o feitio que o InMemory resolve em memória e o Postgres precisa traduzir.
+        Traduz(ctx => PalpiteService.ConsultaDoPalpitometro(ctx, categoriaId: 1));
+
+    [Fact]
     public void As_partidas_de_UM_TORNEIO_viram_SQL() =>
         Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidas(ctx, p => p.TorneioId == 1));
 
