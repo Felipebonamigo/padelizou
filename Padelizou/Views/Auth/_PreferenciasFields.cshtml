@@ -63,6 +63,40 @@
     </small>
 </div>
 
+<!-- Palpitômetro -->
+<div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+    <label class="form-label fw-bold text-muted small d-block mb-2">Palpitômetro</label>
+    @* ⚠️ O <input type="hidden" value="false"> DEPOIS de cada caixa não é enfeite: os dois
+       parâmetros do servidor são `bool?`, onde NULO quer dizer "aba aberta antes do deploy,
+       mantenha o gravado". Caixa desmarcada não vai no POST — sem o campo escondido,
+       DESMARCAR seria indistinguível de "formulário antigo" e ninguém conseguiria desligar.
+       É o mesmo par que o `asp-for` gera sozinho; aqui o formulário é escrito à mão.
+
+       ⚠️⚠️ E O ESCONDIDO VEM DEPOIS DA CAIXA, NÃO ANTES. O binder lê o PRIMEIRO valor do campo
+       repetido: com o escondido na frente, marcar a caixa DESLIGARIA a preferência. Teste de
+       controller não pega isso, porque ele chama a ação direto e pula o model binding. *@
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="verPalpitometro" value="true" id="verPalpitometro" style="transform: scale(1.2);" @(Model.VerPalpitometro ? "checked" : "") />
+        <input type="hidden" name="verPalpitometro" value="false" />
+        <label class="form-check-label fw-bold" for="verPalpitometro">Ver o palpitômetro nos jogos</label>
+    </div>
+    <small class="text-muted d-block mt-1 mb-3">
+        A barra de "quem vai ganhar" nos jogos, o palpite com placar e o ranking de palpiteiros.
+        Desligado, nada disso aparece pra você — nem a aba de palpiteiros.
+    </small>
+
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="verQuemPalpitou" value="true" id="verQuemPalpitou" style="transform: scale(1.2);" @(Model.VerQuemPalpitou ? "checked" : "") />
+        <input type="hidden" name="verQuemPalpitou" value="false" />
+        <label class="form-check-label fw-bold" for="verQuemPalpitou">Ver os nomes de quem palpitou</label>
+    </div>
+    <small class="text-muted d-block mt-1">
+        O "quem votou em quem" de cada jogo. Desligado, você continua vendo a barra e as
+        porcentagens — só não abre a lista de nomes.
+        <span class="d-block mt-1"><i class="bi bi-info-circle"></i> Esta escolha é sobre o que <strong>você</strong> vê. O seu nome continua aparecendo pra quem quiser ver quem palpitou.</span>
+    </small>
+</div>
+
 <!-- Notificações -->
 <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <label class="form-label fw-bold text-muted small d-block mb-2">Como quer ser avisado de novos jogos?</label>
@@ -387,8 +421,21 @@
 
 <!-- Dias e períodos preferidos -->
 <div class="mb-2">
-    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-        <label class="form-label fw-bold text-muted small mb-0">Dias e períodos preferidos</label>
+    @* Rótulo em cima e os botões numa linha só — as outras seções põem o atalho ao lado do
+       rótulo, mas ali é UM botão. Com dois, num celular de 420px, a linha quebrava e cada
+       botão ficava sozinho no seu andar. *@
+    <label class="form-label fw-bold text-muted small d-block mb-2">Dias e períodos preferidos</label>
+    <div class="d-flex gap-2 flex-wrap mb-2">
+        @* 🗣️ Felipe, 13/09/2026: *"tem que fazer uma recurso 'Todos os dias, exceto...'"*.
+           Quem joga quase sempre precisava de VINTE toques pra dizer "menos domingo de manhã" —
+           e o único atalho da tela desmarcava tudo, que é o oposto. Aqui ele marca as 21 e a
+           pessoa tira o que não serve. *@
+        @* "Todos, exceto…" e não "Todos os dias, exceto…": medido no Chromium, o nome inteiro dá
+           205,8px e a linha útil do card no celular dá 356 — com o "Qualquer horário" (161,1px)
+           ao lado, passava 19px e cada botão caía no seu próprio andar. O nome completo está na
+           dica logo abaixo da grade, onde cabe. *@
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="marcarTodosOsHorarios()"
+                title="Marca a semana inteira pra você desmarcar só o que não serve">Todos, exceto…</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('diahorario')">Qualquer horário</button>
     </div>
     <div class="table-responsive">
@@ -398,7 +445,11 @@
                     <th class="text-start">Dia</th>
                     @foreach (var periodo in periodos)
                     {
-                        <th>@periodo</th>
+                        @* O cabeçalho vira botão da COLUNA: "só de noite" é um toque, não sete. *@
+                        <th class="p-0">
+                            <button type="button" class="pdz-atalho-horario w-100" onclick="alternarPeriodoInteiro('@periodo')"
+                                    title="Marcar ou desmarcar @periodo na semana toda">@periodo</button>
+                        </th>
                     }
                 </tr>
             </thead>
@@ -406,7 +457,11 @@
                 @for (int dia = 0; dia < diasSemana.Length; dia++)
                 {
                     <tr>
-                        <td class="text-start small">@diasSemana[dia]</td>
+                        @* E o nome do dia vira botão da LINHA: "o sábado inteiro" também é um toque. *@
+                        <td class="text-start p-0">
+                            <button type="button" class="pdz-atalho-horario w-100 text-start small" onclick="alternarDiaInteiro(@dia)"
+                                    title="Marcar ou desmarcar @diasSemana[dia] inteiro">@diasSemana[dia]</button>
+                        </td>
                         @foreach (var periodo in periodos)
                         {
                             var valor = $"{dia}|{periodo}";
@@ -418,7 +473,7 @@
                                checkbox solto não tem como ser anunciado. *@
                             <td class="p-0">
                                 <label class="pdz-alvo-horario">
-                                    <input class="form-check-input diahorario-check" type="checkbox" name="diasHorariosSelecionados" value="@valor" @(Model.DiasHorariosSelecionados.Contains(valor) ? "checked" : "") />
+                                    <input class="form-check-input diahorario-check" type="checkbox" name="diasHorariosSelecionados" value="@valor" data-dia="@dia" data-periodo="@periodo" @(Model.DiasHorariosSelecionados.Contains(valor) ? "checked" : "") />
                                     <span class="visually-hidden">@diasSemana[dia] de @periodo</span>
                                 </label>
                             </td>
@@ -428,4 +483,37 @@
             </tbody>
         </table>
     </div>
+    <small class="text-muted d-block">
+        <strong>Todos os dias, exceto…</strong> marca a semana inteira pra você desmarcar só o que não serve.
+        Toque no nome do dia pra ligar ou desligar a linha inteira, e no do período pra coluna toda.
+        Sem nada marcado — ou com tudo marcado — vale qualquer horário.
+    </small>
 </div>
+
+<script>
+    // Liga se faltava alguma, desliga se já estavam todas. É a mesma regra do "selecionar
+    // tudo" de qualquer lista, e é o que faz o toque no dia ser reversível pelo mesmo toque.
+    function alternarHorarios(caixas) {
+        if (!caixas.length) return;
+        var ligar = caixas.some(function (caixa) { return !caixa.checked; });
+        caixas.forEach(function (caixa) { caixa.checked = ligar; });
+    }
+
+    function caixasDeHorario(cabe) {
+        return Array.prototype.filter.call(document.querySelectorAll('.diahorario-check'), cabe);
+    }
+
+    function alternarDiaInteiro(dia) {
+        alternarHorarios(caixasDeHorario(function (c) { return c.dataset.dia === String(dia); }));
+    }
+
+    function alternarPeriodoInteiro(periodo) {
+        alternarHorarios(caixasDeHorario(function (c) { return c.dataset.periodo === periodo; }));
+    }
+
+    // Não é "alternar": quem toca em "Todos os dias, exceto…" quer a grade CHEIA pra começar a
+    // tirar. Se alternasse, o segundo toque de quem errou o alvo esvaziaria tudo de novo.
+    function marcarTodosOsHorarios() {
+        caixasDeHorario(function () { return true; }).forEach(function (c) { c.checked = true; });
+    }
+</script>

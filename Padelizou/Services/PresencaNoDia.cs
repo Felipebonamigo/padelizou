@@ -2,12 +2,12 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// "ESSA DUPLA CHEGOU?" — uma régua só, desde 12/09/2026.
+// "ESSA DUPLA CHEGOU PRA ESTE JOGO?" — uma régua só, desde 12/09/2026.
 //
-// A presença passou a ser da PESSOA (Models/PresencaNoTorneio), e "a dupla está completa" virou
-// conta derivada. Ela é feita em quatro lugares — o selo do cartão de check-in, o contador da
-// tela, a lista por categoria e a linha da aba Jogos —, e duas cópias dela fariam o contador
-// dizer "32 de 64" enquanto o cartão do jogo diz que a dupla está inteira.
+// A presença é da PESSOA num JOGO (Models/PresencaNoJogo), e "a dupla está completa" é conta
+// derivada. Ela é feita em quatro lugares — o selo do cartão de check-in, o contador da tela, a
+// lista do dia e a linha da aba Jogos —, e duas cópias dela fariam o contador dizer "32 de 64"
+// enquanto o cartão do jogo diz que a dupla está inteira.
 //
 // ⚠️ INSCRIÇÃO SEM PARCEIRO CONTA COM UMA PESSOA SÓ. A vaga sozinha entra na chave desde 09/09;
 // exigir dois checks deixaria essa dupla eternamente "faltando alguém" — e o W.O. sairia contra
@@ -31,26 +31,35 @@ public static class PresencaNoDia
         if (dupla.Jogador2Id is int segundo) yield return segundo;
     }
 
-    // Todos os jogadores dela já apareceram? É o que o selo "os dois chegaram" e o W.O. leem.
+    // Todos os jogadores dela já apareceram PRA ESTE JOGO? É o que o selo "os dois chegaram", a
+    // ordem do horário e o W.O. leem.
     //
-    // ⚠️ O DICIONÁRIO É jogadorId → HORA DA CHEGADA, e não um conjunto de ids: a tela escreve
-    // "chegou 08:12" do lado de cada nome, e um conjunto obrigaria uma segunda consulta (ou uma
-    // segunda estrutura) só pra saber a hora — duas fontes pra mesma linha do banco.
-    public static bool DuplaCompleta(Dupla? dupla, IReadOnlyDictionary<int, DateTime> chegadas)
+    // ⚠️ A CHAVE É (PartidaId, JogadorId) DESDE 12/09/2026. 🗣️ Felipe: *"o checkin ... nao
+    // deveria [herdar], tem q ser separado jogo a jogo"*. Perguntar só pela pessoa fazia o jogo
+    // das 19:00 herdar o check do jogo das 15:30 — e, com a ordem por presença, subir pro topo do
+    // horário sem ninguém em quadra.
+    //
+    // ⚠️ E O VALOR É A HORA, não um conjunto de ids: a tela escreve "chegou 08:12" do lado de
+    // cada nome, e um conjunto obrigaria uma segunda consulta só pra saber a hora — duas fontes
+    // pra mesma linha do banco.
+    public static bool DuplaCompleta(
+        int partidaId, Dupla? dupla, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> chegadas)
     {
         if (dupla == null) return false;
 
         bool temAlguem = false;
         foreach (var id in IdsDa(dupla))
         {
-            if (!chegadas.ContainsKey(id)) return false;
+            if (!chegadas.ContainsKey((partidaId, id))) return false;
             temAlguem = true;
         }
         return temAlguem;
     }
 
-    // A hora em que a pessoa apareceu, ou nulo se ainda não. Existe pra view não repetir o
-    // `TryGetValue` em quatro lugares — e pra ninguém cair no `chegadas[id]` que estoura.
-    public static DateTime? ChegouEm(int jogadorId, IReadOnlyDictionary<int, DateTime> chegadas) =>
-        chegadas.TryGetValue(jogadorId, out var quando) ? quando : null;
+    // A hora em que a pessoa apareceu PRA ESTE JOGO, ou nulo se ainda não. Existe pra view não
+    // repetir o `TryGetValue` em quatro lugares — e pra ninguém cair no `chegadas[chave]`, que
+    // estoura.
+    public static DateTime? ChegouEm(
+        int partidaId, int jogadorId, IReadOnlyDictionary<(int PartidaId, int JogadorId), DateTime> chegadas) =>
+        chegadas.TryGetValue((partidaId, jogadorId), out var quando) ? quando : null;
 }

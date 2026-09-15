@@ -31,7 +31,7 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public virtual DbSet<TorneioMarcador> TorneioMarcadores { get; set; }
     // Quem já chegou ao clube, uma linha por PESSOA por torneio (Models/PresencaNoTorneio).
-    public virtual DbSet<PresencaNoTorneio> Presencas { get; set; }
+    public virtual DbSet<PresencaNoJogo> Presencas { get; set; }
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
@@ -97,6 +97,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
     public DbSet<CurtidaDoComentario> CurtidasDoComentario { get; set; }
+
+    // As reações com emoji de cada jogo (o "tipo o Discord" do Felipe, 12/09/2026).
+    public DbSet<ReacaoDaPartida> ReacoesDaPartida { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
 
     // A caixa de entrada de avisos do jogador (a tela "Notificações"). Ver AvisoDoJogador.
@@ -154,6 +157,47 @@ public partial class DbPadelContext : DbContext
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
     //        => optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DB_PADEL;Trusted_Connection=True;TrustServerCertificate=True;");
+
+    // ── O HORÁRIO DO SORTEIO SE CARIMBA SOZINHO, NO NASCIMENTO ──────────────────────────
+    //
+    // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"temos que seguir a grade prevista, por que o
+    // usuario se baseia [...] talvez devamos criar campos separados"*.
+    //
+    // ⚠️ AQUI, E NÃO EM CADA CAMINHO DE CRIAÇÃO — e isso é deliberado. Partida nasce em pelo menos
+    // cinco lugares (o sorteio, as duas entradas do robô, o Americano, o desempate), e um carimbo
+    // espalhado por cinco chamadas é um carimbo que a sexta vai esquecer. O que este campo promete
+    // é "escrito UMA VEZ, no nascimento" — que é exatamente um assunto do ciclo de vida da
+    // entidade, e o ciclo de vida mora aqui.
+    //
+    // ⚠️ SÓ EM QUEM ESTÁ NASCENDO (`Added`) E SÓ SE AINDA FOR NULO: jogo que já existe nunca tem o
+    // carimbo reescrito, que é a propriedade inteira do campo. Um `HorarioPrevisto` que muda depois
+    // é a operação do dia, e ela não mexe na promessa.
+    //
+    // ⚠️ E NASCER SEM HORA DEIXA O CARIMBO NULO, de propósito: torneio "por ordem de liberação"
+    // cria jogo sem horário, e não há promessa nenhuma a guardar. Nulo = a tela se comporta como
+    // antes desta mudança.
+    private void CarimbarOHorarioDoSorteio()
+    {
+        foreach (var entrada in ChangeTracker.Entries<Partida>())
+        {
+            if (entrada.State != EntityState.Added) continue;
+            if (entrada.Entity.HorarioDoSorteio != null) continue;
+
+            entrada.Entity.HorarioDoSorteio = entrada.Entity.HorarioPrevisto;
+        }
+    }
+
+    public override int SaveChanges()
+    {
+        CarimbarOHorarioDoSorteio();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(bool aceitarTodasAsMudancas, CancellationToken ct = default)
+    {
+        CarimbarOHorarioDoSorteio();
+        return base.SaveChangesAsync(aceitarTodasAsMudancas, ct);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -357,16 +401,18 @@ public partial class DbPadelContext : DbContext
         // das outras tabelas de vínculo: um segundo caminho de cascade a partir de Jogador é o
         // conflito já visto em JogoSemanal/CandidaturaParceiro. Torneio em Cascade porque a
         // presença não sobrevive ao torneio que a gerou.
-        modelBuilder.Entity<PresencaNoTorneio>(entity =>
+        modelBuilder.Entity<PresencaNoJogo>(entity =>
         {
-            entity.HasKey(p => new { p.TorneioId, p.JogadorId });
+            entity.HasKey(p => new { p.PartidaId, p.JogadorId });
             entity.HasOne(p => p.Jogador)
                 .WithMany()
                 .HasForeignKey(p => p.JogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(p => p.Torneio)
+            // ⚠️ Cascade: refazer a grade apaga partidas, e o check delas vai junto. Ver o
+            // comentário do Models/PresencaNoJogo.
+            entity.HasOne(p => p.Partida)
                 .WithMany()
-                .HasForeignKey(p => p.TorneioId)
+                .HasForeignKey(p => p.PartidaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Clube>(entity =>
@@ -1153,10 +1199,30 @@ public partial class DbPadelContext : DbContext
             entity.Property(e => e.Codigo)
                 .HasMaxLength(50)
                 .IsUnicode(false);
-            entity.Property(e => e.GamesDupla1).HasDefaultValue(0);
-            entity.Property(e => e.GamesDupla2).HasDefaultValue(0);
-            entity.Property(e => e.SetsDupla1).HasDefaultValue(0);
-            entity.Property(e => e.SetsDupla2).HasDefaultValue(0);
+            // ⚠️ SEM `HasDefaultValue(0)` NAS COLUNAS DE PLACAR (13/09/2026). As quatro são
+            // NULÁVEIS e o robô não escreve placar ao criar a partida — com o DEFAULT, o jogo
+            // nascia 0 x 0 no Postgres e a chave mostrava placar de jogo que não começou
+            // (🗣️ Felipe: *"Aqui esta aparecendo placar que ainda não comecou"*).
+            //
+            // `null` já era o "sem placar" do resto do sistema: `DesfazerDoJogo` zera pra null,
+            // `QuemVenceu.MotivoParaNaoFinalizar` e o `PadelimetroService` testam contra null.
+            // Com o DEFAULT, aquele guarda do QuemVenceu nascia morto — `0 != null`.
+            //
+            // ⚠️ A suíte NÃO pega a volta disto por comportamento: o EF InMemory ignora
+            // `HasDefaultValue`. Quem segura é `PlacarNaoNasceZeradoTests`, na anotação.
+
+            // ⚠️ DUAS PARTIDAS NÃO PODEM SER A MESMA "Semifinal 2" — e quem impede é o BANCO,
+            // não um `if` em C# (degrau 4 da escada do CLAUDE.md). Dois encerramentos quase
+            // simultâneos, ou o organizador reabrindo e refinalizando o mesmo jogo, chamam o
+            // robô duas vezes; antes o guarda era um contador lido antes do INSERT, que é
+            // exatamente a forma que uma corrida atravessa.
+            //
+            // ⚠️ NULO NÃO CONFLITA NO POSTGRES, e é isso que deixa o índice conviver com o
+            // acervo: todo jogo criado antes de 13/09/2026 tem `NumeroNaFase` nulo, e vários
+            // nulos na mesma fase são permitidos.
+            entity.HasIndex(e => new { e.CategoriaId, e.Fase, e.NumeroNaFase })
+                .IsUnique()
+                .HasDatabaseName("IX_Partida_Categoria_Fase_Numero");
 
             entity.HasOne(d => d.Categoria).WithMany(p => p.Partidas)
                 .HasForeignKey(d => d.CategoriaId)
@@ -1684,6 +1750,41 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DuplaEscolhidaId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── AS REAÇÕES DO JOGO (12/09/2026) ──────────────────────────────────────────────
+        modelBuilder.Entity<ReacaoDaPartida>(entity =>
+        {
+            // ⚠️ A CHAVE COMPOSTA É A REGRA, não um índice de enfeite: "uma reação por pessoa
+            // por emoji" mora aqui, e não num `if` de C# que o clique duplo escapa (é o degrau
+            // 4 da escada do CLAUDE.md — a mesma forma da PK de TorneioMarcador).
+            entity.HasKey(e => new { e.PartidaId, e.JogadorId, e.Emoji });
+
+            // O teto da coluna vem da peneira (Services/EmojiDeReacao.TamanhoMaximo): a
+            // sequência mais longa que existe de verdade é a bandeira de subdivisão, com 14
+            // unidades UTF-16. Sem limite, a chave primária aceitaria texto de qualquer tamanho.
+            entity.Property(e => e.Emoji).HasMaxLength(Padelizou.Services.EmojiDeReacao.TamanhoMaximo);
+
+            // Ler as reações de uma lista de 97 jogos é UMA consulta por PartidaId — e a chave
+            // composta já começa por ele, então o índice da PK é o que serve essa leitura.
+            // Este aqui é o outro lado: apagar a conta de quem reagiu.
+            entity.HasIndex(e => e.JogadorId);
+
+            // ⚠️ OS DOIS EM CASCADE, como CurtidaDoComentario: as FKs vão pra tabelas
+            // DIFERENTES (Partida e Jogador) e se encontram aqui por caminhos independentes, e
+            // o Postgres lida com caminho múltiplo de cascade sem reclamar (o conflito de
+            // "multiple cascade paths" que obrigou o Restrict do PalpitePartida é do SQL
+            // Server). Regerar a chave apaga partidas — e apagar a partida tem que levar as
+            // reações dela, senão sobra linha órfã apontando pro que não existe.
+            entity.HasOne(e => e.Partida)
+                .WithMany()
+                .HasForeignKey(e => e.PartidaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PushSubscriptionJogador>(entity =>

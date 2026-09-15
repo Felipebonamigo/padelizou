@@ -75,13 +75,36 @@ public class QuadroDaChaveCasaPorNumeroTests
 
         // O organizador joga a nº 1 pra bem depois — é o que "Trocar horário"/"Definir horário"
         // numa prévia grava.
-        ctx.ReservasDeHorario.Add(new ReservaDeHorario
+        // ⚠️ ATUALIZA, NÃO INSERE (14/09/2026): a aprovação da chave já grava a grade prevista,
+        // então a reserva deste jogo JÁ EXISTE. Inserir de novo estoura na chave composta — que é
+        // exatamente o que o "Definir horário" real evita: procura, e só cria se não achar.
+        //
+        // ⚠️ E A HORA NOVA SAI DA PRÓPRIA nº 2, e não de um "+5h" no relógio: com a grade inteira
+        // prometida, um deslocamento fixo já não garante que a nº 1 caia DEPOIS da nº 2 — e sem
+        // isso o cenário para de produzir a desordem que este teste existe pra descrever. O
+        // perigo (casar por posição) continua o mesmo; quem precisava de conserto era o cenário.
+        var daNumeroDois = (await ProjecaoDaFaseAsync(ctx, torneio.Id, org.Id, categoria.Nome, fase))
+            .Single(j => j.Numero == 2).Horario!.Value;
+        ctx.ChangeTracker.Clear();
+
+        var jaPrometida = await ctx.ReservasDeHorario
+            .FirstOrDefaultAsync(r => r.CategoriaId == categoria.Id && r.Fase == fase && r.Numero == 1);
+
+        if (jaPrometida == null)
         {
-            CategoriaId = categoria.Id,
-            Fase = fase,
-            Numero = 1,
-            Horario = cedo.AddHours(5),
-        });
+            ctx.ReservasDeHorario.Add(new ReservaDeHorario
+            {
+                CategoriaId = categoria.Id,
+                Fase = fase,
+                Numero = 1,
+                Horario = daNumeroDois.AddHours(1),
+            });
+        }
+        else
+        {
+            jaPrometida.Horario = daNumeroDois.AddHours(1);
+        }
+
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
 
@@ -167,8 +190,8 @@ public class QuadroDaChaveCasaPorNumeroTests
         var inicio = fonte.IndexOf("var previstosDoQuadro", StringComparison.Ordinal);
         Assert.True(inicio >= 0, "Não achei o casamento da chave prevista (previstosDoQuadro) na página do torneio.");
 
-        var fim = fonte.IndexOf("_ChaveProjetadaArvore", inicio, StringComparison.Ordinal);
-        Assert.True(fim > inicio, "Não achei o partial que recebe o quadro (_ChaveProjetadaArvore).");
+        var fim = fonte.IndexOf("<partial name=\"_ChaveDoMataMata\"", inicio, StringComparison.Ordinal);
+        Assert.True(fim > inicio, "Não achei o partial que recebe o quadro (_ChaveDoMataMata).");
 
         return fonte[inicio..fim];
     }

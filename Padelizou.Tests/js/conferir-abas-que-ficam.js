@@ -1,0 +1,939 @@
+// A TELA NÃO SAI DEBAIXO DE QUEM ESTÁ OLHANDO, conferido contra um DOM falso no Node.
+//
+//     node Padelizou.Tests/js/conferir-abas-que-ficam.js
+//
+// ⚠️ O `dotnet test` NÃO enxerga este arquivo — quem roda é o CI, no passo que varre
+// `Padelizou.Tests/js/conferir-*.js`, e ele reprova o build. Rode à mão antes de commitar.
+//
+// Sem dependência nenhuma, mesmo motivo dos outros conferidores: este repositório não tem npm.
+//
+// ── O QUE ELE GUARDA ──────────────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 12/09/2026, três vezes no mesmo dia: *"as vezes to olhando as finalizadas e ele
+// automaticamente volta para tela do ao vivo"* · *"ao mudar algum filtro, as vezes sai da tela
+// que esta"* · *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo, isso nao pode
+// acontecer, ele tem q se manter na tela q esta, a menos q o usuario clique em algo"*.
+//
+// 🕳️ DOIS DEFEITOS SOMADOS, e o primeiro é medido: no HTML entregue da página do torneio o
+// `jogos-abas.js` sai na linha 3941 e o `bootstrap.bundle.js` na 4736 — o script da MEMÓRIA DE
+// ABA roda 795 linhas antes de o Bootstrap existir, cai no `if (!window.bootstrap) return` e
+// nunca registra o ouvinte. Conferido no navegador: depois de clicar em "Finalizadas", o
+// `sessionStorage` continua VAZIO e o `#jogosTabs` tem ZERO ouvintes. A memória de aba, escrita
+// em 08/08/2026, nunca funcionou nessa tela.
+//
+// 🕳️ O segundo é quem PUXA o gatilho: o atualizador de 20 em 20 segundos recarrega a página
+// inteira quando a lista de jogos em quadra muda (jogo entrou, jogo acabou) — e num sábado isso
+// é o tempo todo. Some com a pessoa de onde ela estava: da aba Palpiteiros, das Finalizadas, de
+// qualquer lugar. Sem a memória de aba pra devolver o lugar, o estrago é completo.
+//
+// ⚠️ A ORDEM DOS SCRIPTS É PARTE DO TESTE. Este arquivo roda o `jogos-abas.js` **sem**
+// `window.bootstrap` definido e só depois define — igual à página real. Um teste que definisse
+// o Bootstrap antes passaria com o defeito de pé, que é o que aconteceu por um mês.
+const fs = require('fs');
+
+let falhas = 0;
+function ok(condicao, texto) {
+    console.log((condicao ? '  ok  ' : ' FALHA') + ' · ' + texto);
+    if (!condicao) falhas++;
+}
+
+// ── O DOM FALSO ───────────────────────────────────────────────────────────────────────────
+function classList(inicial) {
+    const set = new Set(inicial || []);
+    return { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c) };
+}
+
+function elemento(atributos, classes) {
+    const el = {
+        _atributos: atributos || {},
+        classList: classList(classes),
+        _ouvintes: {},
+        getAttribute: (n) => (n in el._atributos ? el._atributos[n] : null),
+        setAttribute: (n, v) => { el._atributos[n] = v; },
+        addEventListener: (tipo, fn) => { (el._ouvintes[tipo] = el._ouvintes[tipo] || []).push(fn); },
+        disparar: (tipo, evento) => (el._ouvintes[tipo] || []).forEach((fn) => fn(evento)),
+        querySelector: () => null,
+        querySelectorAll: () => [],
+    };
+    return el;
+}
+
+// Uma barra de abas com botões; `data-bs-target` é o que o script guarda.
+function barra(id, alvos, ativo, extras) {
+    const botoes = alvos.map((alvo) =>
+        elemento(Object.assign({ 'data-bs-target': alvo }, extras || {}), alvo === ativo ? ['nav-link', 'active'] : ['nav-link']));
+    const ul = elemento({ 'data-torneio-id': '901' });
+    ul.querySelector = (sel) => {
+        const m = /\[data-bs-target="([^"]+)"\]/.exec(sel);
+        return m ? botoes.find((b) => b.getAttribute('data-bs-target') === m[1]) || null : null;
+    };
+    ul.querySelectorAll = () => botoes;
+    ul.id = id;
+    ul._botoes = botoes;
+    return ul;
+}
+
+function montarJanela(barras, comBootstrap) {
+    const guardado = {};
+    const mostradas = [];
+    const doc = {
+        readyState: 'loading',
+        _ouvintes: {},
+        getElementById: (id) => barras[id] || null,
+        querySelector: () => null,
+        addEventListener: (tipo, fn) => { (doc._ouvintes[tipo] = doc._ouvintes[tipo] || []).push(fn); },
+        disparar: (tipo) => (doc._ouvintes[tipo] || []).forEach((fn) => fn({})),
+    };
+    const win = {
+        document: doc,
+        sessionStorage: {
+            getItem: (k) => (k in guardado ? guardado[k] : null),
+            setItem: (k, v) => { guardado[k] = String(v); },
+            removeItem: (k) => { delete guardado[k]; },
+        },
+        _guardado: guardado,
+        _mostradas: mostradas,
+        addEventListener: (tipo, fn) => doc.addEventListener(tipo, fn),
+    };
+    if (comBootstrap) win.bootstrap = bootstrapFalso(mostradas);
+    return win;
+}
+
+function bootstrapFalso(mostradas) {
+    return {
+        Tab: {
+            getOrCreateInstance: (botao) => ({
+                show: () => {
+                    mostradas.push(botao.getAttribute('data-bs-target'));
+                    botao.classList.add('active');
+                    // O Bootstrap de verdade avisa a barra depois de mostrar.
+                    if (botao._barra) botao._barra.disparar('shown.bs.tab', { target: botao });
+                },
+            }),
+        },
+    };
+}
+
+function rodar(fonte, win) {
+    // `window`, `document` e `bootstrap` como globais, que é como o script os vê no navegador.
+    const f = new Function('window', 'document', 'sessionStorage', 'bootstrap', fonte);
+    f(win, win.document, win.sessionStorage, win.bootstrap);
+}
+
+const FONTE_ABAS = fs.readFileSync(process.argv[2] || 'Padelizou/wwwroot/js/jogos-abas.js', 'utf8');
+
+console.log('\n── A ABA ESCOLHIDA FICA GUARDADA ────────────────────────────────────────────');
+
+(function aOrdemDeProducao() {
+    // A ORDEM REAL DA PÁGINA: o script roda ANTES do bootstrap.bundle.js (medido: linha 3941
+    // contra 4736) e antes do DOM terminar. Se ele desistir aqui, a memória nunca existe.
+    const jogos = barra('jogosTabs', ['#aovivo', '#agendadas', '#finalizadas'], '#aovivo');
+    const win = montarJanela({ jogosTabs: jogos }, false);
+
+    rodar(FONTE_ABAS, win);
+
+    // Só DEPOIS o Bootstrap chega e a página fica pronta — exatamente como no navegador.
+    win.bootstrap = bootstrapFalso(win._mostradas);
+    win.document.readyState = 'complete';
+    win.document.disparar('DOMContentLoaded');
+
+    // A pessoa clica em "Finalizadas".
+    jogos.disparar('shown.bs.tab', { target: jogos._botoes[2] });
+
+    ok(win._guardado['pdz-aba-jogos:901'] === '#finalizadas',
+        'clicar em Finalizadas guarda a escolha mesmo com o script rodando antes do Bootstrap');
+})();
+
+(function devolveOLugarNaVoltaDaPagina() {
+    const jogos = barra('jogosTabs', ['#aovivo', '#agendadas', '#finalizadas'], '#aovivo');
+    const win = montarJanela({ jogosTabs: jogos }, false);
+    jogos._botoes.forEach((b) => { b._barra = jogos; });
+    win.sessionStorage.setItem('pdz-aba-jogos:901', '#finalizadas');
+
+    rodar(FONTE_ABAS, win);
+    win.bootstrap = bootstrapFalso(win._mostradas);
+    win.document.readyState = 'complete';
+    win.document.disparar('DOMContentLoaded');
+
+    ok(win._mostradas.indexOf('#finalizadas') >= 0,
+        'a página que renasce no Ao Vivo volta pra Finalizadas, que é onde a pessoa estava');
+})();
+
+(function aAbaDeCimaTambem() {
+    // 🗣️ *"estava mexendo na aba palpiteiros e sozinho foi para o aovivo"*. A memória cobria só
+    // as sub-abas; a barra de cima (Inscritos, Gerenciar, Jogos, Chaves, Times, Palpiteiros)
+    // não era lembrada por ninguém, então todo recarregamento devolvia a pessoa pra Jogos.
+    const torneio = barra('torneioTabs', ['#jogosDoTorneio', '#palpiteiros'], '#jogosDoTorneio');
+    const jogos = barra('jogosTabs', ['#aovivo', '#agendadas'], '#aovivo');
+    torneio._botoes.forEach((b) => { b._barra = torneio; });
+    const win = montarJanela({ torneioTabs: torneio, jogosTabs: jogos }, false);
+
+    rodar(FONTE_ABAS, win);
+    win.bootstrap = bootstrapFalso(win._mostradas);
+    win.document.readyState = 'complete';
+    win.document.disparar('DOMContentLoaded');
+
+    torneio.disparar('shown.bs.tab', { target: torneio._botoes[1] });
+    ok(win._guardado['pdz-aba-torneio:901'] === '#palpiteiros',
+        'a aba de cima (Palpiteiros) também é guardada');
+
+    // Nova visita: a página nasce em Jogos e tem que voltar pra Palpiteiros.
+    const torneio2 = barra('torneioTabs', ['#jogosDoTorneio', '#palpiteiros'], '#jogosDoTorneio');
+    const jogos2 = barra('jogosTabs', ['#aovivo', '#agendadas'], '#aovivo');
+    const win2 = montarJanela({ torneioTabs: torneio2, jogosTabs: jogos2 }, false);
+    win2.sessionStorage.setItem('pdz-aba-torneio:901', '#palpiteiros');
+
+    rodar(FONTE_ABAS, win2);
+    win2.bootstrap = bootstrapFalso(win2._mostradas);
+    win2.document.readyState = 'complete';
+    win2.document.disparar('DOMContentLoaded');
+
+    ok(win2._mostradas.indexOf('#palpiteiros') >= 0,
+        'quem estava em Palpiteiros volta pra Palpiteiros, não pro Ao Vivo');
+})();
+
+(function semMemoriaNaoQuebra() {
+    // Navegação privada com cookies bloqueados: `sessionStorage` ESTOURA no acesso. Falhar aqui
+    // não pode derrubar a aba — sem memória, vale o padrão do servidor.
+    const jogos = barra('jogosTabs', ['#aovivo', '#agendadas'], '#aovivo');
+    const win = montarJanela({ jogosTabs: jogos }, false);
+    win.sessionStorage = {
+        getItem: () => { throw new Error('SecurityError'); },
+        setItem: () => { throw new Error('SecurityError'); },
+        removeItem: () => { throw new Error('SecurityError'); },
+    };
+
+    let estourou = false;
+    try {
+        rodar(FONTE_ABAS, win);
+        win.bootstrap = bootstrapFalso(win._mostradas);
+        win.document.disparar('DOMContentLoaded');
+        jogos.disparar('shown.bs.tab', { target: jogos._botoes[1] });
+    } catch (e) { estourou = true; }
+
+    ok(!estourou, 'sessionStorage proibido não derruba a página');
+})();
+
+console.log('── O ATUALIZADOR NÃO RECARREGA A PÁGINA DEBAIXO DE QUEM NÃO ESTÁ OLHANDO ────');
+
+// O atualizador de 20 em 20 segundos recarrega a página inteira quando a lista de jogos EM
+// QUADRA muda. Faz sentido pra quem está olhando o Ao Vivo — o que ele lê acabou de mudar. Pra
+// quem está em Palpiteiros, nas Finalizadas ou mexendo num filtro, é a tela sumindo sozinha.
+const FONTE_ATUALIZA = fs.readFileSync(
+    process.argv[3] || 'Padelizou/wwwroot/js/jogos-ao-vivo-atualiza.js', 'utf8');
+
+function paginaComAoVivo(aoVivoVisivel, idsAgora, idsNoServidor) {
+    const cartao = (id) => {
+        const el = elemento({ 'data-partida-id': String(id) });
+        el.querySelector = () => null;
+        return el;
+    };
+    const paneAoVivo = elemento({}, aoVivoVisivel ? ['tab-pane', 'show', 'active'] : ['tab-pane']);
+    const paneJogos = elemento({}, aoVivoVisivel ? ['tab-pane', 'show', 'active'] : ['tab-pane']);
+
+    function docFalso(ids, ehServidor) {
+        const cartoes = ids.map(cartao);
+        return {
+            hidden: false,
+            readyState: 'complete',
+            _ouvintes: {},
+            activeElement: null,
+            addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+            getElementById: (id) => (id === 'jogosTabsContent' ? elemento({}) : null),
+            querySelector: (sel) => {
+                if (sel === '.pdz-live-card') return cartoes[0] || null;
+                if (sel === '.modal.show') return null;
+                if (sel.indexOf('#aovivo') === 0) return sel.indexOf('.active') > 0 ? (aoVivoVisivel ? paneAoVivo : null) : paneAoVivo;
+                if (sel.indexOf('#jogosDoTorneio') === 0) return sel.indexOf('.active') > 0 ? (aoVivoVisivel ? paneJogos : null) : paneJogos;
+                return null;
+            },
+            querySelectorAll: (sel) => (sel === '.pdz-live-card' ? cartoes : []),
+        };
+    }
+
+    const doc = docFalso(idsAgora, false);
+    const respostaDoServidor = docFalso(idsNoServidor, true);
+
+    let recarregou = 0;
+    let guardouARolagem = 0;
+    const win = {
+        document: doc,
+        hidden: false,
+        location: { href: 'http://x/Torneios/Details/901', reload: () => { recarregou++; } },
+        setInterval: (fn) => { win._tique = fn; return 1; },
+        getSelection: () => '',
+        fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
+        DOMParser: function () { this.parseFromString = () => respostaDoServidor; },
+        pdzGuardarPosicaoNaLista: () => { guardouARolagem++; },
+        _recarregou: () => recarregou,
+        _guardouARolagem: () => guardouARolagem,
+    };
+    return win;
+}
+
+async function tique(win) {
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, win.document, win.DOMParser);
+    if (!win._tique) throw new Error('o atualizador não se agendou');
+    win._tique();
+    // Deixa as promessas do fetch resolverem.
+    await new Promise((r) => setTimeout(r, 30));
+}
+
+// ⚠️ ESTAS DUAS PÁGINAS NÃO TÊM A GRADE `#pdzAoVivoCartoes`: são o CAMINHO DE ESCAPE, o que
+// sobrou do comportamento antigo pra quando o remendo cartão a cartão não é possível. O remendo
+// em si está na terceira seção, com a grade de verdade.
+(async function () {
+    // 1. Quem ESTÁ olhando o Ao Vivo: a lista mudou debaixo dele e não deu pra remendar —
+    //    recarregar é o certo, guardando a altura da rolagem.
+    const olhando = paginaComAoVivo(true, ['10'], ['10', '11']);
+    await tique(olhando);
+    ok(olhando._recarregou() === 1, 'sem a grade, com a pessoa NO Ao Vivo, a mudança recarrega');
+    ok(olhando._guardouARolagem() === 1,
+        'o recarregamento guarda a altura da página pra devolver a pessoa onde ela estava');
+
+    // 2. Quem está em OUTRA aba (Finalizadas, Palpiteiros): a tela dele não pode sumir.
+    const emOutraAba = paginaComAoVivo(false, ['10'], ['10', '11']);
+    await tique(emOutraAba);
+    ok(emOutraAba._recarregou() === 0,
+        'com a pessoa em outra aba, a mudança NÃO recarrega a página debaixo dela');
+
+})();
+
+console.log('── JOGO QUE ENTRA OU SAI DO AO VIVO NÃO RECARREGA A PÁGINA ─────────────────');
+
+// 🗣️ Felipe: *"nao é possivel fazer com que a pagina nao precise recarregar inteira, apenas os
+// placares? e quando entrar ou sair um jogo do aovivo, ele apenas adicionar na tela sem precisar
+// carregar?"*  Dá — e o que segurava era o <iframe> da transmissão: MOVER ou reescrever um iframe
+// é recarregá-lo. Inserir um cartão novo e remover um que saiu não move os que ficam.
+//
+// ⚠️ O TESTE GUARDA OS IFRAMES DOS SOBREVIVENTES: cada cartão carrega um objeto `video` com um
+// contador de "quantas vezes fui recarregado". Se o remendo mover ou reescrever o cartão de quem
+// continua em quadra, o contador sobe — e é isso que o Felipe viu em 08/08 ("o youtube está
+// parando sozinho aqui do nada").
+
+// ⚠️ O DOM FALSO COPIA A GRADE DE VERDADE, e não uma simplificação dela:
+//     #aovivo  >  #pdzAoVivoCartoes (.row)  >  .col-lg-6  >  .pdz-live-card
+// É a COLUNA que entra e sai da grade, não o cartão pelado. Um teste com o cartão solto no
+// painel passaria com um remendo que na página real não acha o que remover.
+//
+// ⚠️ E O CARTÃO TEM FILHOS DE VERDADE (14/09/2026), porque o remendo agora mexe DENTRO dele:
+// `.pdz-live-header` e, quando a quadra transmite, `.pdz-live-video` — irmãos, na ordem em que
+// o Razor os escreve. Um cartão sem filhos passaria com um remendo que reescreve o cartão
+// inteiro, que é exatamente o defeito.
+//
+// O PLAYER É DA QUADRA, NÃO DO JOGO (Services/TransmissaoDaQuadra.cs: "o link é uma propriedade
+// do LUGAR"). Então o número que o espectador sente não é "o cartão foi reescrito", é QUANTAS
+// VEZES O PLAYER DAQUELA TRANSMISSÃO NASCEU: o embed não tem `autoplay`, então player que nasce
+// é player parado na miniatura da live — que numa câmera de quadra é um quadro da própria
+// quadra. Na tela, isso é um vídeo travado.
+function blocoDeVideo(transmissao) {
+    const quadro = elemento({ src: 'https://www.youtube.com/embed/' + transmissao });
+    const bloco = elemento({}, ['pdz-live-video']);
+    bloco._iframe = quadro;
+    bloco.querySelector = (sel) => (sel === 'iframe' ? quadro : null);
+    return bloco;
+}
+
+function nascer(nascimentos, bloco) {
+    const src = bloco._iframe.getAttribute('src');
+    nascimentos[src] = (nascimentos[src] || 0) + 1;
+}
+
+// `spec` é o id do jogo, ou `id|transmissao` pra quadra que está no ar.
+function cartaoVivo(spec, nascimentos) {
+    const partes = String(spec).split('|');
+    const id = partes[0];
+    const transmissao = partes[1] || null;
+
+    const el = elemento({ 'data-partida-id': id, id: 'jogo-' + id }, ['pdz-live-card']);
+    el.video = { recarregou: 0 };
+    el.hasAttribute = () => false;
+    el._transmissao = transmissao;
+
+    el.children = [elemento({}, ['pdz-live-header'])];
+    if (transmissao) el.children.push(blocoDeVideo(transmissao));
+
+    const primeiro = (classe) => el.children.filter((f) => f.classList.contains(classe))[0] || null;
+    el.querySelector = (sel) => {
+        if (sel === '.pdz-live-header') return primeiro('pdz-live-header');
+        if (sel === '.pdz-live-video') return primeiro('pdz-live-video');
+        if (sel === '.pdz-live-video iframe') {
+            const bloco = primeiro('pdz-live-video');
+            return bloco ? bloco.querySelector('iframe') : null;
+        }
+        return null;
+    };
+    el.removeChild = (no) => { el.children = el.children.filter((f) => f !== no); };
+    el.insertBefore = (no, ref) => {
+        const i = ref ? el.children.indexOf(ref) : -1;
+        if (i < 0) el.children.push(no); else el.children.splice(i, 0, no);
+        no.parentNode = el;
+        // Repor o bloco do vídeo em vez de deixá-lo onde está é um player novo — tirar e
+        // recolocar um <iframe> é recarregá-lo, igualzinho a movê-lo.
+        if (no.classList.contains('pdz-live-video')) nascer(nascimentos, no);
+    };
+
+    const col = elemento({}, ['col-lg-6']);
+    col.cartao = el;
+    el.parentNode = col;
+    return col;
+}
+
+// A grade com filhos de verdade: dá pra inserir, remover e contar.
+function grade(colunas, nascimentos) {
+    const row = elemento({}, ['row']);
+    row.filhos = colunas.slice();
+    colunas.forEach((c) => { c.parentNode = row; });
+    row.removeChild = (no) => { row.filhos = row.filhos.filter((f) => f !== no); };
+    row.insertBefore = (no, ref) => {
+        const i = ref ? row.filhos.indexOf(ref) : -1;
+        if (i < 0) row.filhos.push(no); else row.filhos.splice(i, 0, no);
+        no.parentNode = row;
+        // Quem já estava NÃO é tocado: inserir não recarrega vídeo de ninguém. Mas a COLUNA
+        // que entra traz o player dela junto, nascendo agora — e é isso que o vídeo da quadra
+        // sente quando o jogo dela troca de cartão.
+        const video = no.cartao.querySelector('.pdz-live-video');
+        if (video) nascer(nascimentos, video);
+    };
+    row.querySelector = (sel) => {
+        const m = /\[data-partida-id="(\d+)"\]/.exec(sel);
+        const achada = m && row.filhos.find((c) => c.cartao.getAttribute('data-partida-id') === m[1]);
+        return achada ? achada.cartao : null;
+    };
+    row.querySelectorAll = (sel) => (sel === '.pdz-live-card' ? row.filhos.map((c) => c.cartao) : []);
+    return row;
+}
+
+// O painel inteiro. Trocar o `innerHTML` dele REINICIA todo vídeo que estava dentro — é
+// exatamente o que o Felipe viu em 08/08 ("o youtube está parando sozinho aqui do nada"), e o
+// contador é o que denuncia um remendo que reescreve em vez de inserir.
+function painel(row, nascimentos) {
+    const pane = elemento({}, ['tab-pane']);
+    Object.defineProperty(pane, 'innerHTML', {
+        get: () => row.filhos
+            .map((c) => c.cartao.getAttribute('data-partida-id')
+                + (c.cartao._transmissao ? '|' + c.cartao._transmissao : ''))
+            .join(','),
+        // ⚠️ O CONTADOR ATRAVESSA A REESCRITA. Se ele zerasse junto com os nós, trocar o painel
+        // inteiro numa mudança de N pra M passaria batido — e é justamente o defeito que esta
+        // seção existe pra pegar: o vídeo de quem continua em quadra reiniciando.
+        set: (v) => {
+            const antes = {};
+            row.filhos.forEach((c) => {
+                antes[c.cartao.getAttribute('data-partida-id')] = c.cartao.video.recarregou + 1;
+            });
+            row.filhos = String(v || '').split(',').filter(Boolean).map((spec) => {
+                const col = cartaoVivo(spec, nascimentos);
+                const video = col.cartao.querySelector('.pdz-live-video');
+                if (video) nascer(nascimentos, video);
+                col.cartao.video.recarregou = antes[String(spec).split('|')[0]] || 0;
+                col.parentNode = row;
+                return col;
+            });
+        },
+    });
+    return pane;
+}
+
+function documentoDeJogos(ids, aoVivoVisivel, agendados, extra) {
+    const opcoes = extra || {};
+    const nascimentos = {};
+    const row = grade(ids.map((spec) => cartaoVivo(spec, nascimentos)), nascimentos);
+    // Os cartões que já estão na tela nasceram com a página: um player cada.
+    row.filhos.forEach((c) => {
+        const video = c.cartao.querySelector('.pdz-live-video');
+        if (video) nascer(nascimentos, video);
+    });
+    const pane = painel(row, nascimentos);
+    const umAgendado = elemento({}, ['pdz-jl']);
+
+    // O lugar onde o TempData["Erro"] do servidor aparece. Nasce com o que o `extra` mandar: no
+    // documento DA TELA é o que está na frente da pessoa; no do SERVIDOR, o que ele respondeu.
+    const aviso = elemento({ id: 'pdzAvisoDaAcao' });
+    aviso.innerHTML = opcoes.aviso || '';
+    const doc = {
+        hidden: false, readyState: 'complete', activeElement: null, _ouvintes: {},
+        addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+        disparar(t) { (this._ouvintes[t] || []).forEach((f) => f({})); },
+        // `semLista` é a tela de LOGIN entregue com 200 depois do 302 que o fetch seguiu: a
+        // página existe, mas não é esta. É a única prova que sobra quando a resposta é HTML.
+        getElementById: (id) => (id === 'jogosTabsContent' && !opcoes.semLista ? elemento({}) : null),
+        importNode: (no) => no,
+        querySelector: (sel) => {
+            if (sel === '.pdz-live-card') return row.filhos.length ? row.filhos[0].cartao : null;
+            if (sel === '#agendadas .pdz-jl') return agendados ? umAgendado : null;
+            if (sel === '.modal.show') return null;
+            if (sel === '#aovivo') return pane;
+            if (sel === '#pdzAvisoDaAcao') return aviso;
+            if (sel === '#aovivo.active') return aoVivoVisivel ? pane : null;
+            if (sel === '#jogosDoTorneio') return null;   // /Torneios/Jogos: a lista É a página
+            if (sel === '#pdzAoVivoCartoes') return row;
+            if (/\.pdz-live-card\[data-partida-id="\d+"\]/.test(sel)) return row.querySelector(sel);
+            return null;
+        },
+        querySelectorAll: (sel) => (sel === '.pdz-live-card' ? row.querySelectorAll(sel) : []),
+    };
+    doc._row = row;
+    doc._nascimentos = nascimentos;
+    doc._aviso = aviso;
+    return doc;
+}
+
+async function tiqueComCartoes(idsAgora, idsNoServidor, aoVivoVisivel) {
+    const doc = documentoDeJogos(idsAgora, aoVivoVisivel);
+    const respostaDoServidor = documentoDeJogos(idsNoServidor, true);
+    let recarregou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Jogos/901', reload: () => { recarregou++; } },
+        setInterval: (fn) => { win._tique = fn; return 1; },
+        getSelection: () => '',
+        fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
+        DOMParser: function () { this.parseFromString = () => respostaDoServidor; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+    win._tique();
+    await new Promise((r) => setTimeout(r, 30));
+    return {
+        recarregou,
+        naTela: doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        videosRecarregados: doc._row.filhos.reduce((n, c) => n + c.cartao.video.recarregou, 0),
+        players: doc._nascimentos,
+    };
+}
+
+// ── O PLAYER DA QUADRA SOBREVIVE À TROCA DE JOGO (14/09/2026) ──────────────────────────────
+//
+// 🗣️ Um espectador, pelo Felipe: *"as vezes o video do youtube trava no site"*.
+//
+// 🕳️ O <iframe> é do JOGO; a câmera é da QUADRA. Quando o jogo acabava e o próximo entrava na
+// mesma quadra, o remendo removia a coluna COM o player dentro e inseria um player NOVO da
+// MESMA transmissão. O embed não tem `autoplay`, então o player novo nasce parado, na miniatura
+// da live — um quadro da própria quadra. Na tela: um vídeo travado, com o play vermelho por
+// cima. Uma vez por jogo daquela quadra, que num Americano é a cada ~20 minutos.
+//
+// ⚠️ O QUE O TESTE MEDE É O PLAYER, E NÃO O CARTÃO. As conferências de cima contam cartão
+// reescrito (`videosRecarregados`); um remendo que remove o cartão do jogo que acabou e insere
+// o do que entrou passa nelas todas — ninguém foi reescrito, cada um é um cartão diferente — e
+// mesmo assim mata o player da quadra. Por isso aqui a conta é por TRANSMISSÃO.
+function playerDe(resultado, transmissao) {
+    return resultado.players['https://www.youtube.com/embed/' + transmissao] || 0;
+}
+
+async function oPlayerDaQuadraSobreviveATrocaDeJogo() {
+    console.log('── O PLAYER DA QUADRA SOBREVIVE À TROCA DE JOGO ─────────────────────────────');
+
+    // 1. O jogo da quadra acaba e o próximo entra NO MESMO TIQUE: é a mesma câmera, o mesmo
+    //    `src`, e o player não pode nascer de novo.
+    const trocou = await tiqueComCartoes(['10|camaDaQuadra1'], ['11|camaDaQuadra1'], true);
+    ok(trocou.naTela.join(',') === '11', 'o jogo que entrou na quadra ocupa o lugar do que acabou');
+    ok(trocou.recarregou === 0, 'a troca de jogo na mesma quadra não recarrega a página');
+    ok(playerDe(trocou, 'camaDaQuadra1') === 1,
+        'a troca de jogo na mesma quadra NÃO faz nascer um player novo (nasceu '
+        + playerDe(trocou, 'camaDaQuadra1') + 'x)');
+
+    // 2. Duas quadras transmitindo e só uma trocando de jogo: a outra não é tocada. Um remendo
+    //    que reaproveitasse "o primeiro cartão que sair", sem olhar a transmissão, poria o jogo
+    //    da quadra 1 dentro do vídeo da quadra 2.
+    const duasQuadras = await tiqueComCartoes(
+        ['10|camaDaQuadra1', '20|camaDaQuadra2'], ['11|camaDaQuadra1', '20|camaDaQuadra2'], true);
+    ok(duasQuadras.naTela.join(',') === '11,20', 'com duas quadras, só a que trocou muda de jogo');
+    ok(playerDe(duasQuadras, 'camaDaQuadra1') === 1, 'o player da quadra que trocou de jogo não renasce');
+    ok(playerDe(duasQuadras, 'camaDaQuadra2') === 1, 'o player da quadra que não mexeu também não');
+
+    // 3. TRANSMISSÃO DIFERENTE NÃO SE REAPROVEITA. O cartão que entra é de outra câmera: o
+    //    player dele tem que nascer mesmo — reusar aqui mostraria a quadra errada.
+    const outraCamera = await tiqueComCartoes(['10|camaDaQuadra1'], ['11|camaDaQuadra2'], true);
+    ok(outraCamera.naTela.join(',') === '11', 'jogo de outra quadra entra na tela normalmente');
+    ok(playerDe(outraCamera, 'camaDaQuadra2') === 1, 'a câmera nova nasce (é outra transmissão)');
+    ok(playerDe(outraCamera, 'camaDaQuadra1') === 1, 'e a câmera velha não é ressuscitada');
+
+    // 4. Jogo novo SEM transmissão não herda o cartão de quem tinha — senão o vídeo da quadra
+    //    ficaria pendurado num jogo que não está sendo transmitido.
+    const semLink = await tiqueComCartoes(['10|camaDaQuadra1'], ['11'], true);
+    ok(semLink.naTela.join(',') === '11', 'jogo sem transmissão entra na tela normalmente');
+    ok(playerDe(semLink, 'camaDaQuadra1') === 1, 'e não faz nascer player nenhum');
+
+    // 5. O PREÇO É A ORDEM, e ele está escrito aqui de propósito. O cartão reaproveitado fica
+    //    ONDE O ANTIGO ESTAVA — mover a coluna pra posição do servidor recarregaria o iframe,
+    //    que é o defeito inteiro. Servidor manda "20, 11"; a tela mostra "11, 20", com o vídeo
+    //    tocando. A ordem volta sozinha no próximo carregamento da página.
+    const ordem = await tiqueComCartoes(['10|camaDaQuadra1', '20'], ['20', '11|camaDaQuadra1'], true);
+    ok(ordem.naTela.join(',') === '11,20', 'o cartão reaproveitado fica no lugar do antigo');
+    ok(playerDe(ordem, 'camaDaQuadra1') === 1, 'e o vídeo continua tocando, que é o que se comprou');
+}
+
+(async function () {
+    // 1. Um jogo ENTRA em quadra: aparece na tela, sem recarregar e sem mexer no vídeo de quem já estava.
+    const entrou = await tiqueComCartoes(['10'], ['10', '11'], true);
+    ok(entrou.recarregou === 0, 'jogo que ENTRA no ao vivo não recarrega a página');
+    ok(entrou.naTela.join(',') === '10,11', 'o jogo que entrou aparece na tela, na ordem do servidor');
+    ok(entrou.videosRecarregados === 0, 'o vídeo de quem já estava em quadra não é reiniciado');
+
+    // 2. Um jogo entra NO MEIO da grade: a ordem é a do servidor (quadra 1, 2, 3...), e não
+    //    "o novo no fim". Inserir sempre no fim passaria no caso 1 e erraria aqui.
+    const noMeio = await tiqueComCartoes(['10', '30'], ['10', '20', '30'], true);
+    ok(noMeio.naTela.join(',') === '10,20,30', 'o jogo que entrou no meio entra no meio');
+    ok(noMeio.videosRecarregados === 0, 'inserir no meio não reinicia o vídeo dos vizinhos');
+
+    // 3. Um jogo SAI de quadra (acabou): some da tela, sem recarregar.
+    const saiu = await tiqueComCartoes(['10', '11'], ['11'], true);
+    ok(saiu.recarregou === 0, 'jogo que SAI do ao vivo não recarrega a página');
+    ok(saiu.naTela.join(',') === '11', 'o jogo que acabou some da tela');
+    ok(saiu.videosRecarregados === 0, 'o vídeo de quem continua em quadra não é reiniciado');
+
+    // 4. Troca completa (acabaram os dois, entraram outros dois): ninguém sobrevive, mas
+    //    continua sem recarregamento.
+    const trocouTudo = await tiqueComCartoes(['10', '11'], ['12', '13'], true);
+    ok(trocouTudo.recarregou === 0, 'trocar os jogos todos de uma vez não recarrega');
+    ok(trocouTudo.naTela.join(',') === '12,13', 'a grade fica com os jogos novos, na ordem');
+
+    // 5. O ÚLTIMO jogo sai: aí não há vídeo a preservar e o painel inteiro pode ser trocado
+    //    (é o que traz o "Nenhum jogo rolando no momento").
+    const esvaziou = await tiqueComCartoes(['10'], [], true);
+    ok(esvaziou.recarregou === 0, 'o último jogo sair também não recarrega a página');
+    ok(esvaziou.naTela.length === 0, 'a grade fica vazia quando acaba o último jogo');
+
+    // 6. Quem está em OUTRA aba também ganha os cartões novos — de graça, sem a tela sumir.
+    //    Antes o remendo nem era tentado pra ele: os cartões ficavam velhos até ele voltar.
+    const emOutraAba = await tiqueComCartoes(['10'], ['10', '11'], false);
+    ok(emOutraAba.recarregou === 0, 'em outra aba, nada recarrega');
+    ok(emOutraAba.naTela.join(',') === '10,11', 'em outra aba, o Ao Vivo é remendado em silêncio');
+
+// ── O QUE O FINALIZAR REMENDA, AGORA QUE ELE NÃO RECARREGA (14/09/2026) ───────────────────
+//
+// 🗣️ Felipe: *"apenas queria q o video nao travasse, nao mude o layout"*.
+//
+// 🕳️ "Finalizar" e "Voltar pra agendado" eram POST comum: recarregavam a página inteira, e
+// recarga reinicia TODO <iframe> da tela — finalizar o jogo da Quadra 1 parava o vídeo de quem
+// assistia à Quadra 2. O js/acao-do-cartao-ao-vivo.js manda o POST por fetch e entrega o HTML da
+// resposta AQUI, pro mesmo remendo do tique de 20s. Este arquivo guarda o lado de cá.
+function telaDeAcao(idsAgora, idsNoServidor, doServidor) {
+    const doc = documentoDeJogos(idsAgora, true);
+    const resposta = documentoDeJogos(idsNoServidor, true, false, doServidor || {});
+    let recarregou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Jogos/901', reload: () => { recarregou++; } },
+        setInterval: (fn) => { win._tique = fn; return 1; },
+        getSelection: () => '',
+        fetch: () => Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }),
+        DOMParser: function () { this.parseFromString = () => resposta; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+    return {
+        doc, win, resposta,
+        recarregou: () => recarregou,
+        naTela: () => doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        players: () => doc._nascimentos,
+    };
+}
+
+async function oFinalizarRemendaSemRecarregar() {
+    console.log('── O FINALIZAR REMENDA A TELA EM VEZ DE RECARREGAR ──────────────────────────');
+
+    // 1. O caso do dia: duas quadras no ar, o organizador finaliza a da Quadra 1. O cartão dela
+    //    sai, e o VÍDEO DA QUADRA 2 — que não tem nada a ver com isso — não reinicia. Era esse
+    //    o estrago da recarga.
+    const t = telaDeAcao(['10|camaDaQuadra1', '20|camaDaQuadra2'], ['20|camaDaQuadra2']);
+    const aplicou = t.win.pdzAplicarRespostaDeAcao('<html>o servidor devolveu a página</html>');
+    ok(aplicou === true, 'a resposta que É esta tela é aplicada, e diz que foi');
+    ok(t.naTela().join(',') === '20', 'o jogo finalizado sai da grade sem recarregar a página');
+    ok(t.recarregou() === 0, 'e a página não recarrega');
+    ok((t.players()['https://www.youtube.com/embed/camaDaQuadra2'] || 0) === 1,
+        'o vídeo da OUTRA quadra não reinicia (é o defeito inteiro desta mudança)');
+
+    // 2. ⚠️ O MOTIVO DA RECUSA NÃO PODE SUMIR. O FinalizarPartida pode recusar e mesmo assim
+    //    RESPONDER COM REDIRECT, pondo o porquê em TempData["Erro"] — que é de uma leitura só.
+    //    O fetch segue o redirect e CONSOME esse TempData: sem copiar o aviso pra tela, o
+    //    organizador aperta Finalizar, nada acontece e nada explica. Falha calada, no sábado.
+    const recusou = telaDeAcao(['10'], ['10'], { aviso: '<div class="alert alert-danger">Jogo A3: a fase seguinte já começou</div>' });
+    recusou.win.pdzAplicarRespostaDeAcao('<html>com o erro dentro</html>');
+    ok(/a fase seguinte já começou/.test(recusou.doc._aviso.innerHTML),
+        'o motivo que o servidor deu aparece na tela (TempData é de uma leitura só — o fetch já o consumiu)');
+
+    // 3. Resposta 200 que NÃO é esta tela: sessão vencida devolve o HTML do LOGIN, e o fetch
+    //    entrega isso com `ok` true. Aplicar seria remendar a lista de jogos com pedaços de
+    //    outra página; devolver `false` faz quem chamou recarregar e cair no login.
+    const login = telaDeAcao(['10'], ['10'], { semLista: true });
+    const aplicouLogin = login.win.pdzAplicarRespostaDeAcao('<html>Entrar na sua conta</html>');
+    ok(aplicouLogin === false, 'resposta que não é esta tela é RECUSADA (devolve false)');
+    ok(login.naTela().join(',') === '10', 'e nada na tela é mexido com ela');
+
+    // 4. A atualização automática fica quieta enquanto a ação está indo. Ela busca a página de
+    //    20 em 20s; uma resposta PEDIDA ANTES do POST e CHEGANDO DEPOIS dele devolveria o jogo
+    //    finalizado pra quadra, na frente de quem acabou de encerrá-lo.
+    const durante = telaDeAcao(['10', '11'], ['11']);
+    durante.win.pdzAcaoEmCurso = true;
+    durante.win._tique();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(durante.naTela().join(',') === '10,11',
+        'com uma ação do cartão em curso, o tique de 20s não encosta na tela');
+}
+
+    await oFinalizarRemendaSemRecarregar();
+    await oPlayerDaQuadraSobreviveATrocaDeJogo();
+    await aAlturaDaListaVolta();
+    await abrirOAppMostraOAgora();
+    await aPortaDoCheckIn();
+
+    console.log(falhas === 0 ? '\nTUDO VERDE\n' : '\n' + falhas + ' FALHA(S)\n');
+    process.exit(falhas === 0 ? 0 : 1);
+})();
+
+// ── FILTRAR NÃO JOGA A PÁGINA PRO TOPO ────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 12/09/2026: *"quando eu clico em meu jogos, a pagina sobe la para o inicio tambem,
+// tinha q aparece na aba meus jogos ja"*.
+//
+// 🕳️ O `js/manter-posicao-na-lista.js` guarda a altura desde 10/09, mas **só no `submit`** — e o
+// "Meus jogos" é um `<a>`, de propósito: liga/desliga de um toque. Link não dispara `submit`,
+// então o clique passava batido e a página renascia no começo, com a barra de pagamento na tela
+// e a lista de jogos lá embaixo. Os cinco selects do painel de filtros tinham o mesmo buraco por
+// outro caminho: `form.submit()` chamado por JS **não dispara o evento `submit`** — quem dispara
+// é `requestSubmit()`.
+const FONTE_POSICAO = fs.readFileSync(
+    process.argv[4] || 'Padelizou/wwwroot/js/manter-posicao-na-lista.js', 'utf8');
+
+// `atributo`: null = link sem opt-in; '' = modo ALTURA; '#algo' = modo ELEMENTO.
+function paginaComLista(atributo) {
+    const guardado = {};
+    let rolou = null;
+    let trouxeProTela = null;
+
+    const link = elemento(atributo === null ? {} : { 'data-manter-posicao': atributo }, ['btn']);
+    link.tagName = 'A';
+    const icone = elemento({});                       // o <i> DENTRO do link: é nele que o dedo
+    icone.parentNode = link;                          // encosta no celular, não no <a>.
+    const fechar = (el, sel) => (sel === 'a[data-manter-posicao]'
+        ? (atributo !== null && (el === link || el.parentNode === link) ? link : null) : null);
+    link.closest = (sel) => fechar(link, sel);
+    icone.closest = (sel) => fechar(icone, sel);
+
+    const barra = elemento({});
+    barra.scrollIntoView = () => { trouxeProTela = '#filtroJogos'; };
+
+    const doc = {
+        _ouvintes: {},
+        addEventListener(t, f) { (this._ouvintes[t] = this._ouvintes[t] || []).push(f); },
+        disparar(t, ev) { (this._ouvintes[t] || []).forEach((f) => f(ev)); },
+        querySelector: (sel) => (sel === '#filtroJogos' ? barra : null),
+    };
+    const win = {
+        document: doc,
+        location: { pathname: '/Torneios/Details/26' },
+        scrollY: 1240,
+        sessionStorage: {
+            getItem: (k) => (k in guardado ? guardado[k] : null),
+            setItem: (k, v) => { guardado[k] = String(v); },
+            removeItem: (k) => { delete guardado[k]; },
+        },
+        requestAnimationFrame: (f) => f(),
+        scrollTo: (x, y) => { rolou = y; },
+        addEventListener(t, f) { doc.addEventListener(t, f); },
+        _guardado: guardado,
+        _icone: icone,
+        _rolou: () => rolou,
+        _trouxeProTela: () => trouxeProTela,
+    };
+    const f = new Function('window', 'document', FONTE_POSICAO);
+    f(win, doc);
+    return win;
+}
+
+const CLIQUE = { button: 0, defaultPrevented: false, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+
+async function aAlturaDaListaVolta() {
+    console.log('── FILTRAR NÃO JOGA A PÁGINA PRO TOPO ──────────────────────────────────────');
+
+    const CHAVE = 'pdz-posicao-na-lista:/Torneios/Details/26';
+
+    // 1. O "Meus jogos" pede o modo ELEMENTO: traz a BARRA DE FILTROS de volta pra tela, e não
+    //    uma altura em pixels.
+    //
+    //    ⚠️ POR QUE NÃO A ALTURA — foi medido no navegador, num celular de 390px: com "Meus
+    //    jogos" ligado a lista cai de 97 jogos pra 3, o documento encolhe, e a rolagem guardada
+    //    não existe mais na página nova. A barra estava a 27px do topo da tela antes do clique e
+    //    voltava a 315px — o começo da página, que é exatamente a queixa dele.
+    const porElemento = paginaComLista('#filtroJogos');
+    porElemento.document.disparar('click', Object.assign({ target: porElemento._icone }, CLIQUE));
+    ok(porElemento._guardado[CHAVE] === '#filtroJogos',
+        'clicar no "Meus jogos" guarda a BARRA a trazer de volta (guardou: ' + porElemento._guardado[CHAVE] + ')');
+
+    porElemento.document.disparar('load', {});
+    ok(porElemento._trouxeProTela() === '#filtroJogos', 'na volta, a barra de filtros é trazida pra tela');
+    ok(porElemento._rolou() === null, 'e nenhuma altura em pixels é aplicada por cima');
+    ok(porElemento._guardado[CHAVE] === undefined, 'a memória é lida UMA vez e apagada');
+
+    // 2. O modo ALTURA continua valendo pra quem não muda o tamanho da lista (o check-in, a
+    //    troca de horário): atributo sem valor.
+    const porAltura = paginaComLista('');
+    porAltura.document.disparar('click', Object.assign({ target: porAltura._icone }, CLIQUE));
+    ok(porAltura._guardado[CHAVE] === '1240',
+        'sem valor no atributo, o que se guarda é a altura (guardou: ' + porAltura._guardado[CHAVE] + ')');
+    porAltura.document.disparar('load', {});
+    ok(porAltura._rolou() === 1240, 'a página volta na altura em que estava (' + porAltura._rolou() + ')');
+
+    // 3. Link SEM o atributo continua não guardando nada: é opt-in, e uma ação que leva pra
+    //    outra tela não quer voltar pra uma posição que já não quer dizer nada.
+    const semAtributo = paginaComLista(null);
+    semAtributo.document.disparar('click', Object.assign({ target: semAtributo._icone }, CLIQUE));
+    ok(Object.keys(semAtributo._guardado).length === 0, 'link sem o atributo não guarda nada');
+
+    // 4. Abrir em nova aba (ctrl/cmd, ou o botão do meio) NÃO é sair da tela: guardar aqui
+    //    deixaria uma memória órfã pra atropelar a próxima visita a esta página.
+    const novaAba = paginaComLista('#filtroJogos');
+    novaAba.document.disparar('click', Object.assign({}, CLIQUE, { target: novaAba._icone, ctrlKey: true }));
+    novaAba.document.disparar('click', Object.assign({}, CLIQUE, { target: novaAba._icone, button: 1 }));
+    ok(Object.keys(novaAba._guardado).length === 0, 'abrir em nova aba não deixa memória órfã guardada');
+
+    // 5. Seletor que não é `#id` simples não vira `querySelector`: o valor é lido de volta do
+    //    sessionStorage, que é da origem inteira, e não só do que este arquivo escreveu.
+    const forjado = paginaComLista('#filtroJogos');
+    forjado.sessionStorage.setItem(CHAVE, 'a[href],*');
+    forjado.document.disparar('load', {});
+    ok(forjado._trouxeProTela() === null, 'valor guardado que não é #id simples é ignorado');
+
+    // 5. O select do painel de filtros aplica por JS, e `form.submit()` NÃO dispara `submit`.
+    //    Isto aqui é leitura de fonte porque o defeito mora no Razor, não neste arquivo.
+    const razor = fs.readFileSync('Padelizou/Views/Torneios/_JogosDoTorneio.cshtml', 'utf8');
+    ok(!/onchange="this\.form\.submit\(\)"/.test(razor),
+        'nenhum select aplica com form.submit() (que não dispara o evento submit)');
+    ok((razor.match(/requestSubmit\(\)/g) || []).length >= 5,
+        'os cinco filtros do painel aplicam com requestSubmit(), que dispara o submit');
+}
+
+
+// ── ABRIR O APP MOSTRA O AGORA ────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 12/09/2026: *"Pessoal que tem o app no celular, disse q ao abrir ele fica
+// desatualizado as vezes no aovivo"*.
+//
+// 🕳️ DOIS BURACOS, os dois reproduzidos no navegador antes de escrever isto.
+//
+// 1. O RELÓGIO SÓ LIGAVA SE JÁ HOUVESSE JOGO EM QUADRA NA HORA EM QUE A PÁGINA CARREGOU:
+//    `if (temJogoAoVivo() && window.fetch) setInterval(...)` era a ÚNICA linha do arquivo que
+//    agendava. Quem abre o app de manhã, antes do primeiro jogo, nunca ligava o relógio.
+//    Medido: abri com "Ao Vivo (0)", pus um jogo em quadra no banco, e 26s depois a tela
+//    continuava "Ao Vivo (0)" — e continuaria para sempre.
+//
+// 2. NADA ACORDAVA A TELA AO VOLTAR PRO PRIMEIRO PLANO: `visibilitychange`, `pageshow` e
+//    `focus` não apareciam em NENHUM arquivo do site (grep = zero). O tique é barrado enquanto
+//    `document.hidden`, o que é certo — não se gasta 3G no bolso de ninguém —, mas ao voltar a
+//    tela esperava o próximo ciclo. Medido: escondido de t=2s a t=50s com zero buscas (certo),
+//    volta em t=51s, e a única busca só em t=57s: **7 segundos desatualizado depois de abrir**,
+//    com teto no ciclo inteiro de 20s. E no celular é pior, porque Android e iOS CONGELAM o
+//    timer em segundo plano em vez de deixá-lo rodar em falso.
+//
+// ⚠️ "ainda há o que acontecer" É JOGO EM QUADRA **OU** JOGO AGENDADO, e não "sempre": torneio
+// com tudo finalizado não pode ficar buscando a página de 20 em 20 segundos para sempre.
+function appAberto(idsAgora, idsNoServidor, agendadosAgora, agendadosNoServidor) {
+    const doc = documentoDeJogos(idsAgora, true, agendadosAgora);
+    const resposta = documentoDeJogos(idsNoServidor, true, agendadosNoServidor);
+    let buscas = 0;
+    let agendou = 0;
+    const win = {
+        document: doc, hidden: false,
+        location: { href: 'http://x/Torneios/Details/901', reload: () => {} },
+        setInterval: (fn) => { win._tique = fn; agendou++; return 1; },
+        getSelection: () => '',
+        fetch: () => { buscas++; return Promise.resolve({ ok: true, text: () => Promise.resolve('<html></html>') }); },
+        DOMParser: function () { this.parseFromString = () => resposta; },
+    };
+    const f = new Function('window', 'document', 'DOMParser', FONTE_ATUALIZA);
+    f(win, doc, win.DOMParser);
+
+    const respirar = () => new Promise((r) => setTimeout(r, 30));
+    return {
+        win,
+        agendou: () => agendou,
+        buscas: () => buscas,
+        naTela: () => doc._row.filhos.map((c) => c.cartao.getAttribute('data-partida-id')),
+        tique: async () => { if (win._tique) win._tique(); await respirar(); },
+        esconder: async () => { doc.hidden = true; doc.disparar('visibilitychange'); await respirar(); },
+        mostrar: async () => { doc.hidden = false; doc.disparar('visibilitychange'); await respirar(); },
+    };
+}
+
+async function abrirOAppMostraOAgora() {
+    console.log('── ABRIR O APP MOSTRA O AGORA ──────────────────────────────────────────────');
+
+    // 1. Chegou no clube de manhã: nenhum jogo em quadra, mas há jogo agendado. O relógio
+    //    TEM que ligar, senão a tela nunca descobre que a primeira partida começou.
+    const deManha = appAberto([], ['10'], 1, 1);
+    ok(deManha.agendou() === 1, 'sem jogo em quadra mas COM jogo agendado, o atualizador se agenda');
+
+    await deManha.tique();
+    ok(deManha.naTela().join(',') === '10',
+        'e o primeiro jogo a entrar em quadra aparece sozinho (' + deManha.naTela().join(',') + ')');
+
+    // 2. Torneio acabado: nada em quadra, nada agendado. Aí o relógio NÃO liga — ninguém fica
+    //    buscando a página de 20 em 20 segundos num torneio de mês passado.
+    const acabado = appAberto([], [], 0, 0);
+    ok(acabado.agendou() === 0, 'torneio com tudo finalizado não agenda busca nenhuma');
+
+    // 3. O app volta do segundo plano: a tela atualiza NA HORA, sem esperar o ciclo de 20s.
+    const noBolso = appAberto(['10'], ['10', '11'], 1, 1);
+    await noBolso.esconder();
+    ok(noBolso.buscas() === 0, 'com o app escondido, nenhuma busca acontece');
+
+    await noBolso.mostrar();
+    ok(noBolso.buscas() === 1, 'ao voltar pro primeiro plano, a tela busca na hora (sem esperar o ciclo)');
+    ok(noBolso.naTela().join(',') === '10,11',
+        'e o jogo que entrou enquanto o app estava no bolso já aparece (' + noBolso.naTela().join(',') + ')');
+
+    // 4. Alternar de aba não vira rajada de buscas: cada uma delas é a PÁGINA INTEIRA (1MB em
+    //    prod). Duas voltas seguidas valem uma busca só.
+    await noBolso.esconder();
+    await noBolso.mostrar();
+    ok(noBolso.buscas() === 1, 'voltar de novo em seguida NÃO dispara uma segunda busca');
+}
+
+// ── A PORTA QUE O CHECK-IN USA ────────────────────────────────────────────────────────────
+//
+// 🗣️ Felipe, 15/09/2026: *"sim, faça. o jogo tem q subir na hora"*.
+//
+// Quem faz o jogo completo subir pro topo do horário é a LISTA NOVA do servidor
+// (Services/OrdemNoHorario) — o js/checkin-sem-recarregar.js não recalcula ordem nenhuma. Pra
+// pedi-la sem esperar os 20 segundos do ciclo, este arquivo expõe `pdzAtualizarAListaDeJogos`.
+//
+// ⚠️ E EXPÕE COM RESPOSTA: `false` quer dizer "agora não deu" (tela ocupada, outra busca em
+// curso), e quem pediu insiste. Sem o retorno, o pedido sumiria calado e o jogo só subiria no
+// tique seguinte — que é exatamente o que o pedido existe pra não fazer.
+//
+// ⚠️ E A BANDEIRA `pdzMarcandoCheckIn` É A OUTRA METADE. Enquanto um POST de presença está no
+// ar, a tela NÃO pode ser trocada pelo HTML do servidor: ele ainda não sabe daquele clique, e
+// a bolinha recém-pintada piscaria de volta pra cinza na frente de quem acabou de tocar nela.
+// É a mesma trava do `pdzSalvandoPlacar`, pelo mesmo motivo.
+async function aPortaDoCheckIn() {
+    console.log('── A PORTA QUE O CHECK-IN USA ──────────────────────────────────────────────');
+
+    const p = appAberto(['10'], ['10', '11'], 1, 1);
+    ok(typeof p.win.pdzAtualizarAListaDeJogos === 'function',
+        'o atualizador expõe a porta que o check-in chama');
+
+    const saiu = p.win.pdzAtualizarAListaDeJogos();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(saiu === true, 'com a tela livre, o pedido sai e diz que saiu');
+    ok(p.buscas() === 1, 'e a lista nova é buscada na hora, sem esperar o ciclo de 20s');
+
+    // A BANDEIRA DO CHECK-IN: POST de presença no ar = ninguém troca a tela.
+    const marcando = appAberto(['10'], ['10', '11'], 1, 1);
+    marcando.win.pdzMarcandoCheckIn = true;
+
+    const recusou = marcando.win.pdzAtualizarAListaDeJogos();
+    await new Promise((r) => setTimeout(r, 30));
+    ok(recusou === false, 'com um check-in no ar, o pedido é RECUSADO (pra quem pediu insistir)');
+    ok(marcando.buscas() === 0, 'e nada é buscado: a resposta do servidor ainda não sabe do clique');
+
+    await marcando.tique();
+    ok(marcando.buscas() === 0,
+        'o relógio de 20s também espera: trocar a tela agora apagaria a bolinha recém-pintada');
+
+    marcando.win.pdzMarcandoCheckIn = false;
+    await marcando.tique();
+    ok(marcando.buscas() === 1, 'baixada a bandeira, o relógio volta a trabalhar');
+}

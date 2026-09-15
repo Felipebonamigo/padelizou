@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -152,6 +152,9 @@ public static class TestInfra
     // O encerramento de partida (Padelímetro, robôs de chaveamento, avisos) é o MESMO objeto
     // pras duas telas — de verdade, não dublê: os testes que rodam o torneio inteiro só provam
     // alguma coisa se o que roda aqui for o que roda em produção.
+    public static VarreduraDaChave NovaVarreduraDaChave(DbPadelContext ctx) =>
+        new(ctx, EstatisticasFalsas(), NullLogger<VarreduraDaChave>.Instance);
+
     public static EncerramentoDaPartida NovoEncerramento(
         DbPadelContext ctx, IPushNotificationService? push = null) =>
         new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),
@@ -167,6 +170,9 @@ public static class TestInfra
         var controller = new PartidasController(
             ctx,
             palpites ?? Substitute.For<IPalpiteService>(),
+            // Reações DE VERDADE (não dublê): as três ações lêem e gravam no banco, e com o
+            // dublê o resumo volta nulo — o teste passaria sem nunca chegar no que importa.
+            new ReacaoService(ctx),
             push,
             NullLogger<PartidasController>.Instance,
             NovoEncerramento(ctx, push));
@@ -303,6 +309,7 @@ public static class TestInfra
             ctx,
             new EstatisticasService(ctx),
             Substitute.For<IPalpiteService>(),
+            new ReacaoService(ctx),
             Substitute.For<IWebHostEnvironment>(),
             push,
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
@@ -378,6 +385,27 @@ public static class TestInfra
 
     // A pasta com a Poppins de verdade. Card sem fonte responde 404 ANTES de qualquer regra
     // (ver CartoesController), então um teste de porta com fonte dublada testaria o 404 errado.
+    // UM JOGO ENTRE DUAS DUPLAS — o mínimo pra marcar presença desde 12/09/2026, quando a
+    // chamada passou a ser por PARTIDA (Models/PresencaNoJogo). Antes bastava o torneio.
+    public static Partida NovoJogo(DbPadelContext ctx, Categoria categoria, Dupla a, Dupla b,
+        string status = "Agendada", DateTime? horario = null)
+    {
+        var jogo = new Partida
+        {
+            TorneioId = categoria.TorneioId,
+            CategoriaId = categoria.Id,
+            Dupla1Id = a.Id,
+            Dupla2Id = b.Id,
+            Fase = "Fase de Grupos",
+            Status = status,
+            HorarioPrevisto = horario ?? new DateTime(2026, 9, 12, 8, 0, 0),
+            Codigo = Guid.NewGuid().ToString()[..6].ToUpper(),
+        };
+        ctx.Partidas.Add(jogo);
+        ctx.SaveChanges();
+        return jogo;
+    }
+
     public static string PastaDasFontesDeVerdade()
     {
         var pasta = AppContext.BaseDirectory;

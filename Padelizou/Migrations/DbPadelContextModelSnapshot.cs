@@ -2090,6 +2090,12 @@ namespace Padelizou.Migrations
                     b.Property<int?>("UltimoLembreteDeAssinatura")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("VerPalpitometro")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("VerQuemPalpitou")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("VersaoDosTermosAceita")
                         .HasColumnType("text");
 
@@ -2753,14 +2759,13 @@ namespace Padelizou.Migrations
                         .HasColumnType("text");
 
                     b.Property<int?>("GamesDupla1")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                        .HasColumnType("integer");
 
                     b.Property<int?>("GamesDupla2")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("HorarioDoSorteio")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("HorarioFimReal")
                         .HasColumnType("timestamp without time zone");
@@ -2780,6 +2785,9 @@ namespace Padelizou.Migrations
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
+                    b.Property<int?>("NumeroNaFase")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("OrdemNoHorario")
                         .HasColumnType("integer");
 
@@ -2796,14 +2804,10 @@ namespace Padelizou.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<int?>("SetsDupla1")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                        .HasColumnType("integer");
 
                     b.Property<int?>("SetsDupla2")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2818,13 +2822,15 @@ namespace Padelizou.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Partida__3214EC0755DC2078");
 
-                    b.HasIndex("CategoriaId");
-
                     b.HasIndex("ClubeId");
 
                     b.HasIndex("Dupla1Id");
 
                     b.HasIndex("Dupla2Id");
+
+                    b.HasIndex("CategoriaId", "Fase", "NumeroNaFase")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Partida_Categoria_Fase_Numero");
 
                     b.ToTable("Partida");
                 });
@@ -2893,9 +2899,9 @@ namespace Padelizou.Migrations
                     b.ToTable("PrecoDeTurma");
                 });
 
-            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
+            modelBuilder.Entity("Padelizou.Models.PresencaNoJogo", b =>
                 {
-                    b.Property<int>("TorneioId")
+                    b.Property<int>("PartidaId")
                         .HasColumnType("integer");
 
                     b.Property<int>("JogadorId")
@@ -2904,11 +2910,11 @@ namespace Padelizou.Migrations
                     b.Property<DateTime>("ChegouEm")
                         .HasColumnType("timestamp without time zone");
 
-                    b.HasKey("TorneioId", "JogadorId");
+                    b.HasKey("PartidaId", "JogadorId");
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("PresencaNoTorneio");
+                    b.ToTable("PresencaNoJogo");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
@@ -3093,6 +3099,28 @@ namespace Padelizou.Migrations
                     b.HasIndex("QuadraId");
 
                     b.ToTable("QuadraDaCategoria");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.ReacaoDaPartida", b =>
+                {
+                    b.Property<int>("PartidaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Emoji")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("PartidaId", "JogadorId", "Emoji");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("ReacoesDaPartida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ReinadoNoCinturao", b =>
@@ -3514,6 +3542,10 @@ namespace Padelizou.Migrations
                     b.Property<string>("ImagemCapa")
                         .HasColumnType("text");
 
+                    b.Property<string>("InstagramDoOrganizador")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<int?>("LimiteDuplasTotal")
                         .HasColumnType("integer");
 
@@ -3547,6 +3579,10 @@ namespace Padelizou.Migrations
 
                     b.Property<bool>("PagamentoObrigatorioNaInscricao")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("PalpitometroEm")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("PerguntaDeNaoPagosEm")
                         .HasColumnType("timestamp without time zone");
@@ -5213,7 +5249,7 @@ namespace Padelizou.Migrations
                     b.Navigation("LocalAula");
                 });
 
-            modelBuilder.Entity("Padelizou.Models.PresencaNoTorneio", b =>
+            modelBuilder.Entity("Padelizou.Models.PresencaNoJogo", b =>
                 {
                     b.HasOne("Padelizou.Models.Jogador", "Jogador")
                         .WithMany()
@@ -5221,15 +5257,15 @@ namespace Padelizou.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                    b.HasOne("Padelizou.Models.Partida", "Partida")
                         .WithMany()
-                        .HasForeignKey("TorneioId")
+                        .HasForeignKey("PartidaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Jogador");
 
-                    b.Navigation("Torneio");
+                    b.Navigation("Partida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
@@ -5329,6 +5365,25 @@ namespace Padelizou.Migrations
                     b.Navigation("Categoria");
 
                     b.Navigation("Quadra");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.ReacaoDaPartida", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Partida", "Partida")
+                        .WithMany()
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Partida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ReinadoNoCinturao", b =>

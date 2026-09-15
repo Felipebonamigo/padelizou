@@ -689,7 +689,16 @@ public class EstatisticasService : IEstatisticasService
         // 3. Jogador com mais vitórias (geral)
         vm.VitoriasJogadores = jog.Values
             .Where(x => x.Vitorias > 0)
-            .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
+            // ⚠️ `ThenBy` (menos jogos primeiro) É O CRITÉRIO DE APROVEITAMENTO, e não o
+            // contrário — decisão do Felipe em 14/09/2026: *"vitorias > aproveitamento >
+            // jogos"*. Com as vitórias IGUAIS, aproveitamento é V/J com V fixo: ele só cresce
+            // quando J diminui, então "maior aproveitamento" e "menos jogos" são a MESMA ordem.
+            // Por isso aqui não entra divisão nem número quebrado — inteiro compara exato, e
+            // não arredonda pra discordar dos 83% que a coluna mostra ao lado.
+            //
+            // Estava `ThenByDescending`, o inverso: com 5 vitórias, quem fez em 6 jogos (83%)
+            // vinha ACIMA de quem fez em 5 (100%). Ver OrdemDasVitoriasPorAproveitamentoTests.
+            .OrderByDescending(x => x.Vitorias).ThenBy(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
             .Take(50).ToList();
 
         // 4. Jogador com mais vitórias por categoria
@@ -700,7 +709,8 @@ public class EstatisticasService : IEstatisticasService
                 Categoria = g.Key,
                 Jogadores = g.Select(x => x.Value)
                     .Where(x => x.Vitorias > 0)
-                    .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
+                    // Menos jogos = maior aproveitamento. A régua inteira está na seção 3.
+                    .OrderByDescending(x => x.Vitorias).ThenBy(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
                     .ToList()
             })
             .Where(c => c.Jogadores.Count > 0)
@@ -720,7 +730,8 @@ public class EstatisticasService : IEstatisticasService
         // 6. Dupla com mais vitórias (geral)
         vm.VitoriasDuplas = dup.Values
             .Where(x => x.Vitorias > 0)
-            .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos)
+            // Menos jogos = maior aproveitamento. A régua inteira está na seção 3.
+            .OrderByDescending(x => x.Vitorias).ThenBy(x => x.Jogos)
             .Take(50).ToList();
 
         // 7. Dupla com mais vitórias por categoria
@@ -730,7 +741,8 @@ public class EstatisticasService : IEstatisticasService
             .Select(g => new CategoriaDuplasVM
             {
                 Categoria = g.Key,
-                Duplas = g.OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ToList()
+                // Menos jogos = maior aproveitamento. A régua inteira está na seção 3.
+                Duplas = g.OrderByDescending(x => x.Vitorias).ThenBy(x => x.Jogos).ToList()
             })
             .OrderBy(c => c.Categoria).ToList();
 

@@ -43,10 +43,18 @@ public static class PlacarDaMesa
         if (partida.PlacarMarcadoEm != null && marcadoEm <= partida.PlacarMarcadoEm.Value)
             return Resultado.Recusado("já existe um placar mais novo");
 
-        partida.GamesDupla1 = Math.Clamp(games1, 0, LimiteDeGames);
-        partida.GamesDupla2 = Math.Clamp(games2, 0, LimiteDeGames);
-        partida.SetsDupla1 = Math.Max(0, sets1);
-        partida.SetsDupla2 = Math.Max(0, sets2);
+        // ⚠️ LADO NEGATIVO É "NÃO TOQUEI NESTE" (12/09/2026), e fica com o que está gravado.
+        // 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um deles nao
+        // pegava"*. A fila mandava o placar INTEIRO em todo toque, então o aparelho do vizinho
+        // reescrevia o lado que ninguém tinha tocado com o número da tela DELE — de minutos
+        // atrás, se ele estava sem sinal. É a mesma correção da lista AO VIVO.
+        //
+        // ⚠️ E o placar ABSOLUTO continua: o que muda é quais lados ele afirma, não o "+1" —
+        // incremento reentregue dobraria o game, que é o motivo de esta fila existir assim.
+        partida.GamesDupla1 = games1 < 0 ? partida.GamesDupla1 : Math.Clamp(games1, 0, LimiteDeGames);
+        partida.GamesDupla2 = games2 < 0 ? partida.GamesDupla2 : Math.Clamp(games2, 0, LimiteDeGames);
+        partida.SetsDupla1 = sets1 < 0 ? partida.SetsDupla1 : Math.Max(0, sets1);
+        partida.SetsDupla2 = sets2 < 0 ? partida.SetsDupla2 : Math.Max(0, sets2);
         partida.PlacarMarcadoEm = marcadoEm;
         partida.SendoTransmitida = true;
 
@@ -54,11 +62,12 @@ public static class PlacarDaMesa
         // alvo configurado, contagem "até" e fase de número ímpar. Sem o formato na mão, não se
         // grava — é a mesma recusa que o POST em lote e a tela cheia fazem, e ela vale aqui
         // também porque a fila pode reentregar um corpo montado à mão.
-        if ((pontosTieBreak1 != null || pontosTieBreak2 != null)
+        if ((pontosTieBreak1 >= 0 || pontosTieBreak2 >= 0)
             && formato != null && TieBreakDoJogo.PodeAcontecer(formato))
         {
-            partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1 ?? partida.PontosTieBreak1 ?? 0);
-            partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2 ?? partida.PontosTieBreak2 ?? 0);
+            // Mesmo "não toquei" dos games: no 8x8 cada mesário conta o ponto do seu lado.
+            if (pontosTieBreak1 >= 0) partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1.Value);
+            if (pontosTieBreak2 >= 0) partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2.Value);
         }
 
         return Resultado.Ok;

@@ -147,9 +147,19 @@ public class VerQuemPalpitouTests
     {
         // 🗣️ O print do Felipe marcou exatamente esta frase. Ela é o lugar mais natural pra
         // perguntar "quem cravou?", e até agora era texto morto.
+        // ⚠️ SEM OS COMENTÁRIOS (14/09/2026), e isso deixou o teste MAIS rígido, não menos. Ele
+        // lia a fonte crua e caiu quando a preferência `VerQuemPalpitou` entrou aqui: o
+        // comentário que explica a nova guarda empurrou o `verVotos(` pra fora da janela de 900.
+        // A janela cresceria de novo no próximo comentário — e, pior, lendo cru um comentário
+        // que citasse `verVotos(` satisfazia a busca com o botão APAGADO (é a armadilha que o
+        // TestInfra.SemComentarios existe pra fechar, e que já mordeu quatro vezes num dia só).
+        //
+        // O que se cobra continua sendo o mesmo: a frase do consenso é o ponto de clique pro
+        // modal. Quem desligou "ver os nomes" recebe a MESMA frase como texto — isso é
+        // comportamento, e está travado em PalpitometroNoPerfilTests.
         foreach (var arquivo in new[] { "_JogoEmLinha.cshtml", "_Palpitometro.cshtml" })
         {
-            var fonte = Ler("Views", "Torneios", arquivo);
+            var fonte = TestInfra.SemComentarios(Ler("Views", "Torneios", arquivo));
 
             var inicio = fonte.IndexOf("pdz-palpite-consenso", StringComparison.Ordinal);
             Assert.True(inicio >= 0, $"Não achei a frase do consenso em {arquivo}.");

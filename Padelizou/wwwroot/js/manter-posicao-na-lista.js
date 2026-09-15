@@ -36,11 +36,57 @@
         } catch (e) { return null; }
     }
 
+    // A MESMA MEMÓRIA, EMPRESTADA A QUEM RECARREGA POR CONTA PRÓPRIA (12/09/2026). 🗣️ Felipe:
+    // *"quando atualizar, mantem na altura q tava a pagina no scroll"*. O atualizador automático
+    // (js/jogos-ao-vivo-atualiza.js) ainda recarrega no caso em que não consegue remendar a tela,
+    // e ali não há `submit` nenhum pra ouvir. Fica exposto AQUI, e não copiado lá, porque a chave
+    // é uma só: duas cópias da string viram duas memórias diferentes no dia em que uma mudar.
+    //
+    // ⚠️ DUAS MEMÓRIAS DIFERENTES, E A ESCOLHA É DE QUEM ESCREVE O BOTÃO (12/09/2026):
+    //
+    //   `data-manter-posicao`              → a ALTURA em pixels. Serve quando a lista continua do
+    //                                        mesmo tamanho (marcar um check-in, trocar um horário).
+    //   `data-manter-posicao="#algumId"`   → trazer AQUELE ELEMENTO de volta pra tela.
+    //
+    // A segunda existe porque a primeira foi MEDIDA falhando no filtro: com "Meus jogos" ligado a
+    // lista cai de 97 jogos pra 3, o documento encolhe, e o navegador trunca a rolagem no fim da
+    // página nova. Medido no celular de 390px: a barra de filtros estava a **27px** do topo da
+    // tela antes do clique e voltava a **315px** — ou seja, no começo da página, que é
+    // exatamente a queixa. Altura em pixels só quer dizer alguma coisa enquanto a página tem o
+    // mesmo tamanho; filtrar é justamente a ação que muda o tamanho dela.
+    window.pdzGuardarPosicaoNaLista = function (alvo) {
+        guardar(alvo || String(window.scrollY || window.pageYOffset || 0));
+    };
+
+    // O valor do atributo, quando tem um, é o seletor a trazer de volta pra tela.
+    function guardarPor(elemento) {
+        window.pdzGuardarPosicaoNaLista(elemento.getAttribute("data-manter-posicao") || null);
+    }
+
     document.addEventListener("submit", function (evento) {
         var formulario = evento.target;
         if (!formulario || !formulario.hasAttribute || !formulario.hasAttribute("data-manter-posicao")) return;
 
-        guardar(String(window.scrollY || window.pageYOffset || 0));
+        guardarPor(formulario);
+    }, true);
+
+    // ⚠️ E NO CLIQUE DE UM LINK TAMBÉM (12/09/2026). 🗣️ Felipe: *"quando eu clico em meu jogos, a
+    // pagina sobe la para o inicio tambem, tinha q aparece na aba meus jogos ja"*. O "Meus jogos"
+    // é um `<a>` de propósito — liga/desliga de um toque —, e link não dispara `submit`: o clique
+    // passava batido e a página renascia no começo, com a barra de pagamento na tela e a lista de
+    // jogos lá embaixo. A régua de opt-in é a mesma; só o evento muda.
+    document.addEventListener("click", function (evento) {
+        // Abrir em nova aba (ctrl/cmd, shift, botão do meio) NÃO é sair desta tela. Guardar aqui
+        // deixaria uma altura órfã, que ninguém consome, pra atropelar a próxima visita.
+        if (evento.defaultPrevented || evento.button !== 0) return;
+        if (evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+
+        // `closest` e não `evento.target`: no celular o dedo encosta no <i> de dentro do botão.
+        var alvo = evento.target;
+        var link = alvo && alvo.closest ? alvo.closest("a[data-manter-posicao]") : null;
+        if (!link) return;
+
+        guardarPor(link);
     }, true);
 
     // No `load`, e não no DOMContentLoaded: o navegador ainda pula pra âncora do endereço
@@ -50,11 +96,18 @@
         var guardada = pegarEApagar();
         if (guardada === null) return;
 
-        var y = parseInt(guardada, 10);
-        if (isNaN(y) || y <= 0) return;
-
         window.requestAnimationFrame(function () {
-            window.scrollTo(0, y);
+            // ⚠️ O valor foi escrito por nós, mas é LIDO de volta do sessionStorage, que é da
+            // origem inteira. `querySelector` com string de fora aceita seletor de qualquer
+            // forma; aqui só passa `#id` simples, que é tudo o que este arquivo escreve.
+            if (/^#[A-Za-z][\w-]*$/.test(guardada)) {
+                var alvo = document.querySelector(guardada);
+                if (alvo) alvo.scrollIntoView();
+                return;
+            }
+
+            var y = parseInt(guardada, 10);
+            if (!isNaN(y) && y > 0) window.scrollTo(0, y);
         });
     });
 })();

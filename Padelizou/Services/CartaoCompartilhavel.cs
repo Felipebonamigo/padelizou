@@ -144,6 +144,21 @@ public static class CartaoCompartilhavel
         // Regra de três direta em vez de laço: a largura do texto é linear no tamanho da fonte,
         // então uma conta chega onde vinte iterações chegariam.
         var proporcional = tamanho * (larguraMaxima / largura);
+
+        // ⚠️ QUANDO NEM O MÍNIMO CABE, ESTE `Math.Max` DEVOLVE UM TAMANHO QUE VAZA — e quem
+        // desenha não confere: o `DrawText` pinta até a borda do canvas e o resto do texto
+        // simplesmente não existe, sem erro, sem log e sem reticências. Foi assim que "Marcio
+        // Rafael Machado" virou "Marcio Rafae" na arte do pódio (14/09/2026, print do Felipe).
+        //
+        // Fica como está DE PROPÓSITO: quem sabe o que fazer com "não coube" é quem desenha, e
+        // a resposta muda por card — o pódio quebra a linha de semifinalistas por dupla
+        // (`CartaoDoPodio.LinhasDosSemifinalistas`), porque encolher quatro nomes até caber daria
+        // corpo 18,7 e nenhum story se lê assim. Baixar o piso aqui, num método que 44 chamadas
+        // de 12 cards usam, trocaria um defeito visível por doze invisíveis.
+        //
+        // ⚠️ O QUE FALTA, E ESTÁ ESCRITO PRA NÃO SE PERDER: quem chama precisa escolher um piso
+        // que CAIBA de verdade no pior nome real do card dele. Quem vigia isso é o
+        // `ArteNaoCortaNomeDentroDoPngTests`, que mede tinta na margem do PNG pronto.
         return Math.Max(tamanhoMinimo, proporcional);
     }
 
@@ -339,6 +354,77 @@ public static class CartaoCompartilhavel
             StrokeWidth = raio * 0.09f,
         };
         canvas.DrawCircle(centroX, centroY, raio, anel);
+    }
+
+    // A FOTO DO JOGO NUMA MOLDURA RETANGULAR (14/09/2026) — a arte do story.
+    //
+    // ⚠️ RECORTA PELO CENTRO, nunca estica: é a mesma decisão da `FotoRedonda` logo acima, e
+    // pelo mesmo motivo (rosto achatado é defeito que a pessoa vê na hora e não sabe nomear).
+    // A diferença é que aqui o destino não é quadrado — então o recorte tem que ter a
+    // PROPORÇÃO DO DESTINO, e não o quadrado central.
+    //
+    // Sem foto, a moldura sai desenhada e vazia, com o convite escrito dentro. Não é erro: é a
+    // arte antes da foto entrar, que também serve baixada (pra colar a foto no editor do
+    // Instagram) e é a prévia que a tela mostra.
+    public static void FotoEmMoldura(
+        SKCanvas canvas, SKBitmap? foto, SKRect destino, FonteDoCartao fontes,
+        string textoQuandoVazia, float raioDoCanto = 28)
+    {
+        // O fundo entra SEMPRE, mesmo com foto: a foto é opaca e o cobre, mas uma foto com
+        // transparência (PNG recortado) deixaria o gradiente do fundo aparecer por baixo e
+        // sujar o recorte.
+        using (var tinta = new SKPaint { Color = new SKColor(0x33, 0x45, 0x6E), IsAntialias = true })
+            canvas.DrawRoundRect(destino, raioDoCanto, raioDoCanto, tinta);
+
+        if (foto != null && foto.Width > 0 && foto.Height > 0)
+        {
+            canvas.Save();
+            canvas.ClipRoundRect(new SKRoundRect(destino, raioDoCanto, raioDoCanto),
+                SKClipOperation.Intersect, antialias: true);
+            canvas.DrawBitmap(foto, RecorteQueCobre(foto, destino), destino, Reamostragem);
+            canvas.Restore();
+        }
+        else
+        {
+            // `MidY` é o meio da moldura, e o `y` do texto é a LINHA DE BASE — sem descontar a
+            // métrica a frase fica acima do centro. Mesma conta da `Pilula`.
+            using var fonte = new SKFont(fontes.Media, 42);
+            var metricas = fonte.Metrics;
+            TextoCentralizado(
+                canvas, textoQuandoVazia, destino.MidY - (metricas.Ascent + metricas.Descent) / 2f,
+                fontes.Media, 42, Apagado, destino.Width - 120);
+        }
+
+        // A borda lime POR CIMA, sempre — inclusive por cima da foto: é ela que faz o retângulo
+        // parecer parte da arte em vez de uma imagem colada, e é a mesma assinatura do anel da
+        // foto redonda.
+        using var borda = new SKPaint
+        {
+            Color = Lime,
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 6,
+        };
+        canvas.DrawRoundRect(destino, raioDoCanto, raioDoCanto, borda);
+    }
+
+    // A janela da foto que PREENCHE o destino sem distorcer: mesma proporção do destino,
+    // centrada na imagem, a maior que cabe. É o "cover" do CSS, feito à mão.
+    private static SKRect RecorteQueCobre(SKBitmap foto, SKRect destino)
+    {
+        if (destino.Height <= 0) return new SKRect(0, 0, foto.Width, foto.Height);
+
+        var proporcaoDoDestino = destino.Width / destino.Height;
+        float largura = foto.Width, altura = foto.Height;
+
+        // Foto mais LARGA que o destino: sobra largura, corta dos lados. Mais ALTA: corta de
+        // cima e de baixo.
+        if (largura / altura > proporcaoDoDestino) largura = altura * proporcaoDoDestino;
+        else altura = largura / proporcaoDoDestino;
+
+        var x = (foto.Width - largura) / 2f;
+        var y = (foto.Height - altura) / 2f;
+        return new SKRect(x, y, x + largura, y + altura);
     }
 
     // Primeira letra do primeiro e do último nome. Mesma ideia do avatar de iniciais do site.

@@ -19,14 +19,15 @@ public class GuardaDoLugarNasTelasDeChaveTests
     [InlineData("Torneios/Details.cshtml", "pdz-grupo-jogo-quadra")]
     [InlineData("Torneios/_ChaveDoMataMata.cshtml", "pdz-chave-quadra")]
     [InlineData("Torneios/_ChaveVaga.cshtml", "pdz-chave-quadra")]
+    // ⚠️ A PRÉVIA SAIU DA LISTA em 12/09/2026 porque saiu o ARQUIVO: ela passou a ser desenhada
+    // pelo mesmo `_ChaveDoMataMata` acima (a aba não muda mais de cara quando o mata-mata
+    // nasce), e lá o cartão calcula o lugar UMA vez pros dois casos — a linha do jogo real e a
+    // do previsto. A régua da etiqueta continua guardada, num lugar só.
     // A QUARTA TELA, ESQUECIDA NA PRIMEIRA VOLTA (10/09/2026): o cartão da PRÉVIA do mata-mata, no
     // mesmo Details.cshtml. 🗣️ Felipe, num print do quadro do 2ª Etapa ER PADEL TOUR: *"quartas de
     // final ta sem clube"* — a hora das quartas foi digitada na mão, a reserva nasce sem quadra
     // (TorneiosController.DefinirHorario) e o `if (!IsNullOrEmpty(previsto.Quadra))` calava o
     // cartão inteiro. Ao lado, os cards de grupo diziam "Radar" e "Er Padel" pelo carimbo.
-    // A prévia do mata-mata. Desde 11/09/2026 ela usa o MESMO cartão da chave de verdade
-    // (`.pdz-chave-quadra`), num partial próprio — não existe mais uma etiqueta só dela.
-    [InlineData("Torneios/_ChaveProjetadaArvore.cshtml", "pdz-chave-quadra")]
     public void O_lugar_do_jogo_e_guardado_pela_etiqueta_e_nao_pela_quadra(string view, string classe)
     {
         var fonte = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", view));

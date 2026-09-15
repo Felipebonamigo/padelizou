@@ -9,6 +9,46 @@
     nome e pontos, e sete colunas ali viram uma tabela que ninguém lê. Mesmo corte da tabela
     dos Desafios.
 *@
+@* ⚠️ O ESCOPO `pdz-palpiteiros` NÃO é decoração: é por ele que o JS do filtro acha as linhas
+   a partir do botão clicado (`closest`). Sem ele, duas tabelas na mesma página — o hub tem
+   abas — se filtrariam uma à outra. *@
+<div class="pdz-palpiteiros">
+
+@* ── JOGANDO OU DE FORA ─────────────────────────────────────────────────────────────────
+   12/09/2026 — 🗣️ Felipe, com o print da aba aberta: *"aqui no palpitometro, coloque um
+   filtro, para ver se a pessoa esta jogando o torneio ou nao"*.
+
+   ⚠️ O filtro roda NO NAVEGADOR, sem ida ao servidor: as linhas já vêm todas no HTML, e
+   recarregar a página pra esconder metade de uma tabela que já está na tela custaria o
+   dobro e perderia a aba. Quem decide se ele EXISTE é o dado (ver MostrarQuemJoga).
+
+   ⚠️ E ELE NÃO RENUMERA NADA. A posição é a do torneio inteiro: virar "1º, 2º, 3º" dentro do
+   recorte inventaria uma classificação que não existe — quem filtra quer saber quem está na
+   frente DELE na tabela de verdade. *@
+@if (Model.MostrarQuemJoga)
+{
+    @* ⚠️ A CONTAGEM HERDA A COR DO BOTÃO, e isso é conserto de defeito visto no Chromium a
+       430px (12/09/2026): com `text-body-secondary` ela virava cinza sobre o cinza escuro que
+       o `active` do `btn-outline-secondary` pinta — o número desaparecia justamente no botão
+       que está valendo. E nem opacidade: MEDIDO no Chromium, `opacity-75` dava 3,02:1 no botão
+       inativo e 3,43:1 no ativo, contra o mínimo de 4,5:1 do WCAG AA pra texto pequeno. A cor
+       CHEIA do botão é a única que acompanha os dois estados sem pagar contraste. *@
+    <div class="btn-group btn-group-sm mb-3 flex-wrap" role="group" aria-label="Filtrar palpiteiros">
+        <button type="button" class="btn btn-outline-secondary active" data-filtro="todos"
+                onclick="filtrarPalpiteiros(this)">
+            Todos <span>(@Model.Linhas.Count)</span>
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-filtro="jogando"
+                onclick="filtrarPalpiteiros(this)">
+            <i class="bi bi-person-check"></i> Jogando <span>(@Model.QuantosJogam)</span>
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-filtro="fora"
+                onclick="filtrarPalpiteiros(this)">
+            De fora <span>(@Model.QuantosDeFora)</span>
+        </button>
+    </div>
+}
+
 <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
         <thead>
@@ -39,7 +79,10 @@
             @foreach (var linha in Model.Linhas)
             {
                 bool souEu = Model.SouEu(linha);
-                <tr class="@(souEu ? "table-success" : "")">
+                @* `data-joga` só onde o filtro existe: é o que o JS procura, e no hub ele seria
+                   um atributo sem ninguém pra ler. *@
+                <tr class="@(souEu ? "table-success" : "")"
+                    @(Model.MostrarQuemJoga ? Html.Raw($"data-joga=\"{(linha.JogaOTorneio ? "true" : "false")}\"") : null)>
                     @* ⚠️ Posicao == 0 é o "ainda não há classificação" que o serviço escreve
                        enquanto nenhum jogo foi apurado. Numerar 1º, 2º, 3º uma tabela em que
                        todo mundo tem zero ponto anunciaria uma liderança que não existe. *@
@@ -73,6 +116,14 @@
                         {
                             <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
                         }
+                        @* O SELO responde "e este aqui?" sem filtrar nada — com "Todos" ativo,
+                           que é como a tabela nasce, ele é a única coisa que distingue as duas
+                           metades. Só em quem joga: um selo "de fora" em 20 das 30 linhas
+                           pintaria a tabela inteira pra dizer o que a ausência já diz. *@
+                        @if (Model.MostrarQuemJoga && linha.JogaOTorneio)
+                        {
+                            <span class="badge pdz-selo-jogando ms-1" title="Está disputando este torneio">jogando</span>
+                        }
                     </td>
                     @if (Model.MostrarApuracao)
                     {
@@ -100,9 +151,18 @@
     </table>
 </div>
 
+</div>
+
 @* O modal que o nome abre — UM por página, reusado por todas as linhas. Só onde há torneio:
    no hub o nome continua sendo o link do perfil, e um modal sem quem o abra seria HTML morto. *@
 @if (Model.TorneioId != null)
 {
     <partial name="_ModalPalpitesDoPalpiteiro" />
+}
+
+@* Mesmo caminho do JS do modal: a partial carrega o dela. E só quando o filtro existe — script
+   sem botão que o chame é peso baixado à toa na página mais visitada do site. *@
+@if (Model.MostrarQuemJoga)
+{
+    <script src="~/js/filtro-de-palpiteiros.js" asp-append-version="true"></script>
 }

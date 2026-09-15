@@ -1357,7 +1357,17 @@ namespace padelizou.Controllers
             bool notificarHorarioVagoRegiao,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas,
             string? novoClubeNome = null, string? novaCidadeNome = null, string? novaCidadeEstado = null,
-            string? novoClubeCidade = null, string? novoClubeEstado = null)
+            string? novoClubeCidade = null, string? novoClubeEstado = null,
+            // O PALPITÔMETRO NA MINHA TELA (14/09/2026, Jogador.VerPalpitometro).
+            //
+            // ⚠️ `bool?`, e NÃO `bool` como os oito vizinhos desta ação — a diferença é que estas
+            // duas nascem LIGADAS. Caixa desmarcada não vai no POST, então um `bool` não
+            // distingue "desmarquei" de "esta aba é anterior ao deploy e não tem o campo": com
+            // padrão `true` a aba velha RELIGARIA o que a pessoa desligou a cada salvamento de
+            // qualquer outra preferência, e com `false` DESLIGARIA o de todo mundo. Nulo = o
+            // campo não veio, e o gravado FICA. Quem distingue desmarcado de ausente é o
+            // <input type="hidden" value="false"> DEPOIS da caixa, na view.
+            bool? verPalpitometro = null, bool? verQuemPalpitou = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -1367,6 +1377,9 @@ namespace padelizou.Controllers
             jogador.Lateralidade = lateralidade;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.PerfilPrivado = perfilPrivado;
+            // Nulo = aba antiga sem o campo: mantém o que está gravado (ver a nota na assinatura).
+            if (verPalpitometro is bool querOPalpitometro) jogador.VerPalpitometro = querOPalpitometro;
+            if (verQuemPalpitou is bool querOsNomes) jogador.VerQuemPalpitou = querOsNomes;
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
             jogador.AceitaConvitesJogo = aceitaConvitesJogo;
@@ -1475,12 +1488,23 @@ namespace padelizou.Controllers
                 _context.JogadorClubes.Add(new JogadorClube { JogadorId = jogadorId, ClubeId = clubeId });
             }
 
-            foreach (var diaHorario in diasHorariosSelecionados ?? Array.Empty<string>())
+            // ⚠️ A peneira do `Normalizar` é de fronteira de confiança, e não estilo: o POST pode
+            // trazer "9|Manhã" ou "1|Madrugada", que nunca casariam com a consulta do aviso
+            // (`d.Periodo == periodo`) — mas CONTARIAM, e basta uma linha morta pro jogador
+            // deixar de ser "sem restrição" e parar de receber convite.
+            var horariosEscolhidos = ResumoDeDiasEHorarios.Normalizar(diasHorariosSelecionados);
+
+            // As 21 combinações marcadas são "aceito qualquer horário" — exatamente o que
+            // NENHUMA linha já significa pras três réguas de alcance do aviso (GruposController,
+            // AvisosController, RaqueteLivreController: `!Any(...) || Any(casa)`). É o estado em
+            // que o botão "Todos os dias, exceto…" deixa a grade antes de a pessoa desmarcar o
+            // que não serve; gravar as 21 seria guardar 21 linhas por jogador pra dizer o que
+            // zero linha já diz, e ainda fazer o perfil anunciar uma restrição que não existe.
+            if (horariosEscolhidos.Count < ResumoDeDiasEHorarios.TotalDeCombinacoes)
             {
-                var partes = diaHorario.Split('|');
-                if (partes.Length == 2 && int.TryParse(partes[0], out var dia))
+                foreach (var (dia, periodo) in horariosEscolhidos)
                 {
-                    _context.JogadorDiasHorarios.Add(new JogadorDiaHorario { JogadorId = jogadorId, DiaSemana = dia, Periodo = partes[1] });
+                    _context.JogadorDiasHorarios.Add(new JogadorDiaHorario { JogadorId = jogadorId, DiaSemana = dia, Periodo = periodo });
                 }
             }
 

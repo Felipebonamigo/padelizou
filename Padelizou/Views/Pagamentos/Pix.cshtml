@@ -62,7 +62,7 @@
                            string que está no botão abaixo. Quem está no celular não tem como
                            apontar a câmera pra própria tela, daí o copia e cola vir junto. *@
                         <img src="@Url.Action("PixQr", new { id = Model.Id })" alt="QR Code do Pix"
-                             class="img-fluid rounded" style="max-width: 260px;" />
+                             class="img-fluid rounded" style="max-width: min(260px, 100%);" />
 
                         <div class="small text-muted mt-2 mb-3">
                             Abra o app do seu banco, escolha <strong>pagar com Pix</strong> e aponte pro código —

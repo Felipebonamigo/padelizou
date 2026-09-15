@@ -48,6 +48,16 @@ public static class ReparoDaGrade
     public static int Peso(string regra) => regra switch
     {
         AuditoriaDaGrade.SemHorario => 100_000,
+
+        // ⚠️ MAIS PESADO QUE "dois jogos ao mesmo tempo" (13/09/2026): dois jogos no mesmo minuto
+        // pelo menos podem ser jogados atrasados; um jogo marcado no passado não pode ser jogado
+        // NUNCA. Abaixo de "sem horário" porque aquele some da grade inteira.
+        //
+        // 🕳️ E sem esta linha a regra nova seria aviso decorativo: `Peso` devolve 0 pro que não
+        // conhece, e peso 0 quer dizer "nenhuma troca resolve, não vira alvo". Foi assim que o
+        // "Ajustar horários" deixou as semifinais do Felipe paradas em sábado 13:00.
+        AuditoriaDaGrade.JogoNoPassado => 60_000,
+
         AuditoriaDaGrade.PessoaEmDoisJogos => 50_000,
         AuditoriaDaGrade.Impedimento => 20_000,
         AuditoriaDaGrade.QuadraFechada => 10_000,

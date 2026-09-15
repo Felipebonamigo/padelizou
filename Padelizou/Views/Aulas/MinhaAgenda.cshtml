@@ -707,7 +707,24 @@
            com a coluna dele. */
         .pdz-grade-cabecalho, .pdz-grade-corpo { display: flex; width: max-content; min-width: 100%; }
         .pdz-grade-corpo { position: relative; }
-        .pdz-grade-gutter { flex: 0 0 56px; position: relative; }
+        /* ⚠️ A COLUNA DAS HORAS FICA CONGELADA, feito primeira coluna de planilha
+           (reclamação de professor em 14/09/2026: "tu vai rolando pro lado e some os
+           horarios"). Antes ela rolava junto com os dias: no celular, arrastar pra ver
+           quinta e sexta levava embora o único lugar da tela que diz QUE HORAS são
+           aquelas faixas — ficavam as aulas empilhadas, sem hora nenhuma ao lado.
+           As três declarações andam JUNTAS: `sticky` + `left: 0` param a coluna no
+           canto do wrapper que rola; o fundo do card a deixa OPACA (sem ele os cards
+           coloridos atravessam os números); e o `z-index: 3` a põe acima do
+           `.pdz-evento` (z-index: 2), que é quem passa por baixo.
+           O `sticky` substitui o `relative` sem perder nada: ele também é elemento
+           posicionado, então os `.pdz-hora-rotulo` absolutos continuam ancorados aqui.
+           O `box-shadow` é a borda da coluna congelada — em vez de `border-right`, que
+           somaria 1px à borda esquerda do primeiro dia e duplicaria a linha parada. */
+        .pdz-grade-gutter {
+            flex: 0 0 56px; position: sticky; left: 0; z-index: 3;
+            background: var(--pdz-surface, #fff);
+            box-shadow: 1px 0 0 var(--pdz-border, #e2e5ea);
+        }
         .pdz-grade-col-cabecalho {
             flex: 1 1 0; min-width: 96px; border-left: 1px solid var(--pdz-border, #e2e5ea);
             /* A grade estilo Google (25/08) alargou as colunas e o cabecalho ficou GRITANDO

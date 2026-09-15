@@ -27,6 +27,14 @@ public static class AuditoriaDaGrade
     public const string QuadraFechada = "Quadra fora do horário";
     public const string SemHorario = "Jogo sem horário";
 
+    // 🗣️ Felipe, 13/09/2026, no 2ª Etapa ER PADEL TOUR: *"o chaveamento se perdeu dos horarios
+    // pré definidos de semi final"* · *"mas esta desordenado"*. Semifinais nascidas no domingo de
+    // manhã foram parar em SÁBADO 13:00 — antes das próprias quartas —, e ele descobriu na mão,
+    // estranhando a ordem da lista. A conferência tinha "Fase fora de ordem", mas não respondia a
+    // pergunta mais simples: este jogo que ainda não aconteceu está marcado num horário que já
+    // passou?
+    public const string JogoNoPassado = "Jogo marcado no passado";
+
     // 🗣️ Felipe, 09/09/2026: *"e ali esta marcando dia 15, como assim? tem q rever isso, torneio
     // termina no domingo dia 13"*. `Torneio.DataFim` existia e o motor nunca a leu — era um aviso
     // na previsão e mais nada. Aqui ela vira achado: o organizador aperta "Conferir grade" e vê
@@ -64,6 +72,10 @@ public static class AuditoriaDaGrade
     {
         var achados = new List<Achado>();
         var porId = duplas.ToDictionary(d => d.Id);
+
+        // Até onde o torneio já chegou — a mesma régua que a reserva usa pra não ressuscitar um
+        // horário vencido (Services/ReservasDeHorario.RelogioDoTorneio).
+        var relogioDoTorneio = ReservasDeHorario.RelogioDoTorneio(jogos);
 
         string Nome(int duplaId) =>
             porId.TryGetValue(duplaId, out var d) ? d.NomeDeExibicao : $"dupla {duplaId}";
@@ -128,6 +140,23 @@ public static class AuditoriaDaGrade
                     $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está marcado "
                     + $"{quando:dd/MM 'às' HH:mm}, depois de {prazo:dd/MM} — o dia que você marcou "
                     + "como limite do torneio.", quando));
+            }
+
+            // ── Jogo que ainda vai acontecer, marcado num horário que o torneio já passou ───
+            //
+            // ⚠️ O PASSADO É O DO TORNEIO (ReservasDeHorario.RelogioDoTorneio), e não
+            // `DateTime.Now`: a grade inteira de um torneio que já acabou está no passado do
+            // relógio de parede, e a suíte monta torneios em julho/2026. O que interessa é ATÉ
+            // ONDE ESTE TORNEIO CHEGOU — o último jogo que aconteceu ou está em quadra.
+            //
+            // ⚠️ SÓ JOGO PENDENTE. Acusar o que já foi jogado encheria a tela de ruído e
+            // esconderia o achado de verdade, que é sempre sobre um jogo que ainda VAI acontecer.
+            if (jogo.Status == "Agendada" && relogioDoTorneio is DateTime jaPassou && quando < jaPassou)
+            {
+                achados.Add(new Achado(JogoNoPassado,
+                    $"{jogo.Fase} de {Nome(jogo.Dupla1Id)} × {Nome(jogo.Dupla2Id)} está marcado "
+                    + $"{quando:dd/MM 'às' HH:mm}, e o torneio já passou de "
+                    + $"{jaPassou:dd/MM 'às' HH:mm} — esse jogo não tem como acontecer aí.", quando));
             }
 
             if (!string.IsNullOrEmpty(jogo.NomeQuadra) && !sedes.QuadraAberta(jogo.NomeQuadra, quando))

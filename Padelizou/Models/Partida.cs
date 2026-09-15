@@ -56,6 +56,38 @@ public partial class Partida
     // a ordem manual é uma delas.
     public int? OrdemNoHorario { get; set; }
 
+    // O NÚMERO DESTE JOGO DENTRO DA PRÓPRIA FASE ("Semifinal 2") — 13/09/2026.
+    //
+    // 🗣️ Felipe, com o print da Semifinal 2 da 4ª Masculina definida e sem palpite: *"O jogo ja
+    // está definido e nao esta aparecendo de novo"*.
+    //
+    // ⚠️ NULO = DEDUZ PELO Id, letra por letra como sempre foi (ReservasDeHorario.NumeroNaFase).
+    // Nenhum jogo que já existe muda de número por causa desta coluna — e é isso que torna a
+    // migration aditiva de verdade, e não só no schema.
+    //
+    // Existe porque o número era DEDUZIDO da ordem de criação, e por isso o robô tinha que
+    // parar no primeiro confronto que não dava pra montar: criar a Semifinal 2 antes da 1 a
+    // transformaria em "Semifinal 1". Sete pontos leem esse número — o pareamento da fase
+    // seguinte, o quadro, a projeção, o card da chave, o "Meus jogos", a comparação do painel
+    // "Refazer como previsto" e as reservas de horário. Gravado, o jogo pode nascer assim que
+    // as DUAS vagas dele têm dono, em qualquer ordem.
+    public int? NumeroNaFase { get; set; }
+
+    // O HORÁRIO QUE O SORTEIO PROMETEU — escrito UMA VEZ, quando o jogo nasce, e nunca mais.
+    //
+    // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"temos que seguir a grade prevista, por que o
+    // usuario se baseia [...] talvez devamos criar campos separados (Horario chaveamento, Horario
+    // atualizado)"*.
+    //
+    // `HorarioPrevisto` é a operação do dia: ele anda quando o torneio atrasa, quando o
+    // organizador remaneja, quando a grade é recalculada. Este aqui é a PROMESSA, e é a promessa
+    // que o jogador usou pra se programar — se ela sumisse junto, ninguém teria como saber que
+    // mudou, nem do quê pra quê.
+    //
+    // ⚠️ NULO = JOGO DE ANTES DESTA MUDANÇA, e a tela se comporta como sempre. É isso que torna a
+    // migration aditiva de verdade, e não só no schema.
+    public DateTime? HorarioDoSorteio { get; set; }
+
     public DateTime? HorarioInicioReal { get; set; }
     public DateTime? HorarioFimReal { get; set; }
 

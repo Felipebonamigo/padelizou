@@ -1,0 +1,60 @@
+@{
+    ViewData["Title"] = "Tente de novo - Padelizou";
+    var voltar = ViewData[Padelizou.Filtros.CarimboVencidoNaTela.ChaveDoVoltar] as string;
+}
+
+@*
+    A tela que o carimbo antifalsificação mostra quando recusa um envio de formulário — ver
+    Filtros/CarimboVencidoNaTela pro mecanismo inteiro.
+
+    ⚠️ O TEXTO É O PRODUTO AQUI, e a frase que não pode sair é "Nada foi gravado". Quem cai
+    nesta tela acabou de tocar em "Votar", "Pagar" ou "Salvar": sem saber se a ação foi ou não,
+    a pessoa ou desiste ou repete com medo de duplicar. O teste de fonte cobra essa frase.
+
+    ⚠️ E NÃO SE ESCREVE "sessão expirada" — a sessão dura 90 dias e não é ela que vence. Quem
+    vence é o carimbo da PÁGINA, e a diferença importa pra quem lê: "faça login de novo" mandaria
+    a pessoa pro lugar errado.
+*@
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 text-center p-4">
+                <div class="card-body">
+                    <img src="~/image/pnatinha.webp" asp-append-version="true" alt=""
+                         class="img-fluid rounded-3 mb-2" style="width:100%;max-width:340px;" />
+
+                    <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Essa bola voltou</h2>
+
+                    <p class="text-muted mt-2 mb-0">
+                        Essa página estava aberta havia muito tempo e o envio não foi aceito.
+                        <strong>Nada foi gravado.</strong> Abra de novo e refaça — costuma ir de primeira.
+                    </p>
+
+                    <div class="d-flex gap-2 justify-content-center flex-wrap mt-4">
+                        @* O "voltar" só aparece quando o endereço é daqui (a peneira mora no
+                           filtro). Sem ele, o botão de início já resolve — beco é ficar sem
+                           nenhum dos dois. *@
+                        @if (voltar != null)
+                        {
+                            <a href="@voltar" class="btn btn-padel rounded-pill px-4 fw-bold">
+                                Voltar e tentar de novo
+                            </a>
+                            <a asp-controller="Home" asp-action="Index"
+                               class="btn btn-outline-primary rounded-pill px-4">
+                                Ir pro início
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Home" asp-action="Index"
+                               class="btn btn-padel rounded-pill px-4 fw-bold">
+                                Voltar ao Início
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

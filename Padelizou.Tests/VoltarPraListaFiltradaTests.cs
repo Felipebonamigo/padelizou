@@ -30,13 +30,16 @@ namespace Padelizou.Tests;
 // formulário não vira rota arbitrária — mesma régua do `voltarPara`.
 public class VoltarPraListaFiltradaTests
 {
-    private static (Torneio torneio, Jogador organizador, Dupla dupla) Montar(DbPadelContext ctx)
+    private static (Torneio torneio, Jogador organizador, Dupla dupla, Partida jogo) Montar(DbPadelContext ctx)
     {
         var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Fase de Grupos");
         torneio.UsaCheckIn = true;
         ctx.SaveChanges();
-        var dupla = ctx.Duplas.First(d => d.CategoriaId == categoria.Id);
-        return (torneio, organizador, dupla);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).Take(2).ToList();
+        // A presença é do JOGO desde 12/09/2026 (Models/PresencaNoJogo): sem um jogo não há o que
+        // marcar, e o clique que este arquivo mede é o da linha da lista de jogos.
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
+        return (torneio, organizador, duplas[0], jogo);
     }
 
     // ── O QUE VOLTA NA URL ───────────────────────────────────────────────────────────────
@@ -45,10 +48,10 @@ public class VoltarPraListaFiltradaTests
     public async Task O_filtro_de_categoria_volta_junto_com_o_clique()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador, dupla) = Montar(ctx);
+        var (torneio, organizador, dupla, jogo) = Montar(ctx);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id).MarcarCheckIn(
-            dupla.Jogador1Id, torneio.Id, presente: true,
+            dupla.Jogador1Id, jogo.Id, presente: true,
             voltarPara: "Details", filtros: "?categoriaFiltroIds=7&categoriaFiltroIds=9");
 
         var redir = Assert.IsType<RedirectToActionResult>(resultado);
@@ -64,10 +67,10 @@ public class VoltarPraListaFiltradaTests
     public async Task Os_outros_filtros_da_tela_voltam_tambem()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador, dupla) = Montar(ctx);
+        var (torneio, organizador, dupla, jogo) = Montar(ctx);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id).MarcarCheckIn(
-            dupla.Jogador1Id, torneio.Id, presente: true, voltarPara: "Jogos",
+            dupla.Jogador1Id, jogo.Id, presente: true, voltarPara: "Jogos",
             filtros: "?timeFiltroId=3&soMeusJogos=true&clubeFiltroId=5&quadraFiltro=Arena+2&faseFiltro=Semifinal");
 
         var redir = Assert.IsType<RedirectToActionResult>(resultado);
@@ -83,10 +86,10 @@ public class VoltarPraListaFiltradaTests
     public async Task Sem_filtro_nenhum_a_volta_continua_a_de_sempre()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador, dupla) = Montar(ctx);
+        var (torneio, organizador, dupla, jogo) = Montar(ctx);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true, voltarPara: "Details");
+            .MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true, voltarPara: "Details");
 
         var redir = Assert.IsType<RedirectToActionResult>(resultado);
         Assert.Equal("Details", redir.ActionName);

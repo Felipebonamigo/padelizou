@@ -20,6 +20,11 @@ public class PreferenciasViewModel
     public bool NotificarJogoAula { get; set; } = true;
     public bool NotificarRaqueteLivre { get; set; } = true;
     public bool NotificarHorarioVagoRegiao { get; set; }
+
+    // O palpitômetro na minha tela (14/09/2026). Nascem LIGADAS, como no modelo — o cadastro
+    // novo usa este mesmo VM vazio pra desenhar as caixas já marcadas.
+    public bool VerPalpitometro { get; set; } = true;
+    public bool VerQuemPalpitou { get; set; } = true;
     public HashSet<int> CategoriasSelecionadas { get; set; } = new();
     public HashSet<int> ClubesSelecionados { get; set; } = new();
     public HashSet<string> DiasHorariosSelecionados { get; set; } = new();

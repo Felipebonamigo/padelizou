@@ -115,6 +115,12 @@ public static class MvpDoTorneio
 
     public const string StatusFinalizado = "Finalizado";
 
+    // ONDE A TELA CONTINUA DEPOIS DO VOTO. O nome mora aqui, e não solto no controller e na
+    // view, porque são as DUAS pontas de um mesmo pulo: o `id` do cartão da enquete e o
+    // fragmento do redirect. Escrito duas vezes, basta renomear um pra o pulo virar um
+    // recarregamento no topo — sem erro, sem teste vermelho, sem ninguém perceber.
+    public const string AncoraDaEnquete = "avaliar";
+
     // Quem ganhou. Devolve TODOS os empatados no topo, de propósito: inventar um critério de
     // desempate ("quem recebeu o voto primeiro") faria o sistema escolher um MVP por um motivo
     // que ninguém combinou. Dois MVPs é uma resposta honesta; um MVP arbitrário não é.
@@ -225,6 +231,7 @@ public static class MvpDoTorneio
             // Aqui cada coluna é uma coluna.
             .Select(d => new
             {
+                DuplaId = d.Id,
                 Categoria = d.Categoria.Nome,
                 J1Id = d.Jogador1Id,
                 J1Nome = d.Jogador1.Nome,
@@ -239,7 +246,7 @@ public static class MvpDoTorneio
 
         var candidatos = new Dictionary<int, CandidatoAMvp>();
 
-        void Somar(int id, string nome, string? apelido, string? foto, string categoria)
+        void Somar(int id, string nome, string? apelido, string? foto, string categoria, int duplaId)
         {
             // ⚠️ A MESMA PESSOA pode ser campeã em DUAS categorias do mesmo torneio (é comum:
             // joga a dela e a mista). Sem esta junção ela apareceria duas vezes na cédula, e os
@@ -247,6 +254,16 @@ public static class MvpDoTorneio
             if (candidatos.TryGetValue(id, out var existente))
             {
                 existente.Categorias.Add(categoria);
+
+                // Campeã em duas: ela entra pela MAIS FORTE das duas, com o parceiro de lá.
+                // Sem isto, a linha dela ficaria onde a consulta a encontrou primeiro — e ela
+                // arrastaria a dupla inteira pro degrau errado da lista.
+                if (CategoriaNaTela.Ordem(categoria).CompareTo(
+                        CategoriaNaTela.Ordem(existente.CategoriaNaCedula)) < 0)
+                {
+                    existente.CategoriaNaCedula = categoria;
+                    existente.DuplaNaCedula = duplaId;
+                }
                 return;
             }
 
@@ -256,20 +273,34 @@ public static class MvpDoTorneio
                 Nome = NomeBonito.ComApelido(nome, apelido),
                 Foto = foto,
                 Categorias = new List<string> { categoria },
+                CategoriaNaCedula = categoria,
+                DuplaNaCedula = duplaId,
             };
         }
 
         foreach (var c in campeas)
         {
-            Somar(c.J1Id, c.J1Nome, c.J1Apelido, c.J1Foto, c.Categoria);
+            Somar(c.J1Id, c.J1Nome, c.J1Apelido, c.J1Foto, c.Categoria, c.DuplaId);
 
             // Jogador2 nulo é o campeão do Americano, que é UMA pessoa (o parceiro troca a cada
             // rodada) — não é dupla incompleta.
-            if (c.J2Id != null) Somar(c.J2Id.Value, c.J2Nome ?? "", c.J2Apelido, c.J2Foto, c.Categoria);
+            if (c.J2Id != null) Somar(c.J2Id.Value, c.J2Nome ?? "", c.J2Apelido, c.J2Foto, c.Categoria, c.DuplaId);
         }
 
+        // ⚠️ A CÉDULA SAI NA ORDEM DA CHAVE, e não na do alfabeto. 🗣️ Felipe, com o print da
+        // votação do 2ª Etapa ER PADEL TOUR: *"aqui deveria aparecer as duplas uma em baixo da
+        // outra e em ordem da maior categoria para menor (3ª-7ª)"*. Por nome, os dois campeões
+        // da 3ª saem com sete estranhos entre eles, e quem lê não vê dupla nenhuma.
+        //
+        // Quem manda no nível é `CategoriaNaTela.Ordem`, a mesma régua do resto do site — 3ª
+        // antes da 4ª, masculina antes da feminina do mesmo degrau. A DUPLA vem logo depois:
+        // é ela que mantém os dois parceiros grudados se uma categoria tiver mais de uma linha
+        // de campeão. Nome e id fecham a ordem TOTAL, pra a lista não trocar de ordem entre
+        // dois carregamentos da mesma página.
         return candidatos.Values
-            .OrderBy(c => c.Nome, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => CategoriaNaTela.Ordem(c.CategoriaNaCedula))
+            .ThenBy(c => c.DuplaNaCedula)
+            .ThenBy(c => c.Nome, StringComparer.OrdinalIgnoreCase)
             .ThenBy(c => c.JogadorId)
             .ToList();
     }
@@ -475,6 +506,13 @@ public sealed class CandidatoAMvp
     // Em quantas categorias essa pessoa foi campeã neste torneio — quase sempre uma.
     public List<string> Categorias { get; set; } = new();
 
+    // ONDE ELA ENTRA NA CÉDULA: a categoria mais forte em que foi campeã, e a dupla campeã
+    // dela lá. Não é pra tela mostrar — é a chave que ordena a lista (ver CandidatosAsync),
+    // e por isso vive aqui e não num dicionário à parte que a próxima sessão esqueceria de
+    // preencher.
+    public string CategoriaNaCedula { get; set; } = "";
+    public int DuplaNaCedula { get; set; }
+
     // ⚠️ Zero enquanto a votação está aberta, de propósito (ver DoTorneioAsync).
     public int Votos { get; set; }
 }
@@ -505,6 +543,19 @@ public sealed class VotacaoDeMvp
 
     public bool TemVencedor => Vencedores.Count > 0;
     public bool Empatou => Vencedores.Count > 1;
+
+    // A CÉDULA SAI DA FRENTE DE QUEM JÁ VOTOU. 🗣️ Felipe, 14/09/2026: *"para quando a pessoa
+    // selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. Um
+    // torneio real põe de 10 a 20 nomes aqui — é essa lista que empurra a enquete pra fora da
+    // tela, e a enquete é a coisa que a pessoa ainda TEM o que fazer.
+    //
+    // ⚠️ Recolhida, nunca apagada: trocar o voto é um direito que a tela promete em texto
+    // ("Você pode trocar enquanto a votação estiver aberta"), e fica a um toque no resumo.
+    //
+    // ⚠️ E SÓ COM A VOTAÇÃO ABERTA. Depois que ela encerra esta mesma lista deixa de ser
+    // cédula e vira APURAÇÃO — recolher ali esconderia o placar de todo mundo, que é
+    // exatamente o que a tela passa a mostrar.
+    public bool CedulaRecolhida => Aberta && MeuVoto != null;
 
     // O estado do torneio, pra quem precisa responder outra pergunta sobre a MESMA janela —
     // hoje a enquete do clube, que vale onde o MVP foi DESLIGADO pelo organizador. Sem isto o

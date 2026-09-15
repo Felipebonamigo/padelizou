@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Padelizou.Filtros;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
@@ -193,6 +194,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
+builder.Services.AddScoped<IReacaoService, ReacaoService>();
 builder.Services.AddScoped<IPadelimetroService, PadelimetroService>();
 // Ranking Americano (Trilha C do RANKING.md): serviço próprio, e não mais uma consulta do
 // EstatisticasService — os dois rankings não se somam, e misturá-los no mesmo serviço seria
@@ -290,6 +292,9 @@ builder.Services.AddScoped<FechamentoDoDesafio>();
 // A tabela do ranking de desafios aparece em DUAS telas (a de lá e a aba do hub de ranking), e
 // por isso a montagem dela é um serviço — ver Services/TelaDoRankingDeDesafios.
 builder.Services.AddScoped<TelaDoRankingDeDesafios>();
+
+// A página do Ranking e a ARTE dela montam as mesmas listas — ver Services/HubDoRanking.
+builder.Services.AddScoped<HubDoRanking>();
 builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
 // O dono que recusa ou ignora 3 desafios em 14 dias perde o cinturão. É a metade da regra que
 // impede o campeão de virar um nome parado numa tela — ver Services/Cinturao.
@@ -332,6 +337,13 @@ builder.Services.AddSingleton<PortaoDeAcesso>();
 builder.Services.AddSingleton<SilencioDeAvisos>();
 builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
+
+// A CHAVE QUE FICOU PRA TRÁS (12/09/2026). O robô do chaveamento só roda no instante em
+// que um jogo de grupo é finalizado; se aquela chamada se perder — um restart no meio, que
+// foi o que aconteceu no ER —, a categoria fica sem mata-mata em SILÊNCIO. Esta varredura é
+// a segunda chance. Ver Services/VarreduraDaChave.
+builder.Services.AddScoped<VarreduraDaChave>();
+builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
@@ -370,6 +382,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+    // E quando ele recusa, quem NAVEGA vê uma tela em vez do 400 sem corpo que o navegador
+    // desenha como "This page isn't working" — beco sem menu e sem volta, fotografado por um
+    // jogador votando no MVP em 14/09/2026. Não afrouxa o carimbo: o status segue 400 e a ação
+    // segue sem rodar; muda só o corpo da resposta, e só pra quem pediu navegando (quem chama
+    // por `fetch` continua recebendo o status cru). Ver Filtros/CarimboVencidoNaTela.
+    options.Filters.Add(new CarimboVencidoNaTela());
 
     // Todo campo de dinheiro é <input type="number">, e o navegador manda "79.90" mesmo
     // exibindo "79,90". Em pt-BR o "." é separador de MILHAR, então o binder padrão lia isso

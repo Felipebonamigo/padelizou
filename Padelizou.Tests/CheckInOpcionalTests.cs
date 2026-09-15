@@ -28,41 +28,30 @@ public class CheckInOpcionalTests
         Assert.False(new Torneio { Nome = "X", Codigo = "X1" }.UsaCheckIn);
     }
 
-    [Fact]
-    public async Task Com_o_check_in_ligado_a_tela_abre()
-    {
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: true);
-
-        var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id).CheckIn(torneio.Id);
-
-        Assert.IsType<ViewResult>(resultado);
-    }
-
-    [Fact]
-    public async Task Desligado_a_tela_recusa_mesmo_pelo_link_direto()
-    {
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: false);
-
-        var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id).CheckIn(torneio.Id);
-
-        var redir = Assert.IsType<RedirectToActionResult>(resultado);
-        Assert.Equal("Details", redir.ActionName);
-    }
+    // ⚠️ AQUI VIVIAM DOIS TESTES DA TELA "Check-in do dia" — que ela abria com a chamada ligada,
+    // e que recusava com ela desligada. A tela saiu em 13/09/2026 (🗣️ *"acho que esse checkin
+    // aqui em cima tb nao precisa mais"*): a chamada acontece na bolinha da linha do jogo.
+    //
+    // As duas verdades continuam guardadas, do lado que sobrou — o POST: o
+    // `Desligado_nao_da_pra_marcar_presenca_por_POST_feito_a_mao` e o
+    // `Ligado_a_presenca_e_gravada_e_da_pra_desfazer`, logo abaixo. O interruptor nunca foi da
+    // tela; era da gravação.
 
     [Fact]
     public async Task Desligado_nao_da_pra_marcar_presenca_por_POST_feito_a_mao()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: false);
-        var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
+        var duplas = await ctx.Duplas.Where(d => d.Categoria.TorneioId == torneio.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var categoria = await ctx.Categorias.FirstAsync(c => c.Id == dupla.CategoriaId);
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
 
         var resultado = await TestInfra.NovoTorneiosController(ctx, organizador.Id)
-            .MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+            .MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
 
         Assert.IsType<RedirectToActionResult>(resultado);
-        // A presença é linha em PresencaNoTorneio desde 12/09/2026 — desligado, ela não nasce.
+        // A presença é linha em PresencaNoJogo desde 12/09/2026 — desligado, ela não nasce.
         Assert.Empty(ctx.Presencas);
     }
 
@@ -71,13 +60,16 @@ public class CheckInOpcionalTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador) = await MontarAsync(ctx, usaCheckIn: true);
-        var dupla = await ctx.Duplas.FirstAsync(d => d.Categoria.TorneioId == torneio.Id);
+        var duplas = await ctx.Duplas.Where(d => d.Categoria.TorneioId == torneio.Id).Take(2).ToListAsync();
+        var dupla = duplas[0];
+        var categoria = await ctx.Categorias.FirstAsync(c => c.Id == dupla.CategoriaId);
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
 
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: true);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: true);
         Assert.Single(ctx.Presencas);
 
-        await controller.MarcarCheckIn(dupla.Jogador1Id, torneio.Id, presente: false);
+        await controller.MarcarCheckIn(dupla.Jogador1Id, jogo.Id, presente: false);
         Assert.Empty(ctx.Presencas);
     }
 
@@ -90,7 +82,13 @@ public class CheckInOpcionalTests
         ctx.Jogadores.Add(estranho);
         await ctx.SaveChangesAsync();
 
+        var duplas = await ctx.Duplas.Where(d => d.Categoria.TorneioId == torneio.Id).Take(2).ToListAsync();
+        var categoria = await ctx.Categorias.FirstAsync(c => c.Id == duplas[0].CategoriaId);
+        var jogo = TestInfra.NovoJogo(ctx, categoria, duplas[0], duplas[1]);
+
+        // Era o GET da tela; virou o POST que grava, que é o que sobrou de porta.
         Assert.IsType<ForbidResult>(
-            await TestInfra.NovoTorneiosController(ctx, estranho.Id).CheckIn(torneio.Id));
+            await TestInfra.NovoTorneiosController(ctx, estranho.Id)
+                .MarcarCheckIn(duplas[0].Jogador1Id, jogo.Id, presente: true));
     }
 }

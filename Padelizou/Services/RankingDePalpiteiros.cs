@@ -34,9 +34,14 @@ public static class RankingDePalpiteiros
     // Null = torneio não existe. Lista vazia é resposta legítima e frequente: torneio sem jogo
     // terminado, ou com jogos terminados e nenhum palpite. Quem decide o que fazer com o vazio
     // é quem chama — a página devolve 404, como a do MVP.
+    // ⚠️ O `recorte` (12/09/2026) é OPCIONAL e o padrão é o torneio inteiro: as três telas que
+    // já chamavam isto seguem chamando igual. Ele filtra as partidas ANTES da apuração, e é
+    // isso que faz cada fase virar um ranking próprio — posição, pódio e régua recalculados.
     public static async Task<PalpiteirosDoTorneio?> DoTorneioAsync(
-        DbPadelContext contexto, int torneioId, int? olhandoId)
+        DbPadelContext contexto, int torneioId, int? olhandoId, string? recorte = null)
     {
+        recorte = FaseDoPalpitometro.Normalizar(recorte);
+        var doRecorte = FaseDoPalpitometro.Filtro(torneioId, recorte);
         var torneio = await contexto.Torneios
             .AsNoTracking()
             .Where(t => t.Id == torneioId)
@@ -47,7 +52,7 @@ public static class RankingDePalpiteiros
 
         if (torneio == null) return null;
 
-        var partidas = await ConsultaDePartidas(contexto, p => p.TorneioId == torneioId).ToListAsync();
+        var partidas = await ConsultaDePartidas(contexto, doRecorte).ToListAsync();
 
         var apuracao = await ApurarAsync(contexto, partidas,
             await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList()));
@@ -61,13 +66,23 @@ public static class RankingDePalpiteiros
         //
         // ⚠️ É do TORNEIO e só dele. O hub e o selo do perfil somam pontos de vários torneios —
         // encher aquela tabela de gente com zero ponto trocaria um ranking por lista de presença.
-        var emAberto = await EmAbertoAsync(contexto, torneioId);
+        var emAberto = await EmAbertoAsync(contexto, doRecorte);
         var linhas = Mesclar(apuracao.Linhas, emAberto.Linhas);
+
+        // QUEM DISPUTA O TORNEIO (12/09/2026). 🗣️ Felipe, com o print da aba aberta: *"aqui no
+        // palpitometro, coloque um filtro, para ver se a pessoa esta jogando o torneio ou nao"*.
+        //
+        // ⚠️ UMA consulta pro torneio inteiro, e não uma pergunta por linha: com 30 palpiteiros
+        // seriam 30 idas ao banco na página mais visitada do site.
+        var jogando = await QuemJogaAsync(contexto, torneioId);
+        foreach (var linha in linhas) linha.JogaOTorneio = jogando.Contains(linha.JogadorId);
 
         return new PalpiteirosDoTorneio
         {
             TorneioId = torneio.Id,
             Torneio = torneio.Nome,
+            Recorte = recorte,
+            RecortesComJogo = await RecortesComJogoAsync(contexto, torneioId),
             JogosApurados = apuracao.JogosApurados,
             // ⚠️ APURADO **MAIS** EM ABERTO, e a soma é o conserto de 10/09/2026. É este número
             // que decide se a tela ensina a cravada (3 pontos) ou só o acerto do vencedor — e,
@@ -111,11 +126,14 @@ public static class RankingDePalpiteiros
     public sealed record EmAberto(List<PalpiteiroNoRanking> Linhas, int PalpitesComPlacar);
 
     // Os palpites deste torneio que ainda NÃO têm resultado — por pessoa.
-    private static async Task<EmAberto> EmAbertoAsync(DbPadelContext contexto, int torneioId)
+    // ⚠️ RECEBE O MESMO FILTRO da metade apurada, e não o torneio: sem isso o recorte de
+    // "grupos" mostraria como pendente o palpite de uma final que ele não conta.
+    private static async Task<EmAberto> EmAbertoAsync(
+        DbPadelContext contexto, System.Linq.Expressions.Expression<Func<Partida, bool>> doRecorte)
     {
         var vazio = new EmAberto(new List<PalpiteiroNoRanking>(), 0);
 
-        var partidas = await ConsultaDePartidasEmAberto(contexto, p => p.TorneioId == torneioId).ToListAsync();
+        var partidas = await ConsultaDePartidasEmAberto(contexto, doRecorte).ToListAsync();
         if (partidas.Count == 0) return vazio;
 
         var palpites = await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList());
@@ -588,6 +606,79 @@ public static class RankingDePalpiteiros
                 v.DuplaEscolhidaId, v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
             .ToList();
 
+    // ── QUAIS RECORTES DE FASE ESTE TORNEIO TEM ───────────────────────────────────────────
+    //
+    // ⚠️ SAI DO DADO, como as colunas da tabela: torneio que não passou da fase de grupos não
+    // oferece "Mata-mata", e sem palpite em final não oferece "Apenas finais".
+    //
+    // 🕳️ E O DADO CERTO É O **PALPITE**, NÃO O JOGO — defeito visto no ar, no Er, minutos depois
+    // de publicar: a primeira versão olhava as fases das PARTIDAS, então o botão "Mata-mata"
+    // aparecia assim que a chave era sorteada. Só que a tabela se faz de palpite: sem nenhum,
+    // ela fica vazia e a página responde **404** por decisão do MVP. O botão levava a erro —
+    // e botão que leva a erro é pior que botão que não existe.
+    //
+    // ⚠️ Carrega as FASES DISTINTAS onde há palpite (uma consulta curta, no máximo uma dúzia de
+    // linhas), e não uma contagem por recorte: seriam quatro idas ao banco na página mais
+    // visitada do site pra responder o que uma responde.
+    public static async Task<string[]> RecortesComJogoAsync(DbPadelContext contexto, int torneioId)
+    {
+        var fases = await ConsultaDasFasesComPalpite(contexto, torneioId).ToListAsync();
+
+        return FaseDoPalpitometro.Todos
+            .Where(recorte => fases.Any(fase => FaseDoPalpitometro.Contem(recorte, fase)))
+            .ToArray();
+    }
+
+    // ⚠️ Atravessa a navegação `Partida` a partir do palpite — o mesmo caminho da pergunta
+    // barata `PalpitesDoTorneio`, e o mesmo risco: o InMemory da suíte não traduz nada. Pública
+    // pra ser compilada contra o Npgsql em FiltroPorFaseNoPalpitometroTests.
+    public static IQueryable<string> ConsultaDasFasesComPalpite(DbPadelContext contexto, int torneioId) =>
+        contexto.PalpitesPartida
+            .AsNoTracking()
+            .Where(v => v.Partida.TorneioId == torneioId)
+            .Select(v => v.Partida.Fase)
+            .Distinct();
+
+    // ── QUEM DISPUTA O TORNEIO ────────────────────────────────────────────────────────────
+    //
+    // As inscrições VALENDO deste torneio, só as duas colunas de jogador.
+    //
+    // ⚠️ FILTRO ANTES DA PROJEÇÃO, como manda a lição de 19/08/2026: `Where` depois do `Select`
+    // faz o EF procurar a coluna no objeto projetado e a página responde 500 com a suíte verde.
+    // Pública porque é ela que `QuemJogaOTorneioNoPalpitometroTests` compila contra o Npgsql —
+    // o InMemory da suíte não traduz nada, e esta consulta atravessa a navegação `Categoria`.
+    //
+    // ⚠️ LISTA DE ESPERA FORA (escolha do Felipe): quem espera vaga ainda não joga, e um selo
+    // "jogando" nele promete um adversário que pode nunca entrar em quadra.
+    //
+    // ⚠️ TIME FORA pela régua de sempre — a MESMA do `EmQuadraAsync` logo abaixo: na linha de
+    // time o `Jogador1Id` é o organizador que cadastrou (coluna NOT NULL), não quem joga.
+    // Contá-lo marcaria a mesma pessoa como jogadora de todo torneio de times que ela inscreveu.
+    public static IQueryable<QuemJoga> ConsultaDeQuemJoga(DbPadelContext contexto, int torneioId) =>
+        contexto.Duplas
+            .AsNoTracking()
+            .Where(d => d.Categoria.TorneioId == torneioId
+                        && d.NomeTime == null
+                        && !d.EmListaDeEspera)
+            .Select(d => new QuemJoga(d.Jogador1Id, d.Jogador2Id));
+
+    // Os ids de quem disputa. Vazio é resposta legítima: torneio só de times, ou sem inscrição.
+    public static async Task<HashSet<int>> QuemJogaAsync(DbPadelContext contexto, int torneioId)
+    {
+        var duplas = await ConsultaDeQuemJoga(contexto, torneioId).ToListAsync();
+
+        var ids = new HashSet<int>();
+        foreach (var d in duplas)
+        {
+            ids.Add(d.Jogador1Id);
+            // NULO = inscrito sozinho, ainda procurando parceiro. A vaga é dele e ele entra no
+            // sorteio (ver Dupla.Jogador2Id) — só não há um segundo nome pra marcar.
+            if (d.Jogador2Id is int parceiro) ids.Add(parceiro);
+        }
+
+        return ids;
+    }
+
     // Quem estava EM QUADRA em cada dupla. Consultado à parte de propósito: pendurar as duas
     // duplas na projeção da partida traria quatro navegações obrigatórias num JOIN só, e é a
     // linha inteira que some quando uma delas falta.
@@ -642,6 +733,10 @@ public static class RankingDePalpiteiros
     }
 }
 
+// As duas colunas de jogador de uma inscrição valendo — o que a pergunta "quem joga o torneio"
+// precisa do banco, e nada mais.
+public sealed record QuemJoga(int Jogador1Id, int? Jogador2Id);
+
 // Uma partida já pronta pra apuração.
 public sealed record PartidaApurada(
     int Id, int? TorneioId, int? VencedorId, int Dupla1Id, int Dupla2Id,
@@ -679,6 +774,14 @@ public sealed class PalpiteiroNoRanking
     // jogo dele).
     public int Palpites { get; set; }
 
+    // ESTA PESSOA DISPUTA O TORNEIO? (12/09/2026 — 🗣️ Felipe: *"coloque um filtro, para ver se a
+    // pessoa esta jogando o torneio ou nao"*.)
+    //
+    // ⚠️ SÓ O RANKING DO TORNEIO preenche isto. No hub e no perfil a tabela soma VÁRIOS
+    // torneios, e "joga o torneio" não tem sujeito lá — por isso o padrão é `false` e a tela de
+    // lá não pergunta (ver TabelaDePalpiteirosVM.MostrarQuemJoga).
+    public bool JogaOTorneio { get; set; }
+
     // Palpites em jogos que ainda NÃO terminaram — os que vão virar ponto, e ainda não são.
     //
     // ⚠️ NÃO SOMA em `Palpites` nem entra no aproveitamento: um palpite sem resultado não é
@@ -712,6 +815,28 @@ public sealed class PalpiteirosDoTorneio
 
     // Quem está olhando, pra a VIEW destacar a própria linha sem ler claim nenhuma.
     public int? EuId { get; set; }
+
+    // ── O RECORTE DE FASE (12/09/2026) ────────────────────────────────────────────────────
+    //
+    // 🗣️ Felipe: *"colocar um filtro 'por chaves' 'Por mata mata' 'Apenas finais'"*.
+    //
+    // Qual recorte esta tabela está mostrando — é ele que a tela usa pra marcar o botão aceso.
+    // Sempre preenchido (o padrão é `FaseDoPalpitometro.Tudo`), nunca nulo.
+    public string Recorte { get; set; } = FaseDoPalpitometro.Tudo;
+
+    // Os recortes que este torneio TEM jogo pra oferecer, na ordem da tela.
+    public string[] RecortesComJogo { get; set; } = [];
+
+    // ⚠️ CONTA OS RECORTES ESPECÍFICOS, sem o "todas as fases" — e este detalhe derrubou o
+    // teste primeiro: "tudo" existe SEMPRE, então um torneio que só teve fase de grupos já
+    // somava dois e o filtro aparecia com "Todas as fases" e "Chaves e grupos" dando a MESMA
+    // tabela. Dois botões pra uma resposta só é tela pedindo escolha que não existe.
+    //
+    // ⚠️ Num torneio que começou DIRETO no mata-mata os botões aparecem e "Todas as fases"
+    // coincide com "Mata-mata" — aceito de propósito: ali "Apenas finais" ainda recorta algo
+    // de verdade, e é ele que justifica a fileira.
+    public bool MostrarFiltroDeFase =>
+        RecortesComJogo.Count(r => r != FaseDoPalpitometro.Tudo) > 1;
 
     public bool TemRanking => Linhas.Count > 0;
 

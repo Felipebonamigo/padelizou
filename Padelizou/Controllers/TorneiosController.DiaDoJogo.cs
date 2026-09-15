@@ -286,119 +286,46 @@ namespace Padelizou.Controllers
             return View(vm);
         }
 
-        // ===================== CHECK-IN NO DIA =====================
+        // ⚠️ AQUI VIVIA A AÇÃO `CheckIn` — a tela "Check-in do dia" —, e ela saiu em
+        // 13/09/2026. 🗣️ Felipe: *"acho que esse checkin aqui em cima tb nao precisa mais"*.
+        //
+        // A chamada mudou de casa no mesmo dia em que virou POR JOGO: ela acontece na BOLINHA
+        // do lado de cada jogador, na linha do jogo agendado, dentro da aba Jogos — onde o
+        // organizador já está olhando a grade. A tela separada listava os mesmos jogos uma
+        // segunda vez e cobrava um desvio pra chegar neles.
+        //
+        // ⚠️ O QUE SE PERDEU, e foi escolha dele: marcar presença em jogo que JÁ entrou em
+        // quadra ou já acabou. A bolinha da lista é só nos AGENDADOS (decisão de 12/09), e
+        // jogo que começou respondeu a pergunta em quadra — quem não apareceu levou W.O.
+        //
+        // O POST que grava (`MarcarCheckIn`) continua vivo logo abaixo: o que saiu foi a tela
+        // de leitura, não a escrita.
 
-        // Lista de presença do torneio: quem já chegou, quem falta. Evita descobrir o
-        // W.O. só na hora de chamar o jogo.
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> CheckIn(int id)
-        {
-            // Marcador entra: "quem já chegou" é a pergunta da mesa, e é o check-in que
-            // alimenta o W.O. decidido com informação em vez de às cegas.
-            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
-
-            var torneio = await _context.Torneios
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
-                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
-                .FirstOrDefaultAsync(t => t.Id == id);
-
-            if (torneio == null) return NotFound();
-
-            // Desligado é desligado: esconder o botão não basta, porque o link antigo e o
-            // histórico do navegador continuam abrindo a tela.
-            if (!torneio.UsaCheckIn)
-            {
-                TempData["Erro"] = "O check-in está desligado neste torneio. Dá pra ligar em Editar Dados do Torneio.";
-                return RedirectToAction("Details", new { id });
-            }
-
-            // A FILA DOS JOGOS QUE VÊM — o assunto da tela desde 10/09/2026.
-            //
-            // 🗣️ Felipe, com o Er aberto em "0 de 64 presentes": *"acho que aqui teria q mudar,
-            // por próximos jogos, e ver se as pessoas chegaram, e nao todos"*. A lista por
-            // categoria responde "quem está inscrito"; no sábado de manhã a pergunta é "quem
-            // joga agora já chegou?", e com 64 duplas achar as duas do jogo das 8h era rolar a
-            // lista inteira cruzando de cabeça com a grade.
-            //
-            // ⚠️ A ORDEM É A MESMA DA ABA JOGOS (Services/OrdemNoHorario): hora → posição
-            // gravada → Id. Duas contas de "quem vem antes" fariam as duas telas mostrarem
-            // ordens diferentes pra mesma grade.
-            //
-            // ⚠️ Só "Agendada". Jogo AO VIVO tem gente em quadra e finalizado já acabou — nos
-            // dois, a pergunta do check-in já foi respondida por outra via. E a PRÉVIA (a
-            // eliminatória que ainda não nasceu) fica de fora por um motivo mais simples: ela
-            // não sabe quem joga, então não há quem marcar.
-            //
-            // ⚠️ Pelo caminho `Categoria.TorneioId`, e não por `Partida.TorneioId`: é o mesmo
-            // caminho do `Comunicar` aqui do lado, e o único que a categoria garante.
-            var jogos = await _context.Partidas
-                .Include(p => p.Categoria)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.Categoria.TorneioId == id)
-                .ToListAsync();
-
-            ViewBag.JogosQueVem = OrdemNoHorario
-                .Ordenar(jogos.Where(p => p.Status == "Agendada"), Array.Empty<ProximasFasesDaChave.JogoQueVem>())
-                .Select(l => l.Jogo!)
-                .ToList();
-
-            // O QUE JÁ COMEÇOU SAI DA FILA DE CIMA, MAS NÃO SOME DA TELA (11/09/2026).
-            //
-            // 🗣️ Felipe, com o ensaio do Er aberto: *"deixe apenas dos jogos que ainda não
-            // começaram, se os jogos ja começaram, pode ocultar, coloca la no final da tela
-            // minimazado como ja jogaram ou estão em jogo"*. Na primeira versão eles sumiam da
-            // tela inteira — e aí quem pusesse o jogo no ar antes de marcar a chegada perdia o
-            // caminho pro check-in daquela dupla, que só voltava pela lista de 64.
-            //
-            // ⚠️ AO VIVO ANTES DE FINALIZADO, e não uma ordem só: um está acontecendo AGORA (e
-            // ainda pode precisar de correção), o outro é histórico. Dentro de cada grupo, a
-            // ordem é a mesma da aba Jogos — o ao vivo pela largada, o finalizado pelo fim, do
-            // mais recente pro mais antigo (a régua inteira está em Services/DuracaoDoJogo).
-            // QUEM JÁ CHEGOU, e o contador em PESSOAS (12/09/2026). A barra dizia "0 de 64
-            // presentes" contando duplas; agora quem é marcado é gente, e contar dupla deixaria
-            // metade das chegadas invisível na única linha que resume a tela.
-            //
-            // ⚠️ DISTINTO por jogador: quem joga duas categorias aparece em duas duplas e é UMA
-            // pessoa no clube — contá-la duas vezes faria o total nunca fechar.
-            var chegadas = await _context.Presencas
-                .Where(p => p.TorneioId == id)
-                .ToDictionaryAsync(p => p.JogadorId, p => p.ChegouEm);
-            ViewBag.Chegadas = chegadas;
-
-            var jogadoresInscritos = torneio.Categorias
-                .SelectMany(c => c.Duplas.Where(d => !d.EmListaDeEspera))
-                .SelectMany(PresencaNoDia.IdsDa)
-                .ToHashSet();
-
-            ViewBag.TotalDeJogadores = jogadoresInscritos.Count;
-            ViewBag.JogadoresPresentes = jogadoresInscritos.Count(chegadas.ContainsKey);
-
-            ViewBag.JogosQueJaRolaram = jogos.Where(p => p.Status == "AoVivo")
-                .OrderBy(p => p.HorarioInicioReal)
-                .Concat(jogos.Where(p => p.Status == "Finalizada")
-                    .OrderByDescending(DuracaoDoJogo.Quando)
-                    .ThenByDescending(p => p.Id))
-                .ToList();
-
-            return View(torneio);
-        }
-
-        // A CHAMADA É POR PESSOA (12/09/2026). 🗣️ Felipe: *"Mude para um check por jogador, por
-        // que é assim que controla check in"*. A linha nasce em `PresencaNoTorneio`, com chave
-        // (TorneioId, JogadorId) — um check vale pro torneio inteiro, inclusive nas outras
-        // categorias em que a pessoa joga.
+        // A CHAMADA É POR PESSOA E POR JOGO (12/09/2026). 🗣️ Felipe: *"Mude para um check por
+        // jogador, por que é assim que controla check in"* e, horas depois, *"e o checkin, ele
+        // herda dos outros jogos pra mesma pessoa? pq se sim, nao deveria, tem q ser separado
+        // jogo a jogo"*. A linha nasce em `PresencaNoJogo`, com chave (PartidaId, JogadorId): o
+        // check responde "esta pessoa está aqui pra ESTE jogo?", e nada mais.
         //
         // `voltarPara`: quem marcou pela LISTA DE JOGOS volta pra ela, em vez de ser largado na
         // tela de Check-in. Sem o parâmetro nada muda — o botão de lá não passa nada.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int torneioId, bool presente,
+        public async Task<IActionResult> MarcarCheckIn(int jogadorId, int partidaId, bool presente,
             string? voltarPara = null, string? filtros = null)
         {
+            // ⚠️ REGRA 0, PRIMEIRA METADE: o `partidaId` chega por campo de formulário, então é
+            // dele que sai o torneio — e não de um segundo campo que poderia discordar. Carregar
+            // as duplas aqui é o que permite a checagem de dono logo abaixo sem uma segunda ida.
+            var partida = await _context.Partidas
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .FirstOrDefaultAsync(p => p.Id == partidaId);
+            if (partida == null) return NotFound();
+
+            int torneioId = partida.TorneioId ?? await _context.Categorias
+                .Where(c => c.Id == partida.CategoriaId).Select(c => c.TorneioId).FirstOrDefaultAsync();
+
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return NotFound();
 
@@ -410,27 +337,40 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
-            // ⚠️ REGRA 0: `jogadorId` chega por campo de formulário. Sem esta checagem um
-            // organizador carimbaria presença de gente que não está inscrita aqui — lixo no banco
-            // com cara de dado bom, e um contador que nunca fecha.
-            bool jogaAqui = await _context.Duplas.AnyAsync(d =>
-                                d.Categoria.TorneioId == torneioId
-                                && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-                         || await _context.InscricoesAmericanas.AnyAsync(i =>
-                                i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId);
-            if (!jogaAqui) return NotFound();
+            // ⚠️ REGRA 0, SEGUNDA METADE: o `jogadorId` também chega por campo de formulário, e
+            // agora a pergunta é mais estreita do que "joga neste torneio?" — é "joga NESTE
+            // JOGO?". Sem isto, o organizador carimbaria a Carla no jogo das outras: lixo no
+            // banco com cara de dado bom, e um jogo subindo no topo do horário sem ninguém em
+            // quadra (Services/OrdemNoHorario ordena por presença desde hoje).
+            bool jogaNesteJogo =
+                PresencaNoDia.IdsDa(partida.Dupla1).Contains(jogadorId)
+                || PresencaNoDia.IdsDa(partida.Dupla2).Contains(jogadorId);
+            if (!jogaNesteJogo) return NotFound();
 
             // Linha existe = chegou. Ler antes de gravar deixa o clique duplo idempotente; a PK
             // composta é quem segura a corrida de verdade, um andar abaixo.
             var jaEstava = await _context.Presencas
-                .FirstOrDefaultAsync(p => p.TorneioId == torneioId && p.JogadorId == jogadorId);
+                .FirstOrDefaultAsync(p => p.PartidaId == partidaId && p.JogadorId == jogadorId);
 
             if (presente && jaEstava == null)
-                _context.Presencas.Add(new PresencaNoTorneio { TorneioId = torneioId, JogadorId = jogadorId });
+                _context.Presencas.Add(new PresencaNoJogo { PartidaId = partidaId, JogadorId = jogadorId });
             else if (!presente && jaEstava != null)
                 _context.Presencas.Remove(jaEstava);
 
             await _context.SaveChangesAsync();
+
+            // ⚠️ QUEM CLICOU POR FETCH NÃO LEVA A PÁGINA INTEIRA DE VOLTA (15/09/2026).
+            // 🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina
+            // inteira"*. O desvio abaixo devolve mais de 1MB de HTML a cada bolinha, e são
+            // quatro por jogo — o js/checkin-sem-recarregar.js não usa nada disso: ele pede a
+            // lista nova UMA vez, no fim da rajada de cliques.
+            //
+            // ⚠️ E O 204 É A PROVA DE QUE GRAVOU, que é por isso que ele fica AQUI, depois do
+            // SaveChanges e depois das duas metades da Regra 0 — e não no topo da ação. Do outro
+            // lado, `resposta.ok` não serve de prova: sessão vencida responde 302 pra tela de
+            // login, o `fetch` segue o desvio e entrega 200 com o HTML do login. É o mesmo
+            // cuidado do SalvarPlacaresAoVivo, onde a prova é o JSON.
+            if (Request.Headers.XRequestedWith == "XMLHttpRequest") return NoContent();
 
             // ⚠️ LISTA FECHADA, como no PartidasController.VoltarDaLargada: `voltarPara` chega por
             // campo de formulário, e campo de formulário nunca vira redirecionamento pra qualquer
@@ -448,11 +388,13 @@ namespace Padelizou.Controllers
             var rota = FiltrosDaListaDeJogos.Reaproveitar(filtros);
             rota["id"] = torneioId;
 
+            // ⚠️ O PADRÃO ERA A TELA DE CHECK-IN, e ela saiu em 13/09/2026 (🗣️ *"acho que esse
+            // checkin aqui em cima tb nao precisa mais"*). O destino de sobra passou a ser a
+            // página do torneio, na aba Jogos — que é de onde TODO clique de presença sai hoje.
             return voltarPara switch
             {
-                "Details" => RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio"),
                 "Jogos" => RedirectToAction("Jogos", rota),
-                _ => RedirectToAction("CheckIn", new { id = torneioId }),
+                _ => RedirectToAction("Details", "Torneios", rota, fragment: "jogosDoTorneio"),
             };
         }
 

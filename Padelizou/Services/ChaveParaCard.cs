@@ -100,7 +100,8 @@ public static class ChaveParaCard
             .ToList();
 
         var rodadas = OrdemDasFases
-            .Select(fase => new { Fase = fase, Jogos = doMataMata.Where(p => p.Fase == fase).ToList() })
+            // Na ORDEM DO QUADRO (13/09/2026): o número gravado manda sobre a ordem de criação.
+            .Select(fase => new { Fase = fase, Jogos = ReservasDeHorario.NaOrdemDaFase(doMataMata, fase) })
             .Where(r => r.Jogos.Count > 0)
             // As TRÊS ÚLTIMAS: `TakeLast` mantém a ordem de leitura da chave, e é a final que
             // nunca pode ficar de fora.

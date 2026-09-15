@@ -680,7 +680,9 @@ public class CampanhaNoPadelimetroServiceTests
         };
         await new PadelimetroService(ctx).AplicarMovimentoAsync(linhas, corte);
 
-        Assert.Equal(0, linhas[0].Movimento);
-        Assert.Equal(0, linhas[1].Movimento);
+        // Moveu(0), e não SemBase: as duas TÊM extrato antes do corte, então havia ranking
+        // anterior — o que não houve foi mudança de posição.
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(0), linhas[0].Movimento);
+        Assert.Equal(MovimentoNoRanking.Selo.Moveu(0), linhas[1].Movimento);
     }
 }

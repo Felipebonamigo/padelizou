@@ -1,0 +1,54 @@
+﻿@* Painel de reações do jogo — 12/09/2026.
+   🗣️ Felipe: *"e ao clicar no emoji, veja quem colocou o que, igual no whats app"*, com o print
+   do painel do WhatsApp: a contagem no topo, as pílulas, e a lista de quem reagiu com o emoji
+   de cada um do lado.
+
+   ⚠️ UM MODAL SÓ, reusado por todos os jogos da lista — mesma forma do `_ModalVerVotos`. Uma
+   cópia por cartão seriam 97 diálogos no HTML de uma página que já é grande.
+
+   ⚠️ E É AQUI QUE SE SOMA E SE TIRA, nas mesmas pílulas: no card a pílula ABRE este painel (é
+   o que ele pediu), então o toque que muda a minha reação precisa morar num lugar só, com
+   rótulo. É o "toque para remover" do WhatsApp.
+
+   ⚠️ O TECLADO É LIVRE (decisão dele): os atalhos abaixo são atalho, não paleta — qualquer
+   emoji que a pessoa digitar no campo vale, e quem decide se é UM emoji é o servidor
+   (Services/EmojiDeReacao). Sem essa peneira, a coluna aceita o texto que o POST mandar. *@
+<div class="modal fade" id="modalQuemReagiu" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-emoji-smile"></i>
+                    <span id="modalQuemReagiuTitulo">Reações</span>
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @* As pílulas do que já existe. Tocar soma ou tira a MINHA — a marcada é a minha. *@
+                <div id="modalQuemReagiuPilulas" class="pdz-reacoes pdz-reacoes-no-painel mb-2"></div>
+
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    @* ⚠️ OS ATALHOS E O CAMPO SAÍRAM DAQUI (12/09/2026): quem escolhe emoji agora
+                       é o TECLADO, e o painel voltou a ter um trabalho só — mostrar quem colocou
+                       o quê. É o desenho do WhatsApp, onde a barra reage, o teclado escolhe e o
+                       painel lista; empilhar os três aqui foi o que fez este modal abrir cheio de
+                       coisa e sem alvo de toque. *@
+                    <button type="button" class="btn btn-sm btn-outline-secondary mb-3"
+                            onclick="abrirTecladoDeEmoji(this)">
+                        <span class="pdz-reacao-emoji" aria-hidden="true">🙂</span> Reagir com outro emoji
+                    </button>
+                    <div class="small text-danger mt-1" id="modalQuemReagiuErro" hidden></div>
+                }
+                else
+                {
+                    <p class="small text-muted">
+                        <a asp-controller="Auth" asp-action="Login">Entre</a> para reagir.
+                    </p>
+                }
+
+                <div id="modalQuemReagiuLista"></div>
+            </div>
+        </div>
+    </div>
+</div>

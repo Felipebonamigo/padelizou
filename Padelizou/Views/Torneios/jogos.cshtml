@@ -1,4 +1,4 @@
-@using Padelizou.ViewModels
+﻿@using Padelizou.ViewModels
 @{
     ViewData["Title"] = "Jogos do Torneio";
     var torneio = ViewBag.Torneio as Torneio;
@@ -12,14 +12,17 @@
 @section Scripts {
     <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
     <script src="~/js/palpitometro.js" asp-append-version="true"></script>
+    <script src="~/js/reacoes-do-jogo.js" asp-append-version="true"></script>
     @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
        o organizador fica preso no JS velho indefinidamente. *@
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
     <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/acao-do-cartao-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
+    <script src="~/js/checkin-sem-recarregar.js" asp-append-version="true"></script>
 }
 
 @if (torneio == null)
@@ -32,6 +35,26 @@
 
 <div class="mb-3">
     <h2 class="mb-0">🏆 @torneio.Nome - Partidas</h2>
+</div>
+
+@* ⚠️ ESTA TELA NÃO MOSTRAVA O ERRO DO SERVIDOR (achado em 14/09/2026). Toda ação daqui é POST →
+   redirect → GET, e o motivo da recusa vem em `TempData["Erro"]`: o Details.cshtml desenha, esta
+   view nunca desenhou. O organizador apertava "Finalizar", o servidor recusava ("a fase seguinte
+   já começou", "outro finalizar em curso") e a tela voltava igualzinha, sem uma palavra — falha
+   calada na tela que ele usa com o torneio em quadra.
+
+   O `id` é contrato com o js/jogos-ao-vivo-atualiza.js, que copia este bloco da resposta do
+   fetch pra cá: o TempData é de UMA LEITURA SÓ, e sem isso o erro morre dentro da resposta que
+   nunca virou página. *@
+<div id="pdzAvisoDaAcao">
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
 </div>
 
 @* ── A SAÍDA DESTA TELA ───────────────────────────────────────────────────────────────────
@@ -67,3 +90,5 @@
 <partial name="_JogosDoTorneio" model='("Jogos", torneio.Id)' />
 
 <partial name="_ModalVerVotos" />
+<partial name="_ModalQuemReagiu" />
+<partial name="_ModalTecladoEmoji" />
