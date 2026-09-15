@@ -133,6 +133,19 @@ public static class MvpDoTorneio
     // recarregamento no topo — sem erro, sem teste vermelho, sem ninguém perceber.
     public const string AncoraDaEnquete = "avaliar";
 
+    // DO MAIS VOTADO PRO MENOS, com a ordenação TOTAL (votos → nome → id).
+    //
+    // ⚠️ Extraído do `Apurar` pra a lista da tela usar A MESMA régua que escolhe o pódio, e
+    // não uma cópia: duas ordenações que discordassem por um critério de desempate poriam o
+    // segundo colocado ACIMA do campeão na mesma página — sem erro, sem teste vermelho, e com
+    // a tela se contradizendo na cara de quem jogou.
+    public static List<CandidatoAMvp> PorVotos(IEnumerable<CandidatoAMvp> candidatos) =>
+        candidatos
+            .OrderByDescending(c => c.Votos)
+            .ThenBy(c => c.Nome, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.JogadorId)
+            .ToList();
+
     // Quem ganhou. Devolve TODOS os empatados no topo, de propósito: inventar um critério de
     // desempate ("quem recebeu o voto primeiro") faria o sistema escolher um MVP por um motivo
     // que ninguém combinou. Dois MVPs é uma resposta honesta; um MVP arbitrário não é.
@@ -142,11 +155,7 @@ public static class MvpDoTorneio
     // como defeito — só desconfia da tela.
     public static List<CandidatoAMvp> Apurar(IEnumerable<CandidatoAMvp> candidatos)
     {
-        var ordenados = candidatos
-            .OrderByDescending(c => c.Votos)
-            .ThenBy(c => c.Nome, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(c => c.JogadorId)
-            .ToList();
+        var ordenados = PorVotos(candidatos);
 
         var topo = ordenados.FirstOrDefault();
         if (topo == null || topo.Votos < VotosMinimos) return new List<CandidatoAMvp>();
@@ -560,6 +569,25 @@ public sealed class VotacaoDeMvp
 
     public bool TemVencedor => Vencedores.Count > 0;
     public bool Empatou => Vencedores.Count > 1;
+
+    // A LISTA DE BAIXO, e ela troca de forma quando a votação fecha (15/09/2026).
+    //
+    // 🗣️ Felipe, com o print do resultado: *"aqui tem q deixar ordenado pelos votos e nao tem
+    // pq mostrar 2 vezes o vencedor"*.
+    //
+    // · ENCERRADA: o apanhado, do mais votado pro menos, SEM quem já está no pódio acima —
+    //   repetir o eleito é gastar a primeira linha da lista com a informação que o cartão
+    //   inteiro em cima já deu. Tira TODOS os `Vencedores`, e não só o primeiro: no empate
+    //   são dois, e esconder um só deixaria o outro duplicado.
+    //
+    // · ABERTA: a cédula na ordem da CHAVE, intocada. ⚠️ Ordenar pelo parcial aqui entregaria
+    //   quem está ganhando SEM MOSTRAR UM NÚMERO SEQUER — o mesmo efeito manada que fez o
+    //   placar ficar escondido até fechar —, e desfaria o pedido de 13/09 de manter as duplas
+    //   juntas por categoria. São duas telas com a mesma lista; só uma delas já tem o resultado.
+    public List<CandidatoAMvp> CandidatosNaTela => !Encerrada
+        ? Candidatos
+        : MvpDoTorneio.PorVotos(
+            Candidatos.Where(c => !Vencedores.Any(v => v.JogadorId == c.JogadorId)));
 
     // A CÉDULA SAI DA FRENTE DE QUEM JÁ VOTOU. 🗣️ Felipe, 14/09/2026: *"para quando a pessoa
     // selecionar o 'MVP' minimize essa sessão e apareça na tela para avaliar o torneio"*. Um

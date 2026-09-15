@@ -157,8 +157,14 @@
                     <span class="small text-muted">— trocar</span>
                 </summary>
 
+            @* ⚠️ `CandidatosNaTela`, e não `Candidatos`: fechada a votação ela sai ordenada
+               por votos e sem quem já está no pódio acima (ver VotacaoDeMvp). Pode ficar
+               VAZIA — num empate entre os dois únicos candidatos não sobra ninguém —, e aí a
+               lista some em vez de deixar uma moldura oca com o rodapé solto embaixo. *@
+            @if (Model.CandidatosNaTela.Count > 0)
+            {
             <div class="list-group list-group-flush">
-                @foreach (var candidato in Model.Candidatos)
+                @foreach (var candidato in Model.CandidatosNaTela)
                 {
                     var euVoteiNele = Model.MeuVoto == candidato.JogadorId;
                     var souEu = Model.EuId == candidato.JogadorId;
@@ -210,6 +216,7 @@
                     </div>
                 }
             </div>
+            }
             </details>
 
             <hr />
