@@ -97,7 +97,7 @@ public class EnqueteDoTorneioTests
 
         var recusa = await EnqueteDoTorneio.AvaliarAsync(
             ctx, torneio.Id, duplas[1].Jogador1Id, So(4, 4),
-            Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            Domingo.AddDays(EnqueteDoTorneio.DiasParaResponder));
 
         Assert.NotNull(recusa);
         Assert.Empty(ctx.AvaliacoesDeTorneio);

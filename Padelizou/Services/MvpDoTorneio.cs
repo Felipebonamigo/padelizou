@@ -17,7 +17,7 @@ namespace Padelizou.Services;
 //
 // ⚠️ A JANELA É LIDA DO RELÓGIO, NUNCA GRAVADA. Não há coluna "votação encerrada" nem job que
 // feche nada: a votação está aberta enquanto o torneio está finalizado E faz menos de
-// `DiasParaVotar` dias que a última bola foi jogada. É a mesma lição do "Expirado NÃO É STATUS"
+// `HorasParaVotar` horas que a última bola foi jogada. É a mesma lição do "Expirado NÃO É STATUS"
 // dos Desafios e do "Vencido" dos leads — estado gravado por job fica errado quando o job falha,
 // e ninguém descobre.
 //
@@ -26,10 +26,18 @@ namespace Padelizou.Services;
 // data de corte escrita no código.
 public static class MvpDoTorneio
 {
-    // Uma semana. O torneio acaba no domingo e a semana inteira serve pra votar — quem jogou
-    // volta ao site pelo menos uma vez nesse intervalo. Prazo curto demais elege quem estava
-    // com o celular na mão no domingo à noite.
-    public const int DiasParaVotar = 7;
+    // UM DIA (decisão do Felipe, 15/09/2026: *"7 dias é mt tempo, tem q ser 24h depois do
+    // ultimo jogo"*). Era uma semana, com o raciocínio de que quem jogou volta ao site pelo
+    // menos uma vez nesse intervalo — e voltava, mas votando sobre um torneio que já tinha
+    // esfriado. O MVP é sobre o calor do jogo que acabou de acontecer.
+    //
+    // ⚠️ O PRAZO DA ENQUETE NÃO VEIO JUNTO, e a separação é o ponto: `EnqueteDoTorneio` tem a
+    // própria janela de 7 dias, porque quem depende dela é a coleta do "Melhor Clube do ano"
+    // de 2027. Encolher as duas de uma vez cortaria esse dado pela metade sem ninguém ter
+    // pedido. Foram a MESMA janela até aqui; quem mexer numa não mexe mais na outra sem querer.
+    public const int HorasParaVotar = 24;
+
+    public static readonly TimeSpan JanelaDoMvp = TimeSpan.FromHours(HorasParaVotar);
 
     // Abaixo disto não se proclama MVP. "Melhor jogador do torneio, com 1 voto" é uma frase que
     // não se sustenta — mesma régua do "1º lugar com 0 pontos" que saiu do ranking e do card do
@@ -48,7 +56,7 @@ public static class MvpDoTorneio
         return datas.Count == 0 ? null : datas.Max();
     }
 
-    public static DateTime? FechaEm(DateTime? ultimoJogo) => ultimoJogo?.AddDays(DiasParaVotar);
+    public static DateTime? FechaEm(DateTime? ultimoJogo) => ultimoJogo?.Add(JanelaDoMvp);
 
     // A votação aceita voto agora?
     //
@@ -71,7 +79,7 @@ public static class MvpDoTorneio
         if (!usaVotacao) return false;
         if (!ElegeMvp(formato)) return false;
 
-        return DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
+        return DentroDaJanela(statusDoTorneio, ultimoJogo, agora, JanelaDoMvp);
     }
 
     // ⚠️ AMERICANO NÃO ELEGE MVP (decisão do Felipe, 16/08/2026) — "é apenas para os torneios
@@ -84,15 +92,19 @@ public static class MvpDoTorneio
     // precisar traduzir "pós-torneio" na cabeça.
     public static bool ElegeMvp(string? formato) => FormatoDoTorneio.TemPosTorneio(formato);
 
-    // A JANELA PURA: o torneio acabou e ainda faz menos de 7 dias do último jogo. Separada de
-    // propósito — quem pergunta por ela não é só o MVP: a ENQUETE do clube usa a mesma janela
-    // e NÃO obedece nem ao interruptor nem ao formato (ver Services/EnqueteDoTorneio).
-    public static bool DentroDaJanela(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora)
+    // A JANELA PURA: o torneio acabou e ainda não passou `janela` desde o último jogo.
+    //
+    // ⚠️ A DURAÇÃO É PARÂMETRO OBRIGATÓRIO, e não a constante daqui: desde 15/09/2026 são DUAS
+    // janelas diferentes — 24h pro MVP e 7 dias pra ENQUETE do clube, que continua não
+    // obedecendo nem ao interruptor nem ao formato (ver Services/EnqueteDoTorneio). Com um
+    // valor padrão, quem chamasse esquecendo o prazo não veria erro nenhum: veria votação
+    // fechando na hora errada, calada. É o mesmo arranjo do `usaVotacao` na `Aberta`.
+    public static bool DentroDaJanela(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora,
+        TimeSpan janela)
     {
         if (statusDoTorneio != StatusFinalizado) return false;
 
-        var fecha = FechaEm(ultimoJogo);
-        return fecha != null && agora < fecha.Value;
+        return ultimoJogo is { } ultimo && agora < ultimo.Add(janela);
     }
 
     // Já dá pra mostrar o resultado? Só depois que fecha — ver `Apurar`.
@@ -448,12 +460,17 @@ public static class MvpDoTorneio
     // ⚠️ `temMvp` NÃO é enfeite: no Americano não há eleição (ver ElegeMvp), e prometer
     // "escolha o melhor jogador" levaria a pessoa a uma tela que não tem cédula nenhuma —
     // o jeito mais rápido de ensinar que o nosso aviso mente.
+    //
+    // ⚠️ DESDE 15/09/2026 O AVISO CARREGA DOIS PRAZOS, e é por isso que o texto do MVP mudou de
+    // forma: a cédula fecha em 24h e a enquete segue valendo a semana. O antigo "vale por N
+    // dias" cobria as duas com um número só — hoje esse número mentiria sobre uma delas, e a
+    // que ele atrasaria é justamente a que tem pressa.
     public static string CorpoDoAviso(string nomeDoTorneio, bool temMvp = true) =>
         temMvp
-            ? $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões e conte "
-              + $"como foi o torneio — vale por {DiasParaVotar} dias."
+            ? $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões — a votação "
+              + $"fecha em {HorasParaVotar}h — e conte como foi o torneio."
             : $"O {nomeDoTorneio} acabou! Conte como foi: dê sua nota pro clube, pra organização "
-              + $"e pro Padelizou, e escreva se quiser — vale por {DiasParaVotar} dias.";
+              + $"e pro Padelizou, e escreva se quiser — vale por {EnqueteDoTorneio.DiasParaResponder} dias.";
 
     // O título acompanha o corpo, pelo mesmo motivo.
     public static string TituloDoAvisoPara(bool temMvp) =>
