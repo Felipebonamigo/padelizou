@@ -166,7 +166,50 @@ em *Approve* libera. São três segundos, e é o que separa "publiquei em produ�
 > existir, o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o
 > deploy sai direto. A trava não vem do arquivo `deploy.yml`, vem daqui.
 
-### 4. O fuso do servidor precisa ser America/Sao_Paulo — e isso não é automático
+### 4. O token do GitHub no VPS — opcional hoje, obrigatório se o repositório fechar
+
+**Enquanto o repositório for público, não precisa de nada aqui.** Pule esta seção e o deploy
+funciona. Ela existe pra que fechar o repositório deixe de ser uma decisão que derruba a
+publicação.
+
+Em 15/09/2026 o repositório passou alguns minutos como privado e o `deploy.sh` morreu no ato:
+ele baixava o pacote sem se identificar, e repositório privado devolve **404** pra quem não se
+identifica. Medido no mesmo release (`build-1450-7ec7a5d`): **404** privado, **206** público.
+
+Desde então o script lê um token se existir um, e segue anônimo se não existir. Como criar:
+
+1. **github.com/settings/personal-access-tokens** → *Generate new token* → **fine-grained**.
+2. *Repository access*: **Only select repositories** → `Felipebonamigo/padelizou`.
+3. *Permissions* → *Repository permissions* → **Contents: Read-only**. Só isso. O script não
+   escreve nada no GitHub — um token que possa escrever seria poder de sobra parado no
+   servidor.
+4. Escolha uma validade e **anote o vencimento**: token expirado derruba o deploy no dia, e o
+   script vai dizer `401`.
+
+No servidor:
+
+```bash
+ssh root@179.197.233.184
+install -m 600 /dev/null /opt/padelizou-deploy/.github-token
+printf '%s' 'github_pat_...' > /opt/padelizou-deploy/.github-token   # sem \n no fim
+/opt/padelizou-deploy/deploy.sh dev                                  # confere que ainda publica
+```
+
+O `install -m 600` cria o arquivo **já fechado** — criar primeiro e dar `chmod` depois deixa
+uma janela em que o token está no disco legível por todo mundo. Se o modo estiver errado o
+script avisa a cada deploy, mas não recusa: travar uma publicação por causa do modo de um
+arquivo é pior que publicar.
+
+⚠️ **O token não está no `.gitignore` por acaso — ele não mora no repositório.** Fica só no
+`/opt/padelizou-deploy/` do VPS, ao lado do script, como o `appsettings.json` fica no
+`/opt/padelizou-shared/`.
+
+⚠️ **Tem um segundo motivo pra pôr o token mesmo com o repositório público**: a API do GitHub
+sem token dá **60 chamadas por hora por IP**, e `deploy.sh dev <sha>` (o que espera o CI ficar
+pronto) gasta até 30 delas numa vez. Dois ou três desses na mesma hora e o deploy passa a
+falhar com uma mensagem de cota. Com token são 5.000/hora e o assunto some.
+
+### 5. O fuso do servidor precisa ser America/Sao_Paulo — e isso não é automático
 
 O sistema grava e compara hora LOCAL o tempo todo (ranking da semana, vencimento de
 pagamento, fechamento de mês do professor) — as colunas são "timestamp without time

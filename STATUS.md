@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
+> Última atualização: **15/09/2026** — 🔐 **O DEPLOY DEIXOU DE DEPENDER DE O REPOSITÓRIO SER PÚBLICO.** ⏳ **No branch `claude/exciting-fermi-jo4tai`.** **Sem migration.**
+>
+> 🗣️ Felipe: *"mudei no git para privado, muda algo? o que precisamos cuidar?"* — e depois, já com o repositório público de novo: *"conserta o deploy.sh mesmo assim, pra não depender disso"*.
+>
+> 🕳️ **O DEPLOY MORRIA NO ATO COM O REPOSITÓRIO PRIVADO.** O `deploy.sh` baixava o pacote de `github.com/<repo>/releases/download/<tag>/padelizou.tar.gz` **sem se identificar**, e repositório privado devolve 404 pra quem não se identifica. Medido no mesmo release `build-1450-7ec7a5d`: **404** privado, **206** público. Pior que a queda: o `set -euo pipefail` derrubava o script na atribuição do `TAG`, então o operador lia `curl: (22) ... error: 404` e **nunca** a mensagem "não encontrei build" que o script já tinha pronta.
+>
+> 🔑 **O DOWNLOAD PASSA A SAIR DO ENDPOINT DE ASSET DA API, e não da URL de navegador.** Aquela URL não é questão de header: em repo privado ela é 404 **com token ou sem**, porque o token nem chega a ser considerado. O endpoint de asset atende as duas visibilidades — medido **anônimo, com o repo público: HTTP 206**.
+>
+> 🕳️ **E TINHA UM SEGUNDO BURACO, ATIVO COM O REPOSITÓRIO PÚBLICO**: a API sem token dá **60 chamadas por hora por IP**, e o laço que espera o CI gerar o build de um sha fazia **60 chamadas em 10 minutos** (`seq 1 60`, `sleep 10`) — a cota inteira num deploy só. O segundo deploy da mesma hora levava 403 em tudo, e o `|| true` do laço engolia cada um: a tela dizia *"não encontrei build pra `<sha>`"* e mandava procurar defeito num CI que estava verde. Agora são **30 voltas de 20s**: mesma janela de 10 min, metade da cota, e sobra pro download — que também virou chamada de API. Com token são **5.000/hora**.
+>
+> 🔑 **O TOKEN É OPCIONAL, E É ESSE O PONTO.** Sem ele o script funciona igual enquanto o repositório for público; com ele, fechar o repositório deixa de derrubar a publicação. Mora em `/opt/padelizou-deploy/.github-token` (fine-grained, só este repo, **Contents: Read-only**) — passo a passo na **seção 4** do `infra/vps/README.md`. ⚠️ **Ainda NÃO está no VPS**: enquanto não estiver, fechar o repositório continua derrubando o deploy.
+>
+> ⚠️ **O TOKEN NUNCA VAI NA LINHA DE COMANDO.** Argumento de processo é legível por qualquer usuário da máquina (`ps auxww`) e a app roda com outro usuário no mesmo VPS — o header entra por um arquivo de config do `curl` em modo 600, criado sempre (vazio quando não há token) pra que exista **um caminho só**. E nada de `--location-trusted`: o endpoint redireciona pro armazenamento de objetos, que é **outro host**, e a opção reenviaria o `Authorization` pra lá — o redirecionamento já vem assinado e não precisa de credencial nenhuma.
+>
+> 🔑 **AS TRÊS RECUSAS DA API VIRARAM TRÊS MENSAGENS.** 401, 403 e 404 tinham uma cara só (`curl: (22)`) e três causas diferentes: token errado, cota estourada, repo fechado sem token. Cada uma agora diz o que fazer e onde o token mora — a próxima sessão não refaz esta investigação.
+>
+> 🧪 5 testes novos (`DeployBaixaOPacoteAutenticadoTests`), **4 vistos vermelhos antes**: `/releases/download/` encontrado, `-K "$CURL_CFG"` não encontrado, `rate limit` não encontrado, e o da cota reprovando com `seq 1 60`. O quinto **passa de graça** antes da correção e está marcado como tal no arquivo — ele trava as duas formas ERRADAS de consertar (`-H "Authorization` e `--location-trusted`), não o defeito. **7.285 verdes** + os 12 conferidores JS.
+>
+> 🧰 **RODADO CONTRA O GITHUB DE VERDADE, não só lido**: o bloco da credencial e o `api()` foram extraídos do arquivo real e exercitados — tag resolvida (`build-1450-7ec7a5d`), id do asset extraído (`565876481`), bytes baixados e reconhecidos como `gzip compressed data`, e as mensagens de **404** e de **cota** impressas pelas suas próprias vias (a de cota disparou sozinha: o IP desta sessão estava com as 60/hora esgotadas). ⚠️ **Não houve deploy de verdade** — não há VPS nesta sessão.
+>
+> **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
 >
 > 🗣️ Felipe, depois de ver a correção da agenda: *"faz o mesmo na tela de ocupação do clube"*. É o achado que o bloco de baixo tinha deixado em aberto.
 >
