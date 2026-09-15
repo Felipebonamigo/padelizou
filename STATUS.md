@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/checkin-por-jogo-kshvrx`, sem PR. **Sem migration.**
+> Última atualização: **15/09/2026** — 📏 **OS NÚMEROS DO `CLAUDE.md` ESTAVAM ERRADOS, E ESTE É O ARQUIVO QUE DECIDE CERIMÔNIA.** ⏳ **No branch `claude/exciting-noether-yb6q4g`.** **Sem migration.** Só documentação.
+>
+> 🕳️ O degrau 2 da escada (*"já existe algo equivalente aqui?"*) usa o tamanho do projeto pra decidir se vale reimplementar. Ele dizia **69 controllers e ~4.800 testes**; a suíte media **7.264** neste turno. Subestimar em **2.400 testes** orienta mal toda sessão que lê a régua.
+>
+> 🔑 **E O "69 CONTROLLERS" ESTAVA ERRADO DE OUTRO JEITO, não só velho: ele contava ARQUIVO.** São **35 classes** `*Controller` (conferido no projeto inteiro, todas em `Padelizou/Controllers/`) espalhadas por **75 arquivos**, dos quais **44 são classes parciais** — o `TorneiosController` sozinho mora em vários. Os dois números entram na linha, porque quem abre a pasta vê 75 e quem pergunta *"já existe um controller pra isso?"* precisa dos 35.
+>
+> 🧹 **A LISTA DE CONFERIDORES DE JS SAIU, e no lugar ficou o glob.** Ela nomeava **cinco**, um deles com o **nome errado** (`chave-fichas`, quando o arquivo é `fichas-da-chave`) e sem o `mesa-offline`. Hoje são **11**. Lista escrita à mão num arquivo que ninguém executa envelhece calada — o `ls Padelizou.Tests/js/conferir-*.js`, que já estava ali duas linhas acima, não.
+>
+> ⏱️ A duração da suíte também: **~35-40s** viraram **~1min20**, medidos.
+>
+> 📌 **De onde veio**: o PR #270 (ProSmart, parado por decisão do Felipe desde 12/09) já trazia uma correção desses números — mas para **74 controllers e ~6.860 testes**, que hoje também estão errados. A correção foi refeita aqui com medição do turno, e **a parte de `CLAUDE.md` do #270 pode ser descartada quando ele for mesclado**.
+>
+> **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/checkin-por-jogo-kshvrx`, sem PR. **Sem migration.**
 >
 > 🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina inteira, como estava acontecendo, isso foi alterado ?"* — **não tinha sido**, e a resposta honesta foi essa — e em seguida: *"sim, faça. o jogo tem q subir na hora"*.
 >
