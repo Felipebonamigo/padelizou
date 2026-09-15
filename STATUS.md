@@ -27,7 +27,7 @@
 >
 > 🔀 **O BRANCH FOI REFEITO A PARTIR DO `origin/main`**: o PR anterior dele já tinha sido mesclado, e o `main` andou 96 commits desde então. O único conflito foi no `estaOcupado`, onde a bandeira nova ficou ao lado do `pdzAcaoEmCurso` que chegou em 14/09.
 >
-> Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** ⚠️ **NÃO PUBLICADO**: está só no branch `claude/inspiring-carson-niywzp`, sem PR. **Sem migration.**
+> Última atualização: **15/09/2026** — 🧊 **A COLUNA DAS HORAS IA EMBORA JUNTO COM A ROLAGEM DA AGENDA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1431-f316449`** (deploy runs **379** e **380**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #322. **Sem migration.**
 >
 > 🗣️ Professor Gabriel, no WhatsApp (14/09, 20:34): *"qnd tu vai ver os horarios das aulas e tal, tu vai rolando pro lado e some os horarios"* · *"faz com a planilha pra continuar os horarios ali do lado"*.
 >
@@ -40,6 +40,10 @@
 > 🧪 3 testes novos (`ColunaDasHorasNaoSomeAoRolarTests`), **os três vistos vermelhos antes**, pelo motivo certo (a regra existia, faltavam sticky/z-index/fundo). São teste de FONTE, pelo mesmo motivo do `GradeDaAgendaRolaInteiraTests` ao lado: não há suíte de CSS aqui. **7.264 verdes** + os conferidores JS.
 >
 > ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada foi visto renderizado. Quem confirma na tela é o Felipe (ou o próprio Gabriel).
+>
+> ✅ **CONFERIDO ANTES DE DISPARAR** (o aviso de 14/09): os dois ambientes estavam no `build-1429-90219b3`, que é exatamente o commit-pai deste trabalho — o pacote novo contém tudo o que já estava no ar. Depois do deploy, `/healthz` responde **200** nos dois.
+>
+> 🚨 **ACHADO NOVO, E NÃO É DESTE TRABALHO: A TRAVA DO PROD NÃO ESTÁ LIGADA.** O `infra/vps/README.md` diz que o environment `prod` tem **Required reviewers**, e avisa que sem ele "o GitHub cria sozinho na primeira execução — sem regra nenhuma, e aí o deploy sai direto". É o que acontece hoje: o run **380** foi do disparo ao fim em **22 segundos**, sem parar pra aprovação — e os runs 374, 376 e 378 levaram os mesmos ~20s. Ou seja, **todo deploy em produção está saindo direto**, e não se percebe porque o job fica verde do mesmo jeito. Conserto em **Settings → Environments → prod → Required reviewers**; não tem nada a ver com o `deploy.yml`.
 >
 > 🔎 **A MESMA PLANILHA ESTÁ NO `ClubeGestao/Ocupacao`, E NÃO FOI TOCADA**: lá a coluna "Hora" é `<td>` de tabela dentro de `.table-responsive` e some do mesmo jeito ao rolar. **Não é a tela do professor** e ninguém reclamou dela — decisão em aberto pro Felipe: congelar lá também (é `position: sticky` numa célula, não o mesmo CSS) ou deixar.
 >
