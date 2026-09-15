@@ -114,10 +114,12 @@ public class JogadoresController : Controller
             var categoriaRecente = historicoDuplas
                 .Select(d => d.Categoria.Nome)
                 .FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
-            bool reguaFeminina = FaixasDePadelimetro.EhFeminina(categoriaRecente);
-
-            ViewBag.PadelimetroFaixa = FaixasDePadelimetro.DoNivel(nivelPadelimetro, reguaFeminina);
-            ViewBag.PadelimetroFalta = FaixasDePadelimetro.FaltaPraSubir(nivelPadelimetro, reguaFeminina);
+            // O RÓTULO não é a faixa crua do número: em calibração ele é o da categoria
+            // jogada, e depois dela o número manda com folga dos dois lados (RANKING.md, "O
+            // RÓTULO da tela não é a trava"). E o "faltam X" mede o que muda ESTE rótulo.
+            int jogosPdz = jogador.JogosDePadelimetro;
+            ViewBag.PadelimetroFaixa = FaixasDePadelimetro.FaixaExibida(nivelPadelimetro, categoriaRecente, jogosPdz);
+            ViewBag.PadelimetroFalta = FaixasDePadelimetro.FaltaPraMudarDeFaixa(nivelPadelimetro, categoriaRecente, jogosPdz);
             ViewBag.PadelimetroEmCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
             ViewBag.PadelimetroExtrato = await _context.HistoricosDePadelimetro
                 .Where(h => h.JogadorId == id)
@@ -791,10 +793,7 @@ public class JogadoresController : Controller
     }
     [HttpGet]
     public async Task<IActionResult> Ranking(int? clubeId, int? torneioId, string[]? cidade, string? estado, string? periodo,
-        [FromServices] IPadelimetroService padelimetro,
-        [FromServices] IRankingAmericanoService rankingAmericano,
-        [FromServices] PortaDosDesafios portaDosDesafios,
-        [FromServices] TelaDoRankingDeDesafios telaDeDesafios)
+        [FromServices] HubDoRanking hubDoRanking)
     {
         // 1. RANKING POR CLUBE
         if (clubeId.HasValue)
@@ -824,107 +823,13 @@ public class JogadoresController : Controller
             .Where(PermissaoDeOrganizador.ApareceParaOPublico)
             .ToList();
 
-        var hub = await _estatisticas.ObterRankingHubAsync(cidade, estado, periodo);
-
-        // Opções dos selects de cidade/estado (cidades já filtradas pelo estado escolhido).
-        // ⚠️ `somenteQuemJogouTorneio`: esta página é ranking, e ranking aqui só existe a
-        // partir de resultado de torneio. Cidade sem ninguém que jogou é opção que só sabe
-        // devolver tabela vazia — e era por essa porta que entravam na lista os apelidos e as
-        // grafias soltas que cada um digita no cadastro.
-        var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(estado, somenteQuemJogouTorneio: true);
-        hub.EstadosDisponiveis = estados;
-        hub.CidadesDisponiveis = cidades;
-
-        // O que veio na URL passa a ser escrito como a lista escreve: link antigo com
-        // `?cidade=GRAVATAI` mostraria o chip "GRAVATAI" e o select ofereceria "Gravataí" ao
-        // lado — a mesma cidade duas vezes na mesma linha.
-        hub.Cidades = CidadesSemRepetir.Canonizar(hub.Cidades, cidades);
-
-        // Abas Padelímetro e Ranking Americano (RANKING.md): as duas respeitam o mesmo filtro
-        // regional do hub. O Americano é ranking PRÓPRIO — não soma com o oficial, e por isso
-        // vem de um serviço separado em vez de virar mais uma consulta do EstatisticasService.
-        var doLocal = await _estatisticas.ObterJogadoresDoLocalAsync(cidade, estado);
-        hub.Padelimetro = await padelimetro.ListarRankingAsync(doLocal);
-        var americano = await rankingAmericano.ListarAsync(doLocal);
-        hub.AmericanoIndividual = americano.Individual;
-        hub.AmericanoDuplas = americano.Duplas;
-
-        // "Quantas posições o último torneio me fez ganhar?" nas duas abas que faltavam.
-        //
-        // ⚠️ A janela do OFICIAL (que o EstatisticasService já abriu pro hub) serve pro
-        // Padelímetro, porque é o mesmo torneio de chave que move os dois. O Americano tem
-        // janela PRÓPRIA: são rankings separados, e o rodízio de sábado não move o oficial.
-        if (hub.JanelaDoMovimento is { } janela)
-            await padelimetro.AplicarMovimentoAsync(hub.Padelimetro, janela.Corte);
-
-        hub.JanelaDoAmericano = await MovimentoNoRanking.DoAmericanoAsync(_context, DateTime.Now);
-        if (hub.JanelaDoAmericano is { } janelaAmericano)
-        {
-            var antes = await rankingAmericano.ListarAsync(doLocal, ate: janelaAmericano.Corte);
-            MovimentoNoRanking.Aplicar(hub.AmericanoIndividual,
-                antes.Individual.Select(l => l.Jogador.Id).ToList(),
-                l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
-            MovimentoNoRanking.Aplicar(hub.AmericanoDuplas,
-                antes.Duplas.Select(l => l.Jogador.Id).ToList(),
-                l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
-        }
-
-        // Sub-aba "Americanos" dos Troféus. Ela obedece ao MESMO período que os troféus de chave
-        // ao lado — meia tela em "este mês" e meia em "sempre" é como alguém compara os dois
-        // números e tira a conclusão errada sem nada na tela ter mentido explicitamente.
-        //
-        // Em "sempre" (o padrão) a lista JÁ está pronta acima: uma segunda consulta pra chegar no
-        // mesmo resultado seria trabalho puro de servidor em toda visita à página.
-        if (hub.PeriodoDe is { } deDoPeriodo)
-        {
-            var noPeriodo = await rankingAmericano.ListarAsync(doLocal, de: deDoPeriodo);
-            hub.TrofeusAmericanoIndividual = noPeriodo.Individual;
-            hub.TrofeusAmericanoDuplas = noPeriodo.Duplas;
-        }
-        else
-        {
-            hub.TrofeusAmericanoIndividual = hub.AmericanoIndividual;
-            hub.TrofeusAmericanoDuplas = hub.AmericanoDuplas;
-        }
-
-        // Aba Desafios. A régua de quem enxerga é a MESMA do menu e do /Desafios — PortaDosDesafios,
-        // um lugar só. Sem lista, a aba não é desenhada, e a promessa do topo da tela ("tudo aqui
-        // sai de torneio") continua verdadeira pra quem não a tem.
-        //
-        // ⚠️ Anônimo cai fora antes de qualquer consulta: `FindFirstValue` devolve nulo, o
-        // TryParse falha, e o `&&` curto-circuita. Esta página é PÚBLICA — sem isso, todo
-        // visitante deslogado pagaria as consultas do módulo pra não ver aba nenhuma.
-        // Quem está olhando, pra as tabelas destacarem a própria linha sem a VIEW ler claim
-        // nenhuma — tela que interpreta credencial é tela que decide permissão.
-        hub.EuId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var euId) ? euId : null;
-
-        if (hub.EuId is int meuId && await portaDosDesafios.PodeUsarAsync(meuId))
-        {
-            hub.Desafios = await telaDeDesafios.MontarAsync(
-                meuId, portaDosDesafios.EmConstrucao, DateTime.Now);
-        }
-
-        // Aba PALPITEIROS: quem mais acerta no palpitômetro, com o MESMO filtro regional das
-        // outras abas. ⚠️ Ela não mede resultado de chave — mede quem lê os jogos —, então
-        // entra junto com os Desafios na lista de exceções da frase-promessa do topo da tela.
-        hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
-
-        // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
-        //
-        // ⚠️ O `torneioId` da URL passa pela MESMA régua do seletor acima. Filtrar só a lista
-        // tirava o torneio do <select> e entregava nome e ranking a quem digitasse o número —
-        // oculto, cancelado ou esperando aprovação. Fora da vitrine conta como id que não
-        // existe: a página abre sem torneio selecionado e não confirma nada.
-        if (torneioId.HasValue)
-        {
-            var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-            if (torneio != null && PermissaoDeOrganizador.ApareceParaOPublico(torneio))
-            {
-                hub.TorneioSelecionadoId = torneio.Id;
-                hub.TorneioSelecionadoNome = torneio.Nome;
-                hub.RankingTorneio = await _estatisticas.ObterRankingDoTorneioAsync(torneio.Id);
-            }
-        }
+        // ⚠️ AS LISTAS SAEM DO `HubDoRanking`, E NÃO DAQUI (14/09/2026). Elas eram montadas nesta
+        // ação até o botão de compartilhar precisar das MESMAS listas pra desenhar a arte —
+        // duas montagens do mesmo ranking divergiriam na primeira mudança de régua, e a
+        // divergência sairia PUBLICADA num story.
+        var hub = await hubDoRanking.MontarAsync(
+            euId: int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId) ? meuId : null,
+            torneioId, cidade, estado, periodo);
 
         return View("Ranking", hub);
     }

@@ -979,6 +979,50 @@
                             </div>
                         </div>
 
+                        @* O PALPITÔMETRO (14/09/2026, Services/AlcanceDoPalpitometro). 🗣️ Felipe:
+                           *"coloque la para o organizador decidir se vai habilitar o palpitometro
+                           ou nao, se vai ser apenas da masculina/feminina ou em ambos, deixe
+                           nascendo como permitido e nas tanto feminino como masculino"*.
+
+                           ⚠️ RÁDIO DE QUATRO, e não uma caixa "usar?" mais um alcance ao lado: as
+                           duas perguntas do pedido cabem num valor só, e dois campos separados
+                           poderiam discordar (desligado com "Feminina" marcado). Rádio sempre
+                           manda o marcado, sem a pegadinha do <input type="hidden"> que a caixa
+                           obriga — o mesmo desenho do "quem marca o placar" logo abaixo. *@
+                        <label class="form-label fw-bold text-muted mb-1">Palpitômetro: quem a galera acha que ganha?</label>
+                        <div class="small text-muted ps-1 mb-2">
+                            Antes de cada jogo, quem acompanha vota em quem vence (e pode cravar o placar).
+                            Vira um ranking de palpiteiros no torneio. Dá pra mudar depois, na gestão.
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="PalpitometroEm" value="Todas" id="palpitometroTodas" />
+                            <label class="form-check-label" for="palpitometroTodas">
+                                <span class="fw-bold">Em todas as categorias</span>
+                                <span class="d-block small text-muted">O padrão — masculinas, femininas, mistas e casais.</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="PalpitometroEm" value="Masculina" id="palpitometroMasculina" />
+                            <label class="form-check-label" for="palpitometroMasculina">
+                                <span class="fw-bold">Só nas masculinas</span>
+                                <span class="d-block small text-muted">Mista, casal e lendas entram aqui — feminina fica de fora.</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="PalpitometroEm" value="Feminina" id="palpitometroFeminina" />
+                            <label class="form-check-label" for="palpitometroFeminina">
+                                <span class="fw-bold">Só nas femininas</span>
+                                <span class="d-block small text-muted">Toda categoria com "feminina" no nome.</span>
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" asp-for="PalpitometroEm" value="Nenhuma" id="palpitometroNenhuma" />
+                            <label class="form-check-label" for="palpitometroNenhuma">
+                                <span class="fw-bold">Não usar palpitômetro</span>
+                                <span class="d-block small text-muted">Ninguém palpita, e a aba de palpiteiros não aparece.</span>
+                            </label>
+                        </div>
+
                         @* Quem pode marcar o placar (Services/QuemMarcaOPlacar). Nasce na
                            organização — o comportamento de sempre. Abrir tira fila da mesa;
                            W.O., reabrir e trocar quadra continuam da organização em qualquer

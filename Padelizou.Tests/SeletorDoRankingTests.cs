@@ -42,10 +42,17 @@ public class SeletorDoRankingTests
 
         return Assert.IsType<ViewResult>(await controller.Ranking(
             clubeId: null, torneioId: torneioId, cidade: null, estado: null, periodo: null,
-            padelimetro: new PadelimetroService(ctx),
-            rankingAmericano: americano,
-            portaDosDesafios: TestInfra.PortaDosDesafiosDe(ctx),
-            telaDeDesafios: new TelaDoRankingDeDesafios(ctx)));
+            // As listas do hub saem do `HubDoRanking` desde 14/09/2026 — a mesma montagem que a
+            // ARTE de compartilhar usa. Ver Services/HubDoRanking.
+            //
+            // ⚠️ E É POR AQUI QUE OS TESTES DESTE ARQUIVO VIGIAM A EXTRAÇÃO: eles chamam a
+            // AÇÃO, então a trava do `?torneioId=` (PR #304) continua sob teste mesmo tendo
+            // mudado de arquivo. Uma extração que a perdesse ficaria vermelha aqui.
+            hubDoRanking: new HubDoRanking(
+                ctx, new EstatisticasService(ctx), new PadelimetroService(ctx),
+                americano,
+                TestInfra.PortaDosDesafiosDe(ctx),
+                new TelaDoRankingDeDesafios(ctx))));
     }
 
     [Fact]

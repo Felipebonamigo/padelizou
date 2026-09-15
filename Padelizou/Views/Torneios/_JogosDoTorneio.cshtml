@@ -838,7 +838,13 @@
                                        encerrava com o que estava gravado, e o aviso repetia o
                                        número velho. O script no fim do arquivo copia o que
                                        está na tela pra cá e reescreve o aviso. *@
-                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1 pdz-form-finalizar"
+                                    @* ⚠️ `pdz-live-acao` NÃO é enfeite nem estilo: é por ela que o
+                                       js/acao-do-cartao-ao-vivo.js manda este POST por fetch em vez
+                                       de deixar o navegador RECARREGAR a página — e recarga aqui
+                                       reinicia TODO <iframe> da tela, inclusive o das quadras que
+                                       nada têm a ver com este jogo (14/09/2026). Botão novo que
+                                       grave e volte pra esta lista quer a mesma etiqueta. *@
+                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1 pdz-form-finalizar pdz-live-acao"
                                           data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
                                           data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
                                           data-confirmar-ok="Finalizar">
@@ -861,7 +867,7 @@
                                        (Agendadas/Finalizadas) e o card do Ao Vivo é outro markup —
                                        resultado: era impossível tirar da quadra o jogo chamado por
                                        engano, que é exatamente onde o erro acontece. *@
-                                    <form asp-controller="Partidas" asp-action="VoltarParaAgendado" asp-route-id="@jogo.Id" method="post"
+                                    <form asp-controller="Partidas" asp-action="VoltarParaAgendado" asp-route-id="@jogo.Id" method="post" class="pdz-live-acao"
                                           data-confirmar="O jogo volta pra lista de agendados, com a mesma hora e a mesma quadra. O placar em tela é zerado."
                                           data-confirmar-titulo="Tirar da quadra?"
                                           data-confirmar-ok="Voltar pra agendado">
@@ -910,7 +916,14 @@
                            do cartão (🗣️ Felipe: *"essa parte aqui ta muito colada no card"*), e
                            só no computador: o `.card-body { padding: 1.15rem !important }` do
                            `@@media (max-width: 767px)` tapava o buraco no celular. *@
-                        @if (palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
+                        @* ⚠️ E SÓ ONDE O ORGANIZADOR ABRIU (14/09/2026,
+                           Services/AlcanceDoPalpitometro). O cartão do AO VIVO tem markup
+                           PRÓPRIO — o mesmo motivo pelo qual o "desfazer o play" nasceu só na
+                           linha —, então a guarda precisa ser repetida aqui: um palpitômetro que
+                           some da lista e continua no cartão ao vivo é pior que não ter o
+                           interruptor. A régua é uma só; quem a repete é o `if`. *@
+                        @if (Padelizou.Services.AlcanceDoPalpitometro.Libera(ViewData["PalpitometroEm"] as string, jogo.Categoria.Nome, ViewData["VerPalpitometro"] as bool? ?? true)
+                             && palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
                         {
                             <div class="pdz-live-palpite">
                                 <partial name="_Palpitometro" model="(jogo, resumoPalpite, meuId)" />

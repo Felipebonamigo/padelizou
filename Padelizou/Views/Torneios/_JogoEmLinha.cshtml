@@ -43,7 +43,28 @@
     // salpicada, com o bloco aparecendo em dois jogos e sumindo em dez, do lado de jogos
     // idênticos. Quem visita deslogado é justamente quem ainda pode virar usuário: ver a
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
-    bool mostraPalpitometro = temPalpite || jogo.Status == "Agendada";
+    //
+    // ⚠️ E SÓ ONDE O ORGANIZADOR ABRIU (14/09/2026, Services/AlcanceDoPalpitometro): o torneio
+    // que desligou o palpitômetro — ou que só o quer num lado — não ganha o bloco aqui. A régua
+    // é do ALCANCE + o nome da categoria, e o alcance chega por view-data (o mesmo caminho do
+    // `UsaCheckIn`), montado uma vez só em TorneiosController.CarregarViewBagJogosAsync.
+    //
+    // ⚠️ Ausente, o view-data vale "Todas" (ver `Normalizar`): a lista renderizada de um lugar
+    // que esqueceu de mandar o alcance mostra o palpitômetro como sempre mostrou, em vez de
+    // sumir com ele em silêncio. Quem RECUSA o voto é o servidor, no PalpiteService.
+    //
+    // ⚠️ E A PESSOA TAMBÉM DECIDE (14/09/2026, Jogador.VerPalpitometro): a preferência dela só
+    // SUBTRAI do que o organizador liberou. Ausente (visitante deslogado), vale `true` — a
+    // página é pública e esconder de quem não tem perfil seria esconder de quem a barra existe
+    // pra atrair.
+    bool palpitometroLiberado = Padelizou.Services.AlcanceDoPalpitometro.Libera(
+        ViewData["PalpitometroEm"] as string, jogo.Categoria.Nome,
+        ViewData["VerPalpitometro"] as bool? ?? true);
+
+    // Ver os NOMES de quem palpitou é uma segunda escolha, e ela não some com o palpitômetro:
+    // quem desliga só os nomes continua vendo a barra e as porcentagens.
+    bool verQuemPalpitou = ViewData["VerQuemPalpitou"] as bool? ?? true;
+    bool mostraPalpitometro = palpitometroLiberado && (temPalpite || jogo.Status == "Agendada");
 
     // NOME E SOBRENOME, não só o primeiro nome (Felipe, 08/08/2026): "aqui no americano está
     // difícil de entender quem é quem".
@@ -269,11 +290,14 @@
                ainda vão acontecer citam este, e sem o número na etiqueta a referência
                "Vencedor Quartas de Final 2" não teria onde ser encontrada. Jogo de grupo não
                numera — o nome do grupo já identifica. *@
+            @* ⚠️ A régua mora em Services/FaseNaTela desde 14/09/2026: a arte do jogo pro
+               story precisa do MESMO rótulo, e duas cópias divergiriam de um jeito visível de
+               fora — a etiqueta daqui dizendo "Semifinal 2" e a arte postada dizendo
+               "Semifinal". *@
             @{
-                var faseNaTela = jogo.Fase != "Final"
-                                 && numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var n)
-                    ? $"{jogo.Fase} {n}"
-                    : jogo.Fase;
+                var faseNaTela = Padelizou.Services.FaseNaTela.Rotulo(
+                    jogo.Fase,
+                    numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var n) ? n : null);
             }
             <span class="pdz-jl-etiqueta pdz-jl-fase">@faseNaTela</span>
             @* ONDE É O JOGO — clube e quadra (Services/LugarDoJogo).
@@ -495,7 +519,11 @@
                        virava um número anônimo — e metade da graça dele é justamente saber
                        QUEM apostou contra você. Vale nas agendadas e nas finalizadas: depois
                        do jogo é que se cobra quem errou o palpite. *@
-                    @if (temPalpite)
+                    @* ⚠️ `verQuemPalpitou` FALSO cai no MESMO ramo do jogo sem palpite: a
+                       contagem continua na tela (ela não é nome de ninguém), só não vira porta
+                       pro modal. Esconder o número junto seria tirar da pessoa uma informação
+                       que ela não pediu pra não ver. *@
+                    @if (temPalpite && verQuemPalpitou)
                     {
                         <button type="button" class="pdz-ver-votos"
                                 data-partida-id="@jogo.Id"
@@ -507,7 +535,12 @@
                     }
                     else
                     {
-                        <span class="pdz-total-votos">· 0 voto(s)</span>
+                        @* ⚠️ `@(r?.TotalVotos ?? 0)` e não o zero fixo de antes: este ramo passou a
+                           receber TAMBÉM o jogo que TEM palpite (quem desligou os nomes), e um
+                           "0 voto(s)" ao lado de uma barra cheia seria defeito na cara. A classe
+                           `pdz-total-votos` é a mesma, então o JS continua reescrevendo o número
+                           depois do voto. *@
+                        <span class="pdz-total-votos">· @(r?.TotalVotos ?? 0) voto(s)</span>
                     }
                     @* RETIRAR (10/09/2026 — 🗣️ *"tambem permita retirar o palpite colocado"*).
                        Só pra quem pode votar: a janela de retirar é a MESMA de palpitar, e o
@@ -679,19 +712,37 @@
                dentro, senão o `style.display` do JS mandaria no botão e não na linha. *@
             <div class="mt-1 small text-muted pdz-palpite-consenso"
                  style="display: @(r != null && r.TemPlacarMaisPalpitado ? "block" : "none");">
-                <button type="button" class="pdz-ver-votos"
-                        data-partida-id="@jogo.Id"
-                        data-nome1="@NomeDaDupla(jogo.Dupla1)"
-                        data-nome2="@NomeDaDupla(jogo.Dupla2)"
-                        title="Ver quem palpitou e o placar de cada um"
-                        onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
-                    <i class="bi bi-people"></i>
-                    @* ⚠️ `r?.` e não `r!.`: agora que a linha nasce escondida, ela é desenhada
-                       também no jogo sem palpite nenhum (`r` nulo). Os números ficam vazios, e
-                       quem os escreve na hora de mostrar é o JS. *@
-                    Placar mais palpitado: <strong class="pdz-consenso-placar">@r?.PlacarMaisPalpitadoLado1 x @r?.PlacarMaisPalpitadoLado2</strong>
-                    <span class="pdz-consenso-votos">(@(r?.PlacarMaisPalpitadoVotos ?? 0) de @(r?.PalpitesComPlacar ?? 0))</span>
-                </button>
+                @* ⚠️ A LEITURA DA GALERA FICA; O QUE SAI É A PORTA PROS NOMES (14/09/2026).
+                   Quem desligou `VerQuemPalpitou` continua vendo "a galera crava 6x4" — isso
+                   não é nome de ninguém —, só que como TEXTO, não como botão. Um botão que
+                   continuasse ali sem abrir nada seria pior que não ter botão.
+                   ⚠️ As três classes que o JS procura (`pdz-consenso-placar`,
+                   `pdz-consenso-votos`, e o `pdz-palpite-consenso` do div de fora) são as
+                   MESMAS nos dois ramos — senão a linha congelaria no primeiro voto. *@
+                @if (verQuemPalpitou)
+                {
+                    <button type="button" class="pdz-ver-votos"
+                            data-partida-id="@jogo.Id"
+                            data-nome1="@NomeDaDupla(jogo.Dupla1)"
+                            data-nome2="@NomeDaDupla(jogo.Dupla2)"
+                            title="Ver quem palpitou e o placar de cada um"
+                            onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                        <i class="bi bi-people"></i>
+                        @* ⚠️ `r?.` e não `r!.`: agora que a linha nasce escondida, ela é desenhada
+                           também no jogo sem palpite nenhum (`r` nulo). Os números ficam vazios, e
+                           quem os escreve na hora de mostrar é o JS. *@
+                        Placar mais palpitado: <strong class="pdz-consenso-placar">@r?.PlacarMaisPalpitadoLado1 x @r?.PlacarMaisPalpitadoLado2</strong>
+                        <span class="pdz-consenso-votos">(@(r?.PlacarMaisPalpitadoVotos ?? 0) de @(r?.PalpitesComPlacar ?? 0))</span>
+                    </button>
+                }
+                else
+                {
+                    <span>
+                        <i class="bi bi-people"></i>
+                        Placar mais palpitado: <strong class="pdz-consenso-placar">@r?.PlacarMaisPalpitadoLado1 x @r?.PlacarMaisPalpitadoLado2</strong>
+                        <span class="pdz-consenso-votos">(@(r?.PlacarMaisPalpitadoVotos ?? 0) de @(r?.PalpitesComPlacar ?? 0))</span>
+                    </span>
+                }
             </div>
         }
 

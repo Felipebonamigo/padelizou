@@ -1357,7 +1357,17 @@ namespace padelizou.Controllers
             bool notificarHorarioVagoRegiao,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas,
             string? novoClubeNome = null, string? novaCidadeNome = null, string? novaCidadeEstado = null,
-            string? novoClubeCidade = null, string? novoClubeEstado = null)
+            string? novoClubeCidade = null, string? novoClubeEstado = null,
+            // O PALPITÔMETRO NA MINHA TELA (14/09/2026, Jogador.VerPalpitometro).
+            //
+            // ⚠️ `bool?`, e NÃO `bool` como os oito vizinhos desta ação — a diferença é que estas
+            // duas nascem LIGADAS. Caixa desmarcada não vai no POST, então um `bool` não
+            // distingue "desmarquei" de "esta aba é anterior ao deploy e não tem o campo": com
+            // padrão `true` a aba velha RELIGARIA o que a pessoa desligou a cada salvamento de
+            // qualquer outra preferência, e com `false` DESLIGARIA o de todo mundo. Nulo = o
+            // campo não veio, e o gravado FICA. Quem distingue desmarcado de ausente é o
+            // <input type="hidden" value="false"> DEPOIS da caixa, na view.
+            bool? verPalpitometro = null, bool? verQuemPalpitou = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -1367,6 +1377,9 @@ namespace padelizou.Controllers
             jogador.Lateralidade = lateralidade;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.PerfilPrivado = perfilPrivado;
+            // Nulo = aba antiga sem o campo: mantém o que está gravado (ver a nota na assinatura).
+            if (verPalpitometro is bool querOPalpitometro) jogador.VerPalpitometro = querOPalpitometro;
+            if (verQuemPalpitou is bool querOsNomes) jogador.VerQuemPalpitou = querOsNomes;
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
             jogador.AceitaConvitesJogo = aceitaConvitesJogo;

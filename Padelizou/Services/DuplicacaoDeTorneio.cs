@@ -40,6 +40,11 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.DesempateAmericano),
         nameof(Torneio.PontuaNoRankingAmericano),
 
+        // O @ de divulgação do evento: a 2ª etapa do circuito é anunciada no MESMO perfil. É
+        // estrutura como o clube — e o oposto do `LinkDasFotos`, que é o álbum daquele fim de
+        // semana e fica com a edição que passou.
+        nameof(Torneio.InstagramDoOrganizador),
+
         // Onde e como acontece
         nameof(Torneio.ClubeId),
         nameof(Torneio.LocalTorneio),
@@ -87,6 +92,10 @@ public static class DuplicacaoDeTorneio
         // Recursos ligados
         nameof(Torneio.UsaCheckIn),
         nameof(Torneio.UsaVotacaoDeMvp),
+        // Onde o palpitômetro vale: é configuração do torneio, como os dois de cima. Quem
+        // desligou (ou restringiu a um lado) numa etapa do circuito quer o mesmo na seguinte,
+        // e é editável na gestão de qualquer forma. Ver Services/AlcanceDoPalpitometro.
+        nameof(Torneio.PalpitometroEm),
         // Quem marca placar é jeito de operar o dia — quem abriu pros jogadores numa edição
         // quer o mesmo na seguinte, e é editável na gestão de qualquer forma.
         nameof(Torneio.QuemMarcaPlacar),

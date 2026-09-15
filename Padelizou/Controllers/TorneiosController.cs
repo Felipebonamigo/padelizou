@@ -410,7 +410,13 @@ namespace Padelizou.Controllers
             // conta), o botão aparecia e a página respondia 404. Agora as duas telas obedecem
             // ao mesmo `TemRanking`.
             ViewBag.TemRankingDePalpiteiros = false;
-            if (await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
+            // ⚠️ A PREFERÊNCIA DE QUEM OLHA ENTRA AQUI, ANTES DA CONTA (14/09/2026). Decisão do
+            // Felipe: desligar o palpitômetro no perfil some com TUDO, a aba de palpiteiros
+            // junto. Antes do `Any` de propósito — quem desligou não paga consulta nenhuma pra
+            // não ver aba nenhuma, que é a mesma economia que a `PortaDosDesafios` faz no
+            // HubDoRanking.
+            if ((await PreferenciaDoPalpitometro.DeAsync(_context, ObterJogadorIdLogado())).VerPalpitometro
+                && await RankingDePalpiteiros.PalpitesDoTorneio(_context, id).AnyAsync())
             {
                 var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(
                     _context, id, ObterJogadorIdLogado(), fasePalpiteiros);
@@ -804,7 +810,16 @@ namespace Padelizou.Controllers
 
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
                 // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
-                ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+                var resumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+                ViewBag.ResumoDaEnquete = resumoDaEnquete;
+
+                // QUEM RESPONDEU, pra abrir ao clicar na média. Só consulta se houver resposta
+                // — a enorme maioria dos torneios não tem nenhuma, e uma segunda varredura da
+                // mesma tabela pra devolver lista vazia é custo sem resposta.
+                if (resumoDaEnquete.Respostas > 0)
+                {
+                    ViewBag.QuemAvaliou = await EnqueteDoTorneio.QuemAvaliouAsync(_context, id);
+                }
 
                 // O que escreveram, publicado ou não — inclusive o que é anônimo, que só
                 // existe pra estes olhos. ⚠️ Quem PUBLICA não é quem abre a tela: o assistente
@@ -1686,6 +1701,18 @@ namespace Padelizou.Controllers
             // tudo de novo no servidor (PartidasController). "Sou inscrito?" só é perguntado
             // ao banco no modo Inscritos, que é o único em que a resposta muda algo; nos
             // outros a régua da view decide por MeuId e pelas duplas já carregadas.
+            // ONDE O PALPITÔMETRO VALE (14/09/2026, Services/AlcanceDoPalpitometro): a escolha
+            // do organizador chega às listas pra que a categoria de fora não desenhe o bloco.
+            // Uma vez só, aqui, porque é este método que abastece as DUAS telas que mostram jogo
+            // (Details e Jogos) — e quem recusa o voto é o PalpiteService, no servidor.
+            ViewBag.PalpitometroEm = AlcanceDoPalpitometro.Normalizar(torneioDaTela?.PalpitometroEm);
+
+            // E O QUE QUEM OLHA ESCOLHEU VER (14/09/2026, Services/PreferenciaDoPalpitometro).
+            // Só SUBTRAI do alcance acima; visitante deslogado recebe o padrão, que é ver tudo.
+            var euEOPalpitometro = await PreferenciaDoPalpitometro.DeAsync(_context, ObterJogadorIdLogado());
+            ViewBag.VerPalpitometro = euEOPalpitometro.VerPalpitometro;
+            ViewBag.VerQuemPalpitou = euEOPalpitometro.VerQuemPalpitou;
+
             ViewBag.QuemMarcaPlacar = torneioDaTela?.QuemMarcaPlacar;
             ViewBag.EhInscritoDoTorneio = meuId != null
                 && torneioDaTela?.QuemMarcaPlacar == QuemMarcaOPlacar.Inscritos

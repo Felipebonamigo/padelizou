@@ -20,9 +20,9 @@ public class RankingLinhaVM
     // Vitórias em partidas de torneio (todas as épocas — a aba de pontos não filtra período).
     public int Vitorias { get; set; }
 
-    // Movimento de posição vs ~1 mês atrás: >0 subiu, <0 desceu, 0 sem mudança,
-    // null = novo no ranking (não existia há 1 mês, quando já havia histórico).
-    public int? Movimento { get; set; }
+    // O selo do último torneio: subiu/desceu/ficou, entrou agora, ou não havia com o que
+    // comparar. Os três estados moram em Services/MovimentoNoRanking.Selo.
+    public Padelizou.Services.MovimentoNoRanking.Selo Movimento { get; set; }
 }
 
 // Selo histórico de um jogador numa categoria (usado nas abas do torneio)
@@ -269,10 +269,11 @@ public class RankingHubVM
 
 // O selo "+2 / -1" de uma linha, pro partial `_SeloDeMovimento`.
 //
-// ⚠️ É um record e não um `int?` solto porque partial com modelo NULO herda o modelo do PAI
-// em vez de receber nulo — e "novo no ranking" É o caso nulo. Com `int?` a estreia de um
-// jogador renderizaria o hub inteiro dentro de uma célula da tabela.
-public record SeloDeMovimentoVM(int? Posicoes);
+// ⚠️ É um record e não o `Selo` solto porque partial com modelo NULO herda o modelo do PAI em
+// vez de receber nulo. Quando isto era `int?`, a estreia de um jogador (o caso nulo) fazia a
+// célula da tabela renderizar o hub inteiro dentro dela. O `Selo` é struct e não tem como ser
+// nulo, mas o embrulho fica: é ele que garante que nenhum estado futuro reabra o buraco.
+public record SeloDeMovimentoVM(Padelizou.Services.MovimentoNoRanking.Selo Selo);
 
 // Uma linha da aba Ranking Americano.
 public class RankingAmericanoLinhaVM
@@ -287,9 +288,9 @@ public class RankingAmericanoLinhaVM
     public DateTime? UltimoEm { get; set; }
     public string? UltimoNome { get; set; }
 
-    // Posições ganhas/perdidas no último Americano que contou (>0 subiu, <0 desceu, 0 igual,
-    // null = entrou agora). Ver Services/MovimentoNoRanking.
-    public int? Movimento { get; set; }
+    // O selo do último torneio: subiu/desceu/ficou, entrou agora, ou não havia com o que
+    // comparar. Os três estados moram em Services/MovimentoNoRanking.Selo.
+    public Padelizou.Services.MovimentoNoRanking.Selo Movimento { get; set; }
 }
 
 // Uma linha da aba Padelímetro do ranking.
@@ -302,9 +303,9 @@ public class PadelimetroLinhaVM
     public string? FaixaRotulo { get; set; }     // "4ª", "Open"... nulo = sem escada conhecida
     public string? FaixaEscada { get; set; }     // "masculina" | "feminina"
 
-    // Posições ganhas/perdidas no último torneio (>0 subiu, <0 desceu, 0 igual, null = entrou
-    // agora no ranking). Ver Services/MovimentoNoRanking.
-    public int? Movimento { get; set; }
+    // O selo do último torneio: subiu/desceu/ficou, entrou agora, ou não havia com o que
+    // comparar. Os três estados moram em Services/MovimentoNoRanking.Selo.
+    public Padelizou.Services.MovimentoNoRanking.Selo Movimento { get; set; }
 }
 
 // Uma linha do ranking de UM torneio (agregado por jogador dentro daquele torneio).
@@ -340,8 +341,9 @@ public class RankingTimeVM
     // Vitórias em partidas de torneio somadas de todos os jogadores do time.
     public int Vitorias { get; set; }
 
-    // Movimento de posição vs ~1 mês atrás (>0 subiu, <0 desceu, 0 igual, null = novo).
-    public int? Movimento { get; set; }
+    // O selo do último torneio: subiu/desceu/ficou, entrou agora, ou não havia com o que
+    // comparar. Os três estados moram em Services/MovimentoNoRanking.Selo.
+    public Padelizou.Services.MovimentoNoRanking.Selo Movimento { get; set; }
 }
 
 // Contagem de vitórias/jogos de um jogador (usado nos leaderboards de vitórias)

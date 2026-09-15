@@ -221,6 +221,30 @@ public partial class Jogador
     public virtual ICollection<JogadorDiaHorario> JogadorDiasHorarios { get; set; } = new List<JogadorDiaHorario>();
 
     // Quais categorias aparecem na Minha Agenda unificada
+    // O PALPITÔMETRO NA MINHA TELA (Felipe, 14/09/2026). 🗣️ *"e tambem a propria pessoa escolhe
+    // no seu perfil, se ela quer ver o palpitometro ou nao, e se quer ver os nomes de quem votou
+    // ou nao"*.
+    //
+    // ⚠️ SÓ SUBTRAEM, NUNCA SOMAM. Quem manda no torneio é o organizador
+    // (`Torneio.PalpitometroEm`); estas duas mandam na tela de QUEM OLHA. Ligadas não fazem
+    // aparecer o que o organizador desligou — a régua é um `&&`, em
+    // Services/AlcanceDoPalpitometro.
+    //
+    // ⚠️ E NÃO SÃO AUTORIZAÇÃO, são exibição: o servidor NÃO recusa o voto de quem desligou o
+    // bloco. A pessoa é dona da própria tela, e um POST dela é ela mudando de ideia — recusar
+    // seria o sistema discutindo com o dono do palpite. Quem o servidor recusa é o alcance do
+    // organizador, que é regra do torneio.
+    //
+    // ⚠️ `VerQuemPalpitou` é sobre O QUE EU VEJO — decisão do Felipe, perguntado. Ela esconde de
+    // mim o modal "quem votou em quem"; o meu nome continua na lista de quem quer ver. Não
+    // confundir com anonimato: isso seria outra chave, e teria que valer na consulta, não na tela.
+    //
+    // ⚠️ Nascem LIGADAS, e a migration grava `true` nas linhas antigas — é o comportamento que
+    // todo mundo já tem hoje. Nascer desligada estrearia o recurso apagando a tela de quem
+    // nunca pediu nada.
+    public bool VerPalpitometro { get; set; } = true;
+    public bool VerQuemPalpitou { get; set; } = true;
+
     public bool AgendaMostrarJogosSemanais { get; set; } = true;
     public bool AgendaMostrarTorneios { get; set; } = true;
     public bool AgendaMostrarAulas { get; set; } = true;

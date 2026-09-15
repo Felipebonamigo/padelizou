@@ -2090,6 +2090,12 @@ namespace Padelizou.Migrations
                     b.Property<int?>("UltimoLembreteDeAssinatura")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("VerPalpitometro")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("VerQuemPalpitou")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("VersaoDosTermosAceita")
                         .HasColumnType("text");
 
@@ -3536,6 +3542,10 @@ namespace Padelizou.Migrations
                     b.Property<string>("ImagemCapa")
                         .HasColumnType("text");
 
+                    b.Property<string>("InstagramDoOrganizador")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<int?>("LimiteDuplasTotal")
                         .HasColumnType("integer");
 
@@ -3569,6 +3579,10 @@ namespace Padelizou.Migrations
 
                     b.Property<bool>("PagamentoObrigatorioNaInscricao")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("PalpitometroEm")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("PerguntaDeNaoPagosEm")
                         .HasColumnType("timestamp without time zone");

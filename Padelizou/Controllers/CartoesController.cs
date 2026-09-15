@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.ViewModels;
 using System.Security.Claims;
 
 namespace Padelizou.Controllers;
@@ -253,10 +254,10 @@ public class CartoesController : Controller
                 .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
                 .Select(d => d.Categoria.Nome)
                 .ToListAsync();
-            bool feminina = FaixasDePadelimetro.EhFeminina(
-                categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n)));
-
-            var rotulo = FaixasDePadelimetro.DoNivel(nivel, feminina).Rotulo;
+            // Mesmo rótulo do perfil e do ranking — a arte não pode dizer outra faixa.
+            var categoriaDaEscada = categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
+            var rotulo = FaixasDePadelimetro
+                .FaixaExibida(nivel, categoriaDaEscada, jogador.JogosDePadelimetro).Rotulo;
             faixa = rotulo == "Open" ? "Categoria Open" : $"{rotulo} categoria";
             emCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
         }
@@ -455,6 +456,56 @@ public class CartoesController : Controller
         var png = CartaoDaClassificacao.Desenhar(oGrupo, _fontes, _ambiente.WebRootPath);
         return Png(png, $"grupo-{Arquivo(grupo)}-{Arquivo(oGrupo.Categoria)}.png");
     }
+
+    // ───────────────────────── O RANKING ─────────────────────────
+
+    // A ARTE DE UMA ABA DO RANKING (14/09/2026 — 🗣️ Felipe: *"crie um botão para compartilhar o
+    // ranking"*, e ele escolheu arte PNG, com um botão por aba).
+    //
+    // ⚠️ AS DUAS FAMÍLIAS NUM MÉTODO SÓ, E QUEM DECIDE É A ABA. Sete das oito abas são de
+    // DIVULGAÇÃO: a tela do Ranking é pública, não pede login, e o card dela é o convite pra
+    // entrar. A de DESAFIOS é FECHADA — o módulo tem porta (`PortaDosDesafios`) e a lista só
+    // existe pra quem a atravessa.
+    //
+    // 🔑 E O `[Authorize]` NÃO SERVIRIA PRA ISSO, nas duas direções: no método, fecharia as sete
+    // públicas; ausente, não protegeria a oitava. Quem protege é a MESMA porta da tela, aqui
+    // dentro: o `HubDoRanking` só preenche `hub.Desafios` pra quem ela deixa passar, e sem a
+    // lista o `Montar` devolve nulo e isto responde 404. Uma segunda régua de quem-vê-desafios
+    // neste arquivo seria a terceira cópia dela — e a que ficaria pra trás.
+    [HttpGet]
+    public async Task<IActionResult> RankingImagem(
+        AbaDoRanking? aba, string? categoria, string[]? cidade, string? estado, string? periodo,
+        int? torneioId, [FromServices] HubDoRanking hubDoRanking)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        // ⚠️ ANULÁVEL DE PROPÓSITO. Com `AbaDoRanking` seca, um `?aba=lixo` não falha: o binder
+        // registra o erro, deixa o valor no DEFAULT do enum — e a pessoa recebe, sem aviso, a
+        // arte de OUTRA aba, com capricho e tudo. Nula, o pedido torto vira 404.
+        if (aba == null || !Enum.IsDefined(aba.Value)) return NotFound();
+
+        var euId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId)
+            ? meuId
+            : (int?)null;
+
+        var hub = await hubDoRanking.MontarAsync(euId, torneioId, cidade, estado, periodo);
+
+        // Nulo = aquela aba não tem ninguém neste recorte. Card de ranking vazio anuncia um
+        // ranking que não existe — a mesma régua do card de classificação sem jogo terminado.
+        var lista = RankingParaCard.Montar(hub, aba.Value, categoria);
+        if (lista == null) return NotFound();
+
+        var botao = new BotaoDeCompartilharRanking(hub, aba.Value, categoria);
+        var png = CartaoDoRanking.Desenhar(lista, _fontes, _ambiente.WebRootPath);
+
+        // `publico: false` na aba fechada: `Cache-Control: public` autoriza qualquer cache do
+        // caminho a guardar a resposta e devolvê-la a OUTRA pessoa — que num ranking público é
+        // o objetivo, e no dos Desafios é vazamento.
+        return Png(png, botao.Arquivo, publico: !EhDeDesafios(aba.Value));
+    }
+
+    private static bool EhDeDesafios(AbaDoRanking aba) =>
+        aba is AbaDoRanking.DesafiosDuplas or AbaDoRanking.DesafiosJogadores;
 
     // ───────────────────────── O PÓDIO DA CATEGORIA ─────────────────────────
 
