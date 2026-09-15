@@ -313,6 +313,31 @@
 
 <style>
     .pdz-mapa td { padding: .25rem; height: 34px; }
+
+    /* ⚠️ A COLUNA "HORA" FICA CONGELADA, feito primeira coluna de planilha — a mesma
+       correção que a agenda do professor levou em 15/09, na outra planilha do sistema.
+       São sete dias numa tabela que rola de lado dentro do `.table-responsive`, e a
+       coluna da hora ia embora junto com eles: sobravam nomes de reserva sem dizer de
+       que horário eram.
+       As três declarações andam juntas: `sticky` + `left: 0` param a coluna na borda do
+       `.table-responsive`; o fundo a mantém OPACA (as células dos dias passam por baixo);
+       e o `z-index` a põe acima delas.
+       O FUNDO É O `--bs-table-bg`, O MESMO QUE O BOOTSTRAP JÁ PÕE EM TODA CÉLULA desta
+       tabela — não um token de superfície nosso, que pintaria a coluna congelada de um
+       azul diferente do resto da tabela no tema escuro. Está escrito aqui, e não deixado
+       por conta do Bootstrap, porque a opacidade é o que faz o congelamento funcionar:
+       é regra, não herança feliz.
+       E a borda direita é `box-shadow`, não `border-right`, porque com o
+       `border-collapse: collapse` do Reboot a borda pertence à TABELA, não à célula, e
+       some justamente quando a célula congelada passa a flutuar sobre as outras.
+       ⚠️ Quem congela é a POSIÇÃO (`:first-child`), não o conteúdo — se entrar uma coluna
+       antes da hora, o congelamento muda de coluna sozinho. Tem teste cobrando isso. */
+    .pdz-mapa th:first-child,
+    .pdz-mapa td:first-child {
+        position: sticky; left: 0; z-index: 2;
+        background: var(--bs-table-bg);
+        box-shadow: inset -1px 0 0 var(--bs-border-color, #dee2e6);
+    }
     .pdz-livre { background: rgba(139,195,74,.06); }
     .pdz-ocupado { background: rgba(139,195,74,.30); font-weight: 600; }
     .pdz-bloqueado { background: rgba(220,53,69,.18); }
