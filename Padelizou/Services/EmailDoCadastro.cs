@@ -2,7 +2,7 @@ namespace Padelizou.Services;
 
 // O E-MAIL DIGITADO ERRADO NÃO ENTRA MAIS CALADO (28/08/2026).
 //
-// 🐛 O CASO QUE FEZ ISTO EXISTIR: o Pedro se cadastrou com `pedrojunior_1978@hotmial.com` —
+// 🐛 O CASO QUE FEZ ISTO EXISTIR: um jogador se cadastrou com `jogador_1978@hotmial.com` —
 // "hotmial", não "hotmail". O `<input type="email">` da tela achou ótimo, porque a SINTAXE
 // está perfeita: tem arroba, tem domínio, tem ponto. E no servidor não havia validação
 // nenhuma — nem a de sintaxe.

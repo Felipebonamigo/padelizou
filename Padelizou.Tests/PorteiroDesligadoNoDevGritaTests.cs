@@ -10,7 +10,7 @@ namespace Padelizou.Tests;
 // 🐛 O DEFEITO QUE ESTE ARQUIVO PRENDE (achado no servidor, 01/09/2026): o drop-in do systemd
 // do dev tinha a linha
 //
-//     Environment=" Entrega__SoPara__2=almeidalucascoelho@gmail.com\
+//     Environment=" Entrega__SoPara__2=foka@exemplo.com\
 //
 // com um espaço à esquerda e uma barra no fim. O processo subiu sem essa variável — conferido
 // em /proc/<pid>/environ, que trazia só `__0` e `__1`. Ninguém foi avisado de nada.

@@ -13,7 +13,7 @@ namespace Padelizou.Tests;
 // O ORGANIZADOR TROCA O PARCEIRO DEPOIS DO SORTEIO; O JOGADOR, NÃO.
 //
 // 🗣️ Felipe, 10/09/2026, olhando o card da 3ª do Er: *"troque o parceiro do paulo prass
-// (er guex) pelo 03761230010 cpf Arthur Prass"*. A chave do Er já estava sorteada, e TROCAR
+// (er guex) pelo 52998224725 cpf Arthur Prass"*. A chave do Er já estava sorteada, e TROCAR
 // estava preso em `Status == "Inscrições Abertas"` — o único caminho que restava era remover a
 // inscrição e refazê-la, o que perde a vaga na chave, o pagamento e o lugar na grade.
 //
