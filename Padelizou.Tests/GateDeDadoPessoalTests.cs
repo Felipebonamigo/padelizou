@@ -42,6 +42,11 @@ public class GateDeDadoPessoalTests
     {
         "11144477735", "52998224725", "22255588846", "33366699957", "44477788827",
         "99900000005", "12345678909", "39053344705", "86412245561",
+
+        // Da família inventada `5555NNNNNNN` dos torcedores do palpitômetro. Os irmãos dele
+        // têm dígito INVÁLIDO e o gate nem os vê; este caiu num dígito válido por acaso —
+        // é o falso positivo que a regra do dígito produz, e a lista é onde ele se resolve.
+        "55551000001",
     };
 
     // O valor real NÃO fica aqui — guardar a lista de proibidos em texto seria republicar
@@ -73,7 +78,10 @@ public class GateDeDadoPessoalTests
             }
 
         Assert.True(achados.Count == 0,
-            "CPF com dígito verificador válido fora da lista de sintéticos — trate como CPF de pessoa real:\n  "
+            "CPF com dígito verificador válido fora da lista de sintéticos.\n"
+            + "  · Veio de pessoa de verdade (pedido de suporte, base de produção)? TIRE do repositório.\n"
+            + "  · Foi inventado e calhou de validar? Some em CpfsSinteticos, com o porquê.\n"
+            + "  ⚠️ Na dúvida é a PRIMEIRA: pôr um CPF real na lista faz o gate mentir pra sempre.\n  "
             + string.Join("\n  ", achados.Distinct()));
     }
 
