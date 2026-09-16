@@ -347,6 +347,9 @@ builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
+// "Sua aula é amanhã" / "é daqui a pouco" — 24h e 1h antes (Maickel, 16/09/2026).
+// Tick de 15 min por causa do marco de 1h. Ver Services/LembreteDaAula.
+builder.Services.AddHostedService<LembreteDaAulaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 builder.Services.AddHostedService<ConciliacaoAutomaticaDoPixBackgroundService>();
 

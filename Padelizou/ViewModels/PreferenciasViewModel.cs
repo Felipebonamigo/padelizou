@@ -21,6 +21,9 @@ public class PreferenciasViewModel
     public bool NotificarRaqueteLivre { get; set; } = true;
     public bool NotificarHorarioVagoRegiao { get; set; }
 
+    // "Sua aula é amanhã" / "é daqui a pouco" (16/09/2026). Nasce LIGADA, como no modelo.
+    public bool NotificarLembreteDeAula { get; set; } = true;
+
     // O palpitômetro na minha tela (14/09/2026). Nascem LIGADAS, como no modelo — o cadastro
     // novo usa este mesmo VM vazio pra desenhar as caixas já marcadas.
     public bool VerPalpitometro { get; set; } = true;

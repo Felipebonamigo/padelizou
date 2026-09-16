@@ -1,11 +1,9 @@
-# Lembrete da aula (24h e 1h antes) — design para aprovação
+# Lembrete da aula (24h e 1h antes) — desenho, decisões e o que foi construído
 
-> **Status: DESENHO, nada codado.** Gera migration (uma coluna em `Aula` pra guardar o marco já
-> enviado). Pelo critério do `CLAUDE.md` isso é `architectural`, e `architectural` é design escrito
-> e aprovado ANTES de qualquer código.
->
-> **Depende de 4 decisões do Felipe** — a tabela no fim. Nada começa antes delas: as duas primeiras
-> mudam o que a varredura lê, e a terceira decide se o aviso alcança 4 aparelhos ou 154 celulares.
+> **Status: APROVADO e IMPLEMENTADO em 16/09/2026.** Nasceu como desenho para aprovação — gera
+> migration, e pelo critério do `CLAUDE.md` isso é `architectural`, que é design escrito e
+> aprovado ANTES de qualquer código. **As 4 decisões foram tomadas pelo Felipe no mesmo dia**
+> (tabela abaixo) e só então o código saiu.
 
 ---
 
@@ -15,154 +13,107 @@ Maickel, 16/09/2026, pelo WhatsApp:
 
 > *"Só talvez faria um 'push' — avisando 24hs e 1hora antes da aula — para as opções de aula de padel."*
 
-É a única parte do sistema com hora marcada que **não avisa ninguém antes**. O torneio tem lembrete
-de inscrição não paga, o jogo fixo da panelinha tem o de 24h, a cobrança tem o de 6h — a aula, que é
-o compromisso mais pessoal de todos, marca e cala até o dia.
+Era a única parte do sistema com hora marcada que **não avisava ninguém antes**. O torneio tem
+lembrete de inscrição não paga, o jogo fixo da panelinha tem o de 24h, a cobrança tem o de 6h — a
+aula, que é o compromisso mais pessoal de todos, marcava e calava até o dia.
 
 ---
 
-## O que JÁ existe (e é por isso que isto é pequeno)
+## As 4 decisões do Felipe
 
-| Peça | Onde | O que resolve daqui |
-|---|---|---|
-| Funil de avisos | `Services/PushNotificationService.EnviarParaJogadorAsync` | Caixa de entrada + push + e-mail + WhatsApp num lugar só. **Nada de canal novo precisa ser escrito** |
-| Varredura com marco gravado | `Services/LembreteDeInscricaoNaoPaga` + `…BackgroundService` | O padrão inteiro: marcos, `VarrerAsync(context, push, agora, ct)` estático, `agora` por parâmetro pro teste |
-| Varredura de 24h com janela | `Services/LembreteJogoBackgroundService` | O tick de 15 min e a lição do aviso duplicado (WhatsApp direto + funil) |
-| Régua de status da aula | `Services/PoliticaAula` | `Confirmada`, `Pendente`, `Cancelada`, `A recuperar`… e `AindaVaiAcontecer` |
-| Régua de canal | `Services/AlcanceDoAviso` | Os três critérios do WhatsApp: pessoal, urgente, acionável |
-
-**O que NÃO existe e é o motivo da migration:** `Aula` não tem onde anotar "já avisei". Sem isso, a
-varredura reenviaria a cada tick, e um deploy no meio da janela reenviaria de novo — a lição já
-escrita em `LembreteDeInscricaoNaoPaga`: *"o marco vai gravado na inscrição e não a data do envio;
-com data, um restart no meio reenviaria"*.
-
-⚠️ `Aula` **também não tem `CriadoEm`** — não dá pra saber se a aula foi marcada ontem ou há 20
-minutos. É o que decide o caso da aula marcada em cima da hora (ver "Um aviso, não dois").
-
----
-
-## O desenho
-
-### 1. A coluna
-
-`Aula.UltimoLembreteEnviado` — `int?`, **nullable e sem `defaultValue`** (a lição do `= 60`: default
-no banco carimba a base inteira). Guarda o marco em HORAS, não a data do envio: `24`, depois `1`.
-Nulo = nunca avisado. Migration `LembreteDaAula`, gerada em worktree limpo, conferida com
-`dotnet ef migrations has-pending-model-changes`.
-
-### 2. A régua — `Services/LembreteDaAula.cs` (pura, sem banco)
-
-```csharp
-public static readonly int[] Marcos = { 24, 1 };   // horas que faltam
-
-int? MarcoDevido(DateTime dataHoraDaAula, DateTime agora, int? ultimoMarcoEnviado)
-string Titulo(bool paraOProfessor, int marco)
-string Frase(...)        // conta as horas DE VERDADE, nunca o número do marco
-bool HoraCivilizada(DateTime agora)   // só o marco de 24h obedece
-```
-
-**Um aviso, não dois.** Quando os dois marcos vencem de uma vez (aula marcada faltando 40 minutos),
-vale o **mais urgente** e o outro é dado por cumprido — mesma regra do lembrete de inscrição, e o
-motivo aqui é o mesmo: senão a pessoa leva dois avisos em 15 minutos, um por tick.
-
-**O texto conta o tempo de verdade.** Quem entra pelo marco de 24h com a aula em 15 horas (porque o
-marco caiu de madrugada e foi segurado) não pode ouvir "amanhã" se a aula é hoje. A frase é montada
-de `dataHoraDaAula - agora`, não do número do marco.
-
-**Madrugada:** o marco de **24h** só sai entre **7h e 22h** — aula de sábado às 22h tem marco na
-sexta às 22h, e ninguém é acordado por isso; segurar até as 7h ainda dá 15 horas de aviso. O marco
-de **1h não tem janela**: quem tem aula às 6h já vai acordar às 5h de qualquer jeito, e segurar esse
-aviso é a mesma coisa que não mandá-lo.
-
-### 3. A varredura — `Services/LembreteDaAulaBackgroundService.cs`
-
-Tick de **15 minutos** (o marco de 1h precisa; o de 24h não se importa). Varre na subida também.
-`public static async Task<int> VarrerAsync(context, push, agora, ct)` — estático e com `agora` por
-parâmetro, que é o que permite exercitar a varredura inteira no teste em vez de conferir só a régua.
-
-```csharp
-var aulas = await context.Aulas
-    .Include(a => a.Professor).Include(a => a.LocalAula).Include(a => a.Aluno)
-    .Where(a => a.Status == PoliticaAula.Confirmada
-             && a.DataHora > agora
-             && a.DataHora <= agora.AddHours(24)
-             && a.AlunoId != null
-             && a.Aluno!.ExcluidoEm == null)
-    .ToListAsync(ct);
-```
-
-⚠️ **`Confirmada` e só ela.** `PoliticaAula.ContaComoAtiva` inclui `Pendente`, e `Pendente` aqui é
-"o professor ainda não aceitou" — mandar "sua aula é amanhã" pra uma aula que pode ser recusada é
-prometer o que o sistema não tem. `Cancelada`, `Recusada`, `A recuperar` e `Faltou` ficam fora por
-construção.
-
-⚠️ **Conferir a consulta com `ToQueryString()` contra Npgsql** antes de commitar: o EF InMemory não
-valida SQL, e esta navega por `a.Aluno.ExcluidoEm`. Padrão em `TraducaoDasConsultasDePalpiteTests`.
-
-⚠️ **Turma não vira enxurrada pro professor.** Uma turma de 3 alunos são **3 linhas de `Aula`** com
-o mesmo `TurmaId`, mesmo horário e mesmo professor. Cada aluno recebe o dele; o professor recebe
-**um** por horário — agrupado por `(ProfessorId, DataHora)`. Sem isso, a turma de terça manda 3
-avisos idênticos pro mesmo celular.
-
-⚠️ **Aluno avulso (`AlunoId == null`) não recebe nada** e não tem como receber: ele não tem conta,
-não tem push, não tem caixa de entrada. Quem cobre esse caso hoje é o botão manual do professor
-(`Services/ConviteDaAulaMarcada`), e ele continua sendo a resposta.
-
-### 4. Os textos
-
-| Marco | Pra quem | Título | Corpo |
+| # | Pergunta | Decisão | O que isso mudou no desenho |
 |---|---|---|---|
-| 24h | Aluno | Sua aula é amanhã | Aula com {professor} amanhã, {dd/MM} às {HH:mm}, em {local}. Se não puder ir, desmarque pelo app. |
-| 24h | Professor | Você tem aula amanhã | {aluno} amanhã, {dd/MM} às {HH:mm}, em {local}. |
-| 1h | Aluno | Sua aula é daqui a pouco | Aula com {professor} às {HH:mm}, em {local}. |
-| 1h | Professor | Sua próxima aula é daqui a pouco | {aluno} às {HH:mm}, em {local}. |
+| 1 | **Escopo** | **Aula + jogo-aula** (Raquete Livre fica pra depois) | Duas varreduras e duas colunas de marco, não uma. Eu tinha recomendado só a `Aula` |
+| 2 | **Quem recebe** | **Aluno e professor** | O professor recebe **UM aviso por horário**, não um por aluno da turma |
+| 3 | **Canal** | **Só o app** (caixa de avisos + push) — `AlcanceDoAviso.AppSemEmail` | Literalmente o que o Maickel pediu. Eu tinha recomendado WhatsApp no de 24h; a escolha é mais conservadora e **não arrisca o chip nem a cota de e-mail** |
+| 4 | **Opt-out** | **Sim, nascendo ligado** | `Jogador.NotificarLembreteDeAula`, na tela de Preferências, na mesma migration |
 
-Link: `/Aulas/MinhasAulas` (aluno) e `/Aulas/MinhaAgenda` (professor) — é onde está o botão de
-desmarcar, e aviso que leva pra tela sem o botão não é aviso (lição de 05/08).
+⚠️ **A decisão 3 tem um custo conhecido, e ele está escrito aqui pra não virar surpresa:** push
+sozinho alcança **5 aparelhos em 154** (medição de 08/2026). A caixa de avisos (`/Notificacoes`)
+alcança todo mundo que **abrir o app** — é o canal que não depende de entrega nenhuma —, mas
+ninguém é *avisado* de que ela tem coisa nova. Na prática o lembrete só toca o celular de quem
+instalou o app. Se um dia a queixa for "não recebi", o conserto é a decisão 3, não o código.
 
 ---
 
-## As 4 decisões que são suas
+## O que foi construído
 
-| # | Pergunta | O que eu recomendo, e por quê |
-|---|---|---|
-| 1 | **Escopo**: só a aula marcada com professor (`Aula`), ou também o jogo-aula (`JogoAula`) e a Raquete Livre? | **Só `Aula` agora.** É onde alguém combina hora com outra pessoa e o furo custa o horário do professor. Jogo-aula e Raquete Livre reusam a mesma régua depois, cada um com a sua coluna — mas entram como segunda entrega, não de brinde |
-| 2 | **Quem recebe**: só o aluno, ou aluno + professor? | **Os dois, com o professor agrupado por horário.** O professor é quem perde o horário quando o aluno não aparece, e o de 1h é justamente o que faz ele sair de casa. Se achar demais, o professor recebe só o de 24h |
-| 3 | **Canal** | **24h no app + WhatsApp (`AppEWhatsApp`); 1h só no app (`AppSemEmail`).** O de 24h passa nos três critérios (pessoal, urgente, acionável: dá pra desmarcar dentro do prazo) e é o único que alcança quem não instalou o app — **push sozinho chega a 5 aparelhos em 154**. O de 1h não tem nada pra decidir, então não vale o canal caro. **Sem e-mail nos dois**: a pessoa marcou a aula, ela já sabe que existe |
-| 4 | **Opt-out**: preferência nova (`NotificarLembreteDeAula`) na tela de Preferências, na mesma migration? | **Sim, nascendo ligada.** Aviso que não se desliga é o que faz a pessoa desligar TODOS — e a coluna sai na mesma migration, custo zero agora e migration nova depois |
+### A régua — `Services/LembreteDaAula.cs` (pura, sem banco)
+
+- `Marcos = { 24, 1 }` em horas. A varredura lê `Marcos.Max()` pra limitar a consulta: marco novo
+  aqui estica a janela sozinho.
+- `MarcoDevido(quando, agora, ultimoMarcoEnviado)` — **quando os dois vencem de uma vez** (aula
+  marcada faltando 40 minutos), vale o **mais urgente** e o outro é dado por cumprido. Senão a
+  pessoa levaria dois avisos em quinze minutos, um por tick.
+- **Madrugada:** o marco de **24h** só sai entre **7h e 22h**; o de **1h não tem janela** — quem
+  tem aula às 6h já vai acordar às 5h de qualquer jeito, e segurar esse aviso é não mandá-lo.
+- **O texto conta o tempo de verdade, nunca o número do marco.** Quem entra pelo marco de 24h com
+  a aula em 15 horas (porque o marco caiu de madrugada e foi segurado) lê *"hoje"*, não *"amanhã"*.
+
+### A varredura — `Services/LembreteDaAulaBackgroundService.cs`
+
+Tick de **15 minutos** (o marco de 1h precisa; o de 24h não se importa), mais uma passada na
+subida do app. `VarrerAsync(context, push, agora, ct)` é estática e recebe o `agora` **por
+parâmetro** — é o que permite exercitar o percurso inteiro em horas que ainda não chegaram.
+
+| Regra | Por quê |
+|---|---|
+| Só `Status == Confirmada` | `PoliticaAula.ContaComoAtiva` também aceita "Pendente", e pendente é *"o professor ainda não aceitou"*. Prometer uma aula que pode ser recusada é prometer o que o sistema não tem |
+| Agrupa por `(ProfessorId, DataHora)` | A turma são **3 linhas de `Aula`** no mesmo horário. Sem agrupar, o professor levaria 3 avisos idênticos no mesmo minuto |
+| O marco é gravado mesmo sem ninguém pra avisar | Aluno avulso, conta excluída, preferência desligada — sem gravar, o varredor tentaria de novo a cada 15 minutos até a aula acontecer |
+| Jogo-aula **sem inscrito** não avisa, e o marco fica **nulo** | Não há quem lembrar; e se alguém se inscrever depois, o lembrete de 1h ainda sai |
+| Lista de espera do jogo-aula fica de fora | Quem está na espera não tem vaga |
+| Horário novo **zera** o marco (`AulasController.Editar`) | A aula que já levou o "é amanhã" e foi remarcada precisa do aviso de novo. Sem zerar, ela ficaria marcada como avisada pra sempre — **e ninguém reclama de um aviso que não chegou** |
+
+### As colunas — migration `20260916131627_LembreteDaAula`
+
+`Aula.UltimoLembreteEnviado` (`int?`), `JogoAula.UltimoLembreteEnviado` (`int?`) e
+`Jogador.NotificarLembreteDeAula` (`bool`).
+
+⚠️ **É o MARCO, não a data do envio** — com a data, *"já mandei o de 24h?"* viraria conta de
+relógio a cada passada, e um deploy no meio da janela reenviaria tudo. Mesma escolha de
+`UltimoLembreteDePagamento`.
+
+⚠️ **O `defaultValue` da preferência foi trocado À MÃO pra `true`**, e é a lição do `= 60` de
+10/08/2026: o EF gerou `false`, e `false` é o valor que **toda conta já existente** receberia — a
+base inteira nasceria com o lembrete desligado, o contrário da decisão 4. O `= true` do C# só vale
+pra objeto novo.
+
+⚠️ **A caixa de Preferências leva um `<input type="hidden" value="false"> DEPOIS dela` e o
+parâmetro do POST é `bool?`** — a preferência nasce ligada, e caixa desmarcada não vai no POST.
+Sem o par, uma aba aberta antes do deploy religaria o lembrete de quem desligou, a cada
+salvamento de qualquer outra preferência. Mesma armadilha do `VerPalpitometro`.
 
 ---
 
 ## O que fica de fora (de propósito)
 
-- **Aula `Pendente` que o professor não respondeu.** Cutucar o professor sobre solicitação parada é
-  outro aviso, com outra régua (e o push de "nova solicitação" já existe). Achado registrado, não
-  resolvido aqui.
-- **Escolher a antecedência por professor** ("eu quero 2h, não 1h"). Marco fixo até alguém pedir:
-  configuração que ninguém pediu é a complexidade que o `CLAUDE.md` manda pular no degrau 1.
-- **Reenvio quando a aula muda de horário.** Editar a aula já avisa o aluno na hora
-  (`EdicaoDeAula.PrecisaAvisarAluno`). ⚠️ **Mas o marco gravado continua lá**: aula que mudou de
-  amanhã pra semana que vem ficaria com `UltimoLembreteEnviado = 24` e **não levaria o lembrete
-  novo**. Resolve-se zerando a coluna quando `DataHora` muda — uma linha na edição, e ela entra
-  nesta entrega.
+- **Raquete Livre** — decisão 1. Reusa a mesma régua no dia em que for pedida.
+- **Aula `Pendente` que o professor não respondeu.** Cutucar o professor sobre solicitação parada
+  é outro aviso, com outra régua (e o push de "nova solicitação" já existe). Achado registrado.
+- **Antecedência configurável por professor** ("eu quero 2h, não 1h"). Configuração que ninguém
+  pediu é a complexidade que o `CLAUDE.md` manda pular no degrau 1.
+- **Aluno avulso** (sem conta) não recebe e não tem como receber: não tem push, caixa nem
+  preferência. Quem cobre esse caso é o botão manual do professor (`Services/ConviteDaAulaMarcada`).
 
 ---
 
-## Plano de execução (depois do aprovado)
+## Como isto foi testado
 
-Na ordem, e cada teste **visto vermelho antes** (Regra 1):
+**42 testes novos**, todos vistos vermelhos antes (*"não existe"*, no build) — e os da varredura
+conferidos **por mutação**: tirar o `Include` do aluno, afrouxar o filtro de status, remover o
+filtro da lista de espera e desfazer o agrupamento da turma deixam **10 testes vermelhos**. Teste
+que passa sem testar nada já aconteceu neste projeto.
 
-1. `LembreteDaAulaTests` — a régua: marco devido, marco já enviado não repete, dois marcos vencidos
-   viram um só, janela civilizada só no de 24h, texto que conta o tempo de verdade.
-2. `Services/LembreteDaAula.cs` — a régua.
-3. `VarreduraDoLembreteDeAulaTests` — a varredura inteira: acha só a `Confirmada`, ignora cancelada
-   e pendente, avisa os dois lados, **um aviso por horário pro professor numa turma de 3**, grava o
-   marco, não reenvia na passada seguinte, ignora aluno avulso e conta excluída.
-4. A coluna + migration `LembreteDaAula` (worktree limpo, `has-pending-model-changes` limpo).
-5. `Services/LembreteDaAulaBackgroundService.cs` + registro no `Program.cs`.
-6. Zerar o marco na edição de horário + o teste que trava isso.
-7. `ToQueryString()` contra Npgsql na consulta nova.
-8. Suíte inteira verde + os conferidores JS, `STATUS.md` atualizado, PR.
+- `LembreteDaAulaTests` — a régua: marcos, janela da madrugada, texto que conta o tempo de verdade.
+- `VarreduraDoLembreteDeAulaTests` — a ligação, **com DOIS CONTEXTOS sobre o mesmo banco**. Com um
+  só, o EF InMemory costura `aula.Aluno` e `aula.LocalAula` sozinho pelo rastreador e a varredura
+  passaria verde **sem os `Include`** (lição de 16/09/2026).
+- `TraducaoDoLembreteDeAulaTests` — as três consultas compiladas contra um provedor **Npgsql** de
+  verdade via `ToQueryString()`. O InMemory não traduz SQL, e aqui a falha seria pior que uma
+  página 500: o lembrete simplesmente não sairia, calado num log que ninguém olha.
 
-Estimativa: ~15 testes novos, ~250 linhas de produção, 1 migration de 1 coluna (2 se a decisão 4 for
-"sim").
+⚠️ **NÃO conferido no app rodando**: esta sessão não subiu o app com banco. O que sustenta é a
+suíte (**7.332 verdes**), os 12 conferidores JS e a migration com `has-pending-model-changes`
+limpo. **No primeiro deploy vale olhar uma vez**: uma aula marcada pra dali a ~23h deve gerar a
+linha em `/Notificacoes` do aluno e do professor, e **não** gerar de novo no tick seguinte.

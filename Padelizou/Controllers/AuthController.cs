@@ -1367,7 +1367,10 @@ namespace padelizou.Controllers
             // qualquer outra preferência, e com `false` DESLIGARIA o de todo mundo. Nulo = o
             // campo não veio, e o gravado FICA. Quem distingue desmarcado de ausente é o
             // <input type="hidden" value="false"> DEPOIS da caixa, na view.
-            bool? verPalpitometro = null, bool? verQuemPalpitou = null)
+            bool? verPalpitometro = null, bool? verQuemPalpitou = null,
+            // O LEMBRETE DA AULA (16/09/2026) também nasce LIGADO — daí o `bool?`, pelo mesmo
+            // motivo das duas de cima.
+            bool? notificarLembreteDeAula = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -1389,6 +1392,7 @@ namespace padelizou.Controllers
             jogador.NotificarJogoAula = notificarJogoAula;
             jogador.NotificarRaqueteLivre = notificarRaqueteLivre;
             jogador.NotificarHorarioVagoRegiao = notificarHorarioVagoRegiao;
+            if (notificarLembreteDeAula is bool querOLembreteDaAula) jogador.NotificarLembreteDeAula = querOLembreteDaAula;
             await _context.SaveChangesAsync();
 
             await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados,
