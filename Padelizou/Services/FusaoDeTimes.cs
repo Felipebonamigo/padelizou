@@ -76,6 +76,16 @@ public static class FusaoDeTimes
             dupla.TimeId = sobreviventeId;
         }
 
+        // 🔇 O TORNEIO TRANCADO NESTE TIME (Services/TimeExclusivoDoTorneio) é o único destes
+        // repontamentos em que esquecer NÃO é cosmético: sem ele a fusão bate na chave
+        // estrangeira (o vínculo é Restrict, justamente pra não destrancar nada calado) e a
+        // pessoa fica sem conseguir juntar as duas grafias do próprio clube. O escudo some; a
+        // porta, não.
+        foreach (var torneio in await context.Torneios.Where(t => t.TimeExclusivoId == absorvidoId).ToListAsync())
+        {
+            torneio.TimeExclusivoId = sobreviventeId;
+        }
+
         // A história de quem passou pelo time absorvido continua valendo, e passa a apontar
         // pro sobrevivente.
         var transferencias = await context.TransferenciasDeTime

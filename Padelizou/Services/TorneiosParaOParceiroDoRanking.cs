@@ -120,7 +120,17 @@ public static class TorneiosParaOParceiroDoRanking
                 // vitrine (o que Restrito tranca é a inscrição, não a página), então escondê-lo
                 // aqui criaria duas listas diferentes de "torneios abertos". Mas publicá-lo
                 // calado faria eles anunciarem como aberto a todos um evento que pede chave.
-                InscricaoRestrita: t.Restrito,
+                //
+                // ⚠️ O torneio de um TIME SÓ entra no mesmo `true` desde 16/09/2026, e isso NÃO
+                // é mudança de contrato: nenhum campo nasceu, sumiu ou trocou de tipo — o que
+                // mudou é que o campo passa a ser verdadeiro em mais um caso, e ele já significa
+                // exatamente o que o parceiro precisa saber ("não anuncie como aberto a todos").
+                //
+                // Um campo NOVO, dizendo qual das duas travas é, seria mudança de contrato de
+                // verdade (ver API-TORNEIOS.md) — e não resolveria nada que este não resolva: o
+                // parceiro não tem como saber quem está no time, então pra ele os dois casos
+                // terminam no mesmo conselho.
+                InscricaoRestrita: t.Restrito || t.TimeExclusivoId != null,
                 Categorias: categoriasPorTorneio[t.Id]
                     .OrderBy(c => c.Nome, StringComparer.CurrentCulture)
                     .Select(c => new CategoriaPublicada(

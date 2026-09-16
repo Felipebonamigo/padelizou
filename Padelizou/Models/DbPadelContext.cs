@@ -1262,6 +1262,19 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.TorneioOrigemId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // O time que TRANCA a inscrição (ver Torneio.TimeExclusivoId).
+            //
+            // ⚠️ Restrict, e NÃO SetNull como os outros dois vínculos com Time (Jogador.TimeId e
+            // Dupla.TimeId). Lá o time é enfeite — some o escudo e a vida segue. Aqui ele é a
+            // TRAVA: apagar o time com SetNull destrancaria a inscrição de um torneio fechado
+            // sem uma linha de aviso, e a próxima pessoa de fora entraria normalmente. O
+            // AdminController.ExcluirTime confere isto antes e explica; o Restrict é a rede
+            // embaixo, pra nenhum caminho novo repetir o buraco calado.
+            entity.HasOne(e => e.TimeExclusivo)
+                .WithMany()
+                .HasForeignKey(e => e.TimeExclusivoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Aula>(entity =>

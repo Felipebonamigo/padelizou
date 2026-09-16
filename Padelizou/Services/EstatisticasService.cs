@@ -78,22 +78,35 @@ public class EstatisticasService : IEstatisticasService
     // ranking medir ACESSO a torneio privado em vez de padel jogado: quem organiza um
     // interno por mês subiria sem nunca enfrentar ninguém de fora.
     //
+    // ── Time exclusivo (decisão do Felipe, 16/09/2026) ────────────────────────────────────
+    // O torneio trancado num time só (ver Torneio.TimeExclusivoId) é o MESMO tipo de evento,
+    // pela mesma razão e com uma a mais: além de fechado, ele é fechado *entre colegas de
+    // camisa*. Todo jogo dele é do time contra o próprio time, e pagá-lo no ranking faria a
+    // conta subir sem ninguém de fora ter sido enfrentado — inclusive no ranking de TIMES,
+    // onde o time pontuaria jogando contra si mesmo.
+    //
     // O que NÃO muda: a participação, o título e os jogos continuam no perfil e no
     // histórico da pessoa — aconteceram. O que não existe é ponto de ranking.
     // Torneio NULO continua contando: é a dupla lida numa consulta que não fez Include, e
     // sumir do ranking por causa de um Include esquecido seria pior do que qualquer das duas
     // regras acima.
     public static bool ContaNoRanking(Torneio? torneio) =>
-        torneio is null || ContaNoRanking(torneio.Restrito, torneio.Formato);
+        torneio is null || ContaNoRanking(torneio.Restrito, torneio.TimeExclusivoId, torneio.Formato);
 
-    // A mesma pergunta quando a consulta trouxe só os DOIS CAMPOS, e não o torneio inteiro —
-    // é o caso de quem projeta (`.Select`) pra não carregar entidade à toa.
+    // A mesma pergunta quando a consulta trouxe só os CAMPOS, e não o torneio inteiro — é o
+    // caso de quem projeta (`.Select`) pra não carregar entidade à toa.
     //
     // ⚠️ Existe pra não haver uma terceira escrita da regra: as versões que liam só
     // `!Restrito` e esqueciam o Americano estavam justamente nesses `Select` enxutos, e cada
     // uma delas foi um bug diferente (pontos do perfil, pontos da busca, ranking de times).
-    public static bool ContaNoRanking(bool restrito, string? formato) =>
-        !restrito && !FormatoDoTorneio.EhAmericano(formato);
+    //
+    // ⚠️ `timeExclusivoId` entrou em 16/09/2026 como parâmetro OBRIGATÓRIO, e a sobrecarga de
+    // dois campos foi APAGADA de propósito — não ganhou valor padrão. Com um padrão, toda
+    // consulta escrita antes continuaria compilando e seguiria pagando ponto pro interno de
+    // time, calada; sem ele, o compilador é obrigado a apontar cada lugar que precisa
+    // decidir. É a rede que não existia quando o Americano entrou na régua.
+    public static bool ContaNoRanking(bool restrito, int? timeExclusivoId, string? formato) =>
+        !restrito && timeExclusivoId == null && !FormatoDoTorneio.EhAmericano(formato);
 
     // A MESMA régua acima, escrita pra rodar NO BANCO.
     //
@@ -103,6 +116,7 @@ public class EstatisticasService : IEstatisticasService
     // passar. Aqui as duas ficam lado a lado, e há teste comparando uma com a outra.
     public static readonly System.Linq.Expressions.Expression<Func<Dupla, bool>> DuplaContaNoRanking =
         d => !d.Categoria.Torneio.Restrito
+             && d.Categoria.Torneio.TimeExclusivoId == null
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.Americano
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.AmericanoDeDuplas;
 
@@ -1289,6 +1303,7 @@ public class EstatisticasService : IEstatisticasService
                 d.Categoria.TorneioId,
                 d.CategoriaId,
                 Restrito = d.Categoria.Torneio.Restrito,
+                TimeExclusivoId = d.Categoria.Torneio.TimeExclusivoId,
                 Formato = d.Categoria.Torneio.Formato,
                 Status = d.Categoria.Torneio.Status,
             })
@@ -1313,7 +1328,7 @@ public class EstatisticasService : IEstatisticasService
         return new ResumoJogadorVM
         {
             Pontos = participacoes
-                .Where(p => ContaNoRanking(p.Restrito, p.Formato))
+                .Where(p => ContaNoRanking(p.Restrito, p.TimeExclusivoId, p.Formato))
                 .Sum(p => PontosDoTorneio.Pontos(
                     p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status)),
 
@@ -1383,12 +1398,18 @@ public class EstatisticasService : IEstatisticasService
         var mesAtual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         var primeiroMes = mesAtual.AddMonths(-(meses - 1));
 
-        // Torneio restrito fora: o gráfico desenha a linha do RANKING, e ela precisa
-        // terminar no mesmo total que o perfil mostra.
+        // Evento fechado fora: o gráfico desenha a linha do RANKING, e ela precisa terminar
+        // no mesmo total que o perfil mostra.
+        //
+        // ⚠️ "Fechado" são DOIS casos desde 16/09/2026 — o torneio de chave de acesso e o de
+        // um time só. Aqui a régua está escrita à mão (vira SQL), então ela é a cópia que
+        // mais facilmente fica pra trás: divergir faz o gráfico terminar num total diferente
+        // do número impresso ao lado dele, na mesma tela.
         var participacoes = await _context.Duplas
             .Where(InscricaoQueConta.Expressao)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null
                      && !d.Categoria.Torneio.Restrito
+                     && d.Categoria.Torneio.TimeExclusivoId == null
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => new
             {
@@ -1644,6 +1665,7 @@ public class EstatisticasService : IEstatisticasService
                 d.CategoriaId,
                 d.Categoria.TorneioId,
                 Restrito = d.Categoria.Torneio.Restrito,
+                TimeExclusivoId = d.Categoria.Torneio.TimeExclusivoId,
                 Formato = d.Categoria.Torneio.Formato,
                 Status = d.Categoria.Torneio.Status,
             })
@@ -1675,7 +1697,7 @@ public class EstatisticasService : IEstatisticasService
             Titulos: participacoes.Count(p => p.UltimaFase == "Campeao"),
             Finais: participacoes.Count(p => p.UltimaFase == "Final"),
             Pontos: participacoes
-                .Where(p => ContaNoRanking(p.Restrito, p.Formato))
+                .Where(p => ContaNoRanking(p.Restrito, p.TimeExclusivoId, p.Formato))
                 .Sum(p => PontosDoTorneio.Pontos(
                     p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status)),
             MelhorPosicao: melhorPosicao,
