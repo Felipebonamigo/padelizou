@@ -19,7 +19,7 @@ namespace Padelizou.Tests;
 // 🎯 `ToQueryString()` COMPILA a consulta e devolve o SQL sem abrir conexão. Consulta que não
 // traduz estoura ali mesmo. Cada uma é compilada SOZINHA: apontando pra um Postgres
 // inexistente, a primeira consulta de um método falharia por CONEXÃO e as seguintes nunca
-// seriam compiladas — foi assim que um defeito parecido escapou dos testes do Palpitrômetro.
+// seriam compiladas — foi assim que um defeito parecido escapou dos testes do Palpitômetro.
 public class TraducaoDasConsultasDoResumoSemanalTests
 {
     // Provedor Npgsql de verdade (é ele que traduz), apontado pra lugar nenhum.

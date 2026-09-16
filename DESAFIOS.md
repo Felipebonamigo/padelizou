@@ -3,9 +3,9 @@
 > Desenhada com o Felipe em 11/08/2026.
 > Este arquivo é a fonte da verdade. Mudou a regra? Muda **AQUI** primeiro — e só depois no código.
 >
-> 🔒 **Nasce fechado.** Enquanto `Desafios__Habilitado` não for `true`, o módulo existe em
-> produção e **só o admin do Padelizou enxerga** (mesmo mecanismo do Bar — ver
-> `Services/DesafiosSettings`).
+> 🔓 **Aberto em 16/09/2026.** Até então nasceu fechado atrás de `Desafios__Habilitado` (só o
+> admin do Padelizou enxergava — mesmo mecanismo do Bar, ver `Services/DesafiosSettings`). A chave
+> continua existindo: `false` fecha o módulo inteiro de novo, incluindo o resumo semanal.
 
 ## A ideia numa frase
 
@@ -175,13 +175,21 @@ Três defesas, e as três precisam existir juntas:
 
 ### 👤 Privacidade
 
-O cartão do mural mostra nome, apelido, foto, categoria, cidade/clubes e retrospecto.
-**Nunca telefone.** Contato só depois do aceite, e sempre passando por
-`Services/ContatoDoJogador` — que já sabe que visitante anônimo não vê contato e que
-pré-cadastro não expõe o de ninguém.
+O cartão do mural mostra nome, apelido, categoria, cidade/clubes e retrospecto — sem foto.
+**Nunca telefone, nunca Instagram** — nenhuma tela dos Desafios monta link de contato. O
+WhatsApp só aparece como *canal de aviso* (dois avisos pessoais, ver §5), nunca na tela.
 
 O mural inteiro exige login. Ele é uma lista de gente disponível com dia, hora e lugar: não é
 material para o índice do Google.
+
+**O que a Política de Privacidade promete (item 4, desde 16/09/2026)** — e que precisa
+continuar verdade: o mural, o ranking e a linha do perfil só aparecem pra conta aberta;
+quem é incluído numa dupla é avisado e pode sair; nenhuma tela mostra contato. Mudou uma
+dessas, muda a política junto (`LancamentoDosDesafiosTests` segura o texto).
+
+**Os dois interruptores das Preferências citam os Desafios pelo nome:** `AceitaConvitesJogo`
+impede ser incluído numa dupla sem pedir, e `NotificarAvisoJogo` cala o resumo semanal. Um
+rótulo que não diz o que o botão faz é botão que ninguém acha.
 
 ---
 
@@ -443,8 +451,8 @@ com link compartilhável do anúncio. Nunca um "nenhum resultado encontrado".
 A fase 1 é útil sozinha — é a que responde *"contra quem eu jogo sábado?"*. O ranking é o que
 faz voltar; o cinturão é o que vicia.
 
-**O módulo está completo e continua fechado.** O que falta não é código: é `Desafios__Habilitado=true`
-e uma cidade com densidade suficiente para o mural não nascer morto.
+**Aberto ao público em 16/09/2026.** O que decide se o mural vive não é mais código: é uma
+cidade com densidade suficiente pra ele não nascer vazio.
 
 > **A pontuação e o anti-farm entraram já na fase 1**, e não aqui. O motivo é que o ponto é
 > **congelado** na linha do desafio no fechamento: deixá-lo para a fase 2 faria o ranking nascer

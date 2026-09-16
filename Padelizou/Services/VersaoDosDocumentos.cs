@@ -22,9 +22,9 @@ public static class VersaoDosDocumentos
     // O nome da versão é a data em que ela entrou em vigor, em ISO: ordena sozinho, cabe na
     // coluna e é legível por gente. Versão "1.0" exigiria uma tabela à parte só pra dizer
     // quando cada número valeu.
-    public const string Atual = "2026-08-10";
+    public const string Atual = "2026-09-16";
 
-    public static readonly DateTime EmVigorDesde = new(2026, 8, 10);
+    public static readonly DateTime EmVigorDesde = new(2026, 9, 16);
 
     // "10 de agosto de 2026" — como as duas páginas escrevem. Fixado em pt-BR de propósito:
     // é documento jurídico brasileiro, não acompanha a cultura de quem visita.
