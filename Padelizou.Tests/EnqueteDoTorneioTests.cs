@@ -97,7 +97,7 @@ public class EnqueteDoTorneioTests
 
         var recusa = await EnqueteDoTorneio.AvaliarAsync(
             ctx, torneio.Id, duplas[1].Jogador1Id, So(4, 4),
-            Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            Domingo.AddDays(EnqueteDoTorneio.DiasParaResponder));
 
         Assert.NotNull(recusa);
         Assert.Empty(ctx.AvaliacoesDeTorneio);
@@ -536,5 +536,143 @@ public class EnqueteDoTorneioTests
         }, Domingo.AddHours(4));
 
         Assert.Single(ctx.FeedbacksSite);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════
+    // O QUE QUEM ORGANIZA VÊ: AS TRÊS NOTAS, OS TRÊS TEXTOS E QUEM RESPONDEU
+    //
+    // O painel de gestão é o único lugar onde o Padelizou aparece por resposta — nota e texto.
+    // O mural público e o painel do clube recebem os dois NULOS do serviço, pela mesma régua
+    // que já vale pro nome de quem é anônimo: não dá pra uma view esquecer de esconder o que
+    // não veio.
+    // ═════════════════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task Quem_organiza_ve_a_nota_E_o_texto_sobre_o_Padelizou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        await EnqueteDoTorneio.AvaliarAsync(ctx, torneio.Id, duplas[1].Jogador1Id, new RespostaDaEnquete
+        {
+            NotaClube = 5, NotaOrganizacao = 4, NotaSistema = 3,
+            ComentarioClube = "Quadra ótima.",
+            ComentarioSistema = "O aviso da chave chegou tarde.",
+        }, Domingo.AddHours(1));
+
+        var comentario = Assert.Single(await EnqueteDoTorneio.ParaModerarAsync(ctx, torneio.Id));
+        Assert.Equal(3, comentario.NotaSistema);
+        Assert.Equal("O aviso da chave chegou tarde.", comentario.SobreOSistema);
+    }
+
+    [Fact]
+    public async Task Quem_escreveu_SO_sobre_o_Padelizou_nao_some_do_painel()
+    {
+        // O texto do sistema mora em FeedbackSite, e a avaliação fica sem texto nenhum — era
+        // por isso que a resposta inteira sumia da lista de quem organiza.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        await EnqueteDoTorneio.AvaliarAsync(ctx, torneio.Id, duplas[1].Jogador1Id, new RespostaDaEnquete
+        {
+            NotaClube = 5, NotaOrganizacao = 5, NotaSistema = 2,
+            ComentarioSistema = "Não achei o link da chave.",
+        }, Domingo.AddHours(1));
+
+        var comentario = Assert.Single(await EnqueteDoTorneio.ParaModerarAsync(ctx, torneio.Id));
+        Assert.Equal("Não achei o link da chave.", comentario.SobreOSistema);
+        Assert.Null(comentario.SobreOClube);
+        Assert.Null(comentario.SobreAOrganizacao);
+    }
+
+    [Fact]
+    public async Task O_mural_publico_NAO_carrega_a_nota_nem_o_texto_do_Padelizou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        await EnqueteDoTorneio.AvaliarAsync(ctx, torneio.Id, duplas[1].Jogador1Id, new RespostaDaEnquete
+        {
+            NotaClube = 5, NotaOrganizacao = 5, NotaSistema = 1,
+            ComentarioClube = "Quadras impecáveis.",
+            ComentarioSistema = "O site travou no pagamento.",
+        }, Domingo.AddHours(1));
+
+        var publicado = Assert.Single(await EnqueteDoTorneio.PublicadosAsync(ctx, torneio.Id));
+        Assert.Equal("Quadras impecáveis.", publicado.SobreOClube);
+        Assert.Null(publicado.SobreOSistema);
+        Assert.Null(publicado.NotaSistema);
+    }
+
+    [Fact]
+    public async Task O_painel_do_clube_NAO_carrega_a_nota_nem_o_texto_do_Padelizou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        var clube = new Clube { Nome = "Clube da Esquina", DonoId = 1 };
+        ctx.Clubes.Add(clube);
+        await ctx.SaveChangesAsync();
+        ctx.Torneios.First(t => t.Id == torneio.Id).ClubeId = clube.Id;
+        await ctx.SaveChangesAsync();
+
+        await EnqueteDoTorneio.AvaliarAsync(ctx, torneio.Id, duplas[1].Jogador1Id, new RespostaDaEnquete
+        {
+            NotaClube = 4, NotaOrganizacao = 4, NotaSistema = 1,
+            ComentarioClube = "Bar caro.",
+            ComentarioSistema = "O site travou no pagamento.",
+        }, Domingo.AddHours(1));
+
+        var doClube = Assert.Single(await EnqueteDoTorneio.DoClubeAsync(ctx, clube.Id));
+        Assert.Equal("Bar caro.", doClube.SobreOClube);
+        Assert.Null(doClube.SobreOSistema);
+        Assert.Null(doClube.NotaSistema);
+    }
+
+    [Fact]
+    public async Task Quem_avaliou_sai_com_o_nome_de_quem_assinou_e_sem_o_de_quem_nao_assinou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        await EnqueteDoTorneio.AvaliarAsync(
+            ctx, torneio.Id, duplas[0].Jogador1Id, So(5, 5, sistema: 5), Domingo.AddHours(1));
+        await EnqueteDoTorneio.AvaliarAsync(ctx, torneio.Id, duplas[1].Jogador1Id, new RespostaDaEnquete
+        {
+            NotaClube = 2, NotaOrganizacao = 3, NotaSistema = 4, Anonimo = true,
+        }, Domingo.AddHours(2));
+
+        var votos = await EnqueteDoTorneio.QuemAvaliouAsync(ctx, torneio.Id);
+        Assert.Equal(2, votos.Count);
+
+        var assinado = Assert.Single(votos, v => !v.Anonimo);
+        Assert.NotNull(assinado.Autor);
+        Assert.Equal(duplas[0].Jogador1Id, assinado.AutorId);
+        Assert.Equal(5, assinado.NotaClube);
+        Assert.Equal(5, assinado.NotaOrganizacao);
+        Assert.Equal(5, assinado.NotaSistema);
+
+        // ⚠️ Quem marcou "sem o meu nome" entra na lista com as notas e SEM identificação —
+        // o nome não sai do serviço nem pra quem organiza, que é a promessa da tela.
+        var anonimo = Assert.Single(votos, v => v.Anonimo);
+        Assert.Null(anonimo.Autor);
+        Assert.Null(anonimo.AutorId);
+        Assert.Equal(2, anonimo.NotaClube);
+        Assert.Equal(3, anonimo.NotaOrganizacao);
+        Assert.Equal(4, anonimo.NotaSistema);
+    }
+
+    [Fact]
+    public async Task Quem_respondeu_antes_da_pergunta_do_Padelizou_aparece_SEM_essa_nota()
+    {
+        // Nula, e não zero: essa pessoa não deu nota nenhuma ao sistema — a pergunta não existia.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, duplas) = await MontarAsync(ctx);
+
+        await EnqueteDoTorneio.AvaliarAsync(
+            ctx, torneio.Id, duplas[1].Jogador1Id, So(5, 5), Domingo.AddHours(1));
+
+        var voto = Assert.Single(await EnqueteDoTorneio.QuemAvaliouAsync(ctx, torneio.Id));
+        Assert.Null(voto.NotaSistema);
     }
 }

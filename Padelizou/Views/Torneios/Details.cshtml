@@ -894,23 +894,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     </script>
 }
 
-@if (TempData["Sucesso"] != null)
-{
-    <div class="alert alert-success">@TempData["Sucesso"]</div>
-}
-@if (TempData["Erro"] != null)
-{
-    <div class="alert alert-danger">@TempData["Erro"]</div>
-}
-@* O "não coube, e foi por isto" do sorteio (Services/PorQueNaoCoube). Amarelo e não vermelho de
-   propósito: o sorteio SAIU, a grade existe e o torneio funciona — o que passou foi o prazo que o
-   organizador marcou, e a decisão de encurtar ou alugar mais quadra é dele. *@
-@if (TempData["Aviso"] != null)
-{
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Aviso"]
-    </div>
-}
+@* ⚠️ O `id` É CONTRATO COM O JS, e guarda uma falha calada (14/09/2026). O "Finalizar" do
+   cartão ao vivo agora vai por fetch pra não recarregar a página (recarga reinicia todo
+   <iframe> da tela). Só que o FinalizarPartida pode RECUSAR e mesmo assim redirecionar, com o
+   porquê aqui em `TempData["Erro"]` — que é de UMA LEITURA SÓ, e o fetch acabou de consumi-lo.
+   O js/jogos-ao-vivo-atualiza.js copia este bloco da resposta pra cá; sem o `id`, o organizador
+   aperta Finalizar, nada acontece e nada explica. Um <div> sem classe não muda nada na tela. *@
+<div id="pdzAvisoDaAcao">
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+    @* O "não coube, e foi por isto" do sorteio (Services/PorQueNaoCoube). Amarelo e não vermelho de
+       propósito: o sorteio SAIU, a grade existe e o torneio funciona — o que passou foi o prazo que o
+       organizador marcou, e a decisão de encurtar ou alugar mais quadra é dele. *@
+    @if (TempData["Aviso"] != null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Aviso"]
+        </div>
+    }
+</div>
 
 @* O ATALHO DO MARCADOR. Ele não tem o painel do organizador — sem esta faixa, o posto de
    trabalho dele (a Mesa de Controle) não teria porta nenhuma na página do torneio. Cada
@@ -2984,39 +2992,123 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <h6 class="fw-bold text-muted text-uppercase mb-2">
                             <i class="bi bi-chat-square-heart-fill"></i> Como o torneio foi avaliado
                         </h6>
-                        @if (enquete.TemMedia)
-                        {
-                            <div class="d-flex flex-wrap gap-4">
-                                <div>
-                                    <div class="small text-muted">O clube</div>
-                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaClube?.ToString("0.0")</div>
-                                </div>
-                                <div>
-                                    <div class="small text-muted">A organização</div>
-                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
-                                </div>
-                                @* A do sistema tem contagem própria (quem respondeu antes de a
-                                   pergunta existir não deu nota nenhuma ao Padelizou), então
-                                   ela pode faltar aqui mesmo com as outras duas na tela. *@
-                                @if (enquete.MediaSistema != null)
+                        @* ── CLICAR NA MÉDIA ABRE QUEM RESPONDEU ─────────────────────────
+                           `<details>` e não uma rota nova: a lista já veio com a página, e uma
+                           ação própria custaria [Authorize] + checagem de organizador pra
+                           entregar o que esta aba já tem na mão.
+
+                           ⚠️ O `<summary>` embrulha o bloco inteiro da média DE PROPÓSITO — o
+                           pedido era clicar no "4,9", e um link separado ao lado deixaria o
+                           número, que é onde a mão vai, inerte.
+
+                           A lista existe sempre que este cartão existe: as duas leituras saem
+                           da MESMA tabela, e o controller só a consulta com resposta > 0. *@
+                        @{
+                            var quemAvaliou = ViewBag.QuemAvaliou as List<Padelizou.Services.VotoNaEnquete>
+                                ?? new List<Padelizou.Services.VotoNaEnquete>();
+                        }
+                        @* O triângulo do `<summary>` fica: ele é o aviso de que dá pra abrir,
+                           e escondê-lo deixaria o texto sublinhado fazendo esse trabalho
+                           sozinho — é o mesmo arranjo do `<details>` da quadra preferencial. *@
+                        <details>
+                            <summary style="cursor: pointer;">
+                                @if (enquete.TemMedia)
                                 {
-                                    <div>
-                                        <div class="small text-muted">O Padelizou</div>
-                                        <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                    <div class="d-flex flex-wrap gap-4">
+                                        <div>
+                                            <div class="small text-muted">O clube</div>
+                                            <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaClube?.ToString("0.0")</div>
+                                        </div>
+                                        <div>
+                                            <div class="small text-muted">A organização</div>
+                                            <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
+                                        </div>
+                                        @* A do sistema tem contagem própria (quem respondeu antes de a
+                                           pergunta existir não deu nota nenhuma ao Padelizou), então
+                                           ela pode faltar aqui mesmo com as outras duas na tela. *@
+                                        @if (enquete.MediaSistema != null)
+                                        {
+                                            <div>
+                                                <div class="small text-muted">O Padelizou</div>
+                                                <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                            </div>
+                                        }
+                                        <div class="align-self-end small text-muted">
+                                            @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
+                                            <span class="ms-1 text-decoration-underline">— ver quem respondeu</span>
+                                        </div>
                                     </div>
                                 }
-                                <div class="align-self-end small text-muted">
-                                    @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
-                                </div>
+                                else
+                                {
+                                    <p class="small text-muted mb-0">
+                                        @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
+                                        a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                                        <span class="text-decoration-underline">Ver quem respondeu</span>
+                                    </p>
+                                }
+                            </summary>
+
+                            @* ⚠️ QUEM MARCOU "SEM O MEU NOME" ENTRA AQUI SEM NOME — e não é a
+                               view que esconde: o serviço não entrega. As notas dela aparecem,
+                               que é o que a tela de resposta combinou (o que fica sem nome é
+                               quem escreveu, não o que foi respondido). *@
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm align-middle mb-1">
+                                    <thead>
+                                        <tr class="small text-muted">
+                                            <th class="fw-normal">Quem respondeu</th>
+                                            <th class="fw-normal text-center">Clube</th>
+                                            <th class="fw-normal text-center">Organização</th>
+                                            <th class="fw-normal text-center">Padelizou</th>
+                                            <th class="fw-normal text-end">Quando</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var v in quemAvaliou)
+                                        {
+                                            <tr class="small">
+                                                <td>
+                                                    @if (v.Autor != null)
+                                                    {
+                                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@v.AutorId"
+                                                           class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
+                                                            @v.Autor
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">
+                                                            <i class="bi bi-incognito"></i> Sem identificação
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td class="text-center"><i class="bi bi-star-fill text-warning"></i> @v.NotaClube</td>
+                                                <td class="text-center"><i class="bi bi-star-fill text-warning"></i> @v.NotaOrganizacao</td>
+                                                @* Nula, e não zero: quem respondeu antes de a pergunta
+                                                   existir não deu nota nenhuma ao Padelizou. *@
+                                                <td class="text-center">
+                                                    @if (v.NotaSistema != null)
+                                                    {
+                                                        <text><i class="bi bi-star-fill text-warning"></i> @v.NotaSistema</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">—</span>
+                                                    }
+                                                </td>
+                                                <td class="text-end text-muted">@v.Quando.ToString("dd/MM")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
                             </div>
-                        }
-                        else
-                        {
                             <p class="small text-muted mb-0">
-                                @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
-                                a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                                O nome aparece de quem respondeu <strong>com o nome</strong>. Quem marcou
+                                "sem o meu nome" entra com as notas e sem identificação — foi o que
+                                combinamos com a pessoa na hora de responder.
                             </p>
-                        }
+                        </details>
 
                         @* ── O QUE ESCREVERAM ────────────────────────────────────────────
                            Tudo que tem texto, publicado ou não — e é o único lugar do sistema
@@ -3059,9 +3151,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 @c.Autor
                                             </a>
                                         }
+                                        @* A do Padelizou pode faltar: a pergunta nasceu depois
+                                           das primeiras respostas, e quem respondeu antes não
+                                           deu nota nenhuma ao sistema. *@
                                         <span class="small text-muted">
                                             <i class="bi bi-star-fill text-warning"></i> @c.NotaClube clube ·
                                             <i class="bi bi-star-fill text-warning"></i> @c.NotaOrganizacao organização
+                                            @if (c.NotaSistema != null)
+                                            {
+                                                <text>· <i class="bi bi-star-fill text-warning"></i> @c.NotaSistema Padelizou</text>
+                                            }
                                         </span>
                                         <span class="small text-muted ms-auto">@c.Quando.ToString("dd/MM")</span>
                                     </div>
@@ -3074,12 +3173,32 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     {
                                         <div class="small mb-1"><strong>Organização:</strong> @c.SobreAOrganizacao</div>
                                     }
+                                    @* ⚠️ ESTE NÃO VAI PRO MURAL — ele mora no Feedback do site
+                                       (a caixa com a moderação e o NPS do admin), e aparece
+                                       aqui porque quem escreveu leu que o texto chega "pra
+                                       quem organiza, pro clube e pro Padelizou". *@
+                                    @if (c.SobreOSistema != null)
+                                    {
+                                        <div class="small mb-1"><strong>Padelizou:</strong> @c.SobreOSistema</div>
+                                    }
 
+                                    @* O MURAL SÓ ACEITA O TEXTO DE CLUBE/ORGANIZAÇÃO. Quem
+                                       escreveu SÓ sobre o Padelizou aparece aqui (é o que a
+                                       tela de resposta prometeu) e não ganha botão nenhum: o
+                                       `PublicarAsync` recusaria, e botão que só sabe dar erro
+                                       é defeito com cara de recurso. *@
+                                    @{ var vaiParaOMural = c.SobreOClube != null || c.SobreAOrganizacao != null; }
                                     <div class="d-flex align-items-center gap-2 mt-2">
                                         @if (c.Publicado)
                                         {
                                             <span class="badge rounded-pill bg-success-subtle text-success-emphasis">
                                                 <i class="bi bi-eye"></i> No mural do torneio
+                                            </span>
+                                        }
+                                        else if (!vaiParaOMural)
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted border">
+                                                <i class="bi bi-eye-slash"></i> Só pra vocês — texto sobre o Padelizou não vai pro mural
                                             </span>
                                         }
                                         else
@@ -3089,7 +3208,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </span>
                                         }
 
-                                        @if (ViewBag.GestaoSoLeitura != true)
+                                        @if (ViewBag.GestaoSoLeitura != true && vaiParaOMural)
                                         {
                                             <form asp-controller="Torneios" asp-action="PublicarAvaliacao"
                                                   asp-route-id="@Model.Id" method="post" class="m-0">
@@ -3894,6 +4013,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </small>
                                 </div>
 
+                                @* O @ DE QUEM DIVULGA (14/09/2026). Vizinho do link das fotos e do
+                                   grupo, e com a MESMA regra dos dois: campo em branco apaga.
+                                   ⚠️ É do TORNEIO e não do clube — a etapa de circuito divulga no @
+                                   do circuito, o interno do mesmo clube divulga no @ do clube. *@
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small" for="instagramDoOrganizador">
+                                        @@ do Instagram de quem divulga
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">@@</span>
+                                        <input type="text" name="instagramDoOrganizador"
+                                               id="instagramDoOrganizador" class="form-control"
+                                               maxlength="200" placeholder="er.padel"
+                                               value="@Model.InstagramDoOrganizador" />
+                                    </div>
+                                    <small class="text-muted">
+                                        Assina as <strong>Artes pro story</strong> de cada jogo. Pode ser
+                                        o @@ do clube ou o do circuito — cole o endereço ou digite só o
+                                        nome. Apague o campo pra tirar a assinatura.
+                                    </small>
+                                </div>
+
                                 <div class="col-12">
                                     <label class="form-label fw-bold small">Trocar Imagem de Capa</label>
                                     <input type="file" name="capa" class="form-control" accept="image/*" />
@@ -3943,6 +4084,36 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     Quando o torneio acabar, quem jogou vota no melhor entre os campeões —
                                     fica aberto por uma semana. Desligado, a votação some da página (os
                                     votos que já existirem ficam guardados).
+                                </div>
+                            </div>
+
+                            @* O PALPITÔMETRO (14/09/2026, Services/AlcanceDoPalpitometro).
+                               Editável a qualquer momento, inclusive com o torneio rolando: o
+                               palpite já dado continua gravado e contando no ranking, e o que
+                               muda é o que a tela oferece daqui pra frente.
+
+                               ⚠️ Rádio de quatro, não caixa + alcance: dois campos separados
+                               poderiam discordar entre si. E rádio manda sempre o marcado — sem
+                               a pegadinha do hidden que a caixa do MVP aí em cima precisou. *@
+                            <label class="form-label fw-bold small mt-2 mb-1">Palpitômetro: quem a galera acha que ganha?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Todas" id="editPalpitometroTodas" @(Padelizou.Services.AlcanceDoPalpitometro.Normalizar(Model.PalpitometroEm) == Padelizou.Services.AlcanceDoPalpitometro.Todas ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroTodas">Em todas as categorias</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Masculina" id="editPalpitometroMasculina" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Masculina ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroMasculina">Só nas masculinas <span class="text-muted small">(mista e casal entram aqui)</span></label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Feminina" id="editPalpitometroFeminina" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Feminina ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroFeminina">Só nas femininas</label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="palpitometroEm" value="Nenhuma" id="editPalpitometroNenhuma" @(Model.PalpitometroEm == Padelizou.Services.AlcanceDoPalpitometro.Nenhuma ? "checked" : "")>
+                                <label class="form-check-label" for="editPalpitometroNenhuma">Não usar palpitômetro</label>
+                                <div class="small text-muted">
+                                    Desligado, o bloco some dos jogos e ninguém palpita mais — os palpites
+                                    que já existirem ficam guardados e continuam valendo no ranking.
                                 </div>
                             </div>
 
@@ -7059,9 +7230,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
     <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
+    <script src="~/js/acao-do-cartao-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
     <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
+    <script src="~/js/checkin-sem-recarregar.js" asp-append-version="true"></script>
     <script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
     @* O cinto das abas recolhidas: só assume onde o `:has()` do site.css não existe (o WebView
        do app Android). Ver o cabeçalho do arquivo. *@

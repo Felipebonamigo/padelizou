@@ -39,17 +39,67 @@ public class MvpDoTorneioTests
     // ─────────────────────────── A JANELA ───────────────────────────
 
     [Fact]
-    public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_sete_dias_depois_do_ultimo_jogo()
+    public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_24h_depois_do_ultimo_jogo()
     {
         // Logo depois do último jogo: aberta.
         Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1)));
 
-        // No sexto dia ainda dá.
-        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(6)));
+        // Na manhã seguinte ainda dá.
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(12)));
 
-        // No sétimo, fecha — e a partir daí o resultado aparece.
-        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(7)));
-        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(7)));
+        // Passadas as 24h, fecha — e a partir daí o resultado aparece.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(1)));
+        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(1)));
+    }
+
+    // ─────────────────── A JANELA DE 24h, E A DA ENQUETE QUE NÃO ENCOLHEU ───────────────────
+    //
+    // 🗣️ Felipe, 15/09/2026: *"7 dias é mt tempo, tem q ser 24h depois do ultimo jogo"*.
+    //
+    // ⚠️ E as duas janelas DEIXARAM DE SER A MESMA. Até aqui a enquete do clube reusava a
+    // janela do MVP; agora o MVP fecha em 24h e ela continua com a semana, porque quem depende
+    // dela é a coleta do "Melhor Clube do ano" de 2027 — encolher os dois seria cortar esse
+    // dado pela metade sem ninguém ter pedido.
+
+    [Fact]
+    public void A_votacao_do_MVP_fecha_24_HORAS_depois_do_ultimo_jogo()
+    {
+        // Na véspera de fechar ainda dá.
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(23)));
+
+        // Na hora exata fecha — e a partir daí o resultado aparece.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(24)));
+        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddHours(24)));
+
+        // E no dia seguinte segue fechada.
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(25)));
+    }
+
+    [Fact]
+    public void Fechado_o_MVP_a_enquete_do_clube_CONTINUA_aberta_ate_a_semana_acabar()
+    {
+        // Três dias depois: o MVP já fechou…
+        var tresDias = Domingo.AddDays(3);
+        Assert.False(Aberta(true, "Finalizado", Domingo, tresDias));
+
+        // …e a enquete, que tem janela PRÓPRIA, ainda aceita resposta.
+        Assert.True(EnqueteDoTorneio.Aberta("Finalizado", Domingo, tresDias, FormatoDoTorneio.Padrao));
+
+        // Ela fecha no sétimo dia, como sempre foi.
+        Assert.False(EnqueteDoTorneio.Aberta(
+            "Finalizado", Domingo, Domingo.AddDays(EnqueteDoTorneio.DiasParaResponder),
+            FormatoDoTorneio.Padrao));
+    }
+
+    [Fact]
+    public void O_aviso_do_MVP_nao_promete_mais_prazo_de_dias()
+    {
+        // O push é UM só e leva as duas coisas. Com prazos diferentes, "vale por N dias"
+        // passaria a mentir sobre a cédula: ela fecha em 24h.
+        var corpo = MvpDoTorneio.CorpoDoAviso("2ª Etapa ER PADEL TOUR", temMvp: true);
+
+        Assert.Contains("24h", corpo);
+        Assert.DoesNotContain("7 dias", corpo);
     }
 
     [Fact]
@@ -247,7 +297,7 @@ public class MvpDoTorneioTests
         await ctx.SaveChangesAsync();
 
         var desligada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
         Assert.False(desligada!.Aberta);
         Assert.False(desligada.Encerrada);
         Assert.Empty(desligada.Vencedores);
@@ -259,7 +309,7 @@ public class MvpDoTorneioTests
         await ctx.SaveChangesAsync();
 
         var religada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
         Assert.True(religada!.Encerrada);
         var eleito = Assert.Single(religada.Vencedores);
         Assert.Equal(campea.Jogador1Id, eleito.JogadorId);
@@ -673,6 +723,144 @@ public class MvpDoTorneioTests
         ctx.SaveChanges();
     }
 
+    // ────────────────── A LISTA DE BAIXO MUDA DE FORMA QUANDO A VOTAÇÃO FECHA ──────────────────
+    //
+    // 🗣️ Felipe, 15/09/2026, com o print do resultado do 2ª Etapa ER PADEL TOUR: *"aqui tem q
+    // deixar ordenado pelos votos e nao tem pq mostrar 2 vezes o vencedor"*.
+    //
+    // ⚠️ SÓ DEPOIS DE FECHAR. Com a votação ABERTA a lista continua na ordem da chave: ordenar
+    // pelo parcial ali entregaria o placar que a tela esconde de propósito (efeito manada), e
+    // desfaria o pedido de 13/09 de manter as duplas juntas por categoria.
+
+    // ⚠️ A PARTIDA NÃO É ENFEITE DO CENÁRIO: a janela conta do ÚLTIMO JOGO, e um torneio
+    // "Finalizado" sem partida nenhuma tem `UltimoJogo` nulo — nem abre nem fecha. Sem esta
+    // linha os testes daqui leem uma votação que nunca existiu, e passariam a medir o nada.
+    private static void UmJogoFinalizadoEm(DbPadelContext ctx, Torneio torneio, DateTime fim)
+    {
+        // ⚠️ A primeira categoria COM DUPLA: o `MontarTorneio` cria uma categoria vazia, e
+        // pegar essa deixaria a partida sem os dois lados.
+        var cat = ctx.Categorias
+            .Where(c => c.TorneioId == torneio.Id)
+            .First(c => ctx.Duplas.Any(d => d.CategoriaId == c.Id));
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == cat.Id).Take(2).ToList();
+
+        ctx.Partidas.Add(new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = cat.Id,
+            Dupla1Id = duplas[0].Id, Dupla2Id = duplas.Count > 1 ? duplas[1].Id : duplas[0].Id,
+            VencedorId = duplas[0].Id, Status = "Finalizada",
+            HorarioFimReal = fim, Fase = "Final", Codigo = "P1",
+        });
+        ctx.SaveChanges();
+    }
+
+    // Semeia votos direto na tabela: com a janela fechada o VotarAsync recusa, e é o cenário
+    // fechado que estes testes leem.
+    private static void SemearVotos(DbPadelContext ctx, int torneioId, int candidatoId, int votos,
+        ref int proximoVotante)
+    {
+        for (var i = 0; i < votos; i++)
+        {
+            ctx.VotosDeMvp.Add(new VotoDeMvp
+            {
+                TorneioId = torneioId, VotanteId = proximoVotante++,
+                CandidatoId = candidatoId, CriadoEm = Domingo.AddHours(1),
+            });
+        }
+        ctx.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Fechada_a_votacao_a_lista_sai_do_MAIS_VOTADO_pro_menos_e_SEM_o_vencedor()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+        torneio.UsaVotacaoDeMvp = true;
+
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+        CampeaDe(ctx, torneio, "5ª Categoria Masculina", "C5M", "Paulo Pujol", "Vitor Bittencourt");
+        UmJogoFinalizadoEm(ctx, torneio, Domingo);
+        await ctx.SaveChangesAsync();
+
+        int Id(string nome) => ctx.Jogadores.First(j => j.Nome == nome).Id;
+        var votante = 9000;
+        SemearVotos(ctx, torneio.Id, Id("Paulo Pujol"), 7, ref votante);       // o eleito
+        SemearVotos(ctx, torneio.Id, Id("Lucas Biehl"), 6, ref votante);
+        SemearVotos(ctx, torneio.Id, Id("Arthur Guex"), 5, ref votante);
+        SemearVotos(ctx, torneio.Id, Id("Vitor Bittencourt"), 4, ref votante);
+
+        var fechada = await MvpDoTorneio.DoTorneioAsync(
+            ctx, torneio.Id, Id("Arthur Guex"), Domingo.AddDays(2));
+
+        // O pódio tem o Paulo, e a lista de baixo NÃO o repete.
+        Assert.Equal("Paulo Pujol", Assert.Single(fechada!.Vencedores).Nome);
+        Assert.Equal(new[] { "Lucas Biehl", "Arthur Guex", "Vitor Bittencourt" },
+            fechada.CandidatosNaTela.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public async Task No_EMPATE_os_DOIS_eleitos_saem_da_lista_de_baixo()
+    {
+        // O pódio mostra os dois; repeti-los embaixo seria mostrar quatro vezes duas pessoas.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+        torneio.UsaVotacaoDeMvp = true;
+
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+        CampeaDe(ctx, torneio, "5ª Categoria Masculina", "C5M", "Paulo Pujol", "Vitor Bittencourt");
+        UmJogoFinalizadoEm(ctx, torneio, Domingo);
+        await ctx.SaveChangesAsync();
+
+        int Id(string nome) => ctx.Jogadores.First(j => j.Nome == nome).Id;
+        var votante = 9000;
+        SemearVotos(ctx, torneio.Id, Id("Paulo Pujol"), 6, ref votante);
+        SemearVotos(ctx, torneio.Id, Id("Lucas Biehl"), 6, ref votante);
+        SemearVotos(ctx, torneio.Id, Id("Arthur Guex"), 3, ref votante);
+
+        var fechada = await MvpDoTorneio.DoTorneioAsync(
+            ctx, torneio.Id, Id("Arthur Guex"), Domingo.AddDays(2));
+
+        Assert.True(fechada!.Empatou);
+        Assert.Equal(new[] { "Lucas Biehl", "Paulo Pujol" },
+            fechada.Vencedores.Select(v => v.Nome).OrderBy(n => n));
+        Assert.Equal(new[] { "Arthur Guex", "Vitor Bittencourt" },
+            fechada.CandidatosNaTela.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public async Task ABERTA_a_lista_continua_na_ordem_da_CHAVE_e_nao_pela_nova()
+    {
+        // Este é o teste que protege o pedido de 13/09 — as duplas juntas, da categoria mais
+        // forte pra mais fraca — de a ordenação nova escapar pra cédula aberta.
+        //
+        // ⚠️ OS NOMES SÃO ESCOLHIDOS PRA O ALFABETO DISCORDAR DA CHAVE, e isso é o teste
+        // inteiro: "Alexandre" (4ª) vem antes de "Arthur" (3ª) no dicionário. Com a votação
+        // aberta TODO CANDIDATO TEM ZERO VOTO — o serviço só preenche a contagem depois de
+        // fechar, pra o parcial não virar efeito manada —, então a ordenação por votos cairia
+        // no desempate por NOME. Com nomes que seguem o alfabeto na mesma ordem da chave, o
+        // defeito passaria despercebido: as duas ordens dariam a mesma lista.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0, status: "Finalizado");
+        torneio.UsaVotacaoDeMvp = true;
+
+        CampeaDe(ctx, torneio, "4ª Categoria Masculina", "C4M", "Alexandre Longhi", "Felipe Zago");
+        CampeaDe(ctx, torneio, "3ª Categoria Masculina", "C3M", "Arthur Guex", "Lucas Biehl");
+        UmJogoFinalizadoEm(ctx, torneio, Domingo);
+        await ctx.SaveChangesAsync();
+
+        int Id(string nome) => ctx.Jogadores.First(j => j.Nome == nome).Id;
+
+        var aberta = await MvpDoTorneio.DoTorneioAsync(
+            ctx, torneio.Id, Id("Arthur Guex"), Domingo.AddHours(1));
+
+        Assert.True(aberta!.Aberta);
+        // A 3ª Masculina vem antes da 4ª, com cada dupla junta. Por votos (todos zerados) a
+        // lista sairia em ordem alfabética: Alexandre, Arthur, Felipe, Lucas — e as duas
+        // duplas apareceriam picadas.
+        Assert.Equal(new[] { "Arthur Guex", "Lucas Biehl", "Alexandre Longhi", "Felipe Zago" },
+            aberta.CandidatosNaTela.Select(c => c.Nome));
+    }
+
     [Fact]
     public async Task A_cedula_sai_por_CATEGORIA_da_mais_forte_pra_mais_fraca_com_a_dupla_junta()
     {
@@ -911,7 +1099,7 @@ public class MvpDoTorneioTests
 
         var recusa = await MvpDoTorneio.VotarAsync(
             ctx, torneio.Id, vice.Jogador1Id, campea.Jogador1Id,
-            Domingo.AddDays(MvpDoTorneio.DiasParaVotar + 1));
+            Domingo.AddHours(MvpDoTorneio.HorasParaVotar + 1));
 
         Assert.NotNull(recusa);
         Assert.Empty(ctx.VotosDeMvp);
@@ -941,7 +1129,7 @@ public class MvpDoTorneioTests
 
         // Depois que fecha, o resultado aparece inteiro.
         var fechada = await MvpDoTorneio.DoTorneioAsync(
-            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar));
 
         Assert.True(fechada!.Encerrada);
         var eleito = Assert.Single(fechada.Vencedores);
@@ -999,10 +1187,12 @@ public class MvpDoTorneioTests
         await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos);
 
         // Com a votação ainda ABERTA não há eleito — mesma razão de a tela esconder o parcial.
-        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, Domingo.AddDays(1)));
+        // ⚠️ Uma hora depois, e não um dia: desde 15/09/2026 `AddDays(1)` é o instante EXATO em
+        // que a janela fecha, e o teste passaria a medir o outro lado da régua sem avisar.
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, Domingo.AddHours(1)));
 
         // Fechou: a campeã tem a conquista, o vice não.
-        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+        var depoisDeFechar = Domingo.AddHours(MvpDoTorneio.HorasParaVotar);
         Assert.Equal(1, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
         Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, vice.Jogador1Id, depoisDeFechar));
     }
@@ -1017,7 +1207,7 @@ public class MvpDoTorneioTests
         await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos - 1);
 
         Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(
-            ctx, campea.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar)));
+            ctx, campea.Jogador1Id, Domingo.AddHours(MvpDoTorneio.HorasParaVotar)));
     }
 
     [Fact]
@@ -1026,7 +1216,7 @@ public class MvpDoTorneioTests
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
         var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
-        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+        var depoisDeFechar = Domingo.AddHours(MvpDoTorneio.HorasParaVotar);
 
         // Cada campeão com o mínimo de votos, empatados no topo. Os votos entram direto na
         // tabela (a apuração lê a tabela; quem valida eleitor é o VotarAsync, na entrada).

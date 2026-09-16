@@ -11,8 +11,9 @@ namespace Padelizou.Services;
 // — a mesma razão que fez o MVP sair em 2026.
 //
 // Decisões de desenho:
-// - A enquete mora na tela do MVP e usa a MESMA janela de 7 dias (o dono da janela é
-//   MvpDoTorneio.DentroDaJanela).
+// - A enquete mora na tela do MVP, mas o PRAZO É DELA: 7 dias (`DiasParaResponder`). Foram a
+//   mesma janela até 15/09/2026, quando o MVP encolheu pra 24h e esta ficou onde estava — a
+//   forma continua compartilhada (`MvpDoTorneio.DentroDaJanela`), a duração não.
 // - ⚠️ **O AMERICANO NÃO AVALIA** (decisão do Felipe, 17/08/2026): a enquete acompanha o MVP
 //   no que diz respeito ao FORMATO. A coleta do "Melhor Clube do ano" passa a sair só dos
 //   torneios normais — menos dado, e essa é a escolha dele, feita sabendo do trade-off.
@@ -44,6 +45,15 @@ public static class EnqueteDoTorneio
     // Mesmo espírito do MvpDoTorneio.VotosMinimos: abaixo disso não há "média", há uma pessoa.
     public const int RespostasParaMostrarMedia = 3;
 
+    // A SEMANA, E ELA É DAQUI (15/09/2026). Até esta data a enquete não tinha prazo próprio:
+    // usava o do MVP, que era o mesmo 7. Quando o MVP encolheu pra 24h — ele é sobre o calor do
+    // jogo que acabou —, este número FICOU, porque quem depende dele é outra coisa: a coleta
+    // do "Melhor Clube do ano" de 2027. Nota de clube não esfria em um dia, e cortar a janela
+    // aqui seria cortar um ano de dado pela metade de brinde, sem ninguém ter pedido.
+    public const int DiasParaResponder = 7;
+
+    private static readonly TimeSpan Janela = TimeSpan.FromDays(DiasParaResponder);
+
     // Cabe um parágrafo de verdade e não cabe um textão. O mesmo número está no `HasMaxLength`
     // do DbPadelContext e no `maxlength` da tela — as três réguas TÊM que ser a mesma, porque
     // o Postgres recusa `varchar` grande demais em vez de cortar.
@@ -58,7 +68,7 @@ public static class EnqueteDoTorneio
     public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora,
         string? formato) =>
         FormatoDoTorneio.TemPosTorneio(formato)
-        && MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
+        && MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora, Janela);
 
     public static bool MediaVisivel(int respostas) => respostas >= RespostasParaMostrarMedia;
 
@@ -259,18 +269,56 @@ public static class EnqueteDoTorneio
 
     // A visão de quem recebe (organizador, dono do clube, Padelizou): tudo que tem texto,
     // publicado ou não. É aqui que o anônimo aparece — sem nome, como foi combinado.
-    public static Task<List<ComentarioDoTorneio>> ParaModerarAsync(DbPadelContext contexto, int torneioId) =>
-        LerAsync(contexto, a => a.TorneioId == torneioId
-                             && (a.ComentarioClube != null || a.ComentarioOrganizacao != null));
+    //
+    // ⚠️ É A ÚNICA LEITURA QUE CARREGA O PADELIZOU — a nota e o texto sobre o sistema. E o
+    // texto vem de OUTRA TABELA: o que se escreve sobre o Padelizou vira linha em
+    // `FeedbackSite` (ver GravarOTextoDoSistemaAsync). Era essa mudança de endereço que fazia
+    // quem escreveu SÓ sobre o sistema sumir daqui inteiro — a avaliação dele fica sem texto
+    // nenhum, o filtro antigo a descartava, e nem a nota chegava a quem organiza.
+    //
+    // Duas consultas em vez de uma subconsulta correlata, de propósito: o `Contains` sobre a
+    // lista local vira um `IN (...)` que o Postgres traduz sem surpresa, e o EF InMemory dos
+    // testes não valida SQL nenhum (ver CLAUDE.md) — o que não for trivial aqui só estoura em
+    // produção.
+    public static async Task<List<ComentarioDoTorneio>> ParaModerarAsync(DbPadelContext contexto, int torneioId)
+    {
+        var textosDoSistema = await contexto.FeedbacksSite
+            .AsNoTracking()
+            .Where(f => f.TorneioId == torneioId)
+            .Select(f => new { f.JogadorId, f.Texto })
+            .ToListAsync();
+
+        // `GroupBy` antes do dicionário porque um `ToDictionary` seco estoura em chave
+        // repetida — e estourar aqui derrubaria a aba de gestão inteira por causa de uma
+        // linha duplicada que a gravação não cria hoje, mas nada no banco proíbe.
+        var porJogador = textosDoSistema
+            .GroupBy(t => t.JogadorId)
+            .ToDictionary(g => g.Key, g => g.First().Texto);
+
+        var quemEscreveuDoSistema = porJogador.Keys.ToList();
+
+        return await LerAsync(
+            contexto,
+            a => a.TorneioId == torneioId
+              && (a.ComentarioClube != null || a.ComentarioOrganizacao != null
+                  || quemEscreveuDoSistema.Contains(a.JogadorId)),
+            textosSobreOPadelizou: porJogador);
+    }
 
     // O que disseram do CLUBE, atravessando os torneios que ele sediou — a tela do dono.
     public static Task<List<ComentarioDoTorneio>> DoClubeAsync(DbPadelContext contexto, int clubeId, int limite = 20) =>
         LerAsync(contexto, a => a.Torneio.ClubeId == clubeId && a.ComentarioClube != null, limite);
 
+    // ⚠️ `textosSobreOPadelizou` É O INTERRUPTOR DO SISTEMA, e é UM só: quem passa o
+    // dicionário vê a nota E o texto do Padelizou; quem não passa (o mural público, o painel
+    // do clube) recebe os dois NULOS. Mesma régua do nome de quem é anônimo — a view não tem
+    // como esquecer de esconder o que não veio. A chave é o JogadorId porque quem passa o
+    // dicionário lê UM torneio; ler vários pediria a chave composta com o TorneioId.
     private static async Task<List<ComentarioDoTorneio>> LerAsync(
         DbPadelContext contexto,
         System.Linq.Expressions.Expression<Func<AvaliacaoDoTorneio, bool>> filtro,
-        int limite = 200)
+        int limite = 200,
+        IReadOnlyDictionary<int, string>? textosSobreOPadelizou = null)
     {
         var linhas = await contexto.AvaliacoesDeTorneio
             .AsNoTracking()
@@ -284,6 +332,7 @@ public static class EnqueteDoTorneio
                 TorneioNome = a.Torneio.Nome,
                 a.NotaClube,
                 a.NotaOrganizacao,
+                a.NotaSistema,
                 a.ComentarioClube,
                 a.ComentarioOrganizacao,
                 a.Anonimo,
@@ -309,8 +358,55 @@ public static class EnqueteDoTorneio
             NotaOrganizacao = l.NotaOrganizacao,
             SobreOClube = l.ComentarioClube,
             SobreAOrganizacao = l.ComentarioOrganizacao,
+            NotaSistema = textosSobreOPadelizou == null ? null : l.NotaSistema,
+            SobreOSistema = textosSobreOPadelizou != null
+                && textosSobreOPadelizou.TryGetValue(l.AutorId, out var doSistema) ? doSistema : null,
             Anonimo = l.Anonimo,
             Publicado = l.PublicadoEm != null,
+            Quando = l.CriadoEm,
+            AutorId = l.Anonimo ? null : l.AutorId,
+            Autor = l.Anonimo ? null : NomeBonito.ComApelido(l.AutorNome, l.AutorApelido),
+            FotoDoAutor = l.Anonimo ? null : l.AutorFoto,
+        }).ToList();
+    }
+
+    // QUEM RESPONDEU, uma linha por pessoa — a lista que abre ao clicar na média, no painel de
+    // quem organiza. A média responde "quanto"; quem organiza também pergunta "quem", e com 21
+    // respostas o número sozinho não diz de quem ainda falta a resposta.
+    //
+    // ⚠️ MESMA RÉGUA DO COMENTÁRIO, e ela vale AQUI TAMBÉM: quem marcou "sem o meu nome" sai
+    // desta lista SEM nome, SEM id e SEM foto. A tela de resposta promete que ninguém vê quem
+    // escreveu; esconder na view seria promessa que a próxima view esquece.
+    //
+    // ⚠️ E o que aparece com nome é quem marcou "com o meu nome" — que é o DEFAULT da tela.
+    // Quem respondeu só as estrelas, sem escrever nada, nunca decidiu nada sobre isso: por
+    // isso a lista fica atrás da régua de quem modera, e não perto de superfície pública.
+    public static async Task<List<VotoNaEnquete>> QuemAvaliouAsync(DbPadelContext contexto, int torneioId)
+    {
+        var linhas = await contexto.AvaliacoesDeTorneio
+            .AsNoTracking()
+            .Where(a => a.TorneioId == torneioId)
+            .OrderByDescending(a => a.CriadoEm)
+            .Select(a => new
+            {
+                a.NotaClube,
+                a.NotaOrganizacao,
+                a.NotaSistema,
+                a.Anonimo,
+                a.CriadoEm,
+                AutorId = a.JogadorId,
+                AutorNome = a.Jogador.Nome,
+                AutorApelido = a.Jogador.Apelido,
+                AutorFoto = a.Jogador.FotoPerfil,
+            })
+            .ToListAsync();
+
+        return linhas.Select(l => new VotoNaEnquete
+        {
+            NotaClube = l.NotaClube,
+            NotaOrganizacao = l.NotaOrganizacao,
+            NotaSistema = l.NotaSistema,
+            Anonimo = l.Anonimo,
             Quando = l.CriadoEm,
             AutorId = l.Anonimo ? null : l.AutorId,
             Autor = l.Anonimo ? null : NomeBonito.ComApelido(l.AutorNome, l.AutorApelido),
@@ -437,6 +533,13 @@ public sealed class ComentarioDoTorneio
     public string? SobreOClube { get; set; }
     public string? SobreAOrganizacao { get; set; }
 
+    // ⚠️ OS DOIS DO PADELIZOU CHEGAM NULOS EM TODA LEITURA QUE NÃO SEJA A DE QUEM MODERA — o
+    // mural público e o painel do clube não os recebem, e por isso não têm como exibi-los por
+    // engano. O texto não mora na avaliação: vem do `FeedbackSite` do mesmo par
+    // (torneio, jogador), casado em `ParaModerarAsync`.
+    public int? NotaSistema { get; set; }
+    public string? SobreOSistema { get; set; }
+
     public bool Anonimo { get; set; }
     public bool Publicado { get; set; }
     public DateTime Quando { get; set; }
@@ -459,4 +562,21 @@ public sealed class ResumoDaEnquete
     public int EsperandoDecisao { get; set; }
 
     public bool TemMedia => MediaClube != null;
+}
+
+// UMA RESPOSTA DA ENQUETE COMO O PAINEL DE QUEM ORGANIZA A MOSTRA — a lista que abre ao clicar
+// na média. ⚠️ `Autor`, `AutorId` e `FotoDoAutor` chegam NULOS quando a pessoa marcou "sem o
+// meu nome": o nome não sai do serviço nem pra quem organiza, que é o combinado da tela.
+public sealed class VotoNaEnquete
+{
+    public int? AutorId { get; set; }
+    public string? Autor { get; set; }
+    public string? FotoDoAutor { get; set; }
+    public bool Anonimo { get; set; }
+
+    public int NotaClube { get; set; }
+    public int NotaOrganizacao { get; set; }
+    public int? NotaSistema { get; set; }
+
+    public DateTime Quando { get; set; }
 }

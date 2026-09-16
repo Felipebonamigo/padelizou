@@ -362,6 +362,7 @@
                 @foreach (var cat in Model.PorCategoria)
                 {
                     <div class="pdz-cat-panel" data-cat="@cat.Categoria" hidden>
+                        <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.PorCategoria, cat.Categoria))' />
                         <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                             @* No celular ficam só as colunas que respondem "quem está na frente":
                                posição, nome e pontos. Torneios e Mês somem abaixo de 576px —
@@ -426,6 +427,7 @@
             }
             else
             {
+                <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.Padelimetro))' />
                 <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                     @* No celular ficam as colunas que respondem "quem está na frente": posição, nome e PDZ. *@
                     <thead><tr>
@@ -515,6 +517,7 @@
                         <i class="bi bi-person"></i> Parceiro trocando a cada rodada — o resultado é
                         <strong>seu</strong>.
                     </p>
+                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.AmericanoIndividual))' />
                     <partial name="_TabelaRankingAmericano" model="(Model.AmericanoIndividual, Model.JanelaDoAmericano)" />
                 </div>
                 <div class="tab-pane fade" id="sub-am-duplas" role="tabpanel">
@@ -522,6 +525,7 @@
                         <i class="bi bi-people"></i> Dupla fixa do começo ao fim — a colocação é
                         <strong>da dupla</strong>, e os dois levam os mesmos pontos.
                     </p>
+                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.AmericanoDuplas))' />
                     <partial name="_TabelaRankingAmericano" model="(Model.AmericanoDuplas, Model.JanelaDoAmericano)" />
                 </div>
             </div>
@@ -576,6 +580,7 @@
                             {
                                 var cat = Model.TrofeusPorCategoria[i];
                                 <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="trf-@i" role="tabpanel">
+                                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.Trofeus, cat.Categoria))' />
                                     <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                                         <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Finais</th></tr></thead>
                                         <tbody>
@@ -612,11 +617,13 @@
                     <h5 class="fw-bold mb-2"><i class="bi bi-person text-secondary"></i> Individual</h5>
                     <p class="text-muted small mb-2">Parceiro trocando a cada rodada — o título é <strong>seu</strong>.</p>
                     <div class="mb-4">
+                        <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.TrofeusAmericanoIndividual))' />
                         <partial name="_TrofeusDoAmericano" model='@((Model.TrofeusAmericanoIndividual, "individual"))' />
                     </div>
 
                     <h5 class="fw-bold mb-2"><i class="bi bi-people text-secondary"></i> Em duplas</h5>
                     <p class="text-muted small mb-2">Dupla fixa do começo ao fim — o título é <strong>da dupla</strong>, e os dois o levam.</p>
+                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.TrofeusAmericanoDuplas))' />
                     <partial name="_TrofeusDoAmericano" model='@((Model.TrofeusAmericanoDuplas, "de duplas"))' />
                 </div>
             </div>
@@ -670,6 +677,7 @@
             }
             else
             {
+                <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.VitoriasJogadores))' />
                 <h5 class="fw-bold mb-2"><i class="bi bi-globe2 text-secondary"></i> Geral (todas as categorias)</h5>
                 <div class="card shadow-sm border-0 mb-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                     <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th><th class="text-end pe-3">Aproveit.</th></tr></thead>
@@ -701,6 +709,7 @@
                     {
                         var cat = Model.VitoriasJogadoresPorCategoria[i];
                         <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="vjc-@i" role="tabpanel">
+                            <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.VitoriasJogadores, cat.Categoria))' />
                             <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                                 <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
                                 <tbody>
@@ -733,6 +742,7 @@
             else
             {
                 <p class="text-muted small mb-2">Cada dupla é uma inscrição em um torneio/categoria (a mesma parceria em torneios diferentes conta separado).</p>
+                <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.VitoriasDuplas))' />
                 <h5 class="fw-bold mb-2"><i class="bi bi-globe2 text-secondary"></i> Geral</h5>
                 <div class="card shadow-sm border-0 mb-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                     <thead><tr><th class="text-center" style="width:60px;">#</th><th>Dupla</th><th>Categoria / Torneio</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
@@ -764,6 +774,7 @@
                     {
                         var cat = Model.VitoriasDuplasPorCategoria[i];
                         <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="vdc-@i" role="tabpanel">
+                            <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.VitoriasDuplas, cat.Categoria))' />
                             <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
                                 <thead><tr><th class="text-center" style="width:60px;">#</th><th>Dupla</th><th>Torneio</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
                                 <tbody>
@@ -794,6 +805,7 @@
             <div class="row g-4">
                 <div class="col-lg-6">
                     <h5 class="fw-bold mb-2"><i class="bi bi-person-fill text-danger"></i> Jogadores mais invictos</h5>
+                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.InvictosJogadores))' />
                     @if (!Model.InvictosJogadores.Any())
                     {
                         <div class="text-muted small">Sem dados ainda.</div>
@@ -820,6 +832,7 @@
                 </div>
                 <div class="col-lg-6">
                     <h5 class="fw-bold mb-2"><i class="bi bi-people-fill text-danger"></i> Duplas mais invictas</h5>
+                    <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.InvictasDuplas))' />
                     @if (!Model.InvictasDuplas.Any())
                     {
                         <div class="text-muted small">Sem dados ainda.</div>
@@ -962,12 +975,14 @@
 
                     <div class="tab-content">
                         <div class="tab-pane fade show active" id="sub-des-duplas" role="tabpanel">
+                            <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.DesafiosDuplas))' />
                             <div class="card shadow-sm border-0">
                                 <partial name="_TabelaDoRankingDeDesafios"
                                          model='@(new TabelaDoRankingVM(desafios.Duplas, desafios.MeuId, "Dupla"))' />
                             </div>
                         </div>
                         <div class="tab-pane fade" id="sub-des-jogadores" role="tabpanel">
+                            <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.DesafiosJogadores))' />
                             <div class="card shadow-sm border-0">
                                 <partial name="_TabelaDoRankingDeDesafios"
                                          model='@(new TabelaDoRankingVM(desafios.Jogadores, desafios.MeuId, "Jogador"))' />
@@ -1006,6 +1021,7 @@
                     </p>
                 </div>
 
+                <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.Palpiteiros))' />
                 <partial name="_TabelaDePalpiteiros"
                          model='@(new TabelaDePalpiteirosVM(Model.Palpiteiros, Model.EuId, alguemCravou))' />
             </div>
@@ -1013,6 +1029,7 @@
 
         @* ============================ 10. RANKING DE TIMES ============================ *@
         <div class="tab-pane fade" id="tab-times" role="tabpanel">
+            <partial name="_BotaoCompartilharRanking" model='@(new BotaoDeCompartilharRanking(Model, Padelizou.Services.AbaDoRanking.Times))' />
             <p class="text-muted small mb-3">Cada ponto que um jogador conquista em torneio soma para o time dele. Mesma pontuação por fase do ranking individual.</p>
             @if (!Model.Times.Any())
             {
@@ -1162,3 +1179,9 @@
         if (primeiro) aplicar(primeiro.dataset.cat);
     })();
 </script>
+
+@section Scripts {
+    @* O botão "Compartilhar" de cada aba (14/09/2026). O mesmo script dos cards de torneio:
+       menu nativo com o PNG anexado no celular, queda pro download onde não dá. *@
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

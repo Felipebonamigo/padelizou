@@ -3432,6 +3432,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
 
 .pdz-jl-checkin-chegou { color: var(--padel-green); }
 
+/* NÃO GRAVOU (15/09/2026). Com o clique indo por `fetch` não há mais recarga pra denunciar o
+   que o servidor não recebeu — a bolinha volta ao estado antigo, e esta cor é a única pista de
+   que aquele toque não virou presença. Ela FICA até alguém tocar de novo, igual ao
+   `.pdz-live-salvo-erro` do placar: aviso de erro que some sozinho é aviso que ninguém leu.
+   Ver wwwroot/js/checkin-sem-recarregar.js. */
+.pdz-jl-checkin-erro { color: var(--bs-danger, #dc3545); }
+
 /* O PAR, quando a chamada está ligada (12/09/2026). Com um check POR JOGADOR os rostos saem de
    cima um do outro e cada um cola no seu nome — sobrepostos, não dá pra saber de quem é o check.
    O par continua sendo UMA COISA (`.pdz-jl-par`) porque é ele que a porcentagem do palpitômetro

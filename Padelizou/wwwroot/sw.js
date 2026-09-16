@@ -43,7 +43,15 @@
 // abertura: o arquivo não está na lista abaixo, mas cai na regra de `isStaticAsset`, que serve a
 // CÓPIA GUARDADA e só busca a nova em segundo plano. Conferido no `origin/main` ANTES de escolher
 // o número (estava em v36).
-const CACHE_NAME = "padelizou-static-v37";
+// ⚠️ v38 pelo mesmo motivo do v35, do v36 e do v37, agora pelo check-in que deixou de recarregar
+// a página (🗣️ Felipe: *"no checkin, ao clicar para marcar, nao deveria atualizar a pagina
+// inteira"*). Mudaram o `site.css` — que ESTÁ na lista abaixo — e o `jogos-ao-vivo-atualiza.js`,
+// que não está mas cai na regra de `isStaticAsset`: ela serve a CÓPIA GUARDADA e só busca a nova
+// em segundo plano. Sem virar o número, quem usa o app instalado seguiria com o JavaScript velho
+// por mais uma abertura — e é justamente o organizador com o celular na mão, marcando presença no
+// meio do torneio, quem a correção existe pra atender. Conferido no `origin/main` ANTES de
+// escolher o número (estava em v37).
+const CACHE_NAME = "padelizou-static-v38";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Padelizou.Models;
 
 using padelizou.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 [Table("Torneio")]
 public partial class Torneio
@@ -489,6 +490,19 @@ public partial class Torneio
     // decide se o endereço serve continua sendo o serviço, nunca a view.
     public string? LinkDasFotos { get; set; }
 
+    // O @ DO INSTAGRAM DE QUEM ORGANIZA (14/09/2026) — a assinatura da arte do jogo pro story.
+    //
+    // Nulo = a arte sai sem essa linha, e não com um "@" solto. Guarda o @ SEM o arroba na
+    // frente, normalizado por `Services/ArrobaDoInstagram` — que também é quem recusa o que não
+    // é @ de verdade, porque este valor é IMPRESSO numa imagem que vai pro Instagram.
+    //
+    // ⚠️ É do TORNEIO, e não do clube nem do organizador: o mesmo clube sedia etapa de circuito
+    // que divulga no @ do circuito e torneio interno que divulga no @ do clube. Guardar no
+    // Clube faria a etapa herdar o @ errado; guardar no Jogador poria o @ PESSOAL de quem
+    // organiza onde o print tem o do evento. (Viaja na duplicação — ver DuplicacaoDeTorneio.)
+    [StringLength(40)]
+    public string? InstagramDoOrganizador { get; set; }
+
     // ---- O que o inscrito quer saber e ninguém respondia ----
     // Duas datas PREVISTAS, não automáticas: quando as inscrições devem fechar e quando o
     // chaveamento deve sair. O sistema não age por elas (quem encerra e quem sorteia continua
@@ -522,6 +536,24 @@ public partial class Torneio
     // votação desligada e o recurso estrearia invisível — o mesmo cuidado que a migração
     // `CheckInOpcional` teve, só que no sentido contrário.
     public bool UsaVotacaoDeMvp { get; set; } = true;
+
+    // ONDE O PALPITÔMETRO VALE neste torneio (Felipe, 14/09/2026). Quatro valores, em
+    // Services/AlcanceDoPalpitometro: "Nenhuma", "Todas", "Masculina", "Feminina".
+    //
+    // 🗣️ *"coloque la para o organizador decidir se vai habilitar o palpitometro ou nao, se vai
+    // ser apenas da masculina/feminina ou em ambos"*.
+    //
+    // ⚠️ NASCE EM `Todas` — 🗣️ *"deixe nascendo como permitido e nas tanto feminino como
+    // masculino"* —, que é exatamente o que o sistema sempre fez. O interruptor existe pro
+    // organizador que não quer a brincadeira, ou que só a quer de um lado do torneio.
+    //
+    // ⚠️ UMA COLUNA, E NÃO UM `bool` MAIS UM ALCANCE: as duas perguntas do pedido cabem num
+    // valor só, e dois campos separados poderiam discordar (desligado com "Feminina" ao lado).
+    // Mesma decisão, e mesmo motivo, do `GamesSoDaFinal` logo acima.
+    //
+    // ⚠️ Ligado também no que JÁ EXISTE: a migration grava "Todas" nas linhas antigas. O EF
+    // escreveria string vazia (ele olha o tipo, não o inicializador) — ver a nota lá.
+    public string PalpitometroEm { get; set; } = Padelizou.Services.AlcanceDoPalpitometro.Todas;
 
     // Quando o "vote no MVP" foi disparado pra quem jogou. Nulo = ainda não saiu.
     //
