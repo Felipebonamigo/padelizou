@@ -1,6 +1,18 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
+>
+> 🔇 **O DEFEITO QUE ESTE BLOCO MAIS ARRISCAVA ERA CALADO: faltar o `Include(j => j.Time)`.** A tela não quebraria — simplesmente não mostraria time nenhum, sem erro e sem log. Por isso o teste que segura isso é o primeiro do arquivo.
+>
+> ⚠️ **E ELE SÓ PEGA O DEFEITO PORQUE USA DOIS CONTEXTOS SOBRE O MESMO BANCO.** Com um contexto só, o EF InMemory costura `jogador.Time` sozinho pelo rastreador — o `Time` semeado já está na memória — e o teste passaria **verde sem o `Include`**: o defeito morando dentro do teste que deveria pegá-lo. É primo da armadilha já conhecida daqui (InMemory não valida SQL, não aplica `HasDefaultValue`, não cobra índice único). **Semeie num contexto e consulte em outro sempre que o que se testa for um `Include`.**
+>
+> 🎨 **O ÍCONE É `bi-shield-fill`, E A PRIMEIRA ESCOLHA ESTAVA ERRADA.** Eu tinha posto `bi-flag` — e nesta MESMA tela `bi-flag` é o botão de **denunciar comentário**. No vocabulário da UI, bandeira já quer dizer outra coisa; escudo é o que a própria página do time usa (`Times/Detalhes.cshtml:24`), e é a palavra que o projeto usa pro emblema. Apareceu por acidente, num experimento que quebrou a view de propósito pra conferir se o Razor compila no build (compila: o erro apontou linha e coluna).
+>
+> 🔗 O nome leva pra vitrine do time (`/Times/Detalhes`), que já é página pública. **O escudo só desenha quando há logo** — mesma regra que o `_JogoEmLinha` já aplica, porque os 44 times importados do ranking nasceram sem nenhum e `src=""` seria ícone quebrado bem no alto do perfil.
+>
+> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ⚠️ **Não conferido em navegador**: a sessão não subiu o app com banco; o que sustenta a tela é o Razor compilar no build e os testes de marcação.
+
 > Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
 >
 > 🔍 **VEIO DE ONDE MENOS SE PROCURA: pedido de suporte copiado e colado.** Não houve descuido com segredo — o `appsettings.json` está no `.gitignore` e **nunca esteve no histórico** (conferido). O que vazou entrou pela porta da frente, com a melhor das intenções: documentar o caso real que fez cada correção existir. `JanelaDoParceiro.cs`, arquivo de PRODUÇÃO, carregava *"troque o parceiro do [fulano] pelo [cpf] cpf [beltrano]"* — nome e CPF de pessoa real. `RecuperarSenhaPeloCpfTests.cs` abria com *"o usuário do CPF [x] não está conseguindo recuperar sua senha"*.

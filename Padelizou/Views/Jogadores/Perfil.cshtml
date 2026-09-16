@@ -70,6 +70,26 @@
                     <i class="bi bi-geo-alt"></i> @Model.jogador.Cidade@(string.IsNullOrWhiteSpace(Model.jogador.Estado) ? "" : " - " + Model.jogador.Estado)
                 </p>
             }
+            @* O TIME que a pessoa representa. Fica colado na cidade porque responde a mesma
+               pergunta — de onde/por quem ela joga — e leva pra vitrine do time, que já é
+               página pública. O nome aparece SEMPRE que há time; o ESCUDO só quando existe
+               logo: os 44 times importados do ranking nasceram sem nenhum, e `src=""` é ícone
+               quebrado (é a mesma regra que o _JogoEmLinha já aplica na lista de jogos). *@
+            @if (Model.jogador.Time is Padelizou.Models.Time time)
+            {
+                <p class="text-muted mb-1">
+                    @* Escudo, NÃO bandeira: nesta mesma tela `bi-flag` é o botão de DENUNCIAR
+                       comentário, e o `bi-shield-fill` é o que a própria página do time usa. *@
+                    <i class="bi bi-shield-fill"></i>
+                    <a asp-controller="Times" asp-action="Detalhes" asp-route-id="@time.Id"
+                       class="text-reset text-decoration-none">@time.Nome</a>
+                    @if (!string.IsNullOrEmpty(time.Logo))
+                    {
+                        <img class="pdz-jl-escudo" src="@time.Logo" alt="@time.Nome" loading="lazy" />
+                    }
+                </p>
+            }
+
             @if (Model.jogador.EnderecoPublico
                  && (!string.IsNullOrWhiteSpace(Model.jogador.Logradouro) || !string.IsNullOrWhiteSpace(Model.jogador.Bairro)))
             {
