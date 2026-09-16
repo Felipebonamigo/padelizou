@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
+> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1455-82133c6`** (deploy runs **35050709638** e **35050821369**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #331. ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
 >
 > 🔇 **O DEFEITO QUE ESTE BLOCO MAIS ARRISCAVA ERA CALADO: faltar o `Include(j => j.Time)`.** A tela não quebraria — simplesmente não mostraria time nenhum, sem erro e sem log. Por isso o teste que segura isso é o primeiro do arquivo.
 >
@@ -11,9 +11,9 @@
 >
 > 🔗 O nome leva pra vitrine do time (`/Times/Detalhes`), que já é página pública. **O escudo só desenha quando há logo** — mesma regra que o `_JogoEmLinha` já aplica, porque os 44 times importados do ranking nasceram sem nenhum e `src=""` seria ícone quebrado bem no alto do perfil.
 >
-> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ⚠️ **Não conferido em navegador**: a sessão não subiu o app com banco; o que sustenta a tela é o Razor compilar no build e os testes de marcação.
+> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DE VERDADE** — e não só nos testes. Em `padelizou.com.br/Jogadores/Perfil/402` o bloco saiu inteiro: `<i class="bi bi-shield-fill">` + `<a href="/Times/Detalhes/8">ER Padel</a>` + o escudo `/uploads/logos-time/bandeiraer.jpeg`. Medido ANTES do deploy no mesmo perfil: **zero** links de time; depois, **um**. ⚠️ **A conferência foi em `prod`, não em `dev`**, porque `dev` está com o Acesso Antecipado ligado e manda visitante anônimo pra tela de entrada — o `dev` provou o deploy (`/healthz` 200), não a tela.
 
-> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
+> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** 🚀 **PUBLICADO em `dev` E `prod` no `build-1455-82133c6`** (deploy runs **35050709638** e **35050821369**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #331. ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
 >
 > 🔍 **VEIO DE ONDE MENOS SE PROCURA: pedido de suporte copiado e colado.** Não houve descuido com segredo — o `appsettings.json` está no `.gitignore` e **nunca esteve no histórico** (conferido). O que vazou entrou pela porta da frente, com a melhor das intenções: documentar o caso real que fez cada correção existir. `JanelaDoParceiro.cs`, arquivo de PRODUÇÃO, carregava *"troque o parceiro do [fulano] pelo [cpf] cpf [beltrano]"* — nome e CPF de pessoa real. `RecuperarSenhaPeloCpfTests.cs` abria com *"o usuário do CPF [x] não está conseguindo recuperar sua senha"*.
 >
