@@ -339,6 +339,14 @@ public partial class Jogador
     // Gate do Avisos ("Buscar Jogo") existente — antes só dependia de NotificarEmail/WhatsApp.
     public bool NotificarAvisoJogo { get; set; } = true;
     public bool NotificarJogoAula { get; set; } = true;
+
+    // "Sua aula é amanhã" / "é daqui a pouco" — o lembrete de 24h e 1h (Maickel, 16/09/2026).
+    //
+    // ⚠️ NASCE LIGADO, e por isso o parâmetro da ação de Preferências é `bool?` e a caixa leva
+    // um <input type="hidden" value="false"> DEPOIS dela: caixa desmarcada não vai no POST, e
+    // sem essa dupla uma aba aberta antes do deploy religaria o lembrete de quem desligou a
+    // cada salvamento de qualquer outra preferência. Mesma armadilha do VerPalpitometro.
+    public bool NotificarLembreteDeAula { get; set; } = true;
     public bool NotificarRaqueteLivre { get; set; } = true;
 
     // Default false de propósito (diferente das outras 5 flags acima, que são opt-out) — sem

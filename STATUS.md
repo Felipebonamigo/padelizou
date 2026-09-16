@@ -1,7 +1,79 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **15/09/2026** — ⭐ **O RESULTADO DO MVP SAÍA NA ORDEM DA CHAVE, COM O ELEITO APARECENDO DUAS VEZES.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1453-f128130`** (deploy runs **387** e **388**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #332. **Sem migration.**
+> Última atualização: **16/09/2026** — ⏰ **A AULA PASSOU A LEMBRAR: 24h E 1h ANTES.** 🚀 **PUBLICADO em `dev` e `prod` no `build-1458-9f529a0`** (deploy runs 391 e 392, `/healthz` 200 nos dois). PR #334. ⚠️ **COM MIGRATION** (`LembreteDaAula`: três colunas). 🗣️ Maickel, pelo WhatsApp: *"Só talvez faria um 'push' — avisando 24hs e 1hora antes da aula — para as opções de aula de padel"*.
+>
+> 🕳️ **ERA A ÚNICA COISA COM HORA MARCADA QUE NÃO AVISAVA NINGUÉM ANTES.** O torneio tem o lembrete de inscrição não paga, a panelinha tem o de 24h do jogo fixo, a cobrança tem o de 6h — a aula, que é o compromisso mais pessoal do sistema, marcava e calava até o dia. Agora `LembreteDaAulaBackgroundService` varre de 15 em 15 minutos e avisa **aluno e professor**, na véspera e na última hora. Desenho, decisões e armadilhas em **[LEMBRETE-DA-AULA.md](LEMBRETE-DA-AULA.md)**.
+>
+> ⚖️ **QUATRO DECISÕES DO FELIPE, e duas contrariaram a minha recomendação** — as duas melhoraram o resultado. **(1) Escopo**: aula marcada **E jogo-aula** (eu tinha recomendado só a aula); Raquete Livre fica pra depois. **(3) Canal**: **só o app** — caixa de avisos + push, `AppSemEmail`. Eu tinha recomendado WhatsApp no aviso de 24h; a escolha dele é a que **não arrisca o chip nem a cota de e-mail**, os dois canais que já morreram um dia cada neste projeto. **(2)** Aluno e professor. **(4)** Dá pra desligar nas Preferências, e nasce ligado.
+>
+> ⚠️ **O CUSTO DA DECISÃO 3 ESTÁ ESCRITO, pra não virar surpresa:** push sozinho alcança **5 aparelhos em 154**. A caixa de avisos alcança quem ABRIR o app — é o canal que não depende de entrega nenhuma —, mas ninguém é avisado de que ela tem coisa nova. Se a queixa um dia for "não recebi", o conserto é a decisão, não o código.
+>
+> 👥 **A TURMA MANDA UM AVISO SÓ PRO PROFESSOR, e isso não é economia:** turma são **TRÊS LINHAS de `Aula`** no mesmo horário, uma por aluno com a cobrança dele. Sem agrupar por `(professor, horário)`, o professor levaria três avisos idênticos no mesmo minuto — e é assim que alguém desliga as notificações do sistema inteiro. Cada aluno continua recebendo o dele.
+>
+> 🗃️ **O MARCO É GRAVADO, NÃO A DATA DO ENVIO** (`UltimoLembreteEnviado`, em horas: 24, depois 1) — com data, *"já mandei o de 24h?"* viraria conta de relógio a cada passada e um deploy no meio da janela reenviaria tudo. E ele é gravado **mesmo quando não há ninguém pra avisar** (aluno avulso, conta excluída, preferência desligada), senão o varredor tentaria de novo a cada 15 minutos até a aula acontecer. **Quando os dois marcos vencem juntos** (aula marcada faltando 40 min), vale o **mais urgente** e o outro morre — gravar `1` retira o `24` de circulação.
+>
+> 🕐 **MADRUGADA: o de 24h espera as 7h; o de 1h não espera nada.** Segurar o de 24h ainda entrega o aviso com 15 horas de sobra; segurar o de 1h é não mandá-lo — quem tem aula às 6h já vai acordar às 5h. ⚠️ **E o texto conta o tempo DE VERDADE, nunca o número do marco**: quem entra pelo marco de 24h com a aula em 15 horas lê *"hoje"*, não *"amanhã"* (mesma lição do lembrete de inscrição).
+>
+> 🔇 **O DEFEITO MAIS CALADO QUE ESTE BLOCO FECHOU: remarcar a aula deixaria o lembrete morto.** A aula que já levou o "é amanhã" e foi movida pra semana que vem ficaria com o marco gravado e **nunca** receberia o aviso novo — e ninguém reclama de um aviso que NÃO chegou. `AulasController.Editar` zera o marco quando o horário muda, e leva os colegas de turma junto.
+>
+> 🪤 **A ARMADILHA DO `= 60` VOLTOU, e foi pega no `.cs` gerado:** o EF criou `NotificarLembreteDeAula` com `defaultValue: false` — **toda conta existente nasceria com o lembrete desligado**, o contrário da decisão. Trocado à mão pra `true`; `has-pending-model-changes` seguiu limpo. E a caixa nas Preferências leva `<input type="hidden" value="false">` **depois** dela, com parâmetro `bool?` do outro lado: preferência que nasce ligada sem esse par é religada por qualquer aba antiga que salve outra coisa (armadilha do `VerPalpitometro`).
+>
+> 🧪 **7.332 testes verdes** (42 novos, vistos vermelhos antes) e **12 conferidores JS**. ⚠️ Os da varredura usam **DOIS CONTEXTOS sobre o mesmo banco** — com um só, o InMemory costura `aula.Aluno` sozinho e eles passariam **sem os `Include`** — e foram **conferidos por mutação**: tirar o `Include`, afrouxar o status, remover o filtro da lista de espera e desfazer o agrupamento deixam 10 vermelhos. Mais `TraducaoDoLembreteDeAulaTests`, que compila as três consultas contra **Npgsql** de verdade: aqui o SQL que o InMemory não valida falharia dentro de um BackgroundService, ou seja, **num log que ninguém olha**. ⚠️ **Não conferido com DADO REAL, e é o que falta:** o deploy entrou nos dois ambientes (o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, e ele respondeu), mas **ninguém viu um lembrete sair**. A migration aplica no startup e não foi conferida no log — fica pro próximo acesso ao VPS. 👀 **O que olhar quando houver aula marcada:** uma aula pra dali a ~23h deve gerar UMA linha em `/Notificacoes` do aluno e UMA do professor, e **não** gerar de novo no tick seguinte (15 min). Numa turma de 3, o professor leva **um** aviso, não três.
+
+> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
+>
+> 🔇 **O DEFEITO QUE ESTE BLOCO MAIS ARRISCAVA ERA CALADO: faltar o `Include(j => j.Time)`.** A tela não quebraria — simplesmente não mostraria time nenhum, sem erro e sem log. Por isso o teste que segura isso é o primeiro do arquivo.
+>
+> ⚠️ **E ELE SÓ PEGA O DEFEITO PORQUE USA DOIS CONTEXTOS SOBRE O MESMO BANCO.** Com um contexto só, o EF InMemory costura `jogador.Time` sozinho pelo rastreador — o `Time` semeado já está na memória — e o teste passaria **verde sem o `Include`**: o defeito morando dentro do teste que deveria pegá-lo. É primo da armadilha já conhecida daqui (InMemory não valida SQL, não aplica `HasDefaultValue`, não cobra índice único). **Semeie num contexto e consulte em outro sempre que o que se testa for um `Include`.**
+>
+> 🎨 **O ÍCONE É `bi-shield-fill`, E A PRIMEIRA ESCOLHA ESTAVA ERRADA.** Eu tinha posto `bi-flag` — e nesta MESMA tela `bi-flag` é o botão de **denunciar comentário**. No vocabulário da UI, bandeira já quer dizer outra coisa; escudo é o que a própria página do time usa (`Times/Detalhes.cshtml:24`), e é a palavra que o projeto usa pro emblema. Apareceu por acidente, num experimento que quebrou a view de propósito pra conferir se o Razor compila no build (compila: o erro apontou linha e coluna).
+>
+> 🔗 O nome leva pra vitrine do time (`/Times/Detalhes`), que já é página pública. **O escudo só desenha quando há logo** — mesma regra que o `_JogoEmLinha` já aplica, porque os 44 times importados do ranking nasceram sem nenhum e `src=""` seria ícone quebrado bem no alto do perfil.
+>
+> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ⚠️ **Não conferido em navegador**: a sessão não subiu o app com banco; o que sustenta a tela é o Razor compilar no build e os testes de marcação.
+
+> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
+>
+> 🔍 **VEIO DE ONDE MENOS SE PROCURA: pedido de suporte copiado e colado.** Não houve descuido com segredo — o `appsettings.json` está no `.gitignore` e **nunca esteve no histórico** (conferido). O que vazou entrou pela porta da frente, com a melhor das intenções: documentar o caso real que fez cada correção existir. `JanelaDoParceiro.cs`, arquivo de PRODUÇÃO, carregava *"troque o parceiro do [fulano] pelo [cpf] cpf [beltrano]"* — nome e CPF de pessoa real. `RecuperarSenhaPeloCpfTests.cs` abria com *"o usuário do CPF [x] não está conseguindo recuperar sua senha"*.
+>
+> 🧾 **Eram 5 CPFs e 5 e-mails de gente real, em 12 arquivos** — 28 ocorrências só de CPF. Os CPFs viraram sintéticos nas fixtures; dentro de CITAÇÃO viraram `[cpf removido]`, porque trocar por um falso seria falsear a fala do Felipe.
+>
+> 🔒 **O GATE NOVO É `GateDeDadoPessoalTests`, e as duas metades dele têm forças diferentes** — está escrito lá pra ninguém confiar demais numa. **O CPF é REGRA de verdade:** dígito verificador válido fora da lista de sintéticos reprova, inclusive um que ninguém tenha visto ainda. Funciona porque a separação era limpa: os sintéticos da suíte são de padrão conhecido (`11144477735` em 58 arquivos), e **os 5 reais eram exatamente os fora de padrão**. **O e-mail é só LISTA DE CONHECIDOS:** trava a volta destes cinco e não sabe julgar um endereço novo — não dá pra separar `alguem@gmail.com` (fixture) de um endereço real olhando o domínio.
+>
+> 🙈 **A lista de proibidos é de SHA-256, não de texto.** Guardar os e-mails em claro num teste seria republicar exatamente o que o gate existe pra tirar. Pelo mesmo motivo a mensagem de falha mascara o CPF (`038…63`): gate que reprova no CI não pode imprimir o dado no log.
+>
+> ⚠️ **ISTO NÃO LIMPA O HISTÓRICO, E O HISTÓRICO É PÚBLICO.** O que já foi commitado continua nos commits antigos, clonável. O gate olha a árvore de trabalho — some daqui pra frente, e é o que dá pra travar num teste. Limpar o passado é reescrita de commits, decisão à parte.
+>
+> ⏭️ **DUAS COISAS FICARAM DE FORA, DE PROPÓSITO.** (1) **Nome de jogador continua no diário** ("Paulo Prass (Batata)", "Arthur Prass") — o site publica esses nomes numa página anônima, então o STATUS não expõe nada além do que `padelizou.com.br` já mostra; o que era leak era o nome COLADO no CPF, e esse par morreu. (2) `felipe.bonamigo@gmail.com`, em 5 arquivos, é do dono — decisão dele, não minha.
+>
+> **7.090 testes verdes** (os 3 do gate vistos VERMELHOS antes, listando as 28 ocorrências), 10 conferidores JS verdes.
+
+> Última atualização: **14/09/2026** — 🔒 **O HORÁRIO DO SORTEIO É COMPROMISSO, E A GRADE PREVISTA NUNCA SE PERDE.** 🚀 **PUBLICADO em `prod` no `build-1381-d2dda49`** (deploy run 355, `/healthz` 200). PR #296. **COM MIGRATION** (`HorarioDoSorteio`).
+>
+> 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"é muito importante que o chaveamento pré definido seja seguido, por que o pessoal se baseia nisso para se programar, o chaveamento fixo, os horarios fixos"* · *"ele é obrigatoriamente obrigado a respeitar os horarios das quadras dos sorteios, pq o pessoal se programa para jogar por esses horarios mesmo com o checkin"*.
+>
+> ✅ **A PROMESSA É GRAVADA, NÃO RECALCULADA.** Aprovar a chave passa a gravar a hora de cada eliminatória prevista como `ReservaDeHorario` — **no mesmo instante em que o cruzamento congela**. Isso destrava o achado que bloqueava tudo em 13/09: não existe mais *"depende de quando se pergunta"*, porque não se pergunta mais, se lê.
+>
+> ♻️ **REUSOU O `ReservaDeHorario` INTEIRO** (degrau 2 da escada do `CLAUDE.md`). Ele já era chaveado por `(categoria, fase, número)` e já tinha **TRÊS consumidores obedecendo**: a prévia, o robô ao criar a rodada, e o reencaixe quando outra categoria avança. **Nenhum precisou de código novo.**
+>
+> 🎁 **E O 3-EM-2 MORREU DE BRINDE.** `ReservasDeHorario.AindaPorNascer` já injetava os slots reservados no `intocados` do encaixe — não protegia nada porque quase não existiam reservas. Com o sorteio gravado, o robô enxerga o que foi prometido às OUTRAS categorias e para de marcar em cima. Era essa a causa dos três jogos num horário de duas quadras.
+>
+> 💡 **OS DOIS CAMPOS SÃO IDEIA DO FELIPE, E SÃO MELHORES QUE O MEU DESENHO.** Eu tinha proposto DESLIZAR o horário quando o torneio atrasasse; ele respondeu *"temos que seguir a grade prevista, por que o usuario se baseia [...] talvez devamos criar campos separados (Horario chaveamento, Horario atualizado)"*. Deslizar resolve a operação e **PERDE A INFORMAÇÃO**: quem se programou pelas 14:40 vê 16:20 e não sabe do quê pra quê. Agora `Partida.HorarioDoSorteio` guarda a promessa e `HorarioPrevisto` segue sendo a operação do dia; o cartão mostra os dois, riscado e discreto, **só quando diferem**.
+>
+> ⚠️ **O CARIMBO MORA NO `SaveChanges` DO CONTEXTO, e é deliberado**: `Partida` nasce em pelo menos CINCO lugares (o sorteio, as duas entradas do robô, o Americano, o desempate), e carimbo espalhado por cinco chamadas é carimbo que a sexta esquece. *"Escrito uma vez, no nascimento"* é ciclo de vida da entidade, e ciclo de vida mora no contexto.
+>
+> 🔁 **Recalcular horários RE-GRAVA a promessa** (escolha do Felipe): sem isso, depois de recalcular os horários voltariam a poder mudar sozinhos — um buraco aberto justamente pelo botão que existe pra arrumar a grade.
+>
+> 🛡️ **Nulo = jogo de antes desta mudança**, e a tela se comporta como sempre. Vale só pra chave aprovada de agora em diante (escolha do Felipe): nenhum torneio existente muda sozinho.
+>
+> 🧪 **Dois testes que fixavam decisões agora revertidas foram REESCRITOS, não apagados** — `A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` (o achado que bloqueava, e que **previa a própria falha**: *"vai falhar no dia em que alguém tornar a projeção estável"* — foi hoje) e `Refazer_grade_apaga_as_reservas`.
+>
+> ⚠️ **NÃO CONFERIDO AO VIVO, E ISSO FICA REGISTRADO ASSIM**: não havia torneio novo em `prod` pra rodar o ciclo inteiro. O que sustenta são os **10 testes novos, todos vistos vermelhos antes**. **No próximo sorteio vale olhar uma vez**: aprovar a chave e conferir se os horários das eliminatórias na prévia continuam os mesmos depois que a primeira fase terminar.
+>
+> **7.087 testes verdes**, 10 conferidores JS verdes.
+
+> **15/09/2026** — ⭐ **O RESULTADO DO MVP SAÍA NA ORDEM DA CHAVE, COM O ELEITO APARECENDO DUAS VEZES.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1453-f128130`** (deploy runs **387** e **388**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #332. **Sem migration.**
 >
 > 🗣️ Felipe, com o print do resultado do 2ª Etapa ER PADEL TOUR: *"aqui tem q deixar ordenado pelos votos e nao tem pq mostrar 2 vezes o vencedor"*.
 >
@@ -416,7 +488,7 @@
 >
 > **6 · NO CELULAR MENOR, O NOME QUEBRA EM VEZ DE PICOTAR.** 🗣️ *"Os nomes em celulares menores nao cabem, nao da pra saber quem é"*. 👁️ **MEDIDO NO CHROMIUM** com um cartão REAL da página de produção: a 360px, antes `"Rebeca Gergen ▪ / Laí…"`; depois `"Rebeca Gergen /"` + `"Laís Rodrigues"`; a 600px idêntico. ⚠️ O `nowrap` no `<a>` é metade da correção — sem ele a quebra cairia em *"Cristina / Bassols"*, que é pior que picotar porque parece outra pessoa.
 >
-> ⚠️ **O QUE NÃO FOI FEITO, E POR QUÊ — LEIA ANTES DE RETOMAR.** 🗣️ Felipe: *"o chaveamento fixo, os horarios fixos"* · *"o pessoal se programa para jogar por esses horarios"*. A promessa **não foi implementada**, e o bloqueio é um achado medido: **A PROJEÇÃO NÃO É ESTÁVEL.** Com o torneio andando NO HORÁRIO, sem atraso nenhum, ela promete **14:40** enquanto a Semifinal é só promessa e **15:30** depois que as Quartas viram resultado. Isso derruba o desenho simples (*"o robô pergunta à prévia onde prometeu e põe ali"*), porque não existe UMA resposta — depende de quando se pergunta. A promessa pedida é a do **SORTEIO**, e precisa ser **gravada na aprovação da chave**. `OHorarioDoSorteioEPromessaTests.A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` fixa o fato e vai falhar no dia em que a projeção for estável — que é quando o desenho simples volta a ser possível.
+> ✅ **RESOLVIDO EM 14/09 — ver a entrada do `build-1381` no topo.** O que segue era verdade quando foi escrito, e é o caminho que levou à solução; deixa de ser pendência. ⚠️ **O QUE NÃO FOI FEITO NAQUELE DIA, E POR QUÊ.** 🗣️ Felipe: *"o chaveamento fixo, os horarios fixos"* · *"o pessoal se programa para jogar por esses horarios"*. A promessa **não foi implementada**, e o bloqueio é um achado medido: **A PROJEÇÃO NÃO É ESTÁVEL.** Com o torneio andando NO HORÁRIO, sem atraso nenhum, ela promete **14:40** enquanto a Semifinal é só promessa e **15:30** depois que as Quartas viram resultado. Isso derruba o desenho simples (*"o robô pergunta à prévia onde prometeu e põe ali"*), porque não existe UMA resposta — depende de quando se pergunta. A promessa pedida é a do **SORTEIO**, e precisa ser **gravada na aprovação da chave**. `OHorarioDoSorteioEPromessaTests.A_projecao_muda_sozinha_quando_a_fase_anterior_vira_resultado` fixa o fato e vai falhar no dia em que a projeção for estável — que é quando o desenho simples volta a ser possível.
 >
 > ⚠️ **E O CENÁRIO DE TESTE PRECISA DE DUAS CATEGORIAS.** Com uma só, a prévia e o encaixe concordam por coincidência e o defeito não aparece — a primeira versão daquele arquivo passou de primeira, o que não prova nada. A divergência é estrutural: a prévia guarda o horário das eliminatórias FUTURAS de todas as categorias, e o encaixe só enxerga jogo REAL. É daí que saem três jogos num horário de duas quadras.
 >
@@ -2695,8 +2767,8 @@
 >
 > 🧪 **6.175 testes, 0 falhas (15 novos).** Três vistos vermelhos antes da correção ("o dia da semana voltou pra a vaga da chave", "esperava EXATAMENTE 1 e achei 2", a projetada) e três **falsificados** um a um: excluindo a família inteira do Americano cai a contraprova, apagando a linha do controller cai a trava da tela, e fechando o `@if` antes da bolinha cai a régua da bolinha.
 >
-> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
-> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf 03842585063, altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** ⏳ **NO BRANCH `claude/sweet-feynman-948l9o`, ainda não publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf [removido], altere seu nome mais uma vez antes de bloquear"*.
+> **10/09/2026** — 🔓 **O SUPORTE GANHOU COMO DESTRAVAR UMA TROCA DE NOME, EM `/Admin/Acesso`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-962-e8de81d`** (14h37 e 14h39 de Brasília — runs 174 e 175). PR #148. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"permita que a usuaria carol, do cpf [removido], altere seu nome mais uma vez antes de bloquear"*.
 
 >
 > 🕳️ **A SAÍDA JÁ ERA PROMETIDA POR ESCRITO E NÃO EXISTIA.** `TrocaDeNome.Recusa` diz, pra quem gastou a troca única: *"Se precisa mesmo mudar, fale com a gente pelo 'Reportar problema'"* — e do outro lado dessa frase não havia tela nenhuma. O único caminho era SSH + `UPDATE` no banco de produção, que é exatamente o buraco que a `/Admin/Acesso` nasceu pra fechar em 18/08, um degrau adiante.
@@ -2713,7 +2785,7 @@
 >
 > 🧪 **6.136 testes, 0 falhas (10 novos, em `LiberarTrocaDeNomeTests`; os outros 5 vieram do `main`, dos PRs #146 e #147, mesclados aqui antes de abrir).** Vistos vermelhos antes, e **falsificados um a um depois** (o vermelho de compilação, sozinho, não prova o que o teste mede): sem zerar o carimbo caem 3 (inclusive o de ponta a ponta, em *"Strings differ"* — o nome fica "Carol"); tirando o recarimbo do `EditarPerfil` cai o `Assert.NotNull` do "trava de novo"; com a view sem os botões, e com a view relendo o carimbo, cai o teste de tela.
 >
-> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar `03842585063` → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
+> ⏭️ **A CAROL AINDA PRECISA DO CLIQUE, e ele é do Felipe**: `/Admin/Acesso` → procurar pelo CPF dela → **"Liberar nova troca de nome"**. Está no ar em produção; o que a sessão não alcança é o banco, não a tela.
 >
 > ⚠️ **O `build-962` LEVOU O PR #145 JUNTO PRO PROD** ("Seis pedidos de tela do grupo do 2ª Etapa ER PADEL TOUR", de outra sessão), que entrou no `main` três minutos antes deste. É a mesma lição já anotada hoje: quem leva o próprio PR pro prod leva junto tudo que entrou antes dele — segurar algo fora do prod é segurar o **merge**, não o deploy. O `prod` estava no `build-958-b949a3d`.
 >
@@ -3126,7 +3198,7 @@
 
 > **10/09/2026** — 🔁 **O ORGANIZADOR TROCA O PARCEIRO DEPOIS DO SORTEIO, até a bola rolar.** ⚠️ **Ainda NÃO publicado** — branch `claude/paulo-prass-partner-update-nyoeah`. **Sem migration.**
 >
-> 🗣️ **Felipe, no card da 3ª do Er com a chave já sorteada:** *"troque o parceiro do paulo prass (er guex) pelo 03761230010 cpf Arthur Prass"*. TROCAR estava preso em `Status == "Inscrições Abertas"` **pra todo mundo**, então o único caminho que sobrava era remover a inscrição e refazê-la — perdendo a **vaga na chave**, o **lugar na grade** e o **pagamento já marcado**. É o outro lado exato do 09/09: lá abriu-se a janela pra **DEFINIR** o que falta, e o **TROCAR** ficou onde sempre esteve, escrito como decisão de propósito (*"o motivo antigo continua verdadeiro"*). Continua verdadeiro **pro jogador**; pro organizador, não era.
+> 🗣️ **Felipe, no card da 3ª do Er com a chave já sorteada:** *"troque o parceiro do paulo prass (er guex) pelo [cpf removido] cpf Arthur Prass"*. TROCAR estava preso em `Status == "Inscrições Abertas"` **pra todo mundo**, então o único caminho que sobrava era remover a inscrição e refazê-la — perdendo a **vaga na chave**, o **lugar na grade** e o **pagamento já marcado**. É o outro lado exato do 09/09: lá abriu-se a janela pra **DEFINIR** o que falta, e o **TROCAR** ficou onde sempre esteve, escrito como decisão de propósito (*"o motivo antigo continua verdadeiro"*). Continua verdadeiro **pro jogador**; pro organizador, não era.
 >
 > ⚠️ **É O MESMO PAR DE `AlteracaoDeImpedimento`, e foi ele que deu o desenho:** o **jogador** anda pelo **status** (trocar segue preso em "Inscrições Abertas" — depois do sorteio, sair da chave é assunto do organizador), o **organizador** anda pela **grade**, porque é ele quem a enxerga inteira e quem responde por ela. A régua nova é `JanelaDoParceiro.MotivoParaOrganizadorNaoTrocar`, vizinha da que já existia, e o teto comum às duas virou `OTetoDaJanela` — uma função só pra "cancelado / acabado / bola já rolou", com o verbo parametrizado.
 >
@@ -4242,8 +4314,8 @@
 > referenciar (`RecadoDaAula.cs`, `VagasDoDia.cs`, o teste deles e três logos) — grep no repo
 > inteiro devolvia zero fora dos próprios arquivos.
 >
-> 📧 **E O E-MAIL DO PEDRO JUNIOR FOI ARRUMADO NA MÃO**, depois da validação que subiu na
-> `build-724`: `pedrojunior_1978@hotmial.com` virou `fariaspadel@gmail.com`, o endereço que ele
+> 📧 **E O E-MAIL ERRADO DE UM JOGADOR FOI ARRUMADO NA MÃO**, depois da validação que subiu na
+> `build-724`: `jogador_1978@hotmial.com` virou o endereço que ele
 > confirmou. A validação (`EmailDoCadastro`, com **Damerau-Levenshtein** — Levenshtein comum
 > não pega `hotmial`↔`hotmail`, porque transposição custa 2) está nas duas portas: cadastro e
 > editar perfil. ⚠️ **Ela BLOQUEIA o typo**, não só avisa. Se um dia alguém tiver e-mail num

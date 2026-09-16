@@ -39,9 +39,12 @@ public class JogadoresController : Controller
     public async Task<IActionResult> Perfil(int id, [FromServices] PortaDosDesafios desafios)
     {
         // Busca o jogador (com clubes e dias/horários preferidos, pro bloco "joga em")
+        // O TIME vem junto porque o cabeçalho mostra a bandeira que a pessoa representa. Sem
+        // este Include a tela não quebra: ela só deixa de mostrar o time, calada.
         var jogador = await _context.Jogadores
             .Include(j => j.JogadorClubes).ThenInclude(c => c.Clube)
             .Include(j => j.JogadorDiasHorarios)
+            .Include(j => j.Time)
             .FirstOrDefaultAsync(j => j.Id == id);
         if (jogador == null) return NotFound();
 

@@ -42,7 +42,7 @@ public class LiberarTrocaDeNomeTests
         });
         ctx.Jogadores.Add(new Jogador
         {
-            Id = IdDaCarol, Nome = "Carol", Apelido = "Carolzinha", Cpf = "03842585063",
+            Id = IdDaCarol, Nome = "Carol", Apelido = "Carolzinha", Cpf = "11144477735",
             Email = "carol@exemplo.com", SenhaHash = "hash",
             NomeAlteradoEm = nomeAlteradoEm ?? TrocouAnoPassado,
             ApelidoAlteradoEm = apelidoAlteradoEm ?? TrocouAnoPassado,
