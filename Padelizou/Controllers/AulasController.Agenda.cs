@@ -915,6 +915,17 @@ namespace padelizou.Controllers
             aula.LocalAula = local;
             aula.Esporte = esporteValido;
 
+            // ⚠️ HORÁRIO NOVO ZERA O LEMBRETE JÁ ENVIADO (ver Models/Aula.UltimoLembreteEnviado).
+            // A aula que já levou o "é amanhã" e foi remarcada pra semana que vem precisa do
+            // aviso de novo; sem zerar, ela ficaria marcada como avisada pra sempre — e ninguém
+            // reclama de um aviso que NÃO chegou. Os colegas de turma vão junto: o horário é da
+            // sessão inteira.
+            if (mudanca.MudouHorario)
+            {
+                aula.UltimoLembreteEnviado = null;
+                foreach (var colega in colegasDeTurma) colega.UltimoLembreteEnviado = null;
+            }
+
             // Horário/local/duração/esporte são da SESSÃO — valem pra turma inteira (ver
             // Models/Aula.TurmaId): os N alunos jogam junto, na mesma quadra, o mesmo esporte.
             if (mudanca.MudouOQueVaiProGoogle || esporteMudou)

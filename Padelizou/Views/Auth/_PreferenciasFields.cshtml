@@ -232,6 +232,16 @@
         <input class="form-check-input" type="checkbox" name="notificarHorarioVagoRegiao" value="true" id="notifHorarioVago" style="transform: scale(1.2);" @(Model.NotificarHorarioVagoRegiao ? "checked" : "") />
         <label class="form-check-label" for="notifHorarioVago">Horário de quadra vago na minha região</label>
     </div>
+    @* ⚠️ O <input type="hidden" value="false"> DEPOIS da caixa, e o parâmetro `bool?` do outro
+       lado: esta preferência nasce LIGADA, e caixa desmarcada não vai no POST. Sem o par, uma
+       aba aberta antes do deploy RELIGARIA o lembrete de quem desligou a cada salvamento de
+       qualquer outra preferência. É a mesma armadilha do verPalpitometro logo acima — e o
+       escondido vem DEPOIS porque o binder lê o PRIMEIRO valor do campo repetido. *@
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarLembreteDeAula" value="true" id="notifLembreteAula" style="transform: scale(1.2);" @(Model.NotificarLembreteDeAula ? "checked" : "") />
+        <input type="hidden" name="notificarLembreteDeAula" value="false" />
+        <label class="form-check-label" for="notifLembreteAula">Lembrete das minhas aulas (24h e 1h antes)</label>
+    </div>
     <small class="text-muted d-block mt-2">Cada um controla um tipo de aviso separadamente. O canal (e-mail/WhatsApp/push) continua sendo o que você escolheu acima. O aviso de horário vago só chega se você marcar pelo menos uma cidade abaixo.</small>
 </div>
 
