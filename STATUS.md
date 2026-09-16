@@ -73,7 +73,29 @@
 >
 > **7.087 testes verdes**, 10 conferidores JS verdes.
 
-> Última atualização: **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
+> **15/09/2026** — ⭐ **O RESULTADO DO MVP SAÍA NA ORDEM DA CHAVE, COM O ELEITO APARECENDO DUAS VEZES.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1453-f128130`** (deploy runs **387** e **388**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #332. **Sem migration.**
+>
+> 🗣️ Felipe, com o print do resultado do 2ª Etapa ER PADEL TOUR: *"aqui tem q deixar ordenado pelos votos e nao tem pq mostrar 2 vezes o vencedor"*.
+>
+> 🔑 **SÓ DEPOIS QUE A VOTAÇÃO FECHA, e a distinção é o cuidado deste trabalho.** A MESMA lista serve a cédula aberta, e lá ela sai na **ordem da CHAVE** — categoria mais forte pra mais fraca, cada dupla junta —, que foi o pedido de 13/09 e a correção do PR #299. Ordenar por votos ali picaria as duplas de volta. Quem decide é `VotacaoDeMvp.CandidatosNaTela`, que troca de forma com o estado: encerrada, do mais votado pro menos e sem quem já está no pódio acima; aberta, a cédula intocada.
+>
+> 🔑 **A ORDENAÇÃO SAIU DE DENTRO DO `Apurar` E VIROU `MvpDoTorneio.PorVotos`, usada pelas duas pontas.** Uma cópia que discordasse num critério de desempate poria o **segundo colocado ACIMA do campeão na mesma página** — sem erro e sem teste vermelho.
+>
+> ⚠️ **TIRA TODOS OS `Vencedores`, E NÃO SÓ O PRIMEIRO**: no empate a apuração devolve dois, e esconder um deixaria o outro duplicado justamente na tela que deveria mostrar os dois lado a lado. E a view esconde a lista quando ela fica vazia — num empate entre os dois únicos candidatos não sobra ninguém embaixo, e a moldura sairia oca com o rodapé solto.
+>
+> 🧪 **3 testes novos, vistos vermelhos antes** (`MvpDoTorneioTests`). **7.283 verdes** + 12 conferidores JS.
+>
+> ⚠️ **E UM GATE PASSOU COM O DEFEITO PLANTADO — a falsificação é que pegou.** Com a votação ABERTA todo candidato tem **zero voto** (o serviço só conta depois de fechar, pra ninguém votar seguindo a maioria), então ordenar por votos cai no **desempate por nome** — e os nomes do cenário seguiam o alfabeto na mesma ordem da chave, fazendo as duas ordens coincidirem por acaso. Refeito com **"Alexandre Longhi" (4ª) antes de "Arthur Guex" (3ª)**, as duas ordens discordam e o gate acusa. **Teste que nunca se viu falhar pelo motivo certo não está travando nada.**
+>
+> ⚠️ **VERIFICAÇÃO SEM NAVEGADOR**: nada visto renderizado. O que sustenta são os 3 testes, a suíte inteira e o log do deploy nomeando a tag. **Quem confirma na tela é o Felipe**, em `padelizou.com.br/Torneios/Mvp/26`.
+>
+> 🌐 **OS DOIS DEPLOYS FALHARAM NA PRIMEIRA TENTATIVA, E POR REDE — não por código.** O `dev` (run 387) morreu no `ssh-keyscan`, que voltou vazio e derrubou o job com `known_hosts` de zero byte; o `prod` (run 388), no `ssh: connect to host *** port 22: Connection timed out`. Nos dois casos **a conexão nunca abriu e o `deploy.sh` não chegou a rodar** — nada ficou pela metade. Verdes na segunda tentativa, com `==> Feito. build-1453-f128130 no ar em dev` e `... no ar em prod` no log. É a **terceira** vez que o SSH do VPS cai assim (o run 369 de 14/09 foi a primeira): se virar rotina, o lugar de olhar é o VPS, não o workflow.
+>
+> 📌 **O `build-1453` CARREGA JUNTO os PRs #325 e #329** (a coluna congelada do mapa de ocupação do clube), mesclados antes dele — a entrada de baixo ainda os registra como "NÃO PUBLICADO", e desde este deploy eles estão no ar nos dois ambientes.
+>
+> ✅ **E O `prod` CONTINUA NÃO PARANDO PRA APROVAÇÃO.** A trava mora no environment `prod` (Settings → Environments), não no `deploy.yml`: **ela não está valendo.**
+>
+> **15/09/2026** — 🧊🏟️ **A MESMA COLUNA CONGELADA NO MAPA DE OCUPAÇÃO DO CLUBE.** ⚠️ **NÃO PUBLICADO**: está no branch `claude/inspiring-carson-niywzp`, PR #325, sem merge. **Sem migration.**
 >
 > 🗣️ Felipe, depois de ver a correção da agenda: *"faz o mesmo na tela de ocupação do clube"*. É o achado que o bloco de baixo tinha deixado em aberto.
 >
@@ -100,6 +122,22 @@
 > ⏱️ A duração da suíte também: **~35-40s** viraram **~1min20**, medidos.
 >
 > 📌 **De onde veio**: o PR #270 (ProSmart, parado por decisão do Felipe desde 12/09) já trazia uma correção desses números — mas para **74 controllers e ~6.860 testes**, que hoje também estão errados. A correção foi refeita aqui com medição do turno, e **a parte de `CLAUDE.md` do #270 pode ser descartada quando ele for mesclado**.
+>
+> **15/09/2026** — ⏱️ **A VOTAÇÃO DO MVP FECHA EM 24H, E A DA ENQUETE CONTINUA EM 7 DIAS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1444-3e18e52`** (deploy runs **383** e **384**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #327. **Sem migration.**
+>
+> 🗣️ Felipe perguntou *"quando termina a votação do MVP ?"* e, com a resposta (7 dias depois do último jogo), decidiu: *"7 dias é mt tempo, tem q ser 24h depois do ultimo jogo"*. A semana vinha do raciocínio de que quem jogou volta ao site pelo menos uma vez nesse intervalo — voltava, e votava sobre um torneio que já tinha **esfriado**. O MVP é sobre o calor do jogo que acabou de acontecer.
+>
+> 🔑 **AS DUAS JANELAS DEIXARAM DE SER A MESMA, e essa é a parte que não estava no pedido.** Até aqui a `EnqueteDoTorneio` (nota do clube, da organização e do Padelizou) **reusava a janela do MVP**. Encolher a constante teria levado a avaliação junto, **calado** — e quem depende dela é a coleta do "Melhor Clube do ano" de 2027. Perguntado, o Felipe escolheu separar: **MVP em 24h** (`MvpDoTorneio.HorasParaVotar`), **enquete nos 7 dias** (`EnqueteDoTorneio.DiasParaResponder`). A forma continua compartilhada (`DentroDaJanela`), a duração não.
+>
+> 🔑 **POR ISSO A DURAÇÃO VIROU PARÂMETRO OBRIGATÓRIO de `DentroDaJanela`, e não um default**: com duas janelas em jogo, quem chamasse esquecendo o prazo não veria erro nenhum — veria **votação fechando na hora errada**. Mesmo arranjo do `usaVotacao` na `Aberta`.
+>
+> ⚠️ **O AVISO PUSH É UM SÓ E AGORA CARREGA DOIS PRAZOS.** O texto dizia "vale por N dias" pras duas coisas; com prazos diferentes esse número passaria a **mentir sobre a cédula**, que é justamente a que tem pressa. O corpo com MVP passa a dizer que a votação fecha em 24h; o sem MVP (Americano) segue com os 7 dias da enquete, que é o que ele de fato oferece.
+>
+> ✅ **CONFERIDO QUE O AVISO AINDA CHEGA A TEMPO**: o varredor roda a cada **5 min** e a janela de silêncio vai das **7h à 1h**, então o pior caso (torneio finalizado às 3h da manhã) ainda deixa **~20h** de votação depois do push.
+>
+> ⚠️ **VALE PRA TODOS NA HORA, inclusive quem estava com a votação aberta no momento do deploy** — decisão do Felipe, **sem código de transição**.
+>
+> 🧪 **3 testes novos, vistos vermelhos antes, e FALSIFICADOS depois**: com a enquete voltando a usar a janela do MVP, o gate da separação acusa sozinho; com o MVP de volta a 7 dias, os quatro da janela acusam. Mais **8 testes existentes ajustados** — entre eles um que usava `AddDays(1)` como "ainda aberta" e que, com 24h, passaria a medir **o outro lado da régua** sem avisar. **7.205 verdes** + 11 conferidores JS.
 >
 > **15/09/2026** — ⚡ **MARCAR PRESENÇA NÃO RECARREGA MAIS A PÁGINA, E O JOGO SOBE NA HORA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1439-a3b91ba`** (deploy runs **381** e **384**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #324. **Sem migration.**
 >
