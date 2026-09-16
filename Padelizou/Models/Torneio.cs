@@ -409,6 +409,30 @@ public partial class Torneio
     public bool Restrito { get; set; }
     public string? ChaveAcesso { get; set; }
 
+    // ---- TORNEIO DE UM TIME SÓ (Felipe, 16/09/2026) ----
+    //
+    // 🗣️ *"permitir criar o torneio restrito para um time, apenas quem estiver em um determinado
+    // time, poderia jogar"*. Nulo = como sempre foi, qualquer um se inscreve.
+    //
+    // Ligado, quem se inscreve precisa JÁ TER perfil aqui com esta camisa (`Jogador.TimeId`) —
+    // e isso vale pros DOIS da dupla. CPF que o sistema não conhece é barrado por consequência:
+    // jogador que nasce na inscrição nasce sem time, e não há como ele estar num. Quem escreve
+    // a régua e a frase da recusa é Services/TimeExclusivoDoTorneio, um lugar só.
+    //
+    // ⚠️ NÃO se confunde com `Restrito`, e os dois podem estar ligados juntos: aquele pede uma
+    // CHAVE (quem tem o papelzinho entra, seja quem for); este pede a CAMISA (nenhuma chave
+    // abre pra quem não é do time).
+    //
+    // ⚠️ A trava vale só na PORTA (decisão do Felipe): quem sai do time depois de inscrito
+    // fica. Tirar alguém que já pagou é grave demais pra acontecer sozinho — é a mesma leitura
+    // do `ExcluirSeNaoPagar`, que só PERGUNTA.
+    //
+    // ⚠️ E ele é EVENTO FECHADO pro ranking, igual ao `Restrito` — ver
+    // EstatisticasService.ContaNoRanking. Um interno de time mede quem está no time, não padel
+    // jogado contra o mundo.
+    public int? TimeExclusivoId { get; set; }
+    public Time? TimeExclusivo { get; set; }
+
     // O torneio ainda NÃO FOI DIVULGADO: só quem cuida dele (e quem já está inscrito) enxerga
     // qualquer coisa. Ele some da listagem, da Home, das páginas de cidade e do Google — e a
     // página dele responde 404 pra qualquer outra pessoa, mesmo com o link na mão.

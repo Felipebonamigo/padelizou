@@ -1155,6 +1155,37 @@
                             </small>
                         </div>
 
+                        @* ── SÓ QUEM É DO TIME JOGA (Felipe, 16/09/2026) ───────────────────
+                           Fica ao lado do restrito porque as duas fecham o torneio — e
+                           SEPARADO porque fecham de jeitos diferentes: a chave é o papelzinho
+                           que se passa pra quem se quiser, a camisa não se empresta. Dá pra
+                           ligar as duas juntas. *@
+                        <div class="mt-3 border-top pt-3">
+                            <label class="form-label fw-bold text-muted mb-1" for="timeExclusivoId">
+                                <i class="bi bi-shield-fill"></i> Só quem é de um time joga
+                            </label>
+                            @* O escudo, e não a bandeira: `bi-flag` já quer dizer "denunciar"
+                               no vocabulário deste app, e escudo é o que a página do time usa. *@
+                            <select class="form-select" id="timeExclusivoId" name="TimeExclusivoId"
+                                    style="max-width: 420px;">
+                                <option value="">Aberto a todo mundo</option>
+                                @foreach (var time in (List<Padelizou.Models.Time>)(ViewBag.CatalogoTimes ?? new List<Padelizou.Models.Time>()))
+                                {
+                                    <option value="@time.Id" selected="@(Model.TimeExclusivoId == time.Id)">@time.Nome</option>
+                                }
+                            </select>
+                            <small class="text-muted d-block mt-1">
+                                Escolhendo um time, só quem já tem perfil no Padelizou <strong>com a camisa
+                                dele</strong> consegue se inscrever — e isso vale pros dois da dupla. Quem não
+                                tem conta aqui precisa criar uma e entrar no time antes.
+                                <strong class="d-block mt-1">Torneio de um time só não conta pontos pro ranking:</strong>
+                                todo jogo é do time contra o próprio time. Os jogos, o título e a participação
+                                continuam aparecendo no perfil de quem jogou.
+                                <span class="d-block mt-1">Você continua conseguindo inscrever um convidado de
+                                fora na mão, pela página do torneio.</span>
+                            </small>
+                        </div>
+
                         @* ── CRIAR JÁ ESCONDIDO ────────────────────────────────────────────
                            Saiu de dentro do "torneio restrito" em 18/08/2026 (era o `id
                            ="opcaoOculto"`, revelado pelo JS junto com o campo da chave). Estar

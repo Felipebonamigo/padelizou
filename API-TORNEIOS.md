@@ -84,7 +84,7 @@ grupo de mensagem.
 | `formato` | `"Padrao"` (duplas fixas, grupos + mata-mata), `"Americano"` (inscrição individual, parceiro troca a cada rodada) ou `"AmericanoDuplas"`. |
 | `precoInscricao` | Valor **por pessoa**, em reais — é como o torneio anuncia. Uma dupla paga o dobro. |
 | `inscricoesAte` | Data prevista de encerramento das inscrições, quando o organizador publicou uma. É **promessa dele**, não corte automático: o que fecha a inscrição é o botão, e enquanto o torneio estiver nesta lista ele está aberto. |
-| `inscricaoRestrita` | `true` = torneio fechado, só entra quem tem a chave de acesso do organizador. Ele aparece aqui porque também aparece na nossa listagem, mas **não anunciem como aberto a todos**. |
+| `inscricaoRestrita` | `true` = torneio fechado: ou só entra quem tem a chave de acesso do organizador, ou ele é de um time só e só entra quem veste a camisa. Ele aparece aqui porque também aparece na nossa listagem, mas **não anunciem como aberto a todos**. |
 | `categorias[].nome` | O nome da categoria como o organizador escreveu. Texto livre. |
 | `categorias[].rankingId` | 🔑 **O de-para com o catálogo de vocês** (100 a 116). É por ele que dá para casar a categoria sem depender do nome digitado. |
 | `categorias[].rankingNome` | O nome dessa categoria no catálogo de vocês ("4ª Masculina"), só para conferência humana. |

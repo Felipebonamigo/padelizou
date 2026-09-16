@@ -1,0 +1,34 @@
+@model Padelizou.Models.Torneio
+@*
+    O aviso de "este torneio é só do time X", em cima dos formulários de inscrição.
+
+    ⚠️ É PARTIAL, e não o mesmo HTML colado nos dois lugares, porque são DOIS formulários de
+    inscrição na mesma página (dupla e individual) e eles já divergiram antes por serem
+    editados um de cada vez. Aqui a divergência custaria o aviso sumir de um dos dois — e o
+    caminho sem aviso é justamente o que faz a pessoa preencher tudo pra levar a recusa em
+    cima do botão.
+
+    O nome do time vem por ViewBag e pode faltar (consulta à parte, de propósito — ver
+    TorneiosController.Details). Sem ele o aviso ainda sai, só sem dizer qual time: metade da
+    informação é melhor que nenhuma, e é o que evita a pessoa achar que o sistema quebrou.
+*@
+@if (Model.TimeExclusivoId != null)
+{
+    var time = ViewBag.TimeExclusivoDoTorneio as Padelizou.Models.Time;
+
+    <div class="alert alert-secondary small mb-3 d-flex gap-2 align-items-start">
+        <i class="bi bi-shield-fill"></i>
+        <div>
+            @if (time != null)
+            {
+                <span>Este torneio é <strong>só do time @time.Nome</strong>.</span>
+            }
+            else
+            {
+                <span>Este torneio é <strong>só de um time</strong>.</span>
+            }
+            Quem se inscreve precisa já ter perfil no Padelizou com a camisa dele — e isso vale
+            pros dois da dupla. Dá pra escolher o time em <strong>Editar perfil</strong>.
+        </div>
+    </div>
+}
