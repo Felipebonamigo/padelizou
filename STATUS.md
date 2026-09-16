@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **16/09/2026** — 🥊 **OS DESAFIOS ABREM PRO PÚBLICO.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Pode publicar o sistema de desafios"*. Este PR leva o que faltava antes de virar a chave `Desafios__Habilitado=true` — que é configuração do servidor (drop-in do systemd), não código.
+>
+> 📬 **ENTRA O RESUMO SEMANAL DO MURAL** (commit `b53ed4b`, que tinha ficado fora do `main`): toda quinta às 9h, só no app, pra quem **já usou** os Desafios, está sem anúncio no mural e tem pelo menos 2 duplas disponíveis na cidade. ⚠️ **Na estreia ninguém recebe** — ninguém usou ainda; o resumo é empurrão de volta, não de entrada. Desenho e armadilhas em **[DESAFIOS.md](DESAFIOS.md)** §5.
+>
+> ⚖️ **A POLÍTICA DE PRIVACIDADE ESTAVA CALADA SOBRE O MÓDULO, e isso travava o lançamento.** O mural é a primeira tela do Padelizou que diz **quando e onde** uma pessoa quer jogar, e a primeira em que um jogador pode **incluir outro numa dupla sem pedir licença**. O item 4 ganhou um parágrafo com três promessas que o código sustenta: só conta aberta vê; quem é incluído é avisado e pode sair; nenhuma tela dos Desafios mostra WhatsApp ou Instagram. `VersaoDosDocumentos` foi pra **2026-09-16** (Atual e EmVigorDesde juntos). ⚠️ **Os Termos de Uso não citam os Desafios** — não prometem nada sobre eles; fica anotado.
+>
+> 🔘 **DOIS INTERRUPTORES QUE NINGUÉM ACHARIA.** O resumo semanal obedece a `NotificarAvisoJogo`, cujo rótulo dizia só *"Buscar Jogo"*; e quem não quer ser posto numa dupla desliga `AceitaConvitesJogo`, cujo rótulo dizia só *"jogos avulsos de grupos"*. Os dois agora citam os Desafios pelo nome — senão a pessoa que quer parar o resumo desliga TODAS as notificações.
+>
+> 🧪 **7.353 testes verdes** e **12 conferidores JS**. `LancamentoDosDesafiosTests` (3 novos) foram vistos vermelhos antes: *"Not found: Desafios"* nos dois rótulos e na política. O gate do Palpitômetro (entrou no `main` depois do commit do resumo) pegou um comentário com erre no cherry-pick — corrigido.
+
 > Última atualização: **16/09/2026** — ⏰ **A AULA PASSOU A LEMBRAR: 24h E 1h ANTES.** 🚀 **PUBLICADO em `dev` e `prod` no `build-1458-9f529a0`** (deploy runs 391 e 392, `/healthz` 200 nos dois). PR #334. ⚠️ **COM MIGRATION** (`LembreteDaAula`: três colunas). 🗣️ Maickel, pelo WhatsApp: *"Só talvez faria um 'push' — avisando 24hs e 1hora antes da aula — para as opções de aula de padel"*.
 >
 > 🕳️ **ERA A ÚNICA COISA COM HORA MARCADA QUE NÃO AVISAVA NINGUÉM ANTES.** O torneio tem o lembrete de inscrição não paga, a panelinha tem o de 24h do jogo fixo, a cobrança tem o de 6h — a aula, que é o compromisso mais pessoal do sistema, marcava e calava até o dia. Agora `LembreteDaAulaBackgroundService` varre de 15 em 15 minutos e avisa **aluno e professor**, na véspera e na última hora. Desenho, decisões e armadilhas em **[LEMBRETE-DA-AULA.md](LEMBRETE-DA-AULA.md)**.
