@@ -482,13 +482,12 @@ namespace Padelizou.Controllers
 
             if (DesistenciaDeInscricao.Efeito(dupla, escolha) == EfeitoDaDesistencia.SoSaiQuemDesistiu)
             {
-                // A vaga NÃO abre: o parceiro continua inscrito, agora sem dupla fechada. Ele
-                // assume a cadeira de Jogador1 porque essa coluna não é anulável.
-                dupla.Jogador1Id = quemFica!.Value;
-                dupla.Jogador2Id = null;
-                await _context.SaveChangesAsync();
+                // O efeito mora em TirarDaInscricaoAsync (TorneiosController.RecusaDaInscricao),
+                // junto com o da recusa: é a MESMA mexida na inscrição, e escrita duas vezes
+                // uma das cópias acabaria esquecendo de levar a pergunta de quem saiu.
+                await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
-                await AvisarAsync(new[] { quemFica.Value }, "Seu parceiro desistiu",
+                await AvisarAsync(new[] { quemFica!.Value }, "Seu parceiro desistiu",
                     $"{euMesmo?.ComoChamar ?? "Seu parceiro"} saiu de {torneio!.Nome}. Sua vaga continua sua — "
                     + "escolha outro parceiro antes do sorteio das chaves.", torneioId);
 
@@ -498,8 +497,7 @@ namespace Padelizou.Controllers
 
             // Estava sozinho, ou os dois saem juntos: a inscrição acaba e a vaga volta pra fila.
             bool eraPaga = dupla.Pago;
-            _context.Duplas.Remove(dupla);
-            await _context.SaveChangesAsync();
+            await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
             // O parceiro não clicou em nada e mesmo assim deixou de estar inscrito. Ele PRECISA
             // saber hoje, não no dia do jogo — é o mesmo motivo pelo qual o organizador avisa

@@ -198,7 +198,19 @@ public static class TestInfra
     public static Microsoft.AspNetCore.Mvc.IUrlHelper UrlDeTeste()
     {
         var url = Substitute.For<Microsoft.AspNetCore.Mvc.IUrlHelper>();
-        url.Action(Arg.Any<Microsoft.AspNetCore.Mvc.Routing.UrlActionContext>()).Returns("/rota/de/teste");
+
+        // ⚠️ O NOME DA AÇÃO ENTRA NO ENDEREÇO (16/09/2026). Antes toda chamada devolvia a mesma
+        // string, e com isso NENHUM teste conseguia provar PRA ONDE um aviso leva — um push que
+        // mandasse a pessoa pra tela errada passaria verde por construção. É defeito calado do
+        // tipo mais caro: o aviso chega, a pessoa toca, e cai onde não resolve o problema dela.
+        url.Action(Arg.Any<Microsoft.AspNetCore.Mvc.Routing.UrlActionContext>())
+            .Returns(chamada =>
+            {
+                // O `?.` não é zelo à toa: CS8602 é ERRO neste projeto, e calar o compilador
+                // com `!` esconderia justamente o caso em que a ação chega sem contexto.
+                var acao = chamada.Arg<Microsoft.AspNetCore.Mvc.Routing.UrlActionContext>()?.Action;
+                return string.IsNullOrEmpty(acao) ? "/rota/de/teste" : $"/rota/de/teste/{acao}";
+            });
         return url;
     }
 

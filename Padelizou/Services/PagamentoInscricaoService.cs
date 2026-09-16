@@ -22,7 +22,15 @@ public record DadosInscricaoTorneio(
     bool ImpedimentoSextaNoite,
     bool ImpedimentoSabadoManha,
     bool ImpedimentoSabadoTarde,
-    bool SemParceiro = false);
+    bool SemParceiro = false,
+    // QUEM CLICOU em inscrever (16/09/2026). Vai junto no JSON porque a dupla só nasce quando o
+    // webhook confirma o pagamento — e nessa hora não há ninguém logado pra perguntar. Sem isto,
+    // o torneio que cobra na inscrição seria o único em que o parceiro entra sem aviso de quem o
+    // inscreveu e sem a porta da recusa (ver Models/InscritoPorOutro).
+    //
+    // ⚠️ NULO nas cobranças criadas ANTES desta linha: o JSON delas não tem o campo e a
+    // desserialização traz nulo. Pra elas nada é perguntado, que é o comportamento de sempre.
+    int? InscritoPorId = null);
 
 // Pagamento de uma inscrição QUE JÁ EXISTE — o "pagar agora" do torneio que garante a vaga
 // primeiro e cobra depois (`PagamentoObrigatorioNaInscricao == false`).
@@ -1425,6 +1433,13 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             _context.Duplas.Add(dupla);
             await _context.SaveChangesAsync();
             pagamento.ReferenciaId = dupla.Id;
+
+            // QUEM FOI POSTO AQUI POR OUTRA PESSOA — mesma régua das outras duas portas
+            // (Duplas/Create e TrocarParceiro), e a mesma tabela. O autor veio guardado no
+            // JSON da cobrança: aqui quem roda é o webhook, e não há ninguém logado.
+            _context.InscritosPorOutro.AddRange(InscricaoDeOutraPessoa.Perguntas(
+                dupla.Id, dupla.Jogador1Id, dupla.Jogador2Id, dados.InscritoPorId, DateTime.Now));
+            await _context.SaveChangesAsync();
         }
         else
         {
@@ -1452,13 +1467,29 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             ? new[] { dados.Jogador1Id, dados.Jogador2Id.Value }
             : new[] { dados.Jogador1Id };
 
+        // Quem NÃO clicou em inscrever lê o nome de quem clicou, e o aviso leva pra tela da
+        // recusa — igualzinho à inscrição sem cobrança (ver DuplasController). O nome é
+        // buscado UMA vez: são no máximo duas pessoas, e a consulta não muda entre elas.
+        var quemInscreveu = dados.InscritoPorId == null
+            ? null
+            : await _context.Jogadores
+                .Where(j => j.Id == dados.InscritoPorId.Value)
+                .Select(j => j.Nome)
+                .FirstOrDefaultAsync();
+
         foreach (var jogadorId in inscritos)
         {
+            bool inscritoPorOutro = dados.InscritoPorId != null && jogadorId != dados.InscritoPorId.Value;
+
             try
             {
                 await _push.EnviarParaJogadorAsync(jogadorId,
-                    emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!",
-                    emListaDeEspera
+                    inscritoPorOutro
+                        ? TextoDeQuemFoiInscrito.Titulo(quemInscreveu)
+                        : emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!",
+                    inscritoPorOutro
+                        ? TextoDeQuemFoiInscrito.Corpo(torneio.Nome, categoria.Nome, emListaDeEspera)
+                        : emListaDeEspera
                         ? $"{torneio.Nome} · {categoria.Nome} estava lotado. Se alguém desistir, vocês são chamados."
                         : $"{torneio.Nome} · {categoria.Nome}. Boa sorte!",
                     // Fora do WhatsApp por decisão do Felipe (09/08/2026): a pessoa ACABOU de
@@ -1466,7 +1497,13 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                     // repetindo o que ela viu meio segundo antes não informa nada — e é o
                     // aviso de maior volume que existe, um por inscrição.
                     // "Abriu vaga" continua no WhatsApp: aquele é notícia, este é eco.
-                    $"/Torneios/Details/{torneio.Id}");
+                    //
+                    // ⚠️ MENOS pra quem não clicou: pra essa pessoa não é eco nenhum — é a
+                    // primeira notícia de que ela está num torneio —, e o endereço é o da
+                    // recusa, não o da página mais longa do site.
+                    inscritoPorOutro && pagamento.ReferenciaId is int duplaId
+                        ? $"/Torneios/RecusarInscricao?duplaId={duplaId}"
+                        : $"/Torneios/Details/{torneio.Id}");
             }
             catch (Exception ex)
             {

@@ -437,7 +437,10 @@ namespace Padelizou.Controllers
                 var dadosInscricao = new DadosInscricaoTorneio(
                     torneioId, categoriaId, jogador1.Id, jogador2?.Id,
                     impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde,
-                    SemParceiro: semParceiro);
+                    SemParceiro: semParceiro,
+                    // Quem clicou vai junto: a dupla só nasce quando o webhook confirmar, e lá
+                    // não há ninguém logado pra perguntar quem inscreveu quem.
+                    InscritoPorId: ObterJogadorIdLogado());
 
                 var checkout = await _pagamentos.IniciarCobrancaTorneioAsync(
                     torneio, recebedor!, jogador1, "TorneioDupla", dadosInscricao, formaPagamentoEscolhida);
@@ -535,8 +538,17 @@ namespace Padelizou.Controllers
                 ? new[] { jogador1.Id }
                 : new[] { jogador1.Id, jogador2.Id };
 
+            // QUEM FOI POSTO AQUI POR OUTRA PESSOA (16/09/2026). Uma linha por pessoa que não
+            // clicou — é ela que sustenta o aviso "Você foi inscrito para um torneio por
+            // Maickel", a faixa da tela do torneio e a recusa. Ver Models/InscritoPorOutro.
+            //
+            // ⚠️ Depois do SaveChanges de propósito: antes dele a dupla ainda não tem Id.
+            _context.InscritosPorOutro.AddRange(InscricaoDeOutraPessoa.Perguntas(
+                dupla.Id, dupla.Jogador1Id, dupla.Jogador2Id, ObterJogadorIdLogado(), DateTime.Now));
+            await _context.SaveChangesAsync();
+
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
-            await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
+            await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera, dupla.Id);
 
             // O "Apitouuuu!" pra quem SEGUE ESTE TORNEIO. Serviço único, chamado também da
             // inscrição individual (TorneiosController.Inscricoes) — ⚠️ são as duas portas, e
@@ -894,6 +906,27 @@ namespace Padelizou.Controllers
                 _context.Duplas.RemoveRange(solosParaSair);
             }
 
+            // ── QUEM ENTRA POR UMA TROCA TAMBÉM NÃO CLICOU EM NADA (16/09/2026) ──────────
+            //
+            // A segunda porta de "alguém te pôs numa dupla": o parceiro definido depois. A
+            // pergunta de QUEM SAIU morre aqui — linha órfã traria a faixa de volta numa
+            // inscrição que não é mais dele —, e a de quem entra nasce logo abaixo, depois do
+            // SaveChanges: apagar e criar a mesma chave numa tacada só é o que o ChangeTracker
+            // recusa quando a pessoa que entra é a mesma que acabou de sair.
+            var perguntasQueSaem = await _context.InscritosPorOutro
+                .Where(p => p.DuplaId == dupla.Id
+                            && (p.JogadorId == (antigo == null ? 0 : antigo.Id) || p.JogadorId == novo.Id))
+                .ToListAsync();
+            _context.InscritosPorOutro.RemoveRange(perguntasQueSaem);
+
+            await _context.SaveChangesAsync();
+
+            // ⚠️ `ObterJogadorIdLogado()` e não `dupla.Jogador1Id`: quem faz a troca pode ser o
+            // organizador, e é o nome de quem clicou que o aviso e a faixa precisam dizer.
+            // Quem define o PRÓPRIO parceiro não gera pergunta nenhuma pra si (a régua já tira
+            // o autor), e quem entra na dupla de quem clicou ganha a dele.
+            _context.InscritosPorOutro.AddRange(InscricaoDeOutraPessoa.Perguntas(
+                dupla.Id, novo.Id, null, ObterJogadorIdLogado(), DateTime.Now));
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, antigo, novo);
@@ -1725,7 +1758,8 @@ namespace Padelizou.Controllers
         // descobre pela chave sorteada já perdeu o prazo de reclamar. É o mesmo push de sempre,
         // com o autor no texto — mandar um segundo aviso só pra isso viraria barulho.
         private async Task NotificarInscricaoConfirmadaAsync(
-            Torneio torneio, string categoriaNome, IEnumerable<int> jogadorIds, bool emListaDeEspera)
+            Torneio torneio, string categoriaNome, IEnumerable<int> jogadorIds, bool emListaDeEspera,
+            int duplaId)
         {
             var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
 
@@ -1734,22 +1768,31 @@ namespace Padelizou.Controllers
                 ? null
                 : (await _context.Jogadores.FindAsync(autorId.Value))?.ComoChamar;
 
+            // ⚠️ O AVISO DE QUEM NÃO CLICOU LEVA PRA TELA DA RECUSA, e não pra do torneio
+            // (16/09/2026). A tela do torneio é a página mais longa do site: mandar pra lá quem
+            // acabou de descobrir que está num torneio é esconder a saída no meio dela.
+            var urlDaRecusa = Url.Action("RecusarInscricao", "Torneios", new { duplaId });
+
             foreach (var jogadorId in jogadorIds)
             {
-                bool inscritoPorOutro = autorId != null && jogadorId != autorId.Value
-                                        && !string.IsNullOrWhiteSpace(autorNome);
+                bool inscritoPorOutro = autorId != null && jogadorId != autorId.Value;
 
-                var titulo = emListaDeEspera
-                    ? "Você entrou na lista de espera"
-                    : inscritoPorOutro ? $"{autorNome} inscreveu você" : "Inscrição confirmada!";
+                // 🗣️ A frase do aviso é do Felipe, e mora em Services/InscricaoDeOutraPessoa
+                // com os testes dela: "Você foi inscrito para um torneio por Maickel".
+                var titulo = inscritoPorOutro
+                    ? TextoDeQuemFoiInscrito.Titulo(autorNome)
+                    : emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!";
 
-                var corpo = emListaDeEspera
-                    ? $"{torneio.Nome} · {categoriaNome} estava lotado. Se alguém desistir, vocês são chamados."
-                    : $"{torneio.Nome} · {categoriaNome}. Boa sorte!";
+                var corpo = inscritoPorOutro
+                    ? TextoDeQuemFoiInscrito.Corpo(torneio.Nome, categoriaNome, emListaDeEspera)
+                    : emListaDeEspera
+                        ? $"{torneio.Nome} · {categoriaNome} estava lotado. Se alguém desistir, vocês são chamados."
+                        : $"{torneio.Nome} · {categoriaNome}. Boa sorte!";
 
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url);
+                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo,
+                        inscritoPorOutro ? urlDaRecusa : url);
                 }
                 catch (Exception ex)
                 {
