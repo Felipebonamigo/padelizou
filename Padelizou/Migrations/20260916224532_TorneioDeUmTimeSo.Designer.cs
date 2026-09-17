@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260916224532_TorneioDeUmTimeSo")]
+    partial class TorneioDeUmTimeSo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1792,30 +1795,6 @@ namespace Padelizou.Migrations
                     b.HasIndex("JogadorId");
 
                     b.ToTable("InscricaoRaqueteLivre");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.InscritoPorOutro", b =>
-                {
-                    b.Property<int>("DuplaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("JogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("ConfirmadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("InscritoPorId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("DuplaId", "JogadorId");
-
-                    b.HasIndex("JogadorId");
-
-                    b.ToTable("InscritoPorOutro");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ItemComanda", b =>
@@ -4906,25 +4885,6 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("AvisoRaqueteLivre");
-
-                    b.Navigation("Jogador");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.InscritoPorOutro", b =>
-                {
-                    b.HasOne("Padelizou.Models.Dupla", "Dupla")
-                        .WithMany()
-                        .HasForeignKey("DuplaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
-                        .WithMany()
-                        .HasForeignKey("JogadorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Dupla");
 
                     b.Navigation("Jogador");
                 });

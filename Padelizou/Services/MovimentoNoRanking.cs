@@ -62,9 +62,15 @@ public static class MovimentoNoRanking
     }
 
     // O último torneio do RANKING OFICIAL (categoria, Padelímetro, times). Mesma régua do
-    // `EstatisticasService.ContaNoRanking`, escrita pra consulta: restrito e Americano fora.
+    // `EstatisticasService.ContaNoRanking`, escrita pra consulta: evento fechado e Americano
+    // fora. Fechado são os DOIS: o de chave de acesso e o de um time só (16/09/2026).
+    //
+    // ⚠️ Carimbar o selo por um torneio que não move ponto é pior do que não carimbar nada:
+    // ele anuncia "subiu 3 posições" numa lista que não mexeu, e a pessoa vai procurar a
+    // mudança que não existe.
     public static Task<Janela?> DoOficialAsync(DbPadelContext ctx, DateTime agora) =>
         UltimoAsync(ctx, ctx.Torneios.Where(t => !t.Restrito
+                                              && t.TimeExclusivoId == null
                                               && t.Formato != FormatoDoTorneio.Americano
                                               && t.Formato != FormatoDoTorneio.AmericanoDeDuplas), agora);
 

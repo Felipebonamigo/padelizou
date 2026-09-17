@@ -361,6 +361,18 @@ namespace Padelizou.Controllers
                 .Include(c => c.Cidade)
                 .FirstOrDefaultAsync(c => c.Id == torneio.ClubeId);
 
+            // O time que tranca a inscrição, pro aviso aparecer ANTES do formulário. Sem o
+            // nome, a pessoa de fora preenche CPF, nome e parceiro pra só então descobrir que
+            // não podia entrar — e a recusa em cima do botão é a pior hora de descobrir.
+            //
+            // ⚠️ Consulta à parte, e não `.Include(t => t.TimeExclusivo)`, pela MESMA razão
+            // escrita acima pro clube: a página do torneio é carregada de vários pontos, e um
+            // Include esquecido num deles não quebra nada — só apaga o aviso, calado. Aqui a
+            // falta custa no máximo o nome do time no aviso, nunca a página.
+            ViewBag.TimeExclusivoDoTorneio = torneio.TimeExclusivoId == null ? null
+                : await _context.Times.AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Id == torneio.TimeExclusivoId);
+
             // O torneio em mais de um clube. Vai por ViewData, e não por ViewBag, porque quem
             // consome são as PARCIAIS COMPARTILHADAS de jogo — ver Services/LugarDoJogo.
             ViewData[LugarDoJogo.ChaveNaTela] = await Robo.SedesAsync(torneio.Id);
@@ -856,6 +868,10 @@ namespace Padelizou.Controllers
                 ViewBag.ComentariosParaModerar = await EnqueteDoTorneio.ParaModerarAsync(_context, id);
 
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
+                // Os times, pro "só quem é do time joga" na edição (ver Torneio.TimeExclusivoId).
+                // Só cai aqui dentro, no ramo de quem CUIDA do torneio: pra quem só abre a
+                // página é uma consulta a mais que ninguém lê.
+                ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
                 // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
                 // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens
                 // TÊM que ser a mesma, senão renomear a quadra 2 renomeia a 3.

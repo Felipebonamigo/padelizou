@@ -324,6 +324,38 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // 2a². TORNEIO DE UM TIME SÓ: a camisa é a condição de entrada (Felipe,
+            //      16/09/2026). Vale pros DOIS da dupla — ver Services/TimeExclusivoDoTorneio,
+            //      que é a régua única, compartilhada com a inscrição do Americano.
+            //
+            //      ⚠️ Fica DEPOIS do achar-por-CPF de propósito: é `jogador1`/`jogador2` que
+            //      dizem qual time a pessoa veste, e CPF que o sistema não conhece chega aqui
+            //      como nulo — que é exatamente o "não tem perfil" que a frase precisa
+            //      distinguir. Antes do achar, todo mundo pareceria igualmente sem time.
+            //
+            //      ⚠️ E fica ANTES de qualquer criação de Jogador: recusar depois deixaria um
+            //      pré-cadastro órfão no banco pra cada tentativa barrada.
+            if (!(ignorarBloqueio && await UsuarioEhOrganizadorAsync(torneioId)))
+            {
+                var doTime = new List<TimeExclusivoDoTorneio.Pessoa>
+                {
+                    new(nome1, jogador1?.TimeId, TemPerfil: jogador1 != null),
+                };
+                if (!semParceiro) doTime.Add(new(nome2!, jogador2?.TimeId, TemPerfil: jogador2 != null));
+
+                // O nome do time só é buscado quando a trava está ligada: numa inscrição
+                // comum (a esmagadora maioria) isto não custa consulta nenhuma.
+                var nomeDoTime = TimeExclusivoDoTorneio.Vale(torneio)
+                    ? (await _context.Times.FindAsync(torneio.TimeExclusivoId))?.Nome
+                    : null;
+
+                if (TimeExclusivoDoTorneio.MotivoDaRecusa(torneio, nomeDoTime, doTime) is { } foraDoTime)
+                {
+                    TempData["Erro"] = foraDoTime;
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+            }
+
             // 2b. Uma categoria por jogador, quando o organizador desligou as múltiplas.
             //     Só checa quem já existe: jogador novo obviamente não está inscrito.
             var idsExistentes = new[] { jogador1?.Id, jogador2?.Id }

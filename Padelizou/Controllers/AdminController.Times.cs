@@ -150,6 +150,27 @@ namespace padelizou.Controllers
             //   tela, mas o resultado do torneio não é tocado (a lição do Torneio.ClubeId em
             //   cascade, que apagou torneio junto com clube, já custou caro uma vez).
             // - TimeAdministrador → Cascade: sem o time, o cargo não quer dizer nada.
+            //
+            // 🔇 A EXCEÇÃO é o torneio TRANCADO neste time (Torneio.TimeExclusivoId), e ela
+            // precisa de resposta AQUI: o vínculo é Restrict, então sem esta checagem o
+            // `SaveChanges` estouraria em erro 500 sem explicar nada. E Restrict, e não
+            // SetNull como os dois de cima, porque ali o time é enfeite e aqui ele é a TRAVA
+            // — destrancá-la calado abriria a inscrição de um torneio fechado pra qualquer
+            // um, e ninguém reclama de uma porta que abriu.
+            var travados = await _context.Torneios
+                .Where(t => t.TimeExclusivoId == timeId)
+                .Select(t => t.Nome)
+                .ToListAsync();
+
+            if (travados.Count > 0)
+            {
+                TempData["Erro"] = $"O time \"{time.Nome}\" tranca a inscrição de "
+                    + $"{travados.Count} torneio(s): {string.Join(", ", travados)}. "
+                    + "Tire a trava do time na edição de cada um antes de apagar — apagar por cima "
+                    + "abriria a inscrição deles pra qualquer pessoa.";
+                return RedirectToAction("Times");
+            }
+
             var nome = time.Nome;
             _context.Times.Remove(time);
             await _context.SaveChangesAsync();
