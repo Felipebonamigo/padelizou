@@ -12,7 +12,7 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    [Migration("20260916232306_InscritoPorOutro")]
+    [Migration("20260917032024_InscritoPorOutro")]
     partial class InscritoPorOutro
     {
         /// <inheritdoc />
@@ -3725,6 +3725,9 @@ namespace Padelizou.Migrations
                     b.Property<int>("TempoPrevistoPartidaMinutos")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("TimeExclusivoId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("TorneioOrigemId")
                         .HasColumnType("integer");
 
@@ -3741,6 +3744,8 @@ namespace Padelizou.Migrations
                         .HasName("PK__Torneio__3214EC072B430D79");
 
                     b.HasIndex("ClubeId");
+
+                    b.HasIndex("TimeExclusivoId");
 
                     b.HasIndex("TorneioOrigemId");
 
@@ -5615,12 +5620,19 @@ namespace Padelizou.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Padelizou.Models.Time", "TimeExclusivo")
+                        .WithMany()
+                        .HasForeignKey("TimeExclusivoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Padelizou.Models.Torneio", null)
                         .WithMany()
                         .HasForeignKey("TorneioOrigemId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Clube");
+
+                    b.Navigation("TimeExclusivo");
                 });
 
             modelBuilder.Entity("Padelizou.Models.TorneioMarcador", b =>
