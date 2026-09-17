@@ -1,0 +1,99 @@
+@model RecusarInscricaoVM
+@{
+    ViewData["Title"] = "Você foi inscrito num torneio - Padelizou";
+}
+
+@*
+    A TELA DA DECISÃO de quem foi inscrito por outra pessoa (16/09/2026).
+
+    ⚠️ ELA É UMA PERGUNTA, NÃO UM BOTÃO DE RECUSAR. Quem chega aqui pelo aviso pode estar
+    justamente confirmando o que já tinha combinado — e uma tela com um botão vermelho sozinho
+    empurra pro "não". Por isso as duas respostas aparecem juntas, e a de ficar vem primeiro.
+
+    ⚠️ E ELA DIZ O QUE ACONTECE COM O OUTRO ANTES DO CLIQUE: recusar não tem desfazer, e o
+    desfecho muda conforme sobrar alguém na inscrição ou não.
+*@
+
+<div class="container mt-5 mb-5" style="max-width: 560px;">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body text-center p-4">
+
+            <div class="display-6 mb-2">🎾</div>
+            <h4 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                @Model.QuemInscreveu inscreveu você num torneio
+            </h4>
+            <p class="text-muted mb-4">Se foi combinado, é só confirmar. Se não, dá pra recusar aqui.</p>
+
+            <ul class="list-group list-group-flush text-start my-4">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Torneio</span>
+                    <span class="fw-bold text-end">@Model.Torneio</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Categoria</span>
+                    <span class="fw-bold text-end">@Model.Categoria</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Quem inscreveu</span>
+                    <span class="fw-bold text-end">@Model.QuemInscreveu</span>
+                </li>
+            </ul>
+
+            @if (Model.JaConfirmei)
+            {
+                <p class="small text-muted">
+                    <i class="bi bi-check2-circle"></i>
+                    Você já tinha confirmado esta inscrição — dá pra mudar de ideia enquanto as
+                    inscrições estiverem abertas.
+                </p>
+            }
+
+            <form asp-action="ConfirmarInscricao" method="post" class="mb-2">
+                <input type="hidden" name="duplaId" value="@Model.DuplaId" />
+                <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
+                    Está certo, quero jogar
+                </button>
+            </form>
+
+            @* ⚠️ O que a recusa faz com QUEM FICA, escrito antes do clique. Dizer "seu parceiro
+               continua inscrito" pra quem está sozinho na inscrição seria prometer um desfecho
+               que não vai acontecer — por isso os dois textos. *@
+            <p class="small text-muted mt-3 mb-2">
+                @if (Model.QuemFicaSozinho is { } fica)
+                {
+                    <text>
+                        Se você recusar, @fica continua inscrito no torneio, sem parceiro, e é
+                        avisado. A vaga não abre pra ninguém.
+                    </text>
+                }
+                else
+                {
+                    <text>
+                        Você é o único nesta inscrição: recusar cancela a inscrição, e a vaga
+                        volta pra fila.
+                    </text>
+                }
+                @if (Model.EstaPaga)
+                {
+                    <text>
+                        <strong>Esta inscrição está paga</strong> — a devolução é feita pelo
+                        organizador, não é automática.
+                    </text>
+                }
+            </p>
+
+            <form asp-action="RecusarInscricao" method="post">
+                <input type="hidden" name="duplaId" value="@Model.DuplaId" />
+                <input type="hidden" name="confirmo" value="true" />
+                <button type="submit" class="btn btn-outline-danger rounded-pill w-100 fw-bold py-2">
+                    <i class="bi bi-box-arrow-left"></i>
+                    Não vou jogar, recusar
+                </button>
+            </form>
+
+            <a asp-action="Details" asp-route-id="@Model.TorneioId" class="btn btn-link text-muted mt-2">
+                Ver o torneio
+            </a>
+        </div>
+    </div>
+</div>

@@ -634,6 +634,35 @@ namespace Padelizou.Controllers
                 // deliberado: é justamente o que permite tirar o pedido de uma inscrição que
                 // fechou por outro caminho. Com o filtro, aquela linha viraria zumbi, invisível
                 // pros dois lados.
+                // "VOCÊ FOI INSCRITO POR FULANO — ESTÁ CERTO?" (16/09/2026), por inscrição minha.
+                //
+                // ⚠️ Mesmo motivo da contagem acima, e a mesma frase vale: aviso é lembrete, não
+                // pode ser a única porta. Push alcança 5 aparelhos em 154 — quem apagou a
+                // notificação sem ler precisa achar a saída aqui, de dentro do sistema.
+                //
+                // Só o que ainda é PERGUNTA: minhas e sem resposta. O nome sai curto porque é
+                // faixa de card, e "Marcelo Carvalho Prestes" quebraria a linha no celular.
+                //
+                // ⚠️ DUAS CONSULTAS SIMPLES, e não uma com subconsulta pelo nome: `InscritoPorId`
+                // é coluna solta, sem FK (ver Models/InscritoPorOutro), então o nome viria de um
+                // JOIN escrito à mão — e consulta esperta na página mais pesada do site é como
+                // se descobre, em produção, o que o InMemory dos testes não traduz.
+                var perguntasAbertas = await InscricaoDeOutraPessoa
+                    .PerguntasAbertasNoTorneio(_context, jogadorLogadoId.Value, id)
+                    .Select(p => new { p.DuplaId, p.InscritoPorId })
+                    .ToListAsync();
+
+                var autores = perguntasAbertas.Select(p => p.InscritoPorId).Distinct().ToList();
+                var nomesDosAutores = autores.Count == 0
+                    ? new Dictionary<int, string>()
+                    : await _context.Jogadores
+                        .Where(j => autores.Contains(j.Id))
+                        .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+                ViewBag.PerguntasDeInscricao = perguntasAbertas.ToDictionary(
+                    p => p.DuplaId,
+                    p => NomeBonito.Curto(nomesDosAutores.TryGetValue(p.InscritoPorId, out var nome) ? nome : ""));
+
                 ViewBag.ChamadosQueEuFiz = (await _context.ChamadosDoMural
                     .Where(c => c.CandidatoId == jogadorLogadoId.Value && c.Dupla.Categoria.TorneioId == id)
                     .Select(c => c.DuplaId)

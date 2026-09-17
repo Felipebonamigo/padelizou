@@ -64,6 +64,12 @@
     // pedido" (21/08/2026).
     var chamadosQueEuFiz = ViewBag.ChamadosQueEuFiz as HashSet<int> ?? new HashSet<int>();
 
+    // AS INSCRIÇÕES EM QUE ALGUÉM ME PÔS e eu ainda não respondi — dupla → nome de quem
+    // inscreveu (16/09/2026). É a faixa "Você foi inscrito por Fulano — está certo?".
+    // Vazio pra quase todo mundo: só quem não clicou tem pergunta aberta.
+    var perguntasDeInscricao = ViewBag.PerguntasDeInscricao as Dictionary<int, string>
+        ?? new Dictionary<int, string>();
+
     // ⚠️ FICA ANULÁVEL DE PROPÓSITO, sem `?? new List<>()` de consolo — e o `@if` do botão exige
     // `!= null`. ViewBag é dynamic: não há vínculo de compilação entre quem grava a chave e quem
     // lê. Um fallback vazio faria a régua "já tem dupla nesta categoria" sumir CALADA se a chave
@@ -1500,6 +1506,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
                                                     dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
                                     }
+                                    @* ── "VOCÊ FOI INSCRITO POR FULANO" (16/09/2026) ──────────────────
+                                       A faixa fica FORA do `@if` de cima de propósito: ele exige a
+                                       janela de mexer na inscrição, e a pergunta precisa aparecer
+                                       enquanto ela existir — quem foi posto aqui por outra pessoa é
+                                       exatamente quem não está procurando botão nenhum nesta tela.
+                                       A trava de QUANDO dá pra recusar é do servidor
+                                       (InscricaoDeOutraPessoa.MotivoParaNaoRecusar), e a faixa só
+                                       existe enquanto houver pergunta aberta minha nesta inscrição. *@
+                                    @if (minhaInscricao && perguntasDeInscricao.TryGetValue(dupla.Id, out var quemMeInscreveu))
+                                    {
+                                        <div class="alert alert-warning border-0 rounded-3 py-2 px-3 mt-2 mb-0 small">
+                                            <div class="fw-bold mb-1">
+                                                <i class="bi bi-person-plus"></i>
+                                                @quemMeInscreveu inscreveu você nesta categoria
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                <form asp-controller="Torneios" asp-action="ConfirmarInscricao" method="post">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                                                        Está certo
+                                                    </button>
+                                                </form>
+                                                <a asp-controller="Torneios" asp-action="RecusarInscricao"
+                                                   asp-route-duplaId="@dupla.Id"
+                                                   class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                    Não vou jogar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    }
+
                                     @if (minhaInscricao && (inscricoesAbertas || podeDefinirNaMinha))
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
