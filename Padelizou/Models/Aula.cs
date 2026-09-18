@@ -126,6 +126,19 @@ public partial class Aula
     // acerta por acidente e erra no aluno que tem aula toda terça.
     public int? RecuperaAulaId { get; set; }
 
+    // O ÚLTIMO MARCO DE LEMBRETE JÁ ENVIADO, em horas: 24, depois 1. Nulo = ninguém foi
+    // avisado ainda (ver Services/LembreteDaAula).
+    //
+    // ⚠️ É o MARCO, e não a data do envio — a mesma escolha de `UltimoLembreteDePagamento`, e
+    // pelo mesmo motivo: com a data, "já mandei o de 24h?" viraria conta de relógio a cada
+    // passada do varredor, e um deploy no meio da janela reenviaria tudo.
+    //
+    // ⚠️ VOLTA A SER NULO quando o horário da aula muda (ver AulasController.Editar): aula
+    // remarcada pra semana que vem precisa do lembrete de novo, e sem zerar ela ficaria
+    // marcada como avisada pra sempre — o defeito mais calado que existe, porque ninguém
+    // reclama de um aviso que não chegou.
+    public int? UltimoLembreteEnviado { get; set; }
+
     // Quantas horas antes da aula o cancelamento foi feito. Guardado no momento do
     // cancelamento porque a política do professor pode mudar depois — o que valeu
     // pro aluno foi a regra do dia.

@@ -1794,6 +1794,30 @@ namespace Padelizou.Migrations
                     b.ToTable("InscricaoRaqueteLivre");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.InscritoPorOutro", b =>
+                {
+                    b.Property<int>("DuplaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ConfirmadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("InscritoPorId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("DuplaId", "JogadorId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("InscritoPorOutro");
+                });
+
             modelBuilder.Entity("Padelizou.Models.ItemComanda", b =>
                 {
                     b.Property<int>("Id")
@@ -2028,6 +2052,9 @@ namespace Padelizou.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("NotificarJogoAula")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotificarLembreteDeAula")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("NotificarRaqueteLivre")
@@ -3695,6 +3722,9 @@ namespace Padelizou.Migrations
                     b.Property<int>("TempoPrevistoPartidaMinutos")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("TimeExclusivoId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("TorneioOrigemId")
                         .HasColumnType("integer");
 
@@ -3711,6 +3741,8 @@ namespace Padelizou.Migrations
                         .HasName("PK__Torneio__3214EC072B430D79");
 
                     b.HasIndex("ClubeId");
+
+                    b.HasIndex("TimeExclusivoId");
 
                     b.HasIndex("TorneioOrigemId");
 
@@ -3910,6 +3942,9 @@ namespace Padelizou.Migrations
 
                     b.Property<Guid?>("TurmaId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("UltimoLembreteEnviado")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -4112,6 +4147,9 @@ namespace Padelizou.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("UltimoLembreteEnviado")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -4872,6 +4910,25 @@ namespace Padelizou.Migrations
                     b.Navigation("Jogador");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.InscritoPorOutro", b =>
+                {
+                    b.HasOne("Padelizou.Models.Dupla", "Dupla")
+                        .WithMany()
+                        .HasForeignKey("DuplaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Dupla");
+
+                    b.Navigation("Jogador");
+                });
+
             modelBuilder.Entity("Padelizou.Models.ItemComanda", b =>
                 {
                     b.HasOne("Padelizou.Models.Comanda", "Comanda")
@@ -5560,12 +5617,19 @@ namespace Padelizou.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Padelizou.Models.Time", "TimeExclusivo")
+                        .WithMany()
+                        .HasForeignKey("TimeExclusivoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Padelizou.Models.Torneio", null)
                         .WithMany()
                         .HasForeignKey("TorneioOrigemId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Clube");
+
+                    b.Navigation("TimeExclusivo");
                 });
 
             modelBuilder.Entity("Padelizou.Models.TorneioMarcador", b =>

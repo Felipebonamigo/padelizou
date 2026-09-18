@@ -41,6 +41,12 @@ namespace Padelizou.Controllers
             var catalogo = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoCategorias = catalogo;
             ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
+            // Os times, pro "só quem é do time joga". Vêm TODOS, e não só os que quem cria
+            // administra: quem organiza o interno costuma ser o clube ou a pessoa da recepção,
+            // não um administrador do cadastro do time — exigir o cargo deixaria justamente o
+            // caso comum sem a opção. Trancar num time alheio não dá acesso a nada dele; só
+            // fecha a própria inscrição, que já era direito de quem cria o torneio.
+            ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
 
             // Pacote adicional de registro de resultados: some da tela quando o serviço está
             // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
@@ -425,6 +431,7 @@ namespace Padelizou.Controllers
                 ViewBag.Erro = motivo;
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
+                ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
                 // Sem isto, cada recusa apagava as categorias marcadas e o organizador
                 // remarcava tudo de novo — oito cliques pra corrigir um campo de texto.
                 ViewBag.CategoriasSelecionadas = categoriasSelecionadas ?? Array.Empty<int>();
@@ -544,6 +551,18 @@ namespace Padelizou.Controllers
             if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
             {
                 return await Recusar(problemaChave);
+            }
+
+            // TORNEIO DE UM TIME SÓ: o time precisa existir. O valor chega pelo POST e POST se
+            // monta à mão — um id inventado viraria erro de chave estrangeira no SaveChanges,
+            // ou seja, tela de erro 500 no lugar de uma frase. Zero vira nulo: `<select>` vazio
+            // e "sem time" são a mesma intenção.
+            if (torneio.TimeExclusivoId <= 0) torneio.TimeExclusivoId = null;
+            if (torneio.TimeExclusivoId is int timeEscolhido
+                && !await _context.Times.AnyAsync(t => t.Id == timeEscolhido))
+            {
+                return await Recusar("O time escolhido pra trancar a inscrição não existe mais. "
+                    + "Escolha outro, ou deixe em branco pra abrir o torneio pra todo mundo.");
             }
 
             // O link do grupo vira um `href` na página do torneio. Endereço que não é o convite
@@ -1273,6 +1292,20 @@ namespace Padelizou.Controllers
             // dentro de um form de 40 campos é caixa que se desmarca sem querer — e o que ela
             // desmarcava era o torneio inteiro sumindo, ou pior, aparecendo antes da hora.
             bool restrito = false, string? chaveAcessoEscolhida = null,
+            // ---- TORNEIO DE UM TIME SÓ (16/09/2026) ----
+            // O time que tranca a inscrição, ou nulo pra abrir pra todo mundo.
+            //
+            // ⚠️ VEM ACOMPANHADO de `timeExclusivoInformado`, e o par não é cerimônia: um
+            // `int?` sozinho não distingue "o organizador escolheu «sem time»" de "esta aba foi
+            // aberta antes do deploy e não tem o campo" — os dois chegam nulos. Sem o par,
+            // salvar o preço numa aba antiga DESTRANCARIA o torneio, calado, e a próxima pessoa
+            // de fora entraria normalmente. É a armadilha do `usaVotacaoDeMvp` e do
+            // `VerPalpitometro`, agora no lado que abre uma porta em vez de desligar um aviso.
+            //
+            // ⚠️ E é por isso que aqui NÃO se copiou o `bool restrito` logo acima: aquele campo
+            // tem a mesma exposição e sobrevive porque destrancar a CHAVE ainda deixa o torneio
+            // visível do mesmo jeito. Aqui a trava é a única coisa que existe.
+            int? timeExclusivoId = null, bool timeExclusivoInformado = false,
             // Formato das partidas. Nulo = aba antiga (sem os campos) ou campo em branco:
             // nesse caso o que está gravado FICA, em vez de virar zero e deixar a Mesa sem
             // limite nenhum.
@@ -1774,6 +1807,32 @@ namespace Padelizou.Controllers
                 // que não tranca nada e que voltaria a valer sozinha se ele religasse.
                 torneio.Restrito = false;
                 torneio.ChaveAcesso = null;
+            }
+
+            // ---- Torneio de um time só, também editável ----
+            // Mesmo motivo do restrito logo acima: "esqueci de marcar" não pode obrigar a
+            // recriar o torneio e perder o link já compartilhado. E abre o caminho contrário,
+            // que é o mais pedido: o interno do time que decidiu aceitar convidado.
+            //
+            // ⚠️ A trava sai/entra só quando a TELA MANDOU o campo — ver o par de parâmetros lá
+            // em cima. Aba antiga não destranca torneio nenhum.
+            //
+            // ⚠️ Mudar isto NÃO mexe em quem já está inscrito, de propósito (decisão do Felipe):
+            // a trava vale na porta. Trancar um torneio que já tem gente de fora dentro não
+            // expulsa ninguém — só impede os próximos.
+            if (timeExclusivoInformado)
+            {
+                if (timeExclusivoId <= 0) timeExclusivoId = null;
+
+                if (timeExclusivoId is int timeEscolhido
+                    && !await _context.Times.AnyAsync(t => t.Id == timeEscolhido))
+                {
+                    TempData["Erro"] = "O time escolhido pra trancar a inscrição não existe mais. "
+                        + "Escolha outro, ou deixe em branco pra abrir o torneio pra todo mundo.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.TimeExclusivoId = timeExclusivoId;
             }
 
             // ⚠️ `Oculto` NÃO se mexe aqui, de propósito. Era `torneio.Oculto = restrito &&

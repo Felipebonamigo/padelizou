@@ -86,6 +86,12 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.PermiteMultiplasCategorias),
         nameof(Torneio.LimiteDuplasTotal),
         nameof(Torneio.Restrito),
+        // O time que tranca a inscrição segue pra próxima edição: quem faz o interno do time
+        // em março faz o de abril pro mesmo time, e a etapa que nascesse ABERTA por omissão
+        // seria descoberta com gente de fora já inscrita. ⚠️ Ao contrário da CHAVE logo acima
+        // (que é sorteada de novo em TorneiosController.Duplicacao, porque a velha já circulou),
+        // aqui não há nada a renovar: a camisa não vaza de uma edição pra outra.
+        nameof(Torneio.TimeExclusivoId),
         nameof(Torneio.ValidarPeloRankingRs),
         nameof(Torneio.Oculto),
 

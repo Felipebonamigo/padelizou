@@ -200,7 +200,7 @@
 <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="aceitaConvitesJogo" value="true" id="aceitaConvites" style="transform: scale(1.2);" @(Model.AceitaConvitesJogo ? "checked" : "") />
-        <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos</label>
+        <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos e ser incluído como parceiro nos Desafios</label>
     </div>
     <small class="text-muted d-block mt-2">Quando o organizador de um grupo precisar de gente de fora pra completar o jogo da semana, ele pode te chamar pelo WhatsApp — respeitando as categorias, locais e dias/horários que você marcou abaixo.</small>
 </div>
@@ -218,7 +218,7 @@
     </div>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarAvisoJogo" value="true" id="notifAvisoJogo" style="transform: scale(1.2);" @(Model.NotificarAvisoJogo ? "checked" : "") />
-        <label class="form-check-label" for="notifAvisoJogo">Convites de jogo na minha categoria (Buscar Jogo)</label>
+        <label class="form-check-label" for="notifAvisoJogo">Convites de jogo na minha categoria (Buscar Jogo) e o resumo semanal dos Desafios</label>
     </div>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarJogoAula" value="true" id="notifJogoAula" style="transform: scale(1.2);" @(Model.NotificarJogoAula ? "checked" : "") />
@@ -231,6 +231,16 @@
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarHorarioVagoRegiao" value="true" id="notifHorarioVago" style="transform: scale(1.2);" @(Model.NotificarHorarioVagoRegiao ? "checked" : "") />
         <label class="form-check-label" for="notifHorarioVago">Horário de quadra vago na minha região</label>
+    </div>
+    @* ⚠️ O <input type="hidden" value="false"> DEPOIS da caixa, e o parâmetro `bool?` do outro
+       lado: esta preferência nasce LIGADA, e caixa desmarcada não vai no POST. Sem o par, uma
+       aba aberta antes do deploy RELIGARIA o lembrete de quem desligou a cada salvamento de
+       qualquer outra preferência. É a mesma armadilha do verPalpitometro logo acima — e o
+       escondido vem DEPOIS porque o binder lê o PRIMEIRO valor do campo repetido. *@
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarLembreteDeAula" value="true" id="notifLembreteAula" style="transform: scale(1.2);" @(Model.NotificarLembreteDeAula ? "checked" : "") />
+        <input type="hidden" name="notificarLembreteDeAula" value="false" />
+        <label class="form-check-label" for="notifLembreteAula">Lembrete das minhas aulas (24h e 1h antes)</label>
     </div>
     <small class="text-muted d-block mt-2">Cada um controla um tipo de aviso separadamente. O canal (e-mail/WhatsApp/push) continua sendo o que você escolheu acima. O aviso de horário vago só chega se você marcar pelo menos uma cidade abaixo.</small>
 </div>

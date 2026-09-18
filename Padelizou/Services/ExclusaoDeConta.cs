@@ -83,6 +83,7 @@ public static class ExclusaoDeConta
         jogador.NotificarAvisoJogo = false;
         jogador.NotificarJogoAula = false;
         jogador.NotificarRaqueteLivre = false;
+        jogador.NotificarLembreteDeAula = false;
         jogador.AceitaConvitesJogo = false;
 
         // Some das telas de perfil, mas segue aparecendo no resultado dos jogos que disputou.

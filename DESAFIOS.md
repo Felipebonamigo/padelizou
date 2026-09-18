@@ -3,9 +3,9 @@
 > Desenhada com o Felipe em 11/08/2026.
 > Este arquivo é a fonte da verdade. Mudou a regra? Muda **AQUI** primeiro — e só depois no código.
 >
-> 🔒 **Nasce fechado.** Enquanto `Desafios__Habilitado` não for `true`, o módulo existe em
-> produção e **só o admin do Padelizou enxerga** (mesmo mecanismo do Bar — ver
-> `Services/DesafiosSettings`).
+> 🔓 **Aberto em 16/09/2026.** Até então nasceu fechado atrás de `Desafios__Habilitado` (só o
+> admin do Padelizou enxergava — mesmo mecanismo do Bar, ver `Services/DesafiosSettings`). A chave
+> continua existindo: `false` fecha o módulo inteiro de novo, incluindo o resumo semanal.
 
 ## A ideia numa frase
 
@@ -175,13 +175,21 @@ Três defesas, e as três precisam existir juntas:
 
 ### 👤 Privacidade
 
-O cartão do mural mostra nome, apelido, foto, categoria, cidade/clubes e retrospecto.
-**Nunca telefone.** Contato só depois do aceite, e sempre passando por
-`Services/ContatoDoJogador` — que já sabe que visitante anônimo não vê contato e que
-pré-cadastro não expõe o de ninguém.
+O cartão do mural mostra nome, apelido, categoria, cidade/clubes e retrospecto — sem foto.
+**Nunca telefone, nunca Instagram** — nenhuma tela dos Desafios monta link de contato. O
+WhatsApp só aparece como *canal de aviso* (dois avisos pessoais, ver §5), nunca na tela.
 
 O mural inteiro exige login. Ele é uma lista de gente disponível com dia, hora e lugar: não é
 material para o índice do Google.
+
+**O que a Política de Privacidade promete (item 4, desde 16/09/2026)** — e que precisa
+continuar verdade: o mural, o ranking e a linha do perfil só aparecem pra conta aberta;
+quem é incluído numa dupla é avisado e pode sair; nenhuma tela mostra contato. Mudou uma
+dessas, muda a política junto (`LancamentoDosDesafiosTests` segura o texto).
+
+**Os dois interruptores das Preferências citam os Desafios pelo nome:** `AceitaConvitesJogo`
+impede ser incluído numa dupla sem pedir, e `NotificarAvisoJogo` cala o resumo semanal. Um
+rótulo que não diz o que o botão faz é botão que ninguém acha.
 
 ---
 
@@ -315,9 +323,54 @@ vezes. A régua (`Services/AlcanceDoAviso`):
 | Subiu no ranking, ganhou/perdeu cinturão | `AppSemEmail` | Bilhete social puro |
 | **"Nova dupla aberta na sua cidade"** | ❌ **não existe** | É broadcast — exatamente o que a Meta chama de spam e o que queimou o número |
 
-**O mural é pull, não push.** No máximo um **resumo semanal** (quinta de manhã, `SoApp`):
-*"7 duplas abertas em Gravataí nesta semana"*.
+**O mural é pull, não push.** A única exceção é o **resumo semanal** — implementado em
+17/08/2026, em `Services/ResumoSemanalDoMural` (regras) e
+`ResumoSemanalDeDesafiosBackgroundService` (varredura).
 
+> 🔔 **Ele existe porque o pull tem um custo:** mural que ninguém abre é mural vazio, e dupla que
+> anuncia e não é desafiada não anuncia de novo. O resumo é o que quebra esse empate — e por isso
+> é **um** aviso, por semana, para uma lista **estreita**.
+>
+> **Quando:** quinta-feira, a partir das 9h. Perto o bastante do fim de semana para dar tempo de
+> marcar; longe o bastante para as 48h da proposta caberem antes do sábado.
+>
+> **Quem recebe** — todas as condições, e cada uma tira alguém de uma lista de e-mail:
+>
+> - **Já usou os Desafios** (publicou, foi parceiro, ou esteve num desafio). É a linha que separa
+>   retenção de divulgação: mandar para quem nunca entrou é o broadcast proibido acima, só que uma
+>   vez por semana.
+> - **Não está no mural agora.** Quem já anunciou não precisa ser convidado a anunciar — para ela
+>   o aviso é ruído, e ruído ensina a ignorar o remetente.
+> - **Há pelo menos 2 duplas** que ela poderia desafiar, fora as dela. "1 dupla aberta" gasta o
+>   único empurrão da semana com um convite fraco; zero ensina a ignorar os próximos.
+> - `NotificarAvisoJogo` ligado, conta não excluída, e não é pré-cadastro (sem login o aviso
+>   levaria a uma porta que não abre).
+>
+> **Canal `SoApp`** (app + e-mail, sem WhatsApp): o e-mail se justifica porque a lista é curta e é
+> gente que já usou — mas nada aqui é urgente, então o WhatsApp fica de fora.
+>
+> ⚠️ **O aviso não sai com o módulo fechado.** Enquanto `Desafios__Habilitado` for false, o mural
+> responde 404 para jogador comum: o aviso levaria a uma tela que não abre, e aviso que leva a
+> lugar nenhum queima a permissão de notificação. Mesma trava do `HorarioVagoBackgroundService`.
+>
+> ⚠️ **A marca do último envio é gravada ANTES do laço**, em `ConfiguracaoDoSistema`. Se o
+> processo morrer no meio, o pior caso vira "alguns não receberam esta semana" em vez de "a base
+> recebeu duas vezes" — e aviso repetido é o que faz a pessoa desligar a notificação, levando
+> junto o que importa. Ficar no banco, e não só em memória, é o que impede um deploy numa quinta
+> às 10h de reenviar para todo mundo.
+>
+>
+> 💥 **As consultas ficam em `ConsultasDoResumoSemanal`, e têm teste de tradução.** A primeira
+> versão pedia os ids com `SelectMany(d => new[] { d.DesafianteJogador1Id, ... })` — que o Npgsql
+> **recusa** (*"The LINQ expression could not be translated"*). Como o resto da suíte roda em EF
+> InMemory, que não traduz nada, o defeito passou por 5.083 testes verdes e só estouraria na
+> primeira quinta-feira em produção — dentro de um `catch` que vira `LogError`. Ninguém receberia
+> o resumo, para sempre, com a suíte verde. `TraducaoDasConsultasDoResumoSemanalTests` compila
+> cada consulta contra um provedor Npgsql de verdade.
+> **A cidade casa por `NomeDeCidade.Chave`**, não por igualdade de texto: "Gravataí", "GRAVATAI" e
+> "Gravatai" são a mesma cidade, e comparar na lata faria o resumo dizer "nenhuma dupla" para quem
+> digitou o nome com acento diferente do catálogo — com o defeito mudo, porque o aviso
+> simplesmente não sairia.
 ---
 
 ## 6. Dinheiro
@@ -398,8 +451,8 @@ com link compartilhável do anúncio. Nunca um "nenhum resultado encontrado".
 A fase 1 é útil sozinha — é a que responde *"contra quem eu jogo sábado?"*. O ranking é o que
 faz voltar; o cinturão é o que vicia.
 
-**O módulo está completo e continua fechado.** O que falta não é código: é `Desafios__Habilitado=true`
-e uma cidade com densidade suficiente para o mural não nascer morto.
+**Aberto ao público em 16/09/2026.** O que decide se o mural vive não é mais código: é uma
+cidade com densidade suficiente pra ele não nascer vazio.
 
 > **A pontuação e o anti-farm entraram já na fase 1**, e não aqui. O motivo é que o ponto é
 > **congelado** na linha do desafio no fechamento: deixá-lo para a fase 2 faria o ranking nascer

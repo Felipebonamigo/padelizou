@@ -138,6 +138,21 @@
         buscador não veem nem o número nem o link, em nenhuma tela. Se você marcar
         <em>perfil privado</em>, somem também para os outros jogadores.
     </p>
+    @* Desafios (16/09/2026). O mural é a primeira tela do Padelizou que diz QUANDO e ONDE uma
+       pessoa quer jogar, e a primeira em que um jogador pode incluir outro sem pedir licença —
+       as duas coisas precisam estar declaradas antes de o módulo abrir. Cada frase abaixo tem
+       lastro no código: DesafiosController é [Authorize], PortaDosDesafios recusa usuário nulo,
+       e nenhuma view de Desafios monta link de WhatsApp. Mudou uma dessas, muda este parágrafo. *@
+    <p class="mt-3">
+        <strong>Desafios.</strong> Quando você publica um desafio, aparecem no mural o nome e o apelido da
+        dupla, as categorias, as cidades e os clubes que vocês aceitam, até quando o anúncio vale e o
+        retrospecto de vocês nos desafios. Tudo isso — o mural, o ranking de desafios e a linha de desafios
+        no perfil — aparece <strong>só para quem está com a conta aberta</strong> no Padelizou; visitante
+        deslogado e buscador não veem. Outro jogador pode incluir você como parceiro de dupla: você é
+        avisado na hora e pode <strong>sair da dupla</strong> com um toque, o que tira o anúncio do mural.
+        Se você desmarcou <em>"Aceito ser convidado pra jogos avulsos"</em> nas Preferências, ninguém consegue incluir você assim.
+        Nenhuma tela dos Desafios mostra seu WhatsApp ou seu Instagram.
+    </p>
     <p class="small text-muted mb-0">
         <strong>Nunca aparecem para ninguém:</strong> CPF, CEP, e-mail e senha.
     </p>

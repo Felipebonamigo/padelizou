@@ -20,6 +20,10 @@ public partial class DbPadelContext : DbContext
 
     public virtual DbSet<Dupla> Duplas { get; set; }
 
+    // Quem foi POSTO numa inscrição por outra pessoa, e ainda pode recusar
+    // (Models/InscritoPorOutro).
+    public virtual DbSet<InscritoPorOutro> InscritosPorOutro { get; set; }
+
     public virtual DbSet<Jogador> Jogadores { get; set; }
 
 
@@ -1164,6 +1168,36 @@ public partial class DbPadelContext : DbContext
                 .HasConstraintName("FK__Dupla__Jogador2I__59063A47");
         });
 
+        // ── "VOCÊ FOI INSCRITO POR ALGUÉM" (16/09/2026) ──────────────────────────────────
+        modelBuilder.Entity<InscritoPorOutro>(entity =>
+        {
+            // Uma pergunta por pessoa por inscrição. A chave composta é a regra (ver o
+            // comentário do modelo), e é ela que segura o POST repetido.
+            entity.HasKey(e => new { e.DuplaId, e.JogadorId });
+
+            // ⚠️ CASCADE na Dupla: a pergunta não sobrevive à inscrição que a gerou. Sem isto,
+            // remover a inscrição (desistência dos dois, organizador tirando a dupla, faxina
+            // de não pagos) deixaria linha órfã apontando pro que não existe — e o dia em que
+            // um id fosse reusado, a faixa voltaria na inscrição errada.
+            entity.HasOne(e => e.Dupla)
+                .WithMany()
+                .HasForeignKey(e => e.DuplaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict no Jogador, como nas outras tabelas de vínculo daqui: um segundo
+            // caminho de cascade a partir de Jogador é o conflito já visto em
+            // JogoSemanal/CandidaturaParceiro. Conta excluída pela LGPD é ANONIMIZADA, nunca
+            // apagada (Services/ExclusaoDeConta), então isto não trava ninguém.
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // A faixa da tela do torneio pergunta "o que existe PRA MIM?" — leitura por
+            // jogador, que a PK (começando por DuplaId) não serve.
+            entity.HasIndex(e => e.JogadorId);
+        });
+
         modelBuilder.Entity<Jogador>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Jogador__3214EC07E9B77CE2");
@@ -1262,6 +1296,19 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.TorneioOrigemId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // O time que TRANCA a inscrição (ver Torneio.TimeExclusivoId).
+            //
+            // ⚠️ Restrict, e NÃO SetNull como os outros dois vínculos com Time (Jogador.TimeId e
+            // Dupla.TimeId). Lá o time é enfeite — some o escudo e a vida segue. Aqui ele é a
+            // TRAVA: apagar o time com SetNull destrancaria a inscrição de um torneio fechado
+            // sem uma linha de aviso, e a próxima pessoa de fora entraria normalmente. O
+            // AdminController.ExcluirTime confere isto antes e explica; o Restrict é a rede
+            // embaixo, pra nenhum caminho novo repetir o buraco calado.
+            entity.HasOne(e => e.TimeExclusivo)
+                .WithMany()
+                .HasForeignKey(e => e.TimeExclusivoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Aula>(entity =>

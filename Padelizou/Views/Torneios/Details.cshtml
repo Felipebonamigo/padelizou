@@ -64,6 +64,12 @@
     // pedido" (21/08/2026).
     var chamadosQueEuFiz = ViewBag.ChamadosQueEuFiz as HashSet<int> ?? new HashSet<int>();
 
+    // AS INSCRIÇÕES EM QUE ALGUÉM ME PÔS e eu ainda não respondi — dupla → nome de quem
+    // inscreveu (16/09/2026). É a faixa "Você foi inscrito por Fulano — está certo?".
+    // Vazio pra quase todo mundo: só quem não clicou tem pergunta aberta.
+    var perguntasDeInscricao = ViewBag.PerguntasDeInscricao as Dictionary<int, string>
+        ?? new Dictionary<int, string>();
+
     // ⚠️ FICA ANULÁVEL DE PROPÓSITO, sem `?? new List<>()` de consolo — e o `@if` do botão exige
     // `!= null`. ViewBag é dynamic: não há vínculo de compilação entre quem grava a chave e quem
     // lê. Um fallback vazio faria a régua "já tem dupla nesta categoria" sumir CALADA se a chave
@@ -1500,6 +1506,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             && Padelizou.Services.JanelaDoParceiro.MotivoParaNaoDefinir(
                                                     dupla, Model, duplasQueJaJogaram.Contains(dupla.Id)) == null;
                                     }
+                                    @* ── "VOCÊ FOI INSCRITO POR FULANO" (16/09/2026) ──────────────────
+                                       A faixa fica FORA do `@if` de cima de propósito: ele exige a
+                                       janela de mexer na inscrição, e a pergunta precisa aparecer
+                                       enquanto ela existir — quem foi posto aqui por outra pessoa é
+                                       exatamente quem não está procurando botão nenhum nesta tela.
+                                       A trava de QUANDO dá pra recusar é do servidor
+                                       (InscricaoDeOutraPessoa.MotivoParaNaoRecusar), e a faixa só
+                                       existe enquanto houver pergunta aberta minha nesta inscrição. *@
+                                    @if (minhaInscricao && perguntasDeInscricao.TryGetValue(dupla.Id, out var quemMeInscreveu))
+                                    {
+                                        <div class="alert alert-warning border-0 rounded-3 py-2 px-3 mt-2 mb-0 small">
+                                            <div class="fw-bold mb-1">
+                                                <i class="bi bi-person-plus"></i>
+                                                @quemMeInscreveu inscreveu você nesta categoria
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                <form asp-controller="Torneios" asp-action="ConfirmarInscricao" method="post">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                                                        Está certo
+                                                    </button>
+                                                </form>
+                                                <a asp-controller="Torneios" asp-action="RecusarInscricao"
+                                                   asp-route-duplaId="@dupla.Id"
+                                                   class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                    Não vou jogar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    }
+
                                     @if (minhaInscricao && (inscricoesAbertas || podeDefinirNaMinha))
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
@@ -1894,6 +1931,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     <small class="text-muted d-block mt-1">Comece pelo CPF: se já houver cadastro, o nome vem sozinho.</small>
                 </div>
 
+                <partial name="_SoQuemEDoTime" model="Model" />
+
+                @* O escape do organizador, também aqui. Este formulário NUNCA teve a caixa —
+                   e não tinha por que ter, porque o Americano não passa por trava de nível
+                   nenhuma (decisão do Felipe, 06/08/2026). A trava do time é a primeira que
+                   alcança este caminho, então sem esta caixa o organizador de um Americano
+                   de time não teria como inscrever convidado nenhum. *@
+                @if (ViewBag.PodeGerenciar == true && Model.TimeExclusivoId != null)
+                {
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="ignorarBloqueio" value="true" id="ignorarBloqueioInd">
+                        <label class="form-check-label" for="ignorarBloqueioInd">
+                            <i class="bi bi-unlock"></i> <strong>Organizador:</strong> inscrever convidado de fora do time
+                        </label>
+                    </div>
+                }
+
                 @if (Model.Restrito)
                 {
                     <div class="alert alert-secondary small mb-3 d-flex gap-2 align-items-start">
@@ -2224,7 +2278,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                trava de nível em pé (a restrição por histórico daqui saiu em 06/08/2026 — ver
                RANKING.md). A chave `ignorarBloqueio` é lida pelo DuplasController e vale pras
                duas regras, então ela precisa continuar existindo enquanto QUALQUER uma travar:
-               sem isso o organizador perde o atalho de inscrever alguém na hora. *@
+               sem isso o organizador perde o atalho de inscrever alguém na hora.
+
+               ⚠️ E "qualquer uma" passou a incluir a trava do TIME (16/09/2026). Ela ficava
+               DENTRO do `if` do Ranking RS, e isso deixava sem saída justamente o caso comum:
+               interno de time, com o ranking desligado (evento fechado não pontua mesmo), e o
+               organizador SEM caixa nenhuma pra inscrever o convidado que o Felipe pediu que
+               ele pudesse inscrever. A caixa agora é de QUEM LIBERA, não de uma trava só. *@
             @if (Model.ValidarPeloRankingRs)
             {
                 <div class="alert alert-secondary mt-3 mb-0 small d-flex gap-2 align-items-start">
@@ -2233,16 +2293,31 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         As inscrições deste torneio são <strong>conferidas no @Padelizou.Services.MarcaDoRanking.Nome</strong>: quem já pontuou numa categoria mais forte não entra numa mais fraca sem o organizador liberar.
                     </div>
                 </div>
-                @if (ViewBag.PodeGerenciar == true)
-                {
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" name="ignorarBloqueio" value="true" id="ignorarBloqueio">
-                        <label class="form-check-label" for="ignorarBloqueio">
-                            <i class="bi bi-unlock"></i> <strong>Organizador:</strong> inscrever sem conferir o ranking
-                        </label>
-                    </div>
-                }
             }
+
+            @if (ViewBag.PodeGerenciar == true && (Model.ValidarPeloRankingRs || Model.TimeExclusivoId != null))
+            {
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" name="ignorarBloqueio" value="true" id="ignorarBloqueio">
+                    <label class="form-check-label" for="ignorarBloqueio">
+                        <i class="bi bi-unlock"></i> <strong>Organizador:</strong>
+                        @if (Model.ValidarPeloRankingRs && Model.TimeExclusivoId != null)
+                        {
+                            <text>inscrever sem conferir o ranking nem o time</text>
+                        }
+                        else if (Model.TimeExclusivoId != null)
+                        {
+                            <text>inscrever convidado de fora do time</text>
+                        }
+                        else
+                        {
+                            <text>inscrever sem conferir o ranking</text>
+                        }
+                    </label>
+                </div>
+            }
+
+            <partial name="_SoQuemEDoTime" model="Model" />
 
             @if (Model.Restrito)
             {
@@ -4227,6 +4302,46 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                        que ainda não foi anunciado), e salvar esta edição
                                        regravava o campo, então mexer no preço publicava o
                                        torneio sem ninguém pedir. *@
+                                </div>
+                            </div>
+
+                            @* SÓ QUEM É DO TIME JOGA — editável pelo mesmo motivo do restrito
+                               logo acima ("esqueci de marcar" não pode custar o torneio), e
+                               também no caminho de volta: o interno que decidiu aceitar
+                               convidado destranca aqui. *@
+                            <div class="mb-3 mt-2 border-top pt-3">
+                                <label class="form-label fw-bold mb-1" for="editTimeExclusivo">
+                                    <i class="bi bi-shield-fill"></i> Só quem é de um time joga
+                                </label>
+                                @* ⚠️ O par com o hidden é o que separa "escolhi «aberto a todo
+                                   mundo»" de "esta aba é antiga e não tem o campo" — os dois
+                                   mandariam vazio. Sem ele, salvar o preço numa aba velha
+                                   DESTRANCARIA o torneio calado. Mesma armadilha do
+                                   VerPalpitometro, agora abrindo uma porta em vez de desligar
+                                   um aviso. *@
+                                <input type="hidden" name="timeExclusivoInformado" value="true" />
+                                <select class="form-select" id="editTimeExclusivo" name="timeExclusivoId"
+                                        style="max-width: 420px;">
+                                    <option value="">Aberto a todo mundo</option>
+                                    @foreach (var time in (List<Padelizou.Models.Time>)(ViewBag.CatalogoTimes ?? new List<Padelizou.Models.Time>()))
+                                    {
+                                        <option value="@time.Id" selected="@(Model.TimeExclusivoId == time.Id)">@time.Nome</option>
+                                    }
+                                </select>
+                                <div class="small text-muted mt-1">
+                                    Só quem já tem perfil aqui <strong>com a camisa do time</strong> consegue se
+                                    inscrever, e vale pros dois da dupla. Você continua inscrevendo convidado de
+                                    fora na mão, marcando <em>“ignorar bloqueios”</em> no formulário de inscrição.
+                                    <strong class="d-block mt-1">Não conta pontos pro ranking:</strong>
+                                    todo jogo é do time contra o próprio time. Jogos, título e participação seguem
+                                    no perfil de quem jogou.
+                                    @if (Model.TimeExclusivoId != null)
+                                    {
+                                        <span class="d-block mt-1">
+                                            Mudar aqui vale <strong>daqui pra frente</strong> — quem já se inscreveu
+                                            continua inscrito, mesmo que não seja do time.
+                                        </span>
+                                    }
                                 </div>
                             </div>
 

@@ -299,6 +299,9 @@ builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
 // O dono que recusa ou ignora 3 desafios em 14 dias perde o cinturão. É a metade da regra que
 // impede o campeão de virar um nome parado numa tela — ver Services/Cinturao.
 builder.Services.AddHostedService<VigiaDoCinturaoBackgroundService>();
+// O UNICO empurrao dos Desafios: um resumo do mural na quinta de manha, pra quem ja usou e
+// nao esta anunciando agora. Ver Services/ResumoSemanalDoMural.
+builder.Services.AddHostedService<ResumoSemanalDeDesafiosBackgroundService>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
@@ -347,6 +350,9 @@ builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
+// "Sua aula é amanhã" / "é daqui a pouco" — 24h e 1h antes (Maickel, 16/09/2026).
+// Tick de 15 min por causa do marco de 1h. Ver Services/LembreteDaAula.
+builder.Services.AddHostedService<LembreteDaAulaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 builder.Services.AddHostedService<ConciliacaoAutomaticaDoPixBackgroundService>();
 

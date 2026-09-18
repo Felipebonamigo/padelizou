@@ -21,6 +21,14 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf,
             string? chaveAcesso = null, string? formaPagamentoEscolhida = null,
+            // O escape do organizador pra trava do TIME (decisão do Felipe, 16/09/2026): quem
+            // cuida do torneio consegue pôr um convidado de fora. Gêmeo do `ignorarBloqueio`
+            // que o DuplasController já tinha pra trava de categoria e pro Ranking RS.
+            //
+            // ⚠️ Vir marcado no POST não basta — o cargo é conferido do outro lado. Sem isso a
+            // caixinha seria a própria chave da porta que ela deveria guardar, e POST se monta
+            // à mão.
+            bool ignorarBloqueio = false,
             // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
             // Services/QuandoPagarInscricao. Nulo vale como "depois".
             string? quandoPagar = null)
@@ -102,6 +110,35 @@ namespace Padelizou.Controllers
                 return NotFound();
 
             var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
+
+            // TORNEIO DE UM TIME SÓ: a camisa é a condição de entrada (Felipe, 16/09/2026).
+            // Régua única em Services/TimeExclusivoDoTorneio — a MESMA que o DuplasController
+            // usa. Escrever a checagem de novo aqui é como o Americano ficou de fora da régua
+            // do ranking por meses: a segunda cópia envelhece sozinha.
+            //
+            // ⚠️ ANTES do achar-ou-criar logo abaixo, e não depois: criar primeiro deixaria um
+            // pré-cadastro órfão no banco a cada tentativa barrada. É por isso que a consulta
+            // do jogador foi separada da criação.
+            //
+            // ⚠️ Isto NÃO contradiz o "sem trava de nível aqui" escrito logo adiante: aquilo é
+            // sobre CATEGORIA (misturar nível é o objetivo do rodízio). Esta é sobre QUEM É
+            // CONVIDADO, e o formato não muda quem o organizador chamou.
+            if (!(ignorarBloqueio && await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)))
+            {
+                var nomeDoTime = TimeExclusivoDoTorneio.Vale(torneio)
+                    ? (await _context.Times.FindAsync(torneio.TimeExclusivoId))?.Nome
+                    : null;
+
+                var foraDoTime = TimeExclusivoDoTorneio.MotivoDaRecusa(torneio, nomeDoTime,
+                    new[] { new TimeExclusivoDoTorneio.Pessoa(nome, jogador?.TimeId, TemPerfil: jogador != null) });
+
+                if (foraDoTime != null)
+                {
+                    TempData["Erro"] = foraDoTime;
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
+            }
+
             if (jogador == null)
             {
                 jogador = new Jogador { Nome = nome, Cpf = cpf };
@@ -482,13 +519,12 @@ namespace Padelizou.Controllers
 
             if (DesistenciaDeInscricao.Efeito(dupla, escolha) == EfeitoDaDesistencia.SoSaiQuemDesistiu)
             {
-                // A vaga NÃO abre: o parceiro continua inscrito, agora sem dupla fechada. Ele
-                // assume a cadeira de Jogador1 porque essa coluna não é anulável.
-                dupla.Jogador1Id = quemFica!.Value;
-                dupla.Jogador2Id = null;
-                await _context.SaveChangesAsync();
+                // O efeito mora em TirarDaInscricaoAsync (TorneiosController.RecusaDaInscricao),
+                // junto com o da recusa: é a MESMA mexida na inscrição, e escrita duas vezes
+                // uma das cópias acabaria esquecendo de levar a pergunta de quem saiu.
+                await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
-                await AvisarAsync(new[] { quemFica.Value }, "Seu parceiro desistiu",
+                await AvisarAsync(new[] { quemFica!.Value }, "Seu parceiro desistiu",
                     $"{euMesmo?.ComoChamar ?? "Seu parceiro"} saiu de {torneio!.Nome}. Sua vaga continua sua — "
                     + "escolha outro parceiro antes do sorteio das chaves.", torneioId);
 
@@ -498,8 +534,7 @@ namespace Padelizou.Controllers
 
             // Estava sozinho, ou os dois saem juntos: a inscrição acaba e a vaga volta pra fila.
             bool eraPaga = dupla.Pago;
-            _context.Duplas.Remove(dupla);
-            await _context.SaveChangesAsync();
+            await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
             // O parceiro não clicou em nada e mesmo assim deixou de estar inscrito. Ele PRECISA
             // saber hoje, não no dia do jogo — é o mesmo motivo pelo qual o organizador avisa
