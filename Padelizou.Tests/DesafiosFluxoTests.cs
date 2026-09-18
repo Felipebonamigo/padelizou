@@ -233,10 +233,13 @@ public class DesafiosFluxoTests
     }
 
     [Fact]
-    public async Task Desafio_avisa_a_dupla_desafiada_pelo_WhatsApp_e_ninguem_mais()
+    public async Task Desafio_avisa_a_dupla_desafiada_e_ninguem_mais___e_NAO_pelo_WhatsApp()
     {
-        // ⚠️ É o ÚNICO aviso destes que vai pro WhatsApp: pessoal, morre em 48h e pede ação.
-        // O resto é app. E não existe broadcast "nova dupla na sua cidade" em lugar nenhum.
+        // ⚠️ REESCRITO EM 18/09/2026, e a decisão anterior fica registrada: até aqui este era o
+        // único aviso de desafio no WhatsApp ("pessoal, morre em 48h e pede ação"). O Felipe
+        // tirou — *"não é para enviar whats, esse pode ser só notificação"*. O que o teste
+        // defende não mudou: os DOIS desafiados são avisados e mais ninguém (não existe
+        // broadcast "nova dupla na sua cidade" em lugar nenhum) — mudou o canal.
         var c = Montar();
         using var _ = c.Ctx;
         var push = Substitute.For<IPushNotificationService>();
@@ -250,9 +253,9 @@ public class DesafiosFluxoTests
 
         Assert.Single(c.Ctx.Desafios);
         await push.Received(1).EnviarParaJogadorAsync(c.Jogadores[2], Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
+            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
         await push.Received(1).EnviarParaJogadorAsync(c.Jogadores[3], Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
+            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
         await push.DidNotReceive().EnviarParaJogadorAsync(c.Jogadores[0], Arg.Any<string>(),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
     }

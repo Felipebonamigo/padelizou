@@ -193,17 +193,20 @@ public class DesafiosDuplaEPrazoTests
     }
 
     [Fact]
-    public async Task O_parceiro_e_avisado_na_hora_e_pelo_WhatsApp()
+    public async Task O_parceiro_e_avisado_na_hora___mas_NAO_pelo_WhatsApp()
     {
-        // ⚠️ É ESTE AVISO QUE SUSTENTA A REGRA. O anúncio é público e diz onde a pessoa vai
-        // estar; descobrir isso por acaso, dias depois, seria a mesma coisa que não poder sair.
+        // ⚠️ É ESTE AVISO QUE SUSTENTA A REGRA "o parceiro pode remover". O anúncio é público e
+        // diz onde a pessoa vai estar; descobrir isso por acaso, dias depois, seria a mesma
+        // coisa que não poder sair. O que ele NÃO precisa é do WhatsApp — reescrito em
+        // 18/09/2026, quando o Felipe tirou os desafios do canal. O aviso continua saindo na
+        // hora, por notificação e e-mail; o que este teste trava agora é o canal também.
         var c = Montar();
         using var _ = c.Ctx;
 
         await PublicarComParceiroAsync(c, c.Jogadores[0], c.Jogadores[1], PrazoDoAnuncio.EstaSemana);
 
         await c.Push.Received(1).EnviarParaJogadorAsync(c.Jogadores[1],
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.AppEWhatsApp);
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
     }
 
     [Fact]

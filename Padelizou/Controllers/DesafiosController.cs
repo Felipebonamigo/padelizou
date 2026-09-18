@@ -213,11 +213,18 @@ public class DesafiosController : Controller
         // ⚠️ O AVISO NÃO É CORTESIA AQUI: é o que dá sentido a "o parceiro pode remover". A
         // pessoa foi posta num anúncio público que diz a categoria, os clubes e a semana em que
         // ela vai jogar — descobrir isso por acaso, dias depois, seria a mesma coisa que não
-        // poder remover. Por isso vai no WhatsApp: é pessoal, é acionável e perde valor amanhã.
+        // poder remover.
+        //
+        // ⚠️ MAS NÃO VAI NO WHATSAPP (Felipe, 18/09/2026: *"na parte de desafios, está enviando
+        // whats, não é para enviar whats, esse pode ser só notificação"*). Ele passa nos três
+        // critérios do AlcanceDoAviso — e ainda assim sai do canal, porque os três critérios
+        // dizem quando um aviso PODERIA ir, nunca que ele TEM que ir. Notificação e e-mail dão
+        // conta: quem incluiu a pessoa foi outro JOGADOR, e mensagem de estranho no particular
+        // é exatamente o formato que restringiu o número em 04/08.
         var eu = await _context.Jogadores.FindAsync(meuId);
         var aviso = AvisoDoDesafio.ParceiroIncluido(NomeBonito.ComApelido(eu?.Nome, eu?.Apelido));
         await _push.EnviarParaJogadorAsync(parceiro.Id, aviso.Titulo, aviso.Corpo,
-            "/Desafios", AlcanceDoAviso.AppEWhatsApp);
+            "/Desafios", AlcanceDoAviso.SoApp);
 
         // Sem gênero na frase: o nome não diz como a pessoa se trata.
         TempData["Sucesso"] = $"Desafio criado com {NomeBonito.Curto(parceiro.Nome)}! "
@@ -500,11 +507,14 @@ public class DesafiosController : Controller
         var clubeNome = clubes.First(c => c.Id == clubeId).Nome;
         var aviso = AvisoDoDesafio.Recebido(minhaDupla, categoriaNome, clubeNome, dataHora);
 
-        // O ÚNICO aviso destes que vai pro WhatsApp: é pessoal, morre em 48h e a pessoa tem
-        // que fazer alguma coisa por causa dele — os três critérios do AlcanceDoAviso.
+        // ⚠️ FORA DO WHATSAPP desde 18/09/2026, por decisão do Felipe — era o último aviso do
+        // canal disparado por um jogador contra OUTRO jogador. O prazo de 48h pesava a favor do
+        // canal, mas o desafio não some: ele fica na tela em /Desafios/Meus até responderem, e
+        // o e-mail alcança quem não instalou o app. O que sobrou no WhatsApp é aula (professor
+        // ↔ aluno, relação contratada) e pagamento pendente (dinheiro e vaga).
         foreach (var jogadorId in desafio.LadoDesafiado)
             await _push.EnviarParaJogadorAsync(jogadorId, aviso.Titulo, aviso.Corpo,
-                "/Desafios/Meus", AlcanceDoAviso.AppEWhatsApp);
+                "/Desafios/Meus", AlcanceDoAviso.SoApp);
 
         TempData["Sucesso"] = "Desafio enviado! Eles têm 48h pra responder.";
         return RedirectToAction(nameof(Meus));

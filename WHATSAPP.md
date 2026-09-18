@@ -70,6 +70,15 @@ Cada aviso declara seu alcance em `Services/AlcanceDoAviso.cs`. A régua pra ent
 valor se ela vir amanhã) e **acionável** (ela faz alguma coisa por causa dele). Duas de três
 não bastam.
 
+⚠️ **Os três critérios dizem quando um aviso PODERIA ir, nunca que ele TEM que ir.** O desafio
+passava nos três e saiu do canal assim mesmo (18/09/2026) — a decisão final é sempre do Felipe.
+
+🔒 **E a lista agora tem guarda mecânico**: `QuemFalaPeloWhatsAppTests` varre o projeto e quebra
+se um arquivo **fora da lista** pedir `AlcanceDoAviso.AppEWhatsApp` — e também se uma linha da
+lista deixar de corresponder a um arquivo de verdade. Ele existe porque a decisão de 21/08 se
+desfez sozinha em dez dias: um aviso novo de torneio nasceu no canal em 01/09 e ninguém viu.
+**Aviso novo que precise do canal entra na lista do teste junto com a conversa que autorizou.**
+
 **Aulas**
 
 | Aviso | Onde |
@@ -79,13 +88,6 @@ não bastam.
 | Aula apagada pelo professor → pro aluno | `AulasController.Agenda.cs` |
 | Reposição marcada → pro aluno | `AulasController.Agenda.cs` |
 | Aula mudou de **horário ou local** | `EdicaoDeAula.CanalDoAviso` — preço sozinho **não** vai |
-
-**Desafios**
-
-| Aviso | Onde |
-|---|---|
-| Você foi desafiado (morre em 48h) | `DesafiosController.cs` |
-| Seu parceiro te incluiu num desafio | `DesafiosController.cs` |
 
 **Inscrição**
 
@@ -98,6 +100,12 @@ não bastam.
 - **09/08/2026** — lembrete do jogo fixo da panelinha (é o mesmo dia e a mesma hora toda
   semana; quem está no grupo já sabe), resultado de partida, "alguém que você segue se
   inscreveu".
+- **18/09/2026 — os desafios**, por decisão do Felipe (*"na parte de desafios, está enviando
+  whats, não é para enviar whats, esse pode ser só notificação"*): "você foi desafiado" e "seu
+  parceiro te incluiu". Era o **último aviso do canal disparado por um jogador contra OUTRO
+  jogador** — e mensagem de estranho no particular é o formato exato que restringiu o número em
+  04/08. Os dois continuam indo por app, caixa de avisos e e-mail; o desafio não some, fica em
+  `/Desafios/Meus` até responderem.
 - **21/08/2026 — a família de torneio inteira**, por decisão do Felipe: `"Seu jogo é o
   próximo!"`, `"Chaves do X saíram!"`, `"Torneio cancelado"` e `"Abriu vaga — vocês estão
   dentro!"` (nos dois caminhos: desistência e estorno). Era **o grosso do volume do canal** —
