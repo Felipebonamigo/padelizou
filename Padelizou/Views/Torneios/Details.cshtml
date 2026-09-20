@@ -1955,7 +1955,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <div>Este torneio é <strong>restrito</strong>: peça a chave de acesso ao organizador.</div>
                     </div>
                     <div class="mb-3">
-                        <input type="text" name="chaveAcesso" class="form-control text-uppercase" placeholder="Chave de Acesso" maxlength="6" required style="letter-spacing: 2px;" />
+                        <input type="text" name="chaveAcesso" class="form-control text-uppercase" placeholder="Chave de Acesso" maxlength="@Padelizou.Services.ChaveDeAcessoDoTorneio.TamanhoMaximo" required style="letter-spacing: 2px;" />
                     </div>
                 }
 
@@ -2326,7 +2326,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     <div>Este torneio é <strong>restrito</strong>: peça a chave de acesso ao organizador.</div>
                 </div>
                 <div class="mb-3">
-                    <input type="text" name="chaveAcesso" class="form-control text-uppercase" placeholder="Chave de Acesso" maxlength="6" required style="letter-spacing: 2px;" />
+                    <input type="text" name="chaveAcesso" class="form-control text-uppercase" placeholder="Chave de Acesso" maxlength="@Padelizou.Services.ChaveDeAcessoDoTorneio.TamanhoMaximo" required style="letter-spacing: 2px;" />
                 </div>
             }
 

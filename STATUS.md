@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **20/09/2026** — 🔑 **A CHAVE DE ACESSO NÃO CABIA NO CAMPO DE QUEM SE INSCREVE.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"na hora da inscrição tem limite de 6 caracteres — cadastrei uma chave CORNETA0310"*.
+>
+> 🚨 **ISTO TRANCAVA A INSCRIÇÃO INTEIRA.** Chave de 11 caracteres, campo de 6: não havia como digitar a chave certa. No "Los Corneteiros | Seletiva QTimes", com inscrições até 30/09, **ninguém conseguia entrar**.
+>
+> 🕳️ **REGRA QUE MUDOU DE UM LADO SÓ.** A chave nasceu SORTEADA com 6 caracteres (`ChaveDeAcessoDoTorneio.Sortear`), e o campo da inscrição foi escrito com esse **6 literal**. Depois o organizador ganhou o direito de ESCOLHER a chave, *"de 4 a 20"* — e o outro lado do fluxo ficou onde estava. Clássico: o literal duplicava uma regra que morava em outro arquivo.
+>
+> ✅ **O SERVIDOR NUNCA CORTOU NADA** — `DuplasController:265` e `Inscricoes:101` só COMPARAM a chave. O `maxlength` do HTML era o obstáculo inteiro, nos dois campos (`Details.cshtml:1958` e `:2329` — inscrição de dupla e do americano). Agora os dois leem `ChaveDeAcessoDoTorneio.TamanhoMaximo`.
+>
+> 🧪 **O TESTE OLHA A CONSTANTE, NÃO O NÚMERO 20** — amarrar no literal reproduziria o próprio defeito que ele trava. E ele foi **falsificado duas vezes**: vermelho antes da correção, e vermelho DE NOVO depois de reescrito (porque passou a aceitar a grafia nova), devolvendo um campo pro `6` pra provar que ainda pega. Reescrever teste depois do código é o risco que o `CLAUDE.md` nomeia; a falsificação é o que separa "adaptei" de "continua travando".
+>
+> 📌 **E o print respondeu a dúvida de ontem**: o torneio 28 tem os DOIS — *"só do time Los Corneteiros"* e *"é restrito"*. Pela régua de ontem, o restrito ganha e o push dele fica silenciado.
+>
+> **7.433 testes verdes**, 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🔕 **O "NOVO TORNEIO ABERTO" PAROU DE CONVIDAR A BASE INTEIRA PRA FESTA DE CONVIDADOS.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do push *"Los Corneteiros | Seletiva QTimes"*: *"esse torneio é restrito, ai nao deveria aparecer"*.
 >
 > 🕳️ **NÃO FOI DECISÃO, FOI LACUNA.** O `AvisoDeTorneioNovo` tinha TRÊS recusas — não aprovado, oculto, já avisado — e **nenhuma olhava quem pode se INSCREVER**. O torneio de um time só entrou em 16/09 e trancou a porta da inscrição; o anúncio ficou como estava. Não havia teste citando restrição, então ninguém escolheu isso.
