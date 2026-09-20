@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
+> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1480-e1750fa`** (deploy runs **35516517515** e **35516539508**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #344. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
 >
 > 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
 >
@@ -14,6 +14,10 @@
 > ✅ **VARREDURA POR OUTRAS CÓPIAS**: `grep` por `AprovadoEm != null` no código inteiro — só a Home tinha. As duas do `AdminController` são tela de admin, legitimamente diferentes.
 >
 > **7.447 testes verdes** (6 novos; 3 vistos VERMELHOS antes), 12 conferidores JS verdes.
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, COM ANTES E DEPOIS** — e desta vez olhando A HOME, que foi o que faltou da vez passada. Em `padelizou.com.br/`: os ids de torneio saíram de **[22, 28]** pra **[22, 25]**. A vitrine `/Torneios` ficou igual (**[22, 25, 26]**), como tinha que ser. `/healthz` **200** nos dois ambientes.
+>
+> 🎁 **E O EFEITO FOI MELHOR DO QUE O ESPERADO.** A home renderiza **2 cartões** (antes e depois — contados), e o torneio fechado estava **ocupando um deles**. Com ele fora, a vaga foi pro `25` (THE LAST DANCE), um torneio ABERTO que estava sendo espremido pra fora da primeira página do site. O vazamento não era só ruído: custava espaço de quem podia receber inscrição.
 
 > Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
 >
