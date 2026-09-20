@@ -823,7 +823,7 @@ public class JogadoresController : Controller
         ViewBag.TorneiosList = (await _context.Torneios
                 .OrderByDescending(t => t.DataInicio)
                 .ToListAsync())
-            .Where(PermissaoDeOrganizador.ApareceParaOPublico)
+            .Where(PermissaoDeOrganizador.ApareceNaDescoberta)
             .ToList();
 
         // ⚠️ AS LISTAS SAEM DO `HubDoRanking`, E NÃO DAQUI (14/09/2026). Elas eram montadas nesta

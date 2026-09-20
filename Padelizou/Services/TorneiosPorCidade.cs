@@ -56,7 +56,7 @@ public static class TorneiosPorCidade
 
         // Quantos torneios por linha de cidade — ainda por grafia, porque é o que a FK aponta.
         var porCidadeId = new Dictionary<int, int>();
-        foreach (var torneio in torneios.Where(PermissaoDeOrganizador.ApareceParaOPublico))
+        foreach (var torneio in torneios.Where(PermissaoDeOrganizador.ApareceNaDescoberta))
         {
             if (!cidadeDoClube.TryGetValue(torneio.ClubeId, out var cidadeId)) continue;
             porCidadeId[cidadeId] = porCidadeId.GetValueOrDefault(cidadeId) + 1;
@@ -101,7 +101,7 @@ public static class TorneiosPorCidade
         var clubes = clubesDaCidade.ToHashSet();
 
         var torneios = (await db.Torneios.AsNoTracking().ToListAsync())
-            .Where(t => clubes.Contains(t.ClubeId) && PermissaoDeOrganizador.ApareceParaOPublico(t))
+            .Where(t => clubes.Contains(t.ClubeId) && PermissaoDeOrganizador.ApareceNaDescoberta(t))
             // Sem data vai pro fim: torneio que ainda não marcou dia não pode encabeçar uma
             // lista cuja pergunta é "o que vem por aí".
             .OrderBy(t => t.DataInicio == null)
