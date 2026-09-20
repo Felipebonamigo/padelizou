@@ -151,6 +151,20 @@ public static class PermissaoDeOrganizador
     // Tirá-lo de lá é mudança de contrato, e está pendente de decisão do Felipe.
     public static bool ApareceNaDescoberta(Torneio torneio) =>
         ApareceParaOPublico(torneio) && SeAnuncia(torneio);
+
+    // A mesma pergunta pra uma tela que sabe QUEM está olhando: o torneio de um time aparece
+    // pra quem veste a camisa dele.
+    //
+    // ⚠️ O `!= null` NÃO É DECORAÇÃO: sem ele, dois nulos são IGUAIS em C#, e todo torneio
+    // RESTRITO (que não tem time) apareceria pra todo visitante SEM time — que é a base
+    // inteira, e o contrário exato do que esta régua existe pra fazer.
+    //
+    // ⚠️ E ELA MORA AQUI, e não na tela, porque a Home e a listagem precisam da MESMA resposta.
+    // Foi uma cópia desta régua escrita à mão no HomeController que deixou o torneio de time
+    // vazando na primeira página do site depois que a listagem já o escondia (20/09/2026) —
+    // e a Home já tinha caído nisso uma vez, com o `Oculto`.
+    public static bool ApareceParaQuemTemCamisa(Torneio torneio, int? meuTimeId) =>
+        SeAnuncia(torneio) || (torneio.TimeExclusivoId != null && torneio.TimeExclusivoId == meuTimeId);
 }
 
 // Separado da regra de propósito: isto aqui é TEXTO DE TELA, e muda por razão diferente da

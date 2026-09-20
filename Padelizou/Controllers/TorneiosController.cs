@@ -231,11 +231,7 @@ namespace Padelizou.Controllers
             bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
             torneios = torneios
                 .Where(t => (PermissaoDeOrganizador.ApareceNaVitrine(t)
-                             && (PermissaoDeOrganizador.SeAnuncia(t)
-                                 // ⚠️ `!= null` antes da comparação: sem ele, dois nulos são
-                                 // IGUAIS e todo torneio restrito sem time apareceria pra quem
-                                 // não tem camisa nenhuma — que é a base inteira.
-                                 || (t.TimeExclusivoId != null && t.TimeExclusivoId == meuTimeId)))
+                             && PermissaoDeOrganizador.ApareceParaQuemTemCamisa(t, meuTimeId))
                             || souAdmin
                             || meusTorneioIds.Contains(t.Id)
                             || estouInscritoEm.Contains(t.Id))

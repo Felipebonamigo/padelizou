@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
+> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
+>
+> 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
+>
+> 🕳️ **A CAUSA É EXATAMENTE O QUE O `PermissaoDeOrganizador` AVISA NO PRÓPRIO COMENTÁRIO**: *"Regra de visibilidade copiada é como o torneio oculto reaparece: a pessoa esconde o torneio, uma das cópias é atualizada, a outra não"*. O `HomeController` escrevia `!t.Oculto && t.AprovadoEm != null` À MÃO, então mudar a régua compartilhada não chegou lá.
+>
+> 🔁 **E A HOME JÁ TINHA CAÍDO NISSO ANTES** — o comentário dela dizia *"antes a home ignorava o Oculto e vazava torneio restrito na vitrine"*. Segunda vez, mesma classe, mesmo arquivo. Por isso a correção não foi somar a condição: foi **parar de escrever a régua ali**.
+>
+> 🧹 **E A COMPARAÇÃO DA CAMISA VIROU `ApareceParaQuemTemCamisa`**, usada pela Home E pela listagem. Ontem ela nasceu inline no Index — ou seja, eu tinha criado a segunda cópia no mesmo dia em que consertei a primeira. A armadilha do nulo (`TimeExclusivoId == meuTimeId` com dois nulos é VERDADEIRO) agora mora num lugar só.
+>
+> ✅ **VARREDURA POR OUTRAS CÓPIAS**: `grep` por `AprovadoEm != null` no código inteiro — só a Home tinha. As duas do `AdminController` são tela de admin, legitimamente diferentes.
+>
+> **7.447 testes verdes** (6 novos; 3 vistos VERMELHOS antes), 12 conferidores JS verdes.
+
+> Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
 >
 > 🧭 **A DISTINÇÃO QUE SEGURA O BLOCO INTEIRO: DESCOBERTA NÃO É PERMISSÃO.** O torneio fechado sai da vitrine e **a página continua abrindo por link**. Se ela fechasse como o `Oculto` faz (404), a chave de acesso não serviria pra nada — ninguém conseguiria abrir pra digitá-la. `VisibilidadeDoTorneio` ficou intocado de propósito.
 >
@@ -20,8 +34,14 @@
 > 🔁 **A justificativa do teste antigo INVERTEU DE LADO, e isso é o que torna a pergunta legítima**: ele dizia *"restrito não some da lista: ele aparece na nossa vitrine, e sumir aqui criaria duas listas diferentes de torneios abertos"*. A partir de hoje ele **não** aparece na nossa vitrine — então agora é MANTER lá que cria as duas listas diferentes.
 >
 > **7.442 testes verdes** (9 novos; 5 vistos VERMELHOS antes), 12 conferidores JS verdes.
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, COM ANTES E DEPOIS MEDIDOS** — em `padelizou.com.br`: o torneio 28 saiu da vitrine (**1 → 0** links), os outros **3** continuam lá (não sumiu a lista inteira), e a página dele ganhou `noindex` (**0 → 1**).
+>
+> 🔓 **E A PÁGINA CONTINUA ABRINDO: 200, 86.518 bytes, nome renderizando.** É a conferência que mais importa do bloco — é ela que prova que a chave de acesso segue funcionando. Se descoberta e permissão tivessem colado, isto seria 404 e o torneio ficaria inalcançável pra quem tem a chave.
+>
+> ⚠️ **O `maxlength` corrigido NÃO foi conferido no ar**: o campo de chave só renderiza pra quem está logado (`chaveAcesso`: 0 ocorrências na página anônima). O que sustenta é o teste, falsificado duas vezes. **Vale um print na hora de se inscrever.**
 
-> Última atualização: **20/09/2026** — 🔑 **A CHAVE DE ACESSO NÃO CABIA NO CAMPO DE QUEM SE INSCREVE.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"na hora da inscrição tem limite de 6 caracteres — cadastrei uma chave CORNETA0310"*.
+> Última atualização: **20/09/2026** — 🔑 **A CHAVE DE ACESSO NÃO CABIA NO CAMPO DE QUEM SE INSCREVE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"na hora da inscrição tem limite de 6 caracteres — cadastrei uma chave CORNETA0310"*.
 >
 > 🚨 **ISTO TRANCAVA A INSCRIÇÃO INTEIRA.** Chave de 11 caracteres, campo de 6: não havia como digitar a chave certa. No "Los Corneteiros | Seletiva QTimes", com inscrições até 30/09, **ninguém conseguia entrar**.
 >
@@ -35,7 +55,7 @@
 >
 > **7.433 testes verdes**, 12 conferidores JS verdes.
 
-> Última atualização: **20/09/2026** — 🔕 **O "NOVO TORNEIO ABERTO" PAROU DE CONVIDAR A BASE INTEIRA PRA FESTA DE CONVIDADOS.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do push *"Los Corneteiros | Seletiva QTimes"*: *"esse torneio é restrito, ai nao deveria aparecer"*.
+> Última atualização: **20/09/2026** — 🔕 **O "NOVO TORNEIO ABERTO" PAROU DE CONVIDAR A BASE INTEIRA PRA FESTA DE CONVIDADOS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do push *"Los Corneteiros | Seletiva QTimes"*: *"esse torneio é restrito, ai nao deveria aparecer"*.
 >
 > 🕳️ **NÃO FOI DECISÃO, FOI LACUNA.** O `AvisoDeTorneioNovo` tinha TRÊS recusas — não aprovado, oculto, já avisado — e **nenhuma olhava quem pode se INSCREVER**. O torneio de um time só entrou em 16/09 e trancou a porta da inscrição; o anúncio ficou como estava. Não havia teste citando restrição, então ninguém escolheu isso.
 >
