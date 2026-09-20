@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **20/09/2026** — 🔕 **O "NOVO TORNEIO ABERTO" PAROU DE CONVIDAR A BASE INTEIRA PRA FESTA DE CONVIDADOS.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do push *"Los Corneteiros | Seletiva QTimes"*: *"esse torneio é restrito, ai nao deveria aparecer"*.
+>
+> 🕳️ **NÃO FOI DECISÃO, FOI LACUNA.** O `AvisoDeTorneioNovo` tinha TRÊS recusas — não aprovado, oculto, já avisado — e **nenhuma olhava quem pode se INSCREVER**. O torneio de um time só entrou em 16/09 e trancou a porta da inscrição; o anúncio ficou como estava. Não havia teste citando restrição, então ninguém escolheu isso.
+>
+> 🔑 **RESTRITO → silêncio.** Quem não tem a chave não entra. **E não carimba**, pela mesma razão do `Oculto`: o carimbo é pra sempre, e um torneio que deixar de ser restrito ainda vai querer o anúncio.
+>
+> 👕 **TIME EXCLUSIVO → avisa SÓ quem veste a camisa** (escolha do Felipe). Silenciar de vez tiraria o aviso justamente de quem PODE jogar.
+>
+> ⚠️ **E A CAMISA SUBSTITUI A MIRA POR ESTADO — não soma.** Este foi o achado do bloco, e o teste que o pegou foi visto vermelho com `Assert.Equal() Failure: Values differ`: somando os dois filtros, o jogador do time que mora em OUTRO estado era cortado — caladinho, justamente quem se desloca pra jogar pelo time. Num torneio de time a camisa é o sinal mais forte que existe.
+>
+> ⚖️ **OS DOIS JUNTOS (o modelo permite): o restrito ganha e cala.** Sub-decisão minha, escrita como escolha no código — a chave é entregue na mão pelo organizador, e avisar quem não a tem é o mesmo barulho um nível abaixo.
+>
+> ♻️ **O carimbo e o envio viraram `CarimbarEEnviarAsync`, chamado pelas duas miras.** Copiar aquele bloco pro caminho novo repetiria exatamente a cópia divergente que tirou o aviso de dentro do controller em 18/08 — e aqui cópia errada não é tela torta, é push saindo duas vezes ou nenhuma.
+>
+> ⚠️ **ISSO NÃO ESCONDE TORNEIO NENHUM**: o restrito segue na listagem pública e na página dele. Quem some da vista é o `Oculto`, que é outra coisa.
+>
+> 📌 **ACHADO DE LAMBUJA, NÃO CONSERTADO**: no `Details.cshtml` todas as marcações de `TimeExclusivoId` estão atrás de `ViewBag.PodeGerenciar` — **só o organizador vê que o torneio é de um time só**. O visitante descobre que não pode entrar só na hora de tentar se inscrever.
+>
+> ⚠️ **NÃO CONFERIDO QUAL FLAG O TORNEIO 28 TEM**: a página anônima não revela (ver achado acima), e não há acesso ao banco de produção nesta sessão. O conserto cobre os dois casos, então não dependeu disso.
+>
+> **7.432 testes verdes** (os 5 novos vistos VERMELHOS antes), 12 conferidores JS verdes.
+
 > Última atualização: **17/09/2026** — 🙋 **QUEM FOI INSCRITO POR OUTRA PESSOA AGORA PODE RECUSAR.** 🚀 **PUBLICADO em `dev` e `prod` no `build-1472-cadfd05`** (PR #340; deploy runs 399 e 400). ⚠️ **COM MIGRATION** (`InscritoPorOutro`: tabela nova, chave composta) — ela aplica no startup, e o que prova que aplicou é o app ter subido: o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, e ele respondeu nos dois (corpo `ok`, conferido por fora às 03:44 UTC). 🗣️ Felipe: *"'Você foi inscrito para um torneio por Maickel' — para quando alguem inscrever um parceiro no torneio, avisar o parceiro e permitir recusar, ao recusar o primeiro fica sozinho no torneio e o avisa"*.
 >
 > 🕳️ **A INSCRIÇÃO EM DUPLA ERA A ÚNICA PORTA EM QUE ALGUÉM ENTRA NUM COMPROMISSO SEM TER CLICADO EM NADA** — com data, lugar e dinheiro. O aviso *"Fulano inscreveu você"* existia desde 31/07/2026; o que faltava era a **saída nomeada**. Havia o "Sair só eu", mas ele é outra pergunta: desistir pergunta *"sai só você ou os dois?"*, e essa pergunta não faz sentido pra quem nunca pediu pra entrar — a resposta errada dela tira do torneio justamente quem queria jogar. Mesma lição do mural dos Desafios (`DESAFIOS.md` §2): *"o que sustenta essa regra é o AVISO, não o botão"*.
