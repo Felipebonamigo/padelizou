@@ -1,6 +1,26 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
+>
+> 🧭 **A DISTINÇÃO QUE SEGURA O BLOCO INTEIRO: DESCOBERTA NÃO É PERMISSÃO.** O torneio fechado sai da vitrine e **a página continua abrindo por link**. Se ela fechasse como o `Oculto` faz (404), a chave de acesso não serviria pra nada — ninguém conseguiria abrir pra digitá-la. `VisibilidadeDoTorneio` ficou intocado de propósito.
+>
+> 📐 **REGRA NOVA EM DOIS DEGRAUS, e a separação é o que evitou o estrago.** `SeAnuncia` = não é restrito nem de time. `ApareceNaDescoberta` = `ApareceParaOPublico` **+** `SeAnuncia`. A de baixo responde *"este torneio é público?"*; a de cima, *"nós saímos anunciando ele?"*. Um torneio fechado é público e mesmo assim não se anuncia.
+>
+> 🖥️ **CINCO SUPERFÍCIES**: listagem, sitemap (sai do Google), páginas de cidade, seletor de torneio do ranking, e `noindex` na própria página.
+>
+> 🚪 **QUATRO ESCAPES NA LISTAGEM — e um deles NÃO EXISTIA.** Organizador, admin, **quem veste a camisa** (vê o torneio do time dele) e **quem já está inscrito**. O último é o novo: `meusTorneioIds` só olhava quem ORGANIZA, então quem já pagou veria o próprio torneio sumir da lista. É a mesma lição do escape 3 do `VisibilidadeDoTorneio`.
+>
+> ⚠️ **ARMADILHA DE NULO NO FILTRO DA CAMISA**: `t.TimeExclusivoId == meuTimeId` com os dois nulos é **verdadeiro** — todo restrito sem time apareceria pra quem não tem camisa nenhuma, que é a base inteira. O `!= null` antes da comparação é o que impede isso, e está comentado na linha.
+>
+> 🛑 **A API DO PARCEIRO FICOU FORA, E EU ESTAVA ERRADO SOBRE ELA.** Eu propus tirar o torneio fechado da lista do Ranking Brasil argumentando que ele dá ZERO ponto lá (`ContaNoRanking`) — e o Felipe aprovou **com base nesse argumento**. Ao rodar a suíte, um teste que já existia reprovou e mostrou o que eu não tinha lido: a API **já manda `InscricaoRestrita`**, cobrindo restrito E time exclusivo, com o motivo escrito (*"senão eles anunciariam como aberto a todos um evento que pede chave"*). O parceiro não estava sendo enganado; estava sendo informado. Reverti essa parte e devolvi a decisão, porque ela foi tomada sobre uma premissa minha que era falsa.
+>
+> 📌 **E se a decisão for tirar mesmo**: `InscricaoRestrita` passa a valer `false` pra sempre — campo morto numa API publicada. Tirar o campo seria quebra de contrato; deixar é inofensivo, mas merece linha no `API-TORNEIOS.md`.
+>
+> 🔁 **A justificativa do teste antigo INVERTEU DE LADO, e isso é o que torna a pergunta legítima**: ele dizia *"restrito não some da lista: ele aparece na nossa vitrine, e sumir aqui criaria duas listas diferentes de torneios abertos"*. A partir de hoje ele **não** aparece na nossa vitrine — então agora é MANTER lá que cria as duas listas diferentes.
+>
+> **7.442 testes verdes** (9 novos; 5 vistos VERMELHOS antes), 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🔑 **A CHAVE DE ACESSO NÃO CABIA NO CAMPO DE QUEM SE INSCREVE.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"na hora da inscrição tem limite de 6 caracteres — cadastrei uma chave CORNETA0310"*.
 >
 > 🚨 **ISTO TRANCAVA A INSCRIÇÃO INTEIRA.** Chave de 11 caracteres, campo de 6: não havia como digitar a chave certa. No "Los Corneteiros | Seletiva QTimes", com inscrições até 30/09, **ninguém conseguia entrar**.

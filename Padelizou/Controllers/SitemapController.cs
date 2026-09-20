@@ -48,12 +48,12 @@ public class SitemapController : Controller
         };
 
         // ⚠️ A régua de quem aparece é a MESMA das telas públicas
-        // (PermissaoDeOrganizador.ApareceParaOPublico) — copiar a condição aqui faria o torneio
+        // (PermissaoDeOrganizador.ApareceNaDescoberta) — copiar a condição aqui faria o torneio
         // oculto continuar entrando no Google no dia em que ela mudasse, e ninguém liga um
         // resultado de busca a um `if` esquecido num sitemap.
         var torneios = await _context.Torneios.AsNoTracking().ToListAsync();
         enderecos.AddRange(torneios
-            .Where(PermissaoDeOrganizador.ApareceParaOPublico)
+            .Where(PermissaoDeOrganizador.ApareceNaDescoberta)
             .OrderByDescending(t => t.DataInicio)
             .Select(t => $"/Torneios/Details/{t.Id}"));
 

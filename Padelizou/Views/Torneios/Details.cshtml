@@ -26,8 +26,12 @@
         @* Torneio oculto, ainda não aprovado ou cancelado sai do índice pela MESMA régua que
            o tira da vitrine — senão o link direto continuaria entrando no Google, e o
            organizador veria no buscador o torneio que ele escondeu do site. *@
+        @* E torneio FECHADO (restrito ou de um time só) também sai do índice: a página segue
+           abrindo por link — é assim que a chave de acesso funciona —, mas não é pelo Google
+           que alguém deve descobrir um torneio que não pode jogar. *@
         ViewData["ForaDoIndice"] =
             !Padelizou.Services.PermissaoDeOrganizador.ApareceNaVitrine(Model)
+            || !Padelizou.Services.PermissaoDeOrganizador.SeAnuncia(Model)
             || Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status);
 
         @* A capa é gravada como caminho relativo (/uploads/…) e a prévia do link é montada de
