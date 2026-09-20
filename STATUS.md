@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
+>
+> 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
+>
+> 🕳️ **A CAUSA É EXATAMENTE O QUE O `PermissaoDeOrganizador` AVISA NO PRÓPRIO COMENTÁRIO**: *"Regra de visibilidade copiada é como o torneio oculto reaparece: a pessoa esconde o torneio, uma das cópias é atualizada, a outra não"*. O `HomeController` escrevia `!t.Oculto && t.AprovadoEm != null` À MÃO, então mudar a régua compartilhada não chegou lá.
+>
+> 🔁 **E A HOME JÁ TINHA CAÍDO NISSO ANTES** — o comentário dela dizia *"antes a home ignorava o Oculto e vazava torneio restrito na vitrine"*. Segunda vez, mesma classe, mesmo arquivo. Por isso a correção não foi somar a condição: foi **parar de escrever a régua ali**.
+>
+> 🧹 **E A COMPARAÇÃO DA CAMISA VIROU `ApareceParaQuemTemCamisa`**, usada pela Home E pela listagem. Ontem ela nasceu inline no Index — ou seja, eu tinha criado a segunda cópia no mesmo dia em que consertei a primeira. A armadilha do nulo (`TimeExclusivoId == meuTimeId` com dois nulos é VERDADEIRO) agora mora num lugar só.
+>
+> ✅ **VARREDURA POR OUTRAS CÓPIAS**: `grep` por `AprovadoEm != null` no código inteiro — só a Home tinha. As duas do `AdminController` são tela de admin, legitimamente diferentes.
+>
+> **7.447 testes verdes** (6 novos; 3 vistos VERMELHOS antes), 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
 >
 > 🧭 **A DISTINÇÃO QUE SEGURA O BLOCO INTEIRO: DESCOBERTA NÃO É PERMISSÃO.** O torneio fechado sai da vitrine e **a página continua abrindo por link**. Se ela fechasse como o `Oculto` faz (404), a chave de acesso não serviria pra nada — ninguém conseguiria abrir pra digitá-la. `VisibilidadeDoTorneio` ficou intocado de propósito.
