@@ -701,8 +701,19 @@ public static class RankingDePalpiteiros
                     : new HashSet<int> { d.Jogador1Id });
     }
 
-    // Quais destes torneios podem somar no ranking geral: os que NÃO estão ocultos e NÃO foram
-    // cancelados.
+    // Quais destes torneios podem somar no ranking geral: os que NÃO estão ocultos, NÃO foram
+    // cancelados e NÃO são fechados (restrito ou de um time só).
+    //
+    // ⚠️ O FECHADO ENTROU EM 21/09/2026, e o motivo é de JUSTIÇA, não de régua copiada. 🗣️
+    // Felipe: *"esses torneios restritos ou de times, nao conta para o ranking, padelimetro
+    // etc"*. Enquanto o torneio fechado aparecia na vitrine, qualquer um achava e palpitava;
+    // desde 20/09 ele só aparece pra quem veste a camisa — então continuar somando faria o
+    // time acumular ponto num ranking PÚBLICO em jogos que os outros nem sabem que existem
+    // pra palpitar. Não é o caso do título, que é mérito de quem jogou: aqui é corrida entre
+    // palpiteiros, e uns teriam pista que os outros não enxergam.
+    //
+    // ⚠️ DENTRO DO TORNEIO O RANKING CONTINUA (`DoTorneioAsync` não passa por aqui), igual ao
+    // oculto: quem abre a página já passou pela porta, e o palpitômetro do evento é do evento.
     //
     // ⚠️ De propósito NÃO é a régua da VITRINE (`ApareceParaOPublico`), que exige também a
     // aprovação do admin. São perguntas diferentes: a vitrine decide o que é LISTADO e
@@ -723,11 +734,13 @@ public static class RankingDePalpiteiros
         var torneios = await contexto.Torneios
             .AsNoTracking()
             .Where(t => ids.Contains(t.Id))
-            .Select(t => new { t.Id, t.Oculto, t.Status })
+            .Select(t => new { t.Id, t.Oculto, t.Status, t.Restrito, t.TimeExclusivoId })
             .ToListAsync();
 
         return torneios
-            .Where(t => !t.Oculto && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Where(t => !t.Oculto
+                        && !CancelamentoDoTorneio.EstaCancelado(t.Status)
+                        && !t.Restrito && t.TimeExclusivoId == null)
             .Select(t => t.Id)
             .ToHashSet();
     }

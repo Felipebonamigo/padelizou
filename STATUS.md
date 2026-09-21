@@ -1,6 +1,18 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **21/09/2026** — 🔮 **O TORNEIO FECHADO SAIU DO RANKING DE PALPITEIROS — O ÚLTIMO QUE AINDA CONTAVA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"esses torneios restritos ou de times, nao conta para o ranking, padelimetro etc"*.
+>
+> 🔍 **A AUDITORIA VEIO ANTES DO CONSERTO, e quase tudo já estava certo.** Conferi as cinco portas: `ContaNoRanking` (entidade), `DuplaContaNoRanking` (SQL), `MovimentoNoRanking` (selo), e as DUAS do Padelímetro (nível por jogo e campanha). Todas conhecem o `TimeExclusivoId`. Varri também o padrão que já mordeu este código duas vezes — `!Restrito` escrito à mão sem o resto: **quatro ocorrências, todas em comentário**, nenhuma viva.
+>
+> ⚖️ **O DE PALPITEIROS ERA O ÚNICO FORA, E A MUDANÇA DE 20/09 TINHA AGRAVADO ISSO.** Enquanto o torneio fechado aparecia na vitrine, qualquer um achava e palpitava. Desde que ele passou a aparecer só pra quem veste a camisa, continuar somando faria o time acumular ponto num ranking **público** em jogos que os outros nem sabem que existem pra palpitar. **Não é o caso do título**, que é mérito de quem jogou e segue contando de propósito: aqui é corrida entre palpiteiros, e uns teriam pista que os outros não enxergam.
+>
+> 🚪 **MAS DENTRO DO TORNEIO O PALPITÔMETRO CONTINUA**, igual ao oculto: `DoTorneioAsync` não passa por este filtro. Quem abre a página já passou pela porta, e o palpitômetro do evento é do evento. Há teste fixando isso nos dois casos novos — sem ele, o conserto teria apagado o palpitômetro da própria página do torneio deles.
+>
+> 🎯 **O FILTRO MORA NUM MÉTODO SÓ** (`TorneiosQueContamAsync`), usado pelas DUAS telas entre torneios: a aba do hub e o selo do perfil. Era o desenho que já existia, e ele existe justamente pra elas não discordarem — *"duas contagens diferentes pro mesmo nome é o tipo de divergência que ninguém reporta como bug, só desconfia das duas"*.
+>
+> **7.449 testes verdes** (2 novos, os dois vistos VERMELHOS antes), 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1480-e1750fa`** (deploy runs **35516517515** e **35516539508**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #344. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
 >
 > 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.

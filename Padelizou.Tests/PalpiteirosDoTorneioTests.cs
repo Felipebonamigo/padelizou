@@ -594,6 +594,59 @@ public class PalpiteirosDoTorneioTests
         Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
     }
 
+    // ── TORNEIO FECHADO (21/09/2026) ──────────────────────────────────────────────────────
+    //
+    // 🗣️ Felipe: *"esses torneios restritos ou de times, nao conta para o ranking, padelimetro
+    // etc"* — e o de palpiteiros era o único que ainda contava.
+    //
+    // ⚠️ O QUE TORNOU ISSO DESIGUAL FOI A MUDANÇA DE 20/09: enquanto o torneio fechado
+    // aparecia na vitrine, qualquer um achava e palpitava. Depois que ele passou a aparecer só
+    // pra quem veste a camisa, o time seguiria somando ponto num ranking PÚBLICO em jogos que
+    // os outros nem sabem que existem pra palpitar. Não é o caso do título (mérito de quem
+    // jogou): aqui é corrida entre palpiteiros, e uns teriam pista que os outros não enxergam.
+
+    [Fact]
+    public async Task Torneio_RESTRITO_nao_soma_no_ranking_geral()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Restrito", "55530000004");
+
+        var (fechado, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        fechado.Restrito = true;
+        fechado.ChaveAcesso = "SEGREDO";
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+        // O selo do perfil tem que dizer o MESMO número da aba — duas contagens diferentes pro
+        // mesmo nome é a divergência que ninguém reporta, só desconfia das duas.
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id));
+
+        // ⚠️ MAS DENTRO DO PRÓPRIO TORNEIO O RANKING CONTINUA — igual ao oculto. Quem abre a
+        // página dele já passou pela porta, e o palpitômetro do evento é do evento.
+        var doTorneio = await RankingDePalpiteiros.DoTorneioAsync(ctx, fechado.Id, null);
+        Assert.True(doTorneio!.TemRanking);
+    }
+
+    [Fact]
+    public async Task Torneio_de_UM_TIME_SO_nao_soma_no_ranking_geral()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Time", "55530000005");
+
+        var (fechado, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        ctx.Times.Add(new Time { Id = 9, Nome = "Los Corneteiros" });
+        fechado.TimeExclusivoId = 9;
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id));
+
+        var doTorneio = await RankingDePalpiteiros.DoTorneioAsync(ctx, fechado.Id, null);
+        Assert.True(doTorneio!.TemRanking);
+    }
+
     [Fact]
     public async Task Torneio_esperando_APROVACAO_soma_normalmente()
     {
