@@ -25,6 +25,18 @@ public class PlanoProfessorSettings
     // Dias de atraso da mensalidade que ainda seguram as condições de assinante. Cair pra
     // taxa cheia no primeiro minuto de atraso puniria quem só esqueceu o boleto no feriado.
     public int DiasDeCarencia { get; set; } = 7;
+
+    // Dias entre perder o direito e a AGENDA FECHAR, pra quem já foi cliente (pagou alguma vez
+    // ou teve cortesia). ⚠️ Eixo diferente da carência acima: aquela decide quanto a aula
+    // custa, esta decide quando ele para de marcar aula. Ver Services/BloqueioDoProfessor.
+    public int DiasAteOBloqueio { get; set; } = 10;
+
+    // ⚠️ O INTERRUPTOR DO BLOQUEIO, e a trava de aviso justo. Nulo = bloqueio DORMENTE: o
+    // código sobe em produção sem mudar o comportamento de ninguém. Preenchido, é o PISO —
+    // ninguém é bloqueado antes desta data, por mais velho que seja o vencimento dele. Sem
+    // isso, o deploy fecharia num segundo a agenda de todo mundo que está vencido há meses,
+    // sem um aviso sequer. Preencher só depois de os avisos do item 3 terem rodado.
+    public DateTime? BloqueioAPartirDe { get; set; }
 }
 
 // A regra do plano, pura: quem está em teste, quem está em dia, quem caiu pro avulso — e
