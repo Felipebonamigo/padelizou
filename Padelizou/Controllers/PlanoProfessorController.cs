@@ -9,9 +9,13 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers;
 
-// O plano do professor: 15 dias de teste com condições de assinante e, no fim, a escolha —
-// Assinante (mensalidade + taxa menor por aula) ou Avulso (sem mensalidade, taxa cheia).
-// Regras em Services/PlanoDoProfessor; os números em PlanoProfessorSettings.
+// O plano do professor: 15 dias de teste com condições de assinante e, no fim, a assinatura —
+// mensalidade (ou anuidade) e taxa menor por aula. Regras em Services/PlanoDoProfessor; os
+// números em PlanoProfessorSettings.
+//
+// ⚠️ O AVULSO SAIU DE CARTAZ em 22/09/2026 e o enum `Situacao.Avulso` continua existindo de
+// propósito: tem professor com ele gravado. O que acabou é a OFERTA, não o reconhecimento de
+// quem já está lá — ver OAvulsoSaiDeCartazTests pra razão inteira.
 [Authorize]
 public class PlanoProfessorController : Controller
 {
@@ -80,10 +84,17 @@ public class PlanoProfessorController : Controller
             && p.MetodoPagamento == PixDireto.Metodo
             && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
 
+    // ⚠️ SÓ EXISTE UM PLANO A ESCOLHER desde 22/09/2026 — o Avulso saiu de cartaz. A recusa é
+    // por lista branca (`!= Assinante`) e não por lista negra: plano novo que apareça amanhã
+    // entra por aqui de propósito, e não por esquecimento.
+    //
+    // ⚠️ E a trava é do SERVIDOR, não da tela. Tirar o botão não tira o POST: quem estiver com
+    // a página antiga aberta numa aba (ou com ela em cache) ainda manda `plano=Avulso`, e sem
+    // esta linha gravaria o plano aposentado — saindo do alcance da cobrança pra sempre.
     [HttpPost]
     public async Task<IActionResult> Escolher(string plano)
     {
-        if (plano != PlanoDoProfessor.Assinante && plano != PlanoDoProfessor.Avulso) return BadRequest();
+        if (plano != PlanoDoProfessor.Assinante) return BadRequest();
 
         var eu = await ProfessorLogadoAsync();
         if (eu == null) return Forbid();
@@ -91,9 +102,8 @@ public class PlanoProfessorController : Controller
         eu.PlanoProfessor = plano;
         await _context.SaveChangesAsync();
 
-        TempData["Sucesso"] = plano == PlanoDoProfessor.Assinante
-            ? "Plano Assinante escolhido! Gere a mensalidade quando quiser — a taxa menor vale enquanto ela estiver em dia."
-            : "Plano Avulso escolhido: sem mensalidade, taxa cheia por aula. Dá pra mudar de ideia quando quiser.";
+        TempData["Sucesso"] = "Plano Assinante escolhido! Gere a mensalidade quando quiser — "
+                            + "a taxa menor vale enquanto ela estiver em dia.";
         return RedirectToAction("Index");
     }
 

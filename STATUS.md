@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
+>
+> 🕳️ **O AVULSO ERA O PLANO GRÁTIS PRA SEMPRE — e isso foi MEDIDO, não suposto.** Ele cobrava 10% *"por aula paga no app"*, e **a aula comum nunca passa pelo app**. Só duas portas geram cobrança de verdade: o jogo-aula (`JogoAulaController:209` → `IniciarCobrancaAulaAsync`) e a fatura mensal (`AulasController.Faturamento:260` → `IniciarCobrancaDaFaturaAsync`). Na aula normal o professor clica em "recebida", `Aula.PagaEm` é carimbado **sem gateway nenhum** e o Padelizou recebe **R$ 0,00**. Um clique em "Ficar no Avulso" tirava o professor do alcance de qualquer cobrança — pra sempre. A pergunta que destravou isso foi do Felipe: *"mas como eu sei q ele ta pagando os 10%?"*. Não sabia. Não tinha como.
+>
+> 🚪 **A TRAVA É DO SERVIDOR, NÃO DA TELA.** `Escolher` passou a recusar por **lista branca** (`!= Assinante`), e não por lista negra: tirar o botão não tira o POST — a aba aberta em cache ainda manda `plano=Avulso`, e é ela que gravaria o plano aposentado. Lista branca também garante que plano novo entre por decisão, não por esquecimento.
+>
+> ♻️ **O ENUM E A COLUNA FICAM VIVOS, e isso não é sobra**: tem professor com `PlanoProfessor = "Avulso"` gravado. O ramo `Situacao.Avulso` da tela continua existindo e ganhou teste-guarda — apagá-lo na próxima faxina jogaria quem **já escolheu** no `default:`, que fala de quem **não** escolheu.
+>
+> 🤐 **NADA NA TELA PROMETE BLOQUEIO** — ele é o item 2 e ainda não existe. Anunciar consequência que o código não aplica é a mentira de rótulo do `build-373`, e ela custa mais que o silêncio.
+>
+> ⚠️ **SOBROU UMA PORTA, DEIXADA DE PROPÓSITO**: o rádio "Avulso" em `/Admin/Professores` (`Views/Admin/Professores.cshtml:458` → `AdminController.Professores.cs:234`). É o console do Felipe (*"o plano que ELE escolheu"*), não uma oferta ao professor, e hoje não defende nada porque o bloqueio não existe. **Decisão pendente do item 2**: com o bloqueio no ar, esse rádio vira a única forma de isentar alguém pra sempre — e a **Cortesia já faz isso melhor**, com prazo e motivo escrito.
+>
+> 📋 **O DESENHO COMPLETO, APROVADO, EM 4 ITENS** — (1) tirar o Avulso de cartaz ✅; (2) a régua + o gate nos 51 POSTs + o robô `RenovacaoDaAulaFixa` + o filtro da busca; (3) a escada de avisos (7 dias / 1 dia / 1 hora antes, hora fixa de bloqueio às 10h pra o de 1h caber na `HoraCivilizada`); (4) cancelamento das aulas 1 mês depois do vencimento. Régua do bloqueio = `PlanoDoProfessor.CondicoesDeAssinante` + prazo (`DiasAteOBloqueio = 10` pra quem já pagou; sem tolerância pra quem nunca pagou).
+>
+> **7.451 testes verdes** (4 novos; **2 vistos VERMELHOS antes** — os outros 2 são guardas de regressão, verdes por desenho), 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
 >
 > 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
