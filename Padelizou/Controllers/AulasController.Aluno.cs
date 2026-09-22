@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
+using Padelizou.Filters;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 using System.Security.Claims;
@@ -128,6 +129,9 @@ namespace padelizou.Controllers
         // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar) — pode gerar uma aula
         // avulsa, uma série de pacote (quantidade fixa do local) ou uma série fixa semanal.
         [HttpPost]
+        // O professor bloqueado que também é ALUNO de alguém continua marcando a aula DELE: o
+        // plano dele não tem nada a ver com isso.
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> Solicitar(int professorId, int localId, DateTime dataHora,
             bool ehPacote, bool recorrente, int semanasRecorrencia,
             // Quem chega na quadra: o nome com que o aluno se apresenta nesta aula e quem mais
@@ -378,6 +382,7 @@ namespace padelizou.Controllers
         // se fica marcada como cobrável.
         [HttpPost]
         [Authorize]
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> CancelarComoAluno(int aulaId)
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
