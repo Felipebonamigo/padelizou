@@ -31,6 +31,11 @@ public class PlanoProfessorSettings
     // custa, esta decide quando ele para de marcar aula. Ver Services/BloqueioDoProfessor.
     public int DiasAteOBloqueio { get; set; } = 10;
 
+    // "Fica marcado até 1 mês depois do vencimento" (Felipe). Passado isto, as aulas futuras
+    // são canceladas e os alunos avisados. ⚠️ Conta do MESMO ponto que o bloqueio — o fim do
+    // último direito —, e não do dia do bloqueio: "um mês do vencimento" é o que foi prometido.
+    public int DiasAteCancelarAsAulas { get; set; } = 30;
+
     // ⚠️ O INTERRUPTOR DO BLOQUEIO, e a trava de aviso justo. Nulo = bloqueio DORMENTE: o
     // código sobe em produção sem mudar o comportamento de ninguém. Preenchido, é o PISO —
     // ninguém é bloqueado antes desta data, por mais velho que seja o vencimento dele. Sem

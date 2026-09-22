@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
+>
+> 📧 **O PEDIDO LITERAL ESTOURARIA A CONTA DE E-MAIL — e a descoberta é que ela JÁ ESTAVA SENDO USADA.** `EnviarParaJogadorAsync` manda push **e e-mail** no mesmo funil: os avisos do plano sempre mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × 10 professores = **200 e-mails**, contra um volume mensal do sistema inteiro de **~300 a 500** (`EMAIL.md`). A cota do Gmail já estourou **duas vezes**; na segunda, **130 e-mails morreram calados**, duas recuperações de senha entre eles.
+>
+> ♻️ **A SAÍDA JÁ EXISTIA, E NASCEU DO MESMO ESTOURO**: `AlcanceDoAviso.AppSemEmail` (push + caixa de entrada, sem e-mail), criado em 09/08 pelo mesmo motivo. Degrau 2 da escada do CLAUDE.md — reusar em vez de inventar canal. **Diário por push**; **e-mail em três marcos**: o dia do bloqueio, a metade do prazo e a véspera do cancelamento.
+>
+> 🪜 **DUAS FAIXAS NOVAS, SEM COLUNA NOVA.** `4x` = antes do bloqueio (**40** uma semana, **41** amanhã, **42** uma hora). `50+` = já bloqueado, **um por dia**, com `PrimeiroDiaBloqueado + dias`. ⚠️ **O DIA VIRA O PRÓPRIO ESTÁGIO** — é isso que dispensa migration: a escada já é monotônica, e um número que cresce com o calendário responde *"já avisei hoje?"* de graça. Sem isso, a varredura horária mandaria **doze avisos por dia**.
+>
+> 🕘 **O AVISO DE "1 HORA" É O QUE JUSTIFICA `HoraDoBloqueio = 10h`** — e agora tem teste provando o par: às 9h (a `PrimeiraHora` civilizada) o professor ainda está solto, e é essa varredura que o entrega. Varredura que só rodar depois das 10h pula o estágio e manda o do dia 0; é o desenho, não um furo.
+>
+> 🕳️ **UMA GUARDA MINHA ESTAVA ERRADA, e o teste pegou**: eu barrava o mundo do bloqueio com `CondicoesDeAssinante`. Só que *"uma semana antes do bloqueio"* cai **três dias depois do vencimento** — ou seja, **dentro da carência**, quando o professor ainda é "assinante em dia". Com a guarda, **o primeiro degrau da escada nunca saía**. E é justamente aí que ele serve: ainda dá pra resolver sem perder nada.
+>
+> 🔽 **QUEM ENTRA NA ESCADA DO BLOQUEIO NÃO VOLTA A OUVIR SOBRE TAXA.** *"Sua agenda fecha amanhã"* seguido de *"sua taxa voltou ao cheio"* é ordem **decrescente** de urgência — quem lê o segundo conclui que o primeiro se resolveu.
+>
+> 📅 **`CancelaAulasEm` NASCEU JUNTO, no `BloqueioDoProfessor`**, da **mesma conta** do bloqueio (`DiasAteCancelarAsAulas = 30`, do fim do último direito). O item 4 vai usá-la direto; uma segunda conta noutro arquivo é como as duas passam a discordar no primeiro refactor. Ela também é o que faz o diário **parar de repetir** depois do cancelamento.
+>
+> 🤝 **NENHUMA FRASE PROMETE QUE A AULA MARCADA SOME** — ela não some: o bloqueio para de aceitar novidade, e a conta regressiva até o cancelamento é a única informação nova que o professor tem a cada manhã.
+>
+> 🧪 **O FIO FOI FALSIFICADO**: tirando o alcance da chamada do serviço de fundo, o diário volta a sair por e-mail (`Expected: AppSemEmail / Actual: SoApp`). É o teste do fio, não da régua — `AlcanceDe` podia estar perfeita e o entregador continuar usando o padrão.
+>
+> 📋 **Falta o item 4**: cancelar as aulas futuras no fim do prazo, avisando alunos e professor.
+>
+> **7.504 testes verdes** (16 novos; vistos vermelhos antes), 12 conferidores JS verdes.
+
 > Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
 >
 > 🧭 **"PODE AGENDAR" NÃO VIROU RÉGUA NOVA.** É `PlanoDoProfessor.CondicoesDeAssinante` (em teste, em dia ou cortesia), que com o Avulso fora de cartaz virou a definição inteira. `BloqueioDoProfessor` só acrescenta o **prazo**. Segunda régua de quem-pode seria a cópia que um dia discorda da primeira — foi assim que a Mesa de Controle quebrou em 31/07.

@@ -47,6 +47,24 @@ public static class AvisosDoPlanoDoProfessor
     // Este estágio só existe pra DEPOIS: a cortesia acabou e a taxa dele subiu sozinha.
     public const int CortesiaAcabou = 30;
 
+    // Faixa 4x: A AGENDA VAI FECHAR (22/09/2026). Assunto diferente das faixas de cima — elas
+    // falam de quanto a aula CUSTA, estas de o professor parar de marcar aula. 🗣️ Felipe:
+    // "coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora".
+    public const int BloqueioEmUmaSemana = 40;
+    public const int BloqueioAmanha = 41;
+    public const int BloqueioEmUmaHora = 42;
+
+    // 50 e acima: JÁ BLOQUEADO, um por dia — `PrimeiroDiaBloqueado + dias`. 🗣️ Felipe: "o
+    // professor vai avisando todo dia por email e push q venceu".
+    //
+    // ⚠️ O DIA VIRA O PRÓPRIO ESTÁGIO, e é isso que dispensa coluna nova. A escada já é
+    // monotônica; um número que cresce com o calendário responde "já avisei hoje?" de graça, e
+    // a varredura de hora em hora para de mandar doze avisos por dia sem nenhuma migration.
+    public const int PrimeiroDiaBloqueado = 50;
+
+    // Quantos dias antes do bloqueio o primeiro aviso sai.
+    public const int DiasDeAntecedenciaDoBloqueio = 7;
+
     // Quantos dias antes sai o primeiro aviso, nos dois mundos. Cinco porque o pagamento é
     // manual e pode ser boleto: avisar na véspera é avisar quem já não tem como resolver.
     public const int DiasDeAntecedencia = 5;
@@ -61,6 +79,19 @@ public static class AvisosDoPlanoDoProfessor
     // Qual estágio cabe AGORA — nulo quando não há o que dizer.
     public static int? EstagioDevido(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
     {
+        var ultimoAviso = professor.UltimoLembreteDeAssinatura ?? 0;
+
+        // ⚠️ O BLOQUEIO FALA PRIMEIRO quando está à vista. É a consequência maior e a mais
+        // tardia: com ele no horizonte, "sua taxa voltou ao cheio" virou detalhe do que está
+        // acontecendo. A escada dele é monotônica na escala inteira — nunca desce.
+        if (DoBloqueio(professor, agora, cfg) is int doBloqueio)
+            return doBloqueio > ultimoAviso ? doBloqueio : null;
+
+        // ⚠️ E QUEM JÁ ENTROU NELA NÃO VOLTA a ouvir sobre taxa: "sua agenda fecha amanhã"
+        // seguido de "sua taxa voltou ao cheio" é ordem DECRESCENTE de urgência, e quem lê o
+        // segundo conclui que o primeiro se resolveu.
+        if (ultimoAviso >= BloqueioEmUmaSemana) return null;
+
         var estagio = QualMundo(professor, agora, cfg);
 
         if (estagio == null) return null;
@@ -81,6 +112,72 @@ public static class AvisosDoPlanoDoProfessor
     }
 
     private static int Faixa(int estagio) => estagio / 10;
+
+    // ── O mundo do BLOQUEIO ───────────────────────────────────────────────────────────────
+
+    private static int? DoBloqueio(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
+    {
+        // Dormente, ou relógio que nunca começou: não há bloqueio pra anunciar.
+        if (BloqueioDoProfessor.BloqueiaEm(professor, cfg) is not DateTime bloqueia) return null;
+
+        // ⚠️ QUEM DECIDE SE ESTÁ FECHADA É `EstaBloqueado`, e não uma comparação de datas aqui:
+        // duas contas da mesma coisa em arquivos diferentes é como elas passam a discordar.
+        if (!BloqueioDoProfessor.EstaBloqueado(professor, agora, cfg))
+        {
+            // ⚠️ E NÃO HÁ GUARDA POR `CondicoesDeAssinante` AQUI — tinha, e estava errada. O
+            // aviso de "uma semana" cai três dias DEPOIS do vencimento, ou seja, DENTRO da
+            // carência, quando o professor ainda é "assinante em dia". É exatamente aí que o
+            // aviso serve: ele ainda tem a taxa menor e ainda dá pra resolver sem perder nada.
+            // Com a guarda, o primeiro aviso da escada nunca saía.
+            //
+            // Quem está de fato em dia não entra por aritmética: `BloqueiaEm` nasce do fim do
+            // último direito, então um pagamento empurra a data pra fora da janela dos 7 dias.
+            if (agora >= bloqueia) return null;
+
+            var faltam = (bloqueia.Date - agora.Date).Days;
+
+            // "Falta 1 hora" é o MESMO DIA do bloqueio, antes dele. Só existe porque o bloqueio
+            // cai às 10h e a varredura das 9h ainda pega o professor solto — ver
+            // BloqueioDoProfessor.HoraDoBloqueio. Varredura que só rodar depois das 10h pula
+            // este estágio e manda o do dia 0; é o desenho, não um furo.
+            if (faltam <= 0) return BloqueioEmUmaHora;
+            if (faltam == 1) return BloqueioAmanha;
+            return faltam <= DiasDeAntecedenciaDoBloqueio ? BloqueioEmUmaSemana : null;
+        }
+
+        // Já bloqueado: um aviso por dia até as aulas caírem. Dali em diante quem fala é o
+        // cancelamento — repetir "seu plano venceu" sobre fato consumado é só ruído.
+        if (BloqueioDoProfessor.CancelaAulasEm(professor, cfg) is DateTime cancela
+            && agora.Date > cancela.Date)
+            return null;
+
+        return PrimeiroDiaBloqueado + (agora.Date - bloqueia.Date).Days;
+    }
+
+    // POR ONDE O AVISO SAI — e esta função existe por causa da CONTA DE E-MAIL.
+    //
+    // ⚠️ `EnviarParaJogadorAsync` manda push E E-MAIL no mesmo funil: os avisos do plano sempre
+    // mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × N professores seria, com 10
+    // bloqueados, 200 e-mails contra um volume mensal do sistema inteiro de ~300 a 500
+    // (EMAIL.md). A cota do Gmail já estourou duas vezes; na segunda, 130 e-mails morreram
+    // calados — duas recuperações de senha entre eles.
+    //
+    // Então o diário vai por `AppSemEmail` (push + caixa de entrada), que JÁ EXISTE e nasceu
+    // desse mesmo estouro, e o e-mail sai em TRÊS marcos: o dia do bloqueio, a metade do prazo
+    // e a véspera do cancelamento.
+    public static AlcanceDoAviso AlcanceDe(int estagio, Jogador professor, PlanoProfessorSettings cfg)
+    {
+        if (estagio < PrimeiroDiaBloqueado) return AlcanceDoAviso.SoApp;
+
+        var dia = estagio - PrimeiroDiaBloqueado;
+
+        // O prazo do diário: do bloqueio até o cancelamento.
+        var prazo = cfg.DiasAteCancelarAsAulas - cfg.DiasAteOBloqueio;
+
+        return dia == 0 || dia == prazo / 2 || dia == prazo - 1
+            ? AlcanceDoAviso.SoApp
+            : AlcanceDoAviso.AppSemEmail;
+    }
 
     // ⚠️ EXCLUSIVO E PRIMEIRO, nunca `?? DoTeste(...)`. Enquanto a cortesia vale (e durante a
     // janela em que o fim dela ainda é notícia), quem responde é ela — e a resposta durante a
@@ -193,6 +290,10 @@ public static class AvisosDoPlanoDoProfessor
         // ⚠️ Precisa vir ANTES do `_`, que devolve o texto da assinatura vencida — esquecer
         // esta linha manda o título errado, sem erro nenhum.
         CortesiaAcabou => "Sua cortesia no Padelizou terminou",
+        BloqueioEmUmaSemana or BloqueioAmanha or BloqueioEmUmaHora => "Sua agenda vai fechar",
+        // ⚠️ ANTES do `_`, como a cortesia: o `_` devolve o texto da assinatura vencida, e um
+        // estágio novo sem linha própria manda o título errado SEM ERRO NENHUM.
+        >= PrimeiroDiaBloqueado => "Sua agenda está fechada",
         _ => "Sua taxa por aula voltou ao cheio",
     };
 
@@ -204,6 +305,9 @@ public static class AvisosDoPlanoDoProfessor
     {
         var menor = cfg.PercentualAssinantePix.ToString("0.#");
         var cheia = cfg.PercentualAvulso.ToString("0.#");
+
+        if (estagio >= BloqueioEmUmaSemana)
+            return DoBloqueioEmPalavras(estagio, professor, agora, cfg);
 
         if (estagio is TesteAcabando or TesteAcabou)
             return DoTesteEmPalavras(estagio, professor, agora, cfg, menor, cheia);
@@ -237,6 +341,37 @@ public static class AvisosDoPlanoDoProfessor
 
         return $"Seu plano Assinante venceu em {pagaAte:dd/MM} e a taxa das suas aulas voltou pros "
              + $"{cheia}%. Renove quando quiser: a taxa de {menor}% volta na hora.";
+    }
+
+    // ⚠️ NENHUMA DESTAS FRASES PROMETE QUE A AULA MARCADA SOME. Ela não some: o bloqueio para
+    // de aceitar novidade e a agenda continua à vista. Quem cancela é o prazo de um mês, e é
+    // ELE que a frase do fim anuncia — trocar isso assustaria o professor com uma perda que não
+    // aconteceu, no dia em que ele mais precisa entender o que dá pra fazer.
+    private static string DoBloqueioEmPalavras(int estagio, Jogador professor, DateTime agora,
+        PlanoProfessorSettings cfg)
+    {
+        if (estagio < PrimeiroDiaBloqueado)
+        {
+            var bloqueia = BloqueioDoProfessor.BloqueiaEm(professor, cfg)!.Value;
+            var quando = estagio == BloqueioEmUmaHora ? "fecha hoje"
+                       : estagio == BloqueioAmanha ? "fecha amanhã"
+                       : Quando(bloqueia, agora, "fecha");
+
+            return $"Sua agenda {quando} ({bloqueia:dd/MM}) e você para de marcar aula nova. "
+                 + "O que já está marcado continua aparecendo. Assine e ela reabre na hora.";
+        }
+
+        // Já fechada. O que muda por dia é a conta regressiva até as aulas caírem — é a única
+        // informação nova que ele tem a cada manhã, e é a que decide se ele resolve hoje.
+        if (BloqueioDoProfessor.CancelaAulasEm(professor, cfg) is not DateTime cancela)
+            return "Sua agenda está fechada pra aula nova. Assine e ela reabre na hora.";
+
+        var faltam = (cancela.Date - agora.Date).Days;
+        var prazo = faltam <= 0 ? "hoje" : faltam == 1 ? "amanhã" : $"em {faltam} dias";
+
+        return $"Sua agenda está fechada pra aula nova. Suas aulas já marcadas continuam de pé, "
+             + $"mas são canceladas {prazo} ({cancela:dd/MM}) se o plano não voltar. "
+             + "Assine e tudo reabre na hora.";
     }
 
     // ⚠️ DUAS SITUAÇÕES BEM DIFERENTES CAEM AQUI, e mandar o mesmo texto pras duas seria dizer

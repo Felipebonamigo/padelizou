@@ -27,7 +27,12 @@ public static class BloqueioDoProfessor
 
     // O INSTANTE EM QUE A AGENDA FECHA. Nulo = não há bloqueio à vista (bloqueio dormente, ou
     // professor cujo relógio nunca começou).
-    public static DateTime? BloqueiaEm(Jogador professor, PlanoProfessorSettings cfg)
+    public static DateTime? BloqueiaEm(Jogador professor, PlanoProfessorSettings cfg) =>
+        Prazo(professor, cfg, cfg.DiasAteOBloqueio);
+
+    // A conta das duas datas, com o número de dias por parâmetro: bloqueio e cancelamento
+    // partem do MESMO ponto e só diferem nisso.
+    private static DateTime? Prazo(Jogador professor, PlanoProfessorSettings cfg, int dias)
     {
         // ⚠️ A TRAVA QUE IMPEDE O DEPLOY DE FECHAR A BASE INTEIRA NUM SEGUNDO. Sem ela, subir
         // isto bloquearia no primeiro tique todo professor dos baldes "Avulsos" e "Sem escolha"
@@ -49,20 +54,30 @@ public static class BloqueioDoProfessor
 
         // Quem já foi cliente de verdade ganha os 10 dias. Quem só usou o teste, não: o teste
         // já é a tolerância, e `PlanoDoProfessor` nunca deu carência a ele.
-        var jaFoiCliente = professor.AssinaturaProfessorPagaAte != null
-                        || professor.CortesiaConcedidaEm != null;
-
+        //
         // ⚠️ `+1 DIA` NO CASO DO TESTE, e não a hora exata do fim. O teste de alguém que entrou
         // às 14h30 acaba às 14h30; bloquear às 10h DAQUELE dia fecharia a agenda de quem ainda
         // está em teste — `CondicoesDeAssinante` ainda diz sim naquela hora. O dia seguinte é o
         // primeiro instante em que as duas réguas concordam.
-        var dias = jaFoiCliente ? cfg.DiasAteOBloqueio : 1;
-        var calculado = fim.Date.AddDays(dias).AddHours(HoraDoBloqueio);
+        var jaFoiCliente = professor.AssinaturaProfessorPagaAte != null
+                        || professor.CortesiaConcedidaEm != null;
+
+        var calculado = fim.Date.AddDays(jaFoiCliente ? dias : 1).AddHours(HoraDoBloqueio);
 
         // A estreia é PISO, nunca teto: quem vence depois dela segue o próprio relógio.
         var piso = estreia.Date.AddHours(HoraDoBloqueio);
         return calculado < piso ? piso : calculado;
     }
+
+    // O INSTANTE EM QUE AS AULAS JÁ MARCADAS CAEM (item 4). Nulo pelos mesmos motivos do
+    // BloqueiaEm — dormente, ou relógio que nunca começou.
+    //
+    // ⚠️ MORA AQUI, COLADO NO BLOQUEIO, e não no serviço que cancela: as duas datas saem do
+    // MESMO ponto de partida (o fim do último direito), e a escada de avisos precisa das duas
+    // pra saber quando parar de repetir. Uma segunda conta noutro arquivo é como elas passam a
+    // discordar no primeiro refactor.
+    public static DateTime? CancelaAulasEm(Jogador professor, PlanoProfessorSettings cfg) =>
+        Prazo(professor, cfg, cfg.DiasAteCancelarAsAulas);
 
     // A agenda está fechada AGORA?
     public static bool EstaBloqueado(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
