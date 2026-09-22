@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Padelizou.Models;
 
 namespace Padelizou.Services;
@@ -40,7 +41,8 @@ public class RenovadorDeAulaFixaBackgroundService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
 
-            var criadas = await RenovacaoDaAulaFixa.RenovarAsync(context, DateTime.Now, stoppingToken);
+            var criadas = await RenovacaoDaAulaFixa.RenovarAsync(context, DateTime.Now,
+                scope.ServiceProvider.GetRequiredService<IOptions<PlanoProfessorSettings>>().Value, stoppingToken);
 
             if (criadas > 0)
             {

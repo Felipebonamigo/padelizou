@@ -1,6 +1,30 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
+>
+> 🧭 **"PODE AGENDAR" NÃO VIROU RÉGUA NOVA.** É `PlanoDoProfessor.CondicoesDeAssinante` (em teste, em dia ou cortesia), que com o Avulso fora de cartaz virou a definição inteira. `BloqueioDoProfessor` só acrescenta o **prazo**. Segunda régua de quem-pode seria a cópia que um dia discorda da primeira — foi assim que a Mesa de Controle quebrou em 31/07.
+>
+> ⏱️ **DOIS EIXOS, DOIS PRAZOS, DE PROPÓSITO.** `DiasDeCarencia` (7) decide quanto a aula **custa**; `DiasAteOBloqueio` (10) decide quando a agenda **fecha**. Sobram **3 dias** em que o professor paga 10% e ainda marca aula — e existe teste nomeando essa janela. Quem nunca pagou não tem prazo: o teste já é a tolerância.
+>
+> 🕙 **O BLOQUEIO TEM HORA: 10h**, e isso não é estética. O aviso de "1 hora antes" (item 3) só é entregável se sair às **9h**, que é a `PrimeiraHora` da hora civilizada. O teste amarra na **constante**, não no número. E teste vencido bloqueia às 10h do **dia seguinte**: às 10h do próprio dia `CondicoesDeAssinante` ainda diz sim, e as duas réguas se contradiriam.
+>
+> 🔌 **`BloqueioAPartirDe` É O INTERRUPTOR E A TRAVA DE AVISO JUSTO.** Nulo = dormente. Preenchido, é **PISO**: ninguém bloqueia antes dessa data, por mais velho que seja o vencimento. Sem ela o deploy fecharia num segundo a agenda de todo mundo dos baldes "Avulsos" e "Sem escolha" — gente vencida há meses que nunca foi avisada. Mesmo raciocínio do `JanelaDoAvisoDeQueda`.
+>
+> 🧱 **O GATE VAI NA CLASSE, não endpoint a endpoint** — 51 POSTs em 11 arquivos parciais, e lista à mão envelhece calada. `[ExigePlanoAtivo]` em `AulasController`, `JogoAulaController` e `ProfessoresController`; o 52º endpoint já nasce coberto. O filtro corta **por verbo**: GET passa reto, que é a "visualização do que já está marcado". **Falsificado**: tirando o atributo, o gate reprova.
+>
+> 🚪 **CINCO OPT-OUTS, TODOS DO LADO DO ALUNO** e todos com motivo escrito no gate (`Solicitar`, `CancelarComoAluno`, `Inscrever`, `CancelarInscricao`, `Avaliar`) — professor bloqueado que também é aluno de alguém não perde o direito de marcar a aula **dele**. E `PlanoProfessorController` fica **fora do filtro inteiro**: `Escolher` e `PagarMensalidade` são a única saída, e pô-los sob o bloqueio trancaria o professor do lado de fora com a chave dentro.
+>
+> 🤖 **O QUARTO CRIADOR DE AULA ERA O ROBÔ, e o filtro de POST não o alcançava.** `RenovacaoDaAulaFixa` repõe 12 semanas à frente **sem humano nenhum**: sem esta mudança, o professor bloqueado continuaria ganhando aula nova na agenda, posta pelo próprio Padelizou. `cfg` agora é **obrigatório** ali — padrão silencioso seria o furo de volta. E o robô **para de repor, nunca apaga**: cancelar é o item 4, um mês depois e com aviso ao aluno.
+>
+> 🔍 **SOME DA BUSCA**: se não pode aceitar, não pode ser oferecido — senão o aluno marca, a aula nasce `Pendente` e ninguém nunca confirma. O filtro roda **em memória** (a régua é C# puro que o EF não traduz — a armadilha do InMemory de novo).
+>
+> 📋 **Falta do item 2: nada.** Próximos: **item 3** (escada de avisos 7d/1d/1h + push diário e e-mail em 3 marcos, pela cota do Gmail) e **item 4** (cancelar as aulas 1 mês após o vencimento, avisando alunos e professor).
+>
+> ⚠️ **PRA LIGAR EM PRODUÇÃO**: preencher `PlanoProfessor:BloqueioAPartirDe` **só depois** de os avisos do item 3 terem rodado, e olhando antes os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` — são os professores que perdem a agenda no dia.
+>
+> **7.488 testes verdes** (32 novos no bloco; o gate e o filtro **vistos vermelhos**), 12 conferidores JS verdes.
+
 > Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
 >
 > 🕳️ **O AVULSO ERA O PLANO GRÁTIS PRA SEMPRE — e isso foi MEDIDO, não suposto.** Ele cobrava 10% *"por aula paga no app"*, e **a aula comum nunca passa pelo app**. Só duas portas geram cobrança de verdade: o jogo-aula (`JogoAulaController:209` → `IniciarCobrancaAulaAsync`) e a fatura mensal (`AulasController.Faturamento:260` → `IniciarCobrancaDaFaturaAsync`). Na aula normal o professor clica em "recebida", `Aula.PagaEm` é carimbado **sem gateway nenhum** e o Padelizou recebe **R$ 0,00**. Um clique em "Ficar no Avulso" tirava o professor do alcance de qualquer cobrança — pra sempre. A pergunta que destravou isso foi do Felipe: *"mas como eu sei q ele ta pagando os 10%?"*. Não sabia. Não tinha como.

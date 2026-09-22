@@ -50,12 +50,24 @@ namespace padelizou.Controllers
             // aluno escolhia uma e metade dos professores não aparecia — sem erro nenhum.
             var idsDaCidade = CidadesSemRepetir.IdsDaMesma(cidadeId, await _context.Cidades.ToListAsync());
 
-            var professores = await _context.ProfessorCidades
-                .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
-                .Select(pc => new { pc.Professor.Id, pc.Professor.Nome })
-                .Distinct()
+            // ⚠️ O FILTRO DO BLOQUEIO RODA EM MEMÓRIA, E ISSO NÃO É PREGUIÇA. A régua
+            // (BloqueioDoProfessor) é C# puro que o EF não traduz: empurrada pra dentro da
+            // consulta, ela passaria lisa no teste InMemory e estouraria no Postgres — é a
+            // armadilha nomeada no CLAUDE.md e a mesma razão de ProfessoresNoAdmin.Montar
+            // receber tudo já materializado. São os professores de UMA cidade, não a base.
+            //
+            // ⚠️ E POR QUE ELE SOME DAQUI: se não pode aceitar, não pode ser oferecido. Deixá-lo
+            // na busca produz o pior desfecho — o aluno marca, a aula nasce Pendente e ninguém
+            // nunca confirma. A página dele continua abrindo por link; o que acaba é o anúncio.
+            var professores = (await _context.ProfessorCidades
+                    .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
+                    .Select(pc => pc.Professor)
+                    .ToListAsync())
+                .DistinctBy(p => p.Id)
+                .Where(p => !BloqueioDoProfessor.EstaBloqueado(p, DateTime.Now, _plano))
+                .Select(p => new { p.Id, p.Nome })
                 .OrderBy(p => p.Nome)
-                .ToListAsync();
+                .ToList();
 
             var idsProfessores = professores.Select(p => p.Id).ToList();
 

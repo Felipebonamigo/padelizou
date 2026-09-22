@@ -23,8 +23,12 @@ public static class RenovacaoDaAulaFixa
 
     // Renova todas as séries sem prazo que ficaram com menos aulas futuras que o horizonte.
     // Devolve quantas aulas criou.
+    // ⚠️ `cfg` É OBRIGATÓRIO, e não opcional com "nulo = não bloqueia". Este é o QUARTO criador
+    // de aula do sistema, e o único sem humano no meio: um padrão silencioso aqui faria o
+    // professor bloqueado continuar ganhando aula nova na agenda, posta pelo próprio Padelizou,
+    // sem nada denunciando. Quem não quer bloqueio passa `BloqueioAPartirDe` nulo — dizendo.
     public static async Task<int> RenovarAsync(DbPadelContext context, DateTime agora,
-        CancellationToken cancellationToken = default)
+        PlanoProfessorSettings cfg, CancellationToken cancellationToken = default)
     {
         // As séries vivas: aula sem prazo, ainda ativa e daqui pra frente. Série cujas aulas
         // futuras acabaram TODAS (professor apagou o resto) não volta a nascer sozinha — sem
@@ -37,9 +41,21 @@ public static class RenovacaoDaAulaFixa
 
         var criadas = 0;
 
+        // Quem está com a agenda fechada não recebe reposição. Carregado de uma vez e consultado
+        // em memória: a régua é C# puro que o EF não traduz — tentar filtrar na consulta passaria
+        // no teste InMemory e estouraria no Postgres, que é o defeito de sempre aqui.
+        var idsDosProfessores = candidatas.Select(a => a.ProfessorId).Distinct().ToList();
+        var bloqueados = (await context.Jogadores
+                .Where(j => idsDosProfessores.Contains(j.Id))
+                .ToListAsync(cancellationToken))
+            .Where(j => BloqueioDoProfessor.EstaBloqueado(j, agora, cfg))
+            .Select(j => j.Id)
+            .ToHashSet();
+
         foreach (var serie in candidatas.GroupBy(a => a.RecorrenciaId!.Value))
         {
             var ultima = serie.OrderByDescending(a => a.DataHora).First();
+            if (bloqueados.Contains(ultima.ProfessorId)) continue;
             var faltam = HorizonteSemanas - serie.Count();
             if (faltam <= 0) continue;
 

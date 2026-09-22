@@ -220,7 +220,10 @@ public static class TestInfra
     // quer provar taxa, split ou recusa precisa mandar o dele.
     public static AulasController NovoAulasController(
         DbPadelContext ctx, int usuarioLogadoId, IGoogleCalendarService? google = null,
-        IPushNotificationService? push = null, IPagamentoInscricaoService? pagamentos = null)
+        IPushNotificationService? push = null, IPagamentoInscricaoService? pagamentos = null,
+        // O padrão tem `BloqueioAPartirDe` nulo — bloqueio DORMENTE —, que é o que mantém os
+        // testes de sempre falando do que eles falam. Quem exercita o bloqueio passa o seu.
+        PlanoProfessorSettings? plano = null)
     {
         var controller = new AulasController(
             ctx,
@@ -228,7 +231,7 @@ public static class TestInfra
             google ?? Substitute.For<IGoogleCalendarService>(),
             push ?? Substitute.For<IPushNotificationService>(),
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
-            Microsoft.Extensions.Options.Options.Create(new PlanoProfessorSettings()),
+            Microsoft.Extensions.Options.Options.Create(plano ?? new PlanoProfessorSettings()),
             NullLogger<AulasController>.Instance);
 
         controller.ControllerContext = new ControllerContext

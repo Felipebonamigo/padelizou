@@ -62,7 +62,7 @@ public class RenovacaoDeTurmaTests
             Aula(professor, local, proxima, Guid.NewGuid(), "Lima", turma));
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         var semanaSeguinte = await ctx.Aulas
             .Where(a => a.DataHora == proxima.AddDays(7))
@@ -86,7 +86,7 @@ public class RenovacaoDeTurmaTests
         ctx.Aulas.Add(Aula(professor, local, DateTime.Today.AddDays(3).AddHours(9), serie, "Leonardo", turmaId: null));
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         Assert.All(await ctx.Aulas.ToListAsync(), a => Assert.Null(a.TurmaId));
     }
@@ -115,7 +115,7 @@ public class RenovacaoDeTurmaTests
 
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         // Medina precisava criar a aula de "proxima+7" pra alcançar Coello de novo — e
         // conseguiu, apesar de Coello já ter uma aula marcada exatamente nesse horário.
@@ -146,7 +146,7 @@ public class RenovacaoDeTurmaTests
 
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         // A turma A pulou a semana ocupada pela turma B — não criou aula de Medina em cima
         // da aula do "Outro aluno".
