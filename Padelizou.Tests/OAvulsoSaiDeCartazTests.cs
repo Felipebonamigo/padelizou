@@ -87,6 +87,85 @@ public class OAvulsoSaiDeCartazTests
         Assert.Contains("PlanoDoProfessor.Situacao.Avulso", tela);
     }
 
+    // ── A última porta: o console do admin ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Admin_nao_pode_mais_atribuir_o_Avulso()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var raiz = Raiz(ctx);
+        var professor = NovoProfessor(PlanoDoProfessor.Assinante);
+        ctx.Jogadores.Add(professor);
+        await ctx.SaveChangesAsync();
+
+        await Painel(ctx, raiz.Id).DefinirPlanoDoProfessor(professor.Id, PlanoDoProfessor.Avulso);
+
+        // ⚠️ RECUSA, E NÃO "CAI NO DEFAULT". O switch do admin manda tudo o que não reconhece
+        // pra `null` ("ainda não escolheu") — então tirar só o braço do Avulso faria a página
+        // antiga, aberta numa aba, APAGAR calada o plano de quem já tinha um. Errar apagando
+        // dado é pior que recusar, e o teste existe por causa dessa diferença.
+        var depois = await ctx.Jogadores.FindAsync(professor.Id);
+        Assert.Equal(PlanoDoProfessor.Assinante, depois!.PlanoProfessor);
+    }
+
+    [Fact]
+    public async Task Admin_continua_podendo_voltar_alguem_para_ainda_nao_escolheu()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var raiz = Raiz(ctx);
+        var professor = NovoProfessor(PlanoDoProfessor.Assinante);
+        ctx.Jogadores.Add(professor);
+        await ctx.SaveChangesAsync();
+
+        // O controle: a recusa do Avulso não pode levar junto a única forma de desfazer um
+        // registro errado — nem a de mover um Avulso antigo pra fora de lá.
+        await Painel(ctx, raiz.Id).DefinirPlanoDoProfessor(professor.Id, "");
+
+        Assert.Null((await ctx.Jogadores.FindAsync(professor.Id))!.PlanoProfessor);
+    }
+
+    [Fact]
+    public void O_painel_do_admin_nao_oferece_mais_o_Avulso()
+    {
+        var tela = Arquivo(Path.Combine("Views", "Admin", "Professores.cshtml"));
+
+        Assert.DoesNotContain("(PlanoDoProfessor.Avulso, \"Avulso\")", tela);
+    }
+
+    private static padelizou.Controllers.AdminController Painel(DbPadelContext ctx, int usuarioLogadoId)
+    {
+        var controller = new padelizou.Controllers.AdminController(
+            ctx,
+            NSubstitute.Substitute.For<IPushNotificationService>(),
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+            Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()));
+
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                new[] { new System.Security.Claims.Claim(
+                    System.Security.Claims.ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+        };
+        http.Request.Method = Microsoft.AspNetCore.Http.HttpMethods.Post;
+
+        controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = http };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, NSubstitute.Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = TestInfra.UrlDeTeste();
+        return controller;
+    }
+
+    private static Jogador Raiz(DbPadelContext ctx)
+    {
+        var raiz = new Jogador
+        {
+            Nome = "Felipe", Cpf = "11100000000", Login = "raiz", IsAdminGeral = true, IsAdminRaiz = true,
+        };
+        ctx.Jogadores.Add(raiz);
+        ctx.SaveChanges();
+        return raiz;
+    }
+
     private static string Arquivo(string caminhoRelativo) =>
         File.ReadAllText(Path.Combine(PastaDoProjeto(), caminhoRelativo));
 
