@@ -172,6 +172,23 @@ namespace padelizou.Controllers
                 return RedirectToAction("Solicitar");
             }
 
+            // ⚠️ A CHECAGEM É DO PROFESSOR ALVO, e é por isso que o filtro de bloqueio não dá
+            // conta dela: `[ExigePlanoAtivo]` olha quem está LOGADO, e aqui quem está logado é o
+            // ALUNO — esta ação é opt-out do filtro com razão.
+            //
+            // O professor bloqueado some da busca (ObterOfertas), mas o POST continua existindo
+            // pra quem tem o link ou a aba aberta de antes. Sem esta linha a aula nasce
+            // `Pendente`, o professor não consegue aceitar (ConfirmarSolicitacao está fechada) e
+            // o aluno fica pendurado esperando uma confirmação que não pode acontecer — o
+            // desfecho exato que o bloqueio inteiro existe pra evitar.
+            var professorAlvo = await _context.Jogadores.FindAsync(professorId);
+            if (professorAlvo == null
+                || BloqueioDoProfessor.EstaBloqueado(professorAlvo, DateTime.Now, _plano))
+            {
+                TempData["Erro"] = "Este professor não está aceitando novas aulas no momento.";
+                return RedirectToAction("Solicitar");
+            }
+
             // O pacote escolhido tem que ser DESTE local: sem esse filtro, mandar o id de um
             // pacote barato de outro professor compraria a aula cara pelo preço do outro.
             var pacotesValidos = local.Pacotes

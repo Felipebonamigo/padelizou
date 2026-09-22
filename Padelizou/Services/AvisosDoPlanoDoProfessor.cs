@@ -147,8 +147,11 @@ public static class AvisosDoPlanoDoProfessor
 
         // Já bloqueado: um aviso por dia até as aulas caírem. Dali em diante quem fala é o
         // cancelamento — repetir "seu plano venceu" sobre fato consumado é só ruído.
+        // ⚠️ `>=`, e não `>`: NO dia do cancelamento quem fala é o próprio cancelamento, com o
+        // que de fato aconteceu. Os dois no mesmo dia seriam "suas aulas caem hoje" seguido de
+        // "suas aulas caíram" — o segundo torna o primeiro ruído.
         if (BloqueioDoProfessor.CancelaAulasEm(professor, cfg) is DateTime cancela
-            && agora.Date > cancela.Date)
+            && agora.Date >= cancela.Date)
             return null;
 
         return PrimeiroDiaBloqueado + (agora.Date - bloqueia.Date).Days;

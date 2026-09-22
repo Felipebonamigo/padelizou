@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **22/09/2026** — 🧹 **ITEM 4: AS AULAS CAEM UM MÊS DEPOIS DO VENCIMENTO — E O BLOCO DO BLOQUEIO ESTÁ COMPLETO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE.** 🗣️ Felipe: *"fica marcado até 1 mes depois do vencimento... caso acabe esse 1 mes de prazo, cancele todas as aulas e avise os alunos e o professor"*.
+>
+> 🕳️ **E O ITEM 2 TINHA DEIXADO UM FURO, achado ao desenhar este.** O professor bloqueado some da busca, mas o **POST de `Solicitar` continuava existindo** pra quem tem o link ou a aba antiga. A ação é opt-out do filtro **com razão** — `[ExigePlanoAtivo]` olha quem está **logado**, e ali quem está logado é o ALUNO. Faltava checar o professor **alvo**. Sem isso a aula nascia `Pendente`, o professor não podia aceitar, e o aluno ficava pendurado esperando uma confirmação impossível — **o desfecho exato que o bloqueio inteiro existe pra evitar**. Fechado, com teste visto vermelho.
+>
+> 🛡️ **O SERVIÇO MAIS CONSERVADOR DO BLOCO, porque é o único que APAGA AGENDA.** Quatro travas: não roda com o bloqueio dormente, não roda fora de hora civilizada, **não toca no passado** (aula dada é dinheiro a receber e ficha do aluno) e não faz nada por quem voltou a pagar.
+>
+> 💸 **NINGUÉM É COBRADO.** `CanceladaPor` vira `PoliticaAula.CanceladaPeloSistema` — constante, e não string solta, porque **"Aluno" é a única palavra que faz `DeveCobrar` cobrar multa**. Carimbar isso numa aula que o sistema derrubou cobraria falta de quem não teve nada a ver com o plano do professor.
+>
+> 🔁 **A REPETIÇÃO MORRE JUNTO** (`RecorrenciaSemFim = false`): sem isso o renovador encheria a agenda de volta no instante do pagamento. O desenho é o contrário — ele remarca o que quiser, sabendo o que está remarcando. A frase do aviso diz isso na cara: *"a remarcação é na mão, inclusive as aulas fixas"*.
+>
+> 📨 **UM AVISO POR PESSOA, e não por aula**: aluno com três aulas é uma pessoa. `AlunoId` nulo é o aluno **avulso** (só nome, sem conta) — não tem pra onde receber, e é o professor quem avisa por fora; tem teste porque um `!.Value` ali derrubaria o cancelamento de **todo mundo que viesse depois na fila**.
+>
+> ♻️ **IDEMPOTENTE SEM COLUNA NOVA**: a aula cancelada some da consulta de "futuras ativas", então a segunda passada não acha nada. A varredura roda de hora em hora — sem isso o aluno levaria "sua aula foi cancelada" **doze vezes por dia**.
+>
+> 🤐 **E A ESCADA DE AVISOS SE CALA NO DIA DO CANCELAMENTO** (`>=`, não `>`): *"suas aulas caem hoje"* seguido de *"suas aulas caíram"* faz do primeiro ruído.
+>
+> 📋 **OS QUATRO ITENS ESTÃO FEITOS.** (1) Avulso fora de cartaz · (2) régua + gate nos 51 POSTs + robô + busca · (3) escada de avisos · (4) cancelamento. Tudo **dormente** até `PlanoProfessor:BloqueioAPartirDe` ser preenchido.
+>
+> ⚠️ **PRA LIGAR**: olhar os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` (são os que perdem a agenda), escolher a data com folga pros avisos do item 3 rodarem antes, e **testar em `dev` primeiro**. Ligar é uma linha de configuração; nada de deploy de código.
+>
+> **7.514 testes verdes** (10 novos; o furo do `Solicitar` visto vermelho), 12 conferidores JS verdes.
+
 > Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
 >
 > 📧 **O PEDIDO LITERAL ESTOURARIA A CONTA DE E-MAIL — e a descoberta é que ela JÁ ESTAVA SENDO USADA.** `EnviarParaJogadorAsync` manda push **e e-mail** no mesmo funil: os avisos do plano sempre mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × 10 professores = **200 e-mails**, contra um volume mensal do sistema inteiro de **~300 a 500** (`EMAIL.md`). A cota do Gmail já estourou **duas vezes**; na segunda, **130 e-mails morreram calados**, duas recuperações de senha entre eles.
