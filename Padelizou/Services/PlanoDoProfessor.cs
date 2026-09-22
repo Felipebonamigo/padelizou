@@ -99,6 +99,31 @@ public static class PlanoDoProfessor
         return null;
     }
 
+    // Está em dia SÓ PELA CARÊNCIA? Devolve o dia em que esse "em dia" acaba — nulo quando não
+    // é o caso (mensalidade ainda válida, atraso já vencido, ou ninguém nunca pagou).
+    //
+    // ⚠️ EXISTE PRA TELA, E NÃO PRA COBRANÇA. Pra quem cobra, carência É "em dia" e ponto — foi
+    // exatamente pra isso que ela nasceu, e separar os dois lá é como ela viraria desconto. A
+    // pergunta daqui é outra: *"esse verde vai cair em breve?"*. Ela nasceu de um print do
+    // Felipe (22/09/2026) com **Pago até 18/09** e selo verde **"Assinante em dia"** lado a
+    // lado: a régua certa, e a tela parecendo errada porque a única explicação morava em cinza
+    // no rodapé da página, longe da cor que o olho pega primeiro.
+    //
+    // ⚠️ E NÃO VIROU `Situacao` NOVA de propósito: um valor a mais no enum arrastaria
+    // CondicoesDeAssinante, CobrancaDaAula, RotuloDaSituacao e os baldes do resumo — mexendo na
+    // cobrança pra resolver um problema de rótulo.
+    //
+    // ⚠️ DIA DE CALENDÁRIO: "pago até 22/09" vale o dia 22 INTEIRO, então carência só a partir
+    // do 23. Comparar com a hora trocaria a cor do selo no meio do dia em que ele ainda está em
+    // dia — a mesma armadilha que `EmCortesia` nomeia logo acima.
+    public static DateTime? CarenciaAte(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
+    {
+        if (professor.AssinaturaProfessorPagaAte is not DateTime pagaAte) return null;
+        if (SituacaoDe(professor, agora, cfg) != Situacao.AssinanteEmDia) return null;
+
+        return agora.Date > pagaAte.Date ? pagaAte.AddDays(cfg.DiasDeCarencia).Date : null;
+    }
+
     public static bool EmTeste(Jogador professor, DateTime agora, PlanoProfessorSettings cfg) =>
         professor.TesteProfessorInicio != null
         && agora <= professor.TesteProfessorInicio.Value.AddDays(cfg.DiasDeTeste);

@@ -292,7 +292,24 @@
                                         }
                                     </td>
                                     <td data-ordem="@p.Situacao">
-                                        <span class="badge @corDoSelo(p.Situacao)">@p.Situacao</span>
+                                        @* ⚠️ VERDE LISO MENTE QUANDO A MENSALIDADE JÁ VENCEU (22/09/2026).
+                                           O Felipe mandou o print: "Pago até 18/09" com selo verde
+                                           "Assinante em dia", e perguntou se não estava errado. Não
+                                           estava — são os 7 dias de carência —, mas a única explicação
+                                           da tela morava em cinza no RODAPÉ, a uma rolagem da cor que o
+                                           olho pega primeiro.
+
+                                           O RÓTULO NÃO MUDA, só a cor e a linha de baixo: `p.Situacao`
+                                           é a chave da ordenação (`data-ordem`) E a que os baldes do
+                                           resumo comparam — trocar o texto aqui desmontaria as duas
+                                           coisas pra resolver um problema de cor. *@
+                                        <span class="badge @(p.CarenciaAte != null ? "bg-warning text-dark" : corDoSelo(p.Situacao))">@p.Situacao</span>
+                                        @if (p.CarenciaAte != null)
+                                        {
+                                            <div class="text-warning-emphasis fw-semibold" style="font-size: .75rem;">
+                                                vencida — carência até @p.CarenciaAte.Value.ToString("dd/MM")
+                                            </div>
+                                        }
                                         @if (p.Situacao == "Em teste" && p.FimDoTeste != null)
                                         {
                                             <div class="text-muted" style="font-size: .75rem;">
