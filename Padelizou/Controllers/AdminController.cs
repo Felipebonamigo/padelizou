@@ -173,6 +173,12 @@ namespace padelizou.Controllers
             ViewBag.PessoasInscritas = torneioIds.ToDictionary(id => id, id =>
                 TaxaDoTorneioExterno.PessoasInscritas(duplasPorTorneio[id], americanasPorTorneio[id]));
 
+            // Quantos jogos cada torneio tem AGORA — é o que multiplica por R$ 12 desde
+            // 23/09/2026. Ao vivo, e não o `JogosPrevistos` congelado no pedido, pelo mesmo
+            // motivo das pessoas: o pedido nasce com as inscrições abertas, quase sempre
+            // vazias, e cotar por aquele número cobraria o mínimo de todo mundo.
+            ViewBag.JogosAoVivo = await JogosDoTorneio.ContarAsync(_context, torneioIds);
+
             ViewBag.Config = _registro;
             return View(pedidos);
         }

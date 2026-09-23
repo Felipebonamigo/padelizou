@@ -15,6 +15,10 @@ namespace Padelizou.Services;
 //      conseguimos, de onde elas vêm e de quantos dias — coisas que só sabemos ao checar.
 //      Um preço estimado na tela viraria promessa na cabeça do organizador. O que a tela
 //      mostra antes é o que é fato: quantas pessoas o torneio pede e por quantos dias.
+// Uma categoria, do jeito que a CONTAGEM DE JOGOS precisa dela: quantos entraram no sorteio
+// e se ela é chave direta. O formato é do torneio inteiro, por isso não está aqui.
+public readonly record struct CategoriaParaContar(bool ChaveDireta, int Inscritos);
+
 public static class RegistroDeResultados
 {
     // Uma pessoa dá conta de duas quadras: ela alterna entre as duas anotando cada game.
@@ -37,44 +41,50 @@ public static class RegistroDeResultados
         return (int)(fim.Value.Date - inicio.Value.Date).TotalDays + 1;
     }
 
-    // Quantos jogos o torneio inteiro vai ter — a soma das categorias.
+    // Quantos jogos o torneio inteiro vai ter — a soma das categorias, cada uma pela régua
+    // do sorteio dela (PrevisaoDoTorneio.JogosDaCategoria).
     //
-    // Desde 20/08/2026 o número manda só no CUSTO, não mais no preço: quem vai registrar
-    // ganha por jogo lançado, então quem responde precisa dele pra saber por quanto não
-    // vale a pena aceitar. Um Americano de um dia pode ter mais jogos que um torneio de
-    // duplas de três — é por isso que o custo nunca foi por dia.
-    public static int JogosPrevistos(IEnumerable<int> duplasPorCategoria) =>
-        duplasPorCategoria.Where(d => d >= 2).Sum(PrevisaoDoTorneio.TotalDeJogos);
+    // ⚠️ DESDE 23/09/2026 ESTE NÚMERO É O PREÇO, e não mais só o custo. Enquanto foi custo,
+    // ele vivia num painel que só o raiz abre e errar era uma linha torta pra quem responde.
+    // Agora ele multiplica por R$ 12 e vira a conta do organizador — foi por isso que os dois
+    // buracos da contagem (Americano contando zero, chave direta contando grupos que não
+    // existem) deixaram de ser cosméticos e viraram trabalho.
+    public static int JogosPrevistos(string? formato, IEnumerable<CategoriaParaContar> categorias) =>
+        categorias.Sum(c => PrevisaoDoTorneio.JogosDaCategoria(formato, c.ChaveDireta, c.Inscritos));
 
     // Nosso custo com a equipe. Não aparece pro organizador — é o piso pra quem responde a
     // solicitação saber por quanto NÃO vale a pena aceitar.
     public static decimal CustoEstimado(int jogos, decimal custoPorJogo) =>
         Math.Max(0, jogos) * custoPorJogo;
 
-    // O preço pela regra publicada (20/08/2026): percentual SOBRE o valor das inscrições,
-    // a mais da taxa da forma de recebimento. Mesma régua da taxa do Externo — pessoas ×
-    // preço por pessoa (Services/TaxaDoTorneioExterno.PessoasInscritas) — de propósito: o
-    // organizador compara com o concorrente em percentual, e duas bases diferentes pra
-    // "valor das inscrições" seria a conta que ninguém confere.
+    // O preço pela regra publicada (23/09/2026): R$ por JOGO lançado, a mais da taxa da
+    // forma de recebimento. 🗣️ Felipe: *"mude o sistema, para que seja 12 reais por jogo, no
+    // lugar de 10% para marcarmos os placares"*.
+    //
+    // A unidade é a mesma do CUSTO, e é esse o ganho: pelo percentual o preço seguia as
+    // inscrições enquanto o custo seguia os jogos, e inscrição barata com muitos jogos saía
+    // abaixo do custo — o risco estava escrito como "aceito" no teste desta régua.
     //
     // O mínimo continua: mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40
     // jogos — sem ele, torneio pequeno (ou gratuito) sairia no prejuízo.
+    public static decimal PrecoSugeridoPorJogo(int jogos, decimal precoPorJogo, decimal valorMinimo) =>
+        Math.Max(Math.Max(0, jogos) * precoPorJogo, valorMinimo);
+
+    // A régua PERCENTUAL (20/08 a 23/09/2026), viva só pros pedidos cotados nela: a cotação
+    // congela no pedido (SolicitacaoRegistroResultados.PercentualCotado), e quem pediu a 5%
+    // ou a 10% continua valendo o que leu na tela. A base é a mesma da taxa do Externo —
+    // pessoas × preço por pessoa (Services/TaxaDoTorneioExterno.PessoasInscritas).
     public static decimal PrecoSugerido(
         int pessoasInscritas, decimal precoPorPessoa, decimal percentual, decimal valorMinimo) =>
         Math.Max(
             Math.Round(Math.Max(0, pessoasInscritas) * precoPorPessoa * percentual / 100m, 2),
             valorMinimo);
 
-    // A régua ANTIGA (R$ por jogo), viva só pros pedidos feitos antes de 20/08/2026: a
-    // cotação foi congelada no pedido, e quem pediu por ela continua valendo o que leu.
-    public static decimal PrecoSugeridoPorJogo(int jogos, decimal precoPorJogo, decimal valorMinimo) =>
-        Math.Max(Math.Max(0, jogos) * precoPorJogo, valorMinimo);
-
-    // A partir de quanto de inscrição (pessoas × preço) o percentual passa o mínimo. Abaixo
-    // disso todo torneio paga o mesmo — e quem responde precisa saber disso pra não achar
-    // que errou a conta quando dois pedidos diferentes dão o mesmo valor.
-    public static decimal InscricoesParaSairDoMinimo(decimal percentual, decimal valorMinimo) =>
-        percentual <= 0 ? 0 : Math.Round(valorMinimo * 100m / percentual, 2);
+    // A partir de quantos jogos o preço passa o mínimo. Abaixo disso todo torneio paga o
+    // mesmo — e quem responde precisa saber disso pra não achar que errou a conta quando dois
+    // pedidos de tamanhos diferentes dão o mesmo valor.
+    public static int JogosParaSairDoMinimo(decimal precoPorJogo, decimal valorMinimo) =>
+        precoPorJogo <= 0 ? 0 : (int)Math.Ceiling(valorMinimo / precoPorJogo);
 
     public static string? ProblemaParaSolicitar(
         bool servicoHabilitado, bool jaTemSolicitacaoAberta,
@@ -135,17 +145,18 @@ public class RegistroResultadosSettings
     // concorrente paga a quem vai lançar os resultados. Só aparece no painel do admin.
     public decimal CustoPorJogo { get; set; } = 10m;
 
-    // O que cobramos do organizador: percentual sobre o valor das inscrições (pessoas ×
-    // preço por pessoa), A MAIS da taxa da forma de recebimento. Trocou o R$ 12 por jogo em
-    // 20/08/2026: o concorrente que marca placar cobra percentual, e por jogo a comparação
-    // saía mais cara justamente nos torneios grandes. ⚠️ O custo continua por jogo — em
-    // inscrição barata com muitos jogos o percentual pode não cobrir o custo; o mínimo
-    // segura parte disso, e o resto é decisão de quem responde (o valor é ajustável).
+    // O que cobramos do organizador POR JOGO lançado, a mais da taxa da forma de recebimento.
     //
-    // 5% → 10% em 26/08/2026 (Felipe), depois de ver o concorrente cobrar 28% do mesmo
-    // torneio. Pedido feito a 5% não é recalculado: a cotação congela no pedido
-    // (SolicitacaoRegistroResultados.PercentualCotado).
-    public decimal PercentualDasInscricoes { get; set; } = 10m;
+    // 23/09/2026 (Felipe): voltou a ser por jogo, desfazendo o percentual que valeu de 20/08
+    // (5%) a 26/08 (10%). Com a inscrição média em R$ 150, os 10% cobravam R$ 15 por pessoa
+    // contra ~R$ 8 por jogo — e, mais que o número, o percentual andava solto do custo, que
+    // sempre foi por jogo. ⚠️ A margem é de R$ 2 por jogo (CustoPorJogo = 10): quem responde
+    // ajusta o valor final no painel, e é o mínimo que segura clube longe e torneio pequeno.
+    //
+    // ⚠️ Pedido cotado em percentual NÃO é recalculado — a cotação congela no pedido
+    // (SolicitacaoRegistroResultados.PercentualCotado), que é a mesma promessa que protegeu
+    // quem tinha pedido por jogo quando o percentual entrou.
+    public decimal PrecoPorJogo { get; set; } = 12m;
 
     // Piso do serviço. Mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos.
     // Também é o amortecedor de distância: clube longe encarece, e quem responde ajusta o

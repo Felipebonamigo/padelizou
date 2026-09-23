@@ -4729,6 +4729,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             @{
                 var pedidoRegistro = ViewBag.PedidoRegistro as Padelizou.Models.SolicitacaoRegistroResultados;
                 var registroHabilitado = ViewBag.RegistroHabilitado == true;
+                @* O padrão de reserva sai do PRÓPRIO objeto de configuração, e não de um número
+                   digitado aqui: o que estava escrito à mão nesta linha continuou dizendo "5%"
+                   meses depois de o preço ter virado 10%, calado, esperando um ViewBag nulo. *@
+                var registroPadrao = new Padelizou.Services.RegistroResultadosSettings();
+                var registroPrecoPorJogo = (decimal?)ViewBag.RegistroPrecoPorJogo ?? registroPadrao.PrecoPorJogo;
+                var registroMinimo = (decimal?)ViewBag.RegistroValorMinimo ?? registroPadrao.ValorMinimo;
             }
             @if (pedidoRegistro != null || registroHabilitado)
             {
@@ -4745,11 +4751,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 do torneio, a gente cuida do sistema.
                             </p>
                             <p class="mb-2">
-                                <strong>mais @(((decimal)(ViewBag.RegistroPercentual ?? 5m)).ToString("0.#"))% do valor das inscrições</strong>
+                                <strong>@registroPrecoPorJogo.ToString("C") por jogo lançado</strong>
                                 (além da taxa da forma de recebimento),
-                                mínimo de <strong>@(((decimal)(ViewBag.RegistroValorMinimo ?? 500m)).ToString("C"))</strong>.
+                                mínimo de <strong>@registroMinimo.ToString("C")</strong>.
                                 <span class="d-block small text-muted">
-                                    O total sai das inscrições reais. Clube longe pode mudar o valor —
+                                    O total sai do tamanho real do torneio — quantos jogos as
+                                    inscrições gerarem. Clube longe pode mudar o valor —
                                     confirmamos antes.
                                 </span>
                             </p>
@@ -4774,8 +4781,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             </p>
 
                             <p class="small mb-2">
-                                @* A régua que o pedido carrega, nunca a atual: pedido de antes de
-                                   20/08/2026 foi cotado por jogo e continua valendo o que leu. *@
+                                @* A régua que o pedido carrega, nunca a atual: o pedido cotado
+                                   entre 20/08 e 23/09/2026 foi em percentual sobre as inscrições e
+                                   continua valendo o que leu. Fora dessa janela, por jogo. *@
                                 @if (pedidoRegistro.PercentualCotado != null)
                                 {
                                     <text>@pedidoRegistro.PercentualCotado.Value.ToString("0.#")% do valor das inscrições,</text>
