@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **22/09/2026** — 🧹 **ITEM 4: AS AULAS CAEM UM MÊS DEPOIS DO VENCIMENTO — E O BLOCO DO BLOQUEIO ESTÁ COMPLETO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE.** 🗣️ Felipe: *"fica marcado até 1 mes depois do vencimento... caso acabe esse 1 mes de prazo, cancele todas as aulas e avise os alunos e o professor"*.
+> Última atualização: **22/09/2026** — 🧹 **ITEM 4: AS AULAS CAEM UM MÊS DEPOIS DO VENCIMENTO — E O BLOCO DO BLOQUEIO ESTÁ COMPLETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE.** 🗣️ Felipe: *"fica marcado até 1 mes depois do vencimento... caso acabe esse 1 mes de prazo, cancele todas as aulas e avise os alunos e o professor"*.
 >
 > 🕳️ **E O ITEM 2 TINHA DEIXADO UM FURO, achado ao desenhar este.** O professor bloqueado some da busca, mas o **POST de `Solicitar` continuava existindo** pra quem tem o link ou a aba antiga. A ação é opt-out do filtro **com razão** — `[ExigePlanoAtivo]` olha quem está **logado**, e ali quem está logado é o ALUNO. Faltava checar o professor **alvo**. Sem isso a aula nascia `Pendente`, o professor não podia aceitar, e o aluno ficava pendurado esperando uma confirmação impossível — **o desfecho exato que o bloqueio inteiro existe pra evitar**. Fechado, com teste visto vermelho.
 >
@@ -23,7 +23,7 @@
 >
 > **7.514 testes verdes** (10 novos; o furo do `Solicitar` visto vermelho), 12 conferidores JS verdes.
 
-> Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
+> Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
 >
 > 📧 **O PEDIDO LITERAL ESTOURARIA A CONTA DE E-MAIL — e a descoberta é que ela JÁ ESTAVA SENDO USADA.** `EnviarParaJogadorAsync` manda push **e e-mail** no mesmo funil: os avisos do plano sempre mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × 10 professores = **200 e-mails**, contra um volume mensal do sistema inteiro de **~300 a 500** (`EMAIL.md`). A cota do Gmail já estourou **duas vezes**; na segunda, **130 e-mails morreram calados**, duas recuperações de senha entre eles.
 >
@@ -47,7 +47,9 @@
 >
 > **7.504 testes verdes** (16 novos; vistos vermelhos antes), 12 conferidores JS verdes.
 
-> Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
+> Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
+>
+> 🟡 **E FOI NESTE BUILD QUE A CARÊNCIA PAROU DE SE DISFARÇAR DE "ASSINANTE EM DIA"** — print do Felipe com *"Pago até 18/09"* e selo **verde** em 22/09. A régua estava certa (os 7 dias de `DiasDeCarencia`); a tela é que escondia, com a explicação em cinza no rodapé. Agora o selo fica **âmbar** com *"vencida — carência até dd/MM"*. `PlanoDoProfessor.CarenciaAte` é pergunta de TELA, não de cobrança — pra quem cobra, carência É "em dia", e separar lá viraria desconto.
 >
 > 🧭 **"PODE AGENDAR" NÃO VIROU RÉGUA NOVA.** É `PlanoDoProfessor.CondicoesDeAssinante` (em teste, em dia ou cortesia), que com o Avulso fora de cartaz virou a definição inteira. `BloqueioDoProfessor` só acrescenta o **prazo**. Segunda régua de quem-pode seria a cópia que um dia discorda da primeira — foi assim que a Mesa de Controle quebrou em 31/07.
 >
@@ -71,7 +73,7 @@
 >
 > **7.488 testes verdes** (32 novos no bloco; o gate e o filtro **vistos vermelhos**), 12 conferidores JS verdes.
 
-> Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
+> Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
 >
 > 🕳️ **O AVULSO ERA O PLANO GRÁTIS PRA SEMPRE — e isso foi MEDIDO, não suposto.** Ele cobrava 10% *"por aula paga no app"*, e **a aula comum nunca passa pelo app**. Só duas portas geram cobrança de verdade: o jogo-aula (`JogoAulaController:209` → `IniciarCobrancaAulaAsync`) e a fatura mensal (`AulasController.Faturamento:260` → `IniciarCobrancaDaFaturaAsync`). Na aula normal o professor clica em "recebida", `Aula.PagaEm` é carimbado **sem gateway nenhum** e o Padelizou recebe **R$ 0,00**. Um clique em "Ficar no Avulso" tirava o professor do alcance de qualquer cobrança — pra sempre. A pergunta que destravou isso foi do Felipe: *"mas como eu sei q ele ta pagando os 10%?"*. Não sabia. Não tinha como.
 >
@@ -87,7 +89,7 @@
 >
 > **7.451 testes verdes** (4 novos; **2 vistos VERMELHOS antes** — os outros 2 são guardas de regressão, verdes por desenho), 12 conferidores JS verdes.
 
-> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
+> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** 🚀 **FOI AO AR JUNTO no `build-1482-91797c7`** (23/09) — o build carrega o `main` inteiro, então este conserto subiu de carona com o bloco do bloqueio do professor. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
 >
 > 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
 >
