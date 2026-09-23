@@ -100,10 +100,16 @@ public class AvisosDoPlanoDoProfessorBackgroundService : BackgroundService
             var estagio = AvisosDoPlanoDoProfessor.EstagioDevido(professor, agora, cfg);
             if (estagio == null) continue;
 
+            // ⚠️ O ALCANCE VEM DA RÉGUA, e isto é a conta de e-mail. `EnviarParaJogadorAsync`
+            // manda push E e-mail no mesmo funil; o aviso DIÁRIO do bloqueio sai por
+            // `AppSemEmail` (push + caixa) e o e-mail fica em três marcos — ver
+            // AvisosDoPlanoDoProfessor.AlcanceDe. Sem esta linha, vinte dias de aviso diário
+            // viram vinte e-mails por professor e a cota do Gmail estoura pela terceira vez.
             await push.EnviarParaJogadorAsync(professor.Id,
                 AvisosDoPlanoDoProfessor.Titulo(estagio.Value),
                 AvisosDoPlanoDoProfessor.Frase(estagio.Value, professor, agora, cfg),
-                "/PlanoProfessor");
+                "/PlanoProfessor",
+                AvisosDoPlanoDoProfessor.AlcanceDe(estagio.Value, professor, cfg));
 
             professor.UltimoLembreteDeAssinatura = estagio;
             avisados++;

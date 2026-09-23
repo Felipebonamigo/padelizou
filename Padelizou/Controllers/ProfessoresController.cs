@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
+using Padelizou.Filters;
 using Padelizou.Models;
 using Padelizou.Services;
 using Padelizou.ViewModels;
@@ -11,6 +12,7 @@ namespace Padelizou.Controllers;
 
 // Página pública do professor e avaliações. Separado de AulasController de propósito:
 // lá é a área logada de quem dá aula; aqui é a vitrine que qualquer um vê.
+[ExigePlanoAtivo]
 public class ProfessoresController : Controller
 {
     private readonly DbPadelContext _context;
@@ -165,6 +167,7 @@ public class ProfessoresController : Controller
 
     [HttpPost]
     [Authorize]
+    [SemBloqueioDeProfessor]
     public async Task<IActionResult> Avaliar(int professorId, int nota, string? depoimento)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var alunoId))

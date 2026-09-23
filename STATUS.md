@@ -1,6 +1,92 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **22/09/2026** — 🧹 **ITEM 4: AS AULAS CAEM UM MÊS DEPOIS DO VENCIMENTO — E O BLOCO DO BLOQUEIO ESTÁ COMPLETO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE.** 🗣️ Felipe: *"fica marcado até 1 mes depois do vencimento... caso acabe esse 1 mes de prazo, cancele todas as aulas e avise os alunos e o professor"*.
+>
+> 🕳️ **E O ITEM 2 TINHA DEIXADO UM FURO, achado ao desenhar este.** O professor bloqueado some da busca, mas o **POST de `Solicitar` continuava existindo** pra quem tem o link ou a aba antiga. A ação é opt-out do filtro **com razão** — `[ExigePlanoAtivo]` olha quem está **logado**, e ali quem está logado é o ALUNO. Faltava checar o professor **alvo**. Sem isso a aula nascia `Pendente`, o professor não podia aceitar, e o aluno ficava pendurado esperando uma confirmação impossível — **o desfecho exato que o bloqueio inteiro existe pra evitar**. Fechado, com teste visto vermelho.
+>
+> 🛡️ **O SERVIÇO MAIS CONSERVADOR DO BLOCO, porque é o único que APAGA AGENDA.** Quatro travas: não roda com o bloqueio dormente, não roda fora de hora civilizada, **não toca no passado** (aula dada é dinheiro a receber e ficha do aluno) e não faz nada por quem voltou a pagar.
+>
+> 💸 **NINGUÉM É COBRADO.** `CanceladaPor` vira `PoliticaAula.CanceladaPeloSistema` — constante, e não string solta, porque **"Aluno" é a única palavra que faz `DeveCobrar` cobrar multa**. Carimbar isso numa aula que o sistema derrubou cobraria falta de quem não teve nada a ver com o plano do professor.
+>
+> 🔁 **A REPETIÇÃO MORRE JUNTO** (`RecorrenciaSemFim = false`): sem isso o renovador encheria a agenda de volta no instante do pagamento. O desenho é o contrário — ele remarca o que quiser, sabendo o que está remarcando. A frase do aviso diz isso na cara: *"a remarcação é na mão, inclusive as aulas fixas"*.
+>
+> 📨 **UM AVISO POR PESSOA, e não por aula**: aluno com três aulas é uma pessoa. `AlunoId` nulo é o aluno **avulso** (só nome, sem conta) — não tem pra onde receber, e é o professor quem avisa por fora; tem teste porque um `!.Value` ali derrubaria o cancelamento de **todo mundo que viesse depois na fila**.
+>
+> ♻️ **IDEMPOTENTE SEM COLUNA NOVA**: a aula cancelada some da consulta de "futuras ativas", então a segunda passada não acha nada. A varredura roda de hora em hora — sem isso o aluno levaria "sua aula foi cancelada" **doze vezes por dia**.
+>
+> 🤐 **E A ESCADA DE AVISOS SE CALA NO DIA DO CANCELAMENTO** (`>=`, não `>`): *"suas aulas caem hoje"* seguido de *"suas aulas caíram"* faz do primeiro ruído.
+>
+> 📋 **OS QUATRO ITENS ESTÃO FEITOS.** (1) Avulso fora de cartaz · (2) régua + gate nos 51 POSTs + robô + busca · (3) escada de avisos · (4) cancelamento. Tudo **dormente** até `PlanoProfessor:BloqueioAPartirDe` ser preenchido.
+>
+> ⚠️ **PRA LIGAR**: olhar os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` (são os que perdem a agenda), escolher a data com folga pros avisos do item 3 rodarem antes, e **testar em `dev` primeiro**. Ligar é uma linha de configuração; nada de deploy de código.
+>
+> **7.514 testes verdes** (10 novos; o furo do `Solicitar` visto vermelho), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
+>
+> 📧 **O PEDIDO LITERAL ESTOURARIA A CONTA DE E-MAIL — e a descoberta é que ela JÁ ESTAVA SENDO USADA.** `EnviarParaJogadorAsync` manda push **e e-mail** no mesmo funil: os avisos do plano sempre mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × 10 professores = **200 e-mails**, contra um volume mensal do sistema inteiro de **~300 a 500** (`EMAIL.md`). A cota do Gmail já estourou **duas vezes**; na segunda, **130 e-mails morreram calados**, duas recuperações de senha entre eles.
+>
+> ♻️ **A SAÍDA JÁ EXISTIA, E NASCEU DO MESMO ESTOURO**: `AlcanceDoAviso.AppSemEmail` (push + caixa de entrada, sem e-mail), criado em 09/08 pelo mesmo motivo. Degrau 2 da escada do CLAUDE.md — reusar em vez de inventar canal. **Diário por push**; **e-mail em três marcos**: o dia do bloqueio, a metade do prazo e a véspera do cancelamento.
+>
+> 🪜 **DUAS FAIXAS NOVAS, SEM COLUNA NOVA.** `4x` = antes do bloqueio (**40** uma semana, **41** amanhã, **42** uma hora). `50+` = já bloqueado, **um por dia**, com `PrimeiroDiaBloqueado + dias`. ⚠️ **O DIA VIRA O PRÓPRIO ESTÁGIO** — é isso que dispensa migration: a escada já é monotônica, e um número que cresce com o calendário responde *"já avisei hoje?"* de graça. Sem isso, a varredura horária mandaria **doze avisos por dia**.
+>
+> 🕘 **O AVISO DE "1 HORA" É O QUE JUSTIFICA `HoraDoBloqueio = 10h`** — e agora tem teste provando o par: às 9h (a `PrimeiraHora` civilizada) o professor ainda está solto, e é essa varredura que o entrega. Varredura que só rodar depois das 10h pula o estágio e manda o do dia 0; é o desenho, não um furo.
+>
+> 🕳️ **UMA GUARDA MINHA ESTAVA ERRADA, e o teste pegou**: eu barrava o mundo do bloqueio com `CondicoesDeAssinante`. Só que *"uma semana antes do bloqueio"* cai **três dias depois do vencimento** — ou seja, **dentro da carência**, quando o professor ainda é "assinante em dia". Com a guarda, **o primeiro degrau da escada nunca saía**. E é justamente aí que ele serve: ainda dá pra resolver sem perder nada.
+>
+> 🔽 **QUEM ENTRA NA ESCADA DO BLOQUEIO NÃO VOLTA A OUVIR SOBRE TAXA.** *"Sua agenda fecha amanhã"* seguido de *"sua taxa voltou ao cheio"* é ordem **decrescente** de urgência — quem lê o segundo conclui que o primeiro se resolveu.
+>
+> 📅 **`CancelaAulasEm` NASCEU JUNTO, no `BloqueioDoProfessor`**, da **mesma conta** do bloqueio (`DiasAteCancelarAsAulas = 30`, do fim do último direito). O item 4 vai usá-la direto; uma segunda conta noutro arquivo é como as duas passam a discordar no primeiro refactor. Ela também é o que faz o diário **parar de repetir** depois do cancelamento.
+>
+> 🤝 **NENHUMA FRASE PROMETE QUE A AULA MARCADA SOME** — ela não some: o bloqueio para de aceitar novidade, e a conta regressiva até o cancelamento é a única informação nova que o professor tem a cada manhã.
+>
+> 🧪 **O FIO FOI FALSIFICADO**: tirando o alcance da chamada do serviço de fundo, o diário volta a sair por e-mail (`Expected: AppSemEmail / Actual: SoApp`). É o teste do fio, não da régua — `AlcanceDe` podia estar perfeita e o entregador continuar usando o padrão.
+>
+> 📋 **Falta o item 4**: cancelar as aulas futuras no fim do prazo, avisando alunos e professor.
+>
+> **7.504 testes verdes** (16 novos; vistos vermelhos antes), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
+>
+> 🧭 **"PODE AGENDAR" NÃO VIROU RÉGUA NOVA.** É `PlanoDoProfessor.CondicoesDeAssinante` (em teste, em dia ou cortesia), que com o Avulso fora de cartaz virou a definição inteira. `BloqueioDoProfessor` só acrescenta o **prazo**. Segunda régua de quem-pode seria a cópia que um dia discorda da primeira — foi assim que a Mesa de Controle quebrou em 31/07.
+>
+> ⏱️ **DOIS EIXOS, DOIS PRAZOS, DE PROPÓSITO.** `DiasDeCarencia` (7) decide quanto a aula **custa**; `DiasAteOBloqueio` (10) decide quando a agenda **fecha**. Sobram **3 dias** em que o professor paga 10% e ainda marca aula — e existe teste nomeando essa janela. Quem nunca pagou não tem prazo: o teste já é a tolerância.
+>
+> 🕙 **O BLOQUEIO TEM HORA: 10h**, e isso não é estética. O aviso de "1 hora antes" (item 3) só é entregável se sair às **9h**, que é a `PrimeiraHora` da hora civilizada. O teste amarra na **constante**, não no número. E teste vencido bloqueia às 10h do **dia seguinte**: às 10h do próprio dia `CondicoesDeAssinante` ainda diz sim, e as duas réguas se contradiriam.
+>
+> 🔌 **`BloqueioAPartirDe` É O INTERRUPTOR E A TRAVA DE AVISO JUSTO.** Nulo = dormente. Preenchido, é **PISO**: ninguém bloqueia antes dessa data, por mais velho que seja o vencimento. Sem ela o deploy fecharia num segundo a agenda de todo mundo dos baldes "Avulsos" e "Sem escolha" — gente vencida há meses que nunca foi avisada. Mesmo raciocínio do `JanelaDoAvisoDeQueda`.
+>
+> 🧱 **O GATE VAI NA CLASSE, não endpoint a endpoint** — 51 POSTs em 11 arquivos parciais, e lista à mão envelhece calada. `[ExigePlanoAtivo]` em `AulasController`, `JogoAulaController` e `ProfessoresController`; o 52º endpoint já nasce coberto. O filtro corta **por verbo**: GET passa reto, que é a "visualização do que já está marcado". **Falsificado**: tirando o atributo, o gate reprova.
+>
+> 🚪 **CINCO OPT-OUTS, TODOS DO LADO DO ALUNO** e todos com motivo escrito no gate (`Solicitar`, `CancelarComoAluno`, `Inscrever`, `CancelarInscricao`, `Avaliar`) — professor bloqueado que também é aluno de alguém não perde o direito de marcar a aula **dele**. E `PlanoProfessorController` fica **fora do filtro inteiro**: `Escolher` e `PagarMensalidade` são a única saída, e pô-los sob o bloqueio trancaria o professor do lado de fora com a chave dentro.
+>
+> 🤖 **O QUARTO CRIADOR DE AULA ERA O ROBÔ, e o filtro de POST não o alcançava.** `RenovacaoDaAulaFixa` repõe 12 semanas à frente **sem humano nenhum**: sem esta mudança, o professor bloqueado continuaria ganhando aula nova na agenda, posta pelo próprio Padelizou. `cfg` agora é **obrigatório** ali — padrão silencioso seria o furo de volta. E o robô **para de repor, nunca apaga**: cancelar é o item 4, um mês depois e com aviso ao aluno.
+>
+> 🔍 **SOME DA BUSCA**: se não pode aceitar, não pode ser oferecido — senão o aluno marca, a aula nasce `Pendente` e ninguém nunca confirma. O filtro roda **em memória** (a régua é C# puro que o EF não traduz — a armadilha do InMemory de novo).
+>
+> 📋 **Falta do item 2: nada.** Próximos: **item 3** (escada de avisos 7d/1d/1h + push diário e e-mail em 3 marcos, pela cota do Gmail) e **item 4** (cancelar as aulas 1 mês após o vencimento, avisando alunos e professor).
+>
+> ⚠️ **PRA LIGAR EM PRODUÇÃO**: preencher `PlanoProfessor:BloqueioAPartirDe` **só depois** de os avisos do item 3 terem rodado, e olhando antes os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` — são os professores que perdem a agenda no dia.
+>
+> **7.488 testes verdes** (32 novos no bloco; o gate e o filtro **vistos vermelhos**), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
+>
+> 🕳️ **O AVULSO ERA O PLANO GRÁTIS PRA SEMPRE — e isso foi MEDIDO, não suposto.** Ele cobrava 10% *"por aula paga no app"*, e **a aula comum nunca passa pelo app**. Só duas portas geram cobrança de verdade: o jogo-aula (`JogoAulaController:209` → `IniciarCobrancaAulaAsync`) e a fatura mensal (`AulasController.Faturamento:260` → `IniciarCobrancaDaFaturaAsync`). Na aula normal o professor clica em "recebida", `Aula.PagaEm` é carimbado **sem gateway nenhum** e o Padelizou recebe **R$ 0,00**. Um clique em "Ficar no Avulso" tirava o professor do alcance de qualquer cobrança — pra sempre. A pergunta que destravou isso foi do Felipe: *"mas como eu sei q ele ta pagando os 10%?"*. Não sabia. Não tinha como.
+>
+> 🚪 **A TRAVA É DO SERVIDOR, NÃO DA TELA.** `Escolher` passou a recusar por **lista branca** (`!= Assinante`), e não por lista negra: tirar o botão não tira o POST — a aba aberta em cache ainda manda `plano=Avulso`, e é ela que gravaria o plano aposentado. Lista branca também garante que plano novo entre por decisão, não por esquecimento.
+>
+> ♻️ **O ENUM E A COLUNA FICAM VIVOS, e isso não é sobra**: tem professor com `PlanoProfessor = "Avulso"` gravado. O ramo `Situacao.Avulso` da tela continua existindo e ganhou teste-guarda — apagá-lo na próxima faxina jogaria quem **já escolheu** no `default:`, que fala de quem **não** escolheu.
+>
+> 🤐 **NADA NA TELA PROMETE BLOQUEIO** — ele é o item 2 e ainda não existe. Anunciar consequência que o código não aplica é a mentira de rótulo do `build-373`, e ela custa mais que o silêncio.
+>
+> ⚠️ **SOBROU UMA PORTA, DEIXADA DE PROPÓSITO**: o rádio "Avulso" em `/Admin/Professores` (`Views/Admin/Professores.cshtml:458` → `AdminController.Professores.cs:234`). É o console do Felipe (*"o plano que ELE escolheu"*), não uma oferta ao professor, e hoje não defende nada porque o bloqueio não existe. **Decisão pendente do item 2**: com o bloqueio no ar, esse rádio vira a única forma de isentar alguém pra sempre — e a **Cortesia já faz isso melhor**, com prazo e motivo escrito.
+>
+> 📋 **O DESENHO COMPLETO, APROVADO, EM 4 ITENS** — (1) tirar o Avulso de cartaz ✅; (2) a régua + o gate nos 51 POSTs + o robô `RenovacaoDaAulaFixa` + o filtro da busca; (3) a escada de avisos (7 dias / 1 dia / 1 hora antes, hora fixa de bloqueio às 10h pra o de 1h caber na `HoraCivilizada`); (4) cancelamento das aulas 1 mês depois do vencimento. Régua do bloqueio = `PlanoDoProfessor.CondicoesDeAssinante` + prazo (`DiasAteOBloqueio = 10` pra quem já pagou; sem tolerância pra quem nunca pagou).
+>
+> **7.451 testes verdes** (4 novos; **2 vistos VERMELHOS antes** — os outros 2 são guardas de regressão, verdes por desenho), 12 conferidores JS verdes.
+
 > Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
 >
 > 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.

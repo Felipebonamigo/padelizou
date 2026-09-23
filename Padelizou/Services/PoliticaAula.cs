@@ -25,6 +25,15 @@ public static class PoliticaAula
     // "ARecuperar" apareceria assim mesmo, na tela, pro professor e pro aluno.
     public const string ARecuperar = "A recuperar";
 
+    // Quem aparece em `Aula.CanceladaPor` quando não foi gente: o plano do professor venceu, o
+    // prazo de um mês acabou e o Padelizou derrubou a agenda (ver CancelamentoPorBloqueio).
+    //
+    // ⚠️ PRECISA SER DIFERENTE DE "Aluno", e é essa a razão de existir como constante em vez de
+    // string solta: "Aluno" é a ÚNICA palavra que faz `DeveCobrar` cobrar multa. Carimbar isso
+    // numa aula que o sistema cancelou cobraria falta de quem não teve nada a ver com o plano
+    // do professor.
+    public const string CanceladaPeloSistema = "Sistema";
+
     // "Ativa" é a aula que ainda ocupa o horário do professor. Ficar de fora é justamente o
     // que faz "vai recuperar" LIBERAR a vaga do dia — o professor encaixa outro aluno ali,
     // que é o pedido inteiro. Também é o que tira a aula da lista de próximas do aluno: ela

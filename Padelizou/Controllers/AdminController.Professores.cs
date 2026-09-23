@@ -216,10 +216,23 @@ namespace padelizou.Controllers
             var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return Forbid();
 
+            // ⚠️ RECUSA EXPLÍCITA, E NÃO "CAI NO DEFAULT" (22/09/2026, com o Avulso fora de
+            // cartaz). O switch abaixo manda tudo que não reconhece pra `null` — então tirar só
+            // o braço do Avulso faria a página antiga, aberta numa aba, APAGAR calada o plano
+            // de quem já tinha um. Errar apagando dado é pior que recusar.
+            //
+            // E a saída é a Cortesia, não este rádio: ela tem prazo e motivo escrito, enquanto
+            // um Avulso gravado aqui isentaria a pessoa pra sempre, sem deixar rastro do porquê.
+            if (plano == PlanoDoProfessor.Avulso)
+            {
+                TempData["Erro"] = "O plano Avulso saiu de cartaz e não pode mais ser atribuído. "
+                                 + "Pra deixar alguém sem taxa, use a Cortesia — ela tem prazo e motivo.";
+                return RedirectToAction(nameof(Professores));
+            }
+
             var escolhido = plano switch
             {
                 PlanoDoProfessor.Assinante => PlanoDoProfessor.Assinante,
-                PlanoDoProfessor.Avulso => PlanoDoProfessor.Avulso,
                 _ => null,   // "ainda não escolheu"
             };
 
@@ -247,7 +260,6 @@ namespace padelizou.Controllers
                      + "registrada, ele aparece como \"Assinante em atraso\" e paga taxa cheia até um "
                      + "pagamento entrar — ou até você dar cortesia.",
                 PlanoDoProfessor.Assinante => $"{professor.Nome} agora consta como Assinante.",
-                PlanoDoProfessor.Avulso => $"{professor.Nome} agora consta como Avulso (taxa cheia por aula).",
                 _ => $"{professor.Nome} volta a constar como quem ainda não escolheu plano.",
             };
 

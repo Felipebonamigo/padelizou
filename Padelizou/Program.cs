@@ -315,6 +315,10 @@ builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
 // vencimento da assinatura (que não é recorrente) — e nenhum dos dois avisava ninguém. Um
 // serviço só pros dois: ver Services/AvisosDoPlanoDoProfessor.
 builder.Services.AddHostedService<AvisosDoPlanoDoProfessorBackgroundService>();
+// Irmão do de cima e o único do bloco que APAGA agenda: no fim do prazo de um mês, as
+// aulas futuras do professor com plano vencido caem e os alunos são avisados. Não faz
+// nada enquanto `PlanoProfessor:BloqueioAPartirDe` estiver vazio.
+builder.Services.AddHostedService<CancelamentoPorBloqueioBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 // O gêmeo do de cima, pro outro canal. Nasceu de 09/08/2026: a cota de e-mail estourou e 130

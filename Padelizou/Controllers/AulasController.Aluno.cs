@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
+using Padelizou.Filters;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 using System.Security.Claims;
@@ -49,12 +50,24 @@ namespace padelizou.Controllers
             // aluno escolhia uma e metade dos professores não aparecia — sem erro nenhum.
             var idsDaCidade = CidadesSemRepetir.IdsDaMesma(cidadeId, await _context.Cidades.ToListAsync());
 
-            var professores = await _context.ProfessorCidades
-                .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
-                .Select(pc => new { pc.Professor.Id, pc.Professor.Nome })
-                .Distinct()
+            // ⚠️ O FILTRO DO BLOQUEIO RODA EM MEMÓRIA, E ISSO NÃO É PREGUIÇA. A régua
+            // (BloqueioDoProfessor) é C# puro que o EF não traduz: empurrada pra dentro da
+            // consulta, ela passaria lisa no teste InMemory e estouraria no Postgres — é a
+            // armadilha nomeada no CLAUDE.md e a mesma razão de ProfessoresNoAdmin.Montar
+            // receber tudo já materializado. São os professores de UMA cidade, não a base.
+            //
+            // ⚠️ E POR QUE ELE SOME DAQUI: se não pode aceitar, não pode ser oferecido. Deixá-lo
+            // na busca produz o pior desfecho — o aluno marca, a aula nasce Pendente e ninguém
+            // nunca confirma. A página dele continua abrindo por link; o que acaba é o anúncio.
+            var professores = (await _context.ProfessorCidades
+                    .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
+                    .Select(pc => pc.Professor)
+                    .ToListAsync())
+                .DistinctBy(p => p.Id)
+                .Where(p => !BloqueioDoProfessor.EstaBloqueado(p, DateTime.Now, _plano))
+                .Select(p => new { p.Id, p.Nome })
                 .OrderBy(p => p.Nome)
-                .ToListAsync();
+                .ToList();
 
             var idsProfessores = professores.Select(p => p.Id).ToList();
 
@@ -128,6 +141,9 @@ namespace padelizou.Controllers
         // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar) — pode gerar uma aula
         // avulsa, uma série de pacote (quantidade fixa do local) ou uma série fixa semanal.
         [HttpPost]
+        // O professor bloqueado que também é ALUNO de alguém continua marcando a aula DELE: o
+        // plano dele não tem nada a ver com isso.
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> Solicitar(int professorId, int localId, DateTime dataHora,
             bool ehPacote, bool recorrente, int semanasRecorrencia,
             // Quem chega na quadra: o nome com que o aluno se apresenta nesta aula e quem mais
@@ -153,6 +169,23 @@ namespace padelizou.Controllers
             if (local == null)
             {
                 TempData["Erro"] = "Local inválido para este professor.";
+                return RedirectToAction("Solicitar");
+            }
+
+            // ⚠️ A CHECAGEM É DO PROFESSOR ALVO, e é por isso que o filtro de bloqueio não dá
+            // conta dela: `[ExigePlanoAtivo]` olha quem está LOGADO, e aqui quem está logado é o
+            // ALUNO — esta ação é opt-out do filtro com razão.
+            //
+            // O professor bloqueado some da busca (ObterOfertas), mas o POST continua existindo
+            // pra quem tem o link ou a aba aberta de antes. Sem esta linha a aula nasce
+            // `Pendente`, o professor não consegue aceitar (ConfirmarSolicitacao está fechada) e
+            // o aluno fica pendurado esperando uma confirmação que não pode acontecer — o
+            // desfecho exato que o bloqueio inteiro existe pra evitar.
+            var professorAlvo = await _context.Jogadores.FindAsync(professorId);
+            if (professorAlvo == null
+                || BloqueioDoProfessor.EstaBloqueado(professorAlvo, DateTime.Now, _plano))
+            {
+                TempData["Erro"] = "Este professor não está aceitando novas aulas no momento.";
                 return RedirectToAction("Solicitar");
             }
 
@@ -378,6 +411,7 @@ namespace padelizou.Controllers
         // se fica marcada como cobrável.
         [HttpPost]
         [Authorize]
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> CancelarComoAluno(int aulaId)
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);

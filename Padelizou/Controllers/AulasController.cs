@@ -4,12 +4,18 @@ using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.Filters;
 using Padelizou.ViewModels;
 using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
     [Authorize] // Só quem está logado pode acessar as rotas de aula
+    // ⚠️ NA CLASSE, e não endpoint a endpoint: são 51 POSTs do professor espalhados por 11
+    // arquivos parciais, e lista escrita à mão envelhece calada. Só POST fecha — o GET passa
+    // reto, que é a "visualização do que já está marcado" pedida pelo Felipe. Quem precisa
+    // ficar de fora usa [SemBloqueioDeProfessor] E se justifica no GateDoBloqueioDoProfessorTests.
+    [ExigePlanoAtivo]
     public partial class AulasController : Controller
     {
         private readonly DbPadelContext _context;

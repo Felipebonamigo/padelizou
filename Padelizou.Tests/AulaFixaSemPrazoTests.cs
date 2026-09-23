@@ -76,7 +76,7 @@ public class AulaFixaSemPrazoTests
             Aula(professor, local, proxima.AddDays(7), serie));
         await ctx.SaveChangesAsync();
 
-        var criadas = await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        var criadas = await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         Assert.Equal(RenovacaoDaAulaFixa.HorizonteSemanas - 2, criadas);
         Assert.Equal(RenovacaoDaAulaFixa.HorizonteSemanas, await ctx.Aulas.CountAsync());
@@ -97,10 +97,10 @@ public class AulaFixaSemPrazoTests
         ctx.Aulas.Add(Aula(professor, local, DateTime.Today.AddDays(3).AddHours(9), serie));
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
         var depoisDaPrimeira = await ctx.Aulas.CountAsync();
 
-        var criadasDeNovo = await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        var criadasDeNovo = await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         Assert.Equal(0, criadasDeNovo);
         Assert.Equal(depoisDaPrimeira, await ctx.Aulas.CountAsync());
@@ -126,7 +126,7 @@ public class AulaFixaSemPrazoTests
         // encerrar para a REPOSIÇÃO, não apaga o que existe.
         Assert.Equal(antes, await ctx.Aulas.CountAsync());
         Assert.All(await ctx.Aulas.ToListAsync(), a => Assert.False(a.RecorrenciaSemFim));
-        Assert.Equal(0, await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now));
+        Assert.Equal(0, await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings()));
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public class AulaFixaSemPrazoTests
         });
         await ctx.SaveChangesAsync();
 
-        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now);
+        await RenovacaoDaAulaFixa.RenovarAsync(ctx, DateTime.Now, new PlanoProfessorSettings());
 
         // A data ocupada não ganhou uma segunda aula, e as outras semanas continuaram nascendo.
         Assert.Equal(1, await ctx.Aulas.CountAsync(a => a.DataHora == proxima.AddDays(14)));
