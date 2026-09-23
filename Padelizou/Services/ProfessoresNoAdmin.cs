@@ -107,6 +107,7 @@ public static class ProfessoresNoAdmin
                         : RotuloDaSituacao(PlanoDoProfessor.SituacaoDe(prof, agora, cfg)),
                     PlanoDoProfessor.FimDoTeste(prof, cfg),
                     prof.AssinaturaProfessorPagaAte,
+                    PlanoDoProfessor.CarenciaAte(prof, agora, cfg),
                     pagamentos.Sum(p => p.Valor),
                     pagamentos.Count,
                     pagamentos.Select(QuandoEntrou).DefaultIfEmpty(null).Max(),

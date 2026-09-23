@@ -32,11 +32,24 @@ namespace Padelizou.Controllers
             // ⚠️ E torneio SEM APROVAÇÃO também não (07/08/2026). A home é a vitrine mais
             // visível que existe: se a aprovação segurasse só a listagem, quem criasse um
             // torneio inventado apareceria na primeira tela do site mesmo assim.
-            var ativos = await _context.Torneios
-                .Where(t => !t.Oculto && t.AprovadoEm != null && t.Status != "Finalizado"
-                            && t.Status != CancelamentoDoTorneio.Status)
-                .OrderBy(t => t.DataInicio)
-                .ToListAsync();
+            // ⚠️ E A RÉGUA NÃO SE ESCREVE MAIS AQUI (20/09/2026). Esta consulta repetia à mão
+            // `!Oculto && AprovadoEm != null`, e por isso NÃO acompanhou quando a vitrine passou
+            // a esconder torneio fechado: ele sumiu da listagem e ficou na PRIMEIRA PÁGINA do
+            // site, pra visitante anônimo — medido em produção. É a segunda vez que uma cópia
+            // desta régua vaza aqui; a primeira foi com o `Oculto`. Agora quem responde é o
+            // PermissaoDeOrganizador, e mudança lá chega aqui sozinha.
+            var meuTimeId = User.Identity?.IsAuthenticated == true
+                && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var quemOlha)
+                    ? await _context.Jogadores.Where(j => j.Id == quemOlha).Select(j => j.TimeId).FirstOrDefaultAsync()
+                    : null;
+
+            var ativos = (await _context.Torneios
+                    .Where(t => t.Status != "Finalizado" && t.Status != CancelamentoDoTorneio.Status)
+                    .OrderBy(t => t.DataInicio)
+                    .ToListAsync())
+                .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t)
+                            && PermissaoDeOrganizador.ApareceParaQuemTemCamisa(t, meuTimeId))
+                .ToList();
 
             var vm = new HomeVM
             {

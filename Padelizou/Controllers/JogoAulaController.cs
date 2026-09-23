@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
+using Padelizou.Filters;
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
@@ -11,6 +12,7 @@ namespace padelizou.Controllers
     // Jogo Aula — professor publica uma aula/turma por categoria, com inscrição e lista de
     // espera dentro do app, notificando quem tem NotificarJogoAula marcado.
     [Authorize]
+    [ExigePlanoAtivo]
     public class JogoAulaController : Controller
     {
         private readonly DbPadelContext _context;
@@ -189,6 +191,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> Inscrever(int id, string? formaPagamentoEscolhida = null)
         {
             var meuId = ObterJogadorIdLogado();
@@ -241,6 +244,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [SemBloqueioDeProfessor]
         public async Task<IActionResult> CancelarInscricao(int id)
         {
             var meuId = ObterJogadorIdLogado();

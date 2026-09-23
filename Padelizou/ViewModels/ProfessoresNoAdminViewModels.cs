@@ -19,6 +19,10 @@ public record ProfessorNoAdmin(
     DateTime? FimDoTeste,
     DateTime? AssinaturaPagaAte,
 
+    // O dia em que o "Assinante em dia" acaba, quando ele já está valendo SÓ pela carência.
+    // Nulo no caso normal. ⚠️ Não é um terceiro estado de cobrança — ver PlanoDoProfessor.CarenciaAte.
+    DateTime? CarenciaAte,
+
     // Dinheiro de assinatura que este professor já trouxe — confirmado, em qualquer forma
     // (Pix direto, gateway ou registrado à mão).
     decimal TotalPago,

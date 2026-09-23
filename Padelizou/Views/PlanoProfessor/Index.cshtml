@@ -95,12 +95,18 @@
                         </div>
                     </div>
                     break;
+                @* ⚠️ O RAMO DO AVULSO FICA, mesmo com o plano fora de cartaz: tem professor
+                   com ele gravado, e sem esta linha ele cairia no `default:` — que fala de
+                   quem NÃO escolheu, quando ele escolheu. Ver OAvulsoSaiDeCartazTests.
+                   E NADA AQUI PROMETE BLOQUEIO: ele ainda não existe, e tela que anuncia
+                   consequência que o código não aplica é a mentira de rótulo de sempre. *@
                 case PlanoDoProfessor.Situacao.Avulso:
-                    <div class="alert alert-secondary d-flex align-items-center gap-2">
-                        <i class="bi bi-person-check fs-4"></i>
+                    <div class="alert alert-warning d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle fs-4"></i>
                         <div>
-                            <strong>Plano Avulso</strong> — sem mensalidade, taxa de
-                            @cfg.PercentualAvulso.ToString("0.#")% por aula. Dá pra virar Assinante quando quiser.
+                            <strong>O plano Avulso saiu de cartaz.</strong> Hoje você ainda paga
+                            @cfg.PercentualAvulso.ToString("0.#")% por aula paga no app. Assinando, a taxa
+                            cai pra @cfg.PercentualAssinantePix.ToString("0.#")%.
                         </div>
                     </div>
                     break;
@@ -108,8 +114,9 @@
                     <div class="alert alert-secondary d-flex align-items-center gap-2">
                         <i class="bi bi-info-circle fs-4"></i>
                         <div>
-                            <strong>Seu período de teste terminou</strong> e você ainda não escolheu um plano —
-                            por enquanto vale o Avulso (@cfg.PercentualAvulso.ToString("0.#")% por aula).
+                            <strong>Seu período de teste terminou</strong> e você ainda não assinou — suas
+                            aulas pagas no app saem a @cfg.PercentualAvulso.ToString("0.#")%. Assinando, a
+                            taxa cai pra @cfg.PercentualAssinantePix.ToString("0.#")%.
                         </div>
                     </div>
                     break;
@@ -129,9 +136,9 @@
                 </div>
             </div>
 
-            @* ---- Os dois pacotes, lado a lado ---- *@
+            @* ---- O plano ---- *@
             <div class="row g-3 mt-1">
-                <div class="col-md-6">
+                <div class="col-md-8 mx-auto">
                     <div class="card h-100 shadow-sm @(Model.PlanoProfessor == PlanoDoProfessor.Assinante ? "border-success" : "border-0")">
                         <div class="card-body p-4 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-start">
@@ -228,50 +235,17 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="col-md-6">
-                    <div class="card h-100 shadow-sm @(Model.PlanoProfessor == PlanoDoProfessor.Avulso ? "border-success" : "border-0")">
-                        <div class="card-body p-4 d-flex flex-column">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <h5 class="fw-bold">Avulso</h5>
-                                @if (Model.PlanoProfessor == PlanoDoProfessor.Avulso)
-                                {
-                                    <span class="badge bg-success">seu plano</span>
-                                }
-                            </div>
-                            <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">
-                                R$ 0<span class="fs-6 text-muted fw-normal">/mês</span>
-                            </div>
-                            <ul class="list-unstyled small mt-2 mb-3">
-                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
-                                    Sem compromisso mensal</li>
-                                <li class="mb-1"><i class="bi bi-dash-circle text-muted"></i>
-                                    <strong>@cfg.PercentualAvulso.ToString("0.#")%</strong> por aula paga no app, em qualquer forma</li>
-                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
-                                    Bom pra quem dá poucas aulas pelo app</li>
-                            </ul>
-                            <div class="mt-auto">
-                                @if (Model.PlanoProfessor != PlanoDoProfessor.Avulso)
-                                {
-                                    <form asp-action="Escolher" method="post">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="plano" value="@PlanoDoProfessor.Avulso" />
-                                        <button type="submit" class="btn btn-outline-secondary w-100 rounded-pill fw-bold">Ficar no Avulso</button>
-                                    </form>
-                                }
-                                else
-                                {
-                                    <div class="text-center small text-muted">Este é o seu plano atual.</div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             @* A conta que decide — e ela é DUAS contas, porque quem paga a taxa muda com o
                ModoComissao. Dizer só o valor, sem o dono, é o que fazia o professor no modo
-               padrão achar que economizava do próprio bolso um dinheiro que era do aluno. *@
+               padrão achar que economizava do próprio bolso um dinheiro que era do aluno.
+
+               ⚠️ Os campos ainda se chamam `...Avulso`, e os NÚMEROS continuam certos: o que
+               era a taxa do plano Avulso virou a taxa de quem não assinou (teste vencido,
+               atraso, ou o Avulso antigo). Renomear arrastaria `PercentualAvulso`, que é chave
+               de appsettings — troca de configuração no meio de uma mudança de tela. Fica pra
+               quando o bloqueio entrar. *@
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-body small">
                     <strong><i class="bi bi-calculator"></i> Na prática:</strong>
@@ -282,20 +256,21 @@
                     {
                         <text>
                             quem paga a taxa é o <strong>seu aluno</strong>, e você recebe os
-                            @exemplo.PrecoDaAula.ToString("C") cheios nos dois planos. O que muda é o
+                            @exemplo.PrecoDaAula.ToString("C") cheios dos dois jeitos. O que muda é o
                             preço final pra ele: <strong>@exemplo.AlunoPagaAvulso.ToString("C")</strong> por
-                            aula no Avulso contra <strong>@exemplo.AlunoPagaAssinante.ToString("C")</strong>
-                            no Assinante. Do <strong>seu</strong> bolso sai só a mensalidade
-                            (@exemplo.CustoMensalAssinante.ToString("C") no Assinante, nada no Avulso) —
-                            o que ela compra é a sua aula ficar mais barata pra quem contrata.
+                            aula <strong>sem assinatura</strong> contra
+                            <strong>@exemplo.AlunoPagaAssinante.ToString("C")</strong> assinando. Do
+                            <strong>seu</strong> bolso sai só a mensalidade
+                            (@exemplo.CustoMensalAssinante.ToString("C")) — o que ela compra é a sua aula
+                            ficar mais barata pra quem contrata.
                         </text>
                     }
                     else
                     {
                         <text>
                             a taxa sai da <strong>sua parte</strong> (seu aluno paga os
-                            @exemplo.PrecoDaAula.ToString("C") anunciados). No mês, o Avulso te custa
-                            <strong>@exemplo.CustoMensalAvulso.ToString("C")</strong>; o Assinante,
+                            @exemplo.PrecoDaAula.ToString("C") anunciados). No mês, <strong>sem assinatura</strong>
+                            te custa <strong>@exemplo.CustoMensalAvulso.ToString("C")</strong>; assinando,
                             <strong>@exemplo.CustoMensalAssinante.ToString("C")</strong>
                             (@cfg.MensalidadeAssinante.ToString("C") + @cfg.PercentualAssinantePix.ToString("0.#")%).
                             Quanto mais aulas, maior a diferença.

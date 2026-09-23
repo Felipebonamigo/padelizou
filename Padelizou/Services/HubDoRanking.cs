@@ -154,7 +154,7 @@ public sealed class HubDoRanking
         if (torneioId.HasValue)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-            if (torneio != null && PermissaoDeOrganizador.ApareceParaOPublico(torneio))
+            if (torneio != null && PermissaoDeOrganizador.ApareceNaDescoberta(torneio))
             {
                 hub.TorneioSelecionadoId = torneio.Id;
                 hub.TorneioSelecionadoNome = torneio.Nome;

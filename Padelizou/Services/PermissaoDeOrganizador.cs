@@ -105,6 +105,25 @@ public static class PermissaoDeOrganizador
     public static bool ApareceNaVitrine(Torneio torneio) =>
         torneio.AprovadoEm != null && !torneio.Oculto;
 
+    // "Este torneio se ANUNCIA sozinho?" (20/09/2026) — 🗣️ Felipe, vendo o torneio de um time
+    // entre os abertos da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
+    //
+    // Fechado é o que exige algo que a vitrine não tem como entregar: a CHAVE (`Restrito`) ou a
+    // CAMISA (`TimeExclusivoId`). Anunciar pra quem não pode entrar é o mesmo defeito do push
+    // que saiu pra base inteira um dia antes, só que numa superfície maior.
+    //
+    // ⚠️ DESCOBERTA, NÃO PERMISSÃO — e é a linha mais importante deste arquivo hoje. A PÁGINA
+    // continua abrindo por link direto: se ela fechasse como o `Oculto` faz (404), a chave de
+    // acesso não serviria pra nada, porque ninguém conseguiria abrir pra digitá-la. Quem manda
+    // em abrir é Services/VisibilidadeDoTorneio, e ele não sabe desta régua de propósito.
+    //
+    // ⚠️ ISTO REVERTE METADE DA DECISÃO DE 18/08/2026, que separou `Oculto` de `Restrito` (ver
+    // TorneiosController.Criacao.cs). O que aquela decisão protegia — o torneio ABERTO e ainda
+    // não divulgado, que precisava de um jeito de ficar escondido — segue de pé. O que volta a
+    // andar junto é só o outro lado: fechado não se anuncia.
+    public static bool SeAnuncia(Torneio torneio) =>
+        !torneio.Restrito && torneio.TimeExclusivoId == null;
+
     // "Um visitante deslogado, sem link direto, chega a este torneio?" — vitrine E não
     // cancelado, que é o par que as telas públicas sempre pedem junto.
     //
@@ -118,6 +137,34 @@ public static class PermissaoDeOrganizador
     // que ele precisa expressar.
     public static bool ApareceParaOPublico(Torneio torneio) =>
         ApareceNaVitrine(torneio) && !CancelamentoDoTorneio.EstaCancelado(torneio.Status);
+
+    // "O Padelizou DIVULGA este torneio?" (20/09/2026) — a régua da DESCOBERTA, uma camada
+    // acima da de cima.
+    //
+    // A diferença entre as duas é quem pergunta. `ApareceParaOPublico` responde "este torneio é
+    // público?"; esta aqui responde "nós saímos anunciando ele?". Um torneio fechado é público
+    // (a página abre, o link funciona, a chave destranca) e mesmo assim não se anuncia.
+    //
+    // ⚠️ A LISTA DO PARCEIRO DO RANKING NÃO USA ESTA, e é de propósito: lá o torneio fechado vai
+    // MARCADO com `InscricaoRestrita`, que cobre restrito e time exclusivo. O parceiro sabe o
+    // que recebeu e decide o que faz — ver ApiDeTorneiosDoParceiroTests e API-TORNEIOS.md.
+    // Tirá-lo de lá é mudança de contrato, e está pendente de decisão do Felipe.
+    public static bool ApareceNaDescoberta(Torneio torneio) =>
+        ApareceParaOPublico(torneio) && SeAnuncia(torneio);
+
+    // A mesma pergunta pra uma tela que sabe QUEM está olhando: o torneio de um time aparece
+    // pra quem veste a camisa dele.
+    //
+    // ⚠️ O `!= null` NÃO É DECORAÇÃO: sem ele, dois nulos são IGUAIS em C#, e todo torneio
+    // RESTRITO (que não tem time) apareceria pra todo visitante SEM time — que é a base
+    // inteira, e o contrário exato do que esta régua existe pra fazer.
+    //
+    // ⚠️ E ELA MORA AQUI, e não na tela, porque a Home e a listagem precisam da MESMA resposta.
+    // Foi uma cópia desta régua escrita à mão no HomeController que deixou o torneio de time
+    // vazando na primeira página do site depois que a listagem já o escondia (20/09/2026) —
+    // e a Home já tinha caído nisso uma vez, com o `Oculto`.
+    public static bool ApareceParaQuemTemCamisa(Torneio torneio, int? meuTimeId) =>
+        SeAnuncia(torneio) || (torneio.TimeExclusivoId != null && torneio.TimeExclusivoId == meuTimeId);
 }
 
 // Separado da regra de propósito: isto aqui é TEXTO DE TELA, e muda por razão diferente da

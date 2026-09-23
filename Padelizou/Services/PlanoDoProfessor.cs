@@ -25,6 +25,23 @@ public class PlanoProfessorSettings
     // Dias de atraso da mensalidade que ainda seguram as condições de assinante. Cair pra
     // taxa cheia no primeiro minuto de atraso puniria quem só esqueceu o boleto no feriado.
     public int DiasDeCarencia { get; set; } = 7;
+
+    // Dias entre perder o direito e a AGENDA FECHAR, pra quem já foi cliente (pagou alguma vez
+    // ou teve cortesia). ⚠️ Eixo diferente da carência acima: aquela decide quanto a aula
+    // custa, esta decide quando ele para de marcar aula. Ver Services/BloqueioDoProfessor.
+    public int DiasAteOBloqueio { get; set; } = 10;
+
+    // "Fica marcado até 1 mês depois do vencimento" (Felipe). Passado isto, as aulas futuras
+    // são canceladas e os alunos avisados. ⚠️ Conta do MESMO ponto que o bloqueio — o fim do
+    // último direito —, e não do dia do bloqueio: "um mês do vencimento" é o que foi prometido.
+    public int DiasAteCancelarAsAulas { get; set; } = 30;
+
+    // ⚠️ O INTERRUPTOR DO BLOQUEIO, e a trava de aviso justo. Nulo = bloqueio DORMENTE: o
+    // código sobe em produção sem mudar o comportamento de ninguém. Preenchido, é o PISO —
+    // ninguém é bloqueado antes desta data, por mais velho que seja o vencimento dele. Sem
+    // isso, o deploy fecharia num segundo a agenda de todo mundo que está vencido há meses,
+    // sem um aviso sequer. Preencher só depois de os avisos do item 3 terem rodado.
+    public DateTime? BloqueioAPartirDe { get; set; }
 }
 
 // A regra do plano, pura: quem está em teste, quem está em dia, quem caiu pro avulso — e
@@ -97,6 +114,31 @@ public static class PlanoDoProfessor
             return "Diga o motivo da cortesia — \"permuta de serviços\", por exemplo. "
                  + "Daqui a um ano é isso que decide se renova.";
         return null;
+    }
+
+    // Está em dia SÓ PELA CARÊNCIA? Devolve o dia em que esse "em dia" acaba — nulo quando não
+    // é o caso (mensalidade ainda válida, atraso já vencido, ou ninguém nunca pagou).
+    //
+    // ⚠️ EXISTE PRA TELA, E NÃO PRA COBRANÇA. Pra quem cobra, carência É "em dia" e ponto — foi
+    // exatamente pra isso que ela nasceu, e separar os dois lá é como ela viraria desconto. A
+    // pergunta daqui é outra: *"esse verde vai cair em breve?"*. Ela nasceu de um print do
+    // Felipe (22/09/2026) com **Pago até 18/09** e selo verde **"Assinante em dia"** lado a
+    // lado: a régua certa, e a tela parecendo errada porque a única explicação morava em cinza
+    // no rodapé da página, longe da cor que o olho pega primeiro.
+    //
+    // ⚠️ E NÃO VIROU `Situacao` NOVA de propósito: um valor a mais no enum arrastaria
+    // CondicoesDeAssinante, CobrancaDaAula, RotuloDaSituacao e os baldes do resumo — mexendo na
+    // cobrança pra resolver um problema de rótulo.
+    //
+    // ⚠️ DIA DE CALENDÁRIO: "pago até 22/09" vale o dia 22 INTEIRO, então carência só a partir
+    // do 23. Comparar com a hora trocaria a cor do selo no meio do dia em que ele ainda está em
+    // dia — a mesma armadilha que `EmCortesia` nomeia logo acima.
+    public static DateTime? CarenciaAte(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
+    {
+        if (professor.AssinaturaProfessorPagaAte is not DateTime pagaAte) return null;
+        if (SituacaoDe(professor, agora, cfg) != Situacao.AssinanteEmDia) return null;
+
+        return agora.Date > pagaAte.Date ? pagaAte.AddDays(cfg.DiasDeCarencia).Date : null;
     }
 
     public static bool EmTeste(Jogador professor, DateTime agora, PlanoProfessorSettings cfg) =>

@@ -201,11 +201,40 @@ namespace Padelizou.Controllers
                 ? (await _context.TorneioOrganizadores.Where(o => o.JogadorId == jogadorId.Value).Select(o => o.TorneioId).ToListAsync()).ToHashSet()
                 : new HashSet<int>();
 
+            // ── QUEM VÊ O TORNEIO FECHADO (20/09/2026) ────────────────────────────────────
+            // Restrito e torneio de um time só saem da vitrine (PermissaoDeOrganizador.SeAnuncia).
+            // Estes dois são os escapes que impedem o estrago:
+            //
+            // · A CAMISA: quem é do time continua vendo o torneio DO time dele na lista. Sumir
+            //   pra ele tiraria da vitrine justamente quem PODE jogar — é a mesma régua do
+            //   aviso de torneio novo, um dia antes.
+            // · JÁ INSCRITO: e este NÃO EXISTIA — `meusTorneioIds` só olha quem ORGANIZA. Sem
+            //   ele, quem já se inscreveu (e pagou) via o próprio torneio sumir da lista, que é
+            //   exatamente o que o escape 3 do VisibilidadeDoTorneio existe pra não deixar
+            //   acontecer na página.
+            var meuTimeId = jogadorId.HasValue
+                ? (await _context.Jogadores.Where(j => j.Id == jogadorId.Value).Select(j => j.TimeId).FirstOrDefaultAsync())
+                : null;
+
+            var estouInscritoEm = jogadorId.HasValue
+                ? (await _context.Duplas
+                        .Where(d => d.Jogador1Id == jogadorId.Value || d.Jogador2Id == jogadorId.Value)
+                        .Select(d => d.Categoria.TorneioId)
+                        .Concat(_context.InscricoesAmericanas
+                            .Where(i => i.JogadorId == jogadorId.Value)
+                            .Select(i => i.Categoria.TorneioId))
+                        .ToListAsync()).ToHashSet()
+                : new HashSet<int>();
+
             // Admin do Padelizou vê os ocultos também: se ele manda em qualquer torneio, não
             // faz sentido ter que adivinhar o link de um que não aparece na lista.
             bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
             torneios = torneios
-                .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t) || souAdmin || meusTorneioIds.Contains(t.Id))
+                .Where(t => (PermissaoDeOrganizador.ApareceNaVitrine(t)
+                             && PermissaoDeOrganizador.ApareceParaQuemTemCamisa(t, meuTimeId))
+                            || souAdmin
+                            || meusTorneioIds.Contains(t.Id)
+                            || estouInscritoEm.Contains(t.Id))
                 .ToList();
 
             // Cancelado some da lista pela MESMA porta do oculto: quem organiza continua vendo

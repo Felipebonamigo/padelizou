@@ -12,7 +12,9 @@ namespace Padelizou.Services;
 // pra base inteira saindo duas vezes, ou não saindo nunca.
 //
 // ⚠️ QUEM DECIDE É ESTE ARQUIVO, e não quem chama. Os dois gatilhos entregam o torneio e
-// perguntam "dá pra avisar?"; as três recusas (não aprovado, oculto, já avisado) moram aqui.
+// perguntam "dá pra avisar?"; as quatro recusas (não aprovado, oculto, já avisado, restrito)
+// moram aqui — e a MIRA também, que num torneio de time deixa de ser o estado e passa a ser a
+// camisa.
 public static class AvisoDeTorneioNovo
 {
     // O que aconteceu, pra tela poder dizer a verdade em vez de prometer um push que não saiu.
@@ -30,7 +32,16 @@ public static class AvisoDeTorneioNovo
         // 3. JÁ AVISADO: o carimbo é o que garante UMA vez só agora que há dois gatilhos.
         //    Sem ele, esconder e publicar de novo mandaria o mesmo anúncio à base a cada
         //    volta — a mesma lição do `AvisoDeMvpEnviadoEm` e do `PerguntaDeNaoPagosEm`.
-        if (torneio.AprovadoEm == null || torneio.Oculto || torneio.AvisoDeTorneioNovoEm != null)
+        // 4. RESTRITO (20/09/2026): quem não tem a CHAVE não se inscreve, então anunciar pra
+        //    base é convidar todo mundo pra uma festa de convidados. 🗣️ Felipe, sobre o push do
+        //    "Los Corneteiros | Seletiva QTimes": *"esse torneio é restrito, ai nao deveria
+        //    aparecer"*.
+        //    ⚠️ E aqui, como no OCULTO, NÃO se carimba: um torneio que deixar de ser restrito
+        //    ainda vai querer o anúncio, e o carimbo é pra sempre.
+        //    ⚠️ ISTO NÃO ESCONDE NADA: o torneio segue na listagem e na página dele. Quem some
+        //    da vista é o `Oculto`, logo acima, que é outra coisa.
+        if (torneio.AprovadoEm == null || torneio.Oculto || torneio.AvisoDeTorneioNovoEm != null
+            || torneio.Restrito)
             return new Resultado(false, 0);
 
         // MIRA POR ESTADO (decisão do Felipe, 10/08/2026): anunciar em Porto Alegre um torneio
@@ -42,12 +53,22 @@ public static class AvisoDeTorneioNovo
         //   • torneio sem UF conhecida (ver UfDoTorneio) → vai pra base inteira;
         //   • jogador com o estado EM BRANCO → continua recebendo. São 44 das 172 contas
         //     ativas hoje, e o campo nunca foi obrigatório.
-        var ufDoTorneio = await UfDoTorneio.DescobrirAsync(ctx, torneio.Id);
-
         var candidatos = await ctx.Jogadores
             .Where(j => j.NotificarTorneiosAbertos && j.ExcluidoEm == null)
-            .Select(j => new { j.Id, j.Estado })
+            .Select(j => new { j.Id, j.Estado, j.TimeId })
             .ToListAsync();
+
+        // TORNEIO DE UM TIME SÓ: a camisa SUBSTITUI a mira por estado (20/09/2026). Silenciar
+        // por completo tiraria o aviso de quem PODE jogar; e somar os dois filtros cortaria o
+        // jogador do time que mora em outro estado — caladinho, justamente quem se desloca pra
+        // jogar pelo time. Num torneio de time a camisa é o sinal mais forte que existe.
+        if (torneio.TimeExclusivoId is int timeDaCamisa)
+        {
+            var doTime = candidatos.Where(j => j.TimeId == timeDaCamisa).Select(j => j.Id).ToList();
+            return await CarimbarEEnviarAsync(ctx, push, torneio, url, doTime);
+        }
+
+        var ufDoTorneio = await UfDoTorneio.DescobrirAsync(ctx, torneio.Id);
 
         // ⚠️ O filtro roda EM MEMÓRIA de propósito: `Jogador.Estado` é texto livre ("RS", "Rs",
         // "rs", "Rio Grande do Sul (RS)") e quem casa isso é o UnidadeFederativa, que o banco
@@ -58,6 +79,18 @@ public static class AvisoDeTorneioNovo
             .Select(j => j.Id)
             .ToList();
 
+        return await CarimbarEEnviarAsync(ctx, push, torneio, url, elegiveis);
+    }
+
+    // O CARIMBO E O ENVIO, num lugar só — chamado pelas DUAS miras (estado e camisa).
+    //
+    // ⚠️ Existe pelo mesmo motivo que este arquivo existe: copiar isto pro caminho do time
+    // exclusivo seria repetir a cópia divergente que tirou o aviso de dentro do controller em
+    // 18/08/2026. Aqui a cópia errada não é tela torta, é push saindo duas vezes ou nenhuma.
+    private static async Task<Resultado> CarimbarEEnviarAsync(
+        DbPadelContext ctx, IPushNotificationService push, Torneio torneio, string? url,
+        List<int> elegiveis)
+    {
         // ⚠️ O CARIMBO VEM ANTES DO ENVIO, e é gravado MESMO quando não há ninguém elegível.
         // Antes: dois cliques rápidos no mesmo botão mandariam o anúncio duas vezes. Depois:
         // um torneio sem elegível nenhum voltaria a tentar a cada publicação, pra descobrir de

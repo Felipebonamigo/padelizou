@@ -23,6 +23,170 @@
 >
 > 👀 **NÃO CONFERIDO EM NAVEGADOR** (esta sessão não tem browser): as três telas que mudaram de texto são a **criação do torneio** (o card do pacote e a estimativa que agora fala em jogos), a **página do torneio** (o bloco do pedido) e o **painel do admin** (`/Admin/RegistroResultados`, onde o preço sugerido agora sai da contagem ao vivo).
 
+> Última atualização: **22/09/2026** — 🧹 **ITEM 4: AS AULAS CAEM UM MÊS DEPOIS DO VENCIMENTO — E O BLOCO DO BLOQUEIO ESTÁ COMPLETO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE.** 🗣️ Felipe: *"fica marcado até 1 mes depois do vencimento... caso acabe esse 1 mes de prazo, cancele todas as aulas e avise os alunos e o professor"*.
+>
+> 🕳️ **E O ITEM 2 TINHA DEIXADO UM FURO, achado ao desenhar este.** O professor bloqueado some da busca, mas o **POST de `Solicitar` continuava existindo** pra quem tem o link ou a aba antiga. A ação é opt-out do filtro **com razão** — `[ExigePlanoAtivo]` olha quem está **logado**, e ali quem está logado é o ALUNO. Faltava checar o professor **alvo**. Sem isso a aula nascia `Pendente`, o professor não podia aceitar, e o aluno ficava pendurado esperando uma confirmação impossível — **o desfecho exato que o bloqueio inteiro existe pra evitar**. Fechado, com teste visto vermelho.
+>
+> 🛡️ **O SERVIÇO MAIS CONSERVADOR DO BLOCO, porque é o único que APAGA AGENDA.** Quatro travas: não roda com o bloqueio dormente, não roda fora de hora civilizada, **não toca no passado** (aula dada é dinheiro a receber e ficha do aluno) e não faz nada por quem voltou a pagar.
+>
+> 💸 **NINGUÉM É COBRADO.** `CanceladaPor` vira `PoliticaAula.CanceladaPeloSistema` — constante, e não string solta, porque **"Aluno" é a única palavra que faz `DeveCobrar` cobrar multa**. Carimbar isso numa aula que o sistema derrubou cobraria falta de quem não teve nada a ver com o plano do professor.
+>
+> 🔁 **A REPETIÇÃO MORRE JUNTO** (`RecorrenciaSemFim = false`): sem isso o renovador encheria a agenda de volta no instante do pagamento. O desenho é o contrário — ele remarca o que quiser, sabendo o que está remarcando. A frase do aviso diz isso na cara: *"a remarcação é na mão, inclusive as aulas fixas"*.
+>
+> 📨 **UM AVISO POR PESSOA, e não por aula**: aluno com três aulas é uma pessoa. `AlunoId` nulo é o aluno **avulso** (só nome, sem conta) — não tem pra onde receber, e é o professor quem avisa por fora; tem teste porque um `!.Value` ali derrubaria o cancelamento de **todo mundo que viesse depois na fila**.
+>
+> ♻️ **IDEMPOTENTE SEM COLUNA NOVA**: a aula cancelada some da consulta de "futuras ativas", então a segunda passada não acha nada. A varredura roda de hora em hora — sem isso o aluno levaria "sua aula foi cancelada" **doze vezes por dia**.
+>
+> 🤐 **E A ESCADA DE AVISOS SE CALA NO DIA DO CANCELAMENTO** (`>=`, não `>`): *"suas aulas caem hoje"* seguido de *"suas aulas caíram"* faz do primeiro ruído.
+>
+> 📋 **OS QUATRO ITENS ESTÃO FEITOS.** (1) Avulso fora de cartaz · (2) régua + gate nos 51 POSTs + robô + busca · (3) escada de avisos · (4) cancelamento. Tudo **dormente** até `PlanoProfessor:BloqueioAPartirDe` ser preenchido.
+>
+> ⚠️ **PRA LIGAR**: olhar os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` (são os que perdem a agenda), escolher a data com folga pros avisos do item 3 rodarem antes, e **testar em `dev` primeiro**. Ligar é uma linha de configuração; nada de deploy de código.
+>
+> **7.514 testes verdes** (10 novos; o furo do `Solicitar` visto vermelho), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 📣 **ITEM 3: A ESCADA DE AVISOS DO BLOQUEIO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE** junto com o bloqueio. 🗣️ Felipe: *"coloque avisos regulares de que vai vencer em 1 semana, 1 dia, 1 hora"* · *"o professor vai avisando todo dia por email e push q venceu"*.
+>
+> 📧 **O PEDIDO LITERAL ESTOURARIA A CONTA DE E-MAIL — e a descoberta é que ela JÁ ESTAVA SENDO USADA.** `EnviarParaJogadorAsync` manda push **e e-mail** no mesmo funil: os avisos do plano sempre mandaram e-mail, sem ninguém pedir. Diário × ~20 dias × 10 professores = **200 e-mails**, contra um volume mensal do sistema inteiro de **~300 a 500** (`EMAIL.md`). A cota do Gmail já estourou **duas vezes**; na segunda, **130 e-mails morreram calados**, duas recuperações de senha entre eles.
+>
+> ♻️ **A SAÍDA JÁ EXISTIA, E NASCEU DO MESMO ESTOURO**: `AlcanceDoAviso.AppSemEmail` (push + caixa de entrada, sem e-mail), criado em 09/08 pelo mesmo motivo. Degrau 2 da escada do CLAUDE.md — reusar em vez de inventar canal. **Diário por push**; **e-mail em três marcos**: o dia do bloqueio, a metade do prazo e a véspera do cancelamento.
+>
+> 🪜 **DUAS FAIXAS NOVAS, SEM COLUNA NOVA.** `4x` = antes do bloqueio (**40** uma semana, **41** amanhã, **42** uma hora). `50+` = já bloqueado, **um por dia**, com `PrimeiroDiaBloqueado + dias`. ⚠️ **O DIA VIRA O PRÓPRIO ESTÁGIO** — é isso que dispensa migration: a escada já é monotônica, e um número que cresce com o calendário responde *"já avisei hoje?"* de graça. Sem isso, a varredura horária mandaria **doze avisos por dia**.
+>
+> 🕘 **O AVISO DE "1 HORA" É O QUE JUSTIFICA `HoraDoBloqueio = 10h`** — e agora tem teste provando o par: às 9h (a `PrimeiraHora` civilizada) o professor ainda está solto, e é essa varredura que o entrega. Varredura que só rodar depois das 10h pula o estágio e manda o do dia 0; é o desenho, não um furo.
+>
+> 🕳️ **UMA GUARDA MINHA ESTAVA ERRADA, e o teste pegou**: eu barrava o mundo do bloqueio com `CondicoesDeAssinante`. Só que *"uma semana antes do bloqueio"* cai **três dias depois do vencimento** — ou seja, **dentro da carência**, quando o professor ainda é "assinante em dia". Com a guarda, **o primeiro degrau da escada nunca saía**. E é justamente aí que ele serve: ainda dá pra resolver sem perder nada.
+>
+> 🔽 **QUEM ENTRA NA ESCADA DO BLOQUEIO NÃO VOLTA A OUVIR SOBRE TAXA.** *"Sua agenda fecha amanhã"* seguido de *"sua taxa voltou ao cheio"* é ordem **decrescente** de urgência — quem lê o segundo conclui que o primeiro se resolveu.
+>
+> 📅 **`CancelaAulasEm` NASCEU JUNTO, no `BloqueioDoProfessor`**, da **mesma conta** do bloqueio (`DiasAteCancelarAsAulas = 30`, do fim do último direito). O item 4 vai usá-la direto; uma segunda conta noutro arquivo é como as duas passam a discordar no primeiro refactor. Ela também é o que faz o diário **parar de repetir** depois do cancelamento.
+>
+> 🤝 **NENHUMA FRASE PROMETE QUE A AULA MARCADA SOME** — ela não some: o bloqueio para de aceitar novidade, e a conta regressiva até o cancelamento é a única informação nova que o professor tem a cada manhã.
+>
+> 🧪 **O FIO FOI FALSIFICADO**: tirando o alcance da chamada do serviço de fundo, o diário volta a sair por e-mail (`Expected: AppSemEmail / Actual: SoApp`). É o teste do fio, não da régua — `AlcanceDe` podia estar perfeita e o entregador continuar usando o padrão.
+>
+> 📋 **Falta o item 4**: cancelar as aulas futuras no fim do prazo, avisando alunos e professor.
+>
+> **7.504 testes verdes** (16 novos; vistos vermelhos antes), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 🚪 **ITEM 2: A AGENDA FECHA PRA QUEM NÃO SUSTENTA O PLANO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🔌 **DORMENTE POR PADRÃO** — sobe sem mudar o comportamento de ninguém.
+>
+> 🟡 **E FOI NESTE BUILD QUE A CARÊNCIA PAROU DE SE DISFARÇAR DE "ASSINANTE EM DIA"** — print do Felipe com *"Pago até 18/09"* e selo **verde** em 22/09. A régua estava certa (os 7 dias de `DiasDeCarencia`); a tela é que escondia, com a explicação em cinza no rodapé. Agora o selo fica **âmbar** com *"vencida — carência até dd/MM"*. `PlanoDoProfessor.CarenciaAte` é pergunta de TELA, não de cobrança — pra quem cobra, carência É "em dia", e separar lá viraria desconto.
+>
+> 🧭 **"PODE AGENDAR" NÃO VIROU RÉGUA NOVA.** É `PlanoDoProfessor.CondicoesDeAssinante` (em teste, em dia ou cortesia), que com o Avulso fora de cartaz virou a definição inteira. `BloqueioDoProfessor` só acrescenta o **prazo**. Segunda régua de quem-pode seria a cópia que um dia discorda da primeira — foi assim que a Mesa de Controle quebrou em 31/07.
+>
+> ⏱️ **DOIS EIXOS, DOIS PRAZOS, DE PROPÓSITO.** `DiasDeCarencia` (7) decide quanto a aula **custa**; `DiasAteOBloqueio` (10) decide quando a agenda **fecha**. Sobram **3 dias** em que o professor paga 10% e ainda marca aula — e existe teste nomeando essa janela. Quem nunca pagou não tem prazo: o teste já é a tolerância.
+>
+> 🕙 **O BLOQUEIO TEM HORA: 10h**, e isso não é estética. O aviso de "1 hora antes" (item 3) só é entregável se sair às **9h**, que é a `PrimeiraHora` da hora civilizada. O teste amarra na **constante**, não no número. E teste vencido bloqueia às 10h do **dia seguinte**: às 10h do próprio dia `CondicoesDeAssinante` ainda diz sim, e as duas réguas se contradiriam.
+>
+> 🔌 **`BloqueioAPartirDe` É O INTERRUPTOR E A TRAVA DE AVISO JUSTO.** Nulo = dormente. Preenchido, é **PISO**: ninguém bloqueia antes dessa data, por mais velho que seja o vencimento. Sem ela o deploy fecharia num segundo a agenda de todo mundo dos baldes "Avulsos" e "Sem escolha" — gente vencida há meses que nunca foi avisada. Mesmo raciocínio do `JanelaDoAvisoDeQueda`.
+>
+> 🧱 **O GATE VAI NA CLASSE, não endpoint a endpoint** — 51 POSTs em 11 arquivos parciais, e lista à mão envelhece calada. `[ExigePlanoAtivo]` em `AulasController`, `JogoAulaController` e `ProfessoresController`; o 52º endpoint já nasce coberto. O filtro corta **por verbo**: GET passa reto, que é a "visualização do que já está marcado". **Falsificado**: tirando o atributo, o gate reprova.
+>
+> 🚪 **CINCO OPT-OUTS, TODOS DO LADO DO ALUNO** e todos com motivo escrito no gate (`Solicitar`, `CancelarComoAluno`, `Inscrever`, `CancelarInscricao`, `Avaliar`) — professor bloqueado que também é aluno de alguém não perde o direito de marcar a aula **dele**. E `PlanoProfessorController` fica **fora do filtro inteiro**: `Escolher` e `PagarMensalidade` são a única saída, e pô-los sob o bloqueio trancaria o professor do lado de fora com a chave dentro.
+>
+> 🤖 **O QUARTO CRIADOR DE AULA ERA O ROBÔ, e o filtro de POST não o alcançava.** `RenovacaoDaAulaFixa` repõe 12 semanas à frente **sem humano nenhum**: sem esta mudança, o professor bloqueado continuaria ganhando aula nova na agenda, posta pelo próprio Padelizou. `cfg` agora é **obrigatório** ali — padrão silencioso seria o furo de volta. E o robô **para de repor, nunca apaga**: cancelar é o item 4, um mês depois e com aviso ao aluno.
+>
+> 🔍 **SOME DA BUSCA**: se não pode aceitar, não pode ser oferecido — senão o aluno marca, a aula nasce `Pendente` e ninguém nunca confirma. O filtro roda **em memória** (a régua é C# puro que o EF não traduz — a armadilha do InMemory de novo).
+>
+> 📋 **Falta do item 2: nada.** Próximos: **item 3** (escada de avisos 7d/1d/1h + push diário e e-mail em 3 marcos, pela cota do Gmail) e **item 4** (cancelar as aulas 1 mês após o vencimento, avisando alunos e professor).
+>
+> ⚠️ **PRA LIGAR EM PRODUÇÃO**: preencher `PlanoProfessor:BloqueioAPartirDe` **só depois** de os avisos do item 3 terem rodado, e olhando antes os baldes **Avulsos** + **Sem escolha** do `/Admin/Professores` — são os professores que perdem a agenda no dia.
+>
+> **7.488 testes verdes** (32 novos no bloco; o gate e o filtro **vistos vermelhos**), 12 conferidores JS verdes.
+
+> Última atualização: **22/09/2026** — 🪦 **O PLANO AVULSO SAIU DE CARTAZ.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1482-91797c7`** (deploy runs **405** e **406**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #345. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"vamos tirar essa do avulso, apenas marca com mensalidade, e nos 15 dias de teste"*.
+>
+> 🕳️ **O AVULSO ERA O PLANO GRÁTIS PRA SEMPRE — e isso foi MEDIDO, não suposto.** Ele cobrava 10% *"por aula paga no app"*, e **a aula comum nunca passa pelo app**. Só duas portas geram cobrança de verdade: o jogo-aula (`JogoAulaController:209` → `IniciarCobrancaAulaAsync`) e a fatura mensal (`AulasController.Faturamento:260` → `IniciarCobrancaDaFaturaAsync`). Na aula normal o professor clica em "recebida", `Aula.PagaEm` é carimbado **sem gateway nenhum** e o Padelizou recebe **R$ 0,00**. Um clique em "Ficar no Avulso" tirava o professor do alcance de qualquer cobrança — pra sempre. A pergunta que destravou isso foi do Felipe: *"mas como eu sei q ele ta pagando os 10%?"*. Não sabia. Não tinha como.
+>
+> 🚪 **A TRAVA É DO SERVIDOR, NÃO DA TELA.** `Escolher` passou a recusar por **lista branca** (`!= Assinante`), e não por lista negra: tirar o botão não tira o POST — a aba aberta em cache ainda manda `plano=Avulso`, e é ela que gravaria o plano aposentado. Lista branca também garante que plano novo entre por decisão, não por esquecimento.
+>
+> ♻️ **O ENUM E A COLUNA FICAM VIVOS, e isso não é sobra**: tem professor com `PlanoProfessor = "Avulso"` gravado. O ramo `Situacao.Avulso` da tela continua existindo e ganhou teste-guarda — apagá-lo na próxima faxina jogaria quem **já escolheu** no `default:`, que fala de quem **não** escolheu.
+>
+> 🤐 **NADA NA TELA PROMETE BLOQUEIO** — ele é o item 2 e ainda não existe. Anunciar consequência que o código não aplica é a mentira de rótulo do `build-373`, e ela custa mais que o silêncio.
+>
+> ⚠️ **SOBROU UMA PORTA, DEIXADA DE PROPÓSITO**: o rádio "Avulso" em `/Admin/Professores` (`Views/Admin/Professores.cshtml:458` → `AdminController.Professores.cs:234`). É o console do Felipe (*"o plano que ELE escolheu"*), não uma oferta ao professor, e hoje não defende nada porque o bloqueio não existe. **Decisão pendente do item 2**: com o bloqueio no ar, esse rádio vira a única forma de isentar alguém pra sempre — e a **Cortesia já faz isso melhor**, com prazo e motivo escrito.
+>
+> 📋 **O DESENHO COMPLETO, APROVADO, EM 4 ITENS** — (1) tirar o Avulso de cartaz ✅; (2) a régua + o gate nos 51 POSTs + o robô `RenovacaoDaAulaFixa` + o filtro da busca; (3) a escada de avisos (7 dias / 1 dia / 1 hora antes, hora fixa de bloqueio às 10h pra o de 1h caber na `HoraCivilizada`); (4) cancelamento das aulas 1 mês depois do vencimento. Régua do bloqueio = `PlanoDoProfessor.CondicoesDeAssinante` + prazo (`DiasAteOBloqueio = 10` pra quem já pagou; sem tolerância pra quem nunca pagou).
+>
+> **7.451 testes verdes** (4 novos; **2 vistos VERMELHOS antes** — os outros 2 são guardas de regressão, verdes por desenho), 12 conferidores JS verdes.
+
+> Última atualização: **20/09/2026** — 🏠 **A HOME VAZAVA O TORNEIO FECHADO, E ERA UMA CÓPIA DA RÉGUA.** 🚀 **FOI AO AR JUNTO no `build-1482-91797c7`** (23/09) — o build carrega o `main` inteiro, então este conserto subiu de carona com o bloco do bloqueio do professor. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"Usuarios sem a bandeira do time ainda esta vendo o torneio"*.
+>
+> 📏 **MEDIDO EM PRODUÇÃO, ANÔNIMO**: o torneio sumiu de `/Torneios` (**0** links) e CONTINUOU na Home (**1** link). O conserto da vitrine tinha ficado pela metade e eu declarei "conferido" — conferi a listagem e **não a Home**. A verificação foi mais estreita que a mudança.
+>
+> 🕳️ **A CAUSA É EXATAMENTE O QUE O `PermissaoDeOrganizador` AVISA NO PRÓPRIO COMENTÁRIO**: *"Regra de visibilidade copiada é como o torneio oculto reaparece: a pessoa esconde o torneio, uma das cópias é atualizada, a outra não"*. O `HomeController` escrevia `!t.Oculto && t.AprovadoEm != null` À MÃO, então mudar a régua compartilhada não chegou lá.
+>
+> 🔁 **E A HOME JÁ TINHA CAÍDO NISSO ANTES** — o comentário dela dizia *"antes a home ignorava o Oculto e vazava torneio restrito na vitrine"*. Segunda vez, mesma classe, mesmo arquivo. Por isso a correção não foi somar a condição: foi **parar de escrever a régua ali**.
+>
+> 🧹 **E A COMPARAÇÃO DA CAMISA VIROU `ApareceParaQuemTemCamisa`**, usada pela Home E pela listagem. Ontem ela nasceu inline no Index — ou seja, eu tinha criado a segunda cópia no mesmo dia em que consertei a primeira. A armadilha do nulo (`TimeExclusivoId == meuTimeId` com dois nulos é VERDADEIRO) agora mora num lugar só.
+>
+> ✅ **VARREDURA POR OUTRAS CÓPIAS**: `grep` por `AprovadoEm != null` no código inteiro — só a Home tinha. As duas do `AdminController` são tela de admin, legitimamente diferentes.
+>
+> **7.447 testes verdes** (6 novos; 3 vistos VERMELHOS antes), 12 conferidores JS verdes.
+
+> Última atualização: **20/09/2026** — 🙈 **TORNEIO FECHADO NÃO SE ANUNCIA SOZINHO.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da vitrine: *"E aqui ele nao deveria aparecer pra todos"*.
+>
+> 🧭 **A DISTINÇÃO QUE SEGURA O BLOCO INTEIRO: DESCOBERTA NÃO É PERMISSÃO.** O torneio fechado sai da vitrine e **a página continua abrindo por link**. Se ela fechasse como o `Oculto` faz (404), a chave de acesso não serviria pra nada — ninguém conseguiria abrir pra digitá-la. `VisibilidadeDoTorneio` ficou intocado de propósito.
+>
+> 📐 **REGRA NOVA EM DOIS DEGRAUS, e a separação é o que evitou o estrago.** `SeAnuncia` = não é restrito nem de time. `ApareceNaDescoberta` = `ApareceParaOPublico` **+** `SeAnuncia`. A de baixo responde *"este torneio é público?"*; a de cima, *"nós saímos anunciando ele?"*. Um torneio fechado é público e mesmo assim não se anuncia.
+>
+> 🖥️ **CINCO SUPERFÍCIES**: listagem, sitemap (sai do Google), páginas de cidade, seletor de torneio do ranking, e `noindex` na própria página.
+>
+> 🚪 **QUATRO ESCAPES NA LISTAGEM — e um deles NÃO EXISTIA.** Organizador, admin, **quem veste a camisa** (vê o torneio do time dele) e **quem já está inscrito**. O último é o novo: `meusTorneioIds` só olhava quem ORGANIZA, então quem já pagou veria o próprio torneio sumir da lista. É a mesma lição do escape 3 do `VisibilidadeDoTorneio`.
+>
+> ⚠️ **ARMADILHA DE NULO NO FILTRO DA CAMISA**: `t.TimeExclusivoId == meuTimeId` com os dois nulos é **verdadeiro** — todo restrito sem time apareceria pra quem não tem camisa nenhuma, que é a base inteira. O `!= null` antes da comparação é o que impede isso, e está comentado na linha.
+>
+> 🛑 **A API DO PARCEIRO FICOU FORA, E EU ESTAVA ERRADO SOBRE ELA.** Eu propus tirar o torneio fechado da lista do Ranking Brasil argumentando que ele dá ZERO ponto lá (`ContaNoRanking`) — e o Felipe aprovou **com base nesse argumento**. Ao rodar a suíte, um teste que já existia reprovou e mostrou o que eu não tinha lido: a API **já manda `InscricaoRestrita`**, cobrindo restrito E time exclusivo, com o motivo escrito (*"senão eles anunciariam como aberto a todos um evento que pede chave"*). O parceiro não estava sendo enganado; estava sendo informado. Reverti essa parte e devolvi a decisão, porque ela foi tomada sobre uma premissa minha que era falsa.
+>
+> 📌 **E se a decisão for tirar mesmo**: `InscricaoRestrita` passa a valer `false` pra sempre — campo morto numa API publicada. Tirar o campo seria quebra de contrato; deixar é inofensivo, mas merece linha no `API-TORNEIOS.md`.
+>
+> 🔁 **A justificativa do teste antigo INVERTEU DE LADO, e isso é o que torna a pergunta legítima**: ele dizia *"restrito não some da lista: ele aparece na nossa vitrine, e sumir aqui criaria duas listas diferentes de torneios abertos"*. A partir de hoje ele **não** aparece na nossa vitrine — então agora é MANTER lá que cria as duas listas diferentes.
+>
+> **7.442 testes verdes** (9 novos; 5 vistos VERMELHOS antes), 12 conferidores JS verdes.
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, COM ANTES E DEPOIS MEDIDOS** — em `padelizou.com.br`: o torneio 28 saiu da vitrine (**1 → 0** links), os outros **3** continuam lá (não sumiu a lista inteira), e a página dele ganhou `noindex` (**0 → 1**).
+>
+> 🔓 **E A PÁGINA CONTINUA ABRINDO: 200, 86.518 bytes, nome renderizando.** É a conferência que mais importa do bloco — é ela que prova que a chave de acesso segue funcionando. Se descoberta e permissão tivessem colado, isto seria 404 e o torneio ficaria inalcançável pra quem tem a chave.
+>
+> ⚠️ **O `maxlength` corrigido NÃO foi conferido no ar**: o campo de chave só renderiza pra quem está logado (`chaveAcesso`: 0 ocorrências na página anônima). O que sustenta é o teste, falsificado duas vezes. **Vale um print na hora de se inscrever.**
+
+> Última atualização: **20/09/2026** — 🔑 **A CHAVE DE ACESSO NÃO CABIA NO CAMPO DE QUEM SE INSCREVE.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe: *"na hora da inscrição tem limite de 6 caracteres — cadastrei uma chave CORNETA0310"*.
+>
+> 🚨 **ISTO TRANCAVA A INSCRIÇÃO INTEIRA.** Chave de 11 caracteres, campo de 6: não havia como digitar a chave certa. No "Los Corneteiros | Seletiva QTimes", com inscrições até 30/09, **ninguém conseguia entrar**.
+>
+> 🕳️ **REGRA QUE MUDOU DE UM LADO SÓ.** A chave nasceu SORTEADA com 6 caracteres (`ChaveDeAcessoDoTorneio.Sortear`), e o campo da inscrição foi escrito com esse **6 literal**. Depois o organizador ganhou o direito de ESCOLHER a chave, *"de 4 a 20"* — e o outro lado do fluxo ficou onde estava. Clássico: o literal duplicava uma regra que morava em outro arquivo.
+>
+> ✅ **O SERVIDOR NUNCA CORTOU NADA** — `DuplasController:265` e `Inscricoes:101` só COMPARAM a chave. O `maxlength` do HTML era o obstáculo inteiro, nos dois campos (`Details.cshtml:1958` e `:2329` — inscrição de dupla e do americano). Agora os dois leem `ChaveDeAcessoDoTorneio.TamanhoMaximo`.
+>
+> 🧪 **O TESTE OLHA A CONSTANTE, NÃO O NÚMERO 20** — amarrar no literal reproduziria o próprio defeito que ele trava. E ele foi **falsificado duas vezes**: vermelho antes da correção, e vermelho DE NOVO depois de reescrito (porque passou a aceitar a grafia nova), devolvendo um campo pro `6` pra provar que ainda pega. Reescrever teste depois do código é o risco que o `CLAUDE.md` nomeia; a falsificação é o que separa "adaptei" de "continua travando".
+>
+> 📌 **E o print respondeu a dúvida de ontem**: o torneio 28 tem os DOIS — *"só do time Los Corneteiros"* e *"é restrito"*. Pela régua de ontem, o restrito ganha e o push dele fica silenciado.
+>
+> **7.433 testes verdes**, 12 conferidores JS verdes.
+
+> Última atualização: **20/09/2026** — 🔕 **O "NOVO TORNEIO ABERTO" PAROU DE CONVIDAR A BASE INTEIRA PRA FESTA DE CONVIDADOS.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1478-037dcf9`** (deploy runs **35513505251** e **35513541097**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #343. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do push *"Los Corneteiros | Seletiva QTimes"*: *"esse torneio é restrito, ai nao deveria aparecer"*.
+>
+> 🕳️ **NÃO FOI DECISÃO, FOI LACUNA.** O `AvisoDeTorneioNovo` tinha TRÊS recusas — não aprovado, oculto, já avisado — e **nenhuma olhava quem pode se INSCREVER**. O torneio de um time só entrou em 16/09 e trancou a porta da inscrição; o anúncio ficou como estava. Não havia teste citando restrição, então ninguém escolheu isso.
+>
+> 🔑 **RESTRITO → silêncio.** Quem não tem a chave não entra. **E não carimba**, pela mesma razão do `Oculto`: o carimbo é pra sempre, e um torneio que deixar de ser restrito ainda vai querer o anúncio.
+>
+> 👕 **TIME EXCLUSIVO → avisa SÓ quem veste a camisa** (escolha do Felipe). Silenciar de vez tiraria o aviso justamente de quem PODE jogar.
+>
+> ⚠️ **E A CAMISA SUBSTITUI A MIRA POR ESTADO — não soma.** Este foi o achado do bloco, e o teste que o pegou foi visto vermelho com `Assert.Equal() Failure: Values differ`: somando os dois filtros, o jogador do time que mora em OUTRO estado era cortado — caladinho, justamente quem se desloca pra jogar pelo time. Num torneio de time a camisa é o sinal mais forte que existe.
+>
+> ⚖️ **OS DOIS JUNTOS (o modelo permite): o restrito ganha e cala.** Sub-decisão minha, escrita como escolha no código — a chave é entregue na mão pelo organizador, e avisar quem não a tem é o mesmo barulho um nível abaixo.
+>
+> ♻️ **O carimbo e o envio viraram `CarimbarEEnviarAsync`, chamado pelas duas miras.** Copiar aquele bloco pro caminho novo repetiria exatamente a cópia divergente que tirou o aviso de dentro do controller em 18/08 — e aqui cópia errada não é tela torta, é push saindo duas vezes ou nenhuma.
+>
+> ⚠️ **ISSO NÃO ESCONDE TORNEIO NENHUM**: o restrito segue na listagem pública e na página dele. Quem some da vista é o `Oculto`, que é outra coisa.
+>
+> 📌 **ACHADO DE LAMBUJA, NÃO CONSERTADO**: no `Details.cshtml` todas as marcações de `TimeExclusivoId` estão atrás de `ViewBag.PodeGerenciar` — **só o organizador vê que o torneio é de um time só**. O visitante descobre que não pode entrar só na hora de tentar se inscrever.
+>
+> ⚠️ **NÃO CONFERIDO QUAL FLAG O TORNEIO 28 TEM**: a página anônima não revela (ver achado acima), e não há acesso ao banco de produção nesta sessão. O conserto cobre os dois casos, então não dependeu disso.
+>
+> **7.432 testes verdes** (os 5 novos vistos VERMELHOS antes), 12 conferidores JS verdes.
+
 > Última atualização: **17/09/2026** — 🙋 **QUEM FOI INSCRITO POR OUTRA PESSOA AGORA PODE RECUSAR.** 🚀 **PUBLICADO em `dev` e `prod` no `build-1472-cadfd05`** (PR #340; deploy runs 399 e 400). ⚠️ **COM MIGRATION** (`InscritoPorOutro`: tabela nova, chave composta) — ela aplica no startup, e o que prova que aplicou é o app ter subido: o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, e ele respondeu nos dois (corpo `ok`, conferido por fora às 03:44 UTC). 🗣️ Felipe: *"'Você foi inscrito para um torneio por Maickel' — para quando alguem inscrever um parceiro no torneio, avisar o parceiro e permitir recusar, ao recusar o primeiro fica sozinho no torneio e o avisa"*.
 >
 > 🕳️ **A INSCRIÇÃO EM DUPLA ERA A ÚNICA PORTA EM QUE ALGUÉM ENTRA NUM COMPROMISSO SEM TER CLICADO EM NADA** — com data, lugar e dinheiro. O aviso *"Fulano inscreveu você"* existia desde 31/07/2026; o que faltava era a **saída nomeada**. Havia o "Sair só eu", mas ele é outra pergunta: desistir pergunta *"sai só você ou os dois?"*, e essa pergunta não faz sentido pra quem nunca pediu pra entrar — a resposta errada dela tira do torneio justamente quem queria jogar. Mesma lição do mural dos Desafios (`DESAFIOS.md` §2): *"o que sustenta essa regra é o AVISO, não o botão"*.
@@ -97,7 +261,7 @@
 >
 > 🧪 **7.332 testes verdes** (42 novos, vistos vermelhos antes) e **12 conferidores JS**. ⚠️ Os da varredura usam **DOIS CONTEXTOS sobre o mesmo banco** — com um só, o InMemory costura `aula.Aluno` sozinho e eles passariam **sem os `Include`** — e foram **conferidos por mutação**: tirar o `Include`, afrouxar o status, remover o filtro da lista de espera e desfazer o agrupamento deixam 10 vermelhos. Mais `TraducaoDoLembreteDeAulaTests`, que compila as três consultas contra **Npgsql** de verdade: aqui o SQL que o InMemory não valida falharia dentro de um BackgroundService, ou seja, **num log que ninguém olha**. ⚠️ **Não conferido com DADO REAL, e é o que falta:** o deploy entrou nos dois ambientes (o `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, e ele respondeu), mas **ninguém viu um lembrete sair**. A migration aplica no startup e não foi conferida no log — fica pro próximo acesso ao VPS. 👀 **O que olhar quando houver aula marcada:** uma aula pra dali a ~23h deve gerar UMA linha em `/Notificacoes` do aluno e UMA do professor, e **não** gerar de novo no tick seguinte (15 min). Numa turma de 3, o professor leva **um** aviso, não três.
 
-> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
+> Última atualização: **16/09/2026** — 🛡️ **O PERFIL MOSTRA O TIME QUE A PESSOA REPRESENTA.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1455-82133c6`** (deploy runs **35050709638** e **35050821369**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #331. ✅ **SEM MIGRATION** — `Jogador.TimeId` existe desde sempre; o time já aparecia no ranking e no escudo da lista de jogos, e só o perfil, que é onde se vai justamente pra saber quem a pessoa é, não dizia. 🗣️ Felipe: *"aqui no perfil, coloque tambem o time que ele representa"*.
 >
 > 🔇 **O DEFEITO QUE ESTE BLOCO MAIS ARRISCAVA ERA CALADO: faltar o `Include(j => j.Time)`.** A tela não quebraria — simplesmente não mostraria time nenhum, sem erro e sem log. Por isso o teste que segura isso é o primeiro do arquivo.
 >
@@ -107,9 +271,9 @@
 >
 > 🔗 O nome leva pra vitrine do time (`/Times/Detalhes`), que já é página pública. **O escudo só desenha quando há logo** — mesma regra que o `_JogoEmLinha` já aplica, porque os 44 times importados do ranking nasceram sem nenhum e `src=""` seria ícone quebrado bem no alto do perfil.
 >
-> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ⚠️ **Não conferido em navegador**: a sessão não subiu o app com banco; o que sustenta a tela é o Razor compilar no build e os testes de marcação.
+> **7.094 testes verdes** (os 3 novos vistos VERMELHOS antes — o do `Include` falhando com `Assert.NotNull() Failure: Value is null`), 10 conferidores JS verdes. ✅ **CONFERIDO NO AR, ANÔNIMO, NA PÁGINA DE VERDADE** — e não só nos testes. Em `padelizou.com.br/Jogadores/Perfil/402` o bloco saiu inteiro: `<i class="bi bi-shield-fill">` + `<a href="/Times/Detalhes/8">ER Padel</a>` + o escudo `/uploads/logos-time/bandeiraer.jpeg`. Medido ANTES do deploy no mesmo perfil: **zero** links de time; depois, **um**. ⚠️ **A conferência foi em `prod`, não em `dev`**, porque `dev` está com o Acesso Antecipado ligado e manda visitante anônimo pra tela de entrada — o `dev` provou o deploy (`/healthz` 200), não a tela.
 
-> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
+> Última atualização: **15/09/2026** — 🧹 **DADO PESSOAL DE VERDADE SAIU DO REPOSITÓRIO (que é PÚBLICO).** 🚀 **PUBLICADO em `dev` E `prod` no `build-1455-82133c6`** (deploy runs **35050709638** e **35050821369**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #331. ✅ **SEM MIGRATION.** Nada de código de produção mudou de comportamento — só comentário, fixture e este diário.
 >
 > 🔍 **VEIO DE ONDE MENOS SE PROCURA: pedido de suporte copiado e colado.** Não houve descuido com segredo — o `appsettings.json` está no `.gitignore` e **nunca esteve no histórico** (conferido). O que vazou entrou pela porta da frente, com a melhor das intenções: documentar o caso real que fez cada correção existir. `JanelaDoParceiro.cs`, arquivo de PRODUÇÃO, carregava *"troque o parceiro do [fulano] pelo [cpf] cpf [beltrano]"* — nome e CPF de pessoa real. `RecuperarSenhaPeloCpfTests.cs` abria com *"o usuário do CPF [x] não está conseguindo recuperar sua senha"*.
 >
