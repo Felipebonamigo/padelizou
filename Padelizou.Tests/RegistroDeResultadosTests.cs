@@ -65,98 +65,174 @@ public class RegistroDeResultadosTests
         Assert.Equal(1, dias);
     }
 
-    // ── Dinheiro: o preço é PERCENTUAL das inscrições, o custo continua por JOGO ─────
+    // ── Dinheiro: o preço é POR JOGO, e o custo também ───────────────────────────────
 
     [Fact]
-    public void Jogos_do_torneio_e_a_soma_das_categorias()
+    public void O_preco_do_servico_e_doze_reais_por_jogo()
     {
-        // 4 categorias de 12 duplas: 4 × 19 = 76 jogos.
-        Assert.Equal(76, RegistroDeResultados.JogosPrevistos(new[] { 12, 12, 12, 12 }));
+        // Decisão do Felipe (23/09/2026): o pacote volta a ser cobrado POR JOGO, no lugar dos
+        // 10% das inscrições. Com a inscrição média em R$ 150, os 10% davam R$ 15 por pessoa
+        // contra ~R$ 8 por jogo — e, mais que o número, o percentual não acompanha o CUSTO,
+        // que sempre foi por jogo. R$ 12 é também o que o material de venda
+        // (ORGANIZADOR-TORNEIO.html) nunca deixou de prometer.
+        var config = new RegistroResultadosSettings();
+
+        Assert.Equal(12m, config.PrecoPorJogo);
+        Assert.Equal(10m, config.CustoPorJogo);   // a margem é de R$ 2 por jogo
+        Assert.Equal(500m, config.ValorMinimo);
     }
 
     [Fact]
-    public void Categoria_sem_gente_nao_soma_jogo()
+    public void Preco_e_o_numero_de_jogos_vezes_o_preco_do_jogo()
     {
-        // Categoria criada e vazia é comum (o organizador abre 6 e enchem 4).
-        Assert.Equal(RegistroDeResultados.JogosPrevistos(new[] { 12 }),
-                     RegistroDeResultados.JogosPrevistos(new[] { 12, 0, 1 }));
-    }
-
-    [Fact]
-    public void Custo_e_dez_reais_por_jogo_independente_dos_dias()
-    {
-        // O custo não mudou com a régua nova de preço: quem registra ganha por jogo, e um
-        // Americano de UM dia pode ter mais jogos que um torneio de duplas de três.
-        Assert.Equal(760m, RegistroDeResultados.CustoEstimado(76, 10m));
-        Assert.Equal(0m, RegistroDeResultados.CustoEstimado(0, 10m));
-    }
-
-    [Fact]
-    public void Preco_e_percentual_das_inscricoes_quando_o_torneio_e_grande()
-    {
-        // 120 pessoas × R$ 150 = R$ 18.000 de inscrições; 5% dá R$ 900, bem acima do mínimo.
-        Assert.Equal(900m, RegistroDeResultados.PrecoSugerido(120, 150m, 5m, 500m));
+        // 4 categorias de 16 duplas = 84 jogos × R$ 12.
+        Assert.Equal(1_008m, RegistroDeResultados.PrecoSugeridoPorJogo(84, 12m, 500m));
     }
 
     [Fact]
     public void Torneio_pequeno_ou_gratuito_paga_o_minimo()
     {
-        // 32 pessoas × R$ 100 × 5% = R$ 160, mas mandar alguém passar o dia custa o dia
-        // inteiro. Sem o mínimo, torneio pequeno — e o gratuito, cujo percentual dá ZERO —
-        // sairia no prejuízo.
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(32, 100m, 5m, 500m));
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(0, 150m, 5m, 500m));
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(64, 0m, 5m, 500m));
+        // Mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos. O mínimo é
+        // também o amortecedor de distância — clube longe encarece e quem responde ajusta.
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(20, 12m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(0, 12m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(-5, 12m, 500m));
     }
 
     [Fact]
-    public void Da_pra_saber_onde_o_minimo_para_de_mandar()
+    public void Da_pra_saber_a_partir_de_quantos_jogos_o_minimo_para_de_mandar()
     {
         // Quem responde precisa saber que abaixo disso todo torneio paga igual — senão acha
-        // que a conta está errada quando dois pedidos diferentes dão o mesmo valor.
-        var corte = RegistroDeResultados.InscricoesParaSairDoMinimo(5m, 500m);
+        // que a conta quebrou quando dois pedidos de tamanhos diferentes dão o mesmo valor.
+        var corte = RegistroDeResultados.JogosParaSairDoMinimo(12m, 500m);
 
-        Assert.Equal(10_000m, corte);
-        // No corte exato o percentual EMPATA com o mínimo; um degrau acima, passa.
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(100, 100m, 5m, 500m));
-        Assert.True(RegistroDeResultados.PrecoSugerido(101, 100m, 5m, 500m) > 500m);
+        Assert.Equal(42, corte);
+        Assert.True(RegistroDeResultados.PrecoSugeridoPorJogo(corte, 12m, 500m) > 500m);
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(corte - 1, 12m, 500m));
     }
 
     [Fact]
-    public void Percentual_e_custo_andam_soltos_e_a_conta_do_admin_precisa_mostrar_isso()
+    public void Preco_e_custo_agora_andam_na_MESMA_unidade()
     {
-        // O risco aceito da régua nova (20/08/2026): o preço segue as inscrições e o custo
-        // segue os jogos. Inscrição barata com muitos jogos fica ABAIXO do custo — é o
-        // painel do admin (que vê custo e sobra) quem segura, ajustando o valor na mão.
-        var preco = RegistroDeResultados.PrecoSugerido(64, 50m, 5m, 500m);   // R$ 3.200 → mínimo
-        var custo = RegistroDeResultados.CustoEstimado(60, 10m);             // 60 jogos
+        // O risco da régua percentual (20/08 a 23/09/2026) era este: o preço seguia as
+        // INSCRIÇÕES e o custo seguia os JOGOS, então inscrição barata com muitos jogos
+        // ficava abaixo do custo — o teste antigo daqui documentava isso como risco aceito.
+        // Com os dois por jogo a sobra é R$ 2 por jogo em QUALQUER torneio.
+        const int jogos = 390;                                        // 10 categorias de 24 duplas
+        var preco = RegistroDeResultados.PrecoSugeridoPorJogo(jogos, 12m, 500m);
+        var custo = RegistroDeResultados.CustoEstimado(jogos, 10m);
 
-        Assert.Equal(500m, preco);
-        Assert.True(custo > preco);
+        Assert.Equal(4_680m, preco);
+        Assert.Equal(3_900m, custo);
+        Assert.Equal(2m * jogos, preco - custo);
+
+        // O mesmo torneio pela régua velha, com inscrição barata (480 pessoas × R$ 75):
+        // 10% dão R$ 3.600 contra R$ 3.900 de custo — R$ 300 de PREJUÍZO.
+        Assert.True(RegistroDeResultados.PrecoSugerido(480, 75m, 10m, 500m) < custo);
     }
 
     [Fact]
-    public void O_percentual_do_servico_e_10_por_cento_das_inscricoes()
+    public void Pedido_cotado_em_percentual_continua_no_percentual()
     {
-        // Decisão do Felipe (26/08/2026), depois de ver o concorrente cobrar 28% pra cobrir
-        // um torneio: o serviço subiu de 5% pra 10%. Pedido feito na régua de 5% não é
-        // recalculado — a cotação congela no pedido (PercentualCotado), e é o teste abaixo
-        // deste que segura esse congelamento.
-        var config = new RegistroResultadosSettings();
-
-        Assert.Equal(10m, config.PercentualDasInscricoes);
-        // Com 10%, o percentual passa o mínimo de R$ 500 a partir de R$ 5.000 de inscrições.
-        Assert.Equal(5_000m, RegistroDeResultados.InscricoesParaSairDoMinimo(
-            config.PercentualDasInscricoes, config.ValorMinimo));
+        // A cotação congela no pedido (PercentualCotado, regra de 20/08/2026): quem pediu na
+        // régua dos 5% ou dos 10% não passa a pagar por jogo por causa desta mudança. É a
+        // mesma promessa que protegeu quem tinha pedido por jogo quando o percentual entrou.
+        Assert.Equal(900m, RegistroDeResultados.PrecoSugerido(120, 150m, 5m, 500m));
+        Assert.Equal(1_800m, RegistroDeResultados.PrecoSugerido(120, 150m, 10m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(32, 100m, 5m, 500m));
     }
 
     [Fact]
-    public void Pedido_antigo_cotado_por_jogo_continua_valendo_o_que_leu()
+    public void Custo_e_dez_reais_por_jogo_independente_dos_dias()
     {
-        // A cotação congela no pedido: quem pediu na regra do R$ 12 por jogo (antes de
-        // 20/08/2026) não é recalculado pela régua nova.
-        Assert.Equal(912m, RegistroDeResultados.PrecoSugeridoPorJogo(76, 12m, 500m));
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(20, 12m, 500m));
+        // Quem registra ganha por jogo lançado, e um Americano de UM dia pode ter mais jogos
+        // que um torneio de duplas de três.
+        Assert.Equal(760m, RegistroDeResultados.CustoEstimado(76, 10m));
+        Assert.Equal(0m, RegistroDeResultados.CustoEstimado(0, 10m));
+    }
+
+    // ── Quantos jogos o torneio tem — desde 23/09/2026 isto é PREÇO, não só custo ────
+
+    [Fact]
+    public void Jogos_do_torneio_e_a_soma_das_categorias()
+    {
+        // 4 categorias de 12 duplas: 4 × 19 = 76 jogos.
+        Assert.Equal(76, RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Padrao, new[]
+        {
+            new CategoriaParaContar(false, 12), new CategoriaParaContar(false, 12),
+            new CategoriaParaContar(false, 12), new CategoriaParaContar(false, 12),
+        }));
+    }
+
+    [Fact]
+    public void Categoria_sem_gente_nao_soma_jogo()
+    {
+        // Categoria criada e vazia é comum (o organizador abre 6 e enchem 4). E uma dupla
+        // sozinha não joga contra ninguém.
+        Assert.Equal(
+            RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Padrao,
+                new[] { new CategoriaParaContar(false, 12) }),
+            RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Padrao, new[]
+            {
+                new CategoriaParaContar(false, 12), new CategoriaParaContar(false, 0),
+                new CategoriaParaContar(false, 1),
+            }));
+    }
+
+    [Fact]
+    public void Chave_direta_e_mata_mata_puro_e_nao_fase_de_grupos()
+    {
+        // 24 duplas em chave direta são 23 jogos — cada um elimina uma até sobrar o campeão.
+        // Contar pela régua dos grupos daria 39, e desde que o preço é por jogo isso não é
+        // uma previsão inflada na tela: são R$ 192 cobrados a mais do organizador. A régua
+        // já existia no preview das chaves (TorneiosController.Chaves.PrevisaoDaGrade).
+        Assert.Equal(23, RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Padrao,
+            new[] { new CategoriaParaContar(true, 24) }));
+    }
+
+    [Fact]
+    public void Americano_individual_nao_conta_ZERO_jogo()
+    {
+        // A conta olhava só DUPLAS, e o Americano individual inscreve pessoa a pessoa: o
+        // torneio inteiro valia zero jogo. Com preço por jogo, zero vira "paga o mínimo"
+        // justamente no formato que tem MAIS jogo por pessoa.
+        // 16 pessoas num grupo só: cada um com cada um = 60 partidas.
+        Assert.Equal(60, RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Americano,
+            new[] { new CategoriaParaContar(false, 16) }));
+    }
+
+    [Fact]
+    public void Americano_de_duplas_e_todos_contra_todos()
+    {
+        // 8 duplas: 8 × 7 / 2 = 28 jogos. Pela régua do Padrão daria 15 (grupos + mata-mata),
+        // e o formato não tem mata-mata nenhum.
+        Assert.Equal(28, RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.AmericanoDeDuplas,
+            new[] { new CategoriaParaContar(false, 8) }));
+    }
+
+    [Fact]
+    public void Numero_que_nao_fecha_no_americano_nao_zera_a_conta()
+    {
+        // 6 pessoas não fecham "cada um com cada um" (DivisaoDoAmericano.Aceita = false) — o
+        // organizador ainda vai ajustar o número. Responder ZERO aqui seria cotar o mínimo
+        // num torneio que pode ter 40 jogos; a aproximação erra menos que o zero.
+        Assert.True(RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Americano,
+            new[] { new CategoriaParaContar(false, 6) }) > 0);
+
+        // Abaixo de 4 pessoas não há Americano nenhum: nem uma quadra fecha.
+        Assert.Equal(0, RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Americano,
+            new[] { new CategoriaParaContar(false, 3) }));
+    }
+
+    [Fact]
+    public void Torneio_antigo_sem_formato_conta_como_Padrao()
+    {
+        // Formato nulo é o torneio gravado antes de a coluna existir — ele é Padrão por
+        // natureza (o Americano veio depois), e é a mesma leitura do FormatoDoTorneio.
+        Assert.Equal(RegistroDeResultados.JogosPrevistos(FormatoDoTorneio.Padrao,
+                         new[] { new CategoriaParaContar(false, 12) }),
+                     RegistroDeResultados.JogosPrevistos(null,
+                         new[] { new CategoriaParaContar(false, 12) }));
     }
 
     // ── Quem pode pedir ───────────────────────────────────────────────────────────────

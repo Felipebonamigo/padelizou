@@ -52,7 +52,7 @@ namespace Padelizou.Controllers
             // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
             ViewBag.RegistroHabilitado = _registro.Habilitado;
             ViewBag.RegistroQuadrasPorPessoa = _registro.QuadrasPorPessoa;
-            ViewBag.RegistroPercentual = _registro.PercentualDasInscricoes;
+            ViewBag.RegistroPrecoPorJogo = _registro.PrecoPorJogo;
             ViewBag.RegistroValorMinimo = _registro.ValorMinimo;
 
             // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
@@ -259,15 +259,15 @@ namespace Padelizou.Controllers
             var pessoas = RegistroDeResultados.PessoasSugeridas(
                 torneio.QuantidadeQuadras, _registro.QuadrasPorPessoa);
 
-            // Quantos jogos, pelas duplas JÁ inscritas em cada categoria. Num torneio recém
-            // criado isso é zero, e aí o número fica nulo de propósito: melhor mostrar só a
-            // regra do que um total que vai mudar a cada inscrição.
-            var duplasPorCategoria = await _context.Categorias
-                .Where(c => c.TorneioId == torneio.Id)
-                .Select(c => c.Duplas.Count(d => !d.EmListaDeEspera))
-                .ToListAsync();
-
-            var jogos = RegistroDeResultados.JogosPrevistos(duplasPorCategoria);
+            // Quantos jogos o torneio tem HOJE. Num torneio recém criado isso é zero, e aí o
+            // número fica nulo de propósito: melhor mostrar só a regra do que um total que vai
+            // mudar a cada inscrição.
+            //
+            // ⚠️ E ele é FOTOGRAFIA, não cotação: o pedido sai com no mínimo 7 dias de
+            // antecedência, ou seja, com as inscrições abertas. Quem cota pelo número de jogos
+            // é o painel da resposta (AdminController.RegistroResultados), que conta ao vivo —
+            // cotar por este aqui cobraria o mínimo de todo mundo.
+            var jogos = await JogosDoTorneio.ContarAsync(_context, torneio.Id);
 
             _context.SolicitacoesRegistroResultados.Add(new SolicitacaoRegistroResultados
             {
@@ -277,7 +277,10 @@ namespace Padelizou.Controllers
                 DiasNaSolicitacao = dias,
                 PessoasSugeridas = pessoas,
                 JogosPrevistos = jogos > 0 ? jogos : null,
-                PercentualCotado = _registro.PercentualDasInscricoes,
+                // A régua do dia, congelada aqui (ver SolicitacaoRegistroResultados): desde
+                // 23/09/2026 é por jogo, e o percentual fica nulo. Pedido antigo carrega o
+                // percentual dele e continua sendo lido por ele.
+                PrecoPorJogoCotado = _registro.PrecoPorJogo,
                 ValorMinimoCotado = _registro.ValorMinimo,
                 Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim(),
                 SolicitadoPorId = ObterJogadorIdLogado() ?? 0,

@@ -54,6 +54,40 @@ public static class PrevisaoDoTorneio
         return jogos + MataMata(grupos);
     }
 
+    // Quantos jogos UMA categoria tem, pela régua do SORTEIO dela — formato e chave direta
+    // decidem, e os três caminhos são três aritméticas diferentes.
+    //
+    // ⚠️ Desde 23/09/2026 esta conta é DINHEIRO: o pacote "nós registramos os resultados" é
+    // cobrado por jogo (Services/RegistroDeResultados). Antes ela só alimentava a previsão da
+    // tela e o custo estimado num painel interno — contar de menos era uma linha torta; hoje
+    // é o organizador pagando o mínimo por um torneio de 60 partidas, ou pagando a mais por
+    // grupos que o sorteio nunca vai criar.
+    public static int JogosDaCategoria(string? formato, bool chaveDireta, int inscritos)
+    {
+        if (formato == FormatoDoTorneio.Americano)
+        {
+            // Inscrição é PESSOA, não dupla. "Cada um com cada um" só fecha em certos
+            // números; quando não fecha, o organizador ainda vai ajustar a lista — e
+            // responder ZERO aqui cotaria o mínimo num torneio cheio. A aproximação de um
+            // grupo único erra menos que o zero.
+            if (inscritos < 4) return 0;
+            return DivisaoDoAmericano.Aceita(inscritos)
+                ? DivisaoDoAmericano.Possiveis(inscritos)[0].PartidasTotais
+                : DivisaoDoAmericano.PartidasDe(inscritos);
+        }
+
+        if (formato == FormatoDoTorneio.AmericanoDeDuplas)
+            return RodadasAmericanoDeDuplas.Partidas(inscritos);
+
+        // Chave direta não tem fase de grupos: são N-1 jogos e pronto (cada jogo elimina uma
+        // dupla até sobrar o campeão). É a mesma régua do preview da grade — ver o comentário
+        // em TorneiosController.Chaves, que nasceu de a conta dos grupos inventar 22 grupos
+        // e 98 jogos numa chave direta de 24 duplas.
+        if (chaveDireta) return inscritos < 2 ? 0 : inscritos - 1;
+
+        return TotalDeJogos(inscritos);
+    }
+
     // Quando o ÚLTIMO jogo começa, dada a grade. Null se não há jogo nenhum.
     public static DateTime? UltimoJogo(
         DateTime inicio, TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes,
