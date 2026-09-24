@@ -1602,7 +1602,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"
                                                         data-bs-toggle="collapse" data-bs-target="#meuParceiro-@dupla.Id">
                                                     <i class="bi bi-arrow-left-right"></i>
-                                                    @(sozinho ? "Definir por CPF" : "Trocar parceiro")
+                                                    @(sozinho ? "Definir parceiro" : "Trocar parceiro")
                                                 </button>
                                             </div>
 
@@ -5096,7 +5096,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            botões — "Marcar como pago", "Convidar por link", "Definir
                                            por CPF" e o de remover — que não cabiam nem podiam descer:
                                            medido no Chromium a 390px, a linha ocupava 468px e o
-                                           "Definir por CPF" saía pela borda direita da tela. A linha
+                                           "Definir parceiro" saía pela borda direita da tela. A linha
                                            da dupla COMPLETA tem três botões e cabia, que é por que o
                                            defeito passou despercebido desde 17/08. *@
                                         @* DEFINIR o parceiro que falta vale até a dupla entrar em quadra
@@ -5143,7 +5143,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             @* Time não tem parceiro pra convidar nem pra definir: quem monta a
                                                lista é o organizador, na tela de times. Pior que inútil, era
                                                perigoso — o time é gravado como Dupla com Jogador1Id = organizador
-                                               (ver TorneiosController.Times), então "Definir por CPF" num time
+                                               (ver TorneiosController.Times), então "Definir parceiro" num time
                                                NÃO dava erro: pendurava um jogador na linha do time, calado. O
                                                controller também recusa; isto aqui é só não oferecer.
                                                (A régua `podeDefinirParceiro` já recusa time e dupla completa.) *@
@@ -5166,7 +5166,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
                                                         data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
                                                     <i class="bi bi-arrow-left-right"></i>
-                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
+                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir parceiro")
                                                 </button>
                                             }
                                             @if (Model.Status == "Inscrições Abertas")
@@ -7614,7 +7614,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         });
     })();
 
-    // ── "Definir por CPF" também sabe juntar inscrições ─────────────────────────────────
+    // ── "Definir parceiro" também sabe juntar inscrições ────────────────────────────────
     //
     // O servidor sempre soube (TrocarParceiro aceita juntarComInscricaoSolo) e a recusa
     // mandava MARCAR a caixa — que só existia na aba Inscreva-se. O organizador lia
@@ -7924,7 +7924,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     // ⚠️ A CAIXA "JUNTAR" PRECISA VIR JUNTO. Quem a fazia aparecer era o CPF digitado; sem
     // isto, escolher pelo nome alguém já inscrito sozinho levava à recusa do servidor
     // mandando marcar uma caixa que nunca apareceu na tela — exatamente o beco sem saída que
-    // o bloco "Definir por CPF também sabe juntar inscrições" existiu pra fechar. Por isso a
+    // o bloco "Definir parceiro também sabe juntar inscrições" existiu pra fechar. Por isso a
     // busca leva a categoria e a resposta traz `jaInscritoSozinho`.
     document.querySelectorAll('.pdz-form-parceiro').forEach(function (form) {
         var campo = form.querySelector('.pdz-bp-campo');

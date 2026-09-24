@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **24/09/2026** — 🏷️ **O BOTÃO PROMETIA MENOS DO QUE ENTREGA: "Definir por CPF" virou "Definir parceiro".** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da própria inscrição: *"aqui esta escrito 'definir por cpf' mas tambem permite por nome, temos q trocar o nome desse botão"*.
+>
+> 🙃 **MENTIRA DE RÓTULO AO CONTRÁRIO — e é por isso que ela passou tanto tempo de pé.** O caso do `build-373` era um selo prometendo o que o sistema **não** fazia; aqui o botão **esconde** o que ele faz. O painel abre com `Procure pelo nome ou apelido` em cima e o CPF embaixo, mas quem não tem o documento do parceiro em mãos lê "Definir por CPF" e **não clica** — o caminho fácil ficava atrás de uma porta com a placa errada.
+>
+> 👥 **ERAM DOIS BOTÕES, NÃO UM**: o do jogador na própria inscrição (o do print, `Details.cshtml:1605`) e o do **organizador** na lista de duplas (`:5169`). Os dois abrem painel com busca por nome. Consertar só o que apareceu no print deixaria a mesma mentira de pé na outra tela — que é exatamente a falha de 20/09, quando a vitrine foi consertada e a Home ficou.
+>
+> 🔤 **"Definir parceiro" e não "Buscar parceiro"**: o botão é o MESMO em dois estados — dupla vazia e dupla fechada —, e o par com "Trocar parceiro" é o que diz isso. Nome de família diferente em cada estado faria parecerem duas funções distintas.
+>
+> 📝 **A PROSA DO ORGANIZADOR ACOMPANHOU** (`_EntramSemParceiro.cshtml`): ela manda procurar o botão **pelo nome**, e nome velho ali é a pessoa caçando na tela um botão que não existe mais. Os quatro comentários do Razor que citavam o rótulo também.
+>
+> 🧪 **O TESTE QUE SOBRA GUARDA A HONESTIDADE DO RÓTULO NOVO**: ele exige que o painel continue tendo `Procure pelo nome ou apelido` **e** `CPF do parceiro`. Se um dia a busca por nome sumir, "Definir parceiro" vira vago, o teste falha e obriga a decisão.
+>
+> 🕳️ **E UM ERRO MEU NO CAMINHO**: o teste contava ocorrências do texto pra impedir conserto pela metade, mas contava os **comentários** junto (eram 6, não 2) e reprovava dizendo a coisa errada. Passou a nomear as duas expressões do botão, uma por uma.
+>
+> **7.529 testes verdes** (4 novos; 3 vistos VERMELHOS antes — o quarto é guarda e nasceu verde), 12 conferidores JS verdes.
+
 > Última atualização: **23/09/2026** — 💸 **O "NÓS REGISTRAMOS OS RESULTADOS" VOLTOU A SER R$ 12 POR JOGO.** ✅ **SEM MIGRATION** — as três colunas do congelamento já existiam desde 20/08. 🗣️ Felipe: *"mude o sistema, para que seja 12 reais por jogo, no lugar de 10% para marcarmos os placares"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1485-b889250`** (deploy runs **407** e **408**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #346.
 >
 > ⚖️ **A DECISÃO VEIO DEPOIS DA CONTA, e contrariou a minha recomendação.** Com a inscrição média em R$ 150 os 10% cobravam R$ 15 por pessoa contra ~R$ 8 por jogo. Eu tinha recomendado **R$ 18-20 por jogo** pra preservar a receita: R$ 12 com inscrição de R$ 150 dá **5,2% das inscrições**, ou seja, é a régua de 5% de volta, e a sobra do torneio de 151 duplas cai de **R$ 2.640 pra R$ 384**. O Felipe decidiu R$ 12 — e é o número que o material de venda **nunca deixou de prometer**: o `ORGANIZADOR-TORNEIO.html` (e o PDF dele) seguiu dizendo "R$ 12,00 por jogo" durante todo o mês do percentual, sem ninguém notar.
