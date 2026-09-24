@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **24/09/2026** — 🏷️ **O BOTÃO PROMETIA MENOS DO QUE ENTREGA: "Definir por CPF" virou "Definir parceiro".** ⏳ **Ainda NÃO publicado.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da própria inscrição: *"aqui esta escrito 'definir por cpf' mas tambem permite por nome, temos q trocar o nome desse botão"*.
+> Última atualização: **24/09/2026** — 🏷️ **O BOTÃO PROMETIA MENOS DO QUE ENTREGA: "Definir por CPF" virou "Definir parceiro".** 🚀 **PUBLICADO em `dev` E `prod` no `build-1489-432b5b3`** (deploy runs **409** e **410**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #348. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da própria inscrição: *"aqui esta escrito 'definir por cpf' mas tambem permite por nome, temos q trocar o nome desse botão"*.
 >
 > 🙃 **MENTIRA DE RÓTULO AO CONTRÁRIO — e é por isso que ela passou tanto tempo de pé.** O caso do `build-373` era um selo prometendo o que o sistema **não** fazia; aqui o botão **esconde** o que ele faz. O painel abre com `Procure pelo nome ou apelido` em cima e o CPF embaixo, mas quem não tem o documento do parceiro em mãos lê "Definir por CPF" e **não clica** — o caminho fácil ficava atrás de uma porta com a placa errada.
 >
@@ -14,6 +14,10 @@
 > 🧪 **O TESTE QUE SOBRA GUARDA A HONESTIDADE DO RÓTULO NOVO**: ele exige que o painel continue tendo `Procure pelo nome ou apelido` **e** `CPF do parceiro`. Se um dia a busca por nome sumir, "Definir parceiro" vira vago, o teste falha e obriga a decisão.
 >
 > 🕳️ **E UM ERRO MEU NO CAMINHO**: o teste contava ocorrências do texto pra impedir conserto pela metade, mas contava os **comentários** junto (eram 6, não 2) e reprovava dizendo a coisa errada. Passou a nomear as duas expressões do botão, uma por uma.
+>
+> ✅ **CONFERIDO NO AR, ANÔNIMO, COM ANTES E DEPOIS MEDIDOS** — na página do torneio 28 em `padelizou.com.br`: `Definir por CPF` **2 → 0** e `Definir parceiro` **0 → 2**. É a conferência que fecha o bloco, e ela só foi possível porque a página do torneio **abre por link sem login** (*descoberta não é permissão*, 20/09) — em `dev` ela responde 302 pelo portão de acesso antecipado, então lá a medição seria vazia e não provaria nada.
+>
+> 🔎 **E ISSO LEVANTOU UMA PERGUNTA PRA DEPOIS**: os dois botões **renderizam pra visitante anônimo**. O POST por trás é `[Authorize]` + checagem de dono (o `GateDeAutorizacaoDosPostsTests` cobre a primeira parte), então não é buraco de segurança — mas é botão que não leva a lugar nenhum pra quem não está logado. **Não mexi**: não é o que foi pedido, e merece decisão própria.
 >
 > **7.529 testes verdes** (4 novos; 3 vistos VERMELHOS antes — o quarto é guarda e nasceu verde), 12 conferidores JS verdes.
 
