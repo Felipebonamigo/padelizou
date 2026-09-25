@@ -171,6 +171,15 @@ try {
     const recusada = Loja.criar(pobre.prog).comprar(primeiro);
     if (recusada.evento) pobre.c.processar([recusada.evento]);
     confere('compra recusada não dá conquista', recusada.ok === false && !pobre.ganhas.includes('aprendiz'), `${JSON.stringify(recusada)} ${pobre.ganhas.join(',')}`);
+    // Salvamento com um golpe que SAIU do jogo (o `normalizar` guarda o id de propósito): ele não
+    // conta pro mestre. Contar `golpes.length` em vez dos liberados soltava a conquista um golpe antes.
+    const velho = conquistasNovas(plataformaFalsa({ karma: 99999, golpes: ['golpe_que_saiu_do_jogo'] }));
+    const lojaVelha = Loja.criar(velho.prog);
+    const ids = Loja.CATALOGO.map(d => d.id);
+    for (const id of ids.slice(0, -1)) velho.c.processar([lojaVelha.comprar(id).evento]);
+    confere('golpe obsoleto no salvamento não adianta o mestre (6 de 7 ainda não é mestre)', !velho.ganhas.includes('mestre_do_templo'), velho.ganhas.join(','));
+    velho.c.processar([lojaVelha.comprar(ids[ids.length - 1]).evento]);
+    confere('e o 7º golpe, sim, faz o mestre', velho.ganhas.includes('mestre_do_templo'), velho.ganhas.join(','));
 } catch (erro) {
     confere('as conquistas do templo (o bloco rodou até o fim)', false, erro && erro.message);
 }

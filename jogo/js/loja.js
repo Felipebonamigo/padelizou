@@ -67,8 +67,11 @@
             if (ganho > 0) { dados.karma += ganho; progresso.salvar(); }
             return ganho;
         }
+        // Fim de uma fase: a pontuação do mundo é da PARTIDA inteira, então o karma sai da diferença
+        // entre o fim e o começo desta fase — senão cada fase pagaria de novo o karma das anteriores.
+        function receberDaFase(pontuacaoNoComeco, pontuacaoNoFim) { return receber(pontuacaoNoFim - pontuacaoNoComeco); }
         function saldo() { return dados.karma; }
-        return { itens, comprar, liberados, receber, saldo };
+        return { itens, comprar, liberados, receber, receberDaFase, saldo };
     }
 
     return { CATALOGO, PONTOS_POR_KARMA, karmaDaFase, criar };

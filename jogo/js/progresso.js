@@ -18,6 +18,7 @@
     const VERSAO = 1;
     const ULTIMA_FASE = 4;
     const DIFICULDADES = ['facil', 'normal', 'dificil'];
+    const TETO_DE_GOLPES = 64;                   // ids guardados em `golpes`; o catálogo da loja tem 7
 
     function padrao() {
         return {
@@ -64,7 +65,15 @@
         for (const id of Object.keys(c)) if (/^[a-z_]+$/.test(id) && (c[id] === true || typeof c[id] === 'number')) dados.conquistas[id] = c[id] === true ? 1 : c[id];
         // Golpes: só texto no formato de id, sem repetição. Se o id ainda existe no catálogo é a
         // loja que decide (`Loja.liberados`) — um id que saiu do jogo fica guardado, mas não vale.
-        if (Array.isArray(b.golpes)) for (const id of b.golpes) if (typeof id === 'string' && /^[a-z_]+$/.test(id) && !dados.golpes.includes(id)) dados.golpes.push(id);
+        // atalho: no máximo TETO_DE_GOLPES ids de até 32 letras (o catálogo tem 7); o resto é ignorado.
+        // Sem teto, uma lista editada à mão com 60 mil ids travava o boot por segundos.
+        if (Array.isArray(b.golpes)) {
+            const vistos = new Set();
+            for (const id of b.golpes) {
+                if (dados.golpes.length >= TETO_DE_GOLPES) break;
+                if (typeof id === 'string' && id.length <= 32 && /^[a-z_]+$/.test(id) && !vistos.has(id)) { vistos.add(id); dados.golpes.push(id); }
+            }
+        }
         for (const chave of Object.keys(base.estatisticas)) dados.estatisticas[chave] = inteiro(e[chave], 0);
         return dados;
     }

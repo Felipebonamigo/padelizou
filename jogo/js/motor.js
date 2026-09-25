@@ -77,9 +77,11 @@
                 soco1: { dano: 5, inicio: 0.06, ativo: 0.08, total: 0.26, alcance: 62, altura: 85, recuo: 80, congela: 0.03, proximo: 'soco2', som: 'soco' },
                 soco2: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 66, altura: 85, recuo: 100, congela: 0.03, proximo: 'soco3', proximoCinco: 'soco4', som: 'soco' },
                 // soco4 e soco5 só entram na corrente com a Sequência de Cinco (`proximoCinco` do soco2).
-                // Recuo baixo de propósito: com o recuo do soco2, o alvo sairia do alcance antes do lançador.
-                soco4: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 70, altura: 85, recuo: 50, congela: 0.03, proximo: 'soco5', som: 'soco' },
-                soco5: { dano: 7, inicio: 0.07, ativo: 0.08, total: 0.30, alcance: 72, altura: 90, recuo: 50, congela: 0.04, proximo: 'soco3', som: 'chute' },
+                // Recuo baixo e um passo à frente (`avanco`) de propósito: sem o passo, o recuo deles se
+                // somava ao do soco1/soco2 e, na parte de fora do alcance, o alvo saía antes do lançador —
+                // comprar a melhoria TIRAVA o lançamento. 40 já fecha a conta; 80 é folga (conferidor varre dx).
+                soco4: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 70, altura: 85, recuo: 50, avanco: 80, congela: 0.03, proximo: 'soco5', som: 'soco' },
+                soco5: { dano: 7, inicio: 0.07, ativo: 0.08, total: 0.30, alcance: 72, altura: 90, recuo: 50, avanco: 80, congela: 0.04, proximo: 'soco3', som: 'chute' },
                 soco3: { dano: 10, inicio: 0.10, ativo: 0.10, total: 0.46, alcance: 70, altura: 95, recuo: 140, lanca: 560, congela: 0.06, som: 'chute', texto: 'LANÇOU!' },
                 chute: { dano: 12, inicio: 0.12, ativo: 0.10, total: 0.50, alcance: 84, altura: 95, recuo: 380, derruba: true, congela: 0.06, som: 'chute' },
                 chuteAereo: { dano: 10, inicio: 0.05, ativo: 0.28, total: 0.45, alcance: 72, altura: 130, recuo: 320, derruba: true, congela: 0.05, som: 'chute' },
@@ -98,8 +100,8 @@
             golpes: {
                 soco1: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 82, altura: 90, recuo: 90, congela: 0.03, proximo: 'soco2', som: 'bastao' },
                 soco2: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 86, altura: 90, recuo: 110, congela: 0.03, proximo: 'soco3', proximoCinco: 'soco4', som: 'bastao' },
-                soco4: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 90, altura: 90, recuo: 60, congela: 0.03, proximo: 'soco5', som: 'bastao' },
-                soco5: { dano: 8, inicio: 0.07, ativo: 0.09, total: 0.32, alcance: 92, altura: 95, recuo: 60, congela: 0.04, proximo: 'soco3', som: 'bastao' },
+                soco4: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 90, altura: 90, recuo: 60, avanco: 80, congela: 0.03, proximo: 'soco5', som: 'bastao' },
+                soco5: { dano: 8, inicio: 0.07, ativo: 0.09, total: 0.32, alcance: 92, altura: 95, recuo: 60, avanco: 80, congela: 0.04, proximo: 'soco3', som: 'bastao' },
                 soco3: { dano: 12, inicio: 0.12, ativo: 0.10, total: 0.50, alcance: 90, altura: 100, recuo: 160, lanca: 600, congela: 0.06, som: 'bastao', texto: 'LANÇOU!' },
                 chute: { dano: 10, inicio: 0.14, ativo: 0.12, total: 0.55, alcance: 92, altura: 60, recuo: 300, derruba: true, dosDoisLados: true, congela: 0.05, som: 'bastao', texto: 'VARRIDA' },
                 chuteAereo: { dano: 12, inicio: 0.06, ativo: 0.26, total: 0.45, alcance: 80, altura: 130, recuo: 320, derruba: true, congela: 0.05, som: 'bastao' },

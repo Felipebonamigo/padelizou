@@ -474,14 +474,30 @@
 
     // Menu comprido (o Templo) aperta as linhas: a geometria vem do chamador, e o `principal.js`
     // passa a MESMA pro toque. Sem `y0`/`passo`, é a de sempre.
-    function geometriaDoMenu(menu) { return { y0: (menu && menu.y0) || MENU_Y0, passo: (menu && menu.passo) || MENU_PASSO }; }
+    // `alto` é a altura da faixa destacada, que vai de `y - alto*0.75` a `y + alto*0.25` (o texto tem a
+    // linha de base em y, então a faixa fica em volta das letras, não centrada em y).
+    function geometriaDoMenu(menu) {
+        const passo = (menu && menu.passo) || MENU_PASSO;
+        return { y0: (menu && menu.y0) || MENU_Y0, passo, alto: Math.min(40, passo - 4) };
+    }
+
+    // O TOQUE num menu, com a MESMA faixa que o desenharMenu pinta: o centro da faixa do item k é
+    // `y0 + k*passo - alto*0.25`. (Antes o toque centrava em y, 7 px abaixo: os 5 px de cima de cada
+    // faixa destacada escolhiam o item de cima — no Templo, compravam o golpe errado.)
+    // `doisToques` (Templo, onde o toque gasta karma): o primeiro toque só escolhe; o segundo, no item
+    // já escolhido, confirma. Devolve { indice, confirmou } ou null se o toque não caiu num item.
+    function toqueNoMenu(menu, quantos, indiceAtual, toque, doisToques) {
+        const g = geometriaDoMenu(menu);
+        const i = Math.round((toque.y - (g.y0 - g.alto * 0.25)) / g.passo);
+        if (!(i >= 0 && i < quantos && Math.abs(toque.x - LARGURA / 2) < 320)) return null;
+        return { indice: i, confirmou: !doisToques || i === indiceAtual };
+    }
 
     // itens: [{ rotulo, valor?, desabilitado?, detalhe?, fracao? }] · indice: o selecionado · y0/passo: geometria opcional
     function desenharMenu(ctx, tempo, ef, menu) {
         fundoDeMenu(ctx, tempo, ef);
         logoPequeno(ctx, tempo);
-        const { y0, passo } = geometriaDoMenu(menu);
-        const alto = Math.min(40, passo - 4);
+        const { y0, passo, alto } = geometriaDoMenu(menu);
         if (menu.titulo) texto(ctx, menu.titulo.toUpperCase(), LARGURA / 2, 160, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
         if (menu.subtitulo) texto(ctx, menu.subtitulo, LARGURA / 2, 186, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', italico: true });
         menu.itens.forEach((item, i) => {
@@ -543,5 +559,5 @@
         ctx.restore();
     }
 
-    raiz.PunhosDeShaolin.Desenho = { desenharMenu, geometriaDoMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
+    raiz.PunhosDeShaolin.Desenho = { desenharMenu, geometriaDoMenu, toqueNoMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
 })(window);

@@ -26,7 +26,7 @@
         proximaFase: (n, nome) => `Fase ${n} · ${nome}`,
         recusa: { sem_karma: 'Falta karma pra esse golpe.', aprendido: 'Esse golpe você já sabe.', desconhecido: 'Esse golpe não existe.' },
         dicaTemplo: '↑ ↓ ESCOLHEM · ENTER APRENDE · ESC SAI',
-        dicaTemploToque: 'TOQUE NUM GOLPE PRA APRENDER · TOQUE EMBAIXO SAI',
+        dicaTemploToque: 'TOQUE NUM GOLPE PRA LER · DE NOVO PRA APRENDER · TOQUE EMBAIXO SAI',
     };
 
     const canvas = document.getElementById('tela');
@@ -98,8 +98,8 @@
     function mudarTela(nome) { jogo.tela = nome; jogo.indice = 0; jogo.confirmarApagar = false; document.body.dataset.tela = nome; }
 
     // ── NAVEGAÇÃO DE MENU (teclado, controle e toque, com as mesmas linhas do desenho) ──────
-    function navegar(quantos, sistema, entradas, toque, geometria) {
-        const g = Desenho.geometriaDoMenu(geometria);
+    // `doisToques`: o toque só escolhe, e confirma no segundo toque no mesmo item (Templo: gasta karma).
+    function navegar(quantos, sistema, entradas, toque, geometria, doisToques) {
         const r = { confirmou: false, voltou: !!sistema.voltar, esquerda: false, direita: false };
         const e0 = entradas[0], e1 = entradas[1];
         if (e0.apertou.cima || e1.apertou.cima) { jogo.indice = (jogo.indice + quantos - 1) % quantos; som.tocar('selecionar'); }
@@ -108,9 +108,13 @@
         if (e0.apertou.direita || e1.apertou.direita) r.direita = true;
         if (sistema.confirmar || e0.apertou.soco || e1.apertou.soco) r.confirmou = true;
         if (toque) {
-            const i = Math.round((toque.y - g.y0) / g.passo);
-            if (i >= 0 && i < quantos && Math.abs(toque.x - Motor.LARGURA / 2) < 320) { jogo.indice = i; r.confirmou = true; }
-            else if (toque.y > 480) r.voltou = true;
+            // A faixa tocável é a faixa pintada: a conta mora no desenho.js (conferida no Node).
+            const t = Desenho.toqueNoMenu(geometria, quantos, jogo.indice, toque, doisToques);
+            if (t) {
+                if (t.indice !== jogo.indice && !t.confirmou) som.tocar('selecionar');
+                jogo.indice = t.indice;
+                if (t.confirmou) r.confirmou = true;
+            } else if (toque.y > 480) r.voltou = true;
         }
         return r;
     }
@@ -150,7 +154,7 @@
         jogo.faseFechada = true;
         conquistas.concluirFase(m);
         // Karma pelos pontos ganhos NESTA fase (a pontuação é da partida inteira).
-        jogo.karmaDaFase = loja.receber(m.pontuacao - jogo.pontuacaoNaFase);
+        jogo.karmaDaFase = loja.receberDaFase(jogo.pontuacaoNaFase, m.pontuacao);
         if (jogo.fase < Motor.FASES.length - 1) progresso.registrarFase(jogo.fase + 1);
         progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
         progresso.salvar();
@@ -329,7 +333,7 @@
                 t.recadoHa = Math.max(0, t.recadoHa - dt);
                 if (t.abertoHa < ESPERA_DO_TEMPLO) break;
                 const itens = itensDoTemplo();
-                const nav = navegar(itens.length, sistema, entradas, toque, GEOMETRIA_DO_TEMPLO);
+                const nav = navegar(itens.length, sistema, entradas, toque, GEOMETRIA_DO_TEMPLO, true);
                 if (nav.voltou) { som.tocar('confirmar'); sairDoTemplo(); break; }
                 if (!nav.confirmou) break;
                 const item = itens[jogo.indice];

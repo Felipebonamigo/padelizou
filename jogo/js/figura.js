@@ -500,7 +500,7 @@
     }
 
     function rastro(ctx, ent, tempo, virado) {
-        if (ent.estado !== 'atacando' || !ent.golpe || !(ent.golpe.avanco || (ent.golpe.mergulho && ent.golpe.mergulho[0]))) return;   // rastro só em quem avança na horizontal
+        if (ent.estado !== 'atacando' || !ent.golpe || !((ent.golpe.avanco || 0) >= 300 || (ent.golpe.mergulho && ent.golpe.mergulho[0]))) return;   // rastro só em quem avança RÁPIDO na horizontal (investida, mergulho) — o passinho do soco4/soco5 não
         for (let k = 1; k <= 2; k++) {
             ctx.save(); ctx.globalAlpha = 0.14 / k; ctx.translate(-virado * 14 * k, 0); ctx.scale(virado, 1);
             desenhar(ctx, ent, tempo, { silhueta: '#ffb347', virado });
