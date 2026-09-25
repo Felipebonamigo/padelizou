@@ -1,6 +1,6 @@
 // PUNHOS DE SHAOLIN — progresso: o que fica guardado entre partidas.
 //
-// Fase alcançada, recorde, dificuldade, opções, conquistas, estatísticas, o karma e os golpes
+// Fase alcançada, recorde, o recorde da Arena (separado), dificuldade, opções, conquistas, estatísticas, o karma e os golpes
 // aprendidos no Templo (`loja.js` decide o preço; aqui só se guarda). Tudo passa por
 // `normalizar`: o salvamento de hoje não é o formato de amanhã, e um JSON velho, truncado ou
 // editado à mão nunca pode derrubar o jogo — vira padrão no que faltar, e o que sobrar é ignorado.
@@ -25,6 +25,7 @@
             versao: VERSAO,
             faseAlcancada: 1,
             recorde: 0,
+            arena: { recorde: 0, melhorOnda: 0 },       // o modo Arena tem placar próprio: pontos e a onda mais longe
             dificuldade: 'normal',
             opcoes: { musica: 0.7, efeitos: 0.8, tremor: true, telaCheia: false, idioma: 'pt-BR', qualidade: 'alta' },
             conquistas: {},
@@ -44,10 +45,12 @@
         const o = b.opcoes && typeof b.opcoes === 'object' ? b.opcoes : {};
         const c = b.conquistas && typeof b.conquistas === 'object' ? b.conquistas : {};
         const e = b.estatisticas && typeof b.estatisticas === 'object' ? b.estatisticas : {};
+        const a = b.arena && typeof b.arena === 'object' ? b.arena : {};
         const dados = {
             versao: VERSAO,
             faseAlcancada: prender(inteiro(b.faseAlcancada, 1), 1, ULTIMA_FASE, 1),
             recorde: inteiro(b.recorde, 0),
+            arena: { recorde: inteiro(a.recorde, 0), melhorOnda: inteiro(a.melhorOnda, 0) },
             dificuldade: DIFICULDADES.includes(b.dificuldade) ? b.dificuldade : 'normal',
             opcoes: {
                 musica: prender(o.musica, 0, 1, base.opcoes.musica),
@@ -62,7 +65,8 @@
             golpes: [],
             estatisticas: {},
         };
-        for (const id of Object.keys(c)) if (/^[a-z_]+$/.test(id) && (c[id] === true || typeof c[id] === 'number')) dados.conquistas[id] = c[id] === true ? 1 : c[id];
+        // Id de conquista: minúscula, algarismo e sublinhado ('arena_10'). Sem o algarismo, a conquista sumia ao carregar.
+        for (const id of Object.keys(c)) if (/^[a-z0-9_]+$/.test(id) && (c[id] === true || typeof c[id] === 'number')) dados.conquistas[id] = c[id] === true ? 1 : c[id];
         // Golpes: só texto no formato de id, sem repetição. Se o id ainda existe no catálogo é a
         // loja que decide (`Loja.liberados`) — um id que saiu do jogo fica guardado, mas não vale.
         // atalho: no máximo TETO_DE_GOLPES ids de até 32 letras (o catálogo tem 7); o resto é ignorado.
@@ -96,6 +100,14 @@
             if (Number.isInteger(pontos) && pontos > dados.recorde) { dados.recorde = pontos; salvar(); return true; }
             return false;
         }
+        // Fim de uma Arena: pontos e ondas sobrevividas sobem cada um por si. Devolve o que foi recorde.
+        function registrarArena(pontos, ondas) {
+            const r = { recorde: false, onda: false };
+            if (Number.isInteger(pontos) && pontos > dados.arena.recorde) { dados.arena.recorde = pontos; r.recorde = true; }
+            if (Number.isInteger(ondas) && ondas > dados.arena.melhorOnda) { dados.arena.melhorOnda = ondas; r.onda = true; }
+            if (r.recorde || r.onda) salvar();
+            return r;
+        }
         function opcao(nome, valor) {
             if (!(nome in dados.opcoes)) return;
             const temp = normalizar(Object.assign({}, dados, { opcoes: Object.assign({}, dados.opcoes, { [nome]: valor }) }));
@@ -118,7 +130,7 @@
             dados.opcoes = opcoes;
             salvar();
         }
-        return { dados, salvar, registrarFase, registrarRecorde, opcao, dificuldade, somar, maximo, apagar };
+        return { dados, salvar, registrarFase, registrarRecorde, registrarArena, opcao, dificuldade, somar, maximo, apagar };
     }
 
     return { VERSAO, ULTIMA_FASE, DIFICULDADES, padrao, normalizar, criar };

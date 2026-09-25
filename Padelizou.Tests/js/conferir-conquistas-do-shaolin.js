@@ -84,8 +84,9 @@ function conquistasNovas(plat, dados) {
 {
     confere('há pelo menos 12 conquistas, todas com id, nome e descrição', Conquistas.LISTA.length >= 12
             && Conquistas.LISTA.every(d => d.id && d.nome && d.descricao), `${Conquistas.LISTA.length}`);
+    // Minúscula, algarismo e sublinhado ('arena_10'): o formato que o `normalizar` do progresso guarda.
     confere('ids são únicos e sem espaço', new Set(Conquistas.LISTA.map(d => d.id)).size === Conquistas.LISTA.length
-            && Conquistas.LISTA.every(d => /^[a-z_]+$/.test(d.id)), Conquistas.LISTA.map(d => d.id).join(','));
+            && Conquistas.LISTA.every(d => /^[a-z0-9_]+$/.test(d.id)), Conquistas.LISTA.map(d => d.id).join(','));
 
     const plat = plataformaFalsa();
     const { c, prog, ganhas } = conquistasNovas(plat);

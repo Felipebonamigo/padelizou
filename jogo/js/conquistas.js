@@ -33,7 +33,10 @@
         { id: 'mestre_do_templo', nome: 'Mestre do Templo', descricao: 'Aprenda todos os golpes do Templo.' },
         { id: 'rio', nome: 'A Corrente do Rio', descricao: 'Termine uma fase com a Lian.' },
         { id: 'guarda_quebrada', nome: 'Guarda Quebrada', descricao: 'Quebre a guarda de um Monge Renegado com um chute.' },
+        { id: 'pelo_cenario', nome: 'O Templo Ajuda', descricao: 'Mate um inimigo com o cenário.' },
+        { id: 'arena_10', nome: 'Dez Ondas', descricao: 'Sobreviva a 10 ondas na Arena.' },
     ];
+    const ONDAS_DA_ARENA = 10;
     const POR_ID = Object.fromEntries(LISTA.map(d => [d.id, d]));
     const CHEFES = { mestreSombra: 'mestre_sombra', graoPresa: 'grao_presa', gigante: 'gigante', feiticeiro: 'feiticeiro' };
     const ULTIMA_FASE = 4;
@@ -74,6 +77,8 @@
                     case 'item': est.itens++; if (est.itens >= 10) desbloquear('colecionador'); break;
                     case 'golpe-aprendido': desbloquear('aprendiz'); if (ev.aprendidos >= ev.total) desbloquear('mestre_do_templo'); break;
                     case 'guarda-quebrada': if (ev.id === 'renegado') desbloquear('guarda_quebrada'); break;
+                    case 'morte-pelo-cenario': desbloquear('pelo_cenario'); break;
+                    case 'arena-onda': if (ev.sobrevividas >= ONDAS_DA_ARENA) desbloquear('arena_10'); break;
                     default: break;
                 }
             }
@@ -86,10 +91,11 @@
             }
         }
 
-        // Chamar quando `mundo.concluida` vira verdadeiro.
+        // Chamar quando `mundo.concluida` vira verdadeiro. O "Intocável" conta a fase INTEIRA: o dano
+        // levado antes de um recomeço do ponto de controle vem em `mundo.danoNaFase`.
         function concluirFase(mundo) {
             est.fasesConcluidas++;
-            if (mundo.jogadores.every(j => !j.danoLevado)) desbloquear('intocavel');
+            if (!mundo.danoNaFase && mundo.jogadores.every(j => !j.danoLevado)) desbloquear('intocavel');
             if (mundo.jogadores.length >= 2) desbloquear('dupla');
             if (mundo.jogadores.some(j => j.personagem === 'lian')) desbloquear('rio');
             if (mundo.fase >= ULTIMA_FASE) { est.vitorias++; desbloquear('templo_livre'); }

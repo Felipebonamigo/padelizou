@@ -5,6 +5,8 @@
 //     node jogo/ferramentas/simular.js --fase 1 --dificuldade normal --habilidade medio --n 100 --semente 1
 //     node jogo/ferramentas/simular.js --fase 2 --personagem shen --json
 //     node jogo/ferramentas/simular.js --matriz            # fases 1–4 × dificuldades × habilidades
+//     node jogo/ferramentas/simular.js --arena --n 30      # o modo Arena: quantas ondas o bot sobrevive
+//     node jogo/ferramentas/simular.js --arena --matriz    # Arena: dificuldades × habilidades
 //
 // Cada simulação roda até a fase concluir, o fim de jogo, ou o TETO de tempo de jogo (15 min).
 // Estourar o teto é TRAVA: a luta ficou num estado de onde não sai. O simulador não sabe de quem é
@@ -20,6 +22,7 @@
 const path = require('path');
 const Motor = require(path.join(__dirname, '..', 'js', 'motor.js'));
 const Bot = require(path.join(__dirname, 'bot.js'));
+const Loja = require(path.join(__dirname, '..', 'js', 'loja.js'));
 
 const DT = 1 / 60;
 const TETO_PADRAO = 15 * 60;            // segundos de JOGO, não de relógio
@@ -57,14 +60,18 @@ function simular(opcoes) {
     // Golpe bloqueado = quadro em que o dano subiu (a defesa deixa passar 20%, no mínimo 1) e
     // `golpesLevados` não (o motor só conta golpe que entrou). Dois golpes no MESMO quadro, um
     // bloqueado e um não, contam como um levado — raro, e só puxa a taxa pra baixo.
-    let golpesBloqueados = 0;
+    // O dano do CENÁRIO também sobe `danoLevado` sem `golpesLevados` — não é bloqueio, e sai à parte.
+    let golpesBloqueados = 0, inimigosPeloCenario = 0, danoDoCenario = 0;
     const golpesLevadosAntes = j.golpesLevados;
     while (quadros < teto && !mundo.concluida && !mundo.fimDeJogo) {
         const dano = j.danoLevado, golpes = j.golpesLevados;
         Motor.passo(mundo, DT, [bot.decidir(mundo)]);
         quadros++;
-        if (j.golpesLevados === golpes && j.danoLevado > dano) golpesBloqueados++;
+        const doCenario = danoDoCenarioNoQuadro(mundo, j);
+        danoDoCenario += doCenario;
+        if (j.golpesLevados === golpes && j.danoLevado - dano > doCenario) golpesBloqueados++;
         for (const ev of mundo.eventos) {
+            if (ev.tipo === 'morte-pelo-cenario') inimigosPeloCenario++;
             if (ev.tipo === 'finalizacao') finalizacoes++;
             else if (ev.tipo === 'morte' && ev.time === 'jogador') {
                 // Onda em que morreu, contando de 1; 0 = no caminho entre ondas.
@@ -86,7 +93,7 @@ function simular(opcoes) {
         ondasLimpas: mundo.onda, totalDeOndas: mundo.faseDef.ondas.length,
         vidasPerdidas, mortesPorOnda, danoRecebido: j.danoLevado,
         golpesLevados: j.golpesLevados - golpesLevadosAntes, golpesBloqueados,
-        pontos: mundo.pontuacao, finalizacoes, maiorCombo, quadros,
+        pontos: mundo.pontuacao, finalizacoes, maiorCombo, inimigosPeloCenario, danoDoCenario, quadros,
     };
     if (resultado === 'fim-de-jogo') resumo.ondaDoFimDeJogo = ondaDaUltimaMorte;
     if (resultado === 'trava') {
@@ -107,6 +114,99 @@ function simular(opcoes) {
         };
     }
     return resumo;
+}
+
+function danoDoCenarioNoQuadro(mundo, j) {
+    let d = 0;
+    for (const ev of mundo.eventos) if (ev.tipo === 'perigo' && ev.jogador === j.indice) d += ev.dano;
+    return d;
+}
+
+// ── A ARENA ───────────────────────────────────────────────────────────────────────────────
+// Uma Arena até todos morrerem (fim-de-jogo), o teto de tempo de JOGO — que aqui não é trava: a
+// Arena não conclui, então chegar ao teto é "sobreviveu até lá" — ou a TRAVA: SEM_PROGRESSO_NA_ARENA
+// segundos em que nada anda (nenhuma onda nova, ninguém perde vida, nem o jogador nem inimigo). Sem
+// essa régua, um inimigo que nunca entra na tela deixava todo mundo sem apanhar até o teto, e a trava
+// saía como "teto", a melhor coluna da matriz. O número que importa é `ondasSobrevividas` (ondas limpas
+// inteiras, o placar do jogo).
+const SEM_PROGRESSO_NA_ARENA = 180;     // segundos de jogo; a onda mais longa medida com o bot durou ~212 s, mas COM gente apanhando
+function simularArena(opcoes) {
+    const o = Object.assign({ dificuldade: 'normal', habilidade: 'medio', personagem: 'long', semente: 1, tetoSegundos: TETO_PADRAO }, opcoes || {});
+    conferirSementes(o.semente, 1);
+    if (!Motor.DIFICULDADES[o.dificuldade]) throw new Error(`dificuldade desconhecida: ${o.dificuldade} (use ${DIFICULDADES.join(', ')})`);
+    if (!Motor.PERSONAGENS[o.personagem]) throw new Error(`personagem desconhecido: ${o.personagem} (use ${Object.keys(Motor.PERSONAGENS).join(', ')})`);
+    const mundo = Motor.criarMundo({ fase: 'arena', jogadores: [o.personagem], semente: o.semente, dificuldade: o.dificuldade });
+    const bot = Bot.criarBot({ habilidade: o.habilidade, semente: o.semente });
+    const j = mundo.jogadores[0];
+    const teto = Math.round(o.tetoSegundos / DT);
+    const semProgresso = Math.round(SEM_PROGRESSO_NA_ARENA / DT);
+    let quadros = 0, finalizacoes = 0, maiorCombo = 0, vidasPerdidas = 0, inimigosPeloCenario = 0, danoDoCenario = 0, ondaDaUltimaMorte = null;
+    let marca = null, ultimoProgresso = 0, travou = false;
+    while (quadros < teto && !mundo.fimDeJogo) {
+        Motor.passo(mundo, DT, [bot.decidir(mundo)]);
+        quadros++;
+        // Progresso: onda nova, vida perdida por alguém (jogador ou inimigo), inimigo novo ou morto.
+        const agora = `${mundo.arena.onda}|${j.danoLevado}|${mundo.inimigos.map(i => i.vida).join(',')}`;
+        if (agora !== marca) { marca = agora; ultimoProgresso = quadros; }
+        else if (quadros - ultimoProgresso >= semProgresso) { travou = true; break; }
+        danoDoCenario += danoDoCenarioNoQuadro(mundo, j);
+        for (const ev of mundo.eventos) {
+            if (ev.tipo === 'finalizacao') finalizacoes++;
+            else if (ev.tipo === 'morte-pelo-cenario') inimigosPeloCenario++;
+            else if (ev.tipo === 'morte' && ev.time === 'jogador') { vidasPerdidas++; ondaDaUltimaMorte = mundo.arena.onda; }
+        }
+        if (j.combo > maiorCombo) maiorCombo = j.combo;
+    }
+    const resumo = {
+        semente: o.semente, modo: 'arena', dificuldade: o.dificuldade, habilidade: o.habilidade, personagem: o.personagem,
+        resultado: mundo.fimDeJogo ? 'fim-de-jogo' : travou ? 'trava' : 'teto', tempo: arred(quadros * DT, 2),
+        ondasSobrevividas: mundo.arena.sobrevividas, pontos: mundo.pontuacao, karma: Loja.karmaDaArena(mundo.pontuacao),
+        vidasPerdidas, danoRecebido: j.danoLevado, inimigosPeloCenario, danoDoCenario, finalizacoes, maiorCombo, quadros,
+    };
+    if (mundo.fimDeJogo) resumo.ondaDoFimDeJogo = ondaDaUltimaMorte;
+    if (travou) {
+        // O mesmo retrato da campanha: onde está cada inimigo vivo e há quanto tempo nada anda.
+        let maisPerto = null;
+        for (const i of mundo.inimigos) {
+            if (!Motor.vivo(i)) continue;
+            const dx = i.x - j.x, dy = i.y - j.y;
+            if (!maisPerto || Math.abs(dx) < Math.abs(maisPerto.dx)) maisPerto = { tipo: i.tipo, dx: arred(dx, 0), dy: arred(dy, 2) };
+        }
+        resumo.trava = {
+            semAcertar: arred((quadros - ultimoProgresso) * DT, 1), maisPerto,
+            onda: mundo.arena.onda, travado: mundo.travado, telaX: 0,
+            jogador: { x: arred(j.x, 0), y: arred(j.y, 2), estado: j.estado, vida: j.vida, chi: j.chi },
+            inimigos: mundo.inimigos.filter(Motor.vivo).map(i => ({ tipo: i.tipo, x: arred(i.x, 0), y: arred(i.y, 2), z: arred(i.z, 0), estado: i.estado, vida: i.vida })),
+        };
+    }
+    return resumo;
+}
+function agregarArena(resumos) {
+    const n = resumos.length;
+    return {
+        n,
+        noTeto: resumos.filter(r => r.resultado === 'teto').length,
+        travas: resumos.filter(r => r.resultado === 'trava').map(r => Object.assign(
+            { semente: r.semente, modo: 'arena', dificuldade: r.dificuldade, habilidade: r.habilidade, personagem: r.personagem }, r.trava)),
+        ondasSobrevividas: estatistica(resumos.map(r => r.ondasSobrevividas)),
+        pontos: estatistica(resumos.map(r => r.pontos)),
+        karma: estatistica(resumos.map(r => r.karma)),
+        tempo: estatistica(resumos.map(r => r.tempo)),
+        vidasPerdidas: estatistica(resumos.map(r => r.vidasPerdidas)),
+        inimigosPeloCenario: estatistica(resumos.map(r => r.inimigosPeloCenario)),
+        danoDoCenario: estatistica(resumos.map(r => r.danoDoCenario)),
+        finalizacoes: estatistica(resumos.map(r => r.finalizacoes)),
+    };
+}
+function loteArena(opcoes) {
+    const o = Object.assign({ n: 30, semente: 1 }, opcoes);
+    conferirSementes(o.semente, o.n);
+    const resumos = [];
+    const t0 = process.hrtime.bigint();
+    for (let k = 0; k < o.n; k++) resumos.push(simularArena(Object.assign({}, o, { semente: o.semente + k })));
+    const segundos = Number(process.hrtime.bigint() - t0) / 1e9;
+    const quadros = resumos.reduce((s, r) => s + r.quadros, 0);
+    return { resumos, agregado: agregarArena(resumos), desempenho: { segundos: arred(segundos, 2), quadros, passosPorSegundo: Math.round(quadros / Math.max(segundos, 1e-9)) } };
 }
 
 // ── AGREGAR ───────────────────────────────────────────────────────────────────────────────
@@ -153,6 +253,8 @@ function agregar(resumos) {
         pontos: estatistica(resumos.map(r => r.pontos)),
         finalizacoes: estatistica(resumos.map(r => r.finalizacoes)),
         maiorCombo: estatistica(resumos.map(r => r.maiorCombo)),
+        inimigosPeloCenario: estatistica(resumos.map(r => r.inimigosPeloCenario || 0)),
+        danoDoCenario: estatistica(resumos.map(r => r.danoDoCenario || 0)),
         mortesPorOnda: somar('mortesPorOnda'),
         fimDeJogoPorOnda: fimPorOnda,
     };
@@ -173,7 +275,7 @@ function lote(opcoes) {
 
 // ── LINHA DE COMANDO ──────────────────────────────────────────────────────────────────────
 function lerArgumentos(argv) {
-    const a = { fase: 1, dificuldade: 'normal', habilidade: 'medio', personagem: 'long', n: null, semente: 1, teto: TETO_PADRAO, json: false, matriz: false };
+    const a = { fase: 1, dificuldade: 'normal', habilidade: 'medio', personagem: 'long', n: null, semente: 1, teto: TETO_PADRAO, json: false, matriz: false, arena: false };
     for (let k = 0; k < argv.length; k++) {
         const chave = argv[k];
         const valor = () => { if (k + 1 >= argv.length) throw new Error(`${chave} precisa de um valor`); return argv[++k]; };
@@ -188,6 +290,7 @@ function lerArgumentos(argv) {
             case '--teto': a.teto = inteiro(); break;
             case '--json': a.json = true; break;
             case '--matriz': a.matriz = true; break;
+            case '--arena': a.arena = true; break;
             case '--ajuda': case '-h': a.ajuda = true; break;
             default: throw new Error(`opção desconhecida: ${chave}`);
         }
@@ -198,7 +301,7 @@ function lerArgumentos(argv) {
     if (!Motor.PERSONAGENS[a.personagem]) throw new Error(`--personagem ${a.personagem} não existe (use ${Object.keys(Motor.PERSONAGENS).join(', ')})`);
     if (a.n != null && a.n < 1) throw new Error('--n precisa ser pelo menos 1');
     if (a.teto < 1) throw new Error('--teto precisa ser pelo menos 1 segundo');
-    conferirSementes(a.semente, a.n || (a.matriz ? N_MATRIZ : N_LOTE));
+    conferirSementes(a.semente, a.n || (a.matriz || a.arena ? N_MATRIZ : N_LOTE));
     return a;
 }
 
@@ -207,12 +310,13 @@ const num = (v, casas) => v == null ? '—' : String(arred(v, casas == null ? 1 
 const col = (s, w) => String(s).padEnd(w);
 const colD = (s, w) => String(s).padStart(w);
 function comandoDaTrava(t, teto) {
+    if (t.modo === 'arena') return `node jogo/ferramentas/simular.js --arena --dificuldade ${t.dificuldade} --habilidade ${t.habilidade} --personagem ${t.personagem} --n 1 --semente ${t.semente}${teto !== TETO_PADRAO ? ` --teto ${teto}` : ''} --json`;
     return `node jogo/ferramentas/simular.js --fase ${t.fase} --dificuldade ${t.dificuldade} --habilidade ${t.habilidade} --personagem ${t.personagem} --n 1 --semente ${t.semente}${teto !== TETO_PADRAO ? ` --teto ${teto}` : ''} --json`;
 }
 function linhaDaTrava(t, teto) {
     const inimigos = t.inimigos.map(i => `${i.tipo}(x=${i.x}, y=${i.y}, ${i.estado}, vida ${i.vida})`).join(', ') || 'nenhum vivo';
     const perto = t.maisPerto ? `${t.maisPerto.tipo} a dx=${t.maisPerto.dx}, dy=${t.maisPerto.dy}` : 'nenhum vivo';
-    return `  semente ${t.semente} · fase ${t.fase} ${t.dificuldade} ${t.habilidade} ${t.personagem} · onda ${t.onda}${t.travado ? ' (tela travada)' : ' (tela livre)'}`
+    return `  semente ${t.semente} · ${t.modo === 'arena' ? 'Arena' : `fase ${t.fase}`} ${t.dificuldade} ${t.habilidade} ${t.personagem} · onda ${t.onda}${t.travado ? ' (tela travada)' : ' (tela livre)'}`
         + ` · jogador x=${t.jogador.x} ${t.jogador.estado} · tela ${t.telaX}–${t.telaX + Motor.LARGURA}`
         + `\n    sem acertar ninguém há ${t.semAcertar} s · mais perto: ${perto}`
         + `\n    inimigos: ${inimigos}\n    reproduzir: ${comandoDaTrava(t, teto)}`;
@@ -241,6 +345,8 @@ function imprimirLote(a, r) {
     linha('pontos', g.pontos);
     linha('finalizações', g.finalizacoes);
     linha('maior combo', g.maiorCombo);
+    linha('mortos pelo cenário', g.inimigosPeloCenario);
+    linha('dano do cenário', g.danoDoCenario);
     out.push('');
     const total = r.resumos[0] ? r.resumos[0].totalDeOndas : 0;
     const ondas = [];
@@ -286,14 +392,14 @@ function imprimirMatriz(a, m) {
     const out = [];
     out.push(`Matriz · ${a.personagem} · n=${m.n} por célula · sementes ${a.semente}–${a.semente + m.n - 1} · teto ${a.teto} s`);
     out.push('');
-    const cab = [['fase', 5], ['dific.', 8], ['bot', 7], ['concl.', 7], ['fim', 6], ['trava', 6], ['t p50', 7], ['t p90', 7], ['vidas', 6], ['dano', 7], ['bloq.', 6], ['pontos', 8], ['final.', 7], ['onda que mais mata', 20]];
+    const cab = [['fase', 5], ['dific.', 8], ['bot', 7], ['concl.', 7], ['fim', 6], ['trava', 6], ['t p50', 7], ['t p90', 7], ['vidas', 6], ['dano', 7], ['bloq.', 6], ['pontos', 8], ['final.', 7], ['cen.', 5], ['onda que mais mata', 20]];
     out.push('| ' + cab.map(([s, w]) => col(s, w)).join(' | ') + ' |');
     out.push('|' + cab.map(([, w]) => '-'.repeat(w + 2)).join('|') + '|');
     for (const c of m.celulas) {
         const g = c.agregado;
         const valores = [c.fase, c.dificuldade, c.habilidade, pct(g.taxaDeConclusao), pct(g.taxaDeFimDeJogo), g.travas.length,
             num(g.tempoDeConclusao.p50, 0), num(g.tempoDeConclusao.p90, 0), num(g.vidasPerdidas.media, 2), num(g.danoRecebido.media, 0),
-            pct(g.taxaDeBloqueio), num(g.pontos.p50, 0), num(g.finalizacoes.media, 1), ondaQueMaisMata(g.mortesPorOnda)];
+            pct(g.taxaDeBloqueio), num(g.pontos.p50, 0), num(g.finalizacoes.media, 1), num(g.inimigosPeloCenario.media, 1), ondaQueMaisMata(g.mortesPorOnda)];
         out.push('| ' + valores.map((v, k) => col(v, cab[k][1])).join(' | ') + ' |');
     }
     const travas = [].concat(...m.celulas.map(c => c.agregado.travas));
@@ -302,6 +408,69 @@ function imprimirMatriz(a, m) {
         out.push(tituloDasTravas(travas.length, a.teto));
         for (const t of travas) out.push(linhaDaTrava(t, a.teto));
     } else out.push('Nenhuma trava.');
+    return out.join('\n');
+}
+
+// ── A ARENA NA LINHA DE COMANDO ───────────────────────────────────────────────────────────
+function imprimirArena(a, r) {
+    const g = r.agregado;
+    const out = [];
+    out.push(`Arena · ${a.dificuldade} · bot ${a.habilidade} · ${a.personagem} · n=${g.n} · sementes ${a.semente}–${a.semente + g.n - 1} · teto ${a.teto} s`);
+    out.push('');
+    out.push(`  chegou ao teto vivo   ${g.noTeto}/${g.n}`);
+    out.push(`  travou                ${g.travas.length}/${g.n}   (${SEM_PROGRESSO_NA_ARENA} s sem ninguém perder vida nem onda nova)`);
+    out.push('');
+    out.push(`  ${col('', 22)}${colD('média', 8)}${colD('p10', 8)}${colD('p50', 8)}${colD('p90', 8)}${colD('máx', 8)}`);
+    const linha = (nome, e) => out.push(`  ${col(nome, 22)}${colD(num(e.media), 8)}${colD(num(e.p10), 8)}${colD(num(e.p50), 8)}${colD(num(e.p90), 8)}${colD(num(e.max), 8)}`);
+    linha('ondas sobrevividas', g.ondasSobrevividas);
+    linha('pontos', g.pontos);
+    linha('karma (pontos/200)', g.karma);
+    linha('tempo (s)', g.tempo);
+    linha('vidas perdidas', g.vidasPerdidas);
+    linha('mortos pelo cenário', g.inimigosPeloCenario);
+    linha('dano do cenário', g.danoDoCenario);
+    linha('finalizações', g.finalizacoes);
+    if (g.travas.length) {
+        out.push('');
+        out.push(tituloDasTravas(g.travas.length, a.teto));
+        for (const t of g.travas) out.push(linhaDaTrava(t, a.teto));
+    }
+    return out.join('\n');
+}
+function rodarMatrizDaArena(a) {
+    const n = a.n || N_MATRIZ;
+    const celulas = [];
+    let quadros = 0;
+    const t0 = process.hrtime.bigint();
+    for (const dificuldade of DIFICULDADES) for (const habilidade of HABILIDADES) {
+        const r = loteArena({ dificuldade, habilidade, personagem: a.personagem, n, semente: a.semente, tetoSegundos: a.teto });
+        quadros += r.desempenho.quadros;
+        celulas.push({ dificuldade, habilidade, agregado: r.agregado });
+        if (!a.json) process.stderr.write('.');
+    }
+    if (!a.json) process.stderr.write('\n');
+    const segundos = Number(process.hrtime.bigint() - t0) / 1e9;
+    return { n, celulas, desempenho: { segundos: arred(segundos, 1), quadros, passosPorSegundo: Math.round(quadros / Math.max(segundos, 1e-9)) } };
+}
+function imprimirMatrizDaArena(a, m) {
+    const out = [];
+    out.push(`Matriz da Arena · ${a.personagem} · n=${m.n} por célula · sementes ${a.semente}–${a.semente + m.n - 1} · teto ${a.teto} s`);
+    out.push('');
+    const cab = [['dific.', 8], ['bot', 7], ['ondas p10', 9], ['ondas p50', 9], ['ondas p90', 9], ['máx', 5], ['no teto', 8], ['travas', 7], ['pontos p50', 10], ['karma p50', 9], ['cen.', 5]];
+    out.push('| ' + cab.map(([s, w]) => col(s, w)).join(' | ') + ' |');
+    out.push('|' + cab.map(([, w]) => '-'.repeat(w + 2)).join('|') + '|');
+    for (const c of m.celulas) {
+        const g = c.agregado;
+        const valores = [c.dificuldade, c.habilidade, num(g.ondasSobrevividas.p10, 1), num(g.ondasSobrevividas.p50, 1), num(g.ondasSobrevividas.p90, 1), g.ondasSobrevividas.max,
+            `${g.noTeto}/${g.n}`, `${g.travas.length}/${g.n}`, num(g.pontos.p50, 0), num(g.karma.p50, 0), num(g.inimigosPeloCenario.media, 1)];
+        out.push('| ' + valores.map((v, k) => col(v, cab[k][1])).join(' | ') + ' |');
+    }
+    const travas = m.celulas.flatMap(c => c.agregado.travas);
+    if (travas.length) {
+        out.push('');
+        out.push(tituloDasTravas(travas.length, a.teto));
+        for (const t of travas) out.push(linhaDaTrava(t, a.teto));
+    }
     return out.join('\n');
 }
 
@@ -314,13 +483,26 @@ const AJUDA = `uso: node jogo/ferramentas/simular.js [opções]
   --semente S         primeira semente; a simulação k usa S + k (padrão 1; S + n - 1 até ${SEMENTE_MAX})
   --teto SEGUNDOS     tempo de jogo máximo antes de contar TRAVA (padrão ${TETO_PADRAO})
   --json              saída em JSON (resumos + agregado); os passos/s vão pro stderr
-  --matriz            fases × dificuldades × habilidades, uma tabela`;
+  --matriz            fases × dificuldades × habilidades, uma tabela
+  --arena             o modo Arena (ondas sobrevividas); com --matriz, dificuldades × habilidades`;
 
 function principal(argv) {
     let a;
     try { a = lerArgumentos(argv); }
     catch (erro) { process.stderr.write(`${erro.message}\n\n${AJUDA}\n`); return 2; }
     if (a.ajuda) { process.stdout.write(AJUDA + '\n'); return 0; }
+    if (a.arena && a.matriz) {
+        const m = rodarMatrizDaArena(a);
+        process.stdout.write((a.json ? JSON.stringify({ n: m.n, celulas: m.celulas }, null, 2) : imprimirMatrizDaArena(a, m)) + '\n');
+        process.stderr.write(linhaDeDesempenho(m.desempenho) + '\n');
+        return 0;
+    }
+    if (a.arena) {
+        const r = loteArena({ dificuldade: a.dificuldade, habilidade: a.habilidade, personagem: a.personagem, n: a.n || N_MATRIZ, semente: a.semente, tetoSegundos: a.teto });
+        process.stdout.write((a.json ? JSON.stringify({ resumos: r.resumos, agregado: r.agregado }, null, 2) : imprimirArena(a, r)) + '\n');
+        process.stderr.write(linhaDeDesempenho(r.desempenho) + '\n');
+        return 0;
+    }
     if (a.matriz) {
         const m = rodarMatriz(a);
         process.stdout.write((a.json ? JSON.stringify({ n: m.n, celulas: m.celulas }, null, 2) : imprimirMatriz(a, m)) + '\n');
@@ -333,6 +515,6 @@ function principal(argv) {
     return 0;
 }
 
-module.exports = { simular, agregar, lote, estatistica, percentil, TETO_PADRAO, FASES_JOGAVEIS };
+module.exports = { simular, agregar, lote, simularArena, agregarArena, loteArena, estatistica, percentil, TETO_PADRAO, FASES_JOGAVEIS };
 
 if (require.main === module) process.exitCode = principal(process.argv.slice(2));

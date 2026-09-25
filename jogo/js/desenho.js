@@ -15,6 +15,25 @@
     const FONTE_HUD = '"Chakra Petch", "Trebuchet MS", "Segoe UI", sans-serif';
     const TAU = Math.PI * 2;
 
+    // Texto novo pro jogador (pt-BR), num lugar só — a tradução da Fase 3 começa daqui.
+    const TEXTOS = {
+        onda: (n, total) => (total ? `ONDA ${n} / ${total}` : `ONDA ${n}`),
+        ondaVencida: n => `ONDA ${n} VENCIDA`,
+        ondaNoHud: n => `ONDA ${n}`,
+        proximaOnda: s => `PRÓXIMA ONDA EM ${s}`,
+        sobreviva: 'SOBREVIVA',
+        fimDaArena: 'FIM DA ARENA',
+        sobreviveu: n => `Você sobreviveu a ${n} ${n === 1 ? 'onda' : 'ondas'}.`,
+        karmaGanho: n => `+${n} karma`,
+        recordeDaArena: (r, o) => `RECORDE DA ARENA ${r} · MELHOR ONDA ${o}`,
+        novoRecordeDaArena: '★ NOVO RECORDE DA ARENA ★',
+        novaMelhorOnda: '★ NOVA MELHOR ONDA ★',
+        tentarDeNovo: 'ENTER TENTA DE NOVO · ESC VOLTA AO TÍTULO',
+        tentarDeNovoToque: 'TOQUE PARA TENTAR DE NOVO',
+    };
+    // Cor das faíscas de cada zona (morte pelo cenário e o jogador que pisou nela).
+    const COR_DO_PERIGO = { fogo: ['#ff8a2a', '#ffd070'], espinhos: ['#d02a1a', '#c8ccd4'], poco: ['#7affc8', '#2a4a40'] };
+
     function telaY(y) { return CHAO_TOPO + y * (CHAO_BASE - CHAO_TOPO); }
     function suave(k) { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); }
     function lerp(a, b, k) { return a + (b - a) * k; }
@@ -184,7 +203,14 @@
                     case 'item': for (let k = 0; k < 10; k++) particula({ x: ev.x, y: ev.y, z: 10, vx: ef.rng.entre(-60, 60), vz: ef.rng.entre(60, 200), vida: 0.6, tam: 3, cor: ev.nome === 'cha' ? '#9ef0a8' : '#7ad0ff', tipo: 'alma', gravidade: -100 }); break;
                     case 'siga': ef.siga = 4; break;
                     case 'chefe': ef.chefeAviso = 3; ef.chefeNome = ev.nome; ef.tremor = 10; break;
-                    case 'onda': ef.ondaAviso = 1.6; ef.ondaTexto = `ONDA ${ev.numero} / ${ev.total}`; break;
+                    case 'onda': ef.ondaAviso = 1.6; ef.ondaTexto = TEXTOS.onda(ev.numero, ev.total); break;
+                    case 'arena-onda': ef.ondaAviso = 2; ef.ondaTexto = TEXTOS.ondaVencida(ev.sobrevividas); break;
+                    case 'morte-pelo-cenario': case 'perigo': {
+                        const cores = COR_DO_PERIGO[ev.perigo] || COR_DO_PERIGO.fogo, n = ev.tipo === 'perigo' ? 8 : 26;
+                        for (let k = 0; k < n; k++) particula({ x: ev.x + ef.rng.entre(-16, 16), y: ev.y, z: ef.rng.entre(0, 30), vx: ef.rng.entre(-80, 80), vz: ef.rng.entre(60, ev.perigo === 'poco' ? 120 : 260), vida: ef.rng.entre(0.4, 0.9), tam: ef.rng.entre(2, 4.5), cor: cores[k % 2], tipo: ev.perigo === 'poco' ? 'alma' : 'brasa', gravidade: ev.perigo === 'poco' ? -80 : 300 });
+                        if (ev.tipo === 'morte-pelo-cenario') { ef.flash = Math.max(ef.flash, 0.2); ef.flashCor = cores[0]; }
+                        break;
+                    }
                     case 'renasceu': for (let k = 0; k < 20; k++) particula({ x: ev.x, y: ev.y, z: ef.rng.entre(0, 90), vx: ef.rng.entre(-30, 30), vz: ef.rng.entre(30, 120), vida: 0.8, tam: 3, cor: '#ffe680', tipo: 'alma' }); break;
                     case 'fase-concluida': ef.flash = 0.4; ef.flashCor = '#fff'; break;
                     case 'furia': ef.flash = Math.max(ef.flash, 0.35); ef.flashCor = '#ff2a1a'; break;
@@ -303,6 +329,10 @@
         texto(ctx, 'PONTOS', LARGURA / 2, 26, { tamanho: 12, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
         texto(ctx, mundo.pontuacao.toLocaleString('pt-BR'), LARGURA / 2, 52, { tamanho: 26, cor: '#fff', contorno: '#000', alinhar: 'center', peso: 900 });
         if (extras.recorde) texto(ctx, `RECORDE ${extras.recorde.toLocaleString('pt-BR')}`, LARGURA / 2, 70, { tamanho: 11, cor: '#8f97a8', alinhar: 'center' });
+        if (mundo.arena) {
+            texto(ctx, TEXTOS.ondaNoHud(mundo.arena.onda), LARGURA / 2, 90, { tamanho: 15, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
+            if (!mundo.travado && mundo.arena.respiro > 0) texto(ctx, TEXTOS.proximaOnda(Math.ceil(mundo.arena.respiro)), LARGURA / 2, 150, { tamanho: 18, cor: '#ffd23a', contorno: '#000', alinhar: 'center', peso: 900 });
+        }
 
         // Chefe.
         if (mundo.chefe && mundo.chefe.estado !== 'morto') {
@@ -330,9 +360,11 @@
         if (ef.tremor > 0 && !(extras && extras.tremor === false)) ctx.translate((Math.random() - 0.5) * ef.tremor, (Math.random() - 0.5) * ef.tremor);
         const cam = mundo.camera.x, nome = mundo.faseDef.cenario, qualidade = (extras && extras.qualidade) || 'alta';
         Cenario.desenhar(ctx, nome, cam, tempo, { qualidade });
+        Cenario.perigos(ctx, mundo.faseDef.perigos, cam, tempo, { qualidade });
         for (const ob of mundo.objetos) desenharObjeto(ctx, ob, cam);
         for (const it of mundo.itens) desenharItem(ctx, it, cam, tempo);
-        const lutadores = mundo.jogadores.concat(mundo.inimigos).sort((a, b) => a.y - b.y);
+        // Quem caiu no poço sumiu no breu: não se desenha o corpo.
+        const lutadores = mundo.jogadores.concat(mundo.inimigos.filter(i => !i.noPoco)).sort((a, b) => a.y - b.y);
         for (const ent of lutadores) desenharLutador(ctx, ent, cam, tempo, qualidade);
         for (const p of mundo.projeteis) desenharProjetil(ctx, p, cam, tempo);
         desenharParticulas(ctx, ef, cam);
@@ -447,7 +479,7 @@
         ctx.fillStyle = '#05030a'; ctx.fillRect(0, 0, LARGURA, ALTURA);
         const alpha = k < 0.2 ? k / 0.2 : k > 0.85 ? (1 - k) / 0.15 : 1;
         ctx.save(); ctx.globalAlpha = alpha;
-        texto(ctx, `FASE ${faseDef.numero}`, LARGURA / 2, 220, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
+        texto(ctx, faseDef.infinita ? TEXTOS.sobreviva : `FASE ${faseDef.numero}`, LARGURA / 2, 220, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
         texto(ctx, faseDef.nome.toUpperCase(), LARGURA / 2, 290, { tamanho: 54, fonte: FONTE_TITULO, cor: '#ffe9b0', contorno: '#2a0800', contornoLargura: 6, alinhar: 'center', peso: 900, brilho: '#ff3a1a' });
         if (k > 0.55) texto(ctx, 'LUTE!', LARGURA / 2, 370, { tamanho: 40, cor: '#ff5a3a', contorno: '#000', alinhar: 'center', peso: 900, italico: true });
         ctx.restore();
@@ -460,8 +492,23 @@
         if (extras.mudo) texto(ctx, 'SOM DESLIGADO', LARGURA / 2, 320, { tamanho: 13, cor: '#8f97a8', alinhar: 'center' });
     }
 
+    function desenharFimDaArena(ctx, tempo, dados) {
+        texto(ctx, TEXTOS.fimDaArena, LARGURA / 2, 170, { tamanho: 60, fonte: FONTE_TITULO, cor: '#ff3a2a', contorno: '#2a0000', contornoLargura: 7, alinhar: 'center', peso: 900, brilho: '#ff3a1a' });
+        texto(ctx, TEXTOS.sobreviveu(dados.ondas), LARGURA / 2, 215, { tamanho: 15, cor: '#bfc7d5', alinhar: 'center', italico: true });
+        texto(ctx, 'PONTOS', LARGURA / 2, 265, { tamanho: 14, cor: '#8f97a8', alinhar: 'center', peso: 700 });
+        texto(ctx, dados.pontuacao.toLocaleString('pt-BR'), LARGURA / 2, 310, { tamanho: 44, cor: '#fff', contorno: '#000', alinhar: 'center', peso: 900 });
+        const destaque = dados.novoRecorde ? TEXTOS.novoRecordeDaArena : dados.novaMelhorOnda ? TEXTOS.novaMelhorOnda : null;
+        if (destaque) texto(ctx, destaque, LARGURA / 2, 343, { tamanho: 18, cor: '#ffd23a', contorno: '#000', alinhar: 'center', peso: 900 });
+        texto(ctx, TEXTOS.recordeDaArena(dados.recorde.toLocaleString('pt-BR'), dados.melhorOnda), LARGURA / 2, destaque ? 365 : 348, { tamanho: 13, cor: '#8f97a8', alinhar: 'center' });
+        texto(ctx, TEXTOS.karmaGanho(dados.karma), LARGURA / 2, 392, { tamanho: 16, cor: '#ffb347', contorno: '#000', alinhar: 'center', peso: 900 });
+        const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+        texto(ctx, `${plural(dados.finalizacoes, 'finalização', 'finalizações')} · ${plural(dados.maiorCombo, 'golpe', 'golpes')} no maior combo · ${plural(dados.inimigos, 'inimigo derrotado', 'inimigos derrotados')}`, LARGURA / 2, 420, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center' });
+        if (Math.floor(tempo * 1.6) % 2 === 0) texto(ctx, dados.toque ? TEXTOS.tentarDeNovoToque : TEXTOS.tentarDeNovo, LARGURA / 2, 465, { tamanho: 18, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
+    }
+
     function desenharFim(ctx, tempo, ef, dados) {
         fundoDeMenu(ctx, tempo, ef);
+        if (dados.arena) { desenharFimDaArena(ctx, tempo, dados); return; }
         const vitoria = dados.vitoria;
         texto(ctx, vitoria ? 'O TEMPLO ESTÁ LIVRE' : 'FIM DE JOGO', LARGURA / 2, 170, { tamanho: vitoria ? 54 : 64, fonte: FONTE_TITULO, cor: vitoria ? '#ffd23a' : '#ff3a2a', contorno: '#2a0000', contornoLargura: 7, alinhar: 'center', peso: 900, brilho: vitoria ? '#ffb347' : '#ff3a1a' });
         texto(ctx, vitoria ? 'O Feiticeiro caiu. As almas do poço descansam. Os monges voltam ao chá.' : `Você caiu em ${dados.faseNome}. O templo ainda espera.`, LARGURA / 2, 215, { tamanho: 15, cor: '#bfc7d5', alinhar: 'center', italico: true });

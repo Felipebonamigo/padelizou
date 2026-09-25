@@ -304,8 +304,10 @@ function medirDefesa(habilidade, sementes) {
         for (let q = 0; q < 60 * 240 && !mundo.concluida && !mundo.fimDeJogo; q++) {
             const dano = j.danoLevado, golpes = j.golpesLevados;
             Motor.passo(mundo, DT, [bot.decidir(mundo)]);
+            // O cenário (espinhos, fogo, poço) também tira vida sem `golpesLevados`: não é bloqueio.
+            const doCenario = mundo.eventos.filter(ev => ev.tipo === 'perigo' && ev.jogador === j.indice).reduce((s, ev) => s + ev.dano, 0);
             if (j.golpesLevados > golpes) levados += j.golpesLevados - golpes;
-            else if (j.danoLevado > dano) bloqueados++;
+            else if (j.danoLevado - dano > doCenario) bloqueados++;
         }
     }
     return { bloqueados, levados, taxa: bloqueados / Math.max(1, bloqueados + levados) };
@@ -328,6 +330,126 @@ function medirDefesa(habilidade, sementes) {
     const a = Simular.agregar([r]);
     confere('o agregado traz a taxa de bloqueio', a.taxaDeBloqueio === +(m1.bloqueados / Math.max(1, m1.bloqueados + m1.levados)).toFixed(4),
             `taxaDeBloqueio=${a.taxaDeBloqueio}`);
+}
+
+// 13. O CENÁRIO QUE MATA, NO BOT. Quem joga não entra andando no fogo: o bot trata a zona como parede
+//     (senão os números da campanha pioram por um erro que nenhuma pessoa comete). E quando é fácil —
+//     inimigo de frente, com a zona logo atrás dele —, ele chuta pra derrubar lá dentro.
+function dentroDeZona(mundo, x, y) { return (mundo.faseDef.perigos || []).some(p => x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1); }
+{
+    const entradas = [];
+    const lutas = [];
+    for (const fase of [1, 2, 3, 4, 'arena']) for (const habilidade of ['medio', 'bom']) lutas.push({ fase, habilidade, semente: 1 });
+    for (const l of lutas) {
+        const mundo = Motor.criarMundo({ fase: l.fase, jogadores: ['long'], semente: l.semente, dificuldade: 'normal' });
+        const bot = Bot.criarBot({ habilidade: l.habilidade, semente: l.semente });
+        const j = mundo.jogadores[0];
+        let antes = dentroDeZona(mundo, j.x, j.y);
+        for (let q = 0; q < 60 * 150 && !mundo.concluida && !mundo.fimDeJogo; q++) {
+            const e = bot.decidir(mundo);
+            Motor.passo(mundo, DT, [e]);
+            const agora = dentroDeZona(mundo, j.x, j.y);
+            if (agora && !antes && j.estado === 'andando' && j.z <= 0) entradas.push(`fase ${l.fase} ${l.habilidade} q${q} x=${j.x.toFixed(0)} y=${j.y.toFixed(2)}`);
+            antes = agora;
+        }
+    }
+    confere('o bot não entra andando numa zona (fases 1–4 e Arena, medio e bom)', entradas.length === 0, entradas.slice(0, 4).join(' · ') + (entradas.length > 4 ? ` … (${entradas.length})` : ''));
+    // Montado: o alvo está do OUTRO lado de uma zona, na mesma faixa. O caminho reto passa por dentro;
+    // o bot tem que contornar (e chegar nele) sem pisar.
+    const pisadas = [];
+    for (const [fase, tipo] of [[1, 'fogo'], [2, 'espinhos'], [3, 'poco']]) {
+        const mundo = Motor.criarMundo({ fase, jogadores: ['long'], semente: 2, dificuldade: 'normal' });
+        mundo.onda = mundo.faseDef.ondas.length;
+        const zona = mundo.faseDef.perigos.find(p => p.tipo === tipo);
+        const y = (zona.y0 + zona.y1) / 2;
+        const j = mundo.jogadores[0];
+        j.x = zona.x0 - 120; j.y = y;
+        mundo.camera.x = Math.max(0, j.x - 300);
+        const i = Motor.colocarInimigo(mundo, 'sombra', zona.x1 + 90, y);
+        i.ia.congelada = true;
+        const bot = Bot.criarBot({ habilidade: 'bom', semente: 2 });
+        let chegou = false;
+        for (let q = 0; q < 60 * 8; q++) {
+            Motor.passo(mundo, DT, [bot.decidir(mundo)]);
+            i.x = zona.x1 + 90; i.y = y;
+            if (dentroDeZona(mundo, j.x, j.y) && j.z <= 0) { pisadas.push(`${tipo} q${q} x=${j.x.toFixed(0)} y=${j.y.toFixed(2)} ${j.estado}`); break; }
+            if (i.vida < i.vidaMax) chegou = true;
+        }
+        if (!chegou && !pisadas.some(t => t.startsWith(tipo))) pisadas.push(`${tipo}: não chegou no alvo`);
+    }
+    confere('com o alvo do outro lado da zona, o bot contorna sem pisar e chega nele', pisadas.length === 0, pisadas.join(' · '));
+
+    // Inimigo de frente, parado, com a zona logo atrás (onde o chute o derruba): a primeira tecla de ataque
+    // é o CHUTE, em todas as sementes. Sem a zona atrás (mesma distância, zona longe), sai soco em alguma.
+    function primeiroAtaque(comZona, semente) {
+        const mundo = Motor.criarMundo({ fase: 2, jogadores: ['long'], semente, dificuldade: 'normal' });
+        mundo.onda = mundo.faseDef.ondas.length;
+        const zona = mundo.faseDef.perigos.find(p => p.tipo === 'espinhos' && p.y0 > 0.5);
+        const y = (zona.y0 + zona.y1) / 2;
+        const xAlvo = comZona ? zona.x0 - 70 : zona.x0 - 700;
+        const j = mundo.jogadores[0];
+        j.x = xAlvo - 60; j.y = y; j.virado = 1;
+        mundo.camera.x = Math.max(0, j.x - 400);
+        const i = Motor.colocarInimigo(mundo, 'sombra', xAlvo, y);
+        i.ia.congelada = true; i.virado = -1;
+        const bot = Bot.criarBot({ habilidade: 'bom', semente });
+        for (let q = 0; q < 90; q++) {
+            const e = bot.decidir(mundo);
+            if (e.apertou.chute) return 'chute';
+            if (e.apertou.soco || e.apertou.agarrar || e.apertou.pular || e.apertou.especial) return 'outro';
+            Motor.passo(mundo, DT, [e]);
+            i.x = xAlvo; i.y = y;
+        }
+        return 'nada';
+    }
+    const sementes = [1, 2, 3, 4, 5, 6];
+    const com = sementes.map(s => primeiroAtaque(true, s)), sem = sementes.map(s => primeiroAtaque(false, s));
+    confere('com a zona atrás do inimigo, o bot chuta pra derrubá-lo nela', com.every(a => a === 'chute'), com.join(','));
+    confere('sem a zona atrás, o bot não chuta sempre (a escolha é da zona, não do acaso)', sem.some(a => a === 'outro'), sem.join(','));
+
+    // O resumo conta o que o cenário fez: inimigos mortos por ele e o dano que o jogador levou dele.
+    const r = Simular.simular({ fase: 1, dificuldade: 'facil', habilidade: 'bom', semente: 1 });
+    confere('o resumo traz inimigos mortos pelo cenário e o dano do cenário no jogador', typeof r.inimigosPeloCenario === 'number' && typeof r.danoDoCenario === 'number',
+            `chaves: ${Object.keys(r).join(', ')}`);
+}
+
+// 14. A ARENA NO SIMULADOR: `simularArena` mede as ondas sobrevividas, a mesma semente dá o mesmo
+//     resumo, e a CLI `--arena` roda e se repete byte a byte.
+{
+    const temArena = typeof Simular.simularArena === 'function';
+    confere('simular.js exporta simularArena', temArena, `exporta: ${Object.keys(Simular).join(', ')}`);
+    if (temArena) {
+        const a = Simular.simularArena({ dificuldade: 'normal', habilidade: 'medio', semente: 3, tetoSegundos: 240 });
+        confere('o resumo da Arena traz ondas sobrevividas, pontos, karma e o resultado', ['ondasSobrevividas', 'pontos', 'karma', 'resultado', 'tempo', 'vidasPerdidas'].every(k => k in a)
+                && ['fim-de-jogo', 'teto'].includes(a.resultado) && a.ondasSobrevividas >= 1 && a.karma === Math.floor(a.pontos / 200),
+                JSON.stringify(a));
+        const b = Simular.simularArena({ dificuldade: 'normal', habilidade: 'medio', semente: 3, tetoSegundos: 240 });
+        confere('Arena: a mesma semente dá o mesmo resumo', JSON.stringify(a) === JSON.stringify(b), `\n    ${JSON.stringify(a)}\n    ${JSON.stringify(b)}`);
+        const curta = Simular.simularArena({ dificuldade: 'facil', habilidade: 'bom', semente: 1, tetoSegundos: 20 });
+        confere('Arena: estourar o teto é "teto" (sobreviveu até lá), não trava', curta.resultado === 'teto', JSON.stringify(curta));
+        // Uma Arena TRAVADA não pode sair como "teto" (a melhor coluna da matriz): um inimigo da onda 3
+        // congelado fora da tela, que nunca entra, deixa todo mundo sem apanhar pra sempre. Tem que sair
+        // como trava, com o retrato (como na campanha), e o agregado conta travas à parte do teto.
+        const passoDeVerdade = Motor.passo;
+        let congelado = null;
+        Motor.passo = function (mundo, dt, entradas) {
+            passoDeVerdade(mundo, dt, entradas);
+            if (!mundo.faseDef.infinita) return;
+            if (!congelado && mundo.arena.onda === 3) congelado = mundo.inimigos.find(i => Motor.vivo(i) && !i.def.chefe) || null;
+            if (congelado) { congelado.x = Motor.LARGURA + 200; congelado.vx = 0; congelado.entrouNaTela = false; congelado.ia.congelada = true; }
+        };
+        let presa = null;
+        try { presa = Simular.simularArena({ dificuldade: 'facil', habilidade: 'bom', semente: 1 }); } finally { Motor.passo = passoDeVerdade; }
+        const agregado = typeof Simular.agregarArena === 'function' ? Simular.agregarArena([presa]) : {};
+        const noRetrato = presa && presa.trava && Array.isArray(presa.trava.inimigos) && presa.trava.inimigos.some(i => i.x === Motor.LARGURA + 200);
+        confere('Arena: um inimigo que nunca entra sai como TRAVA (com o retrato), não como "teto"', !!congelado && presa.resultado === 'trava' && noRetrato && presa.tempo < Simular.TETO_PADRAO,
+                JSON.stringify(Object.assign({}, presa, { trava: presa && presa.trava && { semAcertar: presa.trava.semAcertar, onda: presa.trava.onda } })));
+        confere('Arena: o agregado conta as travas à parte (e não no teto)', Array.isArray(agregado.travas) && agregado.travas.length === 1 && agregado.noTeto === 0 && agregado.travas[0].semente === 1,
+                JSON.stringify({ travas: agregado.travas && agregado.travas.length, noTeto: agregado.noTeto }));
+    }
+    const x = cli('--arena', '--n', '2', '--teto', '60'), y = cli('--arena', '--n', '2', '--teto', '60');
+    confere('a CLI --arena roda e fala de ondas sobrevividas', x.status === 0 && /Arena/.test(x.stdout) && /ondas sobrevividas/.test(x.stdout), `código ${x.status}: ${x.stderr}${x.stdout.slice(0, 300)}`);
+    confere('a CLI --arena se repete byte a byte', x.stdout === y.stdout && x.status === 0, 'saídas diferentes');
 }
 
 const segundos = (Date.now() - inicio) / 1000;

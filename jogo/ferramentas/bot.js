@@ -15,6 +15,9 @@
 // sequência quando o golpe acerta, defende quando um inimigo perto começa um golpe — mas com
 // ATRASO DE REAÇÃO (curto contra quem ele já vigiava) e CHANCE, da habilidade —, pula e chuta às vezes, usa o especial com
 // chi e gente perto, busca chá com pouca vida e anda (ou corre) pra direita quando não há onda.
+// O CENÁRIO que mata (`faseDef.perigos`, desenhado na tela): ele não entra andando numa zona — trata
+// como parede e contorna, como o motor faz com a IA — e, quando o inimigo está de frente com a zona logo
+// atrás, chuta pra derrubá-lo lá dentro. Chá caído numa zona não existe pra ele.
 //
 // Acaso: gerador semeado próprio (`Motor.criarRng`), NUNCA `Math.random` — mesma semente, mesma
 // luta. O conferidor `conferir-simulacao-do-shaolin.js` envenena `Math.random` pra garantir.
@@ -75,6 +78,12 @@ const MEIA_COISA_PEQUENA = 12;   // flecha, chá: o desenho tem uns 24 px de lar
 // Quanto antes de o inimigo entrar no alcance dele o bot já o vigia (px): quem joga vê o inimigo
 // chegando, não só parado no alcance. E por quanto tempo depois de vigiar ainda está atento (s).
 const FOLGA_DA_VIGIA = 40, ATENTO_POR = 0.3;
+// O cenário: quanto à frente (s) ele olha antes de dar o passo, e por quanto tempo (s) mantém o desvio
+// escolhido (senão o alinhamento com o alvo puxava a profundidade de volta e ele tremia na quina).
+const OLHAR_A_FRENTE = 0.15, DESVIO_POR = 0.4;
+const PX_POR_Y = Motor.CHAO_BASE - Motor.CHAO_TOPO;
+// O voo do derrubado (vz 280 do motor, gravidade 2000): 0,28 s — o chute leva o inimigo recuo × 0,28 px.
+const VOO_DO_DERRUBADO = 0.28;
 function podeAgir(ent) { return ent.estado === 'parado' || ent.estado === 'andando'; }
 function sinal(v) { return v > 0 ? 1 : v < 0 ? -1 : 0; }
 
@@ -97,6 +106,8 @@ function criarBot(opcoes) {
     let finalizarId = null, finalizarDecidido = null;
     let proximaFaxina = 0;
     const vigiado = new Map();          // id do inimigo → último instante em que ele ameaçava
+    let desvio = null;                  // { y: ±1, ate } enquanto contorna uma zona do cenário
+    let mundoAtual = null, jAtual = null;
 
     // Sorteia UMA vez por chave e lembra. A faxina roda ANTES de gravar: limpar depois apagaria a
     // decisão recém-tomada, e o quadro seguinte sortearia de novo o mesmo golpe (e gastaria um
@@ -119,7 +130,40 @@ function criarBot(opcoes) {
         if (mx > 0) quer.direita = true; else if (mx < 0) quer.esquerda = true;
         if (my > 0) quer.baixo = true; else if (my < 0) quer.cima = true;
     }
+    // A zona como parede: o passo que (olhando OLHAR_A_FRENTE à frente) entraria numa zona não é dado.
+    // Entraria pela profundidade: segue só em x. Pelo x: segue só na profundidade — e, se ele só queria
+    // ir em x, contorna pela borda de profundidade mais perto que existe (e mantém esse desvio um pouco).
+    function evitarPerigos(quer) {
+        const mundo = mundoAtual, j = jAtual;
+        const lista = mundo && mundo.faseDef.perigos;
+        if (!lista || !lista.length || !j || j.z > 0 || !podeAgir(j)) return;
+        const t = mundo.tempo;
+        let mx = (quer.direita ? 1 : 0) - (quer.esquerda ? 1 : 0), my = (quer.baixo ? 1 : 0) - (quer.cima ? 1 : 0);
+        if (desvio && t < desvio.ate && my === -desvio.y) my = desvio.y;
+        if (!mx && !my) return;
+        if (Motor.perigoEm(mundo, j.x, j.y)) return;          // já dentro: o motor põe pra fora
+        const vel = j.correndo ? j.def.corrida : j.def.velocidade;
+        const dx = mx * vel * OLHAR_A_FRENTE, dy = my * vel * 0.55 / PX_POR_Y * OLHAR_A_FRENTE;
+        // O CAMINHO todo, não só a ponta: na diagonal, a ponta pode passar da quina e o meio cortar a zona.
+        const cruza = (ax, ay) => { for (const f of [0.25, 0.5, 0.75, 1]) { const z = Motor.perigoEm(mundo, j.x + ax * f, j.y + ay * f); if (z) return z; } return null; };
+        const z = cruza(dx, dy);
+        if (z) {
+            if (my && !cruza(dx, 0)) my = 0;                                  // entraria pela profundidade
+            else {
+                mx = 0;                                                       // entraria pelo x
+                if (!my || cruza(0, dy)) {
+                    const sobe = z.y0 > 0 ? j.y - z.y0 : Infinity, desce = z.y1 < 1 ? z.y1 - j.y : Infinity;
+                    my = sobe === Infinity && desce === Infinity ? 0 : sobe <= desce ? -1 : 1;
+                    desvio = { y: my, ate: t + DESVIO_POR };
+                }
+            }
+        }
+        quer.direita = mx > 0; quer.esquerda = mx < 0; quer.baixo = my > 0; quer.cima = my < 0;
+    }
+    function naZona(mundo, coisa) { return !!Motor.perigoEm(mundo, coisa.x, coisa.y); }
+
     function emitir(quer) {
+        evitarPerigos(quer);
         // Escrito por extenso de propósito: o laço sobre `Motor.BOTOES` com chave variável era
         // metade do custo do bot no perfil (acesso "megamórfico"). `teclasSoltas` confere, ao
         // carregar, que esta lista é a do motor.
@@ -238,6 +282,7 @@ function criarBot(opcoes) {
     function decidir(mundo) {
         const quer = teclasSoltas();
         const j = mundo.jogadores[indice];
+        mundoAtual = mundo; jAtual = j;
         if (!j || j.estado === 'morto') { plano = null; return emitir(quer); }
         const t = mundo.tempo;
         const lim = limites(mundo);
@@ -292,7 +337,7 @@ function criarBot(opcoes) {
         // Pouca vida: chá no chão, ou um vaso de chá por quebrar, se ninguém está em cima.
         const inimigoColado = alvo && Math.abs(alvo.x - j.x) < 150 && Math.abs(alvo.y - j.y) < 0.3;
         if (j.vida < j.vidaMax * hab.chaAbaixo && !inimigoColado) {
-            const cha = maisPerto(j, mundo.itens.filter(it => it.tipo === 'cha' && it.x >= lim.esq - 10 && it.x <= lim.dir + 10 && naTela(mundo, it.x, MEIA_COISA_PEQUENA)));
+            const cha = maisPerto(j, mundo.itens.filter(it => it.tipo === 'cha' && it.x >= lim.esq - 10 && it.x <= lim.dir + 10 && naTela(mundo, it.x, MEIA_COISA_PEQUENA) && !naZona(mundo, it)));
             if (cha) { irAte(quer, j, cha.x, cha.y, 0); return emitir(quer); }
             const vaso = maisPerto(j, mundo.objetos.filter(v => v.estado === 'parado' && v.item === 'cha' && v.x >= lim.esq && v.x <= lim.dir && corpoNaTela(mundo, v)));
             if (vaso && !mundo.travado) { baterEm(quer, j, vaso, 0.5, 0.5); return emitir(quer); }
@@ -301,10 +346,11 @@ function criarBot(opcoes) {
         if (!alvo) {
             // Sem inimigo NA TELA: pega o que estiver no chão e caminha pra direita (correndo, se
             // sabe). Com a tela travada, vai pro meio — é o que atrai quem ainda está lá fora.
-            const util = maisPerto(j, mundo.itens.filter(it => it.x >= lim.esq && it.x <= lim.dir && it.x > j.x - 200 && naTela(mundo, it.x, MEIA_COISA_PEQUENA)
+            const util = maisPerto(j, mundo.itens.filter(it => it.x >= lim.esq && it.x <= lim.dir && it.x > j.x - 200 && naTela(mundo, it.x, MEIA_COISA_PEQUENA) && !naZona(mundo, it)
                 && ((it.tipo === 'cha' && j.vida < j.vidaMax * 0.85) || (it.tipo === 'pergaminho' && j.chi < 70))));
             if (util) { irAte(quer, j, util.x, util.y, 0); return emitir(quer); }
-            if (mundo.travado) { irAte(quer, j, mundo.travaX + Motor.LARGURA / 2, 0.5, 20); return emitir(quer); }
+            // Na Arena (uma tela só), entre as ondas, também: o meio é onde se espera a próxima.
+            if (mundo.travado || mundo.faseDef.infinita) { irAte(quer, j, mundo.travaX + Motor.LARGURA / 2, 0.5, 20); return emitir(quer); }
             andarPraDireita(quer, j);
             return emitir(quer);
         }
@@ -416,6 +462,17 @@ function criarBot(opcoes) {
             segurarDirecao(quer, lado, 0);
             tocar(quer, 'soco');
             return;
+        }
+
+        // Empurrar pro cenário: inimigo comum de frente, com a zona onde o chute o derruba. Sem sorteio —
+        // é o "quando for fácil" que quem joga não deixa passar.
+        if (alinhado && dist <= alcChute && !alvo.def.chefe && podeAgir(alvo) || alinhado && dist <= alcChute && !alvo.def.chefe && alvo.estado === 'atingido') {
+            const pouso = alvo.x + lado * chute.recuo * VOO_DO_DERRUBADO;
+            if (Motor.perigoEm(mundo, pouso, alvo.y)) {
+                if (j.virado !== lado && dist > 4) { segurarDirecao(quer, lado, 0); return; }
+                tocar(quer, 'chute');
+                return;
+            }
         }
 
         if (alinhado && dist <= alcChute) {

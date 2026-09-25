@@ -331,5 +331,62 @@
 
     function ambiente(nome) { return (CENARIOS[nome] || CENARIOS.patio).ambiente; }
 
-    raiz.PunhosDeShaolin.Cenario = { desenhar, frente, pos, ambiente, CENARIOS };
+    // ── AS ZONAS QUE MATAM (os `perigos` da fase) ─────────────────────────────────────────
+    // O mínimo pra ler de longe e dar medo: brasas e chamas no fogo, fileiras de pontas nos espinhos
+    // (de ferro na torre), o breu do poço com a borda de pedra. Desenhadas no chão, antes dos lutadores.
+    // O polimento é da Fase 2 (arte de produção).
+    const telaY = y => CHAO_TOPO + y * ALTURA_CHAO;
+    function perigos(ctx, lista, cameraX, tempo, o) {
+        const alta = !(o && o.qualidade === 'media');
+        for (const p of lista || []) {
+            const x0 = p.x0 - cameraX, x1 = p.x1 - cameraX;
+            if (x1 < -30 || x0 > LARGURA + 30) continue;
+            const y0 = telaY(p.y0), y1 = p.y1 >= 1 ? ALTURA : telaY(p.y1), l = x1 - x0, a = y1 - y0;
+            ctx.save();
+            if (p.tipo === 'fogo') {
+                ctx.fillStyle = grad(ctx, 0, y0, 0, y1, [[0, '#2a0a04'], [0.5, '#4a1206'], [1, '#1a0602']]);
+                ctx.fillRect(x0, y0, l, a);
+                ctx.globalCompositeOperation = 'lighter';
+                const r = rng(Math.round(p.x0));
+                for (let k = 0; k < Math.floor(l * a / 90); k++) {
+                    const bx = x0 + r() * l, by = y0 + r() * a, pulso = 0.5 + 0.5 * Math.sin(tempo * (3 + r() * 4) + k);
+                    ctx.fillStyle = `rgba(255,${Math.round(90 + 110 * pulso)},30,${0.35 + 0.5 * pulso})`;
+                    ctx.beginPath(); ctx.arc(bx, by, 1.5 + r() * 2.5, 0, TAU); ctx.fill();
+                }
+                if (alta) { ctx.fillStyle = radial(ctx, (x0 + x1) / 2, (y0 + y1) / 2, 4, Math.max(l, a) * 0.8, [[0, 'rgba(255,120,30,0.35)'], [1, 'rgba(255,60,0,0)']]); ctx.fillRect(x0 - l * 0.3, y0 - a, l * 1.6, a * 2.5); }
+                ctx.globalCompositeOperation = 'source-over';
+                for (let x = x0 + 12; x < x1 - 6; x += 26) chama(ctx, x, y0 + a * (0.35 + 0.3 * ((Math.round(x - x0) / 26) % 2)), tempo, x + cameraX);
+            } else if (p.tipo === 'espinhos') {
+                ctx.fillStyle = p.ferro ? '#1c1f26' : '#1f1a10';
+                ctx.fillRect(x0, y0, l, a);
+                const claro = p.ferro ? '#aeb6c4' : '#8a7a52', escuro = p.ferro ? '#4a515e' : '#3e3420';
+                for (let fy = y0 + 12; fy <= y1 - 2; fy += 14) {
+                    for (let fx = x0 + 6 + ((fy - y0) % 28 ? 8 : 0); fx < x1 - 6; fx += 16) {
+                        ctx.fillStyle = escuro;
+                        ctx.beginPath(); ctx.moveTo(fx - 6, fy); ctx.lineTo(fx, fy - 16); ctx.lineTo(fx + 6, fy); ctx.closePath(); ctx.fill();
+                        ctx.fillStyle = claro;
+                        ctx.beginPath(); ctx.moveTo(fx - 1, fy - 2); ctx.lineTo(fx, fy - 16); ctx.lineTo(fx + 2, fy - 2); ctx.closePath(); ctx.fill();
+                    }
+                }
+                ctx.strokeStyle = 'rgba(150,20,10,0.55)'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, y0 + 1, l - 2, a - 2);
+            } else if (p.tipo === 'poco') {
+                ctx.fillStyle = grad(ctx, 0, y0, 0, y1, [[0, '#07060a'], [0.3, '#020103'], [1, '#000']]);
+                ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x0 + 10, y0 + 4); ctx.lineTo(x1 - 10, y0 + 4); ctx.lineTo(x1, y1); ctx.closePath(); ctx.fill();
+                // A borda de pedra, quebrada.
+                ctx.fillStyle = '#4a4650';
+                const r = rng(Math.round(p.x0) + 7);
+                for (let x = x0; x < x1; x += 18) { const h = 4 + r() * 5; ctx.fillRect(x, y0 - h * 0.4, 16, h); }
+                if (alta) {
+                    ctx.globalCompositeOperation = 'lighter';
+                    for (let k = 0; k < 6; k++) {
+                        const ax = x0 + ((k * 53 + tempo * 18) % l), ay = y1 - ((tempo * 22 + k * 17) % a);
+                        ctx.fillStyle = 'rgba(120,255,200,0.18)'; ctx.beginPath(); ctx.arc(ax, ay, 3, 0, TAU); ctx.fill();
+                    }
+                }
+            }
+            ctx.restore();
+        }
+    }
+
+    raiz.PunhosDeShaolin.Cenario = { desenhar, frente, pos, ambiente, perigos, CENARIOS };
 })(window);

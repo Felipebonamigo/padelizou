@@ -28,11 +28,17 @@
     ];
     const POR_ID = new Map(CATALOGO.map(d => [d.id, d]));     // Map, não objeto: '__proto__' e 'constructor' não viram item
     const PONTOS_POR_KARMA = 100;
+    // Na Arena, metade: ondas infinitas não podem virar fazenda de karma.
+    const PONTOS_POR_KARMA_NA_ARENA = 200;
 
     // Pontos ganhos NA fase → karma. Qualquer coisa que não seja número finito e positivo vale zero.
     function karmaDaFase(pontos) {
         if (typeof pontos !== 'number' || !Number.isFinite(pontos) || pontos <= 0) return 0;
         return Math.floor(pontos / PONTOS_POR_KARMA);
+    }
+    function karmaDaArena(pontos) {
+        if (typeof pontos !== 'number' || !Number.isFinite(pontos) || pontos <= 0) return 0;
+        return Math.floor(pontos / PONTOS_POR_KARMA_NA_ARENA);
     }
 
     // `progresso`: o de `Progresso.criar` — lê/escreve `dados.karma` e `dados.golpes` e chama `salvar()`.
@@ -70,9 +76,15 @@
         // Fim de uma fase: a pontuação do mundo é da PARTIDA inteira, então o karma sai da diferença
         // entre o fim e o começo desta fase — senão cada fase pagaria de novo o karma das anteriores.
         function receberDaFase(pontuacaoNoComeco, pontuacaoNoFim) { return receber(pontuacaoNoFim - pontuacaoNoComeco); }
+        // Fim de uma Arena: o karma dos pontos dela, pela tabela da Arena. Devolve quanto entrou.
+        function receberDaArena(pontos) {
+            const ganho = karmaDaArena(pontos);
+            if (ganho > 0) { dados.karma += ganho; progresso.salvar(); }
+            return ganho;
+        }
         function saldo() { return dados.karma; }
-        return { itens, comprar, liberados, receber, receberDaFase, saldo };
+        return { itens, comprar, liberados, receber, receberDaFase, receberDaArena, saldo };
     }
 
-    return { CATALOGO, PONTOS_POR_KARMA, karmaDaFase, criar };
+    return { CATALOGO, PONTOS_POR_KARMA, PONTOS_POR_KARMA_NA_ARENA, karmaDaFase, karmaDaArena, criar };
 });

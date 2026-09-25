@@ -1,5 +1,6 @@
 // PUNHOS DE SHAOLIN — o laço principal: telas (título → menu → dificuldade → escolha → fases,
-// com o Templo entre elas → fim), opções, conquistas, pausa, passo fixo de simulação (1/60 s),
+// com o Templo entre elas → fim; ou menu → escolha → Arena → fim), opções, conquistas, pausa,
+// pontos de controle ("tentar de novo" volta à última onda disparada), passo fixo de simulação (1/60 s),
 // congelamento de acerto, câmera lenta da finalização e o progresso salvo pela plataforma
 // (navegador ou Electron/Steam).
 (function (raiz) {
@@ -11,6 +12,7 @@
     const ESPERA_DO_TEMPLO = 0.5;            // quem chega socando do fim da fase não compra sem querer
     const DURACAO_DO_RECADO = 2.5;
     const GEOMETRIA_DO_TEMPLO = { y0: 222, passo: 32 };   // 7 itens + Seguir não cabem no passo de 46
+    const GEOMETRIA_DO_MENU = { y0: 222, passo: 40 };     // com a Arena, o menu do desktop tem 7 itens: no passo de 46 o último caía na dica
 
     // Texto novo pro jogador (pt-BR), num lugar só — a tradução da Fase 3 começa daqui.
     const TEXTOS = {
@@ -27,6 +29,9 @@
         recusa: { sem_karma: 'Falta karma pra esse golpe.', aprendido: 'Esse golpe você já sabe.', desconhecido: 'Esse golpe não existe.' },
         dicaTemplo: '↑ ↓ ESCOLHEM · ENTER APRENDE · ESC SAI',
         dicaTemploToque: 'TOQUE NUM GOLPE PRA LER · DE NOVO PRA APRENDER · TOQUE EMBAIXO SAI',
+        arena: 'Arena',
+        arenaValor: (recorde, onda) => (onda > 0 ? `recorde ${recorde} · onda ${onda}` : 'sobreviva às ondas'),
+        lutandoNaArena: 'Lutando na Arena',
     };
 
     const canvas = document.getElementById('tela');
@@ -45,6 +50,7 @@
         estatisticas: null, fim: null, semente: (Date.now() & 0xffff) || 1, tocouAgora: null,
         avisosDeConquista: [], tempoDePartida: 0, faseFechada: false, escalaTotal: 1,
         karmaDaFase: 0, templo: null,
+        modo: 'campanha',                    // 'campanha' ou 'arena' (a Arena não tem Templo nem ponto de controle)
     };
     const IDS = Object.keys(Motor.PERSONAGENS);
     const conquistas = Conquistas.criar({ progresso, plataforma, aoDesbloquear: def => { jogo.avisosDeConquista.push({ def, idade: 0 }); som.tocar('item'); } });
@@ -126,12 +132,19 @@
         return lista;
     }
 
+    // `numero`: 1–4 ou 'arena'. `extra.ondaInicial`/`extra.inicioDaFase`/`extra.danoNaFase`: o recomeço do ponto
+    // de controle (ver `Motor.opcoesDoRecomeco`) — os pontos voltam aos da onda, o karma continua contando do
+    // começo da fase e o dano já levado nela continua valendo pro "Intocável".
     function iniciarFase(numero, extra) {
         const o = extra || {};
         jogo.fase = numero;
+        jogo.modo = numero === 'arena' ? 'arena' : 'campanha';
         const personagens = o.personagens || personagensEscolhidos();
-        jogo.mundo = Motor.criarMundo({ fase: numero, jogadores: personagens, semente: jogo.semente * 31 + numero, pontuacao: o.pontuacao || 0, dificuldade: progresso.dados.dificuldade, liberados: loja.liberados() });
-        jogo.pontuacaoNaFase = jogo.mundo.pontuacao;
+        jogo.mundo = Motor.criarMundo({
+            fase: numero, jogadores: personagens, semente: jogo.semente * 31 + (numero === 'arena' ? 97 : numero), pontuacao: o.pontuacao || 0,
+            ondaInicial: o.ondaInicial, inicioDaFase: o.inicioDaFase, danoNaFase: o.danoNaFase, dificuldade: progresso.dados.dificuldade, liberados: loja.liberados(),
+        });
+        jogo.pontuacaoNaFase = jogo.mundo.inicioDaFase;
         if (jogo.salvos) {
             // Quem passou de fase leva o que tinha: vidas, chi e pelo menos metade da vida.
             jogo.mundo.jogadores.forEach((j, k) => {
@@ -143,7 +156,7 @@
         efeitos = Desenho.criarEfeitos();
         jogo.acumulador = 0; jogo.pausado = false; jogo.intro = 0; jogo.faseFechada = false; jogo.fimHa = 0;
         som.pararMusica();
-        plataforma.presenca(`Lutando em ${jogo.mundo.faseDef.nome}`);
+        plataforma.presenca(jogo.modo === 'arena' ? TEXTOS.lutandoNaArena : `Lutando em ${jogo.mundo.faseDef.nome}`);
         mudarTela('intro');
     }
 
@@ -153,14 +166,33 @@
         if (jogo.faseFechada) return;
         jogo.faseFechada = true;
         conquistas.concluirFase(m);
-        // Karma pelos pontos ganhos NESTA fase (a pontuação é da partida inteira).
-        jogo.karmaDaFase = loja.receberDaFase(jogo.pontuacaoNaFase, m.pontuacao);
+        // Karma pelos pontos ganhos NESTA fase (a pontuação é da partida inteira). O começo é o que o mundo
+        // guardou: recomeçar do ponto de controle traz os pontos da onda, mas o começo da fase é o mesmo.
+        jogo.karmaDaFase = loja.receberDaFase(m.inicioDaFase, m.pontuacao);
         if (jogo.fase < Motor.FASES.length - 1) progresso.registrarFase(jogo.fase + 1);
         progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
         progresso.salvar();
     }
 
+    // Fim da Arena: placar próprio (pontos e ondas sobrevividas), karma pela tabela da Arena, creditado aqui.
+    function terminarArena() {
+        const m = jogo.mundo;
+        const ondas = m.arena.sobrevividas;
+        const r = progresso.registrarArena(m.pontuacao, ondas);
+        const karma = loja.receberDaArena(m.pontuacao);
+        progresso.somar('partidas');
+        progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
+        progresso.salvar();
+        const a = progresso.dados.arena;
+        jogo.fim = { arena: true, vitoria: false, pontuacao: m.pontuacao, ondas, recorde: a.recorde, melhorOnda: a.melhorOnda, novoRecorde: r.recorde, novaMelhorOnda: r.onda, karma, faseNome: m.faseDef.nome, toque: jogo.toque, ...jogo.estatisticas };
+        jogo.fimHa = 0;
+        som.pararMusica();
+        som.tocar('morte-jogador');
+        mudarTela('fim');
+    }
+
     function terminar(vitoria) {
+        if (jogo.modo === 'arena') { terminarArena(); return; }
         const m = jogo.mundo;
         const novoRecorde = progresso.registrarRecorde(m.pontuacao);
         progresso.somar('partidas');
@@ -217,6 +249,7 @@
 
     function comecarEscolha(faseInicial) {
         jogo.faseInicial = faseInicial;
+        jogo.modo = faseInicial === 'arena' ? 'arena' : 'campanha';
         jogo.sel = { p1: 0, p2: 1, p2Entrou: false, confirmadoP1: false, confirmadoP2: false, prontoHa: 0, contagem: 0 };
         jogo.estatisticas = { finalizacoes: 0, maiorCombo: 0, inimigos: 0 };
         jogo.salvos = null;
@@ -227,6 +260,8 @@
         const fase = progresso.dados.faseAlcancada;
         const itens = [{ id: 'novo', rotulo: 'Novo jogo' }];
         if (fase > 1) itens.push({ id: 'continuar', rotulo: 'Continuar', valor: `Fase ${fase} · ${Motor.FASES[fase].nome}`, destaque: true });
+        const a = progresso.dados.arena;
+        itens.push({ id: 'arena', rotulo: TEXTOS.arena, valor: TEXTOS.arenaValor(a.recorde.toLocaleString('pt-BR'), a.melhorOnda) });
         itens.push({ id: 'opcoes', rotulo: 'Opções' });
         itens.push({ id: 'conquistas', rotulo: 'Conquistas', valor: `${conquistas.ganhas().length} / ${Conquistas.LISTA.length}` });
         itens.push({ id: 'templo', rotulo: TEXTOS.templo, valor: TEXTOS.karma(loja.saldo()) });
@@ -288,12 +323,13 @@
             case 'menu': {
                 fundoVivo();
                 const itens = itensDoMenu();
-                const nav = navegar(itens.length, sistema, entradas, toque);
+                const nav = navegar(itens.length, sistema, entradas, toque, GEOMETRIA_DO_MENU);
                 if (nav.confirmou) {
                     const item = itens[jogo.indice];
                     som.tocar('confirmar');
                     if (item.id === 'novo') { mudarTela('dificuldade'); jogo.indice = Math.max(0, DIFICULDADES.findIndex(d => d.id === progresso.dados.dificuldade)); }
                     else if (item.id === 'continuar') comecarEscolha(progresso.dados.faseAlcancada);
+                    else if (item.id === 'arena') comecarEscolha('arena');
                     else if (item.id === 'opcoes') mudarTela('opcoes');
                     else if (item.id === 'conquistas') mudarTela('conquistas');
                     else if (item.id === 'templo') abrirTemplo({ origem: 'menu' });
@@ -429,10 +465,13 @@
                 if (jogo.fimHa < 0.8) break;
                 if (sistema.voltar || (jogo.fim.vitoria && (sistema.confirmar || toque))) { irParaMenu(); break; }
                 if (sistema.confirmar || toque) {
-                    // Tentar de novo: a mesma fase, três vidas, os pontos de quando ela começou.
+                    // Tentar de novo: da ÚLTIMA ONDA DISPARADA (o ponto de controle), três vidas, os pontos de
+                    // quando ela disparou. Na Arena, uma Arena nova do zero.
                     jogo.salvos = null;
                     jogo.estatisticas = { finalizacoes: 0, maiorCombo: 0, inimigos: 0 };
-                    iniciarFase(jogo.fase, { personagens: jogo.mundo.jogadores.map(j => j.personagem), pontuacao: jogo.pontuacaoNaFase });
+                    const personagens = jogo.mundo.jogadores.map(j => j.personagem);
+                    const recomeco = Motor.opcoesDoRecomeco(jogo.mundo);
+                    iniciarFase(recomeco.fase, Object.assign({ personagens }, recomeco));
                 }
                 break;
             }
@@ -444,11 +483,11 @@
     function desenhar() {
         ctx.setTransform(jogo.escalaTotal, 0, 0, jogo.escalaTotal, 0, 0);
         ctx.clearRect(0, 0, Motor.LARGURA, Motor.ALTURA);
-        const extras = { recorde: progresso.dados.recorde, toque: jogo.toque, mudo: som.silenciado, tremor: opcoes().tremor, qualidade: qualidadeAtual() };
+        const extras = { recorde: jogo.modo === 'arena' ? progresso.dados.arena.recorde : progresso.dados.recorde, toque: jogo.toque, mudo: som.silenciado, tremor: opcoes().tremor, qualidade: qualidadeAtual() };
         const dicaVoltar = jogo.toque ? 'TOQUE NUM ITEM · TOQUE EMBAIXO VOLTA' : '↑ ↓ ESCOLHEM · ENTER CONFIRMA · ESC VOLTA';
         switch (jogo.tela) {
             case 'titulo': Desenho.desenharTitulo(ctx, jogo.tempo, efeitos, extras); break;
-            case 'menu': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { itens: itensDoMenu(), indice: jogo.indice, dica: `${dicaVoltar}${plataforma.temSteam ? ' · STEAM CONECTADA' : ''}`, subtitulo: `Dificuldade ${progresso.dados.dificuldade} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` }); break;
+            case 'menu': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { ...GEOMETRIA_DO_MENU, itens: itensDoMenu(), indice: jogo.indice, dica: `${dicaVoltar}${plataforma.temSteam ? ' · STEAM CONECTADA' : ''}`, subtitulo: `Dificuldade ${progresso.dados.dificuldade} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` }); break;
             case 'dificuldade': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Dificuldade', itens: DIFICULDADES, indice: jogo.indice, dica: dicaVoltar }); break;
             case 'opcoes': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Opções', itens: itensDeOpcoes(), indice: jogo.indice, dica: jogo.toque ? 'TOQUE NUM ITEM PRA MUDAR · TOQUE EMBAIXO VOLTA' : '← → MUDAM · ENTER CONFIRMA · ESC VOLTA' }); break;
             case 'templo': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, Object.assign({ titulo: TEXTOS.templo, subtitulo: subtituloDoTemplo(), itens: itensDoTemplo(), indice: jogo.indice, dica: jogo.toque ? TEXTOS.dicaTemploToque : TEXTOS.dicaTemplo }, GEOMETRIA_DO_TEMPLO)); break;

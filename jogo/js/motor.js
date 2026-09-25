@@ -54,7 +54,31 @@
     const DISTANCIA_DAS_FAIXAS = 0.32;               // caveira tripla: três faixas, mais longe entre si que 2 × TOLERANCIA_Y
 
     // Texto novo pro jogador (pt-BR), num lugar só — a tradução da Fase 3 começa daqui.
-    const TEXTOS = Object.freeze({ furia: 'FÚRIA', guardaQuebrada: 'GUARDA QUEBRADA' });
+    const TEXTOS = Object.freeze({
+        furia: 'FÚRIA', guardaQuebrada: 'GUARDA QUEBRADA',
+        cenario: Object.freeze({ fogo: 'QUEIMADO!', espinhos: 'EMPALADO!', poco: 'PRO POÇO!' }),
+    });
+
+    // ── CENÁRIO QUE MATA ──────────────────────────────────────────────────────────────────
+    // Cada fase tem `perigos`: zonas no chão ({ tipo, x0, x1, y0, y1 }, x no mundo, y na profundidade).
+    // Inimigo comum que vai ao CHÃO dentro de uma (arremessado, lançado ou derrubado) morre na hora; o
+    // chefe é imune (só é empurrado pra fora); o jogador leva dano fixo, é posto pra fora, e o cenário
+    // nunca o mata — a vida para em 1. A IA trata a zona como parede: ninguém entra nela ANDANDO.
+    const PERIGOS = Object.freeze({
+        espinhos: Object.freeze({ dano: 12, salto: 300 }),          // o jogador é lançado pra fora
+        fogo: Object.freeze({ danoPorSegundo: 6, empurrao: 200 }),  // encostar já queima 1; o empurrão (px/s) é por cima do passo dele
+        poco: Object.freeze({ dano: 20, invulneravel: 1 }),         // o poço devolve o jogador na borda
+        bonus: 300,                                                 // pontos a mais pelo inimigo morto pelo cenário
+        empurraoDoChefe: 400,                                       // px/s: o chefe é posto pra fora, sem dano
+    });
+    const FOLGA_DA_SAIDA = { x: 20, y: 0.06 };                      // quanto além da borda o jogador (ou o chefe) é posto
+    const PX_POR_Y = CHAO_BASE - CHAO_TOPO;                         // 1 de profundidade = 190 px na tela
+
+    // ── MODO ARENA ────────────────────────────────────────────────────────────────────────
+    // Uma tela, ondas infinitas do `mundo.rng`: a onda n traz 2 + floor(n/2) comuns (até o teto) e, a
+    // cada `chefeACada`, um chefe sorteado — com fúria, como na campanha. Entre ondas, `respiro` s e às
+    // vezes um chá. Nunca conclui: acaba quando todos morrem sem vidas.
+    const REGRAS_DA_ARENA = Object.freeze({ respiro: 3, primeiroRespiro: 1.5, tetoDeInimigos: 8, chefeACada: 5, chanceDeCha: 0.4 });
 
     // ── ACASO SEMEADO (mulberry32) ────────────────────────────────────────────────────────
     function criarRng(semente) {
@@ -272,6 +296,8 @@
                 { x: 2650, inimigos: [['sombra', 2]], chefe: 'mestreSombra' },
             ],
             objetos: [{ tipo: 'vaso', x: 820, y: 0.25, item: 'cha' }, { tipo: 'vaso', x: 1500, y: 0.85, item: 'pergaminho' }, { tipo: 'vaso', x: 2300, y: 0.4, item: 'cha' }],
+            // Braseiros: um encostado no muro (onda 2), outro na beira da frente (onda 3).
+            perigos: [{ tipo: 'fogo', x0: 1180, x1: 1330, y0: 0, y1: 0.2 }, { tipo: 'fogo', x0: 2080, x1: 2220, y0: 0.8, y1: 1 }],
         },
         {
             numero: 2, nome: 'Floresta Viva', cenario: 'floresta', comprimento: 4000,
@@ -283,6 +309,7 @@
                 { x: 3200, inimigos: [['garra', 1]], chefe: 'graoPresa' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.6, item: 'cha' }, { tipo: 'vaso', x: 2150, y: 0.2, item: 'pergaminho' }, { tipo: 'vaso', x: 2900, y: 0.9, item: 'cha' }],
+            perigos: [{ tipo: 'espinhos', x0: 1250, x1: 1420, y0: 0.8, y1: 1 }, { tipo: 'espinhos', x0: 2650, x1: 2820, y0: 0, y1: 0.18 }],
         },
         {
             numero: 3, nome: 'Poço das Almas', cenario: 'poco', comprimento: 4200,
@@ -294,6 +321,8 @@
                 { x: 3400, inimigos: [['sombra', 1], ['lanceiro', 1]], chefe: 'gigante' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.3, item: 'cha' }, { tipo: 'vaso', x: 1600, y: 0.75, item: 'cha' }, { tipo: 'vaso', x: 2300, y: 0.5, item: 'pergaminho' }, { tipo: 'vaso', x: 3100, y: 0.2, item: 'cha' }],
+            // A beira do poço: a frente do chão se abre no breu.
+            perigos: [{ tipo: 'poco', x0: 1950, x1: 2250, y0: 0.84, y1: 1 }],
         },
         {
             numero: 4, nome: 'Torre do Feiticeiro', cenario: 'torre', comprimento: 3400,
@@ -304,8 +333,46 @@
                 { x: 2500, inimigos: [], chefe: 'feiticeiro' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.5, item: 'cha' }, { tipo: 'vaso', x: 1500, y: 0.2, item: 'pergaminho' }, { tipo: 'vaso', x: 2200, y: 0.8, item: 'cha' }],
+            perigos: [{ tipo: 'espinhos', ferro: true, x0: 1300, x1: 1460, y0: 0, y1: 0.18 }, { tipo: 'fogo', x0: 2000, x1: 2140, y0: 0.82, y1: 1 }],
         },
     ];
+    // A Arena fica FORA de `FASES`: a lista é a campanha (o progresso, as conquistas e o Templo contam
+    // com o índice dela). `criarMundo({ fase: 'arena' })`. Uma tela de comprimento: a câmera nunca anda.
+    const ARENA = {
+        numero: 'arena', nome: 'Arena', cenario: 'torre', comprimento: LARGURA, infinita: true, ondas: [], objetos: [],
+        perigos: [{ tipo: 'fogo', x0: 140, x1: 280, y0: 0, y1: 0.18 }, { tipo: 'espinhos', ferro: true, x0: 680, x1: 840, y0: 0.84, y1: 1 }],
+    };
+    // Quem pode vir na Arena, a partir de que onda, e com que peso (a mistura endurece com n).
+    const TROPA_DA_ARENA = [
+        { tipo: 'sombra', desde: 1, peso: n => Math.max(0.6, 3 - n * 0.15) },
+        { tipo: 'garra', desde: 2, peso: () => 1.5 },
+        { tipo: 'lanceiro', desde: 3, peso: () => 1.2 },
+        { tipo: 'arqueiro', desde: 4, peso: () => 1 },
+        { tipo: 'renegado', desde: 5, peso: n => 0.8 + n * 0.05 },
+        { tipo: 'bruto', desde: 7, peso: n => 0.3 + n * 0.04 },
+    ];
+    const CHEFES_DA_ARENA = ['mestreSombra', 'graoPresa', 'gigante', 'feiticeiro'];
+
+    // A onda n da Arena, sorteada com o `rng` que vier (no jogo, o `mundo.rng`): pura e determinística.
+    // Devolve { inimigos: [[tipo, 1], …], chefe } no formato das ondas da campanha.
+    function ondaDaArena(n, rng) {
+        const quantos = Math.min(REGRAS_DA_ARENA.tetoDeInimigos, 2 + Math.floor(n / 2));
+        const tropa = TROPA_DA_ARENA.filter(t => n >= t.desde);
+        const pesos = tropa.map(t => t.peso(n));
+        const total = pesos.reduce((a, b) => a + b, 0);
+        const tetoDeBrutos = 1 + Math.floor(n / 8);             // três Brutos juntos na onda 9 era parede, não luta
+        const inimigos = [];
+        let brutos = 0;
+        for (let k = 0; k < quantos; k++) {
+            let r = rng.proximo() * total, tipo = tropa[tropa.length - 1].tipo;
+            for (let t = 0; t < tropa.length; t++) { r -= pesos[t]; if (r <= 0) { tipo = tropa[t].tipo; break; } }
+            if (tipo === 'bruto' && brutos >= tetoDeBrutos) tipo = 'garra';
+            if (tipo === 'bruto') brutos++;
+            inimigos.push([tipo, 1]);
+        }
+        const chefe = n % REGRAS_DA_ARENA.chefeACada === 0 ? rng.escolher(CHEFES_DA_ARENA) : null;
+        return { inimigos, chefe };
+    }
 
     // ── ENTRADA ───────────────────────────────────────────────────────────────────────────
     const BOTOES = ['esquerda', 'direita', 'cima', 'baixo', 'soco', 'chute', 'especial', 'pular', 'agarrar', 'defender'];
@@ -347,8 +414,10 @@
         if (!def) throw new Error(`inimigo desconhecido: ${tipo}`);
         const i = criarEntidade(mundo, 'inimigo', def, x, y);
         i.tipo = tipo;
-        // A vida sobe com a fase — a Sombra da torre não é a Sombra do pátio.
-        const reforco = (1 + 0.15 * Math.max(0, (mundo.faseDef.numero || 1) - 1)) * mundo.dificuldade.vida;
+        // A vida sobe com a fase — a Sombra da torre não é a Sombra do pátio. Na Arena, sobe a cada 5 ondas
+        // (1–5 como o pátio, 6–10 como a floresta…), até o nível da torre.
+        const nivel = mundo.faseDef.infinita ? 1 + Math.min(3, Math.floor(Math.max(0, mundo.arena.onda - 1) / 5)) : (mundo.faseDef.numero || 1);
+        const reforco = (1 + 0.15 * Math.max(0, nivel - 1)) * mundo.dificuldade.vida;
         i.vidaMax = i.vida = Math.round(def.vida * reforco);
         i.ia = { congelada: false, pausa: mundo.rng.entre(0.2, 0.5), lado: mundo.rng.chance(0.5) ? 1 : -1, defendendoAte: 0, invocou: [] };
         i.fase = 1;                                  // chefe com `def.fase2` vira 2 depois da fúria
@@ -371,24 +440,54 @@
     }
 
     // ── O MUNDO ───────────────────────────────────────────────────────────────────────────
+    // `ondaInicial` (PONTO DE CONTROLE): as ondas antes dela contam como feitas, os jogadores nascem 200 px
+    // antes do gatilho dela e os vasos de antes do gatilho já estão quebrados (sem soltar nada). 0 é o
+    // começo de sempre. `inicioDaFase`: a pontuação com que a FASE começou — o recomeço traz os pontos do
+    // ponto de controle, e o karma continua sendo só do que se ganhou na fase (ver `opcoesDoRecomeco`).
+    // `danoNaFase`: o dano que os jogadores já tinham levado NESTA fase antes do recomeço — os jogadores
+    // nascem com `danoLevado` zero, e sem isto o recomeço fabricava o "Intocável" (conquistas.js).
     function criarMundo(opcoes) {
         const o = opcoes || {};
-        const faseDef = FASES[o.fase == null ? 1 : o.fase];
+        const faseDef = o.fase === 'arena' ? ARENA : FASES[o.fase == null ? 1 : o.fase];
         if (!faseDef) throw new Error(`fase desconhecida: ${o.fase}`);
+        const ondaInicial = o.ondaInicial == null ? 0 : o.ondaInicial;
+        if (!Number.isInteger(ondaInicial) || ondaInicial < 0 || (ondaInicial > 0 && ondaInicial >= faseDef.ondas.length)) throw new Error(`onda inicial fora da fase ${faseDef.nome}: ${o.ondaInicial}`);
+        const pontuacao = o.pontuacao || 0;
         const mundo = {
             fase: faseDef.numero, faseDef, tempo: 0, proximoId: 0, rng: criarRng(o.semente == null ? 1 : o.semente),
             dificuldade: DIFICULDADES[o.dificuldade] || DIFICULDADES.normal, nomeDaDificuldade: DIFICULDADES[o.dificuldade] ? o.dificuldade : 'normal',
-            camera: { x: 0 }, travado: false, travaX: 0, onda: 0, concluida: false, fimDeJogo: false, concluidaHa: 0,
+            camera: { x: 0 }, travado: false, travaX: 0, onda: ondaInicial, concluida: false, fimDeJogo: false, concluidaHa: 0,
             jogadores: [], inimigos: [], projeteis: [], itens: [], objetos: [], eventos: [], avisos: [],
-            pontuacao: o.pontuacao || 0, chefe: null,
+            pontuacao, chefe: null,
+            inicioDaFase: o.inicioDaFase != null ? o.inicioDaFase : pontuacao,
+            pontoDeControle: { onda: ondaInicial, pontuacao },
+            danoNaFase: o.danoNaFase > 0 ? o.danoNaFase : 0,
+            arena: faseDef.infinita ? { onda: 0, sobrevividas: 0, respiro: REGRAS_DA_ARENA.primeiroRespiro } : null,
             liberados: (Array.isArray(o.liberados) ? o.liberados : []).filter((id, k, lista) => MELHORIAS.includes(id) && lista.indexOf(id) === k),
         };
+        const gatilho = ondaInicial > 0 ? faseDef.ondas[ondaInicial].x : null;
+        const inicioX = gatilho != null ? gatilho - 200 : faseDef.infinita ? 380 : 120;
         for (const p of (o.jogadores || ['long'])) {
-            const j = criarJogador(mundo, p, 120 + mundo.jogadores.length * 60, 0.5 + mundo.jogadores.length * 0.15);
+            const j = criarJogador(mundo, p, inicioX + mundo.jogadores.length * 60, 0.5 + mundo.jogadores.length * 0.15);
             mundo.jogadores.push(j);
         }
-        for (const ob of faseDef.objetos) mundo.objetos.push({ id: ++mundo.proximoId, time: 'objeto', tipo: ob.tipo, x: ob.x, y: ob.y, z: 0, item: ob.item, vida: 1, estado: 'parado', escala: 1 });
+        const media = mundo.jogadores.reduce((s, j) => s + j.x, 0) / mundo.jogadores.length;
+        mundo.camera.x = Math.min(Math.max(0, faseDef.comprimento - LARGURA), Math.max(0, media - LARGURA * 0.4));
+        for (const ob of faseDef.objetos) {
+            const quebrado = gatilho != null && ob.x < gatilho;
+            mundo.objetos.push({ id: ++mundo.proximoId, time: 'objeto', tipo: ob.tipo, x: ob.x, y: ob.y, z: 0, item: ob.item, vida: quebrado ? 0 : 1, estado: quebrado ? 'quebrado' : 'parado', escala: 1 });
+        }
         return mundo;
+    }
+
+    // O que "tentar de novo" passa pro `criarMundo`: a última onda disparada, os pontos de quando ela
+    // disparou e o começo da fase (o karma sai de `inicioDaFase`, então morrer e recomeçar não dobra nada),
+    // e o dano já levado na fase (`danoNaFase`, que segura o "Intocável").
+    // Na Arena não há ponto de controle: recomeça do zero.
+    function opcoesDoRecomeco(mundo) {
+        if (mundo.faseDef.infinita) return { fase: 'arena' };
+        const danoNaFase = mundo.danoNaFase + mundo.jogadores.reduce((s, j) => s + j.danoLevado, 0);
+        return { fase: mundo.fase, ondaInicial: mundo.pontoDeControle.onda, pontuacao: mundo.pontoDeControle.pontuacao, inicioDaFase: mundo.inicioDaFase, danoNaFase };
     }
 
     // ── UTILIDADES DE ESTADO ──────────────────────────────────────────────────────────────
@@ -512,17 +611,21 @@
         if (cruzouAMetade(alvo, vidaAntes)) { entrarEmFuria(mundo, alvo); return true; }
 
         const noAr = alvo.z > 0 || alvo.vz > 0;
+        // `queda`: COMO ele foi ao chão — é o que o evento da morte pelo cenário conta ('lancado' ou 'derrubado').
         if (golpe.lanca) {
             mudar(alvo, 'lancado');
             alvo.vz = golpe.lanca; alvo.vx = direcao * (golpe.recuo || 100);
             alvo.tempoNoAr = 0;
+            alvo.queda = 'lancado';
         } else if (noAr) {
             // MALABARISMO: quem está no ar quica de novo — é o que permite emendar golpe no ar.
             mudar(alvo, 'lancado');
             alvo.vz = Math.max(alvo.vz, 300); alvo.vx = direcao * (golpe.recuo || 100) * 0.7;
+            alvo.queda = alvo.queda || 'lancado';
         } else if (golpe.derruba) {
             mudar(alvo, 'lancado');
             alvo.vz = 280; alvo.vx = direcao * (golpe.recuo || 200);
+            alvo.queda = 'derrubado';
         } else if (alvo.def.armadura && alvo.estado === 'atacando') {
             // ARMADURA: o golpe leve machuca mas não interrompe — o Bruto termina o que começou.
             alvo.vx = direcao * 40;
@@ -549,6 +652,123 @@
             alvo.vidas = Math.max(0, alvo.vidas - 1);
             soltarAgarrado(alvo);
         }
+    }
+
+    // ── O CENÁRIO QUE MATA ────────────────────────────────────────────────────────────────
+    function perigoEm(mundo, x, y) {
+        const lista = mundo.faseDef.perigos;
+        if (!lista) return null;
+        for (const p of lista) if (x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1) return p;
+        return null;
+    }
+    // Até onde ESTA entidade pode ir em x agora (o mesmo recorte dos limites em `atualizarEntidade`).
+    function limitesX(mundo, ent) {
+        if (mundo.travado && (ent.time === 'jogador' || ent.entrouNaTela)) return arenaDaTrava(mundo);
+        if (ent.time === 'jogador') return { esq: Math.max(20, mundo.camera.x + 16), dir: mundo.faseDef.comprimento - 20 };
+        return { esq: 20, dir: mundo.faseDef.comprimento - 20 };
+    }
+    // O ponto fora da zona mais perto (em px de tela), com folga, que caiba no chão e nos limites.
+    function saidaDaZona(mundo, ent, z) {
+        const lim = limitesX(mundo, ent), fx = FOLGA_DA_SAIDA.x, fy = FOLGA_DA_SAIDA.y;
+        let melhor = null;
+        const considerar = (x, y, d) => { if (!melhor || d < melhor.d) melhor = { x, y, d }; };
+        if (z.x0 - fx >= lim.esq) considerar(z.x0 - fx, ent.y, ent.x - (z.x0 - fx));
+        if (z.x1 + fx <= lim.dir) considerar(z.x1 + fx, ent.y, z.x1 + fx - ent.x);
+        if (z.y0 - fy >= 0) considerar(ent.x, z.y0 - fy, (ent.y - (z.y0 - fy)) * PX_POR_Y);
+        if (z.y1 + fy <= 1) considerar(ent.x, z.y1 + fy, (z.y1 + fy - ent.y) * PX_POR_Y);
+        // Zona que ocupasse a faixa inteira E a tela inteira não teria saída: o conferidor do palco
+        // reprova essa zona (caminho livre); aqui, por garantia, o meio do chão.
+        return melhor || { x: ent.x, y: 0.5, d: 0 };
+    }
+    function empurrarPraFora(mundo, ent, z, passo) {
+        const s = saidaDaZona(mundo, ent, z);
+        if (s.x !== ent.x) ent.x += Math.max(-passo, Math.min(passo, s.x - ent.x));
+        else ent.y += Math.max(-passo / PX_POR_Y, Math.min(passo / PX_POR_Y, s.y - ent.y));
+    }
+    // A IA trata a zona como PAREDE: o passo que entraria nela não acontece. Entrou pela profundidade,
+    // desliza em x; entrou pelo x, desliza em y; parado de frente pra zona, contorna pela borda de
+    // profundidade que existe (a zona nunca ocupa a faixa inteira — o conferidor garante).
+    function paredeDosPerigos(mundo, ent, xAntes, yAntes, dt) {
+        const z = perigoEm(mundo, ent.x, ent.y);
+        if (!z || perigoEm(mundo, xAntes, yAntes)) return;
+        if (!perigoEm(mundo, ent.x, yAntes)) { ent.y = yAntes; return; }
+        const yNovo = ent.y;
+        ent.x = xAntes;
+        if (Math.abs(yNovo - yAntes) > 1e-9 && !perigoEm(mundo, xAntes, yNovo)) return;
+        ent.y = yAntes;
+        const passoY = ent.def.velocidade * 0.55 / PX_POR_Y * dt;
+        const sobe = z.y0 > 0 ? yAntes - z.y0 : Infinity, desce = z.y1 < 1 ? z.y1 - yAntes : Infinity;
+        if (sobe === Infinity && desce === Infinity) return;
+        const lado = sobe <= desce ? -1 : 1;
+        ent.y = Math.min(1, Math.max(0, yAntes + lado * passoY));
+        // O desvio fica por um instante (a IA segue ele em `controlarInimigo`): senão ela puxava a
+        // profundidade de volta pro alvo no quadro seguinte e ficava tremendo na quina.
+        if (ent.ia) ent.ia.desvio = { y: lado, ate: mundo.tempo + 0.5 };
+    }
+    // Contornando uma zona: a profundidade é a do desvio, não a do alvo.
+    function seguirDesvio(mundo, i, velV) {
+        if (i.ia.desvio && mundo.tempo < i.ia.desvio.ate) i.vy = i.ia.desvio.y * velV;
+    }
+    function morrerPeloCenario(mundo, ent, z, jeito) {
+        ent.vida = 0;
+        morrer(mundo, ent, null, Math.sign(ent.vx) || 1);
+        ent.vx = 0; ent.vz = z.tipo === 'poco' ? 0 : 160;
+        if (z.tipo === 'poco') ent.noPoco = true;
+        const pontos = ent.def.pontos + PERIGOS.bonus;
+        mundo.pontuacao += pontos;
+        mundo.eventos.push({ tipo: 'morte-pelo-cenario', perigo: z.tipo, jeito, id: ent.def.id, x: ent.x, y: ent.y, pontos });
+        mundo.eventos.push({ tipo: 'texto', texto: TEXTOS.cenario[z.tipo], x: ent.x, y: ent.y, cor: 'finalizacao' });
+        mundo.eventos.push({ tipo: 'tremor', forca: 0.8 });
+    }
+    // O cenário machuca o jogador mas NUNCA o mata: a vida para em 1.
+    function ferirPeloCenario(mundo, j, z, dano) {
+        if (j.invulneravel > 0) return;
+        const tirado = Math.min(dano, Math.max(0, j.vida - 1));
+        j.vida -= tirado;
+        j.danoLevado += tirado;
+        mundo.eventos.push({ tipo: 'perigo', perigo: z.tipo, jogador: j.indice, dano: tirado, x: j.x, y: j.y });
+        mundo.eventos.push({ tipo: 'som', nome: z.tipo === 'fogo' ? 'fogo' : z.tipo === 'poco' ? 'queda' : 'acerto-forte' });
+    }
+    function perigoNoJogador(mundo, j, z, dt, entrou) {
+        if (j.estado === 'finalizando') return;
+        if (z.tipo === 'fogo') {
+            j.brasa = entrou ? 1 : (j.brasa || 0) + PERIGOS.fogo.danoPorSegundo * dt;
+            let dano = 0;
+            while (j.brasa >= 1 - EPSILON) { dano++; j.brasa -= 1; }
+            if (dano) ferirPeloCenario(mundo, j, z, dano);
+            empurrarPraFora(mundo, j, z, PERIGOS.fogo.empurrao * dt);
+            return;
+        }
+        ferirPeloCenario(mundo, j, z, PERIGOS[z.tipo].dano);
+        if (j.invulneravel > 0) mundo.eventos.push({ tipo: 'perigo', perigo: z.tipo, jogador: j.indice, dano: 0, x: j.x, y: j.y });
+        const s = saidaDaZona(mundo, j, z);
+        soltarAgarrado(j);
+        j.correndo = false;
+        if (z.tipo === 'espinhos') {
+            // Lançado pra fora: o voo é calculado pra pousar além da borda (0,8 do tempo de voo: o passo
+            // discreto pousa um pouco antes da conta contínua, e a folga cobre).
+            mudar(j, 'lancado');
+            const voo = 2 * PERIGOS.espinhos.salto / GRAVIDADE * 0.8;
+            j.vz = PERIGOS.espinhos.salto; j.vx = (s.x - j.x) / voo; j.vy = (s.y - j.y) / voo;
+        } else {
+            // O poço devolve na borda, no chão, com um instante de invulnerabilidade.
+            j.x = s.x; j.y = s.y; j.z = 0; j.vx = 0; j.vy = 0; j.vz = 0;
+            mudar(j, 'caido');
+            j.invulneravel = Math.max(j.invulneravel, PERIGOS.poco.invulneravel);
+            j.naZona = null;
+        }
+    }
+    // Chamado depois do movimento de cada lutador. Só conta quem está no CHÃO (pular por cima vale) e vivo.
+    function tratarPerigos(mundo, ent, dt, xAntes, yAntes) {
+        if (ent.time === 'inimigo' && ent.estado === 'andando') paredeDosPerigos(mundo, ent, xAntes, yAntes, dt);
+        if (ent.z > 0 || !vivo(ent)) { ent.naZona = null; return; }
+        const z = perigoEm(mundo, ent.x, ent.y);
+        const entrou = !!z && ent.naZona !== z;
+        ent.naZona = z;
+        if (!z) return;
+        if (ent.time === 'jogador') { perigoNoJogador(mundo, ent, z, dt, entrou); return; }
+        if (ent.def.chefe) { empurrarPraFora(mundo, ent, z, PERIGOS.empurraoDoChefe * dt); return; }
+        if (ent.estado === 'lancado' || ent.estado === 'caido') morrerPeloCenario(mundo, ent, z, ent.queda || 'derrubado');
     }
 
     // CONTRA-GOLPE (melhoria): começar a defender no máximo JANELA_DE_APARAR antes de o golpe ligar.
@@ -836,6 +1056,7 @@
             const agarravel = pegavel && (!alvo.def.armadura || alvo.estado === 'atordoado');
             if (agarravel) {
                 mudar(j, 'agarrando'); j.agarrando = alvo; alvo.agarradoPor = j; mudar(alvo, 'agarrado'); alvo.vx = 0; alvo.vz = 0; alvo.z = 0;
+                j.vx = 0; j.vy = 0; j.correndo = false;   // agarrou andando: sem isto, deslizava com o preso (e o arrastava pra dentro das zonas)
                 mundo.eventos.push({ tipo: 'som', nome: 'agarrar' });
                 return;
             }
@@ -875,6 +1096,7 @@
         preso.vy = dy * 0.9;
         preso.arremessadoPor = j;
         preso.atropelados = [];
+        preso.queda = 'arremessado';
         mundo.eventos.push({ tipo: 'som', nome: 'arremesso' });
         mundo.eventos.push({ tipo: 'texto', texto: 'ARREMESSO!', x: j.x, y: j.y, cor: 'golpe' });
     }
@@ -890,6 +1112,7 @@
 
     function finalizar(mundo, j, alvo) {
         mudar(j, 'finalizando');
+        j.vx = 0; j.vy = 0; j.correndo = false;      // agarrou andando: sem isto, deslizava ~340 px durante a finalização
         j.invulneravel = 1.4;
         j.virado = Math.sign(alvo.x - j.x) || j.virado;
         alvo.x = j.x + j.virado * 40; alvo.y = j.y; alvo.virado = -j.virado;
@@ -1012,6 +1235,7 @@
             // O Arqueiro acuado dá um soco pra abrir espaço; quem sorteou recuar (o Lanceiro), recua.
             if (naArena && def.ia.recua == null && distancia < 60 && alinhado && mundo.rng.chance(0.5)) { iniciarGolpe(i, 'soco1'); return; }
             i.vx = mx * def.velocidade; i.vy = my * velV;
+            seguirDesvio(mundo, i, velV);
             if (i.estado !== 'andando') mudar(i, 'andando');
             return;
         }
@@ -1054,6 +1278,7 @@
         if (Math.abs(ddx) > 200 && distancia < 120 && dentro(alvo.x - ia.lado * (alcance - 6))) ia.lado = -ia.lado;
         i.vx = mx * def.velocidade * (my !== 0 ? 0.8 : 1);
         i.vy = my * velV;
+        seguirDesvio(mundo, i, velV);
         if (i.estado !== 'andando') mudar(i, 'andando');
     }
 
@@ -1110,6 +1335,8 @@
                 mundo.eventos.push({ tipo: 'som', nome: 'gongo' });
                 ent.estado = 'morto'; ent.morteHa = 0.9; ent.vz = 0; ent.vx = 0;
             }
+        } else if (est === 'agarrando') {
+            ent.vx = 0; ent.vy = 0;                  // quem agarra fica onde agarrou (como o preso)
         } else if (est === 'agarrado') {
             ent.vx = 0; ent.vy = 0;
             if (!ent.agarradoPor) mudar(ent, 'parado');
@@ -1137,9 +1364,14 @@
                 else if (ent.estado === 'arremessado') {
                     ent.vx *= 0.2;
                     mundo.eventos.push({ tipo: 'poeira', x: ent.x, y: ent.y }); mundo.eventos.push({ tipo: 'tremor', forca: 0.6 });
-                    const vivoAntes = vivo(ent);
-                    aplicarDano(mundo, ent, { dano: 12, origem: ent.arremessadoPor, direcao: Math.sign(ent.vx) || 1, recuo: 0, semChi: true });
-                    if (vivoAntes && vivo(ent)) { mudar(ent, 'caido'); ent.vz = 0; ent.z = 0; }
+                    // Pousou numa zona: o cenário mata antes do tombo (senão os 12 do tombo tiravam o bônus).
+                    const zona = !ent.def.chefe && vivo(ent) ? perigoEm(mundo, ent.x, ent.y) : null;
+                    if (zona) morrerPeloCenario(mundo, ent, zona, 'arremessado');
+                    else {
+                        const vivoAntes = vivo(ent);
+                        aplicarDano(mundo, ent, { dano: 12, origem: ent.arremessadoPor, direcao: Math.sign(ent.vx) || 1, recuo: 0, semChi: true });
+                        if (vivoAntes && vivo(ent)) { mudar(ent, 'caido'); ent.vz = 0; ent.z = 0; }
+                    }
                 } else if (ent.estado === 'morto') { ent.vx *= 0.2; mundo.eventos.push({ tipo: 'poeira', x: ent.x, y: ent.y }); }
                 else if (ent.estado === 'atacando' && ent.golpeNome === 'chuteAereo') { /* termina o golpe no chão */ }
             }
@@ -1150,6 +1382,7 @@
             if (Math.abs(ent.vx) < 2) ent.vx = 0;
             if (est !== 'arremessado') ent.vy = 0;
         }
+        const xAntes = ent.x, yAntes = ent.y;
         ent.x += ent.vx * dt;
         ent.y = Math.min(1, Math.max(0, ent.y + ent.vy * dt));
         if (estavaNoAr && ent.estado === 'pulando' && ent.z <= 0) mudar(ent, 'parado');
@@ -1169,6 +1402,7 @@
             if (a && ent.entrouNaTela) ent.x = Math.min(a.dir, Math.max(a.esq, ent.x));
             else ent.x = Math.min(mundo.camera.x + LARGURA + 240, Math.max(mundo.camera.x - 240, ent.x));
         }
+        if (mundo.faseDef.perigos && mundo.faseDef.perigos.length) tratarPerigos(mundo, ent, dt, xAntes, yAntes);
     }
 
     // O chão onde o jogador pode ficar com a tela travada — e, por isso, o único de onde se bate nele.
@@ -1191,7 +1425,12 @@
             i.ia.lado = -lado;
             lado = -lado;
         }
-        mundo.eventos.push({ tipo: 'onda', numero: mundo.onda + 1, total: mundo.faseDef.ondas.length });
+        if (mundo.faseDef.infinita) mundo.eventos.push({ tipo: 'onda', numero: mundo.arena.onda, total: null });
+        else {
+            mundo.eventos.push({ tipo: 'onda', numero: mundo.onda + 1, total: mundo.faseDef.ondas.length });
+            // PONTO DE CONTROLE: morrer sem vidas recomeça daqui, com os pontos desta hora.
+            mundo.pontoDeControle = { onda: mundo.onda, pontuacao: mundo.pontuacao };
+        }
         if (onda.chefe) {
             const chefe = colocarInimigo(mundo, onda.chefe, mundo.travaX + LARGURA + 120, 0.5);
             mundo.chefe = chefe;
@@ -1201,7 +1440,28 @@
         }
     }
 
+    function atualizarArena(mundo, dt) {
+        const a = mundo.arena;
+        if (mundo.travado) {
+            if (mundo.inimigos.some(i => vivo(i))) return;
+            mundo.travado = false;
+            mundo.chefe = null;
+            a.sobrevividas = a.onda;
+            a.respiro = REGRAS_DA_ARENA.respiro;
+            const cha = a.onda % REGRAS_DA_ARENA.chefeACada === 0 || mundo.rng.chance(REGRAS_DA_ARENA.chanceDeCha);
+            if (cha) soltarItem(mundo, LARGURA / 2, 0.5, 'cha');
+            mundo.eventos.push({ tipo: 'arena-onda', sobrevividas: a.sobrevividas, cha });
+            mundo.eventos.push({ tipo: 'som', nome: 'siga' });
+            return;
+        }
+        a.respiro -= dt;
+        if (a.respiro > EPSILON || !mundo.jogadores.some(j => vivo(j))) return;
+        a.onda++;
+        dispararOnda(mundo, ondaDaArena(a.onda, mundo.rng));
+    }
+
     function atualizarOndas(mundo, dt) {
+        if (mundo.faseDef.infinita) { atualizarArena(mundo, dt); return; }   // `concluida` nunca liga na Arena
         const ondas = mundo.faseDef.ondas;
         if (!mundo.travado && mundo.onda < ondas.length) {
             const onda = ondas[mundo.onda];
@@ -1302,7 +1562,8 @@
 
     return {
         LARGURA, ALTURA, CHAO_TOPO, CHAO_BASE, TOLERANCIA_Y, MEIA_LARGURA, ALTURA_CORPO,
-        PERSONAGENS, INIMIGOS, FASES, BOTOES, DIFICULDADES, MELHORIAS,
+        PERSONAGENS, INIMIGOS, FASES, ARENA, BOTOES, DIFICULDADES, MELHORIAS, PERIGOS, REGRAS_DA_ARENA, TEXTOS,
         criarRng, criarMundo, passo, entradaVazia, colocarInimigo, adicionarJogador, iniciarGolpe, aplicarDano, atordoar, vivo,
+        perigoEm, ondaDaArena, opcoesDoRecomeco,
     };
 });
