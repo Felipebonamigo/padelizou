@@ -1,0 +1,27 @@
+{
+  "name": "nitro-crew",
+  "version": "0.1.0",
+  "description": "Corrida arcade em pseudo-3D no espírito de Top Gear (SNES), com cooperativo local para até 4 jogadores em tela dividida. TypeScript + Canvas 2D, empacotado com Electron para a Steam.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "tsx scripts/smoke.ts",
+    "balance": "tsx scripts/balance.ts",
+    "playtest": "node scripts/playtest.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "playwright": "1.55",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  }
+}

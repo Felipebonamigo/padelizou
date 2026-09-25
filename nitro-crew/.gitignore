@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+scratch/
+*.log
+.DS_Store
+# Capturas do playtest ficam fora; só docs/screenshot*.png é versionado.
+*.png
+!docs/*.png

@@ -1,0 +1,32 @@
+# CI do Nitro Crew (o jogo em nitro-crew/). Separado do ci.yml do Padelizou de propósito: só roda
+# quando algo dentro da pasta muda, e não mexe no pacote de deploy do site.
+name: Nitro Crew
+
+on:
+  push:
+    branches: [main]
+    paths: ['nitro-crew/**', '.github/workflows/nitro-crew.yml']
+  pull_request:
+    branches: [main]
+    paths: ['nitro-crew/**', '.github/workflows/nitro-crew.yml']
+  workflow_dispatch:
+
+jobs:
+  testes:
+    name: Typecheck + testes + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nitro-crew
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nitro-crew/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx vite build
+      - run: npm audit --audit-level=moderate

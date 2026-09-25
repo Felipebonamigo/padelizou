@@ -1,0 +1,31 @@
+{
+  "name": "nitro-crew-desktop",
+  "version": "0.1.0",
+  "description": "Empacotamento desktop (Electron) do Nitro Crew para Steam/Windows/Linux/macOS.",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64",
+    "dist:linux": "electron-builder --linux --x64",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.4.0"
+  },
+  "build": {
+    "appId": "br.com.bonamigo.nitrocrew",
+    "productName": "Nitro Crew",
+    "files": ["main.cjs", "preload.cjs", "steam_appid.txt", { "from": "../dist", "to": "app" }],
+    "directories": { "output": "release", "buildResources": "build" },
+    "win": { "target": ["dir"] },
+    "linux": { "target": ["dir"], "category": "Game" },
+    "mac": { "target": ["dir"], "category": "public.app-category.games" },
+    "asar": true,
+    "asarUnpack": ["node_modules/steamworks.js/**"]
+  }
+}
