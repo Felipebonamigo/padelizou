@@ -5,7 +5,7 @@
 import '../../career/strings';
 import './garage.css';
 import {
-  buyCar, buyUpgrade, cupIndexOf, levelsOf, NO_UPGRADES, ownsCar, selectCar, UPGRADE_PARTS, upgradePrice, walletOf,
+  buyCar, buyUpgrade, cupIndexOf, levelsOf, NO_UPGRADES, ownsCar, partMaxLevel, selectCar, UPGRADE_PARTS, upgradePrice, walletOf,
   type CareerState, type PurchaseResult,
 } from '../../core/career';
 import { nextTrackId } from '../../core/championship';
@@ -59,7 +59,7 @@ function statText(ranges: Record<GarageStat, [number, number]>, k: GarageStat, v
 }
 
 function levelsPlus(levels: UpgradeLevels, part: UpgradePart): UpgradeLevels {
-  return { ...levels, [part]: Math.min(UPGRADE_MAX_LEVEL, levels[part] + 1) };
+  return { ...levels, [part]: levels[part] + 1 };
 }
 
 function cupName(id: string): string {
@@ -328,12 +328,15 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     // Melhorias
     const partItems: FocusItem[] = UPGRADE_PARTS.map((part) => {
       const level = levels[part];
-      const price = upgradePrice(part, level);
+      const cap = partMaxLevel(car.id, part);
+      const price = upgradePrice(part, level, car.id);
       const cls = !owned ? ' disabled' : price === null ? ' max' : price > money ? ' cant' : '';
+      // Nível que não mudaria nada neste carro (pneus no teto de dirigibilidade) aparece riscado e não se vende.
+      const capped = owned && cap < UPGRADE_MAX_LEVEL && level >= cap;
       return {
         el: h('div', { class: `gp-part${cls}` },
-          h('span', { class: 'gp-part-name' }, h('b', { text: t(`career.garage.part.${part}`) }), h('small', { text: t(`career.garage.effect.${part}`) })),
-          h('span', { class: 'pips' }, Array.from({ length: UPGRADE_MAX_LEVEL }, (_, i) => h('i', { class: i < level ? 'on' : '' }))),
+          h('span', { class: 'gp-part-name' }, h('b', { text: t(`career.garage.part.${part}`) }), h('small', { text: capped ? t('career.garage.capped') : t(`career.garage.effect.${part}`) })),
+          h('span', { class: 'pips' }, Array.from({ length: UPGRADE_MAX_LEVEL }, (_, i) => h('i', { class: i < level ? 'on' : i >= cap ? 'cap' : '' }))),
           h('span', { class: 'gp-part-price mono', text: !owned ? '—' : price === null ? t('career.garage.max') : formatMoney(price) }),
         ),
         activate: () => activatePart(seat, part),
@@ -356,7 +359,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
       if (focus === 0 && !owned) { base = mine; after = shown; }
       else if (focus >= 1 && focus <= UPGRADE_PARTS.length && owned && !locked) {
         const part = UPGRADE_PARTS[focus - 1];
-        if (levels[part] < UPGRADE_MAX_LEVEL) after = effectiveStats(car, levelsPlus(levels, part));
+        if (levels[part] < partMaxLevel(car.id, part)) after = effectiveStats(car, levelsPlus(levels, part));
       }
       statsHost.replaceChildren(statsBlock(base, after));
     };
