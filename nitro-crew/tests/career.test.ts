@@ -4,19 +4,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  buyCar, buyUpgrade, CAREER_AI_LEVEL_MAX, CAREER_START_MONEY, careerAiLevel, careerHumans, levelsOf, newCareer,
-  beginCareerCup, ownsCar, prizeFor, prizeMultiplier, PRIZE_CUP_GROWTH, racePrizes, selectCar, settleCareerRace,
+  buyCar, buyUpgrade, CAREER_AI_LEVEL_MAX, CAREER_START_MONEY, careerAiLevel, careerHumans, ELIMINATED_PRIZE_SHARE, levelsOf, newCareer,
+  beginCareerCup, ownsCar, prizeFor, prizeMultiplier, PRIZE_CUP_GROWTH, PRIZE_PARTICIPATION, racePrizes, selectCar, settleCareerRace,
   teamBonusFor, upgradePrice, walletOf, type CareerState,
 } from '../src/core/career';
 import { applyRaceResult, createChampionship, nextTrackId } from '../src/core/championship';
 import {
-  HANDLING_MAX, NITRO_PER_RACE, POINTS_TABLE, TICK_RATE, UPGRADE_BRAKES, UPGRADE_ENGINE_TOP, UPGRADE_MAX_LEVEL,
-  UPGRADE_NITRO_CHARGES, UPGRADE_TANK_FUEL, UPGRADE_TIRES_HANDLING, UPGRADE_TURBO_ACCEL,
+  HANDLING_MAX, NITRO_PER_RACE, POINTS_TABLE, SPRITE_CRASH_SPEED_FACTOR, TICK_RATE, TOW_MIN_SPEED_FACTOR, UPGRADE_BRAKES,
+  UPGRADE_ENGINE_TOP, UPGRADE_MAX_LEVEL, UPGRADE_NITRO_CHARGES, UPGRADE_TANK_FUEL, UPGRADE_TIRES_HANDLING, UPGRADE_TURBO_ACCEL,
 } from '../src/core/constants';
 import { AI_CAR_POOL, CARS, carDef } from '../src/core/data/cars';
 import { CUPS } from '../src/core/data/cups';
 import { AI_TEAM_ID_BASE } from '../src/core/data/drivers';
 import { deserializeRace, hashRace, serializeRace } from '../src/core/serialize';
+import { resolveCarCollisions, resolveSpriteCrash } from '../src/core/sim/collisions';
+import { applyTow } from '../src/core/sim/coop';
 import { createRace } from '../src/core/sim/race';
 import { aiStats, carStats, effectiveStats } from '../src/core/sim/stats';
 import { getTrack } from '../src/core/track';
@@ -73,6 +75,21 @@ describe('carros', () => {
       expect(c.price).toBeGreaterThan(10_000);
       expect(c.name.length).toBeGreaterThan(3);
       expect(c.blurb.length).toBeGreaterThan(10);
+    }
+  });
+
+  it('nenhum carro à venda leva nome de marca ou de modelo de verdade, nem a tradução dele', () => {
+    // Marcas e modelos conhecidos, e traduções que entregam o modelo (Furacão = Huracán, Diabo = Diablo).
+    const real = [
+      'ferrari', 'lamborghini', 'porsche', 'bugatti', 'mclaren', 'maserati', 'bmw', 'audi', 'mercedes', 'ford', 'chevrolet',
+      'dodge', 'nissan', 'toyota', 'honda', 'subaru', 'mazda', 'volkswagen', 'fiat', 'aston', 'jaguar', 'lotus', 'pagani',
+      'koenigsegg', 'huracan', 'furacao', 'aventador', 'diablo', 'diabo', 'murcielago', 'countach', 'gallardo', 'urus',
+      'veyron', 'chiron', 'testarossa', 'enzo', 'mustang', 'camaro', 'corvette', 'viper', 'skyline', 'supra', 'miura',
+    ];
+    const words = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/);
+    for (const c of CARS.filter((x) => x.price > 0)) {
+      const hit = words(c.name).filter((w) => real.includes(w));
+      expect(hit, `${c.name} remete a carro de verdade`).toEqual([]);
     }
   });
 
@@ -156,6 +173,48 @@ describe('atributos efetivos (núcleo)', () => {
     for (const c of state.cars.filter((x) => x.seat < 0)) expect(carStats(c)).toEqual(aiStats(carDef(c.carId), 2));
     expect(JSON.parse(serializeRace(state)).cars[0].stats).toEqual(state.cars[0].stats);
     expect(mk(ALL_ASSISTS).teamNitro[0]).toBe(NITRO_PER_RACE * 2 + 2);
+  });
+
+  it('colisões e reboque leem os atributos da corrida (car.stats), não os de fábrica', () => {
+    const track = syntheticTrack();
+    const mk = (humans: HumanEntry[], assists = NO_ASSISTS) => {
+      const s = createRace({ trackId: track.def.id, laps: 2, humans, totalCars: humans.length, difficulty: 'profissional', manualGear: false, assists, seed: 4 }, track);
+      s.phase = 'racing';
+      return s;
+    };
+    const factoryTop = carDef('falcao').topSpeed;
+    const tuned = { ...human(0), upgrades: lv({ engine: 3 }) };
+    // Batido por trás andando acima da máxima de fábrica: com o motor, ele ganha velocidade (e não perde).
+    const hit = mk([tuned, human(1, 1)]);
+    const front = humanCar(hit, 0); const rear = humanCar(hit, 1);
+    expect(carStats(front).topSpeed).toBeGreaterThan(factoryTop * 1.07);
+    front.z = 5100; front.x = 0.05; front.speed = factoryTop * 1.05;
+    rear.z = 5000; rear.x = 0; rear.speed = factoryTop * 1.2;
+    const before = front.speed; const strength = (rear.speed - front.speed) / carStats(rear).topSpeed;
+    resolveCarCollisions(hit, track);
+    expect(front.speed).toBeCloseTo(Math.min(carStats(front).topSpeed, before + strength * 400), 6);
+    expect(front.speed).toBeGreaterThan(before);
+    // Quem bate usa a própria máxima da corrida na força da batida.
+    const hit2 = mk([human(0), tuned].map((h, i) => ({ ...h, seat: i, teamId: i })));
+    const f2 = humanCar(hit2, 0); const r2 = humanCar(hit2, 1);
+    f2.z = 5100; f2.x = 0.05; f2.speed = 3000; r2.z = 5000; r2.x = 0; r2.speed = 6400;
+    resolveCarCollisions(hit2, track);
+    expect(f2.speed).toBeCloseTo(3000 + ((6400 - 3000) / carStats(r2).topSpeed) * 400, 6);
+    // Árvore: a velocidade cai para a fração da máxima da corrida.
+    const tree = syntheticTrack();
+    tree.segments[60].sprites.push({ kind: 'tree', x: 1.4, scale: 1, solid: true, variant: 0 });
+    const crash = createRace({ trackId: tree.def.id, laps: 2, humans: [tuned], totalCars: 1, difficulty: 'profissional', manualGear: false, assists: NO_ASSISTS, seed: 4 }, tree);
+    const car = humanCar(crash, 0);
+    car.z = 60 * 200 + 10; car.x = 1.35; car.speed = 5000;
+    resolveSpriteCrash(crash, tree, car);
+    expect(car.speed).toBeCloseTo(carStats(car).topSpeed * SPRITE_CRASH_SPEED_FACTOR, 6);
+    // Reboque: o limite de "parado" é pela máxima da corrida de quem ficou para trás.
+    const tow = mk([tuned, human(1)], ALL_ASSISTS);
+    const stuck = humanCar(tow, 0); const mate = humanCar(tow, 1);
+    stuck.z = 5000; stuck.x = 0; stuck.speed = (factoryTop * TOW_MIN_SPEED_FACTOR + carStats(stuck).topSpeed * TOW_MIN_SPEED_FACTOR) / 2;
+    mate.z = 4900; mate.x = 0.2; mate.speed = factoryTop;
+    applyTow(tow, track);
+    expect(tow.events.some((e) => e.type === 'tow' && e.carId === stuck.id)).toBe(true);
   });
 
   it('estado antigo sem atributos ganha o padrão ao desserializar', () => {
@@ -272,20 +331,38 @@ describe('prêmio e carteira', () => {
     expect(out.rows).toEqual([{ driver: 0, position: 4, prize: prizeFor(4, 2) }, { driver: 1, position: 12, prize: prizeFor(12, 2) }]);
   });
 
-  it('eliminação: a corrida que eliminou não paga, o já ganho fica e a copa recomeça da primeira corrida', () => {
+  it('eliminação: a corrida que eliminou paga só a ajuda de custo (metade do prêmio), o já ganho fica e a copa recomeça da primeira corrida', () => {
     const career = versusCareer(1);
     race(career, { 0: 2 });
     const afterFirst = career.wallets[0];
-    const { report, champ } = race(career, { 0: 9 });
+    const { report, champ } = race(career, { 0: 7 });
     expect(report.verdict).toBe('eliminated');
-    expect(report.rows[0].prize).toBe(0);
-    expect(career.wallets[0]).toBe(afterFirst);
+    expect(report.rows[0].prize).toBe(Math.round(prizeFor(7, 1) * ELIMINATED_PRIZE_SHARE / 10) * 10);
+    expect(report.rows[0].prize).toBeLessThan(prizeFor(7, 1));
+    expect(career.wallets[0]).toBe(afterFirst + report.rows[0].prize);
     expect(champ.eliminated).toBe(true);
     expect(career.champ).toBeNull();
     expect(career.cupId).toBe(CUPS[0].id);
     expect(career.attempts).toBe(2);
     beginCareerCup(career, 99);
     expect(nextTrackId(career.champ!)).toBe(CUPS[0].trackIds[0]);
+  });
+
+  it('co-op eliminado com o cofre vazio não fica preso: a ajuda de custo entra no cofre, sem bônus de equipe', () => {
+    const career = coopCareer(2);
+    career.wallets[0] = 0;
+    const { report } = race(career, { 0: 11, 1: 14 });
+    expect(report.verdict).toBe('eliminated');
+    expect(report.teamBonus).toBe(0);
+    expect(career.wallets[0]).toBe(report.rows[0].prize + report.rows[1].prize);
+    // Do fundo do grid, a ajuda de custo nunca fica abaixo do prêmio de participação.
+    expect(report.rows.map((r) => r.prize)).toEqual([PRIZE_PARTICIPATION, PRIZE_PARTICIPATION]);
+    // Algumas tentativas ruins já pagam a melhoria mais barata: há saída sem ser correr melhor.
+    const cheapest = Math.min(...PARTS.map((p) => upgradePrice(p, 0, 'falcao') ?? Infinity));
+    let tries = 1;
+    while (career.wallets[0] < cheapest && tries < 10) { race(career, { 0: 11, 1: 14 }); tries++; }
+    expect(career.wallets[0]).toBeGreaterThanOrEqual(cheapest);
+    expect(tries).toBeLessThanOrEqual(3);
   });
 
   it('copa concluída: passa para a seguinte (IA mais forte, prêmio maior); a última encerra a carreira', () => {
@@ -317,7 +394,7 @@ describe('prêmio e carteira', () => {
         const lvls = (levels[car] ??= { ...ZERO });
         let best: { price: number; buy: () => void } | null = null;
         for (const part of PARTS) {
-          const price = upgradePrice(part, lvls[part]);
+          const price = upgradePrice(part, lvls[part], car);
           if (price !== null && (!best || price < best.price)) best = { price, buy: () => { lvls[part]++; } };
         }
         if (best) return best;
@@ -378,14 +455,14 @@ describe('compras na garagem', () => {
     career.wallets[0] = 1_000_000;
     const prices: number[] = [];
     for (let i = 0; i < UPGRADE_MAX_LEVEL; i++) {
-      const p = upgradePrice('engine', i)!;
+      const p = upgradePrice('engine', i, 'falcao')!;
       prices.push(p);
       const before = career.wallets[0];
       expect(buyUpgrade(career, 0, 'engine')).toBe('ok');
       expect(before - career.wallets[0]).toBe(p);
     }
     expect(prices[1]).toBeGreaterThan(prices[0]); expect(prices[2]).toBeGreaterThan(prices[1]);
-    expect(upgradePrice('engine', UPGRADE_MAX_LEVEL)).toBeNull();
+    expect(upgradePrice('engine', UPGRADE_MAX_LEVEL, 'falcao')).toBeNull();
     const snap = career.wallets[0];
     expect(buyUpgrade(career, 0, 'engine')).toBe('maxLevel');
     expect(career.wallets[0]).toBe(snap);
@@ -396,6 +473,35 @@ describe('compras na garagem', () => {
     expect(careerHumans(career)[0].upgrades).toEqual(ZERO);
     expect(selectCar(career, 0, 'falcao')).toBe(true);
     expect(careerHumans(career)[0].upgrades?.engine).toBe(UPGRADE_MAX_LEVEL);
+  });
+
+  it('todo nível à venda muda o atributo da peça: pneus param no teto de dirigibilidade de cada carro', () => {
+    const attr: Record<UpgradePart, keyof CarStats> = { engine: 'topSpeed', turbo: 'accel', tires: 'handling', brakes: 'brake', tank: 'fuelPerUnit', nitro: 'nitro' };
+    for (const car of CARS) {
+      for (const part of PARTS) {
+        const career = versusCareer(1);
+        career.wallets[0] = 1_000_000;
+        career.drivers[0].garage.owned.push(car.id);
+        career.drivers[0].garage.carId = car.id;
+        for (let i = 0; i < UPGRADE_MAX_LEVEL + 1; i++) {
+          const g = career.drivers[0].garage;
+          const before = levelsOf(g, car.id);
+          const price = upgradePrice(part, before[part], car.id);
+          const money = career.wallets[0];
+          const r = buyUpgrade(career, 0, part);
+          // A garagem mostra preço exatamente quando a compra passa.
+          expect(r === 'ok', `${car.id}/${part} nível ${before[part]}: preço ${price}, compra ${r}`).toBe(price !== null);
+          if (r !== 'ok') { expect(r).toBe('maxLevel'); expect(career.wallets[0]).toBe(money); break; }
+          const a = effectiveStats(car, before)[attr[part]];
+          const b = effectiveStats(car, levelsOf(g, car.id))[attr[part]];
+          expect(b, `${car.id}/${part} nível ${before[part] + 1} custou ${price} e não mudou nada`).not.toBe(a);
+        }
+      }
+    }
+    // Os dois casos da revisão: Tornado RS (0,92) chega ao teto no nível 2; Carcará RS (0,97), no 1.
+    expect(upgradePrice('tires', 2, 'tornado')).toBeNull();
+    expect(upgradePrice('tires', 1, 'carcara')).toBeNull();
+    expect(upgradePrice('tires', 2, 'falcao')).not.toBeNull();
   });
 
   it('não dá para melhorar nem escolher carro que não é seu', () => {
@@ -409,12 +515,12 @@ describe('compras na garagem', () => {
   it('co-op compra da carteira da equipe; versus, da própria', () => {
     const coop = coopCareer(2);
     buyUpgrade(coop, 1, 'tires');
-    expect(coop.wallets).toEqual([CAREER_START_MONEY * 2 - upgradePrice('tires', 0)!]);
+    expect(coop.wallets).toEqual([CAREER_START_MONEY * 2 - upgradePrice('tires', 0, 'falcao')!]);
     expect(levelsOf(coop.drivers[1].garage, coop.drivers[1].garage.carId).tires).toBe(1);
     expect(levelsOf(coop.drivers[0].garage, coop.drivers[0].garage.carId).tires).toBe(0);
     const vs = versusCareer(2);
     buyUpgrade(vs, 1, 'tires');
-    expect(vs.wallets).toEqual([CAREER_START_MONEY, CAREER_START_MONEY - upgradePrice('tires', 0)!]);
+    expect(vs.wallets).toEqual([CAREER_START_MONEY, CAREER_START_MONEY - upgradePrice('tires', 0, 'falcao')!]);
   });
 
   it('os humanos da carreira levam carro, time, assento contíguo e melhorias para a corrida', () => {
@@ -433,13 +539,13 @@ describe('save da carreira e da copa em andamento', () => {
     const career = coopCareer(2);
     race(career, { 0: 1, 1: 2 });
     career.wallets[0] = 100_000;
-    buyCar(career, 1, 'furacao'); buyUpgrade(career, 1, 'nitro'); buyUpgrade(career, 0, 'engine');
+    buyCar(career, 1, 'pororoca'); buyUpgrade(career, 1, 'nitro'); buyUpgrade(career, 0, 'engine');
     const save = sanitizeSave({});
     save.career = career;
-    unlockCar(save, 'furacao');
+    unlockCar(save, 'pororoca');
     const back = sanitizeSave(JSON.parse(JSON.stringify(save)));
     expect(back.career).toEqual(career);
-    expect(back.carsUnlocked).toEqual(['furacao']);
+    expect(back.carsUnlocked).toEqual(['pororoca']);
   });
 
   it('lixo vira ausente e nunca lança', () => {
@@ -456,15 +562,15 @@ describe('save da carreira e da copa em andamento', () => {
   it('campos ruins da carreira são consertados: níveis no limite, carros desconhecidos fora, carteiras coerentes', () => {
     const career = versusCareer(2);
     const raw = JSON.parse(JSON.stringify(career)) as Record<string, unknown> & { drivers: Array<{ garage: Record<string, unknown> }> };
-    raw.drivers[0].garage = { carId: 'delorean', owned: ['furacao', 'delorean', 7], upgrades: { falcao: { engine: 7, turbo: -1, tires: 'x' }, delorean: { engine: 1 } } };
+    raw.drivers[0].garage = { carId: 'delorean', owned: ['pororoca', 'delorean', 7], upgrades: { falcao: { engine: 7, turbo: -1, tires: 'x' }, delorean: { engine: 1 } } };
     raw.wallets = [-50, 1e40, 3];
     raw.cupId = 'lua';
-    raw.carsUnlocked = ['furacao', 'falcao', 'x'];
-    const s = sanitizeSave({ career: raw, carsUnlocked: ['furacao', 'falcao', 'x', 'furacao'] });
+    raw.carsUnlocked = ['pororoca', 'falcao', 'x'];
+    const s = sanitizeSave({ career: raw, carsUnlocked: ['pororoca', 'falcao', 'x', 'pororoca'] });
     const c = s.career!;
     expect(c).not.toBeNull();
     const g = c.drivers[0].garage;
-    expect(g.owned).toEqual(['furacao']);
+    expect(g.owned).toEqual(['pororoca']);
     expect(g.carId).toBe('falcao');
     expect(g.upgrades).toEqual({ falcao: lv({ engine: UPGRADE_MAX_LEVEL }) });
     expect(c.wallets.length).toBe(2);
@@ -472,7 +578,34 @@ describe('save da carreira e da copa em andamento', () => {
     expect(Number.isSafeInteger(c.wallets[1])).toBe(true);
     expect(c.cupId).toBe(CUPS[0].id);
     expect(c.champ).toBeNull();
-    expect(s.carsUnlocked).toEqual(['furacao']);
+    expect(s.carsUnlocked).toEqual(['pororoca']);
+  });
+
+  it('copa salva na corrida além da última sem estar concluída é lixo: a carreira recomeça a copa e a copa normal some', () => {
+    const humans = [human(0)];
+    const career = newCareer(humans);
+    beginCareerCup(career, 1);
+    const raw = JSON.parse(JSON.stringify(career)) as { champ: { raceIndex: number } };
+    const raceCount = CUPS[0].trackIds.length;
+    raw.champ.raceIndex = raceCount;
+    const s = sanitizeSave({ career: raw, cupInProgress: { champ: { ...raw.champ }, cupSeed: 1, humans } });
+    expect(s.career).not.toBeNull();
+    expect(s.career!.champ).toBeNull();
+    expect(s.cupInProgress).toBeNull();
+    // A última corrida ainda por correr continua valendo.
+    raw.champ.raceIndex = raceCount - 1;
+    const ok = sanitizeSave({ career: raw, cupInProgress: { champ: { ...raw.champ }, cupSeed: 1, humans } });
+    expect(nextTrackId(ok.career!.champ!)).toBe(CUPS[0].trackIds[raceCount - 1]);
+    expect(nextTrackId(ok.cupInProgress!.champ)).toBe(CUPS[0].trackIds[raceCount - 1]);
+  });
+
+  it('níveis salvos acima do teto do carro (pneus do Carcará) voltam ao teto', () => {
+    const career = versusCareer(1);
+    const raw = JSON.parse(JSON.stringify(career)) as { drivers: Array<{ garage: Record<string, unknown> }> };
+    raw.drivers[0].garage = { carId: 'carcara', owned: ['carcara'], upgrades: { carcara: lv({ tires: 3, engine: 3 }), falcao: lv({ tires: 3 }) } };
+    const g = sanitizeSave({ career: raw }).career!.drivers[0].garage;
+    expect(g.upgrades.carcara).toEqual(lv({ tires: 1, engine: 3 }));
+    expect(g.upgrades.falcao).toEqual(lv({ tires: 3 }));
   });
 
   it('campeonato normal salvo a cada corrida: ida e volta, e continuar segue da próxima pista', () => {

@@ -40,7 +40,7 @@ export const CARS: CarDef[] = [
     blurb: 'Dispara na saída e cola na curva. Perde para todos no fim da reta longa.',
   },
   {
-    id: 'furacao', name: 'Furacão V10', color: '#ff6d00', price: 22_000,
+    id: 'pororoca', name: 'Pororoca V10', color: '#ff6d00', price: 22_000,
     topSpeed: REFERENCE_SPEED * 1.12, accel: 660, brake: 2500, handling: 0.58, fuelPerUnit: BASE_FUEL * 1.4,
     blurb: 'Ninguém anda mais na reta. Arisco nas curvas e bebe como nenhum outro.',
   },

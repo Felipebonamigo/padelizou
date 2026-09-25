@@ -71,11 +71,13 @@ elenco e o balanceamento das pistas não mudarem.
 | Camelo X | — | 293 | 700 | 2.600 | 0,70 | 0,68 | economia × resto |
 | Sucuri E | 16.000 | 309 | 640 | 2.700 | 0,80 | 0,50 | tanque para a corrida toda × arrancada |
 | Carcará RS | 20.000 | 294 | 900 | 3.000 | 0,97 | 1,05 | arrancada e curva × fim de reta |
-| Furacão V10 | 22.000 | 336 | 660 | 2.500 | 0,58 | 1,40 | a maior reta × curva e consumo |
+| Pororoca V10 | 22.000 | 336 | 660 | 2.500 | 0,58 | 1,40 | a maior reta × curva e consumo |
 | Boitatá GT | 30.000 | 321 | 780 | 2.800 | 0,84 | 0,90 | forte em tudo × o mais caro |
 
 Cada carro novo é o melhor (ou empatado) em algum atributo e perde para um original em outro (há
-teste). Nomes inventados, sem marca.
+teste). Nomes inventados, sem marca, no tema de bicho e lenda brasileira (Sucuri, Carcará, Pororoca,
+Boitatá). O Pororoca se chamou "Furacão V10" até a revisão: é a tradução literal do Lamborghini
+Huracán V10. Um teste recusa, nos carros à venda, nome de marca, de modelo ou a tradução dele.
 
 ### Melhorias (por carro, nível 0–3)
 
@@ -83,7 +85,7 @@ teste). Nomes inventados, sem marca.
 |---|---|---|---|
 | Motor | velocidade máxima +2,5% | 2.400 / 4.200 / 6.600 | 13.200 |
 | Turbo | aceleração +8% | 2.000 / 3.500 / 5.500 | 11.000 |
-| Pneus | dirigibilidade +0,04 (teto 1,0) | 2.000 / 3.500 / 5.500 | 11.000 |
+| Pneus | dirigibilidade +0,04 (teto 1,0; ver abaixo) | 2.000 / 3.500 / 5.500 | 11.000 |
 | Freios | frenagem +12% | 1.600 / 2.800 / 4.400 | 8.800 |
 | Tanque | consumo −10% | 1.400 / 2.500 / 3.800 | 7.700 |
 | Nitro | +1 carga (3 → 6) | 2.200 / 3.900 / 6.100 | 12.200 |
@@ -95,6 +97,14 @@ começa no nível 0), o que dá peso à decisão de comprar um carro caro no mei
 Compra recusada não muda nada e diz por quê: sem saldo, nível máximo, carro já possuído, carro que
 não é seu (`PurchaseResult`).
 
+**Teto por carro.** Só se vende nível que muda alguma coisa (`upgradeCap` em `src/core/sim/stats.ts`,
+`partMaxLevel`/`upgradePrice` em `src/core/career.ts`). Na prática isso só pega os pneus dos carros de
+dirigibilidade alta, que batem no teto de 1,0 antes do nível 3: o **Tornado RS** (0,92 → 0,96 → 1,00)
+para no nível 2 e o **Carcará RS** (0,97 → 1,00) no nível 1. Antes da revisão a garagem cobrava
+$ 5.500 (Tornado) e $ 9.000 (Carcará) por níveis sem efeito nenhum. Na garagem, o nível fora de venda
+aparece riscado, a peça diz "no teto deste carro" e o preço vira MÁX. Save antigo com nível acima do
+teto volta ao teto (o efeito era o mesmo; o dinheiro não volta).
+
 ### Calibragem
 
 Meta: um piloto médio compra 1–2 itens por corrida e chega ao fim da carreira. Um piloto que chega
@@ -103,27 +113,71 @@ corrida, contra itens de $ 1.400 a $ 6.600. O teste "calibragem" simula comprar 
 barato e exige de 1 a 2 itens por corrida com 4 e com 8 copas (o multiplicador de prêmio depende da
 posição relativa da copa, não da quantidade). Quem vence sempre junta o dobro e pode trocar de carro.
 
+Dinheiro sozinho não prova que ele **chega**: isso depende da IA que evolui. Por isso há uma segunda
+calibragem, com corridas inteiras (`tests/career-balance.test.ts`; sonda copa a copa em
+`npx tsx scripts/career-balance.ts [habilidade] [sementes] [máximo da IA]`):
+
+- **O piloto médio** é o cérebro da IA com habilidade fixa (`PROXY_SKILL` = 0,97) no assento humano,
+  20 carros, profissional, assistências padrão. 0,97 é a habilidade que chega por volta de 4º na
+  primeira copa, de fábrica, contra a IA nível 0 — o mesmo piloto que a calibragem de dinheiro supõe.
+- **As melhorias dele** em cada copa são as que essa calibragem lhe dá (sempre 4º, compra a peça mais
+  barata do Falcão): a pior estratégia de desempenho (tanque e freios antes do motor). Se ela chega,
+  uma compra pensada chega com folga.
+- **O teste** exige: a âncora (primeira copa, de fábrica) com média entre 2,5 e 5,5; e na última copa,
+  com as melhorias da calibragem e contra o nível da IA daquela copa, média até 5,5 e top 5 em pelo
+  menos metade das corridas.
+
+Medido na revisão (piloto 0,97, 5 sementes × 3 pistas por copa; posição média e corridas no top 5):
+
+| Máximo da IA | Brasil (IA 0) | EUA | Japão | Europa |
+|---|---|---|---|---|
+| 3 (antes) | 4,4 · 12/15 | 7,6 · 1/9 | 9,3 · 0/9 | **14,6 · 0/9** |
+| 2 | — | 5,7 · 4/9 | 5,9 · 5/9 | 7,9 · 1/9 |
+| 1,5 | — | 5,0 · 9/15 | 4,0 · 14/15 | 6,0 · 8/15 |
+| **1,25 (atual)** | 4,4 · 12/15 | 4,7 · 9/15 | 3,5 · 14/15 | 4,7 · 12/15 |
+
+(As linhas 3 e 2 foram com 3 sementes.) Com 1,25 o piloto médio fica por volta de 4º–5º do começo
+ao fim, que é o que a economia supõe. Uma carreira inteira simulada com ele (compras reais entre as
+corridas, save ida e volta a cada corrida) terminou em 13 corridas, com uma eliminação nos EUA.
+
 ## Rivais que evoluem
 
-O nível da IA vai de 0 na primeira copa a 3 na última, linear entre elas (`careerAiLevel`, pode ser
-fracionário). Ele aplica motor, turbo, pneus e freios no mesmo nível a todos os carros da IA (tanque
-e nitro ficam de fábrica). O nível 3 da IA equivale a $ 44.000 de melhorias por carro — mais ou
-menos o que o piloto médio compra na carreira inteira, então a última copa pede um carro bem
-montado. Fora da carreira `aiLevel` é ausente (0) e nada muda.
+O nível da IA vai de 0 na primeira copa a `CAREER_AI_LEVEL_MAX` = **1,25** na última, linear entre
+elas (`careerAiLevel`, fracionário: 0 · 0,42 · 0,83 · 1,25 com 4 copas). Ele aplica motor, turbo,
+pneus e freios no mesmo nível a todos os carros da IA (tanque e nitro ficam de fábrica): na última
+copa, +3,1% de velocidade máxima, +10% de aceleração, +0,05 de dirigibilidade e +15% de freio.
+Fora da carreira `aiLevel` é ausente (0) e nada muda.
+
+Até a revisão o máximo era 3 (= $ 44.000 de melhorias por carro da IA, tudo o que o piloto médio
+junta na carreira inteira). Medido com corridas inteiras, isso levava o piloto médio do pódio na
+primeira copa para o fim do grid na última (média 14,6), e nem o Falcão com as seis peças no máximo
+passava da primeira corrida da Europa com um piloto de habilidade 0,95. O 1,25 saiu da tabela da calibragem acima.
+
+Com 8 copas, o máximo continua na última (a curva é pela posição relativa da copa, como o prêmio), e
+o piloto médio chega lá com mais corridas de dinheiro: a última copa fica mais fácil que com 4. Se
+isso sobrar, suba `CAREER_AI_LEVEL_MAX` e rode `scripts/career-balance.ts` e o teste de novo.
 
 ## Eliminação
 
 A mesma regra da copa normal: co-op passa se a equipe ficar entre as 3 melhores equipes da corrida;
 versus/solo passa se algum humano chegar no top 5. Eliminado:
 
-- **a corrida que eliminou não paga** (nem prêmio nem bônus); o que já foi ganho fica, e as compras
-  também;
+- **a corrida que eliminou paga só a ajuda de custo**: metade do prêmio da posição
+  (`ELIMINATED_PRIZE_SHARE`), nunca menos que o prêmio de participação ($ 400 × fator da copa), e sem
+  bônus de equipe; o que já foi ganho fica, e as compras também;
 - **a copa recomeça da primeira pista** (tentativa 2, 3, …, sem limite e sem taxa), com a IA no
   mesmo nível;
 - a garagem abre com a faixa "ELIMINADO" e dá para gastar antes de tentar de novo.
 
 Por que assim: perder a carreira inteira numa corrida ruim é duro demais para jogar no sofá com
-crianças; refazer a copa sem o prêmio custa tempo e dinheiro, que é punição suficiente.
+crianças; refazer a copa com metade do prêmio custa tempo e dinheiro, que é punição suficiente. A
+primeira versão não pagava nada na eliminação: somado à IA forte demais, uma equipe co-op um pouco
+abaixo da média que tinha gastado tudo ficou 24 corridas seguidas eliminada com o cofre em $ 0 (a
+revisão simulou). Com a ajuda de custo, até uma dupla no fundo do grid junta $ 800 por tentativa e
+compra a peça mais barata em duas (há teste); cada tentativa deixa o carro um pouco melhor. Na
+mesma simulação da revisão (dupla co-op de habilidade 0,93 — sozinha, ~9º na primeira copa —, no
+profissional, gastando tudo), a equipe agora sai: 23 tentativas na primeira copa, depois termina a
+carreira em 40 corridas. É um caminho longo de propósito; para esse jogador a saída natural é o amador.
 
 Copa concluída: ela conta também como concluída no Campeonato normal (libera a próxima copa lá), a
 IA sobe de nível e o prêmio cresce. A última copa concluída encerra a carreira ("CARREIRA
@@ -155,13 +209,16 @@ com a regra de sempre: lixo vira ausente, campo ruim é consertado, nunca lança
 
 - `carsUnlocked`: só ids de carros à venda, sem repetição.
 - `career` (`CareerState`, ver `src/core/career.ts`): pilotos (máx. 4) com garagem (carros
-  comprados, carro escolhido — cai num original se não for seu —, níveis presos a 0–3, só de carros
-  seus), carteiras coerentes com o modo (1 no co-op, 1 por piloto no versus), copa atual (copa
-  desconhecida volta à primeira), copa em andamento (descartada se não bater com a atual ou já tiver
-  acabado), tentativas, contagem de corridas e o relatório da última corrida. Sem piloto
-  aproveitável → `null`.
+  comprados, carro escolhido — cai num original se não for seu —, níveis presos de 0 ao teto da peça
+  naquele carro, só de carros seus), carteiras coerentes com o modo (1 no co-op, 1 por piloto no
+  versus), copa atual (copa desconhecida volta à primeira), copa em andamento (descartada se não bater
+  com a atual, se já tiver acabado ou se não tiver corrida por correr — nesse caso a copa recomeça),
+  tentativas, contagem de corridas e o relatório da última corrida. Sem piloto aproveitável → `null`.
 - `cupInProgress` (`SavedCup`): descartado inteiro se a copa, a semente ou os humanos (assentos
   0..n-1) não fecharem.
+- Copa (`ChampionshipState`) em andamento — nem concluída nem eliminada — com o índice da corrida no
+  fim (`raceIndex` = número de pistas) é lixo: antes passava e prendia a carreira na garagem (cada
+  PRONTO voltava para ela) e deixava "Continuar — corrida 4 de 3" para sempre no menu.
 
 ## Onde está cada coisa
 
@@ -180,7 +237,11 @@ com a regra de sempre: lixo vira ausente, campo ruim é consertado, nunca lança
 - **Telas**: `src/ui/screens/garage.ts` + `garage.css` (tela Carreira e Garagem); itens no menu
   principal (`simple.ts`); modo carreira e "Continuar" no lobby (`lobby.ts`); botão GARAGEM na
   classificação (`results.ts`). Textos PT/EN em `src/career/strings.ts`.
-- **Testes**: `tests/career.test.ts`.
+- **Testes**: `tests/career.test.ts` (regras, núcleo, save; colisões e reboque com `car.stats`),
+  `tests/career-session.test.ts` (a sessão de verdade com dublês de renderizador, entrada, áudio e
+  menus: começar a copa grava, correr grava, reabrir e Continuar segue com o mesmo elenco, sair pela
+  pausa mantém o índice; na carreira, da classificação volta à garagem) e
+  `tests/career-balance.test.ts` (calibragem contra a IA com corridas inteiras).
 
 ## Fora desta versão
 

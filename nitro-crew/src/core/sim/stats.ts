@@ -6,7 +6,7 @@ import {
   UPGRADE_TANK_FUEL, UPGRADE_TIRES_HANDLING, UPGRADE_TURBO_ACCEL,
 } from '../constants';
 import { carDef } from '../data/cars';
-import type { CarDef, CarState, CarStats, RaceConfig, UpgradeLevels } from '../types';
+import type { CarDef, CarState, CarStats, RaceConfig, UpgradeLevels, UpgradePart } from '../types';
 
 /** Nível dentro de [0, UPGRADE_MAX_LEVEL]; lixo (NaN, infinito, ausente) vale 0. Fracionário é aceito (IA). */
 export function clampLevel(v: number | undefined): number {
@@ -25,6 +25,26 @@ export function effectiveStats(def: CarDef, up?: Partial<UpgradeLevels> | null):
     fuelPerUnit: def.fuelPerUnit * (1 - UPGRADE_TANK_FUEL * lv('tank')),
     nitro: NITRO_PER_RACE + UPGRADE_NITRO_CHARGES * Math.floor(lv('nitro')),
   };
+}
+
+/** Atributo que cada peça melhora. */
+export const PART_STAT: Readonly<Record<UpgradePart, keyof CarStats>> = {
+  engine: 'topSpeed', turbo: 'accel', tires: 'handling', brakes: 'brake', tank: 'fuelPerUnit', nitro: 'nitro',
+};
+
+/**
+ * Último nível da peça que ainda muda alguma coisa neste carro. É UPGRADE_MAX_LEVEL para quase tudo;
+ * os pneus param antes nos carros que batem no teto de dirigibilidade (Tornado RS no 2, Carcará RS
+ * no 1). A carreira não vende nível acima disto — seria cobrar por nada.
+ */
+export function upgradeCap(def: CarDef, part: UpgradePart): number {
+  const k = PART_STAT[part];
+  let cap = 0;
+  for (let level = 1; level <= UPGRADE_MAX_LEVEL; level++) {
+    if (effectiveStats(def, { [part]: level })[k] === effectiveStats(def, { [part]: level - 1 })[k]) break;
+    cap = level;
+  }
+  return cap;
 }
 
 /** IA da carreira: motor, turbo, pneus e freios no nível `level` (tanque e nitro de fábrica). */

@@ -7,6 +7,7 @@ import { UPGRADE_MAX_LEVEL } from './constants';
 import { CARS } from './data/cars';
 import { CUPS } from './data/cups';
 import { HUMAN_TEAM_ID, SEAT_COLORS } from './data/drivers';
+import { upgradeCap } from './sim/stats';
 import type { ChampionshipState, CupDef, HumanEntry, RaceResultRow, UpgradeLevels, UpgradePart } from './types';
 
 export const CAREER_VERSION = 1;
@@ -27,8 +28,18 @@ export const PRIZE_CUP_GROWTH = 0.75;
 /** Preço de cada nível de melhoria (1º, 2º, 3º), antes do fator da peça. */
 export const UPGRADE_PRICES: readonly number[] = [2000, 3500, 5500];
 export const PART_PRICE_FACTOR: Readonly<Record<UpgradePart, number>> = { engine: 1.2, turbo: 1, tires: 1, brakes: 0.8, tank: 0.7, nitro: 1.1 };
-/** Nível de melhoria da IA na última copa (a primeira é 0; entre elas, linear). */
-export const CAREER_AI_LEVEL_MAX = 3;
+/**
+ * Nível de melhoria da IA na última copa (a primeira é 0; entre elas, linear). Calibrado com corridas
+ * inteiras para o piloto médio (~4º na primeira copa) seguir por volta de 4º até a última, com as
+ * melhorias que a economia lhe dá (tests/career-balance.test.ts, scripts/career-balance.ts). O antigo 3
+ * levava esse piloto do pódio para o fim do grid na última copa.
+ */
+export const CAREER_AI_LEVEL_MAX = 1.25;
+/**
+ * A corrida que elimina paga esta fração do prêmio da posição, nunca menos que a ajuda de custo
+ * (PRIZE_PARTICIPATION no fator da copa), e sem bônus de equipe.
+ */
+export const ELIMINATED_PRIZE_SHARE = 0.5;
 /** Teto de dinheiro no save (lixo acima disto é trazido para cá). */
 export const MONEY_MAX = 999_999_999;
 
@@ -169,9 +180,15 @@ export function hasUpgrades(up: Partial<UpgradeLevels> | null | undefined): bool
   return !!up && UPGRADE_PARTS.some((p) => (up[p] ?? 0) > 0);
 }
 
-/** Preço do próximo nível da peça (estando em `level`); null quando já está no máximo. */
-export function upgradePrice(part: UpgradePart, level: number): number | null {
-  if (level >= UPGRADE_MAX_LEVEL) return null;
+/** Último nível da peça que muda alguma coisa no carro (pneus param antes no teto de dirigibilidade). */
+export function partMaxLevel(carId: string, part: UpgradePart): number {
+  const def = CARS.find((c) => c.id === carId);
+  return def ? upgradeCap(def, part) : UPGRADE_MAX_LEVEL;
+}
+
+/** Preço do próximo nível da peça no carro (estando em `level`); null quando o carro já está no máximo dela. */
+export function upgradePrice(part: UpgradePart, level: number, carId: string): number | null {
+  if (level >= partMaxLevel(carId, part)) return null;
   const base = UPGRADE_PRICES[Math.max(0, Math.floor(level))];
   return Math.round((base * PART_PRICE_FACTOR[part]) / 100) * 100;
 }
@@ -183,7 +200,7 @@ export function buyUpgrade(career: CareerState, driver: number, part: UpgradePar
   const id = carId ?? d.garage.carId;
   if (!ownsCar(d.garage, id)) return 'notOwned';
   const levels = levelsOf(d.garage, id);
-  const price = upgradePrice(part, levels[part]);
+  const price = upgradePrice(part, levels[part], id);
   if (price === null) return 'maxLevel';
   if (walletOf(career, driver) < price) return 'noMoney';
   career.wallets[walletIndex(career, driver)] -= price;
@@ -259,7 +276,7 @@ export function beginCareerCup(career: CareerState, rosterSeed: number): Champio
 }
 
 /**
- * Aplica o resultado de uma corrida: pontos da copa, prêmios (a corrida que elimina não paga),
+ * Aplica o resultado de uma corrida: pontos da copa, prêmios (a corrida que elimina paga só a ajuda de custo),
  * avanço de copa e eliminação (a copa recomeça da primeira corrida, sem limite de tentativas).
  * Devolve o relatório e a copa como ficou (para a classificação), mesmo que a carreira já tenha
  * seguido para a próxima copa.
@@ -273,8 +290,12 @@ export function settleCareerRace(career: CareerState, results: RaceResultRow[], 
   const trackId = cups[cupIndex]?.trackIds[raceIndex] ?? '';
   applyRaceResult(champ, results, humans);
   const qualified = champ.lastVerdict === 'qualified';
-  const prizes = racePrizes(results, humans, career.coop, prizeMultiplier(cupIndex, cups.length));
-  const rows = prizes.rows.map((r) => ({ ...r, prize: qualified ? r.prize : 0 }));
+  const mult = prizeMultiplier(cupIndex, cups.length);
+  const prizes = racePrizes(results, humans, career.coop, mult);
+  // Eliminado: só a ajuda de custo. Punição (metade do prêmio e a copa de novo) sem deixar quem
+  // gastou tudo preso num cofre vazio — cada tentativa ainda junta para a próxima melhoria.
+  const allowance = (prize: number) => (prize > 0 ? Math.max(roundMoney(prize * ELIMINATED_PRIZE_SHARE), roundMoney(PRIZE_PARTICIPATION * mult)) : 0);
+  const rows = prizes.rows.map((r) => ({ ...r, prize: qualified ? r.prize : allowance(r.prize) }));
   const teamBonus = qualified ? prizes.teamBonus : 0;
   for (const r of rows) {
     credit(career, r.driver, r.prize);

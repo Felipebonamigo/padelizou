@@ -2,10 +2,10 @@
 // ausente, campo ruim é consertado, nunca lança) e os ajudantes que a sessão usa para gravar.
 // O save.ts chama os sanitize* daqui; as regras de jogo moram em src/core/career.ts.
 import {
-  CAREER_VERSION, MONEY_MAX, NO_UPGRADES, ownsCar, UPGRADE_PARTS,
+  CAREER_VERSION, MONEY_MAX, NO_UPGRADES, ownsCar, partMaxLevel, UPGRADE_PARTS,
   type CareerDriver, type CareerGarage, type CareerPrizeRow, type CareerReport, type CareerState,
 } from '../core/career';
-import { MAX_SEATS, UPGRADE_MAX_LEVEL } from '../core/constants';
+import { MAX_SEATS } from '../core/constants';
 import { CARS } from '../core/data/cars';
 import { CUPS } from '../core/data/cups';
 import { AI_TEAM_ID_BASE, SEAT_COLORS } from '../core/data/drivers';
@@ -95,12 +95,16 @@ export function sanitizeChampionship(v: unknown): ChampionshipState | null {
   const raceCount = cup.trackIds.length;
   const raceIndex = strictInt(v.raceIndex, 0, raceCount);
   if (raceIndex === null) return null;
+  const eliminated = v.eliminated === true; const completed = v.completed === true;
+  // Copa em andamento sempre tem uma corrida por correr; índice no fim sem copa encerrada é lixo
+  // (prenderia a carreira na garagem e deixaria o "Continuar" para sempre no menu).
+  if (!eliminated && !completed && raceIndex >= raceCount) return null;
   const lastRace = Array.isArray(v.lastRace) ? list(v.lastRace, sanitizeResultRow) : null;
   return {
     cupId: cup.id, raceIndex,
     standings: list(v.standings, (x) => sanitizeStanding(x, raceCount)),
     teams: list(v.teams, sanitizeTeam),
-    coop: v.coop === true, eliminated: v.eliminated === true, completed: v.completed === true,
+    coop: v.coop === true, eliminated, completed,
     lastRace: lastRace && lastRace.length > 0 ? lastRace : null,
     lastVerdict: v.lastVerdict === 'qualified' || v.lastVerdict === 'eliminated' ? v.lastVerdict : null,
   };
@@ -108,10 +112,11 @@ export function sanitizeChampionship(v: unknown): ChampionshipState | null {
 
 // ───────────────────────────── Carreira ─────────────────────────────
 
-function sanitizeLevels(v: unknown): UpgradeLevels | null {
+/** Níveis de um carro, cada peça presa ao que ainda muda algo nele (pneus param antes no teto de dirigibilidade). */
+function sanitizeLevels(v: unknown, carId: string): UpgradeLevels | null {
   if (!isRecord(v)) return null;
   const out = { ...NO_UPGRADES };
-  for (const p of UPGRADE_PARTS) out[p] = int(v[p], 0, UPGRADE_MAX_LEVEL, 0);
+  for (const p of UPGRADE_PARTS) out[p] = int(v[p], 0, partMaxLevel(carId, p), 0);
   return out;
 }
 
@@ -121,7 +126,7 @@ function sanitizeGarage(v: unknown): CareerGarage {
   if (isRecord(r.upgrades)) {
     for (const [id, lv] of Object.entries(r.upgrades)) {
       if (!ownsCar(garage, id)) continue;
-      const levels = sanitizeLevels(lv);
+      const levels = sanitizeLevels(lv, id);
       if (levels) garage.upgrades[id] = levels;
     }
   }
