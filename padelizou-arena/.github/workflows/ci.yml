@@ -40,8 +40,7 @@ jobs:
         working-directory: Padel.Godot
         run: |
           "$GODOT" --headless --path . --import
-          "$GODOT" --headless --path . -- --auto --semente 42 --sair-apos 15 | tee saida.txt
-          grep -q "Saindo após" saida.txt
+          ../ferramentas/rodar_sem_tela.sh "$GODOT" --auto --semente 42 --sair-apos 15
       - name: Conferência da interface (linha de comando, configuração, placar, controle)
         working-directory: Padel.Godot
         run: '"$GODOT" --headless --path . res://cenas/TestePlacar.tscn -- --conferir'
@@ -93,8 +92,9 @@ jobs:
       - name: O build Linux exportado roda sozinho
         working-directory: build/linux
         run: |
-          ./PadelizouArena.x86_64 --headless -- --auto --semente 42 --sair-apos 10 | tee saida.txt
+          ./PadelizouArena.x86_64 --headless -- --auto --semente 42 --sair-apos 10 2>&1 | tee saida.txt
           grep -q "Saindo após" saida.txt
+          ! grep -qE "leaked at exit|still in use at exit" saida.txt
       - uses: actions/upload-artifact@v4
         with:
           name: PadelizouArena-linux

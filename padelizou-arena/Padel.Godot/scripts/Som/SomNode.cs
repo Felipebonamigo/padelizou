@@ -93,6 +93,7 @@ public partial class SomNode : Node3D
     private readonly AudioStreamPlayer _ambiente = new() { Name = "Ambiente" };
     private readonly AudioStreamPlayer _publico = new() { Name = "Publico" };
     private readonly AudioStreamPlayer _bip = new() { Name = "Bip" };
+    private bool _encerrado;
     private readonly RandomNumberGenerator _sorteio = new();
     private AudioStreamWav? _streamDoAmbiente;
     private float _baseDbDoPublico, _baseDbDoBip;
@@ -160,6 +161,27 @@ public partial class SomNode : Node3D
             ArquivosCarregados++;
         }
         else GD.PushError($"SomNode: {ambiente} não carregou — o ambiente fica mudo");
+    }
+
+    /// <summary>
+    /// Saindo da árvore (fim de partida, troca de cena, fechar o jogo): para tudo. O Godot para sozinho os tocadores 3D,
+    /// mas não os outros (ambiente, público, bip) — e fechar o jogo com reprodução viva vaza AudioStreamPlaybackWAV.
+    /// </summary>
+    public override void _ExitTree() => Encerrar();
+
+    /// <summary>
+    /// Para tudo na hora, sem fade, e o nó não toca mais nada. Quem vai FECHAR o jogo chama isto e espera um ciclo de
+    /// mixagem antes do Quit: parar só no _ExitTree do desligamento chega tarde, e o servidor de áudio não recolhe as
+    /// reproduções a tempo; e o jogo ainda roda durante a espera, então nada pode voltar a tocar.
+    /// </summary>
+    public void Encerrar()
+    {
+        _encerrado = true;
+        foreach (var v in _vozes) v.Tocador.Stop();
+        _ambiente.Stop();
+        _publico.Stop();
+        _bip.Stop();
+        _alvoDoAmbiente = 0f;
     }
 
     public override void _Process(double delta)
@@ -239,6 +261,7 @@ public partial class SomNode : Node3D
     /// <summary>Liga o ambiente do clube (loop de 20 s) com entrada suave, de um ponto sorteado do loop.</summary>
     public void IniciarAmbiente()
     {
+        if (_encerrado) return;
         if (_streamDoAmbiente is null) return;
         _alvoDoAmbiente = 1f;
         if (!_ambiente.Playing)
@@ -313,6 +336,7 @@ public partial class SomNode : Node3D
 
     private void Tocar3D(string familia, Vector3 posicao, float baseDb, Prioridade prioridade)
     {
+        if (_encerrado) return;
         if (!IsInsideTree()) return;
         var stream = Sortear(familia);
         if (stream is null) return;
@@ -348,6 +372,7 @@ public partial class SomNode : Node3D
 
     private void TocarNaoPosicional(AudioStreamPlayer tocador, string familia, float baseDb)
     {
+        if (_encerrado) return;
         if (!IsInsideTree()) return;
         var stream = Sortear(familia);
         if (stream is null) return;

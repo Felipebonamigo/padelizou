@@ -77,7 +77,65 @@ public partial class TesteSomNode : Node3D
         await CasoPrioridade();
         await CasoLimiteDeVozes();
         await CasoVolume();
+        await CasoSaidaDaArvore();
+        await CasoEncerrado();
     }
+
+    /// <summary>Encerrado (o jogo está fechando), o nó não toca mais nada — a partida ainda roda durante a espera da saída.</summary>
+    private async Task CasoEncerrado()
+    {
+        var outro = new SomNode { Name = "SomEncerrado" };
+        AddChild(outro);
+        await Quadros(2);
+        outro.IniciarAmbiente();
+        outro.Encerrar();
+        outro.IniciarAmbiente();
+        outro.TocarGolpe(Perto, "smash", 1f);
+        outro.TocarQuique(Perto);
+        outro.TocarParede(Longe, grade: true);
+        outro.TocarRede(Perto);
+        for (int i = 0; i < 30; i++) outro.TocarPassos(Perto, 6f, 0);
+        outro.Ponto(aFavorDaCasa: false);
+        await Quadros(1);
+        int tocando = outro.GetChildren().Count(Tocando);
+        RemoveChild(outro);
+        outro.QueueFree();
+        await Esperar(0.25);
+        if (tocando > 0) { Falhar("encerrado", $"{tocando} tocador(es) tocando depois de Encerrar"); return; }
+        Ok("encerrado (nada toca depois de Encerrar)");
+    }
+
+    /// <summary>
+    /// Sair da árvore com som tocando (fim de partida, troca de cena, fechar o jogo) para todos os tocadores. Sem isso o
+    /// Godot fecha com as reproduções vivas e acusa "ObjectDB instances were leaked" / "resources still in use at exit".
+    /// </summary>
+    private async Task CasoSaidaDaArvore()
+    {
+        var outro = new SomNode { Name = "SomQueSai" };
+        AddChild(outro);
+        await Quadros(2);
+        outro.IniciarAmbiente();
+        outro.TocarGolpe(Perto, "smash", 1f);
+        outro.TocarParede(Longe, grade: false);
+        outro.Ponto(aFavorDaCasa: true);
+        await Quadros(1);
+        var tocadores = outro.GetChildren().Where(n => n is AudioStreamPlayer or AudioStreamPlayer3D).ToList();
+        int antes = tocadores.Count(Tocando);
+        RemoveChild(outro);
+        int depois = tocadores.Count(Tocando);
+        outro.QueueFree();
+        await Esperar(0.25);   // o servidor de áudio recolhe as reproduções paradas no ciclo de mixagem seguinte (quadro sem tela é microssegundo)
+        if (antes < 4) { Falhar("saída da árvore", $"só {antes} tocador(es) tocando antes de sair (esperado 4: ambiente, golpe, vidro, público)"); return; }
+        if (depois > 0) { Falhar("saída da árvore", $"{depois} de {antes} tocador(es) continuaram tocando depois de o nó sair da árvore"); return; }
+        Ok($"saída da árvore ({antes} tocadores parados ao sair)");
+    }
+
+    private static bool Tocando(Node n) => n switch
+    {
+        AudioStreamPlayer p => p.Playing,
+        AudioStreamPlayer3D p => p.Playing,
+        _ => false,
+    };
 
     private void ConferirCarregamento()
     {

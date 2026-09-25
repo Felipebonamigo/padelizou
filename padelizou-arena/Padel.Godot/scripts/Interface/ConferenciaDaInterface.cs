@@ -416,6 +416,50 @@ public static class ConferenciaDaInterface
             Igual(aceitar, InputMap.ActionGetEvents("ui_accept").Count, "eventos de ui_accept");
             Igual(cancelar, InputMap.ActionGetEvents("ui_cancel").Count, "eventos de ui_cancel");
         }),
+        // ---- Entrada da partida (EntradaLocal): sozinho x coop no sofá ----
+        Sincrono("sozinho: qualquer controle joga (A, B, direcional) e o L é lob", () =>
+        {
+            EntradaLocal.ConfigurarMapa(coop: false);
+            foreach (int controle in new[] { 0, 1, 2 })
+            {
+                Exigir(Botao(JoyButton.A, controle, apertado: true).IsActionPressed(EntradaLocal.Acao), $"A do controle {controle} deveria ser a ação jogando sozinho");
+                Exigir(Botao(JoyButton.B, controle, apertado: true).IsActionPressed(EntradaLocal.Lob), $"B do controle {controle} deveria ser o lob jogando sozinho");
+                Exigir(Eixo(JoyAxis.LeftX, -1, controle).IsActionPressed(EntradaLocal.Esquerda), $"o analógico do controle {controle} deveria mover jogando sozinho");
+            }
+            Exigir(TeclaFisica(Key.L).IsActionPressed(EntradaLocal.Lob), "L deveria ser lob jogando sozinho");
+        }),
+        Sincrono("coop: o controle 1 e o IJKL são do segundo jogador, não do primeiro", () =>
+        {
+            EntradaLocal.ConfigurarMapa(coop: true);
+            Exigir(Botao(JoyButton.A, 0, apertado: true).IsActionPressed(EntradaLocal.Acao), "A do controle 0 deveria ser a ação do primeiro");
+            Exigir(!Botao(JoyButton.A, 1, apertado: true).IsActionPressed(EntradaLocal.Acao), "A do controle 1 é do segundo jogador: não pode balançar o primeiro");
+            Exigir(!Botao(JoyButton.B, 1, apertado: true).IsActionPressed(EntradaLocal.Lob), "B do controle 1 é do segundo jogador: não pode dar lob pelo primeiro");
+            Exigir(!Eixo(JoyAxis.LeftX, -1, 1).IsActionPressed(EntradaLocal.Esquerda), "o analógico do controle 1 não pode mover o primeiro");
+            Exigir(!TeclaFisica(Key.L).IsActionPressed(EntradaLocal.Lob), "L é a direita do segundo jogador (IJKL): não pode dar lob pelo primeiro");
+            Exigir(TeclaFisica(Key.Shift).IsActionPressed(EntradaLocal.Lob), "Shift continua sendo o lob do primeiro no coop");
+            EntradaLocal.ConfigurarMapa(coop: false);
+            Exigir(Botao(JoyButton.A, 1, apertado: true).IsActionPressed(EntradaLocal.Acao), "voltando a jogar sozinho, o controle 1 volta a jogar");
+            Exigir(TeclaFisica(Key.L).IsActionPressed(EntradaLocal.Lob), "voltando a jogar sozinho, o L volta a ser lob");
+        }),
+        Sincrono("Start de qualquer controle pausa, sozinho e no coop", () =>
+        {
+            foreach (bool coop in new[] { false, true })
+            {
+                EntradaLocal.ConfigurarMapa(coop);
+                foreach (int controle in new[] { 0, 1, 2 })
+                    Exigir(Botao(JoyButton.Start, controle, apertado: true).IsActionPressed(EntradaLocal.Pausa), $"Start do controle {controle} deveria pausar (coop={coop})");
+            }
+            EntradaLocal.ConfigurarMapa(coop: false);
+        }),
+        Sincrono("configurar o mapa da partida de novo não duplica evento", () =>
+        {
+            EntradaLocal.ConfigurarMapa(coop: false);
+            int acao = InputMap.ActionGetEvents(EntradaLocal.Acao).Count, lob = InputMap.ActionGetEvents(EntradaLocal.Lob).Count;
+            EntradaLocal.ConfigurarMapa(coop: true);
+            EntradaLocal.ConfigurarMapa(coop: false);
+            Igual(acao, InputMap.ActionGetEvents(EntradaLocal.Acao).Count, "eventos da ação");
+            Igual(lob, InputMap.ActionGetEvents(EntradaLocal.Lob).Count, "eventos do lob");
+        }),
         new("botão focado responde ao A do segundo controle", async no =>
         {
             TemaPadelizou.ConfigurarEntradaDaInterface();
@@ -476,6 +520,11 @@ public static class ConferenciaDaInterface
 
     private static InputEventJoypadButton Botao(JoyButton botao, int controle, bool apertado) =>
         new() { ButtonIndex = botao, Device = controle, Pressed = apertado };
+
+    private static InputEventJoypadMotion Eixo(JoyAxis eixo, float valor, int controle) =>
+        new() { Axis = eixo, AxisValue = valor, Device = controle };
+
+    private static InputEventKey TeclaFisica(Key tecla) => new() { PhysicalKeycode = tecla, Pressed = true };
 
     /// <summary>Aperta e solta um botão do controle, direto no viewport (o caminho que o Godot usa, sem depender de janela).</summary>
     private static void Apertar(Node no, JoyButton botao, int controle)

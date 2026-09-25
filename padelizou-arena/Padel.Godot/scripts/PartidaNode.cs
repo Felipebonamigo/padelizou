@@ -27,6 +27,9 @@ public partial class PartidaNode : Node3D
     private readonly List<JogadorNode> _jogadores = [];
     private CameraNode? _camera;
     private PlacarDeTvNode _placar = null!;
+    private bool _saindo;
+    private SomNode _som = null!;
+    private int _sonsTocados;
     private TelaDePausa _pausa = null!;
     private TelaDeFim _fim = null!;
     private MeshInstance3D? _marcaDaCaixa;
@@ -50,7 +53,7 @@ public partial class PartidaNode : Node3D
 
     public override void _Ready()
     {
-        EntradaLocal.ConfigurarMapa();
+        GetTree().AutoAcceptQuit = false;   // fechar a janela passa pelo SairLimpo (ver _Notification)
         if (!_linhaDeComandoLida)
         {
             _linhaDeComandoLida = true;
@@ -59,6 +62,7 @@ public partial class PartidaNode : Node3D
             Configuracao.LerLinhaDeComando(args);
             LerArgumentosDaPartida(args);
         }
+        EntradaLocal.ConfigurarMapa(coop: Configuracao.Modo == ModoDeJogo.CoopLocal);
         if (EmCarreira && EstadoDaCarreira.Automatico) { _bot = true; _replay.Ligado = false; }
         if (EstadoDaCarreira.JogoEmDisputa is { } jogo && EstadoDaCarreira.Atual is { } carreira)
         {
@@ -71,6 +75,11 @@ public partial class PartidaNode : Node3D
         AddChild(_quadra);
         _bola = new BolaNode { Name = "Bola" };
         AddChild(_bola);
+        _som = new SomNode { Name = "Som" };
+        AddChild(_som);
+        _som.AoTocar += _ => _sonsTocados++;
+        _som.Volume(Configuracao.Volume);
+        _som.IniciarAmbiente();
         for (int i = 0; i < 4; i++)
         {
             var no = new JogadorNode { Name = $"Jogador{i}" };
@@ -176,6 +185,7 @@ public partial class PartidaNode : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (_saindo) return;   // fechando: a partida para enquanto o som é recolhido
         bool online = Sessao is not SessaoLocal;
         if (!_pausado && !_fimMostrado && Input.IsActionJustPressed(EntradaLocal.Pausa)) Pausar();
         _tempoVivo += delta;
@@ -233,7 +243,11 @@ public partial class PartidaNode : Node3D
         return bot.Decidir(estado, delta);
     }
 
-    public override void _ExitTree() => Sessao?.Dispose();
+    public override void _ExitTree()
+    {
+        GetTree().AutoAcceptQuit = true;   // o menu e a carreira fecham do jeito normal
+        Sessao?.Dispose();
+    }
 
     private void VerificarFim()
     {
@@ -241,10 +255,10 @@ public partial class PartidaNode : Node3D
         {
             if (_tempoVivo < sairApos && !Sessao.Acabou) return;
             if (Sessao.Acabou && !_fimMostrado) MostrarFim();   // a partida acabou antes do prazo: a tela de fim entra no screenshot
-            GD.Print($"Saindo após {_tempoVivo:F1} s: {Sessao.ResumoParaLog()}");
+            GD.Print($"Saindo após {_tempoVivo:F1} s: {Sessao.ResumoParaLog()} sons={_sonsTocados}");
             Configuracao.SairApos = null;
             if (Configuracao.Screenshot is string arquivo) SalvarScreenshotESair(arquivo);
-            else GetTree().Quit();
+            else SairLimpo();
             return;
         }
         if (Sessao.Acabou && !_fimMostrado && !_replay.Reproduzindo) MostrarFim();
@@ -295,7 +309,27 @@ public partial class PartidaNode : Node3D
         var imagem = GetViewport().GetTexture().GetImage();
         var erro = imagem.SavePng(arquivo);
         GD.Print($"Screenshot {(erro == Error.Ok ? "salvo em" : "FALHOU: " + erro + " —")} {arquivo}");
+        SairLimpo();
+    }
+
+    /// <summary>
+    /// Fecha o jogo sem som tocando: para tudo e espera o servidor de áudio recolher as reproduções (um ciclo de
+    /// mixagem, em tempo de relógio — com --fixed-fps o tempo do jogo não serve) antes do Quit. Sem isso o Godot fecha
+    /// acusando "ObjectDB instances were leaked" e "resources still in use at exit" (o CI reprova: ferramentas/rodar_sem_tela.sh).
+    /// </summary>
+    private async void SairLimpo()
+    {
+        if (_saindo) return;
+        _saindo = true;
+        _som.Encerrar();
+        await Task.Delay(250);
         GetTree().Quit();
+    }
+
+    public override void _Notification(int what)
+    {
+        // Fechar a janela no meio da partida sai pelo mesmo caminho limpo (o AutoAcceptQuit fica desligado só nesta cena).
+        if (what == NotificationWMCloseRequest) SairLimpo();
     }
 
     private void DesenharReplay(RetratoDaPartida quadro, float delta)
@@ -324,6 +358,7 @@ public partial class PartidaNode : Node3D
             _marcaDaCaixa = r.CaixaDoSaque is Caixa caixa ? _quadra.CriarMarcaDaCaixa(caixa) : null;
             _caixaMarcada = r.CaixaDoSaque;
         }
+        foreach (var j in r.Jogadores) _som.TocarPassos(Coordenadas.NoChao(j.X, j.Y), MathF.Sqrt(j.Vx * j.Vx + j.Vy * j.Vy), j.Indice);
         foreach (var a in r.Acontecimentos) AoAcontecimento(a, r);
         // Replay só na partida local: no online a partida não pode parar pros outros.
         if (Sessao is SessaoLocal && _replay.Observar(r)) GD.Print($"Replay: começou em {_tempoVivo:F1} s ({r.Placar.Resumo} {r.Placar.Pontos[0]}-{r.Placar.Pontos[1]})");
@@ -349,10 +384,43 @@ public partial class PartidaNode : Node3D
     private string Dupla(RetratoDaPartida r, int time) =>
         _nomesDasDuplas is { } nomes ? nomes[time] : $"{r.Jogadores[time * 2].Nome} / {r.Jogadores[time * 2 + 1].Nome}";
 
-    private static void AoAcontecimento(Acontecimento a, RetratoDaPartida r)
+    private void AoAcontecimento(Acontecimento a, RetratoDaPartida r)
     {
-        // Ponto de encaixe do som e dos efeitos. Por enquanto, log do que muda o placar.
+        var onde = Coordenadas.ParaGodot(a.X, a.Y, a.Z);
+        switch (a.Tipo)
+        {
+            case TipoDeEventoDaPartida.Golpe:
+                var golpe = a.Golpe ?? TipoDeGolpe.Normal;
+                _som.TocarGolpe(onde, golpe.ToString(), ForcaDoGolpe(golpe));
+                break;
+            case TipoDeEventoDaPartida.Quique: _som.TocarQuique(onde); break;
+            case TipoDeEventoDaPartida.Parede: _som.TocarParede(onde, SuperficieNoImpacto(a) == Superficie.Grade); break;
+            case TipoDeEventoDaPartida.Rede: _som.TocarRede(onde); break;
+            case TipoDeEventoDaPartida.Ponto: _som.Ponto(a.Time == TimeDaCasa()); break;
+        }
         if (a.Tipo is TipoDeEventoDaPartida.Ponto or TipoDeEventoDaPartida.Game or TipoDeEventoDaPartida.Set or TipoDeEventoDaPartida.Partida)
             GD.Print($"{a.Tipo}: time {a.Time} — {(a.Motivo is Motivo m ? Partida.Motivos[m] : "")} | {r.Placar.Resumo} {r.Placar.Pontos[0]}-{r.Placar.Pontos[1]}");
+    }
+
+    /// <summary>A "casa" do público é o time de quem joga nesta máquina (na demonstração, o time 0).</summary>
+    private int TimeDaCasa() => Sessao.JogadoresLocais.Count > 0 ? Sessao.JogadoresLocais[0] / 2 : 0;
+
+    /// <summary>Força do golpe pro volume do som (0 a 1): remate cheio, toque suave.</summary>
+    private static float ForcaDoGolpe(TipoDeGolpe golpe) => golpe switch
+    {
+        TipoDeGolpe.Smash or TipoDeGolpe.SmashPor3 or TipoDeGolpe.SmashPor4 => 1f,
+        TipoDeGolpe.Ataque or TipoDeGolpe.Vibora => 0.8f,
+        TipoDeGolpe.Normal or TipoDeGolpe.Bandeja or TipoDeGolpe.Erro => 0.6f,
+        TipoDeGolpe.Saque or TipoDeGolpe.Defesa => 0.5f,
+        _ => 0.35f,   // lob, chiquita, contrapared: toque
+    };
+
+    /// <summary>Vidro ou grade no ponto do impacto — a mesma régua que a física usa (<see cref="Quadra.SuperficieDaParede"/>).</summary>
+    private static Superficie SuperficieNoImpacto(Acontecimento a)
+    {
+        bool lateral = MathF.Abs(MathF.Abs(a.X) - Quadra.MeiaLargura) < MathF.Abs(MathF.Abs(a.Y) - Quadra.MeioComprimento);
+        return lateral
+            ? Quadra.SuperficieDaParede(QualParede.Lateral, a.Y, a.Z)
+            : Quadra.SuperficieDaParede(QualParede.Fundo, a.X, a.Z);
     }
 }

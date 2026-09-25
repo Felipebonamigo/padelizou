@@ -6,7 +6,7 @@ using Padel.Core;
 namespace Padel.Godot.Interface;
 
 /// <summary>
-/// Tela inicial: Jogar (contra a IA), Coop local, Online (criar sala / entrar numa sala), Opções, Sair.
+/// Tela inicial: Jogar (contra a IA), Carreira, Coop local, Online (criar sala / entrar numa sala), Opções, Sair.
 /// Navega por teclado, controle (direcional, analógico, A/B) e mouse, com foco sempre visível; pensado pra
 /// ler bem a 1280x800 (Steam Deck). Atrás, a quadra girando devagar.
 /// Na primeira abertura lê user://configuracao.json e a linha de comando; se ela pedir partida direta
@@ -16,6 +16,8 @@ namespace Padel.Godot.Interface;
 public partial class MenuNode : Node
 {
     public const string CenaDaPartida = "res://cenas/Partida.tscn";
+    public const string CenaDaCarreira = "res://cenas/Carreira.tscn";
+    private string _cenaDestino = CenaDaPartida;
     private const float MargemLateral = 96f;
 
     private enum Tela { Principal, Online, Opcoes }
@@ -30,7 +32,7 @@ public partial class MenuNode : Node
     private PainelDeOpcoes _opcoes = null!;
     private DicaDeControles _dicas = null!;
     private Label _descricao = null!;
-    private Button _jogar = null!, _coop = null!, _botaoOnline = null!, _botaoOpcoes = null!, _sair = null!;
+    private Button _jogar = null!, _carreira = null!, _coop = null!, _botaoOnline = null!, _botaoOpcoes = null!, _sair = null!;
     private Button _criar = null!, _entrar = null!;
     private LineEdit _portaParaCriar = null!, _enderecoDaSala = null!, _portaDaSala = null!;
     private Label _erroAoCriar = null!, _erroAoEntrar = null!;
@@ -184,6 +186,7 @@ public partial class MenuNode : Node
         botoes.AddThemeConstantOverride("separation", 4);
         coluna.AddChild(botoes);
         _jogar = BotaoDoMenu(botoes, "Jogar", () => $"Você e um parceiro da IA contra uma dupla da IA.\n{ResumoDaPartida()}", () => Iniciar(ModoDeJogo.Local));
+        _carreira = BotaoDoMenu(botoes, "Carreira", () => "Um circuito de etapas com grupos, chave e ranking: você e um parceiro da IA contra as duplas do circuito.\nO progresso fica salvo.", () => Iniciar(ModoDeJogo.Local, CenaDaCarreira));
         _coop = BotaoDoMenu(botoes, "Coop local", () => $"Você e um amigo na mesma dupla, cada um com um controle.\nControles conectados agora: {Input.GetConnectedJoypads().Count}.", () => Iniciar(ModoDeJogo.CoopLocal));
         _botaoOnline = BotaoDoMenu(botoes, "Online", () => "Crie uma sala pra um amigo entrar pelo seu IP, ou entre na sala dele.", () => Mostrar(Tela.Online));
         _botaoOpcoes = BotaoDoMenu(botoes, "Opções", () => "Dificuldade, ponto de ouro, formato, golpe, mão, nome e volume.", () => Mostrar(Tela.Opcoes));
@@ -453,13 +456,14 @@ public partial class MenuNode : Node
         erro.Visible = true;
     }
 
-    private void Iniciar(ModoDeJogo modo)
+    private void Iniciar(ModoDeJogo modo, string cena = CenaDaPartida)
     {
         if (_saindo) return;
         _saindo = true;
+        _cenaDestino = cena;
         Configuracao.Modo = modo;
         Configuracao.Salvar();
-        GD.Print($"Menu: {modo} — indo pra {CenaDaPartida}.");
+        GD.Print($"Menu: {modo} — indo pra {cena}.");
 
         // Cortina marinho: esconde a troca de cena e segura clique/tecla durante ela.
         var cortina = new ColorRect { Color = TemaPadelizou.MarinhoProfundo, Modulate = new Color(1, 1, 1, 0), MouseFilter = Control.MouseFilterEnum.Stop };
@@ -473,9 +477,9 @@ public partial class MenuNode : Node
 
     private void IrPraPartida()
     {
-        var erro = GetTree().ChangeSceneToFile(CenaDaPartida);
+        var erro = GetTree().ChangeSceneToFile(_cenaDestino);
         if (erro == Error.Ok) return;
-        GD.PushError($"Menu: não consegui abrir {CenaDaPartida}: {erro}");
+        GD.PushError($"Menu: não consegui abrir {_cenaDestino}: {erro}");
         if (_pulouMenu) GetTree().Quit(1);   // sem tela (CI), travar esperando ninguém é pior que falhar
         else _saindo = false;
     }

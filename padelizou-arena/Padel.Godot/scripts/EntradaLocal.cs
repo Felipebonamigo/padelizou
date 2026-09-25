@@ -18,27 +18,40 @@ public static class EntradaLocal
     public const string Lob = "lob";
     public const string Pausa = "pausa";
 
-    public static void ConfigurarMapa()
+    /// <summary>
+    /// Monta o mapa do primeiro jogador (refaz a cada chamada: o InputMap é global e a partida anterior pode ter sido
+    /// de outro modo). Sozinho, qualquer controle joga e o L também é lob. No coop, o controle 1 e o IJKL são do segundo
+    /// jogador (<see cref="LerSegundo"/>): o primeiro fica com o controle 0 e perde o L, que é a "direita" do IJKL — sem
+    /// isso, o segundo andar pra direita fazia o primeiro dar lob. A pausa é de todo mundo: Start de qualquer controle.
+    /// </summary>
+    public static void ConfigurarMapa(bool coop = false)
     {
-        Definir(Esquerda, Tecla(Key.Left), Tecla(Key.A), Eixo(JoyAxis.LeftX, -1));
-        Definir(Direita, Tecla(Key.Right), Tecla(Key.D), Eixo(JoyAxis.LeftX, 1));
-        Definir(Frente, Tecla(Key.Up), Tecla(Key.W), Eixo(JoyAxis.LeftY, -1));
-        Definir(Tras, Tecla(Key.Down), Tecla(Key.S), Eixo(JoyAxis.LeftY, 1));
-        Definir(Acao, Tecla(Key.Space), Tecla(Key.Enter), Botao(JoyButton.A));
-        Definir(Lob, Tecla(Key.Shift), Tecla(Key.L), Botao(JoyButton.B));
-        Definir(Pausa, Tecla(Key.Escape), Tecla(Key.P), Botao(JoyButton.Start));
+        int controle = coop ? PrimeiroControle : QualquerControle;
+        Definir(Esquerda, Tecla(Key.Left), Tecla(Key.A), Eixo(JoyAxis.LeftX, -1, controle));
+        Definir(Direita, Tecla(Key.Right), Tecla(Key.D), Eixo(JoyAxis.LeftX, 1, controle));
+        Definir(Frente, Tecla(Key.Up), Tecla(Key.W), Eixo(JoyAxis.LeftY, -1, controle));
+        Definir(Tras, Tecla(Key.Down), Tecla(Key.S), Eixo(JoyAxis.LeftY, 1, controle));
+        Definir(Acao, Tecla(Key.Space), Tecla(Key.Enter), Botao(JoyButton.A, controle));
+        if (coop) Definir(Lob, Tecla(Key.Shift), Botao(JoyButton.B, controle));
+        else Definir(Lob, Tecla(Key.Shift), Tecla(Key.L), Botao(JoyButton.B, controle));
+        Definir(Pausa, Tecla(Key.Escape), Tecla(Key.P), Botao(JoyButton.Start, QualquerControle));
     }
+
+    // Um InputEvent de controle novo nasce com Device = 0 (só o primeiro controle); -1 é "qualquer um"
+    // (InputMap::ALL_DEVICES, que o C# não expõe) — o mesmo que TemaPadelizou usa no A/B da interface.
+    private const int QualquerControle = -1;
+    private const int PrimeiroControle = 0;
 
     private static void Definir(string acao, params InputEvent[] eventos)
     {
-        if (InputMap.HasAction(acao)) return;
-        InputMap.AddAction(acao, deadzone: 0.2f);
+        if (InputMap.HasAction(acao)) InputMap.ActionEraseEvents(acao);
+        else InputMap.AddAction(acao, deadzone: 0.2f);
         foreach (var e in eventos) InputMap.ActionAddEvent(acao, e);
     }
 
     private static InputEventKey Tecla(Key tecla) => new() { PhysicalKeycode = tecla };
-    private static InputEventJoypadMotion Eixo(JoyAxis eixo, float valor) => new() { Axis = eixo, AxisValue = valor };
-    private static InputEventJoypadButton Botao(JoyButton botao) => new() { ButtonIndex = botao };
+    private static InputEventJoypadMotion Eixo(JoyAxis eixo, float valor, int controle) => new() { Axis = eixo, AxisValue = valor, Device = controle };
+    private static InputEventJoypadButton Botao(JoyButton botao, int controle) => new() { ButtonIndex = botao, Device = controle };
 
     public static Entrada Ler()
     {
