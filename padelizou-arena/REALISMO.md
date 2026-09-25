@@ -22,7 +22,9 @@ O que **não** vamos fazer: simular a colisão raquete-bola a partir da animaç�
 | Efeito (Magnus) | Cl = 1 / (2 + v/(R·ω)) (Štěpánek) | topspin de 2.500 rpm cai > 0,5 m antes; slice flutua; sidespin desvia > 0,4 m em 8 m (testes) |
 | Quique | modelo de rolamento com limite de atrito, casca esférica (I = ⅔ mR²) | topspin sai mais rápido e com mais spin; flat e slice deslizam o contato inteiro (teste) |
 | Vidro | temperado, elástico, liso | e = 0,85, μ = 0,25: devolve forte, sidespin escorrega |
-| Grade | malha metálica | e = 0,40, μ = 0,80: mata a bola (teste: < 60 % da velocidade do vidro); a grade começa a 3 m |
+| Grade | malha metálica | e = 0,30–0,50 e μ = 0,80, com desvio de até ±15°: mata a bola e devolve torto (teste: < 60 % da velocidade do vidro). A irregularidade sai de um hash do ponto de contato — determinística, igual em qualquer máquina, porque o online depende disso |
+| Paredes (regra FIP, a calibrar com a planta de uma quadra panorâmica) | fundo: 3 m de vidro + 1 m de grade; lateral: 2 m junto ao fundo com vidro de 3 m + grade até 4 m, depois 2 m de degrau com vidro de 2 m + grade até 3 m, e o meio de grade até 3 m | exatamente isso em `Quadra.Paineis`, que a física usa e o desenho vai usar; acima da altura de cada trecho a bola sai |
+| Portas | 4 aberturas nas laterais, junto à rede | de 0,45 a 1,25 m da rede, até 2 m de altura; a bola que passa por elas sai ("saída pela porta"), e o árbitro dá o ponto pelas regras de sempre |
 | Rede | 0,88 m centro / 0,92 postes | 0,90 m; bola que toca cai |
 | Jogador | tiro curto 6–7 m/s; arranca em ~1 s; freia mais forte | humano 6,4 m/s, IA 4,6–6,6; aceleração 9 m/s², frenagem 14 (≈ 1,5 m pra parar) (teste) |
 | Balanço | ~0,3 s do início ao contato bom | balanço de 0,30 s; contato ideal 0,12 s depois do aperto; erro = \|Δt\|/0,15 + 0,6 × dificuldade (esticado, baixo, rápido); erro > 0,95 vira bola na rede ou no vidro; **sem apertar, a bola passa** (teste). Modo *Automático* fica como assistência |

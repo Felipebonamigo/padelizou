@@ -28,19 +28,19 @@ public partial class QuadraNode : Node3D
             Caixa($"LinhaCentral{s}", new Vector3(largura, altura, Quadra.MeioComprimento - Quadra.LinhaDeSaque), new Vector3(0, altura, s * meio), Linha);
         }
 
-        // Vidros: fundo (3 m + 1 m de grade) e laterais (3 m, simplificado — na quadra real a lateral escalona).
-        float vidroAlto = Quadra.AlturaDoVidro, grade = Quadra.AlturaDaParede - Quadra.AlturaDoVidro;
-        foreach (int s in new[] { -1, 1 })
+        // Paredes: exatamente os painéis que a física usa (Quadra.Paineis) — vidro escalonado, grade e as portas abertas.
+        // Desenhar medida à mão aqui deixaria a bola sair "através" de uma parede desenhada.
+        foreach (var painel in Quadra.Paineis) Painel(painel);
+        // Colunas da estrutura nas emendas dos painéis de cada lateral e nos cantos.
+        var colunas = new HashSet<(int, float)>();
+        foreach (var painel in Quadra.Paineis)
         {
-            Caixa($"VidroFundo{s}", new Vector3(Quadra.Largura + 0.2f, vidroAlto, 0.05f), new Vector3(0, vidroAlto / 2, s * (Quadra.MeioComprimento + 0.025f)), Vidro, transparente: true);
-            Caixa($"GradeFundo{s}", new Vector3(Quadra.Largura + 0.2f, grade, 0.03f), new Vector3(0, vidroAlto + grade / 2, s * (Quadra.MeioComprimento + 0.025f)), new Color(0.5f, 0.55f, 0.65f, 0.35f), transparente: true);
-            Caixa($"VidroLateral{s}", new Vector3(0.05f, vidroAlto, Quadra.Comprimento), new Vector3(s * (Quadra.MeiaLargura + 0.025f), vidroAlto / 2, 0), Vidro, transparente: true);
-            Caixa($"GradeLateral{s}", new Vector3(0.03f, grade, Quadra.Comprimento), new Vector3(s * (Quadra.MeiaLargura + 0.025f), vidroAlto + grade / 2, 0), new Color(0.5f, 0.55f, 0.65f, 0.35f), transparente: true);
+            if (painel.Parede != QualParede.Lateral) continue;
+            colunas.Add((painel.Sinal, painel.Inicio));
+            colunas.Add((painel.Sinal, painel.Fim));
         }
-        // Colunas da estrutura nos cantos e no meio das laterais.
-        foreach (int sx in new[] { -1, 1 })
-            foreach (float z in new[] { -Quadra.MeioComprimento, -Quadra.LinhaDeSaque, 0, Quadra.LinhaDeSaque, Quadra.MeioComprimento })
-                Caixa($"Coluna{sx}_{z}", new Vector3(0.12f, Quadra.AlturaDaParede, 0.12f), new Vector3(sx * (Quadra.MeiaLargura + 0.06f), Quadra.AlturaDaParede / 2, z), Estrutura);
+        foreach (var (sinal, y) in colunas)
+            Caixa($"Coluna{sinal}_{y:F2}", new Vector3(0.1f, Quadra.AlturaDaParede, 0.1f), new Vector3(sinal * (Quadra.MeiaLargura + 0.05f), Quadra.AlturaDaParede / 2, y), Estrutura);
 
         // Rede e postes.
         Caixa("Rede", new Vector3(Quadra.Largura, Quadra.AlturaDaRede, 0.02f), new Vector3(0, Quadra.AlturaDaRede / 2, 0), Rede, transparente: true);
@@ -51,6 +51,23 @@ public partial class QuadraNode : Node3D
             poste.MaterialOverride = new StandardMaterial3D { AlbedoColor = Estrutura };
             AddChild(poste);
         }
+    }
+
+    private static readonly Color Grade = new(0.55f, 0.6f, 0.7f, 0.3f);
+
+    private void Painel(Painel p)
+    {
+        float comprimento = p.Fim - p.Inicio, altura = p.ZMax - p.ZMin, meio = (p.Inicio + p.Fim) / 2, zMeio = (p.ZMin + p.ZMax) / 2;
+        bool vidro = p.Superficie == Superficie.Vidro;
+        float espessura = vidro ? 0.05f : 0.03f;
+        var cor = vidro ? Vidro : Grade;
+        // Core: lateral fica em x = ±5 e corre em y; fundo fica em y = ±10 e corre em x. Godot: (x, altura, y).
+        if (p.Parede == QualParede.Lateral)
+            Caixa($"{p.Superficie}Lateral{p.Sinal}_{meio:F2}_{zMeio:F1}", new Vector3(espessura, altura, comprimento),
+                new Vector3(p.Sinal * (Quadra.MeiaLargura + espessura / 2), zMeio, meio), cor, transparente: true);
+        else
+            Caixa($"{p.Superficie}Fundo{p.Sinal}_{meio:F2}_{zMeio:F1}", new Vector3(comprimento, altura, espessura),
+                new Vector3(meio, zMeio, p.Sinal * (Quadra.MeioComprimento + espessura / 2)), cor, transparente: true);
     }
 
     private void Caixa(string nome, Vector3 tamanho, Vector3 posicao, Color cor, bool transparente = false)
