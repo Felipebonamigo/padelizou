@@ -4,8 +4,9 @@ namespace Padel.Godot.Interface;
 
 /// <summary>
 /// Pausa: Continuar, Opções, Sair pro menu — cada botão só emite o seu sinal; quem abriu decide o que fazer.
-/// Esc/B/Start (ui_cancel ou a ação "pausa") pedem Continuar. Atenção de quem integra: enquanto ela está aberta,
-/// não trate a mesma tecla de novo (o PartidaNode de hoje lê "pausa" por polling e alternaria duas vezes).
+/// Esc/B/Start (ui_cancel ou a ação "pausa") pedem Continuar, e o evento sai marcado como tratado. Atenção de quem
+/// integra: abra a pausa pelo evento (_UnhandledInput), como o PartidaNode — por polling, o mesmo aperto que acabou de
+/// fechar a pausa ainda conta como "acabou de apertar" no quadro de física e a reabre.
 /// Processa mesmo com a árvore pausada.
 /// </summary>
 public partial class TelaDePausa : Control

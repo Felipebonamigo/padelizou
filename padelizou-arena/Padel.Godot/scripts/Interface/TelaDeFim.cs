@@ -12,6 +12,7 @@ public partial class TelaDeFim : Control
     [Signal] public delegate void MenuPedidoEventHandler();
 
     private readonly Label _resultado;
+    private readonly Label _aviso;
     private readonly QuadroDoPlacar _quadro;
     private readonly GridContainer _estatisticas;
     private readonly Button _jogarDeNovo;
@@ -29,6 +30,11 @@ public partial class TelaDeFim : Control
         _resultado = TemaPadelizou.Rotulo("", TemaPadelizou.TituloDaTela);
         _resultado.AddThemeFontSizeOverride("font_size", 48);
         coluna.AddChild(_resultado);
+        _aviso = TemaPadelizou.Rotulo("", TemaPadelizou.Descricao);
+        _aviso.AddThemeColorOverride("font_color", TemaPadelizou.Alerta);
+        _aviso.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _aviso.Visible = false;
+        coluna.AddChild(_aviso);
         coluna.AddChild(TemaPadelizou.Espaco(4));
 
         _quadro = new QuadroDoPlacar { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Fundo = new Color(TemaPadelizou.MarinhoClaro, 0.6f) };
@@ -70,10 +76,13 @@ public partial class TelaDeFim : Control
     /// <param name="vitoria">Pinta a manchete de lima (a vitória de quem está olhando pra tela).</param>
     /// <param name="sets">Os sets jogados, do ponto de vista da casa.</param>
     /// <param name="estatisticas">Pares rótulo/valor, na ordem de exibição (dois por linha).</param>
+    /// <param name="aviso">Uma linha de alerta embaixo da manchete (ex.: o perfil não foi salvo). Null esconde.</param>
     public void Mostrar(string resultado, bool vitoria, string duplaCasa, string duplaRivais,
-        IReadOnlyList<SetAnterior> sets, IReadOnlyList<(string Rotulo, string Valor)> estatisticas)
+        IReadOnlyList<SetAnterior> sets, IReadOnlyList<(string Rotulo, string Valor)> estatisticas, string? aviso = null)
     {
         _resultado.Text = resultado;
+        _aviso.Text = aviso ?? "";
+        _aviso.Visible = !string.IsNullOrEmpty(aviso);
         _resultado.AddThemeColorOverride("font_color", vitoria ? TemaPadelizou.Lima : TemaPadelizou.Branco);
         _quadro.Atualizar(new DadosDoPlacar(duplaCasa, duplaRivais, sets, 0, 0, "", "", -1, PartidaEncerrada: true));
 

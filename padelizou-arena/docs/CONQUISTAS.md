@@ -193,10 +193,29 @@ na construção. A Steam corta valores com mais de 256 caracteres, e há teste d
   `user://perfil.json`, arquivo ilegível guardado ao lado (nunca apagado), e arquivo de versão mais nova intocado. As
   conquistas novas aparecem na tela de fim. **Falta a Steam** (passos 2, 5, 6 e 7: `SetAchievement`, estatísticas,
   sincronia na abertura, mesclagem do Cloud e Rich Presence), que entra com o Facepunch.Steamworks (D5).
+- **Revisão de 25/09** (cada item com teste na `ConferenciaDaInterface` ou em `ferramentas/conferir_rodadas_de_teste.sh`):
+  - toda gravação **relê o disco** antes de aplicar: duas instâncias no mesmo arquivo (host e cliente na mesma
+    máquina, o jogo aberto duas vezes) somam em vez de uma apagar a outra. Sem trava entre processos — sobra a janela
+    de milissegundos do ler-aplicar-gravar (atalho comentado no `PerfilLocal.Aplicar`, com a saída);
+  - erro de disco **nunca escapa** do `PerfilLocal`: arquivo preso ou sem permissão, e ilegível que não dá pra guardar
+    ao lado, ficam intocados e nada é gravado por cima; o registrado fica pendente e a próxima gravação tenta de novo;
+  - a situação fica exposta (`PerfilLocal.Situacao` e `Aviso`: versão mais nova, sem leitura, gravação que falhou,
+    ilegível guardado) e vai pra **tela de fim** e pra **tela Perfil**, não só pro log. Conquista que não chegou ao
+    disco aparece como "Conquista (não salva)". A tela Perfil relê o disco (`Reler`) e, com progresso pendente, tenta
+    gravá-lo de novo — o aviso só some quando ele está no disco (é o único aviso de quem largou a partida, sem tela de
+    fim);
+  - **nome e mão** trocados nas Opções vão pro perfil com o instante da troca (`MudarPreferencias`) — só quando o
+    jogador troca ali, pra jogar num PC não desfazer a troca feita no outro;
+  - rodada automática (`--bot`, carreira automática, `--sair-apos`, `--screenshot`) só grava perfil com `--perfil ARQ`.
 
-- **Coletor no cliente online**: o cliente não tem `Partida`, então golpes e vencedores de uma partida online não
-  entram no perfil do cliente. Só a vitória entra, pelo evento. O caminho é o host mandar o resumo de cada jogador no
-  fim, ou um coletor sobre os eventos da `VisaoDaPartida`.
+- **Cliente online não soma partida, vitória nem tempo** (decidido em 25/09, fica assim até o Core ter o caminho): o
+  cliente não tem `Partida`, então golpes, vencedores, `Partidas`, `Vitorias` e `SegundosDeJogo` de uma partida online
+  não entram no perfil do cliente — nem na derrota. Só as conquistas do evento `VitoriaOnline` entram
+  (`PRIMEIRA_VITORIA`, `VITORIA_ONLINE`). Por isso a tela Perfil de quem só venceu como cliente mostra "0 vitórias" com
+  `PRIMEIRA_VITORIA` desbloqueada, e a `MARATONA` não conta essas partidas. Um resumo "mínimo" montado no cliente foi
+  descartado: com os campos que o cliente não sabe em zero, uma vitória sem bola na rede medida seria dada de graça
+  (`SEM_BOLA_NA_REDE` pede `GolpesNaRede == 0`). O caminho é o host mandar o resumo de cada jogador no fim, ou um
+  coletor sobre os eventos da `VisaoDaPartida` — os dois no `Padel.Core`.
 - Cadastrar as 20 conquistas, as 2 estatísticas e os tokens de Rich Presence no Steamworks. Desenhar os ícones.
 - A raridade real de `RALLY_30`, `VIRADA` e `PELA_PORTA` só aparece no playtest (M5). Mexer na meta é mudar o número
   **e** o teste; o ID nunca muda.

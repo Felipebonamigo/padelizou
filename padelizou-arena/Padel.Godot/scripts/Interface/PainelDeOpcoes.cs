@@ -19,6 +19,8 @@ public partial class PainelDeOpcoes : PanelContainer
     private readonly LineEdit _nome;
     private readonly Button _voltar;
     private readonly Label _descricao;
+    private string _nomeAoAbrir = "";
+    private bool _destroAoAbrir;
 
     public PainelDeOpcoes()
     {
@@ -141,6 +143,8 @@ public partial class PainelDeOpcoes : PanelContainer
         _mao.Selecionar(Configuracao.Destro ? 0 : 1);
         _nome.Text = Configuracao.NomeDoJogador;
         _volume.Selecionar((int)MathF.Round(Configuracao.Volume * 10));
+        _nomeAoAbrir = Configuracao.NomeDoJogador;
+        _destroAoAbrir = Configuracao.Destro;
     }
 
     /// <summary>Mostra, sincroniza e põe o foco na primeira opção.</summary>
@@ -155,6 +159,12 @@ public partial class PainelDeOpcoes : PanelContainer
     {
         Configuracao.NomeDoJogador = _nome.Text;
         Configuracao.Salvar();
+        // O nome e a mão também moram no perfil (é ele que vai pro Cloud, com o instante da troca): só quando o jogador os
+        // trocou AQUI — gravar as opções de sempre desfaria a troca feita noutro PC.
+        if (Configuracao.NomeDoJogador != _nomeAoAbrir || Configuracao.Destro != _destroAoAbrir)
+            PerfilLocal.DoJogo.MudarPreferencias(Configuracao.NomeDoJogador, Configuracao.Destro);
+        _nomeAoAbrir = Configuracao.NomeDoJogador;
+        _destroAoAbrir = Configuracao.Destro;
         Hide();
         EmitSignal(SignalName.Fechado);
     }

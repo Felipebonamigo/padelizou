@@ -55,6 +55,7 @@ public partial class MenuNode : Node
             Configuracao.Carregar();
             foreach (var aviso in Configuracao.LerLinhaDeComando(args)) GD.PushWarning(aviso);
             PerfilLocal.LerLinhaDeComando(args);
+            EstadoDaCarreira.LerLinhaDeComando(args);
         }
         Configuracao.AplicarVolume();
 
@@ -406,7 +407,9 @@ public partial class MenuNode : Node
                 _criar.CallDeferred(Control.MethodName.GrabFocus);
                 break;
             case Tela.Perfil:
-                _perfil.Preencher(PerfilLocal.DoJogo.Atual);
+                // Relido do disco: outra instância do jogo pode ter gravado; e o aviso diz se ele não está sendo salvo.
+                var perfilLocal = PerfilLocal.DoJogo;
+                _perfil.Preencher(perfilLocal.Reler(), perfilLocal.Aviso);
                 _dicas.Definir(new Dica("Esc", "B", "voltar"));
                 _perfil.Voltar.CallDeferred(Control.MethodName.GrabFocus);
                 break;

@@ -15,6 +15,7 @@ public partial class TelaDoPerfil : VBoxContainer
 
     private readonly Label _titulo;
     private readonly Label _numeros;
+    private readonly Label _aviso;
     private readonly GridContainer _grade;
     private readonly ScrollContainer _rolagem;
 
@@ -29,6 +30,11 @@ public partial class TelaDoPerfil : VBoxContainer
         _numeros = TemaPadelizou.Rotulo("", TemaPadelizou.Subtitulo);
         _numeros.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_numeros);
+        _aviso = TemaPadelizou.Rotulo("", TemaPadelizou.Descricao);
+        _aviso.AddThemeColorOverride("font_color", TemaPadelizou.Alerta);
+        _aviso.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _aviso.Visible = false;
+        AddChild(_aviso);
         AddChild(TemaPadelizou.Espaco(4));
 
         _rolagem = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
@@ -67,9 +73,12 @@ public partial class TelaDoPerfil : VBoxContainer
     /// <summary>Quantas conquistas a grade mostra (uma linha por conquista do catálogo).</summary>
     public int Linhas => _grade.GetChildCount();
 
-    public void Preencher(PerfilDoJogador perfil)
+    /// <param name="aviso">O que houve com o arquivo do perfil (<see cref="PerfilLocal.Aviso"/>): versão mais nova, não salvo… Null esconde.</param>
+    public void Preencher(PerfilDoJogador perfil, string? aviso = null)
     {
         _titulo.Text = perfil.Nome;
+        _aviso.Text = aviso ?? "";
+        _aviso.Visible = !string.IsNullOrEmpty(aviso);
         var tempo = TimeSpan.FromSeconds(perfil.SegundosDeJogo);
         int desbloqueadas = CatalogoDeConquistas.Todas.Count(c => perfil.Conquistas.ContainsKey(c.Id));
         _numeros.Text = string.Create(CultureInfo.InvariantCulture,

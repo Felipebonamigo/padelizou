@@ -46,6 +46,11 @@ jobs:
         run: '"$GODOT" --headless --path . res://cenas/TestePlacar.tscn -- --conferir'
       - name: Salas impossíveis (porta ocupada, endereço que não resolve, host ausente, recusa)
         run: ferramentas/conferir_salas_impossiveis.sh "$GODOT"
+      # A foto com tela usa um X virtual (xvfb-run); as imagens do GitHub costumam trazê-lo, e se não, instala.
+      - name: Rodadas de teste (carreira e perfil de teste noutro arquivo, --sair-apos e --screenshot que terminam)
+        run: |
+          command -v xvfb-run > /dev/null || sudo apt-get install -y xvfb
+          ferramentas/conferir_rodadas_de_teste.sh "$GODOT"
       - name: O rodar_sem_tela reprova o que está quebrado
         run: ferramentas/teste_rodar_sem_tela.sh
       - name: Conferência da rede (ENet de verdade em 127.0.0.1)

@@ -10,18 +10,23 @@ namespace Padel.Godot;
 /// A tela da carreira: a etapa do circuito, os grupos e a chave, o próximo jogo da sua dupla e o ranking. "Jogar"
 /// abre a partida de verdade contra a dupla rival (dificuldade pela força dela); ao acabar, a partida volta pra cá com
 /// o resultado. Tudo o que é regra (grupos, chave, pontos) vem do Padel.Core.Torneio — a mesma régua do Padelizou.
-/// Argumentos: --carreira-nova (descarta a salva), --carreira-sozinha (humano simulado joga e a tela avança sozinha: teste).
+/// Argumentos: --carreira ARQ (a carreira noutro arquivo), --carreira-nova (descarta a salva) e --carreira-sozinha
+/// (humano simulado joga e a tela avança sozinha). Os dois últimos são de teste e exigem --carreira ARQ.
 /// </summary>
 public partial class CarreiraNode : Control
 {
     private Label _titulo = null!;
     private Label _detalhe = null!;
+    /// <summary>O que houve com o arquivo (ilegível guardada, gravação que falhou). Nasce aqui, sem o "= null!" dos outros.</summary>
+    private readonly Label _aviso = Rotulo(18, TemaPadelizou.Alerta);
     private RichTextLabel _quadro = null!;
     private RichTextLabel _ranking = null!;
     private Button _principal = null!;
     private Button _simular = null!;
     private Button _menu = null!;
     private Action? _acaoPrincipal;
+    /// <summary>A última abertura do arquivo, pra tela dizer o que houve (ilegível guardada, versão mais nova, arquivo preso).</summary>
+    private CargaDaCarreira? _carga;
     private static bool _argumentosLidos;
 
     public override void _Ready()
@@ -32,15 +37,35 @@ public partial class CarreiraNode : Control
             var args = OS.GetCmdlineUserArgs();
             Configuracao.LerLinhaDeComando(args);
             PerfilLocal.LerLinhaDeComando(args);
-            if (args.Contains("--carreira-sozinha")) EstadoDaCarreira.Automatico = true;
-            if (args.Contains("--carreira-nova") && File.Exists(EstadoDaCarreira.Caminho)) File.Delete(EstadoDaCarreira.Caminho);
+            EstadoDaCarreira.LerLinhaDeComando(args);
+            bool sozinha = args.Contains("--carreira-sozinha"), nova = args.Contains("--carreira-nova");
+            if ((sozinha || nova) && EstadoDaCarreira.CaminhoPedido is null)
+            {
+                // Os dois são de teste: sem arquivo próprio, jogariam (ou apagariam) a carreira de quem joga no user://.
+                GD.PrintErr("Carreira: --carreira-sozinha e --carreira-nova são de teste e exigem --carreira ARQ (a carreira de teste noutro arquivo); "
+                    + $"sem ele, mexeriam na carreira de verdade em {EstadoDaCarreira.Arquivo}. Nada foi tocado.");
+                GetTree().Quit(1);
+                return;
+            }
+            if (sozinha) EstadoDaCarreira.Automatico = true;
+            if (nova && File.Exists(EstadoDaCarreira.Caminho)) File.Delete(EstadoDaCarreira.Caminho);
         }
-        if (EstadoDaCarreira.Atual is null && !EstadoDaCarreira.Carregar())
-            EstadoDaCarreira.Nova($"{Configuracao.NomeDoJogador} / Parceiro", Configuracao.Semente ?? (uint)Time.GetUnixTimeFromSystem());
         Montar();
+        if (EstadoDaCarreira.Atual is null) Abrir();
         Atualizar();
         if (EstadoDaCarreira.Automatico) Callable.From(ApertarSozinho).CallDeferred();
         else if (Configuracao.Screenshot is string arquivo) Captura.SalvarESair(this, arquivo);
+    }
+
+    /// <summary>
+    /// Abre a carreira salva. Começa outra só se não havia nenhuma, ou se a ilegível já foi guardada ao lado; a de um jogo
+    /// mais novo e a que não deu pra ler ficam intocadas, e a tela diz por quê.
+    /// </summary>
+    private void Abrir()
+    {
+        _carga = EstadoDaCarreira.Carregar();
+        if (_carga.PodeComecarOutra)
+            EstadoDaCarreira.Nova($"{Configuracao.NomeDoJogador} / Parceiro", Configuracao.Semente ?? (uint)Time.GetUnixTimeFromSystem());
     }
 
     private void Montar()
@@ -59,8 +84,10 @@ public partial class CarreiraNode : Control
 
         _titulo = Rotulo(34, TemaPadelizou.Branco);
         _detalhe = Rotulo(20, TemaPadelizou.TextoSuave);
+        _aviso.Visible = false;
         coluna.AddChild(_titulo);
         coluna.AddChild(_detalhe);
+        coluna.AddChild(_aviso);
 
         var linhas = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
         linhas.AddThemeConstantOverride("separation", 32);
@@ -111,7 +138,16 @@ public partial class CarreiraNode : Control
     private void Atualizar()
     {
         var carreira = EstadoDaCarreira.Atual;
-        if (carreira is null) return;
+        if (carreira is null)
+        {
+            MostrarQueNaoAbriu();
+            return;
+        }
+        var avisos = new List<string>();
+        if (_carga?.Mensagem is string doArquivo) avisos.Add(doArquivo);
+        if (EstadoDaCarreira.ErroAoSalvar is string erro) avisos.Add($"Não deu pra salvar a carreira ({erro}): o que mudou aqui se perde ao fechar o jogo.");
+        _aviso.Text = string.Join("\n", avisos);
+        _aviso.Visible = avisos.Count > 0;
         string eu = carreira.DuplaDoJogador.Nome;
         _ranking.Text = TextoDoRanking(carreira, eu);
         _simular.Visible = false;
@@ -122,7 +158,7 @@ public partial class CarreiraNode : Control
             _titulo.Text = "Circuito encerrado";
             _detalhe.Text = minha is null ? "" : $"{eu} terminou em {minha.Posicao}º, com {minha.Pontos} pontos e {minha.Titulos} título(s).";
             _quadro.Text = TextoDosResultados(carreira);
-            Principal("Nova carreira", () => { EstadoDaCarreira.Nova(eu, (uint)Time.GetUnixTimeFromSystem()); Atualizar(); });
+            Principal("Nova carreira", () => { _carga = null; EstadoDaCarreira.Nova(eu, (uint)Time.GetUnixTimeFromSystem()); Atualizar(); });
             return;
         }
 
@@ -182,8 +218,29 @@ public partial class CarreiraNode : Control
             PerfilLocal.DoJogo.Registrar(new Padel.Core.Perfil.CircuitoEncerrado(minha.Posicao));
     }
 
+    /// <summary>A carreira não abriu: a de um jogo mais novo só manda atualizar; a que não deu pra ler oferece tentar de novo.</summary>
+    private void MostrarQueNaoAbriu()
+    {
+        _quadro.Text = "";
+        _ranking.Text = "";
+        _simular.Visible = false;
+        _aviso.Visible = false;
+        _detalhe.Text = _carga?.Mensagem ?? "";
+        if (_carga?.Situacao == SituacaoDaCarreira.DeUmJogoMaisNovo)
+        {
+            _titulo.Text = "Carreira de uma versão mais nova";
+            _acaoPrincipal = null;
+            _principal.Visible = false;
+            _menu.GrabFocus();
+            return;
+        }
+        _titulo.Text = "Não deu pra abrir a carreira";
+        Principal("Tentar de novo", () => { Abrir(); Atualizar(); });
+    }
+
     private void Principal(string texto, Action acao)
     {
+        _principal.Visible = true;
         _principal.Text = texto;
         _acaoPrincipal = acao;
         _principal.GrabFocus();
@@ -201,14 +258,7 @@ public partial class CarreiraNode : Control
 
     private void Jogar(JogoDoTorneio jogo, string rival, Padel.Core.Dificuldade dificuldade, int setsParaVencer)
     {
-        EstadoDaCarreira.JogoEmDisputa = jogo;
-        // Cada jogo com a sua semente, tirada da carreira, da etapa e do número do jogo: reproduzível, e nenhum jogo repete
-        // o outro (com uma semente só, todo jogo contra a mesma dificuldade saía idêntico — visto no teste automático).
-        if (EstadoDaCarreira.Atual is { } carreira)
-            Configuracao.Semente = EstadoDaCarreira.SementeDoJogo(carreira.Semente, carreira.IndiceDaProximaEtapa, jogo.Numero);
-        Configuracao.Modo = ModoDeJogo.Local;
-        Configuracao.Dificuldade = dificuldade;
-        Configuracao.SetsParaVencer = setsParaVencer;
+        EstadoDaCarreira.PrepararJogo(jogo, dificuldade, setsParaVencer);
         GD.Print($"Carreira: jogo {jogo.Numero} contra {rival} ({dificuldade})");
         GetTree().ChangeSceneToFile(PartidaNode.CenaDaPartida);
     }
@@ -216,7 +266,13 @@ public partial class CarreiraNode : Control
     private void ApertarSozinho()
     {
         if (!IsInsideTree()) return;
-        if (EstadoDaCarreira.Atual?.Concluida == true) { GD.Print("Carreira: circuito encerrado"); GetTree().Quit(); return; }
+        if (EstadoDaCarreira.Atual is null)
+        {
+            GD.PrintErr($"Carreira: a automática parou — {_titulo.Text}: {_detalhe.Text}");
+            GetTree().Quit(1);
+            return;
+        }
+        if (EstadoDaCarreira.Atual.Concluida) { GD.Print("Carreira: circuito encerrado"); GetTree().Quit(); return; }
         _acaoPrincipal?.Invoke();
         if (IsInsideTree() && GetTree().CurrentScene == this) Callable.From(ApertarSozinho).CallDeferred();
     }

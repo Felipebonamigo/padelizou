@@ -20,6 +20,7 @@ passo "partida sem tela, saída limpa" ferramentas/rodar_sem_tela.sh "$godot" --
 passo "conferência da interface" "$godot" --headless --path Padel.Godot res://cenas/TestePlacar.tscn -- --conferir
 passo "conferência da rede" "$godot" --headless --path Padel.Godot res://cenas/TesteRede.tscn -- --conferir
 passo "salas impossíveis" ferramentas/conferir_salas_impossiveis.sh "$godot"
+passo "rodadas de teste: não tocam no save de quem joga e terminam sozinhas" ferramentas/conferir_rodadas_de_teste.sh "$godot"
 passo "som: gerador" python3 ferramentas/teste_sintetizar_sons.py
 passo "som: TesteSom" "$godot" --headless --audio-driver Dummy --path Padel.Godot res://cenas/TesteSom.tscn
 passo "o rodar_sem_tela reprova o que está quebrado" ferramentas/teste_rodar_sem_tela.sh

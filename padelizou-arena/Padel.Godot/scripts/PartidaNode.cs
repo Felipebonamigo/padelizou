@@ -40,19 +40,54 @@ public partial class PartidaNode : Node3D
     private bool _pausado;
     private bool _fimMostrado;
     private double _tempoVivo;
-    private double _esperarNaSala = 10;
+    private double _esperarNaSala;
     private int _latenciaDeTeste;
     private double _perdaDeTeste;
     private bool _bot;
+    /// <summary>
+    /// Rodada automática: o humano simulado nos controles (--bot, carreira automática) ou quem pediu pra sair sozinho ou
+    /// tirar a foto (--sair-apos, --screenshot — o que o CI e os testes rodam). Decidido no _Ready: o VerificarFim zera o
+    /// SairApos antes do _ExitTree, onde a partida abandonada grava.
+    /// </summary>
+    private bool _automatica;
     private readonly Dictionary<int, HumanoSimulado> _bots = [];
     private readonly Entrada[] _entradas = new Entrada[4];
     private readonly ControleDeReplay _replay = new();
     private SetAnterior[] _setsDoPlacar = [];
     /// <summary>Nomes das duas duplas no placar quando a partida é de um torneio (carreira); null = nomes dos jogadores.</summary>
     private string[]? _nomesDasDuplas;
-    private bool EmCarreira => EstadoDaCarreira.JogoEmDisputa is not null;
+    /// <summary>
+    /// O jogo da carreira que ESTA partida decide, tomado do <see cref="EstadoDaCarreira"/> no _Ready; null = partida
+    /// avulsa. Mora na instância: a partida largada no meio leva o jogo com ela, e a próxima não o decide por engano.
+    /// </summary>
+    private EstadoDaCarreira.JogoPedido? _jogoDaCarreira;
+    private bool _resultadoDaCarreiraGuardado;
+    /// <summary>O modo desta partida: o da Configuracao, ou Local no jogo da carreira (você e a IA, sempre).</summary>
+    private ModoDeJogo _modo;
+    private Dificuldade _dificuldade;
+    private uint? _semente;
+    internal bool EmCarreira => _jogoDaCarreira is not null;
     /// <summary>A linha de comando vale só pra primeira partida do processo: voltar ao menu e escolher outro modo não pode ser atropelado por ela.</summary>
     private static bool _linhaDeComandoLida;
+
+    // ---- Pra conferência (Interface/ConferenciaDaInterface.cs), que abre esta cena de verdade ----
+    internal IReadOnlyList<string>? NomesDasDuplas => _nomesDasDuplas;
+    internal bool Pausado => _pausado;
+    internal bool FimMostrado => _fimMostrado;
+    internal bool TelaDePausaAberta => _pausa.Aberta;
+    internal bool Bot => _bot;
+    internal double EsperarNaSala => _esperarNaSala;
+    internal bool ReplayLigado => _replay.Ligado;
+    internal int LatenciaDeTeste => _latenciaDeTeste;
+    internal double PerdaDeTeste => _perdaDeTeste;
+    /// <summary>De onde vem a linha de comando (a conferência troca, pra simular os argumentos).</summary>
+    internal static Func<string[]> LinhaDeComando { get; set; } = OS.GetCmdlineUserArgs;
+    /// <summary>A próxima partida lê a linha de comando de novo (e os argumentos da partida voltam ao padrão até lá).</summary>
+    internal static void EsquecerLinhaDeComando()
+    {
+        _linhaDeComandoLida = false;
+        LerArgumentosDaPartida([]);
+    }
 
     public override void _Ready()
     {
@@ -60,19 +95,30 @@ public partial class PartidaNode : Node3D
         if (!_linhaDeComandoLida)
         {
             _linhaDeComandoLida = true;
-            var args = OS.GetCmdlineUserArgs();
+            var args = LinhaDeComando();
             // O menu já leu a linha de comando quando pulou pra cá; ler de novo é idempotente e cobre abrir esta cena direto.
             Configuracao.LerLinhaDeComando(args);
             PerfilLocal.LerLinhaDeComando(args);
+            EstadoDaCarreira.LerLinhaDeComando(args);
             LerArgumentosDaPartida(args);
         }
-        EntradaLocal.ConfigurarMapa(coop: Configuracao.Modo == ModoDeJogo.CoopLocal);
+        _bot = _botPedido;
+        _esperarNaSala = _esperarPedido;
+        _latenciaDeTeste = _latenciaPedida;
+        _perdaDeTeste = _perdaPedida;
+        _replay.Ligado = !_semReplayPedido;
+        _jogoDaCarreira = EstadoDaCarreira.TomarJogoPedido();
+        _modo = _jogoDaCarreira is null ? Configuracao.Modo : ModoDeJogo.Local;
+        _dificuldade = _jogoDaCarreira?.Dificuldade ?? Configuracao.Dificuldade;
+        _semente = _jogoDaCarreira?.Semente ?? Configuracao.Semente;
+        EntradaLocal.ConfigurarMapa(coop: _modo == ModoDeJogo.CoopLocal);
         if (EmCarreira && EstadoDaCarreira.Automatico) { _bot = true; _replay.Ligado = false; }
-        if (EstadoDaCarreira.JogoEmDisputa is { } jogo && EstadoDaCarreira.Atual is { } carreira)
+        if (_jogoDaCarreira is { Jogo: var jogo } && EstadoDaCarreira.Atual is { } carreira)
         {
             string eu = carreira.DuplaDoJogador.Nome;
             _nomesDasDuplas = [eu, jogo.DuplaA == eu ? jogo.DuplaB : jogo.DuplaA];
         }
+        _automatica = _bot || Configuracao.SairApos is not null || Configuracao.Screenshot is not null;
         Sessao = CriarSessao(out string quem);
         LigarOPerfil();
 
@@ -83,7 +129,9 @@ public partial class PartidaNode : Node3D
         _som = new SomNode { Name = "Som" };
         AddChild(_som);
         _som.AoTocar += _ => _sonsTocados++;
-        _som.Volume(Configuracao.Volume);
+        // O volume das opções mora num lugar só, o barramento Master (as Opções o mudam ao vivo); aplicar de novo aqui é
+        // idempotente e cobre a partida aberta direto. O SomNode fica em 1: somar o volume nele também o elevava ao quadrado.
+        Configuracao.AplicarVolume();
         _som.IniciarAmbiente();
         for (int i = 0; i < 4; i++)
         {
@@ -95,20 +143,33 @@ public partial class PartidaNode : Node3D
         _camera = GetNodeOrNull<CameraNode>("Camera");
         MontarTelas();
         Desenhar(0);
-        GD.Print($"Padelizou Arena: partida criada ({Configuracao.Dificuldade}, {quem}, Godot {Engine.GetVersionInfo()["string"]})");
+        GD.Print($"Padelizou Arena: partida criada ({_dificuldade}, {quem}, Godot {Engine.GetVersionInfo()["string"]})");
     }
 
-    private void LerArgumentosDaPartida(string[] args)
+    // Os argumentos só da partida, lidos uma vez por processo. Estáticos de propósito, como a Configuracao: o "Jogar de
+    // novo" abre outra PartidaNode, que não relê a linha de comando — guardados na instância, voltavam ao padrão (o host de
+    // "--esperar 20" passava a esperar 10 s, e o teste perdia o --bot e a rede ruim).
+    private const double EsperaPadraoNaSala = 10;
+    private static double _esperarPedido = EsperaPadraoNaSala;
+    private static bool _botPedido, _semReplayPedido;
+    private static int _latenciaPedida;
+    private static double _perdaPedida;
+
+    private static void LerArgumentosDaPartida(string[] args)
     {
+        _esperarPedido = EsperaPadraoNaSala;
+        _botPedido = _semReplayPedido = false;
+        _latenciaPedida = 0;
+        _perdaPedida = 0;
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
-                case "--sem-replay": _replay.Ligado = false; break;
-                case "--esperar" when i + 1 < args.Length && double.TryParse(args[i + 1], CultureInfo.InvariantCulture, out var espera): _esperarNaSala = espera; i++; break;
-                case "--bot": _bot = true; break;
+                case "--sem-replay": _semReplayPedido = true; break;
+                case "--esperar" when i + 1 < args.Length && double.TryParse(args[i + 1], CultureInfo.InvariantCulture, out var espera): _esperarPedido = espera; i++; break;
+                case "--bot": _botPedido = true; break;
                 case "--rede-ruim" when i + 2 < args.Length && int.TryParse(args[i + 1], out var ms) && double.TryParse(args[i + 2], CultureInfo.InvariantCulture, out var perda):
-                    _latenciaDeTeste = ms; _perdaDeTeste = perda; i += 2; break;
+                    _latenciaPedida = ms; _perdaPedida = perda; i += 2; break;
             }
         }
     }
@@ -121,7 +182,7 @@ public partial class PartidaNode : Node3D
 
     private ISessao CriarSessao(out string quem)
     {
-        var modo = Configuracao.Modo;
+        var modo = _modo;
         bool[] humanos = modo switch
         {
             ModoDeJogo.Demonstracao => OpcoesDaPartida.NinguemHumano,
@@ -130,12 +191,12 @@ public partial class PartidaNode : Node3D
         };
         var opcoes = new OpcoesDaPartida
         {
-            Dificuldade = Configuracao.Dificuldade,
+            Dificuldade = _dificuldade,
             PontoDeOuro = Configuracao.PontoDeOuro,
-            SetsParaVencer = Configuracao.SetsParaVencer,
+            SetsParaVencer = _jogoDaCarreira?.SetsParaVencer ?? Configuracao.SetsParaVencer,
             Humanos = humanos,
             ModoDeGolpe = Configuracao.ModoDeGolpe,
-            Semente = Configuracao.Semente,
+            Semente = _semente,
         };
         ISessao sessao;
         switch (modo)
@@ -198,7 +259,7 @@ public partial class PartidaNode : Node3D
         _pausa.ContinuarPedido += Continuar;
         _pausa.SairProMenuPedido += IrProMenu;
         _pausa.OpcoesPedidas += IrProMenu;   // atalho: as opções moram no menu; trocar dentro da partida fica pro M3
-        _fim.JogarDeNovoPedido += () => TrocarDeCena(EmCarreira || _nomesDasDuplas is not null ? CenaDaCarreira : CenaDaPartida);
+        _fim.JogarDeNovoPedido += () => TrocarDeCena(EmCarreira ? CenaDaCarreira : CenaDaPartida);
         _fim.MenuPedido += IrProMenu;
         var dicas = new DicaDeControles { Name = "Dicas" };
         dicas.Definir(new Dica("Espaço", "A", "sacar / balançar"), new Dica("Shift", "B", "lob"), new Dica("Esc", "Start", "pausa"));
@@ -212,7 +273,6 @@ public partial class PartidaNode : Node3D
     {
         if (_saindo) return;   // fechando: a partida para enquanto o som é recolhido
         bool online = Sessao is not SessaoLocal;
-        if (!_pausado && !_fimMostrado && Input.IsActionJustPressed(EntradaLocal.Pausa)) Pausar();
         _tempoVivo += delta;
         Array.Clear(_entradas);
         var locais = Sessao.JogadoresLocais;
@@ -233,6 +293,18 @@ public partial class PartidaNode : Node3D
         VerificarFim();
     }
 
+    /// <summary>
+    /// A pausa abre pelo EVENTO, não por polling: com ela aberta, a <see cref="TelaDePausa"/> (filha, recebe antes) trata
+    /// o mesmo aperto e o marca como tratado, então ele não chega aqui. O polling no _PhysicsProcess via o "acabou de
+    /// apertar" do mesmo Esc que tinha acabado de fechar a pausa, e ela reabria no quadro seguinte.
+    /// </summary>
+    public override void _UnhandledInput(InputEvent evento)
+    {
+        if (_saindo || _pausado || _fimMostrado || !evento.IsActionPressed(EntradaLocal.Pausa)) return;
+        GetViewport().SetInputAsHandled();
+        Pausar();
+    }
+
     private void Pausar()
     {
         _pausado = true;
@@ -251,6 +323,9 @@ public partial class PartidaNode : Node3D
 
     private void TrocarDeCena(string cena)
     {
+        // Fechando o jogo: trocar de cena agora (botão do fim ou da pausa, a volta agendada pra carreira) liberava este nó
+        // no meio da espera do SairLimpo, e o Quit se perdia — a carreira automática seguia jogando depois do "Saindo após".
+        if (_saindo) return;
         GetTree().Paused = false;
         var erro = GetTree().ChangeSceneToFile(cena);
         if (erro != Error.Ok) GD.PushError($"não deu pra abrir {cena}: {erro}");
@@ -262,7 +337,7 @@ public partial class PartidaNode : Node3D
         if (Sessao.EstadoParaOBot() is not EstadoVisivel estado) return Entrada.Vazia;
         if (!_bots.TryGetValue(indice, out var bot))
         {
-            bot = new HumanoSimulado(indice, PerfilDeHumano.Avancado, new Aleatorio((Configuracao.Semente ?? 7u) * 31u + (uint)indice), Configuracao.Destro);
+            bot = new HumanoSimulado(indice, PerfilDeHumano.Avancado, new Aleatorio((_semente ?? 7u) * 31u + (uint)indice), Configuracao.Destro);
             _bots[indice] = bot;
         }
         return bot.Decidir(estado, delta);
@@ -270,9 +345,29 @@ public partial class PartidaNode : Node3D
 
     public override void _ExitTree()
     {
-        RegistrarNoPerfil();   // saiu no meio (menu, fechar o jogo): a abandonada conta golpes e tempo, não partida
-        GetTree().AutoAcceptQuit = true;   // o menu e a carreira fecham do jeito normal
-        Sessao?.Dispose();
+        try
+        {
+            GuardarResultadoDaCarreira();   // acabou, mas saiu antes da tela de fim (no replay do último ponto): o resultado vale
+            RegistrarNoPerfil();   // saiu no meio (menu, fechar o jogo): a abandonada conta golpes e tempo, não partida
+        }
+        finally   // o que falhar acima não pode prender a porta da sala nem deixar o menu surdo ao fechar da janela
+        {
+            GetTree().AutoAcceptQuit = true;   // o menu e a carreira fecham do jeito normal
+            Sessao?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// O jogo da carreira terminado vai pra carreira, uma vez: na tela de fim ou, se o jogador sair antes dela (no replay do
+    /// último ponto), na saída — sair no replay não desfaz uma derrota. Largado no meio, fica sem resultado.
+    /// </summary>
+    private bool GuardarResultadoDaCarreira()
+    {
+        if (_jogoDaCarreira is not { } pedido || _resultadoDaCarreiraGuardado) return false;
+        if (Sessao is not SessaoLocal { Partida: var partida } || !partida.Placar.Acabou) return false;
+        _resultadoDaCarreiraGuardado = true;
+        EstadoDaCarreira.InformarResultado(pedido.Jogo, partida.Placar);
+        return true;
     }
 
     private void VerificarFim()
@@ -296,7 +391,7 @@ public partial class PartidaNode : Node3D
         var r = Sessao.Retrato;
         int meuTime = Sessao.JogadoresLocais.Count > 0 ? Sessao.JogadoresLocais[0] / 2 : 0;
         // Demonstração é o modo, não "ninguém joga aqui": o cliente recusado também não tem jogador local.
-        bool demonstracao = Configuracao.Modo == ModoDeJogo.Demonstracao;
+        bool demonstracao = _modo == ModoDeJogo.Demonstracao;
         int? vencedor = r.Placar.Vencedor;
         bool vitoria = vencedor == meuTime && Sessao.MotivoDoFim is null;
         string resultado = Sessao.MotivoDoFim is string motivo ? char.ToUpperInvariant(motivo[0]) + motivo[1..]
@@ -318,33 +413,56 @@ public partial class PartidaNode : Node3D
             }
         }
         estatisticas.Add(("Tempo de jogo", TimeSpan.FromSeconds(r.TempoDeJogo).ToString(@"m\:ss", CultureInfo.InvariantCulture)));
-        if (EmCarreira && partida is not null && partida.Placar.Acabou)
+        string? aviso = null;
+        try
         {
-            EstadoDaCarreira.InformarResultado(partida.Placar);
-            estatisticas.Insert(0, ("Carreira", "resultado guardado — \"Jogar de novo\" volta pra etapa"));
+            if (GuardarResultadoDaCarreira())
+                estatisticas.Insert(0, ("Carreira", "resultado guardado — \"Jogar de novo\" volta pra etapa"));
+            var conquistas = RegistrarNoPerfil();
+            if (GravaNoPerfil)
+            {
+                var perfil = PerfilLocal.DoJogo;
+                aviso = perfil.Aviso;
+                // Conquista que não chegou ao disco não sai como ganha: o jogador fecharia o jogo achando que tem.
+                foreach (var conquista in conquistas) estatisticas.Add((perfil.Gravado ? "Conquista!" : "Conquista (não salva)", conquista.Nome.Portugues));
+            }
         }
-        foreach (var conquista in RegistrarNoPerfil()) estatisticas.Add(("Conquista!", conquista.Nome.Portugues));
-        _fim.Mostrar(resultado, vitoria || demonstracao, Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r), estatisticas);
-        if (EstadoDaCarreira.Automatico && _nomesDasDuplas is not null) Callable.From(() => TrocarDeCena(CenaDaCarreira)).CallDeferred();
+        finally   // a carreira e o perfil nunca podem deixar a partida sem tela de fim (e sem pausa, que espera o fim)
+        {
+            _fim.Mostrar(resultado, vitoria || demonstracao, Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r), estatisticas, aviso);
+        }
+        if (EstadoDaCarreira.Automatico && EmCarreira) Callable.From(() => TrocarDeCena(CenaDaCarreira)).CallDeferred();
         GD.Print($"Fim: {resultado} — {r.Placar.Resumo} — {string.Join(", ", estatisticas.Select(e => $"{e.Item1} {e.Item2}"))}");
     }
 
     private async void SalvarScreenshotESair(string arquivo)
     {
+        if (Captura.SemTela(arquivo))
+        {
+            SairLimpo(1);
+            return;
+        }
+        if (_saindo) return;
+        // A partida para aqui (o _PhysicsProcess respeita o _saindo): a foto é do instante do "Saindo após", e o jogo
+        // não segue jogando — e tocando — enquanto espera o quadro.
+        _saindo = true;
+        var arvore = GetTree();
+        _som.Encerrar();
         // Espera dois quadros desenhados pra capturar a cena de verdade, e não o quadro do ciclo de física.
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         var imagem = GetViewport().GetTexture().GetImage();
-        var erro = imagem.SavePng(arquivo);
+        var erro = imagem is null ? Error.Unavailable : imagem.SavePng(arquivo);
         GD.Print($"Screenshot {(erro == Error.Ok ? "salvo em" : "FALHOU: " + erro + " —")} {arquivo}");
-        SairLimpo();
+        await Task.Delay(250);   // o mesmo ciclo de mixagem do SairLimpo
+        arvore.Quit(erro == Error.Ok ? 0 : 1);   // como a Captura das outras telas: foto que falhou é erro
     }
 
     /// <summary>
     /// Perfil e conquistas (docs/CONQUISTAS.md): o coletor nasce com a partida — já, na local; quando a sala fecha, no
-    /// host — e só pra quem joga nesta máquina. A demonstração (4 IAs) não conta; o --bot e a carreira automática só
-    /// contam com --perfil ARQ, pra teste nenhum sujar o perfil de verdade. O cliente online não tem Partida: conta só
-    /// a vitória, pelo evento, no fim.
+    /// host — e só pra quem joga nesta máquina. A demonstração (4 IAs) não conta; a rodada automática (--bot, carreira
+    /// automática, --sair-apos, --screenshot) só conta com --perfil ARQ, pra teste nenhum sujar o perfil de verdade. O
+    /// cliente online não tem Partida: conta só a vitória, pelo evento, no fim.
     /// </summary>
     private void LigarOPerfil()
     {
@@ -359,11 +477,11 @@ public partial class PartidaNode : Node3D
         }
     }
 
-    private bool GravaNoPerfil => Sessao.JogadoresLocais.Count > 0 && (!_bot || PerfilLocal.CaminhoPedido is not null);
+    private bool GravaNoPerfil => Sessao.JogadoresLocais.Count > 0 && (!_automatica || PerfilLocal.CaminhoPedido is not null);
 
     private ModoDaPartida ModoDoPerfil() =>
-        EmCarreira || _nomesDasDuplas is not null ? ModoDaPartida.Carreira
-        : Configuracao.Modo == ModoDeJogo.CoopLocal ? ModoDaPartida.Coop
+        EmCarreira ? ModoDaPartida.Carreira
+        : _modo == ModoDeJogo.CoopLocal ? ModoDaPartida.Coop
         : ModoDaPartida.Local;
 
     /// <summary>Uma vez por partida (as estatísticas somam): no fim, ou no abandono. Devolve as conquistas novas.</summary>
@@ -397,13 +515,14 @@ public partial class PartidaNode : Node3D
     /// mixagem, em tempo de relógio — com --fixed-fps o tempo do jogo não serve) antes do Quit. Sem isso o Godot fecha
     /// acusando "ObjectDB instances were leaked" e "resources still in use at exit" (o CI reprova: ferramentas/rodar_sem_tela.sh).
     /// </summary>
-    private async void SairLimpo()
+    private async void SairLimpo(int codigo = 0)
     {
         if (_saindo) return;
         _saindo = true;
+        var arvore = GetTree();   // antes da espera: se o nó for liberado no meio, o Quit ainda acontece
         _som.Encerrar();
         await Task.Delay(250);
-        GetTree().Quit();
+        arvore.Quit(codigo);
     }
 
     public override void _Notification(int what)

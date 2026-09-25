@@ -7,7 +7,10 @@ public static partial class Configuracao
 {
     public const string ArquivoDoUsuario = "user://configuracao.json";
 
-    public static string CaminhoDoArquivo => ProjectSettings.GlobalizePath(ArquivoDoUsuario);
+    /// <summary>Outro arquivo no lugar do user://configuracao.json — pra conferência, que abre o menu e as Opções de verdade.</summary>
+    public static string? CaminhoPedido { get; set; }
+
+    public static string CaminhoDoArquivo => CaminhoPedido ?? ProjectSettings.GlobalizePath(ArquivoDoUsuario);
 
     /// <summary>Lê user://configuracao.json; ausente ou corrompido volta ao padrão e segue (com aviso no log, se corrompido).</summary>
     public static ResultadoDaCarga Carregar()
