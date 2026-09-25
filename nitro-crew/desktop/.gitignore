@@ -1,0 +1,4 @@
+# Instalação local do Electron/electron-builder e os pacotes gerados (release/linux-unpacked etc.).
+# O .gitignore da raiz do jogo já cobre os dois por nome; este deixa explícito para quem abre só desktop/.
+node_modules/
+release/

@@ -1,8 +1,25 @@
 // Processo principal do Electron: janela do jogo, tela cheia, arquivos e integração opcional com Steamworks.
 // O jogo em si é a pasta ../dist (Vite). Gamepads: nada a fazer aqui — a Gamepad API funciona no Chromium.
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, clipboard } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const storage = require('./storage.cjs');
+
+// ───────────────────────────── Pasta de dados (Steam Cloud) ─────────────────────────────
+// Fixa o userData em "<appData>/Nitro Crew" — %APPDATA%\Nitro Crew no Windows, ~/.config/Nitro Crew no Linux,
+// ~/Library/Application Support/Nitro Crew no macOS —, em desenvolvimento (`npm start`) e no pacote. Sem isto
+// o nome vinha do package.json ("nitro-crew-desktop"). O Steam Auto-Cloud aponta para `saves/` desta pasta
+// (desktop/README.md): mudar o nome aqui perde o save de quem já joga. Tem que vir antes da trava de
+// instância única, que também mora no userData.
+const USER_DATA_DIR_NAME = 'Nitro Crew';
+app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_DIR_NAME));
+const savesDir = () => path.join(app.getPath('userData'), 'saves');
+const logsDir = () => path.join(app.getPath('userData'), 'logs');
+
+/** Linha do log de erros para o que acontece fora da página (processo do jogo ou da GPU que caiu). */
+function logProcessEvent(kind, details) {
+  storage.appendLog(logsDir(), `[${new Date().toISOString()}] ${kind} ${JSON.stringify(details)}\n`);
+}
 
 // ───────────────────────────── Instância única ─────────────────────────────
 // Um segundo clique no atalho só traz a janela existente para a frente (a Steam também abre o jogo assim).
@@ -72,6 +89,16 @@ function createWindow() {
   });
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
+
+  // A página caiu (falta de memória, driver de vídeo): registra e recarrega uma vez, para o jogador voltar à
+  // tela de título em vez de ficar olhando uma janela preta. Duas quedas em 30 s: não insiste (fica o log).
+  let lastReload = 0;
+  win.webContents.on('render-process-gone', (_e, details) => {
+    logProcessEvent('render-process-gone', details);
+    if (details.reason === 'clean-exit' || Date.now() - lastReload < 30_000) return;
+    lastReload = Date.now();
+    win.webContents.reload();
+  });
   return win;
 }
 
@@ -107,6 +134,19 @@ ipcMain.handle('file:open', async (e) => {
   if (r.canceled || r.filePaths.length === 0) return null;
   return fs.readFile(r.filePaths[0], 'utf8');
 });
+
+// Saves espelhados em arquivo (Steam Auto-Cloud) e log de erros — ver storage.cjs e src/game/cloudsave.ts.
+ipcMain.handle('store:readAll', () => storage.readAllSaves(savesDir()));
+ipcMain.handle('store:write', (_e, key, json) => storage.writeSave(savesDir(), key, json));
+ipcMain.handle('log:append', (_e, text) => storage.appendLog(logsDir(), text));
+// O preload roda em sandbox, onde o módulo `clipboard` não existe: a cópia do relatório passa por aqui.
+ipcMain.handle('clipboard:write', (_e, text) => {
+  if (typeof text !== 'string') return false;
+  try { clipboard.writeText(text.slice(0, storage.MAX_SAVE_BYTES)); return true; } catch { return false; }
+});
+
+// Processo da GPU caiu (driver): o Chromium tenta de novo sozinho; fica registrado para o relatório.
+app.on('child-process-gone', (_e, details) => { if (details.type === 'GPU') logProcessEvent('gpu-process-gone', details); });
 
 // ───────────────────────────── Ciclo de vida ─────────────────────────────
 app.whenReady().then(() => {

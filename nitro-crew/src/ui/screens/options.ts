@@ -2,6 +2,7 @@
 import type { CoopAssists } from '../../core/types';
 import type { Settings } from '../../game/contracts';
 import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, QUICK_LAPS_MIN, TOTAL_CARS_MAX, TOTAL_CARS_MIN, saveSettings } from '../../game/settings';
+import { optionsFooter } from '../../errors/options';
 import { getLanguage, setLanguage, t, type Lang } from '../../i18n';
 import { button, createFocusList, h, listNav, onOff, screenFrame, selector, type FocusItem, type ScreenApi, type ScreenInstance, type Selector } from './common';
 
@@ -83,13 +84,15 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
   ];
   const race = raceOptionSelectors(api, commit, { difficulty: true, gear: true, totalCars: true, quickLaps: true, assists: true });
   const back = button(t('ui.common.back'), () => api.back());
-  const list = createFocusList([...general, ...race, back], { sfx });
+  // Rodapé: relatório de erros · Voltar · telemetria (src/errors/options.ts).
+  const footer = optionsFooter(api, commit, back);
+  const list = createFocusList([...general, ...race, ...footer.items], { sfx });
   const el = screenFrame('options', t('ui.options.title'),
     h('div', { class: 'options-columns' },
       h('div', { class: 'options-col' }, h('h2', { class: 'sub-title', text: t('ui.options.general') }), general.map((i) => i.el)),
       h('div', { class: 'options-col' }, h('h2', { class: 'sub-title', text: t('ui.options.race') }), race.map((i) => i.el)),
     ),
-    back.el,
+    footer.el,
   );
   return { el, nav: (nav) => listNav(list, nav, sfx, () => api.back()) };
 }

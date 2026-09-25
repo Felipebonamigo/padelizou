@@ -34,16 +34,26 @@ export function readJson(key: string): unknown {
   }
 }
 
+/** Quem mais recebe cada gravação: no Electron, src/game/cloudsave.ts espelha em arquivo (Steam Cloud). */
+let storageMirror: ((key: string, json: string) => void) | null = null;
+
+export function setStorageMirror(fn: ((key: string, json: string) => void) | null): void {
+  storageMirror = fn;
+}
+
 /** Grava `value` como JSON; devolve falso quando não há onde gravar. */
 export function writeJson(key: string, value: unknown): boolean {
+  let json: string;
   try {
     const s = storage();
     if (!s) return false;
-    s.setItem(key, JSON.stringify(value));
-    return true;
+    json = JSON.stringify(value);
+    s.setItem(key, json);
   } catch {
     return false;
   }
+  try { storageMirror?.(key, json); } catch { /* o espelho nunca derruba a gravação local */ }
+  return true;
 }
 
 // ───────────────────────────── Saneamento ─────────────────────────────
@@ -101,6 +111,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     totalCars: pickNumber(r.totalCars, TOTAL_CARS_MIN, TOTAL_CARS_MAX, d.totalCars, true),
     quickLaps: pickNumber(r.quickLaps, QUICK_LAPS_MIN, QUICK_LAPS_MAX, d.quickLaps, true),
     music: pickString(r.music, d.music),
+    telemetry: pickBool(r.telemetry, d.telemetry),
   };
 }
 
