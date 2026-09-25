@@ -2,10 +2,12 @@
 // ela junta a cada tick (observeTick). A lista com nomes PT/EN mora em desktop.ts (ponte com a
 // Steam) e as descrições em src/stats/strings.ts; aqui ficam a coleta e as regras.
 import { TICK_RATE } from '../core/constants';
+import { CUPS } from '../core/data/cups';
 import { computeModifiers } from '../core/sim/coop';
 import { TRACKS } from '../core/track';
 import type { HumanEntry, RaceResultRow, RaceState, SimEvent, Track } from '../core/types';
 import { getLanguage, t } from '../i18n';
+import '../i18n/core';
 import '../stats/strings';
 import type { RaceMode, SaveData } from './contracts';
 import { ACHIEVEMENTS } from './desktop';
@@ -190,8 +192,19 @@ export function achievementName(id: string): string {
   return def ? def[getLanguage()] : id;
 }
 
+/**
+ * Descrição no idioma atual. As de copa saem do nome da copa (core.cup.<id>): copa nova em
+ * data/cups.ts ganha descrição sem precisar de uma string por conquista.
+ */
 export function achievementDescription(id: string): string {
-  return t(`stats.achDesc.${id}`);
+  const key = `stats.achDesc.${id}`;
+  const own = t(key);
+  if (own !== key) return own;
+  const cup = CUPS.find((c) => `COPA_${c.id.toUpperCase()}` === id);
+  if (!cup) return own;
+  const nameKey = `core.cup.${cup.id}`;
+  const name = t(nameKey);
+  return t('stats.achDescCup', { cup: name === nameKey ? cup.name : name });
 }
 
 /**

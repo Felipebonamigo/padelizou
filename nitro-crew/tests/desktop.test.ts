@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from '../src/game/desktop';
 import { achievementDescription, evaluateAchievements, newTelemetry } from '../src/game/achievements';
-import { setLanguage } from '../src/i18n';
+import { CUPS } from '../src/core/data/cups';
+import { registerStrings, setLanguage } from '../src/i18n';
 import { DEFAULT_SAVE } from '../src/game/contracts';
 import { human, quickRace, run, syntheticTrack } from './helpers';
 
@@ -18,8 +19,12 @@ describe('ponte com o Electron', () => {
     for (const a of ACHIEVEMENTS) { expect(a.pt.length).toBeGreaterThan(3); expect(a.en.length).toBeGreaterThan(3); }
     for (const cup of ['BRASIL', 'EUA', 'JAPAO', 'EUROPA']) expect(ids).toContain(`COPA_${cup}`);
   });
-  it('20 conquistas (12 da Fase 0 + 8 do passo 3.6), cada uma com descrição PT e EN e linha no desktop/README.md', () => {
-    expect(ACHIEVEMENTS).toHaveLength(20);
+  it('uma COPA_ por copa de CUPS, as 8 da Fase 0 e as 8 do passo 3.6; cada uma com descrição PT e EN e linha no desktop/README.md', () => {
+    // Sem número fixo: outra branch acrescenta copas (e as COPA_ delas) e o teste continua valendo.
+    const base = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_BOX', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'CAMPEAO', 'MADRUGADA'];
+    const step36 = ['PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'SEM_ARRANHAO', 'MARATONA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'DEZ_VITORIAS', 'GIRO_COMPLETO'];
+    const cups = CUPS.map((c) => `COPA_${c.id.toUpperCase()}`);
+    expect(ACHIEVEMENTS.map((a) => a.id).sort()).toEqual([...base, ...cups, ...step36].sort());
     const readme = fs.readFileSync('desktop/README.md', 'utf8');
     for (const lang of ['pt', 'en'] as const) {
       setLanguage(lang);
@@ -31,6 +36,23 @@ describe('ponte com o Electron', () => {
     }
     setLanguage('pt');
     for (const a of ACHIEVEMENTS) expect(readme, `${a.id} fora da tabela do README`).toContain(`| \`${a.id}\` | ${a.pt} | ${a.en} |`);
+  });
+});
+
+describe('descrição das conquistas de copa', () => {
+  it('copa nova ganha a descrição pelo nome da copa, sem string por id', () => {
+    // Revisão: o merge com mais copas trazia COPA_* sem stats.achDesc.<ID>, e a tela mostrava a chave crua.
+    registerStrings('core', { pt: { 'cup.teste_merge': 'Copa Teste' }, en: { 'cup.teste_merge': 'Test Cup' } });
+    CUPS.push({ id: 'teste_merge', name: 'Copa Teste', country: 'Teste', flag: '', trackIds: ['copacabana'], requires: null });
+    try {
+      setLanguage('pt');
+      expect(achievementDescription('COPA_TESTE_MERGE')).toBe('Concluir a Copa Teste.');
+      setLanguage('en');
+      expect(achievementDescription('COPA_TESTE_MERGE')).toBe('Complete the Test Cup.');
+    } finally {
+      CUPS.pop();
+      setLanguage('pt');
+    }
   });
 });
 
