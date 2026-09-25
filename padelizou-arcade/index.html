@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1C2742">
+  <title>Padelizou Arcade</title>
+  <meta name="description" content="Jogo de padel 2x2 no browser: regras de verdade, vidros que devolvem a bola e IA com três níveis.">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <div id="app">
+    <header id="placar" aria-live="polite">
+      <div class="linha casa">
+        <span class="nome"><span class="bolinha casa"></span>Você &amp; Parceiro <span id="saqueCasa" class="saque" title="sacando">●</span></span>
+        <span class="numeros"><b id="setsCasa">0</b><b id="gamesCasa">0</b><b id="pontosCasa" class="pontos">0</b></span>
+      </div>
+      <div class="linha fora">
+        <span class="nome"><span class="bolinha fora"></span>Rivais <span id="saqueFora" class="saque" title="sacando">●</span></span>
+        <span class="numeros"><b id="setsFora">0</b><b id="gamesFora">0</b><b id="pontosFora" class="pontos">0</b></span>
+      </div>
+      <div class="botoes">
+        <button id="botaoSom" type="button" aria-label="Som">🔊</button>
+        <button id="botaoPausa" type="button" aria-label="Pausar">❚❚</button>
+      </div>
+    </header>
+
+    <main id="palco">
+      <canvas id="quadra" width="352" height="652" aria-label="Quadra de padel"></canvas>
+      <div id="mensagem" role="status"></div>
+      <div id="joystick" aria-hidden="true"><div id="joystickKnob"></div></div>
+      <button id="botaoAcao" type="button">SACAR</button>
+    </main>
+
+    <footer id="dica">Setas/WASD movem · Espaço saca e, segurado, dá lob</footer>
+
+    <section id="menu" class="tela">
+      <div class="cartao">
+        <h1>Padelizou <span>Arcade</span></h1>
+        <p class="sub">Padel 2x2 com as regras de verdade: vidros que devolvem, saque na diagonal, ponto de ouro.</p>
+        <form onsubmit="return false">
+          <fieldset>
+            <legend>Rivais</legend>
+            <label><input type="radio" name="dificuldade" value="facil"> Fácil</label>
+            <label><input type="radio" name="dificuldade" value="medio" checked> Médio</label>
+            <label><input type="radio" name="dificuldade" value="dificil"> Difícil</label>
+          </fieldset>
+          <fieldset>
+            <legend>Partida</legend>
+            <label>Formato
+              <select id="formato">
+                <option value="1" selected>1 set</option>
+                <option value="2">Melhor de 3 sets</option>
+              </select>
+            </label>
+            <label><input type="checkbox" id="pontoDeOuro" checked> Ponto de ouro (sem vantagem)</label>
+          </fieldset>
+          <button id="jogar" type="button" class="principal">Jogar</button>
+        </form>
+        <details>
+          <summary>Como se joga</summary>
+          <ul>
+            <li><b>Mover:</b> setas ou WASD. No celular, arraste o dedo na quadra.</li>
+            <li><b>Bater:</b> é automático quando a bola chega ao seu alcance. Na hora do golpe, <b>←/→</b> escolhem o canto, <b>↑</b> ataca curto, <b>↓</b> joga fundo.</li>
+            <li><b>Lob:</b> segure Espaço (ou o botão LOB) na hora do golpe. Bola alta perto da rede vira smash.</li>
+            <li><b>Sacar:</b> Espaço (ou SACAR). A bola precisa cair na caixa tracejada.</li>
+            <li><b>Regras:</b> a bola tem que quicar no chão do outro lado antes de tocar o vidro. Depois do quique, pode bater nas paredes à vontade — o segundo quique dá o ponto.</li>
+            <li>Você joga sempre do lado de baixo, na metade direita; seu parceiro cobre a esquerda.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="pausa" class="tela oculta">
+      <div class="cartao">
+        <h2>Pausa</h2>
+        <button id="continuar" type="button" class="principal">Continuar</button>
+        <button id="sairParaOMenu" type="button">Sair pro menu</button>
+      </div>
+    </section>
+
+    <section id="fim" class="tela oculta">
+      <div class="cartao">
+        <h2 id="resultado">Fim</h2>
+        <p id="detalhesDoFim"></p>
+        <button id="jogarDeNovo" type="button" class="principal">Jogar de novo</button>
+        <button id="voltarAoMenu" type="button">Menu</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/quadra.js"></script>
+  <script src="js/regras.js"></script>
+  <script src="js/fisica.js"></script>
+  <script src="js/arbitro.js"></script>
+  <script src="js/jogadores.js"></script>
+  <script src="js/partida.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/entrada.js"></script>
+  <script src="js/som.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
