@@ -85,10 +85,14 @@ com o progresso guardado, e os conferidores estão verdes no CI.
 
 ### Fase 1 · Conteúdo vendável (semanas 3–6)
 
+> **Adiantado em 25/09** (Fase 0 fechada, o Felipe pediu pra seguir com tudo que não é gráfico).
+> Endurecimento do Electron, da Fase 5, também saiu junto: ver `desktop/` no README.
+
 Objetivo: de "demo de mecânica" pra "jogo de 2–3 horas com motivo pra jogar de novo".
 
-- [ ] **Progressão de golpes** (o coração do *Shaolin Monks*): pontos compram golpes novos entre
-      fases — combo de 5, contra-ataque, especial no ar, agarrão por trás.
+- [x] **Progressão de golpes** (o coração do *Shaolin Monks*): pontos compram golpes novos entre
+      fases — combo de 5, contra-ataque, especial no ar, agarrão por trás. *(Feito: o Templo, com
+      karma pelos pontos da fase e sete melhorias. Preços e karma são o primeiro chute; o balanceamento ajusta.)*
 - [ ] **Terceiro monge** com estilo próprio (rápido e frágil, ou com corrente/chicote — decidir).
 - [ ] **Dois inimigos novos** (lanceiro que ataca de longe no chão, monge renegado que defende e
       contra-ataca) e **chefes em duas fases** (padrão muda na metade da vida).
@@ -100,7 +104,8 @@ Objetivo: de "demo de mecânica" pra "jogo de 2–3 horas com motivo pra jogar d
       originais (nada da marca Mortal Kombat; conferir se "Shaolin" no título tem restrição de marca
       no Brasil e nos EUA — o Templo Shaolin registra o nome em alguns países).
 - [ ] **Balanceamento por dados**: o motor é determinístico — simular 1.000 lutas por dificuldade
-      no Node e ajustar até a curva de morte fazer sentido.
+      no Node e ajustar até a curva de morte fazer sentido. *(A ferramenta está pronta: `jogo/ferramentas/simular.js`.
+      O ajuste das tabelas é a onda 4. Primeira leitura: no normal, o bot médio quase nunca passa das fases 2 a 4.)*
 
 **Pronto quando:** uma pessoa que nunca viu o jogo termina a campanha no Normal em 2–3 h,
 morre, e quer tentar de novo. Testar com 3 pessoas.
