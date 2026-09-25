@@ -1,6 +1,7 @@
 using System.Globalization;
 using Godot;
 using Padel.Core;
+using Padel.Core.Perfil;
 using Padel.Godot.Interface;
 
 namespace Padel.Godot;
@@ -29,6 +30,8 @@ public partial class PartidaNode : Node3D
     private PlacarDeTvNode _placar = null!;
     private bool _saindo;
     private SomNode _som = null!;
+    private ColetorDaPartida? _coletor;
+    private bool _perfilRegistrado;
     private int _sonsTocados;
     private TelaDePausa _pausa = null!;
     private TelaDeFim _fim = null!;
@@ -60,6 +63,7 @@ public partial class PartidaNode : Node3D
             var args = OS.GetCmdlineUserArgs();
             // O menu já leu a linha de comando quando pulou pra cá; ler de novo é idempotente e cobre abrir esta cena direto.
             Configuracao.LerLinhaDeComando(args);
+            PerfilLocal.LerLinhaDeComando(args);
             LerArgumentosDaPartida(args);
         }
         EntradaLocal.ConfigurarMapa(coop: Configuracao.Modo == ModoDeJogo.CoopLocal);
@@ -70,6 +74,7 @@ public partial class PartidaNode : Node3D
             _nomesDasDuplas = [eu, jogo.DuplaA == eu ? jogo.DuplaB : jogo.DuplaA];
         }
         Sessao = CriarSessao(out string quem);
+        LigarOPerfil();
 
         _quadra = new QuadraNode { Name = "Quadra" };
         AddChild(_quadra);
@@ -245,6 +250,7 @@ public partial class PartidaNode : Node3D
 
     public override void _ExitTree()
     {
+        RegistrarNoPerfil();   // saiu no meio (menu, fechar o jogo): a abandonada conta golpes e tempo, não partida
         GetTree().AutoAcceptQuit = true;   // o menu e a carreira fecham do jeito normal
         Sessao?.Dispose();
     }
@@ -296,6 +302,7 @@ public partial class PartidaNode : Node3D
             EstadoDaCarreira.InformarResultado(partida.Placar);
             estatisticas.Insert(0, ("Carreira", "resultado guardado — \"Jogar de novo\" volta pra etapa"));
         }
+        foreach (var conquista in RegistrarNoPerfil()) estatisticas.Add(("Conquista!", conquista.Nome.Portugues));
         _fim.Mostrar(resultado, vitoria || demonstracao, Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r), estatisticas);
         if (EstadoDaCarreira.Automatico && _nomesDasDuplas is not null) Callable.From(() => TrocarDeCena(CenaDaCarreira)).CallDeferred();
         GD.Print($"Fim: {resultado} — {r.Placar.Resumo} — {string.Join(", ", estatisticas.Select(e => $"{e.Item1} {e.Item2}"))}");
@@ -310,6 +317,58 @@ public partial class PartidaNode : Node3D
         var erro = imagem.SavePng(arquivo);
         GD.Print($"Screenshot {(erro == Error.Ok ? "salvo em" : "FALHOU: " + erro + " —")} {arquivo}");
         SairLimpo();
+    }
+
+    /// <summary>
+    /// Perfil e conquistas (docs/CONQUISTAS.md): o coletor nasce com a partida — já, na local; quando a sala fecha, no
+    /// host — e só pra quem joga nesta máquina. A demonstração (4 IAs) não conta; o --bot e a carreira automática só
+    /// contam com --perfil ARQ, pra teste nenhum sujar o perfil de verdade. O cliente online não tem Partida: conta só
+    /// a vitória, pelo evento, no fim.
+    /// </summary>
+    private void LigarOPerfil()
+    {
+        switch (Sessao)
+        {
+            case SessaoLocal local when GravaNoPerfil:
+                _coletor = new ColetorDaPartida(local.Partida, ModoDoPerfil(), [.. Sessao.JogadoresLocais]);
+                break;
+            case SessaoHost host:
+                host.PartidaIniciada += partida => { if (GravaNoPerfil) _coletor = new ColetorDaPartida(partida, ModoDaPartida.Online, 0); };
+                break;
+        }
+    }
+
+    private bool GravaNoPerfil => Sessao.JogadoresLocais.Count > 0 && (!_bot || PerfilLocal.CaminhoPedido is not null);
+
+    private ModoDaPartida ModoDoPerfil() =>
+        EmCarreira || _nomesDasDuplas is not null ? ModoDaPartida.Carreira
+        : Configuracao.Modo == ModoDeJogo.CoopLocal ? ModoDaPartida.Coop
+        : ModoDaPartida.Local;
+
+    /// <summary>Uma vez por partida (as estatísticas somam): no fim, ou no abandono. Devolve as conquistas novas.</summary>
+    private IReadOnlyList<Conquista> RegistrarNoPerfil()
+    {
+        if (_perfilRegistrado) return [];
+        _perfilRegistrado = true;
+        if (_coletor is ColetorDaPartida coletor)
+        {
+            var resumo = coletor.Resumo();
+            coletor.Dispose();
+            return PerfilLocal.DoJogo.Registrar(resumo);
+        }
+        if (Sessao is SessaoCliente { Cliente: var cliente } && GravaNoPerfil && cliente.Indice >= 0
+            && cliente.UltimoInstantaneo?.Placar.Vencedor == cliente.Indice / 2)
+        {
+            try
+            {
+                return PerfilLocal.DoJogo.Registrar(new VitoriaOnline([.. cliente.Humanos], cliente.Indice));
+            }
+            catch (ArgumentException e)   // sala que o host montou torta: não vale conquista, e o fim da partida segue
+            {
+                GD.PushWarning($"Perfil: vitória online não registrada — {e.Message}");
+            }
+        }
+        return [];
     }
 
     /// <summary>

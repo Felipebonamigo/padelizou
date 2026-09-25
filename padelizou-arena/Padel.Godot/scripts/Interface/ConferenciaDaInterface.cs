@@ -416,6 +416,92 @@ public static class ConferenciaDaInterface
             Igual(aceitar, InputMap.ActionGetEvents("ui_accept").Count, "eventos de ui_accept");
             Igual(cancelar, InputMap.ActionGetEvents("ui_cancel").Count, "eventos de ui_cancel");
         }),
+        // ---- Perfil do jogador (PerfilLocal): arquivo, conquistas, gravação ----
+        Sincrono("perfil: arquivo ausente começa um perfil novo com o nome e a mão das opções, sem gravar nada", () =>
+        {
+            var perfil = new PerfilLocal(Arquivo("perfil-ausente.json"));
+            Configuracao.NomeDoJogador = "Ana";
+            Configuracao.Destro = false;
+            Igual("Ana", perfil.Atual.Nome, "nome");
+            Exigir(!perfil.Atual.Destro, "a mão deveria vir das opções (canhota)");
+            Exigir(!File.Exists(Arquivo("perfil-ausente.json")), "ler não deveria gravar");
+        }),
+        Sincrono("perfil: registrar uma partida grava, e o arquivo relido tem o mesmo perfil", () =>
+        {
+            var caminho = Arquivo("perfil-registro.json");
+            var perfil = new PerfilLocal(caminho);
+            var resumo = ResumoDeUmaPartidaDeIA(pontos: 6);
+            var novas = perfil.Registrar(resumo);
+            Exigir(File.Exists(caminho), "registrar deveria gravar o perfil");
+            var relido = new PerfilLocal(caminho).Atual;
+            Igual(perfil.Atual.GolpesPorTipo.Values.Sum(), relido.GolpesPorTipo.Values.Sum(), "golpes relidos");
+            Igual(perfil.Atual.Conquistas.Count, relido.Conquistas.Count, "conquistas relidas");
+            Exigir(resumo.PontosVencidos == 0 || novas.Any(c => c.Id == "PRIMEIRO_PONTO"), "com ponto vencido, PRIMEIRO_PONTO deveria sair na lista de novas");
+            Exigir(!AoLado("perfil-registro.json").Any(), "sobrou arquivo temporário da gravação");
+        }),
+        Sincrono("perfil: conquista nova sai uma vez só — registrar de novo não a devolve", () =>
+        {
+            var perfil = new PerfilLocal(Arquivo("perfil-idempotente.json"));
+            var resumo = ResumoDeUmaPartidaDeIA(pontos: 6);
+            var primeira = perfil.Registrar(resumo);
+            var segunda = perfil.Registrar(resumo);
+            Exigir(primeira.Count > 0, "a primeira partida deveria desbloquear alguma coisa (PRIMEIRO_PONTO)");
+            Exigir(!segunda.Any(c => primeira.Any(p => p.Id == c.Id)), "conquista já desbloqueada voltou como nova");
+        }),
+        Sincrono("perfil: arquivo corrompido não é apagado — é guardado ao lado e o jogo segue com um perfil novo", () =>
+        {
+            var caminho = Arquivo("perfil-corrompido.json");
+            File.WriteAllText(caminho, "{ isto não é um perfil");
+            var perfil = new PerfilLocal(caminho);
+            Igual(0, perfil.Atual.Partidas, "o perfil novo começa do zero");
+            var guardados = Directory.GetFiles(_pasta, "perfil-corrompido.json.ilegivel-*");
+            Igual(1, guardados.Length, "cópia guardada do arquivo ilegível");
+            Igual("{ isto não é um perfil", File.ReadAllText(guardados[0]), "conteúdo da cópia guardada");
+        }),
+        Sincrono("perfil: arquivo de uma versão mais nova do jogo nunca é sobrescrito nem mexido", () =>
+        {
+            var caminho = Arquivo("perfil-futuro.json");
+            const string doFuturo = "{\"Versao\": 999, \"Nome\": \"Ana\"}";
+            File.WriteAllText(caminho, doFuturo);
+            var perfil = new PerfilLocal(caminho);
+            perfil.Registrar(ResumoDeUmaPartidaDeIA(pontos: 2));
+            Igual(doFuturo, File.ReadAllText(caminho), "o arquivo da versão mais nova");
+            Exigir(!AoLado("perfil-futuro.json").Any(), "nada deveria ter sido criado ao lado do arquivo da versão mais nova");
+        }),
+        Sincrono("perfil: evento de fora (etapa vencida) desbloqueia CAMPEAO_DE_ETAPA e grava", () =>
+        {
+            var caminho = Arquivo("perfil-etapa.json");
+            var perfil = new PerfilLocal(caminho);
+            var novas = perfil.Registrar(new Padel.Core.Perfil.EtapaVencida());
+            Exigir(novas.Any(c => c.Id == "CAMPEAO_DE_ETAPA"), "etapa vencida deveria dar CAMPEAO_DE_ETAPA");
+            Exigir(new PerfilLocal(caminho).Atual.Conquistas.ContainsKey("CAMPEAO_DE_ETAPA"), "a conquista deveria estar gravada");
+        }),
+
+        Sincrono("tela do perfil: as 20 conquistas, secreta escondida até sair, progresso das cumulativas", () =>
+        {
+            var perfil = Padel.Core.Perfil.PerfilDoJogador.Novo("Ana", true, DateTimeOffset.UnixEpoch) with
+            {
+                Partidas = 7,
+                Vitorias = 3,
+                GolpesPorTipo = new Dictionary<TipoDeGolpe, int> { [TipoDeGolpe.Bandeja] = 42 },
+                Conquistas = new Dictionary<string, DateTimeOffset> { ["CAMPEAO_DE_ETAPA"] = DateTimeOffset.UnixEpoch },
+            };
+            var tela = new TelaDoPerfil();
+            try
+            {
+                tela.Preencher(perfil);
+                var textos = tela.Textos();
+                Igual(Padel.Core.Perfil.CatalogoDeConquistas.Todas.Count, tela.Linhas, "uma linha por conquista do catálogo");
+                Exigir(textos.Any(x => x.Contains("7 partidas", StringComparison.Ordinal) && x.Contains("3 vitórias", StringComparison.Ordinal)), "os números do perfil deveriam aparecer");
+                Exigir(textos.Any(x => x.Contains("1/20", StringComparison.Ordinal)), "deveria contar 1 de 20 conquistas");
+                Exigir(textos.Contains("Campeão de etapa"), "a conquista desbloqueada aparece pelo nome");
+                var secreta = Padel.Core.Perfil.CatalogoDeConquistas.Todas.First(c => c.Secreta);
+                Exigir(!textos.Contains(secreta.Nome.Portugues), $"a secreta {secreta.Id} não deveria mostrar o nome antes de sair");
+                Exigir(textos.Any(x => x.Contains("42/100", StringComparison.Ordinal)), "a cumulativa das bandejas deveria mostrar o progresso 42/100");
+            }
+            finally { tela.Free(); }
+        }),
+
         // ---- Entrada da partida (EntradaLocal): sozinho x coop no sofá ----
         Sincrono("sozinho: qualquer controle joga (A, B, direcional) e o L é lob", () =>
         {
@@ -459,6 +545,32 @@ public static class ConferenciaDaInterface
             EntradaLocal.ConfigurarMapa(coop: false);
             Igual(acao, InputMap.ActionGetEvents(EntradaLocal.Acao).Count, "eventos da ação");
             Igual(lob, InputMap.ActionGetEvents(EntradaLocal.Lob).Count, "eventos do lob");
+        }),
+        new("tela do perfil: o direcional do controle rola a lista com o foco no Voltar", async no =>
+        {
+            TemaPadelizou.ConfigurarEntradaDaInterface();
+            // Como no menu: dentro de uma coluna de altura fixa, menor que as 20 conquistas — tem o que rolar.
+            var coluna = new MarginContainer { Size = new Vector2(900, 480) };
+            var tela = new TelaDoPerfil();
+            coluna.AddChild(tela);
+            no.AddChild(coluna);
+            try
+            {
+                tela.Preencher(Padel.Core.Perfil.PerfilDoJogador.Novo("Ana", true, DateTimeOffset.UnixEpoch));
+                tela.Voltar.GrabFocus();
+                await Quadro(no);
+                await Quadro(no);
+                int antes = tela.Rolagem;
+                Apertar(no, JoyButton.DpadDown, controle: 1);
+                await Quadro(no);
+                Exigir(tela.Rolagem > antes, $"o direcional pra baixo deveria rolar a lista (rolagem {antes} → {tela.Rolagem})");
+                Exigir(tela.Voltar.HasFocus(), "o foco fica no Voltar");
+                int meio = tela.Rolagem;
+                Apertar(no, JoyButton.DpadUp, controle: 1);
+                await Quadro(no);
+                Exigir(tela.Rolagem < meio, $"o direcional pra cima deveria voltar a lista (rolagem {meio} → {tela.Rolagem})");
+            }
+            finally { coluna.QueueFree(); }
         }),
         new("botão focado responde ao A do segundo controle", async no =>
         {
@@ -517,6 +629,19 @@ public static class ConferenciaDaInterface
         Exigir(avisos.Count == 1, $"esperava um aviso, veio {avisos.Count}: [{string.Join(" | ", avisos)}]");
 
     private static string Arquivo(string nome) => Path.Combine(_pasta, nome);
+
+    /// <summary>Arquivos "NOME.algo" ao lado de NOME (o padrão "NOME.*" do .NET também casa com o próprio NOME — herança do DOS).</summary>
+    private static IEnumerable<string> AoLado(string nome) =>
+        Directory.GetFiles(_pasta).Where(f => Path.GetFileName(f).StartsWith(nome + ".", StringComparison.Ordinal));
+
+    /// <summary>Uma partida de verdade só com IA, até <paramref name="pontos"/> pontos, com o coletor no jogador 0.</summary>
+    private static Padel.Core.Perfil.ResumoDaPartida ResumoDeUmaPartidaDeIA(int pontos)
+    {
+        var partida = new Partida(new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, Semente = 7 });
+        using var coletor = new Padel.Core.Perfil.ColetorDaPartida(partida, Padel.Core.Perfil.ModoDaPartida.Local, 0);
+        for (int i = 0; i < 120 * 600 && partida.Estatisticas.Pontos < pontos; i++) partida.Avancar(1f / 120f);
+        return coletor.Resumo();
+    }
 
     private static InputEventJoypadButton Botao(JoyButton botao, int controle, bool apertado) =>
         new() { ButtonIndex = botao, Device = controle, Pressed = apertado };

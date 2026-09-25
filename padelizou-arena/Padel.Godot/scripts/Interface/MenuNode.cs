@@ -6,7 +6,7 @@ using Padel.Core;
 namespace Padel.Godot.Interface;
 
 /// <summary>
-/// Tela inicial: Jogar (contra a IA), Carreira, Coop local, Online (criar sala / entrar numa sala), Opções, Sair.
+/// Tela inicial: Jogar (contra a IA), Carreira, Coop local, Perfil, Online (criar sala / entrar numa sala), Opções, Sair.
 /// Navega por teclado, controle (direcional, analógico, A/B) e mouse, com foco sempre visível; pensado pra
 /// ler bem a 1280x800 (Steam Deck). Atrás, a quadra girando devagar.
 /// Na primeira abertura lê user://configuracao.json e a linha de comando; se ela pedir partida direta
@@ -20,7 +20,7 @@ public partial class MenuNode : Node
     private string _cenaDestino = CenaDaPartida;
     private const float MargemLateral = 96f;
 
-    private enum Tela { Principal, Online, Opcoes }
+    private enum Tela { Principal, Online, Opcoes, Perfil }
 
     /// <summary>A linha de comando vale uma vez por execução: voltar da partida pro menu não pode reentrar sozinho na sala.</summary>
     private static bool _primeiraAbertura = true;
@@ -29,10 +29,12 @@ public partial class MenuNode : Node
     private Control _principal = null!;
     private Control _online = null!;
     private Control _areaDasOpcoes = null!;
+    private Control _areaDoPerfil = null!;
+    private TelaDoPerfil _perfil = null!;
     private PainelDeOpcoes _opcoes = null!;
     private DicaDeControles _dicas = null!;
     private Label _descricao = null!;
-    private Button _jogar = null!, _carreira = null!, _coop = null!, _botaoOnline = null!, _botaoOpcoes = null!, _sair = null!;
+    private Button _jogar = null!, _carreira = null!, _coop = null!, _botaoOnline = null!, _botaoPerfil = null!, _botaoOpcoes = null!, _sair = null!;
     private Button _criar = null!, _entrar = null!;
     private LineEdit _portaParaCriar = null!, _enderecoDaSala = null!, _portaDaSala = null!;
     private Label _erroAoCriar = null!, _erroAoEntrar = null!;
@@ -52,6 +54,7 @@ public partial class MenuNode : Node
         {
             Configuracao.Carregar();
             foreach (var aviso in Configuracao.LerLinhaDeComando(args)) GD.PushWarning(aviso);
+            PerfilLocal.LerLinhaDeComando(args);
         }
         Configuracao.AplicarVolume();
 
@@ -80,6 +83,7 @@ public partial class MenuNode : Node
         {
             "online" => Tela.Online,
             "opcoes" => Tela.Opcoes,
+            "perfil" => Tela.Perfil,
             _ => Tela.Principal,
         };
     }
@@ -122,6 +126,7 @@ public partial class MenuNode : Node
         _principal = MontarPrincipal();
         _online = MontarOnline();
         _areaDasOpcoes = MontarOpcoes();
+        _areaDoPerfil = MontarPerfil();
 
         _dicas = new DicaDeControles();
         _dicas.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
@@ -189,6 +194,7 @@ public partial class MenuNode : Node
         _carreira = BotaoDoMenu(botoes, "Carreira", () => "Um circuito de etapas com grupos, chave e ranking: você e um parceiro da IA contra as duplas do circuito.\nO progresso fica salvo.", () => Iniciar(ModoDeJogo.Local, CenaDaCarreira));
         _coop = BotaoDoMenu(botoes, "Coop local", () => $"Você e um amigo na mesma dupla, cada um com um controle.\nControles conectados agora: {Input.GetConnectedJoypads().Count}.", () => Iniciar(ModoDeJogo.CoopLocal));
         _botaoOnline = BotaoDoMenu(botoes, "Online", () => "Crie uma sala pra um amigo entrar pelo seu IP, ou entre na sala dele.", () => Mostrar(Tela.Online));
+        _botaoPerfil = BotaoDoMenu(botoes, "Perfil", () => "Seus números e as 20 conquistas.", () => Mostrar(Tela.Perfil));
         _botaoOpcoes = BotaoDoMenu(botoes, "Opções", () => "Dificuldade, ponto de ouro, formato, golpe, mão, nome e volume.", () => Mostrar(Tela.Opcoes));
         _sair = BotaoDoMenu(botoes, "Sair", () => "Fecha o jogo.", () => GetTree().Quit());
 
@@ -226,6 +232,15 @@ public partial class MenuNode : Node
         string pontoDeOuro = Configuracao.PontoDeOuro ? "ponto de ouro" : "com vantagem";
         string golpe = Configuracao.ModoDeGolpe == ModoDeGolpe.Automatico ? "golpe assistido" : "golpe manual";
         return $"{dificuldade} · {formato} · {pontoDeOuro} · {golpe}";
+    }
+
+    private Control MontarPerfil()
+    {
+        var margem = Coluna(880);
+        _perfil = new TelaDoPerfil();
+        _perfil.VoltarPedido += () => Mostrar(Tela.Principal, foco: _botaoPerfil);
+        margem.AddChild(_perfil);
+        return margem;
     }
 
     private Control MontarOnline()
@@ -361,10 +376,12 @@ public partial class MenuNode : Node
         _principal.Visible = tela == Tela.Principal;
         _online.Visible = tela == Tela.Online;
         _areaDasOpcoes.Visible = tela == Tela.Opcoes;
+        _areaDoPerfil.Visible = tela == Tela.Perfil;
         var ativa = tela switch
         {
             Tela.Online => _online,
             Tela.Opcoes => _areaDasOpcoes,
+            Tela.Perfil => _areaDoPerfil,
             _ => _principal,
         };
 
@@ -388,6 +405,11 @@ public partial class MenuNode : Node
                 _dicas.Definir(new Dica("Setas", "Direcional", "navegar"), new Dica("Enter", "A", "escolher"), new Dica("Esc", "B", "voltar"));
                 _criar.CallDeferred(Control.MethodName.GrabFocus);
                 break;
+            case Tela.Perfil:
+                _perfil.Preencher(PerfilLocal.DoJogo.Atual);
+                _dicas.Definir(new Dica("Esc", "B", "voltar"));
+                _perfil.Voltar.CallDeferred(Control.MethodName.GrabFocus);
+                break;
             case Tela.Opcoes:
                 _dicas.Definir(new Dica("Setas", "Direcional", "navegar"), new Dica("Esq./Dir.", "Esq./Dir.", "mudar"), new Dica("Esc", "B", "salvar e voltar"));
                 _opcoes.Abrir();
@@ -403,6 +425,10 @@ public partial class MenuNode : Node
             case Tela.Online:
                 GetViewport().SetInputAsHandled();
                 Mostrar(Tela.Principal, foco: _botaoOnline);
+                break;
+            case Tela.Perfil:
+                GetViewport().SetInputAsHandled();
+                Mostrar(Tela.Principal, foco: _botaoPerfil);
                 break;
             case Tela.Principal:
                 // Esc/B na tela inicial leva o foco pro Sair — fechar direto seria fácil demais de apertar sem querer.

@@ -28,7 +28,8 @@ godot --headless --path Padel.Godot res://cenas/TestePlacar.tscn -- --conferir  
 
 O jogo abre no menu. Argumentos depois de `--`: `--auto` (ninguém humano), `--auto-golpe` (assistência de
 golpe), `--semente N`, `--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`,
-`--coop`, `--nome NOME`, `--host PORTA`, `--conectar IP:PORTA`. Qualquer um de `--auto`, `--sair-apos`,
+`--coop`, `--nome NOME`, `--host PORTA`, `--conectar IP:PORTA`, `--perfil ARQ` (grava o perfil noutro arquivo; o `--bot`
+e a carreira automática só gravam perfil com ele). Qualquer um de `--auto`, `--sair-apos`,
 `--host` e `--conectar` pula o menu direto pra partida.
 Depois de `dotnet build` com scripts novos, rode `godot --headless --path Padel.Godot --import` antes de executar sem tela.
 

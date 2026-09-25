@@ -187,6 +187,13 @@ na construção. A Steam corta valores com mais de 256 caracteres, e há teste d
 
 ## Pendências
 
+- **Ligado no jogo em 25/09** (`Padel.Godot/scripts/Perfil/PerfilLocal.cs`, `PartidaNode.LigarOPerfil`,
+  `CarreiraNode.RegistrarNoPerfil`, a tela *Perfil* do menu): passos 1 a 4 feitos — coletor na partida local, no coop,
+  na carreira e no host; a vitória online do cliente pelo evento; etapa e circuito da carreira; gravação atômica em
+  `user://perfil.json`, arquivo ilegível guardado ao lado (nunca apagado), e arquivo de versão mais nova intocado. As
+  conquistas novas aparecem na tela de fim. **Falta a Steam** (passos 2, 5, 6 e 7: `SetAchievement`, estatísticas,
+  sincronia na abertura, mesclagem do Cloud e Rich Presence), que entra com o Facepunch.Steamworks (D5).
+
 - **Coletor no cliente online**: o cliente não tem `Partida`, então golpes e vencedores de uma partida online não
   entram no perfil do cliente. Só a vitória entra, pelo evento. O caminho é o host mandar o resumo de cada jogador no
   fim, ou um coletor sobre os eventos da `VisaoDaPartida`.

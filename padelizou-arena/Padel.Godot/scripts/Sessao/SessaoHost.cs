@@ -36,6 +36,9 @@ public sealed class SessaoHost : ISessao
     public RetratoDaPartida Retrato { get; } = new();
     public bool Acabou => _servidor.Partida?.Acabou == true;
 
+    /// <summary>A sala fechou e a partida nasceu — antes do primeiro passo dela (quem coleta estatística assina aqui).</summary>
+    public event Action<Partida>? PartidaIniciada;
+
     public void Avancar(double delta, ReadOnlySpan<Entrada> entradas)
     {
         if (_servidor.Fase == FaseDoServidor.Sala)
@@ -45,7 +48,8 @@ public sealed class SessaoHost : ISessao
             Retrato.Mensagem = $"Sala aberta na porta {_porta} — {naSala} de 4 na sala, começa em {Math.Max(0, _esperar - _naSala):F0} s";
             if (_naSala >= _esperar || naSala >= 4)
             {
-                _servidor.Iniciar();
+                var partida = _servidor.Iniciar();
+                PartidaIniciada?.Invoke(partida);
                 global::Godot.GD.Print($"Rede: partida iniciada com {naSala} na sala ({string.Join(", ", _servidor.Nomes.Where(n => !string.IsNullOrEmpty(n)))})");
             }
         }

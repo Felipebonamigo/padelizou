@@ -31,6 +31,7 @@ public partial class CarreiraNode : Control
             _argumentosLidos = true;
             var args = OS.GetCmdlineUserArgs();
             Configuracao.LerLinhaDeComando(args);
+            PerfilLocal.LerLinhaDeComando(args);
             if (args.Contains("--carreira-sozinha")) EstadoDaCarreira.Automatico = true;
             if (args.Contains("--carreira-nova") && File.Exists(EstadoDaCarreira.Caminho)) File.Delete(EstadoDaCarreira.Caminho);
         }
@@ -163,9 +164,22 @@ public partial class CarreiraNode : Control
         {
             var resultado = carreira.FecharEtapa();
             EstadoDaCarreira.Salvar();
+            RegistrarNoPerfil(carreira, resultado.Campeao == eu, eu);
             GD.Print($"Carreira: etapa {resultado.Etapa} fechada — campeão {resultado.Campeao}; {eu}: {EstadoDaCarreira.NomeDaFase(resultado.Pontuacoes.First(p => p.Dupla == eu).Fase)}, {resultado.Pontuacoes.First(p => p.Dupla == eu).Pontos} pontos");
             Atualizar();
         });
+    }
+
+    /// <summary>
+    /// Conquistas da carreira (docs/CONQUISTAS.md, passo 3): etapa vencida e, se o circuito acabou, a posição final.
+    /// A carreira automática (teste) só grava com --perfil ARQ.
+    /// </summary>
+    private static void RegistrarNoPerfil(Padel.Core.Torneio.Carreira carreira, bool campeao, string eu)
+    {
+        if (EstadoDaCarreira.Automatico && PerfilLocal.CaminhoPedido is null) return;
+        if (campeao) PerfilLocal.DoJogo.Registrar(new Padel.Core.Perfil.EtapaVencida());
+        if (carreira.Concluida && carreira.Ranking().FirstOrDefault(l => l.Dupla == eu) is { } minha)
+            PerfilLocal.DoJogo.Registrar(new Padel.Core.Perfil.CircuitoEncerrado(minha.Posicao));
     }
 
     private void Principal(string texto, Action acao)
