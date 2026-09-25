@@ -71,7 +71,8 @@ fecham geometricamente. Por isso o mundo 3D é montado **no referencial local de
 origem na linha central em `z = car.z`, integrando a curvatura para ~30 segmentos atrás e 140–260 à frente
 (`roadframe.ts`, puro e testado). Com uma câmera de perseguição alinhada à pista, o resultado é indistinguível de
 um mundo fixo; o que fica ao longe (céu, sol, cordilheira, skyline) gira pelo heading absoluto do carro.
-Escalas: x = ±1 → ±7 m; segmento = 4 m (300 km/h do velocímetro ≈ 430 km/h visuais, exagero arcade); elevação × 0,006.
+Escalas: x = ±1 → ±7 m; segmento = 4 m (300 km/h do velocímetro ≈ 430 km/h visuais, exagero arcade); elevação × 0,0025
+(com 0,006 as rampas passavam de 40% e a câmera empinava).
 Malha da pista, terreno por bioma, cenário instanciado a partir dos `sprites` dos segmentos, 20 carros low-poly
 re-posicionados por viewport, céu procedural com PMREM para reflexos, sombras direcionais, bloom só nos
 emissivos, partículas. Tela dividida por scissor: 1 = cheia, 2 = em cima/embaixo, 3–4 = 2×2 (com 3, a 4ª célula é

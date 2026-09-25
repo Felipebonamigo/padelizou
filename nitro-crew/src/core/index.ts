@@ -9,5 +9,6 @@ export { AI_DRIVERS, AI_TEAMS, SEAT_COLORS, HUMAN_TEAM_ID, HUMAN_TEAM_NAME, AI_T
 export { getTrack, buildTrack, segmentAt, maxCurveAhead, TRACKS, trackDef } from './track';
 export { createRace, stepRace, raceSeconds, formatTicks } from './sim/race';
 export { holdableSpeedFraction, effectiveTopSpeed, steerRate, centrifugalRate, PIT_LANE_X } from './sim/physics';
-export { wrappedDelta, SPRITE_HALF_WIDTH } from './sim/collisions';
+export { wrappedDelta } from './sim/collisions';
+export { SPRITE_HALF_WIDTH, SPRITE_MIN_EDGE, spriteX } from './track/sprites';
 export { aiInput, DIFFICULTY_SPEED } from './sim/ai';

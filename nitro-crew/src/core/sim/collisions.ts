@@ -2,14 +2,10 @@
 import { CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, OFFROAD_X, SPRITE_CRASH_SPEED_FACTOR } from '../constants';
 import { carDef } from '../data/cars';
 import { segmentAt } from '../track/builder';
-import type { CarState, RaceState, SpriteKind, Track } from '../types';
+import type { CarState, RaceState, Track } from '../types';
+import { SPRITE_HALF_WIDTH } from '../track/sprites';
 
-/** Meia largura de cada sprite em `x` normalizado (escala 1). */
-export const SPRITE_HALF_WIDTH: Record<SpriteKind, number> = {
-  tree: 0.25, pine: 0.22, palm: 0.18, cactus: 0.14, bush: 0.2, boulder: 0.32, building: 0.9, tower: 0.45,
-  lamp: 0.07, billboard: 0.55, sign_left: 0.22, sign_right: 0.22, grandstand: 1.0, banner_start: 0,
-  pit_wall: 0.18, pit_sign: 0.12, cone: 0.05,
-};
+export { SPRITE_HALF_WIDTH } from '../track/sprites';
 
 /** Distância longitudinal com volta: resultado em (-L/2, L/2]. */
 export function wrappedDelta(a: number, b: number, length: number): number {

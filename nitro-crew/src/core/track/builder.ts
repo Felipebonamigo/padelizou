@@ -4,6 +4,7 @@
 import { SEGMENT_LENGTH } from '../constants';
 import { createRng, hashString, nextFloat, nextInt, pick, type RngState } from '../rng';
 import type { SceneryId, Segment, SpriteKind, SpriteRef, Track, TrackDef, TrackOp } from '../types';
+import { SPRITE_MIN_EDGE, spriteX } from './sprites';
 
 function easeIn(a: number, b: number, p: number): number { return a + (b - a) * p * p; }
 function easeOut(a: number, b: number, p: number): number { const q = 1 - p; return a + (b - a) * (1 - q * q); }
@@ -116,12 +117,14 @@ function decorate(track: Track, seed: number): void {
   const segs = track.segments;
   const n = segs.length;
 
-  // Largada: faixa, arquibancadas e muros do box.
+  // Largada: faixa, arquibancadas e muros do box. Todo sprite sólido é posicionado pela borda
+  // interna (spriteX): o centro fica a meia largura × escala além da margem, nunca sobre o asfalto.
   segs[track.startIndex].sprites.push(sprite('banner_start', 0, 1, false));
+  const standX = spriteX('grandstand', 1, SPRITE_MIN_EDGE + 0.15);
   for (let i = 1; i <= 24; i += 4) {
     const s = segs[(track.startIndex + i) % n];
-    s.sprites.push(sprite('grandstand', -2.4, 1, true, i % 8 === 1 ? 0 : 1));
-    if (!s.pit) s.sprites.push(sprite('grandstand', 2.4, 1, true, 1));
+    s.sprites.push(sprite('grandstand', -standX, 1, true, i % 8 === 1 ? 0 : 1));
+    if (!s.pit) s.sprites.push(sprite('grandstand', standX, 1, true, 1));
   }
 
   // Trecho de box: muro entre a pista e o box, placa na entrada, cones na saída.
@@ -129,7 +132,7 @@ function decorate(track: Track, seed: number): void {
   for (let i = 0; i < n; i++) {
     const s = segs[i];
     if (s.pit && pitStart < 0) pitStart = i;
-    if (s.pit && i % 3 === 0) s.sprites.push(sprite('pit_wall', 2.3, 1, true));
+    if (s.pit && i % 3 === 0) s.sprites.push(sprite('pit_wall', spriteX('pit_wall', 1, 2.1), 1, true));
     if (s.pit && !segs[(i + 1) % n].pit) {
       s.sprites.push(sprite('cone', 1.25, 1, false));
     }
@@ -141,9 +144,10 @@ function decorate(track: Track, seed: number): void {
     const s = segs[i];
     const prev = segs[i - 1];
     if (Math.abs(s.curve) >= 3 && Math.abs(prev.curve) < 3) {
-      const outer = s.curve > 0 ? -1.5 : 1.5;
+      const kind: SpriteKind = s.curve > 0 ? 'sign_right' : 'sign_left';
+      const outer = (s.curve > 0 ? -1 : 1) * spriteX(kind, 1, SPRITE_MIN_EDGE + 0.05);
       for (let k = 0; k < 3; k++) {
-        segs[(i + k * 4) % n].sprites.push(sprite(s.curve > 0 ? 'sign_right' : 'sign_left', outer, 1, true));
+        segs[(i + k * 4) % n].sprites.push(sprite(kind, outer, 1, true));
       }
     }
   }
@@ -158,21 +162,23 @@ function decorate(track: Track, seed: number): void {
       if (nextFloat(r) < recipe.density) {
         const kind = weightedPick(r, recipe.fillers);
         const far = kind === 'building' || kind === 'tower';
-        const x = side * (far ? 2.2 + nextFloat(r) * 1.4 : 1.35 + nextFloat(r) * 1.6);
         const scale = far ? 1.2 + nextFloat(r) * 1.4 : 0.8 + nextFloat(r) * 0.6;
-        s.sprites.push(sprite(kind, x, scale, kind !== 'bush', nextInt(r, 0, 3)));
+        const margin = SPRITE_MIN_EDGE + nextFloat(r) * (far ? 1.4 : 1.6);
+        s.sprites.push(sprite(kind, side * spriteX(kind, scale, margin), scale, kind !== 'bush', nextInt(r, 0, 3)));
       }
       if (recipe.lampEvery > 0 && i % recipe.lampEvery === 0 && side === -1) {
-        s.sprites.push(sprite('lamp', -1.3, 1, true, 0));
+        s.sprites.push(sprite('lamp', -spriteX('lamp', 1, SPRITE_MIN_EDGE), 1, true, 0));
       }
     }
     if (i % 40 === 20 && nextFloat(r) < recipe.billboardChance) {
       const side = nextFloat(r) < 0.5 ? -1 : 1;
-      if (!(side === 1 && s.pit)) s.sprites.push(sprite('billboard', side * 1.7, 1, true, nextInt(r, 0, 7)));
+      if (!(side === 1 && s.pit)) s.sprites.push(sprite('billboard', side * spriteX('billboard', 1, SPRITE_MIN_EDGE + 0.1), 1, true, nextInt(r, 0, 7)));
     }
     if (i % 90 === 45 && recipe.landmarks.length > 0) {
       const side = nextFloat(r) < 0.5 ? -1 : 1;
-      s.sprites.push(sprite(pick(r, recipe.landmarks), side * 3.2, 2.2 + nextFloat(r), true, nextInt(r, 0, 3)));
+      const kind = pick(r, recipe.landmarks);
+      const scale = 2.2 + nextFloat(r);
+      s.sprites.push(sprite(kind, side * spriteX(kind, scale, SPRITE_MIN_EDGE + 0.6 + nextFloat(r) * 0.6), scale, true, nextInt(r, 0, 3)));
     }
   }
 }

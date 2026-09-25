@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SEGMENT_LENGTH } from '../src/core/constants';
+import { SPRITE_HALF_WIDTH } from '../src/core/sim/collisions';
 import { CUPS } from '../src/core/data/cups';
 import { buildTrack, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 import { TRACKS, trackDef } from '../src/core/track/tracks';
@@ -36,11 +37,14 @@ describe('pistas', () => {
     }
   });
 
-  it('nenhum sprite sólido fica em cima do asfalto', () => {
+  it('nenhum sprite sólido fica em cima do asfalto — nem a BORDA dele (largura × escala)', () => {
+    // 25/09: prédios de escala 2,6 com centro em x 2,2 tinham a borda interna em -0,14, dentro da pista.
     for (const def of TRACKS) {
       const t = buildTrack(def);
       for (const s of t.segments) for (const sp of s.sprites) {
-        if (sp.solid) expect(Math.abs(sp.x), `${def.id} seg ${s.index} ${sp.kind}`).toBeGreaterThanOrEqual(1.3);
+        if (!sp.solid) continue;
+        const innerEdge = Math.abs(sp.x) - SPRITE_HALF_WIDTH[sp.kind] * sp.scale;
+        expect(innerEdge, `${def.id} seg ${s.index} ${sp.kind} x=${sp.x.toFixed(2)} escala=${sp.scale.toFixed(2)}`).toBeGreaterThanOrEqual(1.2);
       }
     }
   });
