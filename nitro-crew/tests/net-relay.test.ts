@@ -240,6 +240,30 @@ describe.skipIf(!HAS_WS)('relay (mensagens cruas)', () => {
     for (const x of [a, b, c]) x.ws.close();
   });
 
+  it('anfitrião que cai na corrida passa a sala a quem está conectado há mais tempo, não a quem acabou de voltar', async () => {
+    const h = await raw();
+    h.send({ t: 'create', v: 1, seats: 1, info: INFO('Hugo') });
+    const room = String((await h.next(isT('welcome'))).room);
+    const a = await raw();
+    a.send({ t: 'join', v: 1, room, seats: 1, info: INFO('Ana') });
+    const token = String((await a.next(isT('welcome'))).token);
+    const c = await raw();
+    c.send({ t: 'join', v: 1, room, seats: 1, info: INFO('Caio') });
+    await c.next(isT('welcome'));
+    h.send({ t: 'start', cfg: {} });
+    await c.next(isT('start'));
+    a.ws.close();
+    await c.next((m) => m.t === 'peer' && m.e === 'lost');
+    const a2 = await raw();
+    a2.send({ t: 'rejoin', v: 1, room, token });
+    await a2.next(isT('welcome'));
+    h.ws.close();
+    // Ana (id 1) acabou de voltar e espera o estado; Caio (id 2) nunca caiu: o estado completo é dele.
+    const r = await c.next((m) => m.t === 'room' && (m.room as { clients: Array<{ id: number; connected: boolean }> }).clients.some((x) => x.id === 0 && !x.connected));
+    expect((r.room as { host: number }).host).toBe(2);
+    for (const x of [a2, c]) x.ws.close();
+  });
+
   it('lixo, binário e mensagem acima do limite: descarta, e a grande derruba a conexão (1009)', async () => {
     const a = await raw();
     a.send('isto não é json');
@@ -410,6 +434,45 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
     A.leave(false); B.leave(false);
   }, 20_000);
+
+  it('três computadores: o anfitrião cai sem mandar o snapshot a quem voltava; o novo anfitrião é quem ficou conectado, e ele manda', async () => {
+    const [hh, ha, hc] = [new FakeHost('Hugo'), new FakeHost('Ana'), new FakeHost('Caio')];
+    const opts = { retryMs: 100, reconnectWindowMs: 10_000, pingMs: 200, resendMs: 150 };
+    const [H, A, C] = [new OnlineController(hh, opts), new OnlineController(ha, opts), new OnlineController(hc, opts)];
+    ha.debug = () => ({ host: A.isHost, ...A.status() });
+    hc.debug = () => ({ host: C.isHost, ...C.status() });
+    H.create('kb1');
+    await until(() => H.phase === 'lobby' && H.room?.settings !== null && H.room?.settings !== undefined, 3000, 'sala criada');
+    A.join(H.code, 'kb1');
+    await until(() => (H.room?.clients.length ?? 0) === 2, 3000, 'A na sala');
+    C.join(H.code, 'kb1');
+    await until(() => (H.room?.clients.length ?? 0) === 3, 3000, 'C na sala');
+    H.updateRoomSettings({ trackId: 'copacabana', laps: 3, totalCars: 6 });
+    A.toggleReady();
+    C.toggleReady();
+    await until(() => H.startBlocker() === null, 3000, 'todos prontos');
+    expect(H.startRace()).toBe(true);
+    await until(() => hh.race !== null && ha.race !== null && hc.race !== null, 3000, 'largada');
+    await race([hh, ha, hc], 300);
+
+    // A cai. H e C ainda andam até onde a entrada de A deixa, mandando entradas que A não recebe.
+    A.debugDropConnection();
+    for (let i = 0; i < 30; i++) { hh.pump(8, 1200); hc.pump(8, 1200); await sleep(3); }
+    // O anfitrião trava (não trata mais nada: nem o "peer rejoin" de A) e A volta.
+    (H as unknown as { handle(msg: unknown): void }).handle = () => undefined;
+    await until(() => A.status().syncing, 3000, 'A de volta, esperando o estado');
+    // Agora o anfitrião cai de vez, sem ter mandado nada.
+    H.debugVanish();
+    hh.race = null;
+    // A e C seguem juntos (depois da janela do relay, a IA assume o carro de Hugo).
+    await race([ha, hc], 900, 15_000);
+    expect(C.isHost).toBe(true);
+    expect(ha.race?.starts).toBe(2); // A recomeçou do snapshot de C
+    expect(hashRace(ha.race!.state)).toBe(hashRace(hc.race!.state));
+    expect([...A.debugInfo().desyncs as unknown[], ...C.debugInfo().desyncs as unknown[]]).toEqual([]);
+    expect(hc.race?.state.cars.find((c) => c.seat === 0)?.ai).not.toBeNull();
+    A.leave(false); C.leave(false);
+  }, 30_000);
 
   it('fim natural pela rede, quadro a quadro: o mesmo resultado nos dois computadores, e a próxima largada funciona', async () => {
     const ha = new FakeHost('Ana');

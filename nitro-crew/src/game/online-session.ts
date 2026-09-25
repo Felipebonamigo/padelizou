@@ -477,6 +477,12 @@ export class OnlineController implements RaceDriver {
       // A sala saiu da corrida enquanto este computador voltava (o anfitrião voltou à sala): vai junto.
       else if (!room.started) { this.enterLobby(); return; }
     }
+    // Anfitrião novo no meio da corrida (o anterior caiu ou saiu): quem tinha voltado e esperava o
+    // estado do anterior pode ter ficado sem ele. Manda o snapshot a todos os conectados; quem não
+    // está esperando descarta.
+    if (!wasHost && this.isHost && this.phase === 'racing' && !this.awaitingSnapshot) {
+      for (const c of room.clients) if (c.id !== this.myId && c.connected) this.sendSnapshot(c.id);
+    }
     // Anfitrião (de nascença ou por sucessão): quem sumiu da sala no meio da corrida vira IA.
     if (this.isHost && this.lockstep && this.start) {
       for (const s of this.start.seats) {

@@ -228,6 +228,28 @@ describe('sessão online: volta depois de cair', () => {
     expect(sock.sent.find((m) => m.t === 'snap')).toMatchObject({ t: 'snap', to: 0, snap: { tick: 3 } });
   });
 
+  it('anfitrião novo no meio da corrida manda o snapshot a todos os conectados (quem voltava pode ter ficado sem o do anterior)', () => {
+    const sock = new FakeSocket();
+    const host = new Host();
+    const ctl = new OnlineController(host, { socket: () => asWebSocket(sock), pingMs: 60_000 });
+    online = ctl;
+    const cfg: StartConfig = { ...startCfg(), seats: [...startCfg().seats, { seat: 2, client: 2, name: 'Caio', car: 'falcao' }] };
+    const room3 = (hostId: number, offline: number[]) => ({ t: 'room', room: { code: 'KQXTR', host: hostId, started: true, settings: null, clients: [0, 1, 2].map((id) => ({
+      id, seats: 1, connected: !offline.includes(id), info: { players: [player(['Hugo', 'Ana', 'Caio'][id])], ready: true },
+    })) } });
+    ctl.join('KQXTR', 'kb1');
+    sock.open();
+    sock.push({ t: 'welcome', room: 'KQXTR', id: 2, token: TOKEN, rejoined: false });
+    sock.push(roomMsg(0));
+    sock.push({ t: 'start', from: 0, cfg });
+    expect(ctl.phase).toBe('racing');
+    sock.push(room3(0, [])); // o anfitrião ainda é o 0: nada a mandar
+    expect(sock.sent.some((m) => m.t === 'snap')).toBe(false);
+    sock.push(room3(2, [0])); // o 0 caiu e a sala passou para este computador
+    expect(ctl.isHost).toBe(true);
+    expect(sock.sent.filter((m) => m.t === 'snap').map((m) => m.to)).toEqual([1]);
+  });
+
   it('o anfitrião encerrou a corrida enquanto este computador voltava: vai para a sala em vez de esperar um snapshot que não vem', async () => {
     const { sock, host, ctl } = await rejoined();
     sock.push(roomMsg(0, false));
