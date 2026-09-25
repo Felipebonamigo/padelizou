@@ -42,6 +42,9 @@ jobs:
           "$GODOT" --headless --path . --import
           "$GODOT" --headless --path . -- --auto --semente 42 --sair-apos 15 | tee saida.txt
           grep -q "Saindo após" saida.txt
+      - name: Conferência da interface (linha de comando, configuração, placar, controle)
+        working-directory: Padel.Godot
+        run: '"$GODOT" --headless --path . res://cenas/TestePlacar.tscn -- --conferir'
 
   exportar:
     name: Exportar builds (Linux e Windows)

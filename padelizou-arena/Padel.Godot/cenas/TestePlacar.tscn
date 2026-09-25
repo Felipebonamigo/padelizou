@@ -1,0 +1,72 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/Interface/TestePlacarNode.cs" id="1_teste"]
+
+[sub_resource type="Environment" id="Environment_ceu"]
+background_mode = 1
+background_color = Color(0.06, 0.09, 0.19, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.78, 0.9, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.35
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_jogador"]
+radius = 0.28
+height = 1.78
+
+[sub_resource type="StandardMaterial3D" id="Material_casa"]
+albedo_color = Color(0.64, 0.85, 0.15, 1)
+
+[sub_resource type="StandardMaterial3D" id="Material_rivais"]
+albedo_color = Color(0.93, 0.94, 0.97, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_bola"]
+radius = 0.06
+height = 0.12
+
+[sub_resource type="StandardMaterial3D" id="Material_bola"]
+albedo_color = Color(0.89, 0.95, 0.29, 1)
+emission_enabled = true
+emission = Color(0.4, 0.45, 0.1, 1)
+
+[node name="TestePlacar" type="Node3D"]
+script = ExtResource("1_teste")
+
+[node name="Ceu" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_ceu")
+
+[node name="Sol" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 12, 0)
+light_energy = 1.4
+shadow_enabled = true
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.342, 0, -0.342, 0.94, 0, 7.5, 17.5)
+fov = 52.0
+
+[node name="CasaEsquerda" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 0.89, 7.6)
+mesh = SubResource("CapsuleMesh_jogador")
+surface_material_override/0 = SubResource("Material_casa")
+
+[node name="CasaDireita" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 0.89, 5.4)
+mesh = SubResource("CapsuleMesh_jogador")
+surface_material_override/0 = SubResource("Material_casa")
+
+[node name="RivalEsquerda" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0.89, -3.0)
+mesh = SubResource("CapsuleMesh_jogador")
+surface_material_override/0 = SubResource("Material_rivais")
+
+[node name="RivalDireita" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.89, -7.2)
+mesh = SubResource("CapsuleMesh_jogador")
+surface_material_override/0 = SubResource("Material_rivais")
+
+[node name="Bola" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 1.5, 1.8)
+mesh = SubResource("SphereMesh_bola")
+surface_material_override/0 = SubResource("Material_bola")

@@ -23,10 +23,13 @@ dotnet build Padel.Godot/Padel.Godot.csproj              # compila os scripts co
 godot --path Padel.Godot                                 # joga
 godot --path Padel.Godot -- --auto                       # 4 IAs
 godot --headless --path Padel.Godot -- --auto --sair-apos 15   # o que o CI faz
+godot --headless --path Padel.Godot res://cenas/TestePlacar.tscn -- --conferir   # conferência da interface (sai 0 ou 1)
 ```
 
-Argumentos depois de `--`: `--auto` (ninguém humano), `--auto-golpe` (assistência de golpe), `--semente N`,
-`--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`.
+O jogo abre no menu. Argumentos depois de `--`: `--auto` (ninguém humano), `--auto-golpe` (assistência de
+golpe), `--semente N`, `--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`,
+`--coop`, `--nome NOME`, `--host PORTA`, `--conectar IP:PORTA`. Qualquer um de `--auto`, `--sair-apos`,
+`--host` e `--conectar` pula o menu direto pra partida.
 Depois de `dotnet build` com scripts novos, rode `godot --headless --path Padel.Godot --import` antes de executar sem tela.
 
 ## Controles
