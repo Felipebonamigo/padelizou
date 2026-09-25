@@ -18,16 +18,19 @@ import { createRenderer } from '../render/renderer';
 import { trackOutline } from '../render/minimap';
 import { createInput } from '../ui/input';
 import { createMenus } from '../ui/menus';
-import { evaluateAchievements, newTelemetry, type RaceTelemetry } from './achievements';
+import { achievementMessages, newTelemetry, observeTick, unlockAchievements, type AchievementUnlock, type RaceTelemetry } from './achievements';
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
-import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from './desktop';
-import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave } from './save';
+import { getDesktop, isDesktop, setFullscreen } from './desktop';
+import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave, type NewRecord } from './save';
 import { loadSettings, saveSettings } from './settings';
+import { recordRaceStats } from './stats';
 
 const DT = 1 / TICK_RATE;
 const MAX_STEPS_PER_FRAME = 4;
 /** Depois do último humano cruzar a linha, quanto tempo a corrida fica na tela antes do resultado. */
 const RESULTS_DELAY = 3.0;
+/** Conquista no HUD: fica até o resultado cobrir a corrida. */
+const ACHIEVEMENT_TTL = RESULTS_DELAY + 0.5;
 
 interface ActiveRace {
   state: RaceState;
@@ -39,6 +42,8 @@ interface ActiveRace {
   /** Segundos desde o fim da corrida (para o atraso do resultado). */
   overFor: number;
   seed: number;
+  /** Contas fechadas no tick em que a corrida acabou (settleRace); o resultado aparece depois. */
+  outcome: { newRecords: NewRecord[]; achievements: AchievementUnlock[] } | null;
 }
 
 export interface Session {
@@ -135,7 +140,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     const state = createRace(config, track);
     const messages = new Map<number, HudMessage[]>();
     for (const h of humans) messages.set(h.seat, []);
-    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed };
+    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null };
     session.paused = false;
     accumulator = 0;
     menus.hide();
@@ -213,7 +218,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     switch (e.type) {
       case 'countdown': broadcast(String(e.value), 'big', 0.9); audio.onEvent(e, 0); return;
       case 'go': broadcast(t('session.go'), 'big', 0.8); audio.onEvent(e, 0); return;
-      case 'race_over': audio.onEvent(e, 0); return;
+      case 'race_over': audio.onEvent(e, 0); settleRace(r); return;
       default: break;
     }
     const seat = 'carId' in e ? seatOf(state, e.carId) : -1;
@@ -253,27 +258,37 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     }
   }
 
-  function finishRace(r: ActiveRace): void {
+  /**
+   * Fecha as contas no tick em que a corrida acaba (evento race_over): recordes, copa, estatísticas,
+   * conquistas e save. As conquistas vão já para o HUD de quem as ganhou — a corrida ainda fica
+   * RESULTS_DELAY na tela antes do resultado. Idempotente.
+   */
+  function settleRace(r: ActiveRace): NonNullable<ActiveRace['outcome']> {
+    if (r.outcome) return r.outcome;
     const results = r.state.results ?? [];
-    const newRecords = recordRaceResults(save, results, r.humans, r.track.def.id, r.state.config.laps);
+    const newRecords = recordRaceResults(save, results, r.humans, r.track.def.id, r.state.config.laps, r.mode);
     rememberLobby(save, r.humans);
+    recordRaceStats(save.stats, { mode: r.mode, state: r.state, results, humans: r.humans, telemetry: r.telemetry });
     let cupJustCompleted: string | null = null;
     if (champ && r.mode === 'cup') {
       applyRaceResult(champ, results, r.humans);
       if (champ.completed) { markCupCompleted(save, champ.cupId); cupJustCompleted = champ.cupId; }
     }
-    const unlocked = evaluateAchievements(save, r.mode, r.state, results, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, settings.difficulty);
-    for (const id of unlocked) {
-      save.achievements.push(id);
-      getDesktop()?.achievement(id).catch(() => undefined);
+    const unlocked = unlockAchievements(save, r.mode, r.state, results, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, settings.difficulty);
+    for (const u of unlocked) {
+      save.achievements.push(u.id);
+      getDesktop()?.achievement(u.id).catch(() => undefined);
     }
+    for (const [seat, text] of achievementMessages(unlocked)) pushMessage(seat, text, 'good', ACHIEVEMENT_TTL);
     saveSave(save);
-    menus.show('results', { mode: r.mode, trackDef: r.track.def, results, humans: r.humans, champ, newRecords });
+    r.outcome = { newRecords, achievements: unlocked };
+    return r.outcome;
+  }
+
+  function finishRace(r: ActiveRace): void {
+    const { newRecords, achievements } = settleRace(r);
+    menus.show('results', { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: r.humans, champ, newRecords, achievements });
     audio.update(null, 0);
-    if (unlocked.length) {
-      const names = unlocked.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.[settings.language] ?? id);
-      console.info('Conquistas:', names.join(', '));
-    }
   }
 
   // ───────────────────────────── Laço ─────────────────────────────
@@ -286,6 +301,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function stepOnce(r: ActiveRace, inputs: PlayerInput[]): void {
     stepRace(r.state, r.track, inputs);
+    observeTick(r.telemetry, r.state, r.track); // antes dos eventos: o tick que fecha a corrida já conta
     for (const e of r.state.events) handleEvent(r, e);
   }
 

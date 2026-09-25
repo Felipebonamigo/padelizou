@@ -1,9 +1,15 @@
-// Telas de consulta: controles (mapeamentos + dispositivos detectados) e recordes.
+// Telas de consulta: controles (mapeamentos + dispositivos detectados) e recordes (três abas:
+// recordes por pista, estatísticas por jogador e conquistas).
 import { formatTicks } from '../../core/sim/race';
-import { t } from '../../i18n';
+import { achievementDescription, achievementName } from '../../game/achievements';
+import { ACHIEVEMENTS } from '../../game/desktop';
+import { COUNTER_KEYS, formatDistance, formatDuration, MAX_PROFILES, tracksRaced, type CounterKey, type PlayerStats } from '../../game/stats';
+import { getLanguage, t } from '../../i18n';
+import '../../stats/strings';
 import { isKeyboard } from '../input';
-import { button, createFocusList, h, listNav, screenFrame, type ScreenApi, type ScreenInstance } from './common';
-import { icon } from './icons';
+import { arrowButton, blurActive, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { icon, medal } from './icons';
+import './records.css';
 
 interface ControlRow { action: string; kb1: string; kb2: string; gp: string }
 
@@ -77,10 +83,31 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
   };
 }
 
-export function recordsScreen(api: ScreenApi): ScreenInstance {
+
+// ───────────────────────────── Recordes ─────────────────────────────
+
+type RecordsTab = 'tracks' | 'players' | 'achievements';
+const RECORD_TABS: readonly RecordsTab[] = ['tracks', 'players', 'achievements'];
+
+/** Uma aba: conteúdo rolável, a lista de foco (linhas + Voltar) e o que refazer a cada quadro. */
+interface TabView {
+  el: HTMLElement;
+  list: FocusList;
+  update?(): void;
+}
+
+/** Linhas focáveis rolam sozinhas até ficar visíveis (createFocusList chama scrollIntoView). */
+function tabView(api: ScreenApi, rows: FocusItem[], content: HTMLElement, update?: (list: FocusList) => void): TabView {
+  const back = button(t('ui.common.back'), () => api.back());
+  const list = createFocusList([...rows, back], { sfx: api.sfx });
+  const el = h('div', { class: 'rec-view' }, h('div', { class: 'rec-scroll' }, content), h('div', { class: 'actions' }, back.el));
+  return { el, list, update: update ? () => update(list) : undefined };
+}
+
+function tracksTab(api: ScreenApi): TabView {
   const { save, tracks, cars } = api.ctx;
   const carName = (id: string) => cars.find((c) => c.id === id)?.name ?? id;
-  const rows: HTMLElement[] = [];
+  const rows: FocusItem[] = [];
   for (const def of tracks) {
     const lap = save.bestLaps[def.id];
     const races = Object.entries(save.bestRaces)
@@ -88,7 +115,7 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
       .map(([key, rec]) => ({ laps: Number(key.slice(def.id.length + 1)), rec }))
       .sort((a, b) => a.laps - b.laps);
     if (!lap && races.length === 0) continue;
-    rows.push(h('div', { class: 'record-row glass' },
+    rows.push({ el: h('div', { class: 'record-row glass' },
       h('div', { class: 'record-track' }, h('strong', { text: def.name }), h('span', { class: 'muted', text: t(`core.country.${def.country}`) })),
       h('div', { class: 'record-entries' },
         lap ? h('div', { class: 'record-entry' },
@@ -102,14 +129,163 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
           h('span', { class: 'record-who', text: `${rec.name} · ${carName(rec.carId)}` }),
         )),
       ),
-    ));
+    ) });
   }
-  const back = button(t('ui.common.back'), () => api.back());
-  const list = createFocusList([back], { sfx: api.sfx });
+  const content = rows.length > 0
+    ? h('div', { class: 'record-list' }, h('p', { class: 'hint rec-hint', text: t('stats.tracks.hint') }), rows.map((r) => r.el))
+    : h('p', { class: 'empty', text: t('ui.records.empty') });
+  return tabView(api, rows, content);
+}
+
+function numberText(n: number): string {
+  return new Intl.NumberFormat(getLanguage() === 'pt' ? 'pt-BR' : 'en-US').format(n);
+}
+
+function statText(key: CounterKey, s: PlayerStats): string {
+  if (key === 'meters') return formatDistance(s.meters, getLanguage());
+  if (key === 'raceTicks') return formatDuration(s.raceTicks);
+  return numberText(s[key]);
+}
+
+function playerDetail(api: ScreenApi, name: string, s: PlayerStats, all: boolean): HTMLElement[] {
+  const trackIds = api.ctx.tracks.map((d) => d.id);
+  const raced = api.ctx.tracks.filter((d) => s.bestPositions[d.id] !== undefined);
+  return [
+    h('div', { class: 'pl-detail-head' },
+      h('h2', { class: 'pl-detail-name' }, all ? icon('users') : null, h('span', { text: name })),
+      all ? h('p', { class: 'hint pl-note', text: t('stats.players.allNote', { max: MAX_PROFILES }) }) : null,
+    ),
+    h('div', { class: 'stat-grid' }, COUNTER_KEYS.map((k) => h('div', { class: `stat-tile stat-${k}` },
+      h('span', { class: 'stat-value mono', text: statText(k, s) }),
+      h('span', { class: 'stat-label', text: t(`stats.stat.${k}`) }),
+    ))),
+    h('div', { class: 'best-head' },
+      h('h3', { class: 'sub-title', text: t('stats.best.title') }),
+      h('span', { class: 'best-count', text: t('stats.best.count', { n: tracksRaced(s, trackIds), total: trackIds.length }) }),
+    ),
+    raced.length > 0
+      ? h('div', { class: 'best-list' }, raced.map((d) => {
+        const pos = s.bestPositions[d.id] ?? 0;
+        return h('span', { class: `best-chip${pos <= 3 ? ' podium' : ''}` },
+          medal(pos) ?? h('b', { class: 'best-pos mono', text: t('stats.best.pos', { n: pos }) }),
+          h('span', { class: 'best-name', text: d.name }),
+        );
+      }))
+      : h('p', { class: 'hint best-none', text: t('stats.best.none') }),
+  ];
+}
+
+/** Lista de jogadores à esquerda (a primeira linha é o total) e o detalhe de quem está focado. */
+function playersTab(api: ScreenApi): TabView {
+  const stats = api.ctx.save.stats;
+  if (stats.totals.races === 0 && stats.players.length === 0) {
+    return tabView(api, [], h('p', { class: 'empty', text: t('stats.players.empty') }));
+  }
+  const entries: Array<{ name: string; s: PlayerStats; all: boolean }> = [
+    { name: t('stats.players.all'), s: stats.totals, all: true },
+    ...stats.players.map((p) => ({ name: p.name, s: p, all: false })),
+  ];
+  const rows: FocusItem[] = entries.map((e) => ({ el: h('div', { class: `pl-row${e.all ? ' all' : ''}` },
+    e.all ? h('span', { class: 'pl-avatar all' }, icon('users')) : h('span', { class: 'pl-avatar', text: e.name.slice(0, 1).toUpperCase() }),
+    h('span', { class: 'pl-text' },
+      h('span', { class: 'pl-name', text: e.name }),
+      h('span', { class: 'pl-sub', text: t('stats.players.summary', { races: numberText(e.s.races), wins: numberText(e.s.wins) }) }),
+    ),
+  ) }));
+  const detail = h('div', { class: 'pl-detail glass' });
+  let shown = -1;
+  const show = (list: FocusList) => {
+    // Com o Voltar focado, o detalhe continua no último jogador mostrado.
+    const i = list.index >= 0 && list.index < entries.length ? list.index : Math.max(0, shown);
+    if (i === shown) return;
+    shown = i;
+    const e = entries[i];
+    detail.replaceChildren(...playerDetail(api, e.name, e.s, e.all));
+    rows.forEach((r, j) => r.el.classList.toggle('shown', j === i));
+  };
+  const content = h('div', { class: 'players-layout' },
+    h('div', { class: 'pl-list glass' }, h('p', { class: 'hint pl-hint', text: t('stats.players.hint') }), rows.map((r) => r.el)),
+    detail,
+  );
+  const view = tabView(api, rows, content, show);
+  show(view.list);
+  return view;
+}
+
+function achievementsTab(api: ScreenApi): TabView {
+  const got = new Set(api.ctx.save.achievements);
+  const card = (id: string, unlocked: boolean): FocusItem => ({ el: h('div', { class: `ach-card ${unlocked ? 'on' : 'off'}` },
+    h('span', { class: 'ach-badge' }, icon(unlocked ? 'trophy' : 'lock')),
+    h('span', { class: 'ach-text' },
+      h('strong', { class: 'ach-name', text: achievementName(id) }),
+      h('span', { class: 'ach-desc', text: achievementDescription(id) }),
+    ),
+    h('span', { class: 'ach-state', text: unlocked ? t('stats.ach.stateOn') : t('stats.ach.stateOff') }),
+  ) });
+  const onCards = ACHIEVEMENTS.filter((a) => got.has(a.id)).map((a) => card(a.id, true));
+  const offCards = ACHIEVEMENTS.filter((a) => !got.has(a.id)).map((a) => card(a.id, false));
+  const pct = Math.round((onCards.length / ACHIEVEMENTS.length) * 100);
+  const group = (title: string, cards: FocusItem[]) => (cards.length === 0 ? null : h('div', { class: 'ach-group' },
+    h('h3', { class: 'sub-title', text: `${title} · ${cards.length}` }),
+    cards.map((c) => c.el),
+  ));
+  const content = h('div', { class: 'ach-list' },
+    h('div', { class: 'ach-progress glass' },
+      h('span', { class: 'ach-progress-text', text: t('stats.ach.progress', { n: onCards.length, total: ACHIEVEMENTS.length }) }),
+      h('span', { class: 'ach-bar' }, h('span', { class: 'ach-bar-fill', style: `width:${pct}%` })),
+    ),
+    group(t('stats.ach.unlocked'), onCards),
+    group(t('stats.ach.locked'), offCards),
+  );
+  return tabView(api, [...onCards, ...offCards], content);
+}
+
+const TAB_BUILDERS: Readonly<Record<RecordsTab, (api: ScreenApi) => TabView>> = {
+  tracks: tracksTab, players: playersTab, achievements: achievementsTab,
+};
+
+export function recordsScreen(api: ScreenApi): ScreenInstance {
+  const { save } = api.ctx;
+  let tab = 0;
+  const unlocked = ACHIEVEMENTS.filter((a) => save.achievements.includes(a.id)).length;
+  const tabLabel = (id: RecordsTab) => (id === 'achievements' ? `${t('stats.tab.achievements')} ${unlocked}/${ACHIEVEMENTS.length}` : t(`stats.tab.${id}`));
+  const tabButtons = RECORD_TABS.map((id, i) => h('button', {
+    class: 'rec-tab', text: tabLabel(id), attrs: { type: 'button', role: 'tab' },
+    on: { click: () => { blurActive(); if (select(i)) api.sfx('move'); } },
+  }));
+  const markTabs = () => tabButtons.forEach((b, j) => { b.classList.toggle('on', j === tab); b.setAttribute('aria-selected', String(j === tab)); });
+  let view: TabView = TAB_BUILDERS[RECORD_TABS[tab]](api);
+  const holder = h('div', { class: 'rec-holder' }, view.el);
+
+  function select(i: number): boolean {
+    const next = (i + RECORD_TABS.length) % RECORD_TABS.length;
+    if (next === tab) return false;
+    tab = next;
+    view = TAB_BUILDERS[RECORD_TABS[tab]](api);
+    holder.replaceChildren(view.el);
+    markTabs();
+    return true;
+  }
+  markTabs();
+
   const el = screenFrame('records', t('ui.records.title'),
     h('p', { class: 'hint', text: t('ui.records.stats', { run: save.racesRun, won: save.racesWon, cups: save.cupsCompleted.length }) }),
-    rows.length > 0 ? h('div', { class: 'record-list' }, rows) : h('p', { class: 'empty', text: t('ui.records.empty') }),
-    h('div', { class: 'actions' }, back.el),
+    h('div', { class: 'rec-tabs', attrs: { role: 'tablist' } },
+      arrowButton(-1, () => { select(tab - 1); api.sfx('move'); }),
+      h('div', { class: 'rec-tab-row' }, tabButtons),
+      arrowButton(1, () => { select(tab + 1); api.sfx('move'); }),
+    ),
+    h('p', { class: 'hint rec-tabs-hint', text: t('stats.tabs.hint') }),
+    holder,
   );
-  return { el, nav: (nav) => listNav(list, nav, api.sfx, () => api.back()) };
+  return {
+    el,
+    nav(nav) {
+      // ◀ ▶ trocam de aba: as abas são listas verticais, esquerda/direita não têm outro uso aqui.
+      if (nav.left || nav.right) { select(tab + (nav.left ? -1 : 1)); api.sfx('move'); }
+      listNav(view.list, { ...nav, left: false, right: false }, api.sfx, () => api.back());
+      view.update?.();
+    },
+    update() { view.update?.(); },
+  };
 }

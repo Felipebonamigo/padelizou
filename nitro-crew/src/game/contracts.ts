@@ -7,6 +7,8 @@ import type {
   SimEvent, Track, TrackDef,
 } from '../core/types';
 import type { Lang } from '../i18n';
+import type { AchievementUnlock } from './achievements';
+import { EMPTY_STATS, type StatsData } from './stats';
 
 // ───────────────────────────── Entrada ─────────────────────────────
 
@@ -93,11 +95,14 @@ export interface SaveData {
   seatNames: string[];
   /** Carro escolhido por assento na última sessão. */
   seatCars: string[];
+  /** Estatísticas por jogador (nome do lobby) e totais — src/game/stats.ts. */
+  stats: StatsData;
 }
 
 export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
   cupsCompleted: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
   seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
+  stats: EMPTY_STATS,
 });
 
 // ───────────────────────────── Renderização ─────────────────────────────
@@ -204,6 +209,8 @@ export interface ResultsScreenData {
   champ: ChampionshipState | null;
   /** Recordes batidos nesta corrida (por assento), para destacar. */
   newRecords: Array<{ seat: number; kind: 'lap' | 'race' }>;
+  /** Conquistas desbloqueadas nesta corrida e quem as ganhou. */
+  achievements: AchievementUnlock[];
 }
 
 export interface StandingsScreenData {

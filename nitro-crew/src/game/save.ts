@@ -2,8 +2,9 @@
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
 import { CARS } from '../core/data/cars';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
-import { DEFAULT_SAVE, type BestLap, type SaveData } from './contracts';
+import { DEFAULT_SAVE, type BestLap, type RaceMode, type SaveData } from './contracts';
 import { isRecord, pickNumber, pickString, readJson, writeJson } from './settings';
+import { sanitizeStats } from './stats';
 
 export const SAVE_KEY = 'nitro-crew.save';
 export const SEATS = 4;
@@ -62,6 +63,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     racesWon: pickNumber(r.racesWon, 0, Number.MAX_SAFE_INTEGER, d.racesWon, true),
     seatNames: seatList(r.seatNames, d.seatNames, () => true, NAME_MAX_LENGTH),
     seatCars: seatList(r.seatCars, d.seatCars, knownCar, 32),
+    stats: sanitizeStats(r.stats),
   };
 }
 
@@ -107,15 +109,16 @@ function improves(ticks: number, previous: BestLap | undefined): boolean {
 
 /**
  * Atualiza os recordes da pista com o melhor humano da corrida e as contagens de corridas.
- * Devolve os recordes novos (só quando melhora o anterior), por assento.
+ * Devolve os recordes novos (só quando melhora o anterior), por assento. No contra-relógio a
+ * posição é sempre 1 (sozinho na pista), então ele conta corrida mas não vitória.
  */
 export function recordRaceResults(
-  save: SaveData, results: RaceResultRow[], humans: HumanEntry[], trackId: string, laps: number,
+  save: SaveData, results: RaceResultRow[], humans: HumanEntry[], trackId: string, laps: number, mode: RaceMode = 'quick',
 ): NewRecord[] {
   const out: NewRecord[] = [];
   const humanRows = results.filter((r) => r.seat >= 0);
   save.racesRun += 1;
-  if (humanRows.some((r) => r.position === 1)) save.racesWon += 1;
+  if (mode !== 'timetrial' && humanRows.some((r) => r.position === 1)) save.racesWon += 1;
 
   const date = new Date().toISOString();
   const entry = (r: RaceResultRow, ticks: number): BestLap => {

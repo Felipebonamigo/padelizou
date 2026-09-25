@@ -2,8 +2,11 @@
 import { isCoop, nextTrackId, teamRaceRank, teamRaceScore } from '../../core/championship';
 import { formatTicks } from '../../core/sim/race';
 import type { HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
+import { achievementDescription, achievementName } from '../../game/achievements';
 import type { ResultsScreenData, StandingsScreenData } from '../../game/contracts';
 import { t } from '../../i18n';
+import '../../stats/strings';
+import './records.css';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
 
 /** Título grande com um chip ao lado (pista ou copa), em vez de "Resultado — Nome" numa linha só que quebra. */
@@ -77,13 +80,34 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
   }
   const list = createFocusList(items, { sfx: api.sfx });
+  const unlocked = achievementsPanel(d);
   const el = screenFrame('results', null,
     titleRow(t('ui.results.title'), d.trackDef.name),
     h('div', { class: 'results-head' }, extras),
+    unlocked,
     h('div', { class: 'table-wrap glass' }, table),
     h('div', { class: 'actions' }, items.map((i) => i.el)),
   );
+  if (unlocked) el.classList.add('has-ach');
   return { el, nav: (nav) => listNav(list, nav, api.sfx) };
+}
+
+/** Conquistas desbloqueadas nesta corrida, com a cor de quem as ganhou. */
+function achievementsPanel(d: ResultsScreenData): HTMLElement | null {
+  if (d.achievements.length === 0) return null;
+  return h('div', { class: 'results-ach glass' },
+    h('span', { class: 'results-ach-title' }, icon('trophy'), h('span', { text: t('stats.results.title') })),
+    h('div', { class: 'results-ach-list' }, d.achievements.map((u) => h('div', { class: 'ach-chip' },
+      h('span', { class: 'ach-chip-seats' }, u.seats.map((seat) => h('i', {
+        class: 'seat-dot', style: `--seat:${humanColor(d.humans, seat) ?? 'var(--accent)'}`,
+        title: d.humans.find((x) => x.seat === seat)?.name ?? '',
+      }))),
+      h('span', { class: 'ach-chip-text' },
+        h('strong', { text: achievementName(u.id) }),
+        h('span', { text: achievementDescription(u.id) }),
+      ),
+    ))),
+  );
 }
 
 export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance {
