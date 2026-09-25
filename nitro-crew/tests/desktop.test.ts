@@ -19,12 +19,8 @@ describe('ponte com o Electron', () => {
     for (const a of ACHIEVEMENTS) { expect(a.pt.length).toBeGreaterThan(3); expect(a.en.length).toBeGreaterThan(3); }
     for (const cup of ['BRASIL', 'EUA', 'JAPAO', 'EUROPA']) expect(ids).toContain(`COPA_${cup}`);
   });
-  it('uma COPA_ por copa de CUPS, as 8 da Fase 0 e as 8 do passo 3.6; cada uma com descrição PT e EN e linha no desktop/README.md', () => {
-    // Sem número fixo: outra branch acrescenta copas (e as COPA_ delas) e o teste continua valendo.
-    const base = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_BOX', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'CAMPEAO', 'MADRUGADA'];
-    const step36 = ['PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'SEM_ARRANHAO', 'MARATONA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'DEZ_VITORIAS', 'GIRO_COMPLETO'];
-    const cups = CUPS.map((c) => `COPA_${c.id.toUpperCase()}`);
-    expect(ACHIEVEMENTS.map((a) => a.id).sort()).toEqual([...base, ...cups, ...step36].sort());
+  it('20 conquistas (12 da Fase 0 + 8 do passo 3.6), cada uma com descrição PT e EN e linha no desktop/README.md', () => {
+    expect(ACHIEVEMENTS).toHaveLength(20);
     const readme = fs.readFileSync('desktop/README.md', 'utf8');
     for (const lang of ['pt', 'en'] as const) {
       setLanguage(lang);

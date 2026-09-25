@@ -142,35 +142,42 @@
 .stat-label { font-size: var(--fs-sm); color: var(--muted); line-height: 1.2; }
 .stat-wins .stat-value, .stat-coopWins .stat-value { color: #ffc53d; }
 .stat-meters .stat-value { color: var(--accent-2); }
-/* Item de foco próprio (o controle chega aqui depois do último jogador); sem o zoom do foco, que borra o texto. */
-.best-block {
-  display: flex;
-  flex-direction: column;
+/* Melhor posição: grade de todas as pistas em linhas de BEST_COLS (info.ts); cada linha é um item de
+   foco, para o controle rolar a grade inteira com 32 pistas em 720p. Sem o zoom do foco, que borra o texto. */
+.best-block { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.best-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--gap); }
+.best-head .sub-title { margin: calc(2 * var(--u)) 0 0; }
+.best-count { font-size: var(--fs-sm); color: var(--muted); font-weight: 700; }
+.best-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: calc(6 * var(--u));
-  padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(8 * var(--u)) calc(20 * var(--u));
+  padding: calc(3 * var(--u)) calc(8 * var(--u)) calc(3 * var(--u)) calc(20 * var(--u));
   margin: 0 calc(-10 * var(--u));
   border: 1px solid transparent;
   border-radius: var(--r-sm);
 }
-.best-block.focusable { cursor: default; }
-.best-block.focusable.focus { transform: none; background: rgba(255, 255, 255, 0.05); }
-.best-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--gap); }
-.best-head .sub-title { margin: calc(2 * var(--u)) 0 0; }
-.best-count { font-size: var(--fs-sm); color: var(--muted); font-weight: 700; }
-.best-list { display: flex; flex-wrap: wrap; gap: calc(6 * var(--u)); }
+/* Ao voltar à primeira linha, o título da grade rola junto para a vista. */
+.best-row.first { scroll-margin-top: calc(40 * var(--u)); }
+.best-row.focusable { cursor: default; }
+.best-row.focusable.focus { transform: none; background: rgba(255, 255, 255, 0.05); }
 .best-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: calc(6 * var(--u));
-  padding: calc(3 * var(--u)) calc(12 * var(--u)) calc(3 * var(--u)) calc(6 * var(--u));
+  min-width: 0;
+  padding: calc(3 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u)) calc(6 * var(--u));
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   font-size: var(--fs-sm);
 }
 .best-chip.podium { border-color: rgba(255, 197, 61, 0.35); }
-.best-chip .medal { width: 1.5em; height: 1.5em; }
-.best-pos { min-width: 1.9em; text-align: center; color: var(--muted); }
+.best-chip.none { color: var(--dim); background: transparent; border-style: dashed; }
+.best-chip .medal { flex: none; width: 1.5em; height: 1.5em; }
+.best-pos { flex: none; min-width: 1.9em; text-align: center; color: var(--muted); }
+.best-chip.none .best-pos { color: var(--dim); }
+.best-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .best-none { text-align: left; }
 
 /* ───────────── Conquistas ───────────── */
@@ -213,27 +220,24 @@
 
 /* ───────────── Resultado ───────────── */
 
-/* O quadro cede espaço antes da tabela (flex-shrink bem maior que o dela) e rola por dentro se
-   ainda não couber: a tabela e os botões ficam sempre à vista, em 720p com 20 carros e 20 conquistas. */
+/* O quadro nunca encolhe nem rola (cortaria um cartão ao meio): ele é que fica baixo. Até
+   FULL_CHIPS_MAX (results.ts) os cartões têm nome e descrição numa linha cada; acima disso só o nome,
+   em fila que quebra. Assim a tabela (que rola) e os botões ficam à vista em 720p mesmo com 20. */
 .results-ach {
   display: flex;
-  align-items: safe center;
+  align-items: center;
   gap: calc(8 * var(--u)) calc(14 * var(--u));
   width: min(100%, calc(1100 * var(--u)));
   padding: calc(8 * var(--u)) calc(14 * var(--u));
   box-sizing: border-box;
   border-color: rgba(255, 197, 61, 0.45);
-  flex: 0 100 auto;
-  min-height: calc(52 * var(--u));
-  max-height: 30vh;
-  overflow-y: auto;
+  flex: none;
 }
 /* Muitas conquistas: título em cima e cartões de uma linha (a descrição fica no title e na aba Conquistas). */
-.results-ach.many { flex-direction: column; align-items: stretch; }
-.results-ach.many .results-ach-list { grid-template-columns: repeat(auto-fill, minmax(calc(200 * var(--u)), 1fr)); }
-.results-ach.many .ach-chip { padding: calc(4 * var(--u)) calc(10 * var(--u)); }
+.results-ach.many { flex-direction: column; align-items: stretch; gap: calc(6 * var(--u)); }
+.results-ach.many .results-ach-list { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(5 * var(--u)); }
+.results-ach.many .ach-chip { padding: calc(3 * var(--u)) calc(12 * var(--u)) calc(3 * var(--u)) calc(9 * var(--u)); gap: calc(7 * var(--u)); max-width: 100%; box-sizing: border-box; }
 .results-ach.many .ach-chip-seats { flex-direction: row; }
-.results-ach.many .ach-chip-text strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .results-ach.many .ach-chip-text span { display: none; }
 .results-ach-title {
   display: inline-flex;
@@ -261,4 +265,5 @@
 .seat-dot { display: block; width: calc(9 * var(--u)); height: calc(9 * var(--u)); border-radius: 50%; background: var(--seat, var(--accent)); }
 .ach-chip-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .ach-chip-text strong { font-weight: 800; }
+.ach-chip-text strong, .ach-chip-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ach-chip-text span { font-size: var(--fs-sm); color: var(--muted); }

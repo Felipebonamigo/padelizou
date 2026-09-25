@@ -62,7 +62,8 @@ Uma segunda instância só traz a primeira para a frente.
 
 Cadastre estes IDs (exatos) em Steamworks → Stats & Achievements. A lista com nome PT/EN está exportada em
 `src/game/desktop.ts` (`ACHIEVEMENTS`); a descrição abaixo é o que digitar no painel em português, e a versão
-em inglês (a mesma que o jogo mostra na tela de recordes) está em `src/stats/strings.ts` (`stats.achDesc.<ID>`).
+em inglês (a mesma que o jogo mostra na tela de recordes) está em `src/stats/strings.ts` (`stats.achDesc.<ID>`;
+as `COPA_<ID>` usam o modelo `stats.achDescCup` com o nome da copa, então copa nova já nasce com descrição).
 As regras exatas, com os limites, estão em `docs/ESTATISTICAS.md`; `tests/desktop.test.ts` confere que toda
 conquista da lista tem linha nesta tabela.
 
