@@ -61,6 +61,11 @@
     const POSES_DE_GOLPE = {
         soco1: pose({ tronco: 0.22, bD: [1.6, 0.0], bT: [0.5, 2.0], pT: [-0.35, 0.2], pD: [0.4, 0.3] }),
         soco2: pose({ tronco: 0.3, bT: [1.62, 0.0], bD: [0.4, 2.1], pT: [-0.3, 0.2], pD: [0.45, 0.3] }),
+        // Sequência de Cinco (melhoria): o 4º e o 5º golpe, variações do soco1/soco2 com mais corpo.
+        soco4: pose({ tronco: 0.38, bD: [1.7, 0.1], bT: [0.4, 2.0], pT: [-0.45, 0.25], pD: [0.5, 0.35] }),
+        soco5: pose({ tronco: 0.1, quadril: [0, -38], bT: [0.5, 1.9], bD: [2.2, 0.9], pT: [-0.45, 0.25], pD: [0.45, 0.45] }),
+        // Especial no Ar do Long: mergulho de cabeça, punhos na frente (o do Shen usa a pancada).
+        especialAereo: pose({ tronco: 1.05, quadril: [0, -34], bD: [1.9, 0.1], bT: [1.7, 0.2], pT: [-0.3, 0.6], pD: [0.2, 0.9] }),
         soco3: pose({ tronco: -0.15, quadril: [0, -40], bD: [2.6, 0.5], bT: [0.6, 1.8], pT: [-0.5, 0.3], pD: [0.3, 0.6] }),
         chute: pose({ tronco: -0.25, bD: [0.2, 1.4], bT: [1.0, 1.2], pT: [-0.15, 0.1], pD: [1.55, 0.0] }),
         chuteAereo: pose({ tronco: 0.45, bD: [-0.6, 0.6], bT: [1.2, 0.8], pT: [0.2, 1.5], pD: [1.6, 0.0] }),
@@ -77,7 +82,7 @@
     function poseDoGolpe(ent) {
         const g = ent.golpe, nome = ent.golpeNome, t = ent.quadro;
         const k = curvaDoGolpe(t, g);
-        if (nome === 'pancada') {
+        if (nome === 'pancada' || (nome === 'especialAereo' && ent.def.arma === 'bastao')) {
             if (t < g.inicio) return mistura(GUARDA, POSES_DE_GOLPE.pancadaAlta, suave(t / g.inicio));
             if (t < g.inicio + g.ativo) return mistura(POSES_DE_GOLPE.pancadaAlta, POSES_DE_GOLPE.pancada, suave((t - g.inicio) / 0.06));
             return mistura(POSES_DE_GOLPE.pancada, GUARDA, suave((t - g.inicio - g.ativo) / (g.total - g.inicio - g.ativo)));
@@ -127,6 +132,9 @@
             case 'defendendo': return mistura(GUARDA, pose({ tronco: 0.18, bD: [1.25, 2.2], bT: [1.05, 2.4], pT: [-0.35, 0.3], pD: [0.4, 0.35] }), Math.min(1, t / 0.08));
             case 'agarrando': return mistura(GUARDA, pose({ tronco: 0.3, bD: [1.4, 0.4], bT: [1.4, 0.5], pT: [-0.4, 0.25], pD: [0.45, 0.3] }), Math.min(1, t / 0.1));
             case 'agarrado': return pose({ tronco: -0.35, cabeca: -0.3, bD: [2.0, 0.4], bT: [1.7, 0.5], pT: [-0.2, 0.7], pD: [0.3, 0.8] });
+            case 'suplex':                // do agarrão pra ponte de costas, o preso por cima da cabeça
+                return mistura(pose({ tronco: 0.3, bD: [1.4, 0.4], bT: [1.4, 0.5], pT: [-0.4, 0.25], pD: [0.45, 0.3] }),
+                               pose({ tronco: -0.9, cabeca: -0.3, quadril: [-4, -32], bD: [3.0, 0.3], bT: [2.9, 0.4], pT: [-0.5, 0.3], pD: [0.3, 0.5] }), suave(t / 0.25));
             case 'arremessando': return mistura(pose({ tronco: -0.1, bD: [1.4, 0.4], bT: [1.4, 0.5] }), pose({ tronco: 0.45, bD: [2.3, 0.1], bT: [-0.4, 0.8], pT: [-0.5, 0.2], pD: [0.6, 0.4] }), suave(t / 0.2));
             case 'arremessado': return pose({ giro: t * 16, quadril: [0, -34], pT: [0.7, 0.5], pD: [-0.5, 0.6], bT: [2.4, 0.3], bD: [1.0, 0.6] });
             case 'finalizando': {
@@ -364,7 +372,7 @@
         ctx.save();
         ctx.translate(c[0], c[1]); ctx.rotate(ang);
         const r = 12 * (corpo > 1.2 ? 1.12 : 1);
-        const atacando = ent.estado === 'atacando' || ent.estado === 'finalizando' || ent.estado === 'agarrando';
+        const atacando = ent.estado === 'atacando' || ent.estado === 'finalizando' || ent.estado === 'agarrando' || ent.estado === 'suplex';
         const sofrendo = ent.estado === 'atingido' || ent.estado === 'lancado' || ent.estado === 'agarrado' || ent.estado === 'finalizado' || ent.estado === 'morto';
         // Cabelo longo/rabo atrás da cabeça.
         if (!sil && estilo.cabelo === 'longo') { ctx.fillStyle = tom(cores.cabelo, -0.1); ctx.beginPath(); ctx.moveTo(-r + 2, -r + 4); ctx.quadraticCurveTo(-r - 10, 10, -r - 4, 34); ctx.lineTo(-2, 30); ctx.quadraticCurveTo(-4, 8, 2, -r); ctx.closePath(); ctx.fill(); }
@@ -492,7 +500,7 @@
     }
 
     function rastro(ctx, ent, tempo, virado) {
-        if (ent.estado !== 'atacando' || !ent.golpe || !ent.golpe.avanco) return;
+        if (ent.estado !== 'atacando' || !ent.golpe || !(ent.golpe.avanco || (ent.golpe.mergulho && ent.golpe.mergulho[0]))) return;   // rastro só em quem avança na horizontal
         for (let k = 1; k <= 2; k++) {
             ctx.save(); ctx.globalAlpha = 0.14 / k; ctx.translate(-virado * 14 * k, 0); ctx.scale(virado, 1);
             desenhar(ctx, ent, tempo, { silhueta: '#ffb347', virado });

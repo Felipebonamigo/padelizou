@@ -1,6 +1,7 @@
 // PUNHOS DE SHAOLIN — progresso: o que fica guardado entre partidas.
 //
-// Fase alcançada, recorde, dificuldade, opções, conquistas e estatísticas. Tudo passa por
+// Fase alcançada, recorde, dificuldade, opções, conquistas, estatísticas, o karma e os golpes
+// aprendidos no Templo (`loja.js` decide o preço; aqui só se guarda). Tudo passa por
 // `normalizar`: o salvamento de hoje não é o formato de amanhã, e um JSON velho, truncado ou
 // editado à mão nunca pode derrubar o jogo — vira padrão no que faltar, e o que sobrar é ignorado.
 //
@@ -26,6 +27,8 @@
             dificuldade: 'normal',
             opcoes: { musica: 0.7, efeitos: 0.8, tremor: true, telaCheia: false, idioma: 'pt-BR', qualidade: 'alta' },
             conquistas: {},
+            karma: 0,
+            golpes: [],
             estatisticas: { inimigos: 0, finalizacoes: 0, maiorCombo: 0, itens: 0, mortes: 0, tempoJogado: 0, fasesConcluidas: 0, vitorias: 0, partidas: 0 },
         };
     }
@@ -54,9 +57,14 @@
                 qualidade: o.qualidade === 'media' ? 'media' : 'alta',
             },
             conquistas: {},
+            karma: inteiro(b.karma, 0),
+            golpes: [],
             estatisticas: {},
         };
         for (const id of Object.keys(c)) if (/^[a-z_]+$/.test(id) && (c[id] === true || typeof c[id] === 'number')) dados.conquistas[id] = c[id] === true ? 1 : c[id];
+        // Golpes: só texto no formato de id, sem repetição. Se o id ainda existe no catálogo é a
+        // loja que decide (`Loja.liberados`) — um id que saiu do jogo fica guardado, mas não vale.
+        if (Array.isArray(b.golpes)) for (const id of b.golpes) if (typeof id === 'string' && /^[a-z_]+$/.test(id) && !dados.golpes.includes(id)) dados.golpes.push(id);
         for (const chave of Object.keys(base.estatisticas)) dados.estatisticas[chave] = inteiro(e[chave], 0);
         return dados;
     }

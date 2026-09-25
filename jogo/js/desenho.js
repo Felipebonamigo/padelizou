@@ -472,18 +472,24 @@
         ctx.restore();
     }
 
-    // itens: [{ rotulo, valor?, desabilitado?, detalhe?, fracao? }] · indice: o selecionado
+    // Menu comprido (o Templo) aperta as linhas: a geometria vem do chamador, e o `principal.js`
+    // passa a MESMA pro toque. Sem `y0`/`passo`, é a de sempre.
+    function geometriaDoMenu(menu) { return { y0: (menu && menu.y0) || MENU_Y0, passo: (menu && menu.passo) || MENU_PASSO }; }
+
+    // itens: [{ rotulo, valor?, desabilitado?, detalhe?, fracao? }] · indice: o selecionado · y0/passo: geometria opcional
     function desenharMenu(ctx, tempo, ef, menu) {
         fundoDeMenu(ctx, tempo, ef);
         logoPequeno(ctx, tempo);
+        const { y0, passo } = geometriaDoMenu(menu);
+        const alto = Math.min(40, passo - 4);
         if (menu.titulo) texto(ctx, menu.titulo.toUpperCase(), LARGURA / 2, 160, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
         if (menu.subtitulo) texto(ctx, menu.subtitulo, LARGURA / 2, 186, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', italico: true });
         menu.itens.forEach((item, i) => {
-            const y = MENU_Y0 + i * MENU_PASSO;
+            const y = y0 + i * passo;
             const sel = i === menu.indice;
             if (sel) {
-                ctx.fillStyle = 'rgba(255,90,58,0.16)'; ctx.fillRect(LARGURA / 2 - 300, y - 30, 600, 40);
-                ctx.fillStyle = '#ff5a3a'; ctx.fillRect(LARGURA / 2 - 300, y - 30, 4, 40);
+                ctx.fillStyle = 'rgba(255,90,58,0.16)'; ctx.fillRect(LARGURA / 2 - 300, y - alto * 0.75, 600, alto);
+                ctx.fillStyle = '#ff5a3a'; ctx.fillRect(LARGURA / 2 - 300, y - alto * 0.75, 4, alto);
                 texto(ctx, '▶', LARGURA / 2 - 280, y, { tamanho: 16, cor: '#ffe9b0' });
             }
             const cor = item.desabilitado ? '#5c6473' : sel ? '#ffe9b0' : '#d8dde8';
@@ -495,7 +501,7 @@
             } else if (item.valor != null) {
                 texto(ctx, String(item.valor).toUpperCase(), LARGURA / 2 + 290, y, { tamanho: 18, cor: item.destaque ? '#ffb347' : cor, alinhar: 'right', peso: 700 });
             }
-            if (sel && item.detalhe) texto(ctx, item.detalhe, LARGURA / 2, MENU_Y0 + menu.itens.length * MENU_PASSO + 6, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center', italico: true });
+            if (sel && item.detalhe) texto(ctx, item.detalhe, LARGURA / 2, y0 + menu.itens.length * passo + 6, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center', italico: true });
         });
         if (menu.dica) texto(ctx, menu.dica, LARGURA / 2, 515, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', peso: 600 });
     }
@@ -505,7 +511,8 @@
         logoPequeno(ctx, tempo);
         const ganhas = tela.lista.filter(c => c.ganha).length;
         texto(ctx, `CONQUISTAS · ${ganhas} / ${tela.lista.length}`, LARGURA / 2, 150, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
-        const colunas = 2, largura = 430, altura = 42;
+        // A altura da linha encolhe com a lista (17 conquistas não cabiam em 42 px até a dica, em 520).
+        const colunas = 2, largura = 430, altura = Math.min(42, Math.floor(328 / Math.ceil(tela.lista.length / colunas)));
         tela.lista.forEach((c, i) => {
             const col = i % colunas, lin = Math.floor(i / colunas);
             const x = LARGURA / 2 + (col - 1) * largura + 10, y = 172 + lin * altura;
@@ -536,5 +543,5 @@
         ctx.restore();
     }
 
-    raiz.PunhosDeShaolin.Desenho = { desenharMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
+    raiz.PunhosDeShaolin.Desenho = { desenharMenu, geometriaDoMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
 })(window);

@@ -30,6 +30,21 @@
     // esperto que bate fraco é injusto de outro.
     const DIFICULDADES = { facil: { vida: 0.7, dano: 0.65 }, normal: { vida: 1, dano: 1 }, dificil: { vida: 1.3, dano: 1.4 } };
 
+    // ── MELHORIAS (compradas no Templo com karma) ─────────────────────────────────────────
+    // O motor é a camada de baixo: não importa `loja.js`. Ele só conhece estes ids, e o conferidor
+    // da loja garante que todo item à venda está aqui. `criarMundo({ liberados })` recebe os
+    // comprados; id que não está nesta lista é ignorado (salvamento de outra versão, digitação).
+    const MELHORIAS = Object.freeze(['sequencia_cinco', 'contra_golpe', 'especial_aereo', 'agarrao_costas', 'vigor', 'respiracao', 'punhos_de_ferro']);
+    const VIGOR = 1.2;                               // × vida máxima
+    const RESPIRACAO = 3;                            // chi por segundo parado, andando ou defendendo
+    const PUNHOS_DE_FERRO = 1.15;                    // × dano dos golpes do jogador, arredondado
+    const JANELA_DE_APARAR = 0.15;                   // defender até isso ANTES de o golpe ligar é aparar
+    const ATORDOADO_DO_CONTRA = 0.9;
+    const CHI_DO_CONTRA = 10;
+    const DANO_DO_SUPLEX = 20;
+    const DURACAO_DO_SUPLEX = 0.5;
+    const EPSILON = 1e-6;                            // o tempo é soma de 1/60: compara com folga
+
     // ── ACASO SEMEADO (mulberry32) ────────────────────────────────────────────────────────
     function criarRng(semente) {
         let s = (semente >>> 0) || 1;
@@ -60,12 +75,18 @@
             arma: null,
             golpes: {
                 soco1: { dano: 5, inicio: 0.06, ativo: 0.08, total: 0.26, alcance: 62, altura: 85, recuo: 80, congela: 0.03, proximo: 'soco2', som: 'soco' },
-                soco2: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 66, altura: 85, recuo: 100, congela: 0.03, proximo: 'soco3', som: 'soco' },
+                soco2: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 66, altura: 85, recuo: 100, congela: 0.03, proximo: 'soco3', proximoCinco: 'soco4', som: 'soco' },
+                // soco4 e soco5 só entram na corrente com a Sequência de Cinco (`proximoCinco` do soco2).
+                // Recuo baixo de propósito: com o recuo do soco2, o alvo sairia do alcance antes do lançador.
+                soco4: { dano: 6, inicio: 0.06, ativo: 0.08, total: 0.28, alcance: 70, altura: 85, recuo: 50, congela: 0.03, proximo: 'soco5', som: 'soco' },
+                soco5: { dano: 7, inicio: 0.07, ativo: 0.08, total: 0.30, alcance: 72, altura: 90, recuo: 50, congela: 0.04, proximo: 'soco3', som: 'chute' },
                 soco3: { dano: 10, inicio: 0.10, ativo: 0.10, total: 0.46, alcance: 70, altura: 95, recuo: 140, lanca: 560, congela: 0.06, som: 'chute', texto: 'LANÇOU!' },
                 chute: { dano: 12, inicio: 0.12, ativo: 0.10, total: 0.50, alcance: 84, altura: 95, recuo: 380, derruba: true, congela: 0.06, som: 'chute' },
                 chuteAereo: { dano: 10, inicio: 0.05, ativo: 0.28, total: 0.45, alcance: 72, altura: 130, recuo: 320, derruba: true, congela: 0.05, som: 'chute' },
                 investida: { dano: 14, inicio: 0.08, ativo: 0.24, total: 0.55, alcance: 82, altura: 100, recuo: 440, derruba: true, avanco: 400, congela: 0.07, som: 'chute', texto: 'VOO DO DRAGÃO' },
                 especial: { nome: 'Sopro do Dragão', tipo: 'projetil', projetil: 'fogo', dano: 22, chi: 30, inicio: 0.22, total: 0.62, velocidade: 640, altura: 95, recuo: 320, derruba: true, som: 'fogo' },
+                // Especial no Ar (melhoria): mergulho em chamas na diagonal pra baixo. `mergulho` = [vx, vz] no início.
+                especialAereo: { nome: 'Mergulho do Dragão', dano: 18, inicio: 0.04, ativo: 0.40, total: 0.60, alcance: 80, altura: 120, recuo: 360, derruba: true, mergulho: [520, -520], congela: 0.06, som: 'fogo' },
                 joelhada: { dano: 7, inicio: 0.08, ativo: 0.06, total: 0.32, alcance: 50, altura: 85, recuo: 0, congela: 0.03, som: 'soco' },
             },
         },
@@ -76,11 +97,15 @@
             arma: 'bastao',
             golpes: {
                 soco1: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 82, altura: 90, recuo: 90, congela: 0.03, proximo: 'soco2', som: 'bastao' },
-                soco2: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 86, altura: 90, recuo: 110, congela: 0.03, proximo: 'soco3', som: 'bastao' },
+                soco2: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 86, altura: 90, recuo: 110, congela: 0.03, proximo: 'soco3', proximoCinco: 'soco4', som: 'bastao' },
+                soco4: { dano: 7, inicio: 0.07, ativo: 0.09, total: 0.30, alcance: 90, altura: 90, recuo: 60, congela: 0.03, proximo: 'soco5', som: 'bastao' },
+                soco5: { dano: 8, inicio: 0.07, ativo: 0.09, total: 0.32, alcance: 92, altura: 95, recuo: 60, congela: 0.04, proximo: 'soco3', som: 'bastao' },
                 soco3: { dano: 12, inicio: 0.12, ativo: 0.10, total: 0.50, alcance: 90, altura: 100, recuo: 160, lanca: 600, congela: 0.06, som: 'bastao', texto: 'LANÇOU!' },
                 chute: { dano: 10, inicio: 0.14, ativo: 0.12, total: 0.55, alcance: 92, altura: 60, recuo: 300, derruba: true, dosDoisLados: true, congela: 0.05, som: 'bastao', texto: 'VARRIDA' },
                 chuteAereo: { dano: 12, inicio: 0.06, ativo: 0.26, total: 0.45, alcance: 80, altura: 130, recuo: 320, derruba: true, congela: 0.05, som: 'bastao' },
                 investida: { dano: 16, inicio: 0.08, ativo: 0.22, total: 0.55, alcance: 104, altura: 100, recuo: 460, derruba: true, avanco: 360, congela: 0.07, som: 'bastao', texto: 'ESTOCADA' },
+                // Especial no Ar (melhoria): cai com o bastão e bate no chão dos dois lados.
+                especialAereo: { nome: 'Queda da Montanha', dano: 16, inicio: 0.10, ativo: 0.14, total: 0.55, alcance: 100, altura: 70, recuo: 380, derruba: true, dosDoisLados: true, mergulho: [0, -900], congela: 0.08, som: 'pancada', tremor: 1 },
                 especial: { nome: 'Tempestade do Bastão', tipo: 'giro', dano: 9, chi: 35, inicio: 0.10, ativo: 0.50, total: 0.75, alcance: 100, altura: 110, recuo: 260, dosDoisLados: true, repete: 0.16, derrubaNoFim: true, congela: 0.03, som: 'bastao' },
                 joelhada: { dano: 8, inicio: 0.08, ativo: 0.06, total: 0.32, alcance: 50, altura: 85, recuo: 0, congela: 0.03, som: 'soco' },
             },
@@ -244,8 +269,13 @@
         j.chi = 0; j.combo = 0; j.comboTempo = 0; j.vidas = 3; j.danoLevado = 0;
         j.ultimoToque = { direcao: 0, tempo: -9 };
         j.indice = mundo.jogadores.length;
+        // Melhorias do Templo: TODO jogador do mundo, inclusive o P2 que entra no meio (adicionarJogador passa por aqui).
+        j.melhorias = {};
+        for (const id of mundo.liberados) j.melhorias[id] = true;
+        if (j.melhorias.vigor) j.vidaMax = j.vida = Math.round(def.vida * VIGOR);
         return j;
     }
+    function tem(ent, melhoria) { return !!(ent.melhorias && ent.melhorias[melhoria]); }
 
     function criarInimigo(mundo, tipo, x, y) {
         const def = INIMIGOS[tipo];
@@ -285,6 +315,7 @@
             camera: { x: 0 }, travado: false, travaX: 0, onda: 0, concluida: false, fimDeJogo: false, concluidaHa: 0,
             jogadores: [], inimigos: [], projeteis: [], itens: [], objetos: [], eventos: [], avisos: [],
             pontuacao: o.pontuacao || 0, chefe: null,
+            liberados: (Array.isArray(o.liberados) ? o.liberados : []).filter((id, k, lista) => MELHORIAS.includes(id) && lista.indexOf(id) === k),
         };
         for (const p of (o.jogadores || ['long'])) {
             const j = criarJogador(mundo, p, 120 + mundo.jogadores.length * 60, 0.5 + mundo.jogadores.length * 0.15);
@@ -316,6 +347,7 @@
         mudar(ent, 'atacando');
         ent.golpe = golpe; ent.golpeNome = nome; ent.atingidos = []; ent.acertou = false; ent.proximoTick = golpe.inicio;
         ent.correndo = false;
+        if (golpe.mergulho) { ent.vx = ent.virado * golpe.mergulho[0]; ent.vz = golpe.mergulho[1]; }
         return golpe;
     }
 
@@ -324,6 +356,13 @@
         ent.atordoadoAte = segundos;
         ent.vx = 0;
     }
+
+    // FINALIZAÇÃO: a régua é a VIDA, não o estado. Levantar com pouca vida atordoa ("FINALIZE!"),
+    // mas o Contra-golpe também atordoa — e o atordoado dele, com vida cheia, NÃO pode virar
+    // finalização grátis. Por isso agarrar um atordoado só finaliza se a vida está abaixo da
+    // mesma linha que produz o "FINALIZE!"; acima dela, é o agarrão comum.
+    function limiteDeFinalizacao(ent) { return ent.def.chefe ? 0.1 : 0.22; }
+    function finalizavel(ent) { return ent.time === 'inimigo' && ent.vida <= ent.vidaMax * limiteDeFinalizacao(ent); }
 
     function soltarAgarrado(ent) {
         if (ent.agarrando) {
@@ -342,9 +381,14 @@
         const direcao = golpe.direcao != null ? golpe.direcao : (origem ? Math.sign(alvo.x - origem.x) || origem.virado : 1);
         const doInimigo = origem ? origem.time === 'inimigo' : golpe.time === 'inimigo';
         let dano = Math.max(0, Math.round(golpe.dano * (doInimigo && alvo.time === 'jogador' ? mundo.dificuldade.dano : 1)));
+        if (origem && origem.time === 'jogador' && tem(origem, 'punhos_de_ferro')) dano = Math.round(dano * PUNHOS_DE_FERRO);
 
         // DEFESA: só segura golpe que vem pela frente. Quem está defendendo de costas apanha inteiro.
         const defendendo = alvo.estado === 'defendendo' && (origem == null || Math.sign(origem.x - alvo.x) === alvo.virado || origem.x === alvo.x);
+        if (defendendo && !golpe.ignoraDefesa && golpe.corpoACorpo && tem(alvo, 'contra_golpe') && naJanelaDeAparar(alvo, origem)) {
+            aparar(mundo, alvo, origem);
+            return true;
+        }
         if (defendendo && !golpe.ignoraDefesa) {
             dano = Math.max(1, Math.round(dano * 0.2));
             alvo.vida = Math.max(0, alvo.vida - dano);
@@ -356,7 +400,9 @@
             return true;
         }
 
+        const vidaAntes = alvo.vida;
         alvo.vida = Math.max(0, alvo.vida - dano);
+        const tirado = vidaAntes - alvo.vida;        // o dano de VERDADE: nunca mais que a vida que havia
         alvo.golpesLevados++;
         if (alvo.time === 'jogador') alvo.danoLevado += dano;
         if (alvo.agarrando) soltarAgarrado(alvo);
@@ -372,7 +418,9 @@
             origem.combo++;
             origem.comboTempo = 1.6;
             const multiplicador = 1 + Math.floor(origem.combo / 5) * 0.5;
-            mundo.pontuacao += Math.round(dano * 10 * multiplicador);
+            // Pontos pelo dano TIRADO, não pelo bruto: um golpe de 9999 numa Sombra de 30 valia 99.990
+            // pontos — e o karma do Templo sai dos pontos.
+            mundo.pontuacao += Math.round(tirado * 10 * multiplicador);
             // O chi é dos PUNHOS: projétil e arremesso não enchem, senão o especial se paga sozinho.
             if (!golpe.semChi) origem.chi = Math.min(100, origem.chi + 4);
             if (origem.combo > 0 && origem.combo % 5 === 0) mundo.eventos.push({ tipo: 'texto', texto: `COMBO ×${origem.combo}`, x: origem.x, y: origem.y, cor: 'combo' });
@@ -418,6 +466,24 @@
             alvo.vidas = Math.max(0, alvo.vidas - 1);
             soltarAgarrado(alvo);
         }
+    }
+
+    // CONTRA-GOLPE (melhoria): começar a defender no máximo JANELA_DE_APARAR antes de o golpe ligar.
+    // `alvo.quadro` = há quanto tempo ele defende; `origem.quadro - inicio` = há quanto tempo o golpe
+    // ligou. Defender ANTES da janela (segurando) ou DEPOIS de ligar (a investida que chega no meio
+    // do ativo) é o bloqueio de sempre. Só golpe corpo a corpo: aparar flecha não atordoa o arqueiro.
+    function naJanelaDeAparar(alvo, origem) {
+        if (!origem || origem.estado !== 'atacando' || !origem.golpe) return false;
+        const desdeQueLigou = Math.max(0, origem.quadro - origem.golpe.inicio);
+        return alvo.quadro >= desdeQueLigou - EPSILON && alvo.quadro <= desdeQueLigou + JANELA_DE_APARAR + EPSILON;
+    }
+    function aparar(mundo, alvo, origem) {
+        atordoar(origem, ATORDOADO_DO_CONTRA);
+        alvo.chi = Math.min(100, alvo.chi + CHI_DO_CONTRA);
+        mundo.eventos.push({ tipo: 'acerto', x: alvo.x, y: alvo.y, z: alvo.z + 40 * alvo.escala, forca: 'bloqueio', bloqueado: true });
+        mundo.eventos.push({ tipo: 'som', nome: 'bloqueio' });
+        mundo.eventos.push({ tipo: 'congelar', segundos: 0.08 });
+        mundo.eventos.push({ tipo: 'texto', texto: 'CONTRA!', x: alvo.x, y: alvo.y, cor: 'especial' });
     }
 
     function soltarItem(mundo, x, y, tipo) {
@@ -474,8 +540,10 @@
             ent.atingidos.push(alvo.id);
             ent.acertou = true;
             const derruba = golpe.derruba || (golpe.derrubaNoFim && ultimoTique);
-            aplicarDano(mundo, alvo, { dano: golpe.dano, origem: ent, recuo: golpe.recuo, lanca: golpe.lanca, derruba, congela: golpe.congela, tremor: golpe.tremor });
+            aplicarDano(mundo, alvo, { dano: golpe.dano, origem: ent, recuo: golpe.recuo, lanca: golpe.lanca, derruba, congela: golpe.congela, tremor: golpe.tremor, corpoACorpo: true });
             if (golpe.texto && ent.time === 'jogador' && vivo(alvo)) mundo.eventos.push({ tipo: 'texto', texto: golpe.texto, x: alvo.x, y: alvo.y, cor: 'golpe' });
+            // Aparado no meio da volta: o golpe acabou (e `atingidos` foi zerado) — não acerta mais ninguém.
+            if (ent.estado !== 'atacando') return;
         }
     }
 
@@ -568,13 +636,22 @@
         const noAr = !noChao(j) || j.estado === 'pulando';
         if (noAr) {
             if (j.estado === 'pulando' && (e.apertou.chute || e.apertou.soco)) iniciarGolpe(j, 'chuteAereo');
+            else if (j.estado === 'pulando' && e.apertou.especial && tem(j, 'especial_aereo')) {
+                // Especial no Ar: custa o chi do especial de chão. Sem a melhoria, especial no pulo não faz nada.
+                const custo = def.golpes.especial.chi;
+                if (j.chi >= custo) {
+                    j.chi -= custo;
+                    iniciarGolpe(j, 'especialAereo');
+                    mundo.eventos.push({ tipo: 'texto', texto: def.golpes.especialAereo.nome.toUpperCase(), x: j.x, y: j.y, cor: 'especial' });
+                } else mundo.eventos.push({ tipo: 'som', nome: 'negado' });
+            }
             return;
         }
 
         // Emendar a sequência: durante a recuperação de um golpe que ACERTOU, o próximo entra na hora.
         if (j.estado === 'atacando') {
             const g = j.golpe;
-            if (e.apertou.soco && g.proximo && j.acertou && j.quadro >= g.inicio + g.ativo) { iniciarGolpe(j, g.proximo); return; }
+            if (e.apertou.soco && g.proximo && j.acertou && j.quadro >= g.inicio + g.ativo) { iniciarGolpe(j, g.proximoCinco && tem(j, 'sequencia_cinco') ? g.proximoCinco : g.proximo); return; }
             if (e.apertou.especial && j.acertou && j.quadro >= g.inicio + g.ativo && g.tipo !== 'projetil' && g.tipo !== 'giro' && j.chi >= def.golpes.especial.chi) { j.chi -= def.golpes.especial.chi; iniciarGolpe(j, 'especial'); mundo.eventos.push({ tipo: 'texto', texto: def.golpes.especial.nome.toUpperCase(), x: j.x, y: j.y, cor: 'especial' }); return; }
             return;
         }
@@ -590,9 +667,13 @@
         if (e.apertou.pular) { mudar(j, 'pulando'); j.vz = PULO; j.vx = dx * (j.correndo ? def.corrida : def.velocidade); mundo.eventos.push({ tipo: 'som', nome: 'pulo' }); return; }
         if (e.apertou.agarrar) {
             const alvo = inimigoNaFrente(mundo, j, 54 + (j.escala - 1) * 20);
-            if (alvo && alvo.estado === 'atordoado' && noChao(alvo)) { finalizar(mundo, j, alvo); return; }
-            const agarravel = alvo && noChao(alvo) && !alvo.def.chefe && (!alvo.def.armadura || alvo.estado === 'atordoado')
+            if (alvo && alvo.estado === 'atordoado' && noChao(alvo) && finalizavel(alvo)) { finalizar(mundo, j, alvo); return; }
+            const pegavel = alvo && noChao(alvo) && !alvo.def.chefe
                 && (podeAgir(alvo) || alvo.estado === 'atacando' || alvo.estado === 'atingido' || alvo.estado === 'atordoado' || alvo.estado === 'defendendo');
+            // Agarrão pelas Costas (melhoria): quem está virado PRA LONGE do jogador leva suplex na hora,
+            // mesmo com armadura. Chefe nunca (`pegavel` já exclui).
+            if (pegavel && tem(j, 'agarrao_costas') && alvo.virado === Math.sign(alvo.x - j.x)) { suplex(mundo, j, alvo); return; }
+            const agarravel = pegavel && (!alvo.def.armadura || alvo.estado === 'atordoado');
             if (agarravel) {
                 mudar(j, 'agarrando'); j.agarrando = alvo; alvo.agarradoPor = j; mudar(alvo, 'agarrado'); alvo.vx = 0; alvo.vz = 0; alvo.z = 0;
                 mundo.eventos.push({ tipo: 'som', nome: 'agarrar' });
@@ -636,6 +717,15 @@
         preso.atropelados = [];
         mundo.eventos.push({ tipo: 'som', nome: 'arremesso' });
         mundo.eventos.push({ tipo: 'texto', texto: 'ARREMESSO!', x: j.x, y: j.y, cor: 'golpe' });
+    }
+
+    function suplex(mundo, j, alvo) {
+        mudar(j, 'suplex');
+        j.vx = 0; j.vy = 0;
+        // Por cima da cabeça: o alvo cai ATRÁS do jogador. É arremesso, então não enche chi.
+        aplicarDano(mundo, alvo, { dano: DANO_DO_SUPLEX, origem: j, direcao: -j.virado, recuo: 240, derruba: true, ignoraDefesa: true, semChi: true, congela: 0.07, tremor: 0.8 });
+        mundo.eventos.push({ tipo: 'som', nome: 'arremesso' });
+        mundo.eventos.push({ tipo: 'texto', texto: 'SUPLEX!', x: j.x, y: j.y, cor: 'golpe' });
     }
 
     function finalizar(mundo, j, alvo) {
@@ -784,6 +874,7 @@
         if (ent.time === 'jogador' && ent.comboTempo > 0) { ent.comboTempo -= dt; if (ent.comboTempo <= 0) ent.combo = 0; }
 
         const est = ent.estado;
+        if (ent.time === 'jogador' && tem(ent, 'respiracao') && (est === 'parado' || est === 'andando' || est === 'defendendo')) ent.chi = Math.min(100, ent.chi + RESPIRACAO * dt);
         // Golpe em andamento.
         if (est === 'atacando') {
             const g = ent.golpe;
@@ -798,8 +889,7 @@
             if (ent.quadro >= 0.7) mudar(ent, 'levantando');
         } else if (est === 'levantando') {
             if (ent.quadro >= 0.45) {
-                const limite = ent.def.chefe ? 0.1 : 0.22;
-                if (ent.time === 'inimigo' && ent.vida <= ent.vidaMax * limite) { atordoar(ent, 3); mundo.eventos.push({ tipo: 'texto', texto: 'FINALIZE!', x: ent.x, y: ent.y, cor: 'finalizacao' }); }
+                if (finalizavel(ent)) { atordoar(ent, 3); mundo.eventos.push({ tipo: 'texto', texto: 'FINALIZE!', x: ent.x, y: ent.y, cor: 'finalizacao' }); }
                 else mudar(ent, 'parado');
             }
         } else if (est === 'atordoado') {
@@ -807,6 +897,9 @@
             if (ent.atordoadoAte <= 0) mudar(ent, 'parado');
         } else if (est === 'arremessando') {
             if (ent.quadro >= 0.35) mudar(ent, 'parado');
+        } else if (est === 'suplex') {
+            ent.vx = 0;
+            if (ent.quadro >= DURACAO_DO_SUPLEX) mudar(ent, 'parado');
         } else if (est === 'finalizando') {
             if (ent.quadro >= 1.4) mudar(ent, 'parado');
         } else if (est === 'finalizado') {
@@ -1001,7 +1094,7 @@
 
     return {
         LARGURA, ALTURA, CHAO_TOPO, CHAO_BASE, TOLERANCIA_Y, MEIA_LARGURA, ALTURA_CORPO,
-        PERSONAGENS, INIMIGOS, FASES, BOTOES, DIFICULDADES,
+        PERSONAGENS, INIMIGOS, FASES, BOTOES, DIFICULDADES, MELHORIAS,
         criarRng, criarMundo, passo, entradaVazia, colocarInimigo, adicionarJogador, iniciarGolpe, aplicarDano, atordoar, vivo,
     };
 });

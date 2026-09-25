@@ -29,6 +29,8 @@
         { id: 'intocavel', nome: 'Intocável', descricao: 'Termine uma fase sem levar dano.' },
         { id: 'dupla', nome: 'Em Dupla', descricao: 'Termine uma fase com dois jogadores.' },
         { id: 'templo_livre', nome: 'O Templo Está Livre', descricao: 'Termine a campanha.' },
+        { id: 'aprendiz', nome: 'Aprendiz', descricao: 'Aprenda o primeiro golpe no Templo.' },
+        { id: 'mestre_do_templo', nome: 'Mestre do Templo', descricao: 'Aprenda todos os golpes do Templo.' },
     ];
     const POR_ID = Object.fromEntries(LISTA.map(d => [d.id, d]));
     const CHEFES = { mestreSombra: 'mestre_sombra', graoPresa: 'grao_presa', gigante: 'gigante', feiticeiro: 'feiticeiro' };
@@ -51,7 +53,8 @@
             return true;
         }
 
-        // Chamar a cada passo do motor com `mundo.eventos`.
+        // Chamar a cada passo do motor com `mundo.eventos` — e com o `evento` que a compra na loja
+        // devolve (`golpe-aprendido`, com `aprendidos` e `total`), sem mundo.
         function processar(eventos, mundo) {
             for (const ev of eventos) {
                 switch (ev.tipo) {
@@ -67,6 +70,7 @@
                     case 'chefe': chefeSemMorte = true; break;
                     case 'atropelou': if (ev.quantidade >= 2) desbloquear('atropelador'); break;
                     case 'item': est.itens++; if (est.itens >= 10) desbloquear('colecionador'); break;
+                    case 'golpe-aprendido': desbloquear('aprendiz'); if (ev.aprendidos >= ev.total) desbloquear('mestre_do_templo'); break;
                     default: break;
                 }
             }

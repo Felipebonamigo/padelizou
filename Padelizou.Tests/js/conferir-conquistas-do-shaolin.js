@@ -11,6 +11,7 @@ const raiz = path.join(__dirname, '..', '..', 'jogo', 'js');
 const Motor = require(path.join(raiz, 'motor.js'));
 const Progresso = require(path.join(raiz, 'progresso.js'));
 const Conquistas = require(path.join(raiz, 'conquistas.js'));
+const Loja = require(path.join(raiz, 'loja.js'));
 
 const falhas = [];
 function confere(nome, condicao, detalhe) {
@@ -147,6 +148,31 @@ function conquistasNovas(plat, dados) {
     const f = conquistasNovas(platJa);
     f.c.processar([{ tipo: 'finalizacao' }], mundoCom());
     confere('conquista de outra sessão não avisa de novo', !f.ganhas.includes('finalizador') && platJa.conquistadas.length === 0, f.ganhas.join(','));
+}
+
+// ── CONQUISTAS DO TEMPLO: disparadas pela COMPRA na loja ─────────────────────────────────
+// A compra devolve um evento `golpe-aprendido` e ele passa pelo mesmo `processar` dos eventos do
+// motor — a conquista não sabe da loja, e a loja não sabe da conquista.
+try {
+    confere('existem as conquistas aprendiz e mestre do templo', !!(Conquistas.POR_ID.aprendiz && Conquistas.POR_ID.mestre_do_templo),
+            Object.keys(Conquistas.POR_ID).join(','));
+    const t = conquistasNovas(plataformaFalsa({ karma: 99999 }));
+    const loja = Loja.criar(t.prog);
+    const [primeiro, ...resto] = Loja.CATALOGO.map(d => d.id);
+    const r1 = loja.comprar(primeiro);
+    t.c.processar([r1.evento]);
+    confere('aprender o primeiro golpe é aprendiz (e ainda não é mestre)', t.ganhas.includes('aprendiz') && !t.ganhas.includes('mestre_do_templo'), t.ganhas.join(','));
+    for (const id of resto.slice(0, -1)) t.c.processar([loja.comprar(id).evento]);
+    confere('faltando um golpe, ainda não é mestre', !t.ganhas.includes('mestre_do_templo'), t.ganhas.join(','));
+    t.c.processar([loja.comprar(resto[resto.length - 1]).evento]);
+    confere('aprender todos é mestre do templo, e aprendiz avisou uma vez só', t.ganhas.includes('mestre_do_templo') && t.ganhas.filter(g => g === 'aprendiz').length === 1,
+            t.ganhas.join(','));
+    const pobre = conquistasNovas(plataformaFalsa({ karma: 0 }));
+    const recusada = Loja.criar(pobre.prog).comprar(primeiro);
+    if (recusada.evento) pobre.c.processar([recusada.evento]);
+    confere('compra recusada não dá conquista', recusada.ok === false && !pobre.ganhas.includes('aprendiz'), `${JSON.stringify(recusada)} ${pobre.ganhas.join(',')}`);
+} catch (erro) {
+    confere('as conquistas do templo (o bloco rodou até o fim)', false, erro && erro.message);
 }
 
 // ── DIFICULDADE E O DANO LEVADO ───────────────────────────────────────────────────────────

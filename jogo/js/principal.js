@@ -1,17 +1,39 @@
-// PUNHOS DE SHAOLIN — o laço principal: telas (título → menu → dificuldade → escolha → fases →
-// fim), opções, conquistas, pausa, passo fixo de simulação (1/60 s), congelamento de acerto,
-// câmera lenta da finalização e o progresso salvo pela plataforma (navegador ou Electron/Steam).
+// PUNHOS DE SHAOLIN — o laço principal: telas (título → menu → dificuldade → escolha → fases,
+// com o Templo entre elas → fim), opções, conquistas, pausa, passo fixo de simulação (1/60 s),
+// congelamento de acerto, câmera lenta da finalização e o progresso salvo pela plataforma
+// (navegador ou Electron/Steam).
 (function (raiz) {
     'use strict';
-    const { Motor, Desenho, Som, Entrada, Progresso, Conquistas, Plataforma } = raiz.PunhosDeShaolin;
+    const { Motor, Desenho, Som, Entrada, Progresso, Conquistas, Plataforma, Loja } = raiz.PunhosDeShaolin;
     const PASSO = 1 / 60;
     const DURACAO_INTRO = 2.6;
     const DURACAO_AVISO = 4;
+    const ESPERA_DO_TEMPLO = 0.5;            // quem chega socando do fim da fase não compra sem querer
+    const DURACAO_DO_RECADO = 2.5;
+    const GEOMETRIA_DO_TEMPLO = { y0: 222, passo: 32 };   // 7 itens + Seguir não cabem no passo de 46
+
+    // Texto novo pro jogador (pt-BR), num lugar só — a tradução da Fase 3 começa daqui.
+    const TEXTOS = {
+        templo: 'Templo',
+        seguir: 'Seguir',
+        voltar: 'Voltar',
+        aprendido: 'aprendido',
+        faltaKarma: 'falta karma',
+        karma: n => `${n} karma`,
+        ganhoNaFase: n => `+${n} karma nesta fase`,
+        saldo: n => `saldo ${n} karma`,
+        aprendeu: nome => `Aprendeu: ${nome}`,
+        proximaFase: (n, nome) => `Fase ${n} · ${nome}`,
+        recusa: { sem_karma: 'Falta karma pra esse golpe.', aprendido: 'Esse golpe você já sabe.', desconhecido: 'Esse golpe não existe.' },
+        dicaTemplo: '↑ ↓ ESCOLHEM · ENTER APRENDE · ESC SAI',
+        dicaTemploToque: 'TOQUE NUM GOLPE PRA APRENDER · TOQUE EMBAIXO SAI',
+    };
 
     const canvas = document.getElementById('tela');
     const ctx = canvas.getContext('2d');
     const plataforma = Plataforma.criar();
     const progresso = Progresso.criar(plataforma);
+    const loja = Loja.criar(progresso);
     const som = Som.criar();
     const entrada = Entrada.criar({ joystick: document.getElementById('joystick'), joystickBolinha: document.getElementById('bolinha'), botoes: document.getElementById('botoes') });
     let efeitos = Desenho.criarEfeitos();
@@ -22,6 +44,7 @@
         sel: null, salvos: null, pontuacaoNaFase: 0, toque: false, indice: 0, confirmarApagar: false,
         estatisticas: null, fim: null, semente: (Date.now() & 0xffff) || 1, tocouAgora: null,
         avisosDeConquista: [], tempoDePartida: 0, faseFechada: false, escalaTotal: 1,
+        karmaDaFase: 0, templo: null,
     };
     const IDS = Object.keys(Motor.PERSONAGENS);
     const conquistas = Conquistas.criar({ progresso, plataforma, aoDesbloquear: def => { jogo.avisosDeConquista.push({ def, idade: 0 }); som.tocar('item'); } });
@@ -75,7 +98,8 @@
     function mudarTela(nome) { jogo.tela = nome; jogo.indice = 0; jogo.confirmarApagar = false; document.body.dataset.tela = nome; }
 
     // ── NAVEGAÇÃO DE MENU (teclado, controle e toque, com as mesmas linhas do desenho) ──────
-    function navegar(quantos, sistema, entradas, toque) {
+    function navegar(quantos, sistema, entradas, toque, geometria) {
+        const g = Desenho.geometriaDoMenu(geometria);
         const r = { confirmou: false, voltou: !!sistema.voltar, esquerda: false, direita: false };
         const e0 = entradas[0], e1 = entradas[1];
         if (e0.apertou.cima || e1.apertou.cima) { jogo.indice = (jogo.indice + quantos - 1) % quantos; som.tocar('selecionar'); }
@@ -84,7 +108,7 @@
         if (e0.apertou.direita || e1.apertou.direita) r.direita = true;
         if (sistema.confirmar || e0.apertou.soco || e1.apertou.soco) r.confirmou = true;
         if (toque) {
-            const i = Math.round((toque.y - Desenho.MENU_Y0) / Desenho.MENU_PASSO);
+            const i = Math.round((toque.y - g.y0) / g.passo);
             if (i >= 0 && i < quantos && Math.abs(toque.x - Motor.LARGURA / 2) < 320) { jogo.indice = i; r.confirmou = true; }
             else if (toque.y > 480) r.voltou = true;
         }
@@ -102,7 +126,7 @@
         const o = extra || {};
         jogo.fase = numero;
         const personagens = o.personagens || personagensEscolhidos();
-        jogo.mundo = Motor.criarMundo({ fase: numero, jogadores: personagens, semente: jogo.semente * 31 + numero, pontuacao: o.pontuacao || 0, dificuldade: progresso.dados.dificuldade });
+        jogo.mundo = Motor.criarMundo({ fase: numero, jogadores: personagens, semente: jogo.semente * 31 + numero, pontuacao: o.pontuacao || 0, dificuldade: progresso.dados.dificuldade, liberados: loja.liberados() });
         jogo.pontuacaoNaFase = jogo.mundo.pontuacao;
         if (jogo.salvos) {
             // Quem passou de fase leva o que tinha: vidas, chi e pelo menos metade da vida.
@@ -125,6 +149,8 @@
         if (jogo.faseFechada) return;
         jogo.faseFechada = true;
         conquistas.concluirFase(m);
+        // Karma pelos pontos ganhos NESTA fase (a pontuação é da partida inteira).
+        jogo.karmaDaFase = loja.receber(m.pontuacao - jogo.pontuacaoNaFase);
         if (jogo.fase < Motor.FASES.length - 1) progresso.registrarFase(jogo.fase + 1);
         progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
         progresso.salvar();
@@ -153,6 +179,38 @@
         mudarTela('menu');
     }
 
+    // ── TEMPLO: a loja de golpes. Entre as fases (origem 'fase') e pelo menu (origem 'menu'). ──
+    function abrirTemplo(o) {
+        jogo.templo = { origem: o.origem, proxima: o.proxima, pontuacao: o.pontuacao || 0, karmaGanho: o.origem === 'fase' ? jogo.karmaDaFase : null, recado: '', recadoHa: 0, abertoHa: 0 };
+        mudarTela('templo');
+        // Vindo da luta, o cursor começa no "Seguir": apertar sem querer segue em vez de gastar karma.
+        if (o.origem === 'fase') jogo.indice = itensDoTemplo().length - 1;
+        if (som.ligado) som.musica('titulo');
+        plataforma.presenca('No Templo');
+    }
+    function itensDoTemplo() {
+        const t = jogo.templo;
+        const itens = loja.itens().map(i => ({
+            id: i.id, rotulo: i.nome, desabilitado: i.aprendido, detalhe: i.descricao,
+            valor: i.aprendido ? TEXTOS.aprendido : i.podeComprar ? TEXTOS.karma(i.preco) : `${TEXTOS.karma(i.preco)} · ${TEXTOS.faltaKarma}`,
+        }));
+        if (t.origem === 'fase') itens.push({ id: 'sair', rotulo: TEXTOS.seguir, detalhe: TEXTOS.proximaFase(t.proxima, Motor.FASES[t.proxima].nome) });
+        else itens.push({ id: 'sair', rotulo: TEXTOS.voltar });
+        return itens;
+    }
+    function sairDoTemplo() {
+        const t = jogo.templo;
+        jogo.templo = null;
+        if (t.origem === 'fase') iniciarFase(t.proxima, { pontuacao: t.pontuacao });
+        else irParaMenu();
+    }
+    function subtituloDoTemplo() {
+        const t = jogo.templo;
+        if (t.recadoHa > 0) return t.recado;
+        const saldo = TEXTOS.saldo(loja.saldo());
+        return t.karmaGanho != null ? `${TEXTOS.ganhoNaFase(t.karmaGanho)} · ${saldo}` : saldo;
+    }
+
     function comecarEscolha(faseInicial) {
         jogo.faseInicial = faseInicial;
         jogo.sel = { p1: 0, p2: 1, p2Entrou: false, confirmadoP1: false, confirmadoP2: false, prontoHa: 0, contagem: 0 };
@@ -167,6 +225,7 @@
         if (fase > 1) itens.push({ id: 'continuar', rotulo: 'Continuar', valor: `Fase ${fase} · ${Motor.FASES[fase].nome}`, destaque: true });
         itens.push({ id: 'opcoes', rotulo: 'Opções' });
         itens.push({ id: 'conquistas', rotulo: 'Conquistas', valor: `${conquistas.ganhas().length} / ${Conquistas.LISTA.length}` });
+        itens.push({ id: 'templo', rotulo: TEXTOS.templo, valor: TEXTOS.karma(loja.saldo()) });
         if (plataforma.ehDesktop) itens.push({ id: 'sair', rotulo: 'Sair' });
         return itens;
     }
@@ -233,6 +292,7 @@
                     else if (item.id === 'continuar') comecarEscolha(progresso.dados.faseAlcancada);
                     else if (item.id === 'opcoes') mudarTela('opcoes');
                     else if (item.id === 'conquistas') mudarTela('conquistas');
+                    else if (item.id === 'templo') abrirTemplo({ origem: 'menu' });
                     else if (item.id === 'sair') plataforma.sair();
                 }
                 break;
@@ -260,6 +320,24 @@
                 fundoVivo();
                 const nav = navegar(1, sistema, entradas, toque);
                 if (nav.voltou || nav.confirmou) irParaMenu();
+                break;
+            }
+            case 'templo': {
+                fundoVivo();
+                const t = jogo.templo;
+                t.abertoHa += dt;
+                t.recadoHa = Math.max(0, t.recadoHa - dt);
+                if (t.abertoHa < ESPERA_DO_TEMPLO) break;
+                const itens = itensDoTemplo();
+                const nav = navegar(itens.length, sistema, entradas, toque, GEOMETRIA_DO_TEMPLO);
+                if (nav.voltou) { som.tocar('confirmar'); sairDoTemplo(); break; }
+                if (!nav.confirmou) break;
+                const item = itens[jogo.indice];
+                if (item.id === 'sair') { som.tocar('confirmar'); sairDoTemplo(); break; }
+                const r = loja.comprar(item.id);
+                if (r.ok) { som.tocar('confirmar'); conquistas.processar([r.evento]); t.recado = TEXTOS.aprendeu(item.rotulo); }
+                else { som.tocar('negado'); t.recado = TEXTOS.recusa[r.motivo] || r.motivo; }
+                t.recadoHa = DURACAO_DO_RECADO;
                 break;
             }
             case 'selecao': {
@@ -330,8 +408,9 @@
                     fecharFase(m);
                     if (m.concluidaHa > 2.2) {
                         salvarJogadores();
+                        // Última fase: o karma já entrou no fecharFase e segue pro fim. As outras passam pelo Templo.
                         if (jogo.fase >= Motor.FASES.length - 1) terminar(true);
-                        else iniciarFase(jogo.fase + 1, { pontuacao: m.pontuacao });
+                        else abrirTemplo({ origem: 'fase', proxima: jogo.fase + 1, pontuacao: m.pontuacao });
                     }
                 }
                 if (m.fimDeJogo) { jogo.fimHa += dt; if (jogo.fimHa > 1.6) terminar(false); }
@@ -365,6 +444,7 @@
             case 'menu': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { itens: itensDoMenu(), indice: jogo.indice, dica: `${dicaVoltar}${plataforma.temSteam ? ' · STEAM CONECTADA' : ''}`, subtitulo: `Dificuldade ${progresso.dados.dificuldade} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` }); break;
             case 'dificuldade': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Dificuldade', itens: DIFICULDADES, indice: jogo.indice, dica: dicaVoltar }); break;
             case 'opcoes': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Opções', itens: itensDeOpcoes(), indice: jogo.indice, dica: jogo.toque ? 'TOQUE NUM ITEM PRA MUDAR · TOQUE EMBAIXO VOLTA' : '← → MUDAM · ENTER CONFIRMA · ESC VOLTA' }); break;
+            case 'templo': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, Object.assign({ titulo: TEXTOS.templo, subtitulo: subtituloDoTemplo(), itens: itensDoTemplo(), indice: jogo.indice, dica: jogo.toque ? TEXTOS.dicaTemploToque : TEXTOS.dicaTemplo }, GEOMETRIA_DO_TEMPLO)); break;
             case 'conquistas': Desenho.desenharConquistas(ctx, jogo.tempo, efeitos, { lista: Conquistas.LISTA.map(def => ({ def, ganha: !!progresso.dados.conquistas[def.id] })), dica: jogo.toque ? 'TOQUE PARA VOLTAR' : 'ESC OU ENTER VOLTA' }); break;
             case 'selecao': Desenho.desenharSelecao(ctx, jogo.tempo, efeitos, Object.assign({ toque: jogo.toque }, jogo.sel)); break;
             case 'intro': Desenho.desenharIntroFase(ctx, jogo.mundo.faseDef, jogo.intro / DURACAO_INTRO); break;
@@ -396,4 +476,5 @@
 
     raiz.PunhosDeShaolin.jogo = jogo;            // pra inspecionar no console
     raiz.PunhosDeShaolin.progresso = progresso;
+    raiz.PunhosDeShaolin.loja = loja;
 })(window);
