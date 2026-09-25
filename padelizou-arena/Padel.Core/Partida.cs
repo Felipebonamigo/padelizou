@@ -23,6 +23,19 @@ public sealed record OpcoesDaPartida
     public bool[] Humanos { get; init; } = [true, false, false, false];
     public ModoDeGolpe ModoDeGolpe { get; init; } = ModoDeGolpe.Manual;
     public uint? Semente { get; init; }
+    /// <summary>
+    /// Pontos corridos (Americano/Mexicano): o total que a soma dos pontos precisa alcançar, ex. 24 ou 32 — a partida fica
+    /// sem games nem sets, e <see cref="PontoDeOuro"/> e <see cref="SetsParaVencer"/> não valem (<see cref="Placar.DePontosCorridos"/>).
+    /// <c>null</c> (o padrão) = padel de games e sets. Só no jogo local: ver <see cref="ValeOnline"/>.
+    /// </summary>
+    public int? PontosCorridos { get; init; }
+
+    /// <summary>
+    /// Estas opções servem pra uma sala online? Pontos corridos não: o protocolo (<c>Padel.Core.Rede</c>: as opções do
+    /// BemVindo e o placar do instantâneo) só carrega games e sets, e um cliente veria outra partida. O host consulta isto
+    /// e recusa criar a sala quando é <c>false</c>.
+    /// </summary>
+    public bool ValeOnline => PontosCorridos is null;
 
     public static readonly bool[] NinguemHumano = [false, false, false, false];
 }
@@ -85,7 +98,9 @@ public sealed class Partida
         if (Opcoes.Humanos.Length != 4) throw new ArgumentException("Humanos precisa ter 4 posições", nameof(opcoes));
         uint semente = Opcoes.Semente ?? (uint)Random.Shared.Next();
         Aleatorio = new Aleatorio(semente);
-        Placar = new Placar(Opcoes.PontoDeOuro, Opcoes.SetsParaVencer, timeQueSaca: 0);
+        Placar = Opcoes.PontosCorridos is int total
+            ? Placar.DePontosCorridos(total, timeQueSaca: 0)
+            : new Placar(Opcoes.PontoDeOuro, Opcoes.SetsParaVencer, timeQueSaca: 0);
         var rival = Perfis.Por(Opcoes.Dificuldade);
         bool[] h = Opcoes.Humanos;
         Jogadores =
@@ -201,7 +216,8 @@ public sealed class Partida
                 Temporizador -= dt;
                 if (Temporizador <= 0)
                 {
-                    if (Placar.Acabou) { Estado = EstadoDaPartida.Fim; Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Fim, Time: Placar.Vencedor!.Value)); }
+                    // Fim: Time = o vencedor, ou −1 no empate dos pontos corridos (Placar.Empate).
+                    if (Placar.Acabou) { Estado = EstadoDaPartida.Fim; Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Fim, Time: Placar.Vencedor ?? -1)); }
                     else IniciarPonto();
                 }
                 break;
@@ -480,7 +496,13 @@ public sealed class Partida
         {
             TipoDeEventoDoPlacar.Game => $"{(casa ? "Game da casa" : "Game dos rivais")} — {descricao}",
             TipoDeEventoDoPlacar.Set => $"{(casa ? "Set da casa!" : "Set dos rivais.")} {Placar.Resumo()}",
-            TipoDeEventoDoPlacar.Partida => $"{(casa ? "A casa venceu!" : "Os rivais venceram.")} {Placar.Resumo()}",
+            // Pelo Vencedor, não por quem ganhou o ponto: nos pontos corridos o último ponto pode ser de quem perdeu (13-10 → 13-11).
+            TipoDeEventoDoPlacar.Partida => Placar.Vencedor switch
+            {
+                0 => $"A casa venceu! {Placar.Resumo()}",
+                1 => $"Os rivais venceram. {Placar.Resumo()}",
+                _ => $"Empate! {Placar.Resumo()}",
+            },
             _ => $"{(casa ? "Ponto da casa" : "Ponto dos rivais")} — {descricao}",
         };
     }
