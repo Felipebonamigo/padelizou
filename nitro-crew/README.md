@@ -1,9 +1,10 @@
 # Nitro Crew *(nome provisório)*
 
-Corrida arcade em **pseudo-3D** no espírito dos clássicos de 16 bits (Top Gear), com **cooperativo local para
-até 4 jogadores em tela dividida**: a equipe divide um cofre de nitro, empurra o companheiro que parou, ganha
-vácuo atrás dele e pontua junta nas copas contra 19 pilotos de IA. Feito em TypeScript + Canvas 2D, com
-simulação determinística pronta para multiplayer em lockstep, e empacotável com Electron para a Steam.
+Corrida arcade no espírito do Top Gear (SNES) com visual **3D atual, low-poly estilizado** (referência:
+Horizon Chase Turbo), e **cooperativo local para até 4 jogadores em tela dividida**: a equipe divide um cofre
+de nitro, empurra o companheiro que parou, ganha vácuo atrás dele e pontua junta nas copas contra 19 pilotos
+de IA. Feito em TypeScript + Three.js (WebGL), com simulação determinística pronta para multiplayer em
+lockstep, e empacotável com Electron para a Steam.
 
 ## Jogar agora
 
@@ -29,6 +30,7 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 - 12 pistas em 4 países, 6 cenários (litoral, tropical, cidade à noite, deserto, alpino, campos) × dia/entardecer/noite.
 - 4 carros com trocas claras (velocidade, aceleração, curva, consumo).
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box.
+- Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (tudo procedural até a arte final).
 - Tela dividida 1–4, minimapa, HUD por jogador, PT-BR/EN, jukebox procedural com 4 músicas.
 
 ## Desenvolvimento
@@ -41,12 +43,12 @@ npm run balance -- 150         # IA × IA em todas as pistas: voltas, grama, bat
 npm run preview & npm run playtest   # playtest no Chromium com capturas em scratch/ (exige preview no ar)
 ```
 
-Estrutura: `src/core` (simulação, sem DOM) · `src/render` (Canvas 2D) · `src/ui` (menus/entrada) ·
+Estrutura: `src/core` (simulação, sem DOM) · `src/render` (Three.js) · `src/ui` (menus/entrada) ·
 `src/audio` · `src/game/session.ts` · `desktop/` (Electron/Steam) · `docs/` (design, roteiro, Steam).
 
 ## Roteiro
 Concluído: fatia vertical (núcleo, IA, co-op, 12 pistas, tela dividida, menus, gamepads, áudio, Electron, testes).
-Próximos: playtests no sofá e ajuste de sensação, arte e trilha finais, 32 pistas, carreira, Remote Play Together,
+Próximos: playtests no sofá e ajuste de sensação, modelos 3D e trilha finais, 32 pistas, carreira, Remote Play Together,
 lockstep online, página da Steam. Cronograma completo em `docs/ROADMAP.md`.
 
 ## Licença

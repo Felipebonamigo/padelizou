@@ -1,9 +1,9 @@
 # Nitro Crew — Design e arquitetura
 
 ## O jogo em uma frase
-Corrida arcade em pseudo-3D no espírito dos clássicos de 16 bits (Top Gear), em que **até 4 pessoas no mesmo
-sofá correm como uma equipe** contra 16–19 pilotos de IA, com nitro, box e combustível — e mecânicas que só
-existem porque há uma equipe.
+Corrida arcade no espírito dos clássicos de 16 bits (Top Gear), com visual 3D atual (low-poly estilizado, à
+Horizon Chase Turbo), em que **até 4 pessoas no mesmo sofá correm como uma equipe** contra 16–19 pilotos de IA,
+com nitro, box e combustível — e mecânicas que só existem porque há uma equipe.
 
 ## Pilares
 1. **Sofá primeiro.** Tela dividida para 1–4, entra-se com um botão, tudo navegável por controle. Online vem
@@ -12,7 +12,8 @@ existem porque há uma equipe.
    pune; bater dói. Nada de física de simulador.
 3. **Equipe de verdade.** Cooperar tem que valer mais que correr sozinho: cofre de nitro, empurrão, vácuo de
    equipe, elástico para quem ficou para trás, e a pontuação de equipe nas copas.
-4. **Tudo procedural até a arte chegar.** Sprites, sons e músicas são código; o jogo nunca fica esperando asset.
+4. **Bonito de verdade, desde já.** Visual 3D com luz, sombra, névoa, bloom e partículas; modelos, céu, texturas,
+   sons e músicas são procedurais até a arte final chegar (em glTF), e o jogo nunca fica esperando asset.
 
 ## Modos
 - **Campeonato** (co-op ou versus): copas de 3 pistas por país. Solo/versus: seguir exige top 5 na corrida.
@@ -51,7 +52,7 @@ src/core      simulação determinística, sem DOM, sem Math.random/sin/cos/Date
   data/       carros, pilotos/equipes da IA, copas
   sim/        physics, ai, collisions, coop, positions, race (createRace/stepRace)
   championship.ts, serialize.ts (estado é JSON puro; hashRace para lockstep)
-src/render    Canvas 2D: projection, palette, sprites procedurais, background, hud, minimap, layout
+src/render    Three.js: roadframe (referencial local), road, terrain, scenery, cars, sky, effects, camera, hud (DOM), palette, minimap, layout
 src/ui        menus (DOM), input (teclado + Gamepad API), styles.css
 src/audio     WebAudio: synth, engine (motor por jogador), sfx, music (jukebox por sequenciador)
 src/game      contracts.ts (interfaces), session.ts (laço), settings/save (localStorage), desktop.ts (Electron), achievements.ts
@@ -64,17 +65,23 @@ Regras que mantêm o jogo pronto para multiplayer: toda mutação passa por `ste
 renderizador nunca altera o estado; o estado é serializável e `hashRace` detecta dessincronia; sementes controlam
 o elenco (`rosterSeed`) e o acaso da IA (`seed`).
 
-## Pseudo-3D (`src/render`)
-Estrada por segmentos projetados a partir da câmera do jogador (altura 1000 u, FOV ~100°), curva acumulada
-segmento a segmento, morros por `y0/y1` com clipping pelo maior y desenhado, névoa na distância, sprites de longe
-para perto escalados pela projeção, carro do jogador fixo embaixo. Tela dividida: 1 = cheia, 2 = em cima/embaixo,
-3–4 = 2×2 (com 3, a 4ª célula é o painel de classificação + minimapa).
+## Renderização 3D (`src/render`)
+A simulação é "1D + lateral" (z ao longo da pista, x entre as bordas), como no pseudo-3D — e as pistas do DSL não
+fecham geometricamente. Por isso o mundo 3D é montado **no referencial local de cada jogador**, a cada quadro:
+origem na linha central em `z = car.z`, integrando a curvatura para ~30 segmentos atrás e 140–260 à frente
+(`roadframe.ts`, puro e testado). Com uma câmera de perseguição alinhada à pista, o resultado é indistinguível de
+um mundo fixo; o que fica ao longe (céu, sol, cordilheira, skyline) gira pelo heading absoluto do carro.
+Escalas: x = ±1 → ±7 m; segmento = 4 m (300 km/h do velocímetro ≈ 430 km/h visuais, exagero arcade); elevação × 0,006.
+Malha da pista, terreno por bioma, cenário instanciado a partir dos `sprites` dos segmentos, 20 carros low-poly
+re-posicionados por viewport, céu procedural com PMREM para reflexos, sombras direcionais, bloom só nos
+emissivos, partículas. Tela dividida por scissor: 1 = cheia, 2 = em cima/embaixo, 3–4 = 2×2 (com 3, a 4ª célula é
+classificação + minimapa). HUD em DOM por cima do canvas.
 
 ## Decisões
-- **TypeScript + Canvas 2D + Electron**, não Unity/Godot: o agente constrói e verifica tudo sozinho (testes,
-  corrida sem interface, playtest no Chromium), e o mesmo caminho do AgeOfEarth leva à Steam.
-- **Canvas 2D, não WebGL**: pseudo-3D é polígono por segmento e sprite escalado; Canvas 2D acelerado dá conta de 4
-  viewports, e o código fica legível. Se um dia faltar desempenho, a projeção fica e só o `drawRoad` muda.
+- **TypeScript + Three.js + Electron**, não Unity/Godot: o agente constrói e verifica tudo sozinho (testes,
+  corrida sem interface, capturas no Chromium headless com WebGL), e o mesmo caminho do AgeOfEarth leva à Steam.
+- **Three.js, não Canvas 2D**: o primeiro renderizador era pseudo-3D em Canvas 2D (estilo 16 bits); foi trocado em
+  25/09/2026 a pedido do dono ("gráficos atuais, bonitos"). A simulação não mudou uma linha.
 - **Sem trigonometria no núcleo**: suavizações polinomiais; o minimapa (que precisa de seno/cosseno) vive no
   renderizador, fora do estado.
 - **Humanos largam por último** (como no Top Gear) e a IA corre em duplas com nome de equipe, para a classificação

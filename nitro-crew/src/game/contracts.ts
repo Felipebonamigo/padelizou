@@ -137,13 +137,20 @@ export interface RenderFrame {
   coop: boolean;
 }
 
+/**
+ * Renderizador 3D (Three.js/WebGL) — `createRenderer(canvas, hudRoot)`. O canvas recebe o mundo 3D
+ * (uma câmera por viewport, tela dividida por scissor); o HUD é DOM dentro de `hudRoot`, por cima
+ * do canvas e por baixo dos menus (`#ui`).
+ */
 export interface Renderer {
   readonly canvas: HTMLCanvasElement;
   /** Tamanho em pixels CSS e razão de pixels; o renderizador cuida do backing store. */
   resize(width: number, height: number, dpr: number): void;
   render(frame: RenderFrame): void;
-  /** Fundo animado atrás dos menus (uma pista vazia rolando, por exemplo). */
+  /** Fundo animado atrás dos menus (câmera automática voando pela pista), sem HUD. */
   renderIdle(time: number, track: Track): void;
+  /** Libera GPU e DOM do HUD. */
+  dispose(): void;
 }
 
 /** Contorno da pista para o minimapa e para as telas de menu (função pura, exportada por src/render/minimap.ts). */

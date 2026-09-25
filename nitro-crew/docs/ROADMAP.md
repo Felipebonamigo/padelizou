@@ -22,9 +22,10 @@ Fatia vertical completa, toda procedural (sem um único asset binário):
 - **Cooperativo** (a diferença do jogo): cofre de nitro da equipe, empurrão ao companheiro parado, vácuo de
   equipe, elástico para o último da equipe; pontuação de equipe (dois melhores) e classificação por equipes nas copas.
 - 12 pistas em 4 copas (Brasil, EUA, Japão, Europa), 6 cenários × 3 períodos do dia, escritas num DSL de pista.
-- Renderizador pseudo-3D em Canvas 2D com sprites procedurais, parallax, névoa, HUD, minimapa e **tela dividida
-  para 1–4 jogadores**; menus para sofá (teclado, mouse e até 4 gamepads); áudio procedural (motor por jogador,
-  efeitos, jukebox com 4 músicas); opções e progresso salvos; empacotamento Electron; PT-BR e EN.
+- Renderizador **3D em Three.js** (low-poly estilizado: iluminação, sombras, bloom, névoa, céu dinâmico, mar,
+  partículas, carros procedurais), HUD em DOM, minimapa e **tela dividida para 1–4 jogadores**; menus para sofá
+  (teclado, mouse e até 4 gamepads); áudio procedural (motor por jogador, efeitos, jukebox com 4 músicas); opções
+  e progresso salvos; empacotamento Electron; PT-BR e EN.
 - 100+ testes (determinismo, pista, física, IA, co-op, campeonato, i18n, layout), corrida sem interface
   (`npm run smoke`), balanceamento (`npm run balance`) e playtest automatizado no Chromium (`npm run playtest`).
 
@@ -38,7 +39,7 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 | 1.3 | Balanceamento por dados: IA × IA em todas as pistas por versão (`npm run balance`); tempos de volta por carro; dificuldade Amador de verdade fácil, Campeão de verdade difícil | A | 1–5 |
 | 1.4 | Co-op afinado: quando o empurrão vale, quanto o vácuo rende, se o elástico está "trapaceando"; modo Versus (times por assento) e regra de classificação individual testados | A + V | 2–3 |
 | 1.5 | Gamepads reais: Xbox, PlayStation, genérico USB, 4 ao mesmo tempo; Steam Input ligado/desligado; remapeamento na tela de controles | A + V | 2–3 |
-| 1.6 | Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado); ajustar qualidade baixa/média; sem estouro de memória em 1 h de jogo | A + V | 3–4 |
+| 1.6 | Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado) e no Steam Deck; ajustar qualidade baixa/média (sombras, bloom, draw distance); sem estouro de memória em 1 h de jogo | A + V | 3–4 |
 | 1.7 | Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
 | 1.8 | Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
 | 1.9 | Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
@@ -46,18 +47,19 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 Marco **M1 (semana 5)**: "fatia vertical jogável por terceiros" — enviar build a 5 amigos com controles.
 
 ## Fase 2 — Identidade visual e áudio · semanas 3–14 (paralela)
-Objetivo: parar de parecer protótipo. É o caminho crítico. O jogo é lembrado pela música tanto quanto pela pista
-(o Top Gear é o exemplo), então a trilha é tão importante quanto os sprites.
+Objetivo: do "bonito procedural" para o "bonito de loja". O visual é 3D low-poly estilizado (decisão de 25/09,
+a pedido do dono: gráficos atuais); a arte final entra como modelos glTF e texturas no mesmo renderizador. O jogo
+é lembrado pela música tanto quanto pela pista (o Top Gear é o exemplo), então a trilha é tão importante quanto os modelos.
 
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 2.1 | Direção de arte: pixel art 16 bits "SNES+" (recomendado: barato, coerente com o pseudo-3D, nostálgico) ou HD-2D pintado; paleta; referências; **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
-| 2.2 | Contratar artista(s) (ou pipeline com IA + retoque humano) com o briefing gerado a partir de `src/render/sprites.ts` (a lista de sprites e tamanhos já está no código) | V + T | 4–5 |
-| 2.3 | Assets: 8 carros × 3 poses (traseira) + variações de cor; ~60 sprites de cenário (6 biomas); fundos parallax por bioma × período do dia; arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
-| 2.4 | Integração: atlas de sprites no renderizador (substitui os procedurais), animações (rodas, chama do nitro, fumaça), partículas; opção "visual clássico" (procedural) pode virar easter egg | A | 8–14 |
-| 2.5 | Interface final: HUD temático, fontes, telas de menu/lobby/resultado, tela de vitória da copa | T + A | 9–13 |
-| 2.6 | Áudio: trilha com 10–12 músicas para o jukebox (compositor chiptune/synthwave), ~40 efeitos, locutor de contagem (opcional) | T + A | 8–14 |
-| 2.7 | Trailer de anúncio (30 s) com arte final | V + T | 13–14 |
+| 2.1 | Direção de arte fechada em documento de 1 página (paleta por bioma, proporção dos carros, o que é "premium" nas referências Horizon Chase Turbo / Art of Rally); **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
+| 2.2 | Contratar artista 3D low-poly (ou pipeline com IA + retoque no Blender) com o briefing gerado da lista de `SpriteKind`, carros e biomas já no código; formato glTF, orçamento de triângulos por modelo | V + T | 4–5 |
+| 2.3 | Assets: 8 carros (com variações de cor por material), ~60 modelos de cenário (6 biomas), skyboxes/céus e anéis de horizonte por bioma × período, arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
+| 2.4 | Integração: carregador glTF no renderizador (substitui os modelos procedurais um a um), materiais e LODs, animações (rodas, suspensão, chama), efeitos de clima; "visual procedural" pode ficar como opção de baixo custo | A | 8–14 |
+| 2.5 | Interface final: HUD e menus com design de produto (tipografia, ícones, transições), tela de vitória da copa, cinemática curta de pódio | T + A | 9–13 |
+| 2.6 | Áudio: trilha com 10–12 músicas para o jukebox (compositor synthwave/rock), ~40 efeitos gravados ou desenhados, locutor de contagem (opcional) | T + A | 8–14 |
+| 2.7 | Trailer de anúncio (30 s) com arte final e tela dividida | V + T | 13–14 |
 
 Marco **M2 (semana 14)**: "arte e som finais no jogo" — página "Em breve" na Steam pode ir ao ar.
 
@@ -121,7 +123,7 @@ ver as vendas na Steam.
 | Item | Estimativa |
 |---|---|
 | Steam Direct | US$ 100 (devolvidos após US$ 1.000 em vendas) |
-| Arte pixel art (carros, cenários, UI, cápsulas) | R$ 8–30 mil conforme escopo; menos com pipeline assistido por IA |
+| Arte 3D low-poly (8 carros, cenários de 6 biomas, UI, cápsulas) | R$ 12–40 mil conforme escopo; menos com pipeline assistido por IA + Blender |
 | Trilha (10–12 músicas) e efeitos | R$ 3–12 mil (compositor chiptune) ou bancos licenciados |
 | Marca no INPI (opcional, recomendado) | ~R$ 355 + honorários |
 | Servidor relay (só para o online próprio, Fase 4.2) | R$ 30–100/mês |
@@ -130,7 +132,7 @@ ver as vendas na Steam.
 ## Riscos e mitigação
 - **Arte é o caminho crítico**: fechar direção de arte na semana 4; os sprites procedurais nunca bloqueiam o código.
 - **Nome e semelhança**: "inspirado em" é permitido, cópia não. Nome próprio, logo próprio, traçados próprios; sem música ou nomes de carros dos originais.
-- **Tela dividida em máquina fraca**: 4 viewports quadruplicam o desenho. Já existe qualidade baixa/média; medir cedo (1.6).
+- **Tela dividida em máquina fraca**: 4 viewports quadruplicam o desenho 3D (sombras e pós-processamento por viewport). Já existe qualidade baixa/média; medir cedo (1.6).
 - **Online de corrida é sensível a latência**: por isso Remote Play Together primeiro (4.1) e lockstep com atraso de entrada depois; nunca prometer online próprio antes de M4.
 - **Escopo**: Carreira (3.3) e modos extras (3.5) só entram se M1 e M2 estiverem no prazo; senão, pós-lançamento.
 - **Motivação/ritmo**: marco a cada 5–6 semanas com algo jogável no sofá.

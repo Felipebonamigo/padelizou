@@ -1,7 +1,8 @@
 # Nitro Crew — guia para agentes
 
-Corrida arcade pseudo-3D (estilo Top Gear) com co-op local de até 4 em tela dividida, em TypeScript + Canvas 2D,
-empacotável com Electron para a Steam. Interface e comentários em português (Brasil); código em inglês.
+Corrida arcade (estilo Top Gear) com visual 3D low-poly estilizado e co-op local de até 4 em tela dividida, em
+TypeScript + Three.js (WebGL), empacotável com Electron para a Steam. **O dono pediu gráficos atuais e bonitos** —
+referência Horizon Chase Turbo; pixel art e pseudo-3D de 16 bits estão fora. Interface e comentários em português (Brasil); código em inglês.
 Este projeto mora numa subpasta do repositório `padelizou` por enquanto; **tudo aqui é independente dele** —
 não use nada de fora desta pasta.
 
@@ -28,7 +29,10 @@ não use nada de fora desta pasta.
 
 ## Regras de trabalho (as mesmas do padelizou)
 - Defeito corrigido vira teste, escrito antes e visto falhar. Nada publicado com teste vermelho.
-- Sem dependência npm nova para o que já se faz com Canvas/WebAudio/DOM. Tudo é procedural até a Fase 2 do roteiro.
+- Dependência de produção é só `three`. Sem pacote novo para o que já se faz com Three/WebAudio/DOM. Modelos, céu,
+  texturas, sons e músicas são procedurais até a arte da Fase 2 (que entra como glTF, sem trocar o renderizador).
+- Renderizador: mundo montado no referencial local de cada jogador a partir dos segmentos (as pistas do DSL não
+  fecham geometricamente); ver `docs/DESIGN.md`. Mudança visual se prova com captura (`scratch/render-harness.mjs`).
 - Commits em português, com o rodapé de atribuição exigido pela sessão.
 
 ## Memória do projeto (ler primeiro em toda sessão)
@@ -36,7 +40,8 @@ não use nada de fora desta pasta.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
 - **Estado atual**: Fase 0 concluída (25/09/2026). Próximo: Fase 1 (playtests do Felipe no sofá, sensação de
   direção, balanceamento, gamepads reais, desempenho com 4 viewports, campeonato salvo, fantasma).
-- **Decisões**: TypeScript + Canvas 2D + Electron (não Unity/Godot/PixiJS) para o agente construir e verificar
-  tudo sozinho; núcleo determinístico separado da renderização para lockstep/replays; arte procedural como
-  placeholder; "Nitro Crew" é nome provisório (Fase 2.1 decide).
+- **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
+  sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
+  renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
+  "Nitro Crew" é nome provisório (Fase 2.1 decide).
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks.
