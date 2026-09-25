@@ -58,6 +58,15 @@ export function cupDifficulty(tracks: readonly TrackDef[]): number {
   return Math.round(tracks.reduce((a, d) => a + d.difficulty, 0) / tracks.length);
 }
 
+/**
+ * Voltas que o cartão da pista mostra: as da corrida que ele larga. Corrida rápida e contra-relógio
+ * usam as voltas da corrida rápida (session.ts: startQuick/startTimeTrial), não as da pista — só a
+ * copa corre as voltas da pista.
+ */
+export function trackCardLaps(ctx: Pick<MenuContext, 'settings'>): number {
+  return ctx.settings.quickLaps;
+}
+
 function statusBadge(status: CupStatus): HTMLElement | null {
   if (status === 'done') return h('span', { class: 'cup-status done', title: t('ui.cups.done') }, icon('check'));
   if (status === 'locked') return h('span', { class: 'cup-status locked' }, icon('lock'));
@@ -163,12 +172,11 @@ export function tracksScreen(api: ScreenApi): ScreenInstance {
   const rows: HTMLElement[] = [];
   for (const cup of ctx.cups) {
     const cards = cupTracks(ctx, cup).map((def) => {
-      const laps = timeTrial ? def.laps : ctx.settings.quickLaps;
       const el = h('div', { class: 'track-card glass', attrs: { 'data-track': def.id } },
         scalableThumb(ctx, def),
         h('div', { class: 'track-info' },
           h('strong', { class: 'track-name', text: def.name }),
-          h('span', { class: 'meta' }, dayIcon(def.timeOfDay), h('span', { text: t('ui.common.laps', { n: laps }) })),
+          h('span', { class: 'meta' }, dayIcon(def.timeOfDay), h('span', { text: t('ui.common.laps', { n: trackCardLaps(ctx) }) })),
           h('span', { class: 'track-foot' },
             dots(def.difficulty),
             h('span', { class: 'track-best mono' }, icon('timer'), h('span', { text: bestLapText(ctx, def.id) })),

@@ -38,6 +38,15 @@ export const GEAR_ACCEL = [1.7, 1.45, 1.2, 1.0, 0.85];
 export const COUNTDOWN_TICKS = 3 * TICK_RATE + 30; // 3 s de contagem + meio segundo de "JÁ"
 export const FUEL_CAPACITY = 1;
 export const FUEL_EMPTY_SPEED_FACTOR = 0.2;
+/**
+ * Aviso de combustível baixo ("entre no box"): quando o tanque já não garante esta quantidade de
+ * voltas em aceleração total. Proporcional à volta porque um nível fixo (eram 25%) chega tarde nas
+ * voltas longas; acima de 1 porque o jogador de pé no fundo gasta ~0,95–1,0 disso por volta, e a
+ * sobra (0,15 volta, ~12 s) é o tempo de ver o aviso e ir para o box (sim/fuel.ts, tests/fuel.test.ts).
+ */
+export const FUEL_LOW_LAPS = 1.15;
+/** Folga da IA sobre o consumo medido ao decidir se passa reto pelo box (sim/fuel.ts). */
+export const FUEL_PIT_MARGIN = 1.15;
 export const PIT_X = 1.55;                 // centro do box, em `x` normalizado
 export const PIT_SPEED_LIMIT_FACTOR = 0.25;
 export const PIT_REFUEL_PER_SECOND = 0.35;

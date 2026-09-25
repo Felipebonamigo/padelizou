@@ -7,6 +7,7 @@ import {
 } from '../constants';
 import { segmentAt } from '../track/builder';
 import type { CarState, CarStats, PlayerInput, RaceState, Track } from '../types';
+import { fuelLowLevel, pitStillAhead } from './fuel';
 import { carStats } from './stats';
 
 /** Modificadores calculados fora da física (vácuo, elástico) e aplicados aqui. */
@@ -141,7 +142,9 @@ export function stepCarPhysics(state: RaceState, track: Track, car: CarState, in
     const before = car.fuel;
     const burn = def.fuelPerUnit * car.speed * DT * (input.throttle ? 1 : 0.35) * (car.nitroTicks > 0 ? 1.6 : 1) * (0.7 + 0.3 * speedFrac);
     car.fuel = Math.max(0, car.fuel - burn);
-    if (before > 0.25 && car.fuel <= 0.25) events.push({ type: 'fuel_low', carId: car.id });
+    // Aviso proporcional à volta, e só enquanto ainda há box antes da chegada (sim/fuel.ts).
+    const warnAt = fuelLowLevel(def.fuelPerUnit, track.length);
+    if (before > warnAt && car.fuel <= warnAt && pitStillAhead(state, car)) events.push({ type: 'fuel_low', carId: car.id });
     if (before > 0 && car.fuel <= 0) events.push({ type: 'fuel_empty', carId: car.id });
   }
 

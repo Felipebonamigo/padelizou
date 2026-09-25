@@ -186,6 +186,16 @@ export interface AiBrain {
   /** Quantos ticks de pista à frente ele olha para frear em curva. */
   lookahead: number;
   aggression: number;
+  /**
+   * Combustível e progresso onde começou a volta em que a IA mede o próprio consumo (largada, saída
+   * do box ou fim da volta medida anterior). Opcionais de propósito: ausente = ainda não mediu, e
+   * sim/fuel.ts preenche na primeira decisão — vale para estado antigo e para cérebro criado no meio
+   * da corrida (sem valor padrão em deserializeRace).
+   */
+  fuelMark?: number;
+  progressMark?: number;
+  /** Gasto por unidade de pista na última volta inteira medida (sim/fuel.ts). */
+  lapBurn?: number;
 }
 
 export interface CarState {

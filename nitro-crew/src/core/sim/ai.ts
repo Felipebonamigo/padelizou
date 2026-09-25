@@ -4,6 +4,7 @@ import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
 import type { AiBrain, CarState, Difficulty, PlayerInput, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
+import { distanceToFinish, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD } from './fuel';
 import { centrifugalRate, holdableSpeedFraction, PIT_LANE_X, steerRate } from './physics';
 import { carStats } from './stats';
 
@@ -68,18 +69,23 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
   }
   const curveAhead = maxCurveAhead(track, car.z, 12);
 
-  // Elástico: quem ficou para trás do melhor humano acelera um pouco; quem disparou, segura.
+  // Elástico: quem ficou para trás do melhor humano acelera um pouco (menos com o tanque justo, que
+  // não aguenta o pé no fundo até o box — sim/fuel.ts); quem disparou, segura.
   const human = bestHumanProgress(state);
   if (human > -Infinity && !car.finished) {
     const gap = car.progress - human;
-    if (gap < -CATCHUP_DISTANCE) target *= difficulty === 'amador' ? 1.03 : 1.06;
+    if (gap < -CATCHUP_DISTANCE && !fuelTight(state, track, car, def.fuelPerUnit)) target *= difficulty === 'amador' ? 1.03 : 1.06;
     else if (gap > CATCHUP_DISTANCE * 1.5) target *= difficulty === 'campeao' ? 0.99 : 0.96;
   }
   if (car.finished) target = Math.min(target, 0.6);
 
-  // ── Box: com pouco combustível, entra no box quando o trecho chega.
-  const pitAhead = seg.pit || segmentAt(track, car.z + SEGMENT_LENGTH * 30).pit;
-  const wantsPit = !state.config.timeTrial && ((car.fuel < 0.22 && pitAhead) || (car.inPit && car.fuel < 0.98));
+  // ── Box: com o box à frente, para se o que resta — no consumo medido volta a volta — não chega
+  // à próxima passagem por ele (ou à chegada). Era "abaixo de 22%", que secava o tanque nas voltas
+  // longas (sim/fuel.ts).
+  markFuel(brain, car, track.length);
+  const pitAhead = seg.pit || segmentAt(track, car.z + PIT_LOOKAHEAD).pit;
+  const short = pitAhead && car.fuel < fuelToSkipPit(measuredBurn(brain, car, def.fuelPerUnit, track.length), track.length, distanceToFinish(state, track, car));
+  const wantsPit = !state.config.timeTrial && (short || (car.inPit && car.fuel < 0.98));
   let laneTarget = brain.laneX;
   if (wantsPit) {
     laneTarget = PIT_LANE_X;
