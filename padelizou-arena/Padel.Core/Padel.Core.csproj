@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- O motor do jogo: regras, física da bola, árbitro, IA e partida. SEM referência ao Godot,
+       de propósito: roda no `dotnet test`, num servidor dedicado sem engine, e em qualquer engine. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Padel.Core</RootNamespace>
+  </PropertyGroup>
+</Project>

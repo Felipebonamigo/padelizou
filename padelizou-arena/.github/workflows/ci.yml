@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  GODOT_VERSAO: 4.7.2
+
+jobs:
+  core:
+    name: Core — build e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test Padel.Core.Tests/Padel.Core.Tests.csproj -c Release --nologo
+
+  godot:
+    name: Godot — compila e roda 15 s sem tela
+    runs-on: ubuntu-latest
+    needs: core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # O SDK Godot.NET.Sdk vem do NuGet, então o projeto compila sem o editor.
+      - run: dotnet build Padel.Godot/Padel.Godot.csproj -c Debug --nologo
+      # O editor headless valida a cena e roda uma partida IA x IA — o mesmo que se roda na máquina de desenvolvimento.
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }} (.NET)
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}-stable/Godot_v${GODOT_VERSAO}-stable_mono_linux_x86_64.zip"
+          unzip -q godot.zip
+          echo "GODOT=$PWD/Godot_v${GODOT_VERSAO}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSAO}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+      - name: Importar e rodar
+        working-directory: Padel.Godot
+        run: |
+          "$GODOT" --headless --path . --import
+          "$GODOT" --headless --path . -- --auto --semente 42 --sair-apos 15 | tee saida.txt
+          grep -q "Saindo após" saida.txt

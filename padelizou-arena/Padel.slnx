@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Padel.Core/Padel.Core.csproj" />
+  <Project Path="Padel.Core.Tests/Padel.Core.Tests.csproj" />
+  <Project Path="Padel.Godot/Padel.Godot.csproj" />
+</Solution>

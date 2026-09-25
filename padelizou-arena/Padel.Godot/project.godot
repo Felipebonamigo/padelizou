@@ -1,0 +1,32 @@
+; Projeto Godot 4.7 (C#). Abrir com o editor .NET do Godot 4.7.2.
+
+config_version=5
+
+[application]
+
+config/name="Padelizou Arena"
+config/description="Padel 2x2 com regras de verdade."
+run/main_scene="res://cenas/Partida.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[dotnet]
+
+project/assembly_name="Padel.Godot"
+
+[physics]
+
+common/physics_ticks_per_second=120
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.06, 0.09, 0.19, 1)
+anti_aliasing/quality/msaa_3d=2

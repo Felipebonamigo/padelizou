@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3 uid="uid://padel_partida_0001"]
+
+[ext_resource type="Script" path="res://scripts/PartidaNode.cs" id="1_partida"]
+[ext_resource type="Script" path="res://scripts/CameraNode.cs" id="2_camera"]
+
+[sub_resource type="Environment" id="Environment_ceu"]
+background_mode=1
+background_color=Color(0.06, 0.09, 0.19, 1)
+ambient_light_source=2
+ambient_light_color=Color(0.72, 0.78, 0.9, 1)
+ambient_light_energy=0.6
+tonemap_mode=2
+glow_enabled=true
+glow_intensity=0.35
+
+[node name="Partida" type="Node3D"]
+script=ExtResource("1_partida")
+
+[node name="Ceu" type="WorldEnvironment" parent="."]
+environment=SubResource("Environment_ceu")
+
+[node name="Sol" type="DirectionalLight3D" parent="."]
+transform=Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 12, 0)
+light_energy=1.4
+shadow_enabled=true
+
+[node name="Camera" type="Camera3D" parent="."]
+transform=Transform3D(1, 0, 0, 0, 0.94, 0.342, 0, -0.342, 0.94, 0, 7.5, 17.5)
+fov=52.0
+script=ExtResource("2_camera")
