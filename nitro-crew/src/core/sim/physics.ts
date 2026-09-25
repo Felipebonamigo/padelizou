@@ -5,9 +5,9 @@ import {
   GEAR_COUNT, GEAR_TOP, NITRO_ACCEL_MULT, NITRO_DURATION_TICKS, NITRO_SPEED_MULT, OFFROAD_DECEL_FACTOR,
   OFFROAD_LIMIT_FACTOR, OFFROAD_X, PIT_REFUEL_PER_SECOND, PIT_SPEED_LIMIT_FACTOR, PIT_X, TEAM_DRAFT_TOP_MULT,
 } from '../constants';
-import { carDef } from '../data/cars';
 import { segmentAt } from '../track/builder';
-import type { CarDef, CarState, PlayerInput, RaceState, Track } from '../types';
+import type { CarState, CarStats, PlayerInput, RaceState, Track } from '../types';
+import { carStats } from './stats';
 
 /** Modificadores calculados fora da física (vácuo, elástico) e aplicados aqui. */
 export interface CarModifiers {
@@ -18,23 +18,26 @@ export interface CarModifiers {
 
 export const NO_MODIFIERS: Readonly<CarModifiers> = Object.freeze({ draft: false, teamDraft: false, catchup: false });
 
+/** Só o que as fórmulas de curva usam: aceita um CarDef ou os CarStats da corrida. */
+type Handling = Pick<CarStats, 'handling'>;
+
 /** Taxa de giro do volante por segundo em velocidade máxima. */
-export function steerRate(def: CarDef): number { return 2.2 * (0.75 + 0.35 * def.handling); }
+export function steerRate(def: Handling): number { return 2.2 * (0.75 + 0.35 * def.handling); }
 /** Quanto a curva empurra para fora, por segundo, em velocidade máxima e curva 1. */
-export function centrifugalRate(def: CarDef): number { return 2.2 * CENTRIFUGAL * (1.2 - 0.4 * def.handling); }
+export function centrifugalRate(def: Handling): number { return 2.2 * CENTRIFUGAL * (1.2 - 0.4 * def.handling); }
 
 /**
  * Maior fração da velocidade máxima que um carro segura numa curva de força `curve` sem ir
  * para a grama (o volante no máximo compensa 85% do empurrão). Base da IA e do balanceamento.
  */
-export function holdableSpeedFraction(def: CarDef, curve: number): number {
+export function holdableSpeedFraction(def: Handling, curve: number): number {
   const c = Math.abs(curve);
   if (c < 1e-6) return 1;
   return Math.min(1, (0.85 * steerRate(def)) / (centrifugalRate(def) * c));
 }
 
 /** Velocidade máxima efetiva neste tick, com todos os multiplicadores. */
-export function effectiveTopSpeed(car: CarState, def: CarDef, state: RaceState, mods: CarModifiers): number {
+export function effectiveTopSpeed(car: CarState, def: Pick<CarStats, 'topSpeed'>, state: RaceState, mods: CarModifiers): number {
   let top = def.topSpeed;
   if (state.config.manualGear && car.seat >= 0) top *= GEAR_TOP[car.gear];
   if (car.nitroTicks > 0) top *= NITRO_SPEED_MULT;
@@ -53,7 +56,7 @@ function autoGear(speedFrac: number): number {
 
 /** Aplica um tick de física ao carro. `input` já é o do humano ou o decidido pela IA. */
 export function stepCarPhysics(state: RaceState, track: Track, car: CarState, input: PlayerInput, mods: CarModifiers): void {
-  const def = carDef(car.carId);
+  const def = carStats(car);
   const racing = state.phase !== 'countdown';
   const seg = segmentAt(track, car.z);
   const events = state.events;

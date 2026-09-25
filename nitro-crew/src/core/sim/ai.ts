@@ -1,11 +1,11 @@
 // Piloto de IA: decide o PlayerInput de um carro a cada tick a partir do que vê na pista.
 import { CATCHUP_DISTANCE, SEGMENT_LENGTH } from '../constants';
-import { carDef } from '../data/cars';
 import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
 import type { AiBrain, CarState, Difficulty, PlayerInput, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
 import { centrifugalRate, holdableSpeedFraction, PIT_LANE_X, steerRate } from './physics';
+import { carStats } from './stats';
 
 export const DIFFICULTY_SPEED: Record<Difficulty, number> = { amador: 0.86, profissional: 0.94, campeao: 1.0 };
 export const DIFFICULTY_SKILL: Record<Difficulty, [number, number]> = {
@@ -45,7 +45,7 @@ function bestHumanProgress(state: RaceState): number {
 
 export function aiInput(state: RaceState, track: Track, car: CarState): PlayerInput {
   const brain = car.ai!;
-  const def = carDef(car.carId);
+  const def = carStats(car);
   const seg = segmentAt(track, car.z);
   const speedFrac = car.speed / def.topSpeed;
   const difficulty = state.config.difficulty;

@@ -3,7 +3,7 @@ export * from './types';
 export * from './rng';
 export * from './serialize';
 export * from './championship';
-export { CARS, carDef } from './data/cars';
+export { CARS, AI_CAR_POOL, carDef } from './data/cars';
 export { CUPS, cupDef } from './data/cups';
 export { AI_DRIVERS, AI_TEAMS, SEAT_COLORS, HUMAN_TEAM_ID, HUMAN_TEAM_NAME, AI_TEAM_ID_BASE } from './data/drivers';
 export { getTrack, buildTrack, segmentAt, maxCurveAhead, TRACKS, trackDef } from './track';
@@ -12,3 +12,5 @@ export { holdableSpeedFraction, effectiveTopSpeed, steerRate, centrifugalRate, P
 export { wrappedDelta } from './sim/collisions';
 export { SPRITE_HALF_WIDTH, SPRITE_MIN_EDGE, spriteX } from './track/sprites';
 export { aiInput, DIFFICULTY_SPEED } from './sim/ai';
+export { aiStats, carStats, clampLevel, effectiveStats, statsFor } from './sim/stats';
+export * from './career';

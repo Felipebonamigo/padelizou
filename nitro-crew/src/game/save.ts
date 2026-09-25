@@ -2,6 +2,7 @@
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
 import { CARS } from '../core/data/cars';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
+import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
 import { DEFAULT_SAVE, type BestLap, type SaveData } from './contracts';
 import { isRecord, pickNumber, pickString, readJson, writeJson } from './settings';
 
@@ -62,6 +63,9 @@ export function sanitizeSave(raw: unknown): SaveData {
     racesWon: pickNumber(r.racesWon, 0, Number.MAX_SAFE_INTEGER, d.racesWon, true),
     seatNames: seatList(r.seatNames, d.seatNames, () => true, NAME_MAX_LENGTH),
     seatCars: seatList(r.seatCars, d.seatCars, knownCar, 32),
+    carsUnlocked: sanitizeUnlocked(r.carsUnlocked),
+    career: sanitizeCareer(r.career),
+    cupInProgress: sanitizeSavedCup(r.cupInProgress),
   };
 }
 

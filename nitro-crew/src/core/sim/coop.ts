@@ -1,9 +1,9 @@
 // Mecânicas de equipe: vácuo, empurrão e elástico entre companheiros.
 import { CATCHUP_DISTANCE, DRAFT_DISTANCE, DRAFT_LATERAL, TOW_COOLDOWN_TICKS, TOW_DISTANCE, TOW_LATERAL, TOW_MIN_SPEED_FACTOR, TOW_SPEED_FACTOR } from '../constants';
-import { carDef } from '../data/cars';
 import type { CarState, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
 import type { CarModifiers } from './physics';
+import { carStats } from './stats';
 
 export function computeModifiers(state: RaceState, track: Track, car: CarState): CarModifiers {
   const mods: CarModifiers = { draft: false, teamDraft: false, catchup: false };
@@ -34,7 +34,7 @@ export function applyTow(state: RaceState, track: Track): void {
   for (const car of state.cars) {
     if (car.towCooldown > 0) { car.towCooldown--; continue; }
     if (car.seat < 0 || car.finished) continue;
-    const def = carDef(car.carId);
+    const def = carStats(car);
     if (car.speed > def.topSpeed * TOW_MIN_SPEED_FACTOR) continue;
     for (const mate of state.cars) {
       if (mate === car || mate.seat < 0 || mate.teamId !== car.teamId) continue;

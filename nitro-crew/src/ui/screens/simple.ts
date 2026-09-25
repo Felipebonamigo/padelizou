@@ -1,7 +1,9 @@
 // Telas simples: título, menu principal, pausa, créditos e carregando.
+import '../../career/strings';
 import type { MenuScreen, RaceMode } from '../../game/contracts';
 import { t } from '../../i18n';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
+import { startCursor } from './lobby';
 
 function wordmark(cls: string): HTMLElement {
   return h('div', { class: `wordmark ${cls}`.trim() },
@@ -30,23 +32,32 @@ export function titleScreen(api: ScreenApi): ScreenInstance {
 }
 
 export function mainScreen(api: ScreenApi): ScreenInstance {
-  const mode = (m: RaceMode) => () => {
+  const mode = (m: RaceMode, resume = false) => () => {
     api.lobby.mode = m;
+    api.lobby.resume = resume;
     // Lobby novo: quem continua sentado desde a última corrida volta como "não pronto" (senão
     // um Enter distraído no menu já cairia em INICIAR).
-    for (const seat of api.lobby.seats) if (seat) { seat.ready = false; seat.cursor = 1; }
+    for (const seat of api.lobby.seats) if (seat) { seat.ready = false; seat.cursor = startCursor(api.lobby); }
     api.go('lobby');
   };
   const open = (s: MenuScreen) => () => api.go(s);
-  const entries: Array<{ label: string; hint: string; run: () => void; cls?: string }> = [
+  const entries: Array<{ label: string; hint: string; run: () => void; cls?: string }> = [];
+  // Campeonato salvo no meio (1.7a): "Continuar" em primeiro, direto para o lobby de religar os controles.
+  const saved = api.ctx.save.cupInProgress;
+  const savedCup = saved ? api.ctx.cups.find((c) => c.id === saved.champ.cupId) : undefined;
+  if (saved && savedCup) {
+    entries.push({ label: t('ui.main.continue'), hint: t('ui.main.hint.continue', { cup: t(`core.cup.${savedCup.id}`), n: saved.champ.raceIndex + 1, m: savedCup.trackIds.length }), run: mode('cup', true) });
+  }
+  entries.push(
     { label: t('ui.main.cup'), hint: t('ui.main.hint.cup'), run: mode('cup') },
+    { label: t('ui.main.career'), hint: t('ui.main.hint.career'), run: open('career') },
     { label: t('ui.main.quick'), hint: t('ui.main.hint.quick'), run: mode('quick') },
     { label: t('ui.main.timetrial'), hint: t('ui.main.hint.timetrial'), run: mode('timetrial') },
     { label: t('ui.main.records'), hint: t('ui.main.hint.records'), run: open('records') },
     { label: t('ui.main.options'), hint: t('ui.main.hint.options'), run: open('options') },
     { label: t('ui.main.controls'), hint: t('ui.main.hint.controls'), run: open('controls') },
     { label: t('ui.main.credits'), hint: t('ui.main.hint.credits'), run: open('credits') },
-  ];
+  );
   if (api.ctx.isDesktop) entries.push({ label: t('ui.main.quit'), hint: t('ui.main.hint.quit'), run: () => api.emit({ type: 'quitApp' }), cls: 'btn-quit' });
   const items: FocusItem[] = entries.map((e) => button(e.label, e.run, `btn-main ${e.cls ?? ''}`.trim()));
   const heroTitle = h('h2', { class: 'main-hero-title', text: entries[0].label });

@@ -22,6 +22,8 @@ export interface LobbyState {
   mode: RaceMode;
   versus: boolean;
   seats: Array<LobbySeat | null>;
+  /** Continuar o salvo (copa em andamento ou carreira): assentos e nomes fixos, P1..Pn. */
+  resume?: boolean;
 }
 
 export type ScreenData = ResultsScreenData | StandingsScreenData | undefined;

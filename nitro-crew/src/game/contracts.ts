@@ -6,6 +6,7 @@ import type {
   CarDef, ChampionshipState, CoopAssists, CupDef, Difficulty, HumanEntry, PlayerInput, RaceResultRow, RaceState,
   SimEvent, Track, TrackDef,
 } from '../core/types';
+import type { CareerState } from '../core/career';
 import type { Lang } from '../i18n';
 
 // ───────────────────────────── Entrada ─────────────────────────────
@@ -93,11 +94,25 @@ export interface SaveData {
   seatNames: string[];
   /** Carro escolhido por assento na última sessão. */
   seatCars: string[];
+  /** Carros comprados em alguma carreira: ficam liberados em todas as modalidades. */
+  carsUnlocked: string[];
+  /** Carreira salva (em andamento ou concluída); null = nenhuma. Ver docs/CARREIRA.md. */
+  career: CareerState | null;
+  /** Campeonato normal em andamento, salvo a cada corrida (menu principal → Continuar); null = nenhum. */
+  cupInProgress: SavedCup | null;
+}
+
+/** Copa normal salva: a classificação até aqui, a semente do elenco e os humanos (assentos 0..n-1). */
+export interface SavedCup {
+  champ: ChampionshipState;
+  cupSeed: number;
+  humans: HumanEntry[];
 }
 
 export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
   cupsCompleted: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
   seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
+  carsUnlocked: [], career: null, cupInProgress: null,
 });
 
 // ───────────────────────────── Renderização ─────────────────────────────
@@ -180,9 +195,9 @@ export interface AudioEngine {
 
 // ───────────────────────────── Menus ─────────────────────────────
 
-export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading';
+export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage';
 
-export type RaceMode = 'cup' | 'quick' | 'timetrial';
+export type RaceMode = 'cup' | 'quick' | 'timetrial' | 'career';
 
 export type MenuEvent =
   | { type: 'startCup'; cupId: string; humans: HumanEntry[] }
@@ -194,7 +209,13 @@ export type MenuEvent =
   | { type: 'resume' }
   | { type: 'restart' }
   | { type: 'settingsChanged'; settings: Settings }
-  | { type: 'quitApp' };
+  | { type: 'quitApp' }
+  /** Lobby da carreira pronto: começa uma carreira nova ou continua a salva (assentos já ligados). */
+  | { type: 'startCareer'; humans: HumanEntry[]; resume: boolean }
+  /** Garagem: todos prontos, corre a próxima corrida da copa atual. */
+  | { type: 'careerRace' }
+  /** Lobby de "Continuar": retoma o campeonato normal salvo. */
+  | { type: 'continueCup' };
 
 export interface ResultsScreenData {
   mode: RaceMode;
@@ -210,6 +231,8 @@ export interface StandingsScreenData {
   champ: ChampionshipState;
   humans: HumanEntry[];
   cup: CupDef;
+  /** Copa da carreira: o botão leva à garagem. */
+  career?: boolean;
 }
 
 export interface MenuContext {

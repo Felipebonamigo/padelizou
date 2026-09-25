@@ -19,6 +19,8 @@ import { trackOutline } from '../render/minimap';
 import { createInput } from '../ui/input';
 import { createMenus } from '../ui/menus';
 import { evaluateAchievements, newTelemetry, type RaceTelemetry } from './achievements';
+import { saveCupProgress } from './career-save';
+import { compactHumans, createCareerSession } from './career-session';
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from './desktop';
 import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave } from './save';
@@ -114,6 +116,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     onEvent: handleMenuEvent,
   });
   session.menus = menus;
+  const career = createCareerSession({
+    save, menus, input, baseConfig, beginRace, toIdle, randomSeed, persist: () => saveSave(save),
+  });
 
   function resize(): void {
     renderer.resize(window.innerWidth, window.innerHeight, Math.min(2, window.devicePixelRatio || 1));
@@ -152,10 +157,14 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     beginRace(config, timeTrial ? 'timetrial' : 'quick', humans);
   }
 
-  function startCup(cupId: string, humans: HumanEntry[]): void {
+  function startCup(cupId: string, lobbyHumans: HumanEntry[]): void {
     const cup = cupDef(cupId);
+    // Assentos contíguos: a copa fica salva (1.7a) e o "Continuar" religa a partir do P1.
+    const humans = compactHumans(input, lobbyHumans);
     champ = createChampionship(cupId, humans);
     cupSeed = hashString(cupId + ':' + randomSeed());
+    saveCupProgress(save, champ, cupSeed, humans);
+    saveSave(save);
     const trackId = cup.trackIds[0];
     const laps = trackDef(trackId).laps;
     const config = baseConfig(trackId, laps, humans, randomSeed());
@@ -163,11 +172,19 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     beginRace(config, 'cup', humans);
   }
 
-  function nextCupRace(): void {
+  /** Menu principal → Continuar: retoma a copa salva na próxima corrida (o lobby já religou os assentos). */
+  function continueCup(): void {
+    const saved = save.cupInProgress;
+    if (!saved) { toMain(); return; }
+    champ = JSON.parse(JSON.stringify(saved.champ)) as ChampionshipState;
+    cupSeed = saved.cupSeed;
+    nextCupRace(saved.humans);
+  }
+
+  function nextCupRace(humans: HumanEntry[] = session.race?.humans ?? []): void {
     if (!champ) return;
     const trackId = nextTrackId(champ);
     if (!trackId || champ.eliminated) { toMain(); return; }
-    const humans = session.race?.humans ?? [];
     const config = baseConfig(trackId, trackDef(trackId).laps, humans, randomSeed());
     config.rosterSeed = cupSeed;
     beginRace(config, 'cup', humans);
@@ -180,13 +197,18 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     beginRace(config, r.mode, r.humans);
   }
 
-  function toMain(): void {
+  /** Sai da corrida para os menus (fundo animado e música de menu), sem mexer nos assentos. */
+  function toIdle(): void {
     session.race = null;
     session.paused = false;
     champ = null;
-    for (let seat = 0; seat < 4; seat++) input.unbindSeat(seat);
     idleTrack = getTrack(TRACKS[Math.floor(Math.random() * TRACKS.length)].id);
     audio.setMusic(settings.music === 'auto' ? songForScenery('coast', 'dusk') : settings.music === 'off' ? null : settings.music);
+  }
+
+  function toMain(): void {
+    toIdle();
+    for (let seat = 0; seat < 4; seat++) input.unbindSeat(seat);
     menus.show('main');
   }
 
@@ -261,6 +283,13 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     if (champ && r.mode === 'cup') {
       applyRaceResult(champ, results, r.humans);
       if (champ.completed) { markCupCompleted(save, champ.cupId); cupJustCompleted = champ.cupId; }
+      saveCupProgress(save, champ, cupSeed, r.humans);
+    }
+    if (r.mode === 'career') {
+      const out = career.raceFinished(results);
+      champ = out.champ;
+      cupJustCompleted = out.cupCompleted;
+      if (cupJustCompleted) markCupCompleted(save, cupJustCompleted);
     }
     const unlocked = evaluateAchievements(save, r.mode, r.state, results, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, settings.difficulty);
     for (const id of unlocked) {
@@ -397,7 +426,10 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       case 'startCup': startCup(e.cupId, e.humans); break;
       case 'startQuick': startQuick(e.trackId, e.laps, e.humans); break;
       case 'startTimeTrial': startQuick(e.trackId, settings.quickLaps, e.humans, true); break;
-      case 'nextRace': nextCupRace(); break;
+      case 'nextRace': if (session.race?.mode === 'career') career.showGarage(); else nextCupRace(); break;
+      case 'continueCup': continueCup(); break;
+      case 'startCareer': career.start(e.humans, e.resume); break;
+      case 'careerRace': career.race(); break;
       case 'retryRace': retryRace(); break;
       case 'restart': retryRace(); break;
       case 'resume': session.paused = false; menus.hide(); break;
