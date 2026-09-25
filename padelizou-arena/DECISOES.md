@@ -99,6 +99,25 @@ transferência de spin (rolamento limitado por atrito), vidro (e 0,85) diferente
 (a bola solta de 2,54 m sobe 1,35–1,45 m; uma bola a 30 m/s perde 15–30 % em 10 m). Calibrar
 com vídeo é mudar o número **e** o teste, nunca só o número.
 
+## D9 — Rating do online: a régua do Padelímetro, com duas regras próprias do jogo (a aprovar)
+
+O online ranqueado usa a mesma matemática do Padelímetro do Padelizou (`Padel.Core/Ranking`,
+cada regra com a origem no comentário). Duas situações não existem no site e ganharam regra
+aqui — **as duas esperam aprovação do Felipe**:
+
+- **Abandono.** A dupla de quem abandona perde como num 6x0 — inclusive o parceiro, que não
+  saiu. A outra dupla não anda. Punir só quem sai deixa aberta a "procuração": uma conta
+  descartável abandona de propósito e o parceiro sobe de graça (medido: de 700 a 815 com 50 %
+  de vitória). O custo é o parceiro inocente de um estranho que cai; a reconexão de 30 s (M2)
+  absorve a queda honesta. Alternativa se o custo pesar: o parceiro não anda na fila solo e
+  paga na dupla combinada.
+- **Melhor de 3.** O fator de games é o de UM set com a margem média do vencedor por set. Somar
+  os sets invertia o fator (7-6 0-6 7-6 valia mais que um 7-6 7-6). Em set único o número é
+  idêntico ao do site; em 2+ sets não é, porque o site guarda só os games do set em andamento.
+  Se o ranking cruzado precisar bater também aí, uma das duas réguas muda.
+
+Partida contra IA nunca mexe no rating.
+
 ## D6 — O que NÃO entra até o 1.0
 
 Servidor dedicado, editor de quadras, consoles, VR, modo carreira com narrativa, mais de 8
