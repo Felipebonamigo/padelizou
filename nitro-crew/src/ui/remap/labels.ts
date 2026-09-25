@@ -75,6 +75,12 @@ export function actionLabel(action: BindAction): string {
   return t(`remap.action.${action}`);
 }
 
+/** Nome curto da coluna ("Teclado 1", "Teclado 2", "Controles"), o mesmo dos avisos de conflito. */
 export function deviceLabel(device: BindDevice): string {
-  return device === 'gamepad' ? t('remap.gamepadAll') : t(`ui.device.${device}`);
+  return t(`remap.device.${device}`);
+}
+
+/** Dica da coluna: o nome completo do dispositivo e o que continua fixo nele. */
+export function deviceTitle(device: BindDevice): string {
+  return device === 'gamepad' ? t('remap.gamepadNote') : t(`remap.deviceTitle.${device}`, { name: t(`ui.device.${device}`) });
 }

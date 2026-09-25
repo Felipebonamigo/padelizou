@@ -8,7 +8,7 @@ import { t } from '../../i18n';
 import { isKeyboard } from '../input';
 import { assignBinding, BIND_ACTIONS, BIND_DEVICES, isDefaultDevice, keyboardConflicts, restoreDefaults, type BindAction, type BindDevice } from '../remap/bindings';
 import { captureButtons, captureKey, captureTick, startCapture, type Capture, type CaptureOutcome } from '../remap/capture';
-import { actionLabel, codeLabel, codesLabel, deviceLabel, padStyleOf, type LayoutMap, type PadStyle } from '../remap/labels';
+import { actionLabel, codeLabel, codesLabel, deviceLabel, deviceTitle, padStyleOf, type LayoutMap, type PadStyle } from '../remap/labels';
 import '../remap/strings';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
@@ -68,7 +68,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
   const items: FocusItem[] = [];
   const gridChildren: HTMLElement[] = [
     h('div', { class: 'remap-h remap-h-action', text: t('ui.controls.action') }),
-    ...BIND_DEVICES.map((d) => h('div', { class: 'remap-h', title: d === 'gamepad' ? t('remap.gamepadNote') : deviceLabel(d) },
+    ...BIND_DEVICES.map((d) => h('div', { class: 'remap-h', title: deviceTitle(d) },
       icon(d === 'gamepad' ? 'gamepad' : 'keyboard'), h('span', { text: deviceLabel(d) }))),
   ];
   for (const action of BIND_ACTIONS) {
@@ -339,7 +339,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
         conflictsEl,
       ),
       h('div', { class: 'remap-side glass' },
-        h('h2', { class: 'sub-title', text: `${t('ui.controls.detected')} · ${t('remap.test.title')}` }),
+        h('h2', { class: 'sub-title', title: t('ui.controls.detected'), text: t('remap.test.title') }),
         deviceList,
         h('p', { class: 'hint', text: t('ui.controls.gamepadHint') }),
       ),

@@ -14,7 +14,7 @@ import {
   restoreDefaults, sanitizeBindings, type BindAction, type BindCode, type BindDevice, type ControlBindings,
 } from '../src/ui/remap/bindings';
 import { CAPTURE_SECONDS, captureButtons, captureKey, captureTick, startCapture } from '../src/ui/remap/capture';
-import { buttonLabel, codesLabel, keyLabel, padStyleOf } from '../src/ui/remap/labels';
+import { buttonLabel, codesLabel, deviceLabel, deviceTitle, keyLabel, padStyleOf } from '../src/ui/remap/labels';
 
 const keys = (...codes: string[]) => new Set(codes);
 function buttons(...pressed: number[]): boolean[] {
@@ -513,5 +513,15 @@ describe('nomes de teclas e botões', () => {
     expect(padStyleOf('USB Gamepad')).toBe('xbox');
     expect(codesLabel(DEFAULT_BINDINGS.gamepad.brake)).toBe('X / B / LT');
     expect(codesLabel(DEFAULT_BINDINGS.kb1.nitro)).toBe('Espaço');
+  });
+
+  it('colunas com nome curto (o mesmo dos avisos) e o nome completo na dica', () => {
+    setLanguage('pt');
+    expect(BIND_DEVICES.map(deviceLabel)).toEqual(['Teclado 1', 'Teclado 2', 'Controles']);
+    expect(deviceTitle('kb1')).toContain('Teclado (setas)');
+    expect(deviceTitle('gamepad')).toContain('analógico');
+    setLanguage('en');
+    expect(deviceLabel('kb2')).toBe('Keyboard 2');
+    setLanguage('pt');
   });
 });
