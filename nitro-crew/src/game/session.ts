@@ -18,8 +18,10 @@ import { createRenderer } from '../render/renderer';
 import { trackOutline } from '../render/minimap';
 import { createInput } from '../ui/input';
 import { createMenus } from '../ui/menus';
+import { createOnlineHud } from '../ui/screens/online';
 import { evaluateAchievements, newTelemetry, type RaceTelemetry } from './achievements';
-import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
+import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
+import { createOnlineController, type OnlineController } from './online-session';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from './desktop';
 import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave } from './save';
 import { loadSettings, saveSettings } from './settings';
@@ -39,6 +41,10 @@ interface ActiveRace {
   /** Segundos desde o fim da corrida (para o atraso do resultado). */
   overFor: number;
   seed: number;
+  /** Fonte das entradas por tick: null = controles deste computador; online = lockstep. */
+  driver: RaceDriver | null;
+  /** Assentos jogados neste computador (os únicos com viewport, HUD e som de jogador). */
+  localSeats: number[];
 }
 
 export interface Session {
@@ -46,6 +52,7 @@ export interface Session {
   readonly renderer: Renderer;
   readonly input: InputProvider;
   readonly audio: AudioEngine;
+  readonly online: OnlineController;
   /** Preenchido logo depois da criação (os menus precisam da sessão para emitir eventos). */
   menus: Menus;
   race: ActiveRace | null;
@@ -88,8 +95,21 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   let idleTrack: Track = getTrack(TRACKS[0].id);
   let idleTimer = 0;
 
+  // Online: a sessão empresta a corrida (beginRace com um driver de lockstep) e os menus.
+  const online = createOnlineController({
+    settings, save, input,
+    startRace: (config, localSeats, driver, state) => beginRace(config, 'quick', config.humans, { driver, localSeats, state }),
+    raceState: () => session.race?.state ?? null,
+    clearRace: () => { session.race = null; session.paused = false; },
+    showScreen: () => menus.show('online'),
+    hideScreen: () => menus.hide(),
+    menuOpen: () => menus.current() !== null,
+    exitToMain: () => toMain(),
+    persistSettings: () => saveSettings(settings),
+  }, { hud: createOnlineHud });
+
   const session: Session = {
-    settings, renderer, input, audio,
+    settings, renderer, input, audio, online,
     menus: null as unknown as Menus,
     race: null, paused: false, speed: 1,
     start, stop, frame, handleMenuEvent, startQuick, startCup,
@@ -99,6 +119,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       if (!r || session.paused) return;
       input.poll();
       const inputs = readInputs(r);
+      if (r.driver) { r.driver.force(ticks, inputs, (i) => stepOnce(r, i)); for (const list of r.messages.values()) list.length = 0; return; }
       for (let i = 0; i < ticks && r.state.phase !== 'finished'; i++) {
         stepOnce(r, inputs);
         for (const h of r.humans) { const inp = inputs[h.seat]; if (inp && inp !== NEUTRAL_INPUT) inputs[h.seat] = { ...inp, nitro: false, gearUp: false, gearDown: false }; }
@@ -110,7 +131,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   const menus = createMenus({
     root: uiRoot, input, settings, save, cups: CUPS, tracks: TRACKS, cars: CARS,
     isCupUnlocked: (cupId) => isCupUnlocked(save, cupId, CUPS),
-    trackOutline, audio, isDesktop: isDesktop(),
+    trackOutline, audio, isDesktop: isDesktop(), online,
     onEvent: handleMenuEvent,
   });
   session.menus = menus;
@@ -130,12 +151,13 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     };
   }
 
-  function beginRace(config: RaceConfig, mode: RaceMode, humans: HumanEntry[]): void {
+  function beginRace(config: RaceConfig, mode: RaceMode, humans: HumanEntry[], net?: { driver: RaceDriver; localSeats: number[]; state?: RaceState }): void {
     const track = getTrack(config.trackId);
-    const state = createRace(config, track);
+    const state = net?.state ?? createRace(config, track);
+    const localSeats = net ? net.localSeats : humans.map((h) => h.seat);
     const messages = new Map<number, HudMessage[]>();
-    for (const h of humans) messages.set(h.seat, []);
-    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed };
+    for (const seat of localSeats) messages.set(seat, []);
+    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, driver: net?.driver ?? null, localSeats };
     session.paused = false;
     accumulator = 0;
     menus.hide();
@@ -181,7 +203,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function toMain(): void {
+    const driver = session.race?.driver;
     session.race = null;
+    driver?.dispose();
     session.paused = false;
     champ = null;
     for (let seat = 0; seat < 4; seat++) input.unbindSeat(seat);
@@ -216,7 +240,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       case 'race_over': audio.onEvent(e, 0); return;
       default: break;
     }
-    const seat = 'carId' in e ? seatOf(state, e.carId) : -1;
+    const carSeat = 'carId' in e ? seatOf(state, e.carId) : -1;
+    // Online, o carro de outro computador soa como o de um adversário.
+    const seat = r.localSeats.includes(carSeat) ? carSeat : -1;
     audio.onEvent(e, seat);
     if (seat < 0) return;
     switch (e.type) {
@@ -255,20 +281,24 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function finishRace(r: ActiveRace): void {
     const results = r.state.results ?? [];
-    const newRecords = recordRaceResults(save, results, r.humans, r.track.def.id, r.state.config.laps);
-    rememberLobby(save, r.humans);
+    // Recordes e conquistas são só de quem joga neste computador (online há humanos de fora).
+    const mine = r.driver ? results.filter((row) => row.seat < 0 || r.localSeats.includes(row.seat)) : results;
+    const newRecords = recordRaceResults(save, mine, r.humans.filter((h) => r.localSeats.includes(h.seat)), r.track.def.id, r.state.config.laps);
+    if (!r.driver) rememberLobby(save, r.humans);
     let cupJustCompleted: string | null = null;
     if (champ && r.mode === 'cup') {
       applyRaceResult(champ, results, r.humans);
       if (champ.completed) { markCupCompleted(save, champ.cupId); cupJustCompleted = champ.cupId; }
     }
-    const unlocked = evaluateAchievements(save, r.mode, r.state, results, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, settings.difficulty);
+    const unlocked = evaluateAchievements(save, r.mode, r.state, mine, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, settings.difficulty);
     for (const id of unlocked) {
       save.achievements.push(id);
       getDesktop()?.achievement(id).catch(() => undefined);
     }
     saveSave(save);
-    menus.show('results', { mode: r.mode, trackDef: r.track.def, results, humans: r.humans, champ, newRecords });
+    const data = { mode: r.mode, trackDef: r.track.def, results, humans: r.humans, champ, newRecords };
+    if (r.driver) r.driver.finished(data);
+    else menus.show('results', data);
     audio.update(null, 0);
     if (unlocked.length) {
       const names = unlocked.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.[settings.language] ?? id);
@@ -280,7 +310,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function readInputs(r: ActiveRace): PlayerInput[] {
     const inputs: PlayerInput[] = [];
-    for (const h of r.humans) inputs[h.seat] = session.paused ? NEUTRAL_INPUT : input.readSeat(h.seat);
+    for (const seat of r.localSeats) inputs[seat] = session.paused ? NEUTRAL_INPUT : input.readSeat(seat);
     return inputs;
   }
 
@@ -291,7 +321,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function buildFrame(r: ActiveRace): RenderFrame {
     const viewports: ViewportSpec[] = r.humans
-      .slice()
+      .filter((h) => r.localSeats.includes(h.seat))
       .sort((a, b) => a.seat - b.seat)
       .map((h) => ({
         seat: h.seat, carIndex: r.state.cars.findIndex((c) => c.seat === h.seat), color: h.color, name: h.name,
@@ -301,7 +331,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       state: r.state, track: r.track, viewports,
       options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake },
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
-      showHud: menus.current() === null || menus.current() === 'pause',
+      showHud: menus.current() === null || menus.current() === 'pause' || (r.driver !== null && online.quitOpen),
     };
   }
 
@@ -317,13 +347,15 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     if (r && !menuOpen && !session.paused) {
       const seat = input.pausePressed();
       if (seat >= 0 && r.state.phase !== 'finished') {
-        session.paused = true;
-        menus.show('pause');
+        if (r.driver) r.driver.pauseKey(); // online não pausa: pergunta se quer sair
+        else { session.paused = true; menus.show('pause'); }
       }
     }
 
     if (r && !session.paused) {
-      accumulator += dtRaw * session.speed;
+      // Online, o lockstep decide quantos ticks rodam (e espera a rede); o acumulador local fica parado.
+      if (r.driver) r.driver.advance(dtRaw * session.speed, readInputs(r), (i) => stepOnce(r, i));
+      else accumulator += dtRaw * session.speed;
       let steps = 0;
       const inputs = readInputs(r);
       while (accumulator >= DT && steps < MAX_STEPS_PER_FRAME * session.speed) {

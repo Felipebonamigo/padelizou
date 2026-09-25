@@ -5,6 +5,7 @@ import { isKeyboard, isEditableTarget } from './input';
 import { type LobbyState, type ScreenApi, type ScreenData, type ScreenFactory, type ScreenInstance } from './screens/common';
 import { controlsScreen, recordsScreen } from './screens/info';
 import { lobbyScreen } from './screens/lobby';
+import { onlineScreen } from './screens/online';
 import { optionsScreen } from './screens/options';
 import { resultsScreen, standingsScreen } from './screens/results';
 import { cupsScreen, tracksScreen } from './screens/select';
@@ -44,6 +45,7 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   records: recordsScreen,
   credits: creditsScreen,
   loading: loadingScreen,
+  online: onlineScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {

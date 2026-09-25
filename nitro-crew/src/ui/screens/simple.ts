@@ -1,6 +1,7 @@
 // Telas simples: título, menu principal, pausa, créditos e carregando.
 import type { MenuScreen, RaceMode } from '../../game/contracts';
 import { t } from '../../i18n';
+import '../../net/strings';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 
 function wordmark(cls: string): HTMLElement {
@@ -42,6 +43,7 @@ export function mainScreen(api: ScreenApi): ScreenInstance {
     { label: t('ui.main.cup'), hint: t('ui.main.hint.cup'), run: mode('cup') },
     { label: t('ui.main.quick'), hint: t('ui.main.hint.quick'), run: mode('quick') },
     { label: t('ui.main.timetrial'), hint: t('ui.main.hint.timetrial'), run: mode('timetrial') },
+    { label: t('ui.main.online'), hint: t('ui.main.hint.online'), run: open('online') },
     { label: t('ui.main.records'), hint: t('ui.main.hint.records'), run: open('records') },
     { label: t('ui.main.options'), hint: t('ui.main.hint.options'), run: open('options') },
     { label: t('ui.main.controls'), hint: t('ui.main.hint.controls'), run: open('controls') },

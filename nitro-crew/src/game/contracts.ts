@@ -7,6 +7,7 @@ import type {
   SimEvent, Track, TrackDef,
 } from '../core/types';
 import type { Lang } from '../i18n';
+import type { OnlineController } from './online-session';
 
 // ───────────────────────────── Entrada ─────────────────────────────
 
@@ -70,12 +71,15 @@ export interface Settings {
   quickLaps: number;
   /** Música escolhida no jukebox (id) ou 'auto'. */
   music: string;
+  /** Endereço do servidor de retransmissão do online (ws:// ou wss://). */
+  serverUrl: string;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high',
   showMinimap: true, screenShake: true, difficulty: 'profissional', manualGear: false,
   assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, totalCars: 20, quickLaps: 3, music: 'auto',
+  serverUrl: 'ws://localhost:8787',
 });
 
 export interface BestLap { ticks: number; name: string; carId: string; date: string }
@@ -178,9 +182,32 @@ export interface AudioEngine {
   ui(kind: 'move' | 'confirm' | 'back'): void;
 }
 
+// ───────────────────────────── Fonte das entradas por tick ─────────────────────────────
+
+/**
+ * Quem decide quando cada tick da corrida roda e com que entradas. Sem driver, a sessão lê os
+ * controles deste computador a cada tick (sofá). Online, o lockstep (src/game/online-session.ts)
+ * só libera o tick quando chegou a entrada de todos os assentos.
+ */
+export interface RaceDriver {
+  /**
+   * Um quadro: `dt` em segundos, `local[seat]` = o que os assentos deste computador apertam agora.
+   * Chama `step` uma vez por tick liberado; devolve quantos rodaram.
+   */
+  advance(dt: number, local: PlayerInput[], step: (inputs: PlayerInput[]) => void): number;
+  /** Como `advance`, mas tenta rodar até `ticks` agora, sem olhar o relógio (playtest). */
+  force(ticks: number, local: PlayerInput[], step: (inputs: PlayerInput[]) => void): number;
+  /** Esc/Start durante a corrida (o online não pausa). */
+  pauseKey(): void;
+  /** A corrida acabou: o driver mostra o resultado do jeito dele. */
+  finished(data: ResultsScreenData): void;
+  /** A sessão largou a corrida (menu principal). */
+  dispose(): void;
+}
+
 // ───────────────────────────── Menus ─────────────────────────────
 
-export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading';
+export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'online';
 
 export type RaceMode = 'cup' | 'quick' | 'timetrial';
 
@@ -225,6 +252,8 @@ export interface MenuContext {
   audio: AudioEngine;
   /** Rodando dentro do Electron (mostra "Sair"). */
   isDesktop: boolean;
+  /** Online (sala, lobby em rede, corrida em lockstep); ausente onde não há sessão completa. */
+  online?: OnlineController;
   onEvent(event: MenuEvent): void;
 }
 
