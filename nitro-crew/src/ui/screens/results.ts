@@ -81,23 +81,45 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
   }
   const list = createFocusList(items, { sfx: api.sfx });
   const unlocked = achievementsPanel(d);
+  const wrap = h('div', { class: 'table-wrap glass' }, table);
   const el = screenFrame('results', null,
     titleRow(t('ui.results.title'), d.trackDef.name),
     h('div', { class: 'results-head' }, extras),
     unlocked,
-    h('div', { class: 'table-wrap glass' }, table),
+    wrap,
     h('div', { class: 'actions' }, items.map((i) => i.el)),
   );
-  if (unlocked) el.classList.add('has-ach');
-  return { el, nav: (nav) => listNav(list, nav, api.sfx) };
+  let revealed = false;
+  return {
+    el,
+    nav: (nav) => listNav(list, nav, api.sfx),
+    update() {
+      // No primeiro quadro já montado: a tabela pode não caber (muitos carros, conquistas em cima)
+      // e o foco fica nos botões — rola até o primeiro humano para ele se ver sem mexer em nada.
+      if (revealed || !el.isConnected) return;
+      revealed = true;
+      revealRow(wrap, table.querySelector('tr.human'));
+    },
+  };
+}
+
+/** Rola `wrap` (só ele, não a tela) até `row` ficar visível abaixo do cabeçalho fixo da tabela. */
+function revealRow(wrap: HTMLElement, row: Element | null): void {
+  if (!row) return;
+  const w = wrap.getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  const head = wrap.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+  if (r.bottom > w.bottom) wrap.scrollTop += r.bottom - w.bottom + r.height / 2;
+  else if (r.top < w.top + head) wrap.scrollTop -= w.top + head - r.top;
 }
 
 /** Conquistas desbloqueadas nesta corrida, com a cor de quem as ganhou. */
 function achievementsPanel(d: ResultsScreenData): HTMLElement | null {
-  if (d.achievements.length === 0) return null;
+  const list = d.achievements ?? [];
+  if (list.length === 0) return null;
   return h('div', { class: 'results-ach glass' },
     h('span', { class: 'results-ach-title' }, icon('trophy'), h('span', { text: t('stats.results.title') })),
-    h('div', { class: 'results-ach-list' }, d.achievements.map((u) => h('div', { class: 'ach-chip' },
+    h('div', { class: 'results-ach-list' }, list.map((u) => h('div', { class: 'ach-chip' },
       h('span', { class: 'ach-chip-seats' }, u.seats.map((seat) => h('i', {
         class: 'seat-dot', style: `--seat:${humanColor(d.humans, seat) ?? 'var(--accent)'}`,
         title: d.humans.find((x) => x.seat === seat)?.name ?? '',

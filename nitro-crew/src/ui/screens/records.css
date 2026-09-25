@@ -4,6 +4,8 @@
 
 .scr-records { justify-content: flex-start; }
 .scr-records > .hint { margin-top: calc(-6 * var(--u)); }
+/* Textos soltos sobre a cena 3D: sombra para ler sobre céu claro. */
+.scr-records > .hint, .rec-tabs-hint, .rec-hint { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.45); }
 
 .rec-tabs { display: flex; align-items: center; gap: calc(8 * var(--u)); flex: none; }
 .rec-tab-row {
@@ -32,7 +34,7 @@
 .rec-tab:hover { color: var(--text); }
 .rec-tab.on { color: #fff; background: var(--accent); box-shadow: 0 8px 24px rgba(255, 90, 54, 0.35); }
 .rec-tabs .sel-arrow { color: var(--muted); }
-.rec-tabs-hint { margin-top: calc(-6 * var(--u)); color: var(--dim); }
+.rec-tabs-hint { margin-top: calc(-6 * var(--u)); color: var(--muted); }
 
 /* A aba ocupa o resto da tela; só o miolo rola e o Voltar fica sempre à vista. */
 .rec-holder, .rec-view { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
@@ -53,14 +55,26 @@
 
 /* ───────────── Jogadores ───────────── */
 
+/* Ocupa a altura da aba; a lista e o detalhe rolam cada um por si (o foco rola o que precisar). */
 .players-layout {
   display: grid;
   grid-template-columns: minmax(calc(230 * var(--u)), calc(300 * var(--u))) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--gap);
   width: min(100%, calc(1160 * var(--u)));
+  flex: 1;
+  min-height: 0;
   align-items: start;
 }
-.pl-list { display: flex; flex-direction: column; gap: calc(2 * var(--u)); padding: calc(8 * var(--u)); }
+.pl-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--u));
+  padding: calc(8 * var(--u));
+  max-height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+}
 .pl-hint { text-align: left; margin: calc(2 * var(--u)) calc(6 * var(--u)) calc(6 * var(--u)); }
 .pl-row {
   display: flex;
@@ -90,14 +104,16 @@
 .pl-sub { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
 
 .pl-detail {
-  position: sticky;
-  top: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(10 * var(--u));
+  gap: calc(8 * var(--u));
   padding: calc(14 * var(--u)) calc(18 * var(--u));
   min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
 }
+.pl-summary { display: flex; flex-direction: column; gap: calc(10 * var(--u)); }
 .pl-detail-head { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
 .pl-detail-name {
   display: flex;
@@ -111,7 +127,8 @@
 }
 .pl-detail-name .ico { color: var(--accent); }
 .pl-note { text-align: left; }
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(150 * var(--u)), 1fr)); gap: calc(6 * var(--u)); }
+/* 5 colunas de 1024×640 a 4K: os 13 contadores cabem em 3 linhas. */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(128 * var(--u)), 1fr)); gap: calc(6 * var(--u)); }
 .stat-tile {
   display: flex;
   flex-direction: column;
@@ -125,6 +142,18 @@
 .stat-label { font-size: var(--fs-sm); color: var(--muted); line-height: 1.2; }
 .stat-wins .stat-value, .stat-coopWins .stat-value { color: #ffc53d; }
 .stat-meters .stat-value { color: var(--accent-2); }
+/* Item de foco próprio (o controle chega aqui depois do último jogador); sem o zoom do foco, que borra o texto. */
+.best-block {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--u));
+  padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(8 * var(--u)) calc(20 * var(--u));
+  margin: 0 calc(-10 * var(--u));
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+}
+.best-block.focusable { cursor: default; }
+.best-block.focusable.focus { transform: none; background: rgba(255, 255, 255, 0.05); }
 .best-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--gap); }
 .best-head .sub-title { margin: calc(2 * var(--u)) 0 0; }
 .best-count { font-size: var(--fs-sm); color: var(--muted); font-weight: 700; }
@@ -221,4 +250,3 @@
 .ach-chip-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .ach-chip-text strong { font-weight: 800; }
 .ach-chip-text span { font-size: var(--fs-sm); color: var(--muted); }
-.scr-results.has-ach .table-wrap { max-height: 44vh; }

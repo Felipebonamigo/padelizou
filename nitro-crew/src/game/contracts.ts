@@ -209,8 +209,8 @@ export interface ResultsScreenData {
   champ: ChampionshipState | null;
   /** Recordes batidos nesta corrida (por assento), para destacar. */
   newRecords: Array<{ seat: number; kind: 'lap' | 'race' }>;
-  /** Conquistas desbloqueadas nesta corrida e quem as ganhou. */
-  achievements: AchievementUnlock[];
+  /** Conquistas desbloqueadas nesta corrida e quem as ganhou (opcional: ausente = nenhuma). */
+  achievements?: AchievementUnlock[];
 }
 
 export interface StandingsScreenData {

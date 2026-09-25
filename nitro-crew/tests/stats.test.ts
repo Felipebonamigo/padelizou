@@ -118,6 +118,15 @@ describe('estatísticas de uma corrida simulada', () => {
     expect(c.stats.meters).toBeGreaterThan(track.length * METERS_PER_UNIT);
   });
 
+  it('melhor posição conta também sem IA na pista (versus só de humanos)', () => {
+    const duo = [human(0, 0), human(1, 1)];
+    const vs = quickRace({ humans: duo, totalCars: 2 });
+    const list = raceContributions({ mode: 'quick', state: vs.state, results: [row(0, 2, 9000, 3000), row(1, 1, 8900, 2900)], humans: duo, telemetry: newTelemetry() });
+    expect(list.map((c) => c.stats.bestPositions[vs.state.trackId])).toEqual([2, 1]);
+    expect(list.map((c) => c.stats.wins)).toEqual([0, 1]);
+    expect(list.map((c) => c.stats.coopWins)).toEqual([0, 0]); // equipes diferentes: versus, não co-op
+  });
+
   it('quem não terminou soma o tempo até o fim da corrida', () => {
     const idle = quickRace({ track: straight, humans: [human(0), human(1)], totalCars: 4, laps: 1, seed: 5 });
     const iTel = newTelemetry();
@@ -317,7 +326,7 @@ describe('conquistas novas: disparam e não disparam', () => {
     expect(evaluate({ positions: { 0: 1 }, stats: statsWith({ wins: WINS_TARGET - 1 }) }).ids).not.toContain('DEZ_VITORIAS');
   });
 
-  it('GIRO_COMPLETO: resultado contra a IA em todas as pistas de TRACKS (quantas houver)', () => {
+  it('GIRO_COMPLETO: resultado fora do contra-relógio em todas as pistas de TRACKS (quantas houver)', () => {
     const all = Object.fromEntries(TRACKS.map((d) => [d.id, 5]));
     expect(evaluate({ positions: { 0: 5 }, stats: statsWith({ bestPositions: all }) }).ids).toContain('GIRO_COMPLETO');
     const missing = { ...all };

@@ -87,7 +87,7 @@ conquista da lista tem linha nesta tabela.
 | `MESTRE_DO_VACUO` | Mestre do vácuo | Slipstream Master | Passar 60 segundos no vácuo de outros carros numa mesma corrida. |
 | `NITRO_NA_BANDEIRA` | Nitro na bandeirada | Nitro Finish | Cruzar a linha de chegada com o nitro ligado. |
 | `DEZ_VITORIAS` | Dez vitórias | Ten Wins | Somar 10 vitórias (o contra-relógio não conta). |
-| `GIRO_COMPLETO` | Giro completo | Grand Tour | Correr contra a IA em todas as pistas do jogo. |
+| `GIRO_COMPLETO` | Giro completo | Grand Tour | Correr em todas as pistas do jogo (o contra-relógio não conta). |
 
 O jogo chama `getDesktop()?.achievement(id)` e também guarda o id em `SaveData.achievements`, para o
 desbloqueio contar fora da Steam e ser reenviado se a Steam estiver fechada na hora.

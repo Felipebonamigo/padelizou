@@ -147,9 +147,8 @@ function statText(key: CounterKey, s: PlayerStats): string {
   return numberText(s[key]);
 }
 
-function playerDetail(api: ScreenApi, name: string, s: PlayerStats, all: boolean): HTMLElement[] {
-  const trackIds = api.ctx.tracks.map((d) => d.id);
-  const raced = api.ctx.tracks.filter((d) => s.bestPositions[d.id] !== undefined);
+/** Cabeçalho e contadores do jogador mostrado (refeitos a cada troca de foco). */
+function playerSummary(name: string, s: PlayerStats, all: boolean): HTMLElement[] {
   return [
     h('div', { class: 'pl-detail-head' },
       h('h2', { class: 'pl-detail-name' }, all ? icon('users') : null, h('span', { text: name })),
@@ -159,6 +158,13 @@ function playerDetail(api: ScreenApi, name: string, s: PlayerStats, all: boolean
       h('span', { class: 'stat-value mono', text: statText(k, s) }),
       h('span', { class: 'stat-label', text: t(`stats.stat.${k}`) }),
     ))),
+  ];
+}
+
+function bestPositions(api: ScreenApi, s: PlayerStats): HTMLElement[] {
+  const trackIds = api.ctx.tracks.map((d) => d.id);
+  const raced = api.ctx.tracks.filter((d) => s.bestPositions[d.id] !== undefined);
+  return [
     h('div', { class: 'best-head' },
       h('h3', { class: 'sub-title', text: t('stats.best.title') }),
       h('span', { class: 'best-count', text: t('stats.best.count', { n: tracksRaced(s, trackIds), total: trackIds.length }) }),
@@ -175,7 +181,12 @@ function playerDetail(api: ScreenApi, name: string, s: PlayerStats, all: boolean
   ];
 }
 
-/** Lista de jogadores à esquerda (a primeira linha é o total) e o detalhe de quem está focado. */
+/**
+ * Lista de jogadores à esquerda (a primeira linha é o total) e o detalhe de quem está focado.
+ * As duas colunas rolam cada uma por si. A melhor posição por pista é um item de foco próprio
+ * (entre o último jogador e o Voltar): em 720p o detalhe não cabe inteiro, e sem isso o
+ * controle nunca chegaria a ela — o foco só anda pela lista da esquerda.
+ */
 function playersTab(api: ScreenApi): TabView {
   const stats = api.ctx.save.stats;
   if (stats.totals.races === 0 && stats.players.length === 0) {
@@ -192,22 +203,26 @@ function playersTab(api: ScreenApi): TabView {
       h('span', { class: 'pl-sub', text: t('stats.players.summary', { races: numberText(e.s.races), wins: numberText(e.s.wins) }) }),
     ),
   ) }));
-  const detail = h('div', { class: 'pl-detail glass' });
+  const summary = h('div', { class: 'pl-summary' });
+  const best: FocusItem = { el: h('div', { class: 'best-block' }) };
+  const detail = h('div', { class: 'pl-detail glass' }, summary, best.el);
   let shown = -1;
   const show = (list: FocusList) => {
-    // Com o Voltar focado, o detalhe continua no último jogador mostrado.
+    // Com a melhor posição ou o Voltar focados, o detalhe continua no último jogador mostrado.
     const i = list.index >= 0 && list.index < entries.length ? list.index : Math.max(0, shown);
     if (i === shown) return;
     shown = i;
     const e = entries[i];
-    detail.replaceChildren(...playerDetail(api, e.name, e.s, e.all));
+    summary.replaceChildren(...playerSummary(e.name, e.s, e.all));
+    best.el.replaceChildren(...bestPositions(api, e.s));
+    detail.scrollTop = 0;
     rows.forEach((r, j) => r.el.classList.toggle('shown', j === i));
   };
   const content = h('div', { class: 'players-layout' },
     h('div', { class: 'pl-list glass' }, h('p', { class: 'hint pl-hint', text: t('stats.players.hint') }), rows.map((r) => r.el)),
     detail,
   );
-  const view = tabView(api, rows, content, show);
+  const view = tabView(api, [...rows, best], content, show);
   show(view.list);
   return view;
 }
