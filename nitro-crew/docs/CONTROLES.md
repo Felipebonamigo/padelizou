@@ -60,8 +60,8 @@ gamepads vibram em batidas, nitro, grama e largada, com opção para desligar.
 
 - Grade 8 ações × 3 colunas. Setas/d-pad andam; Enter, A ou clique abrem a captura da célula.
 - Captura: a próxima tecla (colunas de teclado) ou botão (coluna Controles) vira o comando.
-  Esc ou Start cancelam; sem nada em **5 s** (relógio de parede, não o `dt` limitado da sessão),
-  ela desiste. Tecla proibida é recusada com aviso e a captura continua. Clique fora cancela.
+  Esc ou Start cancelam; sem nada em **5 s** ela desiste. O relógio anda com o `dt` da sessão,
+  limitado a 0,25 s por quadro: a 60 Hz são 5 s de verdade, e um travamento não come a janela. Tecla proibida é recusada com aviso e a captura continua. Clique fora cancela.
   O botão que abriu a captura (o A segurado) só conta depois de solto; a tecla capturada e a
   repetição automática dela não viram navegação.
 - Aviso de troca ("R era de Nitro, que ficou com ↑") e de conflito entre teclados.

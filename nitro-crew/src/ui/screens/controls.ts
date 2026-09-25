@@ -18,6 +18,8 @@ import './controls.css';
 type StatusKind = 'info' | 'ok' | 'warn';
 type PillKey = 'nitro' | 'gearUp' | 'gearDown' | 'pause';
 const PILLS: readonly PillKey[] = ['nitro', 'gearUp', 'gearDown', 'pause'];
+/** Maior passo do relógio da captura por quadro (o mesmo limite do `dt` da sessão). */
+const MAX_CAPTURE_DT = 0.25;
 
 interface Cell { el: HTMLElement; keys: HTMLElement }
 
@@ -55,9 +57,6 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
   let navGuard: DeviceId | null = null;
   let padStyle: PadStyle = 'xbox';
   let layoutMap: LayoutMap | null = null;
-  /** Relógio de parede da captura: o `dt` da sessão é limitado a 0,25 s por quadro, e "5 s" tem que ser 5 s. */
-  let lastMs = 0;
-  const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
   const label = (code: string | number) => codeLabel(code, padStyle, layoutMap);
   const labels = (codes: ReadonlyArray<string | number>) => codesLabel(codes, padStyle, layoutMap);
@@ -158,7 +157,6 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
     const held: Record<string, number[]> = {};
     for (const d of input.devices()) if (!isKeyboard(d.id)) held[d.id] = input.peek(d.id)?.buttons ?? [];
     capture = startCapture(action, device, held);
-    lastMs = nowMs();
     if (previous) renderCell(previous.action, previous.device);
     renderCell(action, device);
     setStatus(promptText(capture), 'info');
@@ -234,7 +232,12 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('keyup', onKeyUp, true);
 
-  function pollCapture(): void {
+  /**
+   * O relógio da captura anda com o `dt` da sessão, que já vem limitado a 0,25 s por quadro: a 60 Hz
+   * são 5 s de verdade, e um travamento (carregamento, máquina ocupada) não come a janela antes de
+   * o jogador ver o aviso — ela dura pelo menos 20 quadros.
+   */
+  function pollCapture(dt: number): void {
     if (!capture) return;
     for (const d of input.devices()) {
       if (isKeyboard(d.id) || !d.connected) continue;
@@ -243,9 +246,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
       resolve(outcome);
       if (!capture) return;
     }
-    const now = nowMs();
-    const tick = captureTick(capture, (now - lastMs) / 1000);
-    lastMs = now;
+    const tick = captureTick(capture, Math.min(MAX_CAPTURE_DT, dt));
     if (tick.kind !== 'wait') { resolve(tick); return; }
     setStatusIfPrompt();
     renderCell(capture.action, capture.device);
@@ -357,8 +358,8 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
       if (navGuard !== null && nav.device === navGuard) return;
       listNav(list, nav, api.sfx, () => api.back());
     },
-    update() {
-      pollCapture();
+    update(dt) {
+      pollCapture(dt);
       if (navGuard !== null && (input.peek(navGuard)?.buttons.length ?? 0) === 0) navGuard = null;
       refreshDevices();
       updateTest();
