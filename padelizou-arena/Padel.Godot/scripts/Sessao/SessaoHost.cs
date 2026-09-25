@@ -16,7 +16,7 @@ public sealed class SessaoHost : ISessao
     private readonly double _esperar;
     private readonly int _porta;
     private double _naSala;
-    private double _acumulado;
+    private readonly PassoFixo _passoFixo = new(Protocolo.TicksPorSegundo);
     private static readonly int[] Locais = [0];
 
     public SessaoHost(int porta, OpcoesDaPartida opcoes, string nome, double esperarSegundos)
@@ -53,16 +53,9 @@ public sealed class SessaoHost : ISessao
                 global::Godot.GD.Print($"Rede: partida iniciada com {naSala} na sala ({string.Join(", ", _servidor.Nomes.Where(n => !string.IsNullOrEmpty(n)))})");
             }
         }
-        // Passo fixo do protocolo (1/120 s), independente do quadro.
-        _acumulado += delta;
-        var entradaDoHost = entradas.Length > 0 ? entradas[0] : Entrada.Vazia;
-        bool primeiro = true;
-        while (_acumulado >= Protocolo.Passo - 1e-6)
-        {
-            _servidor.Passo(primeiro ? entradaDoHost : entradaDoHost with { AcaoPressionada = false, LobPressionada = false });
-            primeiro = false;
-            _acumulado -= Protocolo.Passo;
-        }
+        // Passo fixo do protocolo (1/120 s), independente do quadro, sem deriva e sem perder o aperto de quadro sem passo.
+        int passos = _passoFixo.Quadro(delta, entradas.Length > 0 ? entradas[0] : Entrada.Vazia);
+        for (int i = 0; i < passos; i++) _servidor.Passo(_passoFixo.EntradaDoPasso(i));
         if (_servidor.ParaDesenhar() is VisaoDaPartida visao) _mapa.Preencher(visao, _servidor.Nomes, null);
     }
 
@@ -73,7 +66,7 @@ public sealed class SessaoHost : ISessao
         var p = _servidor.Partida;
         string placar = p is null ? "sem partida" : $"placar={p.Placar.Resumo()} {p.Placar.TextoDosPontos(0)}-{p.Placar.TextoDosPontos(1)} pontos={p.Estatisticas.Pontos} golpes={p.Estatisticas.Golpes}";
         string humanos = p is null ? "" : string.Join(" ", p.Jogadores.Select((j, i) => $"{i}:{(j.Humano ? "humano" : "IA")}/{j.Golpes}golpes"));
-        return $"host tick={_servidor.Tick} {placar} jogadores={humanos} enviados={_transporte.PacotesEnviados} ({_transporte.BytesEnviados / 1024.0:F0} KiB) recebidos={_transporte.PacotesRecebidos}";
+        return $"host tick={_servidor.Tick} {placar} jogadores={humanos} enviados={_transporte.PacotesEnviados} ({_transporte.BytesEnviados / 1024.0:F0} KiB) recebidos={_transporte.PacotesRecebidos} {_transporte.ResumoDosProblemas()}";
     }
 
     public void Dispose() => _transporte.Dispose();

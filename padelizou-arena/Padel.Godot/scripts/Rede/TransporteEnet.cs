@@ -36,31 +36,61 @@ public sealed class TransporteEnet : ITransporte, IDisposable
     public long PacotesEnviados { get; private set; }
     public long PacotesRecebidos { get; private set; }
     public long PacotesDescartadosNoTeste { get; private set; }
-    /// <summary>Envios que o ENet recusou (ex.: par que já estava saindo). Deve ficar em zero; a conferência vigia.</summary>
-    public long EnviosRecusados { get; private set; }
+    /// <summary>
+    /// Envios que o ENet recusou a um par conectado. Deve ficar em zero (o par saindo nem chega ao Send): a conferência
+    /// vigia, o log avisa (limitado) e o ResumoParaLog das sessões mostra.
+    /// </summary>
+    public long EnviosRecusados => _enviosRecusados.Ocorrencias;
+    /// <summary>Vezes que o Service do ENet devolveu erro — falha do socket (a rede caiu, endereço que o sistema não alcança).</summary>
+    public long ErrosDoEnet => _errosDoEnet.Ocorrencias;
+
+    /// <summary>Os contadores de problema, pro "Saindo após" das sessões denunciar o que o log só avisa.</summary>
+    public string ResumoDosProblemas() => $"recusados={EnviosRecusados} errosDoEnet={ErrosDoEnet} descartadosNoTeste={PacotesDescartadosNoTeste}";
+
+    // Enquanto duram, esses erros se repetem a cada quadro: um aviso na hora e depois no máximo um a cada 5 s.
+    private const long IntervaloDosAvisosMs = 5000;
+    private readonly AvisoLimitado _enviosRecusados = new("Rede: o ENet recusou um envio a um par conectado", IntervaloDosAvisosMs);
+    private readonly AvisoLimitado _errosDoEnet = new("Rede: o Service do ENet devolveu erro (falha do socket — a rede caiu?)", IntervaloDosAvisosMs);
 
     private TransporteEnet() { }
 
-    /// <summary>Host: escuta na porta (UDP) pra até 3 clientes.</summary>
+    /// <summary>
+    /// Pares que o ENet do host aceita: as 3 vagas de cliente e uma folga pra quem sobra. Com exatamente 3, o ENet
+    /// ignorava em silêncio o 4º pedido, e quem sobrava nunca ouvia o Recusado "sala cheia" (ou "a partida já
+    /// começou") do ServidorDaPartida — esperava o prazo e saía com "o host não respondeu".
+    /// atalho: até 4 pedidos de sobra AO MESMO TEMPO ouvem a recusa (cada recusado sai e libera o par); do 5º em diante o
+    /// ENet volta a ignorar e o cliente sai pelo prazo dele. Saída: o lobby da Steam (M2) recusa antes de conectar.
+    /// </summary>
+    private const int ParesNoHost = Protocolo.Jogadores - 1 + 4;
+
+    /// <summary>Host: escuta na porta (UDP) pra 3 clientes jogarem (e a folga de <see cref="ParesNoHost"/> pra recusar).</summary>
     public static TransporteEnet Hospedar(int porta)
     {
         var t = new TransporteEnet();
-        var erro = t._conexao.CreateHostBound("*", porta, 3, Canais);
+        var erro = t._conexao.CreateHostBound("*", porta, ParesNoHost, Canais);
         if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra abrir a sala na porta {porta} (UDP) — ela já está em uso? ({erro})");
         return t;
     }
 
-    /// <summary>Cliente: começa a conectar no host; o Conectou chega pelo TentarReceber quando o aperto do ENet termina.</summary>
-    public static TransporteEnet Conectar(string endereco, int porta)
+    /// <summary>
+    /// Cliente: começa a conectar no host; o Conectou chega pelo TentarReceber quando o aperto do ENet termina — ou o
+    /// Desconectou, se ninguém responder. prazoDoEnetMs: só pra teste — quanto o ENet insiste sem resposta antes de
+    /// desistir (o padrão dele passa de 30 s; o jogo não depende disso, o SessaoCliente desiste antes).
+    /// </summary>
+    public static TransporteEnet Conectar(string endereco, int porta, int? prazoDoEnetMs = null)
     {
         var t = new TransporteEnet();
         var erro = t._conexao.CreateHost(1, Canais);
         if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra criar o cliente ENet: {erro}");
         var peer = t._conexao.ConnectToHost(endereco, porta, Canais);
         if (peer is null) throw new InvalidOperationException($"não achei a sala em {endereco}:{porta} — o endereço não existe ou não resolve");
+        if (prazoDoEnetMs is int prazo) peer.SetTimeout(LimiteDeTentativasDoEnet, prazo, prazo);
         t.Registrar(peer);
         return t;
     }
+
+    /// <summary>O "timeout" do ENetPacketPeer.SetTimeout no valor padrão do ENet (só os prazos mudam no teste).</summary>
+    private const int LimiteDeTentativasDoEnet = 32;
 
     private int Registrar(ENetPacketPeer peer)
     {
@@ -92,7 +122,12 @@ public sealed class TransporteEnet : ITransporte, IDisposable
         var erro = canal == Canal.Confiavel
             ? peer.Send(CanalConfiavel, dados, (int)ENetPacketPeer.FlagReliable)
             : peer.Send(CanalNaoConfiavel, dados, (int)ENetPacketPeer.FlagUnsequenced);
-        if (erro != Error.Ok) { EnviosRecusados++; return; }   // par caindo: a rede é assim, o protocolo tolera
+        if (erro != Error.Ok)
+        {
+            // O protocolo tolera (é um pacote a menos), mas não devia acontecer: aparece no log e no ResumoDosProblemas.
+            if (_enviosRecusados.Registrar(_relogio.ElapsedMilliseconds) is string aviso) GD.PushWarning($"{aviso}: {erro}");
+            return;
+        }
         BytesEnviados += dados.Length;
         PacotesEnviados++;
         _conexao.Flush();   // sai já, sem esperar o próximo Service (menos ~8 ms de atraso)
@@ -121,7 +156,12 @@ public sealed class TransporteEnet : ITransporte, IDisposable
         {
             var evento = _conexao.Service(0);
             var tipo = (ENetConnection.EventType)(int)evento[0];
-            if (tipo is ENetConnection.EventType.None or ENetConnection.EventType.Error) break;
+            if (tipo == ENetConnection.EventType.Error)
+            {
+                if (_errosDoEnet.Registrar(_relogio.ElapsedMilliseconds) is string aviso) GD.PushWarning(aviso);
+                break;   // o Service não tem mais o que dar neste quadro; o próximo Processar tenta de novo
+            }
+            if (tipo == ENetConnection.EventType.None) break;
             var peer = evento[1].As<ENetPacketPeer>();
             if (peer is null) continue;
             switch (tipo)

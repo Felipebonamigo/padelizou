@@ -12,7 +12,7 @@ public sealed class SessaoCliente : ISessao
     private readonly TransporteEnet _transporte;
     private readonly ClienteDaPartida _cliente;
     private readonly RetratoDaVisao _mapa;
-    private double _acumulado;
+    private readonly PassoFixo _passoFixo = new(Protocolo.TicksPorSegundo);
     private int _instantaneos;
     private FaseDoCliente _faseAnterior = FaseDoCliente.Conectando;
     private readonly string _endereco;
@@ -48,14 +48,8 @@ public sealed class SessaoCliente : ISessao
     {
         int indice = _cliente.Indice;
         var minha = indice >= 0 && indice < entradas.Length ? entradas[indice] : Entrada.Vazia;
-        _acumulado += delta;
-        bool primeiro = true;
-        while (_acumulado >= Protocolo.Passo - 1e-6)
-        {
-            _cliente.Passo(primeiro ? minha : minha with { AcaoPressionada = false, LobPressionada = false });
-            primeiro = false;
-            _acumulado -= Protocolo.Passo;
-        }
+        int passos = _passoFixo.Quadro(delta, minha);   // sem deriva, e o aperto de quadro sem passo vai no próximo passo
+        for (int i = 0; i < passos; i++) _cliente.Passo(_passoFixo.EntradaDoPasso(i));
         if (_cliente.Fase is FaseDoCliente.Conectando or FaseDoCliente.AguardandoResposta)
         {
             _esperandoResposta += delta;
@@ -108,7 +102,7 @@ public sealed class SessaoCliente : ISessao
     {
         var u = _cliente.UltimoInstantaneo;
         string placar = u is null ? "sem instantâneo" : $"placar={u.Placar.Resumo()} {u.Placar.TextoDosPontos(0)}-{u.Placar.TextoDosPontos(1)} tickDoHost={u.Tick}";
-        return $"cliente fase={_cliente.Fase} vaga={_cliente.Indice} {placar} ping={_cliente.Ping * 1000:F0} ms quadros={_instantaneos} enviados={_transporte.PacotesEnviados} recebidos={_transporte.PacotesRecebidos} ({_transporte.BytesRecebidos / 1024.0:F0} KiB)";
+        return $"cliente fase={_cliente.Fase} vaga={_cliente.Indice} {placar} ping={_cliente.Ping * 1000:F0} ms quadros={_instantaneos} enviados={_transporte.PacotesEnviados} recebidos={_transporte.PacotesRecebidos} ({_transporte.BytesRecebidos / 1024.0:F0} KiB) {_transporte.ResumoDosProblemas()}";
     }
 
     public void Dispose()

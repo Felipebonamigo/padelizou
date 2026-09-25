@@ -3,7 +3,9 @@
 O online do Padelizou Arena segue a decisão D2 (`DECISOES.md`): um jogador hospeda e roda a partida de verdade
 (host autoritativo, 120 passos por segundo); os outros mandam só o que apertam e desenham o que o host manda
 (30 instantâneos por segundo), prevendo o próprio jogador e interpolando o resto. O protocolo mora no
-`Padel.Core.Rede` e não sabe que o Godot existe; o Godot só entrega bytes pelo ENet.
+`Padel.Core.Rede` e não sabe que o Godot existe; o Godot só entrega bytes pelo ENet. O delta da física vira passos de
+1/120 s pelo `PassoFixo` (Padel.Core): contado em passos, sem deriva — somar segundos contra o `Protocolo.Passo` (float)
+deixava um quadro sem passo a cada ~19 s —, e o aperto de um quadro que não deu passo vale no passo seguinte.
 
 ## Na rede local
 
@@ -17,6 +19,8 @@ godot --path Padel.Godot -- --conectar 192.168.0.10:7777 --nome Joao
 
 Os lugares são dados na ordem 2, 1, 3: o primeiro que entra joga **contra** o host (1x1 com duplas completadas
 pela IA), o segundo vira parceiro do host, o terceiro completa o 2x2. Quem cai por 3 s vira IA e a partida segue.
+Quem chega com a sala cheia ou a partida em andamento ouve o motivo e sai (o ENet do host tem 4 pares de folga pra
+isso; com mais gente ainda chegando ao mesmo tempo, o excedente sai em 10 s com "o host não respondeu").
 
 ## Pela internet
 
@@ -35,10 +39,17 @@ godot --headless --path Padel.Godot -- --conectar 127.0.0.1:7777 --sair-apos 45 
 ... --rede-ruim 100 0.05
 ```
 
-No fim cada lado imprime a linha `Saindo após …` com o placar, os golpes por jogador (no host) e o ping (no
-cliente). Medido em 25/09/2026 nesta máquina: sem rede ruim, os dois terminam com o mesmo placar e ping de ~21 ms
-(a granularidade do protocolo, não do cabo); com +100 ms e 5% de perda, o jogador do cliente deu 7 golpes aplicados
-no host, os placares batem e o ping medido é ~238 ms.
+No fim cada lado imprime a linha `Saindo após …` com o placar, os golpes por jogador (no host), o ping (no
+cliente) e os problemas do ENet: `recusados` (envio que o ENet recusou a um par conectado — deve ser 0), `errosDoEnet`
+(falha do socket) e `descartadosNoTeste` (a perda do `--rede-ruim`). Os dois primeiros também viram aviso no log, um na
+hora e depois no máximo um a cada 5 s. A ponte com o ENet de verdade (conexão, queda, Dispose, sala cheia, passo fixo
+das sessões, e o fim do cliente — que sai do placar DESENHADO, 100 ms atrás do instantâneo mais novo, senão a tela de
+fim mostrava o placar de antes do último ponto) é conferida por
+`godot --headless --path Padel.Godot res://cenas/TesteRede.tscn -- --conferir`.
+
+Medido em 25/09/2026 nesta máquina: sem rede ruim, os dois terminam com o mesmo placar e ping de ~21 ms (a
+granularidade do protocolo, não do cabo); com +100 ms e 5% de perda, o jogador do cliente deu 7 golpes aplicados no
+host, os placares batem e o ping medido é ~238 ms.
 
 ## O que muda com a Steam (marco M2)
 
