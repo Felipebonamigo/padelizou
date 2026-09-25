@@ -26,16 +26,18 @@ vira executável com o Electron (pasta `desktop/`, ver o README de lá para os c
 - **Conquistas**: `window.desktop.achievement('ID')` via `steamworks.js`; a lista com PT/EN está em
   `src/game/desktop.ts` (`ACHIEVEMENTS`) e a sessão desbloqueia sozinha (`src/game/achievements.ts`).
 - **Rich Presence**: "Correndo em <pista> · 3P" enquanto há corrida.
-- **Cloud**: opções e progresso ficam no `localStorage` do Electron (`%APPDATA%/Nitro Crew`); ativar Steam
-  Auto-Cloud apontando para essa pasta.
+- **Cloud**: opções e progresso são espelhados em `<userData>/saves/*.json` (`%APPDATA%/Nitro Crew/saves` no
+  Windows); o Auto-Cloud aponta para essa subpasta, nunca para o `localStorage` do Chromium. Caminhos por sistema
+  e regras em `desktop/README.md` → "Steam Cloud".
 - **Multiplayer próprio (Fase 4.2+)**: núcleo determinístico com `hashRace`; o transporte pode ser Steam
   Networking Sockets via `steamworks.js`.
 - **Leaderboards** (Fase 4.4): melhores voltas por pista e fantasmas.
 - **Workshop** (pós-lançamento): pistas são dados do DSL (`src/core/track/tracks.ts`), ideais para o Workshop.
 
 ## 5. Checklist de loja
+- Textos prontos da página (PT/EN, destaques, tags, requisitos, cápsulas, trailer): `docs/LOJA.md`.
 - Cápsulas, trailer, 6+ screenshots (a tela dividida com 4 é a foto principal), descrição PT-BR/EN, tags:
-  Corrida, Arcade, Retrô, Pixel Art, Cooperativo local, Tela dividida, Multijogador local, Remote Play Together.
+  Corrida, Arcade, Retrô, Cooperativo local, Tela dividida, Multijogador local, Remote Play Together.
 - Página "Em breve" o quanto antes depois da arte (Fase 2): wishlists movem o algoritmo.
 - Steam Playtest (gratuito) e demo no Next Fest antes do Early Access.
 - Marca/nome: verificar antes de publicar a página (Fase 2.1 e 5.7 do roteiro).

@@ -11,6 +11,16 @@ export function isWebGlFailure(message: string): boolean {
   return /webgl/i.test(message);
 }
 
+/** Opção de inicialização citada no texto de WebGL (o Electron repassa as opções do Chromium). */
+export const LAUNCH_FLAG = '--ignore-gpu-blocklist';
+
+/** Separa a opção do resto do texto, para ela ir num `<code>` que não quebra linha no meio do "--". */
+export function splitLaunchFlag(text: string): { before: string; flag: string; after: string } | null {
+  const i = text.indexOf(LAUNCH_FLAG);
+  if (i < 0) return null;
+  return { before: text.slice(0, i), flag: LAUNCH_FLAG, after: text.slice(i + LAUNCH_FLAG.length) };
+}
+
 export function showFatal(parent: HTMLElement, err: unknown): HTMLElement {
   setLanguage(loadSettings().language);
   const { message } = describeError(err);
@@ -22,7 +32,15 @@ export function showFatal(parent: HTMLElement, err: unknown): HTMLElement {
   const title = document.createElement('h1');
   title.textContent = t('errors.fatal.title');
   const text = document.createElement('p');
-  text.textContent = isWebGlFailure(message) ? t('errors.fatal.webgl') : t('errors.fatal.generic');
+  const explanation = isWebGlFailure(message) ? t('errors.fatal.webgl') : t('errors.fatal.generic');
+  const parts = splitLaunchFlag(explanation);
+  if (parts) {
+    const code = document.createElement('code');
+    code.textContent = parts.flag;
+    text.append(parts.before, code, parts.after);
+  } else {
+    text.textContent = explanation;
+  }
   const detail = document.createElement('pre');
   detail.textContent = message;
   const actions = document.createElement('div');

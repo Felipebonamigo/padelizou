@@ -88,6 +88,7 @@
 }
 .nc-fatal h1 { margin: 0 0 calc(12 * var(--u)); font-size: var(--fs-lg); }
 .nc-fatal p { margin: 0 0 calc(14 * var(--u)); font-size: var(--fs); line-height: 1.45; color: var(--muted); }
+.nc-fatal p code { white-space: nowrap; font-family: ui-monospace, monospace; color: var(--text, #fff); }
 .nc-fatal pre {
   margin: 0 0 calc(20 * var(--u));
   padding: calc(10 * var(--u)) calc(12 * var(--u));

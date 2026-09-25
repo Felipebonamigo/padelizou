@@ -3,6 +3,7 @@
   "productName": "Nitro Crew",
   "version": "0.1.0",
   "description": "Empacotamento desktop (Electron) do Nitro Crew para Steam/Windows/Linux/macOS.",
+  "author": "Felipe Bonamigo",
   "main": "main.cjs",
   "private": true,
   "scripts": {
@@ -13,7 +14,8 @@
     "predist:mac": "npm run check:game",
     "dist:win": "electron-builder --win --x64",
     "dist:linux": "electron-builder --linux --x64",
-    "dist:mac": "electron-builder --mac"
+    "dist:mac": "electron-builder --mac",
+    "e2e": "node e2e.mjs"
   },
   "devDependencies": {
     "electron": "^44.4.5",

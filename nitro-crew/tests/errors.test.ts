@@ -5,9 +5,9 @@ import {
   logText, pushEntry, reportError, RING_SIZE, sanitizeRing, scrubPaths, setActiveReporter, setTelemetryEndpoint,
   telemetryPayload, type ErrorContext, type ErrorEntry, type ErrorReporter, type ReporterDeps, type StorageLike,
 } from '../src/game/errors';
-import { isWebGlFailure } from '../src/errors/fatal';
+import { isWebGlFailure, LAUNCH_FLAG, splitLaunchFlag } from '../src/errors/fatal';
 import { errorCountText } from '../src/errors/options';
-import { setLanguage } from '../src/i18n';
+import { setLanguage, t } from '../src/i18n';
 import pkg from '../package.json';
 
 function memoryStorage(): StorageLike & { data: Map<string, string> } {
@@ -291,5 +291,19 @@ describe('textos da interface', () => {
   it('a tela fatal reconhece a falha de WebGL do Three.js', () => {
     expect(isWebGlFailure('Error: THREE.WebGLRenderer: Error creating WebGL context.')).toBe(true);
     expect(isWebGlFailure('TypeError: x is undefined')).toBe(false);
+  });
+
+  // Defeito visto na captura do pacote Electron: a linha quebrava entre "--" e "ignore-gpu-blocklist", e o
+  // jogador copiava a opção errada. A opção sai inteira, num elemento que não quebra.
+  it('a opção de inicialização da tela fatal fica inteira (PT e EN)', () => {
+    for (const lang of ['pt', 'en'] as const) {
+      setLanguage(lang);
+      const text = t('errors.fatal.webgl');
+      const parts = splitLaunchFlag(text);
+      expect(parts, lang).not.toBeNull();
+      expect(parts?.flag).toBe(LAUNCH_FLAG);
+      expect(`${parts?.before}${parts?.flag}${parts?.after}`).toBe(text);
+    }
+    expect(splitLaunchFlag('sem opção nenhuma')).toBeNull();
   });
 });
