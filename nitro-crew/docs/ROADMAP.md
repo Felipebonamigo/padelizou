@@ -1,7 +1,7 @@
 # Nitro Crew — Roteiro e cronograma até a Steam
 
 > **Documento vivo.** Ao concluir um passo, marque ✅ aqui. Revisar a cada duas semanas (ver "Rotina" no fim).
-> Última revisão: **25/09/2026** — Fase 0 concluída nesta sessão.
+> Última revisão: **25/09/2026** — Fase 0 e a onda A concluídas (passos marcados com ✅ abaixo).
 
 Premissas: um desenvolvedor (Felipe) com **8–12 h/semana** para jogar, decidir, testar com amigos e cuidar da
 parte comercial, mais o agente (Claude) para código, testes, ferramentas e balanceamento; arte e música
@@ -38,9 +38,9 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 | 1.2 | Sensação de direção: ajuste fino de volante, força centrífuga, freio, grama e colisões com base nos playtests; tremor de tela e "peso" do carro | A | 1–2 |
 | 1.3 | Balanceamento por dados: IA × IA em todas as pistas por versão (`npm run balance`); tempos de volta por carro; dificuldade Amador de verdade fácil, Campeão de verdade difícil | A | 1–5 |
 | 1.4 | Co-op afinado: quando o empurrão vale, quanto o vácuo rende, se o elástico está "trapaceando"; modo Versus (times por assento) e regra de classificação individual testados | A + V | 2–3 |
-| 1.5 | Gamepads reais: Xbox, PlayStation, genérico USB, 4 ao mesmo tempo; Steam Input ligado/desligado; remapeamento na tela de controles | A + V | 2–3 |
+| 1.5 | ✅ (parte do agente: remapeamento por dispositivo, vibração, tela de controles; `docs/CONTROLES.md`) Gamepads reais: Xbox, PlayStation, genérico USB, 4 ao mesmo tempo; Steam Input ligado/desligado; remapeamento na tela de controles | A + V | 2–3 |
 | 1.6 | Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado) e no Steam Deck; ajustar qualidade baixa/média (sombras, bloom, draw distance); sem estouro de memória em 1 h de jogo | A + V | 3–4 |
-| 1.7 | Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
+| 1.7 | ✅ campeonato salvo (menu → Continuar); fantasma do contra-relógio fica para a onda B · Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
 | 1.8 | Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
 | 1.9 | Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
 | 1.10 | Polimento visual procedural (antes da arte final): chama do nitro mais legível, brilho de lente do sol, reflexos do neon no asfalto molhado (env map da cidade), cabine com colunas e faróis com geometria, poeira com textura, terreno com segunda oitava de ruído e transição de cor por altura, animação de troca de posição no HUD | A | 2–5 |
@@ -67,12 +67,12 @@ Marco **M2 (semana 14)**: "arte e som finais no jogo" — página "Em breve" na 
 ## Fase 3 — Conteúdo e profundidade · semanas 6–20
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 3.1 | 32 pistas em 8 países (como o original): +4 países (África do Sul, Austrália, Escandinávia, França/Itália), 4 pistas cada, escritas no DSL; teste de IA por pista já cobre as novas sozinho | A | 6–10 |
+| 3.1 | ✅ 32 pistas em 8 países (África do Sul, Austrália, Escandinávia, Mediterrâneo; cenários existentes; `docs/PISTAS.md`) · 32 pistas em 8 países (como o original): +4 países (África do Sul, Austrália, Escandinávia, França/Itália), 4 pistas cada, escritas no DSL; teste de IA por pista já cobre as novas sozinho | A | 6–10 |
 | 3.2 | Clima e período: chuva e neve (aderência, visual, spray), noite com faróis; pistas com túnel e ponte | A | 8–11 |
-| 3.3 | Modo Carreira: prêmio em dinheiro por corrida; entre corridas, upgrades (motor, pneus, tanque, nitro extra) e compra de carros (8 no total); senha/continuar | A | 10–15 |
+| 3.3 | ✅ Carreira: prêmios, carteira da equipe, 6 melhorias com teto por carro, 4 carros à venda, rivais que evoluem, ajuda na eliminação (`docs/CARREIRA.md`) · Modo Carreira: prêmio em dinheiro por corrida; entre corridas, upgrades (motor, pneus, tanque, nitro extra) e compra de carros (8 no total); senha/continuar | A | 10–15 |
 | 3.4 | Rivais com personalidade (agressivo, limpo, "bloqueador") e um rival principal por copa que provoca no resultado | A | 12–14 |
 | 3.5 | Modos co-op extras: **Revezamento** (cada volta um jogador, com troca no box) e **Escolta** (a equipe protege um carro lento contra a IA) · Torneio local de sofá (chaveamento de até 8 pessoas alternando controles) | A | 14–18 |
-| 3.6 | Conquistas (as 12 previstas em `src/game/desktop.ts` + 8), estatísticas e recordes por pista com nome | A | 16–18 |
+| 3.6 | ✅ 24 conquistas, estatísticas por jogador, tela de recordes com 3 abas (`docs/ESTATISTICAS.md`) · Conquistas (as 12 previstas em `src/game/desktop.ts` + 8), estatísticas e recordes por pista com nome | A | 16–18 |
 | 3.7 | Acessibilidade: daltonismo (cores dos jogadores), tamanho do HUD, direção assistida (freio automático em curva) para crianças | A | 18–20 |
 
 Marco **M3 (semana 20)**: conteúdo completo da 1.0.
@@ -83,8 +83,8 @@ A ordem importa: o online barato primeiro.
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
 | 4.1 | **Steam Remote Play Together**: o co-op de sofá vira online sem uma linha de netcode (a Steam transmite a tela e recebe os controles). Ativar, testar com 4 pessoas, ajustar latência do volante | A + V | 10–11 |
-| 4.2 | Lockstep determinístico: o núcleo já é determinístico com hash por tick; relay WebSocket (copiar `server/relay.mjs` do AgeOfEarth), lobby por código, 4 jogadores, atraso de entrada de 2–3 ticks | A | 14–19 |
-| 4.3 | Reconexão por snapshot (estado é JSON) e detecção de dessincronia com relatório | A | 19–21 |
+| 4.2 | ✅ Lockstep com relay próprio (`server/relay.mjs`), sala por código, 1–2 jogadores por computador, hash de dessincronia (`docs/ONLINE.md`) · Lockstep determinístico: o núcleo já é determinístico com hash por tick; relay WebSocket (copiar `server/relay.mjs` do AgeOfEarth), lobby por código, 4 jogadores, atraso de entrada de 2–3 ticks | A | 14–19 |
+| 4.3 | ✅ Reconexão por snapshot, sucessão de anfitrião, queda geral, IA assume quem não volta · Reconexão por snapshot (estado é JSON) e detecção de dessincronia com relatório | A | 19–21 |
 | 4.4 | Steam Networking Sockets + convites da Steam via `steamworks.js`; Steam Leaderboards para contra-relógio e fantasmas de amigos | A | 20–24 |
 
 Marco **M4 (semana 24)**: co-op online estável pela Steam (Remote Play desde a semana 11).
@@ -94,12 +94,12 @@ Marco **M4 (semana 24)**: co-op online estável pela Steam (Remote Play desde a 
 |---|---|---|---|
 | 5.1 | Empresa/CNPJ, banco, W-8BEN (se já feito para o AgeOfEarth, reaproveitar) | V | 8–10 |
 | 5.2 | Conta Steamworks + Steam Direct (US$ 100) + App ID; trocar `desktop/steam_appid.txt` | V | 10 |
-| 5.3 | Página "Em breve": cápsulas, 6+ screenshots (tela dividida com 4 jogadores é a foto principal), descrição PT/EN, tags (Corrida, Arcade, Retrô, Co-op local, Tela dividida, Remote Play Together), trailer | V + T + A | 14–16 |
-| 5.4 | Build Electron completo: SteamPipe, Steam Cloud (save em `localStorage` → pasta do app), conquistas, Rich Presence, Steam Input, tela cheia/resoluções | A | 16–20 |
+| 5.3 | ✅ textos prontos em PT/EN (`docs/LOJA.md`, `docs/IMPRENSA.md`); faltam arte e trailer · Página "Em breve": cápsulas, 6+ screenshots (tela dividida com 4 jogadores é a foto principal), descrição PT/EN, tags (Corrida, Arcade, Retrô, Co-op local, Tela dividida, Remote Play Together), trailer | V + T + A | 14–16 |
+| 5.4 | ✅ parte do agente: pacote Linux gerado e aberto; save em arquivo no userData para o Auto-Cloud; Windows/macOS não gerados aqui · Build Electron completo: SteamPipe, Steam Cloud (save em `localStorage` → pasta do app), conquistas, Rich Presence, Steam Input, tela cheia/resoluções | A | 16–20 |
 | 5.5 | Steam Deck: verificar legibilidade da tela dividida em 7", 60 fps com 2 viewports, 4 controles via dock; build Linux nativa | A + V | 20–22 |
-| 5.6 | Telemetria opt-in e relatório de erros | A | 18–20 |
-| 5.7 | Legal: EULA, política de privacidade (relay → LGPD), licenças de fontes/áudio, créditos; **checagem de marca/nome** e distância visual dos jogos originais (nada de nome "Top Gear", logos ou traçados copiados) | V + A | 20–22 |
-| 5.8 | QA: matriz (Windows 10/11, Linux, Mac; integrado × dedicado; 1–4 controles), checklist de lançamento | A + V | 22–26 |
+| 5.6 | ✅ relatório de erros local (anel, log em arquivo, copiar nas opções); consentimento versionado; sem servidor de telemetria ainda · Telemetria opt-in e relatório de erros | A | 18–20 |
+| 5.7 | ✅ rascunhos de EULA e privacidade (LGPD) com pontos para advogado (`docs/legal/`) · Legal: EULA, política de privacidade (relay → LGPD), licenças de fontes/áudio, créditos; **checagem de marca/nome** e distância visual dos jogos originais (nada de nome "Top Gear", logos ou traçados copiados) | V + A | 20–22 |
+| 5.8 | ✅ matriz e roteiro de QA (`docs/QA.md`) · QA: matriz (Windows 10/11, Linux, Mac; integrado × dedicado; 1–4 controles), checklist de lançamento | A + V | 22–26 |
 | 5.9 | Steam Playtest público + demo (2 copas, co-op) no **Steam Next Fest** | V | 24–28 |
 
 ## Fase 6 — Lançamento · semanas 28–32
@@ -132,6 +132,7 @@ ver as vendas na Steam.
 
 ## Riscos e mitigação
 - **Arte é o caminho crítico**: fechar direção de arte na semana 4; os sprites procedurais nunca bloqueiam o código.
+- **Licença do código**: o repositório é público e o `package.json` diz MIT; vender com EULA comercial pede decidir a licença (ou fechar o repositório) antes da página da Steam.
 - **Nome e semelhança**: "inspirado em" é permitido, cópia não. Nome próprio, logo próprio, traçados próprios; sem música ou nomes de carros dos originais.
 - **Tela dividida em máquina fraca**: 4 viewports quadruplicam o desenho 3D (sombras e pós-processamento por viewport). Já existe qualidade baixa/média; medir cedo (1.6).
 - **Online de corrida é sensível a latência**: por isso Remote Play Together primeiro (4.1) e lockstep com atraso de entrada depois; nunca prometer online próprio antes de M4.
