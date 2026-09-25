@@ -3,11 +3,11 @@
 // mandá-la (entrada de assento alheio, largada ou tomada pela IA de quem não é o anfitrião) é
 // descartada e contada na sessão.
 import { afterEach, describe, expect, it } from 'vitest';
-import { createRace } from '../src/core/sim/race';
+import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
 import type { RaceConfig, RaceState } from '../src/core/types';
 import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type SaveData, type Settings } from '../src/game/contracts';
-import { OnlineController, type OnlineHost } from '../src/game/online-session';
+import { OnlineController, type OnlineHost, type OnlineOptions } from '../src/game/online-session';
 import { NetClient } from '../src/net/client';
 import { TAKEOVER_BIT, type StartConfig } from '../src/net/protocol';
 
@@ -84,30 +84,38 @@ function fakeInput(): InputProvider {
   };
 }
 
+/** Imita a sessão: showScreen abre a tela online, startRace (beginRace) esconde qualquer menu. */
 class Host implements OnlineHost {
   readonly settings: Settings = { ...DEFAULT_SETTINGS, assists: { ...DEFAULT_SETTINGS.assists } };
   readonly save: SaveData = { ...DEFAULT_SAVE, seatNames: ['Ana', 'P2', 'P3', 'P4'], seatCars: [...DEFAULT_SAVE.seatCars] };
   readonly input = fakeInput();
   state: RaceState | null = null;
   starts = 0;
-  startRace(config: RaceConfig, _localSeats: number[], _driver: RaceDriver, state?: RaceState): void { this.starts++; this.state = state ?? createRace(config, getTrack(config.trackId)); }
+  menu: string | null = null;
+  startRace(config: RaceConfig, _localSeats: number[], _driver: RaceDriver, state?: RaceState): void {
+    this.starts++;
+    this.menu = null;
+    this.state = state ?? createRace(config, getTrack(config.trackId));
+  }
   raceState() { return this.state; }
   clearRace() { this.state = null; }
-  showScreen() {}
-  hideScreen() {}
-  menuOpen() { return false; }
-  exitToMain() {}
+  showScreen() { this.menu = 'online'; }
+  hideScreen() { this.menu = null; }
+  menuOpen() { return this.menu !== null; }
+  exitToMain() { this.menu = 'main'; }
   persistSettings() {}
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 const TOKEN = 'a'.repeat(24);
 const player = (name: string, car = 'falcao') => ({ name, car });
-function roomMsg(host: number, started = false) {
+function roomMsg(host: number, started = false, offline: number[] = []) {
   return {
     t: 'room', room: {
       code: 'KQXTR', host, started, settings: null, clients: [
-        { id: 0, seats: 1, connected: true, info: { players: [player('Ana')], ready: false } },
-        { id: 1, seats: 1, connected: true, info: { players: [player('Bia', 'trovao')], ready: true } },
+        { id: 0, seats: 1, connected: !offline.includes(0), info: { players: [player('Ana')], ready: false } },
+        { id: 1, seats: 1, connected: !offline.includes(1), info: { players: [player('Bia', 'trovao')], ready: true } },
       ],
     },
   };
@@ -171,5 +179,69 @@ describe('sessão online: remetente conferido', () => {
     expect(host.state).toBe(before);
     expect(host.starts).toBe(1);
     expect(ctl.dropped).toBe(1);
+  });
+});
+
+describe('sessão online: volta depois de cair', () => {
+  let online: OnlineController | null = null;
+  afterEach(() => { online?.leave(false); online = null; });
+
+  /** Convidado (id 1) na corrida que perdeu a conexão e acabou de voltar à sala (welcome com rejoined). */
+  async function rejoined(opts: OnlineOptions = {}): Promise<{ sock: FakeSocket; host: Host; ctl: OnlineController }> {
+    const socks: FakeSocket[] = [];
+    const host = new Host();
+    const ctl = new OnlineController(host, { socket: () => { const s = new FakeSocket(); socks.push(s); return asWebSocket(s); }, pingMs: 60_000, retryMs: 1, ...opts });
+    online = ctl;
+    ctl.join('KQXTR', 'kb1');
+    socks[0].open();
+    socks[0].push({ t: 'welcome', room: 'KQXTR', id: 1, token: TOKEN, rejoined: false });
+    socks[0].push(roomMsg(0));
+    socks[0].push({ t: 'start', from: 0, cfg: startCfg() });
+    expect(ctl.phase).toBe('racing');
+    ctl.debugDropConnection();
+    expect(ctl.status().reconnecting).not.toBeNull();
+    await sleep(20);
+    const sock = socks[1];
+    sock.open();
+    expect(sock.sent[0]).toMatchObject({ t: 'rejoin', room: 'KQXTR', token: TOKEN });
+    sock.push({ t: 'welcome', room: 'KQXTR', id: 1, token: TOKEN, rejoined: true });
+    expect(ctl.status()).toMatchObject({ reconnecting: null, syncing: true });
+    return { sock, host, ctl };
+  }
+
+  it('eleito anfitrião ao voltar (o anterior caiu também): segue do próprio estado e manda o snapshot a quem volta depois', async () => {
+    const { sock, host, ctl } = await rejoined();
+    const before = host.state;
+    sock.push(roomMsg(1, true, [0]));
+    expect(ctl.isHost).toBe(true);
+    expect(ctl.status().syncing).toBe(false);
+    expect(host.state).toBe(before);
+    expect(host.starts).toBe(1);
+    // Com a entrada do assento 0 para os ticks 0..2, a corrida anda exatamente três ticks.
+    sock.push({ t: 'i', from: 0, d: [0, 0, 1, 0, 1, 0, 1, 0, 2, 0, 1, 0] });
+    const state = host.state as RaceState;
+    expect(ctl.force(10, [], (inputs) => stepRace(state, getTrack(state.config.trackId), inputs))).toBe(3);
+    // O outro volta: quem manda o estado agora é este computador.
+    sock.push({ t: 'peer', id: 0, e: 'rejoin' });
+    expect(sock.sent.find((m) => m.t === 'snap')).toMatchObject({ t: 'snap', to: 0, snap: { tick: 3 } });
+  });
+
+  it('o anfitrião encerrou a corrida enquanto este computador voltava: vai para a sala em vez de esperar um snapshot que não vem', async () => {
+    const { sock, host, ctl } = await rejoined();
+    sock.push(roomMsg(0, false));
+    expect(ctl.status().syncing).toBe(false);
+    expect(ctl.phase).toBe('lobby');
+    expect(host.state).toBeNull();
+    expect(host.menu).toBe('online');
+  });
+
+  it('snapshot que não chega a tempo vira erro, em vez de "recebendo a corrida" para sempre', async () => {
+    const { sock, host, ctl } = await rejoined({ syncTimeoutMs: 40 });
+    sock.push(roomMsg(0, true));
+    await sleep(100);
+    expect(ctl.phase).toBe('error');
+    expect(ctl.error).toBe('online.err.syncTimeout');
+    expect(host.state).toBeNull();
+    expect(host.menu).toBe('online');
   });
 });

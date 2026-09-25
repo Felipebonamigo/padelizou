@@ -27,6 +27,8 @@ const DT = 1 / TICK_RATE;
 const MAX_BACKLOG = 0.25;
 /** Ticks extras por quadro para quem ficou atrás dos outros. */
 const MAX_CATCHUP = 4;
+/** Voltou e o estado do anfitrião não chegou em tanto tempo: erro (em vez de "recebendo a corrida" sem fim). */
+export const SYNC_TIMEOUT_MS = 15_000;
 
 export const CONTENT_RULES: ContentRules = { cars: CARS.map((c) => c.id), tracks: TRACKS.map((t) => t.id) };
 
@@ -90,6 +92,8 @@ export interface OnlineOptions {
   pingMs?: number;
   /** Parado há mais que isto → reenvia as entradas recentes (ver Lockstep). */
   resendMs?: number;
+  /** Depois de voltar, quanto esperar pelo snapshot do anfitrião antes de desistir. */
+  syncTimeoutMs?: number;
   random?: () => number;
 }
 
@@ -157,6 +161,7 @@ export class OnlineController implements RaceDriver {
   private pending: ClientMessage | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private pingSent = new Map<number, number>();
   private pingSeq = 0;
   private reconnectSince: number | null = null;
@@ -418,7 +423,7 @@ export class OnlineController implements RaceDriver {
       this.reconnectSince = null;
       if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
       // Na corrida, espera o estado do anfitrião; no resultado não há o que sincronizar.
-      if (this.phase === 'racing') { this.awaitingSnapshot = true; this.queued = []; }
+      if (this.phase === 'racing') { this.awaitingSnapshot = true; this.queued = []; this.startSyncTimer(); }
     } else {
       this.phase = 'lobby';
       this.localSeatList = [];
@@ -432,6 +437,14 @@ export class OnlineController implements RaceDriver {
     if (this.phase === 'lobby' && this.isHost && !room.settings) {
       room.settings = this.defaultRoomSettings();
       this.send({ t: 'settings', settings: room.settings });
+    }
+    if (this.awaitingSnapshot) {
+      // Voltou e o anfitrião agora é este computador (o anterior caiu também, e o relay elege um
+      // conectado): só o anfitrião manda snapshot, então ninguém vai mandar. Segue do próprio
+      // estado — é o mesmo dos outros até o tick em que parou — e manda o seu a quem voltar depois.
+      if (this.isHost) this.resumeOwnState();
+      // A sala saiu da corrida enquanto este computador voltava (o anfitrião voltou à sala): vai junto.
+      else if (!room.started) { this.enterLobby(); return; }
     }
     // Anfitrião (de nascença ou por sucessão): quem sumiu da sala no meio da corrida vira IA.
     if (this.isHost && this.lockstep && this.start) {
@@ -479,6 +492,7 @@ export class OnlineController implements RaceDriver {
   private handleClose(wasOpen: boolean): void {
     this.client = null;
     this.stopPing();
+    this.stopSyncTimer();
     if (this.phase === 'racing' || this.phase === 'results') {
       if (this.reconnectSince === null) this.reconnectSince = this.now();
       this.scheduleRetry();
@@ -524,6 +538,7 @@ export class OnlineController implements RaceDriver {
 
   private dropConnection(): void {
     this.stopPing();
+    this.stopSyncTimer();
     if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
     this.reconnectSince = null;
     this.client?.close();
@@ -618,6 +633,28 @@ export class OnlineController implements RaceDriver {
     this.send({ t: 'snap', to, snap });
   }
 
+  private startSyncTimer(): void {
+    this.stopSyncTimer();
+    this.syncTimer = setTimeout(() => {
+      this.syncTimer = null;
+      if (this.awaitingSnapshot) this.fail('online.err.syncTimeout');
+    }, this.opts.syncTimeoutMs ?? SYNC_TIMEOUT_MS);
+  }
+
+  private stopSyncTimer(): void {
+    if (this.syncTimer) { clearTimeout(this.syncTimer); this.syncTimer = null; }
+  }
+
+  /** Anfitrião que voltou sem ter de quem receber o estado: continua o lockstep que já tinha. */
+  private resumeOwnState(): void {
+    this.awaitingSnapshot = false;
+    this.stopSyncTimer();
+    const queued = this.queued;
+    this.queued = [];
+    for (const q of queued) this.receiveInputs(q.from, q.records);
+    this.backlog = 0;
+  }
+
   private applySnapshot(snap: Snapshot): void {
     let state: RaceState;
     try {
@@ -637,6 +674,7 @@ export class OnlineController implements RaceDriver {
     this.lockstep = this.newLockstep(snap.start, snap.tick, ai);
     this.lockstep.ingest(unpackRecordList(snap.inputs) ?? []);
     this.awaitingSnapshot = false;
+    this.stopSyncTimer();
     for (const q of this.queued) this.receiveInputs(q.from, q.records);
     this.queued = [];
     this.backlog = 0;
@@ -721,6 +759,7 @@ export class OnlineController implements RaceDriver {
     this.lockstep = null;
     this.start = null;
     this.awaitingSnapshot = false;
+    this.stopSyncTimer();
     this.queued = [];
     this.quitOpen = false;
     this.localSeatList = [];
@@ -731,12 +770,17 @@ export class OnlineController implements RaceDriver {
   /** Depois do resultado: de volta à sala (o anfitrião reabre a sala para a próxima). */
   backToRoom(): void {
     if (this.phase !== 'results') return;
+    if (this.isHost) this.send({ t: 'lobby' });
+    this.enterLobby();
+  }
+
+  /** Corrida fora da tela, sala na tela, "pronto" desligado (a próxima largada pede de novo). */
+  private enterLobby(): void {
     this.endRaceState();
     this.phase = 'lobby';
     this.ready = false;
     this.results = null;
     this.host.clearRace();
-    if (this.isHost) this.send({ t: 'lobby' });
     this.publishInfo();
     this.host.showScreen();
   }

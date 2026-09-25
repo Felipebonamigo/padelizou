@@ -325,6 +325,37 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     expect(ha.exited).toBe(true);
   }, 30_000);
 
+  it('os dois computadores caem juntos (soluço do relay): quem volta primeiro vira anfitrião, segue do próprio estado e manda o snapshot ao outro', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    // A tenta voltar antes de B: é ele quem o relay elege anfitrião (o anterior está desconectado).
+    const A = new OnlineController(ha, { retryMs: 100, reconnectWindowMs: 10_000, pingMs: 200, resendMs: 150 });
+    const B = new OnlineController(hb, { retryMs: 400, reconnectWindowMs: 10_000, pingMs: 200, resendMs: 150 });
+    ha.debug = () => ({ host: A.isHost, ...A.status() });
+    hb.debug = () => ({ host: B.isHost, ...B.status() });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    A.updateRoomSettings({ trackId: 'copacabana', laps: 2, totalCars: 6 });
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto');
+    expect(A.startRace()).toBe(true);
+    await until(() => ha.race !== null && hb.race !== null, 3000, 'largada');
+    await race([ha, hb], 300);
+
+    A.debugDropConnection();
+    B.debugDropConnection();
+    // Ninguém fica esperando um snapshot que não vem: a corrida anda de novo, igual nos dois.
+    await race([ha, hb], 900, 10_000);
+    expect(A.isHost).toBe(true);
+    expect(hb.race?.starts).toBe(2); // B recomeçou do snapshot de A
+    expect(hashRace(hb.race!.state)).toBe(hashRace(ha.race!.state));
+    for (let t = 360; t <= 900; t += 60) expect(hb.hashes.get(t), `tick ${t}`).toBe(ha.hashes.get(t));
+    expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
+    A.leave(false); B.leave(false);
+  }, 20_000);
+
   it('depois da corrida o anfitrião não larga de novo enquanto um convidado ainda está no resultado', async () => {
     const ha = new FakeHost('Ana');
     const hb = new FakeHost('Bia');
