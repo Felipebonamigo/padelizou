@@ -96,12 +96,8 @@ public static class TabelaDoAmericano
     /// <param name="rodadas">De 1 a <see cref="MaximoDeRodadas"/>; <c>null</c> é <see cref="RodadasPadrao"/>.</param>
     public static IReadOnlyList<RodadaDaTabela> Montar(int jogadores, uint semente, int? rodadas = null)
     {
-        int total = rodadas ?? RodadasPadrao(jogadores);
-        ValidarJogadores(jogadores);
-        if (total is < 1 or > MaximoDeRodadas)
-            throw new ArgumentOutOfRangeException(nameof(rodadas), total, $"O Americano tem de 1 a {MaximoDeRodadas} rodadas.");
-
-        int[][] modelos = Modelos(jogadores, total);
+        int total = TotalDeRodadas(jogadores, rodadas);
+        int[][] modelos = Modelos(jogadores, total, out _);
         int[] quem = Embaralhar(jogadores, new Aleatorio(Sementes.Misturar(semente, ParteDaTabela)));
         var tabela = new List<RodadaDaTabela>(total);
         for (int r = 0; r < total; r++)
@@ -121,11 +117,35 @@ public static class TabelaDoAmericano
     }
 
     /// <summary>
+    /// O trabalho da busca da <see cref="Continuacao"/> pra montar essas rodadas: quantos jogos candidatos ela avalia
+    /// (cada um: o custo do jogo mais o melhor agrupamento do resto, da memória ou calculado). É a medida de desempenho
+    /// que os testes usam em vez do relógio — determinística, igual em qualquer máquina e carga. Não depende da semente
+    /// (a busca é sobre o desenho, antes do embaralhamento); é zero até o fim do ciclo e sempre com N ≡ 0, 1 (mod 4).
+    /// Monta as rodadas de novo pra contar: é pra teste e diagnóstico, não pra o caminho do jogo.
+    /// </summary>
+    /// <param name="jogadores">De 4 a 16.</param>
+    /// <param name="rodadas">De 1 a <see cref="MaximoDeRodadas"/>; <c>null</c> é <see cref="RodadasPadrao"/>.</param>
+    public static long PassosDaBusca(int jogadores, int? rodadas = null)
+    {
+        Modelos(jogadores, TotalDeRodadas(jogadores, rodadas), out long jogosAvaliados);
+        return jogosAvaliados;
+    }
+
+    private static int TotalDeRodadas(int jogadores, int? rodadas)
+    {
+        int total = rodadas ?? RodadasPadrao(jogadores);
+        ValidarJogadores(jogadores);
+        if (total is < 1 or > MaximoDeRodadas)
+            throw new ArgumentOutOfRangeException(nameof(rodadas), total, $"O Americano tem de 1 a {MaximoDeRodadas} rodadas.");
+        return total;
+    }
+
+    /// <summary>
     /// As <paramref name="total"/> rodadas do desenho, antes do embaralhamento. Até o fim do ciclo é
     /// o desenho. Depois: com N ≡ 0, 1 (mod 4) o ciclo recomeça; com N ≡ 2, 3 cada rodada vem da
     /// <see cref="Continuacao"/>, que enxerga tudo o que já foi jogado.
     /// </summary>
-    private static int[][] Modelos(int n, int total)
+    private static int[][] Modelos(int n, int total, out long jogosAvaliados)
     {
         int[][] ciclo = Desenho(n);
         bool recomeca = n % 4 is 0 or 1;
@@ -141,6 +161,7 @@ public static class TabelaDoAmericano
             continuacao ??= new Continuacao(n, ciclo);
             modelos[r] = continuacao.Proxima();
         }
+        jogosAvaliados = continuacao?.JogosAvaliados ?? 0;
         return modelos;
     }
 
@@ -240,12 +261,14 @@ public static class TabelaDoAmericano
     /// quadrados dos confrontos.</para>
     /// <para><b>Como</b>: programação dinâmica sobre subconjuntos (máscara de bits). O melhor jogo
     /// de 4 jogadores não depende do resto, então custo(S) = mínimo, sobre os jogos J que contêm o
-    /// menor jogador de S, de melhorJogo(J) + custo(S − J), com memória por S. Com 15 jogadores são
-    /// ~250 mil passos por rodada, e a memória é compartilhada entre todos os conjuntos de folga.
-    /// Atalho de desempenho: nada é guardado entre chamadas, então quem pede a tabela longa paga a
-    /// busca inteira (e o TorneioDeRodizio remonta a tabela ao carregar). Teto medido: 15 jogadores e
-    /// 64 rodadas levam ~80 ms em Release, ~195 ms em Debug; a tabela do tamanho padrão não busca
-    /// nada. A saída, se pesar, é guardar as rodadas da continuação no arquivo do evento.</para>
+    /// menor jogador de S, de melhorJogo(J) + custo(S − J), com memória por S, compartilhada entre
+    /// todos os conjuntos de folga da rodada. O trabalho se conta em jogos candidatos avaliados
+    /// (<see cref="PassosDaBusca"/>): cada S de tamanho s é resolvido uma vez e tenta C(s − 1, 3) jogos,
+    /// então uma rodada com 15 jogadores avalia no máximo 301.665 (medido: ~94 mil). Atalho de
+    /// desempenho: nada é guardado entre chamadas, então quem pede a tabela longa paga a busca inteira
+    /// (e o TorneioDeRodizio remonta a tabela ao carregar). Medido: 15 jogadores e 64 rodadas avaliam
+    /// 4.617.158 jogos (~80 ms em Release, ~195 ms em Debug numa máquina sem carga); a tabela do
+    /// tamanho padrão não busca nada. A saída, se pesar, é guardar as rodadas da continuação no arquivo do evento.</para>
     /// <para>Atalho: a busca é gulosa ENTRE rodadas — cada uma é a melhor dado o passado, sem olhar
     /// as seguintes. É o que a regra pede ("repetir só quando não há alternativa" rodada a rodada),
     /// mas uma escolha diferente numa rodada poderia deixar a seguinte melhor. A saída, se um dia
@@ -298,6 +321,9 @@ public static class TabelaDoAmericano
             _divisaoDoJogo = new byte[1 << n];
             foreach (var rodada in jaJogadas) Registrar(rodada);
         }
+
+        /// <summary>Jogos candidatos avaliados em <see cref="Melhor"/> desde o começo: a medida de <see cref="PassosDaBusca"/>.</summary>
+        public long JogosAvaliados { get; private set; }
 
         public int[] Proxima()
         {
@@ -382,6 +408,7 @@ public static class TabelaDoAmericano
                     for (int c = b + 1; c < k; c++)
                     {
                         int jogo = 1 << primeiro | 1 << outros[a] | 1 << outros[b] | 1 << outros[c];
+                        JogosAvaliados++;
                         long custo = CustoDoJogo(jogo) + Melhor(jogadores & ~jogo);
                         if (custo < melhor)
                         {

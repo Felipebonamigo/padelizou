@@ -397,12 +397,37 @@ public class RodizioTests
     }
 
     /// <summary>
-    /// A continuação é a única parte da tabela que busca. O pior caso (15 jogadores, 64 rodadas:
-    /// 49 rodadas de busca) mediu ~195 ms em Debug e ~80 ms em Release; o limite tem folga de 5× e
-    /// existe pra pegar a busca que perdeu a memória e virou exponencial, não pra medir milissegundo.
+    /// O teto de trabalho da programação dinâmica da continuação numa rodada, contado aqui e não pedido à
+    /// implementação: ela resolve cada conjunto S de jogadores (de tamanho s = 4, 8, … até os que jogam) no
+    /// máximo uma vez por rodada, e em cada um tenta os C(s − 1, 3) jogos que contêm o menor jogador de S.
+    /// Conjuntos de tamanho s são no máximo C(N, s). Com 15: 1.365 × 1 + 6.435 × 35 + 455 × 165 = 301.665.
+    /// </summary>
+    private static long TetoDeJogosPorRodada(int n)
+    {
+        static long Combinacoes(int a, int b)
+        {
+            long c = 1;
+            for (int i = 0; i < b; i++) c = c * (a - i) / (i + 1);
+            return c;
+        }
+        long teto = 0;
+        for (int s = 4; s <= n - n % 4; s += 4) teto += Combinacoes(n, s) * Combinacoes(s - 1, 3);
+        return teto;
+    }
+
+    /// <summary>
+    /// A continuação é a única parte da tabela que busca, e o trabalho dela se mede em jogos candidatos avaliados
+    /// (<see cref="TabelaDoAmericano.PassosDaBusca"/>): conta determinística, igual em qualquer máquina — o relógio
+    /// (teto de 1 s) reprovou com 1.453 ms numa máquina carregada sem nada ter mudado no código. O teto é o da
+    /// programação dinâmica com memória (<see cref="TetoDeJogosPorRodada"/> × rodadas de busca: 6.056.050 com 14
+    /// jogadores e 50 rodadas de busca; 14.781.585 com 15 e 49): passar dele é resolver o mesmo conjunto mais de uma
+    /// vez na rodada. Medido (25/09): 2.049.589 com 14 e 4.617.158 com 15 — folga de ~3×. Visto por mutação: sem a
+    /// memória (a força bruta, a busca que vira exponencial) são 19.388.325 e 63.835.035, e com a memória refeita a
+    /// cada conjunto de folgas (sem compartilhar) 10.178.250 e 33.511.350 — as duas reprovam já com 14; o contador
+    /// desligado também (o piso é 1 jogo). O tempo vai na mensagem, só como informação.
     /// </summary>
     [Fact]
-    public void A_continuacao_mais_longa_monta_em_menos_de_1_segundo()
+    public void A_continuacao_mais_longa_fica_no_teto_de_trabalho_da_programacao_dinamica()
     {
         foreach (int n in new[] { 14, 15 })
         {
@@ -410,7 +435,12 @@ public class RodizioTests
             var tabela = TabelaDoAmericano.Montar(n, 99, TabelaDoAmericano.MaximoDeRodadas);
             relogio.Stop();
             Assert.Equal(TabelaDoAmericano.MaximoDeRodadas, tabela.Count);
-            Assert.True(relogio.ElapsedMilliseconds < 1000, $"{TabelaDoAmericano.MaximoDeRodadas} rodadas de {n} levaram {relogio.ElapsedMilliseconds} ms");
+            int rodadasDeBusca = TabelaDoAmericano.MaximoDeRodadas - TabelaDoAmericano.RodadasPadrao(n);
+            long teto = TetoDeJogosPorRodada(n) * rodadasDeBusca;
+            long passos = TabelaDoAmericano.PassosDaBusca(n, TabelaDoAmericano.MaximoDeRodadas);
+            Assert.True(passos > 0 && passos <= teto,
+                $"{TabelaDoAmericano.MaximoDeRodadas} rodadas de {n}: a busca avaliou {passos} jogos, teto {teto} " +
+                $"({rodadasDeBusca} rodadas de busca × {TetoDeJogosPorRodada(n)}); a montagem levou {relogio.ElapsedMilliseconds} ms (só informação)");
         }
     }
 
