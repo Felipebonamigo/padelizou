@@ -107,7 +107,9 @@ function ehJsonDeObjeto(texto) {
 const validar = {
     remetente: url => typeof url === 'string' && url.startsWith(ORIGEM + '/'),
     textoDeProgresso: texto => typeof texto === 'string' && Buffer.byteLength(texto, 'utf8') <= UM_MEGA && ehJsonDeObjeto(texto),
-    idDaSteam: id => typeof id === 'string' && /^[a-z_]{1,64}$/.test(id),
+    // Nome de conquista e de estatística da Steam: minúsculas, dígitos e sublinhado, começando por
+    // letra (a API aceita dígito — 'arena_10'). Nada de barra, ponto, espaço ou maiúscula.
+    idDaSteam: id => typeof id === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(id),
     numeroFinito: n => typeof n === 'number' && Number.isFinite(n),
     presenca: texto => typeof texto === 'string' && texto.length <= 200,
     ligarOpcional: v => v === undefined || v === null || typeof v === 'boolean',

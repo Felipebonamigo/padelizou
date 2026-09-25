@@ -200,8 +200,16 @@ const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...a
 
     const id = x => chama(v.idDaSteam, x) === true;
     confere('conquista: primeiro_sangue é aceito', id('primeiro_sangue'), 'recusou');
+    // O porteiro e a lista de conquistas andam juntos: um id que o jogo desbloqueia e o porteiro
+    // recusa some calado na Steam (aconteceu com 'arena_10', que tem algarismo — a API da Steam
+    // aceita dígito em nome de conquista). Toda conquista do jogo tem que passar.
+    const Conquistas = require(path.join(raizDoJogo, 'js', 'conquistas.js'));
+    const recusadas = Conquistas.LISTA.map(c => c.id).filter(c => !id(c));
+    confere('toda conquista do jogo passa pelo porteiro da Steam', Conquistas.LISTA.length > 0 && recusadas.length === 0, `recusadas: ${recusadas.join(', ')}`);
+    confere('a estatística que o jogo manda (pontuacao_maxima) passa pelo porteiro', id('pontuacao_maxima'), 'recusou');
     confere('conquista: 64 letras é aceito', id('a'.repeat(64)), 'recusou');
-    for (const ruim of ['', 'a'.repeat(65), 'Primeiro', 'dez-golpes', '../x', 'x1', 'a b', undefined, 7])
+    confere('conquista: dígito depois da primeira letra é aceito (arena_10, x1)', id('arena_10') && id('x1'), 'recusou');
+    for (const ruim of ['', 'a'.repeat(65), 'Primeiro', 'dez-golpes', '../x', '1x', '_x', 'a b', 'a.b', undefined, 7])
         confere(`conquista: recusa ${rotulo(ruim)}`, !id(ruim), 'aceitou');
 
     const num = x => chama(v.numeroFinito, x) === true;
