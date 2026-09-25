@@ -5,7 +5,7 @@ import { carDef } from '../src/core/data/cars';
 import { effectiveStats } from '../src/core/sim/stats';
 import type { CarState, RaceState, SimEvent } from '../src/core/types';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
-import { newRumbleMemory, rumbleCues } from '../src/game/rumble';
+import { newRumbleMemory, RUMBLE_GRASS, rumbleCues } from '../src/game/rumble';
 import { sanitizeSettings } from '../src/game/settings';
 import { setLanguage } from '../src/i18n';
 import {
@@ -16,7 +16,7 @@ import {
   restoreDefaults, sanitizeBindings, type BindAction, type BindCode, type BindDevice, type ControlBindings,
 } from '../src/ui/remap/bindings';
 import { CAPTURE_SECONDS, captureButtons, captureKey, captureTick, startCapture } from '../src/ui/remap/capture';
-import { buttonLabel, codesLabel, deviceLabel, deviceTitle, keyLabel, padStyleOf } from '../src/ui/remap/labels';
+import { buttonLabel, codesLabel, deviceLabel, deviceTitle, keyLabel, padStyleOf, rejectedText } from '../src/ui/remap/labels';
 
 const keys = (...codes: string[]) => new Set(codes);
 function buttons(...pressed: number[]): boolean[] {
@@ -334,6 +334,42 @@ describe('createInput com bindings', () => {
     input.dispose();
   });
 
+  it('teclado sem assento só pausa pelo Esc: a pausa escolhida dele não pausa a corrida do outro', () => {
+    const w = fakeWindow([fakePad(0)]);
+    // Teclado 2 com a pausa no Espaço, que é o nitro do teclado 1; teclado 1 com a pausa no P.
+    const bindings = assign(assign(DEFAULT_BINDINGS, 'kb2', 'pause', 'Space'), 'kb1', 'pause', 'KeyP');
+    const input = createInput(w.target, { bindings: () => bindings });
+    const tap = (code: string): number => {
+      w.down(code);
+      input.poll();
+      const seat = input.pausePressed();
+      w.up(code);
+      input.poll();
+      return seat;
+    };
+    // Só o teclado 1 em uso: o Espaço é nitro, não pausa.
+    input.bindSeat(0, 'kb1');
+    input.poll();
+    w.down('Space');
+    input.poll();
+    expect(input.readSeat(0).nitro).toBe(true);
+    expect(input.pausePressed()).toBe(-1);
+    w.up('Space');
+    input.poll();
+    expect(tap('KeyP')).toBe(0);
+    // Com o teclado 2 em uso, o Espaço pausa também (é o que o aviso de conflito diz).
+    input.bindSeat(1, 'kb2');
+    expect(tap('Space')).toBe(1);
+    // Todos nos controles: o Esc continua pausando; a pausa escolhida de um teclado sem assento, não.
+    input.unbindSeat(0);
+    input.unbindSeat(1);
+    input.bindSeat(0, 'gp0');
+    expect(tap('KeyP')).toBe(-1);
+    expect(tap('Space')).toBe(-1);
+    expect(tap('Escape')).toBe(0);
+    input.dispose();
+  });
+
   it('preventDefault só nas teclas em uso (navegação fixa + bindings atuais)', () => {
     const w = fakeWindow();
     const bindings = assign(DEFAULT_BINDINGS, 'kb1', 'nitro', 'KeyR');
@@ -371,6 +407,43 @@ describe('vibração', () => {
     on = false;
     input.rumble(2, 1, 300);
     expect(playEffect).toHaveBeenCalledTimes(1);
+    input.dispose();
+  });
+
+  it('assento de teclado ou vazio não vibra, nem com um controle com motor conectado', () => {
+    const playEffect = vi.fn(() => Promise.resolve('complete'));
+    const w = fakeWindow([fakePad(0, [], { playEffect })]);
+    const input = createInput(w.target);
+    input.poll();
+    input.bindSeat(0, 'kb1');
+    input.bindSeat(1, 'kb2');
+    for (const seat of [0, 1, 2, 3, -1, 4]) input.rumble(seat, 1, 200);
+    expect(playEffect).not.toHaveBeenCalled();
+    input.bindSeat(2, 'gp0');
+    input.rumble(2, 1, 200);
+    expect(playEffect).toHaveBeenCalledTimes(1);
+    input.dispose();
+  });
+
+  it('no provedor, um pedido mais fraco durante um tremor mais forte não chama playEffect', () => {
+    const playEffect = vi.fn(() => Promise.resolve('complete'));
+    const w = fakeWindow([fakePad(0, [], { playEffect })]);
+    const clock = vi.spyOn(performance, 'now');
+    const input = createInput(w.target);
+    input.poll();
+    input.bindSeat(0, 'gp0');
+    clock.mockReturnValue(1000);
+    input.rumble(0, 1, 300);
+    clock.mockReturnValue(1100);
+    input.rumble(0, 0.16, 160); // grama no meio de uma batida no cenário: ignorado
+    expect(playEffect).toHaveBeenCalledTimes(1);
+    input.rumble(0, 1, 200); // outra batida tão forte quanto: toca
+    expect(playEffect).toHaveBeenCalledTimes(2);
+    clock.mockReturnValue(1301); // a batida acabou (1100 + 200): a grama volta a tocar
+    input.rumble(0, 0.16, 160);
+    expect(playEffect).toHaveBeenCalledTimes(3);
+    expect(playEffect).toHaveBeenLastCalledWith('dual-rumble', expect.objectContaining({ duration: 160, strongMagnitude: 0.16 }));
+    clock.mockRestore();
     input.dispose();
   });
 
@@ -444,10 +517,17 @@ describe('rumbleCues (o que a sessão manda vibrar)', () => {
     expect(first).toHaveLength(1);
     expect(first[0].strength).toBeLessThan(0.3);
     expect(rumbleCues(race(onGrass, [], 101), mem)).toEqual([]);
-    let later: number | null = null;
-    for (let tick = 102; tick < 140 && later === null; tick++) if (rumbleCues(race(onGrass, [], tick), mem).length) later = tick;
-    expect(later).not.toBeNull();
-    expect((later ?? 0) - 100).toBeGreaterThanOrEqual(5);
+    // Um segundo de grama a 60 Hz: um pulso exatamente a cada `everyTicks` (≈ 7 por segundo, sem
+    // inundar a API), e cada pulso dura o intervalo inteiro, então o tremor é contínuo.
+    const pulses: number[] = [];
+    const second = newRumbleMemory();
+    for (let tick = 100; tick < 160; tick++) if (rumbleCues(race(onGrass, [], tick), second).length) pulses.push(tick);
+    const gaps = pulses.slice(1).map((tick, i) => tick - pulses[i]);
+    expect(gaps.length).toBeGreaterThan(0);
+    expect(gaps).toEqual(gaps.map(() => RUMBLE_GRASS.everyTicks));
+    expect(pulses.length).toBeGreaterThanOrEqual(6);
+    expect(pulses.length).toBeLessThanOrEqual(7);
+    expect(RUMBLE_GRASS.ms).toBeGreaterThanOrEqual((RUMBLE_GRASS.everyTicks * 1000) / 60);
     // Corrida nova (tick recomeça): não espera o intervalo da anterior.
     expect(rumbleCues(race(onGrass, [], 3), mem)).toHaveLength(1);
     expect(rumbleCues(race([car(0, 0, { skidTicks: 6, speed: 50 })], [], 900), newRumbleMemory())).toEqual([]);
@@ -515,6 +595,18 @@ describe('nomes de teclas e botões', () => {
     expect(padStyleOf('USB Gamepad')).toBe('xbox');
     expect(codesLabel(DEFAULT_BINDINGS.gamepad.brake)).toBe('X / B / LT');
     expect(codesLabel(DEFAULT_BINDINGS.kb1.nitro)).toBe('Espaço');
+  });
+
+  it('aviso de recusa concorda com "tecla" (feminino) e "botão" (masculino)', () => {
+    setLanguage('pt');
+    expect(rejectedText('F7')).toBe('F7 não pode ser usada — escolha outra.');
+    expect(rejectedText(16)).toBe('Home não pode ser usado — escolha outro.');
+    expect(rejectedText(17)).toBe('Botão 17 não pode ser usado — escolha outro.');
+    expect(rejectedText(16, 'playstation')).toBe('PS não pode ser usado — escolha outro.');
+    setLanguage('en');
+    expect(rejectedText('F7')).toBe('F7 can’t be used — pick another one.');
+    expect(rejectedText(17)).toBe('Button 17 can’t be used — pick another one.');
+    setLanguage('pt');
   });
 
   it('colunas com nome curto (o mesmo dos avisos) e o nome completo na dica', () => {

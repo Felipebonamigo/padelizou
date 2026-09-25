@@ -435,7 +435,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       audio.update(null, dtRaw);
     }
 
-    if (menuOpen || menus.current() !== null) menus.navigate(input.menuNav());
+    // Só o menu que já estava aberto recebe as bordas deste quadro: a pausa (ou o resultado) que
+    // acabou de abrir não pode receber o mesmo botão — com a pausa no A ou no B, ela fecharia na hora.
+    if (menuOpen) menus.navigate(input.menuNav());
     menus.update(dtRaw);
   }
 

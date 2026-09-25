@@ -67,6 +67,11 @@ export function codeLabel(code: BindCode, style: PadStyle = 'xbox', layout?: Lay
   return typeof code === 'number' ? buttonLabel(code, style) : keyLabel(code, layout);
 }
 
+/** Aviso de código recusado. Em PT "tecla" é feminino e "botão" masculino: uma frase para cada. */
+export function rejectedText(code: BindCode, style: PadStyle = 'xbox', layout?: LayoutMap | null): string {
+  return t(typeof code === 'number' ? 'remap.rejectedButton' : 'remap.rejectedKey', { key: codeLabel(code, style, layout) });
+}
+
 export function codesLabel(codes: readonly BindCode[], style: PadStyle = 'xbox', layout?: LayoutMap | null): string {
   return codes.map((c) => codeLabel(c, style, layout)).join(' / ');
 }

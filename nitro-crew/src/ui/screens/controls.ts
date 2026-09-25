@@ -8,7 +8,7 @@ import { t } from '../../i18n';
 import { isKeyboard } from '../input';
 import { assignBinding, BIND_ACTIONS, BIND_DEVICES, isDefaultDevice, keyboardConflicts, restoreDefaults, type BindAction, type BindDevice } from '../remap/bindings';
 import { captureButtons, captureKey, captureTick, startCapture, type Capture, type CaptureOutcome } from '../remap/capture';
-import { actionLabel, codeLabel, codesLabel, deviceLabel, deviceTitle, padStyleOf, type LayoutMap, type PadStyle } from '../remap/labels';
+import { actionLabel, codeLabel, codesLabel, deviceLabel, deviceTitle, padStyleOf, rejectedText, type LayoutMap, type PadStyle } from '../remap/labels';
 import '../remap/strings';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
@@ -60,6 +60,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
 
   const label = (code: string | number) => codeLabel(code, padStyle, layoutMap);
   const labels = (codes: ReadonlyArray<string | number>) => codesLabel(codes, padStyle, layoutMap);
+  const rejected = (code: string | number) => rejectedText(code, padStyle, layoutMap);
 
   // ───────────── Grade ─────────────
 
@@ -173,7 +174,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
     if (!c || outcome.kind === 'wait') return;
     if (outcome.kind === 'reject') {
       // Continua esperando outra tecla, com o mesmo relógio.
-      setStatus(`${t('remap.rejected', { key: label(outcome.code) })} ${t('remap.cancelHint', { s: Math.max(1, Math.ceil(c.left)) })}`, 'warn');
+      setStatus(`${rejected(outcome.code)} ${t('remap.cancelHint', { s: Math.max(1, Math.ceil(c.left)) })}`, 'warn');
       api.sfx('back');
       return;
     }
@@ -186,7 +187,7 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
     const r = assignBinding(settings.controls, c.device, c.action, outcome.code);
     const what = { action: actionLabel(c.action), device: deviceLabel(c.device), keys: label(outcome.code) };
     if (r.rejected) {
-      setStatus(t('remap.rejected', { key: label(outcome.code) }), 'warn');
+      setStatus(rejected(outcome.code), 'warn');
     } else if (!r.changed) {
       setStatus(t('remap.unchanged', what), 'info');
     } else {
