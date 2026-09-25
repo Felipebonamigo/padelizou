@@ -38,7 +38,8 @@ registerStrings('remap', {
     'unchanged': '{action} ({device}) já usa {keys}.',
     'swapped': '{key} era de {other}, que ficou com {keys}.',
     'moved': '{key} saiu de {other}, que continua com {keys}.',
-    'rejected': '{key} não pode ser usada — escolha outra.',
+    'rejectedKey': '{key} não pode ser usada — escolha outra.',
+    'rejectedButton': '{key} não pode ser usado — escolha outro.',
     'timeout': 'Tempo esgotado — nada mudou.',
     'canceled': 'Cancelado — nada mudou.',
 
@@ -91,7 +92,8 @@ registerStrings('remap', {
     'unchanged': '{action} ({device}) already uses {keys}.',
     'swapped': '{key} was on {other}, which now uses {keys}.',
     'moved': '{key} was taken from {other}, which keeps {keys}.',
-    'rejected': '{key} can’t be used — pick another one.',
+    'rejectedKey': '{key} can’t be used — pick another one.',
+    'rejectedButton': '{key} can’t be used — pick another one.',
     'timeout': 'Timed out — nothing changed.',
     'canceled': 'Canceled — nothing changed.',
 

@@ -14,7 +14,7 @@ import {
   restoreDefaults, sanitizeBindings, type BindAction, type BindCode, type BindDevice, type ControlBindings,
 } from '../src/ui/remap/bindings';
 import { CAPTURE_SECONDS, captureButtons, captureKey, captureTick, startCapture } from '../src/ui/remap/capture';
-import { buttonLabel, codesLabel, deviceLabel, deviceTitle, keyLabel, padStyleOf } from '../src/ui/remap/labels';
+import { buttonLabel, codesLabel, deviceLabel, deviceTitle, keyLabel, padStyleOf, rejectedText } from '../src/ui/remap/labels';
 
 const keys = (...codes: string[]) => new Set(codes);
 function buttons(...pressed: number[]): boolean[] {
@@ -549,6 +549,18 @@ describe('nomes de teclas e botões', () => {
     expect(padStyleOf('USB Gamepad')).toBe('xbox');
     expect(codesLabel(DEFAULT_BINDINGS.gamepad.brake)).toBe('X / B / LT');
     expect(codesLabel(DEFAULT_BINDINGS.kb1.nitro)).toBe('Espaço');
+  });
+
+  it('aviso de recusa concorda com "tecla" (feminino) e "botão" (masculino)', () => {
+    setLanguage('pt');
+    expect(rejectedText('F7')).toBe('F7 não pode ser usada — escolha outra.');
+    expect(rejectedText(16)).toBe('Home não pode ser usado — escolha outro.');
+    expect(rejectedText(17)).toBe('Botão 17 não pode ser usado — escolha outro.');
+    expect(rejectedText(16, 'playstation')).toBe('PS não pode ser usado — escolha outro.');
+    setLanguage('en');
+    expect(rejectedText('F7')).toBe('F7 can’t be used — pick another one.');
+    expect(rejectedText(17)).toBe('Button 17 can’t be used — pick another one.');
+    setLanguage('pt');
   });
 
   it('colunas com nome curto (o mesmo dos avisos) e o nome completo na dica', () => {
