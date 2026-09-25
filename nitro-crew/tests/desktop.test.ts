@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { CUPS } from '../src/core/data/cups';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from '../src/game/desktop';
 import { evaluateAchievements, newTelemetry } from '../src/game/achievements';
 import { DEFAULT_SAVE } from '../src/game/contracts';
@@ -14,7 +15,11 @@ describe('ponte com o Electron', () => {
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const a of ACHIEVEMENTS) { expect(a.pt.length).toBeGreaterThan(3); expect(a.en.length).toBeGreaterThan(3); }
-    for (const cup of ['BRASIL', 'EUA', 'JAPAO', 'EUROPA']) expect(ids).toContain(`COPA_${cup}`);
+    // A regra dá `COPA_${cupId.toUpperCase()}` ao concluir a copa: cada copa de CUPS precisa da sua.
+    for (const cup of CUPS) expect(ids, cup.id).toContain(`COPA_${cup.id.toUpperCase()}`);
+  });
+  it('ids de conquista são nomes de API aceitos pela Steam (A–Z, 0–9, _)', () => {
+    for (const a of ACHIEVEMENTS) expect(a.id).toMatch(/^[A-Z][A-Z0-9_]*$/);
   });
 });
 

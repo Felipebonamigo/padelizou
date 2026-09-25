@@ -70,6 +70,10 @@ Cadastre estes IDs (exatos) em Steamworks → Stats & Achievements. A lista com 
 | `COPA_EUA` | Copa Estados Unidos | USA Cup | Concluir a Copa Estados Unidos. |
 | `COPA_JAPAO` | Copa Japão | Japan Cup | Concluir a Copa Japão. |
 | `COPA_EUROPA` | Copa Europa | Europe Cup | Concluir a Copa Europa. |
+| `COPA_AFRICA_DO_SUL` | Copa África do Sul | South Africa Cup | Concluir a Copa África do Sul. |
+| `COPA_AUSTRALIA` | Copa Austrália | Australia Cup | Concluir a Copa Austrália. |
+| `COPA_ESCANDINAVIA` | Copa Escandinávia | Scandinavia Cup | Concluir a Copa Escandinávia. |
+| `COPA_MEDITERRANEO` | Copa Mediterrâneo | Mediterranean Cup | Concluir a Copa Mediterrâneo. |
 | `EQUIPE_COMPLETA` | Equipe completa | Full Crew | Correr uma corrida com 4 jogadores. |
 | `SEM_BOX` | Sem box | No Pit Stop | Vencer sem parar no box. |
 | `NITRO_TRIPLO` | Nitro triplo | Triple Nitro | Usar 3 nitros numa mesma volta. |
