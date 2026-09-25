@@ -130,6 +130,11 @@ public sealed class ClienteDaPartida
                 case TipoDeEventoDoTransporte.Desconectou when evento.Par == _parDoHost:
                     if (Fase != FaseDoCliente.Recusado) Fase = FaseDoCliente.Desconectado;
                     break;
+                case TipoDeEventoDoTransporte.Desconectou when _parDoHost is null && Fase == FaseDoCliente.Conectando:
+                    // O transporte desistiu antes de conectar: ninguém hospedando no endereço, ou o host recusou no
+                    // nível do transporte (vagas cheias). Sem isto o cliente ficava "Conectando" pra sempre.
+                    Fase = FaseDoCliente.Desconectado;
+                    break;
                 case TipoDeEventoDoTransporte.Pacote when evento.Par == _parDoHost:
                     Receber(evento.Par, evento.Dados.Span);
                     break;

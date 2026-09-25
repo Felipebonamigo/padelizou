@@ -113,6 +113,12 @@ public partial class PartidaNode : Node3D
         }
     }
 
+    private static SessaoQueNaoAbriu SalaQueNaoAbriu(string motivo)
+    {
+        GD.Print($"Sala: {motivo}");
+        return new SessaoQueNaoAbriu(motivo);
+    }
+
     private ISessao CriarSessao(out string quem)
     {
         var modo = Configuracao.Modo;
@@ -136,7 +142,14 @@ public partial class PartidaNode : Node3D
         {
             case ModoDeJogo.CriarSala:
             {
-                var host = new SessaoHost(Configuracao.PortaParaCriar, opcoes, Configuracao.NomeDoJogador, _esperarNaSala);
+                SessaoHost host;
+                try { host = new SessaoHost(Configuracao.PortaParaCriar, opcoes, Configuracao.NomeDoJogador, _esperarNaSala); }
+                catch (InvalidOperationException e)   // porta ocupada: a tela de fim diz por quê, em vez de estourar a cada quadro
+                {
+                    sessao = SalaQueNaoAbriu(e.Message);
+                    quem = $"host na porta {Configuracao.PortaParaCriar}, sala não abriu";
+                    break;
+                }
                 host.Transporte.LatenciaDeTesteMs = _latenciaDeTeste; host.Transporte.PerdaDeTeste = _perdaDeTeste;
                 sessao = host;
                 quem = $"host na porta {Configuracao.PortaParaCriar}";
@@ -144,7 +157,14 @@ public partial class PartidaNode : Node3D
             }
             case ModoDeJogo.EntrarNaSala:
             {
-                var cliente = new SessaoCliente(Configuracao.EnderecoDaSala, Configuracao.PortaDaSala, Configuracao.NomeDoJogador);
+                SessaoCliente cliente;
+                try { cliente = new SessaoCliente(Configuracao.EnderecoDaSala, Configuracao.PortaDaSala, Configuracao.NomeDoJogador); }
+                catch (InvalidOperationException e)   // endereço que não resolve
+                {
+                    sessao = SalaQueNaoAbriu(e.Message);
+                    quem = $"cliente de {Configuracao.EnderecoDaSala}:{Configuracao.PortaDaSala}, sala não abriu";
+                    break;
+                }
                 cliente.Transporte.LatenciaDeTesteMs = _latenciaDeTeste; cliente.Transporte.PerdaDeTeste = _perdaDeTeste;
                 sessao = cliente;
                 quem = $"cliente de {Configuracao.EnderecoDaSala}:{Configuracao.PortaDaSala}";
@@ -275,11 +295,12 @@ public partial class PartidaNode : Node3D
         _fimMostrado = true;
         var r = Sessao.Retrato;
         int meuTime = Sessao.JogadoresLocais.Count > 0 ? Sessao.JogadoresLocais[0] / 2 : 0;
-        bool demonstracao = Sessao.JogadoresLocais.Count == 0;
+        // Demonstração é o modo, não "ninguém joga aqui": o cliente recusado também não tem jogador local.
+        bool demonstracao = Configuracao.Modo == ModoDeJogo.Demonstracao;
         int? vencedor = r.Placar.Vencedor;
-        bool vitoria = vencedor == meuTime;
-        string resultado = demonstracao
-            ? $"{Dupla(r, vencedor ?? 0)} venceu"
+        bool vitoria = vencedor == meuTime && Sessao.MotivoDoFim is null;
+        string resultado = Sessao.MotivoDoFim is string motivo ? char.ToUpperInvariant(motivo[0]) + motivo[1..]
+            : demonstracao ? $"{Dupla(r, vencedor ?? 0)} venceu"
             : vencedor is null ? "Partida encerrada" : vitoria ? "Vitória!" : "Derrota";
         var estatisticas = new List<(string, string)>();
         Partida? partida = Sessao switch { SessaoLocal l => l.Partida, SessaoHost h => h.Servidor.Partida, _ => null };

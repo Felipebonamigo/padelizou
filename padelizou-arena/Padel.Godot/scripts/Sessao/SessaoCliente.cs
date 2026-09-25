@@ -15,9 +15,16 @@ public sealed class SessaoCliente : ISessao
     private double _acumulado;
     private int _instantaneos;
     private FaseDoCliente _faseAnterior = FaseDoCliente.Conectando;
+    private readonly string _endereco;
+    private double _esperandoResposta;
+    private string? _motivoDoFim;
+
+    /// <summary>Quanto o cliente espera o host responder (conexão + aperto de mão) antes de desistir.</summary>
+    public const double PrazoDeConexao = 10;
 
     public SessaoCliente(string endereco, int porta, string nome)
     {
+        _endereco = $"{endereco}:{porta}";
         _transporte = TransporteEnet.Conectar(endereco, porta);
         _cliente = new ClienteDaPartida(_transporte, nome);
         _mapa = new RetratoDaVisao(Retrato);
@@ -29,7 +36,13 @@ public sealed class SessaoCliente : ISessao
     public ClienteDaPartida Cliente => _cliente;
     public IReadOnlyList<int> JogadoresLocais => _cliente.Indice >= 0 ? [_cliente.Indice] : [];
     public RetratoDaPartida Retrato { get; } = new();
-    public bool Acabou => _cliente.UltimoInstantaneo?.Placar.Acabou == true || _cliente.Fase is FaseDoCliente.Recusado or FaseDoCliente.Desconectado;
+    /// <summary>
+    /// Pelo que está DESENHADO (100 ms atrás do último instantâneo): acabar pelo instantâneo mais novo mostrava a tela de
+    /// fim com o placar de antes do último ponto ("Partida encerrada", sem o set final).
+    /// </summary>
+    public bool Acabou => _mapa.Ultima?.Placar.Acabou == true || _cliente.Fase is FaseDoCliente.Recusado or FaseDoCliente.Desconectado;
+
+    public string? MotivoDoFim => _mapa.Ultima?.Placar.Acabou == true ? null : _motivoDoFim;
 
     public void Avancar(double delta, ReadOnlySpan<Entrada> entradas)
     {
@@ -43,8 +56,23 @@ public sealed class SessaoCliente : ISessao
             primeiro = false;
             _acumulado -= Protocolo.Passo;
         }
+        if (_cliente.Fase is FaseDoCliente.Conectando or FaseDoCliente.AguardandoResposta)
+        {
+            _esperandoResposta += delta;
+            if (_esperandoResposta > PrazoDeConexao) _cliente.Sair();   // vira Desconectado: o motivo sai abaixo
+        }
         if (_cliente.Fase != _faseAnterior)
         {
+            _motivoDoFim ??= _cliente.Fase switch
+            {
+                FaseDoCliente.Recusado => $"o host recusou a entrada: {TextoDaRecusa()}",
+                FaseDoCliente.Desconectado when _faseAnterior is FaseDoCliente.Conectando or FaseDoCliente.AguardandoResposta
+                    => $"o host não respondeu em {_endereco}",
+                FaseDoCliente.Desconectado => "a conexão com o host caiu",
+                _ => null,
+            };
+            if (_motivoDoFim is string motivo && _cliente.Fase is FaseDoCliente.Recusado or FaseDoCliente.Desconectado)
+                global::Godot.GD.Print($"Sala: {motivo}");
             global::Godot.GD.Print($"Rede: cliente {_faseAnterior} → {_cliente.Fase}{(_cliente.Indice >= 0 ? $" (vaga {_cliente.Indice})" : "")}{(_cliente.MotivoDaRecusa is MotivoDaRecusa m ? $" — recusado: {m}" : "")}");
             _faseAnterior = _cliente.Fase;
         }
@@ -54,15 +82,8 @@ public sealed class SessaoCliente : ISessao
                 Retrato.Mensagem = $"Na sala do host — {_cliente.Nomes.Count(n => !string.IsNullOrEmpty(n))} de 4. Esperando começar…";
                 break;
             case FaseDoCliente.Recusado:
-                Retrato.Mensagem = _cliente.MotivoDaRecusa switch
-                {
-                    MotivoDaRecusa.VersaoIncompativel => "O host usa outra versão do jogo",
-                    MotivoDaRecusa.SalaCheia => "A sala está cheia",
-                    _ => "A partida já começou",
-                };
-                break;
             case FaseDoCliente.Desconectado:
-                Retrato.Mensagem = "Conexão com o host perdida";
+                if (_motivoDoFim is string texto) Retrato.Mensagem = char.ToUpperInvariant(texto[0]) + texto[1..];
                 break;
             case FaseDoCliente.Jogando:
                 if (_cliente.ParaDesenhar() is VisaoDaPartida visao)
@@ -73,6 +94,13 @@ public sealed class SessaoCliente : ISessao
                 break;
         }
     }
+
+    private string TextoDaRecusa() => _cliente.MotivoDaRecusa switch
+    {
+        MotivoDaRecusa.VersaoIncompativel => "ele usa outra versão do jogo",
+        MotivoDaRecusa.SalaCheia => "a sala está cheia",
+        _ => "a partida já começou",
+    };
 
     public EstadoVisivel? EstadoParaOBot() => _cliente.Fase == FaseDoCliente.Jogando ? _mapa.ParaOBot() : null;
 

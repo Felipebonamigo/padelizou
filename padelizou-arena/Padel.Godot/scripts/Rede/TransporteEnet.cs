@@ -46,7 +46,7 @@ public sealed class TransporteEnet : ITransporte, IDisposable
     {
         var t = new TransporteEnet();
         var erro = t._conexao.CreateHostBound("*", porta, 3, Canais);
-        if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra abrir a porta UDP {porta}: {erro}");
+        if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra abrir a sala na porta {porta} (UDP) — ela já está em uso? ({erro})");
         return t;
     }
 
@@ -57,7 +57,7 @@ public sealed class TransporteEnet : ITransporte, IDisposable
         var erro = t._conexao.CreateHost(1, Canais);
         if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra criar o cliente ENet: {erro}");
         var peer = t._conexao.ConnectToHost(endereco, porta, Canais);
-        if (peer is null) throw new InvalidOperationException($"endereço inválido: {endereco}:{porta}");
+        if (peer is null) throw new InvalidOperationException($"não achei a sala em {endereco}:{porta} — o endereço não existe ou não resolve");
         t.Registrar(peer);
         return t;
     }

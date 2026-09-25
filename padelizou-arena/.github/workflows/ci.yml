@@ -44,6 +44,8 @@ jobs:
       - name: Conferência da interface (linha de comando, configuração, placar, controle)
         working-directory: Padel.Godot
         run: '"$GODOT" --headless --path . res://cenas/TestePlacar.tscn -- --conferir'
+      - name: Salas impossíveis (porta ocupada, endereço que não resolve, host ausente, recusa)
+        run: ferramentas/conferir_salas_impossiveis.sh "$GODOT"
       - name: Conferência da rede (ENet de verdade em 127.0.0.1)
         working-directory: Padel.Godot
         run: '"$GODOT" --headless --path . res://cenas/TesteRede.tscn -- --conferir'

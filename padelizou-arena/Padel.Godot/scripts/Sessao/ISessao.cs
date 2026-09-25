@@ -19,4 +19,9 @@ public interface ISessao : IDisposable
     void Avancar(double delta, ReadOnlySpan<Entrada> entradas);
     /// <summary>O que um jogador desta máquina vê — pro humano simulado (--bot). Null enquanto não há partida.</summary>
     EstadoVisivel? EstadoParaOBot();
+    /// <summary>
+    /// A sessão acabou sem partida de verdade — sala que não abriu, recusa do host, conexão que caiu: o que dizer ao
+    /// jogador. Null quando a partida acabou (ou segue) normalmente.
+    /// </summary>
+    string? MotivoDoFim => null;
 }
