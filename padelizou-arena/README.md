@@ -29,13 +29,31 @@ Argumentos depois de `--`: `--auto` (ninguém humano), `--auto-golpe` (assistên
 `--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`.
 Depois de `dotnet build` com scripts novos, rode `godot --headless --path Padel.Godot --import` antes de executar sem tela.
 
-## Controles (M0)
+## Controles
 
-Setas/WASD ou analógico esquerdo movem (com inércia: o jogador acelera e freia). Espaço/Enter/botão A
-saca e, no rally, **balança a raquete**: o contato ideal sai 0,12 s depois do aperto — cedo demais é
-raquete no ar, tarde é bola em cima do corpo. Shift/L/botão B balança pra **lob**. ←/→ no golpe escolhem
-o canto; ↑ ataca curto com topspin; ↓ joga fundo com slice; bola alta vira bandeja (ou smash, atacando).
-Esc/P pausa. `--auto-golpe` liga a assistência (bate sozinho ao alcance).
+Dois botões — **ação** (Espaço/Enter, botão A) e **lob** (Shift/L, botão B) — mais a direção.
+Setas/WASD ou analógico esquerdo movem, com inércia: o jogador acelera e freia.
+
+A ação saca e, no rally, **balança a raquete**: o contato ideal sai 0,12 s depois do aperto — cedo
+demais é raquete no ar, tarde é bola em cima do corpo. O golpe sai de drive ou de revés conforme o lado
+em que a bola passa; o ponto bom de contato é ao lado do corpo, não na frente dele.
+
+| Situação | Comando | Golpe |
+|---|---|---|
+| Bola normal | ação | drive/revés com topspin; ←/→ escolhem o canto |
+| Bola normal | ação + ↑ | ataque curto e rápido |
+| Bola normal | ação + ↓ | defesa funda com slice |
+| Qualquer bola | lob | lob por cima da dupla que subiu |
+| Qualquer bola | lob + ↑ | **chiquita**: baixa e lenta, nos pés de quem está na rede |
+| Bola alta | ação | **bandeja**: segura, funda, com slice |
+| Bola alta | ação + ← ou → forte | **víbora**: mais agressiva, com efeito lateral |
+| Bola alta | ação + ↑ | smash |
+| Bola alta | ação + ↑, segurando a ação até o contato | **remate por 4** (sai por cima do fundo); com ← ou → forte, **por 3** (sai pela lateral). Sem espaço pra isso, vira smash |
+| Bola atrás de você, junto ao vidro | ação + ↓ | **contrapared**: bate no próprio vidro e passa a rede |
+
+Remate por 3 e por 4 só saem com contato bom. `--auto-golpe` liga a assistência: a raquete bate sozinha
+quando a bola chega ao alcance, e segurar a ação vira lob. No coop local, o segundo jogador usa o controle 1
+ou IJKL + U (ação) e O (lob). Esc/P pausa.
 
 O desenho do realismo — física da bola, corpo, e o visual de transmissão — está em [`REALISMO.md`](REALISMO.md).
 

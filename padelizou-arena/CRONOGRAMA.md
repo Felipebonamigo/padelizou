@@ -57,7 +57,7 @@ Cada marco tem uma **definição de pronto** que se testa, não se opina.
 O jogo inteiro, feio. Tudo o que é *sensação de jogo* nasce aqui, e é onde mais se itera.
 
 - [x] Movimento com peso (aceleração 9 m/s², frenagem 14) — no `Core` desde 25/09.
-- [x] Golpes com **timing**: balanço de 0,3 s, contato ideal a 0,12 s; cedo é bola no ar, tarde é bola no corpo — no `Core` desde 25/09. Direção pelo analógico; tipos: drive, revés, voleio, **bandeja, víbora, smash, lob** (feitos), **chiquita, saída de parede de fundo e lateral, contra-parede** (faltam). A bandeja e a víbora são o que faz o padeleiro sorrir — prioridade.
+- [x] Golpes com **timing**: balanço de 0,3 s, contato ideal a 0,12 s; cedo é bola no ar, tarde é bola no corpo — no `Core` desde 25/09. Direção pelo analógico; tipos: drive, revés, voleio, **bandeja, víbora, smash, lob** (feitos), **chiquita, contra-parede, remate por 3 e por 4, drive x revés com a mão (destro/canhoto)** (feitos em 25/09, `GolpesEspeciais`); **saída de parede dupla como intenção** (falta). A bandeja e a víbora são o que faz o padeleiro sorrir — prioridade.
 - [x] Física da bola real (arrasto quadrático, efeito, quique com spin, vidro x grade) — no `Core` desde 25/09.
 - Corpo virado (drive x revés), contato na raquete e não no centro, passo de ajuste, salto no smash — depende da primeira animação.
 - Captura por vídeo (Move One / Rokoko Vision) de ~20 golpes de um jogador real, já no M1, pro *feel*.

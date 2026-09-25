@@ -35,8 +35,9 @@ A IA lê a bola simulando **a mesma física** (inclusive efeito), e escolhe band
 
 ## Mecânica — o que falta (entra no M1)
 
-- **Contato na raquete**: hoje a bola sai do centro do jogador; tem que sair da mão, com o corpo virado (drive x revés) e passo de ajuste. Depende da animação.
-- **Golpes que faltam**: chiquita, saída de parede dupla (fundo + lateral), contra-parede de propósito, globo x lob curto, remate por 3 e por 4 (a física e a regra já deixam a bola sair; falta mira e IA).
+- ~~Drive x revés, contato ao lado do corpo, chiquita, contrapared, remate por 3 e por 4~~ — feitos em 25/09 (`GolpesEspeciais`, `Jogador.Destro`, `DificuldadeDoGolpe`): bola no corpo e revés alto saem piores; os golpes especiais são achados simulando a própria física, sem altura de parede escrita à mão.
+- **Contato na mão**: a bola ainda sai do ponto de contato calculado, não da raquete animada. Depende da animação (M3).
+- **Golpes que faltam**: saída de parede dupla (fundo + lateral) como intenção, globo x lob curto, e a IA mirar a porta.
 - **Salto no smash**, **posição do corpo** na bandeja (lateral, raquete alta).
 - **Fadiga leve**: sprints seguidos reduzem a aceleração por alguns segundos. Decidir no playtest — pode irritar.
 - **Calibração com vídeo** (semana 3): gravar 10 pontos de transmissão, marcar quadros, extrair velocidade e altura de 5 golpes; ajustar tempo de voo e coeficientes; **cada ajuste vira teste**, como a restituição virou.

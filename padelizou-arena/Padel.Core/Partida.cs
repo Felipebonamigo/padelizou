@@ -5,9 +5,10 @@ public enum TipoDeEventoDaPartida { SaquePreparado, Balanco, Errou, Golpe, Quiqu
 /// <summary>Manual: o humano aperta pra balançar e o timing decide a qualidade. Automatico: bate sozinho ao alcance (assistência).</summary>
 public enum ModoDeGolpe { Manual, Automatico }
 
-public sealed record EventoDaPartida(TipoDeEventoDaPartida Tipo, Jogador? Jogador = null, int Time = -1, Motivo? Motivo = null, TipoDeGolpe? Golpe = null);
+/// <summary>Um acontecimento da partida. Em Golpe: o tipo do golpe e o lado do corpo (drive ou revés) — o que a animação precisa.</summary>
+public sealed record EventoDaPartida(TipoDeEventoDaPartida Tipo, Jogador? Jogador = null, int Time = -1, Motivo? Motivo = null, TipoDeGolpe? Golpe = null, LadoDoGolpe? Lado = null);
 public sealed record Mensagem(string Texto, bool Destaque = false, bool Suave = false);
-public sealed record GolpeDado(Jogador Jogador, TipoDeGolpe Tipo, float Em);
+public sealed record GolpeDado(Jogador Jogador, TipoDeGolpe Tipo, float Em, LadoDoGolpe Lado = LadoDoGolpe.Drive);
 
 public sealed record OpcoesDaPartida
 {
@@ -141,6 +142,7 @@ public sealed class Partida
 
     public void Sacar(Entrada entrada)
     {
+        entrada = Saneada(entrada);
         var sacador = Sacador;
         var caixa = CaixaDoSaque;
         float alvoX, alvoY;
@@ -165,14 +167,17 @@ public sealed class Partida
         RallyAtual = 1;
         Estatisticas.Golpes += 1;
         foreach (var ia in IAs) ia.AoSacar(this, sacador.Time);
-        Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Golpe, sacador, sacador.Time, Golpe: TipoDeGolpe.Saque));
+        Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Golpe, sacador, sacador.Time, Golpe: TipoDeGolpe.Saque, Lado: LadoDoGolpe.Drive));   // saque por baixo, de drive
     }
 
-    /// <summary>Avança a simulação. entradas: uma por jogador (time*2 + índice); faltando, vale Entrada.Vazia.</summary>
+    /// <summary>
+    /// Avança a simulação. entradas: uma por jogador (time*2 + índice); faltando, vale Entrada.Vazia. A entrada vem do
+    /// cliente (DECISOES.md, D2: o host simula com o que os clientes mandam) e passa por <see cref="Saneada"/>.
+    /// </summary>
     public void Avancar(float dt, ReadOnlySpan<Entrada> entradas = default)
     {
         if (!(dt > 0)) return;
-        for (int i = 0; i < 4; i++) _entradas[i] = i < entradas.Length ? entradas[i] : Entrada.Vazia;
+        for (int i = 0; i < 4; i++) _entradas[i] = i < entradas.Length ? Saneada(entradas[i]) : Entrada.Vazia;
         TempoDeJogo += dt;
         foreach (var j in Jogadores) j.AvancarTempo(dt);
         switch (Estado)
@@ -202,6 +207,13 @@ public sealed class Partida
     }
 
     private Entrada EntradaDe(Jogador j) => _entradas[j.Time * 2 + j.Indice];
+
+    /// <summary>
+    /// Fronteira de confiança: cliente com defeito ou malicioso não derruba nem corrompe o host. Componente de direção não
+    /// finita (NaN, ±infinito) vale 0 — sem direção —, e cada componente fica em [-1, 1] (módulo 1 = velocidade máxima).
+    /// </summary>
+    private static Entrada Saneada(Entrada e) => e with { Dx = Componente(e.Dx), Dy = Componente(e.Dy) };
+    private static float Componente(float v) => float.IsFinite(v) ? Util.Limitar(v, -1, 1) : 0;
 
     private void Rally(float dt)
     {
@@ -245,6 +257,7 @@ public sealed class Partida
         bool rebateu = false;
         foreach (var evento in eventos)
         {
+            if (evento.Tipo == TipoDeEventoDaBola.Saiu) FixarNoPontoDeSaida();
             Emitir(new EventoDaPartida(TraduzirEvento(evento.Tipo)));
             var decisao = Arbitro.Processar(evento);
             if (decisao is Decisao d) { Decidir(d); return; }
@@ -273,6 +286,19 @@ public sealed class Partida
         }
     }
 
+    /// <summary>
+    /// A Bola marca a saída um sub-passo além do plano da parede (|x| &gt; 5 ou |y| &gt; 10, alguns centímetros); o que fica
+    /// parado na tela até o próximo ponto é o ponto de saída, no plano da parede — e a quadra segue sendo o limite de tudo o
+    /// que a partida mostra (é o invariante das partidas simuladas; o remate por 3 / por 4 tira a bola de propósito).
+    /// atalho: projeção no plano, não interpolação na trajetória — erro de poucos centímetros na outra coordenada. O lugar
+    /// natural disto é Bola.Sair; fica aqui porque Bola.cs está com a tarefa das paredes. Saída: mover pra lá quando ela entrar.
+    /// </summary>
+    private void FixarNoPontoDeSaida()
+    {
+        Bola.X = Util.Limitar(Bola.X, -Quadra.MeiaLargura, Quadra.MeiaLargura);
+        Bola.Y = Util.Limitar(Bola.Y, -Quadra.MeioComprimento, Quadra.MeioComprimento);
+    }
+
     private static TipoDeEventoDaPartida TraduzirEvento(TipoDeEventoDaBola tipo) => tipo switch
     {
         TipoDeEventoDaBola.Quique => TipoDeEventoDaPartida.Quique,
@@ -286,25 +312,50 @@ public sealed class Partida
     {
         var bola = Bola;
         var golpe = jogador.Humano ? GolpeDoHumano(jogador, EntradaDe(jogador)) : IAs[jogador.Time].EscolherGolpe(jogador, bola, this);
-        bola.Lancar(Golpes.Calcular(bola.X, bola.Y, bola.Z, golpe.AlvoX, golpe.AlvoY, golpe.TempoDeVoo, ignorarRede: golpe.IgnorarRede, efeito: golpe.Efeito));
+        bola.Lancar(GolpesEspeciais.VelocidadeDe(golpe, bola.X, bola.Y, bola.Z));
         jogador.EncerrarBalanco();
         jogador.Cooldown = 0.4f;
         jogador.Golpes += 1;
         Arbitro.RegistrarGolpe(jogador.Time);
-        UltimoGolpe = new GolpeDado(jogador, golpe.Tipo, TempoDeJogo);
+        UltimoGolpe = new GolpeDado(jogador, golpe.Tipo, TempoDeJogo, golpe.Lado);
         RallyAtual += 1;
         Estatisticas.Golpes += 1;
         foreach (var ia in IAs) ia.AoGolpear(this, golpe, jogador);
-        Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Golpe, jogador, jogador.Time, Golpe: golpe.Tipo));
+        Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Golpe, jogador, jogador.Time, Golpe: golpe.Tipo, Lado: golpe.Lado));
     }
 
+    /// <summary>Direção lateral "forte" (|Dx| a partir disso): víbora na bola alta, por 3 no remate segurado.</summary>
+    public const float LimiarDoLadoForte = 0.7f;
+    /// <summary>Contato pior que isso (erro de timing + corpo) não tem potência pra tirar a bola da quadra: o por 3 / por 4 vira smash comum.</summary>
+    public const float ErroMaximoDoRemateForte = 0.6f;
+    private const float AlturaDaBolaAlta = 1.5f;
+
     /// <summary>
-    /// Golpe do humano, no referencial dele: esquerda/direita escolhem o canto; pra frente (rumo à rede) encurta e
-    /// acelera com topspin; pra trás joga fundo com slice; lob pelo balanço de lob; bola alta vira bandeja (ou smash,
-    /// se estiver atacando). No modo manual, o timing do balanço e a posição do corpo decidem o erro: apertar
-    /// cedo demais é bola no ar; tarde é bola em cima do corpo; esticado, baixo ou rápido demais piora.
+    /// Golpe do humano, no referencial dele (Dy &lt; 0 = frente, rumo à rede; Dx &gt; 0 = direita), com os dois botões — ação e
+    /// lob — mais a direção. <b>Lob</b> = o balanço começou no botão de lob (no modo Automático: segurar a ação).
+    /// <b>Ação segurada</b> = o botão de ação ainda apertado no instante do contato (no Automático, o mesmo segurar).
+    /// <b>Bola alta</b> = acima de 1,5 m. <b>Frente</b>/<b>trás</b> = |Dy| &gt; 0,3. <b>Lado forte</b> = |Dx| ≥ <see cref="LimiarDoLadoForte"/>.
+    /// Em ordem de prioridade (a primeira que casa):
+    /// <list type="table">
+    /// <listheader><term>entrada</term><description>golpe</description></listheader>
+    /// <item><term>bola alta + frente + ação segurada</term><description><b>SmashPor4</b>; com lado forte, <b>SmashPor3</b> pra aquele
+    ///   lado. Se o solucionador não acha (longe da rede, bola baixa) ou o contato foi ruim (erro ≥ <see cref="ErroMaximoDoRemateForte"/>): Smash.</description></item>
+    /// <item><term>lob + frente</term><description><b>Chiquita</b> (sem solução daquela posição: Lob).</description></item>
+    /// <item><term>lob (sem frente)</term><description><b>Lob</b>.</description></item>
+    /// <item><term>bola atrás do corpo junto ao próprio vidro + trás</term><description><b>Contrapared</b> (sem solução: segue a tabela).</description></item>
+    /// <item><term>bola alta + frente</term><description><b>Smash</b>.</description></item>
+    /// <item><term>bola alta + lado forte (sem frente)</term><description><b>Víbora</b> pra aquele lado.</description></item>
+    /// <item><term>bola alta (sem frente)</term><description><b>Bandeja</b>.</description></item>
+    /// <item><term>frente / trás / nada</term><description>Ataque (curto, topspin) / Defesa (fundo, slice) / Normal.</description></item>
+    /// </list>
+    /// Esquerda/direita escolhem o canto. O golpe sai de drive ou de revés pelo lado do corpo em que a bola está. No modo
+    /// manual o timing do balanço e o corpo decidem o erro: cedo demais é bola no ar; tarde é bola em cima do corpo;
+    /// esticado, baixo, rápido, no corpo ou de revés (alto, principalmente) piora.
     /// </summary>
-    private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada)
+    private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada) =>
+        EscolherGolpeDoHumano(jogador, entrada) with { Lado = jogador.LadoDoGolpePara(Bola) };
+
+    private Golpe EscolherGolpeDoHumano(Jogador jogador, Entrada entrada)
     {
         var bola = Bola;
         int lado = jogador.Lado, ladoDoAlvo = -lado;
@@ -323,16 +374,43 @@ public sealed class Partida
         float Ruido() => Aleatorio.Gaussiana() * sigma;
         float x = entrada.Dx < -0.3f ? -3.3f * lado : entrada.Dx > 0.3f ? 3.3f * lado : jogador.X * 0.4f;
         x = Util.Limitar(x + Ruido(), -4.5f, 4.5f);
+        bool frente = entrada.Dy < -0.3f, tras = entrada.Dy > 0.3f;
+        bool ladoForte = MathF.Abs(entrada.Dx) >= LimiarDoLadoForte;
+        int paraOLado = (entrada.Dx < 0 ? -1 : 1) * lado;   // o lado forte, no mundo (sem MathF.Sign: ele lança exceção com NaN)
+        bool bolaAlta = bola.Z > AlturaDaBolaAlta;
         bool lob = manual ? jogador.BalancoDeLob : entrada.AcaoSegurada;
-        if (lob) return new Golpe(x, ladoDoAlvo * (8.2f + Ruido() * 0.5f), 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
-        if (bola.Z > 1.5f)
+        bool acaoSegurada = manual ? entrada.AcaoSegurada && !jogador.BalancoDeLob : entrada.AcaoSegurada;
+
+        if (bolaAlta && frente && acaoSegurada)
         {
-            if (entrada.Dy < -0.3f) return new Golpe(x, ladoDoAlvo * (4.2f + Ruido()), 0.4f, TipoDeGolpe.Smash, Efeito: new Efeito(1500, 0));
+            if (erro < ErroMaximoDoRemateForte)
+            {
+                var forte = ladoForte
+                    ? GolpesEspeciais.SmashPor3(bola.X, bola.Y, bola.Z, ladoDoAlvo, paraOLado)
+                    : GolpesEspeciais.SmashPor4(bola.X, bola.Y, bola.Z, ladoDoAlvo, x);
+                if (forte is Golpe remate) return remate;
+            }
+            return Smash();
+        }
+        if (lob)
+        {
+            if (frente && GolpesEspeciais.Chiquita(bola.X, bola.Y, bola.Z, ladoDoAlvo, x) is Golpe chiquita) return chiquita;
+            return new Golpe(x, ladoDoAlvo * (8.2f + Ruido() * 0.5f), 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
+        }
+        if (tras && jogador.BolaAtrasJuntoAoVidro(bola) && GolpesEspeciais.Contrapared(bola.X, bola.Y, bola.Z, ladoDoAlvo, x) is Golpe contrapared)
+            return contrapared;
+        if (bolaAlta)
+        {
+            if (frente) return Smash();
+            if (ladoForte)
+                return new Golpe(Util.Limitar(3.8f * paraOLado + Ruido(), -4.5f, 4.5f), ladoDoAlvo * (6.5f + Ruido()), 0.7f, TipoDeGolpe.Vibora, Efeito: new Efeito(-800, 1800 * paraOLado * ladoDoAlvo));
             return new Golpe(x, ladoDoAlvo * (7.5f + Ruido()), 0.95f, TipoDeGolpe.Bandeja, Efeito: new Efeito(-1500, 500));
         }
-        if (entrada.Dy < -0.3f) return new Golpe(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque, Efeito: new Efeito(2200, 0));
-        if (entrada.Dy > 0.3f) return new Golpe(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa, Efeito: new Efeito(-1200, 0));
+        if (frente) return new Golpe(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque, Efeito: new Efeito(2200, 0));
+        if (tras) return new Golpe(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa, Efeito: new Efeito(-1200, 0));
         return new Golpe(x, ladoDoAlvo * (6.6f + Ruido()), 0.8f, TipoDeGolpe.Normal, Efeito: new Efeito(1200, 0));
+
+        Golpe Smash() => new(x, ladoDoAlvo * (4.2f + Ruido()), 0.4f, TipoDeGolpe.Smash, Efeito: new Efeito(1500, 0));
     }
 
     private void Decidir(Decisao decisao)
