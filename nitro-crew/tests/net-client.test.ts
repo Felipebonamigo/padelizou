@@ -3,13 +3,14 @@
 // mandá-la (entrada de assento alheio, largada ou tomada pela IA de quem não é o anfitrião) é
 // descartada e contada na sessão.
 import { afterEach, describe, expect, it } from 'vitest';
+import { serializeRace } from '../src/core/serialize';
 import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
-import type { RaceConfig, RaceState } from '../src/core/types';
+import type { PlayerInput, RaceConfig, RaceState } from '../src/core/types';
 import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type SaveData, type Settings } from '../src/game/contracts';
-import { OnlineController, type OnlineHost, type OnlineOptions } from '../src/game/online-session';
+import { OnlineController, raceConfigFrom, type OnlineHost, type OnlineOptions } from '../src/game/online-session';
 import { NetClient } from '../src/net/client';
-import { TAKEOVER_BIT, type StartConfig } from '../src/net/protocol';
+import { decodeInput, TAKEOVER_BIT, type StartConfig } from '../src/net/protocol';
 
 /** O mínimo de um WebSocket que o NetClient usa; o teste faz o papel do servidor. */
 class FakeSocket {
@@ -235,6 +236,29 @@ describe('sessão online: volta depois de cair', () => {
     expect(host.menu).toBe('online');
   });
 
+  it('"Sair da partida?" aberto durante a volta continua na tela depois do snapshot; fechando, o carro volta a responder', async () => {
+    const { sock, host, ctl } = await rejoined();
+    ctl.pauseKey(); // Esc durante "Conexão perdida — tentando voltar"
+    expect(host.menu).toBe('online');
+    sock.push(roomMsg(0, true));
+    const state = createRace(raceConfigFrom(startCfg()), getTrack('copacabana'));
+    sock.push({ t: 'snap', from: 0, snap: { tick: 0, state: serializeRace(state), start: startCfg(), inputs: [], ai: [] } });
+    expect(host.starts).toBe(2);
+    // O aviso vale (entrada neutra) enquanto está aberto: então tem de estar na tela.
+    expect(ctl.quitOpen).toBe(true);
+    expect(host.menu).toBe('online');
+    ctl.closeQuit();
+    expect(host.menu).toBeNull();
+    const local: PlayerInput[] = [];
+    local[1] = { steer: 0.5, throttle: true, brake: false, nitro: false, gearUp: false, gearDown: false };
+    sock.sent.length = 0;
+    ctl.force(1, local, () => undefined); // sem a entrada do assento 0 não roda, mas manda a sua
+    const d = (sock.sent.find((m) => m.t === 'i')?.d ?? []) as number[];
+    const target = d.slice(-4);
+    expect(target.slice(0, 2)).toEqual([3, 1]);
+    expect(decodeInput(target[2], target[3])).toMatchObject({ throttle: true, steer: 64 / 127 });
+  });
+
   it('snapshot que não chega a tempo vira erro, em vez de "recebendo a corrida" para sempre', async () => {
     const { sock, host, ctl } = await rejoined({ syncTimeoutMs: 40 });
     sock.push(roomMsg(0, true));
@@ -243,5 +267,43 @@ describe('sessão online: volta depois de cair', () => {
     expect(ctl.error).toBe('online.err.syncTimeout');
     expect(host.state).toBeNull();
     expect(host.menu).toBe('online');
+  });
+});
+
+describe('sessão online: controles', () => {
+  const unbound = (host: Host) => [0, 1, 2, 3].map((s) => host.input.seatDevice(s));
+
+  /** Convidado (id 1) na corrida: o teclado dele responde pelo assento global 1. */
+  function racing(): { socks: FakeSocket[]; host: Host; ctl: OnlineController } {
+    const socks: FakeSocket[] = [];
+    const host = new Host();
+    const ctl = new OnlineController(host, { socket: () => { const s = new FakeSocket(); socks.push(s); return asWebSocket(s); }, pingMs: 60_000, retryMs: 1 });
+    ctl.join('KQXTR', 'kb1');
+    socks[0].open();
+    socks[0].push({ t: 'welcome', room: 'KQXTR', id: 1, token: TOKEN, rejoined: false });
+    socks[0].push(roomMsg(0));
+    socks[0].push({ t: 'start', from: 0, cfg: startCfg() });
+    expect(unbound(host)).toEqual([null, 'kb1', null, null]);
+    return { socks, host, ctl };
+  }
+
+  it('erro de reconexão → Voltar: o teclado não fica preso ao assento do online (o lobby local o poria no P2)', async () => {
+    const { socks, host, ctl } = racing();
+    ctl.debugDropConnection();
+    await sleep(20);
+    socks[1].open();
+    socks[1].push({ t: 'error', code: 'expired' });
+    expect(ctl.phase).toBe('error');
+    ctl.resetError();
+    expect(unbound(host)).toEqual([null, null, null, null]);
+  });
+
+  it('resultado → sala → Esc (sair da sala): idem', () => {
+    const { host, ctl } = racing();
+    ctl.finished({ mode: 'quick', trackDef: getTrack('copacabana').def, results: [], humans: [], champ: null, newRecords: [] });
+    ctl.backToRoom();
+    expect(ctl.phase).toBe('lobby');
+    ctl.leave(false);
+    expect(unbound(host)).toEqual([null, null, null, null]);
   });
 });

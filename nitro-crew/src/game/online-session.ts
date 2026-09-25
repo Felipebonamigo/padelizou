@@ -172,6 +172,8 @@ export class OnlineController implements RaceDriver {
   private outbox: InputRecord[] = [];
   private hud: OnlineHud | null = null;
   private localSeatList: number[] = [];
+  /** Os controles deste computador estão ligados aos assentos globais da corrida online. */
+  private devicesBound = false;
 
   constructor(host: OnlineHost, opts: OnlineOptions = {}) {
     this.host = host;
@@ -584,6 +586,18 @@ export class OnlineController implements RaceDriver {
     const { input } = this.host;
     for (let seat = 0; seat < MAX_HUMANS; seat++) input.unbindSeat(seat);
     this.localSeatList.forEach((seat, i) => { const p = this.locals[i]; if (p) input.bindSeat(seat, p.device); });
+    this.devicesBound = true;
+  }
+
+  /**
+   * Fim da corrida online: os assentos voltam a ficar livres, como depois de uma corrida local
+   * (session.toMain). Sem isso, quem sai do online por erro→Voltar ou pela sala chegava ao lobby
+   * local com o teclado preso ao assento global que recebeu (ex.: P2).
+   */
+  private releaseDevices(): void {
+    if (!this.devicesBound) return;
+    for (let seat = 0; seat < MAX_HUMANS; seat++) this.host.input.unbindSeat(seat);
+    this.devicesBound = false;
   }
 
   private newLockstep(cfg: StartConfig, startTick: number, ai: Array<[number, number]>): Lockstep {
@@ -680,6 +694,9 @@ export class OnlineController implements RaceDriver {
     this.backlog = 0;
     if (!this.hud && this.opts.hud) this.hud = this.opts.hud();
     this.host.startRace(raceConfigFrom(snap.start), [...this.localSeatList], this, state);
+    // A sessão esconde os menus ao (re)começar a corrida; o "Sair da partida?" que o jogador abriu
+    // continua valendo (entrada neutra), então volta para a tela junto.
+    if (this.quitOpen) this.host.showScreen();
     this.changed();
   }
 
@@ -756,6 +773,7 @@ export class OnlineController implements RaceDriver {
   // ───────────────────────────── Saídas ─────────────────────────────
 
   private endRaceState(): void {
+    this.releaseDevices();
     this.lockstep = null;
     this.start = null;
     this.awaitingSnapshot = false;
