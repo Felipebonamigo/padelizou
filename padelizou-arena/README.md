@@ -11,7 +11,7 @@ e os porquês em [`DECISOES.md`](DECISOES.md); o diário de cada marco em `docs/
 | `Padel.Core/` | O jogo sem engine: quadra, placar, física da bola, árbitro, IA, partida. `net8.0`, zero dependência. |
 | `Padel.Core.Tests/` | xUnit: regras, física, árbitro e partidas inteiras entre IAs com semente fixa. |
 | `Padel.Godot/` | O projeto Godot (C#): desenha, lê entrada e, no M2, transporta pacotes. Abrir com o editor **.NET** do Godot 4.7.2. |
-| `.github/workflows/ci.yml` | Testa o Core, compila o projeto Godot e roda 15 s de partida sem tela. |
+| `.github/workflows/ci.yml` | O CI do repositório próprio do jogo: motor, Godot, conferências, som, exportação. **Enquanto o Arena mora dentro do `padelizou`, ele não roda** (o GitHub só lê o `.github/` da raiz) — a verificação de verdade é `ferramentas/verificar_tudo.sh GODOT`, que faz os mesmos passos. |
 
 ## Rodar
 
