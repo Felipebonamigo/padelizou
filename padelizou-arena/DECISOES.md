@@ -59,19 +59,42 @@ Passo fixo de 1/60 s no `Core`, sub-passos de 1/240 s na bola. Metros, segundos,
 Um `Random` com semente por partida, dono único (a IA pede números dele) — a mesma semente
 reproduz o mesmo jogo, o que é como se depuram bugs de rede e de IA.
 
-## D4 — Arte stylized, comprada, com animação encomendada
+## D4 — Arte: realismo de transmissão (revisada em 25/09/2026)
 
-Realismo é o que os concorrentes com mais dinheiro fazem pior do que um jogo AAA; stylized
-limpo (proporções levemente exageradas, cores chapadas com iluminação boa) envelhece bem, é
-mais barato e roda no Steam Deck. Animações genéricas (corrida, idle, comemoração) vêm do
-Mixamo; as **padel-específicas** (bandeja, víbora, saída de parede, chiquita) não existem
-prontas em lugar nenhum e são encomendadas — orçar na semana 10, entregar na 22.
+**Decisão original (25/09, manhã):** stylized limpo, comprado, animação encomendada — mais barato,
+envelhece bem, roda no Deck.
+
+**Revisão (25/09, tarde), a pedido do Felipe:** *"temos que pensar no realismo, visual e de
+mecânica"*. A arte passa a mirar **parecer a transmissão do Premier Padel**: proporções reais,
+roupa real, quadra panorâmica de vidro com iluminação de estádio, captura de movimento de
+jogador de padel. Não é fotorrealismo de close (rosto em close é o que um dev solo não entrega);
+é realismo de câmera de TV. O desenho completo, com pipeline e custos, está em `REALISMO.md`.
+
+**O que custa.** Orçamento de R$ 25–72 mil para R$ 70–160 mil; M3 seis semanas maior; Early
+Access na semana 46 em vez da 40. Risco novo: vale da estranheza — realismo malfeito é pior que
+stylized bem feito; a régua é o frame da TV ao lado do frame do jogo.
 
 ## D5 — Steam pelo Facepunch.Steamworks, não pelo GodotSteam
 
 Os dois funcionam. Facepunch é C# nativo (a mesma linguagem do resto), tem lobby, SDR,
 conquistas, Rich Presence e Cloud, e o `Padel.Core` continua sem saber que a Steam existe:
 tudo passa por uma interface `ITransporte` com implementações `Enet` (dev) e `Steam` (release).
+
+## D7 — Golpe "sim-cade": intenção do jogador + erro do corpo, nunca colisão animada
+
+A bola é simulada de verdade; a entrada do humano é **intenção** (direção, tipo, timing do
+balanço) e o erro vem do **corpo** (timing fora do ideal, esticado, bola baixa ou rápida). Não
+simulamos a colisão raquete-bola a partir da animação: parece mais real e joga pior — vira
+sorteio, o jogador não prevê o que sai, e o netcode sofre. É o modelo de Top Spin e EA FC.
+Modo *Automático* (bate sozinho ao alcance) fica como assistência e acessibilidade.
+
+## D8 — Física da bola com os números do esporte, calibrada por teste
+
+Massa e raio da regra FIP, arrasto quadrático (Cd 0,55), Magnus (Cl de Štěpánek), quique com
+transferência de spin (rolamento limitado por atrito), vidro (e 0,85) diferente de grade
+(e 0,40). Cada coeficiente que saiu da literatura tem um teste que o prende a um fato observável
+(a bola solta de 2,54 m sobe 1,35–1,45 m; uma bola a 30 m/s perde 15–30 % em 10 m). Calibrar
+com vídeo é mudar o número **e** o teste, nunca só o número.
 
 ## D6 — O que NÃO entra até o 1.0
 

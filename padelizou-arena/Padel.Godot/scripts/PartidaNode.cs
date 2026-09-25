@@ -7,7 +7,8 @@ namespace Padel.Godot;
 /// Raiz da cena: cria a Partida do Core, avança em passo fixo no _PhysicsProcess (120 Hz no project.godot),
 /// lê a entrada local e espelha o estado nos nós 3D e no HUD.
 /// Argumentos de linha de comando depois de "--": --auto (4 IAs), --semente N, --sair-apos SEGUNDOS (pra CI),
-/// --screenshot ARQUIVO.png (salva a tela ao sair; precisa de renderização, não funciona em --headless).
+/// --screenshot ARQUIVO.png (salva a tela ao sair; precisa de renderização, não funciona em --headless),
+/// --auto-golpe (assistência: bate sozinho ao alcance, sem timing).
 /// </summary>
 public partial class PartidaNode : Node3D
 {
@@ -15,6 +16,7 @@ public partial class PartidaNode : Node3D
     [Export] public bool PontoDeOuro = true;
     [Export] public int SetsParaVencer = 1;
     [Export] public bool ModoAutomatico;
+    [Export] public ModoDeGolpe ModoDeGolpe = ModoDeGolpe.Manual;
 
     public Partida Partida { get; private set; } = null!;
 
@@ -43,6 +45,7 @@ public partial class PartidaNode : Node3D
                 case "--semente" when i + 1 < args.Length && uint.TryParse(args[i + 1], out var s): semente = s; i++; break;
                 case "--sair-apos" when i + 1 < args.Length && double.TryParse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture, out var t): _sairApos = t; i++; break;
                 case "--screenshot" when i + 1 < args.Length: _screenshot = args[i + 1]; i++; break;
+                case "--auto-golpe": ModoDeGolpe = ModoDeGolpe.Automatico; break;
                 case "--facil": Dificuldade = Dificuldade.Facil; break;
                 case "--dificil": Dificuldade = Dificuldade.Dificil; break;
             }
@@ -54,6 +57,7 @@ public partial class PartidaNode : Node3D
             PontoDeOuro = PontoDeOuro,
             SetsParaVencer = SetsParaVencer,
             Humanos = ModoAutomatico ? OpcoesDaPartida.NinguemHumano : [true, false, false, false],
+            ModoDeGolpe = ModoDeGolpe,
             Semente = semente,
         });
         Partida.Evento += AoEvento;
@@ -73,7 +77,7 @@ public partial class PartidaNode : Node3D
         _hud = new HudNode { Name = "Hud" };
         AddChild(_hud);
         Espelhar(0);
-        GD.Print($"Padelizou Arena: partida criada ({Dificuldade}, {(ModoAutomatico ? "4 IAs" : "1 humano")}, Godot {Engine.GetVersionInfo()["string"]})");
+        GD.Print($"Padelizou Arena: partida criada ({Dificuldade}, {(ModoAutomatico ? "4 IAs" : $"1 humano, golpe {ModoDeGolpe}")}, Godot {Engine.GetVersionInfo()["string"]})");
     }
 
     public override void _PhysicsProcess(double delta)

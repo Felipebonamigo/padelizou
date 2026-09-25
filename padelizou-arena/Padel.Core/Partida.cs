@@ -1,7 +1,9 @@
 namespace Padel.Core;
 
 public enum EstadoDaPartida { Saque, Rally, FimDoPonto, Fim }
-public enum TipoDeEventoDaPartida { SaquePreparado, Golpe, Quique, Parede, Rede, CruzouRede, Saiu, Ponto, Game, Set, Partida, Falta, Let, Fim }
+public enum TipoDeEventoDaPartida { SaquePreparado, Balanco, Errou, Golpe, Quique, Parede, Rede, CruzouRede, Saiu, Ponto, Game, Set, Partida, Falta, Let, Fim }
+/// <summary>Manual: o humano aperta pra balançar e o timing decide a qualidade. Automatico: bate sozinho ao alcance (assistência).</summary>
+public enum ModoDeGolpe { Manual, Automatico }
 
 public sealed record EventoDaPartida(TipoDeEventoDaPartida Tipo, Jogador? Jogador = null, int Time = -1, Motivo? Motivo = null, TipoDeGolpe? Golpe = null);
 public sealed record Mensagem(string Texto, bool Destaque = false, bool Suave = false);
@@ -14,6 +16,7 @@ public sealed record OpcoesDaPartida
     public int SetsParaVencer { get; init; } = 1;
     /// <summary>Por jogador (time*2 + índice): quem é humano. Padrão: só o da casa, metade direita.</summary>
     public bool[] Humanos { get; init; } = [true, false, false, false];
+    public ModoDeGolpe ModoDeGolpe { get; init; } = ModoDeGolpe.Manual;
     public uint? Semente { get; init; }
 
     public static readonly bool[] NinguemHumano = [false, false, false, false];
@@ -64,6 +67,8 @@ public sealed class Partida
     public int RallyAtual { get; private set; }
     public Estatisticas Estatisticas { get; } = new();
     public Caixa CaixaDoSaque { get; private set; }
+    /// <summary>Erro (0 = perfeito, 1,6 = péssimo) do último golpe de um humano — pra HUD e pra teste.</summary>
+    public float UltimoErroDoHumano { get; private set; }
     public event Action<EventoDaPartida>? Evento;
 
     private float _rolandoHa;
@@ -150,7 +155,7 @@ public sealed class Partida
             alvoX = caixa.CentroX + Aleatorio.Gaussiana() * ruido;
             alvoY = caixa.CentroY + Aleatorio.Gaussiana() * ruido;
         }
-        Bola.Lancar(Golpes.Calcular(Bola.X, Bola.Y, Bola.Z, alvoX, alvoY, tempoDeVoo: 1.0f));
+        Bola.Lancar(Golpes.Calcular(Bola.X, Bola.Y, Bola.Z, alvoX, alvoY, tempoDeVoo: 1.0f, efeito: new Efeito(-600, 0)));   // saque por baixo, com slice
         Arbitro.IniciarSaque(sacador.Time, caixa);
         sacador.Cooldown = 0.5f;
         sacador.Golpes += 1;
@@ -200,11 +205,25 @@ public sealed class Partida
 
     private void Rally(float dt)
     {
+        bool manual = Opcoes.ModoDeGolpe == ModoDeGolpe.Manual;
         foreach (var j in Jogadores)
         {
             if (!j.Humano) continue;
             var e = EntradaDe(j);
             j.Mover(e.Dx * j.Lado, e.Dy * j.Lado, dt);   // do referencial do jogador pro mundo
+            if (!manual) continue;
+            if (j.BalancoTerminouNoAr)
+            {
+                // O balanço acabou sem tocar na bola: raquete no ar, e um instante pra se recompor.
+                j.BalancosNoAr += 1;
+                j.Cooldown = 0.45f;
+                Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Errou, j, j.Time));
+            }
+            if ((e.AcaoPressionada || e.LobPressionada) && !j.Balancando && j.Cooldown <= 0)
+            {
+                j.IniciarBalanco(lob: e.LobPressionada);
+                Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Balanco, j, j.Time));
+            }
         }
         foreach (var ia in IAs) ia.Reagir(dt, this);
 
@@ -213,7 +232,9 @@ public sealed class Partida
         {
             foreach (var j in Jogadores)
             {
-                if (j.Cooldown > 0 || !Arbitro.PodeGolpear(j.Time) || !j.Alcanca(bola)) continue;
+                if (j.Cooldown > 0 || !Arbitro.PodeGolpear(j.Time)) continue;
+                if (j.Humano && manual && !j.Balancando) continue;   // no modo manual, sem balanço a bola passa
+                if (!j.PodeBaterAgora(bola)) continue;
                 Golpear(j);
                 break;
             }
@@ -265,7 +286,8 @@ public sealed class Partida
     {
         var bola = Bola;
         var golpe = jogador.Humano ? GolpeDoHumano(jogador, EntradaDe(jogador)) : IAs[jogador.Time].EscolherGolpe(jogador, bola, this);
-        bola.Lancar(Golpes.Calcular(bola.X, bola.Y, bola.Z, golpe.AlvoX, golpe.AlvoY, golpe.TempoDeVoo, ignorarRede: golpe.IgnorarRede));
+        bola.Lancar(Golpes.Calcular(bola.X, bola.Y, bola.Z, golpe.AlvoX, golpe.AlvoY, golpe.TempoDeVoo, ignorarRede: golpe.IgnorarRede, efeito: golpe.Efeito));
+        jogador.EncerrarBalanco();
         jogador.Cooldown = 0.4f;
         jogador.Golpes += 1;
         Arbitro.RegistrarGolpe(jogador.Time);
@@ -277,22 +299,40 @@ public sealed class Partida
     }
 
     /// <summary>
-    /// Mira do humano (no referencial dele): esquerda/direita escolhem o canto; pra frente (rumo à rede)
-    /// encurta e acelera; pra trás joga fundo e seguro; a ação segurada vira lob; bola alta é smash.
+    /// Golpe do humano, no referencial dele: esquerda/direita escolhem o canto; pra frente (rumo à rede) encurta e
+    /// acelera com topspin; pra trás joga fundo com slice; lob pelo balanço de lob; bola alta vira bandeja (ou smash,
+    /// se estiver atacando). No modo manual, o timing do balanço e a posição do corpo decidem o erro: apertar
+    /// cedo demais é bola no ar; tarde é bola em cima do corpo; esticado, baixo ou rápido demais piora.
     /// </summary>
     private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada)
     {
         var bola = Bola;
         int lado = jogador.Lado, ladoDoAlvo = -lado;
-        float sigma = 0.3f + 0.7f * jogador.DificuldadeDoGolpe(bola);
+        bool manual = Opcoes.ModoDeGolpe == ModoDeGolpe.Manual;
+        float erroDeTiming = manual ? Util.Limitar(MathF.Abs(jogador.TempoNoBalanco - Jogador.MomentoIdealDoBalanco) / 0.15f, 0, 1) : 0;
+        float erro = Util.Limitar(0.6f * jogador.DificuldadeDoGolpe(bola) + erroDeTiming, 0, 1.6f);
+        UltimoErroDoHumano = erro;
+        if (erro > 0.95f && Aleatorio.Proximo() < 0.35f + (erro - 0.95f))
+        {
+            // Golpe muito ruim: metade na rede, metade no vidro sem quicar.
+            return Aleatorio.Proximo() < 0.5f
+                ? new Golpe((Aleatorio.Proximo() - 0.5f) * 6, ladoDoAlvo * 0.3f, 0.45f, TipoDeGolpe.Erro, IgnorarRede: true)
+                : new Golpe((Aleatorio.Proximo() - 0.5f) * 6, ladoDoAlvo * 11.5f, 0.55f, TipoDeGolpe.Erro, IgnorarRede: true);
+        }
+        float sigma = 0.25f + 0.8f * erro;
         float Ruido() => Aleatorio.Gaussiana() * sigma;
         float x = entrada.Dx < -0.3f ? -3.3f * lado : entrada.Dx > 0.3f ? 3.3f * lado : jogador.X * 0.4f;
         x = Util.Limitar(x + Ruido(), -4.5f, 4.5f);
-        if (entrada.AcaoSegurada) return new Golpe(x, ladoDoAlvo * 8.2f, 1.7f, TipoDeGolpe.Lob);
-        if (bola.Z > 1.7f) return new Golpe(x, ladoDoAlvo * 4.2f, 0.42f, TipoDeGolpe.Smash);
-        if (entrada.Dy < -0.3f) return new Golpe(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque);
-        if (entrada.Dy > 0.3f) return new Golpe(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa);
-        return new Golpe(x, ladoDoAlvo * (6.6f + Ruido()), 0.8f, TipoDeGolpe.Normal);
+        bool lob = manual ? jogador.BalancoDeLob : entrada.AcaoSegurada;
+        if (lob) return new Golpe(x, ladoDoAlvo * (8.2f + Ruido() * 0.5f), 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
+        if (bola.Z > 1.5f)
+        {
+            if (entrada.Dy < -0.3f) return new Golpe(x, ladoDoAlvo * (4.2f + Ruido()), 0.4f, TipoDeGolpe.Smash, Efeito: new Efeito(1500, 0));
+            return new Golpe(x, ladoDoAlvo * (7.5f + Ruido()), 0.95f, TipoDeGolpe.Bandeja, Efeito: new Efeito(-1500, 500));
+        }
+        if (entrada.Dy < -0.3f) return new Golpe(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque, Efeito: new Efeito(2200, 0));
+        if (entrada.Dy > 0.3f) return new Golpe(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa, Efeito: new Efeito(-1200, 0));
+        return new Golpe(x, ladoDoAlvo * (6.6f + Ruido()), 0.8f, TipoDeGolpe.Normal, Efeito: new Efeito(1200, 0));
     }
 
     private void Decidir(Decisao decisao)

@@ -12,6 +12,7 @@ public partial class JogadorNode : Node3D
     private Jogador _jogador = null!;
     private Node3D _corpo = null!;
     private Label3D _nome = null!;
+    private MeshInstance3D _raquete = null!;
 
     public void Ligar(Jogador jogador)
     {
@@ -40,6 +41,7 @@ public partial class JogadorNode : Node3D
             MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.1f, 0.1f, 0.12f) },
         };
         _corpo.AddChild(raquete);
+        _raquete = raquete;
         if (jogador.Humano)
         {
             _corpo.AddChild(new MeshInstance3D
@@ -67,5 +69,14 @@ public partial class JogadorNode : Node3D
     public void Atualizar()
     {
         Position = Coordenadas.NoChao(_jogador.X, _jogador.Y);
+        // Corpo vira pra onde anda; raquete gira durante o balanço (placeholder da animação de verdade).
+        if (_jogador.Rapidez > 0.5f)
+        {
+            float alvo = Mathf.Atan2(_jogador.Vx, _jogador.Vy) + Mathf.Pi;   // Godot olha pra -Z; Core y é Godot z
+            _corpo.Rotation = new Vector3(0, Mathf.LerpAngle(_corpo.Rotation.Y, alvo, 0.2f), 0);
+        }
+        float fase = _jogador.Balancando ? 1 - _jogador.Balanco / Jogador.DuracaoDoBalanco : 0;
+        _raquete.RotationDegrees = new Vector3(90, 0, fase > 0 ? -70 + 140 * fase : 0);
+        _raquete.Position = new Vector3(0.42f, 0.95f + (_jogador.BalancoDeLob && fase > 0 ? 0.3f * fase : 0), -0.15f * _jogador.Lado);
     }
 }

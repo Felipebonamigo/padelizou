@@ -25,13 +25,19 @@ godot --path Padel.Godot -- --auto                       # 4 IAs
 godot --headless --path Padel.Godot -- --auto --sair-apos 15   # o que o CI faz
 ```
 
-Argumentos depois de `--`: `--auto` (ninguém humano), `--semente N`, `--sair-apos SEGUNDOS`, `--facil`, `--dificil`.
+Argumentos depois de `--`: `--auto` (ninguém humano), `--auto-golpe` (assistência de golpe), `--semente N`,
+`--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`.
+Depois de `dotnet build` com scripts novos, rode `godot --headless --path Padel.Godot --import` antes de executar sem tela.
 
 ## Controles (M0)
 
-Setas/WASD ou analógico esquerdo movem. Espaço/Enter/botão A saca e, segurado na hora do golpe,
-dá lob. ←/→ no golpe escolhem o canto; ↑ ataca curto; ↓ joga fundo. Esc/P pausa.
-O golpe é automático quando a bola entra no alcance — o timing com botão é trabalho do M1.
+Setas/WASD ou analógico esquerdo movem (com inércia: o jogador acelera e freia). Espaço/Enter/botão A
+saca e, no rally, **balança a raquete**: o contato ideal sai 0,12 s depois do aperto — cedo demais é
+raquete no ar, tarde é bola em cima do corpo. Shift/L/botão B balança pra **lob**. ←/→ no golpe escolhem
+o canto; ↑ ataca curto com topspin; ↓ joga fundo com slice; bola alta vira bandeja (ou smash, atacando).
+Esc/P pausa. `--auto-golpe` liga a assistência (bate sozinho ao alcance).
+
+O desenho do realismo — física da bola, corpo, e o visual de transmissão — está em [`REALISMO.md`](REALISMO.md).
 
 ## Convenções
 

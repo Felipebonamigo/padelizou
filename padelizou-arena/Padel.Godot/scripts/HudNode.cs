@@ -34,7 +34,7 @@ public partial class HudNode : CanvasLayer
 
         _dica = new Label
         {
-            Text = "Setas/WASD ou analógico movem · Espaço/A saca e, segurado, dá lob · ←/→ no golpe escolhem o canto · ↑ ataca, ↓ joga fundo",
+            Text = "Setas/WASD ou analógico movem · Espaço/A saca e balança (o timing decide) · Shift/B dá lob · ←/→ no golpe escolhem o canto · ↑ ataca, ↓ joga fundo",
             HorizontalAlignment = HorizontalAlignment.Center,
             AnchorLeft = 0, AnchorRight = 1, AnchorTop = 1, AnchorBottom = 1,
             OffsetTop = -34,

@@ -1,17 +1,18 @@
 namespace Padel.Core;
 
 public enum Dificuldade { Facil, Medio, Dificil }
-public enum TipoDeGolpe { Saque, Normal, Ataque, Defesa, Lob, Smash, Erro }
+public enum TipoDeGolpe { Saque, Normal, Ataque, Defesa, Lob, Smash, Bandeja, Vibora, Erro }
 public enum Formacao { Fundo, Rede }
 
-/// <summary>Um golpe decidido: onde a bola deve cair e em quanto tempo.</summary>
-public readonly record struct Golpe(float AlvoX, float AlvoY, float TempoDeVoo, TipoDeGolpe Tipo, bool IgnorarRede = false);
+/// <summary>Um golpe decidido: onde a bola deve cair, em quanto tempo e com que efeito.</summary>
+public readonly record struct Golpe(float AlvoX, float AlvoY, float TempoDeVoo, TipoDeGolpe Tipo, bool IgnorarRede = false, Efeito Efeito = default);
 
 /// <summary>
 /// Entrada de um humano, no referencial DELE: Dy &lt; 0 é "rumo à rede", Dx &gt; 0 é "minha direita".
 /// A partida converte pro mundo pelo lado do jogador — assim o cliente de cima e o de baixo mandam a mesma coisa.
+/// AcaoPressionada saca e, no modo manual, começa o balanço; LobPressionada começa um balanço de lob.
 /// </summary>
-public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, bool AcaoSegurada)
+public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, bool AcaoSegurada, bool LobPressionada = false)
 {
     public static readonly Entrada Vazia = default;
 }
@@ -20,11 +21,11 @@ public sealed record PerfilDeIA(float Velocidade, float Reacao, float ErroDeMira
 
 public static class Perfis
 {
-    public static readonly PerfilDeIA Facil = new(Velocidade: 4.2f, Reacao: 0.45f, ErroDeMira: 1.5f, ErroDePrevisao: 1.1f, ChanceDeErro: 0.14f, ChanceDeLob: 0.2f);
-    public static readonly PerfilDeIA Medio = new(Velocidade: 5.2f, Reacao: 0.25f, ErroDeMira: 0.9f, ErroDePrevisao: 0.7f, ChanceDeErro: 0.07f, ChanceDeLob: 0.3f);
-    public static readonly PerfilDeIA Dificil = new(Velocidade: 6.2f, Reacao: 0.10f, ErroDeMira: 0.5f, ErroDePrevisao: 0.35f, ChanceDeErro: 0.025f, ChanceDeLob: 0.35f);
+    public static readonly PerfilDeIA Facil = new(Velocidade: 4.6f, Reacao: 0.45f, ErroDeMira: 1.5f, ErroDePrevisao: 1.1f, ChanceDeErro: 0.14f, ChanceDeLob: 0.2f);
+    public static readonly PerfilDeIA Medio = new(Velocidade: 5.6f, Reacao: 0.25f, ErroDeMira: 0.9f, ErroDePrevisao: 0.7f, ChanceDeErro: 0.07f, ChanceDeLob: 0.3f);
+    public static readonly PerfilDeIA Dificil = new(Velocidade: 6.6f, Reacao: 0.10f, ErroDeMira: 0.5f, ErroDePrevisao: 0.35f, ChanceDeErro: 0.025f, ChanceDeLob: 0.35f);
     /// <summary>O parceiro do humano: confiável sem ser um muro.</summary>
-    public static readonly PerfilDeIA Parceiro = new(Velocidade: 5.4f, Reacao: 0.18f, ErroDeMira: 0.8f, ErroDePrevisao: 0.55f, ChanceDeErro: 0.04f, ChanceDeLob: 0.3f);
+    public static readonly PerfilDeIA Parceiro = new(Velocidade: 5.8f, Reacao: 0.18f, ErroDeMira: 0.8f, ErroDePrevisao: 0.55f, ChanceDeErro: 0.04f, ChanceDeLob: 0.3f);
 
     public static PerfilDeIA Por(Dificuldade d) => d switch
     {
@@ -34,22 +35,45 @@ public static class Perfis
     };
 }
 
+/// <summary>
+/// Posição, velocidade com inércia (acelera e freia como gente), alcance e o balanço da raquete.
+/// Velocidades de padel: tiro curto a 6–7 m/s, aceleração ~9 m/s², frenagem mais forte que a arrancada.
+/// </summary>
 public sealed class Jogador
 {
-    public const float VelocidadeDoHumano = 5.8f;
+    public const float VelocidadeDoHumano = 6.4f;
+    public const float DuracaoDoBalanco = 0.3f;
+    /// <summary>Instante do balanço em que o contato sai perfeito (apertar cedo = bola ainda longe; tarde = bola em cima do corpo).</summary>
+    public const float MomentoIdealDoBalanco = 0.12f;
 
     public int Time { get; }
     /// <summary>0 = metade direita do time, 1 = esquerda.</summary>
     public int Indice { get; }
     public string Nome { get; }
     public bool Humano { get; set; }
+    /// <summary>Velocidade máxima, m/s.</summary>
     public float Velocidade { get; set; }
+    public float Aceleracao { get; set; } = 9f;
+    public float Frenagem { get; set; } = 14f;
     public int Lado { get; }
     public float X, Y;
+    public float Vx, Vy;
+    /// <summary>Alcance máximo (esticado).</summary>
     public float Alcance { get; }
+    /// <summary>Até aqui o golpe sai confortável; além disso é esticada.</summary>
+    public float AlcanceConfortavel { get; } = 0.85f;
+    /// <summary>Distância do corpo em que o contato é perfeito; abaixo disso não conta como esticada.</summary>
+    public const float DistanciaIdealDoContato = 0.6f;
     public float AlturaMaxima { get; } = 2.7f;
     public float Cooldown;
     public int Golpes;
+    public int BalancosNoAr;
+    /// <summary>Segundos restantes do balanço; 0 = raquete parada.</summary>
+    public float Balanco { get; private set; }
+    public float TempoNoBalanco { get; private set; }
+    public bool BalancoDeLob { get; private set; }
+    /// <summary>Verdadeiro só no passo em que o balanço acabou sem tocar na bola (raquete no ar).</summary>
+    public bool BalancoTerminouNoAr { get; private set; }
 
     public Jogador(int time, int indice, string nome, bool humano, float velocidade)
     {
@@ -61,46 +85,106 @@ public sealed class Jogador
     }
 
     public float XDaMetade => Lado * (Indice == 0 ? 2.5f : -2.5f);
+    public bool Balancando => Balanco > 0;
+    public float Rapidez => MathF.Sqrt(Vx * Vx + Vy * Vy);
 
     private void Limitar()
     {
-        X = Util.Limitar(X, -4.7f, 4.7f);
-        Y = Lado > 0 ? Util.Limitar(Y, 0.5f, 9.7f) : Util.Limitar(Y, -9.7f, -0.5f);
+        float x = Util.Limitar(X, -4.7f, 4.7f);
+        float y = Lado > 0 ? Util.Limitar(Y, 0.5f, 9.7f) : Util.Limitar(Y, -9.7f, -0.5f);
+        if (x != X) { X = x; Vx = 0; }
+        if (y != Y) { Y = y; Vy = 0; }
     }
 
-    /// <summary>Direção no MUNDO (não no referencial do jogador).</summary>
+    /// <summary>Direção desejada no MUNDO (módulo até 1 = velocidade máxima); a inércia faz o resto.</summary>
     public void Mover(float dx, float dy, float dt)
     {
         float n = MathF.Sqrt(dx * dx + dy * dy);
-        if (n < 1e-6f) return;
-        float forca = MathF.Min(1, n);
-        X += dx / n * forca * Velocidade * dt;
-        Y += dy / n * forca * Velocidade * dt;
+        float desejadoX = 0, desejadoY = 0;
+        if (n > 1e-6f)
+        {
+            float forca = MathF.Min(1, n);
+            desejadoX = dx / n * forca * Velocidade;
+            desejadoY = dy / n * forca * Velocidade;
+        }
+        float ddx = desejadoX - Vx, ddy = desejadoY - Vy;
+        float dd = MathF.Sqrt(ddx * ddx + ddy * ddy);
+        if (dd > 1e-6f)
+        {
+            bool acelerando = desejadoX * desejadoX + desejadoY * desejadoY > Vx * Vx + Vy * Vy;
+            float passo = (acelerando ? Aceleracao : Frenagem) * dt;
+            if (dd <= passo) { Vx = desejadoX; Vy = desejadoY; }
+            else { Vx += ddx / dd * passo; Vy += ddy / dd * passo; }
+        }
+        X += Vx * dt;
+        Y += Vy * dt;
         Limitar();
     }
 
+    /// <summary>Vai até o ponto freando pra chegar parado. Devolve true quando chegou.</summary>
     public bool IrPara(float x, float y, float dt)
     {
         float dx = x - X, dy = y - Y;
         float d = MathF.Sqrt(dx * dx + dy * dy);
-        if (d < 0.03f) return true;
-        float passo = MathF.Min(d, Velocidade * dt);
-        X += dx / d * passo;
-        Y += dy / d * passo;
-        Limitar();
-        return d - passo < 0.03f;
+        if (d < 0.05f) { Mover(0, 0, dt); return true; }
+        float vDesejada = MathF.Min(Velocidade, MathF.Sqrt(2 * Frenagem * d));
+        float f = vDesejada / Velocidade;
+        Mover(dx / d * f, dy / d * f, dt);
+        return d < 0.1f;
+    }
+
+    /// <summary>Tempo pra percorrer d metros partindo do repouso (estimativa conservadora usada pela IA).</summary>
+    public float TempoParaChegar(float d)
+    {
+        float tAcel = Velocidade / Aceleracao;
+        float dAcel = 0.5f * Aceleracao * tAcel * tAcel;
+        return d <= dAcel ? MathF.Sqrt(2 * d / Aceleracao) : tAcel + (d - dAcel) / Velocidade;
     }
 
     public float DistanciaAte(float x, float y) => Util.Distancia(X, Y, x, y);
 
     public bool Alcanca(Bola bola) => DistanciaAte(bola.X, bola.Y) <= Alcance && bola.Z >= 0 && bola.Z <= AlturaMaxima;
+    public bool AlcancaConfortavelmente(Bola bola) => DistanciaAte(bola.X, bola.Y) <= AlcanceConfortavel && bola.Z >= 0 && bola.Z <= AlturaMaxima;
 
-    public void AvancarTempo(float dt) => Cooldown = MathF.Max(0, Cooldown - dt);
+    /// <summary>
+    /// Quando bater: no ponto confortável; esticado só se a bola já está indo embora (última chance) ou,
+    /// no balanço manual, se ele está acabando. É o que faz o contato sair perto do corpo em vez de na
+    /// ponta do alcance — pra IA e pra humano.
+    /// </summary>
+    public bool PodeBaterAgora(Bola bola)
+    {
+        if (!Alcanca(bola)) return false;
+        if (DistanciaAte(bola.X, bola.Y) <= AlcanceConfortavel) return true;
+        float indoEmbora = (bola.X - X) * bola.Vx + (bola.Y - Y) * bola.Vy;
+        return indoEmbora > 0 || (Balancando && Balanco <= 0.08f);
+    }
+
+    public void IniciarBalanco(bool lob)
+    {
+        Balanco = DuracaoDoBalanco;
+        TempoNoBalanco = 0;
+        BalancoDeLob = lob;
+    }
+
+    /// <summary>A raquete tocou na bola: o balanço termina sem contar como raquete no ar.</summary>
+    public void EncerrarBalanco() => Balanco = 0;
+
+    public void AvancarTempo(float dt)
+    {
+        Cooldown = MathF.Max(0, Cooldown - dt);
+        BalancoTerminouNoAr = false;
+        if (Balanco > 0)
+        {
+            Balanco = MathF.Max(0, Balanco - dt);
+            TempoNoBalanco += dt;
+            if (Balanco == 0) BalancoTerminouNoAr = true;
+        }
+    }
 
     /// <summary>0 = golpe confortável; cresce quando esticado, com a bola rente ao chão ou rápida.</summary>
     public float DificuldadeDoGolpe(Bola bola)
     {
-        float esticado = DistanciaAte(bola.X, bola.Y) / Alcance;
+        float esticado = Util.Limitar((DistanciaAte(bola.X, bola.Y) - DistanciaIdealDoContato) / (Alcance - DistanciaIdealDoContato), 0, 1);
         return Util.Limitar(esticado * 0.8f + (bola.Z < 0.3f ? 0.4f : 0) + (bola.Rapidez > 18 ? 0.4f : 0), 0, 1.6f);
     }
 }
@@ -109,8 +193,8 @@ public sealed class Jogador
 /// Controla os jogadores de um time que não são humanos. Quando a bola muda de trajetória, simula a
 /// física pra frente (mesma Bola, mesmo passo), decide quem busca e onde — com erro de leitura por
 /// dificuldade, corrigido a cada quique/parede — e o outro cobre. Na hora de bater escolhe o alvo:
-/// o buraco entre os adversários, lob quando eles estão na rede, smash em bola alta, erro forçado
-/// quando esticada.
+/// o buraco entre os adversários, lob quando eles estão na rede, bandeja/víbora/smash em bola alta,
+/// erro forçado quando esticada. Cada tipo de golpe imprime o efeito do padel de verdade.
 /// </summary>
 public sealed class IA
 {
@@ -149,7 +233,7 @@ public sealed class IA
         if (jogador.Time == Time)
         {
             bool naFrente = MathF.Abs(jogador.Y) < 5.5f;
-            Posicao = golpe.Tipo is TipoDeGolpe.Lob or TipoDeGolpe.Smash || naFrente ? Formacao.Rede : Formacao.Fundo;
+            Posicao = golpe.Tipo is TipoDeGolpe.Lob or TipoDeGolpe.Smash or TipoDeGolpe.Bandeja or TipoDeGolpe.Vibora || naFrente ? Formacao.Rede : Formacao.Fundo;
         }
         Planejar(partida, novaTrajetoria: true);
     }
@@ -181,7 +265,7 @@ public sealed class IA
             {
                 float distancia = j.DistanciaAte(c.X, c.Y);
                 if (c.Voleio && !(MathF.Abs(j.Y) < 5 && distancia < 2.5f)) continue;
-                float folga = c.T - (distancia / j.Velocidade + (j.Humano ? 0 : Perfil.Reacao));
+                float folga = c.T - (j.TempoParaChegar(distancia) + (j.Humano ? 0 : Perfil.Reacao));
                 if (folga >= 0 && folga > melhorFolga) { melhorFolga = folga; melhor = j; }
             }
             if (melhor is not null) { escolhido = melhor; alvo = c; break; }
@@ -254,7 +338,7 @@ public sealed class IA
             var plano = _plano;
             if (plano is not null && plano.Responsavel == j)
             {
-                if (_relogio - plano.CriadoEm < Perfil.Reacao) continue;
+                if (_relogio - plano.CriadoEm < Perfil.Reacao) { j.Mover(0, 0, dt); continue; }
                 j.IrPara(plano.AlvoX, plano.AlvoY, dt);
             }
             else
@@ -278,14 +362,23 @@ public sealed class IA
                 ? new Golpe((r.Proximo() - 0.5f) * 6, ladoDoAlvo * 0.3f, 0.45f, TipoDeGolpe.Erro, IgnorarRede: true)     // na rede
                 : new Golpe((r.Proximo() - 0.5f) * 6, ladoDoAlvo * 11.5f, 0.55f, TipoDeGolpe.Erro, IgnorarRede: true);   // no vidro sem quicar
         }
-        if (bola.Z > 1.6f && MathF.Abs(jogador.Y) < 6)
+        // Bola alta: smash bem na rede; senão bandeja (segura, funda, com slice) ou víbora (agressiva, com sidespin).
+        if (bola.Z > 1.5f && MathF.Abs(jogador.Y) < 6.5f)
         {
-            return new Golpe((r.Proximo() - 0.5f) * 7, ladoDoAlvo * (3 + r.Proximo() * 3), 0.42f, TipoDeGolpe.Smash);
+            bool bemAlta = bola.Z > 2.0f && MathF.Abs(jogador.Y) < 4.5f;
+            if (bemAlta && r.Proximo() < 0.6f)
+                return new Golpe((r.Proximo() - 0.5f) * 7, ladoDoAlvo * (3 + r.Proximo() * 3), 0.4f, TipoDeGolpe.Smash, Efeito: new Efeito(1500, 0));
+            if (r.Proximo() < 0.35f)
+            {
+                float paraOLado = r.Proximo() < 0.5f ? -1 : 1;
+                return new Golpe(3.8f * paraOLado, ladoDoAlvo * 6.5f, 0.7f, TipoDeGolpe.Vibora, Efeito: new Efeito(-800, 1800 * paraOLado * ladoDoAlvo));
+            }
+            return new Golpe((r.Proximo() - 0.5f) * 6, ladoDoAlvo * 7.5f, 0.95f, TipoDeGolpe.Bandeja, Efeito: new Efeito(-1500, 500));
         }
         int adversariosNaRede = adversarios.Count(a => MathF.Abs(a.Y) < 4.5f);
         if (adversariosNaRede >= 1 && r.Proximo() < Perfil.ChanceDeLob)
         {
-            return new Golpe((r.Proximo() - 0.5f) * 5, ladoDoAlvo * 8.2f, 1.7f, TipoDeGolpe.Lob);
+            return new Golpe((r.Proximo() - 0.5f) * 5, ladoDoAlvo * 8.2f, 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
         }
         // Golpe de fundo pro buraco: o canto mais longe dos dois adversários.
         float melhorX = 0, melhorDistancia = -1;
@@ -297,6 +390,6 @@ public sealed class IA
         float ruido = Perfil.ErroDeMira * (1 + 1.2f * dificuldade);
         float alvoX = Util.Limitar(melhorX + r.Gaussiana() * ruido, -4.5f, 4.5f);
         float alvoY = ladoDoAlvo * Util.Limitar(MathF.Abs(ladoDoAlvo * 6.8f + r.Gaussiana() * ruido * 0.6f), 2, 9.4f);
-        return new Golpe(alvoX, alvoY, 0.85f, TipoDeGolpe.Normal);
+        return new Golpe(alvoX, alvoY, 0.8f, TipoDeGolpe.Normal, Efeito: new Efeito(1200, 0));
     }
 }
