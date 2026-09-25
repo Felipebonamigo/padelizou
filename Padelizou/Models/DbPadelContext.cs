@@ -24,6 +24,9 @@ public partial class DbPadelContext : DbContext
     // (Models/InscritoPorOutro).
     public virtual DbSet<InscritoPorOutro> InscritosPorOutro { get; set; }
 
+    // Por que cada vaga abriu — o histórico de quem saiu do torneio (Models/SaidaDoTorneio).
+    public virtual DbSet<SaidaDoTorneio> SaidasDoTorneio { get; set; }
+
     public virtual DbSet<Jogador> Jogadores { get; set; }
 
 
@@ -1166,6 +1169,22 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(d => d.Jogador2Id)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Dupla__Jogador2I__59063A47");
+        });
+
+        // ── POR QUE ESSA VAGA ABRIU (25/09/2026) ─────────────────────────────────────────
+        modelBuilder.Entity<SaidaDoTorneio>(entity =>
+        {
+            // ⚠️ CASCADE no TORNEIO, e só nele. Torneio apagado leva o histórico junto (ele não
+            // significa nada sem o torneio), mas nem a categoria nem os jogadores levam: a
+            // categoria pode ser apagada no meio da vida do torneio, e Jogador já tem caminho de
+            // cascade demais — ver o comentário do modelo e o do InscritoPorOutro.
+            entity.HasOne(e => e.Torneio)
+                .WithMany()
+                .HasForeignKey(e => e.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A tela do organizador abre por torneio, do mais recente pro mais antigo.
+            entity.HasIndex(e => new { e.TorneioId, e.SaiuEm });
         });
 
         // ── "VOCÊ FOI INSCRITO POR ALGUÉM" (16/09/2026) ──────────────────────────────────

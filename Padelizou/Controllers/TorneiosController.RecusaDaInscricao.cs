@@ -116,6 +116,16 @@ namespace Padelizou.Controllers
             // quando não sobra ninguém nela.
             var quemFica = await TirarDaInscricaoAsync(dupla, EscolhaDeQuemSai.SoEu, meuId);
 
+            // ⚠️ A RECUSA É A QUINTA PORTA DE SAÍDA, e ela quase ficou de fora do histórico: o
+            // pedido falava de "cancelar a inscrição", e recusar não se chama assim em lugar
+            // nenhum da tela. Mas o efeito é o mesmo — alguém que estava inscrito deixou de
+            // estar —, e um histórico que pula esta some justamente com quem nunca quis entrar.
+            //
+            // `abriuVaga` sai de `quemFica`: sobrou parceiro, a inscrição continua de pé e a
+            // vaga não abriu; não sobrou ninguém, ela acabou.
+            await RegistrarSaidaAsync(torneio!, categoriaId, meuId, null, meuId,
+                MotivoDaSaida.Desistiu, observacao: null, eraPaga, abriuVaga: quemFica == null);
+
             var nome = euMesmo?.ComoChamar ?? "";
 
             if (quemFica is { } parceiro)
@@ -137,10 +147,9 @@ namespace Padelizou.Controllers
 
             // A inscrição acabou de verdade: a vaga volta pra fila e o dinheiro que entrou por
             // ela vira assunto do organizador — as duas coisas que a desistência já faz.
-            if (quemFica == null)
+            if (quemFica == null && eraConfirmada)
             {
-                await AvisarOrganizadorDeSaidaPagaAsync(eraPaga, torneio!, euMesmo);
-                if (eraConfirmada) await PromoverDaListaDeEsperaAsync(categoriaId, torneio!);
+                await PromoverDaListaDeEsperaAsync(categoriaId, torneio!);
             }
 
             TempData["Sucesso"] = quemFica == null

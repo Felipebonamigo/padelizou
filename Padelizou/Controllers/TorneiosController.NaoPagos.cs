@@ -92,7 +92,11 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             foreach (var dupla in duplas)
-                await TirarDuplaDoTorneioAsync(dupla, torneio, motivo);
+                // ⚠️ O motivo é `NaoPagou` mesmo sendo o organizador quem clica: no histórico
+                // o que importa é POR QUE a vaga abriu, e aqui foi o prazo do pagamento. O
+                // `quemPediuId` guarda quem apertou, que é outra pergunta.
+                await TirarDuplaDoTorneioAsync(dupla, torneio, motivo,
+                    MotivoDaSaida.NaoPagou, ObterJogadorIdLogado());
 
             var americanas = await _context.InscricoesAmericanas
                 .Where(i => americanaIds.Contains(i.Id) && i.Categoria.TorneioId == id
