@@ -38,6 +38,14 @@ const statusKind = () => page.evaluate(() => document.querySelector('.remap-stat
 const capturing = () => page.evaluate(() => { const c = document.querySelector('.bind-cell.capturing'); return c ? `${c.dataset.action}:${c.dataset.device}` : null; });
 const focused = () => page.evaluate(() => { const c = document.querySelector('.scr-controls .focus'); return c ? (c.dataset.action ? `${c.dataset.action}:${c.dataset.device}` : c.textContent) : null; });
 const key = async (code, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(code); await frames(1); } };
+
+/** Posição de um item do menu principal pelo texto (o menu muda com Carreira, Online, Continuar…; contar setas quebra). */
+const mainIndex = (p, pattern) => p.evaluate((src) => {
+  const re = new RegExp(src, 'i');
+  const i = [...document.querySelectorAll('.scr-main .menu-list > *')].findIndex((el) => re.test((el.textContent ?? '').trim()));
+  if (i < 0) throw new Error(`item do menu principal não encontrado: ${src}`);
+  return i;
+}, pattern);
 const pad = async (i, v = true) => { await page.evaluate(([b, on]) => window.__pad.press(b, on), [i, v]); await frames(3); };
 
 await page.goto(url, { waitUntil: 'networkidle' });
@@ -52,7 +60,7 @@ await freezeIdle();
 // ── Menu principal → Controles, pelo teclado ──
 await key('Enter');
 check((await menu()) === 'main', 'Enter leva ao menu principal');
-await key('ArrowDown', 5);
+await key('ArrowDown', await mainIndex(page, '^controles$'));
 await key('Enter');
 check((await menu()) === 'controls', `Controles abre pelo menu (${await menu()})`);
 const grid = await page.evaluate(() => ({ cells: document.querySelectorAll('.bind-cell').length, restore: document.querySelectorAll('.btn-restore').length, first: document.querySelector('.bind-cell')?.textContent }));

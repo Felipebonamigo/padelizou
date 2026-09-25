@@ -63,6 +63,14 @@ async function waitFor(p, fn, arg, timeoutMs = 60000) {
   return v;
 }
 const press = async (p, key, n = 1) => { for (let i = 0; i < n; i++) { await p.keyboard.press(key); await p.waitForTimeout(120); } };
+
+/** Posição de um item do menu principal pelo texto (o menu muda com Carreira, Online, Continuar…; contar setas quebra). */
+const mainIndex = (p, pattern) => p.evaluate((src) => {
+  const re = new RegExp(src, 'i');
+  const i = [...document.querySelectorAll('.scr-main .menu-list > *')].findIndex((el) => re.test((el.textContent ?? '').trim()));
+  if (i < 0) throw new Error(`item do menu principal não encontrado: ${src}`);
+  return i;
+}, pattern);
 // O 3D por software custa por pixel: fora das capturas as páginas ficam pequenas, senão um quadro
 // leva segundos, a rede só é lida entre quadros e o lockstep anda 3 ticks a cada ida e volta.
 const BIG = { width: 1280, height: 720 };
@@ -79,7 +87,7 @@ const host = await openPage('anfitrião');
 const guest = await openPage('convidado');
 for (const p of [host, guest]) {
   await press(p, 'Enter'); // título → menu
-  await press(p, 'ArrowDown', 3); // Campeonato, Rápida, Contra-relógio → Online
+  await press(p, 'ArrowDown', await mainIndex(p, '^online$'));
   await press(p, 'Enter');
 }
 let h = await info(host);
