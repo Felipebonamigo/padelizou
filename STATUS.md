@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **25/09/2026 (5)** — 🥋 **ONDA 2 DO JOGO: Lian, Lanceiro, Monge Renegado, chefes em duas fases, o defeito do simulador consertado, e as fontes empacotadas.** ✅ **SEM MIGRATION, sem C#.** Commits `77ca731` (conteúdo) e `c36a81d` (fontes). Mesmo branch, sem PR.
+>
+> 🌊 **Duas tarefas de arquivos disjuntos**: conteúdo na árvore principal, fontes em worktree. Mesma esteira da onda 1, agora com **dois céticos por achado e os dois precisando confirmar** (na onda 1 os céticos confirmaram 27 de 29 e a etapa estourou o limite da sessão). **Conteúdo: 14 de 14 achados confirmados e corrigidos. Fontes: 1 de 2.**
+>
+> 🧑‍🦰 **Lian**, "A Corrente do Rio": rápida, frágil, corrente de alcance longo; o Puxão do Rio traz o primeiro inimigo da fila (nunca chefe, nem quem está no ar ou defendendo). **Lanceiro**: estoca de longe e guarda distância. **Monge Renegado**: defende muito e contra-ataca depois de bloquear — e o **chute do jogador quebra guarda**, pra ele não virar parede. **Chefes em duas fases**: ao cruzar 50%, FÚRIA de 1 s invulnerável com onda de choque, e números novos (o Feiticeiro passa a soltar três caveiras). A tela de escolha virou N cartões.
+>
+> 🐞 **O DEFEITO QUE O SIMULADOR ACHOU na onda 1, consertado com teste antes**: inimigo que entra na arena não sai mais dela e ninguém ataca de fora. Na reprodução, o Gigante acertava 3 de 7 golpes de FORA da tela, de até 183 px; depois, 0. ⚠️ **E o conserto criou um defeito novo, que a revisão pegou** (severidade alta): o jogador parado na borda, virado pra fora e socando, não levava dano de quase ninguém — virou ponto seguro. Corrigido: com a tela travada, o jogador também não acerta quem ainda não entrou.
+>
+> 🔤 **FONTES EMPACOTADAS**: Cinzel e Chakra Petch em `jogo/fontes/`, só latin e latin-ext, com as duas licenças OFL (que permitem empacotar em jogo vendido). A CSP do Electron fechou a rede. 🕵️ **Achado da revisão**: mesmo com `spellcheck: false`, o Chromium baixava o dicionário en-US de `redirector.gvt1.com` a CADA abertura — lista de idiomas do corretor vazia impede. **Conferido por net-log** no Electron de desenvolvimento e no binário empacotado: nenhuma URL de rede.
+>
+> 📊 **O PREÇO NO BALANCEAMENTO, medido pelo simulador** (bot, Long, n=20): o conteúdo novo endureceu o fim. No normal, a fase 4 caiu pra 5% com o bot médio e **0% com o bom**; a fase 3, pra 15% com o médio. Com a Lian a conclusão é bem menor que com o Long. É o trabalho da onda 4 — o simulador já está pronto e as matrizes de antes e depois estão guardadas.
+>
+> 🧪 **18 conferidores JS verdes** (novo: `conferir-conteudo-do-shaolin.js`). Fumaças no Chromium (inclusive a Lian e a fúria), no Electron de desenvolvimento e no empacotado.
+>
+> 🤔 **Decisões registradas**: o puxão num inimigo no ar só dá o dano (não teleporta ninguém pro chão); o contra-ataque do Renegado liga em 0,08 s (com 0,06 s ficava imbloqueável na prática).
+
 > Última atualização: **25/09/2026 (4)** — 🥋 **ONDA 1 DO JOGO: o Templo (loja de golpes), o Electron endurecido e o simulador de balanceamento.** 🗣️ Felipe: *"Continue com tudo que você consegue fazer, depois veremos a parte gráfica e o que falta"*. ✅ **SEM MIGRATION, sem C#.** Branch `claude/mortal-kombat-game-6bipnb`, sem PR. Commits `0f33333` (Templo), `eb00237` (13 correções da revisão), `8435a7f` (desktop), `7fa04bb` (simulador).
 >
 > 🌊 **PRIMEIRA ONDA PARALELA DO JOGO, pelas regras do `ONDAS-PARALELAS.md`**: três tarefas de arquivos disjuntos. A loja na árvore principal; desktop e simulador em worktree própria (a válvula de escape), copiados pra cá e commitados um por tarefa. Nenhum implementador commitou. Cada tarefa passou por revisão com lentes diferentes, **três céticos por achado** (fica o que dois confirmam), correção com teste antes, e conferência final sem editar. Resultado: **loja 13 de 13 achados confirmados, desktop 8 de 8, simulador 6 de 8** — todos corrigidos. ⏸️ No meio, os agentes bateram no limite de uso da sessão; a retomada reaproveitou o que já tinha terminado.

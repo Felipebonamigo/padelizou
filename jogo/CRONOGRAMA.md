@@ -93,9 +93,9 @@ Objetivo: de "demo de mecânica" pra "jogo de 2–3 horas com motivo pra jogar d
 - [x] **Progressão de golpes** (o coração do *Shaolin Monks*): pontos compram golpes novos entre
       fases — combo de 5, contra-ataque, especial no ar, agarrão por trás. *(Feito: o Templo, com
       karma pelos pontos da fase e sete melhorias. Preços e karma são o primeiro chute; o balanceamento ajusta.)*
-- [ ] **Terceiro monge** com estilo próprio (rápido e frágil, ou com corrente/chicote — decidir).
-- [ ] **Dois inimigos novos** (lanceiro que ataca de longe no chão, monge renegado que defende e
-      contra-ataca) e **chefes em duas fases** (padrão muda na metade da vida).
+- [x] **Terceiro monge** com estilo próprio (rápido e frágil, ou com corrente/chicote — decidir). *(Lian, as duas coisas: rápida, frágil, com corrente e o Puxão do Rio.)*
+- [x] **Dois inimigos novos** (lanceiro que ataca de longe no chão, monge renegado que defende e
+      contra-ataca) e **chefes em duas fases** (padrão muda na metade da vida). *(E o chute quebra guarda.)*
 - [ ] **Cenário que mata**: espinhos, fogo, poço — arremessar inimigo neles é morte na hora, como
       no original. Objetos interativos e destrutíveis por fase.
 - [ ] **Fases mais longas com pontos de controle** (morrer volta ao último *set*, não ao começo).

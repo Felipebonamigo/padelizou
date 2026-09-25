@@ -6,7 +6,8 @@ hora, os cenários são gradientes e formas cacheadas, e o som é sintetizado co
 
 **Pra jogar:** abra `jogo/index.html` no navegador (funciona por `file://`, sem servidor) — ou, no
 desktop, `npm ci && npm run start` em `jogo/`, que abre o Electron servindo o jogo por `app://` com
-CSP. As fontes do Google melhoram o visual, mas o jogo não espera por elas.
+CSP. Tudo é local, inclusive as fontes (`jogo/fontes/`, licença OFL): o jogo roda sem internet, e o
+desktop não faz nenhuma requisição de rede (conferido por net-log).
 
 ⚠️ **Fica FORA do app .NET de propósito.** Nada aqui é servido pelo Padelizou nem entra no
 deploy. Se um dia for pra `Padelizou/wwwroot/jogo/`, ele vira público em `/jogo/index.html`
@@ -33,7 +34,13 @@ na hora — o `UseStaticFiles` roda ANTES do portão de Acesso Antecipado (`Prog
 - **Agarrar** de perto: soco arremessa (quem está no caminho apanha), chute é joelhada.
 - **Defender** segura 80% do dano de quem vem pela frente. De costas, não segura nada.
 - **Chi** enche a cada golpe de punho (projétil e arremesso não contam) e paga o especial:
-  o Long solta o *Sopro do Dragão* (bola de fogo), o Shen gira a *Tempestade do Bastão*.
+  o Long solta o *Sopro do Dragão* (bola de fogo), o Shen gira a *Tempestade do Bastão*, e a Lian
+  lança o *Puxão do Rio*: a corrente traz o primeiro inimigo da fila (nunca chefe, nem quem está no
+  ar ou defendendo, que só levam o dano).
+- **Três monges**: Long (equilibrado), Shen (bastão, mais vida e alcance) e **Lian** (corrente de
+  alcance longo, rápida e frágil).
+- **Quebra de guarda**: o chute do jogador quebra a guarda de quem está defendendo (atordoado curto).
+  É a resposta ao **Monge Renegado**, que defende muito e contra-ataca depois de bloquear.
 - **Finalização:** inimigo com pouca vida que levanta do chão fica **atordoado** (estrelinhas,
   "FINALIZE!"). Agarre-o nesse instante: vale 500 pontos + o dobro dos pontos dele, e enche o chi.
 - **Vasos** quebram e soltam chá (vida) ou pergaminho (chi). Inimigo morto às vezes solta também.
@@ -50,7 +57,11 @@ na hora — o `UseStaticFiles` roda ANTES do portão de Acesso Antecipado (`Prog
 Quatro fases (Pátio do Templo, Floresta Viva, Poço das Almas, Torre do Feiticeiro), cada uma
 com ondas de inimigos e um chefe: Mestre Sombra (teleporta ao levar três golpes), Grão-Presa
 (armadura: golpe leve não interrompe), o Gigante do Poço (pancada no chão dos dois lados) e o
-Feiticeiro (teleporta, atira caveiras e invoca Sombras a cada terço de vida).
+Feiticeiro (teleporta, atira caveiras e invoca Sombras a cada terço de vida). **Todo chefe tem duas
+fases**: ao cruzar 50% da vida entra em FÚRIA (1 s invulnerável, onda de choque) e volta mais duro.
+Inimigos comuns: Sombra, Garra, Bruto (armadura), Arqueiro, **Lanceiro** (estoca de longe) e
+**Monge Renegado**. Com a tela travada, inimigo que entrou na arena não sai mais dela, e ninguém
+ataca de onde o jogador não alcança (defeito achado pelo simulador).
 
 ## O que fica guardado
 
@@ -71,7 +82,7 @@ ao carregar: salvamento velho ou corrompido vira padrão no que faltar.
 | `js/som.js` | Efeitos e música sintetizados (Web Audio). Um sequenciador pentatônico com taiko, um humor por cenário. | ❌ |
 | `js/entrada.js` | Teclado, Gamepad API e toque (joystick + botões). Calcula a borda "apertou" por quadro. | ❌ |
 | `js/progresso.js` | O que fica guardado entre partidas, com versão e migração (`normalizar`). | ✅ |
-| `js/conquistas.js` | As 17 conquistas: definição, desbloqueio pelos eventos do motor e da compra no Templo, espelho pra Steam. | ✅ |
+| `js/conquistas.js` | As 19 conquistas: definição, desbloqueio pelos eventos do motor e da compra no Templo, espelho pra Steam. | ✅ |
 | `js/loja.js` | O Templo: catálogo das sete melhorias, karma da fase, compra. O motor não importa a loja; ele exporta `Motor.MELHORIAS` e recebe `liberados` no `criarMundo`. | ✅ |
 | `js/plataforma.js` | Onde salva e com quem fala: `localStorage` no navegador, `window.punhos` no Electron (arquivo + Steam). | ❌ |
 | `js/principal.js` | Laço com passo fixo de 1/60 s, menus, opções, pausa, congelamento de acerto, câmera lenta, resolução nativa. | ❌ |
@@ -85,13 +96,14 @@ finalização…) e quem desenha/toca consome. Nada de tela vaza pra dentro da r
 ## Conferência
 
 ```bash
-cd jogo && npm run conferir        # os cinco de uma vez (varre conferir-*shaolin*.js)
+cd jogo && npm run conferir        # todos de uma vez (varre conferir-*shaolin*.js)
 
 node Padelizou.Tests/js/conferir-punhos-de-shaolin.js       # combate
 node Padelizou.Tests/js/conferir-conquistas-do-shaolin.js   # progresso, conquistas, dificuldade
 node Padelizou.Tests/js/conferir-loja-do-shaolin.js         # Templo: catálogo, compra, karma e o efeito de cada melhoria no motor
 node Padelizou.Tests/js/conferir-desktop-do-shaolin.js      # caminho seguro, porteiro do IPC, salvamento com .bak, fios do main.js, fuses
 node Padelizou.Tests/js/conferir-simulacao-do-shaolin.js    # o bot conclui a fase 1, nada trava, a semente reproduz (~3 s)
+node Padelizou.Tests/js/conferir-conteudo-do-shaolin.js     # Lian, Lanceiro, Renegado, fúria dos chefes, inimigos presos na arena
 ```
 
 Roda o motor no Node, quadro a quadro, e confere 40 pontos: soco tira o dano certo e só em quem
