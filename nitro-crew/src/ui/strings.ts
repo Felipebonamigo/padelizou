@@ -44,6 +44,7 @@ registerStrings('ui', {
     'lobby.teamN': 'Time {n}',
     'lobby.ready': 'PRONTO',
     'lobby.readyDone': 'PRONTO ✓',
+    'lobby.laps': 'Voltas',
     'lobby.leaveHint': 'Esc / B sai do assento',
     'lobby.stat.topSpeed': 'Velocidade',
     'lobby.stat.accel': 'Aceleração',
@@ -59,14 +60,14 @@ registerStrings('ui', {
     'lobby.needP1': 'O Jogador 1 entra para configurar a corrida',
 
     'cups.title': 'Escolha a copa',
-    'cups.locked': 'Bloqueada — conclua a {cup}',
+    'cups.locked': 'Conclua a {cup}',
     'cups.hint': 'Enter ou A escolhe · Esc ou B volta ao lobby',
 
     'tracks.title': 'Escolha a pista',
     'tracks.bestLap': 'Melhor volta',
     'tracks.hint': 'Enter ou A escolhe · Esc ou B volta ao lobby',
 
-    'results.title': 'Resultado — {track}',
+    'results.title': 'Resultado',
     'results.name': 'Piloto',
     'results.car': 'Carro',
     'results.time': 'Tempo',
@@ -81,7 +82,7 @@ registerStrings('ui', {
     'results.retry': 'TENTAR DE NOVO',
     'results.menu': 'MENU',
 
-    'standings.title': 'Classificação — {cup}',
+    'standings.title': 'Classificação',
     'standings.drivers': 'Pilotos',
     'standings.teams': 'Equipes',
     'standings.points': 'Pts',
@@ -201,6 +202,7 @@ registerStrings('ui', {
     'lobby.teamN': 'Team {n}',
     'lobby.ready': 'READY',
     'lobby.readyDone': 'READY ✓',
+    'lobby.laps': 'Laps',
     'lobby.leaveHint': 'Esc / B leaves the seat',
     'lobby.stat.topSpeed': 'Top speed',
     'lobby.stat.accel': 'Acceleration',
@@ -216,14 +218,14 @@ registerStrings('ui', {
     'lobby.needP1': 'Player 1 joins to set up the race',
 
     'cups.title': 'Choose a cup',
-    'cups.locked': 'Locked — finish the {cup}',
+    'cups.locked': 'Finish the {cup}',
     'cups.hint': 'Enter or A picks · Esc or B returns to the lobby',
 
     'tracks.title': 'Choose a track',
     'tracks.bestLap': 'Best lap',
     'tracks.hint': 'Enter or A picks · Esc or B returns to the lobby',
 
-    'results.title': 'Results — {track}',
+    'results.title': 'Results',
     'results.name': 'Driver',
     'results.car': 'Car',
     'results.time': 'Time',
@@ -238,7 +240,7 @@ registerStrings('ui', {
     'results.retry': 'TRY AGAIN',
     'results.menu': 'MENU',
 
-    'standings.title': 'Standings — {cup}',
+    'standings.title': 'Standings',
     'standings.drivers': 'Drivers',
     'standings.teams': 'Teams',
     'standings.points': 'Pts',

@@ -1,7 +1,9 @@
 // Telas de consulta: controles (mapeamentos + dispositivos detectados) e recordes.
 import { formatTicks } from '../../core/sim/race';
 import { t } from '../../i18n';
+import { isKeyboard } from '../input';
 import { button, createFocusList, h, listNav, screenFrame, type ScreenApi, type ScreenInstance } from './common';
+import { icon } from './icons';
 
 interface ControlRow { action: string; kb1: string; kb2: string; gp: string }
 
@@ -20,19 +22,24 @@ function controlRows(): ControlRow[] {
   ];
 }
 
+/** Cada tecla numa "tecla" desenhada; separadores "/" viram texto solto. */
+function keys(text: string): HTMLElement {
+  return h('span', { class: 'keys' }, text.split(' / ').flatMap((k, i) => [i > 0 ? h('span', { class: 'key-sep', text: '/' }) : null, h('kbd', { text: k })]));
+}
+
 export function controlsScreen(api: ScreenApi): ScreenInstance {
   const table = h('table', { class: 'table controls-table' },
     h('thead', {}, h('tr', {},
       h('th', { text: t('ui.controls.action') }),
-      h('th', { text: t('ui.device.kb1') }),
-      h('th', { text: t('ui.device.kb2') }),
-      h('th', { text: t('ui.controls.gamepad') }),
+      h('th', {}, icon('keyboard'), ` ${t('ui.device.kb1')}`),
+      h('th', {}, icon('keyboard'), ` ${t('ui.device.kb2')}`),
+      h('th', {}, icon('gamepad'), ` ${t('ui.controls.gamepad')}`),
     )),
     h('tbody', {}, controlRows().map((r) => h('tr', {},
       h('td', { text: r.action }),
-      h('td', { class: 'key', text: r.kb1 }),
-      h('td', { class: 'key', text: r.kb2 }),
-      h('td', { class: 'key', text: r.gp }),
+      h('td', {}, keys(r.kb1)),
+      h('td', {}, keys(r.kb2)),
+      h('td', {}, keys(r.gp)),
     ))),
   );
   const deviceList = h('ul', { class: 'device-list' });
@@ -43,21 +50,25 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
     if (sig === signature) return;
     signature = sig;
     deviceList.replaceChildren(...devices.map((d) => h('li', { class: d.connected ? 'device on' : 'device off' },
-      h('span', { class: 'device-dot' }),
+      icon(isKeyboard(d.id) ? 'keyboard' : 'gamepad'),
       h('span', { class: 'device-label', text: d.label }),
       h('span', { class: 'device-state', text: d.connected ? t('ui.controls.connected') : t('ui.controls.disconnected') }),
-      h('span', { class: 'device-seat', text: d.boundSeat === null ? t('ui.controls.free') : t('ui.controls.seat', { n: d.boundSeat + 1 }) }),
+      h('span', { class: `device-seat${d.boundSeat === null ? '' : ' bound'}`, text: d.boundSeat === null ? t('ui.controls.free') : t('ui.controls.seat', { n: d.boundSeat + 1 }) }),
     )));
   };
   refreshDevices();
   const back = button(t('ui.common.back'), () => api.back());
   const list = createFocusList([back], { sfx: api.sfx });
   const el = screenFrame('controls', t('ui.controls.title'),
-    table,
-    h('h2', { class: 'sub-title', text: t('ui.controls.detected') }),
-    deviceList,
-    h('p', { class: 'hint', text: t('ui.controls.gamepadHint') }),
-    back.el,
+    h('div', { class: 'controls-columns' },
+      h('div', { class: 'table-wrap glass' }, table),
+      h('div', { class: 'devices-panel glass' },
+        h('h2', { class: 'sub-title', text: t('ui.controls.detected') }),
+        deviceList,
+        h('p', { class: 'hint', text: t('ui.controls.gamepadHint') }),
+      ),
+    ),
+    h('div', { class: 'actions' }, back.el),
   );
   return {
     el,
@@ -77,8 +88,8 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
       .map(([key, rec]) => ({ laps: Number(key.slice(def.id.length + 1)), rec }))
       .sort((a, b) => a.laps - b.laps);
     if (!lap && races.length === 0) continue;
-    rows.push(h('div', { class: 'record-row' },
-      h('div', { class: 'record-track' }, h('strong', { text: def.name }), h('span', { class: 'muted', text: ` — ${t(`core.country.${def.country}`)}` })),
+    rows.push(h('div', { class: 'record-row glass' },
+      h('div', { class: 'record-track' }, h('strong', { text: def.name }), h('span', { class: 'muted', text: t(`core.country.${def.country}`) })),
       h('div', { class: 'record-entries' },
         lap ? h('div', { class: 'record-entry' },
           h('span', { class: 'record-kind', text: t('ui.records.lap') }),
@@ -98,7 +109,7 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
   const el = screenFrame('records', t('ui.records.title'),
     h('p', { class: 'hint', text: t('ui.records.stats', { run: save.racesRun, won: save.racesWon, cups: save.cupsCompleted.length }) }),
     rows.length > 0 ? h('div', { class: 'record-list' }, rows) : h('p', { class: 'empty', text: t('ui.records.empty') }),
-    back.el,
+    h('div', { class: 'actions' }, back.el),
   );
   return { el, nav: (nav) => listNav(list, nav, api.sfx, () => api.back()) };
 }

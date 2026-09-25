@@ -1,13 +1,15 @@
-// Lobby: quatro assentos lado a lado, cada um navegado pelo próprio dispositivo; o Jogador 1
-// configura a corrida no painel de baixo. Entrar/sair de assento vem do InputProvider
-// (`joinPressed`/`leavePressed`) no `update()`; navegação vem do teclado (DOM) e do gamepad
-// (`navigate`), sempre com o `device` que apertou.
+// Lobby: um cartão por assento (grade 2×2), cada um navegado pelo próprio dispositivo; o
+// Jogador 1 configura a corrida no painel da direita. Entrar/sair de assento vem do
+// InputProvider (`joinPressed`/`leavePressed`) no `update()`; navegação vem do teclado (DOM)
+// e do gamepad (`navigate`), sempre com o `device` que apertou.
 import { SEAT_COLORS } from '../../core/data/drivers';
 import type { HumanEntry } from '../../core/types';
 import type { DeviceId, MenuNav } from '../../game/contracts';
 import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
-import { button, carCard, createFocusList, h, listNav, screenFrame, selector, type FocusItem, type FocusList, type LobbySeat, type LobbyState, type ScreenApi, type ScreenInstance } from './common';
+import { isKeyboard } from '../input';
+import { arrowButton, button, carCard, createFocusList, h, listNav, screenFrame, selector, type FocusItem, type FocusList, type LobbySeat, type LobbyState, type ScreenApi, type ScreenInstance } from './common';
+import { icon } from './icons';
 import { commitSettings, raceOptionSelectors } from './options';
 
 export const LOBBY_SEATS = 4;
@@ -70,12 +72,12 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   const { cars, input } = ctx;
   syncWithInput(api);
 
-  const modeTitle = t(`ui.main.${lobby.mode}`);
   const body = h('div', { class: 'lobby-body' });
   const el = screenFrame('lobby', null,
     h('div', { class: 'lobby-head' },
       h('h1', { class: 'screen-title', text: t('ui.lobby.title') }),
-      h('span', { class: 'lobby-mode', text: modeTitle }),
+      h('span', { class: 'chip', text: t(`ui.main.${lobby.mode}`) }),
+      h('span', { class: 'lobby-help', text: t('ui.lobby.joinHint') }),
     ),
     body,
   );
@@ -121,37 +123,48 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       on: { input: () => { s.name = nameInput.value; } },
     });
     const nameRow: FocusItem = {
-      el: h('div', { class: 'sel' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), nameInput),
+      el: h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), nameInput),
       activate: () => { nameInput.focus(); nameInput.select(); },
     };
-    const cardHolder = h('div', { class: 'car-holder' }, carCard(cars[s.carIndex] ?? cars[0], cars));
-    const carSel = selector(t('ui.lobby.car'), () => (cars[s.carIndex] ?? cars[0]).name, (dir) => {
+    const heroBody = h('div', { class: 'car-hero-body' }, carCard(cars[s.carIndex] ?? cars[0], cars));
+    const changeCar = (dir: -1 | 1) => {
       if (s.ready) return;
       s.carIndex = (s.carIndex + dir + cars.length) % cars.length;
-      cardHolder.replaceChildren(carCard(cars[s.carIndex], cars));
-    }, { sfx: api.sfx, onActivate: () => toggleReady(s), cls: `sel-car${s.ready ? ' locked' : ''}` });
-    const ready = button(s.ready ? t('ui.lobby.readyDone') : t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
+      heroBody.replaceChildren(carCard(cars[s.carIndex], cars));
+    };
+    const carItem: FocusItem = {
+      el: h('div', { class: `car-hero${s.ready ? ' locked' : ''}` },
+        arrowButton(-1, () => { changeCar(-1); api.sfx('move'); }),
+        heroBody,
+        arrowButton(1, () => { changeCar(1); api.sfx('move'); }),
+      ),
+      adjust: changeCar,
+      activate: () => toggleReady(s),
+    };
+    const ready = button(t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
+    if (s.ready) ready.el.prepend(icon('check'));
     const team = lobby.versus ? t('ui.lobby.teamN', { n: s.seat + 1 }) : t('core.team.human');
-    const slot = h('div', { class: `slot occupied${s.ready ? ' ready' : ''}`, style: `--seat:${color}` },
+    const slot = h('div', { class: `slot occupied glass${s.ready ? ' ready' : ''}`, style: `--seat:${color}` },
       h('div', { class: 'slot-head' },
         h('span', { class: 'seat-badge', text: `P${s.seat + 1}` }),
-        h('span', { class: 'slot-device', text: deviceLabel(s.device) }),
+        h('span', { class: 'slot-device' }, icon(isKeyboard(s.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(s.device) })),
+        s.ready ? h('span', { class: 'slot-state on' }, icon('check'), t('ui.lobby.ready')) : null,
       ),
       nameRow.el,
-      carSel.el,
-      cardHolder,
-      h('div', { class: 'slot-team' }, h('span', { class: 'sel-label', text: t('ui.lobby.team') }), h('span', { class: 'team-name', text: team })),
-      ready.el,
-      h('p', { class: 'slot-hint', text: t('ui.lobby.leaveHint') }),
+      carItem.el,
+      h('div', { class: 'slot-foot' },
+        h('span', { class: 'slot-team' }, icon('users'), h('span', { text: team })),
+        ready.el,
+      ),
     );
-    return { el: slot, items: [nameRow, carSel, ready] };
+    return { el: slot, items: [nameRow, carItem, ready] };
   }
 
   function emptySlot(seat: number): HTMLElement {
-    const slot = h('div', { class: 'slot empty', style: `--seat:${SEAT_COLORS[seat]}` },
+    const slot = h('div', { class: 'slot empty glass', style: `--seat:${SEAT_COLORS[seat]}` },
       h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
-      h('p', { class: 'slot-join blink', text: t('ui.lobby.join') }),
-      h('p', { class: 'slot-hint', text: t('ui.lobby.joinHint') }),
+      h('span', { class: 'slot-empty-icons' }, icon('keyboard'), icon('gamepad')),
+      h('p', { class: 'slot-join', text: t('ui.lobby.join') }),
     );
     slot.addEventListener('click', () => {
       // Com o mouse: entra com o primeiro teclado livre.
@@ -168,18 +181,18 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       items.push(selector(t('ui.lobby.mode'), () => (lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop')), () => { lobby.versus = !lobby.versus; render(); }, { sfx: api.sfx }));
     }
     items.push(...raceOptionSelectors(api, () => commitSettings(api), {
-      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick', assists: !tt && !lobby.versus,
+      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick', assists: !tt && !lobby.versus, lapsLabel: t('ui.lobby.laps'),
     }));
-    const startBtn = button(t('ui.lobby.start'), start, 'btn-start');
+    const startBtn = button(t('ui.lobby.start'), start, 'btn-primary btn-start');
     startBtn.disabled = !canStart(lobby);
     if (startBtn.disabled) startBtn.el.classList.add('disabled');
     const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
     items.push(startBtn, backBtn);
-    const panelEl = h('div', { class: 'lobby-panel' },
+    const panelEl = h('div', { class: 'lobby-panel glass' },
       h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
       h('div', { class: 'lobby-options' }, items.slice(0, items.length - 2).map((i) => i.el)),
-      h('div', { class: 'lobby-actions' }, startBtn.el, backBtn.el),
       h('p', { class: 'hint', text: canStart(lobby) ? t('ui.lobby.startHint') : t('ui.lobby.waitHint') }),
+      h('div', { class: 'lobby-actions' }, startBtn.el, backBtn.el),
     );
     return { el: panelEl, items };
   }
@@ -208,7 +221,11 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       slotItems[0] = [...(slotItems[0] ?? []), ...pn.items];
     } else {
       const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
-      panelEl = h('div', { class: 'lobby-panel waiting' }, h('p', { class: 'hint', text: t('ui.lobby.needP1') }), backBtn.el);
+      panelEl = h('div', { class: 'lobby-panel glass waiting' },
+        h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
+        h('p', { class: 'hint', text: t('ui.lobby.needP1') }),
+        h('div', { class: 'lobby-actions' }, backBtn.el),
+      );
       createFocusList([backBtn], { sfx: api.sfx });
     }
     for (let seat = 0; seat < limit; seat++) {

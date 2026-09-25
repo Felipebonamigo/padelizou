@@ -2,14 +2,11 @@
 import { formatTicks } from '../../core/sim/race';
 import type { CupDef, TrackDef } from '../../core/types';
 import { t } from '../../i18n';
-import { countryName, createFocusList, h, listNav, screenFrame, stars, trackThumb, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
+import { countryName, createFocusList, dayIcon, dots, flagFor, h, listNav, screenFrame, trackThumb, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
+import { icon } from './icons';
 import { lobbyHumans } from './lobby';
 
 export const TRACK_GRID_COLS = 3;
-
-function trackLine(def: TrackDef, laps: number): string {
-  return `${countryName(def.country)} · ${t(`core.time.${def.timeOfDay}`)} · ${t('ui.common.laps', { n: laps })}`;
-}
 
 export function cupsScreen(api: ScreenApi): ScreenInstance {
   const { ctx } = api;
@@ -18,7 +15,7 @@ export function cupsScreen(api: ScreenApi): ScreenInstance {
     const unlocked = ctx.isCupUnlocked(cup.id);
     const requiredName = cup.requires ? t(`core.cup.${cup.requires}`) : '';
     const tracks = cup.trackIds.map((id) => trackById(id)).filter((x): x is TrackDef => x !== undefined);
-    const el = h('div', { class: `cup-row${unlocked ? '' : ' locked'}` },
+    const el = h('div', { class: `cup-card glass${unlocked ? '' : ' locked'}` },
       h('div', { class: 'cup-head' },
         h('div', { class: 'cup-name-row' },
           h('span', { class: 'cup-flag', text: cup.flag }),
@@ -27,13 +24,13 @@ export function cupsScreen(api: ScreenApi): ScreenInstance {
             h('span', { class: 'muted', text: countryName(cup.country) }),
           ),
         ),
-        unlocked ? null : h('span', { class: 'cup-lock', text: `🔒 ${t('ui.cups.locked', { cup: requiredName })}` }),
+        unlocked ? null : h('span', { class: 'cup-lock' }, icon('lock'), h('span', { text: t('ui.cups.locked', { cup: requiredName }) })),
       ),
       h('div', { class: 'cup-tracks' }, tracks.map((def) => h('div', { class: 'track-mini' },
-        trackThumb(ctx, def, 56, unlocked ? '#4fc3f7' : '#6b7280'),
+        trackThumb(ctx, def, 56),
         h('div', { class: 'track-mini-text' },
           h('span', { class: 'track-mini-name', text: def.name }),
-          h('span', { class: 'muted', text: `${t('ui.common.laps', { n: def.laps })} · ${stars(def.difficulty)}` }),
+          h('span', { class: 'meta' }, dayIcon(def.timeOfDay), h('span', { text: t('ui.common.laps', { n: def.laps }) }), dots(def.difficulty)),
         ),
       ))),
     );
@@ -59,14 +56,19 @@ export function tracksScreen(api: ScreenApi): ScreenInstance {
   const items: FocusItem[] = ctx.tracks.map((def) => {
     const laps = timeTrial ? def.laps : ctx.settings.quickLaps;
     const best = ctx.save.bestLaps[def.id];
-    const el = h('div', { class: 'track-card' },
+    const el = h('div', { class: 'track-card glass' },
       trackThumb(ctx, def, 72),
       h('div', { class: 'track-info' },
         h('strong', { class: 'track-name', text: def.name }),
-        h('span', { class: 'track-meta', text: trackLine(def, laps) }),
+        h('span', { class: 'meta' },
+          h('span', { class: 'flag', text: flagFor(ctx, def.country) }),
+          h('span', { text: countryName(def.country) }),
+          dayIcon(def.timeOfDay),
+          h('span', { text: t('ui.common.laps', { n: laps }) }),
+        ),
         h('span', { class: 'track-foot' },
-          h('span', { class: 'stars', text: stars(def.difficulty) }),
-          h('span', { class: 'track-best mono', text: `${t('ui.tracks.bestLap')}: ${best ? formatTicks(best.ticks) : '—'}` }),
+          dots(def.difficulty),
+          h('span', { class: 'track-best mono' }, icon('timer'), h('span', { text: best ? formatTicks(best.ticks) : '—' })),
         ),
       ),
     );

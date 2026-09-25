@@ -1,9 +1,10 @@
 // Infraestrutura comum das telas: construção de DOM, lista de foco (um cursor por tela,
-// navegável por teclado, gamepad e mouse), seletores ◀ valor ▶ e miniaturas de pista.
+// navegável por teclado, gamepad e mouse), seletores ‹ valor › e miniaturas de pista.
 import { getTrack } from '../../core/track';
-import type { CarDef, TrackDef } from '../../core/types';
+import type { CarDef, TimeOfDay, TrackDef } from '../../core/types';
 import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData } from '../../game/contracts';
 import { t } from '../../i18n';
+import { carSilhouette, icon } from './icons';
 
 // ───────────────────────────── Estado compartilhado do lobby ─────────────────────────────
 
@@ -87,7 +88,7 @@ export function append(el: HTMLElement, children: Child[]): void {
 }
 
 export function screenFrame(name: string, title: string | null, ...children: Child[]): HTMLElement {
-  return h('section', { class: `screen screen-${name}`, attrs: { 'data-screen': name } },
+  return h('section', { class: `screen scr-${name}`, attrs: { 'data-screen': name } },
     title === null ? null : h('h1', { class: 'screen-title', text: title }),
     ...children,
   );
@@ -204,7 +205,7 @@ export function createFocusList(items: FocusItem[], opts: FocusListOptions = {})
     it.el.classList.add('focusable');
     it.el.addEventListener('mousemove', (ev) => { if (pointerMoved(ev) && list.set(i)) sfx('move'); });
     it.el.addEventListener('click', (ev) => {
-      // Cliques nas setas ◀ ▶ do seletor têm handler próprio.
+      // Cliques nas setas ‹ › do seletor têm handler próprio.
       if ((ev.target as HTMLElement | null)?.closest('.sel-arrow')) return;
       list.set(i);
       blurActive();
@@ -237,13 +238,18 @@ export interface Selector extends FocusItem {
   refresh(): void;
 }
 
-/** Linha "Rótulo   ◀ valor ▶": ← → (ou clique nas setas) chamam `onAdjust`; `value()` dá o texto atual. */
+/** Seta ‹ › de um seletor: clique ajusta sem mover o cursor da lista. */
+export function arrowButton(dir: -1 | 1, onClick: () => void): HTMLElement {
+  return h('span', {
+    class: `sel-arrow ${dir < 0 ? 'prev' : 'next'}`,
+    on: { click: (ev) => { ev.stopPropagation(); blurActive(); onClick(); } },
+  }, icon(dir < 0 ? 'chevron-left' : 'chevron-right'));
+}
+
+/** Linha "Rótulo   ‹ valor ›": ← → (ou clique nas setas) chamam `onAdjust`; `value()` dá o texto atual. */
 export function selector(label: string, value: () => string, onAdjust: (dir: -1 | 1) => void, opts: { sfx?: ScreenApi['sfx']; onActivate?: () => void; cls?: string } = {}): Selector {
   const valueEl = h('span', { class: 'sel-value', text: value() });
-  const arrow = (dir: -1 | 1) => h('span', {
-    class: 'sel-arrow', text: dir < 0 ? '◀' : '▶',
-    on: { click: (ev) => { ev.stopPropagation(); blurActive(); onAdjust(dir); sel.refresh(); opts.sfx?.('move'); } },
-  });
+  const arrow = (dir: -1 | 1) => arrowButton(dir, () => { onAdjust(dir); sel.refresh(); opts.sfx?.('move'); });
   const el = h('div', { class: `sel ${opts.cls ?? ''}`.trim() },
     h('span', { class: 'sel-label', text: label }),
     h('span', { class: 'sel-box' }, arrow(-1), valueEl, arrow(1)),
@@ -257,6 +263,14 @@ export function selector(label: string, value: () => string, onAdjust: (dir: -1 
   return sel;
 }
 
+/** Dificuldade em cinco pontos (os acesos na cor de destaque). */
+export function dots(difficulty: number): HTMLElement {
+  const n = Math.max(0, Math.min(5, Math.round(difficulty)));
+  return h('span', { class: 'dots', attrs: { 'aria-label': `${n}/5` } },
+    Array.from({ length: 5 }, (_, i) => h('i', { class: i < n ? 'on' : '' })),
+  );
+}
+
 export function stars(difficulty: number): string {
   const n = Math.max(0, Math.min(5, Math.round(difficulty)));
   return '★'.repeat(n) + '☆'.repeat(5 - n);
@@ -266,16 +280,21 @@ export function onOff(v: boolean): string {
   return v ? t('ui.common.on') : t('ui.common.off');
 }
 
-export function trackName(def: TrackDef): string {
-  return def.name;
-}
-
 export function countryName(country: string): string {
   return t(`core.country.${country}`);
 }
 
+/** Bandeira do país pela copa que o representa (as pistas e as copas usam o mesmo nome de país). */
+export function flagFor(ctx: MenuContext, country: string): string {
+  return ctx.cups.find((c) => c.country === country)?.flag ?? '';
+}
+
+export function dayIcon(timeOfDay: TimeOfDay): SVGSVGElement {
+  return icon(timeOfDay === 'day' ? 'sun' : timeOfDay === 'dusk' ? 'dusk' : 'moon', `day-${timeOfDay}`);
+}
+
 /** Miniatura do contorno da pista num canvas quadrado de `size` px CSS (nítida em telas HiDPI). */
-export function trackThumb(ctx: MenuContext, def: TrackDef, size: number, color = '#4fc3f7'): HTMLCanvasElement {
+export function trackThumb(ctx: MenuContext, def: TrackDef, size: number, color = 'rgba(255,255,255,0.92)'): HTMLCanvasElement {
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? Math.min(3, devicePixelRatio) : 1;
   const canvas = h('canvas', { class: 'track-thumb', attrs: { width: String(Math.round(size * dpr)), height: String(Math.round(size * dpr)), 'aria-label': def.name } });
   canvas.style.width = `${size}px`;
@@ -289,22 +308,22 @@ export function trackThumb(ctx: MenuContext, def: TrackDef, size: number, color 
   const g = canvas.getContext('2d');
   if (!g || points.length < 2) return canvas;
   g.scale(dpr, dpr);
-  g.lineWidth = Math.max(2, size / 28);
   g.lineJoin = 'round';
   g.lineCap = 'round';
-  g.strokeStyle = 'rgba(0,0,0,0.6)';
+  g.lineWidth = Math.max(3, size / 16);
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
   g.beginPath();
   points.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
   g.closePath();
   g.stroke();
-  g.lineWidth = Math.max(1.5, size / 40);
+  g.lineWidth = Math.max(1.5, size / 36);
   g.strokeStyle = color;
   g.stroke();
-  // Largada.
+  // Largada, na cor de destaque.
   const [sx, sy] = points[0];
-  g.fillStyle = '#ffd23f';
+  g.fillStyle = '#ff5a36';
   g.beginPath();
-  g.arc(sx, sy, Math.max(2, size / 24), 0, Math.PI * 2);
+  g.arc(sx, sy, Math.max(2.5, size / 22), 0, Math.PI * 2);
   g.fill();
   return canvas;
 }
@@ -331,14 +350,16 @@ export function carBars(car: CarDef, cars: readonly CarDef[]): Record<CarStatKey
   return out;
 }
 
+/** Cartão do carro: silhueta na cor, nome, quatro barras (animadas ao entrar) e a frase de apresentação. */
 export function carCard(car: CarDef, cars: readonly CarDef[]): HTMLElement {
   const bars = carBars(car, cars);
   return h('div', { class: 'car-card' },
-    h('div', { class: 'car-name' }, h('span', { class: 'car-swatch', style: `background:${car.color}` }), car.name),
-    h('div', { class: 'car-bars' }, CAR_STAT_KEYS.map((key) =>
+    h('div', { class: 'car-name', text: car.name }),
+    h('div', { class: 'car-visual' }, carSilhouette(car.color)),
+    h('div', { class: 'car-bars' }, CAR_STAT_KEYS.map((key, i) =>
       h('div', { class: 'car-bar' },
         h('span', { class: 'car-bar-label', text: t(`ui.lobby.stat.${key}`) }),
-        h('span', { class: 'car-bar-track' }, h('span', { class: 'car-bar-fill', style: `width:${Math.round(bars[key] * 100)}%;background:${car.color}` })),
+        h('span', { class: 'car-bar-track' }, h('span', { class: 'car-bar-fill', style: `width:${Math.round(bars[key] * 100)}%;animation-delay:${i * 40}ms` })),
       ),
     )),
     h('p', { class: 'car-blurb', text: t(`core.car.${car.id}.blurb`) }),

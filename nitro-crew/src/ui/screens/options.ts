@@ -30,14 +30,14 @@ function applyFullscreen(on: boolean): void {
 }
 
 /** Constrói os seletores compartilhados com o lobby (dificuldade, câmbio, carros, voltas, assistências). */
-export function raceOptionSelectors(api: ScreenApi, commit: () => void, opts: { difficulty?: boolean; gear?: boolean; totalCars?: boolean; quickLaps?: boolean; assists?: boolean }): Selector[] {
+export function raceOptionSelectors(api: ScreenApi, commit: () => void, opts: { difficulty?: boolean; gear?: boolean; totalCars?: boolean; quickLaps?: boolean; assists?: boolean; lapsLabel?: string }): Selector[] {
   const s = api.ctx.settings;
   const out: Selector[] = [];
   const sfx = api.sfx;
   if (opts.difficulty) out.push(selector(t('ui.options.difficulty'), () => t(`core.difficulty.${s.difficulty}`), (d) => { s.difficulty = cycle(DIFFICULTIES, s.difficulty, d); commit(); }, { sfx }));
   if (opts.gear) out.push(selector(t('ui.options.gear'), () => (s.manualGear ? t('ui.options.gear.manual') : t('ui.options.gear.auto')), () => { s.manualGear = !s.manualGear; commit(); }, { sfx }));
   if (opts.totalCars) out.push(selector(t('ui.options.totalCars'), () => String(s.totalCars), (d) => { s.totalCars = stepNumber(s.totalCars, d, TOTAL_CARS_MIN, TOTAL_CARS_MAX, 1); commit(); }, { sfx }));
-  if (opts.quickLaps) out.push(selector(t('ui.options.quickLaps'), () => String(s.quickLaps), (d) => { s.quickLaps = stepNumber(s.quickLaps, d, QUICK_LAPS_MIN, QUICK_LAPS_MAX, 1); commit(); }, { sfx }));
+  if (opts.quickLaps) out.push(selector(opts.lapsLabel ?? t('ui.options.quickLaps'), () => String(s.quickLaps), (d) => { s.quickLaps = stepNumber(s.quickLaps, d, QUICK_LAPS_MIN, QUICK_LAPS_MAX, 1); commit(); }, { sfx }));
   if (opts.assists) {
     for (const key of ASSIST_KEYS) {
       out.push(selector(t(`ui.options.assist.${key}`), () => onOff(s.assists[key]), () => { s.assists[key] = !s.assists[key]; commit(); }, { sfx }));
