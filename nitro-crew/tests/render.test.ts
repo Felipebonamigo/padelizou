@@ -163,3 +163,120 @@ describe('palette', () => {
     expect(shade('#808080', 0.5)).toBe('#404040');
   });
 });
+
+// ───────────────────────────── Referencial local da pista ─────────────────────────────
+import { absoluteHeading, buildRoadFrame, locateOnFrame, type RoadFrame } from '../src/render/roadframe';
+import { HEADING_PER_CURVE, ROAD_HALF_WIDTH_M, SEGMENT_M, xToMeters, yToMeters, Y_SCALE, zToMeters } from '../src/render/units';
+import { SEGMENT_LENGTH } from '../src/core/constants';
+
+describe('units', () => {
+  it('converte unidades de mundo em metros', () => {
+    expect(xToMeters(1)).toBe(ROAD_HALF_WIDTH_M);
+    expect(zToMeters(SEGMENT_LENGTH)).toBe(SEGMENT_M);
+    expect(yToMeters(1000)).toBeCloseTo(1000 * Y_SCALE, 9);
+  });
+});
+
+describe('buildRoadFrame', () => {
+  it('reta: px = 0 e pz cai 4 m por ponto, origem no baseZ', () => {
+    const track = syntheticTrack();
+    const f = buildRoadFrame(track, 20 * SEGMENT_LENGTH, 5, 10);
+    expect(f.count).toBe(16);
+    expect(f.baseIndex).toBe(20);
+    for (let j = 0; j < f.count; j++) {
+      expect(f.px[j]).toBeCloseTo(0, 6);
+      expect(f.py[j]).toBeCloseTo(0, 6);
+      expect(f.heading[j]).toBeCloseTo(0, 9);
+      expect(f.pz[j]).toBeCloseTo(-(j - 5) * SEGMENT_M, 5);
+      expect(f.segIndex[j]).toBe(15 + j);
+    }
+    // No meio do segmento a origem continua no carro: o ponto do segmento base fica 2 m atrás.
+    const g = buildRoadFrame(track, 20 * SEGMENT_LENGTH + SEGMENT_LENGTH / 2, 5, 10);
+    expect(g.pz[5]).toBeCloseTo(SEGMENT_M / 2, 5);
+    expect(g.pz[6]).toBeCloseTo(-SEGMENT_M / 2, 5);
+  });
+
+  it('curva constante: rumo cresce linearmente e px é monotônico à frente', () => {
+    const track = syntheticTrack([{ op: 'curve', length: 400, curve: 4 }]);
+    // Trecho de sustentação: segmentos 100..299 têm curve = 4.
+    const f = buildRoadFrame(track, 150 * SEGMENT_LENGTH, 10, 40);
+    const step = 4 * HEADING_PER_CURVE;
+    for (let j = 10; j < f.count; j++) {
+      expect(f.heading[j]).toBeCloseTo((j - 10) * step, 6); // float32
+      if (j > 10) expect(f.px[j]).toBeGreaterThan(f.px[j - 1]);
+    }
+    expect(f.px[10]).toBeCloseTo(0, 6);
+    expect(f.heading[0]).toBeCloseTo(-10 * step, 6);
+    // Curva à direita: o traçado entorta para +x, também atrás.
+    expect(f.px[0]).toBeGreaterThan(0);
+  });
+
+  it('elevação acompanha y0/y1 × Y_SCALE', () => {
+    const track = syntheticTrack([{ op: 'hill', length: 100, height: 20 }, { op: 'straight', length: 100 }]);
+    const b = 10;
+    const f = buildRoadFrame(track, b * SEGMENT_LENGTH, 3, 20);
+    const seg = track.segments[b];
+    const originY = seg.y0 * Y_SCALE;
+    expect(f.py[3]).toBeCloseTo(0, 9);
+    for (let j = 0; j < f.count; j++) {
+      const s = track.segments[f.segIndex[j]];
+      expect(f.py[j]).toBeCloseTo(s.y0 * Y_SCALE - originY, 6);
+    }
+    expect(f.py[4]).toBeCloseTo((seg.y1 - seg.y0) * Y_SCALE, 6);
+    expect(f.py[4]).toBeGreaterThan(0);
+  });
+
+  it('reutiliza a janela passada em `out` sem alocar', () => {
+    const track = syntheticTrack();
+    const a = buildRoadFrame(track, 0, 5, 10);
+    const px = a.px;
+    const b = buildRoadFrame(track, 3 * SEGMENT_LENGTH, 5, 10, a);
+    expect(b).toBe(a);
+    expect(b.px).toBe(px);
+    expect(b.baseIndex).toBe(3);
+  });
+});
+
+describe('locateOnFrame', () => {
+  const out = { x: 0, y: 0, z: 0, heading: 0 };
+
+  it('na origem devolve (0,0,0) e o x lateral vira metros', () => {
+    const track = syntheticTrack([{ op: 'curve', length: 400, curve: 4 }]);
+    const z = 150 * SEGMENT_LENGTH + 77;
+    const f = buildRoadFrame(track, z, 10, 40);
+    expect(locateOnFrame(f, track, z, 0, out)).toBe(true);
+    expect(out.x).toBeCloseTo(0, 5); expect(out.y).toBeCloseTo(0, 5); expect(out.z).toBeCloseTo(0, 5); // float32
+    expect(out.heading).toBeCloseTo(0, 6);
+    expect(locateOnFrame(f, track, z, 1, out)).toBe(true);
+    expect(out.x).toBeCloseTo(ROAD_HALF_WIDTH_M, 6);
+    expect(out.z).toBeCloseTo(0, 6);
+  });
+
+  it('carro à frente da linha de chegada (com volta) e fora da janela', () => {
+    const track = syntheticTrack();
+    const n = track.segments.length;
+    const f = buildRoadFrame(track, (n - 2) * SEGMENT_LENGTH, 5, 20);
+    expect(locateOnFrame(f, track, SEGMENT_LENGTH, 0, out)).toBe(true);
+    expect(out.z).toBeCloseTo(-3 * SEGMENT_M, 6);
+    // Meio do segmento: interpola.
+    expect(locateOnFrame(f, track, SEGMENT_LENGTH * 1.5, 0, out)).toBe(true);
+    expect(out.z).toBeCloseTo(-3.5 * SEGMENT_M, 6);
+    // Atrás demais / à frente demais.
+    expect(locateOnFrame(f, track, (n - 10) * SEGMENT_LENGTH, 0, out)).toBe(false);
+    expect(locateOnFrame(f, track, 30 * SEGMENT_LENGTH, 0, out)).toBe(false);
+  });
+});
+
+describe('absoluteHeading', () => {
+  it('reta é zero; curva acumula curve × HEADING_PER_CURVE por segmento', () => {
+    expect(absoluteHeading(syntheticTrack(), 12345)).toBe(0);
+    const track = syntheticTrack([{ op: 'curve', length: 400, curve: 4 }]);
+    let sum = 0;
+    for (let i = 0; i < 200; i++) sum += track.segments[i].curve * HEADING_PER_CURVE;
+    expect(absoluteHeading(track, 200 * SEGMENT_LENGTH)).toBeCloseTo(sum, 9);
+    // Meio do segmento 200: metade do giro dele.
+    expect(absoluteHeading(track, 200.5 * SEGMENT_LENGTH)).toBeCloseTo(sum + 0.5 * track.segments[200].curve * HEADING_PER_CURVE, 9);
+    const frame: RoadFrame = buildRoadFrame(track, 0, 1, 1);
+    expect(frame.count).toBe(3);
+  });
+});
