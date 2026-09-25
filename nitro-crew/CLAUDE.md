@@ -38,8 +38,12 @@ não use nada de fora desta pasta.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual**: Fase 0 concluída (25/09/2026). Próximo: Fase 1 (playtests do Felipe no sofá, sensação de
-  direção, balanceamento, gamepads reais, desempenho com 4 viewports, campeonato salvo, fantasma).
+- **Estado atual**: Fase 0 concluída (25/09/2026): núcleo, IA, co-op, 12 pistas, renderizador 3D, menus,
+  gamepads, áudio, Electron, 122 testes, playtest com 16 conferências. Próximo: Fase 1 (playtests do Felipe no
+  sofá, sensação de direção, balanceamento, gamepads reais, desempenho com 4 viewports em GPU de verdade,
+  campeonato salvo, fantasma) e a lista de polimento visual da Fase 1.10 do roteiro.
+- **Como ver o jogo sem browser**: `scratch/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
+  `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
   renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;

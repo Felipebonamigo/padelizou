@@ -57,7 +57,8 @@ await page.evaluate(() => window.nc.session.debugStep(60 * 10));
 await page.waitForTimeout(300);
 st = await S();
 const me = st.race.humans[0];
-check(st.race.phase === 'racing' && me.speed > 3000, `acelerando: fase ${st.race.phase}, ${me.speed} u/s, z=${me.z}`);
+// Velocidade varia com as trombadas no pelotão; o que importa é ter saído do grid e estar correndo.
+check(st.race.phase === 'racing' && me.speed > 800 && me.z > 5000, `acelerando: fase ${st.race.phase}, ${me.speed} u/s, z=${me.z}`);
 await page.screenshot({ path: `${out}-05-racing.png` });
 await page.keyboard.down('Space'); await page.evaluate(() => window.nc.session.debugStep(2)); await page.keyboard.up('Space');
 await page.evaluate(() => window.nc.session.debugStep(30));

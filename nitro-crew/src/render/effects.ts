@@ -167,12 +167,10 @@ export class Effects {
         if (c.seat >= 0 && c.seat < 4) this.shakeAmp[c.seat] = Math.min(1, this.shakeAmp[c.seat] + 0.6 + 0.4 * sf);
       }
       this.prevCooldown[i] = c.collisionCooldown;
-      // Rastro do nitro.
-      if (c.nitroTicks > 0 && state.phase === 'racing') {
-        for (let k = 0; k < 3; k++) {
-          const side = k % 2 === 0 ? -0.06 : 0.06;
-          this.sparks.emit(c.z - 62, c.x + side, 0.36, c.speed - 700 - this.rnd() * 900, (this.rnd() - 0.5) * 0.3, (this.rnd() - 0.3) * 1.2, 0.3 + this.rnd() * 0.35, 0.09, 0.06, 1.2, 0.6, 1.4, 2.4);
-        }
+      // Rastro do nitro: curto e discreto (a chama em si é o billboard em cars.ts).
+      if (c.nitroTicks > 0 && state.phase === 'racing' && this.rnd() < 0.7) {
+        const side = this.rnd() < 0.5 ? -0.065 : 0.065;
+        this.sparks.emit(c.z - 66, c.x + side, 0.3, c.speed - 900 - this.rnd() * 700, (this.rnd() - 0.5) * 0.2, (this.rnd() - 0.4) * 0.8, 0.18 + this.rnd() * 0.18, 0.06, 0.04, 0.8, 0.45, 1.0, 1.8);
       }
     }
     this.dust.step(dt);

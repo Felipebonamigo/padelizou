@@ -6,6 +6,9 @@ de nitro, empurra o companheiro que parou, ganha vácuo atrás dele e pontua jun
 de IA. Feito em TypeScript + Three.js (WebGL), com simulação determinística pronta para multiplayer em
 lockstep, e empacotável com Electron para a Steam.
 
+![Cânion de Nevada ao entardecer](docs/screenshot.png)
+![Quatro jogadores em tela dividida](docs/screenshot-split.png)
+
 ## Jogar agora
 
 ```bash

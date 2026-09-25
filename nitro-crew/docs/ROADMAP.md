@@ -43,6 +43,7 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 | 1.7 | Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
 | 1.8 | Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
 | 1.9 | Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
+| 1.10 | Polimento visual procedural (antes da arte final): chama do nitro mais legível, brilho de lente do sol, reflexos do neon no asfalto molhado (env map da cidade), cabine com colunas e faróis com geometria, poeira com textura, terreno com segunda oitava de ruído e transição de cor por altura, animação de troca de posição no HUD | A | 2–5 |
 
 Marco **M1 (semana 5)**: "fatia vertical jogável por terceiros" — enviar build a 5 amigos com controles.
 
