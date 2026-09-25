@@ -23,6 +23,13 @@ gamepads vibram em batidas, nitro, grama e largada, com opção para desligar.
   Backspace (teclado 1) e W A S D, F e Esc (teclado 2) nos menus (`KEY_NAV` em `src/ui/menus.ts`,
   `NAV_LAYOUTS` em `src/ui/input.ts`); d-pad, analógico, A, B e Start nos menus do controle.
   **Esc e Start sempre pausam**, além da tecla de pausa escolhida.
+- **Teclado sem assento só pausa pelo Esc** (vale como assento 0: todos nos controles e alguém aperta
+  Esc). A tecla de pausa escolhida para ele não conta, porque pode ser a tecla de pilotagem do outro
+  teclado (pausa do teclado 2 no Espaço, nitro do teclado 1 no Espaço).
+- **A pausa do controle pode ir para A ou B.** No quadro em que a pausa abre, a sessão não entrega a
+  navegação ao menu (só o menu que já estava aberto no começo do quadro a recebe); senão o mesmo
+  botão confirmaria "Continuar" ou voltaria na hora. No menu de pausa, A e B continuam confirmando
+  e voltando, então o botão da pausa também retoma.
 
 ## Onde mora
 
@@ -36,7 +43,7 @@ gamepads vibram em batidas, nitro, grama e largada, com opção para desligar.
 | `src/ui/input.ts` | `mapKeyboard`/`mapGamepad` recebem os bindings; `peek(device)` e `rumble(seat, strength, ms)` no provedor |
 | `src/game/rumble.ts` | Puro. `rumbleCues(state, memory)`: eventos da corrida → pedidos de vibração |
 | `src/game/settings.ts` | `controls` e `vibration` no saneamento das opções |
-| `src/game/session.ts` | Gancho: `createInput(window, { bindings, vibration })` e `rumbleCues` depois de cada `stepRace` |
+| `src/game/session.ts` | Gancho: `createInput(window, { bindings, vibration })`, `rumbleCues` depois de cada `stepRace` e navegação só para o menu que já estava aberto no começo do quadro |
 
 ## Regras do mapeamento
 
@@ -94,12 +101,23 @@ gamepads vibram em batidas, nitro, grama e largada, com opção para desligar.
 aleatórias sem ação vazia nem código repetido, `mapKeyboard`/`mapGamepad` com bindings, navegação
 de menu ignorando bindings, `preventDefault` só nas teclas em uso, provedor com janela falsa
 (bindings ao vivo, `dual-rumble`, opção desligada, no-op sem gamepad, `playEffect` que falha),
-`rumbleCues`, captura e nomes. Roteiro Playwright do fluxo real: `scratch/controles.mjs`
-(fora do git, como o resto de `scratch/`), com 40 conferências: grade, captura por teclado,
-mouse e controle falso (com motor de vibração que registra as chamadas), troca, conflito entre
-teclados, recusa, Esc/Start/clique fora cancelam, tempo limite, teste de entrada, restaurar,
-menus ainda nas setas, opção Vibração, corrida com o teclado remapeado, vibração na largada,
-nitro e grama, vibração desligada e remapeamento que sobrevive ao recarregar.
+`rumbleCues`, captura e nomes; teclado sem assento que só pausa pelo Esc; vibração que não
+toca em assento de teclado ou vazio mesmo com um controle com motor conectado, e pedido mais fraco
+que não corta um mais forte no provedor; grama com pulso exatamente a cada `everyTicks`; aviso de
+recusa com o gênero certo (tecla/botão).
+
+`tests/session-controls.test.ts` (Node, renderizador e menus dublês; entrada, simulação, opções e
+áudio de verdade): trava a fiação da sessão — tecla remapeada acelera e a antiga não, dual-rumble
+na largada, nada com a Vibração desligada ou com o assento no teclado — e a pausa no A ou no B
+que fica aberta.
+
+Fluxo real no Chromium: `node scripts/playtest-controls.mjs [url] [prefixo]` (com `npm run preview`
+em outro terminal), 48 conferências: grade, captura por teclado, mouse e controle falso (com motor
+de vibração que registra as chamadas), troca, conflito entre teclados, recusa de tecla e de botão,
+Esc/Start/clique fora cancelam, tempo limite, teste de entrada, restaurar, menus ainda nas setas,
+opção Vibração, corrida com o teclado remapeado (e a pausa do teclado 2 sem assento que não pausa),
+vibração na largada, nitro e grama, vibração desligada, pausa gravada no A que fica aberta e
+remapeamento que sobrevive ao recarregar.
 
 Dica para roteiros: no swiftshader o fundo 3D dos menus custa ~1 s por quadro; o roteiro troca
 `window.nc.session.renderer.renderIdle` por uma função vazia enquanto testa os menus (o último
