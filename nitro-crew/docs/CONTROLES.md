@@ -95,7 +95,16 @@ aleatórias sem ação vazia nem código repetido, `mapKeyboard`/`mapGamepad` co
 de menu ignorando bindings, `preventDefault` só nas teclas em uso, provedor com janela falsa
 (bindings ao vivo, `dual-rumble`, opção desligada, no-op sem gamepad, `playEffect` que falha),
 `rumbleCues`, captura e nomes. Roteiro Playwright do fluxo real: `scratch/controles.mjs`
-(fora do git, como o resto de `scratch/`).
+(fora do git, como o resto de `scratch/`), com 40 conferências: grade, captura por teclado,
+mouse e controle falso (com motor de vibração que registra as chamadas), troca, conflito entre
+teclados, recusa, Esc/Start/clique fora cancelam, tempo limite, teste de entrada, restaurar,
+menus ainda nas setas, opção Vibração, corrida com o teclado remapeado, vibração na largada,
+nitro e grama, vibração desligada e remapeamento que sobrevive ao recarregar.
+
+Dica para roteiros: no swiftshader o fundo 3D dos menus custa ~1 s por quadro; o roteiro troca
+`window.nc.session.renderer.renderIdle` por uma função vazia enquanto testa os menus (o último
+quadro fica na tela). O renderizador já expõe `__idle` (a câmera de depuração) — não use esse nome
+para guardar a função original.
 
 ## Fora deste passo
 
