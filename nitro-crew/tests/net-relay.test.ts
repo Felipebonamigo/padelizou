@@ -455,11 +455,13 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     await until(() => hh.race !== null && ha.race !== null && hc.race !== null, 3000, 'largada');
     await race([hh, ha, hc], 300);
 
+    // O anfitrião não chega a mandar o snapshot a A (vai cair logo depois da volta dele). Trocar o
+    // envio antes da queda, e não depois: com retryMs de 100 ms, A às vezes voltava e recebia o
+    // snapshot ainda durante o laço abaixo, e a espera por "syncing" nunca terminava.
+    (H as unknown as { sendSnapshot(to: number): void }).sendSnapshot = () => undefined;
     // A cai. H e C ainda andam até onde a entrada de A deixa, mandando entradas que A não recebe.
     A.debugDropConnection();
     for (let i = 0; i < 30; i++) { hh.pump(8, 1200); hc.pump(8, 1200); await sleep(3); }
-    // O anfitrião trava (não trata mais nada: nem o "peer rejoin" de A) e A volta.
-    (H as unknown as { handle(msg: unknown): void }).handle = () => undefined;
     await until(() => A.status().syncing, 3000, 'A de volta, esperando o estado');
     // Agora o anfitrião cai de vez, sem ter mandado nada.
     H.debugVanish();
