@@ -41,7 +41,7 @@ Seguro = Seguro || {};
 const rotulo = x => String(JSON.stringify(x)).slice(0, 50);
 const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...args) : 'SEM FUNÇÃO'; } catch (erro) { return 'LANÇOU: ' + erro.message; } };
 
-// ── 1. O CAMINHO: só index.html e js/, nada fora da pasta do jogo ────────────────────────────
+// ── 1. O CAMINHO: só index.html, js/ e fontes/, nada fora da pasta do jogo ──────────────────
 {
     const raiz = path.resolve('/opt/punhos/app');
     const resolver = pedido => chama(Seguro.resolverCaminho, raiz, pedido);
@@ -52,6 +52,10 @@ const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...a
         ['/index.html', path.join(raiz, 'index.html')],
         ['/js/motor.js', path.join(raiz, 'js', 'motor.js')],
         ['/js/principal.js', path.join(raiz, 'js', 'principal.js')],
+        // As fontes vêm empacotadas (jogo/fontes/): o desktop não sai pra rede atrás delas.
+        ['/fontes/fontes.css', path.join(raiz, 'fontes', 'fontes.css')],
+        ['/fontes/cinzel-latin.woff2', path.join(raiz, 'fontes', 'cinzel-latin.woff2')],
+        ['/fontes/chakra-petch-700-italico-latin-ext.woff2', path.join(raiz, 'fontes', 'chakra-petch-700-italico-latin-ext.woff2')],
     ];
     for (const [pedido, esperado] of legitimos)
         confere(`serve o legítimo ${pedido}`, resolver(pedido) === esperado, `veio ${JSON.stringify(resolver(pedido))}`);
@@ -66,6 +70,12 @@ const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...a
         '/js/', '/js/sub/x.js', '/js/./motor.js', '/./index.html', '/js/motor.json', '/js/.js',
         // Com a forma da lista branca (js/<nome>.js): é o teto de tamanho que tem que barrar.
         '/js/' + 'a'.repeat(600) + '.js', '', undefined, null, 123, {},
+        // fontes/: só .woff2 e .css, um nível, nome simples. A licença mora ali, mas não é servida.
+        '/fontes/../package.json', '/fontes/%2e%2e/package.json', '/fontes/..\\desktop\\main.js', '/fontes/../js/motor.js',
+        '/fontes/', '/fontes', '/fontes/.woff2', '/fontes/.css', '/fontes/sub/x.woff2', '/fontes/x.woff2/',
+        '/fontes/x.js', '/fontes/x.ttf', '/fontes/x.woff', '/fontes/x.html', '/fontes/OFL-Cinzel.txt',
+        '/fontes/x.woff2.js', '/fontes/x.css%00.js', '/js/fontes.css', '/js/x.woff2', '/fontes.css', '/x.woff2',
+        '/fontes/' + 'a'.repeat(600) + '.woff2',
     ];
     // Atalho consciente: o filtro de %, barra invertida e byte nulo e a contenção final (startsWith da base) não têm
     // caso que os alcance sozinhos — a lista branca ARQUIVO_DO_JOGO recusa antes tudo que eles
@@ -81,10 +91,13 @@ const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...a
     confere('a URL app://jogo/js/motor.js vira o arquivo', url('app://jogo/js/motor.js') === path.join(raiz, 'js', 'motor.js'), `veio ${JSON.stringify(url('app://jogo/js/motor.js'))}`);
     confere('a URL app://jogo/ vira o index.html', url('app://jogo/') === path.join(raiz, 'index.html'), `veio ${JSON.stringify(url('app://jogo/'))}`);
     confere('a URL com ?consulta e #âncora ainda serve o arquivo', url('app://jogo/index.html?x=1#y') === path.join(raiz, 'index.html'), `veio ${JSON.stringify(url('app://jogo/index.html?x=1#y'))}`);
-    for (const u of ['app://outro/index.html', 'file:///etc/passwd', 'https://evil.example/index.html', 'https://jogo/index.html', 'file://jogo/index.html', 'app://jogo/desktop/main.js', 'app://jogo/%2e%2e/package.json', 'não é url', undefined])
+    confere('a URL app://jogo/fontes/fontes.css vira o arquivo', url('app://jogo/fontes/fontes.css') === path.join(raiz, 'fontes', 'fontes.css'), `veio ${JSON.stringify(url('app://jogo/fontes/fontes.css'))}`);
+    for (const u of ['app://outro/fontes/fontes.css', 'app://jogo/fontes/../desktop/main.js', 'app://jogo/fontes/OFL-Cinzel.txt', 'app://outro/index.html', 'file:///etc/passwd', 'https://evil.example/index.html', 'https://jogo/index.html', 'file://jogo/index.html', 'app://jogo/desktop/main.js', 'app://jogo/%2e%2e/package.json', 'não é url', undefined])
         confere(`recusa a URL ${rotulo(u)}`, url(u) === null, `veio ${JSON.stringify(url(u))}`);
 
     confere('.html sai como text/html', /^text\/html/.test(String(chama(Seguro.tipoDoArquivo, '/x/index.html'))), `veio ${chama(Seguro.tipoDoArquivo, '/x/index.html')}`);
+    confere('.woff2 sai como font/woff2', chama(Seguro.tipoDoArquivo, '/x/fontes/cinzel-latin.woff2') === 'font/woff2', `veio ${chama(Seguro.tipoDoArquivo, '/x/fontes/cinzel-latin.woff2')}`);
+    confere('.css sai como text/css', /^text\/css(;|$)/.test(String(chama(Seguro.tipoDoArquivo, '/x/fontes/fontes.css'))), `veio ${chama(Seguro.tipoDoArquivo, '/x/fontes/fontes.css')}`);
     confere('.js sai como text/javascript', /^text\/javascript/.test(String(chama(Seguro.tipoDoArquivo, '/x/js/motor.js'))), `veio ${chama(Seguro.tipoDoArquivo, '/x/js/motor.js')}`);
 }
 
@@ -94,18 +107,83 @@ const chama = (fn, ...args) => { try { return typeof fn === 'function' ? fn(...a
     const diretivas = Object.fromEntries(csp.split(';').map(d => d.trim()).filter(Boolean).map(d => { const [nome, ...valores] = d.split(/\s+/); return [nome, valores.join(' ')]; }));
     const exigidas = {
         'default-src': "'self'", 'script-src': "'self'",
-        'style-src': "'self' 'unsafe-inline' https://fonts.googleapis.com", 'font-src': "'self' https://fonts.gstatic.com",
+        'style-src': "'self' 'unsafe-inline'", 'font-src': "'self'",
         'img-src': "'self' data:", 'connect-src': "'none'", 'object-src': "'none'", 'base-uri': "'none'",
         'form-action': "'none'", 'frame-ancestors': "'none'",
     };
     for (const [nome, valor] of Object.entries(exigidas))
         confere(`CSP: ${nome} ${valor}`, diretivas[nome] === valor, `veio ${JSON.stringify(diretivas[nome])}`);
+    // As fontes vêm de app://jogo/fontes/: a página não tem motivo nenhum pra falar com a rede.
+    confere('CSP não libera nenhum endereço de rede (http:, https:, *)', csp.length > 0 && !/https?:|\*/i.test(csp), csp || '(vazia)');
     confere('CSP não libera eval nem script inline', csp.length > 0 && !/unsafe-eval/.test(csp) && !/script-src[^;]*unsafe-inline/.test(csp), csp || '(vazia)');
 
     const html = ler(path.join(raizDoJogo, 'index.html'));
     const scripts = html.match(/<script\b[^>]*>/gi) || [];
     confere('index.html não tem <script> inline (a CSP o mataria)', scripts.length > 0 && scripts.every(s => /\bsrc=/.test(s)), scripts.filter(s => !/\bsrc=/.test(s)).join(' '));
     confere('index.html não tem handler inline (onclick=…)', html.length > 0 && !/<[^>]+\son[a-z]+\s*=/i.test(html), 'achou on*= numa tag');
+    // Nada de rede no index.html: nem o Google Fonts, nem preconnect, nem qualquer http(s)://.
+    const externos = html.match(/\b(href|src)\s*=\s*["']?(https?:)?\/\/[^"'\s>]*/gi) || [];
+    confere('index.html não busca nada na rede (sem Google Fonts nem href/src http)', html.length > 0 && externos.length === 0 && !/fonts\.(googleapis|gstatic)\.com/.test(html), externos.join(' ') || 'cita fonts.googleapis/gstatic');
+    const folhas = [...html.matchAll(/<link\b[^>]*>/gi)].map(m => m[0]).filter(l => /\brel\s*=\s*["']?stylesheet/i.test(l));
+    const hrefs = folhas.map(l => (l.match(/\bhref\s*=\s*["']([^"']+)["']/i) || [])[1]);
+    confere('index.html liga fontes/fontes.css (relativo, serve no file:// e no app://)', hrefs.includes('fontes/fontes.css'), JSON.stringify(hrefs));
+    confere('toda folha de estilo do index.html passa pelo app://', hrefs.length > 0 && hrefs.every(h => typeof h === 'string' && chama(Seguro.resolverCaminho, raizDoJogo, '/' + h) === path.join(raizDoJogo, ...h.split('/'))), JSON.stringify(hrefs));
+}
+
+// ── 2b. As fontes empacotadas: jogo/fontes/fontes.css e os .woff2 que ela cita ────────────────
+// O jogo desenha com 'Cinzel' 700/900 e 'Chakra Petch' 600/700/700 itálico (canvas e CSS). Cada
+// face precisa do subconjunto latin (onde mora o português: ç ã õ é ê í ú) e do latin-ext, com o
+// arquivo de verdade ao lado, em woff2, servível pelo app://, e com a licença OFL junto.
+{
+    const pastaFontes = path.join(raizDoJogo, 'fontes');
+    const css = ler(path.join(pastaFontes, 'fontes.css'));
+    const semComentarioCss = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const blocos = [...semComentarioCss.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(m => m[1]);
+    const prop = (bloco, nome) => { const m = bloco.match(new RegExp(`(?:^|;|\\s)${nome}\\s*:\\s*([^;]+)`)); return m ? m[1].trim() : ''; };
+    // unicode-range "U+0000-00FF, U+0131" → [[0, 255], [305, 305]]
+    const faixas = texto => texto.split(',').map(t => t.trim().replace(/^U\+/i, '')).filter(Boolean).map(t => {
+        const [a, b] = t.split('-'); return [parseInt(a, 16), parseInt(b === undefined ? a : b, 16)];
+    });
+    const faces = blocos.map(b => ({
+        familia: prop(b, 'font-family').replace(/^['"]|['"]$/g, ''),
+        estilo: prop(b, 'font-style') || 'normal',
+        peso: prop(b, 'font-weight'),
+        display: prop(b, 'font-display'),
+        src: prop(b, 'src'),
+        faixas: faixas(prop(b, 'unicode-range')),
+    }));
+    confere('fontes.css existe e tem @font-face', faces.length > 0, 'sem fontes.css ou sem @font-face');
+    confere('toda @font-face tem font-display: swap (o jogo não espera a fonte)', faces.length > 0 && faces.every(f => f.display === 'swap'), JSON.stringify(faces.map(f => f.display)));
+
+    const portugues = [...'çãõéêíúáâàóôÇÃÕÉÊÍÚÁÂÀÓÔ'].map(c => c.codePointAt(0));
+    const cobre = (f, cp) => f.faixas.some(([a, b]) => cp >= a && cp <= b);
+    const pedidas = [['Cinzel', 'normal', '700'], ['Cinzel', 'normal', '900'], ['Chakra Petch', 'normal', '600'], ['Chakra Petch', 'normal', '700'], ['Chakra Petch', 'italic', '700']];
+    for (const [familia, estilo, peso] of pedidas) {
+        const daFace = faces.filter(f => f.familia === familia && f.estilo === estilo && f.peso === peso);
+        const nome = `'${familia}' ${peso}${estilo === 'italic' ? ' itálico' : ''}`;
+        confere(`fonte ${nome}: cobre o português (ç ã õ é ê í ú …)`, portugues.every(cp => daFace.some(f => cobre(f, cp))), `faces ${daFace.length}; falta ${portugues.filter(cp => !daFace.some(f => cobre(f, cp))).map(cp => String.fromCodePoint(cp)).join('')}`);
+        confere(`fonte ${nome}: tem o latin-ext (U+0100)`, daFace.some(f => cobre(f, 0x100)), `faces ${daFace.length}`);
+    }
+
+    const urls = faces.map(f => (f.src.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/) || [])[1]);
+    confere("toda src é url() relativa, na mesma pasta, em woff2 (format('woff2'))", faces.length > 0 && urls.every(u => typeof u === 'string' && /^[a-z0-9_-]+\.woff2$/i.test(u)) && faces.every(f => /format\(\s*['"]woff2['"]\s*\)/.test(f.src)), JSON.stringify(faces.map(f => f.src)));
+    confere('fontes.css não fala com a rede', css.length > 0 && !/https?:|\/\//.test(semComentarioCss), 'achou endereço de rede');
+    const citados = [...new Set(urls.filter(Boolean))];
+    const quebrados = citados.filter(u => { const b = fs.existsSync(path.join(pastaFontes, u)) ? fs.readFileSync(path.join(pastaFontes, u)) : null; return !b || b.length < 1000 || b.subarray(0, 4).toString('latin1') !== 'wOF2'; });
+    confere(`todo .woff2 citado existe e é woff2 de verdade (${citados.length - quebrados.length} de ${citados.length})`, citados.length > 0 && quebrados.length === 0, quebrados.join(', ') || 'nenhum citado');
+    const naoServidos = citados.filter(u => chama(Seguro.resolverCaminho, raizDoJogo, '/fontes/' + u) !== path.join(pastaFontes, u));
+    confere('todo .woff2 citado passa pelo app://', citados.length > 0 && naoServidos.length === 0, naoServidos.join(', ') || 'nenhum citado');
+    const naPasta = fs.existsSync(pastaFontes) ? fs.readdirSync(pastaFontes).filter(n => n.endsWith('.woff2')) : [];
+    const sobrando = naPasta.filter(n => !citados.includes(n));
+    confere('nenhum .woff2 sobrando na pasta (peso morto no instalador)', naPasta.length > 0 && sobrando.length === 0, sobrando.join(', ') || 'pasta vazia');
+
+    // OFL 1.1, cláusula 2: pode ir empacotada e vendida junto com software, desde que cada cópia
+    // leve o aviso de copyright e a licença.
+    for (const [arquivo, autor] of [['OFL-Cinzel.txt', 'The Cinzel Project Authors'], ['OFL-ChakraPetch.txt', 'The Chakra Petch Project Authors']]) {
+        const texto = ler(path.join(pastaFontes, arquivo));
+        confere(`licença ${arquivo}: OFL 1.1 com o copyright (${autor})`, texto.includes('SIL Open Font License, Version 1.1') && texto.includes(autor) && /bundled,\s*redistributed and\/or sold with any software/.test(texto), 'ausente ou incompleta');
+        confere(`fontes.css aponta a licença ${arquivo}`, css.includes(arquivo), 'não cita');
+    }
 }
 
 // ── 3. O IPC: cada argumento que a página manda passa por um porteiro ────────────────────────
@@ -315,7 +393,22 @@ const normalizar = t => t.replace(/\s+/g, ' ').trim();
         confere(`main: ${evento} passa pelo ${fn}, em todo webContents criado`, new RegExp(`\\.on\\(\\s*'${evento}'\\s*,\\s*(\\w+)\\s*=>\\s*${fn}\\(\\s*\\1\\s*\\)\\s*\\)`).test(naCriacao), `quer conteudo.on('${evento}', ev => ${fn}(ev)) dentro do web-contents-created`);
     confere('main: permissões pedidas são negadas (setPermissionRequestHandler)', /setPermissionRequestHandler\(/.test(main), 'não achou');
     confere('main: permissões checadas são negadas (setPermissionCheckHandler)', /setPermissionCheckHandler\(/.test(main), 'não achou');
-
+    // `spellcheck: false` não basta: no Linux o Chromium baixa o en-us .bdic de redirector.gvt1.com
+    // a cada abertura sem cache (visto no --log-net-log). `setSpellCheckerEnabled(false)` também não
+    // impede, e trocar a URL de download só muda o destino. Lista de idiomas vazia, sim — e nenhuma
+    // outra chamada pode devolver um idioma.
+    const idiomas = main.match(/setSpellCheckerLanguages\([^)]*\)/g) || [];
+    confere('main: corretor sem idioma nenhum (session.defaultSession.setSpellCheckerLanguages([])), pro desktop não baixar dicionário',
+        /session\.defaultSession\.setSpellCheckerLanguages\(\s*\[\s*\]\s*\)/.test(main) && idiomas.every(c => /\(\s*\[\s*\]\s*\)/.test(c)),
+        idiomas.length ? `chamada com idioma: ${idiomas.join(' | ')}` : 'não achou');
+    // O dicionário é pedido quando a sessão sobe: a chamada precisa vir antes da janela nascer.
+    const noPronto = (main.match(/app\.whenReady\(\)\.then\(\(\)\s*=>\s*\{([\s\S]*?)\n\}\);/) || [])[1] || '';
+    const corpoNegar = (main.match(/function\s+negarPermissoes\s*\(\)\s*\{([\s\S]*?)\n\}/) || [])[1] || '';
+    confere('main: o corretor é zerado antes de criarJanela() (no whenReady ou no negarPermissoes chamado antes)',
+        noPronto.includes('criarJanela()') && (
+            (noPronto.includes('setSpellCheckerLanguages') && noPronto.indexOf('setSpellCheckerLanguages') < noPronto.indexOf('criarJanela()')) ||
+            (corpoNegar.includes('setSpellCheckerLanguages') && noPronto.includes('negarPermissoes()') && noPronto.indexOf('negarPermissoes()') < noPronto.indexOf('criarJanela()'))),
+        'não achou a chamada antes de criarJanela()');
     // Cada ipcMain.on: a 1ª instrução é o porteiro, com o PRÓPRIO canal, o validador daquele canal
     // e `return` se recusar. O mapa amarra canal → argumentos do porteiro: canal novo sem entrada
     // aqui fica vermelho, e trocar um validador por `true` também.
@@ -366,6 +459,7 @@ const normalizar = t => t.replace(/\s+/g, ' ').trim();
         confere(`fuse ${nome} = ${valor}`, fuses[nome] === valor, `veio ${JSON.stringify(fuses[nome])}`);
     const arquivos = (pacote.build && pacote.build.files) || [];
     confere('o empacotado leva o caminho-seguro.js (desktop/**)', arquivos.includes('desktop/**'), JSON.stringify(arquivos));
+    confere('o empacotado leva as fontes e a licença delas (fontes/**)', arquivos.includes('fontes/**') && !arquivos.some(a => /^!fontes/.test(a)), JSON.stringify(arquivos));
 }
 
 // ── 7. O app:// de verdade: servirDoJogo lendo de uma pasta temporária ─────────────────────
@@ -389,6 +483,24 @@ async function conferirServidor() {
     const script = await servir({ url: 'app://jogo/js/motor.js' });
     confere('app://: js/motor.js sai 200, text/javascript, com CSP e nosniff', script.status === 200 && /^text\/javascript/.test(script.h.get('content-type')) && blindada(script), resumo(script));
     for (const url of ['app://jogo/%2e%2e/package.json', 'app://jogo/package.json', 'https://evil.example/index.html', 'app://jogo/js/nao-existe.js', undefined]) {
+        const marca = avisos.length;
+        const r = await servir({ url });
+        confere(`app://: ${rotulo(url)} sai 404 com CSP e nosniff, e avisa`, r.status === 404 && blindada(r) && !r.corpo.includes('segredo') && avisouDesde(marca, 'app://'), resumo(r));
+    }
+    // As fontes: o .css como text/css e o .woff2 como font/woff2, byte a byte (é binário).
+    fs.mkdirSync(path.join(raiz, 'fontes'));
+    fs.writeFileSync(path.join(raiz, 'fontes', 'fontes.css'), "@font-face { font-family: 'X'; src: url(x.woff2); }");
+    const binario = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
+    fs.writeFileSync(path.join(raiz, 'fontes', 'x.woff2'), binario);
+    fs.writeFileSync(path.join(raiz, 'fontes', 'OFL-X.txt'), 'licença');
+    const folha = await servir({ url: 'app://jogo/fontes/fontes.css' });
+    confere('app://: fontes/fontes.css sai 200, text/css, com CSP e nosniff', folha.status === 200 && /^text\/css/.test(folha.h.get('content-type')) && folha.corpo.includes('@font-face') && blindada(folha), resumo(folha));
+    const rFonte = await chama(Seguro.servirDoJogo, raiz, { url: 'app://jogo/fontes/x.woff2' });
+    const bytes = rFonte instanceof Response ? Buffer.from(await rFonte.arrayBuffer()) : null;
+    confere('app://: fontes/x.woff2 sai 200, font/woff2, byte a byte, com CSP e nosniff',
+        !!bytes && rFonte.status === 200 && rFonte.headers.get('content-type') === 'font/woff2' && bytes.equals(binario) && blindada({ h: rFonte.headers }),
+        bytes ? `${rFonte.status} ${rFonte.headers.get('content-type')} · ${bytes.length} bytes · iguais=${bytes.equals(binario)}` : String(rFonte));
+    for (const url of ['app://jogo/fontes/OFL-X.txt', 'app://jogo/fontes/../package.json', 'app://jogo/fontes/nao-existe.woff2']) {
         const marca = avisos.length;
         const r = await servir({ url });
         confere(`app://: ${rotulo(url)} sai 404 com CSP e nosniff, e avisa`, r.status === 404 && blindada(r) && !r.corpo.includes('segredo') && avisouDesde(marca, 'app://'), resumo(r));

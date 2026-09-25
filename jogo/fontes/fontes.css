@@ -1,0 +1,113 @@
+/*
+ * PUNHOS DE SHAOLIN — as fontes do jogo, empacotadas (antes vinham do Google Fonts).
+ * O desktop roda sem internet e a CSP do Electron fecha a rede (font-src 'self').
+ *
+ * Mesmos nomes de família que o Google usa ('Cinzel', 'Chakra Petch'), então nada que desenha
+ * (canvas ou CSS) precisou mudar. Só as faces que o jogo pede — Cinzel 700/900, Chakra Petch
+ * 600/700/700 itálico — e só os subconjuntos latin (onde está o português: ç ã õ é ê í ú, todos
+ * em U+0000-00FF) e latin-ext. Arquivos e unicode-range copiados do CSS do Google Fonts
+ * (css2?family=Cinzel:wght@700;900&family=Chakra+Petch:ital,wght@0,600;0,700;1,700), em 25/09/2026:
+ * Cinzel v26, Chakra Petch v13. Atalho: sem thai nem vietnamese — se o jogo ganhar um idioma
+ * fora do latin/latin-ext, baixe o subconjunto dele e some um @font-face aqui.
+ *
+ * Licença: SIL Open Font License 1.1 — OFL-Cinzel.txt e OFL-ChakraPetch.txt, nesta pasta.
+ * Cláusula 2: "Original or Modified Versions of the Font Software may be bundled, redistributed
+ * and/or sold with any software, provided that each copy contains the above copyright notice and
+ * this license." — por isso as duas licenças vão no empacotado (package.json: "fontes/**").
+ * Cláusula 1: a fonte não pode ser vendida sozinha (e não é). Nenhuma das duas declara Reserved
+ * Font Name, então manter o nome da família é permitido.
+ *
+ * Cinzel é fonte variável: 700 e 900 são o MESMO arquivo, declarado duas vezes como no Google.
+ */
+
+/* Cinzel 700 — latin-ext */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(cinzel-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Cinzel 700 — latin */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(cinzel-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Cinzel 900 — latin-ext */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(cinzel-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Cinzel 900 — latin */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(cinzel-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Chakra Petch 600 — latin-ext */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(chakra-petch-600-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Chakra Petch 600 — latin */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(chakra-petch-600-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Chakra Petch 700 — latin-ext */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(chakra-petch-700-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Chakra Petch 700 — latin */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(chakra-petch-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Chakra Petch 700 itálico — latin-ext */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(chakra-petch-700-italico-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Chakra Petch 700 itálico — latin */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(chakra-petch-700-italico-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

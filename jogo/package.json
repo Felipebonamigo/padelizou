@@ -23,7 +23,7 @@
     "productName": "Punhos de Shaolin",
     "executableName": "punhos-de-shaolin",
     "directories": { "output": "dist" },
-    "files": ["index.html", "js/**", "desktop/**", "!desktop/icone-fonte.html"],
+    "files": ["index.html", "js/**", "fontes/**", "desktop/**", "!desktop/icone-fonte.html"],
     "asar": true,
     "asarUnpack": ["node_modules/steamworks.js/**"],
     "electronFuses": {

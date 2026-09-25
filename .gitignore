@@ -47,7 +47,7 @@ Padelizou.Tests/TestResults/
 # O jogo (jogo/) tem o próprio npm só pra empacotar em Electron. A árvore de dependências e o
 # build não entram — o CI do Padelizou não roda npm, e o lockfile versionado é o que garante
 # reprodutibilidade de quem empacota.
-jogo/node_modules/
+jogo/node_modules
 jogo/dist/
 jogo/saida/
 steam_appid.txt

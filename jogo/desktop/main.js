@@ -85,6 +85,10 @@ function negarPermissoes() {
     });
     // Sem log: a checagem roda a toda hora e só consulta — negar é a resposta inteira.
     session.defaultSession.setPermissionCheckHandler(() => false);
+    // Corretor sem idioma: mesmo com `spellcheck: false` no webPreferences, o Chromium no Linux
+    // baixa o dicionário en-US (.bdic, de redirector.gvt1.com) ao subir a sessão — o desktop
+    // sairia pra rede. `setSpellCheckerEnabled(false)` não impede; lista vazia impede.
+    session.defaultSession.setSpellCheckerLanguages([]);
 }
 
 let janela = null;

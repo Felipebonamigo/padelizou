@@ -477,7 +477,8 @@
         raiz.requestAnimationFrame(laco);
     }
 
-    // As fontes do Google podem não vir (sem internet): o jogo não espera por elas mais de 1,5 s.
+    // As fontes são locais (jogo/fontes/), mas um arquivo corrompido ou um navegador lento não pode
+    // segurar a abertura: o jogo não espera por elas mais de 1,5 s e cai no fallback do CSS.
     const esperaFontes = document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]) : Promise.resolve();
     esperaFontes.then(() => { anterior = performance.now(); raiz.requestAnimationFrame(laco); });
 

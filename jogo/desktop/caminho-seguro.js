@@ -15,22 +15,28 @@
 const path = require('path');
 const fs = require('fs');
 
-// O jogo inteiro é `index.html` + `js/*.js`. Lista branca, não lista negra: um pedido que não
-// tem essa forma exata é recusado ANTES de virar caminho — `..`, `%2e%2e`, barra invertida,
-// `C:/`, byte nulo e pasta nova caem todos aqui, sem precisar ser enumerados.
-const ARQUIVO_DO_JOGO = /^(index\.html|js\/[a-z0-9_-]+\.js)$/i;
+// O jogo inteiro é `index.html` + `js/*.js` + `fontes/*.woff2` e `fontes/fontes.css`. Lista
+// branca, não lista negra: um pedido que não tem essa forma exata é recusado ANTES de virar
+// caminho — `..`, `%2e%2e`, barra invertida, `C:/`, byte nulo e pasta nova caem todos aqui, sem
+// precisar ser enumerados. A licença (fontes/OFL-*.txt) vai no empacotado, mas não é servida.
+const ARQUIVO_DO_JOGO = /^(index\.html|js\/[a-z0-9_-]+\.js|fontes\/[a-z0-9_-]+\.(woff2|css))$/i;
 const TAMANHO_MAXIMO_DO_PEDIDO = 256;
 
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const TIPOS = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.woff2': 'font/woff2',
+};
 
 // Toda resposta do app:// sai com isto. `style-src 'unsafe-inline'` é pelo <style> do index.html
-// (estilo não executa código); script só de arquivo do próprio app, nunca inline nem eval. As
-// fontes do Google são a única saída pra rede — o jogo não espera por elas.
+// (estilo não executa código); script só de arquivo do próprio app, nunca inline nem eval. Nada
+// sai pra rede: as fontes vêm empacotadas em fontes/ (antes vinham do Google Fonts).
 const POLITICA_DE_CONTEUDO = [
     "default-src 'self'",
     "script-src 'self'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data:",
     "connect-src 'none'",
     "object-src 'none'",
