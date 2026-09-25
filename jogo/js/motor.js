@@ -44,6 +44,17 @@
     const DANO_DO_SUPLEX = 20;
     const DURACAO_DO_SUPLEX = 0.5;
     const EPSILON = 1e-6;                            // o tempo é soma de 1/60: compara com folga
+    // Puxão do Rio (o especial da Lian): a corrente traz o primeiro da fila até a frente dela.
+    const VELOCIDADE_DO_PUXAO = 1100;                // px/s — 260 px em ~0,24 s
+    const ATORDOADO_DO_PUXAO = 0.6;
+    const ATORDOADO_DA_GUARDA = 0.7;                 // o chute do jogador quebra a guarda de quem defende
+    // Chefe em duas fases: ao cruzar metade da vida, uma vez só, FÚRIA — parado, invulnerável, e a onda
+    // de choque empurra quem está a até `raio` px (e `profundidade` de faixa). Depois, os números de `def.fase2`.
+    const FURIA = Object.freeze({ duracao: 1.0, raio: 200, profundidade: 0.35, empurrao: 460, salto: 300 });
+    const DISTANCIA_DAS_FAIXAS = 0.32;               // caveira tripla: três faixas, mais longe entre si que 2 × TOLERANCIA_Y
+
+    // Texto novo pro jogador (pt-BR), num lugar só — a tradução da Fase 3 começa daqui.
+    const TEXTOS = Object.freeze({ furia: 'FÚRIA', guardaQuebrada: 'GUARDA QUEBRADA' });
 
     // ── ACASO SEMEADO (mulberry32) ────────────────────────────────────────────────────────
     function criarRng(semente) {
@@ -112,6 +123,28 @@
                 joelhada: { dano: 8, inicio: 0.08, ativo: 0.06, total: 0.32, alcance: 50, altura: 85, recuo: 0, congela: 0.03, som: 'soco' },
             },
         },
+        // Rápida e frágil: a corrente alcança longe e machuca pouco. O especial não é dano, é POSIÇÃO:
+        // traz o inimigo pra perto dela (`tipo: 'puxao'`, ver `puxar`).
+        lian: {
+            id: 'lian', nome: 'Lian', titulo: 'A Corrente do Rio',
+            vida: 85, velocidade: 280, corrida: 470, escala: 0.96,
+            cores: { pele: '#e8b98f', roupa: '#1f6f8b', faixa: '#e0e6ea', cabelo: '#141414', detalhe: '#123f52' },
+            arma: 'corrente',
+            golpes: {
+                soco1: { dano: 4, inicio: 0.07, ativo: 0.08, total: 0.28, alcance: 104, altura: 85, recuo: 70, congela: 0.03, proximo: 'soco2', som: 'lamina' },
+                soco2: { dano: 4, inicio: 0.07, ativo: 0.08, total: 0.28, alcance: 108, altura: 85, recuo: 80, congela: 0.03, proximo: 'soco3', proximoCinco: 'soco4', som: 'lamina' },
+                soco4: { dano: 5, inicio: 0.07, ativo: 0.08, total: 0.28, alcance: 110, altura: 85, recuo: 40, avanco: 80, congela: 0.03, proximo: 'soco5', som: 'lamina' },
+                soco5: { dano: 5, inicio: 0.07, ativo: 0.08, total: 0.30, alcance: 112, altura: 90, recuo: 40, avanco: 80, congela: 0.04, proximo: 'soco3', som: 'lamina' },
+                soco3: { dano: 8, inicio: 0.10, ativo: 0.10, total: 0.46, alcance: 110, altura: 95, recuo: 120, lanca: 540, congela: 0.06, som: 'chute', texto: 'LANÇOU!' },
+                chute: { dano: 9, inicio: 0.10, ativo: 0.10, total: 0.45, alcance: 80, altura: 45, recuo: 300, derruba: true, congela: 0.05, som: 'chute', texto: 'RASTEIRA' },
+                chuteAereo: { dano: 8, inicio: 0.05, ativo: 0.28, total: 0.42, alcance: 96, altura: 130, recuo: 300, derruba: true, congela: 0.05, som: 'lamina' },
+                investida: { dano: 11, inicio: 0.07, ativo: 0.24, total: 0.50, alcance: 100, altura: 100, recuo: 420, derruba: true, avanco: 460, congela: 0.07, som: 'lamina', texto: 'CORRENTEZA' },
+                especial: { nome: 'Puxão do Rio', tipo: 'puxao', dano: 6, chi: 30, inicio: 0.14, ativo: 0.12, total: 0.55, alcance: 260, altura: 95, recuo: 0, congela: 0.05, som: 'lamina' },
+                // Especial no Ar (melhoria): a corrente gira em volta dela, dos dois lados, enquanto ela desce.
+                especialAereo: { nome: 'Chicote do Rio', dano: 12, inicio: 0.06, ativo: 0.32, total: 0.55, alcance: 120, altura: 110, recuo: 300, derruba: true, dosDoisLados: true, gira: true, mergulho: [0, -300], congela: 0.05, som: 'lamina' },
+                joelhada: { dano: 6, inicio: 0.08, ativo: 0.06, total: 0.32, alcance: 50, altura: 85, recuo: 0, congela: 0.03, som: 'soco' },
+            },
+        },
     };
 
     const INIMIGOS = {
@@ -151,6 +184,31 @@
             },
             ia: { alcance: 48, agressividade: 0.6, defende: 0, pausa: [0.5, 1.2], pesos: { flecha: 1 }, distancia: [240, 420] },
         },
+        // Bate de longe NO CHÃO: usa o mesmo ramo `distancia` do arqueiro, com a estocada no lugar da
+        // flecha (`deLonge`) e recuo por sorteio (`recua`), não por reflexo.
+        lanceiro: {
+            id: 'lanceiro', nome: 'Lanceiro', vida: 45, velocidade: 170, pontos: 250, escala: 1.02,
+            cores: { pele: '#d2a47c', roupa: '#6b3b1f', faixa: '#c9a227', cabelo: '#1c1c1c', detalhe: '#3d2414' }, arma: 'lanca',
+            golpes: {
+                estocada: { dano: 10, inicio: 0.30, ativo: 0.12, total: 0.80, alcance: 120, altura: 90, recuo: 320, derruba: true, congela: 0.05, som: 'lamina' },
+            },
+            ia: { alcance: 110, agressividade: 0.65, defende: 0.1, pausa: [0.35, 0.9], pesos: { estocada: 1 }, distancia: [75, 125], deLonge: 'estocada', recua: 0.5 },
+        },
+        // Defende muito e, bloqueou, CONTRA-ATACA na hora (`contraAtaca`). O chute do jogador quebra a guarda.
+        // O `contra` liga em 0,08 s: quem socou a guarda ainda está na recuperação e não tem como defender —
+        // é o castigo por insistir no soco. Com 0,06 s o bot médio do simulador caía pra 23% de bloqueio na
+        // fase 2 (o piso do conferidor da simulação é 25%); com 0,08 s fica em 25,9%. Margem curta: a onda de
+        // balanceamento olha isso junto com o bot aprender a chutar quem defende.
+        renegado: {
+            id: 'renegado', nome: 'Monge Renegado', vida: 60, velocidade: 190, pontos: 300, escala: 1.04,
+            cores: { pele: '#c7936a', roupa: '#5a1414', faixa: '#1a1a1a', cabelo: '#222222', detalhe: '#8a2a1a' }, arma: null,
+            golpes: {
+                soco1: { dano: 8, inicio: 0.16, ativo: 0.10, total: 0.50, alcance: 62, altura: 88, recuo: 140, congela: 0.03, som: 'soco' },
+                chute: { dano: 11, inicio: 0.24, ativo: 0.10, total: 0.66, alcance: 76, altura: 92, recuo: 300, derruba: true, congela: 0.05, som: 'chute' },
+                contra: { dano: 8, inicio: 0.08, ativo: 0.08, total: 0.40, alcance: 70, altura: 90, recuo: 220, congela: 0.04, som: 'soco' },
+            },
+            ia: { alcance: 58, agressividade: 0.6, defende: 0.6, contraAtaca: 'contra', pausa: [0.3, 0.8], pesos: { soco1: 3, chute: 1 } },
+        },
         // ── CHEFES ──
         mestreSombra: {
             id: 'mestreSombra', nome: 'Mestre Sombra', vida: 320, velocidade: 245, pontos: 2000, escala: 1.12, chefe: true, teleporta: 3,
@@ -163,6 +221,8 @@
                 shuriken: { tipo: 'projetil', projetil: 'shuriken', dano: 10, inicio: 0.30, total: 0.70, velocidade: 700, altura: 85, recuo: 200, som: 'flecha' },
             },
             ia: { alcance: 60, agressividade: 0.85, defende: 0.3, pausa: [0.15, 0.5], pesos: { soco1: 3, chute: 2 }, arremessa: 0.35 },
+            // Fase 2 (abaixo de metade da vida): some com 2 golpes, arremessa mais, pausa menos, 20% mais rápido.
+            fase2: { velocidade: 245 * 1.2, teleporta: 2, ia: { pausa: [0.08, 0.3], arremessa: 0.55 } },
         },
         graoPresa: {
             id: 'graoPresa', nome: 'Grão-Presa', vida: 450, velocidade: 195, pontos: 3000, escala: 1.5, chefe: true, armadura: true,
@@ -174,6 +234,7 @@
                 pancada: { dano: 20, inicio: 0.55, ativo: 0.14, total: 1.30, alcance: 130, altura: 50, recuo: 440, derruba: true, dosDoisLados: true, congela: 0.09, som: 'pancada', tremor: 1 },
             },
             ia: { alcance: 84, agressividade: 0.85, defende: 0, pausa: [0.3, 0.8], pesos: { soco1: 3, pancada: 1 }, investe: 0.45 },
+            fase2: { ia: { investe: 0.9, pesos: { soco1: 2, pancada: 2 } } },               // investe o dobro, mais pancada
         },
         gigante: {
             id: 'gigante', nome: 'O Gigante do Poço', vida: 560, velocidade: 135, pontos: 3500, escala: 1.75, chefe: true, armadura: true,
@@ -183,6 +244,7 @@
                 pancada: { dano: 26, inicio: 0.60, ativo: 0.16, total: 1.45, alcance: 160, altura: 50, recuo: 480, derruba: true, dosDoisLados: true, congela: 0.10, som: 'pancada', tremor: 1.5 },
             },
             ia: { alcance: 100, agressividade: 0.9, defende: 0, pausa: [0.4, 0.9], pesos: { soco1: 2, pancada: 2 } },
+            fase2: { velocidade: 135 * 1.3, ia: { pesos: { soco1: 1, pancada: 3 } } },     // pancada pesa mais, 30% mais rápido
         },
         feiticeiro: {
             id: 'feiticeiro', nome: 'O Feiticeiro', vida: 640, velocidade: 210, pontos: 6000, escala: 1.18, chefe: true, teleporta: 2, invoca: true,
@@ -193,6 +255,7 @@
                 caveira: { tipo: 'projetil', projetil: 'caveira', dano: 14, inicio: 0.35, total: 0.80, velocidade: 520, altura: 90, recuo: 320, derruba: true, som: 'fogo' },
             },
             ia: { alcance: 64, agressividade: 0.8, defende: 0.1, pausa: [0.2, 0.6], pesos: { soco1: 2, chama: 2 }, arremessa: 0.5 },
+            fase2: { teleporta: 1, ia: { tresFaixas: true } },                               // caveira tripla, some a cada golpe
         },
     };
 
@@ -214,9 +277,9 @@
             numero: 2, nome: 'Floresta Viva', cenario: 'floresta', comprimento: 4000,
             ondas: [
                 { x: 450, inimigos: [['garra', 2]] },
-                { x: 1100, inimigos: [['sombra', 2], ['arqueiro', 1]] },
-                { x: 1800, inimigos: [['garra', 2], ['arqueiro', 1]] },
-                { x: 2500, inimigos: [['bruto', 1], ['sombra', 2]] },
+                { x: 1100, inimigos: [['sombra', 1], ['lanceiro', 1], ['arqueiro', 1]] },
+                { x: 1800, inimigos: [['garra', 1], ['renegado', 1], ['arqueiro', 1]] },
+                { x: 2500, inimigos: [['bruto', 1], ['sombra', 1], ['lanceiro', 1]] },
                 { x: 3200, inimigos: [['garra', 1]], chefe: 'graoPresa' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.6, item: 'cha' }, { tipo: 'vaso', x: 2150, y: 0.2, item: 'pergaminho' }, { tipo: 'vaso', x: 2900, y: 0.9, item: 'cha' }],
@@ -224,20 +287,20 @@
         {
             numero: 3, nome: 'Poço das Almas', cenario: 'poco', comprimento: 4200,
             ondas: [
-                { x: 450, inimigos: [['sombra', 3], ['arqueiro', 1]] },
-                { x: 1150, inimigos: [['bruto', 1], ['garra', 1]] },
-                { x: 1900, inimigos: [['garra', 2], ['arqueiro', 2]] },
-                { x: 2650, inimigos: [['bruto', 2]] },
-                { x: 3400, inimigos: [['sombra', 2]], chefe: 'gigante' },
+                { x: 450, inimigos: [['sombra', 2], ['lanceiro', 1], ['arqueiro', 1]] },
+                { x: 1150, inimigos: [['bruto', 1], ['renegado', 1]] },
+                { x: 1900, inimigos: [['garra', 1], ['lanceiro', 1], ['arqueiro', 2]] },
+                { x: 2650, inimigos: [['bruto', 1], ['renegado', 1]] },
+                { x: 3400, inimigos: [['sombra', 1], ['lanceiro', 1]], chefe: 'gigante' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.3, item: 'cha' }, { tipo: 'vaso', x: 1600, y: 0.75, item: 'cha' }, { tipo: 'vaso', x: 2300, y: 0.5, item: 'pergaminho' }, { tipo: 'vaso', x: 3100, y: 0.2, item: 'cha' }],
         },
         {
             numero: 4, nome: 'Torre do Feiticeiro', cenario: 'torre', comprimento: 3400,
             ondas: [
-                { x: 450, inimigos: [['garra', 2], ['sombra', 2]] },
-                { x: 1150, inimigos: [['bruto', 1], ['arqueiro', 2]] },
-                { x: 1850, inimigos: [['garra', 2], ['bruto', 1]] },
+                { x: 450, inimigos: [['garra', 1], ['renegado', 1], ['sombra', 2]] },
+                { x: 1150, inimigos: [['bruto', 1], ['lanceiro', 1], ['arqueiro', 1]] },
+                { x: 1850, inimigos: [['renegado', 1], ['lanceiro', 1], ['bruto', 1]] },
                 { x: 2500, inimigos: [], chefe: 'feiticeiro' },
             ],
             objetos: [{ tipo: 'vaso', x: 800, y: 0.5, item: 'cha' }, { tipo: 'vaso', x: 1500, y: 0.2, item: 'pergaminho' }, { tipo: 'vaso', x: 2200, y: 0.8, item: 'cha' }],
@@ -288,6 +351,7 @@
         const reforco = (1 + 0.15 * Math.max(0, (mundo.faseDef.numero || 1) - 1)) * mundo.dificuldade.vida;
         i.vidaMax = i.vida = Math.round(def.vida * reforco);
         i.ia = { congelada: false, pausa: mundo.rng.entre(0.2, 0.5), lado: mundo.rng.chance(0.5) ? 1 : -1, defendendoAte: 0, invocou: [] };
+        i.fase = 1;                                  // chefe com `def.fase2` vira 2 depois da fúria
         return i;
     }
 
@@ -332,6 +396,10 @@
         ent.estado = estado;
         ent.quadro = 0;
         if (estado !== 'atacando') { ent.golpe = null; ent.golpeNome = null; ent.atingidos = null; }
+        // A marca do contra-ataque é da guarda em que ele bloqueou: saiu dela sem responder (apanhou pelas
+        // costas no mesmo quadro, foi agarrado, derrubado), a marca some — senão a próxima guarda
+        // contra-atacava no primeiro quadro, sem ter bloqueado nada.
+        if (estado !== 'defendendo' && ent.ia) ent.ia.contraAtacar = null;
     }
     function podeAgir(ent) {
         return ent.estado === 'parado' || ent.estado === 'andando';
@@ -342,6 +410,11 @@
         // Quem está no chão caído, morto ou sendo finalizado não pode ser acertado de novo.
         return vivo(ent) && ent.estado !== 'caido' && ent.estado !== 'levantando' && ent.invulneravel <= 0;
     }
+    // Tela travada: o inimigo que ainda não ENTROU no chão do jogador não bate (a IA espera
+    // `entrouNaTela`) e, pela mesma régua, não apanha do jogador — golpe, corrente, projétil, agarrão
+    // e arremessado. Senão a borda vira ponto seguro: parado nela, virado pra fora e socando, o jogador
+    // acertava quem vinha de fora, o empurrão o mandava de volta, e ele nunca entrava nem batia.
+    function aindaFora(mundo, ent) { return mundo.travado && ent.time === 'inimigo' && !ent.entrouNaTela; }
 
     function iniciarGolpe(ent, nome) {
         const golpe = ent.def.golpes[nome];
@@ -378,7 +451,7 @@
     // ── DANO ──────────────────────────────────────────────────────────────────────────────
     // golpe: { dano, origem, recuo, lanca, derruba, direcao, congela, leve }
     function aplicarDano(mundo, alvo, golpe) {
-        if (!vivo(alvo)) return false;
+        if (!vivo(alvo) || alvo.estado === 'furia') return false;   // na fúria o chefe é intocável
         const origem = golpe.origem || null;
         const direcao = golpe.direcao != null ? golpe.direcao : (origem ? Math.sign(alvo.x - origem.x) || origem.virado : 1);
         const doInimigo = origem ? origem.time === 'inimigo' : golpe.time === 'inimigo';
@@ -392,13 +465,20 @@
             return true;
         }
         if (defendendo && !golpe.ignoraDefesa) {
+            const vidaAntesDaDefesa = alvo.vida;
             dano = Math.max(1, Math.round(dano * 0.2));
             alvo.vida = Math.max(0, alvo.vida - dano);
             if (alvo.time === 'jogador') alvo.danoLevado += dano;
+            if (alvo.vida === 0) { morrer(mundo, alvo, origem, direcao); return true; }
+            if (cruzouAMetade(alvo, vidaAntesDaDefesa)) { entrarEmFuria(mundo, alvo); return true; }
+            // O CHUTE do jogador quebra a guarda de qualquer inimigo: atordoado curto (a régua da
+            // finalização continua a vida — com vida sobrando é agarrão comum).
+            if (golpe.quebraGuarda && alvo.time === 'inimigo') { quebrarGuarda(mundo, alvo, direcao); return true; }
             alvo.vx = direcao * 120;
             mundo.eventos.push({ tipo: 'acerto', x: alvo.x, y: alvo.y, z: alvo.z + 40 * alvo.escala, forca: 'bloqueio', bloqueado: true });
             mundo.eventos.push({ tipo: 'som', nome: 'bloqueio' });
-            if (alvo.vida === 0) morrer(mundo, alvo, origem, direcao);
+            // Quem sabe contra-atacar (o Renegado) responde ao golpe corpo a corpo que acabou de segurar.
+            if (alvo.time === 'inimigo' && alvo.def.ia && alvo.def.ia.contraAtaca && golpe.corpoACorpo && origem) alvo.ia.contraAtacar = origem;
             return true;
         }
 
@@ -429,6 +509,7 @@
         }
 
         if (alvo.vida === 0) { morrer(mundo, alvo, origem, direcao); return true; }
+        if (cruzouAMetade(alvo, vidaAntes)) { entrarEmFuria(mundo, alvo); return true; }
 
         const noAr = alvo.z > 0 || alvo.vz > 0;
         if (golpe.lanca) {
@@ -488,6 +569,78 @@
         mundo.eventos.push({ tipo: 'texto', texto: 'CONTRA!', x: alvo.x, y: alvo.y, cor: 'especial' });
     }
 
+    function quebrarGuarda(mundo, alvo, direcao) {
+        alvo.ia.contraAtacar = null;
+        atordoar(alvo, ATORDOADO_DA_GUARDA);
+        alvo.vx = direcao * 60;
+        mundo.eventos.push({ tipo: 'acerto', x: alvo.x, y: alvo.y, z: alvo.z + 40 * alvo.escala, forca: 'forte', direcao });
+        mundo.eventos.push({ tipo: 'som', nome: 'quebra' });
+        mundo.eventos.push({ tipo: 'texto', texto: TEXTOS.guardaQuebrada, x: alvo.x, y: alvo.y, cor: 'golpe' });
+        mundo.eventos.push({ tipo: 'guarda-quebrada', id: alvo.def.id, x: alvo.x, y: alvo.y });
+    }
+
+    // ── CHEFE EM DUAS FASES ───────────────────────────────────────────────────────────────
+    // Cruzou a metade da vida NESTE golpe, e ainda vivo: quem cai de cima de 50% direto a zero morre
+    // sem fúria (o `morrer` vem antes). `furiaFeita` garante o "uma vez só".
+    function cruzouAMetade(alvo, vidaAntes) {
+        return !!alvo.def.fase2 && !alvo.furiaFeita && alvo.vida > 0 && vidaAntes > alvo.vidaMax * 0.5 && alvo.vida <= alvo.vidaMax * 0.5;
+    }
+    function entrarEmFuria(mundo, c) {
+        c.furiaFeita = true;
+        mudar(c, 'furia');
+        c.vx = 0; c.vy = 0; c.golpesLevados = 0;
+        c.invulneravel = FURIA.duracao;
+        mundo.eventos.push({ tipo: 'furia', id: c.def.id, x: c.x, y: c.y });
+        mundo.eventos.push({ tipo: 'texto', texto: TEXTOS.furia, x: c.x, y: c.y, cor: 'chefe' });
+        mundo.eventos.push({ tipo: 'tremor', forca: 1.2 });
+        mundo.eventos.push({ tipo: 'som', nome: 'chefe' });
+        // Onda de choque: quem está perto voa pra longe (sem dano — é espaço, não castigo).
+        for (const j of mundo.jogadores) {
+            if (!alvoValido(j) || Math.abs(j.x - c.x) > FURIA.raio || Math.abs(j.y - c.y) > FURIA.profundidade) continue;
+            soltarAgarrado(j);
+            mudar(j, 'lancado');
+            j.vz = FURIA.salto; j.vx = (Math.sign(j.x - c.x) || -c.virado) * FURIA.empurrao;
+        }
+    }
+    // Os números da fase 2 por cima dos da definição (o `ia` é misturado, não trocado).
+    function aplicarFase2(c) {
+        const f2 = c.def.fase2;
+        c.def = Object.assign({}, c.def, f2, { ia: Object.assign({}, c.def.ia, f2.ia || {}) });
+        c.fase = 2;
+    }
+
+    // ── PUXÃO DO RIO ──────────────────────────────────────────────────────────────────────
+    // A corrente pega o PRIMEIRO da fila (o mais perto na frente, na mesma faixa) e o traz até a frente
+    // de quem puxou: estado 'puxado' (viaja a VELOCIDADE_DO_PUXAO) e depois atordoado curto. Chefe,
+    // quem segurou na defesa e quem está no ar só levam o dano.
+    function resolverPuxao(mundo, ent, golpe) {
+        let primeiro = null, maisPerto = Infinity;
+        for (const alvo of mundo.inimigos) {
+            if (!alvoValido(alvo) || aindaFora(mundo, alvo) || !dentroDoGolpe(ent, golpe, alvo)) continue;
+            const d = (alvo.x - ent.x) * ent.virado;
+            if (d < maisPerto) { maisPerto = d; primeiro = alvo; }
+        }
+        if (!primeiro) return;
+        ent.acertou = true;
+        ent.atingidos.push(primeiro.id);
+        // No ar (lançado pelo combo), a corrente só machuca: puxar zerava a altura no mesmo quadro — o
+        // alvo "teleportava" pro chão e trocava a queda por um atordoado ao alcance do agarrão.
+        const noAr = primeiro.z > 0 || primeiro.vz > 0;
+        aplicarDano(mundo, primeiro, { dano: golpe.dano, origem: ent, recuo: 0, congela: golpe.congela, corpoACorpo: true });
+        if (!vivo(primeiro) || noAr || primeiro.def.chefe || primeiro.estado === 'defendendo' || primeiro.estado === 'furia') return;
+        mudar(primeiro, 'puxado');
+        primeiro.puxadoPara = ent.x + ent.virado * (MEIA_LARGURA * (ent.escala + primeiro.escala) + 14);
+        primeiro.z = 0; primeiro.vz = 0; primeiro.vy = 0;
+        primeiro.virado = -ent.virado;
+        mundo.eventos.push({ tipo: 'texto', texto: golpe.nome.toUpperCase(), x: primeiro.x, y: primeiro.y, cor: 'especial' });
+    }
+
+    // Três faixas de profundidade em volta de y, todas dentro do chão (0 a 1).
+    function tresFaixas(y) {
+        const c = Math.min(1 - DISTANCIA_DAS_FAIXAS, Math.max(DISTANCIA_DAS_FAIXAS, y));
+        return [c - DISTANCIA_DAS_FAIXAS, c, c + DISTANCIA_DAS_FAIXAS];
+    }
+
     function soltarItem(mundo, x, y, tipo) {
         mundo.itens.push({ id: ++mundo.proximoId, tipo, x, y: Math.min(1, Math.max(0, y)), z: 10, vz: 260 });
     }
@@ -519,12 +672,14 @@
         if (golpe.tipo === 'projetil') {
             if (q >= golpe.inicio && !ent.acertou) {
                 ent.acertou = true;
-                lancarProjetil(mundo, ent, golpe);
+                if (golpe.projetil === 'caveira' && ent.def.ia && ent.def.ia.tresFaixas) for (const y of tresFaixas(ent.y)) lancarProjetil(mundo, ent, golpe, y);
+                else lancarProjetil(mundo, ent, golpe);
             }
             return;
         }
         const fimAtivo = golpe.inicio + golpe.ativo;
         if (q < golpe.inicio || q > fimAtivo) return;
+        if (golpe.tipo === 'puxao') { if (!ent.acertou) resolverPuxao(mundo, ent, golpe); return; }
         // Golpe que repete (o giro do Shen) reabre a lista de atingidos a cada tique.
         if (golpe.repete && q >= ent.proximoTick) { ent.atingidos = []; ent.proximoTick += golpe.repete; }
         const ultimoTique = golpe.repete ? (ent.proximoTick - golpe.repete + golpe.repete >= fimAtivo - 0.01) : true;
@@ -538,11 +693,13 @@
                 continue;
             }
             if (!alvoValido(alvo) || alvo.agarradoPor === ent) continue;
+            if (ent.time === 'jogador' && aindaFora(mundo, alvo)) continue;
             if (!dentroDoGolpe(ent, golpe, alvo)) continue;
             ent.atingidos.push(alvo.id);
             ent.acertou = true;
             const derruba = golpe.derruba || (golpe.derrubaNoFim && ultimoTique);
-            aplicarDano(mundo, alvo, { dano: golpe.dano, origem: ent, recuo: golpe.recuo, lanca: golpe.lanca, derruba, congela: golpe.congela, tremor: golpe.tremor, corpoACorpo: true });
+            aplicarDano(mundo, alvo, { dano: golpe.dano, origem: ent, recuo: golpe.recuo, lanca: golpe.lanca, derruba, congela: golpe.congela, tremor: golpe.tremor, corpoACorpo: true,
+                quebraGuarda: ent.time === 'jogador' && ent.golpeNome === 'chute' });
             if (golpe.texto && ent.time === 'jogador' && vivo(alvo)) mundo.eventos.push({ tipo: 'texto', texto: golpe.texto, x: alvo.x, y: alvo.y, cor: 'golpe' });
             // Aparado no meio da volta: o golpe acabou (e `atingidos` foi zerado) — não acerta mais ninguém.
             if (ent.estado !== 'atacando') return;
@@ -557,10 +714,10 @@
         if (objeto.item) soltarItem(mundo, objeto.x, objeto.y, objeto.item);
     }
 
-    function lancarProjetil(mundo, ent, golpe) {
+    function lancarProjetil(mundo, ent, golpe, y) {
         mundo.projeteis.push({
             id: ++mundo.proximoId, tipo: golpe.projetil, time: ent.time, dono: ent,
-            x: ent.x + ent.virado * 30, y: ent.y, z: ent.z + 40 * ent.escala, vx: ent.virado * golpe.velocidade, vida: 2.5,
+            x: ent.x + ent.virado * 30, y: y == null ? ent.y : y, z: ent.z + 40 * ent.escala, vx: ent.virado * golpe.velocidade, vida: 2.5,
             dano: golpe.dano, recuo: golpe.recuo, derruba: !!golpe.derruba, virado: ent.virado,
         });
         mundo.eventos.push({ tipo: 'projetil', nome: golpe.projetil, x: ent.x, y: ent.y });
@@ -577,6 +734,7 @@
                 const alvos = p.time === 'jogador' ? mundo.inimigos : mundo.jogadores;
                 for (const alvo of alvos) {
                     if (!alvoValido(alvo) || Math.abs(alvo.y - p.y) > TOLERANCIA_Y) continue;
+                    if (p.time === 'jogador' && aindaFora(mundo, alvo)) continue;
                     if (Math.abs(alvo.x - p.x) > MEIA_LARGURA * alvo.escala + 14) continue;
                     if (p.z < alvo.z - 10 || p.z > alvo.z + ALTURA_CORPO * alvo.escala + 10) continue;
                     aplicarDano(mundo, alvo, { dano: p.dano, origem: p.dono, direcao: p.virado, recuo: p.recuo, derruba: p.derruba, semChi: true, congela: 0.04 });
@@ -592,7 +750,7 @@
     function inimigoNaFrente(mundo, j, distancia) {
         let melhor = null, melhorDx = Infinity;
         for (const i of mundo.inimigos) {
-            if (!vivo(i) || i.agarradoPor) continue;
+            if (!vivo(i) || i.agarradoPor || aindaFora(mundo, i)) continue;
             const dx = (i.x - j.x) * j.virado;
             if (dx < -6 || dx > distancia || Math.abs(i.y - j.y) > TOLERANCIA_Y) continue;
             if (dx < melhorDx) { melhor = i; melhorDx = dx; }
@@ -654,7 +812,7 @@
         if (j.estado === 'atacando') {
             const g = j.golpe;
             if (e.apertou.soco && g.proximo && j.acertou && j.quadro >= g.inicio + g.ativo) { iniciarGolpe(j, g.proximoCinco && tem(j, 'sequencia_cinco') ? g.proximoCinco : g.proximo); return; }
-            if (e.apertou.especial && j.acertou && j.quadro >= g.inicio + g.ativo && g.tipo !== 'projetil' && g.tipo !== 'giro' && j.chi >= def.golpes.especial.chi) { j.chi -= def.golpes.especial.chi; iniciarGolpe(j, 'especial'); mundo.eventos.push({ tipo: 'texto', texto: def.golpes.especial.nome.toUpperCase(), x: j.x, y: j.y, cor: 'especial' }); return; }
+            if (e.apertou.especial && j.acertou && j.quadro >= g.inicio + g.ativo && j.golpeNome !== 'especial' && j.chi >= def.golpes.especial.chi) { j.chi -= def.golpes.especial.chi; iniciarGolpe(j, 'especial'); mundo.eventos.push({ tipo: 'texto', texto: def.golpes.especial.nome.toUpperCase(), x: j.x, y: j.y, cor: 'especial' }); return; }
             return;
         }
 
@@ -777,6 +935,14 @@
         const ia = i.ia, def = i.def;
         if (ia.congelada || !vivo(i)) return;
         if (i.estado === 'defendendo') {
+            // Bloqueou um golpe corpo a corpo e sabe contra-atacar: responde na hora, virado pra quem bateu.
+            const quem = ia.contraAtacar;
+            ia.contraAtacar = null;
+            // Só de onde o contra alcança: o Puxão do Rio (corpo a corpo, 260 px) bloqueado de longe não arma
+            // um contra que sai no vazio.
+            const contra = def.ia.contraAtaca && def.golpes[def.ia.contraAtaca];
+            const alcancaQuem = contra && quem && Math.abs(quem.x - i.x) <= contra.alcance + (i.escala - 1) * 20 + MEIA_LARGURA * (quem.escala || 1);
+            if (quem && vivo(quem) && alcancaQuem) { i.virado = Math.sign(quem.x - i.x) || i.virado; iniciarGolpe(i, def.ia.contraAtaca); return; }
             ia.defendendoAte -= dt;
             if (ia.defendendoAte <= 0) mudar(i, 'parado');
             return;
@@ -816,36 +982,51 @@
         const alinhado = Math.abs(dy) < TOLERANCIA_Y * 0.6;
         const atacantes = mundo.inimigos.filter(o => o !== i && o.estado === 'atacando' && o.time === 'inimigo').length;
         const velV = def.velocidade * 0.55 / (CHAO_BASE - CHAO_TOPO);
+        // Com a tela travada, só bate quem já está no chão do jogador: ninguém ataca de onde ele não chega.
+        const arena = mundo.travado ? arenaDaTrava(mundo) : null;
+        const naArena = !arena || !!i.entrouNaTela;
 
-        // Arqueiro: mantém distância e atira quando alinhado.
+        // Quem bate de longe (Arqueiro, Lanceiro): mantém a distância e ataca quando alinhado. O golpe
+        // de longe é `ia.deLonge` (flecha, se não disser). Com `ia.recua`, recuar é sorteio (uma vez a
+        // cada 0,6 s), não reflexo: o Lanceiro às vezes fica e estoca de perto.
         if (def.ia.distancia) {
             const [minimo, maximo] = def.ia.distancia;
+            const deLonge = def.ia.deLonge || 'flecha';
             let mx = 0, my = 0;
             if (distancia < minimo) mx = -Math.sign(dx); else if (distancia > maximo) mx = Math.sign(dx);
             if (!alinhado) my = Math.sign(dy);
+            // Ainda fora da tela travada: primeiro entra. Encostado na borda dela: não recua mais — fica e luta.
+            if (!naArena) mx = Math.sign(dx) || 1;
+            else if (arena && ((mx > 0 && i.x >= arena.dir - 1) || (mx < 0 && i.x <= arena.esq + 1))) mx = 0;
+            if (naArena && def.ia.recua != null && distancia < minimo && mx !== 0) {
+                if (!(ia.recuoAte > mundo.tempo)) { ia.recuoAte = mundo.tempo + 0.6; ia.recuando = mundo.rng.chance(def.ia.recua); }
+                if (!ia.recuando) mx = 0;
+            }
             if (mx === 0 && my === 0) {
                 i.vx = 0; i.vy = 0;
-                if (mundo.rng.chance(def.ia.agressividade)) { iniciarGolpe(i, 'flecha'); return; }
+                // Projétil não entra na fila dos dois que atacam; golpe no chão entra.
+                if ((def.golpes[deLonge].tipo === 'projetil' || atacantes < ATACANTES_MAX) && mundo.rng.chance(def.ia.agressividade)) { iniciarGolpe(i, deLonge); return; }
                 ia.pausa = mundo.rng.entre(def.ia.pausa[0], def.ia.pausa[1]);
                 return;
             }
-            if (distancia < 60 && alinhado && mundo.rng.chance(0.5)) { iniciarGolpe(i, 'soco1'); return; }
+            // O Arqueiro acuado dá um soco pra abrir espaço; quem sorteou recuar (o Lanceiro), recua.
+            if (naArena && def.ia.recua == null && distancia < 60 && alinhado && mundo.rng.chance(0.5)) { iniciarGolpe(i, 'soco1'); return; }
             i.vx = mx * def.velocidade; i.vy = my * velV;
             if (i.estado !== 'andando') mudar(i, 'andando');
             return;
         }
 
         // Chefe que arremessa de longe.
-        if (def.ia.arremessa && distancia > 220 && alinhado && mundo.rng.chance(def.ia.arremessa * dt * 4)) {
+        if (naArena && def.ia.arremessa && distancia > 220 && alinhado && mundo.rng.chance(def.ia.arremessa * dt * 4)) {
             iniciarGolpe(i, def.golpes.shuriken ? 'shuriken' : 'caveira'); return;
         }
         // Investida de média distância.
-        if (def.ia.investe && distancia > 140 && distancia < 360 && alinhado && atacantes < ATACANTES_MAX && mundo.rng.chance(def.ia.investe * dt * 3)) {
+        if (naArena && def.ia.investe && distancia > 140 && distancia < 360 && alinhado && atacantes < ATACANTES_MAX && mundo.rng.chance(def.ia.investe * dt * 3)) {
             iniciarGolpe(i, 'investida'); return;
         }
 
         const alcance = def.ia.alcance * i.escala;
-        if (distancia <= alcance + 8 && alinhado) {
+        if (naArena && distancia <= alcance + 8 && alinhado) {
             i.vx = 0; i.vy = 0;
             if (atacantes < ATACANTES_MAX && mundo.rng.chance(def.ia.agressividade)) {
                 iniciarGolpe(i, escolherGolpe(mundo, i, def.ia.pesos));
@@ -857,13 +1038,20 @@
             return;
         }
 
-        // Aproximar: cada inimigo mira um ponto ao lado do alvo (o "lado" dele), pra cercar.
-        const destinoX = alvo.x + ia.lado * (alcance - 6);
+        // Aproximar: cada inimigo mira um ponto ao lado do alvo (o "lado" dele), pra cercar. Com a tela
+        // travada, o ponto fica no chão do jogador: o lado que cai fora dela vira o outro lado.
+        const dentro = x => !arena || (x >= arena.esq && x <= arena.dir);
+        let destinoX = alvo.x + ia.lado * (alcance - 6);
+        if (!dentro(destinoX)) { ia.lado = -ia.lado; destinoX = alvo.x + ia.lado * (alcance - 6); }
+        if (arena) destinoX = Math.min(arena.dir, Math.max(arena.esq, destinoX));
         const ddx = destinoX - i.x;
-        const mx = Math.abs(ddx) > 6 ? Math.sign(ddx) : 0;
+        let mx = Math.abs(ddx) > 6 ? Math.sign(ddx) : 0;
+        // Ainda fora do chão do jogador: o passo empurra pra DENTRO, seja qual for o destino — com o
+        // destino a menos de 6 px da borda, quem vinha de fora parava ali, sem entrar e sem atacar.
+        if (arena && !naArena) mx = i.x > arena.dir ? -1 : i.x < arena.esq ? 1 : mx;
         const my = alinhado ? 0 : Math.sign(dy);
-        // Se o lado escolhido está longe demais (do outro lado do alvo), vem pelo lado mais perto.
-        if (Math.abs(ddx) > 200 && distancia < 120) ia.lado = -ia.lado;
+        // Se o lado escolhido está longe demais (do outro lado do alvo), vem pelo lado mais perto — se ele couber na tela.
+        if (Math.abs(ddx) > 200 && distancia < 120 && dentro(alvo.x - ia.lado * (alcance - 6))) ia.lado = -ia.lado;
         i.vx = mx * def.velocidade * (my !== 0 ? 0.8 : 1);
         i.vy = my * velV;
         if (i.estado !== 'andando') mudar(i, 'andando');
@@ -897,6 +1085,13 @@
         } else if (est === 'atordoado') {
             ent.atordoadoAte -= dt;
             if (ent.atordoadoAte <= 0) mudar(ent, 'parado');
+        } else if (est === 'puxado') {
+            const falta = ent.puxadoPara - ent.x;
+            if (Math.abs(falta) <= VELOCIDADE_DO_PUXAO * dt || ent.quadro >= 0.5) { ent.x = ent.puxadoPara; atordoar(ent, ATORDOADO_DO_PUXAO); }
+            else ent.vx = Math.sign(falta) * VELOCIDADE_DO_PUXAO;
+        } else if (est === 'furia') {
+            ent.vx = 0; ent.vy = 0;
+            if (ent.quadro >= FURIA.duracao - EPSILON) { aplicarFase2(ent); mudar(ent, 'parado'); }
         } else if (est === 'arremessando') {
             if (ent.quadro >= 0.35) mudar(ent, 'parado');
         } else if (est === 'suplex') {
@@ -920,7 +1115,7 @@
             if (!ent.agarradoPor) mudar(ent, 'parado');
         } else if (est === 'arremessado') {
             for (const outro of mundo.inimigos) {
-                if (outro === ent || !alvoValido(outro) || ent.atropelados.includes(outro.id)) continue;
+                if (outro === ent || !alvoValido(outro) || aindaFora(mundo, outro) || ent.atropelados.includes(outro.id)) continue;
                 if (Math.abs(outro.y - ent.y) > TOLERANCIA_Y || Math.abs(outro.x - ent.x) > MEIA_LARGURA * (outro.escala + ent.escala)) continue;
                 ent.atropelados.push(outro.id);
                 aplicarDano(mundo, outro, { dano: 10, origem: ent.arremessadoPor, direcao: Math.sign(ent.vx) || 1, recuo: 300, derruba: true, semChi: true, congela: 0.03 });
@@ -962,12 +1157,23 @@
         // Limites do mundo e da tela travada.
         const limiteEsq = 20, limiteDir = mundo.faseDef.comprimento - 20;
         if (ent.time === 'jogador') {
-            const esq = mundo.travado ? Math.max(limiteEsq, mundo.travaX + 24) : Math.max(limiteEsq, mundo.camera.x + 16);
-            const dir = mundo.travado ? Math.min(limiteDir, mundo.travaX + LARGURA - 24) : limiteDir;
+            const esq = mundo.travado ? arenaDaTrava(mundo).esq : Math.max(limiteEsq, mundo.camera.x + 16);
+            const dir = mundo.travado ? arenaDaTrava(mundo).dir : limiteDir;
             ent.x = Math.min(dir, Math.max(esq, ent.x));
         } else if (ent.time === 'inimigo') {
-            ent.x = Math.min(mundo.camera.x + LARGURA + 240, Math.max(mundo.camera.x - 240, ent.x));
+            // Tela travada: quem já ENTROU no chão do jogador não sai mais dele (o Arqueiro fugia pra
+            // fora da tela e atirava de lá; o Gigante batia de fora do alcance do soco). Quem nasceu
+            // fora continua entrando andando — nada de teleporte pra dentro.
+            const a = mundo.travado ? arenaDaTrava(mundo) : null;
+            if (a && !ent.entrouNaTela && ent.x >= a.esq && ent.x <= a.dir) ent.entrouNaTela = true;
+            if (a && ent.entrouNaTela) ent.x = Math.min(a.dir, Math.max(a.esq, ent.x));
+            else ent.x = Math.min(mundo.camera.x + LARGURA + 240, Math.max(mundo.camera.x - 240, ent.x));
         }
+    }
+
+    // O chão onde o jogador pode ficar com a tela travada — e, por isso, o único de onde se bate nele.
+    function arenaDaTrava(mundo) {
+        return { esq: Math.max(20, mundo.travaX + 24), dir: Math.min(mundo.faseDef.comprimento - 20, mundo.travaX + LARGURA - 24) };
     }
 
     // ── ONDAS, CÂMERA E FIM DE FASE ───────────────────────────────────────────────────────

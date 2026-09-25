@@ -224,13 +224,20 @@ function corrente(liberados, personagem, dx, tipo) {
     return { golpes, dano: 1000 - alvo.vida, lancou, def: j.def };
 }
 bloco('sequencia_cinco', () => {
-    for (const p of ['long', 'shen']) {
+    // Os três monges: a Lian (onda 2) tem a corrente de alcance longo, e a régua é a mesma.
+    for (const p of ['long', 'shen', 'lian']) {
         const sem = corrente([], p), com = corrente(['sequencia_cinco'], p);
         confere(`${p}: sem a melhoria a corrente continua em 3`, sem.golpes.join(',') === 'soco1,soco2,soco3' && sem.lancou, `${sem.golpes.join(',')} lançou=${sem.lancou}`);
         const g = com.def.golpes;
         const esperado = ['soco1', 'soco2', 'soco4', 'soco5', 'soco3'].reduce((s, n) => s + ((g[n] && g[n].dano) || 0), 0);
         confere(`${p}: com a melhoria são 5 golpes antes do lançador`, com.golpes.join(',') === 'soco1,soco2,soco4,soco5,soco3', com.golpes.join(','));
         confere(`${p}: os 5 acertam e o último lança`, !!(g.soco4 && g.soco5) && com.lancou && com.dano === esperado, `dano=${com.dano} esperado=${esperado} lançou=${com.lancou}`);
+        // A corrente de 5 vale o mesmo nos três: a da Lian, de alcance longo, também chega a 90 px.
+        if (p === 'lian') {
+            const longe = corrente(['sequencia_cinco'], p, 90);
+            confere('lian: de 90 px (fora do soco dos outros) a corrente de 5 acerta os 5 e lança', longe.golpes.join(',') === 'soco1,soco2,soco4,soco5,soco3' && longe.lancou && longe.dano === esperado,
+                    `${longe.golpes.join(',')} dano=${longe.dano} lançou=${longe.lancou}`);
+        }
         // Comprar a melhoria nunca pode TIRAR o lançador: em toda distância em que a corrente de 3
         // lança, a de 5 também lança. Só dx=45 provava pouco — o recuo de soco4/soco5 se soma ao do
         // soco1/soco2 e, na parte de fora do alcance, empurrava o alvo pra longe antes do soco3.
@@ -399,7 +406,7 @@ function especialNoAr(liberados, personagem, chi, lados) {
     return { noAr, golpe, chiDepois, mergulho, j, alvos, projeteis: mundo.projeteis.length };
 }
 bloco('especial_aereo', () => {
-    for (const [p, lados] of [['long', [70]], ['shen', [60, -60]]]) {
+    for (const [p, lados] of [['long', [70]], ['shen', [60, -60]], ['lian', [80, -80]]]) {
         const custo = Motor.PERSONAGENS[p].golpes.especial.chi;
         const com = especialNoAr(['especial_aereo'], p, 100, lados);
         confere(`${p}: com a melhoria, especial no pulo vira o especialAereo`, com.noAr && com.golpe === 'especialAereo', `noAr=${com.noAr} golpe=${com.golpe}`);
@@ -409,6 +416,7 @@ bloco('especial_aereo', () => {
         // jogador sair do lugar. Confere a velocidade logo depois de apertar: o Long desce na diagonal
         // PRA FRENTE (lado do `virado`); o Shen cai reto.
         const mg = com.mergulho;
+        // A Lian gira a corrente e desce reto, como o Shen.
         const mergulhou = p === 'long' ? Math.sign(mg.vx) === mg.virado && mg.vz < 0 : mg.vx === 0 && mg.vz < 0;
         confere(`${p}: o especialAereo ${p === 'long' ? 'mergulha na diagonal pra frente e pra baixo' : 'cai reto pra baixo'}`, mergulhou, JSON.stringify(mg));
         const sem = especialNoAr([], p, 100, lados);

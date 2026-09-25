@@ -78,6 +78,9 @@
         arremesso: pose({ tronco: 0.3, bD: [1.6, 0.0], bT: [0.3, 1.5], pT: [-0.4, 0.2], pD: [0.5, 0.3] }),
         arremessoPrep: pose({ tronco: -0.2, bD: [-1.2, 1.2], bT: [0.5, 1.6], pT: [-0.3, 0.2], pD: [0.3, 0.3] }),
         chama: pose({ tronco: -0.1, quadril: [0, -42], bD: [2.3, 0.4], bT: [2.3, 0.4], pT: [-0.3, 0.2], pD: [0.3, 0.2] }),
+        // Lanceiro e Renegado (onda 2) — rascunho: o Felipe cuida do visual depois.
+        estocada: pose({ tronco: 0.45, bD: [1.6, 0.05], bT: [1.3, 0.5], pT: [-0.5, 0.2], pD: [0.6, 0.3] }),
+        contra: pose({ tronco: 0.35, bD: [1.65, 0.0], bT: [0.4, 2.0], pT: [-0.4, 0.2], pD: [0.5, 0.3] }),
     };
     function poseDoGolpe(ent) {
         const g = ent.golpe, nome = ent.golpeNome, t = ent.quadro;
@@ -96,7 +99,7 @@
             const kk = t < g.inicio ? suave(t / g.inicio) : 1 - suave((t - g.inicio) / (g.total - g.inicio)) * 0.6;
             return mistura(GUARDA, base, kk);
         }
-        if (g.tipo === 'giro') {
+        if (g.tipo === 'giro' || g.gira) {
             const p = mistura(GUARDA, pose({ tronco: 0.1, bD: [1.57, 0], bT: [-1.57, 0], pT: [-0.4, 0.2], pD: [0.4, 0.2] }), Math.min(1, t / 0.08));
             p.escalaX = Math.cos(t * 26) * 0.9 + 0.1 * Math.sign(Math.cos(t * 26) || 1);
             return p;
@@ -131,7 +134,13 @@
             }
             case 'defendendo': return mistura(GUARDA, pose({ tronco: 0.18, bD: [1.25, 2.2], bT: [1.05, 2.4], pT: [-0.35, 0.3], pD: [0.4, 0.35] }), Math.min(1, t / 0.08));
             case 'agarrando': return mistura(GUARDA, pose({ tronco: 0.3, bD: [1.4, 0.4], bT: [1.4, 0.5], pT: [-0.4, 0.25], pD: [0.45, 0.3] }), Math.min(1, t / 0.1));
-            case 'agarrado': return pose({ tronco: -0.35, cabeca: -0.3, bD: [2.0, 0.4], bT: [1.7, 0.5], pT: [-0.2, 0.7], pD: [0.3, 0.8] });
+            case 'agarrado':
+            case 'puxado':                // arrastado pela corrente: o mesmo corpo largado do agarrado
+                return pose({ tronco: -0.35, cabeca: -0.3, bD: [2.0, 0.4], bT: [1.7, 0.5], pT: [-0.2, 0.7], pD: [0.3, 0.8] });
+            case 'furia': {               // chefe urrando, braços pro alto, tremendo
+                const tr = Math.sin(t * 50) * 0.05;
+                return mistura(GUARDA, pose({ tronco: -0.25 + tr, cabeca: -0.4, quadril: [tr * 30, -38], bD: [2.8, 0.4], bT: [2.8, 0.4], pT: [-0.45, 0.25], pD: [0.45, 0.25] }), suave(t / 0.2));
+            }
             case 'suplex':                // do agarrão pra ponte de costas, o preso por cima da cabeça
                 return mistura(pose({ tronco: 0.3, bD: [1.4, 0.4], bT: [1.4, 0.5], pT: [-0.4, 0.25], pD: [0.45, 0.3] }),
                                pose({ tronco: -0.9, cabeca: -0.3, quadril: [-4, -32], bD: [3.0, 0.3], bT: [2.9, 0.4], pT: [-0.5, 0.3], pD: [0.3, 0.5] }), suave(t / 0.25));
@@ -165,6 +174,9 @@
         graoPresa: { roupa: 'colete', cabelo: 'moicano', laminas: true, presas: true, olhos: '#ff5a3a', corpo: 1.18 },
         gigante: { roupa: 'colete', careca: true, olhos: '#3aff9a', corpo: 1.3, barba: 'longa' },
         feiticeiro: { roupa: 'manto', cabelo: 'longo', barba: 'longa', olhos: '#c86bff', corpo: 1.1 },
+        lian: { roupa: 'tunica', cabelo: 'longo', faixaCabeca: true, corpo: 0.92 },
+        lanceiro: { roupa: 'colete', cabelo: 'coque', corpo: 1.0 },
+        renegado: { roupa: 'tunica', cabelo: 'raspado', olhos: '#ff5a3a', corpo: 1.04 },
     };
 
     // ── PRIMITIVAS COM VOLUME ─────────────────────────────────────────────────────────────
@@ -281,6 +293,8 @@
         // Braço da frente e a arma.
         const bd = braco(p.bD, corManga, false);
         if (ent.def.arma === 'bastao') bastao(ctx, bd, bt, ent, sil);
+        if (ent.def.arma === 'corrente') corrente(ctx, bd, ent, p, sil, tempo);
+        if (ent.def.arma === 'lanca') lanca(ctx, bd, ent, p, sil);
         if (estilo.laminas) lamina(ctx, bd, cores, sil);
 
         // Estrelinhas do atordoado.
@@ -466,6 +480,56 @@
         ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-comp + 12, -3, comp * 2 - 24, 1.5);
         ctx.restore();
     }
+    // Até onde o golpe em curso chega, no espaço da figura (ela está escalada por `escala` e deslocada
+    // pelo quadril), e quanto dele está esticado agora (0 a 1, a mesma curva da pose).
+    function extensaoDoGolpe(ent, p) {
+        if (ent.estado !== 'atacando' || !ent.golpe || !ent.golpe.alcance) return null;
+        return { ate: ent.golpe.alcance / (ent.escala || 1) - p.quadril[0] * K, k: curvaDoGolpe(ent.quadro, ent.golpe) };
+    }
+    // A corrente da Lian: elos (traços curtos) da mão até o alcance do golpe; parada, pende da mão.
+    // No especial no ar (`gira`), dois braços de corrente giram em volta dela. Rascunho, sem polir.
+    function corrente(ctx, b, ent, p, sil, tempo) {
+        const ext = extensaoDoGolpe(ent, p);
+        const [mx, my] = b.mao;
+        let pontas;
+        if (ext && ent.golpe.gira) {
+            const a = ent.quadro * 22, r = ext.ate * Math.max(0.3, ext.k);
+            pontas = [[Math.cos(a) * r, my + Math.sin(a) * r * 0.35], [-Math.cos(a) * r, my - Math.sin(a) * r * 0.35]].map(q => [[0, my], q]);
+        } else if (ext) {
+            pontas = [[[mx, my], [mx + (ext.ate - mx) * ext.k, my]]];
+        } else {
+            const bal = Math.sin(tempo * 3 + (ent.id || 0)) * 6;
+            pontas = [[[mx, my], [mx + 6 + bal, my + 34]]];
+        }
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (const [[x0, y0], [x1, y1]] of pontas) {
+            const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.ceil(len / 9));
+            ctx.strokeStyle = sil || '#aeb6c2'; ctx.lineWidth = 3;
+            for (let k = 0; k < n; k++) {
+                const a = k / n, c = Math.min(1, (k + 0.7) / n);
+                ctx.beginPath(); ctx.moveTo(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a); ctx.lineTo(x0 + (x1 - x0) * c, y0 + (y1 - y0) * c); ctx.stroke();
+            }
+            // O peso da ponta.
+            ctx.fillStyle = sil || '#7d8694'; ctx.beginPath(); ctx.moveTo(x1 - 4, y1 - 4); ctx.lineTo(x1 + 5, y1); ctx.lineTo(x1 - 4, y1 + 4); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+    }
+    // A lança: cabo reto na altura da mão da frente; na estocada, a ponta vai até o alcance.
+    function lanca(ctx, frente, ent, p, sil) {
+        const ext = extensaoDoGolpe(ent, p);
+        const [fx, fy] = frente.mao;
+        const repouso = fx + 46;
+        const pontaX = ext ? repouso + (ext.ate - repouso) * ext.k : repouso;
+        const ponta = [pontaX, fy], cauda = [pontaX - 150, fy + 6];
+        ctx.save(); ctx.lineCap = 'round';
+        ctx.strokeStyle = sil || '#6b4525'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(cauda[0], cauda[1]); ctx.lineTo(ponta[0] - 14, ponta[1]); ctx.stroke();
+        ctx.fillStyle = sil || '#c9ced8';
+        ctx.beginPath(); ctx.moveTo(ponta[0] - 16, ponta[1] - 5); ctx.lineTo(ponta[0], ponta[1]); ctx.lineTo(ponta[0] - 16, ponta[1] + 5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
     function lamina(ctx, b, cores, sil) {
         ctx.save(); ctx.translate(b.mao[0], b.mao[1]); ctx.rotate(b.angulo - Math.PI / 2);
         ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(34, -1.5); ctx.lineTo(38, 0); ctx.lineTo(0, 4); ctx.closePath();

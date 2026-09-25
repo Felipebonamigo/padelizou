@@ -348,18 +348,20 @@
                 const s = jogo.sel;
                 fundoVivo();
                 if (toque) {
-                    const coluna = toque.x < Motor.LARGURA / 2 ? 0 : 1;
+                    const coluna = Desenho.colunaDaSelecao(toque.x, IDS.length);
                     if (!s.confirmadoP1) { if (s.p1 === coluna) { s.confirmadoP1 = true; som.tocar('confirmar'); } else { s.p1 = coluna; som.tocar('selecionar'); } }
                     else s.prontoHa = 99;
                 }
                 if (!s.confirmadoP1) {
-                    if (entradas[0].apertou.esquerda || entradas[0].apertou.direita) { s.p1 = (s.p1 + 1) % IDS.length; som.tocar('selecionar'); }
+                    if (entradas[0].apertou.esquerda) { s.p1 = (s.p1 + IDS.length - 1) % IDS.length; som.tocar('selecionar'); }
+                    else if (entradas[0].apertou.direita) { s.p1 = (s.p1 + 1) % IDS.length; som.tocar('selecionar'); }
                     if (entradas[0].apertou.soco || sistema.confirmar) { s.confirmadoP1 = true; som.tocar('confirmar'); }
                 } else if (sistema.confirmar && !(s.p2Entrou && !s.confirmadoP2)) s.prontoHa = 99;
                 // P2 entra com a PRÓPRIA tecla (J, ou Start no segundo controle) — Enter é do P1.
-                if ((entradas[1].apertou.soco || entradas[1]._start) && !s.p2Entrou && !(s.prontoHa >= 99)) { s.p2Entrou = true; s.p2 = 1 - s.p1; som.tocar('selecionar'); }
+                if ((entradas[1].apertou.soco || entradas[1]._start) && !s.p2Entrou && !(s.prontoHa >= 99)) { s.p2Entrou = true; s.p2 = (s.p1 + 1) % IDS.length; som.tocar('selecionar'); }
                 else if (s.p2Entrou && !s.confirmadoP2) {
-                    if (entradas[1].apertou.esquerda || entradas[1].apertou.direita) { s.p2 = (s.p2 + 1) % IDS.length; som.tocar('selecionar'); }
+                    if (entradas[1].apertou.esquerda) { s.p2 = (s.p2 + IDS.length - 1) % IDS.length; som.tocar('selecionar'); }
+                    else if (entradas[1].apertou.direita) { s.p2 = (s.p2 + 1) % IDS.length; som.tocar('selecionar'); }
                     if (entradas[1].apertou.soco) { s.confirmadoP2 = true; som.tocar('confirmar'); }
                 }
                 if (sistema.voltar) { irParaMenu(); break; }
@@ -382,7 +384,8 @@
                 if (jogo.pausado) { if (sistema.confirmar) jogo.pausado = false; break; }
                 jogo.tempoDePartida += dt;
                 if ((sistema.entrarP2 || entradas[1].apertou.soco) && m.jogadores.length === 1 && !m.fimDeJogo) {
-                    jogo.sel.p2Entrou = true; jogo.sel.p2 = 1 - jogo.sel.p1;
+                    // O P2 que entra no meio pega o monge seguinte ao do P1 (com N monges, não "o outro").
+                    jogo.sel.p2Entrou = true; jogo.sel.p2 = (jogo.sel.p1 + 1) % IDS.length;
                     Motor.adicionarJogador(m, IDS[jogo.sel.p2]);
                     efeitos.processar(m.eventos, m, som); m.eventos = [];
                     som.tocar('gongo');

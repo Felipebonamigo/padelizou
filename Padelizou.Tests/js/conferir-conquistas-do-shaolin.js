@@ -184,6 +184,39 @@ try {
     confere('as conquistas do templo (o bloco rodou até o fim)', false, erro && erro.message);
 }
 
+// ── CONQUISTAS DO CONTEÚDO NOVO (onda 2): a Lian e a guarda quebrada ─────────────────────
+try {
+    confere('existem as conquistas rio e guarda quebrada', !!(Conquistas.POR_ID.rio && Conquistas.POR_ID.guarda_quebrada), Object.keys(Conquistas.POR_ID).join(','));
+    const comLian = conquistasNovas(plataformaFalsa());
+    comLian.c.concluirFase(mundoCom(['lian'], 1));
+    confere('terminar uma fase com a Lian é "rio"', comLian.ganhas.includes('rio'), comLian.ganhas.join(','));
+    const emDupla = conquistasNovas(plataformaFalsa());
+    emDupla.c.concluirFase(mundoCom(['long', 'lian'], 2));
+    confere('com a Lian de P2 também vale', emDupla.ganhas.includes('rio'), emDupla.ganhas.join(','));
+    const semLian = conquistasNovas(plataformaFalsa());
+    semLian.c.concluirFase(mundoCom(['long', 'shen'], 2));
+    confere('terminar sem a Lian não é "rio"', !semLian.ganhas.includes('rio'), semLian.ganhas.join(','));
+
+    const g = conquistasNovas(plataformaFalsa());
+    g.c.processar([{ tipo: 'guarda-quebrada', id: 'sombra' }], mundoCom());
+    confere('quebrar a guarda de outro inimigo não conta', !g.ganhas.includes('guarda_quebrada'), g.ganhas.join(','));
+    g.c.processar([{ tipo: 'guarda-quebrada', id: 'renegado' }], mundoCom());
+    confere('quebrar a guarda de um Monge Renegado desbloqueia', g.ganhas.includes('guarda_quebrada'), g.ganhas.join(','));
+
+    // De ponta a ponta: o evento que o MOTOR emite quando o chute quebra a guarda do renegado.
+    const m = Motor.criarMundo({ fase: 0, jogadores: ['long'], semente: 7 });
+    const j = m.jogadores[0];
+    const r = Motor.colocarInimigo(m, 'renegado', j.x + 55, j.y);
+    r.estado = 'defendendo'; r.quadro = 0; r.ia.defendendoAte = 0.55; r.virado = -1;
+    const e = Motor.entradaVazia(); e.chute = true; e.apertou.chute = true;
+    const ponta = conquistasNovas(plataformaFalsa());
+    Motor.passo(m, 1 / 60, [e]); ponta.c.processar(m.eventos, m);
+    for (let k = 0; k < 20; k++) { Motor.passo(m, 1 / 60, [Motor.entradaVazia()]); ponta.c.processar(m.eventos, m); }
+    confere('o chute do motor no renegado em guarda dá a conquista', ponta.ganhas.includes('guarda_quebrada'), ponta.ganhas.join(','));
+} catch (erro) {
+    confere('as conquistas da onda 2 (o bloco rodou até o fim)', false, erro && erro.message);
+}
+
 // ── DIFICULDADE E O DANO LEVADO ───────────────────────────────────────────────────────────
 {
     const vida = d => Motor.colocarInimigo(Motor.criarMundo({ fase: 1, jogadores: ['long'], semente: 1, dificuldade: d }), 'sombra', 300, 0.5).vidaMax;

@@ -309,5 +309,27 @@ function eventosDoTipo(mundo, tipo) {
     confere('mas não interrompe o golpe', bruto.estado === 'atacando', `estado=${bruto.estado}`);
 }
 
+// 16. ESPECIAL NÃO EMENDA EM ESPECIAL, nos três monges. A regra antiga olhava o TIPO (projétil do
+//     Long, giro do Shen) e deixava passar o puxão da Lian: com chi sobrando, um puxão que acertou
+//     emendava outro puxão, e o especial virava um laço.
+for (const p of Object.keys(Motor.PERSONAGENS)) {
+    const mundo = Motor.criarMundo({ fase: 0, jogadores: [p], semente: 7 });
+    const j = mundo.jogadores[0];
+    const alvo = Motor.colocarInimigo(mundo, 'sombra', j.x + 60, j.y);
+    alvo.ia.congelada = true;
+    alvo.vida = 1000; alvo.vidaMax = 1000;
+    j.chi = 100;
+    const custo = j.def.golpes.especial.chi;
+    apertar(mundo, 'especial');
+    let especiais = 1;
+    for (let f = 0; f < 60; f++) {
+        if (j.golpeNome !== 'especial') break;       // acabou: apertar de novo é especial novo, não emenda
+        const antes = j.chi;
+        apertar(mundo, 'especial');
+        if (j.chi < antes - 5) especiais++;
+    }
+    confere(`${p}: apertar especial durante o próprio especial não emenda outro`, especiais === 1 && j.chi >= 100 - custo - 1, `especiais=${especiais} chi=${j.chi}`);
+}
+
 console.log(falhas.length === 0 ? '\nTUDO VERDE' : `\n${falhas.length} FALHA(S): ${falhas.join(' · ')}`);
 process.exit(falhas.length === 0 ? 0 : 1);

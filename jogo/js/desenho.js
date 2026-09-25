@@ -187,6 +187,7 @@
                     case 'onda': ef.ondaAviso = 1.6; ef.ondaTexto = `ONDA ${ev.numero} / ${ev.total}`; break;
                     case 'renasceu': for (let k = 0; k < 20; k++) particula({ x: ev.x, y: ev.y, z: ef.rng.entre(0, 90), vx: ef.rng.entre(-30, 30), vz: ef.rng.entre(30, 120), vida: 0.8, tam: 3, cor: '#ffe680', tipo: 'alma' }); break;
                     case 'fase-concluida': ef.flash = 0.4; ef.flashCor = '#fff'; break;
+                    case 'furia': ef.flash = Math.max(ef.flash, 0.35); ef.flashCor = '#ff2a1a'; break;
                     default: break;
                 }
             }
@@ -388,18 +389,34 @@
         return bonecoDeMostra[id];
     }
 
+    // A escolha com N monges: cartões de até 260 px, centrados, a no máximo 300 px um do outro. A
+    // conta é exportada: o `principal.js` usa a MESMA pra saber em que cartão o toque caiu.
+    function layoutDaSelecao(n) {
+        const passo = Math.min(300, (LARGURA - 40) / Math.max(1, n));
+        return { passo, largura: Math.min(260, passo - 20), x: k => LARGURA / 2 + (k - (n - 1) / 2) * passo };
+    }
+    // O toque cai no cartão mais perto (fora dos cartões, no da coluna): sempre um índice válido.
+    function colunaDaSelecao(x, n) {
+        const { passo } = layoutDaSelecao(n);
+        return Math.min(n - 1, Math.max(0, Math.round((x - LARGURA / 2) / passo + (n - 1) / 2)));
+    }
+
     function desenharSelecao(ctx, tempo, ef, sel) {
         fundoDeMenu(ctx, tempo, ef);
         texto(ctx, 'ESCOLHA SEU MONGE', LARGURA / 2, 60, { tamanho: 34, fonte: FONTE_TITULO, cor: '#ffe9b0', contorno: '#2a0800', contornoLargura: 5, alinhar: 'center', peso: 900, brilho: '#ff3a1a' });
         const ids = Object.keys(Motor.PERSONAGENS);
+        const lay = layoutDaSelecao(ids.length), meio = lay.largura / 2;
+        // As barras comparam os monges entre si: o maior de cada coisa enche a barra.
+        const maior = f => Math.max(...ids.map(i => f(Motor.PERSONAGENS[i])));
+        const tetos = { vida: maior(d => d.vida), velocidade: maior(d => d.velocidade), alcance: maior(d => d.golpes.soco1.alcance) };
         ids.forEach((id, k) => {
             const def = Motor.PERSONAGENS[id];
-            const x = LARGURA / 2 + (k - 0.5) * 300, y = 100;
+            const x = lay.x(k), y = 100;
             const escolhidoP1 = sel.p1 === k, escolhidoP2 = sel.p2Entrou && sel.p2 === k;
             ctx.save();
             ctx.fillStyle = escolhidoP1 || escolhidoP2 ? 'rgba(60,30,10,0.75)' : 'rgba(10,8,20,0.6)';
             ctx.strokeStyle = escolhidoP1 ? '#ff5a3a' : escolhidoP2 ? '#7ae0ff' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = escolhidoP1 || escolhidoP2 ? 4 : 1.5;
-            ctx.beginPath(); ctx.rect(x - 130, y, 260, 384); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.rect(x - meio, y, lay.largura, 384); ctx.fill(); ctx.stroke();
             ctx.restore();
             const b = bonecoDe(id);
             b.estado = (escolhidoP1 && sel.confirmadoP1) || (escolhidoP2 && sel.confirmadoP2) ? 'atacando' : 'parado';
@@ -411,7 +428,7 @@
             Figura.desenhar(ctx, b, tempo, { virado: 1 }); ctx.restore();
             texto(ctx, def.nome.toUpperCase(), x, y + 300, { tamanho: 30, fonte: FONTE_TITULO, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
             texto(ctx, def.titulo, x, y + 322, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center', italico: true });
-            const linhas = [['VIDA', def.vida / 130], ['VELOCIDADE', def.velocidade / 260], ['ALCANCE', def.golpes.soco1.alcance / 90]];
+            const linhas = [['VIDA', def.vida / tetos.vida], ['VELOCIDADE', def.velocidade / tetos.velocidade], ['ALCANCE', def.golpes.soco1.alcance / tetos.alcance]];
             linhas.forEach(([rotulo, frac], i) => {
                 const by = y + 332 + i * 11;
                 texto(ctx, rotulo, x - 110, by + 7, { tamanho: 9, cor: '#8f97a8', peso: 700 });
@@ -419,8 +436,8 @@
                 ctx.fillStyle = '#ffb347'; ctx.fillRect(x - 30, by, 140 * Math.min(1, frac), 6);
             });
             texto(ctx, `ESPECIAL · ${def.golpes.especial.nome.toUpperCase()}`, x, y + 373, { tamanho: 10, cor: '#7ae0ff', alinhar: 'center', peso: 700 });
-            if (escolhidoP1) texto(ctx, sel.confirmadoP1 ? 'P1 ✓' : 'P1', x - 118, y + 26, { tamanho: 18, cor: '#ff5a3a', contorno: '#000', peso: 900 });
-            if (escolhidoP2) texto(ctx, sel.confirmadoP2 ? 'P2 ✓' : 'P2', x + 118, y + 26, { tamanho: 18, cor: '#7ae0ff', contorno: '#000', alinhar: 'right', peso: 900 });
+            if (escolhidoP1) texto(ctx, sel.confirmadoP1 ? 'P1 ✓' : 'P1', x - meio + 12, y + 26, { tamanho: 18, cor: '#ff5a3a', contorno: '#000', peso: 900 });
+            if (escolhidoP2) texto(ctx, sel.confirmadoP2 ? 'P2 ✓' : 'P2', x + meio - 12, y + 26, { tamanho: 18, cor: '#7ae0ff', contorno: '#000', alinhar: 'right', peso: 900 });
         });
         const dica = sel.confirmadoP1 ? (sel.p2Entrou && !sel.confirmadoP2 ? 'P2: ← → ESCOLHE · J CONFIRMA' : (sel.toque ? 'TOQUE DE NOVO PARA LUTAR' : 'ENTER PARA LUTAR · P2 ENTRA COM J')) : (sel.toque ? 'TOQUE NO MONGE · SOCO CONFIRMA' : '← → ESCOLHEM · Z OU ENTER CONFIRMA');
         if (Math.floor(tempo * 2) % 2 === 0) texto(ctx, dica, LARGURA / 2, 515, { tamanho: 15, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 700 });
@@ -559,5 +576,5 @@
         ctx.restore();
     }
 
-    raiz.PunhosDeShaolin.Desenho = { desenharMenu, geometriaDoMenu, toqueNoMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
+    raiz.PunhosDeShaolin.Desenho = { desenharMenu, geometriaDoMenu, toqueNoMenu, layoutDaSelecao, colunaDaSelecao, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
 })(window);
