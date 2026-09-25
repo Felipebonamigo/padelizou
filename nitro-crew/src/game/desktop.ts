@@ -80,7 +80,7 @@ export async function setFullscreen(v: boolean): Promise<void> {
 
 export interface AchievementDef { id: string; pt: string; en: string }
 
-/** IDs cadastrados na Steam (desktop/README.md tem a descrição de cada um). */
+/** IDs cadastrados na Steam (desktop/README.md tem a regra de cada um; a descrição PT/EN que o jogo mostra está em src/stats/strings.ts). */
 export const ACHIEVEMENTS = [
   { id: 'PRIMEIRA_VITORIA', pt: 'Primeira vitória', en: 'First Win' },
   { id: 'COPA_BRASIL', pt: 'Copa Brasil', en: 'Brazil Cup' },
@@ -98,6 +98,14 @@ export const ACHIEVEMENTS = [
   { id: 'VOLTA_PERFEITA', pt: 'Volta perfeita', en: 'Perfect Lap' },
   { id: 'CAMPEAO', pt: 'Campeão', en: 'Champion' },
   { id: 'MADRUGADA', pt: 'Madrugada', en: 'Night Owl' },
+  { id: 'PODIO_DE_EQUIPE', pt: 'Pódio da equipe', en: 'Crew Podium' },
+  { id: 'DO_ULTIMO_AO_PRIMEIRO', pt: 'Do último ao primeiro', en: 'Last to First' },
+  { id: 'SEM_ARRANHAO', pt: 'Sem um arranhão', en: 'Not a Scratch' },
+  { id: 'MARATONA', pt: 'Maratona', en: 'Marathon' },
+  { id: 'MESTRE_DO_VACUO', pt: 'Mestre do vácuo', en: 'Slipstream Master' },
+  { id: 'NITRO_NA_BANDEIRA', pt: 'Nitro na bandeirada', en: 'Nitro Finish' },
+  { id: 'DEZ_VITORIAS', pt: 'Dez vitórias', en: 'Ten Wins' },
+  { id: 'GIRO_COMPLETO', pt: 'Giro completo', en: 'Grand Tour' },
 ] as const satisfies ReadonlyArray<AchievementDef>;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id'];

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
 import { CUPS } from '../src/core/data/cups';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from '../src/game/desktop';
-import { evaluateAchievements, newTelemetry } from '../src/game/achievements';
+import { achievementDescription, evaluateAchievements, newTelemetry } from '../src/game/achievements';
+import { setLanguage } from '../src/i18n';
 import { DEFAULT_SAVE } from '../src/game/contracts';
 import { human, quickRace, run, syntheticTrack } from './helpers';
 
@@ -20,6 +22,20 @@ describe('ponte com o Electron', () => {
   });
   it('ids de conquista são nomes de API aceitos pela Steam (A–Z, 0–9, _)', () => {
     for (const a of ACHIEVEMENTS) expect(a.id).toMatch(/^[A-Z][A-Z0-9_]*$/);
+  });
+  it('24 conquistas (12 da Fase 0 + 4 copas novas do passo 3.1 + 8 do passo 3.6), cada uma com descrição PT e EN e linha no desktop/README.md', () => {
+    expect(ACHIEVEMENTS).toHaveLength(24);
+    const readme = fs.readFileSync('desktop/README.md', 'utf8');
+    for (const lang of ['pt', 'en'] as const) {
+      setLanguage(lang);
+      for (const a of ACHIEVEMENTS) {
+        const desc = achievementDescription(a.id);
+        expect(desc, `${a.id} sem descrição em ${lang}`).not.toBe(`stats.achDesc.${a.id}`);
+        expect(desc.length).toBeGreaterThan(10);
+      }
+    }
+    setLanguage('pt');
+    for (const a of ACHIEVEMENTS) expect(readme, `${a.id} fora da tabela do README`).toContain(`| \`${a.id}\` | ${a.pt} | ${a.en} |`);
   });
 });
 

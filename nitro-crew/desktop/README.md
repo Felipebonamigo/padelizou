@@ -156,11 +156,14 @@ relatório de erros". Caminhos de arquivo e nomes de pasta pessoal saem do texto
 ### Conquistas
 
 Cadastre estes IDs (exatos) em Steamworks → Stats & Achievements. A lista com nome PT/EN está exportada em
-`src/game/desktop.ts` (`ACHIEVEMENTS`); a descrição abaixo é o que digitar no painel.
+`src/game/desktop.ts` (`ACHIEVEMENTS`); a descrição abaixo é o que digitar no painel em português, e a versão
+em inglês (a mesma que o jogo mostra na tela de recordes) está em `src/stats/strings.ts` (`stats.achDesc.<ID>`).
+As regras exatas, com os limites, estão em `docs/ESTATISTICAS.md`; `tests/desktop.test.ts` confere que toda
+conquista da lista tem linha nesta tabela.
 
 | ID | Nome (PT) | Nome (EN) | Como desbloquear |
 |---|---|---|---|
-| `PRIMEIRA_VITORIA` | Primeira vitória | First Win | Vencer qualquer corrida. |
+| `PRIMEIRA_VITORIA` | Primeira vitória | First Win | Vencer qualquer corrida (o contra-relógio não conta). |
 | `COPA_BRASIL` | Copa Brasil | Brazil Cup | Concluir a Copa Brasil. |
 | `COPA_EUA` | Copa Estados Unidos | USA Cup | Concluir a Copa Estados Unidos. |
 | `COPA_JAPAO` | Copa Japão | Japan Cup | Concluir a Copa Japão. |
@@ -176,6 +179,14 @@ Cadastre estes IDs (exatos) em Steamworks → Stats & Achievements. A lista com 
 | `VOLTA_PERFEITA` | Volta perfeita | Perfect Lap | Completar uma volta sem sair do asfalto. |
 | `CAMPEAO` | Campeão | Champion | Vencer uma copa na dificuldade Campeão. |
 | `MADRUGADA` | Madrugada | Night Owl | Vencer uma pista noturna. |
+| `PODIO_DE_EQUIPE` | Pódio da equipe | Crew Podium | Três jogadores no pódio (1º, 2º e 3º) numa corrida contra a IA. |
+| `DO_ULTIMO_AO_PRIMEIRO` | Do último ao primeiro | Last to First | Vencer uma corrida em que você estava em último ao fechar a primeira volta. |
+| `SEM_ARRANHAO` | Sem um arranhão | Not a Scratch | Terminar uma corrida contra a IA sem bater em carro nem no cenário. |
+| `MARATONA` | Maratona | Marathon | Somar 1.000 km de corrida, juntando todos os jogadores. |
+| `MESTRE_DO_VACUO` | Mestre do vácuo | Slipstream Master | Passar 60 segundos no vácuo de outros carros numa mesma corrida. |
+| `NITRO_NA_BANDEIRA` | Nitro na bandeirada | Nitro Finish | Cruzar a linha de chegada com o nitro ligado. |
+| `DEZ_VITORIAS` | Dez vitórias | Ten Wins | Somar 10 vitórias (o contra-relógio não conta). |
+| `GIRO_COMPLETO` | Giro completo | Grand Tour | Correr em todas as pistas do jogo (o contra-relógio não conta). |
 
 O jogo chama `getDesktop()?.achievement(id)` e também guarda o id em `SaveData.achievements`, para o
 desbloqueio contar fora da Steam e ser reenviado se a Steam estiver fechada na hora.
