@@ -5,7 +5,7 @@ import { AI_DRIVERS, AI_TEAM_ID_BASE } from '../data/drivers';
 import { createRng, nextInt } from '../rng';
 import type { CarState, PlayerInput, RaceConfig, RaceState, Track } from '../types';
 import { NEUTRAL_INPUT } from '../types';
-import { aiInput, createBrain } from './ai';
+import { aiInput, createBrain, DIFFICULTY_SKILL } from './ai';
 import { resolveCarCollisions, resolveSpriteCrash } from './collisions';
 import { applyTow, computeModifiers } from './coop';
 import { stepCarPhysics } from './physics';
@@ -71,7 +71,9 @@ export function stepRace(state: RaceState, track: Track, inputs: ReadonlyArray<P
   }
 
   for (const car of state.cars) {
-    const input = car.ai ? aiInput(state, track, car) : (car.finished ? cruiseInput(state, track, car) : (inputs[car.seat] ?? NEUTRAL_INPUT));
+    const command = inputs[car.seat];
+    if (command?.takeover && !car.ai) car.ai = takeoverBrain(state);
+    const input = car.ai ? aiInput(state, track, car) : (car.finished ? cruiseInput(state, track, car) : (command ?? NEUTRAL_INPUT));
     const mods = computeModifiers(state, track, car);
     const prevZ = car.z;
     stepCarPhysics(state, track, car, input, mods);
@@ -88,6 +90,12 @@ export function stepRace(state: RaceState, track: Track, inputs: ReadonlyArray<P
     state.events.push({ type: 'race_over' });
   }
   state.tick++;
+}
+
+/** Cérebro de quem assume o carro de um humano: fixo pela dificuldade, sem sorteio. */
+function takeoverBrain(state: RaceState) {
+  const [lo, hi] = DIFFICULTY_SKILL[state.config.difficulty];
+  return { skill: (lo + hi) / 2, laneX: 0, laneUntil: state.tick, lookahead: 25, aggression: 0.3 };
 }
 
 /** Humano que já terminou segue em piloto automático, para os outros verem o carro. */

@@ -3,6 +3,7 @@
 import type { CoopAssists, Difficulty } from '../core/types';
 import type { Lang } from '../i18n';
 import { sanitizeBindings } from '../ui/remap/bindings';
+import { normalizeServerUrl } from '../net/protocol';
 import { DEFAULT_SETTINGS, type Quality, type Settings } from './contracts';
 
 export const SETTINGS_KEY = 'nitro-crew.settings';
@@ -115,6 +116,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     telemetry: pickBool(r.telemetry, d.telemetry),
     controls: sanitizeBindings(r.controls),
     vibration: pickBool(r.vibration, d.vibration),
+    serverUrl: normalizeServerUrl(r.serverUrl) ?? d.serverUrl,
   };
 }
 
