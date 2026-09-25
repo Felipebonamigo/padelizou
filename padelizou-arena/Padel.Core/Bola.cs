@@ -2,10 +2,14 @@ namespace Padel.Core;
 
 public enum TipoDeEventoDaBola { Quique, Parede, Rede, CruzouRede, Saiu }
 public enum QualParede { Lateral, Fundo }
-public enum Superficie { Chao, Vidro, Grade }
+/// <summary>Aberto: onde não há parede (porta, ou acima da altura do trecho) — é a superfície dos eventos Saiu.</summary>
+public enum Superficie { Chao, Vidro, Grade, Aberto }
 
-/// <summary>Um acontecimento físico da bola. O árbitro é quem decide o que ele significa.</summary>
-public readonly record struct EventoDaBola(TipoDeEventoDaBola Tipo, float X, float Y, float Z, int Lado, QualParede Parede = QualParede.Lateral, Superficie Superficie = Superficie.Chao)
+/// <summary>
+/// Um acontecimento físico da bola. O árbitro é quem decide o que ele significa. Em Parede, Superficie é o painel atingido
+/// (Vidro ou Grade); em Saiu, é Aberto, Parede diz por qual parede a bola saiu e PelaPorta se foi por uma das portas.
+/// </summary>
+public readonly record struct EventoDaBola(TipoDeEventoDaBola Tipo, float X, float Y, float Z, int Lado, QualParede Parede = QualParede.Lateral, Superficie Superficie = Superficie.Chao, bool PelaPorta = false)
 {
     /// <summary>Em CruzouRede: pra que lado a bola foi.</summary>
     public int Para => Lado;
@@ -40,6 +44,12 @@ public sealed class Bola
     public const float RestituicaoDoChao = 0.775f, AtritoDoChao = 0.6f;
     public const float RestituicaoDoVidro = 0.85f, AtritoDoVidro = 0.25f;   // vidro devolve mais e escorrega
     public const float RestituicaoDaGrade = 0.4f, AtritoDaGrade = 0.8f;     // grade mata a bola
+    // A grade é irregular: a restituição varia ±0,10 em torno da RestituicaoDaGrade (0,30 a 0,50) e a direção de saída
+    // gira até ±15°, as duas decididas por um hash do ponto de contato em centímetros — nunca por sorteio: a física dá o
+    // mesmo resultado em qualquer máquina com a mesma entrada (a previsão da IA, o netcode e a semente dependem disso).
+    public const float VariacaoDaRestituicaoDaGrade = 0.1f;
+    /// <summary>sen 15°, o desvio máximo da grade — o seno direto, e não MathF.Sin(15°), pra não depender da libm da máquina.</summary>
+    public const float SenoDoDesvioMaximoDaGrade = 0.25881904f;
     public const float RestituicaoDaRede = 0.2f;
     private const float DecaimentoDoSpinNoAr = 0.12f;       // fração por segundo
     public const float PassoMaximo = 1f / 240f;
@@ -100,7 +110,7 @@ public sealed class Bola
 
     private void Passo(float h, List<EventoDaBola> eventos)
     {
-        float yAntes = Y, zAntes = Z;
+        float xAntes = X, yAntes = Y, zAntes = Z;
         if (Rolando)
         {
             float freio = MathF.Max(0, 1 - 2.5f * h);
@@ -163,43 +173,129 @@ public sealed class Bola
             if (Vz < VzMinimoParaQuicar) { Vz = 0; Rolando = true; }
         }
 
-        // Paredes laterais: vidro até 3 m, grade de 3 a 4 m, acima disso a bola sai.
+        // Paredes: o trecho no ponto em que a bola cruzou o plano da parede decide (Quadra.SuperficieDaParede) — vidro
+        // devolve, grade mata e desvia, aberto (porta, ou acima da altura daquele trecho) a bola sai.
+        // Lateral (|x| = 5).
         if (MathF.Abs(X) > Quadra.MeiaLargura)
         {
-            if (Z > Quadra.AlturaDaParede) { Sair(eventos); return; }
-            float sinal = MathF.Sign(X);
+            int sinal = MathF.Sign(X);
+            float f = FracaoAtePlano(xAntes, X, Quadra.MeiaLargura);
+            float yNaParede = yAntes + (Y - yAntes) * f, zNaParede = zAntes + (Z - zAntes) * f;
+            var superficie = Quadra.SuperficieDaParede(QualParede.Lateral, yNaParede, zNaParede);
+            if (superficie == Superficie.Aberto)
+            {
+                Sair(eventos, sinal * Quadra.MeiaLargura, yNaParede, zNaParede, QualParede.Lateral, Quadra.NaPorta(yNaParede, zNaParede));
+                return;
+            }
             X = sinal * (Quadra.MeiaLargura - 0.001f);
-            var superficie = RebaterNaParede(-sinal, 0);
+            RebaterNaParede(superficie, -sinal, 0, sinal * Quadra.MeiaLargura, yNaParede, zNaParede);
             eventos.Add(new EventoDaBola(TipoDeEventoDaBola.Parede, X, Y, Z, Quadra.LadoDe(Y), QualParede.Lateral, superficie));
         }
-        // Paredes de fundo.
+        // Fundo (|y| = 10).
         if (MathF.Abs(Y) > Quadra.MeioComprimento)
         {
-            if (Z > Quadra.AlturaDaParede) { Sair(eventos); return; }
-            float sinal = MathF.Sign(Y);
+            int sinal = MathF.Sign(Y);
+            float f = FracaoAtePlano(yAntes, Y, Quadra.MeioComprimento);
+            float xNaParede = xAntes + (X - xAntes) * f, zNaParede = zAntes + (Z - zAntes) * f;
+            var superficie = Quadra.SuperficieDaParede(QualParede.Fundo, xNaParede, zNaParede);
+            if (superficie == Superficie.Aberto)
+            {
+                Sair(eventos, xNaParede, sinal * Quadra.MeioComprimento, zNaParede, QualParede.Fundo, pelaPorta: false);
+                return;
+            }
             Y = sinal * (Quadra.MeioComprimento - 0.001f);
-            var superficie = RebaterNaParede(0, -sinal);
+            RebaterNaParede(superficie, 0, -sinal, xNaParede, sinal * Quadra.MeioComprimento, zNaParede);
             eventos.Add(new EventoDaBola(TipoDeEventoDaBola.Parede, X, Y, Z, Quadra.LadoDe(Y), QualParede.Fundo, superficie));
         }
     }
 
-    private Superficie RebaterNaParede(float nx, float ny)
+    /// <summary>
+    /// Que fração do sub-passo a bola andou até cruzar o plano |c| = limite, indo de antes (dentro) a depois (fora).
+    /// Se já estava fora no começo do passo (posicionada ali), o cruzamento é o ponto de partida.
+    /// </summary>
+    private static float FracaoAtePlano(float antes, float depois, float limite)
     {
-        bool grade = Z > Quadra.AlturaDoVidro;
-        if (grade) Rebater(nx, ny, 0, RestituicaoDaGrade, AtritoDaGrade);
+        float a = MathF.Abs(antes), d = MathF.Abs(depois);
+        return a >= limite ? 0 : (limite - a) / (d - a);   // d > limite > a: o divisor é positivo
+    }
+
+    /// <summary>Rebote no painel atingido, com normal (nx, ny) pra dentro da quadra; (cx, cy, cz) é o ponto de contato.</summary>
+    private void RebaterNaParede(Superficie superficie, float nx, float ny, float cx, float cy, float cz)
+    {
+        if (superficie == Superficie.Grade) RebaterNaGrade(nx, ny, cx, cy, cz);
         else Rebater(nx, ny, 0, RestituicaoDoVidro, AtritoDoVidro);
-        return grade ? Superficie.Grade : Superficie.Vidro;
+    }
+
+    /// <summary>
+    /// A grade: os coeficientes dela (restituição e atrito) mais a irregularidade da malha — restituição entre 0,30 e
+    /// 0,50 e a direção de saída girada até ±15°, as duas tiradas de um hash do ponto de contato em centímetros. Mesmo
+    /// ponto, mesmo rebote, em qualquer máquina: só soma, multiplicação, divisão e raiz (IEEE, arredondamento exato),
+    /// nada de Sin/Cos/Random. O giro nunca joga a bola pra dentro da grade: se ele comeria mais da metade da
+    /// velocidade de saída na normal (bola de raspão), gira pro outro lado.
+    /// </summary>
+    private void RebaterNaGrade(float nx, float ny, float cx, float cy, float cz)
+    {
+        uint h = HashDoContato(cx, cy, cz);
+        float restituicao = RestituicaoDaGrade + VariacaoDaRestituicaoDaGrade * (2 * Uniforme(ref h) - 1);
+        if (!Rebater(nx, ny, 0, restituicao, AtritoDaGrade)) return;
+
+        // Pra onde a saída pende: u, um vetor no plano da parede (t1 horizontal ao longo dela, z vertical), com
+        // ângulo φ em [-90°, 90°] (seno uniforme); o sinal do giro cobre a outra metade. O eixo do giro é n × u.
+        float sf = 2 * Uniforme(ref h) - 1, cf = MathF.Sqrt(1 - sf * sf);
+        float t1x = -ny, t1y = nx;
+        float ux = cf * t1x, uy = cf * t1y, uz = sf;
+        float ax = ny * uz, ay = -nx * uz, az = nx * uy - ny * ux;
+        float s = SenoDoDesvioMaximoDaGrade * (2 * Uniforme(ref h) - 1), c = MathF.Sqrt(1 - s * s);
+
+        // Rodrigues: v' = v·cos + (a × v)·sen + a·(a·v)·(1 − cos). Girar de n pra u tira (v·u)·sen da normal.
+        float vn = Vx * nx + Vy * ny;
+        float avx = ay * Vz - az * Vy, avy = az * Vx - ax * Vz, avz = ax * Vy - ay * Vx;
+        float adotv = (ax * Vx + ay * Vy + az * Vz) * (1 - c);
+        float vnGirada = (Vx * c + avx * s + ax * adotv) * nx + (Vy * c + avy * s + ay * adotv) * ny;
+        if (vnGirada < 0.5f * vn) s = -s;   // o outro sentido: a normal fica em vn·cos + |v·u|·sen ≥ vn·cos 15°
+        Vx = Vx * c + avx * s + ax * adotv;
+        Vy = Vy * c + avy * s + ay * adotv;
+        Vz = Vz * c + avz * s + az * adotv;
+    }
+
+    /// <summary>Hash do ponto de contato quantizado em centímetros (misturador fmix32 do MurmurHash3).</summary>
+    private static uint HashDoContato(float x, float y, float z)
+    {
+        unchecked
+        {
+            uint qx = (uint)(int)MathF.Round(x * 100), qy = (uint)(int)MathF.Round(y * 100), qz = (uint)(int)MathF.Round(z * 100);
+            return Misturar(Misturar(Misturar(qx * 0x9E3779B1u) ^ qy * 0x85EBCA77u) ^ qz * 0xC2B2AE3Du);
+        }
+    }
+
+    /// <summary>O próximo número do hash, em [0, 1) (24 bits, exatos em float).</summary>
+    private static float Uniforme(ref uint h)
+    {
+        unchecked { h = Misturar(h + 0x9E3779B9u); }
+        return (h >> 8) / 16777216f;
+    }
+
+    private static uint Misturar(uint h)
+    {
+        unchecked
+        {
+            h ^= h >> 16; h *= 0x85EBCA6Bu;
+            h ^= h >> 13; h *= 0xC2B2AE35u;
+            h ^= h >> 16;
+            return h;
+        }
     }
 
     /// <summary>
     /// Colisão com um plano de normal n (apontando pra dentro da quadra): restituição na normal e, na tangente,
     /// o impulso de atrito que leva o ponto de contato a rolar (limitado por μ vezes o impulso normal) — é o que
     /// transfere spin: topspin sai mais rápido e com mais spin, slice freia, sidespin desvia no vidro.
+    /// Devolve false se a bola já se afastava do plano (não houve rebote).
     /// </summary>
-    private void Rebater(float nx, float ny, float nz, float restituicao, float atrito)
+    private bool Rebater(float nx, float ny, float nz, float restituicao, float atrito)
     {
         float vn = Vx * nx + Vy * ny + Vz * nz;
-        if (vn >= 0) return;
+        if (vn >= 0) return false;
         // Normal.
         float impulsoNormal = -(1 + restituicao) * vn;
         Vx += impulsoNormal * nx; Vy += impulsoNormal * ny; Vz += impulsoNormal * nz;
@@ -209,7 +305,7 @@ public sealed class Bola
         float cx = Wy * nz - Wz * ny, cy = Wz * nx - Wx * nz, cz = Wx * ny - Wy * nx;
         float sx = tx - Raio * cx, sy = ty - Raio * cy, sz = tz - Raio * cz;
         float s = MathF.Sqrt(sx * sx + sy * sy + sz * sz);
-        if (s < 1e-5f) return;
+        if (s < 1e-5f) return true;
         // Impulso (por massa) pra rolar: Δv = −s·α/(1+α); limitado pelo atrito: μ·(1+e)·|vn|.
         float desejado = s * MomentoDeInercia / (1 + MomentoDeInercia);
         float maximo = atrito * impulsoNormal;
@@ -221,12 +317,20 @@ public sealed class Bola
         Wx += k * (ny * dvz - nz * dvy);
         Wy += k * (nz * dvx - nx * dvz);
         Wz += k * (nx * dvy - ny * dvx);
+        return true;
     }
 
-    private void Sair(List<EventoDaBola> eventos)
+    /// <summary>
+    /// A bola sai pelo ponto (x, y, z) em que cruzou o plano da parede e fica ali — dentro da caixa da quadra, mesmo
+    /// no canto, onde o ponto pode ter passado do outro plano no mesmo sub-passo.
+    /// </summary>
+    private void Sair(List<EventoDaBola> eventos, float x, float y, float z, QualParede parede, bool pelaPorta)
     {
         EmJogo = false;
-        eventos.Add(new EventoDaBola(TipoDeEventoDaBola.Saiu, X, Y, Z, Quadra.LadoDe(Y)));
+        X = Util.Limitar(x, -Quadra.MeiaLargura, Quadra.MeiaLargura);
+        Y = Util.Limitar(y, -Quadra.MeioComprimento, Quadra.MeioComprimento);
+        Z = z;
+        eventos.Add(new EventoDaBola(TipoDeEventoDaBola.Saiu, X, Y, Z, Quadra.LadoDe(Y), parede, Superficie.Aberto, pelaPorta));
     }
 }
 
