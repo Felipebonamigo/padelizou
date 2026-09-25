@@ -13,6 +13,8 @@ import { pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 
 export const PROTOCOL_VERSION = 1;
+/** Impressão do conteúdo do jogo (`b` no create/join): texto curto e opaco para o relay. */
+const BUILD_MAX = 64;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CODE_LENGTH = 5;
 
@@ -44,6 +46,7 @@ export const DEFAULTS = Object.freeze({
 });
 
 const isInt = (v, min, max) => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+const validBuild = (v) => v === undefined || (typeof v === 'string' && v.length <= BUILD_MAX);
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Sobe o relay. Devolve o servidor, as salas (para testes) e `close()`. */
@@ -127,11 +130,12 @@ export function startRelay(options = {}) {
       case 'create': {
         if (room) return false;
         if (msg.v !== PROTOCOL_VERSION) { send(ws, { t: 'error', code: 'version' }); return true; }
-        if (!isInt(msg.seats, 1, o.maxLocalSeats) || !validInfo(msg.info)) return false;
+        if (!isInt(msg.seats, 1, o.maxLocalSeats) || !validInfo(msg.info) || !validBuild(msg.b)) return false;
         if (rooms.size >= o.maxRooms) { send(ws, { t: 'error', code: 'rooms' }); return true; }
         const code = newCode();
         if (!code) { send(ws, { t: 'error', code: 'rooms' }); return true; }
-        const r = { code, clients: new Map(), host: 0, started: false, settings: null, nextId: 1 };
+        // A sala guarda a impressão do conteúdo de quem a criou: só entra quem tem a mesma.
+        const r = { code, clients: new Map(), host: 0, started: false, settings: null, nextId: 1, build: msg.b ?? null };
         const c = { id: 0, token: randomBytes(12).toString('hex'), seats: msg.seats, info: msg.info, conn: null, dropTimer: null };
         r.clients.set(0, c);
         rooms.set(code, r);
@@ -144,9 +148,11 @@ export function startRelay(options = {}) {
       case 'join': {
         if (room) return false;
         if (msg.v !== PROTOCOL_VERSION) { send(ws, { t: 'error', code: 'version' }); return true; }
-        if (typeof msg.room !== 'string' || !isInt(msg.seats, 1, o.maxLocalSeats) || !validInfo(msg.info)) return false;
+        if (typeof msg.room !== 'string' || !isInt(msg.seats, 1, o.maxLocalSeats) || !validInfo(msg.info) || !validBuild(msg.b)) return false;
         const r = rooms.get(msg.room.toUpperCase());
         if (!r) { send(ws, { t: 'error', code: 'no_room' }); return true; }
+        // Outro conteúdo (pista ou carro que um dos lados não conhece, física diferente): nem entra.
+        if ((msg.b ?? null) !== r.build) { send(ws, { t: 'error', code: 'build' }); return true; }
         if (r.started) { send(ws, { t: 'error', code: 'started' }); return true; }
         if (r.clients.size >= o.maxClients || usedSeats(r) + msg.seats > o.maxSeats) { send(ws, { t: 'error', code: 'full' }); return true; }
         const c = { id: r.nextId++, token: randomBytes(12).toString('hex'), seats: msg.seats, info: msg.info, conn: null, dropTimer: null };

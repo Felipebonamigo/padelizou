@@ -6,10 +6,13 @@
 // Assentos: cada cliente tem 1–2 jogadores locais; na largada o anfitrião numera os assentos
 // globais 0..3 pela ordem dos clientes (id no relay) e dos jogadores de cada um. Cada cliente liga
 // os próprios controles aos assentos globais que recebeu e só desenha os viewports deles.
+import * as SIM_CONSTANTS from '../core/constants';
 import { TICK_RATE } from '../core/constants';
 import { CARS } from '../core/data/cars';
 import { SEAT_COLORS } from '../core/data/drivers';
+import { hashString } from '../core/rng';
 import { deserializeRace, serializeRace } from '../core/serialize';
+import { DIFFICULTY_SKILL } from '../core/sim/ai';
 import { TRACKS } from '../core/track';
 import { NEUTRAL_INPUT, type HumanEntry, type PlayerInput, type RaceConfig, type RaceState } from '../core/types';
 import { NetClient, type SocketFactory } from '../net/client';
@@ -31,6 +34,30 @@ const MAX_CATCHUP = 4;
 export const SYNC_TIMEOUT_MS = 15_000;
 
 export const CONTENT_RULES: ContentRules = { cars: CARS.map((c) => c.id), tracks: TRACKS.map((t) => t.id) };
+
+/** JSON com as chaves de todo objeto em ordem (a ordem de declaração não muda a impressão). */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) => {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) return v;
+    return Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  });
+}
+
+/** Impressão de 8 dígitos hex de um conteúdo qualquer (JSON). */
+export function contentFingerprint(content: unknown): string {
+  return hashString(canonicalJson(content)).toString(16).padStart(8, '0');
+}
+
+/**
+ * Impressão deste jogo: carros, pistas, constantes da simulação e habilidade da IA. Vai no
+ * create/join e o relay só põe na mesma sala quem tem a mesma. Sem isso, com o mesmo
+ * PROTOCOL_VERSION, um build com uma pista nova largava nela e o outro descartava a largada calado
+ * (id desconhecido) — o anfitrião corria esperando por ele para sempre. Mudança só no código da
+ * física não entra aqui: essa aparece como dessincronia (hash a cada segundo).
+ */
+export const CONTENT_FINGERPRINT = contentFingerprint({
+  protocol: PROTOCOL_VERSION, constants: SIM_CONSTANTS, cars: CARS, tracks: TRACKS, aiSkill: DIFFICULTY_SKILL,
+});
 
 export type OnlinePhase = 'idle' | 'connecting' | 'lobby' | 'racing' | 'results' | 'error';
 
@@ -345,14 +372,14 @@ export class OnlineController implements RaceDriver {
 
   create(device: DeviceId): void {
     this.ensurePrimary(device);
-    this.connect({ t: 'create', v: PROTOCOL_VERSION, seats: this.locals.length, info: this.info() });
+    this.connect({ t: 'create', v: PROTOCOL_VERSION, b: CONTENT_FINGERPRINT, seats: this.locals.length, info: this.info() });
   }
 
   join(codeText: string, device: DeviceId): boolean {
     const code = normalizeRoomCode(codeText);
     if (!code) { this.error = 'online.err.badCode'; this.phase = 'error'; this.changed(); return false; }
     this.ensurePrimary(device);
-    this.connect({ t: 'join', v: PROTOCOL_VERSION, room: code, seats: this.locals.length, info: this.info() });
+    this.connect({ t: 'join', v: PROTOCOL_VERSION, b: CONTENT_FINGERPRINT, room: code, seats: this.locals.length, info: this.info() });
     return true;
   }
 

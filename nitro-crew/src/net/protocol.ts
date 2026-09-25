@@ -175,11 +175,13 @@ export interface Snapshot {
 
 // ───────────────────────────── Mensagens ─────────────────────────────
 
-export type ErrorCode = 'version' | 'no_room' | 'full' | 'started' | 'expired' | 'not_host' | 'bad' | 'rate' | 'rooms';
+/** `build`: a sala foi criada por um jogo com outro conteúdo (carros, pistas, física). */
+export type ErrorCode = 'version' | 'build' | 'no_room' | 'full' | 'started' | 'expired' | 'not_host' | 'bad' | 'rate' | 'rooms';
 
+/** `b` no create/join: impressão do conteúdo do jogo; o relay só junta na mesma sala impressões iguais. */
 export type ClientMessage =
-  | { t: 'create'; v: number; seats: number; info: ClientInfo }
-  | { t: 'join'; v: number; room: string; seats: number; info: ClientInfo }
+  | { t: 'create'; v: number; b: string; seats: number; info: ClientInfo }
+  | { t: 'join'; v: number; b: string; room: string; seats: number; info: ClientInfo }
   | { t: 'rejoin'; v: number; room: string; token: string }
   | { t: 'info'; seats: number; info: ClientInfo }
   | { t: 'settings'; settings: RoomSettings }
@@ -214,7 +216,7 @@ export interface ContentRules {
 }
 
 const DIFFICULTIES: readonly Difficulty[] = ['amador', 'profissional', 'campeao'];
-const ERROR_CODES: readonly ErrorCode[] = ['version', 'no_room', 'full', 'started', 'expired', 'not_host', 'bad', 'rate', 'rooms'];
+const ERROR_CODES: readonly ErrorCode[] = ['version', 'build', 'no_room', 'full', 'started', 'expired', 'not_host', 'bad', 'rate', 'rooms'];
 const PEER_EVENTS: readonly PeerEvent[] = ['join', 'rejoin', 'lost', 'drop', 'leave'];
 
 function isRecord(v: unknown): v is Record<string, unknown> {

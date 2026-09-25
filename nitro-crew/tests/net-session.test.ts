@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEAT_COLORS } from '../src/core/data/drivers';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
-import { assignSeats, raceConfigFrom, seatName } from '../src/game/online-session';
+import { CONTENT_FINGERPRINT, assignSeats, contentFingerprint, raceConfigFrom, seatName } from '../src/game/online-session';
 import { sanitizeSettings } from '../src/game/settings';
 import type { RoomView, StartConfig } from '../src/net/protocol';
 
@@ -64,6 +64,18 @@ describe('corrida da largada', () => {
     ]);
     expect(raceConfigFrom({ ...cfg, versus: false }).humans.map((h) => h.teamId)).toEqual([0, 0]);
     expect(JSON.stringify(raceConfigFrom(cfg))).toBe(JSON.stringify(raceConfigFrom(JSON.parse(JSON.stringify(cfg)) as StartConfig)));
+  });
+});
+
+describe('impressão do conteúdo (vai no create/join)', () => {
+  it('igual para o mesmo conteúdo, qualquer que seja a ordem das chaves; muda com uma pista nova ou um número da física', () => {
+    const base = { constants: { TICK_RATE: 60, GRIP: 0.8 }, cars: [{ id: 'falcao', topSpeed: 100 }], tracks: [{ id: 'copacabana' }] };
+    const fp = contentFingerprint(base);
+    expect(fp).toMatch(/^[0-9a-f]{8}$/);
+    expect(contentFingerprint({ tracks: [{ id: 'copacabana' }], cars: [{ topSpeed: 100, id: 'falcao' }], constants: { GRIP: 0.8, TICK_RATE: 60 } })).toBe(fp);
+    expect(contentFingerprint({ ...base, tracks: [{ id: 'copacabana' }, { id: 'pista_nova' }] })).not.toBe(fp);
+    expect(contentFingerprint({ ...base, constants: { TICK_RATE: 60, GRIP: 0.81 } })).not.toBe(fp);
+    expect(CONTENT_FINGERPRINT).toMatch(/^[0-9a-f]{8}$/);
   });
 });
 

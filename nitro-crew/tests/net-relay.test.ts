@@ -185,6 +185,23 @@ describe.skipIf(!HAS_WS)('relay (mensagens cruas)', () => {
     for (const x of [a, b, c]) x.ws.close();
   });
 
+  it('só junta na mesma sala quem tem o mesmo conteúdo: impressão diferente é recusada com "build"', async () => {
+    const a = await raw();
+    a.send({ t: 'create', v: 1, b: 'aaaa1111', seats: 1, info: INFO('Ana') });
+    const room = String((await a.next(isT('welcome'))).room);
+    const b = await raw();
+    b.send({ t: 'join', v: 1, b: 'bbbb2222', room, seats: 1, info: INFO('Bia') }); // build com uma pista nova
+    expect(await b.next(isT('error'))).toEqual({ t: 'error', code: 'build' });
+    b.send({ t: 'join', v: 1, room, seats: 1, info: INFO('Bia') }); // sem impressão nenhuma
+    expect(await b.next(isT('error'))).toEqual({ t: 'error', code: 'build' });
+    b.send({ t: 'join', v: 1, b: 'aaaa1111', room, seats: 1, info: INFO('Bia') });
+    expect(await b.next(isT('welcome'))).toMatchObject({ id: 1 });
+    const c = await raw();
+    c.send({ t: 'create', v: 1, b: 'x'.repeat(65), seats: 1, info: INFO('Caio') }); // impressão absurda: mensagem inválida
+    expect(await c.next(isT('error'))).toEqual({ t: 'error', code: 'bad' });
+    for (const x of [a, b, c]) x.ws.close();
+  });
+
   it('lixo, binário e mensagem acima do limite: descarta, e a grande derruba a conexão (1009)', async () => {
     const a = await raw();
     a.send('isto não é json');
