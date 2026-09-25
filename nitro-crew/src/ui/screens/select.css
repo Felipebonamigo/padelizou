@@ -129,7 +129,6 @@
   color: var(--text);
 }
 .scr-tracks .track-section-head .cup-flag { font-size: calc(24 * var(--u)); letter-spacing: 0; }
-.scr-tracks .track-section-cup { color: var(--muted); font-weight: 600; letter-spacing: 0.06em; }
 /* Linha fina até a borda: separa as copas sem outra caixa. */
 .scr-tracks .track-section-head::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .scr-tracks .track-grid {

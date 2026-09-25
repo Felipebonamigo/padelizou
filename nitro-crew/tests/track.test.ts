@@ -24,6 +24,7 @@ describe('pistas', () => {
     }
   });
 
+  // ~60 mil conferências nas 32 pistas: 2,2 s com a máquina carregada, perto demais dos 5 s padrão.
   it('a elevação fecha: o fim da pista volta à altura do começo, e os segmentos são contíguos', () => {
     for (const def of TRACKS) {
       const t = buildTrack(def);
@@ -31,7 +32,7 @@ describe('pistas', () => {
       expect(Math.abs(last.y1 - first.y0), def.id).toBeLessThan(1e-6);
       for (let i = 1; i < t.segments.length; i++) expect(t.segments[i].y0).toBeCloseTo(t.segments[i - 1].y1, 6);
     }
-  });
+  }, 20_000);
 
   it('toda pista tem um trecho de box de pelo menos 20 segmentos na reta de largada', () => {
     for (const def of TRACKS) {

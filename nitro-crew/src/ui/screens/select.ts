@@ -10,7 +10,10 @@ import { icon } from './icons';
 import { lobbyHumans } from './lobby';
 import './select.css';
 
-/** Colunas da grade de pistas: uma copa por linha. */
+/**
+ * Colunas da grade de pistas: uma copa por linha, e por isso ↑↓ trocam de copa mantendo a coluna.
+ * Vale enquanto toda copa tiver exatamente este número de pistas (tests/select.test.ts confere).
+ */
 export const TRACK_GRID_COLS = 4;
 
 /**
@@ -27,13 +30,13 @@ function scalableThumb(ctx: MenuContext, def: TrackDef): HTMLCanvasElement {
 }
 
 /** Pistas da copa, na ordem da copa (ids desconhecidos ficam de fora). */
-export function cupTracks(ctx: MenuContext, cup: CupDef): TrackDef[] {
+export function cupTracks(ctx: Pick<MenuContext, 'tracks'>, cup: CupDef): TrackDef[] {
   return cup.trackIds.map((id) => ctx.tracks.find((x) => x.id === id)).filter((x): x is TrackDef => x !== undefined);
 }
 
 export type CupStatus = 'done' | 'open' | 'locked';
 
-export function cupStatus(ctx: MenuContext, cup: CupDef): CupStatus {
+export function cupStatus(ctx: Pick<MenuContext, 'isCupUnlocked' | 'save'>, cup: CupDef): CupStatus {
   if (!ctx.isCupUnlocked(cup.id)) return 'locked';
   return ctx.save.cupsCompleted.includes(cup.id) ? 'done' : 'open';
 }
@@ -184,9 +187,9 @@ export function tracksScreen(api: ScreenApi): ScreenInstance {
       return el;
     });
     rows.push(h('section', { class: 'track-section' },
+      // Só bandeira e copa: todo nome de copa já leva o país ("Copa Brasil").
       h('h2', { class: 'track-section-head' },
         h('span', { class: 'cup-flag', text: cup.flag }),
-        h('span', { text: countryName(cup.country) }),
         h('span', { class: 'track-section-cup', text: t(`core.cup.${cup.id}`) }),
       ),
       h('div', { class: 'track-grid' }, cards),
