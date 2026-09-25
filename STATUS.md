@@ -1,6 +1,20 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **25/09/2026** — 🥋 **"PUNHOS DE SHAOLIN": um JOGO, fora do app.** 🗣️ Felipe: *"Vamos criar jogo, estilo mortal kombat shaolin monks, faça tudo que conseguir sozinho"*. ✅ **SEM MIGRATION, sem uma linha de C#** — mora em `jogo/` na raiz, abre por `file://` e **não é servido pelo site**. Branch `claude/mortal-kombat-game-6bipnb`, sem PR ainda.
+>
+> 🎮 **O QUE É:** beat-em-up de cinto em Canvas, 960×540, com profundidade, pulo, malabarismo (três socos lançam, chute no ar emenda), corrida + investida, agarrão com arremesso que atropela, defesa que só segura pela frente, chi que paga o especial (bola de fogo do Long, giro de bastão do Shen), **finalização** em inimigo atordoado, vasos com chá e pergaminho, 4 fases com ondas e 4 chefes (teleporte, armadura, pancada dos dois lados, invocação), 2 jogadores no mesmo teclado ou em 2 controles, e toque com joystick virtual pro celular. **Sem um único sprite, imagem ou arquivo de áudio**: bonecos articulados por pose, cenários cacheados, som sintetizado em Web Audio. Recorde em `localStorage`. Detalhe em `jogo/README.md`.
+>
+> 🧱 **A DECISÃO ESTRUTURAL FOI SEPARAR REGRA DE TELA**: `motor.js` é lógica pura, sem `Math.random` (acaso semeado), exporta pra Node e emite eventos por quadro que desenho e som consomem. É o que permitiu o **13º conferidor**, `conferir-punhos-de-shaolin.js` — 40 checks, **vistos VERMELHOS antes** ("não existe") e depois **por mutação** (defesa sem redução, armadura do Bruto desligada, terceiro soco sem lançar). O CI já roda ele pelo glob.
+>
+> ⚠️ **POR QUE FORA DO `wwwroot`:** o `UseStaticFiles` vem ANTES do portão de Acesso Antecipado, então qualquer coisa em `wwwroot/jogo/` viraria pública em `padelizou.com.br/jogo/index.html` no primeiro deploy. Publicar no site é decisão do Felipe, não minha — está a um `cp -r` de distância. Pra jogar agora, o jogo foi publicado como Artifact (link na sessão).
+>
+> 🔧 **DOIS DEFEITOS ACHADOS NO TESTE DE FUMAÇA (Chromium headless, Playwright), antes de commitar:** (1) toque de tecla mais curto que um quadro sumia — a entrada agora retém todo keydown até a próxima leitura; (2) Enter confirmava o P1 **e** fazia o P2 entrar no mesmo quadro — P2 entra com a própria tecla (J). E um vazamento visual: o tingimento vermelho de quem apanha usava `source-atop` na tela inteira e pintava o cenário; foi pra um canvas à parte.
+>
+> 👀 **NÃO CONFERIDO EM NAVEGADOR DE VERDADE**: som (Web Audio precisa de gesto, o headless não toca), toque num celular real, controle físico, e as fontes do Google (o sandbox bloqueia; o jogo cai no fallback em 1,5 s). **Balanceamento é chute educado** — dano, vida e agressividade estão em tabelas no topo do `motor.js`, pra ajustar sem procurar.
+>
+> **12 → 13 conferidores JS verdes.** Suíte .NET não mudou (nada de C# tocado).
+
 > Última atualização: **24/09/2026** — 🏷️ **O BOTÃO PROMETIA MENOS DO QUE ENTREGA: "Definir por CPF" virou "Definir parceiro".** 🚀 **PUBLICADO em `dev` E `prod` no `build-1489-432b5b3`** (deploy runs **409** e **410**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #348. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da própria inscrição: *"aqui esta escrito 'definir por cpf' mas tambem permite por nome, temos q trocar o nome desse botão"*.
 >
 > 🙃 **MENTIRA DE RÓTULO AO CONTRÁRIO — e é por isso que ela passou tanto tempo de pé.** O caso do `build-373` era um selo prometendo o que o sistema **não** fazia; aqui o botão **esconde** o que ele faz. O painel abre com `Procure pelo nome ou apelido` em cima e o CPF embaixo, mas quem não tem o documento do parceiro em mãos lê "Definir por CPF" e **não clica** — o caminho fácil ficava atrás de uma porta com a placa errada.

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Punhos de Shaolin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Chakra+Petch:ital,wght@0,600;0,700;1,700&display=swap" rel="stylesheet">
+<style>
+    /* Jogo de arcade: um único visual escuro, de propósito — não há versão clara. */
+    :root {
+        --fundo: #05030a;
+        --tinta: #ffe9b0;
+        --tinta-fraca: #8f97a8;
+        --controle: rgba(255, 255, 255, 0.07);
+        --controle-borda: rgba(255, 233, 176, 0.28);
+        --controle-apertado: rgba(255, 179, 71, 0.45);
+        --fonte-hud: "Chakra Petch", "Trebuchet MS", "Segoe UI", sans-serif;
+        color-scheme: dark;
+    }
+    html, body { height: 100%; margin: 0; background: var(--fundo); color: var(--tinta); overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; font-family: var(--fonte-hud); }
+    #palco { position: fixed; inset: 0; display: grid; place-items: center; background: var(--fundo); }
+    canvas { display: block; background: #000; image-rendering: auto; touch-action: none; }
+
+    /* Controles de toque: só aparecem em tela de toque, e só durante a luta. */
+    #toque { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 2; font-family: var(--fonte-hud); }
+    body.com-toque[data-tela="jogo"] #toque { display: block; }
+    #joystick { position: absolute; left: max(16px, 4vw); bottom: max(16px, env(safe-area-inset-bottom, 0px) + 5vh); width: 32vmin; height: 32vmin; border-radius: 50%; background: var(--controle); border: 2px solid var(--controle-borda); pointer-events: auto; touch-action: none; }
+    #bolinha { position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; margin: -21% 0 0 -21%; border-radius: 50%; background: rgba(255, 233, 176, 0.35); border: 2px solid var(--controle-borda); pointer-events: none; }
+    #botoes { position: absolute; right: max(16px, 4vw); bottom: max(16px, env(safe-area-inset-bottom, 0px) + 5vh); display: grid; grid-template-columns: repeat(3, 14vmin); grid-auto-rows: 14vmin; gap: 1.6vmin; pointer-events: auto; }
+    #botoes button, .pausa { font: 700 2.4vmin var(--fonte-hud); letter-spacing: 0.04em; color: var(--tinta); background: var(--controle); border: 2px solid var(--controle-borda); border-radius: 50%; touch-action: none; -webkit-tap-highlight-color: transparent; }
+    #botoes button.apertado, .pausa.apertado { background: var(--controle-apertado); }
+    #botoes button[data-botao="soco"], #botoes button[data-botao="chute"] { border-color: #ff5a3a; }
+    #botoes button[data-botao="especial"] { border-color: #7ae0ff; }
+    .pausa { position: absolute; right: max(16px, 4vw); top: max(12px, env(safe-area-inset-top, 0px) + 2vh); width: 9vmin; height: 9vmin; pointer-events: auto; font-size: 3vmin; }
+    #tela-cheia { position: fixed; left: max(12px, 2vw); bottom: max(12px, env(safe-area-inset-bottom, 0px) + 2vh); z-index: 3; font: 600 12px var(--fonte-hud); color: var(--tinta-fraca); background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+    body[data-tela="jogo"] #tela-cheia { display: none; }
+    #tela-cheia:focus-visible, #botoes button:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
+
+    /* Celular em pé: o jogo é largo, pede a horizontal. */
+    #girar { display: none; position: fixed; inset: 0; z-index: 4; place-items: center; text-align: center; padding: 24px; background: rgba(5, 3, 10, 0.92); font: 700 18px var(--fonte-hud); line-height: 1.5; }
+    #girar span { display: block; font-size: 42px; margin-bottom: 8px; }
+    @media (orientation: portrait) and (pointer: coarse) and (max-width: 700px) { #girar { display: grid; } }
+    @media (prefers-reduced-motion: reduce) { #bolinha { transition: none; } }
+</style>
+</head>
+<body data-tela="titulo">
+<div id="palco"><canvas id="tela" width="960" height="540" aria-label="Punhos de Shaolin, um jogo de luta"></canvas></div>
+
+<div id="toque">
+    <div id="joystick"><div id="bolinha"></div></div>
+    <div id="botoes">
+        <button type="button" data-botao="defender">DEF</button>
+        <button type="button" data-botao="pular">PULO</button>
+        <button type="button" data-botao="especial">CHI</button>
+        <button type="button" data-botao="agarrar">AGARRA</button>
+        <button type="button" data-botao="soco">SOCO</button>
+        <button type="button" data-botao="chute">CHUTE</button>
+    </div>
+    <button type="button" class="pausa" data-botao="pausa" aria-label="Pausa">❚❚</button>
+</div>
+<button type="button" id="tela-cheia">⛶ tela cheia (F)</button>
+<div id="girar"><div><span>↻</span>Gire o celular pra jogar na horizontal</div></div>
+
+<script src="js/motor.js"></script>
+<script src="js/som.js"></script>
+<script src="js/entrada.js"></script>
+<script src="js/desenho.js"></script>
+<script src="js/principal.js"></script>
+</body>
+</html>
