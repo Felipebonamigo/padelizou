@@ -27,11 +27,31 @@ O que **não** vamos fazer: simular a colisão raquete-bola a partir da animaç�
 | Portas | 4 aberturas nas laterais, junto à rede | de 0,45 a 1,25 m da rede, até 2 m de altura; a bola que passa por elas sai ("saída pela porta"), e o árbitro dá o ponto pelas regras de sempre |
 | Rede | 0,88 m centro / 0,92 postes | 0,90 m; bola que toca cai |
 | Jogador | tiro curto 6–7 m/s; arranca em ~1 s; freia mais forte | humano 6,4 m/s, IA 4,6–6,6; aceleração 9 m/s², frenagem 14 (≈ 1,5 m pra parar) (teste) |
-| Balanço | ~0,3 s do início ao contato bom | balanço de 0,30 s; contato ideal 0,12 s depois do aperto; erro = \|Δt\|/0,15 + 0,6 × dificuldade (esticado, baixo, rápido); erro > 0,95 vira bola na rede ou no vidro; **sem apertar, a bola passa** (teste). Modo *Automático* fica como assistência |
+| Balanço | ~0,3 s do início ao contato bom | balanço de 0,30 s; a raquete passa pelo ponto de contato **uma vez**, 0,12 s depois do aperto, e só ali toca a bola — se ela estiver ao alcance (1,35 m) nesse instante; senão a bola passa e o balanço acaba no ar, mesmo que ela entre no alcance antes do fim dele. Erro = dificuldade do corpo no instante (esticado, no corpo, baixo, rápido, revés) + 1/m × o quanto a bola já passou do ponto — sem termo de tempo à parte; erro > 0,95 vira bola na rede ou no vidro; **sem apertar, a bola passa** (teste). IA e modo *Automático* batem com a bola no ponto mais perto do ideal, não na borda do alcance |
 | Efeito por golpe (rpm) | drive com topspin, bandeja e víbora com slice/sidespin | drive 1.200 · ataque 2.200 · defesa −1.200 · lob −400 · bandeja −1.500 + 500 lateral · víbora −800 + 1.800 lateral · smash 1.500 · saque −600 |
 | Velocidades que saem | pró: smash 100–130 km/h, drive 60–90, bandeja 50–70, lob 30–50, saque 50–70 (aproximado) | drive ≈ 65–75, smash ≈ 100–110, bandeja ≈ 55, lob ≈ 35 — o tempo de voo por golpe é o botão de calibração |
 
 A IA lê a bola simulando **a mesma física** (inclusive efeito), e escolhe bandeja, víbora ou smash pela altura e pela posição — não existe "IA que sabe onde a bola vai cair" por fora da simulação.
+
+**O contato é no instante do balanço, não na borda do alcance** (25/09, `ContatoDoBalancoTests`). Antes, a raquete batia assim que a bola *entrava* no alcance confortável (0,85 m) com o balanço ativo, e o timing era um termo à parte (\|Δt\|/0,15): todo golpe saía na borda e pagava "esticado" mesmo com timing perfeito. Agora o timing É a posição da bola no instante em que a raquete passa: o ponto ideal fica ao lado do corpo, a 0,6 m, do lado da raquete (drive) ou do outro (revés). **Cedo** = a bola ainda longe (esticada; fora do alcance, raquete no ar e a bola segue). **Tarde** = a bola no corpo ou já passada do ponto. A dificuldade do corpo é simétrica e plana até 0,6 m do corpo, então sozinha não separa 40 cm antes de 40 cm depois; por isso o único termo a mais é o **atraso em metros** (quanto a bola já andou além do ponto mais perto do ideal), a 1/m — o \|Δt\|/0,15 antigo com a bola a ~6,5 m/s, a mediana medida no contato. Cedo fica mais barato que tarde de propósito: a bola à frente do corpo é contato natural; a passada é a que vai na rede. A IA e o modo *Automático* batem no passo em que a bola está mais perto do ponto ideal (ou na última chance, se ela vai sair do alcance). O **primeiro quique** do lado de quem recebe não é saída do alcance — a bola volta a subir, e a espera segue (a partida passa o que o árbitro sabe); só o segundo é. E a altura conta, com o mesmo limite da bola baixa da dificuldade (0,3 m): a bola rente ao chão subindo espera subir; a que já quicou e desce rumo ao segundo quique é batida antes de ficar baixa. Sem isso, esperar o ponto ideal fazia a IA bater a bola a 1–4 cm do chão (revisão de 25/09: no Médio, 5,8 % dos golpes antes do quique a menos de 5 cm do chão, contra 0,4 % antes da mudança). Medido em 25/09 (humano simulado × IA Médio: `ferramentas/Calibracao` com 24 partidas por célula, e o timing perfeito com 6; IA × IA: 12 partidas de 1 set, sementes 42–53):
+
+| | antes | depois |
+|---|---|---|
+| Contato, mediana da distância ao corpo (humano com timing perfeito) | 0,83 m | 0,59 m |
+| Idem, IA × IA (Fácil / Médio / Difícil) | 0,83 / 0,83 / 0,83 m | 0,56 / 0,56 / 0,59 m |
+| "Esticado" médio no golpe da IA (0 a 0,8), mesma ordem | 0,38 / 0,38 / 0,39 | 0,18 / 0,15 / 0,16 |
+| Bola no corpo (a menos de 0,3 m na lateral), IA × IA, mesma ordem | 31 / 27 / 23 % | 25 / 19 / 14 % |
+| Golpes da IA que saem errados (rede, vidro), IA × IA, mesma ordem | 22,5 / 12,7 / 7,2 % | 16,9 / 9,4 / 5,4 % |
+| Golpes por ponto, sem o saque, IA × IA, mesma ordem | 2,9 / 4,6 / 6,9 | 4,1 / 7,8 / 11,2 |
+| Segundos por ponto, IA × IA, mesma ordem | 4,4 / 6,3 / 8,8 | 6,2 / 10,3 / 14,5 |
+| Pontos só com o saque (ninguém devolve), IA × IA, mesma ordem | 12,1 / 15,5 / 20,8 % | 6,2 / 6,2 / 6,6 % |
+| … desses, saques que quicaram duas vezes depois de ~0,3 s ao alcance de quem recebia (12 partidas), mesma ordem | 15 / 47 / 80 | 0 |
+| Golpes bons (erro < 0,3) contra a Médio: Iniciante / Intermediário / Avançado / Profissional | 8 / 18 / 23 / 29 % | 43 / 60 / 72 / 78 % |
+| Balanços no ar por ponto contra a Médio (mesma ordem) | 0,34 / 0,30 / 0,28 / 0,28 | 0,39 / 0,35 / 0,27 / 0,24 |
+| % de pontos contra a Médio (mesma ordem) | 41 / 56 / 58 / 57 | 48 / 58 / 63 / 66 |
+| % de pontos contra a Difícil (mesma ordem) | 34 / 35 / 36 / 39 | 23 / 32 / 39 / 41 |
+
+Os ralis mais longos têm duas causas. Uma é defeito corrigido: com a regra antiga, a IA só batia com a bola no alcance confortável ou já indo embora, e o saque que vinha pela faixa de fora do alcance (0,85–1,1 m), ainda chegando, quicava a segunda vez sem a raquete sair — 12 % dos pontos do Difícil (`Nas_partidas_entre_IAs_nenhum_saque_passa_ao_alcance_de_quem_recebe_sem_ser_devolvido`). Esse não se devolve rebalanceando. A outra é equilíbrio: batendo no ponto ideal, a IA erra menos (a chance de erro cresce com a dificuldade do golpe) e o humano também — o humano ganhou mais do que a IA contra a Médio. **Não foi reajustado: é decisão de playtest** (abaixo).
 
 ## Mecânica — o que falta (entra no M1)
 
@@ -40,6 +60,7 @@ A IA lê a bola simulando **a mesma física** (inclusive efeito), e escolhe band
 - **Golpes que faltam**: saída de parede dupla (fundo + lateral) como intenção, globo x lob curto, e a IA mirar a porta.
 - **Salto no smash**, **posição do corpo** na bandeja (lateral, raquete alta).
 - **Fadiga leve**: sprints seguidos reduzem a aceleração por alguns segundos. Decidir no playtest — pode irritar.
+- **Equilíbrio depois do contato no ponto ideal** (25/09): decidir no playtest se fica como está (ralis mais longos, humano mais forte contra a Médio) ou volta perto do de antes. As alavancas: `PerfilDeIA.ChanceDeErro` (Jogadores.cs) e `PesoDoCorpoNoErro` / `PesoDoAtraso` e o limiar 0,95 (Partida.cs). Medido em 25/09 (12 partidas por célula): a chance de erro da IA × 1,34 devolve a taxa de golpes errados de antes (21,3 / 13,0 / 7,5 %), mas os golpes por ponto só descem a 3,6 / 5,9 / 9,5, o humano fica ainda mais forte contra a Médio (53 / 62 / 69 / 70 % dos pontos) e a semente 42 do Difícil troca de vencedor (quebra `A_dificuldade_gradua_o_facil_perde_e_o_dificil_vence_o_parceiro`). Do lado do humano, atraso a 2/m ou limiar 0,75 deixam o Avançado e o Profissional em 61–68 % dos pontos contra a Médio: nenhuma alavanca sozinha devolve o de antes — precisa de um alvo (ex.: "Intermediário × Médio perto de 50 % das partidas") e de mais partidas por célula (com 12, a % de partidas tem desvio padrão de 12 a 14 pontos).
 - **Calibração com vídeo** (semana 3): gravar 10 pontos de transmissão, marcar quadros, extrair velocidade e altura de 5 golpes; ajustar tempo de voo e coeficientes; **cada ajuste vira teste**, como a restituição virou.
 
 ## Visual — realismo de transmissão

@@ -55,8 +55,8 @@ em que a bola passa; o ponto bom de contato é ao lado do corpo, não na frente 
 | Bola alta | ação + ↑, segurando a ação até o contato | **remate por 4** (sai por cima do fundo); com ← ou → forte, **por 3** (sai pela lateral). Sem espaço pra isso, vira smash |
 | Bola atrás de você, junto ao vidro | ação + ↓ | **contrapared**: bate no próprio vidro e passa a rede |
 
-Remate por 3 e por 4 só saem com contato bom. `--auto-golpe` liga a assistência: a raquete bate sozinha
-quando a bola chega ao alcance, e segurar a ação vira lob. No coop local, o segundo jogador usa o controle 1
+Remate por 3 e por 4 só saem com contato bom. `--auto-golpe` liga a assistência: a raquete bate sozinha no melhor ponto de contato ao alcance (como a IA),
+e segurar a ação vira lob. No coop local, o segundo jogador usa o controle 1
 ou IJKL + U (ação) e O (lob); o primeiro fica com o controle 0, e o lob dele no teclado é só o Shift (o L vira a
 direita do segundo). Esc/P pausa.
 

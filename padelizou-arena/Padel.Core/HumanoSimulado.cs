@@ -82,11 +82,13 @@ public sealed class HumanoSimulado
     private readonly int _indice;
     private readonly Aleatorio _aleatorio;
     private readonly Jogador _eu;   // cópia local pra usar a mesma geometria do corpo (drive/revés, ponto de contato)
+    private readonly Jogador _corpoNoContato;   // o mesmo corpo, correndo pro lugar na previsão (pra cronometrar o aperto)
 
     // Memória da bola que vem: muda quando alguém bate ou quando a bola quica/bate na parede.
     private static readonly (int time, TipoDeGolpe? tipo, bool quicou) SemLeitura = (-2, null, false);
     private (int time, TipoDeGolpe? tipo, bool quicou) _ultimaLeitura = SemLeitura;
     private float _desdeALeitura;
+    private float _desdeOAperto;
     private float _erroX, _erroY, _erroDoTempo;
     private bool _apertouNestaBola;
     private bool _segurarAcao;
@@ -102,6 +104,7 @@ public sealed class HumanoSimulado
         Perfil = perfil;
         _aleatorio = aleatorio;
         _eu = new Jogador(indiceDoJogador / 2, indiceDoJogador % 2, perfil.Nome, humano: true, Jogador.VelocidadeDoHumano) { Destro = destro };
+        _corpoNoContato = new Jogador(indiceDoJogador / 2, indiceDoJogador % 2, perfil.Nome, humano: true, Jogador.VelocidadeDoHumano) { Destro = destro };
     }
 
     public PerfilDeHumano Perfil { get; }
@@ -113,6 +116,7 @@ public sealed class HumanoSimulado
         var meu = estado.Jogadores[_indice];
         _eu.X = meu.X; _eu.Y = meu.Y; _eu.Vx = meu.Vx; _eu.Vy = meu.Vy;
         _desdeALeitura += dt;
+        _desdeOAperto += dt;   // soma os mesmos dt que o Jogador.TempoNoBalanco: o instante de contato cai no mesmo tick
 
         switch (estado.Estado)
         {
@@ -126,14 +130,14 @@ public sealed class HumanoSimulado
                 _esperaDoSaque = -1;
                 return new Entrada(Limitar((_aleatorio.Proximo() - 0.5f) * 1.2f), 0, AcaoPressionada: true, AcaoSegurada: true);
             case EstadoDaPartida.Rally:
-                return NoRally(estado);
+                return NoRally(estado, dt);
             default:
                 _esperaDoSaque = -1;
                 return Entrada.Vazia;
         }
     }
 
-    private Entrada NoRally(EstadoVisivel e)
+    private Entrada NoRally(EstadoVisivel e, float dt)
     {
         var leitura = (e.TimeDoUltimoGolpe, e.TipoDoUltimoGolpe, e.QuicouDepoisDoUltimoGolpe);
         if (leitura != _ultimaLeitura)
@@ -171,32 +175,60 @@ public sealed class HumanoSimulado
         float dxMundo = xCorpo - _eu.X, dyMundo = yCorpo - _eu.Y;
         float distancia = MathF.Sqrt(dxMundo * dxMundo + dyMundo * dyMundo);
 
-        // Timing: a raquete encontra a bola quando ela ENTRA no alcance confortável do corpo (Jogador.PodeBaterAgora), não
-        // quando chega ao ponto ao lado dele — então o aperto se mede por essa entrada, como o jogador de verdade sente.
-        // Aperta quando faltar o momento ideal do balanço, mais o erro de timing da pessoa — e nunca antes de reagir.
-        float tempoAteOAlcance = TempoAteEntrarNoAlcance(e, xCorpo, yCorpo) ?? tempo;
-        float faltaPraApertar = tempoAteOAlcance - Jogador.MomentoIdealDoBalanco + _erroDoTempo;
+        // Timing: a raquete só toca a bola no instante de contato do balanço (Jogador.NoInstanteDoContato, o momento ideal
+        // depois do aperto) — então o aperto se mede pela chegada da bola ao ponto ideal de contato ao lado do corpo, contando
+        // com o corpo ainda correndo pro lugar (quem não chega a tempo bate quando a bola passa por ele, não onde ele queria
+        // estar), como o jogador de verdade sente. Aperta quando faltar o momento ideal, mais o erro de timing da pessoa — e
+        // nunca antes de reagir.
         bool podeReagir = _desdeALeitura >= Perfil.TempoDeReacao;
-        if (!_apertouNestaBola && podeReagir && faltaPraApertar <= 0)
+        if (!_apertouNestaBola)
         {
-            _apertouNestaBola = true;
-            _plano = EscolherGolpe(e, zContato);
-            _segurarAcao = _plano == PlanoDeGolpe.RemateForte;
-            var (mx, my) = Mira(e, _plano);
-            bool lob = _plano is PlanoDeGolpe.Lob or PlanoDeGolpe.Chiquita;
-            return new Entrada(mx, my, AcaoPressionada: !lob, AcaoSegurada: _segurarAcao, LobPressionada: lob);
+            float esperaPraReagir = MathF.Max(0, Perfil.TempoDeReacao - _desdeALeitura);
+            float tempoAteOPonto = TempoAteOPontoIdeal(e, xCorpo, yCorpo, esperaPraReagir) ?? tempo;
+            if (podeReagir && !AindaNaoEHoraDeApertar(tempoAteOPonto))
+            {
+                _apertouNestaBola = true;
+                _desdeOAperto = 0;
+                _plano = EscolherGolpe(e, zContato);
+                _segurarAcao = _plano == PlanoDeGolpe.RemateForte;
+                bool lob = _plano is PlanoDeGolpe.Lob or PlanoDeGolpe.Chiquita;
+                var (dx, dy) = IrAte(xCorpo, yCorpo, distancia);
+                return new Entrada(dx, dy, AcaoPressionada: !lob, AcaoSegurada: _segurarAcao, LobPressionada: lob);
+            }
         }
         if (_apertouNestaBola)
         {
-            // Balançando: a direção agora é a mira (é assim que o controle funciona), e o corpo quase não anda.
-            var (mx, my) = Mira(e, _plano);
-            return new Entrada(mx, my, false, _segurarAcao);
+            // Balançando: o corpo segue indo pro lugar até o instante de contato; ali a direção é a mira — é ela que escolhe o
+            // golpe (Partida.GolpeDoHumano lê a entrada do instante). Um tick de folga antes, pra não errar o instante.
+            if (_desdeOAperto + 1.5f * dt >= Jogador.MomentoIdealDoBalanco)
+            {
+                var (mx, my) = Mira(e, _plano);
+                return new Entrada(mx, my, false, _segurarAcao);
+            }
+            var (cx, cy) = IrAte(xCorpo, yCorpo, distancia);
+            return new Entrada(cx, cy, false, _segurarAcao);
         }
         // Indo buscar: corre e freia pra chegar parado (se não reagiu ainda, fica onde está).
-        if (!podeReagir || distancia < 0.08f) return Entrada.Vazia;
+        if (!podeReagir) return Entrada.Vazia;
+        var (ix, iy) = IrAte(xCorpo, yCorpo, distancia);
+        return new Entrada(ix, iy, false, false);
+    }
+
+    /// <summary>
+    /// Com a bola chegando ao ponto ideal daqui a tantos segundos, ainda falta pra apertar? Falta o momento ideal do balanço,
+    /// mais o erro de timing da pessoa. Não decresce com os segundos (conta de float monótona) — é o que deixa a previsão parar
+    /// cedo em <see cref="TempoAteOPontoIdeal"/> com a mesma decisão.
+    /// </summary>
+    private bool AindaNaoEHoraDeApertar(float segundosAteOPonto) => segundosAteOPonto - Jogador.MomentoIdealDoBalanco + _erroDoTempo > 0;
+
+    /// <summary>Direção (no referencial do jogador) pra ir até (x, y) freando pra chegar parado; parado se já está a 8 cm.</summary>
+    private (float Dx, float Dy) IrAte(float x, float y, float distancia)
+    {
+        if (distancia < 0.08f) return (0, 0);
         float velocidadeQueCabe = MathF.Sqrt(2 * _eu.Frenagem * distancia) / _eu.Velocidade;
         float forca = MathF.Min(1, velocidadeQueCabe);
-        return ParaEntrada(dxMundo / distancia * forca, dyMundo / distancia * forca, false, false);
+        var e = ParaEntrada((x - _eu.X) / distancia * forca, (y - _eu.Y) / distancia * forca, false, false);
+        return (e.Dx, e.Dy);
     }
 
     /// <summary>Primeiro ponto em que a bola fica batível perto do corpo: (x, y, segundos até lá, altura).</summary>
@@ -233,27 +265,73 @@ public sealed class HumanoSimulado
         return primeiroAlcancavel;
     }
 
-    /// <summary>Segundos até a bola batível entrar no alcance confortável de um corpo parado em (x, y); null se não entra.</summary>
-    private float? TempoAteEntrarNoAlcance(EstadoVisivel e, float x, float y)
+    /// <summary>
+    /// Segundos até a bola chegar o mais perto do ponto ideal de contato (<see cref="Jogador.DistanciaAoPontoIdeal"/>) do
+    /// corpo — que, na previsão, espera o tempo de reação e corre até (x, y) freando pra chegar parado, como o
+    /// <see cref="IrAte"/> manda. Vale o primeiro mínimo com a bola AO ALCANCE (uma bola que passa longe no quique e volta
+    /// do vidro é batida na volta); do fundo, depois do quique — o voleio só entra se depois do quique ela não fica ao
+    /// alcance (o saque nunca se voleia). Se ela não fica ao alcance nunca, o primeiro ponto em que chega mais perto: o
+    /// balanço desesperado.
+    /// null se ela não fica batível. O resultado só decide se aperta agora (<see cref="AindaNaoEHoraDeApertar"/>): quando já
+    /// é certo que a resposta cai depois da hora de apertar, a previsão para e devolve um tempo que dá a mesma decisão — a
+    /// maior parte dos ticks, com a bola ainda longe, deixa de simular o voo inteiro.
+    /// </summary>
+    private float? TempoAteOPontoIdeal(EstadoVisivel e, float x, float y, float esperaPraReagir)
     {
+        var corpo = _corpoNoContato;
+        corpo.X = _eu.X; corpo.Y = _eu.Y; corpo.Vx = _eu.Vx; corpo.Vy = _eu.Vy;
         var bola = e.CopiaDaBola();
         var eventos = new List<EventoDaBola>(4);
-        bool precisaQuicar = e.TipoDoUltimoGolpe == TipoDeGolpe.Saque || MathF.Abs(y) >= 4.5f;
+        bool saque = e.TipoDoUltimoGolpe == TipoDeGolpe.Saque;
+        bool precisaQuicar = saque || MathF.Abs(y) >= 4.5f;
         bool quicou = e.QuicouDepoisDoUltimoGolpe;
+        var depoisDoQuique = new MaisPerto();
+        var voleio = new MaisPerto();
+        var qualquer = new MaisPerto();
         float t = 0;
         const float passo = 1f / 240f;   // mais fino que a leitura: o timing se mede em centésimos
-        for (int i = 0; i < 720 && bola.EmJogo && !bola.Parada; i++)
+        for (int i = 0; i < 720 && bola.EmJogo && !bola.Parada && !depoisDoQuique.Fechado; i++)
         {
             eventos.Clear();
             bola.Avancar(passo, eventos);
             t += passo;
+            if (t <= esperaPraReagir) corpo.Mover(0, 0, passo); else corpo.IrPara(x, y, passo);
+            bool acabou = false;
             foreach (var ev in eventos)
-                if (ev.Tipo == TipoDeEventoDaBola.Quique) { if (ev.Lado != _eu.Lado || quicou) return null; quicou = true; }
-            if (!quicou && precisaQuicar) continue;
-            if (bola.Z < 0 || bola.Z > _eu.AlturaMaxima) continue;
-            if (Util.Distancia(x, y, bola.X, bola.Y) <= _eu.AlcanceConfortavel) return t;
+                if (ev.Tipo == TipoDeEventoDaBola.Quique) { if (ev.Lado != _eu.Lado || quicou) acabou = true; else quicou = true; }
+            if (acabou) break;
+            if (bola.Z < 0 || bola.Z > _eu.AlturaMaxima || Quadra.LadoDe(bola.Y) != _eu.Lado) continue;
+            float d = corpo.DistanciaAoPontoIdeal(bola.X, bola.Y);
+            bool aoAlcance = corpo.DistanciaAte(bola.X, bola.Y) <= corpo.Alcance;
+            if (quicou || !precisaQuicar) depoisDoQuique.Ver(t, d, aoAlcance);
+            else if (!saque) voleio.Ver(t, d, aoAlcance);
+            if (quicou || !saque) qualquer.Ver(t, d, aoAlcance: true);
+            // Parada antecipada, com a mesma decisão: cada Quando só anda pra frente, e amostra nova vem depois de t.
+            if (depoisDoQuique.Quando is float q && AindaNaoEHoraDeApertar(q)) return q;
+            if (depoisDoQuique.Quando is null && AindaNaoEHoraDeApertar(t) && qualquer.Quando is float a && AindaNaoEHoraDeApertar(a)
+                && (voleio.Quando is not float v || AindaNaoEHoraDeApertar(v)))
+                return t;
         }
-        return null;
+        return depoisDoQuique.Quando ?? voleio.Quando ?? qualquer.Quando;
+    }
+
+    /// <summary>
+    /// O primeiro mínimo da distância ao ponto ideal com a bola ao alcance: fecha quando ela sai do alcance ou já vai longe.
+    /// Struct (roda a cada tick, três por previsão): usar só em variável local, que é mutada no lugar.
+    /// </summary>
+    private struct MaisPerto
+    {
+        private float _distancia;
+        public float? Quando { get; private set; }
+        public bool Fechado { get; private set; }
+
+        public void Ver(float t, float distancia, bool aoAlcance)
+        {
+            if (Fechado) return;
+            if (!aoAlcance) { Fechado = Quando is not null; return; }
+            if (Quando is null || distancia < _distancia) { _distancia = distancia; Quando = t; }
+            else if (distancia > _distancia + 0.3f) Fechado = true;   // passou do ponto mais perto e já vai longe
+        }
     }
 
     private bool SouQuemBusca(EstadoVisivel e, float x, float y)

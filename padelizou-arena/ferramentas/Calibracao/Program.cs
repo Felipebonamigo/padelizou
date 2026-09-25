@@ -4,6 +4,9 @@ using Padel.Core;
 // Calibração da janela do balanço: o humano simulado (com parceiro IA) contra a dupla de IA, com sementes fixas.
 // Uso: dotnet run -c Release --project ferramentas/Calibracao [-- --partidas N --games G]
 // Imprime tabelas em markdown: por perfil x dificuldade, e por desvio de timing (resto do Intermediário) x Médio.
+// "Golpe bom": erro do golpe (Partida.UltimoErroDoHumano) abaixo de LimiteDoGolpeBom. "Contato": distância da bola ao corpo
+// no golpe, em metros (o ponto ideal fica a Jogador.DistanciaIdealDoContato = 0,6 m).
+const float LimiteDoGolpeBom = 0.3f;
 
 int partidas = 6, gamesParaVencer = 4;
 for (int i = 0; i < args.Length - 1; i++)
@@ -15,28 +18,29 @@ var cultura = CultureInfo.GetCultureInfo("pt-BR");
 
 Console.WriteLine($"# Calibração do balanço — {partidas} partidas por célula, até {gamesParaVencer} games\n");
 Console.WriteLine("## Perfil do humano x dificuldade da IA\n");
-Console.WriteLine("| Humano | IA | % pontos | % partidas | golpes do humano/ponto | balanços no ar/ponto | erro médio do golpe |");
-Console.WriteLine("|---|---|---|---|---|---|---|");
+Console.WriteLine("| Humano | IA | % pontos | % partidas | golpes do humano/ponto | balanços no ar/ponto | erro médio do golpe | % golpes bons | contato (m do corpo, mediana) |");
+Console.WriteLine("|---|---|---|---|---|---|---|---|---|");
 foreach (var perfil in PerfilDeHumano.Todos)
 foreach (var d in new[] { Dificuldade.Facil, Dificuldade.Medio, Dificuldade.Dificil })
     Linha(perfil.Nome, d.ToString(), Medir(perfil, d));
 
 Console.WriteLine("\n## Desvio de timing (resto do Intermediário) x IA Médio\n");
-Console.WriteLine("| Desvio (ms) | % pontos | % partidas | balanços no ar/ponto | erro médio do golpe |");
-Console.WriteLine("|---|---|---|---|---|");
+Console.WriteLine("| Desvio (ms) | % pontos | % partidas | balanços no ar/ponto | erro médio do golpe | % golpes bons | contato (m do corpo, mediana) |");
+Console.WriteLine("|---|---|---|---|---|---|---|");
 foreach (int ms in new[] { 10, 20, 30, 45, 60, 90 })
 {
     var r = Medir(PerfilDeHumano.Intermediario with { Nome = $"{ms} ms", DesvioDoTempo = ms / 1000f }, Dificuldade.Medio);
-    Console.WriteLine($"| {ms} | {r.PercPontos.ToString("F1", cultura)} | {r.PercPartidas.ToString("F0", cultura)} | {r.NoArPorPonto.ToString("F2", cultura)} | {r.ErroMedio.ToString("F2", cultura)} |");
+    Console.WriteLine($"| {ms} | {r.PercPontos.ToString("F1", cultura)} | {r.PercPartidas.ToString("F0", cultura)} | {r.NoArPorPonto.ToString("F2", cultura)} | {r.ErroMedio.ToString("F2", cultura)} | {r.PercBons.ToString("F0", cultura)} | {r.ContatoMediano.ToString("F2", cultura)} |");
 }
 
 void Linha(string humano, string ia, Resultado r) =>
-    Console.WriteLine($"| {humano} | {ia} | {r.PercPontos.ToString("F1", cultura)} | {r.PercPartidas.ToString("F0", cultura)} | {r.GolpesPorPonto.ToString("F2", cultura)} | {r.NoArPorPonto.ToString("F2", cultura)} | {r.ErroMedio.ToString("F2", cultura)} |");
+    Console.WriteLine($"| {humano} | {ia} | {r.PercPontos.ToString("F1", cultura)} | {r.PercPartidas.ToString("F0", cultura)} | {r.GolpesPorPonto.ToString("F2", cultura)} | {r.NoArPorPonto.ToString("F2", cultura)} | {r.ErroMedio.ToString("F2", cultura)} | {r.PercBons.ToString("F0", cultura)} | {r.ContatoMediano.ToString("F2", cultura)} |");
 
 Resultado Medir(PerfilDeHumano perfil, Dificuldade d)
 {
-    int pontosCasa = 0, pontosTotal = 0, vitorias = 0, golpes = 0, noAr = 0, golpesComErro = 0;
+    int pontosCasa = 0, pontosTotal = 0, vitorias = 0, golpes = 0, noAr = 0, golpesComErro = 0, bons = 0;
     float somaErro = 0;
+    var contatos = new List<float>();
     for (int n = 0; n < partidas; n++)
     {
         uint semente = (uint)(1000 + n);
@@ -54,6 +58,8 @@ Resultado Medir(PerfilDeHumano perfil, Dificuldade d)
                 golpes++;
                 golpesComErro++;
                 somaErro += partida.UltimoErroDoHumano;
+                if (partida.UltimoErroDoHumano < LimiteDoGolpeBom) bons++;
+                contatos.Add(partida.Jogadores[0].DistanciaAte(partida.Bola.X, partida.Bola.Y));
             }
         };
         var entradas = new Entrada[4];
@@ -74,7 +80,16 @@ Resultado Medir(PerfilDeHumano perfil, Dificuldade d)
         100f * vitorias / partidas,
         (float)golpes / Math.Max(1, pontosTotal),
         (float)noAr / Math.Max(1, pontosTotal),
-        golpesComErro > 0 ? somaErro / golpesComErro : float.NaN);
+        golpesComErro > 0 ? somaErro / golpesComErro : float.NaN,
+        100f * bons / Math.Max(1, golpes),
+        Mediana(contatos));
 }
 
-readonly record struct Resultado(float PercPontos, float PercPartidas, float GolpesPorPonto, float NoArPorPonto, float ErroMedio);
+static float Mediana(List<float> valores)
+{
+    if (valores.Count == 0) return float.NaN;
+    valores.Sort();
+    return valores[valores.Count / 2];
+}
+
+readonly record struct Resultado(float PercPontos, float PercPartidas, float GolpesPorPonto, float NoArPorPonto, float ErroMedio, float PercBons, float ContatoMediano);

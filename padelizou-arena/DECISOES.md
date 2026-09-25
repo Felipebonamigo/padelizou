@@ -118,6 +118,16 @@ aqui — **as duas esperam aprovação do Felipe**:
 
 Partida contra IA nunca mexe no rating.
 
+## D10 — Equilíbrio depois do contato no ponto ideal (a decidir no playtest)
+
+Desde 25/09 o golpe acontece no instante do balanço e no ponto ideal ao lado do corpo, pra humano e IA (antes saía
+na borda do alcance e pagava "esticado" mesmo com timing perfeito). Isso trouxe ralis mais longos (Médio x Médio: 4,6 →
+7,8 golpes por ponto; 6,3 → 10,3 s) e o humano simulado mais forte contra a Médio (Avançado: 92 → 100 % das partidas).
+Parte dos ralis mais longos é **defeito corrigido** (o saque que passava ao alcance sem ser devolvido, 12 % dos pontos
+do Difícil) e está travada por teste. O resto é equilíbrio e **não foi reajustado**: nenhuma alavanca sozinha devolve o
+de antes, e o alvo é do Felipe (ex.: "Intermediário x Médio perto de 50 % das partidas"). Números e alavancas no
+`REALISMO.md` ("o que falta").
+
 ## D6 — O que NÃO entra até o 1.0
 
 Servidor dedicado, editor de quadras, consoles, VR, modo carreira com narrativa, mais de 8

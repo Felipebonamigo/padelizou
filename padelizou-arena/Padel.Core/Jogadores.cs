@@ -55,7 +55,11 @@ public sealed class Jogador
 {
     public const float VelocidadeDoHumano = 6.4f;
     public const float DuracaoDoBalanco = 0.3f;
-    /// <summary>Instante do balanço em que o contato sai perfeito (apertar cedo = bola ainda longe; tarde = bola em cima do corpo).</summary>
+    /// <summary>
+    /// Instante do balanço em que a raquete passa pelo ponto de contato — o único em que ela pode tocar a bola (no modo
+    /// manual): o golpe é perfeito se a bola estiver no ponto ideal (<see cref="PontoDeContato"/>) nesse instante. Apertar
+    /// cedo = a bola ainda longe (esticado, ou raquete no ar se fora do alcance); tarde = a bola já passou ou está no corpo.
+    /// </summary>
     public const float MomentoIdealDoBalanco = 0.12f;
 
     public int Time { get; }
@@ -74,13 +78,19 @@ public sealed class Jogador
     public float Vx, Vy;
     /// <summary>Alcance máximo (esticado).</summary>
     public float Alcance { get; }
-    /// <summary>Até aqui o golpe sai confortável; além disso é esticada.</summary>
+    /// <summary>
+    /// Até aqui a bola está perto do corpo sem esticar muito (os pontos ideais de drive e de revés ficam dentro). Era onde a
+    /// raquete batia; desde que o contato sai no instante do balanço (manual) ou no ponto mais perto do ideal (IA e
+    /// Automático), é só referência de distância — quem mede a qualidade é <see cref="DificuldadeDoGolpe"/>.
+    /// </summary>
     public float AlcanceConfortavel { get; } = 0.85f;
     /// <summary>Distância do corpo em que o contato é perfeito; abaixo disso não conta como esticada.
     /// O ponto bom fica AO LADO do corpo, a essa distância, do lado da raquete (drive) ou do outro (revés): <see cref="PontoDeContato"/>.</summary>
     public const float DistanciaIdealDoContato = 0.6f;
     /// <summary>Bola a menos disso da linha do corpo, na lateral, é "bola no corpo": o braço não tem espaço e o golpe sai pior.</summary>
     public const float DistanciaDoCorpo = 0.3f;
+    /// <summary>Abaixo disso (m) a bola é baixa: o golpe sai pior (<see cref="DificuldadeDoGolpe"/>), e a IA não espera por ela (<see cref="PodeBaterAgora(Bola, float, bool)"/>).</summary>
+    public const float AlturaDaBolaBaixa = 0.3f;
     /// <summary>Acima disso o revés vira revés alto (a bandeja de revés): golpe de quem sabe.</summary>
     public const float AlturaDoRevesAlto = 1.6f;
     private const float PesoDaBolaNoCorpo = 0.35f, PesoDoReves = 0.1f, PesoDoRevesAlto = 0.45f;
@@ -98,6 +108,12 @@ public sealed class Jogador
     public bool BalancoDeLob { get; private set; }
     /// <summary>Verdadeiro só no passo em que o balanço acabou sem tocar na bola (raquete no ar).</summary>
     public bool BalancoTerminouNoAr { get; private set; }
+    /// <summary>
+    /// Verdadeiro só no passo do balanço mais perto de <see cref="MomentoIdealDoBalanco"/>: a raquete passando pelo ponto de
+    /// contato. No modo manual o contato só acontece nesse passo; a bola que chega ao alcance depois dele encontra a raquete
+    /// já passada.
+    /// </summary>
+    public bool NoInstanteDoContato { get; private set; }
 
     public Jogador(int time, int indice, string nome, bool humano, float velocidade)
     {
@@ -130,6 +146,39 @@ public sealed class Jogador
     {
         int paraOLado = lado == LadoDoGolpe.Drive ? LadoDaRaquete : -LadoDaRaquete;   // no referencial dele
         return (X + paraOLado * Lado * DistanciaIdealDoContato, Y);
+    }
+
+    /// <summary>
+    /// Distância (no chão) de (x, y) ao ponto ideal de contato do lado em que ele está — o mesmo que
+    /// <see cref="PontoDeContato"/>(<see cref="LadoDoGolpePara(float)"/>), que é sempre o mais perto dos dois.
+    /// </summary>
+    public float DistanciaAoPontoIdeal(float x, float y) => DistanciaAoPontoIdeal(X, Y, x, y);
+
+    /// <summary>Abaixo disso (m/s, no chão, relativa ao corpo) a bola quase cai na vertical: o atraso vai a zero junto.</summary>
+    private const float RapidezPlenaDoAtraso = 1f;
+
+    /// <summary>
+    /// Quanto (m) a bola já passou do ponto da trajetória em que fica mais perto do ponto ideal de contato: a projeção de
+    /// (bola − ponto ideal) na direção em que ela anda em relação ao corpo, no chão; 0 se ela ainda está chegando. É o
+    /// "tarde" medido em espaço — a <see cref="DificuldadeDoGolpe"/> é simétrica (e plana até DistanciaIdealDoContato do
+    /// corpo): não distingue a bola 40 cm antes do ponto da bola 40 cm depois, e a raquete que pega a bola passada é a que
+    /// manda na rede. Bola caindo quase na vertical (menos de 1 m/s no chão) não tem antes nem depois: o atraso some junto.
+    /// </summary>
+    public float AtrasoDoContato(Bola bola)
+    {
+        var (px, py) = PontoDeContato(LadoDoGolpePara(bola));
+        float vx = bola.Vx - Vx, vy = bola.Vy - Vy;
+        float v = MathF.Sqrt(vx * vx + vy * vy);
+        if (v < 1e-3f) return 0;
+        float passou = ((bola.X - px) * vx + (bola.Y - py) * vy) / v;
+        return MathF.Max(0, passou) * MathF.Min(1, v / RapidezPlenaDoAtraso);
+    }
+
+    /// <summary>A mesma distância, com o corpo em (corpoX, corpoY).</summary>
+    private float DistanciaAoPontoIdeal(float corpoX, float corpoY, float x, float y)
+    {
+        float foraDaLinha = DistanciaIdealDoContato - MathF.Abs((x - corpoX) * Lado), frontal = (corpoY - y) * Lado;
+        return MathF.Sqrt(foraDaLinha * foraDaLinha + frontal * frontal);
     }
 
     /// <summary>
@@ -214,24 +263,47 @@ public sealed class Jogador
     public bool Alcanca(Bola bola) => DistanciaAte(bola.X, bola.Y) <= Alcance && bola.Z >= 0 && bola.Z <= AlturaMaxima;
     public bool AlcancaConfortavelmente(Bola bola) => DistanciaAte(bola.X, bola.Y) <= AlcanceConfortavel && bola.Z >= 0 && bola.Z <= AlturaMaxima;
 
+    /// <summary>Passo da previsão de <see cref="PodeBaterAgora(Bola)"/> sem passo explícito: o da partida (120 Hz).</summary>
+    public const float PassoPadraoDaPrevisao = 1f / 120f;
+
     /// <summary>
-    /// Quando bater: no ponto confortável; esticado só se a bola já está indo embora (última chance) ou,
-    /// no balanço manual, se ele está acabando. É o que faz o contato sair perto do corpo em vez de na
-    /// ponta do alcance — pra IA e pra humano. Coerente com o corpo: os pontos ideais de drive e de revés (ao lado,
-    /// a DistanciaIdealDoContato) ficam dentro do alcance confortável; a bola no corpo também fica, e esperar não a
-    /// tira de lá (ela vem em cima do jogador) — então bate na hora e a <see cref="DificuldadeDoGolpe"/> cobra o preço.
-    /// O que tira a bola do corpo é o posicionamento (na IA: <see cref="XParaBater(float, LadoDoGolpe)"/> com a leitura
-    /// que afina enquanto a bola chega), não a espera — e ele só vale o quanto a leitura e as pernas valem. Medido em
-    /// 25/09: com ~1 s pra bola chegar, bola no corpo em 0 de 30 contatos do difícil e 12 de 30 do fácil (GolpesTests);
-    /// em 10 partidas IA x IA por nível, 32 / 28 / 23 % dos golpes (fácil / médio / difícil), contra 38 / 39 / 45 % com o
-    /// corpo em cima da bola — boa parte dos contatos sai com o jogador ainda correndo.
+    /// <see cref="PodeBaterAgora(Bola, float, bool)"/> com o passo de 120 Hz da partida, sem saber se a bola já quicou do
+    /// nosso lado: supõe que sim (o próximo chão encerra o ponto). Esperar um quique que fosse o segundo entrega o ponto;
+    /// bater antes de um primeiro quique só piora o golpe. Quem sabe (a partida, pelo árbitro) passa a informação.
     /// </summary>
-    public bool PodeBaterAgora(Bola bola)
+    public bool PodeBaterAgora(Bola bola) => PodeBaterAgora(bola, PassoPadraoDaPrevisao, jaQuicou: true);
+
+    /// <summary>
+    /// Quando a IA e o modo Automático batem: com a bola ao alcance, no passo em que ela está mais perto do ponto ideal de
+    /// contato (<see cref="DistanciaAoPontoIdeal"/>) — se no passo seguinte (dt) ela ainda vai estar mais perto, espera; não
+    /// bate na borda do alcance. A exceção é a última chance: se no passo seguinte a bola sai do alcance (passa longe, sobe
+    /// demais, ou toca o chão pela segunda vez), bate agora. O PRIMEIRO quique do nosso lado (jaQuicou falso: o árbitro
+    /// ainda não viu a bola quicar depois do último golpe) não é saída: a bola volta a subir no mesmo lugar, e a espera
+    /// segue pelo ponto ideal — tratar esse chão como saída fazia a IA bater a bola a 1–4 cm do chão (revisão de 25/09).
+    /// A altura também conta, com o mesmo limite da <see cref="DificuldadeDoGolpe"/> (<see cref="AlturaDaBolaBaixa"/>): a
+    /// bola rente ao chão subindo (acabou de quicar) espera subir; a que já quicou e desce rumo ao segundo chão é batida
+    /// antes de ficar baixa, mesmo longe do ponto ideal — esperar por ele com a bola descendo era chegar lá a 1–4 cm do
+    /// chão, na última chance. Coerente com o corpo: bola que vem em cima do jogador tem o ponto mais perto do ideal no
+    /// próprio corpo, e esperar não a tira de lá — a <see cref="DificuldadeDoGolpe"/> cobra o preço. O que tira a bola do corpo
+    /// é o posicionamento (na IA: <see cref="XParaBater(float, LadoDoGolpe)"/> com a leitura que afina enquanto a bola chega),
+    /// não a espera. No modo manual o humano não passa por aqui: o contato sai em <see cref="NoInstanteDoContato"/>.
+    /// atalho: a previsão é linear num passo (bola e corpo seguem a velocidade que têm) — a 120 Hz, até ~25 cm de bola. O
+    /// chão ela vê pelo sinal de z (e decide pelo jaQuicou); a parede, não: a bola que bate no vidro dentro do passo aparece
+    /// do lado de fora dele, quase sempre mais longe do ponto ideal, e é batida um passo antes do rebote. Se isso pesar, a
+    /// saída é prever com Bola.Clonar().Avancar(dt) e olhar os eventos (Quique e Parede), ao custo de uma cópia da bola por
+    /// jogador por passo.
+    /// </summary>
+    public bool PodeBaterAgora(Bola bola, float dt, bool jaQuicou)
     {
         if (!Alcanca(bola)) return false;
-        if (DistanciaAte(bola.X, bola.Y) <= AlcanceConfortavel) return true;
-        float indoEmbora = (bola.X - X) * bola.Vx + (bola.Y - Y) * bola.Vy;
-        return indoEmbora > 0 || (Balancando && Balanco <= 0.08f);
+        float bx = bola.X + bola.Vx * dt, by = bola.Y + bola.Vy * dt, bz = bola.Z + bola.Vz * dt;
+        float cx = X + Vx * dt, cy = Y + Vy * dt;
+        bool encerraNoChao = bz < 0 && jaQuicou;   // o primeiro quique devolve a bola pra cima
+        bool continuaAoAlcance = Util.Distancia(cx, cy, bx, by) <= Alcance && !encerraNoChao && bz <= AlturaMaxima;
+        if (!continuaAoAlcance) return true;   // última chance
+        if (bola.Z < AlturaDaBolaBaixa && bola.Vz > 0) return false;   // rente ao chão e subindo: espera ela subir
+        if (jaQuicou && bola.Vz < 0 && bz < AlturaDaBolaBaixa) return true;   // descendo pro segundo chão: bate antes de ficar baixa
+        return DistanciaAoPontoIdeal(cx, cy, bx, by) >= DistanciaAoPontoIdeal(bola.X, bola.Y);
     }
 
     public void IniciarBalanco(bool lob)
@@ -248,10 +320,15 @@ public sealed class Jogador
     {
         Cooldown = MathF.Max(0, Cooldown - dt);
         BalancoTerminouNoAr = false;
+        NoInstanteDoContato = false;
         if (Balanco > 0)
         {
+            float antes = TempoNoBalanco;
             Balanco = MathF.Max(0, Balanco - dt);
             TempoNoBalanco += dt;
+            // O passo mais perto do momento ideal (a 120 Hz, o 14º: 0,1167 s): o que cruza o momento menos meio passo.
+            float meioPasso = dt / 2;
+            NoInstanteDoContato = antes + meioPasso < MomentoIdealDoBalanco && TempoNoBalanco + meioPasso >= MomentoIdealDoBalanco;
             if (Balanco == 0) BalancoTerminouNoAr = true;
         }
     }
@@ -267,7 +344,7 @@ public sealed class Jogador
         float lateral = MathF.Abs(LateralDe(bola.X));
         float noCorpo = lateral < DistanciaDoCorpo ? PesoDaBolaNoCorpo * (1 - lateral / DistanciaDoCorpo) : 0;
         float reves = LadoDoGolpePara(bola) == LadoDoGolpe.Reves ? (bola.Z > AlturaDoRevesAlto ? PesoDoRevesAlto : PesoDoReves) : 0;
-        return Util.Limitar(esticado * 0.8f + (bola.Z < 0.3f ? 0.4f : 0) + (bola.Rapidez > 18 ? 0.4f : 0) + noCorpo + reves, 0, 1.6f);
+        return Util.Limitar(esticado * 0.8f + (bola.Z < AlturaDaBolaBaixa ? 0.4f : 0) + (bola.Rapidez > 18 ? 0.4f : 0) + noCorpo + reves, 0, 1.6f);
     }
 }
 

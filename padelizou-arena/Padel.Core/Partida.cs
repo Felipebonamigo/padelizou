@@ -2,7 +2,11 @@ namespace Padel.Core;
 
 public enum EstadoDaPartida { Saque, Rally, FimDoPonto, Fim }
 public enum TipoDeEventoDaPartida { SaquePreparado, Balanco, Errou, Golpe, Quique, Parede, Rede, CruzouRede, Saiu, Ponto, Game, Set, Partida, Falta, Let, Fim }
-/// <summary>Manual: o humano aperta pra balançar e o timing decide a qualidade. Automatico: bate sozinho ao alcance (assistência).</summary>
+/// <summary>
+/// Manual: o humano aperta pra balançar e o contato sai no instante do balanço (<see cref="Jogador.NoInstanteDoContato"/>) —
+/// o timing decide onde a bola está e daí a qualidade. Automatico: bate sozinho com a bola no ponto mais perto do ideal
+/// (<see cref="Jogador.PodeBaterAgora(Bola, float, bool)"/>, como a IA) — assistência.
+/// </summary>
 public enum ModoDeGolpe { Manual, Automatico }
 
 /// <summary>Um acontecimento da partida. Em Golpe: o tipo do golpe e o lado do corpo (drive ou revés) — o que a animação precisa.</summary>
@@ -245,8 +249,13 @@ public sealed class Partida
             foreach (var j in Jogadores)
             {
                 if (j.Cooldown > 0 || !Arbitro.PodeGolpear(j.Time)) continue;
-                if (j.Humano && manual && !j.Balancando) continue;   // no modo manual, sem balanço a bola passa
-                if (!j.PodeBaterAgora(bola)) continue;
+                if (j.Humano && manual)
+                {
+                    // A raquete passa pelo ponto de contato uma vez por balanço: sem balanço, ou fora desse instante, a bola passa.
+                    // Bola que só chega ao alcance depois do instante encontra a raquete já passada (raquete no ar no fim do balanço).
+                    if (!j.NoInstanteDoContato || !j.Alcanca(bola)) continue;
+                }
+                else if (!j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;
                 Golpear(j);
                 break;
             }
@@ -326,8 +335,14 @@ public sealed class Partida
 
     /// <summary>Direção lateral "forte" (|Dx| a partir disso): víbora na bola alta, por 3 no remate segurado.</summary>
     public const float LimiarDoLadoForte = 0.7f;
-    /// <summary>Contato pior que isso (erro de timing + corpo) não tem potência pra tirar a bola da quadra: o por 3 / por 4 vira smash comum.</summary>
+    /// <summary>Contato pior que isso (onde a bola estava no instante do contato) não tem potência pra tirar a bola da quadra: o por 3 / por 4 vira smash comum.</summary>
     public const float ErroMaximoDoRemateForte = 0.6f;
+    /// <summary>
+    /// Erro do golpe do humano = PesoDoCorpoNoErro × <see cref="Jogador.DificuldadeDoGolpe"/> + PesoDoAtraso × <see cref="Jogador.AtrasoDoContato"/>
+    /// (por metro), os dois no instante do contato. PesoDoAtraso = 1/m é o |Δt|/0,15 s de antes com a bola a ~6,5 m/s (a
+    /// mediana no contato, medida em 25/09): 30 cm de atraso custam o que 45 ms custavam — e mais na bola mais rápida.
+    /// </summary>
+    private const float PesoDoCorpoNoErro = 1.0f, PesoDoAtraso = 1.0f;
     private const float AlturaDaBolaAlta = 1.5f;
 
     /// <summary>
@@ -348,9 +363,10 @@ public sealed class Partida
     /// <item><term>bola alta (sem frente)</term><description><b>Bandeja</b>.</description></item>
     /// <item><term>frente / trás / nada</term><description>Ataque (curto, topspin) / Defesa (fundo, slice) / Normal.</description></item>
     /// </list>
-    /// Esquerda/direita escolhem o canto. O golpe sai de drive ou de revés pelo lado do corpo em que a bola está. No modo
-    /// manual o timing do balanço e o corpo decidem o erro: cedo demais é bola no ar; tarde é bola em cima do corpo;
-    /// esticado, baixo, rápido, no corpo ou de revés (alto, principalmente) piora.
+    /// Esquerda/direita escolhem o canto. O golpe sai de drive ou de revés pelo lado do corpo em que a bola está. O erro sai
+    /// de onde a bola está no instante do contato: cedo demais é bola longe (esticada, ou fora do alcance: raquete no ar);
+    /// tarde é bola em cima do corpo ou já passada do ponto (<see cref="Jogador.AtrasoDoContato"/>); baixo, rápido ou de
+    /// revés (alto, principalmente) piora.
     /// </summary>
     private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada) =>
         EscolherGolpeDoHumano(jogador, entrada) with { Lado = jogador.LadoDoGolpePara(Bola) };
@@ -360,8 +376,10 @@ public sealed class Partida
         var bola = Bola;
         int lado = jogador.Lado, ladoDoAlvo = -lado;
         bool manual = Opcoes.ModoDeGolpe == ModoDeGolpe.Manual;
-        float erroDeTiming = manual ? Util.Limitar(MathF.Abs(jogador.TempoNoBalanco - Jogador.MomentoIdealDoBalanco) / 0.15f, 0, 1) : 0;
-        float erro = Util.Limitar(0.6f * jogador.DificuldadeDoGolpe(bola) + erroDeTiming, 0, 1.6f);
+        // Sem termo de tempo à parte: o timing está em onde a bola está no instante do contato. Cedo = ainda longe (esticado,
+        // na DificuldadeDoGolpe); tarde = no corpo (idem) ou já passada do ponto — e isso a DificuldadeDoGolpe, simétrica, não
+        // vê: o atraso em metros é o único termo a mais.
+        float erro = Util.Limitar(PesoDoCorpoNoErro * jogador.DificuldadeDoGolpe(bola) + PesoDoAtraso * jogador.AtrasoDoContato(bola), 0, 1.6f);
         UltimoErroDoHumano = erro;
         if (erro > 0.95f && Aleatorio.Proximo() < 0.35f + (erro - 0.95f))
         {
