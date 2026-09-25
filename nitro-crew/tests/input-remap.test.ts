@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CarState, RaceState, SimEvent } from '../src/core/types';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
-import { newRumbleMemory, rumbleCues } from '../src/game/rumble';
+import { newRumbleMemory, RUMBLE_GRASS, rumbleCues } from '../src/game/rumble';
 import { sanitizeSettings } from '../src/game/settings';
 import { setLanguage } from '../src/i18n';
 import {
@@ -408,6 +408,43 @@ describe('vibração', () => {
     input.dispose();
   });
 
+  it('assento de teclado ou vazio não vibra, nem com um controle com motor conectado', () => {
+    const playEffect = vi.fn(() => Promise.resolve('complete'));
+    const w = fakeWindow([fakePad(0, [], { playEffect })]);
+    const input = createInput(w.target);
+    input.poll();
+    input.bindSeat(0, 'kb1');
+    input.bindSeat(1, 'kb2');
+    for (const seat of [0, 1, 2, 3, -1, 4]) input.rumble(seat, 1, 200);
+    expect(playEffect).not.toHaveBeenCalled();
+    input.bindSeat(2, 'gp0');
+    input.rumble(2, 1, 200);
+    expect(playEffect).toHaveBeenCalledTimes(1);
+    input.dispose();
+  });
+
+  it('no provedor, um pedido mais fraco durante um tremor mais forte não chama playEffect', () => {
+    const playEffect = vi.fn(() => Promise.resolve('complete'));
+    const w = fakeWindow([fakePad(0, [], { playEffect })]);
+    const clock = vi.spyOn(performance, 'now');
+    const input = createInput(w.target);
+    input.poll();
+    input.bindSeat(0, 'gp0');
+    clock.mockReturnValue(1000);
+    input.rumble(0, 1, 300);
+    clock.mockReturnValue(1100);
+    input.rumble(0, 0.16, 160); // grama no meio de uma batida no cenário: ignorado
+    expect(playEffect).toHaveBeenCalledTimes(1);
+    input.rumble(0, 1, 200); // outra batida tão forte quanto: toca
+    expect(playEffect).toHaveBeenCalledTimes(2);
+    clock.mockReturnValue(1301); // a batida acabou (1100 + 200): a grama volta a tocar
+    input.rumble(0, 0.16, 160);
+    expect(playEffect).toHaveBeenCalledTimes(3);
+    expect(playEffect).toHaveBeenLastCalledWith('dual-rumble', expect.objectContaining({ duration: 160, strongMagnitude: 0.16 }));
+    clock.mockRestore();
+    input.dispose();
+  });
+
   it('gamepad sem vibrationActuator ou com playEffect que falha não vira erro', async () => {
     const w = fakeWindow([fakePad(0), fakePad(1, [], { playEffect: () => Promise.reject(new Error('sem motor')) }), fakePad(2, [], { playEffect: () => { throw new Error('x'); } })]);
     const input = createInput(w.target);
@@ -478,10 +515,17 @@ describe('rumbleCues (o que a sessão manda vibrar)', () => {
     expect(first).toHaveLength(1);
     expect(first[0].strength).toBeLessThan(0.3);
     expect(rumbleCues(race(onGrass, [], 101), mem)).toEqual([]);
-    let later: number | null = null;
-    for (let tick = 102; tick < 140 && later === null; tick++) if (rumbleCues(race(onGrass, [], tick), mem).length) later = tick;
-    expect(later).not.toBeNull();
-    expect((later ?? 0) - 100).toBeGreaterThanOrEqual(5);
+    // Um segundo de grama a 60 Hz: um pulso exatamente a cada `everyTicks` (≈ 7 por segundo, sem
+    // inundar a API), e cada pulso dura o intervalo inteiro, então o tremor é contínuo.
+    const pulses: number[] = [];
+    const second = newRumbleMemory();
+    for (let tick = 100; tick < 160; tick++) if (rumbleCues(race(onGrass, [], tick), second).length) pulses.push(tick);
+    const gaps = pulses.slice(1).map((tick, i) => tick - pulses[i]);
+    expect(gaps.length).toBeGreaterThan(0);
+    expect(gaps).toEqual(gaps.map(() => RUMBLE_GRASS.everyTicks));
+    expect(pulses.length).toBeGreaterThanOrEqual(6);
+    expect(pulses.length).toBeLessThanOrEqual(7);
+    expect(RUMBLE_GRASS.ms).toBeGreaterThanOrEqual((RUMBLE_GRASS.everyTicks * 1000) / 60);
     // Corrida nova (tick recomeça): não espera o intervalo da anterior.
     expect(rumbleCues(race(onGrass, [], 3), mem)).toHaveLength(1);
     expect(rumbleCues(race([car(0, 0, { skidTicks: 6, speed: 50 })], [], 900), newRumbleMemory())).toEqual([]);
