@@ -1,6 +1,8 @@
 // Estatísticas por jogador, conquistas novas e o saneamento do que vai para o save.
 import { describe, expect, it } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
+import { resolveCarCollisions } from '../src/core/sim/collisions';
+import { buildResults } from '../src/core/sim/positions';
 import { stepRace } from '../src/core/sim/race';
 import { TRACKS } from '../src/core/track';
 import { NEUTRAL_INPUT, type HumanEntry, type PlayerInput, type RaceResultRow, type RaceState, type Track } from '../src/core/types';
@@ -109,6 +111,32 @@ describe('estatísticas de uma corrida simulada', () => {
     expect(sanitizeStats(JSON.parse(JSON.stringify(stats)))).toEqual(stats);
   });
 
+  it('batidas no cenário e colisões de uma pista de verdade chegam às estatísticas', () => {
+    // A reta sintética não tem cenário sólido e ninguém bate: lá crashes e collisions são 0 de graça.
+    const who = [human(0)];
+    const real = quickRace({ humans: who, totalCars: 8, laps: 1, seed: 7 });
+    const rTel = newTelemetry();
+    const me = real.state.cars.findIndex((c) => c.seat === 0);
+    let crashEvents = 0;
+    let collisionEvents = 0;
+    for (let i = 0; i < TICK_RATE * 40; i++) {
+      // Acelera do fundo do grid para o meio do pelotão e ziguezagueia até sair do asfalto.
+      const steer = i < TICK_RATE * 8 ? 0 : (Math.floor(i / 90) % 2 === 0 ? 1 : -1);
+      stepRace(real.state, real.track, [{ ...NEUTRAL_INPUT, throttle: true, steer }]);
+      observeTick(rTel, real.state, real.track);
+      for (const e of real.state.events) {
+        if (e.type === 'crash' && e.carId === me) crashEvents++;
+        if (e.type === 'collision' && (e.carId === me || e.otherId === me)) collisionEvents++;
+      }
+    }
+    const [c] = raceContributions({ mode: 'quick', state: real.state, results: buildResults(real.state), humans: who, telemetry: rTel });
+    expect(crashEvents).toBeGreaterThan(0);
+    expect(c.stats.crashes).toBe(crashEvents);
+    expect(collisionEvents).toBeGreaterThan(0);
+    // Todo evento do núcleo é um contato; pode haver contato sem evento (cooldown, raspão lado a lado).
+    expect(c.stats.collisions).toBeGreaterThanOrEqual(collisionEvents);
+  });
+
   it('contra-relógio soma corrida, voltas e distância, mas não vitória, pódio nem melhor posição', () => {
     const tt = quickRace({ track: straight, humans: [human(0)], laps: 1, timeTrial: true });
     const tTel = newTelemetry();
@@ -186,6 +214,87 @@ describe('observeTick', () => {
     observeTick(tel, state, track);
     expect(tel.seats.get(0)).toMatchObject({ nitros: 1, towsGiven: 1, towsReceived: 0, collisions: 1, crashes: 0, pitStops: 0 });
     expect(tel.seats.get(1)).toMatchObject({ nitros: 0, towsGiven: 0, towsReceived: 1, collisions: 0, crashes: 1, pitStops: 1 });
+  });
+
+  /** Humano no fim da lista (é como createRace monta) e as IAs espalhadas longe dele. */
+  function contactRig(totalCars = 3) {
+    const { state, track } = racing([human(0)], totalCars);
+    const tel = newTelemetry();
+    state.events = [];
+    observeTick(tel, state, track);
+    for (const c of state.cars) { c.z = 1000 + c.id * 8000; c.x = -0.9; c.speed = 0; c.collisionCooldown = 0; }
+    const me = state.cars[state.cars.length - 1];
+    if (me.seat !== 0) throw new Error('grid');
+    // Um tick só da parte que importa: a resolução de colisões do núcleo e a observação da sessão.
+    const tick = () => { state.events = []; resolveCarCollisions(state, track); state.tick++; observeTick(tel, state, track); };
+    return { state, track, tel, me, tick, collisions: () => tel.seats.get(0)?.collisions };
+  }
+
+  it('batida por trás num carro em cooldown conta: o núcleo aplica a batida mas não emite evento', () => {
+    // Revisão: o evento collision só sai com os DOIS carros sem cooldown; bater numa IA que acabou de
+    // bater em outra deixava collisions em 0 e SEM_ARRANHAO era concedida.
+    const { state, me, tick, collisions } = contactRig();
+    const [ai1, ai2] = state.cars;
+    ai1.z = 30000; ai1.x = 0; ai1.speed = 3000;
+    ai2.z = 29900; ai2.x = 0.05; ai2.speed = 5000;
+    tick(); // IA2 bate na IA1: as duas entram em cooldown
+    expect(ai1.collisionCooldown).toBeGreaterThan(0);
+    ai2.z = 5000;
+    me.z = ai1.z - 100; me.x = 0.05; me.speed = 6000; ai1.speed = 3000;
+    tick();
+    expect(state.events).toEqual([]);
+    expect(me.speed).toBeLessThan(6000);
+    expect(collisions()).toBe(1);
+  });
+
+  it('raspão lado a lado conta como contato', () => {
+    const { state, me, tick, collisions } = contactRig();
+    const ai = state.cars[0];
+    me.z = 20000; me.x = 0; me.speed = 5000;
+    ai.z = 20020; ai.x = 0.3; ai.speed = 5000;
+    tick();
+    expect(state.events).toEqual([]);
+    expect(collisions()).toBe(1);
+  });
+
+  it('batida de raspão na quina conta, mesmo com o empurrão lateral do núcleo separando as caixas no mesmo tick', () => {
+    const { state, me, tick, collisions } = contactRig();
+    const ai = state.cars[0];
+    ai.collisionCooldown = 10; // sem evento: só o estado mostra o contato
+    me.z = 20000; me.x = 0; me.speed = 6000;
+    ai.z = 20100; ai.x = 0.43; ai.speed = 3000;
+    tick();
+    expect(state.events).toEqual([]);
+    expect(Math.abs(ai.x - me.x)).toBeGreaterThanOrEqual(0.44); // já não se sobrepõem depois do empurrão
+    expect(collisions()).toBe(1);
+  });
+
+  it('um contato conta uma vez: o evento do núcleo e os ticks seguintes encostados não somam; outro contato depois da janela soma', () => {
+    const { state, me, tick, collisions } = contactRig();
+    const ai = state.cars[0];
+    me.z = 20000; me.x = 0; me.speed = 6000;
+    ai.z = 20100; ai.x = 0.1; ai.speed = 3000;
+    tick();
+    expect(state.events.map((e) => e.type)).toEqual(['collision']);
+    expect(collisions()).toBe(1);
+    for (let i = 0; i < 5; i++) { me.z = ai.z - 100; me.speed = 6000; tick(); }
+    expect(collisions()).toBe(1);
+    me.z = 5000; me.x = 0; me.speed = 0;
+    for (let i = 0; i < 30; i++) tick();
+    expect(collisions()).toBe(1);
+    me.z = ai.z - 100; me.speed = 6000; ai.speed = 3000;
+    tick();
+    expect(collisions()).toBe(2);
+  });
+
+  it('carro ao lado sem encostar e carro longe não contam', () => {
+    const { state, me, tick, collisions } = contactRig();
+    const [a, b] = state.cars;
+    me.z = 20000; me.x = -0.3; me.speed = 5000;
+    a.z = 20000; a.x = 0.3; a.speed = 5000; // 0,6 de distância lateral: caixas de 0,44 não se tocam
+    b.z = 20200; b.x = -0.3; b.speed = 5000; // 200 u à frente: carro tem 120
+    for (let i = 0; i < 3; i++) tick();
+    expect(collisions()).toBe(0);
   });
 
   it('depois da chegada o piloto automático não soma nada para o jogador', () => {

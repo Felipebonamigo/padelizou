@@ -82,7 +82,7 @@ conquista da lista tem linha nesta tabela.
 | `MADRUGADA` | Madrugada | Night Owl | Vencer uma pista noturna. |
 | `PODIO_DE_EQUIPE` | Pódio da equipe | Crew Podium | Três jogadores no pódio (1º, 2º e 3º) numa corrida contra a IA. |
 | `DO_ULTIMO_AO_PRIMEIRO` | Do último ao primeiro | Last to First | Vencer uma corrida em que você estava em último ao fechar a primeira volta. |
-| `SEM_ARRANHAO` | Sem um arranhão | Not a Scratch | Terminar uma corrida contra a IA sem bater em carro nem no cenário. |
+| `SEM_ARRANHAO` | Sem um arranhão | Not a Scratch | Terminar uma corrida contra a IA sem encostar em outro carro nem bater no cenário. |
 | `MARATONA` | Maratona | Marathon | Somar 1.000 km de corrida, juntando todos os jogadores. |
 | `MESTRE_DO_VACUO` | Mestre do vácuo | Slipstream Master | Passar 60 segundos no vácuo de outros carros numa mesma corrida. |
 | `NITRO_NA_BANDEIRA` | Nitro na bandeirada | Nitro Finish | Cruzar a linha de chegada com o nitro ligado. |

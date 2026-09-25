@@ -11,10 +11,12 @@ Nada disso toca o núcleo: tudo sai dos `SimEvent`s e do estado que `stepRace` j
 | `src/game/achievements.ts` | Telemetria por tick (`observeTick`), regras das 20 conquistas (`unlockAchievements`), mensagens de HUD |
 | `src/game/desktop.ts` | `ACHIEVEMENTS`: ids da Steam com nome PT/EN |
 | `src/stats/strings.ts` | Descrições das conquistas (PT/EN) e textos da tela de recordes |
-| `src/game/session.ts` | Ganchos: `observeTick` depois de cada `stepRace`; `settleRace` no evento `race_over` |
+| `src/game/raceEnd.ts` | Os dois ganchos da sessão, testáveis em Node: `stepObserved` (`stepRace` + `observeTick` antes de tratar os eventos) e `settleRace` (fecha as contas no `race_over`) |
+| `src/game/session.ts` | Só liga os ganchos e os efeitos: Steam, mensagem no HUD, gravar o save |
 | `src/ui/screens/info.ts` + `records.css` | Tela de recordes: Pistas · Jogadores · Conquistas |
 | `src/ui/screens/results.ts` | Quadro "Conquistas desbloqueadas" no resultado |
-| `tests/stats.test.ts` | Corrida simulada, cada conquista nova (dispara e não dispara), save corrompido, limite de perfis |
+| `tests/stats.test.ts` | Corrida simulada, contatos e batidas, cada conquista nova (dispara e não dispara), save corrompido, limite de perfis, textos com número |
+| `tests/raceEnd.test.ts` | Corrida dirigida como a sessão: ordem dos ganchos, mensagem `good`, idempotência, exceção no meio do fechamento |
 
 ## Estatísticas
 
@@ -32,8 +34,13 @@ Guardadas em `SaveData.stats`: `totals` (soma de todos) e `players` (um perfil p
 - **Vitória, pódio e melhor posição** não contam no contra-relógio (sozinho na pista, a posição é sempre 1).
   Pelo mesmo motivo `recordRaceResults` deixou de contar vitória no contra-relógio (`racesWon`).
 - **Vitória em co-op**: vencer uma corrida em que 2+ humanos estão na mesma equipe (`isCoop`).
-- **Colisões**: batidas carro-carro que o núcleo registra (evento `collision`; os dois lados contam).
-  Raspão lado a lado não gera evento e não conta.
+- **Colisões**: contatos carro-carro vistos pelo estado a cada tick (`observeTick`): as caixas do núcleo
+  (`CAR_LENGTH` × `2·CAR_HALF_WIDTH`) se sobrepõem, batida por trás ou raspão lado a lado, e os dois lados contam.
+  Não dá para contar só o evento `collision`: o núcleo só o emite com os dois carros fora do cooldown, mas
+  aplica a batida mesmo assim (bater numa IA que acabou de bater em outra não gerava evento). Um contato que
+  continua, ou outro com o mesmo carro em até `COLLISION_COOLDOWN_TICKS` (20), é a mesma colisão. A caixa
+  tem folga lateral de 0,06 (`CONTACT_LATERAL_MARGIN`) porque o núcleo separa os dois carros no mesmo tick;
+  o custo aceito é que passar a menos de 0,06 de outro carro também conta.
 - Só corrida que chega ao fim conta: sair pelo menu de pausa ou reiniciar no meio descarta a corrida.
 - Save adulterado: contador negativo, texto, NaN ou infinito vira 0; posição fora de 1..`MAX_CARS` (20) some; perfil sem
   nome, repetido ou além do limite some; nome passa pelo mesmo limite do lobby (12). Nunca lança.
@@ -44,7 +51,7 @@ Guardadas em `SaveData.stats`: `totals` (soma de todos) e `players` (um perfil p
 |---|---|
 | `PODIO_DE_EQUIPE` | Três humanos no 1º, 2º e 3º numa corrida com IA. Vai para os três. |
 | `DO_ULTIMO_AO_PRIMEIRO` | Vencer tendo fechado a primeira volta em último (posição = número de carros). Corrida de 1 volta não serve. |
-| `SEM_ARRANHAO` | Terminar uma corrida com IA sem nenhuma colisão carro-carro nem batida no cenário. |
+| `SEM_ARRANHAO` | Terminar uma corrida com IA sem nenhum contato carro-carro (ver Colisões) nem batida no cenário. |
 | `MARATONA` | Distância somada de todos os jogadores ≥ 1.000 km (`MARATHON_METERS`). Vai para todos da corrida. |
 | `MESTRE_DO_VACUO` | 60 s de vácuo numa mesma corrida (`DRAFT_MASTER_TICKS`), antes da chegada. |
 | `NITRO_NA_BANDEIRA` | Cruzar a chegada com o nitro ligado. Vale no contra-relógio. |
@@ -61,6 +68,9 @@ estatísticas antes de avaliar as conquistas.
 ## Onde a conquista aparece
 
 1. No tick do `race_over`, `settleRace` fecha recordes, copa, estatísticas e conquistas e grava o save.
+   O resultado é marcado antes de qualquer efeito e o save é gravado num `finally`: se um passo lançar, a
+   sessão (que chama de novo no quadro seguinte) recebe o que já foi fechado, nada soma duas vezes e a tela
+   de resultado aparece.
 2. Cada assento que ganhou algo recebe uma mensagem `good` no próprio HUD ("CONQUISTA: Nome"; várias viram
    uma linha só, com o excedente contado, porque o centro do HUD tem 3 vagas).
 3. A tela de resultado mostra o quadro "Conquistas desbloqueadas", com a cor de quem ganhou cada uma.

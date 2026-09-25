@@ -36,7 +36,7 @@ export interface PlayerStats {
   nitros: number;
   towsGiven: number;
   towsReceived: number;
-  /** Batidas carro-carro registradas pelo núcleo (por trás; raspão lado a lado não gera evento). */
+  /** Contatos carro-carro (batida por trás ou raspão lado a lado), vistos pelo estado a cada tick. */
   collisions: number;
   /** Batidas no cenário (árvore, placa, muro). */
   crashes: number;
