@@ -3,20 +3,21 @@ using Padel.Core;
 
 namespace Padel.Godot;
 
-/// <summary>Cápsula colorida por time com uma raquete; anel no chão pro humano. Animação de verdade entra no M1/M3.</summary>
+/// <summary>Cápsula colorida por time com uma raquete; anel no chão pro jogador desta máquina. Lê só o Retrato.
+/// O boneco articulado (scripts/Boneco) substitui a cápsula quando entrar.</summary>
 public partial class JogadorNode : Node3D
 {
     private static readonly Color Casa = new(0.64f, 0.85f, 0.15f);
     private static readonly Color Visitante = new(1f, 0.42f, 0.24f);
 
-    private Jogador _jogador = null!;
+    private int _indice;
     private Node3D _corpo = null!;
     private Label3D _nome = null!;
     private MeshInstance3D _raquete = null!;
 
-    public void Ligar(Jogador jogador)
+    public void Ligar(RetratoDoJogador jogador)
     {
-        _jogador = jogador;
+        _indice = jogador.Indice;
         var cor = jogador.Time == 0 ? Casa : Visitante;
         _corpo = new Node3D();
         AddChild(_corpo);
@@ -42,7 +43,7 @@ public partial class JogadorNode : Node3D
         };
         _corpo.AddChild(raquete);
         _raquete = raquete;
-        if (jogador.Humano)
+        if (jogador.Local)
         {
             _corpo.AddChild(new MeshInstance3D
             {
@@ -58,7 +59,7 @@ public partial class JogadorNode : Node3D
             PixelSize = 0.005f,
             Position = new Vector3(0, 2.25f, 0),
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            Modulate = jogador.Humano ? Colors.White : new Color(1, 1, 1, 0.7f),
+            Modulate = jogador.Local ? Colors.White : new Color(1, 1, 1, 0.7f),
             NoDepthTest = true,
         };
         _corpo.AddChild(_nome);
@@ -66,17 +67,21 @@ public partial class JogadorNode : Node3D
         _corpo.RotationDegrees = new Vector3(0, jogador.Lado > 0 ? 0 : 180, 0);
     }
 
-    public void Atualizar()
+    public void Atualizar(RetratoDaPartida retrato, float delta)
     {
-        Position = Coordenadas.NoChao(_jogador.X, _jogador.Y);
+        var j = retrato.Jogadores[_indice];
+        Position = Coordenadas.NoChao(j.X, j.Y);
         // Corpo vira pra onde anda; raquete gira durante o balanço (placeholder da animação de verdade).
-        if (_jogador.Rapidez > 0.5f)
+        if (MathF.Sqrt(j.Vx * j.Vx + j.Vy * j.Vy) > 0.5f)
         {
-            float alvo = Mathf.Atan2(_jogador.Vx, _jogador.Vy) + Mathf.Pi;   // Godot olha pra -Z; Core y é Godot z
+            float alvo = Mathf.Atan2(j.Vx, j.Vy) + Mathf.Pi;   // Godot olha pra -Z; Core y é Godot z
             _corpo.Rotation = new Vector3(0, Mathf.LerpAngle(_corpo.Rotation.Y, alvo, 0.2f), 0);
         }
-        float fase = _jogador.Balancando ? 1 - _jogador.Balanco / Jogador.DuracaoDoBalanco : 0;
+        // Fase do golpe: o balanço manual do humano, ou os 0,3 s depois de um golpe da IA (que não tem balanço).
+        float fase = j.FaseDoBalanco;
+        float desdeOGolpe = retrato.TempoDeJogo - j.InstanteDoUltimoGolpe;
+        if (fase <= 0 && desdeOGolpe is >= 0 and < Jogador.DuracaoDoBalanco) fase = 0.4f + 0.6f * desdeOGolpe / Jogador.DuracaoDoBalanco;
         _raquete.RotationDegrees = new Vector3(90, 0, fase > 0 ? -70 + 140 * fase : 0);
-        _raquete.Position = new Vector3(0.42f, 0.95f + (_jogador.BalancoDeLob && fase > 0 ? 0.3f * fase : 0), -0.15f * _jogador.Lado);
+        _raquete.Position = new Vector3(0.42f, 0.95f + (j.BalancoDeLob && fase > 0 ? 0.3f * fase : 0), -0.15f * j.Lado);
     }
 }

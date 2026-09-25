@@ -45,4 +45,30 @@ public static class EntradaLocal
         var v = Input.GetVector(Esquerda, Direita, Frente, Tras);   // y negativo = frente
         return new Entrada(v.X, v.Y, Input.IsActionJustPressed(Acao), Input.IsActionPressed(Acao), Input.IsActionJustPressed(Lob));
     }
+
+    // Segundo jogador local (coop no sofá): o segundo controle (dispositivo 1) ou, no teclado, IJKL + U (ação) e O (lob).
+    // O primeiro jogador usa as ações do InputMap, que atendem o teclado principal e o controle 0.
+    private const int ControleDoSegundo = 1;
+    private static bool _acao2Antes, _lob2Antes;
+
+    public static Entrada LerSegundo()
+    {
+        float dx = Input.GetJoyAxis(ControleDoSegundo, JoyAxis.LeftX);
+        float dy = Input.GetJoyAxis(ControleDoSegundo, JoyAxis.LeftY);
+        if (MathF.Sqrt(dx * dx + dy * dy) < 0.2f) { dx = 0; dy = 0; }   // zona morta, como a das ações
+        if (Input.IsPhysicalKeyPressed(Key.J)) dx -= 1;
+        if (Input.IsPhysicalKeyPressed(Key.L)) dx += 1;
+        if (Input.IsPhysicalKeyPressed(Key.I)) dy -= 1;
+        if (Input.IsPhysicalKeyPressed(Key.K)) dy += 1;
+        float n = MathF.Sqrt(dx * dx + dy * dy);
+        if (n > 1) { dx /= n; dy /= n; }
+        bool acao = Input.IsJoyButtonPressed(ControleDoSegundo, JoyButton.A) || Input.IsPhysicalKeyPressed(Key.U);
+        bool lob = Input.IsJoyButtonPressed(ControleDoSegundo, JoyButton.B) || Input.IsPhysicalKeyPressed(Key.O);
+        bool acaoApertou = acao && !_acao2Antes, lobApertou = lob && !_lob2Antes;
+        _acao2Antes = acao; _lob2Antes = lob;
+        return new Entrada(dx, dy, acaoApertou, acao, lobApertou);
+    }
+
+    /// <summary>Entrada do n-ésimo jogador desta máquina (0 = teclado principal/controle 0; 1 = controle 1/IJKL).</summary>
+    public static Entrada LerJogadorLocal(int n) => n == 0 ? Ler() : LerSegundo();
 }

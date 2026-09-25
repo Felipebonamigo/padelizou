@@ -44,20 +44,19 @@ public partial class HudNode : CanvasLayer
         AddChild(_dica);
     }
 
-    public void Atualizar(Partida partida)
+    public void Atualizar(RetratoDaPartida r)
     {
-        var p = partida.Placar;
-        string saque0 = p.Sacador.Time == 0 ? "●" : " ";
-        string saque1 = p.Sacador.Time == 1 ? "●" : " ";
-        _placar.Text = $"{saque0} Casa    {p.Sets[0]}  {p.Games[0]}  {p.TextoDosPontos(0),2}\n{saque1} Rivais  {p.Sets[1]}  {p.Games[1]}  {p.TextoDosPontos(1),2}";
+        var p = r.Placar;
+        string saque0 = p.TimeSacando == 0 ? "●" : " ";
+        string saque1 = p.TimeSacando == 1 ? "●" : " ";
+        _placar.Text = $"{saque0} Casa    {p.Sets[0]}  {p.Games[0]}  {p.Pontos[0],2}\n{saque1} Rivais  {p.Sets[1]}  {p.Games[1]}  {p.Pontos[1],2}";
 
-        string texto = partida.Mensagem?.Texto ?? "";
-        if (texto != _ultimaMensagem)
+        if (r.Mensagem != _ultimaMensagem)
         {
-            _ultimaMensagem = texto;
-            _mensagem.Text = texto;
-            _mensagem.Modulate = new Color(1, 1, 1, texto.Length > 0 ? 1 : 0);
-            _mensagem.AddThemeColorOverride("font_color", partida.Mensagem?.Destaque == true ? new Color(0.64f, 0.85f, 0.15f) : Colors.White);
+            _ultimaMensagem = r.Mensagem;
+            _mensagem.Text = r.Mensagem;
+            _mensagem.Modulate = new Color(1, 1, 1, r.Mensagem.Length > 0 ? 1 : 0);
+            _mensagem.AddThemeColorOverride("font_color", r.MensagemEmDestaque ? new Color(0.64f, 0.85f, 0.15f) : Colors.White);
         }
     }
 }

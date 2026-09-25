@@ -24,7 +24,7 @@ public partial class BolaNode : Node3D
         AddChild(_sombra);
     }
 
-    public void Atualizar(Bola bola)
+    public void Atualizar(RetratoDaBola bola)
     {
         _esfera.Position = Coordenadas.ParaGodot(bola.X, bola.Y, bola.Z + 0.06f);
         _sombra.Position = Coordenadas.NoChao(bola.X, bola.Y) + new Vector3(0, 0.003f, 0);
