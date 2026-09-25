@@ -3,7 +3,8 @@
 import type { DeviceId, MenuContext, MenuNav, MenuScreen, Menus } from '../game/contracts';
 import { isKeyboard, isEditableTarget } from './input';
 import { type LobbyState, type ScreenApi, type ScreenData, type ScreenFactory, type ScreenInstance } from './screens/common';
-import { controlsScreen, recordsScreen } from './screens/info';
+import { controlsScreen } from './screens/controls';
+import { recordsScreen } from './screens/info';
 import { lobbyScreen } from './screens/lobby';
 import { optionsScreen } from './screens/options';
 import { resultsScreen, standingsScreen } from './screens/results';

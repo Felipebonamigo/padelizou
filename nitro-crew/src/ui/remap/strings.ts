@@ -1,0 +1,109 @@
+// Textos do remapeamento de controles e da vibração, em PT e EN (tests/i18n.test.ts exige os dois).
+import { registerStrings } from '../../i18n';
+
+registerStrings('remap', {
+  pt: {
+    'action.throttle': 'Acelerar',
+    'action.brake': 'Frear',
+    'action.left': 'Virar à esquerda',
+    'action.right': 'Virar à direita',
+    'action.nitro': 'Nitro',
+    'action.gearUp': 'Marcha acima',
+    'action.gearDown': 'Marcha abaixo',
+    'action.pause': 'Pausar',
+
+    'key.space': 'Espaço',
+    'key.shiftLeft': 'Shift esq.',
+    'key.shiftRight': 'Shift dir.',
+    'key.numpad': 'Num {key}',
+    'button.n': 'Botão {n}',
+
+    'gamepadAll': 'Controles',
+    'gamepadNote': 'Vale para todos os controles. O analógico esquerdo sempre vira.',
+    'restore': 'Padrão',
+    'restoreTitle': 'Restaurar o padrão de {device}',
+    'restored': 'Padrão restaurado: {device}.',
+    'alreadyDefault': '{device} já está no padrão.',
+    'cellTitle': '{action} — {device}: Enter, A ou clique para trocar',
+
+    'pressKey': 'Aperte a nova tecla para {action} ({device})',
+    'pressButton': 'Aperte o novo botão do controle para {action}',
+    'cancelHint': 'Esc ou Start cancela · {s} s',
+    'waiting': 'Aperte…',
+    'saved': '{action} ({device}): {keys}.',
+    'unchanged': '{action} ({device}) já usa {keys}.',
+    'swapped': '{key} era de {other}, que ficou com {keys}.',
+    'moved': '{key} saiu de {other}, que continua com {keys}.',
+    'rejected': '{key} não pode ser usada — escolha outra.',
+    'timeout': 'Tempo esgotado — nada mudou.',
+    'canceled': 'Cancelado — nada mudou.',
+
+    'conflictTitle': 'Mesma tecla nos dois teclados: com os dois em uso, ela comanda os dois.',
+    'conflict': '{key}: {kb1} no teclado 1 e {kb2} no teclado 2',
+    'help': 'Enter ou A troca · Esc ou B volta · Setas, Enter e Esc (e d-pad, A, B e Start) sempre navegam os menus; Esc e Start sempre pausam.',
+
+    'test.title': 'Teste de entrada',
+    'test.steer': 'Volante',
+    'test.throttle': 'Acelerar',
+    'test.brake': 'Frear',
+    'test.nitro': 'Nitro',
+    'test.gearUp': 'Marcha +',
+    'test.gearDown': 'Marcha −',
+    'test.pause': 'Pausa',
+  },
+  en: {
+    'action.throttle': 'Accelerate',
+    'action.brake': 'Brake',
+    'action.left': 'Steer left',
+    'action.right': 'Steer right',
+    'action.nitro': 'Nitro',
+    'action.gearUp': 'Gear up',
+    'action.gearDown': 'Gear down',
+    'action.pause': 'Pause',
+
+    'key.space': 'Space',
+    'key.shiftLeft': 'L Shift',
+    'key.shiftRight': 'R Shift',
+    'key.numpad': 'Num {key}',
+    'button.n': 'Button {n}',
+
+    'gamepadAll': 'Gamepads',
+    'gamepadNote': 'Applies to every gamepad. The left stick always steers.',
+    'restore': 'Defaults',
+    'restoreTitle': 'Restore the defaults of {device}',
+    'restored': 'Defaults restored: {device}.',
+    'alreadyDefault': '{device} is already on the defaults.',
+    'cellTitle': '{action} — {device}: Enter, A or click to change',
+
+    'pressKey': 'Press the new key for {action} ({device})',
+    'pressButton': 'Press the new gamepad button for {action}',
+    'cancelHint': 'Esc or Start cancels · {s} s',
+    'waiting': 'Press…',
+    'saved': '{action} ({device}): {keys}.',
+    'unchanged': '{action} ({device}) already uses {keys}.',
+    'swapped': '{key} was on {other}, which now uses {keys}.',
+    'moved': '{key} was taken from {other}, which keeps {keys}.',
+    'rejected': '{key} can’t be used — pick another one.',
+    'timeout': 'Timed out — nothing changed.',
+    'canceled': 'Canceled — nothing changed.',
+
+    'conflictTitle': 'Same key on both keyboards: with both in use, it drives both.',
+    'conflict': '{key}: {kb1} on keyboard 1 and {kb2} on keyboard 2',
+    'help': 'Enter or A changes · Esc or B goes back · Arrows, Enter and Esc (and d-pad, A, B and Start) always navigate menus; Esc and Start always pause.',
+
+    'test.title': 'Input test',
+    'test.steer': 'Steering',
+    'test.throttle': 'Gas',
+    'test.brake': 'Brake',
+    'test.nitro': 'Nitro',
+    'test.gearUp': 'Gear +',
+    'test.gearDown': 'Gear −',
+    'test.pause': 'Pause',
+  },
+});
+
+// A opção de vibração mora na tela de opções (namespace 'ui', mesclado sem editar src/ui/strings.ts).
+registerStrings('ui', {
+  pt: { 'options.vibration': 'Vibração' },
+  en: { 'options.vibration': 'Vibration' },
+});

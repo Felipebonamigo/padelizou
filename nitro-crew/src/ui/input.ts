@@ -2,10 +2,12 @@
 // mapeamento "standard" da Gamepad API. O estado segurado é lido uma vez por quadro em
 // `poll()`, que também fecha as bordas (nitro, marchas e navegação de menu): borda é
 // verdadeira só no quadro em que o botão foi apertado. As funções de mapeamento são puras
-// e rodam em Node (tests/ui.test.ts); só `createInput` toca o DOM.
+// e rodam em Node (tests/ui.test.ts, tests/input-remap.test.ts); só `createInput` toca o DOM.
+// Pilotagem segue os bindings remapeáveis (src/ui/remap/bindings.ts); a navegação de menu é fixa.
 import { NEUTRAL_INPUT, type PlayerInput } from '../core/types';
-import type { DeviceId, DeviceInfo, InputProvider, MenuNav } from '../game/contracts';
+import type { DeviceId, DeviceInfo, DevicePeek, InputProvider, MenuNav } from '../game/contracts';
 import { t } from '../i18n';
+import { DEFAULT_BINDINGS, RESERVED_BUTTON, RESERVED_KEY, type ControlBindings } from './remap/bindings';
 import './strings';
 
 export const DEADZONE = 0.2;
@@ -60,79 +62,89 @@ export function applyDeadzone(v: number, dz = DEADZONE): number {
   return Math.sign(v) * Math.min(1, (a - dz) / (1 - dz));
 }
 
-/** Botões "standard": 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 9 Start, 12–15 d-pad. */
-export function mapGamepad(buttons: readonly boolean[], axes: readonly number[]): DeviceRaw {
+/**
+ * Botões "standard": 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 9 Start, 12–15 d-pad. A pilotagem
+ * segue `bindings.gamepad`; o analógico esquerdo sempre vira, e d-pad/analógico, A, B e Start sempre
+ * navegam os menus. Start sempre pausa, além do botão de pausa escolhido.
+ */
+export function mapGamepad(buttons: readonly boolean[], axes: readonly number[], bindings: ControlBindings = DEFAULT_BINDINGS): DeviceRaw {
   const b = (i: number) => buttons[i] === true;
+  const any = (list: readonly number[]) => list.some(b);
   const ax = (i: number) => (typeof axes[i] === 'number' && Number.isFinite(axes[i]) ? axes[i] : 0);
+  const g = bindings.gamepad;
   let steer = applyDeadzone(ax(0));
-  if (b(14)) steer = -1;
-  else if (b(15)) steer = 1;
+  if (any(g.left)) steer = -1;
+  else if (any(g.right)) steer = 1;
   const x = ax(0);
   const y = ax(1);
   return {
     steer,
-    throttle: b(0) || b(7),
-    brake: b(1) || b(2) || b(6),
-    nitro: b(5),
-    gearUp: b(3),
-    gearDown: b(4),
+    throttle: any(g.throttle),
+    brake: any(g.brake),
+    nitro: any(g.nitro),
+    gearUp: any(g.gearUp),
+    gearDown: any(g.gearDown),
     up: b(12) || y < -0.5,
     down: b(13) || y > 0.5,
     left: b(14) || x < -0.5,
     right: b(15) || x > 0.5,
     confirm: b(0),
     back: b(1),
-    start: b(9),
-    pause: b(9),
+    start: b(RESERVED_BUTTON),
+    pause: any(g.pause) || b(RESERVED_BUTTON),
   };
 }
 
-export interface KeyLayout {
+export interface NavLayout {
   up: readonly string[]; down: readonly string[]; left: readonly string[]; right: readonly string[];
-  nitro: readonly string[]; gearUp: readonly string[]; gearDown: readonly string[];
-  confirm: readonly string[]; back: readonly string[]; pause: readonly string[];
+  confirm: readonly string[]; back: readonly string[];
 }
 
-/** Códigos físicos (`KeyboardEvent.code`) de cada assento de teclado. */
-export const KEY_LAYOUTS: Readonly<Record<KeyboardId, KeyLayout>> = {
+/**
+ * Teclas de navegação dos menus por teclado — fixas, fora do remapeamento, para ninguém se trancar
+ * fora (as mesmas de `KEY_NAV` em menus.ts). As de pilotagem vêm de `DEFAULT_BINDINGS` e das opções.
+ */
+export const NAV_LAYOUTS: Readonly<Record<KeyboardId, NavLayout>> = {
   kb1: {
     up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
-    nitro: ['Space'], gearUp: ['KeyM'], gearDown: ['KeyN'],
-    confirm: ['Enter', 'NumpadEnter', 'Space'], back: ['Escape', 'Backspace'], pause: ['Escape'],
+    confirm: ['Enter', 'NumpadEnter', 'Space'], back: ['Escape', 'Backspace'],
   },
   kb2: {
     up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
-    nitro: ['KeyF'], gearUp: ['KeyE'], gearDown: ['KeyQ'],
     // Enter confirma nos menus para todo mundo, mas como "dispositivo" pertence ao kb1: se
     // contasse para o kb2, o Enter do P1 no lobby faria o kb2 entrar num assento sozinho.
-    confirm: ['KeyF'], back: ['Escape'], pause: ['Escape'],
+    confirm: ['KeyF'], back: ['Escape'],
   },
 };
 
-/** Todos os códigos usados por algum assento (para o preventDefault). */
-export const USED_KEY_CODES: ReadonlySet<string> = new Set(
-  Object.values(KEY_LAYOUTS).flatMap((l) => Object.values(l).flat()),
-);
+/** Códigos que recebem preventDefault: navegação fixa + tudo o que está ligado a alguma ação. */
+export function usedKeyCodes(bindings: ControlBindings): Set<string> {
+  const out = new Set<string>();
+  for (const layout of Object.values(NAV_LAYOUTS)) for (const codes of Object.values(layout)) for (const c of codes) out.add(c);
+  for (const kb of KEYBOARDS) for (const codes of Object.values(bindings[kb])) for (const c of codes) out.add(c);
+  return out;
+}
 
-export function mapKeyboard(keys: ReadonlySet<string>, layout: KeyboardId): DeviceRaw {
-  const L = KEY_LAYOUTS[layout];
+/** As teclas em uso com o mapeamento padrão. */
+export const USED_KEY_CODES: ReadonlySet<string> = usedKeyCodes(DEFAULT_BINDINGS);
+
+/** Esc sempre pausa, além da tecla de pausa escolhida (e sempre volta nos menus). */
+export function mapKeyboard(keys: ReadonlySet<string>, layout: KeyboardId, bindings: ControlBindings = DEFAULT_BINDINGS): DeviceRaw {
+  const B = bindings[layout];
+  const N = NAV_LAYOUTS[layout];
   const any = (codes: readonly string[]) => codes.some((c) => keys.has(c));
-  const left = any(L.left);
-  const right = any(L.right);
-  const up = any(L.up);
-  const down = any(L.down);
   return {
-    steer: (right ? 1 : 0) - (left ? 1 : 0),
-    throttle: up,
-    brake: down,
-    nitro: any(L.nitro),
-    gearUp: any(L.gearUp),
-    gearDown: any(L.gearDown),
-    up, down, left, right,
-    confirm: any(L.confirm),
-    back: any(L.back),
+    steer: (any(B.right) ? 1 : 0) - (any(B.left) ? 1 : 0),
+    throttle: any(B.throttle),
+    brake: any(B.brake),
+    nitro: any(B.nitro),
+    gearUp: any(B.gearUp),
+    gearDown: any(B.gearDown),
+    up: any(N.up), down: any(N.down), left: any(N.left), right: any(N.right),
+    confirm: any(N.confirm),
+    back: any(N.back),
     start: false,
-    pause: any(L.pause),
+    pause: any(B.pause) || keys.has(RESERVED_KEY),
   };
 }
 
@@ -184,6 +196,39 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable === true;
 }
 
+// ───────────────────────────── Vibração (puro) ─────────────────────────────
+
+/** Tremor em andamento num gamepad: até quando (ms de `performance.now`) e com que força. */
+export interface RumbleSlot { until: number; strength: number }
+
+/**
+ * Decide se um pedido de vibração toca: um tremor mais fraco não corta um mais forte que ainda
+ * está tocando (o `playEffect` novo substitui o anterior). Devolve o novo estado ou null.
+ */
+export function nextRumble(prev: RumbleSlot, now: number, strength: number, ms: number): RumbleSlot | null {
+  if (!(strength > 0) || !(ms > 0)) return null;
+  if (now < prev.until && strength < prev.strength) return null;
+  return { until: now + ms, strength };
+}
+
+/** Força 0..1 → motores do "dual-rumble": o forte (grave) segue a força; o fraco (agudo) dá corpo aos toques leves. */
+export function rumbleMagnitudes(strength: number): { strong: number; weak: number } {
+  const s = Math.min(1, Math.max(0, Number.isFinite(strength) ? strength : 0));
+  return { strong: s, weak: Math.min(1, 0.08 + s * 0.6) };
+}
+
+interface HapticActuator {
+  playEffect(type: string, params: { startDelay: number; duration: number; strongMagnitude: number; weakMagnitude: number }): unknown;
+}
+
+/** `gamepad.vibrationActuator` quando existe e tem `playEffect` (Chromium/Electron); senão null. */
+function hapticsOf(pad: unknown): HapticActuator | null {
+  if (typeof pad !== 'object' || pad === null) return null;
+  const actuator = (pad as { vibrationActuator?: unknown }).vibrationActuator;
+  if (typeof actuator !== 'object' || actuator === null) return null;
+  return typeof (actuator as { playEffect?: unknown }).playEffect === 'function' ? (actuator as HapticActuator) : null;
+}
+
 // ───────────────────────────── Provedor ─────────────────────────────
 
 interface DeviceState {
@@ -194,17 +239,40 @@ interface DeviceState {
   connected: boolean;
   /** `Gamepad.id` cru (só gamepads). */
   hardwareName: string;
+  /** Botões "standard" apertados no último `poll()` (só gamepads). */
+  buttons: number[];
+  rumble: RumbleSlot;
 }
 
 function newDevice(id: DeviceId, connected: boolean, hardwareName = ''): DeviceState {
-  return { id, raw: { ...NEUTRAL_RAW }, edges: { ...NO_EDGES }, repeat: { up: null, down: null, left: null, right: null }, connected, hardwareName };
+  return {
+    id, raw: { ...NEUTRAL_RAW }, edges: { ...NO_EDGES }, repeat: { up: null, down: null, left: null, right: null }, connected, hardwareName,
+    buttons: [], rumble: { until: 0, strength: 0 },
+  };
+}
+
+export interface InputOptions {
+  /** Mapeamento atual, lido a cada quadro (a sessão passa `() => settings.controls`). */
+  bindings?: () => ControlBindings;
+  /** Vibração ligada nas opções (a sessão passa `() => settings.vibration`). */
+  vibration?: () => boolean;
 }
 
 function nowMs(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
 }
 
-export function createInput(target: Window = window): InputProvider {
+export function createInput(target: Window = window, opts: InputOptions = {}): InputProvider {
+  const bindingsOf = opts.bindings ?? (() => DEFAULT_BINDINGS);
+  const vibrationOn = opts.vibration ?? (() => true);
+  let usedFor: ControlBindings | null = null;
+  let used: ReadonlySet<string> = USED_KEY_CODES;
+  /** Teclas em uso, recalculadas só quando o objeto de bindings muda (a tela de controles grava um novo). */
+  const usedKeys = (): ReadonlySet<string> => {
+    const b = bindingsOf();
+    if (b !== usedFor) { usedFor = b; used = usedKeyCodes(b); }
+    return used;
+  };
   const held = new Set<string>();
   /** Teclas apertadas desde o último `poll()` — captura um toque mais curto que um quadro. */
   const tapped = new Set<string>();
@@ -217,14 +285,14 @@ export function createInput(target: Window = window): InputProvider {
     if (isEditableTarget(e.target)) return;
     held.add(e.code);
     if (!e.repeat) tapped.add(e.code);
-    if (USED_KEY_CODES.has(e.code)) e.preventDefault();
+    if (usedKeys().has(e.code)) e.preventDefault();
   };
   const onKeyUp = (e: KeyboardEvent) => { held.delete(e.code); };
   const onBlur = () => { held.clear(); };
   const onGamepadConnected = (e: GamepadEvent) => { registerGamepad(e.gamepad); };
   const onGamepadDisconnected = (e: GamepadEvent) => {
     const d = devices.get(`gp${e.gamepad.index}`);
-    if (d) { d.connected = false; d.raw = { ...NEUTRAL_RAW }; d.edges = { ...NO_EDGES }; }
+    if (d) { d.connected = false; d.raw = { ...NEUTRAL_RAW }; d.edges = { ...NO_EDGES }; d.buttons = []; }
   };
 
   function registerGamepad(gp: Gamepad): DeviceState | null {
@@ -241,7 +309,7 @@ export function createInput(target: Window = window): InputProvider {
     try {
       const nav = target.navigator;
       if (!nav || typeof nav.getGamepads !== 'function') return [];
-      return Array.from(nav.getGamepads());
+      return Array.from(nav.getGamepads() ?? []);
     } catch {
       return [];
     }
@@ -290,6 +358,7 @@ export function createInput(target: Window = window): InputProvider {
   return {
     poll() {
       const now = nowMs();
+      const bindings = bindingsOf();
       const pads = readGamepads();
       for (let i = 0; i < MAX_GAMEPADS; i++) {
         const pad = pads[i];
@@ -297,17 +366,21 @@ export function createInput(target: Window = window): InputProvider {
         if (pad && pad.connected) {
           // Chrome só lista o gamepad depois de um botão apertado, e nem sempre dispara o evento.
           const d = registerGamepad(pad);
-          if (d) step(d, mapGamepad(pad.buttons.map((b) => b.pressed || b.value > 0.5), pad.axes), now);
+          if (d) {
+            const pressed = pad.buttons.map((b) => b.pressed || b.value > 0.5);
+            d.buttons = pressed.flatMap((p, index) => (p ? [index] : []));
+            step(d, mapGamepad(pressed, pad.axes, bindings), now);
+          }
         } else {
           const d = devices.get(id);
-          if (d) { d.connected = false; step(d, { ...NEUTRAL_RAW }, now); }
+          if (d) { d.connected = false; d.buttons = []; step(d, { ...NEUTRAL_RAW }, now); }
         }
       }
       const keys = new Set<string>([...held, ...tapped]);
       tapped.clear();
       for (const kb of KEYBOARDS) {
         const d = devices.get(kb);
-        if (d) step(d, mapKeyboard(keys, kb), now);
+        if (d) step(d, mapKeyboard(keys, kb, bindings), now);
       }
     },
 
@@ -376,6 +449,35 @@ export function createInput(target: Window = window): InputProvider {
         if (isKeyboard(d.id)) return 0;
       }
       return -1;
+    },
+
+    peek(id): DevicePeek | null {
+      const d = devices.get(id);
+      if (!d) return null;
+      const r = d.connected ? d.raw : NEUTRAL_RAW;
+      return {
+        steer: r.steer, throttle: r.throttle, brake: r.brake, nitro: r.nitro, gearUp: r.gearUp, gearDown: r.gearDown, pause: r.pause,
+        buttons: d.connected ? [...d.buttons] : [],
+      };
+    },
+
+    rumble(seat, strength, ms) {
+      if (!vibrationOn()) return;
+      const id = seats[seat];
+      if (!id || isKeyboard(id)) return;
+      const d = devices.get(id);
+      if (!d || !d.connected) return;
+      const actuator = hapticsOf(readGamepads()[gamepadIndex(id)]);
+      if (!actuator) return;
+      const next = nextRumble(d.rumble, nowMs(), strength, ms);
+      if (!next) return;
+      d.rumble = next;
+      const m = rumbleMagnitudes(strength);
+      try {
+        const done = actuator.playEffect('dual-rumble', { startDelay: 0, duration: Math.round(ms), strongMagnitude: m.strong, weakMagnitude: m.weak });
+        // Promessa recusada (controle sem motor, aba em segundo plano) não pode virar erro solto.
+        if (done instanceof Promise) done.catch(() => undefined);
+      } catch { /* navegador sem suporte ao efeito */ }
     },
 
     dispose() {

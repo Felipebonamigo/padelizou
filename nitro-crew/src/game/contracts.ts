@@ -7,6 +7,7 @@ import type {
   SimEvent, Track, TrackDef,
 } from '../core/types';
 import type { Lang } from '../i18n';
+import { DEFAULT_BINDINGS, type ControlBindings } from '../ui/remap/bindings';
 
 // ───────────────────────────── Entrada ─────────────────────────────
 
@@ -45,7 +46,18 @@ export interface InputProvider {
   menuNav(): MenuNav;
   /** Assento cujo botão de pausa (Esc/Start) foi apertado neste quadro; -1 se nenhum. Esc sem assento vale como assento 0. */
   pausePressed(): number;
+  /** Estado segurado de um dispositivo com o mapeamento atual (teste de entrada e captura da tela de controles); null se desconhecido. */
+  peek(device: DeviceId): DevicePeek | null;
+  /** Vibra o gamepad do assento (`strength` 0..1, `ms` de duração). No-op sem gamepad, sem suporte ou com a vibração desligada. */
+  rumble(seat: number, strength: number, ms: number): void;
   dispose(): void;
+}
+
+export interface DevicePeek {
+  steer: number;
+  throttle: boolean; brake: boolean; nitro: boolean; gearUp: boolean; gearDown: boolean; pause: boolean;
+  /** Botões "standard" apertados agora (só gamepads; vazio nos teclados). */
+  buttons: number[];
 }
 
 // ───────────────────────────── Opções e progresso ─────────────────────────────
@@ -70,12 +82,17 @@ export interface Settings {
   quickLaps: number;
   /** Música escolhida no jukebox (id) ou 'auto'. */
   music: string;
+  /** Tecla/botão por ação de pilotagem, por dispositivo (src/ui/remap/bindings.ts). */
+  controls: ControlBindings;
+  /** Vibração dos gamepads (batidas, nitro, grama, largada). */
+  vibration: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high',
   showMinimap: true, screenShake: true, difficulty: 'profissional', manualGear: false,
   assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, totalCars: 20, quickLaps: 3, music: 'auto',
+  controls: DEFAULT_BINDINGS, vibration: true,
 });
 
 export interface BestLap { ticks: number; name: string; carId: string; date: string }

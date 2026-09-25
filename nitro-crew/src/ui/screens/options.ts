@@ -3,6 +3,7 @@ import type { CoopAssists } from '../../core/types';
 import type { Settings } from '../../game/contracts';
 import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, QUICK_LAPS_MIN, TOTAL_CARS_MAX, TOTAL_CARS_MIN, saveSettings } from '../../game/settings';
 import { getLanguage, setLanguage, t, type Lang } from '../../i18n';
+import '../remap/strings';
 import { button, createFocusList, h, listNav, onOff, screenFrame, selector, type FocusItem, type ScreenApi, type ScreenInstance, type Selector } from './common';
 
 const ASSIST_KEYS: ReadonlyArray<keyof CoopAssists> = ['sharedNitro', 'tow', 'teamDraft', 'catchup'];
@@ -79,6 +80,7 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
     selector(t('ui.options.quality'), () => t(`ui.options.quality.${s.quality}`), (d) => { s.quality = cycle(QUALITIES, s.quality, d); commit(); }, { sfx }),
     selector(t('ui.options.minimap'), () => onOff(s.showMinimap), () => { s.showMinimap = !s.showMinimap; commit(); }, { sfx }),
     selector(t('ui.options.shake'), () => onOff(s.screenShake), () => { s.screenShake = !s.screenShake; commit(); }, { sfx }),
+    selector(t('ui.options.vibration'), () => onOff(s.vibration), () => { s.vibration = !s.vibration; commit(); }, { sfx }),
     selector(t('ui.options.track'), () => musicTitle(s.music), (d) => { s.music = cycle(musicIds, s.music, d); commit(); }, { sfx }),
   ];
   const race = raceOptionSelectors(api, commit, { difficulty: true, gear: true, totalCars: true, quickLaps: true, assists: true });

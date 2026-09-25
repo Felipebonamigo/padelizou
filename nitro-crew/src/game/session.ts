@@ -21,6 +21,7 @@ import { createMenus } from '../ui/menus';
 import { evaluateAchievements, newTelemetry, type RaceTelemetry } from './achievements';
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from './desktop';
+import { newRumbleMemory, rumbleCues } from './rumble';
 import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave } from './save';
 import { loadSettings, saveSettings } from './settings';
 
@@ -74,7 +75,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   setLanguage(settings.language);
 
   const renderer = createRenderer(canvas, hudRoot);
-  const input = createInput(window);
+  const input = createInput(window, { bindings: () => settings.controls, vibration: () => settings.vibration });
+  const rumbleMemory = newRumbleMemory();
   const audio = createAudio();
   audio.setVolumes(settings.masterVolume, settings.musicVolume, settings.sfxVolume);
 
@@ -287,6 +289,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   function stepOnce(r: ActiveRace, inputs: PlayerInput[]): void {
     stepRace(r.state, r.track, inputs);
     for (const e of r.state.events) handleEvent(r, e);
+    for (const c of rumbleCues(r.state, rumbleMemory)) input.rumble(c.seat, c.strength, c.ms);
   }
 
   function buildFrame(r: ActiveRace): RenderFrame {
