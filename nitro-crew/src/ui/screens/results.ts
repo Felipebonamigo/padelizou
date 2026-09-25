@@ -113,13 +113,17 @@ function revealRow(wrap: HTMLElement, row: Element | null): void {
   else if (r.top < w.top + head) wrap.scrollTop -= w.top + head - r.top;
 }
 
+/** Acima disto os cartões ficam compactos (só o nome): a tabela não pode sumir da tela. */
+const FULL_CHIPS_MAX = 4;
+
 /** Conquistas desbloqueadas nesta corrida, com a cor de quem as ganhou. */
 function achievementsPanel(d: ResultsScreenData): HTMLElement | null {
   const list = d.achievements ?? [];
   if (list.length === 0) return null;
-  return h('div', { class: 'results-ach glass' },
+  const many = list.length > FULL_CHIPS_MAX;
+  return h('div', { class: `results-ach glass${many ? ' many' : ''}` },
     h('span', { class: 'results-ach-title' }, icon('trophy'), h('span', { text: t('stats.results.title') })),
-    h('div', { class: 'results-ach-list' }, list.map((u) => h('div', { class: 'ach-chip' },
+    h('div', { class: 'results-ach-list' }, list.map((u) => h('div', { class: 'ach-chip', attrs: { title: achievementDescription(u.id) } },
       h('span', { class: 'ach-chip-seats' }, u.seats.map((seat) => h('i', {
         class: 'seat-dot', style: `--seat:${humanColor(d.humans, seat) ?? 'var(--accent)'}`,
         title: d.humans.find((x) => x.seat === seat)?.name ?? '',

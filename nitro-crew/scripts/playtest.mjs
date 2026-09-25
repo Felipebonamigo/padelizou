@@ -85,6 +85,23 @@ for (let i = 0; i < 30; i++) { await page.waitForTimeout(500); st = await S(); i
 check(st.menu === 'results', `resultado aparece ao fim (${st.menu}, fase ${st.race?.phase})`);
 await page.screenshot({ path: `${out}-08-results.png` });
 
+// Estatísticas e conquistas da corrida (passo 3.6; ganchos em src/game/raceEnd.ts): gravadas no save e no resultado.
+const end = await page.evaluate(() => {
+  const r = window.nc.session.race;
+  return {
+    humans: r.humans.map((h) => h.name.trim()),
+    unlocked: r.outcome ? r.outcome.achievements.map((u) => u.id) : null,
+    chips: document.querySelectorAll('.scr-results .ach-chip').length,
+    save: JSON.parse(localStorage.getItem('nitro-crew.save') ?? 'null'),
+  };
+});
+check(end.save?.racesRun === 1 && end.save?.stats?.totals?.races === end.humans.length,
+  `corrida somada uma vez: racesRun ${end.save?.racesRun}, corridas no total ${end.save?.stats?.totals?.races} (${end.humans.length} jogadores)`);
+check(end.humans.every((n) => end.save?.stats?.players?.some((p) => p.name === n && p.races === 1 && p.meters > 0)),
+  `perfil de cada jogador com corrida e distância (${end.save?.stats?.players?.map((p) => `${p.name}:${p.meters}m`).join(', ')})`);
+check(end.unlocked !== null && end.chips === end.unlocked.length && end.unlocked.every((id) => end.save.achievements.includes(id)),
+  `conquistas da corrida no save e no quadro do resultado (${end.unlocked?.join(', ') || 'nenhuma'}; ${end.chips} no quadro)`);
+
 // Tela dividida com 4 e com 3 jogadores.
 await page.evaluate((h) => { const s = window.nc.session; s.menus.hide(); s.debugBind(0, 'kb1'); s.debugBind(1, 'kb2'); s.startQuick('sampa_noite', 2, h); }, humans(4));
 await page.keyboard.down('ArrowUp'); await page.keyboard.down('KeyW');
