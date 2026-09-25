@@ -99,13 +99,21 @@ function defaultNow(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
+/**
+ * Nome mostrado para o assento: o padrão "P1"…"P4" (cada computador começa com o seu "P1")
+ * acompanha o assento global recebido; nome escolhido pelo jogador fica como está.
+ */
+export function seatName(name: string, seat: number): string {
+  return /^P[1-4]$/.test(name) ? `P${seat + 1}` : name;
+}
+
 /** Assentos globais pela ordem dos clientes e dos jogadores de cada um (o anfitrião chama). */
 export function assignSeats(room: RoomView): SeatAssignment[] {
   const out: SeatAssignment[] = [];
   for (const c of [...room.clients].sort((a, b) => a.id - b.id)) {
     for (const p of c.info?.players ?? []) {
       if (out.length >= MAX_HUMANS) return out;
-      out.push({ seat: out.length, client: c.id, name: p.name, car: p.car });
+      out.push({ seat: out.length, client: c.id, name: seatName(p.name, out.length), car: p.car });
     }
   }
   return out;
@@ -543,6 +551,9 @@ export class OnlineController implements RaceDriver {
     this.bindDevices();
     this.lockstep = this.newLockstep(cfg, 0, []);
     this.phase = 'racing';
+    // O "pronto" vale para uma largada só: na volta à sala todos confirmam de novo. Sem isso o
+    // anfitrião largaria com um convidado ainda no resultado, que ficaria de fora da corrida.
+    if (this.ready) { this.ready = false; this.send({ t: 'info', seats: Math.max(1, this.locals.length), info: this.info() }); }
     this.quitOpen = false;
     this.desync = null;
     this.results = null;

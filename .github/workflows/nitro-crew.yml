@@ -24,9 +24,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: nitro-crew/package-lock.json
+          cache-dependency-path: |
+            nitro-crew/package-lock.json
+            nitro-crew/server/package-lock.json
       - run: npm ci
+      # O relay do online (server/relay.mjs) tem dependência própria (ws); o teste de integração
+      # sobe o relay de verdade e, com NC_REQUIRE_RELAY=1, falha em vez de ser pulado sem o ws.
+      - run: npm ci
+        working-directory: nitro-crew/server
       - run: npm run typecheck
       - run: npm test
+        env:
+          NC_REQUIRE_RELAY: '1'
       - run: npx vite build
       - run: npm audit --audit-level=moderate
+      - run: npm audit --audit-level=moderate
+        working-directory: nitro-crew/server

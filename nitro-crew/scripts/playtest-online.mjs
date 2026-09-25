@@ -31,7 +31,7 @@ const check = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function openPage(name) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const context = await browser.newContext({ viewport: SMALL });
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`${name} pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name} console: ${m.text()}`); });
@@ -55,8 +55,24 @@ async function until(p, pred, label, timeoutMs = 20000) {
   }
   return st;
 }
+/** Espera `fn` (avaliada na página) dar verdadeiro; devolve o último valor. Com o 3D por software um quadro leva segundos. */
+async function waitFor(p, fn, arg, timeoutMs = 60000) {
+  const t0 = Date.now();
+  let v = await p.evaluate(fn, arg);
+  while (!v && Date.now() - t0 < timeoutMs) { await wait(200); v = await p.evaluate(fn, arg); }
+  return v;
+}
 const press = async (p, key, n = 1) => { for (let i = 0; i < n; i++) { await p.keyboard.press(key); await p.waitForTimeout(120); } };
-const shot = (p, name) => p.screenshot({ path: `${out}-${name}.png`, timeout: 120000 });
+// O 3D por software custa por pixel: fora das capturas as páginas ficam pequenas, senão um quadro
+// leva segundos, a rede só é lida entre quadros e o lockstep anda 3 ticks a cada ida e volta.
+const BIG = { width: 1280, height: 720 };
+const SMALL = { width: 320, height: 180 };
+async function shot(p, name) {
+  await p.setViewportSize(BIG);
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await p.screenshot({ path: `${out}-${name}.png`, timeout: 120000 });
+  await p.setViewportSize(SMALL);
+}
 
 // ── Os dois computadores abrem o jogo e vão ao Online pelo menu principal.
 const host = await openPage('anfitrião');
@@ -84,7 +100,7 @@ await shot(host, '01-connect');
 // Anfitrião: sobe até "Criar sala".
 await press(host, 'ArrowUp', 3);
 await press(host, 'Enter');
-h = await until(host, (s) => s.phase === 'lobby' && s.code.length === 5, 'anfitrião cria a sala');
+h = await until(host, (s) => s.phase === 'lobby' && s.code.length === 5 && s.room === 1, 'anfitrião cria a sala');
 check(h.isHost, `anfitrião com código ${h.code}`);
 
 // Convidado: campo do código, digita, Enter entra.
@@ -101,8 +117,7 @@ await press(guest, 'ArrowDown');
 await press(guest, 'ArrowRight');
 await press(guest, 'ArrowDown');
 await press(guest, 'Enter');
-g = await until(guest, () => true, 'x');
-const guestReady = await guest.evaluate(() => window.nc.session.online.ready);
+const guestReady = await waitFor(guest, () => window.nc.session.online.ready);
 check(guestReady, 'convidado pronto');
 await shot(guest, '02-lobby-guest');
 
@@ -111,7 +126,7 @@ await press(host, 'ArrowDown', 2);
 await press(host, 'ArrowRight');
 await press(host, 'ArrowDown');
 await press(host, 'ArrowLeft');
-await host.waitForTimeout(300);
+await waitFor(guest, () => { const s = window.nc.session.online.room?.settings; return !!s && s.trackId !== 'copacabana' && s.laps === 2; });
 const roomSettings = await guest.evaluate(() => window.nc.session.online.room.settings);
 check(roomSettings.trackId !== 'copacabana' && roomSettings.laps === 2, `convidado vê a pista e as voltas escolhidas (${roomSettings.trackId}, ${roomSettings.laps} voltas)`);
 await shot(host, '03-lobby-host');
@@ -146,7 +161,9 @@ let [ha, hg] = await hashes(600);
 console.log('hash no tick 600 → anfitrião', ha, '· convidado', hg);
 check(ha !== null && ha === hg, `mesmo hash no tick 600 (${ha} × ${hg})`);
 const speeds = await Promise.all([host, guest].map((p) => p.evaluate(() => { const s = window.nc.session; return s.race.state.cars.filter((c) => c.seat >= 0).map((c) => Math.round(c.speed)); })));
-check(speeds[0].every((v) => v > 1000) && JSON.stringify(speeds[0]) === JSON.stringify(speeds[1]), `os dois carros andam e cada computador vê o mesmo (${JSON.stringify(speeds)})`);
+// Os dois computadores podem estar em ticks um pouco diferentes aqui (o laço de quadros também
+// roda); a igualdade do estado já foi provada pelo hash acima.
+check(speeds.every((list) => list.length === 2 && list.every((v) => v > 1000)), `os dois carros andam nos dois computadores (${JSON.stringify(speeds)})`);
 await host.waitForTimeout(800);
 await shot(host, '05-race-host');
 await shot(guest, '06-race-guest');
@@ -154,7 +171,7 @@ await shot(guest, '06-race-guest');
 // ── Esc não pausa: abre "Sair da partida?"; Enter (Continuar) fecha.
 await guest.keyboard.up('ArrowUp');
 await press(guest, 'Escape');
-g = await info(guest);
+g = await until(guest, (s) => s.view === 'quit', 'confirmação de saída aberta');
 check(g.menu === 'online' && g.view === 'quit', `Esc abre a confirmação de saída (${g.menu}/${g.view})`);
 const before = g.tick;
 await raceTo(before + 30, [host, guest], 30000);
@@ -162,22 +179,26 @@ g = await info(guest);
 check(g.tick > before, `a corrida continua com a confirmação aberta (${before} → ${g.tick})`);
 await shot(guest, '07-quit-dialog');
 await press(guest, 'Enter');
-g = await info(guest);
+g = await until(guest, (s) => s.menu === null, 'confirmação fechada');
 check(g.menu === null, `Continuar correndo fecha a confirmação (${g.menu})`);
 await guest.keyboard.down('ArrowUp');
 
 // ── O convidado para de mandar entrada (a simulação dele fica parada): o anfitrião espera e avisa.
-await guest.evaluate(() => { window.nc.session.speed = 0; });
-const hostTick = (await info(host)).tick;
+// `paused` congela o convidado de verdade (com `speed = 0` o lockstep ainda o faz alcançar o
+// anfitrião, um tick por quadro): é um computador travado que parou de mandar entrada.
+await guest.evaluate(() => { window.nc.session.paused = true; });
+// O anfitrião ainda roda o que já tem do convidado (até o tick dele + atraso) e então para.
 for (let i = 0; i < 6; i++) { await step(host, 12); await wait(120); }
+const hostTick = (await info(host)).tick;
+for (let i = 0; i < 4; i++) { await step(host, 12); await wait(120); }
 h = await info(host);
-check(h.tick <= hostTick + 12, `anfitrião espera o convidado (${hostTick} → ${h.tick})`);
+const missing = await host.evaluate(() => { const o = window.nc.session.online; return o.debugInfo().tick === null ? null : o.status().waiting.map((w) => w.seat); });
+check(h.tick === hostTick, `anfitrião espera o convidado (parado no tick ${hostTick} → ${h.tick}, faltando ${JSON.stringify(missing)})`);
 await host.evaluate(() => window.nc.session.debugStep(1));
-await host.waitForTimeout(700);
-const banner = await host.evaluate(() => document.querySelector('.nc-online-banner.on')?.textContent ?? '');
+const banner = (await waitFor(host, () => document.querySelector('.nc-online-banner.on')?.textContent ?? '')) || '';
 check(/Aguardando/.test(banner), `aviso de espera no anfitrião ("${banner}")`);
 await shot(host, '08-waiting');
-await guest.evaluate(() => { window.nc.session.speed = 1; });
+await guest.evaluate(() => { window.nc.session.paused = false; });
 
 // ── O convidado cai e volta: reconecta com o token e recebe o snapshot do anfitrião.
 await guest.evaluate(() => window.nc.session.online.debugDropConnection());
@@ -201,7 +222,7 @@ for (const p of [host, guest]) await p.keyboard.up('ArrowUp');
 await press(host, 'Escape');
 await press(host, 'ArrowDown');
 await press(host, 'Enter');
-h = await info(host);
+h = await until(host, (s) => s.menu === 'main', 'anfitrião no menu');
 check(h.menu === 'main' && h.phase === 'idle', `anfitrião volta ao menu (${h.menu}, ${h.phase})`);
 g = await until(guest, (s) => s.isHost, 'convidado vira anfitrião');
 const gt = g.tick;

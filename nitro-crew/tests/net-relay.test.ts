@@ -11,7 +11,7 @@ import { hashRace } from '../src/core/serialize';
 import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
 import type { PlayerInput, RaceConfig, RaceState, Track } from '../src/core/types';
-import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type SaveData, type Settings } from '../src/game/contracts';
+import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type ResultsScreenData, type SaveData, type Settings } from '../src/game/contracts';
 import { OnlineController, type OnlineHost } from '../src/game/online-session';
 
 const HAS_WS = fs.existsSync('server/node_modules/ws/package.json');
@@ -324,4 +324,36 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     A.leave();
     expect(ha.exited).toBe(true);
   }, 30_000);
+
+  it('depois da corrida o anfitrião não larga de novo enquanto um convidado ainda está no resultado', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    const A = new OnlineController(ha, { pingMs: 200 });
+    const B = new OnlineController(hb, { pingMs: 200 });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto');
+    expect(A.startRace()).toBe(true);
+    await until(() => A.phase === 'racing' && B.phase === 'racing', 3000, 'largada');
+    // Fim da corrida nos dois; só o anfitrião volta para a sala.
+    const data: ResultsScreenData = { mode: 'quick', trackDef: getTrack('copacabana').def, results: [], humans: [], champ: null, newRecords: [] };
+    A.finished(data);
+    B.finished(data);
+    A.backToRoom();
+    await sleep(150);
+    // B ainda olha o resultado: uma largada agora o deixaria de fora (e o anfitrião esperando para sempre).
+    expect(B.phase).toBe('results');
+    expect(A.startBlocker()).toBe('online.lobby.waitReady');
+    expect(A.startRace()).toBe(false);
+    // B volta e fica pronto de novo: aí sim.
+    B.backToRoom();
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto de novo');
+    expect(A.startRace()).toBe(true);
+    await until(() => A.phase === 'racing' && B.phase === 'racing', 3000, 'segunda largada');
+    A.leave(); B.leave();
+  }, 10_000);
 });

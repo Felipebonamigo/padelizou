@@ -8,7 +8,7 @@ import { SEAT_COLORS } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import { TRACKS } from '../../core/track';
 import type { DeviceId, MenuNav } from '../../game/contracts';
-import { assignSeats, type OnlineController, type OnlineHud, type OnlineStatus } from '../../game/online-session';
+import { assignSeats, seatName, type OnlineController, type OnlineHud, type OnlineStatus } from '../../game/online-session';
 import { DIFFICULTIES } from '../../game/settings';
 import { t } from '../../i18n';
 import { MAX_INPUT_DELAY, MIN_INPUT_DELAY, normalizeServerUrl, PLAYER_NAME_MAX, ROOM_CODE_LENGTH, type RoomSettings } from '../../net/protocol';
@@ -35,6 +35,11 @@ function viewOf(online: OnlineController): View {
 const cursors: Partial<Record<View, number>> = {};
 /** Código digitado (sobrevive a trocas de vista e de idioma). */
 let typedCode = '';
+
+/** "1 volta" / "3 voltas". */
+function lapsText(n: number): string {
+  return n === 1 ? t('online.lobby.oneLap') : t('online.lobby.lapsValue', { n });
+}
 
 function carName(id: string): string {
   return CARS.find((c) => c.id === id)?.name ?? id;
@@ -134,8 +139,12 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       h('h1', { class: 'screen-title', text: t('online.title') }),
       h('p', { class: 'online-intro', text: t('online.intro') }),
       h('div', { class: 'online-connect-grid' },
-        h('div', { class: 'online-card' }, h('div', { class: 'online-card-icon' }, icon('flag')), createBtn.el),
-        h('div', { class: 'online-card' }, h('div', { class: 'online-card-icon' }, icon('users')), codeRow.el, joinBtn.el),
+        h('div', { class: 'online-card' },
+          h('div', { class: 'online-card-head' }, h('div', { class: 'online-card-icon' }, icon('flag')), h('p', { class: 'online-card-text', text: t('online.connect.createHint') })),
+          createBtn.el),
+        h('div', { class: 'online-card' },
+          h('div', { class: 'online-card-head' }, h('div', { class: 'online-card-icon' }, icon('users')), h('p', { class: 'online-card-text', text: t('online.connect.joinHint') })),
+          codeRow.el, joinBtn.el),
       ),
       serverRow.el,
       note,
@@ -186,7 +195,14 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
         nameRow.el, carSel.el,
       );
       // O assento (e a cor) segue a ordem da sala: muda se alguém de id menor sai.
-      refreshers.push(() => { const seat = localSeatPreview(i); badge.textContent = `P${seat + 1}`; box.style.setProperty('--seat', SEAT_COLORS[seat] ?? '#fff'); });
+      refreshers.push(() => {
+        const seat = localSeatPreview(i);
+        badge.textContent = `P${seat + 1}`;
+        box.style.setProperty('--seat', SEAT_COLORS[seat] ?? '#fff');
+        // Nome padrão acompanha o assento (fora de quando o jogador está digitando).
+        const name = online!.locals[i]?.name ?? '';
+        if (document.activeElement !== nameInput && seatName(name, seat) !== nameInput.value && seatName(name, seat) !== name) nameInput.value = seatName(name, seat);
+      });
       return box;
     });
     let removeBtn: FocusItem | null = null;
@@ -225,7 +241,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
         trackThumb(ctx, def, 92),
         h('div', { class: 'online-track-info' },
           h('div', { class: 'online-track-name' }, h('span', { text: `${flagFor(ctx, def.country)} ${def.name}` })),
-          h('div', { class: 'online-track-meta' }, dayIcon(def.timeOfDay), h('span', { text: t('online.lobby.lapsValue', { n: s()?.laps ?? def.laps }) })),
+          h('div', { class: 'online-track-meta' }, dayIcon(def.timeOfDay), h('span', { text: lapsText(s()?.laps ?? def.laps) })),
         ),
       );
     };
@@ -322,10 +338,10 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       return h('div', { class: `online-client${c.connected ? '' : ' offline'}${c.info?.ready || c.id === room.host ? ' ready' : ''}` },
         h('div', { class: 'online-client-tags' }, icon(c.id === room.host ? 'trophy' : 'users'), tags),
         players.map((p, i) => {
-          const seat = seats.find((s) => s.client === c.id && s.name === p.name && s.car === p.car)?.seat ?? seats.filter((s) => s.client === c.id)[i]?.seat ?? 0;
+          const seat = seats.filter((s) => s.client === c.id)[i]?.seat ?? 0;
           return h('div', { class: 'online-player', style: `--seat:${SEAT_COLORS[seat] ?? '#fff'}` },
             h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
-            h('span', { class: 'online-player-name', text: p.name }),
+            h('span', { class: 'online-player-name', text: seatName(p.name, seat) }),
             h('span', { class: 'online-player-car', text: carName(p.car) }),
           );
         }),
