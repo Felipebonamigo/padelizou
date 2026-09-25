@@ -31,7 +31,7 @@ function frameFor(paused = false): RenderFrame {
   run(state, track, 30);
   const carIndex = state.cars.findIndex((c) => c.seat === 0);
   return {
-    state, track, paused, time: 1, coop: false,
+    state, track, paused, time: 1, coop: false, showHud: true,
     viewports: [{ seat: 0, carIndex, color: '#fff', name: 'P1', messages: [] }],
     options: { quality: 'high', showMinimap: true, screenShake: true },
   };
