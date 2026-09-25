@@ -13,8 +13,9 @@
 //   sempre: quem está parado há `resendMs` reenvia as próprias entradas recentes (duplicata é
 //   inofensiva). Numa trava, todos estão parados, então todos reenviam e as lacunas se fecham.
 // - Assento de quem não voltou vira IA por um registro TAKEOVER no próprio fluxo de entradas, com o
-//   tick em que passa a valer: todas as máquinas aplicam no mesmo tick, antes do stepRace.
-import { DIFFICULTY_SKILL } from '../core/sim/ai';
+//   tick em que passa a valer: nesse tick todas as máquinas entregam ao stepRace a entrada
+//   `{ takeover: true }` do assento, e é o stepRace quem põe a IA no carro (o estado só muda lá;
+//   repetir as entradas de cada tick reproduz a corrida).
 import { hashRace } from '../core/serialize';
 import { NEUTRAL_INPUT, type PlayerInput, type RaceState } from '../core/types';
 import { decodeInput, DEFAULT_INPUT_DELAY, encodeInput, HASH_INTERVAL, isTakeover, TAKEOVER_BIT, type InputRecord } from './protocol';
@@ -67,17 +68,6 @@ export interface LockstepStats {
 
 /** Entrada local ainda não enviada: o volante e os pedais valem o último; bordas acumulam até sair. */
 interface PendingInput { steer: number; throttle: boolean; brake: boolean; nitro: boolean; gearUp: boolean; gearDown: boolean }
-
-/**
- * A IA assume o carro do assento (determinístico: sem sorteio, mesmo cérebro em toda máquina).
- * Carro que já terminou já anda sozinho (piloto automático) e fica como está.
- */
-export function applyTakeover(state: RaceState, seat: number): void {
-  const car = state.cars.find((c) => c.seat === seat);
-  if (!car || car.ai) return;
-  const [lo, hi] = DIFFICULTY_SKILL[state.config.difficulty];
-  car.ai = { skill: (lo + hi) / 2, laneX: 0, laneUntil: state.tick, lookahead: 25, aggression: 0.3 };
-}
 
 export class Lockstep {
   readonly seats: readonly number[];
@@ -239,7 +229,8 @@ export class Lockstep {
     const row = this.buffer.get(T);
     const inputs: PlayerInput[] = [];
     for (const seat of this.seats) {
-      if (this.aiFrom.get(seat) === T) applyTakeover(state, seat);
+      // A tomada vale a partir de T: o stepRace põe a IA no carro (e daí em diante ela dirige).
+      if (this.aiFrom.get(seat) === T) { inputs[seat] = { ...NEUTRAL_INPUT, takeover: true }; continue; }
       if (this.isAi(seat, T)) continue;
       const r = row?.get(seat);
       inputs[seat] = r ? decodeInput(r.bits, r.steer) : { ...NEUTRAL_INPUT };

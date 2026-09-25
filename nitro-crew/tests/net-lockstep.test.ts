@@ -159,6 +159,29 @@ describe('lockstep em rede simulada', () => {
     expect(hashRace(solo)).toBe(hashRace(a.state));
   }, 30_000);
 
+  it('a tomada pela IA chega ao stepRace como entrada: repetir só as entradas de cada tick reproduz a corrida (replay, fantasma)', () => {
+    const net = new Net(createRng(41), 3);
+    const cfg = config(2);
+    const a = makeClient(net, 0, [0], [0, 1], cfg);
+    const b = makeClient(net, 1, [1], [0, 1], cfg);
+    const log: PlayerInput[][] = [];
+    const origStep = a.ls.step.bind(a.ls);
+    a.ls.step = (state, now, run) => origStep(state, now, (inputs) => { log.push(inputs.map((x) => ({ ...x }))); run(inputs); });
+    runAll(net, [a, b], 600);
+    b.online = false;
+    net.deliver(true);
+    runAll(net, [a], 700, 300);
+    expect(a.ls.takeover(1)).not.toBeNull();
+    runAll(net, [a], 1500);
+    expect(a.state.tick).toBe(1500);
+    expect(a.state.cars.find((c) => c.seat === 1)?.ai).not.toBeNull();
+    // Nada muda o estado por fora: a corrida inteira é stepRace com o que o lockstep entregou.
+    const solo = createRace(cfg, TRACK);
+    for (const inputs of log) stepRace(solo, TRACK, inputs);
+    expect(solo.cars.find((c) => c.seat === 1)?.ai).not.toBeNull();
+    expect(hashRace(solo)).toBe(hashRace(a.state));
+  }, 30_000);
+
   it('sem a entrada do outro assento o tick não roda (nem o primeiro)', () => {
     const state = createRace(config(2), TRACK);
     const sent: InputRecord[][] = [];

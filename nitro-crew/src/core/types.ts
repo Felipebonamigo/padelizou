@@ -141,6 +141,11 @@ export interface PlayerInput {
   nitro: boolean;
   gearUp: boolean;
   gearDown: boolean;
+  /**
+   * Comando, não tecla: a IA assume este carro a partir deste tick (online, quando o jogador não
+   * volta — src/net/lockstep.ts). Vem no fluxo de entradas para a tomada passar pelo stepRace.
+   */
+  takeover?: boolean;
 }
 
 export const NEUTRAL_INPUT: Readonly<PlayerInput> = Object.freeze({
