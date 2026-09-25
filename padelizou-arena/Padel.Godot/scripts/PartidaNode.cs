@@ -10,7 +10,8 @@ namespace Padel.Godot;
 /// A tela nunca lê a Partida direto — só o Retrato —, e é isso que deixa o mesmo desenho servir ao jogo local e ao online.
 /// Argumentos de linha de comando depois de "--": --auto (4 IAs), --coop (dois humanos no mesmo time),
 /// --semente N, --sair-apos SEGUNDOS (pra CI), --screenshot ARQUIVO.png (salva a tela ao sair; precisa de
-/// renderização, não funciona em --headless), --auto-golpe (assistência), --facil, --dificil.
+/// renderização, não funciona em --headless), --auto-golpe (assistência), --facil, --dificil, --sem-replay.
+/// Na partida local, pontos que merecem ganham replay em câmera lenta (ControleDeReplay); a ação pula.
 /// </summary>
 public partial class PartidaNode : Node3D
 {
@@ -36,6 +37,7 @@ public partial class PartidaNode : Node3D
     private string? _screenshot;
     private uint? _semente;
     private readonly Entrada[] _entradas = new Entrada[4];
+    private readonly ControleDeReplay _replay = new();
 
     public override void _Ready()
     {
@@ -86,6 +88,7 @@ public partial class PartidaNode : Node3D
                 case "--auto-golpe": ModoDeGolpe = ModoDeGolpe.Automatico; break;
                 case "--facil": Dificuldade = Dificuldade.Facil; break;
                 case "--dificil": Dificuldade = Dificuldade.Dificil; break;
+                case "--sem-replay": _replay.Ligado = false; break;
             }
         }
     }
@@ -94,13 +97,26 @@ public partial class PartidaNode : Node3D
     {
         if (Input.IsActionJustPressed(EntradaLocal.Pausa)) _pausado = !_pausado;
         if (_pausado) return;
+        _tempoVivo += delta;
         Array.Clear(_entradas);
         var locais = Sessao.JogadoresLocais;
         for (int n = 0; n < locais.Count; n++) _entradas[locais[n]] = EntradaLocal.LerJogadorLocal(n);
+
+        if (_replay.Reproduzindo)
+        {
+            // Durante o replay a partida local espera; qualquer jogador daqui pula com a ação.
+            if (_entradas.Any(e => e.AcaoPressionada || e.LobPressionada)) _replay.Pular();
+            if (_replay.Avancar((float)delta, Sessao.Retrato) is RetratoDaPartida quadro) { DesenharReplay(quadro, (float)delta); VerificarSaida(); return; }
+            GD.Print($"Replay: fim em {_tempoVivo:F1} s");
+        }
+
         Sessao.Avancar(delta, _entradas);
         Desenhar((float)delta);
+        VerificarSaida();
+    }
 
-        _tempoVivo += delta;
+    private void VerificarSaida()
+    {
         if (_sairApos >= 0 && (_tempoVivo >= _sairApos || Sessao.Acabou))
         {
             GD.Print($"Saindo após {_tempoVivo:F1} s: {Sessao.ResumoParaLog()}");
@@ -121,6 +137,14 @@ public partial class PartidaNode : Node3D
         GetTree().Quit();
     }
 
+    private void DesenharReplay(RetratoDaPartida quadro, float delta)
+    {
+        _bola.Atualizar(quadro.Bola);
+        foreach (var no in _jogadores) no.Atualizar(quadro, delta);
+        _camera?.Replay(quadro.Bola.X, quadro.Bola.Y, quadro.Bola.Z, delta);
+        _hud.Atualizar(quadro);
+    }
+
     private void Desenhar(float delta)
     {
         var r = Sessao.Retrato;
@@ -135,6 +159,8 @@ public partial class PartidaNode : Node3D
             _caixaMarcada = r.CaixaDoSaque;
         }
         foreach (var a in r.Acontecimentos) AoAcontecimento(a, r);
+        // Replay só na partida local: no online a partida não pode parar pros outros.
+        if (Sessao is SessaoLocal && _replay.Observar(r)) GD.Print($"Replay: começou em {_tempoVivo:F1} s ({r.Placar.Resumo} {r.Placar.Pontos[0]}-{r.Placar.Pontos[1]})");
         r.Acontecimentos.Clear();
     }
 
