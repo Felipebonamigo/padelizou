@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 env:
   GODOT_VERSAO: 4.7.2
@@ -41,3 +42,53 @@ jobs:
           "$GODOT" --headless --path . --import
           "$GODOT" --headless --path . -- --auto --semente 42 --sair-apos 15 | tee saida.txt
           grep -q "Saindo após" saida.txt
+
+  exportar:
+    name: Exportar builds (Linux e Windows)
+    runs-on: ubuntu-latest
+    needs: godot
+    # Os templates são 1,2 GB: só exporta no main, em tag, ou quando pedido na mão (Actions → CI → Run workflow).
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Cache dos templates de exportação
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSAO }}.stable.mono
+          key: godot-templates-mono-${{ env.GODOT_VERSAO }}
+      - name: Baixar templates (só Linux e Windows x86_64)
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          D=~/.local/share/godot/export_templates/${GODOT_VERSAO}.stable.mono
+          mkdir -p "$D"
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}-stable/Godot_v${GODOT_VERSAO}-stable_mono_export_templates.tpz"
+          unzip -q -o -j templates.tpz templates/linux_debug.x86_64 templates/linux_release.x86_64 templates/windows_debug_x86_64.exe templates/windows_release_x86_64.exe templates/windows_debug_x86_64_console.exe templates/windows_release_x86_64_console.exe templates/version.txt templates/icudt_godot.dat -d "$D"
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }} (.NET)
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}-stable/Godot_v${GODOT_VERSAO}-stable_mono_linux_x86_64.zip"
+          unzip -q godot.zip
+          echo "GODOT=$PWD/Godot_v${GODOT_VERSAO}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSAO}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+      - name: Exportar
+        working-directory: Padel.Godot
+        run: |
+          mkdir -p ../build/linux ../build/windows
+          "$GODOT" --headless --path . --import
+          "$GODOT" --headless --path . --export-release "Linux" ../build/linux/PadelizouArena.x86_64
+          "$GODOT" --headless --path . --export-release "Windows" ../build/windows/PadelizouArena.exe
+      - name: O build Linux exportado roda sozinho
+        working-directory: build/linux
+        run: |
+          ./PadelizouArena.x86_64 --headless -- --auto --semente 42 --sair-apos 10 | tee saida.txt
+          grep -q "Saindo após" saida.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PadelizouArena-linux
+          path: build/linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PadelizouArena-windows
+          path: build/windows

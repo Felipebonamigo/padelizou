@@ -1,0 +1,34 @@
+// Build da Steam: sobe os dois depots (Windows e Linux) de uma vez.
+// Preencher AppID e os dois DepotID com os números que o Steamworks der (Painel → App → SteamPipe → Depots).
+// Uso: steam/publicar.sh (roda o steamcmd com este arquivo). Caminhos relativos a esta pasta.
+"AppBuild"
+{
+	"AppID"         "0"
+	"Desc"          "Padelizou Arena"
+	"ContentRoot"   "../build/"
+	"BuildOutput"   "../build/steam-saida/"
+	// "SetLive" "beta"   // descomente pra publicar direto no branch beta; nunca "default" por script
+	"Depots"
+	{
+		"0"   // DepotID Windows
+		{
+			"FileMapping"
+			{
+				"LocalPath"  "windows/*"
+				"DepotPath"  "."
+				"Recursive"  "1"
+			}
+			"FileExclusion" "*.pdb"
+		}
+		"1"   // DepotID Linux (e Steam Deck nativo)
+		{
+			"FileMapping"
+			{
+				"LocalPath"  "linux/*"
+				"DepotPath"  "."
+				"Recursive"  "1"
+			}
+			"FileExclusion" "*.pdb"
+		}
+	}
+}
