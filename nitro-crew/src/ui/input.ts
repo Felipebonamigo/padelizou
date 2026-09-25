@@ -276,6 +276,9 @@ export function createInput(target: Window = window, opts: InputOptions = {}): I
   const held = new Set<string>();
   /** Teclas apertadas desde o último `poll()` — captura um toque mais curto que um quadro. */
   const tapped = new Set<string>();
+  /** Esc segurado no último `poll()` e a borda dele: é a única pausa de um teclado sem assento. */
+  let escapeHeld = false;
+  let escapeEdge = false;
   const devices = new Map<DeviceId, DeviceState>();
   const seats: Array<DeviceId | null> = [null, null, null, null];
   for (const kb of KEYBOARDS) devices.set(kb, newDevice(kb, true));
@@ -378,6 +381,8 @@ export function createInput(target: Window = window, opts: InputOptions = {}): I
       }
       const keys = new Set<string>([...held, ...tapped]);
       tapped.clear();
+      escapeEdge = edge(escapeHeld, keys.has(RESERVED_KEY));
+      escapeHeld = keys.has(RESERVED_KEY);
       for (const kb of KEYBOARDS) {
         const d = devices.get(kb);
         if (d) step(d, mapKeyboard(keys, kb, bindings), now);
@@ -446,7 +451,9 @@ export function createInput(target: Window = window, opts: InputOptions = {}): I
         if (!d.edges.pause) continue;
         const seat = seatOf(d.id);
         if (seat >= 0) return seat;
-        if (isKeyboard(d.id)) return 0;
+        // Teclado sem assento pausa só pelo Esc (vale como assento 0: todos nos controles e alguém
+        // aperta Esc). A pausa escolhida dele não: ela pode ser a tecla de pilotagem do outro teclado.
+        if (isKeyboard(d.id) && escapeEdge) return 0;
       }
       return -1;
     },

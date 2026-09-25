@@ -332,6 +332,42 @@ describe('createInput com bindings', () => {
     input.dispose();
   });
 
+  it('teclado sem assento só pausa pelo Esc: a pausa escolhida dele não pausa a corrida do outro', () => {
+    const w = fakeWindow([fakePad(0)]);
+    // Teclado 2 com a pausa no Espaço, que é o nitro do teclado 1; teclado 1 com a pausa no P.
+    const bindings = assign(assign(DEFAULT_BINDINGS, 'kb2', 'pause', 'Space'), 'kb1', 'pause', 'KeyP');
+    const input = createInput(w.target, { bindings: () => bindings });
+    const tap = (code: string): number => {
+      w.down(code);
+      input.poll();
+      const seat = input.pausePressed();
+      w.up(code);
+      input.poll();
+      return seat;
+    };
+    // Só o teclado 1 em uso: o Espaço é nitro, não pausa.
+    input.bindSeat(0, 'kb1');
+    input.poll();
+    w.down('Space');
+    input.poll();
+    expect(input.readSeat(0).nitro).toBe(true);
+    expect(input.pausePressed()).toBe(-1);
+    w.up('Space');
+    input.poll();
+    expect(tap('KeyP')).toBe(0);
+    // Com o teclado 2 em uso, o Espaço pausa também (é o que o aviso de conflito diz).
+    input.bindSeat(1, 'kb2');
+    expect(tap('Space')).toBe(1);
+    // Todos nos controles: o Esc continua pausando; a pausa escolhida de um teclado sem assento, não.
+    input.unbindSeat(0);
+    input.unbindSeat(1);
+    input.bindSeat(0, 'gp0');
+    expect(tap('KeyP')).toBe(-1);
+    expect(tap('Space')).toBe(-1);
+    expect(tap('Escape')).toBe(0);
+    input.dispose();
+  });
+
   it('preventDefault só nas teclas em uso (navegação fixa + bindings atuais)', () => {
     const w = fakeWindow();
     const bindings = assign(DEFAULT_BINDINGS, 'kb1', 'nitro', 'KeyR');
