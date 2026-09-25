@@ -6,7 +6,7 @@
   "main": "desktop/main.js",
   "scripts": {
     "start": "electron .",
-    "conferir": "node ../Padelizou.Tests/js/conferir-punhos-de-shaolin.js && node ../Padelizou.Tests/js/conferir-conquistas-do-shaolin.js",
+    "conferir": "node ../Padelizou.Tests/js/conferir-punhos-de-shaolin.js && node ../Padelizou.Tests/js/conferir-conquistas-do-shaolin.js && node ../Padelizou.Tests/js/conferir-desktop-do-shaolin.js",
     "empacotar": "electron-builder --win --linux",
     "empacotar:windows": "electron-builder --win",
     "empacotar:linux": "electron-builder --linux"
@@ -26,6 +26,15 @@
     "files": ["index.html", "js/**", "desktop/**", "!desktop/icone-fonte.html"],
     "asar": true,
     "asarUnpack": ["node_modules/steamworks.js/**"],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "grantFileProtocolExtraPrivileges": false,
+      "enableCookieEncryption": true
+    },
     "win": { "target": ["dir"], "icon": "desktop/icone.png" },
     "linux": { "target": ["dir"], "icon": "desktop/icone.png", "category": "Game" }
   }
