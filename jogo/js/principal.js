@@ -1,41 +1,49 @@
-// PUNHOS DE SHAOLIN — o laço principal: telas (título → escolha → fases → fim), pausa,
-// passo fixo de simulação (1/60 s), congelamento de acerto, câmera lenta da finalização e o
-// recorde no localStorage. Junta os quatro módulos: Motor (regra), Desenho, Som e Entrada.
+// PUNHOS DE SHAOLIN — o laço principal: telas (título → menu → dificuldade → escolha → fases →
+// fim), opções, conquistas, pausa, passo fixo de simulação (1/60 s), congelamento de acerto,
+// câmera lenta da finalização e o progresso salvo pela plataforma (navegador ou Electron/Steam).
 (function (raiz) {
     'use strict';
-    const { Motor, Desenho, Som, Entrada } = raiz.PunhosDeShaolin;
+    const { Motor, Desenho, Som, Entrada, Progresso, Conquistas, Plataforma } = raiz.PunhosDeShaolin;
     const PASSO = 1 / 60;
     const DURACAO_INTRO = 2.6;
-    const CHAVE_RECORDE = 'punhos-de-shaolin.recorde';
+    const DURACAO_AVISO = 4;
 
     const canvas = document.getElementById('tela');
     const ctx = canvas.getContext('2d');
+    const plataforma = Plataforma.criar();
+    const progresso = Progresso.criar(plataforma);
     const som = Som.criar();
     const entrada = Entrada.criar({ joystick: document.getElementById('joystick'), joystickBolinha: document.getElementById('bolinha'), botoes: document.getElementById('botoes') });
     let efeitos = Desenho.criarEfeitos();
-
-    function lerRecorde() { try { return Number(localStorage.getItem(CHAVE_RECORDE)) || 0; } catch (_) { return 0; } }
-    function gravarRecorde(v) { try { localStorage.setItem(CHAVE_RECORDE, String(v)); } catch (_) { /* sem storage, sem recorde */ } }
+    if (plataforma.ehDesktop) document.body.classList.add('desktop');
 
     const jogo = {
-        tela: 'titulo', tempo: 0, mundo: null, fase: 1, pausado: false, intro: 0, acumulador: 0, fimHa: 0,
-        sel: { p1: 0, p2: 1, p2Entrou: false, confirmadoP1: false, confirmadoP2: false, prontoHa: 0 },
-        salvos: null, pontuacaoNaFase: 0, recorde: lerRecorde(), toque: false,
-        estatisticas: { finalizacoes: 0, maiorCombo: 0, inimigos: 0 }, fim: null, semente: (Date.now() & 0xffff) || 1,
-        tocouAgora: null,
+        tela: 'titulo', tempo: 0, mundo: null, fase: 1, faseInicial: 1, pausado: false, intro: 0, acumulador: 0, fimHa: 0,
+        sel: null, salvos: null, pontuacaoNaFase: 0, toque: false, indice: 0, confirmarApagar: false,
+        estatisticas: null, fim: null, semente: (Date.now() & 0xffff) || 1, tocouAgora: null,
+        avisosDeConquista: [], tempoDePartida: 0, faseFechada: false, escalaTotal: 1,
     };
     const IDS = Object.keys(Motor.PERSONAGENS);
+    const conquistas = Conquistas.criar({ progresso, plataforma, aoDesbloquear: def => { jogo.avisosDeConquista.push({ def, idade: 0 }); som.tocar('item'); } });
 
-    // ── TAMANHO: 16:9 que cabe na janela, com barras pretas no que sobra ─────────────────
+    function opcoes() { return progresso.dados.opcoes; }
+    function aplicarOpcoes() { som.volume({ musica: opcoes().musica, efeitos: opcoes().efeitos }); }
+    aplicarOpcoes();
+
+    // ── TAMANHO: 16:9 que cabe na janela; o canvas desenha na resolução REAL da tela ────────
+    // O jogo é vetorial, então 1440p fica nítido de graça — é só o buffer acompanhar o DPR.
     function ajustarTamanho() {
         const escala = Math.min(raiz.innerWidth / Motor.LARGURA, raiz.innerHeight / Motor.ALTURA);
+        const dpr = Math.min(raiz.devicePixelRatio || 1, 2);
         canvas.style.width = `${Math.floor(Motor.LARGURA * escala)}px`;
         canvas.style.height = `${Math.floor(Motor.ALTURA * escala)}px`;
+        canvas.width = Math.max(1, Math.round(Motor.LARGURA * escala * dpr));
+        canvas.height = Math.max(1, Math.round(Motor.ALTURA * escala * dpr));
+        jogo.escalaTotal = canvas.width / Motor.LARGURA;
     }
     raiz.addEventListener('resize', ajustarTamanho);
     ajustarTamanho();
 
-    // Toque na tela (menus). Converte pro sistema lógico de 960×540.
     canvas.addEventListener('pointerdown', ev => {
         const r = canvas.getBoundingClientRect();
         jogo.tocouAgora = { x: (ev.clientX - r.left) / r.width * Motor.LARGURA, y: (ev.clientY - r.top) / r.height * Motor.ALTURA };
@@ -46,16 +54,29 @@
     if (raiz.matchMedia && raiz.matchMedia('(pointer: coarse)').matches) marcarToque();
     raiz.addEventListener('touchstart', marcarToque, { passive: true, once: true });
     raiz.addEventListener('keydown', () => som.ligar(), { once: true });
+    raiz.addEventListener('blur', () => { if (jogo.tela === 'jogo' && !jogo.pausado) jogo.pausado = true; });
 
-    function telaCheia() {
-        const el = document.documentElement;
-        try {
-            if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
-            else if (el.requestFullscreen) el.requestFullscreen().catch(() => { });
-        } catch (_) { /* nem todo navegador deixa */ }
-    }
     const botaoTelaCheia = document.getElementById('tela-cheia');
-    if (botaoTelaCheia) botaoTelaCheia.addEventListener('click', telaCheia);
+    if (botaoTelaCheia) botaoTelaCheia.addEventListener('click', () => plataforma.telaCheia());
+
+    function mudarTela(nome) { jogo.tela = nome; jogo.indice = 0; jogo.confirmarApagar = false; document.body.dataset.tela = nome; }
+
+    // ── NAVEGAÇÃO DE MENU (teclado, controle e toque, com as mesmas linhas do desenho) ──────
+    function navegar(quantos, sistema, entradas, toque) {
+        const r = { confirmou: false, voltou: !!sistema.voltar, esquerda: false, direita: false };
+        const e0 = entradas[0], e1 = entradas[1];
+        if (e0.apertou.cima || e1.apertou.cima) { jogo.indice = (jogo.indice + quantos - 1) % quantos; som.tocar('selecionar'); }
+        if (e0.apertou.baixo || e1.apertou.baixo) { jogo.indice = (jogo.indice + 1) % quantos; som.tocar('selecionar'); }
+        if (e0.apertou.esquerda || e1.apertou.esquerda) r.esquerda = true;
+        if (e0.apertou.direita || e1.apertou.direita) r.direita = true;
+        if (sistema.confirmar || e0.apertou.soco || e1.apertou.soco) r.confirmou = true;
+        if (toque) {
+            const i = Math.round((toque.y - Desenho.MENU_Y0) / Desenho.MENU_PASSO);
+            if (i >= 0 && i < quantos && Math.abs(toque.x - Motor.LARGURA / 2) < 320) { jogo.indice = i; r.confirmou = true; }
+            else if (toque.y > 480) r.voltou = true;
+        }
+        return r;
+    }
 
     // ── FASES ─────────────────────────────────────────────────────────────────────────────
     function personagensEscolhidos() {
@@ -64,11 +85,11 @@
         return lista;
     }
 
-    function iniciarFase(numero, opcoes) {
-        const o = opcoes || {};
+    function iniciarFase(numero, extra) {
+        const o = extra || {};
         jogo.fase = numero;
         const personagens = o.personagens || personagensEscolhidos();
-        jogo.mundo = Motor.criarMundo({ fase: numero, jogadores: personagens, semente: jogo.semente * 31 + numero, pontuacao: o.pontuacao || 0 });
+        jogo.mundo = Motor.criarMundo({ fase: numero, jogadores: personagens, semente: jogo.semente * 31 + numero, pontuacao: o.pontuacao || 0, dificuldade: progresso.dados.dificuldade });
         jogo.pontuacaoNaFase = jogo.mundo.pontuacao;
         if (jogo.salvos) {
             // Quem passou de fase leva o que tinha: vidas, chi e pelo menos metade da vida.
@@ -79,40 +100,94 @@
             });
         }
         efeitos = Desenho.criarEfeitos();
-        jogo.acumulador = 0; jogo.pausado = false; jogo.intro = 0; jogo.tela = 'intro';
+        jogo.acumulador = 0; jogo.pausado = false; jogo.intro = 0; jogo.faseFechada = false; jogo.fimHa = 0;
         som.pararMusica();
-        document.body.dataset.tela = 'intro';
+        plataforma.presenca(`Lutando em ${jogo.mundo.faseDef.nome}`);
+        mudarTela('intro');
     }
 
-    function salvarJogadores() {
-        jogo.salvos = jogo.mundo.jogadores.map(j => ({ vidas: j.vidas, chi: j.chi, vida: j.vida }));
+    function salvarJogadores() { jogo.salvos = jogo.mundo.jogadores.map(j => ({ vidas: j.vidas, chi: j.chi, vida: j.vida })); }
+
+    function fecharFase(m) {
+        if (jogo.faseFechada) return;
+        jogo.faseFechada = true;
+        conquistas.concluirFase(m);
+        if (jogo.fase < Motor.FASES.length - 1) progresso.registrarFase(jogo.fase + 1);
+        progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
+        progresso.salvar();
     }
 
     function terminar(vitoria) {
         const m = jogo.mundo;
-        const novoRecorde = m.pontuacao > jogo.recorde;
-        if (novoRecorde) { jogo.recorde = m.pontuacao; gravarRecorde(m.pontuacao); }
-        jogo.fim = { vitoria, pontuacao: m.pontuacao, recorde: jogo.recorde, novoRecorde, faseNome: m.faseDef.nome, toque: jogo.toque, ...jogo.estatisticas };
-        jogo.tela = 'fim'; jogo.fimHa = 0;
+        const novoRecorde = progresso.registrarRecorde(m.pontuacao);
+        progresso.somar('partidas');
+        progresso.somar('tempoJogado', Math.floor(jogo.tempoDePartida)); jogo.tempoDePartida = 0;
+        progresso.salvar();
+        plataforma.estatistica('pontuacao_maxima', progresso.dados.recorde);
+        jogo.fim = { vitoria, pontuacao: m.pontuacao, recorde: progresso.dados.recorde, novoRecorde, faseNome: m.faseDef.nome, toque: jogo.toque, ...jogo.estatisticas };
+        jogo.fimHa = 0;
         som.pararMusica();
         som.tocar(vitoria ? 'gongo' : 'morte-jogador');
-        document.body.dataset.tela = 'fim';
+        mudarTela('fim');
     }
 
-    function irParaTitulo() {
-        jogo.tela = 'titulo'; jogo.mundo = null; jogo.salvos = null; jogo.pausado = false;
-        jogo.sel = { p1: 0, p2: 1, p2Entrou: false, confirmadoP1: false, confirmadoP2: false, prontoHa: 0 };
-        jogo.estatisticas = { finalizacoes: 0, maiorCombo: 0, inimigos: 0 };
+    function irParaMenu() {
+        jogo.mundo = null; jogo.salvos = null; jogo.pausado = false;
         jogo.semente = (Date.now() & 0xffff) || 1;
         efeitos = Desenho.criarEfeitos();
-        som.musica('titulo');
-        document.body.dataset.tela = 'titulo';
+        if (som.ligado) som.musica('titulo');
+        plataforma.presenca('No menu');
+        mudarTela('menu');
     }
 
-    function comecarJogo() {
-        jogo.salvos = null;
+    function comecarEscolha(faseInicial) {
+        jogo.faseInicial = faseInicial;
+        jogo.sel = { p1: 0, p2: 1, p2Entrou: false, confirmadoP1: false, confirmadoP2: false, prontoHa: 0, contagem: 0 };
         jogo.estatisticas = { finalizacoes: 0, maiorCombo: 0, inimigos: 0 };
-        iniciarFase(1);
+        jogo.salvos = null;
+        mudarTela('selecao');
+    }
+
+    function itensDoMenu() {
+        const fase = progresso.dados.faseAlcancada;
+        const itens = [{ id: 'novo', rotulo: 'Novo jogo' }];
+        if (fase > 1) itens.push({ id: 'continuar', rotulo: 'Continuar', valor: `Fase ${fase} · ${Motor.FASES[fase].nome}`, destaque: true });
+        itens.push({ id: 'opcoes', rotulo: 'Opções' });
+        itens.push({ id: 'conquistas', rotulo: 'Conquistas', valor: `${conquistas.ganhas().length} / ${Conquistas.LISTA.length}` });
+        if (plataforma.ehDesktop) itens.push({ id: 'sair', rotulo: 'Sair' });
+        return itens;
+    }
+
+    const DIFICULDADES = [
+        { id: 'facil', rotulo: 'Fácil', detalhe: 'Inimigos com 70% da vida e 65% do dano. Pra conhecer o templo.' },
+        { id: 'normal', rotulo: 'Normal', detalhe: 'Como o jogo foi desenhado.' },
+        { id: 'dificil', rotulo: 'Difícil', detalhe: 'Inimigos com 130% da vida e 140% do dano. Defenda ou morra.' },
+    ];
+
+    function itensDeOpcoes() {
+        const o = opcoes();
+        return [
+            { id: 'musica', rotulo: 'Música', fracao: o.musica },
+            { id: 'efeitos', rotulo: 'Efeitos', fracao: o.efeitos },
+            { id: 'tremor', rotulo: 'Tremor de tela', valor: o.tremor ? 'ligado' : 'desligado' },
+            { id: 'telaCheia', rotulo: 'Tela cheia', valor: o.telaCheia ? 'ligada' : 'desligada' },
+            { id: 'apagar', rotulo: jogo.confirmarApagar ? 'Apagar progresso — confirme de novo' : 'Apagar progresso', valor: `fase ${progresso.dados.faseAlcancada} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` },
+            { id: 'voltar', rotulo: 'Voltar' },
+        ];
+    }
+
+    function mexerOpcao(item, direcao) {
+        const o = opcoes();
+        if (item.id === 'musica' || item.id === 'efeitos') {
+            const atual = Math.round(o[item.id] * 10);
+            const novo = direcao === 0 ? (atual + 1) % 11 : Math.min(10, Math.max(0, atual + direcao));
+            progresso.opcao(item.id, novo / 10); aplicarOpcoes(); som.tocar('selecionar');
+        } else if (item.id === 'tremor') { progresso.opcao('tremor', !o.tremor); som.tocar('selecionar'); }
+        else if (item.id === 'telaCheia') { progresso.opcao('telaCheia', !o.telaCheia); plataforma.telaCheia(opcoes().telaCheia); som.tocar('selecionar'); }
+        else if (item.id === 'apagar' && direcao === 0) {
+            if (!jogo.confirmarApagar) { jogo.confirmarApagar = true; som.tocar('negado'); }
+            else { progresso.apagar(); jogo.confirmarApagar = false; som.tocar('quebra'); }
+        } else if (item.id === 'voltar' && direcao === 0) irParaMenu();
     }
 
     // ── ATUALIZAÇÃO ───────────────────────────────────────────────────────────────────────
@@ -121,21 +196,60 @@
         const entradas = entrada.ler();
         const toque = jogo.tocouAgora; jogo.tocouAgora = null;
         if (sistema.mudo) som.alternarMudo();
-        if (sistema.telaCheia) telaCheia();
+        if (sistema.telaCheia) plataforma.telaCheia();
+        for (let k = jogo.avisosDeConquista.length - 1; k >= 0; k--) { const a = jogo.avisosDeConquista[k]; if (k === 0) a.idade += dt; if (a.idade >= DURACAO_AVISO) jogo.avisosDeConquista.splice(k, 1); }
+        const fundoVivo = () => efeitos.atualizar(dt, { camera: { x: jogo.tempo * 30 } }, 'patio');
 
         switch (jogo.tela) {
             case 'titulo': {
                 if (som.ligado) som.musica('titulo');
-                efeitos.atualizar(dt, { camera: { x: jogo.tempo * 30 } }, 'patio');
-                if (sistema.confirmar || toque || entradas[0].apertou.soco) {
-                    som.ligar(); som.tocar('confirmar');
-                    jogo.tela = 'selecao'; document.body.dataset.tela = 'selecao';
+                fundoVivo();
+                if (sistema.confirmar || toque || entradas[0].apertou.soco) { som.ligar(); som.tocar('confirmar'); irParaMenu(); }
+                break;
+            }
+            case 'menu': {
+                fundoVivo();
+                const itens = itensDoMenu();
+                const nav = navegar(itens.length, sistema, entradas, toque);
+                if (nav.confirmou) {
+                    const item = itens[jogo.indice];
+                    som.tocar('confirmar');
+                    if (item.id === 'novo') { mudarTela('dificuldade'); jogo.indice = Math.max(0, DIFICULDADES.findIndex(d => d.id === progresso.dados.dificuldade)); }
+                    else if (item.id === 'continuar') comecarEscolha(progresso.dados.faseAlcancada);
+                    else if (item.id === 'opcoes') mudarTela('opcoes');
+                    else if (item.id === 'conquistas') mudarTela('conquistas');
+                    else if (item.id === 'sair') plataforma.sair();
                 }
+                break;
+            }
+            case 'dificuldade': {
+                fundoVivo();
+                const nav = navegar(DIFICULDADES.length, sistema, entradas, toque);
+                if (nav.voltou) { irParaMenu(); break; }
+                if (nav.confirmou) { progresso.dificuldade(DIFICULDADES[jogo.indice].id); som.tocar('confirmar'); comecarEscolha(1); }
+                break;
+            }
+            case 'opcoes': {
+                fundoVivo();
+                const itens = itensDeOpcoes();
+                const nav = navegar(itens.length, sistema, entradas, toque);
+                if (nav.voltou) { irParaMenu(); break; }
+                const item = itens[jogo.indice];
+                if (nav.esquerda) mexerOpcao(item, -1);
+                else if (nav.direita) mexerOpcao(item, 1);
+                else if (nav.confirmou) mexerOpcao(item, 0);
+                if (item.id !== 'apagar' && (nav.esquerda || nav.direita || nav.confirmou)) jogo.confirmarApagar = false;
+                break;
+            }
+            case 'conquistas': {
+                fundoVivo();
+                const nav = navegar(1, sistema, entradas, toque);
+                if (nav.voltou || nav.confirmou) irParaMenu();
                 break;
             }
             case 'selecao': {
                 const s = jogo.sel;
-                efeitos.atualizar(dt, { camera: { x: jogo.tempo * 30 } }, 'patio');
+                fundoVivo();
                 if (toque) {
                     const coluna = toque.x < Motor.LARGURA / 2 ? 0 : 1;
                     if (!s.confirmadoP1) { if (s.p1 === coluna) { s.confirmadoP1 = true; som.tocar('confirmar'); } else { s.p1 = coluna; som.tocar('selecionar'); } }
@@ -151,27 +265,25 @@
                     if (entradas[1].apertou.esquerda || entradas[1].apertou.direita) { s.p2 = (s.p2 + 1) % IDS.length; som.tocar('selecionar'); }
                     if (entradas[1].apertou.soco) { s.confirmadoP2 = true; som.tocar('confirmar'); }
                 }
-                if (sistema.voltar) { irParaTitulo(); break; }
-                if (s.prontoHa >= 99 || (s.confirmadoP1 && (!s.p2Entrou || s.confirmadoP2) && s.p2Entrou)) {
+                if (sistema.voltar) { irParaMenu(); break; }
+                if (s.prontoHa >= 99 || (s.confirmadoP1 && s.p2Entrou && s.confirmadoP2)) {
                     s.prontoHa = 99;
-                    s.contagem = (s.contagem || 0) + dt;
-                    if (s.contagem > 0.5) comecarJogo();
+                    s.contagem += dt;
+                    if (s.contagem > 0.5) iniciarFase(jogo.faseInicial);
                 }
                 break;
             }
             case 'intro': {
                 jogo.intro += dt;
-                if (jogo.intro >= DURACAO_INTRO || sistema.confirmar) {
-                    jogo.tela = 'jogo'; document.body.dataset.tela = 'jogo';
-                    som.musica(jogo.mundo.faseDef.cenario);
-                }
+                if (jogo.intro >= DURACAO_INTRO || sistema.confirmar) { mudarTela('jogo'); som.musica(jogo.mundo.faseDef.cenario); }
                 break;
             }
             case 'jogo': {
                 const m = jogo.mundo;
-                if (jogo.pausado && sistema.voltar) { irParaTitulo(); break; }
+                if (jogo.pausado && sistema.voltar) { irParaMenu(); break; }
                 if (sistema.pausa) { jogo.pausado = !jogo.pausado; som.tocar('pausa'); }
-                if (jogo.pausado) { if (sistema.confirmar) { jogo.pausado = false; } break; }
+                if (jogo.pausado) { if (sistema.confirmar) jogo.pausado = false; break; }
+                jogo.tempoDePartida += dt;
                 if ((sistema.entrarP2 || entradas[1].apertou.soco) && m.jogadores.length === 1 && !m.fimDeJogo) {
                     jogo.sel.p2Entrou = true; jogo.sel.p2 = 1 - jogo.sel.p1;
                     Motor.adicionarJogador(m, IDS[jogo.sel.p2]);
@@ -179,7 +291,7 @@
                     som.tocar('gongo');
                 }
                 // Congelamento de acerto: a tela para por um instante, o mundo não anda.
-                if (efeitos.congelar > 0) { efeitos.congelar -= dt; }
+                if (efeitos.congelar > 0) efeitos.congelar -= dt;
                 else {
                     const escala = efeitos.lento > 0 ? 0.3 : 1;
                     jogo.acumulador = Math.min(jogo.acumulador + dt * escala, PASSO * 5);
@@ -187,6 +299,7 @@
                     while (jogo.acumulador >= PASSO) {
                         Motor.passo(m, PASSO, entradas);
                         efeitos.processar(m.eventos, m, som);
+                        conquistas.processar(m.eventos, m);
                         for (const ev of m.eventos) {
                             if (ev.tipo === 'finalizacao') jogo.estatisticas.finalizacoes++;
                             if (ev.tipo === 'morte' && ev.time === 'inimigo') jogo.estatisticas.inimigos++;
@@ -198,22 +311,26 @@
                     }
                 }
                 efeitos.atualizar(dt, m, m.faseDef.cenario);
-                if (m.concluida && m.concluidaHa > 2.2) {
-                    salvarJogadores();
-                    if (jogo.fase >= Motor.FASES.length - 1) terminar(true);
-                    else iniciarFase(jogo.fase + 1, { pontuacao: m.pontuacao });
+                if (m.concluida) {
+                    fecharFase(m);
+                    if (m.concluidaHa > 2.2) {
+                        salvarJogadores();
+                        if (jogo.fase >= Motor.FASES.length - 1) terminar(true);
+                        else iniciarFase(jogo.fase + 1, { pontuacao: m.pontuacao });
+                    }
                 }
                 if (m.fimDeJogo) { jogo.fimHa += dt; if (jogo.fimHa > 1.6) terminar(false); }
                 break;
             }
             case 'fim': {
                 jogo.fimHa += dt;
-                efeitos.atualizar(dt, { camera: { x: jogo.tempo * 30 } }, 'patio');
+                fundoVivo();
                 if (jogo.fimHa < 0.8) break;
-                if (sistema.voltar || (jogo.fim.vitoria && (sistema.confirmar || toque))) { irParaTitulo(); break; }
+                if (sistema.voltar || (jogo.fim.vitoria && (sistema.confirmar || toque))) { irParaMenu(); break; }
                 if (sistema.confirmar || toque) {
                     // Tentar de novo: a mesma fase, três vidas, os pontos de quando ela começou.
                     jogo.salvos = null;
+                    jogo.estatisticas = { finalizacoes: 0, maiorCombo: 0, inimigos: 0 };
                     iniciarFase(jogo.fase, { personagens: jogo.mundo.jogadores.map(j => j.personagem), pontuacao: jogo.pontuacaoNaFase });
                 }
                 break;
@@ -224,11 +341,16 @@
 
     // ── DESENHO ───────────────────────────────────────────────────────────────────────────
     function desenhar() {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.setTransform(jogo.escalaTotal, 0, 0, jogo.escalaTotal, 0, 0);
         ctx.clearRect(0, 0, Motor.LARGURA, Motor.ALTURA);
-        const extras = { recorde: jogo.recorde, toque: jogo.toque, mudo: som.silenciado };
+        const extras = { recorde: progresso.dados.recorde, toque: jogo.toque, mudo: som.silenciado, tremor: opcoes().tremor };
+        const dicaVoltar = jogo.toque ? 'TOQUE NUM ITEM · TOQUE EMBAIXO VOLTA' : '↑ ↓ ESCOLHEM · ENTER CONFIRMA · ESC VOLTA';
         switch (jogo.tela) {
             case 'titulo': Desenho.desenharTitulo(ctx, jogo.tempo, efeitos, extras); break;
+            case 'menu': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { itens: itensDoMenu(), indice: jogo.indice, dica: `${dicaVoltar}${plataforma.temSteam ? ' · STEAM CONECTADA' : ''}`, subtitulo: `Dificuldade ${progresso.dados.dificuldade} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` }); break;
+            case 'dificuldade': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Dificuldade', itens: DIFICULDADES, indice: jogo.indice, dica: dicaVoltar }); break;
+            case 'opcoes': Desenho.desenharMenu(ctx, jogo.tempo, efeitos, { titulo: 'Opções', itens: itensDeOpcoes(), indice: jogo.indice, dica: jogo.toque ? 'TOQUE NUM ITEM PRA MUDAR · TOQUE EMBAIXO VOLTA' : '← → MUDAM · ENTER CONFIRMA · ESC VOLTA' }); break;
+            case 'conquistas': Desenho.desenharConquistas(ctx, jogo.tempo, efeitos, { lista: Conquistas.LISTA.map(def => ({ def, ganha: !!progresso.dados.conquistas[def.id] })), dica: jogo.toque ? 'TOQUE PARA VOLTAR' : 'ESC OU ENTER VOLTA' }); break;
             case 'selecao': Desenho.desenharSelecao(ctx, jogo.tempo, efeitos, Object.assign({ toque: jogo.toque }, jogo.sel)); break;
             case 'intro': Desenho.desenharIntroFase(ctx, jogo.mundo.faseDef, jogo.intro / DURACAO_INTRO); break;
             case 'jogo':
@@ -238,6 +360,7 @@
             case 'fim': Desenho.desenharFim(ctx, jogo.tempo, efeitos, jogo.fim); break;
             default: break;
         }
+        if (jogo.avisosDeConquista.length) { const a = jogo.avisosDeConquista[0]; Desenho.desenharAvisoDeConquista(ctx, a.def, a.idade / DURACAO_AVISO); }
     }
 
     let anterior = performance.now();
@@ -254,5 +377,6 @@
     const esperaFontes = document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]) : Promise.resolve();
     esperaFontes.then(() => { anterior = performance.now(); raiz.requestAnimationFrame(laco); });
 
-    raiz.PunhosDeShaolin.jogo = jogo;   // pra inspecionar no console
+    raiz.PunhosDeShaolin.jogo = jogo;            // pra inspecionar no console
+    raiz.PunhosDeShaolin.progresso = progresso;
 })(window);

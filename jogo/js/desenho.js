@@ -777,7 +777,7 @@
     // ── A CENA INTEIRA ────────────────────────────────────────────────────────────────────
     function desenharMundo(ctx, mundo, ef, tempo, extras) {
         ctx.save();
-        if (ef.tremor > 0) ctx.translate((Math.random() - 0.5) * ef.tremor, (Math.random() - 0.5) * ef.tremor);
+        if (ef.tremor > 0 && !(extras && extras.tremor === false)) ctx.translate((Math.random() - 0.5) * ef.tremor, (Math.random() - 0.5) * ef.tremor);
         desenharCenario(ctx, mundo.faseDef.cenario, mundo.camera.x, tempo);
         const cam = mundo.camera.x;
         for (const ob of mundo.objetos) desenharObjeto(ctx, ob, cam);
@@ -819,7 +819,7 @@
         ctx.fillStyle = g; ctx.fillText('PUNHOS', 0, -30); ctx.fillText('DE SHAOLIN', 0, 40);
         ctx.restore();
         texto(ctx, 'UM BEAT-EM-UP DE MONGES · SEM UM ÚNICO SPRITE', LARGURA / 2, 275, { tamanho: 14, cor: '#bfc7d5', alinhar: 'center', peso: 600 });
-        if (Math.floor(tempo * 1.6) % 2 === 0) texto(ctx, extras.toque ? 'TOQUE PARA COMEÇAR' : 'APERTE ENTER PARA COMEÇAR', LARGURA / 2, 340, { tamanho: 22, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
+        if (Math.floor(tempo * 1.6) % 2 === 0) texto(ctx, extras.toque ? 'TOQUE PARA COMEÇAR' : 'APERTE ENTER', LARGURA / 2, 340, { tamanho: 22, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
         if (extras.recorde) texto(ctx, `RECORDE · ${extras.recorde.toLocaleString('pt-BR')}`, LARGURA / 2, 375, { tamanho: 14, cor: '#ffd23a', alinhar: 'center', peso: 700 });
         const linhas = extras.toque
             ? ['JOYSTICK move · empurre até o fim pra correr', 'SOCO · CHUTE · ESPECIAL · PULAR · AGARRAR · DEFENDER', 'Agarre um inimigo tonto pra FINALIZAR']
@@ -903,5 +903,84 @@
         if (Math.floor(tempo * 1.6) % 2 === 0) texto(ctx, dados.toque ? 'TOQUE PARA VOLTAR AO TÍTULO' : (vitoria ? 'ENTER VOLTA AO TÍTULO' : 'ENTER TENTA DE NOVO · ESC VOLTA AO TÍTULO'), LARGURA / 2, 460, { tamanho: 18, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
     }
 
-    raiz.PunhosDeShaolin.Desenho = { desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
+    // ── MENUS ─────────────────────────────────────────────────────────────────────────────
+    // Geometria fixa e exportada: o `principal.js` usa as MESMAS linhas pra mapear o toque.
+    const MENU_Y0 = 232, MENU_PASSO = 46;
+
+    function logoPequeno(ctx, tempo) {
+        ctx.save(); ctx.translate(LARGURA / 2, 96);
+        const g = ctx.createLinearGradient(0, -30, 0, 10);
+        g.addColorStop(0, '#fff2c0'); g.addColorStop(0.5, '#e6b93a'); g.addColorStop(1, '#8a4a10');
+        ctx.font = `900 40px ${FONTE_TITULO}`; ctx.textAlign = 'center';
+        ctx.shadowColor = '#ff3a1a'; ctx.shadowBlur = 24;
+        ctx.lineWidth = 6; ctx.strokeStyle = '#2a0800'; ctx.lineJoin = 'round'; ctx.strokeText('PUNHOS DE SHAOLIN', 0, 0);
+        ctx.fillStyle = g; ctx.fillText('PUNHOS DE SHAOLIN', 0, 0);
+        ctx.restore();
+    }
+
+    // itens: [{ rotulo, valor?, desabilitado?, detalhe?, fracao? }] · indice: o selecionado
+    function desenharMenu(ctx, tempo, ef, menu) {
+        fundoDeMenu(ctx, tempo, ef);
+        logoPequeno(ctx, tempo);
+        if (menu.titulo) texto(ctx, menu.titulo.toUpperCase(), LARGURA / 2, 160, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
+        if (menu.subtitulo) texto(ctx, menu.subtitulo, LARGURA / 2, 186, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', italico: true });
+        menu.itens.forEach((item, i) => {
+            const y = MENU_Y0 + i * MENU_PASSO;
+            const sel = i === menu.indice;
+            if (sel) {
+                ctx.fillStyle = 'rgba(255,90,58,0.16)'; ctx.fillRect(LARGURA / 2 - 300, y - 30, 600, 40);
+                ctx.fillStyle = '#ff5a3a'; ctx.fillRect(LARGURA / 2 - 300, y - 30, 4, 40);
+                texto(ctx, '▶', LARGURA / 2 - 280, y, { tamanho: 16, cor: '#ffe9b0' });
+            }
+            const cor = item.desabilitado ? '#5c6473' : sel ? '#ffe9b0' : '#d8dde8';
+            texto(ctx, item.rotulo.toUpperCase(), item.valor != null || item.fracao != null ? LARGURA / 2 - 250 : LARGURA / 2, y, { tamanho: 20, cor, alinhar: item.valor != null || item.fracao != null ? 'left' : 'center', peso: 700, contorno: sel ? '#2a0800' : null });
+            if (item.fracao != null) {
+                ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(LARGURA / 2 + 20, y - 14, 220, 12);
+                ctx.fillStyle = sel ? '#ffb347' : '#c98f3a'; ctx.fillRect(LARGURA / 2 + 20, y - 14, 220 * item.fracao, 12);
+                texto(ctx, `${Math.round(item.fracao * 100)}%`, LARGURA / 2 + 290, y, { tamanho: 16, cor, alinhar: 'right', peso: 700 });
+            } else if (item.valor != null) {
+                texto(ctx, String(item.valor).toUpperCase(), LARGURA / 2 + 290, y, { tamanho: 18, cor: item.destaque ? '#ffb347' : cor, alinhar: 'right', peso: 700 });
+            }
+            if (sel && item.detalhe) texto(ctx, item.detalhe, LARGURA / 2, MENU_Y0 + menu.itens.length * MENU_PASSO + 6, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center', italico: true });
+        });
+        if (menu.dica) texto(ctx, menu.dica, LARGURA / 2, 515, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', peso: 600 });
+    }
+
+    function desenharConquistas(ctx, tempo, ef, tela) {
+        fundoDeMenu(ctx, tempo, ef);
+        logoPequeno(ctx, tempo);
+        const ganhas = tela.lista.filter(c => c.ganha).length;
+        texto(ctx, `CONQUISTAS · ${ganhas} / ${tela.lista.length}`, LARGURA / 2, 150, { tamanho: 22, cor: '#bfc7d5', alinhar: 'center', peso: 700 });
+        const colunas = 2, largura = 430, altura = 42;
+        tela.lista.forEach((c, i) => {
+            const col = i % colunas, lin = Math.floor(i / colunas);
+            const x = LARGURA / 2 + (col - 1) * largura + 10, y = 172 + lin * altura;
+            ctx.fillStyle = c.ganha ? 'rgba(255,179,71,0.14)' : 'rgba(255,255,255,0.05)';
+            ctx.fillRect(x, y, largura - 20, altura - 6);
+            ctx.fillStyle = c.ganha ? '#ffd23a' : '#3a3f4a'; ctx.beginPath(); ctx.arc(x + 20, y + 18, 11, 0, TAU); ctx.fill();
+            if (c.ganha) { ctx.strokeStyle = '#2a0800'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 14, y + 18); ctx.lineTo(x + 19, y + 23); ctx.lineTo(x + 27, y + 12); ctx.stroke(); }
+            else { ctx.fillStyle = '#1a1d24'; ctx.fillRect(x + 15, y + 16, 10, 8); ctx.strokeStyle = '#1a1d24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 20, y + 15, 4, Math.PI, 0); ctx.stroke(); }
+            texto(ctx, c.def.nome.toUpperCase(), x + 40, y + 15, { tamanho: 13, cor: c.ganha ? '#ffe9b0' : '#8f97a8', peso: 700 });
+            texto(ctx, c.def.descricao, x + 40, y + 30, { tamanho: 11, cor: c.ganha ? '#d8dde8' : '#5c6473' });
+        });
+        texto(ctx, tela.dica || 'ESC OU ENTER VOLTA', LARGURA / 2, 520, { tamanho: 13, cor: '#8f97a8', alinhar: 'center', peso: 600 });
+    }
+
+    // O aviso desliza pela direita, fica, e vai embora. k é o progresso de 0 a 1 em ~4 s.
+    function desenharAvisoDeConquista(ctx, def, k) {
+        const entrada = k < 0.12 ? suave(k / 0.12) : k > 0.85 ? 1 - suave((k - 0.85) / 0.15) : 1;
+        const larg = 340, alt = 64;
+        const x = LARGURA - 20 - larg * entrada, y = ALTURA - 20 - alt;
+        ctx.save();
+        ctx.fillStyle = 'rgba(8,6,16,0.92)'; ctx.fillRect(x, y, larg, alt);
+        ctx.strokeStyle = '#ffd23a'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, larg - 2, alt - 2);
+        ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.arc(x + 32, y + 32, 18, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#2a0800'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 23, y + 33); ctx.lineTo(x + 30, y + 40); ctx.lineTo(x + 42, y + 24); ctx.stroke();
+        texto(ctx, 'CONQUISTA DESBLOQUEADA', x + 62, y + 22, { tamanho: 11, cor: '#ffd23a', peso: 700 });
+        texto(ctx, def.nome.toUpperCase(), x + 62, y + 40, { tamanho: 16, cor: '#ffe9b0', peso: 900 });
+        texto(ctx, def.descricao, x + 62, y + 55, { tamanho: 11, cor: '#bfc7d5' });
+        ctx.restore();
+    }
+
+    raiz.PunhosDeShaolin.Desenho = { desenharMenu, desenharConquistas, desenharAvisoDeConquista, MENU_Y0, MENU_PASSO, desenharMundo, desenharTitulo, desenharSelecao, desenharIntroFase, desenharPausa, desenharFim, criarEfeitos, telaY, FONTE_TITULO, FONTE_HUD };
 })(window);

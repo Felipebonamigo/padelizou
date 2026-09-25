@@ -4,7 +4,7 @@ Um beat-em-up de monges no estilo *Mortal Kombat: Shaolin Monks*, em HTML5 Canva
 único sprite, imagem ou arquivo de áudio: os lutadores são bonecos articulados desenhados na
 hora, os cenários são gradientes e formas cacheadas, e o som é sintetizado com Web Audio.
 
-**Pra jogar:** abra `jogo/index.html` no navegador. Funciona por `file://`, sem servidor e sem
+**Pra jogar:** abra `jogo/index.html` no navegador — ou, no desktop, `npm ci && npm run start` em `jogo/` (Electron). Funciona por `file://`, sem servidor e sem
 internet (as fontes do Google melhoram o visual, mas o jogo não espera por elas).
 
 ⚠️ **Fica FORA do app .NET de propósito.** Nada aqui é servido pelo Padelizou nem entra no
@@ -24,7 +24,8 @@ na hora — o `UseStaticFiles` roda ANTES do portão de Acesso Antecipado (`Prog
 | Agarrar / Finalizar | V | U | RB | AGARRA |
 | Defender (segurar) | B | I | LB ou LT | DEF |
 | P2 entra | — | J | Start no 2º controle | — |
-| Pausa · mudo · tela cheia | P ou Esc · M · F | | Start | ❚❚ |
+| Pausa · mudo · tela cheia | P ou Esc · M · F ou F11 | | Start | ❚❚ |
+| Menus | ↑ ↓ ← → · Enter · Esc | | analógico · A · B | toque no item |
 
 - **Três socos seguidos lançam** o inimigo pro alto; chute no ar continua o combo (malabarismo).
 - **Correndo + soco ou chute** é a investida (Voo do Dragão / Estocada).
@@ -42,6 +43,14 @@ com ondas de inimigos e um chefe: Mestre Sombra (teleporta ao levar três golpes
 (armadura: golpe leve não interrompe), o Gigante do Poço (pancada no chão dos dois lados) e o
 Feiticeiro (teleporta, atira caveiras e invoca Sombras a cada terço de vida).
 
+## O que fica guardado
+
+`progresso.json` (Electron: `%APPDATA%/punhos-de-shaolin/` no Windows, `~/.config/punhos-de-shaolin/`
+no Linux) ou `localStorage` no navegador: fase alcançada (**Continuar** no menu), recorde,
+dificuldade (Fácil · Normal · Difícil — vida e dano dos inimigos), opções (música, efeitos, tremor
+de tela, tela cheia), as 15 conquistas e estatísticas cumulativas. Tudo passa por `normalizar`
+ao carregar: salvamento velho ou corrompido vira padrão no que faltar.
+
 ## Como é feito
 
 | Arquivo | O que é | Roda no Node? |
@@ -50,7 +59,12 @@ Feiticeiro (teleporta, atira caveiras e invoca Sombras a cada terço de vida).
 | `js/desenho.js` | Cenários (paralaxe, cacheados), bonecos por pose, projéteis, partículas, textos, HUD, telas de menu. | ❌ |
 | `js/som.js` | Efeitos e música sintetizados (Web Audio). Um sequenciador pentatônico com taiko, um humor por cenário. | ❌ |
 | `js/entrada.js` | Teclado, Gamepad API e toque (joystick + botões). Calcula a borda "apertou" por quadro. | ❌ |
-| `js/principal.js` | Laço com passo fixo de 1/60 s, telas, pausa, congelamento de acerto, câmera lenta, recorde em `localStorage`. | ❌ |
+| `js/progresso.js` | O que fica guardado entre partidas, com versão e migração (`normalizar`). | ✅ |
+| `js/conquistas.js` | As 15 conquistas: definição, desbloqueio pelos eventos do motor, espelho pra Steam. | ✅ |
+| `js/plataforma.js` | Onde salva e com quem fala: `localStorage` no navegador, `window.punhos` no Electron (arquivo + Steam). | ❌ |
+| `js/principal.js` | Laço com passo fixo de 1/60 s, menus, opções, pausa, congelamento de acerto, câmera lenta, resolução nativa. | ❌ |
+| `desktop/` | Electron: `main.js` (janela, arquivo de progresso, IPC), `preload.js` (a ponte), `steam.js` (`steamworks.js`, opcional, com fallback). | — |
+| `steam/` | Os `.vdf` do SteamPipe e o passo a passo de publicação. | — |
 
 O motor emite **eventos** por quadro (`mundo.eventos`: acerto, som, tremor, texto, morte,
 finalização…) e quem desenha/toca consome. Nada de tela vaza pra dentro da regra.
@@ -58,7 +72,8 @@ finalização…) e quem desenha/toca consome. Nada de tela vaza pra dentro da r
 ## Conferência
 
 ```bash
-node Padelizou.Tests/js/conferir-punhos-de-shaolin.js
+node Padelizou.Tests/js/conferir-punhos-de-shaolin.js       # combate (40 checks)
+node Padelizou.Tests/js/conferir-conquistas-do-shaolin.js   # progresso, conquistas, dificuldade (35 checks)
 ```
 
 Roda o motor no Node, quadro a quadro, e confere 40 pontos: soco tira o dano certo e só em quem

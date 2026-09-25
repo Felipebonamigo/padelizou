@@ -6,9 +6,10 @@
     'use strict';
 
     function criar() {
-        let ctx = null, mestre = null, silenciado = false;
+        let ctx = null, mestre = null, ganhoEfeitos = null, ganhoMusica = null, silenciado = false;
         let musica = { parar: null, cenario: null };
-        try { silenciado = localStorage.getItem('punhos-de-shaolin.mudo') === '1'; } catch (_) { /* sem storage, sem memória */ }
+        // Volumes separados (0 a 1). Quem manda neles é o progresso, pelas opções.
+        const volumes = { musica: 0.7, efeitos: 0.8 };
 
         function ligar() {
             if (ctx) { if (ctx.state === 'suspended') ctx.resume().catch(() => { }); return; }
@@ -16,8 +17,18 @@
             if (!AC) return;
             ctx = new AC();
             mestre = ctx.createGain();
-            mestre.gain.value = silenciado ? 0 : 0.55;
+            mestre.gain.value = silenciado ? 0 : 0.7;
             mestre.connect(ctx.destination);
+            ganhoEfeitos = ctx.createGain(); ganhoEfeitos.gain.value = volumes.efeitos; ganhoEfeitos.connect(mestre);
+            ganhoMusica = ctx.createGain(); ganhoMusica.gain.value = volumes.musica; ganhoMusica.connect(mestre);
+            if (musica.cenario) { const c = musica.cenario; musica.cenario = null; tocarMusica(c); }
+        }
+
+        function volume(novos) {
+            if (novos.musica != null) volumes.musica = Math.min(1, Math.max(0, novos.musica));
+            if (novos.efeitos != null) volumes.efeitos = Math.min(1, Math.max(0, novos.efeitos));
+            if (ganhoMusica) ganhoMusica.gain.value = volumes.musica;
+            if (ganhoEfeitos) ganhoEfeitos.gain.value = volumes.efeitos;
         }
 
         function agora() { return ctx.currentTime; }
@@ -39,7 +50,7 @@
             g.gain.setValueAtTime(ganho, t);
             g.gain.exponentialRampToValueAtTime(0.001, t + duracao);
             if (envelope) envelope(f, g, t);
-            fonte.connect(f); f.connect(g); g.connect(mestre);
+            fonte.connect(f); f.connect(g); g.connect(ganhoEfeitos);
             fonte.start(t); fonte.stop(t + duracao);
         }
 
@@ -55,7 +66,7 @@
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(ganho, t + 0.01);
             g.gain.exponentialRampToValueAtTime(0.0001, t + duracao);
-            o.connect(g); g.connect(mestre);
+            o.connect(g); g.connect(ganhoEfeitos);
             o.start(t); o.stop(t + duracao + 0.02);
         }
 
@@ -112,9 +123,9 @@
             musica.cenario = cenario;
             if (!cenario) return;
             const escala = ESCALAS[cenario] || ESCALAS.patio;
-            const ganhoMusica = ctx.createGain();
-            ganhoMusica.gain.value = 0.28;
-            ganhoMusica.connect(mestre);
+            const ganhoFaixa = ctx.createGain();
+            ganhoFaixa.gain.value = 0.28;
+            ganhoFaixa.connect(ganhoMusica);
             const passo = 60 / escala.bpm / 2;              // colcheia
             let indice = 0, proximo = ctx.currentTime + 0.05, ativo = true;
             let semente = 12345;
@@ -122,7 +133,7 @@
             // Um bordão grave contínuo — o "gongo" de fundo.
             const bordao = ctx.createOscillator(), gb = ctx.createGain();
             bordao.type = 'sine'; bordao.frequency.value = escala.base / 2; gb.gain.value = 0.12;
-            bordao.connect(gb); gb.connect(ganhoMusica); bordao.start();
+            bordao.connect(gb); gb.connect(ganhoFaixa); bordao.start();
 
             function agendar() {
                 if (!ativo) return;
@@ -134,7 +145,7 @@
                         const o = ctx.createOscillator(), g = ctx.createGain();
                         o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
                         g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-                        o.connect(g); g.connect(ganhoMusica); o.start(t); o.stop(t + 0.32);
+                        o.connect(g); g.connect(ganhoFaixa); o.start(t); o.stop(t + 0.32);
                     }
                     if (indice % 2 === 0 || rng() < 0.35) {
                         const grau = escala.notas[Math.floor(rng() * escala.notas.length)];
@@ -143,14 +154,14 @@
                         const o = ctx.createOscillator(), g = ctx.createGain();
                         o.type = escala.tipo; o.frequency.value = f;
                         g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + passo * 1.6);
-                        o.connect(g); g.connect(ganhoMusica); o.start(t); o.stop(t + passo * 1.7);
+                        o.connect(g); g.connect(ganhoFaixa); o.start(t); o.stop(t + passo * 1.7);
                     }
                     proximo += passo; indice++;
                 }
             }
             const timer = setInterval(agendar, 120);
             agendar();
-            musica.parar = () => { ativo = false; clearInterval(timer); try { bordao.stop(); } catch (_) { /* já parou */ } ganhoMusica.disconnect(); };
+            musica.parar = () => { ativo = false; clearInterval(timer); try { bordao.stop(); } catch (_) { /* já parou */ } ganhoFaixa.disconnect(); };
         }
 
         function pararMusica() {
@@ -158,14 +169,14 @@
             musica.parar = null;
         }
 
+        // Mudo é um interruptor de sessão (tecla M), por cima dos volumes — não é gravado.
         function alternarMudo() {
             silenciado = !silenciado;
-            if (mestre) mestre.gain.value = silenciado ? 0 : 0.55;
-            try { localStorage.setItem('punhos-de-shaolin.mudo', silenciado ? '1' : '0'); } catch (_) { /* sem storage */ }
+            if (mestre) mestre.gain.value = silenciado ? 0 : 0.7;
             return silenciado;
         }
 
-        return { ligar, tocar, musica: tocarMusica, pararMusica, alternarMudo, get silenciado() { return silenciado; }, get ligado() { return !!ctx; } };
+        return { ligar, tocar, musica: tocarMusica, pararMusica, alternarMudo, volume, get silenciado() { return silenciado; }, get ligado() { return !!ctx; } };
     }
 
     raiz.PunhosDeShaolin = raiz.PunhosDeShaolin || {};

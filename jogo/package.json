@@ -1,0 +1,32 @@
+{
+  "name": "punhos-de-shaolin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Beat-em-up de monges em Canvas — build desktop (Electron) pra Steam.",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "conferir": "node ../Padelizou.Tests/js/conferir-punhos-de-shaolin.js && node ../Padelizou.Tests/js/conferir-conquistas-do-shaolin.js",
+    "empacotar": "electron-builder --win --linux",
+    "empacotar:windows": "electron-builder --win",
+    "empacotar:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "0.4.0"
+  },
+  "build": {
+    "appId": "br.com.padelizou.punhosdeshaolin",
+    "productName": "Punhos de Shaolin",
+    "executableName": "punhos-de-shaolin",
+    "directories": { "output": "dist" },
+    "files": ["index.html", "js/**", "desktop/**", "!desktop/icone-fonte.html"],
+    "asar": true,
+    "asarUnpack": ["node_modules/steamworks.js/**"],
+    "win": { "target": ["dir"], "icon": "desktop/icone.png" },
+    "linux": { "target": ["dir"], "icon": "desktop/icone.png", "category": "Game" }
+  }
+}

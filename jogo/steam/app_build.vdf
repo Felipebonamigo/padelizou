@@ -1,0 +1,18 @@
+// SteamPipe — o build do app. Troque SEU_APPID e os ids dos depots pelos do painel.
+// Rodar (depois de `npm run empacotar` em jogo/):
+//   steamcmd +login SUA_CONTA +run_app_build "CAMINHO/jogo/steam/app_build.vdf" +quit
+// "SetLive" "beta" publica no branch beta (privado, com senha no painel). Só troque pra
+// "default" no dia do lançamento — ver jogo/steam/README.md.
+"AppBuild"
+{
+    "AppID" "SEU_APPID"
+    "Desc" "Punhos de Shaolin 0.1.0"
+    "BuildOutput" "../saida/"
+    "ContentRoot" "../dist/"
+    "SetLive" "beta"
+    "Depots"
+    {
+        "SEU_DEPOT_WINDOWS" "depot_windows.vdf"
+        "SEU_DEPOT_LINUX" "depot_linux.vdf"
+    }
+}

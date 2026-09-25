@@ -35,7 +35,7 @@
     #botoes button[data-botao="especial"] { border-color: #7ae0ff; }
     .pausa { position: absolute; right: max(16px, 4vw); top: max(12px, env(safe-area-inset-top, 0px) + 2vh); width: 9vmin; height: 9vmin; pointer-events: auto; font-size: 3vmin; }
     #tela-cheia { position: fixed; left: max(12px, 2vw); bottom: max(12px, env(safe-area-inset-bottom, 0px) + 2vh); z-index: 3; font: 600 12px var(--fonte-hud); color: var(--tinta-fraca); background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
-    body[data-tela="jogo"] #tela-cheia { display: none; }
+    body[data-tela="jogo"] #tela-cheia, body.desktop #tela-cheia { display: none; }
     #tela-cheia:focus-visible, #botoes button:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
 
     /* Celular em pé: o jogo é largo, pede a horizontal. */
@@ -64,6 +64,9 @@
 <div id="girar"><div><span>↻</span>Gire o celular pra jogar na horizontal</div></div>
 
 <script src="js/motor.js"></script>
+<script src="js/progresso.js"></script>
+<script src="js/conquistas.js"></script>
+<script src="js/plataforma.js"></script>
 <script src="js/som.js"></script>
 <script src="js/entrada.js"></script>
 <script src="js/desenho.js"></script>

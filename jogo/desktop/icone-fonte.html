@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ícone — Punhos de Shaolin</title>
+<style>body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<!-- O ícone do executável, desenhado em canvas como todo o resto do jogo. `icone.png` (512×512)
+     sai daqui por screenshot do elemento (ver a fumaça em Padelizou.Tests? não: é gerado à mão,
+     com Playwright, e versionado — o electron-builder converte pra .ico e .icns). -->
+<canvas id="icone" width="512" height="512"></canvas>
+<script>
+(function () {
+    const ctx = document.getElementById('icone').getContext('2d');
+    const TAU = Math.PI * 2, C = 256;
+    // Fundo: disco escuro com aro dourado e brilho vermelho por dentro.
+    const fundo = ctx.createRadialGradient(C, C - 40, 20, C, C, 250);
+    fundo.addColorStop(0, '#5a1410'); fundo.addColorStop(0.6, '#1a0a12'); fundo.addColorStop(1, '#05030a');
+    ctx.fillStyle = fundo; ctx.beginPath(); ctx.arc(C, C, 248, 0, TAU); ctx.fill();
+    ctx.lineWidth = 14; ctx.strokeStyle = '#d4af37'; ctx.beginPath(); ctx.arc(C, C, 236, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 4; ctx.strokeStyle = '#7a4a10'; ctx.beginPath(); ctx.arc(C, C, 224, 0, TAU); ctx.stroke();
+    // Chamas atrás do punho.
+    ctx.save(); ctx.shadowColor = '#ff6a1a'; ctx.shadowBlur = 40;
+    for (const [dx, alt, cor] of [[-70, 150, '#ff9a2a'], [0, 200, '#ff5a1a'], [70, 150, '#ff9a2a'], [-35, 120, '#ffd23a'], [35, 120, '#ffd23a']]) {
+        ctx.fillStyle = cor; ctx.beginPath();
+        ctx.moveTo(C + dx - 30, C + 90); ctx.quadraticCurveTo(C + dx - 40, C + 90 - alt * 0.6, C + dx, C + 90 - alt);
+        ctx.quadraticCurveTo(C + dx + 40, C + 90 - alt * 0.6, C + dx + 30, C + 90); ctx.fill();
+    }
+    ctx.restore();
+    // O punho: quatro dedos, polegar, pulso — em pele e com faixa vermelha.
+    ctx.save(); ctx.translate(C, C + 30);
+    ctx.fillStyle = '#e0a878'; ctx.strokeStyle = '#3a1a0a'; ctx.lineWidth = 8; ctx.lineJoin = 'round';
+    const dedo = (x, y, l, a) => { ctx.beginPath(); ctx.roundRect(x, y, l, a, 22); ctx.fill(); ctx.stroke(); };
+    dedo(-120, -60, 62, 120); dedo(-60, -80, 62, 140); dedo(2, -80, 62, 140); dedo(64, -60, 62, 120);
+    ctx.beginPath(); ctx.roundRect(-130, 40, 260, 80, 24); ctx.fill(); ctx.stroke();       // palma/pulso
+    ctx.beginPath(); ctx.roundRect(-150, -10, 70, 90, 30); ctx.fill(); ctx.stroke();        // polegar
+    ctx.fillStyle = '#c9341f'; ctx.beginPath(); ctx.roundRect(-134, 96, 268, 34, 12); ctx.fill(); ctx.stroke();   // faixa
+    ctx.fillStyle = '#3a1a0a';
+    for (const x of [-92, -30, 32, 94]) { ctx.beginPath(); ctx.roundRect(x, -30, 14, 40, 7); ctx.fill(); }      // nós dos dedos
+    ctx.restore();
+})();
+</script>
+</body>
+</html>

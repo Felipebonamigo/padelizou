@@ -43,3 +43,12 @@ Padelizou/wwwroot/uploads/
 # Relatório .trx dos testes. O CI passou a gerá-lo pra conseguir nomear o teste que caiu
 # (ver .github/workflows/ci.yml), e quem roda o mesmo comando aqui ganha a pasta também.
 Padelizou.Tests/TestResults/
+
+# O jogo (jogo/) tem o próprio npm só pra empacotar em Electron. A árvore de dependências e o
+# build não entram — o CI do Padelizou não roda npm, e o lockfile versionado é o que garante
+# reprodutibilidade de quem empacota.
+jogo/node_modules/
+jogo/dist/
+jogo/saida/
+steam_appid.txt
+jogo/desktop/steam_appid.txt

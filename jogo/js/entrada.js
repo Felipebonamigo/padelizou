@@ -36,7 +36,10 @@
             if (ev.code === 'Space') sistema.confirmar = true;
             if (ev.code === 'Escape' || ev.code === 'KeyP') { sistema.pausa = true; sistema.voltar = ev.code === 'Escape'; }
             if (ev.code === 'KeyM') sistema.mudo = true;
-            if (ev.code === 'KeyF') sistema.telaCheia = true;
+            // F11 também pela página: no Electron o `before-input-event` do main.js pega o F11 nativo e
+            // impede que chegue aqui; quando não pega (entrada injetada, outro sistema), este caminho
+            // passa pela mesma ponte que o F usa — e que está conferida.
+            if (ev.code === 'KeyF' || ev.code === 'F11') { sistema.telaCheia = true; if (ev.code === 'F11') ev.preventDefault(); }
             if (ev.code.startsWith('Arrow') || ev.code === 'Space') ev.preventDefault();
         });
         raiz.addEventListener('keyup', ev => teclas.delete(ev.code));

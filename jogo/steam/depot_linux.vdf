@@ -1,0 +1,12 @@
+"DepotBuild"
+{
+    "DepotID" "SEU_DEPOT_LINUX"
+    "ContentRoot" "../dist/linux-unpacked/"
+    "FileMapping"
+    {
+        "LocalPath" "*"
+        "DepotPath" "."
+        "recursive" "1"
+    }
+    "FileExclusion" "*.log"
+}

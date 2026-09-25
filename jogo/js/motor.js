@@ -25,6 +25,10 @@
     const MEIA_LARGURA = 18;                         // meia largura do corpo (× escala)
     const ALTURA_CORPO = 72;
     const ATACANTES_MAX = 2;                         // quantos inimigos atacam ao mesmo tempo — é o que deixa a luta justa
+    // Dificuldade mexe só em DUAS coisas: quanto o inimigo aguenta e quanto ele machuca. A IA é a
+    // mesma — jogo difícil por inimigo burro que bate forte é injusto de um jeito, e por inimigo
+    // esperto que bate fraco é injusto de outro.
+    const DIFICULDADES = { facil: { vida: 0.7, dano: 0.65 }, normal: { vida: 1, dano: 1 }, dificil: { vida: 1.3, dano: 1.4 } };
 
     // ── ACASO SEMEADO (mulberry32) ────────────────────────────────────────────────────────
     function criarRng(semente) {
@@ -237,7 +241,7 @@
         if (!def) throw new Error(`personagem desconhecido: ${personagem}`);
         const j = criarEntidade(mundo, 'jogador', def, x, y);
         j.personagem = personagem;
-        j.chi = 0; j.combo = 0; j.comboTempo = 0; j.vidas = 3;
+        j.chi = 0; j.combo = 0; j.comboTempo = 0; j.vidas = 3; j.danoLevado = 0;
         j.ultimoToque = { direcao: 0, tempo: -9 };
         j.indice = mundo.jogadores.length;
         return j;
@@ -249,7 +253,7 @@
         const i = criarEntidade(mundo, 'inimigo', def, x, y);
         i.tipo = tipo;
         // A vida sobe com a fase — a Sombra da torre não é a Sombra do pátio.
-        const reforco = 1 + 0.15 * Math.max(0, (mundo.faseDef.numero || 1) - 1);
+        const reforco = (1 + 0.15 * Math.max(0, (mundo.faseDef.numero || 1) - 1)) * mundo.dificuldade.vida;
         i.vidaMax = i.vida = Math.round(def.vida * reforco);
         i.ia = { congelada: false, pausa: mundo.rng.entre(0.2, 0.5), lado: mundo.rng.chance(0.5) ? 1 : -1, defendendoAte: 0, invocou: [] };
         return i;
@@ -277,6 +281,7 @@
         if (!faseDef) throw new Error(`fase desconhecida: ${o.fase}`);
         const mundo = {
             fase: faseDef.numero, faseDef, tempo: 0, proximoId: 0, rng: criarRng(o.semente == null ? 1 : o.semente),
+            dificuldade: DIFICULDADES[o.dificuldade] || DIFICULDADES.normal, nomeDaDificuldade: DIFICULDADES[o.dificuldade] ? o.dificuldade : 'normal',
             camera: { x: 0 }, travado: false, travaX: 0, onda: 0, concluida: false, fimDeJogo: false, concluidaHa: 0,
             jogadores: [], inimigos: [], projeteis: [], itens: [], objetos: [], eventos: [], avisos: [],
             pontuacao: o.pontuacao || 0, chefe: null,
@@ -335,13 +340,15 @@
         if (!vivo(alvo)) return false;
         const origem = golpe.origem || null;
         const direcao = golpe.direcao != null ? golpe.direcao : (origem ? Math.sign(alvo.x - origem.x) || origem.virado : 1);
-        let dano = Math.max(0, Math.round(golpe.dano));
+        const doInimigo = origem ? origem.time === 'inimigo' : golpe.time === 'inimigo';
+        let dano = Math.max(0, Math.round(golpe.dano * (doInimigo && alvo.time === 'jogador' ? mundo.dificuldade.dano : 1)));
 
         // DEFESA: só segura golpe que vem pela frente. Quem está defendendo de costas apanha inteiro.
         const defendendo = alvo.estado === 'defendendo' && (origem == null || Math.sign(origem.x - alvo.x) === alvo.virado || origem.x === alvo.x);
         if (defendendo && !golpe.ignoraDefesa) {
             dano = Math.max(1, Math.round(dano * 0.2));
             alvo.vida = Math.max(0, alvo.vida - dano);
+            if (alvo.time === 'jogador') alvo.danoLevado += dano;
             alvo.vx = direcao * 120;
             mundo.eventos.push({ tipo: 'acerto', x: alvo.x, y: alvo.y, z: alvo.z + 40 * alvo.escala, forca: 'bloqueio', bloqueado: true });
             mundo.eventos.push({ tipo: 'som', nome: 'bloqueio' });
@@ -351,6 +358,7 @@
 
         alvo.vida = Math.max(0, alvo.vida - dano);
         alvo.golpesLevados++;
+        if (alvo.time === 'jogador') alvo.danoLevado += dano;
         if (alvo.agarrando) soltarAgarrado(alvo);
         if (alvo.agarradoPor) { alvo.agarradoPor.agarrando = null; alvo.agarradoPor = null; }
 
@@ -400,7 +408,7 @@
         alvo.vz = 380; alvo.vx = (direcao || 1) * 260; alvo.morteHa = 0;
         alvo.invulneravel = 99;
         if (alvo.agarrando) soltarAgarrado(alvo);
-        mundo.eventos.push({ tipo: 'morte', x: alvo.x, y: alvo.y, z: alvo.z, time: alvo.time, nome: alvo.def.nome });
+        mundo.eventos.push({ tipo: 'morte', x: alvo.x, y: alvo.y, z: alvo.z, time: alvo.time, nome: alvo.def.nome, id: alvo.def.id });
         mundo.eventos.push({ tipo: 'som', nome: alvo.time === 'jogador' ? 'morte-jogador' : 'morte' });
         if (alvo.time === 'inimigo') {
             if (origem && origem.time === 'jogador') mundo.pontuacao += alvo.def.pontos;
@@ -807,7 +815,7 @@
                 const j = ent.finalizadoPor;
                 mundo.pontuacao += 500 + ent.def.pontos * 2;
                 if (j) { j.chi = 100; }
-                mundo.eventos.push({ tipo: 'morte', x: ent.x, y: ent.y, z: ent.z, time: 'inimigo', nome: ent.def.nome, finalizado: true });
+                mundo.eventos.push({ tipo: 'morte', x: ent.x, y: ent.y, z: ent.z, time: 'inimigo', nome: ent.def.nome, id: ent.def.id, finalizado: true });
                 mundo.eventos.push({ tipo: 'tremor', forca: 1.2 });
                 mundo.eventos.push({ tipo: 'som', nome: 'gongo' });
                 ent.estado = 'morto'; ent.morteHa = 0.9; ent.vz = 0; ent.vx = 0;
@@ -821,6 +829,7 @@
                 if (Math.abs(outro.y - ent.y) > TOLERANCIA_Y || Math.abs(outro.x - ent.x) > MEIA_LARGURA * (outro.escala + ent.escala)) continue;
                 ent.atropelados.push(outro.id);
                 aplicarDano(mundo, outro, { dano: 10, origem: ent.arremessadoPor, direcao: Math.sign(ent.vx) || 1, recuo: 300, derruba: true, semChi: true, congela: 0.03 });
+                mundo.eventos.push({ tipo: 'atropelou', quantidade: ent.atropelados.length, x: outro.x, y: outro.y });
             }
         } else if (est === 'morto') {
             ent.morteHa += dt;
@@ -885,7 +894,7 @@
         if (onda.chefe) {
             const chefe = colocarInimigo(mundo, onda.chefe, mundo.travaX + LARGURA + 120, 0.5);
             mundo.chefe = chefe;
-            mundo.eventos.push({ tipo: 'chefe', nome: chefe.def.nome, x: chefe.x, y: chefe.y });
+            mundo.eventos.push({ tipo: 'chefe', nome: chefe.def.nome, id: chefe.def.id, x: chefe.x, y: chefe.y });
             mundo.eventos.push({ tipo: 'som', nome: 'chefe' });
             mundo.avisos.push('chefe');
         }
@@ -992,7 +1001,7 @@
 
     return {
         LARGURA, ALTURA, CHAO_TOPO, CHAO_BASE, TOLERANCIA_Y, MEIA_LARGURA, ALTURA_CORPO,
-        PERSONAGENS, INIMIGOS, FASES, BOTOES,
+        PERSONAGENS, INIMIGOS, FASES, BOTOES, DIFICULDADES,
         criarRng, criarMundo, passo, entradaVazia, colocarInimigo, adicionarJogador, iniciarGolpe, aplicarDano, atordoar, vivo,
     };
 });
