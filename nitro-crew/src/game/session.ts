@@ -22,6 +22,7 @@ import { achievementMessages, newTelemetry, observeTick, unlockAchievements, typ
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
+import { newRumbleMemory, rumbleCues } from './rumble';
 import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave, type NewRecord } from './save';
 import { loadSettings, saveSettings } from './settings';
 import { recordRaceStats } from './stats';
@@ -80,7 +81,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   setLanguage(settings.language);
 
   const renderer = createRenderer(canvas, hudRoot);
-  const input = createInput(window);
+  const input = createInput(window, { bindings: () => settings.controls, vibration: () => settings.vibration });
+  const rumbleMemory = newRumbleMemory();
   const audio = createAudio();
   audio.setVolumes(settings.masterVolume, settings.musicVolume, settings.sfxVolume);
 
@@ -304,6 +306,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     stepRace(r.state, r.track, inputs);
     observeTick(r.telemetry, r.state, r.track); // antes dos eventos: o tick que fecha a corrida já conta
     for (const e of r.state.events) handleEvent(r, e);
+    for (const c of rumbleCues(r.state, rumbleMemory)) input.rumble(c.seat, c.strength, c.ms);
   }
 
   function buildFrame(r: ActiveRace): RenderFrame {

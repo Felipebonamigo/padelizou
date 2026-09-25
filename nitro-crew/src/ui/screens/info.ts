@@ -1,87 +1,15 @@
-// Telas de consulta: controles (mapeamentos + dispositivos detectados) e recordes (três abas:
-// recordes por pista, estatísticas por jogador e conquistas).
+// Tela de consulta dos recordes (três abas: recordes por pista, estatísticas por jogador e
+// conquistas). A de controles, com remapeamento, mora em controls.ts.
 import { formatTicks } from '../../core/sim/race';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import { ACHIEVEMENTS } from '../../game/desktop';
 import { COUNTER_KEYS, formatDistance, formatDuration, MAX_PROFILES, tracksRaced, type CounterKey, type PlayerStats } from '../../game/stats';
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
-import { isKeyboard } from '../input';
 import { arrowButton, blurActive, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal } from './icons';
 import './records.css';
 
-interface ControlRow { action: string; kb1: string; kb2: string; gp: string }
-
-function controlRows(): ControlRow[] {
-  const sp = t('ui.controls.key.space');
-  return [
-    { action: t('ui.controls.accel'), kb1: '↑', kb2: 'W', gp: 'A / RT' },
-    { action: t('ui.controls.brake'), kb1: '↓', kb2: 'S', gp: 'X / B / LT' },
-    { action: t('ui.controls.steer'), kb1: '← →', kb2: 'A D', gp: t('ui.controls.key.stick') },
-    { action: t('ui.controls.nitro'), kb1: sp, kb2: 'F', gp: 'RB' },
-    { action: t('ui.controls.gearUp'), kb1: 'M', kb2: 'E', gp: 'Y' },
-    { action: t('ui.controls.gearDown'), kb1: 'N', kb2: 'Q', gp: 'LB' },
-    { action: t('ui.controls.confirm'), kb1: `Enter / ${sp}`, kb2: 'F', gp: 'A' },
-    { action: t('ui.controls.back'), kb1: 'Esc / Backspace', kb2: 'Esc', gp: 'B' },
-    { action: t('ui.controls.pause'), kb1: 'Esc', kb2: 'Esc', gp: 'Start' },
-  ];
-}
-
-/** Cada tecla numa "tecla" desenhada; separadores "/" viram texto solto. */
-function keys(text: string): HTMLElement {
-  return h('span', { class: 'keys' }, text.split(' / ').flatMap((k, i) => [i > 0 ? h('span', { class: 'key-sep', text: '/' }) : null, h('kbd', { text: k })]));
-}
-
-export function controlsScreen(api: ScreenApi): ScreenInstance {
-  const table = h('table', { class: 'table controls-table' },
-    h('thead', {}, h('tr', {},
-      h('th', { text: t('ui.controls.action') }),
-      h('th', {}, icon('keyboard'), ` ${t('ui.device.kb1')}`),
-      h('th', {}, icon('keyboard'), ` ${t('ui.device.kb2')}`),
-      h('th', {}, icon('gamepad'), ` ${t('ui.controls.gamepad')}`),
-    )),
-    h('tbody', {}, controlRows().map((r) => h('tr', {},
-      h('td', { text: r.action }),
-      h('td', {}, keys(r.kb1)),
-      h('td', {}, keys(r.kb2)),
-      h('td', {}, keys(r.gp)),
-    ))),
-  );
-  const deviceList = h('ul', { class: 'device-list' });
-  let signature = '';
-  const refreshDevices = () => {
-    const devices = api.ctx.input.devices();
-    const sig = devices.map((d) => `${d.id}|${d.label}|${d.connected}|${d.boundSeat}`).join(';');
-    if (sig === signature) return;
-    signature = sig;
-    deviceList.replaceChildren(...devices.map((d) => h('li', { class: d.connected ? 'device on' : 'device off' },
-      icon(isKeyboard(d.id) ? 'keyboard' : 'gamepad'),
-      h('span', { class: 'device-label', text: d.label }),
-      h('span', { class: 'device-state', text: d.connected ? t('ui.controls.connected') : t('ui.controls.disconnected') }),
-      h('span', { class: `device-seat${d.boundSeat === null ? '' : ' bound'}`, text: d.boundSeat === null ? t('ui.controls.free') : t('ui.controls.seat', { n: d.boundSeat + 1 }) }),
-    )));
-  };
-  refreshDevices();
-  const back = button(t('ui.common.back'), () => api.back());
-  const list = createFocusList([back], { sfx: api.sfx });
-  const el = screenFrame('controls', t('ui.controls.title'),
-    h('div', { class: 'controls-columns' },
-      h('div', { class: 'table-wrap glass' }, table),
-      h('div', { class: 'devices-panel glass' },
-        h('h2', { class: 'sub-title', text: t('ui.controls.detected') }),
-        deviceList,
-        h('p', { class: 'hint', text: t('ui.controls.gamepadHint') }),
-      ),
-    ),
-    h('div', { class: 'actions' }, back.el),
-  );
-  return {
-    el,
-    nav: (nav) => listNav(list, nav, api.sfx, () => api.back()),
-    update: refreshDevices,
-  };
-}
 
 
 // ───────────────────────────── Recordes ─────────────────────────────

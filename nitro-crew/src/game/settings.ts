@@ -2,6 +2,7 @@
 // sem localStorage (Electron sem sessão, testes em Node, modo privado) tudo cai nos padrões.
 import type { CoopAssists, Difficulty } from '../core/types';
 import type { Lang } from '../i18n';
+import { sanitizeBindings } from '../ui/remap/bindings';
 import { DEFAULT_SETTINGS, type Quality, type Settings } from './contracts';
 
 export const SETTINGS_KEY = 'nitro-crew.settings';
@@ -112,6 +113,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     quickLaps: pickNumber(r.quickLaps, QUICK_LAPS_MIN, QUICK_LAPS_MAX, d.quickLaps, true),
     music: pickString(r.music, d.music),
     telemetry: pickBool(r.telemetry, d.telemetry),
+    controls: sanitizeBindings(r.controls),
+    vibration: pickBool(r.vibration, d.vibration),
   };
 }
 

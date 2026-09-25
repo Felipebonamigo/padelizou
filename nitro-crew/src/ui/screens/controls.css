@@ -1,0 +1,195 @@
+/* Tela de controles: grade de remapeamento (ações × dispositivos) e teste de entrada ao vivo.
+   Usa os tokens de styles.css (--u, --accent, --ok, --bad, --line…); nada daqui vaza para outras telas. */
+
+.scr-controls { gap: calc(8 * var(--u)); }
+
+.remap-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: var(--gap);
+  width: min(100%, calc(1420 * var(--u)));
+  align-items: start;
+}
+
+/* ───────────── Grade ───────────── */
+
+.remap-main { display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)); min-width: 0; }
+.remap-grid {
+  display: grid;
+  grid-template-columns: minmax(calc(150 * var(--u)), 1.05fr) repeat(3, minmax(0, 1fr));
+  gap: calc(4 * var(--u)) calc(6 * var(--u));
+  align-items: center;
+}
+.remap-h {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--u));
+  min-width: 0;
+  padding: 0 calc(6 * var(--u)) calc(6 * var(--u));
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.remap-h > span { overflow: hidden; text-overflow: ellipsis; }
+.remap-h .ico { color: var(--accent); }
+.remap-h-action { justify-content: flex-start; padding-left: calc(10 * var(--u)); }
+.remap-action {
+  padding-left: calc(10 * var(--u));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bind-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: calc(36 * var(--u));
+  padding: calc(3 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u)) calc(14 * var(--u));
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.04);
+}
+.bind-cell.focus { background: rgba(255, 255, 255, 0.1); }
+.bind-cell.focusable::before { left: calc(5 * var(--u)); }
+.bind-keys { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: calc(4 * var(--u)); min-width: 0; }
+.bind-keys kbd { white-space: nowrap; }
+
+/* Mesma tecla nos dois teclados: aviso em âmbar, sem bloquear. */
+.bind-cell.conflict { border-color: rgba(255, 197, 61, 0.65); }
+.bind-cell.conflict::after {
+  content: '!';
+  position: absolute;
+  top: calc(-6 * var(--u));
+  right: calc(-6 * var(--u));
+  width: calc(16 * var(--u));
+  height: calc(16 * var(--u));
+  border-radius: 50%;
+  background: #ffc53d;
+  color: #1a1c22;
+  font-size: calc(12 * var(--u));
+  font-weight: 900;
+  line-height: calc(16 * var(--u));
+  text-align: center;
+}
+
+/* Esperando a tecla nova. */
+.bind-cell.capturing {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 90, 54, 0.45), 0 10px 32px rgba(255, 90, 54, 0.3);
+}
+.bind-wait { color: var(--accent); font-size: var(--fs-sm); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; animation: pulse 1s ease-in-out infinite; }
+.bind-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(22 * var(--u));
+  height: calc(22 * var(--u));
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.remap-restore-label { min-height: 1px; }
+.btn.btn-restore {
+  justify-self: center;
+  font-size: var(--fs-sm);
+  padding: calc(5 * var(--u)) calc(14 * var(--u)) calc(5 * var(--u)) calc(18 * var(--u));
+  margin-top: calc(4 * var(--u));
+}
+.btn.btn-restore.is-default { color: var(--dim); }
+
+.remap-status {
+  min-height: 1.35em;
+  margin: calc(2 * var(--u)) 0 0;
+  padding: 0 calc(10 * var(--u));
+  font-size: var(--fs-sm);
+  text-align: left;
+  color: var(--muted);
+}
+.remap-status.info { color: var(--text); }
+.remap-status.ok { color: var(--ok); }
+.remap-status.warn { color: #ffc53d; }
+.remap-conflicts { display: flex; flex-direction: column; gap: calc(2 * var(--u)); padding: 0 calc(10 * var(--u)); }
+.remap-conflicts p { margin: 0; font-size: var(--fs-sm); color: #ffc53d; }
+.remap-conflicts .remap-conflict-title { color: var(--muted); }
+
+/* ───────────── Dispositivos e teste de entrada ───────────── */
+
+.remap-side { display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)); min-width: 0; }
+.remap-side .sub-title { margin: 0 0 calc(2 * var(--u)); }
+.remap-side .hint { text-align: left; }
+.remap-devices { display: flex; flex-direction: column; gap: calc(6 * var(--u)); }
+.remap-device {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5 * var(--u));
+  padding: calc(7 * var(--u)) calc(10 * var(--u));
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color var(--ease), background-color var(--ease);
+}
+.remap-device.active { border-color: rgba(61, 220, 132, 0.5); background: rgba(61, 220, 132, 0.07); }
+.remap-device.off { opacity: 0.5; }
+.remap-device-head { display: flex; align-items: center; gap: calc(8 * var(--u)); min-width: 0; }
+.remap-device-head .ico { color: var(--ok); }
+.remap-device.off .remap-device-head .ico { color: var(--dim); }
+.remap-device .device-label { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remap-device .device-seat { font-size: var(--fs-sm); color: var(--dim); padding: 0 calc(8 * var(--u)); border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.remap-device .device-seat.bound { color: var(--accent); border-color: rgba(255, 90, 54, 0.5); }
+
+.remap-test {
+  display: grid;
+  grid-template-columns: auto minmax(0, 2fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: calc(4 * var(--u)) calc(8 * var(--u));
+}
+.test-label { color: var(--muted); font-size: calc(13 * var(--u)); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+.steer-track, .pedal-track {
+  position: relative;
+  height: calc(9 * var(--u));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+.steer-center { position: absolute; left: 50%; top: 0; bottom: 0; width: calc(2 * var(--u)); margin-left: calc(-1 * var(--u)); background: rgba(255, 255, 255, 0.45); z-index: 1; }
+.steer-fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: var(--accent); transition: left 60ms linear, width 60ms linear; }
+.pedal-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--ok); transition: width 60ms linear; }
+.pedal-fill.brake { background: var(--bad); }
+.remap-pills { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); }
+.pill {
+  padding: calc(1 * var(--u)) calc(9 * var(--u));
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--dim);
+  font-size: calc(13 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: background-color 80ms linear, color 80ms linear;
+}
+.pill.on { color: #0d1a12; background: var(--ok); border-color: transparent; }
+
+.remap-help { max-width: calc(1100 * var(--u)); }
+
+/* ───────────── Telas menores ───────────── */
+
+@media (max-width: 1100px) {
+  .remap-layout { grid-template-columns: 1fr; }
+  .remap-devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(320 * var(--u)), 1fr)); }
+}
+@media (max-height: 720px) {
+  .bind-cell { min-height: calc(31 * var(--u)); }
+  .remap-help { display: none; }
+}
