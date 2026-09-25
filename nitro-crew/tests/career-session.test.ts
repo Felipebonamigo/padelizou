@@ -28,7 +28,7 @@ vi.mock('../src/ui/input', () => {
   const nav: MenuNav = { up: false, down: false, left: false, right: false, confirm: false, back: false, start: false, device: null };
   const input: Partial<InputProvider> = {
     poll() {}, readSeat: () => NEUTRAL_INPUT, devices: () => [], joinPressed: () => null, leavePressed: () => null,
-    menuNav: () => nav, pausePressed: () => -1, dispose() {},
+    menuNav: () => nav, pausePressed: () => -1, dispose() {}, peek: () => null, rumble() {},
     bindSeat(seat, device) { bound[seat] = device; },
     unbindSeat(seat) { bound[seat] = null; },
     seatDevice: (seat) => (bound[seat] ?? null) as ReturnType<InputProvider['seatDevice']>,
