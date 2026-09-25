@@ -88,6 +88,26 @@ export interface CarDef {
   fuelPerUnit: number;
   /** Texto curto de apresentação. */
   blurb: string;
+  /** Preço na carreira; 0 = sempre liberado. Os outros ficam liberados em todo modo depois de comprados. */
+  price: number;
+}
+
+/** Peças que a carreira melhora, cada uma do nível 0 ao UPGRADE_MAX_LEVEL (docs/CARREIRA.md). */
+export type UpgradePart = 'engine' | 'turbo' | 'tires' | 'brakes' | 'tank' | 'nitro';
+export type UpgradeLevels = Record<UpgradePart, number>;
+
+/**
+ * Atributos de desempenho efetivos de um carro na corrida: o CarDef com as melhorias aplicadas.
+ * Calculados em createRace e guardados no estado; física, IA, colisões e co-op leem daqui (carStats).
+ */
+export interface CarStats {
+  topSpeed: number;
+  accel: number;
+  brake: number;
+  handling: number;
+  fuelPerUnit: number;
+  /** Cargas de nitro com que o carro larga. */
+  nitro: number;
 }
 
 export type Difficulty = 'amador' | 'profissional' | 'campeao';
@@ -112,6 +132,8 @@ export interface HumanEntry {
   teamId: number;
   /** Cor do jogador na interface (hex). */
   color: string;
+  /** Melhorias do carro (carreira); ausente = carro de fábrica. */
+  upgrades?: UpgradeLevels;
 }
 
 export interface RaceConfig {
@@ -128,6 +150,8 @@ export interface RaceConfig {
   rosterSeed?: number;
   /** Contra-relógio: só humanos, sem combustível. */
   timeTrial?: boolean;
+  /** Nível de melhoria dos carros da IA (0..3, pode ser fracionário); a carreira sobe por copa. Ausente = 0. */
+  aiLevel?: number;
 }
 
 // ───────────────────────────── Estado ─────────────────────────────
@@ -194,6 +218,8 @@ export interface CarState {
   /** Última direção do volante (-1, 0, 1) para a pose do sprite. */
   steerPose: number;
   ai: AiBrain | null;
+  /** Atributos efetivos (carro + melhorias), fixos durante a corrida. Ler por carStats(car). */
+  stats: CarStats;
 }
 
 export type RacePhase = 'countdown' | 'racing' | 'finished';

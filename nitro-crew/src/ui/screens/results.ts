@@ -4,6 +4,7 @@ import { formatTicks } from '../../core/sim/race';
 import type { HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import type { ResultsScreenData, StandingsScreenData } from '../../game/contracts';
+import '../../career/strings';
 import { t } from '../../i18n';
 import '../../stats/strings';
 import './records.css';
@@ -60,7 +61,8 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
 
   const extras: HTMLElement[] = [];
   const coop = d.champ ? d.champ.coop : isCoop(d.humans);
-  if (d.mode === 'cup' && d.champ?.lastVerdict) {
+  const cupLike = d.mode === 'cup' || d.mode === 'career';
+  if (cupLike && d.champ?.lastVerdict) {
     const ok = d.champ.lastVerdict === 'qualified';
     extras.push(h('div', { class: `verdict ${ok ? 'good' : 'bad'}`, text: ok ? t('ui.results.qualified') : t('ui.results.eliminated') }));
   }
@@ -70,10 +72,10 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
   }
 
   const items: FocusItem[] = [];
-  if (d.mode === 'cup' && d.champ) {
+  if (cupLike && d.champ) {
     const champ = d.champ;
     const cup = ctx.cups.find((c) => c.id === champ.cupId);
-    if (cup) items.push(button(t('ui.results.standings'), () => api.go('standings', { champ, humans: d.humans, cup }), 'btn-primary'));
+    if (cup) items.push(button(t('ui.results.standings'), () => api.go('standings', { champ, humans: d.humans, cup, career: d.mode === 'career' }), 'btn-primary'));
     else items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
   } else {
     items.push(button(t('ui.results.retry'), () => api.emit({ type: 'retryRace' }), 'btn-primary'));
@@ -172,7 +174,9 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   else status = h('p', { class: 'status-line' }, icon('flag'), h('span', { text: t('ui.standings.next', { n: champ.raceIndex + 1, m: raceCount, track: nextDef?.name ?? next ?? '?' }) }));
 
   const items: FocusItem[] = [];
-  if (next && !champ.eliminated && !champ.completed) items.push(button(t('ui.standings.nextBtn'), () => api.emit({ type: 'nextRace' }), 'btn-primary'));
+  // Carreira: depois da classificação vem sempre a garagem (prêmio, compras, próxima corrida ou copa).
+  if (d.career) items.push(button(t('ui.standings.garage'), () => api.emit({ type: 'nextRace' }), 'btn-primary'));
+  else if (next && !champ.eliminated && !champ.completed) items.push(button(t('ui.standings.nextBtn'), () => api.emit({ type: 'nextRace' }), 'btn-primary'));
   else items.push(button(t('ui.standings.menu'), () => api.emit({ type: 'toMain' }), 'btn-primary'));
   const list = createFocusList(items, { sfx: api.sfx });
   const el = screenFrame('standings', null,

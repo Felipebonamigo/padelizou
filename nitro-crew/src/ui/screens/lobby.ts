@@ -2,9 +2,11 @@
 // Jogador 1 configura a corrida no painel da direita. Entrar/sair de assento vem do
 // InputProvider (`joinPressed`/`leavePressed`) no `update()`; navegação vem do teclado (DOM)
 // e do gamepad (`navigate`), sempre com o `device` que apertou.
+import '../../career/strings';
+import './garage.css';
 import { SEAT_COLORS } from '../../core/data/drivers';
-import type { HumanEntry } from '../../core/types';
-import type { DeviceId, MenuNav } from '../../game/contracts';
+import type { CarDef, HumanEntry } from '../../core/types';
+import type { DeviceId, MenuContext, MenuNav, SaveData } from '../../game/contracts';
 import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
 import { isKeyboard } from '../input';
@@ -14,8 +16,22 @@ import { commitSettings, raceOptionSelectors } from './options';
 
 export const LOBBY_SEATS = 4;
 
-export function maxSeats(lobby: LobbyState): number {
-  return lobby.mode === 'timetrial' ? 1 : LOBBY_SEATS;
+/** Carros escolhíveis no lobby: os originais e os comprados em alguma carreira. */
+export function availableCars(ctx: Pick<MenuContext, 'cars' | 'save'>): CarDef[] {
+  return ctx.cars.filter((c) => c.price === 0 || ctx.save.carsUnlocked.includes(c.id));
+}
+
+/** Pilotos do jogo salvo que o lobby de "Continuar" religa (nome e carro, na ordem dos assentos). */
+export function resumeRoster(lobby: LobbyState, save: SaveData): Array<{ name: string; carId: string | null }> {
+  if (!lobby.resume) return [];
+  if (lobby.mode === 'career') return save.career?.drivers.map((d) => ({ name: d.name, carId: null })) ?? [];
+  return save.cupInProgress?.humans.map((h) => ({ name: h.name, carId: h.carId })) ?? [];
+}
+
+export function maxSeats(lobby: LobbyState, save?: SaveData): number {
+  if (lobby.mode === 'timetrial') return 1;
+  const roster = save ? resumeRoster(lobby, save) : [];
+  return roster.length > 0 ? roster.length : LOBBY_SEATS;
 }
 
 export function occupiedSeats(lobby: LobbyState): LobbySeat[] {
@@ -26,14 +42,16 @@ export function seatOfDevice(lobby: LobbyState, device: DeviceId): number {
   return lobby.seats.findIndex((s) => s !== null && s.device === device);
 }
 
-export function canStart(lobby: LobbyState): boolean {
+export function canStart(lobby: LobbyState, save?: SaveData): boolean {
   const seats = occupiedSeats(lobby);
+  // Continuar: todos os pilotos do jogo salvo precisam estar sentados.
+  if (lobby.resume && save && seats.length !== maxSeats(lobby, save)) return false;
   return lobby.seats[0] !== null && seats.length > 0 && seats.every((s) => s.ready);
 }
 
 /** Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento. */
 export function lobbyHumans(api: ScreenApi): HumanEntry[] {
-  const { cars } = api.ctx;
+  const cars = availableCars(api.ctx);
   return occupiedSeats(api.lobby).map((s) => ({
     seat: s.seat,
     name: s.name.trim() || `P${s.seat + 1}`,
@@ -44,15 +62,26 @@ export function lobbyHumans(api: ScreenApi): HumanEntry[] {
 }
 
 function newSeat(api: ScreenApi, seat: number, device: DeviceId): LobbySeat {
-  const { save, cars } = api.ctx;
-  const carIndex = Math.max(0, cars.findIndex((c) => c.id === save.seatCars[seat]));
-  return { seat, device, name: save.seatNames[seat] ?? `P${seat + 1}`, carIndex, ready: false, cursor: 1 };
+  const { save } = api.ctx;
+  const cars = availableCars(api.ctx);
+  const saved = resumeRoster(api.lobby, save)[seat];
+  const carId = saved?.carId ?? save.seatCars[seat];
+  const carIndex = Math.max(0, cars.findIndex((c) => c.id === carId));
+  return { seat, device, name: saved?.name ?? save.seatNames[seat] ?? `P${seat + 1}`, carIndex, ready: false, cursor: startCursor(api.lobby) };
+}
+
+/**
+ * Onde o cursor de um assento começa: no carro (1) normalmente; no PRONTO quando não há carro nem
+ * nome a escolher — no "Continuar" o PRONTO é o item 0 (na carreira nova, [nome, PRONTO] → 1).
+ */
+export function startCursor(lobby: LobbyState): number {
+  return lobby.resume ? 0 : 1;
 }
 
 /** Alinha o lobby com os assentos do InputProvider (quem já estava ligado continua no lugar). */
 function syncWithInput(api: ScreenApi): void {
   const { lobby } = api;
-  const limit = maxSeats(lobby);
+  const limit = maxSeats(lobby, api.ctx.save);
   for (let seat = 0; seat < LOBBY_SEATS; seat++) {
     const device = api.ctx.input.seatDevice(seat);
     if (seat >= limit) {
@@ -65,19 +94,38 @@ function syncWithInput(api: ScreenApi): void {
     else if (!existing || existing.device !== device) lobby.seats[seat] = newSeat(api, seat, device);
   }
   if (lobby.mode === 'timetrial') lobby.versus = false;
+  // Continuar: o modo é o do jogo salvo (co-op = todos no mesmo time).
+  if (lobby.resume) {
+    // Quem já estava sentado (voltou de outra tela) mostra o nome e o carro do jogo salvo.
+    const roster = resumeRoster(lobby, api.ctx.save);
+    const cars = availableCars(api.ctx);
+    lobby.seats.forEach((s, i) => {
+      const r = roster[i];
+      if (!s || !r) return;
+      s.name = r.name;
+      if (r.carId) s.carIndex = Math.max(0, cars.findIndex((c) => c.id === r.carId));
+    });
+    const { career, cupInProgress } = api.ctx.save;
+    if (lobby.mode === 'career' && career) lobby.versus = !career.coop && career.drivers.length > 1;
+    else if (cupInProgress) lobby.versus = cupInProgress.humans.some((h) => h.teamId !== cupInProgress.humans[0].teamId);
+  }
 }
 
 export function lobbyScreen(api: ScreenApi): ScreenInstance {
   const { ctx, lobby } = api;
-  const { cars, input } = ctx;
+  const { input, save } = ctx;
+  const cars = availableCars(ctx);
+  const career = lobby.mode === 'career';
+  const resume = lobby.resume === true;
   syncWithInput(api);
 
   const body = h('div', { class: 'lobby-body' });
+  const chip = resume ? `${t(`ui.main.${lobby.mode}`)} · ${t('career.lobby.resume')}` : t(`ui.main.${lobby.mode}`);
   const el = screenFrame('lobby', null,
     h('div', { class: 'lobby-head' },
       h('h1', { class: 'screen-title', text: t('ui.lobby.title') }),
-      h('span', { class: 'chip', text: t(`ui.main.${lobby.mode}`) }),
-      h('span', { class: 'lobby-help', text: t('ui.lobby.joinHint') }),
+      h('span', { class: 'chip', text: chip }),
+      h('span', { class: 'lobby-help', text: resume ? t('career.lobby.resumeHint', { n: maxSeats(lobby, save) }) : t('ui.lobby.joinHint') }),
     ),
     body,
   );
@@ -110,9 +158,11 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   };
 
   const start = () => {
-    if (!canStart(lobby)) { api.sfx('back'); return; }
+    if (!canStart(lobby, save)) { api.sfx('back'); return; }
     api.sfx('confirm');
-    api.go(lobby.mode === 'cup' ? 'cups' : 'tracks');
+    if (career) api.emit({ type: 'startCareer', humans: lobbyHumans(api), resume });
+    else if (resume) api.emit({ type: 'continueCup' });
+    else api.go(lobby.mode === 'cup' ? 'cups' : 'tracks');
   };
 
   function occupiedSlot(s: LobbySeat): { el: HTMLElement; items: FocusItem[] } {
@@ -122,17 +172,20 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       attrs: { type: 'text', maxlength: String(NAME_MAX_LENGTH), value: s.name, spellcheck: 'false', autocomplete: 'off' },
       on: { input: () => { s.name = nameInput.value; } },
     });
-    const nameRow: FocusItem = {
+    // Continuar: o nome é o do jogo salvo (está na classificação), sem edição.
+    const nameRow: FocusItem | null = resume ? null : {
       el: h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), nameInput),
       activate: () => { nameInput.focus(); nameInput.select(); },
     };
+    const nameEl = nameRow ? nameRow.el : h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), h('strong', { text: s.name }));
     const heroBody = h('div', { class: 'car-hero-body' }, carCard(cars[s.carIndex] ?? cars[0], cars));
     const changeCar = (dir: -1 | 1) => {
       if (s.ready) return;
       s.carIndex = (s.carIndex + dir + cars.length) % cars.length;
       heroBody.replaceChildren(carCard(cars[s.carIndex], cars));
     };
-    const carItem: FocusItem = {
+    // Carreira: carro e melhorias ficam na garagem. Copa retomada: o carro é o da copa salva.
+    const carItem: FocusItem | null = career || resume ? null : {
       el: h('div', { class: `car-hero${s.ready ? ' locked' : ''}` },
         arrowButton(-1, () => { changeCar(-1); api.sfx('move'); }),
         heroBody,
@@ -141,6 +194,9 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       adjust: changeCar,
       activate: () => toggleReady(s),
     };
+    const carEl = carItem ? carItem.el
+      : career ? h('div', { class: 'car-hero locked lobby-note' }, icon('flag'), h('span', { text: t('career.lobby.carNote') }))
+      : h('div', { class: 'car-hero locked' }, heroBody);
     const ready = button(t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
     if (s.ready) ready.el.prepend(icon('check'));
     const team = lobby.versus ? t('ui.lobby.teamN', { n: s.seat + 1 }) : t('core.team.human');
@@ -150,14 +206,14 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
         h('span', { class: 'slot-device' }, icon(isKeyboard(s.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(s.device) })),
         s.ready ? h('span', { class: 'slot-state on' }, icon('check'), t('ui.lobby.ready')) : null,
       ),
-      nameRow.el,
-      carItem.el,
+      nameEl,
+      carEl,
       h('div', { class: 'slot-foot' },
         h('span', { class: 'slot-team' }, icon('users'), h('span', { text: team })),
         ready.el,
       ),
     );
-    return { el: slot, items: [nameRow, carItem, ready] };
+    return { el: slot, items: [nameRow, carItem, ready].filter((x): x is FocusItem => x !== null) };
   }
 
   function emptySlot(seat: number): HTMLElement {
@@ -177,21 +233,23 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   function panel(): { el: HTMLElement; items: FocusItem[] } {
     const tt = lobby.mode === 'timetrial';
     const items: FocusItem[] = [];
-    if (!tt) {
+    if (!tt && !resume) {
       items.push(selector(t('ui.lobby.mode'), () => (lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop')), () => { lobby.versus = !lobby.versus; render(); }, { sfx: api.sfx }));
     }
     items.push(...raceOptionSelectors(api, () => commitSettings(api), {
       difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick', assists: !tt && !lobby.versus, lapsLabel: t('ui.lobby.laps'),
     }));
     const startBtn = button(t('ui.lobby.start'), start, 'btn-primary btn-start');
-    startBtn.disabled = !canStart(lobby);
+    startBtn.disabled = !canStart(lobby, save);
     if (startBtn.disabled) startBtn.el.classList.add('disabled');
     const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
     items.push(startBtn, backBtn);
+    const fixedMode = resume ? h('p', { class: 'hint lobby-fixed', text: t('career.lobby.fixedMode', { mode: maxSeats(lobby, save) === 1 ? t('career.mode.solo') : lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop') }) }) : null;
     const panelEl = h('div', { class: 'lobby-panel glass' },
       h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
+      fixedMode,
       h('div', { class: 'lobby-options' }, items.slice(0, items.length - 2).map((i) => i.el)),
-      h('p', { class: 'hint', text: canStart(lobby) ? t('ui.lobby.startHint') : t('ui.lobby.waitHint') }),
+      h('p', { class: 'hint', text: canStart(lobby, save) ? t('ui.lobby.startHint') : t('ui.lobby.waitHint') }),
       h('div', { class: 'lobby-actions' }, startBtn.el, backBtn.el),
     );
     return { el: panelEl, items };
@@ -200,7 +258,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   function render(): void {
     saveCursors();
     lists = [null, null, null, null];
-    const limit = maxSeats(lobby);
+    const limit = maxSeats(lobby, save);
     const slotsEl = h('div', { class: `lobby-slots seats-${limit}` });
     const slotItems: Array<FocusItem[]> = [];
     for (let seat = 0; seat < limit; seat++) {
@@ -264,7 +322,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       if (!armed) { armed = true; return; }
       const joining = input.joinPressed();
       if (joining) {
-        const limit = maxSeats(lobby);
+        const limit = maxSeats(lobby, save);
         const free = lobby.seats.findIndex((s, i) => s === null && i < limit);
         if (free >= 0) join(free, joining);
       }

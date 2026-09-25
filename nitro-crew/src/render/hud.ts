@@ -6,7 +6,6 @@
 import './hud.css';
 import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
-import { carDef } from '../core/data/cars';
 import { SEAT_COLORS } from '../core/data/drivers';
 import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
@@ -173,7 +172,6 @@ class SeatHud {
     setStyle(r, '--s', uiScale(rect).toFixed(3)); setStyle(r, '--accent', vp.color);
     setText(this.tagName, vp.name);
     if (!car) return;
-    const def = carDef(car.carId);
     const laps = state.config.laps;
     const total = state.cars.length;
     // Posição e volta.
@@ -221,7 +219,7 @@ class SeatHud {
     setStyle(this.nfill, 'width', `${((car.nitroTicks / NITRO_DURATION_TICKS) * 100).toFixed(1)}%`);
     setClass(this.lines, 'on', car.nitroTicks > 0 && !frame.paused);
     // Velocímetro: RPM = posição da velocidade dentro da marcha.
-    const sf = car.speed / def.topSpeed;
+    const sf = car.speed / car.stats.topSpeed;
     const lo = car.gear > 0 ? GEAR_TOP[car.gear - 1] : 0;
     const hi = GEAR_TOP[Math.min(car.gear, GEAR_TOP.length - 1)];
     const rpm = Math.max(0, Math.min(1, (sf - lo) / Math.max(0.01, hi - lo)));

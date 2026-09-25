@@ -1,6 +1,8 @@
 // Remapeamento de controles e vibração: partes puras e o provedor de entrada com uma janela falsa.
 // Roda em Node, sem DOM.
 import { describe, expect, it, vi } from 'vitest';
+import { carDef } from '../src/core/data/cars';
+import { effectiveStats } from '../src/core/sim/stats';
 import type { CarState, RaceState, SimEvent } from '../src/core/types';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
 import { newRumbleMemory, rumbleCues } from '../src/game/rumble';
@@ -403,7 +405,7 @@ function car(id: number, seat: number, over: Partial<CarState> = {}): CarState {
   return {
     id, seat, name: `c${id}`, teamId: 0, carId: 'falcao', z: 0, x: 0, speed: 3000, gear: 3, fuel: 1, nitroLeft: 3, nitroTicks: 0,
     lap: 1, lapTicks: [], lapStartTick: 0, finished: false, finishTick: 0, position: 1, progress: 0, inPit: false,
-    collisionCooldown: 0, towCooldown: 0, skidTicks: 0, steerPose: 0, ai: null, ...over,
+    collisionCooldown: 0, towCooldown: 0, skidTicks: 0, steerPose: 0, ai: null, stats: effectiveStats(carDef('falcao')), ...over,
   };
 }
 function race(cars: CarState[], events: SimEvent[], tick = 500): RaceState {

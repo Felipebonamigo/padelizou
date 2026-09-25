@@ -68,3 +68,19 @@ export const QUALIFY_POSITION = 5;
 export const TEAM_QUALIFY_RANK = 3;
 /** Depois que o primeiro humano cruza a linha, os outros têm este tempo para terminar. */
 export const FINISH_GRACE_TICKS = 45 * TICK_RATE;
+
+// Melhorias da carreira, por nível (0..UPGRADE_MAX_LEVEL). Preços e prêmios moram em career.ts.
+export const UPGRADE_MAX_LEVEL = 3;
+/** Motor: velocidade máxima +2,5% por nível. */
+export const UPGRADE_ENGINE_TOP = 0.025;
+/** Turbo: aceleração +8% por nível. */
+export const UPGRADE_TURBO_ACCEL = 0.08;
+/** Pneus: dirigibilidade +0,04 por nível, até HANDLING_MAX. */
+export const UPGRADE_TIRES_HANDLING = 0.04;
+export const HANDLING_MAX = 1;
+/** Freios: frenagem +12% por nível. */
+export const UPGRADE_BRAKES = 0.12;
+/** Tanque: consumo −10% por nível. */
+export const UPGRADE_TANK_FUEL = 0.1;
+/** Nitro: +1 carga por nível. */
+export const UPGRADE_NITRO_CHARGES = 1;

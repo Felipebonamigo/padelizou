@@ -1,9 +1,9 @@
 // Colisões carro-carro e carro-cenário.
 import { CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, OFFROAD_X, SPRITE_CRASH_SPEED_FACTOR } from '../constants';
-import { carDef } from '../data/cars';
 import { segmentAt } from '../track/builder';
 import type { CarState, RaceState, Track } from '../types';
 import { SPRITE_HALF_WIDTH } from '../track/sprites';
+import { carStats } from './stats';
 
 export { SPRITE_HALF_WIDTH } from '../track/sprites';
 
@@ -37,10 +37,10 @@ export function resolveCarCollisions(state: RaceState, track: Track): void {
         a.speed *= 0.97; b.speed *= 0.97;
       } else if (rear.speed > front.speed) {
         // Batida por trás: quem bate perde velocidade, quem é batido ganha um pouco.
-        const rearTop = carDef(rear.carId).topSpeed;
+        const rearTop = carStats(rear).topSpeed;
         const strength = (rear.speed - front.speed) / rearTop;
         rear.speed = Math.max(front.speed * 0.9, rearTop * 0.1);
-        front.speed = Math.min(carDef(front.carId).topSpeed, front.speed + strength * 400);
+        front.speed = Math.min(carStats(front).topSpeed, front.speed + strength * 400);
         if (a.collisionCooldown === 0 && b.collisionCooldown === 0) {
           state.events.push({ type: 'collision', carId: rear.id, otherId: front.id, strength: Math.min(1, strength * 4) });
           a.collisionCooldown = COLLISION_COOLDOWN_TICKS; b.collisionCooldown = COLLISION_COOLDOWN_TICKS;
@@ -61,8 +61,7 @@ export function resolveSpriteCrash(state: RaceState, track: Track, car: CarState
     if (!s.solid) continue;
     const half = SPRITE_HALF_WIDTH[s.kind] * s.scale + CAR_HALF_WIDTH;
     if (Math.abs(s.x - car.x) < half) {
-      const def = carDef(car.carId);
-      car.speed = Math.min(car.speed, def.topSpeed * SPRITE_CRASH_SPEED_FACTOR);
+      car.speed = Math.min(car.speed, carStats(car).topSpeed * SPRITE_CRASH_SPEED_FACTOR);
       car.x += car.x > 0 ? -0.15 : 0.15;
       car.collisionCooldown = COLLISION_COOLDOWN_TICKS;
       state.events.push({ type: 'crash', carId: car.id, sprite: s.kind });

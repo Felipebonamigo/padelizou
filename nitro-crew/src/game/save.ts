@@ -1,7 +1,9 @@
 // Progresso do jogador: copas concluídas, recordes por pista e o que o lobby lembra de cada
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
+import { hasUpgrades } from '../core/career';
 import { CARS } from '../core/data/cars';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
+import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
 import { DEFAULT_SAVE, type BestLap, type RaceMode, type SaveData } from './contracts';
 import { isRecord, pickNumber, pickString, readJson, writeJson } from './settings';
 import { sanitizeStats } from './stats';
@@ -64,6 +66,9 @@ export function sanitizeSave(raw: unknown): SaveData {
     seatNames: seatList(r.seatNames, d.seatNames, () => true, NAME_MAX_LENGTH),
     seatCars: seatList(r.seatCars, d.seatCars, knownCar, 32),
     stats: sanitizeStats(r.stats),
+    carsUnlocked: sanitizeUnlocked(r.carsUnlocked),
+    career: sanitizeCareer(r.career),
+    cupInProgress: sanitizeSavedCup(r.cupInProgress),
   };
 }
 
@@ -126,13 +131,15 @@ export function recordRaceResults(
     return { ticks, name: h?.name ?? r.name, carId: h?.carId ?? r.carDefId, date };
   };
 
-  const lap = bestHuman(humanRows, (r) => r.bestLapTicks);
+  // Recorde é de carro de fábrica: quem corre com melhorias da carreira conta corrida e vitória, não recorde.
+  const factory = humanRows.filter((r) => !hasUpgrades(humans.find((x) => x.seat === r.seat)?.upgrades));
+  const lap = bestHuman(factory, (r) => r.bestLapTicks);
   if (lap && improves(lap.bestLapTicks, save.bestLaps[trackId])) {
     save.bestLaps[trackId] = entry(lap, lap.bestLapTicks);
     out.push({ seat: lap.seat, kind: 'lap' });
   }
 
-  const race = bestHuman(humanRows.filter((r) => r.finished), (r) => r.totalTicks);
+  const race = bestHuman(factory.filter((r) => r.finished), (r) => r.totalTicks);
   const key = bestRaceKey(trackId, laps);
   if (race && improves(race.totalTicks, save.bestRaces[key])) {
     save.bestRaces[key] = entry(race, race.totalTicks);

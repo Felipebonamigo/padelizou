@@ -1,6 +1,6 @@
 // Ciclo de vida da corrida: criação do grid, contagem, passo da simulação e resultado.
-import { COUNTDOWN_TICKS, MAX_CARS, NITRO_PER_RACE, TICK_RATE } from '../constants';
-import { CARS } from '../data/cars';
+import { COUNTDOWN_TICKS, MAX_CARS, TICK_RATE } from '../constants';
+import { AI_CAR_POOL } from '../data/cars';
 import { AI_DRIVERS, AI_TEAM_ID_BASE } from '../data/drivers';
 import { createRng, nextInt } from '../rng';
 import type { CarState, PlayerInput, RaceConfig, RaceState, Track } from '../types';
@@ -10,12 +10,15 @@ import { resolveCarCollisions, resolveSpriteCrash } from './collisions';
 import { applyTow, computeModifiers } from './coop';
 import { stepCarPhysics } from './physics';
 import { buildResults, checkRaceOver, updateLaps, updatePositions } from './positions';
+import { statsFor } from './stats';
 
-function blankCar(id: number, seat: number, name: string, teamId: number, carId: string): CarState {
+function blankCar(config: RaceConfig, id: number, seat: number, name: string, teamId: number, carId: string): CarState {
+  // Atributos efetivos (melhorias da carreira / nível da IA) fixados na largada; o nitro extra vira carga.
+  const stats = statsFor(config, { seat, carId });
   return {
-    id, seat, name, teamId, carId, z: 0, x: 0, speed: 0, gear: 0, fuel: 1, nitroLeft: NITRO_PER_RACE, nitroTicks: 0,
+    id, seat, name, teamId, carId, z: 0, x: 0, speed: 0, gear: 0, fuel: 1, nitroLeft: stats.nitro, nitroTicks: 0,
     lap: 1, lapTicks: [], lapStartTick: 0, finished: false, finishTick: -1, position: id + 1, progress: 0,
-    inPit: false, collisionCooldown: 0, towCooldown: 0, skidTicks: 0, steerPose: 0, ai: null,
+    inPit: false, collisionCooldown: 0, towCooldown: 0, skidTicks: 0, steerPose: 0, ai: null, stats,
   };
 }
 
@@ -33,12 +36,12 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
   const nameOffset = nextInt(roster, 0, AI_DRIVERS.length - 1);
   for (let i = 0; i < aiCount; i++) {
     const driverIndex = (nameOffset + i) % AI_DRIVERS.length;
-    const car = blankCar(cars.length, -1, AI_DRIVERS[driverIndex], AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), CARS[nextInt(roster, 0, CARS.length - 1)].id);
+    const car = blankCar(config, cars.length, -1, AI_DRIVERS[driverIndex], AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), AI_CAR_POOL[nextInt(roster, 0, AI_CAR_POOL.length - 1)].id);
     car.ai = createBrain(state, config.difficulty, i);
     cars.push(car);
   }
   const humans = config.humans.slice().sort((a, b) => a.seat - b.seat);
-  for (const h of humans) cars.push(blankCar(cars.length, h.seat, h.name, h.teamId, h.carId));
+  for (const h of humans) cars.push(blankCar(config, cars.length, h.seat, h.name, h.teamId, h.carId));
 
   // Grid 2 a 2: o primeiro da lista larga na frente. Humanos ficam por último.
   const gridGap = 260;
@@ -49,7 +52,8 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
     // Começam "atrás" da linha: z alto na volta 0 → a primeira passagem pela linha vira a volta 1.
     c.lap = 0;
   });
-  for (const h of humans) if (config.assists.sharedNitro) state.teamNitro[h.teamId] = (state.teamNitro[h.teamId] ?? 0) + NITRO_PER_RACE;
+  // Cofre da equipe: as cargas de cada humano, com o nitro extra das melhorias.
+  for (const c of cars) if (c.seat >= 0 && config.assists.sharedNitro) state.teamNitro[c.teamId] = (state.teamNitro[c.teamId] ?? 0) + c.stats.nitro;
   state.cars = cars;
   updatePositions(state, track);
   return state;
