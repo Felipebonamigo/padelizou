@@ -51,16 +51,21 @@ JSON por mensagem, campo `t` com o tipo. Versão `PROTOCOL_VERSION = 1` (a mesma
 
 | Cliente → relay | Relay → clientes |
 |---|---|
-| `create {v, seats, info}` | `welcome {room, id, token, rejoined}` só para quem entrou |
-| `join {v, room, seats, info}` | `room {room}` — a sala inteira, a cada mudança |
+| `create {v, b, seats, info}` | `welcome {room, id, token, rejoined}` só para quem entrou |
+| `join {v, b, room, seats, info}` | `room {room}` — a sala inteira, a cada mudança |
 | `rejoin {v, room, token}` | `peer {id, e}` — `join`, `rejoin`, `lost` (caiu), `drop` (não voltou), `leave` |
 | `info {seats, info}` · `settings {settings}` (anfitrião) | `start {from, cfg}` — para todos, inclusive o anfitrião |
 | `start {cfg}` · `lobby` (anfitrião) | `i {from, d}` · `h {from, k, h}` — repassados aos outros |
 | `i {d}` · `h {k, h}` | `snap {from, snap}` — só para o destinatário |
 | `snap {to, snap}` (anfitrião) · `ping {n}` · `leave` | `pong {n}` · `error {code}` |
 
-O anfitrião é sempre o cliente conectado de menor id; se ele cai ou sai, o relay passa a sala
-adiante e avisa com um `room` novo. O relay confere a **forma** (inteiros, tamanhos, quem é o
+`b` é a impressão do conteúdo do jogo (8 hex: carros, pistas, constantes da simulação — ver
+`CONTENT_FINGERPRINT` em `src/game/online-session.ts`). A sala guarda a de quem a criou e recusa
+`join` com outra (ou sem nenhuma) com `error: build`: dois builds diferentes não correm juntos.
+
+O anfitrião é quem criou a sala; se ele cai ou sai, o relay passa a sala ao cliente **conectado há
+mais tempo** e avisa com um `room` novo. No meio da corrida isso escolhe alguém que não caiu (o
+estado dele é o completo), e não quem acabou de voltar e espera um snapshot. O relay confere a **forma** (inteiros, tamanhos, quem é o
 anfitrião); o **conteúdo** (pista e carros existentes, dono de cada assento) é validado em cada
 cliente por `parseServerMessage` e pela sessão online.
 

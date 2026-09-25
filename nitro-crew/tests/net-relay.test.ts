@@ -129,6 +129,21 @@ class FakeHost implements OnlineHost {
     }
     return n;
   }
+  /**
+   * Janela escondida (aba em segundo plano, minimizada): o teste para de chamar `frame`, como o
+   * navegador para o requestAnimationFrame; o online anda pelo `runHidden` (a sessão de verdade o liga
+   * ao `advance`, igual aqui).
+   */
+  hiddenNow = false;
+  hidden() { return this.hiddenNow; }
+  runHidden(dt: number): void {
+    const r = this.race;
+    if (!r) return;
+    r.driver.advance(dt, [], (inputs) => {
+      stepRace(r.state, r.track, inputs);
+      if (r.state.tick % 60 === 0) this.hashes.set(r.state.tick, hashRace(r.state));
+    });
+  }
   /** Um "quadro": até `max` ticks com o piloto de teste nos assentos locais. */
   pump(max: number, limit: number): number {
     const r = this.race;
@@ -239,6 +254,30 @@ describe.skipIf(!HAS_WS)('relay (mensagens cruas)', () => {
     c.send({ t: 'create', v: 1, b: 'x'.repeat(65), seats: 1, info: INFO('Caio') }); // impressão absurda: mensagem inválida
     expect(await c.next(isT('error'))).toEqual({ t: 'error', code: 'bad' });
     for (const x of [a, b, c]) x.ws.close();
+  });
+
+  it('anfitrião que cai na corrida passa a sala a quem está conectado há mais tempo, não a quem acabou de voltar', async () => {
+    const h = await raw();
+    h.send({ t: 'create', v: 1, seats: 1, info: INFO('Hugo') });
+    const room = String((await h.next(isT('welcome'))).room);
+    const a = await raw();
+    a.send({ t: 'join', v: 1, room, seats: 1, info: INFO('Ana') });
+    const token = String((await a.next(isT('welcome'))).token);
+    const c = await raw();
+    c.send({ t: 'join', v: 1, room, seats: 1, info: INFO('Caio') });
+    await c.next(isT('welcome'));
+    h.send({ t: 'start', cfg: {} });
+    await c.next(isT('start'));
+    a.ws.close();
+    await c.next((m) => m.t === 'peer' && m.e === 'lost');
+    const a2 = await raw();
+    a2.send({ t: 'rejoin', v: 1, room, token });
+    await a2.next(isT('welcome'));
+    h.ws.close();
+    // Ana (id 1) acabou de voltar e espera o estado; Caio (id 2) nunca caiu: o estado completo é dele.
+    const r = await c.next((m) => m.t === 'room' && (m.room as { clients: Array<{ id: number; connected: boolean }> }).clients.some((x) => x.id === 0 && !x.connected));
+    expect((r.room as { host: number }).host).toBe(2);
+    for (const x of [a2, c]) x.ws.close();
   });
 
   it('lixo, binário e mensagem acima do limite: descarta, e a grande derruba a conexão (1009)', async () => {
@@ -412,6 +451,47 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     A.leave(false); B.leave(false);
   }, 20_000);
 
+  it('três computadores: o anfitrião cai sem mandar o snapshot a quem voltava; o novo anfitrião é quem ficou conectado, e ele manda', async () => {
+    const [hh, ha, hc] = [new FakeHost('Hugo'), new FakeHost('Ana'), new FakeHost('Caio')];
+    const opts = { retryMs: 100, reconnectWindowMs: 10_000, pingMs: 200, resendMs: 150 };
+    const [H, A, C] = [new OnlineController(hh, opts), new OnlineController(ha, opts), new OnlineController(hc, opts)];
+    ha.debug = () => ({ host: A.isHost, ...A.status() });
+    hc.debug = () => ({ host: C.isHost, ...C.status() });
+    H.create('kb1');
+    await until(() => H.phase === 'lobby' && H.room?.settings !== null && H.room?.settings !== undefined, 3000, 'sala criada');
+    A.join(H.code, 'kb1');
+    await until(() => (H.room?.clients.length ?? 0) === 2, 3000, 'A na sala');
+    C.join(H.code, 'kb1');
+    await until(() => (H.room?.clients.length ?? 0) === 3, 3000, 'C na sala');
+    H.updateRoomSettings({ trackId: 'copacabana', laps: 3, totalCars: 6 });
+    A.toggleReady();
+    C.toggleReady();
+    await until(() => H.startBlocker() === null, 3000, 'todos prontos');
+    expect(H.startRace()).toBe(true);
+    await until(() => hh.race !== null && ha.race !== null && hc.race !== null, 3000, 'largada');
+    await race([hh, ha, hc], 300);
+
+    // O anfitrião não chega a mandar o snapshot a A (vai cair logo depois da volta dele). Trocar o
+    // envio antes da queda, e não depois: com retryMs de 100 ms, A às vezes voltava e recebia o
+    // snapshot ainda durante o laço abaixo, e a espera por "syncing" nunca terminava.
+    (H as unknown as { sendSnapshot(to: number): void }).sendSnapshot = () => undefined;
+    // A cai. H e C ainda andam até onde a entrada de A deixa, mandando entradas que A não recebe.
+    A.debugDropConnection();
+    for (let i = 0; i < 30; i++) { hh.pump(8, 1200); hc.pump(8, 1200); await sleep(3); }
+    await until(() => A.status().syncing, 3000, 'A de volta, esperando o estado');
+    // Agora o anfitrião cai de vez, sem ter mandado nada.
+    H.debugVanish();
+    hh.race = null;
+    // A e C seguem juntos (depois da janela do relay, a IA assume o carro de Hugo).
+    await race([ha, hc], 900, 15_000);
+    expect(C.isHost).toBe(true);
+    expect(ha.race?.starts).toBe(2); // A recomeçou do snapshot de C
+    expect(hashRace(ha.race!.state)).toBe(hashRace(hc.race!.state));
+    expect([...A.debugInfo().desyncs as unknown[], ...C.debugInfo().desyncs as unknown[]]).toEqual([]);
+    expect(hc.race?.state.cars.find((c) => c.seat === 0)?.ai).not.toBeNull();
+    A.leave(false); C.leave(false);
+  }, 30_000);
+
   it('fim natural pela rede, quadro a quadro: o mesmo resultado nos dois computadores, e a próxima largada funciona', async () => {
     const ha = new FakeHost('Ana');
     const hb = new FakeHost('Bia');
@@ -456,6 +536,42 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     expect(hashRace(hb.race!.state)).toBe(hashRace(ha.race!.state));
     A.leave(false); B.leave(false);
   }, 90_000);
+
+  it('convidado com a janela escondida (sem quadros): o anfitrião não fica em "Aguardando…"; os dois seguem juntos', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    const A = new OnlineController(ha, { pingMs: 200 });
+    const B = new OnlineController(hb, { pingMs: 200 });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto');
+    expect(A.startRace()).toBe(true);
+    await until(() => ha.race !== null && hb.race !== null, 3000, 'largada');
+    hb.hiddenNow = true;
+    // Só o anfitrião tem quadros, no relógio de verdade, por 2 s.
+    const t0 = performance.now();
+    let last = t0;
+    while (performance.now() - t0 < 2000) {
+      const now = performance.now();
+      ha.frame((now - last) / 1000);
+      last = now;
+      await sleep(16);
+    }
+    const [ta, tb] = [ha.race?.state.tick ?? 0, hb.race?.state.tick ?? 0];
+    const info = `${ta} ${JSON.stringify(A.debugInfo().stats)} | ${tb} ${JSON.stringify(B.debugInfo().stats)}`;
+    // Sem o bombeamento pela rede o anfitrião fica no tick 0; no relógio de verdade são ~120. A
+    // folga (60) é para máquina carregada: uma rodada em ~40 falhou sem mostrar o número.
+    expect(ta, info).toBeGreaterThanOrEqual(60);
+    expect(Math.abs(ta - tb), info).toBeLessThanOrEqual(12);
+    let compared = 0;
+    for (const [t, h] of ha.hashes) if (hb.hashes.has(t)) { expect(hb.hashes.get(t), `tick ${t}`).toBe(h); compared++; }
+    expect(compared).toBeGreaterThanOrEqual(1);
+    expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
+    A.leave(false); B.leave(false);
+  }, 10_000);
 
   it('depois da corrida o anfitrião não larga de novo enquanto um convidado ainda está no resultado', async () => {
     const ha = new FakeHost('Ana');

@@ -101,6 +101,13 @@ export interface OnlineHost {
   /** Fim do online: menu principal. */
   exitToMain(): void;
   persistSettings(): void;
+  /**
+   * A janela está escondida (aba em segundo plano, janela minimizada): o navegador para o
+   * requestAnimationFrame e o quadro deixa de chamar o `advance`. Opcional (sem DOM, nunca).
+   */
+  hidden?(): boolean;
+  /** Janela escondida: roda o `advance` do driver com `dt` segundos, sem desenhar. */
+  runHidden?(dt: number): void;
 }
 
 export interface OnlineHud {
@@ -203,6 +210,8 @@ export class OnlineController implements RaceDriver {
   private localSeatList: number[] = [];
   /** Os controles deste computador estão ligados aos assentos globais da corrida online. */
   private devicesBound = false;
+  /** Instante do último `advance` (null até o primeiro da corrida): o relógio da janela escondida. */
+  private lastAdvanceAt: number | null = null;
 
   constructor(host: OnlineHost, opts: OnlineOptions = {}) {
     this.host = host;
@@ -400,7 +409,11 @@ export class OnlineController implements RaceDriver {
         if (this.client !== client) return;
         if (this.pending) { client.send(this.pending); this.pending = null; }
       },
-      onMessage: (msg) => { if (this.client === client) this.handle(msg); },
+      onMessage: (msg) => {
+        if (this.client !== client) return;
+        this.handle(msg);
+        this.pumpHidden();
+      },
       onClose: (info) => { if (this.client === client) this.handleClose(info.wasOpen); },
     }, this.opts.socket);
     this.client = client;
@@ -476,6 +489,12 @@ export class OnlineController implements RaceDriver {
       if (this.isHost) this.resumeOwnState();
       // A sala saiu da corrida enquanto este computador voltava (o anfitrião voltou à sala): vai junto.
       else if (!room.started) { this.enterLobby(); return; }
+    }
+    // Anfitrião novo no meio da corrida (o anterior caiu ou saiu): quem tinha voltado e esperava o
+    // estado do anterior pode ter ficado sem ele. Manda o snapshot a todos os conectados; quem não
+    // está esperando descarta.
+    if (!wasHost && this.isHost && this.phase === 'racing' && !this.awaitingSnapshot) {
+      for (const c of room.clients) if (c.id !== this.myId && c.connected) this.sendSnapshot(c.id);
     }
     // Anfitrião (de nascença ou por sucessão): quem sumiu da sala no meio da corrida vira IA.
     if (this.isHost && this.lockstep && this.start) {
@@ -632,6 +651,7 @@ export class OnlineController implements RaceDriver {
 
   private newLockstep(cfg: StartConfig, startTick: number, ai: Array<[number, number]>): Lockstep {
     this.outbox = [];
+    this.lastAdvanceAt = null;
     const ls = new Lockstep({ seats: cfg.seats.map((s) => s.seat), localSeats: this.localSeatList, delay: cfg.delay, startTick, ai, resendMs: this.opts.resendMs }, {
       sendInputs: (records) => { this.outbox.push(...records); },
       sendHash: (tick, hash) => this.send({ t: 'h', k: tick, h: hash }),
@@ -735,7 +755,8 @@ export class OnlineController implements RaceDriver {
   private feedLocal(local: PlayerInput[]): void {
     const ls = this.lockstep;
     if (!ls) return;
-    const blocked = this.quitOpen || this.host.menuOpen();
+    // Com a janela escondida ninguém vê a pista: o carro segue neutro (acelerador preso não conta).
+    const blocked = this.quitOpen || this.host.menuOpen() || (this.host.hidden?.() ?? false);
     for (const seat of this.localSeatList) ls.setLocalInput(seat, blocked ? NEUTRAL_INPUT : local[seat] ?? NEUTRAL_INPUT);
   }
 
@@ -753,6 +774,7 @@ export class OnlineController implements RaceDriver {
   }
 
   advance(dt: number, local: PlayerInput[], step: (inputs: PlayerInput[]) => void): number {
+    this.lastAdvanceAt = this.now();
     this.feedLocal(local);
     this.backlog = Math.min(MAX_BACKLOG, this.backlog + Math.max(0, dt));
     let budget = Math.floor(this.backlog / DT + 1e-9);
@@ -762,6 +784,19 @@ export class OnlineController implements RaceDriver {
     this.backlog = Math.max(0, this.backlog - n * DT);
     this.hud?.update(this.status());
     return n;
+  }
+
+  /**
+   * Janela escondida: sem requestAnimationFrame o quadro não chama o `advance`, este computador
+   * parava de mandar entrada e todos os outros ficavam em "Aguardando…" sem fim (conectado, a IA não
+   * assume). Então cada mensagem que chega anda a corrida pelo relógio desde o último `advance` —
+   * no ritmo dos outros, que mandam uma por quadro. Se todos escondem a janela, anda só no ritmo do
+   * ping (o navegador segura os timers de aba escondida em ~1 por segundo).
+   */
+  private pumpHidden(): void {
+    if (this.phase !== 'racing' || !this.lockstep || !this.host.runHidden || !this.host.hidden?.()) return;
+    const last = this.lastAdvanceAt;
+    this.host.runHidden(last === null ? DT : Math.max(0, (this.now() - last) / 1000));
   }
 
   force(ticks: number, local: PlayerInput[], step: (inputs: PlayerInput[]) => void): number {

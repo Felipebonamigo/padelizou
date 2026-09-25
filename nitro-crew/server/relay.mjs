@@ -56,6 +56,8 @@ export function startRelay(options = {}) {
   /** code → { code, clients: Map<id, Client>, host, started, settings, nextId } */
   const rooms = new Map();
   const conns = new Set();
+  /** Ordem de chegada das conexões (quem está conectado há mais tempo tem o número menor). */
+  let connSeq = 0;
   const stats = { connections: 0, invalid: 0, rateDropped: 0, forwarded: 0 };
   const log = (...a) => { if (o.log) console.log(new Date().toISOString(), ...a); };
 
@@ -79,11 +81,16 @@ export function startRelay(options = {}) {
     return null;
   }
 
-  /** O anfitrião é sempre um cliente conectado (o de menor id); se o atual caiu, passa adiante. */
+  /**
+   * O anfitrião é sempre um cliente conectado; se o atual caiu, passa a quem está conectado há mais
+   * tempo. No meio da corrida é quem não caiu: o estado dele é o mais completo, e quem acabou de
+   * voltar espera o snapshot dele. (Pelo menor id, um recém-voltado podia herdar a sala e seguir do
+   * próprio estado atrasado, travando quem ficou.)
+   */
   function electHost(room) {
     const current = room.clients.get(room.host);
     if (current && current.conn) return;
-    const next = [...room.clients.values()].filter((c) => c.conn).sort((a, b) => a.id - b.id)[0];
+    const next = [...room.clients.values()].filter((c) => c.conn).sort((a, b) => a.conn.order - b.conn.order)[0];
     if (next) room.host = next.id;
   }
 
@@ -249,7 +256,7 @@ export function startRelay(options = {}) {
 
   wss.on('connection', (ws) => {
     stats.connections++;
-    const conn = { ws, room: null, client: null, alive: true, tokens: o.rateBurst, last: Date.now(), drops: 0, lastRateError: 0 };
+    const conn = { ws, order: ++connSeq, room: null, client: null, alive: true, tokens: o.rateBurst, last: Date.now(), drops: 0, lastRateError: 0 };
     conns.add(conn);
     ws.on('pong', () => { conn.alive = true; });
     ws.on('message', (data, isBinary) => {
