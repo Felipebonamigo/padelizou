@@ -1,6 +1,18 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **25/09/2026 (6)** — 🔥 **ONDA 3 DO JOGO: cenário que mata, pontos de controle e o modo Arena.** ✅ **SEM MIGRATION, sem C#.** Commits `b954f5a` (palco) e o conserto do porteiro da Steam logo depois. Mesmo branch, sem PR.
+>
+> 🏯 **Uma tarefa só, porque tudo passa pelo motor.** **Cenário que mata**: braseiros, espinhos e a beira do poço, sempre encostados no muro ou na frente (sobra uma faixa livre em todo x — tem check). Inimigo comum que cai numa zona arremessado, lançado ou derrubado morre na hora com bônus; chefe é empurrado pra fora, inclusive em fúria; o jogador leva dano fixo e **nunca morre de uma vez** (a vida para em 1). **Pontos de controle**: tentar de novo recomeça na última onda disparada, e o karma da fase não dobra. **Arena**: uma tela, ondas infinitas do `mundo.rng`, chefe a cada cinco somado à escolta, recorde separado, karma pela metade.
+>
+> 🐞 **Defeito antigo achado no caminho, com teste antes**: quem agarrava ANDANDO deslizava ~340 px durante a finalização (o `vx` da caminhada nunca zerava) — com as zonas, atravessava espinhos imune. 🕳️ **E a revisão pegou uma trapaça**: recomeçar na onda do chefe e vencê-la sem dano dava a conquista "Intocável". Corrigido. **8 de 8 achados confirmados**, todos corrigidos.
+>
+> 🔢 **Um desencontro entre módulos, pego pelo implementador e fechado com teste antes**: o id `arena_10` tem algarismo, e o porteiro do IPC do desktop só aceitava `[a-z_]` — a conquista funcionaria no jogo e sumiria calada na Steam. O porteiro passou a aceitar dígito (a Steam aceita), e o conferidor do desktop agora exige que TODA conquista de `conquistas.js` passe por ele.
+>
+> 📊 **Simulador** (Long, n=30): as zonas quase não matam na campanha (0 a 0,3 por luta) — o bot só usa quando o inimigo já está de frente pra zona. Na Arena, a onda 5 (quatro comuns + chefe) é um muro: no normal, o bot bom para na 5 (mediana) e o médio na 4. Vai pro balanceamento da onda 4. A Arena no normal dá ~142 de karma em ~150 s contra ~130 da fase 1 em ~85 s: não virou fazenda.
+>
+> 🧪 **19 conferidores JS verdes** (novo: `conferir-palco-do-shaolin.js`). Fumaças no Chromium: tentar de novo recomeçando na onda, Arena pelo menu, Esc na pausa da Arena.
+
 > Última atualização: **25/09/2026 (5)** — 🥋 **ONDA 2 DO JOGO: Lian, Lanceiro, Monge Renegado, chefes em duas fases, o defeito do simulador consertado, e as fontes empacotadas.** ✅ **SEM MIGRATION, sem C#.** Commits `77ca731` (conteúdo) e `c36a81d` (fontes). Mesmo branch, sem PR.
 >
 > 🌊 **Duas tarefas de arquivos disjuntos**: conteúdo na árvore principal, fontes em worktree. Mesma esteira da onda 1, agora com **dois céticos por achado e os dois precisando confirmar** (na onda 1 os céticos confirmaram 27 de 29 e a etapa estourou o limite da sessão). **Conteúdo: 14 de 14 achados confirmados e corrigidos. Fontes: 1 de 2.**

@@ -51,6 +51,13 @@ na hora — o `UseStaticFiles` roda ANTES do portão de Acesso Antecipado (`Prog
   antes do golpe inimigo ligar APARA: zero dano e o atacante atordoado), Especial no Ar, Agarrão
   pelas Costas (suplex, nunca em chefe), Vigor (+20% de vida), Respiração do Templo (+3 de chi por
   segundo sem atacar) e Punhos de Ferro (+15% de dano). Valem pro P2 que entra no meio.
+- **O cenário mata**: braseiros, espinhos e a beira do poço, encostados no muro ou na frente, fora
+  do caminho obrigatório. Inimigo comum que cai numa zona arremessado, lançado ou derrubado morre
+  na hora, com bônus. Chefe é empurrado pra fora; o jogador leva dano fixo e nunca morre de uma vez.
+- **Pontos de controle**: "tentar de novo" recomeça na última onda disparada, com os pontos de
+  quando ela disparou.
+- **Arena** (menu): uma tela, ondas infinitas, chefe a cada cinco, recorde próprio, e karma pela
+  metade do da campanha.
 - **A régua da finalização é a vida**, não o estado: só finaliza abaixo de 22% (10% em chefe). O
   atordoado do contra-golpe num inimigo com vida cheia é agarrão comum.
 
@@ -82,7 +89,7 @@ ao carregar: salvamento velho ou corrompido vira padrão no que faltar.
 | `js/som.js` | Efeitos e música sintetizados (Web Audio). Um sequenciador pentatônico com taiko, um humor por cenário. | ❌ |
 | `js/entrada.js` | Teclado, Gamepad API e toque (joystick + botões). Calcula a borda "apertou" por quadro. | ❌ |
 | `js/progresso.js` | O que fica guardado entre partidas, com versão e migração (`normalizar`). | ✅ |
-| `js/conquistas.js` | As 19 conquistas: definição, desbloqueio pelos eventos do motor e da compra no Templo, espelho pra Steam. | ✅ |
+| `js/conquistas.js` | As 21 conquistas: definição, desbloqueio pelos eventos do motor e da compra no Templo, espelho pra Steam. | ✅ |
 | `js/loja.js` | O Templo: catálogo das sete melhorias, karma da fase, compra. O motor não importa a loja; ele exporta `Motor.MELHORIAS` e recebe `liberados` no `criarMundo`. | ✅ |
 | `js/plataforma.js` | Onde salva e com quem fala: `localStorage` no navegador, `window.punhos` no Electron (arquivo + Steam). | ❌ |
 | `js/principal.js` | Laço com passo fixo de 1/60 s, menus, opções, pausa, congelamento de acerto, câmera lenta, resolução nativa. | ❌ |
@@ -104,6 +111,7 @@ node Padelizou.Tests/js/conferir-loja-do-shaolin.js         # Templo: catálogo,
 node Padelizou.Tests/js/conferir-desktop-do-shaolin.js      # caminho seguro, porteiro do IPC, salvamento com .bak, fios do main.js, fuses
 node Padelizou.Tests/js/conferir-simulacao-do-shaolin.js    # o bot conclui a fase 1, nada trava, a semente reproduz (~3 s)
 node Padelizou.Tests/js/conferir-conteudo-do-shaolin.js     # Lian, Lanceiro, Renegado, fúria dos chefes, inimigos presos na arena
+node Padelizou.Tests/js/conferir-palco-do-shaolin.js        # cenário que mata, pontos de controle, Arena
 ```
 
 Roda o motor no Node, quadro a quadro, e confere 40 pontos: soco tira o dano certo e só em quem
