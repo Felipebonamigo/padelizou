@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyRaceResult, createChampionship, isCoop, nextTrackId, teamRaceRank, teamRaceScore } from '../src/core/championship';
 import { POINTS_TABLE } from '../src/core/constants';
+import { cupDef } from '../src/core/data/cups';
 import { AI_TEAM_ID_BASE } from '../src/core/data/drivers';
 import type { HumanEntry, RaceResultRow } from '../src/core/types';
 import { createRace } from '../src/core/sim/race';
@@ -29,23 +30,28 @@ describe('campeonato', () => {
   it('solo: fica na copa terminando entre os 5, é eliminado em 6º', () => {
     const humans = [human(0)];
     const champ = createChampionship('brasil', humans);
-    expect(nextTrackId(champ)).toBe('copacabana');
+    const [first, second] = cupDef('brasil').trackIds;
+    expect(nextTrackId(champ)).toBe(first);
     applyRaceResult(champ, fakeResults({ 0: 5 }, humans), humans);
     expect(champ.lastVerdict).toBe('qualified'); expect(champ.eliminated).toBe(false);
-    expect(nextTrackId(champ)).toBe('serra_do_mar');
+    expect(nextTrackId(champ)).toBe(second);
     applyRaceResult(champ, fakeResults({ 0: 6 }, humans), humans);
     expect(champ.eliminated).toBe(true); expect(champ.lastVerdict).toBe('eliminated');
   });
 
-  it('solo: três corridas boas completam a copa, com pontos e vitórias somados', () => {
+  it('solo: uma corrida boa em cada pista completa a copa (só na última), com pontos e vitórias somados', () => {
     const humans = [human(0)];
     const champ = createChampionship('brasil', humans);
-    applyRaceResult(champ, fakeResults({ 0: 1 }, humans), humans);
-    applyRaceResult(champ, fakeResults({ 0: 2 }, humans), humans);
-    applyRaceResult(champ, fakeResults({ 0: 1 }, humans), humans);
+    // Copas de 4 pistas (eram 3): a copa só fecha depois da última, e as posições cabem todas.
+    const places = cupDef('brasil').trackIds.map((_, i) => (i % 2 === 0 ? 1 : 2));
+    expect(places).toHaveLength(4);
+    places.forEach((p, i) => {
+      expect(champ.completed, `antes da corrida ${i + 1}`).toBe(false);
+      applyRaceResult(champ, fakeResults({ 0: p }, humans), humans);
+    });
     expect(champ.completed).toBe(true);
     const me = champ.standings.find((s) => s.seat === 0)!;
-    expect(me.points).toBe(20 + 15 + 20); expect(me.wins).toBe(2); expect(me.positions).toEqual([1, 2, 1]);
+    expect(me.points).toBe(20 + 15 + 20 + 15); expect(me.wins).toBe(2); expect(me.positions).toEqual([1, 2, 1, 2]);
     expect(nextTrackId(champ)).toBeNull();
   });
 

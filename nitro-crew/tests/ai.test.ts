@@ -6,25 +6,25 @@ import { getTrack } from '../src/core/track';
 import { idle, quickRace, run } from './helpers';
 
 describe('IA', () => {
-  it('em toda pista, 19 carros de IA completam uma volta em menos de 2 minutos sem ninguém travar', () => {
-    for (const def of TRACKS) {
-      const track = getTrack(def.id);
-      const { state } = quickRace({ track, totalCars: 20, laps: 3, difficulty: 'profissional', seed: 11 });
-      const stuck: number[] = [];
-      for (let i = 0; i < TICK_RATE * 120 && !state.cars.filter((c) => c.seat < 0).every((c) => c.lap >= 2); i++) {
-        run(state, track, 1, idle);
-        if (state.phase === 'racing' && state.tick > state.startTick + TICK_RATE * 8) {
-          for (const c of state.cars) if (c.seat < 0 && c.speed < carDef(c.carId).topSpeed * 0.1) stuck.push(c.id);
-        }
+  // Um teste por pista, cada um com o próprio limite de tempo (eram 12 pistas num teste só de 60 s).
+  it.each(TRACKS.map((d) => [d.id] as const))('%s: 19 carros de IA completam uma volta em menos de 2 minutos sem ninguém travar', (id) => {
+    const track = getTrack(id);
+    const { state } = quickRace({ track, totalCars: 20, laps: 3, difficulty: 'profissional', seed: 11 });
+    const stuck: number[] = [];
+    for (let i = 0; i < TICK_RATE * 120 && !state.cars.filter((c) => c.seat < 0).every((c) => c.lap >= 2); i++) {
+      run(state, track, 1, idle);
+      if (state.phase === 'racing' && state.tick > state.startTick + TICK_RATE * 8) {
+        for (const c of state.cars) if (c.seat < 0 && c.speed < carDef(c.carId).topSpeed * 0.1) stuck.push(c.id);
       }
-      const ai = state.cars.filter((c) => c.seat < 0);
-      expect(ai.every((c) => c.lap >= 2), `${def.id}: voltas ${ai.map((c) => c.lap).join(',')}`).toBe(true);
-      expect(stuck.length, `${def.id}: ticks com IA quase parada`).toBeLessThan(ai.length * 30);
     }
-  }, 60_000);
+    const ai = state.cars.filter((c) => c.seat < 0);
+    expect(ai.every((c) => c.lap >= 2), `${id}: voltas ${ai.map((c) => c.lap).join(',')}`).toBe(true);
+    expect(stuck.length, `${id}: ticks com IA quase parada`).toBeLessThan(ai.length * 30);
+  }, 30_000);
 
-  it('a IA fica na pista a maior parte do tempo, mesmo na pista mais difícil', () => {
-    const track = getTrack('passo_alpino');
+  // Era só o Passo Alpino; com 32 pistas, vale para todas as de dificuldade máxima.
+  it.each(TRACKS.filter((d) => d.difficulty === 5).map((d) => [d.id] as const))('%s: a IA fica na pista a maior parte do tempo, mesmo nas pistas mais difíceis', (id) => {
+    const track = getTrack(id);
     const { state } = quickRace({ track, totalCars: 12, laps: 3, difficulty: 'campeao', seed: 5 });
     let off = 0; let total = 0;
     for (let i = 0; i < TICK_RATE * 75; i++) {

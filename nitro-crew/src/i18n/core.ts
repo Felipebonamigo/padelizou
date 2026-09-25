@@ -5,7 +5,9 @@ import { registerStrings } from './index';
 registerStrings('core', {
   pt: {
     'country.Brasil': 'Brasil', 'country.Estados Unidos': 'Estados Unidos', 'country.Japão': 'Japão', 'country.Europa': 'Europa',
+    'country.África do Sul': 'África do Sul', 'country.Austrália': 'Austrália', 'country.Escandinávia': 'Escandinávia', 'country.Mediterrâneo': 'Mediterrâneo',
     'cup.brasil': 'Copa Brasil', 'cup.eua': 'Copa Estados Unidos', 'cup.japao': 'Copa Japão', 'cup.europa': 'Copa Europa',
+    'cup.africa_do_sul': 'Copa África do Sul', 'cup.australia': 'Copa Austrália', 'cup.escandinavia': 'Copa Escandinávia', 'cup.mediterraneo': 'Copa Mediterrâneo',
     'difficulty.amador': 'Amador', 'difficulty.profissional': 'Profissional', 'difficulty.campeao': 'Campeão',
     'car.falcao.blurb': 'Equilibrado. Bom em tudo, excelente em nada.',
     'car.trovao.blurb': 'O mais rápido na reta. Bebe muito e sofre nas curvas.',
@@ -16,7 +18,9 @@ registerStrings('core', {
   },
   en: {
     'country.Brasil': 'Brazil', 'country.Estados Unidos': 'United States', 'country.Japão': 'Japan', 'country.Europa': 'Europe',
+    'country.África do Sul': 'South Africa', 'country.Austrália': 'Australia', 'country.Escandinávia': 'Scandinavia', 'country.Mediterrâneo': 'Mediterranean',
     'cup.brasil': 'Brazil Cup', 'cup.eua': 'United States Cup', 'cup.japao': 'Japan Cup', 'cup.europa': 'Europe Cup',
+    'cup.africa_do_sul': 'South Africa Cup', 'cup.australia': 'Australia Cup', 'cup.escandinavia': 'Scandinavia Cup', 'cup.mediterraneo': 'Mediterranean Cup',
     'difficulty.amador': 'Amateur', 'difficulty.profissional': 'Professional', 'difficulty.campeao': 'Champion',
     'car.falcao.blurb': 'Balanced. Good at everything, great at nothing.',
     'car.trovao.blurb': 'Fastest on the straights. Drinks fuel and struggles in corners.',

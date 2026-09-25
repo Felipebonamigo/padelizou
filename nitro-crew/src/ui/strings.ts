@@ -26,7 +26,7 @@ registerStrings('ui', {
     'main.controls': 'Controles',
     'main.credits': 'Créditos',
     'main.quit': 'Sair',
-    'main.hint.cup': 'Quatro copas de três pistas, em equipe ou versus',
+    'main.hint.cup': 'Oito copas de quatro pistas, em equipe ou versus',
     'main.hint.quick': 'Uma pista, as voltas que você quiser',
     'main.hint.timetrial': 'Sozinho na pista, contra o relógio',
     'main.hint.records': 'Melhores voltas e corridas por pista',
@@ -61,11 +61,14 @@ registerStrings('ui', {
 
     'cups.title': 'Escolha a copa',
     'cups.locked': 'Conclua a {cup}',
+    'cups.done': 'Concluída',
+    'cups.open': 'Aberta',
+    'cups.races': '{n} corridas',
     'cups.hint': 'Enter ou A escolhe · Esc ou B volta ao lobby',
 
     'tracks.title': 'Escolha a pista',
     'tracks.bestLap': 'Melhor volta',
-    'tracks.hint': 'Enter ou A escolhe · Esc ou B volta ao lobby',
+    'tracks.hint': '↑↓ troca de copa · ←→ de pista · Enter ou A escolhe · Esc ou B volta ao lobby',
 
     'results.title': 'Resultado',
     'results.name': 'Piloto',
@@ -184,7 +187,7 @@ registerStrings('ui', {
     'main.controls': 'Controls',
     'main.credits': 'Credits',
     'main.quit': 'Quit',
-    'main.hint.cup': 'Four cups of three tracks, as a team or versus',
+    'main.hint.cup': 'Eight cups of four tracks, as a team or versus',
     'main.hint.quick': 'One track, as many laps as you like',
     'main.hint.timetrial': 'Alone on the track, against the clock',
     'main.hint.records': 'Best laps and races per track',
@@ -219,11 +222,14 @@ registerStrings('ui', {
 
     'cups.title': 'Choose a cup',
     'cups.locked': 'Finish the {cup}',
+    'cups.done': 'Completed',
+    'cups.open': 'Open',
+    'cups.races': '{n} races',
     'cups.hint': 'Enter or A picks · Esc or B returns to the lobby',
 
     'tracks.title': 'Choose a track',
     'tracks.bestLap': 'Best lap',
-    'tracks.hint': 'Enter or A picks · Esc or B returns to the lobby',
+    'tracks.hint': '↑↓ switch cup · ←→ switch track · Enter or A picks · Esc or B returns to the lobby',
 
     'results.title': 'Results',
     'results.name': 'Driver',
