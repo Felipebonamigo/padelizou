@@ -62,6 +62,7 @@ registerStrings('online', {
     'results.backToRoom': 'Voltar à sala',
     'results.leave': 'Sair da sala',
     'results.ai': 'IA',
+    'results.aiHint': 'A IA assumiu este carro: o jogador saiu ou não voltou a tempo',
 
     'hud.ping': 'ping {ms} ms',
     'hud.pingUnknown': 'ping —',
@@ -150,6 +151,7 @@ registerStrings('online', {
     'results.backToRoom': 'Back to room',
     'results.leave': 'Leave room',
     'results.ai': 'AI',
+    'results.aiHint': 'The AI took over this car: the player left or did not get back in time',
 
     'hud.ping': 'ping {ms} ms',
     'hud.pingUnknown': 'ping —',

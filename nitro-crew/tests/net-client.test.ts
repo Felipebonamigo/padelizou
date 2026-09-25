@@ -307,3 +307,46 @@ describe('sessão online: controles', () => {
     expect(unbound(host)).toEqual([null, null, null, null]);
   });
 });
+
+describe('sessão online: resultado com a IA ao volante', () => {
+  const results = () => ({ mode: 'quick' as const, trackDef: getTrack('copacabana').def, results: [], humans: [], champ: null, newRecords: [] });
+
+  /** Anfitrião (id 0) na corrida com o convidado (id 1, assento 1). */
+  function hosting(): { sock: FakeSocket; host: Host; ctl: OnlineController; step: (inputs: PlayerInput[]) => void } {
+    const sock = new FakeSocket();
+    const host = new Host();
+    const ctl = new OnlineController(host, { socket: () => asWebSocket(sock), pingMs: 60_000 });
+    ctl.create('kb1');
+    sock.open();
+    sock.push({ t: 'welcome', room: 'KQXTR', id: 0, token: TOKEN, rejoined: false });
+    sock.push(roomMsg(0));
+    sock.push({ t: 'start', from: 0, cfg: startCfg() });
+    const state = host.state as RaceState;
+    return { sock, host, ctl, step: (inputs) => stepRace(state, getTrack(state.config.trackId), inputs) };
+  }
+  const withoutGuest = { t: 'room', room: { ...roomMsg(0, true).room, clients: roomMsg(0, true).room.clients.slice(0, 1) } };
+
+  it('assento que a IA assumiu no meio da corrida sai marcado no resultado', () => {
+    const { sock, ctl, step } = hosting();
+    sock.push(withoutGuest); // o convidado saiu: a IA assume o assento 1
+    expect(ctl.force(10, [], step)).toBe(10);
+    ctl.finished(results());
+    expect(ctl.aiSeats).toEqual([1]);
+    ctl.leave(false);
+  });
+
+  it('quem cruzou a linha antes de sair terminou a corrida ele mesmo: sem marca', () => {
+    const { sock, host, ctl, step } = hosting();
+    sock.push({ t: 'i', from: 1, d: [0, 1, 1, 0, 1, 1, 1, 0, 2, 1, 1, 0, 3, 1, 1, 0, 4, 1, 1, 0] });
+    expect(ctl.force(5, [], step)).toBe(5);
+    const car = (host.state as RaceState).cars.find((c) => c.seat === 1);
+    if (!car) throw new Error('sem carro no assento 1');
+    car.finished = true; // (atalho do teste: como se tivesse cruzado a linha no tick 3)
+    car.finishTick = 3;
+    sock.push(withoutGuest);
+    expect(ctl.force(10, [], step)).toBe(10);
+    ctl.finished(results());
+    expect(ctl.aiSeats).toEqual([]);
+    ctl.leave(false);
+  });
+});

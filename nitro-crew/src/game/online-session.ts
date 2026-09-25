@@ -145,6 +145,8 @@ export class OnlineController implements RaceDriver {
   ready = false;
   start: StartConfig | null = null;
   results: ResultsScreenData | null = null;
+  /** Assentos que terminaram a corrida com a IA ao volante (quem saiu ou não voltou a tempo). */
+  aiSeats: number[] = [];
   /** "Sair da partida?" aberto durante a corrida. */
   quitOpen = false;
   ping: number | null = null;
@@ -574,6 +576,7 @@ export class OnlineController implements RaceDriver {
     this.quitOpen = false;
     this.desync = null;
     this.results = null;
+    this.aiSeats = [];
     this.backlog = 0;
     this.hud?.dispose();
     this.hud = this.opts.hud ? this.opts.hud() : null;
@@ -756,6 +759,7 @@ export class OnlineController implements RaceDriver {
   }
 
   finished(data: ResultsScreenData): void {
+    this.aiSeats = this.aiDrivenSeats();
     this.results = data;
     this.phase = 'results';
     this.quitOpen = false;
@@ -763,6 +767,26 @@ export class OnlineController implements RaceDriver {
     this.hud = null;
     this.host.showScreen();
     this.changed();
+  }
+
+  /**
+   * Tomadas que já valeram, fora as de quem cruzou a linha antes (esse terminou a corrida ele
+   * mesmo; a IA só levou o carro de volta, em piloto automático).
+   */
+  private aiDrivenSeats(): number[] {
+    const ls = this.lockstep;
+    const state = this.host.raceState();
+    if (!ls || !state) return [];
+    const list = ls.aiList();
+    const out: number[] = [];
+    for (let i = 0; i < list.length; i += 2) {
+      const seat = list[i];
+      const from = list[i + 1];
+      const car = state.cars.find((c) => c.seat === seat);
+      if (from >= state.tick || !car || (car.finished && car.finishTick < from)) continue;
+      out.push(seat);
+    }
+    return out;
   }
 
   dispose(): void {

@@ -372,6 +372,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
     const colorOf = (seat: number) => d.humans.find((x) => x.seat === seat)?.color ?? null;
     const rows = [...d.results].sort((a, b) => a.position - b.position);
     const mine = new Set(online!.localSeats);
+    const ai = new Set(online!.aiSeats);
     const table = h('table', { class: 'table results-table' },
       h('thead', {}, h('tr', {},
         h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { text: t('ui.results.car') }),
@@ -381,7 +382,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
         const color = r.seat >= 0 ? colorOf(r.seat) : null;
         return h('tr', { class: `${r.seat >= 0 ? 'human' : ''}${mine.has(r.seat) ? ' mine' : ''}`, style: color ? `--seat:${color}` : '' },
           h('td', { class: 'mono pos' }, medal(r.position) ?? String(r.position)),
-          h('td', { text: r.name }),
+          h('td', {}, h('span', { text: r.name }), ai.has(r.seat) ? h('span', { class: 'tag ai', text: t('online.results.ai'), attrs: { title: t('online.results.aiHint') } }) : null),
           h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
           h('td', { class: 'mono', text: r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf') }),
           h('td', { class: 'mono', text: formatTicks(r.bestLapTicks) }),
