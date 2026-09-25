@@ -113,7 +113,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     totalCars: pickNumber(r.totalCars, TOTAL_CARS_MIN, TOTAL_CARS_MAX, d.totalCars, true),
     quickLaps: pickNumber(r.quickLaps, QUICK_LAPS_MIN, QUICK_LAPS_MAX, d.quickLaps, true),
     music: pickString(r.music, d.music),
-    telemetry: pickBool(r.telemetry, d.telemetry),
+    // O booleano `telemetry` de antes dos termos versionados não vale como consentimento: volta desligada.
+    telemetryConsent: pickNumber(r.telemetryConsent, 0, 1_000_000, d.telemetryConsent, true),
     controls: sanitizeBindings(r.controls),
     vibration: pickBool(r.vibration, d.vibration),
     serverUrl: normalizeServerUrl(r.serverUrl) ?? d.serverUrl,

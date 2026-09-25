@@ -3,8 +3,9 @@
 //   xvfb-run -a node e2e.mjs [prefixo-das-capturas]      (sem Xvfb, numa máquina com tela: node e2e.mjs)
 // userData isolado numa pasta temporária (XDG_CONFIG_HOME) — nunca toca o ~/.config de verdade.
 // Confere: app/index.html de dentro do asar, preload, pasta "Nitro Crew", erro → aviso + log em arquivo,
-// "Copiar relatório de erros" → área de transferência, telemetria → saves/*.json, save da nuvem vencendo o
-// localStorage na volta, e a tela de erro fatal quando o WebGL não existe.
+// "Copiar relatório de erros" → área de transferência, telemetria → saves/*.json, arquivo trocado "pela nuvem"
+// vencendo um localStorage DIFERENTE na volta (conflito de verdade), o mesmo erro na 2ª abertura voltando ao log,
+// e a tela de erro fatal quando o WebGL não existe — com a opção num <code> e operada por um controle simulado.
 import { _electron as electron } from 'playwright';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,7 +52,9 @@ await page.keyboard.press('Enter'); await page.waitForTimeout(500);
 check(await page.evaluate(() => window.nc.session.menus.current()) === 'options', 'Opções abre pelo teclado');
 
 // Um erro de verdade, fora de qualquer try: window.onerror → anel, localStorage, log em arquivo e aviso no canto.
-await page.evaluate(() => { setTimeout(() => { throw new Error('erro E2E de propósito'); }, 0); });
+// Mesma função nas duas aberturas: mesma pilha, então é o MESMO erro (a 2ª abertura tem que voltar ao log).
+const throwOnPurpose = () => page.evaluate(() => { setTimeout(() => { throw new Error('erro E2E de propósito'); }, 0); });
+await throwOnPurpose();
 await page.waitForTimeout(700);
 const toastShown = await page.evaluate(() => document.querySelector('.nc-error-toast')?.classList.contains('show') ?? false);
 check(toastShown, 'aviso discreto aparece no canto');
@@ -75,8 +78,14 @@ for (let i = 0; i < 3 && (await focusedItem()) !== 'telemetry'; i++) { await pag
 check((await focusedItem()) === 'telemetry', 'foco na telemetria');
 await page.keyboard.press('Enter'); await page.waitForTimeout(600);
 const settingsFile = join(userData, 'saves', 'nitro-crew.settings.json');
-check(existsSync(settingsFile) && JSON.parse(readFileSync(settingsFile, 'utf8')).telemetry === true, 'telemetria ligada gravada em saves/nitro-crew.settings.json');
+const consent = existsSync(settingsFile) ? JSON.parse(readFileSync(settingsFile, 'utf8')).telemetryConsent : undefined;
+check(consent === 1, `telemetria ligada gravada em saves/nitro-crew.settings.json com a versão dos termos (${consent})`);
 await shot('04-telemetry');
+// As opções passaram pelo espelho: localStorage e arquivo iguais. O save de progresso fica só no localStorage,
+// diferente do que a "nuvem" vai pôr no disco.
+const localSettingsRun1 = await page.evaluate(() => localStorage.getItem('nitro-crew.settings'));
+check(localSettingsRun1 === readFileSync(settingsFile, 'utf8'), 'opções: localStorage e arquivo iguais depois da gravação');
+await page.evaluate(() => { localStorage.setItem('nitro-crew.save', JSON.stringify({ racesRun: 1 })); });
 
 const logFile = join(userData, 'logs', 'errors.log');
 check(existsSync(logFile) && readFileSync(logFile, 'utf8').includes('erro E2E de propósito'), 'erro gravado em logs/errors.log');
@@ -84,15 +93,27 @@ console.log('arquivos no userData:', readdirSync(userData).join(', '), '| saves:
 check(pageErrors.every((e) => e.includes('erro E2E de propósito')), `nenhum erro além do provocado (${pageErrors.length})`);
 await app.close();
 
-// ───────────── "Outro computador": a nuvem troca o save em disco antes da 2ª execução ─────────────
+// ───────────── "Outro computador": a nuvem troca os arquivos em disco antes da 2ª execução ─────────────
+// Conflito de verdade: o localStorage TEM as duas chaves, com valores diferentes dos que a nuvem trouxe.
 writeFileSync(join(userData, 'saves', 'nitro-crew.save.json'), JSON.stringify({ racesRun: 42, racesWon: 7, cupsCompleted: ['brasil'] }));
+const cloudSettings = { ...JSON.parse(readFileSync(settingsFile, 'utf8')), language: 'en', quickLaps: 5 };
+writeFileSync(settingsFile, JSON.stringify(cloudSettings));
 ({ app, page, pageErrors } = await launch());
 const local = await page.evaluate(() => JSON.parse(localStorage.getItem('nitro-crew.save') ?? '{}'));
-check(local.racesRun === 42 && local.cupsCompleted?.[0] === 'brasil', `save do disco venceu o localStorage na inicialização (racesRun ${local.racesRun})`);
-const telemetry = await page.evaluate(() => window.nc.session.settings.telemetry);
-check(telemetry === true, 'opção de telemetria sobreviveu ao reinício');
+check(local.racesRun === 42 && local.cupsCompleted?.[0] === 'brasil', `save do disco venceu o localStorage diferente (racesRun 1 → ${local.racesRun})`);
+const s2 = await page.evaluate(() => ({ language: window.nc.session.settings.language, quickLaps: window.nc.session.settings.quickLaps, consent: window.nc.session.settings.telemetryConsent }));
+check(s2.language === 'en' && s2.quickLaps === 5, `opções do disco venceram as do localStorage (idioma ${s2.language}, voltas ${s2.quickLaps})`);
+check(s2.consent === 1, 'consentimento da telemetria sobreviveu ao reinício');
 const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('nitro-crew.errors') ?? '[]').length);
 check(kept === 1, `anel de erros sobreviveu ao reinício (${kept})`);
+// O mesmo erro de novo: continua uma entrada (x2), e volta ao log nesta abertura.
+await throwOnPurpose();
+await page.waitForTimeout(700);
+const ring2 = await page.evaluate(() => JSON.parse(localStorage.getItem('nitro-crew.errors') ?? '[]'));
+check(ring2.length === 1 && ring2[0].count === 2, `erro repetido em outra abertura: uma entrada, contador 2 no localStorage (${ring2.map((e) => `x${e.count}`).join(',')})`);
+const purposeLines = readFileSync(logFile, 'utf8').split('\n').filter((l) => l.includes('erro E2E de propósito'));
+check(purposeLines.length === 2, `log recebeu o erro nas duas aberturas (${purposeLines.length} linhas)`);
+pageErrors.splice(0, pageErrors.length, ...pageErrors.filter((e) => !e.includes('erro E2E de propósito')));
 // A copa Brasil concluída destrava a seguinte: o progresso da nuvem chegou à sessão.
 await page.evaluate(() => window.nc.session.menus.show('cups'));
 await page.waitForTimeout(600);
@@ -110,15 +131,37 @@ await app.context().addInitScript(() => {
   HTMLCanvasElement.prototype.getContext = function getContext(type, ...rest) {
     return /webgl/i.test(String(type)) ? null : original.call(this, type, ...rest);
   };
+  // Um controle "standard" falso: o teste aperta botões mudando window.__pad.
+  window.__pad = { id: 'E2E pad', index: 0, connected: true, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
+  Object.defineProperty(Navigator.prototype, 'getGamepads', { configurable: true, value: () => [window.__pad, null, null, null] });
 });
 await page.reload();
 await page.waitForSelector('.nc-fatal', { timeout: 60000 });
 const fatalText = await page.evaluate(() => document.querySelector('.nc-fatal p')?.textContent ?? '');
 check(fatalText.includes('WebGL'), `tela fatal explica a falha de WebGL (${fatalText.slice(0, 60)}…)`);
+const flagCode = await page.evaluate(() => document.querySelector('.nc-fatal p code')?.textContent ?? null);
+check(flagCode === '--ignore-gpu-blocklist', `a opção de inicialização vai inteira num <code> (${flagCode})`);
 await page.click('.nc-fatal .btn-primary');
 await page.waitForTimeout(500);
 const fatalClip = await app.evaluate(({ clipboard }) => clipboard.readText());
 check(fatalClip.includes('fatal') && fatalClip.includes('stage: boot'), 'botão da tela fatal copia o relatório');
+
+// Só com controle: direcional anda entre os botões, A aperta o que está em foco.
+const tap = async (button) => {
+  await page.evaluate((b) => { window.__pad.buttons[b] = { pressed: true, touched: true, value: 1 }; }, button);
+  await page.waitForTimeout(400);
+  await page.evaluate((b) => { window.__pad.buttons[b] = { pressed: false, touched: false, value: 0 }; }, button);
+  await page.waitForTimeout(400);
+};
+const focusedButton = () => page.evaluate(() => (document.activeElement?.classList.contains('btn-primary') ? 'copy' : document.activeElement?.closest?.('.nc-fatal-actions') ? 'retry' : 'none'));
+await tap(15);
+check(await focusedButton() === 'retry', 'controle: → leva o foco para "Tentar de novo"');
+await tap(14);
+check(await focusedButton() === 'copy', 'controle: ← volta para "Copiar relatório"');
+await app.evaluate(({ clipboard }) => clipboard.writeText('vazio'));
+await tap(0);
+const padClip = await app.evaluate(({ clipboard }) => clipboard.readText());
+check(padClip.includes('stage: boot'), 'controle: A no botão em foco copia o relatório');
 check(readFileSync(logFile, 'utf8').includes(' fatal '), 'erro fatal gravado em logs/errors.log');
 await shot('06-fatal-webgl');
 await app.close();

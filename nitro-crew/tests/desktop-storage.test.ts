@@ -1,16 +1,16 @@
 // Lado Electron (desktop/): arquivos no userData (storage.cjs), a ponte preload ↔ main ↔ desktop.ts e a
 // configuração do empacotamento. Roda em Node puro — o Electron não é carregado; os .cjs são lidos como
 // módulos (storage) ou como texto (main/preload/package.json).
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { API_FUNCTIONS } from '../src/game/desktop';
 
 interface StorageModule {
   isSaveKey(key: unknown): boolean;
-  readAllSaves(dir: string): Record<string, string>;
+  readAllSaves(dir: string): Record<string, string | null>;
   writeSave(dir: string, key: unknown, json: unknown): boolean;
   appendLog(dir: string, text: unknown, maxBytes?: number): boolean;
   LOG_MAX_BYTES: number;
@@ -68,6 +68,27 @@ describe('saves em arquivo (desktop/storage.cjs)', () => {
     writeFileSync(join(dir, 'leia-me.json'), '{}');
     writeFileSync(join(dir, 'nitro-crew.big.json'), 'x'.repeat(storage.MAX_SAVE_BYTES + 1));
     expect(storage.readAllSaves(dir)).toEqual({ 'nitro-crew.save': '{"ok":1}' });
+  });
+
+  // Revisão: arquivo que existe e não deu para ler ficava de fora, igual a "não há arquivo" — e a inicialização
+  // gravava o localStorage por cima dele. Agora vem como null ("existe, não sei o que tem"); sumiço entre a
+  // listagem e a leitura (ENOENT) continua sendo "não há arquivo".
+  it('arquivo que existe mas não dá para ler vem como null; arquivo que sumiu fica de fora', () => {
+    writeFileSync(join(dir, 'nitro-crew.save.json'), '{"racesRun":42}');
+    writeFileSync(join(dir, 'nitro-crew.settings.json'), '{"language":"pt"}');
+    mkdirSync(join(dir, 'nitro-crew.pasta.json'));
+    symlinkSync(join(dir, 'nao-existe'), join(dir, 'nitro-crew.sumiu.json'));
+    const fs = require('node:fs') as { readFileSync: (...args: unknown[]) => unknown };
+    const original = fs.readFileSync;
+    const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((...args: unknown[]) => {
+      if (String(args[0]).endsWith('nitro-crew.save.json')) throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+      return original.apply(fs, args);
+    });
+    try {
+      expect(storage.readAllSaves(dir)).toEqual({ 'nitro-crew.save': null, 'nitro-crew.settings': '{"language":"pt"}', 'nitro-crew.pasta': null });
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

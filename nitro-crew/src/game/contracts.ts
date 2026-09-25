@@ -86,8 +86,11 @@ export interface Settings {
   quickLaps: number;
   /** Música escolhida no jukebox (id) ou 'auto'. */
   music: string;
-  /** Telemetria anônima de erros (opt-in, desligada por padrão; ver src/game/errors.ts e docs/legal/PRIVACIDADE.md). */
-  telemetry: boolean;
+  /**
+   * Telemetria anônima de erros (opt-in): versão dos termos que o jogador aceitou ao ligar; 0 = desligada (padrão).
+   * Só vale se for a versão em vigor — `telemetryConsented` em src/game/errors.ts; ver docs/legal/PRIVACIDADE.md.
+   */
+  telemetryConsent: number;
   /** Tecla/botão por ação de pilotagem, por dispositivo (src/ui/remap/bindings.ts). */
   controls: ControlBindings;
   /** Vibração dos gamepads (batidas, nitro, grama, largada). */
@@ -100,7 +103,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high',
   showMinimap: true, screenShake: true, difficulty: 'profissional', manualGear: false,
   assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, totalCars: 20, quickLaps: 3, music: 'auto',
-  telemetry: false,
+  telemetryConsent: 0,
   controls: DEFAULT_BINDINGS, vibration: true,
   serverUrl: 'ws://localhost:8787',
 });

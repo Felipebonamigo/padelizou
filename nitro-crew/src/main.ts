@@ -1,6 +1,6 @@
 import { hydrateFromDisk, installSaveMirror } from './game/cloudsave';
 import { getDesktop } from './game/desktop';
-import { createErrorReporter, GAME_VERSION, installGlobalHandlers, setActiveReporter } from './game/errors';
+import { createErrorReporter, GAME_VERSION, installGlobalHandlers, setActiveReporter, telemetryConsented } from './game/errors';
 import { createSession, type Session } from './game/session';
 import { showFatal } from './errors/fatal';
 import { createErrorToast } from './errors/toast';
@@ -23,13 +23,16 @@ const reporter = createErrorReporter({
   storage,
   logAppend: desktop ? (text) => desktop.logAppend(text) : null,
   context: () => ({ mode: session?.race?.mode ?? null, track: session?.race?.track.def.id ?? null, screen: session?.menus.current() ?? null }),
-  telemetryEnabled: () => session?.settings.telemetry ?? false,
+  telemetryEnabled: () => telemetryConsented(session?.settings.telemetryConsent ?? 0),
   send: (url, body) => { navigator.sendBeacon(url, body); },
   // A tela de erro fatal já explica o que houve; o aviso do canto é para erro com o jogo rodando.
   onNew: (entry, total) => { if (entry.kind !== 'fatal') toast.show(total); },
+  schedule: (fn, ms) => { setTimeout(fn, ms); },
 });
 setActiveReporter(reporter);
 installGlobalHandlers(window, reporter);
+// O que só estava na memória (contador de erro repetido, rajada) vai para o localStorage antes de a página fechar.
+window.addEventListener('pagehide', () => reporter.flush());
 
 async function boot(): Promise<void> {
   // 2) No Electron, o save em arquivo (Steam Cloud) vale mais que o localStorage — antes de a sessão ler as opções.

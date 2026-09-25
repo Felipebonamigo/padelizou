@@ -7,7 +7,12 @@
 //   • o arquivo — é a fonte da verdade, e pode ter chegado da nuvem vindo de outro computador;
 //   • o localStorage — quando a última gravação local não chegou ao disco (marcada como pendente), ou quando
 //     ainda não existe arquivo (jogador de uma versão anterior, migração);
-// e o arquivo corrompido nunca vence um localStorage válido. Se o IPC não responder, segue só com o localStorage.
+// e o arquivo corrompido nunca vence um localStorage válido.
+// Sem leitura confirmada — o IPC falhou ou passou do limite, ou o arquivo existe mas não deu para ler (null do
+// storage.cjs) — "não sei o que tem no disco" NÃO é "não há arquivo": o localStorage segue valendo para a sessão,
+// mas nada é gravado por cima do arquivo (ele pode ser o mais novo, da nuvem), exceto a chave pendente, cujo
+// local é sabidamente mais novo. Limite conhecido: o espelho (installSaveMirror) continua ligado, então a próxima
+// gravação do jogo nesta sessão vai para o arquivo — como aconteceria com o save de qualquer jogo aberto.
 import type { DesktopApi } from './desktop';
 import { ERRORS_KEY } from './errors';
 import { setStorageMirror } from './settings';
@@ -85,26 +90,39 @@ export interface HydrateReport {
   toDisk: string[];
   /** Chaves que deveriam ir para o disco e não foram (continuam pendentes). */
   failed: string[];
+  /** Chaves deixadas como estavam porque não deu para ler o disco (nem arquivo nem pendência mudaram). */
+  unknown: string[];
 }
 
 export async function hydrateFromDisk(
   api: Pick<DesktopApi, 'storeReadAll' | 'storeWrite'>, storage: KeyedStorage, timeoutMs = IPC_TIMEOUT_MS,
 ): Promise<HydrateReport> {
-  const report: HydrateReport = { fromDisk: [], toDisk: [], failed: [] };
-  let disk: Record<string, string> = {};
+  const report: HydrateReport = { fromDisk: [], toDisk: [], failed: [], unknown: [] };
+  const disk: Record<string, string> = {};
+  /** Chaves cujo arquivo não foi lido: todas, se a leitura falhou; senão as que o storage.cjs devolveu null. */
+  const unread = new Set<string>();
+  let readOk = true;
   try {
     const raw: unknown = await withTimeout(api.storeReadAll(), timeoutMs);
     if (typeof raw === 'object' && raw !== null) {
-      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (isCloudKey(k) && typeof v === 'string') disk[k] = v;
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (!isCloudKey(k)) continue;
+        if (typeof v === 'string') disk[k] = v;
+        else if (v === null) unread.add(k);
+      }
     }
   } catch {
-    disk = {}; // sem disco: o localStorage continua valendo, e as gravações seguem pendentes
+    readOk = false;
   }
   const pending = readPending(storage);
-  const keys = [...new Set([...Object.keys(disk), ...localCloudKeys(storage)])].sort();
+  const keys = [...new Set([...Object.keys(disk), ...unread, ...localCloudKeys(storage)])].sort();
   for (const key of keys) {
     let local: string | null = null;
     try { local = storage.getItem(key); } catch { local = null; }
+    if (!readOk || unread.has(key)) {
+      // Disco desconhecido: só a gravação pendente (local sabidamente mais novo) vai para o arquivo.
+      if (!(pending.has(key) && isJson(local))) { report.unknown.push(key); continue; }
+    }
     const source = chooseSource(local, disk[key], pending.has(key));
     if (source === 'disk') {
       try { storage.setItem(key, disk[key]); report.fromDisk.push(key); pending.delete(key); } catch { /* cota: a sessão lê o padrão */ }

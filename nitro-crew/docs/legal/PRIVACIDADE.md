@@ -35,10 +35,10 @@ O jogo grava estes dados **localmente**. Nós não temos acesso a eles.
 
 | O quê | Exemplos | Onde |
 |---|---|---|
-| **Opções** | idioma, volumes, qualidade de imagem, dificuldade, se a telemetria está ligada | `nitro-crew.settings` |
+| **Opções** | idioma, volumes, qualidade de imagem, dificuldade, se a telemetria está ligada (e em qual versão destes termos você a ligou) | `nitro-crew.settings` |
 | **Progresso** | copas concluídas, recordes de volta e de corrida por pista, conquistas, número de corridas e vitórias | `nitro-crew.save` |
 | **Nomes dos jogadores** | os nomes que você digita para cada assento (P1–P4) e o carro de cada um, e o nome gravado junto de cada recorde | dentro do progresso |
-| **Registro de erros** | até 50 erros: versão do jogo, data e hora, tipo do erro, mensagem técnica, trecho do código onde aconteceu, modo de jogo, pista e tela abertas no momento | `nitro-crew.errors` e, na versão para computador, o arquivo `logs/errors.log` |
+| **Registro de erros** | até 50 erros: versão do jogo, data e hora (da primeira e da última vez), quantas vezes aconteceu, tipo do erro, mensagem técnica, trecho do código onde aconteceu, modo de jogo, pista e tela abertas na última vez | `nitro-crew.errors` e, na versão para computador, o arquivo `logs/errors.log` |
 
 **Onde exatamente:** na versão para computador, na pasta de dados do jogo — `%APPDATA%\Nitro Crew` (Windows),
 `~/.config/Nitro Crew` (Linux e Steam Deck), `~/Library/Application Support/Nitro Crew` (macOS). No navegador,
@@ -114,6 +114,9 @@ nos ajudar a corrigir problemas que ninguém reporta.
   **Sem** nomes de jogadores, **sem** nome de usuário ou pastas do computador, **sem** identificador do
   computador ou da conta Steam. O servidor que receber verá o endereço IP da conexão, como qualquer servidor.
 - Você pode desligar a qualquer momento, na mesma opção.
+- **Ligar agora não vale para depois:** o jogo guarda em qual versão destes termos você ligou a opção. A versão
+  que passar a enviar de verdade usa termos novos, e quem ligou antes volta a ver a opção **desligada** e decide
+  de novo, já sabendo do envio.
 
 🔧 **CONFERIR** antes de ligar o envio: onde fica o servidor da telemetria, por quanto tempo guarda os
 resumos (proposta: 90 dias), se descarta o IP na chegada (proposta: sim) — e atualizar esta seção **antes** de a
@@ -193,7 +196,7 @@ A política descreve o código; mudou o código, muda a política **no mesmo com
 | 2 | `src/game/settings.ts`, `src/game/save.ts` (`SaveData`), `src/game/errors.ts` (`ErrorEntry`, `scrubPaths`, `RING_SIZE`), `desktop/storage.cjs` (limites do log) |
 | 3 | `src/game/cloudsave.ts` (`isCloudKey`), `desktop/main.cjs` (Steam, Rich Presence), `desktop/README.md` (Auto-Cloud) |
 | 4 | `server/relay.mjs` e `docs/ONLINE.md` (branch do online) |
-| 5 | `src/game/errors.ts` (`telemetryPayload`, `telemetryEndpoint`), `Settings.telemetry` |
+| 5 | `src/game/errors.ts` (`telemetryPayload`, `telemetryEndpoint`, `TELEMETRY_TERMS` — subir junto com o envio), `Settings.telemetryConsent` |
 | 6 | `src/game/errors.ts` (`formatReport`), `src/errors/options.ts`, `src/errors/fatal.ts` |
 
 Uma versão em inglês (Privacy Policy) é necessária para a página da Steam: traduzir **depois** da revisão do

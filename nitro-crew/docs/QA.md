@@ -40,7 +40,7 @@ Prioridade **P1** = obrigatório antes do Playtest público (5.9); **P2** = ante
 | M-7 | Ubuntu 22.04/24.04 | Mesa (Intel ou AMD) | 1080p | P2 | Build Linux nativa fora do Deck; Wayland e X11 |
 | M-8 | Windows (build Windows) sob Proton | qualquer | 1080p | P3 | Só se a build Linux der problema |
 | M-9 | macOS 13+ | Apple Silicon (M1+) | Retina | P3 | Build mac sem assinatura abre com aviso; decidir se vale publicar para mac |
-| M-10 | Qualquer | GPU na lista de bloqueio / driver antigo | — | P1 | Tela "O jogo não conseguiu iniciar" aparece, relatório copia, `--ignore-gpu-blocklist` resolve |
+| M-10 | Qualquer | GPU na lista de bloqueio / driver antigo | — | P1 | Tela "O jogo não conseguiu iniciar" aparece, relatório copia (mouse **e** só com controle: direcional + A), `--ignore-gpu-blocklist` resolve |
 
 Em cada linha, anotar: fps médio e mínimo com 1, 2 e 4 jogadores (qualidade Alta e Baixa), tempo de abertura até
 a tela de título, uso de memória depois de 30 min, e se houve aviso de erro no canto.
@@ -96,7 +96,8 @@ Marque na ordem; cada item tem dono (V = Felipe, A = agente, T = terceiros).
 
 - [ ] (V) Depósitos Windows/Linux(/mac) enviados pela SteamPipe; branch de teste instalado **pela biblioteca**, não pelo `npm start`.
 - [ ] (V) Opções de inicialização: executável certo por sistema (`Nitro Crew.exe` / `nitro-crew` / `Nitro Crew.app`).
-- [ ] (V) Steam Cloud: Auto-Cloud com os caminhos de `desktop/README.md`; teste de dois computadores feito.
+- [ ] (V) Steam Cloud: Auto-Cloud com a raiz e as substituições (Root Overrides) de `desktop/README.md`; teste de
+  dois computadores **com sistemas diferentes** (Windows → Steam Deck) feito.
 - [ ] (V) Conquistas cadastradas com os IDs exatos de `desktop/README.md`; desbloqueio conferido com a Steam aberta.
 - [ ] (V) Suporte a controle: "Suporte completo"; layout padrão do Steam Input = Gamepad.
 - [ ] (V) Remote Play Together marcado só depois do teste com 4 pessoas (passo 4.1).
