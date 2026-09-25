@@ -165,7 +165,7 @@ describe('palette', () => {
 });
 
 // ───────────────────────────── Referencial local da pista ─────────────────────────────
-import { absoluteHeading, buildRoadFrame, locateOnFrame, type RoadFrame } from '../src/render/roadframe';
+import { absoluteHeading, buildRoadFrame, frameYAt, locateOnFrame, type RoadFrame } from '../src/render/roadframe';
 import { HEADING_PER_CURVE, ROAD_HALF_WIDTH_M, SEGMENT_M, xToMeters, yToMeters, Y_SCALE, zToMeters } from '../src/render/units';
 import { SEGMENT_LENGTH } from '../src/core/constants';
 
@@ -224,6 +224,19 @@ describe('buildRoadFrame', () => {
     }
     expect(f.py[4]).toBeCloseTo((seg.y1 - seg.y0) * Y_SCALE, 6);
     expect(f.py[4]).toBeGreaterThan(0);
+  });
+
+  it('frameYAt mede a partir da origem (o carro), não do início do segmento base', () => {
+    const track = syntheticTrack([{ op: 'hill', length: 100, height: 20 }, { op: 'straight', length: 100 }]);
+    // Meio do segmento 10, numa rampa: a altura na origem é zero por definição.
+    const f = buildRoadFrame(track, 10 * SEGMENT_LENGTH + SEGMENT_LENGTH * 0.5, 5, 20);
+    expect(frameYAt(f, 0)).toBeCloseTo(0, 5);
+    // Um segmento à frente da origem = metade do segmento 10 + metade do 11.
+    const s10 = track.segments[10]; const s11 = track.segments[11];
+    const originY = (s10.y0 + (s10.y1 - s10.y0) * 0.5) * Y_SCALE;
+    const expected = (s11.y0 + (s11.y1 - s11.y0) * 0.5) * Y_SCALE - originY;
+    expect(frameYAt(f, SEGMENT_M)).toBeCloseTo(expected, 5);
+    expect(frameYAt(f, -SEGMENT_M)).toBeCloseTo((s10.y0 - (s10.y0 - track.segments[9].y0) * 0.5) * Y_SCALE - originY, 5);
   });
 
   it('reutiliza a janela passada em `out` sem alocar', () => {

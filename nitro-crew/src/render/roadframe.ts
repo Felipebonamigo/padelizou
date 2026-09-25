@@ -15,6 +15,8 @@ export interface RoadFrame {
   baseIndex: number;
   /** Quantos pontos existem antes do ponto do segmento base. */
   behind: number;
+  /** Fração de `baseZ` dentro do segmento base (a origem fica em behind + baseFraction). */
+  baseFraction: number;
   /** Posição (m) do início de cada segmento da janela, no referencial local. */
   px: Float32Array;
   py: Float32Array;
@@ -27,7 +29,7 @@ export interface RoadFrame {
 
 function allocate(capacity: number, behind: number): RoadFrame {
   return {
-    count: 0, baseIndex: 0, behind,
+    count: 0, baseIndex: 0, behind, baseFraction: 0,
     px: new Float32Array(capacity), py: new Float32Array(capacity), pz: new Float32Array(capacity),
     heading: new Float32Array(capacity), segIndex: new Int32Array(capacity),
   };
@@ -60,6 +62,7 @@ export function buildRoadFrame(track: Track, baseZ: number, behind: number, ahea
   const base = segs[b];
   const f = (zz - b * SEGMENT_LENGTH) / SEGMENT_LENGTH;
   frame.baseIndex = b;
+  frame.baseFraction = f;
   const originY = (base.y0 + (base.y1 - base.y0) * f) * Y_SCALE;
 
   // Segmento base: rumo no início tal que, após a fração f, o rumo seja 0 (o carro olha −Z).
@@ -127,9 +130,9 @@ export function locateOnFrame(frame: RoadFrame, track: Track, z: number, x: numb
   return true;
 }
 
-/** Altura da pista (m) a `meters` da origem ao longo da janela (negativo = atrás), interpolada. */
+/** Altura da pista (m) a `meters` da origem (o carro) ao longo da janela (negativo = atrás), interpolada. */
 export function frameYAt(frame: RoadFrame, meters: number): number {
-  const t = frame.behind + meters / SEGMENT_M;
+  const t = frame.behind + frame.baseFraction + meters / SEGMENT_M;
   const j = Math.max(0, Math.min(frame.count - 2, Math.floor(t)));
   const f = Math.max(0, Math.min(1, t - j));
   return frame.py[j] + (frame.py[j + 1] - frame.py[j]) * f;

@@ -211,9 +211,10 @@ class SeatHud {
     setStyle(this.fuelFill, 'clip-path', `inset(0 ${((1 - car.fuel) * 100).toFixed(1)}% 0 0)`);
     setClass(this.fuel, 'low', car.fuel < 0.25);
     // Nitro: cofre da equipe ou cargas próprias.
-    const shared = frame.coop && state.config.assists.sharedNitro;
+    // Mesma regra da física: com sharedNitro o humano gasta do cofre do time, mesmo sozinho.
+    const shared = state.config.assists.sharedNitro;
     const charges = shared ? (state.teamNitro[car.teamId] ?? 0) : car.nitroLeft;
-    setText(this.nitroLabel, shared ? `${t('hud.nitro')} · ${t('hud.team')}` : t('hud.nitro'));
+    setText(this.nitroLabel, shared && frame.coop ? `${t('hud.nitro')} · ${t('hud.team')}` : t('hud.nitro'));
     for (let i = 0; i < 3; i++) setClass(this.caps[i], 'on', i < charges);
     setText(this.extra, charges > 3 ? `×${charges}` : '');
     setClass(this.nbar, 'on', car.nitroTicks > 0);

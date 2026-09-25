@@ -47,9 +47,9 @@ function sunSetup(time: TimeOfDay, p: Palette): SunSetup {
     const el = elevDeg * Math.PI / 180; const az = azDeg * Math.PI / 180;
     return new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
   };
-  if (time === 'day') return { dir: fromAngles(48, -55), color: p.sun ?? '#fff3a0', intensity: 3.2, exposure: 1.0, size: 0.03, halo: 9, glow: 0.25, disc: 6 };
-  if (time === 'dusk') return { dir: fromAngles(7, 28), color: p.sun ?? '#ffb347', intensity: 2.4, exposure: 1.05, size: 0.045, halo: 5, glow: 0.9, disc: 5 };
-  return { dir: fromAngles(42, -120), color: p.moon ?? '#f4f1d8', intensity: 0.55, exposure: 0.85, size: 0.02, halo: 14, glow: 0.05, disc: 2.2 };
+  if (time === 'day') return { dir: fromAngles(48, -55), color: p.sun ?? '#fff3a0', intensity: 4.2, exposure: 1.0, size: 0.03, halo: 9, glow: 0.25, disc: 6 };
+  if (time === 'dusk') return { dir: fromAngles(12, 28), color: p.sun ?? '#ffb347', intensity: 3.8, exposure: 1.05, size: 0.045, halo: 5, glow: 0.9, disc: 5 };
+  return { dir: fromAngles(42, -120), color: p.moon ?? '#f4f1d8', intensity: 1.1, exposure: 1.0, size: 0.02, halo: 14, glow: 0.05, disc: 2.2 };
 }
 
 function buildStars(): THREE.Points {
@@ -144,8 +144,9 @@ export class Sky {
     const cam = this.sun.shadow.camera;
     cam.left = -80; cam.right = 80; cam.top = 80; cam.bottom = -80; cam.near = 1; cam.far = 600;
     cam.updateProjectionMatrix(); // o three não recalcula sozinho depois de mudar os limites
-    this.sun.shadow.bias = -0.0004;
-    this.sun.shadow.normalBias = 0.6;
+    this.sun.shadow.bias = -0.00025;
+    this.sun.shadow.normalBias = 0.12;
+    this.sun.shadow.radius = 2;
     this.target.position.set(0, 0, -30);
     scene.add(this.target);
     this.sun.target = this.target;
@@ -188,12 +189,13 @@ export class Sky {
     this.cloudMaterial.emissiveIntensity = time === 'dusk' ? 0.25 : 0.12;
     this.sun.color.set(s.color);
     this.sun.intensity = s.intensity;
-    this.hemi.color.set(p.sky[1]);
+    this.hemi.color.set(time === 'night' ? '#6f86c8' : p.sky[1]);
     this.hemi.groundColor.set(p.grassDark);
-    this.hemi.intensity = 0.55 + 0.55 * p.light;
+    // Ambiente fraco de propósito: é o contraste com o sol que faz as sombras lerem.
+    this.hemi.intensity = time === 'night' ? 1.35 : time === 'dusk' ? 0.42 : 0.72;
     this.fog.color.set(p.fog);
     this.exposure = s.exposure;
-    this.scene.environmentIntensity = time === 'night' ? 0.9 : 0.75;
+    this.scene.environmentIntensity = time === 'night' ? 0.9 : time === 'dusk' ? 0.3 : 0.48;
     this.rebuildEnvironment();
   }
 

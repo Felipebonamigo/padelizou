@@ -22,21 +22,24 @@ export class ChaseCamera {
 
   /** `carX` em meias larguras, `speedFrac` 0..1,2, `curve` do segmento atual. */
   update(rf: RoadFrame, carX: number, speedFrac: number, curve: number, nitroOn: boolean, time: number, shake: Shake): void {
-    const dt = this.lastTime < 0 ? 1 / 60 : Math.min(0.1, Math.max(0, time - this.lastTime));
+    const first = this.lastTime < 0;
+    const dt = first ? 1 / 60 : Math.min(0.1, Math.max(0, time - this.lastTime));
     this.lastTime = time;
-    const k = 1 - Math.exp(-dt * 5.5);
     const xm = carX * ROAD_HALF_WIDTH_M;
-    this.lagX += (xm * 0.8 - this.lagX) * k;
+    if (first) { this.lagX = xm; this.nitro = nitroOn ? 1 : 0; } // sem "deslizar" no primeiro quadro
+    const k = 1 - Math.exp(-dt * 5.5);
+    this.lagX += (xm - this.lagX) * k; // segue o x do carro por inteiro (com atraso): o carro nunca sai do centro
     this.nitro += ((nitroOn ? 1 : 0) - this.nitro) * (1 - Math.exp(-dt * 4));
     const targetFov = BASE_FOV + SPEED_FOV * Math.min(1.2, speedFrac) + NITRO_FOV * this.nitro;
     this.fov += (targetFov - this.fov) * (1 - Math.exp(-dt * 3));
     const rollTarget = -curve * 0.012 * Math.min(1, speedFrac);
     this.roll += (rollTarget - this.roll) * (1 - Math.exp(-dt * 3));
-    const camY = 2.7 + frameYAt(rf, -7) * 0.7;
-    const aheadY = 1.1 + frameYAt(rf, 14) * 0.6;
+    const camY = 2.05 + frameYAt(rf, -7.8); // sempre 2,05 m acima da pista sob a câmera
+    // Pitch limitado: em rampa forte o alvo sobe/desce no máximo 4 m (o carro fica no quadro).
+    const aheadY = 0.85 + Math.max(-4, Math.min(4, frameYAt(rf, 18) * 0.6));
     const c = this.camera;
-    c.position.set(this.lagX + shake.x, camY + shake.y, 7.2);
-    this.target.set(this.lagX * 0.55 + xm * 0.35, aheadY, -14);
+    c.position.set(this.lagX + shake.x, camY + shake.y, 7.8);
+    this.target.set(this.lagX * 0.7 + xm * 0.3, aheadY, -18);
     const r = this.roll + shake.roll;
     this.up.set(Math.sin(r), Math.cos(r), 0);
     c.up.copy(this.up);

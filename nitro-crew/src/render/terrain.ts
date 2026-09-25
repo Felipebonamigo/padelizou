@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { SceneryId, Track } from '../core/types';
 import { fbm, hash2, hash3, valueNoise } from './noise';
 import { mix, shade, type Palette } from './palette';
+import { saturate } from './road';
 import type { RoadFrame } from './roadframe';
 import { windowTextures } from './textures';
 import { HEADING_PER_CURVE, SEGMENT_M, Y_SCALE } from './units';
@@ -252,7 +253,7 @@ export class Terrain {
     let minY = Infinity;
     for (const s of track.segments) minY = Math.min(minY, s.y0, s.y1);
     this.minRoadY = minY * Y_SCALE;
-    this.cA.set(p.grassLight); this.cB.set(p.grassDark);
+    saturate(this.cA.set(p.grassLight), 0.16); saturate(this.cB.set(p.grassDark), 0.16);
     const night = 1 - p.light;
     this.cSand.set(mix(shade('#e6d3a3', 0.4 + 0.6 * p.light), '#1a2040', night * 0.45));
     this.cSnow.set(mix(shade('#f4f8ff', 0.5 + 0.5 * p.light), '#1a2040', night * 0.4));

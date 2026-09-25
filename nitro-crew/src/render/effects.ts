@@ -99,7 +99,7 @@ class Pool {
       const t = this.life[i] / this.maxLife[i];
       this.position.setXYZ(n, this.pt.x, this.pt.y + this.h[i], this.pt.z);
       this.aSize.setX(n, this.size[i] + this.grow[i] * (1 - t));
-      this.aAlpha.setX(n, Math.min(1, t * 2.5) * (0.35 + 0.65 * t));
+      this.aAlpha.setX(n, Math.min(1, t * 2.5) * (0.25 + 0.55 * t));
       this.aColor.setXYZ(n, this.r[i], this.g[i], this.b[i]);
       n++;
     }
@@ -128,7 +128,7 @@ export class Effects {
   constructor() { this.group.add(this.dust.points, this.sparks.points); }
 
   setPalette(p: Palette): void {
-    this.dustColor.set(p.grassLight).lerp(new THREE.Color('#8a7a5a'), 0.45);
+    this.dustColor.set(p.grassDark).lerp(new THREE.Color('#5e4d33'), 0.6).multiplyScalar(0.8);
   }
 
   private rnd(): number { this.seed++; return hash2(this.seed, 77); }
@@ -147,22 +147,22 @@ export class Effects {
       // Poeira na grama.
       if (c.skidTicks > 0 && c.speed > 250) {
         for (let k = 0; k < 2; k++) {
-          const side = k === 0 ? -0.14 : 0.14;
-          this.dust.emit(c.z - 60, c.x + side, 0.25, c.speed * 0.12, (this.rnd() - 0.5) * 0.35 + side * 0.6, 1.2 + this.rnd() * 1.5, 0.7 + this.rnd() * 0.6, 0.7, 2.2, 0.6, dc.r, dc.g, dc.b);
+          const side = k % 2 === 0 ? -0.16 : 0.16;
+          this.dust.emit(c.z - 50 + this.rnd() * 30, c.x + side * (1 + this.rnd()), 0.3, c.speed * (0.5 + this.rnd() * 0.2), (this.rnd() - 0.5) * 0.4 + side * 0.8, 1.2 + this.rnd() * 1.6, 0.6 + this.rnd() * 0.5, 0.5, 1.4, 0.5, dc.r, dc.g, dc.b);
         }
       }
       // Fumaça leve na frenagem forte.
       const decel = (this.prevSpeed[i] - c.speed) / dt;
       if (c.speed > 2500 && decel > def.brake * 0.55 && c.collisionCooldown === 0 && this.rnd() < 0.6) {
         const side = this.rnd() < 0.5 ? -0.14 : 0.14;
-        this.dust.emit(c.z - 60, c.x + side, 0.15, c.speed * 0.2, side * 0.3, 0.8, 0.5, 0.4, 1.4, 0.2, 0.75, 0.75, 0.78);
+        this.dust.emit(c.z - 60, c.x + side, 0.15, c.speed * 0.6, side * 0.3, 0.8, 0.5, 0.5, 1.6, 0.2, 0.75, 0.75, 0.78);
       }
       this.prevSpeed[i] = c.speed;
       // Faíscas na colisão (borda de subida do cooldown).
       if (c.collisionCooldown > this.prevCooldown[i] && c.collisionCooldown >= COLLISION_COOLDOWN_TICKS - 1) {
         for (let k = 0; k < 26; k++) {
           this.sparks.emit(c.z + (this.rnd() - 0.5) * 120, c.x + (this.rnd() - 0.5) * 0.3, 0.3 + this.rnd() * 0.4,
-            c.speed * 0.5 + (this.rnd() - 0.5) * 1500, (this.rnd() - 0.5) * 1.6, 1.5 + this.rnd() * 5, 0.3 + this.rnd() * 0.4, 0.1, 0.05, 9, 2.2, 1.4, 0.4);
+            c.speed * 0.85 + (this.rnd() - 0.5) * 900, (this.rnd() - 0.5) * 1.6, 1.5 + this.rnd() * 5, 0.3 + this.rnd() * 0.4, 0.14, 0.05, 9, 2.2, 1.4, 0.4);
         }
         if (c.seat >= 0 && c.seat < 4) this.shakeAmp[c.seat] = Math.min(1, this.shakeAmp[c.seat] + 0.6 + 0.4 * sf);
       }
@@ -171,7 +171,7 @@ export class Effects {
       if (c.nitroTicks > 0 && state.phase === 'racing') {
         for (let k = 0; k < 3; k++) {
           const side = k % 2 === 0 ? -0.06 : 0.06;
-          this.sparks.emit(c.z - 62, c.x + side, 0.36, c.speed - 2200 - this.rnd() * 1500, (this.rnd() - 0.5) * 0.25, (this.rnd() - 0.3) * 1.5, 0.25 + this.rnd() * 0.3, 0.16, 0.12, 1.5, 0.9, 1.9, 3.2);
+          this.sparks.emit(c.z - 62, c.x + side, 0.36, c.speed - 700 - this.rnd() * 900, (this.rnd() - 0.5) * 0.3, (this.rnd() - 0.3) * 1.2, 0.3 + this.rnd() * 0.35, 0.09, 0.06, 1.2, 0.6, 1.4, 2.4);
         }
       }
     }

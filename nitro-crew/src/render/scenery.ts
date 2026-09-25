@@ -38,9 +38,12 @@ interface InstanceSet {
 }
 
 const VARIANTS: Record<SpriteKind, number> = {
-  tree: 4, pine: 4, palm: 4, cactus: 4, bush: 4, boulder: 4, building: 4, tower: 2, lamp: 1, billboard: 8,
+  tree: 4, pine: 4, palm: 4, cactus: 4, bush: 4, boulder: 4, building: 12, tower: 2, lamp: 1, billboard: 8,
   sign_left: 1, sign_right: 1, grandstand: 2, banner_start: 1, pit_wall: 1, pit_sign: 1, cone: 1,
 };
+
+/** Escalas bakeadas das geometrias de prédio; a instância só corrige o resto. */
+const BUILDING_BUCKETS = [1.0, 1.7, 2.6];
 
 const BILLBOARDS: Array<[string, string, string]> = [
   ['NITRO', '#ff3b3b', '#ffffff'], ['CREW', '#1e88e5', '#ffffff'], ['PADELIZOU', '#0f8b5f', '#ffffff'], ['TOP SPEED', '#111111', '#ffd23f'],
@@ -124,7 +127,7 @@ export class Scenery {
     const win = windowTextures();
     this.wall = new THREE.MeshStandardMaterial({ vertexColors: true, map: win.wall, emissiveMap: win.win, emissive: '#ffd27a', emissiveIntensity: 0, roughness: 0.75 });
     this.lampHead = new THREE.MeshStandardMaterial({ color: '#fff4d0', emissive: '#fff1c4', emissiveIntensity: 0.2, roughness: 0.5 });
-    this.lampCone = new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    this.lampCone = new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.055, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     this.towerLight = new THREE.MeshStandardMaterial({ color: '#ff2a2a', emissive: '#ff2020', emissiveIntensity: 2, roughness: 0.4 });
     this.build();
   }
@@ -231,9 +234,11 @@ export class Scenery {
     const shapes: Array<Array<[number, number, number, number, number, number]>> = [
       [[12, 22, 10, 0, 11, 0]], [[12, 14, 12, 0, 7, 0]], [[9, 30, 9, 0, 15, 0], [4, 2.5, 4, 0, 31.2, 0]], [[12, 12, 10, 0, 6, 0], [8, 10, 8, -1, 17, 0]],
     ];
-    for (let v = 0; v < 4; v++) {
-      const parts = shapes[v].map(([w, h, d, x, y, z], i) => paint(meteredBox(w, h, d), i === 1 && v === 2 ? '#3a3f48' : walls[v], tf(x, y, z)));
-      this.add('building', v, { parts: [{ geometry: merge(parts), material: this.wall, castShadow: true }], max: 60 });
+    // Três classes de escala por forma (BUILDING_BUCKETS), para o azulejo de janelas não esticar.
+    for (let v = 0; v < 4; v++) for (let b = 0; b < BUILDING_BUCKETS.length; b++) {
+      const k = BUILDING_BUCKETS[b];
+      const parts = shapes[v].map(([w, h, d, x, y, z], i) => paint(meteredBox(w * k, h * k, d * k), i === 1 && v === 2 ? '#3a3f48' : walls[v], tf(x * k, y * k, z * k)));
+      this.add('building', v * BUILDING_BUCKETS.length + b, { parts: [{ geometry: merge(parts), material: this.wall, castShadow: true }], max: 40 });
     }
     // Torre: pirâmide de 4 lados + plataforma + antena + luz vermelha piscando.
     for (let v = 0; v < 2; v++) {
@@ -316,7 +321,7 @@ export class Scenery {
 
   setNight(night: boolean): void {
     this.night = night;
-    this.wall.emissiveIntensity = night ? 1.4 : 0;
+    this.wall.emissiveIntensity = night ? 1.0 : 0;
     this.lampHead.emissiveIntensity = night ? 3.5 : 0.2;
     for (const m of this.panels) m.emissiveIntensity = night ? 0.7 : 0;
   }
@@ -336,18 +341,31 @@ export class Scenery {
       const pz = (frame.pz[j] + frame.pz[j + 1]) * 0.5;
       for (let k = 0; k < s.sprites.length; k++) {
         const sp = s.sprites[k];
-        const variants = VARIANTS[sp.kind];
-        const set = this.sets.get(`${sp.kind}:${sp.variant % variants}`);
+        let variant = sp.variant % VARIANTS[sp.kind];
+        let scale = sp.scale;
+        if (sp.kind === 'building') {
+          let bucket = 0;
+          for (let b = 1; b < BUILDING_BUCKETS.length; b++) if (Math.abs(BUILDING_BUCKETS[b] - sp.scale) < Math.abs(BUILDING_BUCKETS[bucket] - sp.scale)) bucket = b;
+          variant = (sp.variant % 4) * BUILDING_BUCKETS.length + bucket;
+          scale = sp.scale / BUILDING_BUCKETS[bucket];
+        }
+        const set = this.sets.get(`${sp.kind}:${variant}`);
         if (!set || set.count >= set.def.max) continue;
         const def = set.def;
-        const xm = sp.x * ROAD_HALF_WIDTH_M;
+        let xm = sp.x * ROAD_HALF_WIDTH_M;
+        if (sp.kind === 'building') {
+          // atalho: o builder pode pôr prédio grande com a borda sobre o asfalto; empurra para
+          // fora (a colisão do núcleo continua onde estava — corrigir no builder depois).
+          const half = 6.3 * sp.scale;
+          if (Math.abs(xm) - half < 11) xm = Math.sign(xm) * (11 + half);
+        }
         const r1 = hash2(s.index * 7 + k, 1); const r2 = hash2(s.index * 7 + k, 2);
         d.position.set(px + xm * cx, py, pz + xm * sz);
         let yaw = -h;
         if (def.facesRoad && sp.x > 0) yaw += Math.PI;
         if (def.randomYaw) yaw += r1 * Math.PI * 2;
         d.rotation.set(0, yaw, 0);
-        const sc = sp.scale * (def.randomYaw ? 0.92 + r2 * 0.16 : 1);
+        const sc = scale * (def.randomYaw ? 0.92 + r2 * 0.16 : 1);
         d.scale.set(sc, sc, sc);
         d.updateMatrix();
         const i = set.count++;

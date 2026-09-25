@@ -90,6 +90,16 @@ export function blobTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/** Brilho radial (chama do nitro, luzes). */
+export function glowTexture(color: string): THREE.CanvasTexture {
+  const S = 128;
+  const [c, ctx] = canvas2d(S, S);
+  const g = ctx.createRadialGradient(S / 2, S / 2, 2, S / 2, S / 2, S / 2);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  return texture(c);
+}
+
 /** Etiqueta de jogador: nome numa pílula na cor do assento. */
 export function labelTexture(name: string, color: string): THREE.CanvasTexture {
   const w = 256; const h = 80;

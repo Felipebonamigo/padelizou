@@ -31,7 +31,7 @@ const IDLE_SPEED = 2600;
 
 export interface DebugInfo { calls: number; triangles: number; frameMs: number }
 
-interface ViewportPost { composer: EffectComposer; bloom: UnrealBloomPass; key: string }
+interface ViewportPost { composer: EffectComposer; renderPass: RenderPass; key: string }
 
 export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement): Renderer & { debugInfo(): DebugInfo } {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -77,7 +77,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     road.setPalette(p, track.def.timeOfDay === 'night', key);
     terrain.setTrack(track, p, key);
     scenery.setNight(night);
-    cars.setNight(night);
+    cars.setLight(p.light);
     effects.setPalette(p);
     effects.clear();
     renderer.toneMappingExposure = sky.exposure;
@@ -103,17 +103,18 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   function postFor(i: number, rect: Rect, camera: THREE.PerspectiveCamera): ViewportPost {
     const key = `${rect.w}x${rect.h}@${dpr}`;
     const existing = posts[i];
-    if (existing && existing.key === key) return existing;
+    // O mesmo composer serve a corrida e o fundo dos menus: a câmera do passo muda por chamada.
+    if (existing && existing.key === key) { existing.renderPass.camera = camera; return existing; }
     if (existing) existing.composer.dispose();
     const target = new THREE.WebGLRenderTarget(Math.max(1, Math.round(rect.w * dpr)), Math.max(1, Math.round(rect.h * dpr)), { type: THREE.HalfFloatType, samples: 4 });
     const composer = new EffectComposer(renderer, target);
     composer.setPixelRatio(dpr);
     composer.setSize(rect.w, rect.h);
-    composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(rect.w, rect.h), 0.35, 0.4, 0.85);
-    composer.addPass(bloom);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(rect.w, rect.h), 0.35, 0.4, 0.85));
     composer.addPass(new OutputPass());
-    const post = { composer, bloom, key };
+    const post = { composer, renderPass, key };
     posts[i] = post;
     return post;
   }
@@ -164,7 +165,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
       if (q === 'high') postFor(i, rect, cam.camera).composer.render();
       else renderer.render(scene, cam.camera);
     }
-    hud.update(frame, width, height);
+    if (frame.showHud) hud.update(frame, width, height); else hud.hide();
     debug.calls = renderer.info.render.calls;
     debug.triangles = renderer.info.render.triangles;
     debug.frameMs = performance.now() - t0;
@@ -213,5 +214,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   return {
     canvas, resize, render, renderIdle, dispose,
     debugInfo: () => ({ ...debug }),
-  };
+    /** Só para depuração no harness (não faz parte do contrato). */
+    __scene: scene, __gl: renderer, __cams: cameras.map((c) => c.camera), __idle: idleCamera.camera,
+  } as Renderer & { debugInfo(): DebugInfo };
 }

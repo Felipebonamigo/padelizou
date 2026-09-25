@@ -10,7 +10,7 @@ import type { RaceState, Track } from '../core/types';
 import type { RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
 import { locateOnFrame, type FramePoint, type RoadFrame } from './roadframe';
-import { blobTexture, labelTexture } from './textures';
+import { blobTexture, glowTexture, labelTexture } from './textures';
 import { zToMeters } from './units';
 
 const MAX_CARS = 20;
@@ -29,8 +29,8 @@ const STATIONS: Station[] = [
 
 function ring(hw: number, top: number, bottom: number): Array<[number, number]> {
   return [
-    [hw, bottom], [hw + 0.02, 0.36], [hw, 0.5], [hw * 0.985, top - 0.1], [hw * 0.72, top], [0, top + 0.03],
-    [-hw * 0.72, top], [-hw * 0.985, top - 0.1], [-hw, 0.5], [-(hw + 0.02), 0.36], [-hw, bottom], [-hw * 0.5, bottom - 0.02],
+    [hw, bottom], [hw + 0.02, 0.3], [hw, 0.52], [hw * 0.985, top - 0.1], [hw * 0.72, top], [0, top + 0.03],
+    [-hw * 0.72, top], [-hw * 0.985, top - 0.1], [-hw, 0.52], [-(hw + 0.02), 0.3], [-hw, bottom], [-hw * 0.5, bottom - 0.02],
     [0, bottom - 0.02], [hw * 0.5, bottom - 0.02],
   ];
 }
@@ -101,7 +101,7 @@ function mergeColored(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 function buildBody(): THREE.BufferGeometry {
   const rings = STATIONS.map(([, hw, top, bottom]) => ring(hw, top, bottom));
   const zs = STATIONS.map(([z]) => z);
-  const body = loft(rings, zs, 0.44, true, true);
+  const body = loft(rings, zs, 0.3, true, true);
   const parts = [body];
   // Para-lamas sobre as rodas, aerofólio e suportes, difusor.
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(coloredBox(0.36, 0.42, 1.05, sx * (WHEEL_X + 0.03), 0.62, sz * WHEEL_Z, BODY_DARK));
@@ -109,6 +109,8 @@ function buildBody(): THREE.BufferGeometry {
   parts.push(coloredBox(0.09, 0.3, 0.22, -0.62, 1.0, 1.92, BODY_DARK), coloredBox(0.09, 0.3, 0.22, 0.62, 1.0, 1.92, BODY_DARK));
   parts.push(coloredBox(0.3, 0.1, 0.5, -0.4, 1.19, 1.9, '#ffffff'), coloredBox(0.3, 0.1, 0.5, 0.4, 1.19, 1.9, '#ffffff'));
   parts.push(coloredBox(1.4, 0.16, 0.3, 0, 0.26, 2.05, BODY_DARK));
+  // Teto pintado (a cabine de vidro fica só nos vidros); colunas finas.
+  parts.push(coloredBox(1.44, 0.07, 0.72, 0, 1.285, 0.62, '#ffffff'));
   return mergeColored(parts);
 }
 
@@ -153,10 +155,12 @@ export class Cars {
   private readonly tailBrake: THREE.InstancedMesh;
   private readonly blob: THREE.InstancedMesh;
   private readonly flames: THREE.InstancedMesh;
-  private readonly bodyMaterial: THREE.MeshStandardMaterial;
+  private readonly flameGlow: THREE.InstancedMesh;
+  private readonly bodyMaterial: THREE.MeshPhysicalMaterial;
   private readonly headMaterial: THREE.MeshStandardMaterial;
-  private readonly labels: THREE.Sprite[] = [];
-  private readonly labelKeys: string[] = [];
+  /** Etiqueta por assento (0..3); denso de propósito — um array esparso quebra o `for…of`. */
+  private readonly labels: Array<THREE.Sprite | null> = [null, null, null, null];
+  private readonly labelKeys = ['', '', '', ''];
   private readonly spots: THREE.SpotLight[] = [];
   private readonly anims: CarAnim[] = [];
   private readonly colors: THREE.Color[] = [];
@@ -168,7 +172,9 @@ export class Cars {
   private lastTime = -1;
 
   constructor(scene: THREE.Scene) {
-    this.bodyMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.6, roughness: 0.35, envMapIntensity: 1.2 });
+    // Pintura: metalness moderada + clearcoat (brilho do sol e do céu sem escurecer a cor).
+    this.bodyMaterial = new THREE.MeshPhysicalMaterial({ vertexColors: true, flatShading: true, metalness: 0.45, roughness: 0.4, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.0 });
+    this.bodyMaterial.metalness = 0.3;
     this.body = new THREE.InstancedMesh(buildBody(), this.bodyMaterial, MAX_CARS);
     this.body.castShadow = true; this.body.receiveShadow = true;
     const glassMat = new THREE.MeshStandardMaterial({ vertexColors: false, color: '#0d151f', flatShading: true, metalness: 0.95, roughness: 0.12, envMapIntensity: 1.6 });
@@ -189,15 +195,16 @@ export class Cars {
       headGeo.computeVertexNormals();
     }
     this.heads = new THREE.InstancedMesh(headGeo, this.headMaterial, MAX_CARS);
-    const tailGeo = new THREE.BoxGeometry(1.5, 0.1, 0.06).translate(0, 0.76, 2.12);
-    this.tail = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#ff2a2a', emissive: '#ff1a1a', emissiveIntensity: 1.1, roughness: 0.3 }), MAX_CARS);
-    this.tailBrake = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#ff2a2a', emissive: '#ff2020', emissiveIntensity: 6, roughness: 0.3 }), MAX_CARS);
+    const tailGeo = new THREE.BoxGeometry(1.5, 0.09, 0.06).translate(0, 0.74, 2.09);
+    this.tail = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#c81e1e', emissive: '#ff1a1a', emissiveIntensity: 0.7, roughness: 0.3 }), MAX_CARS);
+    this.tailBrake = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#ff2a2a', emissive: '#ff2020', emissiveIntensity: 2.6, roughness: 0.3 }), MAX_CARS);
     const blobTex = blobTexture();
     this.blob = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.9, 5.0).rotateX(-Math.PI / 2).translate(0, 0.02, 0), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }), MAX_CARS);
     this.blob.renderOrder = 1;
-    const flameGeo = new THREE.ConeGeometry(0.15, 1.0, 8).rotateX(Math.PI / 2).translate(0, 0, 0.5);
-    this.flames = new THREE.InstancedMesh(flameGeo, new THREE.MeshBasicMaterial({ color: '#8fd8ff', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAX_CARS * 2);
-    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames]) {
+    const flameGeo = new THREE.ConeGeometry(0.24, 0.55, 10).rotateX(Math.PI / 2).translate(0, 0, 0.28);
+    this.flames = new THREE.InstancedMesh(flameGeo, new THREE.MeshBasicMaterial({ color: '#5ec8ff', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), MAX_CARS * 2);
+    this.flameGlow = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.8, 0.8), new THREE.MeshBasicMaterial({ map: glowTexture('#9fe4ff'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }), MAX_CARS * 2);
+    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames, this.flameGlow]) {
       im.frustumCulled = false;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
@@ -209,7 +216,7 @@ export class Cars {
     }
     // Faróis do carro do viewport (sempre na origem, olhando −Z): dois SpotLights fixos.
     for (const sx of [-0.65, 0.65]) {
-      const spot = new THREE.SpotLight('#fff3d0', 140, 90, 0.5, 0.6, 1.3);
+      const spot = new THREE.SpotLight('#fff3d0', 230, 110, 0.48, 0.6, 1.3);
       spot.position.set(sx, 0.7, -2.0);
       spot.target.position.set(sx * 2.2, -0.6, -45);
       spot.visible = false;
@@ -219,9 +226,11 @@ export class Cars {
     scene.add(this.group);
   }
 
-  setNight(night: boolean): void {
-    this.headMaterial.emissiveIntensity = night ? 4 : 0.5;
-    for (const s of this.spots) s.visible = night;
+  /** `light` = palette.light (1 dia, 0,7 entardecer, 0,32 noite). */
+  setLight(light: number): void {
+    const night = light < 0.5;
+    this.headMaterial.emissiveIntensity = night ? 2.6 : light < 0.8 ? 0.9 : 0.4;
+    for (const s of this.spots) { s.visible = light < 0.8; s.intensity = night ? 230 : 110; }
   }
 
   /** Animação por carro (uma vez por quadro, independente do viewport). */
@@ -258,10 +267,13 @@ export class Cars {
     const d = this.dummy;
     const w = this.wheelDummy;
     let n = 0; let nWheels = 0; let nTail = 0; let nBrake = 0; let nFlames = 0;
-    for (const s of this.labels) s.visible = false;
+    for (const s of this.labels) if (s) s.visible = false;
     for (let i = 0; i < cars.length && i < MAX_CARS; i++) {
       const c = cars[i];
       if (!locateOnFrame(rf, track, c.z, c.x, this.pt)) continue;
+      // Carro atrás do carro do viewport ficaria entre ele e a câmera (a 8 m), enorme e
+      // cortado: só aparece quando o centro dele passa 2,2 m atrás do centro do jogador.
+      if (i !== ownIndex && this.pt.z > 2.2) continue;
       const a = this.anims[i];
       const bobY = a.bob ? Math.sin(time * 71 + i) * 0.025 : 0;
       const bobR = a.bob ? Math.sin(time * 57 + i * 2) * 0.02 : 0;
@@ -297,12 +309,17 @@ export class Cars {
           w.scale.set(1.1, 1.1, 1.6 * pulse * (0.6 + 0.4 * a.nitro));
           w.updateMatrix();
           this.mw.multiplyMatrices(this.m, w.matrix);
-          this.flames.setMatrixAt(nFlames++, this.mw);
+          this.flames.setMatrixAt(nFlames, this.mw);
+          w.scale.set(1.2 * pulse, 1.2 * pulse, 1);
+          w.position.z = 2.16;
+          w.updateMatrix();
+          this.mw.multiplyMatrices(this.m, w.matrix);
+          this.flameGlow.setMatrixAt(nFlames++, this.mw);
         }
         w.scale.set(1, 1, 1);
       }
       // Etiqueta de jogador local visto de outro viewport.
-      if (c.seat >= 0 && i !== ownIndex) {
+      if (c.seat >= 0 && c.seat < 4 && i !== ownIndex) {
         const vp = viewportSeats.find((v) => v.seat === c.seat);
         if (vp) {
           const label = this.label(c.seat, vp.name, vp.color);
@@ -312,8 +329,8 @@ export class Cars {
       }
     }
     this.body.count = n; this.glass.count = n; this.heads.count = n; this.blob.count = n;
-    this.wheels.count = nWheels; this.tail.count = nTail; this.tailBrake.count = nBrake; this.flames.count = nFlames;
-    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames]) {
+    this.wheels.count = nWheels; this.tail.count = nTail; this.tailBrake.count = nBrake; this.flames.count = nFlames; this.flameGlow.count = nFlames;
+    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames, this.flameGlow]) {
       im.visible = im.count > 0;
       if (im.count > 0) im.instanceMatrix.needsUpdate = true;
     }
@@ -322,8 +339,8 @@ export class Cars {
 
   /** Esconde todos os carros (fundo dos menus). */
   hide(): void {
-    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames]) { im.count = 0; im.visible = false; }
-    for (const s of this.labels) s.visible = false;
+    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames, this.flameGlow]) { im.count = 0; im.visible = false; }
+    for (const s of this.labels) if (s) s.visible = false;
   }
 
   private label(seat: number, name: string, color: string): THREE.Sprite {
@@ -347,10 +364,10 @@ export class Cars {
   }
 
   dispose(): void {
-    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames]) {
+    for (const im of [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames, this.flameGlow]) {
       im.geometry.dispose(); (im.material as THREE.Material).dispose(); im.dispose();
     }
-    for (const s of this.labels) { if (s.material.map) s.material.map.dispose(); s.material.dispose(); }
+    for (const s of this.labels) if (s) { if (s.material.map) s.material.map.dispose(); s.material.dispose(); }
     for (const s of this.spots) s.dispose();
   }
 }

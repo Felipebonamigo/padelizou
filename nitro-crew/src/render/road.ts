@@ -9,6 +9,13 @@ import type { RoadFrame } from './roadframe';
 import { ROAD_HALF_WIDTH_M, SEGMENT_M } from './units';
 
 const SHOULDER_M = 1.4;
+
+/** Sobe a saturação de uma cor (HSL) sem mudar o tom. */
+export function saturate(c: THREE.Color, amount: number): THREE.Color {
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  return c.setHSL(hsl.h, Math.min(1, hsl.s + amount), hsl.l);
+}
 const PIT_X0 = 1.09;
 const PIT_X1 = 2.06;
 /** Metros de pista por repetição da textura do asfalto. */
@@ -36,7 +43,7 @@ function makeTexture(c: HTMLCanvasElement, anisotropy: number): THREE.CanvasText
 function paintAsphalt(p: Palette, night: boolean, anisotropy: number): THREE.CanvasTexture {
   const W = 256; const H = 1024;
   const [c, ctx] = canvas(W, H);
-  ctx.fillStyle = p.roadLight;
+  ctx.fillStyle = shade(p.roadLight, night ? 1.45 : 0.68);
   ctx.fillRect(0, 0, W, H);
   const img = ctx.getImageData(0, 0, W, H);
   const d = img.data;
@@ -56,7 +63,7 @@ function paintAsphalt(p: Palette, night: boolean, anisotropy: number): THREE.Can
   }
   ctx.putImageData(img, 0, 0);
   // Faixas laterais contínuas e tracejado central (dash de 3,6 m a cada 8 m).
-  ctx.fillStyle = p.lane;
+  ctx.fillStyle = shade(p.lane, 0.8); // abaixo do limiar do bloom: linha nítida, não brilhante
   ctx.fillRect(Math.round(W * 0.018), 0, Math.round(W * 0.02), H);
   ctx.fillRect(Math.round(W * 0.962), 0, Math.round(W * 0.02), H);
   ctx.fillRect(Math.round(W * 0.493), 0, Math.round(W * 0.014), Math.round(H * 0.45));
@@ -211,6 +218,7 @@ export class Road {
     this.cBand[0].set('#ffffff'); this.cBand[1].set('#f2f2f2');
     this.cRumble[0].set(p.rumbleLight); this.cRumble[1].set(p.rumbleDark);
     this.cGrass.set(p.grassLight);
+    saturate(this.cGrass, 0.16);
   }
 
   update(frame: RoadFrame, track: Track): void {
