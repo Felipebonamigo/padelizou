@@ -106,6 +106,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     menuOpen: () => menus.current() !== null,
     exitToMain: () => toMain(),
     persistSettings: () => saveSettings(settings),
+    // Aba em segundo plano/janela minimizada: sem requestAnimationFrame, o online anda pela rede.
+    hidden: () => document.visibilityState === 'hidden',
+    runHidden: (dt) => { const r = session.race; if (r?.driver) r.driver.advance(dt, readInputs(r), (i) => stepOnce(r, i)); },
   }, { hud: createOnlineHud });
 
   const session: Session = {

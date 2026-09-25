@@ -62,16 +62,39 @@ conquistas são só de quem jogou naquele computador.
 param no primeiro tick sem a entrada dele e veem "Aguardando Fulano reconectar…". O jogo de quem
 caiu tenta voltar a cada segundo com o mesmo token; quando volta, o anfitrião manda um **snapshot**
 (`serializeRace` + tick + entradas já conhecidas + tomadas decididas) e ele segue dali, com o mesmo
-hash dos outros. O token vive na memória: recarregar a página perde a vaga.
+hash dos outros. Se o snapshot não chega em 15 s (`SYNC_TIMEOUT_MS`), vira erro com texto próprio em
+vez de "recebendo a corrida" sem fim; se a sala saiu da corrida enquanto ele voltava (o anfitrião
+voltou à sala), ele vai para a sala. O token vive na memória: recarregar a página perde a vaga.
 
 **Quem não volta vira IA.** Passada a janela (ou se a pessoa escolhe "Sair da partida"), o
 anfitrião põe um registro `TAKEOVER` no próprio fluxo de entradas, com o tick em que passa a valer
-(o primeiro sem entrada daquele assento). Todas as máquinas aplicam no mesmo tick, antes do
-`stepRace`: o carro ganha um cérebro de IA sem sorteio nenhum, então continua determinístico.
+(o primeiro sem entrada daquele assento). Nesse tick todas as máquinas entregam ao `stepRace` a
+entrada `{ takeover: true }` do assento, e é o `stepRace` quem põe no carro um cérebro de IA sem
+sorteio nenhum: continua determinístico, e as entradas de cada tick reproduzem a corrida (replay,
+fantasma). No resultado, o carro aparece com a etiqueta **IA** (a menos que tenha cruzado a linha
+antes da tomada).
 
-**Anfitrião.** É o computador conectado de menor id na sala. Se ele sai ou cai, o relay passa a sala
-adiante; o novo anfitrião assume as tarefas (tomada pela IA, snapshot para quem volta, largar a
-próxima corrida).
+**Anfitrião.** É quem criou a sala. Se ele sai ou cai, o relay passa a sala ao computador
+**conectado há mais tempo** — no meio da corrida, alguém que não caiu, com o estado completo (quem
+acabou de voltar espera um snapshot e não serve). O novo anfitrião manda o seu snapshot a todos os
+conectados (quem esperava o do anterior aplica; quem não esperava descarta) e assume as tarefas
+(tomada pela IA, snapshot para quem volta, largar a próxima corrida). Se **todos** caem juntos (um
+soluço do relay ou do VPS), quem volta primeiro vira anfitrião e segue do próprio estado — é o mesmo
+dos outros até o tick em que parou — e manda o snapshot a quem voltar depois.
+
+**Mesmo jogo dos dois lados.** `create`/`join` levam `b`, a impressão do conteúdo
+(`CONTENT_FINGERPRINT`: carros, pistas, constantes da simulação e habilidade da IA). O relay só põe
+na mesma sala quem tem a mesma; o outro vê "Esta sala foi criada com outra versão do jogo". Sem
+isso, um build com uma pista nova largava nela e o outro descartava a largada calado, com o
+anfitrião esperando por ele para sempre. Mudança só no código da física não muda a impressão:
+aparece como dessincronia.
+
+**Janela escondida.** Aba em segundo plano ou janela minimizada: o navegador para o
+`requestAnimationFrame`, e com ele o quadro que chama o lockstep. Sem nada, esse computador parava
+de mandar entrada e os outros ficavam em "Aguardando…" sem fim (ele continua conectado, então a IA
+não assume). Com `document.visibilityState === 'hidden'`, cada mensagem que chega do relay anda a
+corrida pelo relógio desde o último quadro — no ritmo dos outros, que mandam uma por quadro —, sem
+desenhar, com a entrada deste computador neutra (ninguém vê a pista). Ao voltar, o quadro retoma.
 
 **Sem pausa.** Online, Esc/Start abre "Sair da partida?" e a corrida continua por baixo (as
 entradas deste computador ficam neutras enquanto o aviso está aberto). No canto fica o ping até o
@@ -101,7 +124,9 @@ aperte F (teclado WASD) ou A num controle.
 - `tests/net-protocol.test.ts` — entrada compacta, validação de cada mensagem, códigos, endereço.
 - `tests/net-client.test.ts` — `NetClient` e sessão contra um socket falso: mensagem fora do formato
   descartada e contada; largada, entrada de assento alheio, tomada pela IA e snapshot de quem não
-  pode mandá-los descartados e contados.
+  pode mandá-los descartados e contados; volta depois de cair (eleito anfitrião, anfitrião novo,
+  sala que saiu da corrida, tempo limite do snapshot, "Sair da partida?" aberto); controles soltos
+  ao sair; etiqueta IA no resultado; `advance` quadro a quadro; janela escondida.
 - `tests/net-session.test.ts` — numeração dos assentos (nome padrão acompanha o assento), corrida
   montada da largada igual em todas as máquinas, endereço do servidor nas opções.
 - `tests/net-lockstep.test.ts` — 2, 3 e 4 clientes em memória com atraso, reordenação e duplicação
@@ -111,8 +136,10 @@ aperte F (teclado WASD) ou A num controle.
 - `tests/net-relay.test.ts` — sobe o `server/relay.mjs` de verdade numa porta livre: regras do relay
   com mensagens cruas (sala cheia, versão, taxa, 64 KB, janela de reconexão) e duas sessões online
   completas pelo WebSocket global do Node 22 (lobby, largada, 600 ticks com hashes iguais, queda e
-  volta por snapshot, IA assumindo). Leva ~10 s. **Sem `server/node_modules` o arquivo é pulado**;
-  no CI ele é obrigatório (`NC_REQUIRE_RELAY=1`).
+  volta por snapshot, IA assumindo), todos caindo juntos, três computadores com o anfitrião caindo,
+  fim natural da corrida quadro a quadro com o mesmo resultado nos dois, convidado com a janela
+  escondida, impressão de conteúdo diferente recusada. Leva ~25 s. **Sem `server/node_modules` o
+  arquivo é pulado**; no CI ele é obrigatório (`NC_REQUIRE_RELAY=1`).
 - `scripts/playtest-online.mjs` — Playwright com duas páginas no mesmo relay, pelo fluxo real de
   teclado: criar/entrar, pronto, largar, 10 s de corrida com `debugStep`, hashes iguais, Esc sem
   pausa, "aguardando", queda e volta, anfitrião saindo e a IA assumindo. Capturas em
@@ -179,8 +206,15 @@ existe. Entra na política de privacidade do passo 5.7 do roteiro.
   assento que o anfitrião conhece. Como o relay entrega as mensagens na mesma ordem para todos e a
   decisão só acontece depois da janela de 60 s, os outros já receberam tudo o que o anfitrião
   recebeu.
-- **Snapshot só do anfitrião**: se o anfitrião e quem volta caírem juntos, o novo anfitrião é quem
-  manda.
+- **Snapshot só do anfitrião**: quem volta depende dele. Se o anfitrião cai antes de mandar, o
+  novo anfitrião manda; se ninguém manda em 15 s, erro.
+- **Todos com a janela escondida**: ninguém tem quadro, e a corrida só anda quando chega alguma
+  mensagem (o ping, ~1 por segundo com os timers de aba escondida seguros pelo navegador). Retoma
+  quando alguém volta à janela.
+- **Electron**: o desvio da janela escondida depende de `visibilityState` virar `hidden` ao
+  minimizar, que é o padrão (`backgroundThrottling` ligado em `desktop/main.cjs`). Se um dia o
+  `backgroundThrottling` for desligado, conferir que o `requestAnimationFrame` continua com a janela
+  minimizada em cada sistema.
 - **Recarregar a página perde a vaga** (o token fica só na memória).
 - **Queda no lobby não tem volta**: o relay só guarda o lugar durante a corrida; no lobby quem cai
   sai da sala (e vê "A conexão com o servidor caiu"). Quem fica 10–20 s sem responder ao ping de

@@ -432,3 +432,58 @@ describe('sessão online: quadro a quadro (advance)', () => {
     ctl.leave(false);
   });
 });
+
+describe('sessão online: janela escondida', () => {
+  /**
+   * Aba em segundo plano ou janela minimizada: o requestAnimationFrame para, e com ele o
+   * session.frame que chama o advance. Esta sessão falsa só anda pelo `runHidden` (a sessão de
+   * verdade liga isso ao advance do driver); o teclado está com o acelerador preso.
+   */
+  class HiddenHost extends Host {
+    hiddenNow = false;
+    driver: RaceDriver | null = null;
+    override startRace(config: RaceConfig, localSeats: number[], driver: RaceDriver, state?: RaceState): void {
+      super.startRace(config, localSeats, driver, state);
+      this.driver = driver;
+    }
+    hidden() { return this.hiddenNow; }
+    runHidden(dt: number) {
+      const state = this.state;
+      if (!state || !this.driver) return;
+      const track = getTrack(state.config.trackId);
+      this.driver.advance(dt, [], (inputs) => stepRace(state, track, inputs));
+    }
+  }
+
+  it('sem quadros, a corrida anda pela chegada das entradas dos outros (sem isso todos ficavam em "Aguardando…")', () => {
+    const sock = new FakeSocket();
+    const host = new HiddenHost();
+    host.input.readSeat = () => ({ steer: 0.5, throttle: true, brake: false, nitro: false, gearUp: false, gearDown: false });
+    let clock = 0;
+    const ctl = new OnlineController(host, { socket: () => asWebSocket(sock), pingMs: 60_000, now: () => clock });
+    ctl.join('KQXTR', 'kb1');
+    sock.open();
+    sock.push({ t: 'welcome', room: 'KQXTR', id: 1, token: TOKEN, rejoined: false });
+    sock.push(roomMsg(0));
+    sock.push({ t: 'start', from: 0, cfg: startCfg() });
+    const hostRuns = (from: number, to: number) => {
+      for (let t = from; t < to; t++) { clock += 1000 / 60; sock.push({ t: 'i', from: 0, d: [t, 0, 1, 0] }); }
+    };
+    // Visível: quem anda é o quadro (session.frame); a mensagem sozinha não roda tick.
+    hostRuns(0, 10);
+    expect(host.state?.tick).toBe(0);
+    // Escondida: o anfitrião segue a 60 ticks/s e este computador acompanha pelas mensagens.
+    host.hiddenNow = true;
+    hostRuns(10, 130);
+    expect(host.state?.tick).toBeGreaterThanOrEqual(120);
+    const mine: number[][] = [];
+    for (const m of sock.sent) if (m.t === 'i') { const d = m.d as number[]; for (let i = 0; i < d.length; i += 4) mine.push(d.slice(i, i + 4)); }
+    // Mandou a própria entrada à frente do anfitrião (é o que o deixa andar) e neutra: ninguém vê a
+    // pista com a janela escondida, então o acelerador preso não conta.
+    expect(Math.max(...mine.map((r) => r[0]))).toBeGreaterThanOrEqual(120 + 3);
+    expect(mine.every((r) => r[1] === 1 && r[2] === 0 && r[3] === 0)).toBe(true);
+    // Sem ninguém mandando nada, não anda sozinha além do relógio.
+    expect(host.state?.tick).toBeLessThanOrEqual(130);
+    ctl.leave(false);
+  });
+});

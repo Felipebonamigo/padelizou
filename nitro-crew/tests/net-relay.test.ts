@@ -128,6 +128,21 @@ class FakeHost implements OnlineHost {
     }
     return n;
   }
+  /**
+   * Janela escondida (aba em segundo plano, minimizada): o teste para de chamar `frame`, como o
+   * navegador para o requestAnimationFrame; o online anda pelo `runHidden` (a sessão de verdade o liga
+   * ao `advance`, igual aqui).
+   */
+  hiddenNow = false;
+  hidden() { return this.hiddenNow; }
+  runHidden(dt: number): void {
+    const r = this.race;
+    if (!r) return;
+    r.driver.advance(dt, [], (inputs) => {
+      stepRace(r.state, r.track, inputs);
+      if (r.state.tick % 60 === 0) this.hashes.set(r.state.tick, hashRace(r.state));
+    });
+  }
   /** Um "quadro": até `max` ticks com o piloto de teste nos assentos locais. */
   pump(max: number, limit: number): number {
     const r = this.race;
@@ -520,6 +535,42 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     expect(hashRace(hb.race!.state)).toBe(hashRace(ha.race!.state));
     A.leave(false); B.leave(false);
   }, 90_000);
+
+  it('convidado com a janela escondida (sem quadros): o anfitrião não fica em "Aguardando…"; os dois seguem juntos', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    const A = new OnlineController(ha, { pingMs: 200 });
+    const B = new OnlineController(hb, { pingMs: 200 });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto');
+    expect(A.startRace()).toBe(true);
+    await until(() => ha.race !== null && hb.race !== null, 3000, 'largada');
+    hb.hiddenNow = true;
+    // Só o anfitrião tem quadros, no relógio de verdade, por 2 s.
+    const t0 = performance.now();
+    let last = t0;
+    while (performance.now() - t0 < 2000) {
+      const now = performance.now();
+      ha.frame((now - last) / 1000);
+      last = now;
+      await sleep(16);
+    }
+    const [ta, tb] = [ha.race?.state.tick ?? 0, hb.race?.state.tick ?? 0];
+    const info = `${ta} ${JSON.stringify(A.debugInfo().stats)} | ${tb} ${JSON.stringify(B.debugInfo().stats)}`;
+    // Sem o bombeamento pela rede o anfitrião fica no tick 0; no relógio de verdade são ~120. A
+    // folga (60) é para máquina carregada: uma rodada em ~40 falhou sem mostrar o número.
+    expect(ta, info).toBeGreaterThanOrEqual(60);
+    expect(Math.abs(ta - tb), info).toBeLessThanOrEqual(12);
+    let compared = 0;
+    for (const [t, h] of ha.hashes) if (hb.hashes.has(t)) { expect(hb.hashes.get(t), `tick ${t}`).toBe(h); compared++; }
+    expect(compared).toBeGreaterThanOrEqual(1);
+    expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
+    A.leave(false); B.leave(false);
+  }, 10_000);
 
   it('depois da corrida o anfitrião não larga de novo enquanto um convidado ainda está no resultado', async () => {
     const ha = new FakeHost('Ana');
