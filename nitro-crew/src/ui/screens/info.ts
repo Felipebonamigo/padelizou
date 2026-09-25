@@ -1,9 +1,12 @@
 // Tela de consulta dos recordes (três abas: recordes por pista, estatísticas por jogador e
 // conquistas). A de controles, com remapeamento, mora em controls.ts.
 import { formatTicks } from '../../core/sim/race';
+import type { TrackDef } from '../../core/types';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import { ACHIEVEMENTS } from '../../game/desktop';
-import { COUNTER_KEYS, formatDistance, formatDuration, MAX_PROFILES, tracksRaced, type CounterKey, type PlayerStats } from '../../game/stats';
+import {
+  COUNTER_KEYS, formatCount, formatDistance, formatDuration, MAX_PROFILES, playerLine, recordsLine, tracksRaced, type CounterKey, type PlayerStats,
+} from '../../game/stats';
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
 import { arrowButton, blurActive, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
@@ -65,14 +68,10 @@ function tracksTab(api: ScreenApi): TabView {
   return tabView(api, rows, content);
 }
 
-function numberText(n: number): string {
-  return new Intl.NumberFormat(getLanguage() === 'pt' ? 'pt-BR' : 'en-US').format(n);
-}
-
 function statText(key: CounterKey, s: PlayerStats): string {
   if (key === 'meters') return formatDistance(s.meters, getLanguage());
   if (key === 'raceTicks') return formatDuration(s.raceTicks);
-  return numberText(s[key]);
+  return formatCount(s[key]);
 }
 
 /** Cabeçalho e contadores do jogador mostrado (refeitos a cada troca de foco). */
@@ -89,31 +88,54 @@ function playerSummary(name: string, s: PlayerStats, all: boolean): HTMLElement[
   ];
 }
 
-function bestPositions(api: ScreenApi, s: PlayerStats): HTMLElement[] {
-  const trackIds = api.ctx.tracks.map((d) => d.id);
-  const raced = api.ctx.tracks.filter((d) => s.bestPositions[d.id] !== undefined);
-  return [
-    h('div', { class: 'best-head' },
-      h('h3', { class: 'sub-title', text: t('stats.best.title') }),
-      h('span', { class: 'best-count', text: t('stats.best.count', { n: tracksRaced(s, trackIds), total: trackIds.length }) }),
-    ),
-    raced.length > 0
-      ? h('div', { class: 'best-list' }, raced.map((d) => {
-        const pos = s.bestPositions[d.id] ?? 0;
-        return h('span', { class: `best-chip${pos <= 3 ? ' podium' : ''}` },
-          medal(pos) ?? h('b', { class: 'best-pos mono', text: t('stats.best.pos', { n: pos }) }),
-          h('span', { class: 'best-name', text: d.name }),
-        );
-      }))
-      : h('p', { class: 'hint best-none', text: t('stats.best.none') }),
-  ];
+/** Colunas da grade de melhor posição (records.css usa o mesmo número). */
+const BEST_COLS = 3;
+
+function bestChip(d: TrackDef, pos: number | undefined): HTMLElement {
+  if (pos === undefined) {
+    return h('span', { class: 'best-chip none', attrs: { title: d.name } }, h('b', { class: 'best-pos mono', text: '—' }), h('span', { class: 'best-name', text: d.name }));
+  }
+  return h('span', { class: `best-chip${pos <= 3 ? ' podium' : ''}`, attrs: { title: d.name } },
+    medal(pos) ?? h('b', { class: 'best-pos mono', text: t('stats.best.pos', { n: pos }) }),
+    h('span', { class: 'best-name', text: d.name }),
+  );
+}
+
+/**
+ * Melhor posição em todas as pistas do jogo (as ainda não corridas com "—"), em linhas de
+ * BEST_COLS. Cada linha é um item de foco: com 32 pistas a grade não cabe em 720p, e o controle
+ * só rola o que o foco alcança. Como a grade lista todas as pistas, o número de linhas não
+ * depende do jogador e as linhas são criadas uma vez; trocar de jogador só refaz o conteúdo.
+ */
+function bestPositionsView(api: ScreenApi): { el: HTMLElement; rows: FocusItem[]; fill(s: PlayerStats): void } {
+  const tracks = api.ctx.tracks;
+  const trackIds = tracks.map((d) => d.id);
+  const count = h('span', { class: 'best-count' });
+  const none = h('p', { class: 'hint best-none', text: t('stats.best.none') });
+  const rows: FocusItem[] = [];
+  for (let i = 0; i < tracks.length; i += BEST_COLS) rows.push({ el: h('div', { class: `best-row${i === 0 ? ' first' : ''}` }) });
+  const el = h('div', { class: 'best-block' },
+    h('div', { class: 'best-head' }, h('h3', { class: 'sub-title', text: t('stats.best.title') }), count),
+    none,
+    rows.map((r) => r.el),
+  );
+  return {
+    el,
+    rows,
+    fill(s) {
+      const raced = tracksRaced(s, trackIds);
+      count.textContent = t('stats.best.count', { n: raced, total: tracks.length });
+      none.style.display = raced > 0 ? 'none' : '';
+      rows.forEach((r, i) => r.el.replaceChildren(...tracks.slice(i * BEST_COLS, (i + 1) * BEST_COLS).map((d) => bestChip(d, s.bestPositions[d.id]))));
+    },
+  };
 }
 
 /**
  * Lista de jogadores à esquerda (a primeira linha é o total) e o detalhe de quem está focado.
- * As duas colunas rolam cada uma por si. A melhor posição por pista é um item de foco próprio
- * (entre o último jogador e o Voltar): em 720p o detalhe não cabe inteiro, e sem isso o
- * controle nunca chegaria a ela — o foco só anda pela lista da esquerda.
+ * As duas colunas rolam cada uma por si. Depois do último jogador o foco desce pelas linhas da
+ * melhor posição por pista (bestPositionsView) e então chega ao Voltar; o detalhe continua no
+ * último jogador mostrado, e volta ao topo quando o foco volta à lista.
  */
 function playersTab(api: ScreenApi): TabView {
   const stats = api.ctx.save.stats;
@@ -128,21 +150,26 @@ function playersTab(api: ScreenApi): TabView {
     e.all ? h('span', { class: 'pl-avatar all' }, icon('users')) : h('span', { class: 'pl-avatar', text: e.name.slice(0, 1).toUpperCase() }),
     h('span', { class: 'pl-text' },
       h('span', { class: 'pl-name', text: e.name }),
-      h('span', { class: 'pl-sub', text: t('stats.players.summary', { races: numberText(e.s.races), wins: numberText(e.s.wins) }) }),
+      // O total não repete "N corridas": somando jogadores, ele não bate com o cabeçalho (uma por corrida).
+      h('span', { class: 'pl-sub', text: e.all ? t('stats.players.allSummary') : playerLine(e.s) }),
     ),
   ) }));
   const summary = h('div', { class: 'pl-summary' });
-  const best: FocusItem = { el: h('div', { class: 'best-block' }) };
+  const best = bestPositionsView(api);
   const detail = h('div', { class: 'pl-detail glass' }, summary, best.el);
   let shown = -1;
+  let wasOnPlayer = true;
   const show = (list: FocusList) => {
-    // Com a melhor posição ou o Voltar focados, o detalhe continua no último jogador mostrado.
-    const i = list.index >= 0 && list.index < entries.length ? list.index : Math.max(0, shown);
+    const onPlayer = list.index >= 0 && list.index < entries.length;
+    // Voltou da grade de melhor posição para a lista: o resumo do jogador volta à vista.
+    if (onPlayer && !wasOnPlayer) detail.scrollTop = 0;
+    wasOnPlayer = onPlayer;
+    const i = onPlayer ? list.index : Math.max(0, shown);
     if (i === shown) return;
     shown = i;
     const e = entries[i];
     summary.replaceChildren(...playerSummary(e.name, e.s, e.all));
-    best.el.replaceChildren(...bestPositions(api, e.s));
+    best.fill(e.s);
     detail.scrollTop = 0;
     rows.forEach((r, j) => r.el.classList.toggle('shown', j === i));
   };
@@ -150,7 +177,7 @@ function playersTab(api: ScreenApi): TabView {
     h('div', { class: 'pl-list glass' }, h('p', { class: 'hint pl-hint', text: t('stats.players.hint') }), rows.map((r) => r.el)),
     detail,
   );
-  const view = tabView(api, [...rows, best], content, show);
+  const view = tabView(api, [...rows, ...best.rows], content, show);
   show(view.list);
   return view;
 }
@@ -212,7 +239,7 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
   markTabs();
 
   const el = screenFrame('records', t('ui.records.title'),
-    h('p', { class: 'hint', text: t('ui.records.stats', { run: save.racesRun, won: save.racesWon, cups: save.cupsCompleted.length }) }),
+    h('p', { class: 'hint', text: recordsLine(save.racesRun, save.racesWon, save.cupsCompleted.length) }),
     h('div', { class: 'rec-tabs', attrs: { role: 'tablist' } },
       arrowButton(-1, () => { select(tab - 1); api.sfx('move'); }),
       h('div', { class: 'rec-tab-row' }, tabButtons),

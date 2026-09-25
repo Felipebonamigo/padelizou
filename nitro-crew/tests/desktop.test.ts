@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { CUPS } from '../src/core/data/cups';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from '../src/game/desktop';
 import { achievementDescription, evaluateAchievements, newTelemetry } from '../src/game/achievements';
-import { setLanguage } from '../src/i18n';
+import { registerStrings, setLanguage } from '../src/i18n';
 import { DEFAULT_SAVE } from '../src/game/contracts';
 import { human, quickRace, run, syntheticTrack } from './helpers';
 
@@ -36,6 +36,23 @@ describe('ponte com o Electron', () => {
     }
     setLanguage('pt');
     for (const a of ACHIEVEMENTS) expect(readme, `${a.id} fora da tabela do README`).toContain(`| \`${a.id}\` | ${a.pt} | ${a.en} |`);
+  });
+});
+
+describe('descrição das conquistas de copa', () => {
+  it('copa nova ganha a descrição pelo nome da copa, sem string por id', () => {
+    // Revisão: o merge com mais copas trazia COPA_* sem stats.achDesc.<ID>, e a tela mostrava a chave crua.
+    registerStrings('core', { pt: { 'cup.teste_merge': 'Copa Teste' }, en: { 'cup.teste_merge': 'Test Cup' } });
+    CUPS.push({ id: 'teste_merge', name: 'Copa Teste', country: 'Teste', flag: '', trackIds: ['copacabana'], requires: null });
+    try {
+      setLanguage('pt');
+      expect(achievementDescription('COPA_TESTE_MERGE')).toBe('Concluir a Copa Teste.');
+      setLanguage('en');
+      expect(achievementDescription('COPA_TESTE_MERGE')).toBe('Complete the Test Cup.');
+    } finally {
+      CUPS.pop();
+      setLanguage('pt');
+    }
   });
 });
 

@@ -1,11 +1,14 @@
 // Conquistas: regras avaliadas pela sessão no tick em que a corrida acaba, com a telemetria que
 // ela junta a cada tick (observeTick). A lista com nomes PT/EN mora em desktop.ts (ponte com a
 // Steam) e as descrições em src/stats/strings.ts; aqui ficam a coleta e as regras.
-import { TICK_RATE } from '../core/constants';
+import { CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, TICK_RATE } from '../core/constants';
+import { CUPS } from '../core/data/cups';
+import { wrappedDelta } from '../core/sim/collisions';
 import { computeModifiers } from '../core/sim/coop';
 import { TRACKS } from '../core/track';
-import type { HumanEntry, RaceResultRow, RaceState, SimEvent, Track } from '../core/types';
+import type { CarState, HumanEntry, RaceResultRow, RaceState, SimEvent, Track } from '../core/types';
 import { getLanguage, t } from '../i18n';
+import '../i18n/core';
 import '../stats/strings';
 import type { RaceMode, SaveData } from './contracts';
 import { ACHIEVEMENTS } from './desktop';
@@ -17,13 +20,19 @@ export const DRAFT_MASTER_TICKS = 60 * TICK_RATE;
 export const MARATHON_METERS = 1_000_000;
 /** DEZ_VITORIAS. */
 export const WINS_TARGET = 10;
+/**
+ * Folga lateral do contato visto pelo estado: resolveCarCollisions (src/core/sim/collisions.ts)
+ * separa os dois carros em 0,03 para cada lado no mesmo tick, então depois do passo uma batida de
+ * quina já não se sobrepõe. Custo aceito: passar a menos de 0,06 de outro carro também conta.
+ */
+export const CONTACT_LATERAL_MARGIN = 0.06;
 
 /** Contadores de um assento nesta corrida (a sessão observa; stats.ts e as regras leem). */
 export interface SeatTelemetry {
   nitros: number;
   towsGiven: number;
   towsReceived: number;
-  /** Batidas carro-carro (quem bate e quem é batido). */
+  /** Contatos carro-carro (quem bate e quem é batido; raspão lado a lado também). Ver observeTick. */
   collisions: number;
   /** Batidas no cenário. */
   crashes: number;
@@ -51,12 +60,14 @@ export interface RaceTelemetry {
   perfectLap: Set<number>;
   /** Contadores por assento, preenchidos por observeTick. */
   seats: Map<number, SeatTelemetry>;
+  /** Último tick em contato, por par "assento>carro" (janela de uma colisão). */
+  contactTick: Map<string, number>;
 }
 
 export function newTelemetry(): RaceTelemetry {
   return {
     pitted: new Set(), nitrosThisLap: new Map(), maxNitrosInLap: new Map(), gaveTow: new Set(), offroadThisLap: new Set(),
-    perfectLap: new Set(), seats: new Map(),
+    perfectLap: new Set(), seats: new Map(), contactTick: new Map(),
   };
 }
 
@@ -84,7 +95,34 @@ export function observeTick(tel: RaceTelemetry, state: RaceState, track: Track):
   for (const car of state.cars) {
     if (car.seat < 0 || car.finished) continue;
     const seat = tel.seats.get(car.seat);
-    if (seat && computeModifiers(state, track, car).draft) seat.draftTicks++;
+    if (!seat) continue;
+    if (computeModifiers(state, track, car).draft) seat.draftTicks++;
+    observeContacts(tel, state, track, car, seat);
+  }
+}
+
+/** Caixas do núcleo (comprimento e largura do carro) sobrepostas, com a folga do empurrão lateral. */
+function touching(a: CarState, b: CarState, trackLength: number): boolean {
+  return Math.abs(wrappedDelta(a.z, b.z, trackLength)) < CAR_LENGTH
+    && Math.abs(a.x - b.x) < CAR_HALF_WIDTH * 2 + CONTACT_LATERAL_MARGIN;
+}
+
+/**
+ * Colisões pelo estado, não só pelo evento: o núcleo só emite 'collision' com os DOIS carros fora
+ * do cooldown, mas aplica a batida mesmo assim — bater numa IA que acabou de bater em outra não
+ * gerava evento. Aqui conta cada contato (o evento do tick também vale como contato); um contato
+ * que continua, ou outro com o mesmo carro em até COLLISION_COOLDOWN_TICKS, é a mesma colisão.
+ */
+function observeContacts(tel: RaceTelemetry, state: RaceState, track: Track, car: CarState, seat: SeatTelemetry): void {
+  for (const other of state.cars) {
+    if (other === car) continue;
+    const byEvent = state.events.some((e) => e.type === 'collision'
+      && ((e.carId === car.id && e.otherId === other.id) || (e.carId === other.id && e.otherId === car.id)));
+    if (!byEvent && !touching(car, other, track.length)) continue;
+    const key = `${car.seat}>${other.id}`;
+    const last = tel.contactTick.get(key);
+    if (last === undefined || state.tick - last > COLLISION_COOLDOWN_TICKS) seat.collisions++;
+    tel.contactTick.set(key, state.tick);
   }
 }
 
@@ -94,11 +132,6 @@ function observeEvent(state: RaceState, e: SimEvent, human: (carId: number) => S
     case 'tow': {
       const got = human(e.carId); if (got) got.towsReceived++;
       const gave = human(e.byId); if (gave) gave.towsGiven++;
-      break;
-    }
-    case 'collision': {
-      const a = human(e.carId); if (a) a.collisions++;
-      const b = human(e.otherId); if (b) b.collisions++;
       break;
     }
     case 'crash': { const s = human(e.carId); if (s) s.crashes++; break; }
@@ -190,8 +223,19 @@ export function achievementName(id: string): string {
   return def ? def[getLanguage()] : id;
 }
 
+/**
+ * Descrição no idioma atual. As de copa saem do nome da copa (core.cup.<id>): copa nova em
+ * data/cups.ts ganha descrição sem precisar de uma string por conquista.
+ */
 export function achievementDescription(id: string): string {
-  return t(`stats.achDesc.${id}`);
+  const key = `stats.achDesc.${id}`;
+  const own = t(key);
+  if (own !== key) return own;
+  const cup = CUPS.find((c) => `COPA_${c.id.toUpperCase()}` === id);
+  if (!cup) return own;
+  const nameKey = `core.cup.${cup.id}`;
+  const name = t(nameKey);
+  return t('stats.achDescCup', { cup: name === nameKey ? cup.name : name });
 }
 
 /**

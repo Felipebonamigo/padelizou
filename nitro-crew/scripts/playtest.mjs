@@ -85,6 +85,41 @@ for (let i = 0; i < 30; i++) { await page.waitForTimeout(500); st = await S(); i
 check(st.menu === 'results', `resultado aparece ao fim (${st.menu}, fase ${st.race?.phase})`);
 await page.screenshot({ path: `${out}-08-results.png` });
 
+// Estatísticas e conquistas da corrida (passo 3.6; ganchos em src/game/raceEnd.ts): gravadas no save e no resultado.
+const end = await page.evaluate(() => {
+  const r = window.nc.session.race;
+  return {
+    humans: r.humans.map((h) => h.name.trim()),
+    unlocked: r.outcome ? r.outcome.achievements.map((u) => u.id) : null,
+    chips: document.querySelectorAll('.scr-results .ach-chip').length,
+    save: JSON.parse(localStorage.getItem('nitro-crew.save') ?? 'null'),
+  };
+});
+check(end.save?.racesRun === 1 && end.save?.stats?.totals?.races === end.humans.length,
+  `corrida somada uma vez: racesRun ${end.save?.racesRun}, corridas no total ${end.save?.stats?.totals?.races} (${end.humans.length} jogadores)`);
+check(end.humans.every((n) => end.save?.stats?.players?.some((p) => p.name === n && p.races === 1 && p.meters > 0)),
+  `perfil de cada jogador com corrida e distância (${end.save?.stats?.players?.map((p) => `${p.name}:${p.meters}m`).join(', ')})`);
+check(end.unlocked !== null && end.chips === end.unlocked.length && end.unlocked.every((id) => end.save.achievements.includes(id)),
+  `conquistas da corrida no save e no quadro do resultado (${end.unlocked?.join(', ') || 'nenhuma'}; ${end.chips} no quadro)`);
+// Pior caso do resultado em 720p: 20 carros, humanos no fim e 14 conquistas de uma vez.
+const busy = await page.evaluate(() => {
+  const s = window.nc.session; const r = s.race;
+  const ids = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_ARRANHAO', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'MADRUGADA', 'SEM_BOX', 'PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'COPA_BRASIL', 'CAMPEAO'];
+  const results = Array.from({ length: 20 }, (_, i) => ({ carId: i, seat: i === 19 ? 0 : -1, name: i === 19 ? r.humans[0].name : `IA ${i}`, teamId: i === 19 ? 0 : 100 + i, carDefId: 'falcao', position: i + 1, finished: true, totalTicks: 9000 + i * 30, bestLapTicks: 3000, points: 0 }));
+  s.menus.show('results', { mode: 'quick', trackDef: r.track.def, results, humans: r.humans, champ: null, newRecords: [], achievements: ids.map((id) => ({ id, seats: [0] })) });
+  for (const a of document.getAnimations()) a.finish();
+  const box = (el) => el.getBoundingClientRect();
+  const panel = document.querySelector('.scr-results .results-ach'); const p = box(panel);
+  const wrap = document.querySelector('.scr-results .table-wrap'); const w = box(wrap);
+  const rowH = box(wrap.querySelector('tbody tr')).height; const headH = box(wrap.querySelector('thead')).height;
+  return {
+    clipped: [...panel.querySelectorAll('.ach-chip')].filter((c) => { const b = box(c); return b.top < p.top - 0.5 || b.bottom > p.bottom + 0.5; }).length,
+    rows: Math.floor((w.height - headH) / rowH),
+    btnsIn: [...document.querySelectorAll('.scr-results .actions .btn')].every((b) => box(b).bottom <= innerHeight),
+  };
+});
+check(busy.clipped === 0 && busy.rows >= 5 && busy.btnsIn, `resultado com 20 carros e 14 conquistas: nenhum cartão cortado (${busy.clipped}), ${busy.rows} linhas da tabela à vista, botões na tela`);
+
 // Tela dividida com 4 e com 3 jogadores.
 await page.evaluate((h) => { const s = window.nc.session; s.menus.hide(); s.debugBind(0, 'kb1'); s.debugBind(1, 'kb2'); s.startQuick('sampa_noite', 2, h); }, humans(4));
 await page.keyboard.down('ArrowUp'); await page.keyboard.down('KeyW');
