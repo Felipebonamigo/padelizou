@@ -24,7 +24,7 @@
             faseAlcancada: 1,
             recorde: 0,
             dificuldade: 'normal',
-            opcoes: { musica: 0.7, efeitos: 0.8, tremor: true, telaCheia: false, idioma: 'pt-BR' },
+            opcoes: { musica: 0.7, efeitos: 0.8, tremor: true, telaCheia: false, idioma: 'pt-BR', qualidade: 'alta' },
             conquistas: {},
             estatisticas: { inimigos: 0, finalizacoes: 0, maiorCombo: 0, itens: 0, mortes: 0, tempoJogado: 0, fasesConcluidas: 0, vitorias: 0, partidas: 0 },
         };
@@ -51,6 +51,7 @@
                 tremor: typeof o.tremor === 'boolean' ? o.tremor : base.opcoes.tremor,
                 telaCheia: typeof o.telaCheia === 'boolean' ? o.telaCheia : base.opcoes.telaCheia,
                 idioma: typeof o.idioma === 'string' && o.idioma.length <= 8 ? o.idioma : base.opcoes.idioma,
+                qualidade: o.qualidade === 'media' ? 'media' : 'alta',
             },
             conquistas: {},
             estatisticas: {},

@@ -109,9 +109,10 @@ morre, e quer tentar de novo. Testar com 3 pessoas.
 
 Objetivo: o que aparece na página da Steam. A página vende antes do jogo.
 
-- [ ] **Decisão de identidade**: manter o visual vetorial "à mão" como marca (barato, coerente,
-      escala em qualquer resolução) e POLIR — rosto, cabelo, roupa, animação de andar e parado
-      mais expressiva, iluminação de cenário, sombras, partículas melhores.
+- [x] **Decisão de identidade** (adiantada em 25/09, a pedido do Felipe: "mais realista, com visual
+      bonito"): visual vetorial pintado — figura com anatomia, volume e rosto (`figura.js`), cenários
+      em camadas com luz, névoa e pós-processamento (`cenario.js`). Falta ainda: animação de andar e
+      parado mais expressiva, partículas melhores, e o polimento que só olho humano pede.
 - [ ] **Capsules da Steam** (tamanhos exigidos pela loja: header 920×430, capsule pequena
       462×174, principal 1232×706, vertical 748×896, biblioteca 600×900, herói 3840×1240, logo
       1280×720). O jogo pode renderizar as poses; a composição final é trabalho de artista ou

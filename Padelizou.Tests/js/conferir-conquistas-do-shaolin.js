@@ -44,6 +44,8 @@ function plataformaFalsa(guardado) {
     confere('migrar mantém conquista já ganha', velho.conquistas.finalizador === 123, JSON.stringify(velho.conquistas));
     confere('migrar não deixa opção sem valor', typeof velho.opcoes.tremor === 'boolean' && typeof velho.opcoes.telaCheia === 'boolean', JSON.stringify(velho.opcoes));
     confere('normalizar aguenta nulo', Progresso.normalizar(null).faseAlcancada === 1, 'quebrou com null');
+    confere('qualidade visual só aceita alta ou média', Progresso.normalizar({ opcoes: { qualidade: 'ultra' } }).opcoes.qualidade === 'alta'
+            && Progresso.normalizar({ opcoes: { qualidade: 'media' } }).opcoes.qualidade === 'media', 'valor inventado passou');
 
     const plat = plataformaFalsa({ recorde: 900, faseAlcancada: 2 });
     const prog = Progresso.criar(plat);

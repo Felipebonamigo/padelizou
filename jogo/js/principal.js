@@ -32,9 +32,22 @@
 
     // ── TAMANHO: 16:9 que cabe na janela; o canvas desenha na resolução REAL da tela ────────
     // O jogo é vetorial, então 1440p fica nítido de graça — é só o buffer acompanhar o DPR.
+    // Qualidade que se ajusta sozinha: se a máquina não segura ~45 fps por dois segundos, o
+    // buffer cai pra 1× (e depois o desenho pra "média"). Não grava nada — na próxima vez tenta de novo.
+    const desempenho = { dprMax: 2, lentoHa: 0, rebaixado: false };
+    function medirDesempenho(dt) {
+        if (jogo.tela !== 'jogo') return;
+        desempenho.lentoHa = dt > 0.022 ? desempenho.lentoHa + dt : Math.max(0, desempenho.lentoHa - dt * 0.5);
+        if (desempenho.lentoHa < 2) return;
+        desempenho.lentoHa = 0;
+        if (desempenho.dprMax > 1) { desempenho.dprMax = 1; ajustarTamanho(); console.info('punhos: fps baixo, buffer em 1×'); }
+        else if (!desempenho.rebaixado) { desempenho.rebaixado = true; console.info('punhos: fps baixo, desenho em qualidade média'); }
+    }
+    function qualidadeAtual() { return desempenho.rebaixado ? 'media' : opcoes().qualidade; }
+
     function ajustarTamanho() {
         const escala = Math.min(raiz.innerWidth / Motor.LARGURA, raiz.innerHeight / Motor.ALTURA);
-        const dpr = Math.min(raiz.devicePixelRatio || 1, 2);
+        const dpr = Math.min(raiz.devicePixelRatio || 1, opcoes().qualidade === 'media' ? 1 : desempenho.dprMax);
         canvas.style.width = `${Math.floor(Motor.LARGURA * escala)}px`;
         canvas.style.height = `${Math.floor(Motor.ALTURA * escala)}px`;
         canvas.width = Math.max(1, Math.round(Motor.LARGURA * escala * dpr));
@@ -171,6 +184,7 @@
             { id: 'efeitos', rotulo: 'Efeitos', fracao: o.efeitos },
             { id: 'tremor', rotulo: 'Tremor de tela', valor: o.tremor ? 'ligado' : 'desligado' },
             { id: 'telaCheia', rotulo: 'Tela cheia', valor: o.telaCheia ? 'ligada' : 'desligada' },
+            { id: 'qualidade', rotulo: 'Qualidade visual', valor: o.qualidade === 'media' ? 'média' : 'alta', detalhe: 'Média desliga sombra projetada, névoa e grão — pra máquina fraca.' },
             { id: 'apagar', rotulo: jogo.confirmarApagar ? 'Apagar progresso — confirme de novo' : 'Apagar progresso', valor: `fase ${progresso.dados.faseAlcancada} · recorde ${progresso.dados.recorde.toLocaleString('pt-BR')}` },
             { id: 'voltar', rotulo: 'Voltar' },
         ];
@@ -183,6 +197,7 @@
             const novo = direcao === 0 ? (atual + 1) % 11 : Math.min(10, Math.max(0, atual + direcao));
             progresso.opcao(item.id, novo / 10); aplicarOpcoes(); som.tocar('selecionar');
         } else if (item.id === 'tremor') { progresso.opcao('tremor', !o.tremor); som.tocar('selecionar'); }
+        else if (item.id === 'qualidade') { progresso.opcao('qualidade', o.qualidade === 'media' ? 'alta' : 'media'); desempenho.rebaixado = false; ajustarTamanho(); som.tocar('selecionar'); }
         else if (item.id === 'telaCheia') { progresso.opcao('telaCheia', !o.telaCheia); plataforma.telaCheia(opcoes().telaCheia); som.tocar('selecionar'); }
         else if (item.id === 'apagar' && direcao === 0) {
             if (!jogo.confirmarApagar) { jogo.confirmarApagar = true; som.tocar('negado'); }
@@ -343,7 +358,7 @@
     function desenhar() {
         ctx.setTransform(jogo.escalaTotal, 0, 0, jogo.escalaTotal, 0, 0);
         ctx.clearRect(0, 0, Motor.LARGURA, Motor.ALTURA);
-        const extras = { recorde: progresso.dados.recorde, toque: jogo.toque, mudo: som.silenciado, tremor: opcoes().tremor };
+        const extras = { recorde: progresso.dados.recorde, toque: jogo.toque, mudo: som.silenciado, tremor: opcoes().tremor, qualidade: qualidadeAtual() };
         const dicaVoltar = jogo.toque ? 'TOQUE NUM ITEM · TOQUE EMBAIXO VOLTA' : '↑ ↓ ESCOLHEM · ENTER CONFIRMA · ESC VOLTA';
         switch (jogo.tela) {
             case 'titulo': Desenho.desenharTitulo(ctx, jogo.tempo, efeitos, extras); break;
@@ -365,9 +380,11 @@
 
     let anterior = performance.now();
     function laco(agora) {
-        const dt = Math.min(0.05, (agora - anterior) / 1000);
+        const dtReal = (agora - anterior) / 1000;
+        const dt = Math.min(0.05, dtReal);
         anterior = agora;
         jogo.tempo += dt;
+        medirDesempenho(dtReal);
         atualizar(dt);
         desenhar();
         raiz.requestAnimationFrame(laco);

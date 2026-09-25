@@ -21,6 +21,8 @@
     function limitar(v, a, b) { return Math.min(b, Math.max(a, v)); }
 
     // ── TEXTO ─────────────────────────────────────────────────────────────────────────────
+    function radial(ctx, x, y, r0, r1, paradas) { const g = ctx.createRadialGradient(x, y, r0, x, y, r1); for (const [k, c] of paradas) g.addColorStop(k, c); return g; }
+
     function texto(ctx, str, x, y, o) {
         o = o || {};
         ctx.save();
@@ -34,501 +36,48 @@
         ctx.restore();
     }
 
-    // ── CENÁRIOS ──────────────────────────────────────────────────────────────────────────
-    const cacheCenario = {};
+    // ── LUTADORES (a figura mora em figura.js; o cenário em cenario.js) ─────────────────
+    const Figura = raiz.PunhosDeShaolin.Figura;
+    const Cenario = raiz.PunhosDeShaolin.Cenario;
+    function canvasFora(l, a) { const c = document.createElement('canvas'); c.width = l; c.height = a; return c; }
 
-    function canvasFora(l, a) {
-        const c = document.createElement('canvas');
-        c.width = l; c.height = a;
-        return c;
-    }
-
-    function ruidoDeterministico(semente) {
-        let s = semente >>> 0 || 1;
-        return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-    }
-
-    const CENARIOS = {
-        patio: {
-            ceu(ctx) {
-                const g = ctx.createLinearGradient(0, 0, 0, CHAO_TOPO);
-                g.addColorStop(0, '#070b22'); g.addColorStop(0.6, '#1a1636'); g.addColorStop(1, '#3d1f30');
-                ctx.fillStyle = g; ctx.fillRect(0, 0, LARGURA, CHAO_TOPO);
-                const r = ruidoDeterministico(7);
-                ctx.fillStyle = '#fff';
-                for (let i = 0; i < 90; i++) { const a = 0.3 + r() * 0.7; ctx.globalAlpha = a; ctx.fillRect(r() * LARGURA, r() * 220, 1.5, 1.5); }
-                ctx.globalAlpha = 1;
-                ctx.save(); ctx.shadowColor = '#f7d98a'; ctx.shadowBlur = 40; ctx.fillStyle = '#f3dc9c';
-                ctx.beginPath(); ctx.arc(760, 84, 34, 0, TAU); ctx.fill(); ctx.restore();
-                ctx.fillStyle = '#0d0f24';
-                ctx.beginPath(); ctx.moveTo(0, 260);
-                for (let x = 0; x <= LARGURA; x += 40) ctx.lineTo(x, 200 + Math.sin(x * 0.011) * 30 + Math.sin(x * 0.05) * 12 + (x % 80 ? 0 : 18));
-                ctx.lineTo(LARGURA, CHAO_TOPO); ctx.lineTo(0, CHAO_TOPO); ctx.fill();
-            },
-            meio: { largura: 480, desenhar(ctx) {
-                // Muro do templo com pilares vermelhos, beiral e lanternas.
-                ctx.fillStyle = '#2a1512'; ctx.fillRect(0, 150, 480, CHAO_TOPO - 150);
-                ctx.fillStyle = '#1a0c0a'; ctx.fillRect(0, 150, 480, 14);
-                ctx.fillStyle = '#c9a227'; ctx.fillRect(0, 164, 480, 3);
-                ctx.fillStyle = '#3b1e18';
-                for (let x = 20; x < 480; x += 48) ctx.fillRect(x, 190, 28, 60);
-                for (const px of [30, 270]) {
-                    const g = ctx.createLinearGradient(px, 0, px + 36, 0);
-                    g.addColorStop(0, '#6e1a12'); g.addColorStop(0.5, '#a3271b'); g.addColorStop(1, '#5a140e');
-                    ctx.fillStyle = g; ctx.fillRect(px, 150, 36, CHAO_TOPO - 150);
-                    ctx.fillStyle = '#c9a227'; ctx.fillRect(px - 4, 150, 44, 8); ctx.fillRect(px - 4, CHAO_TOPO - 12, 44, 12);
-                }
-                for (const lx of [150, 390]) {
-                    ctx.fillStyle = '#3a2a10'; ctx.fillRect(lx - 1, 168, 2, 34);
-                    ctx.save(); ctx.shadowColor = '#ff9a3c'; ctx.shadowBlur = 24;
-                    ctx.fillStyle = '#ff7a2a'; ctx.beginPath(); ctx.ellipse(lx, 214, 12, 16, 0, 0, TAU); ctx.fill();
-                    ctx.restore();
-                    ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.ellipse(lx, 214, 6, 10, 0, 0, TAU); ctx.fill();
-                }
-            } },
-            chao: { cima: '#4b4757', baixo: '#252231', linha: 'rgba(0,0,0,0.25)' },
-            ambiente: 'brasa',
-        },
-        floresta: {
-            ceu(ctx) {
-                const g = ctx.createLinearGradient(0, 0, 0, CHAO_TOPO);
-                g.addColorStop(0, '#04110c'); g.addColorStop(0.7, '#0c2a1c'); g.addColorStop(1, '#3a2050');
-                ctx.fillStyle = g; ctx.fillRect(0, 0, LARGURA, CHAO_TOPO);
-                const r = ruidoDeterministico(21);
-                for (let i = 0; i < 18; i++) {
-                    const x = r() * LARGURA, larg = 30 + r() * 40, alt = 200 + r() * 120;
-                    ctx.fillStyle = '#071a12'; ctx.fillRect(x, CHAO_TOPO - alt, larg, alt);
-                    ctx.beginPath(); ctx.arc(x + larg / 2, CHAO_TOPO - alt, larg * 1.6, 0, TAU); ctx.fill();
-                }
-                const nevoa = ctx.createLinearGradient(0, 220, 0, CHAO_TOPO);
-                nevoa.addColorStop(0, 'rgba(120,70,160,0)'); nevoa.addColorStop(1, 'rgba(120,70,160,0.45)');
-                ctx.fillStyle = nevoa; ctx.fillRect(0, 220, LARGURA, CHAO_TOPO - 220);
-            },
-            meio: { largura: 520, desenhar(ctx) {
-                for (const [x, larg] of [[40, 56], [300, 70], [440, 40]]) {
-                    const g = ctx.createLinearGradient(x, 0, x + larg, 0);
-                    g.addColorStop(0, '#16200f'); g.addColorStop(0.5, '#2c3d1c'); g.addColorStop(1, '#101708');
-                    ctx.fillStyle = g;
-                    ctx.beginPath(); ctx.moveTo(x, CHAO_TOPO + 10); ctx.lineTo(x + larg, CHAO_TOPO + 10); ctx.lineTo(x + larg * 0.8, 0); ctx.lineTo(x + larg * 0.2, 0); ctx.fill();
-                    ctx.strokeStyle = '#4d7a2a'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(x + larg * 0.3, 40); ctx.bezierCurveTo(x + larg, 120, x - 10, 200, x + larg * 0.6, 300); ctx.stroke();
-                }
-                ctx.save(); ctx.shadowColor = '#9cff6a'; ctx.shadowBlur = 10; ctx.fillStyle = '#c8ff8a';
-                for (const [x, y] of [[120, 250], [200, 300], [380, 270], [500, 240]]) { ctx.beginPath(); ctx.arc(x, y, 2, 0, TAU); ctx.fill(); }
-                ctx.restore();
-            } },
-            chao: { cima: '#2f4a24', baixo: '#141f0f', linha: 'rgba(0,0,0,0.2)' },
-            ambiente: 'vagalume',
-        },
-        poco: {
-            ceu(ctx) {
-                const g = ctx.createLinearGradient(0, 0, 0, CHAO_TOPO);
-                g.addColorStop(0, '#020405'); g.addColorStop(0.75, '#0a1516'); g.addColorStop(1, '#0f2a24');
-                ctx.fillStyle = g; ctx.fillRect(0, 0, LARGURA, CHAO_TOPO);
-                const r = ruidoDeterministico(33);
-                ctx.fillStyle = '#0c1214';
-                for (let i = 0; i < 26; i++) { const x = r() * LARGURA, l = 14 + r() * 30, a = 40 + r() * 120; ctx.beginPath(); ctx.moveTo(x - l, 0); ctx.lineTo(x + l, 0); ctx.lineTo(x, a); ctx.fill(); }
-                ctx.save(); ctx.shadowColor = '#2dff9a'; ctx.shadowBlur = 30;
-                for (const [x, l] of [[200, 120], [620, 160], [880, 90]]) { ctx.fillStyle = 'rgba(40,220,140,0.55)'; ctx.beginPath(); ctx.ellipse(x, CHAO_TOPO - 6, l, 10, 0, 0, TAU); ctx.fill(); }
-                ctx.restore();
-            },
-            meio: { largura: 600, desenhar(ctx) {
-                for (const [x, larg] of [[60, 90], [380, 120]]) {
-                    const g = ctx.createLinearGradient(x, 0, x + larg, 0);
-                    g.addColorStop(0, '#0e1416'); g.addColorStop(0.5, '#28343a'); g.addColorStop(1, '#0b1012');
-                    ctx.fillStyle = g; ctx.fillRect(x, 0, larg, CHAO_TOPO + 10);
-                }
-                ctx.fillStyle = '#d9d2c0';
-                for (const [x, y] of [[250, 320], [520, 326]]) { ctx.beginPath(); ctx.arc(x, y, 8, 0, TAU); ctx.fill(); ctx.fillRect(x - 14, y + 6, 28, 3); ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x - 5, y - 3, 3, 3); ctx.fillRect(x + 2, y - 3, 3, 3); ctx.fillStyle = '#d9d2c0'; }
-            } },
-            chao: { cima: '#2e3438', baixo: '#111517', linha: 'rgba(40,220,140,0.12)' },
-            ambiente: 'esporo',
-        },
-        torre: {
-            ceu(ctx) {
-                const g = ctx.createLinearGradient(0, 0, 0, CHAO_TOPO);
-                g.addColorStop(0, '#12071a'); g.addColorStop(1, '#2f1240');
-                ctx.fillStyle = g; ctx.fillRect(0, 0, LARGURA, CHAO_TOPO);
-                for (let x = 120; x < LARGURA; x += 320) {
-                    const j = ctx.createLinearGradient(0, 40, 0, 260);
-                    j.addColorStop(0, '#5a2a8a'); j.addColorStop(1, '#1a0a2a');
-                    ctx.fillStyle = j; ctx.beginPath(); ctx.moveTo(x, 260); ctx.lineTo(x, 100); ctx.arc(x + 40, 100, 40, Math.PI, 0); ctx.lineTo(x + 80, 260); ctx.fill();
-                    ctx.fillStyle = '#0d0514'; ctx.fillRect(x + 38, 60, 4, 200);
-                }
-            },
-            meio: { largura: 640, desenhar(ctx) {
-                for (const x of [40, 360]) {
-                    const g = ctx.createLinearGradient(x, 0, x + 50, 0);
-                    g.addColorStop(0, '#2a1436'); g.addColorStop(0.5, '#5a2f6e'); g.addColorStop(1, '#1e0e28');
-                    ctx.fillStyle = g; ctx.fillRect(x, 0, 50, CHAO_TOPO + 10);
-                    ctx.fillStyle = '#d4af37'; ctx.fillRect(x - 6, 0, 62, 10); ctx.fillRect(x - 6, CHAO_TOPO - 14, 62, 14);
-                    ctx.fillStyle = '#3a2410'; ctx.fillRect(x + 22, 170, 6, 40);
-                    ctx.save(); ctx.shadowColor = '#ff8a2a'; ctx.shadowBlur = 26; ctx.fillStyle = '#ff9a3a';
-                    ctx.beginPath(); ctx.ellipse(x + 25, 160, 9, 16, 0, 0, TAU); ctx.fill(); ctx.restore();
-                    ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.ellipse(x + 25, 164, 4, 8, 0, 0, TAU); ctx.fill();
-                }
-                ctx.fillStyle = '#5a0f1a'; ctx.beginPath(); ctx.moveTo(180, 20); ctx.lineTo(300, 20); ctx.lineTo(300, 240); ctx.lineTo(240, 270); ctx.lineTo(180, 240); ctx.fill();
-                ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(240, 130, 34, 0, TAU); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(240, 96); ctx.lineTo(240, 164); ctx.moveTo(206, 130); ctx.lineTo(274, 130); ctx.stroke();
-            } },
-            chao: { cima: '#3d2c48', baixo: '#1b1224', linha: 'rgba(212,175,55,0.12)', tapete: '#6a1020' },
-            ambiente: 'brasa',
-        },
-    };
-
-    function pegarCache(nome) {
-        if (cacheCenario[nome]) return cacheCenario[nome];
-        const def = CENARIOS[nome] || CENARIOS.patio;
-        const ceu = canvasFora(LARGURA, CHAO_TOPO);
-        def.ceu(ceu.getContext('2d'));
-        const meio = canvasFora(def.meio.largura, CHAO_TOPO + 12);
-        def.meio.desenhar(meio.getContext('2d'));
-        return (cacheCenario[nome] = { def, ceu, meio });
-    }
-
-    function desenharCenario(ctx, nome, cameraX, tempo) {
-        const { def, ceu, meio } = pegarCache(nome);
-        // Céu: paralaxe lenta, repetido em faixa.
-        const dCeu = -((cameraX * 0.12) % LARGURA);
-        ctx.drawImage(ceu, dCeu, 0); ctx.drawImage(ceu, dCeu + LARGURA, 0);
-        if (nome === 'torre' && Math.sin(tempo * 1.7) > 0.985) { ctx.fillStyle = 'rgba(220,200,255,0.35)'; ctx.fillRect(0, 0, LARGURA, CHAO_TOPO); }
-        // Meio: paralaxe média, em ladrilhos.
-        const l = meio.width;
-        let dx = -((cameraX * 0.5) % l);
-        for (let x = dx - l; x < LARGURA + l; x += l) ctx.drawImage(meio, Math.round(x), 0);
-        // Chão.
-        const g = ctx.createLinearGradient(0, CHAO_TOPO, 0, ALTURA);
-        g.addColorStop(0, def.chao.cima); g.addColorStop(1, def.chao.baixo);
-        ctx.fillStyle = g; ctx.fillRect(0, CHAO_TOPO, LARGURA, ALTURA - CHAO_TOPO);
-        if (def.chao.tapete) { ctx.fillStyle = def.chao.tapete; ctx.fillRect(0, CHAO_TOPO + 70, LARGURA, 60); ctx.fillStyle = '#d4af37'; ctx.fillRect(0, CHAO_TOPO + 70, LARGURA, 2); ctx.fillRect(0, CHAO_TOPO + 128, LARGURA, 2); }
-        ctx.strokeStyle = def.chao.linha; ctx.lineWidth = 1;
-        for (let k = 1; k < 5; k++) { const y = CHAO_TOPO + (ALTURA - CHAO_TOPO) * (k / 5); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(LARGURA, y); ctx.stroke(); }
-        const passo = 120;
-        for (let x = -((cameraX) % passo); x < LARGURA; x += passo) {
-            ctx.beginPath(); ctx.moveTo(x, CHAO_TOPO); ctx.lineTo(x - 30, ALTURA); ctx.stroke();
-        }
-        // Sombra no pé do muro, pra dar volume.
-        const s = ctx.createLinearGradient(0, CHAO_TOPO, 0, CHAO_TOPO + 40);
-        s.addColorStop(0, 'rgba(0,0,0,0.45)'); s.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = s; ctx.fillRect(0, CHAO_TOPO, LARGURA, 40);
-    }
-
-    // ── POSES ─────────────────────────────────────────────────────────────────────────────
-    // Ângulos em radianos, medidos a partir de "apontando pra baixo": 0 pra baixo, π/2 pra frente, π pra cima.
-    // pT/pD = perna de trás / da frente; bT/bD = braço de trás / da frente. [ombro-ou-quadril, dobra].
-    function pose(p) {
-        return Object.assign({ quadril: [0, -36], tronco: 0.05, cabeca: 0, pT: [-0.2, 0.2], pD: [0.25, 0.25], bT: [0.4, 1.9], bD: [0.7, 1.7], giro: 0, escalaX: 1 }, p);
-    }
-    const GUARDA = pose({});
-    function mistura(a, b, k) {
-        k = limitar(k, 0, 1);
-        const r = {};
-        for (const chave of Object.keys(a)) {
-            const va = a[chave], vb = b[chave] == null ? va : b[chave];
-            r[chave] = Array.isArray(va) ? va.map((v, i) => lerp(v, vb[i], k)) : lerp(va, vb, k);
-        }
-        return r;
-    }
-    // 0 → 1 durante a preparação, 1 enquanto ativo, 1 → 0 na recuperação.
-    function curvaDoGolpe(t, g) {
-        if (t < g.inicio) return suave(t / Math.max(0.001, g.inicio));
-        const fimAtivo = g.inicio + (g.ativo || 0.1);
-        if (t <= fimAtivo) return 1;
-        return 1 - suave((t - fimAtivo) / Math.max(0.001, g.total - fimAtivo));
-    }
-
-    const POSES_DE_GOLPE = {
-        soco1: pose({ tronco: 0.22, bD: [1.6, 0.0], bT: [0.5, 2.0], pT: [-0.35, 0.2], pD: [0.4, 0.3] }),
-        soco2: pose({ tronco: 0.3, bT: [1.62, 0.0], bD: [0.4, 2.1], pT: [-0.3, 0.2], pD: [0.45, 0.3] }),
-        soco3: pose({ tronco: -0.15, quadril: [0, -40], bD: [2.6, 0.5], bT: [0.6, 1.8], pT: [-0.5, 0.3], pD: [0.3, 0.6] }),
-        chute: pose({ tronco: -0.25, bD: [0.2, 1.4], bT: [1.0, 1.2], pT: [-0.15, 0.1], pD: [1.55, 0.0] }),
-        chuteAereo: pose({ tronco: 0.45, bD: [-0.6, 0.6], bT: [1.2, 0.8], pT: [0.2, 1.5], pD: [1.6, 0.0] }),
-        investida: pose({ tronco: 0.85, quadril: [0, -30], bD: [-0.8, 0.5], bT: [1.4, 0.6], pT: [0.3, 1.4], pD: [1.7, 0.0] }),
-        especial: pose({ tronco: 0.3, bD: [1.5, 0.15], bT: [1.5, 0.25], pT: [-0.55, 0.25], pD: [0.55, 0.25] }),
-        joelhada: pose({ tronco: 0.2, bD: [1.2, 1.0], bT: [1.1, 1.1], pT: [-0.2, 0.1], pD: [1.4, 1.7] }),
-        pancada: pose({ tronco: 0.55, bD: [1.3, 0.2], bT: [1.3, 0.2], pT: [-0.4, 0.3], pD: [0.5, 0.5] }),
-        pancadaAlta: pose({ tronco: -0.2, bD: [3.0, 0.2], bT: [3.0, 0.2], pT: [-0.3, 0.2], pD: [0.3, 0.2] }),
-        flecha: pose({ tronco: 0.05, bT: [1.57, 0.0], bD: [0.9, 2.5], pT: [-0.3, 0.1], pD: [0.3, 0.1] }),
-        arremesso: pose({ tronco: 0.3, bD: [1.6, 0.0], bT: [0.3, 1.5], pT: [-0.4, 0.2], pD: [0.5, 0.3] }),
-        arremessoPrep: pose({ tronco: -0.2, bD: [-1.2, 1.2], bT: [0.5, 1.6], pT: [-0.3, 0.2], pD: [0.3, 0.3] }),
-        chama: pose({ tronco: -0.1, quadril: [0, -42], bD: [2.3, 0.4], bT: [2.3, 0.4], pT: [-0.3, 0.2], pD: [0.3, 0.2] }),
-    };
-
-    function poseDoGolpe(ent) {
-        const g = ent.golpe, nome = ent.golpeNome, t = ent.quadro;
-        const k = curvaDoGolpe(t, g);
-        if (nome === 'pancada') {
-            if (t < g.inicio) return mistura(GUARDA, POSES_DE_GOLPE.pancadaAlta, suave(t / g.inicio));
-            if (t < g.inicio + g.ativo) return mistura(POSES_DE_GOLPE.pancadaAlta, POSES_DE_GOLPE.pancada, suave((t - g.inicio) / 0.06));
-            return mistura(POSES_DE_GOLPE.pancada, GUARDA, suave((t - g.inicio - g.ativo) / (g.total - g.inicio - g.ativo)));
-        }
-        if (g.tipo === 'projetil') {
-            const base = nome === 'flecha' ? POSES_DE_GOLPE.flecha : (nome === 'caveira' || nome === 'shuriken') ? POSES_DE_GOLPE.arremesso : POSES_DE_GOLPE.especial;
-            if (nome === 'caveira' || nome === 'shuriken') {
-                if (t < g.inicio) return mistura(GUARDA, POSES_DE_GOLPE.arremessoPrep, suave(t / g.inicio));
-                return mistura(POSES_DE_GOLPE.arremessoPrep, base, suave((t - g.inicio) / 0.12));
-            }
-            const kk = t < g.inicio ? suave(t / g.inicio) : 1 - suave((t - g.inicio) / (g.total - g.inicio)) * 0.6;
-            return mistura(GUARDA, base, kk);
-        }
-        if (g.tipo === 'giro') {
-            const p = mistura(GUARDA, pose({ tronco: 0.1, bD: [1.57, 0], bT: [-1.57, 0], pT: [-0.4, 0.2], pD: [0.4, 0.2] }), Math.min(1, t / 0.08));
-            p.escalaX = Math.cos(t * 26) * 0.9 + 0.1 * Math.sign(Math.cos(t * 26) || 1);
-            return p;
-        }
-        const alvo = POSES_DE_GOLPE[nome] || POSES_DE_GOLPE.soco1;
-        if (nome === 'chama') return mistura(GUARDA, POSES_DE_GOLPE.chama, k);
-        return mistura(GUARDA, alvo, k);
-    }
-
-    function poseDe(ent, tempo) {
-        const t = ent.quadro, est = ent.estado;
-        switch (est) {
-            case 'parado': {
-                const b = Math.sin(tempo * 4 + ent.id) * 0.04;
-                return pose({ quadril: [0, -36 + b * 20], bT: [0.4 + b, 1.9], bD: [0.7 - b, 1.7], tronco: 0.06 + b });
-            }
-            case 'andando': {
-                const ph = tempo * 9;
-                const s = Math.sin(ph), c = Math.sin(ph + Math.PI);
-                return pose({ quadril: [0, -36 + Math.abs(Math.cos(ph)) * 2], tronco: 0.12, pD: [0.55 * s, Math.max(0, s) * 0.9 + 0.1], pT: [0.55 * c, Math.max(0, c) * 0.9 + 0.1], bD: [0.5 - 0.35 * s, 1.6], bT: [0.5 - 0.35 * c, 1.8] });
-            }
-            case 'pulando': {
-                const sobe = ent.vz > 0;
-                return mistura(pose({ tronco: 0.15, pT: [-0.5, 1.3], pD: [0.7, 1.7], bT: [1.4, 0.5], bD: [2.6, 0.2] }),
-                               pose({ tronco: 0.25, pT: [-0.2, 0.5], pD: [0.4, 0.9], bT: [0.9, 0.9], bD: [1.7, 0.6] }), sobe ? 0 : 1);
-            }
-            case 'atacando': return poseDoGolpe(ent);
-            case 'atingido': {
-                const k = 1 - suave(t / 0.3);
-                return mistura(GUARDA, pose({ tronco: -0.4, cabeca: -0.5, quadril: [-6, -34], bT: [0.9, 0.4], bD: [-0.6, 0.4], pT: [-0.5, 0.3], pD: [0.2, 0.5] }), k);
-            }
-            case 'lancado': return pose({ giro: -1.1 - Math.min(0.9, t * 1.2), quadril: [0, -34], tronco: -0.1, pT: [0.6, 0.5], pD: [-0.3, 0.6], bT: [2.2, 0.3], bD: [1.2, 0.6] });
-            case 'caido': return pose({ giro: -Math.PI / 2, quadril: [8, -9], tronco: 0.1, pT: [0.15, 0.5], pD: [0.35, 0.7], bT: [1.2, 0.5], bD: [0.6, 0.5] });
-            case 'levantando': {
-                const k = suave(t / 0.45);
-                return mistura(pose({ giro: -Math.PI / 2, quadril: [8, -9], pT: [0.15, 0.5], pD: [0.35, 0.7], bT: [1.2, 0.5], bD: [0.6, 0.5] }),
-                               pose({ quadril: [0, -30], tronco: 0.4, pT: [-0.3, 0.9], pD: [0.5, 1.0], bT: [0.8, 1.0], bD: [1.0, 1.0] }), k);
-            }
-            case 'atordoado': {
-                const s = Math.sin(tempo * 5);
-                return pose({ tronco: 0.25 + s * 0.12, cabeca: 0.3 + s * 0.2, quadril: [s * 4, -33], bT: [0.1 + s * 0.15, 0.3], bD: [-0.1 - s * 0.15, 0.3], pT: [-0.35, 0.4], pD: [0.35, 0.4] });
-            }
-            case 'defendendo': return mistura(GUARDA, pose({ tronco: 0.18, bD: [1.25, 2.2], bT: [1.05, 2.4], pT: [-0.35, 0.3], pD: [0.4, 0.35] }), Math.min(1, t / 0.08));
-            case 'agarrando': return mistura(GUARDA, pose({ tronco: 0.3, bD: [1.4, 0.4], bT: [1.4, 0.5], pT: [-0.4, 0.25], pD: [0.45, 0.3] }), Math.min(1, t / 0.1));
-            case 'agarrado': return pose({ tronco: -0.35, cabeca: -0.3, quadril: [0, -36], bD: [2.0, 0.4], bT: [1.7, 0.5], pT: [-0.2, 0.7], pD: [0.3, 0.8] });
-            case 'arremessando': {
-                const k = suave(t / 0.2);
-                return mistura(pose({ tronco: -0.1, bD: [1.4, 0.4], bT: [1.4, 0.5] }), pose({ tronco: 0.45, bD: [2.3, 0.1], bT: [-0.4, 0.8], pT: [-0.5, 0.2], pD: [0.6, 0.4] }), k);
-            }
-            case 'arremessado': return pose({ giro: t * 16, quadril: [0, -34], pT: [0.7, 0.5], pD: [-0.5, 0.6], bT: [2.4, 0.3], bD: [1.0, 0.6] });
-            case 'finalizando': {
-                if (t < 0.55) return mistura(GUARDA, pose({ tronco: -0.25, quadril: [0, -40], bD: [3.1, 0.1], bT: [0.6, 1.9], pT: [-0.5, 0.3], pD: [0.4, 0.4] }), suave(t / 0.5));
-                if (t < 0.75) return mistura(pose({ tronco: -0.25, quadril: [0, -40], bD: [3.1, 0.1], bT: [0.6, 1.9] }), pose({ tronco: 0.5, quadril: [4, -30], bD: [1.2, 0.0], bT: [0.2, 1.5], pT: [-0.7, 0.3], pD: [0.7, 0.8] }), suave((t - 0.55) / 0.1));
-                return mistura(pose({ tronco: 0.5, quadril: [4, -30], bD: [1.2, 0.0], bT: [0.2, 1.5], pT: [-0.7, 0.3], pD: [0.7, 0.8] }), pose({ tronco: -0.1, bD: [3.0, 0.2], bT: [3.0, 0.2], pT: [-0.3, 0.2], pD: [0.3, 0.2] }), suave((t - 0.75) / 0.4));
-            }
-            case 'finalizado': {
-                const tremor = t > 0.6 ? Math.sin(t * 60) * 0.08 : 0;
-                return mistura(GUARDA, pose({ quadril: [0 + tremor * 20, -20], tronco: 0.5 + tremor, cabeca: 0.6, pT: [-0.6, 2.3], pD: [0.4, 2.1], bT: [0.2, 0.3], bD: [-0.1, 0.3] }), suave(t / 0.3));
-            }
-            case 'morto': {
-                if (ent.z > 0) return pose({ giro: -1.4, quadril: [0, -34], pT: [0.6, 0.5], pD: [-0.4, 0.6], bT: [2.4, 0.3], bD: [1.5, 0.6] });
-                return pose({ giro: -Math.PI / 2, quadril: [8, -9], tronco: 0.1, pT: [0.1, 0.4], pD: [0.3, 0.6], bT: [1.4, 0.3], bD: [0.5, 0.4] });
-            }
-            default: return GUARDA;
-        }
-    }
-
-    // ── O BONECO ──────────────────────────────────────────────────────────────────────────
-    const ESTILOS = {
-        long: { torsoNu: true, faixaCabeca: true },
-        shen: { manga: true, careca: true },
-        sombra: { capuz: true, mascara: true },
-        garra: { colete: true, laminas: true, presas: true },
-        bruto: { colete: true, largo: 1.35, careca: true },
-        arqueiro: { tunica: true, arco: true },
-        mestreSombra: { capuz: true, mascara: true, olhosBrilham: '#c9a227' },
-        graoPresa: { colete: true, laminas: true, presas: true, largo: 1.25, olhosBrilham: '#ff5a3a' },
-        gigante: { colete: true, largo: 1.6, careca: true, olhosBrilham: '#3aff9a' },
-        feiticeiro: { manto: true, barba: true, olhosBrilham: '#c86bff' },
-    };
-
-    function segmento(ctx, x1, y1, x2, y2, largura, cor) {
-        ctx.strokeStyle = cor; ctx.lineWidth = largura; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-    }
-
-    // Desenha o lutador com os pés em (0,0), virado pra direita. Quem chama já transladou e virou.
-    function desenharBoneco(ctx, ent, tempo, opcoes) {
-        const p = (opcoes && opcoes.pose) || poseDe(ent, tempo);
-        const cores = ent.def.cores, estilo = ESTILOS[ent.def.id] || {};
-        const largo = estilo.largo || 1;
-        const e = ent.escala;
-        ctx.save();
-        ctx.scale(e * (p.escalaX || 1), e);
-        ctx.translate(p.quadril[0], p.quadril[1]);
-        ctx.rotate(p.giro || 0);
-        const quadril = [0, 0];
-        const tronco = 30 * (estilo.largo ? 1.05 : 1);
-        const ombro = [Math.sin(p.tronco) * tronco, -Math.cos(p.tronco) * tronco];
-        const cabeca = [ombro[0] + Math.sin(p.tronco + p.cabeca) * 15, ombro[1] - Math.cos(p.tronco + p.cabeca) * 15];
-        const perna = (a, cor) => {
-            const joelho = [quadril[0] + Math.sin(a[0]) * 22, quadril[1] + Math.cos(a[0]) * 22];
-            const pe = [joelho[0] + Math.sin(a[0] - a[1]) * 21, joelho[1] + Math.cos(a[0] - a[1]) * 21];
-            segmento(ctx, quadril[0], quadril[1], joelho[0], joelho[1], 10 * largo, cor);
-            segmento(ctx, joelho[0], joelho[1], pe[0], pe[1], 9 * largo, cor);
-            segmento(ctx, pe[0], pe[1], pe[0] + 6, pe[1] + 1, 7, cores.detalhe);
-            return pe;
-        };
-        const braco = (a, corBraco, corMao) => {
-            const cot = [ombro[0] + Math.sin(a[0]) * 17, ombro[1] + Math.cos(a[0]) * 17];
-            const mao = [cot[0] + Math.sin(a[0] + a[1]) * 16, cot[1] + Math.cos(a[0] + a[1]) * 16];
-            segmento(ctx, ombro[0], ombro[1], cot[0], cot[1], 8 * largo, corBraco);
-            segmento(ctx, cot[0], cot[1], mao[0], mao[1], 7 * largo, cores.pele);
-            ctx.fillStyle = corMao; ctx.beginPath(); ctx.arc(mao[0], mao[1], 4.2 * largo, 0, TAU); ctx.fill();
-            return { cot, mao, angulo: a[0] + a[1] };
-        };
-        const corBraco = estilo.torsoNu ? cores.pele : (estilo.manga ? cores.roupa : (estilo.capuz ? cores.roupa : cores.pele));
-        const corTronco = estilo.torsoNu ? cores.pele : cores.roupa;
-        const escuro = 'rgba(0,0,0,0.22)';
-
-        // Manto atrás de tudo.
-        if (estilo.manto) {
-            ctx.fillStyle = cores.detalhe;
-            ctx.beginPath(); ctx.moveTo(ombro[0] - 12, ombro[1] - 2); ctx.lineTo(ombro[0] + 8, ombro[1] - 2);
-            ctx.lineTo(quadril[0] + 6 + Math.sin(tempo * 3) * 4, quadril[1] + 40); ctx.lineTo(quadril[0] - 26 - Math.sin(tempo * 3) * 6, quadril[1] + 36); ctx.fill();
-        }
-        // Braço e perna de trás, mais escuros.
-        ctx.save(); ctx.globalAlpha = 1;
-        const bt = braco(p.bT, corBraco, cores.pele);
-        ctx.fillStyle = escuro; ctx.beginPath(); ctx.arc(bt.mao[0], bt.mao[1], 4.5 * largo, 0, TAU); ctx.fill();
-        perna(p.pT, cores.roupa);
-        ctx.restore();
-        if (estilo.laminas) desenharLamina(ctx, bt, cores);
-        if (estilo.arco) desenharArco(ctx, bt);
-
-        // Tronco.
-        ctx.save();
-        segmento(ctx, quadril[0], quadril[1] + 2, ombro[0], ombro[1], 22 * largo, corTronco);
-        if (estilo.colete) { segmento(ctx, quadril[0] - 2, quadril[1], ombro[0] - 2, ombro[1] - 2, 12 * largo, cores.detalhe); }
-        if (estilo.tunica) { segmento(ctx, quadril[0], quadril[1] + 6, ombro[0], ombro[1], 20 * largo, cores.roupa); }
-        if (estilo.torsoNu) {
-            // A faixa de monge atravessada no peito.
-            segmento(ctx, ombro[0] - 9, ombro[1] + 2, quadril[0] + 8, quadril[1] - 4, 6, cores.faixa);
-            segmento(ctx, quadril[0] - 12, quadril[1] + 2, quadril[0] + 12, quadril[1] + 2, 9, cores.faixa);
-        } else {
-            segmento(ctx, quadril[0] - 12 * largo, quadril[1] + 2, quadril[0] + 12 * largo, quadril[1] + 2, 8, cores.faixa);
-        }
-        ctx.restore();
-
-        // Perna da frente.
-        perna(p.pD, cores.roupa);
-
-        // Cabeça.
-        ctx.save();
-        ctx.translate(cabeca[0], cabeca[1]);
-        ctx.rotate(p.tronco + p.cabeca);
-        const raio = 10 * (estilo.largo ? 1.1 : 1);
-        ctx.fillStyle = cores.pele; ctx.beginPath(); ctx.arc(0, 0, raio, 0, TAU); ctx.fill();
-        if (estilo.capuz) {
-            ctx.fillStyle = cores.roupa; ctx.beginPath(); ctx.arc(0, -1, raio + 2, Math.PI * 0.95, Math.PI * 2.05); ctx.lineTo(raio + 2, 4); ctx.lineTo(-raio - 2, 4); ctx.fill();
-            if (estilo.mascara) { ctx.fillStyle = cores.roupa; ctx.fillRect(-raio, 1, raio * 2, raio); }
-        } else if (!estilo.careca) {
-            ctx.fillStyle = cores.cabelo; ctx.beginPath(); ctx.arc(0, -2, raio + 1, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
-        }
-        if (estilo.faixaCabeca) { ctx.fillStyle = cores.faixa; ctx.fillRect(-raio - 1, -5, raio * 2 + 2, 4); ctx.fillRect(-raio - 6, -5, 6, 3); }
-        if (estilo.barba) { ctx.fillStyle = cores.cabelo; ctx.beginPath(); ctx.moveTo(-6, 4); ctx.lineTo(6, 4); ctx.lineTo(2, 22); ctx.lineTo(-2, 22); ctx.fill(); }
-        // Olhos: sempre pra frente (o boneco já está virado).
-        const corOlho = estilo.olhosBrilham || '#1a1a1a';
-        if (estilo.olhosBrilham) { ctx.shadowColor = estilo.olhosBrilham; ctx.shadowBlur = 8; }
-        ctx.fillStyle = corOlho; ctx.fillRect(3, -3, 3, 2.5); ctx.fillRect(7.5, -3, 2, 2.5);
-        ctx.shadowBlur = 0;
-        if (estilo.presas) { ctx.fillStyle = '#f2ead7'; ctx.beginPath(); ctx.moveTo(4, 4); ctx.lineTo(6, 10); ctx.lineTo(8, 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(-2, 4); ctx.lineTo(0, 9); ctx.lineTo(2, 4); ctx.fill(); }
-        ctx.restore();
-
-        // Braço da frente (por cima de tudo) e a arma nele.
-        const bd = braco(p.bD, corBraco, cores.pele);
-        if (ent.def.arma === 'bastao') desenharBastao(ctx, bd, bt, ent, p);
-        if (estilo.laminas) desenharLamina(ctx, bd, cores);
-
-        // Estrelinhas do atordoado.
-        if (ent.estado === 'atordoado') {
-            ctx.fillStyle = '#ffe680';
-            for (let k = 0; k < 3; k++) { const a = tempo * 5 + k * TAU / 3; ctx.beginPath(); ctx.arc(cabeca[0] + Math.cos(a) * 16, cabeca[1] - 14 + Math.sin(a) * 5, 2.5, 0, TAU); ctx.fill(); }
-        }
-        ctx.restore();
-    }
-
-    function desenharBastao(ctx, frente, tras, ent, p) {
-        // O bastão passa pelas duas mãos; se elas estão juntas, segue o ângulo do antebraço.
-        const dx = frente.mao[0] - tras.mao[0], dy = frente.mao[1] - tras.mao[1];
-        let ang = Math.hypot(dx, dy) > 8 ? Math.atan2(dy, dx) : frente.angulo - Math.PI / 2;
-        if (ent.estado === 'atacando' && ent.golpe && ent.golpe.tipo === 'giro') ang = 0;
-        const cx = (frente.mao[0] + tras.mao[0]) / 2, cy = (frente.mao[1] + tras.mao[1]) / 2;
-        const comp = 52;
-        ctx.save();
-        ctx.translate(cx, cy); ctx.rotate(ang);
-        segmento(ctx, -comp, 0, comp, 0, 5, '#6b4a2b');
-        segmento(ctx, -comp, 0, -comp + 8, 0, 5, '#d4af37');
-        segmento(ctx, comp - 8, 0, comp, 0, 5, '#d4af37');
-        ctx.restore();
-    }
-    function desenharLamina(ctx, b, cores) {
-        ctx.save();
-        ctx.translate(b.mao[0], b.mao[1]); ctx.rotate(b.angulo - Math.PI / 2);
-        ctx.fillStyle = '#d9dde3';
-        ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(26, -1); ctx.lineTo(0, 3); ctx.fill();
-        ctx.fillStyle = cores.faixa; ctx.fillRect(-3, -3, 4, 6);
-        ctx.restore();
-    }
-    function desenharArco(ctx, b) {
-        ctx.save();
-        ctx.translate(b.mao[0], b.mao[1]);
-        ctx.strokeStyle = '#7a5230'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(0, 0, 26, Math.PI * 0.55, Math.PI * 1.45, true); ctx.stroke();
-        ctx.strokeStyle = '#e8e2d0'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(Math.cos(Math.PI * 0.55) * 26, Math.sin(Math.PI * 0.55) * 26); ctx.lineTo(Math.cos(Math.PI * 1.45) * 26, Math.sin(Math.PI * 1.45) * 26); ctx.stroke();
-        ctx.restore();
-    }
-
+    // Tingido num canvas à parte — um `source-atop` direto na tela pintaria o cenário atrás.
     let telaDeTingir = null;
-    function desenharBonecoTingido(ctx, ent, tempo, cor) {
-        if (!telaDeTingir) telaDeTingir = canvasFora(360, 360);
+    function desenharFiguraTingida(ctx, ent, tempo, virado, cor) {
+        if (!telaDeTingir) telaDeTingir = canvasFora(520, 520);
         const c2 = telaDeTingir.getContext('2d');
-        c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, 360, 360);
-        c2.translate(180, 330);
-        desenharBoneco(c2, ent, tempo);
+        c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, 520, 520);
+        c2.translate(260, 470); c2.scale(virado, 1);
+        Figura.desenhar(c2, ent, tempo, { virado });
         c2.setTransform(1, 0, 0, 1, 0, 0);
-        c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = cor; c2.fillRect(0, 0, 360, 360);
+        c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = cor; c2.fillRect(0, 0, 520, 520);
         c2.globalCompositeOperation = 'source-over';
-        ctx.drawImage(telaDeTingir, -180, -330);
+        ctx.drawImage(telaDeTingir, -260, -470);
     }
 
-    function desenharLutador(ctx, ent, cameraX, tempo) {
+    function desenharLutador(ctx, ent, cameraX, tempo, qualidade) {
         const sx = ent.x - cameraX, sy = telaY(ent.y);
-        // Sombra no chão.
+        const virado = ent.virado;
         ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,0.38)';
+        ctx.translate(sx, sy);
+        // Sombra de contato + sombra projetada (deitada no chão, pro lado oposto da luz).
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
         const enc = Math.max(0.35, 1 - ent.z / 300);
-        ctx.beginPath(); ctx.ellipse(sx, sy, 22 * ent.escala * enc, 6 * ent.escala * enc, 0, 0, TAU); ctx.fill();
-        ctx.restore();
-
-        ctx.save();
-        ctx.translate(sx, sy - ent.z);
-        ctx.scale(ent.virado, 1);
+        ctx.beginPath(); ctx.ellipse(0, 0, 24 * ent.escala * enc, 6 * ent.escala * enc, 0, 0, TAU); ctx.fill();
+        if (ent.estado !== 'morto' || ent.morteHa < 0.7) Figura.sombraProjetada(ctx, ent, tempo, virado, qualidade);
+        ctx.translate(0, -ent.z);
         let alpha = 1;
         if (ent.estado === 'morto') alpha = ent.morteHa > 0.7 ? Math.max(0, 1 - (ent.morteHa - 0.7) / 0.9) : 1;
         if (ent.invulneravel > 0 && ent.estado !== 'morto' && ent.estado !== 'finalizando' && ent.estado !== 'finalizado' && Math.floor(tempo * 14) % 2 === 0) alpha *= 0.45;
         ctx.globalAlpha = alpha;
-        // Rubro de dano: pisca vermelho no quadro do golpe. Tingido num canvas à parte — um
-        // `source-atop` direto na tela pintaria o cenário atrás do boneco junto.
-        if (ent.estado === 'atingido' && ent.quadro < 0.08) desenharBonecoTingido(ctx, ent, tempo, 'rgba(255,60,40,0.55)');
-        else if (ent.estado === 'finalizado' && ent.quadro > 0.6) desenharBonecoTingido(ctx, ent, tempo, `rgba(255,40,20,${Math.min(0.8, (ent.quadro - 0.6) * 2)})`);
-        else desenharBoneco(ctx, ent, tempo);
+        Figura.rastro(ctx, ent, tempo, virado);
+        if (ent.estado === 'atingido' && ent.quadro < 0.08) desenharFiguraTingida(ctx, ent, tempo, virado, 'rgba(255,60,40,0.55)');
+        else if (ent.estado === 'finalizado' && ent.quadro > 0.6) desenharFiguraTingida(ctx, ent, tempo, virado, `rgba(255,40,20,${Math.min(0.8, (ent.quadro - 0.6) * 2)})`);
+        else { ctx.scale(virado, 1); Figura.desenhar(ctx, ent, tempo, { virado }); }
         ctx.restore();
         // Barra de vida do inimigo (só de quem apanhou).
         if (ent.time === 'inimigo' && !ent.def.chefe && ent.vida < ent.vidaMax && ent.estado !== 'morto') {
-            const l = 44 * ent.escala, y = sy - ent.z - 100 * ent.escala;
+            const l = 44 * ent.escala, y = sy - ent.z - 168 * ent.escala;
             ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sx - l / 2 - 1, y - 1, l + 2, 6);
             ctx.fillStyle = ent.estado === 'atordoado' ? '#ffd23a' : '#e33a2c'; ctx.fillRect(sx - l / 2, y, l * (ent.vida / ent.vidaMax), 4);
         }
@@ -660,9 +209,9 @@
             ef.chefeAviso = Math.max(0, ef.chefeAviso - dt);
             ef.ondaAviso = Math.max(0, ef.ondaAviso - dt);
             // Ambiente: brasas, vagalumes ou esporos, conforme o cenário.
-            const def = CENARIOS[cenario] || CENARIOS.patio;
+            const amb = Cenario.ambiente(cenario);
             if (mundo && ef.rng.chance(dt * 6)) {
-                const cor = def.ambiente === 'vagalume' ? '#c8ff8a' : def.ambiente === 'esporo' ? '#5affb0' : '#ff9a3a';
+                const cor = amb === 'vagalume' ? '#c8ff8a' : amb === 'esporo' ? '#5affb0' : '#ff9a3a';
                 particula({ x: mundo.camera.x + ef.rng.entre(-40, LARGURA + 40), y: ef.rng.entre(-1.5, 1.2), z: ef.rng.entre(0, 60), vx: ef.rng.entre(-15, 25), vz: ef.rng.entre(15, 45), vida: ef.rng.entre(2, 5), tam: ef.rng.entre(1.5, 3), cor, tipo: 'ambiente' });
             }
         };
@@ -778,16 +327,18 @@
     function desenharMundo(ctx, mundo, ef, tempo, extras) {
         ctx.save();
         if (ef.tremor > 0 && !(extras && extras.tremor === false)) ctx.translate((Math.random() - 0.5) * ef.tremor, (Math.random() - 0.5) * ef.tremor);
-        desenharCenario(ctx, mundo.faseDef.cenario, mundo.camera.x, tempo);
-        const cam = mundo.camera.x;
+        const cam = mundo.camera.x, nome = mundo.faseDef.cenario, qualidade = (extras && extras.qualidade) || 'alta';
+        Cenario.desenhar(ctx, nome, cam, tempo, { qualidade });
         for (const ob of mundo.objetos) desenharObjeto(ctx, ob, cam);
         for (const it of mundo.itens) desenharItem(ctx, it, cam, tempo);
         const lutadores = mundo.jogadores.concat(mundo.inimigos).sort((a, b) => a.y - b.y);
-        for (const ent of lutadores) desenharLutador(ctx, ent, cam, tempo);
+        for (const ent of lutadores) desenharLutador(ctx, ent, cam, tempo, qualidade);
         for (const p of mundo.projeteis) desenharProjetil(ctx, p, cam, tempo);
         desenharParticulas(ctx, ef, cam);
+        Cenario.frente(ctx, nome, cam, tempo, { qualidade });
         desenharTextos(ctx, ef, cam);
         ctx.restore();
+        Cenario.pos(ctx, nome, tempo, { qualidade });
         if (ef.flash > 0) { ctx.globalAlpha = Math.min(0.85, ef.flash); ctx.fillStyle = ef.flashCor; ctx.fillRect(0, 0, LARGURA, ALTURA); ctx.globalAlpha = 1; }
         if (ef.finalizacao > 0) {
             // Barras de cinema + vinheta vermelha.
@@ -802,7 +353,7 @@
 
     // ── TELAS ─────────────────────────────────────────────────────────────────────────────
     function fundoDeMenu(ctx, tempo, ef) {
-        desenharCenario(ctx, 'patio', tempo * 30, tempo);
+        Cenario.desenhar(ctx, 'patio', tempo * 30, tempo, { qualidade: 'media' });
         ctx.fillStyle = 'rgba(5,3,12,0.62)'; ctx.fillRect(0, 0, LARGURA, ALTURA);
         if (ef) desenharParticulas(ctx, ef, tempo * 30);
     }
@@ -853,8 +404,11 @@
             const b = bonecoDe(id);
             b.estado = (escolhidoP1 && sel.confirmadoP1) || (escolhidoP2 && sel.confirmadoP2) ? 'atacando' : 'parado';
             if (b.estado === 'atacando') { b.golpeNome = 'soco3'; b.golpe = def.golpes.soco3; b.quadro = (tempo * 0.8) % def.golpes.soco3.total; }
-            ctx.save(); ctx.translate(x, y + 250); ctx.scale(2.2, 2.2); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0, 0, 24, 7, 0, 0, TAU); ctx.fill();
-            desenharBoneco(ctx, b, tempo); ctx.restore();
+            ctx.save(); ctx.translate(x, y + 262); ctx.scale(1.55, 1.55);
+            ctx.fillStyle = radial(ctx, 0, -60, 10, 120, [[0, 'rgba(255,200,120,0.18)'], [1, 'rgba(255,200,120,0)']]); ctx.fillRect(-140, -200, 280, 220);
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0, 0, 26, 7, 0, 0, TAU); ctx.fill();
+            Figura.sombraProjetada(ctx, b, tempo, 1, 'alta');
+            Figura.desenhar(ctx, b, tempo, { virado: 1 }); ctx.restore();
             texto(ctx, def.nome.toUpperCase(), x, y + 300, { tamanho: 30, fonte: FONTE_TITULO, cor: '#ffe9b0', contorno: '#000', alinhar: 'center', peso: 900 });
             texto(ctx, def.titulo, x, y + 322, { tamanho: 13, cor: '#bfc7d5', alinhar: 'center', italico: true });
             const linhas = [['VIDA', def.vida / 130], ['VELOCIDADE', def.velocidade / 260], ['ALCANCE', def.golpes.soco1.alcance / 90]];
