@@ -7,7 +7,8 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { hashRace } from '../src/core/serialize';
+import { aiInput } from '../src/core/sim/ai';
+import { deserializeRace, hashRace, serializeRace } from '../src/core/serialize';
 import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
 import type { PlayerInput, RaceConfig, RaceState, Track } from '../src/core/types';
@@ -74,7 +75,11 @@ function fakeInput(): InputProvider {
   };
 }
 
-interface FakeRace { state: RaceState; track: Track; driver: RaceDriver; localSeats: number[]; starts: number }
+interface FakeRace {
+  state: RaceState; track: Track; driver: RaceDriver; localSeats: number[]; starts: number;
+  /** Segundos desde o fim (a sessão mostra o resultado 3 s depois) e se já mostrou. */
+  overFor: number; reported: boolean;
+}
 
 class FakeHost implements OnlineHost {
   readonly settings: Settings = { ...DEFAULT_SETTINGS, assists: { ...DEFAULT_SETTINGS.assists }, totalCars: 8 };
@@ -90,7 +95,7 @@ class FakeHost implements OnlineHost {
   startRace(config: RaceConfig, localSeats: number[], driver: RaceDriver, state?: RaceState): void {
     const track = getTrack(config.trackId);
     this.starts++;
-    this.race = { state: state ?? createRace(config, track), track, driver, localSeats, starts: this.starts };
+    this.race = { state: state ?? createRace(config, track), track, driver, localSeats, starts: this.starts, overFor: 0, reported: false };
   }
   raceState() { return this.race?.state ?? null; }
   clearRace() { this.race = null; }
@@ -99,6 +104,30 @@ class FakeHost implements OnlineHost {
   menuOpen() { return false; }
   exitToMain() { this.race = null; this.exited = true; }
   persistSettings() {}
+  results: ResultsScreenData | null = null;
+  /**
+   * Um quadro de verdade, como session.frame: `dt` segundos pelo `advance` (orçamento do quadro e
+   * alcance), piloto automático nos assentos locais e o resultado 3 s depois do fim.
+   */
+  frame(dt: number): number {
+    const r = this.race;
+    if (!r) return 0;
+    const local: PlayerInput[] = [];
+    for (const seat of r.localSeats) local[seat] = autopilot(r.state, r.track, seat);
+    const n = r.driver.advance(dt, local, (inputs) => {
+      stepRace(r.state, r.track, inputs);
+      if (r.state.tick % 60 === 0) this.hashes.set(r.state.tick, hashRace(r.state));
+    });
+    if (r.state.phase === 'finished' && !r.reported) {
+      r.overFor += dt;
+      if (r.overFor >= 3) {
+        r.reported = true;
+        this.results = { mode: 'quick', trackDef: r.track.def, results: r.state.results ?? [], humans: [], champ: null, newRecords: [] };
+        r.driver.finished(this.results);
+      }
+    }
+    return n;
+  }
   /** Um "quadro": até `max` ticks com o piloto de teste nos assentos locais. */
   pump(max: number, limit: number): number {
     const r = this.race;
@@ -110,6 +139,15 @@ class FakeHost implements OnlineHost {
       if (r.state.tick % 60 === 0) this.hashes.set(r.state.tick, hashRace(r.state));
     });
   }
+}
+
+/** O cérebro da IA dirigindo por um humano, numa cópia do estado (o de verdade só muda no stepRace). */
+function autopilot(state: RaceState, track: Track, seat: number): PlayerInput {
+  const clone = deserializeRace(serializeRace(state));
+  const car = clone.cars.find((c) => c.seat === seat);
+  if (!car) return { steer: 0, throttle: false, brake: false, nitro: false, gearUp: false, gearDown: false };
+  car.ai = { skill: 0.95, laneX: 0, laneUntil: 0, lookahead: 28, aggression: 0.5 };
+  return aiInput(clone, track, car);
 }
 
 function pilot(seat: number, tick: number): PlayerInput {
@@ -372,6 +410,51 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
     A.leave(false); B.leave(false);
   }, 20_000);
+
+  it('fim natural pela rede, quadro a quadro: o mesmo resultado nos dois computadores, e a próxima largada funciona', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    const A = new OnlineController(ha, { pingMs: 200 });
+    const B = new OnlineController(hb, { pingMs: 200 });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    A.updateRoomSettings({ trackId: 'copacabana', laps: 1, totalCars: 4 });
+    B.toggleReady();
+    await until(() => A.startBlocker() === null && B.room?.settings?.laps === 1, 3000, 'B pronto');
+    expect(A.startRace()).toBe(true);
+    await until(() => ha.race !== null && hb.race !== null, 3000, 'largada');
+
+    // Quadros de 0,25 s (15 ticks + alcance) nos dois, com a rede entregando entre eles.
+    const t0 = Date.now();
+    while (A.phase !== 'results' || B.phase !== 'results') {
+      if (Date.now() - t0 > 60_000) throw new Error(`não terminou: ${ha.race?.state.tick} ${ha.race?.state.phase} ${A.phase} | ${hb.race?.state.tick} ${hb.race?.state.phase} ${B.phase}`);
+      ha.frame(0.25);
+      hb.frame(0.25);
+      await sleep(4);
+    }
+    const rows = ha.results?.results ?? [];
+    const humans = rows.filter((r) => r.seat >= 0);
+    expect(humans.map((r) => r.seat).sort()).toEqual([0, 1]);
+    expect(humans.every((r) => r.finished)).toBe(true);
+    expect(JSON.stringify(hb.results?.results)).toBe(JSON.stringify(rows));
+    let compared = 0;
+    for (const [t, h] of ha.hashes) if (hb.hashes.has(t)) { expect(hb.hashes.get(t), `tick ${t}`).toBe(h); compared++; }
+    expect(compared).toBeGreaterThan(20);
+    expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
+
+    // Convidado volta à sala antes do anfitrião; a nova largada só sai com os dois na sala.
+    B.backToRoom();
+    B.toggleReady();
+    A.backToRoom();
+    await until(() => A.startBlocker() === null, 3000, 'segunda largada liberada');
+    expect(A.startRace()).toBe(true);
+    await until(() => A.phase === 'racing' && B.phase === 'racing' && ha.race !== null && hb.race !== null, 3000, 'segunda largada');
+    await race([ha, hb], 300);
+    expect(hashRace(hb.race!.state)).toBe(hashRace(ha.race!.state));
+    A.leave(false); B.leave(false);
+  }, 90_000);
 
   it('depois da corrida o anfitrião não larga de novo enquanto um convidado ainda está no resultado', async () => {
     const ha = new FakeHost('Ana');

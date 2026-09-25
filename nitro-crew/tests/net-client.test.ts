@@ -351,3 +351,62 @@ describe('sessão online: resultado com a IA ao volante', () => {
     ctl.leave(false);
   });
 });
+
+describe('sessão online: quadro a quadro (advance)', () => {
+  /** Anfitrião (id 0) na corrida com o convidado (assento 1), cujas entradas o teste entrega. */
+  function hosting(): { sock: FakeSocket; ctl: OnlineController; frame: (dt: number) => number; guestUpTo: (last: number) => void } {
+    const sock = new FakeSocket();
+    const host = new Host();
+    const ctl = new OnlineController(host, { socket: () => asWebSocket(sock), pingMs: 60_000 });
+    ctl.create('kb1');
+    sock.open();
+    sock.push({ t: 'welcome', room: 'KQXTR', id: 0, token: TOKEN, rejoined: false });
+    sock.push(roomMsg(0));
+    sock.push({ t: 'start', from: 0, cfg: startCfg() });
+    const state = host.state as RaceState;
+    const track = getTrack(state.config.trackId);
+    let sent = -1;
+    return {
+      sock, ctl,
+      frame: (dt) => ctl.advance(dt, [], (inputs) => stepRace(state, track, inputs)),
+      guestUpTo(last) {
+        for (let t = sent + 1; t <= last; t += 16) {
+          const d: number[] = [];
+          for (let k = t; k <= Math.min(last, t + 15); k++) d.push(k, 1, 1, 0);
+          sock.push({ t: 'i', from: 1, d });
+        }
+        sent = last;
+      },
+    };
+  }
+
+  it('um tick por 1/60 s; meio quadro acumula; sem a entrada do outro não anda', () => {
+    const { ctl, frame, guestUpTo } = hosting();
+    guestUpTo(5); // o convidado está no tick 2 (manda até 2 + atraso)
+    expect(frame(1 / 60)).toBe(1);
+    expect(frame(1 / 120)).toBe(0);
+    expect(frame(1 / 120)).toBe(1);
+    expect(frame(1 / 60)).toBe(1);
+    expect(frame(1 / 60)).toBe(1);
+    expect(frame(1 / 60)).toBe(1);
+    expect(frame(1 / 60)).toBe(1); // tick 5
+    expect(frame(1 / 60)).toBe(0); // falta o tick 6 do convidado
+    expect(ctl.status().tick).toBe(6);
+    ctl.leave(false);
+  });
+
+  it('parado esperando a rede não acumula mais que 0,25 s; quem ficou atrás corre até 4 ticks a mais por quadro', () => {
+    const { ctl, frame, guestUpTo } = hosting();
+    for (let i = 0; i < 30; i++) expect(frame(1 / 60)).toBe(0); // meio segundo parado
+    guestUpTo(99); // o convidado já está no tick 96
+    expect(frame(1 / 60)).toBe(15 + 4); // 0,25 s guardados (15 ticks) + alcance
+    expect(frame(1 / 60)).toBe(1 + 4);
+    expect(frame(1)).toBe(15 + 4); // quadro de 1 s (janela escondida, travada): teto de 0,25 s
+    let guard = 0;
+    while (ctl.status().tick < 93 && guard++ < 100) frame(1 / 60);
+    expect(ctl.status().tick).toBe(93); // de 5 em 5 (1 + 4 de alcance) desde o 43
+    expect(frame(1 / 60)).toBe(2); // 3 atrás do convidado: ainda 1 de alcance
+    expect(frame(1 / 60)).toBe(1); // 1 atrás: sem alcance (só acima de 2)
+    ctl.leave(false);
+  });
+});
