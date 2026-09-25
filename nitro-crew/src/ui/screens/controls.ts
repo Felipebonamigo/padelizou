@@ -277,7 +277,8 @@ export function controlsScreen(api: ScreenApi): ScreenInstance {
     const el = h('div', { class: `remap-device ${d.connected ? 'on' : 'off'}`, attrs: { 'data-device': d.id } },
       h('div', { class: 'remap-device-head' },
         icon(isKeyboard(d.id) ? 'keyboard' : 'gamepad'),
-        h('span', { class: 'device-label', text: d.label }),
+        // Teclados com o nome da coluna da grade ("Teclado 1"); o nome completo fica na dica.
+        h('span', { class: 'device-label', title: d.label, text: isKeyboard(d.id) ? deviceLabel(d.id) : d.label }),
         h('span', { class: `device-seat${d.boundSeat === null ? '' : ' bound'}`, text: seatText(d) }),
       ),
       h('div', { class: 'remap-test' },
