@@ -41,9 +41,12 @@ exigem parceiro (é pós-1.0 de qualquer forma).
 
 **Contexto.** 2x2 (4 clientes), ritmo rápido, bola compartilhada — o objeto mais sensível a latência.
 
-**Decisão.** Um dos jogadores é o **host** e roda a simulação autoritativa a 60 Hz. Os
-clientes enviam entradas (com número de tick); o host devolve snapshots a 30 Hz (posição e
-velocidade de bola e jogadores, placar, estado). O cliente **prediz** o próprio jogador e
+**Decisão.** Um dos jogadores é o **host** e roda a simulação autoritativa a **120 Hz** (o mesmo
+passo do jogo local — *era 60 Hz no texto de 25/09 manhã; o `Padel.Core.Rede` saiu com 120 e ficou*).
+Os clientes enviam entradas (com número de sequência, e cada aperto como **contador**, repetidas nas
+8 últimas — perda de pacote não some nem duplica aperto); o host devolve instantâneos a 30 Hz
+(~165 bytes em média: bola, jogadores, placar, estado e os eventos recentes com id, repetidos por
+~0,5 s). O cliente **prediz** o próprio jogador e
 **interpola** os outros; a bola é simulada localmente pelo `Padel.Core` (mesmo código do host)
 e corrigida suavemente quando o snapshot chega. Transporte: Godot ENet no desenvolvimento;
 **Steam Datagram Relay** (via Facepunch.Steamworks) no release, que resolve NAT e esconde IP.
