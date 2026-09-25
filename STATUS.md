@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/09/2026** — 🚪 **"POR QUE ESSA VAGA ABRIU": O ORGANIZADOR PASSA A SABER QUEM SAIU, E A TER ONDE OLHAR.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (`HistoricoDeSaidasDoTorneio` — tabela nova, nada alterado). 🗣️ Felipe: *"o organizador receber a notificação quando alguem ou alguma dupla cancelar sua inscrição do torneio, e ter um histórico para isso, para ver quem desistiu"*.
+> Última atualização: **25/09/2026** — 🚪 **"POR QUE ESSA VAGA ABRIU": O ORGANIZADOR PASSA A SABER QUEM SAIU, E A TER ONDE OLHAR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1492-0ff8709`** (deploy runs **411** e **412**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #349. ⚠️ **COM MIGRATION** (`HistoricoDeSaidasDoTorneio` — tabela nova, nada alterado). 🗣️ Felipe: *"o organizador receber a notificação quando alguem ou alguma dupla cancelar sua inscrição do torneio, e ter um histórico para isso, para ver quem desistiu"*.
 >
 > 🕳️ **NÃO HAVIA HISTÓRICO ESCONDIDO — HAVIA AUSÊNCIA DE DADO.** `TirarDaInscricaoAsync` faz `Duplas.Remove(dupla)`: depois do cancelamento não sobrava nome, data, nem se estava paga. Por isso precisou de TABELA, e não de consulta.
 >
@@ -24,6 +24,10 @@
 > 🧪 **FALSIFICADO**: repondo o `if (!estavaPaga) return;`, o aviso da inscrição não paga volta a não sair. E o `RotuloDoMotivo` **não tem `_ =>`** de propósito — motivo novo no enum quebra o build em vez de aparecer com o rótulo do vizinho.
 >
 > ⚠️ **A TABELA SÓ CONTA A PARTIR DE HOJE**, e a tela diz isso na cara: saída anterior a 25/09 não foi guardada, e ler "ninguém saiu" num torneio antigo não pode parecer perda de registro.
+>
+> ✅ **CONFERIDO NO AR, NOS DOIS AMBIENTES** — `/healthz` **200** em `dev` e `prod`. Vale mais que de costume neste bloco: ele **consulta o banco**, então é o que denunciaria migration que não aplicou (o comentário do `Program.cs:622` diz isso na cara — *"sem checar aqui, /healthz via 200 porque o banco RESPONDE"*). `/Torneios/Desistencias/28` responde **302** anônimo, que é o `[Authorize]` fazendo o trabalho dele, e o link *"Quem saiu"* **não aparece** pra visitante anônimo (0 ocorrências) — ferramenta de organizador não vaza na vitrine.
+>
+> ⚠️ **O QUE NÃO FOI MEDIDO NO AR**: a lista com dado de verdade e o aviso chegando ao organizador. As duas coisas pedem login, e o que as sustenta são os 11 testes — o central falsificado. **Vale um print na primeira desistência real.**
 >
 > **7.540 testes verdes** (11 novos; o comportamento central visto VERMELHO), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
 
