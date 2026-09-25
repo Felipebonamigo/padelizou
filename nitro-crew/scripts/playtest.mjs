@@ -17,13 +17,16 @@ const S = () => page.evaluate(() => {
   return {
     menu: s.menus.current(), paused: s.paused,
     race: r ? { phase: r.state.phase, tick: r.state.tick, cars: r.state.cars.length, viewports: r.humans.length,
-      humans: r.state.cars.filter((c) => c.seat >= 0).map((c) => ({ seat: c.seat, z: Math.round(c.z), x: +c.x.toFixed(2), speed: Math.round(c.speed), lap: c.lap, pos: c.position, nitro: c.nitroLeft, fuel: +c.fuel.toFixed(2) })) } : null,
+      teamNitro: r.state.teamNitro,
+      humans: r.state.cars.filter((c) => c.seat >= 0).map((c) => ({ seat: c.seat, z: Math.round(c.z), x: +c.x.toFixed(2), speed: Math.round(c.speed), lap: c.lap, pos: c.position, nitro: c.nitroLeft, nitroActive: c.nitroTicks > 0, fuel: +c.fuel.toFixed(2) })) } : null,
   };
 });
 const humans = (n) => Array.from({ length: n }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: ['falcao', 'trovao', 'tornado', 'camelo'][i], teamId: 0, color: ['#ffd23f', '#3ddc84', '#4fc3f7', '#ff7ab6'][i] }));
 
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(800);
+// O Chromium daqui renderiza por software (swiftshader): qualidade baixa e passos síncronos da simulação.
+await page.evaluate(() => { window.nc.session.settings.quality = 'low'; });
 let st = await S();
 check(st.menu === 'title', `abre na tela de título (${st.menu})`);
 await page.screenshot({ path: `${out}-01-title.png` });
@@ -50,15 +53,17 @@ st = await S();
 check(st.race && st.race.phase === 'countdown' && st.menu === null, `corrida começa na contagem (${st.race?.phase}, menu ${st.menu})`);
 await page.screenshot({ path: `${out}-04-countdown.png` });
 await page.keyboard.down('ArrowUp');
-await page.waitForTimeout(6500);
+await page.evaluate(() => window.nc.session.debugStep(60 * 10));
+await page.waitForTimeout(300);
 st = await S();
 const me = st.race.humans[0];
 check(st.race.phase === 'racing' && me.speed > 3000, `acelerando: fase ${st.race.phase}, ${me.speed} u/s, z=${me.z}`);
 await page.screenshot({ path: `${out}-05-racing.png` });
-await page.keyboard.press('Space'); await page.waitForTimeout(600);
+await page.keyboard.down('Space'); await page.evaluate(() => window.nc.session.debugStep(2)); await page.keyboard.up('Space');
+await page.evaluate(() => window.nc.session.debugStep(30));
 st = await S();
-check(st.race.humans[0].nitro === 2, `nitro gastou uma carga (${st.race.humans[0].nitro})`);
-await page.keyboard.down('ArrowRight'); await page.waitForTimeout(700); await page.keyboard.up('ArrowRight');
+check(st.race.humans[0].nitroActive, `nitro ativo depois do Espaço (cargas próprias ${st.race.humans[0].nitro}, cofre ${JSON.stringify(st.race.teamNitro)})`);
+await page.keyboard.down('ArrowRight'); await page.evaluate(() => window.nc.session.debugStep(40)); await page.waitForTimeout(400); await page.keyboard.up('ArrowRight');
 await page.screenshot({ path: `${out}-06-nitro-steer.png` });
 await page.keyboard.up('ArrowUp');
 
@@ -71,27 +76,25 @@ await page.keyboard.press('Enter'); await page.waitForTimeout(300);
 st = await S();
 check(!st.paused && st.menu === null, `Continuar despausa (${st.paused}, ${st.menu})`);
 
-// Acelera a simulação até o fim e confere a tela de resultado.
-await page.evaluate(() => { window.nc.session.speed = 8; });
+// Avança a simulação até o fim e confere a tela de resultado (a sessão mostra o resultado ~3 s depois).
 await page.keyboard.down('ArrowUp');
-for (let i = 0; i < 60; i++) { await page.waitForTimeout(1000); st = await S(); if (st.menu === 'results') break; }
+for (let i = 0; i < 40; i++) { await page.evaluate(() => window.nc.session.debugStep(60 * 10)); st = await S(); if (st.race.phase === 'finished') break; }
 await page.keyboard.up('ArrowUp');
-await page.evaluate(() => { window.nc.session.speed = 1; });
+for (let i = 0; i < 30; i++) { await page.waitForTimeout(500); st = await S(); if (st.menu === 'results') break; }
 check(st.menu === 'results', `resultado aparece ao fim (${st.menu}, fase ${st.race?.phase})`);
 await page.screenshot({ path: `${out}-08-results.png` });
 
 // Tela dividida com 4 e com 3 jogadores.
 await page.evaluate((h) => { const s = window.nc.session; s.menus.hide(); s.debugBind(0, 'kb1'); s.debugBind(1, 'kb2'); s.startQuick('sampa_noite', 2, h); }, humans(4));
-await page.waitForTimeout(4200);
 await page.keyboard.down('ArrowUp'); await page.keyboard.down('KeyW');
-await page.waitForTimeout(3000);
+await page.evaluate(() => window.nc.session.debugStep(60 * 8));
+await page.waitForTimeout(600);
 st = await S();
 check(st.race && st.race.viewports === 4 && st.race.humans[0].speed > 1000 && st.race.humans[1].speed > 1000, `4 jogadores: P1 ${st.race?.humans[0].speed} u/s, P2 ${st.race?.humans[1].speed} u/s`);
 await page.screenshot({ path: `${out}-09-split4.png` });
 await page.keyboard.up('ArrowUp'); await page.keyboard.up('KeyW');
 await page.evaluate((h) => { const s = window.nc.session; s.startQuick('monte_fuji', 2, h); }, humans(3));
-await page.waitForTimeout(4500);
-await page.keyboard.down('ArrowUp'); await page.waitForTimeout(2500);
+await page.keyboard.down('ArrowUp'); await page.evaluate(() => window.nc.session.debugStep(60 * 8)); await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}-10-split3.png` });
 await page.keyboard.up('ArrowUp');
 

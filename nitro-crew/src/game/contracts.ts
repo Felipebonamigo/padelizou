@@ -135,6 +135,8 @@ export interface RenderFrame {
   paused: boolean;
   /** Modo cooperativo (para o HUD mostrar cofre de nitro e companheiros). */
   coop: boolean;
+  /** Falso enquanto uma tela de menu cobre a corrida (resultado, classificação): o HUD some. */
+  showHud: boolean;
 }
 
 /**

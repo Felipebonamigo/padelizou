@@ -60,6 +60,8 @@ export interface Session {
   startCup(cupId: string, humans: HumanEntry[]): void;
   /** Só para o playtest automatizado: liga assentos ao teclado sem passar pelo lobby. */
   debugBind(seat: number, device: 'kb1' | 'kb2'): void;
+  /** Só para o playtest: avança N ticks da corrida agora, com a entrada atual, sem esperar quadros. */
+  debugStep(ticks: number): void;
 }
 
 function randomSeed(): number {
@@ -92,6 +94,17 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     race: null, paused: false, speed: 1,
     start, stop, frame, handleMenuEvent, startQuick, startCup,
     debugBind(seat, device) { input.bindSeat(seat, device); },
+    debugStep(ticks) {
+      const r = session.race;
+      if (!r || session.paused) return;
+      input.poll();
+      const inputs = readInputs(r);
+      for (let i = 0; i < ticks && r.state.phase !== 'finished'; i++) {
+        stepOnce(r, inputs);
+        for (const h of r.humans) { const inp = inputs[h.seat]; if (inp && inp !== NEUTRAL_INPUT) inputs[h.seat] = { ...inp, nitro: false, gearUp: false, gearDown: false }; }
+      }
+      for (const list of r.messages.values()) list.length = 0;
+    },
   };
 
   const menus = createMenus({
@@ -288,6 +301,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       state: r.state, track: r.track, viewports,
       options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake },
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
+      showHud: menus.current() === null || menus.current() === 'pause',
     };
   }
 
