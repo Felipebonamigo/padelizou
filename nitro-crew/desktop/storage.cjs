@@ -20,7 +20,12 @@ function isSaveKey(key) {
   return typeof key === 'string' && key.length <= MAX_KEY_LENGTH && KEY_RE.test(key);
 }
 
-/** Lê `<dir>/<chave>.json` de todas as chaves válidas: { chave: texto JSON }. Pasta ausente = {}. */
+/**
+ * Lê `<dir>/<chave>.json` de todas as chaves válidas: { chave: texto JSON }. Pasta ausente = {}.
+ * Arquivo que existe mas não deu para ler (permissão, erro de disco, pasta com nome de save) vem como `null` —
+ * "não sei o que tem", e a inicialização não grava por cima dele. Arquivo que sumiu entre a listagem e a
+ * leitura fica de fora (não há arquivo); maior que MAX_SAVE_BYTES também (é lixo, pode ser substituído).
+ */
 function readAllSaves(dir) {
   const out = {};
   let names;
@@ -29,12 +34,15 @@ function readAllSaves(dir) {
     if (!name.endsWith('.json')) continue;
     const key = name.slice(0, -'.json'.length);
     if (!isSaveKey(key)) continue;
+    const file = path.join(dir, name);
     try {
-      const file = path.join(dir, name);
       const st = fs.statSync(file);
-      if (!st.isFile() || st.size > MAX_SAVE_BYTES) continue;
+      if (!st.isFile()) { out[key] = null; continue; }
+      if (st.size > MAX_SAVE_BYTES) continue;
       out[key] = fs.readFileSync(file, 'utf8');
-    } catch { /* arquivo sumiu ou sem permissão: fica de fora, o localStorage cobre */ }
+    } catch (e) {
+      if (!e || e.code !== 'ENOENT') out[key] = null;
+    }
   }
   return out;
 }

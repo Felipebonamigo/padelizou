@@ -71,7 +71,7 @@ describe('hydrateFromDisk (inicialização no Electron)', () => {
     storage.setItem('outro-app', 'x');
     const disk = fakeDisk({ 'nitro-crew.save': '{"racesRun":9}', 'nitro-crew.errors': '[1]', 'lixo': '{}' });
     const report = await hydrateFromDisk(disk, storage);
-    expect(report).toEqual({ fromDisk: ['nitro-crew.save'], toDisk: ['nitro-crew.settings'], failed: [] });
+    expect(report).toEqual({ fromDisk: ['nitro-crew.save'], toDisk: ['nitro-crew.settings'], failed: [], unknown: [] });
     expect(storage.getItem('nitro-crew.save')).toBe('{"racesRun":9}');
     expect(disk.files['nitro-crew.settings']).toBe('{"language":"en"}');
     expect(storage.getItem(ERRORS_KEY)).toBe('[]');
@@ -107,14 +107,61 @@ describe('hydrateFromDisk (inicialização no Electron)', () => {
     expect(storage.getItem('nitro-crew.save')).toBe('{"racesRun":2}');
     const silent = { storeReadAll: () => new Promise<Record<string, string>>(() => undefined), storeWrite: () => new Promise<boolean>(() => undefined) };
     const report = await hydrateFromDisk(silent, storage, 20);
-    expect(report).toEqual({ fromDisk: [], toDisk: [], failed: ['nitro-crew.save'] });
+    expect(report).toEqual({ fromDisk: [], toDisk: [], failed: [], unknown: ['nitro-crew.save'] });
     expect(storage.getItem('nitro-crew.save')).toBe('{"racesRun":2}');
+  });
+
+  // Revisão: a leitura do disco falhava (ou passava do limite) e o disco virava "vazio" — o localStorage velho
+  // era gravado por cima do arquivo, que podia ser o mais novo, vindo da nuvem de outro computador. As
+  // gravações funcionavam; o teste anterior só usava disco que também recusava gravação e não via isso.
+  it('leitura do disco que falha ou atrasa: nada é gravado por cima do arquivo', async () => {
+    const cloud = '{"racesRun":42,"cupsCompleted":["brasil"]}';
+    const reads = [
+      () => Promise.reject(new Error('IPC morto')),
+      () => new Promise<Record<string, string>>((resolve) => { setTimeout(() => resolve({ 'nitro-crew.save': cloud }), 60); }),
+    ];
+    for (const storeReadAll of reads) {
+      const storage = new MemoryStorage();
+      storage.setItem('nitro-crew.save', '{"racesRun":1}');
+      const disk = fakeDisk({ 'nitro-crew.save': cloud });
+      const report = await hydrateFromDisk({ storeReadAll, storeWrite: disk.storeWrite }, storage, 20);
+      expect(disk.writes).toEqual([]);
+      expect(disk.files['nitro-crew.save']).toBe(cloud);
+      expect(report).toEqual({ fromDisk: [], toDisk: [], failed: [], unknown: ['nitro-crew.save'] });
+      expect(storage.getItem('nitro-crew.save')).toBe('{"racesRun":1}');
+      // E não vira pendente: nada diz que o local é mais novo que o arquivo.
+      expect(pending(storage)).toEqual([]);
+    }
+  });
+
+  it('leitura que falha com gravação local pendente: o local (sabidamente mais novo) ainda vai para o disco', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem('nitro-crew.save', '{"racesRun":5}');
+    storage.setItem(PENDING_KEY, '["nitro-crew.save"]');
+    const disk = fakeDisk({}, { readRejects: true });
+    const report = await hydrateFromDisk(disk, storage);
+    expect(report).toEqual({ fromDisk: [], toDisk: ['nitro-crew.save'], failed: [], unknown: [] });
+    expect(disk.files['nitro-crew.save']).toBe('{"racesRun":5}');
+    expect(pending(storage)).toEqual([]);
+  });
+
+  it('arquivo que existe mas não deu para ler (null) não é sobrescrito; os outros seguem a regra de sempre', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem('nitro-crew.save', '{"racesRun":1}');
+    storage.setItem('nitro-crew.settings', '{"language":"en"}');
+    const disk = fakeDisk({ 'nitro-crew.settings': '{"language":"pt"}' });
+    const api = { storeReadAll: () => Promise.resolve({ ...disk.files, 'nitro-crew.save': null }), storeWrite: disk.storeWrite };
+    const report = await hydrateFromDisk(api, storage);
+    expect(disk.writes).toEqual([]);
+    expect(report).toEqual({ fromDisk: ['nitro-crew.settings'], toDisk: [], failed: [], unknown: ['nitro-crew.save'] });
+    expect(storage.getItem('nitro-crew.save')).toBe('{"racesRun":1}');
+    expect(storage.getItem('nitro-crew.settings')).toBe('{"language":"pt"}');
   });
 
   it('resposta de preload desatualizado (não é objeto de textos) é ignorada', async () => {
     const storage = new MemoryStorage();
     const odd = { storeReadAll: () => Promise.resolve({ 'nitro-crew.save': 42 } as unknown as Record<string, string>), storeWrite: () => Promise.resolve(true) };
-    expect(await hydrateFromDisk(odd, storage)).toEqual({ fromDisk: [], toDisk: [], failed: [] });
+    expect(await hydrateFromDisk(odd, storage)).toEqual({ fromDisk: [], toDisk: [], failed: [], unknown: [] });
   });
 
   it('progresso de outro computador chega à sessão pelo loadSave de sempre', async () => {

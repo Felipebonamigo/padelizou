@@ -37,7 +37,9 @@ xvfb-run -a npm run e2e          # numa máquina com tela: npm run e2e
 Abre o **executável empacotado** pelo Playwright da raiz do jogo, com o userData numa pasta temporária, e
 confere: `app/index.html` carregado de dentro do asar, preload, pasta "Nitro Crew", erro → aviso no canto e
 `logs/errors.log`, "Copiar relatório de erros" → área de transferência, telemetria → `saves/*.json`, save
-trocado em disco (como a nuvem faria) vencendo o `localStorage` na volta, e a tela de erro fatal sem WebGL.
+trocado em disco (como a nuvem faria) vencendo um `localStorage` **diferente** na volta (conflito de verdade),
+o mesmo erro repetido na 2ª abertura voltando ao log, e a tela de erro fatal sem WebGL — com a opção
+`--ignore-gpu-blocklist` num `<code>` e os dois botões operados por um controle simulado.
 Capturas em `release/e2e-*.png` (ou no prefixo passado como argumento).
 
 ### GPU na lista de bloqueio do Chromium
@@ -116,27 +118,45 @@ Dentro dela:
 também para `saves/<chave>.json`. Ao abrir, antes de ler opções e progresso, o arquivo vence o `localStorage`
 (pode ter chegado da nuvem vindo de outro computador), exceto quando a última gravação local não foi confirmada
 no disco — aí o `localStorage` vence e é regravado. Arquivo corrompido nunca vence um `localStorage` válido. Save
-de quem jogou uma versão anterior (só no `localStorage`) é copiado para o disco na primeira abertura.
+de quem jogou uma versão anterior (só no `localStorage`) é copiado para o disco na primeira abertura. Se a
+leitura do disco falhar (IPC sem resposta em 3 s) ou um arquivo existir mas não puder ser lido (`storage.cjs`
+devolve `null`), o jogo segue com o `localStorage` e **não** grava por cima do arquivo — ele pode ser o mais novo,
+vindo da nuvem; só a chave pendente (local sabidamente mais novo) é regravada. Limite conhecido: a próxima
+gravação do jogo naquela sessão (fim de corrida, opção mudada) vai para o arquivo, como o save de qualquer jogo.
 
 **Configurar no Steamworks** (App Admin → Cloud → Steam Auto-Cloud):
 
 1. Cota: 1 MB e 20 arquivos por usuário é folga (hoje são 2 arquivos de poucos KB).
-2. Caminhos do Auto-Cloud (um por sistema):
+2. **Um** caminho raiz, valendo para todos os sistemas, e **substituições de raiz** (Root Overrides) para
+   Linux e macOS. Três raízes independentes, uma por sistema, **não** sincronizam entre si: o save do PC não
+   chegaria ao Steam Deck. A documentação da Steamworks diz que, para save entre plataformas, se define uma
+   raiz e se criam substituições para as outras plataformas, com a raiz em "[All OSes]"; os arquivos da raiz
+   com substituições sincronizam em todas elas.
+
+   Caminho raiz (Root Paths):
 
    | Raiz | Subpasta | Padrão | SO | Recursivo |
    |---|---|---|---|---|
-   | `WinAppDataRoaming` | `Nitro Crew/saves` | `*.json` | Windows | não |
-   | `LinuxHome` | `.config/Nitro Crew/saves` | `*.json` | Linux | não |
-   | `MacAppSupport` | `Nitro Crew/saves` | `*.json` | macOS | não |
+   | `WinAppDataRoaming` | `Nitro Crew/saves` | `*.json` | **[All OSes]** | não |
 
-   Confira os nomes das raízes na lista do painel na hora de cadastrar (não deu para abrir a documentação da
-   Steamworks desta rede). Se houver uma raiz própria para o `XDG_CONFIG_HOME`, prefira-a no Linux: quem mudou
-   essa variável tem os saves fora de `~/.config` (raro; o Steam Deck usa o padrão).
+   Substituições (Root Overrides):
 
-   Com o Linux marcado, o Steam Deck (nativo) sincroniza com o PC. Rodando a build Windows sob Proton, o
-   `WinAppDataRoaming` cai dentro do prefixo do Proton e também sincroniza.
-3. Teste: jogar no computador A, fechar, abrir no B — a copa concluída em A aparece destravada em B. O
-   `e2e.mjs` simula exatamente isso trocando o arquivo em disco entre duas execuções.
+   | Raiz original | SO | Nova raiz | Acrescentar/substituir caminho | Substituir caminho |
+   |---|---|---|---|---|
+   | `WinAppDataRoaming` | Linux | `LinuxHome` | `.config/Nitro Crew/saves` | marcado |
+   | `WinAppDataRoaming` | macOS | `MacAppSupport` | `Nitro Crew/saves` | marcado |
+
+   🔧 **CONFERIR no painel** (a documentação da Steamworks não abre desta rede; o texto acima veio de citações
+   dela): os nomes exatos das raízes na lista, e se "Substituir caminho" troca a subpasta inteira
+   (`Nitro Crew/saves` → `.config/Nitro Crew/saves`) — a do Linux é diferente das outras por causa do
+   `.config`. Se houver uma raiz própria para o `XDG_CONFIG_HOME`, prefira-a no Linux: quem mudou essa variável
+   tem os saves fora de `~/.config` (raro; o Steam Deck usa o padrão).
+
+   Rodando a build Windows sob Proton, o `WinAppDataRoaming` cai dentro do prefixo do Proton e sincroniza pela
+   raiz original, sem substituição.
+3. Teste: jogar no computador A, fechar, abrir no B — a copa concluída em A aparece destravada em B. **Faça
+   com sistemas diferentes** (Windows → Steam Deck/Linux): é o que prova as substituições de raiz. O `e2e.mjs`
+   simula a troca do arquivo em disco entre duas execuções, mas não a Steam.
 
 **Regra para quem mexe no jogo**: chave nova de save tem que ter o prefixo `nitro-crew.` e passar por
 `writeJson` (`src/game/settings.ts`) — gravação direta no `localStorage` não vai para a nuvem. O relatório de
@@ -147,11 +167,18 @@ exige trocar os caminhos acima — o nome definitivo do jogo (Fase 2.1) **não**
 
 ### Relatório de erros
 
-`src/game/errors.ts` guarda os últimos 50 erros (versão, data, modo, pista e tela do momento) no `localStorage`
-e, no Electron, em `logs/errors.log`; o `main.cjs` acrescenta ao mesmo log a queda do processo da página
-(`render-process-gone`, com um recarregamento automático) e da GPU. O jogador copia tudo em Opções › "Copiar
-relatório de erros". Caminhos de arquivo e nomes de pasta pessoal saem do texto. Política:
-`docs/legal/PRIVACIDADE.md`.
+`src/game/errors.ts` guarda os últimos 50 erros no `localStorage` e, no Electron, em `logs/errors.log`; o
+`main.cjs` acrescenta ao mesmo log a queda do processo da página (`render-process-gone`, com um recarregamento
+automático) e da GPU. O jogador copia tudo em Opções › "Copiar relatório de erros". Caminhos de arquivo e nomes
+de pasta pessoal saem do texto. Política: `docs/legal/PRIVACIDADE.md`.
+
+- Erro repetido (mesma pilha; números da mensagem não contam) é **uma** entrada com contador: guarda a 1ª vez e
+  a versão, a data, o modo e a pista da **última** — depois de uma atualização, o relatório mostra que o defeito
+  continua na versão nova.
+- Vai ao log: o erro novo, a 1ª repetição em cada abertura do jogo (um erro de toda abertura aparece a cada uma)
+  e os contadores 10, 100, 1000… O contador vai ao `localStorage` a cada 5 s e ao fechar a página.
+- Rajada de erros diferentes: no máximo 10 gravações completas a cada 10 s; o resto fica no relatório, e o log
+  ganha uma linha `N more error(s) not logged one by one (burst)`.
 
 ### Conquistas
 

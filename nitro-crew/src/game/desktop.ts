@@ -17,8 +17,11 @@ export interface DesktopApi {
   saveFile(name: string, content: string): Promise<boolean>;
   /** Diálogo de abrir; null se cancelado. */
   openFile(): Promise<string | null>;
-  /** Saves em `<userData>/saves/<chave>.json` (pasta do Steam Auto-Cloud): chave → texto JSON. */
-  storeReadAll(): Promise<Record<string, string>>;
+  /**
+   * Saves em `<userData>/saves/<chave>.json` (pasta do Steam Auto-Cloud): chave → texto JSON, ou null quando o
+   * arquivo existe mas não deu para ler (permissão, erro de disco) — diferente de "não há arquivo".
+   */
+  storeReadAll(): Promise<Record<string, string | null>>;
   /** Grava o save da chave de forma atômica; false se a chave ou o JSON forem inválidos ou o disco falhar. */
   storeWrite(key: string, json: string): Promise<boolean>;
   /** Acrescenta ao log de erros `<userData>/logs/errors.log` (gira em 512 KB); false se falhou. */

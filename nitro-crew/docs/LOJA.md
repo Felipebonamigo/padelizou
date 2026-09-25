@@ -123,8 +123,16 @@ O jogo é Electron + WebGL 2 (Three.js). O pacote tem ≈ 290 MB descompactado; 
 | **Armazenamento** | 500 MB | 500 MB |
 | **Observação** | Driver de vídeo atualizado. | Controles: até 4 (Xbox, PlayStation, genéricos). |
 
-EN: Minimum / Recommended · OS · Processor · Memory · Graphics · Storage · "Up-to-date graphics driver." ·
-"Controllers: up to 4 (Xbox, PlayStation, generic)." — os valores são os mesmos.
+**EN** (para colar no Steamworks; mesmos números):
+
+| | Minimum (1–2 players, Low quality, 1080p at 60 fps) | Recommended (4 players, High quality, 1080p at 60 fps) |
+|---|---|---|
+| **OS** | Windows 10 64-bit · Ubuntu 22.04 / SteamOS 3 · macOS 12 | Windows 10/11 64-bit · SteamOS 3 |
+| **Processor** | Dual-core 2.0 GHz (Intel Core i3 6th gen / AMD Ryzen 3 2200U) | Quad-core 3.0 GHz (Intel Core i5 8th gen / AMD Ryzen 5 2600) |
+| **Memory** | 4 GB RAM | 8 GB RAM |
+| **Graphics** | Integrated graphics with WebGL 2 / OpenGL 3.3 / DirectX 11 (Intel UHD 620, AMD Vega 8) | GeForce GTX 1050 / Radeon RX 560 / Intel Iris Xe (or better) |
+| **Storage** | 500 MB available space | 500 MB available space |
+| **Additional Notes** | Up-to-date graphics driver. | Controllers: up to 4 (Xbox, PlayStation, generic). |
 
 ⚠️ **Números estimados**: nenhum foi medido em hardware de verdade (o ambiente de desenvolvimento renderiza por
 software). Troque pelos medidos na matriz de QA antes de publicar; se o integrado não segurar 4 telas a 60 fps,

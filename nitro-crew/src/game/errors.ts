@@ -3,12 +3,20 @@
 // Fontes: window 'error', promessas rejeitadas sem tratamento e o catch do laço da sessão (`reportError(err, 'loop')`).
 // Onde fica: localStorage (`nitro-crew.errors`, só neste computador — fora do Steam Cloud) e, no Electron, também
 // `<userData>/logs/errors.log` pelo IPC `logAppend` (limite de tamanho e rotação em desktop/storage.cjs).
-// Nunca lança e nunca trava o jogo: um erro que se repete a cada quadro vira UMA entrada com contador, e disco e
-// localStorage só são tocados quando aparece um erro novo ou quando o contador passa de 10, 100, 1000…
+// Nunca lança e nunca trava o jogo:
+//   • um erro que se repete (mesma pilha; números da mensagem não contam) vira UMA entrada com contador, que
+//     guarda a 1ª vez (`time`) e o contexto da ÚLTIMA — versão, data, modo e pista de agora;
+//   • log e localStorage recebem o erro novo, a 1ª repetição em cada sessão (um defeito de toda abertura aparece
+//     a cada abertura) e o contador em 10, 100, 1000…; fora isso, o contador vai ao localStorage no máximo a
+//     cada PERSIST_EVERY_MS — um passo agendado (`schedule`) grava o que sobrou quando os erros param, e
+//     `flush()` (a página vai fechar) grava na hora;
+//   • rajada de erros diferentes: no máximo LOUD_MAX gravações completas por LOUD_WINDOW_MS; o resto fica na
+//     memória (e no localStorage pelo passo acima), com uma linha no log dizendo quantos não foram um a um.
 // Privacidade: caminhos de arquivo são reduzidos a `app/assets/…` e pastas pessoais viram `~` (scrubPaths).
-// Telemetria: opt-in (Settings.telemetry, desligada por padrão) e SEM servidor hoje — `telemetryEndpoint` é nulo,
-// então nada sai do computador. Quando houver coletor, `setTelemetryEndpoint(url)` liga o envio de
-// `telemetryPayload(entry)` (sem nomes de jogador, sem caminhos) para quem marcou a opção. Ver docs/legal/PRIVACIDADE.md.
+// Telemetria: opt-in (Settings.telemetryConsent, desligada por padrão) e SEM servidor hoje — `telemetryEndpoint`
+// é nulo, então nada sai do computador. Quando houver coletor, `setTelemetryEndpoint(url)` liga o envio de
+// `telemetryPayload(entry)` (sem nomes de jogador, sem caminhos) para quem aceitou os termos EM VIGOR
+// (TELEMETRY_TERMS — suba o número no mesmo commit que ligar o envio). Ver docs/legal/PRIVACIDADE.md.
 import { version as packageVersion } from '../../package.json';
 import { getDesktop, isDesktop } from './desktop';
 
@@ -19,6 +27,11 @@ const MESSAGE_MAX = 500;
 const STACK_MAX = 4000;
 /** Contadores em que um erro repetido volta a ser gravado (log e localStorage). */
 const REPEAT_MILESTONES: ReadonlySet<number> = new Set([10, 100, 1000, 10000]);
+/** O que só mudou na memória (contador de erro repetido, rajada) vai ao localStorage no máximo a cada isto. */
+export const PERSIST_EVERY_MS = 5000;
+/** Rajada: no máximo LOUD_MAX gravações completas (localStorage + log + aviso) a cada LOUD_WINDOW_MS. */
+export const LOUD_MAX = 10;
+export const LOUD_WINDOW_MS = 10_000;
 
 export type ErrorKind = 'error' | 'rejection' | 'loop' | 'fatal';
 const KINDS: readonly ErrorKind[] = ['error', 'rejection', 'loop', 'fatal'];
@@ -64,7 +77,11 @@ export function scrubPaths(text: string): string {
   return text
     // \S e não [^()]: o caminho padrão da Steam no Windows tem parênteses ("Program%20Files%20(x86)").
     .replace(/file:\/\/\S*?\/((?:app\/)?assets\/)/g, '$1')
-    .replace(/(\/home\/|\/Users\/|[A-Za-z]:[\\/]Users[\\/])[^\\/\s'"()]+/g, '$1~');
+    // Linux e macOS: nome de usuário sem espaço (o da pasta pessoal é o nome curto).
+    .replace(/(\/home\/|\/Users\/)[^\\/\s'"()]+/g, '$1~')
+    // Windows: a pasta do perfil pode ter espaço ("Ana Maria"); vai até a próxima barra, aspas, parêntese ou fim
+    // da linha — sem barra depois, corta o resto da linha (melhor sobrar de menos que vazar o sobrenome).
+    .replace(/([A-Za-z]:[\\/]Users[\\/])[^\\/:*?"<>|'()\r\n]+/g, '$1~');
 }
 
 /** Mensagem e pilha de qualquer coisa que tenha sido lançada (Error, texto, objeto, undefined). */
@@ -82,14 +99,19 @@ export function describeError(err: unknown): { message: string; stack: string } 
   return { message: clip(scrubPaths(text), MESSAGE_MAX), stack: '' };
 }
 
+/** Números da mensagem (índice, valor, id) não separam um erro de outro: "índice 12" e "índice 13" na mesma pilha são o mesmo defeito. */
+function messageKey(message: string): string {
+  return message.replace(/\d+/g, '#');
+}
+
 function sameError(a: ErrorEntry, b: ErrorEntry): boolean {
-  return a.kind === b.kind && a.message === b.message && a.stack === b.stack;
+  return a.kind === b.kind && a.stack === b.stack && messageKey(a.message) === messageKey(b.message);
 }
 
 /**
- * Põe `entry` no anel. Se o mesmo erro (tipo, mensagem e pilha) já está lá, soma no contador dele, atualiza
- * `last` e o traz para o fim — um erro por quadro não expulsa os outros. Devolve a entrada que ficou no anel
- * e se ela é nova.
+ * Põe `entry` no anel. Se o mesmo erro (tipo, pilha e mensagem a menos dos números) já está lá, soma no
+ * contador dele, fica com a versão, a data, a mensagem e o contexto de agora (a 1ª vez continua em `time`) e o
+ * traz para o fim — um erro por quadro não expulsa os outros. Devolve a entrada que ficou no anel e se ela é nova.
  */
 export function pushEntry(ring: ErrorEntry[], entry: ErrorEntry, max = RING_SIZE): { entry: ErrorEntry; isNew: boolean } {
   const i = ring.findIndex((e) => sameError(e, entry));
@@ -98,6 +120,11 @@ export function pushEntry(ring: ErrorEntry[], entry: ErrorEntry, max = RING_SIZE
     ring.splice(i, 1);
     old.count += entry.count;
     old.last = entry.last;
+    old.version = entry.version;
+    old.message = entry.message;
+    old.mode = entry.mode;
+    old.track = entry.track;
+    old.screen = entry.screen;
     ring.push(old);
     return { entry: old, isNew: false };
   }
@@ -186,6 +213,18 @@ export function telemetryPayload(e: ErrorEntry): Record<string, string | number>
 
 // ───────────────────────────── Telemetria (sem servidor) ─────────────────────────────
 
+/**
+ * Versão dos termos da telemetria. Ligar a opção grava em `Settings.telemetryConsent` a versão aceita (0 =
+ * desligada). Termos 1: "hoje não envia nada". Quem ligar o envio de verdade SOBE este número no mesmo commit:
+ * quem ligou nos termos antigos volta a ver a opção desligada e decide de novo (PRIVACIDADE.md, seção 11).
+ */
+export const TELEMETRY_TERMS = 1;
+
+/** O consentimento guardado vale para os termos em vigor? */
+export function telemetryConsented(consent: number, current: number = TELEMETRY_TERMS): boolean {
+  return consent > 0 && consent === current;
+}
+
 /** Coletor da telemetria anônima. Nulo de propósito: não há servidor, e com nulo nada é enviado. */
 let telemetryEndpoint: string | null = null;
 
@@ -201,12 +240,14 @@ export interface ReporterDeps {
   storage: StorageLike | null;
   /** Log em arquivo do Electron (`DesktopApi.logAppend`); null no navegador. */
   logAppend: ((text: string) => Promise<boolean>) | null;
-  /** Opção do jogador (Settings.telemetry). */
+  /** Opção do jogador: `telemetryConsented(Settings.telemetryConsent)`. */
   telemetryEnabled: () => boolean;
   /** Transporte da telemetria (navigator.sendBeacon); injetável nos testes. */
   send?: (url: string, body: string) => void;
   /** Um erro NOVO entrou no anel (a sessão mostra o aviso no canto). */
   onNew?: (entry: ErrorEntry, total: number) => void;
+  /** Agenda a gravação do que ficou só na memória (setTimeout no jogo); sem ele, só `flush()` e o próximo erro gravam. */
+  schedule?: (fn: () => void, ms: number) => void;
 }
 
 export interface ErrorReporter {
@@ -216,8 +257,10 @@ export interface ErrorReporter {
   clear(): void;
   /** Texto do relatório com o que já está no anel. */
   text(meta: Omit<ReportMeta, 'version' | 'generated'>): string;
-  /** Avisa quando o anel muda (erro novo, contador que passou de 10/100/…, limpeza); devolve quem desliga. */
+  /** Avisa quando o anel é gravado (erro novo, repetição, limpeza); devolve quem desliga. */
   subscribe(fn: () => void): () => void;
+  /** Grava no localStorage o que ainda só está na memória (a página vai fechar: `pagehide`). */
+  flush(): void;
 }
 
 function loadRing(storage: StorageLike | null): ErrorEntry[] {
@@ -233,7 +276,17 @@ function loadRing(storage: StorageLike | null): ErrorEntry[] {
 export function createErrorReporter(deps: ReporterDeps): ErrorReporter {
   const ring = loadRing(deps.storage);
   const listeners = new Set<() => void>();
+  /** Entradas já vistas NESTA sessão: a 1ª repetição de um erro de outra sessão volta ao log e ao localStorage. */
+  const seen = new WeakSet<ErrorEntry>();
   let busy = false;
+  /** O anel mudou desde a última gravação no localStorage. */
+  let dirty = false;
+  let lastPersist = Number.NEGATIVE_INFINITY;
+  let loudWindowStart = Number.NEGATIVE_INFINITY;
+  let loudInWindow = 0;
+  /** Erros que iriam ao log um a um mas passaram do limite da rajada. */
+  let unlogged = 0;
+  let flushScheduled = false;
 
   function notify(): void {
     for (const fn of [...listeners]) {
@@ -241,8 +294,28 @@ export function createErrorReporter(deps: ReporterDeps): ErrorReporter {
     }
   }
 
-  function persist(): void {
+  function log(text: string): void {
+    try { deps.logAppend?.(text).catch(() => undefined); } catch { /* IPC quebrado: fica o localStorage */ }
+  }
+
+  /** Grava o anel no localStorage e, se a rajada deixou erros fora do log, uma linha dizendo quantos. */
+  function persist(at: Date): void {
+    dirty = false;
+    lastPersist = at.getTime();
     try { deps.storage?.setItem(ERRORS_KEY, JSON.stringify(ring)); } catch { /* cota cheia: fica só na memória */ }
+    if (unlogged > 0) {
+      log(`[${at.toISOString()}] v${deps.version} ${unlogged} more error(s) not logged one by one (burst); the in-game report keeps the last ${RING_SIZE}\n\n`);
+      unlogged = 0;
+    }
+    notify();
+  }
+
+  /** Cabe mais uma gravação completa nesta janela da rajada? */
+  function takeLoud(t: number): boolean {
+    if (t - loudWindowStart >= LOUD_WINDOW_MS) { loudWindowStart = t; loudInWindow = 0; }
+    if (loudInWindow >= LOUD_MAX) return false;
+    loudInWindow++;
+    return true;
   }
 
   function context(): ErrorContext {
@@ -258,16 +331,28 @@ export function createErrorReporter(deps: ReporterDeps): ErrorReporter {
     if (busy) return; // um erro dentro do próprio relator não entra em laço
     busy = true;
     try {
-      const time = deps.now().toISOString();
+      const at = deps.now();
+      const time = at.toISOString();
       const { message, stack } = describeError(err);
       const { entry, isNew } = pushEntry(ring, { time, last: time, version: deps.version, kind, message, stack, count: 1, ...context() });
-      if (!isNew && !REPEAT_MILESTONES.has(entry.count)) return;
-      persist();
-      deps.logAppend?.(logText(entry)).catch(() => undefined);
-      notify();
-      if (!isNew) return;
-      if (deps.telemetryEnabled() && telemetryEndpoint && deps.send) deps.send(telemetryEndpoint, JSON.stringify(telemetryPayload(entry)));
-      deps.onNew?.(entry, ring.length);
+      const firstThisSession = !seen.has(entry);
+      seen.add(entry);
+      dirty = true;
+      const important = firstThisSession || REPEAT_MILESTONES.has(entry.count);
+      if (important && takeLoud(at.getTime())) {
+        persist(at);
+        log(logText(entry));
+        if (!isNew) return;
+        if (deps.telemetryEnabled() && telemetryEndpoint && deps.send) deps.send(telemetryEndpoint, JSON.stringify(telemetryPayload(entry)));
+        deps.onNew?.(entry, ring.length);
+        return;
+      }
+      if (important) unlogged++;
+      if (at.getTime() - lastPersist >= PERSIST_EVERY_MS) persist(at);
+      else if (!flushScheduled && deps.schedule) {
+        flushScheduled = true;
+        deps.schedule(() => { flushScheduled = false; flush(); }, PERSIST_EVERY_MS);
+      }
     } catch {
       // Relatar nunca pode derrubar o jogo.
     } finally {
@@ -275,15 +360,21 @@ export function createErrorReporter(deps: ReporterDeps): ErrorReporter {
     }
   }
 
+  function flush(): void {
+    if (!dirty && unlogged === 0) return;
+    try { persist(deps.now()); } catch { /* relógio quebrado: fica na memória */ }
+  }
+
   return {
     report,
     entries: () => ring,
-    clear() { ring.length = 0; persist(); notify(); },
+    clear() { ring.length = 0; persist(deps.now()); },
     text: (meta) => formatReport(ring, { ...meta, version: deps.version, generated: deps.now().toISOString() }),
     subscribe(fn) {
       listeners.add(fn);
       return () => { listeners.delete(fn); };
     },
+    flush,
   };
 }
 

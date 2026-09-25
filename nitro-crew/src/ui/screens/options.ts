@@ -94,5 +94,5 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
     ),
     footer.el,
   );
-  return { el, nav: (nav) => listNav(list, nav, sfx, () => api.back()) };
+  return { el, nav: (nav) => listNav(list, nav, sfx, () => api.back()), destroy: footer.destroy };
 }

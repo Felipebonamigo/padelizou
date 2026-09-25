@@ -4,9 +4,11 @@
 // rolar e escondia o "Voltar" (medido com scratch/measure-options.mjs de 1024×640 a 2560×1440).
 //   • Copiar relatório — Enter/A/clique copia; o valor mostra quantos erros há (ao vivo) e, por 2,5 s,
 //     "Copiado ✓" ou "Não deu para copiar".
-//   • Telemetria anônima — liga/desliga (padrão desligado). Hoje só grava a preferência: não há servidor
+//   • Telemetria anônima — liga/desliga (padrão desligado). Ligar grava a versão dos termos aceita
+//     (Settings.telemetryConsent = TELEMETRY_TERMS). Hoje só grava a preferência: não há servidor
 //     (src/game/errors.ts, `telemetryEndpoint` nulo).
-import { copyToClipboard, currentReportText, getActiveReporter } from '../game/errors';
+// A tela chama `destroy()` ao sair (menus.ts → ScreenInstance.destroy): desfaz a assinatura do relator.
+import { copyToClipboard, currentReportText, getActiveReporter, TELEMETRY_TERMS, telemetryConsented } from '../game/errors';
 import { t } from '../i18n';
 import { h, onOff, selector, type FocusItem, type ScreenApi } from '../ui/screens/common';
 import './errors.css';
@@ -19,7 +21,7 @@ export function errorCountText(n: number): string {
   return n === 1 ? t('errors.options.one') : t('errors.options.many', { n });
 }
 
-function reportItem(api: ScreenApi): FocusItem {
+function reportItem(api: ScreenApi): FocusItem & { destroy(): void } {
   const s = api.ctx.settings;
   const count = () => errorCountText(getActiveReporter()?.entries().length ?? 0);
   const value = h('span', { class: 'sel-value', text: count() });
@@ -28,15 +30,19 @@ function reportItem(api: ScreenApi): FocusItem {
     h('span', { class: 'sel-box' }, value),
   );
   let timer: ReturnType<typeof setTimeout> | undefined;
-  // Erro que acontece com a tela aberta atualiza a contagem; tela fechada, a assinatura se desfaz sozinha.
+  // Erro que acontece com a tela aberta atualiza a contagem; `destroy` (tela fechada) desfaz a assinatura.
   const unsubscribe = getActiveReporter()?.subscribe(() => {
-    if (!el.isConnected) { unsubscribe?.(); return; }
     if (timer === undefined) value.textContent = count();
   });
   return {
     el,
+    destroy: () => {
+      unsubscribe?.();
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    },
     activate: () => {
-      const text = currentReportText({ language: s.language, quality: s.quality, telemetry: s.telemetry ? 'on' : 'off' });
+      const text = currentReportText({ language: s.language, quality: s.quality, telemetry: telemetryConsented(s.telemetryConsent) ? 'on' : 'off' });
       void copyToClipboard(text).then((ok) => {
         value.textContent = ok ? t('errors.options.copied') : t('errors.options.copyFailed');
         value.classList.toggle('ok', ok);
@@ -48,12 +54,18 @@ function reportItem(api: ScreenApi): FocusItem {
   };
 }
 
-/** Rodapé da tela de Opções: relatório à esquerda, `back` no meio, telemetria à direita (ordem do cursor também). */
-export function optionsFooter(api: ScreenApi, commit: () => void, back: FocusItem): { el: HTMLElement; items: FocusItem[] } {
+/**
+ * Rodapé da tela de Opções: relatório à esquerda, `back` no meio, telemetria à direita (ordem do cursor também).
+ * `destroy` tem que ser chamado quando a tela sai (optionsScreen devolve no ScreenInstance).
+ */
+export function optionsFooter(api: ScreenApi, commit: () => void, back: FocusItem): { el: HTMLElement; items: FocusItem[]; destroy(): void } {
   const s = api.ctx.settings;
   const report = reportItem(api);
-  const telemetry = selector(t('errors.options.telemetry'), () => onOff(s.telemetry), () => { s.telemetry = !s.telemetry; commit(); }, { sfx: api.sfx });
+  const telemetry = selector(t('errors.options.telemetry'), () => onOff(telemetryConsented(s.telemetryConsent)), () => {
+    s.telemetryConsent = telemetryConsented(s.telemetryConsent) ? 0 : TELEMETRY_TERMS;
+    commit();
+  }, { sfx: api.sfx });
   telemetry.el.dataset.item = 'telemetry';
   const el = h('div', { class: 'options-footer' }, report.el, back.el, telemetry.el);
-  return { el, items: [report, back, telemetry] };
+  return { el, items: [report, back, telemetry], destroy: report.destroy };
 }
