@@ -21,6 +21,7 @@ import { createMenus } from '../ui/menus';
 import { evaluateAchievements, newTelemetry, type RaceTelemetry } from './achievements';
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
 import { ACHIEVEMENTS, getDesktop, isDesktop, setFullscreen } from './desktop';
+import { reportError } from './errors';
 import { isCupUnlocked, loadSave, markCupCompleted, recordRaceResults, rememberLobby, saveSave } from './save';
 import { loadSettings, saveSettings } from './settings';
 
@@ -359,7 +360,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function loop(now: number): void {
     if (!running) return;
-    try { frame(now); } catch (err) { console.error(err); }
+    try { frame(now); } catch (err) { console.error(err); reportError(err, 'loop'); }
     rafId = requestAnimationFrame(loop);
   }
 

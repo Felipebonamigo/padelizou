@@ -1,14 +1,21 @@
 {
   "name": "nitro-crew-desktop",
+  "productName": "Nitro Crew",
   "version": "0.1.0",
   "description": "Empacotamento desktop (Electron) do Nitro Crew para Steam/Windows/Linux/macOS.",
+  "author": "Felipe Bonamigo",
   "main": "main.cjs",
   "private": true,
   "scripts": {
     "start": "electron .",
+    "check:game": "node -e \"try{require('fs').accessSync('../dist/index.html')}catch{console.error('Falta ../dist/index.html: rode npm run build na raiz do jogo antes de empacotar.');process.exit(1)}\"",
+    "predist:win": "npm run check:game",
+    "predist:linux": "npm run check:game",
+    "predist:mac": "npm run check:game",
     "dist:win": "electron-builder --win --x64",
     "dist:linux": "electron-builder --linux --x64",
-    "dist:mac": "electron-builder --mac"
+    "dist:mac": "electron-builder --mac",
+    "e2e": "node e2e.mjs"
   },
   "devDependencies": {
     "electron": "^44.4.5",
@@ -20,10 +27,17 @@
   "build": {
     "appId": "br.com.bonamigo.nitrocrew",
     "productName": "Nitro Crew",
-    "files": ["main.cjs", "preload.cjs", "steam_appid.txt", { "from": "../dist", "to": "app" }],
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "storage.cjs",
+      "steam_appid.txt",
+      { "from": "../dist", "to": "app", "filter": ["**/*", "!**/*.map"] }
+    ],
     "directories": { "output": "release", "buildResources": "build" },
+    "publish": null,
     "win": { "target": ["dir"] },
-    "linux": { "target": ["dir"], "category": "Game" },
+    "linux": { "target": ["dir"], "category": "Game", "executableName": "nitro-crew" },
     "mac": { "target": ["dir"], "category": "public.app-category.games" },
     "asar": true,
     "asarUnpack": ["node_modules/steamworks.js/**"]

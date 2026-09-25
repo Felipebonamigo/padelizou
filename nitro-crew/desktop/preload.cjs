@@ -11,5 +11,9 @@ contextBridge.exposeInMainWorld('desktop', {
   richPresence: (text) => ipcRenderer.invoke('steam:richPresence', text),
   saveFile: (name, content) => ipcRenderer.invoke('file:save', name, content),
   openFile: () => ipcRenderer.invoke('file:open'),
+  storeReadAll: () => ipcRenderer.invoke('store:readAll'),
+  storeWrite: (key, json) => ipcRenderer.invoke('store:write', key, json),
+  logAppend: (text) => ipcRenderer.invoke('log:append', text),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   onFullscreen: (cb) => { ipcRenderer.on('fullscreen', (_e, v) => cb(v)); },
 });

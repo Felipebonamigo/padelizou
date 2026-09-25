@@ -17,6 +17,14 @@ export interface DesktopApi {
   saveFile(name: string, content: string): Promise<boolean>;
   /** Diálogo de abrir; null se cancelado. */
   openFile(): Promise<string | null>;
+  /** Saves em `<userData>/saves/<chave>.json` (pasta do Steam Auto-Cloud): chave → texto JSON. */
+  storeReadAll(): Promise<Record<string, string>>;
+  /** Grava o save da chave de forma atômica; false se a chave ou o JSON forem inválidos ou o disco falhar. */
+  storeWrite(key: string, json: string): Promise<boolean>;
+  /** Acrescenta ao log de erros `<userData>/logs/errors.log` (gira em 512 KB); false se falhou. */
+  logAppend(text: string): Promise<boolean>;
+  /** Copia para a área de transferência do sistema (o preload em sandbox não tem `clipboard`). */
+  copyText(text: string): Promise<boolean>;
   /** Avisa quando a tela cheia muda (inclusive por F11 tratado no processo principal). */
   onFullscreen(cb: (v: boolean) => void): void;
 }
@@ -25,9 +33,10 @@ declare global {
   interface Window { desktop?: DesktopApi }
 }
 
-const API_FUNCTIONS: ReadonlyArray<keyof DesktopApi> = [
+/** Exportada para tests/desktop-storage.test.ts conferir que o preload.cjs expõe exatamente estas. */
+export const API_FUNCTIONS: ReadonlyArray<keyof DesktopApi> = [
   'toggleFullscreen', 'setFullscreen', 'isFullscreen', 'quit', 'steamName', 'achievement', 'richPresence',
-  'saveFile', 'openFile', 'onFullscreen',
+  'saveFile', 'openFile', 'storeReadAll', 'storeWrite', 'logAppend', 'copyText', 'onFullscreen',
 ];
 
 /** Verdadeiro só se o objeto tem TODAS as funções — um preload desatualizado não passa. */

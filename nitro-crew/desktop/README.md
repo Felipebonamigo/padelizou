@@ -1,6 +1,6 @@
 # Nitro Crew — build desktop (Electron) para Steam
 
-O jogo é uma aplicação web (TypeScript + Canvas 2D, Vite) empacotada com Electron — o mesmo caminho de
+O jogo é uma aplicação web (TypeScript + Three.js/WebGL, Vite) empacotada com Electron — o mesmo caminho de
 Vampire Survivors (versões iniciais) e CrossCode na Steam. Esta pasta só embrulha o `../dist`; nada do jogo
 mora aqui.
 
@@ -22,6 +22,34 @@ npm run dist:mac     # release/mac/Nitro Crew.app
 A janela nasce em 1600×900 (mínimo 1024×640), fundo preto, sem barra de menu. Tela cheia é decisão do jogo
 (opção salva) — `main.cjs` só obedece.
 
+O pacote leva `main.cjs`, `preload.cjs`, `storage.cjs`, `steam_appid.txt` e o `../dist` inteiro em `app/`
+(sem os `.map`). Conferido em 25/09/2026 com Electron 44.4.5 e electron-builder 26.15.3: `dist:linux` gera
+`release/linux-unpacked/` (≈ 290 MB, `resources/app.asar` ≈ 0,8 MB com `app/index.html` e `app/assets/*`, e
+`app.asar.unpacked/node_modules/steamworks.js` com as bibliotecas nativas de win64/linux64/osx).
+
+### Conferir o pacote de verdade (`e2e.mjs`)
+
+```bash
+npm run dist:linux
+xvfb-run -a npm run e2e          # numa máquina com tela: npm run e2e
+```
+
+Abre o **executável empacotado** pelo Playwright da raiz do jogo, com o userData numa pasta temporária, e
+confere: `app/index.html` carregado de dentro do asar, preload, pasta "Nitro Crew", erro → aviso no canto e
+`logs/errors.log`, "Copiar relatório de erros" → área de transferência, telemetria → `saves/*.json`, save
+trocado em disco (como a nuvem faria) vencendo o `localStorage` na volta, e a tela de erro fatal sem WebGL.
+Capturas em `release/e2e-*.png` (ou no prefixo passado como argumento).
+
+### GPU na lista de bloqueio do Chromium
+
+O Chromium recusa WebGL em alguns drivers antigos ou quebrados (visto aqui com GL por software:
+`WebGL2 blocklisted`). O jogo então mostra a tela "O jogo não conseguiu iniciar", com o relatório para copiar,
+em vez de uma janela preta. A opção de inicialização `--ignore-gpu-blocklist` (Steam → Propriedades → Opções
+de inicialização) é repassada ao Chromium e resolve na maioria dos casos — conferido neste pacote. **Decisão em
+aberto**: ligar isso por padrão em `main.cjs` (`app.commandLine.appendSwitch('ignore-gpu-blocklist')`), como
+fazem muitos jogos HTML5 na Steam; o preço é trocar a tela explicativa por um possível travamento de driver.
+Decidir depois do teste em máquinas fracas (docs/QA.md).
+
 **Ícone (opcional):** electron-builder procura `build/icon.ico` (Windows), `build/icon.icns` (macOS) e
 `build/icon.png` (Linux, ≥ 512×512) dentro desta pasta. Sem eles, usa o ícone padrão do Electron e avisa.
 
@@ -38,6 +66,12 @@ Electron `getDesktop()` devolve `null` e `setFullscreen()` cai na Fullscreen API
 | `achievement(id)` | Desbloqueia a conquista; `true` se a Steam aceitou. |
 | `richPresence(texto)` | Texto na lista de amigos ("Correndo em Copacabana"); texto vazio limpa. |
 | `saveFile(nome, conteudo)` / `openFile()` | Diálogos do sistema em Documentos; extensão `.nitro.json`. |
+| `storeReadAll()` / `storeWrite(chave, json)` | Saves em `<userData>/saves/<chave>.json` (ver "Steam Cloud" abaixo). |
+| `logAppend(texto)` | Acrescenta ao log de erros `<userData>/logs/errors.log`. |
+| `copyText(texto)` | Área de transferência do sistema (o preload em sandbox não tem `clipboard`). |
+
+`tests/desktop-storage.test.ts` confere que o preload expõe exatamente as funções de `DesktopApi` e que todo
+canal que ele chama tem `ipcMain.handle` no `main.cjs` — mudou um, mude os três.
 
 Links externos (`window.open`, `target=_blank`) abrem no navegador do sistema; a janela nunca navega para fora.
 Uma segunda instância só traz a primeira para a frente.
@@ -57,6 +91,67 @@ Uma segunda instância só traz a primeira para a frente.
 6. Build de produção: o `asarUnpack` já deixa `steamworks.js` fora do asar (módulo nativo). Copie a
    `steam_api64.dll` / `libsteam_api.so` / `libsteam_api.dylib` do `sdk/redistributable_bin/` da Steamworks
    SDK para a raiz do `release/*-unpacked` se o steamworks.js não trouxer a sua plataforma.
+
+### Steam Cloud (saves)
+
+**Onde fica tudo** — o `main.cjs` fixa o userData em `<appData>/Nitro Crew`, no pacote e no `npm start`:
+
+| Sistema | Pasta de dados |
+|---|---|
+| Windows | `%APPDATA%\Nitro Crew` (`C:\Users\<você>\AppData\Roaming\Nitro Crew`) |
+| Linux / Steam Deck | `~/.config/Nitro Crew` (ou `$XDG_CONFIG_HOME/Nitro Crew`) |
+| macOS | `~/Library/Application Support/Nitro Crew` |
+
+Dentro dela:
+
+- `saves/nitro-crew.settings.json`, `saves/nitro-crew.save.json` (e toda chave `nitro-crew.*` que o jogo gravar
+  por `writeJson`) — **é isto que vai para a nuvem**. Gravação atômica (temporário + rename), só JSON válido,
+  no máximo 1 MB por arquivo.
+- `logs/errors.log` (+ `errors.1.log`, rotação em 512 KB) — relatório de erros; **fica fora da nuvem**.
+- `Local Storage/`, `Cache/`, `GPUCache/`… — do Chromium. O `localStorage` continua sendo onde o jogo lê e grava
+  durante a partida, mas é um LevelDB com arquivos que mudam de nome e ficam travados com o jogo aberto: **não**
+  aponte o Auto-Cloud para ele.
+
+**Como o jogo usa** (`src/game/cloudsave.ts`): toda gravação do jogo vai para o `localStorage` e, no Electron,
+também para `saves/<chave>.json`. Ao abrir, antes de ler opções e progresso, o arquivo vence o `localStorage`
+(pode ter chegado da nuvem vindo de outro computador), exceto quando a última gravação local não foi confirmada
+no disco — aí o `localStorage` vence e é regravado. Arquivo corrompido nunca vence um `localStorage` válido. Save
+de quem jogou uma versão anterior (só no `localStorage`) é copiado para o disco na primeira abertura.
+
+**Configurar no Steamworks** (App Admin → Cloud → Steam Auto-Cloud):
+
+1. Cota: 1 MB e 20 arquivos por usuário é folga (hoje são 2 arquivos de poucos KB).
+2. Caminhos do Auto-Cloud (um por sistema):
+
+   | Raiz | Subpasta | Padrão | SO | Recursivo |
+   |---|---|---|---|---|
+   | `WinAppDataRoaming` | `Nitro Crew/saves` | `*.json` | Windows | não |
+   | `LinuxHome` | `.config/Nitro Crew/saves` | `*.json` | Linux | não |
+   | `MacAppSupport` | `Nitro Crew/saves` | `*.json` | macOS | não |
+
+   Confira os nomes das raízes na lista do painel na hora de cadastrar (não deu para abrir a documentação da
+   Steamworks desta rede). Se houver uma raiz própria para o `XDG_CONFIG_HOME`, prefira-a no Linux: quem mudou
+   essa variável tem os saves fora de `~/.config` (raro; o Steam Deck usa o padrão).
+
+   Com o Linux marcado, o Steam Deck (nativo) sincroniza com o PC. Rodando a build Windows sob Proton, o
+   `WinAppDataRoaming` cai dentro do prefixo do Proton e também sincroniza.
+3. Teste: jogar no computador A, fechar, abrir no B — a copa concluída em A aparece destravada em B. O
+   `e2e.mjs` simula exatamente isso trocando o arquivo em disco entre duas execuções.
+
+**Regra para quem mexe no jogo**: chave nova de save tem que ter o prefixo `nitro-crew.` e passar por
+`writeJson` (`src/game/settings.ts`) — gravação direta no `localStorage` não vai para a nuvem. O relatório de
+erros (`nitro-crew.errors`) e a marcação interna `nitro-crew.__pending` ficam de fora de propósito.
+
+**Mudar o nome da pasta** ("Nitro Crew" em `main.cjs`, `USER_DATA_DIR_NAME`) perde o save de quem já joga e
+exige trocar os caminhos acima — o nome definitivo do jogo (Fase 2.1) **não** precisa mudar a pasta.
+
+### Relatório de erros
+
+`src/game/errors.ts` guarda os últimos 50 erros (versão, data, modo, pista e tela do momento) no `localStorage`
+e, no Electron, em `logs/errors.log`; o `main.cjs` acrescenta ao mesmo log a queda do processo da página
+(`render-process-gone`, com um recarregamento automático) e da GPU. O jogador copia tudo em Opções › "Copiar
+relatório de erros". Caminhos de arquivo e nomes de pasta pessoal saem do texto. Política:
+`docs/legal/PRIVACIDADE.md`.
 
 ### Conquistas
 

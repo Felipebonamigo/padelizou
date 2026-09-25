@@ -70,12 +70,15 @@ export interface Settings {
   quickLaps: number;
   /** Música escolhida no jukebox (id) ou 'auto'. */
   music: string;
+  /** Telemetria anônima de erros (opt-in, desligada por padrão; ver src/game/errors.ts e docs/legal/PRIVACIDADE.md). */
+  telemetry: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high',
   showMinimap: true, screenShake: true, difficulty: 'profissional', manualGear: false,
   assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, totalCars: 20, quickLaps: 3, music: 'auto',
+  telemetry: false,
 });
 
 export interface BestLap { ticks: number; name: string; carId: string; date: string }
