@@ -40,6 +40,8 @@ describe('pistas', () => {
       const pit = t.segments.filter((s) => s.pit);
       expect(pit.length, def.id).toBeGreaterThanOrEqual(20);
       expect(Math.abs(pit[0].curve), def.id).toBeLessThan(1e-6);
+      // Logo depois da linha: o aviso de combustível e a IA contam com isso (src/core/sim/fuel.ts).
+      expect(pit[0].index, def.id).toBeLessThanOrEqual(4);
     }
   });
 

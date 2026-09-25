@@ -19,6 +19,9 @@ Austrália, Escandinávia e Mediterrâneo. Tudo é dado: pistas em `src/core/tra
 | Copa e país com nome em PT e EN (`core.cup.<id>`, `core.country.<País>`) | `tests/track.test.ts`, `tests/i18n.test.ts` |
 | Uma conquista `COPA_<ID>` para cada copa de `CUPS` | `tests/desktop.test.ts` |
 | IA completa volta sem travar em toda pista; fica na pista nas de dificuldade 5 | `tests/ai.test.ts` (um teste por pista) |
+| IA termina a corrida INTEIRA (todas as voltas) sem ficar sem combustível, em toda pista | `tests/ai.test.ts` (corrida inteira, um teste por pista) |
+| Aviso de combustível ao jogador chega ≥ 0,1 volta antes do último box que salva a corrida, guiando como a IA ou de pé no fundo, e nunca na última volta | `tests/fuel.test.ts` (dois estilos por pista) |
+| Box logo depois da linha de chegada (o aviso e a IA contam com isso) | `tests/track.test.ts` |
 | Toda copa com exatamente 4 pistas (a grade de pistas usa uma linha por copa) | `tests/select.test.ts` |
 
 **Índice técnico** (só nos testes, não entra no jogo): perda média de velocidade nas curvas, em %,
@@ -110,12 +113,55 @@ Três dificuldades nas mesmas três pistas novas (uma de cada ponta):
 
 | Pista | Amador | Profissional | Campeão |
 |---|---|---|---|
-| transpantaneira (dif. 1) | 1:34.68 · grama 0,0% | 1:21.46 · 0,0% | 1:08.86 · 0,3% (2 paradas no box) |
+| transpantaneira (dif. 1) | 1:34.68 · grama 0,0% | 1:21.46 · 0,0% | 1:09.08 · 0,8% (8 paradas no box) |
 | kruger (dif. 3) | 1:39.01 · 0,0% | 1:29.38 · 0,0% | 1:22.36 · 0,0% |
 | sydney (dif. 5) | 1:33.36 · 0,0% | 1:28.78 · 0,0% | 1:24.28 · 0,0% |
 
 A ordem Amador > Profissional > Campeão vale nas três; na pista travada (Sydney) a diferença encolhe,
-porque ali quem manda é a curva, não a velocidade máxima.
+porque ali quem manda é a curva, não a velocidade máxima. Depois da regra de combustível (abaixo) a
+rodada de 150 s em Profissional deu os mesmos números nas 32 pistas (a 1ª volta não muda); no Campeão
+da Transpantaneira, quem fecha a 2ª volta em 150 s decide pelo consumo medido e para no box antes da
+última quando ele não garante a volta (eram 2 paradas, são 8), e a entrada na faixa do box, que conta
+como grama, sobe a grama de 0,3% para 0,8%.
+
+## Combustível nas voltas longas
+
+O tanque (`data/cars.ts`) foi calibrado para voltas de ~400.000 unidades; as pistas novas vão até
+426.000 (Transpantaneira, 2.130 segmentos). Com as regras antigas, de nível fixo, isso quebrava a
+corrida inteira — o que o balance de 150 s (só a 1ª volta) não mostra:
+
+- a IA só entrava no box abaixo de 22%: o Trovão chegava à última volta da Kruger com ~0,33, não
+  parava e secava antes da chegada (andando a 20% da velocidade);
+- o aviso "COMBUSTÍVEL BAIXO — ENTRE NO BOX" vinha em 25%, já depois do último box que salvava a
+  corrida — e também na última volta, quando não há mais box antes da chegada.
+
+Regras de agora (`src/core/sim/fuel.ts`, constantes em `constants.ts`):
+
+| Quem | Regra |
+|---|---|
+| IA — box | Com o box à frente, para se o que resta não chega à próxima passagem por ele (uma volta e a aproximação) ou à chegada, o que vier antes, no consumo **medido volta a volta** × `FUEL_PIT_MARGIN` (1,15). O consumo é o maior entre a última volta inteira medida e a volta em curso (depois de meia volta); sem nada medido (largada, IA que assumiu o carro agora), o pior caso: aceleração total. |
+| IA — elástico | Atrás do humano o elástico a empurra e ela acelera o tempo todo (~50% a mais por volta que o medido). Com o tanque justo — que não garante, em aceleração total, chegar à próxima linha ou à chegada — ela não aceita o empurrão. |
+| Jogador — aviso | Quando o tanque já não garante `FUEL_LOW_LAPS` (1,15) voltas em aceleração total, e só enquanto ainda há box antes da chegada. Quem vai de pé no fundo gasta 0,95–1,0 disso por volta; a sobra é o tempo de ver o aviso e ir para o box. |
+| Jogador — barra | A barra do HUD continua vermelha abaixo de 25% (tanque quase vazio): é medidor, não conselho de box. |
+
+Corrida inteira (voltas da pista) nas 32 pistas, 6 sementes (42, 7, 99, 1, 2, 3), montagem do
+`scripts/smoke.ts` (2 humanos em piloto automático que param no box + 18 IA, todas as assistências):
+carros que ficaram sem combustível ANTES da chegada, somados.
+
+| Dificuldade | Sem combustível, antes (22%) | agora | Paradas no box, antes | agora |
+|---|---|---|---|---|
+| Amador | 17 | 1 | 503 | 384 |
+| Profissional | 153 | 0 | 1.388 | 714 |
+| Campeão | 680 | 0 | 1.914 | 1.528 |
+
+Menos paradas e nenhuma pane: a regra antiga parava quem não precisava (abaixo de 22% na última
+passagem, com a chegada logo ali) e deixava passar quem precisava. No Campeão as panes vinham também
+das 12 pistas antigas — o problema só ficou visível com as voltas longas.
+
+O caso que sobrou (Amador, Paris, semente 2): o Trovão decidiu parar certo na última passagem, mas
+um carro colado do lado direito o impediu de chegar à faixa do box. É a entrada do box no trânsito
+(comportamento anterior a este passo), não a decisão. Com 8 voltas (o máximo da corrida rápida) em
+cinco pistas longas, 2 sementes, profissional e campeão: 0, com duas ou três paradas por carro.
 
 ## Interface (src/ui/screens/select.ts + select.css)
 
@@ -129,8 +175,16 @@ porque ali quem manda é a curva, não a velocidade máxima.
 - Classificação da copa, "Próxima corrida: N de M" e colunas por corrida já saíam de
   `cup.trackIds.length`; nada assumia 3 pistas.
 
-Roteiro de verificação: `scratch/pistas-ui.mjs` (Playwright, fluxo real de teclado e controle,
-capturas das telas nas duas resoluções).
+- Telas mais altas que 16:9 (Steam Deck 1280×800, 1024×600): a letra cresce com a altura e a
+  largura não. A lista de copas nunca fica mais estreita que o nome mais longo
+  (`minmax(max-content, …)`), e nome, voltas e recorde do cartão de pista encolhem juntos com o
+  cartão (container query, `cqi`) — "Transpantaneira" é uma palavra só e não quebra.
+- O cartão mostra as voltas com que a corrida larga: corrida rápida e contra-relógio usam as voltas
+  da corrida rápida (`session.ts`); só a copa corre as voltas da pista.
+
+Roteiro de verificação: `scripts/pistas-ui.mjs` (Playwright, fluxo real de teclado e controle, em
+1280×720 e 1920×1080; contra-relógio; e as duas telas em 1280×800, 1366×768, 1600×900 e 1024×600
+sem nome cortado). `node scripts/pistas-ui.mjs <url> [prefixo] [pasta] [--tamanhos]`.
 
 ## Pista nova — passo a passo
 
@@ -139,6 +193,8 @@ capturas das telas nas duas resoluções).
 2. Ponha o id em `trackIds` da copa (`cups.ts`). Copa nova: id ASCII minúsculo, `requires` = a copa
    anterior, `core.cup.<id>` e `core.country.<País>` em `src/i18n/core.ts`, conquista `COPA_<ID>` em
    `ACHIEVEMENTS` (`src/game/desktop.ts`) e na tabela de `desktop/README.md` (Steamworks).
-3. `npx vitest run tests/track.test.ts tests/ai.test.ts` e `npx tsx scripts/balance.ts 150 profissional 11 <id>`
-   (IA completa a volta, grama < 1%, melhor volta ~1:00–1:40). Se o índice técnico contradisser o
-   rótulo, ajuste o traçado ou a dificuldade — não o teste.
+3. `npx vitest run tests/track.test.ts tests/ai.test.ts tests/fuel.test.ts` e
+   `npx tsx scripts/balance.ts 150 profissional 11 <id>` (IA completa a volta, grama < 1%, melhor volta
+   ~1:00–1:40). Se o índice técnico contradisser o rótulo, ajuste o traçado ou a dificuldade — não o
+   teste. Volta muito mais longa que 2.100 segmentos pede olhar o combustível: os testes de corrida
+   inteira e de aviso dizem se o tanque ainda fecha.

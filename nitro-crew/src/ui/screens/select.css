@@ -8,7 +8,9 @@
 .scr-cups { overflow: hidden; }
 .scr-cups .cups-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.5fr);
+  /* A lista nunca fica mais estreita que o nome de copa mais longo ("COPA MEDITERRÂNEO"): em telas
+     mais altas que 16:9 (Steam Deck 1280×800, 1024×600) a letra cresce com a altura e a largura não. */
+  grid-template-columns: minmax(max-content, 0.85fr) minmax(0, 1.5fr);
   gap: var(--gap);
   width: min(100%, calc(1320 * var(--u)));
   flex: 1;
@@ -147,10 +149,15 @@
   scroll-margin: calc(52 * var(--u)) 0 calc(40 * var(--u));
 }
 .scr-tracks .track-card .track-thumb { width: calc(58 * var(--u)); height: calc(58 * var(--u)); }
-.scr-tracks .track-info { display: flex; flex-direction: column; gap: calc(3 * var(--u)); min-width: 0; }
+/* A área de texto do cartão é um contêiner: o nome encolhe junto com ela (abaixo). */
+.scr-tracks .track-info { display: flex; flex-direction: column; gap: calc(3 * var(--u)); flex: 1; min-width: 0; container-type: inline-size; }
 .scr-tracks .track-foot { flex-wrap: nowrap; }
+/* Voltas e recorde encolhem na mesma proporção do nome (18:15), para o nome seguir o maior texto. */
+.scr-tracks .track-info .meta, .scr-tracks .track-info .track-best { font-size: min(var(--fs-sm), 9.2cqi); }
 .scr-tracks .track-name {
-  font-size: var(--fs);
+  /* Palavra longa não quebra ("Transpantaneira", ~8,6 em): quando o cartão estreita mais que a letra
+     (telas mais altas que 16:9, onde --u cresce com a altura), o nome encolhe para caber numa linha. */
+  font-size: min(var(--fs), 11cqi);
   font-weight: 800;
   text-transform: none;
   letter-spacing: 0.01em;

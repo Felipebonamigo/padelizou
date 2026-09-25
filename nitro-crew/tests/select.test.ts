@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { CUPS } from '../src/core/data/cups';
 import { TRACKS } from '../src/core/track/tracks';
 import type { TrackDef } from '../src/core/types';
-import { DEFAULT_SAVE } from '../src/game/contracts';
 import { isCupUnlocked } from '../src/game/save';
-import { cupDifficulty, cupStatus, cupTracks, frontierCupIndex, TRACK_GRID_COLS } from '../src/ui/screens/select';
+import { DEFAULT_SAVE, DEFAULT_SETTINGS } from '../src/game/contracts';
+import { cupDifficulty, cupStatus, cupTracks, frontierCupIndex, TRACK_GRID_COLS, trackCardLaps } from '../src/ui/screens/select';
 
 const ctxWith = (cupsCompleted: string[]) => {
   const save = { ...DEFAULT_SAVE, cupsCompleted };
@@ -48,5 +48,12 @@ describe('tela de pistas', () => {
   it('a grade tem uma copa por linha: toda copa tem exatamente TRACK_GRID_COLS pistas', () => {
     // Se uma copa tiver pista a mais ou a menos, ↑↓ deixam de trocar de copa na mesma coluna.
     for (const c of CUPS) expect(cupTracks({ tracks: TRACKS }, c), c.id).toHaveLength(TRACK_GRID_COLS);
+  });
+
+  // Revisão de 25/09: no contra-relógio o cartão mostrava as voltas da pista (4 nas de noite), mas a
+  // sessão larga com settings.quickLaps (session.ts: startTimeTrial → startQuick(…, quickLaps, …, true)).
+  it('o cartão mostra as voltas com que a corrida vai largar: as da corrida rápida, também no contra-relógio', () => {
+    const ctx = { settings: { ...DEFAULT_SETTINGS, quickLaps: 5 } };
+    expect(trackCardLaps(ctx)).toBe(5);
   });
 });
