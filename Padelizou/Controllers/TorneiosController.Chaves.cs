@@ -486,7 +486,9 @@ namespace Padelizou.Controllers
             await TirarDuplaDoTorneioAsync(dupla, torneio,
                 $"O organizador cancelou sua inscrição em {torneio.Nome} porque você ficou sem parceiro até "
                 + "o sorteio das chaves."
-                + (avisoDoDinheiro == null && dupla.Pago ? " O valor pago foi estornado." : ""));
+                + (avisoDoDinheiro == null && dupla.Pago ? " O valor pago foi estornado." : ""),
+                // Quem cancela é o organizador, na tela dele: o motivo é a remoção, não o calote.
+                MotivoDaSaida.RemovidoPeloOrganizador, ObterJogadorIdLogado());
 
             if (candidatosDoMural.Count > 0)
             {

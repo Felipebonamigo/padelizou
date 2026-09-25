@@ -341,7 +341,8 @@ namespace Padelizou.Controllers
             }
 
             await TirarDuplaDoTorneioAsync(dupla, torneio,
-                $"O organizador removeu sua inscrição em {torneio.Nome}. Se foi engano, fale com ele.");
+                $"O organizador removeu sua inscrição em {torneio.Nome}. Se foi engano, fale com ele.",
+                MotivoDaSaida.RemovidoPeloOrganizador, jogadorId);
 
             TempData["Sucesso"] = "Inscrito removido do torneio.";
             return RedirectToAction("Details", new { id = torneioId });
@@ -469,12 +470,23 @@ namespace Padelizou.Controllers
         //
         // A `mensagem` é do chamador: "o organizador removeu" e "não foi pago até o prazo" são
         // motivos diferentes, e quem recebe merece o motivo certo.
-        private async Task TirarDuplaDoTorneioAsync(Dupla dupla, Torneio torneio, string mensagem)
+        //
+        // ⚠️ `motivo` E `quemPediuId` SÃO OBRIGATÓRIOS desde 25/09/2026, e não opcionais com um
+        // padrão: os três chamadores querem dizer coisas DIFERENTES no histórico (o organizador
+        // removeu, ficou sem parceiro até o sorteio, não pagou no prazo). Um padrão silencioso
+        // aqui faria dois deles gravarem a mesma coisa sem ninguém ter decidido isso.
+        private async Task TirarDuplaDoTorneioAsync(Dupla dupla, Torneio torneio, string mensagem,
+            MotivoDaSaida motivo, int? quemPediuId)
         {
             bool eraConfirmada = !dupla.EmListaDeEspera;
             int categoriaId = dupla.CategoriaId;
             var removidos = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
                 .Where(i => i != null).Select(i => i!.Value).ToList();
+
+            // ⚠️ ANTES do Remove: depois dele a dupla não tem mais o que contar, e o histórico
+            // nasceria sem quem estava nela nem se a inscrição estava paga.
+            await RegistrarSaidaAsync(torneio, categoriaId, dupla.Jogador1Id, dupla.Jogador2Id,
+                quemPediuId, motivo, observacao: null, estavaPaga: dupla.Pago, abriuVaga: true);
 
             _context.Duplas.Remove(dupla);
             await _context.SaveChangesAsync();
@@ -496,7 +508,11 @@ namespace Padelizou.Controllers
         // `escolha` só é lida quando a dupla está completa. Ela cai em `SoEu` quando o formulário
         // não manda nada, e isso é de propósito: `SoEu` é a saída que NÃO tira a vaga de
         // ninguém, então um campo perdido no caminho nunca desinscreve o parceiro por acidente.
-        public async Task<IActionResult> Desistir(int duplaId, EscolhaDeQuemSai escolha = EscolhaDeQuemSai.SoEu)
+        //
+        // `observacao` é o "por quê?" opcional da tela (25/09/2026). Opcional de propósito:
+        // obrigatório faz a pessoa digitar "x" pra passar, e aí o campo mente.
+        public async Task<IActionResult> Desistir(int duplaId, EscolhaDeQuemSai escolha = EscolhaDeQuemSai.SoEu,
+            string? observacao = null)
         {
             var dupla = await _context.Duplas
                 .Include(d => d.Categoria)
@@ -522,6 +538,11 @@ namespace Padelizou.Controllers
                 // O efeito mora em TirarDaInscricaoAsync (TorneiosController.RecusaDaInscricao),
                 // junto com o da recusa: é a MESMA mexida na inscrição, e escrita duas vezes
                 // uma das cópias acabaria esquecendo de levar a pergunta de quem saiu.
+                // ⚠️ ANTES de mexer na inscrição: depois, `dupla.Jogador1Id` já é o parceiro
+                // que ficou (ele é promovido de slot), e o histórico gravaria o nome errado.
+                await RegistrarSaidaAsync(torneio!, dupla.CategoriaId, meuId, null, meuId,
+                    MotivoDaSaida.Desistiu, observacao, dupla.Pago, abriuVaga: false);
+
                 await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
                 await AvisarAsync(new[] { quemFica!.Value }, "Seu parceiro desistiu",
@@ -534,6 +555,10 @@ namespace Padelizou.Controllers
 
             // Estava sozinho, ou os dois saem juntos: a inscrição acaba e a vaga volta pra fila.
             bool eraPaga = dupla.Pago;
+
+            await RegistrarSaidaAsync(torneio!, dupla.CategoriaId, dupla.Jogador1Id, dupla.Jogador2Id,
+                meuId, MotivoDaSaida.Desistiu, observacao, eraPaga, abriuVaga: true);
+
             await TirarDaInscricaoAsync(dupla, escolha, meuId);
 
             // O parceiro não clicou em nada e mesmo assim deixou de estar inscrito. Ele PRECISA
@@ -546,8 +571,6 @@ namespace Padelizou.Controllers
                     + "Se foi engano, dá pra se inscrever de novo enquanto as inscrições estiverem abertas.",
                     torneioId);
             }
-
-            await AvisarOrganizadorDeSaidaPagaAsync(eraPaga, torneio!, euMesmo);
 
             if (eraConfirmada) await PromoverDaListaDeEsperaAsync(dupla.CategoriaId, torneio!);
 
@@ -1087,7 +1110,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DesistirDoAmericano(int inscricaoId)
+        public async Task<IActionResult> DesistirDoAmericano(int inscricaoId, string? observacao = null)
         {
             var inscricao = await _context.InscricoesAmericanas
                 .Include(i => i.Categoria)
@@ -1109,10 +1132,14 @@ namespace Padelizou.Controllers
             bool eraPaga = inscricao.Pago;
             int categoriaId = inscricao.CategoriaId;
 
+            // ⚠️ ANTES do Remove, como nas outras portas: depois dele a inscrição não tem mais
+            // o que contar. No Americano a inscrição é individual, então sair é SEMPRE a
+            // inscrição inteira — não existe o caso "só eu" daqui.
+            await RegistrarSaidaAsync(torneio!, categoriaId, inscricao.JogadorId, null, meuId,
+                MotivoDaSaida.Desistiu, observacao, eraPaga, abriuVaga: true);
+
             _context.InscricoesAmericanas.Remove(inscricao);
             await _context.SaveChangesAsync();
-
-            await AvisarOrganizadorDeSaidaPagaAsync(eraPaga, torneio!, euMesmo);
 
             if (eraConfirmada) await PromoverDaListaDeEsperaAsync(categoriaId, torneio!);
 
@@ -1126,18 +1153,45 @@ namespace Padelizou.Controllers
         // do organizador, na tela de pagamentos dele (ver ESTORNO.md). O buraco era outro — ele
         // não ficava sabendo que alguém pago tinha saído, então a devolução dependia de ele
         // reparar numa vaga a menos na lista. Este aviso é a ponte entre as duas metades.
-        private async Task AvisarOrganizadorDeSaidaPagaAsync(bool eraPaga, Torneio torneio, Jogador? quemSaiu)
+        // GRAVA A SAÍDA E AVISA QUEM PRECISA — as duas coisas juntas porque nascem do mesmo
+        // fato, e separadas é como uma das quatro portas acaba gravando sem avisar (ou o
+        // contrário).
+        //
+        // ⚠️ O AVISO SAI PRA TODO ORGANIZADOR MENOS QUEM PEDIU, e isso resolve dois casos com
+        // uma linha: quando o inscrito desiste, todos são avisados; quando o organizador A
+        // remove alguém, o B fica sabendo e o A não leva aviso do próprio clique.
+        //
+        // ⚠️ E SÓ QUANDO ABRIU VAGA. No "só eu saio" o parceiro continua inscrito e não há nada
+        // que o organizador faça — isso fica no histórico, que é onde mora o que é bom saber e
+        // não pede ação.
+        private async Task RegistrarSaidaAsync(Torneio torneio, int categoriaId,
+            int jogador1Id, int? jogador2Id, int? quemPediuId, MotivoDaSaida motivo,
+            string? observacao, bool estavaPaga, bool abriuVaga)
         {
-            if (!eraPaga) return;
+            var saida = RegistroDeSaida.Montar(torneio.Id, categoriaId, jogador1Id, jogador2Id,
+                quemPediuId, motivo, observacao, estavaPaga, abriuVaga, DateTime.Now);
+
+            _context.SaidasDoTorneio.Add(saida);
+            await _context.SaveChangesAsync();
+
+            if (!abriuVaga) return;
 
             var organizadores = await _context.TorneioOrganizadores
-                .Where(o => o.TorneioId == torneio.Id)
+                .Where(o => o.TorneioId == torneio.Id && o.JogadorId != quemPediuId)
                 .Select(o => o.JogadorId)
                 .ToListAsync();
 
-            await AvisarAsync(organizadores, "Saiu do torneio uma inscrição PAGA",
-                $"{quemSaiu?.ComoChamar ?? "Um inscrito"} cancelou a inscrição em {torneio.Nome}, e ela estava paga. "
-                + "O estorno não é automático: se for o caso de devolver, faça em Pagamentos → Meus.",
+            if (organizadores.Count == 0) return;
+
+            var nomes = await _context.Jogadores
+                .Where(j => j.Id == jogador1Id || (jogador2Id != null && j.Id == jogador2Id))
+                .Select(j => j.Nome)
+                .ToListAsync();
+
+            var quemSaiu = nomes.Count > 0 ? string.Join(" e ", nomes) : "Um inscrito";
+            var (titulo, frase) = RegistroDeSaida.AvisoAoOrganizador(saida, quemSaiu, torneio.Nome);
+
+            await AvisarAsync(organizadores, titulo, frase,
                 // ⚠️ `SoApp`, e não o WhatsApp — decisão do Felipe em 01/09/2026, revertendo a
                 // minha. Este aviso passa nos três critérios do canal (pessoal, urgente,
                 // acionável) e o volume é ridículo, mas a família de torneio SAIU do canal em

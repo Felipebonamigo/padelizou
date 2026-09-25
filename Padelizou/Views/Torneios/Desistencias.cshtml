@@ -1,0 +1,93 @@
+@model IReadOnlyList<Padelizou.ViewModels.SaidaNaTela>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    ViewData["Title"] = "Quem saiu do torneio";
+    var vagasAbertas = Model.Count(s => s.AbriuVaga);
+}
+
+@* POR QUE CADA VAGA ABRIU. Irmã da NaoPagos: aquela pergunta "quem ainda não pagou?" e deixa
+   agir; esta só conta o que já aconteceu, e é por isso que não tem botão nenhum. *@
+
+<div class="mb-4">
+    <a asp-action="Details" asp-route-id="@torneio.Id" class="btn btn-sm btn-link ps-0">
+        <i class="bi bi-arrow-left"></i> Voltar pro torneio
+    </a>
+    <h2 class="fw-bold" style="color: var(--pdz-ink);">Quem saiu do torneio</h2>
+    <p class="text-muted mb-0">@torneio.Nome</p>
+</div>
+
+@if (Model.Count == 0)
+{
+    @* ⚠️ A tabela só começa a contar a partir de 25/09/2026: o cancelamento APAGAVA a inscrição
+       e não sobrava nada. Dizer isso evita que o organizador leia "ninguém saiu" num torneio
+       antigo e conclua que o sistema perdeu o registro. *@
+    <div class="alert alert-secondary border-0 shadow-sm">
+        <p class="fw-bold mb-1"><i class="bi bi-inbox"></i> Ninguém saiu ainda.</p>
+        <p class="small mb-0">
+            Quando alguém desistir, for removido ou cair por falta de pagamento, a linha aparece aqui.
+            O histórico começou em 25/09/2026 — saídas anteriores a essa data não foram guardadas.
+        </p>
+    </div>
+    return;
+}
+
+<div class="alert alert-secondary border-0 shadow-sm d-flex align-items-center gap-2">
+    <i class="bi bi-door-open fs-4"></i>
+    <div class="small">
+        <strong>@Model.Count saída(s)</strong>, sendo <strong>@vagasAbertas</strong> que abriram vaga.
+        Quem saiu da dupla e deixou o parceiro inscrito não abre vaga — por isso os dois números diferem.
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr class="small text-muted">
+                    <th>Quando</th>
+                    <th>Quem saiu</th>
+                    <th>Categoria</th>
+                    <th>Motivo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr>
+                        <td class="text-nowrap small">@s.SaiuEm.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            <div class="fw-semibold">@s.QuemSaiu</div>
+                            @if (s.Observacao is { } motivo)
+                            {
+                                @* O "por quê?" que a pessoa escreveu. Entre aspas porque é fala
+                                   dela, não rótulo nosso. *@
+                                <div class="text-muted fst-italic" style="font-size: .8rem;">“@motivo”</div>
+                            }
+                        </td>
+                        <td class="small">@s.Categoria</td>
+                        <td class="small">
+                            @s.Motivo
+                            @if (s.QuemPediu is { } quem && s.Motivo == "O organizador removeu")
+                            {
+                                <div class="text-muted" style="font-size: .75rem;">por @quem</div>
+                            }
+                        </td>
+                        <td class="text-nowrap">
+                            @if (s.EstavaPaga)
+                            {
+                                @* O selo do dinheiro é o que mais importa nesta linha: é ele que
+                                   diz que há estorno a decidir. O estorno NÃO é automático. *@
+                                <span class="badge bg-warning text-dark">estava paga</span>
+                            }
+                            @if (!s.AbriuVaga)
+                            {
+                                <span class="badge bg-light text-dark border">não abriu vaga</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

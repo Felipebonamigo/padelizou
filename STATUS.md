@@ -1,6 +1,32 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **25/09/2026** — 🚪 **"POR QUE ESSA VAGA ABRIU": O ORGANIZADOR PASSA A SABER QUEM SAIU, E A TER ONDE OLHAR.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (`HistoricoDeSaidasDoTorneio` — tabela nova, nada alterado). 🗣️ Felipe: *"o organizador receber a notificação quando alguem ou alguma dupla cancelar sua inscrição do torneio, e ter um histórico para isso, para ver quem desistiu"*.
+>
+> 🕳️ **NÃO HAVIA HISTÓRICO ESCONDIDO — HAVIA AUSÊNCIA DE DADO.** `TirarDaInscricaoAsync` faz `Duplas.Remove(dupla)`: depois do cancelamento não sobrava nome, data, nem se estava paga. Por isso precisou de TABELA, e não de consulta.
+>
+> 🔔 **E METADE DO PEDIDO JÁ EXISTIA, COM UM `if` NO MEIO.** `AvisarOrganizadorDeSaidaPagaAsync` abria com **`if (!eraPaga) return;`** — o aviso nasceu pro **estorno**, não pra vaga, e quem desistia sem ter pago saía em silêncio. A vaga aberta é o que faz o organizador correr atrás de quem a preencha, e ela abre pagando ou não.
+>
+> 🚪 **ERAM CINCO PORTAS DE SAÍDA, NÃO UMA — e a quinta quase ficou de fora.** `Desistir`, `DesistirDoAmericano`, `RemoverDupla`, `TirarDuplaDoTorneioAsync` (não pagou) e a **RECUSA** de quem foi inscrito por outro. Esta última não se chama "cancelar" em lugar nenhum da tela, mas o efeito é o mesmo — e um histórico que a pula some justamente com quem **nunca quis entrar**.
+>
+> 🧱 **`motivo` E `quemPediuId` VIRARAM OBRIGATÓRIOS** em `TirarDuplaDoTorneioAsync`: os três chamadores dizem coisas diferentes (o organizador removeu · ficou sem parceiro até o sorteio · não pagou no prazo), e um padrão silencioso faria dois deles gravarem a mesma coisa sem ninguém decidir isso.
+>
+> 📏 **UMA LINHA POR SAÍDA, E NÃO POR PESSOA**: a dupla que sai inteira abre **uma** vaga, não duas — com linha por pessoa, a contagem dobraria calada. E responde "quem desistiu" igual, porque os dois nomes estão na linha.
+>
+> 🔒 **O NOME NÃO FICA CONGELADO, E ISSO É DECISÃO, NÃO ESQUECIMENTO.** O histórico guarda **id** e resolve o nome na leitura. Congelar criaria uma **segunda cópia de dado pessoal** que ninguém lembra de limpar quando alguém exerce o direito de sair — a régua disso mora num lugar só (`Services/ExclusaoDeConta`). O custo é a linha de conta encerrada mostrar *"Conta encerrada"*, e é o custo certo.
+>
+> 🔗 **SEM FK PRA `Jogador`**, seguindo o precedente escrito no `InscritoPorOutro.InscritoPorId`: *"já existe caminho de cascade demais saindo de Jogador"*. Cascade só no **Torneio** — histórico não significa nada sem o torneio; categoria apagada não leva o registro junto.
+>
+> 🔕 **O AVISO SAI PRA TODO ORGANIZADOR MENOS QUEM PEDIU** — uma linha que resolve dois casos: o inscrito desiste e todos sabem; o organizador A remove e o B fica sabendo, sem o A levar aviso do próprio clique. E **só quando abriu vaga**: no "só eu saio" não há nada que ele faça, então fica no histórico.
+>
+> 🖥️ **A TELA É IRMÃ DA `NaoPagos`** — mesma régua (`EhOrganizadorAsync`), mesma gestão. ⚠️ Mas com o **link em `_FerramentasDoOrganizador`**, e não só por push: a `NaoPagos` até hoje só se acha pela notificação, e tela que some junto com o push apagado é tela que não existe.
+>
+> 🧪 **FALSIFICADO**: repondo o `if (!estavaPaga) return;`, o aviso da inscrição não paga volta a não sair. E o `RotuloDoMotivo` **não tem `_ =>`** de propósito — motivo novo no enum quebra o build em vez de aparecer com o rótulo do vizinho.
+>
+> ⚠️ **A TABELA SÓ CONTA A PARTIR DE HOJE**, e a tela diz isso na cara: saída anterior a 25/09 não foi guardada, e ler "ninguém saiu" num torneio antigo não pode parecer perda de registro.
+>
+> **7.540 testes verdes** (11 novos; o comportamento central visto VERMELHO), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
+
 > Última atualização: **24/09/2026** — 🏷️ **O BOTÃO PROMETIA MENOS DO QUE ENTREGA: "Definir por CPF" virou "Definir parceiro".** 🚀 **PUBLICADO em `dev` E `prod` no `build-1489-432b5b3`** (deploy runs **409** e **410**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #348. ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da própria inscrição: *"aqui esta escrito 'definir por cpf' mas tambem permite por nome, temos q trocar o nome desse botão"*.
 >
 > 🙃 **MENTIRA DE RÓTULO AO CONTRÁRIO — e é por isso que ela passou tanto tempo de pé.** O caso do `build-373` era um selo prometendo o que o sistema **não** fazia; aqui o botão **esconde** o que ele faz. O painel abre com `Procure pelo nome ou apelido` em cima e o CPF embaixo, mas quem não tem o documento do parceiro em mãos lê "Definir por CPF" e **não clica** — o caminho fácil ficava atrás de uma porta com a placa errada.

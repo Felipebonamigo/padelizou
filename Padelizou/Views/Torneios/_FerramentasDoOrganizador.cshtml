@@ -34,6 +34,12 @@
             <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                 <i class="bi bi-file-earmark-text"></i> Relatório / PDF
             </a>
+            @* QUEM SAIU (25/09/2026). ⚠️ O link mora aqui e não num aviso solto porque tela que
+               só se alcança por push some pra quem apagou o push — é a mesma lição da NaoPagos,
+               que até hoje só se acha pela notificação. *@
+            <a asp-action="Desistencias" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-door-open"></i> Quem saiu
+            </a>
             @* O CARTAZ, depois que a chave saiu (11/09/2026 — 🗣️ Felipe: *"oculte esse 'cartaz
                pra divulgar' ou coloque ele em outro lugar"*). Lá no topo ele era a primeira
                coisa que todo jogador via no dia do jogo, chamando pra uma inscrição que já
