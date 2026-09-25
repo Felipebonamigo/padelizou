@@ -12,8 +12,8 @@ import {
 import type { RaceMode, SaveData } from '../src/game/contracts';
 import { NAME_MAX_LENGTH, recordRaceResults, sanitizeSave } from '../src/game/save';
 import {
-  EMPTY_STATS, formatDistance, formatDuration, MAX_PROFILES, METERS_PER_UNIT, PROFILE_NAME_MAX, raceContributions, recordRaceStats,
-  sanitizeStats, type StatsData,
+  EMPTY_STATS, formatDistance, formatDuration, MAX_PROFILES, METERS_PER_UNIT, playerLine, PROFILE_NAME_MAX, raceContributions, recordRaceStats,
+  recordsLine, sanitizeStats, type StatsData,
 } from '../src/game/stats';
 import { ALL_ASSISTS, human, quickRace, skipCountdown, syntheticTrack } from './helpers';
 
@@ -439,13 +439,39 @@ describe('limite de perfis', () => {
 describe('formatação', () => {
   it('distância em km com o separador do idioma e tempo acumulado', () => {
     expect(formatDistance(1234, 'pt')).toBe('1,2 km');
-    expect(formatDistance(1_234_567, 'pt')).toBe('1.235 km');
-    expect(formatDistance(1_234_567, 'en')).toBe('1,235 km');
     expect(formatDuration(42 * TICK_RATE)).toBe('0:42');
     expect(formatDuration((12 * 60 + 5) * TICK_RATE)).toBe('12:05');
     expect(formatDuration((3 * 3600 + 7 * 60 + 45) * TICK_RATE + 30)).toBe('3:07:45');
   });
+  it('a distância trunca em vez de arredondar: a tela nunca mostra uma meta que ainda não foi batida', () => {
+    // Revisão: 999.600 m apareciam como "1.000 km" com a MARATONA (1.000.000 m) ainda bloqueada.
+    expect(formatDistance(MARATHON_METERS - 400, 'pt')).toBe('999 km');
+    expect(formatDistance(MARATHON_METERS - 1, 'en')).toBe('999 km');
+    expect(formatDistance(MARATHON_METERS, 'pt')).toBe('1.000 km');
+    expect(formatDistance(99_960, 'pt')).toBe('99,9 km');
+    expect(formatDistance(1_234_567, 'pt')).toBe('1.234 km');
+    expect(formatDistance(1_234_567, 'en')).toBe('1,234 km');
+    expect(formatDistance(0, 'pt')).toBe('0,0 km');
+  });
   it('a escala é a do velocímetro: 6000 u/s por uma hora = 300 km', () => {
     expect(Math.round(6000 * 3600 * METERS_PER_UNIT)).toBe(300_000);
+  });
+});
+
+describe('textos com número', () => {
+  it('singular só para 1: "1 corrida · 0 vitórias", nunca "1 corridas"', () => {
+    // Revisão: depois de uma corrida, toda linha da lista de jogadores dizia "1 corridas · 0 vitórias".
+    setLanguage('pt');
+    expect(playerLine({ races: 1, wins: 0 })).toBe('1 corrida · 0 vitórias');
+    expect(playerLine({ races: 2, wins: 1 })).toBe('2 corridas · 1 vitória');
+    expect(playerLine({ races: 1234, wins: 0 })).toBe('1.234 corridas · 0 vitórias');
+    expect(recordsLine(1, 1, 1)).toBe('1 corrida · 1 vitória · 1 copa concluída');
+    expect(recordsLine(6, 0, 0)).toBe('6 corridas · 0 vitórias · 0 copas concluídas');
+    setLanguage('en');
+    expect(playerLine({ races: 1, wins: 0 })).toBe('1 race · 0 wins');
+    expect(playerLine({ races: 2, wins: 1 })).toBe('2 races · 1 win');
+    expect(recordsLine(1, 1, 1)).toBe('1 race · 1 win · 1 cup completed');
+    expect(recordsLine(0, 0, 2)).toBe('0 races · 0 wins · 2 cups completed');
+    setLanguage('pt');
   });
 });

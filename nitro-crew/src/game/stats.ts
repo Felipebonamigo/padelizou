@@ -8,6 +8,8 @@
 import { isCoop } from '../core/championship';
 import { MAX_CARS, SPEED_TO_KMH, TICK_RATE } from '../core/constants';
 import type { HumanEntry, RaceResultRow, RaceState } from '../core/types';
+import { getLanguage, t } from '../i18n';
+import '../stats/strings';
 import type { RaceTelemetry } from './achievements';
 import type { RaceMode } from './contracts';
 
@@ -249,12 +251,37 @@ export function sanitizeStats(raw: unknown): StatsData {
 
 // ───────────────────────────── Formatação ─────────────────────────────
 
-/** "1.234,5 km" / "1,234.5 km": uma casa abaixo de 100 km, inteiro acima. */
+/**
+ * "1.234,5 km" / "1,234.5 km": uma casa abaixo de 100 km, inteiro acima. Trunca em vez de
+ * arredondar: 999.600 m é "999 km", nunca "1.000 km" com a MARATONA ainda bloqueada.
+ */
 export function formatDistance(meters: number, lang: 'pt' | 'en'): string {
-  const km = meters / 1000;
-  const digits = km < 100 ? 1 : 0;
+  const m = Math.max(0, Math.floor(meters));
+  const digits = m < 100_000 ? 1 : 0;
+  // Divisão inteira antes de voltar a km: sem erro de ponto flutuante no corte.
+  const km = digits === 1 ? Math.floor(m / 100) / 10 : Math.floor(m / 1000);
   const n = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(km);
   return `${n} km`;
+}
+
+/** Inteiro com o separador de milhar do idioma atual. */
+export function formatCount(n: number): string {
+  return new Intl.NumberFormat(getLanguage() === 'pt' ? 'pt-BR' : 'en-US').format(n);
+}
+
+/** "1 corrida" / "2 corridas": singular só para 1 (PT e EN), com o separador de milhar. */
+export function countText(kind: 'races' | 'wins' | 'cups', n: number): string {
+  return t(`stats.count.${kind}.${n === 1 ? 'one' : 'other'}`, { n: formatCount(n) });
+}
+
+/** Linha de um jogador na lista da tela de recordes. */
+export function playerLine(s: Pick<PlayerStats, 'races' | 'wins'>): string {
+  return `${countText('races', s.races)} · ${countText('wins', s.wins)}`;
+}
+
+/** Cabeçalho da tela de recordes: corridas, vitórias e copas do save (uma por corrida, não por jogador). */
+export function recordsLine(run: number, won: number, cups: number): string {
+  return `${countText('races', run)} · ${countText('wins', won)} · ${countText('cups', cups)}`;
 }
 
 /** Tempo de corrida acumulado: "0:42", "12:05", "3:07:45" (h:mm:ss a partir de uma hora). */

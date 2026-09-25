@@ -3,7 +3,9 @@
 import { formatTicks } from '../../core/sim/race';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import { ACHIEVEMENTS } from '../../game/desktop';
-import { COUNTER_KEYS, formatDistance, formatDuration, MAX_PROFILES, tracksRaced, type CounterKey, type PlayerStats } from '../../game/stats';
+import {
+  COUNTER_KEYS, formatCount, formatDistance, formatDuration, MAX_PROFILES, playerLine, recordsLine, tracksRaced, type CounterKey, type PlayerStats,
+} from '../../game/stats';
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
 import { isKeyboard } from '../input';
@@ -137,14 +139,10 @@ function tracksTab(api: ScreenApi): TabView {
   return tabView(api, rows, content);
 }
 
-function numberText(n: number): string {
-  return new Intl.NumberFormat(getLanguage() === 'pt' ? 'pt-BR' : 'en-US').format(n);
-}
-
 function statText(key: CounterKey, s: PlayerStats): string {
   if (key === 'meters') return formatDistance(s.meters, getLanguage());
   if (key === 'raceTicks') return formatDuration(s.raceTicks);
-  return numberText(s[key]);
+  return formatCount(s[key]);
 }
 
 /** Cabeçalho e contadores do jogador mostrado (refeitos a cada troca de foco). */
@@ -200,7 +198,8 @@ function playersTab(api: ScreenApi): TabView {
     e.all ? h('span', { class: 'pl-avatar all' }, icon('users')) : h('span', { class: 'pl-avatar', text: e.name.slice(0, 1).toUpperCase() }),
     h('span', { class: 'pl-text' },
       h('span', { class: 'pl-name', text: e.name }),
-      h('span', { class: 'pl-sub', text: t('stats.players.summary', { races: numberText(e.s.races), wins: numberText(e.s.wins) }) }),
+      // O total não repete "N corridas": somando jogadores, ele não bate com o cabeçalho (uma por corrida).
+      h('span', { class: 'pl-sub', text: e.all ? t('stats.players.allSummary') : playerLine(e.s) }),
     ),
   ) }));
   const summary = h('div', { class: 'pl-summary' });
@@ -284,7 +283,7 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
   markTabs();
 
   const el = screenFrame('records', t('ui.records.title'),
-    h('p', { class: 'hint', text: t('ui.records.stats', { run: save.racesRun, won: save.racesWon, cups: save.cupsCompleted.length }) }),
+    h('p', { class: 'hint', text: recordsLine(save.racesRun, save.racesWon, save.cupsCompleted.length) }),
     h('div', { class: 'rec-tabs', attrs: { role: 'tablist' } },
       arrowButton(-1, () => { select(tab - 1); api.sfx('move'); }),
       h('div', { class: 'rec-tab-row' }, tabButtons),
