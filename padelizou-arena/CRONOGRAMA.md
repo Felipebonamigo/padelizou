@@ -59,26 +59,26 @@ O jogo inteiro, feio. Tudo o que é *sensação de jogo* nasce aqui, e é onde m
 - [x] Movimento com peso (aceleração 9 m/s², frenagem 14) — no `Core` desde 25/09.
 - [x] Golpes com **timing**: balanço de 0,3 s, contato ideal a 0,12 s; cedo é bola no ar, tarde é bola no corpo — no `Core` desde 25/09. Direção pelo analógico; tipos: drive, revés, voleio, **bandeja, víbora, smash, lob** (feitos), **chiquita, contra-parede, remate por 3 e por 4, drive x revés com a mão (destro/canhoto)** (feitos em 25/09, `GolpesEspeciais`); **saída de parede dupla como intenção** (falta). A bandeja e a víbora são o que faz o padeleiro sorrir — prioridade.
 - [x] Física da bola real (arrasto quadrático, efeito, quique com spin, vidro x grade) — no `Core` desde 25/09.
-- Corpo virado (drive x revés), contato na raquete e não no centro, passo de ajuste, salto no smash — depende da primeira animação.
-- Captura por vídeo (Move One / Rokoko Vision) de ~20 golpes de um jogador real, já no M1, pro *feel*.
-- Calibrar com vídeo de transmissão (velocidade de smash, altura de lob, quique no vidro): cada ajuste vira teste.
-- Controle de gamepad e teclado (Steam Input desde já).
-- IA em três níveis com formação de verdade (dupla sobe junto, defende junto).
-- Câmera de TV atrás da dupla, com a rede sempre visível; câmera alternativa "lado".
-- Partida completa com regras oficiais, placar, replays curtos do ponto.
-- **Cooperativo local** (2 gamepads) e 1 x 1 local.
-- Som placeholder e música temporária.
-- Playtest com **5 pessoas que jogam padel** e 5 que não jogam. Gravar a tela.
+- [ ] Corpo virado (drive x revés), contato na raquete e não no centro, passo de ajuste, salto no smash — depende da primeira animação. *(drive x revés e contato ao lado do corpo já estão no `Core` desde 25/09; falta a animação)*
+- [ ] Captura por vídeo (Move One / Rokoko Vision) de ~20 golpes de um jogador real, já no M1, pro *feel*.
+- [ ] Calibrar com vídeo de transmissão (velocidade de smash, altura de lob, quique no vidro): cada ajuste vira teste. *(o humano simulado e `ferramentas/Calibracao` já calibram o timing sem playtest)*
+- [x] Controle de gamepad e teclado — qualquer controle no jogo sozinho; no coop, controle 0 e 1 (25/09). *(Steam Input entra com o Facepunch, M4)*
+- [ ] IA em três níveis com formação de verdade (dupla sobe junto, defende junto). *(três níveis feitos; a formação da dupla falta)*
+- [x] Câmera de TV atrás da dupla de quem joga (no online, do lado do cliente), com a rede sempre visível; câmera lateral no replay (25/09).
+- [x] Partida completa com regras oficiais, placar de TV, pausa, tela de fim com estatísticas e replay do ponto em câmera lenta (25/09).
+- [ ] **Cooperativo local** (2 gamepads) e 1 x 1 local. *(coop feito em 25/09; 1 x 1 falta)*
+- [ ] Som placeholder e música temporária. *(som sintetizado feito em 25/09: raquete, vidro, grade, quique, passos, clube, público; música falta)*
+- [ ] Playtest com **5 pessoas que jogam padel** e 5 que não jogam. Gravar a tela.
 - **Pronto quando**: 8 dos 10 testadores jogam 20 minutos sem ser pedidos e dizem uma coisa que querem de volta. Se não passar, M1 continua — não se vai pra arte com jogo chato.
 
 ### M2 — Online (semanas 11–18)
 
-- Arquitetura: host autoritativo a 60 Hz, cliente manda entradas, host manda snapshots a 30 Hz; predição do próprio jogador, interpolação dos outros; a bola é simulada pelo `Core` em todo mundo e corrigida pelo snapshot.
-- Transporte: ENet (Godot) no dev; **Steam Datagram Relay** via Facepunch.Steamworks no release (NAT traversal e anti-DDoS de graça).
-- Lobby: convidar amigo pela Steam, lobby público com lista, 2x2 e 1x1, dupla fixa + dupla aleatória.
-- Reconexão em até 30 s; se o host sair, a partida encerra (servidor dedicado fica pro 1.0).
-- Teste com latência simulada de 80, 150 e 250 ms — o jogo tem que ser justo a 150.
-- Rank inicial (Elo por dupla e por jogador) — pode reusar a régua do Padelímetro (`RANKING.md` do Padelizou).
+- [x] Arquitetura (25/09, `Padel.Core.Rede`): host autoritativo a **120** Hz, cliente manda entradas, host manda snapshots a 30 Hz; predição do próprio jogador, interpolação dos outros; a bola é simulada pelo `Core` em todo mundo e corrigida pelo snapshot.
+- [ ] Transporte: ENet (Godot) no dev *(feito em 25/09, `TransporteEnet`)*; **Steam Datagram Relay** via Facepunch.Steamworks no release (NAT traversal e anti-DDoS de graça).
+- [ ] Lobby: convidar amigo pela Steam, lobby público com lista, 2x2 e 1x1, dupla fixa + dupla aleatória.
+- [ ] Reconexão em até 30 s; se o host sair, a partida encerra (servidor dedicado fica pro 1.0).
+- [ ] Teste com latência simulada de 80, 150 e 250 ms — o jogo tem que ser justo a 150. *(o transporte em memória e o `--rede-ruim` do jogo já simulam; a medição de justiça está em andamento)*
+- [x] Rank inicial — a régua do Padelímetro portada (`Padel.Core.Ranking`, 25/09); abandono e melhor de 3 esperam decisão (D9).
 - **Pronto quando**: 4 pessoas em 4 cidades jogam um set inteiro a 150 ms sem reclamar da bola "pulando".
 
 ### M3 — Bonito e com conteúdo (semanas 19–36) — *6 semanas a mais pelo realismo*
@@ -97,7 +97,7 @@ O jogo inteiro, feio. Tudo o que é *sensação de jogo* nasce aqui, e é onde m
 - Cápsulas (todas as 6 medidas), 8 screenshots, trailer, descrição em 3 idiomas, tags certas (Esporte, Multiplayer, Coop Local, Tênis…).
 - **Demo** pública e inscrição no **Steam Next Fest** (edições em fevereiro, junho e outubro; escolher a que cair 2–4 meses antes do Early Access).
 - Conquistas (20), Steam Cloud (perfil), Rich Presence ("Jogando um set, 4-3"), Remote Play Together, controle Steam Input, verificação **Steam Deck**.
-- Builds Windows e Linux automatizadas (export headless do Godot no CI), com `depot` de teste.
+- [x] Builds Windows e Linux automatizadas (export headless do Godot no CI), com `depot` de teste (25/09; o upload espera o AppID).
 - Marketing: 1 clipe curto por semana (TikTok/Reels/YouTube Shorts) a partir da semana 20; contato com 20 influenciadores de padel; parceria com clubes via Padelizou (QR code no torneio → wishlist).
 - **Pronto quando**: página aprovada, demo jogável, 2.000 wishlists antes do Next Fest.
 
