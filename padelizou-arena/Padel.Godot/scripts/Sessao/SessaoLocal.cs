@@ -8,10 +8,20 @@ public sealed class SessaoLocal : ISessao
     private readonly Partida _partida;
     private readonly int[] _locais;
 
-    public SessaoLocal(OpcoesDaPartida opcoes)
+    private readonly string?[] _nomes = new string?[4];
+
+    /// <summary>nomeDoJogador vai pro primeiro jogador desta máquina (o segundo do coop vira "Jogador 2"); destro vale pros dois.</summary>
+    public SessaoLocal(OpcoesDaPartida opcoes, string? nomeDoJogador = null, bool destro = true)
     {
         _partida = new Partida(opcoes);
         _locais = Enumerable.Range(0, 4).Where(i => opcoes.Humanos[i]).ToArray();
+        for (int n = 0; n < _locais.Length; n++)
+        {
+            _partida.Jogadores[_locais[n]].Destro = destro;
+            _nomes[_locais[n]] = n == 0 ? nomeDoJogador : $"Jogador {n + 1}";
+        }
+        // Demonstração (ninguém nos controles): "Você / Parceiro" mentiria; as duplas viram as cores da quadra.
+        if (_locais.Length == 0) { _nomes[0] = "Lima 1"; _nomes[1] = "Lima 2"; _nomes[2] = "Laranja 1"; _nomes[3] = "Laranja 2"; }
         _partida.Evento += AoEvento;
         Retratar();
     }
@@ -58,7 +68,8 @@ public sealed class SessaoLocal : ISessao
         {
             var j = p.Jogadores[i];
             var rj = r.Jogadores[i];
-            rj.Indice = i; rj.Time = j.Time; rj.Lado = j.Lado; rj.Nome = j.Nome;
+            rj.Indice = i; rj.Time = j.Time; rj.Lado = j.Lado; rj.Nome = _nomes[i] is string nome && !string.IsNullOrWhiteSpace(nome) ? nome : j.Nome;
+            rj.Destro = j.Destro;
             rj.X = j.X; rj.Y = j.Y; rj.Vx = j.Vx; rj.Vy = j.Vy;
             rj.Humano = j.Humano;
             rj.Local = Array.IndexOf(_locais, i) >= 0;
@@ -88,6 +99,8 @@ public sealed class SessaoLocal : ISessao
         r.CaixaDoSaque = p.Estado == EstadoDaPartida.Saque ? p.CaixaDoSaque : null;
         r.PingMs = null;
     }
+
+    public EstadoVisivel? EstadoParaOBot() => EstadoVisivel.De(_partida);
 
     public void Dispose() => _partida.Evento -= AoEvento;
 }

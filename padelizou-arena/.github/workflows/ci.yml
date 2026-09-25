@@ -45,6 +45,9 @@ jobs:
       - name: Conferência da interface (linha de comando, configuração, placar, controle)
         working-directory: Padel.Godot
         run: '"$GODOT" --headless --path . res://cenas/TestePlacar.tscn -- --conferir'
+      - name: Conferência da rede (ENet de verdade em 127.0.0.1)
+        working-directory: Padel.Godot
+        run: '"$GODOT" --headless --path . res://cenas/TesteRede.tscn -- --conferir'
       - name: Sons — o gerador confere taxa, bits, pico, DC e o loop do ambiente
         run: python3 ferramentas/teste_sintetizar_sons.py
       - name: Sons — TesteSom (todo golpe do Core tem som, posição, altura, sorteio, prioridade, volume)

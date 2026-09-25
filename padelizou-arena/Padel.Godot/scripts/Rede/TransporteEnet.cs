@@ -1,0 +1,164 @@
+using System.Diagnostics;
+using Godot;
+using Padel.Core;
+using Padel.Core.Rede;
+
+namespace Padel.Godot;
+
+/// <summary>
+/// O transporte da rede de verdade no desenvolvimento (D2/D5): ENet do Godot em baixo nível — ENetConnection e
+/// ENetPacketPeer, sem MultiplayerAPI nem RPC. O protocolo é o do Padel.Core.Rede; aqui só se entrega byte.
+/// Canal 0 = confiável (sala, início), canal 1 = não confiável (entradas, instantâneos).
+/// Condições de teste opcionais (latência, perda) atrasam e descartam pacotes na SAÍDA, pra provar o jogo com rede ruim
+/// sem depender de ferramenta do sistema.
+/// </summary>
+public sealed class TransporteEnet : ITransporte, IDisposable
+{
+    public const int CanalConfiavel = 0;
+    public const int CanalNaoConfiavel = 1;
+    private const int Canais = 2;
+
+    private readonly ENetConnection _conexao = new();
+    private readonly Dictionary<ulong, int> _parPorPeer = [];
+    private readonly Dictionary<int, ENetPacketPeer> _peerPorPar = [];
+    private readonly Queue<EventoDoTransporte> _recebidos = new();
+    private readonly List<(long quando, int par, Canal canal, byte[] dados)> _atrasados = [];
+    private readonly Stopwatch _relogio = Stopwatch.StartNew();
+    private readonly Random _sorteio = new(12345);
+    private int _proximoPar = 1;
+
+    /// <summary>Latência artificial de ida (ms) e perda artificial (0..1) dos pacotes não confiáveis. Só pra teste.</summary>
+    public int LatenciaDeTesteMs { get; set; }
+    public double PerdaDeTeste { get; set; }
+
+    public long BytesEnviados { get; private set; }
+    public long BytesRecebidos { get; private set; }
+    public long PacotesEnviados { get; private set; }
+    public long PacotesRecebidos { get; private set; }
+    public long PacotesDescartadosNoTeste { get; private set; }
+    /// <summary>Envios que o ENet recusou (ex.: par que já estava saindo). Deve ficar em zero; a conferência vigia.</summary>
+    public long EnviosRecusados { get; private set; }
+
+    private TransporteEnet() { }
+
+    /// <summary>Host: escuta na porta (UDP) pra até 3 clientes.</summary>
+    public static TransporteEnet Hospedar(int porta)
+    {
+        var t = new TransporteEnet();
+        var erro = t._conexao.CreateHostBound("*", porta, 3, Canais);
+        if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra abrir a porta UDP {porta}: {erro}");
+        return t;
+    }
+
+    /// <summary>Cliente: começa a conectar no host; o Conectou chega pelo TentarReceber quando o aperto do ENet termina.</summary>
+    public static TransporteEnet Conectar(string endereco, int porta)
+    {
+        var t = new TransporteEnet();
+        var erro = t._conexao.CreateHost(1, Canais);
+        if (erro != Error.Ok) throw new InvalidOperationException($"não deu pra criar o cliente ENet: {erro}");
+        var peer = t._conexao.ConnectToHost(endereco, porta, Canais);
+        if (peer is null) throw new InvalidOperationException($"endereço inválido: {endereco}:{porta}");
+        t.Registrar(peer);
+        return t;
+    }
+
+    private int Registrar(ENetPacketPeer peer)
+    {
+        ulong id = peer.GetInstanceId();
+        if (_parPorPeer.TryGetValue(id, out int par)) return par;
+        par = _proximoPar++;
+        _parPorPeer[id] = par;
+        _peerPorPar[par] = peer;
+        return par;
+    }
+
+    public void Enviar(int par, Canal canal, ReadOnlySpan<byte> dados)
+    {
+        if (!_peerPorPar.ContainsKey(par)) return;
+        if (canal == Canal.NaoConfiavel && PerdaDeTeste > 0 && _sorteio.NextDouble() < PerdaDeTeste) { PacotesDescartadosNoTeste++; return; }
+        if (LatenciaDeTesteMs > 0)
+        {
+            _atrasados.Add((_relogio.ElapsedMilliseconds + LatenciaDeTesteMs, par, canal, dados.ToArray()));
+            return;
+        }
+        EnviarAgora(par, canal, dados);
+    }
+
+    private void EnviarAgora(int par, Canal canal, ReadOnlySpan<byte> dados)
+    {
+        if (!_peerPorPar.TryGetValue(par, out var peer)) return;
+        // Par saindo (Desconectar já pedido) ou ainda conectando: o ENet recusa com "Invalid channel". Não é envio.
+        if (peer.GetState() != ENetPacketPeer.PeerState.Connected) return;
+        var erro = canal == Canal.Confiavel
+            ? peer.Send(CanalConfiavel, dados, (int)ENetPacketPeer.FlagReliable)
+            : peer.Send(CanalNaoConfiavel, dados, (int)ENetPacketPeer.FlagUnsequenced);
+        if (erro != Error.Ok) { EnviosRecusados++; return; }   // par caindo: a rede é assim, o protocolo tolera
+        BytesEnviados += dados.Length;
+        PacotesEnviados++;
+        _conexao.Flush();   // sai já, sem esperar o próximo Service (menos ~8 ms de atraso)
+    }
+
+    public void Desconectar(int par)
+    {
+        // O que a latência de teste ainda segurava pra esse par não sai mais: ele está indo embora.
+        _atrasados.RemoveAll(a => a.par == par);
+        if (_peerPorPar.TryGetValue(par, out var peer)) peer.PeerDisconnect();
+    }
+
+    public void Processar()
+    {
+        // Pacotes com atraso de teste que já venceram (a ordem de envio é a ordem da lista).
+        if (_atrasados.Count > 0)
+        {
+            long agora = _relogio.ElapsedMilliseconds;
+            int vencidos = 0;
+            while (vencidos < _atrasados.Count && _atrasados[vencidos].quando <= agora) vencidos++;
+            for (int i = 0; i < vencidos; i++) EnviarAgora(_atrasados[i].par, _atrasados[i].canal, _atrasados[i].dados);
+            _atrasados.RemoveRange(0, vencidos);
+        }
+
+        for (int guarda = 0; guarda < 512; guarda++)
+        {
+            var evento = _conexao.Service(0);
+            var tipo = (ENetConnection.EventType)(int)evento[0];
+            if (tipo is ENetConnection.EventType.None or ENetConnection.EventType.Error) break;
+            var peer = evento[1].As<ENetPacketPeer>();
+            if (peer is null) continue;
+            switch (tipo)
+            {
+                case ENetConnection.EventType.Connect:
+                    _recebidos.Enqueue(new EventoDoTransporte(TipoDeEventoDoTransporte.Conectou, Registrar(peer)));
+                    break;
+                case ENetConnection.EventType.Disconnect:
+                {
+                    int par = Registrar(peer);
+                    _recebidos.Enqueue(new EventoDoTransporte(TipoDeEventoDoTransporte.Desconectou, par));
+                    _peerPorPar.Remove(par);
+                    _parPorPeer.Remove(peer.GetInstanceId());
+                    break;
+                }
+                case ENetConnection.EventType.Receive:
+                {
+                    int canal = (int)evento[3];
+                    byte[] dados = peer.GetPacket();
+                    BytesRecebidos += dados.Length;
+                    PacotesRecebidos++;
+                    _recebidos.Enqueue(new EventoDoTransporte(TipoDeEventoDoTransporte.Pacote, Registrar(peer),
+                        canal == CanalConfiavel ? Canal.Confiavel : Canal.NaoConfiavel, dados));
+                    break;
+                }
+            }
+        }
+    }
+
+    public bool TentarReceber(out EventoDoTransporte evento) => _recebidos.TryDequeue(out evento);
+
+    /// <summary>Ida e volta medida pelo próprio ENet até o primeiro par (ms), ou null.</summary>
+    public int? PingDoEnetMs => _peerPorPar.Values.FirstOrDefault() is ENetPacketPeer p ? (int)p.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : null;
+
+    public void Dispose()
+    {
+        foreach (var peer in _peerPorPar.Values) peer.PeerDisconnectNow();
+        _conexao.Destroy();
+    }
+}

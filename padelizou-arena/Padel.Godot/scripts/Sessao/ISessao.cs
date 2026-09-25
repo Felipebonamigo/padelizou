@@ -4,8 +4,8 @@ namespace Padel.Godot;
 
 /// <summary>
 /// Onde a partida roda. A tela chama Avancar a cada passo de física com as entradas de quem joga
-/// nesta máquina e desenha o Retrato. Implementações: SessaoLocal (contra a IA, coop no sofá,
-/// demonstração); host e cliente de rede entram no marco M2 sobre o Padel.Core.Rede.
+/// nesta máquina e desenha o Retrato. Implementações: SessaoLocal (contra a IA, coop no sofá, demonstração),
+/// SessaoHost e SessaoCliente (online, sobre o Padel.Core.Rede).
 /// </summary>
 public interface ISessao : IDisposable
 {
@@ -17,4 +17,6 @@ public interface ISessao : IDisposable
     string ResumoParaLog();
     /// <summary>entradas é indexado pelo jogador (time*2 + índice); só as posições locais são lidas.</summary>
     void Avancar(double delta, ReadOnlySpan<Entrada> entradas);
+    /// <summary>O que um jogador desta máquina vê — pro humano simulado (--bot). Null enquanto não há partida.</summary>
+    EstadoVisivel? EstadoParaOBot();
 }

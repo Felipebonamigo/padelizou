@@ -14,11 +14,15 @@ public partial class JogadorNode : Node3D
     private Node3D _corpo = null!;
     private Label3D _nome = null!;
     private MeshInstance3D _raquete = null!;
+    private MeshInstance3D _anel = null!;
 
-    public void Ligar(RetratoDoJogador jogador)
+    /// <summary>Monta o jogador de índice fixo (time*2 + índice); nome e anel vêm do retrato a cada quadro,
+    /// porque no online o cliente só descobre a própria vaga depois de conectar.</summary>
+    public void Ligar(int indice)
     {
-        _indice = jogador.Indice;
-        var cor = jogador.Time == 0 ? Casa : Visitante;
+        _indice = indice;
+        int time = indice / 2, lado = Padel.Core.Quadra.LadoDoTime(time);
+        var cor = time == 0 ? Casa : Visitante;
         _corpo = new Node3D();
         AddChild(_corpo);
         _corpo.AddChild(new MeshInstance3D
@@ -37,40 +41,46 @@ public partial class JogadorNode : Node3D
         var raquete = new MeshInstance3D
         {
             Mesh = new CylinderMesh { TopRadius = 0.13f, BottomRadius = 0.13f, Height = 0.03f },
-            Position = new Vector3(0.42f, 0.95f, -0.15f * jogador.Lado),
+            Position = new Vector3(0.42f, 0.95f, -0.15f * lado),
             RotationDegrees = new Vector3(90, 0, 0),
             MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.1f, 0.1f, 0.12f) },
         };
         _corpo.AddChild(raquete);
         _raquete = raquete;
-        if (jogador.Local)
+        _anel = new MeshInstance3D
         {
-            _corpo.AddChild(new MeshInstance3D
-            {
-                Mesh = new TorusMesh { InnerRadius = 0.42f, OuterRadius = 0.5f },
-                Position = new Vector3(0, 0.02f, 0),
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = Colors.White, EmissionEnabled = true, Emission = Colors.White, EmissionEnergyMultiplier = 0.6f },
-            });
-        }
+            Mesh = new TorusMesh { InnerRadius = 0.42f, OuterRadius = 0.5f },
+            Position = new Vector3(0, 0.02f, 0),
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = Colors.White, EmissionEnabled = true, Emission = Colors.White, EmissionEnergyMultiplier = 0.6f },
+            Visible = false,
+        };
+        _corpo.AddChild(_anel);
         _nome = new Label3D
         {
-            Text = jogador.Nome.ToUpperInvariant(),
+            Text = "",
             FontSize = 48,
             PixelSize = 0.005f,
             Position = new Vector3(0, 2.25f, 0),
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            Modulate = jogador.Local ? Colors.White : new Color(1, 1, 1, 0.7f),
+            Modulate = new Color(1, 1, 1, 0.7f),
             NoDepthTest = true,
         };
         _corpo.AddChild(_nome);
         // Todo mundo olha pra rede.
-        _corpo.RotationDegrees = new Vector3(0, jogador.Lado > 0 ? 0 : 180, 0);
+        _corpo.RotationDegrees = new Vector3(0, lado > 0 ? 0 : 180, 0);
     }
 
     public void Atualizar(RetratoDaPartida retrato, float delta)
     {
         var j = retrato.Jogadores[_indice];
         Position = Coordenadas.NoChao(j.X, j.Y);
+        if (_anel.Visible != j.Local)
+        {
+            _anel.Visible = j.Local;
+            _nome.Modulate = j.Local ? Colors.White : new Color(1, 1, 1, 0.7f);
+        }
+        string nome = j.Nome.ToUpperInvariant();
+        if (_nome.Text != nome) _nome.Text = nome;
         // Corpo vira pra onde anda; raquete gira durante o balanço (placeholder da animação de verdade).
         if (MathF.Sqrt(j.Vx * j.Vx + j.Vy * j.Vy) > 0.5f)
         {
