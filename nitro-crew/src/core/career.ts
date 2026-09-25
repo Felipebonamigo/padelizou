@@ -164,6 +164,11 @@ export function levelsOf(garage: CareerGarage, carId: string): UpgradeLevels {
   return out;
 }
 
+/** Carro com alguma melhoria (nível > 0). Recorde é de carro de fábrica: esse fica fora (save.ts). */
+export function hasUpgrades(up: Partial<UpgradeLevels> | null | undefined): boolean {
+  return !!up && UPGRADE_PARTS.some((p) => (up[p] ?? 0) > 0);
+}
+
 /** Preço do próximo nível da peça (estando em `level`); null quando já está no máximo. */
 export function upgradePrice(part: UpgradePart, level: number): number | null {
   if (level >= UPGRADE_MAX_LEVEL) return null;

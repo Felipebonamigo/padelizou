@@ -1,5 +1,7 @@
 // Modo Carreira (passo 3.3) e campeonato salvo (1.7a): economia, compras, atributos efetivos
 // das melhorias no núcleo, IA que evolui, save e continuar a copa. Tudo puro, sem DOM.
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buyCar, buyUpgrade, CAREER_AI_LEVEL_MAX, CAREER_START_MONEY, careerAiLevel, careerHumans, levelsOf, newCareer,
@@ -23,7 +25,7 @@ import { NEUTRAL_INPUT } from '../src/core/types';
 import { DEFAULT_SAVE } from '../src/game/contracts';
 import { clearCupProgress, saveCupProgress, unlockCar } from '../src/game/career-save';
 import { compactHumans } from '../src/game/career-session';
-import { sanitizeSave } from '../src/game/save';
+import { recordRaceResults, sanitizeSave } from '../src/game/save';
 import { ALL_ASSISTS, NO_ASSISTS, human, humanCar, idle, run, syntheticTrack } from './helpers';
 
 const PARTS: UpgradePart[] = ['engine', 'turbo', 'tires', 'brakes', 'tank', 'nitro'];
@@ -516,5 +518,42 @@ describe('save da carreira e da copa em andamento', () => {
     const out = compactHumans(input, [human(0), { ...human(2), name: 'Bia' }]);
     expect(out.map((h) => [h.seat, h.name])).toEqual([[0, 'P1'], [1, 'Bia']]);
     expect(bound).toEqual(['kb1', 'gp0', null, null]);
+  });
+});
+
+// ───────────────────────────── Fora do núcleo ─────────────────────────────
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f); if (fs.statSync(p).isDirectory()) walk(p, out); else if (p.endsWith('.ts')) out.push(p); }
+  return out;
+}
+
+describe('a carreira fora do núcleo', () => {
+  it('corrida com carro melhorado conta corrida e vitória, mas não entra nos recordes (recorde é de carro de fábrica)', () => {
+    const humans = [{ ...human(0), upgrades: lv({ engine: 1 }) }, { ...human(1), upgrades: { ...ZERO } }];
+    const results = fakeResults({ 0: 1, 1: 2 }, humans).map((r) => (r.seat === 0 ? { ...r, bestLapTicks: 90, totalTicks: 900 } : r));
+    const save = sanitizeSave({});
+    const out = recordRaceResults(save, results, humans, 'copacabana', 3);
+    expect(save.racesRun).toBe(1);
+    expect(save.racesWon).toBe(1);
+    expect(save.bestLaps.copacabana?.ticks).toBe(100);
+    expect(save.bestLaps.copacabana?.name).toBe('P2');
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.every((r) => r.seat === 1)).toBe(true);
+    // Só humanos melhorados na corrida: nenhum recorde.
+    const solo = sanitizeSave({});
+    expect(recordRaceResults(solo, results.filter((r) => r.seat !== 1), [humans[0]], 'copacabana', 3)).toEqual([]);
+    expect(solo.bestLaps.copacabana).toBeUndefined();
+    expect(solo.racesWon).toBe(1);
+  });
+
+  it('HUD, áudio e câmera leem a velocidade máxima da corrida (car.stats), não a de fábrica', () => {
+    for (const dir of ['src/render', 'src/audio']) {
+      for (const f of walk(dir)) {
+        const src = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+        const m = src.match(/(?<!stats)\.topSpeed\b/);
+        expect(m, `${f} lê a velocidade de fábrica (${m?.[0]}); use car.stats.topSpeed`).toBeNull();
+      }
+    }
   });
 });

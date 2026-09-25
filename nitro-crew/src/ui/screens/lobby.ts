@@ -244,7 +244,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     if (startBtn.disabled) startBtn.el.classList.add('disabled');
     const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
     items.push(startBtn, backBtn);
-    const fixedMode = resume ? h('p', { class: 'hint lobby-fixed', text: t('career.lobby.fixedMode', { mode: lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop') }) }) : null;
+    const fixedMode = resume ? h('p', { class: 'hint lobby-fixed', text: t('career.lobby.fixedMode', { mode: maxSeats(lobby, save) === 1 ? t('career.mode.solo') : lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop') }) }) : null;
     const panelEl = h('div', { class: 'lobby-panel glass' },
       h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
       fixedMode,

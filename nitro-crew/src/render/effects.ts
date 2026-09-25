@@ -4,7 +4,6 @@
 // nitro, fumaça de freio. Também o chacoalho de câmera por assento, com decaimento.
 import * as THREE from 'three';
 import { COLLISION_COOLDOWN_TICKS } from '../core/constants';
-import { carDef } from '../core/data/cars';
 import type { RaceState, Track } from '../core/types';
 import type { RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
@@ -142,8 +141,7 @@ export class Effects {
     const dc = this.dustColor;
     for (let i = 0; i < state.cars.length && i < 20; i++) {
       const c = state.cars[i];
-      const def = carDef(c.carId);
-      const sf = c.speed / def.topSpeed;
+      const sf = c.speed / c.stats.topSpeed;
       // Poeira na grama.
       if (c.skidTicks > 0 && c.speed > 250) {
         for (let k = 0; k < 2; k++) {
@@ -153,7 +151,7 @@ export class Effects {
       }
       // Fumaça leve na frenagem forte.
       const decel = (this.prevSpeed[i] - c.speed) / dt;
-      if (c.speed > 2500 && decel > def.brake * 0.55 && c.collisionCooldown === 0 && this.rnd() < 0.6) {
+      if (c.speed > 2500 && decel > c.stats.brake * 0.55 && c.collisionCooldown === 0 && this.rnd() < 0.6) {
         const side = this.rnd() < 0.5 ? -0.14 : 0.14;
         this.dust.emit(c.z - 60, c.x + side, 0.15, c.speed * 0.6, side * 0.3, 0.8, 0.5, 0.5, 1.6, 0.2, 0.75, 0.75, 0.78);
       }

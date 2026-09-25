@@ -1,5 +1,6 @@
 // Progresso do jogador: copas concluídas, recordes por pista e o que o lobby lembra de cada
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
+import { hasUpgrades } from '../core/career';
 import { CARS } from '../core/data/cars';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
 import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
@@ -127,13 +128,15 @@ export function recordRaceResults(
     return { ticks, name: h?.name ?? r.name, carId: h?.carId ?? r.carDefId, date };
   };
 
-  const lap = bestHuman(humanRows, (r) => r.bestLapTicks);
+  // Recorde é de carro de fábrica: quem corre com melhorias da carreira conta corrida e vitória, não recorde.
+  const factory = humanRows.filter((r) => !hasUpgrades(humans.find((x) => x.seat === r.seat)?.upgrades));
+  const lap = bestHuman(factory, (r) => r.bestLapTicks);
   if (lap && improves(lap.bestLapTicks, save.bestLaps[trackId])) {
     save.bestLaps[trackId] = entry(lap, lap.bestLapTicks);
     out.push({ seat: lap.seat, kind: 'lap' });
   }
 
-  const race = bestHuman(humanRows.filter((r) => r.finished), (r) => r.totalTicks);
+  const race = bestHuman(factory.filter((r) => r.finished), (r) => r.totalTicks);
   const key = bestRaceKey(trackId, laps);
   if (race && improves(race.totalTicks, save.bestRaces[key])) {
     save.bestRaces[key] = entry(race, race.totalTicks);

@@ -47,10 +47,12 @@
 /* ───────────── Garagem ───────────── */
 
 .scr-garage { justify-content: flex-start; gap: calc(8 * var(--u)); }
-.garage-head { display: flex; align-items: center; gap: var(--gap); width: 100%; flex-wrap: wrap; }
-.garage-head .screen-title { margin: 0; text-align: left; }
+/* Cabeçalho numa linha só em qualquer tela: a próxima pista é quem encolhe (reticências). */
+.garage-head { display: flex; align-items: center; gap: var(--gap); width: 100%; flex-wrap: nowrap; min-width: 0; }
+.garage-head > * { flex: none; }
+.garage-head .screen-title { margin: 0; text-align: left; font-size: calc(40 * var(--u)); }
 .garage-head .screen-title::after { display: none; }
-.garage-next { margin-left: auto; font-weight: 700; font-size: var(--fs-md); }
+.garage-head > .garage-next { flex: 1 1 auto; min-width: 0; margin-left: auto; text-align: right; font-weight: 700; font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .garage-progress { font-size: var(--fs-sm); letter-spacing: 0.08em; text-transform: uppercase; }
 .garage-report-host { width: 100%; }
 .garage-report { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8 * var(--u)) var(--gap); padding: calc(8 * var(--u)) calc(14 * var(--u)); box-sizing: border-box; }
@@ -64,7 +66,7 @@
 .gr-banner.bad { background: var(--bad); color: #fff; }
 .garage-report .verdict { font-size: var(--fs-md); }
 
-.garage-panels { display: grid; gap: var(--gap); width: 100%; flex: 1; min-height: 0; }
+.garage-panels { display: grid; gap: var(--gap); width: 100%; flex: 1; min-height: 0; overflow-y: auto; }
 .garage-panels.n-1 { grid-template-columns: minmax(0, calc(1100 * var(--u))); justify-content: center; align-content: start; }
 .garage-panels.n-2 { grid-template-columns: 1fr 1fr; align-content: start; }
 .garage-panels.n-3, .garage-panels.n-4 { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); }
@@ -72,7 +74,7 @@
 .gp {
   --seat: var(--accent);
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: calc(8 * var(--u)) calc(14 * var(--u));
   padding: calc(10 * var(--u)) calc(14 * var(--u));
@@ -98,18 +100,22 @@
 .gp-car.focus { background: rgba(255, 255, 255, 0.07); }
 .gp-car.focus .sel-arrow { color: var(--accent); background: var(--accent-soft); }
 .gp-car.locked .sel-arrow { visibility: hidden; }
-.gp-car-body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); grid-template-rows: auto auto; gap: calc(2 * var(--u)) calc(10 * var(--u)); align-items: center; }
+.gp-car-body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: calc(2 * var(--u)) calc(10 * var(--u)); align-items: center; }
 .gp-car-name { grid-column: 1 / 3; font-size: var(--fs-md); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gp-car-visual { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .gp-car-visual .car-svg { max-height: calc(64 * var(--u)); }
-.gp-tag { justify-self: start; display: inline-flex; flex-direction: column; gap: 0; padding: calc(3 * var(--u)) calc(10 * var(--u)); border-radius: calc(8 * var(--u)); background: rgba(255, 255, 255, 0.08); font-size: var(--fs-sm); font-weight: 800; letter-spacing: 0.06em; }
+/* A etiqueta nunca quebra linha: quem encolhe é o desenho do carro (largura 100% da coluna). */
+.gp-tag { justify-self: end; display: inline-flex; flex-direction: column; gap: 0; white-space: nowrap; padding: calc(3 * var(--u)) calc(10 * var(--u)); border-radius: calc(8 * var(--u)); background: rgba(255, 255, 255, 0.08); font-size: var(--fs-sm); font-weight: 800; letter-spacing: 0.06em; }
 .gp-tag.ok { flex-direction: row; align-items: center; gap: calc(6 * var(--u)); background: rgba(61, 220, 132, 0.18); color: var(--ok); }
 .gp-tag.sale { background: var(--accent-soft); color: var(--accent-2); }
-.gp-tag.sale small { color: var(--text); font-weight: 600; letter-spacing: 0; }
-.gp-tag.sale.cant small { color: var(--bad); }
+.gp-tag.sale b { font-size: var(--fs-md); color: var(--text); letter-spacing: 0.02em; }
+.gp-tag-line { display: flex; flex-direction: column; }
+.gp-tag-k { font-size: calc(12 * var(--u)); letter-spacing: 0.12em; }
+.gp-tag-need { color: var(--text); font-weight: 600; letter-spacing: 0; }
+.gp-tag.sale.cant .gp-tag-need { color: var(--bad); }
 
 .gp-stats { min-height: 0; }
-.gs { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: calc(3 * var(--u)) calc(10 * var(--u)); align-items: center; }
+.gs { display: grid; grid-template-columns: auto minmax(calc(48 * var(--u)), 1fr) auto; gap: calc(3 * var(--u)) calc(10 * var(--u)); align-items: center; }
 .gs-row { display: contents; }
 .gs-label { color: var(--muted); font-size: var(--fs-sm); line-height: 1.2; }
 .gs-track { position: relative; height: calc(7 * var(--u)); background: rgba(255, 255, 255, 0.1); border-radius: 999px; overflow: hidden; }
@@ -128,20 +134,20 @@
 .gp-parts { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 .gp-parts .sub-title { margin: 0 0 calc(2 * var(--u)); }
 .gp-part {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto calc(96 * var(--u)); align-items: center; gap: calc(10 * var(--u));
-  padding: calc(3 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u)) calc(18 * var(--u));
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: calc(8 * var(--u));
+  padding: calc(3 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u)) calc(14 * var(--u));
   border: 1px solid transparent; border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.03);
 }
 .gp-part.focus { background: rgba(255, 255, 255, 0.09); }
 .gp-part-name { display: flex; align-items: baseline; gap: calc(8 * var(--u)); min-width: 0; white-space: nowrap; overflow: hidden; }
 .gp-part-name b { font-weight: 800; }
 .gp-part-name small { color: var(--muted); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; }
-.gp-part-price { text-align: right; font-weight: 800; color: var(--ok); }
+.gp-part-price { min-width: calc(74 * var(--u)); text-align: right; font-weight: 800; color: var(--ok); }
 .gp-part.cant .gp-part-price { color: var(--bad); }
 .gp-part.max .gp-part-price { color: var(--accent); letter-spacing: 0.1em; }
 .gp-part.disabled { opacity: 0.4; }
-.pips { display: inline-flex; gap: calc(4 * var(--u)); }
-.pips i { width: calc(14 * var(--u)); height: calc(8 * var(--u)); border-radius: calc(3 * var(--u)); background: rgba(255, 255, 255, 0.15); }
+.pips { display: inline-flex; gap: calc(3 * var(--u)); }
+.pips i { width: calc(11 * var(--u)); height: calc(8 * var(--u)); border-radius: calc(3 * var(--u)); background: rgba(255, 255, 255, 0.15); }
 .pips i.on { background: var(--seat, var(--accent)); }
 
 .gp-ready { align-self: stretch; margin-top: auto; }
@@ -149,15 +155,61 @@
 .gp-msg.good { color: var(--ok); }
 .gp-msg.bad { color: var(--bad); }
 
-/* 3–4 pilotos: tudo mais justo para caber em meia tela. */
-.garage-panels.n-3 .gp, .garage-panels.n-4 .gp { padding: calc(6 * var(--u)) calc(10 * var(--u)); gap: calc(4 * var(--u)) calc(10 * var(--u)); }
-.garage-panels.n-3 .gp-car-visual .car-svg, .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(40 * var(--u)); }
-.garage-panels.n-3 .gp-part, .garage-panels.n-4 .gp-part { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
-.garage-panels.n-3 .gp-part-name small, .garage-panels.n-4 .gp-part-name small { display: none; }
+/* Dois ou mais pilotos: o efeito de cada peça aparece na prévia dos atributos, não ao lado do nome. */
+.garage-panels:not(.n-1) .gp-part-name small { display: none; }
+
+/* Dois ou mais pilotos (coluna estreita): nome, desenho e etiqueta empilhados — lado a lado a
+   etiqueta espremia o carro num risco. */
+.garage-panels:not(.n-1) .gp-car-body { grid-template-columns: minmax(0, 1fr); justify-items: center; row-gap: 0; }
+.garage-panels:not(.n-1) .gp-car-name { grid-column: 1; max-width: 100%; }
+.garage-panels:not(.n-1) .gp-tag { justify-self: center; }
+.garage-panels:not(.n-1) .gp-tag.sale { align-items: center; padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
+.garage-panels:not(.n-1) .gp-tag-line { flex-direction: row; align-items: baseline; gap: calc(6 * var(--u)); }
+.garage-panels:not(.n-1) .gp-tag.sale b { font-size: var(--fs); }
+.garage-panels.n-2 .gp-car-visual .car-svg { max-height: calc(44 * var(--u)); }
+
+
+/* 3–4 pilotos: uma coluna por piloto, carro e atributos em cima,
+   melhorias embaixo, tudo mais justo para caber em 720p sem rolar. */
+.garage-panels.n-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; }
+.garage-panels.n-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; }
+.garage-panels.n-3 .gp, .garage-panels.n-4 .gp {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  padding: calc(6 * var(--u)) calc(10 * var(--u));
+  gap: calc(5 * var(--u));
+}
+.garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { grid-column: 1; }
+.garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex-direction: column; align-items: flex-end; gap: 0; }
+.garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { font-size: calc(11 * var(--u)); }
+.garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { font-size: var(--fs-md); line-height: 1.1; }
+.garage-panels.n-3 .gp-left, .garage-panels.n-4 .gp-left,
+.garage-panels.n-3 .gp-right, .garage-panels.n-4 .gp-right { gap: calc(4 * var(--u)); }
+.garage-panels.n-3 .gp-car-name, .garage-panels.n-4 .gp-car-name { font-size: var(--fs); line-height: 1.15; }
+.garage-panels.n-3 .gp-car-visual .car-svg, .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(32 * var(--u)); }
+.garage-panels.n-3 .gs, .garage-panels.n-4 .gs { row-gap: calc(1 * var(--u)); }
+.garage-panels.n-3 .gs-label, .garage-panels.n-4 .gs-label,
+.garage-panels.n-3 .gs-value, .garage-panels.n-4 .gs-value { font-size: calc(14 * var(--u)); line-height: 1.15; }
 .garage-panels.n-3 .gp-parts .sub-title, .garage-panels.n-4 .gp-parts .sub-title { display: none; }
-.garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { font-size: var(--fs-md); }
+.garage-panels.n-3 .gp-part, .garage-panels.n-4 .gp-part { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); font-size: var(--fs-sm); line-height: 1.25; }
+/* Com 3–4 pilotos a dica de teclas sai: a altura vai para os painéis. */
+.scr-garage:has(.garage-panels.n-3) > .hint, .scr-garage:has(.garage-panels.n-4) > .hint { display: none; }
 .garage-panels.n-3 .gp-msg, .garage-panels.n-4 .gp-msg { min-height: 1.1em; }
 .garage-panels.n-3 .btn-ready, .garage-panels.n-4 .btn-ready { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
+
+/* Tela estreita (4:3, janela) com 4 pilotos: linhas mais enxutas para os nomes caberem na coluna. */
+@media (max-aspect-ratio: 3/2) {
+  .garage-panels.n-4 .gp { padding-left: calc(6 * var(--u)); padding-right: calc(6 * var(--u)); }
+  .garage-panels.n-4 .gp-head { gap: calc(6 * var(--u)); }
+  .garage-panels.n-4 .gp-money b { font-size: var(--fs); }
+  .garage-panels.n-4 .gp-car-name { font-size: var(--fs-sm); letter-spacing: 0.01em; }
+  .garage-panels.n-4 .gs { column-gap: calc(6 * var(--u)); }
+  .garage-panels.n-4 .gs-label, .garage-panels.n-4 .gs-value { font-size: calc(12 * var(--u)); }
+  .garage-panels.n-4 .gp-part { gap: calc(4 * var(--u)); padding-left: calc(9 * var(--u)); padding-right: calc(5 * var(--u)); font-size: calc(14 * var(--u)); }
+  .garage-panels.n-4 .gp-part-price { min-width: 0; }
+  .garage-panels.n-4 .pips { gap: calc(2 * var(--u)); }
+  .garage-panels.n-4 .pips i { width: calc(8 * var(--u)); }
+}
 
 @media (max-height: 800px) {
   .garage-report { padding-top: calc(5 * var(--u)); padding-bottom: calc(5 * var(--u)); }

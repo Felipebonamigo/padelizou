@@ -318,10 +318,10 @@ export class Cars {
       const c = cars[i];
       const a = this.anims[i];
       const def = carDef(c.carId);
-      const sf = Math.min(1.2, c.speed / def.topSpeed);
+      const sf = Math.min(1.2, c.speed / c.stats.topSpeed);
       a.spin += zToMeters(c.speed) * dt / WHEEL_RADIUS;
       const decel = (a.prevSpeed - c.speed) / dt;
-      a.brake = c.speed > 200 && decel > def.brake * 0.55 && c.collisionCooldown === 0;
+      a.brake = c.speed > 200 && decel > c.stats.brake * 0.55 && c.collisionCooldown === 0;
       a.prevSpeed = c.speed;
       const seg = segs[Math.floor((((c.z % frame.track.length) + frame.track.length) % frame.track.length) / 200) % segs.length];
       const k = 1 - Math.exp(-dt * 8);

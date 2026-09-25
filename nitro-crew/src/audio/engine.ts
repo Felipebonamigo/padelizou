@@ -4,7 +4,6 @@
 // e a pneumática do box. Os nós vivem o tempo todo e só os ganhos mudam, sempre por
 // setTargetAtTime — é isso que evita clique.
 import { GEAR_TOP } from '../core/constants';
-import { carDef } from '../core/data/cars';
 import type { CarState } from '../core/types';
 import type { RenderFrame } from '../game/contracts';
 import { glide, makeFilter, noiseBurst, noiseSource } from './synth';
@@ -109,13 +108,13 @@ class EngineVoice {
 
   update(car: CarState, dt: number): void {
     const now = this.ctx.currentTime;
-    const def = carDef(car.carId);
+    const top = car.stats.topSpeed;
     const nitro = car.nitroTicks > 0;
 
     // Troca de marcha: o RPM cai por um instante e volta a subir.
     if (this.lastGear >= 0 && car.gear !== this.lastGear) this.shiftTimer = SHIFT_DIP_SECONDS;
     this.lastGear = car.gear;
-    let target = engineRpm(car.speed, car.gear, def.topSpeed);
+    let target = engineRpm(car.speed, car.gear, top);
     if (this.shiftTimer > 0) {
       this.shiftTimer -= dt;
       target *= SHIFT_DIP_FACTOR;
@@ -129,7 +128,7 @@ class EngineVoice {
     glide(this.gain.gain, this.slotGain * (0.12 + 0.08 * this.rpm + (nitro ? 0.03 : 0)), now, 0.08);
 
     // Grama: cascalho enquanto durar a derrapagem, mais alto quanto mais rápido.
-    const speedFrac = Math.min(1, car.speed / def.topSpeed);
+    const speedFrac = Math.min(1, car.speed / top);
     glide(this.gravelGain.gain, car.skidTicks > 0 ? this.slotGain * (0.1 + 0.08 * speedFrac) : 0, now, 0.05);
 
     // Nitro: começou agora (o contador só cresce quando dispara) → varredura do filtro.

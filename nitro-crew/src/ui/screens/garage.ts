@@ -53,8 +53,9 @@ export function statFraction(ranges: Record<GarageStat, [number, number]>, k: Ga
   return 0.12 + 0.88 * Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
 }
 
-function statText(ranges: Record<GarageStat, [number, number]>, k: GarageStat, v: number): string {
-  return k === 'topSpeed' ? `${Math.round(v * SPEED_TO_KMH)} km/h` : String(Math.round(statFraction(ranges, k, v) * 100));
+/** Velocidade em km/h (a unidade some no "antes → depois", que precisa caber ao lado da barra); o resto de 0 a 100. */
+function statText(ranges: Record<GarageStat, [number, number]>, k: GarageStat, v: number, unit = true): string {
+  return k === 'topSpeed' ? `${Math.round(v * SPEED_TO_KMH)}${unit ? ' km/h' : ''}` : String(Math.round(statFraction(ranges, k, v) * 100));
 }
 
 function levelsPlus(levels: UpgradeLevels, part: UpgradePart): UpgradeLevels {
@@ -174,7 +175,8 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
   const career: CareerState = careerOrNull;
   const n = career.drivers.length;
   const carIndex = (id: string) => Math.max(0, cars.findIndex((c) => c.id === id));
-  const uis: SeatUi[] = career.drivers.map((d) => ({ view: carIndex(d.garage.carId), ready: false, cursor: 0, msg: '', msgKind: 'good', msgTtl: 0 }));
+  // Carreira concluída: não há o que comprar; o foco começa no MENU (o último item).
+  const uis: SeatUi[] = career.drivers.map((d) => ({ view: carIndex(d.garage.carId), ready: false, cursor: career.completed ? Number.MAX_SAFE_INTEGER : 0, msg: '', msgKind: 'good', msgTtl: 0 }));
   let lists: Array<FocusList | null> = [];
   let previews: Array<() => void> = [];
   let msgEls: HTMLElement[] = [];
@@ -215,6 +217,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
 
   function changeView(seat: number, dir: -1 | 1): void {
     const ui = uis[seat];
+    if (career.completed) { api.sfx('back'); return; }
     if (ui.ready) { say(seat, t('career.garage.msg.locked'), 'bad'); render(); return; }
     ui.view = (ui.view + dir + cars.length) % cars.length;
     // Passear pelos carros da garagem já escolhe o carro; os à venda ficam só na vitrine.
@@ -224,6 +227,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
 
   function activateCar(seat: number): void {
     const ui = uis[seat];
+    if (career.completed) { api.sfx('back'); return; }
     if (ui.ready) { say(seat, t('career.garage.msg.locked'), 'bad'); render(); return; }
     const car = cars[ui.view];
     const g = career.drivers[seat].garage;
@@ -243,6 +247,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
 
   function activatePart(seat: number, part: UpgradePart): void {
     const ui = uis[seat];
+    if (career.completed) { api.sfx('back'); return; }
     if (ui.ready) { say(seat, t('career.garage.msg.locked'), 'bad'); render(); return; }
     const r = buyUpgrade(career, seat, part, cars[ui.view].id);
     if (r === 'ok') persist();
@@ -270,7 +275,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
           diff ? h('span', { class: `gs-ghost ${up ? 'up' : 'down'}`, style: `left:${lo * 100}%;width:${Math.abs(fa - fb) * 100}%` }) : null,
         ),
         h('span', { class: `gs-value mono${diff ? (up ? ' up' : ' down') : ''}` },
-          diff ? `${statText(ranges, k, b)} → ${statText(ranges, k, a)}` : statText(ranges, k, b)),
+          diff ? `${statText(ranges, k, b, false)} → ${statText(ranges, k, a, false)}` : statText(ranges, k, b)),
       );
     });
     const nitroDiff = after !== null && after.nitro !== base.nitro;
@@ -303,8 +308,8 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     else {
       const short = car.price - money;
       status = h('span', { class: `gp-tag sale${short > 0 ? ' cant' : ''}` },
-        h('span', { text: t('career.garage.price', { price: formatMoney(car.price) }) }),
-        h('small', { text: short > 0 ? t('career.garage.need', { price: formatMoney(short) }) : t('career.garage.buyHint') }));
+        h('span', { class: 'gp-tag-line' }, h('small', { class: 'gp-tag-k', text: t('career.garage.forSale') }), h('b', { class: 'mono', text: formatMoney(car.price) })),
+        h('small', { class: 'gp-tag-need', text: short > 0 ? t('career.garage.need', { price: formatMoney(short) }) : t('career.garage.buyHint') }));
     }
     const carItem: FocusItem = {
       el: h('div', { class: `gp-car${locked ? ' locked' : ''}` },
@@ -386,12 +391,13 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     return t('career.garage.next', { track: trackName(trackId ?? cup.trackIds[0]), n: raceIndex + 1, m: cup.trackIds.length });
   }
 
-  function reportBlock(): HTMLElement {
+  function reportBlock(): HTMLElement | null {
     const r = career.lastReport;
     if (career.completed) {
       return h('div', { class: 'garage-report glass' }, h('div', { class: 'verdict good' }, icon('trophy'), h('span', { text: t('career.garage.report.careerDone') })));
     }
-    if (!r) return h('div', { class: 'garage-report glass' }, h('span', { class: 'gr-line', text: t('career.garage.welcome') }));
+    // Boas-vindas só antes da primeira corrida (sem relatório depois disso = relatório descartado pelo save).
+    if (!r) return career.racesRun > 0 ? null : h('div', { class: 'garage-report glass' }, h('span', { class: 'gr-line', text: t(n === 1 ? 'career.garage.welcomeSolo' : 'career.garage.welcome') }));
     const lines: HTMLElement[] = [h('strong', { class: 'gr-title', text: t('career.garage.report.title', { track: trackName(r.trackId) }) })];
     for (const row of r.rows) {
       const name = career.drivers[row.driver]?.name ?? `P${row.driver + 1}`;
@@ -428,7 +434,8 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
       for (const it of b.items) it.el.addEventListener('mousemove', () => { uis[seat].cursor = lists[seat]?.index ?? 0; previews[seat](); });
       b.preview();
     });
-    reportHost.replaceChildren(reportBlock());
+    const report = reportBlock();
+    reportHost.replaceChildren(...(report ? [report] : []));
     panelsEl.replaceChildren(...built.map((b) => b.el));
   }
 
