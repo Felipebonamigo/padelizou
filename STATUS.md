@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
+> Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1495-2536ad3`** (deploy runs **413** e **414**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #350. ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
 >
 > ♻️ **O INTERRUPTOR JÁ EXISTIA — `NotificarLembreteDeAula` —, só que valia pelos DOIS marcos.** Quem achava a véspera demais só podia desligar os dois, e perdia junto o de **1h**, que é o único que ninguém quer perder ("sai de casa"). Por isso a saída não foi tirar o de 24h da base inteira: foi **separar**. `QuerEsteMarco` mora em `LembreteDaAula` porque são **quatro destinatários** (aluno e professor da aula, e os dois do jogo-aula) — régua escrita quatro vezes é como uma cópia acaba lendo a preferência errada.
 >
@@ -14,6 +14,10 @@
 > 🔀 **AS DUAS SÃO INDEPENDENTES DE VERDADE**, e não uma escada: dá pra querer só a véspera, só a última hora, as duas ou nenhuma. Um `&&` entre elas faria metade das combinações não existir.
 >
 > 🧷 **A caixa nova leva o par `<input type="hidden" value="false">` e o parâmetro `bool?`**, como as vizinhas: a preferência nasce ligada, caixa desmarcada não vai no POST, e sem o par uma aba antiga religaria a véspera de quem desligou a cada salvamento de qualquer outra preferência. `ExclusaoDeConta` cala as duas.
+>
+> ✅ **CONFERIDO NO AR**: `/healthz` **200** em `dev` e `prod` — e neste bloco ele é a prova que importa, porque **consulta o banco** e é o que denunciaria a migration (ou o backfill) não aplicada. `/Auth/Preferencias` responde **302** anônimo, que é o `[Authorize]` trabalhando.
+>
+> ⚠️ **O QUE NÃO FOI MEDIDO NO AR**: as duas caixas na tela e o efeito real do backfill em quem já tinha desligado o lembrete. As duas coisas pedem login. **Vale abrir as Preferências e conferir que as duas caixas aparecem marcadas** — é o que fecha a história dos dois defeitos do backfill.
 >
 > **7.547 testes verdes** (7 novos; o guarda da migration visto VERMELHO), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
 
