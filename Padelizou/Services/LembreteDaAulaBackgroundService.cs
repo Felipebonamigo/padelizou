@@ -154,7 +154,8 @@ public class LembreteDaAulaBackgroundService : BackgroundService
                 // senão o varredor tentaria de novo a cada 15 minutos até a aula acontecer.
                 aula.UltimoLembreteEnviado = marcoDaAula;
 
-                if (aula.Aluno is not { ExcluidoEm: null, NotificarLembreteDeAula: true } aluno) continue;
+                if (aula.Aluno is not { ExcluidoEm: null } aluno) continue;
+                if (!LembreteDaAula.QuerEsteMarco(aluno, marcoDaAula.Value)) continue;
 
                 await push.EnviarParaJogadorAsync(aluno.Id,
                     LembreteDaAula.Titulo(LembreteDaAula.UmaAula, quando, agora),
@@ -167,7 +168,8 @@ public class LembreteDaAulaBackgroundService : BackgroundService
                 avisos++;
             }
 
-            if (primeira.Professor is not { ExcluidoEm: null, NotificarLembreteDeAula: true }) continue;
+            if (primeira.Professor is not { ExcluidoEm: null } professor) continue;
+            if (!LembreteDaAula.QuerEsteMarco(professor, marco)) continue;
 
             var quantos = turma.Count();
             var comQuem = quantos == 1 ? NomeDoAluno(primeira) : $"{quantos} alunos";
@@ -216,7 +218,8 @@ public class LembreteDaAulaBackgroundService : BackgroundService
 
             foreach (var inscricao in inscritos)
             {
-                if (inscricao.Jogador is not { ExcluidoEm: null, NotificarLembreteDeAula: true } jogador) continue;
+                if (inscricao.Jogador is not { ExcluidoEm: null } jogador) continue;
+                if (!LembreteDaAula.QuerEsteMarco(jogador, marco.Value)) continue;
 
                 await push.EnviarParaJogadorAsync(jogador.Id,
                     LembreteDaAula.Titulo(LembreteDaAula.UmJogoAula, jogo.DataHora, agora),
@@ -227,7 +230,8 @@ public class LembreteDaAulaBackgroundService : BackgroundService
                 avisos++;
             }
 
-            if (jogo.Professor is not { ExcluidoEm: null, NotificarLembreteDeAula: true }) continue;
+            if (jogo.Professor is not { ExcluidoEm: null } professorDoJogo) continue;
+            if (!LembreteDaAula.QuerEsteMarco(professorDoJogo, marco.Value)) continue;
 
             var comQuem = inscritos.Count == 1 ? "1 inscrito" : $"{inscritos.Count} inscritos";
 

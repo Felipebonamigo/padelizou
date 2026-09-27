@@ -1370,7 +1370,12 @@ namespace padelizou.Controllers
             bool? verPalpitometro = null, bool? verQuemPalpitou = null,
             // O LEMBRETE DA AULA (16/09/2026) também nasce LIGADO — daí o `bool?`, pelo mesmo
             // motivo das duas de cima.
-            bool? notificarLembreteDeAula = null)
+            bool? notificarLembreteDeAula = null,
+            // ⚠️ `bool?` E COM PADRÃO NULO, igual à de cima e pelo mesmo motivo: a preferência
+            // nasce LIGADA, caixa desmarcada não vai no POST, e uma aba aberta antes do deploy
+            // não manda o campo. Sem o nulo, ela RELIGARIA a véspera de quem desligou a cada
+            // salvamento de qualquer outra preferência.
+            bool? notificarVesperaDaAula = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -1393,6 +1398,7 @@ namespace padelizou.Controllers
             jogador.NotificarRaqueteLivre = notificarRaqueteLivre;
             jogador.NotificarHorarioVagoRegiao = notificarHorarioVagoRegiao;
             if (notificarLembreteDeAula is bool querOLembreteDaAula) jogador.NotificarLembreteDeAula = querOLembreteDaAula;
+            if (notificarVesperaDaAula is bool querAVespera) jogador.NotificarVesperaDaAula = querAVespera;
             await _context.SaveChangesAsync();
 
             await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados,
