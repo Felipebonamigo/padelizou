@@ -42,12 +42,18 @@ public class VarreduraDoLembreteDeAulaTests
         ctx.Jogadores.Add(new Jogador
         {
             Id = ProfessorId, Nome = "Marcio", Cpf = "55500000101", IsProfessor = true,
+            // ⚠️ AS DUAS JUNTAS (27/09/2026, quando os marcos ganharam interruptor cada um):
+            // "quer lembrete" aqui significa o lembrete INTEIRO, que é o que estes testes
+            // sempre quiseram dizer. Setar só uma delas faria "desliguei o lembrete" receber
+            // metade dos avisos — e o teste passaria a falar de outra coisa.
             NotificarLembreteDeAula = professorQuerLembrete,
+            NotificarVesperaDaAula = professorQuerLembrete,
         });
         ctx.Jogadores.Add(new Jogador
         {
             Id = AlunoId, Nome = "Leonardo", Cpf = "55500000102",
-            NotificarLembreteDeAula = alunoQuerLembrete, ExcluidoEm = alunoExcluidoEm,
+            NotificarLembreteDeAula = alunoQuerLembrete, NotificarVesperaDaAula = alunoQuerLembrete,
+            ExcluidoEm = alunoExcluidoEm,
         });
         ctx.LocaisAula.Add(new LocalAula { Id = LocalId, ProfessorId = ProfessorId, Nome = "Wallau", PrecoPadrao = 100m });
         ctx.CategoriasPadrao.Add(new CategoriaPadrao { Id = CategoriaId, Nome = "4ª Masculina", Codigo = "4M", Tipo = "Masculina" });

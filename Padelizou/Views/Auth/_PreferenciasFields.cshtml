@@ -237,10 +237,19 @@
        aba aberta antes do deploy RELIGARIA o lembrete de quem desligou a cada salvamento de
        qualquer outra preferência. É a mesma armadilha do verPalpitometro logo acima — e o
        escondido vem DEPOIS porque o binder lê o PRIMEIRO valor do campo repetido. *@
+    @* ⚠️ DUAS CAIXAS DESDE 27/09/2026, e não uma com dois marcos dentro: quem achava o aviso
+       da véspera demais só podia desligar os DOIS, e perdia junto o de 1h — o único que ninguém
+       quer perder, porque ele é "sai de casa". As duas são independentes de verdade (ver
+       LembreteDaAula.QuerEsteMarco); a de baixo não depende da de cima. *@
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarVesperaDaAula" value="true" id="notifVesperaAula" style="transform: scale(1.2);" @(Model.NotificarVesperaDaAula ? "checked" : "") />
+        <input type="hidden" name="notificarVesperaDaAula" value="false" />
+        <label class="form-check-label" for="notifVesperaAula">Lembrete das minhas aulas <strong>na véspera</strong> (24h antes)</label>
+    </div>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarLembreteDeAula" value="true" id="notifLembreteAula" style="transform: scale(1.2);" @(Model.NotificarLembreteDeAula ? "checked" : "") />
         <input type="hidden" name="notificarLembreteDeAula" value="false" />
-        <label class="form-check-label" for="notifLembreteAula">Lembrete das minhas aulas (24h e 1h antes)</label>
+        <label class="form-check-label" for="notifLembreteAula">Lembrete das minhas aulas <strong>na última hora</strong> (1h antes)</label>
     </div>
     <small class="text-muted d-block mt-2">Cada um controla um tipo de aviso separadamente. O canal (e-mail/WhatsApp/push) continua sendo o que você escolheu acima. O aviso de horário vago só chega se você marcar pelo menos uma cidade abaixo.</small>
 </div>

@@ -84,6 +84,9 @@ public static class ExclusaoDeConta
         jogador.NotificarJogoAula = false;
         jogador.NotificarRaqueteLivre = false;
         jogador.NotificarLembreteDeAula = false;
+        // ⚠️ A véspera junto: preferência nova que nasce LIGADA e não entra aqui é aviso
+        // continuando a sair pra quem pediu pra sair.
+        jogador.NotificarVesperaDaAula = false;
         jogador.AceitaConvitesJogo = false;
 
         // Some das telas de perfil, mas segue aparecendo no resultado dos jogos que disputou.

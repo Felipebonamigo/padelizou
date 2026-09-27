@@ -1,6 +1,22 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
+>
+> ♻️ **O INTERRUPTOR JÁ EXISTIA — `NotificarLembreteDeAula` —, só que valia pelos DOIS marcos.** Quem achava a véspera demais só podia desligar os dois, e perdia junto o de **1h**, que é o único que ninguém quer perder ("sai de casa"). Por isso a saída não foi tirar o de 24h da base inteira: foi **separar**. `QuerEsteMarco` mora em `LembreteDaAula` porque são **quatro destinatários** (aluno e professor da aula, e os dois do jogo-aula) — régua escrita quatro vezes é como uma cópia acaba lendo a preferência errada.
+>
+> 🚨 **A MIGRATION NASCEU ERRADA E QUASE DESLIGOU A VÉSPERA DA BASE INTEIRA.** O EF gerou `defaultValue: false`: o `= true` do `Jogador` é inicializador de **propriedade**, vale pra objeto novo em memória e **não** pro backfill das linhas existentes. ⚠️ **E A SUÍTE NÃO PEGARIA**: o InMemory constrói objetos NOVOS, que herdam o `true` do C# e nunca chegam perto do backfill — é o `EF InMemory não valida SQL` do CLAUDE.md numa forma que eu ainda não tinha visto. Ganhou **teste-guarda que lê a migration**, falsificado.
+>
+> 🕳️ **E OS TESTES ANTIGOS ACHARAM UMA SEGUNDA REGRESSÃO, PIOR QUE A PRIMEIRA.** `Quem_desligou_o_lembrete_nas_preferencias_nao_recebe` reprovou com `Expected: 1 / Actual: 2`, e o que ele estava dizendo é isto: **quem já tinha desligado o lembrete voltaria a receber a véspera no dia do deploy**. Religar aviso de quem pediu silêncio é o pior desfecho possível desta mudança.
+>
+> ✅ **A CORREÇÃO É O BACKFILL COPIAR A ESCOLHA**, e não dar `true` cego: `UPDATE "Jogador" SET "NotificarVesperaDaAula" = "NotificarLembreteDeAula"`. Quem tinha ligado fica com os dois ligados; quem tinha desligado, com os dois desligados. *"Nada muda até a pessoa mexer"* — de verdade, e não só pra quem estava no padrão.
+>
+> 🔀 **AS DUAS SÃO INDEPENDENTES DE VERDADE**, e não uma escada: dá pra querer só a véspera, só a última hora, as duas ou nenhuma. Um `&&` entre elas faria metade das combinações não existir.
+>
+> 🧷 **A caixa nova leva o par `<input type="hidden" value="false">` e o parâmetro `bool?`**, como as vizinhas: a preferência nasce ligada, caixa desmarcada não vai no POST, e sem o par uma aba antiga religaria a véspera de quem desligou a cada salvamento de qualquer outra preferência. `ExclusaoDeConta` cala as duas.
+>
+> **7.547 testes verdes** (7 novos; o guarda da migration visto VERMELHO), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
+
 > Última atualização: **25/09/2026** — 🚪 **"POR QUE ESSA VAGA ABRIU": O ORGANIZADOR PASSA A SABER QUEM SAIU, E A TER ONDE OLHAR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1492-0ff8709`** (deploy runs **411** e **412**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #349. ⚠️ **COM MIGRATION** (`HistoricoDeSaidasDoTorneio` — tabela nova, nada alterado). 🗣️ Felipe: *"o organizador receber a notificação quando alguem ou alguma dupla cancelar sua inscrição do torneio, e ter um histórico para isso, para ver quem desistiu"*.
 >
 > 🕳️ **NÃO HAVIA HISTÓRICO ESCONDIDO — HAVIA AUSÊNCIA DE DADO.** `TirarDaInscricaoAsync` faz `Duplas.Remove(dupla)`: depois do cancelamento não sobrava nome, data, nem se estava paga. Por isso precisou de TABELA, e não de consulta.

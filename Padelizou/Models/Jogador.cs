@@ -347,6 +347,18 @@ public partial class Jogador
     // sem essa dupla uma aba aberta antes do deploy religaria o lembrete de quem desligou a
     // cada salvamento de qualquer outra preferência. Mesma armadilha do VerPalpitometro.
     public bool NotificarLembreteDeAula { get; set; } = true;
+
+    // A VÉSPERA, separada da última hora (27/09/2026). 🗣️ *"n quero q me avise um dia antes tbm,
+    // ou deixa separado pra escolher qual o cara quer ou não"*.
+    //
+    // ⚠️ O INTERRUPTOR ACIMA JÁ EXISTIA, mas valia pelos DOIS marcos: quem achava o de 24h
+    // demais só podia desligar os dois, e perdia junto o de 1h — o único que ninguém quer
+    // perder, porque ele é "sai de casa". Separar foi a saída; tirar o de 24h da base inteira
+    // teria calado um aviso que outras pessoas usam.
+    //
+    // ⚠️ NASCE LIGADA, e por isso ela também precisa do `bool?` na ação e do
+    // <input type="hidden" value="false"> DEPOIS da caixa — a mesma armadilha nomeada acima.
+    public bool NotificarVesperaDaAula { get; set; } = true;
     public bool NotificarRaqueteLivre { get; set; } = true;
 
     // Default false de propósito (diferente das outras 5 flags acima, que são opt-out) — sem

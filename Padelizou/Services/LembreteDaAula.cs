@@ -1,3 +1,5 @@
+using Padelizou.Models;
+
 namespace Padelizou.Services;
 
 // "SUA AULA É AMANHÃ" e "SUA AULA É DAQUI A POUCO" — a régua do lembrete de aula.
@@ -34,6 +36,20 @@ public static class LembreteDaAula
     // quem lê a chamada entende "Sua aula é amanhã" sem ir ver o que `true` queria dizer.
     public const string UmaAula = "Sua aula";
     public const string UmJogoAula = "Seu jogo-aula";
+
+    // ESTA PESSOA QUER ESTE MARCO? (27/09/2026)
+    //
+    // ⚠️ MORA AQUI, e não nos quatro pontos de envio do serviço de fundo: são QUATRO
+    // destinatários (aluno e professor da aula, e os dois do jogo-aula), e a régua escrita
+    // quatro vezes é como uma das cópias acaba lendo a preferência errada — o defeito que a
+    // Mesa de Controle trouxe em 31/07.
+    //
+    // ⚠️ E AS DUAS SÃO INDEPENDENTES DE VERDADE, não uma escada. Quem desliga a última hora
+    // continua podendo receber a véspera: "escolher qual o cara quer ou não" é isso, e um `&&`
+    // com a preferência da outra faria metade das combinações não existir.
+    public static bool QuerEsteMarco(Jogador quem, int marco) => marco == MarcoDaVespera
+        ? quem.NotificarVesperaDaAula
+        : quem.NotificarLembreteDeAula;
 
     // Qual marco cabe AGORA — nulo quando não há o que avisar.
     //
