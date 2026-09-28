@@ -47,7 +47,12 @@ await shot('01-title');
 // Primeira gravação: a sessão grava o save ao terminar corrida; aqui, as opções pelo fluxo real de teclado.
 await page.keyboard.press('Enter'); await page.waitForTimeout(400);
 check(await page.evaluate(() => window.nc.session.menus.current()) === 'main', 'Enter → menu principal');
-for (let i = 0; i < 4; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(120); }
+// Acha "Opções" pelo texto, nunca contando setas: as ondas A/B puseram itens novos no menu (Carreira, Festa…)
+// e as 4 setas de antes paravam em "Festa" (visto em 28/09).
+const optionsIndex = await page.evaluate(() => [...document.querySelectorAll('.scr-main .menu-list > *')]
+  .findIndex((el) => /^(opções|options)$/i.test((el.textContent ?? '').trim())));
+check(optionsIndex > 0, `item "Opções" achado no menu principal (posição ${optionsIndex})`);
+for (let i = 0; i < optionsIndex; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(120); }
 await page.keyboard.press('Enter'); await page.waitForTimeout(500);
 check(await page.evaluate(() => window.nc.session.menus.current()) === 'options', 'Opções abre pelo teclado');
 

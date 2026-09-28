@@ -9,12 +9,14 @@
   "scripts": {
     "start": "electron .",
     "check:game": "node -e \"try{require('fs').accessSync('../dist/index.html')}catch{console.error('Falta ../dist/index.html: rode npm run build na raiz do jogo antes de empacotar.');process.exit(1)}\"",
-    "predist:win": "npm run check:game",
-    "predist:linux": "npm run check:game",
-    "predist:mac": "npm run check:game",
+    "icon": "node make-icon.cjs",
+    "predist:win": "npm run check:game && node make-icon.cjs --if-missing",
+    "predist:linux": "npm run check:game && node make-icon.cjs --if-missing",
+    "predist:mac": "npm run check:game && node make-icon.cjs --if-missing",
     "dist:win": "electron-builder --win --x64",
     "dist:linux": "electron-builder --linux --x64",
-    "dist:mac": "electron-builder --mac",
+    "dist:mac": "electron-builder --mac --universal",
+    "check": "node check-package.mjs",
     "e2e": "node e2e.mjs"
   },
   "devDependencies": {
@@ -27,13 +29,14 @@
   "build": {
     "appId": "br.com.bonamigo.nitrocrew",
     "productName": "Nitro Crew",
+    "copyright": "Copyright © 2026 Felipe Bonamigo",
     "files": [
       "main.cjs",
       "preload.cjs",
       "storage.cjs",
-      "steam_appid.txt",
       { "from": "../dist", "to": "app", "filter": ["**/*", "!**/*.map"] }
     ],
+    "extraFiles": ["steam_appid.txt"],
     "directories": { "output": "release", "buildResources": "build" },
     "publish": null,
     "win": { "target": ["dir"] },

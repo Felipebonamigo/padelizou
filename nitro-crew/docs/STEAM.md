@@ -9,7 +9,9 @@ vira executável com o Electron (pasta `desktop/`, ver o README de lá para os c
 - Anotar o **App ID** e colocar em `desktop/steam_appid.txt` (hoje está 480, o app de testes da Valve).
 
 ## 2. Build
-- `npm run build` gera `dist/`; `cd desktop && npm install && npm run dist:win` gera `desktop/release/win-unpacked/`.
+- `cd desktop && ./build-all.sh` faz tudo o que a máquina consegue: build do jogo, `release/win-unpacked/` e
+  `release/linux-unpacked/` (o Windows sai também de um Linux, sem wine) e a conferência dos pacotes. macOS
+  (universal, assinado e notarizado) só num Mac — `desktop/README.md` → "macOS: o que exige um Mac".
 - Linux (`dist:linux`) para Steam Deck nativo; o Electron também roda bem sob Proton.
 
 ## 3. Depósitos e upload (SteamPipe)
