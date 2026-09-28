@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import '../../net/strings';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { startCursor } from './lobby';
+import { shouldOfferTutorial, tutorialOfferCard } from './tutorial';
 
 function wordmark(cls: string): HTMLElement {
   return h('div', { class: `wordmark ${cls}`.trim() },
@@ -58,6 +59,7 @@ export function mainScreen(api: ScreenApi): ScreenInstance {
     { label: t('ui.main.records'), hint: t('ui.main.hint.records'), run: open('records') },
     { label: t('ui.main.options'), hint: t('ui.main.hint.options'), run: open('options') },
     { label: t('ui.main.controls'), hint: t('ui.main.hint.controls'), run: open('controls') },
+    { label: t('tutorial.menu'), hint: t('tutorial.menu.hint'), run: open('tutorial') },
     { label: t('ui.main.credits'), hint: t('ui.main.hint.credits'), run: open('credits') },
   );
   if (api.ctx.isDesktop) entries.push({ label: t('ui.main.quit'), hint: t('ui.main.hint.quit'), run: () => api.emit({ type: 'quitApp' }), cls: 'btn-quit' });
@@ -78,7 +80,7 @@ export function mainScreen(api: ScreenApi): ScreenInstance {
         wordmark('wordmark-small'),
         h('div', { class: 'menu-list' }, items.map((i) => i.el)),
       ),
-      h('div', { class: 'main-right' }, heroTitle, heroHint),
+      h('div', { class: 'main-right' }, heroTitle, heroHint, shouldOfferTutorial(api.ctx.save) ? tutorialOfferCard(api) : null),
     ),
   );
   return {

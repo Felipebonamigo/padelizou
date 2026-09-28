@@ -131,6 +131,8 @@ export interface SaveData {
   career: CareerState | null;
   /** Campeonato normal em andamento, salvo a cada corrida (menu principal → Continuar); null = nenhum. */
   cupInProgress: SavedCup | null;
+  /** Tutorial concluído ou pulado: o menu principal para de oferecê-lo (src/game/tutorial-session.ts). */
+  tutorialDone: boolean;
 }
 
 /** Copa normal salva: a classificação até aqui, a semente do elenco e os humanos (assentos 0..n-1). */
@@ -144,7 +146,7 @@ export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
   cupsCompleted: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
   seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
   stats: EMPTY_STATS,
-  carsUnlocked: [], career: null, cupInProgress: null,
+  carsUnlocked: [], career: null, cupInProgress: null, tutorialDone: false,
 });
 
 // ───────────────────────────── Renderização ─────────────────────────────
@@ -250,7 +252,7 @@ export interface RaceDriver {
 
 // ───────────────────────────── Menus ─────────────────────────────
 
-export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online';
+export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online' | 'tutorial' | 'tutorialDone';
 
 export type RaceMode = 'cup' | 'quick' | 'timetrial' | 'career';
 
@@ -270,7 +272,11 @@ export type MenuEvent =
   /** Garagem: todos prontos, corre a próxima corrida da copa atual. */
   | { type: 'careerRace' }
   /** Lobby de "Continuar": retoma o campeonato normal salvo. */
-  | { type: 'continueCup' };
+  | { type: 'continueCup' }
+  /** "Como jogar": corrida guiada com quem entrou na tela do tutorial (assentos já ligados). */
+  | { type: 'startTutorial'; humans: HumanEntry[] }
+  /** Fim do tutorial → "Primeira copa", com os mesmos jogadores. */
+  | { type: 'tutorialFirstCup' };
 
 export interface ResultsScreenData {
   mode: RaceMode;
@@ -282,6 +288,12 @@ export interface ResultsScreenData {
   newRecords: Array<{ seat: number; kind: 'lap' | 'race' }>;
   /** Conquistas desbloqueadas nesta corrida e quem as ganhou (opcional: ausente = nenhuma). */
   achievements?: AchievementUnlock[];
+}
+
+/** Tela final do tutorial: concluído (parabéns) ou pulado/sem tempo (só as regras de ouro). */
+export interface TutorialDoneData {
+  completed: boolean;
+  players: number;
 }
 
 export interface StandingsScreenData {
@@ -313,7 +325,8 @@ export interface MenuContext {
 export interface Menus {
   show(screen: 'results', data: ResultsScreenData): void;
   show(screen: 'standings', data: StandingsScreenData): void;
-  show(screen: Exclude<MenuScreen, 'results' | 'standings'>): void;
+  show(screen: 'tutorialDone', data: TutorialDoneData): void;
+  show(screen: Exclude<MenuScreen, 'results' | 'standings' | 'tutorialDone'>): void;
   hide(): void;
   current(): MenuScreen | null;
   /** Navegação por gamepad, chamada a cada quadro pela sessão (o teclado e o mouse os menus tratam sozinhos). */

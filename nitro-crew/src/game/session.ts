@@ -19,6 +19,7 @@ import { trackOutline } from '../render/minimap';
 import { createInput } from '../ui/input';
 import { createMenus } from '../ui/menus';
 import { createOnlineHud } from '../ui/screens/online';
+import { createTutorialPanel } from '../ui/screens/tutorial';
 import { newTelemetry, type RaceTelemetry } from './achievements';
 import { saveCupProgress } from './career-save';
 import { compactHumans, createCareerSession } from './career-session';
@@ -30,6 +31,7 @@ import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
 import { isCupUnlocked, loadSave, saveSave } from './save';
 import { loadSettings, saveSettings } from './settings';
+import { createTutorialSession, type TutorialSession } from './tutorial-session';
 
 const DT = 1 / TICK_RATE;
 const MAX_STEPS_PER_FRAME = 4;
@@ -64,6 +66,8 @@ export interface Session {
   readonly online: OnlineController;
   /** Preenchido logo depois da criação (os menus precisam da sessão para emitir eventos). */
   menus: Menus;
+  /** Tutorial de 90 segundos ("Como jogar"); preenchido junto com os menus. */
+  tutorial: TutorialSession;
   race: ActiveRace | null;
   paused: boolean;
   /** Multiplicador de velocidade da simulação (playtest). */
@@ -124,6 +128,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   const session: Session = {
     settings, renderer, input, audio, online,
     menus: null as unknown as Menus,
+    tutorial: null as unknown as TutorialSession,
     race: null, paused: false, speed: 1,
     start, stop, frame, handleMenuEvent, startQuick, startCup,
     debugBind(seat, device) { input.bindSeat(seat, device); },
@@ -150,6 +155,12 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   session.menus = menus;
   const career = createCareerSession({
     save, menus, input, baseConfig, beginRace, toIdle, randomSeed, persist: () => saveSave(save),
+  });
+  session.tutorial = createTutorialSession({
+    save, settings, menus, input, toIdle, startCup, randomSeed, persist: () => saveSave(save),
+    beginRace: (config, humans, driver, state) => beginRace(config, 'quick', humans, { driver, localSeats: humans.map((h) => h.seat), state }),
+    hud: pushMessage,
+    panel: createTutorialPanel(hudRoot),
   });
 
   function resize(): void {
@@ -471,6 +482,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       case 'continueCup': continueCup(); break;
       case 'startCareer': career.start(e.humans, e.resume); break;
       case 'careerRace': career.race(); break;
+      case 'startTutorial': session.tutorial.start(e.humans); break;
+      case 'tutorialFirstCup': session.tutorial.firstCup(); break;
       case 'retryRace': retryRace(); break;
       case 'restart': retryRace(); break;
       case 'resume': session.paused = false; menus.hide(); break;
