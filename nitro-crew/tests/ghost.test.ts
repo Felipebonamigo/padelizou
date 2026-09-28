@@ -101,7 +101,7 @@ describe('fantasma: codificação', () => {
         expect(sanitizeGhostRecord(rec), def.id).toEqual(rec);
       }
     }
-  });
+  }, 30_000); // ~2,5 s sozinho; passava dos 5 s padrão com a máquina carregada
 
   it('dado corrompido é ignorado sem lançar', () => {
     const good = encodeTrace(syntheticTrace(400));

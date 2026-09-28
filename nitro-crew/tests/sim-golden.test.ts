@@ -1,7 +1,8 @@
 // Trava de comportamento da simulação: a impressão digital de corridas inteiras (hash de cada tick, todos
 // os eventos e o estado completo) tem de bater com o valor fixo abaixo. Existe para as otimizações de CPU
 // (docs/DESEMPENHO.md): otimizar o stepRace não pode mudar um único bit da corrida. Os valores foram
-// gravados no commit 1605294, antes de qualquer otimização.
+// gravados no commit 1605294, antes de qualquer otimização, e regravados em 28/09 depois do co-op afinado
+// (passo 1.4: empurrão, vácuo de equipe, elástico, box da IA) — com e sem a otimização deram o mesmo valor.
 //
 // Mudou a jogabilidade DE PROPÓSITO (constante, IA, física)? Aí o hash muda e é esperado: rode
 // `npx tsx scripts/perf-sim.ts --fingerprints`, confira que só mudaram as corridas que deviam e atualize.
@@ -14,13 +15,13 @@ import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
   'solo-sem-assistencias': { fingerprint: '08a9194b', ticks: 9193 },
-  'coop4-tudo': { fingerprint: 'e415c878', ticks: 8112 },
-  'versus-cambio-manual': { fingerprint: '804b8d58', ticks: 9636 },
-  escolta: { fingerprint: '8cc95fe5', ticks: 8474 },
-  revezamento: { fingerprint: 'a2216ec9', ticks: 13180 },
-  'tomada-pela-ia': { fingerprint: '7b403c99', ticks: 8872 },
+  'coop4-tudo': { fingerprint: 'bf7ff410', ticks: 8078 },
+  'versus-cambio-manual': { fingerprint: '7b72a4b9', ticks: 10196 },
+  escolta: { fingerprint: '6b252411', ticks: 8476 },
+  revezamento: { fingerprint: 'ab70b19b', ticks: 11852 },
+  'tomada-pela-ia': { fingerprint: 'd1868c01', ticks: 9249 },
   'contra-relogio': { fingerprint: '89f654e0', ticks: 7768 },
-  'sem-personalidades': { fingerprint: '235f1361', ticks: 10123 },
+  'sem-personalidades': { fingerprint: 'aac2f1dc', ticks: 10146 },
 };
 
 describe('corridas de referência (impressão digital fixa)', () => {
