@@ -50,6 +50,9 @@ function nearestAhead(state: RaceState, track: Track, car: CarState, lateral: nu
 }
 
 function bestHumanProgress(state: RaceState): number {
+  // Escolta (modes.ts): o elástico da IA mira o VIP — é ele que a equipe precisa levar ao pódio.
+  const vip = state.party && state.party.vipId >= 0 ? state.cars[state.party.vipId] : undefined;
+  if (vip) return vip.progress;
   let best = -Infinity;
   for (const c of state.cars) if (c.seat >= 0 && c.progress > best) best = c.progress;
   return best;

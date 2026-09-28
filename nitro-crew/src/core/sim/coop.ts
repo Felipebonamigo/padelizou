@@ -1,5 +1,6 @@
 // Mecânicas de equipe: vácuo, empurrão e elástico entre companheiros.
 import { CATCHUP_DISTANCE, DRAFT_DISTANCE, DRAFT_LATERAL, TOW_COOLDOWN_TICKS, TOW_DISTANCE, TOW_LATERAL, TOW_MIN_SPEED_FACTOR, TOW_SPEED_FACTOR } from '../constants';
+import { applyEscortPush, isVip } from '../modes';
 import type { CarState, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
 import type { CarModifiers } from './physics';
@@ -28,12 +29,16 @@ export function computeModifiers(state: RaceState, track: Track, car: CarState):
   return mods;
 }
 
-/** Companheiro que passa perto de um parado dá um empurrão. */
+/**
+ * Companheiro que passa perto de um parado dá um empurrão. Na escolta o VIP também é socorrido
+ * quando para, e a equipe o empurra por trás mesmo andando (modes.ts: applyEscortPush).
+ */
 export function applyTow(state: RaceState, track: Track): void {
+  applyEscortPush(state, track);
   if (!state.config.assists.tow || state.phase !== 'racing') return;
   for (const car of state.cars) {
     if (car.towCooldown > 0) { car.towCooldown--; continue; }
-    if (car.seat < 0 || car.finished) continue;
+    if ((car.seat < 0 && !isVip(state, car)) || car.finished) continue;
     const def = carStats(car);
     if (car.speed > def.topSpeed * TOW_MIN_SPEED_FACTOR) continue;
     for (const mate of state.cars) {

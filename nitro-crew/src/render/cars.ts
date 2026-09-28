@@ -12,9 +12,12 @@ import type { GhostFrame, RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
 import { locateOnFrame, type FramePoint, type RoadFrame } from './roadframe';
 import { blobTexture, canvas2d, labelTexture } from './textures';
+import { VIP_COLOR, VIP_NAME } from '../core/modes';
 import { zToMeters } from './units';
 
 const MAX_CARS = 20;
+/** Posição da etiqueta do VIP na lista de etiquetas (depois dos 4 assentos). */
+const VIP_LABEL = 4;
 const WHEEL_RADIUS = 0.33;
 const WHEEL_X = 0.86;
 const WHEEL_Z = 1.42;
@@ -227,8 +230,9 @@ export class Cars {
   private readonly selfLight = { value: 0.22 };
   private readonly headMaterial: THREE.MeshStandardMaterial;
   /** Etiqueta por assento (0..3); denso de propósito — um array esparso quebra o `for…of`. */
-  private readonly labels: Array<THREE.Sprite | null> = [null, null, null, null];
-  private readonly labelKeys = ['', '', '', ''];
+  /** Etiquetas por assento (0..3) e, no índice VIP_LABEL, a do VIP da escolta. */
+  private readonly labels: Array<THREE.Sprite | null> = [null, null, null, null, null];
+  private readonly labelKeys = ['', '', '', '', ''];
   private readonly spots: THREE.SpotLight[] = [];
   private readonly anims: CarAnim[] = [];
   private readonly colors: THREE.Color[] = [];
@@ -401,6 +405,12 @@ export class Cars {
           this.mw.multiplyMatrices(this.m, w.matrix);
           this.flames.setMatrixAt(nFlames++, this.mw);
         }
+      }
+      // Escolta: o VIP leva etiqueta própria para a equipe não perdê-lo de vista (docs/MODOS.md).
+      if (state.party && c.id === state.party.vipId) {
+        const label = this.label(VIP_LABEL, VIP_NAME, VIP_COLOR);
+        label.position.set(this.pt.x, this.pt.y + 2.1, this.pt.z);
+        label.visible = true;
       }
       // Etiqueta de jogador local visto de outro viewport.
       if (c.seat >= 0 && c.seat < 4 && i !== ownIndex) {

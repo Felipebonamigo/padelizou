@@ -8,6 +8,7 @@ import { careerScreen, garageScreen } from './screens/garage';
 import { recordsScreen } from './screens/info';
 import { lobbyScreen } from './screens/lobby';
 import { onlineScreen } from './screens/online';
+import { handoffScreen, partyScreen, tournamentScreen, tournamentTableScreen } from './screens/party';
 import { optionsScreen } from './screens/options';
 import { resultsScreen, standingsScreen } from './screens/results';
 import { cupsScreen, tracksScreen } from './screens/select';
@@ -50,6 +51,10 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   career: careerScreen,
   garage: garageScreen,
   online: onlineScreen,
+  party: partyScreen,
+  tournament: tournamentScreen,
+  handoff: handoffScreen,
+  tournamentTable: tournamentTableScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {

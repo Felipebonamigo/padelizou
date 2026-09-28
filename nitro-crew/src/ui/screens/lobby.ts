@@ -9,6 +9,7 @@ import type { CarDef, HumanEntry } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav, SaveData } from '../../game/contracts';
 import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
+import { isPartyMode, lobbyHidesCar, lobbyHidesDriver, lobbyTeamLabel, partySeatsProblem, versusAllowed } from '../../party/rules';
 import { isKeyboard } from '../input';
 import { arrowButton, button, carCard, createFocusList, h, listNav, screenFrame, selector, type FocusItem, type FocusList, type LobbySeat, type LobbyState, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
@@ -46,17 +47,21 @@ export function canStart(lobby: LobbyState, save?: SaveData): boolean {
   const seats = occupiedSeats(lobby);
   // Continuar: todos os pilotos do jogo salvo precisam estar sentados.
   if (lobby.resume && save && seats.length !== maxSeats(lobby, save)) return false;
+  if (partySeatsProblem(lobby.mode, seats.length)) return false;
   return lobby.seats[0] !== null && seats.length > 0 && seats.every((s) => s.ready);
 }
 
 /** Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento. */
 export function lobbyHumans(api: ScreenApi): HumanEntry[] {
   const cars = availableCars(api.ctx);
-  return occupiedSeats(api.lobby).map((s) => ({
+  const seats = occupiedSeats(api.lobby);
+  // Modo que não admite versus (escolta; revezamento com uma dupla) corre em equipe mesmo com o seletor esquecido.
+  const versus = api.lobby.versus && versusAllowed(api.lobby.mode, seats.length);
+  return seats.map((s) => ({
     seat: s.seat,
     name: s.name.trim() || `P${s.seat + 1}`,
     carId: (cars[s.carIndex] ?? cars[0]).id,
-    teamId: api.lobby.versus ? s.seat : 0,
+    teamId: versus ? s.seat : 0,
     color: SEAT_COLORS[s.seat] ?? '#ffffff',
   }));
 }
@@ -72,10 +77,10 @@ function newSeat(api: ScreenApi, seat: number, device: DeviceId): LobbySeat {
 
 /**
  * Onde o cursor de um assento começa: no carro (1) normalmente; no PRONTO quando não há carro nem
- * nome a escolher — no "Continuar" o PRONTO é o item 0 (na carreira nova, [nome, PRONTO] → 1).
+ * nome a escolher — no "Continuar" e no torneio o PRONTO é o item 0 (na carreira nova, [nome, PRONTO] → 1).
  */
 export function startCursor(lobby: LobbyState): number {
-  return lobby.resume ? 0 : 1;
+  return lobby.resume || lobbyHidesDriver(lobby.mode) ? 0 : 1;
 }
 
 /** Alinha o lobby com os assentos do InputProvider (quem já estava ligado continua no lugar). */
@@ -93,7 +98,7 @@ function syncWithInput(api: ScreenApi): void {
     if (!device) lobby.seats[seat] = null;
     else if (!existing || existing.device !== device) lobby.seats[seat] = newSeat(api, seat, device);
   }
-  if (lobby.mode === 'timetrial') lobby.versus = false;
+  if (lobby.mode === 'timetrial' || (isPartyMode(lobby.mode) && lobby.mode !== 'relay')) lobby.versus = false;
   // Continuar: o modo é o do jogo salvo (co-op = todos no mesmo time).
   if (lobby.resume) {
     // Quem já estava sentado (voltou de outra tela) mostra o nome e o carro do jogo salvo.
@@ -162,6 +167,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     api.sfx('confirm');
     if (career) api.emit({ type: 'startCareer', humans: lobbyHumans(api), resume });
     else if (resume) api.emit({ type: 'continueCup' });
+    else if (lobby.mode === 'tournament') api.go('tournament');
     else api.go(lobby.mode === 'cup' ? 'cups' : 'tracks');
   };
 
@@ -172,12 +178,15 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       attrs: { type: 'text', maxlength: String(NAME_MAX_LENGTH), value: s.name, spellcheck: 'false', autocomplete: 'off' },
       on: { input: () => { s.name = nameInput.value; } },
     });
-    // Continuar: o nome é o do jogo salvo (está na classificação), sem edição.
-    const nameRow: FocusItem | null = resume ? null : {
+    // Continuar: o nome é o do jogo salvo (está na classificação), sem edição. Torneio: vem da inscrição.
+    const hidesDriver = lobbyHidesDriver(lobby.mode);
+    const rank = occupiedSeats(lobby).indexOf(s);
+    const partner = lobbyHidesCar(lobby.mode, rank) ? occupiedSeats(lobby)[rank - 1] : undefined;
+    const nameRow: FocusItem | null = resume || hidesDriver ? null : {
       el: h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), nameInput),
       activate: () => { nameInput.focus(); nameInput.select(); },
     };
-    const nameEl = nameRow ? nameRow.el : h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), h('strong', { text: s.name }));
+    const nameEl = hidesDriver ? null : nameRow ? nameRow.el : h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), h('strong', { text: s.name }));
     const heroBody = h('div', { class: 'car-hero-body' }, carCard(cars[s.carIndex] ?? cars[0], cars));
     const changeCar = (dir: -1 | 1) => {
       if (s.ready) return;
@@ -185,7 +194,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       heroBody.replaceChildren(carCard(cars[s.carIndex], cars));
     };
     // Carreira: carro e melhorias ficam na garagem. Copa retomada: o carro é o da copa salva.
-    const carItem: FocusItem | null = career || resume ? null : {
+    const carItem: FocusItem | null = career || resume || hidesDriver || partner ? null : {
       el: h('div', { class: `car-hero${s.ready ? ' locked' : ''}` },
         arrowButton(-1, () => { changeCar(-1); api.sfx('move'); }),
         heroBody,
@@ -196,10 +205,13 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     };
     const carEl = carItem ? carItem.el
       : career ? h('div', { class: 'car-hero locked lobby-note' }, icon('flag'), h('span', { text: t('career.lobby.carNote') }))
+      : hidesDriver ? h('div', { class: 'car-hero locked lobby-note' }, icon('users'), h('span', { text: t('party.lobby.tournamentNote') }))
+      : partner ? h('div', { class: 'car-hero locked lobby-note' }, icon('users'), h('span', { text: t('party.lobby.partnerCar', { name: partner.name.trim() || `P${partner.seat + 1}` }) }))
       : h('div', { class: 'car-hero locked' }, heroBody);
     const ready = button(t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
     if (s.ready) ready.el.prepend(icon('check'));
-    const team = lobby.versus ? t('ui.lobby.teamN', { n: s.seat + 1 }) : t('core.team.human');
+    const team = lobbyTeamLabel(lobby.mode, rank)
+      ?? (lobby.versus ? t('ui.lobby.teamN', { n: s.seat + 1 }) : t('core.team.human'));
     const slot = h('div', { class: `slot occupied glass${s.ready ? ' ready' : ''}`, style: `--seat:${color}` },
       h('div', { class: 'slot-head' },
         h('span', { class: 'seat-badge', text: `P${s.seat + 1}` }),
@@ -233,11 +245,11 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   function panel(): { el: HTMLElement; items: FocusItem[] } {
     const tt = lobby.mode === 'timetrial';
     const items: FocusItem[] = [];
-    if (!tt && !resume) {
+    if (!tt && !resume && versusAllowed(lobby.mode, occupiedSeats(lobby).length)) {
       items.push(selector(t('ui.lobby.mode'), () => (lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop')), () => { lobby.versus = !lobby.versus; render(); }, { sfx: api.sfx }));
     }
     items.push(...raceOptionSelectors(api, () => commitSettings(api), {
-      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick', assists: !tt && !lobby.versus, lapsLabel: t('ui.lobby.laps'),
+      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick' || isPartyMode(lobby.mode), assists: !tt && !lobby.versus && lobby.mode !== 'tournament', lapsLabel: t('ui.lobby.laps'),
     }));
     const startBtn = button(t('ui.lobby.start'), start, 'btn-primary btn-start');
     startBtn.disabled = !canStart(lobby, save);
@@ -249,7 +261,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
       fixedMode,
       h('div', { class: 'lobby-options' }, items.slice(0, items.length - 2).map((i) => i.el)),
-      h('p', { class: 'hint', text: canStart(lobby, save) ? t('ui.lobby.startHint') : t('ui.lobby.waitHint') }),
+      h('p', { class: 'hint', text: canStart(lobby, save) ? t('ui.lobby.startHint') : partySeatsProblem(lobby.mode, occupiedSeats(lobby).length) ?? t('ui.lobby.waitHint') }),
       h('div', { class: 'lobby-actions' }, startBtn.el, backBtn.el),
     );
     return { el: panelEl, items };

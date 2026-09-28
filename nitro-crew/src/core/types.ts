@@ -157,7 +157,12 @@ export interface RaceConfig {
    * a ele um bônus leve de habilidade. Ausente = corrida sem rival (rápida, contra-relógio, online).
    */
   rival?: string;
+  /** Modo de festa com regra no núcleo (src/core/modes.ts, docs/MODOS.md); ausente = corrida normal. Só local. */
+  mode?: CoreMode;
 }
+
+/** Escolta (a equipe protege um VIP da IA) ou revezamento (um carro por dupla, troca no box). */
+export type CoreMode = 'escort' | 'relay';
 
 // ───────────────────────────── Estado ─────────────────────────────
 
@@ -275,6 +280,12 @@ export type SimEvent =
   | { type: 'fuel_low'; carId: number }
   | { type: 'fuel_empty'; carId: number }
   | { type: 'gear'; carId: number; gear: number }
+  /** Revezamento (src/core/modes.ts): a volta fechou e a troca está liberada no box. */
+  | { type: 'relay_due'; carId: number }
+  /** Revezamento: o controle do carro passou de um assento para o outro, no box. */
+  | { type: 'relay_swap'; carId: number; fromSeat: number; toSeat: number }
+  /** Revezamento: o carro passou pelo box sem entrar; quem dirige segue mais uma volta. */
+  | { type: 'relay_missed'; carId: number }
   | { type: 'race_over' };
 
 export interface RaceResultRow {
@@ -307,6 +318,31 @@ export interface RaceState {
   /** Eventos gerados no último tick (limpos a cada passo). */
   events: SimEvent[];
   results: RaceResultRow[] | null;
+  /** Estado dos modos de festa com regra no núcleo (src/core/modes.ts); ausente = corrida normal. */
+  party?: PartyState;
+}
+
+/** Revezamento: um carro de dupla e de quem é a vez. */
+export interface RelayCar {
+  carId: number;
+  /** Os assentos da dupla, na ordem em que revezam (o primeiro larga). */
+  seats: number[];
+  /** Índice em `seats` de quem dirige agora (é o `seat` do carro). */
+  active: number;
+  /** A volta fechou e a troca espera o box. */
+  due: boolean;
+  /** Com a troca pendente, o carro já chegou ao trecho do box (sair dele sem entrar perde a troca). */
+  sawPit: boolean;
+  swaps: number;
+}
+
+export interface PartyState {
+  /** Escolta: id do carro VIP (-1 fora da escolta). */
+  vipId: number;
+  /** Escolta: id de quem empurra o VIP agora (-1 = ninguém); o evento sai só quando o empurrão começa. */
+  pushBy: number;
+  /** Revezamento: um por carro de dupla (vazio fora do revezamento). */
+  relay: RelayCar[];
 }
 
 // ───────────────────────────── Campeonato ─────────────────────────────

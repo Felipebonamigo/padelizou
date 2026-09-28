@@ -5,6 +5,7 @@ import { AI_DRIVERS, AI_TEAM_ID_BASE, personalityOf, rosterOffsetWith } from '..
 import { createRng, nextInt } from '../rng';
 import type { CarState, PlayerInput, RaceConfig, RaceState, Track } from '../types';
 import { NEUTRAL_INPUT } from '../types';
+import { arrangeGrid, extraCars, humanDrivers, updateModes } from '../modes';
 import { aiInput, createBrain, DIFFICULTY_SKILL } from './ai';
 import { resolveCarCollisions, resolveSpriteCrash } from './collisions';
 import { applyTow, computeModifiers } from './coop';
@@ -29,8 +30,10 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
     tick: 0, phase: 'countdown', config, trackId: track.def.id, trackLength: track.length, cars: [],
     rng: createRng(config.seed), teamNitro: {}, startTick: COUNTDOWN_TICKS, firstHumanFinishTick: -1, events: [], results: null,
   };
-  const aiCount = total - config.humans.length;
-  const cars: CarState[] = [];
+  // Modos de festa (modes.ts): o revezamento tem um carro por dupla; a escolta, o VIP no lugar de uma IA.
+  const drivers = humanDrivers(config);
+  const aiCount = Math.max(0, total - drivers.length - extraCars(config));
+  const ai: CarState[] = [];
   // IA: nomes em ordem fixa a partir de um deslocamento sorteado, times aos pares. O rival da copa
   // (config.rival) sempre entra; cada piloto traz a própria personalidade (data/drivers.ts).
   const roster = createRng(config.rosterSeed ?? config.seed);
@@ -38,12 +41,12 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
   for (let i = 0; i < aiCount; i++) {
     const driverIndex = (nameOffset + i) % AI_DRIVERS.length;
     const name = AI_DRIVERS[driverIndex];
-    const car = blankCar(config, cars.length, -1, name, AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), AI_CAR_POOL[nextInt(roster, 0, AI_CAR_POOL.length - 1)].id);
+    const car = blankCar(config, ai.length, -1, name, AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), AI_CAR_POOL[nextInt(roster, 0, AI_CAR_POOL.length - 1)].id);
     car.ai = createBrain(state, config.difficulty, i, { personality: personalityOf(name), rival: name === config.rival });
-    cars.push(car);
+    ai.push(car);
   }
-  const humans = config.humans.slice().sort((a, b) => a.seat - b.seat);
-  for (const h of humans) cars.push(blankCar(config, cars.length, h.seat, h.name, h.teamId, h.carId));
+  const humanCars = drivers.map((d, i) => blankCar(config, aiCount + i, d.seat, d.name, d.teamId, d.carId));
+  const cars = arrangeGrid(state, ai, humanCars, (seat, name, teamId, carId) => blankCar(config, -1, seat, name, teamId, carId));
 
   // Grid 2 a 2: o primeiro da lista larga na frente. Humanos ficam por último.
   const gridGap = 260;
@@ -85,6 +88,7 @@ export function stepRace(state: RaceState, track: Track, inputs: ReadonlyArray<P
   resolveCarCollisions(state, track);
   applyTow(state, track);
   updatePositions(state, track);
+  updateModes(state, track);
 
   if (checkRaceOver(state)) {
     state.phase = 'finished';

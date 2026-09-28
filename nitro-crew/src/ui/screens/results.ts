@@ -10,6 +10,8 @@ import { t } from '../../i18n';
 import '../../stats/strings';
 import './records.css';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
+import { isVipRow, partyResultsParts } from './party';
+import { VIP_COLOR } from '../../core/modes';
 
 /** Título grande com um chip ao lado (pista ou copa), em vez de "Resultado — Nome" numa linha só que quebra. */
 function titleRow(title: string, chip: string): HTMLElement {
@@ -55,7 +57,7 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
       h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { text: t('ui.results.car') }),
       h('th', { text: t('ui.results.time') }), h('th', { text: t('ui.results.bestLap') }), h('th', { class: 'num', text: t('ui.results.points') }),
     )),
-    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 ? 'human' : isRival(r) ? 'rival' : '', style: rowStyle(d.humans, r.seat) },
+    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 || isVipRow(d, r) ? 'human' : isRival(r) ? 'rival' : '', style: isVipRow(d, r) ? `--seat:${VIP_COLOR}` : rowStyle(d.humans, r.seat) },
       positionCell(r.position),
       h('td', {}, r.name, isRival(r) ? rivalTag() : null),
       h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
@@ -78,8 +80,11 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     extras.push(h('p', { class: 'team-line' }, icon('users'), h('span', { text: t('ui.results.team', { team: t('core.team.human'), points: teamRaceScore(d.results, teamId), rank: teamRaceRank(d.results, teamId) }) })));
   }
 
+  const party = partyResultsParts(api, d);
+  extras.push(...party.extras);
   const items: FocusItem[] = [];
-  if (cupLike && d.champ) {
+  if (party.items) items.push(...party.items);
+  else if (cupLike && d.champ) {
     const champ = d.champ;
     const cup = ctx.cups.find((c) => c.id === champ.cupId);
     if (cup) items.push(button(t('ui.results.standings'), () => api.go('standings', { champ, humans: d.humans, cup, career: d.mode === 'career' }), 'btn-primary'));
