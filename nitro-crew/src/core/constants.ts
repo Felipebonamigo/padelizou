@@ -63,6 +63,19 @@ export const TOW_LATERAL = 0.7;
 export const TOW_SPEED_FACTOR = 0.8;
 export const TOW_COOLDOWN_TICKS = 3 * TICK_RATE;
 
+// Escolta (modo de festa, src/core/modes.ts e docs/MODOS.md).
+/** Velocidade máxima do VIP, fração da do carro dele: mais lento que os rivais, precisa de escolta. */
+export const ESCORT_VIP_TOP_FACTOR = 0.98;
+/** O VIP precisa terminar nesta posição ou melhor. */
+export const ESCORT_GOAL_POSITION = 3;
+/** Empurrão no VIP: um companheiro até esta distância atrás dele, na mesma faixa… */
+export const ESCORT_PUSH_DISTANCE = SEGMENT_LENGTH * 2;
+export const ESCORT_PUSH_LATERAL = 0.45;
+/** …leva o VIP a esta fração da própria velocidade… */
+export const ESCORT_PUSH_SPEED_FACTOR = 0.97;
+/** …até este múltiplo da velocidade máxima do VIP. */
+export const ESCORT_PUSH_TOP_CAP = 1.12;
+
 export const CATCHUP_DISTANCE = SEGMENT_LENGTH * 60;
 export const CATCHUP_TOP_MULT = 1.05;
 

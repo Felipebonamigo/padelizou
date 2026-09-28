@@ -7,6 +7,7 @@
 // ordem de avaliação dos módulos. Por isso os dois saneadores pequenos abaixo são locais.
 import { isCoop } from '../core/championship';
 import { MAX_CARS, SPEED_TO_KMH, TICK_RATE } from '../core/constants';
+import { relayOfSeat } from '../core/modes';
 import type { HumanEntry, RaceResultRow, RaceState } from '../core/types';
 import { getLanguage, t } from '../i18n';
 import '../stats/strings';
@@ -127,9 +128,13 @@ export function raceContributions(input: RaceStatsInput): Contribution[] {
   const endTick = Math.max(state.startTick, state.phase === 'finished' ? state.tick - 1 : state.tick);
   const out: Contribution[] = [];
   for (const h of [...humans].sort((a, b) => a.seat - b.seat)) {
-    const car = state.cars.find((c) => c.seat === h.seat);
-    const row = results.find((r) => r.seat === h.seat);
+    // Revezamento (docs/MODOS.md): os dois da dupla levam o resultado do carro; voltas, distância e
+    // tempo ficam só com quem largou, para o total não contar o mesmo carro duas vezes.
+    const relay = relayOfSeat(state, h.seat);
+    const car = relay ? state.cars[relay.carId] : state.cars.find((c) => c.seat === h.seat);
+    const row = relay ? results.find((r) => r.carId === relay.carId) : results.find((r) => r.seat === h.seat);
     if (!car || !row) continue;
+    const carShare = !relay || relay.seats[0] === h.seat;
     const tel = telemetry.seats.get(h.seat);
     const s = emptyPlayerStats();
     s.races = 1;
@@ -139,11 +144,13 @@ export function raceContributions(input: RaceStatsInput): Contribution[] {
       if (row.position === 1 && coop) s.coopWins = 1;
       s.bestPositions[state.trackId] = row.position;
     }
-    s.laps = Math.min(car.lapTicks.length, laps);
-    // Progresso limitado à linha de chegada: quem terminou segue no piloto automático e isso não conta.
-    const start = tel ? tel.startProgress : car.progress;
-    s.meters = Math.round(Math.max(0, Math.min(car.progress, finishLine) - start) * METERS_PER_UNIT);
-    s.raceTicks = row.finished ? Math.max(0, row.totalTicks) : endTick - state.startTick;
+    if (carShare) {
+      s.laps = Math.min(car.lapTicks.length, laps);
+      // Progresso limitado à linha de chegada: quem terminou segue no piloto automático e isso não conta.
+      const start = tel ? tel.startProgress : car.progress;
+      s.meters = Math.round(Math.max(0, Math.min(car.progress, finishLine) - start) * METERS_PER_UNIT);
+      s.raceTicks = row.finished ? Math.max(0, row.totalTicks) : endTick - state.startTick;
+    }
     if (tel) {
       s.nitros = tel.nitros;
       s.towsGiven = tel.towsGiven;

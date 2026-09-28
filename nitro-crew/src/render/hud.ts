@@ -7,6 +7,7 @@ import './hud.css';
 import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
 import { SEAT_COLORS } from '../core/data/drivers';
+import { VIP_COLOR } from '../core/modes';
 import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
 import type { HudMessage, RenderFrame, ViewportSpec } from '../game/contracts';
@@ -77,6 +78,8 @@ class MiniMap {
         setAttr(dot, 'fill', vp ? vp.color : SEAT_COLORS[c.seat % SEAT_COLORS.length]);
         setAttr(dot, 'r', own ? '5' : '4');
         setAttr(dot, 'class', own ? 'me' : 'human');
+      } else if (state.party && c.id === state.party.vipId) {
+        setAttr(dot, 'fill', VIP_COLOR); setAttr(dot, 'r', '4.2'); setAttr(dot, 'class', 'human');
       } else {
         setAttr(dot, 'fill', '#9aa3b5'); setAttr(dot, 'r', '2.6'); setAttr(dot, 'class', 'ai');
       }
@@ -192,7 +195,8 @@ class SeatHud {
     let m = 0;
     if (frame.coop) {
       for (const other of frame.viewports) {
-        if (other.seat === vp.seat || m >= this.mateRows.length) continue;
+        // Revezamento: o parceiro que espera a vez vê o mesmo carro — não é "companheiro".
+        if (other.seat === vp.seat || other.carIndex === vp.carIndex || m >= this.mateRows.length) continue;
         const oc = state.cars[other.carIndex];
         if (!oc) continue;
         const row = this.mateRows[m++];

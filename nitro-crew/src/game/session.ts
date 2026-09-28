@@ -26,6 +26,8 @@ import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriv
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
 import { createOnlineController, type OnlineController } from './online-session';
+import { createPartySession, isPartyRaceMode } from './party-session';
+import { carIndexOfSeat } from '../core/modes';
 import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
 import { isCupUnlocked, loadSave, saveSave } from './save';
@@ -141,10 +143,15 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     },
   };
 
+  // Festa: os menus leem o torneio daqui; os menus em si nascem depois (o host os busca na hora).
+  const party = createPartySession({
+    get menus() { return menus; }, input, baseConfig, randomSeed,
+    beginRace: (config, mode, humans) => beginRace(config, mode, humans),
+  });
   const menus = createMenus({
     root: uiRoot, input, settings, save, cups: CUPS, tracks: TRACKS, cars: CARS,
     isCupUnlocked: (cupId) => isCupUnlocked(save, cupId, CUPS),
-    trackOutline, audio, isDesktop: isDesktop(), online,
+    trackOutline, audio, isDesktop: isDesktop(), online, party,
     onEvent: handleMenuEvent,
   });
   session.menus = menus;
@@ -168,6 +175,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function beginRace(config: RaceConfig, mode: RaceMode, humans: HumanEntry[], net?: { driver: RaceDriver; localSeats: number[]; state?: RaceState }): void {
+    // Os modos de festa são só locais: uma corrida em rede nunca nasce com eles (docs/MODOS.md).
+    if (net && (isPartyRaceMode(mode) || config.mode)) { net.driver.dispose(); console.warn(t('party.onlineRefused')); toMain(); return; }
     const track = getTrack(config.trackId);
     const state = net?.state ?? createRace(config, track);
     const localSeats = net ? net.localSeats : humans.map((h) => h.seat);
@@ -242,6 +251,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function toMain(): void {
+    party.abandon();
     toIdle();
     for (let seat = 0; seat < 4; seat++) input.unbindSeat(seat);
     menus.show('main');
@@ -273,6 +283,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       case 'race_over': audio.onEvent(e, 0); settle(r); return;
       default: break;
     }
+    for (const m of party.eventMessages(r.mode, state, e)) pushMessage(m.seat, m.message.text, m.message.kind, m.message.ttl);
     const carSeat = 'carId' in e ? seatOf(state, e.carId) : -1;
     // Online, o carro de outro computador soa como o de um adversário.
     const seat = r.localSeats.includes(carSeat) ? carSeat : -1;
@@ -336,7 +347,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function finishRace(r: ActiveRace): void {
     const { newRecords, achievements } = settle(r);
-    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: r.humans, champ, newRecords, achievements };
+    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: r.humans, champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state) };
     if (r.driver) r.driver.finished(data);
     else menus.show('results', data);
     audio.update(null, 0);
@@ -359,10 +370,14 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     const viewports: ViewportSpec[] = r.humans
       .filter((h) => r.localSeats.includes(h.seat))
       .sort((a, b) => a.seat - b.seat)
-      .map((h) => ({
-        seat: h.seat, carIndex: r.state.cars.findIndex((c) => c.seat === h.seat), color: h.color, name: h.name,
-        messages: r.messages.get(h.seat) ?? [],
-      }));
+      .map((h) => {
+        const own = r.messages.get(h.seat) ?? [];
+        const fixed = party.hudLines(r.mode, r.state, h.seat);
+        return {
+          seat: h.seat, carIndex: carIndexOfSeat(r.state, h.seat), color: h.color, name: h.name,
+          messages: fixed.length ? [...fixed, ...own] : own,
+        };
+      });
     return {
       state: r.state, track: r.track, viewports,
       options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake },
@@ -469,6 +484,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       case 'startTimeTrial': startQuick(e.trackId, settings.quickLaps, e.humans, true); break;
       case 'nextRace': if (session.race?.mode === 'career') career.showGarage(); else nextCupRace(); break;
       case 'continueCup': continueCup(); break;
+      case 'startParty': champ = null; party.startMode(e.mode, e.trackId, e.laps, e.humans); break;
+      case 'startTournament': champ = null; toIdle(); party.startTournament(e.setup, e.seats); break;
+      case 'tournamentHeat': party.runHeat(); break;
       case 'startCareer': career.start(e.humans, e.resume); break;
       case 'careerRace': career.race(); break;
       case 'retryRace': retryRace(); break;

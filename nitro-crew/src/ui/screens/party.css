@@ -1,0 +1,99 @@
+/* Modos de festa: escolha do modo, inscrição do torneio, "passe o controle" e classificação.
+   Usa os tokens de styles.css (--u, --accent, .glass…). */
+
+/* ───────────── Festa ───────────── */
+
+.scr-party { justify-content: center; }
+.party-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(18 * var(--u));
+  width: min(100%, calc(1180 * var(--u)));
+}
+.party-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--u));
+  padding: calc(22 * var(--u)) calc(22 * var(--u)) calc(18 * var(--u));
+  cursor: pointer; min-height: calc(250 * var(--u)); box-sizing: border-box;
+  transition: transform 120ms ease-out, border-color 120ms ease-out;
+}
+.party-card.focus { border-color: var(--accent); transform: translateY(calc(-4 * var(--u))); box-shadow: 0 0 0 1px rgba(255, 90, 54, 0.4), 0 20px 60px rgba(255, 90, 54, 0.22); }
+.party-card-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: calc(52 * var(--u)); height: calc(52 * var(--u)); border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+}
+.party-card-icon .ico { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
+.party-card-name { font-size: var(--fs-lg); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.party-card-who { color: var(--accent); font-weight: 700; font-size: var(--fs-sm); letter-spacing: 0.06em; text-transform: uppercase; }
+.party-card-desc { margin: 0; color: var(--muted); line-height: 1.4; }
+.party-card.focus .party-card-desc { color: var(--text); }
+.party-local { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); }
+
+/* ───────────── Inscrição do torneio ───────────── */
+
+.scr-tournament { justify-content: flex-start; }
+.tp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(calc(300 * var(--u)), 1fr);
+  gap: var(--gap);
+  width: min(100%, calc(1200 * var(--u)));
+  flex: 1; min-height: 0;
+}
+.tp-players, .tp-side { display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); box-sizing: border-box; min-height: 0; }
+.tp-rows { display: flex; flex-direction: column; gap: calc(3 * var(--u)); overflow-y: auto; min-height: 0; }
+.tp-row {
+  position: relative;
+  display: grid; grid-template-columns: calc(30 * var(--u)) minmax(0, 1fr) auto; align-items: center; gap: calc(10 * var(--u));
+  padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u)) calc(12 * var(--u));
+  border-radius: calc(10 * var(--u));
+}
+.tp-row.focus { background: rgba(255, 255, 255, 0.08); }
+.tp-n { color: var(--muted); font-weight: 800; text-align: right; }
+.tp-row .name-input { width: 100%; box-sizing: border-box; padding-top: calc(4 * var(--u)); padding-bottom: calc(4 * var(--u)); }
+.tp-car { gap: calc(6 * var(--u)); }
+.tp-car-name { min-width: calc(130 * var(--u)); text-align: center; font-size: var(--fs-sm); }
+.tp-swatch { width: calc(12 * var(--u)); height: calc(12 * var(--u)); border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3); }
+.tp-row .sel-arrow { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
+.tp-row.focus .sel-arrow { color: var(--accent); background: var(--accent-soft); }
+.tp-row-actions { display: flex; gap: calc(8 * var(--u)); margin-top: auto; padding-top: calc(6 * var(--u)); }
+.btn.btn-small { font-size: var(--fs-sm); padding: calc(6 * var(--u)) calc(14 * var(--u)); }
+.tp-summary { margin: calc(4 * var(--u)) 0 0; font-weight: 700; font-size: var(--fs-md); text-align: center; }
+.tp-tracks { line-height: 1.35; }
+.tp-error.bad { color: var(--bad); font-weight: 700; }
+.tp-badge {
+  margin-left: calc(8 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: calc(12 * var(--u)); font-weight: 800; letter-spacing: 0.1em; vertical-align: 0.1em;
+}
+
+/* ───────────── Passe o controle ───────────── */
+
+.scr-handoff { justify-content: center; }
+.handoff-track { display: flex; align-items: center; gap: calc(12 * var(--u)); font-size: var(--fs-md); }
+.handoff-cards { display: grid; gap: var(--gap); width: min(100%, calc(1180 * var(--u))); }
+.handoff-cards.n-1 { grid-template-columns: minmax(0, calc(420 * var(--u))); justify-content: center; }
+.handoff-cards.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.handoff-cards.n-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.handoff-cards.n-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.handoff-card {
+  --seat: var(--accent);
+  display: flex; flex-direction: column; gap: calc(6 * var(--u));
+  padding: calc(14 * var(--u)) calc(16 * var(--u)); box-sizing: border-box;
+  box-shadow: inset 0 calc(5 * var(--u)) 0 var(--seat), 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.handoff-head { display: flex; align-items: center; gap: calc(8 * var(--u)); min-width: 0; }
+.handoff-card .seat-badge { background: var(--seat); padding: 0 calc(9 * var(--u)); border-radius: 999px; }
+.handoff-device { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); color: var(--muted); font-size: var(--fs-sm); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.handoff-name { font-size: calc(34 * var(--u)); font-weight: 900; color: var(--seat); line-height: 1.1; word-break: break-word; }
+.handoff-car { color: var(--muted); font-weight: 700; }
+.handoff-say { margin: calc(4 * var(--u)) 0 0; font-weight: 700; font-size: var(--fs-md); }
+.handoff-card.keep .handoff-say { color: var(--muted); font-weight: 600; font-size: var(--fs); }
+
+/* ───────────── Classificação do torneio ───────────── */
+
+.scr-tournamentTable { justify-content: flex-start; }
+.tournament-table tr.finalist td:first-child { box-shadow: inset calc(5 * var(--u)) 0 0 var(--accent); }
+
+@media (max-height: 800px) {
+  .party-card { min-height: 0; }
+  .handoff-name { font-size: calc(28 * var(--u)); }
+}

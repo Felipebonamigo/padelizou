@@ -188,6 +188,7 @@ export function tracksScreen(api: ScreenApi): ScreenInstance {
         activate: () => {
           const humans = lobbyHumans(api);
           if (timeTrial) api.emit({ type: 'startTimeTrial', trackId: def.id, humans });
+          else if (lobby.mode === 'escort' || lobby.mode === 'relay') api.emit({ type: 'startParty', mode: lobby.mode, trackId: def.id, laps: ctx.settings.quickLaps, humans });
           else api.emit({ type: 'startQuick', trackId: def.id, laps: ctx.settings.quickLaps, humans });
         },
       };

@@ -124,6 +124,8 @@ export function recordRaceResults(
   const humanRows = results.filter((r) => r.seat >= 0);
   save.racesRun += 1;
   if (mode !== 'timetrial' && humanRows.some((r) => r.position === 1)) save.racesWon += 1;
+  // Revezamento: a volta e o tempo são de dois pilotos — não viram recorde de ninguém (docs/MODOS.md).
+  if (mode === 'relay') return out;
 
   const date = new Date().toISOString();
   const entry = (r: RaceResultRow, ticks: number): BestLap => {

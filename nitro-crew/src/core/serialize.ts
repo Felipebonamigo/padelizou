@@ -1,5 +1,6 @@
 // O estado é JSON puro, então serializar é trivial. O hash serve ao lockstep (comparar máquinas).
 import { hashString } from './rng';
+import { normalizeParty } from './modes';
 import { statsFor } from './sim/stats';
 import type { RaceState } from './types';
 
@@ -14,6 +15,9 @@ export function deserializeRace(json: string): RaceState {
   s.teamNitro = s.teamNitro ?? {};
   // Estado anterior às melhorias da carreira: atributos recalculados da configuração.
   for (const c of s.cars) if (!c.stats) c.stats = statsFor(s.config, c);
+  // Modos de festa (modes.ts): ausente = corrida normal; campos que faltam ganham o padrão.
+  const party = normalizeParty(s.party);
+  if (party) s.party = party; else delete s.party;
   return s;
 }
 

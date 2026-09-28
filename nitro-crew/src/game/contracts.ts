@@ -12,6 +12,8 @@ import type { AchievementUnlock } from './achievements';
 import { EMPTY_STATS, type StatsData } from './stats';
 import { DEFAULT_BINDINGS, type ControlBindings } from '../ui/remap/bindings';
 import type { OnlineController } from './online-session';
+import type { PartyController } from './party-session';
+import type { TournamentSetup } from '../core/tournament';
 
 // ───────────────────────────── Entrada ─────────────────────────────
 
@@ -250,9 +252,13 @@ export interface RaceDriver {
 
 // ───────────────────────────── Menus ─────────────────────────────
 
-export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online';
+export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online'
+  | 'party' | 'tournament' | 'handoff' | 'tournamentTable';
 
-export type RaceMode = 'cup' | 'quick' | 'timetrial' | 'career';
+/** Modos de festa, só locais (docs/MODOS.md; src/game/party-session.ts). */
+export type PartyMode = 'tournament' | 'escort' | 'relay';
+
+export type RaceMode = 'cup' | 'quick' | 'timetrial' | 'career' | PartyMode;
 
 export type MenuEvent =
   | { type: 'startCup'; cupId: string; humans: HumanEntry[] }
@@ -270,7 +276,19 @@ export type MenuEvent =
   /** Garagem: todos prontos, corre a próxima corrida da copa atual. */
   | { type: 'careerRace' }
   /** Lobby de "Continuar": retoma o campeonato normal salvo. */
-  | { type: 'continueCup' };
+  | { type: 'continueCup' }
+  /** Festa: escolta ou revezamento na pista escolhida (lobby → pistas). */
+  | { type: 'startParty'; mode: 'escort' | 'relay'; trackId: string; laps: number; humans: HumanEntry[] }
+  /** Torneio de sofá: inscrição pronta; `seats` = assentos com controle ligado no lobby. */
+  | { type: 'startTournament'; setup: TournamentSetup; seats: number[] }
+  /** Tela "passe o controle": todos com o controle na mão, larga a bateria atual do torneio. */
+  | { type: 'tournamentHeat' };
+
+/** O que o resultado mostra de um modo de festa (preenchido pela sessão da festa no fim da corrida). */
+export type PartyResultsInfo =
+  | { kind: 'escort'; vipPosition: number; success: boolean; vipCarId: number }
+  | { kind: 'relay'; swaps: Array<{ name: string; swaps: number }> }
+  | { kind: 'tournament'; label: string };
 
 export interface ResultsScreenData {
   mode: RaceMode;
@@ -282,6 +300,8 @@ export interface ResultsScreenData {
   newRecords: Array<{ seat: number; kind: 'lap' | 'race' }>;
   /** Conquistas desbloqueadas nesta corrida e quem as ganhou (opcional: ausente = nenhuma). */
   achievements?: AchievementUnlock[];
+  /** Modo de festa: veredito da escolta, trocas do revezamento, bateria do torneio. */
+  party?: PartyResultsInfo;
 }
 
 export interface StandingsScreenData {
@@ -307,6 +327,8 @@ export interface MenuContext {
   isDesktop: boolean;
   /** Online (sala, lobby em rede, corrida em lockstep); ausente onde não há sessão completa. */
   online?: OnlineController;
+  /** Modos de festa (torneio em andamento, inscrição); ausente onde não há sessão completa. */
+  party?: PartyController;
   onEvent(event: MenuEvent): void;
 }
 
