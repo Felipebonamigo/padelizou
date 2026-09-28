@@ -5,6 +5,7 @@ import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, QUICK_LAPS_MIN, TOTAL_CARS_MAX
 import { optionsFooter } from '../../errors/options';
 import { getLanguage, setLanguage, t, type Lang } from '../../i18n';
 import '../remap/strings';
+import '../../ghost/strings';
 import { button, createFocusList, h, listNav, onOff, screenFrame, selector, type FocusItem, type ScreenApi, type ScreenInstance, type Selector } from './common';
 
 const ASSIST_KEYS: ReadonlyArray<keyof CoopAssists> = ['sharedNitro', 'tow', 'teamDraft', 'catchup'];
@@ -85,6 +86,7 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
     selector(t('ui.options.track'), () => musicTitle(s.music), (d) => { s.music = cycle(musicIds, s.music, d); commit(); }, { sfx }),
   ];
   const race = raceOptionSelectors(api, commit, { difficulty: true, gear: true, totalCars: true, quickLaps: true, assists: true });
+  race.push(selector(t('ghost.options.ghost'), () => onOff(s.ghost), () => { s.ghost = !s.ghost; commit(); }, { sfx }));
   const back = button(t('ui.common.back'), () => api.back());
   // Rodapé: relatório de erros · Voltar · telemetria (src/errors/options.ts).
   const footer = optionsFooter(api, commit, back);

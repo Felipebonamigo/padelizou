@@ -152,6 +152,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
       frames[i] = rf;
       poseWorld(rf, track, car.z, frame.time);
       cars.pose(rf, frame.state, track, vp.carIndex, frame.viewports, frame.time);
+      cars.poseGhost(rf, track, frame.ghost);
       const cam = cameras[i];
       const rect = rects[i];
       cam.setAspect(rect.w / Math.max(1, rect.h));

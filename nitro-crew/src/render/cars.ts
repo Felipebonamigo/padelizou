@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { carDef } from '../core/data/cars';
 import { NITRO_DURATION_TICKS } from '../core/constants';
 import type { RaceState, Track } from '../core/types';
-import type { RenderFrame } from '../game/contracts';
+import type { GhostFrame, RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
 import { locateOnFrame, type FramePoint, type RoadFrame } from './roadframe';
 import { blobTexture, canvas2d, labelTexture } from './textures';
@@ -238,6 +238,12 @@ export class Cars {
   private readonly mw = new THREE.Matrix4();
   private readonly pt: FramePoint = { x: 0, y: 0, z: 0, heading: 0 };
   private lastTime = -1;
+  /** Fantasma do contra-relógio: a mesma carroceria e cabine, translúcidas e claras, fora das instâncias (só visual). */
+  private readonly ghostMaterial = new THREE.MeshStandardMaterial({
+    color: '#cfeaff', emissive: '#6fb4ff', emissiveIntensity: 0.5, transparent: true, opacity: 0.38, depthWrite: false, flatShading: true, roughness: 0.6,
+  });
+  private readonly ghostBody: THREE.Mesh;
+  private readonly ghostGlass: THREE.Mesh;
 
   private get instanced(): THREE.InstancedMesh[] {
     return [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames];
@@ -283,6 +289,12 @@ export class Cars {
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
       this.group.add(im);
+    }
+    this.ghostBody = new THREE.Mesh(this.body.geometry, this.ghostMaterial);
+    this.ghostGlass = new THREE.Mesh(this.glass.geometry, this.ghostMaterial);
+    for (const g of [this.ghostBody, this.ghostGlass]) {
+      g.matrixAutoUpdate = false; g.frustumCulled = false; g.visible = false; g.renderOrder = 3;
+      this.group.add(g);
     }
     for (let i = 0; i < MAX_CARS; i++) {
       this.anims.push({ spin: 0, yaw: 0, roll: 0, pitch: 0, bob: 0, brake: false, prevSpeed: 0, nitro: 0 });
@@ -409,8 +421,27 @@ export class Cars {
     if (this.body.instanceColor) this.body.instanceColor.needsUpdate = true;
   }
 
+  /**
+   * Fantasma no referencial do viewport (chamar depois de `pose`). Some quando não há pose, quando
+   * está fora da janela da pista ou atrás do carro do viewport (como os outros carros).
+   */
+  poseGhost(rf: RoadFrame, track: Track, ghost: GhostFrame | undefined): void {
+    const p = ghost?.pose;
+    const z = p ? ((p.z % track.length) + track.length) % track.length : 0;
+    const on = !!p && locateOnFrame(rf, track, z, p.x, this.pt) && this.pt.z <= 2.2;
+    this.ghostBody.visible = on; this.ghostGlass.visible = on;
+    if (!on || !p) return;
+    const d = this.dummy;
+    d.position.set(this.pt.x, this.pt.y, this.pt.z);
+    d.rotation.set(0, -(this.pt.heading + p.steerPose * 0.08), 0, 'YXZ');
+    d.scale.set(1, 1, 1);
+    d.updateMatrix();
+    for (const g of [this.ghostBody, this.ghostGlass]) { g.matrix.copy(d.matrix); g.matrixWorldNeedsUpdate = true; }
+  }
+
   /** Esconde todos os carros (fundo dos menus). */
   hide(): void {
+    this.ghostBody.visible = false; this.ghostGlass.visible = false;
     for (const im of this.instanced) { im.count = 0; im.visible = false; }
     for (const s of this.labels) if (s) s.visible = false;
   }
@@ -437,6 +468,7 @@ export class Cars {
 
   dispose(): void {
     for (const im of this.instanced) { im.geometry.dispose(); (im.material as THREE.Material).dispose(); im.dispose(); }
+    this.ghostMaterial.dispose(); // a geometria é a das instâncias, já liberada acima
     (this.flameMaterial.uniforms.uMap.value as THREE.Texture).dispose();
     for (const s of this.labels) if (s) { if (s.material.map) s.material.map.dispose(); s.material.dispose(); }
     for (const s of this.spots) s.dispose();

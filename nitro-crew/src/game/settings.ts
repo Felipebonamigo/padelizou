@@ -118,6 +118,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     controls: sanitizeBindings(r.controls),
     vibration: pickBool(r.vibration, d.vibration),
     serverUrl: normalizeServerUrl(r.serverUrl) ?? d.serverUrl,
+    ghost: pickBool(r.ghost, d.ghost),
   };
 }
 

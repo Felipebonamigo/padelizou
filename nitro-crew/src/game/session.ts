@@ -25,6 +25,7 @@ import { compactHumans, createCareerSession } from './career-session';
 import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
+import { startGhost, type GhostHooks } from './ghost-session';
 import { createOnlineController, type OnlineController } from './online-session';
 import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
@@ -54,6 +55,8 @@ interface ActiveRace {
   driver: RaceDriver | null;
   /** Assentos jogados neste computador (os únicos com viewport, HUD e som de jogador). */
   localSeats: number[];
+  /** Fantasma do contra-relógio local (ghost-session.ts); null nas outras corridas. */
+  ghost: GhostHooks | null;
 }
 
 export interface Session {
@@ -173,7 +176,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     const localSeats = net ? net.localSeats : humans.map((h) => h.seat);
     const messages = new Map<number, HudMessage[]>();
     for (const seat of localSeats) messages.set(seat, []);
-    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null, driver: net?.driver ?? null, localSeats };
+    const ghost = startGhost(mode, net !== undefined, config.trackId, humans, { settings, hud: (seat, m) => pushMessage(seat, m.text, m.kind, m.ttl) });
+    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null, driver: net?.driver ?? null, localSeats, ghost };
     session.paused = false;
     accumulator = 0;
     menus.hide();
@@ -352,6 +356,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function stepOnce(r: ActiveRace, inputs: PlayerInput[]): void {
     for (const e of stepObserved(r, inputs)) handleEvent(r, e); // observa antes: o tick que fecha a corrida já conta
+    r.ghost?.afterTick(r.state);
     for (const c of rumbleCues(r.state, rumbleMemory)) input.rumble(c.seat, c.strength, c.ms);
   }
 
@@ -368,6 +373,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake },
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
       showHud: menus.current() === null || menus.current() === 'pause' || (r.driver !== null && online.quitOpen),
+      ghost: r.ghost?.frame(r.state),
     };
   }
 

@@ -97,6 +97,8 @@ export interface Settings {
   vibration: boolean;
   /** Endereço do servidor de retransmissão do online (ws:// ou wss://). */
   serverUrl: string;
+  /** Fantasma da melhor volta no contra-relógio (carro translúcido e diferença no HUD); a gravação segue mesmo desligado. */
+  ghost: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -106,6 +108,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   telemetryConsent: 0,
   controls: DEFAULT_BINDINGS, vibration: true,
   serverUrl: 'ws://localhost:8787',
+  ghost: true,
 });
 
 export interface BestLap { ticks: number; name: string; carId: string; date: string }
@@ -171,6 +174,25 @@ export interface ViewportSpec {
   messages: HudMessage[];
 }
 
+/** Pose do fantasma do contra-relógio num instante (src/game/ghost.ts: ghostPoseAt). */
+export interface GhostPose {
+  z: number;
+  x: number;
+  speed: number;
+  /** -1, 0, 1, como CarState.steerPose. */
+  steerPose: number;
+  nitro: boolean;
+}
+
+/** O fantasma na tela: só visual, fora do estado da corrida e sem colisão. */
+export interface GhostFrame {
+  /** Onde ele está agora; null fora da volta cronometrada (largada, depois de ele cruzar a linha, corrida acabada). */
+  pose: GhostPose | null;
+  carId: string;
+  /** Diferença ao vivo em segundos para o carro do primeiro viewport (positivo = atrás do fantasma); null sem referência. */
+  delta: number | null;
+}
+
 export interface RenderFrame {
   state: RaceState;
   track: Track;
@@ -184,6 +206,8 @@ export interface RenderFrame {
   coop: boolean;
   /** Falso enquanto uma tela de menu cobre a corrida (resultado, classificação): o HUD some. */
   showHud: boolean;
+  /** Fantasma do contra-relógio (ausente fora dele ou com a opção desligada). */
+  ghost?: GhostFrame;
 }
 
 /**
