@@ -15,7 +15,9 @@ não use nada de fora desta pasta.
 - Playtests no Chromium headless (Playwright), com `npm run preview` (porta 4174) no ar e capturas em `scratch/`:
   `node scripts/playtest.mjs` (fluxo geral), `playtest-online.mjs` (dois computadores no mesmo relay), `playtest-controls.mjs`
   (remapeamento e vibração), `pistas-ui.mjs` (telas de copas/pistas), `playtest-tutorial.mjs` ("Como jogar" de ponta a
-  ponta), `playtest-assist.mjs` (acessibilidade e direção assistida). `playtest-records.mjs` exige `npm run dev`.
+  ponta), `playtest-assist.mjs` (acessibilidade e direção assistida), `playtest-layout.mjs` (26 telas × 7 resoluções × texto
+  normal/grande; rode depois de mexer em CSS de menu), `playtest-memoria.mjs` (sessão longa, vazamentos).
+  `playtest-records.mjs` exige `npm run dev`. `npx tsx scripts/perf-sim.ts` mede o custo por tick da simulação.
   Chromium: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--use-gl=swiftshader --enable-unsafe-swiftshader`). Sob carga a
   captura de 4 jogadores passa dos 30 s padrão: rode uma cópia com `page.setDefaultTimeout(240000)`.
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
@@ -33,6 +35,9 @@ não use nada de fora desta pasta.
 - A tomada de um assento pela IA (online, jogador que caiu) é um comando de entrada (`PlayerInput.takeover`), aplicado
   dentro do `stepRace` — nada muda o estado por fora.
 - Constantes de jogabilidade só em `constants.ts`; mudou balanceamento, rode `npm run balance` e compare voltas.
+- `tests/sim-golden.test.ts` trava a impressão digital de 8 corridas inteiras. Otimização não pode mexer nela; mudança
+  de jogabilidade de propósito muda: rode `npx tsx scripts/perf-sim.ts --fingerprints`, confira que só mudaram as
+  corridas que deviam e atualize `EXPECTED`.
 
 ## Camadas e contratos
 `src/game/contracts.ts` define as interfaces entre camadas (`Renderer`, `InputProvider`, `AudioEngine`, `Menus`,
@@ -50,15 +55,17 @@ não use nada de fora desta pasta.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual** (28/09/2026): Fase 0 e as ondas A e B da Fase 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
+- **Estado atual** (28/09/2026): Fase 0 e as ondas A, B, C e D das Fases 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
   Carreira (8 carros, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
   lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
   Onda B: rivais com personalidade e rival por copa, direção assistida e acessibilidade, modos de festa (torneio,
   escolta, revezamento), tutorial "Como jogar" e fantasma do contra-relógio. Onda C: caça a bugs em 4 lentes
-  (8 defeitos corrigidos) e balanceamento por dados (escolta, agressivo, erro de frenagem). 700 testes. Documentos por área:
+  (8 defeitos corrigidos) e balanceamento por dados (escolta, agressivo, erro de frenagem). Onda D: co-op afinado
+  por dados, telas em 7 resoluções + Steam Deck, simulação 40% mais barata e sessão longa sem vazamento, direção
+  assistida no online, pacote Windows gerado no Linux. 734 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `DESEMPENHO.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
   gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
 - **Como ver o jogo sem browser**: `scratch/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
@@ -71,4 +78,5 @@ não use nada de fora desta pasta.
   velocidade medido em `docs/ASSISTENCIAS.md`, ou tirar dos recordes), ordem das pistas nas copas (Great Ocean e
   Amalfi jogam como nível 5; `docs/PISTAS.md`),
   licença do código (o `package.json` diz MIT e o repositório é público, mas a venda usa a EULA comercial), nomes de carro
-  que lembram modelos reais (Falcão GT, Tornado), revisão jurídica dos textos em `docs/legal/`.
+  que lembram modelos reais (Falcão GT, Tornado), revisão jurídica dos textos em `docs/legal/`, se o executável Linux
+  (Deck) passa a usar `--no-sandbox` (o `chrome-sandbox` sai sem SUID pela Steam; `desktop/README.md`).

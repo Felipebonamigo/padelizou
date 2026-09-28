@@ -1,9 +1,10 @@
 # Nitro Crew — Roteiro e cronograma até a Steam
 
 > **Documento vivo.** Ao concluir um passo, marque ✅ aqui. Revisar a cada duas semanas (ver "Rotina" no fim).
-> Última revisão: **28/09/2026** — Fase 0 e as ondas A, B e C concluídas (passos marcados com ✅ abaixo). A onda C
-> foi caça a bugs por lentes (online, fluxo de telas, save, simulação) e balanceamento por dados; o que ficou em
-> aberto está em "Riscos" e nos documentos de cada área.
+> Última revisão: **28/09/2026** — Fase 0 e as ondas A, B, C e D concluídas (passos marcados com ✅ abaixo). A onda C
+> foi caça a bugs por lentes e balanceamento por dados; a D, co-op afinado por dados, telas em 7 resoluções e Steam
+> Deck, desempenho e memória, assistência no online e pacote Windows. O que ficou em aberto está em "Riscos" e nos
+> documentos de cada área.
 
 Premissas: um desenvolvedor (Felipe) com **8–12 h/semana** para jogar, decidir, testar com amigos e cuidar da
 parte comercial, mais o agente (Claude) para código, testes, ferramentas e balanceamento; arte e música
@@ -38,12 +39,12 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 |---|---|---|---|
 | 1.1 | Playtests seus: 3+ sessões com 2–4 pessoas e controles de verdade; lista curta de problemas por sessão (o que travou, o que ficou fácil/difícil, o que ninguém entendeu) | V | 1–5 (contínuo) |
 | 1.2 | Sensação de direção: ajuste fino de volante, força centrífuga, freio, grama e colisões com base nos playtests; tremor de tela e "peso" do carro | A | 1–2 |
-| 1.3 | Balanceamento por dados: IA × IA em todas as pistas por versão (`npm run balance`); tempos de volta por carro; dificuldade Amador de verdade fácil, Campeão de verdade difícil | A | 1–5 |
-| 1.4 | Co-op afinado: quando o empurrão vale, quanto o vácuo rende, se o elástico está "trapaceando"; modo Versus (times por assento) e regra de classificação individual testados | A + V | 2–3 |
+| 1.3 | ✅ parte do agente (ondas C e D, humano "médio" simulado; `docs/RIVAIS.md`, `MODOS.md`, `PISTAS.md`) · Balanceamento por dados: IA × IA em todas as pistas por versão (`npm run balance`); tempos de volta por carro; dificuldade Amador de verdade fácil, Campeão de verdade difícil | A | 1–5 |
+| 1.4 | ✅ parte do agente: empurrão (30%/60%, fora do box), vácuo de equipe de 15 segmentos, elástico só atrás de todos os humanos, versus e cofre medidos e mantidos (`docs/DESIGN.md`); falta sentir no sofá · Co-op afinado: quando o empurrão vale, quanto o vácuo rende, se o elástico está "trapaceando"; modo Versus (times por assento) e regra de classificação individual testados | A + V | 2–3 |
 | 1.5 | ✅ (parte do agente: remapeamento por dispositivo, vibração, tela de controles; `docs/CONTROLES.md`) Gamepads reais: Xbox, PlayStation, genérico USB, 4 ao mesmo tempo; Steam Input ligado/desligado; remapeamento na tela de controles | A + V | 2–3 |
-| 1.6 | Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado) e no Steam Deck; ajustar qualidade baixa/média (sombras, bloom, draw distance); sem estouro de memória em 1 h de jogo | A + V | 3–4 |
+| 1.6 | ✅ parte medível aqui: simulação −40% por tick sem mudar um bit (trava `tests/sim-golden.test.ts`), sessão longa sem vazamento (`docs/DESEMPENHO.md`); falta medir quadros por segundo em GPU real e no Deck · Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado) e no Steam Deck; ajustar qualidade baixa/média (sombras, bloom, draw distance); sem estouro de memória em 1 h de jogo | A + V | 3–4 |
 | 1.7 | ✅ campeonato salvo (menu → Continuar) e fantasma da melhor volta no contra-relógio (`docs/FANTASMA.md`) · Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
-| 1.8 | Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
+| 1.8 | ✅ onda C: online, fluxo de telas, save e simulação (8 defeitos corrigidos, cada um com teste) · Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
 | 1.9 | ✅ "Como jogar": 6 passos na pista-escola, com oferta no primeiro acesso (`docs/TUTORIAL.md`) · Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
 | 1.10 | Polimento visual procedural (antes da arte final): chama do nitro mais legível, brilho de lente do sol, reflexos do neon no asfalto molhado (env map da cidade), cabine com colunas e faróis com geometria, poeira com textura, terreno com segunda oitava de ruído e transição de cor por altura, animação de troca de posição no HUD | A | 2–5 |
 
@@ -97,8 +98,8 @@ Marco **M4 (semana 24)**: co-op online estável pela Steam (Remote Play desde a 
 | 5.1 | Empresa/CNPJ, banco, W-8BEN (se já feito para o AgeOfEarth, reaproveitar) | V | 8–10 |
 | 5.2 | Conta Steamworks + Steam Direct (US$ 100) + App ID; trocar `desktop/steam_appid.txt` | V | 10 |
 | 5.3 | ✅ textos prontos em PT/EN (`docs/LOJA.md`, `docs/IMPRENSA.md`); faltam arte e trailer · Página "Em breve": cápsulas, 6+ screenshots (tela dividida com 4 jogadores é a foto principal), descrição PT/EN, tags (Corrida, Arcade, Retrô, Co-op local, Tela dividida, Remote Play Together), trailer | V + T + A | 14–16 |
-| 5.4 | ✅ parte do agente: pacote Linux gerado e aberto; save em arquivo no userData para o Auto-Cloud; Windows/macOS não gerados aqui · Build Electron completo: SteamPipe, Steam Cloud (save em `localStorage` → pasta do app), conquistas, Rich Presence, Steam Input, tela cheia/resoluções | A | 16–20 |
-| 5.5 | Steam Deck: verificar legibilidade da tela dividida em 7", 60 fps com 2 viewports, 4 controles via dock; build Linux nativa | A + V | 20–22 |
+| 5.4 | ✅ parte do agente: pacotes Linux (aberto, e2e) e Windows (gerado e conferido, não aberto) daqui, ícone provisório, `steam_appid.txt` ao lado do executável, `desktop/build-all.sh`; macOS precisa de um Mac (`desktop/README.md`) · Build Electron completo: SteamPipe, Steam Cloud (save em `localStorage` → pasta do app), conquistas, Rich Presence, Steam Input, tela cheia/resoluções | A | 16–20 |
+| 5.5 | ✅ parte do agente: telas de menu cabem a 1280×800, HUD com piso de 12 px em tela dividida (`docs/TELAS.md`); falta o aparelho (60 fps, dock, `--no-sandbox`) · Steam Deck: verificar legibilidade da tela dividida em 7", 60 fps com 2 viewports, 4 controles via dock; build Linux nativa | A + V | 20–22 |
 | 5.6 | ✅ relatório de erros local (anel, log em arquivo, copiar nas opções); consentimento versionado; sem servidor de telemetria ainda · Telemetria opt-in e relatório de erros | A | 18–20 |
 | 5.7 | ✅ rascunhos de EULA e privacidade (LGPD) com pontos para advogado (`docs/legal/`) · Legal: EULA, política de privacidade (relay → LGPD), licenças de fontes/áudio, créditos; **checagem de marca/nome** e distância visual dos jogos originais (nada de nome "Top Gear", logos ou traçados copiados) | V + A | 20–22 |
 | 5.8 | ✅ matriz e roteiro de QA (`docs/QA.md`) · QA: matriz (Windows 10/11, Linux, Mac; integrado × dedicado; 1–4 controles), checklist de lançamento | A + V | 22–26 |
