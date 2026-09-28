@@ -1,0 +1,64 @@
+/* Tutorial de 90 segundos: tela "Como jogar", tela final, cartão de oferta do menu principal e o
+   painel da corrida guiada (por cima do HUD, escala por --s como o HUD). */
+
+/* ───────────── Como jogar ───────────── */
+.scr-tutorial { justify-content: center; }
+.tut-sub { margin: 0; color: var(--muted); font-size: var(--fs-md); text-align: center; }
+.tut-join { display: flex; flex-direction: column; gap: var(--gap); padding: calc(20 * var(--u)) calc(24 * var(--u)); width: min(100%, calc(900 * var(--u))); box-sizing: border-box; }
+.tut-join-hint { margin: 0; display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--u)); color: var(--text); font-weight: 600; }
+.tut-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); }
+.tut-slot { --seat: var(--accent); display: flex; flex-direction: column; align-items: flex-start; gap: calc(6 * var(--u)); padding: calc(12 * var(--u)) calc(14 * var(--u)); min-width: 0; min-height: calc(96 * var(--u)); box-sizing: border-box; }
+.tut-slot.on { border-top: calc(3 * var(--u)) solid var(--seat); }
+.tut-slot.empty { border-style: dashed; color: var(--muted); }
+.tut-slot-text { font-size: var(--fs-sm); }
+.tut-slot-name { font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tut-join .actions .btn { min-width: calc(200 * var(--u)); }
+
+/* ───────────── Tela final ───────────── */
+.scr-tutorialDone { justify-content: center; }
+.tut-done { display: flex; flex-direction: column; align-items: center; gap: var(--gap); padding: calc(24 * var(--u)) calc(32 * var(--u)); width: min(100%, calc(760 * var(--u))); box-sizing: border-box; }
+.tut-done .screen-title { margin-bottom: 0; }
+.tut-done-icon { font-size: calc(56 * var(--u)); color: #ffd23f; filter: drop-shadow(0 0 calc(16 * var(--u)) rgba(255, 210, 63, 0.5)); }
+.tut-rules { margin: 0; padding: 0; list-style: none; counter-reset: rule; display: flex; flex-direction: column; gap: calc(8 * var(--u)); width: 100%; }
+.tut-rules li { counter-increment: rule; display: flex; align-items: baseline; gap: calc(12 * var(--u)); padding: calc(8 * var(--u)) calc(14 * var(--u)); border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.04); font-size: var(--fs-md); }
+.tut-rules li::before { content: counter(rule); flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); line-height: calc(30 * var(--u)); text-align: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; font-size: var(--fs-sm); }
+
+/* ───────────── Oferta no menu principal ───────────── */
+.tut-offer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: calc(12 * var(--u)); row-gap: calc(2 * var(--u)); align-items: center; margin-top: calc(18 * var(--u)); padding: calc(12 * var(--u)) calc(18 * var(--u)); max-width: calc(520 * var(--u)); cursor: pointer; border-color: rgba(255, 210, 63, 0.55); }
+.tut-offer:hover { background: rgba(255, 255, 255, 0.08); }
+.tut-offer-badge { grid-row: 1 / span 2; padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px; background: #ffd23f; color: #1a1400; font-weight: 800; font-size: var(--fs-sm); letter-spacing: 0.08em; }
+.tut-offer-title { font-size: var(--fs-md); }
+.tut-offer-text { color: var(--muted); font-size: var(--fs-sm); }
+
+/* ───────────── Painel da corrida guiada ───────────── */
+.nc-tut { position: fixed; inset: 0; pointer-events: none; z-index: 6; overflow: hidden;
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #f4f6fb; -webkit-user-select: none; user-select: none; }
+.nc-tut.hidden { display: none; }
+.nc-tut .tut-vp { position: absolute; overflow: hidden; --s: 1; --seat: #ffd23f; }
+.nc-tut .tut-card { position: absolute; left: 50%; bottom: calc(12px * var(--s)); transform: translateX(-50%); width: calc(400px * var(--s)); max-width: calc(100% - 340px * var(--s));
+  box-sizing: border-box; padding: calc(7px * var(--s)) calc(14px * var(--s)); display: flex; flex-direction: column; gap: calc(3px * var(--s));
+  background: rgba(6, 10, 18, 0.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: calc(3px * var(--s)) solid var(--seat); border-radius: calc(12px * var(--s)); box-shadow: 0 calc(4px * var(--s)) calc(18px * var(--s)) rgba(0, 0, 0, 0.4);
+  animation: tut-in 260ms ease-out both; }
+@keyframes tut-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.nc-tut .tut-head { display: flex; align-items: baseline; gap: calc(8px * var(--s)); }
+.nc-tut .tut-counter { flex: none; font-size: calc(10px * var(--s)); font-weight: 800; letter-spacing: 0.12em; color: var(--seat); }
+.nc-tut .tut-title { flex: 1; min-width: 0; font-size: calc(20px * var(--s)); font-weight: 900; letter-spacing: 0.02em; line-height: 1.05; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-tut .tut-dots { flex: none; display: inline-flex; gap: calc(3px * var(--s)); align-self: center; }
+.nc-tut .tut-dots i { width: calc(12px * var(--s)); height: calc(4px * var(--s)); border-radius: 2px; background: rgba(255, 255, 255, 0.16); }
+.nc-tut .tut-dots i.on { background: #3ddc84; }
+.nc-tut .tut-dots i.now { background: var(--seat); box-shadow: 0 0 calc(6px * var(--s)) var(--seat); }
+.nc-tut .tut-text { font-size: calc(14px * var(--s)); font-weight: 600; line-height: 1.25; color: #e8ecf4; }
+.nc-tut .tut-bar { display: none; height: calc(4px * var(--s)); border-radius: 2px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.nc-tut .tut-bar.show { display: block; }
+.nc-tut .tut-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--seat), #fff); transition: width 120ms linear; }
+.nc-tut .tut-foot { display: flex; align-items: center; gap: calc(10px * var(--s)); min-height: calc(20px * var(--s)); }
+.nc-tut .tut-keys { display: flex; flex-wrap: wrap; gap: calc(4px * var(--s)) calc(10px * var(--s)); }
+.nc-tut .tut-key { display: inline-flex; align-items: center; gap: calc(5px * var(--s)); font-size: calc(12px * var(--s)); font-weight: 700; color: #a3acc2; }
+.nc-tut kbd { font: inherit; font-size: calc(14px * var(--s)); font-weight: 900; color: #0b0f16; background: #f4f6fb; border-radius: calc(5px * var(--s));
+  padding: 0 calc(7px * var(--s)); box-shadow: 0 calc(2px * var(--s)) 0 rgba(255, 255, 255, 0.35), 0 calc(3px * var(--s)) calc(6px * var(--s)) rgba(0, 0, 0, 0.4); white-space: nowrap; }
+.nc-tut .tut-skip { margin-left: auto; flex: none; font-size: calc(10px * var(--s)); color: #8d96aa; font-weight: 700; letter-spacing: 0.04em; }
+.nc-tut .tut-retry { display: none; position: absolute; left: 50%; bottom: calc(100% + 6px * var(--s)); transform: translateX(-50%); white-space: nowrap;
+  font-size: calc(13px * var(--s)); font-weight: 800; color: #fff; background: rgba(255, 82, 82, 0.9); border-radius: 999px; padding: calc(3px * var(--s)) calc(12px * var(--s)); }
+.nc-tut .tut-retry.show { display: block; }
+.nc-tut .tut-vp.done .tut-card { border-top-color: #3ddc84; }

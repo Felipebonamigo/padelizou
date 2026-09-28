@@ -14,6 +14,7 @@ import { optionsScreen } from './screens/options';
 import { resultsScreen, standingsScreen } from './screens/results';
 import { cupsScreen, tracksScreen } from './screens/select';
 import { creditsScreen, loadingScreen, mainScreen, pauseScreen, titleScreen } from './screens/simple';
+import { tutorialDoneScreen, tutorialScreen } from './screens/tutorial';
 import './strings';
 
 /** Tecla física → borda de navegação e o "dispositivo" de teclado a que pertence. */
@@ -57,6 +58,8 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   handoff: handoffScreen,
   tournamentTable: tournamentTableScreen,
   access: accessScreen,
+  tutorial: tutorialScreen,
+  tutorialDone: tutorialDoneScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {

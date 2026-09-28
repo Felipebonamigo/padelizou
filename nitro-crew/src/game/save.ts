@@ -69,6 +69,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     carsUnlocked: sanitizeUnlocked(r.carsUnlocked),
     career: sanitizeCareer(r.career),
     cupInProgress: sanitizeSavedCup(r.cupInProgress),
+    tutorialDone: r.tutorialDone === true,
   };
 }
 

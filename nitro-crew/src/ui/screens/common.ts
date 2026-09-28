@@ -2,7 +2,7 @@
 // navegável por teclado, gamepad e mouse), seletores ‹ valor › e miniaturas de pista.
 import { getTrack } from '../../core/track';
 import type { CarDef, TimeOfDay, TrackDef } from '../../core/types';
-import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData } from '../../game/contracts';
+import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData, TutorialDoneData } from '../../game/contracts';
 import { t } from '../../i18n';
 import { carSilhouette, icon } from './icons';
 
@@ -26,7 +26,7 @@ export interface LobbyState {
   resume?: boolean;
 }
 
-export type ScreenData = ResultsScreenData | StandingsScreenData | undefined;
+export type ScreenData = ResultsScreenData | StandingsScreenData | TutorialDoneData | undefined;
 
 /** O que cada tela recebe do `createMenus`. */
 export interface ScreenApi {
