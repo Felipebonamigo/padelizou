@@ -105,3 +105,16 @@
 @keyframes nc-msg-in { from { opacity: 0; transform: scale(0.5) translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes nc-pop { from { opacity: 0; transform: scale(1.8); } 40% { opacity: 1; transform: scale(0.95); } to { transform: scale(1); } }
 @keyframes nc-spin { to { transform: rotate(5deg); } }
+
+/* Piso de legibilidade (passo 5.5, docs/TELAS.md): com tela dividida o --s cai para ~0,74 no Steam Deck
+   (1280×800, 7") e para ~0,47 com HUD em 80% e 4 jogadores em 1024×640 — a volta e o "/20" ficavam com
+   8–12 px. Números nunca abaixo de 12 px efetivos, rótulos nunca abaixo de 10 px; acima disso segue a escala. */
+.nc-hud .pos-n { font-size: max(12px, calc(46px * var(--s))); }
+.nc-hud .pos-of, .nc-hud .lap { font-size: max(12px, calc(16px * var(--s))); }
+.nc-hud .time { font-size: max(12px, calc(32px * var(--s))); }
+.nc-hud .laps { font-size: max(12px, calc(12px * var(--s))); }
+.nc-hud .kmh { font-size: max(12px, calc(44px * var(--s))); }
+.nc-hud .gear { font-size: max(12px, calc(20px * var(--s))); }
+.nc-hud .tag { font-size: max(10px, calc(13px * var(--s))); }
+.nc-hud .label, .nc-hud .unit { font-size: max(10px, calc(11px * var(--s))); }
+.nc-hud .mates { font-size: max(10px, calc(12px * var(--s))); }

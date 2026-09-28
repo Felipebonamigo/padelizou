@@ -18,6 +18,7 @@ import { arrowButton, button, createFocusList, h, listNav, screenFrame, selector
 import { icon, medal, type IconName } from './icons';
 import { availableCars, occupiedSeats, startCursor } from './lobby';
 import { commitSettings, raceOptionSelectors } from './options';
+import './lobby.css';
 import './party.css';
 
 // ───────────────────────────── Festa: escolha do modo ─────────────────────────────

@@ -1,0 +1,28 @@
+/* Lobby: ajustes para caber em toda resolução alvo, com texto normal e grande (docs/TELAS.md,
+   scripts/playtest-layout.mjs). A unidade --u cresce com a altura da tela, então o que não cabe em
+   720p também não cabe em 1440p: as regras valem em qualquer tamanho, não em media query de altura.
+   Seletores com .scr-lobby para vencer os de styles.css qualquer que seja a ordem do CSS no build. */
+
+/* Grade 2×2: a descrição do carro nunca coube (sobrava por cima do nome e da direção a partir de 900p),
+   e as barras mandam na altura do cartão — o desenho não passa delas. Só a grade de um assento
+   (contra-relógio) mostra a descrição. */
+.scr-lobby .lobby-slots:not(.seats-1) .car-blurb { display: none; }
+.scr-lobby .lobby-slots:not(.seats-1) .car-svg { max-height: calc(64 * var(--u)); }
+.scr-lobby .slot .car-bars { row-gap: calc(1 * var(--u)); }
+.scr-lobby .slot .car-bar-label { line-height: 1.05; }
+.scr-lobby .car-name { line-height: 1.1; }
+
+/* Painel do Jogador 1 (e o lado da inscrição do torneio, que usa as mesmas classes): nove seletores,
+   a dica e INICIAR/VOLTAR cabem sem rolar (o VOLTAR ficava recortado pela borda do painel em 720p). Setas e valor mais estreitos também deixam o rótulo inteiro
+   ("Vácuo de equipe") com texto grande. */
+:is(.scr-lobby, .scr-tournament) .lobby-options .sel { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
+:is(.scr-lobby, .scr-tournament) .lobby-options .sel-arrow { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+:is(.scr-lobby, .scr-tournament) .lobby-options .sel-value { min-width: calc(72 * var(--u)); }
+:is(.scr-lobby, .scr-tournament) .lobby-actions .btn { padding-top: calc(7 * var(--u)); padding-bottom: calc(7 * var(--u)); }
+
+/* Texto grande: o cartão perde folga vertical (o nome do carro encostava na linha do nome em 1024×640). */
+#ui.large-text .scr-lobby .slot { gap: calc(4 * var(--u)); padding-top: calc(8 * var(--u)); padding-bottom: calc(8 * var(--u)); }
+#ui.large-text .scr-lobby .slot .car-hero { padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
+#ui.large-text .scr-lobby .slot .seat-badge { line-height: 1.3; }
+/* PRONTO mais estreito: "Sua equipe" cabe numa linha ao lado dele. */
+#ui.large-text .scr-lobby .slot .btn-ready { padding: calc(4 * var(--u)) calc(12 * var(--u)); }

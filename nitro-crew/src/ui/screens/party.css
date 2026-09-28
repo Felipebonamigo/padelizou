@@ -82,7 +82,8 @@
 }
 .handoff-head { display: flex; align-items: center; gap: calc(8 * var(--u)); min-width: 0; }
 .handoff-card .seat-badge { background: var(--seat); padding: 0 calc(9 * var(--u)); border-radius: 999px; }
-.handoff-device { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); color: var(--muted); font-size: var(--fs-sm); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* O controle quebra em duas linhas em vez de virar "Teclado (seta…" (4 cartões com texto grande). */
+.handoff-device { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); color: var(--muted); font-size: var(--fs-sm); min-width: 0; line-height: 1.15; }
 .handoff-name { font-size: calc(34 * var(--u)); font-weight: 900; color: var(--seat); line-height: 1.1; word-break: break-word; }
 .handoff-car { color: var(--muted); font-weight: 700; }
 .handoff-say { margin: calc(4 * var(--u)) 0 0; font-weight: 700; font-size: var(--fs-md); }

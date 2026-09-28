@@ -16,7 +16,9 @@
 .remap-main { display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)); min-width: 0; }
 .remap-grid {
   display: grid;
-  grid-template-columns: minmax(calc(150 * var(--u)), 1.05fr) repeat(3, minmax(0, 1fr));
+  /* Cada coluna tem pelo menos a largura do seu título e a ação a do rótulo inteiro (nada de "Virar à esquer…");
+     a de controles é mais larga porque "X / B / LT" quebrava em duas linhas e empurrava o VOLTAR para fora. */
+  grid-template-columns: minmax(max-content, 1.05fr) repeat(2, minmax(min-content, 0.85fr)) minmax(min-content, 1.3fr);
   gap: calc(4 * var(--u)) calc(6 * var(--u));
   align-items: center;
 }
@@ -51,8 +53,8 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: calc(36 * var(--u));
-  padding: calc(3 * var(--u)) calc(10 * var(--u)) calc(3 * var(--u)) calc(14 * var(--u));
+  min-height: calc(31 * var(--u));
+  padding: calc(2 * var(--u)) calc(6 * var(--u)) calc(2 * var(--u)) calc(12 * var(--u));
   box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
@@ -182,14 +184,15 @@
 .pill.on { color: #0d1a12; background: var(--ok); border-color: transparent; }
 
 .remap-help { max-width: calc(1100 * var(--u)); }
+/* Texto grande: sem o ícone no título das colunas e sem a linha de ajuda, a grade e o VOLTAR cabem (docs/TELAS.md). */
+#ui.large-text .remap-h .ico, #ui.large-text .remap-help { display: none; }
 
 /* ───────────── Telas menores ───────────── */
 
+/* Em 1024 de largura as duas colunas continuam lado a lado: empilhadas, o teste de entrada passava da tela. */
 @media (max-width: 1100px) {
-  .remap-layout { grid-template-columns: 1fr; }
-  .remap-devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(320 * var(--u)), 1fr)); }
+  .remap-layout { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); }
 }
 @media (max-height: 720px) {
-  .bind-cell { min-height: calc(31 * var(--u)); }
   .remap-help { display: none; }
 }

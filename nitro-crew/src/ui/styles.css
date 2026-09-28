@@ -151,7 +151,8 @@ html, body {
 .wordmark-big { font-size: calc(104 * var(--u)); text-shadow: 0 10px 50px rgba(0, 0, 0, 0.6); }
 .wordmark-small { font-size: calc(30 * var(--u)); margin-bottom: calc(10 * var(--u)); }
 
-.screen-title-row { display: flex; align-items: center; gap: var(--gap); margin-bottom: var(--gap); }
+/* Quebra de linha só quando não cabe: o chip desce para baixo do título ("PASSE O CONTROLE" partia ao meio). */
+.screen-title-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: calc(6 * var(--u)) var(--gap); margin-bottom: var(--gap); }
 .screen-title-row .screen-title { margin: 0; }
 .screen-title-row .screen-title::after { display: none; }
 .screen-title-row .chip { font-size: var(--fs); padding: calc(4 * var(--u)) calc(16 * var(--u)); }
@@ -550,6 +551,9 @@ kbd {
 .options-columns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); width: min(100%, calc(1300 * var(--u))); align-items: start; }
 .options-col { display: flex; flex-direction: column; gap: calc(2 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)); }
 .options-col .sub-title { margin: 0 calc(6 * var(--u)) calc(4 * var(--u)); }
+/* Linhas compactas em toda altura: a unidade --u cresce com a tela, então dez seletores por coluna, o título
+   e o rodapé somam a mesma fração da altura em 720p e em 1440p — com o recuo cheio o rodapé saía da tela. */
+.options-col .sel { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
 
 .controls-columns { display: flex; flex-direction: column; gap: calc(8 * var(--u)); width: min(100%, calc(1100 * var(--u))); }
 .controls-columns .table-wrap { max-width: none; max-height: none; }
@@ -604,7 +608,6 @@ kbd {
   .lobby-help { display: none; }
 }
 @media (max-height: 720px) {
-  .options-col .sel { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
   .table-wrap { max-height: 58vh; }
   .car-svg { max-height: calc(72 * var(--u)); }
 }
