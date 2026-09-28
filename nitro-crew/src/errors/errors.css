@@ -53,6 +53,8 @@
   box-sizing: border-box;
 }
 .options-footer > .sel { min-width: 0; }
+/* Estreito e com texto grande (1024×640, 1280×800), o rótulo quebra em duas linhas em vez de virar "Copiar relat…". */
+.options-footer .sel-label { white-space: normal; line-height: 1.15; }
 .options-footer .sel-value { min-width: calc(96 * var(--u)); }
 
 /* "Copiar relatório de erros" é uma linha de ação (sem as setas ‹ › dos seletores). */

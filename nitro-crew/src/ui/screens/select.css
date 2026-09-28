@@ -97,6 +97,11 @@
 .scr-cups .cup-race-name { font-size: var(--fs-md); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scr-cups .cup-race-side { display: flex; flex-direction: column; align-items: flex-end; gap: calc(4 * var(--u)); }
 .scr-cups .meta .sep, .scr-tracks .meta .sep { color: var(--dim); }
+/* Texto grande: o detalhe da copa passava da tela e ficava por baixo da dica (docs/TELAS.md). */
+#ui.large-text .scr-cups .cup-detail { gap: calc(6 * var(--u)); padding-top: calc(12 * var(--u)); padding-bottom: calc(12 * var(--u)); }
+#ui.large-text .scr-cups .cup-race { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
+#ui.large-text .scr-cups .cup-race-name, #ui.large-text .scr-cups .cup-race .meta { line-height: 1.15; }
+#ui.large-text .scr-cups .cup-race .track-thumb { width: calc(48 * var(--u)); height: calc(48 * var(--u)); }
 
 /* ───────────── Pistas ───────────── */
 

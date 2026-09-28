@@ -47,12 +47,13 @@
 /* ───────────── Garagem ───────────── */
 
 .scr-garage { justify-content: flex-start; gap: calc(8 * var(--u)); }
-/* Cabeçalho numa linha só em qualquer tela: a próxima pista é quem encolhe (reticências). */
+/* Cabeçalho numa linha só em qualquer tela: a próxima pista é quem encolhe — quebra em duas linhas
+   (com reticências, "Próxima: Orla de Copacabana — corrid…" perdia justamente a informação). */
 .garage-head { display: flex; align-items: center; gap: var(--gap); width: 100%; flex-wrap: nowrap; min-width: 0; }
 .garage-head > * { flex: none; }
 .garage-head .screen-title { margin: 0; text-align: left; font-size: calc(40 * var(--u)); }
 .garage-head .screen-title::after { display: none; }
-.garage-head > .garage-next { flex: 1 1 auto; min-width: 0; margin-left: auto; text-align: right; font-weight: 700; font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.garage-head > .garage-next { flex: 1 1 auto; min-width: 0; margin-left: auto; text-align: right; font-weight: 700; font-size: var(--fs); line-height: 1.1; }
 .garage-progress { font-size: var(--fs-sm); letter-spacing: 0.08em; text-transform: uppercase; }
 .garage-report-host { width: 100%; }
 .garage-report { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8 * var(--u)) var(--gap); padding: calc(8 * var(--u)) calc(14 * var(--u)); box-sizing: border-box; }
@@ -217,6 +218,34 @@
   .garage-report { padding-top: calc(5 * var(--u)); padding-bottom: calc(5 * var(--u)); }
   .scr-garage .hint { display: none; }
 }
+
+/* 3–4 pilotos: o dinheiro desce para uma linha própria embaixo do nome — na mesma linha, o nome
+   virava "P…" em qualquer resolução (docs/TELAS.md). A cabeça fica da mesma altura: o dinheiro já
+   ocupava duas linhas (rótulo em cima do valor). */
+.garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { flex-wrap: wrap; row-gap: calc(2 * var(--u)); }
+.garage-panels.n-3 .gp-name, .garage-panels.n-4 .gp-name { flex: 1 1 0; min-width: 0; }
+.garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex: 1 1 100%; flex-direction: row; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); margin-left: 0; }
+.garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { line-height: 1.1; min-width: 0; }
+.garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { white-space: nowrap; }
+
+/* Texto grande com 3–4 pilotos: o mesmo aperto das telas 4:3 (peças, bolinhas, setas) e espaçamentos
+   menores, para a coluna caber sem rolar e sem recortar "Tanque" nem "Falcão GT". */
+#ui.large-text .garage-panels.n-3 .gp, #ui.large-text .garage-panels.n-4 .gp { gap: calc(3 * var(--u)); padding-top: calc(4 * var(--u)); padding-bottom: calc(4 * var(--u)); }
+#ui.large-text .garage-panels.n-3 .gp-left, #ui.large-text .garage-panels.n-4 .gp-left,
+#ui.large-text .garage-panels.n-3 .gp-right, #ui.large-text .garage-panels.n-4 .gp-right { gap: calc(3 * var(--u)); }
+#ui.large-text .garage-panels.n-3 .gp-money b, #ui.large-text .garage-panels.n-4 .gp-money b { font-size: var(--fs); }
+#ui.large-text .garage-panels.n-3 .gp-car, #ui.large-text .garage-panels.n-4 .gp-car { padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
+#ui.large-text .garage-panels.n-3 .gp-car-visual .car-svg, #ui.large-text .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(26 * var(--u)); }
+#ui.large-text .garage-panels.n-4 .gp-car-name { letter-spacing: 0; }
+#ui.large-text .garage-panels.n-4 .gp-car .sel-arrow { width: calc(24 * var(--u)); height: calc(24 * var(--u)); }
+#ui.large-text .garage-panels.n-3 .gs-label, #ui.large-text .garage-panels.n-4 .gs-label,
+#ui.large-text .garage-panels.n-3 .gs-value, #ui.large-text .garage-panels.n-4 .gs-value { line-height: 1.05; }
+#ui.large-text .garage-panels.n-3 .gp-part, #ui.large-text .garage-panels.n-4 .gp-part { line-height: 1.1; gap: calc(4 * var(--u)); padding-left: calc(9 * var(--u)); padding-right: calc(5 * var(--u)); }
+#ui.large-text .garage-panels.n-4 .gp-part-price { min-width: 0; }
+#ui.large-text .garage-panels.n-4 .pips { gap: calc(2 * var(--u)); }
+#ui.large-text .garage-panels.n-4 .pips i { width: calc(8 * var(--u)); }
+#ui.large-text .garage-panels.n-3 .gp-msg, #ui.large-text .garage-panels.n-4 .gp-msg { line-height: 1.1; min-height: 1.1em; }
+#ui.large-text .garage-panels.n-3 .btn-ready, #ui.large-text .garage-panels.n-4 .btn-ready { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
 
 /* ───────────── Lobby da carreira / de "Continuar" ───────────── */
 

@@ -4,6 +4,7 @@
 // e do gamepad (`navigate`), sempre com o `device` que apertou.
 import '../../career/strings';
 import './garage.css';
+import './lobby.css';
 import '../../access/strings';
 import { assistedHumans } from '../../access/humans';
 import { seatColor } from '../../core/data/drivers';

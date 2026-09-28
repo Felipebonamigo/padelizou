@@ -22,6 +22,10 @@
 .tut-rules { margin: 0; padding: 0; list-style: none; counter-reset: rule; display: flex; flex-direction: column; gap: calc(8 * var(--u)); width: 100%; }
 .tut-rules li { counter-increment: rule; display: flex; align-items: baseline; gap: calc(12 * var(--u)); padding: calc(8 * var(--u)) calc(14 * var(--u)); border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.04); font-size: var(--fs-md); }
 .tut-rules li::before { content: counter(rule); flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); line-height: calc(30 * var(--u)); text-align: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; font-size: var(--fs-sm); }
+/* Texto grande: caixa mais larga (as regras quebravam em duas linhas) e menos respiro — o "Menu principal" saía da tela. */
+#ui.large-text .tut-done { width: min(100%, calc(980 * var(--u))); padding-top: calc(16 * var(--u)); padding-bottom: calc(16 * var(--u)); gap: calc(8 * var(--u)); }
+#ui.large-text .tut-rules { gap: calc(6 * var(--u)); }
+#ui.large-text .tut-rules li { padding-top: calc(5 * var(--u)); padding-bottom: calc(5 * var(--u)); line-height: 1.25; }
 
 /* ───────────── Oferta no menu principal ───────────── */
 .tut-offer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: calc(12 * var(--u)); row-gap: calc(2 * var(--u)); align-items: center; margin-top: calc(18 * var(--u)); padding: calc(12 * var(--u)) calc(18 * var(--u)); max-width: calc(520 * var(--u)); cursor: pointer; border-color: rgba(255, 210, 63, 0.55); }
