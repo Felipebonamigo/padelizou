@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NITRO_PER_RACE, TEAM_DRAFT_TOP_MULT, DRAFT_TOP_MULT } from '../src/core/constants';
+import { NITRO_PER_RACE, SEGMENT_LENGTH, TEAM_DRAFT_TOP_MULT, DRAFT_TOP_MULT } from '../src/core/constants';
 import { carDef } from '../src/core/data/cars';
 import { computeModifiers } from '../src/core/sim/coop';
 import { effectiveTopSpeed } from '../src/core/sim/physics';
@@ -40,6 +40,44 @@ describe('cooperativo', () => {
     expect(a.speed).toBeGreaterThan(carDef(a.carId).topSpeed * 0.5);
   });
 
+  // Onda D (docs/DESIGN.md, co-op): com o limiar em 20% da máxima, o carro seco (0,2 × elástico/vácuo = 0,21) e o
+  // que bateu numa árvore (0,25) nunca eram empurrados — o empurrão quase não acontecia numa corrida de verdade.
+  const towScene = (
+    setup: (a: ReturnType<typeof humanCar>, b: ReturnType<typeof humanCar>) => void,
+    opts: { track?: ReturnType<typeof syntheticTrack>; giverThrottle?: boolean } = {},
+  ) => {
+    const { state, track } = quickRace({ track: opts.track ?? syntheticTrack(), totalCars: 2, humans: [human(0), human(1)], assists: ALL_ASSISTS });
+    skipCountdown(state, track);
+    const a = humanCar(state, 0); const b = humanCar(state, 1);
+    a.z = 5000; a.x = 0; b.z = 4700; b.x = 0.3; b.speed = carDef(b.carId).topSpeed * 0.9;
+    setup(a, b);
+    let towed = false;
+    for (let i = 0; i < 20 && !towed; i++) {
+      run(state, track, 1, (_, seat) => ({ ...NEUTRAL_INPUT, throttle: seat === 1 && opts.giverThrottle !== false }));
+      towed = state.events.some((e) => e.type === 'tow');
+    }
+    return { towed, a };
+  };
+
+  it('empurrão vale para o carro seco andando a 0,21 da máxima e para o que bateu numa árvore (0,25)', () => {
+    const dry = towScene((a) => { a.fuel = 0; a.speed = carDef(a.carId).topSpeed * 0.21; });
+    expect(dry.towed).toBe(true);
+    const tree = towScene((a) => { a.speed = carDef(a.carId).topSpeed * 0.25; });
+    expect(tree.towed).toBe(true);
+  });
+
+  it('empurrão não vale para quem está no box (o companheiro passa na pista, ao lado da faixa)', () => {
+    const pitTrack = syntheticTrack([{ op: 'pit', length: 60 }, { op: 'straight', length: 540 }], 'sintetica-box');
+    const pit = towScene((a, b) => { a.x = 1.3; a.speed = carDef(a.carId).topSpeed * 0.2; b.x = 0.7; }, { track: pitTrack });
+    expect(pit.a.inPit).toBe(true);
+    expect(pit.towed).toBe(false);
+  });
+
+  it('empurrão não vem de companheiro lento (abaixo de 60% da máxima): num engavetamento ninguém empurra ninguém', () => {
+    const slow = towScene((a, b) => { a.speed = 0; b.speed = carDef(b.carId).topSpeed * 0.5; }, { giverThrottle: false });
+    expect(slow.towed).toBe(false);
+  });
+
   it('sem a assistência, não há empurrão', () => {
     const { state, track } = quickRace({ track: syntheticTrack(), totalCars: 2, humans: [human(0), human(1)], assists: NO_ASSISTS });
     skipCountdown(state, track);
@@ -65,6 +103,21 @@ describe('cooperativo', () => {
     const m2 = computeModifiers(rival.state, rival.track, rival.a);
     expect(m2.draft).toBe(true); expect(m2.teamDraft).toBe(false);
     expect(effectiveTopSpeed(rival.a, carDef(rival.a.carId), rival.state, m2)).toBeCloseTo(carDef(rival.a.carId).topSpeed * DRAFT_TOP_MULT, 3);
+  });
+
+  it('vácuo de equipe pega o companheiro a 10 segmentos e 0,45 de lado; a IA na mesma posição não dá vácuo', () => {
+    const mk = (seatB: 'human' | 'ai') => {
+      const r = quickRace({ track: syntheticTrack(), totalCars: 3, humans: [human(0), human(1)], assists: ALL_ASSISTS });
+      skipCountdown(r.state, r.track);
+      const a = humanCar(r.state, 0);
+      const front = seatB === 'human' ? humanCar(r.state, 1) : r.state.cars.find((c) => c.seat < 0)!;
+      for (const c of r.state.cars) if (c !== a && c !== front) { c.z = 20000; c.x = -0.9; }
+      a.z = 4000; a.x = 0; a.speed = 5000;
+      front.z = 4000 + SEGMENT_LENGTH * 10; front.x = 0.45; front.speed = 5000;
+      return computeModifiers(r.state, r.track, a);
+    };
+    expect(mk('human')).toMatchObject({ draft: true, teamDraft: true });
+    expect(mk('ai')).toMatchObject({ draft: false, teamDraft: false });
   });
 
   it('elástico: só o último humano da equipe, e só quando fica longe de todos os companheiros', () => {

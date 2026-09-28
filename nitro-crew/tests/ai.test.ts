@@ -4,7 +4,7 @@ import { AI_CAR_POOL, carDef } from '../src/core/data/cars';
 import { TRACKS } from '../src/core/track/tracks';
 import { getTrack } from '../src/core/track';
 import { aiInput } from '../src/core/sim/ai';
-import { ALL_ASSISTS, human, humanCar, idle, quickRace, run } from './helpers';
+import { ALL_ASSISTS, human, humanCar, idle, quickRace, run, skipCountdown, syntheticTrack } from './helpers';
 
 describe('IA', () => {
   // Um teste por pista, cada um com o próprio limite de tempo (eram 12 pistas num teste só de 60 s).
@@ -109,6 +109,22 @@ describe('IA', () => {
     expect(pits).toBeGreaterThan(0);
     expect(state.cars.filter((c) => c.seat < 0).every((c) => c.fuel > 0 || c.inPit)).toBe(true);
   }, 30_000);
+
+  it('o elástico só acelera a IA que ficou atrás de TODOS os humanos, não a que está no meio deles (onda D)', () => {
+    // Mirando o melhor humano, a IA atrás do líder e na frente do último andava 4,6% mais rápido — contra o
+    // humano que já ia mal. Medido: sem isso o pior de 4 humanos médios ganhava 2,6 posições.
+    const track = syntheticTrack([{ op: 'straight', length: 4000 }]);
+    const { state } = quickRace({ track, humans: [human(0), human(1)], totalCars: 4, difficulty: 'profissional', assists: ALL_ASSISTS, seed: 3 });
+    skipCountdown(state, track);
+    const [lead, last] = [humanCar(state, 0), humanCar(state, 1)];
+    const [middle, back] = state.cars.filter((c) => c.seat < 0);
+    const place = (c: typeof lead, z: number, x: number) => { c.z = z; c.x = x; c.lap = 1; };
+    place(lead, 400_000, -0.6); place(last, 200_000, 0.6);
+    place(middle, 300_000, 0); place(back, 100_000, 0);
+    for (const c of [middle, back]) { c.carId = 'falcao'; c.stats = { ...lead.stats }; c.ai = { ...c.ai!, skill: 0.95, laneX: 0, laneUntil: 1e9 }; c.speed = c.stats.topSpeed * 0.8; }
+    run(state, track, TICK_RATE * 8, idle);
+    expect(back.speed).toBeGreaterThan(middle.speed * 1.03);
+  });
 
   it('o elástico deixa a IA mais lenta quando dispara à frente do humano (amador)', () => {
     const track = getTrack('rota_66');

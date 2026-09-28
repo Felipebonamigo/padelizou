@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FUEL_LOW_LAPS, FUEL_PIT_MARGIN, TICK_RATE } from '../src/core/constants';
 import { CARS } from '../src/core/data/cars';
 import { aiInput } from '../src/core/sim/ai';
-import { fuelLowLevel, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD, pitStillAhead } from '../src/core/sim/fuel';
+import { fuelLowLevel, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD, pitStillAhead, skipPitBurn } from '../src/core/sim/fuel';
 import { getTrack } from '../src/core/track';
 import { TRACKS } from '../src/core/track/tracks';
 import type { AiBrain, PlayerInput, RaceState, Track } from '../src/core/types';
@@ -160,5 +160,15 @@ describe('combustível: regras puras (sim/fuel.ts)', () => {
     const { state } = quickRace({ laps: 3 });
     const c = humanCar(state);
     expect([0, 1, 2, 3].map((lap) => pitStillAhead(state, { ...c, lap }))).toEqual([true, true, true, false]);
+  });
+
+  it('no último box antes da chegada, decide com o gasto no fundo: a volta final é sempre com o pé embaixo', () => {
+    // Autobahn (semente 42, com o elástico pelo último humano): um Falcão mediu 0,300 numa volta presa no
+    // tráfego, passou reto pelo último box com 0,412, andou no fundo 97% da volta final e secou a 22 segmentos.
+    const lap = 400_000; const full = 0.42 / lap; const measured = 0.3 / lap;
+    expect(skipPitBurn(measured, full, lap, lap)).toBe(full);                         // última volta
+    expect(skipPitBurn(measured, full, lap, lap + PIT_LOOKAHEAD - 1)).toBe(full);     // chegando ao último box
+    expect(skipPitBurn(measured, full, lap, 2 * lap)).toBe(measured);                 // ainda há outro box depois
+    expect(skipPitBurn(0.5 / lap, full, lap, lap)).toBe(0.5 / lap);                   // o medido já é maior (nitro)
   });
 });

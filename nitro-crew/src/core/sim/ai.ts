@@ -4,7 +4,7 @@ import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
 import type { AiBrain, CarState, CarStats, Difficulty, Personality, PlayerInput, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
-import { distanceToFinish, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD } from './fuel';
+import { distanceToFinish, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD, skipPitBurn } from './fuel';
 import { blockLane, curveZoneStart, missesBraking, tuningOf } from './personality';
 import { centrifugalRate, holdableSpeedFraction, PIT_LANE_X, steerRate } from './physics';
 import { carStats } from './stats';
@@ -56,6 +56,15 @@ function bestHumanProgress(state: RaceState): number {
   let best = -Infinity;
   for (const c of state.cars) if (c.seat >= 0 && c.progress > best) best = c.progress;
   return best;
+}
+
+/** O humano mais atrás (o VIP na escolta): o reforço do elástico só vale para a IA que ficou atrás dele. */
+function lastHumanProgress(state: RaceState): number {
+  const vip = state.party && state.party.vipId >= 0 ? state.cars[state.party.vipId] : undefined;
+  if (vip) return vip.progress;
+  let last = Infinity;
+  for (const c of state.cars) if (c.seat >= 0 && c.progress < last) last = c.progress;
+  return last;
 }
 
 /**
@@ -118,13 +127,13 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
   }
   const curveAhead = maxCurveAhead(track, car.z, tune.nitroLook);
 
-  // Elástico: quem ficou para trás do melhor humano acelera um pouco (menos com o tanque justo, que
-  // não aguenta o pé no fundo até o box — sim/fuel.ts); quem disparou, segura.
+  // Elástico: quem ficou para trás de TODOS os humanos acelera um pouco (menos com o tanque justo, que
+  // não aguenta o pé no fundo até o box — sim/fuel.ts); quem disparou à frente do melhor, segura. Mirar o
+  // melhor humano no reforço acelerava a IA que estava no meio do grupo, contra quem já ia mal (onda D).
   const human = bestHumanProgress(state);
   if (human > -Infinity && !car.finished) {
-    const gap = car.progress - human;
-    if (gap < -CATCHUP_DISTANCE && !fuelTight(state, track, car, def.fuelPerUnit)) target *= difficulty === 'amador' ? 1.03 : 1.06;
-    else if (gap > CATCHUP_DISTANCE * 1.5) target *= difficulty === 'campeao' ? 0.99 : 0.96;
+    if (car.progress - lastHumanProgress(state) < -CATCHUP_DISTANCE && !fuelTight(state, track, car, def.fuelPerUnit)) target *= difficulty === 'amador' ? 1.03 : 1.06;
+    else if (car.progress - human > CATCHUP_DISTANCE * 1.5) target *= difficulty === 'campeao' ? 0.99 : 0.96;
   }
   if (car.finished) target = Math.min(target, 0.6);
 
@@ -133,7 +142,9 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
   // longas (sim/fuel.ts).
   markFuel(brain, car, track.length);
   const pitAhead = seg.pit || segmentAt(track, car.z + PIT_LOOKAHEAD).pit;
-  const short = pitAhead && car.fuel < fuelToSkipPit(measuredBurn(brain, car, def.fuelPerUnit, track.length), track.length, distanceToFinish(state, track, car));
+  const toFinish = distanceToFinish(state, track, car);
+  const burn = skipPitBurn(measuredBurn(brain, car, def.fuelPerUnit, track.length), def.fuelPerUnit, track.length, toFinish);
+  const short = pitAhead && car.fuel < fuelToSkipPit(burn, track.length, toFinish);
   const wantsPit = !state.config.timeTrial && (short || (car.inPit && car.fuel < 0.98));
   let laneTarget = brain.laneX;
   if (wantsPit) {

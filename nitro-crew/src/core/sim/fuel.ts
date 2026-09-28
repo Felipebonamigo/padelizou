@@ -70,6 +70,16 @@ export function measuredBurn(brain: AiBrain, car: CarState, fuelPerUnit: number,
 }
 
 /**
+ * Gasto por unidade para decidir se passa reto pelo box: o medido — e, no último box antes da chegada
+ * (passar reto nele é ir até o fim sem outra chance), o de aceleração total se for maior. Na volta final
+ * a IA anda no fundo; o medido de uma volta presa no tráfego ficava 30% abaixo e o carro secava perto da
+ * chegada (onda D, Autobahn).
+ */
+export function skipPitBurn(measured: number, fuelPerUnit: number, lapLength: number, toFinish: number): number {
+  return toFinish < lapLength + PIT_LOOKAHEAD ? Math.max(measured, fuelPerUnit) : measured;
+}
+
+/**
  * Combustível para passar reto pelo box agora: até a próxima passagem por ele (uma volta mais a
  * aproximação) ou até a chegada, o que vier antes, com a folga FUEL_PIT_MARGIN.
  */

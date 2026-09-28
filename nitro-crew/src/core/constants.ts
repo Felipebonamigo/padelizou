@@ -56,8 +56,20 @@ export const DRAFT_LATERAL = 0.3;
 export const DRAFT_ACCEL_MULT = 1.35;
 export const DRAFT_TOP_MULT = 1.03;
 export const TEAM_DRAFT_TOP_MULT = 1.06;
+/**
+ * Alcance do vácuo de equipe (entre humanos do mesmo time): maior que o do vácuo comum para a fila com o
+ * parceiro render algo de verdade (onda D: com 6 segmentos e 0,3 de lado quase nunca se mantinha).
+ */
+export const TEAM_DRAFT_DISTANCE = SEGMENT_LENGTH * 15;
+export const TEAM_DRAFT_LATERAL = 0.5;
 
-export const TOW_MIN_SPEED_FACTOR = 0.2;   // abaixo disso o companheiro parado aceita empurrão
+/**
+ * Abaixo disso o companheiro aceita empurrão. Acima de FUEL_EMPTY_SPEED_FACTOR (0,2, que o elástico e o vácuo
+ * sobem a 0,21) e de SPRITE_CRASH_SPEED_FACTOR (0,25): o carro seco e o que bateu numa árvore são socorridos.
+ */
+export const TOW_MIN_SPEED_FACTOR = 0.3;
+/** Quem empurra precisa andar acima disto (fração da própria máxima): num engavetamento lento ninguém empurra ninguém. */
+export const TOW_GIVER_MIN_FACTOR = 0.6;
 export const TOW_DISTANCE = SEGMENT_LENGTH * 2;
 export const TOW_LATERAL = 0.7;
 export const TOW_SPEED_FACTOR = 0.8;
