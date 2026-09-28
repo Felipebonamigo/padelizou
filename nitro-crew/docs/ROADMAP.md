@@ -1,7 +1,9 @@
 # Nitro Crew — Roteiro e cronograma até a Steam
 
 > **Documento vivo.** Ao concluir um passo, marque ✅ aqui. Revisar a cada duas semanas (ver "Rotina" no fim).
-> Última revisão: **25/09/2026** — Fase 0 e a onda A concluídas (passos marcados com ✅ abaixo).
+> Última revisão: **28/09/2026** — Fase 0 e as ondas A, B e C concluídas (passos marcados com ✅ abaixo). A onda C
+> foi caça a bugs por lentes (online, fluxo de telas, save, simulação) e balanceamento por dados; o que ficou em
+> aberto está em "Riscos" e nos documentos de cada área.
 
 Premissas: um desenvolvedor (Felipe) com **8–12 h/semana** para jogar, decidir, testar com amigos e cuidar da
 parte comercial, mais o agente (Claude) para código, testes, ferramentas e balanceamento; arte e música

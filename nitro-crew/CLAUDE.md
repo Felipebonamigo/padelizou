@@ -55,10 +55,11 @@ não use nada de fora desta pasta.
   lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
   Onda B: rivais com personalidade e rival por copa, direção assistida e acessibilidade, modos de festa (torneio,
-  escolta, revezamento), tutorial "Como jogar" e fantasma do contra-relógio. 692 testes. Documentos por área:
+  escolta, revezamento), tutorial "Como jogar" e fantasma do contra-relógio. Onda C: caça a bugs em 4 lentes
+  (8 defeitos corrigidos) e balanceamento por dados (escolta, agressivo, erro de frenagem). 700 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: onda C (caça a
-  bugs por lentes, balanceamento por dados); a parte gráfica fica para quando o Felipe pedir.
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
+  gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
 - **Como ver o jogo sem browser**: `scratch/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
@@ -66,6 +67,8 @@ não use nada de fora desta pasta.
   renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
   "Nitro Crew" é nome provisório (Fase 2.1 decide).
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks,
-  se a direção assistida completa conta para recordes e conquistas (hoje conta; ela vence a IA profissional),
+  direção assistida completa (hoje vence a IA profissional em 70% das corridas e conta para recordes: teto de
+  velocidade medido em `docs/ASSISTENCIAS.md`, ou tirar dos recordes), ordem das pistas nas copas (Great Ocean e
+  Amalfi jogam como nível 5; `docs/PISTAS.md`),
   licença do código (o `package.json` diz MIT e o repositório é público, mas a venda usa a EULA comercial), nomes de carro
   que lembram modelos reais (Falcão GT, Tornado), revisão jurídica dos textos em `docs/legal/`.

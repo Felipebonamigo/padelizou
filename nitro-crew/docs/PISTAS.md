@@ -124,6 +124,12 @@ da Transpantaneira, quem fecha a 2ª volta em 150 s decide pelo consumo medido e
 última quando ele não garante a volta (eram 2 paradas, são 8), e a entrada na faixa do box, que conta
 como grama, sobe a grama de 0,3% para 0,8%.
 
+**Onda C (28/09, humano "médio" simulado, 32 pistas × 3 sementes)**: a posição dele depende quase só do nível
+da pista (profissional: 1,7º nas de nível 1, 16,6º nas de nível 5). **Great Ocean e Amalfi** (nível 4) se
+comportam como nível 5 (15,7º e 16,0º, contra 10,8º de média do nível 4); reclassificar exige reordenar a copa
+delas (a dificuldade cresce dentro de cada copa, e um teste segura isso) — decisão de design em aberto.
+Daintree, Santorini e Roma são as únicas em que ele não vence nem no amador (~7º).
+
 ## Combustível nas voltas longas
 
 O tanque (`data/cars.ts`) foi calibrado para voltas de ~400.000 unidades; as pistas novas vão até
