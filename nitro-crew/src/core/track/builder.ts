@@ -197,21 +197,37 @@ export function buildTrack(def: TrackDef): Track {
   return track;
 }
 
+/**
+ * `v % len` (len > 0) bit a bit, mas sem o `%` de ponto flutuante quando dá — o fmod era o custo que
+ * mais pesava no tick (docs/DESEMPENHO.md). Em (-len, len) o fmod devolve o próprio `v`; em [len, 2·len)
+ * devolve `v - len`, e essa subtração é exata (lema de Sterbenz). Fora dessas faixas, o `%` de sempre.
+ */
+export function fmodFast(v: number, len: number): number {
+  if (v < len) return v > -len ? v : v % len;
+  return v < len * 2 ? v - len : v % len;
+}
+
+/** Índice inteiro `i >= 0` módulo `n` sem o `%` quando já está na faixa (o caso quase sempre). */
+function wrapIndex(i: number, n: number): number {
+  return i < n ? i : i % n;
+}
+
 /** Segmento que contém a posição z (com volta). */
 export function segmentAt(track: Track, z: number): Segment {
   const len = track.length;
-  let zz = z % len;
+  let zz = fmodFast(z, len);
   if (zz < 0) zz += len;
-  return track.segments[Math.floor(zz / SEGMENT_LENGTH) % track.segments.length];
+  return track.segments[wrapIndex(Math.floor(zz / SEGMENT_LENGTH), track.segments.length)];
 }
 
 /** Maior curvatura absoluta nos próximos `count` segmentos a partir de z. */
 export function maxCurveAhead(track: Track, z: number, count: number): number {
-  const start = Math.floor(((z % track.length) + track.length) % track.length / SEGMENT_LENGTH);
+  const len = track.length;
+  const start = Math.floor(fmodFast(fmodFast(z, len) + len, len) / SEGMENT_LENGTH);
   let max = 0;
   const n = track.segments.length;
   for (let i = 0; i < count; i++) {
-    const c = Math.abs(track.segments[(start + i) % n].curve);
+    const c = Math.abs(track.segments[wrapIndex(start + i, n)].curve);
     if (c > max) max = c;
   }
   return max;

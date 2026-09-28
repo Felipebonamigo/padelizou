@@ -275,7 +275,11 @@ export class Terrain {
   }
 
   private buildFar(p: Palette): void {
-    for (const m of this.ringMeshes) { this.farGroup.remove(m); m.geometry.dispose(); }
+    // Os dois anéis dividem um material, criado de novo a cada pista: liberar o antigo também, senão o
+    // programa dele nunca é solto (docs/DESEMPENHO.md).
+    const oldMaterials = new Set<THREE.Material>();
+    for (const m of this.ringMeshes) { this.farGroup.remove(m); m.geometry.dispose(); oldMaterials.add(m.material as THREE.Material); }
+    for (const m of oldMaterials) m.dispose();
     this.ringMeshes = [];
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
     const far = new THREE.Color(p.far);

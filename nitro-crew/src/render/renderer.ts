@@ -95,8 +95,22 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   }
 
   function disposePosts(): void {
-    for (const p of posts) { p.composer.dispose(); }
+    for (const p of posts) disposeComposer(p.composer);
     posts.length = 0;
+  }
+
+  /**
+   * O EffectComposer.dispose() do three só libera os dois alvos dele: o bloom (11 alvos de render e 9
+   * materiais) e o OutputPass ficavam na GPU a cada troca de qualidade, de tamanho ou de lotação
+   * (docs/DESEMPENHO.md, scripts/playtest-memoria.mjs). E o dispose() do UnrealBloomPass (r186)
+   * esquece o material do filtro de brilho (materialHighPassFilter): liberado aqui.
+   */
+  function disposeComposer(composer: EffectComposer): void {
+    for (const pass of composer.passes) {
+      pass.dispose();
+      if (pass instanceof UnrealBloomPass) pass.materialHighPassFilter.dispose();
+    }
+    composer.dispose();
   }
 
   function postFor(i: number, rect: Rect, camera: THREE.PerspectiveCamera): ViewportPost {
@@ -104,7 +118,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     const existing = posts[i];
     // O mesmo composer serve a corrida e o fundo dos menus: a câmera do passo muda por chamada.
     if (existing && existing.key === key) { existing.renderPass.camera = camera; return existing; }
-    if (existing) existing.composer.dispose();
+    if (existing) disposeComposer(existing.composer);
     const target = new THREE.WebGLRenderTarget(Math.max(1, Math.round(rect.w * dpr)), Math.max(1, Math.round(rect.h * dpr)), { type: THREE.HalfFloatType, samples: 4 });
     const composer = new EffectComposer(renderer, target);
     composer.setPixelRatio(dpr);

@@ -77,7 +77,8 @@ export function stepRace(state: RaceState, track: Track, inputs: ReadonlyArray<P
   }
 
   for (const car of state.cars) {
-    const command = inputs[car.seat];
+    // Sem ler inputs[-1] para a IA: índice negativo vira busca de propriedade por nome, lenta (docs/DESEMPENHO.md).
+    const command = car.seat >= 0 ? inputs[car.seat] : undefined;
     if (command?.takeover && !car.ai) car.ai = takeoverBrain(state);
     const input = car.ai ? aiInput(state, track, car) : (car.finished ? cruiseInput(state, track, car) : assistInput(state, track, car, command ?? NEUTRAL_INPUT, assistLevelOf(state, car.seat)));
     const mods = computeModifiers(state, track, car);
