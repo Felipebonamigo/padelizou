@@ -1,6 +1,6 @@
 // Colisões carro-carro e carro-cenário.
 import { CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, OFFROAD_X, SPRITE_CRASH_SPEED_FACTOR } from '../constants';
-import { segmentAt } from '../track/builder';
+import { fmodFast, segmentAt } from '../track/builder';
 import type { CarState, RaceState, Track } from '../types';
 import { SPRITE_HALF_WIDTH } from '../track/sprites';
 import { carStats } from './stats';
@@ -9,8 +9,8 @@ export { SPRITE_HALF_WIDTH } from '../track/sprites';
 
 /** Distância longitudinal com volta: resultado em (-L/2, L/2]. */
 export function wrappedDelta(a: number, b: number, length: number): number {
-  let d = a - b;
-  d %= length;
+  // fmodFast: o mesmo `d % length`, sem o fmod no caso comum (|d| < length) — docs/DESEMPENHO.md.
+  let d = fmodFast(a - b, length);
   if (d < 0) d += length;
   if (d > length / 2) d -= length;
   return d;
