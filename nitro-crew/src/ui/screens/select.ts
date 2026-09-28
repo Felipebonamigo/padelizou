@@ -8,6 +8,7 @@ import { t } from '../../i18n';
 import { countryName, createFocusList, dayIcon, dots, h, listNav, screenFrame, trackThumb, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
 import { lobbyHumans } from './lobby';
+import { cupRivalBlock } from './rival';
 import './select.css';
 
 /**
@@ -104,6 +105,7 @@ function cupDetail(ctx: MenuContext, cup: CupDef, status: CupStatus): HTMLElemen
         chip,
       ),
     ),
+    cupRivalBlock(cup.id),
     h('ol', { class: 'cup-detail-tracks' }, tracks.map((def, i) => h('li', { class: 'cup-race' },
       h('span', { class: 'cup-race-n mono', text: String(i + 1) }),
       scalableThumb(ctx, def),

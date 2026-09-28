@@ -62,6 +62,7 @@ registerStrings('stats', {
     'achDesc.NITRO_NA_BANDEIRA': 'Cruzar a linha de chegada com o nitro ligado.',
     'achDesc.DEZ_VITORIAS': 'Somar 10 vitórias (o contra-relógio não conta).',
     'achDesc.GIRO_COMPLETO': 'Correr em todas as pistas do jogo (o contra-relógio não conta).',
+    'achDesc.RIVAL_DERROTADO': 'Concluir uma copa terminando à frente do rival da copa em todas as corridas.',
   },
   en: {
     'tab.tracks': 'Tracks',
@@ -121,5 +122,6 @@ registerStrings('stats', {
     'achDesc.NITRO_NA_BANDEIRA': 'Cross the finish line with nitro active.',
     'achDesc.DEZ_VITORIAS': 'Win 10 races (time trial does not count).',
     'achDesc.GIRO_COMPLETO': 'Race on every track in the game (time trial does not count).',
+    'achDesc.RIVAL_DERROTADO': 'Finish a cup ahead of the cup rival in every race.',
   },
 });

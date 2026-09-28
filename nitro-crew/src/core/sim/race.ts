@@ -1,7 +1,7 @@
 // Ciclo de vida da corrida: criação do grid, contagem, passo da simulação e resultado.
 import { COUNTDOWN_TICKS, MAX_CARS, TICK_RATE } from '../constants';
 import { AI_CAR_POOL } from '../data/cars';
-import { AI_DRIVERS, AI_TEAM_ID_BASE } from '../data/drivers';
+import { AI_DRIVERS, AI_TEAM_ID_BASE, personalityOf, rosterOffsetWith } from '../data/drivers';
 import { createRng, nextInt } from '../rng';
 import type { CarState, PlayerInput, RaceConfig, RaceState, Track } from '../types';
 import { NEUTRAL_INPUT } from '../types';
@@ -31,13 +31,15 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
   };
   const aiCount = total - config.humans.length;
   const cars: CarState[] = [];
-  // IA: nomes em ordem fixa a partir de um deslocamento sorteado, times aos pares.
+  // IA: nomes em ordem fixa a partir de um deslocamento sorteado, times aos pares. O rival da copa
+  // (config.rival) sempre entra; cada piloto traz a própria personalidade (data/drivers.ts).
   const roster = createRng(config.rosterSeed ?? config.seed);
-  const nameOffset = nextInt(roster, 0, AI_DRIVERS.length - 1);
+  const nameOffset = rosterOffsetWith(nextInt(roster, 0, AI_DRIVERS.length - 1), aiCount, config.rival);
   for (let i = 0; i < aiCount; i++) {
     const driverIndex = (nameOffset + i) % AI_DRIVERS.length;
-    const car = blankCar(config, cars.length, -1, AI_DRIVERS[driverIndex], AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), AI_CAR_POOL[nextInt(roster, 0, AI_CAR_POOL.length - 1)].id);
-    car.ai = createBrain(state, config.difficulty, i);
+    const name = AI_DRIVERS[driverIndex];
+    const car = blankCar(config, cars.length, -1, name, AI_TEAM_ID_BASE + Math.floor(driverIndex / 2), AI_CAR_POOL[nextInt(roster, 0, AI_CAR_POOL.length - 1)].id);
+    car.ai = createBrain(state, config.difficulty, i, { personality: personalityOf(name), rival: name === config.rival });
     cars.push(car);
   }
   const humans = config.humans.slice().sort((a, b) => a.seat - b.seat);

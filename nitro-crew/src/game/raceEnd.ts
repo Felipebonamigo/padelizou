@@ -49,6 +49,8 @@ export interface SettleOptions {
   afterCup?: (champ: ChampionshipState) => void;
   /** Carreira: paga o prêmio e avança a copa da carreira; devolve o id da copa que acabou de ser concluída, ou null. */
   careerFinished?: (results: RaceResultRow[]) => string | null;
+  /** Carreira: a copa como ficou depois de careerFinished (para a conquista do rival). */
+  careerChamp?: () => ChampionshipState | null;
 }
 
 /**
@@ -84,7 +86,9 @@ export function settleRace(save: SaveData, r: SettleTarget, o: SettleOptions): R
     if (!local) rememberLobby(save, r.humans);
     recordRaceStats(save.stats, { mode: r.mode, state: r.state, results: mine, humans: localHumans, telemetry: r.telemetry });
     let cupJustCompleted: string | null = null;
+    let cupChamp: ChampionshipState | null = null;
     if (o.champ && r.mode === 'cup') {
+      cupChamp = o.champ;
       applyRaceResult(o.champ, results, r.humans);
       if (o.champ.completed) { markCupCompleted(save, o.champ.cupId); cupJustCompleted = o.champ.cupId; }
       o.afterCup?.(o.champ);
@@ -92,8 +96,9 @@ export function settleRace(save: SaveData, r: SettleTarget, o: SettleOptions): R
     if (r.mode === 'career' && o.careerFinished) {
       cupJustCompleted = o.careerFinished(results);
       if (cupJustCompleted) markCupCompleted(save, cupJustCompleted);
+      cupChamp = o.careerChamp?.() ?? null;
     }
-    out.achievements = unlockAchievements(save, r.mode, r.state, mine, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, o.difficulty);
+    out.achievements = unlockAchievements(save, r.mode, r.state, mine, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, o.difficulty, cupChamp);
     for (const u of out.achievements) {
       save.achievements.push(u.id);
       o.effects.achievement(u.id);

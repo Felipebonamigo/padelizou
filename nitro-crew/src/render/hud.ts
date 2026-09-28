@@ -4,6 +4,8 @@
 // jogadores a célula livre mostra a classificação completa. Os nós são criados uma vez e só
 // `textContent`/atributos mudam por quadro (cada escrita é comparada antes).
 import './hud.css';
+import './hud-rival.css';
+import '../rivals/strings';
 import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
 import { SEAT_COLORS } from '../core/data/drivers';
@@ -78,6 +80,9 @@ class MiniMap {
         setAttr(dot, 'fill', vp ? vp.color : SEAT_COLORS[c.seat % SEAT_COLORS.length]);
         setAttr(dot, 'r', own ? '5' : '4');
         setAttr(dot, 'class', own ? 'me' : 'human');
+      } else if (c.name === state.config.rival) {
+        // Rival da copa (src/game/rivals.ts): ponto vermelho e maior.
+        setAttr(dot, 'fill', '#ff4d4d'); setAttr(dot, 'r', '3.6'); setAttr(dot, 'class', 'rival');
       } else {
         setAttr(dot, 'fill', '#9aa3b5'); setAttr(dot, 'r', '2.6'); setAttr(dot, 'class', 'ai');
       }
@@ -267,7 +272,7 @@ class SeatHud {
 class SparePanel {
   readonly root: HTMLElement;
   private readonly title: HTMLElement;
-  private readonly rows: Array<{ row: HTMLElement; p: HTMLElement; n: HTMLElement; l: HTMLElement }> = [];
+  private readonly rows: Array<{ row: HTMLElement; p: HTMLElement; n: HTMLElement; r: HTMLElement; l: HTMLElement }> = [];
   private readonly mini: MiniMap;
   private readonly order: number[] = [];
 
@@ -277,7 +282,7 @@ class SparePanel {
     this.title = el('div', 'label', st);
     for (let i = 0; i < MAX_CARS; i++) {
       const row = el('div', 'row', st);
-      this.rows.push({ row, p: el('span', 'p', row), n: el('span', 'n', row), l: el('span', 'l', row) });
+      this.rows.push({ row, p: el('span', 'p', row), n: el('span', 'n', row), r: el('span', 'r', row), l: el('span', 'l', row) });
     }
     this.mini = new MiniMap(this.root, 'bigmap glass');
   }
@@ -301,6 +306,9 @@ class SparePanel {
       setText(row.n, c.name);
       setText(row.l, c.finished ? t('hud.finished') : t('hud.lapShort', { n: Math.max(1, Math.min(state.config.laps, c.lap)) }));
       setClass(row.row, 'human', c.seat >= 0);
+      const rival = c.seat < 0 && c.name === state.config.rival;
+      setClass(row.row, 'rival', rival);
+      setText(row.r, rival ? t('rivals.hudTag') : '');
       const vp = c.seat >= 0 ? frame.viewports.find((v) => v.seat === c.seat) : undefined;
       setStyle(row.n, 'color', vp ? vp.color : '');
     }

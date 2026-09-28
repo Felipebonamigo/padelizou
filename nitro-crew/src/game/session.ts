@@ -26,6 +26,7 @@ import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriv
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
 import { startGhost, type GhostHooks } from './ghost-session';
+import { cupRival } from './rivals';
 import { createOnlineController, type OnlineController } from './online-session';
 import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
@@ -206,6 +207,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     const laps = trackDef(trackId).laps;
     const config = baseConfig(trackId, laps, humans, randomSeed());
     config.rosterSeed = cupSeed;
+    config.rival = cupRival(cupId).name;
     beginRace(config, 'cup', humans);
   }
 
@@ -224,6 +226,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     if (!trackId || champ.eliminated) { toMain(); return; }
     const config = baseConfig(trackId, trackDef(trackId).laps, humans, randomSeed());
     config.rosterSeed = cupSeed;
+    config.rival = cupRival(champ.cupId).name;
     beginRace(config, 'cup', humans);
   }
 
@@ -330,6 +333,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       },
       localSeats: r.driver ? r.localSeats : null,
       afterCup: (c) => saveCupProgress(save, c, cupSeed, r.humans),
+      careerChamp: () => champ,
       careerFinished: (results) => {
         const out = career.raceFinished(results);
         champ = out.champ;

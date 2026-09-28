@@ -1,0 +1,13 @@
+/* Rival da copa no HUD (hud.ts): ponto vermelho no minimapa e linha marcada na classificação da célula livre. */
+.nc-hud .mini .rival, .nc-hud .spare .bigmap .rival { fill: #ff4d4d; stroke: #fff; stroke-width: 1; }
+.nc-hud .spare .row .r:empty { display: none; }
+.nc-hud .spare .row .r {
+  padding: 0 calc(5px * var(--s));
+  border-radius: 999px;
+  background: #ff4d4d;
+  color: #fff;
+  font-size: calc(9.5px * var(--s));
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+.nc-hud .spare .row.rival .n { color: #ff8a8a; }

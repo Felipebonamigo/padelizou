@@ -61,7 +61,11 @@ async function open(w, hgt, tag) {
 async function toSelection(page, modeIndex, tag) {
   await press(page, 'Enter'); // título → menu
   console.log(`[${Math.round((Date.now() - t0) / 1000)}s] ${tag}: ${await menu(page)}`);
-  for (let i = 0; i < modeIndex; i++) await press(page, 'ArrowDown');
+  // Pelo rótulo, não pela posição: o menu ganhou Carreira, Online e Continuar desde que este roteiro nasceu.
+  const label = ['^campeonato$', '^corrida rápida$', '^contra-relógio$'][modeIndex];
+  const steps = await page.evaluate((src) => { const re = new RegExp(src, 'i'); return [...document.querySelectorAll('.scr-main .menu-list > *')].findIndex((el) => re.test((el.textContent ?? '').trim())); }, label);
+  if (steps < 0) throw new Error(`item do menu principal não encontrado: ${label}`);
+  for (let i = 0; i < steps; i++) await press(page, 'ArrowDown');
   await press(page, 'Enter'); // Campeonato / Corrida rápida → lobby
   check(await menu(page) === 'lobby', `${tag} modo ${modeIndex}: lobby aberto`);
   await frame(page); // o lobby ignora o primeiro quadro (carência da borda que o abriu)

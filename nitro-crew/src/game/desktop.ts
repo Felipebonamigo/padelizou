@@ -109,6 +109,7 @@ export const ACHIEVEMENTS = [
   { id: 'NITRO_NA_BANDEIRA', pt: 'Nitro na bandeirada', en: 'Nitro Finish' },
   { id: 'DEZ_VITORIAS', pt: 'Dez vitórias', en: 'Ten Wins' },
   { id: 'GIRO_COMPLETO', pt: 'Giro completo', en: 'Grand Tour' },
+  { id: 'RIVAL_DERROTADO', pt: 'Rival derrotado', en: 'Rival Defeated' },
 ] as const satisfies ReadonlyArray<AchievementDef>;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id'];

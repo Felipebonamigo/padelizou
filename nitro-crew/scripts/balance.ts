@@ -10,6 +10,8 @@ const seconds = Number(process.argv[2] ?? 150);
 const difficulty = (process.argv[3] ?? 'profissional') as Difficulty;
 const seed = Number(process.argv[4] ?? 11);
 const only = process.argv[5];
+/** Média das voltas da IA por pista (para comparar antes/depois de mexer na IA; linha "média geral" no fim). */
+const means: number[] = [];
 
 for (const def of TRACKS) {
   if (only && def.id !== only) continue;
@@ -27,7 +29,10 @@ for (const def of TRACKS) {
   const laps = ai.flatMap((c) => c.lapTicks);
   const best = laps.length ? Math.min(...laps) : -1;
   const worst = laps.length ? Math.max(...laps) : -1;
+  const mean = laps.length ? laps.reduce((a, b) => a + b, 0) / laps.length : -1;
+  if (mean > 0) means.push(mean);
   const avgV = ai.reduce((a, c) => a + c.speed / carDef(c.carId).topSpeed, 0) / ai.length;
   const minLap = Math.min(...ai.map((c) => c.lap)); const maxLap = Math.max(...ai.map((c) => c.lap));
-  console.log(`${def.id.padEnd(14)} segs=${track.segments.length} voltas IA ${minLap}–${maxLap} | melhor volta ${formatTicks(best)} pior ${formatTicks(worst)} | grama ${(100 * off / Math.max(1, samples)).toFixed(1)}% | batidas ${collisions} cenário ${crashes} box ${pits} | v média ${avgV.toFixed(2)} | ${ms} ms de CPU para ${seconds}s`);
+  console.log(`${def.id.padEnd(14)} segs=${track.segments.length} voltas IA ${minLap}–${maxLap} | média ${formatTicks(Math.round(mean))} melhor volta ${formatTicks(best)} pior ${formatTicks(worst)} | grama ${(100 * off / Math.max(1, samples)).toFixed(1)}% | batidas ${collisions} cenário ${crashes} box ${pits} | v média ${avgV.toFixed(2)} | ${ms} ms de CPU para ${seconds}s`);
 }
+if (means.length > 1) console.log(`média geral das voltas da IA: ${(means.reduce((a, b) => a + b, 0) / means.length / TICK_RATE).toFixed(2)} s em ${means.length} pistas`);

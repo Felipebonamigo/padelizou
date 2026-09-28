@@ -4,6 +4,7 @@ import { formatTicks } from '../../core/sim/race';
 import type { HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import type { ResultsScreenData, StandingsScreenData } from '../../game/contracts';
+import { cupRival } from '../../game/rivals';
 import '../../career/strings';
 import { t } from '../../i18n';
 import '../../stats/strings';
@@ -15,6 +16,7 @@ function titleRow(title: string, chip: string): HTMLElement {
   return h('div', { class: 'screen-title-row' }, h('h1', { class: 'screen-title', text: title }), h('span', { class: 'chip', text: chip }));
 }
 import { icon, medal } from './icons';
+import { rivalRaceCard, rivalStandingsCard, rivalTag } from './rival';
 
 function humanColor(humans: HumanEntry[], seat: number): string | null {
   return humans.find((x) => x.seat === seat)?.color ?? null;
@@ -43,15 +45,19 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
   const isRecord = (seat: number, kind: 'lap' | 'race') => d.newRecords.some((r) => r.seat === seat && r.kind === kind);
   const badge = () => h('span', { class: 'record-badge', text: t('ui.results.record') });
   const rows = [...d.results].sort((a, b) => a.position - b.position);
+  const cupLike = d.mode === 'cup' || d.mode === 'career';
+  // Rival da copa (src/game/rivals.ts): linha marcada na tabela e o cartão do duelo em cima.
+  const rivalName = cupLike && d.champ ? cupRival(d.champ.cupId).name : null;
+  const isRival = (r: RaceResultRow) => r.seat < 0 && r.name === rivalName;
 
   const table = h('table', { class: 'table results-table' },
     h('thead', {}, h('tr', {},
       h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { text: t('ui.results.car') }),
       h('th', { text: t('ui.results.time') }), h('th', { text: t('ui.results.bestLap') }), h('th', { class: 'num', text: t('ui.results.points') }),
     )),
-    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 ? 'human' : '', style: rowStyle(d.humans, r.seat) },
+    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 ? 'human' : isRival(r) ? 'rival' : '', style: rowStyle(d.humans, r.seat) },
       positionCell(r.position),
-      h('td', { text: r.name }),
+      h('td', {}, r.name, isRival(r) ? rivalTag() : null),
       h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
       h('td', { class: 'mono' }, r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf'), r.seat >= 0 && isRecord(r.seat, 'race') ? badge() : null),
       h('td', { class: 'mono' }, formatTicks(r.bestLapTicks), r.seat >= 0 && isRecord(r.seat, 'lap') ? badge() : null),
@@ -61,11 +67,12 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
 
   const extras: HTMLElement[] = [];
   const coop = d.champ ? d.champ.coop : isCoop(d.humans);
-  const cupLike = d.mode === 'cup' || d.mode === 'career';
   if (cupLike && d.champ?.lastVerdict) {
     const ok = d.champ.lastVerdict === 'qualified';
     extras.push(h('div', { class: `verdict ${ok ? 'good' : 'bad'}`, text: ok ? t('ui.results.qualified') : t('ui.results.eliminated') }));
   }
+  const rival = cupLike ? rivalRaceCard(d.champ, d.results) : null;
+  if (rival) extras.push(rival);
   if (coop && d.humans.length > 0) {
     const teamId = d.humans[0].teamId;
     extras.push(h('p', { class: 'team-line' }, icon('users'), h('span', { text: t('ui.results.team', { team: t('core.team.human'), points: teamRaceScore(d.results, teamId), rank: teamRaceRank(d.results, teamId) }) })));
@@ -147,15 +154,17 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   }
   const { champ, humans, cup } = d;
   const raceCount = cup.trackIds.length;
-  const top = champ.standings.filter((s, i) => i < 10 || s.seat >= 0);
+  const rivalName = cupRival(champ.cupId).name;
+  // Top 10, os humanos e o rival da copa (mesmo fora do top 10).
+  const top = champ.standings.filter((s, i) => i < 10 || s.seat >= 0 || s.name === rivalName);
   const driverTable = h('table', { class: 'table standings-table' },
     h('thead', {}, h('tr', {},
       h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { class: 'num', text: t('ui.standings.points') }), h('th', { class: 'num', text: t('ui.standings.wins') }),
       Array.from({ length: raceCount }, (_, i) => h('th', { class: 'num', text: t('ui.standings.race', { n: i + 1 }) })),
     )),
-    h('tbody', {}, top.map((s: StandingRow) => h('tr', { class: s.seat >= 0 ? 'human' : '', style: rowStyle(humans, s.seat) },
+    h('tbody', {}, top.map((s: StandingRow) => h('tr', { class: s.seat >= 0 ? 'human' : s.name === rivalName ? 'rival' : '', style: rowStyle(humans, s.seat) },
       positionCell(champ.standings.indexOf(s) + 1),
-      h('td', { text: s.name }),
+      h('td', {}, s.name, s.seat < 0 && s.name === rivalName ? rivalTag() : null),
       h('td', { class: 'mono num strong', text: String(s.points) }),
       h('td', { class: 'mono num', text: String(s.wins) }),
       s.positions.map((p) => h('td', { class: 'mono num', text: p > 0 ? String(p) : '–' })),
@@ -185,7 +194,7 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   const list = createFocusList(items, { sfx: api.sfx });
   const el = screenFrame('standings', null,
     titleRow(t('ui.standings.title'), t(`core.cup.${cup.id}`)),
-    h('div', { class: 'results-head' }, status),
+    h('div', { class: 'results-head' }, status, rivalStandingsCard(champ)),
     h('div', { class: 'standings-columns' },
       h('div', { class: 'table-wrap glass' }, h('h2', { class: 'sub-title', text: t('ui.standings.drivers') }), driverTable),
       h('div', { class: 'table-wrap glass' }, h('h2', { class: 'sub-title', text: t('ui.standings.teams') }), teamTable),

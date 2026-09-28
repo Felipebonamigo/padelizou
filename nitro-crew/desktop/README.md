@@ -215,6 +215,7 @@ conquista da lista tem linha nesta tabela.
 | `NITRO_NA_BANDEIRA` | Nitro na bandeirada | Nitro Finish | Cruzar a linha de chegada com o nitro ligado. |
 | `DEZ_VITORIAS` | Dez vitórias | Ten Wins | Somar 10 vitórias (o contra-relógio não conta). |
 | `GIRO_COMPLETO` | Giro completo | Grand Tour | Correr em todas as pistas do jogo (o contra-relógio não conta). |
+| `RIVAL_DERROTADO` | Rival derrotado | Rival Defeated | Concluir uma copa (normal ou da carreira) terminando à frente do rival da copa em todas as corridas. |
 
 O jogo chama `getDesktop()?.achievement(id)` e também guarda o id em `SaveData.achievements`, para o
 desbloqueio contar fora da Steam e ser reenviado se a Steam estiver fechada na hora.

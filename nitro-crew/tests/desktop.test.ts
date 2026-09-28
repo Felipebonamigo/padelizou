@@ -23,8 +23,8 @@ describe('ponte com o Electron', () => {
   it('ids de conquista são nomes de API aceitos pela Steam (A–Z, 0–9, _)', () => {
     for (const a of ACHIEVEMENTS) expect(a.id).toMatch(/^[A-Z][A-Z0-9_]*$/);
   });
-  it('24 conquistas (12 da Fase 0 + 4 copas novas do passo 3.1 + 8 do passo 3.6), cada uma com descrição PT e EN e linha no desktop/README.md', () => {
-    expect(ACHIEVEMENTS).toHaveLength(24);
+  it('25 conquistas (12 da Fase 0 + 4 copas novas do passo 3.1 + 8 do passo 3.6 + RIVAL_DERROTADO do 3.4), cada uma com descrição PT e EN e linha no desktop/README.md', () => {
+    expect(ACHIEVEMENTS).toHaveLength(25);
     const readme = fs.readFileSync('desktop/README.md', 'utf8');
     for (const lang of ['pt', 'en'] as const) {
       setLanguage(lang);
