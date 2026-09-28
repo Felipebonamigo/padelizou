@@ -11,6 +11,10 @@ registerStrings('access', {
     'level.steer': 'Volante assistido',
     'level.full': 'Completa',
 
+    'short.brake': 'Freio',
+    'short.steer': 'Volante',
+    'short.full': 'Completa',
+
     'lobby.assist': 'Direção',
 
     'options.title': 'Acessibilidade',
@@ -47,6 +51,10 @@ registerStrings('access', {
     'level.brake': 'Auto brake',
     'level.steer': 'Steering assist',
     'level.full': 'Full',
+
+    'short.brake': 'Brake',
+    'short.steer': 'Steering',
+    'short.full': 'Full',
 
     'lobby.assist': 'Assist',
 

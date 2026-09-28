@@ -90,8 +90,8 @@
   --seat: var(--accent);
   display: flex;
   flex-direction: column;
-  gap: calc(4 * var(--u));
-  padding: calc(8 * var(--u)) calc(10 * var(--u));
+  gap: calc(2 * var(--u));
+  padding: calc(6 * var(--u)) calc(10 * var(--u));
   border: 1px solid var(--line);
   border-top: calc(3 * var(--u)) solid var(--seat);
   border-radius: var(--r-sm);

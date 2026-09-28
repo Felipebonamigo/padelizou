@@ -38,6 +38,33 @@
 .slot .sel-assist .sel-label, .slot .sel-assist .sel-value { font-size: var(--fs-sm); }
 .slot .sel-assist .sel-value { min-width: calc(96 * var(--u)); }
 .slot .sel-assist.locked .sel-arrow { visibility: hidden; }
+/* Direção no cartão da sala online: linha compacta como no lobby local, para dois jogadores locais caberem em 720p. */
+.online-local .sel-assist { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
+.online-local .sel-assist .sel-arrow { width: calc(24 * var(--u)); height: calc(24 * var(--u)); }
+.online-local .sel-assist .sel-label, .online-local .sel-assist .sel-value { font-size: var(--fs-sm); }
+.online-local .sel-assist.locked .sel-arrow { visibility: hidden; }
+/* Quem corre assistido, fora do próprio HUD: selo na lista da sala online ("ASSIST · Freio"), marca no
+   resultado (local e online), nos companheiros do co-op e na classificação da célula livre do HUD. */
+.online-player-who { display: flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--u)); min-width: 0; }
+.online-player-who .online-player-name { max-width: 100%; }
+.online-player .tag.assist { font-size: calc(11 * var(--u)); letter-spacing: 0.08em; white-space: nowrap; color: #d6dbe6; border-color: rgba(255, 255, 255, 0.35); }
+.assist-mark {
+  display: inline-block;
+  margin-left: calc(8 * var(--u));
+  padding: 0 calc(6 * var(--u));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  font-size: calc(11 * var(--u));
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  vertical-align: middle;
+  color: var(--muted);
+}
+.nc-hud .mate .ma:empty { display: none; }
+.nc-hud .mate .ma { padding: 0 calc(4px * var(--s)); border: 1px solid rgba(255, 255, 255, 0.35); border-radius: calc(5px * var(--s));
+  font-size: calc(8px * var(--s)); font-weight: 800; letter-spacing: 0.1em; color: #d6dbe6; }
+.nc-hud .spare .row.assisted .r { background: rgba(255, 255, 255, 0.1); color: #d6dbe6; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+
 /* Em telas baixas, a linha da direção sai das barras do carro (senão elas passam da borda do cartão). */
 @media (max-height: 800px) {
   .slot .car-bars { row-gap: calc(1 * var(--u)); }
