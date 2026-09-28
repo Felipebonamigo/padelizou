@@ -40,7 +40,7 @@ export function holdableSpeedFraction(def: Handling, curve: number): number {
 /** Velocidade máxima efetiva neste tick, com todos os multiplicadores. */
 export function effectiveTopSpeed(car: CarState, def: Pick<CarStats, 'topSpeed'>, state: RaceState, mods: CarModifiers): number {
   let top = def.topSpeed;
-  if (state.config.manualGear && car.seat >= 0) top *= GEAR_TOP[car.gear];
+  if (drivesManual(state, car)) top *= GEAR_TOP[car.gear];
   if (car.nitroTicks > 0) top *= NITRO_SPEED_MULT;
   if (mods.teamDraft) top *= TEAM_DRAFT_TOP_MULT; else if (mods.draft) top *= DRAFT_TOP_MULT;
   if (mods.catchup) top *= CATCHUP_TOP_MULT;
@@ -48,6 +48,14 @@ export function effectiveTopSpeed(car: CarState, def: Pick<CarStats, 'topSpeed'>
   if (car.finished) top *= 0.6;
   if (car.inPit) top = Math.min(top, def.topSpeed * PIT_SPEED_LIMIT_FACTOR);
   return top;
+}
+
+/**
+ * Câmbio manual só para humano no volante. A IA que assume o carro (queda no online) e o piloto automático
+ * de quem já terminou (`car.ai` preenchido) usam o automático — a IA não pede marcha.
+ */
+function drivesManual(state: RaceState, car: CarState): boolean {
+  return state.config.manualGear && car.seat >= 0 && !car.ai;
 }
 
 function autoGear(speedFrac: number): number {
@@ -63,7 +71,7 @@ export function stepCarPhysics(state: RaceState, track: Track, car: CarState, in
   const events = state.events;
 
   // Marcha
-  if (state.config.manualGear && car.seat >= 0) {
+  if (drivesManual(state, car)) {
     if (input.gearUp && car.gear < GEAR_COUNT - 1) { car.gear++; events.push({ type: 'gear', carId: car.id, gear: car.gear }); }
     if (input.gearDown && car.gear > 0) { car.gear--; events.push({ type: 'gear', carId: car.id, gear: car.gear }); }
   } else {

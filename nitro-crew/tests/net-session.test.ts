@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { seatColor } from '../src/core/data/drivers';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
-import { CONTENT_FINGERPRINT, assignSeats, contentFingerprint, raceConfigFrom, seatName } from '../src/game/online-session';
+import { CONTENT_FINGERPRINT, assignSeats, contentFingerprint, fingerprintContent, raceConfigFrom, seatName } from '../src/game/online-session';
+import { AI_DRIVERS, DRIVER_PERSONALITY, PERSONALITY_TUNING } from '../src/core/data/drivers';
+import { DIFFICULTY_SPEED } from '../src/core/sim/ai';
 import { sanitizeSettings } from '../src/game/settings';
 import type { RoomView, StartConfig } from '../src/net/protocol';
 
@@ -76,6 +78,22 @@ describe('impressão do conteúdo (vai no create/join)', () => {
     expect(contentFingerprint({ ...base, tracks: [{ id: 'copacabana' }, { id: 'pista_nova' }] })).not.toBe(fp);
     expect(contentFingerprint({ ...base, constants: { TICK_RATE: 60, GRIP: 0.81 } })).not.toBe(fp);
     expect(CONTENT_FINGERPRINT).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('cobre o que decide a pilotagem da IA: personalidades, elenco e ritmo por dificuldade', () => {
+    // Um build com só a tabela das personalidades ajustada caía na mesma sala e dessincronizava (onda C).
+    const before = contentFingerprint(fingerprintContent());
+    const tweaks: Array<[string, () => () => void]> = [
+      ['PERSONALITY_TUNING', () => { const t = PERSONALITY_TUNING.aggressive as { brakeLate: number }; const o = t.brakeLate; t.brakeLate = o + 0.1; return () => { t.brakeLate = o; }; }],
+      ['DRIVER_PERSONALITY', () => { const d = DRIVER_PERSONALITY as Record<string, string>; const k = Object.keys(d)[0]; const o = d[k]; d[k] = o === 'clean' ? 'erratic' : 'clean'; return () => { d[k] = o; }; }],
+      ['AI_DRIVERS', () => { const a = AI_DRIVERS as string[]; const o = a[0]; a[0] = 'Piloto Novo'; return () => { a[0] = o; }; }],
+      ['DIFFICULTY_SPEED', () => { const o = DIFFICULTY_SPEED.amador; DIFFICULTY_SPEED.amador = o + 0.01; return () => { DIFFICULTY_SPEED.amador = o; }; }],
+    ];
+    for (const [name, tweak] of tweaks) {
+      const undo = tweak();
+      try { expect(contentFingerprint(fingerprintContent()), name).not.toBe(before); } finally { undo(); }
+    }
+    expect(contentFingerprint(fingerprintContent())).toBe(before);
   });
 });
 

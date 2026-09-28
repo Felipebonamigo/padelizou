@@ -317,3 +317,22 @@ describe('lockstep em rede simulada', () => {
     expect(ls.behindBy()).toBe(26);
   });
 });
+
+describe('IA que assume o carro de um humano', () => {
+  it('com câmbio manual, troca de marcha sozinha (antes ficava presa na marcha em que o humano caiu)', () => {
+    const track = getTrack('copacabana');
+    const config: RaceConfig = {
+      trackId: 'copacabana', laps: 3, humans: [human(0), human(1)], totalCars: 8, difficulty: 'profissional',
+      manualGear: true, assists: NO_ASSISTS, seed: 3,
+    };
+    const s = createRace(config, track);
+    const gone: PlayerInput = { steer: 0, throttle: false, brake: false, nitro: false, gearUp: false, gearDown: false, takeover: true };
+    for (let t = 0; t < 60 * 90; t++) stepRace(s, track, [undefined, gone]);
+    const taken = s.cars.find((c) => c.seat === 1);
+    expect(taken?.ai).not.toBeNull();
+    expect(taken!.gear).toBeGreaterThan(0);
+    expect(taken!.lap).toBeGreaterThanOrEqual(2);
+    // O humano que ficou continua no manual: parado em 1ª.
+    expect(s.cars.find((c) => c.seat === 0)!.gear).toBe(0);
+  });
+});

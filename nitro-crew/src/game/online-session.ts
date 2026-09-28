@@ -9,10 +9,10 @@
 import * as SIM_CONSTANTS from '../core/constants';
 import { TICK_RATE } from '../core/constants';
 import { CARS } from '../core/data/cars';
-import { seatColor } from '../core/data/drivers';
+import { AI_DRIVERS, DRIVER_PERSONALITY, NEUTRAL_TUNING, PERSONALITY_TUNING, seatColor } from '../core/data/drivers';
 import { hashString } from '../core/rng';
 import { deserializeRace, serializeRace } from '../core/serialize';
-import { DIFFICULTY_SKILL } from '../core/sim/ai';
+import { DIFFICULTY_SKILL, DIFFICULTY_SPEED } from '../core/sim/ai';
 import { TRACKS } from '../core/track';
 import { NEUTRAL_INPUT, type HumanEntry, type PlayerInput, type RaceConfig, type RaceState } from '../core/types';
 import { NetClient, type SocketFactory } from '../net/client';
@@ -49,15 +49,23 @@ export function contentFingerprint(content: unknown): string {
 }
 
 /**
- * Impressão deste jogo: carros, pistas, constantes da simulação e habilidade da IA. Vai no
+ * Impressão deste jogo: carros, pistas, constantes da simulação e os dados da IA (habilidade, ritmo, elenco e
+ * personalidades). Vai no
  * create/join e o relay só põe na mesma sala quem tem a mesma. Sem isso, com o mesmo
  * PROTOCOL_VERSION, um build com uma pista nova largava nela e o outro descartava a largada calado
  * (id desconhecido) — o anfitrião corria esperando por ele para sempre. Mudança só no código da
  * física não entra aqui: essa aparece como dessincronia (hash a cada segundo).
  */
-export const CONTENT_FINGERPRINT = contentFingerprint({
-  protocol: PROTOCOL_VERSION, constants: SIM_CONSTANTS, cars: CARS, tracks: TRACKS, aiSkill: DIFFICULTY_SKILL,
-});
+export function fingerprintContent(): Record<string, unknown> {
+  return {
+    protocol: PROTOCOL_VERSION, constants: SIM_CONSTANTS, cars: CARS, tracks: TRACKS, aiSkill: DIFFICULTY_SKILL,
+    // Dados que decidem a pilotagem da IA sem estar em constants.ts: elenco, personalidade de cada um e ritmo.
+    aiSpeed: DIFFICULTY_SPEED, aiDrivers: AI_DRIVERS, driverPersonality: DRIVER_PERSONALITY,
+    personalityTuning: PERSONALITY_TUNING, neutralTuning: NEUTRAL_TUNING,
+  };
+}
+
+export const CONTENT_FINGERPRINT = contentFingerprint(fingerprintContent());
 
 export type OnlinePhase = 'idle' | 'connecting' | 'lobby' | 'racing' | 'results' | 'error';
 
