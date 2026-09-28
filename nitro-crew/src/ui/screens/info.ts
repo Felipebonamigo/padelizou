@@ -10,6 +10,7 @@ import {
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
 import { arrowButton, blurActive, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { ghostRecordsView } from './ghost-records';
 import { icon, medal } from './icons';
 import './records.css';
 
@@ -28,16 +29,17 @@ interface TabView {
 }
 
 /** Linhas focáveis rolam sozinhas até ficar visíveis (createFocusList chama scrollIntoView). */
-function tabView(api: ScreenApi, rows: FocusItem[], content: HTMLElement, update?: (list: FocusList) => void): TabView {
+function tabView(api: ScreenApi, rows: FocusItem[], content: HTMLElement, update?: (list: FocusList) => void, actions: FocusItem[] = []): TabView {
   const back = button(t('ui.common.back'), () => api.back());
-  const list = createFocusList([...rows, back], { sfx: api.sfx });
-  const el = h('div', { class: 'rec-view' }, h('div', { class: 'rec-scroll' }, content), h('div', { class: 'actions' }, back.el));
+  const list = createFocusList([...rows, ...actions, back], { sfx: api.sfx });
+  const el = h('div', { class: 'rec-view' }, h('div', { class: 'rec-scroll' }, content), h('div', { class: 'actions' }, actions.map((a) => a.el), back.el));
   return { el, list, update: update ? () => update(list) : undefined };
 }
 
-function tracksTab(api: ScreenApi): TabView {
+function tracksTab(api: ScreenApi, rebuild: () => void): TabView {
   const { save, tracks, cars } = api.ctx;
   const carName = (id: string) => cars.find((c) => c.id === id)?.name ?? id;
+  const ghosts = ghostRecordsView(api, rebuild);
   const rows: FocusItem[] = [];
   for (const def of tracks) {
     const lap = save.bestLaps[def.id];
@@ -45,8 +47,9 @@ function tracksTab(api: ScreenApi): TabView {
       .filter(([key]) => key.startsWith(`${def.id}:`))
       .map(([key, rec]) => ({ laps: Number(key.slice(def.id.length + 1)), rec }))
       .sort((a, b) => a.laps - b.laps);
-    if (!lap && races.length === 0) continue;
-    rows.push({ el: h('div', { class: 'record-row glass' },
+    const ghost = ghosts.ghost(def.id);
+    if (!lap && races.length === 0 && !ghost) continue;
+    rows.push({ activate: ghost ? () => ghosts.exportTrack(ghost, def.name) : undefined, el: h('div', { class: `record-row glass${ghost ? ' has-ghost' : ''}` },
       h('div', { class: 'record-track' }, h('strong', { text: def.name }), h('span', { class: 'muted', text: t(`core.country.${def.country}`) })),
       h('div', { class: 'record-entries' },
         lap ? h('div', { class: 'record-entry' },
@@ -59,13 +62,14 @@ function tracksTab(api: ScreenApi): TabView {
           h('span', { class: 'record-time mono', text: formatTicks(rec.ticks) }),
           h('span', { class: 'record-who', text: `${rec.name} · ${carName(rec.carId)}` }),
         )),
+        ghost ? ghosts.entry(ghost, carName(ghost.carId)) : null,
       ),
     ) });
   }
   const content = rows.length > 0
-    ? h('div', { class: 'record-list' }, h('p', { class: 'hint rec-hint', text: t('stats.tracks.hint') }), rows.map((r) => r.el))
-    : h('p', { class: 'empty', text: t('ui.records.empty') });
-  return tabView(api, rows, content);
+    ? h('div', { class: 'record-list' }, h('p', { class: 'hint rec-hint', text: t('stats.tracks.hint') }), ghosts.status, rows.map((r) => r.el))
+    : h('div', { class: 'record-list' }, ghosts.status, h('p', { class: 'empty', text: t('ui.records.empty') }));
+  return tabView(api, rows, content, undefined, [ghosts.importItem]);
 }
 
 function statText(key: CounterKey, s: PlayerStats): string {
@@ -210,7 +214,8 @@ function achievementsTab(api: ScreenApi): TabView {
   return tabView(api, [...onCards, ...offCards], content);
 }
 
-const TAB_BUILDERS: Readonly<Record<RecordsTab, (api: ScreenApi) => TabView>> = {
+/** `rebuild` refaz a aba atual (a de pistas, depois de importar um fantasma). */
+const TAB_BUILDERS: Readonly<Record<RecordsTab, (api: ScreenApi, rebuild: () => void) => TabView>> = {
   tracks: tracksTab, players: playersTab, achievements: achievementsTab,
 };
 
@@ -224,15 +229,15 @@ export function recordsScreen(api: ScreenApi): ScreenInstance {
     on: { click: () => { blurActive(); if (select(i)) api.sfx('move'); } },
   }));
   const markTabs = () => tabButtons.forEach((b, j) => { b.classList.toggle('on', j === tab); b.setAttribute('aria-selected', String(j === tab)); });
-  let view: TabView = TAB_BUILDERS[RECORD_TABS[tab]](api);
+  const rebuild = () => { view = TAB_BUILDERS[RECORD_TABS[tab]](api, rebuild); holder.replaceChildren(view.el); };
+  let view: TabView = TAB_BUILDERS[RECORD_TABS[tab]](api, rebuild);
   const holder = h('div', { class: 'rec-holder' }, view.el);
 
   function select(i: number): boolean {
     const next = (i + RECORD_TABS.length) % RECORD_TABS.length;
     if (next === tab) return false;
     tab = next;
-    view = TAB_BUILDERS[RECORD_TABS[tab]](api);
-    holder.replaceChildren(view.el);
+    rebuild();
     markTabs();
     return true;
   }

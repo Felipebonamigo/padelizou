@@ -11,6 +11,7 @@ import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
 import type { HudMessage, RenderFrame, ViewportSpec } from '../game/contracts';
 import { t } from '../i18n';
+import { GhostDelta } from './ghost-hud';
 import { spareCell, uiScale, viewportRects, type Rect } from './layout';
 import { outlinePoint, trackOutline, type Outline } from './minimap';
 import { ordinalSuffix } from './strings';
@@ -126,6 +127,7 @@ class SeatHud {
   private readonly count: HTMLElement; private lastCount = '';
   private readonly pause: HTMLElement; private readonly lines: HTMLElement;
   private readonly topList: HudMessage[] = []; private readonly centerList: HudMessage[] = [];
+  private readonly ghost: GhostDelta;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', 'vp', parent);
@@ -139,6 +141,7 @@ class SeatHud {
     const laps = el('div', 'laps', tr);
     const last = el('span', 'last', laps); this.lastLabel = el('span', '', last); this.lastVal = el('b', '', last);
     const best = el('span', 'best', laps); this.bestLabel = el('span', '', best); this.bestVal = el('b', '', best);
+    this.ghost = new GhostDelta(tr);
     this.mates = el('div', 'mates glass', this.root);
     for (let i = 0; i < 3; i++) {
       const row = el('div', 'mate', this.mates); const dot = el('i', '', row); const name = el('span', 'mn', row); const p = el('span', 'mp', row);
@@ -188,6 +191,7 @@ class SeatHud {
     const bestLap = car.lapTicks.length ? Math.min(...car.lapTicks) : -1;
     setText(this.lastLabel, `${t('hud.last')} `); setText(this.lastVal, formatTicks(lastLap));
     setText(this.bestLabel, `${t('hud.best')} `); setText(this.bestVal, formatTicks(bestLap));
+    this.ghost.update(frame.ghost, vp === frame.viewports[0]);
     // Companheiros (co-op).
     let m = 0;
     if (frame.coop) {
