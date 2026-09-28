@@ -35,6 +35,18 @@ export function personalityName(p: Personality | null): string {
   return t(`rivals.personality.${p ?? 'clean'}`);
 }
 
+/**
+ * Rival que entra no grid da próxima corrida desta copa (config.rival): o da tabela — salvo numa copa já
+ * em andamento que largou sem ele (save de uma versão com outro rival ou sem rivais). Pôr o rival muda o
+ * elenco sorteado (rosterOffsetWith); no meio da copa isso trocaria os pilotos e deixaria linhas
+ * congeladas na classificação.
+ */
+export function gridRival(champ: ChampionshipState): string | undefined {
+  const name = cupRival(champ.cupId).name;
+  if (champ.raceIndex === 0) return name;
+  return champ.standings.some((s) => s.seat < 0 && s.name === name) ? name : undefined;
+}
+
 /** A fala no idioma atual: a própria do rival ou, sem ela, a da personalidade dele. */
 export function rivalLine(rival: Rival, kind: RivalLineKind): string {
   const own = `rivals.line.${rival.key}.${kind}`;

@@ -23,7 +23,7 @@ import { sanitizeSave } from '../src/game/save';
 import { createCareerSession, type CareerHost } from '../src/game/career-session';
 import { DEFAULT_SAVE, DEFAULT_SETTINGS, type Menus, type SaveData } from '../src/game/contracts';
 import {
-  cupDuels, cupRival, duelLineKind, hasOwnLines, raceDuel, RIVAL_LINE_KINDS, rivalBeatenEveryRace, rivalLine, rivalRaceSummary,
+  cupDuels, cupRival, duelLineKind, gridRival, hasOwnLines, raceDuel, RIVAL_LINE_KINDS, rivalBeatenEveryRace, rivalLine, rivalRaceSummary,
   rivalStandingsSummary,
 } from '../src/game/rivals';
 import { setLanguage } from '../src/i18n';
@@ -420,5 +420,43 @@ describe('duelo com o rival', () => {
       careerChamp: () => after,
     });
     expect(unlocked).toContain('RIVAL_DERROTADO');
+  });
+});
+
+describe('copa salva que largou sem este rival (save de outra versão)', () => {
+  const fakeResults = (state: RaceState): RaceResultRow[] => state.cars.map((c, i) => ({
+    carId: c.id, seat: c.seat, name: c.name, teamId: c.teamId, carDefId: c.carId, position: i + 1, finished: true, totalTicks: 1000 + i, bestLapTicks: 300 + i, points: 0,
+  }));
+  const aiNames = (state: RaceState) => state.cars.filter((c) => c.seat < 0).map((c) => c.name).sort();
+
+  it('continua com o elenco com que largou: o rival de agora não entra no meio da copa', () => {
+    const cup = CUPS[0];
+    const humans = [human(0)];
+    const rival = cupRival(cup.id).name;
+    const base = (trackId: string, rosterSeed: number): RaceConfig => ({
+      trackId, laps: 2, humans, totalCars: 8, difficulty: 'profissional', manualGear: false, assists: NO_ASSISTS, seed: 7, rosterSeed,
+    });
+    // Uma semente em que pôr o rival troca o elenco (a maioria troca).
+    let rosterSeed = 1;
+    while (JSON.stringify(aiNames(createRace(base(cup.trackIds[0], rosterSeed), getTrack(cup.trackIds[0]))))
+      === JSON.stringify(aiNames(createRace({ ...base(cup.trackIds[0], rosterSeed), rival }, getTrack(cup.trackIds[0]))))) rosterSeed++;
+    const champ = createChampionship(cup.id, humans);
+    expect(gridRival(champ)).toBe(rival); // copa nova: o rival da tabela
+    const first = createRace(base(cup.trackIds[0], rosterSeed), getTrack(cup.trackIds[0])); // largou sem rival
+    applyRaceResult(champ, fakeResults(first), humans);
+    const second = createRace({ ...base(cup.trackIds[1], rosterSeed), rival: gridRival(champ) }, getTrack(cup.trackIds[1]));
+    expect(aiNames(second)).toEqual(aiNames(first));
+    applyRaceResult(champ, fakeResults(second), humans);
+    expect(champ.standings).toHaveLength(8);
+  });
+
+  it('copa que largou com o rival segue com ele', () => {
+    const cup = CUPS[0];
+    const humans = [human(0)];
+    const champ = createChampionship(cup.id, humans);
+    const first = createRace({ trackId: cup.trackIds[0], laps: 2, humans, totalCars: 8, difficulty: 'profissional', manualGear: false,
+      assists: NO_ASSISTS, seed: 7, rosterSeed: 3, rival: gridRival(champ) }, getTrack(cup.trackIds[0]));
+    applyRaceResult(champ, fakeResults(first), humans);
+    expect(gridRival(champ)).toBe(cupRival(cup.id).name);
   });
 });
