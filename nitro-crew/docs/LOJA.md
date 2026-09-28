@@ -112,11 +112,12 @@ do teste com 4 pessoas, passo 4.1) · Steam Deck (depois do passo 5.5).
 
 ## Requisitos de sistema (estimativa — medir no passo 1.6 e na matriz de docs/QA.md)
 
-O jogo é Electron + WebGL 2 (Three.js). O pacote tem ≈ 290 MB descompactado; o save, poucos KB.
+O jogo é Electron + WebGL 2 (Three.js). O pacote tem ≈ 380 MB descompactado no Windows e ≈ 290 MB no Linux (medido em
+28/09/2026, `desktop/README.md` → matriz); o save, poucos KB. O macOS mínimo (13) é o do Electron 44 (`LSMinimumSystemVersion`).
 
 | | Mínimo (1–2 jogadores, qualidade Baixa, 1080p a 60 fps) | Recomendado (4 jogadores, qualidade Alta, 1080p a 60 fps) |
 |---|---|---|
-| **SO** | Windows 10 64 bits · Ubuntu 22.04 / SteamOS 3 · macOS 12 | Windows 10/11 64 bits · SteamOS 3 |
+| **SO** | Windows 10 64 bits · Ubuntu 22.04 / SteamOS 3 · macOS 13 | Windows 10/11 64 bits · SteamOS 3 |
 | **Processador** | 2 núcleos, 2,0 GHz (Intel Core i3 6ª geração / AMD Ryzen 3 2200U) | 4 núcleos, 3,0 GHz (Intel Core i5 8ª geração / AMD Ryzen 5 2600) |
 | **Memória** | 4 GB de RAM | 8 GB de RAM |
 | **Placa de vídeo** | Gráfico integrado com WebGL 2 / OpenGL 3.3 / DirectX 11 (Intel UHD 620, AMD Vega 8) | GeForce GTX 1050 / Radeon RX 560 / Intel Iris Xe (ou melhor) |
@@ -127,7 +128,7 @@ O jogo é Electron + WebGL 2 (Three.js). O pacote tem ≈ 290 MB descompactado; 
 
 | | Minimum (1–2 players, Low quality, 1080p at 60 fps) | Recommended (4 players, High quality, 1080p at 60 fps) |
 |---|---|---|
-| **OS** | Windows 10 64-bit · Ubuntu 22.04 / SteamOS 3 · macOS 12 | Windows 10/11 64-bit · SteamOS 3 |
+| **OS** | Windows 10 64-bit · Ubuntu 22.04 / SteamOS 3 · macOS 13 | Windows 10/11 64-bit · SteamOS 3 |
 | **Processor** | Dual-core 2.0 GHz (Intel Core i3 6th gen / AMD Ryzen 3 2200U) | Quad-core 3.0 GHz (Intel Core i5 8th gen / AMD Ryzen 5 2600) |
 | **Memory** | 4 GB RAM | 8 GB RAM |
 | **Graphics** | Integrated graphics with WebGL 2 / OpenGL 3.3 / DirectX 11 (Intel UHD 620, AMD Vega 8) | GeForce GTX 1050 / Radeon RX 560 / Intel Iris Xe (or better) |

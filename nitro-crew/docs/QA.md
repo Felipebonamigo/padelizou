@@ -15,7 +15,7 @@ Nenhuma build vai para testador com um destes vermelho.
 | Testes | `npx vitest run` (determinismo, pistas, física, IA, co-op, i18n, save, relatório de erros, ponte do Electron…) | raiz |
 | Build | `npm run build` (typecheck + `dist/`) | raiz |
 | Fluxo no navegador | `npm run preview` + `node scripts/playtest.mjs http://localhost:4174/` | raiz |
-| Pacote Electron | `cd desktop && npm run dist:linux && xvfb-run -a npm run e2e` | `desktop/` |
+| Pacote Electron | `cd desktop && ./build-all.sh --e2e` (Linux e Windows gerados, conteúdo conferido por `check-package.mjs`, Linux aberto pelo `e2e.mjs`) | `desktop/` |
 | Balanceamento | `npm run balance -- 180 profissional 1` — comparar tempos de volta com a versão anterior | raiz |
 
 O `e2e` abre o **executável empacotado** e confere asar, preload, pasta de dados, log de erros, relatório na
