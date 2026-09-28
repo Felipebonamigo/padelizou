@@ -20,6 +20,7 @@ import { getLanguage, t } from '../../i18n';
 import { arrowButton, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { carSilhouette, icon } from './icons';
 import { startCursor } from './lobby';
+import { garageRivalBlock } from './rival';
 
 // ───────────────────────────── Números para a tela ─────────────────────────────
 
@@ -438,7 +439,8 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
       b.preview();
     });
     const report = reportBlock();
-    reportHost.replaceChildren(...(report ? [report] : []));
+    const rival = garageRivalBlock(career);
+    reportHost.replaceChildren(...[report, rival].filter((x): x is HTMLElement => x !== null));
     panelsEl.replaceChildren(...built.map((b) => b.el));
   }
 

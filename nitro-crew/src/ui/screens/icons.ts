@@ -2,7 +2,7 @@
 // (nunca dado do usuário), por isso o innerHTML de um <template> é seguro aqui.
 export type IconName =
   | 'keyboard' | 'gamepad' | 'lock' | 'sun' | 'dusk' | 'moon' | 'check' | 'trophy'
-  | 'chevron-left' | 'chevron-right' | 'clock' | 'flag' | 'users' | 'timer';
+  | 'chevron-left' | 'chevron-right' | 'clock' | 'flag' | 'users' | 'timer' | 'swords';
 
 const PATHS: Readonly<Record<IconName, string>> = {
   keyboard: '<rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="M6.5 10h.01M10.5 10h.01M14.5 10h.01M18.5 10h.01M6.5 14h.01M18.5 14h.01M9.5 14h5"/>',
@@ -19,6 +19,8 @@ const PATHS: Readonly<Record<IconName, string>> = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5A5 5 0 0 1 21.5 20"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2.5h6M12 2.5v2.5"/>',
+  // Duelo (rival da copa): duas espadas cruzadas.
+  swords: '<path d="M4 4l10.5 10.5M4 4h3.5M4 4v3.5M20 4L9.5 14.5M20 4h-3.5M20 4v3.5"/><path d="M12.5 16.5l4 4M11.5 16.5l-4 4M16.5 12.5l2 2-4 4-2-2M7.5 12.5l-2 2 4 4 2-2"/>',
 };
 
 function fromMarkup(markup: string): SVGSVGElement {

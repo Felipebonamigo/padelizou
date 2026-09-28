@@ -11,6 +11,7 @@ import { hashString } from '../core/rng';
 import { trackDef } from '../core/track';
 import type { ChampionshipState, HumanEntry, RaceConfig, RaceResultRow } from '../core/types';
 import type { Menus, RaceMode, SaveData } from './contracts';
+import { cupRival } from './rivals';
 
 /** O pedaço do InputProvider que troca assentos (testável sem DOM). */
 export interface SeatBinder {
@@ -89,6 +90,8 @@ export function createCareerSession(host: CareerHost): CareerSession {
     const config = host.baseConfig(trackId, trackDef(trackId).laps, humans, host.randomSeed());
     config.rosterSeed = career.rosterSeed;
     config.aiLevel = careerAiLevel(career);
+    // O rival da copa vale também na carreira: o mesmo piloto da copa normal.
+    config.rival = cupRival(career.cupId).name;
     host.persist();
     host.beginRace(config, 'career', humans);
   }

@@ -152,6 +152,11 @@ export interface RaceConfig {
   timeTrial?: boolean;
   /** Nível de melhoria dos carros da IA (0..3, pode ser fracionário); a carreira sobe por copa. Ausente = 0. */
   aiLevel?: number;
+  /**
+   * Nome do rival principal da copa (src/game/rivals.ts). createRace garante que ele está no grid e dá
+   * a ele um bônus leve de habilidade. Ausente = corrida sem rival (rápida, contra-relógio, online).
+   */
+  rival?: string;
 }
 
 // ───────────────────────────── Estado ─────────────────────────────
@@ -176,6 +181,12 @@ export const NEUTRAL_INPUT: Readonly<PlayerInput> = Object.freeze({
   steer: 0, throttle: false, brake: false, nitro: false, gearUp: false, gearDown: false,
 });
 
+/**
+ * Personalidade de um piloto da IA (data/drivers.ts; comportamento em sim/ai.ts e sim/personality.ts):
+ * limpo, agressivo, bloqueador (fecha a porta de um humano logo atrás) e errático (às vezes erra a frenagem).
+ */
+export type Personality = 'clean' | 'aggressive' | 'blocker' | 'erratic';
+
 export interface AiBrain {
   /** 0..1, multiplica a velocidade-alvo. */
   skill: number;
@@ -196,6 +207,15 @@ export interface AiBrain {
   progressMark?: number;
   /** Gasto por unidade de pista na última volta inteira medida (sim/fuel.ts). */
   lapBurn?: number;
+  /**
+   * Personalidade fixa do piloto. Ausente = piloto neutro (o comportamento de antes das personalidades):
+   * piloto automático do humano, IA que assume um assento no online e estado antigo — por isso sem valor
+   * padrão em deserializeRace.
+   */
+  personality?: Personality;
+  /** Bloqueador: ticks seguidos fechando a porta nesta investida, e até que tick descansa (sim/personality.ts). */
+  blockTicks?: number;
+  blockRestUntil?: number;
 }
 
 export interface CarState {

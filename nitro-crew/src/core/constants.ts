@@ -93,3 +93,31 @@ export const UPGRADE_BRAKES = 0.12;
 export const UPGRADE_TANK_FUEL = 0.1;
 /** Nitro: +1 carga por nível. */
 export const UPGRADE_NITRO_CHARGES = 1;
+
+// Personalidades e rivais da IA (sim/personality.ts, docs/RIVAIS.md). A tabela de cada personalidade
+// mora em data/drivers.ts (PERSONALITY_TUNING).
+/** Curva a partir da qual a IA freia para ela (sim/ai.ts); abaixo disto o trecho é reta para ela. */
+export const AI_BRAKE_CURVE = 1.5;
+/** Bônus de habilidade do rival principal da copa (a habilidade vai de ~0,8 a ~1,03). */
+export const RIVAL_SKILL_BONUS = 0.02;
+/** Bloqueador: vigia humanos até esta distância atrás e nesta janela lateral. */
+export const BLOCK_RANGE = SEGMENT_LENGTH * 3;
+export const BLOCK_LATERAL_WINDOW = 0.9;
+/** Humano a menos disto atrás já pôs o bico do lado: o bloqueador respeita o desvio e não fecha mais. */
+export const BLOCK_ALONGSIDE = CAR_LENGTH * 1.5;
+/** Tempo máximo fechando a porta numa investida; depois descansa BLOCK_REST_TICKS sem bloquear ninguém. */
+export const BLOCK_MAX_TICKS = 4 * TICK_RATE;
+export const BLOCK_REST_TICKS = 8 * TICK_RATE;
+/** Até onde o bloqueador vai para o lado (fica no asfalto e não empurra ninguém para a grama). */
+export const BLOCK_MAX_X = 0.7;
+/** Quanto a faixa do bloqueador anda por tick atrás do humano (0,72/s): dá para enganar e passar. */
+export const BLOCK_LATERAL_RATE = 0.012;
+/**
+ * Erro de frenagem (por trecho de curva): o piloto acha que a curva segura MISTAKE_CORNER_SPEED vezes mais,
+ * freia MISTAKE_BRAKE_LATE vezes mais tarde e, nos primeiros MISTAKE_WIDE_SEGMENTS segmentos do trecho,
+ * abre para fora até MISTAKE_WIDE_X (a grama começa em OFFROAD_X) antes de se recuperar.
+ */
+export const MISTAKE_CORNER_SPEED = 1.2;
+export const MISTAKE_BRAKE_LATE = 2;
+export const MISTAKE_WIDE_SEGMENTS = 20;
+export const MISTAKE_WIDE_X = 1.15;

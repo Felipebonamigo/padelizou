@@ -6,12 +6,13 @@ import { CUPS } from '../core/data/cups';
 import { wrappedDelta } from '../core/sim/collisions';
 import { computeModifiers } from '../core/sim/coop';
 import { TRACKS } from '../core/track';
-import type { CarState, HumanEntry, RaceResultRow, RaceState, SimEvent, Track } from '../core/types';
+import type { CarState, ChampionshipState, HumanEntry, RaceResultRow, RaceState, SimEvent, Track } from '../core/types';
 import { getLanguage, t } from '../i18n';
 import '../i18n/core';
 import '../stats/strings';
 import type { RaceMode, SaveData } from './contracts';
 import { ACHIEVEMENTS } from './desktop';
+import { rivalBeatenEveryRace } from './rivals';
 import './strings';
 
 /** MESTRE_DO_VACUO: tempo no vácuo numa mesma corrida. */
@@ -160,10 +161,13 @@ export interface AchievementUnlock {
   seats: number[];
 }
 
-/** Conquistas desbloqueadas por esta corrida (ids ainda não presentes no save), com quem as ganhou. */
+/**
+ * Conquistas desbloqueadas por esta corrida (ids ainda não presentes no save), com quem as ganhou.
+ * `cupChamp`: a copa (normal ou da carreira) já com esta corrida somada, para RIVAL_DERROTADO.
+ */
 export function unlockAchievements(
   save: SaveData, mode: RaceMode, state: RaceState, results: RaceResultRow[], humans: HumanEntry[], telemetry: RaceTelemetry,
-  trackNight: boolean, cupJustCompleted: string | null, difficulty: string,
+  trackNight: boolean, cupJustCompleted: string | null, difficulty: string, cupChamp: ChampionshipState | null = null,
 ): AchievementUnlock[] {
   const out = new Map<string, Set<number>>();
   const add = (id: string, seats: readonly number[]) => {
@@ -203,6 +207,8 @@ export function unlockAchievements(
   if (cupJustCompleted) {
     add(`COPA_${cupJustCompleted.toUpperCase()}`, everyone);
     if (difficulty === 'campeao') add('CAMPEAO', everyone);
+    // A equipe (algum humano) terminou à frente do rival da copa em todas as corridas.
+    if (cupChamp && cupChamp.cupId === cupJustCompleted && rivalBeatenEveryRace(cupChamp)) add('RIVAL_DERROTADO', everyone);
   }
   return [...out].map(([id, seats]) => ({ id, seats: [...seats].sort((a, b) => a - b) }));
 }
@@ -210,9 +216,9 @@ export function unlockAchievements(
 /** Só os ids (compatível com o contrato antigo). */
 export function evaluateAchievements(
   save: SaveData, mode: RaceMode, state: RaceState, results: RaceResultRow[], humans: HumanEntry[], telemetry: RaceTelemetry,
-  trackNight: boolean, cupJustCompleted: string | null, difficulty: string,
+  trackNight: boolean, cupJustCompleted: string | null, difficulty: string, cupChamp: ChampionshipState | null = null,
 ): string[] {
-  return unlockAchievements(save, mode, state, results, humans, telemetry, trackNight, cupJustCompleted, difficulty).map((u) => u.id);
+  return unlockAchievements(save, mode, state, results, humans, telemetry, trackNight, cupJustCompleted, difficulty, cupChamp).map((u) => u.id);
 }
 
 // ───────────────────────────── Textos ─────────────────────────────

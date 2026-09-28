@@ -1,0 +1,81 @@
+/* Rival da copa (rival.ts): cartão do duelo no resultado e na classificação, bloco no detalhe da copa
+   e na garagem. Tamanhos em --u (ver styles.css). */
+
+.rival-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--u));
+  max-width: min(100%, calc(900 * var(--u)));
+  padding: calc(6 * var(--u)) calc(18 * var(--u));
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 calc(-3 * var(--u)) 0 var(--rival-edge, var(--accent));
+  box-sizing: border-box;
+}
+.rival-card.ahead { --rival-edge: var(--bad); }
+.rival-card.behind { --rival-edge: var(--ok); }
+.rival-card-head { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); font-size: var(--fs-md); }
+.rival-card-head .ico, .cup-rival-head .ico, .garage-rival > .ico { color: var(--rival-edge, var(--accent)); flex: none; }
+.rival-pers {
+  padding: calc(1 * var(--u)) calc(9 * var(--u));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rival-quote { color: var(--muted); font-style: italic; font-size: var(--fs-sm); text-align: center; }
+.rival-quote::before { content: '“'; }
+.rival-quote::after { content: '”'; }
+
+/* Linha do rival na tabela do resultado. */
+.table tr.rival td { background: rgba(255, 77, 77, 0.08); }
+.rival-tag {
+  display: inline-block;
+  margin-left: calc(8 * var(--u));
+  padding: 0 calc(7 * var(--u));
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: calc(12 * var(--u));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+/* Detalhe da copa (select.ts). */
+.cup-rival {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--u));
+  padding: calc(6 * var(--u)) calc(12 * var(--u));
+  border-radius: var(--r-sm);
+  background: rgba(255, 77, 77, 0.08);
+  box-shadow: inset calc(4 * var(--u)) 0 0 var(--bad);
+  --rival-edge: var(--bad);
+}
+.cup-rival-head { display: flex; align-items: center; gap: calc(8 * var(--u)); min-width: 0; }
+.cup-rival-k { color: var(--muted); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.06em; }
+.cup-rival .rival-quote { text-align: left; }
+.cup-detail.locked .cup-rival { opacity: 0.6; }
+
+/* Garagem da carreira (garage.ts). */
+.garage-rival {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--u)) calc(10 * var(--u));
+  padding: calc(6 * var(--u)) calc(14 * var(--u));
+  box-sizing: border-box;
+  width: 100%;
+  --rival-edge: var(--bad);
+  font-size: var(--fs-sm);
+}
+.garage-rival .rival-quote { text-align: left; flex: 1 1 auto; min-width: 0; }
+.garage-report-host { display: flex; flex-direction: column; gap: calc(6 * var(--u)); }
+
+/* Classificação: o cartão do rival ocupa uma faixa acima das tabelas; elas encolhem o mesmo tanto para o
+   botão continuar na tela em 720p (styles.css: .standings-columns .table-wrap { max-height: 62vh }). */
+.scr-standings:has(.rival-card) .standings-columns .table-wrap { max-height: calc(62vh - 84 * var(--u)); }
