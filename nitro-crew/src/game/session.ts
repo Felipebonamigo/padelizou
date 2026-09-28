@@ -14,7 +14,7 @@ import { setLanguage, t } from '../i18n';
 import '../i18n/core';
 import './strings';
 import { applyAccessibility } from '../access/apply';
-import { assistedHumans } from '../access/humans';
+import { assistedHumans, withRaceAssists } from '../access/humans';
 import { createAudio } from '../audio/audio';
 import { songForScenery } from '../audio/music';
 import { createRenderer } from '../render/renderer';
@@ -370,7 +370,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function finishRace(r: ActiveRace): void {
     const { newRecords, achievements } = settle(r);
-    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: r.humans, champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state) };
+    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: withRaceAssists(r.humans, r.state.config.humans), champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state) };
     if (r.driver) r.driver.finished(data);
     else menus.show('results', data);
     audio.update(null, 0);

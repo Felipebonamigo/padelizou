@@ -10,6 +10,7 @@ import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
 import { seatColor, type ColorPalette } from '../core/data/drivers';
 import '../access/strings';
+import { seatAssist } from '../access/humans';
 import { VIP_COLOR } from '../core/modes';
 import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
@@ -126,7 +127,7 @@ class SeatHud {
   private readonly tagName: HTMLElement; private readonly assist: HTMLElement;
   private readonly posN: HTMLElement; private readonly posOf: HTMLElement; private readonly lap: HTMLElement;
   private readonly time: HTMLElement; private readonly lastLabel: HTMLElement; private readonly lastVal: HTMLElement; private readonly bestLabel: HTMLElement; private readonly bestVal: HTMLElement;
-  private readonly mates: HTMLElement; private readonly mateRows: Array<{ row: HTMLElement; dot: HTMLElement; name: HTMLElement; pos: HTMLElement }> = [];
+  private readonly mates: HTMLElement; private readonly mateRows: Array<{ row: HTMLElement; dot: HTMLElement; name: HTMLElement; assist: HTMLElement; pos: HTMLElement }> = [];
   private readonly fuel: HTMLElement; private readonly fuelLabel: HTMLElement; private readonly fuelFill: HTMLElement;
   private readonly nitroLabel: HTMLElement; private readonly caps: HTMLElement[] = []; private readonly extra: HTMLElement;
   private readonly nbar: HTMLElement; private readonly nfill: HTMLElement;
@@ -153,9 +154,9 @@ class SeatHud {
     this.ghost = new GhostDelta(tr);
     this.mates = el('div', 'mates glass', this.root);
     for (let i = 0; i < 3; i++) {
-      const row = el('div', 'mate', this.mates); const dot = el('i', '', row); const name = el('span', 'mn', row); const p = el('span', 'mp', row);
+      const row = el('div', 'mate', this.mates); const dot = el('i', '', row); const name = el('span', 'mn', row); const assist = el('span', 'ma', row); const p = el('span', 'mp', row);
       row.style.display = 'none';
-      this.mateRows.push({ row, dot, name, pos: p });
+      this.mateRows.push({ row, dot, name, assist, pos: p });
     }
     const bl = el('div', 'bl glass', this.root);
     this.fuel = el('div', 'fuel', bl); this.fuelLabel = el('div', 'label', this.fuel); const fbar = el('div', 'bar', this.fuel); this.fuelFill = el('div', 'fill', fbar);
@@ -185,7 +186,7 @@ class SeatHud {
     setStyle(r, '--s', `calc(${uiScale(rect).toFixed(3)} * var(--hud-scale, 1))`); setStyle(r, '--accent', vp.color);
     setText(this.tagName, vp.name);
     // Selo discreto de direção assistida (sim/assist.ts).
-    const assisted = state.config.humans.some((h) => h.seat === vp.seat && h.assist !== undefined && h.assist !== 'none');
+    const assisted = seatAssist(state.config.humans, vp.seat) !== 'none';
     setText(this.assist, assisted ? t('access.hud.assist') : '');
     setClass(this.assist, 'on', assisted);
     if (!car) return;
@@ -218,6 +219,7 @@ class SeatHud {
         setStyle(row.row, 'display', 'flex');
         setStyle(row.dot, 'background', other.color);
         setText(row.name, other.name);
+        setText(row.assist, seatAssist(state.config.humans, other.seat) !== 'none' ? t('access.hud.assist') : '');
         setText(row.pos, ordinal(oc.position));
       }
     }
@@ -317,8 +319,11 @@ class SparePanel {
       setText(row.l, c.finished ? t('hud.finished') : t('hud.lapShort', { n: Math.max(1, Math.min(state.config.laps, c.lap)) }));
       setClass(row.row, 'human', c.seat >= 0);
       const rival = c.seat < 0 && c.name === state.config.rival;
+      // Humano com direção assistida: o selo ASSIST no lugar da etiqueta do rival (que é só da IA).
+      const assisted = c.seat >= 0 && seatAssist(state.config.humans, c.seat) !== 'none';
       setClass(row.row, 'rival', rival);
-      setText(row.r, rival ? t('rivals.hudTag') : '');
+      setClass(row.row, 'assisted', assisted);
+      setText(row.r, rival ? t('rivals.hudTag') : assisted ? t('access.hud.assist') : '');
       const vp = c.seat >= 0 ? frame.viewports.find((v) => v.seat === c.seat) : undefined;
       setStyle(row.n, 'color', vp ? vp.color : '');
     }

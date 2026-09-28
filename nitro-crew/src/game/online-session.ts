@@ -13,8 +13,9 @@ import { AI_DRIVERS, DRIVER_PERSONALITY, NEUTRAL_TUNING, PERSONALITY_TUNING, sea
 import { hashString } from '../core/rng';
 import { deserializeRace, serializeRace } from '../core/serialize';
 import { DIFFICULTY_SKILL, DIFFICULTY_SPEED } from '../core/sim/ai';
+import { ASSIST_LEVELS } from '../core/sim/assist';
 import { TRACKS } from '../core/track';
-import { NEUTRAL_INPUT, type HumanEntry, type PlayerInput, type RaceConfig, type RaceState } from '../core/types';
+import { NEUTRAL_INPUT, type AssistLevel, type HumanEntry, type PlayerInput, type RaceConfig, type RaceState } from '../core/types';
 import { NetClient, type SocketFactory } from '../net/client';
 import { Lockstep, type DesyncReport } from '../net/lockstep';
 import {
@@ -342,6 +343,23 @@ export class OnlineController implements RaceDriver {
     this.publishInfo();
   }
 
+  /** Direção assistida do jogador local `index`: a do assento local dele nas opções (P1, P2 deste computador). */
+  assistOf(index: number): AssistLevel {
+    return this.host.settings.seatAssists[index] ?? 'none';
+  }
+
+  /**
+   * Troca a direção assistida do jogador local (grava nas opções, como o cartão do lobby local) e
+   * avisa a sala. Travada com o "pronto" dado, como o carro, e fora da sala (depois da largada).
+   */
+  cycleAssist(index: number, dir: -1 | 1): void {
+    if (!this.locals[index] || this.ready || this.phase !== 'lobby') return;
+    const i = ASSIST_LEVELS.indexOf(this.assistOf(index));
+    this.host.settings.seatAssists[index] = ASSIST_LEVELS[(i + dir + ASSIST_LEVELS.length) % ASSIST_LEVELS.length];
+    this.host.persistSettings();
+    this.publishInfo();
+  }
+
   toggleReady(): void {
     if (this.phase !== 'lobby') return;
     this.ready = !this.ready;
@@ -351,7 +369,7 @@ export class OnlineController implements RaceDriver {
   private info(): ClientInfo {
     return {
       // A assistência de cada jogador local é a do assento local dele nas opções (P1, P2).
-      players: this.locals.map((p, i) => withAssist({ name: p.name.trim() || `P${i + 1}`, car: p.car }, this.host.settings.seatAssists[i])),
+      players: this.locals.map((p, i) => withAssist({ name: p.name.trim() || `P${i + 1}`, car: p.car }, this.assistOf(i))),
       ready: this.ready,
     };
   }
@@ -610,7 +628,10 @@ export class OnlineController implements RaceDriver {
   startRace(): boolean {
     if (this.startBlocker() !== null || !this.room?.settings) return false;
     const random = this.opts.random ?? Math.random;
-    const cfg: StartConfig = { ...this.room.settings, seed: Math.floor(random() * 0xffffffff) >>> 0, seats: assignSeats(this.room) };
+    // O próprio computador entra com o que declara agora, não com o eco da sala: carro ou direção
+    // trocados logo antes do LARGAR ainda não voltaram do relay (os convidados estão travados no "pronto").
+    const room: RoomView = { ...this.room, clients: this.room.clients.map((c) => (c.id === this.myId ? { ...c, info: this.info() } : c)) };
+    const cfg: StartConfig = { ...this.room.settings, seed: Math.floor(random() * 0xffffffff) >>> 0, seats: assignSeats(room) };
     cfg.totalCars = Math.max(cfg.totalCars, cfg.seats.length);
     this.send({ t: 'start', cfg });
     return true;

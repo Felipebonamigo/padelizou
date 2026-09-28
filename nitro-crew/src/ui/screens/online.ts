@@ -3,10 +3,12 @@
 // saída durante a corrida (o online não pausa), resultado e erro. Tudo vem do OnlineController
 // (src/game/online-session.ts); esta tela só desenha e repassa o que o jogador faz.
 // Também exporta o aviso por cima da corrida (ping/atraso, "aguardando", dessincronia).
+import { assistTagText, seatAssist } from '../../access/humans';
 import { CARS } from '../../core/data/cars';
 import { seatColor } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import { TRACKS } from '../../core/track';
+import type { AssistLevel } from '../../core/types';
 import type { DeviceId, MenuNav } from '../../game/contracts';
 import { assignSeats, seatName, type OnlineController, type OnlineHud, type OnlineStatus } from '../../game/online-session';
 import { DIFFICULTIES } from '../../game/settings';
@@ -17,6 +19,7 @@ import { isKeyboard } from '../input';
 import { button, createFocusList, dayIcon, flagFor, h, listNav, screenFrame, selector, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal } from './icons';
 import './online.css';
+import { assistMark } from './results';
 
 type View = 'connect' | 'connecting' | 'lobby' | 'quit' | 'results' | 'error';
 
@@ -184,15 +187,18 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       if (locked) nameInput.disabled = true;
       const nameRow = textRow(t('online.lobby.name'), nameInput);
       const carSel = selector(t('online.lobby.car'), () => carName(online!.locals[i]?.car ?? ''), (d) => online!.cycleCar(i, d), { sfx: api.sfx, cls: locked ? 'locked' : '' });
-      items.push(nameRow, carSel);
-      refreshers.push(() => carSel.refresh());
+      // Direção assistida deste jogador (a do assento local nas opções): vai para a sala e para a largada.
+      const assistSel = selector(t('access.lobby.assist'), () => t(`access.level.${online!.assistOf(i)}`), (d) => online!.cycleAssist(i, d),
+        { sfx: api.sfx, cls: `sel-assist online-assist${locked ? ' locked' : ''}` });
+      items.push(nameRow, carSel, assistSel);
+      refreshers.push(() => carSel.refresh(), () => assistSel.refresh());
       const badge = h('span', { class: 'seat-badge' });
       const box = h('div', { class: 'online-local' },
         h('div', { class: 'online-local-head' },
           badge,
           h('span', { class: 'slot-device' }, icon(isKeyboard(p.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(p.device) })),
         ),
-        nameRow.el, carSel.el,
+        nameRow.el, carSel.el, assistSel.el,
       );
       // O assento (e a cor) segue a ordem da sala: muda se alguém de id menor sai.
       refreshers.push(() => {
@@ -341,13 +347,20 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
           const seat = seats.filter((s) => s.client === c.id)[i]?.seat ?? 0;
           return h('div', { class: 'online-player', style: `--seat:${seatColor(seat, ctx.settings.colorPalette)}` },
             h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
-            h('span', { class: 'online-player-name', text: seatName(p.name, seat) }),
+            // Nome e, embaixo dele, o selo da direção (ao lado, o selo espremia o nome até sumir).
+            h('span', { class: 'online-player-who' }, h('span', { class: 'online-player-name', text: seatName(p.name, seat) }), assistTag(p.assist)),
             h('span', { class: 'online-player-car', text: carName(p.car) }),
           );
         }),
       );
     });
     root.replaceChildren(...rows);
+  }
+
+  /** Selo da direção assistida na lista da sala ("ASSIST · Freio"), com o nome inteiro do nível no título. */
+  function assistTag(level: AssistLevel | undefined): HTMLElement | null {
+    const text = assistTagText(level);
+    return text ? h('span', { class: 'tag assist', text, attrs: { title: t(`access.level.${level}`) } }) : null;
   }
 
   // ───────────────────────────── Corrida, resultado, erro ─────────────────────────────
@@ -382,7 +395,8 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
         const color = r.seat >= 0 ? colorOf(r.seat) : null;
         return h('tr', { class: `${r.seat >= 0 ? 'human' : ''}${mine.has(r.seat) ? ' mine' : ''}`, style: color ? `--seat:${color}` : '' },
           h('td', { class: 'mono pos' }, medal(r.position) ?? String(r.position)),
-          h('td', {}, h('span', { text: r.name }), ai.has(r.seat) ? h('span', { class: 'tag ai', text: t('online.results.ai'), attrs: { title: t('online.results.aiHint') } }) : null),
+          h('td', {}, h('span', { text: r.name }), r.seat >= 0 ? assistMark(seatAssist(d.humans, r.seat)) : null,
+            ai.has(r.seat) ? h('span', { class: 'tag ai', text: t('online.results.ai'), attrs: { title: t('online.results.aiHint') } }) : null),
           h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
           h('td', { class: 'mono', text: r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf') }),
           h('td', { class: 'mono', text: formatTicks(r.bestLapTicks) }),

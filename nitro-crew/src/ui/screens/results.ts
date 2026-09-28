@@ -2,7 +2,9 @@
 import { isCoop, nextTrackId, teamRaceRank, teamRaceScore } from '../../core/championship';
 import { seatColor, type ColorPalette } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
-import type { HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
+import type { AssistLevel, HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
+import { seatAssist } from '../../access/humans';
+import '../../access/access.css';
 import { achievementDescription, achievementName } from '../../game/achievements';
 import type { ResultsScreenData, StandingsScreenData } from '../../game/contracts';
 import { cupRival } from '../../game/rivals';
@@ -29,6 +31,15 @@ function humanColor(humans: HumanEntry[], seat: number, palette: ColorPalette): 
 function rowStyle(humans: HumanEntry[], seat: number, palette: ColorPalette): string {
   const color = seat >= 0 ? humanColor(humans, seat, palette) : null;
   return color ? `--seat:${color}` : '';
+}
+
+/**
+ * Marca discreta ao lado do nome de quem correu com direção assistida (resultado local e online);
+ * o nível inteiro fica no título. Nada para quem não usou.
+ */
+export function assistMark(level: AssistLevel): HTMLElement | null {
+  if (level === 'none') return null;
+  return h('span', { class: 'assist-mark', text: t('access.hud.assist'), attrs: { title: t(`access.level.${level}`) } });
 }
 
 /** Célula da posição: medalha para o pódio, número para o resto. */
@@ -61,7 +72,7 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     )),
     h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 || isVipRow(d, r) ? 'human' : isRival(r) ? 'rival' : '', style: isVipRow(d, r) ? `--seat:${VIP_COLOR}` : rowStyle(d.humans, r.seat, ctx.settings.colorPalette) },
       positionCell(r.position),
-      h('td', {}, r.name, isRival(r) ? rivalTag() : null),
+      h('td', {}, r.name, isRival(r) ? rivalTag() : null, r.seat >= 0 ? assistMark(seatAssist(d.humans, r.seat)) : null),
       h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
       h('td', { class: 'mono' }, r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf'), r.seat >= 0 && isRecord(r.seat, 'race') ? badge() : null),
       h('td', { class: 'mono' }, formatTicks(r.bestLapTicks), r.seat >= 0 && isRecord(r.seat, 'lap') ? badge() : null),

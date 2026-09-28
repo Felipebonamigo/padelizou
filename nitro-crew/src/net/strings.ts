@@ -49,7 +49,7 @@ registerStrings('online', {
     'lobby.waitReady': 'Esperando todos ficarem prontos',
     'lobby.canStart': 'Todos prontos! LARGAR começa a corrida',
     'lobby.guestReady': 'Pronto! Esperando o anfitrião largar',
-    'lobby.guestHint': 'Escolha nome e carro e aperte PRONTO',
+    'lobby.guestHint': 'Escolha nome, carro e direção e aperte PRONTO',
     'lobby.lapsValue': '{n} voltas',
     'lobby.oneLap': '1 volta',
 
@@ -139,7 +139,7 @@ registerStrings('online', {
     'lobby.waitReady': 'Waiting for everyone to be ready',
     'lobby.canStart': 'Everyone is ready! START begins the race',
     'lobby.guestReady': 'Ready! Waiting for the host to start',
-    'lobby.guestHint': 'Pick a name and a car, then press READY',
+    'lobby.guestHint': 'Pick a name, a car and the assist, then press READY',
     'lobby.lapsValue': '{n} laps',
     'lobby.oneLap': '1 lap',
 

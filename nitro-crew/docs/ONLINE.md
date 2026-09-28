@@ -53,8 +53,16 @@ diferente → relatório `{tick, local, remoto, de quem}` no console e aviso ver
 ("Dessincronia no tick N"). A corrida continua: o aviso existe para o bug ser reportado, não para
 esconder.
 
+**Direção assistida.** Cada jogador local escolhe a sua no cartão da sala (Nenhuma, Freio, Volante,
+Completa; a do assento local nas opções, e fica salva lá). Ela vai no `info` (`LobbyPlayer.assist`, campo
+que já existia: o formato e o `PROTOCOL_VERSION` não mudaram), a lista da sala de todos mostra o selo
+"ASSIST · Completa" ao lado do nome, e a largada a copia para cada assento. Trava com o "pronto" e depois
+da largada. Detalhes em `docs/ASSISTENCIAS.md`.
+
 **Assentos.** Na largada o anfitrião numera os assentos globais 0..3 pela ordem dos computadores na
-sala e dos jogadores de cada um; o número define a cor e a posição no grid. Cada computador liga os
+sala e dos jogadores de cada um; o número define a cor e a posição no grid. A própria entrada ele monta do
+que declara naquele instante, não do eco da sala que o relay devolve: carro ou direção trocados logo antes
+do LARGAR não se perdem. Cada computador liga os
 próprios controles aos assentos que recebeu e **só desenha os viewports deles** (1 ou 2). Recordes e
 conquistas são só de quem jogou naquele computador.
 
@@ -115,8 +123,8 @@ npm run dev                         # terminal 2: abra duas janelas (uma anônim
 ```
 
 Menu → Online → **Criar sala** numa janela; na outra, digite o código e **Entrar na sala**. O
-convidado escolhe nome e carro e aperta **PRONTO**; o anfitrião escolhe pista, voltas, modo,
-dificuldade, carros e atraso e aperta **LARGAR**. Segundo jogador no mesmo computador: no lobby,
+convidado escolhe nome, carro e direção assistida e aperta **PRONTO**; o anfitrião escolhe a própria
+direção, pista, voltas, modo, dificuldade, carros e atraso e aperta **LARGAR**. Segundo jogador no mesmo computador: no lobby,
 aperte F (teclado WASD) ou A num controle.
 
 ## Testes
@@ -129,6 +137,9 @@ aperte F (teclado WASD) ou A num controle.
   ao sair; etiqueta IA no resultado; `advance` quadro a quadro; janela escondida.
 - `tests/net-session.test.ts` — numeração dos assentos (nome padrão acompanha o assento), corrida
   montada da largada igual em todas as máquinas, endereço do servidor nas opções.
+- `tests/online-assist.test.ts` — direção assistida escolhida na sala: vai no `info` e fica salva, a do
+  segundo jogador local, trava com o "pronto" e depois da largada, a do convidado chega à largada, o
+  anfitrião que troca e larga em seguida larga com a nova; rótulos da sala e do resultado.
 - `tests/net-lockstep.test.ts` — 2, 3 e 4 clientes em memória com atraso, reordenação e duplicação
   sorteados (semente fixa) chegam ao mesmo `hashRace` após 3000 ticks; entrada faltando não
   avança; pacote perdido não trava; dessincronia apontada no tick certo; reconexão por snapshot com
@@ -146,6 +157,9 @@ aperte F (teclado WASD) ou A num controle.
   `scratch/pto-*.png`. Uso: `npm run preview` e `node scripts/playtest-online.mjs http://localhost:4174/`.
   As páginas ficam em 320×180 fora das capturas: com o 3D por software um quadro grande leva
   segundos, a rede só é lida entre quadros e o lockstep anda só "atraso" ticks por ida e volta.
+- `scratch/pt-online-assist.mjs` (fora do git, como todo `scratch/`) — dois navegadores no mesmo relay:
+  cada um escolhe a direção, a do outro aparece na sala, muda antes do "pronto" e não muda depois, a
+  largada leva as duas (config e hash iguais), selo no HUD e marca ASSIST no resultado dos dois.
 
 ## Hospedar o relay num VPS
 

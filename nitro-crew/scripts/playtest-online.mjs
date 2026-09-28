@@ -120,17 +120,17 @@ let g = await until(guest, (s) => s.phase === 'lobby' && s.room === 2, 'convidad
 check(!g.isHost && g.code === h.code, `convidado na sala ${g.code}`);
 h = await until(host, (s) => s.room === 2, 'anfitrião vê o convidado');
 
-// Convidado troca de carro e fica pronto (itens: nome, carro, PRONTO, sair).
+// Convidado troca de carro e fica pronto (itens: nome, carro, direção, PRONTO, sair).
 await press(guest, 'ArrowDown');
 await press(guest, 'ArrowRight');
-await press(guest, 'ArrowDown');
+await press(guest, 'ArrowDown', 2);
 await press(guest, 'Enter');
 const guestReady = await waitFor(guest, () => window.nc.session.online.ready);
 check(guestReady, 'convidado pronto');
 await shot(guest, '02-lobby-guest');
 
-// Anfitrião: nome, carro, pista (→ próxima), voltas (← uma a menos), modo, dificuldade, carros, atraso, LARGAR.
-await press(host, 'ArrowDown', 2);
+// Anfitrião: nome, carro, direção, pista (→ próxima), voltas (← uma a menos), modo, dificuldade, carros, atraso, LARGAR.
+await press(host, 'ArrowDown', 3);
 await press(host, 'ArrowRight');
 await press(host, 'ArrowDown');
 await press(host, 'ArrowLeft');

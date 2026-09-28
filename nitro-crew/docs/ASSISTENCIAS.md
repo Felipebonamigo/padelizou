@@ -2,7 +2,7 @@
 
 Para jogar com criança ou iniciante no mesmo sofá, e para quem é daltônico ou se incomoda com efeitos.
 Tudo fica nas Opções (Opções › Corrida › **Acessibilidade › Ajustar**) e é salvo em `Settings`; a direção
-assistida também se escolhe no cartão de cada jogador do lobby.
+assistida também se escolhe no cartão de cada jogador do lobby e, no online, no cartão de cada jogador da sala.
 
 ## Direção assistida (por assento)
 
@@ -18,7 +18,11 @@ assistência completa e se soma ao contra-esterço no volante assistido; acelera
 assistência só tira velocidade, nunca põe. A borda direita se abre no trecho do box para quem esterça para lá
 (o volante assistido não tranca a entrada do box).
 
-No HUD, quem joga com assistência tem o selo discreto **ASSIST** ao lado do nome.
+No HUD, quem joga com assistência tem o selo discreto **ASSIST** ao lado do nome. O selo também aparece onde o
+HUD mostra o nome de outro jogador — companheiros do co-op (tela dividida) e a classificação da célula livre
+(3 jogadores) — e no resultado da corrida (local e online) uma marca **ASSIST** discreta fica ao lado do nome de
+quem correu assistido (o nível inteiro no título). O resultado lê o nível da config da corrida, a que a simulação
+usou (`withRaceAssists`), e não os humanos da sessão: copa retomada e carreira montam os humanos do save sem ele.
 
 ### Como funciona (núcleo, determinístico)
 
@@ -37,12 +41,23 @@ No HUD, quem joga com assistência tem o selo discreto **ASSIST** ao lado do nom
 
 ### Online
 
-A assistência de cada jogador local é a do assento local dele nas opções (P1, P2 deste computador). Ela vai no
-`info` do lobby (`LobbyPlayer.assist`), o anfitrião a copia para a largada (`SeatAssignment.assist`) e todo
-computador monta a mesma `HumanEntry.assist` (`raceConfigFrom`). Como a mistura roda dentro do `stepRace`,
-entra no lockstep como qualquer entrada: funciona online. O campo só aparece quando há assistência (a mensagem
-de quem não usa é a de antes); valor desconhecido invalida a mensagem. Build com outra regulagem tem outra
-impressão de conteúdo e não entra na mesma sala.
+Na tela da sala, cada jogador local tem a linha **Direção** no próprio cartão (Nenhuma, Freio automático,
+Volante assistido, Completa), como no lobby local. A escolha é a do assento local nas opções (P1, P2 deste
+computador) e fica salva lá (`OnlineController.assistOf`/`cycleAssist`); trocar publica o `info` na hora e a
+sala de todos mostra, ao lado do nome de cada jogador (remoto inclusive), o selo **ASSIST · Freio/Volante/
+Completa** (`assistTagText`). Muda à vontade até o "pronto" (travada com ele, como o carro) e, para o
+anfitrião, até o LARGAR; depois da largada não muda mais. O anfitrião larga com o que declara naquele instante,
+não com o eco da sala: trocar e apertar LARGAR em seguida não perde a troca.
+
+Na rede, vai no `info` do lobby (`LobbyPlayer.assist`), o anfitrião a copia para a largada
+(`SeatAssignment.assist`) e todo computador monta a mesma `HumanEntry.assist` (`raceConfigFrom`). Como a
+mistura roda dentro do `stepRace`, entra no lockstep como qualquer entrada: funciona online. O campo só aparece
+quando há assistência (a mensagem de quem não usa é a de antes); valor desconhecido invalida a mensagem. O
+formato das mensagens não mudou com o seletor (o campo já existia): `PROTOCOL_VERSION` continua o mesmo. Build
+com outra regulagem tem outra impressão de conteúdo e não entra na mesma sala.
+
+No HUD online só aparecem os jogadores deste computador (viewports, companheiros do co-op e etiquetas 3D vêm dos
+jogadores locais), então o selo de um jogador remoto aparece na sala e no resultado, não durante a corrida.
 
 ### Medido (`tests/assist.test.ts` e medições com `createRace`/`stepRace`)
 
@@ -92,7 +107,8 @@ O teste exige ΔE ≥ 30 entre jogadores e ≥ 20 até o cinza da IA na visão a
 `src/core/sim/assist.ts` · `src/access/` (tela, textos, aplicação, humanos, CSS) · ganchos em `sim/race.ts`,
 `sim/ai.ts`, `types.ts`, `constants.ts`, `data/drivers.ts`, `game/contracts.ts`, `settings.ts`, `session.ts`,
 `online-session.ts`, `net/protocol.ts`, `ui/menus.ts`, telas (lobby, opções, resultado, garagem, online),
-`render/hud.ts`, `renderer.ts`, `effects.ts` · `tests/assist.test.ts`.
+`render/hud.ts`, `renderer.ts`, `effects.ts` · `tests/assist.test.ts`, `tests/online-assist.test.ts` (seletor
+na sala, largada, trava, rótulos) e o playtest `scratch/pt-online-assist.mjs` (dois navegadores no mesmo relay).
 
 ## Em aberto (decisão do dono)
 
@@ -104,6 +120,7 @@ O teste exige ΔE ≥ 30 entre jogadores e ≥ 20 até o cinza da IA na visão a
   0,95 → profissional 1,7 · 61%, campeão 7,0 (5% pódio); 0,92 → profissional 2,5 · 27%, campeão 11,4. O amador
   não muda com nenhum teto a partir de 0,88 (a IA amadora anda a ~0,74 na reta). Com teto, o teste "completa vai
   sozinha ao box" precisa de uma volta a mais (gasta menos).
-- No online, a assistência se escolhe nas opções (não há seletor na tela da sala) e o selo ASSIST só aparece no
-  HUD de quem joga naquele computador.
 - Texto grande em 1024×640 deixa o lobby apertado (o nome do carro encosta na linha do nome).
+- Online, o selo de um jogador remoto não aparece durante a corrida: o HUD não mostra o nome de um remoto em lugar
+  nenhum (os companheiros do co-op vêm só dos viewports deste computador). Ele aparece na sala e no resultado. Se
+  fizer falta, os companheiros do co-op online podem passar a listar os remotos (com o selo).
