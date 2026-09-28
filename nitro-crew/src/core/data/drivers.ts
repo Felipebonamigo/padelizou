@@ -106,7 +106,7 @@ export const PERSONALITY_TUNING: Readonly<Record<Personality, Readonly<Personali
   // Traçado ideal (mais por dentro), passa largo, não cola em ninguém, nitro só em reta longa.
   clean: { ...NEUTRAL_TUNING, cornerSpeed: 0.99, insideLine: 0.45, follow: 0.98, avoidRange: 6, passOffset: 0.65, laneHold: 60, wander: 0.002, nitroCurveMax: 1, nitroLook: 40 },
   // Freia mais tarde, cola na traseira, passa raspando, troca de faixa toda hora, mais nitro — e erra mais.
-  aggressive: { ...NEUTRAL_TUNING, brakeLate: 1.12, cornerSpeed: 1.015, follow: 1.04, avoidRange: 3, passOffset: 0.42, laneHold: 25, wander: 0.008, nitroBase: 0.04, nitroAggression: 0.04, nitroMinSpeed: 0.75, nitroCurveMax: 3, mistake: 0.05 },
+  aggressive: { ...NEUTRAL_TUNING, brakeLate: 1.12, cornerSpeed: 1.015, follow: 1.01, avoidRange: 3, passOffset: 0.42, laneHold: 25, wander: 0.008, nitroBase: 0.04, nitroAggression: 0.04, nitroMinSpeed: 0.75, nitroCurveMax: 3, mistake: 0.05 },
   // Pilota como o neutro; a diferença é fechar a porta (sim/personality.ts).
   blocker: { ...NEUTRAL_TUNING, blocks: true },
   // Às vezes erra o ponto de frenagem e vai à grama; troca de faixa sem motivo.

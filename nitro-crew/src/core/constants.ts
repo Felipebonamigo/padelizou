@@ -65,7 +65,12 @@ export const TOW_COOLDOWN_TICKS = 3 * TICK_RATE;
 
 // Escolta (modo de festa, src/core/modes.ts e docs/MODOS.md).
 /** Velocidade máxima do VIP, fração da do carro dele: mais lento que os rivais, precisa de escolta. */
-export const ESCORT_VIP_TOP_FACTOR = 0.98;
+export const ESCORT_VIP_TOP_FACTOR = 0.99;
+/**
+ * Habilidade do VIP dentro da faixa da dificuldade (0 = a do pior rival, 1 = a do melhor). Calibrada na onda C
+ * (docs/MODOS.md): com a do melhor rival, amador e profissional passavam de 88% de sucesso.
+ */
+export const ESCORT_VIP_SKILL = { amador: 0.8, profissional: 0.7, campeao: 1 } as const;
 /** O VIP precisa terminar nesta posição ou melhor. */
 export const ESCORT_GOAL_POSITION = 3;
 /** Empurrão no VIP: um companheiro até esta distância atrás dele, na mesma faixa… */
@@ -133,7 +138,7 @@ export const BLOCK_LATERAL_RATE = 0.012;
 export const MISTAKE_CORNER_SPEED = 1.2;
 export const MISTAKE_BRAKE_LATE = 2;
 export const MISTAKE_WIDE_SEGMENTS = 20;
-export const MISTAKE_WIDE_X = 1.15;
+export const MISTAKE_WIDE_X = 1.08;
 // Direção assistida (sim/assist.ts; docs/ASSISTENCIAS.md). Entram na impressão do conteúdo do online.
 /** Margem do freio automático sobre o limite de cada curva quando quem esterça é o jogador (erra mais que a IA). */
 export const ASSIST_GRIP_BRAKE = 0.9;

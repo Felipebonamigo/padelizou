@@ -54,6 +54,16 @@ Média geral das voltas da IA nas 32 pistas, antes → depois: semente 11 (a pad
 87,14 s (+1,9%). Grama da IA (semente 11): 0,0–0,1% → 0,1–0,8% por pista; batidas carro-carro sobem ~20% (o agressivo cola). A calibragem da carreira
 (`tests/career-balance.test.ts`) e as corridas inteiras de IA e combustível por pista seguem verdes.
 
+**Onda C** (128 corridas pareadas com um humano "médio" simulado, profissional): as personalidades davam +32–39%
+de batidas IA×IA e 39 batidas no cenário por corrida (contra ~1 com todos neutros) — o agressivo colando
+(`follow` 1,04: 34 batidas por trás por corrida) e o errático abrindo até x 1,15. Agora `follow` 1,01 e
+`MISTAKE_WIDE_X` 1,08: 189 batidas IA×IA (neutro 169–177), 10,6 no cenário, grama 0,26%, e o errático ainda vai
+à grama. `npm run balance -- 150 profissional 11`: média 86,15 s (antes 86,61). O bloqueador ficou como estava:
+o humano perde +0,4% de tempo por corrida com ele (episódio médio 6–8 s atrás, máximo 23 s).
+⚠️ `follow` 1,0 cria um travamento lado a lado (o agressivo iguala a velocidade do humano e o atrito de colisão
+segura os dois a ~45% por até 80 s); 1,01 ainda deixa um resto (+11% no tempo do humano numa corrida medida). A
+causa é código — `nearestAhead` trata como "à frente" um carro sobreposto — e está anotada para caça a bug.
+
 ## Rival principal da copa
 
 | Copa | Rival | Personalidade |

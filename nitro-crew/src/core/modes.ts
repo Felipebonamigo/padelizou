@@ -3,7 +3,7 @@
 // do stepRace (race.ts chama os ganchos daqui). O torneio de sofá não precisa de nada aqui: cada
 // bateria é uma corrida rápida comum (src/core/tournament.ts).
 import {
-  ESCORT_GOAL_POSITION, ESCORT_PUSH_DISTANCE, ESCORT_PUSH_LATERAL, ESCORT_PUSH_SPEED_FACTOR, ESCORT_PUSH_TOP_CAP, ESCORT_VIP_TOP_FACTOR,
+  ESCORT_GOAL_POSITION, ESCORT_PUSH_DISTANCE, ESCORT_VIP_SKILL, ESCORT_PUSH_LATERAL, ESCORT_PUSH_SPEED_FACTOR, ESCORT_PUSH_TOP_CAP, ESCORT_VIP_TOP_FACTOR,
 } from './constants';
 import { DIFFICULTY_SKILL } from './sim/ai';
 import { wrappedDelta } from './sim/collisions';
@@ -54,12 +54,12 @@ export function extraCars(config: RaceConfig): number {
 }
 
 /**
- * Cérebro fixo do VIP (sem sorteio): a habilidade do melhor rival da dificuldade, faixa do meio, sem
- * agressividade. Quem o deixa mais lento que os rivais é ESCORT_VIP_TOP_FACTOR, na velocidade máxima.
+ * Cérebro fixo do VIP (sem sorteio): habilidade num ponto fixo da faixa da dificuldade (ESCORT_VIP_SKILL),
+ * faixa do meio, sem agressividade. Quem o deixa mais lento que os rivais é ESCORT_VIP_TOP_FACTOR, na velocidade máxima.
  */
 export function vipBrain(config: RaceConfig): AiBrain {
-  const [, hi] = DIFFICULTY_SKILL[config.difficulty];
-  return { skill: hi, laneX: 0, laneUntil: 0, lookahead: 30, aggression: 0 };
+  const [lo, hi] = DIFFICULTY_SKILL[config.difficulty];
+  return { skill: lo + (hi - lo) * ESCORT_VIP_SKILL[config.difficulty], laneX: 0, laneUntil: 0, lookahead: 30, aggression: 0 };
 }
 
 export type CarFactory = (seat: number, name: string, teamId: number, carId: string) => CarState;

@@ -98,7 +98,12 @@ O teste exige ΔE ≥ 30 entre jogadores e ≥ 20 até o cinza da IA na visão a
 
 - A completa anda a 100% da velocidade nas retas e vence a IA profissional na maioria das pistas. Para brincar
   com criança é o esperado; se incomodar, dá para limitar a reta da completa ou tirar corridas assistidas dos
-  recordes e conquistas (hoje contam como qualquer outra).
+  recordes e conquistas (hoje contam como qualquer outra). Medido na onda C (só acelerador, Falcão, 20 carros;
+  posição média · vitórias): hoje amador 1,0 · 100%, profissional 1,45 · 70%, campeão 5,1 · 2% (27% pódio). Um teto
+  de velocidade nas retas (`car.speed > topSpeed × teto` corta o acelerador, × `NITRO_SPEED_MULT` com nitro) daria:
+  0,95 → profissional 1,7 · 61%, campeão 7,0 (5% pódio); 0,92 → profissional 2,5 · 27%, campeão 11,4. O amador
+  não muda com nenhum teto a partir de 0,88 (a IA amadora anda a ~0,74 na reta). Com teto, o teste "completa vai
+  sozinha ao box" precisa de uma volta a mais (gasta menos).
 - No online, a assistência se escolhe nas opções (não há seletor na tela da sala) e o selo ASSIST só aparece no
   HUD de quem joga naquele computador.
 - Texto grande em 1024×640 deixa o lobby apertado (o nome do carro encosta na linha do nome).

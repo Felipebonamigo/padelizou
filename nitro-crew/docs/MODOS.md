@@ -80,6 +80,17 @@ entre os 3 primeiros (`ESCORT_GOAL_POSITION`) é vitória; o resultado mostra o 
 | Profissional | 1/16 | 10/16 |
 | Campeão | 0/16 | 2/16 |
 
+**Recalibragem da onda C** (humano "médio" simulado: freio automático, volante reativo com atraso, lapsos; 20 carros,
+3 voltas, 32 corridas por célula, ±8 p.p.). O VIP usava a habilidade do melhor rival e largava na pole: amador e
+profissional passavam de 88%. Agora a habilidade dele é um ponto fixo da faixa (`ESCORT_VIP_SKILL`: amador 0,8,
+profissional 0,7, campeão 1) e `ESCORT_VIP_TOP_FACTOR` foi de 0,98 para 0,99 (só pesa no campeão). VIP no top 3:
+
+| Dificuldade | 1 humano | 2 humanos | 3 humanos |
+|---|---|---|---|
+| Amador | 100% | 94% | 91% |
+| Profissional | 45% | 56% | 69% |
+| Campeão | 34% | 41% | 47% |
+
 **Estatísticas e conquistas**: tudo conta como numa corrida normal para os humanos (a posição deles é a deles; o VIP é
 da IA e não soma perfil). Recordes valem.
 
