@@ -83,6 +83,9 @@ O DOM só nasce no primeiro uso (os testes de sessão em Node criam a sessão se
   ouro (a do empurrão só com 2+) e os botões "Correr a Copa Brasil" (primeira copa, mesmos jogadores
   e assentos) e "Menu principal".
 - `save.tutorialDone = true` ao concluir, pular ou acabar o tempo.
+- **Direção assistida**: o tutorial corre sempre sem ela (ensina a frear e a esterçar), mesmo para quem
+  escolheu uma nas opções; a copa que vem depois usa a de cada um. Se o dono preferir o contrário, é
+  trocar a montagem dos humanos em `tutorial-session.ts` por `assistedHumans`.
 
 ## Verificação
 `tests/tutorial.test.ts` (31 testes) e `node scripts/playtest-tutorial.mjs http://localhost:<porta>/ scratch/tut`

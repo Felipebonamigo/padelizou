@@ -69,6 +69,13 @@ teclado e mouse funcionam, o botão do gamepad não abre o seletor). Importar su
 pista (a própria volta do jogador continua nos recordes do save); arquivo inválido, grande demais (> 64 KB)
 ou de pista desconhecida dá aviso e não muda nada.
 
+### Limite conhecido (onda C)
+Nem o fantasma nem os recordes guardam a versão do conteúdo (`CONTENT_FINGERPRINT`, que hoje só o online
+usa). Depois de um patch que mude a física ou o traçado de uma pista, o fantasma antigo segue valendo (e
+pode ser impossível de bater), e a importação aceita arquivo de outra versão. Nada quebra (o render faz o
+módulo do z); a saída, quando houver patch de física, é gravar a impressão no `GhostRecord` e nos recordes
+e descartar/arquivar os de outra versão.
+
 ## Testes
 `tests/ghost.test.ts` (16): ida e volta com erro ≤ meio passo; string só base64url e reta constante quase
 vazia; tamanho < 20 KB por volta em todas as pistas (IA e ziguezague); dado corrompido (truncado, sobra,
