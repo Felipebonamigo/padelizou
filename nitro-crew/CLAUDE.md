@@ -14,7 +14,8 @@ não use nada de fora desta pasta.
   (sem o `ws` instalado em `server/`, os testes de integração com o relay são pulados — o CI exige).
 - Playtests no Chromium headless (Playwright), com `npm run preview` (porta 4174) no ar e capturas em `scratch/`:
   `node scripts/playtest.mjs` (fluxo geral), `playtest-online.mjs` (dois computadores no mesmo relay), `playtest-controls.mjs`
-  (remapeamento e vibração), `pistas-ui.mjs` (telas de copas/pistas). `playtest-records.mjs` exige `npm run dev`.
+  (remapeamento e vibração), `pistas-ui.mjs` (telas de copas/pistas), `playtest-tutorial.mjs` ("Como jogar" de ponta a
+  ponta), `playtest-assist.mjs` (acessibilidade e direção assistida). `playtest-records.mjs` exige `npm run dev`.
   Chromium: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--use-gl=swiftshader --enable-unsafe-swiftshader`). Sob carga a
   captura de 4 jogadores passa dos 30 s padrão: rode uma cópia com `page.setDefaultTimeout(240000)`.
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
@@ -49,13 +50,15 @@ não use nada de fora desta pasta.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual** (25/09/2026): Fase 0 e a onda A da Fase 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
+- **Estado atual** (28/09/2026): Fase 0 e as ondas A e B da Fase 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
   Carreira (8 carros, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
-  lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 24 conquistas, build Electron
+  lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
-  562 testes. Documentos por área: `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`,
-  `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: onda B (rivais, assistências/acessibilidade, modos de festa,
-  tutorial, fantasma), depois caça a bugs e balanceamento; a parte gráfica fica para quando o Felipe pedir.
+  Onda B: rivais com personalidade e rival por copa, direção assistida e acessibilidade, modos de festa (torneio,
+  escolta, revezamento), tutorial "Como jogar" e fantasma do contra-relógio. 692 testes. Documentos por área:
+  `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: onda C (caça a
+  bugs por lentes, balanceamento por dados); a parte gráfica fica para quando o Felipe pedir.
 - **Como ver o jogo sem browser**: `scratch/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
@@ -63,5 +66,6 @@ não use nada de fora desta pasta.
   renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
   "Nitro Crew" é nome provisório (Fase 2.1 decide).
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks,
+  se a direção assistida completa conta para recordes e conquistas (hoje conta; ela vence a IA profissional),
   licença do código (o `package.json` diz MIT e o repositório é público, mas a venda usa a EULA comercial), nomes de carro
   que lembram modelos reais (Falcão GT, Tornado), revisão jurídica dos textos em `docs/legal/`.

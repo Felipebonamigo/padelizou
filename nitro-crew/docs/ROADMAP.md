@@ -40,9 +40,9 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 | 1.4 | Co-op afinado: quando o empurrão vale, quanto o vácuo rende, se o elástico está "trapaceando"; modo Versus (times por assento) e regra de classificação individual testados | A + V | 2–3 |
 | 1.5 | ✅ (parte do agente: remapeamento por dispositivo, vibração, tela de controles; `docs/CONTROLES.md`) Gamepads reais: Xbox, PlayStation, genérico USB, 4 ao mesmo tempo; Steam Input ligado/desligado; remapeamento na tela de controles | A + V | 2–3 |
 | 1.6 | Desempenho: medir 4 viewports a 1080p e 1440p numa máquina fraca (notebook com gráfico integrado) e no Steam Deck; ajustar qualidade baixa/média (sombras, bloom, draw distance); sem estouro de memória em 1 h de jogo | A + V | 3–4 |
-| 1.7 | ✅ campeonato salvo (menu → Continuar); fantasma do contra-relógio fica para a onda B · Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
+| 1.7 | ✅ campeonato salvo (menu → Continuar) e fantasma da melhor volta no contra-relógio (`docs/FANTASMA.md`) · Campeonato salvo no meio (continuar a copa depois de fechar o jogo); fantasma no contra-relógio (grava a melhor volta e mostra o carro-fantasma) | A | 3–4 |
 | 1.8 | Caça a bugs por lentes: física, IA, colisões, menus/lobby, entrada, áudio, save; cada defeito vira teste de regressão | A | 4–5 |
-| 1.9 | Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
+| 1.9 | ✅ "Como jogar": 6 passos na pista-escola, com oferta no primeiro acesso (`docs/TUTORIAL.md`) · Tutorial de 90 segundos (primeira corrida guiada: acelerar, nitro, box, empurrão) | A | 5 |
 | 1.10 | Polimento visual procedural (antes da arte final): chama do nitro mais legível, brilho de lente do sol, reflexos do neon no asfalto molhado (env map da cidade), cabine com colunas e faróis com geometria, poeira com textura, terreno com segunda oitava de ruído e transição de cor por altura, animação de troca de posição no HUD | A | 2–5 |
 
 Marco **M1 (semana 5)**: "fatia vertical jogável por terceiros" — enviar build a 5 amigos com controles.
@@ -70,10 +70,10 @@ Marco **M2 (semana 14)**: "arte e som finais no jogo" — página "Em breve" na 
 | 3.1 | ✅ 32 pistas em 8 países (África do Sul, Austrália, Escandinávia, Mediterrâneo; cenários existentes; `docs/PISTAS.md`) · 32 pistas em 8 países (como o original): +4 países (África do Sul, Austrália, Escandinávia, França/Itália), 4 pistas cada, escritas no DSL; teste de IA por pista já cobre as novas sozinho | A | 6–10 |
 | 3.2 | Clima e período: chuva e neve (aderência, visual, spray), noite com faróis; pistas com túnel e ponte | A | 8–11 |
 | 3.3 | ✅ Carreira: prêmios, carteira da equipe, 6 melhorias com teto por carro, 4 carros à venda, rivais que evoluem, ajuda na eliminação (`docs/CARREIRA.md`) · Modo Carreira: prêmio em dinheiro por corrida; entre corridas, upgrades (motor, pneus, tanque, nitro extra) e compra de carros (8 no total); senha/continuar | A | 10–15 |
-| 3.4 | Rivais com personalidade (agressivo, limpo, "bloqueador") e um rival principal por copa que provoca no resultado | A | 12–14 |
-| 3.5 | Modos co-op extras: **Revezamento** (cada volta um jogador, com troca no box) e **Escolta** (a equipe protege um carro lento contra a IA) · Torneio local de sofá (chaveamento de até 8 pessoas alternando controles) | A | 14–18 |
-| 3.6 | ✅ 24 conquistas, estatísticas por jogador, tela de recordes com 3 abas (`docs/ESTATISTICAS.md`) · Conquistas (as 12 previstas em `src/game/desktop.ts` + 8), estatísticas e recordes por pista com nome | A | 16–18 |
-| 3.7 | Acessibilidade: daltonismo (cores dos jogadores), tamanho do HUD, direção assistida (freio automático em curva) para crianças | A | 18–20 |
+| 3.4 | ✅ 4 personalidades e rival por copa, com provocação no resultado (`docs/RIVAIS.md`) · Rivais com personalidade (agressivo, limpo, "bloqueador") e um rival principal por copa que provoca no resultado | A | 12–14 |
+| 3.5 | ✅ torneio de sofá, escolta e revezamento no menu Festa (`docs/MODOS.md`) · Modos co-op extras: **Revezamento** (cada volta um jogador, com troca no box) e **Escolta** (a equipe protege um carro lento contra a IA) · Torneio local de sofá (chaveamento de até 8 pessoas alternando controles) | A | 14–18 |
+| 3.6 | ✅ 25 conquistas, estatísticas por jogador, tela de recordes com 3 abas (`docs/ESTATISTICAS.md`) · Conquistas (as 12 previstas em `src/game/desktop.ts` + 8), estatísticas e recordes por pista com nome | A | 16–18 |
+| 3.7 | ✅ direção assistida em 3 níveis por jogador, 2 paletas para daltonismo, HUD 80–150%, texto grande, reduzir efeitos (`docs/ASSISTENCIAS.md`) · Acessibilidade: daltonismo (cores dos jogadores), tamanho do HUD, direção assistida (freio automático em curva) para crianças | A | 18–20 |
 
 Marco **M3 (semana 20)**: conteúdo completo da 1.0.
 

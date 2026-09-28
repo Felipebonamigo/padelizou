@@ -247,5 +247,5 @@ com a regra de sempre: lixo vira ausente, campo ruim é consertado, nunca lança
 
 - **Senha** (o "senha/continuar" do roteiro): o save cobre o continuar; senha só faria sentido para
   levar a carreira a outra máquina, e o Steam Cloud (5.4) resolve isso melhor.
-- Um espaço de carreira só; vender carro ou peça; a IA comprando carros novos; rival principal por
-  copa (é o passo 3.4).
+- Um espaço de carreira só; vender carro ou peça; a IA comprando carros novos. (O rival principal por copa
+  entrou no passo 3.4 — `docs/RIVAIS.md`.)

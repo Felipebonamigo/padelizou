@@ -19,8 +19,8 @@ npm run dev        # abre em http://localhost:5174
 Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 
 ## Como jogar (resumo)
-- **Menu principal**: Campeonato, Carreira, Corrida rápida, Contra-relógio, Online, Recordes, Opções, Controles
-  (e Continuar, quando há copa ou carreira salva). No lobby, cada pessoa entra apertando um botão: teclado 1
+- **Menu principal**: Campeonato, Carreira, Festa, Corrida rápida, Contra-relógio, Online, Recordes, Opções, Controles,
+  Como jogar (e Continuar, quando há copa ou carreira salva). No lobby, cada pessoa entra apertando um botão: teclado 1
   (setas, Enter), teclado 2 (WASD, F) ou um controle (A/Start). Escolha o carro e marque "pronto".
 - **Controles padrão** (todos remapeáveis em Controles, por dispositivo): teclado 1 com setas, **Espaço** nitro,
   **M/N** marcha, **Esc** pausa; teclado 2 com WASD, **F** nitro, **E/Q** marcha; controle com analógico/d-pad,
@@ -33,13 +33,21 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
   carros novos para comprar; os rivais evoluem copa a copa. Regras em `docs/CARREIRA.md`.
 - **Online**: até 4 jogadores em computadores diferentes (1–2 por computador) numa sala com código, pelo servidor
   de retransmissão (`npm run relay`). Detalhes e hospedagem em `docs/ONLINE.md`.
+- **Festa** (só local): torneio de sofá com até 8 pessoas revezando controles, escolta (a equipe protege um carro
+  lento) e revezamento (um carro por dupla, troca no box). Regras em `docs/MODOS.md`.
+- **Rivais**: cada piloto da IA tem personalidade (limpo, agressivo, bloqueador, errático) e cada copa tem um rival
+  principal que provoca no resultado (`docs/RIVAIS.md`).
+- **Contra-relógio** com fantasma da melhor volta (`docs/FANTASMA.md`). **Como jogar**: corrida guiada de 6 passos
+  (`docs/TUTORIAL.md`).
+- **Acessibilidade**: direção assistida por jogador (freio, volante, completa), paletas para daltonismo, HUD 80–150%,
+  texto grande e reduzir efeitos (`docs/ASSISTENCIAS.md`).
 
 ## Conteúdo
 - 32 pistas em 8 países (Brasil, EUA, Japão, Europa, África do Sul, Austrália, Escandinávia, Mediterrâneo), 6
   cenários × dia/entardecer/noite (`docs/PISTAS.md`).
 - 8 carros (4 livres, 4 da carreira) com trocas claras de velocidade, aceleração, curva e consumo.
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box pelo consumo medido volta a volta.
-- Estatísticas por jogador, recordes por pista e 24 conquistas (`docs/ESTATISTICAS.md`).
+- Estatísticas por jogador, recordes por pista e 25 conquistas (`docs/ESTATISTICAS.md`).
 - Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (procedural até a arte final).
 - Tela dividida 1–4, minimapa, HUD por jogador, PT-BR/EN, jukebox procedural com 4 músicas.
 
@@ -47,7 +55,7 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 
 ```bash
 npm run typecheck              # TypeScript estrito
-npm test                       # vitest (~560 testes, ~1 min): núcleo, IA, corridas inteiras por pista, carreira, online, UI pura
+npm test                       # vitest (~690 testes, ~1 min): núcleo, IA, corridas inteiras por pista, carreira, online, UI pura
 (cd server && npm ci) && NC_REQUIRE_RELAY=1 npm test   # inclui a integração com o relay de verdade (o CI roda assim)
 npm run smoke -- copacabana 2  # corrida completa sem interface (pista, nº de humanos em piloto automático)
 npm run balance -- 150         # IA × IA em todas as pistas: voltas, grama, batidas, tempo de CPU
