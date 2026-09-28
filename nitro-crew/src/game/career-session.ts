@@ -6,7 +6,7 @@ import {
   beginCareerCup, careerAiLevel, careerHumans, newCareer, settleCareerRace, type CareerState,
 } from '../core/career';
 import { isCoop, nextTrackId } from '../core/championship';
-import { SEAT_COLORS } from '../core/data/drivers';
+import { seatColor } from '../core/data/drivers';
 import { hashString } from '../core/rng';
 import { trackDef } from '../core/track';
 import type { ChampionshipState, HumanEntry, RaceConfig, RaceResultRow } from '../core/types';
@@ -35,7 +35,7 @@ export function compactHumans(input: SeatBinder, humans: HumanEntry[]): HumanEnt
     const device = devices[i];
     if (device) input.bindSeat(i, device);
     if (h.seat === i) return { ...h };
-    return { ...h, seat: i, teamId: coop ? h.teamId : i, color: SEAT_COLORS[i] ?? h.color };
+    return { ...h, seat: i, teamId: coop ? h.teamId : i, color: seatColor(i) };
   });
 }
 

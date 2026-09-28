@@ -6,7 +6,7 @@ import { applyRaceResult, createChampionship, isCoop, teamRaceRank } from './cha
 import { UPGRADE_MAX_LEVEL } from './constants';
 import { CARS } from './data/cars';
 import { CUPS } from './data/cups';
-import { HUMAN_TEAM_ID, SEAT_COLORS } from './data/drivers';
+import { HUMAN_TEAM_ID, seatColor } from './data/drivers';
 import { upgradeCap } from './sim/stats';
 import type { ChampionshipState, CupDef, HumanEntry, RaceResultRow, UpgradeLevels, UpgradePart } from './types';
 
@@ -253,7 +253,7 @@ export function newCareer(humans: HumanEntry[], cups: readonly CupDef[] = CUPS):
 export function careerHumans(career: CareerState): HumanEntry[] {
   return career.drivers.map((d, i) => ({
     seat: i, name: d.name, carId: d.garage.carId, teamId: career.coop ? HUMAN_TEAM_ID : i,
-    color: SEAT_COLORS[i] ?? '#ffffff', upgrades: levelsOf(d.garage, d.garage.carId),
+    color: seatColor(i), upgrades: levelsOf(d.garage, d.garage.carId),
   }));
 }
 

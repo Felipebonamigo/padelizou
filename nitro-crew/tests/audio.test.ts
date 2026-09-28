@@ -33,7 +33,7 @@ function frameFor(paused = false): RenderFrame {
   return {
     state, track, paused, time: 1, coop: false, showHud: true,
     viewports: [{ seat: 0, carIndex, color: '#fff', name: 'P1', messages: [] }],
-    options: { quality: 'high', showMinimap: true, screenShake: true },
+    options: { quality: 'high', showMinimap: true, screenShake: true, reduceEffects: false, palette: 'default' },
   };
 }
 

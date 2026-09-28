@@ -123,6 +123,12 @@ export interface CoopAssists {
   catchup: boolean;
 }
 
+/**
+ * Direção assistida de um humano (sim/assist.ts): nenhuma, freio automático antes das curvas
+ * fortes, volante que segura o carro no asfalto, ou completa (o jogador só acelera e usa nitro).
+ */
+export type AssistLevel = 'none' | 'brake' | 'steer' | 'full';
+
 export interface HumanEntry {
   /** Assento local 0..3. */
   seat: number;
@@ -134,6 +140,8 @@ export interface HumanEntry {
   color: string;
   /** Melhorias do carro (carreira); ausente = carro de fábrica. */
   upgrades?: UpgradeLevels;
+  /** Direção assistida deste jogador; ausente = 'none'. Vai na config, então vale igual em todo cliente online. */
+  assist?: AssistLevel;
 }
 
 export interface RaceConfig {

@@ -8,7 +8,7 @@ import {
 import { MAX_SEATS } from '../core/constants';
 import { CARS } from '../core/data/cars';
 import { CUPS } from '../core/data/cups';
-import { AI_TEAM_ID_BASE, SEAT_COLORS } from '../core/data/drivers';
+import { AI_TEAM_ID_BASE, seatColor } from '../core/data/drivers';
 import type { ChampionshipState, HumanEntry, RaceResultRow, StandingRow, TeamStandingRow, UpgradeLevels } from '../core/types';
 import type { SaveData, SavedCup } from './contracts';
 import { isRecord, pickNumber, pickString } from './settings';
@@ -183,7 +183,7 @@ function sanitizeHuman(v: unknown): HumanEntry | null {
   if (!isRecord(v)) return null;
   const seat = strictInt(v.seat, 0, MAX_SEATS - 1); const teamId = strictInt(v.teamId, 0, AI_TEAM_ID_BASE - 1);
   if (seat === null || teamId === null || !knownCar(v.carId)) return null;
-  return { seat, name: name(v.name, `P${seat + 1}`), carId: v.carId, teamId, color: pickString(v.color, SEAT_COLORS[seat] ?? '#ffffff', 16) };
+  return { seat, name: name(v.name, `P${seat + 1}`), carId: v.carId, teamId, color: pickString(v.color, seatColor(seat), 16) };
 }
 
 /** Copa normal salva; null se algo essencial não fecha (copa, semente, humanos com assentos 0..n-1). */

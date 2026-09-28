@@ -1,6 +1,8 @@
 // Opções do jogador: leitura e gravação no localStorage com saneamento. Nada aqui lança —
 // sem localStorage (Electron sem sessão, testes em Node, modo privado) tudo cai nos padrões.
-import type { CoopAssists, Difficulty } from '../core/types';
+import { COLOR_PALETTES } from '../core/data/drivers';
+import { ASSIST_LEVELS } from '../core/sim/assist';
+import type { AssistLevel, CoopAssists, Difficulty } from '../core/types';
 import type { Lang } from '../i18n';
 import { sanitizeBindings } from '../ui/remap/bindings';
 import { normalizeServerUrl } from '../net/protocol';
@@ -11,6 +13,8 @@ export const TOTAL_CARS_MIN = 8;
 export const TOTAL_CARS_MAX = 20;
 export const QUICK_LAPS_MIN = 2;
 export const QUICK_LAPS_MAX = 8;
+export const HUD_SCALE_MIN = 0.8;
+export const HUD_SCALE_MAX = 1.5;
 
 export const LANGUAGES: readonly Lang[] = ['pt', 'en'];
 export const QUALITIES: readonly Quality[] = ['low', 'medium', 'high'];
@@ -94,6 +98,12 @@ function pickAssists(v: unknown): CoopAssists {
   };
 }
 
+/** Uma assistência por assento (4), cada uma válida; o que faltar ou vier errado vira 'none'. */
+function pickSeatAssists(v: unknown): AssistLevel[] {
+  const r = Array.isArray(v) ? v : [];
+  return DEFAULT_SETTINGS.seatAssists.map((d, i) => pickEnum(r[i], ASSIST_LEVELS, d));
+}
+
 /** Funde `raw` com os padrões, validando faixas e enumerações. Nunca lança. */
 export function sanitizeSettings(raw: unknown): Settings {
   const r = isRecord(raw) ? raw : {};
@@ -119,6 +129,12 @@ export function sanitizeSettings(raw: unknown): Settings {
     vibration: pickBool(r.vibration, d.vibration),
     serverUrl: normalizeServerUrl(r.serverUrl) ?? d.serverUrl,
     ghost: pickBool(r.ghost, d.ghost),
+    seatAssists: pickSeatAssists(r.seatAssists),
+    colorPalette: pickEnum(r.colorPalette, COLOR_PALETTES, d.colorPalette),
+    // Em passos de 10%, como a tela de opções anda.
+    hudScale: Math.round(pickNumber(r.hudScale, HUD_SCALE_MIN, HUD_SCALE_MAX, d.hudScale) * 10) / 10,
+    largeText: pickBool(r.largeText, d.largeText),
+    reduceEffects: pickBool(r.reduceEffects, d.reduceEffects),
   };
 }
 

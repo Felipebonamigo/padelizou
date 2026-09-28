@@ -2,7 +2,7 @@
 import { AI_BRAKE_CURVE, CATCHUP_DISTANCE, MISTAKE_BRAKE_LATE, MISTAKE_CORNER_SPEED, MISTAKE_WIDE_SEGMENTS, MISTAKE_WIDE_X, RIVAL_SKILL_BONUS, SEGMENT_LENGTH } from '../constants';
 import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
-import type { AiBrain, CarState, Difficulty, Personality, PlayerInput, RaceState, Track } from '../types';
+import type { AiBrain, CarState, CarStats, Difficulty, Personality, PlayerInput, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
 import { distanceToFinish, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD } from './fuel';
 import { blockLane, curveZoneStart, missesBraking, tuningOf } from './personality';
@@ -36,7 +36,7 @@ export function createBrain(state: RaceState, difficulty: Difficulty, slot: numb
 }
 
 /** Distância (em unidades, positiva = à frente) até o carro mais próximo na mesma faixa. */
-function nearestAhead(state: RaceState, track: Track, car: CarState, lateral: number, range: number): CarState | null {
+export function nearestAhead(state: RaceState, track: Track, car: CarState, lateral: number, range: number): CarState | null {
   let best: CarState | null = null;
   let bestD = range;
   for (const o of state.cars) {
@@ -56,6 +56,30 @@ function bestHumanProgress(state: RaceState): number {
   let best = -Infinity;
   for (const c of state.cars) if (c.seat >= 0 && c.progress > best) best = c.progress;
   return best;
+}
+
+/**
+ * Ponto de frenagem: a maior fração da velocidade máxima (até `cap`) com que dá para chegar a cada
+ * curva forte dos próximos `lookahead` segmentos freando a partir de agora. `grip` escala o limite
+ * de cada curva (holdableSpeedFraction). Usado pela direção assistida (sim/assist.ts); é a conta da IA sem
+ * personalidade — o aiInput repete o laço com o freio tardio e os erros de frenagem de cada piloto.
+ */
+export function brakingTarget(track: Track, z: number, def: CarStats, grip: number, lookahead: number, cap: number): number {
+  let target = cap;
+  const brakeDecel = def.brake * 0.8 + def.accel * 0.45;
+  for (let i = 0; i < lookahead; i++) {
+    const seg = segmentAt(track, z + i * SEGMENT_LENGTH);
+    if (Math.abs(seg.curve) < AI_BRAKE_CURVE) continue;
+    const limit = holdableSpeedFraction(def, seg.curve) * grip * def.topSpeed;
+    const allowed = Math.sqrt(limit * limit + 2 * brakeDecel * i * SEGMENT_LENGTH) / def.topSpeed;
+    if (allowed < target) target = allowed;
+  }
+  return target;
+}
+
+/** Contra-esterço que anula o empurrão da curva `curve` na fração de velocidade `sf` (0..1). */
+export function counterSteer(def: CarStats, sf: number, curve: number): number {
+  return sf > 0.05 ? (centrifugalRate(def) * sf * curve) / steerRate(def) : 0;
 }
 
 export function aiInput(state: RaceState, track: Track, car: CarState): PlayerInput {
@@ -153,7 +177,7 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
 
   // ── Volante: vai para a faixa e compensa o empurrão da curva.
   const sf = Math.min(1, speedFrac);
-  const counter = sf > 0.05 ? (centrifugalRate(def) * sf * seg.curve) / steerRate(def) : 0;
+  const counter = counterSteer(def, sf, seg.curve);
   const toLane = (laneTarget - car.x) * 5;
   input.steer = Math.max(-1, Math.min(1, toLane + counter));
 

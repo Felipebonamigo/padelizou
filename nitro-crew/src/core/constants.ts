@@ -134,3 +134,23 @@ export const MISTAKE_CORNER_SPEED = 1.2;
 export const MISTAKE_BRAKE_LATE = 2;
 export const MISTAKE_WIDE_SEGMENTS = 20;
 export const MISTAKE_WIDE_X = 1.15;
+// Direção assistida (sim/assist.ts; docs/ASSISTENCIAS.md). Entram na impressão do conteúdo do online.
+/** Margem do freio automático sobre o limite de cada curva quando quem esterça é o jogador (erra mais que a IA). */
+export const ASSIST_GRIP_BRAKE = 0.9;
+/** Margem do freio automático quando a assistência também esterça (assistência completa). */
+export const ASSIST_GRIP_FULL = 1.05;
+/** Segmentos que o freio automático olha à frente (mais 30 em velocidade máxima, como a IA). */
+export const ASSIST_LOOKAHEAD = 26;
+/** A partir deste |x| o volante assistido empurra de volta para o asfalto (a grama começa em OFFROAD_X). */
+export const ASSIST_EDGE_X = 0.7;
+/** Força do empurrão da borda por unidade de x além de ASSIST_EDGE_X (6: segura o volante todo para fora antes de 0,9). */
+export const ASSIST_EDGE_GAIN = 6;
+/** Volante do jogador acima disto sobrepõe a assistência completa. */
+export const ASSIST_STEER_DEADZONE = 0.15;
+/** Faixa em que a assistência completa mantém o carro quando o jogador solta o volante. */
+export const ASSIST_LANE_LIMIT = 0.55;
+/**
+ * Volante assistido sozinho: só tira velocidade onde nem o volante todo seguraria a curva (o mesmo
+ * ponto de frenagem, com margem acima do limite do volante).
+ */
+export const ASSIST_GRIP_STEER = 1.1;

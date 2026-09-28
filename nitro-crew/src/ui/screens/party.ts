@@ -1,7 +1,7 @@
 // Telas dos modos de festa (docs/MODOS.md): a escolha do modo ("Festa"), a inscrição do torneio de
 // sofá, "passe o controle" entre baterias, a classificação do torneio e o pedaço do resultado que
 // cada modo acrescenta. O estado do torneio vem de ctx.party (src/game/party-session.ts).
-import { SEAT_COLORS } from '../../core/data/drivers';
+import { seatColor } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import {
   currentHeat, finalistCount, heatSizes, setupError, TOURNAMENT_MAX_PLAYERS, TOURNAMENT_MAX_ROUNDS, TOURNAMENT_MIN_PLAYERS,
@@ -275,7 +275,7 @@ export function handoffScreen(api: ScreenApi): ScreenInstance {
     const p = tour.setup.players[player];
     const keep = holders[seat] === player;
     const car = ctx.cars.find((c) => c.id === p.carId);
-    return h('div', { class: `handoff-card glass${keep ? ' keep' : ''}`, style: `--seat:${SEAT_COLORS[seat] ?? '#fff'}`, attrs: { 'data-seat': String(seat) } },
+    return h('div', { class: `handoff-card glass${keep ? ' keep' : ''}`, style: `--seat:${seatColor(seat, ctx.settings.colorPalette)}`, attrs: { 'data-seat': String(seat) } },
       h('div', { class: 'handoff-head' },
         h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
         h('span', { class: 'handoff-device' }, icon(ctx.input.seatDevice(seat)?.startsWith('kb') ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(seat) })),

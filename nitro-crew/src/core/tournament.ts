@@ -3,7 +3,7 @@
 // posição na corrida (POINTS_TABLE), final com os melhores e desempate em cadeia. O estado é JSON
 // puro; a sessão (src/game/party-session.ts) monta cada bateria como uma corrida rápida comum.
 import { POINTS_TABLE } from './constants';
-import { SEAT_COLORS } from './data/drivers';
+import { seatColor } from './data/drivers';
 import type { HumanEntry, RaceResultRow } from './types';
 
 export const TOURNAMENT_MIN_PLAYERS = 2;
@@ -166,7 +166,7 @@ export function currentHeat(t: TournamentState): HeatInfo | null {
 /** Humanos da corrida da bateria: cada um por si (time = assento), na cor do controle que segura. */
 export function heatHumans(t: TournamentState, info: HeatInfo): HumanEntry[] {
   return info.players.map((p, seat) => ({
-    seat, name: t.setup.players[p].name, carId: t.setup.players[p].carId, teamId: seat, color: SEAT_COLORS[seat] ?? '#ffffff',
+    seat, name: t.setup.players[p].name, carId: t.setup.players[p].carId, teamId: seat, color: seatColor(seat),
   }));
 }
 

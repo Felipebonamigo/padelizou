@@ -9,7 +9,7 @@
 import * as SIM_CONSTANTS from '../core/constants';
 import { TICK_RATE } from '../core/constants';
 import { CARS } from '../core/data/cars';
-import { SEAT_COLORS } from '../core/data/drivers';
+import { seatColor } from '../core/data/drivers';
 import { hashString } from '../core/rng';
 import { deserializeRace, serializeRace } from '../core/serialize';
 import { DIFFICULTY_SKILL } from '../core/sim/ai';
@@ -19,7 +19,7 @@ import { NetClient, type SocketFactory } from '../net/client';
 import { Lockstep, type DesyncReport } from '../net/lockstep';
 import {
   DEFAULT_INPUT_DELAY, isTakeover, MAX_HUMANS, MAX_INPUT_DELAY, MAX_LOCAL_PLAYERS, MAX_RECORDS_PER_MESSAGE, MIN_INPUT_DELAY, normalizeRoomCode,
-  packRecords, PROTOCOL_VERSION, RECONNECT_WINDOW_MS, unpackRecordList,
+  packRecords, PROTOCOL_VERSION, RECONNECT_WINDOW_MS, unpackRecordList, withAssist,
   type ClientInfo, type ClientMessage, type ContentRules, type ErrorCode, type InputRecord, type RoomSettings,
   type RoomView, type SeatAssignment, type ServerMessage, type Snapshot, type StartConfig,
 } from '../net/protocol';
@@ -151,7 +151,7 @@ export function assignSeats(room: RoomView): SeatAssignment[] {
   for (const c of [...room.clients].sort((a, b) => a.id - b.id)) {
     for (const p of c.info?.players ?? []) {
       if (out.length >= MAX_HUMANS) return out;
-      out.push({ seat: out.length, client: c.id, name: seatName(p.name, out.length), car: p.car });
+      out.push(withAssist({ seat: out.length, client: c.id, name: seatName(p.name, out.length), car: p.car }, p.assist));
     }
   }
   return out;
@@ -159,9 +159,9 @@ export function assignSeats(room: RoomView): SeatAssignment[] {
 
 /** A configuração da corrida que todas as máquinas montam a partir da largada. */
 export function raceConfigFrom(cfg: StartConfig): RaceConfig {
-  const humans: HumanEntry[] = cfg.seats.map((s) => ({
-    seat: s.seat, name: s.name, carId: s.car, teamId: cfg.versus ? s.seat : 0, color: SEAT_COLORS[s.seat] ?? '#ffffff',
-  }));
+  const humans: HumanEntry[] = cfg.seats.map((s) => withAssist({
+    seat: s.seat, name: s.name, carId: s.car, teamId: cfg.versus ? s.seat : 0, color: seatColor(s.seat),
+  }, s.assist));
   return {
     trackId: cfg.trackId, laps: cfg.laps, humans, totalCars: Math.max(cfg.totalCars, humans.length),
     difficulty: cfg.difficulty, manualGear: cfg.manualGear, assists: { ...cfg.assists }, seed: cfg.seed,
@@ -267,7 +267,7 @@ export class OnlineController implements RaceDriver {
       for (const seat of ls.missingSeats()) {
         const a = this.start.seats.find((s) => s.seat === seat);
         const client = this.room?.clients.find((c) => c.id === a?.client);
-        waiting.push({ seat, name: a?.name ?? `P${seat + 1}`, color: SEAT_COLORS[seat] ?? '#fff', lost: !client || !client.connected });
+        waiting.push({ seat, name: a?.name ?? `P${seat + 1}`, color: seatColor(seat, this.host.settings.colorPalette), lost: !client || !client.connected });
       }
     }
     const windowMs = this.opts.reconnectWindowMs ?? RECONNECT_WINDOW_MS;
@@ -342,7 +342,8 @@ export class OnlineController implements RaceDriver {
 
   private info(): ClientInfo {
     return {
-      players: this.locals.map((p, i) => ({ name: p.name.trim() || `P${i + 1}`, car: p.car })),
+      // A assistência de cada jogador local é a do assento local dele nas opções (P1, P2).
+      players: this.locals.map((p, i) => withAssist({ name: p.name.trim() || `P${i + 1}`, car: p.car }, this.host.settings.seatAssists[i])),
       ready: this.ready,
     };
   }

@@ -4,6 +4,7 @@ import { COUNTDOWN_TICKS, TICK_RATE } from '../core/constants';
 import { createChampionship, nextTrackId } from '../core/championship';
 import { CARS } from '../core/data/cars';
 import { CUPS, cupDef } from '../core/data/cups';
+import { seatColor } from '../core/data/drivers';
 import { createRace, formatTicks } from '../core/sim/race';
 import { getTrack, TRACKS, trackDef } from '../core/track';
 import { hashString } from '../core/rng';
@@ -12,6 +13,8 @@ import { NEUTRAL_INPUT } from '../core/types';
 import { setLanguage, t } from '../i18n';
 import '../i18n/core';
 import './strings';
+import { applyAccessibility } from '../access/apply';
+import { assistedHumans } from '../access/humans';
 import { createAudio } from '../audio/audio';
 import { songForScenery } from '../audio/music';
 import { createRenderer } from '../render/renderer';
@@ -96,6 +99,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   setLanguage(settings.language);
 
   const renderer = createRenderer(canvas, hudRoot);
+  applyAccessibility(settings, hudRoot, uiRoot);
   const input = createInput(window, { bindings: () => settings.controls, vibration: () => settings.vibration });
   const rumbleMemory = newRumbleMemory();
   const audio = createAudio();
@@ -173,7 +177,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function baseConfig(trackId: string, laps: number, humans: HumanEntry[], seed: number): RaceConfig {
     return {
-      trackId, laps, humans, totalCars: Math.max(humans.length, settings.totalCars),
+      trackId, laps, humans: assistedHumans(humans, settings.seatAssists), totalCars: Math.max(humans.length, settings.totalCars),
       difficulty: settings.difficulty, manualGear: settings.manualGear, assists: { ...settings.assists }, seed,
     };
   }
@@ -383,13 +387,13 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
         const own = r.messages.get(h.seat) ?? [];
         const fixed = party.hudLines(r.mode, r.state, h.seat);
         return {
-          seat: h.seat, carIndex: carIndexOfSeat(r.state, h.seat), color: h.color, name: h.name,
+          seat: h.seat, carIndex: carIndexOfSeat(r.state, h.seat), color: seatColor(h.seat, settings.colorPalette), name: h.name,
           messages: fixed.length ? [...fixed, ...own] : own,
         };
       });
     return {
       state: r.state, track: r.track, viewports,
-      options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake },
+      options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake, reduceEffects: settings.reduceEffects, palette: settings.colorPalette },
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
       showHud: menus.current() === null || menus.current() === 'pause' || (r.driver !== null && online.quitOpen),
       ghost: r.ghost?.frame(r.state),
@@ -475,8 +479,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   function applySettings(next: Settings): void {
     const languageChanged = next.language !== settings.language;
     const fullscreenChanged = next.fullscreen !== settings.fullscreen;
-    Object.assign(settings, next, { assists: { ...next.assists } });
+    Object.assign(settings, next, { assists: { ...next.assists }, seatAssists: [...next.seatAssists] });
     saveSettings(settings);
+    applyAccessibility(settings, hudRoot, uiRoot);
     audio.setVolumes(settings.masterVolume, settings.musicVolume, settings.sfxVolume);
     if (languageChanged) { setLanguage(settings.language); menus.refreshLanguage(); }
     if (fullscreenChanged) setFullscreen(settings.fullscreen).catch(() => undefined);

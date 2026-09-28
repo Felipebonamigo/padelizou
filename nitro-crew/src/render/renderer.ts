@@ -157,7 +157,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
       const rect = rects[i];
       cam.setAspect(rect.w / Math.max(1, rect.h));
       const seg = segmentAt(track, car.z);
-      effects.shake(vp.seat, frame.time, frame.options.screenShake, shake);
+      effects.shake(vp.seat, frame.time, frame.options.screenShake && !frame.options.reduceEffects, shake);
       cam.update(rf, car.x, car.speed / car.stats.topSpeed, seg.curve, car.nitroTicks > 0, frame.time, shake);
       effects.pose(rf, track, (rect.h * dpr) / (2 * Math.tan((cam.camera.fov * Math.PI / 180) / 2)));
       setViewport(rect);

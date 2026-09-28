@@ -10,7 +10,7 @@ import {
 } from '../../core/career';
 import { nextTrackId } from '../../core/championship';
 import { SPEED_TO_KMH, UPGRADE_MAX_LEVEL } from '../../core/constants';
-import { SEAT_COLORS } from '../../core/data/drivers';
+import { seatColor } from '../../core/data/drivers';
 import { effectiveStats } from '../../core/sim/stats';
 import type { CarDef, CarStats, UpgradeLevels, UpgradePart } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav } from '../../game/contracts';
@@ -92,14 +92,14 @@ function careerSummary(ctx: MenuContext, career: CareerState): HTMLElement {
   const raceN = (career.champ?.raceIndex ?? 0) + 1;
   const money = career.coop
     ? h('span', { class: 'mono strong', text: formatMoney(career.wallets[0] ?? 0) })
-    : h('span', { class: 'cs-list' }, career.drivers.map((d, i) => h('span', { class: 'cs-chip', style: `--seat:${SEAT_COLORS[i]}` },
+    : h('span', { class: 'cs-list' }, career.drivers.map((d, i) => h('span', { class: 'cs-chip', style: `--seat:${seatColor(i, ctx.settings.colorPalette)}` },
       h('b', { text: `P${i + 1}` }), h('span', { class: 'mono', text: formatMoney(career.wallets[i] ?? 0) }))));
   const bought = new Set(career.drivers.flatMap((d) => d.garage.owned)).size;
   const row = (label: string, ...value: Array<HTMLElement | string>) => h('div', { class: 'cs-row' }, h('span', { class: 'cs-label', text: label }), h('span', { class: 'cs-value' }, value));
   return h('div', { class: 'career-summary' },
     career.completed ? h('div', { class: 'verdict good' }, icon('trophy'), h('span', { text: t('career.hub.completed') })) : null,
     row(t('career.hub.mode'), `${modeText(career)} · ${career.drivers.length}P`),
-    row(t('career.hub.drivers'), h('span', { class: 'cs-list' }, career.drivers.map((d, i) => h('span', { class: 'cs-chip', style: `--seat:${SEAT_COLORS[i]}` },
+    row(t('career.hub.drivers'), h('span', { class: 'cs-list' }, career.drivers.map((d, i) => h('span', { class: 'cs-chip', style: `--seat:${seatColor(i, ctx.settings.colorPalette)}` },
       h('b', { text: `P${i + 1}` }), h('span', { text: d.name }), h('span', { class: 'muted-inline', text: ctx.cars.find((c) => c.id === d.garage.carId)?.name ?? '' }))))),
     career.completed ? null : row(t('career.hub.cup'),
       h('span', { class: 'cs-cup' }, `${cup?.flag ?? ''} ${cup ? cupName(cup.id) : ''} — ${t('career.hub.race', { n: Math.min(raceN, raceCount), m: raceCount })}`),
@@ -366,7 +366,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     };
 
     const walletLabel = career.coop ? t('career.garage.teamWallet') : t('career.garage.wallet');
-    const el = h('div', { class: `gp glass${ui.ready ? ' ready' : ''}`, style: `--seat:${SEAT_COLORS[seat] ?? '#fff'}` },
+    const el = h('div', { class: `gp glass${ui.ready ? ' ready' : ''}`, style: `--seat:${seatColor(seat, ctx.settings.colorPalette)}` },
       h('div', { class: 'gp-head' },
         h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
         h('span', { class: 'gp-name', text: d.name }),
@@ -405,7 +405,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     const lines: HTMLElement[] = [h('strong', { class: 'gr-title', text: t('career.garage.report.title', { track: trackName(r.trackId) }) })];
     for (const row of r.rows) {
       const name = career.drivers[row.driver]?.name ?? `P${row.driver + 1}`;
-      lines.push(h('span', { class: 'gr-chip mono', style: `--seat:${SEAT_COLORS[row.driver] ?? '#fff'}`, text: t('career.garage.report.row', { name, pos: row.position, prize: formatMoney(row.prize) }) }));
+      lines.push(h('span', { class: 'gr-chip mono', style: `--seat:${seatColor(row.driver, ctx.settings.colorPalette)}`, text: t('career.garage.report.row', { name, pos: row.position, prize: formatMoney(row.prize) }) }));
     }
     if (r.teamBonus > 0) lines.push(h('span', { class: 'gr-chip team mono', text: t('career.garage.report.team', { rank: r.teamRank, prize: formatMoney(r.teamBonus) }) }));
     let banner: HTMLElement | null = null;
