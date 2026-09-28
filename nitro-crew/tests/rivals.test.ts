@@ -21,7 +21,7 @@ import { unlockAchievements, newTelemetry } from '../src/game/achievements';
 import { settleRace } from '../src/game/raceEnd';
 import { sanitizeSave } from '../src/game/save';
 import { createCareerSession, type CareerHost } from '../src/game/career-session';
-import { DEFAULT_SAVE, type Menus, type SaveData } from '../src/game/contracts';
+import { DEFAULT_SAVE, DEFAULT_SETTINGS, type Menus, type SaveData } from '../src/game/contracts';
 import {
   cupDuels, cupRival, duelLineKind, hasOwnLines, raceDuel, RIVAL_LINE_KINDS, rivalBeatenEveryRace, rivalLine, rivalRaceSummary,
   rivalStandingsSummary,
@@ -298,7 +298,7 @@ describe('rival da copa', () => {
     const save: SaveData = { ...structuredClone(DEFAULT_SAVE), career: newCareer([human(0)]) };
     let config: RaceConfig | null = null;
     const host: CareerHost = {
-      save, menus: { show() {}, hide() {} } as unknown as Menus, input: { seatDevice: () => null, bindSeat() {}, unbindSeat() {} },
+      save, settings: structuredClone(DEFAULT_SETTINGS), menus: { show() {}, hide() {} } as unknown as Menus, input: { seatDevice: () => null, bindSeat() {}, unbindSeat() {} },
       baseConfig: (trackId, laps, humans, seed) => ({ trackId, laps, humans, totalCars: 20, difficulty: 'profissional', manualGear: false, assists: NO_ASSISTS, seed }),
       beginRace: (c) => { config = c; }, toIdle() {}, randomSeed: () => 42, persist() {},
     };

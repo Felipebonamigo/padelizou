@@ -240,7 +240,7 @@ export function createTutorialSession(host: TutorialHost): TutorialSession {
 
   function start(humans: HumanEntry[]): void {
     // Co-op sempre (o empurrão é entre companheiros), carros de fábrica, assentos contíguos.
-    const hs = compactHumans(host.input, humans).map((h): HumanEntry => ({ seat: h.seat, name: h.name, carId: h.carId, teamId: 0, color: seatColor(h.seat, host.settings.colorPalette) }));
+    const hs = compactHumans(host.input, humans, host.settings.seatAssists).map((h): HumanEntry => ({ seat: h.seat, name: h.name, carId: h.carId, teamId: 0, color: seatColor(h.seat, host.settings.colorPalette) }));
     if (hs.length === 0) return;
     lastHumans = hs;
     const config: RaceConfig = {

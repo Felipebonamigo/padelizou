@@ -14,7 +14,7 @@ import { t } from '../i18n';
 import { ordinalText } from '../party/rules';
 import '../party/strings';
 import { compactHumans, type SeatBinder } from './career-session';
-import type { HudMessage, Menus, PartyMode, PartyResultsInfo, RaceMode } from './contracts';
+import type { HudMessage, Menus, PartyMode, PartyResultsInfo, RaceMode, Settings } from './contracts';
 
 /** Inscrição do torneio sendo montada: sobrevive a ir e voltar do lobby. */
 export interface TournamentDraft {
@@ -26,6 +26,8 @@ export interface TournamentDraft {
 /** O que a festa precisa da sessão. */
 export interface PartyHost {
   menus: Menus;
+  /** Opções da sessão (objeto estável; o seatAssists dentro dele é trocado a cada mudança). */
+  settings: Settings;
   input: SeatBinder;
   /** Configuração da sessão (dificuldade, câmbio, assistências, carros na pista) para a pista dada. */
   baseConfig(trackId: string, laps: number, humans: HumanEntry[], seed: number): RaceConfig;
@@ -143,7 +145,7 @@ export function createPartySession(host: PartyHost): PartyController {
   function startTournament(setup: TournamentSetup, seats: number[]): void {
     // Os controles do lobby vão para os assentos 0..n-1 (a bateria usa sempre os primeiros).
     const placeholders: HumanEntry[] = [...seats].sort((a, b) => a - b).map((seat) => ({ seat, name: '', carId: 'falcao', teamId: 0, color: seatColor(seat) }));
-    compactHumans(host.input, placeholders);
+    compactHumans(host.input, placeholders, host.settings.seatAssists);
     tournament = createTournament({ ...setup, controllers: Math.max(1, Math.min(setup.controllers, seats.length)) });
     host.menus.show('handoff');
   }

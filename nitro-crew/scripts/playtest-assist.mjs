@@ -84,8 +84,8 @@ await press('ArrowDown', await mainIndex('corrida r(á|a)pida|quick race'));
 await press('Enter');
 await press('Enter'); await press('KeyF');
 check(await page.evaluate(() => window.nc.session.menus.current()) === 'lobby', 'lobby com dois jogadores');
-await press('ArrowDown');
-check((await focused()).startsWith('Direção'), `P1 no seletor de direção (${await focused()})`);
+// O cartão pode ter mais linhas acima (nome, carro, dupla da festa): desce até a direção pelo rótulo.
+check(await downTo('Direção'), `P1 no seletor de direção (${await focused()})`);
 await press('ArrowRight'); // steer → full
 await press('KeyS'); await press('KeyD'); // P2: none → brake
 s = await settings();

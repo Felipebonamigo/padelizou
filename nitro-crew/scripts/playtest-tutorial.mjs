@@ -47,7 +47,7 @@ await frame();
 await held('Enter');
 check(await menu() === 'main', `título → menu principal (${await menu()})`);
 check(await page.evaluate(() => !!document.querySelector('.scr-main .tut-offer')), 'primeira abertura: o menu oferece o tutorial');
-// Pior caso de altura: com "Continuar" e "Sair" o menu chega a 12 itens; tem que caber em 1280×720.
+// Pior caso de altura: o menu com "Continuar" e "Sair" (13 itens hoje) tem que caber em 1280×720.
 const fit = await page.evaluate(() => {
   const list = document.querySelector('.scr-main .menu-list');
   const first = list.firstElementChild;
@@ -58,7 +58,7 @@ const fit = await page.evaluate(() => {
   cont.remove(); quit.remove();
   return r;
 });
-check(fit.items === 12 && fit.top >= 0 && fit.bottom <= fit.h, `menu com 12 itens cabe em 720p (painel ${fit.top}..${fit.bottom} de ${fit.h})`);
+check(fit.items >= 12 && fit.top >= 0 && fit.bottom <= fit.h, `menu com ${fit.items} itens cabe em 720p (painel ${fit.top}..${fit.bottom} de ${fit.h})`);
 await page.evaluate(() => {
   const list = document.querySelector('.scr-main .menu-list');
   const first = list.firstElementChild;

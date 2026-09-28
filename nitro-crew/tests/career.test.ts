@@ -22,11 +22,12 @@ import { applyTow } from '../src/core/sim/coop';
 import { createRace } from '../src/core/sim/race';
 import { aiStats, carStats, effectiveStats } from '../src/core/sim/stats';
 import { getTrack } from '../src/core/track';
-import type { CarStats, HumanEntry, RaceConfig, RaceResultRow, UpgradeLevels, UpgradePart } from '../src/core/types';
+import type { AssistLevel, CarStats, HumanEntry, RaceConfig, RaceResultRow, UpgradeLevels, UpgradePart } from '../src/core/types';
 import { NEUTRAL_INPUT } from '../src/core/types';
 import { DEFAULT_SAVE } from '../src/game/contracts';
 import { clearCupProgress, saveCupProgress, unlockCar } from '../src/game/career-save';
 import { compactHumans } from '../src/game/career-session';
+import { assistedHumans } from '../src/access/humans';
 import { recordRaceResults, sanitizeSave } from '../src/game/save';
 import { ALL_ASSISTS, NO_ASSISTS, human, humanCar, idle, run, syntheticTrack } from './helpers';
 
@@ -651,6 +652,22 @@ describe('save da carreira e da copa em andamento', () => {
     const out = compactHumans(input, [human(0), { ...human(2), name: 'Bia' }]);
     expect(out.map((h) => [h.seat, h.name])).toEqual([[0, 'P1'], [1, 'Bia']]);
     expect(bound).toEqual(['kb1', 'gp0', null, null]);
+  });
+
+  it('a direção assistida escolhida no cartão vai junto com o dispositivo (não herda a do assento de destino)', () => {
+    // P1 e P3 no lobby; a opção do P2 (vazio) era "completa", sobra de outra pessoa. P3 escolheu "nenhuma".
+    const bound: Array<string | null> = ['kb1', null, 'gp0', null];
+    const input = {
+      seatDevice: (s: number) => bound[s] ?? null,
+      bindSeat: (s: number, d: string) => { bound[s] = d; },
+      unbindSeat: (s: number) => { bound[s] = null; },
+    };
+    const seatAssists: AssistLevel[] = ['brake', 'full', 'none', 'none'];
+    const lobby = assistedHumans([human(0), { ...human(2), name: 'Bia' }], seatAssists);
+    const out = compactHumans(input, lobby, seatAssists);
+    expect(assistedHumans(out, seatAssists).map((h) => [h.name, h.assist ?? 'none'])).toEqual([['P1', 'brake'], ['Bia', 'none']]);
+    // O lobby seguinte mostra no P2 a escolha de quem agora está nele.
+    expect(seatAssists.slice(0, 2)).toEqual(['brake', 'none']);
   });
 });
 

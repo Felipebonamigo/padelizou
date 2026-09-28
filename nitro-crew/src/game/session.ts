@@ -158,7 +158,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   // Festa: os menus leem o torneio daqui; os menus em si nascem depois (o host os busca na hora).
   const party = createPartySession({
-    get menus() { return menus; }, input, baseConfig, randomSeed,
+    get menus() { return menus; }, settings, input, baseConfig, randomSeed,
     beginRace: (config, mode, humans) => beginRace(config, mode, humans),
   });
   const menus = createMenus({
@@ -169,7 +169,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   });
   session.menus = menus;
   const career = createCareerSession({
-    save, menus, input, baseConfig, beginRace, toIdle, randomSeed, persist: () => saveSave(save),
+    save, settings, menus, input, baseConfig, beginRace, toIdle, randomSeed, persist: () => saveSave(save),
   });
   session.tutorial = createTutorialSession({
     save, settings, menus, input, toIdle, startCup, randomSeed, persist: () => saveSave(save),
@@ -222,7 +222,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   function startCup(cupId: string, lobbyHumans: HumanEntry[]): void {
     const cup = cupDef(cupId);
     // Assentos contíguos: a copa fica salva (1.7a) e o "Continuar" religa a partir do P1.
-    const humans = compactHumans(input, lobbyHumans);
+    const humans = compactHumans(input, lobbyHumans, settings.seatAssists);
     champ = createChampionship(cupId, humans);
     cupSeed = hashString(cupId + ':' + randomSeed());
     saveCupProgress(save, champ, cupSeed, humans);

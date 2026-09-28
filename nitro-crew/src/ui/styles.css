@@ -253,9 +253,13 @@ html, body {
 }
 .btn.btn-main.focus { background: rgba(255, 255, 255, 0.08); border-color: transparent; box-shadow: none; transform: scale(1.03) translateX(calc(4 * var(--u))); }
 .btn.btn-main.btn-quit { margin-top: calc(8 * var(--u)); color: var(--muted); }
-/* Com "Continuar" e "Sair" o menu chega a 11 itens: mais compacto para caber em 720p. */
+/* Com muitos itens ("Continuar", "Sair"), mais compacto para caber em 720p. */
 .menu-list:has(> :nth-child(10)) { gap: calc(2 * var(--u)); }
 .menu-list:has(> :nth-child(10)) .btn.btn-main { font-size: calc(20 * var(--u)); padding-top: calc(6 * var(--u)); padding-bottom: calc(6 * var(--u)); }
+/* Com Festa e Como jogar, o pior caso (Continuar + Sair) são 13 itens: aperta mais um pouco. */
+.menu-list:has(> :nth-child(13)) { gap: calc(1 * var(--u)); }
+.menu-list:has(> :nth-child(13)) .btn.btn-main { padding-top: calc(4 * var(--u)); padding-bottom: calc(4 * var(--u)); }
+.menu-list:has(> :nth-child(13)) .btn.btn-main.btn-quit { margin-top: calc(4 * var(--u)); }
 
 /* Seletor "Rótulo   ‹ valor ›" */
 .sel {

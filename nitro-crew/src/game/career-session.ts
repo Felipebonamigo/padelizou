@@ -9,8 +9,8 @@ import { isCoop, nextTrackId } from '../core/championship';
 import { seatColor } from '../core/data/drivers';
 import { hashString } from '../core/rng';
 import { trackDef } from '../core/track';
-import type { ChampionshipState, HumanEntry, RaceConfig, RaceResultRow } from '../core/types';
-import type { Menus, RaceMode, SaveData } from './contracts';
+import type { AssistLevel, ChampionshipState, HumanEntry, RaceConfig, RaceResultRow } from '../core/types';
+import type { Menus, RaceMode, SaveData, Settings } from './contracts';
 import { cupRival } from './rivals';
 
 /** O pedaço do InputProvider que troca assentos (testável sem DOM). */
@@ -24,13 +24,19 @@ export interface SeatBinder {
  * Humanos com assentos contíguos (0..n-1), levando o dispositivo de cada um junto. Quem saiu de um
  * assento do meio do lobby deixa buraco (P1 e P3); a copa e a carreira salvas guardam os assentos,
  * e o lobby de "Continuar" sempre os preenche a partir do P1 — então eles nascem contíguos.
+ * `seatAssists` (opções) é reordenado junto: a direção assistida escolhida no cartão segue o dispositivo,
+ * senão quem vai do P3 para o P2 correria com a opção que sobrou no P2 (docs/ASSISTENCIAS.md).
  */
-export function compactHumans(input: SeatBinder, humans: HumanEntry[]): HumanEntry[] {
+export function compactHumans(input: SeatBinder, humans: HumanEntry[], seatAssists?: AssistLevel[]): HumanEntry[] {
   const sorted = humans.slice().sort((a, b) => a.seat - b.seat);
   if (sorted.every((h, i) => h.seat === i)) return sorted.map((h) => ({ ...h }));
   const coop = isCoop(sorted);
   const devices = sorted.map((h) => input.seatDevice(h.seat));
   for (const h of sorted) input.unbindSeat(h.seat);
+  if (seatAssists) {
+    const chosen = sorted.map((h) => seatAssists[h.seat] ?? 'none');
+    chosen.forEach((level, i) => { seatAssists[i] = level; });
+  }
   return sorted.map((h, i) => {
     const device = devices[i];
     if (device) input.bindSeat(i, device);
@@ -42,6 +48,8 @@ export function compactHumans(input: SeatBinder, humans: HumanEntry[]): HumanEnt
 /** O que a carreira precisa da sessão. */
 export interface CareerHost {
   save: SaveData;
+  /** Opções da sessão (objeto estável; o seatAssists dentro dele é trocado a cada mudança). */
+  settings: Settings;
   menus: Menus;
   input: SeatBinder;
   /** Configuração da sessão (dificuldade, câmbio, assistências, carros na pista) para a pista dada. */
@@ -74,7 +82,7 @@ export function createCareerSession(host: CareerHost): CareerSession {
   }
 
   function start(humans: HumanEntry[], resume: boolean): void {
-    const hs = compactHumans(host.input, humans);
+    const hs = compactHumans(host.input, humans, host.settings.seatAssists);
     if (!resume || !current()) host.save.career = newCareer(hs);
     host.persist();
     showGarage();
